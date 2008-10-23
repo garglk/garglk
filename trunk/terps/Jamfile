@@ -332,7 +332,7 @@ if $(MAKE_SCARE) = yes
 
     if $(OS) = MINGW
     {
-        SubDirHdrs $(TOP) support zlib-1.2.2 ;
+        SubDirHdrs $(TOP) support zlib-1.2.3 ;
     }
 
     Main scare :
