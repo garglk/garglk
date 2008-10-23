@@ -3,7 +3,9 @@
 #include <string.h>
 #include <math.h>
 #include <ctype.h>
+#ifndef _WIN32
 #include <unistd.h> /* for getcwd() */
+#endif
 
 #include "glk.h"
 #include "glkstart.h"
