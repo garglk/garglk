@@ -5,7 +5,7 @@
 
 SubDir TOP support ;
 
-SubDir TOP support zlib-1.2.2 ;
+SubDir TOP support zlib-1.2.3 ;
 ObjDir libz ;
 
 SharedLibrary libz :
@@ -13,10 +13,10 @@ SharedLibrary libz :
     zutil.c inflate.c infback.c inftrees.c inffast.c
     ;
 
-SubDir TOP support libpng-1.2.8 ;
+SubDir TOP support libpng-1.2.32 ;
 ObjDir libpng ;
 
-SubDirHdrs $(SUBDIR) .. zlib-1.2.2 ;
+SubDirHdrs $(SUBDIR) .. zlib-1.2.3 ;
 
 SharedLibrary libpng :
     png.c pngerror.c pngget.c pngmem.c pngpread.c
