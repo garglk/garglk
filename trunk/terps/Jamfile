@@ -160,12 +160,12 @@ if $(MAKE_GIT) = yes
 
 # -----------------------------------------------------------------------
 #
-# Glulxe 0.3.5
+# Glulxe 0.4.3
 #
 
 if $(MAKE_GLULXE) = yes
 {
-    SubDir TOP terps glulxe ;
+    SubDir TOP terps glulxe-0.4.3 ;
     ObjDir glulxe ;
 
     if $(OS) != MINGW { SubDirCcFlags -DOS_UNIX ; }
