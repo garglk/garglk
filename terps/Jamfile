@@ -137,14 +137,14 @@ if $(MAKE_FROTZ) = yes
 
 # -----------------------------------------------------------------------
 #
-# Git 1.1.0
+# Git 1.2.0
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
 
 if $(MAKE_GIT) = yes
 {
-    SubDir TOP terps git ;
+    SubDir TOP terps git-1.2.0 ;
     ObjDir git ;
 
     SubDirCcFlags -DUSE_INLINE ;
