@@ -1,0 +1,347 @@
+# -----------------------------------------------------------------------
+#
+# Big fat Jamfile for all the minor terps, so we don't need to
+# mess with the original files and directories more than we have to.
+#
+
+SubDir TOP terps ;
+
+MAKE_ADVSYS     ?= yes ;
+MAKE_AGILITY    ?= yes ;
+MAKE_ALAN2      ?= yes ;
+MAKE_ALAN3      ?= yes ;
+MAKE_FROTZ      ?= yes ;
+MAKE_GIT        ?= yes ;
+MAKE_GLULXE     ?= yes ;
+MAKE_HUGO       ?= yes ;
+MAKE_LEVEL9     ?= yes ;
+MAKE_MAGNETIC   ?= yes ;
+MAKE_NITFOL     ?= no ;
+MAKE_SCARE      ?= yes ;
+
+# -----------------------------------------------------------------------
+#
+# AdvSys 1.2 + ANSI + NewParser + parts of glkize
+#
+
+if $(MAKE_ADVSYS)
+{
+    SubDir TOP terps advsys ;
+    ObjDir advsys ;
+
+    SubDirCcFlags -w ;
+
+    Main advsys :
+        advmsg.c advtrm.c advprs.c advdbs.c advint.c advjunk.c advexe.c
+        glkstart.c ;
+
+    APPS += advsys ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Agility 1.1.1 with Glk
+#
+# Agility uses some bad voodoo to get filenames back from glk filerefs.
+# We have three options:
+#   1) use the bad voodoo (only works on unixes)
+#   2) don't use glk file prompts (GLK_ANSI_ONLY)
+#   3) use garglk extension garglk_fileref_get_name (GARGLK)
+#
+
+if $(MAKE_AGILITY) = yes
+{
+    SubDir TOP terps agility ;
+    ObjDir agility ;
+
+    SubDirCcFlags -DGLK ;
+    SubDirCcFlags -DGLK_ANSI_ONLY ;
+
+    Main agility :
+        agtread.c gamedata.c util.c agxfile.c auxfile.c filename.c
+        parser.c exec.c runverb.c metacommand.c savegame.c debugcmd.c
+        agil.c token.c disassemble.c object.c
+        interface.c os_glk.c 
+        ;
+
+    APPS += agility ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Alan interpreter 2.8.6
+#
+# Fixed a couple of bugs (needsp needs resetting in a few places).
+# Added glk file prompts for gargoyle using garglk_fileref_get_name.
+#
+
+if $(MAKE_ALAN2) = yes
+{
+    SubDir TOP terps alan2 ;
+    ObjDir alan2 ;
+
+    SubDirCcFlags -funsigned-char -Wno-parentheses -DGLK -DREVERSED ;
+
+    Main alan2 :
+        arun.c main.c debug.c args.c exe.c inter.c parse.c rules.c stack.c
+        decode.c term.c reverse.c readline.c params.c sysdep.c
+        glkstart.c glkio.c alan.version.c
+        ;
+
+    APPS += alan2 ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Alan interpreter 3 alpha 1
+#
+# Some fixes, same as Cugel.
+#
+
+if $(MAKE_ALAN3) = yes
+{
+    SubDir TOP terps alan3 ;
+    ObjDir alan3 ;
+
+    SubDirCcFlags -funsigned-char -DGLK ;
+
+    Main alan3 :
+        arun.c main.c debug.c args.c exe.c inter.c parse.c rules.c stack.c
+        decode.c term.c reverse.c readline.c params.c sysdep.c
+        glkstart.c glkio.c alan.version.c
+        set.c act.c state.c syserr.c save.c
+        ;
+
+    APPS += alan3 ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Frotz 2.43 / glk port
+#
+
+if $(MAKE_FROTZ) = yes
+{
+    SubDir TOP terps frotz ;
+    ObjDir frotz ;
+
+    Main frotz :
+        buffer.c err.c fastmem.c files.c
+        input.c main.c math.c object.c process.c quetzal.c random.c
+        redirect.c sound.c stream.c table.c text.c variable.c
+        glkscreen.c glkmisc.c
+        ;
+
+    APPS += frotz ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Git 1.1.0
+#
+# Reworked startup code to redirect errors to Glk windows.
+#
+
+if $(MAKE_GIT) = yes
+{
+    SubDir TOP terps git ;
+    ObjDir git ;
+
+    SubDirCcFlags -DUSE_INLINE ;
+
+    Main git :
+        git.c memory.c compiler.c opcodes.c operands.c
+        peephole.c terp.c glkop.c search.c git_unix.c
+        savefile.c saveundo.c gestalt.c
+        ;
+
+    APPS += git ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Glulxe 0.3.5
+#
+
+if $(MAKE_GLULXE) = yes
+{
+    SubDir TOP terps glulxe ;
+    ObjDir glulxe ;
+
+    if $(OS) != MINGW { SubDirCcFlags -DOS_UNIX ; }
+
+    Main glulxe :
+        main.c files.c vm.c exec.c funcs.c operand.c string.c glkop.c
+        serial.c search.c gestalt.c osdepend.c unixstrt.c
+        ;
+
+    APPS += glulxe ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Hugo 3.1.02
+#
+# Include hemedia.c from heglk.c for sound/graphics support.
+# Added set_base_file so it can find resource files.
+#
+
+if $(MAKE_HUGO) = yes
+{
+    SubDir TOP terps hugo ;
+    ObjDir hugo ;
+
+    SubDirHdrs $(SUBDIR) source ;
+    SubDirHdrs $(SUBDIR) heglk ;
+
+    SubDirCcFlags
+        -DGLK
+        -DCOMPILE_V25
+        -DNO_KEYPRESS_CURSOR
+        "-DHUGO_INLINE=\"static inline\""
+        ;
+
+    SEARCH_SOURCE =
+        [ FDirName $(SUBDIR) source ]
+        [ FDirName $(SUBDIR) heglk ] ;
+
+    Main hugo :
+        he.c heexpr.c hemisc.c heobject.c heparse.c heres.c herun.c heset.c 
+        stringfn.c heglk.c heglkunix.c
+        ;
+
+    APPS += hugo ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Level9 3.0
+#
+# Disabled the status bar that just contained a static version string.
+# Added graphics support.
+#
+
+if $(MAKE_LEVEL9) = yes
+{
+    SubDir TOP terps level9 ;
+    ObjDir level9 ;
+
+    SubDirCcFlags
+        -DBITMAP_DECODER
+        -DNEED_STRICMP_PROTOTYPE
+        -Dstricmp=gln_strcasecmp
+        -Dstrnicmp=gln_strncasecmp 
+        ;
+
+    SEARCH_SOURCE = $(SUBDIR)
+        [ FDirName $(SUBDIR) Glk ] ;
+
+    Main level9 : level9.c glk.c ;
+
+    APPS += level9 ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Magnetic 2.2
+#
+# Disable layered drawing, because that is slower than drawing
+# all the pixels with fill_rect -- the opposite of Xglk.
+#
+# Delay opening the status window, because for games that don't use it
+# magnetic shows a static version string only. I don't like that.
+#
+# Made shaded border around pictures if-defable.
+#
+
+if $(MAKE_MAGNETIC) = yes
+{
+    SubDir TOP terps magnetic ;
+    ObjDir magnetic ;
+
+    SubDirHdrs $(SUBDIR) Generic ;
+
+    SEARCH_SOURCE =
+        [ FDirName $(SUBDIR) Generic ]
+        [ FDirName $(SUBDIR) Glk ] ;
+
+    # SubDirCcFlags -DNOBORDER ;
+
+    Main magnetic : emu.c glk.c ;
+
+    APPS += magnetic ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Nitfol 0.5 + lots of patches
+#
+# Define the stuff you want:
+#
+# DEBUGGING   Compile in the debugger.  See DEBUG for details
+# SMART_TOKENISER Tries to correct typos.
+# TWOS16SHORT Try to speed up some operations if 'short' is a 16 bit two's
+#             complement number on your system.  Note that this might slow down
+#             Pentium IIs.
+# FAST_SIGNED If you're on something which does signed math much faster than
+#             unsigned, define this
+# FAST        Normally, nitfol does lots of tests to make sure values are in
+#             range, both to alert games of unportable actions and to prevent
+#             nitfol from crashing.  Defining this removes those tests, so will
+#             speed up the game a bit.  Completely legal games should run
+#             exactly the same with or without this flag, so if you have a
+#             slow computer and you know all the games you will be running are
+#             completely legal, define this.
+# USE_INLINE  If your C compiler uses the keyword 'inline' to inline functions
+# NO_LIBC     Cause nitfol to use its own functions rather than your libc
+# NO_TICK     If you don't need glk_tick, define this (minor speed improvement)
+# _GNU_SOURCE Use GNU functions (currently just canonicalize_file_name)
+# _BSD_SOURCE Use BSD functions (just realpath)
+# _XOPEN_SOURCE (also lets nitfol use realpath)
+
+if $(MAKE_NITFOL) = yes
+{
+    SubDir TOP terps nitfol ;
+    ObjDir nitfol ;
+
+    SubDirCcFlags -DSMART_TOKENISER -DDEBUGGING -DFAST -DUSE_INLINE -DNO_TICK ;
+
+    # we do this contorsion to overcome the max line length limit of jam
+    Library libnitfol : 
+        automap.c solve.c infix.c copying.c debug.c inform.c quetzal.c
+        undo.c op_call.c decode.c errmesg.c globals.c iff.c init.c 
+        io.c z_io.c op_jmp.c op_math.c op_save.c op_table.c op_v6.c oplist.c
+        stack.c zscii.c tokenise.c struct.c objects.c portfunc.c hash.c
+        sound.c graphics.c blorb.c 
+        ;
+    Main nitfol : main.c startunix.c ;
+    LinkLibraries nitfol : libnitfol ;
+
+    APPS += nitfol ;
+}
+
+# -----------------------------------------------------------------------
+#
+# SCARE 1.1.1 for Adrift games
+#
+
+if $(MAKE_SCARE) = yes
+{
+    SubDir TOP terps scare ;
+    ObjDir scare ;
+
+    if $(OS) = MINGW
+    {
+        SubDirHdrs $(TOP) support zlib-1.2.2 ;
+    }
+
+    Main scare :
+        sctafpar.c sctaffil.c scprops.c scvars.c scexpr.c scprintf.c
+        scinterf.c scparser.c sclibrar.c scrun.c scevents.c scnpcs.c
+        scobjcts.c sctasks.c screstrs.c scgamest.c scserial.c
+        scresour.c scutils.c scdebug.c os_glk.c
+        ;
+
+    APPS += scare ;
+}
+

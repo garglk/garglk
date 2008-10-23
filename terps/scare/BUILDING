@@ -1,0 +1,64 @@
+
+SCARE source code restricts itself to ANSI/ISO C, so SCARE should build on
+any platform that offers an ANSI/ISO C compiler.
+
+By default, SCARE builds its simplest incarnation, an interpreter that reads
+from and writes to standard input.  If your platform has 'make', you should be
+able to build this with
+
+    make scare
+
+If your platform doesn't have 'make', you should be able to build this by
+moving the file os_glk.c to a different directory, unzipping the required
+Zlib source files, then running
+
+    cc -o scare *.c
+
+For a list of the required Zlib sources that you'll need to extract from the
+Zlib zip archive, where you don't have 'make', consult the definitions of
+ZSOURCES and ZHEADERS in the SCARE Makefile.
+
+The two files os_ansi.c and os_glk.c are alternative user interfaces for the
+core interpreter.  All other source files are either core interpreter C files
+themselves (everything called sc*.h and sc*.c), or source code from Zlib
+(everything else).  The plain 'scare' links with os_ansi, 'glkscare' links
+with os_glk.
+
+So, to build the Glk version of SCARE, you can use
+
+    make glkscare
+
+To build 'glkscare' you'll need to have a built Glk library installed.  If you
+don't, build one and store somewhere convenient, then edit the Makefile so
+that GLKDIR references it.  The default Makefile expects a directory called
+../xglk, containing a built Xglk library and associated header files.  You
+may also want to vary the setting for GLKARCH in the Makefile if building for
+Glk on non-Linux platforms.
+
+A note about the include in the Makefile -- it uses the 'sinclude' syntax to
+try to include Glk's make inclusion.  'sinclude' is, apparently, a bit more
+portable than GNU make's '-include', and GNU make certainly understands it.
+However, if your make doesn't understand 'sinclude', just comment out this
+line in the Makefile when building non-Glk SCARE.
+
+Another minor note -- SCARE's Makefile uses a fairly high level of C compiler
+paranoia, and one of the GCC warning options it uses is -Wshadow.  Some SCARE
+code also uses a local variable 'index', which has the potential to clash with
+the BSD index() function.  This generally causes no problems with GCC 2.95, as
+SCARE is careful to compile with -ansi, which excludes the index() function
+prototype.  With GCC 3, however, it's been reported that the index() prototype
+is brought in even with -ansi, and this can cause warnings about 'index'.  If
+you find this happening to you, it's simplest to just turn off -Wshadow.
+
+If you're feeling adventurous, you can also build an IFP plugin for SCARE:
+
+    make scare-1.3.3.so
+
+As well as needing Glk, this requires that you have installed IFP on your
+Linux system.  The plugin will run all of the same games.  The amount of
+malloc'ing done by the interpreter when running large Adrift games stresses
+IFP's garbage collection, so you may notice slight slowness playing such
+games through IFP.  The PK Girl is a large Adrift game; however, it is
+somewhat atypical -- ones of more normal dimensions (A Party To Murder, and
+Unraveling God, both from Comp02) work through IFP without noticeable delay.
+

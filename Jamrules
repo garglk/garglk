@@ -1,0 +1,135 @@
+# You will probably need to edit this file to get everything to compile.
+# You may want to review the SharedLink action in Jamshared as well.
+#
+
+BUILD ?= RELEASE ;
+
+USESDL = yes ;
+# USEFMOD = yes ;
+
+CC      = gcc ;
+C++     = g++ ;
+
+if $(CROSS)
+{
+    CROSS   = "(cross-compiling)" ;
+    OS      = MINGW ;
+    SUFEXE  = .exe ;
+    CC      = i386-mingw32-gcc ;
+    C++     = i386-mingw32-g++ ;
+    AR      = i386-mingw32-ar cru ;
+    RANLIB  = i386-mingw32-ranlib ;
+    LINK    = $(CC) ;
+}
+
+switch $(OS)
+{
+    case MINGW :
+        Echo "OS is MINGW (win32) $(CROSS)" ;
+        SUFDLL  = .dll ;
+        SHRLINKLIBS = -lcomdlg32 -lgdi32 ;
+        LINKLIBS = -lcomdlg32 -lgdi32 ;
+
+	if $(BUILD) = RELEASE
+	{
+	    SHRLINKLIBS += -mwindows ;
+	    LINKLIBS += -mwindows ;
+	}
+
+	if $(USESDL)
+	{
+	    SHRLINKLIBS += $(TOP)/support/sdl/SDL_mixer.dll ;
+	    SHRLINKLIBS += $(TOP)/support/sdl/SDL.dll ;
+	}
+
+    case LINUX :
+        Echo "OS is LINUX (gtk+)" ;
+	# PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
+        SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = -lz ;
+
+	if $(USESDL)
+	{
+	    GARGLKCCFLAGS += -I/usr/include/SDL ;
+	    SHRLINKLIBS += -lSDL_mixer -lSDL ;
+	}
+
+    case MACOSX :
+        Echo "OS is MACOSX (gtk+)" ;
+        SUFDLL = .dylib ;
+        CCFLAGS = -Wno-pointer-sign ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
+        SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = -lz ;
+
+	if $(USESDL)
+	{
+	    Exit "No SDL on mac yet. Sorry." ;
+	}
+
+    case * :
+        Exit "Unknown target. Please edit 'Jamrules'." ;
+}
+
+switch $(BUILD)
+{
+    case DEBUG :
+        Echo "BUILD is DEBUG" ;
+        OPTIM = -g ;
+
+    case RELEASE :
+        Echo "BUILD is RELEASE" ;
+        OPTIM = -O2 ;
+
+    case PROFILE :
+        Echo "BUILD is PROFILE" ;
+        OPTIM = -g -pg ;
+        LINKFLAGS = -pg ;
+
+    case * :
+        Exit "Unknown build:" $(BUILD) ;
+}
+
+#
+# To compile windows resource files
+#
+
+rule UserObject
+{
+    switch $(>)
+    {
+    case *.rc : WindRes $(<) : $(>) ;
+    case * : Echo "unknown suffix on" $(>) ;
+    }
+}
+
+rule WindRes
+{
+    Depends $(<) : $(>) ;
+    Clean clean : $(<) ;
+}
+
+actions WindRes { windres -i $(>) -o $(<) --include-dir=$(>:D) }
+
+#
+# You shouldn't need to touch anything from here on.
+#
+
+HDRS = [ FDirName $(TOP) garglk ] ;
+BTOP = [ FDirName $(TOP) build $(OS:L).$(BUILD:L) ] ;
+
+rule ObjDir
+{
+    LOCATE_TARGET = [ FDirName $(BTOP) $(1) ] ;
+}
+
+include [ FDirName $(TOP) Jamshared ] ;
+
+if $(OS) = MINGW
+{
+    LINKLIBS += $(BTOP)/garglk/icons.o ;
+}
+

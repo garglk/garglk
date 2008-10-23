@@ -1,0 +1,608 @@
+# $Header: d:/cvsroot/tads/TADS2/msdos/makefile.bc,v 1.3 1999/07/11 00:46:38 MJRoberts Exp $
+#
+# makefile for building TADS with Borland C++ v4.
+#
+# make            - to build real-mode and protected-mode executables
+# make prot16=1   - to build protected-mode executables (tcx.exe, trx.exe, etc)
+# make WINDOWS=1  - to build Windows run-time (trwin.exe)
+#
+#
+# Note that when neither prot16 nor WINDOWS is defined, the makefile will
+# build BOTH the real- and protected-mode executables; it does this by
+# spawning a sub-make with prot16 defined.
+#
+# Run this makefile from the TADS root directory:
+#
+#   make -f msdos\makefile.bc
+
+
+# borland C compiler root directory
+BCDIR=c:\progra~1\bc45
+
+# executables, library, and MSDOS-specific source file directories
+EXEDIR = exe
+LIBDIR = lib
+MSDOSDIR = msdos
+
+.path.exe = $(EXEDIR)
+.path.lib = $(LIBDIR)
+.path.def = $(MSDOSDIR)
+
+
+#----------------------------------------------------------------------------
+!if $d(WINDOWS)
+#
+#   Build for Windows
+#
+
+CONFIG_FILE = msdos\bccwin.cfg
+XCFLAGS = -v -I$(BCDIR)\include -I. -Imsdos  -D_M_IX86 \
+           -DMSDOS -c -ml -DTURBO $(DBGFLG) -W -D_Windows
+LDFLAGS= /v /Tw /n /c
+LIBOBJS= ler.obj ltkwin.obj
+OVLFLG=
+
+# windows library directory
+TADSWIN= ..\win
+
+CRT0= $(CLIB)\c0wl
+CLIBS= $(CLIB)\cwinl $(CLIB)\cl $(CLIB)\import
+
+.path.obj = winobjs
+
+all: trwin.exe
+
+#----------------------------------------------------------------------------
+!elif $d(prot16)
+#
+# Build DOS 16-bit DPMI protected-mode executables
+#
+
+CONFIG_FILE = msdos\bccdosx.cfg
+XCFLAGS = -v -I$(BCDIR)\include -I. -Imsdos -D_M_IX86 \
+          -DMSDOS -c -ml -DTURBO $(DBGFLG) -WX -RT-
+LDFLAGS= /v /Txe /P /s
+LIBOBJS= ler.obj ltkwin.obj
+OVLFLG=
+
+CRT0= $(CLIB)\c0x
+CLIBS= $(CLIB)\dpmi16 $(CLIB)\cwl
+
+TC_PROG = tcx
+TR_PROG = trx
+TR_OEM_OBJ = oem_trx.obj
+TDB_PROG = tdbx
+
+TC_DEF_FILE = msdos\tc_dpmi.def
+TR_DEF_FILE = msdos\tr_dpmi.def
+TDB_DEF_FILE = msdos\tdb_dpmi.def
+
+.path.obj = xobjs
+
+all: tcx trx tdbx
+
+tcx:  $(CONFIG_FILE) tcx.exe
+trx:  $(CONFIG_FILE) trx.exe
+tdbx:  $(CONFIG_FILE) tdbx.exe
+
+clean:
+    del $(EXEDIR)\*.exe
+    del xobjs\*.obj
+    
+#----------------------------------------------------------------------------
+!else
+#
+# Build DOS real-mode executables.  Optionally spawn a sub-make to build
+# protected-mode executables as well.
+#
+
+CONFIG_FILE = msdos\bccdos.cfg
+LDFLAGS= /v
+LIBOBJS= ler.obj
+XCFLAGS = -2- -v -I$(BCDIR)\include -I. -Imsdos -D_M_IX86 \
+          -DMSDOS -c -ml -DTURBO $(DBGFLG) -RT-
+#OVLFLG= -Yo
+OVLFLG=
+
+CRT0= $(CLIB)\c0l
+CLIBS= $(CLIB)\cl
+
+TC_PROG = tc
+TR_PROG = tr
+TR_OEM_OBJ = oem_tr.obj
+TDB_PROG = tdb
+
+TC_DEF_FILE =
+TR_DEF_FILE =
+TDB_DEF_FILE =
+
+.path.obj = objs
+
+#
+# Default target:  build everything, including real-mode and protected-mode
+# executables, as well as any other derived files included in a release.
+#
+#all: tc tr tdb tadsrsc.exe tge.exe tgi.exe tadsux.obj
+all:  real_all  prot16_all  adv_new.t
+
+# all real-mode targets
+real_all: tc tr tdb tadsrsc.exe maketrx.exe trcolor.exe tadsux.obj mkchrtab.exe
+
+# all protected-mode targets - spawn a sub-make to build these targets
+prot16_all:
+    make -f$(MAKEFILE) prot16=1
+
+# targets for the standard executables
+tc:  $(CONFIG_FILE) tc.exe tadserr.msg
+tr:  $(CONFIG_FILE) tr.exe tadserr.msg
+tdb: $(CONFIG_FILE) tdb.exe tadserr.msg
+
+
+#
+# If the makefile is run without "prot16" defined, but a protected-mode
+# target is requested, automatically spawn a sub-make to build the
+# requested target.
+#
+
+trx:
+    make -f$(MAKEFILE) prot16=1 trx
+tcx:
+    make -f$(MAKEFILE) prot16=1 tcx
+tdbx:
+    make -f$(MAKEFILE) prot16=1 tdbx
+
+clean:
+    del $(EXEDIR)\*.exe
+    del objs\*.obj
+    del xobjs\*.obj
+    
+!endif
+#----------------------------------------------------------------------------
+
+#
+# use an external configuration file to prevent command line arguments
+# from growing too large
+# 
+
+MAKEFILE = msdos\makefile.bc
+CFLAGS= +$(CONFIG_FILE)
+
+$(CONFIG_FILE) : $(MAKEFILE)
+    echo >$(CONFIG_FILE) $(XCFLAGS)
+
+# CLIB= c:\bc4\lib
+CLIB= $(BCDIR)\lib
+CC= bcc
+ASM= $(BCDIR)\tasm\tasm
+LD= tlink
+LINTFLAGS= -Ic: -I. -Imsdos -D_M_IX86 \
+           -DMSDOS -c -ml -DTURBO -w-pia -wnod
+AFLAGS=
+SOUNDINC= \sb\msc\include
+SOUNDLIB= \sb\msc\lib\embed\sbcl
+
+
+# objects in common to all executables
+COMMONOBJS= $(LIBOBJS) mcm.obj mcs.obj mch.obj obj.obj cmd.obj \
+            errmsg.obj fioxor.obj os0.obj argize.obj \
+            oserr.obj cmap.obj osifc.obj
+
+# common objects for all executables incorporating a run-time
+CMNRUNOBJS= $(COMMONOBJS) \
+            dat.obj lst.obj out.obj voc.obj bif.obj \
+            output.obj suprun.obj regex.obj
+
+# objects for the run-time system
+RUNOBJS= $(CMNRUNOBJS) \
+         vocab.obj execmd.obj runstat.obj ply.obj trd.obj \
+         linfdum.obj fio.obj askf_os.obj \
+         osdosstk.obj getstr.obj qas.obj dbgtr.obj run_nd.obj
+
+# extra objects for character-mode run-time
+CHAROBJS= \
+     osr.obj osdosnui.obj osgenr.obj osnoui.obj ossdos.obj os0tr.obj \
+     bifgdum.obj osdosex.obj osrestad.obj indlg_tx.obj osscolor.obj
+
+# extra objects for windows run-time
+WINOBJS= \
+         $(TADSWIN)\oswin.obj bifgdum.obj
+
+# extra objects for BBS DOOR run-time
+DOOROBJS= \
+ 	 osdosdor.obj os0trdor.obj osgendor.obj bifgdum.obj ossdoor.obj
+
+# objects for compiler (includes run-time system)
+COMPOBJS= $(CMNRUNOBJS) \
+          linf.obj prs.obj emt.obj sup.obj fiowrt.obj tok.obj \
+          tcd.obj os0tc.obj fio.obj objcomp.obj prscomp.obj \
+          osdosstk.obj getstr.obj osdos.obj osdosnui.obj \
+          osgen.obj tokth.obj dbg.obj \
+          voccomp.obj bifgdum.obj osnoui.obj osdosex.obj run_nd.obj \
+          askf_tx.obj indlg_tx.obj
+
+TCOBJS= $(COMPOBJS) tcgdum.obj osrestad.obj
+
+# objects for debugger
+DBGOBJS= $(CMNRUNOBJS) \
+         vocab.obj execmd.obj runstat.obj ply.obj fio.obj sup.obj \
+         linf.obj prs.obj emt.obj tok.obj tdd.obj os0td.obj dbgu.obj \
+         dbg.obj dbgrun.obj osdbg.obj objcomp.obj tokth.obj voccomp.obj \
+         osdosstk.obj getstr.obj osr.obj osdosnui.obj osgenr.obj ossdos.obj \
+         qas.obj bifgdum.obj osnoui.obj osdosex.obj run_d.obj osrestad.obj \
+         askf_os.obj indlg_tx.obj osscolor.obj
+          
+# tads/pro object files
+TPOBJS= $(CMNRUNOBJS) \
+        linf.obj linm.obj prs.obj emt.obj sup.obj tok.obj fio.obj \
+        objcomp.obj osdosstk.obj getstr.obj osdos.obj osdosnui.obj \
+        osgen.obj tokth.obj \
+        dbg.obj voccomp.obj bifgdum.obj qas.obj tpd.obj vocab.obj \
+        execmd.obj dbgrun.obj runstat.obj ply.obj ced.obj prscomp.obj \
+        osnoui.obj osdosex.obj run_d.obj
+
+# TADS/G compiler objects
+TCGOBJS= $(COMPOBJS) tcg.obj
+
+# objects for tads/graphic picture editor
+TGEOBJS= \
+      $(LIBOBJS) tge.obj osdosg.obj osgeng.obj ossdosg.obj osspcx.obj \
+      osspcx2.obj
+
+# objects for tads/graphic icon editor
+TGIOBJS= \
+      $(LIBOBJS) tgi.obj osdosg.obj osgeng.obj ossdosg.obj osspcx.obj
+
+# objects for picture format converter
+CONV16OBJS= \
+      $(LIBOBJS) conv16.obj osspcx.obj osspcx2.obj ossdosg.obj osdosg.obj \
+      osgeng.obj
+
+# files to lint
+LINTFILES= mcm.lnt mcs.lnt mch.lnt obj.lnt dat.lnt lst.lnt linf.lnt \
+      tok.lnt prs.lnt emt.lnt err.lnt run.lnt out.lnt voc.lnt bif.lnt \
+      vocab.lnt execmd.lnt sup.lnt dbg.lnt fio.lnt tcd.lnt os0tc.lnt \
+      cmd.lnt os0tr.lnt ply.lnt runstat.lnt output.lnt errmsg.lnt \
+      fiowrt.lnt tokth.lnt linfdum.lnt tdd.lnt os0td.lnt dbgu.lnt \
+      fioxor.lnt dbgrun.lnt osdbg.lnt os0.lnt oserr.lnt
+
+lint: $(LINTFILES)
+
+#
+#  The primary executables
+#
+
+# the TADS compiler
+$(TC_PROG).exe: $(TCOBJS)
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+$(TC_PROG).map/m
+$(CLIBS)
+$(TC_DEF_FILE)
+!
+
+# the TADS runtime system
+tr:  tr.exe tadserr.msg
+
+$(TR_PROG).exe: $(RUNOBJS) $(CHAROBJS) $(TR_OEM_OBJ)
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+$(TR_PROG).map/m
+$(CLIBS)
+$(TR_DEF_FILE)
+!
+
+
+# the TADS debugger
+tdb:  tdb.exe tadserr.msg
+
+$(TDB_PROG).exe: $(DBGOBJS) $(TR_OEM_OBJ)
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+tdb
+$(CLIBS)
+$(TDB_DEF_FILE)
+!
+
+# error message file
+tadserr.msg:  tadserr.exe
+	$(EXEDIR)\tadserr
+
+tadserr.obj:  errmsg.c $(CONFIG_FILE)
+	$(CC) $(CFLAGS) -DERR_LINK_MESSAGES=1 -DERR_BUILD_FILE -o$@ errmsg.c
+
+tadserr.exe:  tadserr.obj osterm.obj
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+nul
+$(CLIBS)
+!
+
+# executable game builder
+maketrx:  maketrx.exe
+maketrx.exe: dosmktrx.obj
+    $(LD) $(LDFLAGS) $(CRT0) $**,$@,nul,$(CLIBS)
+
+# character map generator
+mkchrtab: mkchrtab.exe
+mkchrtab.exe: mkchrtab.obj osterm.obj
+    $(LD) $(LDFLAGS) $(CRT0) $**,$@,nul,$(CLIBS)
+
+# build the TADS resource manager
+tadsrsc:  tadsrsc.exe
+tadsrsc.exe:  tadsrsc.obj osnoui.obj osterm.obj
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+nul
+$(CLIBS)
+!
+
+# runtime color-setting tool
+trcolor: trcolor.exe
+trcolor.exe: trcolor.obj ossdos.obj
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+nul
+$(CLIBS)
+!
+
+
+#
+# ordinary object file associations
+#
+mcm.obj:  mcm.c
+mcs.obj:  mcs.c
+obj.obj:  obj.c
+objcomp.obj: objcomp.c
+dat.obj:  dat.c
+lst.obj:  lst.c
+linf.obj: linf.c
+mch.obj:  mch.c
+tok.obj:  tok.c
+tokth.obj:  tokth.c
+prs.obj:  prs.c
+prscomp.obj: prscomp.c
+emt.obj:  emt.c
+out.obj:  out.c
+voc.obj:  voc.c
+bif.obj:  bif.c
+execmd.obj:  execmd.c
+sup.obj:  sup.c
+dbg.obj:  dbg.c
+tcd.obj:  tcd.c
+os0tc.obj:  msdos\os0tc.c
+cmd.obj:  cmd.c
+os0tr.obj:  msdos\os0tr.c
+os0trxb.obj:  msdos\os0trxb.c
+ply.obj:  ply.c
+runstat.obj:  runstat.c
+output.obj:  output.c
+errmsg.obj:  errmsg.c
+fiowrt.obj:  fiowrt.c
+linfdum.obj:  linfdum.c
+tdd.obj:  tdd.c
+os0td.obj:  msdos\os0td.c
+dbgu.obj:  msdos\dbgu.c
+fioxor.obj:  fioxor.c
+qas.obj:  qas.c
+getstr.obj:  getstr.c
+dbgrun.obj:  dbgrun.c
+osdbg.obj:  msdos\osdbg.c
+oserr.obj:  oserr.c
+osdos.obj:  msdos\osdos.c
+osdosnui.obj: msdos\osdosnui.c
+osdosex.obj:  msdos\osdosex.c
+osgen.obj:  osgen.c
+osrestad.obj: osrestad.c
+osnoui.obj:  osnoui.c
+osterm.obj:  osterm.c
+ossdos.obj:  msdos\ossdos.asm
+#ossdosg.obj: ossdosg.asm
+#osspcx.obj: osspcx.c
+#osspcx2.obj: osspcx2.c
+#ossfnt.obj: ossfnt.c
+#tge.obj: tge.c
+#tcg.obj: tcg.c
+#osdosgf.obj: osdosgf.c
+#ossdoor.obj: ossdoor.asm
+tcgdum.obj: tcgdum.c
+bifg.obj: bifg.c
+tpd.obj:  tpd.c
+linm.obj: linm.c
+ced.obj: ced.c
+osdosstk.obj: msdos\osdosstk.c
+voccomp.obj: voccomp.c
+bifgdum.obj: bifgdum.c
+t320.obj: t320.c
+tadsrsc.obj:  tadsrsc.c
+dosmktrx.obj: msdos\dosmktrx.c
+mkchrtab.obj: mkchrtab.c
+tadsux.obj: msdos\tadsux.asm
+oem_tr.obj: msdos\oem_tr.c
+oem_trx.obj: msdos\oem_trx.c
+argize.obj: argize.c
+osifc.obj: osifc.c
+askf_tx.obj: askf_tx.c
+askf_os.obj: askf_os.c
+indlg_tx.obj: indlg_tx.c
+indlg_os.obj: indlg_os.c
+
+
+#
+# library objects
+#
+ltkwin.obj:  msdos\ltkwin.c
+ler.obj: ler.c
+
+
+#
+# objects that can be part of an overlay
+#
+os0.obj:  os0.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) $(OVLFLG) -o$@ os0.c
+
+fio.obj:  fio.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) $(OVLFLG) -o$@ fio.c
+
+suprun.obj:  suprun.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) $(OVLFLG) -o$@ suprun.c
+
+trd.obj:  trd.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) $(OVLFLG) -o$@ trd.c
+
+vocab.obj:  vocab.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) $(OVLFLG) -o$@ vocab.c
+
+#
+# objects that require special builds
+#
+osr.obj: msdos\osdos.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNTIME -o$@ msdos\osdos.c
+
+osw.obj: msdos\osdos.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNTIME -DWINDOWS -o$@ msdos\osdos.c
+
+#osdosdor.obj: osdos.c $(CONFIG_FILE)
+#    $(CC) $(CFLAGS) -DUSE_DOOR -o$@ osdos.c
+
+osgenr.obj: osgen.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNTIME -o$@ osgen.c
+
+osscolor.obj: msdos\osscolor.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNTIME -o$@ msdos\osscolor.c
+
+#osgendor.obj: osgen.c $(CONFIG_FILE)
+#    $(CC) $(CFLAGS) -DUSE_DOOR -o$@ osgen.c
+
+#osgeng.obj: osgen.c $(CONFIG_FILE)
+#    $(CC) $(CFLAGS) -DUSE_GRAPH -DUSE_SOUND -o$@ osgen.c
+
+runfast.obj: run.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNFAST -DDBG_OFF -o$@ run.c
+
+biffast.obj: bif.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DRUNFAST -o$@ bif.c
+
+os0trg.obj: os0tr.obj $(CONFIG_FILE)
+    $(CC) $(OVLFLG) $(CFLAGS) -I$(SOUNDINC) -DUSE_GRAPH -DUSE_SOUND \
+-o$@ os0tr.c
+
+osdosg.obj: osdosg.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -I$(SOUNDINC) -DRUNTIME -o$@ osdosg.c
+
+os_sb.obj: os_sb.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -I$(SOUNDINC) -DUSE_GRAPH -DUSE_SOUND -o$@ os_sb.c
+
+#
+# Main run engine - no debugger (run_nd.obj) and with debugger (run_d.obj).
+# We could simply always use the with-debugger version, but games will
+# run slightly faster if we build a separate no-debugger version for
+# the executables that don't actually make any use of the debugger.
+#
+run_nd.obj: run.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -DDBG_OFF -o$@ run.c
+
+run_d.obj: run.c $(CONFIG_FILE)
+    $(CC) $(CFLAGS) -o$@ run.c
+
+
+
+#
+# more executables
+#
+
+untrx.exe: untrx.c
+    $(CC) -ml -I$(BCDIR)\include -I. -Imsdos -DMSDOS -o$@ untrx.c
+
+tadsmdoc.exe: tadsmdoc.obj osterm.obj
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+nul
+$(CLIBS)
+!
+
+tadsmdoc.obj: errmsg.c $(CONFIG_FILE)
+	$(CC) $(CFLAGS) -DERR_LINK_MESSAGES=1 -DERR_BUILD_DOC -o$@ errmsg.c
+
+
+#
+# process adv.t to produce documentation and release version of adv.t
+#
+
+adv_new.t:  adv.t procadv.exe
+	$(EXEDIR)\procadv adv.t adv_doc.tex adv_new.t
+
+procadv.exe:  procadv.c
+        $(CC) -ml -L$(BCDIR)\lib -I$(BCDIR)\include -I. -Imsdos -DMSDOS -nexe procadv.c
+
+# build "spawn" user exit
+uxsys.bin: uxsys.obj
+	tlink /t tadsux uxsys,uxsys.bin,nul
+
+uxsys.obj: uxsys.c
+	tcc -mt -DMSDOS=1 -c uxsys.c
+
+uxsys.gam: uxsys.t uxsys.bin
+	tc uxsys
+	tadsrsc uxsys -+uxsys.bin=spawn
+
+# build the test user exit
+testux.bin:  testux.obj
+	tlink /t tadsux testux,testux.bin,nul
+
+testux.obj:  testux.c
+	tcc -mt -DMSDOS=1 -c testux.c
+
+testux.gam:  testux.t testux.bin
+	tc testux
+	tadsrsc testux -+testux.bin=myfunc
+
+
+
+#
+# windows version of the runtime
+#
+
+trwin.exe: $(RUNOBJS) $(WINOBJS)
+	$(LD) $(LDFLAGS) @&&!
+$(CLIB)\c0wl $**
+$*
+trwin/m
+$(CLIBS)
+trwin
+!
+	rc trwin.res
+
+
+#
+# TADS/Pro - DOS testing version
+#
+
+tpro.exe: $(TPOBJS)
+	$(LD) $(LDFLAGS) @&&!
+$(CRT0) $**
+$*
+nul
+$(CLIBS)
+!
+
+
+#
+# implicit rules
+#
+
+.c.obj:
+	$(CC) $(CFLAGS) -o$@ $<
+
+.asm.obj:
+	$(ASM) $(AFLAGS) $<,$@
+
+.c.lnt:
+	$(CC) $(LINTFLAGS) -DLINT=1 -olintdmy.obj $<
+	echo ok >$*.lnt

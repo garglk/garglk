@@ -1,0 +1,115 @@
+<html>
+
+<title>Porting TADS 3</title>
+
+<h3>Porting TADS 3</h3>
+
+<p>
+TADS 3 is designed for easy portability to a wide
+variety of platforms.  The source code is written in ANSI C++, and is
+very conservative in its use of C++ languages features; the code does
+not use templates, exceptions, or run-time type information, and limits
+itself to the standard C run-time library.
+
+<h4>A Note on Newlines</h4>
+
+<p>Different operating systems have a tendency to disagree on the
+most trivial details.  One of these pointless variations that causes
+a lot of trouble is "newline" conventions: each OS has its own way of
+signaling the end of a line of text in files such as C source and
+header files.  In almost every case, the end of a line of text is
+indicated by some combination of the special characters with ASCII
+values 10 and 13, known respectively as "line feed" or "LF", and
+"carriage return" or "CR".  MS-DOS uses the sequence CR-LF; Unix uses
+just LF; Macintosh uses just CR; and some system somewhere probably
+uses LF-CR.
+
+<p>In many cases, systems are tolerant of "foreign" conventions, but
+sometimes the wrong conventions will confuse compilers and other
+tools.  If you run into any mysterious compiler errors, or your text
+editor or other tools have problems reading or displaying the TADS
+source files, you might want to try converting the files to your
+system's newline conventions.  One of the easiest ways to do this is
+usually to use your UNZIP tool's "auto-convert text files" option
+when you unpack the TADS source archive - on command-line systems,
+this is usually the "unzip -a" option.
+
+
+<h4>Portable and OS Layer Code</h4>
+
+<p> The TADS 3 source code uses the same technique to separate code
+into portable and OS layers that TADS 2 used.  All of the code in the
+TADS 3 source distribution is portable, except for the files in
+system-specific subdirectories (such as "win32").  You should be able
+to use all of the portable code without making any changes to it.
+Any required changes in the portable code are porting exceptions; you
+should report them back to me so that I can find a way to merge the
+changes to correct the problem.  There should be no platform-specific
+#if's or #ifdef's in the portable code - the source in the portable
+files should be 100% common to all platforms.
+
+<h4>OS Layer Implementation</h4>
+
+<p> TADS 3 uses the identical OS interface layer that TADS 2 used.
+So, the first thing you need to do to port TADS 3 to a new platform
+is to obtain the TADS 2 OS interface implementation for that
+platform.  TADS 2 has been widely ported, so there is a good chance
+that you can use an existing OS layer implementation for your
+platform.  If you're porting to a platform that doesn't have a TADS 2
+port, you must create your own TADS 2 OS interface implementation for
+the platform.  Please obtain a copy of the TADS 2 source distribution
+for full details on how to go about this.
+
+<p> TADS 3 is designed to share the same object files from the TADS 2
+OS layer, so you will not need to create a new copy of the OS files.
+You should instead simply set up your new TADS 3 makefile so that it
+includes headers from your TADS 2 OS include directory, and links in
+the "osxxx" object files from your TADS 2 object file directory.
+
+<h4>Creating a Makefile</h4>
+
+<p>
+Refer to win32/makefile.vc5 in the source distribution for an example
+makefile.  This makefile is set up for Microsoft Visual C++ on Windows
+(it'll work on VC++ versions 5 and 6, at least).  This is <i>not</i>
+any kind of scary project file or other machine-generated monstronsity;
+it's simply a makefile, similar to Unix-style makefiles.  The "vc5"
+extension, by the way, is just my own naming convention to indicate
+that it's the Visual C++ version of the makefile.
+
+<p> The Windows makefile defines the groups of object files that make
+up the various executables.  In most cases, you will want to
+configure your own executables in roughly the same way; the only
+differences should be that you must substitute your OS layer
+implementation files for the Windows versions - these are the files
+whose names start with "os".
+
+<p> Makefiles are pretty nasty to read, so I'll provide some pointers on
+what to look for.  The first piece of information you want from the makefile
+is simply the group of object files that make up each executable.  This
+much is pretty easy to read - look for names of executables followed
+immediately by a colon - search for "t3make.exe:", for example, to find
+the compiler executable's build rule.  Following this is a long list of
+object files.  These are the object files that make up the executable.
+All of the object files prefixed with "$(OBJDIR)" are portable
+executables.  The ones prefixed by "$(TADS2OBJDIR)" are the TADS 2 OS
+layer object files - these are not part of the TADS 3 source distribution
+because you can get them from the TADS 2 distribution.  The object file
+list ends at the line that starts with "$(LD) $(LDFLAGS)" - this line
+starts the command specification for the "link" command that builds the
+executable.
+
+<p>Many of the executables listed in the makefile are for testing
+purposes only.  You don't need to build these (but you certainly can
+if you want to run some more in-depth testing on your port).
+
+<p>The source file dependencies are mostly straightforward - these
+follow the executable rules.  However, a few source files have special
+compilation rules - look at the end of the source-to-object dependency
+rules for the rules that have explicit "$(CC)" command lines listed
+under the dependencies.  For example, the object module "vmrun_d.obj"
+is compiled from "vmrun.cpp" with a special compile command (the command
+sets the #define symbol VM_DEBUGGER).
+
+
+</html>

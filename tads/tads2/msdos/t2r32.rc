@@ -1,0 +1,17 @@
+/* Copyright 2003 Michael J. Roberts */
+
+/*
+Name
+  t2r32.rc - TADS 2 32-bit console-mode app resource script
+Function
+  
+Notes
+  
+Modified
+  07/01/03 MJRoberts  - creation
+*/
+
+#include <Windows.h>
+
+/* the main application icon */
+101  ICON  DISCARDABLE "t2r32.ico"

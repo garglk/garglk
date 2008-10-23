@@ -1,0 +1,137 @@
+# Set locations of Glk library and include directories, and Glk make include.
+# For building the IFP plugin, you should probably use Xglk headers.
+# For X Glk library:
+GLKLIBDIR	= ../xglk
+GLKINCDIR	= ../xglk
+GLKMAKEINC	= ../xglk/Make.xglk
+# ..., or for curses Glk library:
+#GLKLIBDIR	= ../glkterm
+#GLKINCDIR	= ../glkterm
+#GLKMAKEINC	= ../glkterm/Make.glkterm
+# ..., or for the "cheap" Glk library:
+#GLKLIBDIR	= ../cheapglk
+#GLKINCDIR	= ../cheapglk
+#GLKMAKEINC	= ../cheapglk/Make.cheapglk
+
+# Set locations of IFP library and include directories, and header tool.
+# For installed IFP, these would be something like:
+IFPLIBDIR	= /usr/lib
+IFPINCDIR	= /usr/include
+IFPHDRTOOL	= /usr/bin/ifphdr
+# ...whereas for IFP newly built alongside xglk, more like:
+#IFPLIBDIR	= ../ifp
+#IFPINCDIR	= ../ifp
+#IFPHDRTOOL	= ../ifp/ifphdr
+
+# IFP header definition.
+IFPHDR		= agility.hdr
+
+# AGiliTy version.
+VERSION		= 1.1.1
+
+# Common definitions.
+CC		=  gcc
+WARNINGS	= -Wall # -W
+DEBUG		=
+OPTIMIZE	= -O2
+
+# Get the definitions for Glk LINKLIBS and GLKLIB.
+include $(GLKMAKEINC)
+
+CFLAGS	= -fPIC -ansi -DGLK -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+# CFLAGS= -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+LDFLAGS	= $(DEBUG)
+
+BASE	= agtread.o gamedata.o util.o agxfile.o auxfile.o filename.o
+AGIL	= parser.o exec.o runverb.o metacommand.o savegame.o debugcmd.o agil.o \
+	  token.o disassemble.o object.o
+INTERFACE= interface.o os_glk.o 
+OS_LIB	= $(LINKLIBS) -L$(GLKLIBDIR) $(GLKLIB)
+
+all:glkagil agtout agt2agx agility-$(VERSION).so
+
+# Build the standalone Glk AGiliTy.
+# See os_glk.c __wrap_exit() comments for details on -Wl,--wrap... option.
+glkagil:  $(BASE) $(AGIL) $(INTERFACE) 
+	$(CC) $(LDFLAGS) -o glkagil $(AGIL) $(BASE) $(INTERFACE) $(OS_LIB)\
+		-Wl,--wrap,toupper,--wrap,tolower
+
+# Build the support tools.
+agtout: agtout.o disassemble.o agilstub.o $(BASE) 
+	$(CC) $(LDFLAGS) -o agtout agtout.o disassemble.o agilstub.o $(BASE) 
+
+agt2agx: agt2agx.o agilstub.o $(BASE)
+	$(CC) $(CFLAGS) -o agt2agx agt2agx.o agilstub.o $(BASE) 	
+
+# Build an AGiliTy IFP plugin.
+# Wrapper toupper and tolower as above, and see os_glk.c __wrap_exit()
+# comments for full details on why we also have to wrapper exit here.
+agility-$(VERSION).so:  $(BASE) $(AGIL) $(INTERFACE) $(IFPHDR)
+	rm -f agility_plugin.c
+	$(IFPHDRTOOL) $(IFPHDR) agility_plugin.c
+	$(CC) -I$(IFPINCDIR) $(CFLAGS) -c agility_plugin.c
+	$(LD) -u ifpi_force_link -shared -Bsymbolic			\
+		-o $@ $(AGIL) $(BASE) $(INTERFACE)			\
+		agility_plugin.o -L$(IFPLIBDIR) -lifppi -lc		\
+		--wrap toupper --wrap tolower --wrap exit
+
+# Directory cleanup.
+clean:
+	rm -f *.o glkagil agility-$(VERSION).so agility_plugin.c
+	rm -f agtout agt2agx core
+	rm -rf distribution binaries
+
+# Distribution.
+distclean: clean
+maintainer-clean: clean
+dist: distclean
+	mkdir distribution binaries
+	zip -r distribution/agil111src_glk.zip * -x distribution/\* binaries/
+	cp GPL readme.agility readme.glk binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../xglk GLKINCDIR=../xglk \
+			GLKMAKEINC=../xglk/Make.xglk agility-$(VERSION).so
+	mv agility-$(VERSION).so binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../xglk GLKINCDIR=../xglk \
+			GLKMAKEINC=../xglk/Make.xglk glkagil
+	mv glkagil binaries/xagil
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../glkterm GLKINCDIR=../glkterm \
+			GLKMAKEINC=../glkterm/Make.glkterm glkagil
+	mv glkagil binaries/termagil
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../cheapglk GLKINCDIR=../cheapglk \
+			GLKMAKEINC=../cheapglk/Make.cheapglk glkagil
+	mv glkagil binaries/cheapagil
+	$(MAKE) -f Makefile.glk agtout agt2agx
+	mv agtout agt2agx binaries
+	cd binaries; tar zcvf ../distribution/agil111linux_glk.tgz *
+
+# Dependencies.
+agilstub.o: agilstub.c
+agtread.o : agtread.c agility.h config.h 
+agxfile.o : agxfile.c agility.h config.h 
+auxfile.o : auxfile.c agility.h config.h
+agt2agx.o : agt2agx.c agility.h config.h
+gamedata.o : gamedata.c agility.h config.h 
+parser.o: parser.c agility.h config.h interp.h
+exec.o: exec.c agility.h config.h interp.h exec.h
+runverb.o: runverb.c agility.h config.h interp.h exec.h
+metacommand.o: metacommand.c agility.h config.h interp.h exec.h
+token.o: token.c agility.h config.h interp.h exec.h
+debugcmd.o: debugcmd.c agility.h config.h interp.h exec.h
+disassemble.o: disassemble.c agility.h config.h
+savegame.o: savegame.c interp.h agility.h config.h 
+agtout.o : agtout.c agility.h config.h 
+util.o: util.c agility.h config.h
+interface.o: interface.c agility.h config.h interp.h
+os_none.o: os_none.c agility.h config.h interp.h
+os_termcap.o: os_termcap.c agility.h config.h interp.h
+os_curses.o: os_curses.c agility.h config.h interp.h
+os_msdos.o: os_msdos.c agility.h config.h interp.h
+os_glk.o: os_glk.c agility.h config.h interp.h
+agil.o: agil.c agility.h config.h interp.h
+object.o: object.c agility.h config.h interp.h exec.h
+filename.o: filename.c agility.h config.h
+ 

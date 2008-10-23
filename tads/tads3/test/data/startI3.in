@@ -1,0 +1,38 @@
+>look
+>south
+>open door
+>open front door
+>sit on chair
+>south
+>x suit
+>get suit
+>wear suit
+>get axe
+>look
+>x suit
+>x picture
+>x portraits
+>north
+>east
+>south
+>north
+>north
+>look in stove
+>save "saveI3.t3v"
+>get bread and eat it
+>look in icebox
+>restart
+>yes
+>look
+>restore "saveI3.t3v"
+>x bread
+>eat bread
+>look
+>x bread
+>restore "saveI3.t3v"
+>x bread
+>restart
+>yes
+>look
+>quit
+>yes

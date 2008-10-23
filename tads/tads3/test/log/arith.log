@@ -1,0 +1,16 @@
+	Files to build: 3
+	symbol_export arith.t -> arith.t3s
+	compile arith.t -> arith.t3o
+	link -> arith.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+x = 678, y = 531, x+y = 1209, x-y = 147
+x*y = 360018, x/y = 1, x%y = 147
+A.x_ = 123, A.y_ = 456, A.x_+A.y_ = 579, A.x_-A.y_ = -333
+A.x_*A.y_ = 56088, A.x_/A.y_ = 0, A.x_%A.y_ = 123
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

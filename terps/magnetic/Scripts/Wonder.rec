@@ -1,0 +1,544 @@
+#seed
+12345
+restart
+y
+graphics
+#seed
+12345
+e
+get pear
+z
+z
+z
+w
+sw
+w
+w
+s
+s
+get jar
+z
+get up
+search leaves
+get key
+e
+se
+get bottle
+look under table
+get box
+nw
+w
+w
+nw
+open piano
+get c key
+get sheet
+get on chair
+open bottle
+drink potion
+enter piano
+get G key
+get out
+get off chair
+se
+e
+unlock door with c key
+s
+get shoe
+get hanger
+get overall
+n
+e
+se
+pull curtain
+open tiny door with g key
+get fan
+get gloves
+open fan
+wave fan
+wear overall
+z
+z
+enter white door
+push insect
+get stick
+e
+n
+get peg
+get line
+untie line
+unlock door with front key
+n
+n
+get egg
+open cupboard
+get cup
+n
+e
+put hanger in vice
+straighten hanger
+open vice
+w
+s
+s
+u
+open clock
+get card
+score
+get pouch
+put sheet in gap
+put hanger in keyhole
+pull sheet
+unlock door with bedroom key
+open door
+n
+get pink fan
+open chest
+get pink gloves
+get quartz bottle
+s
+s
+s
+s
+w
+n
+w
+get gloves
+e
+n
+put cup in mist
+s
+s
+e
+se
+se
+ne
+nw
+ne
+ne
+n
+e
+get glasses case
+get gazette
+get card
+score
+put gazette on table
+u
+e
+look under bed
+get slippers
+remove shoes
+wear slippers
+w
+s
+e
+wear gardening gloves
+put peg on nose
+pull rope
+w
+get knife
+open fridge
+get cream
+get jug
+close fridge
+get key
+e
+pull rope
+w
+n
+d
+e
+open case
+unlock cabinet with glass key
+open it
+get pass
+remove slippers
+wear shoes
+w
+w
+s
+sw
+get fork
+sw
+se
+sw
+nw
+nw
+sw
+sw
+put cream in saucer
+get sugar
+get pouch
+n
+n
+n
+n
+give pass to guard
+give pink gloves and fan to rabbit
+w
+get coat hook
+read plaque
+w
+s
+turn handle clockwise
+n
+n
+w
+ask chef about paper
+read paper
+give sugar to chef
+get steak
+d
+unlock door with cellar key
+u
+e
+s
+e
+e
+e
+unlock locker 10 with key 10
+open it
+get key
+unlock locker 3 with key 3
+open it
+get card and key
+score
+unlock locker 7 with key 7
+open it
+get boots
+w
+u
+w
+examine bed
+examine pillow
+get card
+score
+open queenside drawer
+get key
+e
+e
+open cabinet
+get lens and bottle
+w
+u
+look in telescope
+get card
+score
+get small lens
+d
+d
+drop boots
+s
+s
+s
+e
+se
+se
+ne
+se
+se
+ne
+climb tree
+w
+tie line to limb
+d
+drop line
+x trapdoor
+put hook in hole
+pull hook
+d
+n
+get green bottle and wedge
+open door
+n
+u
+give green bottle to chef
+d
+s
+s
+u
+u
+e
+d
+sw
+s
+give sherbet to caterpillar
+cut left side of mushroom with knife then put chunk into left pouch
+again
+again
+cut right side of mushroom with knife then put chunk into right pouch
+again
+again
+n
+ne
+nw
+get brick with knife
+get card
+se
+u
+w
+d
+get card
+score
+u
+e
+d
+nw
+sw
+nw
+sw
+nw
+nw
+sw
+sw
+s
+s
+w
+w
+throw stick
+give steak to puppy
+get key
+e
+e
+n
+n
+n
+e
+n
+n
+n
+n
+search heap with fork
+get card
+score
+s
+s
+s
+s
+se
+se
+ne
+nw
+get rope
+tie rope to jug
+drop jug
+attach winch handle to winch
+turn handle clockwise
+turn handle anticlockwise
+get jug
+untie rope
+drop rope
+ne
+nw
+w
+sw
+sw
+enter hole
+open hatch
+u
+get tub
+e
+get chest
+sw
+x chair
+fold napkin
+drop peg
+get napkin
+e
+drop case
+get sack
+w
+s
+w
+get on table
+eat chunk from right pouch
+get on pot
+eat chunk from right pouch
+enter pot
+say hello
+get card
+score
+out
+get off pot
+eat chunk from left pouch
+get off table
+e
+n
+n
+w
+d
+w
+sw
+get card
+score
+go to palace
+n
+w
+w
+n
+w
+give napkin, jug and lard to chef
+score
+go to observatory
+drop chest
+stand on it
+put large lens in large end
+put small lens in small end
+look through telescope
+turn telescope se
+look through telescope
+close left eye
+look through telescope
+score
+go to eastern hall
+get boots
+go to cellar
+s
+u
+wear gloves
+open sack
+get hedgehog
+put it in sack
+close sack
+u
+e
+put hand in hole
+score
+go to old tree
+open silver door with silver key
+n
+eat chunk from right pouch
+w
+s
+eat chunk from left pouch
+help gardeners
+open remover bottle
+dip brush in remover
+sw
+se
+u
+s
+wake gryphon
+z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z
+z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z.z
+go to glade
+nw
+remove shoes
+wear boots
+n
+get card
+score
+n
+remove boots
+wear shoes
+drop boots
+unlock door with key
+n
+e
+n
+n
+w
+s
+get on queen's throne
+eat chunk from left pouch
+pull bell pull
+get off
+s
+get card and key
+score
+n
+n
+w
+n
+w
+give flour to chef
+z
+catch key
+e
+unlock chest with crystal key
+get invitation
+go to rabbit's bedroom
+yes
+put brush in well
+paint egg
+score
+go to elm tree
+open bottle
+drink potion
+put egg in mouth
+z
+drop breakfast egg in nest
+z.z.z.z.z.z.z.z.z
+open box
+eat cake
+get flamingo
+z.z.z
+go to palace
+s
+w
+s
+se
+sw
+show invitation to guards
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+z
+show invitation to guards
+sw
+z
+open sack
+get hedgehog
+drop it
+hit hedgehog with flamingo
+se
+hit hedgehog with flamingo
+get card
+score
+nw
+ne
+ne
+nw
+n
+e
+e
+give suit to tailor
+score
+get overall
+get pantry key
+w
+n
+n
+close door
+lock door with red key
+score
+w
+read plaque
+w
+n
+w
+unlock door with pantry key
+nw
+get tarts
+score
+z
+z
+z
+z
+choose 6 of diamonds
+choose 9 of diamonds
+choose queen of diamonds
+choose 10 of diamonds
+choose 7 of diamonds
+choose 3 of diamonds
+
