@@ -1,0 +1,20 @@
+#line 1 "circ.c"
+
+
+
+"A(A(3)) = "; A(A(3+1+2)+1+2);
+"A(5) = "; A(5+1+2);
+"B(7) = "; B(7+2+1);
+"A(3)B(9) = "; A(3+1+2)B(9+2+1);
+"A(4)A(6)A(8) = "; A(4+1+2)A(6+1+2)A(8+1+2);
+
+"A(A(A(5))) = "; A(A(A(5+1+2)+1+2)+1+2);
+
+"A(B(A(7))) = "; A(B(A(7+1+2)+2+1)+1+2);
+hash table: total 12, longest 1, average 0
+number of buckets over average length: 12
+number of empty buckets: 500
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

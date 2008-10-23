@@ -1,0 +1,49 @@
+#
+# Include all the sub-projects
+# Then make install rules to copy exe files into bin
+#
+
+SubDir TOP ;
+
+SubInclude TOP garglk ;
+SubInclude TOP terps ;
+SubInclude TOP tads ;
+
+SubDir TOP ;
+
+BINDIR = [ FDirName $(TOP) build dist ] ;
+
+for APP in $(APPS)
+{
+    LinkLibraries $(APP) : libgarglkmain ;
+    SharedLinkLibraries $(APP) : libgarglk ;
+    InstallBin $(BINDIR) : $(APP)$(SUFEXE) ;
+}
+
+if $(OS) = MINGW
+{
+    SubInclude TOP support ;
+    SharedLinkLibraries scare : libz ;
+    SharedLinkLibrariesOnSharedLibrary libgarglk :
+        libfreetype libjpeg libpng libz ;
+
+    InstallLib $(BINDIR) : libfreetype$(SUFDLL) ;
+    InstallLib $(BINDIR) : libjpeg$(SUFDLL) ;
+    InstallLib $(BINDIR) : libpng$(SUFDLL) ;
+    InstallLib $(BINDIR) : libz$(SUFDLL) ;
+}
+
+InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+InstallLib $(BINDIR) : libgarglk$(SUFDLL) ;
+
+if $(OS) = MINGW && $(USESDL)
+{
+    SEARCH_SOURCE = $(TOP)/support/sdl ;
+    InstallLib $(BINDIR) : SDL_mixer.dll ;
+    InstallLib $(BINDIR) : SDL.dll ;
+    InstallLib $(BINDIR) : smpeg.dll ;
+    InstallLib $(BINDIR) : ogg.dll ;
+    InstallLib $(BINDIR) : vorbis.dll ;
+    InstallLib $(BINDIR) : vorbisfile.dll ;
+}
+

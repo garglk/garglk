@@ -1,0 +1,33 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export newprop.t -> newprop.t3s
+	compile _main.t -> _main.t3o
+	compile newprop.t -> newprop.t3o
+	link -> newprop.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Saved!
+obj.x = 100
+obj.y = hello
+obj.(newProp) = new prop!
+obj.(obj.newPropId) = new prop!
+Restoring...
+Restored!
+Post-restore:
+obj.x = 100
+obj.y = hello
+obj.(newProp) = new prop!
+obj.(obj.newPropId) = new prop!
+after second new prop:
+obj.x = 100
+obj.y = hello
+obj.(newProp) = new prop!
+obj.(obj.newPropId) = new prop!
+obj.(newProp2) = new prop 2!!!
+Done!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

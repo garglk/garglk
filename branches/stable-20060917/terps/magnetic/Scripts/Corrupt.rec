@@ -1,0 +1,355 @@
+graphics on
+#seed
+12345
+Examine David
+Examine Bookings
+Follow David
+E
+N
+W
+Tell David About The Serious Fraud Office
+Listen At Wooden Door
+S
+E
+S
+Open Cistern
+Look In It
+Get Bag
+Examine Bag
+Examine Powder
+Close Cistern
+N
+W
+W
+S
+Open Cabinet
+Look In It
+Get Ledger And Certificate
+Examine Ledger
+Read It
+Examine Certificate
+Read It
+Close Cabinet
+I
+Open Briefcase
+Look In It
+Read Organiser
+Read Times
+Put Ledger, Certificate, Bag In Briefcase
+N
+Get Envelope
+Ask Margaret To Call Jenny
+E
+Read Envelope
+Read Cheque
+N
+E
+Ask Hughes About Insider Dealing
+Examine Red Leather Chair
+W
+S
+S
+D
+D
+N
+Examine Jarvis
+Examine Barbara
+S
+D
+Examine Volvo
+U
+U
+N
+W
+Get Letter
+Open Drawer
+Get Brass Key
+Close Drawer
+Open Door With Brass Key
+W
+Get Tape
+E
+Close Door
+Lock Door With Brass Key
+E
+E
+W
+S
+D
+D
+Open Bmw With Car Key
+In
+Read Letter
+Put Tape In Stereo
+Get Tape
+Open Glove Compartment
+Get Screwdriver
+Close Glove Compartment
+Exit
+Break Window With Screwdriver
+Get Folder
+Open Folder
+Examine Affidavit
+Read It
+Close Volvo
+Close Bmw
+Put All In Briefcase
+U
+U
+U
+N
+W
+S
+Wait Until 10:40
+Wait Until 10:50
+Wait Until 11:00
+Wait Until 11:10
+Wait Until 11:20
+N
+Wait
+Wait
+Wait
+Get Phone
+Call Jenny
+Wait Until 11:35
+Wait Until 11:45
+Wait Until 11:45
+E
+S
+D
+N
+W
+Say Hi To Theresa
+Wait Until 12:00
+Wait Until 12:09
+Get Phone
+E
+S
+U
+Ask David About Jenny
+N
+W
+S
+Drop Briefcase
+N
+E
+S
+D
+D
+D
+W
+N
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+W
+W
+N
+E
+N
+Examine Shelves
+Buy Razor, Soap, Film With Credit Card
+I
+S
+W
+S
+S
+S
+Se
+Examine Tramp
+Examine Bench
+N
+N
+L
+Wait
+Wait
+Wait
+Wait
+Wait
+E
+Wait Until 1:10
+Wait Until 1:20
+Wait Until 1:30
+Wait Until 1:40
+Wait Until 1:50
+Wait Until 2:00
+E
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Ask Jenny About The Porsche
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+Wait
+S
+W
+Wait
+Wait
+Wait
+Examine Cabinet
+Examine Empty Bed
+Examine Pillow Case
+Wait
+Wait
+Wait
+Wait
+Get Up
+Get Papers,Pillow Case, Credit Card,Film,Razor,Watch,Soap
+S
+S
+Open Locker
+Put Clothes, Stethoscope In Pillow Case
+Put All Except Papers And Pillow Case In Pillow Case
+N
+E
+S
+E
+N
+W
+W
+Wear Bandage
+Lie On Bed
+Wait
+Wait
+Drop Bandage, Pyjamas
+Wear Shirt,Trousers,Tie,Jacket
+Get All From Case
+Get Up
+Open Door
+Wait
+Wait
+Exit
+S
+E
+U
+U
+U
+N
+W
+S
+Get Briefcase
+N
+E
+S
+D
+N
+W
+Wait Until 3:30
+Wait
+Open Door With Brass Key
+W
+Move Tv
+Wear Stethoscope
+Put Stethoscope On Dial
+Turn Dial
+Turn Dial
+Turn Dial
+Turn Dial
+Look In Safe
+Get Ledgers,Receipts,Chips
+Examine Receipts
+Read Receipts
+Examine Ledgers
+Read Ledgers
+Examine Chips
+E
+E
+S
+U
+N
+N
+Wait Until 4:00
+Examine Wooden Door
+Open Wooden Door With Credit Card
+E
+Examine Desk
+Examine Drawer
+Open Drawer With Screwdriver
+Examine Drawer
+Get Document
+Examine It
+Read It
+Read Law Magazine
+Score
+W
+S
+E
+Look In The Mirror
+W
+S
+D
+D
+D
+W
+N
+E
+Show Chips To Waiter
+Knock On Wooden Door
+Examine Blackjack
+Ask For Credit
+S
+W
+W
+Examine Lights
+Wait
+Wait
+Wait
+Wait
+W
+W
+N
+N
+Tell Russell About David
+Tell Goddard About David
+Tell Goddard About Affidavit
+Tell Goddard About Tape
+Tell Goddard About Certificate
+Give Certificate To Goddard
+Tell Goddard About Accounts
+Tell Goddard About Receipts
+Give Ledgers To Goddard
+Give Receipts To Goddard
+Give Tape To Goddard
+Give Affidavit To Goddard
+Give Envelope To Goddard
+Tell Goddard About Charpontier
+Say "Yes"
+S
+E
+Examine Lights
+Wait
+Wait
+E
+E
+Show Chips To Waiter
+Knock On Wooden Door
+Score
+Wait
+Wait
+Wait

@@ -1,0 +1,142 @@
+
+To run Adrift games with SCARE, on Linux, give the name of, or full path to,
+the Adrift TAF file that you want to play.  For example
+
+    scare aparty.taf
+    glkscare /tmp/the_pk_girl.taf
+
+This should start the SCARE interface, and begin running the game.  Platforms
+other than Linux may have different ways of invoking SCARE.
+
+There are a few differences between SCARE and the official Adrift runner, and
+a few limitations to SCARE, that are worth noting.  The reference version of
+the Adrift runner used here for comparisons is 4.00.36, but SCARE also
+contains features new in 4.00.44.  SCARE will also seamlessly run Adrift games
+built using the Adrift version 3.90 and version 3.80 generators.
+
+While SCARE tries to mimic the runner, there are cases where some differences
+may creep in.  In particular, the Adrift runner has a built in set of standard
+commands it understands, and also a set of standard responses it produces to
+selected actions.  SCARE's text for these may be slightly different; for most
+cases, this won't matter, but it could be that a game uses ALRs to modify
+standard responses, and those ALRs may fail to match SCARE's standard response
+text.
+
+SCARE attempts to run Adrift version 3.90 and version 3.80 games by first
+converting them, on loading, into version 4.00 format.  This generally works,
+but you may find some version 3.90 and version 3.80 games either do not load,
+or do no play completely correctly, in SCARE.  The Adrift version 4.00 runner
+itself cannot run version 3.90 or 3.80 games, and the Adrift generator is not
+guaranteed to convert version 3.90 games correctly, so there is apparently
+some inescapable incompatibility across these versions of Adrift.  SCARE does
+its best to cope, but may not always get things right.
+
+Standard SCARE builds lack the graphical toolbar of the Adrift runner, so
+cannot set verbose mode, bold room names, and score change notifications using
+a toolbar.  Instead, SCARE implements the "verbose" and "brief" game commands,
+the "notify on/off" commands, and just always displays room names in bold
+(though this won't be visible for ANSI builds).  Similarly, use "save" to save
+a game, "restore" or "load" to restore a saved game, "quit" to exit a game,
+"undo" to undo a turn (SCARE limits undo to one turn) and "restart" to start
+again from the beginning.
+
+SCARE's saved game file format is designed to be fully compatible with the
+Adrift version 4.00 runner's.  Games saved from the Adrift runner may be
+loaded by SCARE.  The converse may be true, but in selected cases may not.
+The problem cases are games that use Adrift string variables.  The Adrift
+runner mishandles these in its save format, and so may be upset to find that
+SCARE is handling them correctly.
+
+SCARE does not handle a few of the rarest standard Adrift commands, but its
+coverage of Adrift commands and verbs is fairly good.  If a game handles one
+of these rare commands for itself, it will work in SCARE as expected.
+
+SCARE does not implement Adrift's "battle system".  If you run a game that
+uses this feature, SCARE will warn you, then run the game anyway.  It's
+possible that the game author simply left this turned on in the game, but
+never uses it, in which case the game should run fine.  Games that do rely on
+the "battle system" may however not always run correctly, depending on how
+they rely on it.  SCARE runs these games in "pacifist mode", doing everything
+the game asks except for "battles".
+
+There may be places where SCARE doesn't implement objects, events, tasks, or
+NPCs quite correctly.  SCARE is a work in progress, based on jAsea, created by
+reverse engineering the Adrift runner, with no access to Adrift runner code or
+Adrift TAF file documentation.  As such, some parts of SCARE pretty much guess
+about the meaning of selected portions of the Adrift TAF file, and may guess
+incorrectly.
+
+SCARE's implementation of the "it" pronoun for objects and "him" and "her"
+for NPCs, is not completely accurate.  While pronouns work most of the time,
+it may sometimes be necessary to explicitly name the object or NPC to get the
+expected behavior.
+
+The Comp03 release of the Adrift game 'Sophie's Adventure' has a bug in it
+that renders it unreadable to SCARE ("invalid integer at line 225749").  How
+the real Adrift runner manages to load this game is a mystery.  If you want
+to run this game, the author has made a fixed version available at his web
+site, shadowvault.net.  SCARE is able to run this newer version of the game.
+
+SCARE contains copious debugging output that you can turn on if curious about
+its inner workings.  To do this, set the value of SC_TRACE_FLAGS prior to
+running SCARE.  The values for the various tracing options may be found in the
+file scare.h, in the SCARE source.  Set a value of -1 to rapidly become neck
+deep in trace output.
+
+The remaining notes refer only the the Glk build of SCARE.
+
+Glk SCARE implements an additional command, "glk".  Use this to set or request
+interpreter information.  Valid Glk commands are
+
+    glk script             - Turn game transcript on or off
+    glk inputlog           - Save typed commands to a file
+    glk readlog            - Read input from a file (normally created using
+                             'glk inputlog')
+    glk abbreviations      - Turn standard IF abbreviations on or off
+    glk version            - Show the version of Glk built into glkscare
+    glk commands           - Turn off the special "glk" command; once off, it
+                             cannot be turned back on again
+
+Glk SCARE automatically expands the following abbreviations, common among
+many standard IF systems:
+
+	'c' -> "close"		'g' -> "again"		'i' -> "inventory"
+	'k' -> "attack"		'l' -> "look"		'p' -> "open"
+	'q' -> "quit"		'r' -> "drop"		't' -> "take"
+	'x' -> "examine"	'y' -> "yes"		'z' -> "wait"
+
+If you want to suppress abbreviation expansion, you can prefix your input
+with a single quote character (like putting literal strings into a spread-
+sheet).  If you do this, Glk SCARE will strip the quote, then pass the rest
+of the string to the main interpreter without any more changes.  So for
+example,
+
+	'x something
+
+will pass the string "x something" in to the game, whereas
+
+	x something
+
+will pass "examine something" in to the game.  The single quote will also
+suppress the special "glk" commands, in the (unlikely) event that you need to
+pass a line starting with "glk" to the Adrift game itself.
+
+A warning about these abbreviations.  Some games override 'x something' in
+Adrift with actions of their own.  It's an unwise thing to do even with the
+real Adrift runner, as it treats 'x something', 'examine something', and
+'look at something' as equivalent, and a buggy game, one that overrides only
+'x something', can therefore fail even in real Adrift.
+
+For Glk SCARE, however, the problem with games that do this is worsened by
+the standard abbreviations, which always convert 'x something' to 'examine
+something' before passing the input to the game.  If you find a game seems to
+be misbehaving, try turning off Glk abbreviations to see if things improve.
+
+You can turn off Glk abbreviation expansions with the command line option
+'-na', and Glk commands, such as "glk version", with '-nc'.  If built with
+Linux graphics support, '-ng' turns off graphics.
+
+Please report any SCARE bugs, omissions, or misfeatures to Simon Baldwin,
+simon_baldwin@yahoo.com.  Before doing so, please read the above notes to be
+sure that what you're seeing isn't already a known bug.  Thank you.
+

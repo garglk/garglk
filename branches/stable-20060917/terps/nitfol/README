@@ -1,0 +1,18 @@
+This is release 0.5 of Nitfol, a z-machine interpreter using Glk for
+its input and output.  This release should be considered beta quality.
+
+Nitfol was written from scratch, with portability in mind.  There's
+probably some stuff in there that isn't portable, so if you find some,
+let me know.  It supports z1 through z8.  z6 sort of works, but
+doesn't display everything correctly.
+
+Play.  Let me know if you can crash it or get it to do things an
+interpreter shouldn't.
+
+See INSTALL for compilation/installation instructions.
+
+See nitfol.html or nitfol.info for full documentation.
+
+Evin Robertson, the author, can be reached at nitfol@my-deja.com
+
+

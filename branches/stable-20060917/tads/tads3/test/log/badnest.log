@@ -1,0 +1,18 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export badnest.t -> badnest.t3s
+badnest.t(12): error: unterminated object definition
+badnest.t(29): error: unterminated object definition
+badnest.t(31): error: symbol "east" is already defined - can't redefine as object
+badnest.t(32): error: expected function or object definition, but found "="
+Errors:   4
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

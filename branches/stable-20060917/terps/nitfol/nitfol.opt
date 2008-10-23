@@ -1,0 +1,81 @@
+# Blank lines and lines beginning with # are ignored
+# Lines alternate between a table describing the command and the texinfo description of the command.
+# You can alter the 'default' part to change the game's default options.
+
+# Longest name		Long	short	description                             type    default code
+"Ignore errors"		ignore	i	"Ignore Z-machine strictness errors"	flag	1	{ ignore_errors = flag; }
+Normally nitfol checks for illegal and undefined Z-machine behaviour and alerts the user.  If you're playing someone else's buggy game, this can be annoying and you should use this option.
+
+"Inferior debugger"	fullname f	"For running under Emacs or DDD"	flag	0	{ fullname = flag; }
+Tells nitfol to give machine-recognizeable markers when stack frames are displayed instead of displaying the line. Only useful if you are using nitfol as an inferior debugger.
+
+"Input script"		command	x	"Read commands from this file"		file	NULL	{ if(stream) input_stream1 = stream; }
+Load a script from a file for playback in the game.
+
+"Piracy flag"		pirate	P	"Aye, matey"				flag	0	{ aye_matey = flag; }
+Make the piracy opcode not branch, letting the game know the game disc is not ``genuine.'' Infocom never used this opcode and neither should you, but if obscurity amuses you...
+
+"Quiet mode"		quiet  	q      	"Do not print introductory messages"	flag	1	{ quiet = flag; }
+For GDB compatibility.
+
+"Typo correction"	spell  	-      	"Perform spelling correction"  	       	flag   	1      	{ do_spell_correct = flag; }
+Normally Z-machine games are unforgiving of typos (though they do have an @code{oops} command). If you type in a word which isn't in the game's dictionary and have typo correction enabled, nitfol will search for a word which is off by one letter by a substitution, deletion, insertion or transposition.
+
+"Expand abbreviations"	expand	-	"Expand one letter abbreviations"	flag	1	{ do_expand = flag; }
+Early Z-machine games don't include @kbd{x} as a synonym for @kbd{examine} and such.  If the first word in a sentence is one letter long and not recognized by the game, this will attempt to expand it to a full word.
+
+"Symbol file"		symbols	s      	"Specify symbol file for game" 	       	file   	NULL   	{ if(stream) init_infix(stream); }
+If you want to perform source-level debugging, you will need to specify a symbol file, which contains the names of variables and tells nitfol how source code corresponds to object code.
+
+"Tandy bit"		tandy	t	"Censors some Infocom games"		flag	0	{ do_tandy = flag; }
+Some version 3 games perform minor wording changes when this bit is set to appease the sensitivity of Tandy Corporation.
+
+"Transcript"		transcript T	"Write transcript to this file"		wfile	NULL	{ if(stream) set_transcript(stream); }
+This transcript begins as soon as the game starts.
+
+"Start in debugger"	debug   d       "Enter debugger immediatly"             flag    0       { enter_debugger = flag; do_check_watches = flag; }
+Imitate GDB by not automatically starting the story.
+
+"Debugger prompt"	prompt	-	"Specify debugging prompt"		string	"(nitfol) " { n_free(db_prompt); db_prompt = n_strdup(string); }
+This is the prompt nitfol prints when it is waiting for a debugging command (as opposed to the > the game story prints when waiting for a game command).  DDD requires this to be @samp{(gdb) }.
+
+"Search path"		path	-	"Look for games in this directory"	string	NULL	{ n_free(search_path); search_path = n_strdup(string); }
+If nitfol cannot find the requested game in the current directory, it looks through the directories listed in the given colon separated string.  The directories specified here are also used to search for gamefiles from saved games.   If this option is not used, nitfol looks at the @code{INFOCOM_PATH} environment variable.
+
+"auto-@save_undo"	autoundo -	"Ensure @code{@@save_undo} is called every turn" flag	1	{ auto_save_undo = flag; }
+If a turn passes with no @code{@@save_undo} between, this option performs the @code{@@save_undo} automagically.  Could cause problems with some games which have a different concept of a turn.
+
+# Disabled since it doesn't work
+#"char auto-@save_undo"	charundo -	"Ensure @code{@@save_undo} is called every character input" flag 0 { auto_save_undo_char = flag; }
+#If two consecutive @code{@@read_char} pass without a @code{@@save_undo}, perform the @code{@@save_undo} automagically.  Useful to get undo in Z-machine abuses.  Press @kbd{Ctrl-u} to undo at character input.
+
+"Maximum stack size"	stacklimit S	"Exit when the stack is this deep"	number	0	{ stacklimit = number; }
+If a game is infinitely recursing, nitfol will allocate large amounts of memory and take a long time before the problem is reported.  This option makes it fatal to recurse more than the given number of stack frames.  Setting this to 0 makes nitfol allow as many as fit contiguously in memory.  The Z-machine Standards Document recommends games use no more than 1024 words of total stack (frames and pushed data) in ZIP, which roughly works out to 90 routine calls deep.
+
+"Add alias"		alias	a	"Specify an alias"			string	NULL	{ if(string) parse_new_alias(string, FALSE); }
+Adds an alias which will be expanded in read lines before tokenisation.  The alias is of the form @var{name} @var{value}; you will need to use quotes around it on the commandline.
+
+"Add recursive alias"	ralias	-	"Specify an recursive alias"		string	NULL	{ if(string) parse_new_alias(string, TRUE); }
+Adds an alias whose result is checked for further alias expansion.  Identical syntax to adding a normal alias.
+
+"Remove alias"		unalias	-	"Remove an alias"			string	NULL	{ if(string) remove_alias(string); }
+Removes an alias previously added by -alias.  Useful for removing aliases in preference files.
+
+"Random seed"		random	r	"Set random seed"			number	0	{ faked_random_seed = number; }
+Normally the random number generator is initialized with the time of day.  If this option is used with a non-zero argument, the given number will be used to initialize the generator and for @code{@@random 0}.
+
+"Automap symbols"	mapsym	-	"Specify mapping glyphs"		string	"*udb@UDB+" { n_free(roomsymbol); roomsymbol = n_strdup(string); }
+Nitfol draws maps using ASCII characters; you can choose which characters it uses to draw rooms.  Defaults to @samp{*udb@@UDB+}, which is, in order: empty room, room with down exit, room with up exit, room with up and down exits, room with player, room with player and up exit, room with player and down exit, room with player and up and down exits, bend symbol.
+
+"Automap size"		mapsize	-	"Specify map size"			number	12	{ automap_size = number; }
+Determines the number of lines to be used for the map.
+
+"Automap location"	maploc	-	"Specify map location"			string	"above"	{ switch(glk_char_to_lower(*string)) { case 'a': case 't': case 'u': automap_split = winmethod_Above; break; case 'b': case 'd': automap_split = winmethod_Below; break; case 'l': automap_split = winmethod_Left; break; case 'r': automap_split = winmethod_Right; } }
+Nitfol creates a Glk window for the map it generates.  The map can be placed @samp{above}, @samp{below}, to the @samp{right}, or the @samp{left}, of the main game window.  Follow this option with one those locations.
+
+"Interpreter number"	terpnum	-	"Specify interpreter number"		number	2	{ interp_num = number; }
+Each port of Infocom's Z-machine interpreter was given a number.  @samp{1} for their own DECSystem-20, @samp{2} for Apple IIe, @samp{3} for Macintosh, @samp{4} for Amiga, @samp{5} for Atari ST, @samp{6} for IBM PC, @samp{7} for Commodore 128, @samp{8} for Commodore 64, @samp{9} for Apple IIc, @samp{10} for Apple IIgs, @samp{11} for Tandy Color.  Giving this option makes nitfol claim to be running on the specified system.  A few games change their behaviour slightly depending on which machine type they run.  By default nitfol claims to be on an Apple IIe, as this makes Beyond Zork not do character graphics.
+
+"Interpreter version"	terpver	-	"Specify interpreter version"		string	"N"	{ if(string) { if(n_strlen(string) == 1) interp_ver = *string; else interp_ver = n_strtol(string, NULL, 10); } }
+Infocom's interpreters were given versions, typically a capital letter.  Nitfol defaults to @samp{N}, Frotz uses @samp{F}, and ZIP uses @samp{B}.  Any single character version is allowed.  Multicharacter options are read as a number instead of an ASCII character.  Only known effect upon games is the letter printed by banners and the @samp{version} command.  Version 6 games interpret this as a number instead of a letter.
+

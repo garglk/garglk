@@ -1,0 +1,13 @@
+#!/bin/ash
+# This is a shell wrapper that finds an appropriate nitfol in your path
+# and runs it.  Requires 'which' and sh.  (only tested with bash, so YMMV)
+
+if [ $DISPLAY ] && [ `which xnitfol` ] ; then
+    xnitfol "$@"
+elif [ `which termnitfol` ] ; then
+    termnitfol -revgrid yes -border no -ml no "$@"
+elif [ `which cheapnitfol` ] ; then
+    cheapnitfol "$@"
+else
+    echo No nitfol detected.  Compile and place it in your path.
+fi
