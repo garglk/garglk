@@ -172,7 +172,7 @@ if $(MAKE_GLULXE) = yes
 
     Main glulxe :
         main.c files.c vm.c exec.c funcs.c operand.c string.c glkop.c
-        serial.c search.c gestalt.c osdepend.c unixstrt.c
+        heap.c serial.c search.c gestalt.c osdepend.c unixstrt.c
         ;
 
     APPS += glulxe ;
