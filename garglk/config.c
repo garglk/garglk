@@ -9,6 +9,9 @@
 #include "glkstart.h"
 #include "garglk.h"
 
+int gli_utf8input = FALSE ;
+int gli_utf8output = FALSE ;
+
 char *gli_conf_propr = "CharterBT-Roman";
 char *gli_conf_propb = "CharterBT-Bold";
 char *gli_conf_propi = "CharterBT-Italic";
