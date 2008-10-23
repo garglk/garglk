@@ -1,0 +1,79 @@
+GlkFrotz v2.43 - An interpreter for most Infocom and other Z-machine games.
+Glk port created and maintained by Tor Andersson.
+
+Read more on the web page:
+
+http://ghostscript.com/~tor/software/gargoyle/frotz.html
+
+Requires one non-standard Glk function. Add it to your Glk before
+you try to compile, unless you are using Gargoyle:
+
+	char * garglk_fileref_get_name(frefid_t fref);
+
+--- Original readme ---
+
+FROTZ V2.43 - An interpreter for all Infocom and other Z-machine games.
+Complies with standard 1.0 of Graham Nelson's specification.
+
+Originally written by Stefan Jokisch in 1995-1997.
+Ported to Unix by Galen Hazelwood.
+Reference code and Unix port currently maintained by David Griffith.
+
+- Compiles and runs on most common flavors of Unix, both open source and not.
+- Plays all Z-code games including V6.
+- Old-style sound support through OSS driver.
+- Config files.
+- Configurable error checking.
+- Default use of the Quetzal file format.  Command line option to use the
+  old format.  There are several differences between the old-style save 
+  format at Quetzal such that converting from old-style and Quetzal is 
+  difficult if not impossible.  This also means you can't restore an 
+  old-style save and then save your game in Quetzal.
+- Optional speech synthesis and recognition through FLITE and Sphinx.
+- Distributed under the GNU Public License.
+
+
+For information on what Interactive Fiction is and how to play it, see the
+file "HOW_TO_PLAY".
+
+For installation information, see the file "INSTALL".
+
+For information on the speech synthesis and recognition capabilities of
+Frotz, see the file "SPEECH".
+
+For update history, see the file "Changelog".
+
+For information on known bugs in Frotz, see the file "BUGS".
+
+For bug reports, check the Unix Frotz website to see if there's a new
+release.  If not, send your bug report to me at dgriffi@cs.csubak.edu.
+
+For information on porting Frotz to new platforms, see the file "PORTING".
+
+For those who are involved in creating and distributing binary packages
+containing Frotz and including Frotz in BSD-style ports/pkgsrc trees,
+see the file "PACKAGING".
+
+The latest information on Unix Frotz is available at the Unix Frotz
+homepage at http://www.cs.csubak.edu/~dgriffi/proj/frotz/.
+
+The latest release of Unix Frotz is available from the Interactive
+Fiction Archive at:
+http://www.ifarchive.org/if-archive/infocom/interpreters/
+	frotz/frotz-<version>.tar.gz
+and
+ftp://ftp.ifarchive.org/if-archive/infocom/interpreters/
+	frotz/frotz-<version>.tar.gz
+
+The Interactive Fiction Archive has several mirrors which may be better
+choices depending on where you live.  Here is a partial list.
+
+http://www.ifarchive.org/				(USA, Pittsburgh, PA)
+http://mirror.ifarchive.org/				(USA)
+ftp://ftp.ifarchive.com/if-archive/			(USA, Los Angeles, CA)
+ftp://ftp.guetech.org/if-archive/			(USA, Bremerton, WA)
+ftp://ftp.plover.net/if-archive/			(USA, Chicago, IL)
+ftp://ftp.funet.fi/pub/misc/if-archive/			(Finland)
+http://www.planetmirror.com/pub/if-archive/		(Australia)
+ftp://ftp.planetmirror.com/pub/if-archive/		(Australia)
+

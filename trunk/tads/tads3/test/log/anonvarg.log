@@ -1,0 +1,26 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export anonvarg.t -> anonvarg.t3s
+	compile _main.t -> _main.t3o
+	compile anonvarg.t -> anonvarg.t3o
+	link -> anonvarg.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+fixedcb: x=1, y=2
+fixedcb: x=2, y=4
+varfunc: via callback
+   4
+   5
+   6
+varfunc: args.length() = 3
+varfunc2 callback:
+   7
+   8
+   9
+varfunc2: args.length() = 3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

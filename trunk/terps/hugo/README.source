@@ -1,0 +1,8 @@
+Hugo for Unix - Distribution Notes
+----------------------------------
+'make' to make the entire Hugo package.
+
+The /gcc directory contains gcc-specific files.
+
+The /source directory contains the regular Hugo portable
+sources normally distributed as hugov2x_source.tar.gz.

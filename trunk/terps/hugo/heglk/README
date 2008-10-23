@@ -1,0 +1,3 @@
+To compile Glk Hugo (heglk), unzip the Glk Hugo sources (available separately)
+into this directory, then 'make'.  You may have to fiddle with the makefile
+depending on where you have Glk installed.

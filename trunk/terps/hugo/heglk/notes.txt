@@ -1,0 +1,63 @@
+(Please ensure that the accompanying README.TXT is included with every
+Glk distribution, as it describes for users some of the limitations of
+Glk Hugo vs. a fully featured port.)
+
+
+PORTER'S NOTES ON GLK HUGO
+--------------------------
+
+This is a relatively basic port of Hugo to Glk, but it seems to do the
+job, at least for simple, text-based games.
+
+The file heglk.c includes most of the interface layer.  More complex
+startup code and system-specific implementations of a few non-portable
+functions (such as window-titling and error-messaging) may be provided
+in a separate file.  (The Windows file heglkwin.c is included in this 
+package as an example.)
+
+It is possible to implement the sound and graphics functions 
+independently of Glk.  For instance, a port could display an image in 
+a modal window outside of the Glk frame (or multiple images in multiple 
+modal windows).  An ambitious porter should be able to do something 
+like this without too much difficulty.  On the other hand, I've not yet
+had a chance to play with the new Glk graphics capabilities, but I'm
+hoping that for the most part it can be integrated into heglk.c.
+
+
+TO BUILD GLK HUGO
+-----------------
+
+You'll need to do the following:
+
+1.  Unpack this archive (hugov*_glk_source.zip) and the main source
+    distribution (hugov*_source.tar.gz).
+
+2.  Implement any startup code or system-specific replacement
+    functions desired.
+
+3.  Link with the Glk library.
+
+
+REVISION HISTORY
+----------------
+
+25-01-99  Glk Hugo beta uploaded to ftp.gmd.de; works with Win32
+
+28-01-99  Minor fix to accommodate non-proportional text in menu
+	  positioning
+
+31-01-99  Changed zoom/shrink auxwin to open/close
+
+04-02-99  Incorporated Andrew's Glk implementation into the main
+	  code base
+
+10-02-99  Glk Hugo uploaded to ftp.gmd.de, in both Win32 and Mac
+	  incarnations.
+	  
+12-02-99  Modified keywait cursor functionality; added Torbjorn
+	  Anderson's modified Unix makefile, and Joe Mason's
+	  CheapGlk patch
+
+
+Kent Tessman
+February 10, 1999

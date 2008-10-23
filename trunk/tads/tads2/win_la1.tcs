@@ -1,0 +1,278 @@
+# TADS 2 Character Mapping Table
+# Windows code page 1252 <-> ISO Latin-1
+#
+# To use this file, you must first compile it with MKCHRTAB (also known
+# as MKCHRTAB32 for Windows 95/NT users).
+#
+# To compile a game using this character set mapping, prepare the game's
+# source code using Windows code page 1252, then compile the game using
+# this command:
+#
+#    tc -ctab win_la1.tcp mygame.t
+#
+# To play a game using ISO Latin 1 with HTML TADS on Windows, simply run
+# the game normally.  The HTML TADS run-time should automatically load
+# the compiled version of this mapping file.
+#
+# NOTE: this mapping is for use with TADS 2 only.  TADS 3 uses a
+# different mapping system.
+
+
+# Internal Character Set Identifier - this is a string of no more than
+# four characters that uniquely and universally identifies the character
+# set.  For a given character set, this ID must be the same on every
+# platform.  The reason the ID must be the same everywhere is that the
+# run-time uses the ID, which the compiler stores in the .GAM file, to
+# choose the character set mapping file when a player loads the game.
+# In order to allow you to compile your game on one system, and have
+# players run the game on different systems, every system must use the
+# same character set identifier for the internal character set, so that
+# every platform can choose the correct character set mapping to the
+# native character set.
+#
+# IMPORTANT - to ensure that character set identifiers are universal
+# and unique, character set identifiers MUST be registered.  Currently,
+# Mike Roberts (mjr_@hotmail.com) maintains the list of registered
+# character set identifiers; please contact him by email if you would
+# like the current list or add a new character set to the list.
+#
+# You do NOT need to register *native* character sets.  The native
+# character set used to compile a game is not stored with the game,
+# because it is irrelevant once the game is compiled -- the game is
+# entirely translated to the internal character set during compilation.
+# Note, however, that the TADS run-time varies by operating system in
+# how it determines the native character set, and how it chooses a
+# character set mapping file based on the native character set.
+#
+# Members of the ISO Latin-X series of character sets are all registered,
+# and are assigned identifiers such of the form "LaX", where X is the
+# numeric suffix to the ISO Latin name.  For example, ISO Latin-1 (ISO
+# 8859-1) has identifier "La1", ISO Latin-2 has identifier "La2", and
+# so on.
+#
+id = La1
+
+
+# Full name of the internal character set - this name is stored in a
+# game compiled with this internal character set, so that the run-time
+# can display a sensible error message if a suitable mapping file is
+# not available when a player loads the game.  The full name isn't used
+# for choosing the mapping file, but is meant for the player to see.
+#
+# Each registered character set has an official full name, which should
+# be used here to ensure that players encountering character mapping
+# problems can more easily determine what file they need.  The ISO
+# Latin series names should be of the form "ISO Latin-X (ISO 8859-Y)".
+#
+ldesc = ISO Latin-1 (ISO 8859-1)
+
+
+# Extra System-specific information - this can be any string of
+# characters; the meaning is system-dependent.  For DOS, this extra
+# information is ignored.  Other systems use it for varying purposes.
+#
+# On Windows, this string contains a code page number, which the TADS
+# run-time will use as the system code page when this character set is
+# selected by a game.
+#
+# ISO Latin-1 maps well to Windows code page 1252, so use 1252 for
+# games written for ISO Latin-1.
+#
+EXTRA_SYSTEM_INFO = 1252
+
+
+# ---------------------------------------------------------------------------
+# The ASCII subset 1-127 is the same in both character sets and therefore
+# doesn't need to be mapped
+
+# ISO Latin-1 and Windows code page 1252 are identical for characters
+# 0xA0 through 0xFF.
+
+160 <-> 160
+161 <-> 161
+162 <-> 162
+163 <-> 163
+164 <-> 164
+165 <-> 165
+166 <-> 166
+167 <-> 167
+168 <-> 168
+169 <-> 169
+170 <-> 170
+171 <-> 171
+172 <-> 172
+173 <-> 173
+174 <-> 174
+175 <-> 175
+176 <-> 176
+177 <-> 177
+178 <-> 178
+179 <-> 179
+180 <-> 180
+181 <-> 181
+182 <-> 182
+183 <-> 183
+184 <-> 184
+185 <-> 185
+186 <-> 186
+187 <-> 187
+188 <-> 188
+189 <-> 189
+190 <-> 190
+191 <-> 191
+192 <-> 192
+193 <-> 193
+194 <-> 194
+195 <-> 195
+196 <-> 196
+197 <-> 197
+198 <-> 198
+199 <-> 199
+200 <-> 200
+201 <-> 201
+202 <-> 202
+203 <-> 203
+204 <-> 204
+205 <-> 205
+206 <-> 206
+207 <-> 207
+208 <-> 208
+209 <-> 209
+210 <-> 210
+211 <-> 211
+212 <-> 212
+213 <-> 213
+214 <-> 214
+215 <-> 215
+216 <-> 216
+217 <-> 217
+218 <-> 218
+219 <-> 219
+220 <-> 220
+221 <-> 221
+222 <-> 222
+223 <-> 223
+224 <-> 224
+225 <-> 225
+226 <-> 226
+227 <-> 227
+228 <-> 228
+229 <-> 229
+230 <-> 230
+231 <-> 231
+232 <-> 232
+233 <-> 233
+234 <-> 234
+235 <-> 235
+236 <-> 236
+237 <-> 237
+238 <-> 238
+239 <-> 239
+240 <-> 240
+241 <-> 241
+242 <-> 242
+243 <-> 243
+244 <-> 244
+245 <-> 245
+246 <-> 246
+247 <-> 247
+248 <-> 248
+249 <-> 249
+250 <-> 250
+251 <-> 251
+252 <-> 252
+253 <-> 253
+254 <-> 254
+255 <-> 255
+
+#
+# Windows code page 1252 has characters at code points 0x80 through
+# 0x9F; these values are not used by ISO Latin-1.  Choose 0x80 as the
+# invalid character in ISO Latin-1, since it's not used, and map
+# all of the Windows 1252 characters in this range to this invalid
+# character.  Map the invalid character back to character 0x9E in
+# the Windows 1252 code page, since this is an unused and invalid
+# character in that code page.
+#
+
+128 -> 128 -> 158
+129 -> 128
+130 -> 128
+131 -> 128
+132 -> 128
+133 -> 128
+134 -> 128
+135 -> 128
+136 -> 128
+137 -> 128
+138 -> 128
+139 -> 128
+140 -> 128
+141 -> 128
+142 -> 128
+143 -> 128
+144 -> 128
+145 -> 128
+146 -> 128
+147 -> 128
+148 -> 128
+149 -> 128
+150 -> 128
+151 -> 128
+152 -> 128
+153 -> 128
+154 -> 128
+155 -> 128
+156 -> 128
+157 -> 128
+158 -> 128
+159 -> 128
+
+#
+# The remaining internal code points (0x81 through 0x9F) are not used.
+# Map all of them to our code page 1252 invalid character, in case some
+# game should incorrectly use one of these codes.
+#
+
+158 <- 129
+158 <- 130
+158 <- 131
+158 <- 132
+158 <- 133
+158 <- 134
+158 <- 135
+158 <- 136
+158 <- 137
+158 <- 138
+158 <- 139
+158 <- 140
+158 <- 141
+158 <- 142
+158 <- 143
+158 <- 144
+158 <- 145
+158 <- 146
+158 <- 147
+158 <- 148
+158 <- 149
+158 <- 150
+158 <- 151
+158 <- 152
+158 <- 153
+158 <- 154
+158 <- 155
+158 <- 156
+158 <- 157
+158 <- 158
+158 <- 159
+
+#
+# Note that you can also specify entity mappings for this character set.
+# The entity mappings provide the local character set expansions for
+# the HTML named entities using the standard TADS run-time.
+#
+# Note that the entity mappings apply *only* to the standard TADS.
+# HTML TADS does *not* use any HTML entity mappings defined in a character
+# mapping table file, but instead provides its own mapping mechanism.
+# Therefore, we do not provide any mappings for the Windows version.
+

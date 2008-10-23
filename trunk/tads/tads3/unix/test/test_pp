@@ -1,0 +1,9 @@
+#!/bin/sh
+# Preprocessor tests
+
+echo Preprocessor test: $1
+
+test_tok -I$T3_DAT -P $T3_DAT/$1.c >$T3_OUT/$1.log 2>&1
+test_diff $1
+
+echo

@@ -1,0 +1,16 @@
+	Files to build: 3
+	symbol_export html.t -> html.t3s
+	compile html.t -> html.t3o
+	link -> html.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+HTML mode...
+Translations: <&>.
+
+Done!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

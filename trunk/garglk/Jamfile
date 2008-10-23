@@ -1,0 +1,45 @@
+# Gargoyle Glk -- a pretty glk library
+
+SubDir TOP garglk ;
+ObjDir garglk ;
+
+SubDirCcFlags $(GARGLKCCFLAGS) ;
+
+if $(OS) = MINGW
+{
+    SubDirHdrs $(TOP) support freetype-2.1.10 include ;
+    SubDirHdrs $(TOP) support zlib-1.2.2 ;
+    SubDirHdrs $(TOP) support libpng-1.2.8 ;
+    SubDirHdrs $(TOP) support jpeg-6b ;
+    SubDirHdrs $(TOP) support sdl ;
+}
+
+GARGSRCS = 
+    gi_blorb.c gi_dispa.c nohyper.c 
+    cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c
+    window.c winblank.c winpair.c wingrid.c wintext.c wingfx.c
+    event.c draw.c config.c
+    imgload.c imgscale.c
+    fontdata.c 
+    ;
+
+if $(USESDL) { GARGSRCS += sndsdl.c ; }
+else if $(USEFMOD) { GARGSRCS += sndfmod.c ; }
+else { GARGSRCS += sndnull.c ; }
+
+if $(OS) = MINGW
+{
+    GARGSRCS += syswin.c icons.rc ;
+    Main gargoyle : launcher.c ;
+    SharedLinkLibraries gargoyle : libgarglk ;
+}
+else
+{
+    GARGSRCS += sysgtk.c ;
+    MakeLocate gargoyle : $(LOCATE_TARGET) ;
+    Shell gargoyle : launcher.sh ;
+}
+
+Library libgarglkmain : main.c ;
+SharedLibrary libgarglk : $(GARGSRCS) ;
+
