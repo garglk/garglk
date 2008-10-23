@@ -1,11 +1,11 @@
 #ifndef _GI_DISPA_H
 #define _GI_DISPA_H
 
-/* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.6.1.
+/* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.7.0.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    This file is copyright 1998-2000 by Andrew Plotkin. You may copy,
+    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
     distribute, and incorporate it into your own programs, by any means
     and under any conditions, as long as you do not modify it. You may
     also modify this file, incorporate it into your own programs,
@@ -33,11 +33,13 @@ typedef union gluniversal_union {
     signed char sch; /* Cs */
     char ch; /* Cn */
     char *charstr; /* S */
+    glui32 *unicharstr; /* U */
     void *array; /* all # arguments */
     glui32 ptrflag; /* [ ... ] or *? */
 } gluniversal_t;
+
 /* Some well-known structures:
-    event_t : [4IuQwIuIu]
+    event_t : [4IuQaIuIu]
     stream_result_t : [2IuIu] 
 */
 
@@ -79,6 +81,7 @@ extern void gidispatch_call(glui32 funcnum, glui32 numargs,
     gluniversal_t *arglist);
 extern char *gidispatch_prototype(glui32 funcnum);
 extern glui32 gidispatch_count_classes(void);
+extern gidispatch_intconst_t *gidispatch_get_class(glui32 index);
 extern glui32 gidispatch_count_intconst(void);
 extern gidispatch_intconst_t *gidispatch_get_intconst(glui32 index);
 extern glui32 gidispatch_count_functions(void);

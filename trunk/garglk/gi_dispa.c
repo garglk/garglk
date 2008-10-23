@@ -1,8 +1,8 @@
-/* gi_dispa.c: Dispatch layer for Glk API, version 0.6.1.
+/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.0.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    This file is copyright 1998-2000 by Andrew Plotkin. You may copy,
+    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
     distribute, and incorporate it into your own programs, by any means
     and under any conditions, as long as you do not modify it. You may
     also modify this file, incorporate it into your own programs,
@@ -21,11 +21,22 @@
 #define NULL 0
 #endif
 
+#define NUMCLASSES   \
+    (sizeof(class_table) / sizeof(gidispatch_intconst_t))
+
 #define NUMINTCONSTANTS   \
     (sizeof(intconstant_table) / sizeof(gidispatch_intconst_t))
 
 #define NUMFUNCTIONS   \
     (sizeof(function_table) / sizeof(gidispatch_function_t))
+
+/* The constants in this table must be ordered alphabetically. */
+static gidispatch_intconst_t class_table[] = {
+    { "fileref", (2) },   /* "Qc" */
+    { "schannel", (3) },  /* "Qd" */
+    { "stream", (1) },    /* "Qb" */
+    { "window", (0) },    /* "Qa" */
+};
 
 /* The constants in this table must be ordered alphabetically. */
 static gidispatch_intconst_t intconstant_table[] = {
@@ -66,6 +77,7 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_SoundNotify", (10) },
     { "gestalt_SoundVolume", (9) },
     { "gestalt_Timer", (5) },
+    { "gestalt_Unicode", (15) },
     { "gestalt_Version", (0) },
 #ifdef GLK_MODULE_IMAGE
     { "imagealign_InlineCenter",  (0x03) },
@@ -240,11 +252,36 @@ static gidispatch_function_t function_table[] = {
     { 0x0102, glk_request_hyperlink_event, "request_hyperlink_event" },
     { 0x0103, glk_cancel_hyperlink_event, "cancel_hyperlink_event" },
 #endif /* GLK_MODULE_HYPERLINKS */
+#ifdef GLK_MODULE_UNICODE
+    { 0x0120, glk_buffer_to_lower_case_uni, "buffer_to_lower_case_uni" },
+    { 0x0121, glk_buffer_to_upper_case_uni, "buffer_to_upper_case_uni" },
+    { 0x0122, glk_buffer_to_title_case_uni, "buffer_to_title_case_uni" },
+    { 0x0128, glk_put_char_uni, "put_char_uni" },
+    { 0x0129, glk_put_string_uni, "put_string_uni" },
+    { 0x012A, glk_put_buffer_uni, "put_buffer_uni" },
+    { 0x012B, glk_put_char_stream_uni, "put_char_stream_uni" },
+    { 0x012C, glk_put_string_stream_uni, "put_string_stream_uni" },
+    { 0x012D, glk_put_buffer_stream_uni, "put_buffer_stream_uni" },
+    { 0x0130, glk_get_char_stream_uni, "get_char_stream_uni" },
+    { 0x0131, glk_get_buffer_stream_uni, "get_buffer_stream_uni" },
+    { 0x0132, glk_get_line_stream_uni, "get_line_stream_uni" },
+    { 0x0138, glk_stream_open_file_uni, "stream_open_file_uni" },
+    { 0x0139, glk_stream_open_memory_uni, "stream_open_memory_uni" },
+    { 0x0140, glk_request_char_event_uni, "request_char_event_uni" },
+    { 0x0141, glk_request_line_event_uni, "request_line_event_uni" },
+#endif /* GLK_MODULE_UNICODE */
 };
 
 glui32 gidispatch_count_classes()
 {
-    return 4;
+    return NUMCLASSES;
+}
+
+gidispatch_intconst_t *gidispatch_get_class(glui32 index)
+{
+    if (index < 0 || index >= NUMCLASSES)
+        return NULL;
+    return &(class_table[index]);
 }
 
 glui32 gidispatch_count_intconst()
@@ -398,7 +435,7 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x0087: /* set_style_stream */
             return "2QbIu:";
         case 0x0090: /* get_char_stream */
-            return "2Qb:Iu";
+            return "2Qb:Is";
         case 0x0091: /* get_line_stream */
             return "3Qb<+#Cn:Iu"; 
         case 0x0092: /* get_buffer_stream */
@@ -433,6 +470,7 @@ char *gidispatch_prototype(glui32 funcnum)
             return "1Qa:";
         case 0x00D6: /* request_timer_events */
             return "1Iu:";
+
 #ifdef GLK_MODULE_IMAGE
         case 0x00E0: /* image_get_info */
             return "4Iu<Iu<Iu:Iu";
@@ -449,6 +487,7 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x00EB: /* window_set_background_color */
             return "2QaIu:";
 #endif /* GLK_MODULE_IMAGE */
+
 #ifdef GLK_MODULE_SOUND
         case 0x00F0: /* schannel_iterate */
             return "3Qd<Iu:Qd";
@@ -469,6 +508,7 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x00FC: /* sound_load_hint */
             return "2IuIu:";
 #endif /* GLK_MODULE_SOUND */
+
 #ifdef GLK_MODULE_HYPERLINKS
         case 0x0100: /* set_hyperlink */
             return "1Iu:";
@@ -479,6 +519,41 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x0103: /* cancel_hyperlink_event */
             return "1Qa:";
 #endif /* GLK_MODULE_HYPERLINKS */
+
+#ifdef GLK_MODULE_UNICODE
+        case 0x0120: /* buffer_to_lower_case_uni */
+            return "3&+#IuIu:Iu";
+        case 0x0121: /* buffer_to_upper_case_uni */
+            return "3&+#IuIu:Iu";
+        case 0x0122: /* buffer_to_title_case_uni */
+            return "4&+#IuIuIu:Iu";
+        case 0x0128: /* put_char_uni */
+            return "1Iu:";
+        case 0x0129: /* put_string_uni */
+            return "1U:";
+        case 0x012A: /* put_buffer_uni */
+            return "1>+#Iu:";
+        case 0x012B: /* put_char_stream_uni */
+            return "2QbIu:";
+        case 0x012C: /* put_string_stream_uni */
+            return "2QbU:";
+        case 0x012D: /* put_buffer_stream_uni */
+            return "2Qb>+#Iu:"; 
+        case 0x0130: /* get_char_stream_uni */
+            return "2Qb:Is";
+        case 0x0131: /* get_buffer_stream_uni */
+            return "3Qb<+#Iu:Iu"; 
+        case 0x0132: /* get_line_stream_uni */
+            return "3Qb<+#Iu:Iu"; 
+        case 0x0138: /* stream_open_file_uni */
+            return "4QcIuIu:Qb";
+        case 0x0139: /* stream_open_memory_uni */
+            return "4&+#!IuIuIu:Qb";
+        case 0x0140: /* request_char_event_uni */
+            return "1Qa:";
+        case 0x0141: /* request_line_event_uni */
+            return "3Qa&+#!IuIu:";
+#endif /* GLK_MODULE_UNICODE */
             
         default:
             return NULL;
@@ -697,11 +772,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             glk_fileref_delete_file(arglist[0].opaqueref);
             break;
         case 0x0067: /* fileref_does_file_exist */
-#if 0
-            arglist[1].uint = glk_fileref_does_file_exist(arglist[0].opaqueref);
-#else
             arglist[2].uint = glk_fileref_does_file_exist(arglist[0].opaqueref);
-#endif
             break;
         case 0x0068: /* fileref_create_from_fileref */
             arglist[4].opaqueref = glk_fileref_create_from_fileref(arglist[0].uint, 
@@ -740,7 +811,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             glk_set_style_stream(arglist[0].opaqueref, arglist[1].uint);
             break;
         case 0x0090: /* get_char_stream */
-            arglist[2].uint = glk_get_char_stream(arglist[0].opaqueref);
+            arglist[2].sint = glk_get_char_stream(arglist[0].opaqueref);
             break;
         case 0x0091: /* get_line_stream */
             if (arglist[1].ptrflag) 
@@ -846,6 +917,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
         case 0x00D6: /* request_timer_events */
             glk_request_timer_events(arglist[0].uint);
             break;
+
 #ifdef GLK_MODULE_IMAGE
         case 0x00E0: /* image_get_info */
             {
@@ -899,6 +971,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             glk_window_set_background_color(arglist[0].opaqueref, arglist[1].uint);
             break;
 #endif /* GLK_MODULE_IMAGE */
+
 #ifdef GLK_MODULE_SOUND
         case 0x00F0: /* schannel_iterate */
             if (arglist[1].ptrflag) 
@@ -932,6 +1005,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             glk_sound_load_hint(arglist[0].uint, arglist[1].uint);
             break;
 #endif /* GLK_MODULE_SOUND */
+
 #ifdef GLK_MODULE_HYPERLINKS
         case 0x0100: /* set_hyperlink */
             glk_set_hyperlink(arglist[0].uint);
@@ -946,6 +1020,95 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             glk_cancel_hyperlink_event(arglist[0].opaqueref);
             break;
 #endif /* GLK_MODULE_HYPERLINKS */
+            
+#ifdef GLK_MODULE_UNICODE
+        case 0x0120: /* buffer_to_lower_case_uni */
+            if (arglist[0].ptrflag) 
+                arglist[5].uint = glk_buffer_to_lower_case_uni(arglist[1].array, arglist[2].uint, arglist[3].uint);
+            else
+                arglist[3].uint = glk_buffer_to_lower_case_uni(NULL, 0, arglist[1].uint);
+            break;
+        case 0x0121: /* buffer_to_upper_case_uni */
+            if (arglist[0].ptrflag) 
+                arglist[5].uint = glk_buffer_to_upper_case_uni(arglist[1].array, arglist[2].uint, arglist[3].uint);
+            else
+                arglist[3].uint = glk_buffer_to_upper_case_uni(NULL, 0, arglist[1].uint);
+            break;
+        case 0x0122: /* buffer_to_title_case_uni */
+            if (arglist[0].ptrflag) 
+                arglist[6].uint = glk_buffer_to_title_case_uni(arglist[1].array, arglist[2].uint, arglist[3].uint, arglist[4].uint);
+            else
+                arglist[4].uint = glk_buffer_to_title_case_uni(NULL, 0, arglist[1].uint, arglist[2].uint);
+            break;
+        case 0x0128: /* put_char_uni */
+            glk_put_char_uni(arglist[0].uint);
+            break;
+        case 0x0129: /* put_string_uni */
+            glk_put_string_uni(arglist[0].unicharstr);
+            break;
+        case 0x012A: /* put_buffer_uni */
+            if (arglist[0].ptrflag) 
+                glk_put_buffer_uni(arglist[1].array, arglist[2].uint);
+            else
+                glk_put_buffer_uni(NULL, 0);
+            break;
+        case 0x012B: /* put_char_stream_uni */
+            glk_put_char_stream_uni(arglist[0].opaqueref, arglist[1].uint);
+            break;
+        case 0x012C: /* put_string_stream_uni */
+            glk_put_string_stream_uni(arglist[0].opaqueref, arglist[1].unicharstr);
+            break;
+        case 0x012D: /* put_buffer_stream_uni */
+            if (arglist[1].ptrflag) 
+                glk_put_buffer_stream_uni(arglist[0].opaqueref, 
+                    arglist[2].array, arglist[3].uint);
+            else
+                glk_put_buffer_stream_uni(arglist[0].opaqueref, 
+                    NULL, 0);
+            break;
+        case 0x0130: /* get_char_stream_uni */
+            arglist[2].sint = glk_get_char_stream_uni(arglist[0].opaqueref);
+            break;
+        case 0x0131: /* get_buffer_stream_uni */
+            if (arglist[1].ptrflag) 
+                arglist[5].uint = glk_get_buffer_stream_uni(arglist[0].opaqueref, 
+                    arglist[2].array, arglist[3].uint);
+            else
+                arglist[3].uint = glk_get_buffer_stream_uni(arglist[0].opaqueref, 
+                    NULL, 0);
+            break;
+        case 0x0132: /* get_line_stream_uni */
+            if (arglist[1].ptrflag) 
+                arglist[5].uint = glk_get_line_stream_uni(arglist[0].opaqueref, 
+                    arglist[2].array, arglist[3].uint);
+            else
+                arglist[3].uint = glk_get_line_stream_uni(arglist[0].opaqueref, 
+                    NULL, 0);
+            break;
+        case 0x0138: /* stream_open_file_uni */
+            arglist[4].opaqueref = glk_stream_open_file_uni(arglist[0].opaqueref, arglist[1].uint, 
+                arglist[2].uint);
+            break;
+        case 0x0139: /* stream_open_memory_uni */
+            if (arglist[0].ptrflag) 
+                arglist[6].opaqueref = glk_stream_open_memory_uni(arglist[1].array, 
+                    arglist[2].uint, arglist[3].uint, arglist[4].uint);
+            else
+                arglist[4].opaqueref = glk_stream_open_memory_uni(NULL, 
+                    0, arglist[1].uint, arglist[2].uint);
+            break;
+        case 0x0140: /* request_char_event_uni */
+            glk_request_char_event_uni(arglist[0].opaqueref);
+            break;
+        case 0x0141: /* request_line_event_uni */
+            if (arglist[1].ptrflag)
+                glk_request_line_event_uni(arglist[0].opaqueref, arglist[2].array,
+                    arglist[3].uint, arglist[4].uint);
+            else
+                glk_request_line_event_uni(arglist[0].opaqueref, NULL,
+                    0, arglist[2].uint);
+            break;
+#endif /* GLK_MODULE_UNICODE */
             
         default:
             /* do nothing */

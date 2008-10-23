@@ -25,7 +25,9 @@
  */
 
 #define gli_strict_warning(msg)   \
-    (fprintf(stderr, "Glk library error: %s\n", msg)) 
+    (fprintf(stderr, "Glk library error: %s\n", msg))
+
+extern int gli_utf8output, gli_utf8input;
 
 /* Callbacks necessary for the dispatch layer.  */
 
@@ -211,6 +213,7 @@ struct glk_stream_struct
     glui32 rock;
 
     int type; /* file, window, or memory stream */
+	int unicode; /* one-byte or four-byte chars? Not meaningful for windows */
 
     glui32 readcount, writecount;
     int readable, writable;
@@ -226,6 +229,10 @@ struct glk_stream_struct
     unsigned char *bufptr;
     unsigned char *bufend;
     unsigned char *bufeof;
+    glui32 *ubuf;
+    glui32 *ubufptr;
+    glui32 *ubufend;
+    glui32 *ubufeof;
     glui32 buflen;
     gidispatch_rock_t arrayrock;
 
@@ -264,7 +271,9 @@ struct glk_window_struct
     stream_t *echostr; /* the window's echo stream, if any. */
 
     int line_request;
+	int line_request_uni;
     int char_request;
+	int char_request_uni;
     int mouse_request;
 
     glui32 style;
@@ -311,6 +320,7 @@ struct window_textgrid_s
 
     /* for line input */
     char *inbuf;
+	glui32 *uinbuf;
     int inorgx, inorgy;
     int inmax;
     int incurs, inlen;
@@ -362,6 +372,7 @@ struct window_textbuffer_s
 
     /* for line input */
     char *inbuf;
+	glui32 *uinbuf;
     int inmax;
     long infence;
     long incurs;
@@ -435,6 +446,7 @@ extern void win_textgrid_putchar(window_t *win, char ch);
 extern void win_textgrid_clear(window_t *win);
 extern void win_textgrid_move_cursor(window_t *win, int xpos, int ypos);
 extern void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen);
+extern void win_textgrid_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
 extern void win_textgrid_cancel_line(window_t *win, event_t *ev);
 extern void win_textgrid_click(window_textgrid_t *dwin, int x, int y);
 extern void gcmd_grid_accept_readchar(window_t *win, glui32 arg);
@@ -447,10 +459,20 @@ extern void win_textbuffer_redraw(window_t *win);
 extern void win_textbuffer_putchar(window_t *win, char ch);
 extern void win_textbuffer_clear(window_t *win);
 extern void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen);
+extern void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
 extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
+
+typedef glui32 gli_case_block_t[2]; /* upper, lower */
+/* If both are 0xFFFFFFFF, you have to look at the special-case table */
+
+typedef glui32 gli_case_special_t[3]; /* upper, lower, title */
+/* Each of these points to a subarray of the unigen_special_array
+   (in cgunicode.c). In that subarray, element zero is the length,
+   and that's followed by length unicode values. */
+
 
 /* Declarations of library internal functions. */
 
@@ -486,6 +508,7 @@ extern void gli_stream_set_current(stream_t *str);
 extern void gli_stream_fill_result(stream_t *str, 
     stream_result_t *result);
 extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
+extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
 
 extern fileref_t *gli_new_fileref(char *filename, glui32 usage, 
     glui32 rock);

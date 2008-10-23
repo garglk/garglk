@@ -10,10 +10,9 @@
 /* how many pixels we add to left/right margins */
 #define SLOP (2 * GLI_SUBPIX)
 
-static void
-put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen);
-static glui32
-put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align);
+static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen);
+static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen);
+static glui32 put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align);
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -55,6 +54,7 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
     dwin->height = -1;
 
     dwin->inbuf = NULL;
+	dwin->uinbuf = NULL;
 
     dwin->ladjw = dwin->radjw = 0;
     dwin->ladjn = dwin->radjn = 0;
@@ -86,13 +86,14 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
 
 void win_textbuffer_destroy(window_textbuffer_t *dwin)
 {
-    if (dwin->inbuf) {
-        if (gli_unregister_arr) {
-            (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, "&+#!Cn", dwin->inarrayrock);
-        }
-        dwin->inbuf = NULL;
-    }
+	if (dwin->inbuf && gli_unregister_arr)
+		(*gli_unregister_arr)(dwin->inbuf, dwin->inmax, "&+#!Cn", dwin->inarrayrock);
+	
+	if (dwin->uinbuf && gli_unregister_arr)
+		(*gli_unregister_arr)(dwin->uinbuf, dwin->inmax, "&+#!Iu", dwin->inarrayrock);
 
+	dwin->inbuf = NULL;
+	dwin->uinbuf = NULL;
     dwin->owner = NULL;
 
     free(dwin);
@@ -183,7 +184,7 @@ static void reflow(window_t *win)
             x ++;
         }
 
-        win_textbuffer_putchar(win, charbuf[i]);
+		win_textbuffer_putchar(win, charbuf[i]);
     }
 
     /* terribly sorry about this... */
@@ -582,6 +583,44 @@ static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int
     touch(dwin, 0);
 }
 
+#ifdef GLK_MODULE_UNICODE
+
+static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen)
+{
+    int diff = len - oldlen;
+
+    if (dwin->numchars + diff >= TBLINELEN)
+        return;
+
+    if (diff != 0 && pos + oldlen < dwin->numchars)
+    {
+        memmove(dwin->chars + pos + len,
+                dwin->chars + pos + oldlen,
+                dwin->numchars - (pos + oldlen));
+        memmove(dwin->attrs + pos + len,
+                dwin->attrs + pos + oldlen,
+                dwin->numchars - (pos + oldlen));
+    }
+    if (len > 0)
+    {
+        memmove(dwin->chars + pos, buf, len);
+        memset(dwin->attrs + pos, style_Input, len);
+    }
+    dwin->numchars += diff;
+
+    if (dwin->uinbuf)
+    {
+        if (dwin->incurs >= pos + oldlen)
+            dwin->incurs += diff;
+        else if (dwin->incurs >= pos)
+            dwin->incurs = pos + len;
+    }
+
+    touch(dwin, 0);
+}
+
+#endif /* GLK_MODULE_UNICODE */
+
 void win_textbuffer_putchar(window_t *win, char ch)
 {
     window_textbuffer_t *dwin = win->data;
@@ -592,6 +631,156 @@ void win_textbuffer_putchar(window_t *win, char ch)
     int saved;
     int i;
     int linelen;
+
+#ifdef USETTS
+    { char b[1]; b[0] = ch; gli_speak_tts(b, 1, 0); }
+#endif
+
+    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
+    pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
+
+    /* oops ... overflow */
+    if (dwin->numchars + 1 >= TBLINELEN)
+        scrolloneline(dwin, 0);
+
+    if (ch == '\n')
+    {
+        scrolloneline(dwin, 1);
+        return;
+    }
+
+    if (gli_conf_quotes)
+    {
+        /* fails for 'tis a wonderful day in the '80s */
+        if (gli_conf_quotes > 1 && ch == '\'')
+        {
+            if (dwin->numchars == 0 || dwin->chars[dwin->numchars-1] == ' ')
+                ch = UNI_LSQUO;
+        }
+
+        if (ch == '`')
+            ch = UNI_LSQUO;
+
+        if (ch == '\'')
+            ch = UNI_RSQUO;
+
+        if (ch == '"')
+        {
+            if (dwin->numchars == 0 || dwin->chars[dwin->numchars-1] == ' ')
+                ch = UNI_LDQUO;
+            else
+                ch = UNI_RDQUO;
+        }
+    }
+
+    if (gli_conf_quotes && win->style != style_Preformatted)
+    {
+        if (ch == '-')
+        {
+            dwin->dashed ++;
+            if (dwin->dashed == 2)
+            {
+                dwin->numchars--;
+                ch = UNI_NDASH;
+            }
+            if (dwin->dashed == 3)
+            {
+                dwin->numchars--;
+                ch = UNI_MDASH;
+                dwin->dashed = 0;
+            }
+        }
+        else
+            dwin->dashed = 0;
+    }
+
+    if (gli_conf_spaces && win->style != style_Preformatted)
+    {
+        /* turn (period space space) into (period space) */
+        if (gli_conf_spaces == 1)
+        {
+            if (ch == '.')
+                dwin->spaced = 1;
+            else if (ch == ' ' && dwin->spaced == 1)
+                dwin->spaced = 2;
+            else if (ch == ' ' && dwin->spaced == 2)
+            {
+                dwin->spaced = 0;
+                return;
+            }
+            else
+                dwin->spaced = 0;
+        }
+
+        /* turn (per sp x) into (per sp sp x) */
+        if (gli_conf_spaces == 2)
+        {
+            if (ch == '.')
+                dwin->spaced = 1;
+            else if (ch == ' ' && dwin->spaced == 1)
+                dwin->spaced = 2;
+            else if (ch != ' ' && dwin->spaced == 2)
+            {
+                dwin->spaced = 0;
+                win_textbuffer_putchar(win, ' ');
+            }
+            else
+                dwin->spaced = 0;
+        }
+    }
+
+    dwin->chars[dwin->numchars] = ch;
+    dwin->attrs[dwin->numchars] = win->style;
+    dwin->numchars++;
+
+    /* kill spaces at the end for line width calculation */
+    linelen = dwin->numchars;
+    while (linelen > 1 && dwin->chars[linelen-1] == ' ')
+        linelen --;
+
+    if (calcwidth(dwin, dwin->chars, dwin->attrs, linelen, -1) >= pw)
+    {
+        bpoint = dwin->numchars;
+
+        for (i = dwin->numchars - 1; i > 0; i--)
+            if (dwin->chars[i] == ' ')
+            {
+                bpoint = i + 1; /* skip space */
+                break;
+            }
+
+        saved = dwin->numchars - bpoint;
+
+        memcpy(bchars, dwin->chars + bpoint, saved);
+        memcpy(battrs, dwin->attrs + bpoint, saved);
+        dwin->numchars = bpoint;
+
+        scrolloneline(dwin, 0);
+
+        memcpy(dwin->chars, bchars, saved);
+        memcpy(dwin->attrs, battrs, saved);
+        dwin->numchars = saved;
+    }
+
+    touch(dwin, 0);
+}
+
+void win_textbuffer_putchar_uni(window_t *win, glui32 chu)
+{
+    window_textbuffer_t *dwin = win->data;
+    unsigned char bchars[TBLINELEN];
+    unsigned char battrs[TBLINELEN];
+    int pw;
+    int bpoint;
+    int saved;
+    int i;
+    int linelen;
+
+	unsigned char ch;
+    if (chu >= 0x100)
+        ch = '?';
+	else
+		ch = (unsigned char)chu;
 
 #ifdef USETTS
     { char b[1]; b[0] = ch; gli_speak_tts(b, 1, 0); }
@@ -780,16 +969,17 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
 #endif
 
     /* because '>' prompt is ugly without extra space */
-    if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
-        win_textbuffer_putchar(win, ' ');
-    if (dwin->numchars && dwin->chars[dwin->numchars-1] == '?')
-        win_textbuffer_putchar(win, ' ');
+	if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
+		win_textbuffer_putchar(win, ' ');
+
+	if (dwin->numchars && dwin->chars[dwin->numchars-1] == '?')
+		win_textbuffer_putchar(win, ' ');
 
     /* make sure we have some space left for typing... */
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
-    if (calcwidth(dwin, dwin->chars, dwin->attrs, dwin->numchars, -1) >= pw * 3 / 4)
-        win_textbuffer_putchar(win, '\n');
+	if (calcwidth(dwin, dwin->chars, dwin->attrs, dwin->numchars, -1) >= pw * 3 / 4)
+		win_textbuffer_putchar(win, '\n');
 
     dwin->lastseen = 0;
 
@@ -812,6 +1002,53 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     }
 }
 
+#ifdef GLK_MODULE_UNICODE
+
+void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen)
+{
+    window_textbuffer_t *dwin = win->data;
+    int pw;
+
+#ifdef USETTS
+    gli_speak_tts("\n", 1, 0);
+#endif
+
+    /* because '>' prompt is ugly without extra space */
+	if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
+		win_textbuffer_putchar_uni(win, (glui32)' ');
+
+	if (dwin->numchars && dwin->chars[dwin->numchars-1] == '?')
+		win_textbuffer_putchar_uni(win, (glui32)' ');
+
+    /* make sure we have some space left for typing... */
+    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
+    pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
+	if (calcwidth(dwin, dwin->chars, dwin->attrs, dwin->numchars, -1) >= pw * 3 / 4)
+		win_textbuffer_putchar_uni(win, (glui32)'\n');
+
+    dwin->lastseen = 0;
+
+    dwin->uinbuf = buf;
+    dwin->inmax = maxlen;
+    dwin->infence = dwin->numchars;
+    dwin->incurs = dwin->numchars;
+    dwin->origstyle = win->style;
+    win->style = style_Input;
+
+    dwin->historypos = dwin->historypresent;
+
+    if (initlen) {
+        touch(dwin, 0);
+        put_text_uni(dwin, buf, initlen, dwin->incurs, 0);
+    }
+
+    if (gli_register_arr) {
+        dwin->inarrayrock = (*gli_register_arr)(buf, maxlen, "&+#!Iu");
+    }
+}
+
+#endif /* GLK_MODULE_UNICODE */
+
 /* Abort line input, storing whatever's been typed so far. */
 void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 {
@@ -820,24 +1057,56 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     int ix;
     int len;
     char *inbuf;
+	char *linebuf;
+	glui32 *uinbuf;
+	glui32 *ulinebuf;
     int inmax;
 
-    if (!dwin->inbuf)
+    if (!dwin->inbuf && !dwin->uinbuf)
         return;
 
-    inbuf = dwin->inbuf;
+	if (!win->line_request_uni)
+		inbuf = dwin->inbuf;
+	else
+		uinbuf = dwin->uinbuf;
+
     inmax = dwin->inmax;
     inarrayrock = dwin->inarrayrock;
 
     len = dwin->numchars - dwin->infence;
-    if (win->echostr) 
-        gli_stream_echo_line(win->echostr, dwin->chars + dwin->infence, len);
 
-    if (len > inmax)
-        len = inmax;
+	linebuf = malloc(len);
+	memcpy(linebuf, dwin->chars + dwin->infence, len);
 
-    for (ix=0; ix<len; ix++)
-        inbuf[ix] = dwin->chars[dwin->infence+ix];
+	if (win->line_request_uni) {
+		ulinebuf = malloc(len * sizeof(glui32));
+		for (ix=0; ix<len; ix++)
+			ulinebuf[ix] = (glui32)(((unsigned char *)linebuf)[ix]);
+	}
+
+	if (!win->line_request_uni) {
+		if (win->echostr)
+			gli_stream_echo_line(win->echostr, linebuf, len);
+
+		if (len > inmax)
+			len = inmax;
+
+		for (ix=0; ix<len; ix++)
+			inbuf[ix] = linebuf[ix];
+		free(linebuf);
+	}
+	else {
+		if (win->echostr)
+			gli_stream_echo_line_uni(win->echostr, ulinebuf, len);
+
+		if (len > inmax)
+			len = inmax;
+
+		for (ix=0; ix<len; ix++)
+			uinbuf[ix] = ulinebuf[ix];
+		free(linebuf);
+		free(ulinebuf);
+	}
 
     win->style = dwin->origstyle;
 
@@ -845,15 +1114,21 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     ev->win = win;
     ev->val1 = len;
 
+	if (gli_unregister_arr) {
+		if (!win->line_request_uni)
+			(*gli_unregister_arr)(inbuf, inmax, "&+#!Cn", inarrayrock);
+		else
+			(*gli_unregister_arr)(uinbuf, inmax, "&+#!Iu", inarrayrock);
+	}
+
     win->line_request = FALSE;
+	win->line_request_uni = FALSE;
     dwin->inbuf = NULL;
+	dwin->uinbuf = NULL;
     dwin->inmax = 0;
 
-    win_textbuffer_putchar(win, '\n');
+	win_textbuffer_putchar(win, '\n');
 
-    if (gli_unregister_arr) {
-        (*gli_unregister_arr)(inbuf, inmax, "&+#!Cn", inarrayrock);
-    }
 }
 
 /* Keybinding functions. */
@@ -914,6 +1189,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
 
     dwin->lastseen = 0;
     win->char_request = FALSE; 
+	win->char_request_uni = FALSE;
     gli_event_store(evtype_CharInput, win, arg, 0);
 }
 
@@ -923,21 +1199,42 @@ static void acceptline(window_t *win)
     int ix;
     int len;
     char *inbuf;
+	char *linebuf;
+	glui32 *uinbuf;
+	glui32 *ulinebuf;
     char *s;
     int inmax;
     gidispatch_rock_t inarrayrock;
     window_textbuffer_t *dwin = win->data;
 
-    if (!dwin->inbuf)
+    if (!dwin->inbuf && !dwin->uinbuf)
         return;
 
-    inbuf = dwin->inbuf;
+	if (!win->line_request_uni)
+		inbuf = dwin->inbuf;
+	else
+		uinbuf = dwin->uinbuf;
+
     inmax = dwin->inmax;
     inarrayrock = dwin->inarrayrock;
 
     len = dwin->numchars - dwin->infence;
-    if (win->echostr) 
-        gli_stream_echo_line(win->echostr, dwin->chars+dwin->infence, len);
+
+	linebuf = malloc(len);
+	memcpy(linebuf, dwin->chars + dwin->infence, len);
+
+	if (win->line_request_uni) {
+		ulinebuf = malloc(len * sizeof(glui32));
+		for (ix=0; ix<len; ix++)
+			ulinebuf[ix] = (glui32)(((unsigned char *)linebuf)[ix]);
+	}
+
+	if (win->echostr) {
+		if (!win->line_request_uni)
+			gli_stream_echo_line(win->echostr, linebuf, len);
+		else
+			gli_stream_echo_line_uni(win->echostr, ulinebuf, len);
+	}
 
 #ifdef USETTS
     gli_speak_tts(dwin->chars+dwin->infence, len, 1);
@@ -980,22 +1277,39 @@ static void acceptline(window_t *win)
     if (len > inmax)
         len = inmax;
 
-    for (ix=0; ix<len; ix++) {
-        inbuf[ix] = dwin->chars[dwin->infence+ix];
-    }
+	if (!win->line_request_uni) {
+		for (ix=0; ix<len; ix++) {
+			inbuf[ix] = linebuf[ix];
+		}
+		free(linebuf);
+	}
+	else {
+		for (ix=0; ix<len; ix++) {
+			uinbuf[ix] = ulinebuf[ix];
+		}
+		free(linebuf);
+		free(ulinebuf);
+	}
 
     win->style = dwin->origstyle;
 
     gli_event_store(evtype_LineInput, win, len, 0);
+
+	if (gli_unregister_arr) {
+		if (!win->line_request_uni)
+			(*gli_unregister_arr)(inbuf, inmax, "&+#!Cn", inarrayrock);
+		else
+			(*gli_unregister_arr)(uinbuf, inmax, "&+#!Iu", inarrayrock);
+	}
+
     win->line_request = FALSE;
+	win->line_request_uni = FALSE;
     dwin->inbuf = NULL;
+	dwin->uinbuf = NULL;
     dwin->inmax = 0;
 
-    win_textbuffer_putchar(win, '\n');
+	win_textbuffer_putchar(win, '\n');
 
-    if (gli_unregister_arr) {
-        (*gli_unregister_arr)(inbuf, inmax, "&+#!Cn", inarrayrock);
-    }
 }
 
 /* Any key, during line input. */
@@ -1003,6 +1317,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
     char ch = arg;
+
     char *cx;
     int len;
 
@@ -1015,7 +1330,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         return;
     }
 
-    if (!dwin->inbuf)
+    if (!dwin->inbuf && !dwin->uinbuf)
         return;
 
     switch (arg)
@@ -1046,7 +1361,11 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             cx = dwin->history[dwin->historypos];
             if (!cx)
                 cx = "";
-            put_text(dwin, cx, strlen(cx), dwin->infence,
+			if (!win->line_request_uni)
+				put_text(dwin, cx, strlen(cx), dwin->infence,
+                    dwin->numchars - dwin->infence);
+			else
+				put_text_uni(dwin, (glui32 *)cx, strlen(cx), dwin->infence,
                     dwin->numchars - dwin->infence);
             break;
 
@@ -1059,8 +1378,12 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             cx = dwin->history[dwin->historypos];
             if (!cx)
                 cx = "";
-            put_text(dwin, cx, strlen(cx), dwin->infence, 
-                    dwin->numchars - dwin->infence);
+			if (!win->line_request_uni)
+				put_text(dwin, cx, strlen(cx), dwin->infence, 
+						dwin->numchars - dwin->infence);
+			else
+				put_text_uni(dwin, (glui32 *)cx, strlen(cx), dwin->infence, 
+						dwin->numchars - dwin->infence);
             break;
 
             /* Cursor movement keys, during line input. */
@@ -1094,13 +1417,19 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         case keycode_Delete:
             if (dwin->incurs <= dwin->infence)
                 return;
-            put_text(dwin, "", 0, dwin->incurs-1, 1);
+			if (!win->line_request_uni)
+				put_text(dwin, "", 0, dwin->incurs-1, 1);
+			else
+				put_text_uni(dwin, (glui32 *)"", 0, dwin->incurs-1, 1);
             break;
 
         case keycode_Escape:
             if (dwin->infence >= dwin->numchars)
                 return;
-            put_text(dwin, "", 0, dwin->infence, dwin->numchars - dwin->infence);
+			if (!win->line_request_uni)
+				put_text(dwin, "", 0, dwin->infence, dwin->numchars - dwin->infence);
+			else
+				put_text_uni(dwin, (glui32 *)"", 0, dwin->infence, dwin->numchars - dwin->infence);
             break;
 
             /* Regular keys */
@@ -1111,15 +1440,17 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
         default:
             if (arg >= 32 && arg <= 255)
-                put_text(dwin, &ch, 1, dwin->incurs, 0);
+				if (!win->line_request_uni)
+					put_text(dwin, &ch, 1, dwin->incurs, 0);
+				else
+					put_text_uni(dwin, &arg, 1, dwin->incurs, 0);
             break;
     }
 
     touch(dwin, 0);
 }
 
-static glui32
-put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
+static glui32 put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
 {
     if (align == imagealign_MarginRight)
     {
@@ -1134,8 +1465,8 @@ put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
 
     else
     {
-        if (align != imagealign_MarginLeft && dwin->numchars)
-            win_textbuffer_putchar(dwin->owner, '\n');
+		if (align != imagealign_MarginLeft && dwin->numchars)
+			win_textbuffer_putchar(dwin->owner, '\n');
 
         if (dwin->lines[0].lpic || dwin->numchars)
             return FALSE;
@@ -1182,8 +1513,9 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
 
 glui32 win_textbuffer_flow_break(window_textbuffer_t *dwin)
 {
-    while (dwin->ladjn || dwin->radjn)
-        win_textbuffer_putchar(dwin->owner, '\n');
+	while (dwin->ladjn || dwin->radjn) {
+		win_textbuffer_putchar(dwin->owner, '\n');
+	}
     return TRUE;
 }
 
