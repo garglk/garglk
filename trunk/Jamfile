@@ -38,12 +38,12 @@ InstallLib $(BINDIR) : libgarglk$(SUFDLL) ;
 
 if $(OS) = MINGW && $(USESDL)
 {
-    SEARCH_SOURCE = $(TOP)/support/sdl ;
+    SEARCH_SOURCE = $(TOP)/support/sdl-1.2.13 ;
     InstallLib $(BINDIR) : SDL_mixer.dll ;
     InstallLib $(BINDIR) : SDL.dll ;
     InstallLib $(BINDIR) : smpeg.dll ;
-    InstallLib $(BINDIR) : ogg.dll ;
-    InstallLib $(BINDIR) : vorbis.dll ;
-    InstallLib $(BINDIR) : vorbisfile.dll ;
+    InstallLib $(BINDIR) : libogg-0.dll ;
+    InstallLib $(BINDIR) : libvorbis-0.dll ;
+    InstallLib $(BINDIR) : libvorbisfile-3.dll ;
 }
 
