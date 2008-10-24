@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <malloc.h>
 #include "glk.h"
 #include "garglk.h"
 
@@ -27,6 +27,93 @@ void gli_putchar_utf8(glui32 val, FILE *fl)
     else {
         putc('?', fl);
     }
+}
+
+glui32 gli_getchar_utf8(FILE *fl)
+{
+    glui32 pos = 0;
+    glui32 outpos = 0;
+    glui32 res;
+    glui32 val0, val1, val2, val3;
+    
+    val0 = getc(fl);
+    if (val0 < 0)
+    return -1;
+    
+    if (val0 < 0x80) {
+    res = val0;
+    return res;
+    }
+    
+    if ((val0 & 0xe0) == 0xc0) {
+    val1 = getc(fl);
+    if (val1 < 0) {
+        gli_strict_warning("incomplete two-byte character");
+        return -1;
+    }
+    if ((val1 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed two-byte character");
+        return '?';
+    }
+    res = (val0 & 0x1f) << 6;
+    res |= (val1 & 0x3f);
+    return res;
+    }
+    
+    if ((val0 & 0xf0) == 0xe0) {
+    val1 = getc(fl);
+    val2 = getc(fl);
+    if (val1 < 0 || val2 < 0) {
+        gli_strict_warning("incomplete three-byte character");
+        return -1;
+    }
+    if ((val1 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed three-byte character");
+        return '?';
+    }
+    if ((val2 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed three-byte character");
+        return '?';
+    }
+    res = (((val0 & 0xf)<<12)  & 0x0000f000);
+    res |= (((val1 & 0x3f)<<6) & 0x00000fc0);
+    res |= (((val2 & 0x3f))    & 0x0000003f);
+    return res;
+    }
+    
+    if ((val0 & 0xf0) == 0xf0) {
+    if ((val0 & 0xf8) != 0xf0) {
+        gli_strict_warning("malformed four-byte character");
+        return '?';        
+    }
+    val1 = getc(fl);
+    val2 = getc(fl);
+    val3 = getc(fl);
+    if (val1 < 0 || val2 < 0 || val3 < 0) {
+        gli_strict_warning("incomplete four-byte character");
+        return -1;
+    }
+    if ((val1 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed four-byte character");
+        return '?';
+    }
+    if ((val2 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed four-byte character");
+        return '?';
+    }
+    if ((val3 & 0xc0) != 0x80) {
+        gli_strict_warning("malformed four-byte character");
+        return '?';
+    }
+    res = (((val0 & 0x7)<<18)   & 0x1c0000);
+    res |= (((val1 & 0x3f)<<12) & 0x03f000);
+    res |= (((val2 & 0x3f)<<6)  & 0x000fc0);
+    res |= (((val3 & 0x3f))     & 0x00003f);
+    return res;
+    }
+    
+    gli_strict_warning("malformed character");
+    return '?';
 }
 
 glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen,
@@ -140,7 +227,6 @@ glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen,
 static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
     glui32 numchars, int destcase, int cond, int changerest)
 {
-/*
     glui32 ix, jx;
     glui32 *outbuf;
     glui32 *newoutbuf;
@@ -201,7 +287,7 @@ static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
         }
 
         if (res != 0xFFFFFFFF || res == ch) {
-            // simple case
+            /* simple case */
             if (outcount < len)
                 outbuf[outcount] = res;
             outcount++;
@@ -210,7 +296,7 @@ static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
 
         target = (isfirst ? dest_spec_first : dest_spec_rest);
 
-        // complicated cases
+        /* complicated cases */
         GET_CASE_SPECIAL(ch, &special);
         if (!special) {
             gli_strict_warning("inconsistency in cgunigen.c");
@@ -220,14 +306,14 @@ static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
         speccount = *(ptr++);
         
         if (speccount == 1) {
-            // simple after all
+            /* simple after all */
             if (outcount < len)
                 outbuf[outcount] = ptr[0];
             outcount++;
             continue;
         }
 
-        // Now we have to allocate a new buffer, if we haven't already.
+        /* Now we have to allocate a new buffer, if we haven't already. */
         if (!newoutbuf) {
             newoutbuf = malloc((len+1) * sizeof(glui32));
             if (!newoutbuf)
@@ -251,9 +337,6 @@ static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
     }
 
     return outcount;
-*/
-	// do nothing at all.
-	return numchars;
 }
 
 glui32 glk_buffer_to_lower_case_uni(glui32 *buf, glui32 len,

@@ -14,10 +14,10 @@ event_t *gli_curevent = NULL;
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 {
     if (gli_curevent) {
-	gli_curevent->type = type;
-	gli_curevent->win = win;
-	gli_curevent->val1 = val1;
-	gli_curevent->val2 = val2;
+    gli_curevent->type = type;
+    gli_curevent->win = win;
+    gli_curevent->val1 = val1;
+    gli_curevent->val2 = val2;
     }
 }
 
@@ -45,38 +45,38 @@ void gli_input_handle_key(glui32 key)
 
     if (gli_terminated)
     {
-	exit(0);
+    exit(0);
     }
 
     if (key == keycode_Tab)
-	gli_input_next_focus();
+    gli_input_next_focus();
 
     win = gli_focuswin;
 
     if (!win)
-	return;
+    return;
 
     switch (win->type)
     {
     case wintype_TextGrid:
-	if (win->char_request)
-	    gcmd_grid_accept_readchar(win, key);
-	if (win->line_request)
-	    gcmd_grid_accept_readline(win, key);
-	break;
+        if (win->char_request || win->char_request_uni)
+            gcmd_grid_accept_readchar(win, key);
+        if (win->line_request || win->line_request_uni)
+            gcmd_grid_accept_readline(win, key);
+    break;
     case wintype_TextBuffer:
-	if (win->char_request)
-	    gcmd_buffer_accept_readchar(win, key);
-	if (win->line_request)
-	    gcmd_buffer_accept_readline(win, key);
-	break;
+        if (win->char_request || win->char_request_uni)
+            gcmd_buffer_accept_readchar(win, key);
+        if (win->line_request || win->line_request_uni)
+            gcmd_buffer_accept_readline(win, key);
+    break;
     }
 }
 
 void gli_input_handle_click(int x, int y)
 {
     if (gli_rootwin)
-	gli_window_click(gli_rootwin, x, y);
+    gli_window_click(gli_rootwin, x, y);
 }
 
 /* Pick a window which might want input. This is called at the beginning
@@ -86,24 +86,26 @@ void gli_input_guess_focus()
     window_t *altwin;
 
     if (gli_focuswin 
-	    && (gli_focuswin->line_request || gli_focuswin->char_request)) {
-	return;
+        && (gli_focuswin->line_request || gli_focuswin->char_request ||
+            gli_focuswin->line_request_uni || gli_focuswin->char_request_uni)) {
+    return;
     }
 
     altwin = gli_focuswin;
     do {
-	altwin = gli_window_iterate_treeorder(altwin);
-	if (altwin 
-		&& (altwin->line_request || altwin->char_request)) {
-	    break;
-	}
+    altwin = gli_window_iterate_treeorder(altwin);
+    if (altwin 
+        && (altwin->line_request || altwin->char_request ||
+            altwin->line_request_uni || altwin->char_request_uni)) {
+        break;
+    }
     } while (altwin != gli_focuswin);
 
     if (gli_focuswin != altwin)
     {
-	gli_focuswin = altwin;
-	gli_force_redraw = 1;
-	gli_windows_redraw();
+    gli_focuswin = altwin;
+    gli_force_redraw = 1;
+    gli_windows_redraw();
     }
 }
 
@@ -116,18 +118,19 @@ void gli_input_next_focus()
 
     altwin = gli_focuswin;
     do {
-	altwin = gli_window_iterate_treeorder(altwin);
-	if (altwin 
-		&& (altwin->line_request || altwin->char_request)) {
-	    break;
-	}
+    altwin = gli_window_iterate_treeorder(altwin);
+    if (altwin 
+        && (altwin->line_request || altwin->char_request ||
+            altwin->line_request_uni || altwin->char_request_uni)) {
+        break;
+    }
     } while (altwin != gli_focuswin);
 
     if (gli_focuswin != altwin)
     {
-	gli_focuswin = altwin;
-	gli_force_redraw = 1;
-	gli_windows_redraw();
+    gli_focuswin = altwin;
+    gli_force_redraw = 1;
+    gli_windows_redraw();
     }
 }
 
