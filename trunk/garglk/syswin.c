@@ -2,7 +2,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#ifndef _WIN32
 #include <unistd.h>
+#else
+#define R_OK	4
+#define W_OK	2
+#endif
 
 #include "glk.h"
 #include "garglk.h"
@@ -98,6 +103,8 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     ofn.nMaxFile = len;
     ofn.lpstrInitialDir = NULL;
     ofn.lpstrTitle = prompt;
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
     ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
 
     if (!GetOpenFileName(&ofn))
@@ -113,6 +120,8 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     ofn.lpstrFile = buf;
     ofn.nMaxFile = len;
     ofn.lpstrInitialDir = NULL;
+    ofn.lpstrFilter = filter;
+    ofn.nFilterIndex = 1;
     ofn.lpstrTitle = prompt;
     ofn.Flags = OFN_OVERWRITEPROMPT;
 
@@ -219,6 +228,14 @@ void wintitle(void)
     else
     sprintf(buf, "%s", gli_program_name);
     SetWindowTextA(hwndframe, buf);
+
+    if (strcmp(gli_program_name, "Unknown"))
+        sprintf(buf, "About Gargoyle / %s...", gli_program_name);
+    else
+        strcpy(buf, "About Gargoyle...");
+
+    ModifyMenu(GetSystemMenu(hwndframe, 0), ID_ABOUT, MF_BYCOMMAND | MF_STRING, ID_ABOUT, buf);
+    DrawMenuBar(hwndframe);
 }
 
 static void winblit(RECT r)
@@ -249,7 +266,9 @@ static void winblit(RECT r)
 
 void winrepaint(int x0, int y0, int x1, int y1)
 {
-    RECT wr = (RECT){x0, y0, x1, y1};
+    RECT wr;
+    wr.left = x0; wr.right = x1;
+    wr.top = y0; wr.bottom = y1;
     InvalidateRect(hwndview, &wr, 1); // 0);
 }
 
@@ -450,6 +469,22 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, message, wParam, lParam);
 }
 
+#ifndef WM_UNICHAR
+#define WM_UNICHAR 0x0109
+#endif
+
+#ifndef UNICODE_NOCHAR
+#define UNICODE_NOCHAR 0xFFFF
+#endif
+
+#define Uni_IsSurrogate1(ch) ((ch) >= 0xD800 && (ch) <= 0xDBFF)
+#define Uni_IsSurrogate2(ch) ((ch) >= 0xDC00 && (ch) <= 0xDFFF)
+
+#define Uni_SurrogateToUTF32(ch, cl) (((ch) - 0xD800) * 0x400 + ((cl) - 0xDC00) + 0x10000)
+
+#define Uni_UTF32ToSurrogate1(ch) (((ch) - 0x10000) / 0x400 + 0xD800)
+#define Uni_UTF32ToSurrogate2(ch) (((ch) - 0x10000) % 0x400 + 0xDC00)
+
 LRESULT CALLBACK
 viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -537,19 +572,47 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 
     /* unicode encoded chars, including escape, backspace etc... */
+    case WM_UNICHAR:
+        key = wParam;
+
+        if (key == UNICODE_NOCHAR)
+            return 1; /* yes, we like WM_UNICHAR */
+
+        if (key == '\r' || key == '\n')
+            gli_input_handle_key(keycode_Return);
+        else if (key == '\b')
+            gli_input_handle_key(keycode_Delete);
+        else if (key == '\t')
+            gli_input_handle_key(keycode_Tab);
+        else if (key != 27)
+            gli_input_handle_key(key);
+
+        return 0;
+
     case WM_CHAR:
-    key = wParam;
+        key = wParam;
 
-    if (key == '\r' || key == '\n')
-        gli_input_handle_key(keycode_Return);
-    else if (key == '\b')
-        gli_input_handle_key(keycode_Delete);
-    else if (key == '\t')
-        gli_input_handle_key(keycode_Tab);
-    else if (key >= 32 && key <= 255)
-        gli_input_handle_key(key);
+        if (key == '\r' || key == '\n')
+            gli_input_handle_key(keycode_Return);
+        else if (key == '\b')
+            gli_input_handle_key(keycode_Delete);
+        else if (key == '\t')
+            gli_input_handle_key(keycode_Tab);
+        else if (key != 27) {
+            /* translate from ANSI code page to Unicode */
+            char ansich = (char)key;
+            wchar_t widebuf[2];
+            int res = MultiByteToWideChar(CP_ACP, 0, &ansich, 1, widebuf, 2);
+            if (res) {
+                if (Uni_IsSurrogate1(widebuf[0]))
+                    key = Uni_SurrogateToUTF32(widebuf[0], widebuf[1]);
+                else
+                    key = widebuf[0];
+                gli_input_handle_key(key);
+            }
+        }
 
-    return 0;
+        return 0;
     }
 
     /* Pass on unhandled events to Windows */
