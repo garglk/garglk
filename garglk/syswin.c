@@ -30,9 +30,9 @@ static int timeouts = 0;
 void glk_request_timer_events(glui32 millisecs)
 {
     if (millisecs)
-	SetTimer(hwndframe, 1, millisecs, NULL);
+    SetTimer(hwndframe, 1, millisecs, NULL);
     else
-	KillTimer(hwndframe, 1);
+    KillTimer(hwndframe, 1);
 }
 
 void onabout(void)
@@ -41,19 +41,19 @@ void onabout(void)
 
     if (gli_program_info[0])
     {
-	sprintf(txt,
-		"Gargoyle by Tor Andersson   \n"
-		"Build %s\n"
-		"\n"
-		"%s", VERSION, gli_program_info);
+    sprintf(txt,
+        "Gargoyle by Tor Andersson   \n"
+        "Build %s\n"
+        "\n"
+        "%s", VERSION, gli_program_info);
     }
     else
     {
-	sprintf(txt,
-		"Gargoyle by Tor Andersson   \n"
-		"Build %s\n"
-		"\n"
-		"Interpeter: %s\n", VERSION, gli_program_name);
+    sprintf(txt,
+        "Gargoyle by Tor Andersson   \n"
+        "Build %s\n"
+        "\n"
+        "Interpeter: %s\n", VERSION, gli_program_name);
     }
 
     MessageBoxA(hwndframe, txt, " About", MB_OK);
@@ -69,12 +69,12 @@ void onconfig(void)
 
     if (access(buf, R_OK))
     {
-	char msg[1024];
-	sprintf(msg, "There was no configuration file:    \n\n    %s    \n", buf);
-	MessageBoxA(hwndframe, msg, " Configure", MB_ICONERROR);
+    char msg[1024];
+    sprintf(msg, "There was no configuration file:    \n\n    %s    \n", buf);
+    MessageBoxA(hwndframe, msg, " Configure", MB_ICONERROR);
     }
     else
-	ShellExecute(hwndframe, "open", buf, 0, 0, SW_SHOWNORMAL);
+    ShellExecute(hwndframe, "open", buf, 0, 0, SW_SHOWNORMAL);
 }
 
 void winabort(const char *fmt, ...)
@@ -88,7 +88,7 @@ void winabort(const char *fmt, ...)
     abort();
 }
 
-void winopenfile(char *prompt, char *buf, int len)
+void winopenfile(char *prompt, char *buf, int len, char *filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -101,10 +101,10 @@ void winopenfile(char *prompt, char *buf, int len)
     ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
 
     if (!GetOpenFileName(&ofn))
-	strcpy(buf, "");
+    strcpy(buf, "");
 }
 
-void winsavefile(char *prompt, char *buf, int len)
+void winsavefile(char *prompt, char *buf, int len, char *filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -117,7 +117,7 @@ void winsavefile(char *prompt, char *buf, int len)
     ofn.Flags = OFN_OVERWRITEPROMPT;
 
     if (!GetSaveFileName(&ofn))
-	strcpy(buf, "");
+    strcpy(buf, "");
 }
 
 void wininit(int *argc, char **argv)
@@ -177,26 +177,26 @@ void winopen()
     sizeh += GetSystemMetrics(SM_CYCAPTION);
 
     hwndframe = CreateWindow("XxFrame",
-	    NULL, // window caption
-	    WS_CAPTION|WS_THICKFRAME|
-		WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
-		WS_CLIPCHILDREN,
-	    CW_USEDEFAULT, // initial x position
-	    CW_USEDEFAULT, // initial y position
-	    sizew, // initial x size
-	    sizeh, // initial y size
-	    NULL, // parent window handle
-	    NULL, // window menu handle
-	    0, //hInstance, // program instance handle
-	    NULL); // creation parameters
+        NULL, // window caption
+        WS_CAPTION|WS_THICKFRAME|
+        WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
+        WS_CLIPCHILDREN,
+        CW_USEDEFAULT, // initial x position
+        CW_USEDEFAULT, // initial y position
+        sizew, // initial x size
+        sizeh, // initial y size
+        NULL, // parent window handle
+        NULL, // window menu handle
+        0, //hInstance, // program instance handle
+        NULL); // creation parameters
 
     hwndview = CreateWindow("XxView",
-	    NULL,
-	    WS_VISIBLE | WS_CHILD,
-	    CW_USEDEFAULT, CW_USEDEFAULT,
-	    CW_USEDEFAULT, CW_USEDEFAULT,
-	    hwndframe,
-	    NULL, NULL, 0);
+        NULL,
+        WS_VISIBLE | WS_CHILD,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        CW_USEDEFAULT, CW_USEDEFAULT,
+        hwndframe,
+        NULL, NULL, 0);
 
     hdc = NULL;
 
@@ -215,9 +215,9 @@ void wintitle(void)
 {
     char buf[256];
     if (strlen(gli_story_name))
-	sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
+    sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
     else
-	sprintf(buf, "%s", gli_program_name);
+    sprintf(buf, "%s", gli_program_name);
     SetWindowTextA(hwndframe, buf);
 }
 
@@ -233,18 +233,18 @@ static void winblit(RECT r)
     dibinf->bmiHeader.biSizeImage = gli_image_h * gli_image_s;
 
     SetDIBitsToDevice(hdc,
-	    x0, /* destx */
-	    y0, /* desty */
-	    x1 - x0, /* destw */
-	    y1 - y0, /* desth */
-	    x0, /* srcx */
-	    gli_image_h - y1, /* srcy */
-	    0, /* startscan */
-	    gli_image_h, /* numscans */
-	    gli_image_rgb, /* pBits */
-	    dibinf, /* pInfo */
-	    DIB_RGB_COLORS /* color use flag */
-		     );
+        x0, /* destx */
+        y0, /* desty */
+        x1 - x0, /* destw */
+        y1 - y0, /* desth */
+        x0, /* srcx */
+        gli_image_h - y1, /* srcy */
+        0, /* startscan */
+        gli_image_h, /* numscans */
+        gli_image_rgb, /* pBits */
+        dibinf, /* pInfo */
+        DIB_RGB_COLORS /* color use flag */
+             );
 }
 
 void winrepaint(int x0, int y0, int x1, int y1)
@@ -260,11 +260,11 @@ void winloop(void)
 
     i = GetMessage(&msg, NULL, 0, 0);
     if (i < 0)
-	exit(1);
+    exit(1);
     if (i > 0)
     {
-	TranslateMessage(&msg);
-	DispatchMessage(&msg);
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
     }
 }
 
@@ -276,8 +276,8 @@ void winpoll(void)
     i = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
     if (i)
     {
-	TranslateMessage(&msg);
-	DispatchMessage(&msg);
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
     }
 }
 
@@ -292,32 +292,32 @@ void gli_select(event_t *event, int block)
 
     if (block)
     {
-	while (gli_curevent->type == evtype_None && !timeouts)
-	{
-	    int code = GetMessage(&msg, NULL, 0, 0);
-	    if (code < 0)
-		exit(1);
-	    if (code > 0)
-	    {
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-	    }
-	}
+    while (gli_curevent->type == evtype_None && !timeouts)
+    {
+        int code = GetMessage(&msg, NULL, 0, 0);
+        if (code < 0)
+        exit(1);
+        if (code > 0)
+        {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+        }
+    }
     }
 
     else
     {
-	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0 && !timeouts)
-	{
-	    TranslateMessage(&msg);
-	    DispatchMessage(&msg);
-	}
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0 && !timeouts)
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
     }
 
     if (gli_curevent->type == evtype_None && timeouts)
     {
-	gli_event_store(evtype_Timer, NULL, 0, 0);
-	timeouts = 0;
+    gli_event_store(evtype_Timer, NULL, 0, 0);
+    timeouts = 0;
     }
 
     gli_curevent = NULL;
@@ -339,7 +339,7 @@ void winresize(void)
     h = (gli_rows * gli_cellh) + xh;
 
     if (w != gli_image_w || h != gli_image_h)
-	SetWindowPos(hwndframe, 0, 0, 0, w, h, SWP_NOZORDER | SWP_NOMOVE);
+    SetWindowPos(hwndframe, 0, 0, 0, w, h, SWP_NOZORDER | SWP_NOMOVE);
 }
 
 LRESULT CALLBACK
@@ -348,104 +348,104 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch(message)
     {
     case WM_SETFOCUS:
-	PostMessage(hwnd, WM_APP+5, 0, 0);
-	return 0;
+    PostMessage(hwnd, WM_APP+5, 0, 0);
+    return 0;
     case WM_APP+5:
-	SetFocus(hwndview);
-	return 0;
+    SetFocus(hwndview);
+    return 0;
 
     case WM_DESTROY:
-	PostQuitMessage(0);
-	exit(1);
-	break;
+    PostQuitMessage(0);
+    exit(1);
+    break;
 
     case WM_SIZE:
-	{
-	    // More generally, we should use GetEffectiveClientRect
-	    // if you have a toolbar etc.
-	    RECT rect;
-	    GetClientRect(hwnd, &rect);
-	    MoveWindow(hwndview, rect.left, rect.top,
-		    rect.right-rect.left, rect.bottom-rect.top, TRUE);
-	}
-	return 0;
+    {
+        // More generally, we should use GetEffectiveClientRect
+        // if you have a toolbar etc.
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+        MoveWindow(hwndview, rect.left, rect.top,
+            rect.right-rect.left, rect.bottom-rect.top, TRUE);
+    }
+    return 0;
 
     case WM_SIZING:
-	if (0) {
-	    RECT *r = (RECT*)lParam;
-	    int w, h;
-	    int cw, ch;
-	    int xw, xh;
+    if (0) {
+        RECT *r = (RECT*)lParam;
+        int w, h;
+        int cw, ch;
+        int xw, xh;
 
-	    xw = gli_wmarginx * 2;
-	    xh = gli_wmarginy * 2;
-	    gli_calc_padding(gli_rootwin, &xw, &xh);
-	    xw += GetSystemMetrics(SM_CXFRAME) * 2;
-	    xh += GetSystemMetrics(SM_CYFRAME) * 2;
-	    xh += GetSystemMetrics(SM_CYCAPTION);
+        xw = gli_wmarginx * 2;
+        xh = gli_wmarginy * 2;
+        gli_calc_padding(gli_rootwin, &xw, &xh);
+        xw += GetSystemMetrics(SM_CXFRAME) * 2;
+        xh += GetSystemMetrics(SM_CYFRAME) * 2;
+        xh += GetSystemMetrics(SM_CYCAPTION);
 
-	    w = r->right - r->left - xw;
-	    h = r->bottom - r->top - xh;
+        w = r->right - r->left - xw;
+        h = r->bottom - r->top - xh;
 
-	    cw = w / gli_cellw;
-	    ch = h / gli_cellh;
+        cw = w / gli_cellw;
+        ch = h / gli_cellh;
 
-	    if (ch < 10) ch = 10;
-	    if (cw < 30) cw = 30;
-	    if (ch > 200) ch = 200;
-	    if (cw > 250) cw = 250;
+        if (ch < 10) ch = 10;
+        if (cw < 30) cw = 30;
+        if (ch > 200) ch = 200;
+        if (cw > 250) cw = 250;
 
-	    w = (cw * gli_cellw) + xw;
-	    h = (ch * gli_cellh) + xh;
+        w = (cw * gli_cellw) + xw;
+        h = (ch * gli_cellh) + xh;
 
-	    if (wParam == WMSZ_TOPRIGHT ||
-		    wParam == WMSZ_RIGHT ||
-		    wParam == WMSZ_BOTTOMRIGHT)
-		r->right = r->left + w;
-	    else
-		r->left = r->right - w;
+        if (wParam == WMSZ_TOPRIGHT ||
+            wParam == WMSZ_RIGHT ||
+            wParam == WMSZ_BOTTOMRIGHT)
+        r->right = r->left + w;
+        else
+        r->left = r->right - w;
 
-	    if (wParam == WMSZ_BOTTOMLEFT ||
-		    wParam == WMSZ_BOTTOM ||
-		    wParam == WMSZ_BOTTOMRIGHT)
-		r->bottom = r->top + h;
-	    else
-		r->top = r->bottom - h;
+        if (wParam == WMSZ_BOTTOMLEFT ||
+            wParam == WMSZ_BOTTOM ||
+            wParam == WMSZ_BOTTOMRIGHT)
+        r->bottom = r->top + h;
+        else
+        r->top = r->bottom - h;
 
-	    return 1;
-	}
-	break;
+        return 1;
+    }
+    break;
 
     case WM_SYSCOMMAND:
-	if (wParam == ID_ABOUT)
-	{
-	    onabout();
-	    return 0;
-	}
-	if (wParam == ID_CONFIG)
-	{
-	    onconfig();
-	    return 0;
-	}
-	if (wParam == ID_TOGSCR)
-	{
-	    if (gli_scroll_width)
-		gli_scroll_width = 0;
-	    else
-		gli_scroll_width = 8;
-	    gli_force_redraw = 1;
-	    gli_windows_size_change();
-	    return 0;
-	}
-	break;
+    if (wParam == ID_ABOUT)
+    {
+        onabout();
+        return 0;
+    }
+    if (wParam == ID_CONFIG)
+    {
+        onconfig();
+        return 0;
+    }
+    if (wParam == ID_TOGSCR)
+    {
+        if (gli_scroll_width)
+        gli_scroll_width = 0;
+        else
+        gli_scroll_width = 8;
+        gli_force_redraw = 1;
+        gli_windows_size_change();
+        return 0;
+    }
+    break;
 
     case WM_TIMER:
-	timeouts ++;
-	return 0;
+    timeouts ++;
+    return 0;
 
     case WM_NOTIFY:
     case WM_COMMAND:
-	return SendMessage(hwndview, message, wParam, lParam);
+    return SendMessage(hwndview, message, wParam, lParam);
     }
     return DefWindowProc(hwnd, message, wParam, lParam);
 }
@@ -460,96 +460,96 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     switch (message)
     {
     case WM_ERASEBKGND:
-	return 1; // don't erase; we'll repaint it all
+    return 1; // don't erase; we'll repaint it all
 
     case WM_PAINT:
-	{
-	    PAINTSTRUCT ps;
+    {
+        PAINTSTRUCT ps;
 
-	    /* make sure we have a fresh bitmap */
-	    gli_windows_redraw();
+        /* make sure we have a fresh bitmap */
+        gli_windows_redraw();
 
-	    /* and blit it to the screen */
-	    hdc = BeginPaint(hwnd, &ps);
-	    winblit(ps.rcPaint);
-	    hdc = NULL;
-	    EndPaint(hwnd, &ps);
+        /* and blit it to the screen */
+        hdc = BeginPaint(hwnd, &ps);
+        winblit(ps.rcPaint);
+        hdc = NULL;
+        EndPaint(hwnd, &ps);
 
-	    return 0;
-	}
+        return 0;
+    }
 
     case WM_SIZE:
-	{
-	    int newwid = LOWORD(lParam);
-	    int newhgt = HIWORD(lParam);
+    {
+        int newwid = LOWORD(lParam);
+        int newhgt = HIWORD(lParam);
 
-	    if (newwid == 0 || newhgt == 0)
-		break;
+        if (newwid == 0 || newhgt == 0)
+        break;
 
-	    if (newwid == gli_image_w && newhgt == gli_image_h)
-		break;
+        if (newwid == gli_image_w && newhgt == gli_image_h)
+        break;
 
-	    gli_image_w = newwid;
-	    gli_image_h = newhgt;
+        gli_image_w = newwid;
+        gli_image_h = newhgt;
 
-	    gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
-	    if (gli_image_rgb)
-		free(gli_image_rgb);
-	    gli_image_rgb = malloc(gli_image_s * gli_image_h);
+        gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
+        if (gli_image_rgb)
+        free(gli_image_rgb);
+        gli_image_rgb = malloc(gli_image_s * gli_image_h);
 
-	    gli_force_redraw = 1;
+        gli_force_redraw = 1;
 
-	    gli_windows_size_change();
+        gli_windows_size_change();
 
-	    break;
-	}
+        break;
+    }
 
     case WM_LBUTTONDOWN:
-	gli_input_handle_click(x, y);
-	return 0;
+    gli_input_handle_click(x, y);
+    return 0;
 
     case WM_KEYDOWN:
 
-	switch (wParam)
-	{
-	case VK_PRIOR: gli_input_handle_key(keycode_PageUp); break;
-	case VK_NEXT: gli_input_handle_key(keycode_PageDown); break;
-	case VK_HOME: gli_input_handle_key(keycode_Home); break;
-	case VK_END: gli_input_handle_key(keycode_End); break;
-	case VK_LEFT: gli_input_handle_key(keycode_Left); break;
-	case VK_RIGHT: gli_input_handle_key(keycode_Right); break;
-	case VK_UP: gli_input_handle_key(keycode_Up); break;
-	case VK_DOWN: gli_input_handle_key(keycode_Down); break;
-	case VK_ESCAPE: gli_input_handle_key(keycode_Escape); break;
-	case VK_F1: gli_input_handle_key(keycode_Func1); break;
-	case VK_F2: gli_input_handle_key(keycode_Func2); break;
-	case VK_F3: gli_input_handle_key(keycode_Func3); break;
-	case VK_F4: gli_input_handle_key(keycode_Func4); break;
-	case VK_F5: gli_input_handle_key(keycode_Func5); break;
-	case VK_F6: gli_input_handle_key(keycode_Func6); break;
-	case VK_F7: gli_input_handle_key(keycode_Func7); break;
-	case VK_F8: gli_input_handle_key(keycode_Func8); break;
-	case VK_F9: gli_input_handle_key(keycode_Func9); break;
-	case VK_F10: gli_input_handle_key(keycode_Func10); break;
-	case VK_F11: gli_input_handle_key(keycode_Func11); break;
-	case VK_F12: gli_input_handle_key(keycode_Func12); break;
-	}
-	return 0;
+    switch (wParam)
+    {
+    case VK_PRIOR: gli_input_handle_key(keycode_PageUp); break;
+    case VK_NEXT: gli_input_handle_key(keycode_PageDown); break;
+    case VK_HOME: gli_input_handle_key(keycode_Home); break;
+    case VK_END: gli_input_handle_key(keycode_End); break;
+    case VK_LEFT: gli_input_handle_key(keycode_Left); break;
+    case VK_RIGHT: gli_input_handle_key(keycode_Right); break;
+    case VK_UP: gli_input_handle_key(keycode_Up); break;
+    case VK_DOWN: gli_input_handle_key(keycode_Down); break;
+    case VK_ESCAPE: gli_input_handle_key(keycode_Escape); break;
+    case VK_F1: gli_input_handle_key(keycode_Func1); break;
+    case VK_F2: gli_input_handle_key(keycode_Func2); break;
+    case VK_F3: gli_input_handle_key(keycode_Func3); break;
+    case VK_F4: gli_input_handle_key(keycode_Func4); break;
+    case VK_F5: gli_input_handle_key(keycode_Func5); break;
+    case VK_F6: gli_input_handle_key(keycode_Func6); break;
+    case VK_F7: gli_input_handle_key(keycode_Func7); break;
+    case VK_F8: gli_input_handle_key(keycode_Func8); break;
+    case VK_F9: gli_input_handle_key(keycode_Func9); break;
+    case VK_F10: gli_input_handle_key(keycode_Func10); break;
+    case VK_F11: gli_input_handle_key(keycode_Func11); break;
+    case VK_F12: gli_input_handle_key(keycode_Func12); break;
+    }
+    return 0;
 
-	/* unicode encoded chars, including escape, backspace etc... */
+    /* unicode encoded chars, including escape, backspace etc... */
     case WM_CHAR:
-	key = wParam;
+    key = wParam;
 
-	if (key == '\r' || key == '\n')
-	    gli_input_handle_key(keycode_Return);
-	else if (key == '\b')
-	    gli_input_handle_key(keycode_Delete);
-	else if (key == '\t')
-	    gli_input_handle_key(keycode_Tab);
-	else if (key >= 32 && key <= 255)
-	    gli_input_handle_key(key);
+    if (key == '\r' || key == '\n')
+        gli_input_handle_key(keycode_Return);
+    else if (key == '\b')
+        gli_input_handle_key(keycode_Delete);
+    else if (key == '\t')
+        gli_input_handle_key(keycode_Tab);
+    else if (key >= 32 && key <= 255)
+        gli_input_handle_key(key);
 
-	return 0;
+    return 0;
     }
 
     /* Pass on unhandled events to Windows */
