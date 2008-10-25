@@ -174,7 +174,7 @@ extern int gli_scroll_width;
 extern int gli_baseline;
 extern int gli_leading;
 
-enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
+enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ, UNIMR, UNIMB, UNIMI, UNIMZ, UNIPR, UNIPB, UNIPI, UNIPZ };
 
 extern char *gli_conf_propr;
 extern char *gli_conf_propb;
@@ -185,6 +185,16 @@ extern char *gli_conf_monor;
 extern char *gli_conf_monob;
 extern char *gli_conf_monoi;
 extern char *gli_conf_monoz;
+
+extern char *gli_conf_unimr;
+extern char *gli_conf_unimb;
+extern char *gli_conf_unimi;
+extern char *gli_conf_unimz;
+
+extern char *gli_conf_unipr;
+extern char *gli_conf_unipb;
+extern char *gli_conf_unipi;
+extern char *gli_conf_unipz;
 
 extern float gli_conf_gamma;
 extern float gli_conf_propsize;
