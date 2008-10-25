@@ -51,7 +51,7 @@ struct font_s
 
 static unsigned char gammamap[256];
 
-static font_t gfont_table[8];
+static font_t gfont_table[16];
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -135,7 +135,7 @@ static int findhighglyph(glui32 cid, fentry_t *entries, int length)
     return ~mid;
 }
 
-static void loadglyph(font_t *f, glui32 cid)
+static int loadglyph(font_t *f, font_t *u, glui32 cid)
 {
     FT_Vector v;
     int err;
@@ -145,8 +145,18 @@ static void loadglyph(font_t *f, glui32 cid)
     int adv;
 
     gid = FT_Get_Char_Index(f->face, cid);
-    if (gid <= 0)
-        gid = FT_Get_Char_Index(f->face, '?');
+    if (gid <= 0) {
+        if (u) {
+            gid = FT_Get_Char_Index(u->face, cid);
+            if (gid > 0)
+                return TRUE;
+            else
+                gid = FT_Get_Char_Index(f->face, '?');
+        }
+        else {
+            gid = FT_Get_Char_Index(f->face, '?');
+        }
+    }
 
     for (x = 0; x < GLI_SUBPIX; x++)
     {
@@ -220,11 +230,12 @@ static void loadglyph(font_t *f, glui32 cid)
             f->num_highentries++;
         }
     }
+    return FALSE;
 }
 
 static void loadfont(font_t *f, char *name, float size, float aspect)
 {
-    static char *map[8] =
+    static char *map[16] =
     {
         "LuxiMonoRegular",
         "LuxiMonoBold",
@@ -234,6 +245,14 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
         "CharterBT-Bold",
         "CharterBT-Italic",
         "CharterBT-BoldItalic",
+        "DejaVuSansMono",
+        "DejaVuSansMono-Bold",
+        "DejaVuSansMono-Oblique",
+        "DejaVuSansMono-BoldOblique",
+        "DejaVuSans",
+        "DejaVuSans-Bold",
+        "DejaVuSans-Oblique",
+        "DejaVuSans-BoldOblique",
     };
 
     char afmbuf[1024];
@@ -244,7 +263,7 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
 
     memset(f, 0, sizeof (font_t));
 
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 16; i++)
     {
         if (!strcmp(name, map[i]))
         {
@@ -255,7 +274,7 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
             break;
         }
     }
-    if (i == 8)
+    if (i == 16)
     {
         err = FT_New_Face(ftlib, name, 0, &f->face);
         if (err)
@@ -286,21 +305,6 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
     f->highentries = NULL;
 }
 
-#if 0
-    for (i = 32; i < 128; i++)
-        loadglyph(f, i, i);
-    for (i = 160; i < 256; i++)
-        loadglyph(f, i, i);
-    loadglyph(f, LIG_FI, touni(LIG_FI));
-    loadglyph(f, LIG_FL, touni(LIG_FL));
-    loadglyph(f, UNI_LSQUO, touni(UNI_LSQUO));
-    loadglyph(f, UNI_RSQUO, touni(UNI_RSQUO));
-    loadglyph(f, UNI_LDQUO, touni(UNI_LDQUO));
-    loadglyph(f, UNI_RDQUO, touni(UNI_RDQUO));
-    loadglyph(f, UNI_NDASH, touni(UNI_NDASH));
-    loadglyph(f, UNI_MDASH, touni(UNI_MDASH));
-#endif
-
 void gli_initialize_fonts(void)
 {
     float monoaspect = gli_conf_monoaspect;
@@ -327,7 +331,17 @@ void gli_initialize_fonts(void)
     loadfont(&gfont_table[6], gli_conf_propi, propsize, propaspect);
     loadfont(&gfont_table[7], gli_conf_propz, propsize, propaspect);
 
-    loadglyph(&gfont_table[0], '0');
+    loadfont(&gfont_table[8],  gli_conf_unimr, monosize, monoaspect);
+    loadfont(&gfont_table[9],  gli_conf_unimb, monosize, monoaspect);
+    loadfont(&gfont_table[10], gli_conf_unimi, monosize, monoaspect);
+    loadfont(&gfont_table[11], gli_conf_unimz, monosize, monoaspect);
+
+    loadfont(&gfont_table[12], gli_conf_unipr, propsize, propaspect);
+    loadfont(&gfont_table[13], gli_conf_unipb, propsize, propaspect);
+    loadfont(&gfont_table[14], gli_conf_unipi, propsize, propaspect);
+    loadfont(&gfont_table[15], gli_conf_unipz, propsize, propaspect);
+
+    loadglyph(&gfont_table[0], NULL, '0');
 
     gli_cellh = gli_leading;
     gli_cellw = (gfont_table[0].lowadvs['0'] + GLI_SUBPIX - 1) / GLI_SUBPIX;
@@ -484,27 +498,39 @@ static int charkern(font_t *f, int c0, int c1)
     return (v.x * GLI_SUBPIX) / 64.0;
 }
 
-static void getglyph(font_t *f, glui32 cid, int *adv, bitmap_t **glyphs)
+static int getglyph(font_t *f, font_t *u, glui32 cid, int *adv, bitmap_t **glyphs)
 {
     if (cid < 256) {
         if ((f->lowloaded[cid/8] & (1 << (cid%8))) == 0)
-            loadglyph(f, cid);
+            loadglyph(f, NULL, cid);
         *adv = f->lowadvs[cid];
         *glyphs = f->lowglyphs[cid];
     } else {
         int idx = findhighglyph(cid, f->highentries, f->num_highentries);
         if (idx < 0) {
-            loadglyph(f, cid);
+            int alt = loadglyph(f, u, cid);
             idx = ~idx;
+            if (alt && u) {
+                int uidx = findhighglyph(cid, u->highentries, u->num_highentries);
+                if (uidx < 0) {
+                    loadglyph(u, NULL, cid);
+                    uidx = ~uidx;
+                }
+                *adv = u->highentries[uidx].adv;
+                *glyphs = u->highentries[uidx].glyph;
+                return TRUE;
+            }
         }
         *adv = f->highentries[idx].adv;
         *glyphs = f->highentries[idx].glyph;
     }
+    return FALSE;
 }
 
 int gli_string_width(int fidx, unsigned char *s, int n, int spw)
 {
     font_t *f = &gfont_table[fidx];
+
     int dolig = ! FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
     int w = 0;
@@ -523,7 +549,7 @@ int gli_string_width(int fidx, unsigned char *s, int n, int spw)
         if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
         if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
 
-        getglyph(f, c, &adv, &glyphs);
+        getglyph(f, NULL, c, &adv, &glyphs);
 
         if (prev != -1)
             w += charkern(f, prev, c);
@@ -543,6 +569,7 @@ int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,
         unsigned char *s, int n, int spw)
 {
     font_t *f = &gfont_table[fidx];
+
     int dolig = ! FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
     glui32 c;
@@ -563,7 +590,7 @@ int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,
         if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
         if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
 
-        getglyph(f, c, &adv, &glyphs);
+        getglyph(f, NULL, c, &adv, &glyphs);
 
         if (prev != -1)
             x += charkern(f, prev, c);
@@ -591,8 +618,15 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
         glui32 *s, int n, int spw)
 {
     font_t *f = &gfont_table[fidx];
+    font_t *u;
+    if (fidx < 8)
+        u = &gfont_table[fidx+8];
+    else
+        u = NULL;
+
     int dolig = ! FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
+    int uprev = -1;
     glui32 c;
     int px, sx;
 
@@ -611,10 +645,13 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
         if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
         if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
 
-        getglyph(f, c, &adv, &glyphs);
+        int alt = getglyph(f, u, c, &adv, &glyphs);
 
         if (prev != -1)
-            x += charkern(f, prev, c);
+            if (!alt)
+                x += charkern(f, prev, c);
+            else
+                x += charkern(u, uprev, c);
 
         px = x / GLI_SUBPIX;
         sx = x % GLI_SUBPIX;
@@ -628,8 +665,15 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
             x += spw;
         else
             x += adv;
-
-        prev = c;
+        
+        if (!alt) {
+            prev = c;
+            uprev = c;
+        }
+        else {
+            prev = '?';
+            uprev = c;
+        }
     }
 
     return x;
@@ -638,8 +682,15 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
 int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
 {
     font_t *f = &gfont_table[fidx];
+    font_t *u;
+    if (fidx < 8)
+        u = &gfont_table[fidx+8];
+    else
+        u = NULL;
+
     int dolig = ! FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
+    int uprev = -1;
     int w = 0;
 
     if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
@@ -656,17 +707,27 @@ int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
         if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
         if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
 
-        getglyph(f, c, &adv, &glyphs);
+        int alt = getglyph(f, u, c, &adv, &glyphs);
 
         if (prev != -1)
-            w += charkern(f, prev, c);
+            if (!alt)
+                w += charkern(f, prev, c);
+            else
+                w += charkern(u, uprev, c);
 
         if (spw >= 0 && c == ' ')
             w += spw;
         else
             w += adv;
 
-        prev = c;
+        if (!alt) {
+            prev = c;
+            uprev = c;
+        }
+        else {
+            prev = '?';
+            uprev = c;
+        }
     }
 
     return w;
