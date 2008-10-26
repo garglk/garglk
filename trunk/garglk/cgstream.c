@@ -504,14 +504,8 @@ static void gli_put_char(stream_t *str, unsigned char ch)
       gli_put_char(str->win->echostr, ch);
     break;
   case strtype_File:
-    if (!str->unicode) {
-        /* Output the Latin-1 character directly; text files can reasonably
-        be Latin-1 encoded in an X program. */
-        putc(ch, str->file);
-        break;
-    } else {
-        gli_putchar_utf8(ch, str->file);
-    }
+    putc(ch, str->file);
+    break;
   }
 }
 
@@ -538,24 +532,19 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
     break;
   case strtype_Window:
     if (str->win->line_request || str->win->line_request_uni) {
-      gli_strict_warning("put_char: window has pending line request");
-      break;
+        gli_strict_warning("put_char: window has pending line request");
+        break;
     }
     gli_window_put_char_uni(str->win, ch);
     if (str->win->echostr)
-      gli_put_char_uni(str->win->echostr, ch);
+        gli_put_char_uni(str->win->echostr, ch);
     break;
-  case strtype_File:
-    if (!str->unicode) {
-        /* Output the Latin-1 character directly; text files can reasonably
-        be Latin-1 encoded in an X program. */
-        if (ch > 0xff)
-            ch = '?';
-        putc(ch, str->file);
+    case strtype_File:
+        if (ch > 0xFF)
+            putc('?', str->file);
+        else
+            putc(ch, str->file);
         break;
-    } else {
-        gli_putchar_utf8(ch, str->file);
-    }
   }
 }
 
@@ -622,20 +611,11 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 gli_put_buffer(str->win->echostr, buf, len);
             break;
         case strtype_File:
-            if (!str->unicode) {
-                /* Output the Latin-1 character directly; text files can reasonably
-                be Latin-1 encoded in an X program. */
-                fwrite(buf, 1, len, str->file);
-            }
-            else {
-                /* cheap big-endian stream */
-                for (lx=0; lx<len; lx++) {
-                    unsigned char ch = ((unsigned char *)buf)[lx];
-                    putc(0,  str->file);
-                    putc(0,  str->file);
-                    putc(0,  str->file);
-                    putc(ch, str->file);
-                }
+            /* we should handle Unicode / UTF8 
+               but for now we only write ASCII */
+            for (lx=0; lx<len; lx++) {
+                unsigned char ch = (unsigned char)(buf[lx]);
+                putc(ch, str->file);
             }
             break;
     }
@@ -708,20 +688,11 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                 gli_put_buffer_uni(str->win->echostr, buf, len);
             break;
         case strtype_File:
-            if (!str->unicode) {
-                /* Output the Latin-1 character directly; text files can reasonably
-                be Latin-1 encoded in an X program. */
-                fwrite(buf, 1, len, str->file);
-            }
-            else {
-                /* cheap big-endian stream */
-                for (lx=0; lx<len; lx++) {
-                    glui32 ch = ((glui32 *)buf)[lx];
-                    putc(((ch >> 24) & 0xFF), str->file);
-                    putc(((ch >> 16) & 0xFF), str->file);
-                    putc(((ch >>  8) & 0xFF), str->file);
-                    putc( (ch        & 0xFF), str->file);
-                }
+            /* we should handle Unicode / UTF8 
+               but for now we only write ASCII */
+            for (lx=0; lx<len; lx++) {
+                unsigned char ch = ((unsigned char)(buf[lx]));
+                putc(ch, str->file);
             }
             break;
     }
