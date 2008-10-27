@@ -1,0 +1,194 @@
+Welcome to the TADS 3 Starter Game!
+
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>look
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>south
+(first opening the front door)
+You'd rather stay in the house for now.
+
+>open door
+You'd rather stay in the house for now.
+
+>open front door
+You'd rather stay in the house for now.
+
+>sit on chair
+Okay, you're now sitting on the wooden chair.
+
+>south
+(first standing up, then opening the front door)
+You'd rather stay in the house for now.
+
+>x suit
+It's a suit of plate-mail armor that looks suitable for a very tall knight.
+The armor is posed with a huge battle-axe held at the ready.
+
+>get suit
+The suit of armor is too heavy.
+
+>wear suit
+That isn't something you can wear.
+
+>get axe
+Taken.
+
+>look
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of armor
+towers over a single straight-backed wooden chair.  The front door leads back
+outside to the south.  A hallway leads north.
+
+>x suit
+It's a suit of plate-mail armor that looks suitable for a very tall knight.
+
+>x picture
+The men in the portraits look like bankers or businessmen, all serious faces
+and old-fashioned suits.
+
+>x portraits
+The men in the portraits look like bankers or businessmen, all serious faces
+and old-fashioned suits.
+
+>north
+Hallway
+This broad, dimly-lit corridor runs north and south.
+
+>east
+You can't go that way.  Obvious exits lead north; and south, back to the
+entryway.
+
+>south
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of armor
+towers over a single straight-backed wooden chair.  The front door leads back
+outside to the south.  A hallway leads north.
+
+>north
+Hallway
+This broad, dimly-lit corridor runs north and south.
+
+>north
+Kitchen
+This is a surprisingly cramped kitchen, equipped with antique accoutrements:
+the stove is a huge black iron contraption, and in place of a refrigerator is
+an actual icebox.  A hallway lies to the south.
+
+>look in stove
+(first opening the stove)
+The stove contains a loaf of bread.
+
+>save "saveI3.t3v"
+Saved.
+
+>get bread and eat it
+Taken.
+
+You tear off a piece and eat it; it's delicious.  You tear off a little more,
+then a little more, and before long the whole loaf is gone.
+
+>look in icebox
+(first opening the icebox)
+You see nothing unusual in the icebox.
+
+It's been a long time since any ice was in there.
+
+>restart
+Do you really want to start over? (Y is affirmative) > yes
+
+Welcome to the TADS 3 Starter Game!
+
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>look
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>restore "saveI3.t3v"
+Restored.
+
+Kitchen
+This is a surprisingly cramped kitchen, equipped with antique accoutrements:
+the stove is a huge black iron contraption, and in place of a refrigerator is
+an actual icebox.  A hallway lies to the south.
+
+The stove contains a loaf of bread.
+
+>x bread
+It's a fresh loaf with a golden-brown crust.
+
+>eat bread
+(first taking the loaf of bread)
+You tear off a piece and eat it; it's delicious.  You tear off a little more,
+then a little more, and before long the whole loaf is gone.
+
+>look
+Kitchen
+This is a surprisingly cramped kitchen, equipped with antique accoutrements:
+the stove is a huge black iron contraption, and in place of a refrigerator is
+an actual icebox.  A hallway lies to the south.
+
+>x bread
+You see no bread here.
+
+>restore "saveI3.t3v"
+Restored.
+
+Kitchen
+This is a surprisingly cramped kitchen, equipped with antique accoutrements:
+the stove is a huge black iron contraption, and in place of a refrigerator is
+an actual icebox.  A hallway lies to the south.
+
+The stove contains a loaf of bread.
+
+>x bread
+It's a fresh loaf with a golden-brown crust.
+
+>restart
+Do you really want to start over? (Y is affirmative) > yes
+
+Welcome to the TADS 3 Starter Game!
+
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>look
+Entryway
+This large, formal entryway is slightly intimidating: the walls are lined with
+somber portraits of gray-haired men from decades past; a medieval suit of
+armor, posed with a battle axe at the ready, towers over a single straight-
+backed wooden chair.  The front door leads back outside to the south.  A
+hallway leads north.
+
+>quit
+Do you really want to quit? (Y is affirmative) > yes
+
+Thanks for playing!
+

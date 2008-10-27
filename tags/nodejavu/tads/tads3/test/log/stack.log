@@ -1,0 +1,64 @@
+	Files to build: 7
+	symbol_export _main.t -> _main.t3s
+	symbol_export stack.t -> stack.t3s
+	symbol_export reflect.t -> reflect.t3s
+	compile _main.t -> _main.t3o
+	compile stack.t -> stack.t3o
+	compile reflect.t -> reflect.t3o
+	link -> stack.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+func2:
+1: func2('abc', 3, 246) stack.t, line 37
+2: func1('abc', 123) stack.t, line 50
+3: main(['stack.t3']) stack.t, line 55
+4: _mainCommon(['stack.t3'], nil) _main.t, line 126
+5: _main(['stack.t3']) _main.t, line 30
+
+myObj.prop2:
+1: myObj.prop2('abc', 246) stack.t, line 22
+2: func2('abc', 3, 246) stack.t, line 45
+3: func1('abc', 123) stack.t, line 50
+4: main(['stack.t3']) stack.t, line 55
+5: _mainCommon(['stack.t3'], nil) _main.t, line 126
+6: _main(['stack.t3']) _main.t, line 30
+
+myClass.prop1:
+1: myObj.prop1('abc', 246) stack.t, line 8
+2: myObj.prop2('abc', 246) stack.t, line 30
+3: func2('abc', 3, 246) stack.t, line 45
+4: func1('abc', 123) stack.t, line 50
+5: main(['stack.t3']) stack.t, line 55
+6: _mainCommon(['stack.t3'], nil) _main.t, line 126
+7: _main(['stack.t3']) _main.t, line 30
+
+func2:
+1: func2('def', 3, 912) stack.t, line 37
+2: func1('def', 456) stack.t, line 50
+3: main(['stack.t3']) stack.t, line 56
+4: _mainCommon(['stack.t3'], nil) _main.t, line 126
+5: _main(['stack.t3']) _main.t, line 30
+
+myObj.prop2:
+1: myObj.prop2('def', 912) stack.t, line 22
+2: func2('def', 3, 912) stack.t, line 45
+3: func1('def', 456) stack.t, line 50
+4: main(['stack.t3']) stack.t, line 56
+5: _mainCommon(['stack.t3'], nil) _main.t, line 126
+6: _main(['stack.t3']) _main.t, line 30
+
+myClass.prop1:
+1: myObj.prop1('def', 912) stack.t, line 8
+2: myObj.prop2('def', 912) stack.t, line 30
+3: func2('def', 3, 912) stack.t, line 45
+4: func1('def', 456) stack.t, line 50
+5: main(['stack.t3']) stack.t, line 56
+6: _mainCommon(['stack.t3'], nil) _main.t, line 126
+7: _main(['stack.t3']) _main.t, line 30
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

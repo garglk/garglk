@@ -1,0 +1,35 @@
+	Files to build: 3
+	symbol_export catch.t -> catch.t3s
+	compile catch.t -> catch.t3o
+catch.t(58): warning: unreachable statement
+	link -> catch.t3
+Errors:   0
+Warnings: 1
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+test catch 1 - catch our own throw
+about to throw our error...
+test catch 1 - caught Exception1: This is an Exception1 with message "hello!"
+test catch 1 - in finally
+test catch 2 - catching a VM error
+about to generate an error...
+test catch 2 - caught Throwable: RuntimeError: error = 2004
+test catch 2 - in finally
+test catch 3 - catching an error while computing a return value
+calculating our return value...
+... in maybe_gen_err
+... returning 'okay'
+back in _main: test_catch_3(nil) = okay
+test catch 3 - catching an error while computing a return value
+calculating our return value...
+... in maybe_gen_err
+... causing a run-time error
+test catch 3 - caught Throwable: RuntimeError: error = 2008
+returning 'error'
+back in _main: test_catch_3(true) = error
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

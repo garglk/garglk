@@ -1,0 +1,395 @@
+!!
+!! Simple program to test various z-machine stuff.
+!! Placed in the public domain by Evin Robertson.
+!!
+
+[ assert actual expected a op b;
+   if(expected ~= actual) {
+      print "^";
+      @check_arg_count 5 ?binary;
+      
+      print (string) op, a;
+      jump e;
+
+      .binary;
+      print a, (string) op, b;
+
+      .e;
+      print "  expected ", expected, "; got ", actual, "^";
+      @quit;
+   }
+];
+
+Global count;
+
+[ do_check_check_arg_count a b c d e f g n;
+   for(n = 1: n <= count: n++) {
+      @check_arg_count n ?~bad;
+   }
+   for(: n <= 7: n++) {
+      @check_arg_count n ?bad;
+   }
+   return;
+
+   .bad;
+
+   print "^claimed argument ", n, " was ";
+   if(n <= count)
+      print "not given when it was.^";
+   else
+      print "given when it was not.^";
+   @quit;
+];
+
+!Global mycount;
+!
+![ list_arguments a b c d e f g h i j k l m n o;
+!   for(mycount = 1: mycount <= 15: mycount++) {
+!      @check_arg_count mycount ?~noarg;
+!
+!      print mycount, "=";
+!
+!      @load [mycount] -> sp;
+!      @print_num sp;
+!
+!      print "; ";
+!      
+!      .noarg;
+!   }
+!   new_line;
+!];
+
+[ do_add a b expect;
+   @add a b -> sp;
+   @call_vn2 assert sp expect a "+" b;
+];
+
+[ do_and a b expect;
+   @and a b -> sp;
+   @call_vn2 assert sp expect a "&" b;
+];
+
+[ do_art a b expect;
+  @art_shift a b -> sp;
+  @call_vn2 assert sp expect a "<<" b;
+];
+
+[ do_dec a expect;
+  @dec a;
+  @call_vn2 assert a expect a "--";
+];
+
+[ do_div a b expect;
+  @div a b -> sp;
+  @call_vn2 assert sp expect a "/" b;
+];
+
+[ do_inc a expect;
+   @inc a;
+   @call_vn2 assert a expect a "++";
+];
+
+[ do_log a b expect; 
+   @log_shift a b -> sp;
+   @call_vn2 assert sp expect a "<<" b;
+];
+
+[ do_mod a b expect;
+   @mod a b -> sp;
+   @call_vn2 assert sp expect a "%" b;
+];
+
+[ do_mul a b expect;
+   @mul a b -> sp;
+   @call_vn2 assert sp expect a "*" b;
+];
+
+[ do_not a expect;
+   @"VAR:56S" a -> sp;     !   @not a -> sp;   (bug in inform)
+   @call_vn2 assert sp expect a "~";
+];
+
+[ do_or a b expect;
+   @or a b -> sp;
+   @call_vn2 assert sp expect a "|" b;
+];
+
+[ do_sub a b expect;
+   @sub a b -> sp;
+   @call_vn2 assert sp expect a "-" b;
+];
+
+
+
+! I couldn't figure out how to do negative numbers in inform assembly, so
+! here's constants for the numbers I use
+Constant n1 -1;
+Constant n2 -2;
+Constant n3 -3;
+Constant n4 -4;
+Constant n5 -5;
+Constant n500 -500;
+Constant n32768 -32768;
+
+Constant Rand_Range 60;
+
+Array mytable -> 256;
+Array mysecond -> 256;
+
+
+[ Main n g max;
+!   mytable->0 = 200;
+!   mytable->1 = 0;
+!   @aread mytable 0 -> n;
+
+   print "Testing... ";
+
+   print "check_arg_count ";
+   count = 0; do_check_check_arg_count();
+   count = 1; do_check_check_arg_count(1);
+   count = 2; do_check_check_arg_count(2, 1);
+   count = 3; do_check_check_arg_count(3, 2, 1);
+   count = 4; do_check_check_arg_count(4, 3, 2, 1);
+   count = 5; do_check_check_arg_count(5, 4, 3, 2, 1);
+   count = 6; do_check_check_arg_count(6, 5, 4, 3, 2, 1);
+   count = 7; do_check_check_arg_count(7, 6, 5, 4, 3, 2, 1);
+   
+   print "je ";
+   @je  5  5 ?~bad;
+   @je  5 n5 ?bad;
+   @je n5  5 ?bad;
+   @je n5 n5 ?~bad;
+   @je  32767 n32768 ?bad;
+   @je n32768 n32768 ?~bad;
+   
+   print "jg ";
+   @jg  5  5 ?bad;
+   @jg  1  0 ?~bad;
+   @jg  0  1 ?bad;
+   @jg n1 n2 ?~bad;
+   @jg n2 n1 ?bad;
+   @jg  1 n1 ?~bad;
+   @jg n1  1 ?bad;
+   
+   print "jl ";
+   @jl  5  5 ?bad;
+   @jl  1  0 ?bad;
+   @jl  0  1 ?~bad;
+   @jl n1 n2 ?bad;
+   @jl n2 n1 ?~bad;
+   @jl  1 n1 ?bad;
+   @jl n1  1 ?~bad;
+   
+   print "jz ";
+   @jz 0 ?~bad;
+   @jz 1 ?bad;
+   print "je ";
+   @je 42 42 ?~bad;
+   @je 15 5 ?bad;
+   
+   print "dec_chk ";
+   n = 3;
+   @dec_chk n 1000 ?~bad;  !  2
+   @dec_chk n    1 ?bad;   !  1
+   @dec_chk n    1 ?~bad;  !  0
+   @dec_chk n    0 ?~bad;  ! -1
+   @dec_chk n   n2 ?bad;   ! -2
+   @dec_chk n   n2 ?~bad;  ! -3
+   @dec_chk n 1000 ?~bad;  ! -4
+   @dec_chk n n500 ?bad;   ! -5
+   
+   print "inc_chk ";
+   n = -6;
+   @inc_chk n n500 ?~bad; ! -5
+   @inc_chk n 1000 ?bad;  ! -4
+   @inc_chk n   n3 ?bad;  ! -3
+   @inc_chk n   n3 ?~bad; ! -2
+   @inc_chk n    0 ?bad;  ! -1
+   @inc_chk n    1 ?bad;  !  0
+   @inc_chk n    1 ?bad;  !  1
+   @inc_chk n    1 ?~bad; !  2
+   @inc_chk n 1000 ?bad;  !  3
+   
+   print "test ";
+   @test $ffff $ffff ?~bad;
+   @test $ffff     0 ?~bad;
+   @test $1234 $4321 ?bad;
+   
+   print "add ";
+   do_add( 5,  3,  8);
+   do_add( 3,  5,  8);
+   do_add(-5,  3, -2);
+   do_add(-5, -3, -8);
+   do_add(-3, -5, -8);
+   do_add(-3,  5,  2);
+   do_add(32765, 6, -32765);
+   
+   print "and ";
+   do_and( 5,  3,  1);
+   do_and( 3,  5,  1);
+   do_and(-3, -3, -3);
+   do_and(-3,  5,  5);
+   do_and(-3, -5, -7);
+   
+   print "art_shift ";
+   do_art( 0,  1,  0);
+   do_art( 0, -1,  0);
+   do_art( 1,  5, 32);
+   do_art( 1, -1,  0);
+   do_art(85,  1, 170);
+   do_art(85, -2, 21);
+   do_art(-9,  5, -288);
+   do_art(-9, -5, -1);
+   
+   print "dec ";
+   do_dec( 5,  4);
+   do_dec( 0, -1);
+   do_dec(-8, -9);
+   do_dec(-32768, 32767);  
+   
+   print "div ";
+   do_div(-11,  2, -5);
+   do_div(-11, -2,  5);
+   do_div( 11, -2, -5);
+   do_div(  5,  1,  5);
+   do_div(  5,  2,  2);
+   do_div(  5,  3,  1);
+   do_div(  5,  5,  1);
+   do_div(  5,  6,  0);
+   do_div(5, 32767, 0);
+   do_div(32767, -32768, 0);
+   do_div(-32768, 32767, -1);
+   do_div(-32768, -1, -32768);
+   
+   
+   print "inc ";
+   do_inc( 5,  6);
+   do_inc(-1,  0);
+   do_inc(-8, -7);
+   do_inc(32767, -32768);  
+   
+   print "loadx/storex ";
+   @loadb  mytable 0 -> n;
+   assert(n, 0);
+   @storeb mytable 0 123;
+   @loadb  mytable 0 -> n;
+   assert(n, 123);
+   @loadw  mytable 0 -> n;
+   assert(n, $7b00);
+   @storew mytable 0 $1234;
+   @loadw  mytable 0 -> n;
+   assert(n, $1234);
+   @loadb  mytable 0 -> n;
+   assert(n, $12);
+   @loadb  mytable 1 -> n;
+   assert(n, $34);
+   
+   print "log_shift ";
+   do_log( 0,  1,  0);
+   do_log( 0, -1,  0);
+   do_log( 1,  5, 32);
+   do_log( 1, -1,  0);
+   do_log(85,  1, 170);
+   do_log(85, -2, 21);
+   do_log(-9,  5, -288);
+   do_log(-9, -5, 2047);
+   
+   print "mod ";
+   do_mod(-13,  5, -3);
+   do_mod( 13, -5,  3);
+   do_mod(-13, -5, -3);
+   do_mod(  5,  1,  0);
+   do_mod(  5,  2,  1);
+   do_mod(  5,  3,  2);
+   do_mod(  5,  5,  0);
+   do_mod(  5,  6,  5);
+   do_mod(5, 32767, 5);
+   do_mod(32767, -32768, 32767);
+   do_mod(-32768, 32767, -1);
+   do_mod(-32768, -1, 0);
+   
+   print "mul ";
+   do_mul(  0, 123,   0);
+   do_mul(123,   0,   0);
+   do_mul(  8,   9,  72);
+   do_mul(  9,   8,  72);
+   do_mul( 11,  -5, -55);
+   do_mul(-11,   5, -55);
+   do_mul(-11,  -5,  55);
+   do_mul(-32768, -1, -32768);
+   
+   print "not ";
+   do_not(0, ~0);
+   do_not(123, ~123);
+   do_not($5555, $aaaa);
+   do_not($aaaa, $5555);
+   
+   print "or ";
+   do_or($1234, $4321, $5335);
+   do_or($4321, $1234, $5335);
+   do_or($1234,     0, $1234);
+   do_or($1030, $ffff, $ffff);
+   do_or($ffff, $0204, $ffff);
+   
+   print "sub ";
+   do_sub(8,   5,  3);
+   do_sub(8,   3,  5);
+   do_sub(-2, -5,  3);
+   do_sub(-8, -5, -3);
+   do_sub(-8, -3, -5);
+   do_sub(2,  -3,  5);
+   do_sub(-32765, 32765, 6);
+   
+   print "output_stream ";
+   @output_stream 3 mytable;
+   print "...looks ";
+   @output_stream 3 mysecond;
+   print " to me...";
+   @output_stream -3;
+   print "good";
+   @output_stream -3;
+   for(n = 0: n < mytable-->0: n++)
+      print (char) mytable->(n+2);
+   for(n = 0: n < mysecond-->0: n++)
+      print (char) mysecond->(n+2);
+   
+   print " random ";
+   for(n = 1: n <= Rand_Range: n++)
+      mytable-->n = 0;
+
+   for(n = 0: n < 800: n++) {
+      @random Rand_Range -> g;
+      if(g <= 0 || g > Rand_Range) {
+	 print "illegal return from result (", g, ").^";
+	 @quit;
+      }
+      (mytable-->g)++;
+   }
+
+   new_line;
+   style fixed;
+   
+   max = 0;
+   for(n = 1: n <= Rand_Range: n++) {
+      if(mytable-->n > max)
+	 max = mytable-->n;
+   }
+
+   for(g = max: g > 0: g--) {
+      for(n = 1: n < Rand_Range: n++) {
+	 if(mytable-->n >= g)
+	    print (char) '#';
+	 else
+	    print (char) ' ';
+      }
+      new_line;
+   }
+
+   style roman;
+   
+   "Yay!";
+   
+.bad;
+   "bad!";
+   
+];

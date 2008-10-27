@@ -1,0 +1,17 @@
+To compile Gargoyle you will need jam 2.5.
+
+For sound support, you will need SDL_mixer.
+The FMOD sound support is slightly broken, but can be re-enabled
+with a little bit of hacking.
+
+Edit the Jamrules file to suit your system configuration.
+Comment out the "USESDL = yes" line if you don't care about
+sound support.
+
+Compile with "jam". The default is to build a RELEASE build.
+
+Compile with "jam -sBUILD=DEBUG" for a debuggable build.
+
+The command "jam install" will copy the compiled executables
+and shared libraries into "bin/dist/".
+

@@ -1,0 +1,22 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export modtobj.t -> modtobj.t3s
+	compile _main.t -> _main.t3o
+	compile modtobj.t -> modtobj.t3o
+	link -> modtobj.t3p
+	preinit -> modtobj.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+object myObject: TadsObject
+object TadsObject: Object
+object Object:
+myObject defines prop1? yes
+myObject defines prop2? yes
+myObject defines execute? no
+myObject defines propDefined? yes
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

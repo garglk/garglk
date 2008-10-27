@@ -1,0 +1,46 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export anonobj.t -> anonobj.t3s
+	compile _main.t -> _main.t3o
+	compile anonobj.t -> anonobj.t3o
+	link -> anonobj.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is the anonymous object test!
+
+List of 'Item' objects:
+[1]: rusty knife
+[2]: yellow box
+[3]: red ball
+[4]: blue ball
+[5]: green box
+[6]: nasty knife
+[7]: box
+[8]: envelope
+[9]: letter
+[10]: fuel cell
+[11]: axe
+[12]: tank
+[13]: quantity of water
+
+Containment graph:
+Room: North-South Passage
+  tank
+    quantity of water
+
+Room: Cave
+  rusty knife
+  nasty knife
+  box
+    envelope
+      letter
+    fuel cell
+  axe
+
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

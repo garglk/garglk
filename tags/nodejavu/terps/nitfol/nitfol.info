@@ -1,0 +1,1075 @@
+This is Info file nitfol.info, produced by Makeinfo version 1.68 from
+the input file nitfol.texi.
+
+INFO-DIR-SECTION Games
+START-INFO-DIR-ENTRY
+* nitfol: (nitfol).               Z-code interpreter and debugger.
+END-INFO-DIR-ENTRY
+
+
+File: nitfol.info,  Node: Top,  Next: Invoking nitfol,  Prev: (dir),  Up: (dir)
+
+Introduction
+************
+
+   Nitfol is a portable interpreter for Z-machine code, the game format
+used by Infocom and more recently,
+Inform (http://www.gnelson.demon.co.uk/inform.html).  Nitfol handles
+versions one through eight of the format, and attempts to comply with
+version 1.0 of the Z-machine specification.
+
+   You will need game files to use nitfol.  The "if-archive" contains a
+large collection of these, available at
+`ftp://ftp.gmd.de/if-archive/games/zcode/' or at the USA mirror
+`http://ifarchive.org/indexes/if-archiveXgamesXzcode.html'.
+
+   This manual describes how to use nitfol and how it differs from
+other Z-machine interpreters.  This manual was written with UNIX-like
+systems in mind; ignore that which does not apply to your platform.
+Comments on and corrections for this manual and nitfol are appreciated
+and should be sent to <nitfol@my-deja.com>.
+
+* Menu:
+
+* Invoking nitfol::               How to start nitfol under UNIX
+* Features::                      Useful extras
+* Debugger::                      Built in source-level debugger
+
+* Bugs::                          What I know is wrong
+* Thanks::                        List of people who've helped
+* Games Cited::                   The games used as examples in this manual
+
+
+File: nitfol.info,  Node: Invoking nitfol,  Next: Features,  Prev: Top,  Up: Top
+
+Invoking nitfol
+***************
+
+   Invoke nitfol with the game filename, and options.  If you omit the
+game filename, nitfol will prompt you for one.  The following options
+are recognized:
+
+`-ignore'
+`-no-ignore'
+`-i'
+     Ignore Z-machine strictness errors.  Normally nitfol checks for
+     illegal and undefined Z-machine behaviour and alerts the user.  If
+     you're playing someone else's buggy game, this can be annoying and
+     you should use this option.
+
+`-fullname'
+`-no-fullname'
+`-f'
+     For running under Emacs or DDD.  Tells nitfol to give
+     machine-recognizeable markers when stack frames are displayed
+     instead of displaying the line. Only useful if you are using
+     nitfol as an inferior debugger.
+
+`-command FILE'
+`-x FILE'
+     Read commands from this file.  Load a script from a file for
+     playback in the game.
+
+`-pirate'
+`-no-pirate'
+`-P'
+     Aye, matey.  Make the piracy opcode not branch, letting the game
+     know the game disc is not "genuine." Infocom never used this
+     opcode and neither should you, but if obscurity amuses you...
+
+`-quiet'
+`-no-quiet'
+`-q'
+     Do not print introductory messages.  For GDB compatibility.
+
+`-spell'
+`-no-spell'
+     Perform spelling correction.  Normally Z-machine games are
+     unforgiving of typos (though they do have an `oops' command). If
+     you type in a word which isn't in the game's dictionary and have
+     typo correction enabled, nitfol will search for a word which is
+     off by one letter by a substitution, deletion, insertion or
+     transposition.
+
+`-expand'
+`-no-expand'
+     Expand one letter abbreviations.  Early Z-machine games don't
+     include `x' as a synonym for `examine' and such.  If the first
+     word in a sentence is one letter long and not recognized by the
+     game, this will attempt to expand it to a full word.
+
+`-symbols FILE'
+`-s FILE'
+     Specify symbol file for game.  If you want to perform source-level
+     debugging, you will need to specify a symbol file, which contains
+     the names of variables and tells nitfol how source code
+     corresponds to object code.
+
+`-tandy'
+`-no-tandy'
+`-t'
+     Censors some Infocom games.  Some version 3 games perform minor
+     wording changes when this bit is set to appease the sensitivity of
+     Tandy Corporation.
+
+`-transcript WFILE'
+`-T WFILE'
+     Write transcript to this file.  This transcript begins as soon as
+     the game starts.
+
+`-debug'
+`-no-debug'
+`-d'
+     Enter debugger immediatly.  Imitate GDB by not automatically
+     starting the story.
+
+`-prompt STRING'
+     Specify debugging prompt.  This is the prompt nitfol prints when
+     it is waiting for a debugging command (as opposed to the > the
+     game story prints when waiting for a game command).  DDD requires
+     this to be `(gdb) '.
+
+`-path STRING'
+     Look for games in this directory.  If nitfol cannot find the
+     requested game in the current directory, it looks through the
+     directories listed in the given colon separated string.  The
+     directories specified here are also used to search for gamefiles
+     from saved games.   If this option is not used, nitfol looks at
+     the `INFOCOM_PATH' environment variable.
+
+`-autoundo'
+`-no-autoundo'
+     Ensure `@save_undo' is called every turn.  If a turn passes with
+     no `@save_undo' between, this option performs the `@save_undo'
+     automagically.  Could cause problems with some games which have a
+     different concept of a turn.
+
+`-stacklimit NUMBER'
+`-S NUMBER'
+     Exit when the stack is this deep.  If a game is infinitely
+     recursing, nitfol will allocate large amounts of memory and take a
+     long time before the problem is reported.  This option makes it
+     fatal to recurse more than the given number of stack frames.
+     Setting this to 0 makes nitfol allow as many as fit contiguously
+     in memory.  The Z-machine Standards Document recommends games use
+     no more than 1024 words of total stack (frames and pushed data) in
+     ZIP, which roughly works out to 90 routine calls deep.
+
+`-alias STRING'
+`-a STRING'
+     Specify an alias.  Adds an alias which will be expanded in read
+     lines before tokenisation.  The alias is of the form NAME VALUE;
+     you will need to use quotes around it on the commandline.
+
+`-ralias STRING'
+     Specify an recursive alias.  Adds an alias whose result is checked
+     for further alias expansion.  Identical syntax to adding a normal
+     alias.
+
+`-unalias STRING'
+     Remove an alias.  Removes an alias previously added by -alias.
+     Useful for removing aliases in preference files.
+
+`-random NUMBER'
+`-r NUMBER'
+     Set random seed.  Normally the random number generator is
+     initialized with the time of day.  If this option is used with a
+     non-zero argument, the given number will be used to initialize the
+     generator and for `@random 0'.
+
+`-mapsym STRING'
+     Specify mapping glyphs.  Nitfol draws maps using ASCII characters;
+     you can choose which characters it uses to draw rooms.  Defaults
+     to `*udb@UDB+', which is, in order: empty room, room with down
+     exit, room with up exit, room with up and down exits, room with
+     player, room with player and up exit, room with player and down
+     exit, room with player and up and down exits, bend symbol.
+
+`-mapsize NUMBER'
+     Specify map size.  Determines the number of lines to be used for
+     the map.
+
+`-maploc STRING'
+     Specify map location.  Nitfol creates a Glk window for the map it
+     generates.  The map can be placed `above', `below', to the
+     `right', or the `left', of the main game window.  Follow this
+     option with one those locations.
+
+`-terpnum NUMBER'
+     Specify interpreter number.  Each port of Infocom's Z-machine
+     interpreter was given a number.  `1' for their own DECSystem-20,
+     `2' for Apple IIe, `3' for Macintosh, `4' for Amiga, `5' for Atari
+     ST, `6' for IBM PC, `7' for Commodore 128, `8' for Commodore 64,
+     `9' for Apple IIc, `10' for Apple IIgs, `11' for Tandy Color.
+     Giving this option makes nitfol claim to be running on the
+     specified system.  A few games change their behaviour slightly
+     depending on which machine type they run.  By default nitfol
+     claims to be on an Apple IIe, as this makes Beyond Zork not do
+     character graphics.
+
+`-terpver STRING'
+     Specify interpreter version.  Infocom's interpreters were given
+     versions, typically a capital letter.  Nitfol defaults to `N',
+     Frotz uses `F', and ZIP uses `B'.  Any single character version is
+     allowed.  Multicharacter options are read as a number instead of
+     an ASCII character.  Only known effect upon games is the letter
+     printed by banners and the `version' command.  Version 6 games
+     interpret this as a number instead of a letter.
+
+
+File: nitfol.info,  Node: Features,  Next: Debugger,  Prev: Invoking nitfol,  Up: Top
+
+Features
+********
+
+* Menu:
+
+* Preferences::                   Store options in `~/.nitfolrc'
+* Infinite undo/redo::            Erase your mistakes and bad luck
+* Aliases::                       Abbreviate long/common words
+* Abbreviation Expansion::        Expand one letter commands
+* Typo correction::               Nitfol uses a smart tokeniser
+* Automapping::                   Automatically generate an on-screen map
+* Quetzal::                       Save files are in Quetzal format
+* Blorb::                         Nitfol supports Blorb resources
+
+
+File: nitfol.info,  Node: Preferences,  Next: Infinite undo/redo,  Prev: Features,  Up: Features
+
+Preferences
+===========
+
+   If you don't like the default options and don't want to recompile,
+you can set your preferences by writing a `.nitfolrc' in your home
+directory.
+
+   Each line should be of the form `OPTION=VALUE'.  Blank lines and
+lines starting with a `#' are ignored.  If you want to specify
+different options for different copies of nitfol, you can put those
+options in a block which will only be read by copies of nitfol with a
+specific name.
+
+   Here's an example `.nitfolrc':
+     path=/usr/local/games/infocom
+     alias=v verbose
+     alias=asierra tone cordial. ask sierra about
+     ignore=true
+     
+     [strictnitfol]
+     ignore=false
+     spell=false
+     expand=false
+     autoundo=false
+     unalias=v
+     unalias=asierra
+     
+     [xnitfol]
+     tandy=true
+     pirate=true
+
+   Nitfol will look in `/usr/local/games/infocom' for game files.
+Copies of nitfol named `strictnitfol' will report Z-machine strictness
+errors, perform strict tokenisation, and not automatically
+`@save_undo'.  All others will ignore strictness errors and have two
+aliases.  `xnitfol' will set the Tandy bit and branch on the piracy
+opcode.
+
+   Options specified in the preference file may be overruled by
+environment variables and command line options.
+
+
+File: nitfol.info,  Node: Infinite undo/redo,  Next: Aliases,  Prev: Preferences,  Up: Features
+
+Infinite undo/redo
+==================
+
+   Multiple `@restore_undo' opcodes with no intervening `@save_undo'
+will restore earlier and earlier saved states.  However, Inform games
+will not do this, so if you want infinite undo, you must enter the
+commands `/undo' and `/redo'. The `/...' commands are part of the
+debugger, so you will need to compile in debugger support to use this
+feature.
+
+   Z-machine games prior to version 5 do not provide undo (none of them
+provide redo), and some version 5 games don't use it (like
+`Wishbringer').  If the game performs two `@read' opcodes with no
+intervening `@save_undo' or `@restore_undo', nitfol will perform a
+`@save_undo'.
+
+
+File: nitfol.info,  Node: Aliases,  Next: Abbreviation Expansion,  Prev: Infinite undo/redo,  Up: Features
+
+Aliases
+=======
+
+   If the game has long words which you wish to abbreviate, you can use
+aliases.  Use the command `/alias NAME VALUE'.  All instances of NAME
+in line input will be replaced with VALUE.  NAME may not contain
+whitespace.
+
+   Unlike abbreviation expansion and typo correction, alias expansion
+modifies the text buffer, inserting the requested text.  This is
+necessary to allow multiple commands to be given in an alias through
+the use of periods.
+
+   Aliases are not expanded recursively, so you could do something
+clever like this:
+     >/alias e w
+     /alias w e
+     /alias nw ne
+     /alias ne nw
+     /alias sw se
+     /alias se sw
+
+   And your east-west movement will be swapped (`e' will do a `w',
+though `east' will still do `east').  Aliases expand on all input the
+game receives using `@read', including transcripts and directions from
+the automapper.
+
+   If you want the expansion of the alias to be checked for further
+aliases, you must use the `/ralias' command.  This expansion is stopped
+when an alias would expand itself.
+     >/ralias e w
+     /ralias w e
+
+   Would do nothing, as `e' is expanded to `w', which is expanded to
+`e', and then it stops because the rule for expanding `e' has already
+taken place.
+
+     >/ralias hanoi2 move src to extra. move src to dest. move extra to dest
+     /alias src left
+     /alias dest center
+     /alias extra right
+     hanoi2
+     You move the small disc from the left peg to the right peg.
+     You move the medium disc from the left peg to the middle peg.
+     You move the small disc from the right peg to the middle peg.
+     >move left to right
+     You move the large disc from the left peg to the right peg.
+     >/alias src center
+     /alias dest right
+     /alias extra left
+     hanoi2
+     You move the small disc from the middle peg to the left peg.
+     You move the medium disc from the middle peg to the right peg.
+     You move the small disc from the left peg to the right peg.
+
+   Ideally you should be able to define an alias which recursively
+solves any depth by relying on lower levels being solvable, but this
+isn't yet possible.  You must keep the expansion of aliases to a
+reasonable size, since Inform has a fairly small buffer size.
+
+   You can remove aliases using the `/unalias' command.
+     >/unalias hanoi2
+
+   Aliases do not effect `/...' commands; if they did, it wouldn't be
+possible to `/unalias'.
+
+
+File: nitfol.info,  Node: Abbreviation Expansion,  Next: Typo correction,  Prev: Aliases,  Up: Features
+
+Abbreviation Expansion
+======================
+
+   Early Infocom games don't provide abbreviations like `x' for
+`examine'.  If you enable abbreviation expansion, nitfol will attempt
+to expand one letter words at the beginning of inputs which are not in
+the game's dictionary.
+
+   Nitfol supports the following expansions (note that some are
+non-standard):
+
+c  close      d  down       e  east       g  again      
+i  inventory  k  attack     l  look       n  north      
+o  oops       p  open       q  quit       r  drop       
+s  south      t  take       u  up         w  west       
+x  examine    y  yes        z  wait                     
+
+   From `Zork I':
+     *West of House*
+     You are standing in an open field west of a white house, with a
+     boarded front door.
+     There is a small mailbox here.
+     
+     >x mailbox
+     [x -> examine]
+     The small mailbox is closed.
+     
+     >p it
+     [p -> open]
+     Opening the small mailbox reveals a leaflet.
+     
+     >t leaflet
+     [t -> take]
+     Taken.
+
+
+File: nitfol.info,  Node: Typo correction,  Next: Automapping,  Prev: Abbreviation Expansion,  Up: Features
+
+Typo correction
+===============
+
+   In the Z-machine, the `@read' opcode provides the interpreter with a
+dictionary to search in order to do tokenisation and word matching.  If
+you enable typo correction and enter a word not in the provided
+dictionary, nitfol will search for near misses.
+
+   From `Curses':
+     >ask jemmia about gloves
+     [jemmia -> jemima]
+     "Those are my gloves."
+
+   Nitfol takes the following steps to correct typos:
+
+  1. If the entered word is in the dictionary, behave as normal.
+
+  2. If the length of the word is less than 3 letters long, give up.
+     We don't want to make assumptions about what so short words might
+     be.
+
+  3. If the word is the same as a dictionary word with one
+     transposition, assume it is that word.  `exmaine' becomes
+     `examine'.
+
+  4. If it is a dictionary word with one deleted letter, assume it is
+     that word.  `botle' becomes `bottle'.
+
+  5. If it is a dictionary word with one inserted letter, assume it is
+     that word.  `tastey' becomes `tasty'.
+
+  6. If it is a dictionary word with one substitution, assume it is
+     that word.  `opin' becomes `open'.
+
+   This behavior can be annoying when nitfol "corrects" intentionally
+entered words which are similar to dictionary words.  Usually this has
+no effect upon the game, perhaps slightly changing the game's error
+message, but may have negative effects when it causes an undesired
+action.  Games like `Beyond Zork' expect you to type words not in their
+dictionary to name things.  Nitfol might "correct" your entered word to
+a dictionary word, which the game might complain about.
+
+   If typo correction is getting in your way, run nitfol with
+`-no-smart', compile it without applying `-DSMART_TOKENISER', or edit
+`nitfol.opt' to change the compile-time default.
+
+
+File: nitfol.info,  Node: Automapping,  Next: Quetzal,  Prev: Typo correction,  Up: Features
+
+Automapping
+===========
+
+   Nitfol has the ability to display an on-screen map showing visited
+rooms and their connections on the current floor.  Below is a map
+generated from `Enchanter'.
+                                        *-* *
+                                        |   |
+                        u-*-*-*-*-------*---*
+                        |               |
+            * *   *     |     *---*     |
+            |/ \ /      |    /|\ / \    |
+            *   *       *   / | X * \   *
+           /     \      |  /  |/ v|  \  |
+          /   *   *-*-*-*-*---*---u---*-*-*-@
+         /    |  /      | |\  |\ ^|  /  |
+      *-*     * *       | | \ | X * /   *-*
+         \    |/        | |  \|/ \ /    |
+          *   *         * *   *---*     *
+           \ /          | |             |
+            *           u-d-*-----------*-u
+                                        |
+                                        *
+                                         \
+                                          *
+
+   The `*'s designate rooms; the `@' the current room.  Rooms
+containing staircases are shown with a `u' or `d', or `b' if the
+staircase is bi-directional.  If the current room contains a staircase,
+nitfol draws it with a `U', `D', or `B'.  Passageways are shown with
+lines; the `X's are crossed lines.  One-way passages are shown as lines
+with arrows.  Nitfol uses `v', `^', `<', and `>' for arrow heads.
+
+   In Glks which provide mouse events, you can click on rooms and it
+will display the room name (and number) in the upper left hand corner
+of the map.  Note that XGlk is slightly broken, so you need to click on
+the left-hand side of the room.  Clicking on an empty map space clears
+the name.
+
+   In order to use automapping, you must tell nitfol how to calculate
+the current location.  You do this by specifying an Inform expression,
+so you must have debugging enabled.
+
+   Typically the current location is available in a global.  In Z-code
+versions 3 and prior, the current location is always stored in global
+zero, so typing `/automap (global) 0' should work.  In later versions,
+you must figure out an expression which evaluates to the current
+location.
+
+   First, find out where the player object is.  Typically, the player
+object is named `self', `cretin', `self-object', or the name of the PC.
+You can use the `find' command to search object names.  If this all
+fails, try `object-tree' to find the location number.
+
+   Once you have found the number of the location, you need to figure
+out which global keeps track of the location.  You can use the
+`globals' command to search the globals.
+
+   From `Spider And Web':
+     >/find self
+     20 "(self object)"
+     25 "yourself" in 91 "End of Alley"
+     26 "yourself" in 48 "chair"
+     /globals 91
+     G15 G36 G39
+     s
+     
+     *Mouth of Alley*
+     You're in the entrance of a narrow brick alley, which runs further
+     in to the north. To the south a broad street courses by, congested
+     with traffic and bicycles, although none of them seem to notice you.
+     
+     >/find self
+     20 "(self object)"
+     25 "yourself" in 94 "Mouth of Alley"
+     26 "yourself" in 48 "chair"
+     /globals 94
+     G15 G36 G39
+     /automap (global) 15
+
+   Obviously we have 3 globals tracking the player location.  Typically
+there are only two, but some games have more.  In this, we just picked
+the first one, which is probably the Inform `location' variable;
+another is probably the `real_location' variable.  Depending on how you
+want automapping to behave in the dark, or when dealing with
+game-specific stuff, you may want to pick a different one.
+
+   To figure out what is in which direction, nitfol checks the current
+location, tells the game to go north, checks the new location, undoes
+the north movement, tries to go northeast, and so on.  During all of
+this, output is disabled.
+
+   Drawing the map is more complicated.  First nitfol looks for cycles
+in the graph and makes the cycles connect properly.  Then it draws the
+map.  If parts of the map overlapp, it finds a path connecting the
+overlapping bits and tries increasing the length of each passage in
+this path by one, and recalculates cycle connections.  If this solves
+the problem, it's done; otherwise, it tries increasing the length of
+two passages, or of one of the passages by two.  If this fails, it
+gives up.
+
+   This technique isn't perfect.  The implementation of this technique
+isn't perfect either.  So expect nitfol to misbehave a lot on complex
+maps, and a little on simple maps.  If you clever ideas on how to
+improve it, let me know.
+
+   Nitfol makes an effort to simplify the map.  If multiple exits go
+from the barn to cornfield and you've been to both places, nitfol will
+draw a single two-way passage if possible.  If both up and west go up
+the stairs and nitfol knows east returns from the top of the stairs,
+nitfol will draw it as a simple west-east passage ignoring the up/down.
+If east doesn't return from the top of the staircase, nitfol will draw
+it as up/down, leaving out the west passage.
+
+   If you've been north of a gate, and come up to the gate from the
+south, and unlock the gate, nitfol will draw it as a one-way passage
+since last time it was north of the gate, it couldn't go south.
+
+   Some games feature reincarnation, perhaps moving you to a new
+location.  If movement leads to your death, this makes nitfol think the
+reincarnation location is in that direction.  Nitfol watches for three
+asterisks in a row and will assume they mean death instead of a normal
+passage.
+
+   Some of these problems could be avoided by having nitfol explore
+each neighboring room, but this would make automapping even slower.
+
+
+File: nitfol.info,  Node: Quetzal,  Next: Blorb,  Prev: Automapping,  Up: Features
+
+Quetzal
+=======
+
+   Nitfol uses Quetzal version 1.4 for its save format, so you can use
+your saves between different computers and interpreters.  More
+information about Quetzal is available at
+`http://www.geocities.com/SiliconValley/Vista/6631/'.
+
+   If you specify a save-file on the command-line on UNIX, nitfol uses
+a `UNIX' `IntD' chunk to locate the game file associated with the save
+name.  This chunk is included in save games when nitfol can figure out
+the current filename.  If you compile nitfol with -D__USE_GNU,
+-D__USE_BSD, or -D__USE_XOPEN_EXTENDED, nitfol will canonicalize the
+file name, so you don't have to worry about relative file name
+specifications no longer working if you invoke nitfol from a different
+directory.
+
+   On MacOS, nitfol uses alias records from a `MACS' `IntD' chunk to
+locate the game file.  This won't work for games built-in to the
+interpreter.
+
+   If no `IntD' chunk is included, nitfol searches the environment
+variable `INFOCOM_PATH' for a game with matching release number, serial
+number, and checksum.
+
+   Looking for games without an `IntD' chunk isn't foolproof, but it
+should work most of the time.  Serial numbers are basically the date
+and it's extremely unlikely more than ten games will be compiled on the
+same day (the only time lots of games are compiled on same day is right
+before competition time).  Assuming they all have the same release
+number, there's still only a .0686% chance that at least two of these
+ten will share the same checksum.  If someone reports this as a
+problem, I'll make nitfol ensure the game contains a `save' opcode
+right before the restored PC.
+
+
+File: nitfol.info,  Node: Blorb,  Prev: Quetzal,  Up: Features
+
+Blorb
+=====
+
+   If you wish to hear sounds or see graphics in your games, they must
+be packaged in Blorb files.  The Z-machine game may included in the
+Blorb file or may be specified separately.  Nitfol does not support the
+traditional Infocom `.mg1' and `.snd' files.
+
+   Note that graphics are displayed incorrectly, and sound has not yet
+been tested.
+
+
+File: nitfol.info,  Node: Debugger,  Next: Bugs,  Prev: Features,  Up: Top
+
+Debugger
+********
+
+   Nitfol debugging mode tries to imitate the GDB interface.  If you're
+familiar with that, you should have no problem using nitfol (other than
+dealing with the current incompleteness).
+
+   You need inform 6.21 or later, as earlier versions don't produce
+correct infix files without a patch.  You then need to compile infix
+information for your game.  I recommend doing:
+
+   `inform -k -~S -~X -~D MYGAME.inf'
+
+   Then your debug information will be in `gameinfo.dbg'.  If you have
+a command-line on your platform, run nitfol like `nitfol MYGAME.z5
+-symbols gameinfo.dbg'.  Otherwise, start up your game and type
+`/symbol-file gameinfo.dbg' the first time you get a prompt.
+
+   When the game stops to read a line of text, you can begin that line
+with `/' to give a debug command.  If you want to pass a line beginning
+with a `/' to the game, double the `/' and the game will be passed the
+second one.  When at a `(nitfol) ' prompt, starting commands with `/'
+is neither necessary nor recommended.
+
+   All expressions are like the ones used in Inform.
+
+   You can perform casts to get the result in the form you want:
+
+`(number) EXPRESSION'
+     Use EXPRESSION as if it were a number.  Useful when you want to
+     know the number of something, not the object, routine, or string
+     information nitfol normally gives.
+
+`(object) EXPRESSION'
+     Use EXPRESSION as if it were an object.  Most useful when printing
+     the result, as it will show the object's attributes and properties.
+
+`(routine) EXPRESSION'
+     Use EXPRESSION as if it were the packed address of a routine.
+     Useful if you have the packed address of a routine which you want
+     to set a breakpoint at.
+
+`(string) EXPRESSION'
+     Use EXPRESSION as if it were the packed address of a string.
+     Useful for printing it.
+
+`(global) EXPRESSION'
+     Evaluates to the value of a numbered global.  `(global) 0' is the
+     player location for version 3 Infocom games.
+
+`(local) EXPRESSION'
+     Evaluates to the value of a numbered local.  Not terribly useful
+     unless you're debugging something without source.
+
+   Here are short descriptions of the debugger commands.  *note
+(gdb)Top::, for more information.  Some of these were taken/adapted
+from GDB's help.
+
+`info breakpoints'
+`info breakpoints NUM'
+     List breakpoints.  An argument specifies a specific breakpoint to
+     list.
+
+`quit'
+     Exit nitfol.
+
+`show language'
+     Show the current source language.
+
+`condition NUM EXP'
+     Set a condition for an existing breakpoint.
+
+`restore'
+     Restore a saved game.
+
+`break LINESPEC'
+`break LINESPEC if EXP'
+     Set a breakpoint.  An `if' clause specifies a condition.
+
+`stepi'
+`stepi NUM'
+     Step exactly one instruction.  An argument specifies a repeat
+     count.
+
+`restart'
+     Restart the game.
+
+`object-tree'
+`object-tree EXP'
+     Display the object tree.  An argument says which object to use as
+     the root of the tree.
+
+`disable display NUM'
+     Temporarily disable an automatic display.
+
+`select-frame NUM'
+     Select a specific stack frame.
+
+`alias NAME VALUE'
+     Add an alias
+
+`down-silently'
+`down-silently NUM'
+     Silently select the child of the selected frame.  An argument
+     specifies how many frames down to go.
+
+`frame'
+`frame NUM'
+     Show the selected stack frame.  An argument specifies a stack
+     frame to show.
+
+`give EXP NUM'
+`give EXP ~ NUM'
+     Give an object an attribute.  With a tilde clears the attribute
+     instead of setting it.
+
+`set EXP'
+     Evaluate an expression without printing its value.
+
+`print EXP'
+     Evaluates an expression and prints the result.  This can include
+     function calls.
+
+`up'
+`up NUM'
+     Select the parent of the selected frame.  An argument specifies
+     how many frames up to go.
+
+`#  comment'
+     Enter a comment
+
+`continue'
+`continue NUM'
+     Continue execution.  An argument sets the ignore count of the
+     current breakpoint.
+
+`dumpmem FILE'
+     Dump memory to a file
+
+`undo'
+     Undo last move (not last debugger command).
+
+`display EXP'
+     Print value of an expression each time the program stops.
+
+`move EXP to EXP'
+     Move an object around the object tree.
+
+`up-silently'
+`up-silently NUM'
+     Select the parent of the selected frame silently.  An argument
+     specifies how many frames up to go.
+
+`show copying'
+     Show licensing information.
+
+`recording off'
+     Stop recording a script.
+
+`jump LINESPEC'
+     Continue execution at a new location.
+
+`recording on'
+     Start recording a script.
+
+`ralias NAME VALUE'
+     Add a recursive alias
+
+`globals'
+`globals EXP'
+     List all global variables and their values.  With an argument,
+     list all only those with a specific value.
+
+`backtrace'
+`backtrace NUM'
+`backtrace - NUM'
+     Display the parent functions of the current frame.  An argument
+     specifies how many frames back to show.  If the argument is
+     negative, start from the first frame instead of the current.
+
+`find'
+     Find objects whose shortnames contain a string.
+
+`finish'
+     An argument specifies a repeat count.
+
+`down'
+`down NUM'
+     Select the child of the selected frame.  An argument specifies how
+     many frames down to go.
+
+`ignore NUM NUM'
+     Set the ignore count for a breakpoint.
+
+`replay off'
+     Halt replay.
+
+`nexti'
+`nexti NUM'
+     Step one instruction, stepping over subroutine calls.  Step a
+     specified number of instructions, stepping over subroutine calls.
+
+`help'
+     Print list of commands.
+
+`redo'
+     Redo undid move.  Only works immediately after an `undo'.
+
+`enable NUM'
+     Re-enabled a breakpoint.
+
+`until'
+     Resume execution until the program reaches a line number greater
+     than the current line.
+
+`replay'
+     Replay a recorded script.
+
+`unalias NAME'
+     Remove an alias
+
+`remove EXP'
+     Remove an object from the object tree.
+
+`info sources'
+     List source files.
+
+`delete NUM'
+     Delete a breakpoint.
+
+`symbol-file FILE'
+     Load debugging info from a file (usually `gameinfo.dbg').
+
+`automap EXP'
+     Start automapping
+
+`show warranty'
+     Show warranty information.
+
+`disable NUM'
+     Temporarily disable a breakpoint.
+
+`undisplay NUM'
+     Stop automatically displaying an expression.
+
+`enable display NUM'
+     Re-enable an automatic display.
+
+`step'
+`step NUM'
+     Step through program to a different source line.  An argument
+     specifies a repeat count.
+
+`info source'
+     Get information on the current source file.
+
+`next'
+`next NUM'
+     Step through program, stepping over subroutine calls.  An argument
+     specifies a repeat count.
+
+   If you're on a UNIX and you don't like the GDB interface, you can
+compile cheapnitfol and run it as the inferior debugger under Emacs or
+DDD.  You can also try compiling `xnitfol' with `-DSTDOUT_DEBUG' and
+trying that, but I haven't tested that much.
+
+`ddd MYGAME.z5 --debugger cheapnitfol -s gameinfo.dbg -prompt "(gdb) "'
+
+
+File: nitfol.info,  Node: Bugs,  Next: Thanks,  Prev: Debugger,  Up: Top
+
+Bugs
+****
+
+   A nitfol bug is any behaviour which makes nitfol reliably misbehave,
+with the exceptions of bugs in Glk libraries.  These include: anything
+which makes nitfol crash (other than when nitfol reports `FATAL'
+errors), anything which causes nitfol to contradict the Z-machine
+standards documents (except for optional enhancements like spelling
+correction and debug mode), any buffer overflows, and anything which
+makes nitfol infinite loop other than infinite loops in the game itself.
+
+   Before reporting a bug, make sure the bug is not listed below and
+your copy of nitfol is not compiled with `-DFAST'.  Please report the
+version of nitfol, your system type and a series of commands which
+reliably cause the bug.
+
+   Nitfol is lacking:
+   - Graphical font (`Beyond Zork')  (should use images for this)
+
+   - Terminating character support (mostly `Beyond Zork')
+
+   - Reverse video, full color (should querry Glk more aggressively)
+
+   - Unicode support
+
+   - keypad character codes
+
+   - its own random number generator (relies on system one)
+
+   Nitfol does incorrectly:
+   - Play is not paused to wait for sounds to complete in `The Lurking
+     Horror'.
+
+   - Pictures and text are not placed correctly for v6 games.
+
+   - block quotes are placed in the upper window, so `cheapnitfol'
+     can't see them.
+
+   - Corrupted save files may make nitfol do bad things.
+
+   - Should figure out a way to handle buggy games like `AMFV' and
+     `Varicella' which assume the upper window is 80 columns wide.
+
+   - Doesn't catch header writing other than `@storeb' and `@storew'.
+
+   Debugger problems:
+   - Sometimes says there's no code at a location where it could be
+     clever and   find some.
+
+   - `ofclass', superclass not implemented.
+
+   - Should perform more sanity checks everywhere.
+
+   - Lots of useful commands not yet implemented.
+
+   - OBJECT.FUNCTION is handled incorrectly, both for assignments and
+     calls.
+
+   - Assumes you know what you're doing, so `quit', `run', etc., don't
+     prompt you for confirmation.
+
+   Automapping problems:
+   - Doesn't work well for random destinations (the forest in `Advent')
+
+   - `@get_cursor' doesn't return the correct value during automapping
+     since output is disabled.
+
+   - Requires too much work for the end-user; should put in stuff to
+     make it figure out the location global in 95% of games.
+
+   - Doesn't really work if multiple locations are coded as being in
+     the same room (long road in `Enchanter').
+
+   - Doesn't show exits which go nowhere, but change the game.
+
+   - Perhaps should use graphics windows when available.
+
+   - Movement causing teleportation confuses it.
+
+   - Reincarnation handling isn't optimal.
+
+   - Still very buggy.
+
+   - It's too slow.
+
+   - Should realize it can add extra bends (especially in one-way
+     passages).
+
+   - Should be able to output nice-looking Postscript.
+
+   - Should store map in saved games (wait until automapping code
+     stabilizes).
+
+
+File: nitfol.info,  Node: Thanks,  Next: Games Cited,  Prev: Bugs,  Up: Top
+
+Thanks
+******
+
+   The following people have given comments, suggestions, bug reports,
+answered questions, or helped port nitfol (in alphabetical order):
+   - John Cater
+
+   - Paul David Doherty
+
+   - Martin Frost
+
+   - Doug Jones
+
+   - David Picton
+
+   - Andrew Plotkin
+
+   - Andrew Pontious
+
+   - L. Ross Raszewski
+
+   - Dan Shiovitz
+
+
+File: nitfol.info,  Node: Games Cited,  Prev: Thanks,  Up: Top
+
+Games Cited
+***********
+
+`Wishbringer' Copyright (C) 1985, 1988 Infocom Inc.
+
+`Zork I' Copyright (C) 1981-1986 Infocom Inc.
+
+`Curses' Copyright (C) 1993-1994 Graham Nelson.
+
+   `http://ifarchive.org/if-archive/games/zcode/curses.z5'
+
+`Beyond Zork' Copyright (C) 1987 Infocom Inc.
+
+`Enchanter' Copyright (C) 1983, 1984, 1986 Infocom Inc.
+
+`Varicella' by Adam Cadre 1999.
+
+   `http://adamcadre.ac/content/vgame.z8'
+
+`Spider And Web' Copyright (C) 1997-1998 Andrew Plotkin.
+
+   `http://ifarchive.org/if-archive/games/zcode/Tangle.z5'
+
+
+
+Tag Table:
+Node: Top230
+Node: Invoking nitfol1572
+Node: Features8446
+Node: Preferences9091
+Node: Infinite undo/redo10452
+Node: Aliases11221
+Node: Abbreviation Expansion13740
+Node: Typo correction14870
+Node: Automapping16779
+Node: Quetzal22563
+Node: Blorb24279
+Node: Debugger24700
+Node: Bugs31673
+Node: Thanks34727
+Node: Games Cited35142
+
+End Tag Table

@@ -1,0 +1,42 @@
+#!/bin/bash
+# This is a script for viewing files, invoked by AGiliTy
+#
+# Customize as needed for your platform and preferred graphics file viewers
+#
+# For X-windows, it uses xv and xanim.
+# If X-Windows isn't running, it uses flip and zgv.
+#   AFAIK all of these programs can all be found at sunsite.
+#
+#   If any of these send anything to stderr, they may confuse 
+# AGiliTy's screen routines (Ctrl-L should put everything right).
+#   AGiliTy doesn't redirect stderr because some svgalib programs won't
+# run correctly if stderr doesn't point at a "real" screen. 
+#
+# One problem is that some viewers use file name extensions to identify
+# file type, and AGT uses nonstandard extensions for PCX files.
+# (".P06", ".P13", ".P16", etc.)
+#
+
+if [ "$DISPLAY" = "" ]; then
+# Put your non-X PCX file viewer here, if you have one.
+#  It has to be able to run with stdout redirected, though
+ case $1 in 
+    *.fl[ic] )  flip $1;;
+    *.pcx )  grav $1;;
+    *.p[0-9][0-9])   # Alternative PCX file names 
+        # This is not as careful as it should be
+        tmpname=/tmp/agilpict-$PPID-$RANDOM.pcx
+        ln -s  $PWD/$1  $tmpname
+	grav $tmpname
+	rm $tmpname;;
+##	echo "PCX files not supported.";;
+    * ) zgv $1;;
+  esac
+else 
+# You can replace the next line with the X-windows viewer of your choice.
+ case $1 in 
+    *.fl[ic] ) xanim $1 2>/dev/null &;;
+    * ) xv $1 2>/dev/null &;;
+  esac
+fi
+

@@ -1,0 +1,21 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export multidyn.t -> multidyn.t3s
+	compile _main.t -> _main.t3o
+	compile multidyn.t -> multidyn.t3o
+	link -> multidyn.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+A.construct: a = a1
+C.construct: c = c3, d = d4
+created x: A,B,C:
+x.propA = a1
+x.propB = B.default
+x.propC = c3
+x.propD = d4
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

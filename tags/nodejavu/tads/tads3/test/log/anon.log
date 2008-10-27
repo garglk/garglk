@@ -1,0 +1,55 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export anon.t -> anon.t3s
+	compile _main.t -> _main.t3o
+	compile anon.t -> anon.t3o
+	link -> anon.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Long Form:
+
+Before iterate: cnt = 0
+..........After iterate(10): cnt = 10
+this is anon1(1)!!!
+this is anon1(2)!!!
+this is anon2(1, 2)!!!
+this is anon2(3, 4)!!!
+Callback: this is anon1(111)!!!
+Callback: this is anon2(222, 333)!!!
+Callback: this is anon3(one, two, three)!!!!!
+Callback: +++++++++
+after callback: i = 1
+Callback: @@@@@
+cnt = 15
+This is Sub.m1(888) - self = Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Callback: Sub.m1 [This is Base.m1(889) - self = Sub] done
+Callback: Prop test: subProp = This is Sub.p!
+This is Sub.m1(999) - self = Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Sub.m1 Iter: self=Sub
+Callback: Sub.m1 [This is Base.m1(1000) - self = Sub] done
+Callback: Prop test: subProp = This is Sub.p!
+
+Short Form:
+
+iterating...
+- count = 16
+- count = 17
+- count = 18
+- count = 19
+- count = 20
+...done
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
