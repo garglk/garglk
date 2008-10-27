@@ -24,65 +24,47 @@ char *gli_conf_monob = "LuxiMonoBold";
 char *gli_conf_monoi = "LuxiMonoOblique";
 char *gli_conf_monoz = "LuxiMonoBoldOblique";
 
-char *gli_conf_unipr = "DejaVuSans";
-char *gli_conf_unipb = "DejaVuSans-Bold";
-char *gli_conf_unipi = "DejaVuSans-Oblique";
-char *gli_conf_unipz = "DejaVuSans-BoldOblique";
-
-char *gli_conf_unimr = "DejaVuSansMono";
-char *gli_conf_unimb = "DejaVuSansMono-Bold";
-char *gli_conf_unimi = "DejaVuSansMono-Oblique";
-char *gli_conf_unimz = "DejaVuSansMono-BoldOblique";
-
 style_t gli_tstyles[style_NUMSTYLES] =
 {
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Normal */
-    {PROPI, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Emphasized */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Preformatted */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Header */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Subheader */
-    {PROPZ, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Alert */
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Note */
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* BlockQuote */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Input */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* User1 */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* User2 */
+	{PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Normal */
+	{PROPI, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Emphasized */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Preformatted */
+	{PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Header */
+	{PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Subheader */
+	{PROPZ, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Alert */
+	{PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Note */
+	{PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* BlockQuote */
+	{PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Input */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* User1 */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* User2 */
 };
 
 style_t gli_gstyles[style_NUMSTYLES] =
 {
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Normal */
-    {MONOI, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Emphasized */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Preformatted */
-    {MONOB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Header */
-    {MONOB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Subheader */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Alert */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Note */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* BlockQuote */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Input */
-    {MONOR, {0x60,0x60,0x60}, {0xff,0xff,0xff}}, /* User1 */
-    {MONOR, {0x60,0x60,0x60}, {0xff,0xff,0xff}}, /* User2 */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Normal */
+	{MONOI, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Emphasized */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Preformatted */
+	{MONOB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Header */
+	{MONOB, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Subheader */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Alert */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Note */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* BlockQuote */
+	{MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}}, /* Input */
+	{MONOR, {0x60,0x60,0x60}, {0xff,0xff,0xff}}, /* User1 */
+	{MONOR, {0x60,0x60,0x60}, {0xff,0xff,0xff}}, /* User2 */
 };
 
 static int font2idx(char *font)
 {
-    if (!strcmp(font, "monor")) return MONOR;
-    if (!strcmp(font, "monob")) return MONOB;
-    if (!strcmp(font, "monoi")) return MONOI;
-    if (!strcmp(font, "monoz")) return MONOZ;
-    if (!strcmp(font, "propr")) return PROPR;
-    if (!strcmp(font, "propb")) return PROPB;
-    if (!strcmp(font, "propi")) return PROPI;
-    if (!strcmp(font, "propz")) return PROPZ;
-    if (!strcmp(font, "unimr")) return UNIMR;
-    if (!strcmp(font, "unimb")) return UNIMB;
-    if (!strcmp(font, "unimi")) return UNIMI;
-    if (!strcmp(font, "unimz")) return UNIMZ;
-    if (!strcmp(font, "unipr")) return UNIPR;
-    if (!strcmp(font, "unipb")) return UNIPB;
-    if (!strcmp(font, "unipi")) return UNIPI;
-    if (!strcmp(font, "unipz")) return UNIPZ;
-    return MONOR;
+	if (!strcmp(font, "monor")) return MONOR;
+	if (!strcmp(font, "monob")) return MONOB;
+	if (!strcmp(font, "monoi")) return MONOI;
+	if (!strcmp(font, "monoz")) return MONOZ;
+	if (!strcmp(font, "propr")) return PROPR;
+	if (!strcmp(font, "propb")) return PROPB;
+	if (!strcmp(font, "propi")) return PROPI;
+	if (!strcmp(font, "propz")) return PROPZ;
+	return MONOR;
 }
 
 float gli_conf_gamma = 1.0;
@@ -136,326 +118,308 @@ int gli_conf_stylehint = 0;
 
 static void parsecolor(char *str, unsigned char *rgb)
 {
-    char r[3];
-    char g[3];
-    char b[3];
+	char r[3];
+	char g[3];
+	char b[3];
 
-    if (strlen(str) != 6)
-        return;
+	if (strlen(str) != 6)
+		return;
 
-    r[0] = str[0]; r[1] = str[1]; r[2] = 0;
-    g[0] = str[2]; g[1] = str[3]; g[2] = 0;
-    b[0] = str[4]; b[1] = str[5]; b[2] = 0;
+	r[0] = str[0]; r[1] = str[1]; r[2] = 0;
+	g[0] = str[2]; g[1] = str[3]; g[2] = 0;
+	b[0] = str[4]; b[1] = str[5]; b[2] = 0;
 
-    rgb[0] = strtol(r, NULL, 16);
-    rgb[1] = strtol(g, NULL, 16);
-    rgb[2] = strtol(b, NULL, 16);
+	rgb[0] = strtol(r, NULL, 16);
+	rgb[1] = strtol(g, NULL, 16);
+	rgb[2] = strtol(b, NULL, 16);
 }
 
 static void readoneconfig(char *fname, char *argv0, char *gamefile)
 {
-    FILE *f;
-    char buf[1024];
-    char *s;
-    char *cmd, *arg;
-    int accept = 1;
-    int i;
+	FILE *f;
+	char buf[1024];
+	char *s;
+	char *cmd, *arg;
+	int accept = 1;
+	int i;
 
-    f = fopen(fname, "r");
-    if (!f)
-        return;
+	f = fopen(fname, "r");
+	if (!f)
+		return;
 
-    while (1)
-    {
-        s = fgets(buf, sizeof buf, f);
-        if (!s)
-            break;
+	while (1)
+	{
+		s = fgets(buf, sizeof buf, f);
+		if (!s)
+			break;
 
-        buf[strlen(buf)-1] = 0;	/* kill newline */
+		buf[strlen(buf)-1] = 0;	/* kill newline */
 
-        if (buf[0] == '#')
-            continue;
+		if (buf[0] == '#')
+			continue;
 
-        if (buf[0] == '[')
-        {
-            for (i = 0; i < strlen(buf); i++)
-                buf[i] = tolower(buf[i]);
+		if (buf[0] == '[')
+		{
+			for (i = 0; i < strlen(buf); i++)
+				buf[i] = tolower(buf[i]);
 
-            if (strstr(buf, argv0) || strstr(buf, gamefile))
-                accept = 1;	
-            else
-                accept = 0;
-        }
+			if (strstr(buf, argv0) || strstr(buf, gamefile))
+				accept = 1;	
+			else
+				accept = 0;
+		}
 
-        if (!accept)
-            continue;
+		if (!accept)
+			continue;
 
-        cmd = strtok(buf, "\r\n\t ");
-        if (!cmd)
-            continue;
+		cmd = strtok(buf, "\r\n\t ");
+		if (!cmd)
+			continue;
 
-        if (!strcmp(cmd, "tcolor") || !strcmp(cmd, "gcolor"))
-            arg = strtok(NULL, "\r\n#");
-        else if (!strcmp(cmd, "tfont") || !strcmp(cmd, "gfont"))
-            arg = strtok(NULL, "\r\n#");
-        else if (!strcmp(cmd, "moreprompt"))
-            arg = strtok(NULL, "\r\n");
-        else
-            arg = strtok(NULL, "\r\n\t #");
-        if (!arg)
-            continue;
+		if (!strcmp(cmd, "tcolor") || !strcmp(cmd, "gcolor"))
+			arg = strtok(NULL, "\r\n#");
+		else if (!strcmp(cmd, "tfont") || !strcmp(cmd, "gfont"))
+			arg = strtok(NULL, "\r\n#");
+		else if (!strcmp(cmd, "moreprompt"))
+			arg = strtok(NULL, "\r\n");
+		else
+			arg = strtok(NULL, "\r\n\t #");
+		if (!arg)
+			continue;
 
-        if (!strcmp(cmd, "moreprompt"))
-            gli_more_prompt = strdup(arg);
-        if (!strcmp(cmd, "morecolor"))
-            parsecolor(arg, gli_more_color);
-        if (!strcmp(cmd, "morefont"))
-            gli_more_font = font2idx(arg);
-        if (!strcmp(cmd, "morealign"))
-            gli_more_align = atoi(arg);
+		if (!strcmp(cmd, "moreprompt"))
+			gli_more_prompt = strdup(arg);
+		if (!strcmp(cmd, "morecolor"))
+			parsecolor(arg, gli_more_color);
+		if (!strcmp(cmd, "morefont"))
+			gli_more_font = font2idx(arg);
+		if (!strcmp(cmd, "morealign"))
+			gli_more_align = atoi(arg);
 
-        if (!strcmp(cmd, "monoaspect"))
-            gli_conf_monoaspect = atof(arg);
-        if (!strcmp(cmd, "propaspect"))
-            gli_conf_propaspect = atof(arg);
+		if (!strcmp(cmd, "monoaspect"))
+			gli_conf_monoaspect = atof(arg);
+		if (!strcmp(cmd, "propaspect"))
+			gli_conf_propaspect = atof(arg);
 
-        if (!strcmp(cmd, "monosize"))
-            gli_conf_monosize = atof(arg);
-        if (!strcmp(cmd, "monor"))
-            gli_conf_monor = strdup(arg);
-        if (!strcmp(cmd, "monob"))
-            gli_conf_monob = strdup(arg);
-        if (!strcmp(cmd, "monoi"))
-            gli_conf_monoi = strdup(arg);
-        if (!strcmp(cmd, "monoz"))
-            gli_conf_monoz = strdup(arg);
+		if (!strcmp(cmd, "monosize"))
+			gli_conf_monosize = atof(arg);
+		if (!strcmp(cmd, "monor"))
+			gli_conf_monor = strdup(arg);
+		if (!strcmp(cmd, "monob"))
+			gli_conf_monob = strdup(arg);
+		if (!strcmp(cmd, "monoi"))
+			gli_conf_monoi = strdup(arg);
+		if (!strcmp(cmd, "monoz"))
+			gli_conf_monoz = strdup(arg);
 
-        if (!strcmp(cmd, "propsize"))
-            gli_conf_propsize = atof(arg);
-        if (!strcmp(cmd, "propr"))
-            gli_conf_propr = strdup(arg);
-        if (!strcmp(cmd, "propb"))
-            gli_conf_propb = strdup(arg);
-        if (!strcmp(cmd, "propi"))
-            gli_conf_propi = strdup(arg);
-        if (!strcmp(cmd, "propz"))
-            gli_conf_propz = strdup(arg);
+		if (!strcmp(cmd, "propsize"))
+			gli_conf_propsize = atof(arg);
+		if (!strcmp(cmd, "propr"))
+			gli_conf_propr = strdup(arg);
+		if (!strcmp(cmd, "propb"))
+			gli_conf_propb = strdup(arg);
+		if (!strcmp(cmd, "propi"))
+			gli_conf_propi = strdup(arg);
+		if (!strcmp(cmd, "propz"))
+			gli_conf_propz = strdup(arg);
 
-        if (!strcmp(cmd, "unimr"))
-            gli_conf_unimr = strdup(arg);
-        if (!strcmp(cmd, "unimb"))
-            gli_conf_unimb = strdup(arg);
-        if (!strcmp(cmd, "unimi"))
-            gli_conf_unimi = strdup(arg);
-        if (!strcmp(cmd, "unimz"))
-            gli_conf_unimz = strdup(arg);
+		if (!strcmp(cmd, "leading"))
+			gli_leading = atof(arg) + 0.5;
+		if (!strcmp(cmd, "baseline"))
+			gli_baseline = atof(arg) + 0.5;
 
-        if (!strcmp(cmd, "unipr"))
-            gli_conf_unipr = strdup(arg);
-        if (!strcmp(cmd, "unipb"))
-            gli_conf_unipb = strdup(arg);
-        if (!strcmp(cmd, "unipi"))
-            gli_conf_unipi = strdup(arg);
-        if (!strcmp(cmd, "unipz"))
-            gli_conf_unipz = strdup(arg);
+		if (!strcmp(cmd, "rows"))
+			gli_rows = atoi(arg);
+		if (!strcmp(cmd, "cols"))
+			gli_cols = atoi(arg);
 
-        if (!strcmp(cmd, "leading"))
-            gli_leading = atof(arg) + 0.5;
-        if (!strcmp(cmd, "baseline"))
-            gli_baseline = atof(arg) + 0.5;
+		if (!strcmp(cmd, "wpaddingx")) gli_wpaddingx = atoi(arg);
+		if (!strcmp(cmd, "wpaddingy")) gli_wpaddingy = atoi(arg);
+		if (!strcmp(cmd, "wmarginx")) gli_wmarginx = atoi(arg);
+		if (!strcmp(cmd, "wmarginy")) gli_wmarginy = atoi(arg);
+		if (!strcmp(cmd, "wborderx")) gli_wborderx = atoi(arg);
+		if (!strcmp(cmd, "wbordery")) gli_wbordery = atoi(arg);
+		if (!strcmp(cmd, "tmarginx")) gli_tmarginx = atoi(arg);
+		if (!strcmp(cmd, "tmarginy")) gli_tmarginy = atoi(arg);
 
-        if (!strcmp(cmd, "rows"))
-            gli_rows = atoi(arg);
-        if (!strcmp(cmd, "cols"))
-            gli_cols = atoi(arg);
+		if (!strcmp(cmd, "gamma"))
+			gli_conf_gamma = atof(arg);
 
-        if (!strcmp(cmd, "wpaddingx")) gli_wpaddingx = atoi(arg);
-        if (!strcmp(cmd, "wpaddingy")) gli_wpaddingy = atoi(arg);
-        if (!strcmp(cmd, "wmarginx")) gli_wmarginx = atoi(arg);
-        if (!strcmp(cmd, "wmarginy")) gli_wmarginy = atoi(arg);
-        if (!strcmp(cmd, "wborderx")) gli_wborderx = atoi(arg);
-        if (!strcmp(cmd, "wbordery")) gli_wbordery = atoi(arg);
-        if (!strcmp(cmd, "tmarginx")) gli_tmarginx = atoi(arg);
-        if (!strcmp(cmd, "tmarginy")) gli_tmarginy = atoi(arg);
+		if (!strcmp(cmd, "caretcolor"))
+			parsecolor(arg, gli_caret_color);
+		if (!strcmp(cmd, "bordercolor"))
+			parsecolor(arg, gli_border_color);
+		if (!strcmp(cmd, "windowcolor"))
+			parsecolor(arg, gli_window_color);
 
-        if (!strcmp(cmd, "gamma"))
-            gli_conf_gamma = atof(arg);
+		if (!strcmp(cmd, "lcd"))
+			gli_conf_lcd = atoi(arg);
 
-        if (!strcmp(cmd, "caretcolor"))
-            parsecolor(arg, gli_caret_color);
-        if (!strcmp(cmd, "bordercolor"))
-            parsecolor(arg, gli_border_color);
-        if (!strcmp(cmd, "windowcolor"))
-            parsecolor(arg, gli_window_color);
+		if (!strcmp(cmd, "caretshape"))
+			gli_caret_shape = atoi(arg);
 
-        if (!strcmp(cmd, "lcd"))
-            gli_conf_lcd = atoi(arg);
+		if (!strcmp(cmd, "scrollwidth"))
+			gli_scroll_width = atoi(arg);
+		if (!strcmp(cmd, "scrollbg"))
+			parsecolor(arg, gli_scroll_bg);
+		if (!strcmp(cmd, "scrollfg"))
+			parsecolor(arg, gli_scroll_fg);
 
-        if (!strcmp(cmd, "caretshape"))
-            gli_caret_shape = atoi(arg);
+		if (!strcmp(cmd, "justify"))
+			gli_conf_justify = atoi(arg);
+		if (!strcmp(cmd, "quotes"))
+			gli_conf_quotes = atoi(arg);
+		if (!strcmp(cmd, "spaces"))
+			gli_conf_spaces = atoi(arg);
 
-        if (!strcmp(cmd, "scrollwidth"))
-            gli_scroll_width = atoi(arg);
-        if (!strcmp(cmd, "scrollbg"))
-            parsecolor(arg, gli_scroll_bg);
-        if (!strcmp(cmd, "scrollfg"))
-            parsecolor(arg, gli_scroll_fg);
+		if (!strcmp(cmd, "graphics"))
+			gli_conf_graphics = atoi(arg);
+		if (!strcmp(cmd, "sound"))
+			gli_conf_sound = atoi(arg);
+		if (!strcmp(cmd, "speak"))
+			gli_conf_speak = atoi(arg);
 
-        if (!strcmp(cmd, "justify"))
-            gli_conf_justify = atoi(arg);
-        if (!strcmp(cmd, "quotes"))
-            gli_conf_quotes = atoi(arg);
-        if (!strcmp(cmd, "spaces"))
-            gli_conf_spaces = atoi(arg);
+		if (!strcmp(cmd, "stylehint"))
+			gli_conf_stylehint = atoi(arg);
 
-        if (!strcmp(cmd, "graphics"))
-            gli_conf_graphics = atoi(arg);
-        if (!strcmp(cmd, "sound"))
-            gli_conf_sound = atoi(arg);
-        if (!strcmp(cmd, "speak"))
-            gli_conf_speak = atoi(arg);
+		if (!strcmp(cmd, "tcolor") || !strcmp(cmd, "gcolor"))
+		{
+			char *style = strtok(arg, "\r\n\t ");
+			char *fg = strtok(NULL, "\r\n\t ");
+			char *bg = strtok(NULL, "\r\n\t ");
+			int i = atoi(style);
+			if (i < 0 || i >= style_NUMSTYLES)
+				continue;
+			if (!bg)
+				bg = gli_window_color;
+			if (cmd[0] == 't')
+			{
+				parsecolor(fg, gli_tstyles[i].fg);
+				parsecolor(bg, gli_tstyles[i].bg);
+			}
+			else
+			{
+				parsecolor(fg, gli_gstyles[i].fg);
+				parsecolor(bg, gli_gstyles[i].bg);
+			}
+		}
 
-        if (!strcmp(cmd, "stylehint"))
-            gli_conf_stylehint = atoi(arg);
+		if (!strcmp(cmd, "tfont") || !strcmp(cmd, "gfont"))
+		{
+			char *style = strtok(arg, "\r\n\t ");
+			char *font = strtok(NULL, "\r\n\t ");
+			int i = atoi(style);
+			if (i < 0 || i >= style_NUMSTYLES)
+				continue;
+			if (cmd[0] == 't')
+				gli_tstyles[i].font = font2idx(font);
+			else
+				gli_gstyles[i].font = font2idx(font);
+		}
+	}
 
-        if (!strcmp(cmd, "tcolor") || !strcmp(cmd, "gcolor"))
-        {
-            char *style = strtok(arg, "\r\n\t ");
-            char *fg = strtok(NULL, "\r\n\t ");
-            char *bg = strtok(NULL, "\r\n\t ");
-            int i = atoi(style);
-            if (i < 0 || i >= style_NUMSTYLES)
-                continue;
-            if (!bg)
-                bg = gli_window_color;
-            if (cmd[0] == 't')
-            {
-                parsecolor(fg, gli_tstyles[i].fg);
-                parsecolor(bg, gli_tstyles[i].bg);
-            }
-            else
-            {
-                parsecolor(fg, gli_gstyles[i].fg);
-                parsecolor(bg, gli_gstyles[i].bg);
-            }
-        }
-
-        if (!strcmp(cmd, "tfont") || !strcmp(cmd, "gfont"))
-        {
-            char *style = strtok(arg, "\r\n\t ");
-            char *font = strtok(NULL, "\r\n\t ");
-            int i = atoi(style);
-            if (i < 0 || i >= style_NUMSTYLES)
-                continue;
-            if (cmd[0] == 't')
-                gli_tstyles[i].font = font2idx(font);
-            else
-                gli_gstyles[i].font = font2idx(font);
-        }
-    }
-
-    fclose(f);
+	fclose(f);
 }
 
 void gli_read_config(int argc, char **argv)
 {
-    char gamefile[1024] = "default";
-    char argv0[1024] = "default";
-    char buf[1024];
-    int i;
+	char gamefile[1024] = "default";
+	char argv0[1024] = "default";
+	char buf[1024];
+	int i;
 
-    /* load argv0 with name of executable without suffix */
-    if (strrchr(argv[0], '\\'))
-        strcpy(argv0, strrchr(argv[0], '\\') + 1);
-    else if (strrchr(argv[0], '/'))
-        strcpy(argv0, strrchr(argv[0], '/') + 1);
-    else
-        strcpy(argv0, argv[0]);
-    if (strrchr(argv0, '.'))
-        strrchr(argv0, '.')[0] = 0;
+	/* load argv0 with name of executable without suffix */
+	if (strrchr(argv[0], '\\'))
+		strcpy(argv0, strrchr(argv[0], '\\') + 1);
+	else if (strrchr(argv[0], '/'))
+		strcpy(argv0, strrchr(argv[0], '/') + 1);
+	else
+		strcpy(argv0, argv[0]);
+	if (strrchr(argv0, '.'))
+		strrchr(argv0, '.')[0] = 0;
 
-    for (i = 0; i < strlen(argv0); i++)
-        argv0[i] = tolower(argv0[i]);
+	for (i = 0; i < strlen(argv0); i++)
+		argv0[i] = tolower(argv0[i]);
 
-    /* load gamefile with basename of last argument */
-    if (strrchr(argv[argc-1], '\\'))
-        strcpy(gamefile, strrchr(argv[argc-1], '\\') + 1);
-    else if (strrchr(argv[argc-1], '/'))
-        strcpy(gamefile, strrchr(argv[argc-1], '/') + 1);
-    else
-        strcpy(gamefile, argv[argc-1]);
+	/* load gamefile with basename of last argument */
+	if (strrchr(argv[argc-1], '\\'))
+		strcpy(gamefile, strrchr(argv[argc-1], '\\') + 1);
+	else if (strrchr(argv[argc-1], '/'))
+		strcpy(gamefile, strrchr(argv[argc-1], '/') + 1);
+	else
+		strcpy(gamefile, argv[argc-1]);
 
-    for (i = 0; i < strlen(gamefile); i++)
-        gamefile[i] = tolower(gamefile[i]);
+	for (i = 0; i < strlen(gamefile); i++)
+		gamefile[i] = tolower(gamefile[i]);
 
-    /* try all the usual config places */
+	/* try all the usual config places */
 
 #ifdef WIN32
-    {
-        char *s;
-        strcpy(buf, argv[0]);
-        s = strrchr(buf, '\\');
-        if (s) *s = 0;
-        strcat(buf, "/garglk.ini");
-        readoneconfig(buf, argv0, gamefile);
-    }
+	{
+		char *s;
+		strcpy(buf, argv[0]);
+		s = strrchr(buf, '\\');
+		if (s) *s = 0;
+		strcat(buf, "/garglk.ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
 #else
-    strcpy(buf, "/etc/garglk.ini");
-    readoneconfig(buf, argv0, gamefile);
+	strcpy(buf, "/etc/garglk.ini");
+	readoneconfig(buf, argv0, gamefile);
 #endif
 
-    if (getenv("HOME"))
-    {
-        strcpy(buf, getenv("HOME"));
-        strcat(buf, "/.garglkrc");
-        readoneconfig(buf, argv0, gamefile);
-        strcpy(buf, getenv("HOME"));
-        strcat(buf, "/garglk.ini");
-        readoneconfig(buf, argv0, gamefile);
-    }
+	if (getenv("HOME"))
+	{
+		strcpy(buf, getenv("HOME"));
+		strcat(buf, "/.garglkrc");
+		readoneconfig(buf, argv0, gamefile);
+		strcpy(buf, getenv("HOME"));
+		strcat(buf, "/garglk.ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
 
-    getcwd(buf, sizeof buf);
-    strcat(buf, "/garglk.ini");
-    readoneconfig(buf, argv0, gamefile);
+	getcwd(buf, sizeof buf);
+	strcat(buf, "/garglk.ini");
+	readoneconfig(buf, argv0, gamefile);
 
-    if (argc > 1)
-    {
-        strcpy(buf, argv[argc-1]);
-        if (strrchr(buf, '.'))
-            strcpy(strrchr(buf, '.'), ".ini");
-        else
-            strcat(buf, ".ini");
-        readoneconfig(buf, argv0, gamefile);
-    }
+	if (argc > 1)
+	{
+		strcpy(buf, argv[argc-1]);
+		if (strrchr(buf, '.'))
+			strcpy(strrchr(buf, '.'), ".ini");
+		else
+			strcat(buf, ".ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
 }
 
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)
 {
-    return gli_stream_open_pathname(pathname, (textmode != 0), rock);
+	return gli_stream_open_pathname(pathname, (textmode != 0), rock);
 }
 
 void gli_startup(int argc, char *argv[])
 {
-    gli_baseline = 0;
+	gli_baseline = 0;
 
-    wininit(&argc, argv);
+	wininit(&argc, argv);
 
-    gli_read_config(argc, argv);
+	gli_read_config(argc, argv);
 
-    if (!gli_baseline)
-        gli_baseline = gli_conf_propsize + 0.5;
+	if (!gli_baseline)
+		gli_baseline = gli_conf_propsize + 0.5;
 
 #ifdef USETTS
-    gli_initialize_tts();
-    if (gli_conf_speak)
-        gli_conf_quotes = 0;
+	gli_initialize_tts();
+	if (gli_conf_speak)
+		gli_conf_quotes = 0;
 #endif
 
-    gli_initialize_misc();
-    gli_initialize_fonts();
-    gli_initialize_windows();
-    gli_initialize_sound();
+	gli_initialize_misc();
+	gli_initialize_fonts();
+	gli_initialize_windows();
+	gli_initialize_sound();
 
-    winopen();
+	winopen();
 }
 
