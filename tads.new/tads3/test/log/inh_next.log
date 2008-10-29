@@ -1,0 +1,43 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export inh_next.t -> inh_next.t3s
+	compile _main.t -> _main.t3o
+	compile inh_next.t -> inh_next.t3o
+	link -> inh_next.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+C.prop1:
+C.prop1
+B.prop1
+A.prop1
+
+D1.prop1:
+D1.prop1
+B1.prop1
+C1.prop1
+A1.prop1
+
+D2.prop1:
+B2.prop1
+C2.prop1
+
+E3.prop1:
+E3.prop1
+C3.prop1
+B3.prop1
+D3.prop1
+A3.prop1
+
+A4.prop1:
+A4.prop1
+B4.prop1
+C4.prop1
+D4.prop1
+E4.prop1
+F4.prop1
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

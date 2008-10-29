@@ -1,0 +1,62 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export enumprop.t -> enumprop.t3s
+	compile _main.t -> _main.t3o
+	compile enumprop.t -> enumprop.t3o
+	link -> enumprop.t3p
+	preinit -> enumprop.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+object myObj:
+  sourceTextOrder
+  prop1
+  prop2
+  prop3
+  prop4
+  inherited from TadsObject:
+    createInstance(...)
+    createClone
+    createTransientInstance(...)
+    createInstanceOf(...)
+    createTransientInstanceOf(...)
+    setSuperclassList(a)
+    inherited from Object:
+      ofKind(a)
+      getSuperclassList
+      propDefined(a, b?)
+      propType(a)
+      getPropList
+      getPropParams(a)
+      isClass
+      propInherited(a, b, c, d?)
+      isTransient
+object otherObj:
+  sourceTextOrder
+  method1(a, b)
+  method2(a, b, c)
+  method3(a, ...)
+  prop1
+  prop7
+  inherited from TadsObject:
+    createInstance(...)
+    createClone
+    createTransientInstance(...)
+    createInstanceOf(...)
+    createTransientInstanceOf(...)
+    setSuperclassList(a)
+    inherited from Object:
+      ofKind(a)
+      getSuperclassList
+      propDefined(a, b?)
+      propType(a)
+      getPropList
+      getPropParams(a)
+      isClass
+      propInherited(a, b, c, d?)
+      isTransient
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

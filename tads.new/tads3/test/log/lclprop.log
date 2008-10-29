@@ -1,0 +1,18 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export lclprop.t -> lclprop.t3s
+	compile _main.t -> _main.t3o
+	compile lclprop.t -> lclprop.t3o
+	link -> lclprop.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is m1. prop1 = 100, prop2 = --lcl--, prop3 = 300
+self.prop1 = 100, self.prop2 = 200, self.prop3 = 300
+prop2 = --new/lcl--, self.prop2 = 400
+self.prop1 = 100, self.(prop1) = 300
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

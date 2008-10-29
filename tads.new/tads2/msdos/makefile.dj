@@ -1,0 +1,321 @@
+#
+# Makefile for DJGPP TADS 2 port.
+#
+# NOTE: Do NOT put optimization flags in the CFLAGS; put them in OPTIMIZE
+# instead.  Some files can't be compiled with optimization on all systems
+# due to missing volatiles, compiler optimization bugs, and who knows
+# what else.
+#
+# NOTE - Mike Roberts adapted this version of the DJGPP makefile based
+# on the real version, which Jim Dunleavy has been maintaining.  This
+# version is provided primarily to generate the TADS 2 object files needed
+# for building the DJGPP version of TADS 3.  This version of the makefile
+# generates the object (.o) files to the tads2/msdos/djobj subdirectory,
+# as required by the TADS 3 DJGPP makefile.
+#
+
+#
+# Run this makefile from the TADS root directory:
+#
+#   make -f msdos\makefile.dj
+
+
+#----------------------------------------------------------------------------
+
+# Define this if you have djdev201 or older
+#MEMICMP=-Dmemicmp=strnicmp
+
+# output directories
+EXEDIR=djexe
+OBJDIR=djobj
+
+# source directory path
+VPATH=msdos
+
+# debug or relesae mode flags
+ifdef COMPILE_FOR_DEBUG
+CFLAGS_DEBUG = -gcoff
+OPTIMIZE = -m486
+LDFLAGS_DEBUG = -gcoff
+else
+CFLAGS_DEBUG = 
+OPTIMIZE = -O2 -fomit-frame-pointer -m486
+LDFLAGS_DEBUG = -s 
+endif
+
+LIBOBJS = $(OBJDIR)/ler.o
+CC = gcc
+CFLAGS = -I. -Imsdos $(CFLAGS_DEBUG) -D_M_IX86
+LD = gcc
+LDFLAGS = $(LDFLAGS_DEBUG)
+
+TC_PROG = tadsc
+TR_PROG = tads2r
+TR_OEM_OBJ = $(OBJDIR)/oem_dj.o
+TDB_PROG = tdb
+
+# all targets
+all: \
+    $(TC_PROG) \
+    $(TR_PROG) \
+    $(TDB_PROG) \
+    $(EXEDIR)/tadsrsc.exe \
+    $(EXEDIR)/trcolor.exe \
+    $(EXEDIR)/mkchrtab.exe \
+    $(OBJDIR)/osgen3r.o
+
+# targets for the standard executables
+$(TC_PROG):  $(EXEDIR)/$(TC_PROG).exe
+$(TR_PROG):  $(EXEDIR)/$(TR_PROG).exe
+$(TDB_PROG): $(EXEDIR)/$(TDB_PROG).exe
+
+clean:
+	del $(EXEDIR)\*.exe
+	del $(OBJDIR)\*.o
+
+#----------------------------------------------------------------------------
+
+
+# objects in common to all executables
+COMMONOBJS= \
+    $(LIBOBJS) \
+    $(OBJDIR)/mcm.o \
+    $(OBJDIR)/mcs.o \
+    $(OBJDIR)/mch.o \
+    $(OBJDIR)/obj.o \
+    $(OBJDIR)/cmd.o \
+    $(OBJDIR)/errmsg.o \
+    $(OBJDIR)/fioxor.o \
+    $(OBJDIR)/os0.o \
+    $(OBJDIR)/argize.o \
+    $(OBJDIR)/oserr.o \
+    $(OBJDIR)/cmap.o \
+    $(OBJDIR)/osifc.o \
+    $(OBJDIR)/osdosnui.o
+
+# common objects for all executables incorporating a run-time
+CMNRUNOBJS= \
+    $(COMMONOBJS) \
+    $(OBJDIR)/dat.o \
+    $(OBJDIR)/lst.o \
+    $(OBJDIR)/out.o \
+    $(OBJDIR)/voc.o \
+    $(OBJDIR)/bif.o \
+    $(OBJDIR)/output.o \
+    $(OBJDIR)/suprun.o \
+    $(OBJDIR)/regex.o
+
+# objects for the run-time system
+RUNOBJS= \
+    $(CMNRUNOBJS) \
+    $(OBJDIR)/vocab.o \
+    $(OBJDIR)/execmd.o \
+    $(OBJDIR)/runstat.o \
+    $(OBJDIR)/ply.o \
+    $(OBJDIR)/trd.o \
+    $(OBJDIR)/linfdum.o \
+    $(OBJDIR)/fio.o \
+    $(OBJDIR)/askf_os.o \
+    $(OBJDIR)/getstr.o \
+    $(OBJDIR)/qas.o \
+    $(OBJDIR)/dbgtr.o \
+    $(OBJDIR)/run_nd.o \
+    $(OBJDIR)/osscolor.o
+
+# extra objects for character-mode run-time
+CHAROBJS= \
+    $(OBJDIR)/osr.o \
+    $(OBJDIR)/osgenr.o \
+    $(OBJDIR)/osnoui.o \
+    $(OBJDIR)/ossdosdj.o \
+    $(OBJDIR)/os0tr.o \
+    $(OBJDIR)/bifgdum.o \
+    $(OBJDIR)/osdosex.o \
+    $(OBJDIR)/osrestad.o \
+    $(OBJDIR)/indlg_tx.o
+
+# objects for compiler (includes run-time system)
+COMPOBJS= \
+    $(CMNRUNOBJS) \
+    $(OBJDIR)/linf.o \
+    $(OBJDIR)/prs.o \
+    $(OBJDIR)/emt.o \
+    $(OBJDIR)/sup.o \
+    $(OBJDIR)/fiowrt.o \
+    $(OBJDIR)/tok.o \
+    $(OBJDIR)/tcd.o \
+    $(OBJDIR)/os0tc.o \
+    $(OBJDIR)/fio.o \
+    $(OBJDIR)/objcomp.o \
+    $(OBJDIR)/prscomp.o \
+    $(OBJDIR)/getstr.o \
+    $(OBJDIR)/osdos.o \
+    $(OBJDIR)/osgen.o \
+    $(OBJDIR)/tokth.o \
+    $(OBJDIR)/dbg.o \
+    $(OBJDIR)/voccomp.o \
+    $(OBJDIR)/bifgdum.o \
+    $(OBJDIR)/osnoui.o \
+    $(OBJDIR)/osdosex.o \
+    $(OBJDIR)/run_nd.o \
+    $(OBJDIR)/askf_tx.o \
+    $(OBJDIR)/indlg_tx.o
+
+TCOBJS= \
+    $(COMPOBJS) \
+    $(OBJDIR)/tcgdum.o \
+    $(OBJDIR)/osrestad.o
+
+# objects for debugger
+DBGOBJS= \
+    $(CMNRUNOBJS) \
+    $(OBJDIR)/vocab.o \
+    $(OBJDIR)/execmd.o \
+    $(OBJDIR)/runstat.o \
+    $(OBJDIR)/ply.o \
+    $(OBJDIR)/fio.o \
+    $(OBJDIR)/sup.o \
+    $(OBJDIR)/linf.o \
+    $(OBJDIR)/prs.o \
+    $(OBJDIR)/emt.o \
+    $(OBJDIR)/tok.o \
+    $(OBJDIR)/tdd.o \
+    $(OBJDIR)/os0td.o \
+    $(OBJDIR)/dbgu.o \
+    $(OBJDIR)/dbg.o \
+    $(OBJDIR)/dbgrun.o \
+    $(OBJDIR)/osdbg.o \
+    $(OBJDIR)/objcomp.o \
+    $(OBJDIR)/tokth.o \
+    $(OBJDIR)/voccomp.o \
+    $(OBJDIR)/getstr.o \
+    $(OBJDIR)/osr.o \
+    $(OBJDIR)/osgenr.o \
+    $(OBJDIR)/ossdosdj.o \
+    $(OBJDIR)/osscolor.o \
+    $(OBJDIR)/qas.o \
+    $(OBJDIR)/bifgdum.o \
+    $(OBJDIR)/osnoui.o \
+    $(OBJDIR)/osdosex.o \
+    $(OBJDIR)/run_d.o \
+    $(OBJDIR)/osrestad.o \
+    $(OBJDIR)/askf_os.o \
+    $(OBJDIR)/indlg_tx.o
+
+#
+#  The primary executables
+#
+
+# the TADS compiler
+$(EXEDIR)/$(TC_PROG).exe: $(TCOBJS)
+	$(LD) $(LDFLAGS) $^ -o $@
+
+# tads interpreter
+$(EXEDIR)/$(TR_PROG).exe: $(RUNOBJS) $(CHAROBJS) $(TR_OEM_OBJ)
+	$(LD) $(LDFLAGS) $^ -o $@
+
+# tads debugger
+$(EXEDIR)/$(TDB_PROG).exe: $(DBGOBJS) $(TR_OEM_OBJ)
+	$(LD) $(LDFLAGS) $^ -o $@
+
+# error message file
+tadserr.msg:  $(EXEDIR)/tadserr.exe
+	$(EXEDIR)/tadserr
+
+$(OBJDIR)/tadserr.o:  errmsg.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DERR_BUILD_FILE -o $@ $<
+
+$(EXEDIR)/tadserr.exe:  $(OBJDIR)/tadserr.o $(OBJDIR)/osterm.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+# character map generator
+mkchrtab: $(EXEDIR)/mkchrtab.exe
+$(EXEDIR)/mkchrtab.exe: $(OBJDIR)/mkchrtab.o $(OBJDIR)/osterm.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+$(OBJDIR)/oem_dj.o: msdos\oem_dj.c
+
+# build the TADS resource manager
+tadsrsc:  $(EXEDIR)/tadsrsc.exe
+$(EXEDIR)/tadsrsc.exe: \
+    $(OBJDIR)/tadsrsc.o \
+    $(OBJDIR)/osnoui.o \
+    $(OBJDIR)/osterm.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+# runtime color-setting tool
+trcolor: $(EXEDIR)/trcolor.exe
+$(EXEDIR)/trcolor.exe: $(OBJDIR)/trcolor.o $(OBJDIR)/ossdosdj.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+
+#
+# implicit rules
+#
+
+$(OBJDIR)/%.o: %.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -o $@ $<
+
+
+#
+# prscomp.c gets hosed by the optimizer on some machines, so we
+# build it without optimization.
+#
+# This GCC bug may have been fixed by now, but I wouldn't count on it,
+# since I don't remember how to test for it.  :)
+#
+#$(OBDJIR)/prscomp.o: prscomp.c
+#	$(CC) -c $(CFLAGS) $<
+#
+# ordinary object file associations
+#
+
+#
+# objects that require special builds
+#
+$(OBJDIR)/osr.o: msdos/osdos.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNTIME -o $@ $<
+
+$(OBJDIR)/osscolor.o: msdos/osscolor.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNTIME -o $@ $<
+
+$(OBJDIR)/osgenr.o: osgen.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNTIME -o $@ $<
+
+$(OBJDIR)/osgen3r.o: osgen3.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNTIME -o $@ $<
+
+$(OBJDIR)/runfast.o: run.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNFAST -DDBG_OFF -o $@ $<
+
+$(OBJDIR)/biffast.o: bif.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DRUNFAST -o $@ $<
+
+$(OBJDIR)/mkchrtab.o: mkchrtab.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) $(MEMICMP) -o $@ $<
+
+$(OBJDIR)/tadsrsc.o: tadsrsc.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) $(MEMICMP) -o $@ $<
+
+#
+# Main run engine - no debugger (run_nd.o) and with debugger (run_d.o).
+# We could simply always use the with-debugger version, but games will
+# run slightly faster if we build a separate no-debugger version for
+# the executables that don't actually make any use of the debugger.
+#
+$(OBJDIR)/run_nd.o: run.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DDBG_OFF -o $@ $<
+
+$(OBJDIR)/run_d.o: run.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -o $@ $<
+
+
+#
+# more executables
+#
+
+$(EXEDIR)/tadsmdoc.exe: $(OBJDIR)/tadsmdoc.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+$(OBJDIR)/tadsmdoc.o: errmsg.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -DERR_BUILD_DOC -o $@ $<

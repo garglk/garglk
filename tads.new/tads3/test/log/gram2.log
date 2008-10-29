@@ -1,0 +1,54 @@
+	Files to build: 5
+	symbol_export tok.t -> tok.t3s
+	symbol_export gram2.t -> gram2.t3s
+	compile tok.t -> tok.t3o
+	compile gram2.t -> gram2.t3o
+	link -> gram2.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+>take red ball
+[match 1: token count = 3
+  command: pred
+    predicate take np:
+      nounPhrase(adj = red) np:
+        nounPhrase(noun = ball)
+
+>give red ball to blue ball
+[match 1: token count = 6
+  command: pred
+    predicate give dobj, iobj:
+      nounPhrase(adj = red) np:
+        nounPhrase(noun = ball)
+      nounPhrase(adj = blue) np:
+        nounPhrase(noun = ball)
+
+>give red ball blue ball
+[match 1: token count = 5
+  command: pred
+    predicate give dobj, iobj:
+      nounPhrase(adj = blue) np:
+        nounPhrase(noun = ball)
+      nounPhrase(adj = red) np:
+        nounPhrase(noun = ball)
+
+>say "hello there!"
+[match 1: token count = 2
+  command: pred
+    predicate say(str_ = "hello there!")
+
+>say "that's about all" and take ball
+[match 1: token count = 3
+  command: pred
+    predicate say(str_ = "that's about all")
+
+[match 1: token count = 2
+  command: pred
+    predicate take np:
+      nounPhrase(noun = ball)
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

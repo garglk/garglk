@@ -1,0 +1,6 @@
+#!/bin/sh
+# Setup test environment and run a particular test. Put the text command and
+# all its arguments on the command line.
+
+source test_env
+exec $*
