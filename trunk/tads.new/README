@@ -1,0 +1,10 @@
+I stripped some of the platform specific directories,
+test files, and the tads compiler libraries.
+
+Get the original files for tads2 and tads3 here:
+
+http://www.tads.org/t2_patch.htm
+http://www.tads.org/t3dl.htm
+
+--Tor
+
