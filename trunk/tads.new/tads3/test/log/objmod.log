@@ -1,0 +1,48 @@
+	Files to build: 7
+	symbol_export objmod1.t -> objmod1.t3s
+	symbol_export objmod2.t -> objmod2.t3s
+	symbol_export objmod3.t -> objmod3.t3s
+	compile objmod1.t -> objmod1.t3o
+	compile objmod2.t -> objmod2.t3o
+	compile objmod3.t -> objmod3.t3o
+	link -> objmod.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+----
+Showing information for obj1:
+   p1 -> Doubly-modified obj1.p1 - inheriting: This is modified obj1.p1 -
+inheriting: This is obj1.p1 - inheriting: This is obj_base.p1
+   p2 -> This is modified+replaced obj1.p2 - inheriting: This is obj_base.p2
+   p3 -> This is obj1.p3 - inheriting: This is obj_base.p3
+   p4 -> This is obj_base.p4
+
+----
+Showing information for obj2:
+   p1 -> This is doubly-modified obj2.p1 - inheriting: This is modified obj2.p1
+- inheriting: This is obj1mod1-modified obj2.p1 - inheriting: This is obj2.p1 -
+inheriting: This is obj_base.p1
+   p2 -> This is replaced+modified obj2.p2 - inheriting: This is obj_base.p2
+   p3 -> This is modified obj2.p3 - inheriting: This is obj_base.p3
+   p4 -> This is obj_base.p4
+
+----
+Showing information for obj3:
+   p1 -> objmod3-doubly-modified obj3.p1 - inheriting: objmod3-modified obj3.p1
+- inheriting: objmod2-modified obj3.p1 - inheriting: obj3.p1 - inheriting from
+obj2: This is doubly-modified obj2.p1 - inheriting: This is modified obj2.p1 -
+inheriting: This is obj1mod1-modified obj2.p1 - inheriting: This is obj2.p1 -
+inheriting: This is obj_base.p1
+   p2 -> objmod3-doubly-modified obj3.p2 - inheriting: objmod3-replaced obj3.p2
+- inheriting: This is replaced+modified obj2.p2 - inheriting: This is
+obj_base.p2
+   p3 -> objmod3-doubly-modified obj3.p3 - inheriting: objmod3-modified obj3.p3
+- inheriting: objmod2-replaced obj3.p3 - inheriting: This is modified obj2.p3 -
+inheriting: This is obj_base.p3
+   p4 -> This is obj_base.p4
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

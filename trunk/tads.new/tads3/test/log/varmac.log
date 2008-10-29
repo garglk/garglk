@@ -1,0 +1,49 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export varmac.t -> varmac.t3s
+	compile _main.t -> _main.t3o
+	compile varmac.t -> varmac.t3o
+	link -> varmac.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+hello
+   a = 1
+   b = 2
+   xyz = 3
+goodbye
+
+list 1 a:
+cur = 1
+cur = 2
+cur = 3
+
+list 1 b:
+
+list 1 c:
+cur = 8
+
+list2 a:
+cur = 4
+cur = 7
+cur = 8
+cur = 9
+cur = 10
+
+list2 b:
+cur = 0
+doInheritNext: sdesc
+   1
+   2
+   3
+doInheritNext: sdesc
+   hello
+doInheritNext: ldesc
+
+no-arguments
+argsabc
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

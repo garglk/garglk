@@ -1,0 +1,71 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export lookup.t -> lookup.t3s
+	compile _main.t -> _main.t3o
+	compile lookup.t -> lookup.t3o
+	link -> lookup.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+'hello' -> 1
+'goodbye' -> 2
+'asdf' -> 3
+'asdf2' ->
+[1,2] -> 4
+[1,3] -> 5
+[2,3] ->
+2.818 -> 6
+2.818000 -> 6
+0.28180e1 -> 6
+3.1415 -> 7
+1.707 ->
+
+after changes:
+'hello' -> 1
+'goodbye' -> 200
+'asdf' -> 3
+'asdf2' ->
+[1,2] -> 4
+[1,3] -> 500
+[2,3] ->
+2.818 -> 6
+3.1415 -> 7
+1.707 ->
+
+after removals:
+'hello' ->
+'goodbye' -> 200
+'asdf' -> 3
+'asdf2' ->
+[1,2] ->
+[1,3] -> 500
+[2,3] ->
+2.818 -> 6
+3.1415 -> 7
+1.707 ->
+
+Iterating:
+   200
+   3
+   500
+   6
+   7
+
+Again, using tab.forEach:
+   [goodbye] = 200
+   [asdf] = 3
+   [[1,3]] = 500
+   [2.818] = 6
+   [3.1415] = 7
+
+Iterator:
+   getNext() returned 200, cur key = goodbye, cur val = 200
+   getNext() returned 3, cur key = asdf, cur val = 3
+   getNext() returned 500, cur key = [1,3], cur val = 500
+   getNext() returned 6, cur key = 2.818, cur val = 6
+   getNext() returned 7, cur key = 3.1415, cur val = 7
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
