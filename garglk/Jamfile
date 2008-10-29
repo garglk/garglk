@@ -7,7 +7,7 @@ SubDirCcFlags $(GARGLKCCFLAGS) ;
 
 if $(OS) = MINGW
 {
-    SubDirHdrs $(TOP) support freetype-2.1.10 include ;
+    SubDirHdrs $(TOP) support freetype-2.3.7 include ;
     SubDirHdrs $(TOP) support zlib-1.2.3 ;
     SubDirHdrs $(TOP) support libpng-1.2.32 ;
     SubDirHdrs $(TOP) support jpeg-6b ;

@@ -70,7 +70,7 @@ for FTSRC in $(FTSRCS)
     FTDIR = $(FTSRC:D) ;
     FTFIL = $(FTSRC:B).c ;
 
-    SubDir TOP support freetype-2.1.10 src $(FTDIR) ;
+    SubDir TOP support freetype-2.3.7 src $(FTDIR) ;
     ObjDir libfreetype ;
     SubDirHdrs $(SUBDIR) .. .. include ;
     SharedLibrary libfreetype : $(FTFIL) ;
