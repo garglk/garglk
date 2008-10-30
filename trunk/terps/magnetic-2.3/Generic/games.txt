@@ -1,0 +1,67 @@
+
+Undo size values should go into the 4 bytes in the header (start of the file)
+beginning at 0x22. Undo PC values should go into the 4 bytes in the header
+beginning at 0x26.
+
+The patches column lists an offset from the start of the file and the new values
+for bytes from that offset. To get the offset from the start of the code section,
+subtract 0x2A. Patches are for copy protection unless noted otherwise.
+
+Game		Ver.	System		Undo size	Undo PC		Patches
+
+Corruption	1.11	Amstrad CPC	0x00002100	0x0000427E
+Corruption	1.11	Archimedes	0x00002100	0x000043A0
+Corruption	1.11	DOS		0x00002100	0x000043A0
+Corruption	1.11	Commodore 64	0x00002100	0x00004336
+Corruption	1.11	Spectrum +3	0x00002100	0x00004222
+Corruption	1.12	Archimedes	0x00002100	0x00004350
+Corruption	1.12	DOS (MagWin)	0x00002500	0x00006624
+
+Fish		1.02	DOS		0x00002300	0x00003FA0	0x00003A8E 4E 71
+Fish		1.03	Spectrum +3	0x00002400	0x00004364	0x000002A6 4E 71
+Fish		1.07	Commodore 64	0x00002300	0x00003F72	0x00003A6C 4E 71
+Fish		1.08	Archimedes	0x00002200	0x00003F9C	0x00003A8E 4E 71
+Fish		1.10	DOS (MagWin)	0x00002A00	0x0000583A
+
+Guild		1.0	Amstrad CPC	0x00005000	0x00006C30	0x00006BD6 4E 71
+Guild		1.0	Commodore 64	0x00005000	0x00006CAC	0x00006C52 4E 71
+									0x0000C042 4B FE (CD96 version)
+									0x0000DA08 3F 06 4E 71 (CD96 version)
+									0x0000DB7C 4B FE (CD96 version)
+Guild		1.1	DOS		0x00005000	0x00006D5C	0x00006D02 4E 71
+Guild		1.3	Archimedes	0x00003300	0x0000698A	0x00004D08 4E 71
+Guild		1.3	Spectrum +3	0x00003200	0x00006772
+Guild		1.3	DOS (MagWin)	0x00003400	0x00006528
+
+Jinxter		1.05	Commodore 64	0x00002B00	0x0000488C	0x00004310 4E 71
+									0x0000D212 58 (crash)
+Jinxter		1.05	DOS		0x00002C00	0x00004A08	0x00004484 4E 71
+									0x0000D29E 58 (crash)
+Jinxter		1.05	Spectrum +3	0x00002C00	0x0000487A	0x000042FE 4E 71
+									0x0000D0D4 58 (crash)
+Jinxter		1.10	DOS		0x00002C00	0x00004A56	0x000044CC 4E 71
+									0x0000D28A 58 (crash)
+Jinxter		1.22	Amstrad CPC	0x00002B00	0x00004924	0x000043A2 4E 71
+									0x0000D234 58 (crash)
+Jinxter		1.30	Archimedes	0x00002C00	0x00004960	0x0000D35A 58 (crash)
+
+Myth		1.0	Commodore 64	0x00001600	0x00003940	0x00003080 60
+									0x00003172 60 (alt protection fix)
+									0x00003177 11 (alt protection fix)
+Myth		1.0	DOS		0x00001500	0x00003A0A	0x0000314A 60
+
+Pawn		2.3	Amstrad CPC	0x00003600	0x000042CC	0x00003FBA 4E 71
+Pawn		2.3	Archimedes	0x00003600	0x00004420	0x000040F6 4E 71
+Pawn		2.3	Commodore 64	0x00003600	0x00003FB0	0x00003DE6 4E 71
+									0x00003628 00 (some Internet versions)
+									0x00003728 00 (some Internet versions)
+									0x00003828 00 (some Internet versions)
+									0x0000F9E0 86 (some Internet versions)
+									0x00017928 68 4B 8B E0 1E (Kronos' note)
+Pawn		2.3	DOS		0x00003600	0x00004420	0x000040F6 4E 71
+Pawn		2.3	Spectrum 128	0x00003900	0x000042E4	0x00005126 4E 71
+Pawn		2.4	Spectrum +3	0x00003900	0x000042F4	0x0000514E 4E 71
+
+Wonderland	1.21	DOS (MagWin)	0x00003900	0x000075F2	0x000067A2 4E 75
+Wonderland	1.27	Archimedes	0x00003900	0x000075F8	0x000067A6 4E 75
+

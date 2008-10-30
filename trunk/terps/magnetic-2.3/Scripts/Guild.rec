@@ -1,0 +1,361 @@
+#seed
+12345
+restart
+y
+#seed
+12345
+Jump To The Jetty
+W
+Say "Can I Help You?"
+N, W
+Examine The Bucket
+Break The Coal
+Take The Fossil
+S
+Examine The Paintings
+Take The Oil Painting
+S
+Examine The Settee
+Open The Cushion
+Look Inside The Cushion
+Take The Note
+Examine It
+N, N, E, U, S, S
+Look At The Cabinet
+Take The Mirror
+N, N, E, N
+Look At The Cue Rack
+Take The Cue
+Look At The Table
+Cue The Cue Ball With The Cue
+Cue The Red Ball With The Cue
+Open The Red Ball
+Look Inside The Red Ball
+Take The Ring
+E
+Look At The Stool
+Open It Then Look Inside It
+Take The Plastic Bag Then Look Inside It
+Read The Music
+S, S
+Examine The Bed
+Open The Box
+Look Inside It
+Take All That Is In The Box
+Open The Wardrobe
+Look Inside It
+Take The Dress
+N, W, W, D
+S
+Z
+Use The Note To Bet On The Grey Rat
+Take The Cage
+N, u, w
+open box
+examine it
+e, d
+E, S
+I
+Open The Swag Bag
+Look Inside It
+Turn On The Lamp
+E, S
+Move The Junk
+Take The Cube
+S
+Open The Safe
+Put The Ring, Painting And Fossil In The Safe
+Close The Safe
+Open The Safe
+Put The Plastic Bag In The Safe
+Close The Safe
+Open The Safe
+Put The Dress In The Safe
+Close The Safe
+Drop Cue And Cotton And Needle
+Put The Mirror And The Cage In The Swag Bag
+N, N, W, N, W, S, S, S, SE
+Look At The Windmill
+Shout "Please Stop The Windmill!"
+Quietly Walk Into The Mill
+Buy The Lute With The Cheque
+Examine The Lute
+Get All From The Bag
+Put The Lute In The Bag
+N, NW, N, N, N, E, S, S
+Open The Cabinet
+Look Inside The Cabinet
+Take The Key
+S
+Look Under The Bed
+Open The Tub And Look Inside It
+Take The Maggot
+N, N, E, S, S
+Tie The Cotton To The Cue
+Put The Maggot On The Needle
+Hold The Cue And Put The Needle In The Moat
+Untie The Cue From The Cotton
+Drop The Needle And The Cotton
+N, N, W
+Open The Cupboard
+Look Inside It
+Take Contents Of The Cupboard
+N
+Look Inside The Cubic Cage
+Smear The Poison Onto The Fish
+Rub The Poison Onto The Fish
+Smear The Fish With The Poison
+Give The Fish To The Bear
+Open The Cubic Cage With The Key
+Take The Chalice
+W, N
+Examine The Door
+Rub The Horseshoe
+E
+Open The Jar
+W, S, U, S, S
+Look At The Bed
+Examine The Abstract Painting
+Move It
+Open The Cabinet
+Drop The Cue
+N, N, D, E, S, E
+Open The Door
+N
+Examine The Drainage System
+Take The Pipe
+Open The Stopcock
+Wait
+Close The Stopcock
+N
+Look At All Bottles
+Take The Champagne Bottle
+Open The Red Bottle
+Look Inside It
+Take The Ruby
+S, S, S, S
+Open The Safe
+Put The Ruby, Plectrum And Chalice In The Safe
+Close The Safe
+N, N, W, N, W, S, S, S, SW, S, S
+Read The Notice Board
+S
+Examine The Altar
+Take The Burner
+S
+Examine The Hive
+Take The Gloves
+N, SE, U
+Take The Rhino
+D, NW, SW, U, E
+Examine The Organ
+Take The Keys
+W, D, NE, N
+Open The Safe
+Put The Rhino And The Burner In The Safe
+Close The Safe
+N, N, N, W, W, SE
+Examine The Gate
+Open It
+SE
+Examine The Tree
+Take The Berries
+NW, S
+Examine The Door
+Break The Window
+S
+Examine The Counter
+Lift The Flap
+S
+Examine The Till
+Push The Button
+Look Inside The Till
+Take The Coin And Examine It
+N, N, N, NW, NE
+Examine The Gate
+Insert Coin The The Slot
+Insert Coin In The Slot
+E, S, W
+Take The Snake Skin
+E, N, N, W
+Examine The Tree
+Shake The Tree
+Take The Coconut
+Drop The Jar
+Take The Succulents
+E, E
+Ask Macaw About Food
+W, S, S
+Open The Door With The Ivory Key
+E
+Examine The Desk
+Open The Drawer And Look Inside It
+Read The Magazine And Take The Grotty Key
+W, N, N, E
+Hit The Large Cage With The Coconut
+Give The Coconut To The Macaw
+W, S, S, E
+Open The White Door
+NE
+Open The Small Door With The Grotty Key
+Open The Cage
+NW
+Put The Mynah Bird In The Cage
+Close The Cage
+Say "Hello"
+Say "Hello"
+SE, SW, W, N, W, SW, NW, NW
+Examine The Coals
+Rub Succulents On Feet
+W, U, SE
+Take The Yellow Die
+SE, SW
+Take The Green Die
+NE, NE
+Take The Blue Die
+SW, SE
+Take The Red Die
+NW
+Examine The Case
+Examine The Slots
+Roll The Dice
+Five
+Five
+Five
+Five
+Put The Red Die In The First Slot
+Put The Green Die In The Second Slot
+Put The Blue Die In The Third Slot
+Put The Yellow Die In The Fourth Slot
+Examine The Case
+Take The Plastic Die
+NW, NW, D
+Rub Succulents On Feet
+E, SE, SW
+Examine The Wax
+Use The Mirror To Shine The Beam At The Wax
+Take The Gem
+NE, SE, SW
+Examine The Bars
+Break Them
+SW
+Examine The Skeleton
+Take The Bone
+Open The Chest
+Look Inside It
+Take Heart
+S, W
+Examine The Ladder
+Untie It
+E, N, NE, E, E, S, S, S
+Open The Safe Then Put The Gem In It
+Close The Safe
+S, NW, D, SE, SE, N, E, E, SE, S, SW, E, SE
+Examine The Sarcophagus
+Open It With The Bone
+Look Inside The Sarcophagus
+Examine The Skull
+Take The Eye
+E
+Examine The Statuette
+Take It
+Open The Black Door With The Ebony Key
+E
+Read The Pamphlet
+W, W, NW, NW, N, NW, E, SW, SW, NW, N, NW, U, SE, N
+Open The Safe
+Put The Statuette In The Safe
+Close The Safe
+S
+Move The Statue
+Drop It
+D, N, N, N
+Take The Brooch
+Dig In The Sand
+Wear The Boots
+D, D
+Wear The Gloves
+S, E
+Drop The Mirror, Keys, And Bone
+Take A Pick
+W, W
+Hit The Minerals With The Pick
+Drop The Pick And Get The Chips
+E, S, U, E, N, NE, SE, S, W
+Open The Safe
+Put The Brooch And Chips In The Safe
+Close The Safe
+E, N, NW, E, E, E, N, N, N, U, S, S
+Examine The Cabinet
+Read The Plaque
+Examine The Buttons
+Take The Cue
+Sit On The Bed
+Push The Top Button With The Cue
+Examine The Cauldron
+Put The Cube, Heart, Eye, Berries, And Snake Skin In The Cauldron
+Open The Sachet
+Look Inside The Cauldron
+Take The Anticube
+W, N, N, E, E, S
+Look Under The Bed
+Take The China Pot
+N, W, W, D, E, S, E, S, S
+Open The Safe
+Put The China Pot In The Safe
+Close The Safe
+N, N, W, N, W, S, S, S, W, W, W, SE, S, W
+Open The Door
+Examine The Jeans
+Look Inside The Pocket
+Take The Plastic Card
+E, N, NW, NW, NW
+Get The Lute
+Put The Plastic Die And Anticube In The Pocket
+Rub Succulents On Feet
+W, U
+Drop The Cue, Bag, Lamp, And Succulents
+D, E, SE, SE, SE, S, W, S
+Mynah, Hooray
+Mynah, Hooray
+Mynah, Hooray
+Join Longer Line
+Show Card To Teller
+Chew Gum
+Drop Bottle And Cage
+Shake Bottle
+Wait
+Put Gum In Keyhole
+Play Lute
+Sing Urfanore Pendra
+S, E
+Roll Die
+Six
+D
+Roll Die
+Five
+W
+Roll Die
+Two
+NE
+Roll Die
+One
+NW
+Roll Die
+Four
+D
+Take All
+Examine The Pillar
+Examine The Weighing Machine
+Examine The Cube
+Put The Die And The Anticube On The Weighing Machine
+Take The Cube And The Anticube
+Read The Signpost
+SW
+NW, NW
+Take All
+D
+Rub Succulents On Feet
+E, SE, SE, E, E, E, E, E
+Pull On The Rope
+Jump To The Boat
