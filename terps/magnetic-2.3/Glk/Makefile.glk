@@ -1,0 +1,106 @@
+# Set locations of Glk library and include directories, and Glk make include.
+# For building the IFP plugin, you should probably use Xglk headers.
+# For X Glk library:
+GLKLIBDIR	= ../../xglk
+GLKINCDIR	= ../../xglk
+GLKMAKEINC	= ../../xglk/Make.xglk
+# ..., or for curses Glk library:
+#GLKLIBDIR	= ../../glkterm
+#GLKINCDIR	= ../../glkterm
+#GLKMAKEINC	= ../../glkterm/Make.glkterm
+# ..., or for the "cheap" Glk library:
+#GLKLIBDIR	= ../../cheapglk
+#GLKINCDIR	= ../../cheapglk
+#GLKMAKEINC	= ../../cheapglk/Make.cheapglk
+
+# Set locations of IFP library and include directories, and header tool.
+# For installed IFP, these would be something like:
+IFPLIBDIR	= /usr/lib
+IFPINCDIR	= /usr/include
+IFPHDRTOOL	= /usr/bin/ifphdr
+# ...whereas for IFP newly built alongside xglk, more like:
+#IFPLIBDIR	= ../../ifp
+#IFPINCDIR	= ../../ifp
+#IFPHDRTOOL	= ../../ifp/ifphdr
+
+# IFP header definition.
+IFPHDR		= magnetic.hdr
+
+# Magnetic Scrolls version.
+VERSION		= 2.3
+
+# Common definitions.
+CC		=  gcc
+WARNINGS	= -Wall # -W
+DEBUG		=
+OPTIMIZE	= -O2
+
+# Get the definitions for Glk LINKLIBS and GLKLIB.
+include $(GLKMAKEINC)
+
+CFLAGS	= -fPIC -ansi -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+# CFLAGS= -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+LDFLAGS	= $(DEBUG)
+
+OBJS	= emu.o glk.o
+OS_LIB	= $(LINKLIBS) -L$(GLKLIBDIR) $(GLKLIB)
+
+all:glkmagnetic magnetic-$(VERSION).so
+
+# Stuff copied from the generic interpreter.
+defs.h emu.c: ../Generic/defs.h ../Generic/emu.c
+	cp ../Generic/$@ $@
+
+# Build the standalone Magnetic Scrolls interpreter.
+# See glk.c comments for details on the -Wl,--wrap... options.
+glkmagnetic: $(OBJS)
+	$(CC) $(LDFLAGS) -o glkmagnetic $(OBJS) $(OS_LIB)		\
+		-Wl,--wrap,toupper,--wrap,tolower
+
+# Build an IFP plugin.
+# Wrapper toupper and tolower as above.
+magnetic-$(VERSION).so: $(OBJS) $(IFPHDR)
+	rm -f magnetic_plugin.c
+	$(IFPHDRTOOL) $(IFPHDR) magnetic_plugin.c
+	$(CC) -I$(IFPINCDIR) $(CFLAGS) -c magnetic_plugin.c
+	$(LD) -u ifpi_force_link -shared -Bsymbolic			\
+		-o $@ $(OBJS)						\
+		magnetic_plugin.o -L$(IFPLIBDIR) -lifppi -lc		\
+		--wrap toupper --wrap tolower
+
+# Directory cleanup.
+clean:
+	rm -f $(OBJS) emu.c defs.h *.o glkmagnetic magnetic-$(VERSION).so
+	rm -f magnetic_plugin.c core
+	rm -rf distribution binaries
+
+# Distribution.
+distclean: clean
+maintainer-clean: clean
+dist: distclean
+	mkdir distribution binaries
+	cd ..; zip -r Glk/distribution/Magnetic22Src.zip \
+			* -x Glk/distribution/\* Glk/binaries/
+	cp ../COPYING glk_readme.txt binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../xglk GLKINCDIR=../../xglk \
+			GLKMAKEINC=../../xglk/Make.xglk magnetic-$(VERSION).so
+	mv magnetic-$(VERSION).so binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../xglk GLKINCDIR=../../xglk \
+			GLKMAKEINC=../../xglk/Make.xglk glkmagnetic
+	mv glkmagnetic binaries/xmagnetic
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../glkterm GLKINCDIR=../../glkterm \
+			GLKMAKEINC=../../glkterm/Make.glkterm glkmagnetic
+	mv glkmagnetic binaries/termmagnetic
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../cheapglk GLKINCDIR=../../cheapglk \
+			GLKMAKEINC=../../cheapglk/Make.cheapglk glkmagnetic
+	mv glkmagnetic binaries/cheapmagnetic
+	cd binaries; zip ../distribution/Magnetic22LinuxGlk.zip *
+
+# Dependencies.
+emu.o: emu.c defs.h
+glk.o: glk.c defs.h
+ 
