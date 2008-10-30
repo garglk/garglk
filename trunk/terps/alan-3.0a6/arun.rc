@@ -1,0 +1,49 @@
+#include "resources.h"
+#include "winuser.h"
+
+IDR_ARUN MENU DISCARDABLE 
+BEGIN
+    POPUP "&Arun"
+    BEGIN
+        MENUITEM "R&estart",			ID_MENU_RESTART
+        MENUITEM "&Save...",			ID_MENU_SAVE
+        MENUITEM "&Restore...",			ID_MENU_RESTORE
+        MENUITEM "Record &commands...",		ID_MENU_RECORD
+        MENUITEM "&Playback commands...",	ID_MENU_PLAYBACK
+        MENUITEM "&Transcript...",		ID_MENU_TRANSCRIPT
+        MENUITEM "&About Arun",			ID_MENU_ABOUT
+    END
+END
+
+IDR_ARUN	ICON	arun.ico
+IDR_ABOUT	BITMAP	about.bmp
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    ID_MENU_ABOUT           "About Arun\nAbout Arun"
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUT DIALOGEX 100, 100, 280, 155
+STYLE DS_MODALFRAME | DS_SETFOREGROUND | WS_POPUP | WS_VISIBLE | WS_CAPTION
+CAPTION "About WinArun"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,220,135,50,15
+    GROUPBOX        "About WinArun",IDC_STATIC,10,10,260,75
+    CONTROL         IDR_ABOUT, IDC_STATIC, "Static", SS_BITMAP, 15, 20, 0, 0, WS_EX_CLIENTEDGE
+    LTEXT           "WinArun Alan interpreter version WINARUNVERSION\nAlan Adventure Language, compiler and interpreter design: Thomas Nilsson\nWindows interpreter: Thomas Nilsson\nOriginal GLK adaptation: Joe Mason", IDC_STATIC,95,20,165,45
+    GROUPBOX        "Additional Credits",IDC_STATIC,10,90,260,40
+    LTEXT           "Initial inspiration to the Alan language: Göran Forslund\nContinuing encuragement and bug finding: Steve Griffiths\nVisit the Alan Home Pages at http://www.alanif.se",
+                    IDC_STATIC,15,100,190,25
+END
