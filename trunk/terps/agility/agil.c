@@ -552,7 +552,7 @@ static int init(void)
 /*  lactor=lobj=lnoun=NULL;*/
   tscore=old_score=objscore=0;
   turncnt=0;
-  curr_time=start_time;
+  curr_time=startup_time;
   loc=start_room-first_room;
   cmd_saveable=0;
   first_visit_flag=newlife_flag=room_firstdesc=1;

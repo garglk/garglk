@@ -122,7 +122,7 @@ void info_out(void)
   if (freeze_mode) printf("<FREEZE>\t");
   if (mars_fix) printf("<MARS>\t");
   printf("Status Mode %d    Score mode %d",statusmode,score_mode);
-  printf("   Time %d+%d\n",start_time,delta_time);
+  printf("   Time %d+%d\n",startup_time,delta_time);
   if (milltime_mode) printf("\t<MILITARY>");
   printf("\n");
   printf("Ranges--  Room: %d..%d   Noun: %d..%d   Creature: %d..%d\n",

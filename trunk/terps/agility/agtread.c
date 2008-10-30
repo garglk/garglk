@@ -1221,12 +1221,12 @@ static int try_read_da1(fc_type fc,genfile fda1,rbool diag)
   if (aver>=AGTME10) {  /* 4 int */ 
     score_mode=readnum(fda1);  /* Score option */
     statusmode=readnum(fda1);  /* Status option */
-    start_time=readnum(fda1); /* Starting time */
+    startup_time=readnum(fda1); /* Starting time */
     delta_time=readnum(fda1); /* Delta_time */
   } else
     {
       score_mode=statusmode=0;
-      start_time=delta_time=0;
+      startup_time=delta_time=0;
     }
   max_lives=readnum(fda1);
   if (aver!=AGT10) max_score=readnum(fda1);
@@ -1435,10 +1435,10 @@ static int try_read_da1(fc_type fc,genfile fda1,rbool diag)
       statusmode=agt18_statmode[tval-1];
     else statusmode=0;
     tval=readnum(fda1);       /* Hours */
-    start_time=readnum(fda1); /* Minutes */
-    tval+=start_time/60; start_time=(start_time%60)+100*tval;
-    if (readrbool(fda1) && start_time<1200) 
-      start_time+=1200;
+    startup_time=readnum(fda1); /* Minutes */
+    tval+=startup_time/60; startup_time=(startup_time%60)+100*tval;
+    if (readrbool(fda1) && startup_time<1200) 
+      startup_time+=1200;
     milltime_mode=readrbool(fda1); /* Military time */
     delta_time=readnum(fda1);
   }
