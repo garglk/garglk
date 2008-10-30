@@ -18,6 +18,11 @@
 #ifndef _SYSDEP_H_
 #define _SYSDEP_H_
 
+// XXX
+#define COMPILER "[glk]"
+#define PROGNAME "alan3"
+#define HAVE_GLK 1
+// YYY
 
 /* Place definitions of OS and compiler here if necessary */
 #ifdef AZTEC_C
