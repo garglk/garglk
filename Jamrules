@@ -44,8 +44,8 @@ switch $(OS)
 
     case LINUX :
         Echo "OS is LINUX (gtk+)" ;
-	# PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+" ;
+	    PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
+        #PKGCONFIG = "pkg-config freetype2 gtk+" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = -lz ;
