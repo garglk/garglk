@@ -1,8 +1,0 @@
-From the Alan manual
---------------------
-
-L.5 Source 
-The source is not in the public domain but will be released for porting to 
-new platforms and technologies and support of such ports. The source 
-may not be used for other purposes without permission from the author. 
-
