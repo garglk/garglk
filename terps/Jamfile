@@ -188,7 +188,7 @@ if $(MAKE_GLULXE) = yes
 
 if $(MAKE_HUGO) = yes
 {
-    SubDir TOP terps hugo ;
+    SubDir TOP terps hugo-3.1.03 ;
     ObjDir hugo ;
 
     SubDirHdrs $(SUBDIR) source ;
