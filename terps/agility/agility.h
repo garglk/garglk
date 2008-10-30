@@ -555,7 +555,7 @@ global integer exitmsg_base; /* Number added to messages used as
 
 global integer start_room, treas_room, resurrect_room, max_lives;
 global long max_score;
-global integer start_time, delta_time;
+global integer startup_time, delta_time;
 
 /* ver contains the size of the game, aver indicates its version */
 /*  See the #define's below for details */

@@ -240,7 +240,7 @@ Mandatory blocks are marked with astericks.
    uchar score_mode, statusmode;
    uint16 max_lives
    uint32 max_score;
-   uint16 start_time, delta_time;
+   uint16 startup_time, delta_time;
    descr_ptr intro_ptr, title_ptr, ins_ptr;
    int16 start_room, treas_room, resurrect_room
    int16 first_room, first_noun, first_creat
@@ -353,7 +353,7 @@ static file_info fi_gameinfo[]={
   g(FT_BYTE,xx,score_mode), g(FT_BYTE,xx,statusmode),
   g(i16,xx,max_lives), g(u32,DT_LONG,max_score),
   /* 15 */
-  g(i16,xx,start_time),g(i16,xx,delta_time),
+  g(i16,xx,startup_time),g(i16,xx,delta_time),
   /* 19 */
   g(FT_DESCPTR,xx,intro_ptr), g(FT_DESCPTR,xx,title_ptr),
   g(FT_DESCPTR,xx,ins_ptr),
