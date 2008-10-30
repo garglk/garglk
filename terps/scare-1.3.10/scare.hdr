@@ -1,0 +1,21 @@
+# IFP header definitions for SCARE 1.3.10.
+IFP_ENGINE_TYPE="Adrift"
+IFP_ENGINE_NAME="Scare"
+IFP_ENGINE_VERSION="1.3.10"
+
+IFP_ACCEPTOR_OFFSET=0
+IFP_ACCEPTOR_LENGTH=14
+IFP_ACCEPTOR_PATTERN="^3c 42 3f c9 6a 87 c2 cf 9[34] 45 3[e76] 61 39 fa$"
+
+IFP_AUTHOR_NAME="Simon Baldwin, with Mark J. Tilford"
+
+IFP_BUILDER_NAME="Simon Baldwin"
+IFP_BUILDER_EMAIL="simon_baldwin@yahoo.com"
+
+IFP_ENGINE_DESCRIPTION=\
+"SCARE is a GPL clone of jAsea, in itself a GPL clone of the Adrift Runner
+ version 4.00.36.  SCARE has been upgraded to offer Adrift Runner version
+ 4.00.46 compatibility, and runs Adrift version 4.00, version 3.90, and
+ version 3.80 games.\n"
+IFP_ENGINE_COPYRIGHT="Copyright (C) 2003-2008 by Simon Baldwin
+ and Mark J. Tilford.\n"

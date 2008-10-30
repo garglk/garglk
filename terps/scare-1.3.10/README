@@ -1,0 +1,49 @@
+
+SCARE is secondary clone of jAsea, Mark J. Tilford's Java GPL clone of the
+Adrift Runner.
+
+It aims to provide an ANSI/ISO C core Adrift interpreter, capable of running
+Adrift version 4.00, version 3.90, and version 3.80 games, and portable enough
+to run on Linux, Windows, DOS, Macintosh, Amiga, or any platform that offers
+an ANSI/ISO C compiler.
+
+For details on building SCARE, please see the file BUILDING.  For details on
+porting SCARE to various input/output schemes, please see PORTING.  For
+details on running Adrift games in SCARE, please see RUNNING.  For details on
+the game debugger in SCARE, please see DEBUGGER.  For details on SCARE's test
+suite, please see TESTING.  For details on compatibility with the Adrift
+Runner, please see FEATURES.
+
+SCARE is based on jAsea.  For more information on jAsea, please visit
+
+    http://sourceforge.net/projects/jasea
+
+SCARE also contains copious code from Zlib, to the point where it actually
+carries around a full copy of the Zlib source within it.  Zlib is
+
+    Copyright (C) 1995-2005 Jean-loup Gailly and Mark Adler
+
+    Jean-loup Gailly        Mark Adler
+    jloup@gzip.org          madler@alumni.caltech.edu
+
+The SCARE source code is released under the GPL.  The ubiquitous COPYING file
+contains everything you need to know on that.
+
+SCARE's home on the Web is in the IF Archive, under programming/adrift.
+
+Thanks to Jan-Erik Karlsson for work on SCARE for Amiga; Uli Kusterer for work
+on the Macintosh SCARE build; Thomas Payerle for slogging through the Adrift
+version 3.90 TAF file format; Rik Snel for his work to uncovering the TAF file
+obfuscation used by Adrift versions 3.90 and 3.80; David Kinder for the
+Windows specific Glk startup code; Emily Short for uncovering bugs that only
+showed up well into a couple of games; Robert Goodwin, Richard Otter, Eric
+Mayer, Todd Watson, Nick Rogers, and Sam Trenholme for miscellaneous bug
+reports; and David Whyld for bug reports and detailed game walkthroughs for
+reference and testing.
+
+And, of course, to Mark J. Tilford who started this whole thing in the first
+place with jAsea, providing almost all of the Adrift reverse engineering that
+SCARE uses.  Without jAsea, there would be no SCARE.
+
+Simon Baldwin, simon_baldwin@yahoo.com
+
