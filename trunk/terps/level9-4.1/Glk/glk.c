@@ -5249,11 +5249,13 @@ gln_expand_abbreviations (char *buffer, int size)
       memmove (command + strlen (expansion) - 1, command, strlen (command) + 1);
       memcpy (command, expansion, strlen (expansion));
 
+#if 0
       gln_standout_string ("[");
       gln_standout_char (abbreviation);
       gln_standout_string (" -> ");
       gln_standout_string (expansion);
       gln_standout_string ("]\n");
+#endif
     }
 }
 
@@ -6291,6 +6293,15 @@ gln_startup_code (int argc, char *argv[])
     {
       gln_gamefile = argv[argv_index];
       gln_game_message = NULL;
+#ifdef GARGLK
+    {
+      char *s;
+      s = strrchr(gln_gamefile, '\\');
+      if (s) garglk_set_story_name(s+1);
+      s = strrchr(gln_gamefile, '/');
+      if (s) garglk_set_story_name(s+1);
+    }
+#endif
     }
   else
     {
@@ -6368,9 +6379,11 @@ gln_main (void)
     gln_graphics_locate_bitmaps (gln_gamefile);
 
   /* Try to create a one-line status window.  We can live without it. */
+/*
   gln_status_window = glk_window_open (gln_main_window,
                                        winmethod_Above | winmethod_Fixed,
                                        1, wintype_TextGrid, 0);
+*/
 
   /*
    * The main interpreter uses rand(), but never seeds the random number
@@ -6544,7 +6557,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef __unix
+#ifdef TRUE
 
 #include "glkstart.h"
 
@@ -6583,6 +6596,14 @@ glkunix_startup_code (glkunix_startup_t * data)
 {
   assert (!gln_startup_called);
   gln_startup_called = TRUE;
+
+#ifdef GARGLK
+  garglk_set_program_name("Level 9 4.1");
+  garglk_set_program_info(
+      "Level 9 4.1 by Glen Summers, David Kinder\n"
+      "Alan Staniforth, Simon Baldwin and Dieter Baron\n"
+      "Glk Graphics support by Tor Andersson\n");
+#endif
 
   return gln_startup_code (data->argc, data->argv);
 }

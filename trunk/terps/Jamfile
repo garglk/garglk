@@ -215,7 +215,7 @@ if $(MAKE_HUGO) = yes
 
 # -----------------------------------------------------------------------
 #
-# Level9 3.0
+# Level9 4.1
 #
 # Disabled the status bar that just contained a static version string.
 # Added graphics support.
@@ -223,7 +223,7 @@ if $(MAKE_HUGO) = yes
 
 if $(MAKE_LEVEL9) = yes
 {
-    SubDir TOP terps level9 ;
+    SubDir TOP terps level9-4.1 ;
     ObjDir level9 ;
 
     SubDirCcFlags
