@@ -1827,6 +1827,29 @@ break_y_max:
     }
 }
 
+static void
+gms_graphics_paint_everything (winid_t glk_window,
+			glui32 palette[],
+			type8 off_screen[],
+			int x_offset, int y_offset,
+			type16 width, type16 height)
+{
+	type8		pixel;			/* Reference pixel color */
+	int		x, y;
+
+	for (y = 0; y < height; y++)
+	{
+	    for (x = 0; x < width; x ++)
+	    {
+		pixel = off_screen[ y * width + x ];
+		glk_window_fill_rect (glk_window,
+			palette[ pixel ],
+			x * GMS_GRAPHICS_PIXEL + x_offset,
+			y * GMS_GRAPHICS_PIXEL + y_offset,
+			GMS_GRAPHICS_PIXEL, GMS_GRAPHICS_PIXEL);
+	    }
+	}
+}
 
 /*
  * gms_graphics_timeout()
@@ -1999,9 +2022,11 @@ gms_graphics_timeout (void)
        * a count of pixels in each layer, useful for knowing when to stop
        * scanning for layers in the rendering loop.
        */
+#ifndef GARGLK
       gms_graphics_assign_layers (off_screen, on_screen,
                                   gms_graphics_width, gms_graphics_height,
                                   layers, layer_usage);
+#endif
 
       /* Clear the graphics window. */
       gms_graphics_clear_and_border (gms_graphics_window,
@@ -2021,6 +2046,7 @@ gms_graphics_timeout (void)
       deferred_repaint = FALSE;
     }
 
+#ifndef GARGLK
   /*
    * Make a portion of an image pass, from lower to higher image layers,
    * scanning for invalidated pixels that are in the current image layer we
@@ -2116,6 +2142,15 @@ gms_graphics_timeout (void)
   assert (regions < GMS_REPAINT_LIMIT);
   total_regions += regions;
 
+#else
+	gms_graphics_paint_everything
+	    (gms_graphics_window,
+	     palette, off_screen,
+	     x_offset, y_offset,
+	     gms_graphics_width,
+	     gms_graphics_height);
+#endif
+
   /*
    * If animated, and if animations are enabled, handle further animation
    * frames, if any.
@@ -2161,9 +2196,11 @@ gms_graphics_timeout (void)
        * Re-assign layers based on animation changes to the off-screen
        * buffer.
        */
+#ifndef GARGLK
       gms_graphics_assign_layers (off_screen, on_screen,
                                   gms_graphics_width, gms_graphics_height,
                                   layers, layer_usage);
+#endif
 
       /*
        * Set up an animation wait, adjusted here by the number of times we
@@ -5168,11 +5205,13 @@ gms_expand_abbreviations (char *buffer, int size)
       memmove (command + strlen (expansion) - 1, command, strlen (command) + 1);
       memcpy (command, expansion, strlen (expansion));
 
+#if 0
       gms_standout_string ("[");
       gms_standout_char (abbreviation);
       gms_standout_string (" -> ");
       gms_standout_string (expansion);
       gms_standout_string ("]\n");
+#endif
     }
 }
 
@@ -5877,6 +5916,15 @@ gms_startup_code (int argc, char *argv[])
     {
       gms_gamefile = argv[argv_index];
       gms_game_message = NULL;
+#ifdef GARGLK
+    {
+      char *s;
+      s = strrchr(gms_gamefile, '\\');
+      if (s) garglk_set_story_name(s+1);
+      s = strrchr(gms_gamefile, '/');
+      if (s) garglk_set_story_name(s+1);
+    }
+#endif
     }
   else
     {
@@ -6123,7 +6171,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef __unix
+#ifdef TRUE
 
 #include "glkstart.h"
 
@@ -6161,6 +6209,15 @@ glkunix_startup_code (glkunix_startup_t * data)
 {
   assert (!gms_startup_called);
   gms_startup_called = TRUE;
+
+#ifdef GARGLK
+  garglk_set_program_name("Magnetic 2.3");
+  garglk_set_program_info(
+      "Magnetic 2.3 by Niclas Karlsson, David Kinder,\n"
+      "Stefan Meier, and Paul David Doherty.\n"
+      "Glk port by Simon Baldwin.\n"
+      "Gargoyle tweaks by Tor Andersson.\n");
+#endif
 
   return gms_startup_code (data->argc, data->argv);
 }

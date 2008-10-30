@@ -180,7 +180,7 @@ if $(MAKE_GLULXE) = yes
 
 # -----------------------------------------------------------------------
 #
-# Hugo 3.1.02
+# Hugo 3.1.03
 #
 # Include hemedia.c from heglk.c for sound/graphics support.
 # Added set_base_file so it can find resource files.
@@ -243,7 +243,7 @@ if $(MAKE_LEVEL9) = yes
 
 # -----------------------------------------------------------------------
 #
-# Magnetic 2.2
+# Magnetic 2.3
 #
 # Disable layered drawing, because that is slower than drawing
 # all the pixels with fill_rect -- the opposite of Xglk.
@@ -256,7 +256,7 @@ if $(MAKE_LEVEL9) = yes
 
 if $(MAKE_MAGNETIC) = yes
 {
-    SubDir TOP terps magnetic ;
+    SubDir TOP terps magnetic-2.3 ;
     ObjDir magnetic ;
 
     SubDirHdrs $(SUBDIR) Generic ;
