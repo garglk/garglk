@@ -93,14 +93,14 @@ if $(MAKE_ALAN2) = yes
 
 # -----------------------------------------------------------------------
 #
-# Alan interpreter 3 alpha 1
+# Alan interpreter 3 alpha 6
 #
 # Some fixes, same as Cugel.
 #
 
 if $(MAKE_ALAN3) = yes
 {
-    SubDir TOP terps alan3 ;
+    SubDir TOP terps alan-3.0a6 ;
     ObjDir alan3 ;
 
     SubDirCcFlags -funsigned-char -DGLK ;

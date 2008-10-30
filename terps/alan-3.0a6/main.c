@@ -1379,6 +1379,12 @@ static void openFiles(void)
     apperr(str);
   }
 
+{
+char *s = strrchr(codfnm, '\\');
+if (!s) s = strrchr(codfnm, '/');
+garglk_set_story_name(s ? s + 1 : codfnm);
+}
+
   /* Open Text file */
   strcpy(txtfnm, adventureFileName);
   if ((textFile = fopen(txtfnm, READ_MODE)) == NULL) {

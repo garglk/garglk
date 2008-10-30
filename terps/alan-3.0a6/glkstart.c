@@ -22,6 +22,8 @@
 #include "resources.h"
 #include "gi_blorb.h"
 
+#include "alan.version.h"
+
 glkunix_argumentlist_t glkunix_arguments[] = {
   { "-l", glkunix_arg_NoValue, "-l: log player command and game output" },
   { "-c", glkunix_arg_NoValue, "-c: log player commands to a file" },
@@ -88,9 +90,13 @@ int glkunix_startup_code(glkunix_startup_t *data)
   /* Open any possible blorb resource file */
   openResourceFile();
 
+garglk_set_program_name(alan.shortHeader);
+garglk_set_program_info("Alan Interpreter 3.0 alpha 6 by Thomas Nilsson\n");
+
   return TRUE;
 }
 
+#if 0 /* no, i don't have windows.h *anyway* */
 
 #ifdef HAVE_WINGLK
 #include "WinGlk.h"
@@ -172,3 +178,5 @@ int winglk_startup_code(const char* cmdline)
 
   return TRUE;
 }
+
+#endif
