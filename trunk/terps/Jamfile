@@ -224,12 +224,12 @@ if $(MAKE_JACL) = yes
     SubDir TOP terps jacl ;
     ObjDir jacl ;
 
-	SubDirCcFlags -mwindows -DGARGLK ;
-	
+    SubDirCcFlags -mwindows -DGARGLK ;
+
     Main jacl :
-		jacl.c glk_startup.c findroute.c interpreter.c loader.c 
-		glk_saver.c logging.c parser.c display.c utils.c jpp.c 
-		resolvers.c errors.c encapsulate.c 
+        jacl.c glk_startup.c findroute.c interpreter.c loader.c 
+        glk_saver.c logging.c parser.c display.c utils.c jpp.c 
+        resolvers.c errors.c encapsulate.c 
         ;
 
     APPS += jacl ;
