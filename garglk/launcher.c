@@ -15,6 +15,7 @@
 #define T_ALAN3	"alan3"
 #define T_GLULX "git"
 #define T_HUGO	"hugo"
+#define T_JACL	"jacl"
 #define T_LEV9	"level9"
 #define T_MGSR	"magnetic"
 #define T_TADS2 "tadsr"
@@ -37,13 +38,14 @@ char buf[1024];
 char tmp[1024];
 
 char filterlist[] =
-"All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.ulx;*.hex;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
+"All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.ulx;*.hex;*.jacl;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
 "Adrift Games (*.taf)\0*.taf\0"
 "AdvSys Games (*.dat)\0*.dat\0"
 "AGT Games (*.agx)\0*.agx;*.d$$\0"
 "Alan Games (*.acd,*.a3c)\0*.acd;*.a3c\0"
 "Glulxe Games (*.ulx)\0*.ulx;*.blb;*.blorb;*.glb;*.gblorb\0"
 "Hugo Games (*.hex)\0*.hex\0"
+"Jacl Games (*.jacl)\0*.jacl\0"
 "Level 9 (*.sna)\0*.sna\0"
 "Magnetic Scrolls (*.mag)\0*.mag\0"
 "TADS 2 Games (*.gam)\0*.gam;*.t3\0"
@@ -219,6 +221,9 @@ int main(int argc, char **argv)
 
     if (!strcasecmp(ext, "hex"))
         runterp(T_HUGO, "");
+
+    if (!strcasecmp(ext, "jacl"))
+        runterp(T_JACL, "");
 
     if (!strcasecmp(ext, "gam"))
         runterp(T_TADS2, "");

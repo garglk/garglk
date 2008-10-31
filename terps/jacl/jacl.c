@@ -238,15 +238,6 @@ glk_main(void)
 		statusstr = glk_window_get_stream(statuswin);	
 	}
 
-#ifdef GARGLK
-    if ((resolved_string = cstring_resolve("game_title")) != NULL) {
-		garglk_set_program_name(resolved_string->value);
-	} else {
-		sprintf(temp_buffer, "JACL v%d.%d.%d ", J_VERSION, J_RELEASE, J_BUILD);
-		garglk_set_program_name(temp_buffer);
-	}
-#endif
-
 #ifdef WINGLK
     if ((resolved_string = cstring_resolve("game_title")) != NULL) {
 		winglk_window_set_title(resolved_string->value);

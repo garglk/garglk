@@ -18,6 +18,7 @@ MAKE_LEVEL9     ?= yes ;
 MAKE_MAGNETIC   ?= yes ;
 MAKE_NITFOL     ?= no ;
 MAKE_SCARE      ?= yes ;
+MAKE_JACL		?= yes ;
 
 # -----------------------------------------------------------------------
 #
@@ -211,6 +212,27 @@ if $(MAKE_HUGO) = yes
         ;
 
     APPS += hugo ;
+}
+
+# -----------------------------------------------------------------------
+#
+# JACL 2.2 for JACL games
+#
+
+if $(MAKE_JACL) = yes
+{
+    SubDir TOP terps jacl ;
+    ObjDir jacl ;
+
+	SubDirCcFlags -mwindows -DGARGLK ;
+	
+    Main jacl :
+		jacl.c glk_startup.c findroute.c interpreter.c loader.c 
+		glk_saver.c logging.c parser.c display.c utils.c jpp.c resolvers.c 
+		errors.c encapsulate.c 
+        ;
+
+    APPS += jacl ;
 }
 
 # -----------------------------------------------------------------------
