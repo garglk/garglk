@@ -1,6 +1,6 @@
 Gargoyle contains several components, aggregated together to form a package. Parts of this package are distributed under the terms of the GNU General Public License (GPL). Redistribution of this package is freely allowed, provided that the terms of the GPL are adhered to, including the requirement that the source code for all GPL licensed parts of this package be available from the same location as any binary package.
 
-The Gargoyle Glk library is copyright 2006 Tor Andersson.
+The Gargoyle Glk library is copyright 2008 Tor Andersson.
 
 AdvSys is copyright (c) David Michael Betz. Permission is hereby granted for unrestricted non-commercial use.
 
@@ -13,6 +13,8 @@ Frotz is copyright (c) Stefan Jokisch. It is released under the terms of the GNU
 Git is copyright (c) Iain Merrick. It is released under the same terms as Glk.
 
 Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
+
+Jacl is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
 
 Level 9 is copyright (c) Glen Summers, David Kinder, Alan Staniforth, Simon Baldwin and Dieter Baron. It is released under the terms of the GNU General Public License.
 
