@@ -17,6 +17,9 @@
  * USA
  */
 
+#undef _WIN32   /* Gargoyle */
+#define __unix  /* Gargoyle */
+
 /*
  * Module notes:
  *
@@ -34,6 +37,8 @@
 
 #include "scare.h"
 #include "glk.h"
+
+#include "scprotos.h" /* for SCARE_VERSION */
 
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
@@ -3158,6 +3163,11 @@ gsc_startup_code (strid_t game_stream, strid_t restore_stream,
   if (window)
     glk_window_close (window, NULL);
 
+  /* Set title of game */
+#ifdef GARGLK
+    garglk_set_story_name(sc_get_game_name(gsc_game));
+#endif
+
   /* Game set up, perhaps successfully. */
   return TRUE;
 }
@@ -3364,6 +3374,12 @@ glkunix_startup_code (glkunix_startup_t * data)
   sc_bool enable_debugger, stable_random;
   assert (!gsc_startup_called);
   gsc_startup_called = TRUE;
+
+#ifdef GARGLK
+  garglk_set_program_name("SCARE " SCARE_VERSION);
+  garglk_set_program_info("SCARE " SCARE_VERSION
+      " by Simon Baldwin and Mark J. Tilford");
+#endif
 
   /* Handle command line arguments. */
   restore_from = NULL;
