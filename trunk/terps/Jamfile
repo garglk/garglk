@@ -100,7 +100,7 @@ if $(MAKE_ALAN2) = yes
 
 if $(MAKE_ALAN3) = yes
 {
-    SubDir TOP terps alan-3.0a6 ;
+    SubDir TOP terps alan3 ;
     ObjDir alan3 ;
 
     SubDirCcFlags -funsigned-char -DGLK ;
@@ -144,7 +144,7 @@ if $(MAKE_FROTZ) = yes
 
 if $(MAKE_GIT) = yes
 {
-    SubDir TOP terps git-1.2.1 ;
+    SubDir TOP terps git ;
     ObjDir git ;
 
     SubDirCcFlags -DUSE_INLINE ;
@@ -165,7 +165,7 @@ if $(MAKE_GIT) = yes
 
 if $(MAKE_GLULXE) = yes
 {
-    SubDir TOP terps glulxe-0.4.3 ;
+    SubDir TOP terps glulxe ;
     ObjDir glulxe ;
 
     if $(OS) != MINGW { SubDirCcFlags -DOS_UNIX ; }
@@ -188,7 +188,7 @@ if $(MAKE_GLULXE) = yes
 
 if $(MAKE_HUGO) = yes
 {
-    SubDir TOP terps hugo-3.1.03 ;
+    SubDir TOP terps hugo ;
     ObjDir hugo ;
 
     SubDirHdrs $(SUBDIR) source ;
