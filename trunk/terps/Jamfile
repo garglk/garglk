@@ -228,8 +228,8 @@ if $(MAKE_JACL) = yes
 	
     Main jacl :
 		jacl.c glk_startup.c findroute.c interpreter.c loader.c 
-		glk_saver.c logging.c parser.c display.c utils.c jpp.c resolvers.c 
-		errors.c encapsulate.c 
+		glk_saver.c logging.c parser.c display.c utils.c jpp.c 
+		resolvers.c errors.c encapsulate.c 
         ;
 
     APPS += jacl ;
