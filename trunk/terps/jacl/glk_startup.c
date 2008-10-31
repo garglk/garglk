@@ -47,8 +47,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
 	arguments = data;
 
 #ifdef GARGLK
-	sprintf(temp_buffer, "JACL v%d.%d.%d by Stuart Allen.\nGaroyle user interface by Tor Andersson.\n", J_VERSION, J_RELEASE, J_BUILD);
-	garglk_set_program_info(temp_buffer);
+    garglk_set_program_name("JACL 2.2.7");
+    garglk_set_program_info("JACL 2.2.7 by Stuart Allen.\n");
 #endif
 
 	/* YOU CAN PUT OTHER STARTUP CODE IN glkunix_startup_code(). THIS SHOULD
@@ -114,6 +114,14 @@ int glkunix_startup_code(glkunix_startup_t *data)
 	 * THE UNIX CURRENT WORKING DIRECTORY, AND PICKS REASONABLE DEFAULT 
 	 * DEFAULTS. */
 	glkunix_set_base_file(game_file);
+
+    /* Set title of game */
+#ifdef GARGLK
+    char *s;
+    s = strrchr(game_file, '\\');
+    if (!s) s = strrchr(game_file, '/');
+    garglk_set_story_name(s ? s + 1 : game_file);
+#endif
 
 	/* RETURN TRUE ERRORS OR NOT SO THE MAIN WINDOWS CAN BE OPENED AND
 	 * ANY ERROR MESSAGE DISPLAYED */
