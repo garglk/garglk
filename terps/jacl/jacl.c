@@ -24,6 +24,7 @@
 #include "types.h"
 #include "language.h"
 #include "prototypes.h"
+#include <string.h>
 
 glui32 				status_width, status_height;
 

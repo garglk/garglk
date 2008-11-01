@@ -6,6 +6,7 @@
 #include "glk.h"
 #include "glulxe.h"
 #include "glkstart.h" /* This comes with the Glk library. */
+#include <string.h>
 
 /* The only command-line argument is the filename. */
 glkunix_argumentlist_t glkunix_arguments[] = {

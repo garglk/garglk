@@ -7,6 +7,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 #define FIRST_LIST		noun_number-2
 #define SECOND_LIST		noun_number

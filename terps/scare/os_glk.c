@@ -18,7 +18,6 @@
  */
 
 #undef _WIN32   /* Gargoyle */
-#define __unix  /* Gargoyle */
 
 /*
  * Module notes:
@@ -3326,7 +3325,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef __unix
+#ifdef TRUE
 
 #include "glkstart.h"
 

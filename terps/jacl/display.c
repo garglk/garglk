@@ -7,6 +7,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 extern char						temp_buffer[];
 extern char						function_name[];

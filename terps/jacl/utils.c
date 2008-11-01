@@ -8,6 +8,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 extern char						function_name[];
 

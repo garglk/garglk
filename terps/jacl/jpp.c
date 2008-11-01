@@ -20,6 +20,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 extern char			text_buffer[];
 extern char			temp_buffer[];
