@@ -7,6 +7,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 extern short int	encrypt;
 extern short int	encrypted;

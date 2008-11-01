@@ -7,6 +7,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 char *location_attributes[] = {
  "VISITED ", "DARK ", "ON_WATER ", "UNDER_WATER ", "WITHOUT_AIR ", "OUTDOORS ",
@@ -774,7 +775,7 @@ execute(funcname)
 						unkvarrun(word[1]);
 						return (exit_function(TRUE));
 					} else {
-						container = save_interaction();
+						*container = save_interaction();
 					}
 				} 
 			} else if (!strcmp(word[0], "restoregame")) {
@@ -787,7 +788,7 @@ execute(funcname)
 						unkvarrun(word[1]);
 						return (exit_function(TRUE));
 					} else {
-						container = restore_interaction();
+						*container = restore_interaction();
 					}
 				} 
 			} else if (!strcmp(word[0], "restartgame")) {

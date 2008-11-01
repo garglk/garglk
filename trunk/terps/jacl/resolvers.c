@@ -8,6 +8,7 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include <string.h>
 
 extern glui32 					status_width, status_height;
 extern winid_t 					statuswin;
