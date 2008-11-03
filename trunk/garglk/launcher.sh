@@ -58,6 +58,7 @@ case "$lowpath" in
     *.ulx ) $dirpath/git "$1" ;;
     *.hex ) $dirpath/hugo "$1" ;;
     *.jacl ) $dirpath/jacl "$1" ;;
+    *.j2  ) $dirpath/jacl "$1" ;;
     *.l9  ) $dirpath/level9 "$1" ;;
     *.sna ) $dirpath/level9 "$1" ;;
     *.mag ) $dirpath/magnetic "$1" ;;
