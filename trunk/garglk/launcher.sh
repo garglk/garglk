@@ -14,6 +14,11 @@ else
     dirpath=`dirname $0`
 fi
 
+if [ -d /usr/share/gargoyle/bin ]
+then
+    dirpath=/usr/share/gargoyle/bin
+fi
+
 if [ x"$dirpath" == x ]
 then
     dirpath=.
