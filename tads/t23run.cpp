@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "os.h"
+#include <string.h>
 
 /* tads 2 headers */
 #include "trd.h"
@@ -51,6 +52,10 @@ static int main_t2(int argc, char **argv)
 
 #ifdef GARGLK
     garglk_set_program_name("TADS " TADS_RUNTIME_VERSION);
+    char *s;
+    s = strrchr(argv[1], '/');
+    if (!s) s = strrchr(argv[1], '\\');
+    garglk_set_story_name(s ? s + 1 : argv[1]);
 #endif
 
     /* initialize the OS layer */
@@ -84,6 +89,10 @@ static int main_t3(int argc, char **argv)
 
 #ifdef GARGLK
     garglk_set_program_name("TADS " T3VM_VSN_STRING);
+    char *s;
+    s = strrchr(argv[1], '/');
+    if (!s) s = strrchr(argv[1], '\\');
+    garglk_set_story_name(s ? s + 1 : argv[1]);
 #endif
 
     /* 
