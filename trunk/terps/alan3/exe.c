@@ -862,7 +862,7 @@ void locate(Aint id, Aword whr)
 
 
 /*======================================================================*/
-Aword isHere(Aint id, Abool directly)
+Abool isHere(Aint id, Abool directly)
 {
   verifyId(id, "HERE");
 
