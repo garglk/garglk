@@ -21,11 +21,18 @@
 #include "frotz.h"
 #include "glk.h"
 #include "glkio.h"
+#include <limits.h>
 
 #define get_c fgetc
 #define put_c fputc
 
+#if INT_MAX==0x7fffffff
+typedef unsigned int zlong;
+#elif LONG_MAX==0x7fffffff
 typedef unsigned long zlong;
+#else
+#error "Can't find a 32-bit integer type"
+#endif
 
 /*
  * This is used only by save_quetzal. It probably should be allocated

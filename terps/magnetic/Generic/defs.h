@@ -35,12 +35,34 @@
 *       correct number of bits on your system !!!
 \*****************************************************************************/
 
-typedef unsigned char  type8;
-typedef signed   char  type8s;
+#include <limits.h>
+
+#if UCHAR_MAX==0xff
+typedef unsigned char type8;
+typedef signed char   type8s;
+#else
+#error "Can't find an 8-bit integer type"
+#endif
+
+#if SHRT_MAX==0x7fff
 typedef unsigned short type16;
 typedef signed   short type16s;
-typedef unsigned long  type32;
-typedef signed   long  type32s;
+#elif INT_MAX==0x7fff
+typedef unsigned int type16;
+typedef signed   int type16s;
+#else
+#error "Can't find a 16-bit integer type"
+#endif
+
+#if INT_MAX==0x7fffffff
+typedef unsigned int type32;
+typedef signed   int type32s;
+#elif LONG_MAX==0x7fffffff
+typedef unsigned long type32;
+typedef signed   long type32s;
+#else
+#error "Can't find a 32-bit integer type"
+#endif
 
 /****************************************************************************\
 * Compile time switches 

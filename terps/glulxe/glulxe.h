@@ -21,8 +21,18 @@
 /* You may have to edit the definition of glui16 to make sure it's really a
    16-bit unsigned integer type, and glsi16 to make sure it's really a
    16-bit signed integer type. If they're not, horrible things will happen. */
-typedef unsigned short glui16; 
-typedef signed short glsi16; 
+
+#include <limits.h>
+
+#if SHRT_MAX==0x7fff
+typedef unsigned short glui16;
+typedef signed   short glsi16;
+#elif INT_MAX==0x7fff
+typedef unsigned int glui16;
+typedef signed   int glsi16;
+#else
+#error "Can't find a 16-bit integer type"
+#endif
 
 /* Uncomment this definition to turn on memory-address checking. In
    this mode, all reads and writes to main memory will be checked to

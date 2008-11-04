@@ -1,34 +1,43 @@
 #ifndef GLK_H
 #define GLK_H
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-/* glk.h: Header file for Glk API, version 0.52.
-    Designed by Andrew Plotkin <erkyrath@netcom.com>
+/* glk.h: Header file for Glk API, version 0.7.0.
+    Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    This file is copyright 1998-1999 by Andrew Plotkin. You may copy,
+    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
     distribute, and incorporate it into your own programs, by any means
     and under any conditions, as long as you do not modify it. You may
-    also modify this file, incorporate it into your own programs, 
+    also modify this file, incorporate it into your own programs,
     and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL 
+    in your program or documentation which mentions my name and the URL
     shown above.
 */
 
 /* You may have to edit the definition of glui32 to make sure it's really a
     32-bit unsigned integer type, and glsi32 to make sure it's really a
     32-bit signed integer type. If they're not, horrible things will happen. */
-typedef unsigned long glui32; 
-typedef signed long glsi32; 
+#include <limits.h>
+#if (USHORT_MAX == 4294967295)
+typedef unsigned short glui32;
+typedef signed   short glsi32;
+#elif (UINT_MAX   == 4294967295)
+typedef unsigned int glui32;
+typedef signed   int glsi32;
+#elif (ULONG_MAX) == 4294967295)
+typedef unsigned long glui32;
+typedef signed long glsi32;
+#else
+#error No 32-bit integer type found.
+#endif
+
 
 /* These are the compile-time conditionals that reveal various Glk optional
     modules. */
+#define GLK_MODULE_UNICODE
 #define GLK_MODULE_IMAGE
 #define GLK_MODULE_SOUND
+#define GLK_MODULE_HYPERLINKS
 
 /* These types are opaque object identifiers. They're pointers to opaque
     C structures, which are defined differently by each library. */
@@ -41,9 +50,9 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_CharInput (1)
 #define gestalt_LineInput (2)
 #define gestalt_CharOutput (3)
-#define   gestalt_CharOutput_CannotPrint (0)
-#define   gestalt_CharOutput_ApproxPrint (1)
-#define   gestalt_CharOutput_ExactPrint (2)
+#define gestalt_CharOutput_CannotPrint (0)
+#define gestalt_CharOutput_ApproxPrint (1)
+#define gestalt_CharOutput_ExactPrint (2)
 #define gestalt_MouseInput (4)
 #define gestalt_Timer (5)
 #define gestalt_Graphics (6)
@@ -51,6 +60,11 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_Sound (8)
 #define gestalt_SoundVolume (9)
 #define gestalt_SoundNotify (10)
+#define gestalt_Hyperlinks (11)
+#define gestalt_HyperlinkInput (12)
+#define gestalt_SoundMusic (13)
+#define gestalt_GraphicsTransparency (14)
+#define gestalt_Unicode (15)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
@@ -60,6 +74,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define evtype_Arrange (5) 
 #define evtype_Redraw (6)
 #define evtype_SoundNotify (7)
+#define evtype_Hyperlink (8)
 
 typedef struct event_struct {
     glui32 type;
@@ -113,17 +128,17 @@ typedef struct stream_result_struct {
     glui32 writecount;
 } stream_result_t;
 
-#define wintype_AllTypes (0) 
-#define wintype_Pair (1) 
-#define wintype_Blank (2) 
+#define wintype_AllTypes (0)
+#define wintype_Pair (1)
+#define wintype_Blank (2)
 #define wintype_TextBuffer (3)
 #define wintype_TextGrid (4)
 #define wintype_Graphics (5)
 
-#define winmethod_Left  (0x00) 
-#define winmethod_Right (0x01) 
-#define winmethod_Above (0x02) 
-#define winmethod_Below (0x03) 
+#define winmethod_Left  (0x00)
+#define winmethod_Right (0x01)
+#define winmethod_Above (0x02)
+#define winmethod_Below (0x03)
 #define winmethod_DirMask (0x0f)
 
 #define winmethod_Fixed (0x10)
@@ -150,14 +165,15 @@ typedef struct stream_result_struct {
 
 #define stylehint_Indentation (0)
 #define stylehint_ParaIndentation (1)
-#define stylehint_Justification (2) 
+#define stylehint_Justification (2)
 #define stylehint_Size (3)
 #define stylehint_Weight (4)
 #define stylehint_Oblique (5)
 #define stylehint_Proportional (6)
 #define stylehint_TextColor (7)
 #define stylehint_BackColor (8)
-#define stylehint_NUMHINTS (9)
+#define stylehint_ReverseColor (9)
+#define stylehint_NUMHINTS (10)
 
 #define   stylehint_just_LeftFlush (0)
 #define   stylehint_just_LeftRight (1)
@@ -172,8 +188,9 @@ extern void glk_exit(void);
 extern void glk_set_interrupt_handler(void (*func)(void));
 extern void glk_tick(void);
 
-extern glui32 glk_gestalt(glui32 id, glui32 val);
-extern glui32 glk_gestalt_ext(glui32 id, glui32 val, void *ptr);
+extern glui32 glk_gestalt(glui32 sel, glui32 val);
+extern glui32 glk_gestalt_ext(glui32 sel, glui32 val, glui32 *arr, 
+    glui32 arrlen);
 
 extern unsigned char glk_char_to_lower(unsigned char ch);
 extern unsigned char glk_char_to_upper(unsigned char ch);
@@ -182,7 +199,7 @@ extern winid_t glk_window_get_root(void);
 extern winid_t glk_window_open(winid_t split, glui32 method, glui32 size, 
     glui32 wintype, glui32 rock);
 extern void glk_window_close(winid_t win, stream_result_t *result);
-extern void glk_window_get_size(winid_t win, glui32 *widthptr, 
+extern void glk_window_get_size(winid_t win, glui32 *widthptr,
     glui32 *heightptr);
 extern void glk_window_set_arrangement(winid_t win, glui32 method,
     glui32 size, winid_t keywin);
@@ -210,7 +227,7 @@ extern strid_t glk_stream_iterate(strid_t str, glui32 *rockptr);
 extern glui32 glk_stream_get_rock(strid_t str);
 extern void glk_stream_set_position(strid_t str, glsi32 pos, glui32 seekmode);
 extern glui32 glk_stream_get_position(strid_t str);
-extern void glk_stream_set_current(strid_t str); 
+extern void glk_stream_set_current(strid_t str);
 extern strid_t glk_stream_get_current(void);
 
 extern void glk_put_char(unsigned char ch);
@@ -226,11 +243,11 @@ extern glsi32 glk_get_char_stream(strid_t str);
 extern glui32 glk_get_line_stream(strid_t str, char *buf, glui32 len);
 extern glui32 glk_get_buffer_stream(strid_t str, char *buf, glui32 len);
 
-extern void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint, 
+extern void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint,
     glsi32 val);
 extern void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint);
 extern glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2);
-extern glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint, 
+extern glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint,
     glui32 *result);
 
 extern frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock);
@@ -240,11 +257,11 @@ extern frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     glui32 rock);
 extern frefid_t glk_fileref_create_from_fileref(glui32 usage, frefid_t fref,
     glui32 rock);
-extern void glk_fileref_destroy(frefid_t fref); 
-extern frefid_t glk_fileref_iterate(frefid_t fref, glui32 *rockptr); 
+extern void glk_fileref_destroy(frefid_t fref);
+extern frefid_t glk_fileref_iterate(frefid_t fref, glui32 *rockptr);
 extern glui32 glk_fileref_get_rock(frefid_t fref);
-extern void glk_fileref_delete_file(frefid_t fref); 
-extern glui32 glk_fileref_does_file_exist(frefid_t fref); 
+extern void glk_fileref_delete_file(frefid_t fref);
+extern glui32 glk_fileref_does_file_exist(frefid_t fref);
 
 extern void glk_select(event_t *event);
 extern void glk_select_poll(event_t *event);
@@ -254,11 +271,42 @@ extern void glk_request_timer_events(glui32 millisecs);
 extern void glk_request_line_event(winid_t win, char *buf, glui32 maxlen,
     glui32 initlen);
 extern void glk_request_char_event(winid_t win);
-extern void glk_request_mouse_event(winid_t win); 
+extern void glk_request_mouse_event(winid_t win);
 
 extern void glk_cancel_line_event(winid_t win, event_t *event);
 extern void glk_cancel_char_event(winid_t win);
-extern void glk_cancel_mouse_event(winid_t win); 
+extern void glk_cancel_mouse_event(winid_t win);
+
+#ifdef GLK_MODULE_UNICODE
+
+extern glui32 glk_buffer_to_lower_case_uni(glui32 *buf, glui32 len,
+    glui32 numchars);
+extern glui32 glk_buffer_to_upper_case_uni(glui32 *buf, glui32 len,
+    glui32 numchars);
+extern glui32 glk_buffer_to_title_case_uni(glui32 *buf, glui32 len,
+    glui32 numchars, glui32 lowerrest);
+
+extern void glk_put_char_uni(glui32 ch);
+extern void glk_put_string_uni(glui32 *s);
+extern void glk_put_buffer_uni(glui32 *buf, glui32 len);
+extern void glk_put_char_stream_uni(strid_t str, glui32 ch);
+extern void glk_put_string_stream_uni(strid_t str, glui32 *s);
+extern void glk_put_buffer_stream_uni(strid_t str, glui32 *buf, glui32 len);
+
+extern glsi32 glk_get_char_stream_uni(strid_t str);
+extern glui32 glk_get_buffer_stream_uni(strid_t str, glui32 *buf, glui32 len);
+extern glui32 glk_get_line_stream_uni(strid_t str, glui32 *buf, glui32 len);
+
+extern strid_t glk_stream_open_file_uni(frefid_t fileref, glui32 fmode,
+    glui32 rock);
+extern strid_t glk_stream_open_memory_uni(glui32 *buf, glui32 buflen,
+    glui32 fmode, glui32 rock);
+
+extern void glk_request_char_event_uni(winid_t win);
+extern void glk_request_line_event_uni(winid_t win, glui32 *buf,
+    glui32 maxlen, glui32 initlen);
+
+#endif /* GLK_MODULE_UNICODE */
 
 #ifdef GLK_MODULE_IMAGE
 
@@ -269,15 +317,15 @@ extern void glk_cancel_mouse_event(winid_t win);
 #define imagealign_MarginRight (0x05)
 
 extern glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2);
-extern glui32 glk_image_draw_scaled(winid_t win, glui32 image, 
+extern glui32 glk_image_draw_scaled(winid_t win, glui32 image,
     glsi32 val1, glsi32 val2, glui32 width, glui32 height);
 extern glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height);
 
 extern void glk_window_flow_break(winid_t win);
 
-extern void glk_window_erase_rect(winid_t win, 
+extern void glk_window_erase_rect(winid_t win,
     glsi32 left, glsi32 top, glui32 width, glui32 height);
-extern void glk_window_fill_rect(winid_t win, glui32 color, 
+extern void glk_window_fill_rect(winid_t win, glui32 color,
     glsi32 left, glsi32 top, glui32 width, glui32 height);
 extern void glk_window_set_background_color(winid_t win, glui32 color);
 
@@ -286,7 +334,7 @@ extern void glk_window_set_background_color(winid_t win, glui32 color);
 #ifdef GLK_MODULE_SOUND
 
 extern schanid_t glk_schannel_create(glui32 rock);
-extern void glk_schannel_destroy(schanid_t chan); 
+extern void glk_schannel_destroy(schanid_t chan);
 extern schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr);
 extern glui32 glk_schannel_get_rock(schanid_t chan);
 
@@ -300,9 +348,79 @@ extern void glk_sound_load_hint(glui32 snd, glui32 flag);
 
 #endif /* GLK_MODULE_SOUND */
 
-#ifdef __cplusplus
-}
-#endif
+#ifdef GLK_MODULE_HYPERLINKS
+
+extern void glk_set_hyperlink(glui32 linkval);
+extern void glk_set_hyperlink_stream(strid_t str, glui32 linkval);
+extern void glk_request_hyperlink_event(winid_t win);
+extern void glk_cancel_hyperlink_event(winid_t win);
+
+#endif /* GLK_MODULE_HYPERLINKS */
+
+/* XXX non-official Glk functions that may or may not exist */
+
+#define GARGLK 1
+
+extern char* garglk_fileref_get_name(frefid_t fref);
+
+extern void garglk_set_program_name(const char *name);
+extern void garglk_set_program_info(const char *info);
+extern void garglk_set_story_name(const char *name);
+extern void garglk_set_config(const char *name);
+
+/* not implemented */
+
+#define garglk_font_Roman           (0)
+#define garglk_font_Italic          (1)
+#define garglk_font_Bold            (2)
+#define garglk_font_BoldItalic      (3)
+#define garglk_font_MonoRoman       (4)
+#define garglk_font_MonoItalic      (5)
+#define garglk_font_MonoBold        (6)
+#define garglk_font_MonoBoldItalic  (7)
+
+#define garglk_color_White          (0)
+#define garglk_color_Red            (1)
+#define garglk_color_Green          (2)
+#define garglk_color_Blue           (3)
+#define garglk_color_Cyan           (4)
+#define garglk_color_Magenta        (5)
+#define garglk_color_Yellow         (6)
+#define garglk_color_Black          (7)
+
+extern void garglk_set_style_font(glui32 font);
+extern void garglk_set_style_stream_font(strid_t str, glui32 font);
+extern void garglk_set_style_color(glui32 bg, glui32 fg);
+extern void garglk_set_style_stream_color(strid_t str, glui32 bg, glui32 fg);
+
+/* JM: functions added to support Z-machine features that aren't in the Glk standard */
+
+/* garglk_set_line_terminators - amends the current line input request to include terminating
+ * key codes. any of the specified key codes will terminate input (without printing a newline),
+ * and the key code will be returned in the event record as val2. */
+extern void garglk_set_line_terminators(winid_t win, const glui32 *keycodes, glui32 numkeycodes);
+
+/* garglk_unput_string - removes the specified string from the end of the output buffer, if
+ * indeed it is there. */
+extern void garglk_unput_string(char *str);
+extern void garglk_unput_string_uni(glui32 *str);
+
+#define zcolor_Current      (0)
+#define zcolor_Default      (1)
+#define zcolor_Black        (2)
+#define zcolor_Red          (3)
+#define zcolor_Green        (4)
+#define zcolor_Yellow       (5)
+#define zcolor_Blue         (6)
+#define zcolor_Magenta      (7)
+#define zcolor_Cyan         (8)
+#define zcolor_White        (9)
+#define zcolor_LightGrey    (10)
+#define zcolor_MediumGrey   (11)
+#define zcolor_DarkGrey     (12)
+#define zcolor_NUMCOLORS    (13)
+
+extern void garglk_set_zcolors(glui32 fg, glui32 bg);
+extern void garglk_set_reversevideo(glui32 reverse);
 
 #endif /* GLK_H */
-

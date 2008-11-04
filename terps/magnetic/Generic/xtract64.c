@@ -2,12 +2,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #define size_d64 ((type32)(174848))
 #define NL ((type32) -1)
 
+#if UCHAR_MAX==0xff
 typedef unsigned char type8;
+#else
+#error "Can't find an 8-bit integer type"
+#endif
+
+#if INT_MAX==0x7fffffff
+typedef unsigned int type32;
+#elif LONG_MAX==0x7fffffff
 typedef unsigned long type32;
+#else
+#error "Can't find a 32-bit integer type"
+#endif
+
 #ifdef __MSDOS__
 typedef unsigned char huge * type8ptr;
 #include <alloc.h>
