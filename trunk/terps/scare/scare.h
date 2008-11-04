@@ -38,10 +38,26 @@ extern "C"
  * is fine for both standard 32 bit and LP64 64 bit platforms, but is unsafe
  * should SCARE ever be configured for 128 bit definitions of sc_[u]int.
  */
+
+#include <limits.h>
+
+#if UCHAR_MAX==0xff
 typedef char sc_char;
 typedef unsigned char sc_byte;
+#else
+#error "Can't find an 8-bit integer type"
+#endif
+
+#if INT_MAX==0x7fffffff
+typedef int sc_int;
+typedef unsigned int sc_uint;
+#elif LONG_MAX==0x7fffffff
 typedef long sc_int;
 typedef unsigned long sc_uint;
+#else
+#error "Can't find a 32-bit integer type"
+#endif
+
 typedef int sc_bool;
 
 /* Enumerated confirmation types, passed to os_confirm(). */

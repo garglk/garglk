@@ -40,6 +40,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 /* Platform-specific configuration info */
 #include "config.h"
@@ -66,13 +67,36 @@
 #endif
 
 /* General data types */
+
+#if UCHAR_MAX==0xff
 typedef unsigned char uchar;
 typedef signed char schar;
-typedef short integer;  /* Should be a 16+-bit signed numeric type */
-                        /* For technical reasons, it must be big enough to
-			   hold a value of type word (see below) */
-typedef unsigned long int32;  /* Should be a 32+-bit unsigned numeric type */
+#else
+#error "Can't find an 8-bit integer type"
+#endif
+
+/* Should be a 16+-bit signed numeric type */
+/* For technical reasons, it must be big enough to
+   hold a value of type word (see below) */
+#if SHRT_MAX==0x7fff
+typedef short integer;
+#elif INT_MAX==0x7fff
+typedef int integer;
+#else
+#error "Can't find a 16-bit integer type"
+#endif
+
+/* Should be a 32+-bit unsigned numeric type */
+#if INT_MAX==0x7fffffff
+typedef unsigned int int32;
+typedef unsigned int uint32;
+#elif LONG_MAX==0x7fffffff
+typedef unsigned long int32;
 typedef unsigned long uint32;
+#else
+#error "Can't find a 32-bit integer type"
+#endif
+
 typedef uchar rbool;
 
 #define WORD_LENG 25
