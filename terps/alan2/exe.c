@@ -938,9 +938,9 @@ static Aword acthere(act)
 
 
 #ifdef _PROTOTYPES_
-Aword isHere(Aword id)
+Abool isHere(Aword id)
 #else
-Aword isHere(id)
+Abool isHere(id)
      Aword id;
 #endif
 {
