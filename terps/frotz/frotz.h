@@ -17,22 +17,9 @@ typedef int bool;
 
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
-#if UCHAR_MAX==0xff
 typedef unsigned char zbyte;
-typedef unsigned char zchar;
-#else
-#error "Can't find an 8-bit integer type"
-#endif
-
-#if SHRT_MAX==0x7fff
 typedef unsigned short zword;
-#elif INT_MAX==0x7fff
-typedef unsigned int zword;
-#else
-#error "Can't find a 16-bit integer type"
-#endif
 
 enum story
 {
@@ -45,6 +32,8 @@ enum story
     LURKING_HORROR,
     UNKNOWN
 };
+
+typedef unsigned char zchar;
 
 /*** Constants that may be set at compile time ***/
 
