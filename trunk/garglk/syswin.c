@@ -105,6 +105,7 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     ofn.lpstrTitle = prompt;
     ofn.lpstrFilter = filter;
     ofn.nFilterIndex = 1;
+    ofn.lpstrDefExt = ("");
     ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
 
     if (!GetOpenFileName(&ofn))
@@ -120,9 +121,10 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     ofn.lpstrFile = buf;
     ofn.nMaxFile = len;
     ofn.lpstrInitialDir = NULL;
+    ofn.lpstrTitle = prompt;
     ofn.lpstrFilter = filter;
     ofn.nFilterIndex = 1;
-    ofn.lpstrTitle = prompt;
+    ofn.lpstrDefExt = ("");
     ofn.Flags = OFN_OVERWRITEPROMPT;
 
     if (!GetSaveFileName(&ofn))
