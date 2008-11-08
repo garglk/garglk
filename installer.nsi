@@ -2,6 +2,7 @@
 ; Gargoyle NSIS 2 installer script
 ;
 
+RequestExecutionLevel admin
 !include "MUI.nsh"
 
 Name "Gargoyle"
