@@ -416,7 +416,6 @@ struct glk_schannel_struct
 
     void *sample; /* Mix_Chunk (or FMOD Sound) */
     void *music; /* Mix_Music (or FMOD Music) */
-    int compressed; /* for MP3 and OGG */
 
     void *sdl_rwops; /* SDL_RWops */
     unsigned char *sdl_memory;
