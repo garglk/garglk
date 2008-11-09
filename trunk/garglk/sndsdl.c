@@ -324,8 +324,28 @@ static glui32 play_sound(schanid_t chan, glui32 repeats, glui32 notify)
     return 0;
 }
 
-/** Start a music channel */
-static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify, 
+/** Start a compressed music channel */
+static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify)
+{
+    chan->status = CHANNEL_MUSIC;
+    chan->music = Mix_LoadMUS_RW(chan->sdl_rwops);
+    if (chan->music) {
+        music_channel = chan;
+        Mix_VolumeMusic(chan->volume / 512);
+        Mix_HookMusicFinished(&music_completion_callback);
+        if (Mix_PlayMusic(chan->music, repeats-1) >= 0) {
+            return 1;
+        }
+    }
+    gli_strict_warning("play music failed");
+    gli_strict_warning(Mix_GetError());
+    cleanup_channel(chan);
+    return 0;
+}
+
+
+/** Start a mod music channel */
+static glui32 play_mod(schanid_t chan, glui32 repeats, glui32 notify, 
 	long len)
 {
     FILE *file;
@@ -353,7 +373,7 @@ static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify,
 	    return 1;
 	}
     }
-    gli_strict_warning("play music failed");
+    gli_strict_warning("play mod failed");
     gli_strict_warning(Mix_GetError());
     cleanup_channel(chan);
     return 0;
@@ -388,12 +408,21 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats,
     switch (type) {
     case giblorb_ID_FORM:
     case giblorb_ID_WAVE:
+	return play_sound(chan, repeats, notify);
+    break;
+
     case giblorb_ID_MP3:
     case giblorb_ID_OGG:
-	return play_sound(chan, repeats, notify);
+    /* Play as music if using the Inform 7 background channel */
+    if (chan->rock == 411)
+        return play_music(chan, repeats, notify);
+    else
+        return play_sound(chan, repeats, notify);
+    break;
 
     case giblorb_ID_MOD:
-	return play_music(chan, repeats, notify, len);
+	return play_mod(chan, repeats, notify, len);
+    break;
 
     default:
 	gli_strict_warning("schannel_play_ext: unknown resource type.");
