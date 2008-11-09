@@ -64,7 +64,6 @@ schanid_t glk_schannel_create(glui32 rock)
     chan->sample = 0;
     chan->sdl_channel = 0;
     chan->music = 0;
-    chan->compressed = FALSE;
 
     chan->chain_prev = NULL;
     chan->chain_next = gli_channellist;
@@ -105,7 +104,6 @@ static void cleanup_channel(schanid_t chan)
 	break;
     }
     chan->status = CHANNEL_IDLE;
-    chan->compressed = FALSE;
 }
 
 void glk_schannel_destroy(schanid_t chan)
@@ -332,7 +330,7 @@ static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify,
 {
     FILE *file;
     char *tn;
-    int music_busy = 0;
+    int music_busy;
 
     chan->status = CHANNEL_MUSIC;
     /* The fscking mikmod lib want to read the mod only from disk! */
@@ -343,20 +341,17 @@ static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify,
     chan->music = Mix_LoadMUS(tn);
     remove(tn);
     free(tn);
-    /* only one MOD at a time, but try to allow multiple mp3 and ogg streams */
-    if (!chan->compressed) {
-        music_busy = Mix_PlayingMusic();
-    }
+    music_busy = Mix_PlayingMusic();
     if (music_busy) {
-        gli_strict_warning("MOD player already in use");
+	gli_strict_warning("MOD player already in use");
     }
     if (!music_busy && chan->music) {
-        music_channel = chan;
-        Mix_VolumeMusic(chan->volume / 512);
-        Mix_HookMusicFinished(&music_completion_callback);
-        if (Mix_PlayMusic(chan->music, repeats-1) >= 0) {
-            return 1;
-        }
+	music_channel = chan;
+	Mix_VolumeMusic(chan->volume / 512);
+	Mix_HookMusicFinished(&music_completion_callback);
+	if (Mix_PlayMusic(chan->music, repeats-1) >= 0) {
+	    return 1;
+	}
     }
     gli_strict_warning("play music failed");
     gli_strict_warning(Mix_GetError());
@@ -393,18 +388,12 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats,
     switch (type) {
     case giblorb_ID_FORM:
     case giblorb_ID_WAVE:
-    return play_sound(chan, repeats, notify);
-    break;
-
-    case giblorb_ID_MOD:
-    return play_music(chan, repeats, notify, len);
-    break;
-
     case giblorb_ID_MP3:
     case giblorb_ID_OGG:
-    chan->compressed = TRUE;
-    return play_music(chan, repeats, notify, len);
-    break;
+	return play_sound(chan, repeats, notify);
+
+    case giblorb_ID_MOD:
+	return play_music(chan, repeats, notify, len);
 
     default:
 	gli_strict_warning("schannel_play_ext: unknown resource type.");
