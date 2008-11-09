@@ -343,18 +343,20 @@ static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify)
     return 0;
 }
 
-
 /** Start a mod music channel */
 static glui32 play_mod(schanid_t chan, glui32 repeats, glui32 notify, 
 	long len)
 {
     FILE *file;
     char *tn;
+    char *tempdir;
     int music_busy;
 
     chan->status = CHANNEL_MUSIC;
     /* The fscking mikmod lib want to read the mod only from disk! */
-    tn = tempnam(0, 0);
+    tempdir = getenv("TEMP");
+    if (tempdir == NULL) tempdir = ".";
+    tn = tempnam(tempdir, "gargtmp");
     file = fopen(tn, "wb");
     fwrite(chan->sdl_memory, 1, len, file);
     fclose(file);
