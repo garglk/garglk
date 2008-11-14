@@ -7,6 +7,7 @@
 
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include <SDL_sound.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -25,6 +26,8 @@ static channel_t *gli_channellist = NULL;
 
 static channel_t *sound_channels[MIX_CHANNELS], *music_channel;
 
+static Sound_AudioInfo *output = NULL;
+
 void gli_initialize_sound(void)
 {
     if (gli_conf_sound == 1) {
@@ -34,8 +37,19 @@ void gli_initialize_sound(void)
 	    gli_conf_sound = 0;
 	    return;
 	}
-	if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
-	    gli_strict_warning("Sound init failed\n");
+	if (Sound_Init() == -1) {
+	    gli_strict_warning("SDL Sound init failed\n");
+	    gli_strict_warning(Sound_GetError());
+	    gli_conf_sound = 0;
+	    return;
+	}
+	Sound_AudioInfo *audio;
+	audio->format = MIX_DEFAULT_FORMAT;
+	audio->channels = 2;
+	audio->rate = 44100;
+	output = audio;
+	if (Mix_OpenAudio(output->rate, output->format, output->channels, 4096) == -1) {
+	    gli_strict_warning("SDL Mixer init failed\n");
 	    gli_strict_warning(Mix_GetError());
 	    gli_conf_sound = 0;
 	    return;
@@ -58,10 +72,13 @@ schanid_t glk_schannel_create(glui32 rock)
     chan->status = CHANNEL_IDLE;
     chan->volume = 0x10000;
     chan->resid = 0;
+    chan->loop = 0;
     chan->notify = 0;
     chan->sdl_memory = 0;
     chan->sdl_rwops = 0;
     chan->sample = 0;
+    chan->decode = 0;
+    chan->buffered = 0;
     chan->sdl_channel = 0;
     chan->music = 0;
 
@@ -84,8 +101,13 @@ schanid_t glk_schannel_create(glui32 rock)
 static void cleanup_channel(schanid_t chan)
 {
     if (chan->sdl_rwops) {
-	SDL_FreeRW(chan->sdl_rwops);
-	chan->sdl_rwops = 0;
+    if (!chan->decode)
+        SDL_FreeRW(chan->sdl_rwops);
+    else
+        Sound_FreeSample(chan->decode);
+    chan->sdl_rwops = 0;
+    chan->decode = 0;
+    chan->buffered = 0;
     }
     if (chan->sdl_memory) {
 	free(chan->sdl_memory);
@@ -94,12 +116,12 @@ static void cleanup_channel(schanid_t chan)
     switch (chan->status) {
     case CHANNEL_SOUND:
 	if (chan->sample) {
-	    Mix_FreeChunk(chan->sample);
+		Mix_FreeChunk(chan->sample);
 	}
 	break;
     case CHANNEL_MUSIC:
 	if (chan->music) {
-	    Mix_FreeMusic(chan->music);
+		Mix_FreeMusic(chan->music);
 	}
 	break;
     }
@@ -207,8 +229,7 @@ static void music_completion_callback()
     music_channel = 0;
 }
 
-/* Notify the sound channel completion */
-static void sound_completion_callback(int chan)
+static void sound_complete(int chan)
 {
     channel_t *sound_channel = sound_channels[chan];
     assert(sound_channel);
@@ -218,6 +239,37 @@ static void sound_completion_callback(int chan)
 		sound_channel->resid, sound_channel->notify);
     }
     sound_channels[chan] = 0;
+}
+
+/* Notify the sound channel completion */
+static void sound_completion_callback(int chan)
+{
+    channel_t *sound_channel = sound_channels[chan];
+    assert(sound_channel);
+    if (!sound_channel->buffered || !sound_channel->decode) {
+        return sound_complete(chan);
+    }
+    Sound_Sample *sample = sound_channel->decode;
+    if (sample->flags&SOUND_SAMPLEFLAG_EOF) {
+        sound_channel->loop--;
+        if (!sound_channel->loop) {
+            return sound_complete(chan);
+        } else {
+            Sound_Rewind(sound_channel->decode);
+        }
+    }
+    Sound_Decode(sound_channel->decode);
+    sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, sample->buffer_size);
+    Mix_ChannelFinished(&sound_completion_callback);
+    if (Mix_PlayChannel(sound_channel->sdl_channel, 
+            sound_channel->sample, 
+            FALSE) >= 0) {
+        return;
+    }
+    gli_strict_warning("play sound failed");
+    gli_strict_warning(Mix_GetError());
+    cleanup_channel(sound_channel);
+    return;
 }
 
 static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
@@ -301,7 +353,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
 }
 
 /** Start a sound channel */
-static glui32 play_sound(schanid_t chan, glui32 repeats, glui32 notify)
+static glui32 play_sound(schanid_t chan)
 {
     chan->status = CHANNEL_SOUND;
     chan->sdl_channel = Mix_GroupAvailable(-1);
@@ -314,8 +366,8 @@ static glui32 play_sound(schanid_t chan, glui32 repeats, glui32 notify)
 	Mix_Volume(chan->sdl_channel, chan->volume / 512);
 	Mix_ChannelFinished(&sound_completion_callback);
 	if (Mix_PlayChannel(chan->sdl_channel, chan->sample, 
-		    repeats-1) >= 0) {
-	    return 1;
+			chan->loop-1) >= 0) {
+		return 1;
 	}
     }
     gli_strict_warning("play sound failed");
@@ -324,28 +376,35 @@ static glui32 play_sound(schanid_t chan, glui32 repeats, glui32 notify)
     return 0;
 }
 
-/** Start a compressed music channel */
-static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify)
+/** Start a compressed sound channel */
+static glui32 play_compressed(schanid_t chan, char *ext)
 {
-    chan->status = CHANNEL_MUSIC;
-    chan->music = Mix_LoadMUS_RW(chan->sdl_rwops);
-    if (chan->music) {
-        music_channel = chan;
-        Mix_VolumeMusic(chan->volume / 512);
-        Mix_HookMusicFinished(&music_completion_callback);
-        if (Mix_PlayMusic(chan->music, repeats-1) >= 0) {
+    chan->status = CHANNEL_SOUND;
+    chan->buffered = 1;
+    chan->sdl_channel = Mix_GroupAvailable(-1);
+    chan->decode = Sound_NewSample(chan->sdl_rwops, ext, output, 32768);
+    Sound_Decode(chan->decode);
+    Sound_Sample *sample = chan->decode;
+    chan->sample = Mix_QuickLoad_RAW(sample->buffer, sample->buffer_size);
+    if (chan->sdl_channel < 0) {
+        gli_strict_warning("No available sound channels");
+    }
+    if (chan->sdl_channel >= 0 && chan->sample) {
+        sound_channels[chan->sdl_channel] = chan;
+        Mix_Volume(chan->sdl_channel, chan->volume / 512);
+        Mix_ChannelFinished(&sound_completion_callback);
+        if (Mix_PlayChannel(chan->sdl_channel, chan->sample, 0) >= 0) {
             return 1;
         }
     }
-    gli_strict_warning("play music failed");
+    gli_strict_warning("play sound failed");
     gli_strict_warning(Mix_GetError());
     cleanup_channel(chan);
     return 0;
 }
 
 /** Start a mod music channel */
-static glui32 play_mod(schanid_t chan, glui32 repeats, glui32 notify, 
-	long len)
+static glui32 play_mod(schanid_t chan, long len)
 {
     FILE *file;
     char *tn;
@@ -371,8 +430,8 @@ static glui32 play_mod(schanid_t chan, glui32 repeats, glui32 notify,
 	music_channel = chan;
 	Mix_VolumeMusic(chan->volume / 512);
 	Mix_HookMusicFinished(&music_completion_callback);
-	if (Mix_PlayMusic(chan->music, repeats-1) >= 0) {
-	    return 1;
+	if (Mix_PlayMusic(chan->music, chan->loop-1) >= 0) {
+		return 1;
 	}
     }
     gli_strict_warning("play mod failed");
@@ -381,8 +440,7 @@ static glui32 play_mod(schanid_t chan, glui32 repeats, glui32 notify,
     return 0;
 }
 
-glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, 
-	glui32 notify)
+glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
 {
     long len;
     glui32 type;
@@ -406,24 +464,24 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats,
     chan->sdl_rwops = SDL_RWFromConstMem(buf, len);
     chan->notify = notify;
     chan->resid = snd;
+    chan->loop = repeats;
 
     switch (type) {
     case giblorb_ID_FORM:
     case giblorb_ID_WAVE:
-	return play_sound(chan, repeats, notify);
+	return play_sound(chan);
+    break;
+
+    case giblorb_ID_OGG:
+	return play_compressed(chan, "OGG");
     break;
 
     case giblorb_ID_MP3:
-    case giblorb_ID_OGG:
-    /* Play as music if using the Inform 7 background channel */
-    if (chan->rock == 411)
-        return play_music(chan, repeats, notify);
-    else
-        return play_sound(chan, repeats, notify);
+	return play_compressed(chan, "MP3");
     break;
 
     case giblorb_ID_MOD:
-	return play_mod(chan, repeats, notify, len);
+	return play_mod(chan, len);
     break;
 
     default:
@@ -439,6 +497,7 @@ void glk_schannel_stop(schanid_t chan)
 	gli_strict_warning("schannel_stop: invalid id.");
 	return;
     }
+    chan->buffered = 0;
     switch (chan->status) {
     case CHANNEL_SOUND:
 	Mix_HaltChannel(chan->sdl_channel);

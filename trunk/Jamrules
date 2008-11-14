@@ -38,6 +38,7 @@ switch $(OS)
 
 	if $(USESDL)
 	{
+	    SHRLINKLIBS += $(TOP)/support/sdl-1.2.13/SDL_sound.dll ;
 	    SHRLINKLIBS += $(TOP)/support/sdl-1.2.13/SDL_mixer.dll ;
 	    SHRLINKLIBS += $(TOP)/support/sdl-1.2.13/SDL.dll ;
 	}
