@@ -37,6 +37,8 @@ char dir[1024];
 char buf[1024];
 char tmp[1024];
 
+char *terp = "";
+
 char filterlist[] =
 "All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
 "Adrift Games (*.taf)\0*.taf\0"
@@ -123,14 +125,19 @@ void runblorb(void)
     switch (res.chunktype)
     {
     case ID_ZCOD:
-        if (magic[0] == 6)
+        if (terp)
+            runterp(terp, "");
+        else if (magic[0] == 6)
             runterp(T_ZSIX, ""); 
         else
             runterp(T_ZCODE, "");
         break;
 
     case ID_GLUL:
-        runterp(T_GLULX, "");
+        if (terp)
+            runterp(terp, "");
+        else
+            runterp(T_GLULX, "");
         break;
 
     default:
@@ -140,12 +147,111 @@ void runblorb(void)
     }
 }
 
+unsigned char *readconfig(char *fname, char *gamefile)
+{
+    FILE *f;
+    char buf[1024];
+    char *s;
+    char *cmd, *arg;
+    int accept = 0;
+    int i;
+
+    f = fopen(fname, "r");
+    if (!f)
+        return;
+
+    while (1)
+    {
+        s = fgets(buf, sizeof buf, f);
+        if (!s)
+            break;
+
+        buf[strlen(buf)-1] = 0;	/* kill newline */
+
+        if (buf[0] == '#')
+            continue;
+
+        if (buf[0] == '[')
+        {
+            for (i = 0; i < strlen(buf); i++)
+                buf[i] = tolower(buf[i]);
+
+            if (strstr(buf, gamefile))
+                accept = 1;	
+            else
+                accept = 0;
+        }
+
+        if (!accept)
+            continue;
+
+        cmd = strtok(buf, "\r\n\t ");
+        if (!cmd)
+            continue;
+
+        arg = strtok(NULL, "\r\n\t #");
+        if (!arg)
+            continue;
+
+        if (!strcmp(cmd, "terp"))
+            return strdup(arg);
+    }
+
+    fclose(f);
+    return NULL;
+}
+
+unsigned char *configterp(char *game)
+{
+    char *ini = "/garglk.ini";
+    char *found;
+    char path[1024];
+
+    /* game file .ini */
+    strcpy(path, game);
+    if (strrchr(path, '.'))
+        strcpy(strrchr(path, '.'), ".ini");
+    else
+        strcat(path, ".ini");
+    found = readconfig(path, game);
+    if (found)
+        return found;
+
+    /* working directory */
+    getcwd(path, sizeof path);
+    strcat(path, ini);
+    found = readconfig(path, game);
+    if (found)
+        return found;
+
+    /* home directory */
+    if (getenv("HOME")) {
+        strcpy(path, getenv("HOME"));
+        strcat(path, ini);
+        found = readconfig(path, game);
+        if (found)
+            return found;
+    }
+
+    /* gargoyle directory */
+    strcpy(path, dir);
+    strcat(path, ini);
+    found = readconfig(path, game);
+    if (found)
+        return found;
+
+    /* no terp found */
+    return;
+}
+
 int main(int argc, char **argv)
 {
     char *title = "Gargoyle " VERSION;
 
     OPENFILENAME ofn;
     char *ext;
+    char *gamefile;
+    char paddedext[256] = " .";
 
     /* get name of executable */
     strcpy(argv0, argv[0]);
@@ -175,12 +281,24 @@ int main(int argc, char **argv)
 
     if (strlen(buf) == 0)
         exit(0);
-
+    
+    gamefile = strrchr(buf, '\\');
+    if (gamefile)
+        gamefile++;
+    else
+        gamefile = "";
+    
     ext = strrchr(buf, '.');
     if (ext)
         ext++;
     else
         ext = "";
+
+    terp = configterp(gamefile);
+    if (!terp) {
+        strcat(paddedext, ext);
+        terp = configterp(paddedext);
+    }
 
     if (!strcasecmp(ext, "blb"))
         runblorb();
@@ -198,6 +316,9 @@ int main(int argc, char **argv)
         runblorb();
     if (!strcasecmp(ext, "zblorb"))
         runblorb();
+
+    if (terp)
+        runterp(terp, "");
 
     if (!strcasecmp(ext, "dat"))
         runterp(T_ADVSYS, "");
