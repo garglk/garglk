@@ -55,7 +55,7 @@ switch $(OS)
 	if $(USESDL)
 	{
 	    GARGLKCCFLAGS += -I/usr/include/SDL ;
-	    SHRLINKLIBS += -lSDL_mixer -lSDL ;
+	    SHRLINKLIBS += -lSDL_mixer -lSDL -lSDL_sound ;
 	}
 
     case MACOSX :
