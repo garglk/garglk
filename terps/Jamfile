@@ -16,7 +16,7 @@ MAKE_GLULXE     ?= yes ;
 MAKE_HUGO       ?= yes ;
 MAKE_LEVEL9     ?= yes ;
 MAKE_MAGNETIC   ?= yes ;
-MAKE_NITFOL     ?= no ;
+MAKE_NITFOL     ?= yes ;
 MAKE_SCARE      ?= yes ;
 MAKE_JACL       ?= yes ;
 

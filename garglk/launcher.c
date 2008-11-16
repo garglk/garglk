@@ -37,7 +37,7 @@ char dir[1024];
 char buf[1024];
 char tmp[1024];
 
-char *terp = "";
+static char *terp;
 
 char filterlist[] =
 "All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
@@ -194,17 +194,16 @@ unsigned char *readconfig(char *fname, char *gamefile)
             continue;
 
         if (!strcmp(cmd, "terp"))
-            return strdup(arg);
+            terp = strdup(arg);
     }
 
     fclose(f);
-    return NULL;
+    return;
 }
 
 unsigned char *configterp(char *game)
 {
     char *ini = "/garglk.ini";
-    char *found;
     char path[1024];
 
     /* game file .ini */
@@ -213,32 +212,32 @@ unsigned char *configterp(char *game)
         strcpy(strrchr(path, '.'), ".ini");
     else
         strcat(path, ".ini");
-    found = readconfig(path, game);
-    if (found)
-        return found;
+        readconfig(path, game);
+    if (terp)
+        return;
 
     /* working directory */
     getcwd(path, sizeof path);
     strcat(path, ini);
-    found = readconfig(path, game);
-    if (found)
-        return found;
+    readconfig(path, game);
+    if (terp)
+        return;
 
     /* home directory */
     if (getenv("HOME")) {
         strcpy(path, getenv("HOME"));
         strcat(path, ini);
-        found = readconfig(path, game);
-        if (found)
-            return found;
+        readconfig(path, game);
+        if (terp)
+            return;
     }
 
     /* gargoyle directory */
     strcpy(path, dir);
     strcat(path, ini);
-    found = readconfig(path, game);
-    if (found)
-        return found;
+    readconfig(path, game);
+    if (terp)
+        return;
 
     /* no terp found */
     return;
@@ -294,10 +293,10 @@ int main(int argc, char **argv)
     else
         ext = "";
 
-    terp = configterp(gamefile);
+    configterp(gamefile);
     if (!terp) {
         strcat(paddedext, ext);
-        terp = configterp(paddedext);
+        configterp(paddedext);
     }
 
     if (!strcasecmp(ext, "blb"))
