@@ -44,6 +44,7 @@ void gli_initialize_sound(void)
 	    return;
 	}
 	Sound_AudioInfo *audio;
+	audio = malloc(sizeof(Sound_AudioInfo));
 	audio->format = MIX_DEFAULT_FORMAT;
 	audio->channels = 2;
 	audio->rate = 44100;
