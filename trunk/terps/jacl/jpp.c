@@ -187,12 +187,12 @@ process_file(sourceFile1, sourceFile2)
 		}
 	}
 
+	*text_buffer = 0;
 	fgets(text_buffer, 1024, inputFile);
 
-	while (!feof(inputFile)) {
+	while (!feof(inputFile) || *text_buffer != 0) {
 		if (!strncmp(text_buffer, "#include", 8) ||
 		   (!strncmp(text_buffer, "#debug", 6) & !release)) {
-			text_buffer[strlen(text_buffer) - 1] = 0;
 			includeFile = strrchr(text_buffer, '"');
 
 			if (includeFile != NULL)
@@ -244,6 +244,8 @@ process_file(sourceFile1, sourceFile2)
 				fputs(temp_buffer, outputFile);
 			}
 		}
+
+		*text_buffer = 0;
 		fgets(text_buffer, 1024, inputFile);
 	}
 
