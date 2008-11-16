@@ -125,6 +125,8 @@ parser()
 		object_expected = FALSE;
 
 		if (!strcmp(THEN_WORD, word[wp])) {
+			/* CONSIDER THIS THE END OF THIS COMMAND AS 'THEN' IS
+			 * TREATED LIKE A FULL STOP */
 			break;
 		} else if ((matched_word = exact_match(pointer)) != NULL) {
 			/* THIS WORD WAS AN EXACT MATCH FOR ONE OF THE POSSIBLE WORDS
@@ -474,15 +476,22 @@ object_match(iterator, noun_number)
 {
 	/* THIS FUNCTION LOOPS THROUGH ALL THE POSIBILITIES IN THE CURRENT LEVEL
 	 * OF THE GRAMMAR TREE TO SEE IF THERE ARE ANY OBJECT PLACE HOLDERS */
+    
+	/* STORE WHETHER BY THE END AN OBJECT PLACEHOLDER WAS ENCOUNTERED AND
+	 * DISPLAY A MESSAGE IF NO OBJECTS MATCHED */
+	int object_was_option = FALSE;
 
 	do {
 		/* THIS LOOP MEANS THAT CERTAIN ERRORS SUCH AS TAKING FROM A 
 		 * CLOSED CONTAINER CAN OCCUR MORE THAN ONCE */
-		if ((iterator->word[0] == '*') && build_object_list(iterator, noun_number)) {
-			/* RETURN THE POINT IN THE GRAMMAR TREE THAT MATCHED TO 
-			 * CONTINUE ON FROM */
-			//printf("--- returned TRUE from build_object_list\n");
-			return (iterator);
+		if ((iterator->word[0] == '*')) {
+			object_was_option = TRUE;
+			if (build_object_list(iterator, noun_number)) {
+				/* RETURN THE POINT IN THE GRAMMAR TREE THAT MATCHED TO 
+			 	* CONTINUE ON FROM */
+				//printf("--- returned TRUE from build_object_list\n");
+				return (iterator);
+			}
 		}
 
 		if (custom_error == TRUE) {
@@ -496,6 +505,14 @@ object_match(iterator, noun_number)
 	/* THERE WERE NO OBJECT PLACE HOLDERS OR, IF THERE WERE, NO 
 	 * MATCHING OBJECTS COULD BE RESOLVED */
 	//printf("--- returning null from object_match\n");
+
+	if (object_was_option) {
+		/* NO OBJECT MATCHED, BUT AN OBJECT WAS VALID AT THIS POINT IN THE
+		 * PLAYER'S COMMAND */
+		diagnose();
+		custom_error = TRUE;
+	}
+
 	return (NULL);
 }
 
@@ -672,8 +689,9 @@ build_object_list(scope_word, noun_number)
 				/* ADD IT TO THE LIST */
 				add_to_list (noun_number, resolved_object);
 			} else {
-				diagnose();
-				custom_error = TRUE;
+				/* NO OBJECTS COULD BE RESOLVED, THIS MIGHT NOT BE A BAD
+				 * THING YET IF THERE ARE OTHER OBJECT PLACEHOLDERS TO
+				 * COME THAT ARE LESS RESTRICTIVE */
 				return (FALSE);
 			}
 		}
