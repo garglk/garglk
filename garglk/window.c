@@ -1252,7 +1252,7 @@ int attrfont(style_t *styles, attr_t *attr)
 
 unsigned char *attrbg(style_t *styles, attr_t *attr)
 {
-    if (!attr->reverse) {
+    if (!attr->reverse && !styles[attr->style].reverse) {
         if (attr->bgcolor > zcolor_Default && attr->bgcolor < zcolor_NUMCOLORS)
             return zcolor_rgb[attr->bgcolor - zcolor_Black];
         else
@@ -1267,7 +1267,7 @@ unsigned char *attrbg(style_t *styles, attr_t *attr)
 
 unsigned char *attrfg(style_t *styles, attr_t *attr)
 {
-    if (!attr->reverse) {
+    if (!attr->reverse && !styles[attr->style].reverse) {
         if (attr->fgcolor > zcolor_Default && attr->fgcolor < zcolor_NUMCOLORS)
             return zcolor_rgb[attr->fgcolor - zcolor_Black];
         else
