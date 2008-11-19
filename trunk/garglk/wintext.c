@@ -304,10 +304,7 @@ void win_textbuffer_redraw(window_t *win)
         if (drawmore && i == dwin->scrollpos && i > 0)
             continue;
 
-        /* kill spaces at the end */
         linelen = ln->len;
-        while (i > 0 && linelen > 1 && ln->chars[linelen-1] == ' ')
-            linelen --;
 
         /* top of line */
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
