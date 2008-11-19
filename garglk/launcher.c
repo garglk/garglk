@@ -205,6 +205,10 @@ unsigned char *configterp(char *game)
 {
     char *ini = "/garglk.ini";
     char path[1024];
+    int i;
+
+    for (i = 0; i < strlen(game); i++)
+        game[i] = tolower(game[i]);
 
     /* game file .ini */
     strcpy(path, game);

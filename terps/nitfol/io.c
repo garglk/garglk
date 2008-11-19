@@ -103,9 +103,9 @@ static void set_stylehints(char fore, char back)
 		    stylehint_Proportional, 0);
   glk_stylehint_set(wintype_TextBuffer, style_BlockQuote,
 		    stylehint_Justification, stylehint_just_Centered);
-#ifdef stylehint_Reverse
+#ifdef stylehint_ReverseColor
   glk_stylehint_set(wintype_TextBuffer, style_BlockQuote,
-		    stylehint_Reverse, 1);
+		    stylehint_ReverseColor, 1);
 #endif
 
   /* User1 will be used for bold italics */
