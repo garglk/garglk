@@ -696,7 +696,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
             dwin->dashed = 0;
     }
 
-    if (gli_conf_spaces && win->attr.style != style_Preformatted)
+    if (gli_conf_spaces && win->attr.style != style_Preformatted && !dwin->styles[win->attr.style].reverse)
     {
         /* turn (period space space) into (period space) */
         if (gli_conf_spaces == 1)
