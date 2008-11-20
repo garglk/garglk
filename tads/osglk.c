@@ -378,7 +378,7 @@ void os_set_screen_color(os_color_t color)
 void os_set_title(const char *title)
 {
 #ifdef GARGLK
-	garglk_set_story_name(title);
+//	garglk_set_story_name(title);
 #endif
 }
 

@@ -41,7 +41,7 @@
 
 void hugo_setgametitle(char *t)
 {
-	garglk_set_story_name(t);
+//	garglk_set_story_name(t);
 }
 
 #define PIC 0
