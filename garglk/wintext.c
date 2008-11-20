@@ -304,7 +304,12 @@ void win_textbuffer_redraw(window_t *win)
         if (drawmore && i == dwin->scrollpos && i > 0)
             continue;
 
+        /* kill spaces at the end unless they're a different color*/
         linelen = ln->len;
+        while (i > 0 && linelen > 1 && ln->chars[linelen-1] == ' ' 
+            && dwin->styles[ln->attrs[linelen-1].style].bg == gli_window_color 
+            && !dwin->styles[ln->attrs[linelen-1].style].reverse)
+                linelen --;
 
         /* top of line */
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
@@ -696,7 +701,9 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
             dwin->dashed = 0;
     }
 
-    if (gli_conf_spaces && win->attr.style != style_Preformatted && !dwin->styles[win->attr.style].reverse)
+    if (gli_conf_spaces && win->attr.style != style_Preformatted 
+        && dwin->styles[win->attr.style].bg == gli_window_color 
+        && !dwin->styles[win->attr.style].reverse)
     {
         /* turn (period space space) into (period space) */
         if (gli_conf_spaces == 1)
@@ -737,7 +744,9 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     /* kill spaces at the end for line width calculation */
     linelen = dwin->numchars;
-    while (linelen > 1 && dwin->chars[linelen-1] == ' ')
+    while (linelen > 1 && dwin->chars[linelen-1] == ' ' 
+        && dwin->styles[dwin->attrs[linelen-1].style].bg == gli_window_color 
+        && !dwin->styles[dwin->attrs[linelen-1].style].reverse)
         linelen --;
 
     if (calcwidth(dwin, dwin->chars, dwin->attrs, linelen, -1) >= pw)
