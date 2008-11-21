@@ -1353,7 +1353,10 @@ int RunRestore()
 	savefile = glk_fileref_create_by_prompt(fileusage_SavedGame | fileusage_BinaryMode,
 		filemode_Read, 0);
 	if (!savefile) return 0;
-	save = glk_stream_open_file(savefile, filemode_Read, 0);
+	if (glk_fileref_does_file_exist(savefile))
+		save = glk_stream_open_file(savefile, filemode_Read, 0);
+	else
+		save = NULL;
 	glk_fileref_destroy(savefile);
 	if (!save) return 0;
 
