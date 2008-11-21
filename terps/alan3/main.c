@@ -1144,7 +1144,11 @@ static void load(void)
     sprintf(err, "Checksum error in Acode (.a3c) file (0x%lx instead of 0x%lx).",
 	    crc, tmphdr.acdcrc);
     if (!ignoreErrorOption)
+#if 0
       syserr(err);
+#else
+      output("[ Note: checksum was ignored when loading this game. ]$n");
+#endif
     else {
       output("<WARNING! $$");
       output(err);
