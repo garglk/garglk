@@ -11,6 +11,7 @@ MAKE_AGILITY    ?= yes ;
 MAKE_ALAN2      ?= yes ;
 MAKE_ALAN3      ?= yes ;
 MAKE_FROTZ      ?= yes ;
+MAKE_GEAS       ?= no  ;
 MAKE_GIT        ?= yes ;
 MAKE_GLULXE     ?= yes ;
 MAKE_HUGO       ?= yes ;
@@ -134,6 +135,30 @@ if $(MAKE_FROTZ) = yes
         ;
 
     APPS += frotz ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Geas 0.4
+#
+
+if $(MAKE_GEAS) = yes
+{
+    SubDir TOP terps geas ;
+    ObjDir geas ;
+
+    SubDirCcFlags -DUSE_INLINE ;
+    SubDirC++Flags = $(SUBDIRCCFLAGS) ;
+
+    Main geas :
+        geasfile.cc geas-runner.cc geas-state.cc
+        geas-util.cc geasglk.cc geasglkterm.c
+        istring.cc readfile.cc
+        ;
+
+    LINK on geas$(SUFEXE) = $(C++) ;
+
+    APPS += geas ;
 }
 
 # -----------------------------------------------------------------------
