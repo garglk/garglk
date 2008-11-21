@@ -275,7 +275,7 @@ void win_textbuffer_redraw(window_t *win)
     int drawmore = win->line_request || win->char_request || win->line_request_uni || win->char_request_uni;
     tbline_t *ln;
     int linelen;
-    int nsp, spw;
+    int nsp, spw, pw;
     int x0, y0, x1, y1;
     int x, y, w;
     int a, b;
@@ -286,6 +286,8 @@ void win_textbuffer_redraw(window_t *win)
     x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
     x1 = (win->bbox.x1 - gli_tmarginx - gli_scroll_width) * GLI_SUBPIX;
     y0 = win->bbox.y0 + gli_tmarginy;
+
+    pw = x1 - x0 - 2 * GLI_SUBPIX;
 
 //    if (dwin->scrollmax && dwin->scrollmax < dwin->height)
 //        y0 -= (dwin->height - dwin->scrollmax) * gli_leading;
@@ -304,12 +306,17 @@ void win_textbuffer_redraw(window_t *win)
         if (drawmore && i == dwin->scrollpos && i > 0)
             continue;
 
-        /* kill spaces at the end unless they're a different color*/
         linelen = ln->len;
+
+        /* kill spaces at the end unless they're a different color*/
         while (i > 0 && linelen > 1 && ln->chars[linelen-1] == ' ' 
             && dwin->styles[ln->attrs[linelen-1].style].bg == gli_window_color 
             && !dwin->styles[ln->attrs[linelen-1].style].reverse)
                 linelen --;
+
+        /* kill characters that would overwrite the scroll bar */
+        while (linelen > 1 && calcwidth(dwin, ln->chars, ln->attrs, linelen, -1) >= pw)
+            linelen --;
 
         /* top of line */
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
@@ -375,7 +382,8 @@ void win_textbuffer_redraw(window_t *win)
         if (gli_focuswin == win && i == 0 && (win->line_request || win->line_request_uni))
         {
             w = calcwidth(dwin, dwin->chars, dwin->attrs, dwin->incurs, spw);
-            gli_draw_caret(x0 + SLOP + ln->lm + w, y + gli_baseline);
+            if (w < pw - gli_caret_shape * 2 * GLI_SUBPIX)
+                gli_draw_caret(x0 + SLOP + ln->lm + w, y + gli_baseline);
         }
 
         /*
