@@ -171,6 +171,8 @@ void os_init_screen(void)
 
 
 	gos_lower = glk_window_open(0, 0, 0, wintype_TextGrid, 0);
+	if (!gos_lower)
+		gos_lower = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
 	glk_window_get_size(gos_lower, &width, &height);
 	glk_window_close(gos_lower, NULL);
 
@@ -192,8 +194,11 @@ void os_init_screen(void)
 	if (h_version == V3 && user_tandy_bit)
 		h_config |= CONFIG_TANDY;
 
-	if (h_version == V3)
+	if (h_version == V3 && gos_upper)
 		h_config |= CONFIG_SPLITSCREEN;
+
+	if (h_version == V3 && !gos_upper)
+		h_config |= CONFIG_NOSTATUSLINE;
 
 	if (h_version >= V4)
 		h_config |= CONFIG_BOLDFACE | CONFIG_EMPHASIS |
@@ -297,11 +302,12 @@ void gos_cancel_pending_line(void)
 zchar os_read_key (int timeout, bool show_cursor)
 {
 	event_t ev;
+	winid_t win = gos_curwin ? gos_curwin : gos_lower;
 
 	if (gos_linepending)
 		gos_cancel_pending_line();
 
-	glk_request_char_event(gos_curwin);
+	glk_request_char_event(win);
 	if (timeout != 0)
 		glk_request_timer_events(timeout * 100);
 
@@ -312,7 +318,7 @@ zchar os_read_key (int timeout, bool show_cursor)
 			gos_update_width();
 		else if (ev.type == evtype_Timer)
 		{
-			glk_cancel_char_event(gos_curwin);
+			glk_cancel_char_event(win);
 			glk_request_timer_events(0);
 			return ZC_TIME_OUT;
 		}
@@ -322,7 +328,7 @@ zchar os_read_key (int timeout, bool show_cursor)
 
 	glk_request_timer_events(0);
 
-	if (mach_status_ht < curr_status_ht)
+	if (gos_upper && mach_status_ht < curr_status_ht)
 		reset_status_ht();
 	curr_status_ht = 0;
 
@@ -346,13 +352,14 @@ zchar os_read_key (int timeout, bool show_cursor)
 zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 {
 	event_t ev;
+	winid_t win = gos_curwin ? gos_curwin : gos_lower;
 
 	if (!continued && gos_linepending)
 		gos_cancel_pending_line(); 
 
 	if (!continued || !gos_linepending)
 	{
-		glk_request_line_event(gos_curwin, buf, max - 1, strlen(buf));
+		glk_request_line_event(win, buf, max - 1, strlen(buf));
 		if (timeout != 0)
 			glk_request_timer_events(timeout * 100);
 	}
@@ -366,7 +373,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 			gos_update_width();
 		else if (ev.type == evtype_Timer)
 		{
-			gos_linewin = gos_curwin;
+			gos_linewin = win;
 			gos_linepending = 1;
 			gos_linebuf = buf;
 			return ZC_TIME_OUT;
@@ -378,7 +385,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 	glk_request_timer_events(0);
 	buf[ev.val1] = '\0';
 
-	if (mach_status_ht < curr_status_ht)
+	if (gos_upper && mach_status_ht < curr_status_ht)
 		reset_status_ht();
 	curr_status_ht = 0;
 

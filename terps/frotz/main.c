@@ -193,11 +193,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
 	myargc = data->argc;
 	myargv = data->argv;
-    return TRUE;
-}
 
-void glk_main (void)
-{
     os_init_setup ();
     os_process_arguments (myargc, myargv);
 
@@ -211,6 +207,11 @@ void glk_main (void)
 
     init_undo ();
     z_restart ();
+    return TRUE;
+}
+
+void glk_main (void)
+{
     interpret ();
     reset_memory ();
 }

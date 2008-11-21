@@ -129,17 +129,23 @@ void gos_update_width(void)
 
 void reset_status_ht(void)
 {
+	glui32 height;
 	if (gos_upper)
-		glk_window_set_arrangement(glk_window_get_parent(gos_upper),
-			winmethod_Above | winmethod_Fixed,
-			mach_status_ht, NULL);
+	{
+		glk_window_get_size(gos_upper, NULL, &height);
+		if (mach_status_ht != height)
+			glk_window_set_arrangement(
+				glk_window_get_parent(gos_upper),
+				winmethod_Above | winmethod_Fixed,
+				mach_status_ht, NULL);
+	}
 }
 
 void erase_window (int w)
 {
 	if (w == 0)
 		glk_window_clear(gos_lower);
-	else
+	else if (gos_upper)
 	{
 		memset(statusline, ' ', sizeof statusline);
 		glk_window_clear(gos_upper);
@@ -150,15 +156,22 @@ void erase_window (int w)
 
 void split_window (int lines)
 {
+	if (!gos_upper)
+		return;
 	/* The top line is always set for V1 to V3 games */
 	if (h_version < V4)
 		lines++;
 
 	if (lines > curr_status_ht)
 	{
-		glk_window_set_arrangement(glk_window_get_parent(gos_upper),
-			winmethod_Above | winmethod_Fixed,
-			lines, NULL);
+		glui32 height;
+
+		glk_window_get_size(gos_upper, NULL, &height);
+		if (lines != height)
+			glk_window_set_arrangement(
+				glk_window_get_parent(gos_upper),
+				winmethod_Above | winmethod_Fixed,
+				lines, NULL);
 		curr_status_ht = lines;
 	}
 	mach_status_ht = lines;
@@ -168,6 +181,9 @@ void split_window (int lines)
 		curx = cury = 1;
 	}
 	gos_update_width();
+
+	if (h_version == V3)
+		glk_window_clear(gos_upper);
 }
 
 void restart_screen (void)
@@ -266,7 +282,7 @@ void screen_char (zchar c)
 			return;
 	}
 
-	if (gos_curwin == gos_upper) {
+	if (gos_upper && gos_curwin == gos_upper) {
 		if (cury > mach_status_ht) {
 			mach_status_ht = cury;
 			reset_status_ht();
@@ -286,7 +302,7 @@ void screen_char (zchar c)
 		}
 	}
 
-	if (gos_curwin == gos_upper)
+	if (gos_upper && gos_curwin == gos_upper)
 	{
 		if (c == '\n') {
 			glk_put_char(c);
@@ -315,7 +331,7 @@ void screen_char (zchar c)
 			}
 		}
 	}
-	else
+	else if (gos_curwin == gos_lower)
 	{
 		glk_put_char(c);
 	}
@@ -382,7 +398,7 @@ void z_erase_line (void)
 {
 	int i;
 
-	if (gos_curwin == gos_upper)
+	if (gos_upper && gos_curwin == gos_upper)
 	{
 		for (i = 0; i < h_screen_cols + 1 - curx; i++)
 			glk_put_char(' ');
@@ -402,18 +418,20 @@ void z_erase_window (void)
 	short w = zargs[0];
 	if (w == -2)
 	{
-		glk_window_clear(gos_upper);
+		if (gos_upper)
+			glk_window_clear(gos_upper);
 		glk_window_clear(gos_lower);
 	}
 	if (w == -1)
 	{
-		glk_window_clear(gos_upper);
+		if (gos_upper)
+			glk_window_clear(gos_upper);
 		glk_window_clear(gos_lower);
 		split_window(0);
 	}
 	if (w == 0)
 		glk_window_clear(gos_lower);
-	if (w == 1)
+	if (w == 1 && gos_upper)
 		glk_window_clear(gos_upper);
 }
 
@@ -515,7 +533,8 @@ void z_set_cursor (void)
 {
 	cury = zargs[0];
 	curx = zargs[1];
-	glk_window_move_cursor(gos_upper, curx - 1, cury - 1);
+	if (gos_upper)
+		glk_window_move_cursor(gos_upper, curx - 1, cury - 1);
 }
 
 /*
@@ -543,7 +562,10 @@ void z_set_text_style (void)
 		return;
 
 	if (gos_curwin == gos_upper && style & REVERSE_STYLE)
-		glk_set_style(style_User1);
+	{
+		if (gos_upper)
+			glk_set_style(style_User1);
+	}
 	else if (style & FIXED_WIDTH_STYLE)
 		glk_set_style(style_Preformatted);
 	else if (style & BOLDFACE_STYLE && style & EMPHASIS_STYLE)
@@ -580,7 +602,8 @@ void z_set_window (void)
 	}
 	else
 	{
-		glk_set_window(gos_upper);
+		if (gos_upper)
+			glk_set_window(gos_upper);
 		gos_curwin = gos_upper;
 		curstyle = upperstyle;
 	}
@@ -614,6 +637,9 @@ void z_show_status (void)
 	zword addr;
 
 	bool brief = FALSE;
+
+	if (!gos_upper)
+		return;
 
 	/* One V5 game (Wishbringer Solid Gold) contains this opcode by
 	   accident, so just return if the version number does not fit */

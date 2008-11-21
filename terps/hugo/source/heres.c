@@ -370,7 +370,10 @@ long FindResource(char *filename, char *resname)
 	/* Glk implementation */
 	fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 		filename, 0);
-	resource_file = glk_stream_open_file(fref, filemode_Read, 0);
+	if (glk_fileref_does_file_exist(fref))
+		resource_file = glk_stream_open_file(fref, filemode_Read, 0);
+	else
+		resource_file = NULL;
 	glk_fileref_destroy(fref);
 	if (!resource_file)
 	{
@@ -469,7 +472,10 @@ NotinResourceFile:
 	/* Glk implementation */
 	fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 		resname, 0);
-	resource_file = glk_stream_open_file(fref, filemode_Read, 0);
+	if (glk_fileref_does_file_exist(fref))
+		resource_file = glk_stream_open_file(fref, filemode_Read, 0);
+	else
+		resource_file = NULL;
 	glk_fileref_destroy(fref);
 	if (!resource_file)
 	{
