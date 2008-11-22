@@ -152,6 +152,17 @@ list_output(index, capital)
 }
 
 void
+plain_output(index, capital)
+	 int             index;
+	 int             capital;
+{
+	strcpy(temp_buffer, object[index]->inventory);
+
+	if (capital)
+		temp_buffer[0] = toupper(temp_buffer[0]);
+}
+
+void
 long_output(index)
 	 int             index;
 {
@@ -175,3 +186,48 @@ no_it()
 	write_text(NO_IT_END);
 	custom_error = TRUE;
 }
+
+void
+look_around()
+{
+	/* THIS FUNCTION DISPLAYS THE DESCRIPTION OF THE CURRENT LOCATION ALONG
+	 * WITH ANY OBJECTS CURRENTLY IN IT */
+	int             index;
+
+	if (!check_light(HERE)) {
+		/* THE CURRENT LOCATION HAS 'DARK' AND NO SOURCE OF LIGHT IS
+		 * CURRENTLY PRESENT */
+		execute("+dark_description");
+		return;
+	}
+
+	if (execute("+before_look") != FALSE)
+		return;
+
+	execute("+title");
+
+	if (DISPLAY_MODE->value) {
+		/* THE INTERPRETER IS IN VERBOSE MODE SO TEMPORARILY TAKE AWAYS THE
+		 * 'VISITED' ATTRIBUTE */
+		object[HERE]->attributes &= ~1L;
+	}
+
+	strcpy(function_name, "look_");
+	strcat(function_name, object[HERE]->label);
+	execute(function_name);
+
+	/* GIVE THE LOCATION THE ATTRIBUTES 'VISITED', 'KNOWN', AND 'MAPPED' NOW 
+     * THAT THE LOOK FUNCTION HAS RUN */
+	object[HERE]->attributes = object[HERE]->attributes | KNOWN;
+	object[HERE]->attributes = object[HERE]->attributes | VISITED;
+	object[HERE]->attributes = object[HERE]->attributes | MAPPED;
+
+	execute("+object_descriptions");
+
+	strcpy(function_name, "after_look_");
+	strcat(function_name, object[HERE]->label);
+	execute(function_name);
+
+	execute("+after_look");
+}
+

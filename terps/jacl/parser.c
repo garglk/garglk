@@ -225,6 +225,13 @@ parser()
 						//printf ("--- calling functions for object %d\n", object_list[0][index]);
 						noun[0] = object_list[0][index];
 
+						if (MULTI_PREFIX->value) {
+							// DISPLAY THE OBJECT BEING ACTED ON
+							plain_output(noun[0], FALSE);
+							write_text(temp_buffer);
+							write_text(": ");
+						}
+
 						/* CHECK FOR CORRECT SCOPING BEFORE CALLING FUNCTIONS */
 						if (!position(noun[0], expected_scope[0])) continue;
 						if (!position(noun[1], expected_scope[1])) continue;
@@ -247,7 +254,14 @@ parser()
 						/* CALL ALL THE FUNCTIONS ONCE FOR EACH OJECT */
 						if (object_list[1][index] != 0) {
 							noun[1] = object_list[1][index];
-				
+
+							if (MULTI_PREFIX->value) {
+								// DISPLAY THE OBJECT BEING ACTED ON
+								plain_output(noun[0], FALSE);
+								write_text(temp_buffer);
+								write_text(": ");
+							}
+
 							/* CHECK FOR CORRECT SCOPING BEFORE CALLING FUNCTIONS */
 							if (!position(noun[0], expected_scope[0])) continue;
 							if (!position(noun[1], expected_scope[1])) continue;
@@ -592,7 +606,7 @@ build_object_list(scope_word, noun_number)
 
 	//printf ("--- entering build object list starting at %s with a scope_word of %s\n", word[wp], scope_word->word);
 	/* LOOK AHEAD FOR A FROM CLAUSE AND STORE from_object IF SO */
-	if (get_from_object(scope_word) == FALSE) {
+	if (get_from_object(scope_word, noun_number) == FALSE) {
 		/* THERE WAS AN ERROR, AND A MESSAGE HAS ALREADY BEEN
 		 * DISPLAYED */
 		//printf("--- from had an error\n");
@@ -619,7 +633,7 @@ build_object_list(scope_word, noun_number)
 			}
 
 			/* LOOK FORWARD FOR A FROM CLAUSE */
-			if (get_from_object(scope_word) == FALSE) {
+			if (get_from_object(scope_word, noun_number) == FALSE) {
 				/* THERE WAS AN ERROR, AND A MESSAGE HAS ALREADY BEEN
 		 		 * DISPLAYED */
 				return (FALSE);
@@ -654,7 +668,7 @@ build_object_list(scope_word, noun_number)
 			}
 
 			/* LOOK FOR THE NEXT FROM CLAUSE */
-			if (get_from_object(scope_word) == FALSE) {
+			if (get_from_object(scope_word, noun_number) == FALSE) {
 				/* THERE WAS AN ERROR, AND A MESSAGE HAS ALREADY BEEN
 		 		 * DISPLAYED */
 				return (FALSE);
@@ -673,7 +687,7 @@ build_object_list(scope_word, noun_number)
 		} else {
 			/* CALL noun_resolve TO FETCH THE FIRST MATCHING OBJECT */
 			/* FALSE INDICATES THAT WE ARE NOT LOOKING FOR A FROM OBJECT */
-			resolved_object = noun_resolve(scope_word, FALSE);
+			resolved_object = noun_resolve(scope_word, FALSE, noun_number);
 
 			if (resolved_object == -1) {
 				/* THERE WERE MULTIPLE MATCHES DUE TO PLURAL NAME
@@ -869,8 +883,9 @@ is_direct_child_of_from(child)
 }
 
 int
-get_from_object(scope_word)
+get_from_object(scope_word, noun_number)
 	struct word_type		*scope_word;
+	int						noun_number;
 {
 	/* THIS FUNCTION LOOKS AHEAD TO FIND IF THE CURRENT OBJECT REFERENCE
 	 * IS QUALIFIED BY A 'FROM' WORD. IT RETURNS FALSE ON AN ERROR 
@@ -908,8 +923,8 @@ get_from_object(scope_word)
 			 * noun_resolve CAN FIND OUT THE APPROPRIATE TERMINATORS
 			 * THE ACCEPTABLE SCOPE FOR THE FROM OBJECT SHOULD BE
 			 * AT LEAST *present */
-			/* TRUE INDICATES THAT WE ARE NOT LOOKING FOR A FROM OBJECT */
-			from_object = noun_resolve(scope_word, TRUE);
+			/* TRUE INDICATES THAT WE ARE LOOKING FOR A FROM OBJECT */
+			from_object = noun_resolve(scope_word, TRUE, noun_number);
 				
 			/* STORE THE wp FROM AFTER THE RESOLVED FROM OBJECT SO
 	 		 * WE CAN JUMP FORWARD TO HERE AGAIN WHEN WE HIT THIS
@@ -991,14 +1006,15 @@ verify_from_object(from_object)
 	int			from_object;
 {
 	//printf("--- from object is %s\n", object[from_object]->label);	
-	if (!(object[from_object]->attributes & CONTAINER) &&
-		!(object[from_object]->attributes & SURFACE) &&
-		!(object[from_object]->attributes & ANIMATE)) {
-		sprintf (error_buffer, FROM_NON_CONTAINER, from_word);	
-		write_text (error_buffer);
-		custom_error = TRUE;
-		return (FALSE);
-	} else if (object[from_object]->attributes & CLOSED) {
+	//if (!(object[from_object]->attributes & CONTAINER) &&
+	//	!(object[from_object]->attributes & SURFACE) &&
+	//	!(object[from_object]->attributes & ANIMATE)) {
+	//	sprintf (error_buffer, FROM_NON_CONTAINER, from_word);	
+	//	write_text (error_buffer);
+	//	custom_error = TRUE;
+	//	return (FALSE);
+	//} else if (object[from_object]->attributes & CLOSED) {
+	if (object[from_object]->attributes & CLOSED) {
 		//printf("--- container is concealing\n");
 		sprintf (error_buffer, CONTAINER_CLOSED, sentence_output(from_object, TRUE));	
 		write_text(error_buffer);
@@ -1049,9 +1065,10 @@ add_to_list(noun_number, resolved_object)
 }
 
 int
-noun_resolve(scope_word, finding_from)
-	 struct word_type *scope_word;
-	 int	finding_from;
+noun_resolve(scope_word, finding_from, noun_number)
+	struct word_type 	*scope_word;
+	int					finding_from;
+	int					noun_number;
 {
 	/* THIS FUNCTION STARTS LOOKING AT THE PLAYER'S COMMAND FROM wp ONWARDS
 	 * AND LOOKS FOR OBJECTS IN THE SCOPE SPECIFIED BY THE GRAMMAR ELEMENT
@@ -1562,17 +1579,52 @@ noun_resolve(scope_word, finding_from)
 	/* AN AMBIGUOUS REFERENCE WAS MADE. ATTEMPT TO CALL ALL THE disambiguate
 	 * FUNCTIONS TO SEE IF ANY OF THE OBJECT WANTS TO TAKE PREFERENCE IN
 	 * THIS CIRCUMSTANCE */
+	int situation = noun_number;
+
+	if (finding_from) {
+		situation += 4;
+	}
+
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
 			strcpy(function_name, "disambiguate");
 			strcat(function_name, "_");
 			strcat(function_name, object[index]->label);
-			if (execute(function_name)) {
+			strcat(function_name, "<");
+			sprintf(temp_buffer, "%d", situation);
+			strcat(function_name, temp_buffer);
+
+			// CALL THE DISAMBIGUATION FUNCTION ATTACHED TO EACH OF THE
+			// POSSIBLE OBJECTS
+			int return_code = execute (function_name);
+
+			if (return_code == 1) {
+				// THIS OBJECT CAN CLAIMED OWNERSHIP OF THIS COMMAND
 				return (index);
+			} else if (return_code == -1) {
+				// THIS OBJECT HAS REJECTED OWNERSHIP OF THIS COMMAND
+				confidence[index] = FALSE;
+				matches--;
 			}
 		}
 	}
 
+	// CHECK IF ALL THE OBJECTS WERE REJECTED
+    if (matches == 0) {
+		return (prime_suspect);
+	}
+
+	// CHECK IF ONLY ONE OBJECT NOW REMAINS
+    if (matches == 1) {
+        /* IF ONLY ONE POSSIBILITY REMAINS, RETURN THIS OBJECT AND SET THE
+         * APPROPRIATE POINTERS. */
+        //printf("--- only one object left\n");
+        for (index = 1; index <= objects; index++) {
+            if (confidence[index] != FALSE) {
+                return (index);
+            }
+        }
+    }
 
 	/* NO OBJECT HAS CLAIMED OWNERSHIP, PROMPT THE PLAYER TO SPECIFY 
 	 * WHICH ONE THEY REQUIRE. */
@@ -1763,6 +1815,7 @@ scope(index, expected, restrict)
 		if (object_list[0][0] >0 && object_list[0][0] < objects) {
 			return (parent_of(object_list[0][0], index, restrict));
 		} else {
+			// THERE IS NO PREVIOUS OBJECT SO TREAT THIS LIKE A *here 
 			return (parent_of(HERE, index, restrict));
 		}
 	} else if (!strcmp(expected, "*present") || !strcmp(expected, "**present")) {

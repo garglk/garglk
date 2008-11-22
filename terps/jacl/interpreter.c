@@ -287,7 +287,37 @@ execute(funcname)
 		} else if (current_level == execution_level) {
 			if (!strcmp(word[0], "look")) {
 				// THIS IS JUST HERE FOR BACKWARDS COMPATIBILITY
-				execute ("+look_around");
+				object[HERE]->attributes &= ~1L;
+				look_around();
+			} else if (!strcmp(word[0], "travel")) {
+				// THIS IS JUST HERE FOR BACKWARDS COMPATIBILITY
+
+				/* THE TRAVEL COMMAND IS USED TO MOVE THE PLAYER AROUND.
+				 * IT IS RARELY USED OUTSIDE THE LIBRARY'S DIRECTION COMMANDS */
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return (exit_function(TRUE));
+				} else {
+					if ((resolved_cinteger = cinteger_resolve(word[1])) != NULL) {
+						index = resolved_cinteger->value;
+
+						if (index < 0 || index > 11) {
+							index = -1;
+						}
+					} else {
+						index = -1;
+					}
+
+					if (index != -1) {
+						DESTINATION->value = object[HERE]->integer[index];
+						COMPASS->value = index;
+						move_player();
+					} else {
+						unkdirrun(1);
+						return (exit_function(TRUE));
+					}
+				}
 			} else if (!strcmp(word[0], "repeat")) {
 				top_of_do_loop = glk_stream_get_position(game_stream);
 			} else if (!strcmp(word[0], "until")) {
@@ -1133,6 +1163,16 @@ execute(funcname)
 							object[to]->QUANTITY -= object[index]->MASS;
 					} 
 				}
+			} else if (!strcmp(word[0], "ifstringall")) {
+				/* CHECK IF A STRING EQUALS OR CONTAINS ANOTHER STRING */
+				current_level++;
+				if (word[3] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return (exit_function(TRUE));
+				} else if (and_strcondition()) {
+					execution_level++;
+				}
 			} else if (!strcmp(word[0], "ifstring")) {
 				/* CHECK IF A STRING EQUALS OR CONTAINS ANOTHER STRING */
 				current_level++;
@@ -1815,14 +1855,45 @@ strcondition()
 }
 
 int
+and_strcondition()
+{
+	int             first;
+
+	first = 1;
+
+	while (word[first + 2] != NULL && ((first +2) < MAX_WORDS)) {
+		if (str_test(first) == FALSE)
+			return (FALSE);
+		else
+			first = first + 3;
+	}
+	return (TRUE);
+}
+
+int
 str_test(first)
 	 int             first;
 {
 	char           *index,
 	               *compare;
 
-	index = (char *) text_of(word[first]);
-	compare = (char *) text_of(word[first + 2]);
+	// GET THE TWO STRING VALUES TO COMPARE
+
+	if (quoted[first] == 1) {
+		/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
+		 * AS LITERAL TEXT */
+		index = (char *) word[first];
+	} else {
+		index = (char *) text_of(word[first]);
+	}
+
+	if (quoted[first + 2] == 1) {
+		/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
+		 * AS LITERAL TEXT */
+		compare = (char *) word[first + 2];
+	} else {
+		compare = (char *) text_of(word[first + 2]);
+	}
 
 	if (!strcmp(word[first + 1], "==") || !strcmp(word[first + 1], "=")) {
 		if (!strcmp(index, compare))
