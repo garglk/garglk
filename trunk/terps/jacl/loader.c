@@ -106,6 +106,7 @@ read_gamefile()
 	create_integer ("graphics_enabled", 0);
 	create_integer ("sound_enabled", 0);
 	create_integer ("timer_enabled", 0);
+	create_integer ("multi_prefix", 0);
 
 	/* STORE THIS SO THE SECOND PASS KNOWS WHERE TO START 
 	 * SETTING VALUES FROM (EVERYTHING BEFORE THIS IN THE

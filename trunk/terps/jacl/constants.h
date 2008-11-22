@@ -99,6 +99,7 @@
 #define SOUND_ENABLED			integer_resolve("sound_enabled")
 #define GRAPHICS_ENABLED		integer_resolve("graphics_enabled")
 #define TIMER_ENABLED			integer_resolve("timer_enabled")
+#define MULTI_PREFIX			integer_resolve("multi_prefix")
 
 /* SYSTEM INTEGER CONSTANTS */
 

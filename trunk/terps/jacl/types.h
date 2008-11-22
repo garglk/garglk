@@ -36,13 +36,13 @@ struct object_type {
 	struct			name_type *first_plural;
 	char            inventory[41];
 	char            described[81];
-	long            user_attributes;
-	long            user_attributes_backup;
-	long            attributes;
-	long            attributes_backup;
+	int				user_attributes;
+	int				user_attributes_backup;
+	int				attributes;
+	int				attributes_backup;
 	int             integer[16];
 	int             integer_backup[16];
-	short int       nosave;
+	int				nosave;
 };
 
 struct integer_type {
@@ -60,7 +60,7 @@ struct cinteger_type {
 
 struct attribute_type {
 	char            name[41];
-	long            value;
+	int				value;
 	struct attribute_type *next_attribute;
 };
 

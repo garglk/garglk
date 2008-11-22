@@ -33,6 +33,7 @@ extern char						error_buffer[];
 extern char  			        integer_buffer[16];
 
 extern int						noun[];
+extern int						quoted[];
 
 extern int						resolved_attribute;
 
@@ -715,6 +716,8 @@ macro_resolve(testString)
 
 	if (!strcmp(&expression[delimiter], "list")) {
 		list_output(index, FALSE);
+	} else if (!strcmp(&expression[delimiter], "plain")) {
+		plain_output(index, FALSE);
 	} else if (!strcmp(&expression[delimiter], "long")) {
 		long_output(index);
 	} else if (!strcmp(&expression[delimiter], "that")) {
@@ -743,6 +746,8 @@ macro_resolve(testString)
 		strcpy(temp_buffer, object[index]->label);
 	} else if (!strcmp(&expression[delimiter], "List")) {
 		list_output(index, TRUE);
+	} else if (!strcmp(&expression[delimiter], "Plain")) {
+		plain_output(index, TRUE);
 	} else if (!strcmp(&expression[delimiter], "that")) {
 		that_output(index, TRUE);
 	} else if (!strcmp(&expression[delimiter], "it")) {

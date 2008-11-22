@@ -247,13 +247,4 @@ jacl_truncate()
 			while (TRUE);
 		}
 	}
-
-	/* CREATE ALL THE STRINGS THAT CONTAIN THE PLAYER'S COMMAND */
-	clear_cstring("command");
-	position = 0;
-
-	while (word[position] != NULL) {
-		add_cstring ("command", word[position]);
-		position++;
-	};
 }

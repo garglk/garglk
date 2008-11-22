@@ -423,11 +423,26 @@ glk_main(void)
 void
 preparse()
 {
-	/* THIS VARIABLE IS USED TO STOP LATER ACTIONS IN A COMMAND IF ANY ONE
-     * FAILS */
+	int position;
+
+	// THE INTERRUPTED VARIABLE IS USED TO STOP LATER ACTIONS IN A COMMAND 
+    // IF ANY ONE
 	while (word[wp] != NULL && INTERRUPTED->value == FALSE) {
 		//printf("--- preparse %s\n", word[wp]);
-		/* PROCESS THE CURRENT COMMAND */
+		// PROCESS THE CURRENT COMMAND
+		// CREATE THE command STRINGS FROM THIS POINT ONWARDS SO THE VERB OF
+		// THE CURRENT COMMAND IS ALWAYS command[0]. 
+
+		clear_cstring("command");
+
+		position = wp;
+
+		while (word[position] != NULL && strcmp(word[position], "then")) {
+			add_cstring ("command", word[position]);
+			position++;
+		};
+
+		// PROCESS THE COMMAND
 		word_check();
 
 		/* THE PREVIOUS COMMAND HAS FINISHED, LOOK FOR ANOTHER COMMAND */
@@ -564,7 +579,7 @@ word_check()
 		if (execute("+restore_game") == FALSE) {
 			if (restore_interaction()) {
 				write_text("Restored saved game.^^");
-				object[HERE]->attributes &= ~1L;
+				object[HERE]->attributes &= ~1;
 				execute ("+look_around");
 				TIME->value = FALSE;
 			}
@@ -726,7 +741,7 @@ restore_game_state()
 	noun[3] = noun3_backup;
 
 	write_text(MOVE_UNDONE);
-	object[HERE]->attributes &= ~1L;
+	object[HERE]->attributes &= ~1;
 	execute("+header");
 	execute ("+look_around");
 	execute("+footer");
@@ -769,11 +784,12 @@ write_text(string_buffer)
 void
 sleep(unsigned int mseconds)
 {
+	int multiplier = CLOCKS_PER_SEC / 1000;
+
 	/* WAIT FOR A GIVEN NUMBER OF MILLISECONDS */
-    clock_t goal = mseconds + clock();
+    clock_t goal = (mseconds * multiplier) + clock();
     while (goal > clock());
 }
-
 
 void
 status_line()
