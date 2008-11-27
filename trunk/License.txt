@@ -14,7 +14,7 @@ Git is copyright (c) Iain Merrick. It is released under the same terms as Glk.
 
 Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
 
-Jacl is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
+JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
 
 Level 9 is copyright (c) Glen Summers, David Kinder, Alan Staniforth, Simon Baldwin and Dieter Baron. It is released under the terms of the GNU General Public License.
 
