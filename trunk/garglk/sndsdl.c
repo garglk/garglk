@@ -259,8 +259,8 @@ static void sound_completion_callback(int chan)
             Sound_Rewind(sound_channel->decode);
         }
     }
-    Sound_Decode(sound_channel->decode);
-    sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, sample->buffer_size);
+    Uint32 soundbytes = Sound_Decode(sound_channel->decode);
+    sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
     Mix_ChannelFinished(&sound_completion_callback);
     if (Mix_PlayChannel(sound_channel->sdl_channel, 
             sound_channel->sample, 
@@ -384,9 +384,9 @@ static glui32 play_compressed(schanid_t chan, char *ext)
     chan->buffered = 1;
     chan->sdl_channel = Mix_GroupAvailable(-1);
     chan->decode = Sound_NewSample(chan->sdl_rwops, ext, output, 32768);
-    Sound_Decode(chan->decode);
+    Uint32 soundbytes = Sound_Decode(chan->decode);
     Sound_Sample *sample = chan->decode;
-    chan->sample = Mix_QuickLoad_RAW(sample->buffer, sample->buffer_size);
+    chan->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
     if (chan->sdl_channel < 0) {
         gli_strict_warning("No available sound channels");
     }
