@@ -10,6 +10,8 @@ Alan is copyright (c) Thomas Nilsson.
 
 Frotz is copyright (c) Stefan Jokisch. It is released under the terms of the GNU General Public License.
 
+Geas is copyright (c) Mark Tilford and David Jones. It is released under the terms of the GNU General Public License.
+
 Git is copyright (c) Iain Merrick. It is released under the same terms as Glk.
 
 Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
@@ -19,6 +21,8 @@ JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU G
 Level 9 is copyright (c) Glen Summers, David Kinder, Alan Staniforth, Simon Baldwin and Dieter Baron. It is released under the terms of the GNU General Public License.
 
 Magnetic is copyright (c) Niclas Karlsson, David Kinder, Stefan Meier and Paul David Doherty. It is released under the terms of the GNU General Public License.
+
+Nitfol is copyright (c) Evin Robertson. It is released under the terms of the GNU General Public License.
 
 SCARE is copyright (c) Simon Baldwin. It is released under the terms of the GNU General Public License.
 

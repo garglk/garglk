@@ -18,6 +18,7 @@
 #define T_JACL	"jacl"
 #define T_LEV9	"level9"
 #define T_MGSR	"magnetic"
+#define T_QUEST "geas"
 #define T_TADS2 "tadsr"
 #define T_TADS3 "tadsr"
 #define T_ZCODE "frotz"
@@ -40,16 +41,17 @@ char tmp[1024];
 static char *terp;
 
 char filterlist[] =
-"All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
+"All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
 "Adrift Games (*.taf)\0*.taf\0"
 "AdvSys Games (*.dat)\0*.dat\0"
 "AGT Games (*.agx)\0*.agx;*.d$$\0"
 "Alan Games (*.acd,*.a3c)\0*.acd;*.a3c\0"
 "Glulxe Games (*.ulx)\0*.ulx;*.blb;*.blorb;*.glb;*.gblorb\0"
 "Hugo Games (*.hex)\0*.hex\0"
-"Jacl Games (*.jacl,*.j2)\0*.jacl;*.j2\0"
+"JACL Games (*.jacl,*.j2)\0*.jacl;*.j2\0"
 "Level 9 (*.sna)\0*.sna\0"
 "Magnetic Scrolls (*.mag)\0*.mag\0"
+"Quest Games (*.asl,*.cas)\0*.asl;*.cas\0"
 "TADS 2 Games (*.gam)\0*.gam;*.t3\0"
 "TADS 3 Games (*.t3)\0*.gam;*.t3\0"
 "Z-code Games (*.z?)\0*.z?;*.zlb;*.zblorb\0"
@@ -381,6 +383,11 @@ int main(int argc, char **argv)
         runterp(T_LEV9, "");
     if (!strcasecmp(ext, "mag"))
         runterp(T_MGSR, "");
+
+    if (!strcasecmp(ext, "asl"))
+        runterp(T_QUEST, "");
+    if (!strcasecmp(ext, "cas"))
+        runterp(T_QUEST, "");
 
     sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);

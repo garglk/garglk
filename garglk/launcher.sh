@@ -55,6 +55,8 @@ case "$lowpath" in
     *.d\$\$ ) $dirpath/agility "$1" ;;
     *.acd ) $dirpath/alan2 "$1" ;;
     *.a3c ) $dirpath/alan3 "$1" ;;
+    *.asl ) $dirpath/geas "$1" ;;
+    *.cas ) $dirpath/geas "$1" ;;
     *.ulx ) $dirpath/git "$1" ;;
     *.hex ) $dirpath/hugo "$1" ;;
     *.jacl ) $dirpath/jacl "$1" ;;
