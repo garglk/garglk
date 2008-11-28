@@ -36,8 +36,21 @@ glkunix_startup_code(glkunix_startup_t *data)
       i++;
   }
 
-  if (i == data->argc - 1)
+#ifdef GARGLK
+  garglk_set_program_name("Geas 0.4");
+  garglk_set_program_info(
+        "Geas 0.4 by Mark Tilford and David Jones.\n"
+        "Additional Glk support by Simon Baldwin.");
+#endif
+
+  if (i == data->argc - 1) {
       storyfilename = data->argv[i];
+#ifdef GARGLK
+      char *s = strrchr(storyfilename, '/');
+      if (!s) s = strrchr(storyfilename, '\\');
+      garglk_set_story_name(s ? s + 1 : storyfilename);
+#endif
+  }
 
   return 1;
 }
