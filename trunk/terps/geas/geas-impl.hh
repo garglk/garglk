@@ -125,7 +125,7 @@ public:
 
   std::string displayed_name (std::string object) const;
   //std::string get_obj_name (const std::vector<std::string> &args) const;
-  std::string geas_implementation::get_obj_name (std::string name, const std::vector<std::string> &where, bool is_internal) const;
+  std::string get_obj_name (std::string name, const std::vector<std::string> &where, bool is_internal) const;
 
   bool has_obj_property (std::string objname, std::string propname) const;
   bool get_obj_property (std::string objname, std::string propname,

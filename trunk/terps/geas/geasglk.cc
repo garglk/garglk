@@ -41,6 +41,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cstdlib>
 
 #include "GeasRunner.hh"
 
