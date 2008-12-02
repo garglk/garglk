@@ -250,16 +250,17 @@ static void sound_completion_callback(int chan)
     if (!sound_channel->buffered || !sound_channel->decode) {
         return sound_complete(chan);
     }
-    Sound_Sample *sample = sound_channel->decode;
-    if (sample->flags&SOUND_SAMPLEFLAG_EOF) {
+    Uint32 soundbytes = Sound_Decode(sound_channel->decode);
+    if (!soundbytes) {
         sound_channel->loop--;
         if (!sound_channel->loop) {
             return sound_complete(chan);
         } else {
             Sound_Rewind(sound_channel->decode);
+            soundbytes = Sound_Decode(sound_channel->decode);
         }
     }
-    Uint32 soundbytes = Sound_Decode(sound_channel->decode);
+    Sound_Sample *sample = sound_channel->decode;
     sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
     Mix_ChannelFinished(&sound_completion_callback);
     if (Mix_PlayChannel(sound_channel->sdl_channel, 
