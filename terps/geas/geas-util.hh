@@ -32,6 +32,8 @@
 #include <map>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
+#include <cassert>
 
 typedef std::vector<std::string> vstring;
 

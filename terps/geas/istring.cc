@@ -1,6 +1,7 @@
 #include "istring.hh"
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
