@@ -49,7 +49,7 @@ void gli_initialize_sound(void)
 	audio->channels = 2;
 	audio->rate = 44100;
 	output = audio;
-	if (Mix_OpenAudio(output->rate, output->format, output->channels, 4096) == -1) {
+	if (Mix_OpenAudio(output->rate, output->format, output->channels, 1024) == -1) {
 	    gli_strict_warning("SDL Mixer init failed\n");
 	    gli_strict_warning(Mix_GetError());
 	    gli_conf_sound = 0;
