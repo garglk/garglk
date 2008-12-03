@@ -43,3 +43,8 @@ else
 Library libgarglkmain : main.c ;
 SharedLibrary libgarglk : $(GARGSRCS) ;
 
+if $(OS) = LINUX && $(USESDL)
+{
+    LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
+}
+

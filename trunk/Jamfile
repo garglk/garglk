@@ -47,3 +47,8 @@ if $(OS) = MINGW && $(USESDL)
     InstallLib $(BINDIR) : libvorbisfile-3.dll ;
 }
 
+if $(OS) = LINUX && $(USESDL)
+{
+    SubInclude TOP static ;
+}
+
