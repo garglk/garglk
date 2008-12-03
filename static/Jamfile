@@ -1,0 +1,23 @@
+SubDir TOP static ;
+
+#
+#   SDL Sound
+#
+    SubDir TOP static sdl_sound-1.0.3 ;
+    ObjDir SDL_sound_static ;
+
+    SubDirCcFlags
+        -DSOUND_SUPPORTS_OGG
+        -DSOUND_SUPPORTS_SMPEG
+	-I/usr/include/SDL
+        ;
+
+    SEARCH_SOURCE =
+        [ FDirName $(TOP) static sdl_sound-1.0.3 ]
+        [ FDirName $(TOP) static sdl_sound-1.0.3 decoders ]
+        ;
+
+    Library SDL_sound_static :
+        ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
+        ;
+

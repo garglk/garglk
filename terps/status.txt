@@ -1,21 +1,22 @@
-Build status as of 10/31/2008:
+Build status as of 12/02/2008:
 
 +---------------+---------------+
-| Interpreter	| Version	|
+| Interpreter   | Version       |
 +---------------+---------------+
-| agility	| 1.1.1		|
-| advsys	| 1.2		|
-| alan		| 2.8.6		|
-| alan3		| 3.0a6		|
-| frotz		| 2.4.3		|
-| git		| 1.2.1		|
-| glulxe	| 0.4.3		|
-| hugo		| 3.1.03	|
-| jacl		| 2.3.14	|
-| level9	| 4.1		|
-| magnetic	| 2.3		|
-| nitfol	| 0.5		|
-| scare		| 1.3.10	|
-| tads2		| 2.5.12	|
-| tads3		| 3.0.16	|
+| agility       | 1.1.1         |
+| advsys        | 1.2           |
+| alan          | 2.8.6         |
+| alan3         | 3.0a6         |
+| frotz         | 2.4.3         |
+| geas          | 0.4           |
+| git           | 1.2.1         |
+| glulxe        | 0.4.3         |
+| hugo          | 3.1.03        |
+| jacl          | 2.3.14        |
+| level9        | 4.1           |
+| magnetic      | 2.3           |
+| nitfol        | 0.5           |
+| scare         | 1.3.10        |
+| tads2         | 2.5.12        |
+| tads3         | 3.0.16        |
 +---------------+---------------+
