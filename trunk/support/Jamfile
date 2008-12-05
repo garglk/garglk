@@ -96,7 +96,6 @@ if $(USESDL)
     SubDirCcFlags
         -DSOUND_SUPPORTS_OGG
         -DSOUND_SUPPORTS_SMPEG
-        -DSOUND_USE_ALTCVT
         ;
 
     if $(OS) = MINGW { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
@@ -112,7 +111,7 @@ if $(USESDL)
         SEARCH_SOURCE += [ FDirName $(SUBDIR) sdl-1.2.13 ] ;
 
         SharedLibrary SDL_sound :
-            ogg.c smpeg.c alt_audio_convert.c extra_rwops.c SDL_sound.c
+            ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
             ;
 
         SharedLinkLibrariesOnSharedLibrary SDL_sound : smpeg libvorbisfile-3 ;
@@ -121,7 +120,7 @@ if $(USESDL)
     if $(OS) = LINUX
     {
         Library SDL_sound_static :
-            ogg.c smpeg.c alt_audio_convert.c extra_rwops.c SDL_sound.c
+            ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
             ;
     }
 }
