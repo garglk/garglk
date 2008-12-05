@@ -100,7 +100,7 @@ if $(USESDL)
         ;
 
     if $(OS) = MINGW { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
-    if $(OS) = LINUX { SubDirCcFlags -I/usr/include/SDL ; }
+    if $(OS) = LINUX { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
 
     SEARCH_SOURCE =
         [ FDirName $(TOP) support sdl_sound-1.0.3 ]
