@@ -8,6 +8,7 @@ SubDir TOP ;
 SubInclude TOP garglk ;
 SubInclude TOP terps ;
 SubInclude TOP tads ;
+SubInclude TOP support ;
 
 SubDir TOP ;
 
@@ -38,17 +39,14 @@ InstallLib $(BINDIR) : libgarglk$(SUFDLL) ;
 
 if $(OS) = MINGW && $(USESDL)
 {
+    SharedLinkLibrariesOnSharedLibrary libgarglk : SDL_sound ;
     SEARCH_SOURCE = $(TOP)/support/sdl-1.2.13 ;
+    InstallLib $(BINDIR) : SDL_sound.dll ;
     InstallLib $(BINDIR) : SDL_mixer.dll ;
     InstallLib $(BINDIR) : SDL.dll ;
     InstallLib $(BINDIR) : smpeg.dll ;
     InstallLib $(BINDIR) : libogg-0.dll ;
     InstallLib $(BINDIR) : libvorbis-0.dll ;
     InstallLib $(BINDIR) : libvorbisfile-3.dll ;
-}
-
-if $(OS) = LINUX && $(USESDL)
-{
-    SubInclude TOP static ;
 }
 
