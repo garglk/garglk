@@ -1,78 +1,128 @@
 #
 # Jamfile for support libraries
-#   only used by the windows build
 #
 
 SubDir TOP support ;
 
-SubDir TOP support zlib-1.2.3 ;
-ObjDir libz ;
-
-SharedLibrary libz :
-    adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c
-    zutil.c inflate.c infback.c inftrees.c inffast.c
-    ;
-
-SubDir TOP support libpng-1.2.32 ;
-ObjDir libpng ;
-
-SubDirHdrs $(SUBDIR) .. zlib-1.2.3 ;
-
-SharedLibrary libpng :
-    png.c pngerror.c pngget.c pngmem.c pngpread.c
-    pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c
-    pngtrans.c pngwio.c pngwrite.c pngwtran.c pngwutil.c
-    ;
-
-SharedLinkLibrariesOnSharedLibrary libpng : libz ;
-
-SubDir TOP support jpeg-6b ;
-ObjDir libjpeg ;
-
-SharedLibrary libjpeg :
-    jcapimin.c jcapistd.c jccoefct.c jccolor.c jcdctmgr.c jchuff.c
-    jcinit.c jcmainct.c jcmarker.c jcmaster.c jcomapi.c jcparam.c
-    jcphuff.c jcprepct.c jcsample.c jctrans.c jdapimin.c jdapistd.c
-    jdatadst.c jdatasrc.c jdcoefct.c jdcolor.c jddctmgr.c jdhuff.c
-    jdinput.c jdmainct.c jdmarker.c jdmaster.c jdmerge.c jdphuff.c
-    jdpostct.c jdsample.c jdtrans.c jerror.c jfdctflt.c jfdctfst.c
-    jfdctint.c jidctflt.c jidctfst.c jidctint.c jidctred.c jquant1.c
-    jquant2.c jutils.c jmemmgr.c
-    jmemnobs.c
-    ;
-
 #
-# Freetype is a bit messy.
+# Windows only
 #
 
-FTSRCS =
-    base/ftbase.c
-    base/ftsystem.c
-    base/ftinit.c
-    base/ftglyph.c
-    base/ftmm.c
-    base/ftbbox.c
-    base/ftdebug.c
-    base/fttype1.c
-    base/ftbitmap.c
-    cff/cff.c
-    psaux/psaux.c
-    psnames/psnames.c
-    raster/raster.c
-    smooth/smooth.c
-    sfnt/sfnt.c
-    truetype/truetype.c
-    type1/type1.c
-    ;
-
-for FTSRC in $(FTSRCS)
+if $(OS) = MINGW
 {
-    FTDIR = $(FTSRC:D) ;
-    FTFIL = $(FTSRC:B).c ;
 
-    SubDir TOP support freetype-2.3.7 src $(FTDIR) ;
-    ObjDir libfreetype ;
-    SubDirHdrs $(SUBDIR) .. .. include ;
-    SharedLibrary libfreetype : $(FTFIL) ;
+    SubDir TOP support zlib-1.2.3 ;
+    ObjDir libz ;
+
+    SharedLibrary libz :
+        adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c
+        zutil.c inflate.c infback.c inftrees.c inffast.c
+        ;
+
+    SubDir TOP support libpng-1.2.32 ;
+    ObjDir libpng ;
+
+    SubDirHdrs $(SUBDIR) .. zlib-1.2.3 ;
+
+    SharedLibrary libpng :
+        png.c pngerror.c pngget.c pngmem.c pngpread.c
+        pngread.c pngrio.c pngrtran.c pngrutil.c pngset.c
+        pngtrans.c pngwio.c pngwrite.c pngwtran.c pngwutil.c
+        ;
+
+    SharedLinkLibrariesOnSharedLibrary libpng : libz ;
+
+    SubDir TOP support jpeg-6b ;
+    ObjDir libjpeg ;
+
+    SharedLibrary libjpeg :
+        jcapimin.c jcapistd.c jccoefct.c jccolor.c jcdctmgr.c jchuff.c
+        jcinit.c jcmainct.c jcmarker.c jcmaster.c jcomapi.c jcparam.c
+        jcphuff.c jcprepct.c jcsample.c jctrans.c jdapimin.c jdapistd.c
+        jdatadst.c jdatasrc.c jdcoefct.c jdcolor.c jddctmgr.c jdhuff.c
+        jdinput.c jdmainct.c jdmarker.c jdmaster.c jdmerge.c jdphuff.c
+        jdpostct.c jdsample.c jdtrans.c jerror.c jfdctflt.c jfdctfst.c
+        jfdctint.c jidctflt.c jidctfst.c jidctint.c jidctred.c jquant1.c
+        jquant2.c jutils.c jmemmgr.c
+        jmemnobs.c
+        ;
+
+    #
+    # Freetype is a bit messy.
+    #
+
+    FTSRCS =
+        base/ftbase.c
+        base/ftsystem.c
+        base/ftinit.c
+        base/ftglyph.c
+        base/ftmm.c
+        base/ftbbox.c
+        base/ftdebug.c
+        base/fttype1.c
+        base/ftbitmap.c
+        cff/cff.c
+        psaux/psaux.c
+        psnames/psnames.c
+        raster/raster.c
+        smooth/smooth.c
+        sfnt/sfnt.c
+        truetype/truetype.c
+        type1/type1.c
+        ;
+
+    for FTSRC in $(FTSRCS)
+    {
+        FTDIR = $(FTSRC:D) ;
+        FTFIL = $(FTSRC:B).c ;
+
+        SubDir TOP support freetype-2.3.7 src $(FTDIR) ;
+        ObjDir libfreetype ;
+        SubDirHdrs $(SUBDIR) .. .. include ;
+        SharedLibrary libfreetype : $(FTFIL) ;
+    }
+
+}
+
+#
+# SDL Sound 
+#
+
+if $(USESDL)
+{
+    SubDir TOP support ;
+    ObjDir SDL_sound ;
+
+    SubDirCcFlags
+        -DSOUND_SUPPORTS_OGG
+        -DSOUND_SUPPORTS_SMPEG
+        -DSOUND_USE_ALTCVT
+        ;
+
+    if $(OS) = MINGW { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
+    if $(OS) = LINUX { SubDirCcFlags -I/usr/include/SDL ; }
+
+    SEARCH_SOURCE =
+        [ FDirName $(TOP) support sdl_sound-1.0.3 ]
+        [ FDirName $(TOP) support sdl_sound-1.0.3 decoders ]
+        ;
+
+    if $(OS) = MINGW
+    {
+        SEARCH_SOURCE += [ FDirName $(SUBDIR) sdl-1.2.13 ] ;
+
+        SharedLibrary SDL_sound :
+            ogg.c smpeg.c alt_audio_convert.c extra_rwops.c SDL_sound.c
+            ;
+
+        SharedLinkLibrariesOnSharedLibrary SDL_sound : smpeg libvorbisfile-3 ;
+    }
+
+    if $(OS) = LINUX
+    {
+        Library SDL_sound_static :
+            ogg.c smpeg.c alt_audio_convert.c extra_rwops.c SDL_sound.c
+            ;
+    }
 }
 
