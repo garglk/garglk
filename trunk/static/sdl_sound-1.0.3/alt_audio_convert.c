@@ -121,13 +121,17 @@ typedef struct
 
 /* Mono (1 channel ) */
 #define Suffix(x) x##1
+#define CH(x) x
 #include "filter_templates.h"
 #undef Suffix
+#undef CH
 
 /* Stereo (2 channel ) */
 #define Suffix(x) x##2
+#define CH(x) x*2
 #include "filter_templates.h"
 #undef Suffix
+#undef CH
 
 
 /*-------------------------------------------------------------------------*/
@@ -991,6 +995,7 @@ static void show_AudioCVT( Sound_AudioCVT *Data )
         fprintf( stderr, "    Error: unknown adapter\n" );
 
         cont:
+            continue;
     }
     fprintf( stderr, "    Error: NULL adapter missing\n" );
     sucess_exit:

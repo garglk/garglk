@@ -27,8 +27,11 @@
 
 #ifndef Suffix
 #error include filter_template.h with defined Suffix macro!
-#else
-#define CH(x) (Suffix((x)*))
+#endif /* Suffix */
+
+#ifndef CH
+#error include filter_template.h with defined CH macro!
+#endif /* CH */
 
 /*-------------------------------------------------------------------------*/
 /* this filter (Kaiser-window beta=6.8) gives a decent -80dB attentuation  */
@@ -194,6 +197,4 @@ static Sint16* Suffix(decreaseRate)( Sint16 *outp, Sint16 *inp, int length,
 }
 
 /*-------------------------------------------------------------------------*/
-#undef CH
-#endif /* Suffix */
 
