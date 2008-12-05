@@ -15,6 +15,11 @@ if $(OS) = MINGW
     SubDirHdrs $(TOP) support sdl_sound-1.0.3 ;
 }
 
+if $(OS) = LINUX
+{
+    SubDirHdrs $(TOP) support sdl_sound-1.0.3 ;
+}
+
 GARGSRCS = 
     gi_blorb.c gi_dispa.c nohyper.c 
     cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c cgunicod.c
