@@ -101,6 +101,7 @@ schanid_t glk_schannel_create(glui32 rock)
 
 static void cleanup_channel(schanid_t chan)
 {
+    SDL_LockAudio;
     if (chan->sdl_rwops) {
     if (!chan->decode)
         SDL_FreeRW(chan->sdl_rwops);
@@ -127,6 +128,7 @@ static void cleanup_channel(schanid_t chan)
 	break;
     }
     chan->status = CHANNEL_IDLE;
+    SDL_UnlockAudio;
 }
 
 void glk_schannel_destroy(schanid_t chan)
@@ -246,7 +248,10 @@ static void sound_complete(int chan)
 static void sound_completion_callback(int chan)
 {
     channel_t *sound_channel = sound_channels[chan];
-    assert(sound_channel);
+    if (!sound_channel) {
+        gli_strict_warning("sound callback failed");
+        return;
+    }
     if (!sound_channel->buffered || !sound_channel->decode) {
         return sound_complete(chan);
     }
@@ -499,7 +504,9 @@ void glk_schannel_stop(schanid_t chan)
 	gli_strict_warning("schannel_stop: invalid id.");
 	return;
     }
+    SDL_LockAudio;
     chan->buffered = 0;
+    SDL_UnlockAudio;
     switch (chan->status) {
     case CHANNEL_SOUND:
 	Mix_HaltChannel(chan->sdl_channel);
