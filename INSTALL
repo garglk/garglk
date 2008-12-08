@@ -13,5 +13,5 @@ Compile with "jam". The default is to build a RELEASE build.
 Compile with "jam -sBUILD=DEBUG" for a debuggable build.
 
 The command "jam install" will copy the compiled executables
-and shared libraries into "bin/dist/".
+and shared libraries into "build/dist/".
 
