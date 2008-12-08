@@ -68,7 +68,7 @@ void glk_stylehint_set(glui32 wintype, glui32 style, glui32 hint, glsi32 val)
 		break;
 
 	case stylehint_ReverseColor:
-		styles[style].reverse = (hint != 0);
+		styles[style].reverse = (val != 0);
 		break;
 
 	case stylehint_Proportional:
@@ -112,8 +112,33 @@ void glk_stylehint_set(glui32 wintype, glui32 style, glui32 hint, glsi32 val)
 	}
 }
 
-void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
+void glk_stylehint_clear(glui32 wintype, glui32 style, glui32 hint)
 {
+	style_t *styles;
+
+	if (wintype == wintype_AllTypes)
+	{
+		glk_stylehint_clear(wintype_TextGrid, style, hint);
+		glk_stylehint_clear(wintype_TextBuffer, style, hint);
+		return;
+	}
+
+	if (wintype == wintype_TextGrid)
+		styles = gli_gstyles;
+	else if (wintype == wintype_TextBuffer)
+		styles = gli_tstyles;
+	else
+		return;
+
+	if (!gli_conf_stylehint)
+		return;
+
+	switch (hint)
+	{
+	case stylehint_ReverseColor:
+		styles[style].reverse = 0;
+		break;
+	}
 }
 
 glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)
@@ -196,7 +221,8 @@ glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)
 		return TRUE;
 
 	case stylehint_ReverseColor:
-		return FALSE;
+		*result = styles[style].reverse;
+		return TRUE;
 	}
 
     return FALSE;
