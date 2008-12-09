@@ -127,6 +127,19 @@ void gos_update_width(void)
 	}
 }
 
+void gos_update_height(void)
+{
+	glui32 height_upper;
+	glui32 height_lower;
+	if (gos_curwin)
+	{
+		glk_window_get_size(gos_upper, NULL, &height_upper);
+		glk_window_get_size(gos_lower, NULL, &height_lower);
+		h_screen_rows = height_upper + height_lower + 1;
+		SET_BYTE(H_SCREEN_ROWS, h_screen_rows);
+	}
+}
+
 void reset_status_ht(void)
 {
 	glui32 height;
