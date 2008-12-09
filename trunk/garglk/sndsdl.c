@@ -20,15 +20,17 @@
 
 /* non-standard types */
 #define giblorb_ID_MP3  (giblorb_make_id('M', 'P', '3', ' '))
-#define giblorb_ID_WAVE	(giblorb_make_id('W', 'A', 'V', 'E'))
+#define giblorb_ID_WAVE (giblorb_make_id('W', 'A', 'V', 'E'))
+
+#define SDL_CHANNELS 64
 
 static channel_t *gli_channellist = NULL;
-
-static channel_t *sound_channels[MIX_CHANNELS], *music_channel;
+static channel_t *sound_channels[SDL_CHANNELS];
+static channel_t *music_channel;
 
 static Sound_AudioInfo *output = NULL;
-static int FREE = 1;
-static int BUSY = 2;
+static const int FREE = 1;
+static const int BUSY = 2;
 
 void gli_initialize_sound(void)
 {
@@ -57,7 +59,8 @@ void gli_initialize_sound(void)
 	    gli_conf_sound = 0;
 	    return;
 	}
-    Mix_GroupChannels(0, MIX_CHANNELS -1 , FREE);
+    int channels = Mix_AllocateChannels(SDL_CHANNELS);
+    Mix_GroupChannels(0, channels - 1 , FREE);
     }
 }
 
