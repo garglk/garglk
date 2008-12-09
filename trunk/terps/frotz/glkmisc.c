@@ -314,8 +314,10 @@ zchar os_read_key (int timeout, bool show_cursor)
 	while (1)
 	{
 		glk_select(&ev);
-		if (ev.type == evtype_Arrange)
+		if (ev.type == evtype_Arrange) {
+			gos_update_height();
 			gos_update_width();
+		}
 		else if (ev.type == evtype_Timer)
 		{
 			glk_cancel_char_event(win);
@@ -369,8 +371,10 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 	while (1)
 	{
 		glk_select(&ev);
-		if (ev.type == evtype_Arrange)
+		if (ev.type == evtype_Arrange) {
+			gos_update_height();
 			gos_update_width();
+		}
 		else if (ev.type == evtype_Timer)
 		{
 			gos_linewin = win;
