@@ -244,7 +244,7 @@ std::string
 GeasGlkInterface::get_file (std::string fname) const
 {
   std::ifstream ifs;
-  ifs.open(fname.c_str());
+  ifs.open(fname.c_str(), std::ios::in | std::ios::binary);
   if (! ifs.is_open())
     {
       glk_put_cstring("Couldn't open ");
