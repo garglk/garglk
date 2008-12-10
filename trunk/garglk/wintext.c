@@ -1150,8 +1150,8 @@ static void acceptline(window_t *win, glui32 keycode)
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
-    glui32 *cx;
-    int len;
+    glui32 *cx, *ox;
+    int len, clen, olen;
 
     if (dwin->height < 2)
         dwin->scrollpos = 0;
@@ -1196,10 +1196,16 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
                     free(dwin->history[dwin->historypos]);
                 dwin->history[dwin->historypos] = cx;
             }
-            dwin->historypos--;
-            if (dwin->historypos < 0)
-                dwin->historypos += HISTORYLEN;
-            cx = dwin->history[dwin->historypos];
+            ox = dwin->history[dwin->historypos];
+            olen = ox ? strlen_uni(ox) : 0;
+            do {
+                dwin->historypos--;
+                if (dwin->historypos < 0)
+                    dwin->historypos += HISTORYLEN;
+                cx = dwin->history[dwin->historypos];
+                clen = cx ? strlen_uni(cx) : 0;
+            } while (dwin->historypos != dwin->historyfirst && olen == clen 
+                        && !memcmp(cx, ox, olen * sizeof(glui32)));
             put_text_uni(dwin, cx, cx ? strlen_uni(cx) : 0, dwin->infence,
                     dwin->numchars - dwin->infence);
             break;
@@ -1207,10 +1213,16 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         case keycode_Down:
             if (dwin->historypos == dwin->historypresent)
                 return;
-            dwin->historypos++;
-            if (dwin->historypos >= HISTORYLEN)
-                dwin->historypos -= HISTORYLEN;
-            cx = dwin->history[dwin->historypos];
+            ox = dwin->history[dwin->historypos];
+            olen = ox ? strlen_uni(ox) : 0;
+            do {
+                dwin->historypos++;
+                if (dwin->historypos >= HISTORYLEN)
+                    dwin->historypos -= HISTORYLEN;
+                cx = dwin->history[dwin->historypos];
+                clen = cx ? strlen_uni(cx) : 0;
+            } while (dwin->historypos != dwin->historypresent && olen == clen 
+                        && !memcmp(cx, ox, olen * sizeof(glui32)));
             put_text_uni(dwin, cx, cx ? strlen_uni(cx) : 0, dwin->infence, 
                     dwin->numchars - dwin->infence);
             break;
