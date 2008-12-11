@@ -6794,6 +6794,11 @@ gagt_finalizer (void)
 		 * for problem cases.
 		 */
 		gagt_agility_running = FALSE;
+
+#ifdef GARGLK
+		return;
+#endif /* GARGLK */
+
 #ifndef GLK_CLEAN_EXIT
 		if (getenv ("GLKAGIL_CLEAN_EXIT") == NULL)
 		    {
