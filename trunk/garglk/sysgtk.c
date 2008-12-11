@@ -68,13 +68,6 @@ static void oncancel(GtkFileSelection *widget, void *data)
     gtk_main_quit(); /* un-recurse back to normal loop */
 }
 
-static void ondestroy(GtkFileSelection *widget, void *data)
-{
-    strcpy(filename, "");
-    filedlog = NULL;
-    gtk_main_quit(); /* un-recurse back to normal loop */
-}
-
 void winopenfile(char *prompt, char *buf, int len, char *filter)
 {
     char realprompt[256];
@@ -88,7 +81,7 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
         "clicked", oncancel, NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "destroy", ondestroy, NULL);
+        "delete_event", oncancel, NULL);
     filename = buf;
     gtk_widget_show(filedlog);
     gtk_main(); /* recurse... */
@@ -106,7 +99,7 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
         "clicked", oncancel, NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "destroy", ondestroy, NULL);
+        "delete_event", oncancel, NULL);
     filename = buf;
     gtk_widget_show(filedlog);
     gtk_main(); /* recurse... */
