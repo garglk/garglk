@@ -317,8 +317,8 @@ void screen_char (zchar c)
 
 	if (gos_upper && gos_curwin == gos_upper)
 	{
-		if (c == '\n') {
-			glk_put_char(c);
+		if (c == '\n' || c == ZC_RETURN) {
+			glk_put_char('\n');
 			curx = 1;
 			cury ++;
 		}
@@ -346,7 +346,9 @@ void screen_char (zchar c)
 	}
 	else if (gos_curwin == gos_lower)
 	{
-		glk_put_char(c);
+		if (c == ZC_RETURN)
+			glk_put_char('\n');
+		else glk_put_char(c);
 	}
 }
 
