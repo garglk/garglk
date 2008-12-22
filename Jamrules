@@ -30,7 +30,7 @@ switch $(OS)
         SHRLINKLIBS = -lcomdlg32 -lgdi32 ;
         LINKLIBS = -lcomdlg32 -lgdi32 ;
 
-	if $(BUILD) = RELEASE
+	if $(BUILD) = RELEASE || $(BUILD) = TURBO
 	{
 	    SHRLINKLIBS += -mwindows ;
 	    LINKLIBS += -mwindows ;
@@ -84,6 +84,10 @@ switch $(BUILD)
     case RELEASE :
         Echo "BUILD is RELEASE" ;
         OPTIM = -O2 ;
+
+    case TURBO :
+        Echo "BUILD is TURBO" ;
+        OPTIM = -O3 -march=native -mtune=native ;
 
     case PROFILE :
         Echo "BUILD is PROFILE" ;
