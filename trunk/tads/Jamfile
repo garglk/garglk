@@ -17,8 +17,6 @@ SubDirCcFlags
     -DVMGLOB_STRUCT
     ;
 
-OPTIM = -O ; # tads 3 fails to compile with opts
-
 if $(OS) = LINUX
 {
     SubDirCcFlags
