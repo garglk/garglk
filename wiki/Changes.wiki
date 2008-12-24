@@ -1,10 +1,8 @@
 #labels Featured,Phase-Implementation
-#Changes to Gargoyle package.
-
 =Release 12-25-08=
 
 ==Gargoyle==
-
+----
 ===Added===
   * Added Unicode support to conform with Glk 0.7.  Enables indexed text for Glulx-based story files.
   * Added support for reverse style hints.  Adjusted default ini settings to compensate.
@@ -22,7 +20,7 @@
 
 
 ==Interpreters==
-
+----
 ===Added===
   * *Geas* 0.4 added for Quest stories.
   * *JACL* 2.3.14 added for JACL stories.
