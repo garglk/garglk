@@ -20,7 +20,7 @@
   * Resolved crash when loading jpeg files under Windows Vista.
   * Resolved crash when destroying save/restore dialog under Linux.
 
-
+<p>&nbsp</p>
 ===Interpreters===
 
 *New*
