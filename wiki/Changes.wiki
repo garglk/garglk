@@ -1,9 +1,9 @@
-#summary Summary of changes in Gargoyle releases.
+#summary Summary of new features, updates, and fixes in Gargoyle releases.
 #labels Featured,Phase-Implementation
 
-=Changes in release 12-25-08=
+==Changes in release 12-25-08==
 
-==Gargoyle==
+===Gargoyle===
 
 *New*
   * Added Unicode support to conform with Glk 0.7.  Enables indexed text for Glulx-based story files.
@@ -21,7 +21,7 @@
   * Resolved crash when destroying save/restore dialog under Linux.
 
 
-==Interpreters==
+===Interpreters===
 
 *New*
   * Geas 0.4 added for Quest stories.
