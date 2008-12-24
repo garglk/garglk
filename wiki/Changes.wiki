@@ -1,6 +1,7 @@
+#summary Summary of changes in Gargoyle releases.
 #labels Featured,Phase-Implementation
-=Changes in release 12-25-08=
 
+=Changes in release 12-25-08=
 
 ==Gargoyle==
 
@@ -23,24 +24,24 @@
 ==Interpreters==
 
 *New*
-  * *Geas* *0.4* added for *Quest* stories.
-  * *JACL* *2.3.14* added for *JACL* stories.
-  * *Nitfol* *0.5* included.
+  * Geas 0.4 added for Quest stories.
+  * JACL 2.3.14 added for JACL stories.
+  * Nitfol 0.5 included.
 
 *Updates*
-  * *Alan 3* updated to *3.0 alpha 6*.
-  * *Git* updated to *1.2.1*.
-  * *Glulxe* updated to *0.4.3*.
-  * *Hugo* updated to *3.1.03*.
-  * *Level* *9* updated to *4.1*.
-  * *Magnetic* *Scrolls* updated to *2.3*.
-  * *Scare* updated to *1.3.10*.
-  * *TADS* updated to *2.5.12* / *3.0.16*.
+  * Alan 3 updated to 3.0 alpha 6.
+  * Git updated to 1.2.1.
+  * Glulxe updated to 0.4.3.
+  * Hugo updated to 3.1.03.
+  * Level 9 updated to 4.1.
+  * Magnetic Scrolls updated to 2.3.
+  * Scare updated to 1.3.10.
+  * TADS updated to 2.5.12 / 3.0.16.
 
 *Fixes*
-  * *Agility* builds properly under Linux.
-  * *Agility* closes when the Glk window is closed.
-  * *Frotz* updates window height after Glk window is resized.
-  * *Frotz* converts CR to newline before printing via Glk.
+  * Agility builds properly under Linux.
+  * Agility closes when the Glk window is closed.
+  * Frotz updates window height after Glk window is resized.
+  * Frotz converts CR to newline before printing via Glk.
   * Merged patches from Simon Baldwin's IFP project.
   * Various 64-bit compatibility fixes applied.
