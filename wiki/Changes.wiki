@@ -6,33 +6,33 @@
 ==Gargoyle==
 
 ===Added===
-* Added Unicode support to conform with Glk 0.7.  Enables indexed text for Glulx-based story files.
-* Added support for reverse style hints.  Adjusted default ini settings to compensate.
-* Implemented buffered playback for Ogg / MP3 audio.
-* Added settings for default Glulx / Z Machine interpreters to ini.
+  * Added Unicode support to conform with Glk 0.7.  Enables indexed text for Glulx-based story files.
+  * Added support for reverse style hints.  Adjusted default ini settings to compensate.
+  * Implemented buffered playback for Ogg / MP3 audio.
+  * Added settings for default Glulx / Z Machine interpreters to ini.
 
 ===Fixed===
-* Wide input lines no longer corrupt right margin.
-* Automatically appends .sav for save files and .txt for transcript files on Windows.
-* Discards duplicate line inputs from command history.
-* No longer truncates certain whitespace used for formatting.
-* Resolved crash when playing audio files.
-* Resolved crash when loading jpeg files under Windows Vista.
-* Resolved crash when destroying save/restore dialog under Linux.
+  * Wide input lines no longer corrupt right margin.
+  * Automatically appends .sav for save files and .txt for transcript files on Windows.
+  * Discards duplicate line inputs from command history.
+  * No longer truncates certain whitespace used for formatting.
+  * Resolved crash when playing audio files.
+  * Resolved crash when loading jpeg files under Windows Vista.
+  * Resolved crash when destroying save/restore dialog under Linux.
 
 
 ==Interpreters==
 
 ===Added===
-* *Geas* 0.4 added for Quest stories.
-* *JACL* 2.3.14 added for JACL stories.
+  * *Geas* 0.4 added for Quest stories.
+  * *JACL* 2.3.14 added for JACL stories.
 
 ===Updated===
-* *Alan* *3* updated to 3.0a6.
-* *Git* updated to 1.2.1.
-* *Glulxe* updated to 0.4.3.
-* *Hugo* updated to 3.1.03.
-* *Level* *9* updated to 4.1.
-* *Magnetic* *Scrolls* updated to 2.3.
-* *Scare* updated to 1.3.10.
-* *TADS* updated to 2.5.12 / 3.0.16.
+  * *Alan* *3* updated to 3.0a6.
+  * *Git* updated to 1.2.1.
+  * *Glulxe* updated to 0.4.3.
+  * *Hugo* updated to 3.1.03.
+  * *Level* *9* updated to 4.1.
+  * *Magnetic* *Scrolls* updated to 2.3.
+  * *Scare* updated to 1.3.10.
+  * *TADS* updated to 2.5.12 / 3.0.16.
