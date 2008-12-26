@@ -1,0 +1,38 @@
+#summary All contributors to the Gargoyle project
+#labels Featured,Phase-Implementation
+
+==Credits==
+
+Gargoyle would not be possible without the original vision and implementation of Tor Andersson, or the many contributions of the individuals listed below.
+
+This list is meant to be inclusive and current.  If your name has been omitted in error, please contact <a mailto:bcressey@gmail.com>Ben Cressey</a> so that it can be corrected as soon as possible.
+
+===Development===
+_Original source code and patches_
+  * Tor Andersson
+  * Simon Baldwin
+  * Philip Chimento
+  * Ben Cressey
+  * Lorenzo Marcantonio
+  * Jesse McGrew
+
+<p><br/></p>
+
+===Testing===
+_Quality assurance testing and bug reports_
+  * Stuart Allen
+  * Paul Andinach
+  * Konstantin Baierer
+  * Eliuk Blau
+  * Steve Evans
+  * Alan De Smet
+  * Pavel Soukenik
+
+<p><br/></p>
+
+===Packaging===
+_Platform-specific interim and final releases_
+  * Christopher Armstrong (Ubuntu)
+  * Farvardin (Archlinux)
+
+<p><br/></p>
