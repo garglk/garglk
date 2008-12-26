@@ -1,4 +1,4 @@
-#summary All contributors to the Gargoyle project
+#summary List of contributors to the Gargoyle project.
 #labels Featured
 
 ==Credits==
