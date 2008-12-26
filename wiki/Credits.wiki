@@ -1,5 +1,5 @@
 #summary All contributors to the Gargoyle project
-#labels Featured,Phase-Implementation
+#labels Featured
 
 ==Credits==
 
