@@ -1,0 +1,19 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export undef2.t -> undef2.t3s
+	compile _main.t -> _main.t3o
+	compile undef2.t -> undef2.t3o
+	link -> undef2.t3p
+	preinit -> undef2.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is obj1.a(1)
+This is obj1.b(2, 3)
+This is obj2.a(4)
+Undefined: obj2.b(5, 6)
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

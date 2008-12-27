@@ -1,0 +1,8 @@
+frotz preloading text input...
+
+better docs and user manual
+textbuffer selection and copy
+
+dynamic memory for scrollback buffer & co
+extension to draw image and play sound with neither blorb nor SND/PIC files.
+

@@ -1,0 +1,6 @@
+These packages have been stripped of makefiles, config scripts,
+examples, test files, unused modules, and that sort of files
+in order to reduce the size.
+
+The originals can be found on the internet. Use google.
+

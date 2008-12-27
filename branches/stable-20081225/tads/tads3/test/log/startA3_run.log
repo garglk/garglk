@@ -1,0 +1,18 @@
+Start Room
+This is the starting room.
+
+>look
+Start Room
+This is the starting room.
+
+>north
+You can't go that way.  There are no obvious exits.
+
+>south
+You can't go that way.  There are no obvious exits.
+
+>i
+You are empty-handed.
+
+>quit
+Do you really want to quit? (Y is affirmative) > yes

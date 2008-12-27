@@ -1,0 +1,1523 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.5.4	//
+ACTION_DBR	infix.c	69;"	d	file:
+ALIAS	inform.c	9;"	d	file:
+ANDAND	inform.c	74;"	d	file:
+ARRAY_DBR	infix.c	73;"	d	file:
+ATTRIBUTE	objects.c	23;"	d	file:
+ATTR_COUNT	objects.c	/^static zword PROP_NUM_MASK, ATTR_COUNT;$/;"	v	file:
+ATTR_DBR	infix.c	66;"	d	file:
+AUTOMAP	inform.c	13;"	d	file:
+BACKTRACE	inform.c	52;"	d	file:
+BFALSE	inform.c	67;"	d	file:
+BREAK	inform.c	36;"	d	file:
+BREAKPOINTS	inform.c	41;"	d	file:
+BTRUE	inform.c	66;"	d	file:
+BYTEARRAY	inform.c	78;"	d	file:
+CACHE_SIZE	zscii.c	28;"	d	file:
+CHILD	inform.c	70;"	d	file:
+CHILD	objects.c	34;"	d	file:
+CHILDP	objects.c	29;"	d	file:
+CHILDREN	inform.c	72;"	d	file:
+CLASS_DBR	infix.c	63;"	d	file:
+COMP	portfunc.c	546;"	d	file:
+COND	inform.c	39;"	d	file:
+CONDITION	inform.c	8;"	d	file:
+CONT	inform.c	29;"	d	file:
+CONT_FINISH	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_GO	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_NEXT	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_NEXTI	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_STEP	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_STEPI	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+CONT_UNTIL	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	e	file:
+COPYING	inform.c	20;"	d	file:
+Cont_type	debug.c	/^typedef enum { CONT_GO, CONT_STEP, CONT_NEXT, CONT_FINISH, CONT_UNTIL, CONT_STEPI, CONT_NEXTI } Cont_type;$/;"	t	file:
+DECREMENT	inform.c	88;"	d	file:
+DELETE	inform.c	37;"	d	file:
+DFILE	inform.c	7;"	d	file:
+DIR_DOWN	automap.c	53;"	d	file:
+DIR_UP	automap.c	52;"	d	file:
+DIR_WAIT	automap.c	54;"	d	file:
+DISABLE_BREAK	inform.c	61;"	d	file:
+DISABLE_DISPLAY	inform.c	59;"	d	file:
+DISPLAY	inform.c	57;"	d	file:
+DOWN_FRAME	inform.c	54;"	d	file:
+DOWN_SILENTLY	inform.c	56;"	d	file:
+DO_TANDY	init.c	/^	      DO_TANDY,$/;"	e	enum:z_caps	file:
+DUMPMEM	inform.c	12;"	d	file:
+ENABLE_BREAK	inform.c	62;"	d	file:
+ENABLE_DISPLAY	inform.c	60;"	d	file:
+END	zscii.c	79;"	d	file:
+EOF_DBR	infix.c	61;"	d	file:
+E_CORRUPT	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+E_DEBUG	errmesg.c	/^	       E_DEBUG } errortypes;$/;"	e	file:
+E_INSTR	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_MATH	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_MEMORY	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_OBJECT	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_OUTPUT	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+E_SAVE	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+E_SOUND	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+E_STACK	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_STRING	errmesg.c	/^typedef enum { E_INSTR, E_OBJECT, E_STACK,  E_MEMORY,  E_MATH,    E_STRING,$/;"	e	file:
+E_SYSTEM	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+E_VERSION	errmesg.c	/^	       E_OUTPUT, E_SOUND, E_SYSTEM, E_VERSION, E_CORRUPT, E_SAVE,$/;"	e	file:
+FAKE_ACTION_DBR	infix.c	68;"	d	file:
+FILE_DBR	infix.c	62;"	d	file:
+FIND	inform.c	64;"	d	file:
+FINISH	inform.c	35;"	d	file:
+FORCE_FIXED	init.c	/^	      HAS_DEFVAR, IS_TRANS, FORCE_FIXED, HAS_UNDO, HAS_MENU,$/;"	e	enum:z_caps	file:
+FRAME	inform.c	50;"	d	file:
+GIVE	inform.c	26;"	d	file:
+GLOBAL	inform.c	85;"	d	file:
+GLOBAL_DBR	infix.c	65;"	d	file:
+HAS_BOLD	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	e	enum:z_caps	file:
+HAS_CHARGRAPH	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	e	enum:z_caps	file:
+HAS_COLOR	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	e	enum:z_caps	file:
+HAS_DEFVAR	init.c	/^	      HAS_DEFVAR, IS_TRANS, FORCE_FIXED, HAS_UNDO, HAS_MENU,$/;"	e	enum:z_caps	file:
+HAS_ENDNUM	init.c	/^	      HAS_ENDNUM };$/;"	e	enum:z_caps	file:
+HAS_FIXED	init.c	/^	      HAS_FIXED, HAS_SOUND, HAS_GRAPHICS, HAS_TIMER, HAS_MOUSE,$/;"	e	enum:z_caps	file:
+HAS_GRAPHICS	init.c	/^	      HAS_FIXED, HAS_SOUND, HAS_GRAPHICS, HAS_TIMER, HAS_MOUSE,$/;"	e	enum:z_caps	file:
+HAS_ITALIC	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	e	enum:z_caps	file:
+HAS_MENU	init.c	/^	      HAS_DEFVAR, IS_TRANS, FORCE_FIXED, HAS_UNDO, HAS_MENU,$/;"	e	enum:z_caps	file:
+HAS_MOUSE	init.c	/^	      HAS_FIXED, HAS_SOUND, HAS_GRAPHICS, HAS_TIMER, HAS_MOUSE,$/;"	e	enum:z_caps	file:
+HAS_SOUND	init.c	/^	      HAS_FIXED, HAS_SOUND, HAS_GRAPHICS, HAS_TIMER, HAS_MOUSE,$/;"	e	enum:z_caps	file:
+HAS_STATUSLINE	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	e	enum:z_caps	file:
+HAS_TIMER	init.c	/^	      HAS_FIXED, HAS_SOUND, HAS_GRAPHICS, HAS_TIMER, HAS_MOUSE,$/;"	e	enum:z_caps	file:
+HAS_UNDO	init.c	/^	      HAS_DEFVAR, IS_TRANS, FORCE_FIXED, HAS_UNDO, HAS_MENU,$/;"	e	enum:z_caps	file:
+HEADER_DBR	infix.c	70;"	d	file:
+HELP	inform.c	14;"	d	file:
+IF	inform.c	38;"	d	file:
+IGNORE	inform.c	40;"	d	file:
+INCREMENT	inform.c	87;"	d	file:
+INFINITY	automap.c	839;"	d	file:
+INFOSOURCE	inform.c	18;"	d	file:
+INFOSOURCES	inform.c	19;"	d	file:
+IS_TRANS	init.c	/^	      HAS_DEFVAR, IS_TRANS, FORCE_FIXED, HAS_UNDO, HAS_MENU,$/;"	e	enum:z_caps	file:
+JUMP	inform.c	28;"	d	file:
+LANGUAGE	inform.c	17;"	d	file:
+LINEREF_DBR	infix.c	71;"	d	file:
+LIST_GLOBALS	inform.c	65;"	d	file:
+LOCAL	inform.c	86;"	d	file:
+LOWER_WINDOW	z_io.c	23;"	d	file:
+LOWO	objects.c	/^zword LOWO(zword p)$/;"	f
+LOWOcopy	objects.c	/^void LOWOcopy(zword a, zword b)$/;"	f
+LOWOwrite	objects.c	/^void LOWOwrite(zword p, zword n)$/;"	f
+MAP_DBR	infix.c	74;"	d	file:
+MAX_DBR	infix.c	76;"	d	file:
+MOVE	inform.c	24;"	d	file:
+NEXT	inform.c	31;"	d	file:
+NEXTI	inform.c	34;"	d	file:
+NOTHING	inform.c	68;"	d	file:
+NOTNOT	inform.c	76;"	d	file:
+NULL	portfunc.c	266;"	d	file:
+NUM	inform.c	6;"	d	file:
+NUMBER	inform.c	81;"	d	file:
+NUM_CACHE	zscii.c	27;"	d	file:
+NUM_DIRS	automap.c	49;"	d	file:
+NUM_EXITS	automap.c	46;"	d	file:
+NUM_WALK	automap.c	50;"	d	file:
+OBJECT	inform.c	82;"	d	file:
+OBJECT_DBR	infix.c	64;"	d	file:
+OBJECT_TREE	inform.c	63;"	d	file:
+OBJSIZE	objects.c	/^static zword OBJSIZE;$/;"	v	file:
+OBJ_ADDR	objects.c	25;"	d	file:
+OFFSET_0OP	oplist.c	33;"	d	file:
+OFFSET_1OP	oplist.c	34;"	d	file:
+OFFSET_2OP	oplist.c	35;"	d	file:
+OFFSET_END	oplist.c	38;"	d	file:
+OFFSET_EXT	oplist.c	37;"	d	file:
+OFFSET_VAR	oplist.c	36;"	d	file:
+OR	inform.c	77;"	d	file:
+OROR	inform.c	75;"	d	file:
+PARENT	inform.c	69;"	d	file:
+PARENT	objects.c	32;"	d	file:
+PARENTP	objects.c	27;"	d	file:
+PC	debug.c	/^  offset PC;$/;"	m	struct:breakpoint	file:
+PC	globals.c	/^offset PC;$/;"	v
+PC	infix.c	/^  offset PC;$/;"	m	file:
+PC	undo.c	/^  offset PC;$/;"	m	struct:fast_undoslot	file:
+PC	undo.c	/^  offset PC;$/;"	m	struct:move_difference	file:
+PC_in_instruction	undo.c	/^  BOOL PC_in_instruction;$/;"	m	struct:move_difference	file:
+PRINT	inform.c	22;"	d	file:
+PROPADDR	inform.c	89;"	d	file:
+PROPLENGTH	inform.c	90;"	d	file:
+PROPS	objects.c	35;"	d	file:
+PROPSP	objects.c	30;"	d	file:
+PROP_DBR	infix.c	67;"	d	file:
+PROP_NUM_MASK	objects.c	/^static zword PROP_NUM_MASK, ATTR_COUNT;$/;"	v	file:
+QUIT	inform.c	44;"	d	file:
+RALIAS	inform.c	10;"	d	file:
+RANDOM	inform.c	73;"	d	file:
+RECORDOFF	inform.c	46;"	d	file:
+RECORDON	inform.c	45;"	d	file:
+REDO	inform.c	16;"	d	file:
+REMOVE	inform.c	27;"	d	file:
+REPLAY	inform.c	47;"	d	file:
+REPLAYOFF	inform.c	48;"	d	file:
+RESTART	inform.c	43;"	d	file:
+RESTORE	inform.c	42;"	d	file:
+REVERSE_DIR	automap.c	47;"	d	file:
+ROOM_SYMBOL	automap.c	58;"	d	file:
+ROUTINE	inform.c	83;"	d	file:
+ROUTINE_DBR	infix.c	72;"	d	file:
+ROUTINE_END_DBR	infix.c	75;"	d	file:
+SELECT_FRAME	inform.c	51;"	d	file:
+SET	inform.c	23;"	d	file:
+SIBLING	inform.c	71;"	d	file:
+SIBLING	objects.c	33;"	d	file:
+SIBLINGP	objects.c	28;"	d	file:
+STEP	inform.c	30;"	d	file:
+STEPI	inform.c	33;"	d	file:
+STREAM1	z_io.c	29;"	d	file:
+STREAM2	z_io.c	30;"	d	file:
+STREAM3	z_io.c	31;"	d	file:
+STREAM4	z_io.c	32;"	d	file:
+STRING	inform.c	84;"	d	file:
+SUPERCLASS	inform.c	91;"	d	file:
+SWAP	portfunc.c	543;"	d	file:
+SYMBOL_FILE	inform.c	49;"	d	file:
+Stack_frame	stack.c	/^struct Stack_frame {$/;"	s	file:
+Stack_frame	stack.c	/^typedef struct Stack_frame Stack_frame;$/;"	t	file:
+T	portfunc.c	548;"	d	file:
+TO	inform.c	25;"	d	file:
+Typocorrection	tokenise.c	/^struct Typocorrection {$/;"	s	file:
+UNALIAS	inform.c	11;"	d	file:
+UNDISPLAY	inform.c	58;"	d	file:
+UNDO	inform.c	15;"	d	file:
+UNTIL	inform.c	32;"	d	file:
+UPPER_WINDOW	z_io.c	22;"	d	file:
+UP_FRAME	inform.c	53;"	d	file:
+UP_SILENTLY	inform.c	55;"	d	file:
+WARRANTY	inform.c	21;"	d	file:
+WORDARRAY	inform.c	79;"	d	file:
+YYABORT	inform.c	701;"	d	file:
+YYACCEPT	inform.c	700;"	d	file:
+YYBACKUP	inform.c	708;"	d	file:
+YYBISON	inform.c	4;"	d	file:
+YYCOPY	inform.c	647;"	d	file:
+YYCOPY	inform.c	650;"	d	file:
+YYDEBUG	inform.c	196;"	d	file:
+YYDPRINTF	inform.c	772;"	d	file:
+YYDPRINTF	inform.c	781;"	d	file:
+YYEMPTY	inform.c	698;"	d	file:
+YYEOF	inform.c	699;"	d	file:
+YYERRCODE	inform.c	726;"	d	file:
+YYERROR	inform.c	702;"	d	file:
+YYERROR_VERBOSE	inform.c	169;"	d	file:
+YYFAIL	inform.c	706;"	d	file:
+YYFINAL	inform.c	201;"	d	file:
+YYFLAG	inform.c	202;"	d	file:
+YYFPRINTF	inform.c	769;"	d	file:
+YYINITDEPTH	inform.c	786;"	d	file:
+YYLAST	inform.c	460;"	d	file:
+YYLEX	inform.c	748;"	d	file:
+YYLEX	inform.c	750;"	d	file:
+YYLEX	inform.c	754;"	d	file:
+YYLEX	inform.c	756;"	d	file:
+YYLEX	inform.c	760;"	d	file:
+YYLLOC_DEFAULT	inform.c	737;"	d	file:
+YYMAXDEPTH	inform.c	797;"	d	file:
+YYMAXDEPTH	inform.c	801;"	d	file:
+YYNTBASE	inform.c	203;"	d	file:
+YYPARSE_PARAM_ARG	inform.c	867;"	d	file:
+YYPARSE_PARAM_ARG	inform.c	870;"	d	file:
+YYPARSE_PARAM_ARG	inform.c	874;"	d	file:
+YYPARSE_PARAM_DECL	inform.c	868;"	d	file:
+YYPARSE_PARAM_DECL	inform.c	871;"	d	file:
+YYPARSE_PARAM_DECL	inform.c	875;"	d	file:
+YYPOPSTACK	inform.c	961;"	d	file:
+YYPOPSTACK	inform.c	963;"	d	file:
+YYRECOVERING	inform.c	707;"	d	file:
+YYSIZE_T	inform.c	606;"	d	file:
+YYSIZE_T	inform.c	681;"	d	file:
+YYSIZE_T	inform.c	684;"	d	file:
+YYSIZE_T	inform.c	689;"	d	file:
+YYSIZE_T	inform.c	693;"	d	file:
+YYSTACK_ALLOC	inform.c	587;"	d	file:
+YYSTACK_ALLOC	inform.c	591;"	d	file:
+YYSTACK_ALLOC	inform.c	594;"	d	file:
+YYSTACK_ALLOC	inform.c	608;"	d	file:
+YYSTACK_BYTES	inform.c	634;"	d	file:
+YYSTACK_BYTES	inform.c	638;"	d	file:
+YYSTACK_FREE	inform.c	602;"	d	file:
+YYSTACK_FREE	inform.c	609;"	d	file:
+YYSTACK_GAP_MAX	inform.c	629;"	d	file:
+YYSTACK_RELOCATE	inform.c	1067;"	d	file:
+YYSTACK_RELOCATE	inform.c	666;"	d	file:
+YYSTYPE	inform.c	192;"	d	file:
+YYSTYPE_IS_TRIVIAL	inform.c	193;"	d	file:
+YYTERROR	inform.c	725;"	d	file:
+YYTRANSLATE	inform.c	206;"	d	file:
+YY_DECL_NON_LSP_VARIABLES	inform.c	890;"	d	file:
+YY_DECL_VARIABLES	inform.c	901;"	d	file:
+YY_DECL_VARIABLES	inform.c	907;"	d	file:
+Z_ARRAY	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_ATTR	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_BOOLEAN	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_BYTEARRAY	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_GLOBAL	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_LOCAL	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_NUMBER	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_OBJECT	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_OBJPROP	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_PROP	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_ROUTINE	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_STRING	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_UNKNOWN	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+Z_WORDARRAY	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	e	file:
+a	automap.c	/^  loc_node *a, *b;$/;"	m	struct:interlist	file:
+abort_output	z_io.c	/^static BOOL abort_output = FALSE; \/* quickly stop outputting *\/$/;"	v	file:
+actual	io.c	/^  colorstyle actual;$/;"	m	struct:z_window	file:
+add_alias	z_io.c	/^void add_alias(const char *from, const char *to, BOOL is_recursive)$/;"	f
+add_piece	op_v6.c	/^static void add_piece(struct graph_piece new_piece)$/;"	f	file:
+add_stack_frame	stack.c	/^void add_stack_frame(offset return_PC, unsigned num_locals, zword *locals,$/;"	f
+addparsed	tokenise.c	/^static void addparsed(zword *parse_dest, int word_num, int length, int off)$/;"	f	file:
+address	infix.c	/^  zword address;$/;"	m	file:
+alias_entry	z_io.c	/^struct alias_entry$/;"	s	file:
+alias_entry	z_io.c	/^typedef struct alias_entry alias_entry;$/;"	t	file:
+alias_list	z_io.c	/^static alias_entry *alias_list = NULL;$/;"	v	file:
+all_edges	automap.c	/^static edgelist *all_edges;$/;"	v	file:
+allow_output	globals.c	/^BOOL allow_output = TRUE; \/* Otherwise, ignore all output *\/$/;"	v
+allow_saveundo	globals.c	/^BOOL allow_saveundo = TRUE; \/* Otherwise, ignore all @save_undo opcodes *\/$/;"	v
+alphabetsoup	zscii.c	/^static unsigned char alphabetsoup(unsigned spoon, unsigned char letter)$/;"	f	file:
+arguments	stack.c	/^  zword arguments;           \/* Number of arguments used for check_count *\/$/;"	m	struct:Stack_frame	file:
+auto_display	debug.c	/^struct auto_display {$/;"	s	file:
+auto_display	debug.c	/^typedef struct auto_display auto_display;$/;"	t	file:
+auto_save_undo	globals.c	/^BOOL auto_save_undo = TRUE;$/;"	v
+auto_save_undo_char	globals.c	/^BOOL auto_save_undo_char = FALSE;$/;"	v
+automap_add_cycle	solve.c	/^void automap_add_cycle(cycleequation *cycle)$/;"	f
+automap_adjust_length	automap.c	/^static void automap_adjust_length(loc_node *location, int dir, int newlen)$/;"	f	file:
+automap_calc_cycles	automap.c	/^static void automap_calc_cycles(loc_node *start)$/;"	f	file:
+automap_calc_distances	automap.c	/^static void automap_calc_distances(loc_node *location, glui32 distance,$/;"	f	file:
+automap_calc_exits	automap.c	/^static void automap_calc_exits(loc_node *location, int depth)$/;"	f	file:
+automap_calc_location	automap.c	/^static void automap_calc_location(loc_node *location, loc_node *last,$/;"	f	file:
+automap_cycle_elimination	solve.c	/^void automap_cycle_elimination(void)$/;"	f
+automap_cycles_fill_values	solve.c	/^void automap_cycles_fill_values(void)$/;"	f
+automap_delete_cycles	solve.c	/^void automap_delete_cycles(void)$/;"	f
+automap_dir	automap.c	/^static int automap_dir = NUM_EXITS;$/;"	v	file:
+automap_draw_callback	automap.c	/^glui32 automap_draw_callback(winid_t win, glui32 width, glui32 height)$/;"	f
+automap_draw_edge	automap.c	/^static BOOL automap_draw_edge(loc_node *location, int dir, int *x, int *y)$/;"	f	file:
+automap_edge_follow	automap.c	/^static loc_node *automap_edge_follow(loc_node *location, int dir)$/;"	f	file:
+automap_edge_length	automap.c	/^static int automap_edge_length(loc_node *location, int dir)$/;"	f	file:
+automap_edge_oneway	automap.c	/^static int automap_edge_oneway(loc_node *location, int dir)$/;"	f	file:
+automap_edges_mindist	automap.c	/^static void automap_edges_mindist(void)$/;"	f	file:
+automap_edges_untouch	automap.c	/^static void automap_edges_untouch(void)$/;"	f	file:
+automap_explore	automap.c	/^const char *automap_explore(void)$/;"	f
+automap_explored	automap.c	/^static BOOL automap_explored = FALSE;$/;"	v	file:
+automap_find_and_count_interference	automap.c	/^static int automap_find_and_count_interference(loc_node *center)$/;"	f	file:
+automap_find_cycles	automap.c	/^static void automap_find_cycles(loc_node *location, automap_path *curpath)$/;"	f	file:
+automap_find_path	automap.c	/^static automap_path *automap_find_path(loc_node *location, loc_node *dest,$/;"	f	file:
+automap_forget_interference	automap.c	/^static void automap_forget_interference(void)$/;"	f	file:
+automap_get_cookie	automap.c	/^static glui32 automap_get_cookie(void) {$/;"	f	file:
+automap_get_edge	automap.c	/^static edge *automap_get_edge(loc_node *location, int dir)$/;"	f	file:
+automap_get_height	automap.c	/^int automap_get_height(void)$/;"	f
+automap_increase_along_path	automap.c	/^static BOOL automap_increase_along_path(automap_path *path, int oldcount,$/;"	f	file:
+automap_init	automap.c	/^BOOL automap_init(int numobj, const char *location_exp)$/;"	f
+automap_kill	automap.c	/^void automap_kill(void)$/;"	f
+automap_location	automap.c	/^zword automap_location = 0;$/;"	v
+automap_mouse_callback	automap.c	/^BOOL automap_mouse_callback(BOOL is_char_event,$/;"	f
+automap_new_edge	automap.c	/^static edge *automap_new_edge(loc_node *src, loc_node *dest, BOOL is_oneway)$/;"	f	file:
+automap_path	automap.c	/^struct automap_path {$/;"	s	file:
+automap_path	automap.c	/^typedef struct automap_path automap_path;$/;"	t	file:
+automap_remember_interference	automap.c	/^static void automap_remember_interference(loc_node *a, loc_node *b)$/;"	f	file:
+automap_remove_edge	automap.c	/^static void automap_remove_edge(edge *e)$/;"	f	file:
+automap_resolve_interference	automap.c	/^static BOOL automap_resolve_interference(loc_node *center, int effort)$/;"	f	file:
+automap_set_connection	automap.c	/^static void automap_set_connection(int location, int d, int dest, BOOL is_real)$/;"	f	file:
+automap_set_locations	automap.c	/^void automap_set_locations(int center)$/;"	f
+automap_set_virtual_connection	automap.c	/^static void automap_set_virtual_connection(loc_node *location, int d,$/;"	f	file:
+automap_size	globals.c	/^int automap_size = 12;$/;"	v
+automap_split	globals.c	/^glui32 automap_split = winmethod_Above;$/;"	v
+automap_undoslot	undo.c	/^static struct fast_undoslot automap_undoslot = { NULL, 0, 0, NULL, 0, 0 };$/;"	v	file:
+automap_unexplore	automap.c	/^BOOL automap_unexplore(void)$/;"	f
+automap_win	automap.c	/^static zwinid automap_win;$/;"	v	file:
+automap_write_loc	automap.c	/^static void automap_write_loc(int x, int y)$/;"	f	file:
+aye_matey	globals.c	/^BOOL aye_matey = FALSE;$/;"	v
+b	automap.c	/^  loc_node *a, *b;$/;"	m	struct:interlist	file:
+back	io.c	/^  char back;$/;"	m	file:
+bgcolortable	io.c	/^glsi32 bgcolortable[] = {$/;"	v
+biggest_height	io.c	/^  glui32 biggest_height;\/* The biggest it's been since *\/$/;"	m	struct:z_window	file:
+bit	init.c	/^  int bit;$/;"	m	struct:z_cap_entry	file:
+bitmap_to_style	io.c	/^static glui32 bitmap_to_style[16] = {$/;"	v	file:
+blorb_file	globals.c	/^strid_t blorb_file;$/;"	v
+bp_access_watch	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	e	file:
+bp_break	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	e	file:
+bp_none	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	e	file:
+bp_read_watch	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	e	file:
+bp_write_watch	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	e	file:
+bpdisp	debug.c	/^typedef enum { del, del_at_next_stop, disable, donttouch } bpdisp;$/;"	t	file:
+bptype	debug.c	/^typedef enum { bp_none, bp_break, bp_write_watch, bp_read_watch, bp_access_watch } bptype;$/;"	t	file:
+break_frame	debug.c	/^  int break_frame;  \/* If not -1, only break at this depth *\/$/;"	m	struct:breakpoint	file:
+breaklist	debug.c	/^static breakpoint *breaklist;$/;"	v	file:
+breaknumber	debug.c	/^static int breaknumber = 1;$/;"	v	file:
+breakpoint	debug.c	/^struct breakpoint {$/;"	s	file:
+breakpoint	debug.c	/^typedef struct breakpoint breakpoint;$/;"	t	file:
+bucket	hash.c	/^typedef struct bucket {$/;"	s	file:
+bucket	hash.c	/^} bucket;$/;"	t	file:
+buffer_size	io.c	/^  glui32 buffer_size;   \/* max_offset must stay < buffer_size *\/$/;"	m	struct:z_window	file:
+c	init.c	/^  enum z_caps c;$/;"	m	struct:z_cap_entry	file:
+changedto	tokenise.c	/^  char changedto[13];$/;"	m	struct:Typocorrection	file:
+channel	sound.c	/^static schanid_t channel;$/;"	v	file:
+check_ascii_mode	init.c	/^static void check_ascii_mode(void)$/;"	f	file:
+check_attr_valid	objects.c	/^static BOOL check_attr_valid(zword attr)$/;"	f	file:
+check_attr_valid	objects.c	74;"	d	file:
+check_game_for_save	op_save.c	/^BOOL check_game_for_save(strid_t gamefile, zword release, const char serial[6],$/;"	f
+check_obj_valid	objects.c	/^static BOOL check_obj_valid(zword object)$/;"	f	file:
+check_obj_valid	objects.c	73;"	d	file:
+check_set_var	stack.c	/^void check_set_var(int var, zword val)$/;"	f
+check_sound	no_snd.c	/^void check_sound(event_t unused)$/;"	f
+check_sound	sound.c	/^void check_sound(event_t moo) \/* called from main event loop *\/$/;"	f
+check_stack_stack	stack.c	/^static void check_stack_stack(offset addsize)$/;"	f	file:
+check_valid_for_input	io.c	/^zwinid check_valid_for_input(zwinid window)$/;"	f
+check_watches	debug.c	/^void check_watches(void)$/;"	f
+check_window_prop	op_v6.c	/^static BOOL check_window_prop(int prop_num)$/;"	f	file:
+checkforblockquote	io.c	/^static void checkforblockquote(zwinid window, zwinid dest_win)$/;"	f	file:
+cmpdictentry	tokenise.c	/^static int cmpdictentry(const void *a, const void *b)$/;"	f	file:
+code_alias	startdos.c	/^static void code_alias(const char *string)$/;"	f	file:
+code_alias	startunix.c	/^static void code_alias(const char *string)$/;"	f	file:
+code_alias	startwin.c	/^static void code_alias(const char *string)$/;"	f	file:
+code_autoundo	startdos.c	/^static void code_autoundo(int flag)$/;"	f	file:
+code_autoundo	startunix.c	/^static void code_autoundo(int flag)$/;"	f	file:
+code_autoundo	startwin.c	/^static void code_autoundo(int flag)$/;"	f	file:
+code_command	startdos.c	/^static void code_command(strid_t stream)$/;"	f	file:
+code_command	startunix.c	/^static void code_command(strid_t stream)$/;"	f	file:
+code_command	startwin.c	/^static void code_command(strid_t stream)$/;"	f	file:
+code_debug	startdos.c	/^static void code_debug(int flag)$/;"	f	file:
+code_debug	startunix.c	/^static void code_debug(int flag)$/;"	f	file:
+code_debug	startwin.c	/^static void code_debug(int flag)$/;"	f	file:
+code_expand	startdos.c	/^static void code_expand(int flag)$/;"	f	file:
+code_expand	startunix.c	/^static void code_expand(int flag)$/;"	f	file:
+code_expand	startwin.c	/^static void code_expand(int flag)$/;"	f	file:
+code_fullname	startdos.c	/^static void code_fullname(int flag)$/;"	f	file:
+code_fullname	startunix.c	/^static void code_fullname(int flag)$/;"	f	file:
+code_fullname	startwin.c	/^static void code_fullname(int flag)$/;"	f	file:
+code_ignore	startdos.c	/^static void code_ignore(int flag)$/;"	f	file:
+code_ignore	startunix.c	/^static void code_ignore(int flag)$/;"	f	file:
+code_ignore	startwin.c	/^static void code_ignore(int flag)$/;"	f	file:
+code_maploc	startdos.c	/^static void code_maploc(const char *string)$/;"	f	file:
+code_maploc	startunix.c	/^static void code_maploc(const char *string)$/;"	f	file:
+code_maploc	startwin.c	/^static void code_maploc(const char *string)$/;"	f	file:
+code_mapsize	startdos.c	/^static void code_mapsize(int number)$/;"	f	file:
+code_mapsize	startunix.c	/^static void code_mapsize(int number)$/;"	f	file:
+code_mapsize	startwin.c	/^static void code_mapsize(int number)$/;"	f	file:
+code_mapsym	startdos.c	/^static void code_mapsym(const char *string)$/;"	f	file:
+code_mapsym	startunix.c	/^static void code_mapsym(const char *string)$/;"	f	file:
+code_mapsym	startwin.c	/^static void code_mapsym(const char *string)$/;"	f	file:
+code_path	startdos.c	/^static void code_path(const char *string)$/;"	f	file:
+code_path	startunix.c	/^static void code_path(const char *string)$/;"	f	file:
+code_path	startwin.c	/^static void code_path(const char *string)$/;"	f	file:
+code_pirate	startdos.c	/^static void code_pirate(int flag)$/;"	f	file:
+code_pirate	startunix.c	/^static void code_pirate(int flag)$/;"	f	file:
+code_pirate	startwin.c	/^static void code_pirate(int flag)$/;"	f	file:
+code_prompt	startdos.c	/^static void code_prompt(const char *string)$/;"	f	file:
+code_prompt	startunix.c	/^static void code_prompt(const char *string)$/;"	f	file:
+code_prompt	startwin.c	/^static void code_prompt(const char *string)$/;"	f	file:
+code_quiet	startdos.c	/^static void code_quiet(int flag)$/;"	f	file:
+code_quiet	startunix.c	/^static void code_quiet(int flag)$/;"	f	file:
+code_quiet	startwin.c	/^static void code_quiet(int flag)$/;"	f	file:
+code_ralias	startdos.c	/^static void code_ralias(const char *string)$/;"	f	file:
+code_ralias	startunix.c	/^static void code_ralias(const char *string)$/;"	f	file:
+code_ralias	startwin.c	/^static void code_ralias(const char *string)$/;"	f	file:
+code_random	startdos.c	/^static void code_random(int number)$/;"	f	file:
+code_random	startunix.c	/^static void code_random(int number)$/;"	f	file:
+code_random	startwin.c	/^static void code_random(int number)$/;"	f	file:
+code_spell	startdos.c	/^static void code_spell(int flag)$/;"	f	file:
+code_spell	startunix.c	/^static void code_spell(int flag)$/;"	f	file:
+code_spell	startwin.c	/^static void code_spell(int flag)$/;"	f	file:
+code_stacklimit	startdos.c	/^static void code_stacklimit(int number)$/;"	f	file:
+code_stacklimit	startunix.c	/^static void code_stacklimit(int number)$/;"	f	file:
+code_stacklimit	startwin.c	/^static void code_stacklimit(int number)$/;"	f	file:
+code_start	infix.c	/^static offset code_start = 0;$/;"	v	file:
+code_symbols	startdos.c	/^static void code_symbols(strid_t stream)$/;"	f	file:
+code_symbols	startunix.c	/^static void code_symbols(strid_t stream)$/;"	f	file:
+code_symbols	startwin.c	/^static void code_symbols(strid_t stream)$/;"	f	file:
+code_tandy	startdos.c	/^static void code_tandy(int flag)$/;"	f	file:
+code_tandy	startunix.c	/^static void code_tandy(int flag)$/;"	f	file:
+code_tandy	startwin.c	/^static void code_tandy(int flag)$/;"	f	file:
+code_terpnum	startdos.c	/^static void code_terpnum(int number)$/;"	f	file:
+code_terpnum	startunix.c	/^static void code_terpnum(int number)$/;"	f	file:
+code_terpnum	startwin.c	/^static void code_terpnum(int number)$/;"	f	file:
+code_terpver	startdos.c	/^static void code_terpver(const char *string)$/;"	f	file:
+code_terpver	startunix.c	/^static void code_terpver(const char *string)$/;"	f	file:
+code_terpver	startwin.c	/^static void code_terpver(const char *string)$/;"	f	file:
+code_transcript	startdos.c	/^static void code_transcript(strid_t stream)$/;"	f	file:
+code_transcript	startunix.c	/^static void code_transcript(strid_t stream)$/;"	f	file:
+code_transcript	startwin.c	/^static void code_transcript(strid_t stream)$/;"	f	file:
+code_unalias	startdos.c	/^static void code_unalias(const char *string)$/;"	f	file:
+code_unalias	startunix.c	/^static void code_unalias(const char *string)$/;"	f	file:
+code_unalias	startwin.c	/^static void code_unalias(const char *string)$/;"	f	file:
+coefficient	solve.c	/^  rational coefficient;$/;"	m	struct:equation	file:
+color	op_v6.c	/^  int color;   \/* -1 means erase to background color *\/$/;"	m	struct:graph_piece	file:
+color_buffer	io.c	/^  colorstyle *color_buffer;$/;"	m	struct:z_window	file:
+coloreq	io.c	/^static BOOL coloreq(colorstyle a, colorstyle b) \/* return true if colors are equivalent *\/$/;"	f	file:
+colorstyle	io.c	/^} colorstyle;$/;"	t	file:
+command_matches	inform.c	/^static match_type command_matches(const char *command, const char *expression,$/;"	f	file:
+cond	inform.c	/^  } cond;$/;"	m	file:
+cond_list	inform.c	/^  struct cond_list {$/;"	s	file:
+cond_list	inform.c	/^  typedef struct cond_list cond_list;$/;"	t	file:
+condfunc	inform.c	/^    BOOL (*condfunc)(zword a, zword b);$/;"	m	file:
+condfunc	inform.c	/^    BOOL (*condfunc)(zword a, zword b);$/;"	m	struct:cond_list	file:
+condfunc	inform.c	/^  BOOL (*condfunc)(zword a, zword b);$/;"	m	file:
+condition	debug.c	/^  char *condition;$/;"	m	struct:breakpoint	file:
+condition	inform.c	/^} condition;$/;"	t	file:
+conditionlist	inform.c	/^condition conditionlist[] = {$/;"	v
+condlist	inform.c	/^  cond_list *condlist;$/;"	v
+count	solve.c	/^  int count; \/* Number of times variable is used *\/$/;"	m	struct:equation	file:
+counting_glk_put_char	z_io.c	/^static void counting_glk_put_char(int ch)$/;"	f	file:
+cur_break	debug.c	/^int cur_break;$/;"	v
+cur_cap	init.c	/^static BOOL cur_cap[HAS_ENDNUM];$/;"	v	file:
+cur_file	debug.c	/^infix_file *cur_file;$/;"	v
+cur_line	debug.c	/^int cur_line;$/;"	v
+cur_stack_depth	debug.c	/^int cur_stack_depth;$/;"	v
+curr_offset	io.c	/^  glui32 curr_offset;   \/* offset into text_buffer\/color_buffer *\/$/;"	m	struct:z_window	file:
+current	io.c	/^  colorstyle current;$/;"	m	struct:z_window	file:
+current_window	op_v6.c	/^static int current_window;$/;"	v	file:
+current_window	z_io.c	/^static zwinid current_window;$/;"	v	file:
+current_zfile	globals.c	/^strid_t current_zfile;$/;"	v
+cycleequation	solve.c	/^struct cycleequation {$/;"	s	file:
+cycleequation	solve.c	/^typedef struct cycleequation cycleequation;$/;"	t	file:
+data	hash.c	/^    void *data;$/;"	m	struct:bucket	file:
+data	portfunc.c	/^  void *data;$/;"	m	struct:rmmalloc_entry	file:
+db_prompt	globals.c	/^char *db_prompt;            \/* Defaults to "(nitfol) " *\/$/;"	v
+debug_attrib	debug.c	/^void debug_attrib(zword attribnum, zword objectnum)$/;"	f
+debug_attrib	debug.c	27;"	d	file:
+debug_cont	debug.c	/^static Cont_type debug_cont = CONT_GO;$/;"	v	file:
+debug_decode_number	debug.c	/^const char *debug_decode_number(unsigned number)$/;"	f
+debug_object	debug.c	/^void debug_object(zword objectnum, watchinfo type)$/;"	f
+debug_object	debug.c	26;"	d	file:
+debug_prompt	debug.c	/^void debug_prompt(void)$/;"	f
+decode	decode.c	/^void decode(void)$/;"	f
+decodezscii	zscii.c	/^int decodezscii(offset zscii, void (*putcharfunc)(int))$/;"	f
+defined	io.c	/^  BOOL defined;         \/* Is our location well defined? *\/$/;"	m	struct:z_window	file:
+defint	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defint	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defint	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstream	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstream	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstream	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstring	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstring	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+defstring	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+del	debug.c	/^typedef enum { del, del_at_next_stop, disable, donttouch } bpdisp;$/;"	e	file:
+del_at_next_stop	debug.c	/^typedef enum { del, del_at_next_stop, disable, donttouch } bpdisp;$/;"	e	file:
+delta	undo.c	/^  zbyte *delta;       \/* Encoded like quetzal mixed with UTF-8 *\/$/;"	m	struct:move_difference	file:
+deltalength	undo.c	/^  glui32 deltalength;$/;"	m	struct:move_difference	file:
+deltax	automap.c	/^  int deltax, deltay;$/;"	m	struct:dirinfo	file:
+deltay	automap.c	/^  int deltax, deltay;$/;"	m	struct:dirinfo	file:
+den	solve.c	/^  int den;$/;"	m	struct:rational	file:
+description	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+description	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+description	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+dest	automap.c	/^  loc_node *dest[2];                    \/* Two endpoints of passage *\/$/;"	m	struct:edge	file:
+dictentry_len	tokenise.c	/^static int dictentry_len;$/;"	v	file:
+dir	automap.c	/^  int dir;       \/* And the direction we're going from it *\/$/;"	m	struct:automap_path	file:
+dirinfo	automap.c	/^struct dirinfo {$/;"	s	file:
+dirty	io.c	/^  BOOL dirty;           \/* Has window been changed since last redraw? *\/$/;"	m	struct:z_window	file:
+dirways	automap.c	/^static const struct dirinfo dirways[] = {$/;"	v	file:
+disable	debug.c	/^typedef enum { del, del_at_next_stop, disable, donttouch } bpdisp;$/;"	e	file:
+displist	debug.c	/^static auto_display *displist;$/;"	v	file:
+dispnumber	debug.c	/^static int dispnumber = 1;$/;"	v	file:
+disposition	debug.c	/^  bpdisp disposition;$/;"	m	struct:breakpoint	file:
+dist	automap.c	/^  glui32 dist;                          \/* For automap_find_path *\/$/;"	m	struct:loc_node	file:
+do_automap	globals.c	/^BOOL do_automap = TRUE;$/;"	v
+do_check_watches	globals.c	/^BOOL do_check_watches = FALSE; \/* Preventing check_watches from being$/;"	v
+do_expand	globals.c	/^BOOL do_expand = TRUE;$/;"	v
+do_spell_correct	globals.c	/^BOOL do_spell_correct = TRUE;$/;"	v
+do_tandy	globals.c	/^BOOL do_tandy = FALSE;$/;"	v
+donttouch	debug.c	/^typedef enum { del, del_at_next_stop, disable, donttouch } bpdisp;$/;"	e	file:
+draw_callback	io.c	/^  glui32 (*draw_callback)(winid_t win, glui32 width, glui32 height);$/;"	m	struct:z_window	file:
+draw_intext_picture	io.c	/^void draw_intext_picture(zwinid window, glui32 picture, glui32 alignment)$/;"	f
+draw_picture	io.c	/^void draw_picture(zwinid window, glui32 picture, glui32 x, glui32 y)$/;"	f
+draw_upper_callback	z_io.c	/^glui32 draw_upper_callback(winid_t win, glui32 width, glui32 height)$/;"	f
+dynamic_size	globals.c	/^offset dynamic_size;$/;"	v
+edge	automap.c	/^struct edge {$/;"	s	file:
+edge	automap.c	/^typedef struct edge edge;$/;"	t	file:
+edgelist	automap.c	/^struct edgelist {$/;"	s	file:
+edgelist	automap.c	/^typedef struct edgelist edgelist;$/;"	t	file:
+emptystruct	struct.c	/^glui32 emptystruct(strid_t stream, const unsigned *info, const glui32 *src)$/;"	f
+enabled	debug.c	/^  BOOL enabled;$/;"	m	struct:auto_display	file:
+enabled	debug.c	/^  BOOL enabled;$/;"	m	struct:breakpoint	file:
+enablefont3	globals.c	/^BOOL enablefont3 = FALSE;        \/* Enables font3 -> ascii conversion.$/;"	v
+encodezscii	zscii.c	/^int encodezscii(zbyte *dest, int mindestlen, int maxdestlen,$/;"	f
+end_PC	infix.c	/^  offset end_PC;$/;"	m	file:
+end_line	infix.c	/^  unsigned end_line;$/;"	m	file:
+end_x	infix.c	/^  unsigned end_x;$/;"	m	file:
+enter_debugger	debug.c	/^BOOL enter_debugger = FALSE;$/;"	v
+eq	solve.c	/^  equation *eq;$/;"	m	struct:equalist	file:
+equalist	solve.c	/^struct equalist {$/;"	s	file:
+equalist	solve.c	/^typedef struct equalist equalist;$/;"	t	file:
+equation	solve.c	/^struct equation {$/;"	s	file:
+equation	solve.c	/^typedef struct equation equation;$/;"	t	file:
+equats	solve.c	/^static equalist *equats = NULL;$/;"	v	file:
+errortypenames	errmesg.c	/^static const char *errortypenames[] = {$/;"	v	file:
+errortypes	errmesg.c	/^	       E_DEBUG } errortypes;$/;"	t	file:
+evaluate_expression	inform.c	/^z_typed evaluate_expression(const char *exp, unsigned frame)$/;"	f
+exit_debugger	debug.c	/^BOOL exit_debugger = FALSE;$/;"	v
+exit_decoder	globals.c	/^BOOL exit_decoder;       \/* To let the decoder know we're done *\/$/;"	v
+exits	automap.c	/^  loc_node *exits[NUM_EXITS];           \/* Actual connections *\/$/;"	m	struct:loc_node	file:
+exp	debug.c	/^  char *exp;$/;"	m	struct:auto_display	file:
+exp_has_locals	inform.c	/^BOOL exp_has_locals(const char *exp)$/;"	f
+faked_random_seed	globals.c	/^int faked_random_seed = 0; \/* If nonzero, use this as a seed instead of time *\/$/;"	v
+false_undo	globals.c	/^BOOL false_undo = FALSE; \/* We just did a fake undo *\/$/;"	v
+fast_restoreundo	undo.c	/^BOOL fast_restoreundo(void)$/;"	f
+fast_saveundo	undo.c	/^BOOL fast_saveundo(void)$/;"	f
+fast_undoslot	undo.c	/^struct fast_undoslot {$/;"	s	file:
+fgcolortable	io.c	/^glsi32 fgcolortable[] = {$/;"	v
+file	debug.c	/^  infix_file *file;$/;"	m	struct:breakpoint	file:
+file	infix.c	/^  infix_file *file;$/;"	m	file:
+filename	infix.c	/^  const char *filename;$/;"	m	file:
+filenum	infix.c	/^  unsigned filenum;$/;"	m	file:
+filenum	inform.c	/^  infix_file *filenum;$/;"	m	file:
+fillstruct	struct.c	/^glui32 fillstruct(strid_t stream, const unsigned *info, glui32 *dest,$/;"	f
+find_alias	z_io.c	/^static alias_entry *find_alias(const char *text, int length)$/;"	f	file:
+find_auto_display	debug.c	/^static auto_display *find_auto_display(int displaynum)$/;"	f	file:
+find_breakpoint	debug.c	/^static breakpoint *find_breakpoint(int breaknum)$/;"	f	file:
+find_word	tokenise.c	/^static zword find_word(zword dictionarytable, const char *word, int length)$/;"	f	file:
+flag	inform.c	/^  BOOL flag;$/;"	m	file:
+flagnum	init.c	/^  int flagnum;    \/* 1 or 2 *\/$/;"	m	struct:z_cap_entry	file:
+font	z_io.c	/^static int  font = 1;$/;"	v	file:
+fore	io.c	/^  char fore;$/;"	m	file:
+forget_corrections	tokenise.c	/^void forget_corrections(void)$/;"	f
+found	automap.c	/^  BOOL found, real, touched;$/;"	m	struct:loc_node	file:
+frame_count	stack.c	/^static zword frame_count;    \/* number of frames on the stack *\/$/;"	v	file:
+frame_get_PC	stack.c	/^offset frame_get_PC(unsigned frame)$/;"	f
+frame_get_var	stack.c	/^zword frame_get_var(unsigned frame, int var)$/;"	f
+frame_is_valid	stack.c	/^BOOL frame_is_valid(unsigned frame)$/;"	f
+frame_max	stack.c	/^static zword frame_max;$/;"	v	file:
+frame_set_var	stack.c	/^void frame_set_var(unsigned frame, int var, zword val)$/;"	f
+free_node	hash.c	/^static void free_node(const char *key, void *data)$/;"	f	file:
+free_undo	undo.c	/^BOOL free_undo(void)$/;"	f
+free_windows	io.c	/^void free_windows(void)$/;"	f
+from	z_io.c	/^  char *from;$/;"	m	struct:alias_entry	file:
+fullname	globals.c	/^BOOL fullname = FALSE;$/;"	v
+func_name	infix.c	/^  const char *func_name;$/;"	m	file:
+func_num	infix.c	/^  unsigned func_num;$/;"	m	file:
+function	hash.c	/^static my_function function = NULL;$/;"	v	file:
+g_print_number	z_io.c	/^void g_print_number(unsigned n)$/;"	f
+g_print_snumber	z_io.c	/^void g_print_snumber(int n)$/;"	f
+g_print_znumber	z_io.c	/^void g_print_znumber(zword n)$/;"	f
+game_filename	startdos.c	/^static char *game_filename = NULL;$/;"	v	file:
+game_filename	startunix.c	/^static char *game_filename = NULL;$/;"	v	file:
+game_size	globals.c	/^offset game_size;$/;"	v
+game_use_file	main.c	/^int game_use_file(strid_t file)$/;"	f
+game_windows	io.c	/^static struct z_window game_windows[num_z_windows];$/;"	v	file:
+gamehandle	startmac.c	/^static AliasHandle gamehandle;$/;"	v	file:
+gcd	solve.c	/^static int gcd(int a, int b)$/;"	f	file:
+get_prop_length	objects.c	/^static zword get_prop_length(zword propoffset, int *size_length)$/;"	f	file:
+get_prop_offset	objects.c	/^static zword get_prop_offset(zword object, zword property, zword *length)$/;"	f	file:
+get_quetzal_stack_size	stack.c	/^glui32 get_quetzal_stack_size(void)$/;"	f
+get_var	stack.c	/^N_INLINE zword get_var(int var)$/;"	f
+get_window_num	op_v6.c	/^static int get_window_num(int arg)$/;"	f	file:
+getstring	zscii.c	/^int getstring(zword packedaddress)$/;"	f
+glk_input_pending	io.c	/^  BOOL glk_input_pending;$/;"	m	struct:z_window	file:
+glk_main	main.c	/^void glk_main(void)$/;"	f
+glkunix_arguments	startdos.c	/^glkunix_argumentlist_t glkunix_arguments[] = {$/;"	v
+glkunix_arguments	startunix.c	/^glkunix_argumentlist_t glkunix_arguments[] = {$/;"	v
+glkunix_startup_code	startdos.c	/^int glkunix_startup_code(glkunix_startup_t *data)$/;"	f
+glkunix_startup_code	startunix.c	/^int glkunix_startup_code(glkunix_startup_t *data)$/;"	f
+grab_command	inform.c	/^static int grab_command(void)$/;"	f	file:
+grab_number	inform.c	/^static int grab_number(z_typed *val)$/;"	f	file:
+granularity	globals.c	/^int granularity;$/;"	v
+graph_piece	op_v6.c	/^struct graph_piece {$/;"	s	file:
+guess_length	automap.c	/^  int guess_length;$/;"	m	struct:edge	file:
+handle_word	tokenise.c	/^static void handle_word(zword dictionarytable, const char *text,$/;"	f	file:
+has_done_save_undo	globals.c	/^BOOL has_done_save_undo; \/* the game has done a save_undo since last move *\/$/;"	v
+hash	hash.c	/^static unsigned hash(const char *string)$/;"	f	file:
+hash_table	hash.c	/^typedef struct hash_table {$/;"	s	file:
+hash_table	hash.c	/^} hash_table;$/;"	t	file:
+hashandle	startmac.c	/^static BOOL hashandle = FALSE;$/;"	v	file:
+header_extension_read	op_table.c	/^zword header_extension_read(unsigned w)$/;"	f
+header_extension_write	op_table.c	/^void header_extension_write(zword w, zword val)$/;"	f
+height	io.c	/^  glui32 width, height;$/;"	m	file:
+height	io.c	/^  glui32 width, height;$/;"	m	struct:z_window	file:
+height	op_v6.c	/^  zword width, height;$/;"	m	struct:graph_piece	file:
+high_mem_mark	globals.c	/^offset high_mem_mark;$/;"	v
+hit_count	debug.c	/^  unsigned hit_count;$/;"	m	struct:breakpoint	file:
+ifffindchunk	iff.c	/^BOOL ifffindchunk(strid_t stream, const char *type, glui32 *length, glui32 loc)$/;"	f
+iffgetchunk	iff.c	/^BOOL iffgetchunk(strid_t stream, char *desttype, glui32 *ulength,$/;"	f
+iffpadend	iff.c	/^void iffpadend(strid_t stream)$/;"	f
+iffputchunk	iff.c	/^void iffputchunk(strid_t stream, const char *type, glui32 ulength)$/;"	f
+ignore_count	debug.c	/^  unsigned ignore_count; \/* Don't break until 0 *\/$/;"	m	struct:breakpoint	file:
+ignore_errors	globals.c	/^BOOL ignore_errors = FALSE;$/;"	v
+ignoreeffects	inform.c	/^  int ignoreeffects;$/;"	v
+image_num	io.c	/^  glui32 image_num;$/;"	m	file:
+imagecount	globals.c	/^glui32 imagecount = 0;$/;"	v
+images	io.c	/^  z_image images[12];$/;"	m	struct:z_window	file:
+in_timer	globals.c	/^BOOL in_timer;           \/* True if we're inside a timer routine *\/$/;"	v
+in_use	z_io.c	/^  BOOL in_use, is_recursive;$/;"	m	struct:alias_entry	file:
+infix_add_string	infix.c	/^static glui32 infix_add_string(strid_t infix)$/;"	f	file:
+infix_add_stringchar	infix.c	/^static void infix_add_stringchar(int c)$/;"	f	file:
+infix_add_zstring	infix.c	/^static glui32 infix_add_zstring(zword paddr)$/;"	f	file:
+infix_arrayref	infix.c	/^} infix_arrayref;$/;"	t	file:
+infix_arrays	infix.c	/^static infix_arrayref *infix_arrays;$/;"	v	file:
+infix_arrayscount	infix.c	/^static unsigned infix_arrayscount;$/;"	v	file:
+infix_assign	infix.c	/^void infix_assign(z_typed *dest, zword val)$/;"	f
+infix_attrs	infix.c	/^static char **infix_attrs;$/;"	v	file:
+infix_attrscount	infix.c	/^static unsigned infix_attrscount;$/;"	v	file:
+infix_auto_display	debug.c	/^int infix_auto_display(const char *expression)$/;"	f
+infix_auto_undisplay	debug.c	/^void infix_auto_undisplay(int displaynum)$/;"	f
+infix_backtrace	debug.c	/^void infix_backtrace(int start, int length)$/;"	f
+infix_child	objects.c	/^zword infix_child(zword object)$/;"	f
+infix_clear_attrib	objects.c	/^void infix_clear_attrib(zword object, zword attrib)$/;"	f
+infix_commands	inform.c	/^static name_token infix_commands[] = {$/;"	v	file:
+infix_compare_linerefs	infix.c	/^static int infix_compare_linerefs(const void *a, const void *b)$/;"	f	file:
+infix_copy_short_name	objects.c	/^static void infix_copy_short_name(int ch)$/;"	f	file:
+infix_decode_PC	infix.c	/^BOOL infix_decode_PC(infix_location *dest, offset thisPC)$/;"	f
+infix_decode_fileloc	infix.c	/^BOOL infix_decode_fileloc(infix_location *dest, const char *filename,$/;"	f
+infix_decode_func_name	infix.c	/^BOOL infix_decode_func_name(infix_location *dest, const char *file_name,$/;"	f
+infix_delete_breakpoint	debug.c	/^void infix_delete_breakpoint(int breaknum)$/;"	f
+infix_display	infix.c	/^void infix_display(z_typed val)$/;"	f
+infix_draw_branch	objects.c	/^static void infix_draw_branch(int depth)$/;"	f	file:
+infix_draw_object	objects.c	/^static void infix_draw_object(zword object, int depth)$/;"	f	file:
+infix_draw_trunk	objects.c	/^static void infix_draw_trunk(int depth)$/;"	f	file:
+infix_file	infix.c	/^} infix_file;$/;"	t	file:
+infix_file_print_line	infix.c	/^void infix_file_print_line(infix_file *f, int line)$/;"	f
+infix_files	infix.c	/^static infix_file *infix_files;$/;"	v	file:
+infix_filescount	infix.c	/^static unsigned infix_filescount;$/;"	v	file:
+infix_find_file	infix.c	/^int infix_find_file(infix_file **dest, const char *name)$/;"	f
+infix_find_symbol	infix.c	/^BOOL infix_find_symbol(z_typed *val, const char *name, int len)$/;"	f
+infix_get_name	infix.c	/^const char *infix_get_name(z_typed val)$/;"	f
+infix_get_prop	objects.c	/^zword infix_get_prop(zword object, zword prop)$/;"	f
+infix_get_proptable	objects.c	/^zword infix_get_proptable(zword object, zword prop, zword *length)$/;"	f
+infix_get_routine_PC	infix.c	/^offset infix_get_routine_PC(zword routine)$/;"	f
+infix_get_string	infix.c	/^void infix_get_string(char *dest, int maxlen)$/;"	f
+infix_get_val	infix.c	/^void infix_get_val(z_typed *val)$/;"	f
+infix_globals	infix.c	/^static char **infix_globals;$/;"	v	file:
+infix_globalscount	infix.c	/^static unsigned infix_globalscount;$/;"	v	file:
+infix_gprint_loc	infix.c	/^void infix_gprint_loc(int frame, offset thisPC)$/;"	f
+infix_in	inform.c	/^static BOOL infix_in(zword a, zword b)$/;"	f	file:
+infix_keywords	inform.c	/^static name_token infix_keywords[] = {$/;"	v	file:
+infix_linerefs	infix.c	/^static infix_sequence *infix_linerefs;$/;"	v	file:
+infix_linerefscount	infix.c	/^static unsigned infix_linerefscount;$/;"	v	file:
+infix_list_files	infix.c	/^void infix_list_files(void)$/;"	f
+infix_load_file_info	infix.c	/^static infix_file infix_load_file_info(const char *filename)$/;"	f	file:
+infix_load_records	infix.c	/^static BOOL infix_load_records(strid_t infix)$/;"	f	file:
+infix_location	infix.c	/^} infix_location;$/;"	t	file:
+infix_move	objects.c	/^void infix_move(zword dest, zword object)$/;"	f
+infix_object_display	objects.c	/^void infix_object_display(zword object)$/;"	f
+infix_object_find	objects.c	/^void infix_object_find(const char *description)$/;"	f
+infix_object_tree	objects.c	/^void infix_object_tree(zword object)$/;"	f
+infix_objects	infix.c	/^static char **infix_objects;$/;"	v	file:
+infix_objectscount	infix.c	/^static unsigned infix_objectscount;$/;"	v	file:
+infix_operators	inform.c	/^static name_token infix_operators[] = {$/;"	v	file:
+infix_parent	objects.c	/^zword infix_parent(zword object)$/;"	f
+infix_print_char	infix.c	/^void infix_print_char(int blah)$/;"	f
+infix_print_fixed_char	infix.c	/^void infix_print_fixed_char(int blah)$/;"	f
+infix_print_fixed_string	infix.c	/^void infix_print_fixed_string(const char *blah)$/;"	f
+infix_print_number	infix.c	/^void infix_print_number(zword blah)$/;"	f
+infix_print_offset	infix.c	/^void infix_print_offset(zword blah)$/;"	f
+infix_print_string	infix.c	/^void infix_print_string(const char *blah)$/;"	f
+infix_print_znumber	infix.c	/^void infix_print_znumber(zword blah)$/;"	f
+infix_property_display	objects.c	/^static void infix_property_display(unsigned prop,$/;"	f	file:
+infix_property_loop	objects.c	/^BOOL infix_property_loop(zword object, zword *propnum, zword *location, zword *len, zword *nonindivloc, zword *nonindivlen)$/;"	f
+infix_props	infix.c	/^static char **infix_props;$/;"	v	file:
+infix_propscount	infix.c	/^static unsigned infix_propscount;$/;"	v	file:
+infix_provides	inform.c	/^static BOOL infix_provides(zword o, zword p)$/;"	f	file:
+infix_put_prop	objects.c	/^void infix_put_prop(zword object, zword prop, zword val)$/;"	f
+infix_remove	objects.c	/^void infix_remove(zword object)$/;"	f
+infix_routines	infix.c	/^static routineref *infix_routines;$/;"	v	file:
+infix_routinescount	infix.c	/^static unsigned infix_routinescount;$/;"	v	file:
+infix_search_linerefs	infix.c	/^static infix_sequence *infix_search_linerefs(offset thisPC)$/;"	f	file:
+infix_select_frame	debug.c	/^void infix_select_frame(int num)$/;"	f
+infix_selected_frame	debug.c	/^int infix_selected_frame;$/;"	v
+infix_sequence	infix.c	/^} infix_sequence;$/;"	t	file:
+infix_set_attrib	objects.c	/^void infix_set_attrib(zword object, zword attrib)$/;"	f
+infix_set_break	debug.c	/^int infix_set_break(offset location)$/;"	f
+infix_set_break_enabled	debug.c	/^void infix_set_break_enabled(int breaknum, BOOL enabled)$/;"	f
+infix_set_cond	debug.c	/^void infix_set_cond(int breaknum, const char *condition)$/;"	f
+infix_set_display_enabled	debug.c	/^void infix_set_display_enabled(int displaynum, BOOL enabled)$/;"	f
+infix_set_ignore	debug.c	/^void infix_set_ignore(int breaknum, int count)$/;"	f
+infix_show_all_breakpoints	debug.c	/^void infix_show_all_breakpoints(void)$/;"	f
+infix_show_break	debug.c	/^static void infix_show_break(breakpoint *b)$/;"	f	file:
+infix_show_breakpoint	debug.c	/^void infix_show_breakpoint(int breaknum)$/;"	f
+infix_show_frame	debug.c	/^void infix_show_frame(int frame)$/;"	f
+infix_show_object	objects.c	/^static void infix_show_object(zword object)$/;"	f	file:
+infix_sibling	objects.c	/^zword infix_sibling(zword object)$/;"	f
+infix_stringdata	infix.c	/^static char *infix_stringdata;$/;"	v	file:
+infix_strlen	infix.c	/^static glui32 infix_strlen;$/;"	v	file:
+infix_temp_string_buffer	infix.c	/^static char infix_temp_string_buffer[45];$/;"	v	file:
+infix_temp_string_build	infix.c	/^static void infix_temp_string_build(int ch)$/;"	f	file:
+infix_temp_strlen	infix.c	/^static unsigned infix_temp_strlen;$/;"	v	file:
+infix_test_attrib	objects.c	/^BOOL infix_test_attrib(zword object, zword attrib)$/;"	f
+infix_unload_file_info	infix.c	/^static void infix_unload_file_info(infix_file *f)$/;"	f	file:
+inform_help	inform.c	/^static void inform_help(void)$/;"	f	file:
+inform_result	inform.c	/^  static z_typed inform_result;$/;"	v	file:
+init_infix	infix.c	/^BOOL init_infix(strid_t infix)$/;"	f
+init_infix	infix.c	/^BOOL init_infix(strid_t unused)$/;"	f
+init_lower	io.c	/^void init_lower(zwinid *lower)$/;"	f
+init_sound	no_snd.c	/^void init_sound(void)$/;"	f
+init_sound	sound.c	/^void init_sound(void)$/;"	f
+init_stack	stack.c	/^void init_stack(offset initialstack_stack_size, zword initialframe_size)$/;"	f
+init_undo	undo.c	/^void init_undo(void)$/;"	f
+init_upper	io.c	/^void init_upper(zwinid *upper)$/;"	f
+init_windows	z_io.c	/^void init_windows(BOOL dofixed, glui32 maxwidth, glui32 maxheight)$/;"	f
+input_stream1	globals.c	/^strid_t input_stream1;$/;"	v
+int_func	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+int_func	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+int_func	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+intd_filehandle_make	startdos.c	/^void intd_filehandle_make(strid_t savefile)$/;"	f
+intd_filehandle_make	startmac.c	/^void intd_filehandle_make(strid_t savefile)$/;"	f
+intd_filehandle_make	startunix.c	/^void intd_filehandle_make(strid_t savefile)$/;"	f
+intd_filehandle_make	startwin.c	/^void intd_filehandle_make(strid_t savefile)$/;"	f
+intd_filehandle_open	startdos.c	/^strid_t intd_filehandle_open(strid_t savefile, glui32 operating_id,$/;"	f
+intd_filehandle_open	startmac.c	/^strid_t intd_filehandle_open(strid_t savefile, glui32 operating_id,$/;"	f
+intd_filehandle_open	startunix.c	/^strid_t intd_filehandle_open(strid_t savefile, glui32 operating_id,$/;"	f
+intd_filehandle_open	startwin.c	/^strid_t intd_filehandle_open(strid_t savefile, glui32 operating_id,$/;"	f
+intd_get_size	startdos.c	/^glui32 intd_get_size(void)$/;"	f
+intd_get_size	startmac.c	/^glui32 intd_get_size(void)$/;"	f
+intd_get_size	startunix.c	/^glui32 intd_get_size(void)$/;"	f
+intd_get_size	startwin.c	/^glui32 intd_get_size(void)$/;"	f
+interferences	automap.c	/^static interlist *interferences = NULL;$/;"	v	file:
+interlist	automap.c	/^struct interlist {$/;"	s	file:
+interlist	automap.c	/^typedef struct interlist interlist;$/;"	t	file:
+interp_num	globals.c	/^int interp_num = 2;$/;"	v
+interp_ver	globals.c	/^char interp_ver = 'N';$/;"	v
+investigate_suckage	init.c	/^static void investigate_suckage(glui32 *wid, glui32 *hei)$/;"	f	file:
+is_command_identifier	inform.c	/^static BOOL is_command_identifier(char c)$/;"	f	file:
+is_fixed	io.c	/^BOOL is_fixed;       \/* If we are forcing output to be fixed-width *\/$/;"	v
+is_identifier	inform.c	/^static BOOL is_identifier(char c)$/;"	f	file:
+is_in_bounds	op_v6.c	/^int is_in_bounds(glui32 x1, glui32 y1, glui32 width1, glui32 height1,$/;"	f
+is_longer_identifier	inform.c	/^static BOOL is_longer_identifier(char c)$/;"	f	file:
+is_oneway	automap.c	/^  BOOL is_oneway; \/* Oneway passages are always created dest[0]--->dest[1] *\/$/;"	m	struct:edge	file:
+is_recursive	z_io.c	/^  BOOL in_use, is_recursive;$/;"	m	struct:alias_entry	file:
+is_transcripting	z_io.c	/^BOOL is_transcripting(void)$/;"	f
+item	inform.c	/^    zword item;$/;"	m	struct:zword_list	file:
+key	hash.c	/^    char *key;$/;"	m	struct:bucket	file:
+kill_infix	infix.c	/^void kill_infix(void)$/;"	f
+kill_sound	no_snd.c	/^void kill_sound(void)$/;"	f
+kill_sound	sound.c	/^void kill_sound(void)$/;"	f
+kill_stack	stack.c	/^void kill_stack(void)$/;"	f
+kill_undo	undo.c	/^void kill_undo(void)$/;"	f
+kill_windows	io.c	/^void kill_windows(void)$/;"	f
+killglkwithcolor	io.c	/^static void killglkwithcolor(glui32 styl, int fore, int back)$/;"	f	file:
+last_height	io.c	/^  glui32 last_height;   \/* What the height was last time we got input *\/$/;"	m	struct:z_window	file:
+lcm	solve.c	/^static int lcm(int a, int b)$/;"	f	file:
+lex_expression	inform.c	/^  static const char *lex_expression;$/;"	v	file:
+lex_offset	inform.c	/^  static int lex_offset;$/;"	v	file:
+lex_tail	inform.c	/^  static const char *lex_tail(void) {$/;"	f	file:
+line	debug.c	/^  int line;$/;"	m	struct:breakpoint	file:
+line	infix.c	/^  unsigned line;$/;"	m	file:
+line_locations	infix.c	/^  glui32 *line_locations;$/;"	m	file:
+line_num	infix.c	/^  int line_num;$/;"	m	file:
+line_x	infix.c	/^  int line_x;$/;"	m	file:
+load_header	init.c	/^BOOL load_header(strid_t zfile, offset filesize, BOOL report_errors)$/;"	f
+loc	automap.c	/^  loc_node *loc; \/* A location *\/$/;"	m	struct:automap_path	file:
+loc_exp	automap.c	/^static char *loc_exp;$/;"	v	file:
+loc_node	automap.c	/^struct loc_node {$/;"	s	file:
+loc_node	automap.c	/^typedef struct loc_node loc_node;$/;"	t	file:
+local_names_info	infix.c	/^static unsigned local_names_info[] = { 0x8000, 0 };$/;"	v	file:
+local_vars	stack.c	/^static zword *local_vars; \/* Pointer to local variables for current frame *\/$/;"	v	file:
+localnames	infix.c	/^  const char *localnames[15];$/;"	m	file:
+longname	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+longname	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+longname	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+lower_block_quotes	globals.c	/^BOOL lower_block_quotes; \/* put block quotes in lower window *\/$/;"	v
+lower_win	op_v6.c	/^static zwinid lower_win;$/;"	v	file:
+lower_win	z_io.c	/^static zwinid lower_win, upper_win;$/;"	v	file:
+mac_gamefile	startmac.c	/^static strid_t mac_gamefile;$/;"	v	file:
+mac_whenbuiltin	startmac.c	/^static Boolean mac_whenbuiltin()$/;"	f	file:
+mac_whenselected	startmac.c	/^static Boolean mac_whenselected(FSSpec *file, OSType filetype)$/;"	f	file:
+macglk_startup_code	startmac.c	/^Boolean macglk_startup_code(macglk_startup_t *data)$/;"	f
+make_distant	automap.c	/^static void make_distant(const char *unused_key, void *r)$/;"	f	file:
+make_untouched	automap.c	/^void make_untouched(const char *unused_key, void *r)$/;"	f
+map_info	infix.c	/^static unsigned map_info[] = { 0x8000, 3, 0 };$/;"	v	file:
+mapheight	automap.c	/^static int mapheight;$/;"	v	file:
+mapwidth	automap.c	/^static int mapwidth;$/;"	v	file:
+match_Complete	inform.c	/^typedef enum { match_None, match_Partial, match_Complete } match_type;$/;"	e	file:
+match_None	inform.c	/^typedef enum { match_None, match_Partial, match_Complete } match_type;$/;"	e	file:
+match_Partial	inform.c	/^typedef enum { match_None, match_Partial, match_Complete } match_type;$/;"	e	file:
+match_type	inform.c	/^typedef enum { match_None, match_Partial, match_Complete } match_type;$/;"	t	file:
+max_offset	io.c	/^  glui32 max_offset;    \/* curr_offset must stay < max_offset *\/$/;"	m	struct:z_window	file:
+max_zversion	init.c	/^  int max_zversion;$/;"	m	struct:z_cap_entry	file:
+maxobjs	globals.c	/^zword maxobjs;                  \/* Maximum number of objects that could fit *\/$/;"	v
+method	io.c	/^  glui32 method;$/;"	m	struct:z_window	file:
+min	solve.c	/^  const int *min;$/;"	m	struct:cycleequation	file:
+min	solve.c	/^  const int *min;$/;"	m	struct:equation	file:
+min_length	automap.c	/^  int min_length;$/;"	m	struct:edge	file:
+min_zversion	init.c	/^  int min_zversion;$/;"	m	struct:z_cap_entry	file:
+mop_call	op_call.c	/^void mop_call(zword dest, unsigned num_args, zword *args, int result_var)$/;"	f
+mop_cond_branch	op_jmp.c	/^void mop_cond_branch(BOOL cond)$/;"	f
+mop_func_return	stack.c	/^void mop_func_return(zword ret_val)$/;"	f
+mop_skip_branch	op_jmp.c	/^void mop_skip_branch(void)$/;"	f
+mop_store_result	stack.c	/^void mop_store_result(zword val)$/;"	f
+mop_take_branch	op_jmp.c	/^void mop_take_branch(void)$/;"	f
+mouse_callback	io.c	/^  BOOL (*mouse_callback)(BOOL is_char_event, winid_t win, glui32 x, glui32 y);$/;"	m	struct:z_window	file:
+move_difference	undo.c	/^struct move_difference {$/;"	s	file:
+move_difference	undo.c	/^typedef struct move_difference move_difference;$/;"	t	file:
+move_index	undo.c	/^static int move_index;$/;"	v	file:
+movelist	undo.c	/^static move_difference *movelist = NULL;$/;"	v	file:
+my_function	hash.c	/^typedef void (*my_function)(void *);$/;"	t	file:
+mymap	automap.c	/^static char *mymap = NULL;$/;"	v	file:
+mymap_draw	automap.c	/^static void mymap_draw(void)$/;"	f	file:
+mymap_init	automap.c	/^void mymap_init(int width, int height)$/;"	f
+mymap_kill	automap.c	/^void mymap_kill(void)$/;"	f
+mymap_plot	automap.c	/^static BOOL mymap_plot(int x, int y, char symbol, loc_node *node)$/;"	f	file:
+mymap_read	automap.c	/^static char mymap_read(int x, int y)$/;"	f	file:
+mymap_reinit	automap.c	/^void mymap_reinit(void)$/;"	f
+mymapnode	automap.c	/^static loc_node **mymapnode = NULL;$/;"	v	file:
+n_bsearch	portfunc.c	/^void *n_bsearch(const void *key, const void *base, int nmemb, int size,$/;"	f
+n_bsearch	portfunc.c	294;"	d	file:
+n_calloc	portfunc.c	/^void *n_calloc(int nmemb, int size)$/;"	f
+n_file_name	portfunc.c	/^strid_t n_file_name(glui32 usage, glui32 fmode, const char *name)$/;"	f
+n_file_name_or_prompt	portfunc.c	/^strid_t n_file_name_or_prompt(glui32 usage, glui32 fmode, const char *name)$/;"	f
+n_file_prompt	portfunc.c	/^strid_t n_file_prompt(glui32 usage, glui32 fmode)$/;"	f
+n_free	portfunc.c	/^void n_free(void *ptr)$/;"	f
+n_hash_construct_table	hash.c	/^hash_table *n_hash_construct_table(hash_table *table, size_t size)$/;"	f
+n_hash_del	hash.c	/^void *n_hash_del(const char *key, hash_table *table)$/;"	f
+n_hash_enumerate	hash.c	/^void n_hash_enumerate( hash_table *table, void (*func)(const char *, void *))$/;"	f
+n_hash_free_table	hash.c	/^void n_hash_free_table(hash_table *table, void (*func)(void *))$/;"	f
+n_hash_insert	hash.c	/^void *n_hash_insert(const char *key, void *data, hash_table *table)$/;"	f
+n_hash_lookup	hash.c	/^void *n_hash_lookup(const char *key, hash_table *table)$/;"	f
+n_lfind	portfunc.c	/^void *n_lfind(const void *key, const void *base, int *nmemb, int size,$/;"	f
+n_lfind	portfunc.c	303;"	d	file:
+n_malloc	portfunc.c	/^void *n_malloc(int size)$/;"	f
+n_memcmp	portfunc.c	/^int n_memcmp(const void *s1, const void *s2, int n)$/;"	f
+n_memcmp	portfunc.c	282;"	d	file:
+n_memcpy	portfunc.c	/^void *n_memcpy(void *dest, const void *src, int n)$/;"	f
+n_memcpy	portfunc.c	277;"	d	file:
+n_memmove	portfunc.c	/^void *n_memmove(void *dest, const void *src, int n)$/;"	f
+n_memmove	portfunc.c	278;"	d	file:
+n_memset	portfunc.c	/^void *n_memset(void *s, int c, int n)$/;"	f
+n_memset	portfunc.c	279;"	d	file:
+n_memswap	portfunc.c	/^void n_memswap(void *a, void *b, int n)$/;"	f
+n_print_number	z_io.c	/^void n_print_number(unsigned n)$/;"	f
+n_print_znumber	z_io.c	/^void n_print_znumber(zword n)$/;"	f
+n_qsort	portfunc.c	/^void n_qsort(void *basep, int nelems, int size,$/;"	f
+n_qsort	portfunc.c	293;"	d	file:
+n_read	z_io.c	/^int n_read(zword dest, unsigned maxlen, zword parse, unsigned initlen,$/;"	f
+n_realloc	portfunc.c	/^void *n_realloc(void *ptr, int size)$/;"	f
+n_rmfree	portfunc.c	/^void n_rmfree(void)$/;"	f
+n_rmfreeone	portfunc.c	/^void n_rmfreeone(void *m)$/;"	f
+n_rmmalloc	portfunc.c	/^void *n_rmmalloc(int size)$/;"	f
+n_show_debug	errmesg.c	/^void n_show_debug(errortypes type, const char *message, offset number)$/;"	f
+n_show_error	errmesg.c	/^void n_show_error(errortypes type, const char *message, offset number)$/;"	f
+n_show_fatal	errmesg.c	/^void n_show_fatal(errortypes type, const char *message, offset number)$/;"	f
+n_show_port	errmesg.c	/^void n_show_port(errortypes type, const char *message, offset number)$/;"	f
+n_show_warn	errmesg.c	/^void n_show_warn(errortypes type, const char *message, offset number)$/;"	f
+n_static_number	portfunc.c	/^const char *n_static_number(const char *preface, glui32 n)$/;"	f
+n_strcasecmp	portfunc.c	/^int n_strcasecmp(const char *a, const char *b)$/;"	f
+n_strcasecmp	portfunc.c	298;"	d	file:
+n_strcat	portfunc.c	/^char *n_strcat(char *dest, const char *src)$/;"	f
+n_strcat	portfunc.c	284;"	d	file:
+n_strchr	portfunc.c	/^char *n_strchr(const char *s, int c)$/;"	f
+n_strchr	portfunc.c	283;"	d	file:
+n_strcmp	portfunc.c	/^int n_strcmp(const char *a, const char *b)$/;"	f
+n_strcmp	portfunc.c	280;"	d	file:
+n_strcpy	portfunc.c	/^char *n_strcpy(char *dest, const char *src)$/;"	f
+n_strcpy	portfunc.c	275;"	d	file:
+n_strdup	portfunc.c	/^char *n_strdup(const char *s)$/;"	f
+n_strlen	portfunc.c	/^unsigned n_strlen(const char *s)$/;"	f
+n_strlen	portfunc.c	274;"	d	file:
+n_strlower	portfunc.c	/^char *n_strlower(char *s)$/;"	f
+n_strmatch	portfunc.c	/^BOOL n_strmatch(const char *target, const char *starting, unsigned len)$/;"	f
+n_strncasecmp	portfunc.c	/^int n_strncasecmp(const char *a, const char *b, int n)$/;"	f
+n_strncasecmp	portfunc.c	299;"	d	file:
+n_strncmp	portfunc.c	/^int n_strncmp(const char *a, const char *b, int n)$/;"	f
+n_strncmp	portfunc.c	281;"	d	file:
+n_strncpy	portfunc.c	/^char *n_strncpy(char *dest, const char *src, int len)$/;"	f
+n_strncpy	portfunc.c	276;"	d	file:
+n_strpbrk	portfunc.c	/^char *n_strpbrk(const char *s, const char *accept)$/;"	f
+n_strpbrk	portfunc.c	285;"	d	file:
+n_strrchr	portfunc.c	/^char *n_strrchr(const char *s, int c)$/;"	f
+n_strrchr	portfunc.c	290;"	d	file:
+n_strspn	portfunc.c	/^int n_strspn(const char *s, const char *accept)$/;"	f
+n_strspn	portfunc.c	286;"	d	file:
+n_strstr	portfunc.c	/^char *n_strstr(const char *haystack, const char *needle)$/;"	f
+n_strstr	portfunc.c	288;"	d	file:
+n_strtok	portfunc.c	/^char *n_strtok(char *s, const char *delim)$/;"	f
+n_strtok	portfunc.c	287;"	d	file:
+n_strtol	portfunc.c	/^long int n_strtol (const char *nptr, char **endptr, int base)$/;"	f
+n_strtol	portfunc.c	289;"	d	file:
+n_strupper	portfunc.c	/^char *n_strupper(char *s)$/;"	f
+n_to_decimal	portfunc.c	/^int n_to_decimal(char *buffer, unsigned n)$/;"	f
+name	automap.c	/^  const char *name;$/;"	m	struct:dirinfo	file:
+name	infix.c	/^  const char *name;$/;"	m	file:
+name	inform.c	/^  const char *name;$/;"	m	file:
+name_token	inform.c	/^} name_token;$/;"	t	file:
+next	automap.c	/^  automap_path *next;$/;"	m	struct:automap_path	file:
+next	automap.c	/^  edgelist *next;$/;"	m	struct:edgelist	file:
+next	automap.c	/^  interlist *next;$/;"	m	struct:interlist	file:
+next	debug.c	/^  auto_display *next;$/;"	m	struct:auto_display	file:
+next	debug.c	/^  breakpoint *next;$/;"	m	struct:breakpoint	file:
+next	hash.c	/^    struct bucket *next;$/;"	m	struct:bucket	file:
+next	inform.c	/^    cond_list *next;$/;"	m	struct:cond_list	file:
+next	inform.c	/^    zword_list *next;$/;"	m	struct:zword_list	file:
+next	op_v6.c	/^  struct graph_piece *next;$/;"	m	struct:graph_piece	file:
+next	portfunc.c	/^  rmmalloc_entry *next;$/;"	m	struct:rmmalloc_entry	file:
+next	solve.c	/^  cycleequation *next;$/;"	m	struct:cycleequation	file:
+next	solve.c	/^  equalist *next;$/;"	m	struct:equalist	file:
+next	solve.c	/^  equation *next;$/;"	m	struct:equation	file:
+next	tokenise.c	/^  struct Typocorrection *next;$/;"	m	struct:Typocorrection	file:
+next	undo.c	/^  move_difference *next;$/;"	m	struct:move_difference	file:
+next	z_io.c	/^  alias_entry *next;$/;"	m	struct:alias_entry	file:
+node	automap.c	/^  edge *node;$/;"	m	struct:edgelist	file:
+num	solve.c	/^  int num;$/;"	m	struct:rational	file:
+num_lines	infix.c	/^  int num_lines;$/;"	m	file:
+num_locals	stack.c	/^  int num_locals;$/;"	m	struct:Stack_frame	file:
+num_z_windows	io.c	225;"	d	file:
+number	automap.c	/^  zword number;$/;"	m	struct:loc_node	file:
+number	debug.c	/^  int number;$/;"	m	struct:auto_display	file:
+number	debug.c	/^  int number;$/;"	m	struct:breakpoint	file:
+numoperands	globals.c	/^int numoperands;$/;"	v
+o	infix.c	/^  zword o, p;   \/* location of value (if t is appropriate) *\/$/;"	m	struct:z_typed	file:
+oCHILD	objects.c	/^static zword oPARENT, oSIBLING, oCHILD, oPROPS;$/;"	v	file:
+oPARENT	objects.c	/^static zword oPARENT, oSIBLING, oCHILD, oPROPS;$/;"	v	file:
+oPROPS	objects.c	/^static zword oPARENT, oSIBLING, oCHILD, oPROPS;$/;"	v	file:
+oSIBLING	objects.c	/^static zword oPARENT, oSIBLING, oCHILD, oPROPS;$/;"	v	file:
+obj_first_prop_addr	globals.c	/^zword obj_first_prop_addr = 0;  \/* Location of start of first property *\/$/;"	v
+obj_last_prop_addr	globals.c	/^zword obj_last_prop_addr = ZWORD_MASK; \/* Location of start of last property *\/$/;"	v
+object_count	globals.c	/^zword object_count = 0;         \/* Objects before first property *\/$/;"	v
+object_name	objects.c	/^offset object_name(zword object)$/;"	f
+object_property_loop	objects.c	/^static BOOL object_property_loop(zword object, zword *propnum,$/;"	f	file:
+objects_init	objects.c	/^void objects_init(void)$/;"	f
+oldPC	globals.c	/^offset oldPC;$/;"	v
+oldPC	undo.c	/^  offset oldPC;$/;"	m	struct:move_difference	file:
+older_pieces	op_v6.c	/^static struct graph_piece *older_pieces;$/;"	v	file:
+oneway	automap.c	/^  char oneway;$/;"	m	struct:dirinfo	file:
+op_XXX	oplist.c	/^static void op_XXX(void)$/;"	f	file:
+op_add	op_math.c	/^void op_add(void)$/;"	f
+op_and	op_math.c	/^void op_and(void)$/;"	f
+op_aread	z_io.c	/^void op_aread(void)$/;"	f
+op_art_shift	op_math.c	/^void op_art_shift(void)$/;"	f
+op_buffer_mode	z_io.c	/^void op_buffer_mode(void)$/;"	f
+op_call_n	op_call.c	/^void op_call_n(void)$/;"	f
+op_call_s	op_call.c	/^void op_call_s(void)$/;"	f
+op_catch	stack.c	/^void op_catch(void)$/;"	f
+op_check_arg_count	stack.c	/^void op_check_arg_count(void)$/;"	f
+op_check_unicode	z_io.c	/^void op_check_unicode(void)$/;"	f
+op_clear_attr	objects.c	/^void op_clear_attr(void)$/;"	f
+op_copy_table	op_table.c	/^void op_copy_table(void)$/;"	f
+op_dec	op_math.c	/^void op_dec(void)$/;"	f
+op_dec_chk	op_math.c	/^void op_dec_chk(void)$/;"	f
+op_div	op_math.c	/^void op_div(void)$/;"	f
+op_draw_picture	op_v6.c	/^void op_draw_picture(void)$/;"	f
+op_encode_text	zscii.c	/^void op_encode_text(void)$/;"	f
+op_erase_line	z_io.c	/^void op_erase_line(void)$/;"	f
+op_erase_picture	op_v6.c	/^void op_erase_picture(void)$/;"	f
+op_erase_window	z_io.c	/^void op_erase_window(void)$/;"	f
+op_func	oplist.c	/^typedef void (*op_func)(void);$/;"	t	file:
+op_get_child	objects.c	/^void op_get_child(void)$/;"	f
+op_get_cursor	z_io.c	/^void op_get_cursor(void)$/;"	f
+op_get_next_prop	objects.c	/^void op_get_next_prop(void)$/;"	f
+op_get_parent	objects.c	/^void op_get_parent(void)$/;"	f
+op_get_prop	objects.c	/^void op_get_prop(void)$/;"	f
+op_get_prop_addr	objects.c	/^void op_get_prop_addr(void)$/;"	f
+op_get_prop_len	objects.c	/^void op_get_prop_len(void)$/;"	f
+op_get_sibling	objects.c	/^void op_get_sibling(void)$/;"	f
+op_get_wind_prop	op_v6.c	/^void op_get_wind_prop(void)$/;"	f
+op_inc	op_math.c	/^void op_inc(void)$/;"	f
+op_inc_chk	op_math.c	/^void op_inc_chk(void)$/;"	f
+op_input_stream	z_io.c	/^void op_input_stream(void)$/;"	f
+op_insert_obj	objects.c	/^void op_insert_obj(void)$/;"	f
+op_je	op_jmp.c	/^void op_je(void)$/;"	f
+op_jg	op_jmp.c	/^void op_jg(void)$/;"	f
+op_jin	objects.c	/^void op_jin(void)$/;"	f
+op_jl	op_jmp.c	/^void op_jl(void)$/;"	f
+op_jump	op_jmp.c	/^void op_jump(void)$/;"	f
+op_jz	op_jmp.c	/^void op_jz(void)$/;"	f
+op_load	op_math.c	/^void op_load(void)$/;"	f
+op_loadb	op_table.c	/^void op_loadb(void)$/;"	f
+op_loadw	op_table.c	/^void op_loadw(void)$/;"	f
+op_log_shift	op_math.c	/^void op_log_shift(void)$/;"	f
+op_make_menu	op_v6.c	/^void op_make_menu(void)$/;"	f
+op_mod	op_math.c	/^void op_mod(void)$/;"	f
+op_mouse_window	op_v6.c	/^void op_mouse_window(void)$/;"	f
+op_move_window	op_v6.c	/^void op_move_window(void)$/;"	f
+op_mul	op_math.c	/^void op_mul(void)$/;"	f
+op_new_line	z_io.c	/^void op_new_line(void)$/;"	f
+op_nop	oplist.c	/^static void op_nop(void) { ; }$/;"	f	file:
+op_not	op_math.c	/^void op_not(void)$/;"	f
+op_or	op_math.c	/^void op_or(void)$/;"	f
+op_output_stream	z_io.c	/^void op_output_stream(void)$/;"	f
+op_picture_data	op_v6.c	/^void op_picture_data(void)$/;"	f
+op_picture_table	op_v6.c	/^void op_picture_table(void)$/;"	f
+op_piracy	op_jmp.c	/^void op_piracy(void)$/;"	f
+op_pop	stack.c	/^void op_pop(void)$/;"	f
+op_pop_stack	stack.c	/^void op_pop_stack(void)$/;"	f
+op_print	z_io.c	/^void op_print(void)$/;"	f
+op_print_addr	z_io.c	/^void op_print_addr(void)$/;"	f
+op_print_char	z_io.c	/^void op_print_char(void)$/;"	f
+op_print_form	op_v6.c	/^void op_print_form(void)$/;"	f
+op_print_num	z_io.c	/^void op_print_num(void)$/;"	f
+op_print_obj	objects.c	/^void op_print_obj(void)$/;"	f
+op_print_paddr	z_io.c	/^void op_print_paddr(void)$/;"	f
+op_print_ret	z_io.c	/^void op_print_ret(void)$/;"	f
+op_print_table	z_io.c	/^void op_print_table(void)$/;"	f
+op_print_unicode	z_io.c	/^void op_print_unicode(void)$/;"	f
+op_pull	stack.c	/^void op_pull(void)$/;"	f
+op_push	stack.c	/^void op_push(void)$/;"	f
+op_push_stack	stack.c	/^void op_push_stack(void)$/;"	f
+op_put_prop	objects.c	/^void op_put_prop(void)$/;"	f
+op_put_wind_prop	op_v6.c	/^void op_put_wind_prop(void)$/;"	f
+op_quit	op_save.c	/^void op_quit(void)$/;"	f
+op_random	op_math.c	/^void op_random(void)$/;"	f
+op_read_char	z_io.c	/^void op_read_char(void)$/;"	f
+op_read_mouse	op_v6.c	/^void op_read_mouse(void)$/;"	f
+op_remove_obj	objects.c	/^void op_remove_obj(void)$/;"	f
+op_restart	op_save.c	/^void op_restart(void)$/;"	f
+op_restore1	op_save.c	/^void op_restore1(void)$/;"	f
+op_restore4	op_save.c	/^void op_restore4(void)$/;"	f
+op_restore5	op_save.c	/^void op_restore5(void)$/;"	f
+op_restore_undo	op_save.c	/^void op_restore_undo(void)$/;"	f
+op_ret	op_call.c	/^void op_ret(void)$/;"	f
+op_ret_popped	stack.c	/^void op_ret_popped(void)$/;"	f
+op_rfalse	op_call.c	/^void op_rfalse(void)$/;"	f
+op_rtrue	op_call.c	/^void op_rtrue(void)$/;"	f
+op_save1	op_save.c	/^void op_save1(void)$/;"	f
+op_save4	op_save.c	/^void op_save4(void)$/;"	f
+op_save5	op_save.c	/^void op_save5(void)$/;"	f
+op_save_undo	op_save.c	/^void op_save_undo(void)$/;"	f
+op_scan_table	op_table.c	/^void op_scan_table(void)$/;"	f
+op_scroll_window	op_v6.c	/^void op_scroll_window(void)$/;"	f
+op_set_attr	objects.c	/^void op_set_attr(void)$/;"	f
+op_set_colour	z_io.c	/^void op_set_colour(void)$/;"	f
+op_set_cursor	z_io.c	/^void op_set_cursor(void)$/;"	f
+op_set_font	z_io.c	/^void op_set_font(void)$/;"	f
+op_set_margins	op_v6.c	/^void op_set_margins(void)$/;"	f
+op_set_text_style	z_io.c	/^void op_set_text_style(void)$/;"	f
+op_set_window	z_io.c	/^void op_set_window(void)$/;"	f
+op_set_window6	op_v6.c	/^void op_set_window6(void)$/;"	f
+op_show_status	z_io.c	/^void op_show_status(void)$/;"	f
+op_sound_effect	no_snd.c	/^void op_sound_effect(void)$/;"	f
+op_sound_effect	sound.c	/^void op_sound_effect(void)$/;"	f
+op_split_window	z_io.c	/^void op_split_window(void)$/;"	f
+op_sread	z_io.c	/^void op_sread(void)$/;"	f
+op_store	op_math.c	/^void op_store(void)$/;"	f
+op_storeb	op_table.c	/^void op_storeb(void)$/;"	f
+op_storew	op_table.c	/^void op_storew(void)$/;"	f
+op_sub	op_math.c	/^void op_sub(void)$/;"	f
+op_test	op_jmp.c	/^void op_test(void)$/;"	f
+op_test_attr	objects.c	/^void op_test_attr(void)$/;"	f
+op_throw	stack.c	/^void op_throw(void)$/;"	f
+op_tokenise	tokenise.c	/^void op_tokenise(void)$/;"	f
+op_verify	op_jmp.c	/^void op_verify(void)$/;"	f
+op_window_size	op_v6.c	/^void op_window_size(void)$/;"	f
+op_window_style	op_v6.c	/^void op_window_style(void)$/;"	f
+opcode_counters	debug.c	/^unsigned opcode_counters[OFFSET_END];$/;"	v
+opcodelist	oplist.c	/^opcodeinfo opcodelist[] = {$/;"	v
+opcodetable	oplist.c	/^op_func opcodetable[] = {$/;"	v
+operand	globals.c	/^zword operand[16];$/;"	v
+opposite	inform.c	/^    BOOL opposite;$/;"	m	file:
+opposite	inform.c	/^    BOOL opposite;$/;"	m	struct:cond_list	file:
+opposite	inform.c	/^  BOOL opposite;$/;"	m	file:
+option_file	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_file	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_file	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_flag	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_flag	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_flag	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_number	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_number	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_number	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_option	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	t	file:
+option_option	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	t	file:
+option_option	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	t	file:
+option_string	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_string	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_string	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_type	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	t	file:
+option_type	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	t	file:
+option_type	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	t	file:
+option_wfile	startdos.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_wfile	startunix.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+option_wfile	startwin.c	/^typedef enum { option_flag, option_file, option_wfile, option_number, option_string } option_type;$/;"	e	file:
+options	startdos.c	/^static option_option options[] = {$/;"	v	file:
+options	startunix.c	/^static option_option options[] = {$/;"	v	file:
+options	startwin.c	/^static option_option options[] = {$/;"	v	file:
+original	tokenise.c	/^  char original[13];$/;"	m	struct:Typocorrection	file:
+outgoing	automap.c	/^  edge *outgoing[NUM_DIRS];             \/* Drawn map connections *\/$/;"	m	struct:loc_node	file:
+output_char	z_io.c	/^void output_char(int c)$/;"	f
+output_stream	z_io.c	/^static int output_stream;$/;"	v	file:
+output_string	z_io.c	/^void output_string(const char *s)$/;"	f
+p	infix.c	/^  zword o, p;   \/* location of value (if t is appropriate) *\/$/;"	m	struct:z_typed	file:
+parse_commands	startdos.c	/^static BOOL parse_commands(int argc, char **argv)$/;"	f	file:
+parse_commands	startunix.c	/^static BOOL parse_commands(int argc, char **argv)$/;"	f	file:
+parse_commands	startwin.c	/^static BOOL parse_commands(int argc, char **argv)$/;"	f	file:
+parse_new_alias	z_io.c	/^void parse_new_alias(const char *aliascommand, BOOL is_recursive)$/;"	f
+pcoffset	inform.c	/^  glui32 pcoffset;$/;"	m	file:
+pending_input_length	io.c	/^  glui32 pending_input_length;$/;"	m	struct:z_window	file:
+pending_input_type	io.c	/^  glui32 pending_input_type;$/;"	m	struct:z_window	file:
+perform_displays	debug.c	/^void perform_displays(void)$/;"	f
+picnum	op_v6.c	/^  zword picnum;$/;"	m	struct:graph_piece	file:
+precNEG	inform.c	80;"	d	file:
+prev	op_v6.c	/^  struct graph_piece *prev;$/;"	m	struct:graph_piece	file:
+prev	tokenise.c	/^  struct Typocorrection *prev;$/;"	m	struct:Typocorrection	file:
+prevstate	undo.c	/^static zbyte *prevstate = NULL;$/;"	v	file:
+process_debug_command	inform.c	/^void process_debug_command(const char *buffer)$/;"	f
+prop_table_end	globals.c	/^zword prop_table_end   = ZWORD_MASK;\/* End of property table *\/$/;"	v
+prop_table_start	globals.c	/^zword prop_table_start = 0;         \/* Beginning of property table *\/$/;"	v
+qargs	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	e	enum:qstacknames	file:
+qchecksum	quetzal.c	/^enum qifhdnames { qrelnum, qsernum, qchecksum = qsernum + 6, qinitPC };$/;"	e	enum:qifhdnames	file:
+qcontid	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	e	enum:qintdnames	file:
+qeval	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	e	enum:qstacknames	file:
+qflags	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	e	enum:qintdnames	file:
+qflags	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	e	enum:qstacknames	file:
+qifhd	quetzal.c	/^static unsigned qifhd[] = { 2, 6, 2, 3, 0 };$/;"	v	file:
+qifhdnames	quetzal.c	/^enum qifhdnames { qrelnum, qsernum, qchecksum = qsernum + 6, qinitPC };$/;"	g	file:
+qinitPC	quetzal.c	/^enum qifhdnames { qrelnum, qsernum, qchecksum = qsernum + 6, qinitPC };$/;"	e	enum:qifhdnames	file:
+qintd	quetzal.c	/^static unsigned qintd[] = { 4, 1, 1, 2, 4 };$/;"	v	file:
+qintdnames	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	g	file:
+qintid	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	e	enum:qintdnames	file:
+qopid	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	e	enum:qintdnames	file:
+qrelnum	quetzal.c	/^enum qifhdnames { qrelnum, qsernum, qchecksum = qsernum + 6, qinitPC };$/;"	e	enum:qifhdnames	file:
+qresrvd	quetzal.c	/^enum qintdnames { qopid, qflags, qcontid, qresrvd, qintid };$/;"	e	enum:qintdnames	file:
+qreturnPC	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	e	enum:qstacknames	file:
+qsernum	quetzal.c	/^enum qifhdnames { qrelnum, qsernum, qchecksum = qsernum + 6, qinitPC };$/;"	e	enum:qifhdnames	file:
+qstackframe	stack.c	/^const unsigned qstackframe[] = { 3, 1, 1, 1, 2, 0 };$/;"	v
+qstacknames	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	g	file:
+quetzal_diff	quetzal.c	/^BOOL quetzal_diff(const zbyte *a, const zbyte *b, glui32 length,$/;"	f
+quetzal_findgamefile	quetzal.c	/^strid_t quetzal_findgamefile(strid_t stream)$/;"	f
+quetzal_stack_restore	stack.c	/^BOOL quetzal_stack_restore(strid_t stream, glui32 qsize)$/;"	f
+quetzal_stack_save	stack.c	/^BOOL quetzal_stack_save(strid_t stream)$/;"	f
+quetzal_undiff	quetzal.c	/^BOOL quetzal_undiff(zbyte *dest, glui32 length,$/;"	f
+quiet	globals.c	/^BOOL quiet = TRUE;$/;"	v
+qvar	stack.c	/^enum qstacknames { qreturnPC, qflags, qvar, qargs, qeval };$/;"	e	enum:qstacknames	file:
+rational	solve.c	/^struct rational {$/;"	s	file:
+rational	solve.c	/^typedef struct rational rational;$/;"	t	file:
+rational_add	solve.c	/^static rational rational_add(rational a, rational b)$/;"	f	file:
+rational_div	solve.c	/^static rational rational_div(rational a, rational b)$/;"	f	file:
+rational_int	solve.c	/^static rational rational_int(int i)$/;"	f	file:
+rational_isone	solve.c	/^static BOOL rational_isone(rational r)$/;"	f	file:
+rational_iszero	solve.c	/^static BOOL rational_iszero(rational r)$/;"	f	file:
+rational_mult	solve.c	/^static rational rational_mult(rational a, rational b)$/;"	f	file:
+rational_reduce	solve.c	/^static rational rational_reduce(rational r)$/;"	f	file:
+rational_sub	solve.c	/^static rational rational_sub(rational a, rational b)$/;"	f	file:
+read_abort	globals.c	/^BOOL read_abort;         \/* quickly stop reading *\/$/;"	v
+read_textpref	startdos.c	/^static void read_textpref(strid_t pref, const char *progname)$/;"	f	file:
+read_textpref	startunix.c	/^static void read_textpref(strid_t pref, const char *progname)$/;"	f	file:
+real	automap.c	/^  BOOL found, real, touched;$/;"	m	struct:loc_node	file:
+recent_corrections	tokenise.c	/^struct Typocorrection *recent_corrections;  \/* Inform requests two parses of$/;"	v
+record_info	infix.c	/^static unsigned record_info[][9] = {$/;"	v	file:
+remove_alias	z_io.c	/^BOOL remove_alias(const char *from)$/;"	f
+remove_stack_frame	stack.c	/^void remove_stack_frame(void)$/;"	f
+restoregame	op_save.c	/^BOOL restoregame(void)$/;"	f
+restorequetzal	quetzal.c	/^BOOL restorequetzal(strid_t stream)$/;"	f
+restoreredo	undo.c	/^BOOL restoreredo(void)$/;"	f
+restoreundo	undo.c	/^BOOL restoreundo(void)$/;"	f
+result_variable	stack.c	/^  int result_variable;       \/* Where to place the result upon returning *\/$/;"	m	struct:Stack_frame	file:
+return_PC	stack.c	/^  offset return_PC;$/;"	m	struct:Stack_frame	file:
+reverse	init.c	/^  BOOL reverse;$/;"	m	struct:z_cap_entry	file:
+rmmalloc_entry	portfunc.c	/^struct rmmalloc_entry {$/;"	s	file:
+rmmalloc_entry	portfunc.c	/^typedef struct rmmalloc_entry rmmalloc_entry;$/;"	t	file:
+rmmalloc_list	portfunc.c	/^static rmmalloc_entry *rmmalloc_list = NULL;$/;"	v	file:
+room_find	automap.c	/^static loc_node *room_find(glui32 location, BOOL is_real)$/;"	f	file:
+room_find_or_create	automap.c	/^static loc_node *room_find_or_create(glui32 location, BOOL is_real)$/;"	f	file:
+room_remove	automap.c	/^static void room_remove(loc_node *room)$/;"	f	file:
+rooms	automap.c	/^static hash_table rooms;$/;"	v	file:
+roomsymbol	automap.c	/^char *roomsymbol = NULL;$/;"	v
+routine	infix.c	/^  unsigned routine;$/;"	m	file:
+routineref	infix.c	/^} routineref;$/;"	t	file:
+rstart	globals.c	/^offset rstart;$/;"	v
+sBOLD	io.c	124;"	d	file:
+sFIXE	io.c	126;"	d	file:
+sITAL	io.c	125;"	d	file:
+sREVE	io.c	127;"	d	file:
+savefile	main.c	/^static strid_t savefile;$/;"	v	file:
+savegame	op_save.c	/^BOOL savegame(void)$/;"	f
+savequetzal	quetzal.c	/^BOOL savequetzal(strid_t stream)$/;"	f
+saveundo	undo.c	/^BOOL saveundo(BOOL in_instruction)$/;"	f
+search_for_aliases	z_io.c	/^int search_for_aliases(char *text, int length, int maxlen)$/;"	f
+search_path	globals.c	/^char *search_path;          \/* Path in which to look for games *\/$/;"	v
+search_soup	zscii.c	/^static BOOL search_soup(zbyte c, int *rspoon, int *rletter)$/;"	f	file:
+select_edge	solve.c	/^static equation *select_edge(equation *cycle, int *need_recalc)$/;"	f	file:
+selected_room_number	automap.c	/^static glui32 selected_room_number = 0;$/;"	v	file:
+sequence_point_info	infix.c	/^static unsigned sequence_point_info[] ={ 1, 2, 1, 2, 0 };$/;"	v	file:
+set_defaults	startdos.c	/^static void set_defaults(void)$/;"	f	file:
+set_defaults	startunix.c	/^static void set_defaults(void)$/;"	f	file:
+set_defaults	startwin.c	/^static void set_defaults(void)$/;"	f	file:
+set_fixed	io.c	/^void set_fixed(BOOL p)$/;"	f
+set_game_filename	startdos.c	/^static void set_game_filename(const char *name)$/;"	f	file:
+set_game_filename	startunix.c	/^static void set_game_filename(const char *name)$/;"	f	file:
+set_glk_stream_current	io.c	/^void set_glk_stream_current(void)$/;"	f
+set_header	init.c	/^void set_header(glui32 width, glui32 height)$/;"	f
+set_step	debug.c	/^void set_step(Cont_type t, int count)$/;"	f
+set_stylehints	io.c	/^static void set_stylehints(char fore, char back)$/;"	f	file:
+set_transcript	z_io.c	/^void set_transcript(strid_t stream)$/;"	f
+set_var	stack.c	/^N_INLINE void set_var(int var, zword val)$/;"	f
+set_volume	sound.c	/^static void set_volume(zword zvolume)$/;"	f	file:
+set_zfile	main.c	/^static void set_zfile(strid_t file)$/;"	f	file:
+shift_string_left	startwin.c	/^void shift_string_left(char *str)$/;"	f
+short_name	objects.c	/^static char *short_name;$/;"	v	file:
+short_name_i	objects.c	/^static unsigned short_name_i;$/;"	v	file:
+short_name_length	objects.c	/^static unsigned short_name_length;$/;"	v	file:
+shortname	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+shortname	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+shortname	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+show_copying	copying.c	/^void show_copying(void)$/;"	f
+show_help	startdos.c	/^static void show_help(void)$/;"	f	file:
+show_help	startunix.c	/^static void show_help(void)$/;"	f	file:
+show_help	startwin.c	/^static void show_help(void)$/;"	f	file:
+show_warranty	copying.c	/^void show_warranty(void)$/;"	f
+showstuff	io.c	/^void showstuff(const char *title, const char *type, const char *message, offset number)$/;"	f
+showstuffcount	io.c	/^static int showstuffcount = 0;$/;"	v	file:
+sighandle	startdos.c	/^static void sighandle(int unused)$/;"	f	file:
+sighandle	startunix.c	/^static void sighandle(int unused)$/;"	f	file:
+size	hash.c	/^    size_t size;$/;"	m	struct:hash_table	file:
+skip_branch	op_jmp.c	/^N_INLINE static void skip_branch(zbyte branch)$/;"	f	file:
+smart_timed	globals.c	/^BOOL smart_timed = TRUE; \/* redraw the prompt *\/$/;"	v
+smart_tokeniser	tokenise.c	/^static zword smart_tokeniser(zword dictionarytable,$/;"	f	file:
+sstart	globals.c	/^offset sstart;$/;"	v
+stack_frames	stack.c	/^static Stack_frame *stack_frames = NULL;$/;"	v	file:
+stack_get_depth	stack.c	/^unsigned stack_get_depth(void)$/;"	f
+stack_get_numlocals	stack.c	/^unsigned stack_get_numlocals(int frame)$/;"	f
+stack_max	stack.c	/^static offset stack_max;  \/* Maximum for stack_pointer (size of stack) *\/$/;"	v	file:
+stack_min	stack.c	/^static offset stack_min;  \/* Minimum for stack_pointer (how much we can pop) *\/$/;"	v	file:
+stack_pointer	stack.c	/^static offset stack_pointer;      \/* Current offset into stack_stack *\/$/;"	v	file:
+stack_pop	stack.c	/^static zword stack_pop(void)$/;"	f	file:
+stack_push	stack.c	/^static void stack_push(zword n)$/;"	f	file:
+stack_stack	stack.c	/^static zword *stack_stack = NULL; \/* Holds local variables and pushed values *\/$/;"	v	file:
+stack_stack_start	stack.c	/^  offset stack_stack_start;  \/* points into stack_stack to local variables$/;"	m	struct:Stack_frame	file:
+stackchunk	undo.c	/^  zbyte *stackchunk;  \/* Quetzal encoded *\/$/;"	m	struct:fast_undoslot	file:
+stackchunk	undo.c	/^  zbyte *stackchunk;  \/* Quetzal encoded *\/$/;"	m	struct:move_difference	file:
+stackchunksize	undo.c	/^  glui32 stackchunksize;$/;"	m	struct:fast_undoslot	file:
+stacklength	undo.c	/^  glui32 stacklength;$/;"	m	struct:fast_undoslot	file:
+stacklength	undo.c	/^  glui32 stacklength;$/;"	m	struct:move_difference	file:
+stacklimit	globals.c	/^int stacklimit = 0;$/;"	v
+start_PC	infix.c	/^  offset start_PC;$/;"	m	file:
+start_x	infix.c	/^  unsigned start_x;$/;"	m	file:
+startline	infix.c	/^  unsigned startline;$/;"	m	file:
+startup_findfile	startdos.c	/^strid_t startup_findfile(void)$/;"	f
+startup_findfile	startmac.c	/^strid_t startup_findfile(void)$/;"	f
+startup_findfile	startunix.c	/^strid_t startup_findfile(void)$/;"	f
+startup_findfile	startwin.c	/^strid_t startup_findfile(void)$/;"	f
+startup_open	startdos.c	/^strid_t startup_open(const char *name)$/;"	f
+startup_open	startunix.c	/^strid_t startup_open(const char *name)$/;"	f
+startup_open	startwin.c	/^strid_t startup_open(const char *name)$/;"	f
+startup_wopen	startdos.c	/^static strid_t startup_wopen(const char *name)$/;"	f	file:
+startup_wopen	startunix.c	/^static strid_t startup_wopen(const char *name)$/;"	f	file:
+startup_wopen	startwin.c	/^static strid_t startup_wopen(const char *name)$/;"	f	file:
+step_count	debug.c	/^static int step_count = 0;$/;"	v	file:
+str	io.c	/^  strid_t str;$/;"	m	struct:z_window	file:
+str_func	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+str_func	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+str_func	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+strcat	inform.c	120;"	d	file:
+strcpy	inform.c	126;"	d	file:
+stream	infix.c	/^  strid_t stream;$/;"	m	file:
+stream2	z_io.c	/^static strid_t stream2, stream4;$/;"	v	file:
+stream3_nesting_depth	z_io.c	/^static int stream3_nesting_depth;$/;"	v	file:
+stream3_table_locations	z_io.c	/^static zword stream3_table_locations[16];$/;"	v	file:
+stream3_table_starts	z_io.c	/^static zword stream3_table_starts[16];$/;"	v	file:
+stream4	z_io.c	/^static strid_t stream2, stream4;$/;"	v	file:
+stream4line	z_io.c	/^void stream4line(const char *buffer, int length, char terminator)$/;"	f
+stream4number	z_io.c	/^void stream4number(unsigned c)$/;"	f
+string_bad	globals.c	/^BOOL string_bad = FALSE;     \/* If it turns out to not be a bad string *\/$/;"	v
+string_func	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+string_func	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+string_func	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+string_start	infix.c	/^static offset string_start = 0;$/;"	v	file:
+strlen	inform.c	123;"	d	file:
+style	io.c	/^  unsigned char style;$/;"	m	file:
+swap_chars	portfunc.c	/^static void swap_chars(char *a, char *b, int nbytes)$/;"	f	file:
+symbol	automap.c	/^  char symbol;$/;"	m	struct:dirinfo	file:
+t	infix.c	/^  z_type t;$/;"	m	struct:z_typed	file:
+table	hash.c	/^    bucket **table;$/;"	m	struct:hash_table	file:
+take_branch	op_jmp.c	/^N_INLINE static void take_branch(zbyte branch)$/;"	f	file:
+testing_string	globals.c	/^BOOL testing_string = FALSE; \/* If we're uncertain this is really a string *\/$/;"	v
+text	op_v6.c	/^  char *text;$/;"	m	struct:graph_piece	file:
+text_buffer	io.c	/^  unsigned char *text_buffer;  \/* whole window for grid, current line for buffer *\/$/;"	m	struct:z_window	file:
+the_table	hash.c	/^static hash_table *the_table = NULL;$/;"	v	file:
+thisPC	infix.c	/^  offset thisPC;$/;"	m	file:
+time_ret	globals.c	/^zword time_ret;          \/* Get the return value back to the timer *\/$/;"	v
+timer_callback	z_io.c	/^static BOOL timer_callback(zword routine)$/;"	f	file:
+to	z_io.c	/^  char *to;$/;"	m	struct:alias_entry	file:
+token	inform.c	/^  int token;$/;"	m	file:
+tokenise	tokenise.c	/^static int tokenise(zword dictionarytable, const char *text, int length,$/;"	f	file:
+total_size	globals.c	/^offset total_size;$/;"	v
+touched	automap.c	/^  BOOL found, real, touched;$/;"	m	struct:loc_node	file:
+touched	automap.c	/^  BOOL touched;$/;"	m	struct:edge	file:
+transcript	io.c	/^  strid_t transcript;$/;"	m	struct:z_window	file:
+transcript_getchar	z_io.c	/^unsigned char transcript_getchar(unsigned *num)$/;"	f
+transcript_getline	z_io.c	/^unsigned char transcript_getline(char *dest, glui32 *length)$/;"	f
+tripletize	zscii.c	/^static void tripletize(zbyte **location, unsigned *triplet, int *count,$/;"	f	file:
+trunk	objects.c	/^static char *trunk = NULL;$/;"	v	file:
+trunksize	objects.c	/^static int trunksize = 128;$/;"	v	file:
+type	debug.c	/^  bptype type;$/;"	m	struct:breakpoint	file:
+type	op_v6.c	/^  z6_type type;$/;"	m	struct:graph_piece	file:
+type	startdos.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+type	startunix.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+type	startwin.c	/^typedef struct { const char *longname; char shortname; const char *description; option_type type; void (*int_func)(int); int defint; void (*str_func)(strid_t); strid_t defstream; void (*string_func)(const char *); const char *defstring; } option_option;$/;"	m	file:
+untriplet	zscii.c	/^static char untriplet(offset *location, int *shift_amt)$/;"	f	file:
+upper_height	io.c	/^static glui32 upper_width, upper_height;$/;"	v	file:
+upper_mouse_callback	z_io.c	/^BOOL upper_mouse_callback(BOOL is_char_event, winid_t win, glui32 x, glui32 y)$/;"	f
+upper_roomname_length	z_io.c	/^static int upper_roomname_length;$/;"	v	file:
+upper_width	io.c	/^static glui32 upper_width, upper_height;$/;"	v	file:
+upper_win	z_io.c	/^static zwinid lower_win, upper_win;$/;"	v	file:
+username	globals.c	/^const char *username;$/;"	v
+using_infix	globals.c	/^int using_infix;$/;"	v
+v	infix.c	/^  zword v;      \/* The value stored *\/$/;"	m	struct:z_typed	file:
+v6_main_window_is	op_v6.c	/^void v6_main_window_is(zwinid win)$/;"	f
+val	inform.c	/^    zword val;$/;"	m	struct:cond_list	file:
+val	inform.c	/^  z_typed val;$/;"	m	file:
+var	solve.c	/^  int *var;$/;"	m	struct:cycleequation	file:
+var	solve.c	/^  int *var;$/;"	m	struct:equation	file:
+verify_stack	stack.c	/^BOOL verify_stack(void)$/;"	f
+w_attributes	op_v6.c	/^	       w_font_number, w_font_size, w_attributes, w_line_count$/;"	e	file:
+w_colour_data	op_v6.c	/^	       w_nl_routine,  w_int_count, w_text_style, w_colour_data,$/;"	e	file:
+w_font_number	op_v6.c	/^	       w_font_number, w_font_size, w_attributes, w_line_count$/;"	e	file:
+w_font_size	op_v6.c	/^	       w_font_number, w_font_size, w_attributes, w_line_count$/;"	e	file:
+w_glk_put_buffer	portfunc.c	/^void w_glk_put_buffer(const char *buf, glui32 len)$/;"	f
+w_glk_put_buffer_stream	portfunc.c	/^void w_glk_put_buffer_stream(strid_t str, const char *buf, glui32 len)$/;"	f
+w_glk_put_char	portfunc.c	/^void w_glk_put_char(int ch)$/;"	f
+w_glk_put_string	portfunc.c	/^void w_glk_put_string(const char *s)$/;"	f
+w_glk_put_string_stream	portfunc.c	/^void w_glk_put_string_stream(strid_t str, const char *s)$/;"	f
+w_int_count	op_v6.c	/^	       w_nl_routine,  w_int_count, w_text_style, w_colour_data,$/;"	e	file:
+w_l_margin	op_v6.c	/^	       w_y_cursor,    w_x_cursor,  w_l_margin,   w_r_margin,$/;"	e	file:
+w_line_count	op_v6.c	/^	       w_font_number, w_font_size, w_attributes, w_line_count$/;"	e	file:
+w_nl_routine	op_v6.c	/^	       w_nl_routine,  w_int_count, w_text_style, w_colour_data,$/;"	e	file:
+w_r_margin	op_v6.c	/^	       w_y_cursor,    w_x_cursor,  w_l_margin,   w_r_margin,$/;"	e	file:
+w_text_style	op_v6.c	/^	       w_nl_routine,  w_int_count, w_text_style, w_colour_data,$/;"	e	file:
+w_x_coord	op_v6.c	/^typedef enum { w_y_coord,     w_x_coord,   w_y_size,     w_x_size,$/;"	e	file:
+w_x_cursor	op_v6.c	/^	       w_y_cursor,    w_x_cursor,  w_l_margin,   w_r_margin,$/;"	e	file:
+w_x_size	op_v6.c	/^typedef enum { w_y_coord,     w_x_coord,   w_y_size,     w_x_size,$/;"	e	file:
+w_y_coord	op_v6.c	/^typedef enum { w_y_coord,     w_x_coord,   w_y_size,     w_x_size,$/;"	e	file:
+w_y_cursor	op_v6.c	/^	       w_y_cursor,    w_x_cursor,  w_l_margin,   w_r_margin,$/;"	e	file:
+w_y_size	op_v6.c	/^typedef enum { w_y_coord,     w_x_coord,   w_y_size,     w_x_size,$/;"	e	file:
+wa_buffered	op_v6.c	/^typedef enum { wa_wrapping, wa_scrolling, wa_transcript, wa_buffered } win_attributes;$/;"	e	file:
+wa_scrolling	op_v6.c	/^typedef enum { wa_wrapping, wa_scrolling, wa_transcript, wa_buffered } win_attributes;$/;"	e	file:
+wa_transcript	op_v6.c	/^typedef enum { wa_wrapping, wa_scrolling, wa_transcript, wa_buffered } win_attributes;$/;"	e	file:
+wa_wrapping	op_v6.c	/^typedef enum { wa_wrapping, wa_scrolling, wa_transcript, wa_buffered } win_attributes;$/;"	e	file:
+waitforinput	io.c	/^static int waitforinput(zwinid window, glui32 *val,$/;"	f	file:
+watch_expression	debug.c	/^  char *watch_expression;$/;"	m	struct:breakpoint	file:
+watch_frame	debug.c	/^  int watch_frame;  \/* Frame at which to evaluate watch; -1 if no locals *\/$/;"	m	struct:breakpoint	file:
+watch_value	debug.c	/^  z_typed watch_value;$/;"	m	struct:breakpoint	file:
+watchnames	debug.c	/^const char *watchnames[] = {$/;"	v
+width	io.c	/^  glui32 width, height;$/;"	m	file:
+width	io.c	/^  glui32 width, height;$/;"	m	struct:z_window	file:
+width	op_v6.c	/^  zword width, height;$/;"	m	struct:graph_piece	file:
+win	io.c	/^  winid_t win;$/;"	m	struct:z_window	file:
+win_attributes	op_v6.c	/^typedef enum { wa_wrapping, wa_scrolling, wa_transcript, wa_buffered } win_attributes;$/;"	t	file:
+win_prop_names	op_v6.c	/^} win_prop_names;$/;"	t	file:
+window	op_v6.c	/^  int window;$/;"	m	struct:graph_piece	file:
+window_props	op_v6.c	/^static zword window_props[8][16];$/;"	v	file:
+winglk_startup_code	startwin.c	/^int winglk_startup_code(void)$/;"	f
+wintype	io.c	/^  glui32 wintype;$/;"	m	struct:z_window	file:
+wrap_gib_count_resources	blorb.c	/^giblorb_err_t wrap_gib_count_resources(giblorb_map_t *map, glui32 usage, glui32 *num, glui32 *min, glui32 *max)$/;"	f
+wrap_gib_count_resources	no_blorb.c	/^giblorb_err_t wrap_gib_count_resources(giblorb_map_t *map, glui32 usage, glui32 *num, glui32 *min, glui32 *max)$/;"	f
+wrap_gib_create_map	blorb.c	/^giblorb_err_t wrap_gib_create_map(strid_t file, giblorb_map_t **newmap)$/;"	f
+wrap_gib_create_map	no_blorb.c	/^giblorb_err_t wrap_gib_create_map(strid_t file, giblorb_map_t **newmap)$/;"	f
+wrap_gib_destroy_map	blorb.c	/^giblorb_err_t wrap_gib_destroy_map(giblorb_map_t *map)$/;"	f
+wrap_gib_destroy_map	no_blorb.c	/^giblorb_err_t wrap_gib_destroy_map(giblorb_map_t *map)$/;"	f
+wrap_gib_load_resource	blorb.c	/^giblorb_err_t wrap_gib_load_resource(giblorb_map_t *map, glui32 method, giblorb_result_t *res, glui32 usage, glui32 resnum)$/;"	f
+wrap_gib_load_resource	no_blorb.c	/^giblorb_err_t wrap_gib_load_resource(giblorb_map_t *map, glui32 method, giblorb_result_t *res, glui32 usage, glui32 resnum)$/;"	f
+wrap_gib_set_resource_map	blorb.c	/^giblorb_err_t wrap_gib_set_resource_map(strid_t file)$/;"	f
+wrap_gib_set_resource_map	no_blorb.c	/^giblorb_err_t wrap_gib_set_resource_map(strid_t file)$/;"	f
+wrap_glk_image_draw	graphics.c	/^glui32 wrap_glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)$/;"	f
+wrap_glk_image_draw	no_graph.c	/^glui32 wrap_glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)$/;"	f
+wrap_glk_image_draw_scaled	graphics.c	/^glui32 wrap_glk_image_draw_scaled(winid_t win, glui32 image, glsi32 val1, glsi32 val2, glui32 width, glui32 height)$/;"	f
+wrap_glk_image_draw_scaled	no_graph.c	/^glui32 wrap_glk_image_draw_scaled(winid_t win, glui32 image, glsi32 val1, glsi32 val2, glui32 width, glui32 height)$/;"	f
+wrap_glk_image_get_info	graphics.c	/^glui32 wrap_glk_image_get_info(glui32 image, glui32 *width, glui32 *height)$/;"	f
+wrap_glk_image_get_info	no_graph.c	/^glui32 wrap_glk_image_get_info(glui32 image, glui32 *width, glui32 *height)$/;"	f
+x	infix.c	/^  unsigned x;$/;"	m	file:
+x	io.c	/^  glui32 x, y;$/;"	m	file:
+x	op_v6.c	/^  zword x, y;$/;"	m	struct:graph_piece	file:
+x1	io.c	/^  glui32 x1, y1, x2, y2;$/;"	m	struct:z_window	file:
+x2	io.c	/^  glui32 x1, y1, x2, y2;$/;"	m	struct:z_window	file:
+xcoefficient	solve.c	/^  int xcoefficient;$/;"	m	struct:cycleequation	file:
+xoffset	automap.c	/^static int xoffset, yoffset;$/;"	v	file:
+y	io.c	/^  glui32 x, y;$/;"	m	file:
+y	op_v6.c	/^  zword x, y;$/;"	m	struct:graph_piece	file:
+y1	io.c	/^  glui32 x1, y1, x2, y2;$/;"	m	struct:z_window	file:
+y2	io.c	/^  glui32 x1, y1, x2, y2;$/;"	m	struct:z_window	file:
+ycoefficient	solve.c	/^  int ycoefficient;$/;"	m	struct:cycleequation	file:
+yoffset	automap.c	/^static int xoffset, yoffset;$/;"	v	file:
+yyalloc	inform.c	/^union yyalloc$/;"	u	file:
+yycheck	inform.c	/^static const short yycheck[] =$/;"	v	file:
+yyclearin	inform.c	697;"	d	file:
+yydebug	inform.c	/^int yydebug;$/;"	v
+yydefact	inform.c	/^static const short yydefact[] =$/;"	v	file:
+yydefgoto	inform.c	/^static const short yydefgoto[] =$/;"	v	file:
+yyerrok	inform.c	696;"	d	file:
+yyerror	inform.c	/^static void yyerror(const char *s)$/;"	f	file:
+yylex	inform.c	/^static int yylex(void)$/;"	f	file:
+yyls	inform.c	/^  YYLTYPE yyls;$/;"	m	union:yyalloc	file:
+yypact	inform.c	/^static const short yypact[] =$/;"	v	file:
+yyparse	inform.c	/^yyparse (YYPARSE_PARAM_ARG)$/;"	f
+yypgoto	inform.c	/^static const short yypgoto[] =$/;"	v	file:
+yyprhs	inform.c	/^static const short yyprhs[] =$/;"	v	file:
+yyr1	inform.c	/^static const short yyr1[] =$/;"	v	file:
+yyr2	inform.c	/^static const short yyr2[] =$/;"	v	file:
+yyrhs	inform.c	/^static const short yyrhs[] =$/;"	v	file:
+yyrline	inform.c	/^static const short yyrline[] =$/;"	v	file:
+yyss	inform.c	/^  short yyss;$/;"	m	union:yyalloc	file:
+yystpcpy	inform.c	/^yystpcpy (char *yydest, const char *yysrc)$/;"	f	file:
+yystpcpy	inform.c	831;"	d	file:
+yystrlen	inform.c	/^yystrlen (const char *yystr)$/;"	f	file:
+yystrlen	inform.c	808;"	d	file:
+yystype	inform.c	/^} yystype;$/;"	t	file:
+yytable	inform.c	/^static const short yytable[] =$/;"	v	file:
+yytname	inform.c	/^static const char *const yytname[] =$/;"	v	file:
+yytranslate	inform.c	/^static const char yytranslate[] =$/;"	v	file:
+yyvs	inform.c	/^  YYSTYPE yyvs;$/;"	m	union:yyalloc	file:
+z6_picture	op_v6.c	/^typedef enum { z6_text, z6_picture, z6_rectangle } z6_type;$/;"	e	file:
+z6_rectangle	op_v6.c	/^typedef enum { z6_text, z6_picture, z6_rectangle } z6_type;$/;"	e	file:
+z6_text	op_v6.c	/^typedef enum { z6_text, z6_picture, z6_rectangle } z6_type;$/;"	e	file:
+z6_type	op_v6.c	/^typedef enum { z6_text, z6_picture, z6_rectangle } z6_type;$/;"	t	file:
+z_cap_entry	init.c	/^struct z_cap_entry {$/;"	s	file:
+z_cap_table	init.c	/^static const struct z_cap_entry z_cap_table[] = {$/;"	v	file:
+z_caps	init.c	/^enum z_caps { HAS_STATUSLINE, HAS_COLOR, HAS_CHARGRAPH, HAS_BOLD, HAS_ITALIC,$/;"	g	file:
+z_checksum	globals.c	/^zword z_checksum;      \/* calculated checksum, not header *\/$/;"	v
+z_clear_window	io.c	/^void z_clear_window(zwinid window)$/;"	f
+z_close	init.c	/^void z_close(void)$/;"	f
+z_dictionary	globals.c	/^zword z_dictionary;$/;"	v
+z_div	op_math.c	/^zword z_div(zword a, zword b)$/;"	f
+z_draw_all_windows	io.c	/^void z_draw_all_windows(void)$/;"	f
+z_erase_line	io.c	/^void z_erase_line(zwinid window)$/;"	f
+z_find_size	io.c	/^void z_find_size(glui32 *wid, glui32 *hei)$/;"	f
+z_find_win	io.c	/^zwinid z_find_win(winid_t win)$/;"	f
+z_flush_all_windows	io.c	/^void z_flush_all_windows(void)$/;"	f
+z_flush_fixed	io.c	/^void z_flush_fixed(zwinid window)$/;"	f
+z_flush_graphics	io.c	/^void z_flush_graphics(zwinid window)$/;"	f
+z_flush_text	io.c	/^void z_flush_text(zwinid window)$/;"	f
+z_getsize	io.c	/^void z_getsize(zwinid window, unsigned *width, unsigned *height)$/;"	f
+z_getxy	io.c	/^void z_getxy(zwinid window, zword *x, zword *y)$/;"	f
+z_globaltable	globals.c	/^zword z_globaltable;$/;"	v
+z_headerext	globals.c	/^zword z_headerext;$/;"	v
+z_image	io.c	/^} z_image;$/;"	t	file:
+z_init	init.c	/^void z_init(strid_t zfile)$/;"	f
+z_init_windows	io.c	/^void z_init_windows(BOOL dofixed,$/;"	f
+z_isequal	inform.c	/^static BOOL z_isequal(zword a, zword b)$/;"	f	file:
+z_isgreat	inform.c	/^static BOOL z_isgreat(zword a, zword b)$/;"	f	file:
+z_isless	inform.c	/^static BOOL z_isless(zword a, zword b)$/;"	f	file:
+z_kill_window	io.c	/^void z_kill_window(zwinid win)$/;"	f
+z_mem	undo.c	/^  zbyte *z_mem;$/;"	m	struct:fast_undoslot	file:
+z_memory	globals.c	/^zbyte *z_memory;$/;"	v
+z_memsize	undo.c	/^  glui32 z_memsize;$/;"	m	struct:fast_undoslot	file:
+z_mod	op_math.c	/^zword z_mod(zword a, zword b)$/;"	f
+z_mult	op_math.c	/^zword z_mult(zword a, zword b)$/;"	f
+z_objecttable	globals.c	/^zword z_objecttable;$/;"	v
+z_pause_timed_input	io.c	/^void z_pause_timed_input(zwinid window)$/;"	f
+z_print_number	io.c	/^void z_print_number(zwinid window, int number)$/;"	f
+z_propdefaults	globals.c	/^zword z_propdefaults;$/;"	v
+z_put_char	io.c	/^void z_put_char(zwinid window, unsigned c)$/;"	f
+z_put_styled_string	io.c	/^static void z_put_styled_string(zwinid window, unsigned char *text,$/;"	f	file:
+z_random	op_math.c	/^zword z_random(zword num)$/;"	f
+z_range_error	errmesg.c	/^zword z_range_error(offset p)$/;"	f
+z_read	io.c	/^int z_read(zwinid window, char *dest, unsigned maxlen, unsigned initlen,$/;"	f
+z_read_char	io.c	/^zword z_read_char(zwinid window,$/;"	f
+z_set_color	io.c	/^void z_set_color(zwinid window, unsigned fore, unsigned back)$/;"	f
+z_set_height	io.c	/^void z_set_height(zwinid window, unsigned height)$/;"	f
+z_set_style	io.c	/^void z_set_style(zwinid window, int style)$/;"	f
+z_set_transcript	io.c	/^void z_set_transcript(zwinid window, strid_t stream)$/;"	f
+z_setxy	io.c	/^void z_setxy(zwinid window, zword x, zword y)$/;"	f
+z_split_screen	io.c	/^zwinid z_split_screen(glui32 wintype, glui32 method,$/;"	f
+z_synonymtable	globals.c	/^zword z_synonymtable;$/;"	v
+z_terminators	globals.c	/^zword z_terminators;$/;"	v
+z_tokenise	tokenise.c	/^void z_tokenise(const char *text, int length, zword parse_dest,$/;"	f
+z_type	infix.c	/^typedef enum { Z_UNKNOWN, Z_BOOLEAN, Z_NUMBER, Z_OBJECT, Z_ROUTINE, Z_STRING, Z_GLOBAL, Z_LOCAL, Z_BYTEARRAY, Z_WORDARRAY, Z_OBJPROP, Z_ATTR, Z_PROP, Z_ARRAY } z_type;$/;"	t	file:
+z_typed	infix.c	/^struct z_typed {$/;"	s	file:
+z_typed	infix.c	/^typedef struct z_typed z_typed;$/;"	t	file:
+z_wait_for_key	io.c	/^void z_wait_for_key(zwinid window)$/;"	f
+z_window	io.c	/^struct z_window {$/;"	s	file:
+z_write_header	op_table.c	/^static void z_write_header(zword i, zbyte val)$/;"	f	file:
+zfile_offset	globals.c	/^glui32 zfile_offset;$/;"	v
+zlist	inform.c	/^  zword_list *zlist;$/;"	m	file:
+zversion	globals.c	/^int zversion;$/;"	v
+zwinid	io.c	/^typedef struct z_window *zwinid;$/;"	t	file:
+zword_list	inform.c	/^  struct zword_list {$/;"	s	file:
+zword_list	inform.c	/^  typedef struct zword_list zword_list;$/;"	t	file:

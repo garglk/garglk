@@ -1,0 +1,185 @@
+@item info breakpoints 	
+@itemx info breakpoints @var{num}	
+List breakpoints.  An argument specifies a specific breakpoint to list.
+
+@item quit 		
+Exit nitfol.
+
+@item show language 	
+Show the current source language.
+
+@item condition @var{num} @var{exp}	
+Set a condition for an existing breakpoint.
+
+@item restore 	
+Restore a saved game.
+
+@item break @var{linespec}	
+@itemx break @var{linespec} if @var{exp} 
+Set a breakpoint.  An @code{if} clause specifies a condition.
+
+@item stepi 		
+@itemx stepi @var{num}		
+Step exactly one instruction.  An argument specifies a repeat count.
+
+@item restart 	
+Restart the game.
+
+@item object-tree 	
+@itemx object-tree @var{exp}	
+Display the object tree.  An argument says which object to use as the root of the tree.
+
+@item disable display @var{num}	
+Temporarily disable an automatic display.
+
+@item select-frame @var{num}	
+Select a specific stack frame.
+
+@item alias @var{name} @var{value} 
+Add an alias
+
+@item down-silently 	
+@itemx down-silently @var{num}	
+Silently select the child of the selected frame.  An argument specifies how many frames down to go.
+
+@item frame 		
+@itemx frame @var{num}		
+Show the selected stack frame.  An argument specifies a stack frame to show.
+
+@item give @var{exp} @var{num}	
+@itemx give @var{exp} ~ @var{num} 
+Give an object an attribute.  With a tilde clears the attribute instead of setting it.
+
+@item set @var{exp}		
+Evaluate an expression without printing its value.
+
+@item print @var{exp}	
+Evaluates an expression and prints the result.  This can include function calls.
+
+@item up 	
+@itemx up @var{num}		
+Select the parent of the selected frame.  An argument specifies how many frames up to go.
+
+@item #  comment 	
+Enter a comment
+
+@item continue 		
+@itemx continue @var{num}		
+Continue execution.  An argument sets the ignore count of the current breakpoint.
+
+@item dumpmem @var{file}	
+Dump memory to a file
+
+@item undo 		
+Undo last move (not last debugger command).
+
+@item display @var{exp}	
+Print value of an expression each time the program stops.
+
+@item move @var{exp} to @var{exp} 
+Move an object around the object tree.
+
+@item up-silently 	
+@itemx up-silently @var{num}	
+Select the parent of the selected frame silently.  An argument specifies how many frames up to go.
+
+@item show copying 	
+Show licensing information.
+
+@item recording off 	
+Stop recording a script.
+
+@item jump @var{linespec}		
+Continue execution at a new location.
+
+@item recording on 	
+Start recording a script.
+
+@item ralias @var{name} @var{value} 
+Add a recursive alias
+
+@item globals 	
+@itemx globals @var{exp}	
+List all global variables and their values.  With an argument, list all only those with a specific value.
+
+@item backtrace 	
+@itemx backtrace @var{num}		
+@itemx backtrace - @var{num}	
+Display the parent functions of the current frame.  An argument specifies how many frames back to show.  If the argument is negative, start from the first frame instead of the current.
+
+@item find 
+Find objects whose shortnames contain a string.
+
+@item finish 	
+An argument specifies a repeat count.
+
+@item down 	
+@itemx down @var{num}	
+Select the child of the selected frame.  An argument specifies how many frames down to go.
+
+@item ignore @var{num} @var{num}        
+Set the ignore count for a breakpoint.
+
+@item replay off 	
+Halt replay.
+
+@item nexti 		
+@itemx nexti @var{num}		
+Step one instruction, stepping over subroutine calls.  Step a specified number of instructions, stepping over subroutine calls.
+
+@item help 		
+Print list of commands.
+
+@item redo 		
+Redo undid move.  Only works immediately after an @code{undo}.
+
+@item enable @var{num}	
+Re-enabled a breakpoint.
+
+@item until 		
+Resume execution until the program reaches a line number greater than the current line.
+
+@item replay 	
+Replay a recorded script.
+
+@item unalias @var{name}
+Remove an alias
+
+@item remove @var{exp}	
+Remove an object from the object tree.
+
+@item info sources 	
+List source files.
+
+@item delete @var{num}		
+Delete a breakpoint.
+
+@item symbol-file @var{file}	
+Load debugging info from a file (usually @file{gameinfo.dbg}).
+
+@item automap @var{exp}	
+Start automapping
+
+@item show warranty 	
+Show warranty information.
+
+@item disable @var{num}	
+Temporarily disable a breakpoint.
+
+@item undisplay @var{num}		
+Stop automatically displaying an expression.
+
+@item enable display @var{num}	
+Re-enable an automatic display.
+
+@item step 		
+@itemx step @var{num}		
+Step through program to a different source line.  An argument specifies a repeat count.
+
+@item info source 	
+Get information on the current source file.
+
+@item next 		
+@itemx next @var{num}		
+Step through program, stepping over subroutine calls.  An argument specifies a repeat count.
+

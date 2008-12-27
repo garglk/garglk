@@ -1,0 +1,121 @@
+#seed
+12345
+E
+Examine Platform
+Get Note
+Ask Kronos About Wristband
+Get Chest
+E, E, E, E
+Show Note To Guards
+W
+Look In Fountain
+Get Chit
+Lift Mat
+Get Wooden Key
+Examine Pocket
+Unlock Door With Metal Key, Open It
+Give Chest To Adventurer
+Get Adventurer
+Put Adventurer On Horse
+Sw, Examine Workbench
+Get Hoe, Rake And Trowel
+Look Under Workbench
+Plant Pot Plant In Plant Pot With Trowel
+Ne
+Mount Horse, W, W, W, W, N, N, Nw, Nw
+Dismount Horse, Remove Shirt, Cover Band With Shirt
+U
+E, E, Ne, Remove Shirt, Attach Hoe To Rake With Shirt
+Lever Boulder With Hoe And Rake
+Untie Shirt, Wear It, Drop Rake And Hoe, U, Climb Rocks
+U, U, Fill Bowl With Snow
+D, D, D, D, S, Nw, Nw, U, Give Bowl To Guru
+Get Rice, E, Se, S, S, Look In Stump
+Get Pouch, Open It
+Get Red, Blue And Green
+Mix Red, Blue And Green
+N, N, Nw, Mount Horse, E, E, N, U
+Climb Rocks, E, E, E, D, E, E
+Dismount
+Put Pouch, Trowel, Rice, Wooden Key, Chit, White On Horse
+U, U, Hit Wall
+E,
+Get All From Horse But Adventurer, N, Move Pedestal
+Look In Niche
+Get Blue Key, S, Remove Shirt
+W, W, U, W, W, W, D, D, S, W, S, S, S, U
+Unlock Door With Wooden Key, Open It, E
+Close Door
+Move Planks
+D, D, E, N, Move Rug
+Unlock Safe With Blue Key, Open It, Look Under It
+Get Paper, S, E, Put Paper In Large Box
+W, W, W, Sw, Open Door, W
+Get Hard Hat, Wear It, Examine Settee
+Move Cushions
+Get Coin, W, Look On Stove, Get Teapot
+Look On Worktop, Get Carrot, E, E, Ne, Nw
+Press Button
+Wait
+Wait
+Wait
+Wait
+Slide Door, N, Get Rope, Slide Door
+Press Second Button
+Slide Door, S
+Wear Shirt
+Get Lumps With Trowel, N, Slide Door
+Press First Button
+Slide Door, S, Se, E, U, U
+Open Door, W, D, Ne, Ne, Ne, N
+Drop Trowel, Carrot, Wooden Key And Teapot
+Buy Whisky Bottle And Beer Bottle With Coin
+Nw, U, Climb Rocks, U, U, S, W
+Melt Snowman With White
+Ne, W, Get Boots, Wear Them
+Get Prism, Put It In Pouch
+E, Sw
+Get White, N, E, D, D, E, E, E, D, N, N
+Give Rice To Alchemists, Give Lumps To Alchemists
+Ne, Get Aerosoul
+Sw, Nw, W, N, N, N, Ne, N
+Cut Paper Wall With Boots
+Open Cupboard, Examine It
+Tie Rope To Hook, Climb Rope
+Drop Rope, S, Put White In Pouch
+Knock On Doors
+Knock On Doors
+Knock On Doors
+Knock On Doors
+Knock On Doors
+Give Whisky Bottle To Porter
+E, D, N
+Give Beer Bottle To Jerry
+S
+Close Pouch
+E, N, E
+Ask Devil About Wristband
+Get Bottle, N, N, Open Pouch, Get White
+Nw, Look In Shadows
+Point At Shadows, Shine White At Shadows
+N, Throw Bottle At Kronos
+Press Nozzle
+Examine Rack, Get Wands
+Get Pointy Hat, Wear It, Get Cloak, Wear It, Get Wand
+S, Se, Ne, N, Get Rope, Climb It, Drop It
+S, Put White In Pouch, Close Pouch
+E, D, E, N, E
+Give Aerosoul To Devil
+W, S, W, U, Open Pouch, Get White
+W, N, Get Rope, Climb It, Drop It
+S, S, S, S, S, E, Se, Ne
+Cast Spell On Tomes, Read Tomes
+Sw, S, S, S, Open Doors, S, Knock On Door
+Say "No"
+S
+Debug
+N.N.N
+Get On The Horse
+U.W.W.W.D.D.S.S.S.S.S.S
+Score
+Look At The Waterfall
