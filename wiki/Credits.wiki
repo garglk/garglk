@@ -5,7 +5,7 @@
 
 Gargoyle would not be possible without the original vision and implementation of Tor Andersson, or the many contributions of the individuals listed below.
 
-This list is meant to be inclusive and current.  If your name has been omitted in error, please contact Ben Cressey (bcressey@gmail.com) so that it can be corrected as soon as possible.
+This list is meant to be inclusive and current.  If your name has been omitted in error, please leave a comment below so that it can be corrected as soon as possible.
 
 ===Development===
 _Original source code and patches_
