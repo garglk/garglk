@@ -701,7 +701,7 @@ int Sound_BuildAudioCVT(Sound_AudioCVT *cvt,
         } /* while */
 
             /* We may need a slow conversion here to finish up */
-        if ((lo_rate / 100) != (hi_rate / 100))
+        if ((lo_rate / 100) != (hi_rate / 100) && (hi_rate - lo_rate) > (hi_rate / 100))
         {
             if (src_rate < dst_rate)
             {
