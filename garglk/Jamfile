@@ -12,10 +12,9 @@ if $(OS) = MINGW
     SubDirHdrs $(TOP) support libpng-1.2.32 ;
     SubDirHdrs $(TOP) support jpeg-6b ;
     SubDirHdrs $(TOP) support sdl-1.2.13 ;
-    SubDirHdrs $(TOP) support sdl_sound-1.0.3 ;
 }
 
-if $(OS) = LINUX
+if $(USESDL)
 {
     SubDirHdrs $(TOP) support sdl_sound-1.0.3 ;
 }
@@ -49,7 +48,7 @@ else
 Library libgarglkmain : main.c ;
 SharedLibrary libgarglk : $(GARGSRCS) ;
 
-if $(OS) = LINUX && $(USESDL)
+if ( $(OS) = LINUX || $(OS) = SOLARIS ) && $(USESDL)
 {
     LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
 }

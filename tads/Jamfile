@@ -17,7 +17,7 @@ SubDirCcFlags
     -DVMGLOB_STRUCT
     ;
 
-if $(OS) = LINUX
+if $(OS) = LINUX || $(OS) = SOLARIS
 {
     SubDirCcFlags
         -DOS_USHORT_DEFINED
