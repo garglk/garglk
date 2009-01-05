@@ -57,6 +57,21 @@ switch $(OS)
 	    SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
 	}
 
+    case SOLARIS :
+        Echo "OS is SOLARIS (gtk+)" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
+        #PKGCONFIG = "pkg-config freetype2 gtk+" ;
+        SHELLHEADER = "#!/bin/bash" ;		
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = "-lz -lm" ;
+
+	if $(USESDL)
+	{
+	    GARGLKCCFLAGS += -I/usr/include/SDL ;
+	    SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+	}
+
     case MACOSX :
         Echo "OS is MACOSX (gtk+)" ;
         SUFDLL = .dylib ;
