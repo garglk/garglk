@@ -11,6 +11,7 @@ This list is meant to be inclusive and current.  If your name has been omitted i
 _Original source code and patches_
   * Tor Andersson
   * Simon Baldwin
+  * Brian Cameron
   * Philip Chimento
   * Ben Cressey
   * Lorenzo Marcantonio
