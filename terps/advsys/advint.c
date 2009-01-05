@@ -17,7 +17,7 @@ jmp_buf restart;
 /* CHANGED TO WORK WITH GLK */
 /* Modernize it */
 void play(void);
-int single(void);
+int single_action(void);
 
 /* GLK Specifics */
 winid_t window;
@@ -95,8 +95,8 @@ void play()
 
 	/* parse the next input command */
 	if (parse()) {
-	    if (single())
-		while (next() && single())
+	    if (single_action())
+		while (next() && single_action())
 		    ;
 	}
 
@@ -106,8 +106,8 @@ void play()
     }
 }
 
-/* single - handle a single action */
-int single()
+/* single_action - handle a single action */
+int single_action()
 {
     /* execute the before code */
     switch (execute(h_before)) {
