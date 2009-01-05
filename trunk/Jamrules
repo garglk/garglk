@@ -153,3 +153,43 @@ if $(OS) = MINGW
     LINKLIBS += $(BTOP)/garglk/icons.o ;
 }
 
+rule FPrependRoot
+{
+	# FPrependRoot prefix : path ;
+	#
+	# Safely prepend a prefix to a path
+	# Use to e.g. install files into a build root
+
+	# FDirName does not allow adding a prefix to a root path
+	# ( e.g. [ FDirName /some/path /usr/bin ] -> /usr/bin )
+	#
+	# Care must be taken not to allow doubled separators in the path:
+	# this causes MkDir to fail to traverse up the directory tree
+	# and try to create the same directory twice
+
+	local _prefix = [ FDirName $(<) ] ;
+	local _path = [ FDirName $(>) ] ;
+	local _full ;
+
+	if $(_path) = $(_path:R=$(SLASH))
+	{
+		# _path is rooted
+		_full = $(_prefix) $(_path) ;
+	}
+	else
+	{
+		# _path is relative
+		if $(_path) = $(DOT)
+		{
+			_full = $(_prefix) ;
+		}
+		else
+		{
+			_full = $(_prefix) $(SLASH)$(_path) ;
+		}
+	}
+
+	return $(_full:J=) ;
+
+}
+
