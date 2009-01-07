@@ -14,6 +14,8 @@ Geas is copyright (c) Mark Tilford and David Jones. It is released under the ter
 
 Git is copyright (c) Iain Merrick. It is released under the same terms as Glk.
 
+Glulxe is copyright (c) Andrew Plotkin.
+
 Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
 
 JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
