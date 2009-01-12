@@ -34,12 +34,12 @@ _Quality assurance testing and bug reports_
 
 ===Packaging===
 _Platform-specific interim and final releases_
-  * Christopher Armstrong (Ubuntu)
-  * Brian Cameron (Solaris)
-  * Farvardin (Archlinux)
-  * Otto Grimwald (Debian)
-  * Ryan Hendrickson (Gentoo)
-  * Yaroslav Isakov (Gentoo)
+  * Christopher Armstrong
+  * Brian Cameron
+  * Farvardin
+  * Otto Grimwald
+  * Ryan Hendrickson
+  * Yaroslav Isakov
 
 
 <p><br/></p>
