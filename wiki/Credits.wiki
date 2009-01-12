@@ -11,7 +11,6 @@ This list is meant to be inclusive and current.  If your name has been omitted i
 _Original source code and patches_
   * Tor Andersson
   * Simon Baldwin
-  * Brian Cameron
   * Philip Chimento
   * Ben Cressey
   * Oliver Henshaw
@@ -29,12 +28,18 @@ _Quality assurance testing and bug reports_
   * Steve Evans
   * Alan De Smet
   * Pavel Soukenik
+  * D. Cooper Stevenson
 
 <p><br/></p>
 
 ===Packaging===
 _Platform-specific interim and final releases_
   * Christopher Armstrong (Ubuntu)
+  * Brian Cameron (Solaris)
   * Farvardin (Archlinux)
+  * Otto Grimwald (Debian)
+  * Ryan Hendrickson (Gentoo)
+  * Yaroslav Isakov (Gentoo)
+
 
 <p><br/></p>
