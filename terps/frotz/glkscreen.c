@@ -522,6 +522,11 @@ void z_print_table (void)
 
 void z_set_colour (void)
 {
+	int zfore = zargs[0];
+	int zback = zargs[1];
+
+	if (!(zfore == 0 && zback == 0))
+		garglk_set_zcolors(zfore, zback);
 }
 
 /*
@@ -576,10 +581,12 @@ void z_set_text_style (void)
 	if (gos_linepending && gos_curwin == gos_linewin)
 		return;
 
-	if (gos_curwin == gos_upper && style & REVERSE_STYLE)
+	if (style & REVERSE_STYLE)
 	{
-		if (gos_upper)
+		if (gos_curwin == gos_upper && gos_upper) {
 			glk_set_style(style_User1);
+		}
+		garglk_set_reversevideo(TRUE);
 	}
 	else if (style & FIXED_WIDTH_STYLE)
 		glk_set_style(style_Preformatted);
@@ -591,6 +598,10 @@ void z_set_text_style (void)
 		glk_set_style(style_Emphasized);
 	else
 		glk_set_style(style_Normal);
+
+	if (curstyle == 0) {
+		garglk_set_reversevideo(FALSE);
+	}
 }
 
 /*
