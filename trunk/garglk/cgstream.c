@@ -770,6 +770,9 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
     if (!str || !str->writable)
         return;
 
+    if (!gli_conf_stylehint)
+        return;
+
     if (fg >= zcolor_NUMCOLORS)
         fg = 0;
     if (bg >= zcolor_NUMCOLORS)
@@ -777,25 +780,50 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
 
     switch (str->type) {
         case strtype_Window:
-            if (fg == zcolor_Default)
+            if (fg == zcolor_Default) {
                 str->win->attr.fgcolor = 0;
-            else if (fg != zcolor_Current)
+                memcpy(gli_more_color, gli_more_save, 3);
+                memcpy(gli_caret_color, gli_caret_save, 3);
+                gli_override_fg = 0;
+            }
+            else if (fg != zcolor_Current) {
                 str->win->attr.fgcolor = fg;
+                memcpy(gli_more_color, zcolor_rgb[fg - zcolor_Black], 3);
+                memcpy(gli_caret_color, zcolor_rgb[fg - zcolor_Black], 3);
+                gli_override_fg = fg;
+            }
 
-            if (bg == zcolor_Default)
+            if (bg == zcolor_Default) {
                 str->win->attr.bgcolor = 0;
-            else if (bg != zcolor_Current)
+                memcpy(gli_window_color, gli_window_save, 3);
+                memcpy(gli_border_color, gli_border_save, 3);
+                gli_override_bg = 0;
+            }
+            else if (bg != zcolor_Current) {
                 str->win->attr.bgcolor = bg;
+                memcpy(gli_window_color, zcolor_rgb[bg - zcolor_Black], 3);
+                memcpy(gli_border_color, zcolor_rgb[bg - zcolor_Black], 3);
+                gli_override_bg = bg;
+            }
+
+            if (fg == zcolor_Default && bg == zcolor_Default)
+                gli_override_reverse = 0;
+            else
+                gli_override_reverse = 1;
 
             if (str->win->echostr)
                 gli_set_zcolors(str->win->echostr, fg, bg);
             break;
     }
+    gli_force_redraw = 1;
 }
 
 static void gli_set_reversevideo(stream_t *str, glui32 reverse)
 {
     if (!str || !str->writable)
+        return;
+
+    if (!gli_conf_stylehint)
         return;
 
     switch (str->type) {
@@ -805,6 +833,7 @@ static void gli_set_reversevideo(stream_t *str, glui32 reverse)
                 gli_set_reversevideo(str->win->echostr, reverse);
             break;
     }
+    gli_force_redraw = 1;
 }
 
 void gli_stream_echo_line(stream_t *str, char *buf, glui32 len)

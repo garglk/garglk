@@ -142,6 +142,14 @@ extern unsigned char gli_window_color[3];
 extern unsigned char gli_border_color[3];
 extern unsigned char gli_caret_color[3];
 
+extern unsigned char gli_window_save[3];
+extern unsigned char gli_border_save[3];
+extern unsigned char gli_caret_save[3];
+
+extern int gli_override_fg;
+extern int gli_override_bg;
+extern int gli_override_reverse;
+
 extern int gli_caret_shape;
 extern int gli_wborderx;
 extern int gli_wbordery;
@@ -194,6 +202,7 @@ extern float gli_conf_propaspect;
 extern float gli_conf_monoaspect;
 
 extern unsigned char gli_more_color[3];
+extern unsigned char gli_more_save[3];
 extern char *gli_more_prompt;
 extern int gli_more_align;
 extern int gli_more_font;
@@ -600,3 +609,31 @@ int attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
+
+/* RGB color values for garglk_set_zcolors(), from Z-machine standard 1.1 draft 9 */
+static unsigned char zcolor_rgb[][3] = {
+    { 0, 0, 0 },        /* zcolor_Black */
+    { 239, 0, 0 },      /* zcolor_Red */
+    { 0, 214, 0 },      /* zcolor_Green */
+    { 239, 239, 0 },    /* zcolor_Yellow */
+    { 0, 107, 181 },    /* zcolor_Blue */
+    { 255, 0, 255 },    /* zcolor_Magenta */
+    { 0, 239, 239 },    /* zcolor_Cyan */
+    { 255, 255, 255 },  /* zcolor_White */
+    { 181, 181, 181 },  /* zcolor_LightGrey */
+    { 140, 140, 140 },  /* zcolor_MediumGrey */
+    { 90, 90, 90 },     /* zcolor_DarkGrey */
+};
+static unsigned char zbright_rgb[][3] = {
+    { 48, 48, 48 },        /* zbright_Black */
+    { 255, 48, 48 },      /* zbright_Red */
+    { 48, 255, 48 },      /* zbright_Green */
+    { 255, 255, 48 },    /* zbright_Yellow */
+    { 0, 155, 229 },    /* zbright_Blue */
+    { 255, 48, 255 },    /* zbright_Magenta */
+    { 48, 255, 255 },    /* zbright_Cyan */
+    { 255, 255, 255 },  /* zbright_White */
+    { 229, 229, 229 },  /* zbright_LightGrey */
+    { 188, 188, 188 },  /* zbright_MediumGrey */
+    { 138, 138, 138 },     /* zbright_DarkGrey */
+};

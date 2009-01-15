@@ -17,21 +17,6 @@ window_t *gli_focuswin = NULL; /* The window selected by the player */
 
 void (*gli_interrupt_handler)(void) = NULL;
 
-/* RGB color values for garglk_set_zcolors(), from Z-machine standard 1.1 draft 9 */
-static unsigned char zcolor_rgb[][3] = {
-    { 0, 0, 0 },        /* zcolor_Black */
-    { 239, 0, 0 },      /* zcolor_Red */
-    { 0, 214, 0 },      /* zcolor_Green */
-    { 239, 239, 0 },    /* zcolor_Yellow */
-    { 0, 107, 181 },    /* zcolor_Blue */
-    { 255, 0, 255 },    /* zcolor_Magenta */
-    { 0, 239, 239 },    /* zcolor_Cyan */
-    { 255, 255, 255 },  /* zcolor_White */
-    { 181, 181, 181 },  /* zcolor_LightGrey */
-    { 140, 140, 140 },  /* zcolor_MediumGrey */
-    { 90, 90, 90 },     /* zcolor_DarkGrey */
-};
-
 /* Set up the window system. This is called from main(). */
 void gli_initialize_windows()
 {
@@ -1239,8 +1224,8 @@ void glk_window_set_background_color(winid_t win, glui32 color)
 
 void attrset(attr_t *attr, glui32 style)
 {
-    attr->bgcolor = 0;
     attr->fgcolor = 0;
+    attr->bgcolor = 0;
     attr->reverse = FALSE;
     attr->style = style;
 }
@@ -1252,29 +1237,51 @@ int attrfont(style_t *styles, attr_t *attr)
 
 unsigned char *attrbg(style_t *styles, attr_t *attr)
 {
-    if (!attr->reverse && !styles[attr->style].reverse) {
-        if (attr->bgcolor > zcolor_Default && attr->bgcolor < zcolor_NUMCOLORS)
-            return zcolor_rgb[attr->bgcolor - zcolor_Black];
+    int zfore = attr->fgcolor ? attr->fgcolor : gli_override_fg;
+    int zback = attr->bgcolor ? attr->bgcolor : gli_override_bg;
+
+    if (!attr->reverse && !(styles[attr->style].reverse && !gli_override_reverse)) {
+        if (zback > zcolor_Default && zback < zcolor_NUMCOLORS)
+            return zcolor_rgb[zback - zcolor_Black];
         else
             return styles[attr->style].bg;
     } else {
-        if (attr->fgcolor > zcolor_Default && attr->fgcolor < zcolor_NUMCOLORS)
-            return zcolor_rgb[attr->fgcolor - zcolor_Black];
+        if (zfore > zcolor_Default && zfore < zcolor_NUMCOLORS)
+            if (zfore == zback)
+                return zbright_rgb[zfore - zcolor_Black];
+            else
+                return zcolor_rgb[zfore - zcolor_Black];
         else
-            return styles[attr->style].fg;
+            if (zback > zcolor_Default && zback < zcolor_NUMCOLORS
+                    && !memcmp(styles[attr->style].fg,
+                                zcolor_rgb[zback - zcolor_Black],3))
+                return zcolor_rgb[zcolor_LightGrey - zcolor_Black];
+            else
+                return styles[attr->style].fg;
     }
 }
 
 unsigned char *attrfg(style_t *styles, attr_t *attr)
 {
-    if (!attr->reverse && !styles[attr->style].reverse) {
-        if (attr->fgcolor > zcolor_Default && attr->fgcolor < zcolor_NUMCOLORS)
-            return zcolor_rgb[attr->fgcolor - zcolor_Black];
+    int zfore = attr->fgcolor ? attr->fgcolor : gli_override_fg;
+    int zback = attr->bgcolor ? attr->bgcolor : gli_override_bg;
+
+    if (!attr->reverse && !(styles[attr->style].reverse && !gli_override_reverse)) {
+        if (zfore > zcolor_Default && zfore < zcolor_NUMCOLORS)
+            if (zfore == zback)
+                return zbright_rgb[zfore - zcolor_Black];
+            else
+                return zcolor_rgb[zfore - zcolor_Black];
         else
-            return styles[attr->style].fg;
+            if (zback > zcolor_Default && zback < zcolor_NUMCOLORS
+                    && !memcmp(styles[attr->style].fg,
+                                zcolor_rgb[zback - zcolor_Black],3))
+                return zcolor_rgb[zcolor_LightGrey - zcolor_Black];
+            else
+                return styles[attr->style].fg;
     } else {
-        if (attr->bgcolor > zcolor_Default && attr->bgcolor < zcolor_NUMCOLORS)
-            return zcolor_rgb[attr->bgcolor - zcolor_Black];
+        if (zback > zcolor_Default && zback < zcolor_NUMCOLORS)
+            return zcolor_rgb[zback - zcolor_Black];
         else
             return styles[attr->style].bg;
     }
