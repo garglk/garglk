@@ -36,8 +36,7 @@ _Quality assurance testing and bug reports_
 _Platform-specific interim and final releases_
   * Christopher Armstrong
   * Brian Cameron
-  * Farvardin
-  * Otto Grimwald
+  * Eric Forgeot
   * Ryan Hendrickson
   * Yaroslav Isakov
 
