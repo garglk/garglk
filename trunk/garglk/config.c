@@ -199,10 +199,10 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 		if (!strcmp(cmd, "moreprompt"))
 			gli_more_prompt = strdup(arg);
 
-        if (!strcmp(cmd, "morecolor")) {
+		if (!strcmp(cmd, "morecolor")) {
 			parsecolor(arg, gli_more_color);
 			parsecolor(arg, gli_more_save);
-        }
+		}
 
 		if (!strcmp(cmd, "morefont"))
 			gli_more_font = font2idx(arg);
@@ -258,20 +258,20 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 		if (!strcmp(cmd, "gamma"))
 			gli_conf_gamma = atof(arg);
 
-        if (!strcmp(cmd, "caretcolor")) {
+		if (!strcmp(cmd, "caretcolor")) {
 			parsecolor(arg, gli_caret_color);
 			parsecolor(arg, gli_caret_save);
-        }
+		}
 
-        if (!strcmp(cmd, "bordercolor")) {
+		if (!strcmp(cmd, "bordercolor")) {
 			parsecolor(arg, gli_border_color);
 			parsecolor(arg, gli_border_save);
-        }
+		}
 
-        if (!strcmp(cmd, "windowcolor")) {
+		if (!strcmp(cmd, "windowcolor")) {
 			parsecolor(arg, gli_window_color);
 			parsecolor(arg, gli_window_save);
-        }
+		}
 
 		if (!strcmp(cmd, "lcd"))
 			gli_conf_lcd = atoi(arg);
