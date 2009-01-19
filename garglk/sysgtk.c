@@ -77,11 +77,11 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
         gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
     gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->ok_button),
-        "clicked", onokay, NULL);
+        "clicked", GTK_SIGNAL_FUNC(onokay), NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
-        "clicked", oncancel, NULL);
+        "clicked", GTK_SIGNAL_FUNC(oncancel), NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "delete_event", oncancel, NULL);
+        "delete_event", GTK_SIGNAL_FUNC(oncancel), NULL);
     filename = buf;
     gtk_widget_show(filedlog);
     gtk_main(); /* recurse... */
@@ -95,11 +95,11 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     if (strlen(buf))
         gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->ok_button),
-        "clicked", onokay, NULL);
+        "clicked", GTK_SIGNAL_FUNC(onokay), NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
-        "clicked", oncancel, NULL);
+        "clicked", GTK_SIGNAL_FUNC(oncancel), NULL);
     gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "delete_event", oncancel, NULL);
+        "delete_event", GTK_SIGNAL_FUNC(oncancel), NULL);
     filename = buf;
     gtk_widget_show(filedlog);
     gtk_main(); /* recurse... */
@@ -222,13 +222,18 @@ void winopen(void)
     frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     GTK_WIDGET_SET_FLAGS(frame, GTK_CAN_FOCUS);
     gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", onbutton, NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", onkeypress, NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "destroy", onquit, "WM destroy");
+    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
+    	GTK_SIGNAL_FUNC(onbutton), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
+    	GTK_SIGNAL_FUNC(onkeypress), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
+    	GTK_SIGNAL_FUNC(onquit), "WM destroy");
 
     canvas = gtk_drawing_area_new();
-    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", onresize, NULL);
-    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", onexpose, NULL);
+    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", 
+    	GTK_SIGNAL_FUNC(onresize), NULL);
+    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", 
+    	GTK_SIGNAL_FUNC(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
     wintitle();
