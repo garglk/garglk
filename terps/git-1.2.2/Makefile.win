@@ -1,0 +1,29 @@
+# Makefile for Windows Git
+
+CC = gcc -Wall -O3 -mno-cygwin -mwindows
+OPTIONS = -DUSE_INLINE
+LIBS = -L. -lglk
+
+OUTPUT = ../Executables/Release/Git
+
+CFLAGS = $(OPTIONS) -I../Include
+
+OBJS =	git.o memory.o compiler.o opcodes.o operands.o peephole.o terp.o \
+	glkop.o search.o git_windows.o savefile.o saveundo.o gestalt.o \
+	heap.o glk.o res.o
+
+git: $(OBJS) libglk.a
+	$(CC) -o $(OUTPUT) $(OBJS) $(LIBS)
+
+glk.o: ../glk.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+res.o: win/git.rc
+	windres $^ $@
+
+libglk.a:
+	dlltool --dllname=Glk.dll --def=../GlkDll/Glk.def --output-lib=libglk.a
+
+clean:
+	rm *.o *.a
+
