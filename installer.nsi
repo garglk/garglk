@@ -6,7 +6,7 @@ RequestExecutionLevel admin
 !include "MUI.nsh"
 
 Name "Gargoyle"
-OutFile "gargoyle-2008-12-25-windows.exe"
+OutFile "gargoyle-2009-03-25-windows.exe"
 InstallDir $PROGRAMFILES\Gargoyle
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
 
