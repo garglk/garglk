@@ -1,4 +1,4 @@
-Build status as of 12/02/2008:
+Build status as of 04/07/2009:
 
 +---------------+---------------+
 | Interpreter   | Version       |
@@ -9,7 +9,7 @@ Build status as of 12/02/2008:
 | alan3         | 3.0a6         |
 | frotz         | 2.4.3         |
 | geas          | 0.4           |
-| git           | 1.2.2         |
+| git           | 1.2.4         |
 | glulxe        | 0.4.4         |
 | hugo          | 3.1.03        |
 | jacl          | 2.3.14        |
