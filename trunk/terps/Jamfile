@@ -163,7 +163,7 @@ if $(MAKE_GEAS) = yes
 
 # -----------------------------------------------------------------------
 #
-# Git 1.2.2
+# Git 1.2.4
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
@@ -178,7 +178,7 @@ if $(MAKE_GIT) = yes
     Main git :
         git.c memory.c compiler.c opcodes.c operands.c
         peephole.c terp.c glkop.c search.c git_unix.c
-        savefile.c saveundo.c gestalt.c heap.c
+        savefile.c saveundo.c gestalt.c heap.c accel.c
         ;
 
     APPS += git ;
