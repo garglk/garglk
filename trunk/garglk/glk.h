@@ -24,7 +24,7 @@ typedef signed   short glsi32;
 #elif (UINT_MAX   == 4294967295)
 typedef unsigned int glui32;
 typedef signed   int glsi32;
-#elif (ULONG_MAX) == 4294967295)
+#elif (ULONG_MAX == 4294967295)
 typedef unsigned long glui32;
 typedef signed long glsi32;
 #else
