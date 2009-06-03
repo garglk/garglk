@@ -12,7 +12,7 @@ Frotz is copyright (c) Stefan Jokisch. It is released under the terms of the GNU
 
 Geas is copyright (c) Mark Tilford and David Jones. It is released under the terms of the GNU General Public License.
 
-Git is copyright (c) Iain Merrick. It is released under the same terms as Glk.
+Git is copyright (c) Iain Merrick. It is released under the terms of the MIT License.
 
 Glulxe is copyright (c) Andrew Plotkin.
 
@@ -28,7 +28,7 @@ Nitfol is copyright (c) Evin Robertson. It is released under the terms of the GN
 
 SCARE is copyright (c) Simon Baldwin. It is released under the terms of the GNU General Public License.
 
-TADS is copyright (c) Michael J. Roberts. It is released under the terms of the TADS freeware source code license.
+TADS is copyright (c) Michael J. Roberts. It is released under the terms of the GNU General Public License.
 
 The Luxi fonts are copyright (c) Bigelow & Holmes Inc. They are released under the terms of the Bigelow & Holmes Inc and URW++ GmbH Luxi font license.
 
