@@ -30,6 +30,9 @@ static int lowerstyle = 0;
 static int cury = 1;
 static int curx = 1;
 
+int fg_lower = 0;
+int bg_lower = 0;
+
 /* To make the common code happy */
 
 int os_char_width (zchar z)
@@ -433,16 +436,25 @@ void z_erase_window (void)
 	short w = zargs[0];
 	if (w == -2)
 	{
-		if (gos_upper)
+		if (gos_upper) {
+			glk_set_window(gos_upper);
+			garglk_set_zcolors(fg_lower, bg_lower);
 			glk_window_clear(gos_upper);
+			glk_set_window(gos_curwin);
+		}
 		glk_window_clear(gos_lower);
 	}
 	if (w == -1)
 	{
-		if (gos_upper)
+		if (gos_upper) {
+			glk_set_window(gos_upper);
+			garglk_set_zcolors(fg_lower, bg_lower);
 			glk_window_clear(gos_upper);
+		}
 		glk_window_clear(gos_lower);
 		split_window(0);
+		glk_set_window(gos_lower);
+		gos_curwin = gos_lower;
 	}
 	if (w == 0)
 		glk_window_clear(gos_lower);
@@ -527,6 +539,11 @@ void z_set_colour (void)
 
 	if (!(zfore == 0 && zback == 0))
 		garglk_set_zcolors(zfore, zback);
+
+	if (gos_curwin == gos_lower) {
+		fg_lower = zfore;
+		bg_lower = zback;
+	}
 }
 
 /*
