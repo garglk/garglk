@@ -441,7 +441,7 @@ void printmessage(int Msg)
 	L9BYTE* Msgptr=startmd;
 	L9BYTE Data;
 
-	int len;
+	int len,msgtmp;
 	L9UINT16 Off;
 
 	while (Msg>0 && Msgptr-endmd<=0)
@@ -452,7 +452,10 @@ void printmessage(int Msg)
 			Msgptr++;
 			Msg-=Data&0x7f;
 		}
-		else Msgptr+=getmdlength(&Msgptr);
+		else {
+			msgtmp=getmdlength(&Msgptr);
+			Msgptr+=msgtmp;
+		}
 		Msg--;
 	}
 	if (Msg<0 || *Msgptr & 128) return;
@@ -1942,7 +1945,7 @@ void function(void)
 
 void findmsgequiv(int d7)
 {
-	int d4=-1,d0;
+	int d4=-1,d0,atmp;
 	L9BYTE* a2=startmd;
 
 	do
@@ -1988,7 +1991,10 @@ void findmsgequiv(int d7)
 				}
 			} while (TRUE);
 		}
-		else a2+=getmdlength(&a2);
+		else {
+			atmp=getmdlength(&a2);
+			a2+=atmp;
+		}
 	} while (TRUE);
 }
 
