@@ -10,21 +10,30 @@ SubInclude TOP terps ;
 SubInclude TOP tads ;
 SubInclude TOP support ;
 
-SubDir TOP ;
-
-
-if $(DESTDIR)
-{ ITOP = [ FDirName $(DESTDIR) ] ; }
+# If SYSTEM is set, use values for a system wide install
+if $(SYSTEM)
+{
+    BINDIR = /usr/local/libexec/gargoyle ;
+    APPDIR = /usr/local/libexec/gargoyle ;
+    LIBDIR = /usr/local/lib/gargoyle ;
+    DESTDIR = / ;
+    EXEMODE = 755 ;
+    FILEMODE = 755 ;
+}
+# Otherwise use _BINDIR, _APPDIR, and _LIBDIR
+# to populate BINDIR, APPDIR, and LIBDIR with
+# values supplied on the command line (if any)
 else
-{ ITOP = [ FDirName $(TOP) build dist ] ; }
+{
+    if $(DESTDIR)
+    { ITOP = [ FDirName $(DESTDIR) ] ; }
+    else
+    { ITOP = [ FDirName $(TOP) build dist ] ; }
 
-# Use _BINDIR, _APPDIR, and _LIBDIR
-# as BINDIR and LIBDIR have non-empty default values.
-
-BINDIR = [ FPrependRoot $(ITOP) : $(_BINDIR) ] ;
-APPDIR = [ FPrependRoot $(ITOP) : $(_APPDIR) ] ;
-LIBDIR = [ FPrependRoot $(ITOP) : $(_LIBDIR) ] ;
-
+    BINDIR = [ FPrependRoot $(ITOP) : $(_BINDIR) ] ;
+    APPDIR = [ FPrependRoot $(ITOP) : $(_APPDIR) ] ;
+    LIBDIR = [ FPrependRoot $(ITOP) : $(_LIBDIR) ] ;
+}
 
 for APP in $(APPS)
 {
