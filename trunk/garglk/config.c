@@ -399,6 +399,16 @@ void gli_read_config(int argc, char **argv)
 		readoneconfig(buf, argv0, gamefile);
 	}
 
+	if (getenv("XDG_CONFIG_HOME"))
+	{
+		strcpy(buf, getenv("XDG_CONFIG_HOME"));
+		strcat(buf, "/.garglkrc");
+		readoneconfig(buf, argv0, gamefile);
+		strcpy(buf, getenv("XDG_CONFIG_HOME"));
+		strcat(buf, "/garglk.ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
+
 	getcwd(buf, sizeof buf);
 	strcat(buf, "/garglk.ini");
 	readoneconfig(buf, argv0, gamefile);
