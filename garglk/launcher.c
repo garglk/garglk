@@ -238,6 +238,17 @@ unsigned char *configterp(char *game)
             return;
     }
 
+    /* freedesktop.org config directory */
+    /* will need to implement for Gtk launcher */
+    if (getenv("XDG_CONFIG_HOME"))
+    {
+        strcpy(path, getenv("XDG_CONFIG_HOME"));
+        strcat(path, ini);
+        readconfig(path, game);
+        if (terp)
+            return;
+    }
+
     /* gargoyle directory */
     strcpy(path, dir);
     strcat(path, ini);
