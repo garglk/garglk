@@ -361,7 +361,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 
 	if (!continued || !gos_linepending)
 	{
-		glk_request_line_event(win, buf, max - 1, strlen(buf));
+		glk_request_line_event(win, buf, max, strlen(buf));
 		if (timeout != 0)
 			glk_request_timer_events(timeout * 100);
 	}
