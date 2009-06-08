@@ -67,7 +67,7 @@ int vrbcode;			/* The code for that verb */
   unknown()
   lookup()
   token
-  getline()
+  agetline()
   scan()
 
 \*----------------------------------------------------------------------*/
@@ -183,9 +183,9 @@ static char *gettoken(buf)
 
 
 #ifdef _PROTOTYPES_
-static void getline(void)
+static void agetline(void)
 #else
-static void getline()
+static void agetline()
 #endif
 {
   para();
@@ -242,7 +242,7 @@ static void scan()
   int w;
   char *str;
 
-  getline();
+  agetline();
   wrds[0] = 0;
   for (i = 0; i < litCount; i++)
     if (litValues[i].type == TYPSTR && litValues[i].value != 0)
