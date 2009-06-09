@@ -1250,7 +1250,7 @@ static void initStrings(void)
   StringInitEntry *init;
   
   for (init = (StringInitEntry *) pointerTo(header->stringInitTable); !endOfTable(init); init++)
-    setValue(init->instanceCode, init->attributeCode, (Aword)getStringFromFile(init->fpos, init->len));
+    setValue(init->instanceCode, init->attributeCode, (Aptr)getStringFromFile(init->fpos, init->len));
 }
 
 /*----------------------------------------------------------------------*/

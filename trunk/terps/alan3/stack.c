@@ -18,7 +18,7 @@
 #define STACKSIZE 100
 
 /* The AMACHINE STACK */
-static Aword stack[STACKSIZE];
+static Aptr stack[STACKSIZE];
 static int stackp = 0;
 
 /*======================================================================*/
@@ -41,7 +41,7 @@ void dumpStack(void)
 
 
 /*======================================================================*/
-void push(Aword i)
+void push(Aptr i)
 {
   if (stackp == STACKSIZE)
     syserr("Out of stack space.");
@@ -50,7 +50,7 @@ void push(Aword i)
 
 
 /*======================================================================*/
-Aword pop(void)
+Aptr pop(void)
 {
   if (stackp == 0)
     syserr("Stack underflow.");
@@ -59,7 +59,7 @@ Aword pop(void)
 
 
 /*======================================================================*/
-Aword top(void)
+Aptr top(void)
 {
   return(stack[stackp-1]);
 }
@@ -79,7 +79,7 @@ void newFrame(Aint noOfLocals)
 
 /*======================================================================*/
 /* Local variables are numbered 1 and up and stored on their index-1 */
-Aword getLocal(Aint framesBelow, Aint variableNumber)
+Aptr getLocal(Aint framesBelow, Aint variableNumber)
 {
   int frame = framePointer;
   int frameCount;
@@ -95,7 +95,7 @@ Aword getLocal(Aint framesBelow, Aint variableNumber)
 }
 
 /*======================================================================*/
-void setLocal(Aint framesBelow, Aint variableNumber, Aword value)
+void setLocal(Aint framesBelow, Aint variableNumber, Aptr value)
 {
   int frame = framePointer;
   int frameCount;

@@ -5,6 +5,9 @@
 
 /* Basic types */
 #include <limits.h>
+#include <stddef.h>
+
+typedef size_t Aptr;            /* type for an ACODE memory address */
 
 #if INT_MAX==0x7fffffff
 typedef unsigned int Aword;     /* Type for an ACODE word */

@@ -221,7 +221,7 @@ static void freeSetAttributes(void) {
 
   if (header->setInitTable == 0) return;
   for (entry = pointerTo(header->setInitTable); *(Aword *)entry != EOF; entry++) {
-    Aword attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
+    Aptr attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
     freeSet((Set*)attributeValue);
   }
 }
@@ -247,7 +247,7 @@ static void freeStringAttributes(void) {
 
   if (header->stringInitTable == 0) return;
   for (entry = pointerTo(header->stringInitTable); *(Aword *)entry != EOF; entry++) {
-    Aword attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
+    Aptr attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
     free((char*)attributeValue);
   }
 }
