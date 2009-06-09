@@ -121,7 +121,7 @@ void sys(fpos, len)
 
   getstr(fpos, len);            /* Returns address to string on stack */
   command = (char *)pop();
-  system(command);
+  int tmp = system(command);
   free(command);
 }
 
@@ -163,7 +163,7 @@ void score(sc)
     sprintf(buf, "%d", cur.score);
     output(buf);
     prmsg(M_SCORE2);
-    sprintf(buf, "%ld.", header->maxscore);
+    sprintf(buf, "%ld.", (unsigned long) header->maxscore);
     output(buf);
   } else {
     cur.score += scores[sc-1];
@@ -411,7 +411,7 @@ void make(id, atr, val)
   else if (isAct(id))
     makact(id, atr, val);
   else {
-    sprintf(str, "Can't MAKE item (%ld).", id);
+    sprintf(str, "Can't MAKE item (%ld).", (unsigned long) id);
     syserr(str);
   }
 }
@@ -472,7 +472,7 @@ void set(id, atr, val)
   else if (isAct(id))
     setact(id, atr, val);
   else {
-    sprintf(str, "Can't SET item (%ld).", id);
+    sprintf(str, "Can't SET item (%ld).", (unsigned long) id);
     syserr(str);
   }
 }
@@ -571,7 +571,7 @@ void incr(id, atr, step)
   else if (isAct(id))
     incract(id, atr, step);
   else {
-    sprintf(str, "Can't INCR item (%ld).", id);
+    sprintf(str, "Can't INCR item (%ld).", (unsigned long) id);
     syserr(str);
   }
 }
@@ -592,7 +592,7 @@ void decr(id, atr, step)
   else if (isAct(id))
     incract(id, atr, -step);
   else {
-    sprintf(str, "Can't DECR item (%ld).", id);
+    sprintf(str, "Can't DECR item (%ld).", (unsigned long) id);
     syserr(str);
   }
 }
@@ -649,7 +649,7 @@ static Aword litatr(lit, atr)
   if (atr == 1)
     return litValues[lit-LITMIN].value;
   else {
-    sprintf(str, "Unknown attribute for literal (%ld).", atr);
+    sprintf(str, "Unknown attribute for literal (%ld).", (unsigned long) atr);
     syserr(str);
   }
   return(EOF);
@@ -674,7 +674,7 @@ Aword attribute(id, atr)
   else if (isLit(id))
     return litatr(id, atr);
   else {
-    sprintf(str, "Can't ATTRIBUTE item (%ld).", id);
+    sprintf(str, "Can't ATTRIBUTE item (%ld).", (unsigned long) id);
     syserr(str);
   }
   return(EOF);
@@ -740,7 +740,7 @@ Aword where(id)
   else if (isAct(id))
     return actloc(id);
   else {
-    sprintf(str, "Can't WHERE item (%ld).", id);
+    sprintf(str, "Can't WHERE item (%ld).", (unsigned long) id);
     syserr(str);
   }
   return(EOF);
@@ -897,7 +897,7 @@ void locate(id, whr)
   else if (isAct(id))
     locact(id, whr);
   else {
-    sprintf(str, "Can't LOCATE item (%ld).", id);
+    sprintf(str, "Can't LOCATE item (%ld).", (unsigned long) id);
     syserr(str);
   }
 }
@@ -951,7 +951,7 @@ Abool isHere(id)
   else if (isAct(id))
     return acthere(id);
   else {
-    sprintf(str, "Can't HERE item (%ld).", id);
+    sprintf(str, "Can't HERE item (%ld).", (unsigned long) id);
     syserr(str);
   }
   return(EOF);
@@ -1005,7 +1005,7 @@ Abool isNear(id)
   else if (isAct(id))
     return actnear(id);
   else {
-    sprintf(str, "Can't NEAR item (%ld).", id);
+    sprintf(str, "Can't NEAR item (%ld).", (unsigned long) id);
     syserr(str);
   }
   return(EOF);
@@ -1084,7 +1084,7 @@ void sayint(val)
   char buf[25];
 
   if (isHere(HERO)) {
-    sprintf(buf, "%ld", val);
+    sprintf(buf, "%ld", (unsigned long) val);
     output(buf);
   }
 }
@@ -1156,7 +1156,7 @@ void say(id)
     else if (isLit(id))
       saylit(id);
     else {
-      sprintf(str, "Can't SAY item (%ld).", id);
+      sprintf(str, "Can't SAY item (%ld).", (unsigned long) id);
       syserr(str);
     }
   }
@@ -1253,7 +1253,7 @@ void describe(id)
   else if (isAct(id))
     dscract(id);
   else {
-    sprintf(str, "Can't DESCRIBE item (%ld).", id);
+    sprintf(str, "Can't DESCRIBE item (%ld).", (unsigned long) id);
     syserr(str);
   }
 
@@ -1277,7 +1277,7 @@ void use(act, scr)
   char str[80];
 
   if (!isAct(act)) {
-    sprintf(str, "Item is not an Actor (%ld).", act);
+    sprintf(str, "Item is not an Actor (%ld).", (unsigned long) act);
     syserr(str);
   }
 
@@ -1621,7 +1621,7 @@ void restore(void)
 void restore()
 #endif
 {
-  int i;
+  int i,tmp;
   FILE *savfil;
   char str[256];
   AtrElem *atr;
@@ -1664,7 +1664,7 @@ glk_fileref_destroy(fref);
     error(M_SAVEMISSING);
   strcpy(savfnm, str);          /* Save it for future use */
 
-  fread((void *)&savedVersion, sizeof(Aword), 1, savfil);
+  tmp = fread((void *)&savedVersion, sizeof(Aword), 1, savfil);
   /* 4f - save file version check doesn't seem to work on PC's! */
   if (strncmp(savedVersion, header->vers, 4)) {
     fclose(savfil);
@@ -1680,45 +1680,45 @@ glk_fileref_destroy(fref);
   }
 
   /* Restore current values */
-  fread((void *)&cur, sizeof(cur), 1, savfil);
+  tmp = fread((void *)&cur, sizeof(cur), 1, savfil);
   /* Restore actors */
   for (i = ACTMIN; i <= ACTMAX; i++) {
-    fread((void *)&acts[i-ACTMIN].loc, sizeof(Aword), 1, savfil);
-    fread((void *)&acts[i-ACTMIN].script, sizeof(Aword), 1, savfil);
-    fread((void *)&acts[i-ACTMIN].step, sizeof(Aword), 1, savfil);
-    fread((void *)&acts[i-ACTMIN].count, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&acts[i-ACTMIN].loc, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&acts[i-ACTMIN].script, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&acts[i-ACTMIN].step, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&acts[i-ACTMIN].count, sizeof(Aword), 1, savfil);
     if (acts[i-ACTMIN].atrs)
       for (atr = (AtrElem *) addrTo(acts[i-ACTMIN].atrs); !endOfTable(atr); atr++)
-	fread((void *)&atr->val, sizeof(Aword), 1, savfil);
+	tmp = fread((void *)&atr->val, sizeof(Aword), 1, savfil);
   }
 
   /* Restore locations */
   for (i = LOCMIN; i <= LOCMAX; i++) {
-    fread((void *)&locs[i-LOCMIN].describe, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&locs[i-LOCMIN].describe, sizeof(Aword), 1, savfil);
     if (locs[i-LOCMIN].atrs)
       for (atr = (AtrElem *) addrTo(locs[i-LOCMIN].atrs); !endOfTable(atr); atr++)
-	fread((void *)&atr->val, sizeof(Aword), 1, savfil);
+	tmp = fread((void *)&atr->val, sizeof(Aword), 1, savfil);
   }
 
   /* Restore objects */
   for (i = OBJMIN; i <= OBJMAX; i++) {
-    fread((void *)&objs[i-OBJMIN].loc, sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&objs[i-OBJMIN].loc, sizeof(Aword), 1, savfil);
     if (objs[i-OBJMIN].atrs)
       for (atr = (AtrElem *) addrTo(objs[i-OBJMIN].atrs); !endOfTable(atr); atr++)
-	fread((void *)&atr->val, sizeof(atr->val), 1, savfil);
+	tmp = fread((void *)&atr->val, sizeof(atr->val), 1, savfil);
   }
 
   /* Restore the eventq */
   etop = 0;
   do {
-    fread((void *)&eventq[etop], sizeof(eventq[0]), 1, savfil);
+    tmp = fread((void *)&eventq[etop], sizeof(eventq[0]), 1, savfil);
     etop++;
   } while (eventq[etop-1].time != 0);
   etop--;
 
   /* Restore scores */
   for (i = 0; scores[i] != EOF; i++)
-    fread((void *)&scores[i], sizeof(Aword), 1, savfil);
+    tmp = fread((void *)&scores[i], sizeof(Aword), 1, savfil);
 
   fclose(savfil);
 }

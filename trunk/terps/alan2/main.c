@@ -334,7 +334,7 @@ void logprint(char str[])
 {
   printf(str);
   if (logflg)
-    fprintf(logfil, str);
+    fprintf(logfil, "%s", str);
 }
 
 
@@ -1468,10 +1468,10 @@ static void checkvers(header)
       if (errflg) {
 	char str[80];
 	sprintf(str, "Incompatible version of ACODE program. Game is %ld.%ld, interpreter %ld.%ld.",
-		(int)(header->vers[0]),
-		(int)(header->vers[1]),
-		alan.version.version,
-		alan.version.revision);
+		(long) (header->vers[0]),
+		(long) (header->vers[1]),
+		(long) alan.version.version,
+		(long) alan.version.revision);
 	syserr(str);
       } else
 	output("<WARNING! Incompatible version of ACODE program.>\n");
@@ -1492,11 +1492,11 @@ static void load()
 {
   AcdHdr tmphdr;
   Aword crc = 0;
-  int i;
+  int i,tmp;
   char err[100];
 
   rewind(codfil);
-  fread(&tmphdr, sizeof(tmphdr), 1, codfil);
+  tmp = fread(&tmphdr, sizeof(tmphdr), 1, codfil);
   rewind(codfil);
   checkvers(&tmphdr);
 
@@ -1534,7 +1534,7 @@ static void load()
   }
   if (crc != tmphdr.acdcrc) {
     sprintf(err, "Checksum error in .ACD file (0x%lx instead of 0x%lx).",
-	    crc, tmphdr.acdcrc);
+	    (unsigned long) crc, (unsigned long) tmphdr.acdcrc);
     if (errflg)
       syserr(err);
     else {
