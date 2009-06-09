@@ -257,7 +257,7 @@ typedef enum Type {TYPNUM, TYPSTR} Type;
 
 typedef struct LitElem {	/* LITERAL */
   Type type;
-  Aword value;
+  Aptr value;
 } LitElem;
 
 #define MAXPARAMS 9

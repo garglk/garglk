@@ -105,8 +105,8 @@ static void swap(void)
 static void swap()
 #endif
 {
-  Aword v1 = pop();
-  Aword v2 = pop();
+  Aptr v1 = pop();
+  Aptr v2 = pop();
 
   push(v1);
   push(v2);
@@ -235,7 +235,7 @@ void interpret(adr)
     case C_STMOP: 
       switch (I_OP(i)) {
       case I_PRINT: {
-	Aword fpos, len;
+	Aptr fpos, len;
 	fpos = pop();
 	len = pop();
 	if (stpflg) {
@@ -248,7 +248,7 @@ void interpret(adr)
 	break;
       }
       case I_SYSTEM: {
-	Aword fpos, len;
+	Aptr fpos, len;
 	fpos = pop();
 	len = pop();
 	if (stpflg) {
@@ -259,7 +259,7 @@ void interpret(adr)
 	break;
       }
       case I_GETSTR: {
-	Aword fpos, len;
+	Aptr fpos, len;
 	fpos = pop();
 	len = pop();
 	if (stpflg)
@@ -300,7 +300,7 @@ void interpret(adr)
 	break;
       }
       case I_LIST: {
-	Aword cnt;
+	Aptr cnt;
 	cnt = pop();
 	if (stpflg)
 	  printf("LIST \t%5ld", cnt);
@@ -308,7 +308,7 @@ void interpret(adr)
 	break;
       }
       case I_EMPTY: {
-	Aword cnt, whr;
+	Aptr cnt, whr;
 	cnt = pop();
 	whr = pop();
 	if (stpflg)
@@ -317,7 +317,7 @@ void interpret(adr)
 	break;
       }
       case I_SCORE: {
-	Aword sc;
+	Aptr sc;
 	sc = pop();
 	if (stpflg)
 	  printf("SCORE \t%5ld\t\t(%ld)", sc, scores[sc-1]);
@@ -325,7 +325,7 @@ void interpret(adr)
 	break;
       }
       case I_VISITS: {
-	Aword v;
+	Aptr v;
 	v = pop();
 	if (stpflg)
 	  printf("VISITS \t%5ld", v);
@@ -333,7 +333,7 @@ void interpret(adr)
 	break;
       }
       case I_SCHEDULE: {
-	Aword evt, whr, aft;
+	Aptr evt, whr, aft;
 	evt = pop();
 	whr = pop();
 	aft = pop();
@@ -343,7 +343,7 @@ void interpret(adr)
 	break;
       }
       case I_CANCEL: {
-	Aword evt;
+	Aptr evt;
 	evt = pop();
 	if (stpflg)
 	  printf("CANCEL \t%5ld", evt);
@@ -351,7 +351,7 @@ void interpret(adr)
 	break;
       }
       case I_MAKE: {
-	Aword id, atr, val;
+	Aptr id, atr, val;
 	id = pop();
 	atr = pop();
 	val = pop();
@@ -363,7 +363,7 @@ void interpret(adr)
 	break;
       }
       case I_SET: {
-	Aword id, atr, val;
+	Aptr id, atr, val;
 	id = pop();
 	atr = pop();
 	val = pop();
@@ -374,7 +374,7 @@ void interpret(adr)
 	break;
       }
       case I_STRSET: {
-	Aword id, atr, str;
+	Aptr id, atr, str;
 	id = pop();
 	atr = pop();
 	str = pop();
@@ -385,7 +385,7 @@ void interpret(adr)
 	break;
       }
       case I_INCR: {
-	Aword id, atr, step;
+	Aptr id, atr, step;
 	id = pop();
 	atr = pop();
 	step = pop();
@@ -396,7 +396,7 @@ void interpret(adr)
 	break;
       }
       case I_DECR: {
-	Aword id, atr, step;
+	Aptr id, atr, step;
 	id = pop();
 	atr = pop();
 	step = pop();
@@ -407,7 +407,7 @@ void interpret(adr)
 	break;
       }
       case I_ATTRIBUTE: {
-	Aword id, atr;
+	Aptr id, atr;
 	id = pop();
 	atr = pop();
 	if (stpflg)
@@ -418,7 +418,7 @@ void interpret(adr)
 	break;
       }
       case I_STRATTR: {
-	Aword id, atr;
+	Aptr id, atr;
 	id = pop();
 	atr = pop();
 	if (stpflg)
@@ -429,7 +429,7 @@ void interpret(adr)
 	break;
       }
       case I_LOCATE: {
-	Aword id, whr;
+	Aptr id, whr;
 	id = pop();
 	whr = pop();
 	if (stpflg)
@@ -438,7 +438,7 @@ void interpret(adr)
 	break;
       }
       case I_WHERE: {
-	Aword id;
+	Aptr id;
 	id = pop();
 	if (stpflg)
 	  printf("WHERE \t%5ld", id);
@@ -448,7 +448,7 @@ void interpret(adr)
 	break;
       }
       case I_HERE: {
-	Aword id;
+	Aptr id;
 	id = pop();
 	if (stpflg)
 	  printf("HERE \t%5ld", id);
@@ -458,7 +458,7 @@ void interpret(adr)
 	break;
       }
       case I_NEAR: {
-	Aword id;
+	Aptr id;
 	id = pop();
 	if (stpflg)
 	  printf("NEAR \t%5ld", id);
@@ -468,7 +468,7 @@ void interpret(adr)
 	break;
       }
       case I_USE: {
-	Aword act, scr;
+	Aptr act, scr;
 	act = pop();
 	scr = pop();
 	if (stpflg)
@@ -477,7 +477,7 @@ void interpret(adr)
 	break;
       }
       case I_IN: {
-	Aword obj, cnt;
+	Aptr obj, cnt;
 	obj = pop();
 	cnt = pop();
 	if (stpflg)
@@ -488,7 +488,7 @@ void interpret(adr)
 	break;
       }
       case I_DESCRIBE: {
-	Aword id;
+	Aptr id;
 	id = pop();
 	if (stpflg) {
 	  printf("DESCRIBE \t%5ld\t", id);
@@ -498,7 +498,7 @@ void interpret(adr)
 	break;
       }
       case I_SAY: {
-	Aword id;
+	Aptr id;
 	id = pop();
 	if (stpflg)
 	  printf("SAY \t%5ld\t\t\"", id);
@@ -508,7 +508,7 @@ void interpret(adr)
 	break;
       }
       case I_SAYINT: {
-	Aword val;
+	Aptr val;
 	val = pop();
 	if (stpflg)
 	  printf("SAYINT\t%5ld\t\t\"", val);
@@ -518,7 +518,7 @@ void interpret(adr)
 	break;
       }
       case I_SAYSTR: {
-	Aword adr;
+	Aptr adr;
 	adr = pop();
 	if (stpflg)
 	  printf("SAYSTR\t%5ld\t\t\"", adr);
@@ -528,7 +528,7 @@ void interpret(adr)
 	break;
       }
       case I_IF: {
-	Aword v;
+	Aptr v;
 	v = pop();
 	if (stpflg) {
 	  printf("IF \t");
@@ -549,7 +549,7 @@ void interpret(adr)
 	break;
       }
       case I_AND: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -565,7 +565,7 @@ void interpret(adr)
 	break;
       }
       case I_OR: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -581,7 +581,7 @@ void interpret(adr)
 	break;
       }
       case I_NE: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -594,7 +594,7 @@ void interpret(adr)
 	break;
       }
       case I_EQ: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -607,7 +607,7 @@ void interpret(adr)
 	break;
       }
       case I_STREQ: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -620,7 +620,7 @@ void interpret(adr)
 	break;
       }
       case I_STREXACT: {
-	Aword lh, rh;
+	Aptr lh, rh;
 	if (header->vers[0] == 2 && header->vers[1] == 7) /* Check for 2.7 version */
 	  swap();
 	rh = pop();
@@ -739,7 +739,7 @@ void interpret(adr)
 	break;
       }
       case I_NOT: {
-	Aword val;
+	Aptr val;
 	val = pop();
 	if (stpflg) {
 	  printf("NOT \t");
@@ -751,7 +751,7 @@ void interpret(adr)
 	break;
       }
       case I_MAX: {
-	Aword atr, whr;
+	Aptr atr, whr;
 	atr = pop();
 	whr = pop();
 	if (stpflg)
@@ -762,7 +762,7 @@ void interpret(adr)
 	break;
       }
       case I_SUM: {
-	Aword atr, whr;
+	Aptr atr, whr;
 	atr = pop();
 	whr = pop();
 	if (stpflg)
@@ -773,7 +773,7 @@ void interpret(adr)
 	break;
       }
       case I_COUNT: {
-	Aword whr;
+	Aptr whr;
 	whr = pop();
 	if (stpflg)
 	  printf("COUNT \t%5ld", whr);
@@ -783,7 +783,7 @@ void interpret(adr)
 	break;
       }
       case I_RND: {
-	Aword  from, to;
+	Aptr  from, to;
 	from = pop();
 	to = pop();
 	if (stpflg)
@@ -806,7 +806,7 @@ void interpret(adr)
 	break;
       }
       case I_CONTAINS: {
-	Aword string, substring;
+	Aptr string, substring;
 	substring = pop();
 	string = pop();
 	if (stpflg)
@@ -830,7 +830,7 @@ void interpret(adr)
 	break;
 
       case I_DEPEXEC: {
-	Aword v;
+	Aptr v;
 	v = pop();
 	if (stpflg) {
 	  printf("DEPEXEC \t");

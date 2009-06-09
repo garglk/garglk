@@ -18,15 +18,15 @@
 #define STACKSIZE 100
 
 /* The AMACHINE STACK */
-static Aword stack[STACKSIZE];
+static Aptr stack[STACKSIZE];
 static int stackp = 0;
 
 
 #ifdef _PROTOTYPES_
-void push(Aword i)
+void push(Aptr i)
 #else
 void push(i)
-     Aword i;
+     Aptr i;
 #endif
 {
   if (stackp == STACKSIZE)
@@ -36,9 +36,9 @@ void push(i)
 
 
 #ifdef _PROTOTYPES_
-Aword pop(void)
+Aptr pop(void)
 #else
-Aword pop()
+Aptr pop()
 #endif
 {
   if (stackp == 0)
@@ -48,9 +48,9 @@ Aword pop()
 
 
 #ifdef _PROTOTYPES_
-Aword top(void)
+Aptr top(void)
 #else
-Aword top()
+Aptr top()
 #endif
 {
   return(stack[stackp-1]);

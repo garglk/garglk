@@ -12,14 +12,14 @@
 
 #ifdef _PROTOTYPES_
 
-extern Aword pop(void);
-extern void push(Aword item);
-extern Aword top(void);
+extern Aptr pop(void);
+extern void push(Aptr item);
+extern Aptr top(void);
 
 #else
-extern Aword pop();
+extern Aptr pop();
 extern void push();
-extern Aword top();
+extern Aptr top();
 #endif
 
 #endif

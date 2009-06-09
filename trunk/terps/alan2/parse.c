@@ -269,7 +269,7 @@ static void scan()
       /* Remove the string quotes while copying */
       str = strdup(&token[1]);
       str[strlen(token)-2] = '\0';
-      litValues[litCount++].value = (Aword) str;
+      litValues[litCount++].value = (Aptr) str;
     } else if (token[0] == ',') {
       wrds[i++] = conjWord;
     } else
