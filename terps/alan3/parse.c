@@ -243,7 +243,7 @@ static void createStringLiteral(char *unquotedString) {
     syserr("Too many player command parameters.");
   literal[litCount].class = header->stringClassId;
   literal[litCount].type = STRING_LITERAL;
-  literal[litCount].value = (Aword) strdup(unquotedString);
+  literal[litCount].value = (Aptr) strdup(unquotedString);
 }
 
 static Bool continued = FALSE;

@@ -340,7 +340,7 @@ AttributeEntry *findAttribute(AttributeEntry *attributeTable,
 
 
 /*======================================================================*/
-Aword getAttribute(AttributeEntry *attributeTable, Aint attributeCode)
+Aptr getAttribute(AttributeEntry *attributeTable, Aint attributeCode)
 {
   AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
 
@@ -351,7 +351,7 @@ Aword getAttribute(AttributeEntry *attributeTable, Aint attributeCode)
 /*======================================================================*/
 void setAttribute(AttributeEntry *attributeTable,
 		  Aint attributeCode,
-		  Aword newValue)
+		  Aptr newValue)
 {
   AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
 
@@ -361,7 +361,7 @@ void setAttribute(AttributeEntry *attributeTable,
 
 
 /*======================================================================*/
-void setValue(Aint id, Aint atr, Aword val)
+void setValue(Aint id, Aint atr, Aptr val)
 {
   char str[80];
 
@@ -380,20 +380,20 @@ void setValue(Aint id, Aint atr, Aword val)
 void setStringAttribute(Aint id, Aint atr, char *str)
 {
   free((char *)attributeOf(id, atr));
-  setValue(id, atr, (Aword)str);
+  setValue(id, atr, (Aptr)str);
 }
 
 
 /*======================================================================*/
-void setSetAttribute(Aint id, Aint atr, Aword set)
+void setSetAttribute(Aint id, Aint atr, Aptr set)
 {
   freeSet((Set *)attributeOf(id, atr));
-  setValue(id, atr, (Aword)set);
+  setValue(id, atr, (Aptr)set);
 }
 
 
 /*----------------------------------------------------------------------*/
-static Aword literalAttribute(Aword lit, Aint atr)
+static Aptr literalAttribute(Aword lit, Aint atr)
 {
   char str[80];
 
@@ -408,7 +408,7 @@ static Aword literalAttribute(Aword lit, Aint atr)
 
 
 /*======================================================================*/
-Aword attributeOf(Aint id, Aint atr)
+Aptr attributeOf(Aint id, Aint atr)
 {
   char str[80];
 
@@ -427,28 +427,28 @@ Aword attributeOf(Aint id, Aint atr)
 
 
 /*======================================================================*/
-Aword getStringAttribute(Aint id, Aint atr)
+Aptr getStringAttribute(Aint id, Aint atr)
 {
-  return (Aword) strdup((char *)attributeOf(id, atr));
+  return (Aptr) strdup((char *)attributeOf(id, atr));
 }
 
 
 /*======================================================================*/
-Aword getSetAttribute(Aint id, Aint atr)
+Aptr getSetAttribute(Aint id, Aint atr)
 {
-  return (Aword) copySet((Set *)attributeOf(id, atr));
+  return (Aptr) copySet((Set *)attributeOf(id, atr));
 }
 
 
 /*======================================================================*/
-Aword concat(Aword s1, Aword s2)
+Aptr concat(Aptr s1, Aptr s2)
 {
   char *result = allocate(strlen((char*)s1)+strlen((char*)s2)+1);
   strcpy(result, (char*)s1);
   strcat(result, (char*)s2);
   free((char*)s1);
   free((char*)s2);
-  return (Aword)result;
+  return (Aptr)result;
 }
 
 
@@ -592,7 +592,7 @@ static char *stripWordsFromStringBackwards(Aint count, char *initialString, char
 
 
 /*======================================================================*/
-Aword strip(Abool stripFromBeginningNotEnd, Aint count, Abool stripWordsNotChars, Aint id, Aint atr)
+Aptr strip(Abool stripFromBeginningNotEnd, Aint count, Abool stripWordsNotChars, Aint id, Aint atr)
 {
   char *initialString = (char *)attributeOf(id, atr);
   char *theStripped;
@@ -610,7 +610,7 @@ Aword strip(Abool stripFromBeginningNotEnd, Aint count, Abool stripWordsNotChars
       theStripped = stripCharsFromStringBackwards(count, initialString, &theRest);
   }
   setStringAttribute(id, atr, theRest);
-  return (Aword)theStripped;
+  return (Aptr)theStripped;
 }
 
 
@@ -1688,7 +1688,7 @@ Abool btw(Aint val, Aint low, Aint high)
 
 
 /*======================================================================*/
-Aword contains(Aword string, Aword substring)
+Aptr contains(Aptr string, Aptr substring)
 {
   Abool found;
 

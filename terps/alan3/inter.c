@@ -263,7 +263,7 @@ static char *booleanValue(Abool bool) {
 }
 
 /*----------------------------------------------------------------------*/
-static char *stringValue(Aword adress) {
+static char *stringValue(Aptr adress) {
   static char string[100];
 
   sprintf(string, "0x%lx (\"%s\")\t\t", (unsigned long) adress, (char *)adress);
@@ -271,7 +271,7 @@ static char *stringValue(Aword adress) {
 }
 
 /*----------------------------------------------------------------------*/
-static char *pointerValue(Aword adress) {
+static char *pointerValue(Aptr adress) {
   static char string[100];
 
   sprintf(string, "@%6lx", (unsigned long) adress);
@@ -431,7 +431,7 @@ void interpret(Aaddr adr)
 	break;
 
       case I_POP: {
-	Aword top = pop();
+	Aptr top = pop();
 	if (singleStepOption)
 	  printf("POP\t%7ld", top);
 	break;
@@ -509,7 +509,7 @@ void interpret(Aaddr adr)
 	Aint len = pop();
 	if (singleStepOption)
 	  printf("GETSTR\t%7ld, %7ld", fpos, len);
-	push((Aword)getStringFromFile(fpos, len));
+	push((Aptr)getStringFromFile(fpos, len));
 	traceStringTopValue();
 	break;
       }
@@ -603,7 +603,7 @@ void interpret(Aaddr adr)
       case I_SET: {
 	Aint atr = pop();
 	Aint id = pop();
-	Aint val = pop();
+	Aptr val = pop();
 	if (singleStepOption) {
 	  printf("SET \t%7ld, %7ld, %7ld\t\t\t\t", id, atr, val);
 	}
@@ -613,7 +613,7 @@ void interpret(Aaddr adr)
       case I_SETSTR: {
 	Aint atr = pop();
 	Aint id = pop();
-	Aword str = pop();
+	Aptr str = pop();
 	if (singleStepOption) {
 	  printf("SETSTR\t%7ld, %7ld, %s\t\t\t\t", id, atr, stringValue(str));
 	}
@@ -623,7 +623,7 @@ void interpret(Aaddr adr)
       case I_SETSET: {
 	Aint atr = pop();
 	Aint id = pop();
-	Aword set = pop();
+	Aptr set = pop();
 	if (singleStepOption) {
 	  printf("SETSET\t%7ld, %7ld, %7s\t\t", id, atr, pointerValue(set));
 	}
@@ -635,17 +635,17 @@ void interpret(Aaddr adr)
 	if (singleStepOption) {
 	  printf("NEWSET\t\t\t");
 	}
-	push((Aword)set);
+	push((Aptr)set);
 	tracePointerTopValue();
 	break;
       }
       case I_UNION: {
-	Aword set2 = pop();
-	Aword set1 = pop();
+	Aptr set2 = pop();
+	Aptr set1 = pop();
 	if (singleStepOption) {
 	  printf("UNION\t%7ld, %7ld\t\t\t\t", set1, set2);
 	}
-	push((Aword)setUnion((Set *)set1, (Set *)set2));
+	push((Aptr)setUnion((Set *)set1, (Set *)set2));
 	tracePointerTopValue();
 	freeSet((Set *)set1);
 	freeSet((Set *)set2);
@@ -688,7 +688,7 @@ void interpret(Aaddr adr)
       case I_SETSIZE: {
 	Set *set = (Set *)pop();
 	if (singleStepOption)
-	  printf("SETSIZE\t%7ld\t\t", (Aword)set);
+	  printf("SETSIZE\t%7ld\t\t", (Aptr)set);
 	push(setSize(set));
 	if (singleStepOption)
 	  traceIntegerTopValue();
@@ -698,7 +698,7 @@ void interpret(Aaddr adr)
 	Set *set = (Set *)pop();
 	Aint index = pop();
 	if (singleStepOption)
-	  printf("SETMEMB\t%7ld, %7ld", (Aword)set, index);
+	  printf("SETMEMB\t%7ld, %7ld", (Aptr)set, index);
 	push(getSetMember(set, index));
 	if (singleStepOption)
 	  traceIntegerTopValue();
@@ -841,7 +841,7 @@ void interpret(Aaddr adr)
 	break;
       }
       case I_INSET: {
-	Aword set = pop();
+	Aptr set = pop();
 	Aword element = pop();
 	if (singleStepOption)
 	  printf("INSET \t%7ld, %7ld", element, set);
@@ -898,7 +898,7 @@ void interpret(Aaddr adr)
 	break;
       }
       case I_SAYSTR: {
-	Aword adr = pop();
+	Aptr adr = pop();
 	if (singleStepOption)
 	  printf("SAYSTR\t%7ld\t\ty\t", adr);
 	sayString((char *)adr);
@@ -961,8 +961,8 @@ void interpret(Aaddr adr)
 	break;
       }
       case I_STREQ: {
-	Aword rh = pop();
-	Aword lh = pop();
+	Aptr rh = pop();
+	Aptr lh = pop();
 	if (singleStepOption)
 	  printf("STREQ \t%7ld, %7ld", lh, rh);
 	push(streq((char *)lh, (char *)rh));
@@ -970,8 +970,8 @@ void interpret(Aaddr adr)
 	break;
       }
       case I_STREXACT: {
-	Aword rh = pop();
-	Aword lh = pop();
+	Aptr rh = pop();
+	Aptr lh = pop();
 	if (singleStepOption)
 	  printf("STREXACT \t%7ld, %7ld", lh, rh);
 	push(strcmp((char *)lh, (char *)rh) == 0);
@@ -1084,8 +1084,8 @@ void interpret(Aaddr adr)
 	  String functions
 	\*------------------------------------------------------------*/
       case I_CONCAT: {
-	Aword s2 = pop();
-	Aword s1 = pop();
+	Aptr s2 = pop();
+	Aptr s1 = pop();
 	if (singleStepOption)
 	  printf("CONCAT \t%7ld, %7ld", s1, s2);
 	push(concat(s1, s2));
@@ -1094,8 +1094,8 @@ void interpret(Aaddr adr)
       }
 
       case I_CONTAINS: {
-	Aword substring = pop();
-	Aword string = pop();
+	Aptr substring = pop();
+	Aptr string = pop();
 	if (singleStepOption)
 	  printf("CONTAINS \t%7ld, %7ld", string, substring);
 	push(contains(string, substring));

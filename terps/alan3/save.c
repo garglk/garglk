@@ -175,7 +175,7 @@ static void restoreStrings(AFILE saveFile) {
       fread((void *)&length, sizeof(Aint), 1, saveFile);
       string = allocate(length+1);
       fread((void *)string, 1, length, saveFile);
-      setValue(initEntry->instanceCode, initEntry->attributeCode, (Aword)string);
+      setValue(initEntry->instanceCode, initEntry->attributeCode, (Aptr)string);
     }
 }
 
@@ -198,7 +198,7 @@ static void restoreSets(AFILE saveFile) {
 	fread((void *)&member, sizeof(member), 1, saveFile);
 	addToSet(set, member);
       }
-      setValue(initEntry->instanceCode, initEntry->attributeCode, (Aword)set);
+      setValue(initEntry->instanceCode, initEntry->attributeCode, (Aptr)set);
     }
 }
 
