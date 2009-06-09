@@ -17,11 +17,11 @@ extern int dscrstkp;		/* Point into describe stack */
 #ifdef _PROTOTYPES_
 extern void sys(Aword fpos, Aword len);
 extern Boolean confirm(MsgKind msgno);
-extern Aword attribute(Aword item, Aword atr);
+extern Aptr attribute(Aword item, Aword atr);
 extern void say(Aword item);
 extern void saynum(Aword num);
 extern void saystr(char *str);
-extern Aword strattr(Aword id, Aword atr);
+extern Aptr strattr(Aword id, Aword atr);
 extern void setstr(Aword id, Aword atr, Aword str);
 extern void getstr(Aword fpos, Aword len);
 extern void print(Aword fpos, Aword len);
@@ -47,7 +47,7 @@ extern void say(Aword id);
 extern void sayint(Aword val);
 extern Aword rnd(Aword from, Aword to);
 extern Abool btw(Aint val, Aint from, Aint to);
-extern Aword contains(Aword string, Aword substring);
+extern Aword contains(Aptr string, Aptr substring);
 extern Abool streq(char a[], char b[]);
 extern Abool in(Aword obj, Aword cnt);
 extern Aword where(Aword item);
@@ -60,11 +60,11 @@ extern Abool isNear(Aword item);
 #else
 extern void sys();
 extern Boolean confirm();
-extern Aword attribute();
+extern Aptr attribute();
 extern void say();
 extern void saynum();
 extern void saystr();
-extern Aword strattr();
+extern Aptr strattr();
 extern void setstr();
 extern void getstr();
 extern void print();

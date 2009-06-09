@@ -135,7 +135,7 @@ void getstr(fpos, len)
 {
   char *buf = allocate(len+1);
 
-  push((Aword) buf);            /* Push the address to the string */
+  push((Aptr) buf);            /* Push the address to the string */
   fseek(txtfil, fpos, 0);       /* Position to start of text */
   if (header->pack)
     startDecoding();
@@ -314,12 +314,12 @@ void schedule(evt, whr, aft)
 
  */
 #ifdef _PROTOTYPES_
-static Aword getatr(
+static Aptr getatr(
      Aaddr atradr,              /* IN - ACODE address to attribute table */
      Aaddr atr                  /* IN - The attribute to read */
 )
 #else
-static Aword getatr(atradr, atr)
+static Aptr getatr(atradr, atr)
      Aaddr atradr;              /* IN - ACODE address to attribute table */
      Aaddr atr;                 /* IN - The attribute to read */
 #endif
@@ -606,9 +606,9 @@ void decr(id, atr, step)
   */
 
 #ifdef _PROTOTYPES_
-static Aword locatr(Aword loc, Aword atr)
+static Aptr locatr(Aword loc, Aword atr)
 #else
-static Aword locatr(loc, atr)
+static Aptr locatr(loc, atr)
      Aword loc, atr;
 #endif
 {
@@ -618,9 +618,9 @@ static Aword locatr(loc, atr)
 
 
 #ifdef _PROTOTYPES_
-static Aword objatr(Aword obj, Aword atr)
+static Aptr objatr(Aword obj, Aword atr)
 #else
-static Aword objatr(obj, atr)
+static Aptr objatr(obj, atr)
      Aword obj, atr;
 #endif
 {
@@ -628,9 +628,9 @@ static Aword objatr(obj, atr)
 }
 
 #ifdef _PROTOTYPES_
-static Aword actatr(Aword act, Aword atr)
+static Aptr actatr(Aword act, Aword atr)
 #else
-static Aword actatr(act, atr)
+static Aptr actatr(act, atr)
      Aword act, atr;
 #endif
 {
@@ -638,9 +638,9 @@ static Aword actatr(act, atr)
 }
 
 #ifdef _PROTOTYPES_
-static Aword litatr(Aword lit, Aword atr)
+static Aptr litatr(Aword lit, Aword atr)
 #else
-static Aword litatr(lit, atr)
+static Aptr litatr(lit, atr)
      Aword lit, atr;
 #endif
 {
@@ -657,9 +657,9 @@ static Aword litatr(lit, atr)
 
 
 #ifdef _PROTOTYPES_
-Aword attribute(Aword id, Aword atr)
+Aptr attribute(Aword id, Aword atr)
 #else
-Aword attribute(id, atr)
+Aptr attribute(id, atr)
      Aword id, atr;
 #endif
 {
@@ -682,13 +682,13 @@ Aword attribute(id, atr)
 
 
 #ifdef _PROTOTYPES_
-Aword strattr(Aword id, Aword atr)
+Aptr strattr(Aword id, Aword atr)
 #else
-Aword strattr(id, atr)
+Aptr strattr(id, atr)
      Aword id, atr;
 #endif
 {
-  return (Aword) strdup((char *)attribute(id, atr));
+  return (Aptr) strdup((char *)attribute(id, atr));
 }
 
 
@@ -1778,10 +1778,10 @@ Abool btw(val, low, high)
   */
 
 #ifdef _PROTOTYPES_
-Aword contains(Aword string, Aword substring)
+Aword contains(Aptr string, Aptr substring)
 #else
 Aword contains(string, substring)
-     Aword string, substring;;
+     Aptr string, substring;;
 #endif
 {
   Abool found;
