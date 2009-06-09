@@ -266,7 +266,7 @@ static char *booleanValue(Abool bool) {
 static char *stringValue(Aword adress) {
   static char string[100];
 
-  sprintf(string, "0x%lx (\"%s\")\t\t", adress, (char *)adress);
+  sprintf(string, "0x%lx (\"%s\")\t\t", (unsigned long) adress, (char *)adress);
   return string;
 }
 
@@ -274,7 +274,7 @@ static char *stringValue(Aword adress) {
 static char *pointerValue(Aword adress) {
   static char string[100];
 
-  sprintf(string, "@%6lx", adress);
+  sprintf(string, "@%6lx", (unsigned long) adress);
   return string;
 }
 

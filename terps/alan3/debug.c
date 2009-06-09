@@ -55,7 +55,7 @@ static void showAttributes(AttributeEntry *attributes)
 
   i = 1;
   for (at = attributes; !endOfTable(at); at++) {
-    sprintf(str, "$i$t%s(%ld) = %ld", (char *) pointerTo(at->stringAddress), at->code, at->value);
+    sprintf(str, "$i$t%s(%ld) = %ld", (char *) pointerTo(at->stringAddress), (long) at->code, (long) at->value);
 #if ISO == 0
     fromIso(str, str);
 #endif
@@ -97,7 +97,7 @@ static void showInstanceLocation(int ins) {
   else if (isLocation(admin[ins].location)) {
     output("at");
     say(admin[ins].location);
-    sprintf(buffer, "(%ld)", admin[ins].location);
+    sprintf(buffer, "(%ld)", (long) admin[ins].location);
     output(buffer);
   } else if (isContainer(admin[ins].location)) {
 
@@ -106,7 +106,7 @@ static void showInstanceLocation(int ins) {
     else if (isActor(admin[ins].location))
       output("carried by");
     say(admin[ins].location);
-    sprintf(buffer, "(%ld)", admin[ins].location);
+    sprintf(buffer, "(%ld)", (long) admin[ins].location);
     output(buffer);
 
   } else
@@ -168,7 +168,7 @@ static void showInstance(int ins)
     if (admin[ins].script == 0)
       output("$iIs idle");
     else {
-      sprintf(str, "$iExecuting script: %ld, Step: %ld", admin[ins].script, admin[ins].step);
+      sprintf(str, "$iExecuting script: %ld, Step: %ld", (long) admin[ins].script, (long) admin[ins].step);
       output(str);
     }
   }
@@ -238,7 +238,7 @@ static void showClass(int c)
   if (class[c].parent != 0) {
     output("Isa");
     output((char *)pointerTo(class[class[c].parent].id));
-    sprintf(str, "(%ld)", class[c].parent);
+    sprintf(str, "(%ld)", (long) class[c].parent);
     output(str);
   }
 }
@@ -263,7 +263,7 @@ static void showContainer(int cnt)
   char str[80];
 
   if (cnt < 1 || cnt > header->containerMax) {
-    sprintf(str, "Container number out of range. Between 1 and %ld, please.", header->containerMax);
+    sprintf(str, "Container number out of range. Between 1 and %ld, please.", (long) header->containerMax);
     output(str);
     return;
   }
@@ -273,7 +273,7 @@ static void showContainer(int cnt)
   if (container[cnt].owner != 0) {
     cnt = container[cnt].owner;
     say(cnt);
-    sprintf(str, "$iLocation: %ld", where(cnt, TRUE));
+    sprintf(str, "$iLocation: %ld", (long) where(cnt, TRUE));
     output(str);
   }
   showContents(cnt);

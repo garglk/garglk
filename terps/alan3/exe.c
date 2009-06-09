@@ -144,7 +144,7 @@ void sys(Aword fpos, Aword len)
   char *command;
 
   command = getStringFromFile(fpos, len);
-  system(command);
+  int tmp = system(command);
   free(command);
 }
 
@@ -370,7 +370,7 @@ void setValue(Aint id, Aint atr, Aword val)
     if (isLocation(id))	/* May have changed so describe next time */
       admin[id].visitsCount = 0;
   } else {
-    sprintf(str, "Can't SET/MAKE instance (%ld).", id);
+    sprintf(str, "Can't SET/MAKE instance (%ld).", (long) id);
     syserr(str);
   }
 }
@@ -400,7 +400,7 @@ static Aword literalAttribute(Aword lit, Aint atr)
   if (atr == 1)
     return literal[literalFromInstance(lit)].value;
   else {
-    sprintf(str, "Unknown attribute for literal (%ld).", atr);
+    sprintf(str, "Unknown attribute for literal (%ld).", (long) atr);
     syserr(str);
   }
   return(EOF);
@@ -418,7 +418,7 @@ Aword attributeOf(Aint id, Aint atr)
     if (id > 0 && id <= header->instanceMax)
       return getAttribute(admin[id].attributes, atr);
     else {
-      sprintf(str, "Can't ATTRIBUTE item (%ld).", id);
+      sprintf(str, "Can't ATTRIBUTE item (%ld).", (long) id);
       syserr(str);
     }
   }
@@ -619,10 +619,10 @@ static void verifyId(Aint id, char action[]) {
   char message[200];
 
   if (id == 0) {
-    sprintf(message, "Can't %s instance (%ld).", action, id);
+    sprintf(message, "Can't %s instance (%ld).", action, (long) id);
     syserr(message);
   } else if (id > header->instanceMax) {
-    sprintf(message, "Can't %s instance (%ld > instanceMax).", action, id);
+    sprintf(message, "Can't %s instance (%ld > instanceMax).", action, (long) id);
     syserr(message);
   }
 }
@@ -1047,7 +1047,7 @@ void sayInteger(Aword val)
   char buf[25];
 
   if (isHere(HERO, FALSE)) {
-    sprintf(buf, "%ld", val);
+    sprintf(buf, "%ld", (long) val);
     output(buf);
   }
 }
@@ -1070,7 +1070,7 @@ static char *wordWithCode(Aint classBit, Aint code) {
   for (w = 0; w < dictsize; w++)
     if (dictionary[w].code == code && ((classBit&dictionary[w].classBits) != 0))
       return pointerTo(dictionary[w].string);
-  sprintf(str, "Could not find word of class %ld with code %ld.", classBit, code);
+  sprintf(str, "Could not find word of class %ld with code %ld.", (long) classBit, (long) code);
   syserr(str);
   return NULL;
 }
@@ -1629,7 +1629,7 @@ void use(Aword act, Aword scr)
   StepEntry *step;
 
   if (!isActor(act)) {
-    sprintf(str, "Instance is not an Actor (%ld).", act);
+    sprintf(str, "Instance is not an Actor (%ld).", (long) act);
     syserr(str);
   }
 
@@ -1650,7 +1650,7 @@ void stop(Aword act)
   char str[80];
 
   if (!isActor(act)) {
-    sprintf(str, "Instance is not an Actor (%ld).", act);
+    sprintf(str, "Instance is not an Actor (%ld).", (long) act);
     syserr(str);
   }
 

@@ -35,7 +35,7 @@ void dumpStack(void)
 
   printf("[");
   for (i = 0; i < stackp; i++)
-    printf("%ld ", stack[i]);
+    printf("%ld ", (long) stack[i]);
   printf("]");
 }
 
