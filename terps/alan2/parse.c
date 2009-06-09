@@ -711,7 +711,7 @@ static void try(mlst)
 	       It wasn't ALL, we need to say something about it, so
 	       prepare a printout with $1/2/3
 	     */
-	    sprintf(marker, "($%ld)", cla->code); 
+	    sprintf(marker, "($%ld)", (unsigned long) cla->code); 
 	    output(marker);
 	    interpret(cla->stms);
 	    para();
