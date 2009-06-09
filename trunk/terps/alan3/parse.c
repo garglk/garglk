@@ -1066,7 +1066,7 @@ static void try(ParamEntry multipleParameters[])
 	       It wasn't ALL, we need to say something about it, so
 	       prepare a printout with $1/2/3
 	     */
-	    sprintf(marker, "($%ld)", restriction->parameter); 
+	    sprintf(marker, "($%ld)", (long) restriction->parameter); 
 	    output(marker);
 	    runRestriction(restriction);
 	    para();
