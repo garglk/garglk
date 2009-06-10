@@ -4333,9 +4333,9 @@ BitmapType bitmap_pc_type(char* file)
 	if (f != NULL)
 	{
 		L9BYTE data[6];
-		int x, y;
+		int x, y, tmp;
 
-		fread(data,1,sizeof data,f);
+		tmp = fread(data,1,sizeof data,f);
 		fclose(f);
 
 		x = data[2]+data[3]*256;
@@ -4483,9 +4483,9 @@ BitmapType bitmap_noext_type(char* file)
 	if (f != NULL)
 	{
 		L9BYTE data[72];
-		int x, y;
+		int x, y, tmp;
 
-		fread(data,1,sizeof data,f);
+		tmp = fread(data,1,sizeof data,f);
 		fclose(f);
 
 		x = data[67]+data[66]*256;
@@ -4994,7 +4994,7 @@ L9BOOL bitmap_bbc_decode(char* file, BitmapType type, int num)
 	unsigned char	patRowData[32];
 	unsigned char patArray[16][2][2];
 	FILE* f;
-	int i,j,k,isOddColumn,isOddRow;
+	int i,j,k,isOddColumn,isOddRow, tmp;
 	L9BYTE pixel;
 
 	if (bitmap_c64_decode(file,type,num) == FALSE)
@@ -5006,7 +5006,7 @@ L9BOOL bitmap_bbc_decode(char* file, BitmapType type, int num)
 
 	/* Seek to the offset of the pixPat data and read in the data */
 	fseek(f,filelength(f)-32,SEEK_SET);
-	fread(patRowData,sizeof (L9BYTE),32,f);
+	tmp = fread(patRowData,sizeof (L9BYTE),32,f);
 	fclose(f);
 
 	/* Extract the patterns */

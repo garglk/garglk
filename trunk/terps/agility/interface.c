@@ -211,7 +211,7 @@ static char *get_log(void)
   }
 
   s=rmalloc(1000);s[0]=' ';s[1]=0;
-  textgets(log_in,s,1000);
+  void *tmp = textgets(log_in,s,1000);
   if (texteof(log_in)) {  /* Reached end of logfile */
     close_pfile(log_in,1);
     log_in=BAD_TEXTFILE;

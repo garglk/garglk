@@ -3694,7 +3694,7 @@ gagt_display_debug (void)
 			line = gagt_get_next_page_line (line))
 	    {
 		sprintf (buffer,
-			"%02d,%02d S=%02d L=%02d I=%02d O=%02d [%02d] %c%c| ",
+			"%02d,%02ld S=%02d L=%02d I=%02d O=%02d [%02d] %c%c| ",
 			line->paragraph,
 			line->special != NULL
 				? line->special - GAGT_SPECIALS : 0,
@@ -4583,9 +4583,9 @@ gagt_command_print_version_number (glui32 version)
 
 	/* Print out the three version number component parts. */
 	sprintf (buffer, "%lu.%lu.%lu",
-			(version & 0xFFFF0000) >> 16,
-			(version & 0x0000FF00) >>  8,
-			(version & 0x000000FF)      );
+			(unsigned long)(version & 0xFFFF0000) >> 16,
+			(unsigned long)(version & 0x0000FF00) >>  8,
+			(unsigned long)(version & 0x000000FF)      );
 	gagt_normal_string (buffer);
 }
 static void
