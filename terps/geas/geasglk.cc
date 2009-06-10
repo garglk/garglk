@@ -84,6 +84,8 @@ static void draw_banner();
 
 void glk_main(void)
 {
+    char err_buf[1024];
+    char cur_buf[1024];
     /* Open the main window. */
     mainglkwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 1);
     if (!mainglkwin) {
@@ -94,8 +96,9 @@ void glk_main(void)
     glk_set_window(mainglkwin);
 
     if (!storyfilename) {
-        glk_put_string("No game name or more than one game name given.\n"
-                       "Try -h for help.\n");
+	sprintf(err_buf,"No game name or more than one game name given.\n"
+			"Try -h for help.\n");
+	glk_put_string(err_buf);
         return;
     }
 
@@ -115,10 +118,12 @@ void glk_main(void)
 
     inputwinstream = glk_window_get_stream(inputwin);
 
-    if (!glk_gestalt(gestalt_Timer, 0))
-        glk_put_string( "\nNote -- The underlying Glk library does not support"
+    if (!glk_gestalt(gestalt_Timer, 0)) {
+	sprintf(err_buf,"\nNote -- The underlying Glk library does not support"
                         " timers.  If this game tries to use timers, then some"
                         " functionality may not work correctly.\n\n");
+	glk_put_string(err_buf);
+    }
 
     GeasRunner *gr = GeasRunner::get_runner(new GeasGlkInterface());
     gr->set_game(storyfilename);
@@ -135,7 +140,8 @@ void glk_main(void)
             glk_window_clear(inputwin);
         else
             glk_put_cstring("\n");
-        glk_put_string_stream(inputwinstream, "> ");
+        sprintf(cur_buf, "> ");
+        glk_put_string_stream(inputwinstream, cur_buf);
 
         char buf[200];
 

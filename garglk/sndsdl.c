@@ -297,8 +297,9 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
     if (!giblorb_is_resource_map()) {
 	FILE *file;
 	char name[1024];
+	int tmp;
 
-	sprintf(name, "%s/SND%ld", gli_workdir, snd); 
+	sprintf(name, "%s/SND%ld", gli_workdir, (long) snd); 
 
 	file = fopen(name, "rb");
 	if (!file)
@@ -314,7 +315,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
 	}
 
 	fseek(file, 0, 0);
-	fread(*buf, 1, *len, file);
+	tmp = fread(*buf, 1, *len, file);
 	fclose(file);
 
 	/* AIFF */
@@ -358,6 +359,8 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
 	FILE *file;
 	glui32 type;
 	long pos;
+	int tmp;
+
 	giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, len, &type);
 	if (!file)
 	    return 0;
@@ -367,7 +370,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
 	    return 0;
 
 	fseek(file, pos, 0);
-	fread(*buf, 1, *len, file);
+	tmp = fread(*buf, 1, *len, file);
 	return type;
     }
 }

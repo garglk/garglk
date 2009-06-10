@@ -118,7 +118,7 @@ static rbool is_numeric(parse_rec *objrec)
   if (objrec->num!=0 || objrec->info==D_NUM) return 1;
   if (objrec->adj!=0) return 0;
   if (objrec->noun<=0) return 0;
-  strtol(dict[objrec->noun],&s,10);
+  int tmp = strtol(dict[objrec->noun],&s,10);
   return (*s==0); /* *s==0 means no error-- it parsed as a number. */
 }
 

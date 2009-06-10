@@ -2838,7 +2838,7 @@ void geas_implementation::run_script (string s, string &rv)
 	  return;
 	}
       bool is_while = (tok == "while");
-      uint start_cond = c2, end_cond = string::npos;
+      uint start_cond = c2, end_cond = (uint) string::npos;
       while ((tok = next_token (s, c1, c2)) != "")
 	{
 	  // SENSITIVE?

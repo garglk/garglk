@@ -348,6 +348,7 @@ void gli_read_config(int argc, char **argv)
 	char argv0[1024] = "default";
 	char buf[1024];
 	int i;
+	char *tmp;
 
 	/* load argv0 with name of executable without suffix */
 	if (strrchr(argv[0], '\\'))
@@ -409,9 +410,11 @@ void gli_read_config(int argc, char **argv)
 		readoneconfig(buf, argv0, gamefile);
 	}
 
-	getcwd(buf, sizeof buf);
-	strcat(buf, "/garglk.ini");
-	readoneconfig(buf, argv0, gamefile);
+	tmp = (char *) getcwd(buf, sizeof buf);
+	if (tmp) {
+		strcat(buf, "/garglk.ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
 
 	if (argc > 1)
 	{

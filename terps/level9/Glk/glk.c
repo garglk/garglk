@@ -4636,9 +4636,11 @@ static void
 gln_command_print_version_number (glui32 version)
 {
   char buffer[64];
-
+  
   sprintf (buffer, "%lu.%lu.%lu",
-           version >> 16, (version >> 8) & 0xff, version & 0xff);
+          (unsigned long) version >> 16,
+          (unsigned long) (version >> 8) & 0xff,
+          (unsigned long) version & 0xff);
   gln_normal_string (buffer);
 }
 
