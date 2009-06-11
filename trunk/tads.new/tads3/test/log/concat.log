@@ -1,0 +1,49 @@
+#line 1 "concat.c"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+A: "asdfhello";
+B: "hellojklm";
+C: "abcdef";
+D: "xyz""hello";
+E: "hello""ghi";
+
+G: abcSTR;
+H: STRdef;
+
+I: "hellomnopgoodbye";
+
+J: "HelloTuvWxyGoodbye";
+K: "Hello ## #x";
+L: "hellogoodbye";
+
+"(parens)";
+"abcdef";
+"uvwxyz";
+"value of obj.prop[3] = <<obj.prop[3]>>";
+hash table: total 26, longest 1, average 0
+number of buckets over average length: 26
+number of empty buckets: 486
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

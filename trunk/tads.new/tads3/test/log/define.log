@@ -1,0 +1,102 @@
+#line 1 "define.c"
+
+(recurs((recurs(5) + 1)) + 1);
+
+
+
+
+define.c(7): error: too many arguments for macro "lose1"
+(1 + (a));
+
+
+
+lose(((a,b)));
+
+
+
+
+"987"
+
+
+
+"foo"
+
+
+
+
+(4 + (2 * x));
+(2 * (4 + y));
+
+
+
+
+#pragma message("yes")
+
+
+
+
+
+define.c(37): error: missing ')' in argument list for macro "PASTE"
+
+2) > 10
+#pragma message("yes")
+
+
+
+
+This is a test.     End of the test.
+This       is         another        test.
+
+   ({a, b, c})([d, e, f]);
+
+
+Another multiline macro test: 100200                                       +                                     300
+#line 55 "define.c"
+; that is all!!!;
+
+Test of a multiline macro: 100200
+; end of multi-line macro!
+
+
+aaa xxx#ifdef FOO       bbb #else       ccc #endif
+#line 68 "define.c"
+;
+
+100 ## 200
+
+
+
+   100
+
+
+
+
+   100;
+
+
+
+
+
+5*2
+
+FOO1;
+XY
+#line 90 "define.c"
+;
+PASTE   
+#line 94 "define.c"
+X, (2 * (4 + y));
+
+
+    RECURSIVE(100);
+        
+"Try a macro that ends without closing its argument list...":
+define.c(100): error: missing ')' in argument list for macro "PASTE"
+
+hash table: total 30, longest 1, average 0
+number of buckets over average length: 30
+number of empty buckets: 482
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

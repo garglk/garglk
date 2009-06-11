@@ -1,0 +1,58 @@
+<html><head><meta name="generator" content="Help & Manual 2.7.0"><title>TellToAction</title></head>
+<body bgcolor="#FFFFFF">
+<table width="100%" border="0" cellspacing="0" cellpadding="3" bgcolor="#C0C0C0"><tr><td align="left">
+<font face="Arial" size="3" color="#000000"><b>TellToAction
+<br>
+</b></font>
+
+</td><td align="right"><font face="Arial" size="2"><a href="tcommand.htm">[Previous]</a> <a href="introduction.htm">[Main]</a> <a href="givetoaskfor.htm">[Next]</a></font></td></tr></table><br>
+
+<font face="Arial" size="2" color="#000000">TellToAction adds handling for an additional command verb, TellToAction.
+<br>
+
+<br>
+This translates commands of the form TELL X TO Y or ASK X TO Y into (effectively) X, Y, and thus provides an additional means for the player to issue commands to NPCs (in a way that may seem more natural to some novice players). For example, a player can type:
+<br>
+
+<br>
+&gt;<b>tell bob to take the coin
+<br>
+</b>
+<br>
+And it will be treated as if the player had typed:
+<br>
+
+<br>
+&gt;<b>bob, take the coin
+<br>
+</b>
+<br>
+TellToAction is defined as a LiteralTAction; in a command like TELL X TO Y or ASK X TO Y, X is matched to a single direct object (normally an actor) and Y to a literal string. If the direct object is not an actor the command is considered illogical. If it is an actor the literal Y is tokenized and passed to the actor as a command to perform.
+<br>
+
+<br>
+There is one complication; if the player types:
+<br>
+
+<br>
+&gt;<b>tell bob to follow you</b>
+<br>
+
+<br>
+He or she probably wants this treated as
+<br>
+
+<br>
+<b>bob, follow me </b>not <b>bob, follow you</b> (which would mean, bob follow yourself).
+<br>
+
+<br>
+To cater for this, the action handling in Actor.actionDobjTellToAction replaces every occurence of the token 'you' with 'me' before executing the command. For similar reasons 'herself' or 'himself' is changed into 'yourself' (so that "TELL BOB TO HIT HIMSELF" becomes "BOB, HIT YOURSELF")
+<br>
+
+<br>
+To use TellToAction, just include TellToAction.t in your project, after the adv3 library files.
+<br>
+</font>
+
+</body></html>

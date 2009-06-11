@@ -1,0 +1,257 @@
+<html>
+
+<title>TADS Revision History on MS-DOS</title>
+
+<body>
+
+<br><br><br>
+<center><font size=+3>Recent Changes to TADS on MS-DOS and Windows</font>
+</center>
+
+<br><br>
+<p><i></i>
+
+<p>
+This file contains a list of changes to TADS specific to MS-DOS and
+Windows, starting with version 2.5.0.
+
+<p>
+This file contains only those changes that are specific to TADS on
+MS-DOS and Windows.  For "generic" changes affecting all computers
+and operating systems, refer to <a href='tadsver.htm'>Recent Changes
+to TADS</a>.
+
+<p>
+Changes prior to version 2.4.1 are in separate files, to keep the size
+of this file reasonable.  Refer <a href='tadsver.htm#oldlog'>here</a>
+for information on older revision log entries.
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.14</h3>
+<i>Released May 5, 2009</i>
+
+<p><i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.13</h3>
+<i>Released April 28, 2009</i>
+
+<p><i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.12</h3>
+<i>Released September 28, 2008</i>
+
+<p><i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.11</h3>
+<i>Released August 9, 2008</i>
+
+<p><i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.10</h3>
+<i>Released August 17, 2006</i>
+
+<ul>
+
+<li>The Windows interpreter versions (HTML TADS, tr32, etc) now allow
+other running programs to read transcript files and other generated
+text files while the interpreter is still writing them.  (That is, the
+interpreter now uses "deny write" share mode when writing to a text
+file, which allows other programs to read from but not write to a file
+that the interpreter has open.  In the past, "deny all" mode was used,
+which didn't allow even read access by other programs.)  This allows
+things like showing a running transcript in a separate window using a
+program that reads from the transcript file continuously as the
+interpreter adds text to it.
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.9</h3>
+<i>Released September 12, 2004</i>
+
+<i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.9</h3>
+<i>Released September 12, 2004</i>
+
+<i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.8</h3>
+<i>Released June 12, 2004</i>
+
+<p><b>Icons for .exe files:</b> The console-mode interpreters
+(tr32.exe, t2r32.exe) now include desktop icons in the .exe files.
+This means that you can use the "-icon" option with maketrx32 to add
+your own custom icon (for display in Windows Explorer) to your games
+bundled as executable files.
+
+<p><b>NT/2000/XP console scrollbars:</b> The console-mode interpreters
+(tr32.exe, t2r32.exe) now correctly remove the console window's
+scrollbars in all cases on WIndows NT, 2000, and XP.  In the past, the
+interpreters <i>usually</i> did this, but in some cases missed the
+scrollbars and left them intact.  (Console scrollbars appear when the
+console properties are set so that the console has a "screen buffer"
+larger than the actual console window.  This feature isn't available
+on the Windows 9x platforms, only on the NT branch, which includes
+2000 and XP.)  Leaving the scrollbars active created the confusing
+situation that the area of the console containing the interpreter
+window could be scrolled off the screen.  The scrollbars should now
+be removed under all conditions.
+
+<p><b>Windows console-mode ALT+0nnn keys:</b> The console-mode
+interpreters now treat ALT+0nnn key sequences correctly.  In the
+past, the interpreters ignored the '0' prefix on the ALT sequence,
+which resulted in a character from the OEM character set.  The
+standard Windows convention is that ALT+keypad sequences are to be
+interpreted as ANSI character codes when the first digit entered
+is a zero.  The console-mode interpreters now conform to this
+convention.
+
+<p><b>Standard input redirection:</b> In the past, the DOS and Windows
+console interpreters read certain keystrokes directly from the
+keyboard, even if the standard input was redirected to read from a
+file or a pipe.  This applied to MORE prompt responses, as well as
+inputkey() and inputevent() requests (and the corresponding TADS 3
+functions).  The interpreters will now properly read all input,
+including these special keystroke requests, from the redirected
+standard input.  In addition, when the standard input is redirected to
+read from a file, the MORE prompt will be disabled entirely.  Note
+that these changes apply <b>only</b> to "-plain" mode; when not
+running in "-plain" mode, it's not possible to redirect the standard
+input.
+
+<!--
+In 3.0.6f, we introduced a problem with entering 8-bit characters
+in the console-mode interpreters.  This was resolved in 3.0.6g.
+-->
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.7</h3>
+<i>Released September 22, 2002</i>
+
+<p>The "file selector" dialogs in the DOS interpreters and Windows
+console-mode interpreters have been improved.  First, the dialogs are
+now better at handling the long filenames in modern Windows versions.
+Second, the file list now shows a list of available disk drive letters,
+rather than requiring the old Alt-key method to select a new disk.
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.6</h3>
+<i>Released June 1, 2002</i>
+
+<p><b>TR32 on Windows 95 with keyboard layout switching:</b> If you
+are using Windows 95, and you take advantage of the operating
+system's keyboard layout switching feature, and TR32 does not always
+correctly recognize the characters you type, read on.  All other
+users should ignore this new feature.
+
+<p>Layout switching lets you change the layout of keys on the
+keyboard dynamically, usually by pressing a special sequence of keys.
+Unfortunately, the keyboard device driver in Windows 95 has a number
+of problems that prevent keyboard layout switching from working
+correctly with most console-mode applications, including TR32.  In
+the past, this made it difficult or impossible to use multiple
+keyboard layouts with TR32.
+
+<p>TR32 can now attempt to work around these Windows 95 problems by
+using an alternative set of OS calls to read keyboard input.  To
+activate the new keyboard handling, you must specify the new option
+<tt>-kbfix95</tt> on the command line when you run TR32:
+
+<p>
+<pre>
+   tr32 -kbfix95 mygame.gam
+</pre>
+
+<p>When you specify this new option, TR32 uses the modified keyboard
+handling.  The workaround is <b>not</b> enabled by default for
+several reasons.  First, the problem only affects Windows 95; none of
+the other versions of Windows (98, NT, ME, 2000) appear to be
+affected.  Second, the workaround itself can potentially cause its
+own problems, because it performs operations that Microsoft
+specifically recommends against (these operations are the only known
+way to work around the layout switching problem, though, so it's a
+catch-22).  Third, even on Windows 95, only users who are using
+keyboard layout switching will encounter the problem.  Because most
+users won't ever encounter the problem that the workaround is
+designed to solve, and because enabling the workaround could cause
+new problems of its own on many systems, the workaround is disabled
+by default.
+
+<p><b>TR32 and extended characters:</b>  In the past, the 32-bit
+Windows console-mode version of the interpreter (TR32) sometimes
+did not work properly with "extended" characters (i.e., characters
+outside of the US ASCII range, such as accented letters).  The most
+common problem was that the interpreter "locked up" in the course of
+displaying text containing extended characters.  This has been
+corrected.
+
+<p>In a Windows NT console window, the interpreter now handles
+accented characters displayed with HTML entities correctly.  In the
+past, this did not work properly on NT (although it did work on 95/98/ME).
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3>Version 2.5.5</h3>
+
+<p><i>There are no changes to the text-only version
+specific to MS-DOS or Windows.</i>
+
+<br><br><hr>
+<h3>Version 2.5.4</h3>
+
+<p><i>There are no changes to the text-only version
+specific to MS-DOS or Windows.</i>
+
+<br><br><hr>
+<h3>Version 2.5.3</h3>
+
+<p><i>There are no changes to the text-only version
+specific to MS-DOS or Windows.</i>
+
+<br><br><hr>
+<h3>Version 2.5.2</h3>
+
+<p><b>Default stack size change:</b>
+The default stack size for the DOS 16-bit interpreters has been reduced;
+past versions had too high a default setting,
+given the 64k system segment size limitation on this platform.  In
+some cases, it was possible for a game to crash the interpreter by
+getting into an infinite recursion loop.  For the DOS 16-bit interpreters,
+the default stack size is now set to 100; users can still override this
+setting with the <tt>-ms</tt> option if necessary, but larger settings
+might result in interpreter crashes.  This change only affects the
+16-bit interpreters, TR.EXE and TRX.EXE; the 32-bit versions, including
+TR32.EXE and the Windows HTML interpreter, are <i>not</i> affected,
+since the 32-bit memory model does not impose any similar limitations.
+
+<br><br><hr>
+<h3>Version 2.5.1</h3>
+
+<i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<br><br><hr>
+<h3>Version 2.5.0</h3>
+
+<i>There are no changes in this release specific to MS-DOS or Windows.</i>
+
+<br><br><br>
