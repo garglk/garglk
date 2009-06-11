@@ -47,6 +47,10 @@ Modified
  *   types to portable types, by taking into account the way our compiler
  *   maps from C to native.
  */
+
+#define SIZEOF_INT 4
+#define SIZEOF_SHORT 2
+
 #if SIZEOF_INT == 4
 typedef int hix_int32;
 #else

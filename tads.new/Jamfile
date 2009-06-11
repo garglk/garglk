@@ -1,0 +1,80 @@
+#
+# Jamfile
+#
+# TADS 2 + 3 runtime with gargoyle glk mods
+#
+
+SubDir TOP tads ;
+ObjDir tads ;
+
+SubDirHdrs $(SUBDIR) ;
+SubDirHdrs $(SUBDIR) tads2 ;
+SubDirHdrs $(SUBDIR) tads3 ;
+
+SubDirCcFlags
+    # -DGLK_ANSI_ONLY # if you don't have garglk_fileref_to_name
+    -DGARGOYLE
+    -DVMGLOB_STRUCT
+    ;
+
+if $(OS) = LINUX || $(OS) = SOLARIS
+{
+    SubDirCcFlags
+        -DOS_USHORT_DEFINED
+        -DOS_UINT_DEFINED
+        -DOS_ULONG_DEFINED
+        ;
+}
+
+SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
+
+SEARCH_SOURCE = [ FDirName $(SUBDIR) tads2 ] ;
+
+Library libtads2 :
+	osifc.c osrestad.c oem.c
+	argize.c bif.c bifgdum.c cmap.c cmd.c dat.c dbgtr.c errmsg.c
+	execmd.c fio.c fioxor.c getstr.c ler.c linfdum.c lst.c mch.c
+	mcm.c mcs.c obj.c oserr.c os0.c out.c output.c ply.c
+	qas.c regex.c run.c runstat.c suprun.c trd.c voc.c vocab.c
+	;
+
+SEARCH_SOURCE = [ FDirName $(SUBDIR) tads3 ] ;
+
+Library libtads3 :
+	vmcrc.cpp vmmain.cpp std.cpp std_dbg.cpp charmap.cpp
+	resload.cpp resldexe.cpp vminit.cpp vmini_nd.cpp
+	vmconsol.cpp vmconnom.cpp vmconhmp.cpp vminitim.cpp
+	vmcfgmem.cpp vmobj.cpp vmundo.cpp vmtobj.cpp vmpat.cpp
+	vmstrcmp.cpp vmdict.cpp vmgram.cpp vmstr.cpp vmcoll.cpp
+	vmiter.cpp vmlst.cpp vmsort.cpp vmsortv.cpp vmbignum.cpp
+	vmvec.cpp vmintcls.cpp vmanonfn.cpp vmlookup.cpp
+	vmbytarr.cpp vmcset.cpp vmfilobj.cpp vmstack.cpp vmerr.cpp
+	vmerrmsg.cpp vmpool.cpp vmpoolim.cpp vmtype.cpp vmtypedh.cpp
+	utf8.cpp vmglob.cpp vmrun.cpp vmfunc.cpp vmmeta.cpp vmsa.cpp
+	vmbiftio.cpp vmbif.cpp vmbifl.cpp vmimage.cpp vmimg_nd.cpp vmrunsym.cpp
+	vmsrcf.cpp vmfile.cpp vmbiftad.cpp vmsave.cpp
+	vmbift3.cpp vmbt3_nd.cpp vmregex.cpp vmhosttx.cpp
+	vmhostsi.cpp vmhash.cpp vmmcreg.cpp vmbifreg.cpp
+	;
+
+SEARCH_SOURCE = $(SUBDIR) ;
+
+Main tadsr :
+	t23run.cpp
+	osansi1.c osansi2.c osansi3.c
+	osglk.c
+	osnoban.c
+	t2askf.c
+	t2indlg.c
+	t3askf.cpp
+	t3indlg.cpp
+	memicmp.c
+	vmuni_cs.cpp
+	;
+
+LinkLibraries tadsr : libtads2 libtads3 ;
+
+LINK on tadsr$(SUFEXE) = $(C++) ;
+
+APPS += tadsr ;
+
