@@ -94,10 +94,6 @@ glkunix_startup_code (glkunix_startup_t *data)
 	"Hugo 3.1 by Kent Tessman\n"
 	"Graphics support by Simon Baldwin\n"
 	"Sound support by Tor Andersson\n");
-    char *s;
-    s = strrchr(data->argv[1], '/');
-    if (!s) s = strrchr(data->argv[1], '\\');
-    garglk_set_story_name(s ? s + 1 : data->argv[1]);
 #endif
 
   if (data->argc != 2)
@@ -107,6 +103,13 @@ glkunix_startup_code (glkunix_startup_t *data)
       glkunix_startup_error ("Usage: %s game-file\n", base_name);
       return FALSE;
     }
+
+#ifdef GARGLK
+    char *s;
+    s = strrchr(data->argv[1], '/');
+    if (!s) s = strrchr(data->argv[1], '\\');
+    garglk_set_story_name(s ? s + 1 : data->argv[1]);
+#endif
 
   glkunix_set_base_file(data->argv[1]);
   game = glkunix_stream_open_pathname (data->argv[1], 0, 0);
