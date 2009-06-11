@@ -1,2 +1,0 @@
-obj1: object
-;
