@@ -1,0 +1,1599 @@
+Welcome to the TADS 3 Library Sample Game!
+
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar, a
+green jar (which contains two copper coins), a blue test booklet, a brass key,
+a brown box, a tricycle, a rusty key, a green ball, an 8-ball, a large red
+ball, eight coins (five gold and three silver), and a phone book here.
+
+Bill and Bob are standing here.
+
+>bill, s. close door. n
+Bill opens the front door.
+
+Bill leaves through the front door.
+
+Someone closes the front door from the other side.
+
+Someone opens the front door from the other side.
+
+Bill enters through the front door.
+
+>bill, follow me
+"Okay, I will follow you."
+
+>w
+Platform Room
+This room is obviously highly contrived.  Filling one end of the room is a
+platform, almost like a theater stage, raised a couple of feet above the floor.
+At opposite ends of the platform are two smaller platforms, one red and one
+blue; atop each smaller platform is a chair of the same color as its platform.
+In the center of the main platform is a raised dais, upon which are a wooden
+stool and a leather armchair.
+
+The only exit is east.
+
+On the main platform is a large white box, about waist high and quite roomy.
+
+You can hear a high-pitched beeping noise.
+
+Bill enters from the east.
+
+>sit in box
+(first standing on the main platform)
+You can't do that because the white box is closed.
+
+Bill stands on the main platform.
+
+>open box
+Opening the white box reveals a beeper.
+
+A small trap door is set into the floor of the box.
+
+The beeper is making a piercing beeping noise.
+
+>sit in box
+Okay, you're now sitting in the white box.
+
+Bill stands in the white box.
+
+>bill, sit
+Bill sits in the white box.
+
+>close box
+You close the white box.
+
+It is now pitch black.
+
+>stand
+There's not enough room to stand up in the box while it's closed.
+
+You can hear a high-pitched beeping noise.
+
+>bill, stand
+You see no bill here.
+
+>l
+In the dark (sitting)
+It's pitch black.
+
+You can hear a high-pitched beeping noise.
+
+>e
+It's too dark; you can't see where you're going.
+
+>open box
+You open the white box.
+
+Platform Room (sitting in the white box)
+This room is obviously highly contrived.  Filling one end of the room is a
+platform, almost like a theater stage, raised a couple of feet above the floor.
+At opposite ends of the platform are two smaller platforms, one red and one
+blue; atop each smaller platform is a chair of the same color as its platform.
+In the center of the main platform is a raised dais, upon which are a wooden
+stool and a leather armchair.
+
+The only exit is east.
+
+On the main platform is a white box (which contains a beeper).
+
+A small trap door is set into the floor of the box.
+
+Bill is sitting in the white box.
+
+The beeper is making a piercing beeping noise.
+
+>bill, follow me
+"Okay, I will follow you."
+
+>sit on red chair
+(first getting out of the white box, then standing on the red platform)
+Okay, you're now sitting on the red chair.
+
+Bill gets out of the white box.
+
+Bill stands on the red platform.
+
+>sit on blue chair
+(first standing up, then getting off of the red platform, then standing on the
+blue platform)
+Okay, you're now sitting on the blue chair.
+
+Bill gets off of the red platform.
+
+Bill stands on the blue platform.
+
+>sit on stool
+(first standing up, then getting off of the blue platform, then standing on the
+dais)
+Okay, you're now sitting on the stool.
+
+Bill gets off of the blue platform.
+
+Bill stands on the dais.
+
+The beeper is making a piercing beeping noise.
+
+>sit on armchair
+(first standing up)
+Okay, you're now sitting in the armchair.
+
+>e
+(first standing up, then getting off of the dais, then getting off of the main
+platform)
+
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar, a
+green jar (which contains two copper coins), a blue test booklet, a brass key,
+a brown box, a tricycle, a rusty key, a green ball, an 8-ball, a large red
+ball, eight coins (five gold and three silver), and a phone book here.
+
+Bob is standing here.
+
+Bill enters from the west.
+
+>bob, follow bill
+"Okay, I will follow Bill."
+
+>n
+Dining Room
+This medium-sized room[1] has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (closed) leads
+north.
+
+A trophy is visible in a small alcove set into the top of one wall.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle, a white candle, a stretchy bag, a cookie tin,
+and an inflatable rubber raft.
+
+The flowers have a pleasant fragrance.
+
+Bill enters from the south.
+
+(A number in [square brackets] like the one above refers to a footnote, which
+you can read by typing FOOTNOTE followed by the number: FOOTNOTE 1, for
+example.  Footnotes usually contain added background information that might be
+interesting but isn't essential to the story.  If you'd prefer not to see
+footnotes at all, you can control their appearance by typing FOOTNOTES.)
+
+>z
+Time passes...
+
+Bob enters from the south.
+
+>footnote 2
+The story has never referred to any such footnote.
+
+>footnote 1
+This is just a sample note for the dining room.
+
+>x dining table
+It's a large[2] oval table.  On the table are a red candle, a white candle, a
+stretchy bag, a cookie tin, and an inflatable rubber raft.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+>footnote 2
+Okay, it's not all that large.  Medium-sized sounds so weak, though.
+
+>x trophy
+It's shaped like a big cup, and looks to be made of silver.
+
+>x alcove
+It's a small, arched alcove, set high up on the wall, near the ceiling.
+
+A trophy is visible in a small alcove set into the top of one wall.
+
+>smell
+The flowers have a pleasant fragrance.
+
+>smell flowers
+The flowers have a strong, well, flowery fragrance.
+
+>smell vase
+The flowers have a pleasant fragrance.
+
+>listen
+You hear nothing out of the ordinary.
+
+>look in alcove
+A trophy is visible in a small alcove set into the top of one wall.
+
+>get the trophy
+You can't reach the trophy from here; the alcove is too high up.  You might be
+able to reach the alcove if you were standing on something.
+
+>stand on table
+Okay, you're now standing on the table.
+
+Bill stands on the table.
+
+>get the trophy
+Taken.
+
+Bob stands on the table.
+
+>get off table
+Okay, you're no longer on the table.
+
+Bill gets off of the table.
+
+>n
+(first opening the door)
+
+Back Yard
+This small yard has a well-kept lawn.  The edges of the yard are defined by
+thick, tall hedges.  An old garden shed occupies the northwest corner of the
+yard.  A door into the house is to the south.
+
+In the center of the yard, floating in mid-air, is a red sphere.
+
+Bill enters through the back door of the house.
+
+>x sphere
+The red sphere floats unnervingly in mid-air, with no apparent mechanical means
+of suspension.  It does not hover like a balloon, but seems absolutely still,
+as though firmly attached to an invisible pole.
+
+Bob enters through the back door of the house.
+
+>get it
+The sphere is strangely fixed in place; it resists your attempts to move it.
+It does seem to be able to rotate freely on its vertical axis, though, so you
+could probably turn it if you wanted to.
+
+>open it
+That is not something you can open.
+
+>eat it
+The red sphere does not appear to be edible.
+
+>put it in the duffel
+(first trying to take the red sphere)
+The sphere is strangely fixed in place; it resists your attempts to move it.
+It does seem to be able to rotate freely on its vertical axis, though, so you
+could probably turn it if you wanted to.
+
+>turn it
+Although the sphere is immovably fixed in space, it rotates so freely that it
+feels weightless.  You give it the lightest touch, and it starts spinning
+wildly, so fast that it becomes a featureless, glowing blur.  After a few
+moments, it abruptly comes to a stop, and you see that its color has changed to
+blue.
+
+>push it
+The sphere is strangely fixed in place; it resists your attempts to move it.
+It does seem to be able to rotate freely on its vertical axis, though, so you
+could probably turn it if you wanted to.
+
+>x door
+Which door do you mean, the door of the shed, or the back door of the house?
+
+>both
+back door of the house: It leads south, into the house.  It's open.
+
+door of the shed: It leads into the shed.  It's closed.
+
+>close door
+You close the back door of the house.
+
+>open door
+Which door do you mean, the door of the shed, or the back door of the house?
+
+>back door
+Opened.
+
+>nw
+(first opening the door of the shed)
+
+Shed
+There's barely room to stand up or turn around in this tiny storage space.  The
+north wall has a few deep shelves, but otherwise the structure is featureless.
+A door leads out to the southeast.
+
+On the shelf are a flashlight, a box of rat poison, and a book of matches.
+
+Bill enters through the door.
+
+>eat rat poison
+It's not very tasty, but it sure is deadly.
+
+*** YOU HAVE DIED ***
+
+Would you like to RESTORE a saved position, RESTART the story, UNDO the last
+move, see the CREDITS, or QUIT?
+
+>undo
+Taking back one turn: "eat rat poison".
+
+Shed
+There's barely room to stand up or turn around in this tiny storage space.  The
+north wall has a few deep shelves, but otherwise the structure is featureless.
+A door leads out to the southeast.
+
+On the shelf are a flashlight, a box of rat poison, and a book of matches.
+
+Bill is standing here.
+
+>look in box
+It's full of white powder.
+
+Bob enters through the door.
+
+>x book of matches
+It's closed.
+
+>x matches
+It's closed.
+
+>get flashlight
+Taken.
+
+>get matches
+Taken.
+
+>x it
+It's closed.
+
+>open it
+Opening the book of matches reveals five matches.
+
+>x matches
+It's open, and contains five matches.
+
+>get two matches
+match:
+(first opening the duffel bag, then putting the keyring in it to make room)
+Taken.
+
+match:
+(first putting the trophy in the duffel bag to make room)
+Taken.
+
+>i
+You are carrying a duffel bag (which contains a keyring and a trophy), a
+flashlight, a book of matches (which contains three matches), and two matches.
+
+>x matches
+match: The match is an ordinary match.
+
+match: The match is an ordinary match.
+
+book of matches: It's open, and contains three matches.
+
+>get match
+(first putting the flashlight in the duffel bag to make room)
+You take the match.
+
+>light match
+You strike the match, igniting a small flame.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, and a
+flashlight), a book of matches (which contains two matches), and three matches
+(one lit).
+
+>extinguish match
+You put out the match, which disappears into a cloud of ash.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, and a
+flashlight), a book of matches (which contains two matches), and two matches.
+
+>undo
+Taking back one turn: "i".
+
+Shed
+There's barely room to stand up or turn around in this tiny storage space.  The
+north wall has a few deep shelves, but otherwise the structure is featureless.
+A door leads out to the southeast.
+
+On the shelf is a box of rat poison.
+
+Bob and Bill are standing here.
+
+>undo
+Taking back one turn: "extinguish match".
+
+Shed
+There's barely room to stand up or turn around in this tiny storage space.  The
+north wall has a few deep shelves, but otherwise the structure is featureless.
+A door leads out to the southeast.
+
+On the shelf is a box of rat poison.
+
+Bob and Bill are standing here.
+
+>drop match
+Which match do you mean, an unlit match, or the lit match?
+
+>unlit
+Which match do you mean, one of your matches, or a match in your book of
+matches?
+
+>one of my matches
+Dropped.
+
+The match finishes burning, and disappears into a cloud of ash.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, and a
+flashlight), a book of matches (which contains two matches), and a match.
+
+>l
+Shed
+There's barely room to stand up or turn around in this tiny storage space.  The
+north wall has a few deep shelves, but otherwise the structure is featureless.
+A door leads out to the southeast.
+
+You see a match here.  On the shelf is a box of rat poison.
+
+Bob and Bill are standing here.
+
+>get match
+You take the match.
+
+>x door
+It leads out of the shed.  It's open.
+
+>out
+Back Yard
+This small yard has a well-kept lawn.  The edges of the yard are defined by
+thick, tall hedges.  An old garden shed occupies the northwest corner of the
+yard.  A door into the house is to the south.
+
+In the center of the yard, floating in mid-air, is a blue sphere.
+
+Bill enters through the door of the shed.
+
+>close door
+(the door of the shed)
+Closed.
+
+Someone opens the door of the shed from the other side.
+
+Bob enters through the door of the shed.
+
+>s
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle, a white candle, a stretchy bag, a cookie tin,
+and an inflatable rubber raft.
+
+The flowers have a pleasant fragrance.
+
+Bill enters through the door.
+
+>get raft
+(first putting the book of matches in the duffel bag to make room)
+Taken.
+
+Bob enters through the door.
+
+>put it in the tin
+Done.
+
+>inflate it
+You cannot do that because it would make the inflatable rubber raft too large
+for the cookie tin.
+
+>put it in the stretchy bag
+(first taking the inflatable rubber raft)
+Done.
+
+>put stretchy bag in tin
+(first taking the stretchy bag)
+Done.
+
+>inflate raft
+You cannot do that because it would make the stretchy bag too large for the
+cookie tin.
+
+>get bag
+You take the stretchy bag.
+
+>inflate raft
+You cannot do that because the stretchy bag would become too large for you to
+hold.
+
+>drop bag
+Which bag do you mean, the stretchy bag, or the duffel bag?
+
+>stretchy
+Dropped.
+
+>inflate raft
+It takes all your strength, but you manage to blow up the raft.  You might feel
+light-headed for a bit.
+
+>get bag
+The stretchy bag is too large for you to hold.
+
+>put bag in tin
+(the duffel bag)
+Done.
+
+>undo
+Taking back one turn: "put bag in tin".
+
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+You see a stretchy bag (which contains an inflatable rubber raft) here.  On the
+table are a red candle, a white candle, and a cookie tin.
+
+Bob and Bill are standing here.
+
+The flowers have a pleasant fragrance.
+
+>put stretchy bag in tin
+(first trying to take the stretchy bag)
+The stretchy bag is too large for you to hold.
+
+>deflate raft
+You let the air out of the raft, which flattens into a bunched-up pile of
+yellow rubber.
+
+>put stretchy bag in tin
+(first taking the stretchy bag)
+Done.
+
+>get tin
+Taken.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, a
+flashlight, and a book of matches (which contains two matches)), two matches,
+and a cookie tin (which contains a stretchy bag (which contains an inflatable
+rubber raft)).
+
+>l
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle and a white candle.
+
+Bob and Bill are standing here.
+
+The flowers have a pleasant fragrance.
+
+>light white candle
+(with your match)
+(first lighting the match)
+You light the white candle.
+
+>x white candle
+The candle has barely been used.  It's lit.
+
+The match finishes burning, and disappears into a cloud of ash.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, a
+flashlight, and a book of matches (which contains two matches)), a match, and a
+cookie tin (which contains a stretchy bag (which contains an inflatable rubber
+raft)).
+
+>s
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar, a
+green jar (which contains two copper coins), a blue test booklet, a brass key,
+a brown box, a tricycle, a rusty key, a green ball, an 8-ball, a large red
+ball, eight coins (five gold and three silver), and a phone book here.
+
+Bill enters from the north.
+
+>push tv north
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle and a white candle (providing light).
+
+Bob is standing here.
+
+The flowers have a pleasant fragrance.
+
+You push the television into the area.
+
+Bob leaves to the south.
+
+Bill enters from the south.
+
+>bob, sit on light chair
+You see no bob here.
+
+>z
+Time passes...
+
+Bob enters from the south.
+
+>bob, sit on lighter chair
+Bob sits on the lighter chair.
+
+>bill, sit on chair
+Bill sits on the darker chair.
+
+>push tv north
+The television's casters are too small to allow the TV to go beyond this point.
+
+>push tv south
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar, a
+green jar (which contains two copper coins), a blue test booklet, a brass key,
+a brown box, a tricycle, a rusty key, a green ball, an 8-ball, a large red
+ball, eight coins (five gold and three silver), and a phone book here.
+
+You push the television into the area.
+
+>push tv south
+The television's casters are too small to allow the TV to go beyond this point.
+
+>w
+Platform Room
+This room is obviously highly contrived.  Filling one end of the room is a
+platform, almost like a theater stage, raised a couple of feet above the floor.
+At opposite ends of the platform are two smaller platforms, one red and one
+blue; atop each smaller platform is a chair of the same color as its platform.
+In the center of the main platform is a raised dais, upon which are a wooden
+stool and a leather armchair.
+
+The only exit is east.
+
+On the main platform is a large white box, about waist high and quite roomy.
+
+A small trap door is set into the floor of the box.
+
+The beeper is making a piercing beeping noise.
+
+>sit in box
+(first standing on the main platform)
+Okay, you're now sitting in the white box.
+
+>close box
+You close the white box.
+
+It is now pitch black.
+
+You can hear a high-pitched beeping noise.
+
+>listen
+You can hear a high-pitched beeping noise.
+
+>get pager
+Taken.
+
+>x it
+It's too dark to do that.
+
+>light flashlight
+You see no flashlight here.
+
+>i
+You are carrying a duffel bag, a match, a cookie tin, and a beeper.
+
+You can hear a high-pitched beeping noise.
+
+>look in duffel
+It's too dark to do that.
+
+>open box
+You open the white box.
+
+Platform Room (sitting in the white box)
+This room is obviously highly contrived.  Filling one end of the room is a
+platform, almost like a theater stage, raised a couple of feet above the floor.
+At opposite ends of the platform are two smaller platforms, one red and one
+blue; atop each smaller platform is a chair of the same color as its platform.
+In the center of the main platform is a raised dais, upon which are a wooden
+stool and a leather armchair.
+
+The only exit is east.
+
+On the main platform is a white box.
+
+A small trap door is set into the floor of the box.
+
+>get flashl
+Taken.
+
+>i
+You are carrying a duffel bag (which contains a keyring, a trophy, and a book
+of matches (which contains two matches)), a match, a cookie tin (which contains
+a stretchy bag (which contains an inflatable rubber raft)), a beeper, and a
+flashlight.
+
+The beeper is making a piercing beeping noise.
+
+>close box
+You close the white box.
+
+It is now pitch black.
+
+>i
+You are carrying a duffel bag, a match, a cookie tin, a beeper, and a
+flashlight.
+
+You can hear a high-pitched beeping noise.
+
+>light flashlight
+Okay, the flashlight is now on.
+
+White box (sitting)
+You are sitting in the white box.
+
+A small trap door is set into the floor of the box.
+
+>e
+You can't go that way.  Obvious exits lead down and out.
+
+>open box
+You open the white box.
+
+>e
+(first standing up, then getting out of the white box, then getting off of the
+main platform)
+
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar, a
+green jar (which contains two copper coins), a blue test booklet, a brass key,
+a brown box, a tricycle, a rusty key, a green ball, an 8-ball, a large red
+ball, eight coins (five gold and three silver), and a phone book here.
+
+The beeper is making a piercing beeping noise.
+
+>put copper coin in jar
+(first putting the match in the duffel bag to make room, then opening the green
+jar, then taking the copper coin)
+You put the copper coin in the clear jar.
+
+>x jra
+The word "jra" is not necessary in this story.
+
+(If this was an accidental misspelling, you can correct it by typing OOPS
+followed by the corrected word now.  Any time the story points out an unknown
+word, you can correct a misspelling using OOPS as your next command.)
+
+>x jar
+Which jar do you mean, the green jar, or the clear jar?
+
+>both
+clear jar: It's made of clear glass.  It's open, and contains a copper coin.
+
+green jar: It's made of transparent green glass.  It's open, and contains a
+copper coin.
+
+>e
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+On the desk are a watch, a pen cup, a jar of Bob's Brand Premium Fish Cleaner,
+and a bottle (which contains a model ship).  The pen cup contains four pens.
+
+The phone is ringing.
+
+>w
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar (which
+contains a copper coin), a green jar (which contains a copper coin), a blue
+test booklet, a brass key, a brown box, a tricycle, a rusty key, a green ball,
+an 8-ball, a large red ball, eight coins (five gold and three silver), and a
+phone book here.
+
+The beeper is making a piercing beeping noise.
+
+>n
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle and a white candle (providing light).
+
+Bill is sitting on the darker chair.
+
+Bob is sitting on the lighter chair.
+
+The flowers have a pleasant fragrance.
+
+The white candle burns down too far to stay lit, and goes out.
+
+>bob, s, e.
+Bob stands up.
+
+Bob leaves to the south.
+
+>bill, s, e
+Bill stands up.
+
+Bill leaves to the south.
+
+The beeper is making a piercing beeping noise.
+
+>s
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar (which
+contains a copper coin), a green jar (which contains a copper coin), a blue
+test booklet, a brass key, a brown box, a tricycle, a rusty key, a green ball,
+an 8-ball, a large red ball, eight coins (five gold and three silver), and a
+phone book here.
+
+>e
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+On the desk are a watch, a pen cup, a jar of Bob's Brand Premium Fish Cleaner,
+and a bottle (which contains a model ship).  The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is ringing.
+
+>bob, get bob's fish cleaner
+Bob takes the jar of Bob's Brand Premium Fish Cleaner.
+
+The beeper is making a piercing beeping noise.
+
+>x bob's fish cleaner
+It presumably once held fish cleaner (whatever that is), but it's just an empty
+jar now.
+
+The phone is still ringing.
+
+>x bill's fish cleaner
+Bill does not appear to have any such thing.
+
+>bob, drop fish cleaner. bill, get fish cleaner.
+Bob puts down the jar of Bob's Brand Premium Fish Cleaner.
+
+Bill takes the jar of Bob's Brand Premium Fish Cleaner.
+
+>x bill's fish cleaner
+It presumably once held fish cleaner (whatever that is), but it's just an empty
+jar now.
+
+The beeper is making a piercing beeping noise.
+
+>x bob's fish cleaner
+It presumably once held fish cleaner (whatever that is), but it's just an empty
+jar now.
+
+The phone is still ringing.
+
+>x bill's bob's fish cleaner
+It presumably once held fish cleaner (whatever that is), but it's just an empty
+jar now.
+
+>x bob's bill's fish cleaner
+You see no bob's bill here.
+
+>n
+You can't go that way.  The only obvious exit leads west, back to the living
+room.
+
+>x bookcase
+It's a floor-to-ceiling bookcase built in to the north wall, behind the desk,
+filled with hundreds of dusty tomes.
+
+The beeper is making a piercing beeping noise.
+
+>open it
+That is not something you can open.
+
+>x passage
+You see no passage here.
+
+>x lever
+You see no lever here.
+
+>x panel
+You see no panel here.
+
+>push button
+A previously hidden panel in the side of the desk opens, revealing a small
+compartment containing a lever.
+
+>x panel
+It's a small compartment, just large enough to contain the lever it enclosed.
+
+>x passage
+You see no passage here.
+
+>pull lever
+The lever is surprisingly heavy, but you manage to pull it all the way out.  At
+the end of its travel, something under the floor clicks, and the bookcase
+behind the desk slides sideways far enough to open a passage to the north.  As
+soon as you release the lever, it springs back to its original position.
+
+The beeper is making a piercing beeping noise.
+
+>x passage
+It leads north.
+
+The phone is still ringing.
+
+>x bookcase
+It's a floor-to-ceiling bookcase built in to the north wall, behind the desk,
+filled with hundreds of dusty tomes.  The bookcase is evidently a secret door,
+because it has moved sideways to expose a passage to the north.
+
+>n
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+>s
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+The bookcase has moved aside to reveal a passage to the north.
+
+On the desk are a watch, a pen cup, and a bottle (which contains a model ship).
+The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is ringing.
+
+The beeper is making a piercing beeping noise.
+
+>close psasage
+The word "psasage" is not necessary in this story.
+
+>close passage
+That is not something you can close.
+
+>open it
+That is not something you can open.
+
+The phone is still ringing.
+
+>n
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+>d
+Bottom of Stairs
+This is the bottom of a narrow spiral staircase.  Apart from the stairs, the
+only exit is the door to the south.
+
+You see a washing machine here.
+
+The beeper is making a piercing beeping noise.
+
+>turn off flashl
+Okay, the flashlight is now off.
+
+It is now pitch black.
+
+>u
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+>
+I beg your pardon?
+
+>d
+In the dark
+It's pitch black.
+
+>s
+It's too dark; you can't see where you're going.
+
+You can hear a high-pitched beeping noise.
+
+>light flashl
+Okay, the flashlight is now on.
+
+Bottom of Stairs
+This is the bottom of a narrow spiral staircase.  Apart from the stairs, the
+only exit is the door to the south.
+
+You see a washing machine here.
+
+>s
+(first trying to open the iron door)
+The iron door seems to be locked.
+
+>u
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+>s
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+The bookcase has moved aside to reveal a passage to the north.
+
+On the desk are a watch, a pen cup, and a bottle (which contains a model ship).
+The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is ringing.
+
+The beeper is making a piercing beeping noise.
+
+>w
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, an iron key, a clear jar (which
+contains a copper coin), a green jar (which contains a copper coin), a blue
+test booklet, a brass key, a brown box, a tricycle, a rusty key, a green ball,
+an 8-ball, a large red ball, eight coins (five gold and three silver), and a
+phone book here.
+
+>get keys
+brass key: You pick up the brass key and attach it to the keyring.
+rusty key: You pick up the rusty key and attach it to the keyring.
+iron key: You pick up the iron key and attach it to the keyring.
+
+>e
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+The bookcase has moved aside to reveal a passage to the north.
+
+On the desk are a watch, a pen cup, and a bottle (which contains a model ship).
+The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is ringing.
+
+>n
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+The beeper is making a piercing beeping noise.
+
+>d
+Bottom of Stairs
+This is the bottom of a narrow spiral staircase.  Apart from the stairs, the
+only exit is the door to the south.
+
+You see a washing machine here.
+
+>s
+(first trying to open the iron door)
+The iron door seems to be locked.
+
+>unlock door
+(first taking the keyring from the duffel bag)
+You try each key on the keyring, and find that the iron key fits the lock.
+Unlocked.
+
+>drop keys
+brass key: Dropped.
+rusty key: Dropped.
+iron key: Dropped.
+
+The beeper is making a piercing beeping noise.
+
+>s
+(first opening the iron door)
+
+Tunnel
+This low, narrow tunnel is walled in old, dark gray concrete or something
+similar.  The walls curve inward at shoulder level to form an arched ceiling
+just barely high enough at the center to allow walking without bending your
+neck.  The passage ends to the north at an iron door, and ends at the south in
+an earthen wall.  A narrow side passage leads west.
+
+>n
+Bottom of Stairs
+This is the bottom of a narrow spiral staircase.  Apart from the stairs, the
+only exit is the door to the south.
+
+You see a washing machine, a brass key, a rusty key, and an iron key here.
+
+>lock door
+What do you want to lock it with?
+
+>iron key
+(first closing the iron door, then putting the cookie tin in the duffel bag to
+make room, then taking the iron key)
+Locked.
+
+>dorp key
+The word "dorp" is not necessary in this story.
+
+>drop key
+You drop the iron key.
+
+The beeper is making a piercing beeping noise.
+
+>s
+(first trying to open the iron door)
+The iron door seems to be locked.
+
+>i
+You are carrying a duffel bag (which contains a trophy, a book of matches
+(which contains two matches), a match, and a cookie tin (which contains a
+stretchy bag (which contains an inflatable rubber raft))), a beeper, a
+flashlight (providing light), and a keyring.
+
+The beeper is making a piercing beeping noise.
+
+>x trophy
+It's shaped like a big cup, and looks to be made of silver.
+
+>x washer
+It's a beat-up old washing machine.  A big dial is the only obvious control.
+It's closed.
+
+>x dial
+The dial has stops labeled Wash, Rinse, Spin, and Stop.  It's currently set to
+Wash.
+
+>open washer
+Opened.
+
+The beeper is making a piercing beeping noise.
+
+>look in it
+You see nothing unusual in the washing machine.
+
+>close it
+Closed.
+
+>x dial
+The dial has stops labeled Wash, Rinse, Spin, and Stop.  It's currently set to
+Wash.
+
+>turn dial to hello
+The control dial has no such setting.
+
+The beeper is making a piercing beeping noise.
+
+>turn dial to asdf
+The control dial has no such setting.
+
+>turn dial to 7
+The control dial has no such setting.
+
+>turn dial to STOP
+Okay, the control dial is now set to Stop.
+
+>turn dial to Spin
+Okay, the control dial is now set to Spin.
+
+The beeper is making a piercing beeping noise.
+
+>turn dial to rinse
+Okay, the control dial is now set to Rinse.
+
+>x dial
+The dial has stops labeled Wash, Rinse, Spin, and Stop.  It's currently set to
+Rinse.
+
+>u
+Top of Stairs
+This is the top of a narrow spiral staircase that leads down a dark shaft
+walled in rough brown bricks.  A passage leads south.
+
+>s
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+Someone has jabbed a dagger into the top of the desk, leaving the dagger
+sticking up almost vertically.
+
+The bookcase has moved aside to reveal a passage to the north.
+
+On the desk are a watch, a pen cup, and a bottle (which contains a model ship).
+The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is ringing.
+
+The beeper is making a piercing beeping noise.
+
+>x ship
+It's a miniature model of a sailing ship.
+
+>get it
+(first putting the beeper in the duffel bag to make room)
+You can't do that because the model ship is too big to take out of the bottle.
+
+The phone is still ringing.
+
+>get dagger
+Taken.
+
+>l
+Den
+This small room is dominated by a desk, a massive steel edifice painted a drab
+gray, something that would be more at home in a government office during the
+cold war.  Behind the desk, built in to the north wall, is a bookcase.  A
+passage leads west.
+
+A big, old-fashioned manual typewriter is sitting on the desk.
+
+The bookcase has moved aside to reveal a passage to the north.
+
+On the desk are a watch, a pen cup, and a bottle (which contains a model ship).
+The pen cup contains four pens.
+
+Bill and Bob are standing here.
+
+The phone is still ringing.
+
+The beeper is making a piercing beeping noise.
+
+>x passage
+It leads north.
+
+>x bookcase
+It's a floor-to-ceiling bookcase built in to the north wall, behind the desk,
+filled with hundreds of dusty tomes.  The bookcase is evidently a secret door,
+because it has moved sideways to expose a passage to the north.
+
+>x typewriter
+It's big, black, manual typewriter, like something out of an old black-and-
+white movie about newspapermen or private detectives.  There's a piece of paper
+in it.
+
+>type Hello therE on typewriter
+With some effort, you work the keys of the ancient machine, noisily impressing
+"Hello therE" on the paper.
+
+The beeper is making a piercing beeping noise.
+
+The phone is still ringing.
+
+>type GoodBye
+(on the typewriter)
+With some effort, you work the keys of the ancient machine, noisily impressing
+"GoodBye" on the paper.
+
+>x paper
+The typewritten letters on the page have that uneven darkness and wandering
+alignment characteristic of the work a well-worn manual typewriter:
+
+   Hello therE
+   GoodBye
+
+>read it
+The typewritten letters on the page have that uneven darkness and wandering
+alignment characteristic of the work a well-worn manual typewriter:
+
+   Hello therE
+   GoodBye
+
+>listen
+The beeper is making a piercing beeping noise.
+
+The phone is still ringing.
+
+>answer phone
+You pick up the handset, but there's nothing but static on the line.  At least
+it stops ringing.  You put the handset back, and the phone starts ringing
+again.
+
+>w
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, a clear jar (which contains a
+copper coin), a green jar (which contains a copper coin), a blue test booklet,
+a brown box, a tricycle, a green ball, an 8-ball, a large red ball, eight coins
+(five gold and three silver), and a phone book here.
+
+>listen
+The beeper is making a piercing beeping noise.
+
+>smell
+You smell nothing out of the ordinary.
+
+>n
+Dining Room
+This medium-sized room has a dining table and a couple of chairs, one
+upholstered in dark fabric and other in light fabric.  A door (open) leads
+north.
+
+A small alcove is set near the top of one wall, up near the ceiling.
+
+A bouquet of flowers is arranged in a vase in the center of the table.
+
+On the table are a red candle and a white candle.
+
+The flowers have a pleasant fragrance.
+
+>listen
+The beeper is making a piercing beeping noise.
+
+>smell
+The flowers have a pleasant fragrance.
+
+>s
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, a clear jar (which contains a
+copper coin), a green jar (which contains a copper coin), a blue test booklet,
+a brown box, a tricycle, a green ball, an 8-ball, a large red ball, eight coins
+(five gold and three silver), and a phone book here.
+
+>s
+Front Yard
+This is a small yard in front of a modest house.  The front door to the house
+leads in to the north.  To the south is the street.
+
+You see seven red balloons (two inflated, one uninflated, four popped), three
+blue balloons (two inflated, one uninflated), and five green balloons (all
+popped) here.
+
+A youngish man in a garish suit is standing in the yard near the front door.
+
+The man in the bad suit walks up to you and extends his hand; by habit you
+shake his hand.  "Hello, friend!  My name is Ron, and I represent the Acturial
+Life Insurance Company."  He releases your hand after a vigorous shaking.  "You
+know, a lot of people I talk to don't know just how important life insurance is
+to proper financial planning.  Let me ask you this: do you have all the life
+insurance coverage you and your family need?"
+
+A couple of bicyclists pedal past on the street.
+
+>yes
+"I'm covered," you say.
+
+Ron smiles and nods.  "You know, a lot of people think they're covered.  But
+have you really read your insurance policy?  Most insurance policies have so
+many exclusions and limitations that you just can't rely on them.  That's why
+Acturial Life created a new kind of insurance policy.  Let me tell you about
+it..."
+
+The beeper is making a piercing beeping noise.
+
+>ask ron about policy
+"Okay, tell me about your policy," you say.
+
+"Our policy is the best in the business," Ron says.  "For starters, it's
+guaranteed go pay, which most policies aren't.  There's so much more I can tell
+you."
+
+A car drives past.
+
+>bye
+"Thanks, but not right now," you say.
+
+"I'll be here when you're ready!" the salesman says.
+
+>z.z.z.z.z
+Time passes...
+
+Time passes...
+
+The beeper is making a piercing beeping noise.
+
+Time passes...
+
+A couple of bicyclists pedal past on the street.
+
+Time passes...
+
+Time passes...
+
+>n
+Living Room
+It's a nice, big room.  A potted plant is the only attempt at decoration.
+Passages lead north, east, and west.  To the south, the front door of the house
+leads outside.
+
+An old television, a huge, boxy, massive-looking thing, sits on the floor.
+
+You see a PO Box, a small red ball, a red book, a clear jar (which contains a
+copper coin), a green jar (which contains a copper coin), a blue test booklet,
+a brown box, a tricycle, a green ball, an 8-ball, a large red ball, eight coins
+(five gold and three silver), and a phone book here.
+
+The beeper is making a piercing beeping noise.
+
+>s
+Front Yard
+This is a small yard in front of a modest house.  The front door to the house
+leads in to the north.  To the south is the street.
+
+You see seven red balloons (two inflated, one uninflated, four popped), three
+blue balloons (two inflated, one uninflated), and five green balloons (all
+popped) here.
+
+The salesman is standing in the yard.
+
+Ron walks up to you.  "Hello again, friend!  It would be my pleasure to help
+you with your insurance needs."
+
+>z.z.z.z.z.
+Time passes...
+
+The salesman says, "I'm really glad I was in the neighborhood today.  Everyone
+needs more insurance than they think."
+
+Time passes...
+
+The salesman looks serious for a moment.  "Most people don't know this, but
+death is our number one killer," he says earnestly.  He goes back to smiling.
+"Fortunately, death is covered under our policy's loss-of-life section."
+
+Time passes...
+
+Ron says, "You know, life insurance is a lot more interesting than most people
+think."
+
+The beeper is making a piercing beeping noise.
+
+Time passes...
+
+The salesman says, "I'm really glad I was in the neighborhood today.  Everyone
+needs more insurance than they think."
+
+A car drives past.
+
+Time passes...
+
+Ron says, "You know, life insurance is a lot more interesting than most people
+think."
+
+>ask ron about company
+"I've never heard of your company," you say.
+
+"Most people haven't," Ron says.  "We're the best-kept secret in the business."
+
+>quit
+Do you really want to quit? (Y is affirmative) > yes
+
+Thanks for playing the Library Sample Game!
+

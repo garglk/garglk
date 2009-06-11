@@ -1,0 +1,107 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export listprop.t -> listprop.t3s
+	compile _main.t -> _main.t3o
+	compile listprop.t -> listprop.t3o
+listprop.t(8): warning: value is assigned to local variable "x" but the value is never used
+	link -> listprop.t3
+Errors:   0
+Warnings: 1
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[1, 2, 3, 4, 5, 6], keep>3 = [4, 5, 6]
+lst = [6, 5, 4, 3, 2, 1], keep>3 = [6, 5, 4]
+lst = [6, 5, 4, 3, 2, 1, 9, 0, 10, -1, 11, -2], keep>3 = [6, 5, 4, 9, 10, 11]
+lst = [6, 5, 4, 3, 2, 1, 9, 0, 10, -1, 11, -2], *100 = [600, 500, 400, 300,
+200, 100, 900, 0, 1000, -100, 1100, -200]
+
+Concatenating list to itself: [6, 5, 4, 3, 2, 1, 9, 0, 10, -1, 11, -2, 6, 5, 4,
+3, 2, 1, 9, 0, 10, -1, 11, -2]
+
+forEach: 6; 5; 4; 3; 2; 1; 9; 0; 10; -1; 11; -2; 6; 5; 4; 3; 2; 1; 9; 0; 10; -
+1; 11; -2;
+
+indexOf 6: 1
+indexOf -2: 12
+indexOf 9: 7
+indexOf 123:
+
+indexWhich x > 0: 1
+indexWhich x > 7: 7
+indexWhich x < 0: 10
+indexWhich x > 1000:
+
+valWhich x > 0: 6
+valWhich x > 7: 9
+valWhich x < 0: -1
+valWhich x < 4: 3
+valWhich x > 2000:
+
+lastIndexOf 6: 13
+lastIndexOf -2: 24
+lastIndexOf 9: 19
+lastIndexOf 123:
+
+lastIndexWhich x > 0: 23
+lastIndexWhich x < 0: 24
+lastIndexWhich x > 10: 23
+lastIndexWhich x > 2000:
+
+lastValWhich x > 0: 11
+lastValWhich x < 0: -2
+lastValWhich x > 500:
+lastValWhich x > 2000:
+
+countOf 6: 2
+countOf 5: 2
+countOf -2: 2
+countOf 123: 0
+
+countWhich x > 0: 18
+countWhich x > 2000: 0
+countWhich x < 2000: 24
+
+getUnique: [6, 5, 4, 3, 2, 1, 9, 0, 10, -1, 11, -2]
+getUnique [5, 1, 5, 2, 5, 5, 2, 7]: [5, 1, 2, 7]
+
+appendUnique: [1, 2, 3, 4, 5, 6, 8, 10, 12]
+appendUnique: [1, 2, 3, 4, 5, 6, 7]
+appendUnique: [1, 2, 3, 4, 5, 6]
+appendUnique: [1, 2, 3, 4, 5, 6, 9, 11]
+
+append 77: [1, 2, 3, 4, 5, 6, 77]
+append [11,22,33]: [1, 2, 3, 4, 5, 6, [11, 22, 33]]
+
+sort: [1, 3, 5, 6, 7, 8, 9, 11, 17, 20]
+sort descending: [20, 17, 11, 9, 8, 7, 6, 5, 3, 1]
+sort in string ordering: [1, 11, 17, 20, 3, 5, 6, 7, 8, 9]
+
+prepend: [99, 88, 77, 1, 2, 3, 4, 5]
+
+insert1: [1, 2, 3, 10, 20, 30, 40, 50]
+insert2: [1, 2, 3, 10, 20, 30, 40, 50, 44, 55, 66]
+insert3: [1, 2, 3, 10, 777, 888, 999, 20, 30, 40, 50, 44, 55, 66]
+
+removeAt(6): [1, 2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55, 66]
+removeAt(1): [2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55, 66]
+removeAt(length): [2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55]
+
+removeRange(3, 7): [2, 3, 40, 50, 44, 55]
+removeRange(1, 2): [40, 50, 44, 55]
+removeRange(length-1, length): [40, 50]
+
+'goodbye', len = 7
+str = 'hello', len = 5
+str = 'hello!!!', len = 8
+'goodbye', substr(5) = bye
+'goodbye', substr(4, 2) = db
+str = 'hello there', substr(5) = o there
+str = 'hello there', substr(4, 2) = lo
+str = 'hello there!!!', substr(5) = o there!!!
+str = 'hello there!!!', substr(4, 2) = lo
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

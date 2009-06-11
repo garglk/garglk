@@ -1,0 +1,167 @@
+#
+# Makefile for Atari TADS
+# 
+# This makefile is based on the generic Unix makefile.
+#
+# NOTE: This hasn't been tested in quite some time, so you will probably
+# have to make some changes to get everything working.
+#
+# NOTE: You must have a version of Make that supports the VPATH variable
+# to use this makefile.  If you don't have one, get GNU Make from 
+# <ftp://ftp.gnu.ai.mit.edu/pub/gnu>.
+#
+
+#
+# The directory the system-independent source files are in,
+# relative to this directory.
+#
+SRCDIR=..
+
+#
+# The directory the Unix-specific sources are in, relative to SRCDIR.
+#
+ATARISRCDIR=.
+
+#
+# We get some files from the Unix directory
+#
+UNIXSRCDIR=../unix
+
+#
+# Set VPATH so that Make looks in the right places for source files.
+#
+VPATH=$(ATARISRCDIR):$(UNIXSRCDIR):$(SRCDIR)
+
+#
+# Places to look for include files.
+#
+INCLUDES=-I$(ATARISRCDIR) -I$(UNIXSRCDIR) -I$(SRCDIR) 
+
+#
+# Current patchlevel of Unix sources.  This applies to all
+# machines.  Use -DSYSPATCHLEVEL=\"<string>\" for single-machine
+# patches.
+#
+# Note that this is a *string*.
+#
+UNIXPATCHLEVEL= -DUNIXPATCHLEVEL=\"1\"
+
+#
+# Names of various maintiners
+#
+DAVE="Dave Baggett <dmb@ai.mit.edu>"
+
+#
+# Atari ST (TOS) running GCC 2.3.1
+#
+# Caveats:
+#
+# - Will not work with GCC 2.4.4
+#
+# NOTES:  
+#
+#	To get this to run Unnkulia Zero on a 512K ST, you have to
+#	compile with full optimization and disable SCROLLBACK mode.
+#	Also have to change stacksize to 32000 with fixstk.
+#
+#	Had to add a prototype to osgen.c for the case when USE_SCROLLBACK
+#       is not defined.
+#
+CC=gcc
+OPTIMIZE=-O2
+UNIXFLAGS=-v -g -DOSANSI -DUNIX -DATARI  # Need -DUNIX to get some things
+SYSFLAGS= -DOS_SYSTEM_NAME=\""ATARI_ST"\" -DOS_SYSTEM_LDESC=\""Atari ST/TT/Falcon running TOS"\" -DSYSPL=\"1\" -DSYSMAINTAINER=\"$(DAVE)\"
+CFLAGS= $(UNIXFLAGS) $(SYSFLAGS) -DATARI -mshort -DUSE_SCROLLBACK 
+AFLAGS=
+OVLFLG=
+MACHDEP=osatari.o
+LIBS=-lgem16
+
+
+# library object files
+LIBOBJS= ler.o
+
+# objects in common to all executables
+UNIXOBJS=
+
+COMMONOBJS= $(LIBOBJS) $(UNIXOBJS) mcm.o mcs.o mch.o obj.o cmd.o \
+            errmsg.o dummy.o fioxor.o os0.o oserr.o runstat.o \
+	    fio.o getstr.o
+
+CMNRUNOBJS= $(COMMONOBJS) \
+            dat.o lst.o run.o out.o voc.o bif.o \
+	    output.o suprun.o
+
+# objects for run-time
+RUNOBJS= vocab.o execmd.o ply.o qas.o
+
+TCAPOBJS= tputs.o tparm.o $(MACHDEP)
+
+# extra objects for character-mode run-time
+CHAROBJS= os0tr_un.o bifgdum.o osgen.o osr.o osgenr.o
+
+# objects for compiler (includes run-time objects)
+COMPOBJS= linf.o prs.o prscomp.o emt.o sup.o fiowrt.o tok.o 
+          objcomp.o osgen.o tokth.o dbg.o voccomp.o bifgdum.o
+
+TCOBJS= $(CMNRUNOBJS) $(COMPOBJS) tcgdum.o $(TCAPOBJS) os0tc_un.o tcd.o
+
+TPOBJS= $(CMNRUNOBJS) \
+        linf.o linm.o prs.o emt.o sup.o tok.o fio.o \
+        objcomp.o getstr.o $(MACHDEP) osgen.o tokth.o \
+        dbg.o voccomp.o bifgdum.o qas.o tpd.o vocab.o \
+        execmd.o dbgrun.o runstat.o ply.o
+
+TCGOBJS= $(COMPOBJS) tcg.o
+
+TROBJS= $(CMNRUNOBJS) $(RUNOBJS) linfdum.o $(CHAROBJS) $(TCAPOBJS) trd.o dbgtr.o
+
+# objects for debugger
+DBGOBJS= $(CMNRUNOBJS) $(COMPOBJS) $(RUNOBJS) tdd.o dbgu.o dbgrun.o
+
+TDBOBJS= $(DBGOBJS) $(TCAPOBJS) os0td_un.o
+
+all: tadsr tadsc
+
+#
+# ATARI needs the following due to command line length limitations.  
+#
+tadsr: $(TROBJS)
+	rm -f libtr.olb
+	gcc-ar q libtr.olb ler.o mcm.o mcs.o mch.o obj.o cmd.o errmsg.o dummy.o
+	gcc-ar q libtr.olb fioxor.o os0.o oserr.o dat.o lst.o run.o out.o voc.o
+	gcc-ar q libtr.olb bif.o output.o suprun.o vocab.o execmd.o runstat.o ply.o
+	gcc-ar q libtr.olb trd.o linfdum.o fio.o getstr.o qas.o dbgtr.o bifgdum.o
+	gcc-ar q libtr.olb osgen.o osatari.o
+	gcc-ar s libtr.olb
+	$(CC) $(CFLAGS) os0tr_st.c libtr.olb -o tr.ttp $(LIBS)
+
+tadsc: $(TCOBJS)
+	rm -f libtc.olb
+	gcc-ar q libtc.olb ler.o mcm.o mcs.o mch.o obj.o cmd.o errmsg.o dummy.o
+	gcc-ar q libtc.olb fioxor.o os0.o oserr.o dat.o lst.o run.o out.o voc.o bif.o
+	gcc-ar q libtc.olb output.o suprun.o linf.o prs.o prscomp.o emt.o sup.o
+	gcc-ar q libtc.olb fiowrt.o tok.o tcd.o fio.o objcomp.o
+	gcc-ar q libtc.olb getstr.o osgen.o tokth.o dbg.o voccomp.o
+	gcc-ar q libtc.olb bifgdum.o runstat.o tcgdum.o osatari.o
+	gcc-ar s libtc.olb
+	$(CC) $(CFLAGS) os0tc_st.c libtc.olb -o tc.ttp $(LIBS)
+
+# Debugger has never been tested with Atari, but
+# would probably work fine.
+tdb:
+	echo "You need to write a build rule tdb."
+
+clean:
+	rm -f *.o
+	rm -f tadsc tadsr tdb
+
+.c.o:
+	$(CC) -c $(OPTIMIZE) $(UNIXPATCHLEVEL) $(CFLAGS) $(INCLUDES) $<
+
+#
+# prscomp.c gets hosed by the GCC optimizer, so we build it
+# without optimization.
+#
+prscomp.o: prscomp.c
+	$(CC) -c $(CFLAGS) $(UNIXPATCHLEVEL) $(INCLUDES) $<
