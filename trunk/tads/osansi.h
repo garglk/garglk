@@ -86,16 +86,19 @@ int os_memicmp(const char *a, const char *b, int n);
 #define OSPATHALT "/:"
 #define OSPATHURL "\\/"
 #define OSPATHSEP ';'
+#define OS_NEWLINE_SEQ  "\r\n"
 #else
 #define OSPATHCHAR '/'
 #define OSPATHALT ""
 #define OSPATHURL "/"
 #define OSPATHSEP ':'
+#define OS_NEWLINE_SEQ "\n"
 #endif
 
 #define OSFSK_SET 0
 #define OSFSK_CUR 1
 #define OSFSK_END 2
+#define OSFOPRB 3
 
 typedef FILE osfildef;
 
