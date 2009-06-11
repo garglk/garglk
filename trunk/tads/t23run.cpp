@@ -31,7 +31,7 @@ char **tads_argv;
 
 glkunix_argumentlist_t glkunix_arguments[] =
 {
-	{ "", glkunix_arg_ValueFollows, "filename: The game file to load." },
+	{ (char *) "", glkunix_arg_ValueFollows, (char *) "filename: The game file to load." },
     { NULL, glkunix_arg_End, NULL }
 };
 
@@ -141,6 +141,8 @@ void glk_main(void)
 
     winid_t mainwin;
     char buf[256];
+    char copyright[512];
+    char errorload[512];
 
 #ifdef GARGLK
     garglk_set_program_name("TADS " TADS_RUNTIME_VERSION " / " T3VM_VSN_STRING);
@@ -183,14 +185,15 @@ void glk_main(void)
         mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
         glk_set_window(mainwin);
 
-        /* copyright-date-string */
-        glk_put_string(
+         /* copyright-date-string */
+        sprintf(copyright,
                 "TADS Interpreter - "
                 "Copyright (c) 1993, 2004 Michael J. Roberts\n"
                 "TADS 2 VM version " TADS_RUNTIME_VERSION " / "
                 "T3 VM version " T3VM_VSN_STRING "\n\n");
+        glk_put_string(copyright);
 
-        glk_put_string(
+        sprintf(errorload,
                 "Error: you didn't specify a game file name on the command "
                 "line, or the command "
                 "options are incorrect. You must specify the name of "
@@ -202,6 +205,7 @@ void glk_main(void)
                 "instead of giving a game file name. Or, if you'd like a "
                 "list of command-line "
                 "options for TADS 3, specify -help3.\n");
+        glk_put_string(errorload);
 
         /* pause (if desired by OS layer) and exit */
         os_expause();
