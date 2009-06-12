@@ -507,7 +507,7 @@ execute(funcname)
 							 * NOTIFICATION EVENT CAN USE THE INFORMATION
 							 * IT HAS 1 ADDED TO IT SO THAT IT IS A NON-ZERO
 							 * NUMBER AND THE EVENT IS ACTIVATED */
-							sprintf(error_buffer, "Unable to play sound: %d", value_of(word[1]), FALSE);
+							sprintf(error_buffer, "Unable to play sound: %ld", value_of(word[1]), FALSE);
 							log_error(error_buffer, PLUS_STDERR);
 						}
 					}
@@ -520,7 +520,7 @@ execute(funcname)
 						return(exit_function (TRUE));
 					} else {
 						if (glk_image_draw(mainwin, (glui32) value_of(word[1], TRUE), imagealign_InlineDown, 0) == 0) {
-							sprintf(error_buffer, "Unable to draw image: %d", value_of(word[1], FALSE));
+							sprintf(error_buffer, "Unable to draw image: %ld", value_of(word[1], FALSE));
 							log_error(error_buffer, PLUS_STDERR);
 						}
 					}
@@ -723,7 +723,7 @@ execute(funcname)
 					if (NOTIFY->value) {
 						glk_set_style(style_Note);
 						write_text(SCORE_UP);
-						sprintf(temp_buffer, "%d", value_of(word[1]), TRUE);
+						sprintf(temp_buffer, "%ld", value_of(word[1]), TRUE);
 						write_text(temp_buffer);
 						if (value_of(word[1], TRUE) == 1) {
 							write_text(POINT);

@@ -669,7 +669,7 @@ expand_function(name)
 		object_element_resolve(&expression[delimiter])) {
 		/* THE DELIMETER RESOLVES TO A CONSTANT, VARIABLE OR OBJECT
 		 * ELEMENT, SO TAKE NOTE OF THAT */
-		sprintf(function_name, "%d", value_of(&expression[delimiter], TRUE));
+		sprintf(function_name, "%ld", value_of(&expression[delimiter], TRUE));
 	} else {
 		strcpy(function_name, &expression[delimiter]);
 	}
