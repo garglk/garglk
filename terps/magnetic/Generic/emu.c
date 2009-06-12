@@ -654,7 +654,6 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 	FILE *fp;
 	type8 header[42], header2[8],header3[4];
 	type32 i, dict_size, string2_size, code_size, dec;
-	int tmp;
 
 #if defined(LOGEMU) || defined(LOGGFX) || defined(LOGHNT)
 	dbg_log = fopen(LOG_FILE, "wt");
@@ -825,7 +824,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 				if ((hints != 0) && (hint_contents != 0))
 				{
 					/* Read number of blocks */
-					tmp = fread(&buf, 1, 2, hnt_fp);
+					if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 					blkcnt = read_w2(buf);
 #ifdef LOGHNT
 					out2("Blocks: %d\n",blkcnt);
@@ -837,7 +836,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						out2("\nBlock No. %d\n",i);
 #endif
 						/* Read number of elements */
-						tmp = fread(&buf, 1, 2, hnt_fp);
+						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 						elcnt = read_w2(buf);
 #ifdef LOGHNT
 						out2("Elements: %d\n",elcnt);
@@ -845,7 +844,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						hints[i].elcount = elcnt;
 
 						/* Read node type */
-						tmp = fread(&buf, 1, 2, hnt_fp);
+						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 						ntype = read_w2(buf);
 #ifdef LOGHNT
 						if (ntype == 1)
@@ -860,9 +859,9 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 #endif
 						for (j = 0; j < elcnt; j++)
 						{
-							tmp = fread(&buf, 1, 2, hnt_fp);
+							if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 							elsize = read_w2(buf);
-							tmp = fread(hint_contents+conidx, 1, elsize, hnt_fp);
+							if (fread(hint_contents+conidx, 1, elsize, hnt_fp) != elsize && !feof(hnt_fp)) return 0;
 							hint_contents[conidx+elsize-1] = '\0';
 #ifdef LOGHNT
 							out2("%s\n",hint_contents+conidx);
@@ -878,7 +877,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 #endif
 							for (j = 0; j < elcnt; j++)
 							{
-								tmp = fread(&buf, 1, 2, hnt_fp);
+								if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 								hints[i].links[j] = read_w2(buf);
 #ifdef LOGHNT
 								out2("%d\n",hints[i].links[j]);
@@ -887,7 +886,7 @@ type8 ms_init(type8s * name, type8s * gfxname, type8s * hntname, type8s * sndnam
 						}
 
 						/* Read the parent block */
-						tmp = fread(&buf, 1, 2, hnt_fp);
+						if (fread(&buf, 1, 2, hnt_fp) != 2 && !feof(hnt_fp)) return 0;
 						hints[i].parent = read_w2(buf);
 #ifdef LOGHNT
 						out2("Parent: %d\n",hints[i].parent);
