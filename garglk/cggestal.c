@@ -69,9 +69,8 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
         case gestalt_Sound:
         case gestalt_SoundVolume:
         case gestalt_SoundMusic:
-            return gli_conf_sound;
         case gestalt_SoundNotify: 
-            return FALSE;	/* i'm lazy */
+            return gli_conf_sound;
         case gestalt_Unicode:
             return TRUE;
         
