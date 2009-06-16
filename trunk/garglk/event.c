@@ -97,6 +97,7 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
     switch (type)
     {
     case evtype_Arrange:
+    case evtype_Redraw:
     case evtype_SoundNotify:
     case evtype_Timer:
         {
