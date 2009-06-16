@@ -219,6 +219,22 @@ extern int gli_more_font;
     (evp)->val1 = 0,   \
     (evp)->val2 = 0)
 
+typedef struct eventlog_s
+{
+    event_t *event;
+    struct eventlog_s *next;
+} eventlog_t;
+
+typedef struct eventqueue_s
+{
+    eventlog_t *first;
+    eventlog_t *last;
+} eventqueue_t;
+
+eventqueue_t *gli_initialize_queue (void);
+void gli_queue_event(eventqueue_t *queue, event_t *event);
+event_t *gli_retrieve_event(eventqueue_t *queue);
+
 #define MAGIC_WINDOW_NUM (9876)
 #define MAGIC_STREAM_NUM (8769)
 #define MAGIC_FILEREF_NUM (7698)
@@ -550,7 +566,7 @@ void gli_read_config(int argc, char **argv);
 
 rect_t gli_compute_content_box();
 
-extern void gli_select(event_t *event, int block);
+extern void gli_select(event_t *event, int polled);
 
 void wininit(int *argc, char **argv);
 void winopen(void);

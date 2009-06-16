@@ -268,29 +268,34 @@ void winrepaint(int x0, int y0, int x1, int y1)
     gtk_widget_queue_draw_area(canvas, x0, y0, x1-x0, y1-y0);
 }
 
-void gli_select(event_t *event, int block)
+void gli_select(event_t *event, int polled)
 {
     gli_curevent = event;
     gli_event_clearevent(event);
 
     gli_input_guess_focus();
 
-    if (block)
+    if (!polled)
     {
-    while (gli_curevent->type == evtype_None && !timeouts)
-        gtk_main_iteration();
+        while (gli_curevent->type == evtype_None && !timeouts)
+        {
+            gtk_main_iteration();
+            gli_dispatch_event(gli_curevent, polled);
+        }
     }
 
     else
     {
-    while (gtk_events_pending() && !timeouts)
-        gtk_main_iteration();
+        while (gtk_events_pending() && !timeouts)
+            gtk_main_iteration();
+        gli_dispatch_event(gli_curevent, polled);
     }
 
     if (gli_curevent->type == evtype_None && timeouts)
     {
-    gli_event_store(evtype_Timer, NULL, 0, 0);
-    timeouts = 0;
+        gli_event_store(evtype_Timer, NULL, 0, 0);
+        gli_dispatch_event(gli_curevent, polled);
+        timeouts = 0;
     }
 
     gli_curevent = NULL;

@@ -302,7 +302,7 @@ void winpoll(void)
     }
 }
 
-void gli_select(event_t *event, int block)
+void gli_select(event_t *event, int polled)
 {
     MSG msg;
 
@@ -310,35 +310,37 @@ void gli_select(event_t *event, int block)
     gli_event_clearevent(event);
 
     gli_input_guess_focus();
-
-    if (block)
+    if (!polled)
     {
-    while (gli_curevent->type == evtype_None && !timeouts)
-    {
-        int code = GetMessage(&msg, NULL, 0, 0);
-        if (code < 0)
-        exit(1);
-        if (code > 0)
+        while (gli_curevent->type == evtype_None && !timeouts)
         {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+            int code = GetMessage(&msg, NULL, 0, 0);
+            if (code < 0)
+                exit(1);
+            if (code > 0)
+            {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+            gli_dispatch_event(gli_curevent, polled);
         }
-    }
     }
 
     else
     {
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0 && !timeouts)
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
-    }
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) > 0 && !timeouts)
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        gli_dispatch_event(gli_curevent, polled);
     }
 
     if (gli_curevent->type == evtype_None && timeouts)
     {
-    gli_event_store(evtype_Timer, NULL, 0, 0);
-    timeouts = 0;
+        gli_event_store(evtype_Timer, NULL, 0, 0);
+        gli_dispatch_event(gli_curevent, polled);
+        timeouts = 0;
     }
 
     gli_curevent = NULL;
