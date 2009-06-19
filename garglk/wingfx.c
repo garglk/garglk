@@ -8,7 +8,7 @@
 
 static void
 drawpicture(picture_t *src, window_graphics_t *dst, 
-		int x0, int y0, int width, int height);
+		int x0, int y0, int width, int height, glui32 linkval);
 
 void win_graphics_touch(window_graphics_t *dest)
 {
@@ -150,9 +150,21 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 	window_t *win = dwin->owner;
 	int x = sx - win->bbox.x0;
 	int y = sy - win->bbox.y0;
-	if (win->mouse_request)
+
+	if (win->mouse_request) {
 		gli_event_store(evtype_MouseInput, win, x, y);
-	win->mouse_request = FALSE;
+		win->mouse_request = FALSE;
+	}
+
+	if (win->hyper_request) {
+		glui32 linkval = gli_get_hyperlink(sx, sy);
+		if (linkval) {
+			gli_event_store(evtype_Hyperlink, win, linkval, 0);
+			win->hyper_request = FALSE;
+			if (gli_conf_safeclicks)
+				gli_forceclick = 1;
+		}
+	}
 }
 
 glui32 win_graphics_draw_picture(window_graphics_t *dwin,
@@ -161,6 +173,7 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 		int scale, glui32 imagewidth, glui32 imageheight)
 {
 	picture_t *pic = gli_picture_load(image);
+	glui32 hyperlink = dwin->owner->attr.hyper;
 
 	if (!pic) {
 		return FALSE;
@@ -171,7 +184,7 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 		imageheight = pic->h;
 	}
 
-	drawpicture(pic, dwin, xpos, ypos, imagewidth, imageheight);
+	drawpicture(pic, dwin, xpos, ypos, imagewidth, imageheight, hyperlink);
 
 	win_graphics_touch(dwin);
 
@@ -186,6 +199,7 @@ void win_graphics_erase_rect(window_graphics_t *dwin, int whole,
 	int x1 = x0 + width;
 	int y1 = y0 + height;
 	int x, y;
+	int hx0, hx1, hy0, hy1;
 
 	if (whole)
 	{
@@ -203,6 +217,14 @@ void win_graphics_erase_rect(window_graphics_t *dwin, int whole,
 	if (y0 >= dwin->h) y0 = dwin->h;
 	if (x1 >= dwin->w) x1 = dwin->w;
 	if (y1 >= dwin->h) y1 = dwin->h;
+
+	hx0 = dwin->owner->bbox.x0 + x0;
+	hx1 = dwin->owner->bbox.x0 + x1;
+	hy0 = dwin->owner->bbox.y0 + y0;
+	hy1 = dwin->owner->bbox.y0 + y1;
+
+	/* zero out hyperlinks for these coordinates */
+	gli_set_hyperlink(0, hx0, hy0, hx1, hy1);
 
 	for (y = y0; y < y1; y++)
 	{
@@ -225,6 +247,7 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
 	int x1 = x0 + width;
 	int y1 = y0 + height;
 	int x, y;
+	int hx0, hx1, hy0, hy1;
 
 	col[0] = (color >> 16) & 0xff;
 	col[1] = (color >> 8) & 0xff;
@@ -238,6 +261,14 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
 	if (y0 > dwin->h) y0 = dwin->h;
 	if (x1 > dwin->w) x1 = dwin->w;
 	if (y1 > dwin->h) y1 = dwin->h;
+
+	hx0 = dwin->owner->bbox.x0 + x0;
+	hx1 = dwin->owner->bbox.x0 + x1;
+	hy0 = dwin->owner->bbox.y0 + y0;
+	hy1 = dwin->owner->bbox.y0 + y1;
+
+	/* zero out hyperlinks for these coordinates */
+	gli_set_hyperlink(0, hx0, hy0, hx1, hy1);
 
 	for (y = y0; y < y1; y++)
 	{
@@ -261,12 +292,13 @@ void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color)
 }
 
 static void drawpicture(picture_t *src, window_graphics_t *dst, 
-		int x0, int y0, int width, int height)
+		int x0, int y0, int width, int height, glui32 linkval)
 {
 	int freeafter = 0;
 	unsigned char *sp, *dp;
 	int dx1, dy1, x1, y1, sx0, sy0, sx1, sy1;
 	int x, y, w, h;
+	int hx0, hx1, hy0, hy1;
 
 	if (width != src->w || height != src->h)
 	{
@@ -292,6 +324,14 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
 	if (y0 < 0) { sy0 -= y0; y0 = 0; }
 	if (x1 > dx1) { sx1 += dx1 - x1; x1 = dx1; }
 	if (y1 > dy1) { sy1 += dy1 - y1; y1 = dy1; }
+
+	hx0 = dst->owner->bbox.x0 + x0;
+	hx1 = dst->owner->bbox.x0 + x1;
+	hy0 = dst->owner->bbox.y0 + y0;
+	hy1 = dst->owner->bbox.y0 + y1;
+
+	/* zero out or set hyperlink for these coordinates */
+	gli_set_hyperlink(linkval, hx0, hy0, hx1, hy1);
 
 	sp = src->rgba + (sy0 * src->w + sx0) * 4;
 	dp = dst->rgb + (y0 * dst->w + x0) * 3;

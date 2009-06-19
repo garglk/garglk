@@ -496,8 +496,13 @@ static void gli_put_char(stream_t *str, unsigned char ch)
     break;
   case strtype_Window:
     if (str->win->line_request || str->win->line_request_uni) {
-      gli_strict_warning("put_char: window has pending line request");
-      break;
+        if (gli_conf_safeclicks && gli_forceclick) {
+            glk_cancel_line_event(str->win, NULL);
+            gli_forceclick = 0;
+        } else {
+            gli_strict_warning("put_char: window has pending line request");
+            break;
+        }
     }
     gli_window_put_char_uni(str->win, ch);
     if (str->win->echostr)
@@ -532,8 +537,13 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
     break;
   case strtype_Window:
     if (str->win->line_request || str->win->line_request_uni) {
-        gli_strict_warning("put_char: window has pending line request");
-        break;
+        if (gli_conf_safeclicks && gli_forceclick) {
+            glk_cancel_line_event(str->win, NULL);
+            gli_forceclick = 0;
+        } else {
+            gli_strict_warning("put_char: window has pending line request");
+            break;
+        }
     }
     gli_window_put_char_uni(str->win, ch);
     if (str->win->echostr)
@@ -601,8 +611,13 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
             break;
         case strtype_Window:
             if (str->win->line_request || str->win->line_request_uni) {
-                gli_strict_warning("put_buffer: window has pending line request");
-                break;
+                if (gli_conf_safeclicks && gli_forceclick) {
+                    glk_cancel_line_event(str->win, NULL);
+                    gli_forceclick = 0;
+                } else {
+                    gli_strict_warning("put_buffer: window has pending line request");
+                    break;
+                }
             }
             for (lx=0, cx=buf; lx<len; lx++, cx++) {
                 gli_window_put_char_uni(str->win, *cx);
@@ -678,8 +693,13 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
             break;
         case strtype_Window:
             if (str->win->line_request || str->win->line_request_uni) {
-                gli_strict_warning("put_buffer: window has pending line request");
-                break;
+                if (gli_conf_safeclicks && gli_forceclick) {
+                    glk_cancel_line_event(str->win, NULL);
+                    gli_forceclick = 0;
+                } else {
+                    gli_strict_warning("put_buffer: window has pending line request");
+                    break;
+                }
             }
             for (lx=0, cx=buf; lx<len; lx++, cx++) {
                 gli_window_put_char_uni(str->win, *cx);
@@ -709,8 +729,13 @@ static void gli_unput_buffer(stream_t *str, char *buf, glui32 len)
   if (str->type == strtype_Window)
   {
     if (str->win->line_request || str->win->line_request_uni) {
-      gli_strict_warning("put_buffer: window has pending line request");
-      return;
+        if (gli_conf_safeclicks && gli_forceclick) {
+            glk_cancel_line_event(str->win, NULL);
+            gli_forceclick = 0;
+        } else {
+            gli_strict_warning("unput_buffer: window has pending line request");
+            return;
+        }
     }
     for (lx=0, cx=buf+len-1; lx<len; lx++, cx--) {
       if (!gli_window_unput_char_uni(str->win, *cx))
@@ -733,8 +758,13 @@ static void gli_unput_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
   if (str->type == strtype_Window)
   {
     if (str->win->line_request || str->win->line_request_uni) {
-      gli_strict_warning("put_buffer: window has pending line request");
-      return;
+        if (gli_conf_safeclicks && gli_forceclick) {
+            glk_cancel_line_event(str->win, NULL);
+            gli_forceclick = 0;
+        } else {
+            gli_strict_warning("unput_buffer: window has pending line request");
+            return;
+        }
     }
     for (lx=0, cx=buf+len-1; lx<len; lx++, cx--) {
       if (!gli_window_unput_char_uni(str->win, *cx))
@@ -784,12 +814,14 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 str->win->attr.fgcolor = 0;
                 memcpy(gli_more_color, gli_more_save, 3);
                 memcpy(gli_caret_color, gli_caret_save, 3);
+                memcpy(gli_link_color, gli_link_save, 3);
                 gli_override_fg = 0;
             }
             else if (fg != zcolor_Current) {
                 str->win->attr.fgcolor = fg;
                 memcpy(gli_more_color, zcolor_rgb[fg - zcolor_Black], 3);
                 memcpy(gli_caret_color, zcolor_rgb[fg - zcolor_Black], 3);
+                memcpy(gli_link_color, zcolor_rgb[fg - zcolor_Black], 3);
                 gli_override_fg = fg;
             }
 
@@ -834,6 +866,19 @@ static void gli_set_reversevideo(stream_t *str, glui32 reverse)
             break;
     }
     gli_force_redraw = 1;
+}
+
+static void gli_set_hyperlink(stream_t *str, glui32 linkval)
+{
+  if (!str || !str->writable)
+    return;
+
+  switch (str->type) {
+  case strtype_Window:
+    str->win->attr.hyper = linkval;
+    break;
+  }
+
 }
 
 void gli_stream_echo_line(stream_t *str, char *buf, glui32 len)
@@ -1483,6 +1528,21 @@ void garglk_set_zcolors(glui32 fg, glui32 bg)
 void garglk_set_reversevideo(glui32 reverse)
 {
     gli_set_reversevideo(gli_currentstr, reverse);
+}
+
+void glk_set_hyperlink(glui32 linkval)
+{
+    gli_set_hyperlink(gli_currentstr, linkval);
+}
+
+void glk_set_hyperlink_stream(strid_t str, glui32 linkval)
+{
+  if (!str) {
+    gli_strict_warning("set_hyperlink_stream: invalid ref");
+    return;
+  }
+
+  gli_set_hyperlink(str, linkval);
 }
 
 glsi32 glk_get_char_stream(stream_t *str)

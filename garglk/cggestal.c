@@ -71,9 +71,15 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
         case gestalt_SoundMusic:
         case gestalt_SoundNotify: 
             return gli_conf_sound;
+
         case gestalt_Unicode:
             return TRUE;
-        
+
+        case gestalt_Hyperlinks:
+            return TRUE;
+        case gestalt_HyperlinkInput:
+            return TRUE;
+
         default:
             return 0;
     
