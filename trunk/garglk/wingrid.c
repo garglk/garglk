@@ -288,6 +288,8 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     if (win->mouse_request) {
         gli_event_store(evtype_MouseInput, win, x, y);
         win->mouse_request = FALSE;
+        if (gli_conf_safeclicks)
+            gli_forceclick = 1;
     }
 
     if (win->hyper_request) {
