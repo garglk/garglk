@@ -66,6 +66,7 @@ case "$lowpath" in
     *.mag ) $dirpath/magnetic "$1" ;;
     *.gam ) $dirpath/tadsr "$1" ;;
     *.t3  ) $dirpath/tadsr "$1" ;;
+    *.z6  ) $dirpath/nitfol "$1" ;;
     *.z?  ) $dirpath/frotz "$1" ;;
 
     *.blb    ) $dirpath/git "$1" ;;
