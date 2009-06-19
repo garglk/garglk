@@ -531,6 +531,8 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         gli_image_w = newwid;
         gli_image_h = newhgt;
 
+        gli_resize_hyperlinks(gli_image_w, gli_image_h);
+
         gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
         if (gli_image_rgb)
         free(gli_image_rgb);

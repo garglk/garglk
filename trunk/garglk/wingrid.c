@@ -70,7 +70,7 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
         memset(dwin->lines[k].attrs, 0, sizeof dwin->lines[k].attrs);
     }
 
-    attrset(&dwin->owner->attr, style_Normal);
+    attrclear(&dwin->owner->attr);
     dwin->width = newwid;
     dwin->height = newhgt;
 
@@ -79,7 +79,7 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
         touch(dwin, k);
         for (i = dwin->width; i < sizeof(dwin->lines[0].chars) / sizeof(glui32); i++) {
             dwin->lines[k].chars[i] = ' ';
-            attrset(&dwin->lines[k].attrs[i], style_Normal);
+            attrclear(&dwin->lines[k].attrs[i]);
         }
     }
 }
@@ -89,8 +89,11 @@ void win_textgrid_redraw(window_t *win)
     window_textgrid_t *dwin = win->data;
     tgline_t *ln;
     int x0, y0, x1, y1;
-    int x, y;
-    int i, k;
+    int x, y, w;
+    int i, a, b, k, o;
+    glui32 link;
+    int font;
+    char *fgcolor, *bgcolor;
 
     x0 = win->bbox.x0;
     x1 = win->bbox.x1;
@@ -107,15 +110,53 @@ void win_textgrid_redraw(window_t *win)
         x = x0;
         y = y0 + i * gli_leading;
 
-        for (k = 0; k < dwin->width; k++)
+        /* clear any stored hyperlink coordinates */
+        gli_set_hyperlink(0, x0, y0, x0 + gli_cellw * dwin->width, y0 + gli_leading);
+
+        a = 0;
+        for (b = 0; b < dwin->width; b++)
         {
-        x = x0 + k * gli_cellw;
-        gli_draw_rect(x, y, gli_cellw, gli_leading,
-            attrbg(dwin->styles, &ln->attrs[k]));
-        gli_draw_string_uni(x * GLI_SUBPIX, y + gli_baseline,
-            attrfont(dwin->styles, &ln->attrs[k]),
-            attrfg(dwin->styles, &ln->attrs[k]),
-            ln->chars + k, 1, -1);
+            if (!attrequal(&ln->attrs[a], &ln->attrs[b]))
+            {
+                link = ln->attrs[a].hyper;
+                font = attrfont(dwin->styles, &ln->attrs[a]);
+                fgcolor = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
+                bgcolor = attrbg(dwin->styles, &ln->attrs[a]);
+                w = (b - a) * gli_cellw;
+                gli_draw_rect(x, y, w, gli_leading, bgcolor);
+                o = x;
+                for (k = a; k < b; k++) {
+                        gli_draw_string_uni(o * GLI_SUBPIX,
+                                y + gli_baseline, font, fgcolor,
+                                ln->chars + k, 1, -1);
+                        o += gli_cellw;
+                }
+                if (link) {
+                    gli_draw_rect(x, y + gli_baseline + 1, w,
+                            gli_link_style, gli_link_color);
+                    gli_set_hyperlink(link, x, y, x + w, y + gli_leading);
+                }
+                x += w;
+                a = b;
+            }
+        }
+        link = ln->attrs[a].hyper;
+        font = attrfont(dwin->styles, &ln->attrs[a]);
+        fgcolor = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
+        bgcolor = attrbg(dwin->styles, &ln->attrs[a]);
+        w = (b - a) * gli_cellw;
+        gli_draw_rect(x, y, w, gli_leading, bgcolor);
+        o = x;
+        for (k = a; k < b; k++) {
+                gli_draw_string_uni(o * GLI_SUBPIX,
+                        y + gli_baseline, font, fgcolor,
+                        ln->chars + k, 1, -1);
+                o += gli_cellw;
+        }
+        if (link) {
+            gli_draw_rect(x, y + gli_baseline + 1, w,
+                    gli_link_style, gli_link_color);
+            gli_set_hyperlink(link, x, y, x + w, y + gli_leading);
         }
     }
     }
@@ -192,7 +233,7 @@ int win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     ln = &(dwin->lines[dwin->cury]);
     if (ln->chars[dwin->curx] == ch) {
         ln->chars[dwin->curx] = ' ';
-        attrset(&ln->attrs[dwin->curx], style_Normal);
+        attrclear(&ln->attrs[dwin->curx]);
         touch(dwin, dwin->cury);
         return TRUE; /* deleted the char */
     } else {
@@ -241,12 +282,23 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     int x = sx - win->bbox.x0;
     int y = sy - win->bbox.y0;
 
-    if (win->line_request || win->char_request)
+    if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
     gli_focuswin = win;
 
-    if (win->mouse_request)
-    gli_event_store(evtype_MouseInput, win, x, y);
-    win->mouse_request = FALSE;
+    if (win->mouse_request) {
+        gli_event_store(evtype_MouseInput, win, x, y);
+        win->mouse_request = FALSE;
+    }
+
+    if (win->hyper_request) {
+        glui32 linkval = gli_get_hyperlink(sx, sy);
+        if (linkval) {
+            gli_event_store(evtype_Hyperlink, win, linkval, 0);
+            win->hyper_request = FALSE;
+            if (gli_conf_safeclicks)
+                gli_forceclick = 1;
+        }
+    }
 }
 
 /* Prepare the window for line input. */

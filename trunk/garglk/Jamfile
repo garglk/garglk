@@ -20,7 +20,7 @@ if $(USESDL)
 }
 
 GARGSRCS = 
-    gi_blorb.c gi_dispa.c nohyper.c 
+    gi_blorb.c gi_dispa.c
     cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c cgunicod.c
     window.c winblank.c winpair.c wingrid.c wintext.c wingfx.c
     event.c draw.c config.c

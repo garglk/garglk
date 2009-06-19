@@ -15,7 +15,7 @@ put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen);
 static void
 put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen);
 static glui32
-put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align);
+put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 linkval);
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -75,10 +75,12 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
         dwin->lines[i].rm = 0;
         dwin->lines[i].lpic = 0;
         dwin->lines[i].rpic = 0;
+        dwin->lines[i].lhyper = 0;
+        dwin->lines[i].rhyper = 0;
         dwin->lines[i].len = 0;
         dwin->lines[i].newline = 0;
         memset(dwin->lines[i].chars, ' ', sizeof dwin->lines[i].chars);
-        memset(dwin->lines[i].attrs, style_Normal, sizeof dwin->lines[i].attrs);
+        memset(dwin->lines[i].attrs,   0, sizeof dwin->lines[i].attrs);
     }
 
     memcpy(dwin->styles, gli_tstyles, sizeof gli_tstyles);
@@ -105,6 +107,7 @@ attr_t attrbuf[TBLINELEN*SCROLLBACK];
 glui32 charbuf[TBLINELEN*SCROLLBACK];
 int alignbuf[SCROLLBACK];
 picture_t *pictbuf[SCROLLBACK];
+glui32 hyperbuf[SCROLLBACK];
 int offsetbuf[SCROLLBACK];
 
 static void reflow(window_t *win)
@@ -124,7 +127,7 @@ static void reflow(window_t *win)
     /* copy text to temp buffers */
 
     oldattr = win->attr;
-    attrset(&curattr, style_Normal);
+    attrclear(&curattr);
 
     x = 0;
     p = 0;
@@ -139,6 +142,7 @@ static void reflow(window_t *win)
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginLeft;
             pictbuf[x] = dwin->lines[k].lpic;
+            hyperbuf[x] = dwin->lines[k].lhyper;
             x++;
         }
 
@@ -148,6 +152,7 @@ static void reflow(window_t *win)
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginRight;
             pictbuf[x] = dwin->lines[k].rpic;
+            hyperbuf[x] = dwin->lines[k].rhyper;
             x++;
         }
 
@@ -183,7 +188,7 @@ static void reflow(window_t *win)
 
         if (offsetbuf[x] == i)
         {
-            put_picture(dwin, pictbuf[x], alignbuf[x]);
+            put_picture(dwin, pictbuf[x], alignbuf[x], hyperbuf[x]);
             gli_picture_drop(pictbuf[x]);
             x ++;
         }
@@ -279,7 +284,11 @@ void win_textbuffer_redraw(window_t *win)
     int x0, y0, x1, y1;
     int x, y, w;
     int a, b;
+    glui32 link;
+    int font;
+    char *color;
     int i;
+    int hx0, hx1, hy0, hy1;
 
     dwin->lines[0].len = dwin->numchars;
 
@@ -340,6 +349,11 @@ void win_textbuffer_redraw(window_t *win)
             spw = -1;
         }
 
+
+        /* clear any stored hyperlink coordinates */
+        gli_set_hyperlink(0, x0/GLI_SUBPIX, y,
+                x1/GLI_SUBPIX, y + gli_leading);
+
         /*
          * fill in background colors
          */
@@ -354,21 +368,41 @@ void win_textbuffer_redraw(window_t *win)
         {
             if (!attrequal(&ln->attrs[a], &ln->attrs[b]))
             {
-                w = gli_string_width_uni(attrfont(dwin->styles, &ln->attrs[a]),
-                        ln->chars + a, b - a, spw);
+                link = ln->attrs[a].hyper;
+                font = attrfont(dwin->styles, &ln->attrs[a]);
+                color = attrbg(dwin->styles, &ln->attrs[a]);
+                w = gli_string_width_uni(font, ln->chars + a, b - a, spw);
                 gli_draw_rect(x/GLI_SUBPIX, y,
                         w/GLI_SUBPIX, gli_leading,
-                        attrbg(dwin->styles, &ln->attrs[a]));
+                        color);
+                if (link)
+                {
+                    gli_draw_rect(x/GLI_SUBPIX + 1, y + gli_baseline + 1,
+                            w/GLI_SUBPIX + 1, gli_link_style,
+                            gli_link_color);
+                    gli_set_hyperlink(link, x/GLI_SUBPIX, y,
+                            x/GLI_SUBPIX + w/GLI_SUBPIX,
+                            y + gli_leading);
+                }
                 x += w;
                 a = b;
             }
         }
-
-        w = gli_string_width_uni(attrfont(dwin->styles, &ln->attrs[a]),
-                ln->chars + a, b - a, spw);
-        gli_draw_rect(x/GLI_SUBPIX, y,
-                w/GLI_SUBPIX, gli_leading,
-                attrbg(dwin->styles, &ln->attrs[a]));
+        link = ln->attrs[a].hyper;
+        font = attrfont(dwin->styles, &ln->attrs[a]);
+        color = attrbg(dwin->styles, &ln->attrs[a]);
+        w = gli_string_width_uni(font, ln->chars + a, b - a, spw);
+        gli_draw_rect(x/GLI_SUBPIX, y, w/GLI_SUBPIX,
+                gli_leading, color);
+        if (link)
+        {
+            gli_draw_rect(x/GLI_SUBPIX + 1, y + gli_baseline + 1,
+                    w/GLI_SUBPIX + 1, gli_link_style,
+                    gli_link_color);
+            gli_set_hyperlink(link, x/GLI_SUBPIX, y,
+                    x/GLI_SUBPIX + w/GLI_SUBPIX,
+                    y + gli_leading);
+        }
         x += w;
 
         gli_draw_rect(x/GLI_SUBPIX, y,
@@ -396,17 +430,19 @@ void win_textbuffer_redraw(window_t *win)
         {
             if (!attrequal(&ln->attrs[a], &ln->attrs[b]))
             {
+                link = ln->attrs[a].hyper;
+                font = attrfont(dwin->styles, &ln->attrs[a]);
+                color = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
                 x = gli_draw_string_uni(x, y + gli_baseline,
-                        attrfont(dwin->styles, &ln->attrs[a]),
-                        attrfg(dwin->styles, &ln->attrs[a]),
-                        ln->chars + a, b - a, spw);
+                        font, color, ln->chars + a, b - a, spw);
                 a = b;
             }
         }
+        link = ln->attrs[a].hyper;
+        font = attrfont(dwin->styles, &ln->attrs[a]);
+        color = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
         gli_draw_string_uni(x, y + gli_baseline,
-                attrfont(dwin->styles, &ln->attrs[a]),
-                attrfg(dwin->styles, &ln->attrs[a]),
-                ln->chars + a, linelen - a, spw);
+                font, color, ln->chars + a, linelen - a, spw);
     }
 
     /*
@@ -416,6 +452,9 @@ void win_textbuffer_redraw(window_t *win)
     {
         x = x0 + SLOP;
         y = y0 + (dwin->height - 1) * gli_leading;
+
+        gli_set_hyperlink(0, x0/GLI_SUBPIX, y,
+                x1/GLI_SUBPIX, y + gli_leading);
 
         gli_draw_rect(x/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX - x/GLI_SUBPIX, gli_leading,
@@ -448,18 +487,32 @@ void win_textbuffer_redraw(window_t *win)
 
         if (ln->lpic)
         {
-            if (y < y1 && y + ln->lpic->h > y0)
+            if (y < y1 && y + ln->lpic->h > y0) {
                 gli_draw_picture(ln->lpic,
                         x0/GLI_SUBPIX, y,
                         x0/GLI_SUBPIX, y0, x1/GLI_SUBPIX, y1);
+                link = ln->lhyper;
+                hy0 = y > y0 ? y : y0;
+                hy1 = y + ln->lpic->h < y1 ? y + ln->lpic->h : y1;
+                hx0 = x0/GLI_SUBPIX;
+                hx1 = x0/GLI_SUBPIX + ln->lpic->w < x1/GLI_SUBPIX ? x0/GLI_SUBPIX + ln->lpic->w : x1/GLI_SUBPIX;
+                gli_set_hyperlink(link, hx0, hy0, hx1, hy1);
+            }
         }
 
         if (ln->rpic)
         {
-            if (y < y1 && y + ln->rpic->h > y0)
+            if (y < y1 && y + ln->rpic->h > y0) {
                 gli_draw_picture(ln->rpic,
                         x1/GLI_SUBPIX - ln->rpic->w, y,
                         x0/GLI_SUBPIX, y0, x1/GLI_SUBPIX, y1);
+                link = ln->rhyper;
+                hy0 = y > y0 ? y : y0;
+                hy1 = y + ln->rpic->h < y1 ? y + ln->rpic->h : y1;
+                hx0 = x1/GLI_SUBPIX - ln->rpic->w > x0/GLI_SUBPIX ? x1/GLI_SUBPIX - ln->rpic->w : x0/GLI_SUBPIX;
+                hx1 = x1/GLI_SUBPIX;
+                gli_set_hyperlink(link, hx0, hy0, hx1, hy1);
+            }
         }
     }
 
@@ -473,6 +526,8 @@ void win_textbuffer_redraw(window_t *win)
         x1 = win->bbox.x1;
         y0 = win->bbox.y0 + gli_tmarginy;
         y1 = win->bbox.y1 - gli_tmarginy;
+
+        gli_set_hyperlink(0, x0, y0, x1, y1);
 
         y0 += gli_scroll_width / 2;
         y1 -= gli_scroll_width / 2;
@@ -554,6 +609,8 @@ static void scrolloneline(window_textbuffer_t *dwin, int forced)
     dwin->lines[0].rm = dwin->radjw;
     dwin->lines[0].lpic = NULL;
     dwin->lines[0].rpic = NULL;
+    dwin->lines[0].lhyper = 0;
+    dwin->lines[0].rhyper = 0;
     memset(dwin->chars, ' ', TBLINELEN * 4);
     memset(dwin->attrs, 0, TBLINELEN * sizeof(attr_t));
 
@@ -818,6 +875,8 @@ void win_textbuffer_clear(window_t *win)
         dwin->lines[i].len = 0;
         dwin->lines[i].lpic = 0;
         dwin->lines[i].rpic = 0;
+        dwin->lines[i].lhyper = 0;
+        dwin->lines[i].rhyper = 0;
         dwin->lines[i].lm = 0;
         dwin->lines[i].rm = 0;
         dwin->lines[i].newline = 0;
@@ -1287,7 +1346,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 }
 
 static glui32
-put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
+put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 linkval)
 {
     if (align == imagealign_MarginRight)
     {
@@ -1298,6 +1357,7 @@ put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
         dwin->radjn = (pic->h + gli_cellh - 1) / gli_cellh;
         dwin->lines[0].rpic = pic;
         dwin->lines[0].rm = dwin->radjw;
+        dwin->lines[0].rhyper = linkval;
     }
 
     else
@@ -1312,6 +1372,7 @@ put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)
         dwin->ladjn = (pic->h + gli_cellh - 1) / gli_cellh;
         dwin->lines[0].lpic = pic;
         dwin->lines[0].lm = dwin->ladjw;
+        dwin->lines[0].lhyper = linkval;
 
         if (align != imagealign_MarginLeft)
             win_textbuffer_flow_break(dwin);
@@ -1326,6 +1387,7 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
         glui32 image, glui32 align, glui32 scaled, glui32 width, glui32 height)
 {
     picture_t *pic;
+    glui32 hyperlink;
     int error;
 
     pic = gli_picture_load(image);
@@ -1341,7 +1403,9 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
         pic = tmp;
     }
 
-    error = put_picture(dwin, pic, align);
+    hyperlink = dwin->owner->attr.hyper;
+
+    error = put_picture(dwin, pic, align, hyperlink);
     
     gli_picture_drop(pic);
 
@@ -1358,8 +1422,20 @@ glui32 win_textbuffer_flow_break(window_textbuffer_t *dwin)
 void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
 {
     window_t *win = dwin->owner;
+
     if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
         gli_focuswin = win;
+
+    if (win->hyper_request) {
+        glui32 linkval = gli_get_hyperlink(sx, sy);
+        if (linkval) {
+            gli_event_store(evtype_Hyperlink, win, linkval, 0);
+            win->hyper_request = FALSE;
+            if (gli_conf_safeclicks)
+                gli_forceclick = 1;
+        }
+    }
+
     if (sx > win->bbox.x1 - gli_scroll_width)
     {
         if (sy < win->bbox.y0 + gli_tmarginy + gli_scroll_width)

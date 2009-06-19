@@ -124,6 +124,13 @@ struct style_s
     int reverse;
 };
 
+typedef struct hyper_s
+{
+    int hor;
+    int ver;
+    glui32 **array;
+} hyper_t;
+
 extern int gli_image_s;	/* stride */
 extern int gli_image_w;
 extern int gli_image_h;
@@ -141,15 +148,20 @@ extern style_t gli_gstyles[style_NUMSTYLES];
 extern unsigned char gli_window_color[3];
 extern unsigned char gli_border_color[3];
 extern unsigned char gli_caret_color[3];
+extern unsigned char gli_more_color[3];
+extern unsigned char gli_link_color[3];
 
 extern unsigned char gli_window_save[3];
 extern unsigned char gli_border_save[3];
 extern unsigned char gli_caret_save[3];
+extern unsigned char gli_more_save[3];
+extern unsigned char gli_link_save[3];
 
 extern int gli_override_fg;
 extern int gli_override_bg;
 extern int gli_override_reverse;
 
+extern int gli_link_style;
 extern int gli_caret_shape;
 extern int gli_wborderx;
 extern int gli_wbordery;
@@ -168,6 +180,7 @@ extern int gli_conf_sound;
 extern int gli_conf_speak;
 
 extern int gli_conf_stylehint;
+extern int gli_conf_safeclicks;
 
 extern int gli_conf_justify;
 extern int gli_conf_quotes;
@@ -201,11 +214,11 @@ extern float gli_conf_monosize;
 extern float gli_conf_propaspect;
 extern float gli_conf_monoaspect;
 
-extern unsigned char gli_more_color[3];
-extern unsigned char gli_more_save[3];
 extern char *gli_more_prompt;
 extern int gli_more_align;
 extern int gli_more_font;
+
+extern int gli_forceclick;
 
 /*
  * Standard Glk I/O stuff
@@ -295,6 +308,7 @@ typedef struct attr_s
     unsigned fgcolor : 4;
     unsigned style   : 4;
     unsigned reverse : 1;
+    unsigned hyper   : 4;
     unsigned		 : 3;
 } attr_t;
 
@@ -317,6 +331,7 @@ struct glk_window_struct
     int char_request;
     int char_request_uni;
     int mouse_request;
+    int hyper_request;
 
     attr_t attr;
 
@@ -376,6 +391,7 @@ typedef struct tbline_s
 {
     int len, newline, dirty;
     picture_t *lpic, *rpic;
+    glui32 lhyper, rhyper;
     int lm, rm;
     glui32 chars[TBLINELEN];
     attr_t attrs[TBLINELEN];
@@ -621,6 +637,7 @@ glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 out
 glui32 strlen_uni(glui32 *s);
 
 void attrset(attr_t *attr, glui32 style);
+void attrclear(attr_t *attr);
 int attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);

@@ -10,18 +10,27 @@
 int gli_force_redraw = 1;
 
 /* Linked list of all windows */
-static window_t *gli_windowlist = NULL; 
+static window_t *gli_windowlist = NULL;
 
 window_t *gli_rootwin = NULL; /* The topmost window. */
 window_t *gli_focuswin = NULL; /* The window selected by the player */
 
 void (*gli_interrupt_handler)(void) = NULL;
 
+/* storage for hyperlink x,y coordinates */
+static hyper_t *gli_hyper_store;
+
+/* record whether we've returned a click event */
+int gli_forceclick = 0;
+
+static void gli_initialize_hyperlinks(void);
+
 /* Set up the window system. This is called from main(). */
 void gli_initialize_windows()
 {
     gli_rootwin = NULL;
     gli_focuswin = NULL;
+    gli_initialize_hyperlinks();
 }
 
 static void gli_windows_rearrange(void)
@@ -60,8 +69,9 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->line_request_uni = FALSE;
     win->line_terminators = NULL;
     win->mouse_request = FALSE;
+    win->hyper_request = FALSE;
 
-    attrset(&win->attr, style_Normal);
+    attrclear(&win->attr);
 
     win->str = gli_stream_open_window(win);
     win->echostr = NULL;
@@ -934,6 +944,28 @@ void glk_request_mouse_event(window_t *win)
     return;
 }
 
+void glk_request_hyperlink_event(winid_t win)
+{
+    if (!win) {
+        gli_strict_warning("request_hyperlink_event: invalid ref");
+        return;
+    }
+
+    switch (win->type)
+    {
+        case wintype_TextBuffer:
+        case wintype_TextGrid:
+        case wintype_Graphics:
+            win->hyper_request = TRUE;
+            break;
+        default:
+            /* do nothing */
+            break;
+    }
+
+    return;
+}
+
 void glk_cancel_char_event(window_t *win)
 {
     if (!win) {
@@ -1004,6 +1036,28 @@ void glk_cancel_mouse_event(window_t *win)
     return;
 }
 
+void glk_cancel_hyperlink_event(winid_t win)
+{
+    if (!win) {
+        gli_strict_warning("cancel_hyperlink_event: invalid ref");
+        return;
+    }
+
+    switch (win->type)
+    {
+        case wintype_TextBuffer:
+        case wintype_TextGrid:
+        case wintype_Graphics:
+            win->hyper_request = FALSE;
+            break;
+        default:
+            /* do nothing */
+            break;
+    }
+
+    return;
+}
+
 void gli_window_click(window_t *win, int x, int y)
 {
     switch (win->type)
@@ -1061,8 +1115,13 @@ void glk_window_clear(window_t *win)
     }
 
     if (win->line_request || win->line_request_uni) {
-        gli_strict_warning("window_clear: window has pending line request");
-        return;
+        if (gli_conf_safeclicks && gli_forceclick) {
+            glk_cancel_line_event(win, NULL);
+            gli_forceclick = 0;
+        } else {
+            gli_strict_warning("window_clear: window has pending line request");
+            return;
+        }
     }
 
     switch (win->type)
@@ -1230,6 +1289,15 @@ void attrset(attr_t *attr, glui32 style)
     attr->style = style;
 }
 
+void attrclear(attr_t *attr)
+{
+    attr->fgcolor = 0;
+    attr->bgcolor = 0;
+    attr->reverse = FALSE;
+    attr->hyper = 0;
+    attr->style = 0;
+}
+
 int attrfont(style_t *styles, attr_t *attr)
 {
     return styles[attr->style].font;
@@ -1297,5 +1365,138 @@ int attrequal(attr_t *a1, attr_t *a2)
         return FALSE;
     if (a1->bgcolor != a2->bgcolor)
         return FALSE;
+    if (a1->hyper != a2->hyper)
+        return FALSE;
     return TRUE;
+}
+
+glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
+{
+
+    if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
+        gli_strict_warning("get_hyperlink: array not initialized");
+        return;
+    }
+
+    if (x > gli_hyper_store->hor
+            || y > gli_hyper_store->ver
+            || !gli_hyper_store->array[x]) {
+        gli_strict_warning("get_hyperlink_array: invalid range given");
+        return;
+    }
+
+    return gli_hyper_store->array[x][y];
+}
+
+
+void gli_set_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1)
+{
+    int i, k;
+    glui32* m;
+
+    if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
+        gli_strict_warning("set_hyperlink: array not initialized");
+        return;
+    }
+
+    if (x1 < x0 || y1 < y0
+            || x0 > gli_hyper_store->hor   || x1 > gli_hyper_store->hor
+            || y0 > gli_hyper_store->ver   || y1 > gli_hyper_store->ver
+            || !gli_hyper_store->array[x0] || !gli_hyper_store->array[x1]) {
+        gli_strict_warning("set_hyperlink: invalid range given");
+        return;
+    }
+
+    for (i = x0; i < x1; i++) {
+        for (k = y0; k < y1; k++) {
+            gli_hyper_store->array[i][k] = linkval;
+        }
+    }
+
+    return;
+}
+
+void gli_resize_hyperlinks(int x, int y)
+{
+    int i;
+    int oldsize;
+    int rx, ry;
+
+    rx = x + 1;
+    ry = y + 1;
+
+    if (!gli_hyper_store) {
+        gli_strict_warning("resize_hyperlinks: array not initialized");
+        return;
+    }
+
+    /* to free or not to free? */
+    if (rx < gli_hyper_store->hor) {
+        for (i = rx; i < gli_hyper_store->hor; i++) {
+            if (gli_hyper_store->array[i]) {
+                free(gli_hyper_store->array[i]);
+            }
+        }
+    }
+
+    oldsize = gli_hyper_store->hor < rx ? gli_hyper_store->hor : rx;
+    gli_hyper_store->hor = rx;
+    gli_hyper_store->ver = ry;
+
+    gli_hyper_store->array = (glui32**)realloc(gli_hyper_store->array, gli_hyper_store->hor * sizeof(glui32*));
+    if (!gli_hyper_store->array) {
+        gli_strict_warning("resize_hyperlinks: out of memory");
+        free(gli_hyper_store->array);
+        gli_hyper_store->hor = 0;
+        gli_hyper_store->ver = 0;
+        return;
+    }
+
+    /* preserve contents of allocated memory */
+    for (i = 0; i < oldsize; i++) {
+        gli_hyper_store->array[i] = (glui32*) realloc(gli_hyper_store->array[i], gli_hyper_store->ver * sizeof(glui32));
+        if (!gli_hyper_store->array[i]) {
+            gli_strict_warning("resize_hyperlinks: could not reallocate old memory");
+            return;
+        }
+    }
+
+    /* allocate and zero out new memory */
+    for (i = oldsize; i < gli_hyper_store->hor; i++) {
+        gli_hyper_store->array[i] = (glui32*) calloc(sizeof(glui32), gli_hyper_store->ver);
+        if (!gli_hyper_store->array[i]) {
+            gli_strict_warning("resize_hyperlinks: could not allocate new memory");
+            return;
+        }
+    }
+}
+
+static void gli_initialize_hyperlinks(void)
+{
+    int i;
+
+    gli_hyper_store = (hyper_t*) calloc(sizeof(hyper_t), 1);
+    if (!gli_hyper_store) {
+        gli_strict_warning("initialize_hyperlinks: out of memory");
+    }
+
+    gli_hyper_store->hor = 1;
+    gli_hyper_store->ver = 1;
+
+    gli_hyper_store->array = (glui32**)realloc(gli_hyper_store->array, gli_hyper_store->hor * sizeof(glui32*));
+    if (!gli_hyper_store->array) {
+        gli_strict_warning("initialize_hyperlinks: out of memory");
+        free(gli_hyper_store->array);
+        gli_hyper_store->hor = 0;
+        gli_hyper_store->ver = 0;
+        return;
+    }
+
+    for (i = 0; i < gli_hyper_store->hor; i++) {
+        gli_hyper_store->array[i] = (glui32*) calloc(sizeof(glui32), gli_hyper_store->ver);
+        if (!gli_hyper_store->array[i]) {
+            gli_strict_warning("initalize_hyperlinks: could not allocate all memory");
+            return;
+        }
+    }
 }
