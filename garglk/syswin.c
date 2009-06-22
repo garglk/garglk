@@ -29,6 +29,7 @@ static HDC hdc;
 static BITMAPINFO *dibinf;
 static LRESULT CALLBACK frameproc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK viewproc(HWND, UINT, WPARAM, LPARAM);
+static HCURSOR idc_arrow, idc_hand;
 
 static int timeouts = 0;
 
@@ -174,6 +175,10 @@ void wininit(int *argc, char **argv)
     dibinf->bmiHeader.biClrUsed = 0;
     dibinf->bmiHeader.biClrImportant = 0;
     dibinf->bmiHeader.biClrUsed = 0;
+
+    /* Init cursors */
+    idc_arrow = LoadCursor(NULL, IDC_ARROW);
+    idc_hand = LoadCursor(NULL, IDC_HAND);
 }
 
 void winopen()
@@ -548,6 +553,15 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONDOWN:
     gli_input_handle_click(x, y);
     return 0;
+
+    case WM_MOUSEMOVE:
+    {
+        if (gli_get_hyperlink(x,y))
+            SetCursor(idc_hand);
+        else
+            SetCursor(idc_arrow);
+        return 0;
+    }
 
     case WM_KEYDOWN:
 

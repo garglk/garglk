@@ -14,6 +14,8 @@
 static GtkWidget *frame;
 static GtkWidget *canvas;
 static GtkWidget *filedlog;
+static GdkCursor *gdk_arrow;
+static GdkCursor *gdk_hand;
 static char *filename;
 
 static int timerid = -1;
@@ -156,6 +158,23 @@ static void onbutton(GtkWidget *widget, GdkEventButton *event, void *data)
     gli_input_handle_click(event->x, event->y);
 }
 
+static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
+{
+    int x,y;
+
+    if (event->is_hint)
+	gtk_widget_get_pointer(widget, &x, &y);
+    else {
+        x = event->x;
+        y = event->y;
+    }
+
+    if (gli_get_hyperlink(x,y))
+        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
+    else
+        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+}
+
 static void onkeypress(GtkWidget *widget, GdkEventKey *event, void *data)
 {
     int key = event->keyval;
@@ -203,6 +222,8 @@ void wininit(int *argc, char **argv)
     gtk_init(argc, &argv);
     gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
     gtk_widget_set_default_visual(gdk_rgb_get_visual());
+    gdk_arrow = gdk_cursor_new(GDK_ARROW);
+    gdk_hand = gdk_cursor_new(GDK_HAND2);
 }
 
 void winopen(void)
@@ -223,13 +244,17 @@ void winopen(void)
 
     frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     GTK_WIDGET_SET_FLAGS(frame, GTK_CAN_FOCUS);
-    gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK);
+    gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
+                               | GDK_POINTER_MOTION_MASK
+                               | GDK_POINTER_MOTION_HINT_MASK);
     gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
     	GTK_SIGNAL_FUNC(onbutton), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
     	GTK_SIGNAL_FUNC(onkeypress), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
     	GTK_SIGNAL_FUNC(onquit), "WM destroy");
+    gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
+        GTK_SIGNAL_FUNC(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
     gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", 
