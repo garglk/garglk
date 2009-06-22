@@ -1392,6 +1392,10 @@ glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
 void gli_set_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1)
 {
     int i, k;
+    int tx0 = x0 < x1 ? x0 : x1;
+    int tx1 = x0 < x1 ? x1 : x0;
+    int ty0 = y0 < y1 ? y0 : y1;
+    int ty1 = y0 < y1 ? y1 : y0;
     glui32* m;
 
     if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
@@ -1399,16 +1403,16 @@ void gli_set_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
         return;
     }
 
-    if (x1 < x0 || y1 < y0
-            || x0 > gli_hyper_store->hor   || x1 > gli_hyper_store->hor
-            || y0 > gli_hyper_store->ver   || y1 > gli_hyper_store->ver
-            || !gli_hyper_store->array[x0] || !gli_hyper_store->array[x1]) {
+    if (tx0 > gli_hyper_store->hor
+            || tx1 > gli_hyper_store->hor
+            || ty0 > gli_hyper_store->ver   || ty1 > gli_hyper_store->ver
+            || !gli_hyper_store->array[tx0] || !gli_hyper_store->array[tx1]) {
         gli_strict_warning("set_hyperlink: invalid range given");
         return;
     }
 
-    for (i = x0; i < x1; i++) {
-        for (k = y0; k < y1; k++) {
+    for (i = tx0; i < tx1; i++) {
+        for (k = ty0; k < ty1; k++) {
             gli_hyper_store->array[i][k] = linkval;
         }
     }
