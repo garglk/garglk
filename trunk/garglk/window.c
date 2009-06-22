@@ -1372,7 +1372,6 @@ int attrequal(attr_t *a1, attr_t *a2)
 
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
 {
-
     if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
         gli_strict_warning("get_hyperlink: array not initialized");
         return;
@@ -1381,7 +1380,7 @@ glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
     if (x > gli_hyper_store->hor
             || y > gli_hyper_store->ver
             || !gli_hyper_store->array[x]) {
-        gli_strict_warning("get_hyperlink_array: invalid range given");
+        gli_strict_warning("get_hyperlink: invalid range given");
         return;
     }
 
