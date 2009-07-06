@@ -226,7 +226,7 @@ void win_graphics_erase_rect(window_graphics_t *dwin, int whole,
 	hy1 = dwin->owner->bbox.y0 + y1;
 
 	/* zero out hyperlinks for these coordinates */
-	gli_set_hyperlink(0, hx0, hy0, hx1, hy1);
+	gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
 	for (y = y0; y < y1; y++)
 	{
@@ -270,7 +270,7 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
 	hy1 = dwin->owner->bbox.y0 + y1;
 
 	/* zero out hyperlinks for these coordinates */
-	gli_set_hyperlink(0, hx0, hy0, hx1, hy1);
+	gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
 	for (y = y0; y < y1; y++)
 	{
@@ -333,7 +333,7 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
 	hy1 = dst->owner->bbox.y0 + y1;
 
 	/* zero out or set hyperlink for these coordinates */
-	gli_set_hyperlink(linkval, hx0, hy0, hx1, hy1);
+	gli_put_hyperlink(linkval, hx0, hy0, hx1, hy1);
 
 	sp = src->rgba + (sy0 * src->w + sx0) * 4;
 	dp = dst->rgb + (y0 * dst->w + x0) * 3;

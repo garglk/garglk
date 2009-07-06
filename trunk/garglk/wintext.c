@@ -25,6 +25,7 @@ static void touch(window_textbuffer_t *dwin, int line)
 //        y -= (dwin->height - dwin->scrollmax) * gli_leading;
     dwin->lines[line].dirty = 1;
     winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
+    gli_clear_selection();
 }
 
 static void touchscroll(window_textbuffer_t *dwin)
@@ -32,6 +33,7 @@ static void touchscroll(window_textbuffer_t *dwin)
     window_t *win = dwin->owner;
     int i;
     winrepaint(win->bbox.x0, win->bbox.y0, win->bbox.x1, win->bbox.y1);
+    gli_clear_selection();
     for (i = 0; i < dwin->scrollmax; i++)
         dwin->lines[i].dirty = 1;
 }
@@ -84,6 +86,10 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
     }
 
     memcpy(dwin->styles, gli_tstyles, sizeof gli_tstyles);
+
+    for (i = 0; i < (SCROLLBACK + SCROLLBACK * TBLINELEN); i++)
+        dwin->copybuf[i] = 0;
+    dwin->copypos = 0;
 
     return dwin;
 }
@@ -252,13 +258,13 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
 
 static int calcwidth(window_textbuffer_t *dwin,
         glui32 *chars, attr_t *attrs,
-        int numchars, int spw)
+        int startchar, int numchars, int spw)
 {
     int w = 0;
     int a, b;
 
-    a = 0;
-    for (b = 0; b < numchars; b++)
+    a = startchar;
+    for (b = startchar; b < numchars; b++)
     {
         if (!attrequal(&attrs[a], &attrs[b]))
         {
@@ -289,27 +295,58 @@ void win_textbuffer_redraw(window_t *win)
     char *color;
     int i;
     int hx0, hx1, hy0, hy1;
+    int selbuf, selrow, selchar, sx0, sx1;
+    int tx, tsc, tsw, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
+
+    ln = malloc(sizeof(tbline_t));
+    if (!ln)
+        return;
 
     x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
     x1 = (win->bbox.x1 - gli_tmarginx - gli_scroll_width) * GLI_SUBPIX;
     y0 = win->bbox.y0 + gli_tmarginy;
+    y1 = win->bbox.y1 - gli_tmarginy;
 
     pw = x1 - x0 - 2 * GLI_SUBPIX;
 
 //    if (dwin->scrollmax && dwin->scrollmax < dwin->height)
 //        y0 -= (dwin->height - dwin->scrollmax) * gli_leading;
 
-    for (i = dwin->scrollpos; i < dwin->height + dwin->scrollpos; i++)
+    /* check if any part of buffer is selected */
+    selbuf = gli_check_selection(x0/GLI_SUBPIX,y0,x1/GLI_SUBPIX,y1);
+
+    for (i = dwin->scrollpos + dwin->height - 1; i >= dwin->scrollpos; i--)
     {
-        ln = dwin->lines + i;
+        /* top of line */
+        y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
+
+        /* check if part of line is selected */
+        if (selbuf)
+            selrow = gli_get_selection(x0/GLI_SUBPIX, y,
+                    x1/GLI_SUBPIX, y + gli_leading,
+                    &sx0, &sx1);
+        else
+            selrow = FALSE;
+
+        /* mark selected line dirty */
+        if (selrow)
+            dwin->lines[i].dirty = TRUE;
+
+        memcpy(ln, dwin->lines + i, sizeof(tbline_t));
 
         /* skip if we can */
         if (!ln->dirty && !gli_force_redraw && dwin->scrollpos == 0)
             continue;
 
-        ln->dirty = 0;
+        /* repaint dirty line if buffer is selected */
+        if (selbuf)
+            gli_line_redraw(x0/GLI_SUBPIX, y, x1/GLI_SUBPIX, y + gli_leading);
+
+        /* keep selected line dirty */
+        if (!selrow)
+            dwin->lines[i].dirty = FALSE;
 
         /* leave bottom line blank for [more] prompt */
         if (drawmore && i == dwin->scrollpos && i > 0)
@@ -324,11 +361,8 @@ void win_textbuffer_redraw(window_t *win)
                 linelen --;
 
         /* kill characters that would overwrite the scroll bar */
-        while (linelen > 1 && calcwidth(dwin, ln->chars, ln->attrs, linelen, -1) >= pw)
+        while (linelen > 1 && calcwidth(dwin, ln->chars, ln->attrs, 0, linelen, -1) >= pw)
             linelen --;
-
-        /* top of line */
-        y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
 
         /*
          * count spaces and width for justification
@@ -338,7 +372,7 @@ void win_textbuffer_redraw(window_t *win)
             for (a = 0, nsp = 0; a < linelen; a++)
                 if (ln->chars[a] == ' ')
                     nsp ++;
-            w = calcwidth(dwin, ln->chars, ln->attrs, linelen, 0);
+            w = calcwidth(dwin, ln->chars, ln->attrs, 0, linelen, 0);
             if (nsp)
                 spw = (x1 - x0 - ln->lm - ln->rm - 2 * SLOP - w) / nsp;
             else
@@ -349,9 +383,42 @@ void win_textbuffer_redraw(window_t *win)
             spw = -1;
         }
 
+        /* find and highlight selected characters */
+        if (selrow) {
+            tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+            lsc = 0;
+            rsc = 0;
+            selchar = FALSE;
+            for (tsc = 0; tsc < linelen; tsc++) {
+                tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
+                if (tsw + tx >= sx0) {
+                    lsc = tsc;
+                    selchar = TRUE;
+                    break;
+                }
+            }
+            if (selchar) {
+                for (tsc = lsc; tsc < linelen; tsc++) {
+                    tsw = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
+                    if (tsw + sx0 < sx1) {
+                        rsc = tsc;
+                    }
+                }
+                for (tsc = lsc; tsc <= rsc; tsc++) {
+                    ln->attrs[tsc].reverse = !ln->attrs[tsc].reverse;
+                    dwin->copybuf[dwin->copypos] = ln->chars[tsc];
+                    dwin->copypos++;
+                }
+                dwin->copybuf[dwin->copypos] = '\n';
+                dwin->copypos++;
+            } else {
+                dwin->copybuf[dwin->copypos] = '\n';
+                dwin->copypos++;
+            }
+        }
 
         /* clear any stored hyperlink coordinates */
-        gli_set_hyperlink(0, x0/GLI_SUBPIX, y,
+        gli_put_hyperlink(0, x0/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX, y + gli_leading);
 
         /*
@@ -380,7 +447,7 @@ void win_textbuffer_redraw(window_t *win)
                     gli_draw_rect(x/GLI_SUBPIX + 1, y + gli_baseline + 1,
                             w/GLI_SUBPIX + 1, gli_link_style,
                             gli_link_color);
-                    gli_set_hyperlink(link, x/GLI_SUBPIX, y,
+                    gli_put_hyperlink(link, x/GLI_SUBPIX, y,
                             x/GLI_SUBPIX + w/GLI_SUBPIX,
                             y + gli_leading);
                 }
@@ -399,7 +466,7 @@ void win_textbuffer_redraw(window_t *win)
             gli_draw_rect(x/GLI_SUBPIX + 1, y + gli_baseline + 1,
                     w/GLI_SUBPIX + 1, gli_link_style,
                     gli_link_color);
-            gli_set_hyperlink(link, x/GLI_SUBPIX, y,
+            gli_put_hyperlink(link, x/GLI_SUBPIX, y,
                     x/GLI_SUBPIX + w/GLI_SUBPIX,
                     y + gli_leading);
         }
@@ -415,7 +482,7 @@ void win_textbuffer_redraw(window_t *win)
 
         if (gli_focuswin == win && i == 0 && (win->line_request || win->line_request_uni))
         {
-            w = calcwidth(dwin, dwin->chars, dwin->attrs, dwin->incurs, spw);
+            w = calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->incurs, spw);
             if (w < pw - gli_caret_shape * 2 * GLI_SUBPIX)
                 gli_draw_caret(x0 + SLOP + ln->lm + w, y + gli_baseline);
         }
@@ -453,7 +520,7 @@ void win_textbuffer_redraw(window_t *win)
         x = x0 + SLOP;
         y = y0 + (dwin->height - 1) * gli_leading;
 
-        gli_set_hyperlink(0, x0/GLI_SUBPIX, y,
+        gli_put_hyperlink(0, x0/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX, y + gli_leading);
 
         gli_draw_rect(x/GLI_SUBPIX, y,
@@ -481,7 +548,7 @@ void win_textbuffer_redraw(window_t *win)
      */
     for (i = 0; i < SCROLLBACK; i++)
     {
-        ln = dwin->lines + i;
+        memcpy(ln, dwin->lines + i, sizeof(tbline_t));
 
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
 
@@ -495,8 +562,10 @@ void win_textbuffer_redraw(window_t *win)
                 hy0 = y > y0 ? y : y0;
                 hy1 = y + ln->lpic->h < y1 ? y + ln->lpic->h : y1;
                 hx0 = x0/GLI_SUBPIX;
-                hx1 = x0/GLI_SUBPIX + ln->lpic->w < x1/GLI_SUBPIX ? x0/GLI_SUBPIX + ln->lpic->w : x1/GLI_SUBPIX;
-                gli_set_hyperlink(link, hx0, hy0, hx1, hy1);
+                hx1 = x0/GLI_SUBPIX + ln->lpic->w < x1/GLI_SUBPIX
+                            ? x0/GLI_SUBPIX + ln->lpic->w
+                            : x1/GLI_SUBPIX;
+                gli_put_hyperlink(link, hx0, hy0, hx1, hy1);
             }
         }
 
@@ -509,9 +578,11 @@ void win_textbuffer_redraw(window_t *win)
                 link = ln->rhyper;
                 hy0 = y > y0 ? y : y0;
                 hy1 = y + ln->rpic->h < y1 ? y + ln->rpic->h : y1;
-                hx0 = x1/GLI_SUBPIX - ln->rpic->w > x0/GLI_SUBPIX ? x1/GLI_SUBPIX - ln->rpic->w : x0/GLI_SUBPIX;
+                hx0 = x1/GLI_SUBPIX - ln->rpic->w > x0/GLI_SUBPIX
+                            ? x1/GLI_SUBPIX - ln->rpic->w
+                            : x0/GLI_SUBPIX;
                 hx1 = x1/GLI_SUBPIX;
-                gli_set_hyperlink(link, hx0, hy0, hx1, hy1);
+                gli_put_hyperlink(link, hx0, hy0, hx1, hy1);
             }
         }
     }
@@ -527,7 +598,7 @@ void win_textbuffer_redraw(window_t *win)
         y0 = win->bbox.y0 + gli_tmarginy;
         y1 = win->bbox.y1 - gli_tmarginy;
 
-        gli_set_hyperlink(0, x0, y0, x1, y1);
+        gli_put_hyperlink(0, x0, y0, x1, y1);
 
         y0 += gli_scroll_width / 2;
         y1 -= gli_scroll_width / 2;
@@ -555,6 +626,16 @@ void win_textbuffer_redraw(window_t *win)
                     i*2, 1, gli_scroll_fg);
         }
     }
+
+    /* send selected text to clipboard */
+    if (selbuf && dwin->copypos) {
+        gli_clipboard_copy((glui32 *)dwin->copybuf, dwin->copypos);
+        for (i = 0; i < dwin->copypos; i++)
+            dwin->copybuf[i] = 0;
+        dwin->copypos = 0;
+    }
+
+    free(ln);
 }
 
 static void scrolloneline(window_textbuffer_t *dwin, int forced)
@@ -814,7 +895,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
         && !dwin->styles[dwin->attrs[linelen-1].style].reverse)
         linelen --;
 
-    if (calcwidth(dwin, dwin->chars, dwin->attrs, linelen, -1) >= pw)
+    if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, linelen, -1) >= pw)
     {
         bpoint = dwin->numchars;
 
@@ -917,7 +998,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     /* make sure we have some space left for typing... */
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
-    if (calcwidth(dwin, dwin->chars, dwin->attrs, dwin->numchars, -1) >= pw * 3 / 4)
+    if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
 
     dwin->lastseen = 0;
@@ -959,7 +1040,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     /* make sure we have some space left for typing... */
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
-    if (calcwidth(dwin, dwin->chars, dwin->attrs, dwin->numchars, -1) >= pw * 3 / 4)
+    if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
 
     dwin->lastseen = 0;
@@ -1422,6 +1503,8 @@ glui32 win_textbuffer_flow_break(window_textbuffer_t *dwin)
 void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
 {
     window_t *win = dwin->owner;
+    int gh = FALSE;
+    int gs = FALSE;
 
     if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
         gli_focuswin = win;
@@ -1433,6 +1516,7 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             win->hyper_request = FALSE;
             if (gli_conf_safeclicks)
                 gli_forceclick = 1;
+            gh = TRUE;
         }
     }
 
@@ -1446,6 +1530,12 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             gcmd_accept_scroll(win, keycode_PageUp);
         else
             gcmd_accept_scroll(win, keycode_PageDown);
+        gs = TRUE;
+    }
+
+    if (!gh && !gs) {
+        gli_copyselect = TRUE;
+        gli_start_selection(sx, sy);
     }
 }
 

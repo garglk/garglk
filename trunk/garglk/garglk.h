@@ -102,6 +102,7 @@ extern int gli_cellh;
 typedef struct rect_s rect_t;
 typedef struct picture_s picture_t;
 typedef struct style_s style_t;
+typedef struct mask_s mask_t;
 
 struct rect_s
 {
@@ -124,12 +125,13 @@ struct style_s
     int reverse;
 };
 
-typedef struct hyper_s
+struct mask_s
 {
     int hor;
     int ver;
-    glui32 **array;
-} hyper_t;
+    glui32 **links;
+    rect_t select;
+};
 
 extern int gli_image_s;	/* stride */
 extern int gli_image_w;
@@ -219,6 +221,8 @@ extern int gli_more_align;
 extern int gli_more_font;
 
 extern int gli_forceclick;
+extern int gli_copyselect;
+extern int gli_drawselect;
 
 /*
  * Standard Glk I/O stuff
@@ -232,17 +236,20 @@ extern int gli_forceclick;
     (evp)->val1 = 0,   \
     (evp)->val2 = 0)
 
-typedef struct eventlog_s
+typedef struct eventlog_s eventlog_t;
+typedef struct eventqueue_s eventqueue_t;
+
+struct eventlog_s
 {
     event_t *event;
     struct eventlog_s *next;
-} eventlog_t;
+};
 
-typedef struct eventqueue_s
+struct eventqueue_s
 {
     eventlog_t *first;
     eventlog_t *last;
-} eventqueue_t;
+};
 
 eventqueue_t *gli_initialize_queue (void);
 void gli_queue_event(eventqueue_t *queue, event_t *event);
@@ -437,6 +444,10 @@ struct window_textbuffer_s
 
     /* style hints and settings */
     style_t styles[style_NUMSTYLES];
+
+    /* for copy selection */
+    glui32 copybuf[SCROLLBACK + SCROLLBACK * TBLINELEN];
+    int copypos;
 };
 
 struct window_graphics_s

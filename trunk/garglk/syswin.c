@@ -29,9 +29,13 @@ static HDC hdc;
 static BITMAPINFO *dibinf;
 static LRESULT CALLBACK frameproc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK viewproc(HWND, UINT, WPARAM, LPARAM);
-static HCURSOR idc_arrow, idc_hand;
+static HCURSOR idc_arrow, idc_hand, idc_ibeam;
 
 static int timeouts = 0;
+
+/* buffer for clipboard text */
+wchar_t cliptext[2 * SCROLLBACK + TBLINELEN * SCROLLBACK + 1];
+int cliplen = 0;
 
 void glk_request_timer_events(glui32 millisecs)
 {
@@ -132,6 +136,57 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     strcpy(buf, "");
 }
 
+void winclipstore(glui32 *text, int len)
+{
+    int i, k;
+
+    i = 0;
+    k = 0;
+
+    /* convert \n to \r\n */
+    while (i < len) {
+        if (text[i] == '\n') {
+            cliptext[k] = '\r';
+            cliptext[k+1] = '\n';
+            k = k + 2;
+        } else {
+            cliptext[k] = text[i];
+            k++;
+        }
+        i++;
+    }
+
+    /* null-terminated string */
+    cliptext[k] = '\0';
+    cliplen = k + 1;
+}
+
+void winclipsend(void)
+{
+    HGLOBAL wmem;
+    void *wptr;
+
+    if (!cliplen)
+        return;
+
+    wmem = GlobalAlloc(GMEM_SHARE | GMEM_MOVEABLE, cliplen * sizeof(wchar_t));
+    wptr = GlobalLock(wmem);
+
+    if (!wptr)
+        return;
+
+    memcpy(wptr, cliptext, cliplen * sizeof(wchar_t));
+    GlobalUnlock(wmem);
+
+    if(OpenClipboard(NULL)) {
+        if (!SetClipboardData(CF_UNICODETEXT, wmem))
+            GlobalFree(wmem);
+        CloseClipboard(); 
+    }
+
+    cliplen = 0;
+}
+
 void wininit(int *argc, char **argv)
 {
     WNDCLASS wc;
@@ -179,6 +234,7 @@ void wininit(int *argc, char **argv)
     /* Init cursors */
     idc_arrow = LoadCursor(NULL, IDC_ARROW);
     idc_hand = LoadCursor(NULL, IDC_HAND);
+    idc_ibeam = LoadCursor(NULL, IDC_IBEAM);
 }
 
 void winopen()
@@ -511,7 +567,10 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         PAINTSTRUCT ps;
 
         /* make sure we have a fresh bitmap */
-        gli_windows_redraw();
+        if (!gli_drawselect)
+            gli_windows_redraw();
+        else
+            gli_drawselect = FALSE;
 
         /* and blit it to the screen */
         hdc = BeginPaint(hwnd, &ps);
@@ -536,7 +595,7 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         gli_image_w = newwid;
         gli_image_h = newhgt;
 
-        gli_resize_hyperlinks(gli_image_w, gli_image_h);
+        gli_resize_mask(gli_image_w, gli_image_h);
 
         gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
         if (gli_image_rgb)
@@ -551,15 +610,54 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
 
     case WM_LBUTTONDOWN:
-    gli_input_handle_click(x, y);
-    return 0;
+    {
+        SetFocus(hwndview);
+        gli_input_handle_click(x, y);
+        return 0;
+    }
+
+    case WM_LBUTTONUP:
+    {
+        gli_copyselect = FALSE;
+        SetCursor(idc_arrow);
+        winclipsend();
+        return 0;
+    }
+
+    case WM_CAPTURECHANGED:
+    {
+        gli_copyselect = FALSE;
+        winclipsend();
+        return 0;
+    }
 
     case WM_MOUSEMOVE:
     {
-        if (gli_get_hyperlink(x,y))
-            SetCursor(idc_hand);
-        else
-            SetCursor(idc_arrow);
+        /* catch and release */
+        RECT rect;
+        POINT pt = { x, y };
+        GetClientRect(hwnd, &rect);
+        int hover = PtInRect(&rect, pt);
+
+        if (!hover) {
+            if (GetCapture() == hwnd)
+                ReleaseCapture();
+        } else {
+            if (GetCapture() != hwnd ) {
+                SetCapture(hwnd);
+            }
+            if (gli_copyselect) {
+                SetCursor(idc_ibeam);
+                gli_move_selection(x, y);
+            } else {
+                if (gli_get_hyperlink(x, y)) {
+                    SetCursor(idc_hand);
+                } else {
+                    SetCursor(idc_arrow);
+                }
+            }
+        }
+
         return 0;
     }
 
@@ -638,4 +736,3 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     /* Pass on unhandled events to Windows */
     return DefWindowProc(hwnd, message, wParam, lParam);
 }
-
