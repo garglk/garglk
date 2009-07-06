@@ -550,7 +550,10 @@ execute(funcname)
 							return(exit_function (TRUE));
 						case 'R':
 						case 'r':
-							if (restore_interaction()) {
+							if (restore_interaction((char *) NULL)) {
+   								write_text("Restored saved game.^^");
+								object[HERE]->attributes &= ~1L;
+								execute("+display_location");
 								interrupted = TRUE;
 								return(exit_function (TRUE));
 							}
