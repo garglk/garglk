@@ -113,7 +113,7 @@ jpp()
 		char *result = NULL;
 
 		result = fgets(text_buffer, 1024, inputFile);
-		if (!result && !feof(inputFile)) return (FALSE);
+		if (!result) return (FALSE);
 
 		while (!feof(inputFile) && index < 10) {
 			if (strstr(text_buffer, "#processed")) {
@@ -130,7 +130,7 @@ jpp()
 				return (TRUE);	
 			}					
 			result = fgets(text_buffer, 1024, inputFile);
-			if (!result && !feof(inputFile)) return (FALSE);
+			if (!result) return (FALSE);
 			index++;
 		}
 
@@ -173,7 +173,6 @@ process_file(sourceFile1, sourceFile2)
 	char            temp_buffer2[1025];
 	FILE           *inputFile = NULL;
 	char           *includeFile = NULL;
-	char           *result = NULL;
 
 	/* THIS FUNCTION WILL CREATE A PROCESSED FILE THAT HAS HAD ALL
 	 * LEADING AND TRAILING WHITE SPACE REMOVED AND ALL INCLUDED
@@ -192,8 +191,11 @@ process_file(sourceFile1, sourceFile2)
 	}
 
 	*text_buffer = 0;
-	result = fgets(text_buffer, 1024, inputFile);
-	if (!result && !feof(inputFile)) return (FALSE);
+
+	if (fgets(text_buffer, 1024, inputFile) == NULL) {
+		sprintf (error_buffer, READ_ERROR);
+		return (FALSE);
+	}
 
 	while (!feof(inputFile) || *text_buffer != 0) {
 		if (!strncmp(text_buffer, "#include", 8) ||
@@ -251,8 +253,11 @@ process_file(sourceFile1, sourceFile2)
 		}
 
 		*text_buffer = 0;
-		result = fgets(text_buffer, 1024, inputFile);
-		if (!result && !feof(inputFile)) return (FALSE);
+
+		if (fgets(text_buffer, 1024, inputFile) == NULL) {
+			// EOF HAS BEEN REACHED
+			break;
+		}
 	}
 
 	fclose(inputFile);
