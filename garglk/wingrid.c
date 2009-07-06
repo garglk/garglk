@@ -111,7 +111,7 @@ void win_textgrid_redraw(window_t *win)
         y = y0 + i * gli_leading;
 
         /* clear any stored hyperlink coordinates */
-        gli_set_hyperlink(0, x0, y0, x0 + gli_cellw * dwin->width, y0 + gli_leading);
+        gli_put_hyperlink(0, x0, y, x0 + gli_cellw * dwin->width, y + gli_leading);
 
         a = 0;
         for (b = 0; b < dwin->width; b++)
@@ -134,7 +134,7 @@ void win_textgrid_redraw(window_t *win)
                 if (link) {
                     gli_draw_rect(x, y + gli_baseline + 1, w,
                             gli_link_style, gli_link_color);
-                    gli_set_hyperlink(link, x, y, x + w, y + gli_leading);
+                    gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
                 }
                 x += w;
                 a = b;
@@ -156,7 +156,7 @@ void win_textgrid_redraw(window_t *win)
         if (link) {
             gli_draw_rect(x, y + gli_baseline + 1, w,
                     gli_link_style, gli_link_color);
-            gli_set_hyperlink(link, x, y, x + w, y + gli_leading);
+            gli_put_hyperlink(link, x, y, x + w, y + gli_leading);
         }
     }
     }

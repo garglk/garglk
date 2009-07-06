@@ -17,20 +17,14 @@ window_t *gli_focuswin = NULL; /* The window selected by the player */
 
 void (*gli_interrupt_handler)(void) = NULL;
 
-/* storage for hyperlink x,y coordinates */
-static hyper_t *gli_hyper_store;
-
 /* record whether we've returned a click event */
 int gli_forceclick = 0;
-
-static void gli_initialize_hyperlinks(void);
 
 /* Set up the window system. This is called from main(). */
 void gli_initialize_windows()
 {
     gli_rootwin = NULL;
     gli_focuswin = NULL;
-    gli_initialize_hyperlinks();
 }
 
 static void gli_windows_rearrange(void)
@@ -783,6 +777,12 @@ void gli_windows_redraw()
     gli_force_redraw = 0;
 }
 
+void gli_line_redraw(int x0, int y0, int x1, int y1)
+{
+    gli_drawselect = TRUE;
+    winrepaint(x0, y0, x1, y1);
+}
+
 /*
  * Input events
  */
@@ -1368,138 +1368,4 @@ int attrequal(attr_t *a1, attr_t *a2)
     if (a1->hyper != a2->hyper)
         return FALSE;
     return TRUE;
-}
-
-glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
-{
-    if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
-        gli_strict_warning("get_hyperlink: array not initialized");
-        return;
-    }
-
-    if (x > gli_hyper_store->hor
-            || y > gli_hyper_store->ver
-            || !gli_hyper_store->array[x]) {
-        gli_strict_warning("get_hyperlink: invalid range given");
-        return;
-    }
-
-    return gli_hyper_store->array[x][y];
-}
-
-
-void gli_set_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1)
-{
-    int i, k;
-    int tx0 = x0 < x1 ? x0 : x1;
-    int tx1 = x0 < x1 ? x1 : x0;
-    int ty0 = y0 < y1 ? y0 : y1;
-    int ty1 = y0 < y1 ? y1 : y0;
-    glui32* m;
-
-    if (!gli_hyper_store || !gli_hyper_store->hor || !gli_hyper_store->ver) {
-        gli_strict_warning("set_hyperlink: array not initialized");
-        return;
-    }
-
-    if (tx0 > gli_hyper_store->hor
-            || tx1 > gli_hyper_store->hor
-            || ty0 > gli_hyper_store->ver   || ty1 > gli_hyper_store->ver
-            || !gli_hyper_store->array[tx0] || !gli_hyper_store->array[tx1]) {
-        gli_strict_warning("set_hyperlink: invalid range given");
-        return;
-    }
-
-    for (i = tx0; i < tx1; i++) {
-        for (k = ty0; k < ty1; k++) {
-            gli_hyper_store->array[i][k] = linkval;
-        }
-    }
-
-    return;
-}
-
-void gli_resize_hyperlinks(int x, int y)
-{
-    int i;
-    int oldsize;
-    int rx, ry;
-
-    rx = x + 1;
-    ry = y + 1;
-
-    if (!gli_hyper_store) {
-        gli_strict_warning("resize_hyperlinks: array not initialized");
-        return;
-    }
-
-    /* to free or not to free? */
-    if (rx < gli_hyper_store->hor) {
-        for (i = rx; i < gli_hyper_store->hor; i++) {
-            if (gli_hyper_store->array[i]) {
-                free(gli_hyper_store->array[i]);
-            }
-        }
-    }
-
-    oldsize = gli_hyper_store->hor < rx ? gli_hyper_store->hor : rx;
-    gli_hyper_store->hor = rx;
-    gli_hyper_store->ver = ry;
-
-    gli_hyper_store->array = (glui32**)realloc(gli_hyper_store->array, gli_hyper_store->hor * sizeof(glui32*));
-    if (!gli_hyper_store->array) {
-        gli_strict_warning("resize_hyperlinks: out of memory");
-        free(gli_hyper_store->array);
-        gli_hyper_store->hor = 0;
-        gli_hyper_store->ver = 0;
-        return;
-    }
-
-    /* preserve contents of allocated memory */
-    for (i = 0; i < oldsize; i++) {
-        gli_hyper_store->array[i] = (glui32*) realloc(gli_hyper_store->array[i], gli_hyper_store->ver * sizeof(glui32));
-        if (!gli_hyper_store->array[i]) {
-            gli_strict_warning("resize_hyperlinks: could not reallocate old memory");
-            return;
-        }
-    }
-
-    /* allocate and zero out new memory */
-    for (i = oldsize; i < gli_hyper_store->hor; i++) {
-        gli_hyper_store->array[i] = (glui32*) calloc(sizeof(glui32), gli_hyper_store->ver);
-        if (!gli_hyper_store->array[i]) {
-            gli_strict_warning("resize_hyperlinks: could not allocate new memory");
-            return;
-        }
-    }
-}
-
-static void gli_initialize_hyperlinks(void)
-{
-    int i;
-
-    gli_hyper_store = (hyper_t*) calloc(sizeof(hyper_t), 1);
-    if (!gli_hyper_store) {
-        gli_strict_warning("initialize_hyperlinks: out of memory");
-    }
-
-    gli_hyper_store->hor = 1;
-    gli_hyper_store->ver = 1;
-
-    gli_hyper_store->array = (glui32**)realloc(gli_hyper_store->array, gli_hyper_store->hor * sizeof(glui32*));
-    if (!gli_hyper_store->array) {
-        gli_strict_warning("initialize_hyperlinks: out of memory");
-        free(gli_hyper_store->array);
-        gli_hyper_store->hor = 0;
-        gli_hyper_store->ver = 0;
-        return;
-    }
-
-    for (i = 0; i < gli_hyper_store->hor; i++) {
-        gli_hyper_store->array[i] = (glui32*) calloc(sizeof(glui32), gli_hyper_store->ver);
-        if (!gli_hyper_store->array[i]) {
-            gli_strict_warning("initalize_hyperlinks: could not allocate all memory");
-            return;
-        }
-    }
 }

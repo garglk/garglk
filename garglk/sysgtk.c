@@ -16,10 +16,15 @@ static GtkWidget *canvas;
 static GtkWidget *filedlog;
 static GdkCursor *gdk_arrow;
 static GdkCursor *gdk_hand;
+static GdkCursor *gdk_ibeam;
 static char *filename;
 
 static int timerid = -1;
 static int timeouts = 0;
+
+/* buffer for clipboard text */
+char cliptext[4 * (SCROLLBACK + TBLINELEN * SCROLLBACK) + 1];
+int cliplen = 0;
 
 static int timeout(void *data)
 {
@@ -107,6 +112,65 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     gtk_main(); /* recurse... */
 }
 
+void winclipstore(glui32 *text, int len)
+{
+    int i, k;
+
+    i = 0;
+    k = 0;
+
+    /*convert UTF-32 to UTF-8 */
+    while (i < len) {
+        if (text[i] < 0x80) {
+            cliptext[k] = text[i];
+            k++;
+        }
+        else if (text[i] < 0x800) {
+            cliptext[k  ] = (0xC0 | ((text[i] & 0x7C0) >> 6));
+            cliptext[k+1] = (0x80 |  (text[i] & 0x03F)      );
+            k = k + 2;
+        }
+        else if (text[i] < 0x10000) {
+            cliptext[k  ] = (0xE0 | ((text[i] & 0xF000) >> 12));
+            cliptext[k+1] = (0x80 | ((text[i] & 0x0FC0) >>  6));
+            cliptext[k+2] = (0x80 |  (text[i] & 0x003F)       );
+            k = k + 3;
+        }
+        else if (text[i] < 0x200000) {
+            cliptext[k  ] = (0xF0 | ((text[i] & 0x1C0000) >> 18));
+            cliptext[k+1] = (0x80 | ((text[i] & 0x03F000) >> 12));
+            cliptext[k+2] = (0x80 | ((text[i] & 0x000FC0) >>  6));
+            cliptext[k+3] = (0x80 |  (text[i] & 0x00003F)       );
+            k = k + 4;
+        }
+        else {
+            cliptext[k] = '?';
+            k++;
+        }
+        i++;
+    }
+
+    /* null-terminated string */
+    cliptext[k] = '\0';
+    cliplen = k + 1;
+}
+
+void winclipsend(void)
+{
+    if (!cliplen)
+        return;
+
+    /* gtk clipboard */
+    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), cliptext, cliplen);
+    gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+
+    /* x selection buffer */
+    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY), cliptext, cliplen);
+    gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
+
+    cliplen = 0;
+}
+
 static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
 {
     int newwid = event->width;
@@ -118,7 +182,7 @@ static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
     gli_image_w = newwid;
     gli_image_h = newhgt;
 
-    gli_resize_hyperlinks(gli_image_w, gli_image_h);
+    gli_resize_mask(gli_image_w, gli_image_h);
 
     gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
     if (gli_image_rgb)
@@ -144,7 +208,10 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
     if (w < 0) return;
     if (h < 0) return;
 
-    gli_windows_redraw();
+    if (!gli_drawselect)
+        gli_windows_redraw();
+    else
+        gli_drawselect = FALSE;
 
     gdk_draw_rgb_image(canvas->window, canvas->style->black_gc,
         x0, y0, w, h,
@@ -153,9 +220,16 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
         gli_image_s);
 }
 
-static void onbutton(GtkWidget *widget, GdkEventButton *event, void *data)
+static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
     gli_input_handle_click(event->x, event->y);
+}
+
+static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
+{
+    gli_copyselect = FALSE;
+    gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+    winclipsend();
 }
 
 static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
@@ -169,10 +243,16 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
         y = event->y;
     }
 
-    if (gli_get_hyperlink(x,y))
-        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
-    else
-        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+    /* hyperlinks and selection */
+    if (gli_copyselect) {
+        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_ibeam);
+        gli_move_selection(x, y);
+    } else {
+        if (gli_get_hyperlink(x, y))
+            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
+        else
+            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+    }
 }
 
 static void onkeypress(GtkWidget *widget, GdkEventKey *event, void *data)
@@ -224,6 +304,7 @@ void wininit(int *argc, char **argv)
     gtk_widget_set_default_visual(gdk_rgb_get_visual());
     gdk_arrow = gdk_cursor_new(GDK_ARROW);
     gdk_hand = gdk_cursor_new(GDK_HAND2);
+    gdk_ibeam = gdk_cursor_new(GDK_XTERM);
 }
 
 void winopen(void)
@@ -245,10 +326,13 @@ void winopen(void)
     frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     GTK_WIDGET_SET_FLAGS(frame, GTK_CAN_FOCUS);
     gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
+                               | GDK_BUTTON_RELEASE_MASK
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK);
     gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
-    	GTK_SIGNAL_FUNC(onbutton), NULL);
+    	GTK_SIGNAL_FUNC(onbuttondown), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
+    	GTK_SIGNAL_FUNC(onbuttonup), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
     	GTK_SIGNAL_FUNC(onkeypress), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
@@ -327,4 +411,3 @@ void gli_select(event_t *event, int polled)
 
     gli_curevent = NULL;
 }
-
