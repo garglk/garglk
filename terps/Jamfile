@@ -26,7 +26,7 @@ MAKE_JACL       ?= yes ;
 # AdvSys 1.2 + ANSI + NewParser + parts of glkize
 #
 
-if $(MAKE_ADVSYS)
+if $(MAKE_ADVSYS) = yes
 {
     SubDir TOP terps advsys ;
     ObjDir advsys ;
@@ -242,7 +242,7 @@ if $(MAKE_HUGO) = yes
 
 # -----------------------------------------------------------------------
 #
-# JACL 2.2 for JACL games
+# JACL 2.5.2 for JACL games
 #
 
 if $(MAKE_JACL) = yes
