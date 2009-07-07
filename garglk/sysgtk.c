@@ -17,6 +17,7 @@ static GtkWidget *filedlog;
 static GdkCursor *gdk_arrow;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
+static GtkIMContext *imcontext;
 static char *filename;
 
 static int timerid = -1;
@@ -255,9 +256,24 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
     }
 }
 
-static void onkeypress(GtkWidget *widget, GdkEventKey *event, void *data)
+static void oninput(GtkIMContext *context, gchar *input, void *data)
+{
+    glui32 inlen;
+    glui32 keybuf[1];
+
+    keybuf[0] = '?';
+
+    if((inlen = strlen(input)))
+        gli_parse_utf8(input, inlen, keybuf, 1);
+
+    gli_input_handle_key(keybuf[0]);
+}
+
+static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
 {
     int key = event->keyval;
+
+    if (!gtk_im_context_filter_keypress(imcontext, event)) {
 
     switch (key)
     {
@@ -289,6 +305,13 @@ static void onkeypress(GtkWidget *widget, GdkEventKey *event, void *data)
         if (key >= 32 && key <= 255)
             gli_input_handle_key(key);
     }
+
+    }
+}
+
+static void onkeyup(GtkWidget *widget, GdkEventKey *event, void *data)
+{
+    gtk_im_context_filter_keypress(imcontext, event);
 }
 
 static void onquit(GtkWidget *widget, void *data)
@@ -334,7 +357,9 @@ void winopen(void)
     gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
     	GTK_SIGNAL_FUNC(onbuttonup), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
-    	GTK_SIGNAL_FUNC(onkeypress), NULL);
+    	GTK_SIGNAL_FUNC(onkeydown), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event", 
+    	GTK_SIGNAL_FUNC(onkeyup), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
     	GTK_SIGNAL_FUNC(onquit), "WM destroy");
     gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
@@ -346,6 +371,10 @@ void winopen(void)
     gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", 
     	GTK_SIGNAL_FUNC(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
+
+    imcontext = gtk_im_multicontext_new();
+    g_signal_connect(imcontext, "commit",
+        G_CALLBACK(oninput), NULL);
 
     wintitle();
 
