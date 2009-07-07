@@ -26,6 +26,7 @@ static int timeouts = 0;
 /* buffer for clipboard text */
 char cliptext[4 * (SCROLLBACK + TBLINELEN * SCROLLBACK) + 1];
 int cliplen = 0;
+enum clipsource { PRIMARY = 2, CLIPBOARD = 3 };
 
 static int timeout(void *data)
 {
@@ -172,6 +173,46 @@ void winclipsend(void)
     cliplen = 0;
 }
 
+void winclipreceive(int source)
+{
+    gchar *gptr;
+    int glen, i;
+    glui32 *rptr;
+    glui32 rlen;
+
+    switch(source)
+    {
+        case PRIMARY: gptr = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY)); break;
+        case CLIPBOARD: gptr = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)); break;
+        default: return;
+    }
+
+    if (!gptr)
+        return;
+
+    glen = strlen(gptr);
+    if (!glen)
+        return;
+
+    rptr = malloc(sizeof(glui32)*glen);
+    rlen = gli_parse_utf8(gptr, glen, rptr, glen);
+
+    for (i = 0; i < rlen; i++)
+    {
+        if (rptr[i] == '\0')
+            break;
+        else if (rptr[i] == '\r' || rptr[i] == '\n')
+            continue;
+        else if (rptr[i] == '\b' || rptr[i] == '\t')
+            continue;
+        else if (rptr[i] != 27)
+            gli_input_handle_key(rptr[i]);
+    }
+
+    free(rptr);
+    g_free(gptr);
+}
+
 static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
 {
     int newwid = event->width;
@@ -223,7 +264,10 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
 
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    gli_input_handle_click(event->x, event->y);
+    if (event->button == 2 || event->button == 3)
+        winclipreceive(event->button);
+    else
+        gli_input_handle_click(event->x, event->y);
 }
 
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
@@ -263,7 +307,8 @@ static void oninput(GtkIMContext *context, gchar *input, void *data)
 
     keybuf[0] = '?';
 
-    if((inlen = strlen(input)))
+    inlen = strlen(input);
+    if(inlen)
         gli_parse_utf8(input, inlen, keybuf, 1);
 
     gli_input_handle_key(keybuf[0]);

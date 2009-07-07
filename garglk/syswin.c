@@ -187,6 +187,32 @@ void winclipsend(void)
     cliplen = 0;
 }
 
+void winclipreceive(void)
+{
+    HGLOBAL rmem;
+    wchar_t *rptr;
+    int i, rlen;
+
+    if(OpenClipboard(NULL)) {
+        rmem = GetClipboardData(CF_UNICODETEXT);
+        if (rmem && (rptr = GlobalLock(rmem))) {
+            rlen = GlobalSize(rmem) / sizeof(wchar_t);
+            for (i=0; i < rlen; i++) {
+                if (rptr[i] == '\0')
+                    break;
+                else if (rptr[i] == '\r' || rptr[i] == '\n')
+                    continue;
+                else if (rptr[i] == '\b' || rptr[i] == '\t')
+                    continue;
+                else if (rptr[i] != 27)
+                    gli_input_handle_key(rptr[i]);
+            }
+            GlobalUnlock(rmem);
+        }
+        CloseClipboard(); 
+    }
+}
+
 void wininit(int *argc, char **argv)
 {
     WNDCLASS wc;
@@ -607,6 +633,20 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         gli_windows_size_change();
 
         break;
+    }
+
+    case WM_RBUTTONDOWN:
+    {
+        SetFocus(hwndview);
+        winclipreceive();
+        return 0;
+    }
+
+    case WM_MBUTTONDOWN:
+    {
+        SetFocus(hwndview);
+        winclipreceive();
+        return 0;
     }
 
     case WM_LBUTTONDOWN:
