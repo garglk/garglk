@@ -509,7 +509,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
       gli_put_char(str->win->echostr, ch);
     break;
   case strtype_File:
-    putc(ch, str->file);
+    gli_putchar_utf8((glui32)ch, str->file);
     break;
   }
 }
@@ -550,11 +550,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
         gli_put_char_uni(str->win->echostr, ch);
     break;
     case strtype_File:
-        if (ch > 0xFF)
-            putc('?', str->file);
-        else
-            putc(ch, str->file);
-        break;
+        gli_putchar_utf8(ch, str->file);
   }
 }
 
@@ -626,11 +622,8 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 gli_put_buffer(str->win->echostr, buf, len);
             break;
         case strtype_File:
-            /* we should handle Unicode / UTF8 
-               but for now we only write ASCII */
             for (lx=0; lx<len; lx++) {
-                unsigned char ch = (unsigned char)(buf[lx]);
-                putc(ch, str->file);
+                gli_putchar_utf8((glui32)buf[lx], str->file);
             }
             break;
     }
@@ -708,11 +701,8 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                 gli_put_buffer_uni(str->win->echostr, buf, len);
             break;
         case strtype_File:
-            /* we should handle Unicode / UTF8 
-               but for now we only write ASCII */
             for (lx=0; lx<len; lx++) {
-                unsigned char ch = ((unsigned char)(buf[lx]));
-                putc(ch, str->file);
+                gli_putchar_utf8(buf[lx], str->file);
             }
             break;
     }
