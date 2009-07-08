@@ -226,16 +226,13 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
         unsigned int *rx0, unsigned int *rx1)
 {
     unsigned int row, above, below;
-    int found_left, found_right;
+    int found_left, found_right, from_right, from_below, is_above, is_below;
     int cx0, cx1, cy0, cy1;
     int i;
 
     row = (y0 + y1)/2;
     above = row - gli_leading;
     below = row + gli_leading;
-
-    found_left = FALSE;
-    found_right = FALSE;
 
     cx0 = gli_mask->select.x0 < gli_mask->select.x1
             ? gli_mask->select.x0
@@ -253,20 +250,80 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             ? gli_mask->select.y1
             : gli_mask->select.y0;
 
-    *rx0 = 0;
-    *rx1 = 0;
-
     if (!(row >= cy0 && row <= cy1))
         return FALSE;
 
-    if (above >= cy0 && above <= cy1) {
-        *rx0 = x0;
-        found_left = TRUE;
-    }
+    from_right = (gli_mask->select.x0 != cx0);
+    from_below = (gli_mask->select.y0 != cy0);
+    is_above = (above >= cy0 && above <= cy1);
+    is_below = (below >= cy0 && below <= cy1);
 
-    if (below >= cy0 && below <= cy1) {
+    *rx0 = 0;
+    *rx1 = 0;
+
+    found_left = FALSE;
+    found_right = FALSE;
+
+    if (is_above && is_below)
+    {
+        *rx0 = x0;
         *rx1 = x1;
+        found_left = TRUE;
         found_right = TRUE;
+    }
+    else if (!is_above && is_below)
+    {
+        if (from_below) {
+            if (from_right) {
+                *rx0 = cx0;
+                *rx1 = x1;
+                found_left = TRUE;
+                found_right = TRUE;
+            } else {
+                *rx0 = cx1;
+                *rx1 = x1;
+                found_left = TRUE;
+                found_right = TRUE;
+            }
+        } else {
+            if (from_right) {
+                *rx0 = cx1;
+                *rx1 = x1;
+                found_left = TRUE;
+                found_right = TRUE;
+            } else {
+                *rx1 = x1;
+                found_right = TRUE;
+            }
+        }
+    }
+    else if (is_above && !is_below)
+    {
+        if (from_below) {
+            if (from_right) {
+                *rx0 = x0;
+                *rx1 = cx1;
+                found_left = TRUE;
+                found_right = TRUE;
+            } else {
+                *rx0 = x0;
+                *rx1 = cx0;
+                found_left = TRUE;
+                found_right = TRUE;
+            }
+        } else {
+            if (from_right) {
+                if (x0 > cx0)
+                    return FALSE;
+                *rx0 = x0;
+                *rx1 = cx0;
+                found_left = TRUE;
+                found_right = TRUE;
+            } else {
+                *rx0 = x0;
+                found_left = TRUE;
+            }
+        }
     }
 
     if (found_left && found_right)
