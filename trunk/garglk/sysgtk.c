@@ -14,7 +14,6 @@
 static GtkWidget *frame;
 static GtkWidget *canvas;
 static GtkWidget *filedlog;
-static GdkCursor *gdk_arrow;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
@@ -273,7 +272,7 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 {
     gli_copyselect = FALSE;
-    gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+    gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
     winclipsend();
 }
 
@@ -296,7 +295,7 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
         if (gli_get_hyperlink(x, y))
             gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
         else
-            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_arrow);
+            gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
     }
 }
 
@@ -370,7 +369,6 @@ void wininit(int *argc, char **argv)
     gtk_init(argc, &argv);
     gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
     gtk_widget_set_default_visual(gdk_rgb_get_visual());
-    gdk_arrow = gdk_cursor_new(GDK_ARROW);
     gdk_hand = gdk_cursor_new(GDK_HAND2);
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
 }
