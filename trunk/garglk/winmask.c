@@ -225,14 +225,17 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
         unsigned int x1, unsigned int y1,
         unsigned int *rx0, unsigned int *rx1)
 {
-    unsigned int row, above, below;
-    int found_left, found_right, from_right, from_below, is_above, is_below;
+    unsigned int row, upper, lower, above, below;
+    int row_selected, found_left, found_right;
+    int from_right, from_below, is_above, is_below;
     int cx0, cx1, cy0, cy1;
     int i;
 
     row = (y0 + y1)/2;
-    above = row - gli_leading;
-    below = row + gli_leading;
+    upper = row - (row - y0)/2;
+    lower = row + (y1 - row)/2;
+    above = upper - (gli_leading)/2;
+    below = lower + (gli_leading)/2;
 
     cx0 = gli_mask->select.x0 < gli_mask->select.x1
             ? gli_mask->select.x0
@@ -250,7 +253,16 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             ? gli_mask->select.y1
             : gli_mask->select.y0;
 
-    if (!(row >= cy0 && row <= cy1))
+    row_selected = FALSE;
+
+    if ((cy0 >= upper && cy0 <= lower)
+        || (cy1 >= upper && cy1 <= lower))
+        row_selected = TRUE;
+
+    if (row >= cy0 && row <= cy1)
+        row_selected = TRUE;
+
+    if (!row_selected)
         return FALSE;
 
     from_right = (gli_mask->select.x0 != cx0);
