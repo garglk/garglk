@@ -1166,13 +1166,20 @@ static void gcmd_accept_scroll(window_t *win, glui32 arg)
 void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
+    glui32 key;
+
+    switch (arg)
+    {
+    case keycode_Erase: key = keycode_Delete; break;
+    default: key = arg;
+    }
 
     if (dwin->height < 2)
         dwin->scrollpos = 0;
 
-    if (dwin->scrollpos || arg == keycode_PageUp)
+    if (dwin->scrollpos || key == keycode_PageUp)
     {
-        gcmd_accept_scroll(win, arg);
+        gcmd_accept_scroll(win, key);
         return;
     }
 
@@ -1183,7 +1190,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     dwin->lastseen = 0;
     win->char_request = FALSE; 
     win->char_request_uni = FALSE;
-    gli_event_store(evtype_CharInput, win, arg, 0);
+    gli_event_store(evtype_CharInput, win, key, 0);
 }
 
 /* Return or enter, during line input. Ends line input. */
@@ -1403,6 +1410,12 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             if (dwin->incurs <= dwin->infence)
                 return;
             put_text_uni(dwin, NULL, 0, dwin->incurs-1, 1);
+            break;
+
+        case keycode_Erase:
+            if (dwin->incurs >= dwin->numchars)
+                return;
+            put_text_uni(dwin, NULL, 0, dwin->incurs, 1);
             break;
 
         case keycode_Escape:

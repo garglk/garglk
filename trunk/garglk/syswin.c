@@ -714,6 +714,7 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     case VK_UP: gli_input_handle_key(keycode_Up); break;
     case VK_DOWN: gli_input_handle_key(keycode_Down); break;
     case VK_ESCAPE: gli_input_handle_key(keycode_Escape); break;
+    case VK_DELETE: gli_input_handle_key(keycode_Erase); break;
     case VK_F1: gli_input_handle_key(keycode_Func1); break;
     case VK_F2: gli_input_handle_key(keycode_Func2); break;
     case VK_F3: gli_input_handle_key(keycode_Func3); break;
