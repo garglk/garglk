@@ -452,9 +452,17 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 /* Any key, during character input. Ends character input. */
 void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
 {
+    glui32 key;
+
+    switch (arg)
+    {
+    case keycode_Erase: key = keycode_Delete; break;
+    default: key = arg;
+    }
+
     win->char_request = FALSE;
     win->char_request_uni = FALSE;
-    gli_event_store(evtype_CharInput, win, arg, 0);
+    gli_event_store(evtype_CharInput, win, key, 0);
 }
 
 /* Return or enter, during line input. Ends line input. */
@@ -546,6 +554,17 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         ln->chars[dwin->inorgx+ix-1] = ln->chars[dwin->inorgx+ix];
     ln->chars[dwin->inorgx+dwin->inlen-1] = ' ';
     dwin->incurs--;
+    dwin->inlen--;
+    break;
+
+    case keycode_Erase:
+    if (dwin->inlen <= 0)
+        return;
+    if (dwin->incurs >= dwin->inlen)
+        return;
+    for (ix=dwin->incurs; ix<dwin->inlen-1; ix++) 
+        ln->chars[dwin->inorgx+ix] = ln->chars[dwin->inorgx+ix+1];
+    ln->chars[dwin->inorgx+dwin->inlen-1] = ' ';
     dwin->inlen--;
     break;
 

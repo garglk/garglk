@@ -323,6 +323,7 @@ static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
     {
     case GDK_Return: gli_input_handle_key(keycode_Return); break;
     case GDK_BackSpace: gli_input_handle_key(keycode_Delete); break;
+    case GDK_Delete: gli_input_handle_key(keycode_Erase); break;
     case GDK_Tab: gli_input_handle_key(keycode_Tab); break;
     case GDK_Prior: gli_input_handle_key(keycode_PageUp); break;
     case GDK_Next: gli_input_handle_key(keycode_PageDown); break;
