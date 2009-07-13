@@ -223,6 +223,7 @@ extern int gli_more_font;
 extern int gli_forceclick;
 extern int gli_copyselect;
 extern int gli_drawselect;
+extern int gli_claimselect;
 
 /*
  * Standard Glk I/O stuff
@@ -341,6 +342,8 @@ struct glk_window_struct
     int hyper_request;
 
     attr_t attr;
+    unsigned char bgcolor[3];
+    unsigned char fgcolor[3];
 
     gidispatch_rock_t disprock;
     window_t *next, *prev; /* in the big linked list of windows */

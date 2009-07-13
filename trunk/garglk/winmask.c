@@ -10,6 +10,7 @@ static mask_t *gli_mask;
 /* for copy selection */
 int gli_copyselect = FALSE;
 int gli_drawselect = FALSE;
+int gli_claimselect = FALSE;
 
 void gli_resize_mask(int x, int y)
 {
@@ -139,6 +140,7 @@ void gli_start_selection(int x, int y)
     gli_mask->select.x1 = 0;
     gli_mask->select.y1 = 0;
 
+    gli_claimselect = FALSE;
     gli_force_redraw = 1;
     gli_windows_redraw();
     return;
@@ -159,6 +161,7 @@ void gli_move_selection(int x, int y)
     gli_mask->select.x1 = tx;
     gli_mask->select.y1 = ty;
 
+    gli_claimselect = FALSE;
     gli_windows_redraw();
     return;
 }
@@ -175,6 +178,7 @@ void gli_clear_selection(void)
     gli_mask->select.x1 = 0;
     gli_mask->select.y1 = 0;
 
+    gli_claimselect = FALSE;
     return;
 }
 

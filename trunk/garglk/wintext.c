@@ -342,7 +342,7 @@ void win_textbuffer_redraw(window_t *win)
 
         /* repaint dirty line if buffer is selected */
         if (selbuf)
-            gli_line_redraw(x0/GLI_SUBPIX, y, x1/GLI_SUBPIX, y + gli_leading);
+            gli_redraw_rect(x0/GLI_SUBPIX, y, x1/GLI_SUBPIX, y + gli_leading);
 
         /* keep selected line dirty */
         if (!selrow)
@@ -355,8 +355,9 @@ void win_textbuffer_redraw(window_t *win)
         linelen = ln->len;
 
         /* kill spaces at the end unless they're a different color*/
+        color = gli_override_bg ? gli_window_color : win->bgcolor;
         while (i > 0 && linelen > 1 && ln->chars[linelen-1] == ' ' 
-            && dwin->styles[ln->attrs[linelen-1].style].bg == gli_window_color 
+            && (char *)dwin->styles[ln->attrs[linelen-1].style].bg == color 
             && !dwin->styles[ln->attrs[linelen-1].style].reverse)
                 linelen --;
 
@@ -384,7 +385,7 @@ void win_textbuffer_redraw(window_t *win)
         }
 
         /* find and highlight selected characters */
-        if (selrow) {
+        if (selrow && !gli_claimselect) {
             tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
             lsc = 0;
             rsc = 0;
@@ -424,10 +425,10 @@ void win_textbuffer_redraw(window_t *win)
         /*
          * fill in background colors
          */
-
+        color = gli_override_bg ? gli_window_color : win->bgcolor;
         gli_draw_rect(x0/GLI_SUBPIX, y,
                 (x1-x0) / GLI_SUBPIX, gli_leading,
-                gli_window_color);
+                color);
 
         x = x0 + SLOP + ln->lm;
         a = 0;
@@ -472,9 +473,10 @@ void win_textbuffer_redraw(window_t *win)
         }
         x += w;
 
+        color = gli_override_bg ? gli_window_color : win->bgcolor;
         gli_draw_rect(x/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX - x/GLI_SUBPIX, gli_leading,
-                gli_window_color);
+                color);
 
         /*
          * draw caret
@@ -523,9 +525,10 @@ void win_textbuffer_redraw(window_t *win)
         gli_put_hyperlink(0, x0/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX, y + gli_leading);
 
+        color = gli_override_bg ? gli_window_color : win->bgcolor;
         gli_draw_rect(x/GLI_SUBPIX, y,
                 x1/GLI_SUBPIX - x/GLI_SUBPIX, gli_leading,
-                gli_window_color);
+                color);
 
         w = gli_string_width(gli_more_font,
                 gli_more_prompt, strlen(gli_more_prompt), -1);
@@ -535,8 +538,9 @@ void win_textbuffer_redraw(window_t *win)
         if (gli_more_align == 2)    /* right */
             x = x1 - SLOP - w;
 
+        color = gli_override_fg ? gli_more_color : win->fgcolor;
         gli_draw_string(x, y + gli_baseline, 
-                gli_more_font, gli_more_color,
+                gli_more_font, color,
                 gli_more_prompt, strlen(gli_more_prompt), -1);
         y1 = y; /* don't want pictures overdrawing "[more]" */
     }
@@ -629,6 +633,7 @@ void win_textbuffer_redraw(window_t *win)
 
     /* send selected text to clipboard */
     if (selbuf && dwin->copypos) {
+        gli_claimselect = TRUE;
         gli_clipboard_copy((glui32 *)dwin->copybuf, dwin->copypos);
         for (i = 0; i < dwin->copypos; i++)
             dwin->copybuf[i] = 0;
@@ -784,6 +789,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     int saved;
     int i;
     int linelen;
+    char *color;
 
 #ifdef USETTS
     { char b[1]; b[0] = ch; gli_speak_tts(b, 1, 0); }
@@ -791,6 +797,8 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
+
+    color = gli_override_bg ? gli_window_color : win->bgcolor;
 
     /* oops ... overflow */
     if (dwin->numchars + 1 >= TBLINELEN)
@@ -848,7 +856,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     }
 
     if (gli_conf_spaces && win->attr.style != style_Preformatted 
-        && dwin->styles[win->attr.style].bg == gli_window_color 
+        && (char *)dwin->styles[win->attr.style].bg == color 
         && !dwin->styles[win->attr.style].reverse)
     {
         /* turn (period space space) into (period space) */
@@ -891,7 +899,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     /* kill spaces at the end for line width calculation */
     linelen = dwin->numchars;
     while (linelen > 1 && dwin->chars[linelen-1] == ' ' 
-        && dwin->styles[dwin->attrs[linelen-1].style].bg == gli_window_color 
+        && (char *)dwin->styles[dwin->attrs[linelen-1].style].bg == color 
         && !dwin->styles[dwin->attrs[linelen-1].style].reverse)
         linelen --;
 
