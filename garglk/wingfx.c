@@ -32,9 +32,9 @@ window_graphics_t *win_graphics_create(window_t *win)
 		return NULL;
 
 	res->owner = win;
-	res->bgnd[0] = gli_window_color[0];
-	res->bgnd[1] = gli_window_color[1];
-	res->bgnd[2] = gli_window_color[2];
+	res->bgnd[0] = win->bgcolor[0];
+	res->bgnd[1] = win->bgcolor[1];
+	res->bgnd[2] = win->bgcolor[2];
 
 	res->w = 0;
 	res->h = 0;

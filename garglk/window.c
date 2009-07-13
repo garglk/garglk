@@ -66,6 +66,8 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->hyper_request = FALSE;
 
     attrclear(&win->attr);
+    memcpy(win->bgcolor, gli_window_color, 3);
+    memcpy(win->fgcolor, gli_more_color, 3);
 
     win->str = gli_stream_open_window(win);
     win->echostr = NULL;
@@ -744,6 +746,14 @@ void gli_windows_size_change()
 
 void gli_window_redraw(window_t *win)
 {
+    if (gli_force_redraw) {
+        char *color = gli_override_bg ? gli_window_color : win->bgcolor;
+        gli_draw_rect(win->bbox.x0, win->bbox.y0,
+                win->bbox.x1 - win->bbox.x0,
+                win->bbox.y1 - win->bbox.y0,
+                color);
+    }
+
     switch (win->type) {
         case wintype_Blank:
             win_blank_redraw(win);
@@ -765,6 +775,8 @@ void gli_window_redraw(window_t *win)
 
 void gli_windows_redraw()
 {
+    gli_claimselect = FALSE;
+
     if (gli_force_redraw)
     {
         winrepaint(0, 0, gli_image_w, gli_image_h);
@@ -777,7 +789,7 @@ void gli_windows_redraw()
     gli_force_redraw = 0;
 }
 
-void gli_line_redraw(int x0, int y0, int x1, int y1)
+void gli_redraw_rect(int x0, int y0, int x1, int y1)
 {
     gli_drawselect = TRUE;
     winrepaint(x0, y0, x1, y1);
