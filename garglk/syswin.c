@@ -183,8 +183,6 @@ void winclipsend(void)
             GlobalFree(wmem);
         CloseClipboard(); 
     }
-
-    cliplen = 0;
 }
 
 void winclipreceive(void)
@@ -635,20 +633,6 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
 
-    case WM_RBUTTONDOWN:
-    {
-        SetFocus(hwndview);
-        winclipreceive();
-        return 0;
-    }
-
-    case WM_MBUTTONDOWN:
-    {
-        SetFocus(hwndview);
-        winclipreceive();
-        return 0;
-    }
-
     case WM_LBUTTONDOWN:
     {
         SetFocus(hwndview);
@@ -660,14 +644,19 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         gli_copyselect = FALSE;
         SetCursor(idc_arrow);
-        winclipsend();
+        return 0;
+    }
+
+    case WM_MBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    {
+        SetFocus(hwndview);
         return 0;
     }
 
     case WM_CAPTURECHANGED:
     {
         gli_copyselect = FALSE;
-        winclipsend();
         return 0;
     }
 
@@ -698,6 +687,21 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
 
+        return 0;
+    }
+
+    case WM_COPY:
+    {
+        gli_copyselect = FALSE;
+        SetCursor(idc_arrow);
+        winclipsend();
+        return 0;
+    }
+
+    case WM_PASTE:
+    {
+        SetFocus(hwndview);
+        winclipreceive();
         return 0;
     }
 
@@ -743,6 +747,10 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             gli_input_handle_key(keycode_Delete);
         else if (key == '\t')
             gli_input_handle_key(keycode_Tab);
+        else if (key == 0x03 || key == 0x18)
+            SendMessage(hwndview, WM_COPY, 0, 0);
+        else if (key == 0x16)
+            SendMessage(hwndview, WM_PASTE, 0, 0);
         else if (key != 27)
             gli_input_handle_key(key);
 
@@ -757,6 +765,10 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             gli_input_handle_key(keycode_Delete);
         else if (key == '\t')
             gli_input_handle_key(keycode_Tab);
+        else if (key == 0x03 || key == 0x18)
+            SendMessage(hwndview, WM_COPY, 0, 0);
+        else if (key == 0x16)
+            SendMessage(hwndview, WM_PASTE, 0, 0);
         else if (key != 27) {
             /* translate from ANSI code page to Unicode */
             char ansich = (char)key;
