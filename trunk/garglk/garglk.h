@@ -399,7 +399,7 @@ struct window_textgrid_s
 
 typedef struct tbline_s
 {
-    int len, newline, dirty;
+    int len, newline, dirty, repaint;
     picture_t *lpic, *rpic;
     glui32 lhyper, rhyper;
     int lm, rm;
