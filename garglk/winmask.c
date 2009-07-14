@@ -173,6 +173,10 @@ void gli_clear_selection(void)
         return;
     }
 
+    if (gli_mask->select.x0 || gli_mask->select.x1
+            || gli_mask->select.y0 || gli_mask->select.y1)
+            gli_force_redraw = TRUE;
+
     gli_mask->select.x0 = 0;
     gli_mask->select.y0 = 0;
     gli_mask->select.x1 = 0;

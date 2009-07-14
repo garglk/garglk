@@ -24,16 +24,16 @@ static void touch(window_textbuffer_t *dwin, int line)
 //    if (dwin->scrollmax && dwin->scrollmax < dwin->height)
 //        y -= (dwin->height - dwin->scrollmax) * gli_leading;
     dwin->lines[line].dirty = 1;
-    winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
     gli_clear_selection();
+    winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
 }
 
 static void touchscroll(window_textbuffer_t *dwin)
 {
     window_t *win = dwin->owner;
     int i;
-    winrepaint(win->bbox.x0, win->bbox.y0, win->bbox.x1, win->bbox.y1);
     gli_clear_selection();
+    winrepaint(win->bbox.x0, win->bbox.y0, win->bbox.x1, win->bbox.y1);
     for (i = 0; i < dwin->scrollmax; i++)
         dwin->lines[i].dirty = 1;
 }
@@ -73,6 +73,7 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
     for (i = 0; i < SCROLLBACK; i++)
     {
         dwin->lines[i].dirty = 0;
+        dwin->lines[i].repaint = 0;
         dwin->lines[i].lm = 0;
         dwin->lines[i].rm = 0;
         dwin->lines[i].lpic = 0;
@@ -337,16 +338,20 @@ void win_textbuffer_redraw(window_t *win)
         memcpy(ln, dwin->lines + i, sizeof(tbline_t));
 
         /* skip if we can */
-        if (!ln->dirty && !gli_force_redraw && dwin->scrollpos == 0)
+        if (!ln->dirty && !ln->repaint && !gli_force_redraw && dwin->scrollpos == 0)
             continue;
 
-        /* repaint dirty line if buffer is selected */
-        if (selbuf)
+        /* repaint previously selected lines if needed */
+        if (ln->repaint && !gli_force_redraw)
             gli_redraw_rect(x0/GLI_SUBPIX, y, x1/GLI_SUBPIX, y + gli_leading);
 
-        /* keep selected line dirty */
-        if (!selrow)
+        /* keep selected line dirty and flag for repaint */
+        if (!selrow) {
             dwin->lines[i].dirty = FALSE;
+            dwin->lines[i].repaint = FALSE;
+        } else {
+            dwin->lines[i].repaint = TRUE;
+        }
 
         /* leave bottom line blank for [more] prompt */
         if (drawmore && i == dwin->scrollpos && i > 0)
@@ -970,6 +975,7 @@ void win_textbuffer_clear(window_t *win)
         dwin->lines[i].rm = 0;
         dwin->lines[i].newline = 0;
         dwin->lines[i].dirty = 1;
+        dwin->lines[i].repaint = 0;
     }
 
     dwin->lastseen = 0;
