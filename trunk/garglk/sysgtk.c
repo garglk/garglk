@@ -25,7 +25,7 @@ static int timeouts = 0;
 /* buffer for clipboard text */
 char cliptext[4 * (SCROLLBACK + TBLINELEN * SCROLLBACK) + 1];
 int cliplen = 0;
-enum clipsource { PRIMARY = 2, CLIPBOARD = 3 };
+enum clipsource { PRIMARY , CLIPBOARD };
 
 static int timeout(void *data)
 {
@@ -156,20 +156,25 @@ void winclipstore(glui32 *text, int len)
     cliplen = k + 1;
 }
 
-void winclipsend(void)
+void winclipsend(int source)
 {
     if (!cliplen)
         return;
 
-    /* gtk clipboard */
-    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), cliptext, cliplen);
-    gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
-
-    /* x selection buffer */
-    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY), cliptext, cliplen);
-    gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
-
-    cliplen = 0;
+    switch (source)
+    {
+    case PRIMARY:
+        gtk_clipboard_set_text(
+                gtk_clipboard_get(GDK_SELECTION_PRIMARY), cliptext, cliplen);
+        gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
+        break;
+    case CLIPBOARD:
+        gtk_clipboard_set_text(
+                gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), cliptext, cliplen);
+        gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+        break;
+     default:return;
+    }
 }
 
 void winclipreceive(int source)
@@ -181,8 +186,14 @@ void winclipreceive(int source)
 
     switch(source)
     {
-        case PRIMARY: gptr = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_PRIMARY)); break;
-        case CLIPBOARD: gptr = gtk_clipboard_wait_for_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)); break;
+        case PRIMARY:
+            gptr = gtk_clipboard_wait_for_text(
+                    gtk_clipboard_get(GDK_SELECTION_PRIMARY));
+            break;
+        case CLIPBOARD:
+            gptr = gtk_clipboard_wait_for_text(
+                    gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+            break;
         default: return;
     }
 
@@ -263,17 +274,19 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
 
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    if (event->button == 2 || event->button == 3)
-        winclipreceive(event->button);
-    else
+    if (event->button == 1)
         gli_input_handle_click(event->x, event->y);
+    else if (event->button == 2)
+        winclipreceive(PRIMARY);
 }
 
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    gli_copyselect = FALSE;
-    gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
-    winclipsend();
+    if (event->button == 1) {
+        gli_copyselect = FALSE;
+        gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
+        winclipsend(PRIMARY);
+    }
 }
 
 static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
@@ -316,6 +329,28 @@ static void oninput(GtkIMContext *context, gchar *input, void *data)
 static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
 {
     int key = event->keyval;
+    switch(key)
+    {
+    case GDK_c:
+    case GDK_C:
+        if (event->state & GDK_CONTROL_MASK) {
+            winclipsend(CLIPBOARD);
+            return;
+        }
+    case GDK_x:
+    case GDK_X:
+        if (event->state & GDK_CONTROL_MASK) {
+            winclipsend(CLIPBOARD);
+            return;
+        }
+    case GDK_v:
+    case GDK_V:
+        if (event->state & GDK_CONTROL_MASK) {
+            winclipreceive(CLIPBOARD);
+            return;
+        }
+    default: break;
+    }
 
     if (!gtk_im_context_filter_keypress(imcontext, event)) {
 
@@ -356,6 +391,20 @@ static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
 
 static void onkeyup(GtkWidget *widget, GdkEventKey *event, void *data)
 {
+    int key = event->keyval;
+    switch(key)
+    {
+    case GDK_c:
+    case GDK_C:
+    case GDK_x:
+    case GDK_X:
+    case GDK_v:
+    case GDK_V:
+        if (event->state & GDK_CONTROL_MASK) {
+            return;
+        }
+    default: break;
+    }
     gtk_im_context_filter_keypress(imcontext, event);
 }
 
