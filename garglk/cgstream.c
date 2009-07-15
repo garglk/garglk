@@ -42,6 +42,7 @@ stream_t *gli_new_stream(glui32 type, int readable, int writable, glui32 rock, i
   str->buflen = 0;
   str->win = NULL;
   str->file = NULL;
+  str->textfile = FALSE;
 
   str->prev = NULL;
   str->next = gli_streamlist;
@@ -169,6 +170,7 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
   }
     
   str->file = fl;
+  str->textfile = fref->textmode;
     
   return str;
 }
@@ -206,6 +208,7 @@ stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
   }
     
   str->file = fl;
+  str->textfile = textmode;
     
   return str;
 }
@@ -509,8 +512,11 @@ static void gli_put_char(stream_t *str, unsigned char ch)
       gli_put_char(str->win->echostr, ch);
     break;
   case strtype_File:
-    gli_putchar_utf8((glui32)ch, str->file);
-    break;
+      if (str->textfile)
+        gli_putchar_utf8((glui32)ch, str->file);
+      else
+        putc((unsigned char)ch, str->file);
+      break;
   }
 }
 
@@ -550,7 +556,11 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
         gli_put_char_uni(str->win->echostr, ch);
     break;
     case strtype_File:
-        gli_putchar_utf8(ch, str->file);
+      if (str->textfile)
+        gli_putchar_utf8((glui32)ch, str->file);
+      else
+        putc((unsigned char)ch, str->file);
+      break;
   }
 }
 
@@ -623,7 +633,10 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
             break;
         case strtype_File:
             for (lx=0; lx<len; lx++) {
-                gli_putchar_utf8((glui32)buf[lx], str->file);
+                if (str->textfile)
+                    gli_putchar_utf8((glui32)buf[lx], str->file);
+                else
+                    putc((unsigned char)(buf[lx]), str->file);
             }
             break;
     }
@@ -702,7 +715,10 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
             break;
         case strtype_File:
             for (lx=0; lx<len; lx++) {
-                gli_putchar_utf8(buf[lx], str->file);
+                if (str->textfile)
+                    gli_putchar_utf8((glui32)buf[lx], str->file);
+                else
+                    putc((unsigned char)(buf[lx]), str->file);
             }
             break;
     }

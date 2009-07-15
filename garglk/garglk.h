@@ -280,6 +280,7 @@ struct glk_stream_struct
 
     /* for strtype_File */
     FILE *file; 
+    int textfile;
 
     /* for strtype_Memory */
     void *buf;		/* unsigned char* for latin1, glui32* for unicode */
