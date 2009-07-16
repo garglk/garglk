@@ -15,8 +15,6 @@ int gli_claimselect = FALSE;
 void gli_resize_mask(int x, int y)
 {
     int i;
-    int oldsize;
-    int rx, ry;
 
     if (!gli_mask) {
         gli_mask = (mask_t*) calloc(sizeof(mask_t), 1);
@@ -25,21 +23,14 @@ void gli_resize_mask(int x, int y)
         }
     }
 
-    rx = x + 1;
-    ry = y + 1;
-
-    /* preserve contents of hyperlink storage */
-    if (rx < gli_mask->hor) {
-        for (i = rx; i < gli_mask->hor; i++) {
-            if (gli_mask->links[i]) {
-                free(gli_mask->links[i]);
-            }
+    for (i = 0; i < gli_mask->hor; i++) {
+        if (gli_mask->links[i]) {
+            free(gli_mask->links[i]);
         }
     }
 
-    oldsize = gli_mask->hor < rx ? gli_mask->hor : rx;
-    gli_mask->hor = rx;
-    gli_mask->ver = ry;
+    gli_mask->hor = x + 1;
+    gli_mask->ver = y + 1;
 
     /* resize hyperlinks storage */
     gli_mask->links = (glui32**)realloc(gli_mask->links, gli_mask->hor * sizeof(glui32*));
@@ -51,15 +42,7 @@ void gli_resize_mask(int x, int y)
         return;
     }
 
-    for (i = 0; i < oldsize; i++) {
-        gli_mask->links[i] = (glui32*) realloc(gli_mask->links[i], gli_mask->ver * sizeof(glui32));
-        if (!gli_mask->links[i]) {
-            gli_strict_warning("resize_mask: could not reallocate old memory");
-            return;
-        }
-    }
-
-    for (i = oldsize; i < gli_mask->hor; i++) {
+    for (i = 0; i < gli_mask->hor; i++) {
         gli_mask->links[i] = (glui32*) calloc(sizeof(glui32), gli_mask->ver);
         if (!gli_mask->links[i]) {
             gli_strict_warning("resize_mask: could not allocate new memory");
