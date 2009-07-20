@@ -27,6 +27,7 @@ void args(int argc, char * argv[])
   switches(argc, argv);
   if (adventureFileName == NULL)
     /* No game given, try program name */
-    if (strcmp(prgnam, PROGNAME) != 0)
+    if (strcmp(prgnam, PROGNAME) != 0
+        && strstr(prgnam, PROGNAME) == 0)
       adventureFileName = strdup(argv[0]);
 }

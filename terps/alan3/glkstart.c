@@ -57,11 +57,9 @@ static void openGlkWindows() {
 /*----------------------------------------------------------------------*/
 static void openResourceFile() {
   char *resourceFileName = strdup(adventureFileName);
-  char *extension = strrchr(resourceFileName, '.');
   frefid_t resourceFileRef;
   giblorb_err_t ecode;
 
-  strcpy(extension, ".a3r");
   resourceFileRef = glk_fileref_create_by_name(fileusage_BinaryMode,
 					       resourceFileName, 0);
   if (glk_fileref_does_file_exist(resourceFileRef)) {
@@ -77,7 +75,10 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
   /* first, open a window for error output */
   openGlkWindows();
-  
+
+  garglk_set_program_name(alan.shortHeader);
+  garglk_set_program_info("Alan Interpreter 3.0 alpha 6 by Thomas Nilsson\n");
+
   /* now process the command line arguments */
   args(data->argc, data->argv);
 
@@ -89,9 +90,6 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
   /* Open any possible blorb resource file */
   openResourceFile();
-
-garglk_set_program_name(alan.shortHeader);
-garglk_set_program_info("Alan Interpreter 3.0 alpha 6 by Thomas Nilsson\n");
 
   return TRUE;
 }
