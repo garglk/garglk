@@ -221,7 +221,8 @@ void args(argc, argv)
     switches(argc, argv);
     if (advnam[0] == '\0')
       /* No game given, try program name */
-      if (stricmp(prgnam, PROGNAME) != 0)
+      if (stricmp(prgnam, PROGNAME) != 0
+          && strstr(prgnam, PROGNAME) == 0)
 	advnam = strdup(argv[0]);
   }
 #else
@@ -240,7 +241,8 @@ void args(argc, argv)
   switches(argc, argv);
   if (advnam[0] == '\0')
     /* No game given, try program name */
-    if (stricmp(prgnam, PROGNAME) != 0)
+    if (stricmp(prgnam, PROGNAME) != 0
+        && strstr(prgnam, PROGNAME) == 0)
       advnam = strdup(argv[0]);
 #else
 #if defined __vms__
@@ -260,7 +262,8 @@ void args(argc, argv)
   switches(argc, argv);
   if (advnam[0] == '\0')
     /* No game given, try program name */
-    if (strcmp(prgnam, PROGNAME) != 0)
+    if (strcmp(prgnam, PROGNAME) != 0
+        && strstr(prgnam, PROGNAME) == 0)
       advnam = strdup(argv[0]);
 #else
 #if defined(__unix__) || defined(__APPLE__)
@@ -274,7 +277,8 @@ void args(argc, argv)
   switches(argc, argv);
   if (advnam[0] == '\0')
     /* No game given, try program name */
-    if (strcmp(prgnam, PROGNAME) != 0)
+    if (strcmp(prgnam, PROGNAME) != 0
+        && strstr(prgnam, PROGNAME) == 0)
       advnam = strdup(argv[0]);
 #else
   Unimplemented OS!
