@@ -438,7 +438,9 @@ void z_erase_window (void)
 	{
 		if (gos_upper) {
 			glk_set_window(gos_upper);
+#ifdef GARGLK
 			garglk_set_zcolors(fg_lower, bg_lower);
+#endif /* GARGLK */
 			glk_window_clear(gos_upper);
 			glk_set_window(gos_curwin);
 		}
@@ -448,7 +450,9 @@ void z_erase_window (void)
 	{
 		if (gos_upper) {
 			glk_set_window(gos_upper);
+#ifdef GARGLK
 			garglk_set_zcolors(fg_lower, bg_lower);
+#endif /* GARGLK */
 			glk_window_clear(gos_upper);
 		}
 		glk_window_clear(gos_lower);
@@ -537,8 +541,12 @@ void z_set_colour (void)
 	int zfore = zargs[0];
 	int zback = zargs[1];
 
-	if (!(zfore == 0 && zback == 0))
+
+	if (!(zfore == 0 && zback == 0)) {
+#ifdef GARGLK
 		garglk_set_zcolors(zfore, zback);
+#endif /* GARGLK */
+	}
 
 	if (gos_curwin == gos_lower) {
 		fg_lower = zfore;
@@ -603,7 +611,9 @@ void z_set_text_style (void)
 		if (gos_curwin == gos_upper && gos_upper) {
 			glk_set_style(style_User1);
 		}
+#ifdef GARGLK
 		garglk_set_reversevideo(TRUE);
+#endif /* GARGLK */
 	}
 	else if (style & FIXED_WIDTH_STYLE)
 		glk_set_style(style_Preformatted);
@@ -617,7 +627,9 @@ void z_set_text_style (void)
 		glk_set_style(style_Normal);
 
 	if (curstyle == 0) {
+#ifdef GARGLK
 		garglk_set_reversevideo(FALSE);
+#endif /* GARGLK */
 	}
 }
 
