@@ -1436,7 +1436,7 @@ void glk_put_char_stream_uni(stream_t *str, glui32 ch)
         gli_strict_warning("put_char_stream_uni: invalid ref");
         return;
     }
-    gli_put_char_uni(gli_currentstr, ch);
+    gli_put_char_uni(str, ch);
 }
 
 void glk_put_string(char *s)
