@@ -178,19 +178,13 @@ void split_window (int lines)
 	if (h_version < V4)
 		lines++;
 
-	if (lines > curr_status_ht)
+	if (lines != curr_status_ht || lines != mach_status_ht)
 	{
-		glui32 height;
-
-		glk_window_get_size(gos_upper, NULL, &height);
-		if (lines != height)
-			glk_window_set_arrangement(
-				glk_window_get_parent(gos_upper),
-				winmethod_Above | winmethod_Fixed,
-				lines, NULL);
+		mach_status_ht = lines;
 		curr_status_ht = lines;
+		reset_status_ht();
 	}
-	mach_status_ht = lines;
+
 	if (cury > lines)
 	{
 		glk_window_move_cursor(gos_upper, 0, 0);
