@@ -15,12 +15,13 @@ Compile with "jam -sBUILD=DEBUG" for a debuggable build.
 The command "jam install" will copy the compiled executables
 and shared libraries into "build/dist/".
 
-For a system-wide install, the following three steps should place
+For a system-wide install, the following four steps should place
 the binaries, shared library, and configuration file in appropriate
 locations. However, please check the Jamrules file and verify that
 the referenced paths actually exist before you proceed.
 
-1. jam install SYSTEM=1
-2. ln -s /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
-3. cp garglk/garglk.ini /etc/garglk.ini
+sudo env SYSTEM=1 jam install
+sudo ln -s /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
+sudo cp garglk/garglk.ini /etc/garglk.ini
+sudo ln -s /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
 
