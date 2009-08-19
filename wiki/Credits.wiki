@@ -29,6 +29,7 @@ _Quality assurance testing and bug reports_
   * Alan De Smet
   * Pavel Soukenik
   * D. Cooper Stevenson
+  * Peter Weston
 
 <p><br/></p>
 
