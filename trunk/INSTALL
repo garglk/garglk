@@ -21,7 +21,7 @@ locations. However, please check the Jamrules file and verify that
 the referenced paths actually exist before you proceed.
 
 sudo env SYSTEM=1 jam install
-sudo ln -s /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
+sudo ln -s -f /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
+sudo ln -s -f /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
 sudo cp garglk/garglk.ini /etc/garglk.ini
-sudo ln -s /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
 
