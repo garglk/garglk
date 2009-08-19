@@ -952,6 +952,10 @@ void win_textbuffer_clear(window_t *win)
     window_textbuffer_t *dwin = win->data;
     int i;
 
+    win->attr.fgcolor = gli_override_fg;
+    win->attr.bgcolor = gli_override_bg;
+    win->attr.reverse = FALSE;
+
     dwin->ladjw = dwin->radjw = 0;
     dwin->ladjn = dwin->radjn = 0;
 

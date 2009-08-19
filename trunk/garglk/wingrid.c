@@ -248,6 +248,10 @@ void win_textgrid_clear(window_t *win)
     window_textgrid_t *dwin = win->data;
     int k, j;
 
+    win->attr.fgcolor = gli_override_fg;
+    win->attr.bgcolor = gli_override_bg;
+    win->attr.reverse = FALSE;
+
     for (k = 0; k < dwin->height; k++)
     {
     touch(dwin, k);
