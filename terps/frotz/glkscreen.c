@@ -30,8 +30,8 @@ static int lowerstyle = 0;
 static int cury = 1;
 static int curx = 1;
 
-int fg_lower = 0;
-int bg_lower = 0;
+int curr_fg = 0;
+int curr_bg = 0;
 
 /* To make the common code happy */
 
@@ -439,7 +439,7 @@ void z_erase_window (void)
 		if (gos_upper) {
 			glk_set_window(gos_upper);
 #ifdef GARGLK
-			garglk_set_zcolors(fg_lower, bg_lower);
+			garglk_set_zcolors(curr_fg, curr_bg);
 #endif /* GARGLK */
 			glk_window_clear(gos_upper);
 			glk_set_window(gos_curwin);
@@ -451,7 +451,7 @@ void z_erase_window (void)
 		if (gos_upper) {
 			glk_set_window(gos_upper);
 #ifdef GARGLK
-			garglk_set_zcolors(fg_lower, bg_lower);
+			garglk_set_zcolors(curr_fg, curr_bg);
 #endif /* GARGLK */
 			glk_window_clear(gos_upper);
 		}
@@ -548,10 +548,8 @@ void z_set_colour (void)
 #endif /* GARGLK */
 	}
 
-	if (gos_curwin == gos_lower) {
-		fg_lower = zfore;
-		bg_lower = zback;
-	}
+	curr_fg = zfore;
+	curr_bg = zback;
 }
 
 /*
