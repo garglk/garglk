@@ -271,12 +271,14 @@ void smartstatusline (void)
 	roomlen = b - a;
 	scorelen = d - c;
 	scoreofs = h_screen_cols - scorelen - 2;
+	if (scoreofs <= roomlen)
+		scoreofs = roomlen + 2;
 
 	memset(buf, ' ', h_screen_cols);
 	memcpy(buf + 1 + scoreofs, c, scorelen);
 	memcpy(buf + 1, a, roomlen);
-	if (roomlen >= scoreofs)
-		buf[roomlen + 1] = '|';
+	//if (roomlen >= scoreofs)
+	//	buf[roomlen + 1] = '|';
 
 	glk_window_move_cursor(gos_upper, 0, 0);
 	glk_set_style(style_User1);
