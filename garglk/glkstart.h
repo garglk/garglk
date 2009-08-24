@@ -2,6 +2,14 @@
         (Unix implementations of the Glk API).
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
+
+    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
+    distribute, and incorporate it into your own programs, by any means
+    and under any conditions, as long as you do not modify it. You may
+    also modify this file, incorporate it into your own programs,
+    and distribute the modified version, as long as you retain a notice
+    in your program or documentation which mentions my name and the URL
+    shown above.
 */
 
 /* This header defines an interface that must be used by program linked
