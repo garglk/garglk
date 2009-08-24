@@ -16,6 +16,7 @@ _Original source code and patches_
   * Oliver Henshaw
   * Lorenzo Marcantonio
   * Jesse McGrew
+  * Evin Robertson
 
 <p><br/></p>
 
@@ -26,6 +27,7 @@ _Quality assurance testing and bug reports_
   * Konstantin Baierer
   * Eliuk Blau
   * Steve Evans
+  * Frederik Ramsberg
   * Alan De Smet
   * Pavel Soukenik
   * D. Cooper Stevenson
