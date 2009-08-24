@@ -1,6 +1,6 @@
 Gargoyle contains several components, aggregated together to form a package. Parts of this package are distributed under the terms of the GNU General Public License (GPL). Redistribution of this package is freely allowed, provided that the terms of the GPL are adhered to, including the requirement that the source code for all GPL licensed parts of this package be available from the same location as any binary package.
 
-The Gargoyle Glk library is copyright 2009 Tor Andersson.  It is released under the terms of the GNU General Public License.
+The Gargoyle Glk library is copyright 2009 Tor Andersson. It is released under the terms of the GNU General Public License.
 
 AdvSys is copyright (c) David Michael Betz. Permission is hereby granted for unrestricted non-commercial use.
 
