@@ -2,7 +2,7 @@ Gargoyle contains several components, aggregated together to form a package. Par
 
 The Gargoyle Glk library is copyright 2009 Tor Andersson. It is released under the terms of the GNU General Public License.
 
-AdvSys is copyright (c) David Michael Betz. Permission is hereby granted for unrestricted non-commercial use.
+AdvSys is copyright (c) David Michael Betz. It is released under the terms of the BSD license.
 
 AGiliTy is copyright (c) Robert Masenten. It is released under the terms of the GNU General Public License.
 
