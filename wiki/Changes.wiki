@@ -1,6 +1,45 @@
 #summary Summary of new features, updates, and fixes in Gargoyle releases.
 #labels Featured,Phase-Implementation
 
+==Changes in release 08-25-09==
+
+===Gargoyle===
+
+*New*
+    * Added color support for Frotz / Z-Machine.
+    * Added copy / paste support to and from the text buffer.
+    * Added Glk hyperlinks support.
+    * Delete key now removes input characters to the right of the cursor.
+    * Enabled extended character input under Gtk / Linux.
+    * Transcripts now created as UTF-8 text files.
+
+*Fixes*
+    * Event handling now properly queues events for later dispatch.
+    * Colors in games with multiple text buffers are now handled properly.
+    * Gargoyle settings file can now be saved under ~/.config directory.
+
+<p><br/></p>
+===Interpreters===
+
+*Updates*
+    * Git updated to 1.2.4.
+    * Glulxe updated to 0.4.4.
+    * JACL updated to 2.5.2.
+    * TADS updated to 2.5.13 / 3.0.18.1.
+
+*Fixes*
+    * Alan function names no longer clash with the standard C library.
+    * Alan interpreters no longer crash when invoked with a different name.
+    * Alan stack code updated to handle 64-bit memory pointers.
+    * Frotz will now return all characters requested by read operations.
+    * Frotz no longer crashes on unusually long status lines.
+    * Frotz now resets the status line height properly in certain games.
+    * Hugo no longer crashes when launched without arguments.
+    * Level 9 builds properly under GCC 4.3.3 and later.
+
+<p><br/></p>
+----
+
 ==Changes in release 12-25-08==
 
 ===Gargoyle===
