@@ -26,7 +26,11 @@ _Quality assurance testing and bug reports_
   * Paul Andinach
   * Konstantin Baierer
   * Eliuk Blau
+  * Matt Chan
   * Steve Evans
+  * Ivan Gulkov
+  * Karl Ove Hufthammer
+  * Amy Lear
   * Frederik Ramsberg
   * Alan De Smet
   * Pavel Soukenik
@@ -40,6 +44,7 @@ _Platform-specific interim and final releases_
   * Christopher Armstrong
   * Brian Cameron
   * Eric Forgeot
+  * Stuart Henderson
   * Ryan Hendrickson
   * Yaroslav Isakov
 
