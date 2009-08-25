@@ -47,6 +47,8 @@ _Platform-specific interim and final releases_
   * Stuart Henderson
   * Ryan Hendrickson
   * Yaroslav Isakov
+  * Per Liedman
+  * Rémi Verschelde
 
 
 <p><br/></p>
