@@ -36,6 +36,7 @@ _Quality assurance testing and bug reports_
   * Pavel Soukenik
   * D. Cooper Stevenson
   * Peter Weston
+  * Maks Verver
 
 <p><br/></p>
 
