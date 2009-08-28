@@ -1,0 +1,2376 @@
+<html>
+
+<title>TADS Revision History</title>
+
+<body>
+
+<br><br><br>
+<center><font size=+3>Recent Changes to TADS</font>
+</center>
+
+<h4>Index to Versions</h4>
+<ul>
+<li><a href='#tads2514'><b>Version 2.5.14</b></a><br>
+<li><a href='#tads2513'><b>Version 2.5.13</b></a><br>
+<li><a href='#tads2512'><b>Version 2.5.12</b></a><br>
+<li><a href='#tads2511'><b>Version 2.5.11</b></a><br>
+<li><a href='#tads2510'><b>Version 2.5.10</b></a><br>
+<li><a href='#tads259'><b>Version 2.5.9</b></a><br>
+<li><a href='#tads258'><b>Version 2.5.8</b></a><br>
+<li><a href='#tads257'><b>Version 2.5.7</b></a><br>
+<li><a href='#tads256'><b>Version 2.5.6</b></a><br>
+<li><a href='#tads255'><b>Version 2.5.5</b></a><br>
+<li><a href='#tads254'><b>Version 2.5.4</b></a><br>
+<li><a href='#tads253'><b>Version 2.5.3</b></a><br>
+<li><a href='#tads252'><b>Version 2.5.2</b></a><br>
+<li><a href='#tads251'><b>Version 2.5.1</b></a><br>
+<li><a href='#tads250'><b>Version 2.5.0</b></a><br>
+</ul>
+
+<h4>Organization of this Page</h4>
+
+<p>This page is a list of recent changes to TADS, arranged
+chronologically: changes are grouped by release, with the most recent
+release listed first.  Each release incorporates all new features and
+corrections of each prior release unless otherwise stated.
+
+<h4>Generic and Platform-Specific Changes</h4>
+
+<p>
+Since version 2.2.6, the TADS change log has been divided into
+two separate files: one for "generic" changes that apply to TADS on
+all types of computers and operating systems, and one for changes
+that apply only to specific platforms.  This file contains the
+generic release notes.  Platform-specific release notes are in a
+separate file for each platform:
+
+<blockquote>
+<p><a href='dosver.htm'>Changes specific to MS-DOS and Windows</a>
+</blockquote>
+
+<h4>Multimedia vs. Text-Only Interpreters</h4>
+
+<p>These release notes sometimes refer to the "character-mode" or
+"text-only" TADS Interpreter.  This is meant to distinguish the
+traditional TADS Interpreter, which can only display text, from the
+multimedia interpreters such as HTML TADS and HyperTADS, which can
+display graphics as well as text.  The traditional TADS Interpreter
+has a graphical user interface on some systems, such as the
+Macintosh, so it's not really a character-mode application on those
+systems; nonetheless, we still refer to it here as the character-mode
+Interpreter simply to make it clear that we're not talking about one
+of the multimedia versions.
+
+<h4><a name='oldlog'>Older Revisions</a></h4>
+
+<p>To keep the size of this page under control, changes are listed here
+only for the most recent several versions of TADS.  Older release notes
+are in separate files:
+
+<ul>
+<li>Generic changes from version 2.2.3 through 2.4.0 are in TADSV240.TXT.
+
+<li>DOS-specific changes from version 2.2.3 through 2.4.0 are in
+TADSV240.DOS.
+
+<li>For DOS, all revisions from 2.0 through 2.1.0 are available in the
+file TADSV200.DOS; those from 2.1.1 through 2.2.2 are in TADSV222.DOS.
+
+<li>Similar files are available for
+other platforms; please refer to your platform-specific release
+notes for details.
+
+</ul>
+
+<p>Because the older revision history files are quite large and are
+static (they are, after all, historical), they're not included in the
+normal TADS distributions, but you can download them from the
+Interactive Fiction Archive via the internet at <a
+href='ftp://ftp.ifarchive.org/if-archive/programming/tads2/manuals/'>
+ftp://ftp.ifarchive.org/if-archive/programming/tads2/manuals/</a>
+(note that ftp.ifarchive.org is the new home, effective August 2001,
+of the former ftp.gmd.de archive).
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2514'>Version 2.5.14</a></h3>
+<i>Released on May 5, 2009</i>
+
+<ul>
+
+<li>Objects created with 'new' during the preinit phase are now marked
+as ordinary objects in the .gam file, as though they'd been defined
+statically in the source code.  The same thing applies to the
+vocabulary words they use.  This change means that objects created
+dynamically during preinit are effectively permanent: they persist
+through RESTART, RESTORE, UNDO, and the like, and they can't be
+deleted with the 'delete' operator.
+(<a href="http://bugdb.tads.org/view.php?id=0000055">bugdb.tads.org #0000055</a>)
+
+</ul>
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2513'>Version 2.5.13</a></h3>
+<i>Released on April 28, 2009</i>
+
+<ul>
+
+<li>The new systemInfo() codes __SYSINFO_AUDIO_FADE and
+__SYSINFO_AUDIO_CROSSFADE let you determine if the interpreter
+supports audio fades and audio cross-fades, respectively.  (Audio
+fades are accessed through the HTML TADS &lt;SOUND&gt; tag.)  These
+codes return nil or 0 if fades/cross-fades aren't supported at all, or
+an integer giving a combination of bit-flags indicating which audio
+formats support fades/cross-fades.  The bit flags are
+__SYSINFO_AUDIOFADE_WAV, __SYSINFO_AUDIOFADE_MPEG,
+__SYSINFO_AUDIOFADE_OGG, and __SYSINFO_AUDIOFADE_MIDI (for WAV, MP3,
+Ogg Vorbis, and MIDI files, respectively).  For example, if
+systemInfo(__SYSINFO_AUDIO_FADE) returns (__SYSINFO_AUDIOFADE_WAV |
+__SYSINFO_AUDIOFADE_OGG), it means that WAV and Ogg Vorbis files
+support fades, but other audio formats don't.
+
+<li>A bug in the compiler sometimes made the debugger show the wrong
+source location when single-stepping within a single-line expression
+property.  (That is, a property with an executable expression, but no
+curly braces, with the whole definition on a single line of text.)
+This bug was mostly cosmetic, but in rare cases triggered a separate
+bug in the debugger that could crash the debugger.  When a single-line
+expression property was immediately followed by a single-line method
+(with braces), and execution stopped in the method due to
+single-stepping or due to a run-time error, the debugger was unable to
+show the execution location, and sometimes even crashed.  Both of
+these bugs are now fixed.
+
+</ul>
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2512'>Version 2.5.12</a></h3>
+<i>Released on September 28, 2008</i>
+
+<ul>
+
+<li>The cvtnum() built-in function returned the wrong result for
+negative values on occasion.  The problem was dependent on chance
+arrangements of the run-time string/list heap, so it occurred
+essentially at random.  This has been corrected - cvtnum() now
+correctly stops at the end of the string.  (<b>Workaround for
+older versions:</b> append a non-digit character to the cvtnum()
+argument - e.g., <tt>cvtnum(str + ';')</tt>.  The problem was that
+cvtnum() didn't properly detect the end of the input string, so it
+sometimes scanned into random bytes in memory following the string
+<i>if</i> those bytes happened to look like ASCII digits.  However,
+the function did always correctly stop upon reaching any non-digit
+character, so explicitly appending a non-digit was enough to make the
+function stop scanning, ensuring that it wouldn't stray past the end
+of the string.  This workaround isn't necessary with 2.5.12 and later,
+since the underlying problem in cvtnum() is now fixed, but you can use
+the workaround if you want to ensure compatibility with older
+interpreter versions that some players might still be using.)
+
+<li>In the past, run-time error messages (e.g., "[TADS-1010: object
+value required]") were omitted from the transcript.  This was
+particularly inconvenient for beta testing, since any errors
+encountered by testers were invisible in their session logs.  These
+messages are now included in the transcript.
+(<a href="http://bugdb.tads.org/view.php?id=0000032">bugdb.tads.org #0000032</a>)
+
+</ul>
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2511'>Version 2.5.11</a></h3>
+<i>Released on August 9, 2008</i>
+
+<ul>
+
+<li>The parser now leaves the antecedent of "it" intact when a command
+involves a number or string.  That is, "it" will simply refer to the
+noun phrase from the second-most-recent command when the most recent
+command involves a number or string as its noun phrase: "x box; note
+5; x it" will now treat the "it" in the last command as referring to
+the box.  In the past, the parser simply forgot any antecedent in this
+type of situation.  That was intentional, to avoid any confusion over
+whether "it" should refer to the number or string, but in practice
+players don't seem to find this confusing at all and expect "it" to
+continue referring to the last real object.
+(<a href="http://bugdb.tads.org/view.php?id=0000014">bugdb.tads.org #0000014</a>)
+
+<li>The parser showed a somewhat confusing parser error message for
+player commands of the form "verb x OF y" in some cases.  If x and y
+were valid nouns or adjectives, but the combination "x OF y" didn't
+match any object's vocabulary (e.g., there's a BOX and some PAPER, but
+there's no such object as BOX OF PAPER), the parser treated this
+command as though it were a <i>two-object</i> verb, such as PUT IN or
+LOCK WITH - that is, the OF was treated as a verb-phrase preposition,
+and x and y were treated as (respectively) the direct and indirect
+objects.  This often resulted in the parser error "I don't recognize
+that sentence," since OF is a rare preposition in verb phrases.  For
+example, EXAMINE BOX OF PAPER would be treated as an EXAMINE OF
+command, which most games don't defined as a valid verb phrase.  In
+such cases, the parser now checks to see if it <i>could</i> have
+formed a syntactically valid noun phrase from the whole "x OF y"
+phrase, and if so, shows the more sensible error "I don't see any x of
+y here."
+(<a href="http://bugdb.tads.org/view.php?id=0000010">bugdb.tads.org #0000010</a>)
+
+<li>If the game executed parserReplaceCommand() from within certain of
+the "parser hook" functions, the interpreter displayed the run-time
+error "TADS-1024: 'abort' statement executed".  This happened because
+of the way parserReplaceCommand() works internally, but it obviously
+shouldn't result in an error message.  This is now fixed.
+(<a href="http://bugdb.tads.org/view.php?id=0000011">bugdb.tads.org #0000011</a>)
+
+<li>The compiler's -p option (to make the compiler pause before
+terminating, to give you a chance to read the output) didn't work
+in some cases where an error occurred during compilation.  This
+has been fixed.
+(<a href="http://bugdb.tads.org/view.php?id=0000015">bugdb.tads.org #0000015</a>)
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2510'>Version 2.5.10</a></h3>
+
+<i>Released on August 17, 2006</i>
+
+<ul>
+
+<li>The INVENTORY TALL command now respects "quiet" containers and
+surfaces (that is, the contents of these objects will not be listed in
+the inventory).  In the past, the default INVENTORY WIDE mode
+respected the "quiet" flags, but TALL mode didn't.  INVENTORY TALL
+also now properly takes into account the "contentsVisible" settings of
+the objects listed.  These changes ensure that WIDE and TALL modes
+yield the same information.
+
+<li>In adv.t, the default message for TELL <i>thing</i> ABOUT
+<i>topic</i> now properly takes into account the number (singular or
+plural) of the thing, so the message will now change to "...are
+interested" when the thing has a plural name.  In the past, the text
+always said "is interested," which was ungrammatical when the thing
+had a plural name.
+
+<li>A bug in the interpreter caused unpredictable behavior, sometimes
+crashing the interpreter, when starting certain games, including
+recent release <i>Finding Martin</i>.  The problem was triggered by
+a very large number of objects (more than about 150) in a single
+location, so it didn't affect most games, and it appeared somewhat
+sporadically even for games that did trigger it.  The bug has now
+been fixed.
+
+<li>An interpreter bug caused delword() to occasionally and
+unpredictably delete extra words beyond what it was actually
+asked to delete.  This has been corrected.
+
+<li>In the past, if the player's answer to a disambiguation question
+had certain kinds of syntax errors, the parser responded with a
+suitable error message, but incorrectly showed that message twice in a
+row.  This was due to an interpreter bug, which has now been corrected.
+
+<li>In adv.t, the messages for "the key doesn't fit" in
+doorway.doLockWith and doorway.doUnlockWith were phrased incorrectly
+in some cases (in particular, the subject and verb didn't always
+agree).  This has been corrected.
+
+</ul>
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads259'>Version 2.5.9</a></h3>
+
+<i>Released on September 12, 2004</i>
+
+<ul>
+
+<li>The "file safety" levels have changed slightly to provide better
+security against malicious game programs.  First, level 2, which
+formerly provided global read access but no write access, now instead
+provides read/write access to the current working directory only (the
+game isn't allowed any access to files outside of the working
+directory).  Second, the default safety level is now level 2.  In the
+past, level 1 (read from any file/write to current directory only) was
+the default, which left open the possibility that a game could access
+data outside of the working directory.  A malicious game could
+conceivably have exploited this by, for example, secretly copying
+sensitive data to the game directory for later use by a coordinating
+network worm, or by encoding the data in a hyperlink (displayed in an
+HTML-enabled game) that takes the player to a spyware site when
+clicked.  The new default setting should effectively eliminate these
+risks by barring access to any files outside of the working directory.
+
+<li>A bug in the compiler sometimes caused crashes when the "preinit"
+function called certain built-in functions, particularly for file
+manipulation.  The problem was somewhat random, and tended to show up
+on some machines and not others, because it depended on memory
+conditions left over from other programs.  The problem showed up for
+several people when they included the "gameinfo.t" module in their
+games, because that module writes a text file during preinit.  The bug
+has now been fixed.
+
+<li>An interpreter bug was capable of corrupting list values during
+game execution under very rare conditions.  The bug only showed up
+when assigning a value to an indexed element of a list (either
+directly or via the "+=" or "-=" operators) at just the right moment
+to trigger garbage collection, and only then when the list happened to
+be situated in memory in just the right way.  The bug was more likely
+to occur with small "heap" memory settings (the "-mh" option); with
+the large default heap of most current interpreters, the bug almost
+never showed up.  The bug was also quite unlikely to occur except in
+games that perform unusually heavy list processing.  The bug
+manifested itself in unpredictable ways, ranging from spurious
+run-time errors to interpreter crashes.  This has now been fixed.
+Note that most games that were likely to trigger the bug in the past
+will now instead cause a "heap overflow" error; this error is valid,
+and indicates that the game exhausted the available memory for
+processing list and string values.  If a heap overflow does occur
+while running a game, try increasing the heap size using the "-mh"
+command-line option when you run the game.
+
+<li>An inconsistency in the command parser has been fixed.  In the
+past, the parser didn't properly take into account whether responses
+to missing object prompts were singular or plural.  This caused some
+subtle differences between typing a full command and piecing a command
+together with missing object prompts.  In particular, the parser
+didn't announce the object names for a plural response, and didn't
+check rejectMultiDobj.  This has been fixed, so the parser's behavior
+is now consistent for missing object responses.
+
+<li>In the past, the parser incorrectly treated THEM as plural even
+when it referred to only one object, so it checked with
+rejectMultiDobj in these cases.  This is undesirable in some cases,
+especially when the single object being referred to is an object whose
+name has plural usage.  The parser now treats THEM as singular when it
+refers to just one object.
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads258'>Version 2.5.8</a></h3>
+
+<i>Released on June 12, 2004</i>
+
+<ul>
+
+<li>In adv.t, THROW AT now uses a new method, throwHitDest, to
+determine where the thrown object lands.  This method is called for
+the actor's current location; by default, it simply returns 'self', so
+a thrown object simply lands in the actor's current location.  This is
+the same behavior as in the past.  However, the special 'theFloor'
+object overrides this to return the current room.  This corrects a
+problem that occurred when the player sat on the floor and then threw
+something: because the object formerly ended up in the actor's
+location, the object landed in the 'theFloor' object, at which point
+the object became inaccessible.  This change ensures that a thrown
+object will never be moved into 'theFloor', but will always land in
+the actor's actual room location.  As a side benefit, the new method
+also makes it possible to customize the location where objects land
+when thrown from within a nested room.
+
+<li>When running in HTML mode, the default parser error message 1 ("I
+don't understand the punctuation %c") now includes an "\H-" sequence
+before the message to ensure that the unrecognized character is
+displayed literally if it's an HTML markup-significant character
+(such as '&lt;' or '&amp;').  It also shows an "\H+" sequence after
+the message to restore HTML mode.  In the past, if the player entered
+a markup-significant character while the interpreter was in HTML
+mode, the HTML parser could become momentarily confused, leading to
+strange output.
+
+<li>The new parser hook parseDefaultExt() extends the parseDefault()
+function.  The new function takes two additional parameters, giving
+the actor and deepverb object involved in the command; the new
+parameter list is parseDefaultExt(actor, verb, obj, prp).  If the game
+defines parseDefaultExt(), then the interpreter ignores parseDefault()
+and calls parseDefaultExt() instead.  If the game does not define
+parseDefaultExt(), but does define parseDefault(), the interpreter
+uses parseDefault() as it used to, which ensures that existing games
+will continue to run unchanged.  You can use the new extended version
+of the function if you need the actor and/or verb information in
+displaying the default object message; this is useful in some
+non-English languages where a default object name's noun phrase must
+be inflected according to its usage in the command.
+
+<li>The new parser hook preparseExt() allows the game to inspect and
+optionally change text the player types in response to parser
+questions: disambiguation queries, requests for missing direct or
+indirect objects, and OOPS typo-correction opportunities.  The new
+function's parameter list is preparseExt(actor, verb, str, typ), where
+'actor' is the actor performing the command, 'verb' is the deepverb
+object, 'str' is a string containing the exact text the player typed
+in, and 'typ' is an integer giving the type of query the player is
+responding to.  The meaning of 'typ' is the same as the that of the
+type codes passed to commandPrompt() and commandAfterRead().  The
+function can return a new string, which the parser will use to replace
+the text the user typed; true, to proceed with the original text the
+user typed; or nil, to treat the user's text as a brand new command,
+bypassing the special interpretation as a response to the parser's
+question.  The game doesn't have to define the preparseExt() function;
+it's purely optional, so existing games will not be affected.
+
+<li>When the interpreter looks for external resource bundles (*.rsN files),
+it now looks for the files using lower-case <i>and</i> upper-case suffixes
+(in other words, it looks for both *.rs0 and *.RS0, and likewise for digits
+1-9).  Lower-case suffixes are tried first, then upper-case.  This change
+makes the naming system more flexible on systems with case-sensitive
+file systems, such as Unix; for systems such as Windows and Macintosh that
+have case-insensitive file systems, this change will have no effect.
+
+<li>A bug in the parser made it impossible to use numeric adjectives
+in certain phrasings.  In particular, if a given word was defined in
+a game as both a noun and an adjective, but the word was defined only as
+a noun for a given object that takes a numeric adjective, then the
+phrasing <i>noun</i> <i>number</i> didn't match the object.  For example,
+if the word "switch" was defined as a noun for a given numbered switch,
+but "switch" was defined as an adjective for some other object, then
+"switch 5" didn't match the switch even if "5 switch" did.  This has
+been corrected.
+
+<li>The compiler now checks for missing symbols before running the
+'preinit' function, and skips running preinit if any symbols are
+undefined.  In the past, the compiler called preinit even if some
+symbols were undefined; if preinit itself called any undefined
+functions or invoked methods of undefined objects, this sometimes
+led to misleading error messages.  The compiler will now simply
+point out the missing symbols, and skip running preinit entirely.
+
+<li>The compiler now allows filenames up to 255 characters to appear
+in the source file names in debugging records.  In the past, the limit
+was 127 characters.  <b>Important note:</b> due to a bug, older
+interpreters cannot properly handle .gam files compiled with debugging
+information with path names over 127 characters.  Attempting to load
+.gam files with debugging information containing long source file
+names will cause unpredictable results.  Since some users might still
+have older interpreter versions, <b>we strongly advise against
+releasing games compiled with debugging information</b>.  That is, you
+should never release a game that you compiled with the "-ds" or "-ds2"
+options.
+
+<li>In the past, if the game code called a function or method, using
+the return value of another function or method as an argument, and the
+other function or method didn't actually return any value for the
+argument, the results were unpredictable; in some cases, this even
+caused the interpreter to crash.  The interpreter is now more careful
+about checking for these cases; when they occur, the interpreter now
+automatically adds 'nil' values for the missing arguments.  This
+should ensure that errant code won't crash the interpreter, without
+breaking any existing code with "asymptomatic" instances of this
+error.
+
+<li>The default "file safety level" for the command-line interpreters
+is now set to 1, which allows reading files from anywhere on the disk,
+but allows writing files only to the current working directory.  This
+protects against malicious game authors attempting, for example, to
+modify your operating system's files.  You can manually override this
+to use a more permissive or more protective level using the "-s" option.
+
+<li>External functions are now obsolete and can no longer be used on
+any platform.  One of the nice things about running games with a
+system like TADS is that you don't have to worry as much about
+viruses and other malicious code when playing downloaded games, since
+games run in the interpreter environment rather than as native code.
+The external function feature made it possible for games to call out
+to native code, though, so a malicious author could have used
+external functions to do damage to a user's system.  Removing this
+feature eliminates this security loophole.  External functions were
+only supported on a few platforms to start with, and they never
+caught on with authors, probably because they were difficult to use
+and had serious drawbacks (such as complete unportability).  Since no
+one has ever had much use for this feature, and because of the
+potential security vulnerability, we've decided that there's no
+reason to keep it around.
+
+<li>In the past, the compiler did not accept 'self' as an element in a
+list, even in contexts where 'self' was otherwise valid.  The compiler
+now does accept 'self' as a list element in method contexts.
+
+<li>A bug in the interpreter sometimes made the result of the
+subtract-and-assign operator ("-=") incorrect under certain
+circumstances: specifically, the problem occurred when the left-hand
+side was a local variable, the local variable contained a list value,
+and the list value did <i>not</i> contain the value on the right-hand
+side of the operator.  In some such cases, a run-time error occurred;
+in some others, the wrong value was assigned to the local variable.
+This has been corrected; when the value on the right side is not in
+the list, the list value in the local is simply left unchanged.
+
+<li>Due to a bug, the compiler sometimes crashed if you used a "break"
+and "continue" statement in an invalid context (i.e., outside of a
+"while", "for", "do", or, in the case of "break", a "switch"
+statement).  This has been corrected; the compiler now simply flags
+these as errors, but shouldn't crash.
+
+</ul>
+
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads257'>Version 2.5.7</a></h3>
+
+<i>Released on September 22, 2002</i>
+
+<ul>
+
+<li>The new system information code __SYSINFO_INTERP_CLASS returns
+information on the "class" of interpreter currently running.  This
+returns one of the following codes:
+
+  <ul>
+    <li>__SYSINFO_IC_TEXT: a text-only, character-mode interpreter,
+    such as an MS-DOS or Unix interpreter.  These interpreters use
+    a single, fixed-pitch font, and support the text-only HTML subset.
+
+    <li>__SYSINFO_IC_TEXTGUI: a text-only interpreter on a graphical
+    platform, such as MacTADS or WinTADS.  These interpreters behave
+    essentially identically to character-mode text-only interpreters,
+    so from the game program's perspective there is no practical
+    difference between this and character-mode interpreters.
+
+    <li>__SYSINFO_IC_HTML: a full HTML-enabled interpreter on a
+    graphical platform, such as HTML TADS on Windows or HyperTADS on
+    Macintosh.  These interpreters can display text and graphics,
+    use multiple fonts, and interpret the full HTML TADS markup language.
+  </ul>
+
+<li>The travel system in adv.t has been enhanced slightly to allow
+rooms to differentiate their travel behavior for travel by the player
+character vs. travel by non-player characters.  The new properties
+actorNorth, actorSouth, actorEast, actorWest, actorNE, actorNW,
+actorSE, actorSW, actorUp, actorDown, actorIn, and actorOut are now
+called when an NPC attempts travel; these properties correspond to the
+traditional properties north, south, east, west, and so on, and the
+only difference is that the new properties are called when NPC's
+travel.  The traditional properties are still called for all player
+character travel.  By default, each of the new actorXxx properties
+simply returns the value of the corresponding traditional property: so
+actorNorth by default simply returns the value of (self.north).  This
+means that if you don't want to differentiate NPC travel from PC
+travel, you need do nothing at all; but if you want a particular
+travel direction from a particular room to work differently for
+an NPC than it does for the player character, you simply need to
+override actorNorth (or whichever direction you want to customize)
+in that location.  Thanks to Tommy Nordgren for suggesting this
+enhancement.
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads256'>Version 2.5.6</a></h3>
+
+<i>Released on June 1, 2002</i>
+
+<ul>
+
+<li>The new system information code __SYSINFO_TEXT_COLORS tests for
+text color support.  Currently, only the HTML interpreters support
+text colors; the text-only interpreters have no text color support.
+The return value indicates the level of support available:
+
+  <ul>
+    <li>0/nil - no text color support
+    <li>1 - parameterized color names only (TEXT, STATUSTEXT, etc.)
+    <li>2 - the eight ANSI colors (white, black, red, blue, green,
+            yellow, magenta, cyan) are supported for the text
+            foreground color, but the background color cannot be set
+    <li>3 - the eight ANSI colors are supported for text foreground
+            and background colors
+    <li>4 - full RGB colors are supported, foreground and background
+            (the HTML interpreters generally return this code)
+  </ul>
+
+<li>The new system information code __SYSINFO_TEXT_HILITE tests for
+text highlighting support.  This returns 1 if the interpreter is
+capable of rendering highlighted text (i.e., text within "\( \)"
+sequences, or text in HTML &lt;B&gt; sequences) with a distinctive
+appearance, 0 or nil if not.  Most interpreters are capable of
+showing highlighting, except when running in "plain" mode or when
+using a terminal or display device that has no ability to show
+different text colors or styles.
+
+<li>The new system information code __SYSINFO_OGG tests for Ogg Vorbis
+audio format support.  systemInfo(__SYSINFO_OGG) returns 1 if the Ogg
+Vorbis format is supported by the interpreter, 0 if not.
+
+<li>The new system information codes __SYSINFO_MNG, __SYSINFO_MNG_TRANS,
+and __SYSINFO_MNG_ALPHA test for basic MNG (animated image) suport,
+MNG transparency support, and MNG alpha-channel support, respectively.
+These are analogous in meaning to the PNG information codes.
+
+<li>The interpreter now includes the name of the external resource
+(.rsn) file in error messages that result from errors reading these
+files.  In the past, the interpreter did not indicate which specific
+file was causing the problem, which made it difficult to track down
+where the problem was.  (The non-specific error message worked fine
+in the days before external resource files, when everything was
+always in the single .gam file, but the new, more specific diagnostic
+information is important now that a game's resources can be put in
+several separate files.)
+
+<li>In adv.t, <tt>basicMe.moveInto(room)</tt> now calls a new method,
+<tt>room.meIsMovingInto(self)</tt>, whenever the <tt>basicMe</tt> object being
+moved is the current player character (i.e., <tt>self</tt> is the object that
+<tt>parserGetMe()</tt> returns).  A default implementation of
+<tt>meIsMovingInto(meActor)</tt> has been added to <tt>room</tt>;
+this default implementation does nothing.  Finally, an overriding
+implementation of <tt>meIsMovingInto(meActor)</tt> has been added
+to <tt>theFloor</tt>; this implementation sets <tt>theFloor.sitloc</tt>
+to the player character actor's previous location.  The purpose of all
+of this new mechanism is to ensure that <tt>theFloor.sitloc</tt> is 
+properly set to the player character's prior location whenever the
+player character is explicitly moved into <tt>theFloor</tt>.  In the
+past, <tt>theFloor.sitloc</tt> was set whenever the player character
+moved to <tt>theFloor</tt> via a "sit on the floor" command from the
+player, but wasn't set when the object was moved to <tt>theFloor</tt>
+through other means.  The <tt>theFloor</tt> object uses the <tt>sitloc</tt>
+property to remember the location that originally contained the actor
+before sitting on the floor; this is needed because <tt>theFloor</tt>
+is a floating item and thus doesn't have an actual location of its own.
+
+<li>In adv.t, the various <tt>hider</tt> subclasses (<tt>underHider</tt>,
+<tt>searchHider</tt>, <tt>behindHider</tt>) now check to see if they
+were never hiding anything to start with, and issue an appropriate
+message if so.  In the past, if an object was defined using one of
+the <tt>hider</tt> subclasses, but no other object was ever hidden
+inside the <tt>hider</tt>, looking in/under/behind the object generated
+an erroneous message, of the form "You find , which you take."  Now,
+when the list of hidden objects is initially empty, the generated
+message is simply "You find nothing under (the object)."
+
+<li>The <tt>parserDictLookup()</tt> function can now be called
+from within <tt>init()</tt>.  In the past, this function caused
+a run-time error if called while <tt>init()</tt> was running; this
+has been corrected.
+
+<li>Fixed a problem in parserGetObj(PO_ACTOR) that caused the incorrect
+actor to be reported between the time <tt>preinit</tt> was called and
+the time <tt>preCommand</tt> was called.  During this window, if a
+command was the first command on a new command line, and the command
+line didn't start with a target actor ("bob, ..."), then
+parserGetObj(PO_ACTOR) incorrectly returned the actor from the
+previous command.  This no longer occurs; the function now correctly
+returns the current "me" object in such cases.
+
+<li>Fixed a problem in the output formatter that caused problems
+with displaying a series of quoted spaces ('\ ' sequences) in some
+situations, especially on platforms with proportionally-spaced
+display fonts such as the Mac.  This has been corrected.
+
+<li>The compiler no longer treats any characters in the "extended"
+character set (i.e., characters with character codes outside the
+ASCII range 0 to 127) as whitespace.  In the past, the compiler on
+some platforms treated certain extended characters as spaces, which
+sometimes caused problems for authors working in non-English
+languages.  The compiler has no knowledge of the attributes of any
+localized character sets (the compiler's character set translation
+mechanism does not provide attribute information, only set-to-set
+mapping information), so it was incorrect of the compiler to assume
+anything about which extended characters represented whitespace
+characters.  This problem manifested itself most apparently when
+a string containing extended characters spanned several lines of
+source; if the compiler mistook any of the leading characters on
+continuation lines for whitespace, it would remove them, resulting
+in incorrect text displayed at run-time.  This has been corrected;
+the compiler now treats all extended characters as non-whitespace
+characters.
+
+<li>Fixed a problem in the <tt>execCommand()</tt> built-in function
+that caused various problems ranging from data value corruptions to
+interpreter crashes.  The problem appeared when <tt>execCommand</tt>
+was used to execute a command that terminated with an <tt>exit</tt> or
+<tt>abort</tt>, and then only when certain combinations of operations
+on local variables followed.  The problem has been corrected.
+
+<li>Fixed a compiler bug that caused an infinite loop when parsing
+certain nested <tt>switch</tt> statements.  A <tt>switch</tt> containing
+string constant <tt>case</tt> labels nested within another <tt>switch</tt>
+with string constant <tt>case</tt> labels sporadically caused this
+problem.  This has been corrected.
+
+<li>Fixed a problem in the compiler that caused the <tt>contents</tt>
+lists of objects to be initialized improperly in certain cases.  In
+particular, if an object's <tt>contents</tt> list was used during
+execution of the <tt>preinit</tt> function, any object that inherited
+a <tt>location</tt> value equal to the given object was omitted from
+the given object's <tt>contents</tt> list, when clearly the object
+should have been included in the list.  This only affected
+<tt>preinit</tt>, and then only when a <tt>contents</tt> that should
+have contained an object with an inherited location was referenced
+from within the <tt>preinit</tt> function.  This has been corrected;
+inherited <tt>location</tt> values are now properly handled when
+<tt>preinit</tt> is executing.
+
+<li>The compiler and interpreter must sometimes create temporary
+files for internal memory management purposes.  On certain systems
+(in particular, DOS, Windows, and Unix), TADS determines a suitable
+directory location to store any needed temporary files by looking in
+the environment for variables called TEMPDIR, TMPDIR, TEMP, and TMP
+(in that order), and using the value of the first such variable it
+finds as the temporary directory path.  In past versions, if the path
+found in this manner was invalid, the interpreter or compiler would
+usually terminate with an error message that wasn't very helpful in
+tracking down the problem.  In most cases, the error message was
+"unable to open swap file."  This has been changed; now, if the
+temporary path obtained from the environment variables is invalid,
+TADS ignores the path and simply creates any necessary temporary
+files in the current working directory.
+
+<li>A number of messages in adv.t now use format strings ("%you%" and
+the like) where they didn't before but should have, to facilitate
+games written in styles other than second-person.  Thanks go to
+Bennett Standeven for catching these.
+
+<li>Fixed a problem that caused interpreter crashes under rare
+circumstances for interpreters that could play more than one game in
+a single session (such as the HTML TADS interpreter).  If the
+interpreter loaded a game that used the "output filter function"
+feature, and then that game was terminated and another game was
+loaded into the same interpreter session, and the new game didn't use
+its own output filter function, results were unpredictable, and
+interpreter crashes sometimes occurred.  This has been corrected.
+(This problem did not affect most platforms, because most
+interpreters terminate when the game being executed terminates.)
+
+<li>Fixed an interpreter problem that caused the "<tt>new</tt>"
+operator to generate a run-time error in some unusual situations.
+In particular, if the constructor modified a property of the
+object containing the method that invoked the <tt>new</tt>
+operator (directly in its own code, or in any code it invoked),
+then the error "TADS-5: attempting to reallocate a locked object"
+appeared sporadically.  This has been corrected.
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads255'>Version 2.5.5</a></h3>
+
+<i>Released on September 27, 2000</i>
+
+<ul>
+
+<li>In adv.t, a comment in listcontgen() has been fixed to reflect
+that it's actually part of the "tall" listing rather than the "wide"
+listing.
+
+<li>In adv.t, in moveableActor.travelTo, if the actor's previous
+location was nil, a run-time error occurred.  This has been corrected.
+
+<li>In adv.t, in thing.thatdesc, the plural form has been changed to
+display "those" rather than "them"; this provides a better parallel to
+the singular display ("that").
+
+</ul>
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads254'>Version 2.5.4</a></h3>
+
+<i>Released on June 17, 2000</i>
+
+<h4>New systemInfo() flags for PNG transparency</h4>
+
+<p>Two new systemInfo() flags have been added to test for support of
+certain features of the PNG image format:
+
+<ul>
+
+<li>__SYSINFO_PNG_TRANS: tests for PNG transparency support.  Some
+newer versions of the HTML interpreter support PNG transparency,
+which allows parts of a PNG image to be designated as transparent so
+that the background shows through.  systemInfo(__SYSINFO_PNG_TRANS)
+returns true if transparency is supported when displaying PNG images,
+nil if not.  This will never return true under interpreters that don't
+support PNG images at all.  Note that this flag indicates only <i>simple</i>
+transparency support, which allows pixels to be designated as fully
+opaque or fully transparent, and does not imply support of full alpha
+blending; some interpreters (such as the Windows
+HTML interpreter 2.5.4) support only simple transparency but not
+alpha blending.
+
+<li>__SYSINFO_PNG_ALPHA: tests for PNG "alpha blending" support, which
+allows individual pixels of a PNG image to be designated as partially
+transparent.  Currently, none of the interpreters support alpha blending
+in PNG images; this flag has been added for possible future use.
+
+</ul>
+
+<h4>Bug Fixes</h4>
+
+<ul>
+
+<li>A bug in the compiler caused a crash under certain unusual conditions
+when the program defined a symbol as an object, and the symbol
+was already defined as a property or function.  Most of the time, the
+compiler reported an error ("redefining symbol as object"), but in some
+cases the compiler crashed.  This has been corrected.
+
+</ul>
+
+
+<br><br><hr>
+<h3><a name='tads253'>Version 2.5.3</a></h3>
+
+<i>Released on April 16, 2000</i>
+
+<p>This version contains no changes to text-only versions of TADS; the
+only changes are in HTML versions.
+
+<br><br><hr>
+<h3><a name='tads252'>Version 2.5.2</a></h3>
+
+<i>Released on March 27, 2000</i>
+
+<h4>Index of Changes</h4>
+
+<ul>
+<li><a href='#isThem'>Parser recognizes isThem</a>
+<li><a href='#scoreFormat'>New scoreFormat() Function</a>
+<li><a href='#sysinfo252'>New systemInfo() Capability Codes</a>
+<li><a href='#bugs252'>Bugs Fixed</a>
+</ul>
+
+<a name='isThem'></a>
+<h4>Parser recognizes isThem</h4>
+
+<p>
+The parser now recognizes the <tt>isThem</tt> property for the purposes
+of deciding on the pronoun to display when prompting for an indirect
+object.  In the past, the parser only recognized the <tt>isHim</tt>
+and <tt>isHer</tt> properties, and used the pronoun "it" if neither of
+these properties were consistently defined for the objects matching the
+direct object.  The parser now uses the pronoun "them" if the matching
+objects all have <tt>isThem</tt> set to <tt>true</tt>.
+
+<p>
+For example:
+
+<p><pre>
+   &gt;throw pants
+   What do you want to throw them at?
+</pre>
+
+<a name='scoreFormat'></a>
+<h4>New <tt>scoreFormat()</tt> Function</h4>
+
+<p>
+The way that adv.t displays the status line has been changed slightly
+to simplify coding of special formats.  A new function,
+<tt>scoreFormat()</tt>, is now responsible for formatting the string
+to display in the right half of the status line.  <tt>scoreFormat()</tt>
+takes the current score and the current turn counter as arguments, and
+returns a string to display in the right half of the status line.  The
+default implementation in adv.t simply returns a string consisting of
+the score, a slash ("/"), and the turn count, which provides the same
+format that adv.t has traditionally used for the status line.
+
+<p>
+The existing function
+<tt>scoreStatus()</tt> now calls <tt>scoreFormat()</tt> to generate the
+display.  In addition, the code in <tt>room.statusLine</tt> that generates
+the HTML version of the status line now calls <tt>scoreFormat()</tt> as
+well.  This makes <tt>scoreFormat()</tt> the single point in adv.t where
+the right half of the status line is formatted.
+
+<p>
+The advantage of this new mechanism is that you can customize the display
+of the right half of the status line for both text-only and HTML-enabled
+games simply by replacing the <tt>scoreFormat()</tt> function.
+
+<p>
+Of course, HTML-enabled games are not limited to using the traditional
+status line display; if you want a completely custom status line display
+when running under an HTML-enabled interpreter, you can replace adv.t's
+<tt>room.statusLine</tt> and generate your own &lt;BANNER&gt; display.
+The new <tt>scoreFormat()</tt> mechanism, however, is convenient when
+you simply want to customize the right half of the status line, but still
+use the traditional single-line status format.
+
+
+<a name='sysinfo252'></a>
+<h4>New <tt>systemInfo()</tt> Capability Codes</h4>
+
+<p>
+The <tt>systemInfo()</tt> function accepts several new capability
+codes that let you discover whether the system is capable of following
+URL-style &lt;A HREF&gt; hypertext links in HTML-formatted text.
+The new codes are:
+
+<p>
+<ul>
+<li><tt>__SYSINFO_LINKS_HTTP</tt> - checks if the system can follow
+HTTP links to display web pages.  HTTP URL's start with "<tt>http:</tt>".
+
+<li><tt>__SYSINFO_LINKS_FTP</tt> - determines if the system can follow
+FTP links, which start with "<tt>ftp:</tt>".
+
+<li><tt>__SYSINFO_LINKS_NEWS</tt> - determines if the system can follow
+news links to Usenet newsgroups, which start with "<tt>news:</tt>".
+
+<li><tt>__SYSINFO_LINKS_MAILTO</tt> - determines if the system can follow
+mail links to send email; these links start with "<tt>mailto:</tt>".
+
+<li><tt>__SYSINFO_LINKS_TELNET</tt> - checks if the system can follow
+telnet links, which start with "<tt>telnet:</tt>".
+</ul>
+
+<p>For example, suppose you want to display a link to a web page you've
+created for your game, so that players can check for updates and hints
+on your web site.  You can use <tt>__SYSINFO_LINKS_HTTP</tt> to check the
+user's TADS interpreter for HTTP link capability; if the interpreter can
+follow HTTP links, you can show your link with a friendly display, and
+fall back on spelling out the URL when the interpreter can't directly
+follow the link.
+
+<pre>
+   "You can check for updates to this game at ";
+   if (systemInfo(__SYSINFO_LINKS_HTTP))
+       "&lt;A HREF='http://www.mysite.com/mygame.htm'&gt;my web site&lt;/A&gt;";
+   else
+       "my web site (http://www.mysite.com/mygame.htm)"
+   ". This site also has hints and some background 
+   information about the game. ";
+</pre>
+
+
+<a name='bugs252'></a>
+<h4>Bugs Fixed</h4>
+
+<ul>
+
+<li>For a verb defined with the <tt>[disambigDobjFirst]</tt> flag, the
+parser called the indirect object's <tt>verIo<i>Verb</i></tt> method
+incorrectly in cases where the player omitted an indirect object,
+causing the parser to try to find a default indirect object.  For
+example, suppose you were to make the following definitions:
+
+<p><pre>
+  waveVerb: deepverb
+       verb='wave'
+       sdesc="wave"
+       prepDefault = atPrep
+       ioAction(atPrep) = [disambigDobjFirst] 'WaveAt'
+  ;
+  modify thing
+       verDoWaveAt(actor) = {}
+       verIoWaveAt(actor, dobj) = {}
+       ioWaveAt(actor, dobj) = { "Nothing special happens. "; }
+  ;
+</pre>
+<p>
+In the past, if you typed a "wave" command with no indirect object, as
+in "wave flag," the parser incorrectly invoked the <tt>verIoWaveAt</tt>
+method with only one argument, causing a run-time error.  This no
+longer occurs; the parser consistently calls the <tt>verIo<i>Verb</i></tt>
+method in these cases with the correct number of arguments.
+
+<li>In past versions, the <tt>parserTokenize()</tt> built-in function
+did not work properly when the input text contained a quoted string;
+in particular, the text of the quoted string was not included in the
+list.  This has been corrected; the tokenized list now correctly
+includes the quoted string, enclosed in double quote marks (following
+the same rules as <tt>preparseCmd()</tt>).  The same problem affected
+the token list passed to <tt>parseUnknownVerb()</tt>; this has been
+corrected as well.
+
+<li>If the <tt>preparse()</tt> or <tt>preparseCmd()</tt> functions
+executed an <tt>exit</tt>, <tt>exitobj</tt>, or <tt>abort</tt>, the
+interpreter displayed an error message (such as "'abort' statement
+executed").  This was mostly harmless; these types of statements
+are generally not needed within <tt>preparse()</tt> and
+<tt>preparseCmd()</tt>, because these functions use return codes rather
+than <tt>exit</tt> and the like to control further processing.
+However, certain built-in functions perform <tt>abort</tt> operations
+implicitly; in particular, the <tt>parserReplaceCommand()</tt> function
+uses <tt>abort</tt> to start processing the new command immediately.
+To enable the use of such built-ins in <tt>preparse()</tt> and
+<tt>preparseCmd()</tt>, the interpreter no longer displays an error
+message when <tt>exit</tt>, <tt>exitobj</tt>, or <tt>abort</tt> are
+used in these user functions.
+
+<li>In the past, the <tt>parserResolveObjects()</tt> built-in
+function did not correctly handle unknown words; in particular, the
+function did not display any message if the noun phrase contained an
+unknown word, even when the "silent" parameter was nil.  This has
+been corrected.  Now, when "silent" is nil, the function handles
+unknown words by displaying the normal error message ("I don't know
+the word..."), then prompting the player for a new command.  If
+the player responds with "oops" (or "o") followed by another word,
+the function returns the new result code <tt>PRSERR_OOPS_UPDATE</tt>,
+with the corrected version of the noun phrase string as the second
+element.  Refer to the <i>Parser Manual</i> for details.
+
+<li>A problematic interaction between <tt>parseUnknownVerb()</tt>,
+and <tt>parserReplaceCommand()</tt> has been corrected.  In the past,
+if <tt>parserReplaceCommand()</tt> was used within the
+<tt>parseUnknownVerb()</tt> function, and the parser called
+<tt>parseUnknownVerb()</tt> because of an unknown word in the command,
+the parser incorrectly deferred processing the replacement command
+until after checking to see if the player tried to use OOPS to correct
+the unknown word.  This is undesirable, because in this case the game 
+has already provided the replacement command, so there is no reason to
+give the player a chance to use OOPS.  This has been corrected.
+
+<li>Due to a bug, the parser did not correctly set the
+<tt>PRSFLG_ENDADJ</tt> flag for some objects when calling the
+<tt>disambigDobj</tt> and <tt>disambigIobj</tt> methods.  The parser
+omitted the flag when a noun phrase ended in an adjective, and the
+vocabulary word involved was <i>only</i> defined as an adjective (in
+other words, the word was never defined as a noun or plural for any
+object in the entire game).  This has been corrected.  (Thanks to
+Amir Karger for helping to track down this problem.)
+
+<li>A parser bug caused a strange response message in certain cases.
+If the player answered a disambiguation question with a special word
+(such as "it" or "her"), the parser displayed a
+<tt>preparse</tt>-style special word code in the response, as in "I
+don't see any R book here."  This has been corrected; the parser now
+displays an improved message ("I don't see any such book here").
+
+<li>A bug in the compiler caused a crash under certain obscure
+circumstances.  If a symbol was defined as a property or an object,
+and then later in the source code a function definition appeared using
+the same symbol name, the compiler sometimes crashed.  This has been
+corrected.
+
+<li>A compiler bug caused the incorrect method to be called at
+run-time in a certain situation.  If code in an object used 
+<tt>pass</tt> or <tt>inherited</tt> to inherit code in a base
+class, and the base class was an object that had been
+modified with the <tt>modify</tt> keyword, and the method
+being inherited had been replaced with the <tt>replace</tt> keyword
+within the modifying class, the system did not correctly call the
+replaced version of the method.  This has been corrected.
+
+<li>In past versions, the compiler accepted a <tt>case</tt> label in
+a <tt>switch</tt> statement with <tt>self</tt> as the value.  Since
+<tt>self</tt> is not a constant, this type of <tt>case</tt> label has
+never been legal, and at run-time the code after the "<tt>case
+self:</tt>" label was never executed; however, the compiler should
+not have accepted the construct in the first place.  The compiler now
+displays an error when it encounters a "<tt>case self:</tt>" label in
+a <tt>switch</tt> statement.
+
+<li>In the <tt>basicMe</tt> class in adv.t, the <tt>ioGiveTo</tt>
+method generated an incorrect message.  This has been corrected.
+
+<li>The inventory listing code in adv.t (in the <tt>iVerb</tt>
+object) produced an incorrect display ("You are carrying.") when the
+player character was carrying only items marked as unlistable
+(<tt>isListed = nil</tt>).  This has been corrected.
+
+<li>The <tt>thing</tt> class in adv.t now has default verification
+methods for the verbs "attach x to y," "detach x," and "detach x from y."
+These default verification methods each simply display the message "There's
+no obvious way to do that."
+
+<li>In the past, the text-only interpreter did not correctly suppress
+certain markup sequences (in particular, BR, TAB, and HR) that appeared
+within &lt;TITLE&gt; and &lt;ABOUTBOX&gt; tags.  All text, including
+these markups, is now properly suppressed within TITLE and ABOUTBOX
+sequences.
+
+
+</ul>
+
+
+<br><br><hr>
+<h3><a name='tads251'>Version 2.5.1</a></h3>
+
+<i>Released on September 21, 1999</i>
+
+<h4>Index of Changes</h4>
+
+<ul>
+<li><a href='#parseAskobjIndirect'>New Parser Hook: parseAskobjIndirect()</a>
+<li><a href='#prefixdesc'>New Parser Hook: prefixdesc</a>
+<li><a href='#resourceExists'>New built-in function: resourceExists()</a>
+<li><a href='#newDefined'>New defined() Codes</a>
+<li><a href='#newParserGetObj'>New parserGetObj() Codes</a>
+<li><a href='#rscUrl'>Filename-to-URL Conversions in tadsrsc</a>
+<li><a href='#cantReachMulti'>cantReach with Multiple Objects</a>
+<li><a href='#inputkey251'>Changes to inputkey()</a>
+<li><a href='#adv251'>Changes to adv.t</a>
+<li><a href='#bugs251'>Bugs Fixed</a>
+</ul>
+
+<h4><a name='parseAskobjIndirect'>
+New Parser Hook: <tt>parseAskobjIndirect</tt></a></h4>
+
+<p>
+A new parser hook, named <tt>parseAskobjIndirect()</tt>, has been added
+to provide more control over the message that the parser uses to ask
+the player to supply an indirect object when none is provided in the
+command but the verb requires one.  This new function supplements the
+existing <tt>parseAskobj()</tt> and <tt>parseAskobjActor()</tt>
+functions.
+
+<p>
+Refer to the <i>TADS Parser Manual</i> (version 2.5.1) for details
+on this new parser hook.
+
+
+<h4><a name='prefixdesc'>
+New Parser Hook: <tt>prefixdesc</tt></a></h4>
+ 
+<p>
+The parser now calls a new method, called <tt>prefixdesc</tt>, to
+display the object name prefix that comes before the execution results for
+each object in a command with multiple direct objects.  This new
+method effectively replaces the existing <tt>multisdesc</tt> mechanism.
+Refer to the <i>TADS Parser Manual</i> (version 2.5.1) for details
+on this new parser hook.
+
+<h4><a name='resourceExists'>
+New built-in function: <tt>resourceExists()</tt></a></h4>
+
+<p>
+A new built-in function, <tt>resourceExists()</tt>, allows you to determine
+whether a named resource (such as a JPEG image or an MP3 audio file) can
+be loaded.  This function takes as its single argument a string giving the
+name of a resource to find; the function returns true if the resource can
+be loaded, nil if not.  The function returns nil if the interpreter is
+simply not capable of loading resources at all (the text-only interpreters
+thus always return nil for this function), or if the resource can't be
+found.  The function returns true only if the interpreter is capable of
+loading resources at all, and the resource is available. 
+
+<p>
+If you're writing a multi-media game for the HTML interpreters, but you
+also want your game to work on text-only systems, you can use this function
+for finer control over the presentation on the text systems; you might,
+for example, want to provide additional text to make up for missing
+graphics or sounds.  You can also use this function if you're planning
+to distribute your game in different subset versions in order to provide
+players with different options for download and install sizes; if you
+make some of your graphics optional (by bundling some into a separate
+".RSn" resource file, for example), you can use <tt>resourceExists()</tt>
+to detect at run-time which resources the player has chosen to install,
+and customize the presentation accordingly.
+
+<p>
+Here's an example that checks to see if a JPEG image is available
+for display:
+
+<p>
+<pre>
+    if (!resourceExists('images/title.jpg'))
+    {
+       // the title graphic isn't available - display a text version
+       ...
+    }
+</pre>
+
+
+<h4><a name='newDefined'>
+New <tt>defined()</tt> Codes</a></h4>
+
+<p>
+The <tt>defined()</tt> function, which tests an object to determine
+whether it defines or inherits a given property, provides a new "flags"
+argument that lets you get more specific information about the property
+definition.  The new third argument is optional; if provided, it can be
+one of the following values, defined in adv.t:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>DEFINED_ANY</tt>&nbsp;&nbsp;<td valign=top>
+
+This is the default, and has the same effect as omitting the flag
+argument.  The function returns true if the object defines or inherits
+the property, nil if not.
+
+<tr><td valign=top><tt>DEFINED_DIRECTLY</tt>&nbsp;&nbsp;<td valign=top>
+
+The function returns true only if the object <i>directly</i> defines
+the property.  If the object doesn't define the property at all,
+or merely inherits the definition from a superclass, the function
+returns nil.
+
+<tr><td valign=top><tt>DEFINED_INHERITS</tt>&nbsp;&nbsp;<td valign=top>
+
+The function returns true only if the object inherits the property.
+If the object doesn't define the property, or defines the property
+directly rather than inheriting it from a superclass, the function
+returns nil.
+
+<tr><td valign=top><tt>DEFINED_GET_CLASS</tt>&nbsp;&nbsp;<td valign=top>
+
+The function returns the class where the property is defined.  If the
+object directly defines the property, the function returns the object
+itself.  If the object inherits the property from a superclass, the
+function returns the superclass from which the property is inherited.
+If the object doesn't define or inherit the property, the function
+returns nil.
+
+</table></table>
+
+<p>
+For example, to determine if the object <tt>redBook</tt> directly
+defines <tt>verDoTake</tt>, you could use this code:
+
+<p>
+<pre>
+   if (defined(redBook, &amp;verDoTake, DEFINED_DIRECTLY))
+      "verDoTake is overridden directly in redBook. ";
+</pre>
+
+
+<h4><a name='newParserGetObj'>
+New <tt>parserGetObj()</tt> Codes</a></h4>
+
+<p>
+The <tt>parserGetObj()</tt> function now accepts several new code
+values to get additional objects.  These new code values are defined
+in adv.t:
+
+<p>
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>PO_IT</tt>&nbsp;&nbsp;<td valign=top>
+Get the object that the word "it" refers to in player commands.
+This is nil if there is not "it" object.
+
+<tr><td valign=top><tt>PO_HIM</tt>&nbsp;&nbsp;<td valign=top>
+Get the object that the word "him" refers to in player commands.
+
+<tr><td valign=top><tt>PO_HER</tt>&nbsp;&nbsp;<td valign=top>
+Get the object that the word "her" refers to in player commands.
+
+<tr><td valign=top><tt>PO_THEM</tt>&nbsp;&nbsp;<td valign=top>
+Get the list of objects that the word "them" refers to in player
+commands.  This is an empty list if "them" doesn't refer to anything
+at the moment.
+
+</table></table>
+
+These new codes are used in the same manner as the original ones.
+For example, to get the object that the word "him" currently
+refers to, you'd write this:
+
+<p>
+<pre>
+   local himObj;
+
+   himObj := parserGetObj(PO_HIM);
+</pre>
+
+<p>
+
+<h4><a name='rscUrl'>
+Filename-to-URL Conversions in <tt>tadsrsc</tt></a></h4>
+
+<p>
+The resource bundling tool, <tt>tadsrsc</tt>, in the past did not convert
+filenames entered with explicit paths to URL notation.  This problem
+only affected individual filenames entered with explicit paths (i.e.,
+files in subdirectories); the tool correctly converted paths to URL
+notation when adding entire directories to a resource file, and also
+worked when adding individual files that were in the current
+directory and thus didn't need an explicit path.
+
+<p>
+Instead of storing resource names in URL notation, the resource tool
+stored the actual filenames in local file system notation.  This didn't
+work with HTML TADS, because the HTML resource loader requires image
+and sound resources to be named using URL notation.
+
+<p>
+This problem has been corrected; the resource tool now converts all
+paths used in resource filenames to URL notation.
+
+
+<h4><a name='cantReachMulti'>
+<tt>cantReach</tt> with Multiple Objects</a></h4>
+
+When the player refers to an object that is visible but is not
+reachable (an item within a closed transparent container, for example),
+the parser calls the object's <tt>cantReach</tt> to display a message
+explaining why the object is not accessible.  This has not been changed,
+but the multiple-object prefix mechanism has been.
+
+<p>In the past, when the
+command had multiple unreachable objects, the parser called the object's
+<tt>sdesc</tt> method, then displayed message 200 (":").
+This has been changed.  Now, the parser uses the same mechanism
+that it does for any other multiple-object listing prefix: for each
+object, before calling <tt>cantReach</tt>, the parser
+calls the object's <tt>multisdesc</tt> method then displays message 120
+(":").
+
+<p>
+This minor change is for consistency; in particular, the change allows
+the game to override multiple-object prefix displays in a uniform
+manner for all types of these displays.
+
+
+<h4><a name='inputkey251'>Changes to <tt>inputkey()</tt></a></h4>
+
+<p>
+The <tt>inputkey()</tt> built-in function now returns certain keys
+more consistently and portably.  The codes that
+<tt>inputkey()</tt> returns vary by platform according to what keys
+are available on the keyboard.  In addition, in the past, the function
+mapped certain keystrokes to high-level functional codes in different
+ways on different platforms; this corresponded to the differing ways
+that platforms used certain keyboard keys.
+
+<p>The return codes from <tt>inputkey()</tt> are now somewhat more
+consistent.  The Escape key now returns the string <tt>'[esc]'</tt>
+on most platforms that provide such a key, and the "control" keys
+now return <tt>'[ctrl-<i>X</i>]'</tt> for almost all of the control
+keys on most platforms.  In the past, the escape key didn't return
+anything on most platforms, and control keys frequently were mapped
+to other functions (for example, on Unix, the Ctrl-E key returned
+<tt>'[end]'</tt>, since this key is used on Unix TADS interpreters
+to move the cursor to the end of the line when entering a command).
+
+<p>
+A few new command keys have been added.  The full set of command keys
+is shown below.  The exact assignment of these keys varies by platform,
+as it has in past versions, and any given platform might support only
+a subset of these keys.
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>[up]</tt>
+<td>Up arrow
+
+<tr><td valign=top><tt>[down]</tt>
+<td>Down arrow
+
+<tr><td valign=top><tt>[right]</tt>
+<td>Right arrow
+
+<tr><td valign=top><tt>[left]</tt>
+<td>Left arrow
+
+<tr><td valign=top><tt>[end]</tt>
+<td>End of line
+
+<tr><td valign=top><tt>[home]</tt>
+<td>Home
+
+<tr><td valign=top><tt>[del-eol]</tt>
+<td>Delete to end of line
+
+<tr><td valign=top><tt>[del-line]</tt>
+<td>Delete line
+
+<tr><td valign=top><tt>[del]</tt>
+<td>Del (delete character)
+
+<tr><td valign=top><tt>[page up]</tt>
+<td>Page up
+
+<tr><td valign=top><tt>[page down]</tt>
+<td>Page down
+
+<tr><td valign=top><tt>[top]</tt>
+<td>Top of file
+
+<tr><td valign=top><tt>[bottom]</tt>
+<td>Bottom of file
+
+<tr><td valign=top><tt>[f<i>N</i>]</tt>
+<td>Function key <i>N</i> (<i>N</i> is replaced by a number, 1 through 10)
+
+<tr><td valign=top><tt>[tab]</tt>
+<td>Tab
+
+<tr><td valign=top><tt>[word-left]</tt>
+<td>Word left
+
+<tr><td valign=top><tt>[word-right]</tt>
+<td>Word right
+
+<tr><td valign=top><tt>[del-word]</tt>
+<td>Delete word
+
+<tr><td valign=top><tt>[bksp]</tt>
+<td>Backspace
+
+<tr><td valign=top><tt>[esc]</tt>
+<td>Escape
+
+<tr><td valign=top><tt>[ctrl-<i>X</i>]</tt>
+<td>Control-<i>X</i> (<i>X</i> is replaced by a lower-case letter:
+Control-C is <tt>[ctrl-c]</tt>)
+
+<tr><td valign=top><tt>[alt-<i>X</i>]</tt>
+<td>Alt-<i>X</i> or Meta-<i>X</i> (<i>X</i> is replaced by a lower-case
+letter: Alt-F is <tt>[alt-f]</tt>)
+
+</table>
+</table>
+<p>
+
+
+<h4><a name='adv251'>Changes to adv.t</a></h4>
+
+<ul>
+<li>Added verifier methods to class <tt>thing</tt> to accomodate
+the verbs <tt>screwVerb</tt> and <tt>unscrewVerb</tt>.  All of
+these verifier methods simply stop the command with a default
+failure message (variations on "You see now way to do that").
+The new methods are:
+  
+  <ul>
+  <li><tt>verDoScrew</tt>
+  <li><tt>verDoScrewWith</tt>
+  <li><tt>verIoScrewWith</tt>
+  <li><tt>verDoUnscrew</tt>
+  <li><tt>verDoUnscrewWith</tt>
+  <li><tt>verIoUnscrewWith</tt>
+  </ul>
+
+<li>The <tt>fopen()</tt> built-in function's <tt>'r+'</tt> mode did
+not correctly create a new file when the file being opened did not
+previously exist, as it is documented to do.  This has been corrected;
+if no file exists, the <tt>'r+'</tt> mode creates a new file, otherwise
+it opens the existing file, keeping its contents intact.
+
+<li>The <tt>moveInto</tt> method in the <tt>basicMe</tt> object
+in adv.t now works properly when the object is not the current player
+character.  <tt>moveInto</tt> now uses the default handling inherited
+from <tt>Actor</tt> when the object is not the current player character;
+this is important for games that switch among different player character
+objects.
+
+<li>The <tt>ioGiveTo</tt> method in <tt>basicMe</tt> in adv.t now
+uses format strings (such as "%You%"), so that it adapts properly
+when the object is not the current player character.
+
+</ul>
+
+
+<h4><a name='bugs251'>Bugs Fixed</a></h4>
+
+<ul> 
+
+<li>Format strings (such as "%You%") can now be used from within the
+<tt>endCommand()</tt> function.  In the past, the actor setting that
+the output formatter uses to translate format strings was forgotten
+before the parser called <tt>endCommand()</tt>, even though the
+parser still had the necessary information internally.  The output
+formatter now keeps track of this information until after
+<tt>endCommand()</tt> returns, which allows you to use format strings
+from within <tt>endCommand()</tt>.
+
+<li>Fixed a parser bug: Executing <tt>exit</tt> within
+<tt>preCommand()</tt> did not have the documented effect of skipping
+all of the remaining objects in the command, but simply skipped the
+first object in the command.  <tt>exit</tt> in <tt>preCommand()</tt>
+now correctly skips the entire object list for the command. 
+
+<li>Fixed a parser bug: An object defined with the same leading
+substring six characters or longer in multiple adjectives sometimes
+appeared more than once in a disambiguation query ("Which book do you
+mean, the yellow book, or the yellow book?").  This same type of
+problem was fixed in most cases in version 2.4.0, but one type of
+the problem remained; this has now been fixed.
+
+<li>Another bug, related to the bug above, was fixed.  In some cases,
+when the player responded to a disambiguation query with <i>multiple</i>
+objects, the parser would ask the disambiguation question again with
+every object in the entire game, whether accessible to the player or not,
+in the list of possible objects.  This has been corrected.
+
+<li>Another parser bug was fixed: If a word referred to more than about 200
+objects, the parser displayed a double error message (specifically,
+"The word 'foo' refers to too many objects.I don't see any foo here.").
+This has been corrected; only the first message ("too many objects")
+is displayed now.
+
+<li>Fixed a bug in adv.t: the <tt>listcontgen()</tt> function, when
+the "recursive" flag was set, incorrectly tried to evaluate <tt>itemcnt()</tt>
+with an object rather than a list, causing a run-time error.  This has
+been corrected.
+
+<li>The parser's handling of situations where an "again" command is
+impossible due to object deletion has been improved.  In the past,
+if an object involved in the previous command was deleted, and the
+player typed "again," the parser would respond with parser message
+26 ("There's no command to repeat").  The parser now responds with
+the more suitable message 27 ("You can't repeat that command").
+
+<li>The parser now properly restores the text of the player's
+original command words for the direct and indirect object when the
+player repeats a command with "again."  In the past, the parser did
+not retain the text of the previous command's words, so <tt>objwords()</tt>
+returned empty lists when the game attempted to retrieve the object
+words during execution of a repeated command.  This inconsistency
+has been corrected.
+
+<li>The <tt>parseNounList()</tt> function returned an incorrect word
+index value in the first element of its return list in two cases:
+when the noun phrase did not match any objects; and when there was no
+noun phrase present.  In both of these cases, the returned index value
+had a value one less than the correct value.  This has been corrected.
+
+<li>Fixed a problem that occasionally caused a crash when the player
+entered a command containing an ampersand ("&amp;") when the game was
+running in HTML mode.
+
+<li>Fixed a parser bug that occasionally caused a crash when the player
+responded to a disambiguation prompt ("which book do you mean...") with
+"him" or "her."
+
+</ul>
+
+<br><br><hr>
+<h3><a name='tads250'>Version 2.5.0</a></h3>
+
+<i>Released on July 10, 1999</i>
+
+<h4>Index of Changes</h4>
+
+<ul>
+<li><a href='#precmd'>preCommand()</a>
+<li><a href='#postact'>postAction() and endTurn()</a>
+<li><a href='#inputdialog'>inputdialog()</a>
+<li><a href='#inputline'>inputline()</a>
+<li><a href='#restore_ret'>New restore() return codes</a>
+<li><a href='#askfile_ext'>Extended askfile() interface</a>
+<li><a href='#switchPlayer'>switchPlayer()</a>
+<li><a href='#iwide'>Inventory Wide and Tall</a>
+<li><a href='#nestlistcont'>nestlistcont()</a>
+<li><a href='#listcontgen'>listcontgen()</a>
+<li><a href='#basicMeTravelTo'>basicMe.travelTo changes</a>
+<li><a href='#movableActorTravelTo'>movableActor.travelTo changes</a>
+<li><a href='#ds2'>New compiler debug record format (-ds2)</a>
+<li><a href='#parserbug250'>Parser bug fixes</a>
+<li><a href='#tdbbug250'>Debugger bug fixes</a>
+<li><a href='#tcbug250'>Compiler bug fixes</a>
+</ul>
+
+
+
+<h4><a name='precmd'>
+New pre-execution processing:  <tt>preCommand</tt></a></h4>
+
+<p>
+At the start of the execution phase, before calling <tt>verbAction()</tt>
+for the first direct object in the command, the parser invokes
+the new function <tt>preCommand()</tt>:
+
+<p>
+<pre>
+  preCommand(<i>actor, verb, dobj_list, prep, iobj</i>);
+</pre>
+
+<p>
+The "actor", "verb", "prep", and "iobj" parameters are objects giving
+the actor, verb, preposition, and indirect object in the command,
+respectively.  The "dobj_list" parameter is a list of the direct objects
+in the command, in the same order as they appear in the command.
+
+<p>
+This function can use <tt>exit</tt> to skip to fuses and daemons,
+or it can use <tt>abort</tt> to cancel the command entirely, in which
+case the parser will skip directly to the <tt>endCommand</tt> function
+(see below).  If this function simply returns, the parser continues
+processing the command as normal.
+
+
+<h4><a name='postact'>New end-of-turn processing: <tt>postAction</tt> and
+<tt>endCommand</tt></a></h4>
+
+<p>
+In past versions of TADS, it wasn't possible to add special event
+processing at the end of a turn.  The closest approximation was to
+put processing in a fuse or daemon, but this approach has several
+drawbacks: no information is available in a fuse or daemon on the
+last command executed, and it is not possible to specify the order
+of execution of fuses and daemons.
+
+<p>
+Two new parser hooks provide for structured event handling at the
+end of a turn.  The first hook, the <tt>postAction</tt> function,
+lets you write code that the parser calls immediately after the
+"action" method, and before any fuses or daemons.  The second hook,
+the <tt>endCommand</tt> function, lets you write code that the
+parser calls at the end of a turn, just after running all of the
+fuses and daemons for the turn.
+
+<p>The parser calls <tt>postAction</tt> once for each object in a
+command with multiple direct objects, just after it calls the
+"action" method for the object.  If the command is terminated early
+with <tt>exit</tt>, <tt>exitobj</tt>, or <tt>abort</tt>, the parser
+invoked <tt>postAction</tt> immediately after the <tt>exit</tt>,
+<tt>exitobj</tt>, or <tt>abort</tt> statement executes.  The parser
+calls <tt>postAction</tt> with the following arguments:
+
+<p>
+<pre>
+    postAction(<i>actor, verb, dobj, prep, iobj, status</i>);
+</pre>
+
+<p>
+The first five parameters specify the current command; any of the objects
+except "actor" and "verb" can be nil.  The "status" parameter has the
+same meaning as the return codes from the <tt>execCommand</tt> built-in
+function; it can be one of the following values, defined in adv.t:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>EC_SUCCESS</tt>&nbsp;&nbsp;<td valign=top>
+The command executed successfully, which indicates that everything
+up through and including the command's "action" method
+(<tt><i>verb</i>.action</tt>, <tt><i>dobj</i>.doAction</tt>, or
+<tt><i>iobj</i>.ioAction</tt>, as appropriate).
+
+<tr><td valign=top><tt>EC_EXIT</tt>&nbsp;&nbsp;<td valign=top>
+An <tt>exit</tt> statement was executed.
+
+<tr><td valign=top><tt>EC_EXITOBJ</tt>&nbsp;&nbsp;<td valign=top>
+An <tt>exitobj</tt> statement was executed.
+
+<tr><td valign=top><tt>EC_ABORT</tt>&nbsp;&nbsp;<td valign=top>
+An <tt>exit</tt> statement was executed.
+
+</table>
+</table>
+
+<p>
+The <tt>postAction</tt> function returns no value.
+
+<p>
+The parser invokes the <tt>endCommand</tt> after all of the fuses
+and daemons have finished running at the end of a turn.  This function
+is called once per command, not per object; in a command with multiple
+direct objects, this function is called only once, just as fuses and
+daemons are called only once for the entire command.
+
+<p>
+The parser calls <tt>endCommand</tt> as follows:
+
+<p>
+<pre>
+    endCommand(<i>actor, verb, dobj_list, prep, iobj, status</i>);
+</pre>
+
+<p>
+The "status" parameter has the same meaning as the status code parameter
+to <tt>postAction</tt>.  The other parameters have the same values
+as they did in the call to <tt>preCommand</tt> that the parser makes
+at the start of the execution phase for the command.
+
+<p> <tt>endCommand</tt> is always invoked at the end of a turn.  If an
+<tt>abort</tt> statement is executed in the course of a turn, the parser
+skips directly to <tt>endCommand</tt>, because <tt>abort</tt> skips the
+daemons and fuses.  This means that <tt>endCommand</tt> is executed at
+the end of a turn even when fuses and daemons are skipped.
+
+<p>
+The <tt>endCommand</tt> function returns no value.
+
+<h4><a name='inputdialog'>
+New built-in function <tt>inputdialog()</tt></a></h4>
+
+<p>A new built-in function, <tt>inputdialog()</tt>, lets you ask the
+player a multiple-choice question.  On graphical systems,
+</tt>inputdialog()</tt> displays a system dialog box, and lets the
+user respond by clicking a button.  On text systems, this function
+displays a textual prompt and lets the user respond with the keyboard.
+
+<p>
+<tt>inputdialog</tt> takes the following parameters:
+
+<p>
+<pre>
+    inputdialog(<i>icon, prompt, response_list, default_idx, cancel_idx</i>)
+</pre>
+
+<p>
+The "icon" parameter indicates which icon, if any, to display.  The icon
+will only be displayed on graphical systems; text-only systems ignore
+this parameter.  These icon constants are defined in adv.t:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+<tr><td valign=top><tt>INDLG_ICON_NONE</tt>&nbsp;&nbsp;<td valign=top>
+Do not use any icon.
+
+<tr><td valign=top><tt>INDLG_ICON_WARNING</tt>&nbsp;&nbsp;<td valign=top>
+Show a "warning" icon.  This indicates a potential or minor problem.
+(On Windows, this displays an exclamation-point icon.)
+
+<tr><td valign=top><tt>INDLG_ICON_INFO</tt>&nbsp;&nbsp;<td valign=top>
+Show an "information" icon.  This indicates to the user that the dialog
+is being displayed to inform them of the status of an operation.
+(On Windows, this displays an icon with a small letter "i" in a circle.)
+
+<tr><td valign=top><tt>INDLG_ICON_QUESTION</tt>&nbsp;&nbsp;<td valign=top>
+Show a "question" icon.  This indicates that additional information
+from the user is required.
+(On Windows, this displays a question-mark icon.)
+
+<tr><td valign=top><tt>INDLG_ICON_ERROR</tt>&nbsp;&nbsp;<td valign=top>
+Show an "error" icon.  This indicates that a problem has occurred.
+(On Windows, this displays a stop-sign icon.)
+
+</table>
+</table>
+
+<p>
+The "prompt" parameter is the message string to display.  For graphical
+systems, this message is displayed in a dialog box; for text systems,
+it's simply displayed on the terminal.
+
+<p>The "response_list" is a list of strings giving the valid responses.
+Each entry in the list is a string giving one possible response.
+On graphical systems, one button is displayed in the dialog for each
+response string; the response string is the button's label.  On text
+systems, the responses are displayed to the player after the prompt
+string.
+
+<p>
+Each string in the response list can optionally include an ampersand
+character ("&amp;") before the character that serves as a keyboard
+short-cut for the response.  The ampersand is not displayed in the
+button label or response list displayed to the player.  For example,
+the response list string '&amp;Yes' makes the "Y" key a short-cut for
+the button, which is labeled "Yes" in the dialog.  On some systems
+the short-cut key will be indicated visually in the dialog; on Windows,
+for example, the "Y" in the "Yes" button would be underlined to indicate
+that the letter "Y" is the short-cut for the button.  If no ampersand
+appears in a response list item, the item has no short-cut.
+
+<p>
+On text-only systems, the keyboard short-cut will be indicated visually
+by enclosing the short-cut letter in parentheses when dispalying the
+list of possible responses to the player.  If a response item has no
+short-cut key, the player must enter a sufficiently long leading substring
+of the response item so that the response is unambiguous with the other
+valid responses.
+
+<p>Each element of the list can be a number, rather than a string.
+If an element is a number, it specifies that the button should use
+a pre-defined standard label.  You should use standard labels when
+possible, because these labels will follow local system conventions
+and will be localized to the player's language settings; these labels
+are read from external resources on platforms with appropriate operating
+system support, so they can be localized easily.  To select a standard
+label, use one of the following values, defined in adv.t:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+<tr><td valign=top><tt>INDLG_LBL_OK</tt>&nbsp;&nbsp;<td valign=top>
+"OK", or local system or language equivalent
+
+<tr><td valign=top><tt>INDLG_LBL_CANCEL</tt>&nbsp;&nbsp;<td valign=top>
+"Cancel"
+
+<tr><td valign=top><tt>INDLG_LBL_YES</tt>&nbsp;&nbsp;<td valign=top>
+"Yes"
+
+<tr><td valign=top><tt>INDLG_LBL_NO</tt>&nbsp;&nbsp;<td valign=top>
+"No"
+</table>
+</table>
+<p>
+The strings shown above do not necessarily reflect the actual button
+text that the player will see, because the actual label will vary by
+platform and by language.  Whatever label is displayed, though, will
+convey to the user the same meaning.
+
+<p>You can also select an entire standard set of buttons, rather than
+specifying each button individually.  If the response_list parameter
+is a number, rather than a list, it indicates that a standard set of
+buttons is to be used, selected from a pre-defined list.  The
+advantage of using one of these pre-defined button sets when possible
+is that the buttons will automatically follow local system
+conventions and be localized to the player's language settings, on
+platforms with appropriate operating system support.  To select a
+pre-defined button set, use one of the following values, defined in
+adv.t, for the response_list parameter:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+<tr><td valign=top><tt>INDLG_OK</tt>&nbsp;&nbsp;<td valign=top>
+The dialog will display an "OK" button, properly localized.
+
+<tr><td valign=top><tt>INDLG_OKCANCEL</tt>&nbsp;&nbsp;<td valign=top>
+The dialog will display an "OK" button and a "Cancel" button, properly
+localized.
+
+<tr><td valign=top><tt>INDLG_YESNO</tt>&nbsp;&nbsp;<td valign=top>
+The dialog will display an "Yes" button and a "No" button, properly
+localized.
+
+<tr><td valign=top><tt>INDLG_YESNOCANCEL</tt>&nbsp;&nbsp;<td valign=top>
+The dialog will display a "Yes" button, a "No" button, and a
+"Cancel" button, properly localized.
+
+</table>
+</table>
+
+<p> The "default_idx" parameter gives the index in the response list
+of the default response.  If the user presses the "Return" key, or
+performs any other action appropriate to the system user interface
+that by local convention accepts the default response to a dialog,
+this response will be used.  The first list entry is at index 1.
+Pass nil in this parameter if there is no default response, in which
+case TADS will require the user to select a specific button.  (Note
+that, on some systems, passing nil for this parameter will not make a
+noticeable difference; on Windows, for example, one of the buttons
+will always have keyboard focus, so pressing the Return key will
+always select one of the buttons.)
+
+<p>
+The "cancel_idx" parameter gives the index in the response list of the
+cancellation response.  Most GUI systems have a standard way of cancelling
+a dialog; the Escape key has this effect on Windows, for example, as does
+the Command-Period key combination on the Macintosh.  If the user performs
+the appropriate system-specific action to cancel the dialog, this response
+is used.  The first list entry is at index 1.  Pass nil in this parameter
+if there is no cancel response, in which case TADS will not allow the
+player to cancel the dialog.
+
+<p> The dialog returns the index of the response that the player
+selects: 1 for the first response in the response list, 2 for the
+second entry in the list, and so on.  For the standard response lists
+(<tt>INDLG_YESNO</tt> and so on), the response are in the order described
+for the constant name: <tt>INDLG_YESNO</tt> has a "Yes" button at index
+1 and a "No" button at index 2, for example.
+
+<p>
+Here's an example of using this function.
+
+<p>
+<pre>
+    ret := inputdialog('What would you like to do next?',
+                       ['&amp;Restore', 'Re&amp;start', '&amp;Quit'],
+                       nil, 3);
+    switch(ret)
+    {
+    case 1:
+      /* restore a game... */
+      break;
+
+    case 2:
+      /* restart the game */
+      restart();
+      break;
+
+    case 3:
+      /* quit */
+      quit();
+      break;
+    }
+</pre>
+
+<p>
+On a graphical system, this would display a dialog with the message
+text "What would you like to do next?", and three buttons: one
+with the label "Restore", one with the label "Restart", and one with
+the label "Quit".  If the user presses the "R" key, the "Restore" button
+would be selected; if the user presses "S", the "Restart" button would
+be selected; if the user presses "Q", or cancels the dialog (by pressing
+the Escape key on a Windows machine, for example), the "Quit" button
+would be selected.
+
+<p>
+On a text-only system, TADS would display this text on the terminal,
+on a new line (TADS would output a "\n" sequence to start a new line):
+
+<p><pre>
+    What would you like to do next? (R)estore/Re(s)tart/(Q)uit &gt;
+</pre>
+
+<p>
+TADS would then wait for the player to enter a line of text (as with
+the <tt>input()</tt> built-in function).  If the player enters one
+letter, TADS would check the letter against each response's short-cut,
+and return the one that matches.  If the player enters more than one
+letter, TADS would check the string against the leading substring of
+each possible response; if the string matches one of the responses
+unambiguously, TADS would return that response.  If the player enters
+something invalid or ambiguous, TADS would redisplay the prompt and
+await another response.
+
+<p><tt>inputdialog()</tt> has certain limits.  The prompt string can
+be no longer than 256 characters.  There can be no more than ten
+responses, and the total length of the text in all of the responses
+must not exceed 256 characters.  In addition, to ensure portability,
+you should choose a reasonably short label for each button; some
+systems use buttons of a fixed size, so a long label name might not
+fit in the available space on some systems.  Whenever possible, use
+a single word for each button label.
+
+
+<h4><a name='inputline'>New <tt>inputline()</tt> function in adv.t</a></h4>
+
+<p>A new function, <tt>inputline()</tt>, is defined in adv.t.  This
+function is a simple cover for the built-in function <tt>input()</tt>,
+with the additional feature that <tt>inputline()</tt> switches to
+the "TADS-Input" font when the game is running in HTML mode.  This
+means that the text that the player enters during an <tt>inputline()</tt>
+has the same appearance as the text entered on a normal command line.
+
+<p>
+Note that the <tt>input()</tt> function does not switch to the
+"TADS-Input" font itself, because if it did, you'd have no way to
+override this behavior.  Rather than forcing input text to be displayed
+in the "TADS-Input" font, the <tt>input()</tt> function leaves it up to
+the game author to determine how input text should look.  In most cases,
+you should use <tt>inputline()</tt> rather than calling <tt>input()</tt>
+directly, to ensure that the player's input has the normal command line
+appearance.  In some cases, however, you might wish to use a specific
+appearance for input text, rather than using the default setting;
+in these cases, you should set your own font choice, then call
+the <tt>input()</tt> function directly, since it won't change the
+appearance from what you choose.
+
+<h4><a name='restore_ret'>New <tt>restore()</tt> return code</a></h4>
+
+<p>The <tt>restore()</tt> built-in function's return code has been changed.
+In the past, this function returned nil to indicate success, and true
+to indicate failure.  The return value is now a number; different
+values are returned for different error conditions, which makes it
+possible to provide better information to the player about the
+specific problem that caused the operation to fail.
+
+<p>
+The new return values, defined in adv.t, are:
+
+<p>
+
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+<tr><td valign=top><tt>RESTORE_SUCCESS</tt>&nbsp;&nbsp;<td valign=top>
+Success
+
+<tr><td valign=top><tt>RESTORE_FILE_NOT_FOUND</tt>&nbsp;&nbsp;<td valign=top>
+The file to be restored does not
+exist (or could not be opened for some other reason).
+
+<tr><td valign=top><tt>RESTORE_NOT_SAVE_FILE</tt>&nbsp;&nbsp;<td valign=top>
+The file is not a valid saved game.
+
+<tr><td valign=top><tt>RESTORE_BAD_FMT_VSN</tt>&nbsp;&nbsp;<td valign=top>
+The file was saved by an incompatible
+version of the TADS Interpreter
+
+<tr><td valign=top><tt>RESTORE_BAD_GAME_VSN</tt>&nbsp;&nbsp;<td valign=top>
+The file was saved by a different
+game, or by a different version of the same game.
+
+<tr><td valign=top><tt>RESTORE_READ_ERROR</tt>&nbsp;&nbsp;<td valign=top>
+An error occurred reading the file.
+This could indicate that the file was corrupted, or that the physical
+medium containing the file is damaged.
+
+<tr><td valign=top><tt>RESTORE_NO_PARAM_FILE</tt>&nbsp;&nbsp;<td valign=top>
+No parameter file has been
+specified.  This is returned only when <tt>restore(nil)</tt> is
+called to attempt to load the file specified by a start-up parameter;
+it indicates that there is in fact no parameter file to load.
+
+</table>
+</table>
+
+
+<p>For compatibility, <tt>RESTORE_SUCCESS</tt> is defined as 0, and
+all of the other values are non-zero.  In most cases, this should
+allow existing code (that assumes the nil/true return value) to
+continue working without changes, since <tt>if (restore(fname))</tt> will
+continue to have the same effect with this change.  Only code that
+explicitly compared the return value to nil or true will need to be
+changed.
+
+<p>The code in adv.t that calls <tt>restore()</tt> has been updated to
+reflect this change, and uses the additional information to display a
+more precise message when an error occurs.
+
+<h4><a name='askfile_ext'>Extended <tt>askfile()</tt> Interface</a></h4>
+
+<p>The <tt>askfile()</tt> built-in function's interface has been extended.
+
+<p>A new, optional fourth argument lets you specify additional flags
+to the <tt>askfile</tt> function.  The possible flag values, defined
+in adv.t, are:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>ASKFILE_EXT_RESULT</tt>&nbsp;&nbsp;<td valign=top>
+Return extended result codes (described below).  If this flag is
+provided, the function returns extended results; if this flag is
+not specified, the function returns the traditional results.
+
+</table>
+</table>
+
+<p>
+In order to specify the new flag value argument, you must specify
+the prompt type and file type arguments as well; if you omitted the
+prompt or file type argument, the <tt>askfile</tt> function would not
+be able to tell that you meant the last argument as the flags value.
+
+<p>If you omit the flags argument, <tt>askfile</tt> uses a default
+value of zero, which makes the function behave the same as in past
+versions.  Because older code never specifies a flags value, the
+function will always behave compatibly with past versions when called
+from older code.
+
+<p>Traditionally, <tt>askfile</tt> returned a string on success, or
+nil for any type of failure; this didn't permit the caller to
+determine exactly what kind of failure occurred, and in particular
+did not allow the caller to distinguish between an actual error and
+the player cancelling the file selector dialog.  When
+<tt>ASKFILE_EXT_RESULT</tt> is specified, the function will return
+additional information that allows the caller to distinguish these
+cases.
+
+<p>When the <tt>ASKFILE_EXT_RESULT</tt> flag is specified,
+<tt>askfile</tt> returns a list that contains two elements.  The
+first element is a number which indicates the status of the file
+selection; the second element is a string if a file was successfully
+chosen, or nil if not.  The possible values for the first element of
+the returned list, defined in adv.t, are:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+
+<tr><td valign=top><tt>ASKFILE_SUCCESS</tt>&nbsp;&nbsp;<td valign=top>
+A file was successfully chosen.  The second element of the list contains
+a string giving the chosen filename.
+
+<tr><td valign=top><tt>ASKFILE_FAILURE</tt>&nbsp;&nbsp;<td valign=top>
+An error occurred prompting for a filename.  This usually indicates
+that the file selector dialog could not be shown for some reason
+(insufficient memory, for example).
+
+<tr><td valign=top><tt>ASKFILE_CANCEL</tt>&nbsp;&nbsp;<td valign=top>
+The user canceled the file selector dialog.  On the Macintosh, for
+example, this means that the user clicked the "Cancel" button.  This
+indicates that the user does not wish to proceed with whatever operation
+is in progress, so the operation should be aborted.  Since the user
+explicitly chose to cancel the operation, the program should not indicate
+that an error occurred, but simply that the operation will be terminated
+in accordance with the user's request.
+
+</table>
+</table>
+
+<p>
+All code in adv.t that calls <tt>askfile</tt> has been updated to use
+the new extended results information, so that it can provide more
+appropriate responses when the user cancels a file selector dialog.
+
+<p>
+Here's an example, from the "restore" command's implementation in
+adv.t, of using the new extended results.
+
+<p>
+<pre>
+    local savefile;
+
+    savefile := askfile('File to restore game from',
+                        ASKFILE_PROMPT_OPEN, FILE_TYPE_SAVE,
+                        ASKFILE_EXT_RESULT);
+    switch(savefile[1])
+    {
+    case ASKFILE_SUCCESS:
+        return mainRestore(savefile[2]);
+
+    case ASKFILE_CANCEL:
+        "Canceled. ";
+        return nil;
+
+    case ASKFILE_FAILURE:
+    default:
+        "Failed. ";
+        return nil;
+    }
+</pre>
+
+<h4><a name='switchPlayer'>
+New <tt>switchPlayer()</tt> function in adv.t</a></h4>
+
+<p>
+The standard library file adv.t provides a new function,
+<tt>switchPlayer</tt>, that you can use to switch the player character
+to a new actor.  This function uses the built-in function
+<tt>parserSetMe()</tt> to change the parser's internal player
+character record, and in addition performs some book-keeping
+work that's necessary when switching to a new player.
+
+<p>Call <tt>switchPlayer()</tt> with one argument: the actor object
+that is to become the new player character.
+
+<p>First, <tt>switchPlayer()</tt> adds the outgoing player
+character object to its room's contents list, and removes the
+new player character object from its room's contents list.  By
+convention in adv.t, the active player character is never in its
+location's contents list, but other actor objects are.  Since the
+outgoing object is switching from being the active player object to
+an ordinary actor, it must be added to its room's contents list;
+likewise, since the new object is changing from an ordinary actor
+to the player character, it must be removed from its location's
+contents list.
+
+<p>Second, <tt>switchPlayer()</tt> removes the vocabulary words
+"me" and "myself" from the outgoing player character object, and
+adds these vocabulary words to the incoming player character.
+This way, these words always refer to the current player character.
+
+<p>If your game is based on adv.t, you should use <tt>switchPlayer()</tt>
+to change to a new player character object, rather than calling
+<tt>parserSetMe()</tt> directly, to ensure that the adv.t conventions
+for the active player character object are maintained through the
+change.
+
+<p>Thanks to Scott Starkey for his help defining this function.
+
+<h4><a name='iwide'>New adv.t verbs: inventory wide, inventory tall</a></h4>
+
+<p>
+The standard library file adv.t defines two new verbs: "inventory wide"
+and "inventory tall."  These verbs let the player control the inventory
+display format.  "Inventory wide" displays the player's inventory in
+the traditional paragraph-style format.  "Inventory tall" displays the
+inventory in a single-column format, showing one object per line, and
+showing the contents of each object indented one tab stop from its
+container.
+
+<p>
+Once the player enters an "inventory tall" or "inventory wide" command,
+subsequent "inventory" commands (without a format specified) will default
+to the format of the previous command.  The traditional "wide" format is
+the initial setting, but you can change this in your game by setting
+<tt>iVerb.useInventoryTall</tt> to <tt>true</tt> in your
+<tt>init</tt> function.
+
+
+<h4><a name='nestlistcont'>
+New <tt>nestlistcont()</tt> function in adv.t</a></h4>
+
+<p>
+The standard library file adv.t has a new function, <tt>nestlistcont()</tt>,
+that displays a listing of an object's contents in a nested single-column
+format.  This function can be used to display "tall" inventory listing,
+rather than the paragraph-style "wide" listings that adv.t normally
+displays.
+
+<p>
+<tt>nestlistcont()</tt> takes two arguments: the object whose contents are
+to be listed, and a number giving the initial indenting.  The function
+indents the contents of the given object by the given number of tabs.
+For each object contained in the given object that has a contents list
+of its own, the function displays that object's contents indented one
+additional tab level, and so on for their contents.
+
+<p>
+<tt>nestlistcont()</tt> displays an object's contents only if the
+object's contents are visible, using the normal visibility rules.
+If the object's contents are not visible, this function has no effect.
+Furthermore, the function displays the contents of objects it displays
+only for those objects whose contents are themselves visible.
+
+<p>
+Thanks to Kevin Forchione for providing this addition to adv.t.
+
+<h4><a name='listcontgen'>
+New <tt>listcontgen()</tt> function in adv.t</a></h4>
+
+<p>
+To support the <tt>nestlistcont()</tt> function, adv.t includes another
+new listing function, <tt>listcontgen()</tt>.  This function is a
+general-purpose lister that provides the functionality of the traditional
+<tt>listcont()</tt> function as well as the new <tt>nestlistcont()</tt>
+function, which are essentially the same except for the display format.
+
+<p>
+<tt>listcontgen()</tt> takes three parameters:
+
+<p>
+<pre>
+  listcontgen(<i>obj, flags, depth</i>);
+</pre>
+
+<p>
+The "obj" parameter is the object whose contents are to be listed, or
+simply a list of objects to display.  "flags" specifies a set of flag
+values, defined in adv.t:
+
+<p>
+<table>
+<tr><td>&nbsp;&nbsp;&nbsp;&nbsp;
+<td>
+<table cellpadding=2>
+<tr><td valign=top><tt>LCG_TALL</tt>&nbsp;&nbsp;<td valign=top>
+Show a "tall" listing, with one item listed per line.  If this flag
+is specified, each line will be indented by the number of tab stops
+given by the "indent" parameter.  If <tt>LCG_TALL</tt> isn't specified,
+the function shows a "wide" paragraph-style listing, with the items
+separated by commas.
+
+<tr><td valign=top><tt>LCG_CHECKVIS</tt>&nbsp;&nbsp;<td valign=top>
+Checks the visibility of the contents of "obj" before listing the
+contents.  If "obj" is a list, this flag is ignored.  If this flag
+isn't specified, the function lists the contents of "obj" without
+checking to see if they're visible.
+
+<tr><td valign=top><tt>LCG_RECURSE</tt>&nbsp;&nbsp;<td valign=top>
+Show a recursive listing.  If this flag is specified, the function
+lists the contents of each item it displays.  The recursive call
+uses the same "flags" value and increments the "indent" depth by
+one.  If this flag isn't specified, the function doesn't show the
+contents of the objects it lists.
+</table></table>
+
+<p>
+Note that <tt>listcontgen()</tt> allows you to produce an object
+listing for lists other than contents of objects.  If you pass a
+list in the "obj" parameter, the function lists the items in the
+list using the same formatting that it would for a contents list.
+This allows you to display a contents-style listing for some collection
+of objects other than a contents list.
+
+
+<h4><a name='basicMeTravelTo'><tt>basicMe.travelTo</tt> changes</a></h4>
+
+<p>In adv.t, the <tt>basicMe.travelTo</tt> method now checks to see
+if "self" is actually the active player character object; if not, the
+method inherits the <tt>travelTo</tt> processing for a regular actor,
+rather than using the special behavior for the current player character.
+This change facilitates using <tt>basicMe</tt> as a base class for
+defining player character objects in a game with more than one player
+character.
+
+
+<h4><a name='movableActorTravelTo'>
+<tt>movableActor.travelTo</tt> changes</a></h4>
+
+<p>In adv.t, the <tt>movableActor.travelTo</tt> method uses an improved
+algorithm for determining when to show the "leaving" and "arriving"
+messages for the actor.  The new algorithm considers the actor's visibility
+to the player, before and after the move, in determining whether to show
+the messages; the old algorithm considered only the immediate container
+of the actor and of the player, which produced the wrong results when
+the actor was moving between locations that are both visible to the
+player, such as a nested room.  In addition, the new algorithm handles
+obstacles (such as doors) properly.
+
+<p>
+Thanks to Kevin Forchione for providing this improved implementation.
+
+
+<h4><a name='ds2'>New compiler debug record format</a></h4>
+
+<p>A new compiler option, <tt>-ds2</tt>, tells the compiler to
+generate a new style of debugging information designed to work with
+the Windows HTML TADS Debugger (part of TADS Workbench).  If you're
+running your game with the Windows debugger version 2.5.0 or later,
+you <b>must</b> compile with the <tt>-ds2</tt> option.  If you're
+using an older version of the Windows debugger, or you're using the
+debugger on another platform (DOS, Unix, Mac), you must continue to
+use the original <tt>-ds</tt> option as before.
+
+
+<h4><a name='parserbug250'>Parser bug fixes</a></h4>
+
+<p>The following player command parser bugs have been fixed:
+
+<ul>
+
+<li>Fixed a parser bug that caused an infinite loop (which caused the
+game to lock up) if a game defined the same vocabulary word as both
+an adjective and a plural.
+
+<li>Fixed a parser bug involving <tt>disambigDobj</tt> and
+<tt>disambigIobj</tt>.  When these methods returned a list of objects
+that was still ambiguous, the parser's default question ("Which
+<i>noun-phrase</i> do you mean...")  didn't format the list of
+possibilities correctly; in particular, extra commas and "or"'s
+sometimes appeared at the end of the list.  This has been corrected.
+
+</ul>
+
+<h4><a name='tdbbug250'>Debugger bug fixes</a></h4>
+
+<p>The following debugger problems have been corrected:
+
+<ul>
+
+<li>Fixed a debugger problem that caused single-step execution to skip
+past a line containing a disabled breakpoint.
+
+<li>Fixed a problem in the debugger that caused a sporadic crash when
+displaying a stack traceback where a function in the stack trace had
+a string argument value, and the string was over about 40 characters
+long.  This bug affected all versions of the debugger, but was most
+noticeable on the Windows HTML version, because the Windows debugger
+builds a stack traceback every time it takes control (on hitting a
+breakpoint, for example, or after single-stepping a line of code).
+
+<li>In certain cases, the debugger showed the current source line
+(and breakpoints) off by a couple of lines from where it should have
+been.  This happened when the source file had one or more lines that
+were exactly 97 characters long, and had DOS-style line termination
+(CR-LF newline sequences).  (This was actually a bug in the compiler
+and not the debugger, but it showed up most visibly using the
+debugger.)  This has been corrected.
+
+</ul>
+
+<h4><a name='tcbug250'>Compiler bug fix</a></h4>
+
+<p> This version corrects an obscure compiler bug that caused
+<tt>preinit</tt> to execute incorrectly under certain circumstances.
+This bug occurred when <tt>preinit</tt> called a method in an object,
+and the method modified a list-valued property of the object, and the
+property was defined earlier in the object than the method (i.e., the
+property's definition in the source file preceded that of the
+method).  In such cases, the compiler's behavior was unpredictable;
+sometimes it ran correctly, sometimes it stored incorrect values in
+the list, and sometimes the compiler crashed.  This problem should no
+longer occur.
+
+<br><br><br>
+
+</html>
+

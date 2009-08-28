@@ -1,0 +1,585 @@
+# $Header: d:/cvsroot/tads/TADS2/msdos/makefile.vc5,v 1.4 1999/07/11 00:46:38 MJRoberts Exp $
+#
+# makefile for buliding TADS with Microsoft Visual C++ 5.0 - 32-bit build
+#
+# Build from TADS root directory:
+#
+#    nmake -f msdos\makevc5
+
+
+#COMPILE_FOR_DEBUG = 1
+!ifdef COMPILE_FOR_DEBUG
+LDFLAGS_DEBUG = /debug
+!endif
+
+
+# executables, library, and MSDOS-specific source file directories
+EXEDIR = exe
+LIBDIR = lib
+RESDIR = winobjs32
+MSDOSDIR = msdos
+OBJDIR = winobjs32
+
+# compiler warning level
+CC_WARNING_LEVEL = 3
+
+!if $(MSVCPP_VER) >= 9
+CFLAGS_RTCHECKS = -RTCsu
+CFLAGS_CRT_DEPRECATIONS = -D_CRT_SECURE_NO_WARNINGS=1 -wd4996
+!else
+CFLAGS_RTCHECKS = -GZ
+CFLAGS_CRT_DEPRECATIONS =
+!endif
+
+!if $(MSVCPP_VER) >= 7
+CFLAGS_WARN = -W$(CC_WARNING_LEVEL) -we4389 -we4245 -WX
+!else
+CFLAGS_WARN = -W$(CC_WARNING_LEVEL) -WX
+!endif
+
+#----------------------------------------------------------------------------
+!ifdef WINDOWS
+#
+#   Build for 32-bit Windows
+#
+
+CFLAGS= -c -Zi -I. -Imsdos -DMSDOS -c \
+ $(DBGFLG) -D_Windows -nologo -DMICROSOFT -W$(CC_WARNING_LEVEL) \
+ $(CFLAGS_CRT_DEPRECATIONS)
+LDFLAGS= $(LDFLAGS_DEBUG) /nologo
+LIBOBJS= $(OBJDIR)ler.obj 
+OVLFLG=
+
+# windows library directory
+TADSWIN= ..\win
+
+all: trwin32.exe
+
+#----------------------------------------------------------------------------
+!else
+#
+# Build 32-bit console application
+#
+
+CFLAGS= -c -Zi -I. -Imsdos -DMSDOS -c \
+   -D__WIN32__ $(DBGFLG) -nologo -DMICROSOFT $(CFLAGS_WARN) \
+   $(CFLAGS_CRT_DEPRECATIONS)
+LDFLAGS= $(LDFLAGS_DEBUG)
+LIBOBJS= $(OBJDIR)\ler.obj 
+OVLFLG=
+
+TC_PROG = $(EXEDIR)\tc32
+TR_PROG = $(EXEDIR)\t2r32
+TR_OEM_OBJ = $(OBJDIR)\oem_tr32.obj
+TDB_PROG = $(EXEDIR)\tdb32
+TADSRSC_PROG = $(EXEDIR)\tadsrsc32.exe
+
+TC_DEF_FILE = $(MSDOSDIR)\tc32.def
+TR_DEF_FILE = $(MSDOSDIR)\tr32.def
+TDB_DEF_FILE = $(MSDOSDIR)\tdb32.def
+
+all: $(LIBDIR)\tr32.lib $(LIBDIR)\tr32h.lib $(LIBDIR)\tdb32h.lib \
+     tc32 t2r32 tdb32 \
+     tadsrsc32 maketrx32 mkchrtab32 tadsmdoc32 charmaps \
+     $(OBJDIR)\osgen3r.obj \
+     $(OBJDIR)\osnogen.obj \
+     adv_new.t
+
+clean:
+    del $(OBJDIR)\*.obj
+    del $(RESDIR)\*.res
+    del $(LIBDIR)\*.lib
+    del $(EXEDIR)\*.exe
+    del $(EXEDIR)\*.ilk
+    del $(EXEDIR)\*.pdb
+    del $(EXEDIR)\*.tcp
+    del $(EXEDIR)\*.lib
+    del $(EXEDIR)\*.exp
+    del $(EXEDIR)\*.map
+
+tc32:  $(EXEDIR)\tc32.exe
+t2r32:  $(EXEDIR)\t2r32.exe
+tdb32:  $(EXEDIR)\tdb32.exe
+tadsrsc32:  $(EXEDIR)\tadsrsc32.exe
+tadsmdoc32:  $(EXEDIR)\tadsmdoc32.exe
+
+#----------------------------------------------------------------------------
+!endif
+
+
+CC= cl
+ASM= masm
+LD= link
+AR= lib
+LINTFLAGS= -Id: -I. -Imsdos -DMSDOS -c -W$(CC_WARNING_LEVEL)
+AFLAGS=
+RC = rc
+RCFLAGS = 
+
+# objects in common to all executables
+COMMONOBJS= $(LIBOBJS) $(OBJDIR)\mcm.obj $(OBJDIR)\mcs.obj \
+            $(OBJDIR)\mch.obj $(OBJDIR)\obj.obj $(OBJDIR)\cmd.obj \
+            $(OBJDIR)\errmsg.obj \
+            $(OBJDIR)\fioxor.obj $(OBJDIR)\os0.obj $(OBJDIR)\argize.obj \
+            $(OBJDIR)\oserr.obj $(OBJDIR)\cmap.obj \
+            $(OBJDIR)\regex.obj $(OBJDIR)\oswinmem.obj $(OBJDIR)\osifc.obj
+
+# common run objects for everything with a run-time
+CMNRUNOBJS_NOHTML = $(COMMONOBJS) \
+            $(OBJDIR)\dat.obj $(OBJDIR)\lst.obj \
+            $(OBJDIR)\out.obj $(OBJDIR)\voc.obj $(OBJDIR)\bif.obj \
+            $(OBJDIR)\suprun.obj $(OBJDIR)\osdosex.obj
+
+# common objects for all executables incorporating a run-time and no HTML
+CMNRUNOBJS= $(CMNRUNOBJS_NOHTML) $(OBJDIR)\output.obj
+
+# common objects for run-times with HTML
+CMNRUNOBJS_HTML = $(CMNRUNOBJS_NOHTML) $(OBJDIR)\outputh.obj \
+         $(OBJDIR)\indlg_os.obj
+
+# extra objects beyond the common ones required for the runtime executable
+RUNOBJS_EXTRA= \
+         $(OBJDIR)\vocab.obj $(OBJDIR)\execmd.obj $(OBJDIR)\runstat.obj \
+         $(OBJDIR)\ply.obj \
+         $(OBJDIR)\linfdum.obj $(OBJDIR)\fio.obj \
+         $(OBJDIR)\osdosstk.obj $(OBJDIR)\getstr.obj \
+         $(OBJDIR)\qas.obj $(OBJDIR)\dbgtr.obj $(OBJDIR)\ossdos32.obj \
+         $(OBJDIR)\osdoscon.obj \
+         $(OBJDIR)\askf_os.obj 
+
+
+# objects for the console-mode run-time system executable
+RUNOBJS= $(CMNRUNOBJS) $(RUNOBJS_EXTRA) $(OBJDIR)\run_nd.obj \
+         $(OBJDIR)\trd.obj 
+
+# objects for an HTML run-time executable
+RUNOBJS_HTML= $(CMNRUNOBJS_HTML) $(RUNOBJS_EXTRA) $(OBJDIR)\run_nd.obj \
+         $(OBJDIR)\trd_h.obj 
+
+# extra objects for character-mode run-time
+CHAROBJS= \
+     $(OBJDIR)\osr.obj $(OBJDIR)\osdosnui.obj $(OBJDIR)\osgenr.obj \
+     $(OBJDIR)\osnoui.obj $(OBJDIR)\os0tr.obj $(OBJDIR)\bifgdum.obj \
+     $(OBJDIR)\osrestad.obj $(OBJDIR)\indlg_tx.obj $(OBJDIR)\osscolor.obj
+
+# extra objects for windows run-time
+WINOBJS= \
+         $(TADSWIN)\oswin.obj $(OBJDIR)\bifgdum.obj
+
+# objects for compiler (includes run-time system)
+COMPOBJS= $(CMNRUNOBJS) \
+          $(OBJDIR)\linf.obj $(OBJDIR)\prs.obj $(OBJDIR)\emt.obj \
+          $(OBJDIR)\sup.obj $(OBJDIR)\fiowrt.obj $(OBJDIR)\tok.obj \
+          $(OBJDIR)\tcd.obj $(OBJDIR)\os0tc.obj $(OBJDIR)\fio.obj \
+          $(OBJDIR)\objcomp.obj $(OBJDIR)\prscomp.obj \
+          $(OBJDIR)\osdosstk.obj $(OBJDIR)\getstr.obj \
+          $(OBJDIR)\osdos.obj $(OBJDIR)\osdosnui.obj \
+          $(OBJDIR)\osgen.obj $(OBJDIR)\tokth.obj \
+          $(OBJDIR)\dbg.obj $(OBJDIR)\voccomp.obj \
+          $(OBJDIR)\bifgdum.obj $(OBJDIR)\osnoui.obj $(OBJDIR)\osdoscon.obj \
+          $(OBJDIR)\run_nd.obj \
+          $(OBJDIR)\askf_tx.obj $(OBJDIR)\indlg_tx.obj
+
+TCOBJS= $(COMPOBJS) $(OBJDIR)\tcgdum.obj $(OBJDIR)\osrestad.obj
+
+#
+# extra objects for all builds of the debugger
+#
+DBG_EXTRA = \
+         $(OBJDIR)\vocab.obj $(OBJDIR)\execmd.obj $(OBJDIR)\runstat.obj \
+         $(OBJDIR)\ply.obj $(OBJDIR)\fio.obj $(OBJDIR)\sup.obj \
+         $(OBJDIR)\linf.obj $(OBJDIR)\prs.obj $(OBJDIR)\emt.obj \
+         $(OBJDIR)\tok.obj $(OBJDIR)\tdd.obj $(OBJDIR)\os0td.obj \
+         $(OBJDIR)\dbg.obj $(OBJDIR)\dbgrun.obj \
+         $(OBJDIR)\osdbg.obj $(OBJDIR)\objcomp.obj $(OBJDIR)\tokth.obj \
+         $(OBJDIR)\voccomp.obj $(OBJDIR)\osdosstk.obj $(OBJDIR)\getstr.obj \
+         $(OBJDIR)\ossdos32.obj \
+         $(OBJDIR)\qas.obj $(OBJDIR)\osdoscon.obj \
+         $(OBJDIR)\run_d.obj \
+         $(OBJDIR)\askf_os.obj 
+
+# objects for the standard debugger
+DBGOBJS= $(CMNRUNOBJS) $(DBG_EXTRA) \
+         $(OBJDIR)\osnoui.obj $(OBJDIR)\bifgdum.obj $(OBJDIR)\osr.obj \
+         $(OBJDIR)\osdosnui.obj $(OBJDIR)\osscolor.obj \
+         $(OBJDIR)\osgenr.obj $(OBJDIR)\dbgu.obj $(OBJDIR)\osrestad.obj \
+         $(OBJDIR)\indlg_tx.obj
+
+
+# objects for the html debugger
+DBGOBJS_HTML = $(CMNRUNOBJS_HTML) $(DBG_EXTRA) 
+
+# extra objects for Win32 HTML libraries
+WIN32_HTML_LIB_EXTRA = \
+        $(OBJDIR)\bifgdum.obj $(OBJDIR)\osnoui.obj $(OBJDIR)\oswin.obj \
+        $(OBJDIR)\osdosnui.obj $(OBJDIR)\ossrelpa.obj
+
+
+# files to lint
+LINTFILES= mcm.lnt mcs.lnt mch.lnt obj.lnt dat.lnt lst.lnt linf.lnt \
+      tok.lnt prs.lnt emt.lnt err.lnt run.lnt out.lnt voc.lnt bif.lnt \
+      vocab.lnt execmd.lnt sup.lnt dbg.lnt fio.lnt tcd.lnt os0tc.lnt \
+      cmd.lnt os0tr.lnt ply.lnt runstat.lnt output.lnt errmsg.lnt \
+      fiowrt.lnt tokth.lnt linfdum.lnt tdd.lnt os0td.lnt dbgu.lnt \
+      fioxor.lnt dbgrun.lnt osdbg.lnt os0.lnt oserr.lnt
+
+lint: $(LINTFILES)
+
+#
+#  The primary executables
+#
+
+# the TADS compiler
+$(TC_PROG).exe: $(TCOBJS)
+	$(LD) $(LDFLAGS) @<<
+$**
+user32.lib
+/OUT:$@
+/MAP:$(TC_PROG).map
+/DEF:$(TC_DEF_FILE)
+<<
+
+
+# TADS runtime library for Win32 HTML
+$(LIBDIR)\tr32h.lib: $(RUNOBJS_HTML) $(WIN32_HTML_LIB_EXTRA) 
+    lib /out:$@ $**
+
+# TADS runtime library for Win32 console mode
+$(LIBDIR)\tr32.lib: $(RUNOBJS) $(TR_OEM_OBJ) \
+    $(OBJDIR)\bifgdum.obj $(OBJDIR)\indlg_tx.obj
+    lib /out:$@ $**
+
+# TADS debugger library for Win32 HTML
+$(LIBDIR)\tdb32h.lib: $(DBGOBJS_HTML) $(WIN32_HTML_LIB_EXTRA) 
+    lib /out:$@ $**
+
+
+# the TADS runtime system
+tr:  $(TR_PROG).exe tadserr.msg
+
+$(TR_PROG).exe: $(RUNOBJS) $(CHAROBJS) $(TR_OEM_OBJ) $(RESDIR)\t2r32.res
+	$(LD) $(LDFLAGS) @<<
+$**
+user32.lib
+/OUT:$@
+/MAP:$(TR_PROG).map
+/DEF:$(TR_DEF_FILE)
+<<
+
+
+# the TADS debugger
+tdb:  $(TDB_PROG).exe tadserr.msg
+
+$(TDB_PROG).exe: $(DBGOBJS) $(TR_OEM_OBJ)
+	$(LD) $(LDFLAGS) @<<
+$**
+user32.lib
+/OUT:$@
+/MAP:$(TDB_PROG).map
+/DEF:$(TDB_DEF_FILE)
+<<
+
+# error message file
+tadserr.msg:  tadserr32.exe
+	$(EXEDIR)\tadserr32
+
+tadserr.obj:  errmsg.c
+	$(CC) $(CFLAGS) -DERR_LINK_MESSAGES=1 -DERR_BUILD_FILE -Fo$@ errmsg.c
+
+tadserr32.exe:  tadserr.obj
+	$(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+# executable game builder
+maketrx32:  $(EXEDIR)\maketrx32.exe
+$(EXEDIR)\maketrx32.exe: $(OBJDIR)\dosmktrx.obj
+    $(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+# character map generator
+mkchrtab32: $(EXEDIR)\mkchrtab32.exe
+$(EXEDIR)\mkchrtab32.exe: $(OBJDIR)\mkchrtab.obj $(OBJDIR)\osterm.obj
+    $(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+# build the TADS resource manager
+$(TADSRSC_PROG):  $(OBJDIR)\tadsrsc.obj $(OBJDIR)\osnoui.obj \
+                  $(OBJDIR)\osterm.obj
+	$(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+# runtime color-setting tool
+trcolor: trcolor32.exe
+trcolor32.exe: trcolor.obj ossdos.obj
+	$(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+
+#
+# Character Mapping Files
+#
+
+charmaps: $(EXEDIR)\437la1.tcp $(EXEDIR)\win_la1.tcp
+
+$(EXEDIR)\437la1.tcp: 437la1.tcs
+$(EXEDIR)\win_la1.tcp: win_la1.tcs
+
+
+#
+# ordinary object $(file associations
+#
+$(OBJDIR)\mcm.obj:  mcm.c
+$(OBJDIR)\mcs.obj:  mcs.c
+$(OBJDIR)\obj.obj:  obj.c
+$(OBJDIR)\objcomp.obj: objcomp.c
+$(OBJDIR)\dat.obj:  dat.c
+$(OBJDIR)\lst.obj:  lst.c
+$(OBJDIR)\linf.obj: linf.c
+$(OBJDIR)\mch.obj:  mch.c
+$(OBJDIR)\tok.obj:  tok.c
+$(OBJDIR)\tokth.obj:  tokth.c
+$(OBJDIR)\prs.obj:  prs.c
+$(OBJDIR)\prscomp.obj: prscomp.c
+$(OBJDIR)\emt.obj:  emt.c
+$(OBJDIR)\out.obj:  out.c
+$(OBJDIR)\voc.obj:  voc.c
+$(OBJDIR)\bif.obj:  bif.c
+$(OBJDIR)\execmd.obj:  execmd.c
+$(OBJDIR)\sup.obj:  sup.c
+$(OBJDIR)\dbg.obj:  dbg.c
+$(OBJDIR)\tcd.obj:  tcd.c
+$(OBJDIR)\os0tc.obj:  msdos\os0tc.c
+$(OBJDIR)\cmd.obj:  cmd.c
+$(OBJDIR)\os0tr.obj:  msdos\os0tr.c
+$(OBJDIR)\ply.obj:  ply.c
+$(OBJDIR)\runstat.obj:  runstat.c
+$(OBJDIR)\output.obj:  output.c
+$(OBJDIR)\fiowrt.obj:  fiowrt.c
+$(OBJDIR)\linfdum.obj:  linfdum.c
+$(OBJDIR)\tdd.obj:  tdd.c
+$(OBJDIR)\os0td.obj:  msdos\os0td.c
+$(OBJDIR)\dbgu.obj:  msdos\dbgu.c
+$(OBJDIR)\fioxor.obj:  fioxor.c
+$(OBJDIR)\qas.obj:  qas.c
+$(OBJDIR)\getstr.obj:  getstr.c
+$(OBJDIR)\dbgrun.obj:  dbgrun.c
+$(OBJDIR)\osdbg.obj:  msdos\osdbg.c
+$(OBJDIR)\oserr.obj:  oserr.c
+$(OBJDIR)\osdos.obj:  msdos\osdos.c
+$(OBJDIR)\osnogen.obj: msdos\osnogen.c
+$(OBDJIR)\osdosnui.obj: msdos\osdosnui.c
+$(OBJDIR)\ossdos32.obj: msdos\ossdos32.c
+$(OBJDIR)\ossrelpa.obj: msdos\ossrelpa.c
+$(OBJDIR)\osdoscon.obj: msdos\osdoscon.c
+$(OBJDIR)\oswin.obj:  msdos\oswin.c
+$(OBJDIR)\oswinmem.obj: msdos\oswinmem.c
+$(OBJDIR)\osdosex.obj:  msdos\osdosex.c
+$(OBJDIR)\osgen.obj:  osgen.c
+$(OBJDIR)\osgen3.obj:  osgen3.c
+$(OBJDIR)\osrestad.obj: osrestad.c
+$(OBJDIR)\osnoui.obj: osnoui.c
+$(OBJDIR)\osterm.obj: osterm.c
+$(OBJDIR)\ossdos.obj:  msdos\ossdos.asm
+$(OBJDIR)\tcgdum.obj: tcgdum.c
+$(OBJDIR)\tpd.obj:  tpd.c
+$(OBJDIR)\linm.obj: linm.c
+$(OBJDIR)\ced.obj: ced.c
+$(OBJDIR)\osdosstk.obj: msdos\osdosstk.c
+$(OBJDIR)\voccomp.obj: voccomp.c
+$(OBJDIR)\bifgdum.obj: bifgdum.c
+$(OBJDIR)\tadsrsc.obj:  tadsrsc.c
+$(OBJDIR)\tadsux.obj: msdos\tadsux.asm
+$(OBJDIR)\mkchrtab.obj: mkchrtab.c
+$(OBJDIR)\oem_tr32.obj: msdos\oem_tr32.c
+$(OBJDIR)\argize.obj: argize.c
+$(OBJDIR)\osifc.obj: osifc.c
+$(OBJDIR)\askf_tx.obj: askf_tx.c
+$(OBJDIR)\askf_os.obj: askf_os.c
+$(OBJDIR)\indlg_tx.obj: indlg_tx.c
+$(OBJDIR)\indlg_os.obj: indlg_os.c
+
+
+#
+# library objects
+#
+$(OBJDIR)\ltkwin.obj:  msdos\ltkwin.c
+$(OBJDIR)\ler.obj:  ler.c
+
+
+#
+# objects that can be part of an overlay
+#
+$(OBJDIR)\os0.obj:  os0.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ os0.c
+
+$(OBJDIR)\fio.obj:  fio.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ fio.c
+
+$(OBJDIR)\suprun.obj:  suprun.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ suprun.c
+
+$(OBJDIR)\trd.obj:  trd.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ trd.c
+
+$(OBJDIR)\trd_h.obj: trd.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ -DHTMLTADS trd.c
+
+$(OBJDIR)\vocab.obj:  vocab.c
+    $(CC) $(CFLAGS) $(OVLFLG) -Fo$@ vocab.c
+
+#
+# objects that require special builds
+#
+$(OBJDIR)\osr.obj: msdos\osdos.c
+    $(CC) $(CFLAGS) -DRUNTIME -Fo$@ msdos\osdos.c
+
+$(OBJDIR)\osw.obj: msdos\osdos.c
+    $(CC) $(CFLAGS) -DRUNTIME -DWINDOWS -Fo$@ msdos\osdos.c
+
+$(OBJDIR)\osgenr.obj: osgen.c
+    $(CC) $(CFLAGS) -DRUNTIME -Fo$@ osgen.c
+
+$(OBJDIR)\osgen3r.obj: osgen3.c
+    $(CC) $(CFLAGS) -DRUNTIME -Fo$@ osgen3.c
+
+$(OBJDIR)\osscolor.obj: msdos\osscolor.c
+    $(CC) $(CFLAGS) -DRUNTIME -Fo$@ msdos\osscolor.c
+
+$(OBJDIR)\runfast.obj: run.c
+    $(CC) $(CFLAGS) -DRUNFAST -DDBG_OFF -Fo$@ run.c
+
+$(OBJDIR)\biffast.obj: bif.c
+    $(CC) $(CFLAGS) -DRUNFAST -Fo$@ bif.c
+
+$(OBJDIR)\outputh.obj: output.c
+    $(CC) $(CFLAGS) -DUSE_HTML -Fo$@ output.c
+
+$(OBJDIR)\errmsg.obj:  errmsg.c
+    $(CC) $(CFLAGS) -DERR_LINK_MESSAGES -Fo$@ errmsg.c
+
+$(OBJDIR)\dosmktrx.obj: msdos\dosmktrx.c
+    $(CC) $(CFLAGS) -DMKTRX_SETICON -Fo$@ msdos\dosmktrx.c
+
+#
+# Main run engine - no debugger (run_nd.obj) and with debugger (run_d.obj).
+# We could simply always use the with-debugger version, but games will
+# run slightly faster if we build a separate no-debugger version for
+# the executables that don't actually make any use of the debugger.
+#
+$(OBJDIR)\run_nd.obj: run.c
+    $(CC) $(CFLAGS) -DDBG_OFF -Fo$@ run.c
+
+$(OBJDIR)\run_d.obj: run.c
+    $(CC) $(CFLAGS) -Fo$@ run.c
+
+
+#
+# more executables
+#
+
+$(EXEDIR)\untrx32.exe: untrx.c
+    $(CC) -I$(BCDIR)\include -I. -Imsdos -DMSDOS -Fo$@ untrx.c
+
+$(EXEDIR)\tadsmdoc32.exe: $(OBJDIR)\tadsmdoc.obj $(OBJDIR)\osterm.obj
+	$(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+<<
+
+$(OBJDIR)\tadsmdoc.obj: errmsg.c
+	$(CC) $(CFLAGS) -DERR_LINK_MESSAGES=1 -DERR_BUILD_DOC -Fo$@ errmsg.c
+
+
+#
+# process adv.t to produce documentation and release version of adv.t
+# (don't bother with this step unless it's explicitly requested)
+#
+
+!ifdef BUILD_ADV_T
+adv_new.t:  adv.t $(EXEDIR)\procadv32.exe
+    $(EXEDIR)\procadv32 adv.t adv_doc.tex adv_new.t
+
+$(EXEDIR)\procadv32.exe:  procadv.c
+        $(CC) -I$(BCDIR)\include -I. -Imsdos \
+            -DMSDOS -Fe$@ -Fo$(OBJDIR)\procadv.obj procadv.c
+
+!else
+# by default, we don't need to do anything here
+adv_new.t: adv.t
+!endif
+
+
+# build "spawn" user exit
+uxsys.bin: uxsys.obj
+	tlink /t tadsux uxsys,uxsys.bin,nul
+
+uxsys.obj: uxsys.c
+	tcc -mt -DMSDOS=1 -c uxsys.c
+
+uxsys.gam: uxsys.t uxsys.bin
+	tc uxsys
+	tadsrsc uxsys -+uxsys.bin=spawn
+
+# build the test user exit
+testux.bin:  testux.obj
+	tlink /t tadsux testux,testux.bin,nul
+
+testux.obj:  testux.c
+	tcc -mt -DMSDOS=1 -c testux.c
+
+testux.gam:  testux.t testux.bin
+	tc testux
+	tadsrsc testux -+testux.bin=myfunc
+
+
+
+#
+# windows version of the runtime
+#
+
+trwin32.exe: $(RUNOBJS) $(WINOBJS)
+	$(LD) $(LDFLAGS) @<<
+$**
+/OUT:$@
+/DEF:$(MSDOSDIR)\trwin.def
+<<
+	rc trwin.res
+
+
+#
+# implicit rules
+#
+
+.SUFFIXES: .c .obj .asm .lnt .tcs .tcp .res .rc
+
+.c.obj:
+	$(CC) $(CFLAGS) -Fo$@ $<
+
+.c{$(OBJDIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$@ $<
+
+{$(MSDOSDIR)}.c{$(OBJDIR)}.obj:
+	$(CC) $(CFLAGS) -Fo$@ $<
+
+.asm.obj:
+	$(ASM) $(AFLAGS) $<,$@
+
+.c.lnt:
+	$(CC) $(LINTFLAGS) -DLINT=1 -Fod:lintdmy.obj $<
+	echo ok >$*.lnt
+
+.tcs{$(EXEDIR)}.tcp:
+    $(EXEDIR)\mkchrtab32 -strict $< $@
+
+{msdos}.rc{$(RESDIR)}.res:
+    $(RC) $(RCFLAGS) -r -fo$@ $<

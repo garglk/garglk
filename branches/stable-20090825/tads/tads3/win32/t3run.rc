@@ -1,0 +1,17 @@
+/* Copyright 2003 Michael J. Roberts */
+
+/*
+Name
+  t3run.rc - TADS 3 interpreter resource script
+Function
+  
+Notes
+  
+Modified
+  07/01/03 MJRoberts  - creation
+*/
+
+#include <Windows.h>
+
+/* the main application icon */
+101  ICON  DISCARDABLE "t3run.ico"

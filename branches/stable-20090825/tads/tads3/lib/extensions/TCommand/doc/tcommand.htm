@@ -1,0 +1,278 @@
+<html><head><meta name="generator" content="Help & Manual 2.7.0"><title>TCommand</title></head>
+<body bgcolor="#FFFFFF">
+<table width="100%" border="0" cellspacing="0" cellpadding="3" bgcolor="#C0C0C0"><tr><td align="left">
+<font face="Arial" size="3" color="#000000"><b>TCommand
+<br>
+</b></font></td></tr></table><br>
+
+<font face="Arial" size="2" color="#000000">The TCommand module is basically designed to extend the functionality of the CommandTopic class. It does this in a number of ways:
+<br>
+
+<br>
+<table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By modifying CommandTopic so that it can optionally match the direct and/or indirect object of the command, as well as the action commanded.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By adding two new methods to CommandTopic to facilitate the handling of commands.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By adding the obeyCommand property to CommandTopic to indicate whether or not the NPC should obey the command.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By modifying ActorState.obeyCommand to work better with CommandTopic and <a href="tcommand.htm#multiple">multiple direct objects</a>.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By adding a new <a href="tcommand.htm#commandhelper">CommandHelper</a> convenience mix-in class, and defining TCommandTopic, DefaultTCommandTopic and AltTCommandTopic to make use of it.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By modifying <a href="tcommand.htm#default">DefaultCommandTopic</a> to work the same way as CommandTopic
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By adding an <a href="tcommand.htm#altcommandtopic">AltCommandTopic</a> class
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><font face="Symbol" size="2" color="#000000">&#183;</font></font></td><td><font face="Arial" size="2" color="#000000">By adding a <a href="tcommand.htm#suggestedcommandtopic">SuggestedCommandTopic</a> class
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td><font face="Arial" size="2" color="#000000"></font></td><td></td></tr></table><font face="Arial" size="2" color="#000000">
+<br>
+The modied <b>CommandTopic</b> can match one or more direct objects and/or indirect objects as well as a specific action. While the library version of  CommandTopic can only match specific actions such as TakeAction or DropAction, the modified CommandTopic can additionally match one or more direct objects as well, the object or objects specified in its matchDobj property. This may be specified as either a single object to match, a list of objects to match, a class of objects to match, or a list of classes of objects to match. It should also work perfectly well as a mixed list of classes and objects. In exactly the same way the matchIObj property can be used to match the indirect object of any command issued, CommandTopic also defines some additional methods primarily for convenience of access in the topicResponse method (to avoid the need to have to override handleTopic)
+<br>
+
+<br>
+The following properties and methods have been added to CommandTopic:
+<br>
+
+<br>
+<table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></b></font></td><td><font face="Arial" size="2" color="#000000"><b>handleAction(fromActor, action)</b> - This method is called <i>before</i> topicResponse, and contains any handling of the action you wish. Its main purpose is to provide a hook for CommandHelper to use, but it can also be used for your own handling.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>actionResponse(fromActor, action)</b> - this is called <i>after</i> topicResponse, and is basically intended as an alternative to topicResponse when the response needs access to the action that's being commanded.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>obeyCommand - </b>if this is set to true, then ActorState.obeyCommand will return true to allow the target actor to obey the command just as it was given. 
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>matchDobj</b> - the direct object, class of direct object (e.g. Food, Wearable), or list of direct objects/classes that you want this CommandTopic to match. If this is left at nil it will simply be ignored.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>matchIobj</b> - the indirect object, class of indirect object (e.g. Container, Surface), or list of indirect objects/classes that you want this CommandTopic to match. If this is left at nil it will simply be ignored.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td><font face="Arial" size="2" color="#000000"></font></td><td></td></tr></table><font face="Arial" size="2" color="#000000">
+<br>
+<a name="commandhelper">The new CommandHelper mix-in class overrides handleAction and provides the following additional properties:
+<br>
+
+<br>
+<table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></b></font></td><td><font face="Arial" size="2" color="#000000"><b>cmdDobj</b> - the current direct object of the command that the CommandTopic matched on this occasion. For example,. if matchDobj is the list [brassCoin, goldCoin, silverCoin], and matchObj (which matches the <i>action</i> on a CommandTopic or TCommandTopic) is TakeAction, then if the TCommandTopic is responding to "bob, take silver coin", cmdDobj will be silverCoin.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>cmdIobj</b> - the current indirect object, if there is one. E.g. if the CommandTopic matched the command "Bob, put the coin in the slot", this will contain the slot object.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>cmdAction</b> - the current action that's being command. This simply makes it available to methods like topicResponse which otherwise wouldn't have access to it.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>cmdTopic</b> - if the action commanded is a TopicActionBase or subclass thereof (e.g. Bob, ask Fred about boots) then this holds the topic associated with the command (in this example, the 'boots' topic).
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>cmdPhrase</b> - this is simply cmdAction.getInfinitivePhrase, e.g. if the command was "Bob, put the red book on the shelf" it will contain something like "put the red book on the shelf." This can be useful when the CommandTopic may have matched a number of different commands and we want to construct a sentence containing the command in topicResponse, e.g. "&lt;q&gt;Bob, &lt;&lt;cmdPhrase&gt;&gt;, will you?&lt;/q&gt;". Note you might sometimes want the participle phrase, which you can get, for example, with "&lt;q&gt;Bob, would you mind terribly &lt;&lt;cmdAction.getParticiplePhrase&gt;&gt;?&lt;/q&gt;", which might come out as "Bob, you mind terribly putting the red book on the shelf."
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>topicCmdPhrase()</b> - this is a method that returns the command phrase (e.g. "ask Bob about boots") associated with a command to perform a TopicAction (e.g. "fred, ask bob about boots."). It it called by cmdPhrase when necessary, and was added to circumvent a run-time error that would otherwise occur. You probably won't need to use this method - you can just use cmdPhrase.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td><font face="Arial" size="2" color="#000000"></font></td><td></td></tr></table><font face="Arial" size="2" color="#000000">
+<br>
+In addition, two properties have been added to ActorState to enable trapping of commands that normally don't make much sense when directed to an NPC, along with two methods to explain why these commands are blocked:
+<br>
+
+<br>
+<table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></b></font></td><td><font face="Arial" size="2" color="#000000"><b>autoBlockSystemCommands</b> - if true (the default) then any attempt to direct a system command to this actor when he's in this ActorState (e.g. Bob, Restore) will automatically be blocked, and the <b>explainBlockSystemCommand()</b> method called to explain why.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td width="14"><font face="Arial" size="2" color="#000000"><b></b><font face="Symbol" size="2" color="#000000">&#183;</font><b></b></font></td><td><font face="Arial" size="2" color="#000000"><b>autoBlockTopicCommands</b> - if true (the default) then any attempt to ask the actor who's in this ActorState to perform a conversational command (e.g. Bob, Ask Sally about lighthouse) will automatically be blocked, and the <b>explainBlockTopicCommand() </b>method called to explain why.
+&nbsp;<br>
+</font></td></tr></table><table border="0" cellpadding="0" cellspacing="0"><tr valign="top"><td><font face="Arial" size="2" color="#000000"></font></td><td></td></tr></table><font face="Arial" size="2" color="#000000">
+<br>
+<a name="tcommandtopic">For your convenience, TCommandTopic is now defined simply as
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">class&nbsp;TCommandTopic&nbsp;:&nbsp;CommandHelper,&nbsp;CommandTopic
+<br>
+;
+<br>
+</font><font face="Arial" size="2" color="#000000">
+<br>
+For an example of a TCommandTopic, if you wanted Bob to respond to the commands TAKE THE DIAMOND or TAKE THE GOLD COIN by obeying these (but no other) take commands, you could code a TCommandTopic thus:
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">+&nbsp;TCommandTopic&nbsp;@TakeAction
+<br>
+&nbsp;&nbsp;&nbsp;matchDobj&nbsp;=&nbsp;[diamond,&nbsp;goldCoin]
+<br>
+&nbsp;&nbsp;&nbsp;topicResponse
+<br>
+&nbsp;&nbsp;{
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&lt;q&gt;Bob,&nbsp;would&nbsp;you&nbsp;&lt;&lt;cmdPhrase&gt;&gt;,&nbsp;please?&lt;/q&gt;&nbsp;you&nbsp;ask.\b
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;q&gt;Certainly,&lt;/q&gt;&nbsp;he&nbsp;replies.&nbsp;";
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nestedActorAction(getActor,&nbsp;Take,&nbsp;cmdDobj);
+<br>
+&nbsp;&nbsp;}
+<br>
+;
+<br>
+</font><font face="Arial" size="2" color="#000000">
+<br>
+Note that you cannot necessarily assume that the command will succeed, however; in the above example, for instance, you'd probably want to test that Bob wasn't already holding the object in question before displaying an interchange that implies his willingness to take it. Again, you'd want to check that the nestedActorAction had succeeded (in this case, by testing that the currentDobj had changed location as a result of it) before displaying a message that implies that it has.
+<br>
+
+<br>
+You can also use TCommandTopic with a command using two objects (direct and indirect). It's then up to you whether it matches on the action only, or also on either the direct object or the indirect object or both. You may, for example, want it to match only on the direct object: if Bob is willing to put the red book in the black bag but nowhere else, you'd want to give the player an indication that Bob might be willing to put the red book somewhere, rather than a generic message suggesting he's unwilling to do anything with it at all, so you might write:
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">+&nbsp;TCommandTopic&nbsp;@PutInAction
+<br>
+&nbsp;&nbsp;&nbsp;matchDobj&nbsp;=&nbsp;redBook
+<br>
+&nbsp;&nbsp;&nbsp;topicResponse
+<br>
+&nbsp;&nbsp;&nbsp;{
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&lt;q&gt;Bob,&nbsp;be&nbsp;a&nbsp;good&nbsp;fellow&nbsp;and&nbsp;&lt;&lt;actionPhrase&gt;&gt;,&nbsp;would&nbsp;you?&lt;/q&gt;&nbsp;you&nbsp;ask.\b";
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if(cmdIobj&nbsp;==&nbsp;blackBag)
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&lt;q&gt;Sure.&lt;/q&gt;&nbsp;Bob&nbsp;agrees&nbsp;readily.&nbsp;";
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;nestedActorAction(getActor,&nbsp;PutIn,&nbsp;cmdDobj,&nbsp;blackBag);
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"&lt;q&gt;I&nbsp;don't&nbsp;think&nbsp;I&nbsp;should&nbsp;put&nbsp;it&nbsp;there.&lt;/q&gt;&nbsp;he&nbsp;replies&nbsp;dubiously.&nbsp;";
+<br>
+&nbsp;&nbsp;&nbsp;}
+<br>
+;
+<br>
+</font><font face="Arial" size="2" color="#000000">
+<br>
+Once again, it should be emphasized that the nestedActorAction may not succeed, so you may want to provide more sophisticated handling to allow for this possibility.
+<br>
+
+<br>
+<font face="Arial" size="2" color="#0000FF"><b><a name="multiple">Commands with Multiple Direct Objects</b></font></font><font face="Arial" size="2" color="#000000">
+<br>
+ 
+<br>
+It is possible that a player might enter a command such as:
+<br>
+
+<br>
+&gt;<b>bob, take the brass coin, the small magnet, the large rifle, and the damp cucumber</b>
+<br>
+
+<br>
+Potentially, this could become quite difficult to handle in a CommandTopic. If you wanted Bob to accept commands to take the coin or the rifle, but not the magnet or the cucumber, simply matching this input in a CommandTopic would become problematic; proceeding to sort out Bob's response to being told to take all four objects could become even more so. It would be much easier to have one CommandTopic to handle the combination of action and direct object that Bob is willing to act upon, and another to handle those he isn't (this could either be a simple CommandTopic with a lower matchScore to pick up all other Take commands, or a DefaultCommandTopic).
+<br>
+
+<br>
+To make this situation easier to handle, therefore, the TCommand module modifies ActorState.obeyCommand so that it splits any action on multiple direct objects into a sequence of actions on single direct objects. That way, any TCommandTopic (or CommandTopic or DefaultCommandTopic) can be certain that it only has to handle one direct object at a time.
+<br>
+
+<br>
+At the same time, the overridden ActorState.obeyCommand sets each direct object in turn as the current direct object of the action object it passes to the CommandTopic.
+<br>
+
+<br>
+<font face="Arial" size="2" color="#0000FF"><b><a name="default">Changes to DefaultCommandTopic</b></font></font><font face="Arial" size="2" color="#000000">
+<br>
+
+<br>
+TCommand modified DefaultCommandTopic by adding the same <b>handleAction(fromActor, action)</b>, <b>actionResponse(fromActor, action)</b> and <b>obeyCommand</b> methods/properties that have been added to CommandTopic. For your convenience the module also defines:
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">class&nbsp;DefaultTCommandTopic&nbsp;:&nbsp;CommandHelper,&nbsp;DefaultCommandTopic
+<br>
+;</font><font face="Arial" size="2" color="#000000">
+<br>
+
+<br>
+This makes it  easier to define a DefaultCommandTopic that displays a meaningful exchange between the player character and the target actor, such as:
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">+&nbsp;DefaultTCommandTopic
+<br>
+&nbsp;&nbsp;&nbsp;"&lt;q&gt;Would&nbsp;you&nbsp;&lt;&lt;cmdPhrase&gt;&gt;&nbsp;please,&nbsp;Bob?&lt;/q&gt;&nbsp;you&nbsp;ask.\b
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&lt;q&gt;Actually,&nbsp;no,&nbsp;I&nbsp;won't.&lt;/q&gt;&nbsp;he&nbsp;refuses.&nbsp;"
+<br>
+;
+<br>
+</font><font face="Arial" size="2" color="#000000">
+<br>
+The purpose of this is mainly to gain a more elegant transcript where a conversation is started by addressing a command to an NPC, and the greeting protocols intervene between the command typed by the player and the message displayed bu the DefaultCommandTopic. Rather than have :
+<br>
+
+<br>
+&gt;<b>bob, follow me
+<br>
+</b>"Hello Bob, nice to see you again. How are you?" you greet him.
+<br>
+
+<br>
+"I'm fine. It's good to see you too." he replies warmly.
+<br>
+
+<br>
+"Actually, no, I won't." he refuses.
+<br>
+
+<br>
+This allows us to have a transcript that reads:
+<br>
+
+<br>
+&gt;<b>bob, follow me
+<br>
+</b>"Hello Bob, nice to see you again. How are you?" you greet him.
+<br>
+
+<br>
+"I'm fine. It's good to see you too." he replies warmly.
+<br>
+
+<br>
+"Would you follow me please, Bob?" you ask.
+<br>
+
+<br>
+"Actually, no, I won't." he refuses.
+<br>
+
+<br>
+
+<br>
+Which is an obvious improvement.
+<br>
+
+<br>
+<font face="Arial" size="2" color="#0000FF"><b><a name="suggestedcommandtopic">SuggestedCommandTopic
+<br>
+</b></font></font><font face="Arial" size="2" color="#000000">The new SuggestedCommandTopic is a SuggestedTopic class for use with CommandTopic or TCommandTopic. The name property should be set to something suitable to follow "You could tell her to ".
+<br>
+
+<br>
+
+<br>
+
+<br>
+<a name="altcommandtopic">Finally, AltCommandTopic is simply a version of AltTopic for  use with CommandTopic. It adds the same <b>handleAction(fromActor, action)</b>, <b>actionResponse(fromActor, action)</b> and <b>obeyCommand</b> methods/properties that have been added to CommandTopic. Predictably, there is also an AltTCommandTopic defined as:
+<br>
+
+<br>
+</font><font face="Courier New" size="2" color="#000000">AltTCommandTopic&nbsp;:&nbsp;CommandHelper,&nbsp;AltCommandTopic
+<br>
+;</font><font face="Arial" size="2" color="#000000">
+<br>
+
+<br>
+
+<br>
+
+<br>
+</font></font>
+
+</body></html>

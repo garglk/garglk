@@ -1,0 +1,175 @@
+AGiliTy, notes for the Linux version
+----------------------------------------
+
+(General information can be found in readme.agility)
+
+COMMAND LINE 
+  To run an AGT game file, run *agil* with the game file name as an
+argument; don't include any extensions. For example, to run 'mygame', enter
+
+>agil mygame
+
+  The interpreter expects the filename extensions to be lower-case
+('.da1', '.da2', and '.agx' rather than '.DA1', '.DA2', and '.AGX').
+If you are unpacking AGT files from ZIP archives, remember to use the
+'-L' option to ensure this.
+
+  Command line options can be seen by running agil without any
+arguments, but most of them were intended for debugging the
+interpreter and will probably not be of general interest. The one
+possible exception is the -d command which outputs metacommand
+debugging information; this might be of interest to authors developing
+AGT games. 
+  Under Linux this is sent to stderr; if stderr and stdin point to
+the same device, it will send output through the interpreter's display
+routines. 
+  
+-----------
+COMPILING
+-----------
+  To compile this, just unpack the source files somewhere and type "make".
+This should automatically generate the three files agil, agtout, and agt2agx.
+(If you are running on a non-32-bit platform, you will first need to delete
+the line containing "#define FAST_FIXSIGN" in the Linux configuration in 
+config.h.)
+
+
+---------------
+CONFIGURATION
+---------------
+  The Linux global configuration file is ~/.agilrc; the interpreter
+will also look for game-specific configuration files, named
+<game-name>.cfg-- for example, 'mygame.cfg'-- in the same directory as
+the other game files. 
+
+  The Linux version of AGiliTy supports several additional options:
+
+COLORTERM -- this can be used to  specify terminal types that support
+  ANSI color; e.g.  
+     colorterm console 
+     colorterm xterm
+This only works with the termcap version of AGiliTy, not with the
+curses version.
+
+COMPASS -- Turn on listing of exits just below the status line.
+
+FONT  -- Enable fonts. This is off by default since font changes
+  affect *all* virtual consoles.
+ 
+HISTORY -- This specifies the size of the command history list.
+  A value of 0 indicates no limit (the interpreter will remember
+  every line you typed since the beginning of the game); this is 
+  the default. E.g.
+      history 0
+      history 20
+
+IBM_CHAR -- If you're using the regular Linux console, specifying this
+  will cause the interpreter to use the IBM character set for display;
+  this improves the appearance of a lot of AGT games.
+
+NAVARROW-- Use the keys on the numeric keypad for entering
+   movement commands instead editing. 
+
+KEY <key> <text> --
+KEY <key> <text> --
+  Define the text to be inserted on the line when a given function key is 
+  typed.   <key> can be 'F1', 'F2', 'F3', ..., 'F12'.  (If NAVARROW is set,
+  then 'HOME', 'END', 'PGUP', 'PGDN', 'UP', 'DOWN', 'LEFT', 'RIGHT',
+  'INS', 'DEL', 'PLUS', and 'MINUS' can also be redefined.) 
+      A '+' at the end of the last word of the text will be converted to a 
+  newline. Otherwise, a space will be added on to the end. Extra whitespace
+  will be ignored.
+
+LOWER_FILE -- Force font, picture, and sound file names to be all
+  lower case, regardless of what case the game file has.
+  (This is useful since most AGT games were created under DOS,
+  which is not case-sensitive.)
+
+PATH -- This should contain a whitespace-separated list of directories
+  which will be searched for AGT games.
+    If the environmental variable AGT_PATH is set, its value will
+  override this option.  AGT_PATH entries may be separated by colons
+  as well as whitespace.
+
+VIEWER <filename> -- Give the name of the program to be used
+  for viewing graphics files. (Most AGT illustrations are in the
+  PCX file format with nonstandard filename extensions, although AGT
+  theoretically also supports the FLI animation format.) 
+    I've include a sample shell script, linux_pict, which chooses
+  between file viewers depending on the file-name extension.
+    Extensions currently recognized by AGiliTy:
+     gif, png, bmp, jpg, fli, flc, pcx
+  as well as all of the nonstandard PCX extensions (p13, p14, p19, etc.)
+    Note: if the program sends any output to stderr, it may confuse
+  AGiliTy's screen routines (which don't expect anyone else to be writing
+  to the screen). Ctrl-L should fix any problems.
+
+
+--------------
+LINE EDITING
+--------------
+  The following keys can be used when typing in commands:
+<Backspace>, <Delete> -- do what you would expect.
+<Left Arrow> or <Ctrl-B> -- Move left.
+<Right Arrow> or <Ctrl-F> -- Move right.
+<Home> or <Ctrl-A> -- Move to beginning of the line.
+<End> or <Ctrl-E> -- Move to end of the line.
+<Up Arrow> or <Ctrl-P>-- Scroll back through past commands
+<Down Arrow> or <Ctrl-N> -- Scroll forward through past commands.
+<Ctrl-K> -- Kill to end of line.
+<Ctrl-Y> -- Yank back the last thing killed.
+<Ctrl-L> -- Redraw screen.
+
+<F1>-<F12> -- These can be configured with strings of your choice;
+  see the KEY option above.  By default, they are:
+   F1: get     
+   F2: drop
+   F3: examine
+   F4: read
+   F5: open
+   F6: close
+   F7: inventory+
+   F8: look+
+   F9: score+ 
+   F10: help+
+   F11: save+
+   F12: restore+
+
+If NAVARROW is set, then the keys on the numeric keypad will generate 
+generate movement commands instead of being used for editing; these
+can also be redefined with KEY:
+  UP: n+
+  DOWN: s+
+  LEFT: w+
+  RIGHT: e+
+  HOME: nw+
+  END: sw+
+  PGUP: ne+
+  PGDN: se+
+  INS: enter+
+  DEL: exit+
+  PLUS: up+
+  MINUS: down+
+
+
+---------------
+MISCELLANEOUS
+---------------
+  The program *agtout* prints out the "disassembled" contents of AGT
+game files, in human readable format, writing to standard output.
+  Running it without arguments will give a list of command line options.
+  
+  AGT files can be converted into the new AGT format by running agt2agx.
+By default, the new file will be named <game name>.agx; this can be
+changed by using the -o option; e.g.
+> agt2agx mygame -o thegame
+will create a file called 'thegame.agx'.
+
+  Script and log files can be piped to another program by putting a
+'|' character before/after the program's command line (before for
+files being written, after for files being read).
+  E.g. '|lpr' to send output to the print spooler.
+
+
+
+

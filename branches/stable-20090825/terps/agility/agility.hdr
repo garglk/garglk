@@ -1,0 +1,32 @@
+#
+# IFP header definitions for AGiliTy 1.1.1.
+#
+# The AGT game file format comes in two types.  The original format is
+# a whole cluster of files.  One of these is game.d$$, and this always
+# begins with ".. >> Temporary...".  Once found, we can invoke the inter-
+# preter with the path to this file, and it will strip the unwanted
+# extension and run the right game.  The other format is AGX, as defined
+# by AGiliTy.  This is easier to spot - it begins "58 C7 C1 51".
+#
+IFP_ENGINE_TYPE="AGT"
+IFP_ENGINE_NAME="AGiliTy"
+IFP_ENGINE_VERSION="1.1.1"
+
+IFP_ACCEPTOR_OFFSET=0
+IFP_ACCEPTOR_LENGTH=6
+IFP_ACCEPTOR_PATTERN="^(58 C7 C1 51 .. ..|.. 20 3E 3E 20 54)$"
+
+IFP_AUTHOR_NAME="Robert Masenten"
+IFP_AUTHOR_EMAIL="rcm-math@pacbell.net"
+IFP_ENGINE_HOME_URL=\
+"ftp://ftp.ifarchive.org/if-archive/programming/agt/agility/"
+
+IFP_BUILDER_NAME="Simon Baldwin"
+IFP_BUILDER_EMAIL="simon_baldwin@yahoo.com"
+
+IFP_ENGINE_DESCRIPTION=\
+"This is an interpreter for game files created with Malmberg and
+ Welch's _Adventure Game Toolkit_. AGiliTy is universal in the sense
+ that it understands and interprets most of the many versions of the
+ AGT game file format.\n"
+IFP_ENGINE_COPYRIGHT="Copyright (C) 1996-1999,2001 by Robert Masenten.\n"

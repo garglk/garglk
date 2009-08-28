@@ -1,0 +1,4 @@
+workaround buggy games that draw too wide status bars:
+  save text for line 0 into buffer
+  compress middle spaces if it overflows, and reprint line 0
+

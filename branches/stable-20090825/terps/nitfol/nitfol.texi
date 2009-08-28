@@ -1,0 +1,523 @@
+\input texinfo     @c -*-texinfo-*-
+@setfilename nitfol.info
+@settitle Nitfol
+
+@ifinfo
+@dircategory Games
+@direntry
+* nitfol: (nitfol).               Z-code interpreter and debugger.
+@end direntry
+@end ifinfo
+
+@contents
+
+@node Top , Invoking nitfol , (dir) , (dir)
+@top Introduction
+
+@c Workaround for bug in texi2html
+@ifnotinfo
+@ifnottex
+@node Introduction , Top , (dir) , (dir)
+@chapter Introduction
+@end ifnottex
+@end ifnotinfo
+
+Nitfol is a portable interpreter for Z-machine code, the game format used by Infocom and more recently, @uref{http://www.gnelson.demon.co.uk/inform.html, Inform}.  Nitfol handles versions one through eight of the format, and attempts to comply with version 1.0 of the Z-machine specification.
+
+You will need game files to use nitfol.  The ``if-archive'' contains a large collection of these, available at @uref{ftp://ftp.gmd.de/if-archive/games/zcode/} or at the USA mirror @uref{http://ifarchive.org/indexes/if-archiveXgamesXzcode.html}.
+
+This manual describes how to use nitfol and how it differs from other Z-machine interpreters.  This manual was written with @sc{unix}-like systems in mind; ignore that which does not apply to your platform.  Comments on and corrections for this manual and nitfol are appreciated and should be sent to @email{nitfol@@my-deja.com}.
+
+@menu
+* Invoking nitfol::               How to start nitfol under @sc{unix}
+* Features::                      Useful extras
+* Debugger::                      Built in source-level debugger
+
+* Bugs::                          What I know is wrong
+* Thanks::                        List of people who've helped
+* Games Cited::                   The games used as examples in this manual
+@end menu
+
+
+
+@node Invoking nitfol , Features , Top, Top
+@chapter Invoking nitfol
+
+Invoke nitfol with the game filename, and options.  If you omit the game filename, nitfol will prompt you for one.  The following options are recognized:
+
+@table @code
+@include options.texi
+@end table
+
+@node Features , Debugger , Invoking nitfol , Top
+@chapter Features
+
+@menu
+* Preferences::                   Store options in @file{~/.nitfolrc}
+* Infinite undo/redo::            Erase your mistakes and bad luck
+* Aliases::                       Abbreviate long/common words
+* Abbreviation Expansion::        Expand one letter commands
+* Typo correction::               Nitfol uses a smart tokeniser
+* Automapping::                   Automatically generate an on-screen map
+* Quetzal::                       Save files are in Quetzal format
+* Blorb::                         Nitfol supports Blorb resources
+@end menu
+
+@node Preferences , Infinite undo/redo , Features , Features
+@section Preferences
+
+If you don't like the default options and don't want to recompile, you can set your preferences by writing a @file{.nitfolrc} in your home directory.
+
+Each line should be of the form @code{@var{option}=@var{value}}.  Blank lines and lines starting with a @code{#} are ignored.  If you want to specify different options for different copies of nitfol, you can put those options in a block which will only be read by copies of nitfol with a specific name.
+
+Here's an example @file{.nitfolrc}:
+@example
+path=/usr/local/games/infocom
+alias=v verbose
+alias=asierra tone cordial. ask sierra about
+ignore=true
+
+[strictnitfol]
+ignore=false
+spell=false
+expand=false
+autoundo=false
+unalias=v
+unalias=asierra
+
+[xnitfol]
+tandy=true
+pirate=true
+@end example
+
+Nitfol will look in @file{/usr/local/games/infocom} for game files.  Copies of nitfol named @file{strictnitfol} will report Z-machine strictness errors, perform strict tokenisation, and not automatically @code{@@save_undo}.  All others will ignore strictness errors and have two aliases.  @file{xnitfol} will set the Tandy bit and branch on the piracy opcode.
+
+Options specified in the preference file may be overruled by environment variables and command line options.
+
+
+@node Infinite undo/redo , Aliases , Preferences , Features
+@section Infinite undo/redo
+
+Multiple @code{@@restore_undo} opcodes with no intervening @code{@@save_undo} will restore earlier and earlier saved states.  However, Inform games will not do this, so if you want infinite undo, you must enter the commands @code{/undo} and @code{/redo}. The @code{/@dots{}} commands are part of the debugger, so you will need to compile in debugger support to use this feature.
+
+Z-machine games prior to version 5 do not provide undo (none of them provide redo), and some version 5 games don't use it (like @cite{Wishbringer}).  If the game performs two @code{@@read} opcodes with no intervening @code{@@save_undo} or @code{@@restore_undo}, nitfol will perform a @code{@@save_undo}.
+
+
+@node Aliases , Abbreviation Expansion , Infinite undo/redo , Features
+@section Aliases
+
+If the game has long words which you wish to abbreviate, you can use aliases.  Use the command @code{/alias @var{name} @var{value}}.  All instances of @var{name} in line input will be replaced with @var{value}.  @var{name} may not contain whitespace.
+
+Unlike abbreviation expansion and typo correction, alias expansion modifies the text buffer, inserting the requested text.  This is necessary to allow multiple commands to be given in an alias through the use of periods.
+
+Aliases are not expanded recursively, so you could do something clever like this:
+@example
+>@kbd{/alias e w}
+@kbd{/alias w e}
+@kbd{/alias nw ne}
+@kbd{/alias ne nw}
+@kbd{/alias sw se}
+@kbd{/alias se sw}
+@end example
+
+And your east-west movement will be swapped (@kbd{e} will do a @kbd{w}, though @kbd{east} will still do @kbd{east}).  Aliases expand on all input the game receives using @code{@@read}, including transcripts and directions from the automapper.
+
+If you want the expansion of the alias to be checked for further aliases, you must use the @code{/ralias} command.  This expansion is stopped when an alias would expand itself.
+@example
+>@kbd{/ralias e w}
+@kbd{/ralias w e}
+@end example
+
+Would do nothing, as @kbd{e} is expanded to @kbd{w}, which is expanded to @kbd{e}, and then it stops because the rule for expanding @kbd{e} has already taken place.
+
+@example
+>@kbd{/ralias hanoi2 move src to extra. move src to dest. move extra to dest}
+@kbd{/alias src left}
+@kbd{/alias dest center}
+@kbd{/alias extra right}
+@kbd{hanoi2}
+You move the small disc from the left peg to the right peg.
+You move the medium disc from the left peg to the middle peg.
+You move the small disc from the right peg to the middle peg.
+>move left to right
+You move the large disc from the left peg to the right peg.
+>@kbd{/alias src center}
+@kbd{/alias dest right}
+@kbd{/alias extra left}
+@kbd{hanoi2}
+You move the small disc from the middle peg to the left peg.
+You move the medium disc from the middle peg to the right peg.
+You move the small disc from the left peg to the right peg.
+@end example
+
+Ideally you should be able to define an alias which recursively solves any depth by relying on lower levels being solvable, but this isn't yet possible.  You must keep the expansion of aliases to a reasonable size, since Inform has a fairly small buffer size.
+
+You can remove aliases using the @code{/unalias} command.
+@example
+>@kbd{/unalias hanoi2}
+@end example
+
+Aliases do not effect @code{/@dots{}} commands; if they did, it wouldn't be possible to @code{/unalias}.
+
+
+@node Abbreviation Expansion , Typo correction , Aliases , Features
+@section Abbreviation Expansion
+
+Early Infocom games don't provide abbreviations like @kbd{x} for @kbd{examine}.  If you enable abbreviation expansion, nitfol will attempt to expand one letter words at the beginning of inputs which are not in the game's dictionary.
+
+Nitfol supports the following expansions (note that some are non-standard):
+
+@multitable {i} {inventory} {i} {inventory} {i} {inventory} {i} {inventory}
+@item c @tab close
+ @tab d @tab down
+ @tab e @tab east
+ @tab g @tab again
+@item i @tab inventory
+ @tab k @tab attack
+ @tab l @tab look
+ @tab n @tab north
+@item o @tab oops
+ @tab p @tab open
+ @tab q @tab quit
+ @tab r @tab drop
+@item s @tab south
+ @tab t @tab take
+ @tab u @tab up
+ @tab w @tab west
+@item x @tab examine
+ @tab y @tab yes
+ @tab z @tab wait
+@end multitable
+
+From @cite{Zork I}:
+@example
+@group
+@strong{West of House}
+You are standing in an open field west of a white house, with a
+boarded front door.
+There is a small mailbox here.
+
+>@kbd{x mailbox}
+[x -> examine]
+The small mailbox is closed.
+@end group
+
+@group
+>@kbd{p it}
+[p -> open]
+Opening the small mailbox reveals a leaflet.
+@end group
+
+@group
+>@kbd{t leaflet}
+[t -> take]
+Taken.
+@end group
+@end example
+
+
+@node Typo correction , Automapping , Abbreviation Expansion , Features
+@section Typo correction
+
+In the Z-machine, the @code{@@read} opcode provides the interpreter with a dictionary to search in order to do tokenisation and word matching.  If you enable typo correction and enter a word not in the provided dictionary, nitfol will search for near misses.
+
+From @cite{Curses}:
+@example
+@group
+>@kbd{ask jemmia about gloves}
+[jemmia -> jemima]
+"Those are my gloves."
+@end group
+@end example
+
+Nitfol takes the following steps to correct typos:
+
+@enumerate
+@item
+If the entered word is in the dictionary, behave as normal.
+
+@item
+If the length of the word is less than 3 letters long, give up.  We don't want to make assumptions about what so short words might be.
+
+@item
+If the word is the same as a dictionary word with one transposition, assume it is that word.  @kbd{exmaine} becomes @kbd{examine}.
+
+@item
+If it is a dictionary word with one deleted letter, assume it is that word.  @kbd{botle} becomes @kbd{bottle}.
+
+@item
+If it is a dictionary word with one inserted letter, assume it is that word.  @kbd{tastey} becomes @kbd{tasty}.
+
+@item
+If it is a dictionary word with one substitution, assume it is that word.  @kbd{opin} becomes @kbd{open}.
+@end enumerate
+
+This behavior can be annoying when nitfol ``corrects'' intentionally entered words which are similar to dictionary words.  Usually this has no effect upon the game, perhaps slightly changing the game's error message, but may have negative effects when it causes an undesired action.  Games like @cite{Beyond Zork} expect you to type words not in their dictionary to name things.  Nitfol might ``correct'' your entered word to a dictionary word, which the game might complain about.
+
+If typo correction is getting in your way, run nitfol with @samp{-no-smart}, compile it without applying @samp{-DSMART_TOKENISER}, or edit @file{nitfol.opt} to change the compile-time default.
+
+
+@node Automapping , Quetzal , Typo correction , Features
+@section Automapping
+
+Nitfol has the ability to display an on-screen map showing visited rooms and their connections on the current floor.  Below is a map generated from @cite{Enchanter}.
+@example
+@group
+                                   *-* *
+                                   |   |
+                   u-*-*-*-*-------*---*
+                   |               |
+       * *   *     |     *---*     |
+       |/ \ /      |    /|\ / \    |
+       *   *       *   / | X * \   *
+      /     \      |  /  |/ v|  \  |
+     /   *   *-*-*-*-*---*---u---*-*-*-@@
+    /    |  /      | |\  |\ ^|  /  |    
+ *-*     * *       | | \ | X * /   *-*
+    \    |/        | |  \|/ \ /    |  
+     *   *         * *   *---*     *
+      \ /          | |             |
+       *           u-d-*-----------*-u
+                                   |  
+                                   *
+                                    \
+                                     *
+@end group
+@end example
+
+The @samp{*}s designate rooms; the @samp{@@} the current room.  Rooms containing staircases are shown with a @samp{u} or @samp{d}, or @samp{b} if the staircase is bi-directional.  If the current room contains a staircase, nitfol draws it with a @samp{U}, @samp{D}, or @samp{B}.  Passageways are shown with lines; the @samp{X}s are crossed lines.  One-way passages are shown as lines with arrows.  Nitfol uses @samp{v}, @samp{^}, @samp{<}, and @samp{>} for arrow heads.
+
+In Glks which provide mouse events, you can click on rooms and it will display the room name (and number) in the upper left hand corner of the map.  Note that XGlk is slightly broken, so you need to click on the left-hand side of the room.  Clicking on an empty map space clears the name.
+
+In order to use automapping, you must tell nitfol how to calculate the current location.  You do this by specifying an Inform expression, so you must have debugging enabled.
+
+Typically the current location is available in a global.  In Z-code versions 3 and prior, the current location is always stored in global zero, so typing @kbd{/automap (global) 0} should work.  In later versions, you must figure out an expression which evaluates to the current location.
+
+First, find out where the player object is.  Typically, the player object is named @samp{self}, @samp{cretin}, @samp{self-object}, or the name of the PC.  You can use the @code{find} command to search object names.  If this all fails, try @code{object-tree} to find the location number.
+
+Once you have found the number of the location, you need to figure out which global keeps track of the location.  You can use the @code{globals} command to search the globals.
+
+From @cite{Spider And Web}:
+@example
+@group
+>@kbd{/find self}
+20 "(self object)"
+25 "yourself" in 91 "End of Alley"
+26 "yourself" in 48 "chair"
+@kbd{/globals 91}
+G15 G36 G39
+@end group
+@group
+@kbd{s}
+
+@strong{Mouth of Alley}
+You're in the entrance of a narrow brick alley, which runs further
+in to the north. To the south a broad street courses by, congested
+with traffic and bicycles, although none of them seem to notice you.
+@end group
+
+@group
+>@kbd{/find self}
+20 "(self object)"
+25 "yourself" in 94 "Mouth of Alley"
+26 "yourself" in 48 "chair"
+@end group
+@group
+@kbd{/globals 94}
+G15 G36 G39
+@end group
+@kbd{/automap (global) 15}
+@end example
+
+Obviously we have 3 globals tracking the player location.  Typically there are only two, but some games have more.  In this, we just picked the first one, which is probably the Inform @code{location} variable; another is probably the @code{real_location} variable.  Depending on how you want automapping to behave in the dark, or when dealing with game-specific stuff, you may want to pick a different one.
+
+To figure out what is in which direction, nitfol checks the current location, tells the game to go north, checks the new location, undoes the north movement, tries to go northeast, and so on.  During all of this, output is disabled.
+
+Drawing the map is more complicated.  First nitfol looks for cycles in the graph and makes the cycles connect properly.  Then it draws the map.  If parts of the map overlapp, it finds a path connecting the overlapping bits and tries increasing the length of each passage in this path by one, and recalculates cycle connections.  If this solves the problem, it's done; otherwise, it tries increasing the length of two passages, or of one of the passages by two.  If this fails, it gives up.
+
+This technique isn't perfect.  The implementation of this technique isn't perfect either.  So expect nitfol to misbehave a lot on complex maps, and a little on simple maps.  If you clever ideas on how to improve it, let me know.
+
+Nitfol makes an effort to simplify the map.  If multiple exits go from the barn to cornfield and you've been to both places, nitfol will draw a single two-way passage if possible.  If both up and west go up the stairs and nitfol knows east returns from the top of the stairs, nitfol will draw it as a simple west-east passage ignoring the up/down.  If east doesn't return from the top of the staircase, nitfol will draw it as up/down, leaving out the west passage.
+
+If you've been north of a gate, and come up to the gate from the south,
+and unlock the gate, nitfol will draw it as a one-way passage since last
+time it was north of the gate, it couldn't go south.
+
+Some games feature reincarnation, perhaps moving you to a new location.  If movement leads to your death, this makes nitfol think the reincarnation location is in that direction.  Nitfol watches for three asterisks in a row and will assume they mean death instead of a normal passage.
+
+Some of these problems could be avoided by having nitfol explore each neighboring room, but this would make automapping even slower.
+
+
+@node Quetzal , Blorb , Automapping , Features
+@section Quetzal
+
+Nitfol uses Quetzal version 1.4 for its save format, so you can use your saves between different computers and interpreters.  More information about Quetzal is available at @uref{http://www.geocities.com/SiliconValley/Vista/6631/}.
+
+If you specify a save-file on the command-line on @sc{unix}, nitfol uses a @code{UNIX} @code{IntD} chunk to locate the game file associated with the save name.  This chunk is included in save games when nitfol can figure out the current filename.  If you compile nitfol with -D__USE_GNU, -D__USE_BSD, or -D__USE_XOPEN_EXTENDED, nitfol will canonicalize the file name, so you don't have to worry about relative file name specifications no longer working if you invoke nitfol from a different directory.
+
+On MacOS, nitfol uses alias records from a @code{MACS} @code{IntD} chunk to locate the game file.  This won't work for games built-in to the interpreter.
+
+If no @code{IntD} chunk is included, nitfol searches the environment variable @code{INFOCOM_PATH} for a game with matching release number, serial number, and checksum.
+
+Looking for games without an @code{IntD} chunk isn't foolproof, but it should work most of the time.  Serial numbers are basically the date and it's extremely unlikely more than ten games will be compiled on the same day (the only time lots of games are compiled on same day is right before competition time).  Assuming they all have the same release number, there's still only a .0686% chance that at least two of these ten will share the same checksum.  If someone reports this as a problem, I'll make nitfol ensure the game contains a @code{save} opcode right before the restored PC.
+
+
+@node Blorb ,  , Quetzal , Features
+@section Blorb
+
+If you wish to hear sounds or see graphics in your games, they must be packaged in Blorb files.  The Z-machine game may included in the Blorb file or may be specified separately.  Nitfol does not support the traditional Infocom @file{.mg1} and @file{.snd} files.
+
+Note that graphics are displayed incorrectly, and sound has not yet been tested.
+
+@node Debugger , Bugs , Features , Top
+@chapter Debugger
+
+Nitfol debugging mode tries to imitate the GDB interface.  If you're familiar with that, you should have no problem using nitfol (other than dealing with the current incompleteness).
+
+You need inform 6.21 or later, as earlier versions don't produce correct infix files without a patch.  You then need to compile infix information for your game.  I recommend doing:
+
+@code{inform -k -~S -~X -~D @var{MyGame}.inf}
+
+Then your debug information will be in @file{gameinfo.dbg}.  If you have a command-line on your platform, run nitfol like @code{nitfol @var{MyGame}.z5 -symbols gameinfo.dbg}.  Otherwise, start up your game and type @code{/symbol-file gameinfo.dbg} the first time you get a prompt.
+
+When the game stops to read a line of text, you can begin that line with @kbd{/} to give a debug command.  If you want to pass a line beginning with a @kbd{/} to the game, double the @kbd{/} and the game will be passed the second one.  When at a @code{(nitfol) } prompt, starting commands with @kbd{/} is neither necessary nor recommended.
+
+All expressions are like the ones used in Inform.
+
+You can perform casts to get the result in the form you want:
+
+@table @code
+@item (number) @var{expression}
+Use @var{expression} as if it were a number.  Useful when you want to know the number of something, not the object, routine, or string information nitfol normally gives.
+@item (object) @var{expression}
+Use @var{expression} as if it were an object.  Most useful when printing the result, as it will show the object's attributes and properties.
+@item (routine) @var{expression}
+Use @var{expression} as if it were the packed address of a routine.  Useful if you have the packed address of a routine which you want to set a breakpoint at.
+@item (string) @var{expression}
+Use @var{expression} as if it were the packed address of a string.  Useful for printing it.
+@item (global) @var{expression}
+Evaluates to the value of a numbered global.  @code{(global) 0} is the player location for version 3 Infocom games.
+@item (local) @var{expression}
+Evaluates to the value of a numbered local.  Not terribly useful unless you're debugging something without source.
+@end table
+
+Here are short descriptions of the debugger commands.  @inforef{Top,,gdb}, for more information.  Some of these were taken/adapted from GDB's help.
+
+@ftable @code
+@include dbg_help.texi
+@end ftable
+
+If you're on a @sc{unix} and you don't like the GDB interface, you can compile cheapnitfol and run it as the inferior debugger under Emacs or DDD.  You can also try compiling @code{xnitfol} with @samp{-DSTDOUT_DEBUG} and trying that, but I haven't tested that much.
+
+@noindent
+@code{ddd @var{MyGame}.z5 --debugger cheapnitfol -s gameinfo.dbg -prompt "(gdb) "}
+
+@node Bugs , Thanks , Debugger , Top
+@chapter Bugs
+
+A nitfol bug is any behaviour which makes nitfol reliably misbehave, with the exceptions of bugs in Glk libraries.  These include: anything which makes nitfol crash (other than when nitfol reports @samp{FATAL} errors), anything which causes nitfol to contradict the Z-machine standards documents (except for optional enhancements like spelling correction and debug mode), any buffer overflows, and anything which makes nitfol infinite loop other than infinite loops in the game itself.
+
+Before reporting a bug, make sure the bug is not listed below and your copy of nitfol is not compiled with @samp{-DFAST}.  Please report the version of nitfol, your system type and a series of commands which reliably cause the bug.
+
+Nitfol is lacking:
+@itemize @minus
+@item Graphical font (@cite{Beyond Zork})  (should use images for this)
+@item Terminating character support (mostly @cite{Beyond Zork})
+@item Reverse video, full color (should querry Glk more aggressively)
+@item Unicode support
+@item keypad character codes
+@item its own random number generator (relies on system one)
+@end itemize
+
+Nitfol does incorrectly:
+@itemize @minus
+@item Play is not paused to wait for sounds to complete in @cite{The Lurking Horror}.
+@item Pictures and text are not placed correctly for v6 games.
+@item block quotes are placed in the upper window, so @code{cheapnitfol} can't see them.
+@item Corrupted save files may make nitfol do bad things.
+@item Should figure out a way to handle buggy games like @cite{AMFV} and @cite{Varicella} which assume the upper window is 80 columns wide.
+@item Doesn't catch header writing other than @code{@@storeb} and @code{@@storew}.
+@end itemize
+
+Debugger problems:
+@itemize @minus
+@item Sometimes says there's no code at a location where it could be clever and
+  find some.
+@item @code{ofclass}, superclass not implemented.
+@item Should perform more sanity checks everywhere.
+@item Lots of useful commands not yet implemented.
+@item @var{object}.@var{function} is handled incorrectly, both for assignments and calls.
+@item Assumes you know what you're doing, so @code{quit}, @code{run}, etc., don't prompt you for confirmation.
+@end itemize
+
+Automapping problems:
+@itemize @minus
+@item Doesn't work well for random destinations (the forest in @cite{Advent})
+@item @code{@@get_cursor} doesn't return the correct value during automapping since output is disabled.
+@item Requires too much work for the end-user; should put in stuff to make it figure out the location global in 95% of games.
+@item Doesn't really work if multiple locations are coded as being in the same room (long road in @cite{Enchanter}).
+@item Doesn't show exits which go nowhere, but change the game.
+@item Perhaps should use graphics windows when available.
+@item Movement causing teleportation confuses it.
+@item Reincarnation handling isn't optimal.
+@item Still very buggy.
+@item It's too slow.
+@item Should realize it can add extra bends (especially in one-way passages).
+@item Should be able to output nice-looking Postscript.
+@item Should store map in saved games (wait until automapping code stabilizes).
+@end itemize
+
+@node Thanks , Games Cited , Bugs , Top
+@chapter Thanks
+
+The following people have given comments, suggestions, bug reports, answered questions, or helped port nitfol (in alphabetical order):
+@itemize @minus
+@item John Cater
+@item Paul David Doherty
+@item Martin Frost
+@item Doug Jones
+@item David Picton
+@item Andrew Plotkin
+@item Andrew Pontious
+@item L. Ross Raszewski
+@item Dan Shiovitz
+@end itemize
+
+@node Games Cited ,  , Thanks , Top
+@chapter Games Cited
+
+@noindent
+@cite{Wishbringer} Copyright @copyright{} 1985, 1988 Infocom Inc.
+
+@*
+@noindent
+@cite{Zork I} Copyright @copyright{} 1981-1986 Infocom Inc.
+
+@*
+@noindent
+@cite{Curses} Copyright @copyright{} 1993-1994 Graham Nelson.
+
+@uref{http://ifarchive.org/if-archive/games/zcode/curses.z5}
+
+@*
+@noindent
+@cite{Beyond Zork} Copyright @copyright{} 1987 Infocom Inc.
+
+@*
+@noindent
+@cite{Enchanter} Copyright @copyright{} 1983, 1984, 1986 Infocom Inc.
+
+@*
+@noindent
+@cite{Varicella} by Adam Cadre 1999.
+
+@uref{http://adamcadre.ac/content/vgame.z8}
+
+@*
+@noindent
+@cite{Spider And Web} Copyright @copyright{} 1997-1998 Andrew Plotkin.
+
+@uref{http://ifarchive.org/if-archive/games/zcode/Tangle.z5}
+
+@bye
+

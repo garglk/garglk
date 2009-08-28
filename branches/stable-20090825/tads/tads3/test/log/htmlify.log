@@ -1,0 +1,25 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export htmlify.t -> htmlify.t3s
+	compile _main.t -> _main.t3o
+	compile htmlify.t -> htmlify.t3o
+	link -> htmlify.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+This is a &lt;test> of htmlify!
+&amp; this is another!
+tab    tab tab (not keeping tabs)
+tab<tab>tab<tab>tab<tab>(keeping tabs)
+newline
+newline
+newline (not keeping newlines)
+newline<br><tab>tab, newline<br><tab>tab (keeping newlines and tabs)
+lots of spaces
+keeping &nbsp;&nbsp;&nbsp;&nbsp;lots &nbsp;&nbsp;&nbsp;of
+&nbsp;&nbsp;&nbsp;spaces
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

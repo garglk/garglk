@@ -1,0 +1,25 @@
+Warnings: 0
+Errors:   0
+Longest string: 31, longest list: 3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+this is preinit!!!
+global.preinited_ = true
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+this is the main entrypoint!!!
+obj1.prop1 = Hello!!!
+obj1.prop2 = [Hello!!!, Hello!!!, Hello!!!]
+obj1.prop3 = nil? no
+obj1.prop3.instName = Test Instance!
+contents of room1:
+   book
+   ball
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

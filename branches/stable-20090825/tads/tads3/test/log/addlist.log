@@ -1,0 +1,16 @@
+	Files to build: 3
+	symbol_export addlist.t -> addlist.t3s
+	compile addlist.t -> addlist.t3o
+	link -> addlist.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+initially: x = []
+after adding [one]: x = [one]
+after adding [two]: x = [one two]
+after adding [three, four]: x = [one two three four]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
