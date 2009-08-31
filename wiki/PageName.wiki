@@ -1,0 +1,12 @@
+#summary Links to Gargoyle packages prepared by the community.
+#labels Phase-Deploy,Featured
+
+==Packages==
+
+Gargoyle packages are not included out of the box in most distributions, so Linux users will either need to download a compiled binary version or build one from source.
+
+Known packages for the current release are listed below. Although these are not "official" packages, you are still encouraged to report any bugs that you find to the [http://code.google.com/p/garglk/issues/list issue tracker] or the [http://groups.google.com/group/garglk-dev mailing list].
+
+|| *Distribution* || *Author* || *Version* || *Location* ||
+|| Archlinux || Eric Forgeot || 08-25-09 || [http://aur.archlinux.org/packages.php?ID=16008 archlinux.org] ||
+|| Debian || Eric Forgeot || 08-25-09 || [http://ifiction.free.fr/index.php?id=iflinux ifiction.free.fr] ||
