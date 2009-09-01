@@ -10,3 +10,6 @@ Known packages for the current release are listed below. Although these are not 
 || *Distribution* || *Maintainer* || *Version* || *Location* ||
 || Archlinux || Eric Forgeot || 08-25-09 || [http://aur.archlinux.org/packages.php?ID=16008 archlinux.org] ||
 || Debian || Eric Forgeot || 08-25-09 || [http://ifiction.free.fr/index.php?id=iflinux ifiction.free.fr] ||
+|| Mandriva || Rémi Verschelde || 12-25-08 || [http://akantar.free.fr/remi/rpm/] ||
+|| Gentoo || Ryan Hendrickson / Yaroslav Isakov || 12-25-08 || [http://bugs.gentoo.org/253098] ||
+|| OpenBSD || Stuart Henderson || 08-25-09 || [http://openports.se/games/gargoyle] ||
