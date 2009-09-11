@@ -318,7 +318,7 @@ void win_textbuffer_redraw(window_t *win)
     char *color;
     int i;
     int hx0, hx1, hy0, hy1;
-    int selbuf, selrow, selchar, sx0, sx1;
+    int selbuf, selrow, selchar, sx0, sx1, allrow;
     int tx, tsc, tsw, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
@@ -346,12 +346,14 @@ void win_textbuffer_redraw(window_t *win)
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
 
         /* check if part of line is selected */
-        if (selbuf)
+        if (selbuf) {
             selrow = gli_get_selection(x0/GLI_SUBPIX, y,
                     x1/GLI_SUBPIX, y + gli_leading,
                     &sx0, &sx1);
-        else
+            allrow = (sx0 == x0/GLI_SUBPIX && sx1 == x1/GLI_SUBPIX);
+        } else {
             selrow = FALSE;
+        }
 
         /* mark selected line dirty */
         if (selrow)
@@ -413,36 +415,47 @@ void win_textbuffer_redraw(window_t *win)
 
         /* find and highlight selected characters */
         if (selrow && !gli_claimselect) {
-            tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
-            lsc = 0;
-            rsc = 0;
-            selchar = FALSE;
-            for (tsc = 0; tsc < linelen; tsc++) {
-                tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
-                if (tsw + tx >= sx0) {
-                    lsc = tsc;
-                    selchar = TRUE;
-                    break;
-                }
-            }
-            if (selchar) {
-                for (tsc = lsc; tsc < linelen; tsc++) {
-                    tsw = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
-                    if (tsw + sx0 < sx1) {
-                        rsc = tsc;
+            /* optimized case for all chars selected */
+            if (allrow) {
+                lsc = 0;
+                rsc = linelen > 0 ? linelen - 1 : 0;
+                selchar = calcwidth(dwin, ln->chars, ln->attrs, lsc, rsc, spw)/GLI_SUBPIX;
+            } else {
+                /* find the substring contained by the selection */
+                tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+                lsc = 0;
+                rsc = 0;
+                selchar = FALSE;
+                /* measure string widths until we find left char */
+                for (tsc = 0; tsc < linelen; tsc++) {
+                    tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
+                    if (tsw + tx >= sx0) {
+                        lsc = tsc;
+                        selchar = TRUE;
+                        break;
                     }
                 }
+                /* now measure string widths until we find right char */
+                if (selchar) {
+                    for (tsc = lsc; tsc < linelen; tsc++) {
+                        tsw = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
+                        if (tsw + sx0 < sx1) {
+                            rsc = tsc;
+                        }
+                    }
+                }
+            }
+            /* reverse colors for selected chars */
+            if (selchar) {
                 for (tsc = lsc; tsc <= rsc; tsc++) {
                     ln->attrs[tsc].reverse = !ln->attrs[tsc].reverse;
                     dwin->copybuf[dwin->copypos] = ln->chars[tsc];
                     dwin->copypos++;
                 }
-                dwin->copybuf[dwin->copypos] = '\n';
-                dwin->copypos++;
-            } else {
-                dwin->copybuf[dwin->copypos] = '\n';
-                dwin->copypos++;
             }
+            /* add newline to copy buffer */
+            dwin->copybuf[dwin->copypos] = '\n';
+            dwin->copypos++;
         }
 
         /* clear any stored hyperlink coordinates */
