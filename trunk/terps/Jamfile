@@ -7,7 +7,7 @@
 SubDir TOP terps ;
 
 MAKE_ADVSYS     ?= yes ;
-MAKE_AGILITY    ?= yes ;
+MAKE_AGILITY    ?= no ;
 MAKE_ALAN2      ?= yes ;
 MAKE_ALAN3      ?= yes ;
 MAKE_FROTZ      ?= yes ;
@@ -380,7 +380,7 @@ if $(MAKE_SCARE) = yes
 
     if $(OS) = MINGW
     {
-        SubDirHdrs $(TOP) support zlib-1.2.3 ;
+        SubDirHdrs $(TOP) support zlib ;
     }
 
     Main scare :
@@ -389,6 +389,11 @@ if $(MAKE_SCARE) = yes
         scobjcts.c sctasks.c screstrs.c scgamest.c scserial.c
         scresour.c scutils.c scdebug.c sclocale.c scmemos.c os_glk.c
         ;
+
+    if $(OS) = MINGW
+    {
+        SharedLinkLibraries scare : zlib1.dll ;
+    }
 
     APPS += scare ;
 }
