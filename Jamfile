@@ -44,25 +44,24 @@ for APP in $(APPS)
 
 if $(OS) = MINGW
 {
-    SubInclude TOP support ;
-    SharedLinkLibraries scare : libz ;
-    SharedLinkLibrariesOnSharedLibrary libgarglk :
-        libfreetype libjpeg libpng libz ;
-
-    InstallLib $(LIBDIR) : libfreetype$(SUFDLL) ;
-    InstallLib $(LIBDIR) : libjpeg$(SUFDLL) ;
-    InstallLib $(LIBDIR) : libpng$(SUFDLL) ;
-    InstallLib $(LIBDIR) : libz$(SUFDLL) ;
+    SEARCH_SOURCE +=
+        [ FDirName $(TOP) support fontconfig ]
+        [ FDirName $(TOP) support freetype ]
+        [ FDirName $(TOP) support libjpeg ]
+        [ FDirName $(TOP) support libpng ]
+        [ FDirName $(TOP) support zlib ]
+        ;
+    InstallLib $(LIBDIR) : freetype6.dll ;
+    InstallLib $(LIBDIR) : libfontconfig-1.dll ;
+    InstallLib $(LIBDIR) : libjpeg-7.dll ;
+    InstallLib $(LIBDIR) : libpng12-0.dll ;
+    InstallLib $(LIBDIR) : zlib1.dll ;
 }
-
-InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
-InstallLib $(LIBDIR) : libgarglk$(SUFDLL) ;
 
 if $(OS) = MINGW && $(USESDL)
 {
     SharedLinkLibrariesOnSharedLibrary libgarglk : SDL_sound ;
-    local _SDL = $(TOP) support sdl-1.2.13 ;
-    SEARCH_SOURCE = $(_SDL:J=\\) ;
+    SEARCH_SOURCE += [ FDirName $(TOP) support sdl ] ;
     InstallLib $(LIBDIR) : SDL_sound.dll ;
     InstallLib $(LIBDIR) : SDL_mixer.dll ;
     InstallLib $(LIBDIR) : SDL.dll ;
@@ -72,3 +71,5 @@ if $(OS) = MINGW && $(USESDL)
     InstallLib $(LIBDIR) : libvorbisfile-3.dll ;
 }
 
+InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+InstallLib $(LIBDIR) : libgarglk$(SUFDLL) ;
