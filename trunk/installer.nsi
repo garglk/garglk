@@ -4,6 +4,9 @@
 
 RequestExecutionLevel admin
 !include "MUI.nsh"
+!include FontRegAdv.nsh
+!include FontName.nsh
+
 
 Name "Gargoyle"
 OutFile "gargoyle-2009-08-25-windows.exe"
@@ -112,6 +115,28 @@ Section "DoInstall"
     WriteRegStr HKCR "Gargoyle.Story\shell" "" "open"
     WriteRegStr HKCR "Gargoyle.Story\shell\open" "" "Play"
     WriteRegStr HKCR "Gargoyle.Story\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""
+
+SectionEnd
+
+Section "Fonts"
+    StrCpy $FONT_DIR $FONTS
+    !insertmacro InstallTTF "fonts\LuxiMono-Regular.ttf"
+    !insertmacro InstallTTF "fonts\LuxiMono-Bold.ttf"
+    !insertmacro InstallTTF "fonts\LuxiMono-Oblique.ttf"
+    !insertmacro InstallTTF "fonts\LuxiMono-BoldOblique.ttf"
+    !insertmacro InstallTTF "fonts\CharterBT-Roman.ttf"
+    !insertmacro InstallTTF "fonts\CharterBT-Bold.ttf"
+    !insertmacro InstallTTF "fonts\CharterBT-Italic.ttf"
+    !insertmacro InstallTTF "fonts\CharterBT-BoldItalic.ttf"
+    !insertmacro InstallTTF "fonts\LiberationMono-Regular.ttf"
+    !insertmacro InstallTTF "fonts\LiberationMono-Bold.ttf"
+    !insertmacro InstallTTF "fonts\LiberationMono-Italic.ttf"
+    !insertmacro InstallTTF "fonts\LiberationMono-BoldItalic.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine-Regular.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine-Bold.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine-Italic.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine-BoldItalic.ttf"
+    SendMessage ${HWND_BROADCAST} ${WM_FONTCHANGE} 0 0 /TIMEOUT=5000
 
 SectionEnd
 
