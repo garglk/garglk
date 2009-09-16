@@ -57,6 +57,10 @@ Section "DoInstall"
     File "build\dist\*.dll"
     File "licenses\*.txt"
     File "garglk\garglk.ini"
+    
+    SetOutPath $INSTDIR\etc\fonts
+    File "build\dist\etc\fonts\fonts.conf"
+    File "build\dist\etc\fonts\fonts.dtd"
 
     WriteUninstaller "uninstall.exe"
 

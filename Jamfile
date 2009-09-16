@@ -44,6 +44,7 @@ for APP in $(APPS)
 
 if $(OS) = MINGW
 {
+    # support binaries
     SEARCH_SOURCE +=
         [ FDirName $(TOP) support fontconfig ]
         [ FDirName $(TOP) support freetype ]
@@ -56,6 +57,11 @@ if $(OS) = MINGW
     InstallLib $(LIBDIR) : libjpeg-7.dll ;
     InstallLib $(LIBDIR) : libpng12-0.dll ;
     InstallLib $(LIBDIR) : zlib1.dll ;
+
+    # fontconfig files
+    local _FCDIR = [ FDirName $(TOP) build dist etc fonts ] ;
+    InstallLib $(_FCDIR) : fonts.dtd ;
+    InstallLib $(_FCDIR) : fonts.conf ;
 }
 
 if $(OS) = MINGW && $(USESDL)
