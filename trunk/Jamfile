@@ -53,6 +53,7 @@ if $(OS) = MINGW
         [ FDirName $(TOP) support zlib ]
         ;
     InstallLib $(LIBDIR) : freetype6.dll ;
+    InstallLib $(LIBDIR) : libexpat-1.dll ;
     InstallLib $(LIBDIR) : libfontconfig-1.dll ;
     InstallLib $(LIBDIR) : libjpeg-7.dll ;
     InstallLib $(LIBDIR) : libpng12-0.dll ;
