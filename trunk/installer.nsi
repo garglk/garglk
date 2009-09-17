@@ -132,10 +132,10 @@ Section "Fonts"
     !insertmacro InstallTTF "fonts\LiberationMono-Bold.ttf"
     !insertmacro InstallTTF "fonts\LiberationMono-Italic.ttf"
     !insertmacro InstallTTF "fonts\LiberationMono-BoldItalic.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine-Regular.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine-Bold.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine-Italic.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine-BoldItalic.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine_Re-4.4.1.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine_Bd-4.1.0.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine_It-4.0.6.ttf"
+    !insertmacro InstallTTF "fonts\LinLibertine_BI-4.0.5.ttf"
     SendMessage ${HWND_BROADCAST} ${WM_FONTCHANGE} 0 0 /TIMEOUT=5000
 
 SectionEnd
