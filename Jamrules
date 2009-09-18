@@ -50,8 +50,7 @@ switch $(OS)
 
     case LINUX :
         Echo "OS is LINUX (gtk+)" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
-        #PKGCONFIG = "pkg-config freetype2 gtk+" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
         SHELLHEADER = "#!/bin/bash" ;		
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
@@ -60,13 +59,12 @@ switch $(OS)
         if $(USESDL)
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+            SHRLINKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
         }
 
     case SOLARIS :
         Echo "OS is SOLARIS (gtk+)" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
-        #PKGCONFIG = "pkg-config freetype2 gtk+" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
         SHELLHEADER = "#!/bin/bash" ;		
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
@@ -75,7 +73,7 @@ switch $(OS)
         if $(USESDL)
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+            SHRLINKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
         }
 
     case MACOSX :

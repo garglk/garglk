@@ -49,8 +49,8 @@ else
 Library libgarglkmain : main.c ;
 SharedLibrary libgarglk : $(GARGSRCS) ;
 
-if ( $(OS) = LINUX || $(OS) = SOLARIS ) && $(USESDL)
-{
-    LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
-}
+#if ( $(OS) = LINUX || $(OS) = SOLARIS ) && $(USESDL)
+#{
+#    LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
+#}
 
