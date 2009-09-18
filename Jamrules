@@ -3,9 +3,8 @@
 #
 
 BUILD ?= RELEASE ;
-
 USESDL = yes ;
-# USEFMOD = yes ;
+BUNDLEFONTS = no ;
 
 CC      = gcc ;
 C++     = g++ ;

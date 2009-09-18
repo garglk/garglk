@@ -20,6 +20,11 @@ if $(OS) = MINGW && $(USESDL)
     SubDirHdrs $(TOP) support sdl_sound ;
 }
 
+if $(BUNDLEFONTS) = yes
+{
+    SubDirCcFlags -DBUNDLED_FONTS ;
+}
+
 GARGSRCS = 
     gi_blorb.c gi_dispa.c
     cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c cgunicod.c
