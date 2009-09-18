@@ -255,7 +255,7 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
         "CharterBT-Roman",
         "CharterBT-Bold",
         "CharterBT-Italic",
-        "CharterBT-BoldItalic",
+        "CharterBT-BoldItalic"
     };
 
     char afmbuf[1024];
@@ -280,17 +280,24 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
     if (i == 8)
     {
         err = FT_New_Face(ftlib, name, 0, &f->face);
-        if (err)
-            winabort("FT_New_Face: %s: 0x%x", name, err);
-        if (strstr(name, ".PFB") || strstr(name, ".PFA") ||
-                strstr(name, ".pfb") || strstr(name, ".pfa"))
-        {
-            strcpy(afmbuf, name);
-            strcpy(strrchr(afmbuf, '.'), ".afm");
-            FT_Attach_File(f->face, afmbuf);
-            strcpy(afmbuf, name);
-            strcpy(strrchr(afmbuf, '.'), ".AFM");
-            FT_Attach_File(f->face, afmbuf);
+        if (err) {
+            /* try getting a system font by the same name */
+            gli_get_system_font(name, &mem, &len);
+            err = FT_New_Memory_Face(ftlib, mem, len, 0, &f->face);
+            if (err) {
+                winabort("FT_New_Face: %s: 0x%x", name, err);
+            }
+        } else {
+            if (strstr(name, ".PFB") || strstr(name, ".PFA") ||
+                    strstr(name, ".pfb") || strstr(name, ".pfa"))
+            {
+                strcpy(afmbuf, name);
+                strcpy(strrchr(afmbuf, '.'), ".afm");
+                FT_Attach_File(f->face, afmbuf);
+                strcpy(afmbuf, name);
+                strcpy(strrchr(afmbuf, '.'), ".AFM");
+                FT_Attach_File(f->face, afmbuf);
+            }
         }
     }
 
