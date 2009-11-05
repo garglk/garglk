@@ -4,7 +4,7 @@
 
 BUILD ?= RELEASE ;
 USESDL = yes ;
-BUNDLEFONTS = no ;
+BUNDLEFONTS = yes ;
 
 CC      = gcc ;
 C++     = g++ ;
