@@ -47,8 +47,8 @@ if $(OS) = MINGW
 else
 {
     GARGSRCS += sysgtk.c ;
-    MakeLocate gargoyle : $(LOCATE_TARGET) ;
-    Shell gargoyle : launcher.sh ;
+    Main gargoyle : launcher.c ;
+    SharedLinkLibraries gargoyle : libgarglk ;
 }
 
 Library libgarglkmain : main.c ;

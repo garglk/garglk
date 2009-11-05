@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #include "glk.h"
 #include "glkstart.h"
@@ -32,35 +34,81 @@
 
 #define T_ADRIFT	"scare"
 #define T_ADVSYS	"advsys"
-#define T_AGT	"agility"
-#define T_ALAN2	"alan2"
-#define T_ALAN3	"alan3"
-#define T_GLULX "git"
-#define T_HUGO	"hugo"
-#define T_JACL	"jacl"
-#define T_LEV9	"level9"
-#define T_MGSR	"magnetic"
-#define T_QUEST "geas"
-#define T_TADS2 "tadsr"
-#define T_TADS3 "tadsr"
-#define T_ZCODE "frotz"
-#define T_ZSIX  "nitfol"
+#define T_AGT	    "agility"
+#define T_ALAN2	    "alan2"
+#define T_ALAN3	    "alan3"
+#define T_GLULX     "git"
+#define T_HUGO	    "hugo"
+#define T_JACL	    "jacl"
+#define T_LEV9	    "level9"
+#define T_MGSR	    "magnetic"
+#define T_QUEST     "geas"
+#define T_TADS2     "tadsr"
+#define T_TADS3     "tadsr"
+#define T_ZCODE     "frotz"
+#define T_ZSIX      "nitfol"
 
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
-#include <process.h>
+const char * AppName = "Gargoyle" VERSION;
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <commdlg.h>
+/* Detect OS */
+#ifdef __WIN32__
+        #define OS_WINDOWS
+#else
+    #ifdef _Windows
+        #define OS_WINDOWS
+    #else
+        #ifdef __Windows
+            #define OS_WINDOWS
+        #endif
+    #endif
+#endif
 
-char argv0[1024];
-char dir[1024];
-char buf[1024];
-char tmp[1024];
+#ifdef __linux__
+        #define OS_UNIX
+#else
+        #ifdef __unix__
+                #define OS_UNIX
+        #endif
+#endif
 
-static char *terp;
+/* Check OS detected */
+#ifndef OS_WINDOWS
+#ifndef OS_UNIX
+        #error "Compilation stopped. No SO found."
+#endif
+#endif
+
+/* Include required headers for GUI */
+#ifdef OS_WINDOWS
+    #include <windows.h>
+    #include <commdlg.h>
+#else
+#ifdef OS_UNIX
+    #include <gtk/gtk.h>
+    #include <unistd.h>
+#endif
+#endif
+
+#define MaxBuffer 1024
+char argv0[MaxBuffer];
+char dir[MaxBuffer];
+char buf[MaxBuffer];
+char tmp[MaxBuffer];
+
+static char *terp = NULL;
+
+#ifdef OS_WINDOWS
+    static const char * LaunchingTemplate = "\"%s\\%s.exe\" %s \"%s\"";
+    static const char * DirSeparator = "\\";
+#else
+#ifdef OS_UNIX
+    static const char * LaunchingTemplate = "\"%s/%s\" %s \"%s\"";
+    static const char * DirSeparator = "/";
+#endif
+#endif
 
 char filterlist[] =
 "All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
@@ -80,38 +128,143 @@ char filterlist[] =
 "All Files\0*\0"
 "\0\0";
 
+/* OS-dependent functions -------------------------------------------------- */
+void showMessageBoxError(const char * msg)
+{
+    #ifdef OS_WINDOWS
+        MessageBox(NULL, msg, AppName, MB_ICONERROR);
+    #else
+    #ifdef OS_UNIX
+        GtkWidget * msgDlg = gtk_message_dialog_new(NULL,
+                                             GTK_DIALOG_MODAL,
+                                             GTK_MESSAGE_ERROR,
+                                             GTK_BUTTONS_CLOSE,
+                                             "%s", msg
+        );
+
+        gtk_window_set_title(GTK_WINDOW(msgDlg), AppName);
+        gtk_dialog_run(GTK_DIALOG(msgDlg ));
+        gtk_widget_destroy(msgDlg);
+    #endif
+    #endif
+}
+
+bool askFileName(char * buffer, int maxBuffer)
+{
+    char *title = "Gargoyle " VERSION;
+    *buffer = 0;
+
+    #ifdef OS_WINDOWS
+        OPENFILENAME ofn;
+
+        memset(&ofn, 0, sizeof(OPENFILENAME));
+        ofn.lStructSize = sizeof(OPENFILENAME);
+        ofn.hwndOwner = NULL;
+        ofn.lpstrFile = buffer;
+        ofn.nMaxFile = maxBuffer;
+        ofn.lpstrInitialDir = NULL;
+        ofn.lpstrTitle = title;
+        ofn.lpstrFilter = filterlist;
+        ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
+
+        return GetOpenFileName(&ofn);
+    #else
+    #ifdef OS_UNIX
+        gtk_init( NULL, NULL );
+        GtkWidget * openDlg = gtk_file_selection_new(AppName);
+        gint result = gtk_dialog_run(GTK_DIALOG(openDlg));
+
+        if ( result == GTK_RESPONSE_OK ) {
+            strcpy(buffer, gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
+        }
+        gtk_widget_destroy(openDlg);
+
+        return (*buffer != 0);
+    #endif
+    #endif
+}
+
+char * getCurrentWorkingDirectory(char *buffer, int maxBuffer)
+{
+    #ifdef OS_WINDOWS
+        if( !GetCurrentDirectory( maxBuffer, buffer ) ) {
+            *buffer = 0;
+        }
+    #else
+    #ifdef OS_UNIX
+        if ( getcwd( buffer, maxBuffer ) == NULL ) {
+            *buffer = 0;
+        }
+    #endif
+    #endif
+
+    if ( *buffer == 0 ) {
+        showMessageBoxError( "FATAL: Unable to retrieve current directory" );
+    }
+
+    return buffer;
+}
+
+bool exec(const char *cmd)
+{
+    #ifdef OS_WINDOWS
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        int res;
+
+        memset(&si, 0, sizeof si);
+        memset(&pi, 0, sizeof pi);
+
+        si.cb = sizeof si;
+
+        sprintf(tmp,"%s",cmd);
+
+        res = CreateProcess(
+            NULL,	/* no module name (use cmd line)    */
+            tmp,	/* command line                     */
+            NULL,	/* security attrs,                  */
+            NULL,	/* thread attrs,                    */
+            FALSE,	/* inherithandles                   */
+            0,		/* creation flags                   */
+            NULL,	/* environ                          */
+            NULL,	/* cwd                              */
+            &si,	/* startupinfo                      */
+            &pi		/* procinfo                         */
+        );
+
+        return (res != 0);
+    #else
+    #ifdef OS_UNIX
+        return (system(cmd)==0);
+    #endif
+    #endif
+}
+
+/* Other functions --------------------------------------------------------- */
+void cleanUp()
+/* Proceed to clean all acquired resources */
+{
+    if ( terp != NULL ) {
+        free( terp );
+        terp = NULL;
+    }
+}
+
+void cleanAndExit(int exitCode)
+{
+    cleanUp();
+    exit(exitCode);
+}
+
 void runterp(char *exe, char *flags)
 {
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
-    int res;
+    sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
 
-    sprintf(tmp, "\"%s\\%s.exe\" %s \"%s\"", dir, exe, flags, buf);
-
-    memset(&si, 0, sizeof si);
-    memset(&pi, 0, sizeof pi);
-
-    si.cb = sizeof si;
-
-    res = CreateProcess(
-            NULL,	// no module name (use cmd line)
-            tmp,	// command line
-            NULL,	// security attrs,
-            NULL,	// thread attrs,
-            FALSE,	// inherithandles
-            0,		// creation flags
-            NULL,	// environ
-            NULL,	// cwd
-            &si,	// startupinfo
-            &pi		// procinfo
-            );
-
-    if (res == 0)
-    {
-        MessageBoxA(NULL, "Could not start 'terp.\nSorry.", "Gargoyle", MB_ICONERROR);
-        exit(1);
+    if (!exec(tmp)) {
+        showMessageBoxError("Could not start 'terp.\nSorry.");
+        cleanAndExit(EXIT_FAILURE);
     }
-    exit(0);
+    cleanAndExit(EXIT_SUCCESS);
 }
 
 void runblorb(void)
@@ -126,21 +279,21 @@ void runblorb(void)
 
     file = glkunix_stream_open_pathname(buf, 0, 0);
     if (!file) {
-        MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);
-        exit(1);
+        showMessageBoxError(tmp);
+        cleanAndExit(EXIT_FAILURE);
     }
 
     err = giblorb_create_map(file, &map);
     if (err) {
-        MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);
-        exit(1);
+        showMessageBoxError(tmp);
+        cleanAndExit(EXIT_FAILURE);
     }
 
     err = giblorb_load_resource(map, giblorb_method_FilePos,
             &res, giblorb_ID_Exec, 0);
     if (err) {
-        MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);
-        exit(1);
+        showMessageBoxError(tmp);
+        cleanAndExit(EXIT_FAILURE);
     }
 
     glk_stream_set_position(file, res.data.startpos, 0);
@@ -152,7 +305,7 @@ void runblorb(void)
         if (terp)
             runterp(terp, "");
         else if (magic[0] == 6)
-            runterp(T_ZSIX, ""); 
+            runterp(T_ZSIX, "");
         else
             runterp(T_ZCODE, "");
         break;
@@ -166,15 +319,15 @@ void runblorb(void)
 
     default:
         sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", buf);
-        MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);
-        exit(1);
+        showMessageBoxError(tmp);
+        cleanAndExit(EXIT_FAILURE);
     }
 }
 
-unsigned char *readconfig(char *fname, char *gamefile)
+char *readconfig(char *fname, char *gamefile)
 {
     FILE *f;
-    char buf[1024];
+    char buf[MaxBuffer];
     char *s;
     char *cmd, *arg;
     int accept = 0;
@@ -182,7 +335,7 @@ unsigned char *readconfig(char *fname, char *gamefile)
 
     f = fopen(fname, "r");
     if (!f)
-        return;
+        return NULL;
 
     while (1)
     {
@@ -201,7 +354,7 @@ unsigned char *readconfig(char *fname, char *gamefile)
                 buf[i] = tolower(buf[i]);
 
             if (strstr(buf, gamefile))
-                accept = 1;	
+                accept = 1;
             else
                 accept = 0;
         }
@@ -222,13 +375,13 @@ unsigned char *readconfig(char *fname, char *gamefile)
     }
 
     fclose(f);
-    return;
+    return terp;
 }
 
-unsigned char *configterp(char *game)
+void configterp(char *game)
 {
     char *ini = "/garglk.ini";
-    char path[1024];
+    char path[MaxBuffer];
     int i;
 
     for (i = 0; i < strlen(game); i++)
@@ -245,7 +398,7 @@ unsigned char *configterp(char *game)
         return;
 
     /* working directory */
-    getcwd(path, sizeof path);
+    getCurrentWorkingDirectory(path, sizeof path);
     strcat(path, ini);
     readconfig(path, game);
     if (terp)
@@ -284,11 +437,9 @@ unsigned char *configterp(char *game)
 
 int main(int argc, char **argv)
 {
-    char *title = "Gargoyle " VERSION;
-
-    OPENFILENAME ofn;
     char *ext;
     char *gamefile;
+    char *dirpos;
     char paddedext[256] = " .";
 
     /* get name of executable */
@@ -296,7 +447,10 @@ int main(int argc, char **argv)
 
     /* get dir of executable */
     strcpy(dir, argv[0]);
-    strrchr(dir, '\\')[0] = '\0';
+    dirpos = strrchr(dir, *DirSeparator);
+    if ( dirpos != NULL ) {
+        *dirpos = '\0';
+    }
 
     if (argc == 2)
     {
@@ -304,28 +458,21 @@ int main(int argc, char **argv)
     }
     else
     {
-        memset(&ofn, 0, sizeof(OPENFILENAME));
-        ofn.lStructSize = sizeof(OPENFILENAME);
-        ofn.hwndOwner = NULL;
-        ofn.lpstrFile = buf;
-        ofn.nMaxFile = sizeof buf;
-        ofn.lpstrInitialDir = NULL;
-        ofn.lpstrTitle = title;
-        ofn.lpstrFilter = filterlist;
-        ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
-        if (!GetOpenFileName(&ofn))
+        if (!askFileName(buf,sizeof(buf))) {
             strcpy(buf, "");
+        }
     }
 
-    if (strlen(buf) == 0)
-        exit(0);
-    
-    gamefile = strrchr(buf, '\\');
+    if (strlen(buf) == 0) {
+        cleanAndExit(EXIT_SUCCESS);
+    }
+
+    gamefile = strrchr(buf, *DirSeparator);
     if (gamefile)
         gamefile++;
     else
         gamefile = "";
-    
+
     ext = strrchr(buf, '.');
     if (ext)
         ext++;
@@ -423,8 +570,8 @@ int main(int argc, char **argv)
         runterp(T_QUEST, "");
 
     sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
-    MessageBoxA(NULL, tmp, "Gargoyle", MB_ICONERROR);
+    showMessageBoxError(tmp);
 
-    return 1;
+    cleanUp();
+    return EXIT_FAILURE;
 }
-
