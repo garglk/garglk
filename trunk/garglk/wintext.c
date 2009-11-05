@@ -318,7 +318,7 @@ void win_textbuffer_redraw(window_t *win)
     char *color;
     int i;
     int hx0, hx1, hy0, hy1;
-    int selbuf, selrow, selchar, sx0, sx1, allrow;
+    int selbuf, selrow, selchar, sx0, sx1, selleft, selright;
     int tx, tsc, tsw, lsc, rsc;
 
     dwin->lines[0].len = dwin->numchars;
@@ -350,7 +350,8 @@ void win_textbuffer_redraw(window_t *win)
             selrow = gli_get_selection(x0/GLI_SUBPIX, y,
                     x1/GLI_SUBPIX, y + gli_leading,
                     &sx0, &sx1);
-            allrow = (sx0 == x0/GLI_SUBPIX && sx1 == x1/GLI_SUBPIX);
+            selleft = (sx0 == x0/GLI_SUBPIX);
+            selright = (sx1 == x1/GLI_SUBPIX);
         } else {
             selrow = FALSE;
         }
@@ -416,31 +417,43 @@ void win_textbuffer_redraw(window_t *win)
         /* find and highlight selected characters */
         if (selrow && !gli_claimselect) {
             /* optimized case for all chars selected */
-            if (allrow) {
+            if (selleft && selright) {
                 lsc = 0;
                 rsc = linelen > 0 ? linelen - 1 : 0;
                 selchar = calcwidth(dwin, ln->chars, ln->attrs, lsc, rsc, spw)/GLI_SUBPIX;
             } else {
-                /* find the substring contained by the selection */
-                tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
-                lsc = 0;
-                rsc = 0;
-                selchar = FALSE;
-                /* measure string widths until we find left char */
-                for (tsc = 0; tsc < linelen; tsc++) {
-                    tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
-                    if (tsw + tx >= sx0) {
-                        lsc = tsc;
-                        selchar = TRUE;
-                        break;
+                /* optimized case for leftmost char selected */
+                if (selleft) {
+                    lsc = 0;
+                    tsc = linelen > 0 ? linelen - 1 : 0;
+                    selchar = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
+                } else {
+                    /* find the substring contained by the selection */
+                    tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+                    lsc = 0;
+                    rsc = 0;
+                    selchar = FALSE;
+                    /* measure string widths until we find left char */
+                    for (tsc = 0; tsc < linelen; tsc++) {
+                        tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
+                        if (tsw + tx >= sx0) {
+                            lsc = tsc;
+                            selchar = TRUE;
+                            break;
+                        }
                     }
                 }
-                /* now measure string widths until we find right char */
                 if (selchar) {
-                    for (tsc = lsc; tsc < linelen; tsc++) {
-                        tsw = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
-                        if (tsw + sx0 < sx1) {
-                            rsc = tsc;
+                    /* optimized case for rightmost char selected */
+                    if (selright) {
+                        rsc = linelen > 0 ? linelen - 1 : 0;
+                    } else {
+                    /* measure string widths until we find right char */
+                        for (tsc = lsc; tsc < linelen; tsc++) {
+                            tsw = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
+                            if (tsw + sx0 < sx1) {
+                                rsc = tsc;
+                            }
                         }
                     }
                 }
