@@ -32,16 +32,16 @@
 #include "gi_blorb.h"
 #include "garversion.h"
 
-#define T_ADRIFT	"scare"
-#define T_ADVSYS	"advsys"
-#define T_AGT	    "agility"
-#define T_ALAN2	    "alan2"
-#define T_ALAN3	    "alan3"
+#define T_ADRIFT    "scare"
+#define T_ADVSYS    "advsys"
+#define T_AGT       "agility"
+#define T_ALAN2     "alan2"
+#define T_ALAN3     "alan3"
 #define T_GLULX     "git"
-#define T_HUGO	    "hugo"
-#define T_JACL	    "jacl"
-#define T_LEV9	    "level9"
-#define T_MGSR	    "magnetic"
+#define T_HUGO      "hugo"
+#define T_JACL      "jacl"
+#define T_LEV9      "level9"
+#define T_MGSR      "magnetic"
 #define T_QUEST     "geas"
 #define T_TADS2     "tadsr"
 #define T_TADS3     "tadsr"
@@ -51,7 +51,7 @@
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
-const char * AppName = "Gargoyle" VERSION;
+const char * AppName = "Gargoyle " VERSION;
 
 /* Detect OS */
 #ifdef __WIN32__
