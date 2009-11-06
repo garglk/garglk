@@ -1,6 +1,8 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2008-2009 by Ben Cressey.                                    *
+ * Copyright (C) 2009 by Baltasar García Perez-Schofield.                     *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
