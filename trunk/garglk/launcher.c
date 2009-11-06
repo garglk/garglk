@@ -102,10 +102,12 @@ static char *terp = NULL;
 
 #ifdef OS_WINDOWS
     static const char * LaunchingTemplate = "\"%s\\%s.exe\" %s \"%s\"";
+    static const char * LocalTemplate = "\"%s.exe\" %s \"%s\"";
     static const char * DirSeparator = "\\";
 #else
 #ifdef OS_UNIX
     static const char * LaunchingTemplate = "\"%s/%s\" %s \"%s\"";
+    static const char * LocalTemplate = "\"%s\" %s \"%s\"";
     static const char * DirSeparator = "/";
 #endif
 #endif
@@ -258,7 +260,10 @@ void cleanAndExit(int exitCode)
 
 void runterp(char *exe, char *flags)
 {
-    sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
+    if (!strlen(dir))
+        sprintf(tmp, LocalTemplate, exe, flags, buf);
+    else
+        sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
 
     if (!exec(tmp)) {
         showMessageBoxError("Could not start 'terp.\nSorry.");
@@ -450,6 +455,8 @@ int main(int argc, char **argv)
     dirpos = strrchr(dir, *DirSeparator);
     if ( dirpos != NULL ) {
         *dirpos = '\0';
+    } else {
+        dir[0] = '\0';
     }
 
     if (argc == 2)
