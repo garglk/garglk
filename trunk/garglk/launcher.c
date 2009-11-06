@@ -93,7 +93,6 @@ const char * AppName = "Gargoyle " VERSION;
 #endif
 
 #define MaxBuffer 1024
-char argv0[MaxBuffer];
 char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
@@ -102,12 +101,10 @@ static char *terp = NULL;
 
 #ifdef OS_WINDOWS
     static const char * LaunchingTemplate = "\"%s\\%s.exe\" %s \"%s\"";
-    static const char * LocalTemplate = "\"%s.exe\" %s \"%s\"";
     static const char * DirSeparator = "\\";
 #else
 #ifdef OS_UNIX
     static const char * LaunchingTemplate = "\"%s/%s\" %s \"%s\"";
-    static const char * LocalTemplate = "\"%s\" %s \"%s\"";
     static const char * DirSeparator = "/";
 #endif
 #endif
@@ -207,6 +204,25 @@ char * getCurrentWorkingDirectory(char *buffer, int maxBuffer)
     return buffer;
 }
 
+void getExeFullPath(char *path)
+{
+    char exepath[MaxBuffer] = {0};
+
+    #ifdef OS_WINDOWS
+        int exelen = GetModuleFileName(NULL, exepath, sizeof(exepath));
+    #else
+    #ifdef OS_UNIX
+        int exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
+    #endif
+    #endif
+
+   if (exelen <= 0 || exelen >= MaxBuffer)
+       showMessageBoxError( "FATAL: Unable to locate executable path" );
+
+   strcpy(path, exepath);
+   return;
+}
+
 bool exec(const char *cmd)
 {
     #ifdef OS_WINDOWS
@@ -260,10 +276,7 @@ void cleanAndExit(int exitCode)
 
 void runterp(char *exe, char *flags)
 {
-    if (!strlen(dir))
-        sprintf(tmp, LocalTemplate, exe, flags, buf);
-    else
-        sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
+    sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
 
     if (!exec(tmp)) {
         showMessageBoxError("Could not start 'terp.\nSorry.");
@@ -447,16 +460,11 @@ int main(int argc, char **argv)
     char *dirpos;
     char paddedext[256] = " .";
 
-    /* get name of executable */
-    strcpy(argv0, argv[0]);
-
     /* get dir of executable */
-    strcpy(dir, argv[0]);
+    getExeFullPath(dir);
     dirpos = strrchr(dir, *DirSeparator);
     if ( dirpos != NULL ) {
         *dirpos = '\0';
-    } else {
-        dir[0] = '\0';
     }
 
     if (argc == 2)
