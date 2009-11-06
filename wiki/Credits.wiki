@@ -16,6 +16,7 @@ _Original source code and patches_
   * Oliver Henshaw
   * Lorenzo Marcantonio
   * Jesse McGrew
+  * Baltasar García Perez-Schofield
   * Evin Robertson
 
 <p><br/></p>
