@@ -177,6 +177,7 @@ bool askFileName(char * buffer, int maxBuffer)
             strcpy(buffer, gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
         }
         gtk_widget_destroy(openDlg);
+        gdk_flush();
 
         return (*buffer != 0);
     #endif
