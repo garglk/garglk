@@ -305,13 +305,6 @@ void screen_char (zchar c)
 			return;
 	}
 
-	if (gos_upper && gos_curwin == gos_upper) {
-		if (cury > mach_status_ht) {
-			mach_status_ht = cury;
-			reset_status_ht();
-		}
-	}
-
 	/* check fixed flag in header, game can change it at whim */
 	if (gos_curwin == gos_lower)
 	{
@@ -583,8 +576,15 @@ void z_set_cursor (void)
 {
 	cury = zargs[0];
 	curx = zargs[1];
-	if (gos_upper)
+
+	if (gos_upper) {
+		if (cury > mach_status_ht) {
+			mach_status_ht = cury;
+			reset_status_ht();
+		}
+
 		glk_window_move_cursor(gos_upper, curx - 1, cury - 1);
+	}
 }
 
 /*
