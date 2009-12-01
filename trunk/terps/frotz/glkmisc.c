@@ -224,7 +224,7 @@ void os_init_screen(void)
 
 	if (h_version >= V4)
 		h_config |= CONFIG_BOLDFACE | CONFIG_EMPHASIS |
-			CONFIG_FIXED | CONFIG_TIMEDINPUT;
+			CONFIG_FIXED | CONFIG_TIMEDINPUT | CONFIG_COLOUR;
 
 	if (h_version >= V5)
 		h_flags &= ~(GRAPHICS_FLAG | MOUSE_FLAG | MENU_FLAG);
