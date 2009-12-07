@@ -399,56 +399,78 @@ char *readconfig(char *fname, char *gamefile)
     return terp;
 }
 
-void configterp(char *game)
+void configterp(char *game, int ext)
 {
-    char *ini = "/garglk.ini";
+    char *ini = "garglk.ini";
     char path[MaxBuffer];
+    char gameref[MaxBuffer];
+    char gameid[MaxBuffer];
     int i;
 
-    for (i = 0; i < strlen(game); i++)
-        game[i] = tolower(game[i]);
+    if (!ext) {
+        /* ini search based on full game name */
+        if (strrchr(game, *DirSeparator))
+            strcpy(gameref, strrchr(game, *DirSeparator)+1);
+        else
+            return;
+    } else {
+        /* ini search based on extension */
+        if (strrchr(game, '.'))
+            strcpy(gameref, strrchr(game, '.'));
+        else
+            return;
+    }
 
-    /* game file .ini */
+    /* use lowercase game name to compare with ini value */
+    gameid[strlen(gameref)] = '\0';
+    for (i = 0; i < strlen(gameref); i++)
+        gameid[i] = tolower(gameref[i]);
+
+    /* ini stored in game directory */
     strcpy(path, game);
     if (strrchr(path, '.'))
         strcpy(strrchr(path, '.'), ".ini");
     else
         strcat(path, ".ini");
-        readconfig(path, game);
+
+    readconfig(path, gameid);
     if (terp)
         return;
 
-    /* working directory */
+    /* ini stored in working directory */
     getCurrentWorkingDirectory(path, sizeof path);
+    strcat(path, DirSeparator);
     strcat(path, ini);
-    readconfig(path, game);
+    readconfig(path, gameid);
     if (terp)
         return;
 
     /* home directory */
     if (getenv("HOME")) {
         strcpy(path, getenv("HOME"));
+        strcat(path, DirSeparator);
         strcat(path, ini);
-        readconfig(path, game);
+        readconfig(path, gameid);
         if (terp)
             return;
     }
 
     /* freedesktop.org config directory */
-    /* will need to implement for Gtk launcher */
     if (getenv("XDG_CONFIG_HOME"))
     {
         strcpy(path, getenv("XDG_CONFIG_HOME"));
+        strcat(path, DirSeparator);
         strcat(path, ini);
-        readconfig(path, game);
+        readconfig(path, gameid);
         if (terp)
             return;
     }
 
     /* gargoyle directory */
     strcpy(path, dir);
+    strcat(path, DirSeparator);
     strcat(path, ini);
-    readconfig(path, game);
+    readconfig(path, gameid);
     if (terp)
         return;
 
@@ -459,9 +481,8 @@ void configterp(char *game)
 int main(int argc, char **argv)
 {
     char *ext;
-    char *gamefile;
+    char *gamepath;
     char *dirpos;
-    char paddedext[256] = " .";
 
     /* get dir of executable */
     getExeFullPath(dir);
@@ -485,23 +506,17 @@ int main(int argc, char **argv)
         cleanAndExit(EXIT_SUCCESS);
     }
 
-    gamefile = strrchr(buf, *DirSeparator);
-    if (gamefile)
-        gamefile++;
-    else
-        gamefile = "";
+    gamepath = buf;
 
-    ext = strrchr(buf, '.');
+    configterp(gamepath, FALSE);
+    if (!terp)
+        configterp(gamepath, TRUE);
+
+    ext = strrchr(gamepath, '.');
     if (ext)
         ext++;
     else
         ext = "";
-
-    configterp(gamefile);
-    if (!terp) {
-        strcat(paddedext, ext);
-        configterp(paddedext);
-    }
 
     if (!strcasecmp(ext, "blb"))
         runblorb();
