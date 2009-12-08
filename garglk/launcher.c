@@ -415,8 +415,11 @@ void configterp(char *game, int ext)
             return;
     } else {
         /* ini search based on extension */
-        if (strrchr(game, '.'))
-            strcpy(gameref, strrchr(game, '.'));
+        if (strrchr(game, '.')) {
+            gameref[0] = ' ';
+            gameref[1] = '\0';
+            strcat(gameref,strrchr(game, '.'));
+        }
         else
             return;
     }
