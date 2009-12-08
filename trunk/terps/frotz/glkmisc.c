@@ -26,8 +26,6 @@
 
 #define VERSION "2.43"
 
-f_setup_t f_setup;
-
 int curr_status_ht = 0;
 int mach_status_ht = 0;
 
@@ -36,7 +34,7 @@ winid_t gos_lower = NULL;
 winid_t gos_curwin = NULL;
 
 int gos_linepending = 0;
-char *gos_linebuf = NULL;
+zchar *gos_linebuf = NULL;
 winid_t gos_linewin = NULL;
 
 schanid_t gos_channel = NULL;
@@ -50,7 +48,6 @@ schanid_t gos_channel = NULL;
 "    -a   watch attribute setting\n"\
 "    -A   watch attribute testing\n"\
 "    -i   ignore fatal errors\n"\
-"    -I # interpreter number\n"\
 "    -o   watch object movement\n"\
 "    -O   watch object locating\n"\
 "    -P   alter piracy opcode\n"\
@@ -122,26 +119,25 @@ void os_process_arguments(int argc, char *argv[])
 
 	/* Parse the options */
 	do {
-		c = zgetopt(argc, argv, "aAiI:oOPQs:S:tu:xZ:");
+		c = zgetopt(argc, argv, "aAi:oOPQs:S:tu:xZ:");
 		switch (c)
 		{
-			case 'a': f_setup.attribute_assignment = 1; break;
-			case 'A': f_setup.attribute_testing = 1; break;
-			case 'i': f_setup.ignore_errors = 1; break;
-			case 'I': f_setup.interpreter_number = atoi(zoptarg); break;
-			case 'o': f_setup.object_movement = 1; break;
-			case 'O': f_setup.object_locating = 1; break;
-			case 'P': f_setup.piracy = 1; break;
-			case 'Q': f_setup.save_quetzal = 0; break;
+			case 'a': option_attribute_assignment = 1; break;
+			case 'A': option_attribute_testing = 1; break;
+			case 'i': option_ignore_errors = 1; break;
+			case 'o': option_object_movement = 1; break;
+			case 'O': option_object_locating = 1; break;
+			case 'P': option_piracy = 1; break;
+			case 'Q': option_save_quetzal = 0; break;
 			case 's': user_random_seed = atoi(zoptarg); break;
-			case 'S': f_setup.script_cols = atoi(zoptarg); break;
+			case 'S': option_script_cols = atoi(zoptarg); break;
 			case 't': user_tandy_bit = 1; break;
-			case 'u': f_setup.undo_slots = atoi(zoptarg); break;
-			case 'x': f_setup.expand_abbreviations = 1; break;
-			case 'Z': f_setup.err_report_mode = atoi(zoptarg);
-					  if ((f_setup.err_report_mode < ERR_REPORT_NEVER) ||
-							  (f_setup.err_report_mode > ERR_REPORT_FATAL))
-						  f_setup.err_report_mode = ERR_DEFAULT_REPORT_MODE;
+			case 'u': option_undo_slots = atoi(zoptarg); break;
+			case 'x': option_expand_abbreviations = 1; break;
+			case 'Z': option_err_report_mode = atoi(zoptarg);
+					  if ((option_err_report_mode < ERR_REPORT_NEVER) ||
+							  (option_err_report_mode > ERR_REPORT_FATAL))
+						  option_err_report_mode = ERR_DEFAULT_REPORT_MODE;
 					  break;
 		}
 	} while (c != EOF);
@@ -152,7 +148,7 @@ void os_process_arguments(int argc, char *argv[])
 		char buf[256];
 		win = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
 		glk_set_window(win);
-		glk_put_string("FROTZ V" VERSION " -- Glk 0.6.1 interface.\n");
+		glk_put_string("FROTZ V" VERSION " -- Glk 0.7.0 interface.\n");
 		glk_put_string(INFORMATION);
 		sprintf(buf,
 				"    -Z # error checking mode (default = %d)\n"
@@ -235,11 +231,11 @@ void os_init_screen(void)
 	if ((h_version == 3) && (h_flags & OLD_SOUND_FLAG))
 		h_flags |= OLD_SOUND_FLAG;
 
-	if ((h_version == 6) && (f_setup.sound != 0)) 
+	if ((h_version == 6) && (option_sound != 0)) 
 		h_config |= CONFIG_SOUND;
 
 	if (h_version >= V5 && (h_flags & UNDO_FLAG))
-		if (f_setup.undo_slots == 0)
+		if (option_undo_slots == 0)
 			h_flags &= ~UNDO_FLAG;
 
 	h_screen_cols = width;
@@ -259,8 +255,6 @@ void os_init_screen(void)
 	/* Use the ms-dos interpreter number for v6, because that's the
 	 * kind of graphics files we understand.  Otherwise, use DEC.  */
 	h_interpreter_number = h_version == 6 ? INTERP_MSDOS : INTERP_DEC_20;
-	if (f_setup.interpreter_number > 0)
-		h_interpreter_number = f_setup.interpreter_number;
 	h_interpreter_version = 'F';
 	{
 		/* Set these per spec 8.3.2. */
@@ -280,37 +274,39 @@ int os_random_seed (void)
 
 void os_restart_game (int stage) {}
 
-void os_fatal (char *s)
+void os_fatal (const char *s)
 {
+	char err[256];
+	sprintf(err,"%s",s);
+
 	if (!gos_lower)
 		gos_lower = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
 
 	glk_set_window(gos_lower);
 	glk_set_style(style_Normal);
 	glk_put_string("\n\nFatal error: ");
-	glk_put_string(s);
+	glk_put_string(err);
 	glk_put_string("\n");
 	glk_exit();
 }
 
 void os_init_setup(void)
 {
-	f_setup.attribute_assignment = 0;
-	f_setup.attribute_testing = 0;
-	f_setup.context_lines = 0;
-	f_setup.object_locating = 0;
-	f_setup.object_movement = 0;
-	f_setup.left_margin = 0;
-	f_setup.right_margin = 0;
-	f_setup.ignore_errors = 0;
-	f_setup.interpreter_number = 0;
-	f_setup.piracy = 0;
-	f_setup.undo_slots = MAX_UNDO_SLOTS;
-	f_setup.expand_abbreviations = 0;
-	f_setup.script_cols = 80;
-	f_setup.save_quetzal = 1;
-	f_setup.sound = 1;
-	f_setup.err_report_mode = ERR_DEFAULT_REPORT_MODE;
+	option_attribute_assignment = 0;
+	option_attribute_testing = 0;
+	option_context_lines = 0;
+	option_object_locating = 0;
+	option_object_movement = 0;
+	option_left_margin = 0;
+	option_right_margin = 0;
+	option_ignore_errors = 0;
+	option_piracy = 0;
+	option_undo_slots = MAX_UNDO_SLOTS;
+	option_expand_abbreviations = 0;
+	option_script_cols = 80;
+	option_save_quetzal = 1;
+	option_sound = 1;
+	option_err_report_mode = ERR_DEFAULT_REPORT_MODE;
 }
 
 void gos_cancel_pending_line(void)
@@ -329,7 +325,7 @@ zchar os_read_key (int timeout, bool show_cursor)
 	if (gos_linepending)
 		gos_cancel_pending_line();
 
-	glk_request_char_event(win);
+	glk_request_char_event_uni(win);
 	if (timeout != 0)
 		glk_request_timer_events(timeout * 100);
 
@@ -383,7 +379,7 @@ zchar os_read_line (int max, zchar *buf, int timeout, int width, int continued)
 
 	if (!continued || !gos_linepending)
 	{
-		glk_request_line_event(win, buf, max, strlen(buf));
+		glk_request_line_event_uni(win, buf, max, os_string_length(buf));
 		if (timeout != 0)
 			glk_request_timer_events(timeout * 100);
 	}
@@ -422,6 +418,16 @@ zword os_read_mouse(void)
 {
 	/* NOT IMPLEMENTED */
 	return 0;
+}
+
+void os_scrollback_char (zchar z)
+{
+	/* NOT IMPLEMENTED */
+}
+
+void os_scrollback_erase (int amount)
+{
+	/* NOT IMPLEMENTED */
 }
 
 static glui32 flag2usage(int flag)

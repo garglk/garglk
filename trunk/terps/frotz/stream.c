@@ -30,6 +30,8 @@ zchar console_read_key (zword timeout)
     return os_read_key(timeout, 0);
 }
 
+/* extern bool handle_hot_key (zword); */
+
 extern bool validate_click (void);
 
 extern void replay_open (void);
@@ -60,12 +62,87 @@ extern void screen_erase_input (const zchar *);
 extern void screen_mssg_on (void);
 extern void screen_mssg_off (void);
 
-extern zchar replay_read_key (void);
-extern zchar replay_read_input (zchar *);
-extern zchar console_read_key (zword);
-extern zchar console_read_input (int, zchar *, zword, bool);
+extern zword replay_read_key (void);
+extern zword replay_read_input (zchar *);
 
 extern int direct_call (zword);
+
+/*
+ * scrollback_char
+ *
+ * Write a single character to the scrollback buffer.
+ *
+ */
+
+void scrollback_char (zchar c)
+{
+
+    if (c == ZC_INDENT)
+        { scrollback_char (' '); scrollback_char (' '); scrollback_char (' '); return; }
+    if (c == ZC_GAP)
+        { scrollback_char (' '); scrollback_char (' '); return; }
+
+    os_scrollback_char (c);
+
+}/* scrollback_char */
+
+/*
+ * scrollback_word
+ *
+ * Write a string to the scrollback buffer.
+ *
+ */
+
+void scrollback_word (const zchar *s)
+{
+    int i;
+
+    for (i = 0; s[i] != 0; i++)
+
+        if (s[i] == ZC_NEW_FONT || s[i] == ZC_NEW_STYLE)
+            i++;
+        else
+            scrollback_char (s[i]);
+
+}/* scrollback_word */
+
+/*
+ * scrollback_write_input
+ *
+ * Send an input line to the scrollback buffer.
+ *
+ */
+
+void scrollback_write_input (const zchar *buf, zchar key)
+{
+    int i;
+
+    for (i = 0; buf[i] != 0; i++)
+        scrollback_char (buf[i]);
+
+    if (key == ZC_RETURN)
+        scrollback_char ('\n');
+
+}/* scrollback_write_input */
+
+/*
+ * scrollback_erase_input
+ *
+ * Remove an input line from the scrollback buffer.
+ *
+ */
+
+void scrollback_erase_input (const zchar *buf)
+{
+    int width;
+    int i;
+
+    for (i = 0, width = 0; buf[i] != 0; i++)
+        width++;
+
+    os_scrollback_erase (width);
+
+}/* scrollback_erase_input */
 
 /*
  * stream_mssg_on
@@ -160,6 +237,8 @@ void stream_char (zchar c)
 	screen_char (c);
     if (ostream_script && enable_scripting)
 	script_char (c);
+    if (enable_scripting)
+	scrollback_char (c);
 
 }/* stream_char */
 
@@ -183,7 +262,8 @@ void stream_word (const zchar *s)
 	    screen_word (s);
 	if (ostream_script && enable_scripting)
 	    script_word (s);
-
+	if (enable_scripting)
+	    scrollback_word (s);
     }
 
 }/* stream_word */
@@ -208,6 +288,8 @@ void stream_new_line (void)
 	    screen_new_line ();
 	if (ostream_script && enable_scripting)
 	    script_new_line ();
+	if (enable_scripting)
+	    os_scrollback_char ('\n');
 
     }
 
@@ -239,7 +321,7 @@ void z_input_stream (void)
  *
  */
 
-zchar stream_read_key ( zword timeout, zword routine )
+zchar stream_read_key ( zword timeout, zword routine, bool hot_keys )
 {
     zchar key = ZC_BAD;
 
@@ -277,6 +359,21 @@ continue_input:
 	if (direct_call (routine) == 0)
 	    goto continue_input;
 
+/* glkify
+    // Handle hot keys
+
+    if (hot_keys && key >= ZC_HKEY_MIN && key <= ZC_HKEY_MAX) {
+
+	if (h_version == V4 && key == ZC_HKEY_UNDO)
+	    goto continue_input;
+	if (!handle_hot_key (key))
+	    goto continue_input;
+
+	return ZC_BAD;
+
+    }
+*/
+
     /* Return key */
 
     return key;
@@ -292,9 +389,14 @@ continue_input:
 
 zchar stream_read_input ( int max, zchar *buf,
 			  zword timeout, zword routine,
+			  bool hot_keys,
 			  bool no_scripting )
 {
     zchar key = ZC_BAD;
+    bool no_scrollback = no_scripting;
+
+    if (h_version == V6 && story_id == UNKNOWN && !ostream_script)
+	no_scrollback = FALSE;
 
     flush_buffer ();
 
@@ -302,6 +404,8 @@ zchar stream_read_input ( int max, zchar *buf,
 
     if (ostream_script && enable_scripting && !no_scripting)
 	script_erase_input (buf);
+//glkify    if (enable_scripting && !no_scrollback)
+//glkify	scrollback_erase_input (buf);
 //glkify    if (istream_replay)
 //glkify	screen_erase_input (buf);
 
@@ -337,10 +441,25 @@ continue_input:
 	if (direct_call (routine) == 0)
 	    goto continue_input;
 
+/* glkify
+    // Handle hot keys
+
+    if (hot_keys && key >= ZC_HKEY_MIN && key <= ZC_HKEY_MAX) {
+
+	if (!handle_hot_key (key))
+	    goto continue_input;
+
+	return ZC_BAD;
+
+    }
+*/
+
     /* Copy input line to transscript file or to the screen */
 
     if (ostream_script && enable_scripting && !no_scripting)
 	script_write_input (buf, key);
+//glkify    if (enable_scripting && !no_scrollback)
+//glkify	scrollback_write_input (buf, key);
 //glkify    if (istream_replay)
 //glkify	screen_write_input (buf, key);
 

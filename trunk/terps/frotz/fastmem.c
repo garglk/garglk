@@ -180,6 +180,10 @@ void restart_header (void)
 	SET_BYTE (H_STANDARD_HIGH, h_standard_high);
 	SET_BYTE (H_STANDARD_LOW, h_standard_low);
 
+	set_header_extension (HX_FLAGS, hx_flags);
+	set_header_extension (HX_FORE_COLOUR, hx_fore_colour);
+	set_header_extension (HX_BACK_COLOUR, hx_back_colour);
+
 }/* restart_header */
 
 /*
@@ -395,6 +399,7 @@ no_match: ; /* null statement */
 
 	hx_table_size = get_header_extension (HX_TABLE_SIZE);
 	hx_unicode_table = get_header_extension (HX_UNICODE_TABLE);
+	hx_flags = get_header_extension (HX_FLAGS);
 
 }/* init_memory */
 
@@ -426,7 +431,7 @@ void init_undo (void)
 		undo_diff = undo_mem + h_dynamic_size;
 		memcpy (prev_zmp, zmp, h_dynamic_size);
 	} else
-		f_setup.undo_slots = 0;
+		option_undo_slots = 0;
 
 	if (reserve_mem != 0)
 		free (reserved);
@@ -569,7 +574,7 @@ void z_restart (void)
 	sp = fp = stack + STACK_SIZE;
 	frame_count = 0;
 
-	if (h_version != V6) {
+	if (h_version != V6 && h_version != V9) {
 
 		long pc = (long) h_start_pc;
 		SET_PC (pc);
@@ -624,7 +629,7 @@ void z_restore (void)
 		if ((gfp = frotzopenprompt(FILE_RESTORE)) == NULL)
 			goto finished;
 
-		if (f_setup.save_quetzal) {
+		if (option_save_quetzal) {
 			success = restore_quetzal (gfp, story_fp, blorb_ofs);
 
 		} else {
@@ -813,7 +818,7 @@ static void mem_undiff (zbyte *diff, long diff_length, zbyte *dest)
 int restore_undo (void)
 {
 
-	if (f_setup.undo_slots == 0)	/* undo feature unavailable */
+	if (option_undo_slots == 0)	/* undo feature unavailable */
 
 		return -1;
 
@@ -897,7 +902,7 @@ void z_save (void)
 		if ((gfp = frotzopenprompt (FILE_SAVE)) == NULL)
 			goto finished;
 
-		if (f_setup.save_quetzal) {
+		if (option_save_quetzal) {
 			success = save_quetzal (gfp, story_fp, blorb_ofs);
 		} else {
 			/* Write game file */
@@ -971,7 +976,7 @@ int save_undo (void)
 	zword stack_size;
 	undo_t *p;
 
-	if (f_setup.undo_slots == 0)	/* undo feature unavailable */
+	if (option_undo_slots == 0)	/* undo feature unavailable */
 		return -1;
 
 	/* save undo possible */
@@ -987,7 +992,7 @@ int save_undo (void)
 	else
 		first_undo = NULL;
 
-	if (undo_count == f_setup.undo_slots)
+	if (undo_count == option_undo_slots)
 		free_undo (1);
 
 	diff_size = mem_diff (zmp, prev_zmp, h_dynamic_size, undo_diff);

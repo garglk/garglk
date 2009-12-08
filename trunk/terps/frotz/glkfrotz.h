@@ -22,7 +22,7 @@
 
 /* glk-frotz.h
  *
- * Frotz os functions for the Glk library version 0.6.1.
+ * Frotz os functions for the Glk library version 0.7.0.
  */
 
 #include "frotz.h"
@@ -44,13 +44,10 @@ extern winid_t gos_upper;
 extern winid_t gos_lower;
 extern winid_t gos_curwin;
 extern int gos_linepending;
-extern char *gos_linebuf;
+extern zchar *gos_linebuf;
 extern winid_t gos_linewin;
 
 extern schanid_t gos_channel;
-
-/* from ../common/setup.h */
-extern f_setup_t f_setup;
 
 /* From input.c.  */
 bool is_terminator (zchar);

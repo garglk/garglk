@@ -34,6 +34,9 @@
 
 extern void interpret (void);
 extern void init_memory (void);
+extern void init_process (void);
+extern void init_sound (void);
+extern void init_text (void);
 extern void init_undo (void);
 extern void reset_memory (void);
 
@@ -75,7 +78,7 @@ zbyte h_default_foreground = 0;
 zword h_terminating_keys = 0;
 zword h_line_width = 0;
 zbyte h_standard_high = 1;
-zbyte h_standard_low = 0;
+zbyte h_standard_low = 1;
 zword h_alphabet = 0;
 zword h_extension_table = 0;
 zbyte h_user_name[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -84,6 +87,9 @@ zword hx_table_size = 0;
 zword hx_mouse_x = 0;
 zword hx_mouse_y = 0;
 zword hx_unicode_table = 0;
+zword hx_flags = 0;
+zword hx_fore_colour = 0;
+zword hx_back_colour = 0;
 
 /* Stack data */
 
@@ -108,6 +114,7 @@ int mwin = 0;
 
 int mouse_y = 0;
 int mouse_x = 0;
+int menu_selected = 0;
 
 /* Window attributes */
 
@@ -118,7 +125,6 @@ bool enable_buffering = FALSE;
 
 /* User options */
 
-/*
 int option_attribute_assignment = 0;
 int option_attribute_testing = 0;
 int option_context_lines = 0;
@@ -132,7 +138,7 @@ int option_undo_slots = MAX_UNDO_SLOTS;
 int option_expand_abbreviations = 0;
 int option_script_cols = 80;
 int option_save_quetzal = 1;
-*/
+int option_err_report_mode = ERR_DEFAULT_REPORT_MODE;
 
 int option_sound = 1;
 char *option_zcode_path;
@@ -152,7 +158,7 @@ long reserve_mem = 0;
 void z_piracy (void)
 {
 
-    branch (!f_setup.piracy);
+    branch (!option_piracy);
 
 }/* z_piracy */
 
@@ -180,7 +186,6 @@ glkunix_argumentlist_t glkunix_arguments[] =
 { "-Q", glkunix_arg_NoValue, "-Q: use old-style save format" },
 { "-t", glkunix_arg_NoValue, "-t: set Tandy bit" },
 { "-x", glkunix_arg_NoValue, "-x: expand abbreviations g/x/z" },
-{ "-I", glkunix_arg_NumberValue, "-I: interpreter number" },
 { "-s", glkunix_arg_NumberValue, "-s: random number seed value" },
 { "-S", glkunix_arg_NumberValue, "-S: transcript width" },
 { "-u", glkunix_arg_NumberValue, "-u: slots for multiple undo" },
@@ -191,8 +196,8 @@ glkunix_argumentlist_t glkunix_arguments[] =
 
 int glkunix_startup_code(glkunix_startup_t *data)
 {
-	myargc = data->argc;
-	myargv = data->argv;
+    myargc = data->argc;
+    myargv = data->argv;
 
     os_init_setup ();
     os_process_arguments (myargc, myargv);
@@ -202,6 +207,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
     init_memory ();
     init_process ();
     init_sound ();
+    init_text ();
 
     os_init_screen ();
 

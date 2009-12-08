@@ -48,6 +48,7 @@ static char *err_messages[] = {
     "Illegal window",
     "Illegal window property",
     "Print at illegal address",
+    "Illegal dictionary word length",
     "@jin called with object 0",
     "@get_child called with object 0",
     "@get_parent called with object 0",
@@ -100,8 +101,8 @@ void runtime_error (int errnum)
     if (errnum <= 0 || errnum > ERR_NUM_ERRORS)
 	return;
 
-    if (f_setup.err_report_mode == ERR_REPORT_FATAL
-	|| (!f_setup.ignore_errors && errnum <= ERR_MAX_FATAL)) {
+    if (option_err_report_mode == ERR_REPORT_FATAL
+	|| (!option_ignore_errors && errnum <= ERR_MAX_FATAL)) {
 	flush_buffer ();
 	os_fatal (err_messages[errnum - 1]);
 	return;
@@ -110,8 +111,8 @@ void runtime_error (int errnum)
     wasfirst = (error_count[errnum - 1] == 0);
     error_count[errnum - 1]++;
     
-    if ((f_setup.err_report_mode == ERR_REPORT_ALWAYS)
-	|| (f_setup.err_report_mode == ERR_REPORT_ONCE && wasfirst)) {
+    if ((option_err_report_mode == ERR_REPORT_ALWAYS)
+	|| (option_err_report_mode == ERR_REPORT_ONCE && wasfirst)) {
 	long pc;
 
 	GET_PC (pc);
@@ -121,7 +122,7 @@ void runtime_error (int errnum)
 	print_long (pc, 16);
 	print_char (')');
         
-	if (f_setup.err_report_mode == ERR_REPORT_ONCE) {
+	if (option_err_report_mode == ERR_REPORT_ONCE) {
 	    print_string (" (will ignore further occurrences)");
 	} else {
 	    print_string (" (occurence ");

@@ -22,10 +22,11 @@
 
 extern int save_undo (void);
 
-extern zchar stream_read_key (zword, zword);
-extern zchar stream_read_input (int, zchar *, zword, zword, bool);
+extern zchar stream_read_key (zword, zword, bool);
+extern zchar stream_read_input (int, zchar *, zword, zword, bool, bool);
 
 extern void tokenise_line (zword, zword, zword, bool);
+zchar unicode_tolower (zchar);
 
 /*
  * is_terminator
@@ -77,7 +78,7 @@ void z_make_menu (void)
 
     /* This opcode was only used for the Macintosh version of Journey.
        It controls menus with numbers greater than 2 (menus 0, 1 and 2
-       are system menus). Frotz doesn't implement menus yet. */
+       are system menus). */
 
     branch (FALSE);
 
@@ -97,7 +98,7 @@ bool read_yes_or_no (const char *s)
     print_string (s);
     print_string ("? (y/n) >");
 
-    key = stream_read_key (0, 0);
+    key = stream_read_key (0, 0, FALSE);
 
     if (key == 'y' || key == 'Y') {
 	print_string ("y\n");
@@ -124,7 +125,7 @@ void read_string (int max, zchar *buffer)
 
     do {
 
-	key = stream_read_input (max, buffer, 0, 0, FALSE);
+	key = stream_read_input (max, buffer, 0, 0, FALSE, FALSE);
 
     } while (key != ZC_RETURN);
 
@@ -217,6 +218,7 @@ void z_read (void)
 	max, buffer,		/* buffer and size */
 	zargs[2],		/* timeout value   */
 	zargs[3],		/* timeout routine */
+	FALSE,			/* enable hot keys */
 	h_version == V6);	/* no script in V6 */
 
     if (key == ZC_BAD)
@@ -233,10 +235,7 @@ void z_read (void)
 
 	if (key == ZC_RETURN) {
 
-	    if (buffer[i] >= 'A' && buffer[i] <= 'Z')
-		buffer[i] += 'a' - 'A';
-	    if (buffer[i] >= 0xc0 && buffer[i] <= 0xde && buffer[i] != 0xd7)
-		buffer[i] += 0x20;
+		buffer[i] = unicode_tolower (buffer[i]);
 
 	}
 
@@ -285,7 +284,8 @@ void z_read_char (void)
 
     key = stream_read_key (
 	zargs[1],	/* timeout value   */
-	zargs[2]);	/* timeout routine */
+	zargs[2],	/* timeout routine */
+	FALSE);  	/* enable hot keys */
 
     if (key == ZC_BAD)
 	return;
@@ -296,3 +296,27 @@ void z_read_char (void)
 
 }/* z_read_char */
 
+/*
+ * z_read_mouse, write the current mouse status into a table.
+ *
+ *	zargs[0] = address of table
+ *
+ */
+
+void z_read_mouse (void)
+{
+    zword btn;
+
+    /* Read the mouse position, the last menu click
+       and which buttons are down */
+
+    btn = os_read_mouse ();
+    hx_mouse_y = mouse_y;
+    hx_mouse_x = mouse_x;
+
+    storew ((zword) (zargs[0] + 0), hx_mouse_y);
+    storew ((zword) (zargs[0] + 2), hx_mouse_x);
+    storew ((zword) (zargs[0] + 4), btn);		/* mouse button bits */
+    storew ((zword) (zargs[0] + 6), menu_selected);	/* menu selection */
+
+}/* z_read_mouse */

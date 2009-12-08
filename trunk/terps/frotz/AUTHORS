@@ -17,6 +17,17 @@ V6 semi-support:
 OSS sound support (from xfrotz 2.32.1):
 	Daniel Schepler
 
+Treaty of Babel code:
+	L. Ross Raszewski
+
+Unicode support (largely from WinFrotz):
+	David Kinder
+	Michael Martin (curses interface to WinFrotz)
+
+NFrotz port:
+	Michael Martin
+
+The original Frotz special thanks list:
 
 Thanks also to those who posted to rec.arts.int-fiction feedback on what I
 was doing with Unix Frotz, people who checked the betas for bugs, and sent
@@ -30,3 +41,7 @@ that I've forgotten.
 
 Michael Edmonson (author of Rezrov) and Evin Robertson (author of Nitfol)
 deserve recognition for the ideas that I've borrowed from their programs.
+
+For NFrotz, thanks are also due to John Campbell, David Cuthbert, and
+Simon Fowler for their assistance in testing, and to Torbjorn Anderson
+for some additional patches.

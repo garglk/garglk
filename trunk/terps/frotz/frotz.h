@@ -21,6 +21,18 @@ typedef int bool;
 typedef unsigned char zbyte;
 typedef unsigned short zword;
 
+/*** Glk needs a 32-bit integer type for Unicode characters ***/
+#include <limits.h>
+#if (USHORT_MAX == 4294967295)
+typedef unsigned short zchar;
+#elif (UINT_MAX   == 4294967295)
+typedef unsigned int zchar;
+#elif (ULONG_MAX == 4294967295)
+typedef unsigned long zchar;
+#else
+#error No 32-bit integer type found.
+#endif
+
 enum story
 {
     BEYOND_ZORK,
@@ -33,15 +45,13 @@ enum story
     UNKNOWN
 };
 
-typedef unsigned char zchar;
-
 /*** Constants that may be set at compile time ***/
 
 #ifndef MAX_UNDO_SLOTS
 #define MAX_UNDO_SLOTS 500
 #endif
 #ifndef MAX_FILE_NAME
-#define MAX_FILE_NAME 80
+#define MAX_FILE_NAME 256
 #endif
 #ifndef TEXT_BUFFER_SIZE
 #define TEXT_BUFFER_SIZE 200
@@ -50,7 +60,7 @@ typedef unsigned char zchar;
 #define INPUT_BUFFER_SIZE 200
 #endif
 #ifndef STACK_SIZE
-#define STACK_SIZE 60000
+#define STACK_SIZE 61440
 #endif
 
 #ifndef DEFAULT_SAVE_NAME
@@ -109,6 +119,9 @@ typedef unsigned char zchar;
 #define HX_MOUSE_X 1
 #define HX_MOUSE_Y 2
 #define HX_UNICODE_TABLE 3
+#define HX_FLAGS 4
+#define HX_FORE_COLOUR 5
+#define HX_BACK_COLOUR 6
 
 /*** Various Z-machine constants ***/
 
@@ -120,6 +133,7 @@ typedef unsigned char zchar;
 #define V6 6
 #define V7 7
 #define V8 8
+#define V9 9
 
 #define CONFIG_BYTE_SWAPPED 0x01 /* Story file is byte swapped         - V3  */
 #define CONFIG_TIME         0x02 /* Status line displays time          - V3  */
@@ -135,7 +149,6 @@ typedef unsigned char zchar;
 #define CONFIG_EMPHASIS     0x08 /* Interpr supports emphasis style    - V4+ */
 #define CONFIG_FIXED        0x10 /* Interpr supports fixed width style - V4+ */
 #define CONFIG_SOUND	    0x20 /* Interpr supports sound             - V6  */
-
 #define CONFIG_TIMEDINPUT   0x80 /* Interpr supports timed input       - V4+ */
 
 #define SCRIPTING_FLAG	  0x0001 /* Outputting to transscription file  - V1+ */
@@ -148,6 +161,8 @@ typedef unsigned char zchar;
 #define COLOUR_FLAG	  0x0040 /* Game wants to use colours          - V5+ */
 #define SOUND_FLAG	  0x0080 /* Game wants to use sound effects    - V5+ */
 #define MENU_FLAG	  0x0100 /* Game wants to use menus            - V6  */
+
+#define TRANSPARENT_FLAG  0x0001 /* Game wants to use transparency     - V6  */
 
 #define INTERP_DEFAULT 0
 #define INTERP_DEC_20 1
@@ -174,6 +189,7 @@ typedef unsigned char zchar;
 #define LIGHTGREY_COLOUR 10 	/* INTERP_AMIGA only */
 #define MEDIUMGREY_COLOUR 11 	/* INTERP_AMIGA only */
 #define DARKGREY_COLOUR 12 	/* INTERP_AMIGA only */
+#define TRANSPARENT_COLOUR 15 /* ZSpec 1.1 */
 
 #define REVERSE_STYLE 1
 #define BOLDFACE_STYLE 2
@@ -185,14 +201,22 @@ typedef unsigned char zchar;
 #define GRAPHICS_FONT 3
 #define FIXED_WIDTH_FONT 4
 
-#define BEEP_HIGH	1
-#define BEEP_LOW	2
+/*** Constants for os_beep */
+
+#define BEEP_HIGH       1
+#define BEEP_LOW        2
 
 /*** Constants for os_restart_game */
 
 #define RESTART_BEGIN 0
 #define RESTART_WPROP_SET 1
 #define RESTART_END 2
+
+/*** Constants for os_menu */
+
+#define MENU_NEW 0
+#define MENU_ADD 1
+#define MENU_REMOVE 2
 
 /*** Character codes ***/
 
@@ -254,8 +278,8 @@ typedef unsigned char zchar;
 extern zbyte *pcp;
 extern zbyte *zmp;
 
-#define lo(v)	((zbyte *)&v)[1]
-#define hi(v)	((zbyte *)&v)[0]
+#define lo(v)		((zbyte *)&v)[1]
+#define hi(v)		((zbyte *)&v)[0]
 
 #define SET_WORD(addr,v)  { zmp[addr] = hi(v); zmp[addr+1] = lo(v); }
 #define LOW_WORD(addr,v)  { hi(v) = zmp[addr]; lo(v) = zmp[addr+1]; }
@@ -279,7 +303,11 @@ extern zbyte *zmp;
 #define SET_WORD(addr,v)  { zmp[addr] = hi(v); zmp[addr+1] = lo(v); }
 #define LOW_WORD(addr,v)  { v = ((zword) zmp[addr] << 8) | zmp[addr+1]; }
 #define HIGH_WORD(addr,v) { v = ((zword) zmp[addr] << 8) | zmp[addr+1]; }
+#define HIGH_LONG(addr,v) { v = ((zword) zmp[addr]   << 24) | \
+                                ((zword) zmp[addr+1] << 16) | \
+                                ((zword) zmp[addr+2] <<  8) | zmp[addr+3]; }
 #define CODE_WORD(v)      { v = ((zword) pcp[0] << 8) | pcp[1]; pcp += 2; }
+#define CODE_IDX_WORD(v,i){ v = ((zword) pcp[i] << 8) | pcp[i+1]; }
 #define GET_PC(v)         { v = pcp - zmp; }
 #define SET_PC(v)         { pcp = zmp + v; }
 
@@ -326,6 +354,9 @@ extern zword hx_table_size;
 extern zword hx_mouse_x;
 extern zword hx_mouse_y;
 extern zword hx_unicode_table;
+extern zword hx_flags;
+extern zword hx_fore_colour;
+extern zword hx_back_colour;
 
 /*** Various data ***/
 
@@ -354,17 +385,31 @@ extern int mwin;
 
 extern int mouse_x;
 extern int mouse_y;
+extern int menu_selected;
 
 extern bool enable_wrapping;
 extern bool enable_scripting;
 extern bool enable_scrolling;
 extern bool enable_buffering;
 
-
+extern int option_attribute_assignment;
+extern int option_attribute_testing;
+extern int option_object_locating;
+extern int option_object_movement;
+extern int option_context_lines;
+extern int option_left_margin;
+extern int option_right_margin;
+extern int option_ignore_errors;
+extern int option_piracy;
+extern int option_undo_slots;
+extern int option_expand_abbreviations;
+extern int option_script_cols;
+extern int option_save_quetzal;
+extern int option_sound;	/* dg */
+extern int option_err_report_mode;
 extern char *option_zcode_path;	/* dg */
 
 extern long reserve_mem;
-
 
 /*** Z-machine opcodes ***/
 
@@ -372,6 +417,7 @@ void 	z_add (void);
 void 	z_and (void);
 void 	z_art_shift (void);
 void 	z_buffer_mode (void);
+void 	z_buffer_screen (void);
 void 	z_call_n (void);
 void 	z_call_s (void);
 void 	z_catch (void);
@@ -464,6 +510,7 @@ void 	z_set_cursor (void);
 void 	z_set_margins (void);
 void 	z_set_window (void);
 void 	z_set_text_style (void);
+void 	z_set_true_colour (void);
 void 	z_show_status (void);
 void 	z_sound_effect (void);
 void 	z_split_window (void);
@@ -505,24 +552,25 @@ void	runtime_error (int);
 #define ERR_ILL_WIN 16		/* Illegal window */
 #define ERR_ILL_WIN_PROP 17	/* Illegal window property */
 #define ERR_ILL_PRINT_ADDR 18	/* Print at illegal address */
-#define ERR_MAX_FATAL 18
+#define ERR_DICT_LEN 19	/* Illegal dictionary word length */
+#define ERR_MAX_FATAL 19
 
 /* Less serious errors */
-#define ERR_JIN_0 19		/* @jin called with object 0 */
-#define ERR_GET_CHILD_0 20	/* @get_child called with object 0 */
-#define ERR_GET_PARENT_0 21	/* @get_parent called with object 0 */
-#define ERR_GET_SIBLING_0 22	/* @get_sibling called with object 0 */
-#define ERR_GET_PROP_ADDR_0 23	/* @get_prop_addr called with object 0 */
-#define ERR_GET_PROP_0 24	/* @get_prop called with object 0 */
-#define ERR_PUT_PROP_0 25	/* @put_prop called with object 0 */
-#define ERR_CLEAR_ATTR_0 26	/* @clear_attr called with object 0 */
-#define ERR_SET_ATTR_0 27	/* @set_attr called with object 0 */
-#define ERR_TEST_ATTR_0 28	/* @test_attr called with object 0 */
-#define ERR_MOVE_OBJECT_0 29	/* @move_object called moving object 0 */
-#define ERR_MOVE_OBJECT_TO_0 30	/* @move_object called moving into object 0 */
-#define ERR_REMOVE_OBJECT_0 31	/* @remove_object called with object 0 */
-#define ERR_GET_NEXT_PROP_0 32	/* @get_next_prop called with object 0 */
-#define ERR_NUM_ERRORS (32)
+#define ERR_JIN_0 20		/* @jin called with object 0 */
+#define ERR_GET_CHILD_0 21	/* @get_child called with object 0 */
+#define ERR_GET_PARENT_0 22	/* @get_parent called with object 0 */
+#define ERR_GET_SIBLING_0 23	/* @get_sibling called with object 0 */
+#define ERR_GET_PROP_ADDR_0 24	/* @get_prop_addr called with object 0 */
+#define ERR_GET_PROP_0 25	/* @get_prop called with object 0 */
+#define ERR_PUT_PROP_0 26	/* @put_prop called with object 0 */
+#define ERR_CLEAR_ATTR_0 27	/* @clear_attr called with object 0 */
+#define ERR_SET_ATTR_0 28	/* @set_attr called with object 0 */
+#define ERR_TEST_ATTR_0 29	/* @test_attr called with object 0 */
+#define ERR_MOVE_OBJECT_0 30	/* @move_object called moving object 0 */
+#define ERR_MOVE_OBJECT_TO_0 31	/* @move_object called moving into object 0 */
+#define ERR_REMOVE_OBJECT_0 32	/* @remove_object called with object 0 */
+#define ERR_GET_NEXT_PROP_0 33	/* @get_next_prop called with object 0 */
+#define ERR_NUM_ERRORS (33)
  
 /* There are four error reporting modes: never report errors;
   report only the first time a given error type occurs; report
@@ -544,17 +592,10 @@ void	runtime_error (int);
 
 /*** Various global functions ***/
 
-/* MacOSX libm defines this */
-#define init_process frotz_process
-
-void init_process(void);
-void init_sound(void);
-
 zchar	translate_from_zscii (zbyte);
 zbyte	translate_to_zscii (zchar);
 
-void	init_buffer(void);
-void	flush_buffer(void);
+void 	flush_buffer (void);
 void	new_line (void);
 void	print_char (zchar);
 void	print_num (zword);
@@ -574,42 +615,67 @@ void	storew (zword, zword);
 /*** Interface functions ***/
 
 void 	os_beep (int);
+int 	os_buffer_screen (int);
 int  	os_char_width (zchar);
+int  	os_check_unicode (int, zchar);
 void 	os_display_char (zchar);
 void 	os_display_string (const zchar *);
-
+void 	os_display_cstring (const char *);
 void 	os_draw_picture (int, int, int);
-void 	os_erase_area (int, int, int, int);
-
-void 	os_fatal (char *);
+void 	os_erase_area (int, int, int, int, int);
+void 	os_fatal (const char *);
 void 	os_finish_with_sample (int);
-
 int  	os_font_data (int, int *, int *);
+int 	os_from_true_colour (zword);
 void 	os_init_screen (void);
+void 	os_menu(int, int, const zword *);
 void 	os_more_prompt (void);
 int  	os_peek_colour (void);
 int  	os_picture_data (int, int *, int *);
-
 void 	os_prepare_sample (int);
 void 	os_process_arguments (int, char *[]);
 int	os_random_seed (void);
 int  	os_read_file_name (char *, const char *, int);
 zchar	os_read_key (int, int);
 zchar	os_read_line (int, zchar *, int, int, int);
+zword	os_read_mouse (void);
 void 	os_reset_screen (void);
 void 	os_restart_game (int);
-
 void 	os_scroll_area (int, int, int, int, int);
+void 	os_scrollback_char (zchar);
+void 	os_scrollback_erase (int);
 void 	os_set_colour (int, int);
 void 	os_set_cursor (int, int);
 void 	os_set_font (int);
-
 void 	os_set_text_style (int);
-
 void 	os_start_sample (int, int, int, zword);
 void 	os_stop_sample (int);
 int  	os_string_width (const zchar *);
-void	os_init_setup (void);
-int	os_speech_output(const zchar *);
+int  	os_string_length (zchar *);
+void 	os_tick (void);
+zword 	os_to_true_colour (int);
+int	os_wrap_window (int);
+void	os_window_height (int, int);
 
-#include "setup.h"
+void seed_random (int);
+void restart_screen (void);
+void refresh_text_style (void);
+void call (zword, int, zword *, int);
+void split_window (zword);
+void script_open (void);
+void script_close (void);
+
+//FILE *os_path_open (const char *, const char *, long *);
+
+//zword save_quetzal (FILE *, zbyte *);
+//zword restore_quetzal (FILE *, zbyte *);
+
+void erase_window (zword);
+
+extern void (*op0_opcodes[]) (void);
+extern void (*op1_opcodes[]) (void);
+extern void (*op2_opcodes[]) (void);
+extern void (*var_opcodes[]) (void);
+
+extern zchar* decoded;
+extern zchar* encoded;

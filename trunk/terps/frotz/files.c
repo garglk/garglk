@@ -139,6 +139,8 @@ void script_char (zchar c)
 	{ script_char (' '); script_char (' '); script_char (' '); return; }
 	if (c == ZC_GAP)
 	{ script_char (' '); script_char (' '); return; }
+	if (c > 0xff)
+	{ script_char ('?'); return; }
 
 	fputc (c, sfp); script_width++;
 
@@ -170,7 +172,7 @@ void script_word (const zchar *s)
 		else
 			width += 1;
 
-	if (f_setup.script_cols != 0 && script_width + width > f_setup.script_cols) {
+	if (option_script_cols != 0 && script_width + width > option_script_cols) {
 
 		if (*s == ' ' || *s == ZC_INDENT || *s == ZC_GAP)
 			s++;
@@ -203,7 +205,7 @@ void script_write_input (const zchar *buf, zchar key)
 	for (i = 0, width = 0; buf[i] != 0; i++)
 		width++;
 
-	if (f_setup.script_cols != 0 && script_width + width > f_setup.script_cols)
+	if (option_script_cols != 0 && script_width + width > option_script_cols)
 		script_new_line ();
 
 	for (i = 0; buf[i] != 0; i++)
