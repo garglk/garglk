@@ -27,7 +27,7 @@
 
 #include "glkfrotz.h"
 
-static unsigned char statusline[256];
+static zchar statusline[256];
 static int oldstyle = 0;
 static int curstyle = 0;
 static int upperstyle = 0;
@@ -55,6 +55,13 @@ int os_string_width (const zchar *s)
 		else
 			width += os_char_width(c);
 	return width;
+}
+
+int os_string_length (zchar *s)
+{
+	int length = 0;
+	while (*s++) length++;
+	return length;
 }
 
 void os_prepare_sample (int a)
@@ -162,7 +169,7 @@ void reset_status_ht(void)
 	}
 }
 
-void erase_window (int w)
+void erase_window (zword w)
 {
 	if (w == 0)
 		glk_window_clear(gos_lower);
@@ -175,7 +182,7 @@ void erase_window (int w)
 	}
 }
 
-void split_window (int lines)
+void split_window (zword lines)
 {
 	if (!gos_upper)
 		return;
@@ -219,7 +226,7 @@ void restart_screen (void)
  * so ... split status text into regions, reformat and print anew.
  */
 
-void packspaces(unsigned char *src, unsigned char *dst)
+void packspaces(zchar *src, zchar *dst)
 {
 	int killing = 0;
 	while (*src)
@@ -238,17 +245,17 @@ void packspaces(unsigned char *src, unsigned char *dst)
 
 void smartstatusline (void)
 {
-	unsigned char packed[256];
-	unsigned char buf[256];
-	unsigned char *a, *b, *c, *d;
+	zchar packed[256];
+	zchar buf[256];
+	zchar *a, *b, *c, *d;
 	int roomlen, scorelen, scoreofs;
-	int len;
+	int len, tmp;
 
 	statusline[curx - 1] = 0; /* terminate! */
 
 	packspaces(statusline, packed);
 	//strcpy(packed, statusline);
-	len = strlen(packed);
+	len = os_string_length(packed);
 
 	a = packed;
 	while (a[0] == ' ')
@@ -279,7 +286,9 @@ void smartstatusline (void)
 	if (scoreofs <= roomlen)
 		scoreofs = roomlen + 2;
 
-	memset(buf, ' ', h_screen_cols);
+	for (tmp = 0; tmp < h_screen_cols; tmp++)
+		buf[tmp] = ' ';
+
 	memcpy(buf + 1 + scoreofs, c, scorelen);
 	memcpy(buf + 1, a, roomlen);
 	//if (roomlen >= scoreofs)
@@ -287,7 +296,7 @@ void smartstatusline (void)
 
 	glk_window_move_cursor(gos_upper, 0, 0);
 	glk_set_style(style_User1);
-	glk_put_buffer(buf, h_screen_cols);
+	glk_put_buffer_uni(buf, h_screen_cols);
 	glk_window_move_cursor(gos_upper, cury - 1, curx - 1);
 }
 
@@ -332,13 +341,13 @@ void screen_char (zchar c)
 					statusline[curx - 1] = c;
 				curx++;
 				if (curx <= h_screen_cols)
-					glk_put_char(c);
+					glk_put_char_uni(c);
 				else
 					smartstatusline();
 			}
 			else
 			{
-				glk_put_char(c);
+				glk_put_char_uni(c);
 				curx++;
 				if (curx > h_screen_cols) {
 					curx = 1;
@@ -351,7 +360,7 @@ void screen_char (zchar c)
 	{
 		if (c == ZC_RETURN)
 			glk_put_char('\n');
-		else glk_put_char(c);
+		else glk_put_char_uni(c);
 	}
 }
 

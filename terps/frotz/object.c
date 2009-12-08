@@ -1,5 +1,5 @@
 /* object.c - Object manipulation opcodes
- *        Copyright (c) 1995-1997 Stefan Jokisch
+ * Copyright (c) 1995-1997 Stefan Jokisch
  *
  * This file is part of Frotz.
  *
@@ -43,8 +43,6 @@
 
 static zword object_address (zword obj)
 {
-/*    zchar obj_num[10]; */
-
     /* Check object number */
 
     if (obj > ((h_version <= V3) ? 255 : MAX_OBJECT)) {
@@ -279,7 +277,7 @@ void z_clear_attr (void)
 
     /* If we are monitoring attribute assignment display a short note */
 
-    if (f_setup.attribute_assignment) {
+    if (option_attribute_assignment) {
         stream_mssg_on ();
         print_string ("@clear_attr ");
         print_object (zargs[0]);
@@ -319,7 +317,7 @@ void z_jin (void)
 
     /* If we are monitoring object locating display a short note */
 
-    if (f_setup.object_locating) {
+    if (option_object_locating) {
         stream_mssg_on ();
         print_string ("@jin ");
         print_object (zargs[0]);
@@ -379,7 +377,7 @@ void z_get_child (void)
 
     /* If we are monitoring object locating display a short note */
 
-    if (f_setup.object_locating) {
+    if (option_object_locating) {
         stream_mssg_on ();
         print_string ("@get_child ");
         print_object (zargs[0]);
@@ -491,7 +489,7 @@ void z_get_parent (void)
 
     /* If we are monitoring object locating display a short note */
 
-    if (f_setup.object_locating) {
+    if (option_object_locating) {
         stream_mssg_on ();
         print_string ("@get_parent ");
         print_object (zargs[0]);
@@ -762,7 +760,7 @@ void z_insert_obj (void)
 
     /* If we are monitoring object movements display a short note */
 
-    if (f_setup.object_movement) {
+    if (option_object_movement) {
         stream_mssg_on ();
         print_string ("@move_obj ");
         print_object (obj1);
@@ -888,7 +886,7 @@ void z_remove_obj (void)
 
     /* If we are monitoring object movements display a short note */
 
-    if (f_setup.object_movement) {
+    if (option_object_movement) {
         stream_mssg_on ();
         print_string ("@remove_obj ");
         print_object (zargs[0]);
@@ -923,7 +921,7 @@ void z_set_attr (void)
 
     /* If we are monitoring attribute assignment display a short note */
 
-    if (f_setup.attribute_assignment) {
+    if (option_attribute_assignment) {
         stream_mssg_on ();
         print_string ("@set_attr ");
         print_object (zargs[0]);
@@ -973,7 +971,7 @@ void z_test_attr (void)
 
     /* If we are monitoring attribute testing display a short note */
 
-    if (f_setup.attribute_testing) {
+    if (option_attribute_testing) {
         stream_mssg_on ();
         print_string ("@test_attr ");
         print_object (zargs[0]);
