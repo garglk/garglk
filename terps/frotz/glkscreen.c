@@ -570,6 +570,15 @@ void z_set_colour (void)
 
 void z_set_font (void)
 {
+    zword font = zargs[0];
+
+    switch (font) {
+        case 1:  store (0); break; /* normal font */
+        case 2:  store (0); break; /* picture font, undefined per 1.1 */
+        case 3:  store (0); break; /* character graphics font */
+        case 4:  store (0); break; /* fixed-pitch font*/
+        default: store (0); break; /* unavailable */
+    }
 }
 
 /*
