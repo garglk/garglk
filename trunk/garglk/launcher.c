@@ -364,12 +364,14 @@ char *readconfig(char *fname, char *gamefile)
         if (!s)
             break;
 
-        buf[strlen(buf)-1] = 0;	/* kill newline */
+        /* kill newline */
+        if (strlen(buf) && buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = 0;
 
-        if (buf[0] == '#')
+        if (!strlen(buf) || buf[0] == '#')
             continue;
 
-        if (buf[0] == '[')
+        if (strchr(buf,'['))
         {
             for (i = 0; i < strlen(buf); i++)
                 buf[i] = tolower(buf[i]);
