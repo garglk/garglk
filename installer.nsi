@@ -9,7 +9,7 @@ RequestExecutionLevel admin
 
 
 Name "Gargoyle"
-OutFile "gargoyle-2009-08-25-windows.exe"
+OutFile "gargoyle-2010-01-25-windows.exe"
 InstallDir $PROGRAMFILES\Gargoyle
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
 
