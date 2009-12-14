@@ -437,7 +437,7 @@ void z_check_unicode (void)
     else if (c <= 0x7e)
 	result = 3;
     else
-	result = 3; // we support unicode
+	result = 1; // we support unicode
 
     store (result);
 
