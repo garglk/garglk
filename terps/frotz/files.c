@@ -139,10 +139,8 @@ void script_char (zchar c)
 	{ script_char (' '); script_char (' '); script_char (' '); return; }
 	if (c == ZC_GAP)
 	{ script_char (' '); script_char (' '); return; }
-	if (c > 0xff)
-	{ script_char ('?'); return; }
 
-	fputc (c, sfp); script_width++;
+	fputwc (c, sfp); script_width++;
 
 }/* script_char */
 
