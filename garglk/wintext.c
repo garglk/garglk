@@ -416,27 +416,26 @@ void win_textbuffer_redraw(window_t *win)
 
         /* find and highlight selected characters */
         if (selrow && !gli_claimselect) {
+            lsc = 0;
+            rsc = 0;
+            selchar = FALSE;
             /* optimized case for all chars selected */
             if (selleft && selright) {
-                lsc = 0;
                 rsc = linelen > 0 ? linelen - 1 : 0;
                 selchar = calcwidth(dwin, ln->chars, ln->attrs, lsc, rsc, spw)/GLI_SUBPIX;
             } else {
                 /* optimized case for leftmost char selected */
                 if (selleft) {
-                    lsc = 0;
                     tsc = linelen > 0 ? linelen - 1 : 0;
                     selchar = calcwidth(dwin, ln->chars, ln->attrs, lsc, tsc, spw)/GLI_SUBPIX;
                 } else {
                     /* find the substring contained by the selection */
                     tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
-                    lsc = 0;
-                    rsc = 0;
-                    selchar = FALSE;
                     /* measure string widths until we find left char */
                     for (tsc = 0; tsc < linelen; tsc++) {
                         tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
-                        if (tsw + tx >= sx0) {
+                        if (tsw + tx >= sx0 ||
+                                tsw + tx + GLI_SUBPIX >= sx0 && ln->chars[tsc] != ' ') {
                             lsc = tsc;
                             selchar = TRUE;
                             break;
@@ -455,6 +454,8 @@ void win_textbuffer_redraw(window_t *win)
                                 rsc = tsc;
                             }
                         }
+                        if (lsc && !rsc)
+                            rsc = lsc;
                     }
                 }
             }
