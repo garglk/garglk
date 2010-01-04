@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleExecutable</key>
+	<string>gargoyle</string>
+	<key>CFBundleDisplayName</key>
+	<string>Gargoyle</string>
+	<key>CFBundleName</key>
+	<string>Gargoyle</string>
+	<key>CFBundleGetInfoString</key>
+	<string>2010-01-25</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleIconFile</key>
+	<string>house.icns</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.googlecode.garglk</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2010.01.25</string>
+	<key>CFBundleVersion</key>
+	<string>2010.01.25</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright 2010. GNU General Public License.</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.4</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Story File</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+			<key>CFBundleTypeIconFile</key>
+			<string>docu2.icns</string>
+			<key>CFBundleTypeRole</key>
+			<string>Shell</string>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>a3c</string>
+				<string>acd</string>
+				<string>agx</string>
+				<string>asl</string>
+				<string>blb</string>
+				<string>blorb</string>
+				<string>cas</string>
+				<string>gam</string>
+				<string>gblorb</string>
+				<string>glb</string>
+				<string>hex</string>
+				<string>j2</string>
+				<string>jacl</string>
+				<string>l9</string>
+				<string>mag</string>
+				<string>t3</string>
+				<string>taf</string>
+				<string>z3</string>
+				<string>z4</string>
+				<string>z5</string>
+				<string>z6</string>
+				<string>z8</string>
+				<string>ulx</string>
+				<string>zblorb</string>
+				<string>zlb</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

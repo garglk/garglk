@@ -17,9 +17,9 @@ if $(USESDL)
         #-DSOUND_USE_ALTCVT
         ;
 
-    if $(OS) = MINGW { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
-    #if $(OS) = LINUX { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
-    #if $(OS) = SOLARIS { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
+    if $(OS) = MINGW   { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
+    if $(OS) = SOLARIS { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
+    if $(OS) = MACOSX  { SubDirCcFlags -I/opt/local/include/SDL -fPIC ; }
 
     SEARCH_SOURCE =
         [ FDirName $(TOP) support sdl_sound ]
@@ -37,11 +37,11 @@ if $(USESDL)
         SharedLinkLibrariesOnSharedLibrary SDL_sound : smpeg libvorbisfile-3 ;
     }
 
-    #if $(OS) = LINUX || $(OS) = SOLARIS
-    #{
-    #    Library SDL_sound_static :
-    #        ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
-    #        ;
-    #}
+    if $(OS) = SOLARIS || $(OS) = MACOSX
+    {
+        Library SDL_sound_static :
+            ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
+            ;
+    }
 }
 

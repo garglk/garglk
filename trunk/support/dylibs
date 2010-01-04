@@ -1,0 +1,13 @@
+libfontconfig.1.dylib
+libexpat.1.dylib
+libfreetype.6.dylib
+libz.1.dylib
+libiconv.2.dylib
+libjpeg.7.dylib
+libpng12.0.dylib
+libSDL_mixer-1.2.0.dylib
+libSDL-1.2.0.dylib
+libsmpeg-0.4.0.dylib
+libvorbisfile.3.dylib
+libvorbis.0.dylib
+libogg.0.dylib

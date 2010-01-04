@@ -171,12 +171,19 @@ bool askFileName(char * buffer, int maxBuffer)
         return GetOpenFileName(&ofn);
     #else
     #ifdef OS_UNIX
-        gtk_init( NULL, NULL );
-        GtkWidget * openDlg = gtk_file_selection_new(AppName);
+        GtkWidget * openDlg = gtk_file_chooser_dialog_new(AppName, NULL,
+                                                          GTK_FILE_CHOOSER_ACTION_OPEN,
+                                                          GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                          GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                          NULL);
+
+        if (getenv("HOME"))
+            gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(openDlg), getenv("HOME"));
+
         gint result = gtk_dialog_run(GTK_DIALOG(openDlg));
 
-        if ( result == GTK_RESPONSE_OK ) {
-            strcpy(buffer, gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
+        if (result == GTK_RESPONSE_ACCEPT) {
+            strcpy(buffer, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDlg)));
         }
         gtk_widget_destroy(openDlg);
         gdk_flush();
@@ -210,13 +217,19 @@ char * getCurrentWorkingDirectory(char *buffer, int maxBuffer)
 void getExeFullPath(char *path)
 {
     char exepath[MaxBuffer] = {0};
+    unsigned int exelen;
 
-    #ifdef OS_WINDOWS
-        int exelen = GetModuleFileName(NULL, exepath, sizeof(exepath));
-    #else
-    #ifdef OS_UNIX
-        int exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
+    #ifdef __WIN32__
+        exelen = GetModuleFileName(NULL, exepath, sizeof(exepath));
     #endif
+    #ifdef __LINUX__
+        exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
+    #endif
+    #ifdef __APPLE__
+        char tmppath[MaxBuffer] = {0};
+        exelen = sizeof(tmppath);
+        _NSGetExecutablePath(tmppath, &exelen);
+        exelen = (realpath(tmppath, exepath) != NULL);
     #endif
 
    if (exelen <= 0 || exelen >= MaxBuffer)
@@ -488,6 +501,10 @@ int main(int argc, char **argv)
     char *ext;
     char *gamepath;
     char *dirpos;
+
+#ifdef OS_UNIX
+    gtk_init(NULL,NULL);
+#endif
 
     /* get dir of executable */
     getExeFullPath(dir);
