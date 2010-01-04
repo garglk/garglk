@@ -222,7 +222,7 @@ void getExeFullPath(char *path)
     #ifdef __WIN32__
         exelen = GetModuleFileName(NULL, exepath, sizeof(exepath));
     #endif
-    #ifdef __LINUX__
+    #ifdef __linux__
         exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
     #endif
     #ifdef __APPLE__
