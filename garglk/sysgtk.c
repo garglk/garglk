@@ -39,6 +39,10 @@ static GtkWidget *filedlog;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
+
+#define MaxBuffer 1024
+static int fileselect = 0;
+static char filepath[MaxBuffer];
 static char *filename;
 
 static int timerid = -1;
@@ -82,57 +86,52 @@ void winabort(const char *fmt, ...)
     abort();
 }
 
-static void onokay(GtkFileSelection *widget, void *data)
+void winchoosefile(char *prompt, char *buf, int len, char *filter, GtkFileChooserAction action)
 {
-    strcpy(filename, gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedlog)));
+    filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
+                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                    NULL);
+    if (strlen(buf))
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(filedlog), buf);
+    
+    if (fileselect) {
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), filepath);
+    } else if (getenv("HOME")) {
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), getenv("HOME"));
+    }
+    
+    filename = buf;
+    
+    gint result = gtk_dialog_run(GTK_DIALOG(filedlog));
+    
+    if (result == GTK_RESPONSE_ACCEPT) {
+        strcpy(filename, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(filedlog)));
+        strcpy(filepath, gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog)));
+        fileselect = TRUE;
+    }
+    
+    if (result == GTK_RESPONSE_CANCEL) {
+        strcpy(filename, "");
+    }
+    
     gtk_widget_destroy(filedlog);
     filedlog = NULL;
-    gtk_main_quit(); /* un-recurse back to normal loop */
 }
 
-static void oncancel(GtkFileSelection *widget, void *data)
-{
-    strcpy(filename, "");
-    gtk_widget_destroy(filedlog);
-    filedlog = NULL;
-    gtk_main_quit(); /* un-recurse back to normal loop */
-}
 
 void winopenfile(char *prompt, char *buf, int len, char *filter)
 {
     char realprompt[256];
     sprintf(realprompt, "Open: %s", prompt);
-    filedlog = gtk_file_selection_new(realprompt);
-    if (strlen(buf))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
-    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->ok_button),
-        "clicked", GTK_SIGNAL_FUNC(onokay), NULL);
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
-        "clicked", GTK_SIGNAL_FUNC(oncancel), NULL);
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "delete_event", GTK_SIGNAL_FUNC(oncancel), NULL);
-    filename = buf;
-    gtk_widget_show(filedlog);
-    gtk_main(); /* recurse... */
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN);
 }
 
 void winsavefile(char *prompt, char *buf, int len, char *filter)
 {
     char realprompt[256];
     sprintf(realprompt, "Save: %s", prompt);
-    filedlog = gtk_file_selection_new(realprompt);
-    if (strlen(buf))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->ok_button),
-        "clicked", GTK_SIGNAL_FUNC(onokay), NULL);
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)->cancel_button),
-        "clicked", GTK_SIGNAL_FUNC(oncancel), NULL);
-    gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filedlog)),
-        "delete_event", GTK_SIGNAL_FUNC(oncancel), NULL);
-    filename = buf;
-    gtk_widget_show(filedlog);
-    gtk_main(); /* recurse... */
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE);
 }
 
 void winclipstore(glui32 *text, int len)

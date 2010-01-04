@@ -70,21 +70,22 @@ switch $(OS)
         if $(USESDL)
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
         }
 
     case MACOSX :
-        Echo "OS is MACOSX (gtk+)" ;
+        Echo "OS is MACOSX (cocoa)" ;
+        PKGCONFIG = "pkg-config freetype2 fontconfig" ;
         SUFDLL = .dylib ;
         CCFLAGS = -Wno-pointer-sign ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = -lz ;
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
 
         if $(USESDL)
         {
-            Exit "No SDL on mac yet. Sorry." ;
+            GARGLKCCFLAGS += -I/opt/local/include/SDL ;	
+            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
         }
 
     case * :
@@ -123,6 +124,7 @@ rule UserObject
     switch $(>)
     {
     case *.rc : WindRes $(<) : $(>) ;
+    case *.m : Cc $(<) : $(>) ;
     case * : Echo "unknown suffix on" $(>) ;
     }
 }
