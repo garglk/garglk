@@ -134,7 +134,6 @@ if $(MAKE_FROTZ) = yes
         glkscreen.c glkmisc.c
         ;
 
-    if $(OS) = MACOSX { LINKFLAGS += -headerpad_max_install_names ; }
     APPS += frotz ;
 }
 
