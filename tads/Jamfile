@@ -26,6 +26,11 @@ if $(OS) = LINUX || $(OS) = SOLARIS
         ;
 }
 
+if $(OS) = MACOSX
+{
+    LINKFLAGS += -headerpad_max_install_names ;
+}
+
 SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
 
 SEARCH_SOURCE = [ FDirName $(SUBDIR) tads2 ] ;

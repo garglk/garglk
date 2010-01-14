@@ -47,5 +47,4 @@ cp -f garglk/garglk.ini $BUNDLE/Resources
 cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
 cp -f garglk/Info.plist $BUNDLE
-cp -f garglk/bundle.sh $BUNDLE/MacOS
 
