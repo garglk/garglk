@@ -5,6 +5,7 @@
 BUILD ?= RELEASE ;
 USESDL = yes ;
 BUNDLEFONTS = yes ;
+UNIVERSAL = no ;
 
 CC      = gcc ;
 C++     = g++ ;
@@ -19,6 +20,13 @@ if $(CROSS)
     AR      = i386-mingw32-ar cru ;
     RANLIB  = i386-mingw32-ranlib ;
     LINK    = $(CC) ;
+}
+
+if $(UNIVERSAL) = yes
+{
+    AR = libtool -static -o ;
+    RANLIB = touch -c ;
+    ALTARCH = -arch x86_64 ;
 }
 
 switch $(OS)
@@ -75,12 +83,14 @@ switch $(OS)
 
     case MACOSX :
         Echo "OS is MACOSX (cocoa)" ;
-        PKGCONFIG = "pkg-config freetype2 fontconfig" ;
         SUFDLL = .dylib ;
-        CCFLAGS = -Wno-pointer-sign ;
+        MAINARCH = -arch i386 ;
+        CCFLAGS = -Wno-pointer-sign $(MAINARCH) $(ALTARCH) ;
+        PKGCONFIG = "pkg-config freetype2 fontconfig" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
+        LINK = $(CC) -framework Cocoa -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
 
         if $(USESDL)
         {
