@@ -108,13 +108,17 @@ int os_args(int argc, char **argv)
             strcpy(buf, argv[1]);
             return TRUE;
         }
+        else
+        {
+            return FALSE;
+        }
     #else
     #if defined (OS_MAC)
         NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
         NSString * nsArgv = [[NSApp delegate] argv];
-    
+
         int size = [nsArgv length];
-        
+
         if (size)
         {
             CFStringGetBytes((CFStringRef) nsArgv, CFRangeMake(0, size),
@@ -123,7 +127,7 @@ int os_args(int argc, char **argv)
             int bounds = size < MaxBuffer ? size : MaxBuffer;
             buf[bounds] = '\0';
         }
-        
+
         [pool drain];	
         return size; 
     #endif
@@ -584,7 +588,7 @@ int main(int argc, char **argv)
     char *gamepath;
     char *dirpos;
 
-	os_init();
+    os_init();
 
     /* get dir of executable */
     getExeFullPath(dir);
