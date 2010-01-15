@@ -28,7 +28,8 @@ if $(OS) = LINUX || $(OS) = SOLARIS
 
 if $(OS) = MACOSX
 {
-    LINKFLAGS += -headerpad_max_install_names ;
+    SubDirCcFlags $(MAINARCH) $(ALTARCH) -headerpad_max_install_names ;
+    LINKFLAGS = $(MAINARCH) $(ALTARCH) -headerpad_max_install_names ;
 }
 
 SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
@@ -46,7 +47,7 @@ Library libtads2 :
 SEARCH_SOURCE = [ FDirName $(SUBDIR) tads3 ] ;
 
 Library libtads3 :
-	vmcrc.cpp vmmain.cpp std.cpp std_dbg.cpp charmap.cpp
+	vmcrc.cpp vmmain.cpp std.cpp charmap.cpp
 	resload.cpp resldexe.cpp vminit.cpp vmini_nd.cpp
 	vmconsol.cpp vmconnom.cpp vmconhmp.cpp vminitim.cpp
 	vmcfgmem.cpp vmobj.cpp vmundo.cpp vmtobj.cpp vmpat.cpp

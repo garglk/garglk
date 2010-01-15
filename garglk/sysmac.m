@@ -99,7 +99,7 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     if ([openDlg runModal] == NSFileHandlingPanelOKButton)
     {
         NSString * fileref = [openDlg filename];
-        int size = CFStringGetLength((CFStringRef) fileref);
+        int size = [fileref length];
         
         CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
                          kCFStringEncodingASCII, 0, FALSE,
@@ -128,7 +128,7 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
     {
         NSString * fileref = [saveDlg filename];
-        int size = CFStringGetLength((CFStringRef) fileref);
+        int size = [fileref length];
 
         CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
                          kCFStringEncodingASCII, 0, FALSE,
@@ -175,7 +175,7 @@ void winclipreceive(void)
         NSString * input = [clipboard stringForType: NSStringPboardType];
         if (input)
         {
-            len = CFStringGetLength((CFStringRef) input);
+            len = [input length];
             for (i=0; i < len; i++)
             {
                 if (CFStringGetBytes((CFStringRef) input, CFRangeMake(i, 1),
@@ -256,6 +256,7 @@ void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [NSApplication sharedApplication];
+    [NSApp activateIgnoringOtherApps: YES];
     [pool drain];
 }
 
@@ -274,8 +275,9 @@ void winopen(void)
                                          styleMask: style
                                            backing: NSBackingStoreBuffered
                                              defer: NO];
-    [window setContentMinSize: limit];
+    [window setContentMinSize: limit];	
     [window makeKeyAndOrderFront: window];
+    [window center];
     [window setReleasedWhenClosed: NO];
     wintitle();
     winresize([[window contentView] bounds]);
@@ -366,7 +368,7 @@ void winkey(NSEvent *evt)
                 case NSKEY_LEFT  : gli_input_handle_key(keycode_Home);     return;
                 case NSKEY_RIGHT : gli_input_handle_key(keycode_End);      return;
                 case NSKEY_DOWN  : gli_input_handle_key(keycode_PageDown); return;
-                case NSKEY_UP    : gli_input_handle_key(keycode_PageUp);   return;					
+                case NSKEY_UP    : gli_input_handle_key(keycode_PageUp);   return;
                 default: break;
             }
         }
@@ -441,10 +443,9 @@ void winkey(NSEvent *evt)
     /* convert character to UTF-32 value */
     glui32 ch;
     if (CFStringGetBytes((CFStringRef) evt_char,
-                         CFRangeMake(0, CFStringGetLength((CFStringRef) evt_char)),
+                         CFRangeMake(0, [evt_char length]),
                          kCFStringEncodingUTF32, 0, FALSE,
                          (char *)&ch, 4, NULL)) {
-        //NSLog(@"result = %u", ch);
         switch (ch)
         {
             case '\n': gli_input_handle_key(keycode_Return); break;

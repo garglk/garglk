@@ -22,17 +22,7 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
-
-#include "glk.h"
-#include "glkstart.h"
-#include "gi_blorb.h"
-#include "garversion.h"
+#include "launcher.h"
 
 #define T_ADRIFT    "scare"
 #define T_ADVSYS    "advsys"
@@ -55,45 +45,6 @@
 
 const char * AppName = "Gargoyle " VERSION;
 
-/* Detect OS */
-#ifdef __WIN32__
-        #define OS_WINDOWS
-#else
-    #ifdef _Windows
-        #define OS_WINDOWS
-    #else
-        #ifdef __Windows
-            #define OS_WINDOWS
-        #endif
-    #endif
-#endif
-
-#ifdef __linux__
-        #define OS_UNIX
-#else
-        #ifdef __unix__
-                #define OS_UNIX
-        #endif
-#endif
-
-/* Check OS detected */
-#ifndef OS_WINDOWS
-#ifndef OS_UNIX
-        #error "Compilation stopped. No SO found."
-#endif
-#endif
-
-/* Include required headers for GUI */
-#ifdef OS_WINDOWS
-    #include <windows.h>
-    #include <commdlg.h>
-#else
-#ifdef OS_UNIX
-    #include <gtk/gtk.h>
-    #include <unistd.h>
-#endif
-#endif
-
 #define MaxBuffer 1024
 char dir[MaxBuffer];
 char buf[MaxBuffer];
@@ -101,12 +52,12 @@ char tmp[MaxBuffer];
 
 static char *terp = NULL;
 
-#ifdef OS_WINDOWS
+#if defined (OS_WINDOWS)
     static const char * LaunchingTemplate = "\"%s\\%s.exe\" %s \"%s\"";
     static const char * DirSeparator = "\\";
 #else
-#ifdef OS_UNIX
-    static const char * LaunchingTemplate = "\"%s/%s\" %s \"%s\"";
+#if defined (OS_UNIX) || defined (OS_MAC)
+    static const char * LaunchingTemplate = "%s/%s";
     static const char * DirSeparator = "/";
 #endif
 #endif
@@ -130,12 +81,61 @@ char filterlist[] =
 "\0\0";
 
 /* OS-dependent functions -------------------------------------------------- */
+void os_init(void)
+{
+#if defined (OS_UNIX)
+    gtk_init(NULL, NULL);
+#else
+#if defined (OS_MAC)
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    [NSApplication sharedApplication];
+    [NSApp setDelegate:[[nsDelegate alloc] init]];
+    [NSApp finishLaunching];
+    [NSApp nextEventMatchingMask: NSAnyEventMask 
+                       untilDate: [NSDate distantPast] 
+                          inMode: NSDefaultRunLoopMode 
+                         dequeue: YES];	
+    [pool drain];
+#endif
+#endif
+}
+
+int os_args(int argc, char **argv)
+{
+    #if defined (OS_WINDOWS) || defined (OS_UNIX)
+        if (argc == 2)
+        {
+            strcpy(buf, argv[1]);
+            return TRUE;
+        }
+    #else
+    #if defined (OS_MAC)
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        NSString * nsArgv = [[NSApp delegate] argv];
+    
+        int size = [nsArgv length];
+        
+        if (size)
+        {
+            CFStringGetBytes((CFStringRef) nsArgv, CFRangeMake(0, size),
+                             kCFStringEncodingASCII, 0, FALSE,
+                             buf, MaxBuffer, NULL);
+            int bounds = size < MaxBuffer ? size : MaxBuffer;
+            buf[bounds] = '\0';
+        }
+        
+        [pool drain];	
+        return size; 
+    #endif
+    #endif
+}
+
 void showMessageBoxError(const char * msg)
 {
-    #ifdef OS_WINDOWS
+    #if defined (OS_WINDOWS)
         MessageBox(NULL, msg, AppName, MB_ICONERROR);
     #else
-    #ifdef OS_UNIX
+    #if defined (OS_UNIX)
         GtkWidget * msgDlg = gtk_message_dialog_new(NULL,
                                              GTK_DIALOG_MODAL,
                                              GTK_MESSAGE_ERROR,
@@ -146,6 +146,14 @@ void showMessageBoxError(const char * msg)
         gtk_window_set_title(GTK_WINDOW(msgDlg), AppName);
         gtk_dialog_run(GTK_DIALOG(msgDlg ));
         gtk_widget_destroy(msgDlg);
+    #else
+    #if defined (OS_MAC)
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+        NSString * nsMsg = [[NSString alloc] initWithCString: msg encoding: NSASCIIStringEncoding];
+        NSRunAlertPanel(@"Fatal error", nsMsg, NULL, NULL, NULL);
+        [nsMsg release];
+        [pool drain];
+    #endif
     #endif
     #endif
 }
@@ -155,7 +163,7 @@ bool askFileName(char * buffer, int maxBuffer)
     char *title = "Gargoyle " VERSION;
     *buffer = 0;
 
-    #ifdef OS_WINDOWS
+    #if defined (OS_WINDOWS)
         OPENFILENAME ofn;
 
         memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -170,7 +178,7 @@ bool askFileName(char * buffer, int maxBuffer)
 
         return GetOpenFileName(&ofn);
     #else
-    #ifdef OS_UNIX
+    #if defined (OS_UNIX)
         GtkWidget * openDlg = gtk_file_chooser_dialog_new(AppName, NULL,
                                                           GTK_FILE_CHOOSER_ACTION_OPEN,
                                                           GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -182,25 +190,54 @@ bool askFileName(char * buffer, int maxBuffer)
 
         gint result = gtk_dialog_run(GTK_DIALOG(openDlg));
 
-        if (result == GTK_RESPONSE_ACCEPT) {
+        if (result == GTK_RESPONSE_ACCEPT)
             strcpy(buffer, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDlg)));
-        }
+
         gtk_widget_destroy(openDlg);
         gdk_flush();
 
         return (*buffer != 0);
+    #else
+    #if defined (OS_MAC)
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
+        NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+        [openDlg setCanChooseFiles: YES];
+        [openDlg setCanChooseDirectories: NO];
+        [openDlg setAllowsMultipleSelection: NO];
+    
+        NSString * nsTitle = [[NSString alloc] initWithCString: title encoding: NSASCIIStringEncoding];
+        [openDlg setTitle: nsTitle];
+        [nsTitle release];
+
+        if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+        {
+            NSString * fileref = [openDlg filename];
+            int size = [fileref length];
+
+            CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
+                             kCFStringEncodingASCII, 0, FALSE,
+                             buffer, maxBuffer, NULL);
+        
+            int bounds = size < maxBuffer ? size : maxBuffer;
+            buffer[bounds] = '\0';
+        }
+
+        [pool drain];
+        return (*buffer != 0);
+    #endif
     #endif
     #endif
 }
 
 char * getCurrentWorkingDirectory(char *buffer, int maxBuffer)
 {
-    #ifdef OS_WINDOWS
+    #if defined (OS_WINDOWS)
         if( !GetCurrentDirectory( maxBuffer, buffer ) ) {
             *buffer = 0;
         }
     #else
-    #ifdef OS_UNIX
+    #if defined (OS_UNIX) || defined (OS_MAC)
         if ( getcwd( buffer, maxBuffer ) == NULL ) {
             *buffer = 0;
         }
@@ -219,17 +256,19 @@ void getExeFullPath(char *path)
     char exepath[MaxBuffer] = {0};
     unsigned int exelen;
 
-    #ifdef __WIN32__
+    #if defined (OS_WINDOWS)
         exelen = GetModuleFileName(NULL, exepath, sizeof(exepath));
-    #endif
-    #ifdef __linux__
+    #else
+    #if defined (OS_UNIX)
         exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
-    #endif
-    #ifdef __APPLE__
+    #else
+    #if defined (OS_MAC)
         char tmppath[MaxBuffer] = {0};
         exelen = sizeof(tmppath);
         _NSGetExecutablePath(tmppath, &exelen);
         exelen = (realpath(tmppath, exepath) != NULL);
+    #endif
+    #endif
     #endif
 
    if (exelen <= 0 || exelen >= MaxBuffer)
@@ -239,9 +278,9 @@ void getExeFullPath(char *path)
    return;
 }
 
-bool exec(const char *cmd)
+bool exec(const char *cmd, char **args)
 {
-    #ifdef OS_WINDOWS
+    #if defined (OS_WINDOWS)
         STARTUPINFO si;
         PROCESS_INFORMATION pi;
         int res;
@@ -268,8 +307,32 @@ bool exec(const char *cmd)
 
         return (res != 0);
     #else
-    #ifdef OS_UNIX
-        return (system(cmd)==0);
+    #if defined (OS_UNIX)	
+        return (execv(cmd, args) == 0);
+    #else
+    #if defined (OS_MAC)
+        NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];	
+        NSTask * proc = [[NSTask alloc] init];
+    
+        NSString * nsCmd = [[NSString alloc] initWithCString: cmd encoding: NSASCIIStringEncoding];
+        NSMutableArray * nsArgs = [NSMutableArray arrayWithCapacity:2];
+
+        if (args[1])
+            [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSASCIIStringEncoding]];
+
+        if (args[2])
+            [nsArgs addObject: [[NSString alloc] initWithCString: args[2] encoding: NSASCIIStringEncoding]];
+    
+        if ([nsCmd length] && [nsArgs count])
+        {
+            [proc setLaunchPath: nsCmd];
+            [proc setArguments: nsArgs];
+            [proc launch];
+        }
+        
+        [pool drain];
+        return [proc isRunning];
+    #endif
     #endif
     #endif
 }
@@ -292,9 +355,28 @@ void cleanAndExit(int exitCode)
 
 void runterp(char *exe, char *flags)
 {
-    sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
+    char *args[] = {NULL, NULL, NULL};
+    
+    #if defined (OS_WINDOWS)
+        sprintf(tmp, LaunchingTemplate, dir, exe, flags, buf);
+    #else
+    #if defined (OS_UNIX) || defined (OS_MAC)
+        sprintf(tmp, LaunchingTemplate, dir, exe);
+        if (strstr(flags, "-"))
+        {
+            args[0] = exe;
+            args[1] = flags;
+            args[2] = buf;
+        }
+        else
+        {
+            args[0] = exe;
+            args[1] = buf;
+        }
+    #endif
+    #endif
 
-    if (!exec(tmp)) {
+    if (!exec(tmp, args)) {
         showMessageBoxError("Could not start 'terp.\nSorry.");
         cleanAndExit(EXIT_FAILURE);
     }
@@ -502,9 +584,7 @@ int main(int argc, char **argv)
     char *gamepath;
     char *dirpos;
 
-#ifdef OS_UNIX
-    gtk_init(NULL,NULL);
-#endif
+	os_init();
 
     /* get dir of executable */
     getExeFullPath(dir);
@@ -513,11 +593,7 @@ int main(int argc, char **argv)
         *dirpos = '\0';
     }
 
-    if (argc == 2)
-    {
-        strcpy(buf, argv[1]);
-    }
-    else
+    if (!os_args(argc, argv))
     {
         if (!askFileName(buf,sizeof(buf))) {
             strcpy(buf, "");

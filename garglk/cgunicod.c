@@ -13,8 +13,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <malloc.h>
 #include <memory.h>
+
 #include "glk.h"
 #include "garglk.h"
 

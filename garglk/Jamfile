@@ -42,11 +42,13 @@ if $(OS) = MINGW { GARGSRCS += syswin.c icons.rc ; }
 else if $(OS) = MACOSX { GARGSRCS += sysmac.m ; }
 else { GARGSRCS += sysgtk.c ; }
 
-Main gargoyle : launcher.c ;
-SharedLinkLibraries gargoyle : libgarglk ;
+if $(OS) = MACOSX { Main gargoyle : launcher.m ; }
+else { Main gargoyle : launcher.c ; }
 
 Library libgarglkmain : main.c ;
 SharedLibrary libgarglk : $(GARGSRCS) ;
+
+SharedLinkLibraries gargoyle : libgarglk ;
 
 if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL)
 {
