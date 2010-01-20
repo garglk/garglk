@@ -42,8 +42,9 @@ if $(OS) = MINGW { GARGSRCS += syswin.c icons.rc ; }
 else if $(OS) = MACOSX { GARGSRCS += sysmac.m ; }
 else { GARGSRCS += sysgtk.c ; }
 
-if $(OS) = MACOSX { Main gargoyle : launcher.m ; }
-else { Main gargoyle : launcher.c ; }
+if $(OS) = MINGW { Main gargoyle : launchwin.c launcher.c ; }
+else if $(OS) = MACOSX { Main gargoyle : launchmac.m launcher.c ; }
+else { Main gargoyle : launchgtk.c launcher.c ; }
 
 Library libgarglkmain : main.c ;
 SharedLibrary libgarglk : $(GARGSRCS) ;
