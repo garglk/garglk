@@ -49,7 +49,7 @@
 #define MaxBuffer 1024
 char tmp[MaxBuffer];
 
-void runblorb(char *path, char *game)
+int runblorb(char *path, char *game)
 {
     char magic[4];
     strid_t file;
@@ -62,20 +62,20 @@ void runblorb(char *path, char *game)
     file = glkunix_stream_open_pathname(game, 0, 0);
     if (!file) {
         winmsg(tmp);
-        exit(EXIT_FAILURE);
+        return FALSE;
     }
 
     err = giblorb_create_map(file, &map);
     if (err) {
         winmsg(tmp);
-        exit(EXIT_FAILURE);
+        return FALSE;
     }
 
     err = giblorb_load_resource(map, giblorb_method_FilePos,
             &res, giblorb_ID_Exec, 0);
     if (err) {
         winmsg(tmp);
-        exit(EXIT_FAILURE);
+        return FALSE;
     }
 
     glk_stream_set_position(file, res.data.startpos, 0);
@@ -85,23 +85,24 @@ void runblorb(char *path, char *game)
     {
     case ID_ZCOD:
         if (magic[0] == 6)
-            winterp(path, T_ZSIX, "", game);
+            return winterp(path, T_ZSIX, "", game);
         else
-            winterp(path, T_ZCODE, "", game);
+            return winterp(path, T_ZCODE, "", game);
         break;
 
     case ID_GLUL:
-            winterp(path, T_GLULX, "", game);
+            return winterp(path, T_GLULX, "", game);
         break;
 
     default:
         sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", game);
         winmsg(tmp);
-        exit(EXIT_FAILURE);
     }
+    
+    return FALSE;
 }
 
-void rungame(char *path, char *game)
+int rungame(char *path, char *game)
 {
     char *ext = strrchr(game, '.');
 
@@ -111,86 +112,88 @@ void rungame(char *path, char *game)
         ext = "";
 
     if (!strcasecmp(ext, "blb"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "blorb"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "glb"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "gbl"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "gblorb"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "zlb"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "zbl"))
-        runblorb(path, game);
+        return runblorb(path, game);
     if (!strcasecmp(ext, "zblorb"))
-        runblorb(path, game);
+        return runblorb(path, game);
 
     if (!strcasecmp(ext, "dat"))
-        winterp(path, T_ADVSYS, "", game);
+        return winterp(path, T_ADVSYS, "", game);
 
     if (!strcasecmp(ext, "d$$"))
-        winterp(path, T_AGT, "-gl", game);
+        return winterp(path, T_AGT, "-gl", game);
     if (!strcasecmp(ext, "agx"))
-        winterp(path, T_AGT, "-gl", game);
+        return winterp(path, T_AGT, "-gl", game);
 
     if (!strcasecmp(ext, "acd"))
-        winterp(path, T_ALAN2, "", game);
+        return winterp(path, T_ALAN2, "", game);
 
     if (!strcasecmp(ext, "a3c"))
-        winterp(path, T_ALAN3, "", game);
+        return winterp(path, T_ALAN3, "", game);
 
     if (!strcasecmp(ext, "taf"))
-        winterp(path, T_ADRIFT, "", game);
+        return winterp(path, T_ADRIFT, "", game);
 
     if (!strcasecmp(ext, "ulx"))
-        winterp(path, T_GLULX, "", game);
+        return winterp(path, T_GLULX, "", game);
 
     if (!strcasecmp(ext, "hex"))
-        winterp(path, T_HUGO, "", game);
+        return winterp(path, T_HUGO, "", game);
 
     if (!strcasecmp(ext, "jacl"))
-        winterp(path, T_JACL, "", game);
+        return winterp(path, T_JACL, "", game);
     if (!strcasecmp(ext, "j2"))
-        winterp(path, T_JACL, "", game);
+        return winterp(path, T_JACL, "", game);
 
     if (!strcasecmp(ext, "gam"))
-        winterp(path, T_TADS2, "", game);
+        return winterp(path, T_TADS2, "", game);
 
     if (!strcasecmp(ext, "t3"))
-        winterp(path, T_TADS3, "", game);
+        return winterp(path, T_TADS3, "", game);
 
     if (!strcasecmp(ext, "z1"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z2"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z3"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z4"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z5"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z7"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z8"))
-        winterp(path, T_ZCODE, "", game);
+        return winterp(path, T_ZCODE, "", game);
 
     if (!strcasecmp(ext, "z6"))
-        winterp(path, T_ZSIX, "", game);
+        return winterp(path, T_ZSIX, "", game);
 
     if (!strcasecmp(ext, "l9"))
-        winterp(path, T_LEV9, "", game);
+        return winterp(path, T_LEV9, "", game);
     if (!strcasecmp(ext, "sna"))
-        winterp(path, T_LEV9, "", game);
+        return winterp(path, T_LEV9, "", game);
     if (!strcasecmp(ext, "mag"))
-        winterp(path, T_MGSR, "", game);
+        return winterp(path, T_MGSR, "", game);
 
     if (!strcasecmp(ext, "asl"))
-        winterp(path, T_QUEST, "", game);
+        return winterp(path, T_QUEST, "", game);
     if (!strcasecmp(ext, "cas"))
-        winterp(path, T_QUEST, "", game);
+        return winterp(path, T_QUEST, "", game);
 
     sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     winmsg(tmp);
+    
+    return FALSE;
 }

@@ -31,11 +31,10 @@
 
 extern void wininit(void);
 extern void winmsg(const char *msg);
-extern bool winargs(int argc, char **argv, char *buffer);
 extern void winopenfile(char *buffer);
 extern void winpath(char *buffer);
-extern bool winexec(const char *cmd, char **args);
-extern void winterp(char *path, char *exe, char *flags, char *game);
-extern void runblorb(char *path, char *game);
-extern void rungame(char *path, char *game);
-
+extern int winargs(int argc, char **argv, char *buffer);
+extern int winexec(const char *cmd, char **args);
+extern int winterp(char *path, char *exe, char *flags, char *game);
+extern int runblorb(char *path, char *game);
+extern int rungame(char *path, char *game);
