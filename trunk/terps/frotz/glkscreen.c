@@ -231,6 +231,8 @@ void packspaces(zchar *src, zchar *dst)
 	int killing = 0;
 	while (*src)
 	{
+		if (*src == 0x20202020)
+			*src = ' ';
 		if (*src == ' ')
 			killing++;
 		else
@@ -289,8 +291,8 @@ void smartstatusline (void)
 	for (tmp = 0; tmp < h_screen_cols; tmp++)
 		buf[tmp] = ' ';
 
-	memcpy(buf + 1 + scoreofs, c, scorelen);
-	memcpy(buf + 1, a, roomlen);
+	memcpy(buf + 1 + scoreofs, c, scorelen * sizeof(zchar));
+	memcpy(buf + 1, a, roomlen * sizeof(zchar));
 	//if (roomlen >= scoreofs)
 	//	buf[roomlen + 1] = '|';
 
