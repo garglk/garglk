@@ -28,6 +28,8 @@
 	<string>Copyright 2010. GNU General Public License.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.4</string>
+	<key>LSUIElement</key>
+	<string>1</string>    
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -59,7 +59,7 @@ void winmsg(const char * msg)
     gtk_widget_destroy(msgDlg);
 }
 
-bool winargs(int argc, char **argv, char *buffer)
+int winargs(int argc, char **argv, char *buffer)
 {
     if (argc == 2)
     {
@@ -99,7 +99,7 @@ void winpath(char *buffer)
     exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
 
     if (exelen <= 0 || exelen >= MaxBuffer) {
-        winmsg( "FATAL: Unable to locate executable path" );
+        winmsg("Unable to locate executable path");
         exit(EXIT_FAILURE);
     }
 
@@ -112,12 +112,12 @@ void winpath(char *buffer)
    return;
 }
 
-bool winexec(const char *cmd, char **args)
+int winexec(const char *cmd, char **args)
 {
     return (execv(cmd, args) == 0);
 }
 
-void winterp(char *path, char *exe, char *flags, char *game)
+int winterp(char *path, char *exe, char *flags, char *game)
 {
     sprintf(tmp, LaunchingTemplate, path, exe);
 
@@ -137,10 +137,10 @@ void winterp(char *path, char *exe, char *flags, char *game)
 
     if (!winexec(tmp, args)) {
         winmsg("Could not start 'terp.\nSorry.");
-        exit(EXIT_FAILURE);
+        return FALSE;
     }
 
-    exit(EXIT_SUCCESS);
+    return TRUE;
 }
 
 int main(int argc, char **argv)
@@ -155,10 +155,8 @@ int main(int argc, char **argv)
         winopenfile(buf);
 
     if (!strlen(buf))
-        exit(EXIT_SUCCESS);
+        return TRUE;
 
     /* run story file */
-    rungame(dir, buf);
-
-    return EXIT_FAILURE;
+    return rungame(dir, buf);
 }
