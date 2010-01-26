@@ -23,9 +23,14 @@ install_name_tool -change @executable_path/libgarglk.dylib @executable_path/../F
 done
 install_name_tool -id @executable_path/../Frameworks/libgarglk.dylib $GARGDIST/libgarglk.dylib
 
-for file in `ls $GARGDIST | grep -v .dylib`
+for file in `ls $GARGDIST | grep -v .dylib | grep -v gargoyle`
 do
-cp -f $GARGDIST/$file $BUNDLE/MacOS
+TERPDIR=$BUNDLE/Interpreters/$file.app/Contents
+mkdir -p $TERPDIR/MacOS
+cp -f $GARGDIST/$file $TERPDIR/MacOS
+ln -s ../../../Frameworks $TERPDIR/Frameworks
+ln -s ../../../Resources $TERPDIR/Resources
+cat garglk/interpreter.plist | sed "s/INTERPRETER/$file/g" > $TERPDIR/Info.plist
 done
 
 for lib in `cat $DYLIBS`
@@ -46,5 +51,7 @@ cp -f $GARGDIST/libgarglk.dylib $BUNDLE/Frameworks
 cp -f garglk/garglk.ini $BUNDLE/Resources
 cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
-cp -f garglk/Info.plist $BUNDLE
+
+cp -f garglk/launcher.plist $BUNDLE/Info.plist
+cp -f $GARGDIST/gargoyle $BUNDLE/MacOS
 

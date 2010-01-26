@@ -37,11 +37,67 @@ static NSString * cliptext = NULL;
 static NSPasteboard * clipboard = NULL;
 
 static int statusbar = 20;
+static int launchPID = 0;
 
 static int timeouts = 0;
 static int timerid = -1;
 
 static int gli_refresh_needed = TRUE;
+static int gli_window_hidden = FALSE;
+
+@interface GargoyleTerp : NSObject
+{
+}
+@end
+
+@implementation GargoyleTerp
+
+- (id) init
+{
+    [[NSDistributedNotificationCenter defaultCenter] addObserver: self
+                                                        selector: @selector(receive:)
+                                                            name: NULL
+                                                          object: @"com.googlecode.garglk"];
+    return [super init];
+}
+
+- (void) send: (NSString *) message
+{
+    if ([message length])
+    {
+        [[NSDistributedNotificationCenter defaultCenter] postNotificationName: message
+                                                                       object: @"com.googlecode.garglk"
+                                                                     userInfo: NULL
+                                                           deliverImmediately: YES];
+    }
+
+}
+
+- (void) receive: (NSNotification *) message
+{
+    if ([[message name] isEqualToString: @"QUIT"])
+    {
+        exit(0);
+    }
+
+    if ([[message name] isEqualToString: @"HIDE"])
+    {
+        [window orderOut:self];
+        gli_window_hidden = TRUE;
+    }
+
+    if ([[message name] isEqualToString: @"SHOW"])
+    {
+        ProcessSerialNumber psnt = { 0, kCurrentProcess };
+        SetFrontProcess(&psnt);
+        [window makeKeyAndOrderFront: window];
+        gli_window_hidden = FALSE;
+    }
+}
+
+@end
+
+GargoyleTerp * gargoyle;
 
 void glk_request_timer_events(glui32 millisecs)
 {
@@ -255,8 +311,10 @@ void winresize(NSRect viewRect)
 void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    gargoyle = [[GargoyleTerp alloc] init];
     [NSApplication sharedApplication];
     [NSApp activateIgnoringOtherApps: YES];
+    [NSApp setDelegate: gargoyle];
     [pool drain];
 }
 
@@ -287,6 +345,14 @@ void winopen(void)
 
     /* set up the clipboard object */
     clipboard = [NSPasteboard generalPasteboard];
+    
+    /* find launcher PID */
+    if (getenv("GARGOYLEPID"))
+    {
+        NSString * nsPID = [[NSString alloc] initWithCString: getenv("GARGOYLEPID") encoding: NSASCIIStringEncoding];
+        launchPID = [nsPID intValue];
+        [nsPID release];
+    }
 
     [pool drain];
 }
@@ -458,6 +524,21 @@ void winkey(NSEvent *evt)
     [[[textbuf textStorage] mutableString] setString: @""];
 }
 
+void winfocus(void)
+{
+    /* move launcher to front */
+    ProcessSerialNumber psnl;
+    GetProcessForPID(launchPID, &psnl);
+    SetFrontProcess(&psnl);
+
+    /* move terp to front */
+    ProcessSerialNumber psnt = { 0, kCurrentProcess };
+    SetFrontProcess(&psnt);
+
+    /* make this window key */
+    [window makeKeyAndOrderFront: window];
+}
+
 void winmouse(NSEvent *evt)
 {
     NSPoint coords = [[window contentView] convertPoint: [evt locationInWindow]
@@ -466,17 +547,18 @@ void winmouse(NSEvent *evt)
     int y = (gli_image_h + statusbar) - coords.y;
 
     /* disregard events outside of content window */
-    if (coords.y < statusbar || y < 0 || x < 0)
+    if (coords.y < statusbar || y < 0 || x < 0 || x > gli_image_w)
     {
+        winfocus();
         [NSApp sendEvent: evt];
-        return;	
+        return;
     }
 
     switch ([evt type])
     {
         case NSLeftMouseDown:
         {
-            [window makeKeyAndOrderFront: window];
+            winfocus();
             gli_input_handle_click(x, y);
             break;
         }
@@ -511,7 +593,7 @@ void winmouse(NSEvent *evt)
         case NSRightMouseDown:
         case NSOtherMouseDown:
         {
-            [window makeKeyAndOrderFront: window];
+            winfocus();
             break;
         }
 
@@ -525,11 +607,11 @@ void winmouse(NSEvent *evt)
 void winevent(NSEvent *evt)
 {
     /* window was closed */
-    if (![window isVisible] && ![window isMiniaturized] && ![NSApp isHidden])
-        exit(1);
+    if (![window isVisible] && ![window isMiniaturized] && !gli_window_hidden)
+        exit(0);
 
     /* window was minimized or hidden */
-    if (![window isVisible] && ([window isMiniaturized] || [NSApp isHidden]))
+    if (![window isVisible] && ([window isMiniaturized] || gli_window_hidden))
         gli_refresh_needed = TRUE;
 
     /* window was moved between screens */
