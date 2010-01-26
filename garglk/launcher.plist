@@ -9,27 +9,25 @@
 	<key>CFBundleName</key>
 	<string>Gargoyle</string>
 	<key>CFBundleGetInfoString</key>
-	<string>2010-01-25</string>
+	<string>2010.1</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleIconFile</key>
 	<string>house.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.googlecode.garglk</string>
+	<string>com.googlecode.garglk.Launcher</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2010.01.25</string>
+	<string>2010.1</string>
 	<key>CFBundleVersion</key>
-	<string>2010.01.25</string>
+	<string>2010.1</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2010. GNU General Public License.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.4</string>
-	<key>LSUIElement</key>
-	<string>1</string>    
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -39,7 +39,9 @@ char filterlist[] = "";
 
 @interface GargoyleApp : NSObject
 {
-    BOOL selectedFile;
+    BOOL selected;
+    char pidbuf[11];
+    NSMutableArray * children; 
 }
 @end
 
@@ -47,8 +49,44 @@ char filterlist[] = "";
 
 - (id) init
 {
-    selectedFile = NO;  
+    /* set internal variables */
+    selected = NO;   
+    children = [NSMutableArray arrayWithCapacity:1];
+
+    /* set environment variables */
+    sprintf(pidbuf,"%d", [[NSProcessInfo processInfo] processIdentifier]);
+    setenv("GARGOYLEPID", pidbuf, TRUE);
+
+    /* listen for dispatched notifications */
+    [[NSDistributedNotificationCenter defaultCenter] addObserver: self
+                                                        selector: @selector(receive:)
+                                                            name: NULL
+                                                          object: @"com.googlecode.garglk"];
+
     return [super init]; 
+}
+
+- (void) send: (NSString *) message
+{
+    if ([message length])
+    {
+        [[NSDistributedNotificationCenter defaultCenter] postNotificationName: message
+                                                                       object: @"com.googlecode.garglk"
+                                                                     userInfo: NULL
+                                                           deliverImmediately: YES];
+    }
+
+}
+
+- (void) receive: (NSNotification *) message
+{
+
+}
+
+- (void) addChild: (int) PID
+{
+    if (PID)
+        [children addObject:[NSNumber numberWithInt: PID]];
 }
 
 - (BOOL) launchFile: (NSString *) file
@@ -73,14 +111,14 @@ char filterlist[] = "";
 
 - (BOOL) application: (NSApplication *) theApplication openFile: (NSString *) file
 {
-    selectedFile = YES;
+    selected = YES;
 
     return [self launchFile:file];
 }
 
 - (BOOL) application: (NSApplication *) theApplication openFiles: (NSArray *) files
 {
-    selectedFile = YES;
+    selected = YES;
 
     BOOL result = YES;
     int i;
@@ -95,12 +133,12 @@ char filterlist[] = "";
 
 - (BOOL) applicationShouldOpenUntitledFile: (NSApplication *) sender
 {
-    return (!selectedFile);
+    return (!selected);
 }
 
 - (BOOL) applicationOpenUntitledFile: (NSApplication *) theApplication
 {
-    selectedFile = YES;
+    selected = YES;
 
     NSOpenPanel * openDlg = [NSOpenPanel openPanel];
     [openDlg setCanChooseFiles: YES];
@@ -119,16 +157,25 @@ char filterlist[] = "";
     return NO;
 }
 
-- (void) showDockIcon
+- (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
-    ProcessSerialNumber psn = { 0, kCurrentProcess }; 
-    OSStatus returnCode = TransformProcessType(& psn, kProcessTransformToForegroundApplication);
-    ProcessSerialNumber psnx = { 0, kNoProcess };
-    GetNextProcess(&psnx);
-    SetFrontProcess(&psnx);
+    [self send: @"QUIT"];
+    return NSTerminateNow;
+}
+
+- (void) applicationWillHide: (NSNotification *) aNotification
+{
+    [self send: @"HIDE"];
+}
+
+- (void) applicationWillUnhide: (NSNotification *) aNotification
+{
+    [self send: @"SHOW"];
 }
 
 @end
+
+GargoyleApp * gargoyle;
 
 void winmsg(const char *msg)
 {
@@ -144,11 +191,11 @@ void winpath(char *buffer)
 
     exelen = sizeof(tmp);
     _NSGetExecutablePath(tmp, &exelen);
-    exelen = (realpath(tmp, exepath) != NULL);    
+    exelen = (realpath(tmp, exepath) != NULL);
 
-    if (exelen <= 0 || exelen >= MaxBuffer) {
+    if (exelen <= 0 || exelen >= MaxBuffer)
+    {
         winmsg("Unable to locate executable path");
-
     }
 
     strcpy(buffer, exepath);
@@ -162,7 +209,13 @@ int winexec(const char *cmd, char **args)
 {
     NSTask * proc = [[NSTask alloc] init];
 
-    NSString * nsCmd = [[NSString alloc] initWithCString: cmd encoding: NSASCIIStringEncoding];
+    /* prepare interpreter path */
+    NSArray * nsArray = [[[NSString alloc] initWithCString: cmd encoding: NSASCIIStringEncoding] componentsSeparatedByString: @"/"];
+    NSString * nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
+    NSString * nsPath = [[NSWorkspace sharedWorkspace] fullPathForApplication: @"Gargoyle"];
+    NSString * nsCmd = [NSString stringWithFormat: @"%@/%@/%@%@/%@/%@", nsPath, @"Contents/Interpreters", nsTerp, @".app", @"Contents/MacOS", nsTerp];
+
+    /* prepare interpreter arguments */
     NSMutableArray * nsArgs = [NSMutableArray arrayWithCapacity:2];
 
     if (args[1])
@@ -177,6 +230,8 @@ int winexec(const char *cmd, char **args)
         [proc setArguments: nsArgs];
         [proc launch];
     }
+
+    [gargoyle addChild: [proc processIdentifier]];
 
     return [proc isRunning];
 }
@@ -210,15 +265,11 @@ int winterp(char *path, char *exe, char *flags, char *game)
 int main (int argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
-    GargoyleApp * gargoyle = [[GargoyleApp alloc] init];
-    [gargoyle showDockIcon];
-
+    gargoyle = [[GargoyleApp alloc] init];
     [NSApplication sharedApplication];
-    [NSApp activateIgnoringOtherApps:TRUE];
+    [NSApp activateIgnoringOtherApps: YES];
     [NSApp setDelegate: gargoyle];
     [NSApp finishLaunching];
     [NSApp run];
-
     [pool drain];
 }
