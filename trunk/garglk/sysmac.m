@@ -70,7 +70,6 @@ static int gli_window_hidden = FALSE;
                                                                      userInfo: NULL
                                                            deliverImmediately: YES];
     }
-
 }
 
 - (void) receive: (NSNotification *) message
@@ -394,6 +393,8 @@ void winrefresh(void)
 #define NSKEY_X		0x07
 #define NSKEY_C		0x08
 #define NSKEY_V		0x09
+#define NSKEY_Q		0x0c
+#define NSKEY_W		0x0d
 
 #define NSKEY_PGUP	0x74
 #define NSKEY_PGDN	0x79
@@ -453,7 +454,7 @@ void winkey(NSEvent *evt)
         }
     }
 
-    /* check for copy and paste */
+    /* check for menu commands */
     if ([evt modifierFlags] & NSCommandKeyMask)
     {
         switch ([evt keyCode])
@@ -464,13 +465,25 @@ void winkey(NSEvent *evt)
                 winclipsend();
                 return;
             }
-                
+
             case NSKEY_V:
             {
                 winclipreceive();
                 return;
             }
-                
+
+            case NSKEY_W:
+            {
+                [gargoyle send: @"PROMOTE"];
+                exit(0);
+            }
+
+            case NSKEY_Q:
+            {
+                [gargoyle send: @"QUIT"];
+                exit(0);
+            }
+
             default: break;
         }
     }
@@ -497,12 +510,12 @@ void winkey(NSEvent *evt)
         case NSKEY_F10  : gli_input_handle_key(keycode_Func10);   return;
         case NSKEY_F11  : gli_input_handle_key(keycode_Func11);   return;
         case NSKEY_F12  : gli_input_handle_key(keycode_Func12);   return;
-        default: break;			
+        default: break;
     }
 
     /* send combined keystrokes to text buffer */
     [textbuf interpretKeyEvents: [NSArray arrayWithObject:evt]];
-    
+
     /* retrieve character from buffer as string */
     NSString * evt_char = [[textbuf textStorage] string];
 

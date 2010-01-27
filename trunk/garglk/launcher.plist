@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>gargoyle</string>
+	<string>Gargoyle</string>
 	<key>CFBundleDisplayName</key>
 	<string>Gargoyle</string>
 	<key>CFBundleName</key>
@@ -28,6 +28,10 @@
 	<string>Copyright 2010. GNU General Public License.</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.4</string>
+	<key>NSMainNibFile</key>
+	<string>MainMenu</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

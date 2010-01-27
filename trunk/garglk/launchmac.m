@@ -39,9 +39,8 @@ char filterlist[] = "";
 
 @interface GargoyleApp : NSObject
 {
-    BOOL selected;
+    BOOL openedFirstGame;
     char pidbuf[11];
-    NSMutableArray * children; 
 }
 @end
 
@@ -50,8 +49,7 @@ char filterlist[] = "";
 - (id) init
 {
     /* set internal variables */
-    selected = NO;   
-    children = [NSMutableArray arrayWithCapacity:1];
+    openedFirstGame = NO;
 
     /* set environment variables */
     sprintf(pidbuf,"%d", [[NSProcessInfo processInfo] processIdentifier]);
@@ -75,18 +73,14 @@ char filterlist[] = "";
                                                                      userInfo: NULL
                                                            deliverImmediately: YES];
     }
-
 }
 
 - (void) receive: (NSNotification *) message
 {
-
-}
-
-- (void) addChild: (int) PID
-{
-    if (PID)
-        [children addObject:[NSNumber numberWithInt: PID]];
+    if ([[message name] isEqualToString: @"QUIT"])
+    {
+        exit(0);
+    }
 }
 
 - (BOOL) launchFile: (NSString *) file
@@ -109,16 +103,43 @@ char filterlist[] = "";
     return rungame(dir, buf);
 }
 
+- (BOOL) launchFileBrowser
+{
+    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+    [openDlg setCanChooseFiles: YES];
+    [openDlg setCanChooseDirectories: NO];
+    [openDlg setAllowsMultipleSelection: NO];
+
+    NSString * nsTitle = [[NSString alloc] initWithCString: AppName encoding: NSASCIIStringEncoding];
+    [openDlg setTitle: nsTitle];
+    [nsTitle release];
+
+    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+        return [self launchFile:[openDlg filename]];
+    else
+        return NO;
+}
+
+- (BOOL) applicationShouldOpenUntitledFile: (NSApplication *) sender
+{
+    return (!openedFirstGame);
+}
+
+- (BOOL) applicationOpenUntitledFile: (NSApplication *) theApplication
+{
+    openedFirstGame = YES;
+    return [self launchFileBrowser];
+}
+
 - (BOOL) application: (NSApplication *) theApplication openFile: (NSString *) file
 {
-    selected = YES;
-
+    openedFirstGame = YES;
     return [self launchFile:file];
 }
 
 - (BOOL) application: (NSApplication *) theApplication openFiles: (NSArray *) files
 {
-    selected = YES;
+    openedFirstGame = YES;
 
     BOOL result = YES;
     int i;
@@ -129,32 +150,6 @@ char filterlist[] = "";
     }
 
     return result;
-}
-
-- (BOOL) applicationShouldOpenUntitledFile: (NSApplication *) sender
-{
-    return (!selected);
-}
-
-- (BOOL) applicationOpenUntitledFile: (NSApplication *) theApplication
-{
-    selected = YES;
-
-    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
-    [openDlg setCanChooseFiles: YES];
-    [openDlg setCanChooseDirectories: NO];
-    [openDlg setAllowsMultipleSelection: NO];
-
-    NSString * nsTitle = [[NSString alloc] initWithCString: AppName encoding: NSASCIIStringEncoding];
-    [openDlg setTitle: nsTitle];
-    [nsTitle release];    
-
-    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
-    {
-        return [self launchFile:[openDlg filename]];
-    }
-
-    return NO;
 }
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
@@ -173,9 +168,17 @@ char filterlist[] = "";
     [self send: @"SHOW"];
 }
 
-@end
 
-GargoyleApp * gargoyle;
+- (IBAction) orderFrontStandardAboutPanel: (id) sender
+{
+}
+
+- (IBAction) openFileBrowser: (id) sender
+{
+    [self launchFileBrowser];
+}
+
+@end
 
 void winmsg(const char *msg)
 {
@@ -231,8 +234,6 @@ int winexec(const char *cmd, char **args)
         [proc launch];
     }
 
-    [gargoyle addChild: [proc processIdentifier]];
-
     return [proc isRunning];
 }
 
@@ -265,11 +266,8 @@ int winterp(char *path, char *exe, char *flags, char *game)
 int main (int argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    gargoyle = [[GargoyleApp alloc] init];
     [NSApplication sharedApplication];
-    [NSApp activateIgnoringOtherApps: YES];
-    [NSApp setDelegate: gargoyle];
-    [NSApp finishLaunching];
-    [NSApp run];
+    [NSApp setDelegate: [[GargoyleApp alloc] init]];
     [pool drain];
+    return NSApplicationMain(argc, (const char **) argv);
 }
