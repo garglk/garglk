@@ -45,13 +45,14 @@ do
 install_name_tool -change $MACPORTS/$lib @executable_path/../Frameworks/$lib $BUNDLE/Frameworks/$dylib
 done
 install_name_tool -id @executable_path/../Frameworks/$dylib $BUNDLE/Frameworks/$dylib
-done 
+done
 
+ibtool garglk/launchmac.xib --compile $BUNDLE/Resources/MainMenu.nib
+
+cp -f garglk/launcher.plist $BUNDLE/Info.plist
+cp -f $GARGDIST/gargoyle $BUNDLE/MacOS/Gargoyle
 cp -f $GARGDIST/libgarglk.dylib $BUNDLE/Frameworks
 cp -f garglk/garglk.ini $BUNDLE/Resources
 cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
-
-cp -f garglk/launcher.plist $BUNDLE/Info.plist
-cp -f $GARGDIST/gargoyle $BUNDLE/MacOS
 
