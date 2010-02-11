@@ -34,14 +34,19 @@ static const char * DirSeparator = "/";
 char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
+char etc[MaxBuffer];
+char fnt[MaxBuffer];
 
 char filterlist[] = "";
 
 @interface GargoyleApp : NSObject
 {
     BOOL openedFirstGame;
-    char pidbuf[11];
+    NSString * processID;
+    NSMutableArray * activeGames;
 }
+- (void) listen;
+- (void) promote;
 @end
 
 @implementation GargoyleApp
@@ -50,18 +55,47 @@ char filterlist[] = "";
 {
     /* set internal variables */
     openedFirstGame = NO;
+    processID = [[NSString alloc] initWithFormat: @"%d", [[NSProcessInfo processInfo] processIdentifier]];
+    activeGames = [[NSMutableArray alloc] initWithCapacity:5];
+    [activeGames addObject: [NSNumber numberWithInt: [processID intValue]]];
 
     /* set environment variables */
-    sprintf(pidbuf,"%d", [[NSProcessInfo processInfo] processIdentifier]);
-    setenv("GARGOYLEPID", pidbuf, TRUE);
+    NSString * nsResources = [NSString stringWithFormat: @"%@/%@",
+                              [[NSWorkspace sharedWorkspace] fullPathForApplication: @"Gargoyle"],
+                              @"Contents/Resources"];
+
+    int size = [nsResources length];
+    CFStringGetBytes((CFStringRef) nsResources, CFRangeMake(0, size),
+                     kCFStringEncodingASCII, 0, FALSE,
+                     etc, MaxBuffer, NULL);
+    int bounds = size < MaxBuffer ? size : MaxBuffer;
+    etc[bounds] = '\0';
+
+    setenv("FONTCONFIG_PATH", etc, TRUE);
+    setenv("GARGLK_INI", etc, TRUE);
+
+    /* create symlink to fonts */
+    if (getenv("HOME"))
+    {
+        strcpy(fnt, getenv("HOME"));
+        strcat(fnt, "/Library/Fonts/Gargoyle");
+        unlink(fnt);
+        strcat(etc, "/Fonts");
+        symlink(etc, fnt);
+    }
 
     /* listen for dispatched notifications */
+    [self listen];
+
+    return [super init];
+}
+
+- (void) listen
+{
     [[NSDistributedNotificationCenter defaultCenter] addObserver: self
                                                         selector: @selector(receive:)
                                                             name: NULL
                                                           object: @"com.googlecode.garglk"];
-
-    return [super init]; 
 }
 
 - (void) send: (NSString *) message
@@ -80,6 +114,72 @@ char filterlist[] = "";
     if ([[message name] isEqualToString: @"QUIT"])
     {
         exit(0);
+    }
+
+    if ([[message name] rangeOfString: @"+"].location != NSNotFound)
+    {
+        /* generate PID object to add */
+        NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
+                                                          stringByReplacingOccurrencesOfString: @"+"
+                                                          withString: @""] intValue]];
+        /* remove other instances of PID */
+        [activeGames removeObject: activePID];
+
+        /* store PID */
+        [activeGames addObject: activePID];
+
+        return;
+    }
+
+    if ([[message name] rangeOfString: @"-"].location != NSNotFound)
+    {
+        /* generate PID object to remove */
+        NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
+                                                          stringByReplacingOccurrencesOfString: @"-"
+                                                          withString: @""] intValue]];
+        /* remove all instances of PID */
+        [activeGames removeObject: activePID];
+
+        /* promote next game in queue */
+        [self promote];
+
+        return;
+    }
+
+    if ([[message name] isEqualToString: processID])
+    {
+        /* clean up PID array */
+        [activeGames removeAllObjects];
+
+        /* store PID */
+        [activeGames addObject: [NSNumber numberWithInt: [processID intValue]]];
+
+        /* activate launcher */
+        [NSApp activateIgnoringOtherApps: YES];
+
+        return;
+    }
+}
+
+- (void) promote
+{
+    NSEnumerator * proc = [activeGames reverseObjectEnumerator];
+    NSNumber * storedPID;
+    int pid;
+
+    while (storedPID = [proc nextObject])
+    {
+        /* retrieve PID in order of activation */
+        pid = [storedPID intValue];
+
+        /* check if PID is inaccessible */
+        if ((kill(pid,0) == -1 && errno == ESRCH))
+            continue;
+
+        /* send out PID for activation */
+        [self send: [NSString stringWithFormat: @"%d", pid]];
+
+        return;
     }
 }
 
@@ -110,9 +210,8 @@ char filterlist[] = "";
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
 
-    NSString * nsTitle = [[NSString alloc] initWithCString: AppName encoding: NSASCIIStringEncoding];
+    NSString * nsTitle = [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding];
     [openDlg setTitle: nsTitle];
-    [nsTitle release];
 
     if ([openDlg runModal] == NSFileHandlingPanelOKButton)
         return [self launchFile:[openDlg filename]];
@@ -152,6 +251,13 @@ char filterlist[] = "";
     return result;
 }
 
+
+- (void) applicationDidBecomeActive: (NSNotification *) aNotification
+{
+    /* promote first game in queue */
+    [self promote];
+}
+
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
     [self send: @"QUIT"];
@@ -168,7 +274,6 @@ char filterlist[] = "";
     [self send: @"SHOW"];
 }
 
-
 - (IBAction) orderFrontStandardAboutPanel: (id) sender
 {
 }
@@ -182,9 +287,8 @@ char filterlist[] = "";
 
 void winmsg(const char *msg)
 {
-    NSString * nsMsg = [[NSString alloc] initWithCString: msg encoding: NSASCIIStringEncoding];
+    NSString * nsMsg = [NSString stringWithCString: msg encoding: NSASCIIStringEncoding];
     NSRunAlertPanel(@"Fatal error", nsMsg, NULL, NULL, NULL);
-    [nsMsg release];
 }
 
 void winpath(char *buffer)
@@ -213,7 +317,7 @@ int winexec(const char *cmd, char **args)
     NSTask * proc = [[NSTask alloc] init];
 
     /* prepare interpreter path */
-    NSArray * nsArray = [[[NSString alloc] initWithCString: cmd encoding: NSASCIIStringEncoding] componentsSeparatedByString: @"/"];
+    NSArray * nsArray = [[NSString stringWithCString: cmd encoding: NSASCIIStringEncoding] componentsSeparatedByString: @"/"];
     NSString * nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
     NSString * nsPath = [[NSWorkspace sharedWorkspace] fullPathForApplication: @"Gargoyle"];
     NSString * nsCmd = [NSString stringWithFormat: @"%@/%@/%@%@/%@/%@", nsPath, @"Contents/Interpreters", nsTerp, @".app", @"Contents/MacOS", nsTerp];

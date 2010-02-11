@@ -37,7 +37,6 @@ static NSString * cliptext = NULL;
 static NSPasteboard * clipboard = NULL;
 
 static int statusbar = 20;
-static int launchPID = 0;
 
 static int timeouts = 0;
 static int timerid = -1;
@@ -47,18 +46,30 @@ static int gli_window_hidden = FALSE;
 
 @interface GargoyleTerp : NSObject
 {
+    NSString * processID;
 }
+- (void) listen;
 @end
 
 @implementation GargoyleTerp
 
 - (id) init
 {
+    /* set internal variables */
+    processID = [[NSString alloc] initWithFormat: @"%d", [[NSProcessInfo processInfo] processIdentifier]];
+
+    /* listen for dispatched notifications */
+    [self listen];
+
+    return [super init];
+}
+
+- (void) listen
+{
     [[NSDistributedNotificationCenter defaultCenter] addObserver: self
                                                         selector: @selector(receive:)
                                                             name: NULL
                                                           object: @"com.googlecode.garglk"];
-    return [super init];
 }
 
 - (void) send: (NSString *) message
@@ -81,17 +92,42 @@ static int gli_window_hidden = FALSE;
 
     if ([[message name] isEqualToString: @"HIDE"])
     {
-        [window orderOut:self];
-        gli_window_hidden = TRUE;
+        [NSApp hide: NULL];
+        return;
     }
 
     if ([[message name] isEqualToString: @"SHOW"])
     {
-        ProcessSerialNumber psnt = { 0, kCurrentProcess };
-        SetFrontProcess(&psnt);
-        [window makeKeyAndOrderFront: window];
-        gli_window_hidden = FALSE;
+        [NSApp unhide: NULL];
+        return;
     }
+
+    if ([[message name] isEqualToString: processID])
+    {
+        [NSApp activateIgnoringOtherApps: YES];
+        return;
+    }
+}
+
+- (void) applicationDidBecomeActive: (NSNotification *) aNotification
+{
+    /* add game to queue */
+    [self send: [NSString stringWithFormat: @"+%d", [processID intValue]]];
+    [window makeKeyAndOrderFront: window];
+}
+
+- (void) close
+{
+    /* remove game from queue */
+    [self send: [NSString stringWithFormat: @"-%d", [processID intValue]]];
+    exit(0);
+}
+
+- (void) quit
+{
+    /* send quit message to all games */
+    [self send: @"QUIT"];
+    exit(0);
 }
 
 @end
@@ -128,9 +164,8 @@ void winabort(const char *fmt, ...)
     va_end(ap);
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    NSString * msg = [[NSString alloc] initWithCString: buf encoding: NSASCIIStringEncoding];
+    NSString * msg = [NSString stringWithCString: buf encoding: NSASCIIStringEncoding];
     NSRunAlertPanel(@"Fatal error", msg, NULL, NULL, NULL);
-    [msg release];
     [pool drain];
 
     abort();
@@ -145,9 +180,8 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
 
-    NSString * msg = [[NSString alloc] initWithCString: prompt encoding: NSASCIIStringEncoding];
+    NSString * msg = [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding];
     [openDlg setTitle: msg];
-    [msg release];
 
     strcpy(buf, "");
 
@@ -174,9 +208,8 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
 
     [saveDlg setCanCreateDirectories: YES];
 
-    NSString * msg = [[NSString alloc] initWithCString: prompt encoding: NSASCIIStringEncoding];
+    NSString * msg = [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding];
     [saveDlg setTitle: msg];
-    [msg release];
 
     strcpy(buf, "");
 
@@ -267,9 +300,8 @@ void wintitle(void)
     else
         sprintf(buf, "%s", gli_program_name);
 
-    NSString * title = [[NSString alloc] initWithCString: buf encoding: NSASCIIStringEncoding];
+    NSString * title = [NSString stringWithCString: buf encoding: NSASCIIStringEncoding];
     [window setTitle:title];
-    [title release];
 
     [pool drain];
 }
@@ -310,8 +342,8 @@ void winresize(NSRect viewRect)
 void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    gargoyle = [[GargoyleTerp alloc] init];
     [NSApplication sharedApplication];
+    gargoyle = [[GargoyleTerp alloc] init];
     [NSApp activateIgnoringOtherApps: YES];
     [NSApp setDelegate: gargoyle];
     [pool drain];
@@ -344,14 +376,6 @@ void winopen(void)
 
     /* set up the clipboard object */
     clipboard = [NSPasteboard generalPasteboard];
-    
-    /* find launcher PID */
-    if (getenv("GARGOYLEPID"))
-    {
-        NSString * nsPID = [[NSString alloc] initWithCString: getenv("GARGOYLEPID") encoding: NSASCIIStringEncoding];
-        launchPID = [nsPID intValue];
-        [nsPID release];
-    }
 
     [pool drain];
 }
@@ -474,14 +498,12 @@ void winkey(NSEvent *evt)
 
             case NSKEY_W:
             {
-                [gargoyle send: @"PROMOTE"];
-                exit(0);
+                [gargoyle close];
             }
 
             case NSKEY_Q:
             {
-                [gargoyle send: @"QUIT"];
-                exit(0);
+                [gargoyle quit];
             }
 
             default: break;
@@ -537,21 +559,6 @@ void winkey(NSEvent *evt)
     [[[textbuf textStorage] mutableString] setString: @""];
 }
 
-void winfocus(void)
-{
-    /* move launcher to front */
-    ProcessSerialNumber psnl;
-    GetProcessForPID(launchPID, &psnl);
-    SetFrontProcess(&psnl);
-
-    /* move terp to front */
-    ProcessSerialNumber psnt = { 0, kCurrentProcess };
-    SetFrontProcess(&psnt);
-
-    /* make this window key */
-    [window makeKeyAndOrderFront: window];
-}
-
 void winmouse(NSEvent *evt)
 {
     NSPoint coords = [[window contentView] convertPoint: [evt locationInWindow]
@@ -562,7 +569,6 @@ void winmouse(NSEvent *evt)
     /* disregard events outside of content window */
     if (coords.y < statusbar || y < 0 || x < 0 || x > gli_image_w)
     {
-        winfocus();
         [NSApp sendEvent: evt];
         return;
     }
@@ -571,15 +577,7 @@ void winmouse(NSEvent *evt)
     {
         case NSLeftMouseDown:
         {
-            winfocus();
             gli_input_handle_click(x, y);
-            break;
-        }
-
-        case NSLeftMouseUp:
-        {
-            gli_copyselect = FALSE;
-            [[NSCursor arrowCursor] set];
             break;
         }
 
@@ -603,10 +601,10 @@ void winmouse(NSEvent *evt)
             break;
         }
 
-        case NSRightMouseDown:
-        case NSOtherMouseDown:
+        case NSLeftMouseUp:
         {
-            winfocus();
+            gli_copyselect = FALSE;
+            [[NSCursor arrowCursor] set];
             break;
         }
 
@@ -620,11 +618,11 @@ void winmouse(NSEvent *evt)
 void winevent(NSEvent *evt)
 {
     /* window was closed */
-    if (![window isVisible] && ![window isMiniaturized] && !gli_window_hidden)
-        exit(0);
+    if (![window isVisible] && ![window isMiniaturized] && ![NSApp isHidden])
+        [gargoyle close];
 
     /* window was minimized or hidden */
-    if (![window isVisible] && ([window isMiniaturized] || gli_window_hidden))
+    if (![window isVisible] && ([window isMiniaturized] || [NSApp isHidden]))
         gli_refresh_needed = TRUE;
 
     /* window was moved between screens */
@@ -645,8 +643,6 @@ void winevent(NSEvent *evt)
         }
 
         case NSLeftMouseDown :
-        case NSRightMouseDown :
-        case NSOtherMouseDown :
         case NSLeftMouseDragged :
         case NSLeftMouseUp :
         {

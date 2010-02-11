@@ -56,3 +56,9 @@ cp -f garglk/garglk.ini $BUNDLE/Resources
 cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
 
+cp /opt/local/etc/fonts/fonts.conf $BUNDLE/Resources
+cp /opt/local/etc/fonts/fonts.dtd $BUNDLE/Resources
+cp support/fontconfig/local.conf $BUNDLE/Resources
+
+mkdir $BUNDLE/Resources/Fonts
+cp fonts/*.ttf $BUNDLE/Resources/Fonts
