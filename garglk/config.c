@@ -429,6 +429,13 @@ void gli_read_config(int argc, char **argv)
 	readoneconfig(buf, argv0, gamefile);
 #endif
 
+	if (getenv("GARGLK_INI"))
+	{
+		strcpy(buf, getenv("GARGLK_INI"));
+		strcat(buf, "/garglk.ini");
+		readoneconfig(buf, argv0, gamefile);
+	}
+
 	if (getenv("HOME"))
 	{
 		strcpy(buf, getenv("HOME"));

@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <errno.h>
 
 extern void wininit(void);
 extern void winmsg(const char *msg);
