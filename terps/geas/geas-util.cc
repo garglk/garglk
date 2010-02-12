@@ -191,7 +191,7 @@ vector<string> split_param (string s)
   for (;;)
     {
       c2 = s.find (';', c1);
-      if (c2 == string::npos)
+      if (c2 == -1)
 	{
 	  rv.push_back (trim (s.substr (c1)));
 	  return rv;

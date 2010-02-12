@@ -780,7 +780,7 @@ string trim (string s, trim_modes trim_mode)
 bool is_balanced (string str)
 {
   uint index = str.find ('{');
-  if (index == string::npos)
+  if (index == -1)
     return true;
   int depth;
   for (depth = 1, index ++;  depth > 0 && index < str.length();  index ++)
@@ -989,7 +989,7 @@ bool preprocess (vector<string> v, string fname, vector<string> &rv,
 		  string str = v[line];
 		  uint cmp_start;
 		  for (uint cmp = 0; cmp < ARRAYSIZE(comps); cmp ++)
-		    if ((cmp_start = tok.find(comps[cmp][0])) != string::npos)
+		    if ((cmp_start = tok.find(comps[cmp][0])) != -1)
 		      {
 			uint cmp_end = cmp_start + comps[cmp][0].length();
 			//cerr << "Changed str from {" << str << "} to {";
