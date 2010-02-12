@@ -180,7 +180,7 @@ void GeasFile::get_obj_keys (string obj, set<string> &rv) const
 		      cerr << "     adding <" << trim (params[j].substr(4))
 			   << ">\n";
 		    }
-		  else if (k == string::npos)
+		  else if (k == -1)
 		    {
 		      rv.insert (params[j]);
 		      cerr << "     adding <" << params[j] << ">\n";
@@ -247,7 +247,7 @@ void GeasFile::get_type_keys (string typen, set<string> &rv) const
       else
 	{
 	  uint ch = line.find ('=');
-	  if (ch != string::npos)
+	  if (ch != -1)
 	    {
 	      rv.insert (trim (line.substr (0, ch)));
 	      cerr << "      adding <" << trim (line.substr (0, ch)) << ">\n";
@@ -341,7 +341,7 @@ bool GeasFile::get_obj_property (string objname, string propname, string &string
 		  string_rv = "!";
 		  bool_rv = false;
 		}
-	      else if ((index = props[j].find ('=')) != string::npos &&
+	      else if ((index = props[j].find ('=')) != -1 &&
 		       (trim (props[j].substr (0, index)) == propname))
 		{
 		  string_rv = props[j].substr (index+1);
@@ -387,7 +387,7 @@ void GeasFile::get_type_property (string typenamex, string propname, bool &bool_
       else
 	{
 	  c1 = line.find ('=');
-	  if (c1 != string::npos)
+	  if (c1 != -1)
 	    {
 	      tok = trim (line.substr (0, c1));
 	      if (tok == propname)

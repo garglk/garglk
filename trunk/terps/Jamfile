@@ -180,7 +180,7 @@ if $(MAKE_GIT) = yes
     SubDir TOP terps git ;
     ObjDir git ;
 
-    SubDirCcFlags -DUSE_INLINE -DUSE_DIRECT_THREADING ;
+    SubDirCcFlags -DUSE_INLINE ;
 
     Main git :
         git.c memory.c compiler.c opcodes.c operands.c
