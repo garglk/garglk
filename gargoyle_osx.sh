@@ -11,7 +11,7 @@ mkdir -p $BUNDLE/Frameworks
 mkdir -p $BUNDLE/Resources
 
 rm -rf $GARGDIST
-jam install
+jam -sUNIVERSAL=yes install
 
 for file in `ls $GARGDIST`
 do
