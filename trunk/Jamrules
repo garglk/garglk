@@ -5,7 +5,6 @@
 BUILD ?= RELEASE ;
 USESDL = yes ;
 BUNDLEFONTS = yes ;
-UNIVERSAL = no ;
 
 CC      = gcc ;
 C++     = g++ ;
@@ -25,7 +24,7 @@ if $(CROSS)
 if $(UNIVERSAL) = yes
 {
     AR = libtool -static -o ;
-    RANLIB = touch -c ;
+    RM = touch -c ;
     ALTARCH = -arch x86_64 ;
 }
 
