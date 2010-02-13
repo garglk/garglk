@@ -36,8 +36,6 @@ static NSTextView * textbuf = NULL;
 static NSString * cliptext = NULL;
 static NSPasteboard * clipboard = NULL;
 
-static int statusbar = 20;
-
 static int timeouts = 0;
 static int timerid = -1;
 
@@ -309,7 +307,7 @@ void wintitle(void)
 void winresize(NSRect viewRect)
 {
     gli_image_w = viewRect.size.width;
-    gli_image_h = viewRect.size.height > statusbar ? viewRect.size.height - statusbar : 0;
+    gli_image_h = viewRect.size.height;
     gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
 
     /* initialize offline bitmap store */
@@ -354,8 +352,7 @@ void winopen(void)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     NSUInteger defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    NSUInteger defh = gli_wmarginy * 2 + gli_cellh * gli_rows + statusbar;
-    NSSize limit = {0, statusbar};
+    NSUInteger defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
 
     NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
@@ -364,7 +361,6 @@ void winopen(void)
                                          styleMask: style
                                            backing: NSBackingStoreBuffered
                                              defer: NO];
-    [window setContentMinSize: limit];	
     [window makeKeyAndOrderFront: window];
     [window center];
     [window setReleasedWhenClosed: NO];
@@ -397,14 +393,24 @@ void winrefresh(void)
     CIImage * output = [[CIImage alloc] initWithBitmapImageRep: framebuf];
 
     /* refresh the screen */
-    [output drawAtPoint: NSMakePoint(0, statusbar)
+    [output drawAtPoint: NSMakePoint(0, 0)
                fromRect: NSMakeRect(0, 0, gli_image_w, gli_image_h)
               operation: NSCompositeSourceOver
                fraction: 1.0];
     [output release];
 
-    [window setContentBorderThickness: (CGFloat) statusbar forEdge: NSMinYEdge];
-    [window flushWindow];
+    /* repaint the backing window */
+    if (gli_image_s * gli_image_h)
+    {
+        [window setBackgroundColor: [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
+                                                              green: (gli_image_rgb[1]/255.0f)
+                                                               blue: (gli_image_rgb[2]/255.0f)
+                                                              alpha: 1]];
+    }
+
+    /* toggle the resize control */
+    [window setShowsResizeIndicator:NO];
+    [window setShowsResizeIndicator:YES];
 
     gli_refresh_needed = FALSE;
 }
@@ -564,10 +570,10 @@ void winmouse(NSEvent *evt)
     NSPoint coords = [[window contentView] convertPoint: [evt locationInWindow]
                                                fromView: NULL];
     int x = coords.x;
-    int y = (gli_image_h + statusbar) - coords.y;
+    int y = gli_image_h - coords.y;
 
     /* disregard events outside of content window */
-    if (coords.y < statusbar || y < 0 || x < 0 || x > gli_image_w)
+    if (coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
     {
         [NSApp sendEvent: evt];
         return;
@@ -631,7 +637,7 @@ void winevent(NSEvent *evt)
 
     /* window was resized */
     NSRect viewRect = [[window contentView] bounds];
-    if (viewRect.size.width != gli_image_w || viewRect.size.height != gli_image_h + statusbar)
+    if (viewRect.size.width != gli_image_w || viewRect.size.height != gli_image_h)
         winresize(viewRect);
 
     switch ([evt type])
