@@ -120,8 +120,9 @@ char filterlist[] = "";
     {
         /* generate PID object to add */
         NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
-                                                          stringByReplacingOccurrencesOfString: @"+"
-                                                          withString: @""] intValue]];
+                                                          stringByTrimmingCharactersInSet: [NSCharacterSet
+                                                                                            characterSetWithCharactersInString: @"+"]]
+                                                          intValue]];
         /* remove other instances of PID */
         [activeGames removeObject: activePID];
 
@@ -135,8 +136,9 @@ char filterlist[] = "";
     {
         /* generate PID object to remove */
         NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
-                                                          stringByReplacingOccurrencesOfString: @"-"
-                                                          withString: @""] intValue]];
+                                                          stringByTrimmingCharactersInSet: [NSCharacterSet
+                                                                                            characterSetWithCharactersInString: @"-"]]
+                                                          intValue]];
         /* remove all instances of PID */
         [activeGames removeObject: activePID];
 
