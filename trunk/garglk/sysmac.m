@@ -351,10 +351,10 @@ void winopen(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    NSUInteger defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    NSUInteger defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
+    unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
 
-    NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+    unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
     window = [[NSWindow alloc] initWithContentRect: NSMakeRect(0,0, defw, defh)
