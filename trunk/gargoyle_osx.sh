@@ -47,18 +47,18 @@ done
 install_name_tool -id @executable_path/../Frameworks/$dylib $BUNDLE/Frameworks/$dylib
 done
 
-ibtool garglk/launchmac.xib --compile $BUNDLE/Resources/MainMenu.nib
-
 cp -f garglk/launcher.plist $BUNDLE/Info.plist
 cp -f $GARGDIST/gargoyle $BUNDLE/MacOS/Gargoyle
 cp -f $GARGDIST/libgarglk.dylib $BUNDLE/Frameworks
+cp -f garglk/launchmac.nib $BUNDLE/Resources/MainMenu.nib
 cp -f garglk/garglk.ini $BUNDLE/Resources
 cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
 
-cp /opt/local/etc/fonts/fonts.conf $BUNDLE/Resources
-cp /opt/local/etc/fonts/fonts.dtd $BUNDLE/Resources
+cp -R /opt/local/etc/fonts/* $BUNDLE/Resources
 cp support/fontconfig/local.conf $BUNDLE/Resources
 
 mkdir $BUNDLE/Resources/Fonts
 cp fonts/*.ttf $BUNDLE/Resources/Fonts
+
+hdiutil create -ov -srcfolder Gargoyle.app/ gargoyle-2010.1-mac.dmg
