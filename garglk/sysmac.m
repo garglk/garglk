@@ -30,6 +30,12 @@
 
 #import "Cocoa/Cocoa.h"
 
+#ifdef _M_PPC
+#define ByteOrderUCS4 kCFStringEncodingUTF32
+#else
+#define ByteOrderUCS4 kCFStringEncodingUTF32LE
+#endif
+
 static NSWindow * window = NULL;
 static NSBitmapImageRep * framebuf = NULL;
 static NSTextView * textbuf = NULL;
@@ -239,7 +245,7 @@ void winclipstore(glui32 *text, int len)
 
     cliptext = (NSString *) CFStringCreateWithBytes(kCFAllocatorDefault,
                                                     (char *) text, (len * 4),
-                                                    kCFStringEncodingUTF32LE, FALSE);
+                                                    ByteOrderUCS4, FALSE);
 }
 
 void winclipsend(void)
@@ -408,9 +414,13 @@ void winrefresh(void)
                                                               alpha: 1]];
     }
 
-    /* toggle the resize control */
-    [window setShowsResizeIndicator:NO];
-    [window setShowsResizeIndicator:YES];
+    /* repaint the resize control */
+    int xsize = gli_image_w > 12 ? gli_image_w - 12 : 0;
+    [[window contentView] setNeedsDisplayInRect: NSMakeRect(xsize, 0, 12, 12)];
+    [[window contentView] displayIfNeededInRect: NSMakeRect(xsize, 0, 12, 12)];
+
+    /* flush window buffer to screen */
+    [window flushWindow];
 
     gli_refresh_needed = FALSE;
 }
