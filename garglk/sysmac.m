@@ -30,7 +30,7 @@
 
 #import "Cocoa/Cocoa.h"
 
-#ifdef _M_PPC
+#ifdef __ppc__
 #define ByteOrderUCS4 kCFStringEncodingUTF32
 #else
 #define ByteOrderUCS4 kCFStringEncodingUTF32LE
