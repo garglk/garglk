@@ -10,7 +10,7 @@
 
 
 #ifdef _PROTOTYPES_
-extern void compress(ParamElem *a);
+extern void compact(ParamElem *a);
 extern int lstlen(ParamElem *a);
 extern Boolean inlst(ParamElem *l, Aword e);
 extern void lstcpy(ParamElem *a, ParamElem *b);
@@ -19,7 +19,7 @@ extern void mrglst(ParamElem *a, ParamElem *b);
 extern void isect(ParamElem *a, ParamElem *b);
 extern void cpyrefs(ParamElem *p, Aword *r);
 #else
-extern void compress();
+extern void compact();
 extern int lstlen();
 extern Boolean inlst();
 extern void lstcpy();

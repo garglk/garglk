@@ -438,7 +438,7 @@ static void unambig(plst)
     for (i=0; plst[i].code != EOF; i++)
       if (!isHere(plst[i].code))
 	plst[i].code = 0;
-    compress(plst);
+    compact(plst);
   }
     
   if (lstlen(plst) > 1 || (found && lstlen(plst) == 0)) {
@@ -481,7 +481,7 @@ static void simple(olst)
       for (i = 0; pmlst[i].code != EOF; i++)
 	if (!isHere(pmlst[i].code))
 	  pmlst[i].code = 0;
-      compress(pmlst);
+      compact(pmlst);
       if (lstlen(pmlst) == 0)
 	error(M_WHAT_THEM);
       lstcpy(olst, pmlst);
@@ -755,13 +755,13 @@ static void try(mlst)
       }
     }
     params[p].code = 0;		/* Restore multiple marker */
-    compress(mlst);
+    compact(mlst);
     if (lstlen(mlst) == 0) {
       params[0].code = EOF;
       error(M_WHAT_ALL);
     }
   } else if (anyPlural) {
-    compress(mlst);
+    compact(mlst);
     if (lstlen(mlst) == 0)
       /* If there where multiple parameters but non left, exit without a */
       /* word, assuming we have already said enough */

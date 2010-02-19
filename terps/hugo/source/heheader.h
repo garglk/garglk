@@ -260,6 +260,12 @@ void arc_colour(unsigned char n, unsigned int c);
 
 #endif	/* Mac Glk */
 
+#if defined (GLK) && defined (__APPLE__)
+
+#define GetString HugoGetString
+#define FindWord HugoFindWord
+
+#endif  /* Mac OS X Glk */
 
 /*---------------------------------------------------------------------------
 	Definitions for the Glk port

@@ -4,7 +4,7 @@
 
   Various utility functions for handling parameters:
 
-  compress()		Compact a list, i.e remove any NULL elements
+  compact()		Compact a list, i.e remove any NULL elements
   listlength()		Count number of elements
   inList()		Check if an element is in the list
   subtractList()	Subract two lists
@@ -22,7 +22,7 @@
 
 
 /*======================================================================*/
-void compress(ParamEntry theList[])
+void compact(ParamEntry theList[])
 {
   int i, j;
   
@@ -73,7 +73,7 @@ void subtractListFromList(ParamEntry theList[], ParamEntry remove[])
   for (i = 0; theList[i].instance != EOF; i++)
     if (inList(remove, theList[i].instance))
       theList[i].instance = 0;		/* Mark empty */
-  compress(theList);
+  compact(theList);
 }
 
 

@@ -713,7 +713,7 @@ static void unambig(ParamEntry plst[])
     for (i=0; plst[i].instance != EOF; i++)
       if (!reachable(plst[i].instance))
 	plst[i].instance = 0;
-    compress(plst);
+    compact(plst);
   }
 #ifdef DISAMBIGUATE_USING_CHECKS
   if (listLength(plst) > 1)
@@ -763,7 +763,7 @@ static void simple(ParamEntry olst[]) {
       for (i = 0; previousMultipleList[i].instance != EOF; i++)
 	if (!reachable(previousMultipleList[i].instance))
 	  previousMultipleList[i].instance = 0;
-      compress(previousMultipleList);
+      compact(previousMultipleList);
       if (listLength(previousMultipleList) == 0)
 	errorWhat(wordIndex);
       copyParameterList(olst, previousMultipleList);
@@ -1013,7 +1013,7 @@ static void disambiguate(ParamEntry candidates[], int position) {
 	candidates[i].instance = 0;	/* Remove this from list */
     }
   }
-  compress(candidates);
+  compact(candidates);
 }
 
 
@@ -1108,7 +1108,7 @@ static void try(ParamEntry multipleParameters[])
       errorWhat(allWordIndex);
     }
   } else if (anyPlural) {
-    compress(multipleParameters);
+    compact(multipleParameters);
     if (listLength(multipleParameters) == 0)
       /* If there where multiple parameters but non left, exit without a */
       /* word, assuming we have already said enough */

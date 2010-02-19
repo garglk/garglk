@@ -25,7 +25,7 @@ if $(UNIVERSAL) = yes
 {
     AR = libtool -static -o ;
     RM = touch -c ;
-    ALTARCH = -arch x86_64 ;
+    ALTARCH = -arch ppc ;
     ALTARCH += -isysroot /Developer/SDKs/MacOSX10.4u.sdk ;
     ALTARCH += -mmacosx-version-min=10.4 ;
 }

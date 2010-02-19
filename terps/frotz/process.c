@@ -173,16 +173,16 @@ void (*ext_opcodes[0x1e]) (void) = {
 
 
 /*
- * init_process
+ * init_proc
  *
  * Initialize process variables.
  *
  */
 
-void init_process (void)
+void init_proc (void)
 {
     finished = 0;
-} /* init_process */
+} /* init_proc */
 
 
 /*

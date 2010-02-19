@@ -130,7 +130,7 @@ static int gli_window_hidden = FALSE;
 
 @end
 
-GargoyleTerp * gargoyle;
+GargoyleTerp * gargoyle = NULL;
 
 void glk_request_timer_events(glui32 millisecs)
 {

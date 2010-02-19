@@ -31,3 +31,8 @@
 #define TEMP_DIR "temp/"
 #define INCLUDE_DIR "include/"
 #endif
+
+#ifdef __APPLE__
+#define get_string jacl_get_string
+#define sleep jacl_sleep
+#endif 

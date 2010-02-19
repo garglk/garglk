@@ -34,7 +34,7 @@
 
 extern void interpret (void);
 extern void init_memory (void);
-extern void init_process (void);
+extern void init_proc (void);
 extern void init_sound (void);
 extern void init_text (void);
 extern void init_undo (void);
@@ -205,7 +205,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
     init_buffer ();
     init_err ();
     init_memory ();
-    init_process ();
+    init_proc ();
     init_sound ();
     init_text ();
 
