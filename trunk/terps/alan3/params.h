@@ -8,7 +8,7 @@
 #ifndef PARAMS_H
 #include "types.h"
 
-extern void compress(ParamEntry *a);
+extern void compact(ParamEntry *a);
 extern int listLength(ParamEntry *a);
 extern Bool inList(ParamEntry *l, Aword e);
 extern void copyParameterList(ParamEntry *to, ParamEntry *from);

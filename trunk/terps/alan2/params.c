@@ -4,7 +4,7 @@
 
   Various utility functions for handling parameters:
 
-  compress()	Compact a list, i.e remove any NULL elements
+  compact()	Compact a list, i.e remove any NULL elements
   lstlen()	Count number of elements
   inlst()	Check if an element is in the list
   sublst()	Subract two lists
@@ -21,9 +21,9 @@
 
 
 #ifdef _PROTOTYPES_
-void compress(ParamElem a[])
+void compact(ParamElem a[])
 #else
-void compress(a)
+void compact(a)
      ParamElem a[];
 #endif
 {
@@ -93,7 +93,7 @@ void sublst(a, b)
   for (i = 0; a[i].code != EOF; i++)
     if (inlst(b, a[i].code))
       a[i].code = 0;		/* Mark empty */
-  compress(a);
+  compact(a);
 }
 
 
