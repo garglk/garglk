@@ -278,9 +278,9 @@ do_enter_function_L1: // Arg count is in L2.
     PEEPHOLE_STORE(bitor,   S1 = L1 | L2);
     PEEPHOLE_STORE(bitxor,  S1 = L1 ^ L2);
 
-    PEEPHOLE_STORE(shiftl,  if (L2 > 31) S1 = 0; else S1 = L1 << ((git_uint32) L2));
-    PEEPHOLE_STORE(sshiftr, if (L2 > 31) L2 = 31; S1 = ((git_sint32) L1) >> ((git_uint32) L2));
-    PEEPHOLE_STORE(ushiftr, if (L2 > 31) S1 = 0; else S1 = ((git_uint32) L1) >> ((git_uint32) L2));
+    PEEPHOLE_STORE(shiftl,  if (L2 > 31 || L2 < 0) S1 = 0; else S1 = L1 << ((git_uint32) L2));
+    PEEPHOLE_STORE(sshiftr, if (L2 > 31 || L2 < 0) L2 = 31; S1 = ((git_sint32) L1) >> ((git_uint32) L2));
+    PEEPHOLE_STORE(ushiftr, if (L2 > 31 || L2 < 0) S1 = 0; else S1 = ((git_uint32) L1) >> ((git_uint32) L2));
 
     PEEPHOLE_STORE(aload,   S1 = memRead32 (L1 + (L2<<2)));
     PEEPHOLE_STORE(aloads,  S1 = memRead16 (L1 + (L2<<1)));
@@ -505,7 +505,7 @@ finish_save_stub:
     do_catch_stub_local:
         CHECK_FREE(4);
         L7 = READ_PC;
-        memWrite32(L7, (sp-base+4)*4);
+        LOCAL(L7 / 4) = (sp-base+4)*4;
         PUSH (2);       // DestType
         goto finish_catch_stub_addr_L7;
 
@@ -952,8 +952,8 @@ do_tailcall:
 
                     case 0xC0: case 0xC1: // Function.
                         // Retrieve arguments.
-                        for (L1 += 8, L4 = 0; L4 < L2 ; ++L4, L1+=4)
-                            args[L4] = memRead32(L1);
+                        for (L1 += 8, L4 = L2; L4 > 0 ; --L4, L1+=4)
+                            args[L4-1] = memRead32(L1);
                         // Enter function.
                         L1 = L3;
                         goto do_enter_function_L1;
@@ -1128,8 +1128,12 @@ do_tailcall:
             // The parameter is zero, so we should generate a
             // random number in "the full 32-bit range". The rand()
             // function might not cover the entire range, so we'll
-            // generate the high 16 bits and low 16 bits separately.
+            // generate the number with several calls.
+#if (RAND_MAX < 0xffff)
+            S1 = rand() ^ (rand() << 12) ^ (rand() << 24);
+#else
             S1 = (rand() & 0xffff) | (rand() << 16);
+#endif
         }
         NEXT;
 
@@ -1177,13 +1181,15 @@ do_tailcall:
             fatalError ("Negative number of elements to rotate in stkroll");
         if (L1 > (sp - values))
             fatalError ("Tried to rotate too many elements in stkroll");
+        if (L1 == 0)
+            NEXT;
         // Now, let's normalise L2 into the range [0..L1).
         if (L2 >= 0)
             L2 = L2 % L1;
         else
             L2 = L1 - (-L2 % L1);
         // Avoid trivial cases.
-        if (L1 == 0 || L2 == 0 || L2 == L1)
+        if (L2 == 0 || L2 == L1)
             NEXT;
         L2 = L1 - L2;
         // The problem is reduced to swapping elements [0..L2) with

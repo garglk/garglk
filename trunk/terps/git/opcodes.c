@@ -147,27 +147,10 @@ static void parseSS (git_uint32* pc, Label op)
 }
 static void parseCatch (git_uint32 * pc)
 {
-    Block stubCode;
     int modes [2];
     parseModeNibbles (pc, 2, modes);
 
-    parseCatchStub (pc, modes[0]);
-
-    // This is a little nasty. The last thing emitted by
-    // parseCatchStub() is the current value of the PC,
-    // which is where execution will resume when and if
-    // the stub is used; but execution should resume
-    // after the branch we're about to do, so we'll need
-    // to fix up that emitted value.
-
-    stubCode = peekAtEmittedStuff (1);
-
-    parseLoad (pc, reg_L1, modes[1], size32, NULL);
-    emitCode (label_jump_var);
-    emitData(*pc);
-
-    // Fix up the end of the stub, as described above.
-    *stubCode = *pc;
+    parseCatchStub (pc, modes);
 }
 void parseInstruction (git_uint32* pc, int * done)
 {

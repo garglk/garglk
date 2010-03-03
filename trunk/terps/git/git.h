@@ -92,9 +92,9 @@ extern git_uint32 parseLoad  (git_uint32 * pc, LoadReg reg, int mode, TransferSi
 extern void       parseStore (git_uint32 * pc, StoreReg reg, int mode, TransferSize);
 
 extern void parseCallStub  (git_uint32 * pc, int mode);
-extern void parseCatchStub (git_uint32 * pc, int mode);
 extern void parseSaveStub  (git_uint32 * pc, int mode);
 extern void parseUndoStub  (git_uint32 * pc, int mode);
+extern void parseCatchStub (git_uint32 * pc, int * modes);
 
 // compiler.c
 

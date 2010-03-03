@@ -12,6 +12,8 @@ OBJS =	git.o memory.o compiler.o opcodes.o operands.o peephole.o terp.o \
 	glkop.o search.o git_windows.o savefile.o saveundo.o gestalt.o \
 	accel.o heap.o glk.o res.o
 
+all: git chm
+
 git: $(OBJS) libglk.a
 	$(CC) -s -o $(OUTPUT) $(OBJS) $(LIBS)
 
@@ -23,6 +25,10 @@ res.o: win/git.rc
 
 libglk.a:
 	dlltool --dllname=Glk.dll --def=../GlkDll/Glk.def --output-lib=libglk.a
+
+chm:
+	-C:\\Program\ Files\\HTML\ Help\ Workshop\\hhc help\\Git.hhp
+	copy help\\Git.chm ..\\Executables\\Release
 
 clean:
 	del *.o *.a

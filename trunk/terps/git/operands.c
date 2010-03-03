@@ -279,7 +279,7 @@ static void parseStub (git_uint32 * pc, int mode, Label discardOp)
             break;
         store_local:
             emitCode (discardOp + (label_call_stub_local - label_call_stub_discard));
-            emitData (value); // Convert byte offset to word offset.
+            emitData (value);
             break;
     }
     
@@ -293,10 +293,6 @@ void parseCallStub (git_uint32 * pc, int mode)
 {
     parseStub (pc, mode, label_call_stub_discard);
 }
-void parseCatchStub (git_uint32 * pc, int mode)
-{
-    parseStub (pc, mode, label_catch_stub_discard);
-}
 void parseSaveStub (git_uint32 * pc, int mode)
 {
     parseStub (pc, mode, label_save_stub_discard);
@@ -304,4 +300,99 @@ void parseSaveStub (git_uint32 * pc, int mode)
 void parseUndoStub (git_uint32 * pc, int mode)
 {
     parseStub (pc, mode, label_undo_stub_discard);
+}
+
+void parseCatchStub (git_uint32 * pc, int * modes)
+{
+    git_uint32 tokenVal, branchVal;
+    git_uint32 branchConst = 0;
+    Block stubCode;
+
+    switch (modes[0])
+    {
+        case 0x0: // Discard
+            goto store_discard;
+        case 0x5: // Contents of address 00 to FF. (One byte)
+            tokenVal = memRead8(*pc);
+            *pc += 1;
+            goto store_addr;
+        case 0x6: // Contents of address 0000 to FFFF. (Two bytes)
+            tokenVal = memRead16(*pc);
+            *pc += 2;
+            goto store_addr;
+        case 0x7: // Contents of any address. (Four bytes)
+            tokenVal = memRead32(*pc);
+            *pc += 4;
+            goto store_addr;
+        case 0x8: // Value popped off stack. (Zero bytes)
+            goto store_stack;
+        case 0x9: // Call frame local at store_address 00 to FF. (One byte)
+            tokenVal = memRead8(*pc);
+            *pc += 1;
+            goto store_local;
+        case 0xA: // Call frame local at store_address 0000 to FFFF. (Two bytes)
+            tokenVal = memRead16(*pc);
+            *pc += 2;
+            goto store_local;
+        case 0xB: // Call frame local at any store_address. (Four bytes)
+            tokenVal = memRead32(*pc);
+            *pc += 4;
+            goto store_local;
+        case 0xD: // Contents of RAM address 00 to FF. (One byte)
+            tokenVal = memRead8(*pc) + gRamStart;
+            *pc += 1;
+            goto store_addr;
+        case 0xE: // Contents of RAM address 0000 to FFFF. (Two bytes)
+            tokenVal = memRead16(*pc) + gRamStart;
+            *pc += 2;
+            goto store_addr;
+        case 0xF: // Contents of RAM, any address. (Four bytes)
+            tokenVal = memRead32(*pc) + gRamStart;
+            *pc += 4;
+            goto store_addr;
+        // ------------------------------------------------------
+        store_discard:
+            branchConst = parseLoad (pc, reg_L1, modes[1], size32, &branchVal);
+            emitCode (label_catch_stub_discard);
+            break;
+        store_stack:
+            branchConst = parseLoad (pc, reg_L1, modes[1], size32, &branchVal);
+            emitCode (label_catch_stub_stack);
+            break;
+        store_addr:
+            branchConst = parseLoad (pc, reg_L1, modes[1], size32, &branchVal);
+            emitCode (label_catch_stub_addr);
+            emitData (tokenVal);
+            break;
+        store_local:
+            branchConst = parseLoad (pc, reg_L1, modes[1], size32, &branchVal);
+            emitCode (label_catch_stub_local);
+            emitData (tokenVal);
+            break;
+    }
+    
+    // The catch stub ends with the address to go to on throw,
+    // which is after the branch, so we don't know what it is yet.
+    emitData (0);
+    stubCode = peekAtEmittedStuff (1);
+
+    // Emit the branch taken after storing the catch token.
+    if (branchConst)
+    {
+        if (branchVal == 0)
+            emitCode (label_jump_return0);
+        else if (branchVal == 1)
+            emitCode (label_jump_return1);
+        else
+            emitConstBranch (label_jump_const, *pc + branchVal - 2);
+    }
+    else
+    {
+        emitCode (label_jump_var);
+        emitData (*pc);
+    }
+
+    // Fix up the throw return address
+    *stubCode = *pc;
+    nextInstructionIsReferenced ();
 }

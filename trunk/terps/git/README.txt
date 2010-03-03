@@ -191,6 +191,11 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
+1.2.6 2010-02-09  Imported fix for retained Glk array handling from Glulxe.
+
+1.2.5 2009-11-21  Fixes for problems shown by Andrew Plotkin's glulxercise test
+                  cases, from David Kinder.
+
 1.2.4 2009-04-02  More David Kinder! Accelerated opcode support (VM spec 3.1.1).
 
 1.2.3 2009-02-22  David Kinder and Eliuk Blau fixed some memory management bugs.
