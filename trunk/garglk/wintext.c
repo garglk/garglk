@@ -131,15 +131,16 @@ void win_textbuffer_destroy(window_textbuffer_t *dwin)
     free(dwin);
 }
 
+/* define variables for text buffer reflow() */
+attr_t attrbuf[TBLINELEN*SCROLLBACK];
+glui32 charbuf[TBLINELEN*SCROLLBACK];
+int alignbuf[SCROLLBACK];
+picture_t *pictbuf[SCROLLBACK];
+glui32 hyperbuf[SCROLLBACK];
+int offsetbuf[SCROLLBACK];
+
 static void reflow(window_t *win)
 {
-    attr_t attrbuf[TBLINELEN*SCROLLBACK];
-    glui32 charbuf[TBLINELEN*SCROLLBACK];
-    int alignbuf[SCROLLBACK];
-    picture_t *pictbuf[SCROLLBACK];
-    glui32 hyperbuf[SCROLLBACK];
-    int offsetbuf[SCROLLBACK];
-
     window_textbuffer_t *dwin = win->data;
     int inputbyte = -1;
     attr_t curattr;
