@@ -468,6 +468,17 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
 
         switch (typeclass) {
         case 'C':
+          /* This test checks for a giant array length, which is 
+             deprecated. It displays a warning and cuts it down to
+             something reasonable. Future releases of this interpreter
+             may remove this test and go on to verify_array_addresses(),
+             which treats this case as a fatal error. */
+          if (varglist[ix+1] > endmem
+              || varglist[ix]+varglist[ix+1] > endmem) {
+              nonfatal_warning_i("Memory access was much too long -- perhaps a print_to_array call with only one argument", varglist[ix+1]);
+              varglist[ix+1] = endmem - varglist[ix];
+          }
+          verify_array_addresses(varglist[ix], varglist[ix+1], 1);
           garglist[gargnum].array = AddressOfArray(varglist[ix]);
           gargnum++;
           ix++;
@@ -476,6 +487,13 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
           cx++;
           break;
         case 'I':
+          /* See comment above. */
+          if (varglist[ix+1] > endmem/4
+              || varglist[ix+1] > (endmem-varglist[ix])/4) {
+              nonfatal_warning_i("Memory access was much too long -- perhaps a print_to_array call with only one argument", varglist[ix+1]);
+              varglist[ix+1] = (endmem - varglist[ix]) / 4;
+          }
+          verify_array_addresses(varglist[ix], varglist[ix+1], 4);
           garglist[gargnum].array = CaptureIArray(varglist[ix], varglist[ix+1], passin);
           gargnum++;
           ix++;

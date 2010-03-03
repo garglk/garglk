@@ -51,7 +51,7 @@ void glulx_setrandom(glui32 seed)
 /* Return a random number in the range 0 to 2^32-1. */
 glui32 glulx_random()
 {
-  return random();
+  return (random() << 16) ^ random();
 }
 
 #endif /* OS_UNIX */
@@ -88,7 +88,7 @@ static void lo_seed_random(glui32 seed);
 /* Return a random number in the range 0 to 2^32-1. */
 glui32 glulx_random()
 {
-  return lo_random();
+  return (lo_random() << 16) ^ lo_random();
 }
 
 /* Set the random-number seed; zero means use as random a source as
@@ -139,7 +139,7 @@ void glulx_setrandom(glui32 seed)
 /* Return a random number in the range 0 to 2^32-1. */
 glui32 glulx_random()
 {
-  return rand();
+  return (rand() << 16) ^ rand();
 }
 
 #endif /* WIN32 */

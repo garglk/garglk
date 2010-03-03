@@ -28,8 +28,6 @@ typedef struct cacheblock_struct {
   } u;
 } cacheblock_t;
 
-static int never_cache_stringtable = FALSE;
-
 /* The current string-decoding tables, broken out into a fast and
    easy-to-use form. */
 static int tablecache_valid = FALSE;
@@ -163,7 +161,8 @@ void stream_num(glsi32 val, int inmiddle, int charnum)
   switch (iosys_mode) {
 
   case iosys_Glk:
-    while (ix) {
+    ix -= charnum;
+    while (ix > 0) {
       ix--;
       glk_put_char(buf[ix]);
     }
@@ -172,23 +171,26 @@ void stream_num(glsi32 val, int inmiddle, int charnum)
   case iosys_Filter:
     if (!inmiddle) {
       push_callstub(0x11, 0);
+      inmiddle = TRUE;
     }
-    if (charnum >= ix) {
-      res = pop_callstub_string(&jx);
-      if (res) 
-        fatal_error("String-on-string call stub while printing number.");
-    }
-    else {
+    if (charnum < ix) {
       ival = buf[(ix-1)-charnum] & 0xFF;
       pc = val;
       push_callstub(0x12, charnum+1);
       enter_function(iosys_rock, 1, &ival);
+      return;
     }
     break;
 
   default:
     break;
 
+  }
+
+  if (inmiddle) {
+    res = pop_callstub_string(&jx);
+    if (res) 
+      fatal_error("String-on-string call stub while printing number.");
   }
 }
 
@@ -698,7 +700,10 @@ void stream_set_table(glui32 addr)
     /* Build cache. We can only do this if the table is entirely in ROM. */
     glui32 tablelen = Mem4(stringtable);
     glui32 rootaddr = Mem4(stringtable+8);
-    if (stringtable+tablelen <= ramstart && !never_cache_stringtable) {
+    int cache_stringtable = (stringtable+tablelen <= ramstart);
+    /* cache_stringtable = TRUE; ...for testing only */
+    /* cache_stringtable = FALSE; ...for testing only */
+    if (cache_stringtable) {
       buildcache(&tablecache, rootaddr, CACHEBITS, 0);
       /* dumpcache(&tablecache, 1, 0); */
       tablecache_valid = TRUE;
