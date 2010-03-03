@@ -703,7 +703,7 @@ void hugo_font(int f)
 	glk_set_style(style_Normal);
 
 	if (f & BOLD_FONT)
-		glk_set_style(style_Emphasized);
+		glk_set_style(style_Subheader);
 
 	if (f & UNDERLINE_FONT)
 		glk_set_style(style_Emphasized);
