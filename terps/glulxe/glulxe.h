@@ -61,16 +61,18 @@ typedef signed short glsi16;
 
 #if VERIFY_MEMORY_ACCESS
 #define Verify(adr, ln) verify_address(adr, ln)
+#define VerifyW(adr, ln) verify_address_write(adr, ln)
 #else
 #define Verify(adr, ln) (0)
+#define VerifyW(adr, ln) (0)
 #endif /* VERIFY_MEMORY_ACCESS */
 
 #define Mem1(adr)  (Verify(adr, 1), Read1(memmap+(adr)))
 #define Mem2(adr)  (Verify(adr, 2), Read2(memmap+(adr)))
 #define Mem4(adr)  (Verify(adr, 4), Read4(memmap+(adr)))
-#define MemW1(adr, vl)  (Verify(adr, 1), Write1(memmap+(adr), (vl)))
-#define MemW2(adr, vl)  (Verify(adr, 2), Write2(memmap+(adr), (vl)))
-#define MemW4(adr, vl)  (Verify(adr, 4), Write4(memmap+(adr), (vl)))
+#define MemW1(adr, vl)  (VerifyW(adr, 1), Write1(memmap+(adr), (vl)))
+#define MemW2(adr, vl)  (VerifyW(adr, 2), Write2(memmap+(adr), (vl)))
+#define MemW4(adr, vl)  (VerifyW(adr, 4), Write4(memmap+(adr), (vl)))
 
 /* Macros to access values on the stack. These *must* be used 
    with proper alignment! (That is, Stk4 and StkW4 must take 
@@ -165,6 +167,8 @@ extern void vm_restart(void);
 extern glui32 change_memsize(glui32 newlen, int internal);
 extern glui32 *pop_arguments(glui32 count, glui32 addr);
 extern void verify_address(glui32 addr, glui32 count);
+extern void verify_address_write(glui32 addr, glui32 count);
+extern void verify_array_addresses(glui32 addr, glui32 count, glui32 size);
 
 /* exec.c */
 extern void execute_loop(void);

@@ -1,5 +1,5 @@
 Glulxe: the Glulx VM interpreter
-Version 0.4.4
+Version 0.4.5
 
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glulx/index.html
@@ -31,6 +31,19 @@ compile the library, the source code, and the "macstart.c" file.
 Ditto for Windows, using "winstart.c".
 
 * Version
+
+0.4.5:
+    VERIFY_MEMORY_ACCESS now detects writes to the ROM section of memory.
+    Fixed off-by-eight bug in @astorebit and @aloadbit with negative bit
+    numbers.
+    Fixed an obscure bug with division and modulo of $80000000. (Thanks 
+    Evin Robertson.)
+    Fixed an extremely obscure problem with changing I/O mode in the middle
+    of printing a number.
+    Glk array/string operations are now checked for memory overflows
+    (though not for ROM writing). This generates a warning at present;
+    in the future, it will be a fatal error.
+    Better fix for the @random bug.
 
 0.4.4:
     Added profiling code, which is turned off by default. To compile it 
