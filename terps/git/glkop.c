@@ -1140,6 +1140,9 @@ void glulxe_retained_unregister(void *array, glui32 len,
   if (arref->elemsize != 4 || arref->len != len)
     fatalError("Mismatched array argument in Glk call.");
 
+  *aptr = arref->next;
+  arref->next = NULL;
+
   for (ix=0, addr2=arref->addr; ix<arref->len; ix++, addr2+=4) {
     val = ((glui32 *)array)[ix];
     memWrite32(addr2, val);

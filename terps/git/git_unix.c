@@ -66,10 +66,10 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
 #ifdef GARGLK
 	{
-		char buf[32];
+		char buf[255];
 		sprintf(buf, "Git %d.%d.%d", GIT_MAJOR, GIT_MINOR, GIT_PATCH);
 		garglk_set_program_name(buf);
-		sprintf(buf, "Git %d.%d.%d by Iain Merrick\n",
+		sprintf(buf, "Git %d.%d.%d by Iain Merrick and David Kinder\n",
 				GIT_MAJOR, GIT_MINOR, GIT_PATCH);
 		garglk_set_program_info(buf);
 	}
@@ -139,10 +139,10 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
 #ifdef GARGLK
 	{
-		char buf[32];
+		char buf[255];
 		sprintf(buf, "Git %d.%d.%d", GIT_MAJOR, GIT_MINOR, GIT_PATCH);
 		garglk_set_program_name(buf);
-		sprintf(buf, "Git %d.%d.%d by Iain Merrick\n",
+		sprintf(buf, "Git %d.%d.%d by Iain Merrick and David Kinder\n",
 				GIT_MAJOR, GIT_MINOR, GIT_PATCH);
 		garglk_set_program_info(buf);
 	}
