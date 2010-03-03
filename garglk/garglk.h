@@ -707,3 +707,11 @@ static unsigned char zbright_rgb[][3] = {
     { 188, 188, 188 },  /* zbright_MediumGrey */
     { 138, 138, 138 },     /* zbright_DarkGrey */
 };
+
+/* declare variables for text buffer reflow() */
+extern attr_t attrbuf[TBLINELEN*SCROLLBACK];
+extern glui32 charbuf[TBLINELEN*SCROLLBACK];
+extern int alignbuf[SCROLLBACK];
+extern picture_t *pictbuf[SCROLLBACK];
+extern glui32 hyperbuf[SCROLLBACK];
+extern int offsetbuf[SCROLLBACK];
