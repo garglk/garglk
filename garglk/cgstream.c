@@ -193,6 +193,24 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     return 0;
   }
 
+  if (fmode == filemode_WriteAppend) {
+    fclose(fl);
+
+    strcpy(modestr, "r+");
+
+    if (!fref->textmode)
+      strcat(modestr, "b");
+
+    fl = fopen(fref->filename, modestr);
+    if (!fl) {
+        char msg[256];
+        sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
+        return 0;
+    }
+
+    fseek(fl, 0, 2);
+  }
+
   str = gli_new_stream(strtype_File, 
     (fmode == filemode_Read || fmode == filemode_ReadWrite), 
     !(fmode == filemode_Read), 
