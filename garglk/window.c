@@ -317,6 +317,7 @@ static void gli_window_close(window_t *win, int recurse)
             {
                 window_graphics_t *dwin = win->data;
                 win_graphics_destroy(dwin);
+                gli_piclist_clear();
             }
             break;
     }
@@ -1255,8 +1256,6 @@ glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)
         *width = pic->w;
     if (height)
         *height = pic->h;
-
-    gli_picture_drop(pic);
 
     return TRUE;
 }

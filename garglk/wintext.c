@@ -167,7 +167,6 @@ static void reflow(window_t *win)
 
         if (dwin->lines[k].lpic)
         {
-            gli_picture_keep(dwin->lines[k].lpic);
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginLeft;
             pictbuf[x] = dwin->lines[k].lpic;
@@ -177,7 +176,6 @@ static void reflow(window_t *win)
 
         if (dwin->lines[k].rpic)
         {
-            gli_picture_keep(dwin->lines[k].rpic);
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginRight;
             pictbuf[x] = dwin->lines[k].rpic;
@@ -218,7 +216,6 @@ static void reflow(window_t *win)
         if (offsetbuf[x] == i)
         {
             put_picture(dwin, pictbuf[x], alignbuf[x], hyperbuf[x]);
-            gli_picture_drop(pictbuf[x]);
             x ++;
         }
 
@@ -721,11 +718,6 @@ static void scrolloneline(window_textbuffer_t *dwin, int forced)
     dwin->lines[0].len = dwin->numchars;
     dwin->lines[0].newline = forced;
 
-    if (dwin->lines[SCROLLBACK-1].lpic)
-        gli_picture_drop(dwin->lines[SCROLLBACK-1].lpic);
-    if (dwin->lines[SCROLLBACK-1].rpic)
-        gli_picture_drop(dwin->lines[SCROLLBACK-1].rpic);
-
     for (i = SCROLLBACK - 2; i > 0; i--)
     {
         memcpy(dwin->lines+i, dwin->lines+i-1, sizeof(tbline_t));
@@ -1015,10 +1007,6 @@ void win_textbuffer_clear(window_t *win)
 
     for (i = 0; i < SCROLLBACK; i++)
     {
-        if (dwin->lines[i].lpic)
-            gli_picture_drop(dwin->lines[i].lpic);
-        if (dwin->lines[i].rpic)
-            gli_picture_drop(dwin->lines[i].rpic);
         dwin->lines[i].len = 0;
         dwin->lines[i].lpic = 0;
         dwin->lines[i].rpic = 0;
@@ -1539,8 +1527,6 @@ put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 link
             win_textbuffer_flow_break(dwin);
     }
 
-    gli_picture_keep(pic);
-
     return TRUE;
 }
 
@@ -1560,15 +1546,12 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
     {
         picture_t *tmp;
         tmp = gli_picture_scale(pic, width, height);
-        gli_picture_drop(pic);
         pic = tmp;
     }
 
     hyperlink = dwin->owner->attr.hyper;
 
     error = put_picture(dwin, pic, align, hyperlink);
-    
-    gli_picture_drop(pic);
 
     return error;
 }

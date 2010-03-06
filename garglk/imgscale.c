@@ -52,6 +52,11 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
     picture_t *dst;
 
+    dst = gli_picture_retrieve(src->id, 1);
+
+    if (dst && dst->w == newcols && dst->h == newrows)
+        return dst;
+
     unsigned char *xelrow;
     unsigned char *tempxelrow;
     unsigned char *newxelrow;
@@ -80,8 +85,8 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
     dst->w = newcols;
     dst->h = newrows;
     dst->rgba = malloc(newcols * newrows * 4);
-
-//printf("alloc scale %p\n", dst);
+    dst->id = src->id;
+    dst->scaled = TRUE;
 
     xelrow = src->rgba;
     newxelrow = dst->rgba;
@@ -271,6 +276,8 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
     free(gs);
     free(rs);
     free(tempxelrow);
+
+    gli_picture_store(dst);
 
     return dst;
 }
