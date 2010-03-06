@@ -394,6 +394,16 @@ void winrefresh(void)
 
     gli_windows_redraw();
 
+    /* repaint the backing window */
+    if (gli_image_s * gli_image_h)
+    {
+        [window setBackgroundColor: [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
+                                                              green: (gli_image_rgb[1]/255.0f)
+                                                               blue: (gli_image_rgb[2]/255.0f)
+                                                              alpha: 1]];
+        [[window contentView] displayIfNeeded];
+    }
+
     /* convert bitmap store */
     memcpy([framebuf bitmapData], gli_image_rgb, gli_image_s * gli_image_h);
     CIImage * output = [[CIImage alloc] initWithBitmapImageRep: framebuf];
@@ -404,15 +414,6 @@ void winrefresh(void)
               operation: NSCompositeSourceOver
                fraction: 1.0];
     [output release];
-
-    /* repaint the backing window */
-    if (gli_image_s * gli_image_h)
-    {
-        [window setBackgroundColor: [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
-                                                              green: (gli_image_rgb[1]/255.0f)
-                                                               blue: (gli_image_rgb[2]/255.0f)
-                                                              alpha: 1]];
-    }
 
     /* repaint the resize control */
     int xsize = gli_image_w > 12 ? gli_image_w - 12 : 0;
