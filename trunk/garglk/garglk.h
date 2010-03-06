@@ -123,6 +123,7 @@ extern int gli_cellh;
 
 typedef struct rect_s rect_t;
 typedef struct picture_s picture_t;
+typedef struct piclist_s piclist_t;
 typedef struct style_s style_t;
 typedef struct mask_s mask_t;
 
@@ -137,6 +138,15 @@ struct picture_s
     int refcount;
     int w, h;
     unsigned char *rgba;
+    unsigned long id;
+    int scaled;
+};
+
+struct piclist_s
+{
+    picture_t *picture;
+    picture_t *scaled;
+    struct piclist_s *next;
 };
 
 struct style_s
@@ -634,9 +644,10 @@ int giblorb_is_resource_map();
 void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, long *len, glui32 *type);
 
 picture_t *gli_picture_load(unsigned long id);
-void gli_picture_keep(picture_t *pic);
-void gli_picture_drop(picture_t *pic);
+void gli_picture_store(picture_t *pic);
+picture_t *gli_picture_retrieve(unsigned long id, int scaled);
 picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
+void gli_piclist_clear(void);
 
 window_graphics_t *win_graphics_create(window_t *win);
 void win_graphics_destroy(window_graphics_t *cutwin);

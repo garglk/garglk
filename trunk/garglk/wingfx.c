@@ -212,8 +212,6 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 
 	win_graphics_touch(dwin);
 
-	gli_picture_drop(pic);
-
 	return TRUE;
 }
 
@@ -318,7 +316,6 @@ void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color)
 static void drawpicture(picture_t *src, window_graphics_t *dst, 
 		int x0, int y0, int width, int height, glui32 linkval)
 {
-	int freeafter = 0;
 	unsigned char *sp, *dp;
 	int dx1, dy1, x1, y1, sx0, sy0, sx1, sy1;
 	int x, y, w, h;
@@ -329,7 +326,6 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
 		src = gli_picture_scale(src, width, height);
 		if (!src)
 			return;
-		freeafter = 1;
 	}
 
 	sx0 = 0;
@@ -380,7 +376,5 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
 		dp += dst->w * 3;
 	}
 
-	if (freeafter)
-		gli_picture_drop(src);
 }
 
