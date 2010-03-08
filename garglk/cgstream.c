@@ -159,12 +159,28 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
   glui32 rock, int unicode)
 {
   char modestr[16];
+  char msg[256];
   stream_t *str;
   FILE *fl;
 
   if (!fref) {
     gli_strict_warning("stream_open_file: invalid fileref id");
     return 0;
+  }
+
+  /* The spec says that Write, ReadWrite, and WriteAppend create the
+  file if necessary. However, fopen(filename, "r+") doesn't create
+  a file. So we have to pre-create it in the ReadWrite and
+  WriteAppend cases. (We use "a" so as not to truncate, and "b" 
+  because we're going to close it immediately, so it doesn't matter.) */
+
+  if (fmode == filemode_ReadWrite || fmode == filemode_WriteAppend) {
+    fl = fopen(fref->filename, "ab");
+    if (!fl) {
+      sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
+      gli_strict_warning(msg);
+    }
+    fclose(fl);
   }
 
   switch (fmode) {
@@ -175,40 +191,27 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     strcpy(modestr, "r");
     break;
   case filemode_ReadWrite:
-    strcpy(modestr, "w+");
+    strcpy(modestr, "r+");
     break;
   case filemode_WriteAppend:
-    strcpy(modestr, "a");
+    /* Can't use "a" here, because then fseek wouldn't work.
+    Instead we use "r+" and then fseek to the end. */
+    strcpy(modestr, "r+");
     break;
   }
-    
+
   if (!fref->textmode)
     strcat(modestr, "b");
 
   fl = fopen(fref->filename, modestr);
   if (!fl) {
-    char msg[256];
     sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
     gli_strict_warning(msg);
     return 0;
   }
 
   if (fmode == filemode_WriteAppend) {
-    fclose(fl);
-
-    strcpy(modestr, "r+");
-
-    if (!fref->textmode)
-      strcat(modestr, "b");
-
-    fl = fopen(fref->filename, modestr);
-    if (!fl) {
-        char msg[256];
-        sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
-        return 0;
-    }
-
-    fseek(fl, 0, 2);
+    fseek(fl, 0, 2); /* ...to the end. */
   }
 
   str = gli_new_stream(strtype_File, 
