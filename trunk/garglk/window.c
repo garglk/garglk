@@ -317,7 +317,6 @@ static void gli_window_close(window_t *win, int recurse)
             {
                 window_graphics_t *dwin = win->data;
                 win_graphics_destroy(dwin);
-                gli_piclist_clear();
             }
             break;
     }
