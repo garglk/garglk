@@ -572,6 +572,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
         gli_putchar_utf8((glui32)ch, str->file);
       else
         putc((unsigned char)ch, str->file);
+      fflush(str->file);
       break;
   }
 }
@@ -616,6 +617,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
         gli_putchar_utf8((glui32)ch, str->file);
       else
         putc((unsigned char)ch, str->file);
+      fflush(str->file);
       break;
   }
 }
@@ -694,6 +696,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 else
                     putc((unsigned char)(buf[lx]), str->file);
             }
+            fflush(str->file);
             break;
     }
 }
@@ -776,6 +779,7 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                 else
                     putc((unsigned char)(buf[lx]), str->file);
             }
+            fflush(str->file);
             break;
     }
 }
