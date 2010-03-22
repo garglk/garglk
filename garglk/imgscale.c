@@ -158,21 +158,20 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
                 b = bs[col] + fracrowtofill * xP[2] * xP[3];
                 a = as[col] + fracrowtofill * xP[3];
 
-                a /= SCALE;
-                if ( a > maxval ) a = maxval;
-
                 if (!a)
                 {
                     r = g = b = a;
                 }
                 else
                 {
-                    r /= (SCALE * a);
+                    r /= a;
                     if ( r > maxval ) r = maxval;
-                    g /= (SCALE * a);
+                    g /= a;
                     if ( g > maxval ) g = maxval;
-                    b /= (SCALE * a);
+                    b /= a;
                     if ( b > maxval ) b = maxval;
+                    a /= SCALE;
+                    if ( a > maxval ) a = maxval;
                 }
 
                 nxP[0] = r;
@@ -218,21 +217,20 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
                     b += fraccoltofill * xP[2] * xP[3];
                     a += fraccoltofill * xP[3];
 
-                    a /= SCALE;
-                    if ( a > maxval ) a = maxval;
-
                     if (!a)
                     {
                         r = g = b = a;
                     }
                     else
                     {
-                        r /= (SCALE * a);
+                        r /= a;
                         if ( r > maxval ) r = maxval;
-                        g /= (SCALE * a);
+                        g /= a;
                         if ( g > maxval ) g = maxval;
-                        b /= (SCALE * a);
+                        b /= a;
                         if ( b > maxval ) b = maxval;
+                        a /= SCALE;
+                        if ( a > maxval ) a = maxval;
                     }
 
                     nxP[0] = r;
@@ -274,21 +272,20 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
             if ( ! needcol )
             {
-                a /= SCALE;
-                if ( a > maxval ) a = maxval;
-
                 if (!a)
                 {
                     r = g = b = a;
                 }
                 else
                 {
-                    r /= (SCALE * a);
+                    r /= a;
                     if ( r > maxval ) r = maxval;
-                    g /= (SCALE * a);
+                    g /= a;
                     if ( g > maxval ) g = maxval;
-                    b /= (SCALE * a);
+                    b /= a;
                     if ( b > maxval ) b = maxval;
+                    a /= SCALE;
+                    if ( a > maxval ) a = maxval;
                 }
 
                 nxP[0] = r;
