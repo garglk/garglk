@@ -51,6 +51,7 @@ _Platform-specific interim and final releases_
   * Yaroslav Isakov
   * Per Liedman
   * Rémi Verschelde
+  * Samuel Verschelde
 
 
 <p><br/></p>
