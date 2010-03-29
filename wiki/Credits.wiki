@@ -44,6 +44,7 @@ _Quality assurance testing and bug reports_
 ===Packaging===
 _Platform-specific interim and final releases_
   * Christopher Armstrong
+  * Sylvain Beucler
   * Brian Cameron
   * Eric Forgeot
   * Stuart Henderson
