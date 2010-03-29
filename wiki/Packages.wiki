@@ -11,9 +11,9 @@
 
 === Mandriva ===
 
-* # rpmi gargoyle-free
+* # urpmi gargoyle-free
 
-[http://svn.mandriva.com/cgi-bin/viewvc.cgi/packages/cooker/gargoyle-free/ In cooker]
+[http://svn.mandriva.com/cgi-bin/viewvc.cgi/packages/cooker/gargoyle-free/ in the future release Mandriva 2010.1 and in backports media for earlier Mandriva releases]
 
 ===Ubuntu ===
 
