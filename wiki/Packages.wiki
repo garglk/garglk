@@ -1,9 +1,30 @@
 #summary Links to Gargoyle packages prepared by the community.
 #labels Phase-Deploy,Featured
 
-==Packages==
+==Official distributions==
 
-Gargoyle packages are not included out of the box in most distributions, so Linux users will either need to download a compiled binary version or build one from source.
+=== Debian ===
+
+* # apt-get install gargoyle-free
+
+[http://packages.debian.org/sid/gargoyle-free In Testing or Unstable (sid)]
+
+=== Mandriva ===
+
+* # rpmi gargoyle-free
+
+[http://svn.mandriva.com/cgi-bin/viewvc.cgi/packages/cooker/gargoyle-free/ In cooker]
+
+===Ubuntu ===
+
+* sudo apt-get install gargoyle-free
+
+[http://packages.ubuntu.com/lucid/gargoyle-free In the universe repositories in Lucid]
+
+
+==Other packages==
+
+Gargoyle packages are not included out of the box in some distributions, so Linux users will either need to download a compiled binary version or build one from source.
 
 Known packages for the current release are listed below. Although these are not "official" packages, you are still encouraged to report any bugs that you find to the [http://code.google.com/p/garglk/issues/list issue tracker] or the [http://groups.google.com/group/garglk-dev mailing list].
 
