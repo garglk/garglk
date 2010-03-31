@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey and Jörg Walter.                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -312,7 +313,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     gli_focuswin = win;
 
     if (win->mouse_request) {
-        gli_event_store(evtype_MouseInput, win, x, y);
+        gli_event_store(evtype_MouseInput, win, x/gli_cellw, y/gli_leading);
         win->mouse_request = FALSE;
         if (gli_conf_safeclicks)
             gli_forceclick = 1;
