@@ -64,7 +64,7 @@ Removes an alias previously added by -alias.  Useful for removing aliases in pre
 "Random seed"		random	r	"Set random seed"			number	0	{ faked_random_seed = number; }
 Normally the random number generator is initialized with the time of day.  If this option is used with a non-zero argument, the given number will be used to initialize the generator and for @code{@@random 0}.
 
-"Automap symbols"	mapsym	-	"Specify mapping glyphs"		string	"*udb@UDB+" { n_free(roomsymbol); roomsymbol = n_strdup(string); }
+"Automap symbols"	mapsym	-	"Specify mapping glyphs"		string	"" { n_free(roomsymbol); roomsymbol = n_strdup(string); }
 Nitfol draws maps using ASCII characters; you can choose which characters it uses to draw rooms.  Defaults to @samp{*udb@@UDB+}, which is, in order: empty room, room with down exit, room with up exit, room with up and down exits, room with player, room with player and up exit, room with player and down exit, room with player and up and down exits, bend symbol.
 
 "Automap size"		mapsize	-	"Specify map size"			number	12	{ automap_size = number; }
