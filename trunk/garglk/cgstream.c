@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey and Jörg Walter.                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -653,6 +654,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                         if (bp > (unsigned char *)str->bufeof)
                             str->bufeof = bp;
                     }
+                    str->bufptr = bp;
                 } else {
                     glui32 *bp = str->bufptr;
                     if (bp + len > (glui32 *)str->bufend) {
@@ -670,6 +672,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                         if (bp > (glui32 *)str->bufeof)
                             str->bufeof = bp;
                     }
+                    str->bufptr = bp;
                 }
             }
             break;
@@ -738,6 +741,7 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                         if (bp > (unsigned char *)str->bufeof)
                             str->bufeof = bp;
                     }
+                    str->bufptr = bp;
                 } else {
                     glui32 *bp = str->bufptr;
                     if (bp + len > (glui32 *)str->bufend) {
@@ -753,6 +757,7 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                         if (bp > (glui32 *)str->bufeof)
                             str->bufeof = bp;
                     }
+                    str->bufptr = bp;
                 }
             }
             break;
@@ -1081,6 +1086,7 @@ static glui32 gli_get_buffer(stream_t *str, char *buf, glui32 len)
                     str->bufeof = bp;
             }
             str->readcount += len;
+            str->bufptr = bp;
         } else {
             glui32 *bp = str->bufptr;
             if (bp + len > (glui32 *)str->bufend) {
@@ -1103,6 +1109,7 @@ static glui32 gli_get_buffer(stream_t *str, char *buf, glui32 len)
                     str->bufeof = bp;
             }
             str->readcount += len;
+            str->bufptr = bp;
         }
     }
     return len;
@@ -1178,6 +1185,7 @@ static glui32 gli_get_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                     str->bufeof = bp;
             }
             str->readcount += len;
+            str->bufptr = bp;
         } else {
             glui32 *bp = str->bufptr;
             if (bp + len > (glui32 *)str->bufend) {
@@ -1195,6 +1203,7 @@ static glui32 gli_get_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                     str->bufeof = bp;
             }
             str->readcount += len;
+            str->bufptr = bp;
         }
     }
     return len;
