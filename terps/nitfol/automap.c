@@ -1,5 +1,6 @@
 /*  automap.c: main automapping code
     Copyright (C) 1999  Evin Robertson
+    Copyright (C) 2010 Jörg Walter
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,23 +26,26 @@
 struct dirinfo {
   const char *name;
   int deltax, deltay;
-  char symbol;
-  char oneway;
+  glui32 symbol;
+  glui32 oneway;
 };
 
 static const struct dirinfo dirways[] = {
-  { "n",   0, -1, '|',  '^' },
-  { "s",   0,  1, '|',  'v' },
-  { "w",  -1,  0, '-',  '<' },
-  { "e",   1,  0, '-',  '>' },
-  { "nw", -1, -1, '\\', '^' },
-  { "se",  1,  1, '\\', 'v' },
-  { "ne",  1, -1, '/',  '^' },
-  { "sw", -1,  1, '/',  'v' },
-  { "up",  0,  0, 0,    0   },
-  { "down", 0, 0, 0,    0   },
-  { "wait", 0, 0, 0,    0   }
+  { "n",   0, -1, 0x2502,  0x2191 },
+  { "s",   0,  1, 0x2502,  0x2193 },
+  { "w",  -1,  0, 0x2500,  0x2190 },
+  { "e",   1,  0, 0x2500,  0x2192 },
+  { "nw", -1, -1, 0x2572,  0x2196 },
+  { "se",  1,  1, 0x2572,  0x2198 },
+  { "ne",  1, -1, 0x2571,  0x2197 },
+  { "sw", -1,  1, 0x2571,  0x2199 },
+  { "up",  0,  0, 0x21c8,    0   },
+  { "down", 0, 0, 0x21ca,    0   },
+  { "wait", 0, 0, 0x21ba,    0   }
 };
+
+#define CROSS 0x253c
+#define DIAGONAL_CROSS 0x2573
 
 #define NUM_EXITS (sizeof(dirways) / sizeof(*dirways))
 #define REVERSE_DIR(dir) (dir ^ 1)
@@ -53,9 +57,11 @@ static const struct dirinfo dirways[] = {
 #define DIR_DOWN (NUM_DIRS + 1)
 #define DIR_WAIT (NUM_DIRS + 2)
 
+// "*udb@UDB+"
 char *roomsymbol = NULL;
+glui32 uni_roomsymbol[9] = { 0x25cb, 0x25b3, 0x25bd, 0x25c7, 0x25cf, 0x25b2, 0x25bc, 0x25c6, 0x25cc };
 
-#define ROOM_SYMBOL(is_player, is_up, is_down, is_real) (is_real ? roomsymbol[(is_up != 0) | ((is_down != 0) << 1) | ((is_player != 0) << 2)] : roomsymbol[8])
+#define ROOM_SYMBOL(is_player, is_up, is_down, is_real) (is_real ? uni_roomsymbol[(is_up != 0) | ((is_down != 0) << 1) | ((is_player != 0) << 2)] : uni_roomsymbol[8])
 
 
 typedef struct edge edge;
@@ -153,14 +159,17 @@ void automap_kill(void)
   z_kill_window(automap_win);
 }
 
-
 BOOL automap_init(int numobj, const char *location_exp)
 {
+  int i;
   automap_kill();
 
-  if(!roomsymbol)
-    roomsymbol = n_strdup("*udb@UDB+");
-  
+  if(roomsymbol) {
+    for (i = 0; i < strlen(roomsymbol); i++) {
+      uni_roomsymbol[i] = (unsigned char)roomsymbol[i];
+    }
+  }
+
   if(location_exp)
     loc_exp = n_strdup(location_exp);
 
@@ -233,7 +242,7 @@ struct interlist {
 };
 
 
-static BOOL mymap_plot(int x, int y, char symbol, loc_node *node);
+static BOOL mymap_plot(int x, int y, glui32 symbol, loc_node *node);
 static edge *automap_get_edge(loc_node *location, int dir);
 static void automap_calc_location(loc_node *location, loc_node *last,
 				  int x, int y);
@@ -513,7 +522,7 @@ static void automap_adjust_length(loc_node *location, int dir, int newlen)
 static int mapwidth;
 static int mapheight;
 
-static char *mymap = NULL;
+static glui32 *mymap = NULL;
 static loc_node **mymapnode = NULL;
 
 static char mymap_read(int x, int y)
@@ -525,19 +534,19 @@ static char mymap_read(int x, int y)
 }
 
 
-static BOOL mymap_plot(int x, int y, char symbol, loc_node *node)
+static BOOL mymap_plot(int x, int y, glui32 symbol, loc_node *node)
 {
   BOOL status = TRUE;
-  char *dest;
+  glui32 *dest;
   x += mapwidth / 2; y += mapheight / 2;
   if(x < 0 || x >= mapwidth || y < 0 || y >= mapheight)
     return status;
   dest = &mymap[x + y * mapwidth];
   if(*dest != ' ') {
-    if((*dest=='/' && symbol=='\\') || (*dest=='\\' && symbol=='/'))
-      symbol = 'X';
-    else if((*dest=='-' && symbol=='|') || (*dest=='|' && symbol=='-'))
-      symbol = '+';
+    if((*dest==dirways[4].symbol && symbol==dirways[6].symbol) || (*dest==dirways[6].symbol && symbol==dirways[4].symbol))
+      symbol = DIAGONAL_CROSS;
+    else if((*dest==dirways[0].symbol && symbol==dirways[2].symbol) || (*dest==dirways[2].symbol && symbol==dirways[0].symbol))
+      symbol = CROSS;
     else
       status = FALSE;
   } else {
@@ -564,7 +573,7 @@ void mymap_init(int width, int height)
   max = mapwidth * mapheight;
   n_free(mymap);
   n_free(mymapnode);
-  mymap = (char *) n_malloc(max);
+  mymap = (glui32 *) n_malloc(max*sizeof(*mymap));
   mymapnode = (loc_node **) n_malloc(max * sizeof(*mymapnode));
   for(i = 0; i < max; i++) {
     mymap[i] = ' ';
@@ -634,7 +643,7 @@ static void mymap_draw(void)
   
   for(y = 0; y < mapheight/2; y++) {
     for(x = 0; x < mapwidth/2; x++)
-      glk_put_char(mymap[x+xoffset + (y+yoffset) * mapwidth]);
+      glk_put_char_uni(mymap[x+xoffset + (y+yoffset) * mapwidth]);
   }
 }
 
@@ -693,7 +702,7 @@ static void automap_calc_location(loc_node *location, loc_node *last,
 				  int x, int y)
 {
   unsigned i;
-  char symbol;
+  glui32 symbol;
   loc_node *is_up, *is_down;
 
   if(!location)

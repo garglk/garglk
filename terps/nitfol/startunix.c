@@ -394,7 +394,7 @@ static option_option options[] = {
   { "ralias", '-', "Specify an recursive alias", option_string, NULL, 0, NULL, NULL, code_ralias, NULL },
   { "unalias", '-', "Remove an alias", option_string, NULL, 0, NULL, NULL, code_unalias, NULL },
   { "random", 'r', "Set random seed", option_number, code_random, 0, NULL, NULL, NULL, NULL },
-  { "mapsym", '-', "Specify mapping glyphs", option_string, NULL, 0, NULL, NULL, code_mapsym, "*udb@UDB+" },
+  { "mapsym", '-', "Specify mapping glyphs", option_string, NULL, 0, NULL, NULL, code_mapsym, "" },
   { "mapsize", '-', "Specify map size", option_number, code_mapsize, 12, NULL, NULL, NULL, NULL },
   { "maploc", '-', "Specify map location", option_string, NULL, 0, NULL, NULL, code_maploc, "above" },
   { "terpnum", '-', "Specify interpreter number", option_number, code_terpnum, 2, NULL, NULL, NULL, NULL },
