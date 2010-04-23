@@ -36,127 +36,161 @@
 #define ByteOrderUCS4 kCFStringEncodingUTF32LE
 #endif
 
-static NSWindow * window = NULL;
-static NSBitmapImageRep * framebuf = NULL;
-static NSTextView * textbuf = NULL;
-static NSString * cliptext = NULL;
-static NSPasteboard * clipboard = NULL;
+@protocol GargoyleApp
+- (BOOL) initWindow: (pid_t) processID
+              width: (unsigned int) width
+             height: (unsigned int) height;
 
-static int timeouts = 0;
-static int timerid = -1;
+- (BOOL) getWindowState: (pid_t) processID;
+
+- (NSEvent *) getWindowEvent: (pid_t) processID;
+
+- (NSRect) getWindowSize: (pid_t) processID;
+
+- (NSString *) getWindowCharString: (pid_t) processID;
+
+- (NSPoint) getWindowPoint: (pid_t) processID
+                 fromPoint: (NSPoint) point;
+
+- (BOOL) clearWindowCharString: (pid_t) processID;
+
+- (BOOL) setWindow: (pid_t) processID
+        charString: (NSEvent *) event;
+
+- (BOOL) setWindow: (pid_t) processID
+             title: (NSString *) title;
+
+- (BOOL) setWindow: (pid_t) processID
+              data: (NSData *) frame
+             width: (unsigned int) width
+            height: (unsigned int) height
+            stride: (unsigned int) stride;
+
+- (void) closeWindow: (pid_t) processID;
+
+- (NSString *) openWindowDialog: (pid_t) processID
+                         prompt: (NSString *) prompt;
+
+- (NSString *) saveWindowDialog: (pid_t) processID
+                         prompt: (NSString *) prompt;
+
+- (void) abortWindowDialog: (pid_t) processID
+                    prompt: (NSString *) prompt;
+
+@end
+
+@interface GargoyleMonitor : NSObject
+{
+    NSRect size;
+    NSDistributedLock * status;
+    NSDate * referenceDate;
+    NSTimeInterval interval;
+    int timerid;
+    int timeouts;
+    int clock;
+}
+- (id) init;
+- (void) sleep;
+- (void) tick;
+- (void) track: (NSTimeInterval) seconds;
+- (BOOL) timeout;
+- (void) reset;
+- (void) connectionDied: (NSNotification *) notice;
+@end
+
+@implementation GargoyleMonitor
+
+- (id) init
+{
+    self = [super init];
+
+    status = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.%04x",
+                                                       NSTemporaryDirectory(), getpid()]];
+
+    referenceDate = [[NSDate alloc] init];
+    interval = 0;
+    timerid = -1;
+    timeouts = 0;
+    clock = 15;
+
+    return self;
+}
+
+- (void) sleep
+{
+    while (!timeouts)
+    {
+        if ([status tryLock])
+        {
+            [status unlock];
+            break;
+        }
+        [self tick];
+    }
+}
+
+- (void) tick
+{
+    if (timerid != -1 && [referenceDate compare: [NSDate date]] == NSOrderedAscending)
+    {
+        timeouts++;
+        [referenceDate release];
+        referenceDate = [[NSDate alloc] initWithTimeIntervalSinceNow: interval];
+    }
+
+    else
+    {
+        usleep(clock * 1000);
+    }
+}
+
+- (void) track: (NSTimeInterval) seconds
+{
+    if (timerid != -1)
+    {
+        timerid = -1;
+        clock = 15;
+        timeouts = 0;
+    }
+
+    if (seconds)
+    {
+        timerid = 1;
+        clock = 1;
+        interval = seconds;
+        [referenceDate release];
+        referenceDate = [[NSDate alloc] initWithTimeIntervalSinceNow: interval];
+    }    
+}
+
+- (BOOL) timeout
+{
+    return (timeouts != 0);
+}
+
+- (void) reset
+{
+    timeouts = 0;
+}
+
+- (void) connectionDied: (NSNotification *) notice
+{
+    exit(1);
+}
+
+@end
+
+static NSObject<GargoyleApp> * gargoyle = NULL;
+static GargoyleMonitor * monitor = NULL;
+static NSString * cliptext = NULL;
+static pid_t processID = 0;
 
 static int gli_refresh_needed = TRUE;
 static int gli_window_hidden = FALSE;
 
-@interface GargoyleTerp : NSObject
-{
-    NSString * processID;
-}
-- (void) listen;
-@end
-
-@implementation GargoyleTerp
-
-- (id) init
-{
-    /* set internal variables */
-    processID = [[NSString alloc] initWithFormat: @"%d", [[NSProcessInfo processInfo] processIdentifier]];
-
-    /* listen for dispatched notifications */
-    [self listen];
-
-    return [super init];
-}
-
-- (void) listen
-{
-    [[NSDistributedNotificationCenter defaultCenter] addObserver: self
-                                                        selector: @selector(receive:)
-                                                            name: NULL
-                                                          object: @"com.googlecode.garglk"];
-}
-
-- (void) send: (NSString *) message
-{
-    if ([message length])
-    {
-        [[NSDistributedNotificationCenter defaultCenter] postNotificationName: message
-                                                                       object: @"com.googlecode.garglk"
-                                                                     userInfo: NULL
-                                                           deliverImmediately: YES];
-    }
-}
-
-- (void) receive: (NSNotification *) message
-{
-    if ([[message name] isEqualToString: @"QUIT"])
-    {
-        exit(0);
-    }
-
-    if ([[message name] isEqualToString: @"HIDE"])
-    {
-        [NSApp hide: NULL];
-        return;
-    }
-
-    if ([[message name] isEqualToString: @"SHOW"])
-    {
-        [NSApp unhide: NULL];
-        return;
-    }
-
-    if ([[message name] isEqualToString: processID])
-    {
-        [NSApp activateIgnoringOtherApps: YES];
-        return;
-    }
-}
-
-- (void) applicationDidBecomeActive: (NSNotification *) aNotification
-{
-    /* add game to queue */
-    [self send: [NSString stringWithFormat: @"+%d", [processID intValue]]];
-    [window makeKeyAndOrderFront: window];
-}
-
-- (void) close
-{
-    /* remove game from queue */
-    [self send: [NSString stringWithFormat: @"-%d", [processID intValue]]];
-    exit(0);
-}
-
-- (void) quit
-{
-    /* send quit message to all games */
-    [self send: @"QUIT"];
-    exit(0);
-}
-
-@end
-
-GargoyleTerp * gargoyle = NULL;
-
 void glk_request_timer_events(glui32 millisecs)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
-    if (timerid != -1) {
-        [NSEvent stopPeriodicEvents];
-        timerid = -1;
-        timeouts = 0;
-    }
-
-    if (millisecs)
-    {
-        double interval = ((double) millisecs) / 1000;
-        [NSEvent startPeriodicEventsAfterDelay: interval
-                                    withPeriod: interval];
-        timerid = 1;
-    }
-
-    [pool drain];
+    [monitor track: ((double) millisecs) / 1000];
 }
 
 void winabort(const char *fmt, ...)
@@ -168,36 +202,36 @@ void winabort(const char *fmt, ...)
     va_end(ap);
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    NSString * msg = [NSString stringWithCString: buf encoding: NSASCIIStringEncoding];
-    NSRunAlertPanel(@"Fatal error", msg, NULL, NULL, NULL);
+    [gargoyle abortWindowDialog: processID
+                         prompt: [NSString stringWithCString: buf encoding: NSASCIIStringEncoding]];
     [pool drain];
 
-    abort();
+    exit(1);
+}
+
+void winexit(void)
+{
+    [gargoyle closeWindow: processID];
+    exit(0);
 }
 
 void winopenfile(char *prompt, char *buf, int len, char *filter)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];    
 
-    [openDlg setCanChooseFiles: YES];
-    [openDlg setCanChooseDirectories: NO];
-    [openDlg setAllowsMultipleSelection: NO];
-
-    NSString * msg = [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding];
-    [openDlg setTitle: msg];
+    NSString * fileref = [gargoyle openWindowDialog: processID
+                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]];
 
     strcpy(buf, "");
 
-    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+    if (fileref)
     {
-        NSString * fileref = [openDlg filename];
         int size = [fileref length];
         
         CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
                          kCFStringEncodingASCII, 0, FALSE,
                          buf, len, NULL);
-        
+
         int bounds = size < len ? size : len;
         buf[bounds] = '\0';
     }
@@ -208,24 +242,20 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
 void winsavefile(char *prompt, char *buf, int len, char *filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    NSSavePanel * saveDlg = [NSSavePanel savePanel];
 
-    [saveDlg setCanCreateDirectories: YES];
-
-    NSString * msg = [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding];
-    [saveDlg setTitle: msg];
+    NSString * fileref = [gargoyle saveWindowDialog: processID
+                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]];
 
     strcpy(buf, "");
 
-    if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
+    if (fileref)
     {
-        NSString * fileref = [saveDlg filename];
         int size = [fileref length];
-
+        
         CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
                          kCFStringEncodingASCII, 0, FALSE,
                          buf, len, NULL);
-
+        
         int bounds = size < len ? size : len;
         buf[bounds] = '\0';
     }
@@ -252,6 +282,7 @@ void winclipsend(void)
 {
     if (cliptext)
     {
+        NSPasteboard * clipboard = [NSPasteboard generalPasteboard];
         [clipboard declareTypes: [NSArray arrayWithObject: NSStringPboardType] owner:nil];
         [clipboard setString: cliptext forType: NSStringPboardType];
     }
@@ -262,6 +293,8 @@ void winclipreceive(void)
     int i, len;
     glui32 ch;
 
+    NSPasteboard * clipboard = [NSPasteboard generalPasteboard];
+
     if ([clipboard availableTypeFromArray: [NSArray arrayWithObject: NSStringPboardType]])
     {
         NSString * input = [clipboard stringForType: NSStringPboardType];
@@ -271,8 +304,8 @@ void winclipreceive(void)
             for (i=0; i < len; i++)
             {
                 if (CFStringGetBytes((CFStringRef) input, CFRangeMake(i, 1),
-                    kCFStringEncodingUTF32, 0, FALSE,
-                    (char *) &ch, 4, NULL))
+                                     kCFStringEncodingUTF32, 0, FALSE,
+                                     (char *) &ch, 4, NULL))
                 {
                     switch (ch)
                     {
@@ -297,6 +330,7 @@ void winclipreceive(void)
 void wintitle(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     char buf[256];
 
     if (strlen(gli_story_name))
@@ -305,38 +339,32 @@ void wintitle(void)
         sprintf(buf, "%s", gli_program_name);
 
     NSString * title = [NSString stringWithCString: buf encoding: NSASCIIStringEncoding];
-    [window setTitle:title];
+
+    [gargoyle setWindow: processID
+                  title: title];
 
     [pool drain];
 }
 
-void winresize(NSRect viewRect)
+void winresize(void)
 {
-    gli_image_w = viewRect.size.width;
-    gli_image_h = viewRect.size.height;
+    NSRect viewRect = [gargoyle getWindowSize: processID];
+
+    if (gli_image_w == (unsigned int) viewRect.size.width
+            && gli_image_h == (unsigned int) viewRect.size.height)
+        return;
+
+    gli_image_w = (unsigned int) viewRect.size.width;
+    gli_image_h = (unsigned int) viewRect.size.height;
     gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
 
     /* initialize offline bitmap store */
     if (gli_image_rgb)
         free(gli_image_rgb);
 
-    gli_image_rgb = malloc(gli_image_s * gli_image_h);	
+    gli_image_rgb = malloc(gli_image_s * gli_image_h);
 
-    /* initialize buffer for screen refreshes */
-    if (framebuf)
-        [framebuf release];
-
-    framebuf = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes: NULL
-                                                       pixelsWide: gli_image_w 
-                                                       pixelsHigh: gli_image_h
-                                                    bitsPerSample: 8
-                                                  samplesPerPixel: 3
-                                                         hasAlpha: NO
-                                                         isPlanar: NO
-                                                   colorSpaceName: NSCalibratedRGBColorSpace
-                                                      bytesPerRow: gli_image_s
-                                                     bitsPerPixel: 24];
-
+    /* redraw window content */
     gli_resize_mask(gli_image_w, gli_image_h);
     gli_force_redraw = TRUE;
     gli_refresh_needed = TRUE;
@@ -346,10 +374,22 @@ void winresize(NSRect viewRect)
 void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    [NSApplication sharedApplication];
-    gargoyle = [[GargoyleTerp alloc] init];
-    [NSApp activateIgnoringOtherApps: YES];
-    [NSApp setDelegate: gargoyle];
+
+    /* establish link to launcher */
+    NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
+    NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: NULL];
+
+    /* monitor link for failure */
+    monitor = [[GargoyleMonitor alloc] init];
+    [[NSNotificationCenter defaultCenter] addObserver: monitor
+                                             selector: @selector(connectionDied:)
+                                                 name: NSConnectionDidDieNotification
+                                               object: link];
+
+    /* attach to app controller */
+    gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
+    processID = getpid();
+
     [pool drain];
 }
 
@@ -360,26 +400,22 @@ void winopen(void)
     unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
 
-    unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+    [gargoyle initWindow: processID
+                   width: defw
+                  height: defh];
 
-    /* set up the window */
-    window = [[NSWindow alloc] initWithContentRect: NSMakeRect(0,0, defw, defh)
-                                         styleMask: style
-                                           backing: NSBackingStoreBuffered
-                                             defer: NO];
-    [window makeKeyAndOrderFront: window];
-    [window center];
-    [window setReleasedWhenClosed: NO];
     wintitle();
-    winresize([[window contentView] bounds]);
-
-    /* set up the text buffer to receive composed keys */
-    textbuf = [[NSTextView alloc] init];
-
-    /* set up the clipboard object */
-    clipboard = [NSPasteboard generalPasteboard];
+    winresize();
 
     [pool drain];
+}
+
+int winstate(void)
+{
+    if (![gargoyle getWindowState: processID])
+        exit(1);
+
+    return TRUE;
 }
 
 void winrepaint(int x0, int y0, int x1, int y1)
@@ -389,74 +425,49 @@ void winrepaint(int x0, int y0, int x1, int y1)
 
 void winrefresh(void)
 {
-    if (![window isVisible])
-        return;
-
     gli_windows_redraw();
 
-    /* repaint the backing window */
-    if (gli_image_s * gli_image_h)
-    {
-        [window setBackgroundColor: [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
-                                                              green: (gli_image_rgb[1]/255.0f)
-                                                               blue: (gli_image_rgb[2]/255.0f)
-                                                              alpha: 1]];
-        [[window contentView] displayIfNeeded];
-    }
+    NSData * frame = [NSData dataWithBytes: gli_image_rgb
+                                    length: gli_image_s * gli_image_h];
 
-    /* convert bitmap store */
-    memcpy([framebuf bitmapData], gli_image_rgb, gli_image_s * gli_image_h);
-    CIImage * output = [[CIImage alloc] initWithBitmapImageRep: framebuf];
+    int refreshed = [gargoyle setWindow: processID
+                                   data: frame
+                                  width: gli_image_w
+                                 height: gli_image_h
+                                 stride: gli_image_s];
 
-    /* refresh the screen */
-    [output drawAtPoint: NSMakePoint(0, 0)
-               fromRect: NSMakeRect(0, 0, gli_image_w, gli_image_h)
-              operation: NSCompositeSourceOver
-               fraction: 1.0];
-    [output release];
-
-    /* repaint the resize control */
-    int xsize = gli_image_w > 12 ? gli_image_w - 12 : 0;
-    [[window contentView] setNeedsDisplayInRect: NSMakeRect(xsize, 0, 12, 12)];
-    [[window contentView] displayIfNeededInRect: NSMakeRect(xsize, 0, 12, 12)];
-
-    /* flush window buffer to screen */
-    [window flushWindow];
-
-    gli_refresh_needed = FALSE;
+    gli_refresh_needed = !refreshed;
 }
 
-#define NSKEY_LEFT	0x7b
-#define NSKEY_RIGHT	0x7c
-#define NSKEY_DOWN	0x7d
-#define NSKEY_UP	0x7e
+#define NSKEY_LEFT      0x7b
+#define NSKEY_RIGHT     0x7c
+#define NSKEY_DOWN      0x7d
+#define NSKEY_UP        0x7e
 
-#define NSKEY_X		0x07
-#define NSKEY_C		0x08
-#define NSKEY_V		0x09
-#define NSKEY_Q		0x0c
-#define NSKEY_W		0x0d
+#define NSKEY_X         0x07
+#define NSKEY_C         0x08
+#define NSKEY_V         0x09
 
-#define NSKEY_PGUP	0x74
-#define NSKEY_PGDN	0x79
-#define NSKEY_HOME	0x73
-#define NSKEY_END	0x77
-#define NSKEY_DEL	0x75
-#define NSKEY_BACK	0x33
-#define NSKEY_ESC	0x35
+#define NSKEY_PGUP      0x74
+#define NSKEY_PGDN      0x79
+#define NSKEY_HOME      0x73
+#define NSKEY_END       0x77
+#define NSKEY_DEL       0x75
+#define NSKEY_BACK      0x33
+#define NSKEY_ESC       0x35
 
-#define NSKEY_F1	0x7a
-#define NSKEY_F2	0x78
-#define NSKEY_F3	0x63
-#define NSKEY_F4	0x76
-#define NSKEY_F5	0x60
-#define NSKEY_F6	0x61
-#define NSKEY_F7	0x62
-#define NSKEY_F8	0x64
-#define NSKEY_F9	0x65
-#define NSKEY_F10	0x6d
-#define NSKEY_F11	0x67
-#define NSKEY_F12	0x6f
+#define NSKEY_F1        0x7a
+#define NSKEY_F2        0x78
+#define NSKEY_F3        0x63
+#define NSKEY_F4        0x76
+#define NSKEY_F5        0x60
+#define NSKEY_F6        0x61
+#define NSKEY_F7        0x62
+#define NSKEY_F8        0x64
+#define NSKEY_F9        0x65
+#define NSKEY_F10       0x6d
+#define NSKEY_F11       0x67
+#define NSKEY_F12       0x6f
 
 void winkey(NSEvent *evt)
 {
@@ -468,8 +479,8 @@ void winkey(NSEvent *evt)
     {
         /* modified keys for scrolling */
         if ([evt modifierFlags] & NSCommandKeyMask
-                    || [evt modifierFlags] & NSAlternateKeyMask
-                    || [evt modifierFlags] & NSControlKeyMask)
+            || [evt modifierFlags] & NSAlternateKeyMask
+            || [evt modifierFlags] & NSControlKeyMask)
         {
             switch ([evt keyCode])
             {
@@ -513,16 +524,6 @@ void winkey(NSEvent *evt)
                 return;
             }
 
-            case NSKEY_W:
-            {
-                [gargoyle close];
-            }
-
-            case NSKEY_Q:
-            {
-                [gargoyle quit];
-            }
-
             default: break;
         }
     }
@@ -553,10 +554,10 @@ void winkey(NSEvent *evt)
     }
 
     /* send combined keystrokes to text buffer */
-    [textbuf interpretKeyEvents: [NSArray arrayWithObject:evt]];
+    [gargoyle setWindow: processID charString: evt];
 
     /* retrieve character from buffer as string */
-    NSString * evt_char = [[textbuf textStorage] string];
+    NSString * evt_char = [gargoyle getWindowCharString: processID];
 
     /* convert character to UTF-32 value */
     glui32 ch;
@@ -573,22 +574,20 @@ void winkey(NSEvent *evt)
     }
 
     /* discard contents of text buffer */
-    [[[textbuf textStorage] mutableString] setString: @""];
+    [gargoyle clearWindowCharString: processID];
 }
 
 void winmouse(NSEvent *evt)
 {
-    NSPoint coords = [[window contentView] convertPoint: [evt locationInWindow]
-                                               fromView: NULL];
+    NSPoint coords = [gargoyle getWindowPoint: processID
+                                     fromPoint: [evt locationInWindow]];
+
     int x = coords.x;
     int y = gli_image_h - coords.y;
 
     /* disregard events outside of content window */
     if (coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
-    {
-        [NSApp sendEvent: evt];
         return;
-    }
 
     switch ([evt type])
     {
@@ -610,7 +609,7 @@ void winmouse(NSEvent *evt)
             {
                 if (gli_get_hyperlink(x, y))
                     [[NSCursor pointingHandCursor] set];
-                
+
                 else
                     [[NSCursor arrowCursor] set];
             }
@@ -628,28 +627,11 @@ void winmouse(NSEvent *evt)
         default: break;
     }
 
-    /* let the window manager process the event as well */
-    [NSApp sendEvent: evt];
 }
 
 void winevent(NSEvent *evt)
 {
-    /* window was closed */
-    if (![window isVisible] && ![window isMiniaturized] && ![NSApp isHidden])
-        [gargoyle close];
-
-    /* window was minimized or hidden */
-    if (![window isVisible] && ([window isMiniaturized] || [NSApp isHidden]))
-        gli_refresh_needed = TRUE;
-
-    /* window was moved between screens */
-    if ([evt type] == NSAppKitDefined && [evt subtype] == NSWindowMovedEventType)
-        gli_refresh_needed = TRUE;
-
-    /* window was resized */
-    NSRect viewRect = [[window contentView] bounds];
-    if (viewRect.size.width != gli_image_w || viewRect.size.height != gli_image_h)
-        winresize(viewRect);
+    winresize();
 
     switch ([evt type])
     {
@@ -658,7 +640,7 @@ void winevent(NSEvent *evt)
             winkey(evt);
             return;
         }
-
+            
         case NSLeftMouseDown :
         case NSLeftMouseDragged :
         case NSLeftMouseUp :
@@ -667,13 +649,7 @@ void winevent(NSEvent *evt)
             return;
         }
 
-        case NSPeriodic :
-        {
-            timeouts++;
-            return;
-        }
-
-        default: [NSApp sendEvent: evt]; return;
+        default: return;
     }
 
 }
@@ -681,16 +657,13 @@ void winevent(NSEvent *evt)
 /* winloop handles at most one event */
 void winloop(void)
 {
-    NSEvent * evt;
+    NSEvent * evt = NULL;
 
     if (gli_refresh_needed)
         winrefresh();
 
-    /* return the next window event that occurs */
-    evt = [NSApp nextEventMatchingMask: NSAnyEventMask 
-                             untilDate: [NSDate distantFuture] 
-                                inMode: NSDefaultRunLoopMode 
-                               dequeue: YES];
+    evt = [gargoyle getWindowEvent: processID];
+
     if (evt)
         winevent(evt);
 }
@@ -698,26 +671,23 @@ void winloop(void)
 /* winpoll handles all queued events */
 void winpoll(void)
 {
-    NSEvent * evt;
+    NSEvent * evt = NULL;
 
-    do {
-
+    do
+    {
         if (gli_refresh_needed)
-            winrefresh();
+            winrefresh(); 
 
-        /* return the first window event from the queue */
-        evt = [NSApp nextEventMatchingMask: NSAnyEventMask 
-                                 untilDate: [NSDate distantPast] 
-                                    inMode: NSDefaultRunLoopMode 
-                                   dequeue: YES];
+        evt = [gargoyle getWindowEvent: processID];
+
         if (evt)
             winevent(evt);
-
-    } while (evt);
+    }
+    while (evt);
 }
 
 void gli_select(event_t *event, int polled)
-{
+{ 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     gli_curevent = event;
@@ -727,24 +697,30 @@ void gli_select(event_t *event, int polled)
 
     if (!polled)
     {
-        while (gli_curevent->type == evtype_None && !timeouts)
+        while (![monitor timeout] && winstate())
         {
             winloop();
             gli_dispatch_event(gli_curevent, polled);
+
+            if (gli_curevent->type == evtype_None)
+                [monitor sleep];
+            else
+                break;
         }
     }
 
-    else {
-        if (!timeouts)
+    else
+    {
+        if (![monitor timeout] && winstate())
             winpoll();
         gli_dispatch_event(gli_curevent, polled);
     }
 
-    if (gli_curevent->type == evtype_None && timeouts)
+    if (gli_curevent->type == evtype_None && [monitor timeout])
     {
         gli_event_store(evtype_Timer, NULL, 0, 0);
         gli_dispatch_event(gli_curevent, polled);
-        timeouts = 0;
+        [monitor reset];
     }
 
     gli_curevent = NULL;

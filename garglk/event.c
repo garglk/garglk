@@ -162,7 +162,7 @@ void gli_input_handle_key(glui32 key)
 
     if (gli_terminated)
     {
-    exit(0);
+        winexit();
     }
 
     if (key == keycode_Tab)

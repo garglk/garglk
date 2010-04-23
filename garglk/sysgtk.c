@@ -86,6 +86,11 @@ void winabort(const char *fmt, ...)
     abort();
 }
 
+void winexit(void)
+{
+    exit(0);
+}
+
 void winchoosefile(char *prompt, char *buf, int len, char *filter, GtkFileChooserAction action)
 {
     filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,

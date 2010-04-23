@@ -39,30 +39,169 @@ char fnt[MaxBuffer];
 
 char filterlist[] = "";
 
-@interface GargoyleApp : NSObject
+@interface GargoyleWindow : NSWindow
+{
+    NSMutableArray * eventlog;
+    NSTextView * textbuffer;
+    pid_t processID;    
+    NSDistributedLock * status;
+    BOOL locked;
+}
+- (id) initWithContentRect: (NSRect) contentRect
+                 styleMask: (NSUInteger) windowStyle
+                   backing: (NSBackingStoreType) bufferingType
+                     defer: (BOOL) deferCreation
+                   process: (pid_t) pid;
+- (void) sendEvent: (NSEvent *) event;
+- (NSEvent *) retrieveEvent;
+- (void) sendChars: (NSEvent *) event;
+- (NSString *) retrieveChars;
+- (void) clearChars;
+- (NSString *) openFileDialog: (NSString *) prompt;
+- (NSString *) saveFileDialog: (NSString *) prompt;
+- (pid_t) retrieveID;
+- (void) quit;
+@end
+
+@implementation GargoyleWindow
+
+- (id) initWithContentRect: (NSRect) contentRect
+                 styleMask: (NSUInteger) windowStyle
+                   backing: (NSBackingStoreType) bufferingType
+                     defer: (BOOL) deferCreation
+                   process: (pid_t) pid
+{
+    self = [super initWithContentRect: contentRect
+                            styleMask: windowStyle
+                              backing: bufferingType
+                                defer: deferCreation];
+
+    eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
+    textbuffer = [[NSTextView alloc] init];
+    processID = pid;
+    status = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.%04x",
+                                                       NSTemporaryDirectory(), processID]];
+    locked = NO;
+
+    return self;
+}
+
+- (void) sendEvent: (NSEvent *) event
+{
+    [eventlog insertObject: [event copy] atIndex:0];
+
+    if (locked)
+        [status unlock];
+
+    if (!([event type] == NSKeyDown))
+        [super sendEvent: event];
+}
+
+- (NSEvent *) retrieveEvent
+{
+    NSEvent * event = NULL;
+
+    if ([eventlog count])
+    {
+        event = [eventlog lastObject];
+        [eventlog removeLastObject];
+    }
+    else
+    {
+        [status breakLock];
+        locked = [status tryLock];
+    }
+
+    return event;
+}
+
+- (void) sendChars: (NSEvent *) event
+{
+    [textbuffer interpretKeyEvents: [NSArray arrayWithObject:event]];
+}
+
+- (NSString *) retrieveChars
+{
+    return [[textbuffer textStorage] string];
+}
+
+- (void) clearChars
+{
+    [[[textbuffer textStorage] mutableString] setString: @""];
+}
+
+- (NSString *) openFileDialog: (NSString *) prompt
+{
+    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+
+    [openDlg setCanChooseFiles: YES];
+    [openDlg setCanChooseDirectories: NO];
+    [openDlg setAllowsMultipleSelection: NO];
+    [openDlg setTitle: prompt];
+
+    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+        return [openDlg filename];
+
+    return NULL;
+}
+
+- (NSString *) saveFileDialog: (NSString *) prompt
+{
+     NSSavePanel * saveDlg = [NSSavePanel savePanel];
+
+     [saveDlg setCanCreateDirectories: YES];
+     [saveDlg setTitle: prompt];
+
+     if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
+         return [saveDlg filename];
+
+    return NULL;
+}
+
+- (pid_t) retrieveID
+{
+    return processID;
+}
+
+- (void) quit
+{
+    [eventlog release];
+    [textbuffer release];
+    [status breakLock];
+    [status release];
+}
+
+@end
+
+@interface GargoyleApp : NSWindowController //<NSWindowDelegate>
 {
     BOOL openedFirstGame;
-    NSString * processID;
-    NSMutableArray * activeGames;
+    NSMutableDictionary * windows;
+    NSConnection * link;
 }
-- (void) listen;
-- (void) promote;
+- (BOOL) launchFile: (NSString *) file;
+- (BOOL) launchFileDialog;
 @end
 
 @implementation GargoyleApp
 
 - (id) init
 {
+    self = [super init];
+
     /* set internal variables */
     openedFirstGame = NO;
-    processID = [[NSString alloc] initWithFormat: @"%d", [[NSProcessInfo processInfo] processIdentifier]];
-    activeGames = [[NSMutableArray alloc] initWithCapacity:5];
-    [activeGames addObject: [NSNumber numberWithInt: [processID intValue]]];
+    windows = [[NSMutableDictionary alloc] init];
 
-    /* set environment variables */
-    NSString * nsResources = [NSString stringWithFormat: @"%@/%@",
-                              [[NSWorkspace sharedWorkspace] fullPathForApplication: @"Gargoyle"],
-                              @"Contents/Resources"];
+    /* set up controller link */
+    NSPort * port = [NSMachPort port];
+    link = [[NSConnection connectionWithReceivePort: port sendPort: port] retain];
+    [link setRootObject: self];
+    [link addRunLoop: [NSRunLoop currentRunLoop]];
+    [link registerName: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()]];
+
+    /* set environment variable */
+    NSString * nsResources = [[NSBundle mainBundle] resourcePath];
 
     int size = [nsResources length];
     CFStringGetBytes((CFStringRef) nsResources, CFRangeMake(0, size),
@@ -84,105 +223,264 @@ char filterlist[] = "";
         symlink(etc, fnt);
     }
 
-    /* listen for dispatched notifications */
-    [self listen];
-
-    return [super init];
+    return self;
 }
 
-- (void) listen
+- (BOOL) initWindow: (pid_t) processID
+              width: (unsigned int) width
+             height: (unsigned int) height
 {
-    [[NSDistributedNotificationCenter defaultCenter] addObserver: self
-                                                        selector: @selector(receive:)
-                                                            name: NULL
-                                                          object: @"com.googlecode.garglk"];
+    unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
+
+    /* set up the window */
+    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: NSMakeRect(0,0, width, height)
+                                                                styleMask: style
+                                                                  backing: NSBackingStoreBuffered
+                                                                    defer: NO
+                                                                  process: processID];
+
+    [window makeKeyAndOrderFront: window];
+    [window center];
+    [window setReleasedWhenClosed: YES];
+    [window setDelegate: self];
+    [windows setObject: window forKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    return ([window isVisible]);
 }
 
-- (void) send: (NSString *) message
+- (BOOL) getWindowState: (pid_t) processID
 {
-    if ([message length])
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
     {
-        [[NSDistributedNotificationCenter defaultCenter] postNotificationName: message
-                                                                       object: @"com.googlecode.garglk"
-                                                                     userInfo: NULL
-                                                           deliverImmediately: YES];
+        return YES;
     }
+
+    return NO;
 }
 
-- (void) receive: (NSNotification *) message
+- (NSEvent *) getWindowEvent: (pid_t) processID
 {
-    if ([[message name] isEqualToString: @"QUIT"])
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
     {
-        exit(0);
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [window retrieveEvent];
     }
 
-    if ([[message name] rangeOfString: @"+"].location != NSNotFound)
-    {
-        /* generate PID object to add */
-        NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
-                                                          stringByTrimmingCharactersInSet: [NSCharacterSet
-                                                                                            characterSetWithCharactersInString: @"+"]]
-                                                          intValue]];
-        /* remove other instances of PID */
-        [activeGames removeObject: activePID];
-
-        /* store PID */
-        [activeGames addObject: activePID];
-
-        return;
-    }
-
-    if ([[message name] rangeOfString: @"-"].location != NSNotFound)
-    {
-        /* generate PID object to remove */
-        NSNumber * activePID = [NSNumber numberWithInt: [[[message name]
-                                                          stringByTrimmingCharactersInSet: [NSCharacterSet
-                                                                                            characterSetWithCharactersInString: @"-"]]
-                                                          intValue]];
-        /* remove all instances of PID */
-        [activeGames removeObject: activePID];
-
-        /* promote next game in queue */
-        [self promote];
-
-        return;
-    }
-
-    if ([[message name] isEqualToString: processID])
-    {
-        /* clean up PID array */
-        [activeGames removeAllObjects];
-
-        /* store PID */
-        [activeGames addObject: [NSNumber numberWithInt: [processID intValue]]];
-
-        /* activate launcher */
-        [NSApp activateIgnoringOtherApps: YES];
-
-        return;
-    }
+    return NULL;
 }
 
-- (void) promote
+- (NSRect) getWindowSize: (pid_t) processID
 {
-    NSEnumerator * proc = [activeGames reverseObjectEnumerator];
-    NSNumber * storedPID;
-    int pid;
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
 
-    while (storedPID = [proc nextObject])
+    if (storedWindow)
     {
-        /* retrieve PID in order of activation */
-        pid = [storedPID intValue];
-
-        /* check if PID is inaccessible */
-        if ((kill(pid,0) == -1 && errno == ESRCH))
-            continue;
-
-        /* send out PID for activation */
-        [self send: [NSString stringWithFormat: @"%d", pid]];
-
-        return;
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [[window contentView] bounds];
     }
+
+    return NSZeroRect;
+}
+
+- (NSPoint) getWindowPoint: (pid_t) processID
+                 fromPoint: (NSPoint) point
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [[window contentView] convertPoint: point fromView: NULL];
+    }
+
+    return NSZeroPoint;
+}
+
+- (NSString *) getWindowCharString: (pid_t) processID
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [window retrieveChars];
+    }
+
+    return NULL;
+}
+
+- (BOOL) clearWindowCharString: (pid_t) processID
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [window clearChars];
+        return YES;
+    }
+
+    return NO;
+}
+
+- (BOOL) setWindow: (pid_t) processID
+        charString: (NSEvent *) event;
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [window sendChars: event];
+        return YES;
+    }
+
+    return NO;
+}
+
+- (BOOL) setWindow: (pid_t) processID
+             title: (NSString *) title;
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [window setTitle: title];
+        return YES;
+    }
+
+    return NO;
+}
+
+- (BOOL) setWindow: (pid_t) processID
+              data: (NSData *) frame
+             width: (unsigned int) width
+            height: (unsigned int) height
+            stride: (unsigned int) stride;
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [NSGraphicsContext setCurrentContext: [window graphicsContext]];
+
+        if ([[window contentView] lockFocusIfCanDraw])
+        {
+            NSBitmapImageRep * framebuffer = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes: NULL
+                                                                                     pixelsWide: width
+                                                                                     pixelsHigh: height
+                                                                                  bitsPerSample: 8
+                                                                                samplesPerPixel: 3
+                                                                                       hasAlpha: NO
+                                                                                       isPlanar: NO
+                                                                                 colorSpaceName: NSCalibratedRGBColorSpace
+                                                                                    bytesPerRow: stride
+                                                                                   bitsPerPixel: 24];
+            [frame getBytes: [framebuffer bitmapData] length: stride * height];
+
+            /* repaint the backing window */
+             if (stride * height)
+             {
+                 [window setBackgroundColor: [NSColor colorWithCalibratedRed: ([framebuffer bitmapData][0]/255.0f)
+                                                                       green: ([framebuffer bitmapData][1]/255.0f)
+                                                                        blue: ([framebuffer bitmapData][2]/255.0f)
+                                                                       alpha: 1]];
+                 [[window contentView] displayIfNeeded];
+             }
+
+            NSImage * output = [[NSImage alloc] initWithSize: [framebuffer size]];
+            [output addRepresentation: framebuffer];
+
+            /* refresh the screen */
+            [output drawAtPoint: NSMakePoint(0, 0)
+                       fromRect: NSMakeRect(0, 0, width, height)
+                      operation: NSCompositeCopy
+                       fraction: 1.0];
+
+            [output release];
+            [framebuffer release];
+
+            /* repaint the resize control */
+            int xsize = width > 12 ? width - 12 : 0;
+            [[window contentView] setNeedsDisplayInRect: NSMakeRect(xsize, 0, 12, 12)];
+            [[window contentView] displayIfNeededInRect: NSMakeRect(xsize, 0, 12, 12)];
+
+            /* flush window buffer to screen */
+            [window flushWindow];
+            [[window contentView] unlockFocus];
+
+            return YES;
+        }
+    }
+
+    return NO;
+}
+
+- (void) closeWindow: (pid_t) processID
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [window performClose:self];
+    }
+
+}
+
+- (NSString *) openWindowDialog: (pid_t) processID
+                         prompt: (NSString *) prompt
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [window openFileDialog: prompt];
+    }
+
+    return NULL;
+}
+
+- (NSString *) saveWindowDialog: (pid_t) processID
+                         prompt: (NSString *) prompt
+{
+    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    if (storedWindow)
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        return [window saveFileDialog: prompt];
+    }
+
+    return NULL;
+}
+
+- (void) abortWindowDialog: (pid_t) processID
+                    prompt: (NSString *) prompt
+{
+    NSRunAlertPanel(@"Fatal error", prompt, NULL, NULL, NULL);
+}
+
+- (BOOL) launchFileDialog
+{
+    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
+
+    [openDlg setCanChooseFiles: YES];
+    [openDlg setCanChooseDirectories: NO];
+    [openDlg setAllowsMultipleSelection: NO];
+    [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding]];
+
+    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+        return [self launchFile:[openDlg filename]];
+
+    return NO;
 }
 
 - (BOOL) launchFile: (NSString *) file
@@ -205,22 +503,6 @@ char filterlist[] = "";
     return rungame(dir, buf);
 }
 
-- (BOOL) launchFileBrowser
-{
-    NSOpenPanel * openDlg = [NSOpenPanel openPanel];
-    [openDlg setCanChooseFiles: YES];
-    [openDlg setCanChooseDirectories: NO];
-    [openDlg setAllowsMultipleSelection: NO];
-
-    NSString * nsTitle = [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding];
-    [openDlg setTitle: nsTitle];
-
-    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
-        return [self launchFile:[openDlg filename]];
-    else
-        return NO;
-}
-
 - (BOOL) applicationShouldOpenUntitledFile: (NSApplication *) sender
 {
     return (!openedFirstGame);
@@ -229,7 +511,7 @@ char filterlist[] = "";
 - (BOOL) applicationOpenUntitledFile: (NSApplication *) theApplication
 {
     openedFirstGame = YES;
-    return [self launchFileBrowser];
+    return [self launchFileDialog];
 }
 
 - (BOOL) application: (NSApplication *) theApplication openFile: (NSString *) file
@@ -253,28 +535,29 @@ char filterlist[] = "";
     return result;
 }
 
-
-- (void) applicationDidBecomeActive: (NSNotification *) aNotification
+- (BOOL) windowShouldClose: (id) sender
 {
-    /* promote first game in queue */
-    [self promote];
+    GargoyleWindow * window = sender;
+    [windows removeObjectForKey: [NSString stringWithFormat: @"%04x", [window retrieveID]]];
+    [window quit];
+    return YES;
 }
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
-    [self send: @"QUIT"];
+    NSEnumerator * windowList = [windows objectEnumerator];
+
+    id storedWindow;
+
+    while (storedWindow = [windowList nextObject])
+    {
+        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
+        [window quit];
+    }
+
     return NSTerminateNow;
 }
 
-- (void) applicationWillHide: (NSNotification *) aNotification
-{
-    [self send: @"HIDE"];
-}
-
-- (void) applicationWillUnhide: (NSNotification *) aNotification
-{
-    [self send: @"SHOW"];
-}
 
 - (IBAction) orderFrontStandardAboutPanel: (id) sender
 {
@@ -282,7 +565,7 @@ char filterlist[] = "";
 
 - (IBAction) openFileBrowser: (id) sender
 {
-    [self launchFileBrowser];
+    [self launchFileDialog];
 }
 
 @end
@@ -321,11 +604,14 @@ int winexec(const char *cmd, char **args)
     /* prepare interpreter path */
     NSArray * nsArray = [[NSString stringWithCString: cmd encoding: NSASCIIStringEncoding] componentsSeparatedByString: @"/"];
     NSString * nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
-    NSString * nsPath = [[NSWorkspace sharedWorkspace] fullPathForApplication: @"Gargoyle"];
-    NSString * nsCmd = [NSString stringWithFormat: @"%@/%@/%@%@/%@/%@", nsPath, @"Contents/Interpreters", nsTerp, @".app", @"Contents/MacOS", nsTerp];
+    NSString * nsCmd = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] builtInPlugInsPath], nsTerp];
 
     /* prepare interpreter arguments */
     NSMutableArray * nsArgs = [NSMutableArray arrayWithCapacity:2];
+
+    /* prepare environment */
+    NSMutableDictionary * nsEnv = [[[NSProcessInfo processInfo] environment] mutableCopy];
+    [nsEnv setObject: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()] forKey: @"GargoyleApp"];
 
     if (args[1])
         [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSASCIIStringEncoding]];
@@ -337,6 +623,7 @@ int winexec(const char *cmd, char **args)
     {
         [proc setLaunchPath: nsCmd];
         [proc setArguments: nsArgs];
+        [proc setEnvironment: nsEnv];
         [proc launch];
     }
 
