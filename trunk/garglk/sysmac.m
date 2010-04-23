@@ -631,8 +631,6 @@ void winmouse(NSEvent *evt)
 
 void winevent(NSEvent *evt)
 {
-    winresize();
-
     switch ([evt type])
     {
         case NSKeyDown :
@@ -640,7 +638,7 @@ void winevent(NSEvent *evt)
             winkey(evt);
             return;
         }
-            
+
         case NSLeftMouseDown :
         case NSLeftMouseDragged :
         case NSLeftMouseUp :
@@ -649,9 +647,15 @@ void winevent(NSEvent *evt)
             return;
         }
 
+        case NSApplicationDefined:
+        {
+            gli_refresh_needed = TRUE;
+            winresize();
+            return;
+        }
+
         default: return;
     }
-
 }
 
 /* winloop handles at most one event */
