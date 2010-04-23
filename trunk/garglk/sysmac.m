@@ -378,6 +378,7 @@ void wininit(int *argc, char **argv)
     /* establish link to launcher */
     NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
     NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: NULL];
+    [link retain];
 
     /* monitor link for failure */
     monitor = [[GargoyleMonitor alloc] init];
@@ -388,6 +389,8 @@ void wininit(int *argc, char **argv)
 
     /* attach to app controller */
     gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
+    [gargoyle retain];
+
     processID = getpid();
 
     [pool drain];
