@@ -120,6 +120,11 @@ void winabort(const char *fmt, ...)
     abort();
 }
 
+void winexit(void)
+{
+    exit(0);
+}
+
 void winopenfile(char *prompt, char *buf, int len, char *filter)
 {
     OPENFILENAME ofn;

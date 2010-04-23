@@ -34,6 +34,9 @@ int gli_copyselect = FALSE;
 int gli_drawselect = FALSE;
 int gli_claimselect = FALSE;
 
+static int last_x = 0;
+static int last_y = 0;
+
 void gli_resize_mask(int x, int y)
 {
     int i;
@@ -140,8 +143,8 @@ void gli_start_selection(int x, int y)
     tx = x < gli_mask->hor ? x : gli_mask->hor;
     ty = y < gli_mask->ver ? y : gli_mask->ver;
 
-    gli_mask->select.x0 = tx;
-    gli_mask->select.y0 = ty;
+    gli_mask->select.x0 = last_x = tx;
+    gli_mask->select.y0 = last_y = ty;
     gli_mask->select.x1 = 0;
     gli_mask->select.y1 = 0;
 
@@ -155,6 +158,9 @@ void gli_move_selection(int x, int y)
 {
     int tx, ty;
 
+    if (abs(x - last_x) < 5 && abs(y - last_y) < 5)
+        return;
+
     if (!gli_mask || !gli_mask->hor || !gli_mask->ver) {
         gli_strict_warning("move_selection: mask not initialized");
         return;
@@ -163,8 +169,8 @@ void gli_move_selection(int x, int y)
     tx = x < gli_mask->hor ? x : gli_mask->hor;
     ty = y < gli_mask->ver ? y : gli_mask->ver;
 
-    gli_mask->select.x1 = tx;
-    gli_mask->select.y1 = ty;
+    gli_mask->select.x1 = last_x = tx;
+    gli_mask->select.y1 = last_y = ty;
 
     gli_claimselect = FALSE;
     gli_windows_redraw();
