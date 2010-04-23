@@ -57,6 +57,11 @@ char filterlist[] = "";
 - (void) sendChars: (NSEvent *) event;
 - (NSString *) retrieveChars;
 - (void) clearChars;
+- (IBAction) cut: (id) sender;
+- (IBAction) copy: (id) sender;
+- (IBAction) paste: (id) sender;
+- (IBAction) performZoom: (id) sender;
+- (void) performRefresh: (NSNotification *) notice;
 - (NSString *) openFileDialog: (NSString *) prompt;
 - (NSString *) saveFileDialog: (NSString *) prompt;
 - (pid_t) retrieveID;
@@ -83,6 +88,21 @@ char filterlist[] = "";
                                                        NSTemporaryDirectory(), processID]];
     locked = NO;
 
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(performRefresh:)
+                                                 name: NSWindowDidDeminiaturizeNotification
+                                               object: self];
+
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(performRefresh:)
+                                                 name: NSWindowDidChangeScreenNotification
+                                               object: self];
+
+    [[NSNotificationCenter defaultCenter] addObserver: self
+                                             selector: @selector(performRefresh:)
+                                                 name: NSWindowDidResizeNotification
+                                               object: self];
+
     return self;
 }
 
@@ -93,7 +113,7 @@ char filterlist[] = "";
     if (locked)
         [status unlock];
 
-    if (!([event type] == NSKeyDown))
+    if (!([event type] == NSKeyDown || [event type] == NSApplicationDefined))
         [super sendEvent: event];
 }
 
@@ -128,6 +148,75 @@ char filterlist[] = "";
 - (void) clearChars
 {
     [[[textbuffer textStorage] mutableString] setString: @""];
+}
+
+- (IBAction) cut: (id) sender
+{
+    [self sendEvent: [NSEvent keyEventWithType: NSKeyDown
+                                      location: NSZeroPoint
+                                 modifierFlags: NSCommandKeyMask
+                                     timestamp: NSTimeIntervalSince1970
+                                  windowNumber: [self windowNumber]
+                                       context: [self graphicsContext]
+                                    characters: @"X"
+                   charactersIgnoringModifiers: @"X"
+                                     isARepeat: NO
+                                       keyCode: 0x07]];
+}
+
+- (IBAction) copy: (id) sender
+{
+    [self sendEvent: [NSEvent keyEventWithType: NSKeyDown
+                                      location: NSZeroPoint
+                                 modifierFlags: NSCommandKeyMask
+                                     timestamp: NSTimeIntervalSince1970
+                                  windowNumber: [self windowNumber]
+                                       context: [self graphicsContext]
+                                    characters: @"C"
+                   charactersIgnoringModifiers: @"C"
+                                     isARepeat: NO
+                                       keyCode: 0x08]];
+}
+
+- (IBAction) paste: (id) sender
+{
+    [self sendEvent: [NSEvent keyEventWithType: NSKeyDown
+                                      location: NSZeroPoint
+                                 modifierFlags: NSCommandKeyMask
+                                     timestamp: NSTimeIntervalSince1970
+                                  windowNumber: [self windowNumber]
+                                       context: [self graphicsContext]
+                                    characters: @"V"
+                   charactersIgnoringModifiers: @"V"
+                                     isARepeat: NO
+                                       keyCode: 0x09]];
+}
+
+- (IBAction) performZoom: (id) sender
+{
+    [self sendEvent: [NSEvent otherEventWithType: NSApplicationDefined
+                                        location: NSZeroPoint
+                                   modifierFlags: 0
+                                       timestamp: NSTimeIntervalSince1970
+                                    windowNumber: [self windowNumber]
+                                         context: [self graphicsContext]
+                                         subtype: 0
+                                           data1: 0
+                                           data2: 0]];
+    [super performZoom: sender];
+}
+
+- (void) performRefresh: (NSNotification *) notice
+{
+    [self sendEvent: [NSEvent otherEventWithType: NSApplicationDefined
+                                        location: NSZeroPoint
+                                   modifierFlags: 0
+                                       timestamp: NSTimeIntervalSince1970
+                                    windowNumber: [self windowNumber]
+                                         context: [self graphicsContext]
+                                         subtype: 0
+                                           data1: 0
+                                           data2: 0]];
 }
 
 - (NSString *) openFileDialog: (NSString *) prompt
@@ -222,6 +311,11 @@ char filterlist[] = "";
         strcat(etc, "/Fonts");
         symlink(etc, fnt);
     }
+
+    /* set preference defaults */
+    [[NSUserDefaults standardUserDefaults] registerDefaults:
+     [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES]
+                                 forKey: @"NSDisabledCharacterPaletteMenuItem"]];
 
     return self;
 }
@@ -486,7 +580,7 @@ char filterlist[] = "";
 - (BOOL) launchFile: (NSString *) file
 {
     if (![file length])
-        return YES;
+        return NO;
 
     /* get dir of executable */
     winpath(dir);
@@ -500,7 +594,12 @@ char filterlist[] = "";
     buf[bounds] = '\0';
 
     /* run story file */
-    return rungame(dir, buf);
+    int ran = rungame(dir, buf);
+
+    if (ran)
+        [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
+
+    return ran;
 }
 
 - (BOOL) applicationShouldOpenUntitledFile: (NSApplication *) sender
@@ -563,9 +662,26 @@ char filterlist[] = "";
 {
 }
 
-- (IBAction) openFileBrowser: (id) sender
+- (IBAction) open: (id) sender
 {
     [self launchFileDialog];
+}
+
+- (IBAction) toggle: (id) sender
+{
+    NSFileManager * fm = [NSFileManager defaultManager];
+    NSString * home = [NSString stringWithFormat: @"%@/%@", [[[NSProcessInfo processInfo] environment] objectForKey: @"HOME"], @"garglk.ini"];
+    NSString * main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
+
+    if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main])
+    {
+        [fm copyItemAtPath: main
+                    toPath: home
+                     error: NULL];
+    }
+
+    [[NSWorkspace sharedWorkspace] openFile: home
+                            withApplication: @"TextEdit"];
 }
 
 @end
