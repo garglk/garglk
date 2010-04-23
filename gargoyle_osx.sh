@@ -9,6 +9,7 @@ rm -rf Gargoyle.app
 mkdir -p $BUNDLE/MacOS
 mkdir -p $BUNDLE/Frameworks
 mkdir -p $BUNDLE/Resources
+mkdir -p $BUNDLE/PlugIns
 
 rm -rf $GARGDIST
 jam -sUNIVERSAL=yes install
@@ -25,12 +26,7 @@ install_name_tool -id @executable_path/../Frameworks/libgarglk.dylib $GARGDIST/l
 
 for file in `ls $GARGDIST | grep -v .dylib | grep -v gargoyle`
 do
-TERPDIR=$BUNDLE/Interpreters/$file.app/Contents
-mkdir -p $TERPDIR/MacOS
-cp -f $GARGDIST/$file $TERPDIR/MacOS
-ln -s ../../../Frameworks $TERPDIR/Frameworks
-ln -s ../../../Resources $TERPDIR/Resources
-cat garglk/interpreter.plist | sed "s/INTERPRETER/$file/g" > $TERPDIR/Info.plist
+cp -f $GARGDIST/$file $BUNDLE/PlugIns
 done
 
 for lib in `cat $DYLIBS`

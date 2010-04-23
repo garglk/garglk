@@ -48,7 +48,7 @@ char filterlist[] = "";
     BOOL locked;
 }
 - (id) initWithContentRect: (NSRect) contentRect
-                 styleMask: (NSUInteger) windowStyle
+                 styleMask: (unsigned int) windowStyle
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid;
@@ -71,7 +71,7 @@ char filterlist[] = "";
 @implementation GargoyleWindow
 
 - (id) initWithContentRect: (NSRect) contentRect
-                 styleMask: (NSUInteger) windowStyle
+                 styleMask: (unsigned int) windowStyle
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
@@ -288,6 +288,7 @@ char filterlist[] = "";
     [link setRootObject: self];
     [link addRunLoop: [NSRunLoop currentRunLoop]];
     [link registerName: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()]];
+    [link retain];
 
     /* set environment variable */
     NSString * nsResources = [[NSBundle mainBundle] resourcePath];
@@ -674,11 +675,7 @@ char filterlist[] = "";
     NSString * main = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] resourcePath], @"garglk.ini"];
 
     if (![fm isWritableFileAtPath: home] && [fm isReadableFileAtPath: main])
-    {
-        [fm copyItemAtPath: main
-                    toPath: home
-                     error: NULL];
-    }
+        [fm createFileAtPath: home contents: [NSData dataWithContentsOfFile: main] attributes: NULL];
 
     [[NSWorkspace sharedWorkspace] openFile: home
                             withApplication: @"TextEdit"];
