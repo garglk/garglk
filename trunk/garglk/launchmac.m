@@ -43,9 +43,7 @@ char filterlist[] = "";
 {
     NSMutableArray * eventlog;
     NSTextView * textbuffer;
-    pid_t processID;    
-    NSDistributedLock * status;
-    BOOL locked;
+    pid_t processID;
 }
 - (id) initWithContentRect: (NSRect) contentRect
                  styleMask: (unsigned int) windowStyle
@@ -84,9 +82,6 @@ char filterlist[] = "";
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
     textbuffer = [[NSTextView alloc] init];
     processID = pid;
-    status = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.%04x",
-                                                       NSTemporaryDirectory(), processID]];
-    locked = NO;
 
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
@@ -110,8 +105,8 @@ char filterlist[] = "";
 {
     [eventlog insertObject: [event copy] atIndex:0];
 
-    if (locked)
-        [status unlock];
+    /* wake interpreter up */
+    kill(processID, SIGUSR1);
 
     if (!([event type] == NSKeyDown || [event type] == NSApplicationDefined))
         [super sendEvent: event];
@@ -125,11 +120,6 @@ char filterlist[] = "";
     {
         event = [eventlog lastObject];
         [eventlog removeLastObject];
-    }
-    else
-    {
-        [status breakLock];
-        locked = [status tryLock];
     }
 
     return event;
@@ -256,8 +246,9 @@ char filterlist[] = "";
 {
     [eventlog release];
     [textbuffer release];
-    [status breakLock];
-    [status release];
+    
+    /* shut interpreter down */
+    kill(processID, SIGUSR2);    
 }
 
 @end
@@ -325,6 +316,9 @@ char filterlist[] = "";
               width: (unsigned int) width
              height: (unsigned int) height
 {
+    if (!(processID > 0))
+        return NO;
+
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
@@ -341,18 +335,6 @@ char filterlist[] = "";
     [windows setObject: window forKey: [NSString stringWithFormat: @"%04x", processID]];
 
     return ([window isVisible]);
-}
-
-- (BOOL) getWindowState: (pid_t) processID
-{
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
-
-    if (storedWindow)
-    {
-        return YES;
-    }
-
-    return NO;
 }
 
 - (NSEvent *) getWindowEvent: (pid_t) processID
