@@ -36,12 +36,13 @@
 #define ByteOrderUCS4 kCFStringEncodingUTF32LE
 #endif
 
+static int gli_event_waiting = FALSE;
+static int gli_window_alive = TRUE;
+
 @protocol GargoyleApp
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height;
-
-- (BOOL) getWindowState: (pid_t) processID;
 
 - (NSEvent *) getWindowEvent: (pid_t) processID;
 
@@ -104,9 +105,6 @@
 {
     self = [super init];
 
-    status = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.%04x",
-                                                       NSTemporaryDirectory(), getpid()]];
-
     referenceDate = [[NSDate alloc] init];
     interval = 0;
     timerid = -1;
@@ -118,19 +116,15 @@
 
 - (void) sleep
 {
-    while (!timeouts)
-    {
-        if ([status tryLock])
-        {
-            [status unlock];
-            break;
-        }
+    while (!timeouts && !gli_event_waiting)
         [self tick];
-    }
 }
 
 - (void) tick
 {
+    if (!gli_window_alive)
+        exit(1);
+    
     if (timerid != -1 && [referenceDate compare: [NSDate date]] == NSOrderedAscending)
     {
         timeouts++;
@@ -371,6 +365,15 @@ void winresize(void)
     gli_windows_size_change();
 }
 
+void winhandler(int signal)
+{
+    if (signal == SIGUSR1)
+        gli_event_waiting = TRUE;
+
+    if (signal == SIGUSR2)
+        gli_window_alive = FALSE;
+}
+
 void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
@@ -390,6 +393,10 @@ void wininit(int *argc, char **argv)
     /* attach to app controller */
     gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
     [gargoyle retain];
+
+    /* prepare signal handler */
+    signal(SIGUSR1, winhandler);
+    signal(SIGUSR2, winhandler);
 
     processID = getpid();
 
@@ -411,14 +418,6 @@ void winopen(void)
     winresize();
 
     [pool drain];
-}
-
-int winstate(void)
-{
-    if (![gargoyle getWindowState: processID])
-        exit(1);
-
-    return TRUE;
 }
 
 void winrepaint(int x0, int y0, int x1, int y1)
@@ -634,6 +633,12 @@ void winmouse(NSEvent *evt)
 
 void winevent(NSEvent *evt)
 {
+    if (!evt)
+    {
+        gli_event_waiting = FALSE;
+        return;
+    }
+
     switch ([evt type])
     {
         case NSKeyDown :
@@ -669,10 +674,10 @@ void winloop(void)
     if (gli_refresh_needed)
         winrefresh();
 
-    evt = [gargoyle getWindowEvent: processID];
+    if (gli_event_waiting)
+        evt = [gargoyle getWindowEvent: processID];
 
-    if (evt)
-        winevent(evt);
+    winevent(evt);
 }
 
 /* winpoll handles all queued events */
@@ -685,10 +690,10 @@ void winpoll(void)
         if (gli_refresh_needed)
             winrefresh(); 
 
-        evt = [gargoyle getWindowEvent: processID];
+        if (gli_event_waiting)
+            evt = [gargoyle getWindowEvent: processID];
 
-        if (evt)
-            winevent(evt);
+        winevent(evt);
     }
     while (evt);
 }
@@ -704,7 +709,7 @@ void gli_select(event_t *event, int polled)
 
     if (!polled)
     {
-        while (![monitor timeout] && winstate())
+        while (![monitor timeout])
         {
             winloop();
             gli_dispatch_event(gli_curevent, polled);
@@ -718,7 +723,7 @@ void gli_select(event_t *event, int polled)
 
     else
     {
-        if (![monitor timeout] && winstate())
+        if (![monitor timeout])
             winpoll();
         gli_dispatch_event(gli_curevent, polled);
     }
