@@ -36,8 +36,8 @@
 #define ByteOrderUCS4 kCFStringEncodingUTF32LE
 #endif
 
-static int gli_event_waiting = FALSE;
-static int gli_window_alive = TRUE;
+static volatile int gli_event_waiting = FALSE;
+static volatile int gli_window_alive = TRUE;
 
 @protocol GargoyleApp
 - (BOOL) initWindow: (pid_t) processID
@@ -109,7 +109,6 @@ static int gli_window_alive = TRUE;
     interval = 0;
     timerid = -1;
     timeouts = 0;
-    clock = 15;
 
     return self;
 }
@@ -124,17 +123,23 @@ static int gli_window_alive = TRUE;
 {
     if (!gli_window_alive)
         exit(1);
-    
-    if (timerid != -1 && [referenceDate compare: [NSDate date]] == NSOrderedAscending)
-    {
-        timeouts++;
-        [referenceDate release];
-        referenceDate = [[NSDate alloc] initWithTimeIntervalSinceNow: interval];
-    }
 
+    if (timerid != -1)
+    {
+        if ([referenceDate compare: [NSDate date]] == NSOrderedAscending)
+        {
+            timeouts++;
+            [referenceDate release];
+            referenceDate = [[NSDate alloc] initWithTimeIntervalSinceNow: interval];
+        }
+        else
+        {
+            [NSThread sleepUntilDate: referenceDate];
+        }
+    }
     else
     {
-        usleep(clock * 1000);
+        [NSThread sleepUntilDate: [NSDate distantFuture]];
     }
 }
 
@@ -143,18 +148,16 @@ static int gli_window_alive = TRUE;
     if (timerid != -1)
     {
         timerid = -1;
-        clock = 15;
         timeouts = 0;
     }
 
     if (seconds)
     {
         timerid = 1;
-        clock = 1;
         interval = seconds;
         [referenceDate release];
         referenceDate = [[NSDate alloc] initWithTimeIntervalSinceNow: interval];
-    }    
+    }
 }
 
 - (BOOL) timeout
