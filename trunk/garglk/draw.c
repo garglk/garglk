@@ -33,6 +33,7 @@ void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
 #include FT_FREETYPE_H
 
 #include <math.h> /* for pow() */
+#include "uthash.h" /* for kerning cache */
 
 #define mul255(a,b) (((a) * ((b) + 1)) >> 8)
 
@@ -43,6 +44,7 @@ void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
 typedef struct font_s font_t;
 typedef struct bitmap_s bitmap_t;
 typedef struct fentry_s fentry_t;
+typedef struct kcache_s kcache_t;
 
 struct bitmap_s
 {
@@ -57,6 +59,13 @@ struct fentry_s
     bitmap_t glyph[GLI_SUBPIX];
 };
 
+struct kcache_s
+{
+    glui32 pair[2];
+    int value;
+    UT_hash_handle hh;
+};
+
 struct font_s
 {
     FT_Face face;
@@ -65,6 +74,8 @@ struct font_s
     unsigned char lowloaded[256/8];
     fentry_t *highentries;
     int num_highentries, alloced_highentries;
+    int kerned;
+    kcache_t *kerncache;
 };
 
 /*
@@ -313,6 +324,8 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
     f->alloced_highentries = 0;
     f->num_highentries = 0;
     f->highentries = NULL;
+    f->kerned = FT_HAS_KERNING(f->face);
+    f->kerncache = NULL;
 }
 
 #if 0
@@ -500,6 +513,23 @@ static int charkern(font_t *f, int c0, int c1)
     int err;
     int g0, g1;
 
+    if (!f->kerned)
+        return 0;
+
+    kcache_t *item = malloc(sizeof(kcache_t));
+    memset(item, 0, sizeof(kcache_t));
+    item->pair[0] = c0;
+    item->pair[1] = c1;
+
+    kcache_t *match = NULL;
+    HASH_FIND(hh, f->kerncache, item->pair, 2 * sizeof(glui32), match);
+
+    if (match)
+    {
+        free(item);
+        return match->value;
+    }
+
     g0 = FT_Get_Char_Index(f->face, touni(c0));
     g1 = FT_Get_Char_Index(f->face, touni(c1));
 
@@ -510,7 +540,10 @@ static int charkern(font_t *f, int c0, int c1)
     if (err)
         winabort("FT_Get_Kerning");
 
-    return (v.x * GLI_SUBPIX) / 64.0;
+    item->value = (v.x * GLI_SUBPIX) / 64.0;
+    HASH_ADD_KEYPTR(hh, f->kerncache, item->pair, 2 * sizeof(glui32), item);
+
+    return item->value;
 }
 
 static void getglyph(font_t *f, glui32 cid, int *adv, bitmap_t **glyphs)
