@@ -435,10 +435,10 @@ char filterlist[] = "";
 }
 
 - (BOOL) setWindow: (pid_t) processID
-              data: (NSData *) frame
+          contents: (NSData *) frame
              width: (unsigned int) width
             height: (unsigned int) height
-            stride: (unsigned int) stride;
+        background: (NSColor *) color;
 {
     id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
 
@@ -449,39 +449,19 @@ char filterlist[] = "";
 
         if ([[window contentView] lockFocusIfCanDraw])
         {
-            NSBitmapImageRep * framebuffer = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes: NULL
-                                                                                     pixelsWide: width
-                                                                                     pixelsHigh: height
-                                                                                  bitsPerSample: 8
-                                                                                samplesPerPixel: 3
-                                                                                       hasAlpha: NO
-                                                                                       isPlanar: NO
-                                                                                 colorSpaceName: NSCalibratedRGBColorSpace
-                                                                                    bytesPerRow: stride
-                                                                                   bitsPerPixel: 24];
-            [frame getBytes: [framebuffer bitmapData] length: stride * height];
-
             /* repaint the backing window */
-             if (stride * height)
-             {
-                 [window setBackgroundColor: [NSColor colorWithCalibratedRed: ([framebuffer bitmapData][0]/255.0f)
-                                                                       green: ([framebuffer bitmapData][1]/255.0f)
-                                                                        blue: ([framebuffer bitmapData][2]/255.0f)
-                                                                       alpha: 1]];
-                 [[window contentView] displayIfNeeded];
-             }
-
-            NSImage * output = [[NSImage alloc] initWithSize: [framebuffer size]];
-            [output addRepresentation: framebuffer];
+            [window setBackgroundColor: color];
+            [[window contentView] displayIfNeeded];
 
             /* refresh the screen */
+            NSImage * output = [[NSImage alloc] initWithData: frame];
+
             [output drawAtPoint: NSMakePoint(0, 0)
-                       fromRect: NSMakeRect(0, 0, width, height)
-                      operation: NSCompositeCopy
-                       fraction: 1.0];
+                      fromRect: NSZeroRect
+                     operation: NSCompositeCopy
+                      fraction: 1.0];
 
             [output release];
-            [framebuffer release];
 
             /* repaint the resize control */
             int xsize = width > 12 ? width - 12 : 0;
