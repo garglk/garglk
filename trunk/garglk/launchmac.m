@@ -44,6 +44,7 @@ char filterlist[] = "";
     NSMutableArray * eventlog;
     NSTextView * textbuffer;
     pid_t processID;
+    NSTimeInterval lastMouseMove;
 }
 - (id) initWithContentRect: (NSRect) contentRect
                  styleMask: (unsigned int) windowStyle
@@ -83,6 +84,8 @@ char filterlist[] = "";
     textbuffer = [[NSTextView alloc] init];
     processID = pid;
 
+    lastMouseMove = 0;
+
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
                                                  name: NSWindowDidDeminiaturizeNotification
@@ -103,13 +106,51 @@ char filterlist[] = "";
 
 - (void) sendEvent: (NSEvent *) event
 {
-    [eventlog insertObject: [event copy] atIndex:0];
+    int store = NO;
+    int forward = YES;
 
-    /* wake interpreter up */
-    kill(processID, SIGUSR1);
+    switch ([event type])
+    {
+        case NSKeyDown:
+        case NSApplicationDefined:
+        {
+            store = YES;
+            forward = NO;
+            break;
+        }
 
-    if (!([event type] == NSKeyDown || [event type] == NSApplicationDefined))
+        case NSLeftMouseDown:
+        case NSLeftMouseUp:
+        {
+            store = YES;
+            break;
+        }
+
+        case NSLeftMouseDragged:
+        {
+            if (([event timestamp] - lastMouseMove) > 0.05)
+            {
+                lastMouseMove = [event timestamp];
+                store = YES;
+            }
+            break;
+        }
+
+        default: break;
+    }
+
+    if (store)
+    {
+        [eventlog insertObject: [event copy] atIndex:0];
+        kill(processID, SIGUSR1);
+    }
+
+    if (forward)
+    {
         [super sendEvent: event];
+    }
+
+    return;
 }
 
 - (NSEvent *) retrieveEvent
@@ -226,13 +267,13 @@ char filterlist[] = "";
 
 - (NSString *) saveFileDialog: (NSString *) prompt
 {
-     NSSavePanel * saveDlg = [NSSavePanel savePanel];
+    NSSavePanel * saveDlg = [NSSavePanel savePanel];
 
-     [saveDlg setCanCreateDirectories: YES];
-     [saveDlg setTitle: prompt];
+    [saveDlg setCanCreateDirectories: YES];
+    [saveDlg setTitle: prompt];
 
-     if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
-         return [saveDlg filename];
+    if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
+        return [saveDlg filename];
 
     return NULL;
 }
@@ -246,9 +287,9 @@ char filterlist[] = "";
 {
     [eventlog release];
     [textbuffer release];
-    
+
     /* shut interpreter down */
-    kill(processID, SIGUSR2);    
+    kill(processID, SIGUSR2);
 }
 
 @end
@@ -361,20 +402,6 @@ char filterlist[] = "";
     }
 
     return NSZeroRect;
-}
-
-- (NSPoint) getWindowPoint: (pid_t) processID
-                 fromPoint: (NSPoint) point
-{
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
-
-    if (storedWindow)
-    {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
-        return [[window contentView] convertPoint: point fromView: NULL];
-    }
-
-    return NSZeroPoint;
 }
 
 - (NSString *) getWindowCharString: (pid_t) processID
