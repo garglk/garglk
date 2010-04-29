@@ -50,9 +50,6 @@ static volatile int gli_window_alive = TRUE;
 
 - (NSString *) getWindowCharString: (pid_t) processID;
 
-- (NSPoint) getWindowPoint: (pid_t) processID
-                 fromPoint: (NSPoint) point;
-
 - (BOOL) clearWindowCharString: (pid_t) processID;
 
 - (BOOL) setWindow: (pid_t) processID
@@ -598,8 +595,7 @@ void winkey(NSEvent *evt)
 
 void winmouse(NSEvent *evt)
 {
-    NSPoint coords = [gargoyle getWindowPoint: processID
-                                     fromPoint: [evt locationInWindow]];
+    NSPoint coords = [evt locationInWindow];
 
     int x = coords.x;
     int y = gli_image_h - coords.y;
