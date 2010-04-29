@@ -62,10 +62,10 @@ static volatile int gli_window_alive = TRUE;
              title: (NSString *) title;
 
 - (BOOL) setWindow: (pid_t) processID
-              data: (NSData *) frame
+          contents: (NSData *) frame
              width: (unsigned int) width
             height: (unsigned int) height
-            stride: (unsigned int) stride;
+        background: (NSColor *) color;
 
 - (void) closeWindow: (pid_t) processID;
 
@@ -179,6 +179,7 @@ static volatile int gli_window_alive = TRUE;
 
 static NSObject<GargoyleApp> * gargoyle = NULL;
 static GargoyleMonitor * monitor = NULL;
+static NSBitmapImageRep * framebuffer = NULL;
 static NSString * cliptext = NULL;
 static pid_t processID = 0;
 
@@ -354,12 +355,23 @@ void winresize(void)
     gli_image_w = (unsigned int) viewRect.size.width;
     gli_image_h = (unsigned int) viewRect.size.height;
     gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
+    
+    /* initialize buffer for screen refreshes */
+    if (framebuffer)
+        [framebuffer release];
 
-    /* initialize offline bitmap store */
-    if (gli_image_rgb)
-        free(gli_image_rgb);
+    framebuffer = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes: NULL
+                                                          pixelsWide: gli_image_w 
+                                                          pixelsHigh: gli_image_h
+                                                       bitsPerSample: 8
+                                                     samplesPerPixel: 3
+                                                            hasAlpha: NO
+                                                            isPlanar: NO
+                                                      colorSpaceName: NSCalibratedRGBColorSpace
+                                                         bytesPerRow: gli_image_s
+                                                        bitsPerPixel: 24];
 
-    gli_image_rgb = malloc(gli_image_s * gli_image_h);
+    gli_image_rgb = [framebuffer bitmapData];
 
     /* redraw window content */
     gli_resize_mask(gli_image_w, gli_image_h);
@@ -431,15 +443,17 @@ void winrepaint(int x0, int y0, int x1, int y1)
 void winrefresh(void)
 {
     gli_windows_redraw();
-
-    NSData * frame = [NSData dataWithBytes: gli_image_rgb
-                                    length: gli_image_s * gli_image_h];
+    
+    NSColor * color = [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
+                                                green: (gli_image_rgb[1]/255.0f)
+                                                 blue: (gli_image_rgb[2]/255.0f)
+                                                alpha: 1];
 
     int refreshed = [gargoyle setWindow: processID
-                                   data: frame
+                               contents: [framebuffer TIFFRepresentation]
                                   width: gli_image_w
                                  height: gli_image_h
-                                 stride: gli_image_s];
+                             background: color];
 
     gli_refresh_needed = !refreshed;
 }
