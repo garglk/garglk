@@ -94,6 +94,12 @@ int gli_image_w = 0;
 int gli_image_h = 0;
 unsigned char *gli_image_rgb = NULL;
 
+#ifdef __APPLE__
+static const int gli_bpp = 4;
+#else
+static const int gli_bpp = 3;
+#endif
+
 static FT_Library ftlib;
 
 /*
@@ -381,7 +387,7 @@ void gli_initialize_fonts(void)
 
 void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * 3;
+    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned char invalf = 255 - alpha;
     if (x < 0 || x >= gli_image_w)
         return;
@@ -392,15 +398,22 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
 #else
+#ifdef __APPLE__
+    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
+    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
+    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
+    p[3] = 0xFF;
+#else
     p[0] = rgb[0] + mul255((short)p[0] - rgb[0], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[2] + mul255((short)p[2] - rgb[2], invalf);
+#endif
 #endif
 }
 
 void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
 {
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * 3;
+    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned char invalf[3];
         invalf[0] = 255 - alpha[0];
         invalf[1] = 255 - alpha[1];
@@ -414,9 +427,16 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
 #else
+#ifdef __APPLE__
+    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
+    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
+    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
+    p[3] = 0xFF;
+#else
     p[0] = rgb[0] + mul255((short)p[0] - rgb[0], invalf[0]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[2] + mul255((short)p[2] - rgb[2], invalf[2]);
+#endif
 #endif
 }
 
@@ -461,9 +481,16 @@ void gli_draw_clear(unsigned char *rgb)
             *p++ = rgb[1];
             *p++ = rgb[0];
 #else
+#ifdef __APPLE__
+            *p++ = rgb[2];
+            *p++ = rgb[1];
+            *p++ = rgb[0];
+            *p++ = 0xFF;
+#else
             *p++ = rgb[0];
             *p++ = rgb[1];
             *p++ = rgb[2];
+#endif
 #endif
         }
     }
@@ -486,7 +513,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
     if (x1 > gli_image_w) x1 = gli_image_w;
     if (y1 > gli_image_h) y1 = gli_image_h;
 
-    p0 = gli_image_rgb + y0 * gli_image_s + x0 * 3;
+    p0 = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;
 
     for (y = y0; y < y1; y++)
     {
@@ -498,9 +525,16 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
             *p++ = rgb[1];
             *p++ = rgb[0];
 #else
+#ifdef __APPLE__
+            *p++ = rgb[2];
+            *p++ = rgb[1];
+            *p++ = rgb[0];
+            *p++ = 0xFF;
+#else
             *p++ = rgb[0];
             *p++ = rgb[1];
             *p++ = rgb[2];
+#endif
 #endif
         }
         p0 += gli_image_s;
@@ -780,7 +814,7 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     if (y1 > dy1) { sy1 += dy1 - y1; y1 = dy1; }
 
     sp = src->rgba + (sy0 * src->w + sx0) * 4;
-    dp = gli_image_rgb + y0 * gli_image_s + x0 * 3;
+    dp = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;
 
     w = sx1 - sx0;
     h = sy1 - sy0;
@@ -799,9 +833,16 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sr + mul255(dp[x*3+2], na);
 #else
+#ifdef __APPLE__
+            dp[x*4+0] = sb + mul255(dp[x*3+0], na);
+            dp[x*4+1] = sg + mul255(dp[x*3+1], na);
+            dp[x*4+2] = sr + mul255(dp[x*3+2], na);
+            dp[x*4+3] = 0xFF;
+#else    
             dp[x*3+0] = sr + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sb + mul255(dp[x*3+2], na);
+#endif
 #endif
         }
         sp += src->w * 4;

@@ -91,7 +91,7 @@ switch $(OS)
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
-        LINK = $(CC) -framework Cocoa -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
+        LINK = $(CC) -framework Cocoa -framework OpenGL -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
 
         if $(USESDL)
         {
