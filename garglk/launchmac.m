@@ -25,6 +25,14 @@
 #include "launcher.h"
 
 #import <Cocoa/Cocoa.h>
+#import <OpenGL/gl.h>
+#import <OpenGL/glu.h>
+
+#ifdef __ppc__
+#define ByteOrderOGL GL_UNSIGNED_INT_8_8_8_8
+#else
+#define ByteOrderOGL GL_UNSIGNED_INT_8_8_8_8_REV
+#endif
 
 static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
@@ -38,6 +46,80 @@ char etc[MaxBuffer];
 char fnt[MaxBuffer];
 
 char filterlist[] = "";
+
+@interface GargoyleView : NSOpenGLView
+{
+    GLuint output;
+}
+- (void) addFrame: (NSData *) frame
+            width: (unsigned int) width
+           height: (unsigned int) height;
+
+- (void) drawRect: (NSRect) bounds;
+- (void) reshape;
+@end;
+
+@implementation GargoyleView
+
+- (void) addFrame: (NSData *) frame
+            width: (unsigned int) width
+           height: (unsigned int) height
+{
+    [[self openGLContext] makeCurrentContext];
+    
+    /* allocate new texture */
+    glDeleteTextures(1, &output);
+    glGenTextures(1, &output);
+
+    /* bind target to texture */
+    glEnable(GL_TEXTURE_RECTANGLE_ARB);    
+    glBindTexture(GL_TEXTURE_RECTANGLE_ARB, output);  
+
+    /* set target parameters */
+    glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_CACHED_APPLE);
+    glPixelStorei(GL_UNPACK_CLIENT_STORAGE_APPLE, GL_TRUE);
+
+    /* create texture from data */
+    glTexImage2D(GL_TEXTURE_RECTANGLE_ARB,
+                 0, GL_RGBA, width, height, 0, GL_BGRA,
+                 ByteOrderOGL,
+                 [frame bytes]);
+}
+
+- (void) drawRect: (NSRect) bounds
+{
+    [[self openGLContext] makeCurrentContext];
+
+    float width = bounds.size.width;
+    float height = bounds.size.height;
+
+    glBegin(GL_QUADS);
+    {
+        glTexCoord2f(0.0f, height);
+        glVertex2f(-1.0f, -1.0f);
+
+        glTexCoord2f(width, height);
+        glVertex2f(1.0f, -1.0f);
+
+        glTexCoord2f(width, 0.0f);
+        glVertex2f(1.0f, 1.0f);
+
+        glTexCoord2f(0.0f, 0.0f);
+        glVertex2f(-1.0f, 1.0f);
+    }
+    glEnd();
+
+    glFlush();
+}
+
+- (void)reshape
+{
+    [[self openGLContext] makeCurrentContext];
+    NSRect rect = [self bounds];
+    glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
+}
+
+@end
 
 @interface GargoyleWindow : NSWindow
 {
@@ -80,10 +162,12 @@ char filterlist[] = "";
                               backing: bufferingType
                                 defer: deferCreation];
 
+    GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
+    [self setContentView: view];
+
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
     textbuffer = [[NSTextView alloc] init];
     processID = pid;
-
     lastMouseMove = 0;
 
     [[NSNotificationCenter defaultCenter] addObserver: self
@@ -464,43 +548,20 @@ char filterlist[] = "";
 - (BOOL) setWindow: (pid_t) processID
           contents: (NSData *) frame
              width: (unsigned int) width
-            height: (unsigned int) height
-        background: (NSColor *) color;
+            height: (unsigned int) height;
 {
     id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
 
     if (storedWindow)
     {
         GargoyleWindow * window = (GargoyleWindow *) storedWindow;
-        [NSGraphicsContext setCurrentContext: [window graphicsContext]];
 
-        if ([[window contentView] lockFocusIfCanDraw])
-        {
-            /* repaint the backing window */
-            [window setBackgroundColor: color];
-            [[window contentView] displayIfNeeded];
+        [[window contentView] addFrame: frame
+                                 width: width
+                                height: height];
 
-            /* refresh the screen */
-            NSImage * output = [[NSImage alloc] initWithData: frame];
-
-            [output drawAtPoint: NSMakePoint(0, 0)
-                      fromRect: NSZeroRect
-                     operation: NSCompositeCopy
-                      fraction: 1.0];
-
-            [output release];
-
-            /* repaint the resize control */
-            int xsize = width > 12 ? width - 12 : 0;
-            [[window contentView] setNeedsDisplayInRect: NSMakeRect(xsize, 0, 12, 12)];
-            [[window contentView] displayIfNeededInRect: NSMakeRect(xsize, 0, 12, 12)];
-
-            /* flush window buffer to screen */
-            [window flushWindow];
-            [[window contentView] unlockFocus];
-
-            return YES;
-        }
+        [[window contentView] drawRect: NSMakeRect(0, 0, width, height)];
+        return YES;
     }
 
     return NO;

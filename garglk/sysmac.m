@@ -61,8 +61,7 @@ static volatile int gli_window_alive = TRUE;
 - (BOOL) setWindow: (pid_t) processID
           contents: (NSData *) frame
              width: (unsigned int) width
-            height: (unsigned int) height
-        background: (NSColor *) color;
+            height: (unsigned int) height;
 
 - (void) closeWindow: (pid_t) processID;
 
@@ -351,24 +350,13 @@ void winresize(void)
 
     gli_image_w = (unsigned int) viewRect.size.width;
     gli_image_h = (unsigned int) viewRect.size.height;
-    gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
-    
-    /* initialize buffer for screen refreshes */
-    if (framebuffer)
-        [framebuffer release];
+    gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
 
-    framebuffer = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes: NULL
-                                                          pixelsWide: gli_image_w 
-                                                          pixelsHigh: gli_image_h
-                                                       bitsPerSample: 8
-                                                     samplesPerPixel: 3
-                                                            hasAlpha: NO
-                                                            isPlanar: NO
-                                                      colorSpaceName: NSCalibratedRGBColorSpace
-                                                         bytesPerRow: gli_image_s
-                                                        bitsPerPixel: 24];
+    /* initialize offline bitmap store */
+    if (gli_image_rgb)
+        free(gli_image_rgb);
 
-    gli_image_rgb = [framebuffer bitmapData];
+     gli_image_rgb = malloc(gli_image_s * gli_image_h);
 
     /* redraw window content */
     gli_resize_mask(gli_image_w, gli_image_h);
@@ -440,17 +428,15 @@ void winrepaint(int x0, int y0, int x1, int y1)
 void winrefresh(void)
 {
     gli_windows_redraw();
-    
-    NSColor * color = [NSColor colorWithCalibratedRed: (gli_image_rgb[0]/255.0f)
-                                                green: (gli_image_rgb[1]/255.0f)
-                                                 blue: (gli_image_rgb[2]/255.0f)
-                                                alpha: 1];
+
+    NSData * frame = [NSData dataWithBytesNoCopy: gli_image_rgb
+                                          length: gli_image_s * gli_image_h
+                                    freeWhenDone: NO];
 
     int refreshed = [gargoyle setWindow: processID
-                               contents: [framebuffer TIFFRepresentation]
+                               contents: frame
                                   width: gli_image_w
-                                 height: gli_image_h
-                             background: color];
+                                 height: gli_image_h];
 
     gli_refresh_needed = !refreshed;
 }
