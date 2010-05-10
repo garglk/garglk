@@ -35,8 +35,8 @@ switch $(OS)
     case MINGW :
         Echo "OS is MINGW (win32) $(CROSS)" ;
         SUFDLL  = .dll ;
-        LINKLIBS = -lcomdlg32 -lgdi32 ;
-        SHRLINKLIBS = -lcomdlg32 -lgdi32 ;
+        LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
+        SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
         SHRLINKLIBS += $(TOP)/support/fontconfig/libfontconfig-1.dll ;
         SHRLINKLIBS += $(TOP)/support/freetype/freetype6.dll ;
         SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-7.dll ;
