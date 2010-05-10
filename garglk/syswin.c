@@ -39,6 +39,7 @@
 #include <windows.h>
 #include <commdlg.h>
 #include <shellapi.h>
+#include <mmsystem.h> 
 
 static char *argv0;
 
@@ -49,10 +50,13 @@ static char *argv0;
 static HWND hwndview, hwndframe;
 static HDC hdc;
 static BITMAPINFO *dibinf;
+static void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2);
 static LRESULT CALLBACK frameproc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK viewproc(HWND, UINT, WPARAM, LPARAM);
 static HCURSOR idc_arrow, idc_hand, idc_ibeam;
 
+static MMRESULT timer = 0;
+static int timerid = -1;
 static int timeouts = 0;
 
 /* buffer for clipboard text */
@@ -61,10 +65,19 @@ int cliplen = 0;
 
 void glk_request_timer_events(glui32 millisecs)
 {
+	if (timerid != -1)
+	{
+		timeKillEvent(timer);
+		timeEndPeriod(1);
+		timerid = -1;
+	}
+
     if (millisecs)
-    SetTimer(hwndframe, 1, millisecs, NULL);
-    else
-    KillTimer(hwndframe, 1);
+	{
+		timeBeginPeriod(1);
+		timer = timeSetEvent(millisecs, 0, timeproc, 0, TIME_PERIODIC);
+		timerid = 1;
+	}
 }
 
 void onabout(void)
@@ -475,6 +488,11 @@ void winresize(void)
 
     if (w != gli_image_w || h != gli_image_h)
     SetWindowPos(hwndframe, 0, 0, 0, w, h, SWP_NOZORDER | SWP_NOMOVE);
+}
+
+void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
+{
+	PostMessage(hwndframe, WM_TIMER, 0, 0);
 }
 
 LRESULT CALLBACK
