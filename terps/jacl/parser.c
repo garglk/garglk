@@ -124,7 +124,7 @@ parser()
 	while (word[wp] != NULL && pointer != NULL) {
 		object_expected = FALSE;
 
-		if (!strcmp(THEN_WORD, word[wp])) {
+		if (!strcmp(cstring_resolve("THEN_WORD")->value, word[wp])) {
 			/* CONSIDER THIS THE END OF THIS COMMAND AS 'THEN' IS
 			 * TREATED LIKE A FULL STOP */
 			break;
@@ -142,9 +142,9 @@ parser()
 				/* MULTIPLE OBJECTS WERE RETURNED */
 				if (matched_word->word[1] != '*') {
 					if (last_exact == -1) {
-						write_text (NO_MULTI_START);
+						write_text (cstring_resolve("NO_MULTI_START")->value);
 					} else {
-						sprintf(error_buffer, NO_MULTI_VERB, word[last_exact]);
+						sprintf(error_buffer, cstring_resolve("NO_MULTI_VERB")->value, word[last_exact]);
 						write_text(error_buffer);
 					}
 
@@ -232,10 +232,6 @@ parser()
 							write_text(": ");
 						}
 
-						/* CHECK FOR CORRECT SCOPING BEFORE CALLING FUNCTIONS */
-						if (!position(noun[0], expected_scope[0])) continue;
-						if (!position(noun[1], expected_scope[1])) continue;
-
 						call_functions(pointer->word);
 
 						/* IF INTERRUPTED BY SOME SPECIAL CONDITION, DON'T
@@ -262,10 +258,6 @@ parser()
 								write_text(": ");
 							}
 
-							/* CHECK FOR CORRECT SCOPING BEFORE CALLING FUNCTIONS */
-							if (!position(noun[0], expected_scope[0])) continue;
-							if (!position(noun[1], expected_scope[1])) continue;
-
 							call_functions(pointer->word);
 
 							/* IF INTERRUPTED BY SOME SPECIAL CONDITION, DON'T
@@ -287,11 +279,7 @@ parser()
 						noun[0] = first_available(0);
 						noun[1] = first_available(1);
 
-						/* CHECK FOR CORRECT SCOPING BEFORE CALLING FUNCTIONS */
-						if (position(noun[0], expected_scope[0]) &&
-							position(noun[1], expected_scope[1])) {
-							call_functions(pointer->word);
-						}
+						call_functions(pointer->word);
 					}
 				}
 			}
@@ -350,6 +338,7 @@ call_functions(base_name)
 	char            base_function[81];
 	char            before_function[81];
 	char            after_function[81];
+	char            local_after_function[81];
 
 	/* THE DEFAULT IS THAT THE COMMAND IS SUCCESSFUL AND THAT TIME SHOULD
 	 * PASS. IF THE COMMAND FAILS, 'TIME' WILL BE SET TO FALSE */
@@ -365,6 +354,17 @@ call_functions(base_name)
 
 	strcpy(after_function, "+after_");
 	strcat(after_function, base_name + 1);
+
+	strcpy(local_after_function, "after_");
+	strcat(local_after_function, base_name + 1);
+	if (noun[1] != FALSE) {
+        strcat(local_after_function, "_");
+		strcat(local_after_function, object[noun[1]]->label);
+	}
+	if (noun[0] != FALSE) {
+        strcat(local_after_function, "_");
+		strcat(local_after_function, object[noun[0]]->label);
+	}
 
 	/* THIS IS CALLED IF AN 'override' COMMAND IS EXECUTED
 	 * IN A LIBRARY FUNCTION BUT THE OBJECT-OR-LOCATION-SPECIFIC 
@@ -467,13 +467,24 @@ call_functions(base_name)
 		}
 	}
 
+	/* EXECUTE THE LOCAL AFTER FUNCTION 
+	 * AND RETURN IF IT RETURNS TRUE */
+	if (execute(local_after_function) != FALSE)
+		return;
+
 	/* EXECUTE THE VERB-SPECIFIC AFTER 
 	 * FUNCTION AND RETURN IF IT RETURNS TRUE */
-	execute(after_function);
+	if (execute(after_function) != FALSE)
+		return;
 
-	/* EXECUTE THE GLOBAL *DEFAULT* AFTER FUNCTION 
+	/* EXECUTE THE GLOBAL *DEFAULT* AFTER FUNCTION
 	 * AND RETURN IF IT RETURNS TRUE */
-	execute("+after");
+	if (execute("+after") != FALSE)
+		return;
+
+
+	//sprintf(temp_buffer, "TIME = %d", TIME->value);
+	//log_error(temp_buffer, PLUS_STDERR);
 
 	if (TIME->value) {
 		//printf("--- %s\n", base_function);
@@ -619,15 +630,15 @@ build_object_list(scope_word, noun_number)
 		 * CURRENT scope_word NODE IS REACHED INDICATING THERE ARE NO
 		 * MORE OBJECTS TO RESOLVE */
 
-		if (!strcmp(word[wp], BUT_WORD) ||
-					!strcmp(word[wp], EXCEPT_WORD)) {
+		if (!strcmp(word[wp], cstring_resolve("BUT_WORD")->value) ||
+					!strcmp(word[wp], cstring_resolve("EXCEPT_WORD")->value)) {
 			/* START ADDING ALL FUTURE RESOLVED OBJECTS TO A SECOND LIST
 			 * TO REMOVE FROM THE FIRST */
 			except_word = word[wp];
 
 			wp++;
 
-			if (word[wp] != NULL && !strcmp(word[wp], FOR_WORD)) {
+			if (word[wp] != NULL && !strcmp(word[wp], cstring_resolve("FOR_WORD")->value)) {
 				/* SKIP PAST THE WORD 'FOR' */
 				wp++;
 			}
@@ -649,12 +660,12 @@ build_object_list(scope_word, noun_number)
 				 * RESOLVED LIST */
 				noun_number = noun_number + 2;
 			} else {
-				sprintf (error_buffer, DOUBLE_EXCEPT, except_word);	
+				sprintf (error_buffer, cstring_resolve("DOUBLE_EXCEPT")->value, except_word);	
 				write_text (error_buffer);
 				custom_error = TRUE;
 				return (FALSE);
 			}
-		} else if (after_from != -1 && !strcmp(word[wp], FROM_WORD)) {
+		} else if (after_from != -1 && !strcmp(word[wp], cstring_resolve("FROM_WORD")->value)) {
 			/* SET THE WORD POINTER TO AFTER THE ALREADY-PROCESSED FROM
 			 * CLAUSE (IF ONE EXISTED) AND CONTINUE */
 			wp = after_from;
@@ -681,7 +692,7 @@ build_object_list(scope_word, noun_number)
 			//printf("--- %s is a build list terminator\n", word[wp]);
 			break;
 		} else if (	!strcmp(word[wp], "comma") || 
-					!strcmp(word[wp], AND_WORD)) {
+					!strcmp(word[wp], cstring_resolve("AND_WORD")->value)) {
 			/* JUST MOVE ONTO THE NEXT WORD AND SEE WHAT COME NEXT */
 			wp++;
 		} else {
@@ -755,9 +766,9 @@ build_object_list(scope_word, noun_number)
 		 * ARE REFERRING TO.' ERROR */
 		if (!strcmp(scope_word->word, "*held") ||
 			!strcmp(scope_word->word, "**held")) {
-			write_text(NONE_HELD);
+			write_text(cstring_resolve("NONE_HELD")->value);
 		} else {
-			write_text(NO_OBJECTS);
+			write_text(cstring_resolve("NO_OBJECTS")->value);
 		}
 
 		custom_error = TRUE;
@@ -904,7 +915,7 @@ get_from_object(scope_word, noun_number)
 	 * PLACEHOLDER. IF SO, DON'T LOOK FOR A FROM OBJECT */
 	if (terminator != NULL) {
 		//printf("--- checking if terminator word if from\n", terminator->word);
-		if (!strcmp(FROM_WORD, terminator->word)) {
+		if (!strcmp(cstring_resolve("FROM_WORD")->value, terminator->word)) {
 			//printf("--- from is a terminator, don't get a from object\n");
 			return (TRUE);
 		}
@@ -915,7 +926,7 @@ get_from_object(scope_word, noun_number)
 	 * WORD 'FROM' AND STORE THE FOLLOWING OBJECT */
 	while (word[wp] != NULL) {
 		//printf("--- from loop checking %s\n", word[wp]);
-		if (!strcmp(word[wp], FROM_WORD)) {
+		if (!strcmp(word[wp], cstring_resolve("FROM_WORD")->value)) {
 			from_word = word[wp];
 			wp++;		
 			
@@ -978,8 +989,8 @@ get_from_object(scope_word, noun_number)
 				return (FALSE);
 			}
 			//printf("--- finished processing from clause, next word is %s\n", word[wp]);
-		} else if ( !strcmp(EXCEPT_WORD, word[wp]) ||
-					!strcmp(BUT_WORD, word[wp])) {
+		} else if ( !strcmp(cstring_resolve("EXCEPT_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("BUT_WORD")->value, word[wp])) {
 			/* THIS IS THE LIMIT OF THE EFFECT ANY FROM OBJECT ANYWAY, 
 			 * SO TREAT IT LIKE A TERMINATOR */
 			//printf("--- %s is a get_from_object except word\n", word[wp]);
@@ -1014,9 +1025,13 @@ verify_from_object(from_object)
 	//	custom_error = TRUE;
 	//	return (FALSE);
 	//} else if (object[from_object]->attributes & CLOSED) {
-	if (object[from_object]->attributes & CLOSED) {
+	if (object[from_object]->attributes & CONTAINER && object[from_object]->attributes & CLOSED) {
 		//printf("--- container is concealing\n");
-		sprintf (error_buffer, CONTAINER_CLOSED, sentence_output(from_object, TRUE));	
+        if (object[from_object]->attributes & FEMALE) {
+			sprintf (error_buffer, cstring_resolve("CONTAINER_CLOSED_FEM")->value, sentence_output(from_object, TRUE));	
+		} else {
+			sprintf (error_buffer, cstring_resolve("CONTAINER_CLOSED")->value, sentence_output(from_object, TRUE));	
+		}
 		write_text(error_buffer);
 		custom_error = TRUE;
 		return (FALSE);
@@ -1045,8 +1060,6 @@ add_to_list(noun_number, resolved_object)
 	int			noun_number;
 	int			resolved_object;
 {
-	int index;
-
 	/* ADD THIS OBJECT TO THE OBJECT LIST DEPENDING */
 	/* AND SET IT, THEM, HER AND HIM */
 	if (!(object[resolved_object]->attributes & ANIMATE))
@@ -1082,7 +1095,9 @@ noun_resolve(scope_word, finding_from, noun_number)
 
 	int             index;
 	int             counter;
+#ifdef GLK
 	int             selection;
+#endif
 	int             matches = 0;
 	int             highest_confidence = 0;
 	int             prime_suspect = 0;
@@ -1111,7 +1126,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 		/* FIRST WORD IS AN INTEGER AND SECOND WORD IS 'OF' SO 
 		 * TREAT THIS AS A LIMIT QUALIFIER BEFORE STARTING TO
 		 * PROCESS THE REST OF THE WORDS */
-		if (word[wp +1] != NULL && !strcmp(word[wp + 1], OF_WORD)) {
+		if (word[wp +1] != NULL && !strcmp(word[wp + 1], cstring_resolve("OF_WORD")->value)) {
 			return_limit = atoi (word[wp]);
 
 			/* MAKE SURE THE RETURN LIMIT IS SOMETHING SENSIBLE */
@@ -1122,7 +1137,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 			object_expected = TRUE;	
 			strcpy(object_name, word[wp]);
 			strcat(object_name, " ");
-			strcat(object_name, OF_WORD);
+			strcat(object_name, cstring_resolve("OF_WORD")->value);
 
 			/* MOVE THE WORD POINTER TO AFTER THE 'OF' */
 			wp = wp + 2;
@@ -1146,12 +1161,12 @@ noun_resolve(scope_word, finding_from, noun_number)
 				 * OF THE OBJECT REFERENCE PART OF THE COMMAND */
 				//printf("--- checking terminator word %s\n", terminator->word);
 				if (!strcmp(word[wp], terminator->word)
-					|| (!strcmp(word[wp], FROM_WORD))
-					|| (!strcmp(word[wp], AND_WORD))
+					|| (!strcmp(word[wp], cstring_resolve("FROM_WORD")->value))
+					|| (!strcmp(word[wp], cstring_resolve("AND_WORD")->value))
 					|| (!strcmp(word[wp], "comma"))
-					|| (!strcmp(word[wp], BUT_WORD))
-					|| (!strcmp(word[wp], THEN_WORD))
-					|| (!strcmp(word[wp], EXCEPT_WORD))
+					|| (!strcmp(word[wp], cstring_resolve("BUT_WORD")->value))
+					|| (!strcmp(word[wp], cstring_resolve("THEN_WORD")->value))
+					|| (!strcmp(word[wp], cstring_resolve("EXCEPT_WORD")->value))
 					|| (!strcmp(terminator->word, "$integer")
 						&& validate(word[wp]))) {
 					if (!matches) {
@@ -1210,7 +1225,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 			}
 			//printf("--- exiting for loop\n");
 
-			if (word[wp + 1] != NULL && !strcmp("of", word[wp + 1])) {
+			if (word[wp + 1] != NULL && !strcmp(cstring_resolve("OF_WORD")->value, word[wp + 1])) {
 				/* MOVE PAST THE 'OF' IF IT IS NEXT */
 				wp++;
 			}
@@ -1230,8 +1245,8 @@ noun_resolve(scope_word, finding_from, noun_number)
 				 * BE TESTED AGAINST ALL THIS OBJECT'S NAMES */
 				object_matched = FALSE;
 	
-				if (!strcmp(IT_WORD, word[wp]) ||
-					!strcmp(ITSELF_WORD, word[wp])) {
+				if (!strcmp(cstring_resolve("IT_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("ITSELF_WORD")->value, word[wp])) {
 					if (it == FALSE) {
 						no_it();
 						return (FALSE);
@@ -1240,8 +1255,8 @@ noun_resolve(scope_word, finding_from, noun_number)
 							object_matched = TRUE;
 						}	
 					}
-				} else if (!strcmp(HER_WORD, word[wp]) ||
-					!strcmp(HERSELF_WORD, word[wp])) {
+				} else if (!strcmp(cstring_resolve("HER_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("HERSELF_WORD")->value, word[wp])) {
 					if (her == FALSE) {
 						no_it();
 						return (FALSE);
@@ -1250,8 +1265,8 @@ noun_resolve(scope_word, finding_from, noun_number)
 							object_matched = TRUE;
 						}	
 					}
-				} else if (!strcmp(HIM_WORD, word[wp]) ||
-					!strcmp(HIMSELF_WORD, word[wp])) {
+				} else if (!strcmp(cstring_resolve("HIM_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("HIMSELF_WORD")->value, word[wp])) {
 					if (him == FALSE) {
 						no_it();
 						return (FALSE);
@@ -1260,9 +1275,9 @@ noun_resolve(scope_word, finding_from, noun_number)
 							object_matched = TRUE;
 						}	
 					}
-				} else if (!strcmp(THEM_WORD, word[wp]) ||
-					!strcmp(THEMSELVES_WORD, word[wp]) ||
-					!strcmp(ONES_WORD, word[wp])) {
+				} else if (!strcmp(cstring_resolve("THEM_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("THEMSELVES_WORD")->value, word[wp]) ||
+					!strcmp(cstring_resolve("ONES_WORD")->value, word[wp])) {
 					/* THIS NEED ONLY BE THE SIZE OF 'THEM', BUT NO HARM 
 					 * IN MAKING IT THE FULL SIZE */
 					if (return_limit == FALSE) {
@@ -1281,11 +1296,11 @@ noun_resolve(scope_word, finding_from, noun_number)
 						}
 						counter++;
 					}
-				} else if (!strcmp("1", word[wp])) {
+				/*} else if (!strcmp("1", word[wp])) {
 					return_limit = 1;
 
-					/* LOOP THROUGH ALL THE OBJECT IN THE 'THEM' ARRAY AND 
-			 		 * SEE IF THIS OBJECT IS PRESENT */
+					// LOOP THROUGH ALL THE OBJECT IN THE 'THEM' ARRAY AND 
+			 		// SEE IF THIS OBJECT IS PRESENT
 					counter = 0;
 
 					while (them[counter] != 0) {
@@ -1295,7 +1310,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 							break;
 						}
 						counter++;
-					}
+					}*/
 				} else {
 					current_name = object[index]->first_name;
 		
@@ -1626,10 +1641,11 @@ noun_resolve(scope_word, finding_from, noun_number)
         }
     }
 
+#ifdef GLK
 	/* NO OBJECT HAS CLAIMED OWNERSHIP, PROMPT THE PLAYER TO SPECIFY 
 	 * WHICH ONE THEY REQUIRE. */
 	counter = 1;
-	write_text(REFERRING_TO);
+	write_text(cstring_resolve("REFERRING_TO")->value);
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
 			possible_objects[counter] = index;
@@ -1648,14 +1664,36 @@ noun_resolve(scope_word, finding_from, noun_number)
 	selection = get_number(FALSE, 1, counter - 1);
 
 	if (selection == -1) {
-		write (INVALID_SELECTION);
+		write_text (cstring_resolve("INVALID_SELECTION")->value);
 		custom_error = TRUE;
 		return (FALSE);
 	} else {
 		write_text("^");
 		return (possible_objects[selection]);
 	}
+#else
+    /* IF MORE THAT ONE OBJECT STILL REMAINS, PROMPT THE PLAYER TO SPECIFY 
+     * WHICH ONE THEY REQUIRE. */
+    write_text(cstring_resolve("MUST_SPECIFY")->value);
+    for (index = 1; index <= objects; index++) {
+        if (confidence[index] != FALSE) {
+            sentence_output(index, 0);
+            write_text(temp_buffer);
+            matches--;
+            if (matches == 0) {
+                write_text(".");
+                break;
+            } else if (matches == 1) {
+                write_text(cstring_resolve("OR_WORD")->value);
+            } else
+                write_text(", ");
+        }
+    }
+    write_text("^");
 
+    custom_error = TRUE;
+    return (FALSE);
+#endif
 }
 
 void
@@ -1666,109 +1704,17 @@ diagnose()
 		return;
 	}
 	if (word[wp] == NULL)
-		write_text(INCOMPLETE_SENTENCE);
+		write_text(cstring_resolve("INCOMPLETE_SENTENCE")->value);
 	else if (object_expected && wp != 0) {
-		write_text(UNKNOWN_OBJECT);
+		write_text(cstring_resolve("UNKNOWN_OBJECT")->value);
 		write_text(object_name);
-		write_text(UNKNOWN_OBJECT_END);
+		write_text(cstring_resolve("UNKNOWN_OBJECT_END")->value);
 	} else {
-		write_text(CANT_USE_WORD);
+		write_text(cstring_resolve("CANT_USE_WORD")->value);
 		write_text(word[wp]);
-		write_text(IN_CONTEXT);
+		write_text(cstring_resolve("IN_CONTEXT")->value);
 	}
 	TIME->value = FALSE;
-}
-
-int
-position(index, expected)
-	 int             index;
-	 char            *expected;
-{
-	/* LIKE scope(), THIS FUNCTION DETERMINES IF THE SPECIFIED OBJECT IS IN 
-	 * THE SPECIFIED SCOPE. IT RETURNS TRUE IF SO, FALSE IF NOT.
-	 * UNLIKE scope(), THIS FUNCTION ALSO DISPLAYS AN IN-GAME MESSAGE TO THE 
-	 * USER IF THE OBJECT IS NOT IN THE REQUIRED SCOPE. */
-
-	/* THIS IS NOT A VALID OBJECT, SO THERE IS NO PROBLEM WITH SCOPE */
-	if (index == 0) return (TRUE);
-
-	if (!strcmp(expected, "*held") || !strcmp(expected, "**held")) {
-		if (object[index]->PARENT == HELD)
-			return (TRUE);
-		else {
-			write_text(NOT_HOLDING);
-			sentence_output(index, 0);
-			write_text(temp_buffer);
-			write_text(NOT_HOLDING_END);
-			return (FALSE);
-		}
-	} else if (!strcmp(expected, "*location")) {
-		if (object[index]->attributes & LOCATION) {
-			return (TRUE);
-		} else {
-			write_text(NOT_LOCATION);
-			sentence_output(index, 0);
-			write_text(temp_buffer);
-			write_text(NOT_LOCATION_END);
-			return (FALSE);
-		}
-	} else if (!strcmp(expected, "*here") || !strcmp(expected, "**here")) {
-		if (object[index]->PARENT == HERE || index == HERE)
-			/* THE OBJECT IN QUESTION IS IN THE PLAYER'S CURRENT LOCATION OR
-			 * IS THE PLAYER'S CURRENT LOCATION. */
-			return (TRUE);
-		else if (object[index]->PARENT == HELD) {
-			write_text(HARD_WHILE_HOLDING);
-			sentence_output(index, 0);
-			write_text(temp_buffer);
-			write_text(HARD_WHILE_HOLDING_END);
-			return (FALSE);
-		} else if (find_parent(index)) {
-			if (object[parent]->attributes & POSSESSIVE) {
-				/* THE OBJECT IS PRESENT AND VISIBLE, BUT IS BEING CARRIED BY 
-				 * ANOTHER CHARACTER THAT WON'T GIVE IT TO THE PLAYER. */
-				sentence_output(parent, 1);
-				write_text(temp_buffer);
-				write_text(CURRENTLY_HAS);
-				sentence_output(index, 0);
-				write_text(temp_buffer);
-				write_text(".^");
-				return (FALSE);
-			} else
-				return (TRUE);
-		} else {
-			write_text(DONT_SEE);
-			sentence_output(index, 0);
-			write_text(temp_buffer);
-			write_text(HERE_WORD);
-			return (FALSE);
-		}
-	} else if (!strcmp(expected, "*anywhere") || !strcmp(expected, "**anywhere"))
-		return (TRUE);
-	else {
-		if (object[index]->PARENT == HERE
-			|| object[index]->PARENT == HELD || index == HERE)
-			return (TRUE);
-		else if (find_parent(index)) {
-			if (object[parent]->attributes & POSSESSIVE
-				&& (!strcmp(expected, "*present") || !strcmp(expected, "**present"))) {
-				sentence_output(parent, 1);
-				write_text(temp_buffer);
-				write_text(CURRENTLY_HAS);
-				sentence_output(index, 0);
-				write_text(temp_buffer);
-				write_text(".^");
-				return (FALSE);
-			} else
-				return (TRUE);
-		} else {
-			write_text(DONT_SEE);
-			sentence_output(index, 0);
-			write_text(temp_buffer);
-			write_text(HERE_WORD);
-			return (FALSE);
-		}
-	}
 }
 
 int
@@ -1780,12 +1726,26 @@ scope(index, expected, restrict)
 	/* THIS FUNCTION DETERMINES IF THE SPECIFIED OBJECT IS IN THE SPECIFIED
 	 * SCOPE - IT RETURNS TRUE IF SO, FALSE IF NOT. */
 
+	int temp = 0;
+
 	/* WHEN THE ARGUMENT restrict IS TRUE IT HAS A MORE LIMITED
 	 * SENSE OF WHAT IS ACCEPTABLE */
 
 	if (!strcmp(expected, "*held") || !strcmp(expected, "**held")) {
 		if (object[index]->PARENT == HELD) {
 			return (TRUE);
+		} else if (object[index]->MASS >= HEAVY) {
+			/* ALLOW AND OBJECT TO BE CONSIDERED HELD IF IT HAS A 
+			 * MASS OF HEAVY OR GREATER AND ITS DIRECT PARENT IS
+			 * BEING HELD. IE, A LABEL ON A JAR CAN BE SHOWN BECAUSE
+			 * THE JAR IS BEING HELD. */
+            temp = object[index]->PARENT;
+			if (temp > 0 && temp < objects) {
+				if (object[temp]->PARENT == HELD) {
+					return (TRUE);
+				}
+			}
+			return (FALSE);
 		} else {
 			return (FALSE);
 		}
@@ -1844,8 +1804,8 @@ find_parent(index)
 	 * PLAYER */
 	//printf("--- find parent of %s\n", object[index]->label);
 
-	if (object[index]->PARENT != NOWHERE
-			&& !(object[index]->attributes & LOCATION)) {
+	if (!(object[index]->attributes & LOCATION) &&
+			object[index]->PARENT != NOWHERE) {
 
 		parent = object[index]->PARENT;
 		//printf("--- parent is %s\n", object[parent]->label);
@@ -1856,7 +1816,7 @@ find_parent(index)
 			log_error(error_buffer, PLUS_STDOUT);
 			return (FALSE);
 		} else	if (!(object[parent]->attributes & LOCATION) 
-			&& (object[parent]->attributes & CLOSED
+			&& ((object[parent]->attributes & CLOSED && object[parent]->attributes & CONTAINER)
 			|| object[parent]->attributes & CONCEALING)) {
 			//printf("--- %s is closed, so return FALSE\n", object[parent]->label);
 			return (FALSE);
@@ -1900,23 +1860,26 @@ parent_of(parent, child, restrict)
 	//printf("--- parent is %s, child is %s\n", object[parent]->label, object[child]->label);
 	if (child == parent) {
 		return (TRUE);
-	} else if (object[child]->PARENT != NOWHERE) {
+	} else if (!(object[child]->attributes & LOCATION) &&
+			object[child]->PARENT != NOWHERE) {
 		/* STORE THE CHILDS PARENT OBJECT */
 		index = object[child]->PARENT;
 		//printf ("--- %s is the parent of %s\n", object[index]->label, object[child]->label);
 
 		if (index == child) {
 			/* THIS CHILD HAS IT'S PARENT SET TO ITSELF */
-			//sprintf(error_buffer, SELF_REFERENCE, executing_function->name, object[index]->label);
-			//log_error(error_buffer, PLUS_STDOUT);
+			sprintf(error_buffer, SELF_REFERENCE, executing_function->name, object[index]->label);
+			log_error(error_buffer, PLUS_STDOUT);
+			//printf ("--- self parent.\n");
 			return (FALSE);
-		} else if (!(object[index]->attributes & LOCATION) 
-			&& (object[index]->attributes & CLOSED
+		} else	if (!(object[index]->attributes & LOCATION) 
+			&& ((object[index]->attributes & CLOSED && object[index]->attributes & CONTAINER)
 			|| object[index]->attributes & CONCEALING)) {
 			/* THE CHILDS PARENT IS CLOSED OR CONCEALING - CANT BE SEEN */
 			//printf("--- parent %s is closed\n", object[index]->label);
 			return (FALSE);
 		} else if (restrict && object[index]->MASS < HEAVY && index != parent) {
+			//printf ("--- scenery object.\n");
 			return (FALSE);
 		} else {
 			//printf("--- comparing %s with %s\n", object[index]->label, object[parent]->label);	

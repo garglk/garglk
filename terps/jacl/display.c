@@ -16,6 +16,7 @@ extern struct variable_type		*variable[];
 
 extern char						*word[];
 
+extern int						player;
 extern int						wp;
 extern int						objects;
 extern int						custom_error;
@@ -56,126 +57,136 @@ sentence_output(index, capital)
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
 
-	return ((char *) &temp_buffer);
+	return (temp_buffer);
 }
 
-void
+char *
 isnt_output(index)
 	 int             index;
 {
 	if (object[index]->attributes & PLURAL)
-		strcpy(temp_buffer, ARENT);
+		return (cstring_resolve("ARENT")->value);
 	else
-		strcpy(temp_buffer, ISNT);
+		return (cstring_resolve("ISNT")->value);
 }
 
-void
+char *
 is_output(index)
 	 int             index;
 {
 	if (object[index]->attributes & PLURAL)
-		strcpy(temp_buffer, ARE);
+		return (cstring_resolve("ARE")->value);
 	else
-		strcpy(temp_buffer, IS);
+		return (cstring_resolve("IS")->value);
 }
 
-void
+char *
 sub_output(index, capital)
 	 int             index;
 	 int             capital;
 {
 	if (object[index]->attributes & PLURAL) {
-		strcpy(temp_buffer, THEM_WORD);
+		strcpy(temp_buffer, cstring_resolve("THEY_WORD")->value);
 	} else {
-		if (object[index]->attributes & ANIMATE) {
+		if (index == player) {
+			strcpy(temp_buffer, cstring_resolve("YOU_WORD")->value);
+		} else if (object[index]->attributes & ANIMATE) {
 			if (object[index]->attributes & FEMALE) {
-				strcpy(temp_buffer, SHE_WORD);
+				strcpy(temp_buffer, cstring_resolve("SHE_WORD")->value);
 			} else {
-				strcpy(temp_buffer, HE_WORD);
+				strcpy(temp_buffer, cstring_resolve("HE_WORD")->value);
 			}
 		} else {
-			strcpy(temp_buffer, IT_WORD);
+			strcpy(temp_buffer, cstring_resolve("IT_WORD")->value);
 		}
 	}
 
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
+
+	return temp_buffer;
 }
 
-void
+char *
 obj_output(index, capital)
 	 int             index;
 	 int             capital;
 {
 	if (object[index]->attributes & PLURAL) {
-		strcpy(temp_buffer, THEM_WORD);
+		strcpy(temp_buffer, cstring_resolve("THEM_WORD")->value);
 	} else {
-		if (object[index]->attributes & ANIMATE) {
+		if (index == player) {
+			strcpy(temp_buffer, cstring_resolve("YOURSELF_WORD")->value);
+		} else if (object[index]->attributes & ANIMATE) {
 			if (object[index]->attributes & FEMALE) {
-				strcpy(temp_buffer, HER_WORD);
+				strcpy(temp_buffer, cstring_resolve("HER_WORD")->value);
 			} else {
-				strcpy(temp_buffer, HIM_WORD);
+				strcpy(temp_buffer, cstring_resolve("HIM_WORD")->value);
 			}
 		} else {
-			strcpy(temp_buffer, IT_WORD);
+			strcpy(temp_buffer, cstring_resolve("IT_WORD")->value);
 		}
 	}
 
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
+
+	return temp_buffer;
 }
 
-void
+char *
 it_output(index)
 	 int             index;
 {
 	if (object[index]->attributes & ANIMATE) {
-		sentence_output(index, FALSE);
+		return sentence_output(index, FALSE);
 	} else {
 		if (object[index]->attributes & PLURAL) {
-			strcpy(temp_buffer, THEM_WORD);
+			return (cstring_resolve("THEM_WORD")->value);
 		} else {
-			strcpy(temp_buffer, IT_WORD);
+			return (cstring_resolve("IT_WORD")->value);
 		}
 	}
 }
 
-void
+char *
 that_output(index, capital)
 	 int             index;
 	 int             capital;
 {
 	if (object[index]->attributes & PLURAL) {
-		strcpy(temp_buffer, THOSE_WORD);
+		strcpy(temp_buffer, cstring_resolve("THOSE_WORD")->value);
 	} else {
-		strcpy(temp_buffer, THAT_WORD);
+		strcpy(temp_buffer, cstring_resolve("THAT_WORD")->value);
 	}
 
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
+
+	return temp_buffer;
 }
 
-void
+char *
 doesnt_output(index)
 	 int             index;
 {
 	if (object[index]->attributes & PLURAL)
-		strcpy(temp_buffer, DONT);
+		return (cstring_resolve("DONT")->value);
 	else
-		strcpy(temp_buffer, DOESNT);
+		return (cstring_resolve("DOESNT")->value);
 }
 
-void
+char *
 does_output(index)
 	 int             index;
 {
 	if (object[index]->attributes & PLURAL)
-		strcpy(temp_buffer, DO);
+		return (cstring_resolve("DO")->value);
 	else
-		strcpy(temp_buffer, DOES);
+		return (cstring_resolve("DOES")->value);
 }
 
-void
+char *
 list_output(index, capital)
 	 int             index;
 	 int             capital;
@@ -190,9 +201,11 @@ list_output(index, capital)
 
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
+
+	return (temp_buffer);
 }
 
-void
+char *
 plain_output(index, capital)
 	 int             index;
 	 int             capital;
@@ -201,9 +214,11 @@ plain_output(index, capital)
 
 	if (capital)
 		temp_buffer[0] = toupper(temp_buffer[0]);
+
+	return (temp_buffer);
 }
 
-void
+char *
 long_output(index)
 	 int             index;
 {
@@ -213,18 +228,22 @@ long_output(index)
 		if (execute(function_name) == FALSE) {
 			unkfunrun(function_name);
 		}
+
+		// THE BUFFER IS RETURNED EMPTY AS THE TEXT IS OUTPUT BY
+		// WRITE STATEMENTS IN THE FUNCTION CALLED
 		temp_buffer[0] = 0;
+		return (temp_buffer);
 	} else {
-		strcpy(temp_buffer, object[index]->described);
+		return (object[index]->described);
 	}
 }
 
 void
 no_it()
 {
-	write_text(NO_IT);
+	write_text(cstring_resolve("NO_IT")->value);
 	write_text(word[wp]);
-	write_text(NO_IT_END);
+	write_text(cstring_resolve("NO_IT_END")->value);
 	custom_error = TRUE;
 }
 
@@ -233,7 +252,6 @@ look_around()
 {
 	/* THIS FUNCTION DISPLAYS THE DESCRIPTION OF THE CURRENT LOCATION ALONG
 	 * WITH ANY OBJECTS CURRENTLY IN IT */
-	int             index;
 
 	if (!check_light(HERE)) {
 		/* THE CURRENT LOCATION HAS 'DARK' AND NO SOURCE OF LIGHT IS

@@ -35,6 +35,8 @@ extern char			game_path[];
 extern char			game_file[];
 extern char			processed_file[];
 
+extern short int	encrypted;
+
 extern char			include_directory[];
 extern char			temp_directory[];
 
@@ -44,10 +46,6 @@ int					lines_written;
 
 FILE 	 	        *outputFile = NULL;
 FILE   	    		*inputFile = NULL;
-
-/* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
- * WITH IS ENCRYPTED */
-short int			encrypted = FALSE;
 
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * WITH BEING PREPARED FOR RELEASE (DON'T INCLUDE DEBUG LIBARIES) */
@@ -60,43 +58,6 @@ short int			encrypt = TRUE;
 /* INDICATES THAT THE CURRENT '.processed' FILE BRING WRITTEN SHOULD NOW
  * HAVE EACH LINE ENCRYPTED AS THE FIRST NONE COMMENT LINE HAS BEEN HIT */
 short int			encrypting = FALSE;
-
-int
-jacl_whitespace(character)
-	int character;
-{
-	/* CHECK IF A CHARACTER IS CONSIDERED WHITE SPACE IN THE JACL LANGUAGE */
-	switch (character) {
-		case ':':
-		case '\t':
-		case ' ':
-			return(TRUE);
-		default:
-			return(FALSE);
-	}
-}
-
-void
-stripwhite (string)
-     char *string;
-{
-	register int i = 0;
-
-	/* STRIP WHITESPACE FROM THE START AND END OF STRING. */
-	while (jacl_whitespace (string[i])) i++;
-
-	if (i) strcpy (string, string + i);
-
-	i = strlen (string) - 1;
-
-	while (i >= 0 && (jacl_whitespace (string[i]) || string[i] == '\n' || string[i] == '\r')) i--;
-
-#ifdef WIN32
-	string[++i] = '\r';
-#endif
-	string[++i] = '\n';
-	string[++i] = '\0';
-}
 
 int
 jpp()
@@ -113,7 +74,10 @@ jpp()
 		char *result = NULL;
 
 		result = fgets(text_buffer, 1024, inputFile);
-		if (!result) return (FALSE);
+		if (!result) {
+			sprintf(error_buffer, CANT_OPEN_SOURCE, game_file);
+			return (FALSE);
+		}
 
 		while (!feof(inputFile) && index < 10) {
 			if (strstr(text_buffer, "#processed")) {
@@ -121,7 +85,7 @@ jpp()
 				 * DIRECTLY */
 				if (sscanf(text_buffer, "#processed:%d", &game_version)) {
 					if (INTERPRETER_VERSION < game_version) {
-						sprintf (error_buffer, OLD_INTERPRETER);
+						sprintf (error_buffer, OLD_INTERPRETER, game_version);
 						return (FALSE);
 					}
 				}
@@ -130,7 +94,10 @@ jpp()
 				return (TRUE);	
 			}					
 			result = fgets(text_buffer, 1024, inputFile);
-			if (!result) return (FALSE);
+			if (!result) {
+				//return (FALSE);
+				break;
+			}
 			index++;
 		}
 
@@ -265,36 +232,3 @@ process_file(sourceFile1, sourceFile2)
 	/* ALL OKAY, RETURN TRUE */
 	return (TRUE);
 }
-
-void
-jacl_encrypt(string)
-  char *string;
-{
-	int index, length;
-
-	length = strlen(string);
-	
-	for (index = 0; index < length; index++) {
-		if (string[index] == '\n' || string[index] == '\r') {
-			return;
-		}
-		string[index] = string[index] ^ 255;
-	}
-}
-
-void
-jacl_decrypt(string)
-  char *string;
-{
-	int index, length;
-
-	length = strlen(string);
-	
-	for (index = 0; index < length; index++) {
-		if (string[index] == '\n' || string[index] == '\r') {
-			return;
-		}
-		string[index] = string[index] ^ 255;
-	}
-}
-

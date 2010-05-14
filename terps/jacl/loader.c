@@ -9,8 +9,9 @@
 #include "prototypes.h"
 #include <string.h>
 
-extern short int	encrypt;
-extern short int	encrypted;
+/* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
+ * WITH IS ENCRYPTED */
+short int			encrypted = FALSE;
 
 extern char			text_buffer[];
 extern char         temp_buffer[];
@@ -21,7 +22,15 @@ extern short int	quoted[];
 extern short int	punctuated[];
 extern int			wp;
 
+#ifdef GLK
 extern schanid_t                sound_channel[];
+#else
+#ifndef __NDS__
+extern struct parameter_type	*parameter_table;
+struct parameter_type *current_parameter = NULL;
+struct parameter_type *new_parameter;
+#endif
+#endif
 
 extern struct object_type		*object[];
 extern struct integer_type		*integer_table;
@@ -37,13 +46,18 @@ extern struct word_type			*grammar_table;
 extern struct synonym_type		*synonym_table;
 extern struct filter_type		*filter_table;
 
+
 struct string_type *current_string = NULL;
 struct string_type *current_cstring = NULL;
 struct integer_type *current_integer = NULL;
 struct cinteger_type *current_cinteger = NULL;
 struct integer_type *last_system_integer = NULL;
 
+#ifdef GLK
 extern strid_t					game_stream;
+#else
+extern FILE                     *file;
+#endif
 
 extern int						objects;
 extern int						integers;
@@ -65,24 +79,29 @@ void
 read_gamefile()
 {
 	int             index,
-	                counter,
-	                reference,
-					result,
+					counter,
 	                errors;
+#ifdef GLK
+	int				result;
+#endif
 	int             location_count = 0;
 	int             object_count = 0;
 	int             line = 0;
-	int             self_parent;
+	int             self_parent = 0;
 
 	long            start_of_file = 0;
+#ifdef GLK
 	glui32 			current_file_position;
+#else
+	long 			current_file_position;
+#endif
+
 	long            bit_mask;
 
 	struct filter_type *current_filter = NULL;
 	struct filter_type *new_filter = NULL;
 	struct attribute_type *current_attribute = NULL;
 	struct attribute_type *new_attribute = NULL;
-	struct string_type *new_string = NULL;
 	struct cinteger_type *resolved_cinteger = NULL;
 	struct synonym_type *current_synonym = NULL;
 	struct synonym_type *new_synonym = NULL;
@@ -91,9 +110,17 @@ read_gamefile()
 
 	char            function_name[81];
 
-	/* CREATE SOME SYSTEM VARIABLES */
+	// CREATE SOME SYSTEM VARIABLES
+
+	// THIS IS USED BY JACL FUNCTIONS TO PASS STRING VALUES BACK
+	// TO THE INTERPRETER AS JACL FUNCTION CAN ONLY RETURN
+	// AN INTEGER
+	create_string ("return_value", "");
+
+	create_cstring ("function_name", "JACL*Internal");
+
 	create_integer ("compass", 0);
-	/* START AT -1 AS TIME PASSES BEFORE THE FIRST PROMPT */
+	// START AT -1 AS TIME PASSES BEFORE THE FIRST PROMPT
 	create_integer ("total_moves", -1); 
 	create_integer ("time", TRUE);
 	create_integer ("score", 0);
@@ -109,6 +136,7 @@ read_gamefile()
 	create_integer ("multi_prefix", 0);
 	create_integer ("notify", 1);
 	create_integer ("debug", 0);
+	create_integer ("linebreaks", 1);
 
 	/* STORE THIS SO THE SECOND PASS KNOWS WHERE TO START 
 	 * SETTING VALUES FROM (EVERYTHING BEFORE THIS IN THE
@@ -119,14 +147,35 @@ read_gamefile()
 	create_cinteger ("graphics_supported", 0);
 	create_cinteger ("sound_supported", 0);
 	create_cinteger ("timer_supported", 0);
+    create_cinteger ("GLK", 0);
+    create_cinteger ("CGI", 1);
+#ifdef GLK
+	create_cinteger ("interpreter", 0);
+#else
+#ifdef __NDS__
+	create_cinteger ("interpreter", 0);
+#else
+	create_cinteger ("interpreter", 1);
+#endif
+#endif
 
 	/* TEST FOR AVAILABLE FUNCTIONALITY BEFORE EXECUTING ANY JACL CODE */
+
+#ifdef GLK
 	GRAPHICS_SUPPORTED->value = (int) glk_gestalt(gestalt_Graphics, 0);
 	GRAPHICS_ENABLED->value = (int) glk_gestalt(gestalt_Graphics, 0);
 	SOUND_SUPPORTED->value = (int) glk_gestalt(gestalt_Sound, 0);
 	SOUND_ENABLED->value = (int) glk_gestalt(gestalt_Sound, 0);
 	TIMER_SUPPORTED->value = (int) glk_gestalt(gestalt_Timer, 0);
 	TIMER_ENABLED->value = (int) glk_gestalt(gestalt_Timer, 0);
+#else
+	GRAPHICS_SUPPORTED->value = TRUE;
+	GRAPHICS_ENABLED->value = TRUE;
+	SOUND_SUPPORTED->value = TRUE;
+	SOUND_ENABLED->value = TRUE;
+	TIMER_SUPPORTED->value = FALSE;
+	TIMER_ENABLED->value = FALSE;
+#endif
 
     create_cinteger ("true", 1);
     create_cinteger ("false", 0);
@@ -167,6 +216,11 @@ read_gamefile()
 	create_cinteger ("volume", 100);
 	create_cinteger ("volume", 100);
 	create_cinteger ("volume", 100);
+	create_cinteger ("volume", 100);
+	create_cinteger ("volume", 100);
+	create_cinteger ("volume", 100);
+	create_cinteger ("volume", 100);
+	create_cinteger ("timer", 0);
 
 	set_defaults();
 
@@ -193,28 +247,51 @@ read_gamefile()
 	functions = 0;
 	strings = 0;
 
+#ifdef GLK
 	glk_stream_set_position(game_stream, (glsi32)start_of_file, seekmode_Start);
 	result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+    fseek(file, start_of_file, SEEK_SET);
+    fgets(text_buffer, 1024, file);
+#endif
+
 	line++;
 
 	if (!encrypted && strstr(text_buffer, "#encrypted")) {
 		encrypted = TRUE;
+#ifdef GLK
 		result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+		fgets(text_buffer, 1024, file);
+#endif
 		line++;
 	}
 
 	if (encrypted) jacl_decrypt(text_buffer);
 
+#ifdef GLK
 	while (result) {
+#else
+    while (!feof(file)) {
+#endif
 		encapsulate();
 		if (word[0] == NULL);
 		else if (text_buffer[0] == '{') {
+#ifdef GLK
 			while (result) {
 				result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+            while (!feof(file)) {
+                fgets(text_buffer, 1024, file);
+#endif
 				line++;
 				if (!encrypted && strstr(text_buffer, "#encrypted")) {
 					encrypted = TRUE;
+#ifdef GLK
 					result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+                    fgets(text_buffer, 1024, file);
+#endif
 					line++;
 				}
 				if (encrypted) jacl_decrypt(text_buffer);
@@ -303,6 +380,49 @@ read_gamefile()
 					}
 					current_synonym->next_synonym = NULL;
 				}
+			} else if (!strcmp(word[0], "parameter")) {
+#ifndef GLK
+#ifndef __NDS__
+				if (word[2] == NULL) {
+					noproperr(line);
+					errors++;
+				} else {
+					if ((new_parameter = (struct parameter_type *)
+						 malloc(sizeof(struct parameter_type))) == NULL)
+						outofmem();
+					else {
+						if (parameter_table == NULL) {
+							parameter_table = new_parameter;
+						} else {
+							current_parameter->next_parameter =
+								new_parameter;
+						}
+						current_parameter = new_parameter;
+						strncpy(current_parameter->name, word[1], 40);
+						current_parameter->name[40] = 0;
+						strncpy(current_parameter->container, word[2], 40);
+						current_parameter->container[40] = 0;
+						current_parameter->next_parameter = NULL;
+					}
+
+					if (word[4] != NULL) {
+						if (validate(word[3]))
+							current_parameter->low = atoi(word[3]);
+						else
+							current_parameter->low = -65535;
+
+						if (validate(word[4]))
+							current_parameter->high = atoi(word[4]);
+						else
+							current_parameter->high = 65535;
+					} else {
+						current_parameter->low = -65535;
+						current_parameter->high = 65535;
+					}
+
+				}
+#endif
+#endif
 			} else if (!strcmp(word[0], "constant")) {
 				if (word[2] == NULL) {
 					noproperr(line);
@@ -491,12 +611,20 @@ read_gamefile()
 				}
 			}
 		}
+#ifdef GLK
 		result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+        fgets(text_buffer, 1024, file);
+#endif
 		line++;
 
 		if (!encrypted && strstr(text_buffer, "#encrypted")) {
 			encrypted = TRUE;
+#ifdef GLK
 			result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+        	fgets(text_buffer, 1024, file);
+#endif
 			line++;
 		}
 		if (encrypted) jacl_decrypt(text_buffer);
@@ -526,7 +654,7 @@ read_gamefile()
 		create_cstring ("game_title", prefix);
 	}
 
-	glk_stream_set_position(game_stream, (glsi32)start_of_file, seekmode_Start);
+	create_language_constants();
 
 	/* MUST RE-DETERMINE THE POINT IN THE GAME FILE THAT ENCRYPTION STARTS */
 	encrypted = FALSE;
@@ -536,18 +664,32 @@ read_gamefile()
 	current_integer = last_system_integer;
 
 	line = 0;
-
+#ifdef GLK
+	glk_stream_set_position(game_stream, (glsi32)start_of_file, seekmode_Start);
 	result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+    fseek(file, start_of_file, SEEK_SET);
+    fgets(text_buffer, 1024, file);
+#endif
+
 	line++;
 
 	if (!encrypted && strstr(text_buffer, "#encrypted")) {
 		encrypted = TRUE;
+#ifdef GLK
 		result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+    	fgets(text_buffer, 1024, file);
+#endif
 		line++;
 	}
 	if (encrypted) jacl_decrypt(text_buffer);
 
+#ifdef GLK
 	while (result) {
+#else
+    while (!feof(file)) {
+#endif
 		encapsulate();
 		if (word[0] == NULL);
 		else if (text_buffer[0] == '{') {
@@ -598,7 +740,11 @@ read_gamefile()
 
 							current_function = function_table;
 							strcpy(current_function->name, function_name);
+#ifdef GLK
 							current_function->position = glk_stream_get_position(game_stream);
+#else
+                            current_function->position = ftell(file);
+#endif
 							current_function->call_count = 0;
 							current_function->call_count_backup = 0;
 							current_function->self = self_parent;
@@ -616,7 +762,11 @@ read_gamefile()
 
 							current_function = current_function->next_function;
 							strcpy(current_function->name, function_name);
+#ifdef GLK
 							current_function->position = glk_stream_get_position(game_stream);
+#else
+                            current_function->position = ftell(file);
+#endif
 							current_function->call_count = 0;
 							current_function->call_count_backup = 0;
 							current_function->self = self_parent;
@@ -627,13 +777,22 @@ read_gamefile()
 				}
 			}
 
+#ifdef GLK
 			while (result) {
 				result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+            while (!feof(file)) {
+                fgets(text_buffer, 1024, file);
+#endif
 				line++;
 
 				if (!encrypted && strstr(text_buffer, "#encrypted")) {
 					encrypted = TRUE;
+#ifdef GLK
 					result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+                	fgets(text_buffer, 1024, file);
+#endif
 					line++;
 				}
 				if (encrypted) jacl_decrypt(text_buffer);
@@ -687,6 +846,7 @@ read_gamefile()
 		} else if (!strcmp(word[0], "constant"));
 		else if (!strcmp(word[0], "string"));
 		else if (!strcmp(word[0], "attribute"));
+		else if (!strcmp(word[0], "parameter"));
 		else if (!strcmp(word[0], "synonym"));
 		else if (!strcmp(word[0], "grammar"));
 		else if (!strcmp(word[0], "filter"));
@@ -699,9 +859,9 @@ read_gamefile()
 				errors++;
 			} else {
 				for (index = 1; word[index] != NULL && index < MAX_WORDS; index++) {
-					if (bit_mask = attribute_resolve(word[index])) {
+					if ((bit_mask = attribute_resolve(word[index]))) {
 						object[object_count]->attributes = object[object_count]->attributes | bit_mask;
-					} else if (bit_mask = user_attribute_resolve(word[index])) {
+					} else if ((bit_mask = user_attribute_resolve(word[index]))) {
 						object[object_count]->user_attributes = object[object_count]->user_attributes | bit_mask;
 					} else {
 						unkatterr(line, index);
@@ -856,13 +1016,22 @@ read_gamefile()
 			errors++;
 		}
 
+#ifdef GLK
 		current_file_position = glk_stream_get_position(game_stream);
 		result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+        current_file_position = ftell(file);
+        fgets(text_buffer, 1024, file);
+#endif
 		line++;
 
 		if (!encrypted && strstr(text_buffer, "#encrypted")) {
 			encrypted = TRUE;
+#ifdef GLK
 			result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+        	fgets(text_buffer, 1024, file);
+#endif
 			line++;
 		}
 		if (encrypted) jacl_decrypt(text_buffer);
@@ -1056,6 +1225,7 @@ restart_game()
 	struct filter_type *current_filter;
 	struct filter_type *previous_filter;
 
+#ifdef GLK
 	if (SOUND_SUPPORTED->value) {
 		/* STOP ALL SOUNDS AND SET VOLUMES BACK TO 100% */
 		for (index = 0; index < 4; index++) {
@@ -1068,6 +1238,7 @@ restart_game()
 			cinteger_resolve(temp_buffer)->value = 100;
 		}
 	}
+#endif
 
     /* FREE ALL OBJECTS */
 	for (index = 1; index <= objects; index++) {
@@ -1218,10 +1389,6 @@ restart_game()
 	grammar_table = NULL;
 
 	read_gamefile();
-
-	execute("+intro");
-	eachturn();
-
 }
 
 void
@@ -1237,8 +1404,6 @@ free_from(struct word_type *x)
 void
 set_defaults()
 {
-	int             index;
-
 	/* RESET THE BACK-REFERENCE VARIABLES */
 	them[0] = 0;
 	it = 0;
@@ -1367,4 +1532,206 @@ create_cstring (name, value)
 		current_cstring->value[255] = 0;
 		current_cstring->next_string = NULL;
 	}
+}
+
+void
+create_language_constants() 
+{
+
+	/* SET THE DEFAULT LANGUAGE CONSTANTS IF ANY OR ALL OF THEM
+     * ARE MISSING FROM THE GAME THAT IS BEING LOADED. DEFAULT
+     * TO THE NATIVE_LANGUAGE SETTING IN language.h */
+
+	if (cstring_resolve("COMMENT_IGNORED") == NULL)
+		create_cstring	("COMMENT_IGNORED", COMMENT_IGNORED);
+	if (cstring_resolve("COMMENT_RECORDED") == NULL)
+		create_cstring	("COMMENT_RECORDED", COMMENT_RECORDED);
+	if (cstring_resolve("YES_WORD") == NULL)
+		create_cstring	("YES_WORD", YES_WORD);
+	if (cstring_resolve("NO_WORD") == NULL)
+		create_cstring	("NO_WORD", NO_WORD);
+	if (cstring_resolve("YES_OR_NO") == NULL)
+		create_cstring	("YES_OR_NO", YES_OR_NO);
+	if (cstring_resolve("INVALID_SELECTION") == NULL)
+		create_cstring	("INVALID_SELECTION", INVALID_SELECTION);
+	if (cstring_resolve("RESTARTING") == NULL)
+		create_cstring	("RESTARTING", RESTARTING);
+	if (cstring_resolve("RETURN_GAME") == NULL)
+		create_cstring	("RETURN_GAME", RETURN_GAME);
+	if (cstring_resolve("SCRIPTING_ON") == NULL)
+		create_cstring	("SCRIPTING_ON", SCRIPTING_ON);
+	if (cstring_resolve("SCRIPTING_OFF") == NULL)
+		create_cstring	("SCRIPTING_OFF", SCRIPTING_OFF);
+	if (cstring_resolve("SCRIPTING_ALREADY_OFF") == NULL)
+		create_cstring	("SCRIPTING_ALREADY_OFF", SCRIPTING_ALREADY_OFF);
+	if (cstring_resolve("SCRIPTING_ALREADY_ON") == NULL)
+		create_cstring	("SCRIPTING_ALREADY_OFF", SCRIPTING_ALREADY_OFF);
+	if (cstring_resolve("CANT_WRITE_SCRIPT") == NULL)
+		create_cstring	("CANT_WRITE_SCRIPT", CANT_WRITE_SCRIPT);
+	if (cstring_resolve("ERROR_READING_WALKTHRU") == NULL)
+		create_cstring	("ERROR_READING_WALKTHRU", ERROR_READING_WALKTHRU);
+	if (cstring_resolve("BAD_OOPS") == NULL)
+		create_cstring	("BAD_OOPS", BAD_OOPS);
+	if (cstring_resolve("CANT_CORRECT") == NULL)
+		create_cstring	("CANT_CORRECT", CANT_CORRECT);
+	if (cstring_resolve("SURE_QUIT") == NULL)
+		create_cstring	("SURE_QUIT", SURE_QUIT);
+	if (cstring_resolve("SURE_RESTART") == NULL)
+		create_cstring	("SURE_RESTART", SURE_RESTART);
+	if (cstring_resolve("NOT_CLEVER") == NULL)
+		create_cstring	("NOT_CLEVER", NOT_CLEVER);
+	if (cstring_resolve("NO_MOVES") == NULL)
+		create_cstring	("NO_MOVES", NO_MOVES);
+	if (cstring_resolve("TYPE_NUMBER") == NULL)
+		create_cstring	("TYPE_NUMBER", TYPE_NUMBER);
+	if (cstring_resolve("REFERRING_TO") == NULL)
+		create_cstring	("REFERRING_TO", REFERRING_TO);
+	if (cstring_resolve("WALKTHRU_WORD") == NULL)
+		create_cstring	("WALKTHRU_WORD", WALKTHRU_WORD);
+	if (cstring_resolve("INFO_WORD") == NULL)
+		create_cstring	("INFO_WORD", INFO_WORD);
+	if (cstring_resolve("RESTART_WORD") == NULL)
+		create_cstring	("RESTART_WORD", RESTART_WORD);
+	if (cstring_resolve("AGAIN_WORD") == NULL)
+		create_cstring	("AGAIN_WORD", AGAIN_WORD);
+	if (cstring_resolve("SCRIPT_WORD") == NULL)
+		create_cstring	("SCRIPT_WORD", SCRIPT_WORD);
+	if (cstring_resolve("UNSCRIPT_WORD") == NULL)
+		create_cstring	("UNSCRIPT_WORD", UNSCRIPT_WORD);
+	if (cstring_resolve("QUIT_WORD") == NULL)
+		create_cstring	("QUIT_WORD", QUIT_WORD);
+	if (cstring_resolve("UNDO_WORD") == NULL)
+		create_cstring	("UNDO_WORD", UNDO_WORD);
+	if (cstring_resolve("OOPS_WORD") == NULL)
+		create_cstring	("OOPS_WORD", OOPS_WORD);
+	if (cstring_resolve("FROM_WORD") == NULL)
+		create_cstring	("FROM_WORD", FROM_WORD);
+	if (cstring_resolve("EXCEPT_WORD") == NULL)
+		create_cstring	("EXCEPT_WORD", EXCEPT_WORD);
+	if (cstring_resolve("FOR_WORD") == NULL)
+		create_cstring	("FOR_WORD", FOR_WORD);
+	if (cstring_resolve("BUT_WORD") == NULL)
+		create_cstring	("BUT_WORD", BUT_WORD);
+	if (cstring_resolve("AND_WORD") == NULL)
+		create_cstring	("AND_WORD", AND_WORD);
+	if (cstring_resolve("THEN_WORD") == NULL)
+		create_cstring	("THEN_WORD", THEN_WORD);
+	if (cstring_resolve("OF_WORD") == NULL)
+		create_cstring	("OF_WORD", OF_WORD);
+	if (cstring_resolve("SHE_WORD") == NULL)
+		create_cstring	("SHE_WORD", SHE_WORD);
+	if (cstring_resolve("HE_WORD") == NULL)
+		create_cstring	("HE_WORD", HE_WORD);
+	if (cstring_resolve("THAT_WORD") == NULL)
+		create_cstring	("THAT_WORD", THAT_WORD);
+	if (cstring_resolve("THEM_WORD") == NULL)
+		create_cstring	("THEM_WORD", THEM_WORD);
+	if (cstring_resolve("THOSE_WORD") == NULL)
+		create_cstring	("THOSE_WORD", THOSE_WORD);
+	if (cstring_resolve("THEY_WORD") == NULL)
+		create_cstring	("THEY_WORD", THEY_WORD);
+	if (cstring_resolve("IT_WORD") == NULL)
+		create_cstring	("IT_WORD", IT_WORD);
+	if (cstring_resolve("ITSELF_WORD") == NULL)
+		create_cstring	("ITSELF_WORD", ITSELF_WORD);
+	if (cstring_resolve("HIM_WORD") == NULL)
+		create_cstring	("HIM_WORD", HIM_WORD);
+	if (cstring_resolve("HIMSELF_WORD") == NULL)
+		create_cstring	("HIMSELF_WORD", HIMSELF_WORD);
+	if (cstring_resolve("HER_WORD") == NULL)
+		create_cstring	("HER_WORD", HER_WORD);
+	if (cstring_resolve("HERSELF_WORD") == NULL)
+		create_cstring	("HERSELF_WORD", HERSELF_WORD);
+	if (cstring_resolve("THEMSELVES_WORD") == NULL)
+		create_cstring	("THEMSELVES_WORD", THEMSELVES_WORD);
+	if (cstring_resolve("YOU_WORD") == NULL)
+		create_cstring	("YOU_WORD", YOU_WORD);
+	if (cstring_resolve("YOURSELF_WORD") == NULL)
+		create_cstring	("YOURSELF_WORD", YOURSELF_WORD);
+	if (cstring_resolve("ONES_WORD") == NULL)
+		create_cstring	("ONES_WORD", ONES_WORD);
+	if (cstring_resolve("NO_MULTI_VERB") == NULL)
+		create_cstring	("NO_MULTI_VERB", NO_MULTI_VERB);
+	if (cstring_resolve("NO_MULTI_START") == NULL)
+		create_cstring	("NO_MULTI_START", NO_MULTI_START);
+	if (cstring_resolve("PERSON_CONCEALING") == NULL)
+		create_cstring	("PERSON_CONCEALING", PERSON_CONCEALING);
+	if (cstring_resolve("PERSON_POSSESSIVE") == NULL)
+		create_cstring	("PERSON_POSSESSIVE", PERSON_POSSESSIVE);
+	if (cstring_resolve("CONTAINER_CLOSED") == NULL)
+		create_cstring	("CONTAINER_CLOSED", CONTAINER_CLOSED);
+	if (cstring_resolve("CONTAINER_CLOSED_FEM") == NULL)
+		create_cstring	("CONTAINER_CLOSED_FEM", CONTAINER_CLOSED_FEM);
+	if (cstring_resolve("FROM_NON_CONTAINER") == NULL)
+		create_cstring	("FROM_NON_CONTAINER", FROM_NON_CONTAINER);
+	if (cstring_resolve("DOUBLE_EXCEPT") == NULL)
+		create_cstring	("DOUBLE_EXCEPT", DOUBLE_EXCEPT);
+	if (cstring_resolve("NONE_HELD") == NULL)
+		create_cstring	("NONE_HELD", NONE_HELD);
+	if (cstring_resolve("NO_OBJECTS") == NULL)
+		create_cstring	("NO_OBJECTS", NO_OBJECTS);
+	if (cstring_resolve("NO_FILENAME") == NULL)
+		create_cstring	("NO_FILENAME", NO_FILENAME);
+	if (cstring_resolve("MOVE_UNDONE") == NULL)
+		create_cstring	("MOVE_UNDONE", MOVE_UNDONE);
+	if (cstring_resolve("NO_UNDO") == NULL)
+		create_cstring	("NO_UNDO", NO_UNDO);
+	if (cstring_resolve("CANT_SAVE") == NULL)
+		create_cstring	("CANT_SAVE", CANT_SAVE);
+	if (cstring_resolve("CANT_RESTORE") == NULL)
+		create_cstring	("CANT_RESTORE", CANT_RESTORE);
+	if (cstring_resolve("GAME_SAVED") == NULL)
+		create_cstring	("GAME_SAVED", GAME_SAVED);
+	if (cstring_resolve("INCOMPLETE_SENTENCE") == NULL)
+		create_cstring	("INCOMPLETE_SENTENCE", INCOMPLETE_SENTENCE);
+	if (cstring_resolve("UNKNOWN_OBJECT") == NULL)
+		create_cstring	("UNKNOWN_OBJECT", UNKNOWN_OBJECT);
+	if (cstring_resolve("UNKNOWN_OBJECT_END") == NULL)
+		create_cstring	("UNKNOWN_OBJECT_END", UNKNOWN_OBJECT_END);
+	if (cstring_resolve("CANT_USE_WORD") == NULL)
+		create_cstring	("CANT_USE_WORD", CANT_USE_WORD);
+	if (cstring_resolve("IN_CONTEXT") == NULL)
+		create_cstring	("IN_CONTEXT", IN_CONTEXT);
+	if (cstring_resolve("DONT_SEE") == NULL)
+		create_cstring	("DONT_SEE", DONT_SEE);
+	if (cstring_resolve("HERE_WORD") == NULL)
+		create_cstring	("HERE_WORD", HERE_WORD);
+	if (cstring_resolve("BAD_SAVED_GAME") == NULL)
+		create_cstring	("BAD_SAVED_GAME", BAD_SAVED_GAME);
+	if (cstring_resolve("ARENT") == NULL)
+		create_cstring	("ARENT", ARENT);
+	if (cstring_resolve("ISNT") == NULL)
+		create_cstring	("ISNT", ISNT);
+	if (cstring_resolve("ARE") == NULL)
+		create_cstring	("ARE", ARE);
+	if (cstring_resolve("IS") == NULL)
+		create_cstring	("IS", IS);
+	if (cstring_resolve("DONT") == NULL)
+		create_cstring	("DONT", DONT);
+	if (cstring_resolve("DOESNT") == NULL)
+		create_cstring	("DOESNT", DOESNT);
+	if (cstring_resolve("DO") == NULL)
+		create_cstring	("DO", DO);
+	if (cstring_resolve("DOES") == NULL)
+		create_cstring	("DOES", DOES);
+	if (cstring_resolve("SCORE_UP") == NULL)
+		create_cstring	("SCORE_UP", SCORE_UP);
+	if (cstring_resolve("POINT") == NULL)
+		create_cstring	("POINT", POINT);
+	if (cstring_resolve("POINTS") == NULL)
+		create_cstring	("POINTS", POINTS);
+	if (cstring_resolve("STARTING") == NULL)
+		create_cstring	("STARTING", STARTING);
+	if (cstring_resolve("NO_IT") == NULL)
+		create_cstring	("NO_IT", NO_IT);
+	if (cstring_resolve("NO_IT_END") == NULL)
+		create_cstring	("NO_IT_END", NO_IT_END);
+	if (cstring_resolve("BACK_REFERENCE") == NULL)
+		create_cstring	("BACK_REFERENCE", BACK_REFERENCE);
+	if (cstring_resolve("BACK_REFERENCE_END") == NULL)
+		create_cstring	("BACK_REFERENCE_END", BACK_REFERENCE_END);
+	if (cstring_resolve("MUST_SPECIFY") == NULL)
+		create_cstring	("MUST_SPECIFY", MUST_SPECIFY);
+	if (cstring_resolve("OR_WORD") == NULL)
+		create_cstring	("OR_WORD", OR_WORD);
 }

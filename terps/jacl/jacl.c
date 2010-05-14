@@ -17,18 +17,28 @@
  */
 
 #ifdef WIN32
+#ifndef GARGLK
 #include <windows.h>
+#include "WinGlk.h"
+#endif
 #endif
 
 #include "jacl.h"
 #include "types.h"
 #include "language.h"
-#include "prototypes.h"
 #include <string.h>
+#include "prototypes.h"
+
+#ifndef GARGLK
+#include "glkterm/gi_blorb.h"
+#include "glkterm/glk.h"
+#include "Gargoyle/garglk.h"
+#endif
 
 glui32 				status_width, status_height;
 
-schanid_t 			sound_channel[4] = { NULL , NULL, NULL, NULL };
+schanid_t 			sound_channel[8] = { NULL, NULL, NULL, NULL, 
+										 NULL, NULL, NULL, NULL };
 
 event_t				*cancelled_event;
 
@@ -50,6 +60,10 @@ extern int			him;
 
 extern int			oops_word;
 
+#ifdef WINGLK
+struct	string_type	*resolved_string;
+#endif
+
 char            include_directory[81] = "\0";
 char            temp_directory[81] = "\0";
 char            special_prompt[81] = "\n: \0";
@@ -64,7 +78,10 @@ char            override[81];
 
 char            temp_buffer[1024];
 char            error_buffer[1024];
-char            chunk_buffer[4096];
+unsigned char   chunk_buffer[4096];
+#ifndef NOUNICODE
+glui32          chunk_buffer_uni[4096];
+#endif
 char            proxy_buffer[1024];
 
 char			oops_buffer[1024];
@@ -73,6 +90,9 @@ char            last_command[1024];
 char			*blank_command = "blankjacl\0";
 char            *current_command = (char *) NULL;
 char			command_buffer[1024];
+#ifndef NOUNICODE
+glui32			command_buffer_uni[1024];
+#endif
 char			players_command[1024];
 
 int				walkthru_running = FALSE;
@@ -146,18 +166,15 @@ struct word_type *grammar_table = NULL;
 struct synonym_type *synonym_table = NULL;
 struct filter_type *filter_table = NULL;
 
+void convert_to_utf8(glui32 *text, int len);
+glui32 parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
+
 void
 glk_main(void)
 {
-	int             index, result;
-	int				game_version;
-
-	char           *last_slash;
+	int             index;
 
 	frefid_t 		blorb_file;
-
-	/* USED TO GRAB THE GAME TITLE */
-    struct string_type *resolved_string;
 
 	srand((int) time(NULL));
 
@@ -198,7 +215,7 @@ glk_main(void)
 	if (jpp_error) {
 		/* THERE WAS AN ERROR DURING PREPROCESSING. NOW THAT THERE IS AN
 		 * OPEN GLK WINDOW, OUTPUT THE ERROR MESSAGE AND EXIT */
-		write_text(error_buffer);
+		log_error(error_buffer, FALSE);
 		terminate(200);
 	}
 
@@ -224,6 +241,8 @@ glk_main(void)
 	/* NO PREPROCESSOR ERRORS, LOAD THE GAME FILE */
 	read_gamefile();
 
+	execute ("+bootstrap");
+
     // OPEN A SECOND WINDOW: A TEXT GRID, ABOVE THE MAIN WINDOW, ONE LINE
     // HIGH. IT IS POSSIBLE THAT THIS WILL FAIL ALSO, BUT WE ACCEPT THAT.
   	statuswin = glk_window_open(mainwin, winmethod_Above | winmethod_Fixed,
@@ -244,8 +263,8 @@ glk_main(void)
 #endif
 
 	if (SOUND_SUPPORTED->value) {
-		/* CREATE THE FOUR SOUND CHANNELS */
-		for (index = 0; index < 4; index++) {
+		/* CREATE THE EIGHT SOUND CHANNELS */
+		for (index = 0; index < 8; index++) {
 			sound_channel[index] = glk_schannel_create(0);
 		}
 	}
@@ -255,7 +274,7 @@ glk_main(void)
 	execute("+intro");
 
 	if (object[2] == NULL) {
-		log_error ("A JACL game must contain at least one object to represent the player, and at least one location for the player to start in.^", PLUS_STDERR);
+		log_error (CANT_RUN, PLUS_STDERR);
 		terminate(43);
 	}
 
@@ -273,7 +292,7 @@ glk_main(void)
 
 		jacl_set_window(mainwin);
 
-		execute("+footer");
+		execute("+bottom");
 
 		status_line();
 
@@ -289,7 +308,12 @@ glk_main(void)
 		/* OUTPUT THE CUSTOM COMMAND PROMPT */
 		write_text(string_resolve("command_prompt")->value);
 
+#ifdef NOUNICODE
 		glk_request_line_event(inputwin, command_buffer, 255, 0);
+#else
+		glk_request_line_event_uni(inputwin, command_buffer_uni, 255, 0);
+#endif
+
 		jacl_set_window(inputwin);
 
 		gotline = FALSE;
@@ -318,7 +342,7 @@ glk_main(void)
 					/* A SOUND HAS FINISHED PLAYING CALL +sound_finished
 					 * WITH THE RESOUCE NUMBER AS THE FIRST ARGUMENT
 					 * AND THE CHANNEL NUMBER AS THE SECOND ARGUMENT */
-					sprintf(temp_buffer, "+sound_finished<%d<%d", ev.val1, ev.val2 - 1);
+					sprintf(temp_buffer, "+sound_finished<%d<%d", (int) ev.val1, (int) ev.val2 - 1);
 					execute(temp_buffer);
                     break;
 
@@ -340,9 +364,10 @@ glk_main(void)
             }
 		}
 
-		/* THE LINE WE HAVE RECEIVED IN command_buffer IS NOT NULL-TERMINATED.
-         * WE HANDLE THAT FIRST. */
-        command_buffer[ev.val1] = '\0';
+		// THE PLAYER'S INPUT WILL BE UTF-32. CONVERT IT TO UTF-8 AND NULL TERMINATE IT
+#ifndef NOUNICODE
+		convert_to_utf8(command_buffer_uni, ev.val1);
+#endif
 
 		current_command = command_buffer;
 
@@ -351,12 +376,12 @@ glk_main(void)
 			jacl_set_window(mainwin);
 			write_text(string_resolve("command_prompt")->value);
 			glk_set_style(style_Input);
-			glk_put_string(current_command);
+			write_text(current_command);
 			glk_set_style(style_Normal);
-			glk_put_string("\n");
+			write_text("^");
 		}
 
-		execute("+header");
+		execute("+top");
 
 		index = 0;
 
@@ -365,7 +390,7 @@ glk_main(void)
 				if (*(current_command + index) == '\r' || *(current_command + index) == '\n') {
 					break;
 				} else {
-					text_buffer[index] = tolower(*(current_command + index));
+					text_buffer[index] = *(current_command + index);
 					index++;
 				}
 			}
@@ -399,9 +424,9 @@ glk_main(void)
 
 			if (word[0][0] == '*') {
 				if (script_stream) {
-					write_text(COMMENT_RECORDED);
+					write_text(cstring_resolve("COMMENT_RECORDED")->value);
 				} else {
-					write_text(COMMENT_IGNORED);
+					write_text(cstring_resolve("COMMENT_IGNORED")->value);
 				}
 			} else {
 				/* COMMAND IS NOT NULL, START PROCESSING IT */
@@ -435,7 +460,7 @@ preparse()
 
 		position = wp;
 
-		while (word[position] != NULL && strcmp(word[position], "then")) {
+		while (word[position] != NULL && strcmp(word[position], cstring_resolve("THEN_WORD")->value)) {
 			add_cstring ("command", word[position]);
 			position++;
 		};
@@ -445,7 +470,7 @@ preparse()
 
 		/* THE PREVIOUS COMMAND HAS FINISHED, LOOK FOR ANOTHER COMMAND */
 		while (word[wp] != NULL) {
-			if (word[wp] != NULL && !strcmp(word[wp], "then")) {
+			if (word[wp] != NULL && !strcmp(word[wp], cstring_resolve("THEN_WORD")->value)) {
 				wp++;
 				break;
 			}
@@ -464,42 +489,45 @@ word_check()
 	//printf("--- command starts at %d\n", start_of_this_command);
 
 	/* START CHECKING THE PLAYER'S COMMAND FOR SYSTEM COMMANDS */
-	if (!strcmp(word[wp], QUIT_WORD) || !strcmp(word[wp], "q")) {
+	if (!strcmp(word[wp], cstring_resolve("QUIT_WORD")->value) || !strcmp(word[wp], "q")) {
 		if (execute("+quit_game") == FALSE) {
 			TIME->value = FALSE;
-			write_text(SURE_QUIT);
+			write_text(cstring_resolve("SURE_QUIT")->value);
 			if (get_yes_or_no()) {
 				newline();
 				execute("+score");
 				terminate(0);
 			} else {
-				write_text(RETURN_GAME);
+				write_text(cstring_resolve("RETURN_GAME")->value);
 			}
 		}
-	} else if (!strcmp(word[wp], RESTART_WORD)) {
+	} else if (!strcmp(word[wp], cstring_resolve("RESTART_WORD")->value)) {
 		if (execute("+restart_game") == FALSE) {
 			TIME->value = FALSE;
-			write_text(SURE_RESTART);
+			write_text(cstring_resolve("SURE_RESTART")->value);
 			if (get_yes_or_no()) {
-				write_text(RESTARTING);
+				write_text(cstring_resolve("RESTARTING")->value);
 				restart_game();
+				glk_window_clear(current_window);
+				execute ("+intro");
+				eachturn();
 			} else {
-				write_text(RETURN_GAME);
+				write_text(cstring_resolve("RETURN_GAME")->value);
 			}
 		}
-	} else if (!strcmp(word[wp], "undo")) {
+	} else if (!strcmp(word[wp], cstring_resolve("UNDO_WORD")->value)) {
 		if (execute("+undo_move") == FALSE) {
 			undoing();
 		}
-	} else if (!strcmp(word[wp], "oops") || !strcmp(word[wp], "o")) {
+	} else if (!strcmp(word[wp], cstring_resolve("OOPS_WORD")->value) || !strcmp(word[wp], "o")) {
 		//printf("--- oops word is %d\n", oops_word);
 		if (word[++wp] != NULL) {
 			if (oops_word == -1) {
 				if (TOTAL_MOVES->value == 0) {
-					write_text("But you haven't done anything yet!^");
+					write_text(cstring_resolve("NO_MOVES")->value);
 					TIME->value = FALSE;
 				} else {
-					write_text("I can't correct the last command using \"oops\", sorry.^");
+					write_text(cstring_resolve("CANT_CORRECT")->value);
 					TIME->value = FALSE;
 				}
 			} else {
@@ -532,15 +560,15 @@ word_check()
 				word_check();
 			}
 		} else {
-			write_text("You must follow the \"oops\" command with the word you wish to use instead.^");
+			write_text(cstring_resolve("BAD_OOPS")->value);
 			TIME->value = FALSE;
 		}
-	} else if (!strcmp(word[wp], "again") || !strcmp(word[wp], "g")) {
+	} else if (!strcmp(word[wp], cstring_resolve("AGAIN_WORD")->value) || !strcmp(word[wp], "g")) {
 		if (TOTAL_MOVES->value == 0) {
-			write_text("But you haven't done anything yet!^");
+			write_text(cstring_resolve("NO_MOVES")->value);
 			TIME->value = FALSE;
 		} else if (last_command[0] == 0) {
-			write_text("It wasn't so clever as to be worth repeating.^");
+			write_text(cstring_resolve("NOT_CLEVER")->value);
 			TIME->value = FALSE;
 		} else {
 			strcpy(text_buffer, last_command);
@@ -551,21 +579,21 @@ word_check()
 			wp = start_of_last_command;
 			word_check();
 		}
-	} else if (!strcmp(word[wp], "script") || !strcmp(word[wp], "transcript")) {
+	} else if (!strcmp(word[wp], cstring_resolve("SCRIPT_WORD")->value) || !strcmp(word[wp], "transcript")) {
 		scripting();
-	} else if (!strcmp(word[wp], "unscript")) {
+	} else if (!strcmp(word[wp], cstring_resolve("UNSCRIPT_WORD")->value)) {
     	if (!script_stream) {
-       		write_text("Scripting is already off.^");
+       		write_text(cstring_resolve("SCRIPTING_ALREADY_OFF")->value);
     	} else {
     		/* Close the file. */
     		glk_put_string_stream(script_stream, "\nEND OF A TRANSCRIPT\n");
     		glk_stream_close(script_stream, NULL);
-    		write_text("Scripting off.^");
+    		write_text(cstring_resolve("SCRIPTING_OFF")->value);
     		script_stream = NULL;
 		}
-	} else if (!strcmp(word[wp], "walkthru")) {
+	} else if (!strcmp(word[wp], cstring_resolve("WALKTHRU_WORD")->value)) {
 		walking_thru();
-	} else if (!strcmp(word[wp], "info") || !strcmp(word[wp], "version")) {
+	} else if (!strcmp(word[wp], cstring_resolve("INFO_WORD")->value) || !strcmp(word[wp], "version")) {
 		version_info();
 		write_text("you can redistribute it and/or modify it under the ");
 		write_text("terms of the GNU General Public License as published by ");
@@ -604,7 +632,7 @@ version_info()
 	write_text(buffer);
 	sprintf(buffer, "/ %d object.^", MAX_OBJECTS);
 	write_text(buffer);
-	write_text("Copyright (c) 1992-2008 Stuart Allen.^^");
+	write_text("Copyright (c) 1992-2010 Stuart Allen.^^");
 }
 
 void
@@ -670,13 +698,13 @@ save_interaction(filename)
 	jacl_set_window(mainwin);
 
 	if (!saveref) {
-		write_text("Unable to place save file.^");
+		write_text(cstring_resolve("CANT_SAVE")->value);
         return (FALSE);
 	} else {
 		if (save_game(saveref)) {
 			return (TRUE);
 		} else {
-			write_text("Error writing save file.^");
+			write_text(cstring_resolve("CANT_SAVE")->value);
            return (FALSE);
 		}
 	}
@@ -721,11 +749,11 @@ restore_game_state()
 	player = player_backup;
 	noun[3] = noun3_backup;
 
-	write_text(MOVE_UNDONE);
+	write_text(cstring_resolve("MOVE_UNDONE")->value);
 	object[HERE]->attributes &= ~1;
-	execute("+header");
+	execute("+top");
 	execute ("+look_around");
-	execute("+footer");
+	execute("+bottom");
 	TIME->value = FALSE;
 }
 
@@ -759,7 +787,12 @@ write_text(string_buffer)
 	chunk_buffer[index] = 0;
 
 	/* PRINT THE CONTENTS OF string_buffer */
+#ifdef NOUNICODE
 	glk_put_string(chunk_buffer);
+#else
+	chunk_buffer_uni[(int) convert_to_utf32(chunk_buffer)] = 0;
+	glk_put_string_uni(chunk_buffer_uni);
+#endif
 }
 
 void
@@ -808,11 +841,11 @@ status_line()
 			temp_buffer[index] = ' ';
 		}
 		temp_buffer[index] = 0;
-		glk_put_string(temp_buffer);
+		write_text(temp_buffer);
 
     	/* PRINT THE LOCATION'S TITLE ON THE LEFT. */
 		glk_window_move_cursor(statuswin, 1, 0);
-		glk_put_string(sentence_output(HERE, TRUE));
+		write_text(sentence_output(HERE, TRUE));
 
 		/* BUILD THE SCORE/ MOVES STRING */
 		temp_buffer[0] = 0;
@@ -821,7 +854,7 @@ status_line()
 		cursor = status_width - strlen(temp_buffer);
 		cursor--;
 		glk_window_move_cursor(statuswin, cursor, 0);
-		glk_put_string(temp_buffer);
+		write_text(temp_buffer);
 	}
 
     jacl_set_window(mainwin);
@@ -839,7 +872,7 @@ void
 more(message)
 	char* message;
 {
-	int character, index, counter;
+	int character;
 
 	jacl_set_window(inputwin);
 
@@ -888,12 +921,12 @@ get_number(insist, low, high)
     char *cx;
 	char commandbuf[256];
 	int response;
-    int gotline, len;
+    int gotline;
     event_t ev;
 
     status_line();
 
-	sprintf(temp_buffer, TYPE_NUMBER, low, high);
+	sprintf(temp_buffer, cstring_resolve("TYPE_NUMBER")->value, low, high);
 
     /* THIS LOOP IS IDENTICAL TO THE MAIN COMMAND LOOP IN glk_main(). */
 
@@ -939,7 +972,7 @@ get_number(insist, low, high)
 		if (!insist) {
 			return (-1);
 		} else {
-			write_text("Invalid selection.^");
+			write_text(cstring_resolve("INVALID_SELECTION")->value);
 		}
     }
 }
@@ -949,8 +982,7 @@ get_string(char *string_buffer)
 {
     char *cx;
 	char commandbuf[256];
-	int response;
-    int gotline, len;
+    int gotline;
     event_t ev;
 
     status_line();
@@ -996,7 +1028,7 @@ get_yes_or_no(void)
 {
     char *cx;
 	char commandbuf[256];
-    int gotline, len;
+    int gotline;
     event_t ev;
 
     status_line();
@@ -1009,7 +1041,7 @@ get_yes_or_no(void)
 			jacl_set_window(inputwin);
 		}
 
-		write_text("^Please enter ~yes~ or ~no~: ");
+		write_text(cstring_resolve("YES_OR_NO")->value);
 		jacl_set_window(mainwin);
 
         glk_request_line_event(inputwin, commandbuf, 255, 0);
@@ -1035,10 +1067,15 @@ get_yes_or_no(void)
         commandbuf[ev.val1] = '\0';
         for (cx = commandbuf; *cx == ' '; cx++) { };
 
-        if (*cx == 'y' || *cx == 'Y')
+		// PUSH THE FIRST NON-SPACE CHARACTER TO LOWER FOR COMPARISON
+		// WITH CONSTANT
+		*cx = tolower(*cx);
+
+        if (*cx == cstring_resolve("YES_WORD")->value[0]) {
             return TRUE;
-        if (*cx == 'n' || *cx == 'N')
+		} else if (*cx == cstring_resolve("NO_WORD")->value[0]) {
             return FALSE;
+		}
 
     }
 }
@@ -1049,7 +1086,7 @@ get_character(message)
 {
     char *cx;
 	char commandbuf[256];
-    int gotline, len;
+    int gotline;
     event_t ev;
 
     status_line();
@@ -1122,7 +1159,7 @@ void
 scripting()
 {
 	if (script_stream) {
-   		write_text("Scripting is already on.^");
+   		write_text(cstring_resolve("SCRIPTING_ALREADY_ON")->value);
 		return;
    	}
 
@@ -1133,7 +1170,7 @@ scripting()
         fileusage_Transcript | fileusage_TextMode,
         filemode_WriteAppend, 0);
       	if (!script_fref) {
-			write_text("Unable to open script file.^");
+			write_text(cstring_resolve("CANT_WRITE_SCRIPT")->value);
            	return;
        	}
    	}
@@ -1142,10 +1179,10 @@ scripting()
    	script_stream = glk_stream_open_file(script_fref, filemode_WriteAppend, 0);
 
    	if (!script_stream) {
-   		write_text("Unable to write to script file.^");
+   		write_text(cstring_resolve("CANT_WRITE_SCRIPT")->value);
        	return;
    	}
-   	write_text("Scripting on.^");
+   	write_text(cstring_resolve("SCRIPTING_ON")->value);
    	glk_window_set_echo_stream(mainwin, script_stream);
    	glk_put_string_stream(script_stream, "TRANSCRIPT OF: ");
    	glk_put_string_stream(script_stream, cstring_resolve("game_title")->value);
@@ -1155,10 +1192,10 @@ scripting()
 void
 undoing()
 {
-	if (TOTAL_MOVES->value && strcmp(last_command, "undo")) {
+	if (TOTAL_MOVES->value && strcmp(last_command, cstring_resolve("UNDO_WORD")->value)) {
 		restore_game_state();
 	} else {
-		write_text(NO_UNDO);
+		write_text(cstring_resolve("NO_UNDO")->value);
 		TIME->value = FALSE;
 	}
 }
@@ -1171,8 +1208,6 @@ walking_thru()
 	int length;
 	char script_line[81];
 
-	event_t ev;
-
 	/* A FILE REFERENCE FOR THE WALKTHRU FILE. */
 	frefid_t walkthru_fref = NULL;
 
@@ -1182,7 +1217,7 @@ walking_thru()
 	walkthru_fref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_TextMode, filemode_Read, 0);
 
 	if (!walkthru_fref) {
-		write_text ("Unable to open walkthru file.^");
+		write_text (cstring_resolve("ERROR_READING_WALKTHRU")->value);
 		return;
 	}
 
@@ -1190,7 +1225,7 @@ walking_thru()
    	walkthru_stream = glk_stream_open_file(walkthru_fref, filemode_Read, 0);
 
    	if (!walkthru_stream) {
-   		write_text("Error reading walkthru file.^");
+   		write_text(cstring_resolve("ERROR_READING_WALKTHRU")->value);
        	return;
    	}
 
@@ -1211,14 +1246,12 @@ walking_thru()
 			text_buffer[index] == '\n') {
 			text_buffer[index] = 0;
 			break;
-		} else {
-			text_buffer[index] = tolower(text_buffer[index]);
 		}
 	}
 
 	strcpy(script_line, text_buffer);
 
-	while (result) {
+	while (result && INTERRUPTED->value == FALSE) {
 		/* THERE COULD BE A LOT OF PROCESSING GOING ON HERE BEFORE GETTING
 		 * TO THE NEXT EVENT LOOP SO CALL glk_tick AFTER EACH LINE READ */
 		glk_tick();
@@ -1227,7 +1260,7 @@ walking_thru()
 		if (word[0] != NULL) {
 			custom_error = FALSE;
 
-			execute("+footer");
+			execute("+bottom");
 
 			write_text(string_resolve("command_prompt")->value);
 			glk_set_style(style_Input);
@@ -1235,7 +1268,7 @@ walking_thru()
 			newline();
 			glk_set_style(style_Normal);
 
-			execute("+header");
+			execute("+top");
 
 			preparse();
 		}
@@ -1249,8 +1282,6 @@ walking_thru()
 				text_buffer[index] == '\n') {
 				text_buffer[index] = 0;
 				break;
-			} else {
-				text_buffer[index] = tolower(text_buffer[index]);
 			}
 		}
 
@@ -1285,12 +1316,12 @@ restore_interaction(filename)
 	jacl_set_window(mainwin);
 
 	if (!saveref) {
-		glk_put_string("Unable to find save file.\n");
+		write_text(cstring_resolve("CANT_RESTORE")->value);
 		return (FALSE);
 	}
 
 	if (restore_game(saveref, TRUE) == FALSE) {
-		write_text("Error reading saved game.^");
+		write_text(cstring_resolve("CANT_RESTORE")->value);
 		return (FALSE);
 	} else {
 		return (TRUE);
@@ -1356,7 +1387,7 @@ object_generator(text, state)
 char* text;
 int state;
 {
-    static len;
+    static int len;
     static struct command_type* now;
     struct command_type* to_send;
     struct name_type *current_name = (struct name_type *) NULL;
@@ -1404,7 +1435,7 @@ verb_generator(text, state)
 char* text;
 int state;
 {
-    static len;
+    static int len;
     static struct command_type* now;
     struct command_type* to_send;
     struct word_type *pointer;
@@ -1475,3 +1506,165 @@ char * word;
 		}
     }
 }
+
+void 
+convert_to_utf8(glui32 *text, int len) {
+	int i, k;
+
+	i = 0;
+	k = 0;
+
+	/*convert UTF-32 to UTF-8 */
+	while (i < len) {
+		if (text[i] < 0x80) {
+			command_buffer[k] = text[i];
+			k++;
+		}
+		else if (text[i] < 0x800) {
+			command_buffer[k  ] = (0xC0 | ((text[i] & 0x7C0) >> 6));
+			command_buffer[k+1] = (0x80 |  (text[i] & 0x03F)      );
+			k = k + 2;
+		}
+		else if (text[i] < 0x10000) {
+			command_buffer[k  ] = (0xE0 | ((text[i] & 0xF000) >> 12));
+			command_buffer[k+1] = (0x80 | ((text[i] & 0x0FC0) >>  6));
+			command_buffer[k+2] = (0x80 |  (text[i] & 0x003F)       );
+			k = k + 3;
+		}
+		else if (text[i] < 0x200000) {
+			command_buffer[k  ] = (0xF0 | ((text[i] & 0x1C0000) >> 18));
+			command_buffer[k+1] = (0x80 | ((text[i] & 0x03F000) >> 12));
+			command_buffer[k+2] = (0x80 | ((text[i] & 0x000FC0) >>  6));
+			command_buffer[k+3] = (0x80 |  (text[i] & 0x00003F)       );
+			k = k + 4;
+		}
+		else {
+			command_buffer[k] = '?';
+			k++;
+		}
+		i++;
+	}
+
+	/* null-terminated string */
+	command_buffer[k] = '\0';
+}
+
+#ifndef NOUNICODE
+int
+convert_to_utf32 (unsigned char *text)
+{
+	int text_len;
+	int rlen;
+
+	if (!text) {
+	    return 0;
+	}
+
+	text_len = strlen(text);
+
+	if (!text_len) {
+	    return 0;
+	}
+
+	rlen = (int) parse_utf8(text, text_len, chunk_buffer_uni, text_len);
+
+	return (rlen);
+}
+
+glui32 
+parse_utf8(unsigned char *buf, glui32 buflen,
+    glui32 *out, glui32 outlen)
+{
+    glui32 pos = 0;
+    glui32 outpos = 0;
+    glui32 res;
+    glui32 val0, val1, val2, val3;
+
+    while (outpos < outlen) {
+        if (pos >= buflen)
+            break;
+
+        val0 = buf[pos++];
+
+        if (val0 < 0x80) {
+            res = val0;
+            out[outpos++] = res;
+            continue;
+        }
+
+        if ((val0 & 0xe0) == 0xc0) {
+            if (pos+1 > buflen) {
+                gli_strict_warning("incomplete two-byte character");
+                break;
+            }
+            val1 = buf[pos++];
+            if ((val1 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed two-byte character");
+                break;
+            }
+            res = (val0 & 0x1f) << 6;
+            res |= (val1 & 0x3f);
+            out[outpos++] = res;
+            continue;
+        }
+
+        if ((val0 & 0xf0) == 0xe0) {
+            if (pos+2 > buflen) {
+                gli_strict_warning("incomplete three-byte character");
+                break;
+            }
+            val1 = buf[pos++];
+            val2 = buf[pos++];
+            if ((val1 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed three-byte character");
+                break;
+            }
+            if ((val2 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed three-byte character");
+                break;
+            }
+            res = (((val0 & 0xf)<<12)  & 0x0000f000);
+            res |= (((val1 & 0x3f)<<6) & 0x00000fc0);
+            res |= (((val2 & 0x3f))    & 0x0000003f);
+            out[outpos++] = res;
+            continue;
+        }
+
+        if ((val0 & 0xf0) == 0xf0) {
+            if ((val0 & 0xf8) != 0xf0) {
+                gli_strict_warning("malformed four-byte character");
+                break;        
+            }
+            if (pos+3 > buflen) {
+                gli_strict_warning("incomplete four-byte character");
+                break;
+            }
+            val1 = buf[pos++];
+            val2 = buf[pos++];
+            val3 = buf[pos++];
+            if ((val1 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed four-byte character");
+                break;
+            }
+            if ((val2 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed four-byte character");
+                break;
+            }
+            if ((val3 & 0xc0) != 0x80) {
+                gli_strict_warning("malformed four-byte character");
+                break;
+            }
+            res = (((val0 & 0x7)<<18)   & 0x1c0000);
+            res |= (((val1 & 0x3f)<<12) & 0x03f000);
+            res |= (((val2 & 0x3f)<<6)  & 0x000fc0);
+            res |= (((val3 & 0x3f))     & 0x00003f);
+            out[outpos++] = res;
+            continue;
+        }
+
+        gli_strict_warning("malformed character");
+    }
+
+    return outpos;
+}
+#endif

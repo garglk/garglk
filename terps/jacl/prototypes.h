@@ -3,8 +3,51 @@
  * according to GNU GPL, see file COPYING for details.
  */
 
+#ifdef GLK
+strid_t open_glk_file();
+glui32 glk_get_bin_line_stream(); 
+glui32 parse_utf8();
+void convert_to_utf8();
+int convert_to_utf32();
+#else
+void update_parameters();
+#endif
+
+#ifdef GARGLK
+extern char* garglk_fileref_get_name(frefid_t fref);
+
+extern void garglk_set_program_name(const char *name);
+extern void garglk_set_program_info(const char *info);
+extern void garglk_set_story_name(const char *name);
+extern void garglk_set_config(const char *name);
+#endif
+
+void default_footer();
+void default_header();
+int bearing();
+int distance();
+int strcondition();
+int and_strcondition();
+int logic_test();
+int str_test();
+int first_available();
+int validate();
+int noun_resolve();
+int get_from_object();
+int is_direct_child_of_from();
+int is_child_of_from();
+int verify_from_object();
+int find_parent();
+int scope();
+int object_element_resolve();
+int execute();
+int object_resolve();
+int random_number();
+void log_access();
+void log_error();
 int parent_of();
 int grand_of();
+int check_light();
 int find_route();
 int exit_function();
 int	count_resolve();
@@ -13,11 +56,9 @@ void create_cstring();
 void create_string();
 void create_integer();
 void create_cinteger();
-strid_t open_glk_file();
 void scripting();
 void undoing();
 void walking_thru();
-glui32 glk_get_bin_line_stream(); 
 void create_paths();
 int get_key();
 char get_character();
@@ -36,7 +77,6 @@ void log_message();
 void set_them();
 void preparse();
 void inspect();
-int is_child_of_from();
 void add_all();
 void add_to_list();
 void call_functions();
@@ -60,6 +100,7 @@ int legal_label_check();
 int attribute_test();
 char* object_names();
 char* arg_text_of();
+char* text_of_word();
 char* text_of();
 char* expand_function();
 int* container_resolve();
@@ -73,20 +114,25 @@ void version_info();
 int jacl_whitespace();
 int get_here();
 void stripwhite();
+void command_encapsulate();
 void encapsulate();
 void jacl_truncate();
 void parser();
 void diagnose();
 void look_around();
-void move_player();
+char* macro_resolve();
+char* plain_output();
+char* sub_output();
+char* obj_output();
+char* that_output();
 char* sentence_output();
-void isnt_output();
-void is_output();
-void it_output();
-void doesnt_output();
-void does_output();
-void list_output();
-void long_output();
+char* isnt_output();
+char* is_output();
+char* it_output();
+char* doesnt_output();
+char* does_output();
+char* list_output();
+char* long_output();
 void terminate();
 void set_arguments();
 void pop_stack();
@@ -113,6 +159,9 @@ void restart_game();
 void read_gamefile();
 void new_position();
 void build_grammar_table();
+void unkvalerr();
+void totalerrs();
+void unkatterr();
 void unkfunrun();
 void nofnamerr();
 void nongloberr();
@@ -144,3 +193,4 @@ char** command_completion();
 char* object_generator();
 char* verb_generator();
 void add_word();
+void create_language_constants();

@@ -10,8 +10,10 @@
 #include "prototypes.h"
 #include <string.h>
 
+#ifdef GLK
 extern glui32 					status_width, status_height;
 extern winid_t 					statuswin;
+#endif
 
 extern struct object_type		*object[];
 extern struct integer_type		*integer_table;
@@ -31,9 +33,17 @@ extern char						function_name[];
 extern char						temp_buffer[];
 extern char						error_buffer[];
 extern char  			        integer_buffer[16];
+extern char						user_id[];
+
+#ifndef GLK
+#ifndef NDS
+extern char						game_url[];
+#endif
+#endif
 
 extern int						noun[];
-extern int						quoted[];
+extern short int				quoted[];
+extern char						*word[];
 
 extern int						resolved_attribute;
 
@@ -45,6 +55,8 @@ extern int						*object_element_address;
 extern int						*object_backup_address;
 
 extern int						value_resolved;
+
+char 							macro_function[81];
 
 int            *
 container_resolve(container_name)
@@ -75,6 +87,17 @@ container_resolve(container_name)
 		return ((int *) NULL);
 }
 
+char		   *
+text_of_word(wordnumber)
+	int			wordnumber;
+{
+	if (quoted[wordnumber] == 1) {
+		return (word[wordnumber]);
+	} else {
+		return (text_of(word[wordnumber]));
+	}
+}
+
 char           *
 text_of(string)
 	 char           *string;
@@ -83,13 +106,14 @@ text_of(string)
 	struct cinteger_type *resolved_cinteger;
 	struct string_type *resolved_string;
 	struct string_type *resolved_cstring;
+	char			*return_string;
 
 	int				index;
 
 	/* CHECK IF THE SUPPLIED STRING IS THE NAME OF A STRING CONSTANT,
 	 * IF NOT, RETURN THE STRING LITERAL */
-	if (macro_resolve(string)) {
-		return(temp_buffer);
+	if ((return_string = macro_resolve(string)) != NULL) {
+		return(return_string);
 	} else if ((resolved_integer = integer_resolve(string)) != NULL) {
 		integer_buffer[0] = 0;
 		sprintf(integer_buffer, "%d", resolved_integer->value);
@@ -110,14 +134,20 @@ text_of(string)
 		   return(object[index]->label);
 		}
 	} else if ((resolved_string = string_resolve(string)) != NULL) {
-		strcpy (temp_buffer, resolved_string->value);
-		return (temp_buffer);
+		return (resolved_string->value);
 	} else if ((resolved_cstring = cstring_resolve(string)) != NULL) {
-		strcpy (temp_buffer, resolved_cstring->value);
-		return (temp_buffer);
+		return (resolved_cstring->value);
 	} else if (function_resolve(string) != NULL) {
 		sprintf(integer_buffer, "%d", execute(string));
 		return(integer_buffer);
+#ifndef GLK
+#ifndef NDS
+	} else if (!strcmp(string, "$url")) {
+		return (game_url);
+	} else if (!strcmp(string, "$user_id")) {
+		return (user_id);
+#endif
+#endif
 	} else {
 		return (string);
 	}
@@ -129,8 +159,6 @@ arg_text_of(string)
 {
 	struct string_type *resolved_string;
 	struct string_type *resolved_cstring;
-
-	int				index;
 
 	/* CHECK IF THE SUPPLIED STRING IS THE NAME OF A STRING CONSTANT,
 	 * IF NOT, RETURN THE STRING LITERAL */
@@ -202,12 +230,19 @@ value_of(value, run_time)
 		return (FALSE);
 	} else if (!strcmp(value, "random")) {
 		return random_number();
+#ifdef GLK
 	} else if (!strcmp(value, "status_height")) {
 		glk_window_get_size(statuswin, &status_width, &status_height);
 		return status_height;
 	} else if (!strcmp(value, "status_width")) {
 		glk_window_get_size(statuswin, &status_width, &status_height);
 		return status_width;
+#else
+	} else if (!strcmp(value, "status_height")) {
+		return -1;
+	} else if (!strcmp(value, "status_width")) {
+		return -1;
+#endif
 	} else if ((resolved_cinteger = cinteger_resolve(value)) != NULL) {
 		return (resolved_cinteger->value);
 	} else if ((resolved_integer = integer_resolve(value)) != NULL) {
@@ -216,10 +251,10 @@ value_of(value, run_time)
 		return (execute(value));
 	} else if (object_element_resolve(value)) {
 		return (oec);
-	} else if (compare = attribute_resolve(value)) {
+	} else if ((compare = attribute_resolve(value))) {
 		resolved_attribute = SYSTEM_ATTRIBUTE;
 		return (compare);
-	} else if (compare = user_attribute_resolve(value)) {
+	} else if ((compare = user_attribute_resolve(value))) {
 		resolved_attribute = USER_ATTRIBUTE;
 		return (compare);
 	} else if ((compare = object_resolve(value)) != -1) {
@@ -635,8 +670,6 @@ expand_function(name)
 	int             delimiter = 0;
 	char            expression[81];
 
-	struct integer_type *resolved_integer;
-
 	strncpy(expression, name, 80);
 	expression[80] = 0;
 
@@ -679,7 +712,7 @@ expand_function(name)
 	return ((char *) function_name);
 }
 
-int
+char *
 macro_resolve(testString)
 	 char           *testString;
 {
@@ -687,7 +720,6 @@ macro_resolve(testString)
 	                counter;
 	int             delimiter = 0;
 	char            expression[81];
-	struct integer_type *resolved_integer;
 
 	strncpy(expression, testString, 80);
 	expression[80] = 0;
@@ -703,75 +735,86 @@ macro_resolve(testString)
 	}
 
 	if (delimiter == FALSE)
-		return (FALSE);
+		return (NULL);
 
 	index = value_of(expression, TRUE);
 
 	if (index < 1 || index > objects) {
 		badptrrun(expression, index);
-		return (FALSE);
+		return (NULL);
 	}
 
 	if (!strcmp(&expression[delimiter], "list")) {
-		list_output(index, FALSE);
+		return (list_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "plain")) {
-		plain_output(index, FALSE);
+		return (plain_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "long")) {
-		long_output(index);
+		return (long_output(index));
 	} else if (!strcmp(&expression[delimiter], "sub")) {
-		sub_output(index, FALSE);
+		return (sub_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "obj")) {
-		obj_output(index, FALSE);
+		return (obj_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "that")) {
-		that_output(index, FALSE);
+		return (that_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "it")) {
-		it_output(index, FALSE);
+		return (it_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "doesnt")) {
-		doesnt_output(index, FALSE);
+		return (doesnt_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "does")) {
-		does_output(index, FALSE);
+		return (does_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "isnt")) {
-		isnt_output(index, FALSE);
+		return (isnt_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "is")) {
-		is_output(index, FALSE);
+		return (is_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "the")) {
-		sentence_output(index, FALSE);
+		return (sentence_output(index, FALSE));
 	} else if (!strcmp(&expression[delimiter], "s")) {
 		if (object[index]->attributes & PLURAL) {
 			strcpy(temp_buffer, "");
 		} else {
 			strcpy(temp_buffer, "s");
 		}
+		return (temp_buffer);
 	} else if (!strcmp(&expression[delimiter], "names")) {
-		strcpy(temp_buffer, object_names(index));
+		return (object_names(index, temp_buffer));
 	} else if (!strcmp(&expression[delimiter], "label")) {
-		strcpy(temp_buffer, object[index]->label);
+		return (object[index]->label);
 	} else if (!strcmp(&expression[delimiter], "List")) {
-		list_output(index, TRUE);
+		return (list_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Plain")) {
-		plain_output(index, TRUE);
+		return (plain_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Sub")) {
-		sub_output(index, TRUE);
+		return (sub_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Obj")) {
-		obj_output(index, TRUE);
+		return (obj_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "That")) {
-		that_output(index, TRUE);
+		return (that_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "It")) {
-		it_output(index, TRUE);
+		return (it_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Doesnt")) {
-		doesnt_output(index, TRUE);
+		return (doesnt_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Does")) {
-		does_output(index, TRUE);
+		return (does_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Isnt")) {
-		isnt_output(index, TRUE);
+		return (isnt_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "Is")) {
-		is_output(index, TRUE);
+		return (is_output(index, TRUE));
 	} else if (!strcmp(&expression[delimiter], "The")) {
-		sentence_output(index, TRUE);
-	} else
-		return (FALSE);
+		return (sentence_output(index, TRUE));
+	} else {
+		strcpy (macro_function, "+macro_");
+		strcat (macro_function, &expression[delimiter]);
+		strcat (macro_function, "<");
+		strcat (macro_function, object[index]->label);
 
-	return (TRUE);
+		// BUILD THE FUNCTION NAME AND PASS THE OBJECT AS 
+		// THE ONLY ARGUMENT
+		if (execute(macro_function)) {
+			return (string_resolve("return_value")->value);
+		}
+	}
+
+	return (NULL);
 }
 
 int

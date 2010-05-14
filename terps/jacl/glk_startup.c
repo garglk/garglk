@@ -14,6 +14,7 @@
 #include "glk.h"
 #include "glkstart.h"
 #include "language.h"
+#include "prototypes.h"
 #include <string.h>
 
 int					jpp_error = FALSE;
