@@ -38,6 +38,7 @@ encapsulate()
 	}
 
 	for (index = 0; index < length; index++) {
+
 		switch (text_buffer[index]) {
 		case ':':
 		case '\t':
@@ -100,6 +101,7 @@ encapsulate()
 	wp = 0;
 }
 
+// THIS VERSION OF ENCAPSULATE DOESN'T LOOK FOR CERTAIN SPECIAL CHARACTERS
 void
 command_encapsulate()
 {
@@ -117,6 +119,11 @@ command_encapsulate()
 	}
 
 	for (index = 0; index < length; index++) {
+
+		// REDCUSE EVERYTHING TO LOWER CASE EXCEPT TEXT ENCLOSED IN
+		// QUOTES
+		text_buffer[index] = tolower(text_buffer[index]);
+
 		switch (text_buffer[index]) {
 		case ':':
 		case '\t':
@@ -145,7 +152,6 @@ command_encapsulate()
 			new_word = TRUE;
 			break;
 		case ';':
-		case '#':
 		case '\r':
 		case '\n':
 			/* TERMINATE THE WHOLE COMMAND ON HITTING A NEWLINE CHARACTER, A

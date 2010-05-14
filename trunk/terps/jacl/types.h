@@ -21,7 +21,11 @@ struct stack_type {
 	int				integercount;
 	int				textcount;
 	int				commandcount;
+#ifdef GLK
 	glsi32          address;
+#else
+	long			address;
+#endif
 	struct function_type *function;
 	int				object_list[4][MAX_OBJECTS];
 	int				list_size[4];
@@ -72,7 +76,12 @@ struct string_type {
 
 struct function_type {
 	char            name[81];
+#ifdef GLK
 	glui32 			position;
+#else
+	long 			position;
+#endif
+
 	int             self;
     int				call_count;
     int				call_count_backup;
@@ -84,12 +93,14 @@ struct command_type {
     struct command_type *next;
 };
 
+#ifdef GLK
 struct window_type {
 	char            name[41];
 	winid_t         glk_window;
 	glui32			glk_type;
 	struct window_type *next_window;
 };
+#endif
 
 struct word_type {
 	char            word[41];
@@ -112,3 +123,13 @@ struct filter_type {
 	char            word[41];
 	struct filter_type *next_filter;
 };
+
+#ifndef GLK
+struct parameter_type {
+	char            name[41];
+	char            container[41];
+	int             low;
+	int             high;
+	struct parameter_type *next_parameter;
+};
+#endif

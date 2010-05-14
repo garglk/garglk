@@ -145,3 +145,11 @@
 #define CSTR_TYPE				4
 #define ATT_TYPE				5
 #define OBJ_TYPE				6
+
+#define BOLD					1
+#define NOTE					2
+#define INPUT					3
+#define HEADER					4
+#define SUBHEADER				5
+#define REVERSE					6
+#define PRE						7

@@ -146,6 +146,7 @@ create_paths(full_path)
 		strcpy(game_path, full_path);
 	}
 
+#ifdef GLK
 	/* SET DEFAULT WALKTHRU FILE NAME */
 	sprintf(walkthru, "%s.walkthru", prefix);
 
@@ -154,6 +155,7 @@ create_paths(full_path)
 
 	/* SET DEFAULT BLORB FILE NAME */
 	sprintf(blorb, "%s.blorb", prefix);
+#endif
 
 	/* SET DEFAULT FILE LOCATIONS IF NOT SET BY THE USER IN CONFIG */
 	if (include_directory[0] == 0) {
@@ -167,44 +169,72 @@ create_paths(full_path)
 	}
 }
 
-// THIS FUNCTION EXISTS PURELY FOR BACKWARD COMPATIBILITY
-void
-move_player()
+int
+jacl_whitespace(character)
+	int character;
 {
-	/* THIS FUNCTION IS USED TO ATTEMPT TO MOVE THE PLAYER IN ONE OF
-	 * THE DIRECTIONS. AS WELL AS CHECKING THE VALUE OF THE DESTINATION
-	 * IT CALLS THE 'MOVEMENT' FUNCTION FOR THE CURRENT LOCATION AND 
-	 * THE GLOBAL 'MOVEMENT' FUNCTION TO SEE IF THE MOVE SHOULD BE 
-	 * PREVENTED FROM OCCURING. THIS CODE IS CALLED AS A RESULT OF
-	 * THE JACL COMMAND 'TRAVEL' */
-
-	/* BUILD THE FUNCTION NAME OF THE ASSOCIATED MOVEMENT FUNCTION*/
-	strcpy(function_name, "movement_");
-	strcat(function_name, object[HERE]->label);
-
-	/* CALL IT */
-	if (execute(function_name) == TRUE) {
-		/* IF THIS RETURNS TRUE, THE MOVE SHOULDN'T HAPPEN */
-		return;
+	/* CHECK IF A CHARACTER IS CONSIDERED WHITE SPACE IN THE JACL LANGUAGE */
+	switch (character) {
+		case ':':
+		case '\t':
+		case ' ':
+			return(TRUE);
+		default:
+			return(FALSE);
 	}
+}
 
-	/* CALL THE GLOBAL MOVEMENT FUNCTION*/
-	if (execute("+movement") == TRUE) {
-		/* IF THIS RETURNS TRUE, THE MOVE SHOULDN'T HAPPEN */
-		return;
+void
+stripwhite (string)
+     char *string;
+{
+	register int i = 0;
+
+	/* STRIP WHITESPACE FROM THE START AND END OF STRING. */
+	while (jacl_whitespace (string[i])) i++;
+
+	if (i) strcpy (string, string + i);
+
+	i = strlen (string) - 1;
+
+	while (i >= 0 && (jacl_whitespace (string[i]) || string[i] == '\n' || string[i] == '\r')) i--;
+
+#ifdef WIN32
+	string[++i] = '\r';
+#endif
+	string[++i] = '\n';
+	string[++i] = '\0';
+}
+
+void
+jacl_encrypt(string)
+  char *string;
+{
+	int index, length;
+
+	length = strlen(string);
+	
+	for (index = 0; index < length; index++) {
+		if (string[index] == '\n' || string[index] == '\r') {
+			return;
+		}
+		string[index] = string[index] ^ 255;
 	}
+}
 
-	if (DESTINATION->value) {
-		/* THE DESINTATION IS VALID, SO MOVE THE PLAYER */
-		object[player]->PARENT = DESTINATION->value;
+void
+jacl_decrypt(string)
+  char *string;
+{
+	int index, length;
 
-		/* PRINT THE NEW LOCATION DECRIPTION */
-		look_around();
-	} else {
-		/* THE MOVE CANT HAPPEN AS THERE IS NO EXIT IN THE
-		 * SPECIFIED DIRECTION */
-		TIME->value = FALSE;
-		write_text(CANT_GO);
+	length = strlen(string);
+	
+	for (index = 0; index < length; index++) {
+		if (string[index] == '\n' || string[index] == '\r') {
+			return;
+		}
+		string[index] = string[index] ^ 255;
 	}
 }
 

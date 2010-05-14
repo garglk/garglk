@@ -38,8 +38,6 @@ struct stack_type				backup[STACK_SIZE];
 extern short int				encrypt;
 extern short int				encrypted;
 
-extern schanid_t				sound_channel[];
-
 int								resolved_attribute;
 
 int             				stack = 0;
@@ -52,7 +50,8 @@ int								new_y;
 
 int								interrupted = FALSE;
 
-
+#ifdef GLK
+extern schanid_t				sound_channel[];
 extern strid_t					game_stream;
 extern winid_t					mainwin;
 extern winid_t 					statuswin;
@@ -62,6 +61,20 @@ extern strid_t 					mainstr;
 extern strid_t 					statusstr;
 extern strid_t 					quotestr;
 extern strid_t 					inputstr;
+#else
+extern FILE                     *file;
+char  					        option_buffer[2024];
+int								style_stack[100];
+int								style_index = 0;
+#endif
+
+#ifdef __NDS__
+extern int						bold_mode;
+extern int						pre_mode;
+extern int						reverse_mode;
+extern int						input_mode;
+extern int						subheader_mode;
+#endif
 
 extern char						user_id[];
 extern char						prefix[];
@@ -111,25 +124,27 @@ extern int						player;
 extern int						oec;
 extern int						*object_element_address;
 extern int						*object_backup_address;
-extern int						save_toggle;
 extern int						walkthru_running;
 
 extern FILE           			*transcript;
 extern char						margin_string[];
 
 char  					        integer_buffer[16];
-char							string_buffer[2048];
+char							*output;
 
 void
 terminate(code)
 	 int             code;
 {
+#ifdef GLK
 	int index;
+    event_t			event;
 
-	/* CLOSES ALL FILES THEN EXIT THE INTERPRETER */
+	// FLUSH THE GLK WINDOW SO THE ERROR GETS DISPLAYED IMMEDIATELY.
+    glk_select_poll(&event);
 
 	/* CLOSE THE SOUND CHANNELS */
-	for (index = 0; index < 4; index++) {
+	for (index = 0; index < 8; index++) {
 		if (sound_channel[index] != NULL) {
 			glk_schannel_destroy(sound_channel[index]);
 		}
@@ -141,14 +156,17 @@ terminate(code)
 	}
 	
     glk_exit();
+#else
+    if (file != NULL)           /* CLOSE THE GAME FILE */
+        fclose(file);
+
+    exit(code);
+#endif
 }
 
 void
 build_proxy()
 {
-	char            integer_buffer[16];
-	struct integer_type *resolved_integer;
-	struct cinteger_type *resolved_cinteger;
 	int             index,
 	                counter;
 
@@ -157,13 +175,7 @@ build_proxy()
 	/* LOOP THROUGH ALL THE PARAMETERS OF THE PROXY COMMAND
 	   AND BUILD THE MOVE TO BE ISSUED ON THE PLAYER'S BEHALF */
 	for (counter = 1; word[counter] != NULL; counter++) {
-		if (quoted[counter] == 1) {
-			/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-			 * AS LITERAL TEXT */
-			strcat(proxy_buffer, word[counter]);
-		} else {
-			strcat(proxy_buffer, text_of(word[counter]));
-		}
+		strcat(proxy_buffer, text_of_word(counter));
 	}
 
 	for (index = 0; index < strlen(proxy_buffer); index++) {
@@ -182,7 +194,6 @@ execute(funcname)
     char			called_name[1024];
 
 	int             index,
-					result,
 	                to,
 	                from;
 	int             counter;
@@ -192,21 +203,10 @@ execute(funcname)
 	int             object_1,
 	                object_2;
 
-	short int       skip_to_next;
-
-	long            go_pointer;
-	long            no_pointer;
-
 	long            bit_mask;
 
-	struct integer_type *resolved_integer = NULL;
-	struct cinteger_type *resolved_cinteger = NULL;
 	struct function_type *resolved_function = NULL;
 	struct string_type *resolved_string = NULL;
-
-	char            integer_buffer[16];
-
-	glsi32			before_command = 0;
 
     /* THESE VARIABLE KEEP TRACK OF if AND endif COMMANDS TO DECIDE WHETHER
      *THE CURRENT LINE OF CODE SHOULD BE EXECUTED OR NOT */
@@ -215,9 +215,19 @@ execute(funcname)
 
     /* THESE ARE USED AS FILE POINTER OFFSETS TO RETURN TO FIXED
      * POINTS IN THE GAME FILE */
-	glsi32            				top_of_loop = 0;
-	glsi32            				top_of_while = 0;
-	glsi32            				top_of_do_loop = 0;
+#ifdef GLK
+	int				result;
+
+	glsi32			before_command = 0;
+	glsi32  		top_of_loop = 0;
+	glsi32			top_of_while = 0;
+	glsi32 			top_of_do_loop = 0;
+#else
+	long   			top_of_loop = 0;
+	long   			top_of_while = 0;
+	long   			top_of_do_loop = 0;
+	long			before_command = 0;
+#endif
 
     /* THE ITERATION VARIABLE USED FOR LOOPS */
     int                             *loop_integer = NULL;
@@ -232,7 +242,11 @@ execute(funcname)
 		return (FALSE);
 	}
 
+#ifdef GLK
 	push_stack(glk_stream_get_position(game_stream));
+#else
+    push_stack(ftell(file));
+#endif
 
 	executing_function = resolved_function;
 	executing_function->call_count++;
@@ -243,14 +257,19 @@ execute(funcname)
 	/* SET function_name TO THE CORE NAME STORED IN THE FUNCTION OBJECT */
 	/* LEAVING called_name TO CONTAIN THE FULL ARGUMENT LIST */
 	strcpy (function_name, executing_function->name);
-	clear_cstring ("function_name");
-    add_cstring ("function_name", executing_function->name);
+	strcpy (cstring_resolve("function_name")->value, executing_function->name);
 
 	/* JUMP TO THE POINT IN THE PROCESSED GAME 
 	   FILE WHERE THIS FUNCTION STARTS */
+#ifdef GLK
 	glk_stream_set_position(game_stream, executing_function->position, seekmode_Start);
     before_command = executing_function->position;
 	result = glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+    fseek(file, executing_function->position, SEEK_SET);
+    before_command = executing_function->position;
+    fgets(text_buffer, 1024, file);
+#endif
 
 	if (encrypted) jacl_decrypt(text_buffer);
 
@@ -266,7 +285,12 @@ execute(funcname)
 					sprintf(error_buffer, NO_WHILE, executing_function->name);
 					log_error(error_buffer, PLUS_STDOUT);
 				} else {
+#ifdef GLK
 					glk_stream_set_position(game_stream, top_of_while, seekmode_Start);
+#else
+                    fseek(file, top_of_while, SEEK_SET);
+#endif
+
 					execution_level = current_level;
 				}
 			}
@@ -289,37 +313,12 @@ execute(funcname)
 				// THIS IS JUST HERE FOR BACKWARDS COMPATIBILITY
 				object[HERE]->attributes &= ~1L;
 				look_around();
-			} else if (!strcmp(word[0], "travel")) {
-				// THIS IS JUST HERE FOR BACKWARDS COMPATIBILITY
-
-				/* THE TRAVEL COMMAND IS USED TO MOVE THE PLAYER AROUND.
-				 * IT IS RARELY USED OUTSIDE THE LIBRARY'S DIRECTION COMMANDS */
-				if (word[1] == NULL) {
-					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
-					noproprun();
-					return (exit_function(TRUE));
-				} else {
-					if ((resolved_cinteger = cinteger_resolve(word[1])) != NULL) {
-						index = resolved_cinteger->value;
-
-						if (index < 0 || index > 11) {
-							index = -1;
-						}
-					} else {
-						index = -1;
-					}
-
-					if (index != -1) {
-						DESTINATION->value = object[HERE]->integer[index];
-						COMPASS->value = index;
-						move_player();
-					} else {
-						unkdirrun(1);
-						return (exit_function(TRUE));
-					}
-				}
 			} else if (!strcmp(word[0], "repeat")) {
+#ifdef GLK
 				top_of_do_loop = glk_stream_get_position(game_stream);
+#else
+                top_of_do_loop = ftell(file);
+#endif
 			} else if (!strcmp(word[0], "until")) {
 				if (word[3] == NULL) {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
@@ -330,7 +329,11 @@ execute(funcname)
 						sprintf(error_buffer, NO_REPEAT, executing_function->name);
 						log_error(error_buffer, PLUS_STDOUT);
 					} else if (!condition()) {
+#ifdef GLK
 						glk_stream_set_position(game_stream, top_of_do_loop, seekmode_Start);
+#else
+                        fseek(file, top_of_do_loop, SEEK_SET);
+#endif
 					}
 				}
 			} else if (!strcmp(word[0], "untilall")) {
@@ -343,7 +346,12 @@ execute(funcname)
 						sprintf(error_buffer, NO_REPEAT, executing_function->name);
 						log_error(error_buffer, PLUS_STDOUT);
 					} else if (!and_condition()) {
+#ifdef GLK
 						glk_stream_set_position(game_stream, top_of_do_loop, seekmode_Start);
+#else
+						fseek(file, top_of_do_loop, SEEK_SET);
+#endif
+
 					}
 				}
 			} else if (!strcmp(word[0], "while")) {
@@ -373,7 +381,11 @@ execute(funcname)
 			} else if (!strcmp(word[0], "loop")) {
 				/* THE LOOP COMMAND LOOPS ONCE FOR EACH DEFINED 
 				 * OBJECT (FOREACH) */
+#ifdef GLK
 				top_of_loop = glk_stream_get_position(game_stream);
+#else
+                top_of_loop = ftell(file);
+#endif
 				if (word[1] == NULL) {
 					loop_integer = &noun[2];
 				} else {
@@ -392,12 +404,29 @@ execute(funcname)
 						top_of_loop = FALSE;
 						*loop_integer = 0;
 					} else {
+#ifdef GLK
 						glk_stream_set_position(game_stream, top_of_loop, seekmode_Start);
+#else
+                        fseek(file, top_of_loop, SEEK_SET);
+#endif
 					}
 				}
 			} else if (!strcmp(word[0], "break")) {
 				current_level++;
 				execution_level--;
+#ifdef GLK
+			} else if (!strcmp(word[0], "cursor")) {
+				if (word[2] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return(exit_function (TRUE));
+				} else {
+					if (current_window == statuswin) {
+						glk_window_move_cursor(statuswin, value_of(word[1], TRUE), value_of(word[2], TRUE));
+					} else {
+						log_error(BAD_CURSOR, PLUS_STDOUT);
+					}
+				}
 			} else if (!strcmp(word[0], "stop")) {
 				int channel;
 
@@ -409,7 +438,7 @@ execute(funcname)
 						channel = value_of(word[1], TRUE);
 
 						/* SANITY CHECK THE CHANNEL SELECTED */
-						if (channel < 0 || channel > 3) {
+						if (channel < 0 || channel > 7) {
 							channel = 0;
 						}
 					}
@@ -426,7 +455,7 @@ execute(funcname)
 						channel = value_of(word[2], TRUE);
 
 						/* SANITY CHECK THE CHANNEL SELECTED */
-						if (channel < 0 || channel > 3) {
+						if (channel < 0 || channel > 7) {
 							channel = 0;
 						}
 					}
@@ -457,8 +486,7 @@ execute(funcname)
 						volume = volume * 655;
 
 						/* SET THE VOLUME */
-						glk_schannel_set_volume(sound_channel[channel], volume);
-						
+						glk_schannel_set_volume(sound_channel[channel], (glui32) volume);
 					}
 				}
 			} else if (!strcmp(word[0], "timer")) {
@@ -469,8 +497,15 @@ execute(funcname)
 						return(exit_function (TRUE));
 					} else {
 						index = value_of(word[1], TRUE);
+						/* DON'T ALLOW NEGATIVE VALUES, BUT NO UPPER LIMIT */
 						if (index < 0) index = 0;
+
+						/* SET THE GLK TIMER */
 						glk_request_timer_events((glui32) index);
+
+						/* EXPOSE THE CURRENT VALUE THROUGH A JACL CONSTANT
+						   SO THAT GAME CODE CAN READ THE IT */
+						cinteger_resolve("timer")->value = index;
 					}
 				}
 			} else if (!strcmp(word[0], "sound")) {
@@ -485,7 +520,7 @@ execute(funcname)
 						channel = value_of(word[2], TRUE);
 
 						/* SANITY CHECK THE CHANNEL SELECTED */
-						if (channel < 0 || channel > 3) {
+						if (channel < 0 || channel > 7) {
 							channel = 0;
 						}
 					}
@@ -507,7 +542,7 @@ execute(funcname)
 							 * NOTIFICATION EVENT CAN USE THE INFORMATION
 							 * IT HAS 1 ADDED TO IT SO THAT IT IS A NON-ZERO
 							 * NUMBER AND THE EVENT IS ACTIVATED */
-							sprintf(error_buffer, "Unable to play sound: %ld", value_of(word[1]), FALSE);
+							sprintf(error_buffer, "Unable to play sound: %ld", value_of(word[1], FALSE));
 							log_error(error_buffer, PLUS_STDERR);
 						}
 					}
@@ -525,40 +560,6 @@ execute(funcname)
 						}
 					}
 				}
-			} else if (!strcmp(word[0], "endgame")) {
-				char key_hit = 0;
-
-				while (TRUE) {
-					key_hit = get_character("^Please type S to start again, R to restore, U to undo or Q to quit: ");
-
-					switch (key_hit) {
-						case 'Q':
-						case 'q':
-							terminate(0);
-						case 'S':
-						case 's':
-							newline();
-							write_text("Restarting...^");
-							restart_game();
-							INTERRUPTED->value = FALSE;
-							interrupted = TRUE;
-							return(exit_function (TRUE));
-						case 'U':
-						case 'u':
-							restore_game_state();
-							interrupted = TRUE;
-							return(exit_function (TRUE));
-						case 'R':
-						case 'r':
-							if (restore_interaction((char *) NULL)) {
-   								write_text("Restored saved game.^^");
-								object[HERE]->attributes &= ~1L;
-								execute("+display_location");
-								interrupted = TRUE;
-								return(exit_function (TRUE));
-							}
-					}
-				};
 			} else if (!strcmp(word[0], "askstring") || !strcmp(word[0], "getstring")) {
 				if (word[1] == NULL) {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
@@ -625,14 +626,14 @@ execute(funcname)
 				if (!walkthru_running) {
 					glk_window_clear(current_window);
 				}
+			} else if (!strcmp(word[0], "terminate")) {
+				terminate(0);
 			} else if (!strcmp(word[0], "more")) {
 				if (word[1] == NULL) {
 					more ("[MORE]");
 				} else {
 					more (word[1]);
 				}
-			} else if (!strcmp(word[0], "terminate")) {
-				terminate(0);
 			} else if (!strcmp(word[0], "style")) {
 				/* THIS COMMAND IS USED TO OUTPUT ANSI CODES OR SET GLK 
 				 * STREAM STYLES */
@@ -666,11 +667,325 @@ execute(funcname)
 						glk_set_style(style_Normal);
 					} 
 				}
+			} else if (!strcmp(word[0], "hyperlink")) {
+				/* OUTPUT LINK TEXT AS PLAIN TEXT UNDER Glk */
+				if (word[2] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					write_text(text_of_word(1));
+				}
+#else
+#ifdef __NDS__
+			} else if (!strcmp(word[0], "cursor")) {
+			} else if (!strcmp(word[0], "stop")) {
+			} else if (!strcmp(word[0], "volume")) {
+			} else if (!strcmp(word[0], "timer")) {
+			} else if (!strcmp(word[0], "sound")) {
+			} else if (!strcmp(word[0], "image")) {
+			} else if (!strcmp(word[0], "askstring") || !strcmp(word[0], "getstring")) {
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return (exit_function(TRUE));
+				} else {
+					/* GET A POINTER TO THE STRING BEING MODIFIED */
+					if ((resolved_string = string_resolve(word[1])) == NULL) {
+						unkstrrun(word[1]);
+						return (exit_function(TRUE));
+					}
+
+					// PROMPT THE USER TO INPUT A STRING AND STORE IT IN THE
+					// RESOLVED VARIABLE
+					//get_string(resolved_string->value);
+				}
+				
+			} else if (!strcmp(word[0], "asknumber") || !strcmp(word[0], "getnumber")) {
+				int low, high;
+
+				int insist = FALSE;
+
+				/* THE ONLY DIFFERENCE WITH THE getnumber COMMAND IS THAT
+				 * IT INSISTS THE PLAYER GIVES A LEGAL RESPONSE */
+				if (!strcmp(word[0], "getnumber")) {
+					insist = TRUE;
+				}
+
+				if (word[3] != NULL) {
+					ask_integer = container_resolve(word[1]);
+					if (ask_integer == NULL) {
+						unkvarrun(word[1]);
+						return(exit_function (TRUE));
+					}
+
+					low = value_of(word[2], TRUE);
+					high = value_of(word[3], TRUE);
+				
+					if (high == -1 || low == -1) {
+						return(exit_function (TRUE));
+					}
+
+					*ask_integer = get_number(insist, low, high);
+				} else {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return(exit_function (TRUE));
+				}
+			} else if (!strcmp(word[0], "getyesorno")) {
+				if (word[1] != NULL) {
+					ask_integer = container_resolve(word[1]);
+					if (ask_integer == NULL) {
+						unkvarrun(word[1]);
+						return(exit_function (TRUE));
+					}
+
+					*ask_integer = get_yes_or_no();
+				} else {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return(exit_function (TRUE));
+				}
+			} else if (!strcmp(word[0], "clear")) {
+				clrscrn();
+			} else if (!strcmp(word[0], "terminate")) {
+				terminate(0);
+			} else if (!strcmp(word[0], "more")) {
+				if (word[1] == NULL) {
+					more ("[MORE]");
+				} else {
+					more (word[1]);
+				}
+			} else if (!strcmp(word[0], "style")) {
+				/* THIS COMMAND IS USED TO OUTPUT ANSI CODES OR SET GLK 
+				 * STREAM STYLES */
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return(exit_function (TRUE));
+				} else {
+					if (!strcmp(word[1], "bold") 
+								|| !strcmp(word[1], "emphasised")) {
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						bold_mode = TRUE;
+					} else if (!strcmp(word[1], "note")) {
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+					} else if (!strcmp(word[1], "input")) {
+						printf("\x1b[32;0m"); 	// SET TO DIM GREEN
+						input_mode = TRUE;
+					} else if (!strcmp(word[1], "header")) {
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+					} else if (!strcmp(word[1], "subheader")) {
+						printf("\x1b[33;1m"); 	// SET TO BRIGHT YELLOW
+						subheader_mode = TRUE;
+					} else if (!strcmp(word[1], "reverse")
+								|| !strcmp(word[1], "inverse")) {
+						printf("\x1b[37;0m");	// SET TO DIM WHITE
+						reverse_mode = TRUE;
+					} else if (!strcmp(word[1], "pre") 
+								|| !strcmp(word[1], "preformatted")) {
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						pre_mode = TRUE;
+					} else if (!strcmp(word[1], "normal")) {
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						bold_mode = FALSE;
+						pre_mode = FALSE;
+						reverse_mode = FALSE;
+						input_mode = FALSE;
+						subheader_mode = FALSE;
+					} 
+				}
+			} else if (!strcmp(word[0], "hyperlink")) {
+				/* OUTPUT LINK TEXT AS PLAIN TEXT UNDER Glk */
+				if (word[2] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					write_text(text_of_word(1));
+				}
+#else
+/* HERE STARTS THE CGIJACL-ONLY FUNCTIONS */
+			} else if (!strcmp(word[0], "option")) {
+				/* USED TO ADD AN OPTION TO AN HTML LIST */
+				if (word[1] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					index = value_of(word[1]);
+					if (word[2] != NULL) {
+						sprintf(option_buffer, "<option value=\"%d\">",
+								index);
+					} else {
+						object_names(index, temp_buffer);
+						sprintf(option_buffer, "<option value=\"%s\">", temp_buffer);
+					}
+
+					write_text(option_buffer);
+					list_output(index, TRUE);
+					write_text(temp_buffer);
+
+				}
+			} else if (!strcmp(word[0], "button")) {
+				/* USED TO CREATE AN HTML BUTTON */
+				if (word[1] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} if (word[2] != NULL) {
+					sprintf (option_buffer, "<input class=~button~ type=\"image\" src=\"%s\" name=\"verb\" value=\"", text_of_word(2));
+					strcat (option_buffer, text_of_word(1));
+					strcat (option_buffer, "\">");
+					write_text(option_buffer);
+				} else {
+					sprintf (option_buffer, "<input class=~button~ type=\"submit\" name=\"verb\" value=\"%s\">", text_of_word(1));
+					write_text(option_buffer);
+				}
+			} else if (!strcmp(word[0], "image")) {
+				/*
+				if (word[3] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					sprintf
+						(temp_buffer, "<p>\n<IMG BORDER=0 SRC=\"%s\" ALIGN=\"%s\" ALT=\"%s\" HSPACE=5 VSPACE=5>\n</p>",
+						 word[1], word[2], word[3]);
+					write_text(temp_buffer);
+				}
+				*/
+			} else if (!strcmp(word[0], "hidden")) {
+				sprintf (temp_buffer, "<INPUT TYPE=\"hidden\" NAME=\"user_id\" VALUE=\"%s\">", user_id);
+				write_text(temp_buffer);
+			} else if (!strcmp(word[0], "control")) {
+				/* USED TO CREATE A HYPERLINK THAT IS AN IMAGE */
+				if (word[2] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					sprintf(option_buffer, "<a href=\"?command=%s&amp;user_id=%s\"><img border=0 SRC=\"", text_of_word(2), user_id);
+					strcat(option_buffer, text_of_word(1));
+					strcat(option_buffer, "\"></a>");
+					write_text(option_buffer);
+				}
+			} else if (!strcmp(word[0], "hyperlink")) {
+				char string_buffer[2048];
+				string_buffer[0] = 0;
+
+				/* USED TO CREATE A HYPERLINK WITH SESSION INFORMATION INCLUDED */
+				if (word[2] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					if (word[3] == NULL) {
+						sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", text_of_word(2), user_id);
+						strcat (string_buffer, text_of_word(1));
+						strcat (string_buffer, "</a>");
+					} else {
+						sprintf (string_buffer, "<a class=\"%s\" href=\"?command=", text_of_word(3));
+						strcat (string_buffer, text_of_word(2));
+						sprintf (option_buffer, "&amp;user_id=%s\">%s</a>", user_id, text_of_word(1));
+						strcat (string_buffer, option_buffer);
+					}
+
+					write_text(string_buffer);
+				}
+			} else if (!strcmp(word[0], "prompt")) {
+				/* USED TO OUTPUT A HTML INPUT CONTROL THAT CONTAINS SESSION INFORMATION */
+				sprintf(temp_buffer, "<input id=\"JACLCommandPrompt\" type=text name=~command~>\n");
+				write_text(temp_buffer);
+				sprintf(temp_buffer, "<input type=hidden name=\"user_id\" value=\"%s\">", user_id);
+				write_text(temp_buffer);
+			} else if (!strcmp(word[0], "style")) {
+				/* THIS COMMAND IS USED TO OUTPUT ANSI CODES OR SET GLK 
+				 * STREAM STYLES */
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return(exit_function (TRUE));
+				} else {
+					if (!strcmp(word[1], "bold") 
+								|| !strcmp(word[1], "emphasised")) {
+						write_text("<b>");
+						style_stack[style_index++] = BOLD;
+					} else if (!strcmp(word[1], "note")) {
+						write_text("<i>");
+						style_stack[style_index++] = NOTE;
+					} else if (!strcmp(word[1], "input")) {
+						write_text("<i>");
+						style_stack[style_index++] = INPUT;
+					} else if (!strcmp(word[1], "header")) {
+						write_text("<h1>");
+						style_stack[style_index++] = HEADER;
+					} else if (!strcmp(word[1], "subheader")) {
+						write_text("<h2>");
+						style_stack[style_index++] = SUBHEADER;
+					} else if (!strcmp(word[1], "reverse")
+								|| !strcmp(word[1], "inverse")) {
+						write_text("<b>");
+						style_stack[style_index++] = REVERSE;
+					} else if (!strcmp(word[1], "pre") 
+								|| !strcmp(word[1], "preformatted")) {
+						write_text("<pre>");
+						style_stack[style_index++] = PRE;
+					} else if (!strcmp(word[1], "normal")) {
+						style_index--;
+						for(; style_index > -1; style_index--) {
+							switch(style_stack[style_index]) {
+								case BOLD:
+									write_text("</b>");
+									break;
+								case NOTE:
+									write_text("</i>");
+									break;
+								case INPUT:
+									write_text("</i>");
+									break;
+								case HEADER:
+									write_text("</h1>");
+									break;
+								case SUBHEADER:
+									write_text("</h2>");
+									break;
+								case REVERSE:
+									write_text("</b>");
+									break;
+								case PRE:
+									write_text("</pre>");
+									break;
+							}
+						} 
+						style_index = 0;
+					} 
+				}
+			/* THESE FINAL COMMANDS HAVE NO EFFECT UNDER CGIJACL 
+			   AND THERE IS NO HARM IN IGNORING THEM */
+			} else if (!strcmp(word[0], "image")) {
+			} else if (!strcmp(word[0], "sound")) {
+			} else if (!strcmp(word[0], "cursor")) {
+			} else if (!strcmp(word[0], "timer")) {
+			} else if (!strcmp(word[0], "volume")) {
+			} else if (!strcmp(word[0], "askstring") || !strcmp(word[0], "getstring")) {
+			} else if (!strcmp(word[0], "asknumber") || !strcmp(word[0], "getnumber")) {
+			} else if (!strcmp(word[0], "getyesorno")) {
+			} else if (!strcmp(word[0], "clear")) {
+			} else if (!strcmp(word[0], "more")) {
+			} else if (!strcmp(word[0], "terminate")) {
+#endif
+#endif
 			} else if (!strcmp(word[0], "proxy")) {
 				/* THE PROXY COMMAND ISSUES A MOVE ON THE PLAYER'S BEHALF
 				 * ALL STATE MUST BE SAVED SO THE CURRENT MOVE CAN CONTINUE
 				 * ONCE THE PROXIED MOVE IS COMPLETE */
+#ifdef GLK
 				push_stack(glk_stream_get_position(game_stream));
+#else
+                push_stack(ftell(file));
+#endif
+
 
 				build_proxy();
 
@@ -722,18 +1037,26 @@ execute(funcname)
 			} else if (!strcmp(word[0], "points")) {
 				/* INCREASE THE PLAYER'S SCORE AND POTENTIALLY INFORM THEM OF THE INCREASE */
 				if (word[1] != NULL) {
-					SCORE->value = SCORE->value + value_of(word[1], TRUE);
+					SCORE->value += value_of(word[1], TRUE);
 					if (NOTIFY->value) {
+#ifdef GLK
 						glk_set_style(style_Note);
-						write_text(SCORE_UP);
-						sprintf(temp_buffer, "%ld", value_of(word[1]), TRUE);
+#else
+						write_text("<b><i>");
+#endif
+						write_text(cstring_resolve("SCORE_UP")->value);
+						sprintf(temp_buffer, "%ld", value_of(word[1], TRUE));
 						write_text(temp_buffer);
 						if (value_of(word[1], TRUE) == 1) {
-							write_text(POINT);
+							write_text(cstring_resolve("POINT")->value);
 						} else {
-							write_text(POINTS);
+							write_text(cstring_resolve("POINTS")->value);
 						}
+#ifdef GLK
 						glk_set_style(style_Normal);
+#else
+						write_text("</i></b>");
+#endif
 					}
 				} else {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
@@ -741,18 +1064,26 @@ execute(funcname)
 					return(exit_function (TRUE));
 				}
 			} else if (!strcmp(word[0], "print")) {
+				int non_space = FALSE;
+
 				/* DISPLAYS A BLOCK OF PLAIN TEXT UNTIL IT FINDS A 
 				 * LINE THAT STARTS WITH A '.' OR A '}' */
+#ifdef GLK
 				glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+                fgets(text_buffer, 1024, file);
+#endif
+
 
 				if (encrypted) jacl_decrypt(text_buffer);
 
 				while (text_buffer[0] != '.' && text_buffer[0] != '}') {
 					index = 0;
+					non_space = FALSE;
 
 					/* REMOVE ANY NEWLINE CHARACTERS */
 					while (text_buffer[index] != 0) {
-						if (text_buffer[index] == '|') {
+						if (text_buffer[index] == '|' && non_space == FALSE) {
 							/* THE BAR CHARACTER IS CHANGED TO A SPACE TO 
 							 * ALLOW INDENTING OF NEW PARAGRAPHS ETC */
 							text_buffer[index] = ' ';
@@ -762,6 +1093,8 @@ execute(funcname)
 						} else if (text_buffer[index] == '\n') {
 							text_buffer[index] = 0;
 							break;
+						} else if (text_buffer[index] != ' ' && text_buffer[index] != '\t') {
+							non_space = TRUE;
 						}
 
 						index++;
@@ -785,7 +1118,12 @@ execute(funcname)
 					}
 
 					/* GET THE NEXT LINE */
+#ifdef GLK
 					glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+                    fgets(text_buffer, 1024, file);
+#endif
+
 					if (encrypted) jacl_decrypt(text_buffer);
 
 				}
@@ -794,56 +1132,22 @@ execute(funcname)
 				write_text(executing_function->name);
 				write_text("~, ");
 				for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
-					if (quoted[counter] == 1) {
-						/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-			 		 	 * AS LITERAL TEXT */
-						write_text(word[counter]);
-					} else {
-						/* THE STRING IS NO ENCLOSED IN QUOTES, SO TRY TO
-						 * RESOLVE ITS TRUE VALUE */
-						write_text(text_of(word[counter]));
-					}
+					write_text(text_of_word(counter));
 				}
 			} else if (!strcmp(word[0], "debug") && DEBUG->value) {
 				write_text("DEBUG: ");
 				for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
-					if (quoted[counter] == 1) {
-						/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-			 		 	 * AS LITERAL TEXT */
-						write_text(word[counter]);
-					} else {
-						/* THE STRING IS NO ENCLOSED IN QUOTES, SO TRY TO
-						 * RESOLVE ITS TRUE VALUE */
-						write_text(text_of(word[counter]));
-					}
+					write_text(text_of_word(counter));
 				}
 			} else if (!strcmp(word[0], "write")) {
 				for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
-					if (quoted[counter] == 1) {
-						/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-			 		 	 * AS LITERAL TEXT */
-						write_text(word[counter]);
-					} else {
-						/* THE STRING IS NO ENCLOSED IN QUOTES, SO TRY TO
-						 * RESOLVE ITS TRUE VALUE */
-						write_text(text_of(word[counter]));
-					}
-				}
-			} else if (!strcmp(word[0], "cursor")) {
-				if (word[2] == NULL) {
-					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
-					noproprun(0);
-					return(exit_function (TRUE));
-				} else {
-					if (current_window == statuswin) {
-						glk_window_move_cursor(statuswin, value_of(word[1], TRUE), value_of(word[2], TRUE));
-					} else {
-						log_error(BAD_CURSOR, PLUS_STDOUT);
+					output = text_of_word(counter);			
+					if (*output != 0) {
+						// IF THE OUTPUT ISN'T AN EMPTY STRING, DISPLAY IT
+						write_text(output);
 					}
 				}
 			} else if (!strcmp(word[0], "length")) {
-				string_buffer[0] = 0;
-
 				if (word[2] == NULL) {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
 					noproprun(0);
@@ -884,12 +1188,20 @@ execute(funcname)
 				} 
 			} else if (!strcmp(word[0], "restartgame")) {
 				restart_game();
+				execute ("+intro");
+				eachturn();
+#ifdef GLK
 			} else if (!strcmp(word[0], "undomove")) {
 				undoing();
 			} else if (!strcmp(word[0], "updatestatus")) {
 				status_line();
+#else
+			} else if (!strcmp(word[0], "undomove")) {
+			} else if (!strcmp(word[0], "updatestatus")) {
+#endif
 			} else if (!strcmp(word[0], "setstring") ||
 						!strcmp(word[0], "addstring")) {
+				char string_buffer[2048];
 				string_buffer[0] = 0;
 
 				if (word[2] == NULL) {
@@ -905,15 +1217,7 @@ execute(funcname)
 
 					/* RESOLVE ALL THE TEXT AND STORE IT IN A TEMPORARY BUFFER*/
 					for (counter = 2; word[counter] != NULL && counter < MAX_WORDS; counter++) {
-						if (quoted[counter] == 1) {
-							/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER
-			 		 	 	 * IT AS LITERAL TEXT */
-							strcat(string_buffer, word[counter]);
-						} else {
-							/* THE STRING IS NOT ENCLOSED IN QUOTES, SO TRY TO
-						 	* RESOLVE ITS TRUE VALUE */
-							strcat(string_buffer, text_of(word[counter]));
-						}
+						strcat(string_buffer, text_of_word(counter));
 					}
 
 					/* string_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
@@ -928,8 +1232,9 @@ execute(funcname)
 					}
 				}
 			} else if (!strcmp(word[0], "padstring")) {
+				char string_buffer[2048];
 				string_buffer[0] = 0;
-
+	
 				if (word[3] == NULL) {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
 					noproprun(0);
@@ -943,18 +1248,8 @@ execute(funcname)
 
 					index = value_of(word[3], TRUE);	
 
-					if (quoted[2] == 1) {
-						/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-						 * AS LITERAL TEXT */
-						for (counter = 0; counter < index; counter++) {
-							strcat(string_buffer, word[2]);
-						}
-					} else {
-						/* THE STRING IS NO ENCLOSED IN QUOTES, SO TRY TO
-						 * RESOLVE ITS TRUE VALUE */
-						for (counter = 0; counter < index; counter++) {
-							strcat(string_buffer, text_of(word[2]));
-						}
+					for (counter = 0; counter < index; counter++) {
+					     strcat(string_buffer, text_of_word(2));
 					}
 
 					/* string_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
@@ -1154,7 +1449,7 @@ execute(funcname)
 					noproprun();
 					return (exit_function(TRUE));
 				} else {
-					if (bit_mask = attribute_resolve(arg_text_of(word[3]))) {
+					if ((bit_mask = attribute_resolve(arg_text_of(word[3])))) {
 						index = value_of(word[1], TRUE);
 						if (index < 1 || index > objects) {
 							badptrrun(word[1], index);
@@ -1169,7 +1464,7 @@ execute(funcname)
 									object[index]->attributes & bit_mask;
 							}
 						}
-					} else if (bit_mask = user_attribute_resolve(arg_text_of(word[3]))) {
+					} else if ((bit_mask = user_attribute_resolve(arg_text_of(word[3])))) {
 						index = value_of(word[1], TRUE);
 						if (index < 1 || index > objects) {
 							badptrrun(word[1], index);
@@ -1281,13 +1576,19 @@ execute(funcname)
 				|| !strcmp(word[wp], "ifall")
 				|| !strcmp(word[wp], "ifstring")
 				|| !strcmp(word[wp], "ifstringall")
+				|| !strcmp(word[wp], "ifexecute")
 				|| !strcmp(word[wp], "while")
 				|| !strcmp(word[wp], "whileall")) {
 			current_level++;
 		}
 
+#ifdef GLK
 		before_command = glk_stream_get_position(game_stream);
 		glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+        before_command = ftell(file);
+        fgets(text_buffer, 1024, file);
+#endif
 		if (encrypted) jacl_decrypt(text_buffer);
 	};
 
@@ -1304,23 +1605,24 @@ exit_function(return_code)
 	return (return_code);
 }
 
-char           *
-object_names(object_index)
+char *
+object_names(object_index, names_buffer)
 	 int             object_index;
+	 char			*names_buffer;
 {
 	/* THIS FUNCTION CREATES A LIST OF ALL AN OBJECT'S NAMES.
 	   THE escape ARGUMENT INDICATES WHETHER A + SIGN SHOULD BE
 	   USED IN PLACE OF A SPACE BETWEEN EACH OF THE NAMES */
 	struct name_type *current_name = object[object_index]->first_name;
-	temp_buffer[0] = 0;
+	names_buffer[0] = 0;
 
 	while (current_name != NULL) {
-		strcat(temp_buffer, " ");
-		strcat(temp_buffer, current_name->name);
+		strcat(names_buffer, " ");
+		strcat(names_buffer, current_name->name);
 		current_name = current_name->next_name;
 	}
 
-	return (temp_buffer);
+	return names_buffer;
 }
 
 int
@@ -1388,8 +1690,7 @@ new_position(x1, y1, bearing, velocity)
 {
 	double          delta_x,
 	                delta_y;
-	double          distance,
-	                radians;
+	double          radians;
 
 	/*
 	 * Object two in which quadrant compared to object one? 0 x = opp, y = 
@@ -1550,9 +1851,9 @@ set_arguments(function_call)
         index++;
 	}
 
-	/* THE CURRENT ARGUMENTS HAVE ALREADY BEEN PUSHED ONTO THE STACK */
-	/* AND STORED IF PASSED AS AN ARGUMENT TO THIS FUNCTION SO IT IS 
-	/* OKAY TO CLEAR THEM AND SET THE NEW VALUES */
+	/* THE CURRENT ARGUMENTS HAVE ALREADY BEEN PUSHED ONTO THE STACK
+	 * AND STORED IF PASSED AS AN ARGUMENT TO THIS FUNCTION SO IT IS 
+	 * OKAY TO CLEAR THEM AND SET THE NEW VALUES */
 	clear_cinteger("arg");
 	clear_cstring("string_arg");
 
@@ -1576,7 +1877,6 @@ pop_stack()
 	clear_cinteger ("arg");
 	clear_cinteger ("integer");
 	clear_cstring ("$string");
-	clear_cstring ("function_name");
 	clear_cstring ("string_arg");
 	clear_cstring ("$word");
 
@@ -1638,18 +1938,26 @@ pop_stack()
 
 	if (executing_function != NULL) {
 		strcpy (function_name, executing_function->name);
-        add_cstring ("function_name", executing_function->name);
+		strcpy (cstring_resolve("function_name")->value, executing_function->name);
 	}
 
 	wp = backup[stack].wp;
 
+#ifdef GLK
 	glk_stream_set_position(game_stream, backup[stack].address, seekmode_Start);
+#else
+    fseek(file, backup[stack].address, SEEK_SET);
+#endif
 
 }
 
 void
 push_stack(file_pointer)
+#ifdef GLK
 	 glsi32          file_pointer;
+#else
+	 long          file_pointer;
+#endif
 {
 	/* COPY ALL THE CURRENT SYSTEM DATA ONTO THE STACK */
 	int index;
@@ -1789,8 +2097,6 @@ logic_test(first)
 {
 	long            index,
 	                compare;
-
-	struct integer_type *resolved_integer;
 
 	resolved_attribute = FALSE;
 

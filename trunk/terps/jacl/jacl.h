@@ -12,7 +12,24 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __NDS_
+#include <nds.h>
+#include <fat.h>
+#include <filesystem.h>
+#endif
+
+#ifdef GLK
 #include <glk.h>
+#include "gi_blorb.h"
+#endif
+
+#ifdef GARGLK
+#include "garglk.h"
+#endif
+
+#ifdef FCGIJACL
+#include <fcgi_stdio.h>
+#endif
 
 #include "version.h"
 
@@ -35,4 +52,4 @@
 #ifdef __APPLE__
 #define get_string jacl_get_string
 #define sleep jacl_sleep
-#endif 
+#endif

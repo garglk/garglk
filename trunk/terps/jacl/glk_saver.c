@@ -15,6 +15,10 @@ extern struct integer_type		*integer[];
 extern struct function_type		*function_table;
 extern struct string_type       *string_table;
 
+extern schanid_t				sound_channel[];
+
+extern char						temp_buffer[];
+
 extern int						objects;
 extern int						integers;
 extern int						functions;
@@ -79,6 +83,7 @@ save_game(saveref)
 		write_long (bookmark, object[index]->user_attributes);
 	}
 
+	/* WRITE OUT ALL THE CURRENT VALUES OF THE STRING VARIABLES */
     while (current_string != NULL) {
 		for (index = 0; index < 255; index++) {
     		glk_put_char_stream(bookmark, current_string->value[index]);
@@ -88,6 +93,15 @@ save_game(saveref)
 
 	write_integer (bookmark, player);
 	write_integer (bookmark, noun[3]);
+
+	/* SAVE THE CURRENT VOLUME OF EACH OF THE SOUND CHANNELS */
+	for (index = 0; index < 8; index++) {
+		sprintf(temp_buffer, "volume[%d]", index);
+		write_integer (bookmark, cinteger_resolve(temp_buffer)->value);
+	}
+
+	/* SAVE THE CURRENT VALUE OF THE GLK TIMER */
+	write_integer (bookmark, cinteger_resolve("timer")->value);
 
 	/* CLOSE THE STREAM */
 	glk_stream_close(bookmark, NULL);
@@ -134,7 +148,7 @@ restore_game(saveref, warn)
 		|| file_functions != functions 
 		|| file_strings != strings) {
 		if (warn == FALSE) {
-			log_error(BAD_SAVED_GAME, PLUS_STDOUT);
+			log_error(cstring_resolve("BAD_SAVED_GAME")->value, PLUS_STDOUT);
 		}
 		glk_stream_close(bookmark, NULL);
 		return (FALSE);
@@ -171,6 +185,25 @@ restore_game(saveref, warn)
 
 	player = read_integer(bookmark);
 	noun[3] = read_integer(bookmark);
+
+	/* RESTORE THE CURRENT VOLUME OF EACH OF THE SOUND CHANNELS */
+	for (index = 0; index < 8; index++) {
+		sprintf(temp_buffer, "volume[%d]", index);
+		counter = read_integer(bookmark);
+		cinteger_resolve(temp_buffer)->value = counter;
+
+		if (SOUND_SUPPORTED->value) {
+			/* SET THE GLK VOLUME */
+			glk_schannel_set_volume(sound_channel[index], (glui32) counter);
+		}
+	}
+
+	/* RESTORE THE CURRENT VALUE OF THE GLK TIMER */
+	counter = read_integer(bookmark);
+	cinteger_resolve("timer")->value = counter;
+
+	/* SET THE GLK TIMER */
+	glk_request_timer_events((glui32) counter);
 
 	/* CLOSE THE STREAM */
 	glk_stream_close(bookmark, NULL);
