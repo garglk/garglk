@@ -303,7 +303,6 @@ static int calcwidth(window_textbuffer_t *dwin,
 void win_textbuffer_redraw(window_t *win)
 {
     window_textbuffer_t *dwin = win->data;
-    int drawmore = win->line_request || win->char_request || win->line_request_uni || win->char_request_uni;
     tbline_t *ln;
     int linelen;
     int nsp, spw, pw;
@@ -376,7 +375,7 @@ void win_textbuffer_redraw(window_t *win)
         }
 
         /* leave bottom line blank for [more] prompt */
-        if (drawmore && i == dwin->scrollpos && i > 0)
+        if (i == dwin->scrollpos && i > 0)
             continue;
 
         linelen = ln->len;
@@ -568,7 +567,7 @@ void win_textbuffer_redraw(window_t *win)
     /*
      * draw more prompt
      */
-    if (drawmore && dwin->scrollpos && dwin->height > 1)
+    if (dwin->scrollpos && dwin->height > 1)
     {
         x = x0 + SLOP;
         y = y0 + (dwin->height - 1) * gli_leading;
@@ -594,9 +593,16 @@ void win_textbuffer_redraw(window_t *win)
                 gli_more_font, color,
                 gli_more_prompt, strlen(gli_more_prompt), -1);
         y1 = y; /* don't want pictures overdrawing "[more]" */
+
+        /* try to claim the focus */
+        dwin->owner->more_request = TRUE;
+        gli_more_focus = TRUE;
     }
     else
+    {
+        dwin->owner->more_request = FALSE;
         y1 = y0 + dwin->height * gli_leading;
+    }
 
     /*
      * draw the images
@@ -690,6 +696,10 @@ void win_textbuffer_redraw(window_t *win)
             dwin->copybuf[i] = 0;
         dwin->copypos = 0;
     }
+
+    /* no more prompt means all text has been seen */
+    if (!dwin->owner->more_request)
+        dwin->lastseen = 0;
 
     free(ln);
 }
@@ -1056,7 +1066,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
 
-    dwin->lastseen = 0;
+    //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
     dwin->inmax = maxlen;
@@ -1098,7 +1108,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
 
-    dwin->lastseen = 0;
+    //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
     dwin->inmax = maxlen;
@@ -1182,7 +1192,7 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 /* Keybinding functions. */
 
 /* Any key, when text buffer is scrolled. */
-static void gcmd_accept_scroll(window_t *win, glui32 arg)
+void gcmd_accept_scroll(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
     int oldpos = dwin->scrollpos;
@@ -1194,10 +1204,6 @@ static void gcmd_accept_scroll(window_t *win, glui32 arg)
         case keycode_PageUp:
             dwin->scrollpos += pageht;
             break;
-        case ' ':
-        case keycode_PageDown:
-            dwin->scrollpos -= pageht;
-            break;
         case keycode_End:
             dwin->scrollpos = 0;
             break;
@@ -1207,6 +1213,11 @@ static void gcmd_accept_scroll(window_t *win, glui32 arg)
         case keycode_Down:
         case keycode_Return:
             dwin->scrollpos --;
+            break;
+        case ' ':
+        case keycode_PageDown:
+        //default:
+            dwin->scrollpos -= pageht;
             break;
     }
 
@@ -1242,7 +1253,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     gli_speak_tts("", 0, 1);
 #endif
 
-    dwin->lastseen = 0;
+    //dwin->lastseen = 0;
     win->char_request = FALSE; 
     win->char_request_uni = FALSE;
     gli_event_store(evtype_CharInput, win, key, 0);
@@ -1570,7 +1581,8 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     int gs = FALSE;
 
     if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
-        gli_focuswin = win;
+        if (!gli_more_focus)
+            gli_focuswin = win;
 
     if (win->hyper_request) {
         glui32 linkval = gli_get_hyperlink(sx, sy);

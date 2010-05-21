@@ -704,8 +704,6 @@ void gli_select(event_t *event, int polled)
     gli_curevent = event;
     gli_event_clearevent(event);
 
-    gli_input_guess_focus();
-
     if (!polled)
     {
         while (![monitor timeout])
