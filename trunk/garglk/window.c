@@ -30,6 +30,7 @@
 #define COLS 70
 
 int gli_force_redraw = 1;
+int gli_more_focus = 0;
 
 /* Linked list of all windows */
 static window_t *gli_windowlist = NULL;
@@ -86,6 +87,7 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->line_terminators = NULL;
     win->mouse_request = FALSE;
     win->hyper_request = FALSE;
+    win->more_request = FALSE;
 
     attrclear(&win->attr);
     memcpy(win->bgcolor, gli_window_color, 3);
@@ -795,6 +797,25 @@ void gli_window_redraw(window_t *win)
     }
 }
 
+void gli_window_refocus(window_t *win)
+{
+    window_t *focus = win;
+
+    do
+    {
+        if (focus && focus->more_request)
+        {
+            gli_focuswin = focus;
+            return;
+        }
+
+        focus = gli_window_iterate_treeorder(focus);
+    }
+    while (focus != win);
+
+    gli_more_focus = FALSE;
+}
+
 void gli_windows_redraw()
 {
     gli_claimselect = FALSE;
@@ -807,6 +828,9 @@ void gli_windows_redraw()
 
     if (gli_rootwin)
         gli_window_redraw(gli_rootwin);
+
+    if (gli_more_focus)
+        gli_window_refocus(gli_focuswin);
 
     gli_force_redraw = 0;
 }

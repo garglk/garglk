@@ -97,6 +97,7 @@ extern window_t *gli_focuswin;
 extern event_t *gli_curevent;
 
 extern int gli_force_redraw;
+extern int gli_more_focus;
 extern int gli_cellw;
 extern int gli_cellh;
 
@@ -373,6 +374,7 @@ struct glk_window_struct
     int char_request_uni;
     int mouse_request;
     int hyper_request;
+    int more_request;
 
     attr_t attr;
     unsigned char bgcolor[3];
@@ -571,6 +573,7 @@ extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
+extern void gcmd_accept_scroll(window_t *win, glui32 arg);
 
 /* Declarations of library internal functions. */
 
