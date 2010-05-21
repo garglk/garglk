@@ -257,7 +257,7 @@ if $(MAKE_JACL) = yes
     SubDir TOP terps jacl ;
     ObjDir jacl ;
 
-    SubDirCcFlags -DGARGLK ;
+    SubDirCcFlags -DGLK -DGARGLK ;
 
     Main jacl :
         jacl.c glk_startup.c findroute.c interpreter.c loader.c 
