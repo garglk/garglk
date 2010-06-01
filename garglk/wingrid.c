@@ -309,9 +309,10 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     int x = sx - win->bbox.x0;
     int y = sy - win->bbox.y0;
 
-    if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
-        if (!gli_more_focus)
-            gli_focuswin = win;
+    if (win->line_request || win->char_request
+        || win->line_request_uni || win->char_request_uni
+        || win->more_request || win->scroll_request)
+        gli_focuswin = win;
 
     if (win->mouse_request) {
         gli_event_store(evtype_MouseInput, win, x/gli_cellw, y/gli_leading);

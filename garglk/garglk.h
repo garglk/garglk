@@ -375,6 +375,7 @@ struct glk_window_struct
     int mouse_request;
     int hyper_request;
     int more_request;
+    int scroll_request;
 
     attr_t attr;
     unsigned char bgcolor[3];

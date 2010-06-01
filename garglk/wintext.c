@@ -651,7 +651,11 @@ void win_textbuffer_redraw(window_t *win)
     /*
      * Draw the scrollbar
      */
-    if (gli_scroll_width)
+
+    /* try to claim scroll keys */
+    dwin->owner->scroll_request = dwin->scrollmax > dwin->height;
+
+    if (dwin->owner->scroll_request && gli_scroll_width)
     {
         int t0, t1;
         x0 = win->bbox.x1 - gli_scroll_width;
@@ -1580,9 +1584,10 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     int gh = FALSE;
     int gs = FALSE;
 
-    if (win->line_request || win->char_request || win->line_request_uni || win->char_request_uni)
-        if (!gli_more_focus)
-            gli_focuswin = win;
+    if (win->line_request || win->char_request
+        || win->line_request_uni || win->char_request_uni
+        || win->more_request || win->scroll_request)
+        gli_focuswin = win;
 
     if (win->hyper_request) {
         glui32 linkval = gli_get_hyperlink(sx, sy);
