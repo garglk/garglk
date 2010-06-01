@@ -9,7 +9,12 @@ if [ `uname` != Darwin ]
 then
     abspath=`readlink -f $0`	# get the full path of this script
     dirpath=`dirname $abspath`	# get directory part
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$dirpath
+    if [ -z "$LD_LIBRARY_PATH" ]
+    then
+        export LD_LIBRARY_PATH=$dirpath
+    else
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$dirpath
+    fi
 else
     dirpath=`dirname $0`
 fi
