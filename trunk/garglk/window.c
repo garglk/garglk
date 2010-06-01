@@ -88,6 +88,7 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->mouse_request = FALSE;
     win->hyper_request = FALSE;
     win->more_request = FALSE;
+    win->scroll_request = FALSE;
 
     attrclear(&win->attr);
     memcpy(win->bgcolor, gli_window_color, 3);
