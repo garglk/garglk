@@ -1223,6 +1223,12 @@ void gcmd_accept_scroll(window_t *win, glui32 arg)
         //default:
             dwin->scrollpos -= pageht;
             break;
+        case keycode_MouseWheelUp:
+            dwin->scrollpos += 3;
+            break;
+        case keycode_MouseWheelDown:
+            dwin->scrollpos -= 3;
+            break;
     }
 
     if (dwin->scrollpos > dwin->scrollmax - dwin->height + 1)
@@ -1247,7 +1253,9 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     if (dwin->height < 2)
         dwin->scrollpos = 0;
 
-    if (dwin->scrollpos || key == keycode_PageUp)
+    if (dwin->scrollpos
+        || key == keycode_PageUp
+        || key == keycode_MouseWheelUp)
     {
         gcmd_accept_scroll(win, key);
         return;
@@ -1389,7 +1397,9 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
     if (dwin->height < 2)
         dwin->scrollpos = 0;
 
-    if (dwin->scrollpos || arg == keycode_PageUp)
+    if (dwin->scrollpos
+        || arg == keycode_PageUp
+        || arg == keycode_MouseWheelUp)
     {
         gcmd_accept_scroll(win, arg);
         return;

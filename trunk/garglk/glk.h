@@ -446,6 +446,8 @@ extern void garglk_set_zcolors(glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);
 
 /* non standard keycodes */
-#define keycode_Erase    (0xffffef7f)
+#define keycode_Erase               (0xffffef7f)
+#define keycode_MouseWheelUp        (0xffffeffe)
+#define keycode_MouseWheelDown      (0xffffefff)
 
 #endif /* GLK_H */

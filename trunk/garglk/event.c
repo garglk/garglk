@@ -176,6 +176,8 @@ void gli_input_handle_key(glui32 key)
             return;
         case keycode_PageUp:
         case keycode_PageDown:
+        case keycode_MouseWheelUp:
+        case keycode_MouseWheelDown:
             gli_input_scroll_focus();
             break;
         default:

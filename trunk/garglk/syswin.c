@@ -698,6 +698,14 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    case WM_MOUSEWHEEL:
+    {
+        if (GET_WHEEL_DELTA_WPARAM(wParam) > 0)
+            gli_input_handle_key(keycode_MouseWheelUp);
+        else
+            gli_input_handle_key(keycode_MouseWheelDown);
+    }
+
     case WM_CAPTURECHANGED:
     {
         gli_copyselect = FALSE;
