@@ -61,7 +61,7 @@ switch $(OS)
         PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = -lz ;
+        LINKLIBS = -lz -lm ;
 
         if $(USESDL)
         {
