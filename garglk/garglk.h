@@ -595,8 +595,10 @@ extern void gli_windows_size_change(void);
 
 extern void gli_window_click(window_t *win, int x, int y);
 
-void gli_input_next_focus();
 void gli_input_guess_focus();
+void gli_input_more_focus();
+void gli_input_next_focus();
+void gli_input_scroll_focus();
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
