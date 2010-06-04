@@ -1,0 +1,117 @@
+#summary Guide to compiling Gargoyle from source code.
+
+=Developers=
+
+This document provides platform-specific steps for developers interested in compiling Gargoyle from source code.
+
+  * [Developers#Windows Windows]
+  * [Developers#Ubuntu Ubuntu]
+  * [Developers#Mac Mac]
+
+Please note: these steps are meant for advanced users only. Just about everyone will find the binary packages more useful. The most recent release can always be found on the Downloads tab.
+
+<p><br/></p>
+
+==Windows==
+
+Because Windows does not ship with a compiler, you will need to download one. Gargoyle works best with the C / C++ compilers from [http://en.wikipedia.org/wiki/GNU_Compiler_Collection GCC], which has been ported to Windows by the [http://www.mingw.org/ MinGW] project.
+
+The official MinGW release contains a very old version of GCC. You may prefer more recent packages from [http://nuwen.net/mingw.html nuwen.net] or [http://www.tdragon.net/recentgcc/ tdragon.net] instead.
+
+Once downloaded, extract the MinGW files to *C:\MinGW*. Then add *C:\MinGW\bin* to your *PATH* environment variable.
+
+----
+
+Gargoyle uses Jam to manage the build process. Download [http://sourceforge.net/projects/freetype/files/ftjam/2.5.2/ftjam-2.5.2-win32.zip/download FT Jam for Windows]. Extract *ftjam.exe* to your *C:\MinGW\bin* folder so that it lives with the rest of the toolchain.
+
+Now create a new environment variable called *JAM_TOOLSET*. Set the value to *MINGW*.
+
+----
+
+[http://nsis.sourceforge.net/Main_Page NSIS] generates the Windows package. You should install the latest release, along with the [http://nsis.sourceforge.net/FontName_plug-in FontName plug-in].
+
+Once installed, add *C:\Program Files\NSIS* to your *PATH* environment variable.
+
+----
+
+You will need a Subversion client to retrieve the project source code. [http://tortoisesvn.tigris.org/ TortoiseSVN] is a popular client for Windows that integrates well with Explorer.
+
+With Tortoise installed, right-click a target folder and choose *SVN Checkout*. Enter the path to the repository:
+
+{{{
+http://garglk.googlecode.com/svn/trunk/
+}}}
+
+(If you have commit access, use HTTPS instead of HTTP to check out a read-write copy.)
+
+After retrieving the source code, double-click *gargoyle_win32.cmd* to compile the latest version of Gargoyle. This will create a Windows install package.
+
+----
+
+Before making changes to source code, you may wish to install an IDE that offers features such as syntax highlighting and automatic indentation. 
+
+[http://www.microsoft.com/express/windows/ Visual C++ Express] is a good choice. After installing, go to _Tools_ -> _Options_ -> _Text Editor_ -> _C/C++_ -> _Tabs_ and select the option to *Insert spaces*.
+
+If you choose a different IDE or editor, please find and enable the equivalent option. Each tab should be represented by four spaces. That will make life a little easier if you submit a patch.
+
+<p><br/></p>
+
+===Ubuntu===
+
+Before compiling Gargoyle from source, you will need to install several packages containing the necessary headers for software development.
+
+Open a Terminal window and enter these commands.
+
+{{{
+sudo apt-get install ftjam
+sudo apt-get install subversion
+sudo apt-get install libjpeg-dev
+sudo apt-get install libpng-dev
+sudo apt-get install libsdl-mixer1.2-dev
+sudo apt-get install libsdl-sound1.2-dev
+sudo apt-get install libfreetype6-dev
+sudo apt-get install libgtk2.0-dev
+sudo apt-get install ttf-liberation
+sudo apt-get install ttf-linux-libertine
+}}}
+
+When prompted to install other dependencies, choose Yes.
+
+----
+
+With the tools and headers installed, you can now check out the source code.
+
+{{{
+svn co http://garglk.googlecode.com/svn/trunk/ garglk
+}}}
+
+(If you have commit access, use HTTPS instead of HTTP to check out a read-write copy.)
+
+The source files will be checked out to a *garglk* folder in the working directory. Modify the last argument as appropriate to pick a different destination.
+
+When the checkout finishes, you can use these commands to compile the latest version of Gargoyle.
+
+{{{
+cd garglk
+jam install
+cp garglk/garglk.ini build/dist
+}}}
+
+----
+
+To run the compiled version of Gargoyle, use these commands.
+
+{{{
+cd build/dist
+export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+./gargoyle
+}}}
+
+For a more permanent installation, please see the INSTALL document found in the root of the source code tree.
+
+
+<p><br/></p>
+
+==Mac==
+
+TBD
