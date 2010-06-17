@@ -46,23 +46,15 @@ if $(OS) = MINGW
 {
     # support binaries
     SEARCH_SOURCE +=
-        [ FDirName $(TOP) support fontconfig ]
         [ FDirName $(TOP) support freetype ]
         [ FDirName $(TOP) support libjpeg ]
         [ FDirName $(TOP) support libpng ]
         [ FDirName $(TOP) support zlib ]
         ;
     InstallLib $(LIBDIR) : freetype6.dll ;
-    InstallLib $(LIBDIR) : libexpat-1.dll ;
-    InstallLib $(LIBDIR) : libfontconfig-1.dll ;
     InstallLib $(LIBDIR) : libjpeg-7.dll ;
     InstallLib $(LIBDIR) : libpng12-0.dll ;
     InstallLib $(LIBDIR) : zlib1.dll ;
-
-    # fontconfig files
-    local _FCDIR = [ FDirName $(TOP) build dist etc fonts ] ;
-    InstallLib $(_FCDIR) : fonts.dtd ;
-    InstallLib $(_FCDIR) : fonts.conf ;
 }
 
 if $(OS) = MINGW && $(USESDL)

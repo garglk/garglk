@@ -37,7 +37,6 @@ switch $(OS)
         SUFDLL  = .dll ;
         LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
         SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
-        SHRLINKLIBS += $(TOP)/support/fontconfig/libfontconfig-1.dll ;
         SHRLINKLIBS += $(TOP)/support/freetype/freetype6.dll ;
         SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-7.dll ;
         SHRLINKLIBS += $(TOP)/support/libpng/libpng12-0.dll ;
@@ -87,7 +86,7 @@ switch $(OS)
         SUFDLL = .dylib ;
         MAINARCH = -arch i386 ;
         CCFLAGS = -Wno-pointer-sign $(MAINARCH) $(ALTARCH) ;
-        PKGCONFIG = "pkg-config freetype2 fontconfig" ;
+        PKGCONFIG = "pkg-config freetype2" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;

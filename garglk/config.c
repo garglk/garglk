@@ -40,11 +40,27 @@ char *gli_conf_propr = "CharterBT-Roman";
 char *gli_conf_propb = "CharterBT-Bold";
 char *gli_conf_propi = "CharterBT-Italic";
 char *gli_conf_propz = "CharterBT-BoldItalic";
+int gli_sys_propr = FALSE;
+int gli_sys_propb = FALSE;
+int gli_sys_propi = FALSE;
+int gli_sys_propz = FALSE;
 
 char *gli_conf_monor = "LuxiMonoRegular";
 char *gli_conf_monob = "LuxiMonoBold";
 char *gli_conf_monoi = "LuxiMonoOblique";
 char *gli_conf_monoz = "LuxiMonoBoldOblique";
+int gli_sys_monor = FALSE;
+int gli_sys_monob = FALSE;
+int gli_sys_monoi = FALSE;
+int gli_sys_monoz = FALSE;
+
+#ifdef BUNDLED_FONTS
+char *gli_conf_monofont = "";
+char *gli_conf_propfont = "";
+#else
+char *gli_conf_monofont = "Liberation Mono";
+char *gli_conf_propfont = "Linux Libertine";
+#endif
 
 style_t gli_tstyles[style_NUMSTYLES] =
 {
@@ -169,6 +185,17 @@ static void parsecolor(char *str, unsigned char *rgb)
 	rgb[2] = strtol(b, NULL, 16);
 }
 
+char* trim(char* src)
+{
+    while(src[strlen(src)-1] == ' ' || src[strlen(src)-1] == '\t')
+        src[strlen(src)-1] = 0;
+
+    while(src[0] == ' ' || src[0] == '\t')
+        strcpy(src,src+1);
+
+    return src;
+}
+
 static void readoneconfig(char *fname, char *argv0, char *gamefile)
 {
 	FILE *f;
@@ -217,6 +244,10 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 			arg = strtok(NULL, "\r\n#");
 		else if (!strcmp(cmd, "tfont") || !strcmp(cmd, "gfont"))
 			arg = strtok(NULL, "\r\n#");
+		else if ((!strcmp(cmd, "monofont") || !strcmp(cmd, "propfont")))
+			arg = strtok(NULL, "\r\n#");
+		else if ((!strncmp(cmd, "mono", 4) || !strncmp(cmd, "prop", 4)) && strlen(cmd) == 5)
+			arg = strtok(NULL, "\r\n#");
 		else if (!strcmp(cmd, "moreprompt"))
 			arg = strtok(NULL, "\r\n");
 		else
@@ -245,24 +276,28 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 		if (!strcmp(cmd, "monosize"))
 			gli_conf_monosize = atof(arg);
 		if (!strcmp(cmd, "monor"))
-			gli_conf_monor = strdup(arg);
+			gli_conf_monor = trim(strdup(arg));
 		if (!strcmp(cmd, "monob"))
-			gli_conf_monob = strdup(arg);
+			gli_conf_monob = trim(strdup(arg));
 		if (!strcmp(cmd, "monoi"))
-			gli_conf_monoi = strdup(arg);
+			gli_conf_monoi = trim(strdup(arg));
 		if (!strcmp(cmd, "monoz"))
-			gli_conf_monoz = strdup(arg);
+			gli_conf_monoz = trim(strdup(arg));
+		if (!strcmp(cmd, "monofont"))
+			gli_conf_monofont = trim(strdup(arg));
 
 		if (!strcmp(cmd, "propsize"))
 			gli_conf_propsize = atof(arg);
 		if (!strcmp(cmd, "propr"))
-			gli_conf_propr = strdup(arg);
+			gli_conf_propr = trim(strdup(arg));
 		if (!strcmp(cmd, "propb"))
-			gli_conf_propb = strdup(arg);
+			gli_conf_propb = trim(strdup(arg));
 		if (!strcmp(cmd, "propi"))
-			gli_conf_propi = strdup(arg);
+			gli_conf_propi = trim(strdup(arg));
 		if (!strcmp(cmd, "propz"))
-			gli_conf_propz = strdup(arg);
+			gli_conf_propz = trim(strdup(arg));
+		if (!strcmp(cmd, "propfont"))
+			gli_conf_propfont = trim(strdup(arg));
 
 		if (!strcmp(cmd, "leading"))
 			gli_leading = atof(arg) + 0.5;

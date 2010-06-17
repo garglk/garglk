@@ -74,6 +74,8 @@ struct font_s
     unsigned char lowloaded[256/8];
     fentry_t *highentries;
     int num_highentries, alloced_highentries;
+    int make_bold;
+    int make_oblique;
     int kerned;
     kcache_t *kerncache;
 };
@@ -101,6 +103,7 @@ static const int gli_bpp = 3;
 #endif
 
 static FT_Library ftlib;
+static FT_Matrix ftmat;
 
 /*
  * Font loading
@@ -199,10 +202,16 @@ static void loadglyph(font_t *f, glui32 cid)
         if (err)
             winabort("FT_Load_Glyph");
 
-                if (gli_conf_lcd)
-                    err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
-                else
-                    err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
+        if (f->make_bold)
+            FT_Outline_Embolden(&f->face->glyph->outline, FT_MulFix(f->face->units_per_EM, f->face->size->metrics.y_scale) / 24);
+
+        if (f->make_oblique)
+            FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
+
+        if (gli_conf_lcd)
+            err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
+        else
+            err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
         if (err)
             winabort("FT_Render_Glyph");
 
@@ -261,7 +270,7 @@ static void loadglyph(font_t *f, glui32 cid)
     }
 }
 
-static void loadfont(font_t *f, char *name, float size, float aspect)
+static void loadfont(font_t *f, char *name, float size, float aspect, int style)
 {
     static char *map[8] =
     {
@@ -283,6 +292,7 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
 
     memset(f, 0, sizeof (font_t));
 
+#ifdef BUNDLED_FONTS
     for (i = 0; i < 8; i++)
     {
         if (!strcmp(name, map[i]))
@@ -294,27 +304,24 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
             break;
         }
     }
+#else
+    i = 8;
+#endif /* BUNDLED_FONTS */
+
     if (i == 8)
     {
         err = FT_New_Face(ftlib, name, 0, &f->face);
-        if (err) {
-            /* try getting a system font by the same name */
-            gli_get_system_font(name, &mem, &len);
-            err = FT_New_Memory_Face(ftlib, mem, len, 0, &f->face);
-            if (err) {
-                winabort("FT_New_Face: %s: 0x%x", name, err);
-            }
-        } else {
-            if (strstr(name, ".PFB") || strstr(name, ".PFA") ||
-                    strstr(name, ".pfb") || strstr(name, ".pfa"))
-            {
-                strcpy(afmbuf, name);
-                strcpy(strrchr(afmbuf, '.'), ".afm");
-                FT_Attach_File(f->face, afmbuf);
-                strcpy(afmbuf, name);
-                strcpy(strrchr(afmbuf, '.'), ".AFM");
-                FT_Attach_File(f->face, afmbuf);
-            }
+        if (err)
+            winabort("FT_New_Face: %s: 0x%x", name, err);
+        if (strstr(name, ".PFB") || strstr(name, ".PFA") ||
+                strstr(name, ".pfb") || strstr(name, ".pfa"))
+        {
+            strcpy(afmbuf, name);
+            strcpy(strrchr(afmbuf, '.'), ".afm");
+            FT_Attach_File(f->face, afmbuf);
+            strcpy(afmbuf, name);
+            strcpy(strrchr(afmbuf, '.'), ".AFM");
+            FT_Attach_File(f->face, afmbuf);
         }
     }
 
@@ -332,22 +339,30 @@ static void loadfont(font_t *f, char *name, float size, float aspect)
     f->highentries = NULL;
     f->kerned = FT_HAS_KERNING(f->face);
     f->kerncache = NULL;
-}
 
-#if 0
-    for (i = 32; i < 128; i++)
-        loadglyph(f, i, i);
-    for (i = 160; i < 256; i++)
-        loadglyph(f, i, i);
-    loadglyph(f, LIG_FI, touni(LIG_FI));
-    loadglyph(f, LIG_FL, touni(LIG_FL));
-    loadglyph(f, UNI_LSQUO, touni(UNI_LSQUO));
-    loadglyph(f, UNI_RSQUO, touni(UNI_RSQUO));
-    loadglyph(f, UNI_LDQUO, touni(UNI_LDQUO));
-    loadglyph(f, UNI_RDQUO, touni(UNI_RDQUO));
-    loadglyph(f, UNI_NDASH, touni(UNI_NDASH));
-    loadglyph(f, UNI_MDASH, touni(UNI_MDASH));
-#endif
+    switch (style)
+    {
+    case FONTR:
+        f->make_bold = FALSE;
+        f->make_oblique = FALSE;
+        break;
+
+    case FONTB:
+        f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
+        f->make_oblique = FALSE;
+        break;
+
+    case FONTI:
+        f->make_bold = FALSE;
+        f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+        break;
+
+    case FONTZ:
+        f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
+        f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+        break;
+    }
+}
 
 void gli_initialize_fonts(void)
 {
@@ -365,15 +380,25 @@ void gli_initialize_fonts(void)
     if (err)
         winabort("FT_Init_FreeType");
 
-    loadfont(&gfont_table[0], gli_conf_monor, monosize, monoaspect);
-    loadfont(&gfont_table[1], gli_conf_monob, monosize, monoaspect);
-    loadfont(&gfont_table[2], gli_conf_monoi, monosize, monoaspect);
-    loadfont(&gfont_table[3], gli_conf_monoz, monosize, monoaspect);
+    /* replace built-in fonts with configured system font */
+    winfont(gli_conf_monofont, MONOF);
+    winfont(gli_conf_propfont, PROPF);
 
-    loadfont(&gfont_table[4], gli_conf_propr, propsize, propaspect);
-    loadfont(&gfont_table[5], gli_conf_propb, propsize, propaspect);
-    loadfont(&gfont_table[6], gli_conf_propi, propsize, propaspect);
-    loadfont(&gfont_table[7], gli_conf_propz, propsize, propaspect);
+    /* create oblique transform matrix */
+    ftmat.xx = 0x10000L;
+    ftmat.yx = 0x00000L;
+    ftmat.xy = 0x03000L;
+    ftmat.yy = 0x10000L;
+
+    loadfont(&gfont_table[0], gli_conf_monor, monosize, monoaspect, FONTR);
+    loadfont(&gfont_table[1], gli_conf_monob, monosize, monoaspect, FONTB);
+    loadfont(&gfont_table[2], gli_conf_monoi, monosize, monoaspect, FONTI);
+    loadfont(&gfont_table[3], gli_conf_monoz, monosize, monoaspect, FONTZ);
+
+    loadfont(&gfont_table[4], gli_conf_propr, propsize, propaspect, FONTR);
+    loadfont(&gfont_table[5], gli_conf_propb, propsize, propaspect, FONTB);
+    loadfont(&gfont_table[6], gli_conf_propi, propsize, propaspect, FONTI);
+    loadfont(&gfont_table[7], gli_conf_propz, propsize, propaspect, FONTZ);
 
     loadglyph(&gfont_table[0], '0');
 

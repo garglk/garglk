@@ -7,7 +7,6 @@ SubDirCcFlags $(GARGLKCCFLAGS) ;
 
 if $(OS) = MINGW
 {
-    SubDirHdrs $(TOP) support fontconfig ;
     SubDirHdrs $(TOP) support freetype ;
     SubDirHdrs $(TOP) support libjpeg ;
     SubDirHdrs $(TOP) support libpng ;
@@ -38,9 +37,9 @@ if $(USESDL) { GARGSRCS += sndsdl.c ; }
 else if $(USEFMOD) { GARGSRCS += sndfmod.c ; }
 else { GARGSRCS += sndnull.c ; }
 
-if $(OS) = MINGW { GARGSRCS += syswin.c icons.rc ; }
-else if $(OS) = MACOSX { GARGSRCS += sysmac.m ; }
-else { GARGSRCS += sysgtk.c ; }
+if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
+else if $(OS) = MACOSX { GARGSRCS += sysmac.m fontmac.m ; }
+else { GARGSRCS += sysgtk.c fontgtk.c ; }
 
 if $(OS) = MINGW { Main gargoyle : launchwin.c launcher.c ; }
 else if $(OS) = MACOSX { Main gargoyle : launchmac.m launcher.c ; }
