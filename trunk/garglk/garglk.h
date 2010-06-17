@@ -231,17 +231,29 @@ extern int gli_scroll_width;
 extern int gli_baseline;
 extern int gli_leading;
 
-enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
+enum FACES { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
+enum TYPES { MONOF, PROPF };
+enum STYLES { FONTR, FONTB, FONTI, FONTZ };
 
+extern char *gli_conf_propfont;
 extern char *gli_conf_propr;
 extern char *gli_conf_propb;
 extern char *gli_conf_propi;
 extern char *gli_conf_propz;
+extern int gli_sys_propr;
+extern int gli_sys_propb;
+extern int gli_sys_propi;
+extern int gli_sys_propz;
 
+extern char *gli_conf_monofont;
 extern char *gli_conf_monor;
 extern char *gli_conf_monob;
 extern char *gli_conf_monoi;
 extern char *gli_conf_monoz;
+extern int gli_sys_monor;
+extern int gli_sys_monob;
+extern int gli_sys_monoi;
+extern int gli_sys_monoz;
 
 extern float gli_conf_gamma;
 extern float gli_conf_propsize;
@@ -645,6 +657,7 @@ void winrepaint(int x0, int y0, int x1, int y1);
 void winabort(const char *fmt, ...);
 void winopenfile(char *prompt, char *buf, int buflen, char *filter);
 void winsavefile(char *prompt, char *buf, int buflen, char *filter);
+void winfont(char *font, int type);
 
 int giblorb_is_resource_map();
 void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, long *len, glui32 *type);
