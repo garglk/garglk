@@ -43,6 +43,11 @@
 
 static HDC hdc;
 
+static int gli_sys_monor = FALSE;
+static int gli_sys_monob = FALSE;
+static int gli_sys_monoi = FALSE;
+static int gli_sys_monoz = FALSE;
+
 int CALLBACK monofont(
     ENUMLOGFONTEX    *lpelfe,   /* pointer to logical-font data */
     NEWTEXTMETRICEX  *lpntme,   /* pointer to physical-font data */
@@ -130,6 +135,11 @@ int CALLBACK monofont(
 
     return 1;
 }
+
+static int gli_sys_propr = FALSE;
+static int gli_sys_propb = FALSE;
+static int gli_sys_propi = FALSE;
+static int gli_sys_propz = FALSE;
 
 int CALLBACK propfont(
     ENUMLOGFONTEX    *lpelfe,   /* pointer to logical-font data */

@@ -240,20 +240,12 @@ extern char *gli_conf_propr;
 extern char *gli_conf_propb;
 extern char *gli_conf_propi;
 extern char *gli_conf_propz;
-extern int gli_sys_propr;
-extern int gli_sys_propb;
-extern int gli_sys_propi;
-extern int gli_sys_propz;
 
 extern char *gli_conf_monofont;
 extern char *gli_conf_monor;
 extern char *gli_conf_monob;
 extern char *gli_conf_monoi;
 extern char *gli_conf_monoz;
-extern int gli_sys_monor;
-extern int gli_sys_monob;
-extern int gli_sys_monoi;
-extern int gli_sys_monoz;
 
 extern float gli_conf_gamma;
 extern float gli_conf_propsize;
