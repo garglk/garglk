@@ -40,26 +40,18 @@ char *gli_conf_propr = "CharterBT-Roman";
 char *gli_conf_propb = "CharterBT-Bold";
 char *gli_conf_propi = "CharterBT-Italic";
 char *gli_conf_propz = "CharterBT-BoldItalic";
-int gli_sys_propr = FALSE;
-int gli_sys_propb = FALSE;
-int gli_sys_propi = FALSE;
-int gli_sys_propz = FALSE;
 
 char *gli_conf_monor = "LuxiMonoRegular";
 char *gli_conf_monob = "LuxiMonoBold";
 char *gli_conf_monoi = "LuxiMonoOblique";
 char *gli_conf_monoz = "LuxiMonoBoldOblique";
-int gli_sys_monor = FALSE;
-int gli_sys_monob = FALSE;
-int gli_sys_monoi = FALSE;
-int gli_sys_monoz = FALSE;
 
 #ifdef BUNDLED_FONTS
 char *gli_conf_monofont = "";
 char *gli_conf_propfont = "";
 #else
-char *gli_conf_monofont = "Liberation Mono";
-char *gli_conf_propfont = "Linux Libertine";
+char *gli_conf_monofont = "Luxi Mono";
+char *gli_conf_propfont = "Bitstream Charter";
 #endif
 
 style_t gli_tstyles[style_NUMSTYLES] =
@@ -191,7 +183,7 @@ char* trim(char* src)
         src[strlen(src)-1] = 0;
 
     while(src[0] == ' ' || src[0] == '\t')
-        strcpy(src,src+1);
+        src++;
 
     return src;
 }
