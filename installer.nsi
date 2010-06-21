@@ -4,7 +4,7 @@
 
 RequestExecutionLevel admin
 !include "MUI.nsh"
-!include FontRegAdv.nsh
+!include FontReg.nsh
 !include FontName.nsh
 
 
@@ -116,22 +116,22 @@ SectionEnd
 
 Section "Fonts"
     StrCpy $FONT_DIR $FONTS
-    !insertmacro InstallTTF "fonts\LuxiMono-Regular.ttf"
-    !insertmacro InstallTTF "fonts\LuxiMono-Bold.ttf"
-    !insertmacro InstallTTF "fonts\LuxiMono-Oblique.ttf"
-    !insertmacro InstallTTF "fonts\LuxiMono-BoldOblique.ttf"
-    !insertmacro InstallTTF "fonts\CharterBT-Roman.ttf"
-    !insertmacro InstallTTF "fonts\CharterBT-Bold.ttf"
-    !insertmacro InstallTTF "fonts\CharterBT-Italic.ttf"
-    !insertmacro InstallTTF "fonts\CharterBT-BoldItalic.ttf"
-    !insertmacro InstallTTF "fonts\LiberationMono-Regular.ttf"
-    !insertmacro InstallTTF "fonts\LiberationMono-Bold.ttf"
-    !insertmacro InstallTTF "fonts\LiberationMono-Italic.ttf"
-    !insertmacro InstallTTF "fonts\LiberationMono-BoldItalic.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine_Re-4.4.1.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine_Bd-4.1.0.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine_It-4.0.6.ttf"
-    !insertmacro InstallTTF "fonts\LinLibertine_BI-4.0.5.ttf"
+    !insertmacro InstallFONFont "fonts\LuxiMono-Regular.ttf" "Luxi Mono Regular (TrueType)"
+    !insertmacro InstallFONFont "fonts\LuxiMono-Bold.ttf" "Luxi Mono Bold (TrueType)"
+    !insertmacro InstallFONFont "fonts\LuxiMono-Oblique.ttf" "Luxi Mono Oblique (TrueType)"
+    !insertmacro InstallFONFont "fonts\LuxiMono-BoldOblique.ttf" "Luxi Mono Bold Oblique (TrueType)"
+    !insertmacro InstallFONFont "fonts\CharterBT-Roman.ttf" "Bitstream Charter (TrueType)"
+    !insertmacro InstallFONFont "fonts\CharterBT-Bold.ttf" "Bitstream Charter Bold (TrueType)"
+    !insertmacro InstallFONFont "fonts\CharterBT-Italic.ttf" "Bitstream Charter Italic (TrueType)"
+    !insertmacro InstallFONFont "fonts\CharterBT-BoldItalic.ttf" "Bitstream Charter Bold Italic (TrueType)"
+    !insertmacro InstallFONFont "fonts\LiberationMono-Regular.ttf" "Liberation Mono (TrueType)"
+    !insertmacro InstallFONFont "fonts\LiberationMono-Bold.ttf" "Liberation Mono Bold (TrueType)"
+    !insertmacro InstallFONFont "fonts\LiberationMono-Italic.ttf" "Liberation Mono Italic (TrueType)"
+    !insertmacro InstallFONFont "fonts\LiberationMono-BoldItalic.ttf" "Liberation Mono Bold Italic (TrueType)"
+    !insertmacro InstallFONFont "fonts\LinLibertine_Re-4.7.5.otf" "LinLibertineO (TrueType)"
+    !insertmacro InstallFONFont "fonts\LinLibertine_Bd-4.1.5.otf" "LinLibertineOB (TrueType)"
+    !insertmacro InstallFONFont "fonts\LinLibertine_It-4.2.6.otf" "LinLibertineOI (TrueType)"
+    !insertmacro InstallFONFont "fonts\LinLibertine_BI-4.1.0.otf" "LinLibertineOBI (TrueType)"
     SendMessage ${HWND_BROADCAST} ${WM_FONTCHANGE} 0 0 /TIMEOUT=5000
 
 SectionEnd
