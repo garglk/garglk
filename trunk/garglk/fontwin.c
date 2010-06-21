@@ -20,26 +20,13 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#define R_OK	4
-#define W_OK	2
-#endif
 
 #include "glk.h"
 #include "garglk.h"
-#include "garversion.h"
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <commdlg.h>
-#include <shellapi.h>
-#include <mmsystem.h>
 
 static HDC hdc;
 
@@ -86,7 +73,8 @@ int CALLBACK monofont(
     char * file = malloc(strlen(filepath)+1);
     strcpy(file, filepath);
 
-    if (!gli_sys_monor && (!(strcmp(lpelfe->elfStyle,"Regular"))))
+    if (!gli_sys_monor && (!(strcmp(lpelfe->elfStyle,"Regular"))
+                || !(strcmp(lpelfe->elfStyle,"Roman"))))
     {
         gli_conf_monor = file;
 
@@ -124,14 +112,19 @@ int CALLBACK monofont(
     }
 
     else if (!gli_sys_monoz && (!(strcmp(lpelfe->elfStyle,"Bold Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))))
+                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))
+                || !(strcmp(lpelfe->elfStyle,"BoldOblique"))
+                || !(strcmp(lpelfe->elfStyle,"BoldItalic"))
+                ))
     {
         gli_conf_monoz = file;
         gli_sys_monoz = TRUE;
     }
 
     else
+    {
         free(file);
+    }
 
     return 1;
 }
@@ -179,7 +172,8 @@ int CALLBACK propfont(
     char * file = malloc(strlen(filepath)+1);
     strcpy(file, filepath);
 
-    if (!gli_sys_propr && (!(strcmp(lpelfe->elfStyle,"Regular"))))
+    if (!gli_sys_propr && (!(strcmp(lpelfe->elfStyle,"Regular"))
+                || !(strcmp(lpelfe->elfStyle,"Roman"))))
     {
         gli_conf_propr = file;
 
@@ -217,14 +211,19 @@ int CALLBACK propfont(
     }
 
     else if (!gli_sys_propz && (!(strcmp(lpelfe->elfStyle,"Bold Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))))
+                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))
+                || !(strcmp(lpelfe->elfStyle,"BoldOblique"))
+                || !(strcmp(lpelfe->elfStyle,"BoldItalic"))
+                ))
     {
         gli_conf_propz = file;
         gli_sys_propz = TRUE;
     }
 
     else
+    {
         free(file);
+    }
 
     return 1;
 }
