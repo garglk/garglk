@@ -43,7 +43,6 @@ char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
 char etc[MaxBuffer];
-char fnt[MaxBuffer];
 
 char filterlist[] = "";
 
@@ -416,18 +415,7 @@ char filterlist[] = "";
     int bounds = size < MaxBuffer ? size : MaxBuffer;
     etc[bounds] = '\0';
 
-    setenv("FONTCONFIG_PATH", etc, TRUE);
     setenv("GARGLK_INI", etc, TRUE);
-
-    /* create symlink to fonts */
-    if (getenv("HOME"))
-    {
-        strcpy(fnt, getenv("HOME"));
-        strcat(fnt, "/Library/Fonts/Gargoyle");
-        unlink(fnt);
-        strcat(etc, "/Fonts");
-        symlink(etc, fnt);
-    }
 
     /* set preference defaults */
     [[NSUserDefaults standardUserDefaults] registerDefaults:
