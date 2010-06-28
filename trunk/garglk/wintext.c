@@ -717,13 +717,13 @@ static void scrolloneline(window_textbuffer_t *dwin, int forced)
     dwin->lastseen ++;
     dwin->scrollmax ++;
 
+    dwin->scrollmax = MIN(dwin->scrollmax, SCROLLBACK-1);
+    dwin->lastseen = MIN(dwin->lastseen, SCROLLBACK-1);
+
     if (dwin->scrollpos > dwin->scrollmax - dwin->height + 1)
         dwin->scrollpos = dwin->scrollmax - dwin->height + 1;
     if (dwin->scrollpos < 0)
         dwin->scrollpos = 0;
-
-    dwin->scrollmax = MIN(dwin->scrollmax, SCROLLBACK-1);
-    dwin->lastseen = MIN(dwin->lastseen, SCROLLBACK-1);
 
     if (forced)
         dwin->dashed = 0;
