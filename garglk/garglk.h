@@ -455,7 +455,8 @@ struct window_textbuffer_s
     int spaced;
     int dashed;
 
-    tbline_t lines[SCROLLBACK];	/* XXX make this dynamic */
+    tbline_t *lines;
+    int scrollback;
 
     int numchars;		/* number of chars in last line: lines[0] */
     glui32 *chars;		/* alias to lines[0].chars */
@@ -489,7 +490,7 @@ struct window_textbuffer_s
     style_t styles[style_NUMSTYLES];
 
     /* for copy selection */
-    glui32 copybuf[SCROLLBACK + SCROLLBACK * TBLINELEN];
+    glui32 *copybuf;
     int copypos;
 };
 
@@ -729,11 +730,3 @@ static unsigned char zbright_rgb[][3] = {
     { 188, 188, 188 },  /* zbright_MediumGrey */
     { 138, 138, 138 },     /* zbright_DarkGrey */
 };
-
-/* declare variables for text buffer reflow() */
-extern attr_t attrbuf[TBLINELEN*SCROLLBACK];
-extern glui32 charbuf[TBLINELEN*SCROLLBACK];
-extern int alignbuf[SCROLLBACK];
-extern picture_t *pictbuf[SCROLLBACK];
-extern glui32 hyperbuf[SCROLLBACK];
-extern int offsetbuf[SCROLLBACK];
