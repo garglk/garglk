@@ -49,8 +49,8 @@ static int timerid = -1;
 static int timeouts = 0;
 
 /* buffer for clipboard text */
-char cliptext[4 * (SCROLLBACK + TBLINELEN * SCROLLBACK) + 1];
-int cliplen = 0;
+static char *cliptext = NULL;
+static int cliplen = 0;
 enum clipsource { PRIMARY , CLIPBOARD };
 
 static int timeout(void *data)
@@ -145,6 +145,11 @@ void winclipstore(glui32 *text, int len)
 
     i = 0;
     k = 0;
+
+    if (cliptext)
+        free(cliptext);
+
+    cliptext = malloc(sizeof(char) * 4 * len);
 
     /*convert UTF-32 to UTF-8 */
     while (i < len) {

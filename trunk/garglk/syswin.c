@@ -60,8 +60,8 @@ static int timerid = -1;
 static int timeouts = 0;
 
 /* buffer for clipboard text */
-wchar_t cliptext[2 * SCROLLBACK + TBLINELEN * SCROLLBACK + 1];
-int cliplen = 0;
+static wchar_t *cliptext = NULL;
+static int cliplen = 0;
 
 void glk_request_timer_events(glui32 millisecs)
 {
@@ -182,6 +182,11 @@ void winclipstore(glui32 *text, int len)
 
     i = 0;
     k = 0;
+
+    if (cliptext)
+        free(cliptext);
+
+    cliptext = malloc(sizeof(wchar_t) * 2 * len);
 
     /* convert \n to \r\n */
     while (i < len) {
