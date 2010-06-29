@@ -37,39 +37,48 @@ int gli_claimselect = FALSE;
 static int last_x = 0;
 static int last_y = 0;
 
-void gli_resize_mask(int x, int y)
+void gli_resize_mask(unsigned int x, unsigned int y)
 {
     int i;
 
-    if (!gli_mask) {
-        gli_mask = (mask_t*) calloc(sizeof(mask_t), 1);
-        if (!gli_mask) {
+    if (!gli_mask)
+    {
+        gli_mask = (mask_t*) calloc(1, sizeof(mask_t));
+        if (!gli_mask)
+        {
             gli_strict_warning("resize_mask: out of memory");
+            return;
         }
     }
 
-    for (i = 0; i < gli_mask->hor; i++) {
-        if (gli_mask->links[i]) {
+    /* deallocate old storage */
+    for (i = 0; i < gli_mask->hor; i++)
+    {
+        if (gli_mask->links[i])
             free(gli_mask->links[i]);
-        }
     }
+
+    if (gli_mask->links)
+        free(gli_mask->links);
 
     gli_mask->hor = x + 1;
     gli_mask->ver = y + 1;
 
-    /* resize hyperlinks storage */
-    gli_mask->links = (glui32**)realloc(gli_mask->links, gli_mask->hor * sizeof(glui32*));
-    if (!gli_mask->links) {
+    /* allocate new storage */
+    gli_mask->links = (glui32**) calloc(gli_mask->hor, sizeof(glui32*));
+    if (!gli_mask->links)
+    {
         gli_strict_warning("resize_mask: out of memory");
-        free(gli_mask->links);
         gli_mask->hor = 0;
         gli_mask->ver = 0;
         return;
     }
 
-    for (i = 0; i < gli_mask->hor; i++) {
-        gli_mask->links[i] = (glui32*) calloc(sizeof(glui32), gli_mask->ver);
-        if (!gli_mask->links[i]) {
+    for (i = 0; i < gli_mask->hor; i++)
+    {
+        gli_mask->links[i] = (glui32*) calloc(gli_mask->ver, sizeof(glui32));
+        if (!gli_mask->links[i])
+        {
             gli_strict_warning("resize_mask: could not allocate new memory");
             return;
         }
@@ -92,23 +101,25 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
     int ty1 = y0 < y1 ? y1 : y0;
     glui32* m;
 
-    if (!gli_mask || !gli_mask->hor || !gli_mask->ver) {
+    if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
+    {
         gli_strict_warning("set_hyperlink: struct not initialized");
         return;
     }
 
-    if (tx0 > gli_mask->hor
-            || tx1 > gli_mask->hor
-            || ty0 > gli_mask->ver   || ty1 > gli_mask->ver
-            || !gli_mask->links[tx0] || !gli_mask->links[tx1]) {
+    if (tx0 >= gli_mask->hor
+            || tx1 >= gli_mask->hor
+            || ty0 >= gli_mask->ver  || ty1 >= gli_mask->ver
+            || !gli_mask->links[tx0] || !gli_mask->links[tx1])
+    {
         gli_strict_warning("set_hyperlink: invalid range given");
         return;
     }
 
-    for (i = tx0; i < tx1; i++) {
-        for (k = ty0; k < ty1; k++) {
+    for (i = tx0; i < tx1; i++)
+    {
+        for (k = ty0; k < ty1; k++)
             gli_mask->links[i][k] = linkval;
-        }
     }
 
     return;
@@ -116,15 +127,17 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
 
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
 {
-    if (!gli_mask || !gli_mask->hor || !gli_mask->ver) {
+    if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
+    {
         gli_strict_warning("get_hyperlink: struct not initialized");
         return;
     }
 
-    if (x > gli_mask->hor
-            || y > gli_mask->ver
-            || !gli_mask->links[x]) {
-        //gli_strict_warning("get_hyperlink: invalid range given");
+    if (x >= gli_mask->hor
+            || y >= gli_mask->ver
+            || !gli_mask->links[x])
+    {
+        gli_strict_warning("get_hyperlink: invalid range given");
         return;
     }
 
@@ -135,7 +148,8 @@ void gli_start_selection(int x, int y)
 {
     int tx, ty;
 
-    if (!gli_mask || !gli_mask->hor || !gli_mask->ver) {
+    if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
+    {
         gli_strict_warning("start_selection: mask not initialized");
         return;
     }
@@ -161,7 +175,8 @@ void gli_move_selection(int x, int y)
     if (abs(x - last_x) < 5 && abs(y - last_y) < 5)
         return;
 
-    if (!gli_mask || !gli_mask->hor || !gli_mask->ver) {
+    if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
+    {
         gli_strict_warning("move_selection: mask not initialized");
         return;
     }
@@ -179,7 +194,8 @@ void gli_move_selection(int x, int y)
 
 void gli_clear_selection(void)
 {
-    if (!gli_mask) {
+    if (!gli_mask)
+    {
         gli_strict_warning("clear_selection: mask not initialized");
         return;
     }
@@ -304,25 +320,34 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
     }
     else if (!is_above && is_below)
     {
-        if (from_below) {
-            if (from_right) {
+        if (from_below)
+        {
+            if (from_right)
+            {
                 *rx0 = cx0;
                 *rx1 = x1;
                 found_left = TRUE;
                 found_right = TRUE;
-            } else {
+            }
+            else 
+            {
                 *rx0 = cx1;
                 *rx1 = x1;
                 found_left = TRUE;
                 found_right = TRUE;
             }
-        } else {
-            if (from_right) {
+        }
+        else
+        {
+            if (from_right)
+            {
                 *rx0 = cx1;
                 *rx1 = x1;
                 found_left = TRUE;
                 found_right = TRUE;
-            } else {
+            }
+            else
+            {
                 *rx1 = x1;
                 found_right = TRUE;
             }
@@ -330,27 +355,36 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
     }
     else if (is_above && !is_below)
     {
-        if (from_below) {
-            if (from_right) {
+        if (from_below)
+        {
+            if (from_right)
+            {
                 *rx0 = x0;
                 *rx1 = cx1;
                 found_left = TRUE;
                 found_right = TRUE;
-            } else {
+            }
+            else
+            {
                 *rx0 = x0;
                 *rx1 = cx0;
                 found_left = TRUE;
                 found_right = TRUE;
             }
-        } else {
-            if (from_right) {
+        }
+        else
+        {
+            if (from_right)
+            {
                 if (x0 > cx0)
                     return FALSE;
                 *rx0 = x0;
                 *rx1 = cx0;
                 found_left = TRUE;
                 found_right = TRUE;
-            } else {
+            }
+            else
+            {
                 *rx0 = x0;
                 found_left = TRUE;
             }
@@ -360,14 +394,19 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
     if (found_left && found_right)
         return TRUE;
 
-    for (i = x0; i <= x1; i++) {
-        if (i >= cx0 && i <= cx1) {
-            if (!found_left) {
+    for (i = x0; i <= x1; i++)
+    {
+        if (i >= cx0 && i <= cx1)
+        {
+            if (!found_left)
+            {
                 *rx0 = i;
                 found_left = TRUE;
                 if (found_right)
                     return TRUE;
-            } else {
+            }
+            else
+            {
                 if (!found_right)
                     *rx1 = i;
             }
