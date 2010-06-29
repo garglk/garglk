@@ -741,37 +741,32 @@ static void scrollresize(window_textbuffer_t *dwin)
 {
     int i;
 
-    tbline_t *newlines = malloc(sizeof(tbline_t) * (dwin->scrollback + SCROLLBACK));
+    tbline_t *newlines = realloc(dwin->lines, sizeof(tbline_t) * (dwin->scrollback + SCROLLBACK));
 
     if (!newlines)
         return;
 
-    memcpy(newlines, dwin->lines, sizeof(tbline_t) * (dwin->scrollback));
-
-    for (i = dwin->scrollback; i < (dwin->scrollback + SCROLLBACK); i++)
-    {
-        newlines[i].dirty = 0;
-        newlines[i].repaint = 0;
-        newlines[i].lm = 0;
-        newlines[i].rm = 0;
-        newlines[i].lpic = 0;
-        newlines[i].rpic = 0;
-        newlines[i].lhyper = 0;
-        newlines[i].rhyper = 0;
-        newlines[i].len = 0;
-        newlines[i].newline = 0;
-        memset(newlines[i].chars, ' ', sizeof newlines[i].chars);
-        memset(newlines[i].attrs,   0, sizeof newlines[i].attrs);
-    }
-
-    tbline_t *oldlines = dwin->lines;
-
-    dwin->scrollback += SCROLLBACK;
     dwin->lines = newlines;
     dwin->chars = dwin->lines[0].chars;
     dwin->attrs = dwin->lines[0].attrs;
 
-    free(oldlines);
+    for (i = dwin->scrollback; i < (dwin->scrollback + SCROLLBACK); i++)
+    {
+        dwin->lines[i].dirty = 0;
+        dwin->lines[i].repaint = 0;
+        dwin->lines[i].lm = 0;
+        dwin->lines[i].rm = 0;
+        dwin->lines[i].lpic = 0;
+        dwin->lines[i].rpic = 0;
+        dwin->lines[i].lhyper = 0;
+        dwin->lines[i].rhyper = 0;
+        dwin->lines[i].len = 0;
+        dwin->lines[i].newline = 0;
+        memset(dwin->lines[i].chars, ' ', sizeof dwin->lines[i].chars);
+        memset(dwin->lines[i].attrs,   0, sizeof dwin->lines[i].attrs);
+    }
+
+    dwin->scrollback += SCROLLBACK;
 }
 
 static void scrolloneline(window_textbuffer_t *dwin, int forced)
