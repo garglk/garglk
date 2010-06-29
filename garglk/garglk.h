@@ -82,7 +82,7 @@ typedef struct window_graphics_s window_graphics_t;
 /* Some globals for gargoyle */
 
 #define TBLINELEN 300
-#define SCROLLBACK 1024
+#define SCROLLBACK 512
 #define HISTORYLEN 100
 
 #define GLI_SUBPIX 8

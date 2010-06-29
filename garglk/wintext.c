@@ -741,14 +741,14 @@ static void scrollresize(window_textbuffer_t *dwin)
 {
     int i;
 
-    tbline_t *newlines = malloc(sizeof(tbline_t) * dwin->scrollback * 2);
+    tbline_t *newlines = malloc(sizeof(tbline_t) * (dwin->scrollback + SCROLLBACK));
 
     if (!newlines)
         return;
 
     memcpy(newlines, dwin->lines, sizeof(tbline_t) * (dwin->scrollback));
 
-    for (i = dwin->scrollback; i < dwin->scrollback * 2; i++)
+    for (i = dwin->scrollback; i < (dwin->scrollback + SCROLLBACK); i++)
     {
         newlines[i].dirty = 0;
         newlines[i].repaint = 0;
@@ -764,9 +764,9 @@ static void scrollresize(window_textbuffer_t *dwin)
         memset(newlines[i].attrs,   0, sizeof newlines[i].attrs);
     }
 
-    glui32 *oldlines = dwin->lines;
+    tbline_t *oldlines = dwin->lines;
 
-    dwin->scrollback *=2;
+    dwin->scrollback += SCROLLBACK;
     dwin->lines = newlines;
     dwin->chars = dwin->lines[0].chars;
     dwin->attrs = dwin->lines[0].attrs;
