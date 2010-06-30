@@ -149,7 +149,7 @@ void winclipstore(glui32 *text, int len)
     if (cliptext)
         free(cliptext);
 
-    cliptext = malloc(sizeof(char) * 4 * len);
+    cliptext = malloc(sizeof(char) * 4 * (len + 1));
 
     /*convert UTF-32 to UTF-8 */
     while (i < len) {
