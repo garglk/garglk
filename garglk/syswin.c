@@ -186,7 +186,7 @@ void winclipstore(glui32 *text, int len)
     if (cliptext)
         free(cliptext);
 
-    cliptext = malloc(sizeof(wchar_t) * 2 * len);
+    cliptext = malloc(sizeof(wchar_t) * 2 * (len + 1));
 
     /* convert \n to \r\n */
     while (i < len) {
