@@ -40,7 +40,7 @@
     32-bit unsigned integer type, and glsi32 to make sure it's really a
     32-bit signed integer type. If they're not, horrible things will happen. */
 #include <limits.h>
-#if (USHORT_MAX == 4294967295)
+#if (USHRT_MAX == 4294967295)
 typedef unsigned short glui32;
 typedef signed   short glsi32;
 #elif (UINT_MAX   == 4294967295)
