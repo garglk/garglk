@@ -492,6 +492,18 @@ void gli_read_config(int argc, char **argv)
 	if (argc > 1)
 	{
 		strcpy(buf, argv[argc-1]);
+		if (strrchr(buf, '\\'))
+		{
+			strcpy(strrchr(buf, '\\'), "\\garglk.ini");
+			readoneconfig(buf, argv0, gamefile);
+		}
+		else if (strrchr(buf, '/'))
+		{
+			strcpy(strrchr(buf, '/'), "/garglk.ini");
+			readoneconfig(buf, argv0, gamefile);
+		}
+
+		strcpy(buf, argv[argc-1]);
 		if (strrchr(buf, '.'))
 			strcpy(strrchr(buf, '.'), ".ini");
 		else
