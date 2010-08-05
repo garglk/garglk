@@ -34,6 +34,8 @@ static int gli_sys_monob = FALSE;
 static int gli_sys_monoi = FALSE;
 static int gli_sys_monoz = FALSE;
 
+static int gli_fonts_added = FALSE;
+
 void monofont(char *file, int style)
 {
     switch (style)
@@ -167,12 +169,37 @@ void propfont(char *file, int style)
     }
 }
 
+void addfonts(void)
+{
+    char * env;
+    FSRef fsRef;
+    FSSpec fsSpec;
+
+    env = getenv("GARGLK_INI");
+    if (!env)
+        return;
+
+    NSString * fontFolder = [[NSString stringWithCString: env encoding: NSASCIIStringEncoding] 
+                             stringByAppendingPathComponent: @"Fonts"];
+
+    NSURL * fontURL = [NSURL fileURLWithPath: fontFolder];
+    CFURLGetFSRef((CFURLRef) fontURL, &fsRef);
+
+    FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
+    ATSFontActivateFromFileSpecification(&fsSpec, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, NULL);
+
+    gli_fonts_added = TRUE;
+}
+
 void winfont(char *font, int type)
 {
     if (!strlen(font))
         return;
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    
+    if (!gli_fonts_added)
+        addfonts();
 
     NSEnumerator * sysfonts = [[[[NSFontDescriptor fontDescriptorWithFontAttributes:nil] 
                                  fontDescriptorWithFamily: [NSString stringWithCString: font 

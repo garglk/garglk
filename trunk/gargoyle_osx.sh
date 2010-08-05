@@ -52,6 +52,7 @@ cp -f garglk/*.icns $BUNDLE/Resources
 cp -f licenses/* $BUNDLE/Resources
 
 mkdir $BUNDLE/Resources/Fonts
-cp fonts/*.ttf $BUNDLE/Resources/Fonts
+cp fonts/LiberationMono*.ttf $BUNDLE/Resources/Fonts
+cp fonts/LinLibertine*.otf $BUNDLE/Resources/Fonts
 
 hdiutil create -ov -srcfolder Gargoyle.app/ gargoyle-2010.1-mac.dmg
