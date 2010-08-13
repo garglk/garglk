@@ -152,7 +152,7 @@ void (*ext_opcodes[0x1e]) (void) = {
     z_restore_undo,
     z_print_unicode,
     z_check_unicode,
-    __illegal__, // glkify - z_set_true_colour,	/* spec 1.1 */
+    z_set_true_colour, /* spec 1.1 */
     __illegal__,
     __illegal__,
     __illegal__, // glkify - z_move_window,
@@ -168,7 +168,7 @@ void (*ext_opcodes[0x1e]) (void) = {
     z_print_form,
     z_make_menu,
     __illegal__, // glkify - z_picture_table
-    __illegal__, // glkify - z_buffer_screen	/* spec 1.1 */
+    z_buffer_screen, /* spec 1.1 */
 };
 
 

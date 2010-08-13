@@ -772,7 +772,7 @@ void gli_windows_size_change()
 void gli_window_redraw(window_t *win)
 {
     if (gli_force_redraw) {
-        char *color = gli_override_bg ? gli_window_color : win->bgcolor;
+        char *color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         gli_draw_rect(win->bbox.x0, win->bbox.y0,
                 win->bbox.x1 - win->bbox.x0,
                 win->bbox.y1 - win->bbox.y0,
@@ -1340,6 +1340,8 @@ void glk_window_set_background_color(winid_t win, glui32 color)
 
 void attrset(attr_t *attr, glui32 style)
 {
+    attr->fgset = 0;
+    attr->bgset = 0;
     attr->fgcolor = 0;
     attr->bgcolor = 0;
     attr->reverse = FALSE;
@@ -1348,6 +1350,8 @@ void attrset(attr_t *attr, glui32 style)
 
 void attrclear(attr_t *attr)
 {
+    attr->fgset = 0;
+    attr->bgset = 0;
     attr->fgcolor = 0;
     attr->bgcolor = 0;
     attr->reverse = FALSE;
@@ -1360,27 +1364,66 @@ int attrfont(style_t *styles, attr_t *attr)
     return styles[attr->style].font;
 }
 
+static unsigned char zcolor_LightGrey[3] = { 181, 181, 181 };
+static unsigned char zcolor_Foreground[3] = { 0, 0, 0 };
+static unsigned char zcolor_Background[3] = { 0, 0, 0 };
+static unsigned char zcolor_Bright[3] = { 0, 0, 0 };
+
+static unsigned int zcolor_fg = 0;
+static unsigned int zcolor_bg = 0;
+
+unsigned char *rgbshift (unsigned char *rgb)
+{
+    if (!zcolor_Bright)
+        return;
+
+    zcolor_Bright[0] = (rgb[0] + 0x30) < 0xff ? (rgb[0] + 0x30) : 0xff;
+    zcolor_Bright[1] = (rgb[1] + 0x30) < 0xff ? (rgb[1] + 0x30) : 0xff;
+    zcolor_Bright[2] = (rgb[2] + 0x30) < 0xff ? (rgb[2] + 0x30) : 0xff;
+
+    return zcolor_Bright;
+}
+
 unsigned char *attrbg(style_t *styles, attr_t *attr)
 {
-    int zfore = attr->fgcolor ? attr->fgcolor : gli_override_fg;
-    int zback = attr->bgcolor ? attr->bgcolor : gli_override_bg;
+    int revset = attr->reverse || (styles[attr->style].reverse && !gli_override_reverse);
 
-    if (!attr->reverse && !(styles[attr->style].reverse && !gli_override_reverse)) {
-        if (zback > zcolor_Default && zback < zcolor_NUMCOLORS)
-            return zcolor_rgb[zback - zcolor_Black];
+    int zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
+    int zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
+
+    int zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
+    int zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
+
+    if (zfset && zfore != zcolor_fg)
+    {
+        zcolor_Foreground[0] = (zfore >> 16) & 0xff;
+        zcolor_Foreground[1] = (zfore >> 8) & 0xff;
+        zcolor_Foreground[2] = (zfore) & 0xff;
+        zcolor_fg = zfore;
+    }
+
+    if (zbset && zback != zcolor_bg)
+    {
+        zcolor_Background[0] = (zback >> 16) & 0xff;
+        zcolor_Background[1] = (zback >> 8) & 0xff;
+        zcolor_Background[2] = (zback) & 0xff;
+        zcolor_bg = zback;
+    }
+
+    if (!revset) {
+        if (zbset)
+            return zcolor_Background;
         else
             return styles[attr->style].bg;
     } else {
-        if (zfore > zcolor_Default && zfore < zcolor_NUMCOLORS)
+        if (zfset)
             if (zfore == zback)
-                return zbright_rgb[zfore - zcolor_Black];
+                return rgbshift(zcolor_Foreground);
             else
-                return zcolor_rgb[zfore - zcolor_Black];
+                return zcolor_Foreground;
         else
-            if (zback > zcolor_Default && zback < zcolor_NUMCOLORS
-                    && !memcmp(styles[attr->style].fg,
-                                zcolor_rgb[zback - zcolor_Black],3))
-                return zcolor_rgb[zcolor_LightGrey - zcolor_Black];
+            if (zbset && !memcmp(styles[attr->style].fg, zcolor_Background, 3))
+                return zcolor_LightGrey;
             else
                 return styles[attr->style].fg;
     }
@@ -1388,25 +1431,44 @@ unsigned char *attrbg(style_t *styles, attr_t *attr)
 
 unsigned char *attrfg(style_t *styles, attr_t *attr)
 {
-    int zfore = attr->fgcolor ? attr->fgcolor : gli_override_fg;
-    int zback = attr->bgcolor ? attr->bgcolor : gli_override_bg;
+    int revset = attr->reverse || (styles[attr->style].reverse && !gli_override_reverse);
 
-    if (!attr->reverse && !(styles[attr->style].reverse && !gli_override_reverse)) {
-        if (zfore > zcolor_Default && zfore < zcolor_NUMCOLORS)
+    int zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
+    int zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
+
+    int zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
+    int zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
+
+    if (zfset && zfore != zcolor_fg)
+    {
+        zcolor_Foreground[0] = (zfore >> 16) & 0xff;
+        zcolor_Foreground[1] = (zfore >> 8) & 0xff;
+        zcolor_Foreground[2] = (zfore) & 0xff;
+        zcolor_fg = zfore;
+    }
+
+    if (zbset && zback != zcolor_bg)
+    {
+        zcolor_Background[0] = (zback >> 16) & 0xff;
+        zcolor_Background[1] = (zback >> 8) & 0xff;
+        zcolor_Background[2] = (zback) & 0xff;
+        zcolor_bg = zback;
+    }
+
+    if (!revset) {
+        if (zfset)
             if (zfore == zback)
-                return zbright_rgb[zfore - zcolor_Black];
+                return rgbshift(zcolor_Foreground);
             else
-                return zcolor_rgb[zfore - zcolor_Black];
+                return zcolor_Foreground;
         else
-            if (zback > zcolor_Default && zback < zcolor_NUMCOLORS
-                    && !memcmp(styles[attr->style].fg,
-                                zcolor_rgb[zback - zcolor_Black],3))
-                return zcolor_rgb[zcolor_LightGrey - zcolor_Black];
+            if (zbset && !memcmp(styles[attr->style].fg, zcolor_Background, 3))
+                return zcolor_LightGrey;
             else
                 return styles[attr->style].fg;
     } else {
-        if (zback > zcolor_Default && zback < zcolor_NUMCOLORS)
-            return zcolor_rgb[zback - zcolor_Black];
+        if (zbset)
+            return zcolor_Background;
         else
             return styles[attr->style].bg;
     }
@@ -1417,6 +1479,10 @@ int attrequal(attr_t *a1, attr_t *a2)
     if (a1->style != a2->style)
         return FALSE;
     if (a1->reverse != a2->reverse)
+        return FALSE;
+    if (a1->fgset != a2->fgset)
+        return FALSE;
+    if (a1->bgset != a2->bgset)
         return FALSE;
     if (a1->fgcolor != a2->fgcolor)
         return FALSE;
