@@ -390,31 +390,6 @@ extern void garglk_set_program_info(const char *info);
 extern void garglk_set_story_name(const char *name);
 extern void garglk_set_config(const char *name);
 
-/* not implemented */
-
-#define garglk_font_Roman           (0)
-#define garglk_font_Italic          (1)
-#define garglk_font_Bold            (2)
-#define garglk_font_BoldItalic      (3)
-#define garglk_font_MonoRoman       (4)
-#define garglk_font_MonoItalic      (5)
-#define garglk_font_MonoBold        (6)
-#define garglk_font_MonoBoldItalic  (7)
-
-#define garglk_color_White          (0)
-#define garglk_color_Red            (1)
-#define garglk_color_Green          (2)
-#define garglk_color_Blue           (3)
-#define garglk_color_Cyan           (4)
-#define garglk_color_Magenta        (5)
-#define garglk_color_Yellow         (6)
-#define garglk_color_Black          (7)
-
-extern void garglk_set_style_font(glui32 font);
-extern void garglk_set_style_stream_font(strid_t str, glui32 font);
-extern void garglk_set_style_color(glui32 bg, glui32 fg);
-extern void garglk_set_style_stream_color(strid_t str, glui32 bg, glui32 fg);
-
 /* JM: functions added to support Z-machine features that aren't in the Glk standard */
 
 /* garglk_set_line_terminators - amends the current line input request to include terminating
@@ -427,20 +402,10 @@ extern void garglk_set_line_terminators(winid_t win, const glui32 *keycodes, glu
 extern void garglk_unput_string(char *str);
 extern void garglk_unput_string_uni(glui32 *str);
 
-#define zcolor_Current      (0)
-#define zcolor_Default      (1)
-#define zcolor_Black        (2)
-#define zcolor_Red          (3)
-#define zcolor_Green        (4)
-#define zcolor_Yellow       (5)
-#define zcolor_Blue         (6)
-#define zcolor_Magenta      (7)
-#define zcolor_Cyan         (8)
-#define zcolor_White        (9)
-#define zcolor_LightGrey    (10)
-#define zcolor_MediumGrey   (11)
-#define zcolor_DarkGrey     (12)
-#define zcolor_NUMCOLORS    (13)
+#define zcolor_Transparent   (-4)
+#define zcolor_Cursor        (-3)
+#define zcolor_Current       (-2)
+#define zcolor_Default       (-1)
 
 extern void garglk_set_zcolors(glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);

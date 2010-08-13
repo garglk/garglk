@@ -111,8 +111,10 @@ unsigned char gli_border_save[3] = { 0x00, 0x00, 0x00 };
 unsigned char gli_more_save[3] = { 0x00, 0x00, 0x00 };
 unsigned char gli_link_save[3] = { 0x00, 0x00, 0x60 };
 
-int gli_override_fg = 0;
-int gli_override_bg = 0;
+int gli_override_fg_set = 0;
+int gli_override_bg_set = 0;
+int gli_override_fg_val = 0;
+int gli_override_bg_val = 0;
 int gli_override_reverse = 0;
 
 char *gli_more_prompt = "\207 more \207";
