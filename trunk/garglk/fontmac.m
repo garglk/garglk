@@ -184,9 +184,13 @@ void addfonts(void)
 
     NSURL * fontURL = [NSURL fileURLWithPath: fontFolder];
     CFURLGetFSRef((CFURLRef) fontURL, &fsRef);
-
     FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
+
+#ifdef __x86_64__
+    ATSFontActivateFromFileReference(&fsRef, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, NULL);
+#else
     ATSFontActivateFromFileSpecification(&fsSpec, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, NULL);
+#endif
 
     gli_fonts_added = TRUE;
 }
