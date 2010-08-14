@@ -46,30 +46,21 @@ static FILE *pfp = NULL;
  * the old transscription file in V1 to V4, and to ask for a new file
  * name in V5+.
  *
- * Alas, we cannot do this, since glk cannot give us the filename
- * to reopen it again, and I dont want to mess with filerefs here.
- *
  */
+
+static bool script_valid = FALSE;
 
 void script_open (void)
 {
-	static bool script_valid = FALSE;
 
 	h_flags &= ~SCRIPTING_FLAG;
 
-#if 0
-	if (h_version >= V5 || !script_valid) {
-		if (!os_read_file_name (new_name, script_name, FILE_SCRIPT))
-			goto done;
-	}
+	if (h_version < V5 && script_valid)
+		sfp = frotzreopen(FILE_SCRIPT);
+	else
+		sfp = frotzopenprompt(FILE_SCRIPT);
 
-	/* Opening in "at" mode doesn't work for script_erase_input... */
-
-	if ((sfp = fopen (sfp = fopen (script_name, "r+t")) != NULL || (sfp = fopen (script_name, "w+t")) != NULL) {
-
-#endif
-
-	if ((sfp = frotzopenprompt(FILE_SCRIPT)) != NULL)
+	if (sfp != NULL)
 	{
 		fseek (sfp, 0, SEEK_END);
 
@@ -81,8 +72,6 @@ void script_open (void)
 		script_width = 0;
 
 	} else print_string ("Cannot open file\n");
-
-/* done: */
 
 	SET_WORD (H_FLAGS, h_flags)
 

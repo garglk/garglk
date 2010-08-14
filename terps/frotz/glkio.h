@@ -64,5 +64,5 @@ typedef struct glk_stream_struct FILE;
 #define SEEK_END        seekmode_End
 
 FILE *frotzopenprompt(int flag);
+FILE *frotzreopen(int flag);
 FILE *frotzopen(char *filename, int flag);
-
