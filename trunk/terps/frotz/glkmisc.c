@@ -523,6 +523,9 @@ static glui32 flag2mode(int flag)
 	return filemode_ReadWrite;
 }
 
+frefid_t script_fref = NULL;
+int script_exists = 0;
+
 strid_t frotzopenprompt(int flag)
 {
 	frefid_t fref;
@@ -536,7 +539,33 @@ strid_t frotzopenprompt(int flag)
 
 	stm = glk_stream_open_file(fref, gmode, 0);
 
+	if (flag == FILE_SCRIPT)
+	{
+		if (script_fref)
+			glk_fileref_destroy(script_fref);
+		script_fref = glk_fileref_create_from_fileref(gusage, fref, 0);
+		script_exists = (script_fref != NULL);
+	}
+
 	glk_fileref_destroy(fref);
+
+	return stm;
+}
+
+strid_t frotzreopen(int flag)
+{
+	frefid_t fref;
+
+	if (flag == FILE_SCRIPT && script_exists)
+		fref = script_fref;
+	else
+		return NULL;
+
+	strid_t stm;
+	glui32 gusage = flag2usage(flag);
+	glui32 gmode = flag2mode(flag);
+
+	stm = glk_stream_open_file(fref, gmode, 0);
 
 	return stm;
 }
