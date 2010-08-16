@@ -235,7 +235,7 @@ void winclipreceive(int source)
     if (!glen)
         return;
 
-    rptr = malloc(sizeof(glui32)*glen);
+    rptr = malloc(sizeof(glui32)*(glen+1));
     rlen = gli_parse_utf8(gptr, glen, rptr, glen);
 
     for (i = 0; i < rlen; i++)
