@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2010 by Tor Andersson, Ben Cressey, Chris Spiegel.      *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -360,27 +360,20 @@ static void oninput(GtkIMContext *context, gchar *input, void *data)
 static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
 {
     int key = event->keyval;
+
+    if (event->state & GDK_CONTROL_MASK) {
+
     switch(key)
     {
-    case GDK_c:
-    case GDK_C:
-        if (event->state & GDK_CONTROL_MASK) {
-            winclipsend(CLIPBOARD);
-            return;
-        }
-    case GDK_x:
-    case GDK_X:
-        if (event->state & GDK_CONTROL_MASK) {
-            winclipsend(CLIPBOARD);
-            return;
-        }
-    case GDK_v:
-    case GDK_V:
-        if (event->state & GDK_CONTROL_MASK) {
-            winclipreceive(CLIPBOARD);
-            return;
-        }
-    default: break;
+    case GDK_a: case GDK_A: gli_input_handle_key(keycode_Home); break;
+    case GDK_c: case GDK_C: winclipsend(CLIPBOARD); break;
+    case GDK_e: case GDK_E: gli_input_handle_key(keycode_End); break;
+    case GDK_u: case GDK_U: gli_input_handle_key(keycode_Escape); break;
+    case GDK_v: case GDK_V: winclipreceive(CLIPBOARD); break;
+    case GDK_x: case GDK_X: winclipsend(CLIPBOARD); break;
+    }
+
+    return;
     }
 
     if (!gtk_im_context_filter_keypress(imcontext, event)) {

@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2010 by Ben Cressey, Sylvain Beucler.                        *
+ * Copyright (C) 2010 by Ben Cressey, Sylvain Beucler, Chris Spiegel.         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
