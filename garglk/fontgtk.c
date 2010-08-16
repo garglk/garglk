@@ -89,7 +89,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_monor = sysfont;
                 gli_conf_monob = sysfont;
@@ -105,7 +105,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_monob = sysfont;
                 gli_conf_monoz = sysfont;
@@ -127,7 +127,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_monoi = sysfont;
                 gli_conf_monoz = sysfont;
@@ -162,7 +162,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_monoz = sysfont;
             }
@@ -187,7 +187,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_propr = sysfont;
                 gli_conf_propb = sysfont;
@@ -203,7 +203,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_propb = sysfont;
                 gli_conf_propz = sysfont;
@@ -225,7 +225,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_propi = sysfont;
                 gli_conf_propz = sysfont;
@@ -260,7 +260,7 @@ void winfont(char *font, int type)
 
             if (strlen(fontpath))
             {
-                sysfont = malloc(strlen(fontpath));
+                sysfont = malloc(strlen(fontpath)+1);
                 strcpy(sysfont, fontpath);
                 gli_conf_propz = sysfont;
             }
