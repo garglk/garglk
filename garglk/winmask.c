@@ -130,7 +130,7 @@ glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
     if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
     {
         gli_strict_warning("get_hyperlink: struct not initialized");
-        return;
+        return 0;
     }
 
     if (x >= gli_mask->hor
@@ -138,7 +138,7 @@ glui32 gli_get_hyperlink(unsigned int x, unsigned int y)
             || !gli_mask->links[x])
     {
         gli_strict_warning("get_hyperlink: invalid range given");
-        return;
+        return 0;
     }
 
     return gli_mask->links[x][y];
