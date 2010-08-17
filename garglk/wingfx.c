@@ -203,6 +203,12 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 		return FALSE;
 	}
 
+	if (!dwin->owner->image_loaded)
+	{
+		gli_piclist_increment();
+		dwin->owner->image_loaded = TRUE;
+	}
+
 	if (!scale) {
 		imagewidth = pic->w;
 		imageheight = pic->h;

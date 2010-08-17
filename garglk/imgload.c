@@ -38,6 +38,7 @@ static void load_image_png(FILE *fl, picture_t *pic);
 static void load_image_jpeg(FILE *fl, picture_t *pic);
 
 static piclist_t *picstore = NULL;	/* cache all loaded pictures */
+static gli_piclist_refcount = 0;	/* count references to loaded pictures */
 
 static void gli_picture_discard(picture_t *pic);
 
@@ -79,6 +80,17 @@ void gli_piclist_clear(void)
     }
 
     picstore = NULL;
+}
+
+void gli_piclist_increment(void)
+{
+    gli_piclist_refcount++;
+}
+
+void gli_piclist_decrement(void)
+{
+    if (gli_piclist_refcount > 0 && --gli_piclist_refcount == 0)
+        gli_piclist_clear();
 }
 
 void gli_picture_store_original(picture_t *pic)

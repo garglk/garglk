@@ -89,6 +89,7 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->hyper_request = FALSE;
     win->more_request = FALSE;
     win->scroll_request = FALSE;
+    win->image_loaded = FALSE;
 
     attrclear(&win->attr);
     memcpy(win->bgcolor, gli_window_color, 3);
@@ -282,6 +283,9 @@ static void gli_window_close(window_t *win, int recurse)
             }
         }
     }
+
+    if (win->image_loaded)
+        gli_piclist_decrement();
 
     switch (win->type)
     {
