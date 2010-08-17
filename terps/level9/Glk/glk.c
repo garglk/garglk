@@ -6181,7 +6181,7 @@ static void
 gln_establish_picture_filename (char *name, char **graphics)
 {
   char *base, *directory_end, *graphics_file;
-  FILE *stream;
+  FILE *stream = NULL;
   assert (name && graphics);
 
   /* Take a destroyable copy of the input filename. */
@@ -6189,35 +6189,66 @@ gln_establish_picture_filename (char *name, char **graphics)
   strcpy (base, name);
 
   /* If base has an extension .LEV, .SNA, or similar, remove it. */
-  if (strlen (base) > strlen (".XXX"))
+  if (strrchr (base, '.'))
     {
-      if (base[strlen (base) - strlen (".XXX")] == '.')
-        base[strlen (base) - strlen (".XXX")] = '\0';
+      base[strlen (base) - strlen (strrchr (base, '.'))] = '\0';
     }
 
   /* Allocate space for the return graphics file. */
-  graphics_file = gln_malloc (strlen (base) + strlen (".PIC") + 1);
+  graphics_file = gln_malloc (strlen (base) + strlen (".___") + 1);
 
   /* Form a candidate graphics file, using a .PIC extension. */
-  strcpy (graphics_file, base);
-  strcat (graphics_file, ".PIC");
-  stream = fopen (graphics_file, "rb");
   if (!stream)
     {
-      /* Retry, using a .pic extension instead. */
+      strcpy (graphics_file, base);
+      strcat (graphics_file, ".PIC");
+      stream = fopen (graphics_file, "rb");
+    }
+
+  if (!stream)
+    {
       strcpy (graphics_file, base);
       strcat (graphics_file, ".pic");
       stream = fopen (graphics_file, "rb");
-      if (!stream)
-        {
-          /*
-           * No access to this graphics file.  In this case, free memory
-           * and reset graphics file to NULL.
-           */
-          free (graphics_file);
-          graphics_file = NULL;
-        }
     }
+
+  /* Form a candidate graphics file, using a .CGA extension. */
+  if (!stream)
+    {
+      strcpy (graphics_file, base);
+      strcat (graphics_file, ".CGA");
+      stream = fopen (graphics_file, "rb");
+    }
+
+  if (!stream)
+    {
+      strcpy (graphics_file, base);
+      strcat (graphics_file, ".cga");
+      stream = fopen (graphics_file, "rb");
+    }
+
+  /* Form a candidate graphics file, using a .HRC extension. */
+  if (!stream)
+    {
+      strcpy (graphics_file, base);
+      strcat (graphics_file, ".HRC");
+      stream = fopen (graphics_file, "rb");
+    }
+
+  if (!stream)
+    {
+      strcpy (graphics_file, base);
+      strcat (graphics_file, ".hrc");
+      stream = fopen (graphics_file, "rb");
+    }
+
+  /* No access to graphics file. */
+  if (!stream)
+    {
+      free (graphics_file);
+      graphics_file = NULL;
+    }
+
   if (stream)
     fclose (stream);
 
