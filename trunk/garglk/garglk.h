@@ -384,6 +384,7 @@ struct glk_window_struct
     int hyper_request;
     int more_request;
     int scroll_request;
+    int image_loaded;
 
     attr_t attr;
     unsigned char bgcolor[3];
@@ -663,7 +664,8 @@ picture_t *gli_picture_load(unsigned long id);
 void gli_picture_store(picture_t *pic);
 picture_t *gli_picture_retrieve(unsigned long id, int scaled);
 picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
-void gli_piclist_clear(void);
+void gli_piclist_increment(void);
+void gli_piclist_decrement(void);
 
 window_graphics_t *win_graphics_create(window_t *win);
 void win_graphics_destroy(window_graphics_t *cutwin);

@@ -1630,6 +1630,12 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
     if (!pic)
         return FALSE;
 
+    if (!dwin->owner->image_loaded)
+    {
+        gli_piclist_increment();
+        dwin->owner->image_loaded = TRUE;
+    }
+
     if (scaled)
     {
         picture_t *tmp;
