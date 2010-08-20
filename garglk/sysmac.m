@@ -625,6 +625,16 @@ void winmouse(NSEvent *evt)
             break;
         }
 
+        case NSScrollWheel:
+        {
+            if ([evt deltaY] > 0)
+                gli_input_handle_key(keycode_MouseWheelUp);
+            else if ([evt deltaY] < 0)
+                gli_input_handle_key(keycode_MouseWheelDown);
+
+            break;
+        }
+
         default: break;
     }
 
@@ -640,15 +650,16 @@ void winevent(NSEvent *evt)
 
     switch ([evt type])
     {
-        case NSKeyDown :
+        case NSKeyDown:
         {
             winkey(evt);
             return;
         }
 
-        case NSLeftMouseDown :
-        case NSLeftMouseDragged :
-        case NSLeftMouseUp :
+        case NSLeftMouseDown:
+        case NSLeftMouseDragged:
+        case NSLeftMouseUp:
+        case NSScrollWheel:
         {
             winmouse(evt);
             return;

@@ -219,6 +219,14 @@ char filterlist[] = "";
             break;
         }
 
+        case NSScrollWheel:
+        {
+            if ([event deltaY] > 0.5 || [event deltaY] < -0.5)
+                store = YES;
+
+            break;
+        }
+
         default: break;
     }
 
