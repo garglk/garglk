@@ -167,6 +167,8 @@ char filterlist[] = "";
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
     textbuffer = [[NSTextView alloc] init];
     processID = pid;
+
+    [self setAcceptsMouseMovedEvents: YES];
     lastMouseMove = 0;
 
     [[NSNotificationCenter defaultCenter] addObserver: self
@@ -210,6 +212,7 @@ char filterlist[] = "";
         }
 
         case NSLeftMouseDragged:
+        case NSMouseMoved:
         {
             if (([event timestamp] - lastMouseMove) > 0.05)
             {
@@ -607,6 +610,31 @@ char filterlist[] = "";
                     prompt: (NSString *) prompt
 {
     NSRunAlertPanel(@"Fatal error", prompt, NULL, NULL, NULL);
+}
+
+#define kArrowCursor 1
+#define kIBeamCursor 2
+#define kPointingHandCursor 3
+
+- (void) setCursor: (unsigned int) cursor
+{
+    switch (cursor)
+    {
+        case (kArrowCursor):
+            [[NSCursor arrowCursor] set];
+            break;
+
+        case (kIBeamCursor):
+            [[NSCursor IBeamCursor] set];
+            break;
+
+        case (kPointingHandCursor):
+            [[NSCursor pointingHandCursor] set];
+            break;
+
+        default:
+            break;
+    }
 }
 
 - (BOOL) launchFileDialog
