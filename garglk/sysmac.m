@@ -592,8 +592,9 @@ void winmouse(NSEvent *evt)
     int x = coords.x;
     int y = gli_image_h - coords.y;
 
-    /* disregard events outside of content window */
-    if (coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
+    /* disregard most events outside of content window */
+    if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
+        && !([evt type] == NSLeftMouseUp))
         return;
 
     switch ([evt type])
