@@ -39,6 +39,10 @@
 static volatile int gli_event_waiting = FALSE;
 static volatile int gli_window_alive = TRUE;
 
+#define kArrowCursor 1
+#define kIBeamCursor 2
+#define kPointingHandCursor 3
+
 @protocol GargoyleApp
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
@@ -73,6 +77,8 @@ static volatile int gli_window_alive = TRUE;
 
 - (void) abortWindowDialog: (pid_t) processID
                     prompt: (NSString *) prompt;
+
+- (void) setCursor: (unsigned int) cursor;
 
 @end
 
@@ -602,26 +608,25 @@ void winmouse(NSEvent *evt)
         {
             if (gli_copyselect)
             {
-                [[NSCursor IBeamCursor] set];
+                [gargoyle setCursor: kIBeamCursor];
                 gli_move_selection(x, y);
             }
+            break;
+        }
 
+        case NSMouseMoved:
+        {
+            if (gli_get_hyperlink(x, y))
+                [gargoyle setCursor: kPointingHandCursor];
             else
-            {
-                if (gli_get_hyperlink(x, y))
-                    [[NSCursor pointingHandCursor] set];
-
-                else
-                    [[NSCursor arrowCursor] set];
-            }
-
+                [gargoyle setCursor: kArrowCursor]; 
             break;
         }
 
         case NSLeftMouseUp:
         {
             gli_copyselect = FALSE;
-            [[NSCursor arrowCursor] set];
+            [gargoyle setCursor: kArrowCursor];
             break;
         }
 
@@ -631,7 +636,6 @@ void winmouse(NSEvent *evt)
                 gli_input_handle_key(keycode_MouseWheelUp);
             else if ([evt deltaY] < 0)
                 gli_input_handle_key(keycode_MouseWheelDown);
-
             break;
         }
 
@@ -659,6 +663,7 @@ void winevent(NSEvent *evt)
         case NSLeftMouseDown:
         case NSLeftMouseDragged:
         case NSLeftMouseUp:
+        case NSMouseMoved:
         case NSScrollWheel:
         {
             winmouse(evt);
