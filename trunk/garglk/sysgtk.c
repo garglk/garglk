@@ -320,6 +320,14 @@ static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
     }
 }
 
+static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
+{
+    if (event->direction == GDK_SCROLL_UP)
+        gli_input_handle_key(keycode_MouseWheelUp);
+    else if (event->direction == GDK_SCROLL_DOWN)
+        gli_input_handle_key(keycode_MouseWheelDown);
+}
+
 static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
 {
     int x,y;
@@ -468,11 +476,14 @@ void winopen(void)
     gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
                                | GDK_BUTTON_RELEASE_MASK
                                | GDK_POINTER_MOTION_MASK
-                               | GDK_POINTER_MOTION_HINT_MASK);
+                               | GDK_POINTER_MOTION_HINT_MASK
+                               | GDK_SCROLL_MASK);
     gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
     	GTK_SIGNAL_FUNC(onbuttondown), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
     	GTK_SIGNAL_FUNC(onbuttonup), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event", 
+    	GTK_SIGNAL_FUNC(onscroll), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
     	GTK_SIGNAL_FUNC(onkeydown), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_release_event", 
