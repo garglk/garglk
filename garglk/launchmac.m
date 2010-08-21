@@ -224,7 +224,7 @@ char filterlist[] = "";
 
         case NSScrollWheel:
         {
-            if ([event deltaY] > 0.5 || [event deltaY] < -0.5)
+            if ([event deltaY] > 0.05 || [event deltaY] < -0.05)
                 store = YES;
 
             break;
