@@ -228,7 +228,7 @@ int CALLBACK propfont(
     return 1;
 }
 
-void winfont(char *font, int type)
+void fontreplace(char *font, int type)
 {
     if (!strlen(font))
         return;
@@ -255,4 +255,12 @@ void winfont(char *font, int type)
     }
 
     ReleaseDC(0, hdc);
+}
+
+void fontload(void)
+{
+}
+
+void fontunload(void)
+{
 }

@@ -655,7 +655,10 @@ void winrepaint(int x0, int y0, int x1, int y1);
 void winabort(const char *fmt, ...);
 void winopenfile(char *prompt, char *buf, int buflen, char *filter);
 void winsavefile(char *prompt, char *buf, int buflen, char *filter);
-void winfont(char *font, int type);
+
+void fontreplace(char *font, int type);
+void fontload(void);
+void fontunload(void);
 
 int giblorb_is_resource_map();
 void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, long *len, glui32 *type);
