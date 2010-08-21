@@ -29,14 +29,14 @@
 #include "glk.h"
 #include "garglk.h"
 
+static ATSFontContainerRef gli_font_container = 0;
+
 static int gli_sys_monor = FALSE;
 static int gli_sys_monob = FALSE;
 static int gli_sys_monoi = FALSE;
 static int gli_sys_monoz = FALSE;
 
-static int gli_fonts_added = FALSE;
-
-void monofont(char *file, int style)
+static void monofont(char *file, int style)
 {
     switch (style)
     {
@@ -105,7 +105,7 @@ static int gli_sys_propb = FALSE;
 static int gli_sys_propi = FALSE;
 static int gli_sys_propz = FALSE;
 
-void propfont(char *file, int style)
+static void propfont(char *file, int style)
 {
     switch (style)
     {
@@ -169,41 +169,12 @@ void propfont(char *file, int style)
     }
 }
 
-void addfonts(void)
-{
-    char * env;
-    FSRef fsRef;
-    FSSpec fsSpec;
-
-    env = getenv("GARGLK_INI");
-    if (!env)
-        return;
-
-    NSString * fontFolder = [[NSString stringWithCString: env encoding: NSASCIIStringEncoding] 
-                             stringByAppendingPathComponent: @"Fonts"];
-
-    NSURL * fontURL = [NSURL fileURLWithPath: fontFolder];
-    CFURLGetFSRef((CFURLRef) fontURL, &fsRef);
-    FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
-
-#ifdef __x86_64__
-    ATSFontActivateFromFileReference(&fsRef, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, NULL);
-#else
-    ATSFontActivateFromFileSpecification(&fsSpec, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, NULL);
-#endif
-
-    gli_fonts_added = TRUE;
-}
-
-void winfont(char *font, int type)
+void fontreplace(char *font, int type)
 {
     if (!strlen(font))
         return;
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    
-    if (!gli_fonts_added)
-        addfonts();
 
     NSEnumerator * sysfonts = [[[[NSFontDescriptor fontDescriptorWithFontAttributes:nil] 
                                  fontDescriptorWithFamily: [NSString stringWithCString: font 
@@ -252,6 +223,44 @@ void winfont(char *font, int type)
             }
         }
     }
+
+    [pool drain];
+}
+
+void fontload(void)
+{
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    
+    char * env;
+    FSRef fsRef;
+    FSSpec fsSpec;
+
+    env = getenv("GARGLK_INI");
+    if (!env)
+        return;
+
+    NSString * fontFolder = [[NSString stringWithCString: env encoding: NSASCIIStringEncoding] 
+                             stringByAppendingPathComponent: @"Fonts"];
+
+    NSURL * fontURL = [NSURL fileURLWithPath: fontFolder];
+    CFURLGetFSRef((CFURLRef) fontURL, &fsRef);
+    FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
+
+#ifdef __x86_64__
+    ATSFontActivateFromFileReference(&fsRef, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, &gli_font_container);
+#else
+    ATSFontActivateFromFileSpecification(&fsSpec, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, &gli_font_container);
+#endif
+
+    [pool drain];
+}
+
+void fontunload(void)
+{
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
+    if (gli_font_container)
+        ATSFontDeactivate(gli_font_container, NULL, kATSOptionFlagsDefault);
 
     [pool drain];
 }

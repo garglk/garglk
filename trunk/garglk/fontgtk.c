@@ -28,7 +28,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-void findfont(char *fontname, char *fontpath)
+static void findfont(char *fontname, char *fontpath)
 {
     FcPattern *p = NULL;
     FcChar8 *strval = NULL;
@@ -61,7 +61,7 @@ void findfont(char *fontname, char *fontpath)
     return;
 }
 
-void winfont(char *font, int type)
+void fontreplace(char *font, int type)
 {
     if (!strlen(font))
         return;
@@ -268,4 +268,12 @@ void winfont(char *font, int type)
             return;
         }
     }
+}
+
+void fontload(void)
+{
+}
+
+void fontunload(void)
+{
 }
