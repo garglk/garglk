@@ -40,7 +40,7 @@ int saveUndo (git_sint32 * base, git_sint32 * sp)
 {
     git_uint32 undoSize = sizeof(UndoRecord);
     git_uint32 mapSize = sizeof(MemoryPage*) * (gEndMem - gRamStart) / 256;
-    git_uint32 stackSize = sizeof(git_sint32*) * (sp - base);
+    git_uint32 stackSize = sizeof(git_sint32) * (sp - base);
     git_uint32 totalSize = undoSize + mapSize + stackSize;
 
     git_uint32 addr = gRamStart; // Address in glulx memory.
