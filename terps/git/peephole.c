@@ -50,6 +50,10 @@ extern void resetPeepholeOptimiser ()
             CASE_NO_OPERANDS (aloads_discard,   aloads_ ## storeOp);    \
             CASE_NO_OPERANDS (aloadb_discard,   aloadb_ ## storeOp);    \
             CASE_NO_OPERANDS (aloadbit_discard, aloadbit_ ## storeOp);  \
+            CASE_NO_OPERANDS (fadd_discard,     fadd_ ## storeOp);      \
+            CASE_NO_OPERANDS (fsub_discard,     fsub_ ## storeOp);      \
+            CASE_NO_OPERANDS (fmul_discard,     fmul_ ## storeOp);      \
+            CASE_NO_OPERANDS (fdiv_discard,     fdiv_ ## storeOp);      \
             default: break;                                             \
         }                                                               \
         break

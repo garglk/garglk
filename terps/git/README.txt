@@ -191,6 +191,10 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
+1.2.7 2010-08-20  Floating point opcode support (VM spec 3.1.2).
+                  Restart does not now discard undo information, so that a
+                  restart can be undone.
+
 1.2.6 2010-02-09  Imported fix for retained Glk array handling from Glulxe.
 
 1.2.5 2009-11-21  Fixes for problems shown by Andrew Plotkin's glulxercise test

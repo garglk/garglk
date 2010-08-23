@@ -42,20 +42,20 @@ LABEL (throw)
 // Loading and storing registers.
 
 #define LOAD_LABELS(tag)			\
-	LABEL (L1_ ## tag)				\
-	LABEL (L2_ ## tag)				\
-	LABEL (L3_ ## tag)				\
-	LABEL (L4_ ## tag)				\
-	LABEL (L5_ ## tag)				\
-	LABEL (L6_ ## tag)				\
-	LABEL (L7_ ## tag)				\
+	LABEL (L1_ ## tag)			\
+	LABEL (L2_ ## tag)			\
+	LABEL (L3_ ## tag)			\
+	LABEL (L4_ ## tag)			\
+	LABEL (L5_ ## tag)			\
+	LABEL (L6_ ## tag)			\
+	LABEL (L7_ ## tag)			\
 	LABEL (L1_const_L2_ ## tag)		\
 	LABEL (L1_stack_L2_ ## tag)		\
 	LABEL (L1_local_L2_ ## tag)		\
 	LABEL (L1_addr_L2_ ## tag)
 
 #define STORE_LABELS(tag)			\
-	LABEL (S1_ ## tag)				\
+	LABEL (S1_ ## tag)			\
 	LABEL (S2_ ## tag)
 
 LOAD_LABELS(const)
@@ -101,7 +101,11 @@ LABEL (nop)
 	LABEL (aload ## tag) \
 	LABEL (aloads ## tag) \
 	LABEL (aloadb ## tag) \
-	LABEL (aloadbit ## tag)
+	LABEL (aloadbit ## tag) \
+	LABEL (fadd ## tag) \
+	LABEL (fsub ## tag) \
+	LABEL (fmul ## tag) \
+	LABEL (fdiv ## tag)
 
 PEEPHOLE_STORE_LABELS(_discard)
 PEEPHOLE_STORE_LABELS(_S1_stack)
@@ -128,20 +132,28 @@ LABEL (astorebit)
 
 #undef PEEPHOLE_STORE_LABELS
 
-#define BRANCH_LABELS(tag)   \
-	LABEL (jump ## tag)  \
-	LABEL (jz ## tag)    \
-	LABEL (jnz ## tag)   \
-	LABEL (jeq ## tag)   \
-	LABEL (jne ## tag)   \
-	LABEL (jlt ## tag)   \
-	LABEL (jge ## tag)   \
-	LABEL (jgt ## tag)   \
-	LABEL (jle ## tag)   \
-	LABEL (jltu ## tag)  \
-	LABEL (jgeu ## tag)  \
-	LABEL (jgtu ## tag)  \
-	LABEL (jleu ## tag)
+#define BRANCH_LABELS(tag)    \
+	LABEL (jump ## tag)   \
+	LABEL (jz ## tag)     \
+	LABEL (jnz ## tag)    \
+	LABEL (jeq ## tag)    \
+	LABEL (jne ## tag)    \
+	LABEL (jlt ## tag)    \
+	LABEL (jge ## tag)    \
+	LABEL (jgt ## tag)    \
+	LABEL (jle ## tag)    \
+	LABEL (jltu ## tag)   \
+	LABEL (jgeu ## tag)   \
+	LABEL (jgtu ## tag)   \
+	LABEL (jleu ## tag)   \
+	LABEL (jflt ## tag)   \
+	LABEL (jfge ## tag)   \
+	LABEL (jfgt ## tag)   \
+	LABEL (jfle ## tag)   \
+	LABEL (jisnan ## tag) \
+	LABEL (jisinf ## tag) \
+	LABEL (jfeq ## tag)   \
+	LABEL (jfne ## tag)
 
 BRANCH_LABELS(_var)
 BRANCH_LABELS(_const)
@@ -194,6 +206,24 @@ LABEL (mfree)
 
 LABEL (accelfunc)
 LABEL (accelparam)
+
+LABEL (numtof)
+LABEL (ftonumz)
+LABEL (ftonumn)
+LABEL (ceil)
+LABEL (floor)
+LABEL (fmod)
+LABEL (sqrt)
+LABEL (exp)
+LABEL (log)
+LABEL (pow)
+LABEL (sin)
+LABEL (cos)
+LABEL (tan)
+LABEL (asin)
+LABEL (acos)
+LABEL (atan)
+LABEL (atan2)
 
 LABEL (git_setcacheram)
 LABEL (git_prunecache)

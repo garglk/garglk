@@ -3,6 +3,7 @@
 
 #include "git.h"
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -30,6 +31,39 @@ Opcode* gOpcodeTable;
 #define CHECK_USED(n) if ((sp - values) < (n)) goto stack_underflow
 
 // -------------------------------------------------------------
+// Floating point support
+
+#define ENCODE_FLOAT(f) (* (git_uint32*) &f)
+#define DECODE_FLOAT(n) (* (git_float*) &n)
+
+int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
+{
+  git_float F1, F2;
+
+  if (((L3 & 0x7F800000) == 0x7F800000) && ((L3 & 0x007FFFFF) != 0))
+    return 0;
+  if ((L1 == 0x7F800000 || L1 == 0xFF800000) && (L2 == 0x7F800000 || L2 == 0xFF800000))
+    return (L1 == L2);
+
+  F1 = DECODE_FLOAT(L2) - DECODE_FLOAT(L1);
+  F2 = fabs(DECODE_FLOAT(L3));
+  return ((F1 <= F2) && (F1 >= -F2));
+}
+
+#ifdef USE_OWN_POWF
+float git_powf(float x, float y)
+{
+  if (x == 1.0f)
+    return 1.0f;
+  else if ((y == 0.0f) || (y == -0.0f))
+    return 1.0f;
+  else if ((x == -1.0f) && isinf(y))
+    return 1.0f;
+  return powf(x,y);
+}
+#endif
+
+// -------------------------------------------------------------
 // Functions
 
 void startProgram (size_t cacheSize, enum IOMode ioMode)
@@ -39,6 +73,7 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
     git_sint32 L1=0, L2=0, L3=0, L4=0, L5=0, L6=0, L7=0;
 #define S1 L1
 #define S2 L2
+    git_float F1=0.0f, F2=0.0f, F3=0.0f, F4=0.0f;
 
     git_sint32* base;   // Bottom of the stack.
     git_sint32* frame;  // Bottom of the current stack frame.
@@ -292,6 +327,11 @@ do_enter_function_L1: // Arg count is in L2.
     PEEPHOLE_STORE(sexs,    S1 = (git_sint32)((signed short)(L1 & 0xFFFF)));
     PEEPHOLE_STORE(sexb,    S1 = (git_sint32)((signed char)(L1 & 0x00FF)));
 
+    PEEPHOLE_STORE(fadd,    F1 = DECODE_FLOAT(L1) + DECODE_FLOAT(L2); S1 = ENCODE_FLOAT(F1));
+    PEEPHOLE_STORE(fsub,    F1 = DECODE_FLOAT(L1) - DECODE_FLOAT(L2); S1 = ENCODE_FLOAT(F1));
+    PEEPHOLE_STORE(fmul,    F1 = DECODE_FLOAT(L1) * DECODE_FLOAT(L2); S1 = ENCODE_FLOAT(F1));
+    PEEPHOLE_STORE(fdiv,    F1 = DECODE_FLOAT(L1) / DECODE_FLOAT(L2); S1 = ENCODE_FLOAT(F1));
+
 #define PEEPHOLE_LOAD(tag,reg) \
     do_ ## tag ## _ ## reg ## _const: reg = READ_PC; goto do_ ## tag; \
     do_ ## tag ## _ ## reg ## _stack: CHECK_USED(1); reg = POP; goto do_ ## tag; \
@@ -325,24 +365,33 @@ do_enter_function_L1: // Arg count is in L2.
     do_ ## tag ## _return0: if (cond) { L1 = 0; goto do_return; } NEXT;                     \
     do_ ## tag ## _return1: if (cond) { L1 = 1; goto do_return; } NEXT
     
-    DO_JUMP(jump, L1, 1 == 1);
-    DO_JUMP(jz,   L2, L1 == 0);
-    DO_JUMP(jnz,  L2, L1 != 0);
-    DO_JUMP(jeq,  L3, L1 == L2);
-    DO_JUMP(jne,  L3, L1 != L2);
-    DO_JUMP(jlt,  L3, L1 < L2);
-    DO_JUMP(jge,  L3, L1 >= L2);
-    DO_JUMP(jgt,  L3, L1 > L2);
-    DO_JUMP(jle,  L3, L1 <= L2);
-    DO_JUMP(jltu, L3, ((git_uint32)L1 < (git_uint32)L2));
-    DO_JUMP(jgeu, L3, ((git_uint32)L1 >= (git_uint32)L2));
-    DO_JUMP(jgtu, L3, ((git_uint32)L1 > (git_uint32)L2));
-    DO_JUMP(jleu, L3, ((git_uint32)L1 <= (git_uint32)L2));
+    DO_JUMP(jump,   L1, 1 == 1);
+    DO_JUMP(jz,     L2, L1 == 0);
+    DO_JUMP(jnz,    L2, L1 != 0);
+    DO_JUMP(jeq,    L3, L1 == L2);
+    DO_JUMP(jne,    L3, L1 != L2);
+    DO_JUMP(jlt,    L3, L1 < L2);
+    DO_JUMP(jge,    L3, L1 >= L2);
+    DO_JUMP(jgt,    L3, L1 > L2);
+    DO_JUMP(jle,    L3, L1 <= L2);
+    DO_JUMP(jltu,   L3, ((git_uint32)L1 < (git_uint32)L2));
+    DO_JUMP(jgeu,   L3, ((git_uint32)L1 >= (git_uint32)L2));
+    DO_JUMP(jgtu,   L3, ((git_uint32)L1 > (git_uint32)L2));
+    DO_JUMP(jleu,   L3, ((git_uint32)L1 <= (git_uint32)L2));
+    DO_JUMP(jisnan, L2, (((L1 & 0x7F800000) == 0x7F800000) && ((L1 & 0x007FFFFF) != 0)));
+    DO_JUMP(jisinf, L2, ((L1 == 0x7F800000) || (L1 == 0xFF800000)));
+    DO_JUMP(jflt,   L3, DECODE_FLOAT(L1) < DECODE_FLOAT(L2));
+    DO_JUMP(jfge,   L3, DECODE_FLOAT(L1) >= DECODE_FLOAT(L2));
+    DO_JUMP(jfgt,   L3, DECODE_FLOAT(L1) > DECODE_FLOAT(L2));
+    DO_JUMP(jfle,   L3, DECODE_FLOAT(L1) <= DECODE_FLOAT(L2));
+    DO_JUMP(jfeq,   L4, floatCompare(L1, L2, L3) != 0);
+    DO_JUMP(jfne,   L4, floatCompare(L1, L2, L3) == 0);
 
 #undef DO_JUMP
 
     do_jumpabs: L7 = L1; goto do_jump_abs_L7; NEXT;
 
+    do_goto_L4_from_L7: L1 = L4; goto do_goto_L1_from_L7;
     do_goto_L3_from_L7: L1 = L3; goto do_goto_L1_from_L7;
     do_goto_L2_from_L7: L1 = L2; goto do_goto_L1_from_L7;
     do_goto_L1_from_L7:
@@ -1104,7 +1153,6 @@ do_tailcall:
     do_restart:
         // Reset game memory to its initial state.
         resetMemory(protectPos, protectSize);
-        resetUndo();
 
         // Reset all the stack pointers.
         frame = locals = values = sp = base;
@@ -1273,6 +1321,124 @@ do_tailcall:
         accel_set_param(L1, L2);
         NEXT;
         
+    // Floating point (new with glulx spec 3.1.2)
+
+    do_numtof:
+        F1 = (git_float) L1;
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_ftonumz:
+        F1 = DECODE_FLOAT(L1);
+        if (!signbit(F1)) {
+          if (isnan(F1) || isinf(F1) || (F1 > 2147483647.0))
+            S1 = 0x7FFFFFFF;
+          else
+            S1 = (git_sint32) truncf(F1);
+        } else {
+          if (isnan(F1) || isinf(F1) || (F1 < -2147483647.0))
+            S1 = 0x80000000;
+          else
+            S1 = (git_sint32) truncf(F1);
+        }
+        NEXT;
+
+    do_ftonumn:
+        F1 = DECODE_FLOAT(L1);
+        if (!signbit(F1)) {
+          if (isnan(F1) || isinf(F1) || (F1 > 2147483647.0))
+            S1 = 0x7FFFFFFF;
+          else
+            S1 = (git_sint32) roundf(F1);
+        } else {
+          if (isnan(F1) || isinf(F1) || (F1 < -2147483647.0))
+            S1 = 0x80000000;
+          else
+            S1 = (git_sint32) roundf(F1);
+        }
+        NEXT;
+
+    do_ceil:
+        F1 = ceilf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_floor:
+        F1 = floorf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_sqrt:
+        F1 = sqrtf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_exp:
+        F1 = expf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_log:
+        F1 = logf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_pow:
+#ifdef USE_OWN_POWF
+        F1 = git_powf(DECODE_FLOAT(L1), DECODE_FLOAT(L2));
+#else
+        F1 = powf(DECODE_FLOAT(L1), DECODE_FLOAT(L2));
+#endif
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_atan2:
+        F1 = atan2f(DECODE_FLOAT(L1), DECODE_FLOAT(L2));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_fmod:
+        F1 = DECODE_FLOAT(L1);
+        F2 = DECODE_FLOAT(L2);
+        F3 = fmodf(F1, F2);
+        F4 = (F1 - F3) / F2;
+        L4 = ENCODE_FLOAT(F4);
+        if ((L4 == 0) || (L4 == 0x80000000))
+          L4 = (L1 ^ L2) & 0x80000000;
+        S1 = ENCODE_FLOAT(F3);
+        S2 = L4;
+        NEXT;
+
+    do_sin:
+        F1 = sinf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_cos:
+        F1 = cosf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_tan:
+        F1 = tanf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_asin:
+        F1 = asinf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_acos:
+        F1 = acosf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_atan:
+        F1 = atanf(DECODE_FLOAT(L1));
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
     // Special Git opcodes
     
     do_git_setcacheram:

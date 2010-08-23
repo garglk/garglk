@@ -19,6 +19,11 @@
 // Define this to memory-map the game file to speed up loading. (Unix-specific)
 // #define USE_MMAP
 
+// Define this to use an OS-specific git_powf() power math function. This
+// is useful if your compiler's powf() doesn't implement every special case
+// of the C99 standard.
+// #define USE_OWN_POWF
+
 // -------------------------------------------------------------------
 
 // Make sure we're compiling for a sane platform. For now, this means
@@ -75,5 +80,7 @@ typedef unsigned long git_uint32;
 #else
 #define GIT_INLINE static
 #endif
+
+typedef float git_float;
 
 #endif // GIT_CONFIG_H

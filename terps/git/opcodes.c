@@ -45,6 +45,17 @@ static void parseLLS (git_uint32* pc, Label op)
     emitCode (op);
     parseStore (pc, reg_S1, modes [2], size32);
 }
+static void parseLLSS (git_uint32* pc, Label op)
+{
+    int modes [4];
+    parseModeNibbles (pc, 4, modes);
+
+    parseLoad (pc, reg_L1, modes [0], size32, NULL);
+    parseLoad (pc, reg_L2, modes [1], size32, NULL);
+    emitCode (op);
+    parseStore (pc, reg_S1, modes [2], size32);
+    parseStore (pc, reg_S2, modes [3], size32);
+}
 static void parseL (git_uint32* pc, Label op)
 {
     int modes [1];
@@ -93,6 +104,16 @@ static void parse_finish_branch (git_uint32* pc, Label op, LoadReg reg, int mode
         emitCode (op);
         emitData(*pc);
     }
+}
+static void parseLLLL_branch (git_uint32* pc, Label op)
+{
+    int modes [4];
+    parseModeNibbles (pc, 4, modes);
+
+    parseLoad (pc, reg_L1, modes [0], size32, NULL);
+    parseLoad (pc, reg_L2, modes [1], size32, NULL);
+    parseLoad (pc, reg_L3, modes [2], size32, NULL);
+    parse_finish_branch (pc, op, reg_L4, modes [3]);
 }
 static void parseLLL_branch (git_uint32* pc, Label op)
 {
@@ -342,7 +363,7 @@ void parseInstruction (git_uint32* pc, int * done)
         // Continuations
 
         case op_catch: parseCatch (pc); break;
-	    case op_throw:
+        case op_throw:
             parseLL (pc, label_throw);
             *done = 1;
             break;
@@ -435,7 +456,45 @@ void parseInstruction (git_uint32* pc, int * done)
             
         case op_accelfunc: parseLL (pc, label_accelfunc); break;
         case op_accelparam: parseLL (pc, label_accelparam); break;
-       
+
+        // Floating point
+
+        case op_numtof: parseLS (pc, label_numtof); break;
+        case op_ftonumz: parseLS (pc, label_ftonumz); break;
+        case op_ftonumn: parseLS (pc, label_ftonumn); break;
+        case op_ceil: parseLS (pc, label_ceil); break;
+        case op_floor: parseLS (pc, label_floor); break;
+        case op_sqrt: parseLS (pc, label_sqrt); break;
+        case op_exp: parseLS (pc, label_exp); break;
+        case op_log: parseLS (pc, label_log); break;
+
+        case op_fadd: parseLLS (pc, label_fadd_discard); break;
+        case op_fsub: parseLLS (pc, label_fsub_discard); break;
+        case op_fmul: parseLLS (pc, label_fmul_discard); break;
+        case op_fdiv: parseLLS (pc, label_fdiv_discard); break;
+        case op_pow: parseLLS (pc, label_pow); break;
+        case op_atan2: parseLLS (pc, label_atan2); break;
+
+        case op_fmod: parseLLSS (pc, label_fmod); break;
+
+        case op_sin: parseLS (pc, label_sin); break;
+        case op_cos: parseLS (pc, label_cos); break;
+        case op_tan: parseLS (pc, label_tan); break;
+        case op_asin: parseLS (pc, label_asin); break;
+        case op_acos: parseLS (pc, label_acos); break;
+        case op_atan: parseLS (pc, label_atan); break;
+
+        case op_jfeq: parseLLLL_branch (pc, label_jfeq_var); break;
+        case op_jfne: parseLLLL_branch (pc, label_jfne_var); break;
+
+        case op_jflt: parseLLL_branch (pc, label_jflt_var); break;
+        case op_jfle: parseLLL_branch (pc, label_jfle_var); break;
+        case op_jfgt: parseLLL_branch (pc, label_jfgt_var); break;
+        case op_jfge: parseLLL_branch (pc, label_jfge_var); break;
+
+        case op_jisnan: parseLL_branch (pc, label_jisnan_var); break;
+        case op_jisinf: parseLL_branch (pc, label_jisinf_var); break;
+
         // Special Git opcodes
         
         case op_git_setcacheram: parseL (pc, label_git_setcacheram); break;
