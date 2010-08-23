@@ -170,7 +170,7 @@ if $(MAKE_GEAS) = yes
 
 # -----------------------------------------------------------------------
 #
-# Git 1.2.4
+# Git 1.2.7
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
@@ -180,7 +180,7 @@ if $(MAKE_GIT) = yes
     SubDir TOP terps git ;
     ObjDir git ;
 
-    SubDirCcFlags -DUSE_INLINE ;
+    SubDirCcFlags -DUSE_INLINE -DUSE_OWN_POWF ;
 
     Main git :
         git.c memory.c compiler.c opcodes.c operands.c

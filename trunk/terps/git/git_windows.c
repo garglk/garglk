@@ -4,6 +4,8 @@
 #include "WinGlk.h"
 #include "git.h"
 
+#include <math.h>
+
 const char* gFilename = NULL;
 char gExePath[_MAX_PATH];
 
@@ -99,4 +101,15 @@ void glk_main()
         CloseHandle(mapping);
     if (file != INVALID_HANDLE_VALUE)
         CloseHandle(file);
+}
+
+float git_powf(float x, float y)
+{
+  if (x == 1.0f)
+    return 1.0f;
+  else if ((y == 0.0f) || (y == -0.0f))
+    return 1.0f;
+  else if ((x == -1.0f) && isinf(y))
+    return 1.0f;
+  return powf(x,y);
 }
