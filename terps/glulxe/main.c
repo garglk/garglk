@@ -33,6 +33,11 @@ void glk_main()
   }
 
   glulx_setrandom(0);
+#ifdef FLOAT_SUPPORT
+  if (!init_float()) {
+    return;
+  }
+#endif /* FLOAT_SUPPORT */
   if (!init_dispatch()) {
     return;
   }

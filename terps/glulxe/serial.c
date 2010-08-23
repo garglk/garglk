@@ -1121,7 +1121,7 @@ glui32 perform_verify()
     if (newlen != 4)
       return 1;
     val = Read4(buf);
-    if (ix == 4) {
+    if (ix == 3) {
       if (len != val)
         return 1;
     }

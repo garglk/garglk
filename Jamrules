@@ -35,8 +35,8 @@ switch $(OS)
     case MINGW :
         Echo "OS is MINGW (win32) $(CROSS)" ;
         SUFDLL  = .dll ;
-        LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
-        SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm ;
+        LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
+        SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
         SHRLINKLIBS += $(TOP)/support/freetype/freetype6.dll ;
         SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-7.dll ;
         SHRLINKLIBS += $(TOP)/support/libpng/libpng12-0.dll ;
@@ -89,7 +89,7 @@ switch $(OS)
         PKGCONFIG = "pkg-config freetype2" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz -lm ;
         LINK = $(CC) -framework Cocoa -framework OpenGL -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
 
         if $(USESDL)

@@ -12,10 +12,10 @@ glui32 do_gestalt(glui32 val, glui32 val2)
   switch (val) {
 
   case gestulx_GlulxVersion:
-    return 0x00030101; /* Glulx spec version 3.1.1 */
+    return 0x00030102; /* Glulx spec version 3.1.2 */
 
   case gestulx_TerpVersion:
-    return 0x00000405; /* Glulxe version 0.4.5 */
+    return 0x00000406; /* Glulxe version 0.4.6 */
 
   case gestulx_ResizeMem:
 #ifdef FIXED_MEMSIZE
@@ -62,6 +62,13 @@ glui32 do_gestalt(glui32 val, glui32 val2)
     if (accel_find_func(val2))
       return 1; /* We know this accelerated function. */
     return 0;
+
+  case gestulx_Float:
+#ifdef FLOAT_SUPPORT
+    return 1; /* We can do floating-point operations. */
+#else /* FLOAT_SUPPORT */
+    return 0; /* The floating-point opcodes are not compiled in. */
+#endif /* FLOAT_SUPPORT */
 
   default:
     return 0;

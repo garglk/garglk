@@ -1,5 +1,5 @@
 Glulxe: the Glulx VM interpreter
-Version 0.4.5
+Version 0.4.6
 
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glulx/index.html
@@ -31,6 +31,14 @@ compile the library, the source code, and the "macstart.c" file.
 Ditto for Windows, using "winstart.c".
 
 * Version
+
+0.4.6:
+    Added floating-point math feature.
+    Updated winstart.c. (Thanks David Kinder.)
+    Fixed @random even more, on Windows.
+    @verify works right on game files with extended memory.
+    @getiosys works right when the two store operands are different
+    variable types. (E.g., one local and one global.)
 
 0.4.5:
     VERIFY_MEMORY_ACCESS now detects writes to the ROM section of memory.

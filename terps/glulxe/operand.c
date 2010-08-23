@@ -46,10 +46,14 @@ static int array_LLL[3] = { modeform_Load, modeform_Load, modeform_Load };
 static operandlist_t list_LLL = { 3, 4, array_LLL };
 static operandlist_t list_2LS = { 2, 2, array_LS };
 static operandlist_t list_1LS = { 2, 1, array_LS };
+static int array_LLLL[4] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load };
+static operandlist_t list_LLLL = { 4, 4, array_LLLL };
 static int array_SL[2] = { modeform_Store, modeform_Load };
 static operandlist_t list_SL = { 2, 4, array_SL };
 static int array_SS[2] = { modeform_Store, modeform_Store };
 static operandlist_t list_SS = { 2, 4, array_SS };
+static int array_LLSS[4] = { modeform_Load, modeform_Load, modeform_Store, modeform_Store };
+static operandlist_t list_LLSS = { 4, 4, array_LLSS };
 
 /* init_operands():
    Set up the fast-lookup array of operandlists. This is called just
@@ -228,6 +232,47 @@ operandlist_t *lookup_operandlist(glui32 opcode)
   case op_accelparam:
     return &list_LL;
 
+#ifdef FLOAT_SUPPORT
+
+  case op_numtof:
+  case op_ftonumz:
+  case op_ftonumn:
+  case op_ceil:
+  case op_floor:
+  case op_sqrt:
+  case op_exp:
+  case op_log:
+    return &list_LS;
+  case op_fadd:
+  case op_fsub:
+  case op_fmul:
+  case op_fdiv:
+  case op_pow:
+  case op_atan2:
+    return &list_LLS;
+  case op_fmod:
+    return &list_LLSS;
+  case op_sin:
+  case op_cos:
+  case op_tan:
+  case op_asin:
+  case op_acos:
+  case op_atan:
+    return &list_LS;
+  case op_jfeq:
+  case op_jfne:
+    return &list_LLLL;
+  case op_jflt:
+  case op_jfle:
+  case op_jfgt:
+  case op_jfge:
+    return &list_LLL;
+  case op_jisnan:
+  case op_jisinf:
+    return &list_LL;
+
+#endif /* FLOAT_SUPPORT */
+
   default: 
     return NULL;
   }
@@ -235,26 +280,30 @@ operandlist_t *lookup_operandlist(glui32 opcode)
 
 /* parse_operands():
    Read the list of operands of an instruction, and put the values
-   in inst. This assumes that the PC is at the beginning of the
+   in args. This assumes that the PC is at the beginning of the
    operand mode list (right after an opcode number.) Upon return,
    the PC will be at the beginning of the next instruction.
+
+   This also assumes that args points at an allocated array of 
+   MAX_OPERANDS oparg_t structures.
 */
-void parse_operands(instruction_t *inst, operandlist_t *oplist)
+void parse_operands(oparg_t *args, operandlist_t *oplist)
 {
   int ix;
+  oparg_t *curarg;
   int numops = oplist->num_ops;
   int argsize = oplist->arg_size;
   glui32 modeaddr = pc;
   int modeval;
 
-  inst->desttype = 0;
-
   pc += (numops+1) / 2;
 
-  for (ix=0; ix<numops; ix++) {
+  for (ix=0, curarg=args; ix<numops; ix++, curarg++) {
     int mode;
     glui32 value;
     glui32 addr;
+
+    curarg->desttype = 0;
 
     if ((ix & 1) == 0) {
       modeval = Mem1(modeaddr);
@@ -385,20 +434,20 @@ void parse_operands(instruction_t *inst, operandlist_t *oplist)
         fatal_error("Unknown addressing mode in load operand.");
       }
 
-      inst->value[ix] = value;
+      curarg->value = value;
 
     }
     else {  /* modeform_Store */
       switch (mode) {
 
       case 0: /* discard value */
-        inst->desttype = 0;
-        inst->value[ix] = 0;
+        curarg->desttype = 0;
+        curarg->value = 0;
         break;
 
       case 8: /* push on stack */
-        inst->desttype = 3;
-        inst->value[ix] = 0;
+        curarg->desttype = 3;
+        curarg->value = 0;
         break;
 
       case 15: /* main memory RAM, four-byte address */
@@ -436,8 +485,8 @@ void parse_operands(instruction_t *inst, operandlist_t *oplist)
 
       WrMainMemAddr:
         /* cases 5, 6, 7 all wind up here. */
-        inst->desttype = 1;
-        inst->value[ix] = addr;
+        curarg->desttype = 1;
+        curarg->value = addr;
         break;
 
       case 11: /* locals, four-byte address */
@@ -461,11 +510,11 @@ void parse_operands(instruction_t *inst, operandlist_t *oplist)
            A "strict mode" interpreter probably should. It's also illegal
            for addr to be less than zero or greater than the size of
            the locals segment. */
-        inst->desttype = 2;
+        curarg->desttype = 2;
         /* We don't add localsbase here; the store address for desttype 2
            is relative to the current locals segment, not an absolute
            stack position. */
-        inst->value[ix] = addr;
+        curarg->value = addr;
         break;
 
       case 1:

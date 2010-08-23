@@ -193,7 +193,7 @@ if $(MAKE_GIT) = yes
 
 # -----------------------------------------------------------------------
 #
-# Glulxe 0.4.4
+# Glulxe 0.4.6
 #
 
 if $(MAKE_GLULXE) = yes
@@ -206,7 +206,7 @@ if $(MAKE_GLULXE) = yes
     Main glulxe :
         main.c files.c vm.c exec.c funcs.c operand.c string.c glkop.c
         heap.c serial.c search.c gestalt.c osdepend.c unixstrt.c
-        accel.c profile.c
+        accel.c profile.c float.c
         ;
 
     APPS += glulxe ;
