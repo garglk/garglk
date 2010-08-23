@@ -139,7 +139,7 @@ void glulx_setrandom(glui32 seed)
 /* Return a random number in the range 0 to 2^32-1. */
 glui32 glulx_random()
 {
-  return (rand() << 16) ^ rand();
+  return (rand() << 24) ^ (rand() << 12) ^ rand();
 }
 
 #endif /* WIN32 */

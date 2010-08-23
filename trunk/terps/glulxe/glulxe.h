@@ -35,6 +35,11 @@ typedef signed short glsi16;
    written to a data file called "profile-raw". */
 /* #define VM_PROFILING (1) */
 
+/* Comment this definition to turn off floating-point support. You
+   might need to do this if you are building on a very limited platform
+   with no math library. */
+#define FLOAT_SUPPORT (1)
+
 /* Some macros to read and write integers to memory, always in big-endian
    format. */
 #define Read4(ptr)    \
@@ -96,16 +101,17 @@ typedef signed short glsi16;
 
 /* Some useful structures. */
 
-/* instruction_t:
-   Represents the list of operands to an instruction being executed.
-   (Yes, it's somewhat misnamed. Sorry.) We assume, for the indefinite
-   moment, that no opcode has more than 8 operands, and no opcode
-   has two "store" operands.
+/* oparg_t:
+   Represents one operand value to an instruction being executed. The
+   code in exec.c assumes that no instruction has more than MAX_OPERANDS
+   of these.
 */
-typedef struct instruction_struct {
+typedef struct oparg_struct {
   glui32 desttype;
-  glui32 value[8];
-} instruction_t;
+  glui32 value;
+} oparg_t;
+
+#define MAX_OPERANDS (8)
 
 /* operandlist_t:
    Represents the operand structure of an opcode.
@@ -177,7 +183,7 @@ extern void execute_loop(void);
 extern operandlist_t *fast_operandlist[0x80];
 extern void init_operands(void);
 extern operandlist_t *lookup_operandlist(glui32 opcode);
-extern void parse_operands(instruction_t *inst, operandlist_t *oplist);
+extern void parse_operands(oparg_t *opargs, operandlist_t *oplist);
 extern void store_operand(glui32 desttype, glui32 destaddr, glui32 storeval);
 extern void store_operand_s(glui32 desttype, glui32 destaddr, glui32 storeval);
 extern void store_operand_b(glui32 desttype, glui32 destaddr, glui32 storeval);
@@ -271,5 +277,25 @@ extern acceleration_func accel_find_func(glui32 index);
 extern acceleration_func accel_get_func(glui32 addr);
 extern void accel_set_func(glui32 index, glui32 addr);
 extern void accel_set_param(glui32 index, glui32 val);
+
+#ifdef FLOAT_SUPPORT
+
+/* You may have to edit the definition of gfloat32 to make sure it's really
+   a 32-bit floating-point type. */
+typedef float gfloat32;
+
+/* Uncomment this definition if your gfloat32 type is not a standard
+   IEEE-754 single-precision (32-bit) format. Normally, Glulxe assumes
+   that it can reinterpret-cast IEEE-754 int values into gfloat32
+   values. If you uncomment this, Glulxe switches to lengthier
+   (but safer) encoding and decoding functions. */
+/* #define FLOAT_NOT_NATIVE (1) */
+
+/* float.c */
+extern int init_float(void);
+extern glui32 encode_float(gfloat32 val);
+extern gfloat32 decode_float(glui32 val);
+
+#endif /* FLOAT_SUPPORT */
 
 #endif /* _GLULXE_H */

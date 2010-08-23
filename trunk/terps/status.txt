@@ -10,7 +10,7 @@ Build status as of 06/19/2009:
 | frotz         | 2.4.3         |
 | geas          | 0.4           |
 | git           | 1.2.4         |
-| glulxe        | 0.4.4         |
+| glulxe        | 0.4.6         |
 | hugo          | 3.1.03        |
 | jacl          | 2.7.1         |
 | level9        | 4.1           |

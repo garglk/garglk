@@ -17,6 +17,7 @@
 #define gestulx_MAllocHeap (8)
 #define gestulx_Acceleration (9)
 #define gestulx_AccelFunc (10)
+#define gestulx_Float (11)
 
 #endif /* _GESTALT_H */
 
