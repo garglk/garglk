@@ -30,6 +30,7 @@
 #include "garglk.h"
 
 static ATSFontContainerRef gli_font_container = 0;
+static NSDistributedLock * gli_font_lock = NULL;
 
 static int gli_sys_monor = FALSE;
 static int gli_sys_monob = FALSE;
@@ -238,6 +239,19 @@ void fontload(void)
     env = getenv("GARGLK_INI");
     if (!env)
         return;
+    
+    gli_font_lock = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.fontlock", NSTemporaryDirectory()]];
+    
+    if (gli_font_lock)
+    {
+        while (![gli_font_lock tryLock])
+        {
+            if ([[NSDate date] timeIntervalSinceDate: [gli_font_lock lockDate]] > 30)
+                [gli_font_lock breakLock];
+            else
+                [NSThread sleepForTimeInterval: 0.25];
+        }
+    }
 
     NSString * fontFolder = [[NSString stringWithCString: env encoding: NSASCIIStringEncoding] 
                              stringByAppendingPathComponent: @"Fonts"];
@@ -261,6 +275,12 @@ void fontunload(void)
 
     if (gli_font_container)
         ATSFontDeactivate(gli_font_container, NULL, kATSOptionFlagsDefault);
+    
+    if (gli_font_lock)
+    {
+        [gli_font_lock unlock];
+        [gli_font_lock release];
+    }
 
     [pool drain];
 }

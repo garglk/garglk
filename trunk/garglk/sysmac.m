@@ -85,7 +85,6 @@ static volatile int gli_window_alive = TRUE;
 @interface GargoyleMonitor : NSObject
 {
     NSRect size;
-    NSDistributedLock * status;
     NSDate * referenceDate;
     NSTimeInterval interval;
     int timerid;
@@ -602,6 +601,7 @@ void winmouse(NSEvent *evt)
         case NSLeftMouseDown:
         {
             gli_input_handle_click(x, y);
+            [gargoyle setCursor: kArrowCursor];
             break;
         }
 
