@@ -201,6 +201,8 @@ if $(MAKE_GLULXE) = yes
     SubDir TOP terps glulxe ;
     ObjDir glulxe ;
 
+    SubDirCcFlags -DFLOAT_COMPILE_SAFER_POWF ;
+
     if $(OS) != MINGW { SubDirCcFlags -DOS_UNIX ; }
 
     Main glulxe :

@@ -193,3 +193,33 @@ void glulx_sort(void *addr, int count, int size,
 {
   qsort(addr, count, size, (int (*)(const void *, const void *))comparefunc);
 }
+
+#ifdef FLOAT_SUPPORT
+#include <math.h>
+
+#ifdef FLOAT_COMPILE_SAFER_POWF
+
+/* This wrapper handles all special cases, even if the underlying
+   powf() function doesn't. */
+gfloat32 glulx_powf(gfloat32 val1, gfloat32 val2)
+{
+  if (val1 == 1.0f)
+    return 1.0f;
+  else if ((val2 == 0.0f) || (val2 == -0.0f))
+    return 1.0f;
+  else if ((val1 == -1.0f) && isinf(val2))
+    return 1.0f;
+  return powf(val1, val2);
+}
+
+#else /* FLOAT_COMPILE_SAFER_POWF */
+
+/* This is the standard powf() function, unaltered. */
+gfloat32 glulx_powf(gfloat32 val1, gfloat32 val2)
+{
+  return powf(val1, val2);
+}
+
+#endif /* FLOAT_COMPILE_SAFER_POWF */
+
+#endif /* FLOAT_SUPPORT */
