@@ -296,6 +296,13 @@ extern int init_float(void);
 extern glui32 encode_float(gfloat32 val);
 extern gfloat32 decode_float(glui32 val);
 
+/* Uncomment this definition if your powf() function does not support
+   all the corner cases specified by C99. If you uncomment this,
+   osdepend.c will provide a safer implementation of glulx_powf(). */
+/* #define FLOAT_COMPILE_SAFER_POWF (1) */
+
+extern gfloat32 glulx_powf(gfloat32 val1, gfloat32 val2);
+
 #endif /* FLOAT_SUPPORT */
 
 #endif /* _GLULXE_H */

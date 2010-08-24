@@ -856,6 +856,12 @@ void execute_loop()
       case op_ceil:
         valf = decode_float(inst[0].value);
         value = encode_float(ceilf(valf));
+        if (value == 0x0 || value == 0x80000000) {
+          /* When the result is zero, the sign may have been lost in the
+             shuffle. (This is a bug in some C libraries.) We'll set the
+             sign by hand, based on the original argument. */
+          value = inst[0].value & 0x80000000;
+        }
         store_operand(inst[1].desttype, inst[1].value, value);
         break;
 
@@ -877,14 +883,7 @@ void execute_loop()
       case op_pow:
         valf1 = decode_float(inst[0].value);
         valf2 = decode_float(inst[1].value);
-        if (valf1 == 1.0f)
-            value = encode_float(1.0f);
-        else if ((valf2 == 0.0f) || (valf2 == -0.0f))
-            value = encode_float(1.0f);
-        else if ((valf1 == -1.0f) && isinf(valf2))
-            value = encode_float(1.0f);
-        else
-            value = encode_float(powf(valf1, valf2));
+        value = encode_float(glulx_powf(valf1, valf2));
         store_operand(inst[2].desttype, inst[2].value, value);
         break;
 
