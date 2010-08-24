@@ -22,12 +22,10 @@
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>2010.1</string>
 	<key>CFBundleVersion</key>
 	<string>2010.1</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright 2010. GNU General Public License.</string>
+	<string>© 2006-2010 GNU General Public License</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.4</string>
 	<key>NSMainNibFile</key>
