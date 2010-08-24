@@ -525,6 +525,9 @@ void gli_startup(int argc, char *argv[])
 
 	wininit(&argc, argv);
 
+	if (argc > 1)
+		glkunix_set_base_file(argv[argc-1]);
+
 	gli_read_config(argc, argv);
 
 	if (!gli_baseline)
