@@ -31,6 +31,7 @@
 event_t *gli_curevent = NULL;
 static eventqueue_t *gli_events_logged = NULL;
 static eventqueue_t *gli_events_polled = NULL;
+static int gli_first_event = FALSE;
 
 eventqueue_t *gli_initialize_queue (void)
 {
@@ -141,11 +142,21 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 
 void glk_select(event_t *event)
 {
+    if (!gli_first_event)
+    {
+        gli_input_guess_focus();
+        gli_first_event = TRUE;
+    }
     gli_select(event, 0);
 }
 
 void glk_select_poll(event_t *event)
 {
+    if (!gli_first_event)
+    {
+        gli_input_guess_focus();
+        gli_first_event = TRUE;
+    }
     gli_select(event, 1);
 }
 
