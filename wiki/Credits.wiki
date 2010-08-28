@@ -18,6 +18,7 @@ _Original source code and patches_
   * Jesse McGrew
   * Baltasar García Perez-Schofield
   * Evin Robertson
+  * Chris Spiegel
   * Jörg Walter
 
 <p><br/></p>
