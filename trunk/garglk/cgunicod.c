@@ -1,11 +1,33 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2010 by Ben Cressey, Jesse McGrew, Chris Spiegel.            *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
 /* cgunicod.c: Unicode helper functions for Glk API, version 0.7.0.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
-
-    This file is copyright 1998-2007 by Andrew Plotkin. You may copy,
-    distribute, and incorporate it into your own programs, by any means
-    and under any conditions, as long as you do not modify it. You may
-    also modify this file, incorporate it into your own programs,
+ 
+    Portions of this file are copyright 1998-2007 by Andrew Plotkin.
+    You may copy, distribute, and incorporate it into your own programs,
+    by any means and under any conditions, as long as you do not modify it.
+    You may also modify this file, incorporate it into your own programs,
     and distribute the modified version, as long as you retain a notice
     in your program or documentation which mentions my name and the URL
     shown above.
@@ -43,6 +65,17 @@ void gli_putchar_utf8(glui32 val, FILE *fl)
     }
 }
 
+static inline glui32 read_byte(FILE *fl)
+{
+    int c;
+
+    c = getc(fl);
+
+    if(c == EOF) return -1;
+
+    return c;
+}
+
 glui32 gli_getchar_utf8(FILE *fl)
 {
     glui32 pos = 0;
@@ -50,8 +83,8 @@ glui32 gli_getchar_utf8(FILE *fl)
     glui32 res;
     glui32 val0, val1, val2, val3;
     
-    val0 = getc(fl);
-    if (val0 < 0)
+    val0 = read_byte(fl);
+    if (val0 == (glui32)-1)
     return -1;
     
     if (val0 < 0x80) {
@@ -60,8 +93,8 @@ glui32 gli_getchar_utf8(FILE *fl)
     }
     
     if ((val0 & 0xe0) == 0xc0) {
-    val1 = getc(fl);
-    if (val1 < 0) {
+    val1 = read_byte(fl);
+    if (val1 == (glui32)-1) {
         gli_strict_warning("incomplete two-byte character");
         return -1;
     }
@@ -75,9 +108,9 @@ glui32 gli_getchar_utf8(FILE *fl)
     }
     
     if ((val0 & 0xf0) == 0xe0) {
-    val1 = getc(fl);
-    val2 = getc(fl);
-    if (val1 < 0 || val2 < 0) {
+    val1 = read_byte(fl);
+    val2 = read_byte(fl);
+    if (val1 == (glui32)-1 || val2 == (glui32)-1) {
         gli_strict_warning("incomplete three-byte character");
         return -1;
     }
@@ -100,10 +133,10 @@ glui32 gli_getchar_utf8(FILE *fl)
         gli_strict_warning("malformed four-byte character");
         return '?';        
     }
-    val1 = getc(fl);
-    val2 = getc(fl);
-    val3 = getc(fl);
-    if (val1 < 0 || val2 < 0 || val3 < 0) {
+    val1 = read_byte(fl);
+    val2 = read_byte(fl);
+    val3 = read_byte(fl);
+    if (val1 == (glui32)-1 || val2 == (glui32)-1 || val3 == (glui32)-1) {
         gli_strict_warning("incomplete four-byte character");
         return -1;
     }
