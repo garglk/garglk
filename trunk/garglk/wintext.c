@@ -1311,6 +1311,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     switch (arg)
     {
     case keycode_Erase: key = keycode_Delete; break;
+    case keycode_MouseWheelDown: key = keycode_PageDown; break;
     default: key = arg;
     }
 
