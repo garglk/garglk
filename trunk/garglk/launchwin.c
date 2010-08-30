@@ -69,7 +69,16 @@ int winargs(int argc, char **argv, char *buffer)
 {
     if (argc == 2)
     {
-        strcpy(buffer, argv[1]);
+        if (!(strlen(argv[1]) < MaxBuffer))
+            return 0;
+
+        if (strstr(argv[1], "garglk:///"))
+            strcpy(buffer, argv[1]+10);
+        else
+            strcpy(buffer, argv[1]);
+
+        if (strlen(buffer) && buffer[strlen(buffer)-1] == '/')
+            buffer[strlen(buffer)-1] = '\0';
     }
 
     return (argc == 2);

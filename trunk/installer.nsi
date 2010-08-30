@@ -112,6 +112,10 @@ Section "DoInstall"
     WriteRegStr HKCR "Gargoyle.Story\shell\open" "" "Play"
     WriteRegStr HKCR "Gargoyle.Story\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""
 
+    WriteRegStr HKCR "garglk" "" "URL:Gargoyle File Protocol"
+    WriteRegStr HKCR "garglk" "URL Protocol" ""
+    WriteRegStr HKCR "garglk\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""
+
 SectionEnd
 
 Section "Fonts"
