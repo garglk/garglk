@@ -203,7 +203,14 @@ void fontreplace(char *font, int type)
 
         /* find path for font */
         fontref = ATSFontFindFromPostScriptName((CFStringRef) [sysfont objectForKey: NSFontNameAttribute], kATSOptionFlagsDefault);
+
+#ifdef __x86_64__
         ATSFontGetFileReference(fontref, &fileref);
+#else
+        FSSpec filespec;
+        ATSFontGetFileSpecification(fontref, &filespec);
+        FSpMakeFSRef(&filespec, &fileref);
+#endif
 
         unsigned char * filebuf = malloc(4 * PATH_MAX);
         filebuf[0] = '\0';
@@ -249,7 +256,7 @@ void fontload(void)
             if ([[NSDate date] timeIntervalSinceDate: [gli_font_lock lockDate]] > 30)
                 [gli_font_lock breakLock];
             else
-                [NSThread sleepForTimeInterval: 0.25];
+                [NSThread sleepUntilDate: [NSDate dateWithTimeIntervalSinceNow: 0.25]];
         }
     }
 
