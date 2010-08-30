@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -31,6 +32,7 @@ void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_OUTLINE_H
 
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */

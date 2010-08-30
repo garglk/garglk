@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -340,7 +341,7 @@ void win_textbuffer_redraw(window_t *win)
     int a, b;
     glui32 link;
     int font;
-    char *color;
+    unsigned char *color;
     int i;
     int hx0, hx1, hy0, hy1;
     int selbuf, selrow, selchar, sx0, sx1, selleft, selright;
@@ -412,7 +413,7 @@ void win_textbuffer_redraw(window_t *win)
         /* kill spaces at the end unless they're a different color*/
         color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         while (i > 0 && linelen > 1 && ln->chars[linelen-1] == ' ' 
-            && (char *)dwin->styles[ln->attrs[linelen-1].style].bg == color 
+            && dwin->styles[ln->attrs[linelen-1].style].bg == color 
             && !dwin->styles[ln->attrs[linelen-1].style].reverse)
                 linelen --;
 
@@ -912,7 +913,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     int saved;
     int i;
     int linelen;
-    char *color;
+    unsigned char *color;
 
 #ifdef USETTS
     { char b[1]; b[0] = ch; gli_speak_tts(b, 1, 0); }
@@ -979,7 +980,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     }
 
     if (gli_conf_spaces && win->attr.style != style_Preformatted 
-        && (char *)dwin->styles[win->attr.style].bg == color 
+        && dwin->styles[win->attr.style].bg == color 
         && !dwin->styles[win->attr.style].reverse)
     {
         /* turn (period space space) into (period space) */
@@ -1022,7 +1023,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     /* kill spaces at the end for line width calculation */
     linelen = dwin->numchars;
     while (linelen > 1 && dwin->chars[linelen-1] == ' ' 
-        && (char *)dwin->styles[dwin->attrs[linelen-1].style].bg == color 
+        && dwin->styles[dwin->attrs[linelen-1].style].bg == color 
         && !dwin->styles[dwin->attrs[linelen-1].style].reverse)
         linelen --;
 
@@ -1264,9 +1265,7 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 void gcmd_accept_scroll(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
-    int oldpos = dwin->scrollpos;
     int pageht = dwin->height - 2;        /* 1 for prompt, 1 for overlap */
-    int i;
 
     switch (arg)
     {

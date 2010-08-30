@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2010 by Ben Cressey, Jesse McGrew, Chris Spiegel.            *
+ * Copyright (C) 2006-2009 by Andrew Plotkin, Jesse McGrew.                   *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -78,8 +79,6 @@ static inline glui32 read_byte(FILE *fl)
 
 glui32 gli_getchar_utf8(FILE *fl)
 {
-    glui32 pos = 0;
-    glui32 outpos = 0;
     glui32 res;
     glui32 val0, val1, val2, val3;
     
@@ -280,7 +279,6 @@ static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
     glui32 outcount;
     int dest_block_rest, dest_block_first;
     int dest_spec_rest, dest_spec_first;
-    glui32 lastch = ' ';
 
     switch (cond) {
     case COND_ALL:

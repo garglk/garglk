@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -776,7 +777,7 @@ void gli_windows_size_change()
 void gli_window_redraw(window_t *win)
 {
     if (gli_force_redraw) {
-        char *color = gli_override_bg_set ? gli_window_color : win->bgcolor;
+        unsigned char *color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         gli_draw_rect(win->bbox.x0, win->bbox.y0,
                 win->bbox.x1 - win->bbox.x0,
                 win->bbox.y1 - win->bbox.y0,
@@ -1378,9 +1379,6 @@ static unsigned int zcolor_bg = 0;
 
 unsigned char *rgbshift (unsigned char *rgb)
 {
-    if (!zcolor_Bright)
-        return;
-
     zcolor_Bright[0] = (rgb[0] + 0x30) < 0xff ? (rgb[0] + 0x30) : 0xff;
     zcolor_Bright[1] = (rgb[1] + 0x30) < 0xff ? (rgb[1] + 0x30) : 0xff;
     zcolor_Bright[2] = (rgb[2] + 0x30) < 0xff ? (rgb[2] + 0x30) : 0xff;
