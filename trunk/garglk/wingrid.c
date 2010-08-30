@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey and Jörg Walter.                         *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel, Jörg Walter.             *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -116,7 +116,7 @@ void win_textgrid_redraw(window_t *win)
     int i, a, b, k, o;
     glui32 link;
     int font;
-    char *fgcolor, *bgcolor;
+    unsigned char *fgcolor, *bgcolor;
 
     x0 = win->bbox.x0;
     x1 = win->bbox.x1;

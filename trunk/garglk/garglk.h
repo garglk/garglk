@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -294,6 +295,7 @@ struct eventqueue_s
 eventqueue_t *gli_initialize_queue (void);
 void gli_queue_event(eventqueue_t *queue, event_t *event);
 event_t *gli_retrieve_event(eventqueue_t *queue);
+void gli_dispatch_event(event_t *event, int polled);
 
 #define MAGIC_WINDOW_NUM (9876)
 #define MAGIC_STREAM_NUM (8769)
@@ -605,6 +607,8 @@ extern void gli_windows_size_change(void);
 
 extern void gli_window_click(window_t *win, int x, int y);
 
+void gli_redraw_rect(int x0, int y0, int x1, int y1);
+
 void gli_input_guess_focus();
 void gli_input_more_focus();
 void gli_input_next_focus();
@@ -655,6 +659,8 @@ void winrepaint(int x0, int y0, int x1, int y1);
 void winabort(const char *fmt, ...);
 void winopenfile(char *prompt, char *buf, int buflen, char *filter);
 void winsavefile(char *prompt, char *buf, int buflen, char *filter);
+void winexit(void);
+void winclipstore(glui32 *text, int len);
 
 void fontreplace(char *font, int type);
 void fontload(void);
@@ -704,6 +710,16 @@ glui32 gli_getchar_utf8(FILE *fl);
 glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
 glui32 strlen_uni(glui32 *s);
+
+void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
+glui32 gli_get_hyperlink(unsigned int x, unsigned int y);
+void gli_clear_selection(void);
+int gli_check_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
+int gli_get_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, unsigned int *rx0, unsigned int *rx1);
+void gli_clipboard_copy(glui32 *buf, int len);
+void gli_start_selection(int x, int y);
+void gli_resize_mask(unsigned int x, unsigned int y);
+void gli_move_selection(int x, int y);
 
 void attrset(attr_t *attr, glui32 style);
 void attrclear(attr_t *attr);

@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2009 by Ben Cressey.                                         *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -99,7 +99,6 @@ void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigne
     int tx1 = x0 < x1 ? x1 : x0;
     int ty0 = y0 < y1 ? y0 : y1;
     int ty1 = y0 < y1 ? y1 : y0;
-    glui32* m;
 
     if (!gli_mask || !gli_mask->hor || !gli_mask->ver)
     {

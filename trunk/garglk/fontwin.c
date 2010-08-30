@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2010 by Ben Cressey                                          *
+ * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *

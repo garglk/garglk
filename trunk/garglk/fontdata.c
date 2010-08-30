@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2008, 2009  Sylvain Beucler                                  *
+ * Copyright (C) 2008-2009 by Sylvain Beucler.                                *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *

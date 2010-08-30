@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2006-2009 by Tor Andersson, Andrew Plotkin.                  *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
