@@ -433,6 +433,12 @@ char filterlist[] = "";
      [NSDictionary dictionaryWithObject: [NSNumber numberWithBool: YES]
                                  forKey: @"NSDisabledCharacterPaletteMenuItem"]];
 
+    /* register for URL events */
+    [[NSAppleEventManager sharedAppleEventManager] setEventHandler: self
+                                                       andSelector: @selector(openURL:withReplyEvent:)
+                                                     forEventClass: kInternetEventClass
+                                                        andEventID: kAEGetURL];
+
     return self;
 }
 
@@ -707,6 +713,18 @@ char filterlist[] = "";
     }
 
     return result;
+}
+
+- (void) openURL: (NSAppleEventDescriptor *) event withReplyEvent: (NSAppleEventDescriptor *) reply
+{
+    NSArray * urlParts = [[[event paramDescriptorForKeyword: keyDirectObject] stringValue] componentsSeparatedByString: @"garglk:///"];
+
+    if (urlParts && [urlParts count] == 2)
+    {
+        openedFirstGame = YES;
+        [self launchFile: [urlParts objectAtIndex: 1]];
+    }
+
 }
 
 - (BOOL) windowShouldClose: (id) sender
