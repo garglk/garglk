@@ -5,6 +5,20 @@ GARGDIST=build/dist
 DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
 
+if [ ! -d /Library/Frameworks/SDL.framework ];
+then
+    hdiutil attach -quiet support/sdl/SDL-1.2.14.dmg
+    cp -R /Volumes/SDL/SDL.framework /Library/Frameworks
+    hdiutil detach -quiet /Volumes/SDL
+fi
+
+if [ ! -d /Library/Frameworks/SDL_mixer.framework ];
+then
+    hdiutil attach -quiet support/sdl/SDL_mixer-1.2.11.dmg
+    cp -R /Volumes/SDL_mixer/SDL_mixer.framework /Library/Frameworks
+    hdiutil detach -quiet /Volumes/SDL_mixer
+fi
+
 rm -rf Gargoyle.app
 mkdir -p $BUNDLE/MacOS
 mkdir -p $BUNDLE/Frameworks
@@ -42,6 +56,9 @@ install_name_tool -change $MACPORTS/$lib @executable_path/../Frameworks/$lib $BU
 done
 install_name_tool -id @executable_path/../Frameworks/$dylib $BUNDLE/Frameworks/$dylib
 done
+
+cp -R /Library/Frameworks/SDL.framework $BUNDLE/Frameworks
+cp -R /Library/Frameworks/SDL_mixer.framework $BUNDLE/Frameworks
 
 cp -f garglk/launcher.plist $BUNDLE/Info.plist
 cp -f $GARGDIST/gargoyle $BUNDLE/MacOS/Gargoyle
