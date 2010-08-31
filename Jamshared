@@ -79,7 +79,7 @@ if $(OS) = MACOSX
 {
     actions together SharedLink bind NEEDLIBS
     {
-        $(LINK) -framework Cocoa -framework OpenGL -headerpad_max_install_names $(MAINARCH) $(ALTARCH) -dynamiclib $(SHRLINKFLAGS) -install_name @executable_path/$(<:D=) -o $(<) $(>) $(NEEDLIBS) $(SHRLINKLIBS)
+        $(LINK) $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) -dynamiclib $(SHRLINKFLAGS) -install_name @executable_path/$(<:D=) -o $(<) $(>) $(NEEDLIBS) $(SHRLINKLIBS)
     }
 }
 else
