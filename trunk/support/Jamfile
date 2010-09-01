@@ -24,7 +24,8 @@ if $(USESDL)
         SubDirCcFlags
             -I/Library/Frameworks/SDL.framework/Headers
             -I/Library/Frameworks/SDL_mixer.framework/Headers
-            -I/Library/Frameworks/SDL_mixer.framework/Frameworks/smpeg.framework/Headers
+            -I/Library/Frameworks/smpeg.framework/Headers
+            -I/Library/Frameworks/mikmod.framework/Headers
             -fPIC 
             ;
     }

@@ -90,15 +90,15 @@ switch $(OS)
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = "`$(PKGCONFIG) --libs`" -lz -lm ;
-        FRAMEWORKS = -headerpad_max_install_names -framework Cocoa -framework OpenGL ;
+        FRAMEWORKS = -framework Cocoa -framework OpenGL ;
 
         if $(USESDL)
         {
-            FRAMEWORKS += -framework SDL -framework SDL_mixer ;
+            FRAMEWORKS += -framework SDL -framework SDL_mixer -framework mikmod -framework smpeg ;
             SHRLINKLIBS += -lvorbisfile ;
         }
 
-        LINK = $(CC) $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
+        LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
     
     case * :
         Exit "Unknown target. Please edit 'Jamrules'." ;
