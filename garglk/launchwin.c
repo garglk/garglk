@@ -65,20 +65,78 @@ void winmsg(const char *msg)
     MessageBox(NULL, msg, AppName, MB_ICONERROR);
 }
 
+int urldecode(char *decoded, unsigned int maxlen, const char *encoded)
+{
+    unsigned int i;
+    int convert, ascii;
+    char buffer[3] = {0};
+    FILE * file;
+
+    memset(decoded, 0, maxlen);
+    convert = FALSE;
+
+    for(i = 0; i < strlen(encoded); ++i)
+    {
+        if (!convert)
+        {
+            if (!(strlen(decoded) < maxlen - 1))
+                break;
+
+            if(encoded[i] != '%')
+                strncat(decoded, &encoded[i], 1);
+            else
+                convert = TRUE;
+         }
+
+        else
+        {
+            if (strlen(&encoded[i]) < 2)
+                break;
+
+            strncpy(buffer, &encoded[i], 2);
+            buffer[2] = '\0';
+
+            if (!isxdigit(buffer[0]) || !isxdigit(buffer[1]))
+                break;
+
+            if (sscanf(buffer, "%x", &ascii) != 1)
+                break;
+
+            if (!(strlen(decoded) < maxlen - 1))
+                break;
+
+            strncat(decoded, (char*)&ascii, 1);
+
+            convert = FALSE;
+            i++;
+        }
+    }
+
+    while (strlen(decoded) && decoded[strlen(decoded)-1] == '/')
+        decoded[strlen(decoded)-1] = '\0';
+
+    if (!(file = fopen(decoded, "r")))
+    {
+        snprintf(decoded, maxlen, "Could not open URL path:\n%s\n", encoded);
+        winmsg(decoded);
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(file);
+    return 1;
+}
+
 int winargs(int argc, char **argv, char *buffer)
 {
     if (argc == 2)
     {
-        if (!(strlen(argv[1]) < MaxBuffer))
+        if (!(strlen(argv[1]) < MaxBuffer - 1))
             return 0;
 
         if (strstr(argv[1], "garglk:///"))
-            strcpy(buffer, argv[1]+10);
-        else
-            strcpy(buffer, argv[1]);
+            return urldecode(buffer, MaxBuffer, argv[1]+10);
 
-        if (strlen(buffer) && buffer[strlen(buffer)-1] == '/')
-            buffer[strlen(buffer)-1] = '\0';
+        strcpy(buffer, argv[1]);
     }
 
     return (argc == 2);
