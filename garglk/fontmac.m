@@ -183,9 +183,10 @@ void fontreplace(char *font, int type)
                                 matchingFontDescriptorsWithMandatoryKeys: nil]
                                objectEnumerator];
     id sysfont;
+    int style;    
     FSRef fileref;
     ATSFontRef fontref;
-    int style;
+    unsigned char * filebuf;
 
     while (sysfont = [sysfonts nextObject])
     {
@@ -200,6 +201,9 @@ void fontreplace(char *font, int type)
 
         else if ([sysfont symbolicTraits] & NSFontItalicTrait)
             style = FONTI;
+        
+        memset(&fileref, 0, sizeof(FSRef));
+        memset(&fontref, 0, sizeof(ATSFontRef));
 
         /* find path for font */
         fontref = ATSFontFindFromPostScriptName((CFStringRef) [sysfont objectForKey: NSFontNameAttribute], kATSOptionFlagsDefault);
@@ -212,7 +216,7 @@ void fontreplace(char *font, int type)
         FSpMakeFSRef(&filespec, &fileref);
 #endif
 
-        unsigned char * filebuf = malloc(4 * PATH_MAX);
+        filebuf = malloc(4 * PATH_MAX);
         filebuf[0] = '\0';
 
         FSRefMakePath(&fileref, filebuf, 4 * PATH_MAX - 1);
