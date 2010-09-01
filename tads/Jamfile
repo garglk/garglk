@@ -28,8 +28,8 @@ if $(OS) = LINUX || $(OS) = SOLARIS
 
 if $(OS) = MACOSX
 {
-    SubDirCcFlags $(MAINARCH) $(ALTARCH) -headerpad_max_install_names ;
-    LINKFLAGS = $(MAINARCH) $(ALTARCH) -headerpad_max_install_names ;
+    SubDirCcFlags -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
+    LINKFLAGS = -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
 }
 
 SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;

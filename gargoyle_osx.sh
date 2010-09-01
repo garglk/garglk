@@ -19,6 +19,16 @@ then
     hdiutil detach -quiet /Volumes/SDL_mixer
 fi
 
+if [ ! -d /Library/Frameworks/mikmod.framework ];
+then
+    ln -s /Library/Frameworks/SDL_mixer.framework/Frameworks/mikmod.framework /Library/Frameworks/mikmod.framework
+fi
+
+if [ ! -d /Library/Frameworks/smpeg.framework ];
+then
+    ln -s /Library/Frameworks/SDL_mixer.framework/Frameworks/smpeg.framework /Library/Frameworks/smpeg.framework
+fi
+
 rm -rf Gargoyle.app
 mkdir -p $BUNDLE/MacOS
 mkdir -p $BUNDLE/Frameworks
@@ -59,6 +69,8 @@ done
 
 cp -R /Library/Frameworks/SDL.framework $BUNDLE/Frameworks
 cp -R /Library/Frameworks/SDL_mixer.framework $BUNDLE/Frameworks
+cp -R /Library/Frameworks/mikmod.framework $BUNDLE/Frameworks
+cp -R /Library/Frameworks/smpeg.framework $BUNDLE/Frameworks
 
 cp -f garglk/launcher.plist $BUNDLE/Info.plist
 cp -f $GARGDIST/gargoyle $BUNDLE/MacOS/Gargoyle
