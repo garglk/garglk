@@ -722,7 +722,12 @@ char filterlist[] = "";
     if (urlParts && [urlParts count] == 2)
     {
         openedFirstGame = YES;
-        [self launchFile: [urlParts objectAtIndex: 1]];
+        NSString * game = [[urlParts objectAtIndex: 1] stringByReplacingPercentEscapesUsingEncoding: NSASCIIStringEncoding];
+
+        if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES)
+            [self launchFile: game];
+        else
+            NSRunAlertPanel(@"Could not open URL path:", game, NULL, NULL, NULL);
     }
 
 }
