@@ -717,7 +717,7 @@ char filterlist[] = "";
 
 - (void) openURL: (NSAppleEventDescriptor *) event withReplyEvent: (NSAppleEventDescriptor *) reply
 {
-    NSArray * urlParts = [[[event paramDescriptorForKeyword: keyDirectObject] stringValue] componentsSeparatedByString: @"garglk:///"];
+    NSArray * urlParts = [[[event paramDescriptorForKeyword: keyDirectObject] stringValue] componentsSeparatedByString: @"garglk://"];
 
     if (urlParts && [urlParts count] == 2)
     {
