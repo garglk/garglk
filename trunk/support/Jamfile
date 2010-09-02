@@ -19,16 +19,7 @@ if $(USESDL)
 
     if $(OS) = MINGW   { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
     if $(OS) = SOLARIS { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
-    if $(OS) = MACOSX 
-    {
-        SubDirCcFlags
-            -I/Library/Frameworks/SDL.framework/Headers
-            -I/Library/Frameworks/SDL_mixer.framework/Headers
-            -I/Library/Frameworks/smpeg.framework/Headers
-            -I/Library/Frameworks/mikmod.framework/Headers
-            -fPIC 
-            ;
-    }
+    if $(OS) = MACOSX  { SubDirCcFlags -I/opt/local/include/SDL -fPIC ; }
 
     SEARCH_SOURCE =
         [ FDirName $(TOP) support sdl_sound ]

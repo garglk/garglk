@@ -94,8 +94,8 @@ switch $(OS)
 
         if $(USESDL)
         {
-            FRAMEWORKS += -framework SDL -framework SDL_mixer -framework mikmod -framework smpeg ;
-            SHRLINKLIBS += -lvorbisfile ;
+            GARGLKCCFLAGS += -I/opt/local/include/SDL ;
+            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
         }
 
         LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
