@@ -180,7 +180,7 @@ void win_pair_rearrange(window_t *win, rect_t *box)
 void win_pair_redraw(window_t *win)
 {
 	window_pair_t *dwin;
-	window_t *ch1, *ch2;
+	window_t *child;
 	int x0, y0, x1, y1;
 
 	if (!win)
@@ -191,19 +191,19 @@ void win_pair_redraw(window_t *win)
 	gli_window_redraw(dwin->child1);
 	gli_window_redraw(dwin->child2);
 
-	if (!dwin->backward) {
-		ch1 = dwin->child1;
-		ch2 = dwin->child2;
+	if (!dwin->backward)
+	{
+		child = dwin->child1;
 	}
-	else {
-		ch1 = dwin->child2;
-		ch2 = dwin->child1;
+	else
+	{
+		child = dwin->child2;
 	}
 
-	x0 = ch1->bbox.x0;
-	y0 = ch1->bbox.y0;
-	x1 = ch1->bbox.x1;
-	y1 = ch1->bbox.y1;
+	x0 = child->bbox.x0;
+	y0 = child->bbox.y0;
+	x1 = child->bbox.x1;
+	y1 = child->bbox.y1;
 
 	if (dwin->vertical)
 	{
