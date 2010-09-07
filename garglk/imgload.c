@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -310,7 +310,7 @@ static void load_image_jpeg(FILE *fl, picture_t *pic)
 static void load_image_png(FILE *fl, picture_t *pic)
 {
     int ix, x, y;
-    int color_type, channels, srcdepth, srcrowbytes;
+    int srcrowbytes;
     png_structp png_ptr = NULL;
     png_infop info_ptr = NULL;
 
@@ -351,10 +351,6 @@ static void load_image_png(FILE *fl, picture_t *pic)
     pic->w = png_get_image_width(png_ptr, info_ptr);
     pic->h = png_get_image_height(png_ptr, info_ptr);
 
-    srcdepth = png_get_bit_depth(png_ptr, info_ptr);
-    color_type = png_get_color_type(png_ptr, info_ptr);
-    channels = png_get_channels(png_ptr, info_ptr);
-
     png_set_strip_16(png_ptr);
     png_set_packing(png_ptr);
     png_set_expand(png_ptr);
@@ -362,7 +358,6 @@ static void load_image_png(FILE *fl, picture_t *pic)
 
     png_read_update_info(png_ptr, info_ptr);
 
-    channels = png_get_channels(png_ptr, info_ptr);
     srcrowbytes = png_get_rowbytes(png_ptr, info_ptr);
 
     assert(srcrowbytes == pic->w * 4 || srcrowbytes == pic->w * 3);

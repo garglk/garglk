@@ -148,7 +148,6 @@ winid_t glk_window_open(winid_t splitwin,
 {
     window_t *newwin, *pairwin, *oldparent;
     window_pair_t *dpairwin;
-    rect_t box;
     glui32 val;
 
     gli_force_redraw = 1;
@@ -236,8 +235,6 @@ winid_t glk_window_open(winid_t splitwin,
     }
     else
     {
-        box = splitwin->bbox;
-
         /* create pairwin, with newwin as the key */
         pairwin = gli_new_window(wintype_Pair, 0);
         dpairwin = win_pair_create(pairwin, method, newwin, size);

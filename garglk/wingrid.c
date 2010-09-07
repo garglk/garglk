@@ -111,7 +111,7 @@ void win_textgrid_redraw(window_t *win)
 {
     window_textgrid_t *dwin = win->data;
     tgline_t *ln;
-    int x0, y0, x1, y1;
+    int x0, y0;
     int x, y, w;
     int i, a, b, k, o;
     glui32 link;
@@ -119,9 +119,7 @@ void win_textgrid_redraw(window_t *win)
     unsigned char *fgcolor, *bgcolor;
 
     x0 = win->bbox.x0;
-    x1 = win->bbox.x1;
     y0 = win->bbox.y0;
-    y1 = win->bbox.y1;
 
     for (i = 0; i < dwin->height; i++)
     {
