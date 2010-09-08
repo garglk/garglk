@@ -52,8 +52,8 @@ if $(OS) = MINGW
         [ FDirName $(TOP) support zlib ]
         ;
     InstallLib $(LIBDIR) : freetype6.dll ;
-    InstallLib $(LIBDIR) : libjpeg-7.dll ;
-    InstallLib $(LIBDIR) : libpng12-0.dll ;
+    InstallLib $(LIBDIR) : libjpeg-8.dll ;
+    InstallLib $(LIBDIR) : libpng14-14.dll ;
     InstallLib $(LIBDIR) : zlib1.dll ;
 }
 
@@ -68,6 +68,7 @@ if $(OS) = MINGW && $(USESDL)
     InstallLib $(LIBDIR) : libogg-0.dll ;
     InstallLib $(LIBDIR) : libvorbis-0.dll ;
     InstallLib $(LIBDIR) : libvorbisfile-3.dll ;
+    InstallLib $(LIBDIR) : mikmod.dll ;
 }
 
 InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;

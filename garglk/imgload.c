@@ -334,7 +334,7 @@ static void load_image_png(FILE *fl, picture_t *pic)
         return;
     }
 
-    if (setjmp(png_ptr->jmpbuf)) {
+    if (setjmp(png_jmpbuf(png_ptr))) {
         /* If we jump here, we had a problem reading the file */
         png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         if (rowarray)
