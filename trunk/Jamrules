@@ -38,8 +38,8 @@ switch $(OS)
         LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
         SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
         SHRLINKLIBS += $(TOP)/support/freetype/freetype6.dll ;
-        SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-7.dll ;
-        SHRLINKLIBS += $(TOP)/support/libpng/libpng12-0.dll ;
+        SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-8.dll ;
+        SHRLINKLIBS += $(TOP)/support/libpng/libpng14-14.dll ;
         SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
 
         if $(BUILD) = RELEASE || $(BUILD) = TURBO
