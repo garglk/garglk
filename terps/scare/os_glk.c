@@ -869,6 +869,7 @@ static void
 gsc_status_update (void)
 {
   glui32 width, height;
+  int index;
   assert (gsc_status_window);
 
   glk_window_get_size (gsc_status_window, &width, &height);
@@ -879,6 +880,11 @@ gsc_status_update (void)
       glk_window_clear (gsc_status_window);
       glk_window_move_cursor (gsc_status_window, 0, 0);
       glk_set_window (gsc_status_window);
+
+      glk_set_style(style_User1);
+      for (index = 0; index < width; index++)
+        glk_put_char (' ');
+      glk_window_move_cursor (gsc_status_window, 0, 0);
 
       /* See if the game is indicating any current player room. */
       room = sc_get_game_room (gsc_game);
@@ -3209,6 +3215,7 @@ gsc_main (void)
     }
 
   /* Try to create a one-line status window.  We can live without it. */
+  glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
   gsc_status_window = glk_window_open (gsc_main_window,
                                        winmethod_Above | winmethod_Fixed,
                                        1, wintype_TextGrid, 0);
@@ -3537,7 +3544,6 @@ winglk_startup_code (const char *cmdline)
   winglk_window_set_title ("Scare Adrift Interpreter");
   winglk_set_about_text ("Windows Scare 1.3.10");
   winglk_set_gui (IDI_SCARE);
-  glk_stylehint_set (wintype_TextGrid, style_Normal, stylehint_ReverseColor, 1);
 
   /* Open a stream to the game. */
   filename = winglk_get_initial_filename (cmdline,

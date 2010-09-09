@@ -408,7 +408,9 @@ extern void garglk_unput_string_uni(glui32 *str);
 #define zcolor_Default       (-1)
 
 extern void garglk_set_zcolors(glui32 fg, glui32 bg);
+extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);
+extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 
 /* non standard keycodes */
 #define keycode_Erase               (0xffffef7f)

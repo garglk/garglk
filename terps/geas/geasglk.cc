@@ -102,6 +102,7 @@ void glk_main(void)
         return;
     }
 
+    glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
     bannerwin = glk_window_open(mainglkwin,
                                 winmethod_Above | winmethod_Fixed,
                                 1, wintype_TextGrid, 0);
@@ -181,11 +182,20 @@ void glk_main(void)
 void
 draw_banner()
 {
+  glui32 width;
+  int index;
   if (bannerwin)
     {
       glk_window_clear(bannerwin);
       glk_window_move_cursor(bannerwin, 0, 0);
       strid_t stream = glk_window_get_stream(bannerwin);
+
+      glk_set_style_stream(stream, style_User1);
+      glk_window_get_size (bannerwin, &width, NULL);
+      for (index = 0; index < width; index++)
+        glk_put_char_stream (stream, ' ');
+      glk_window_move_cursor(bannerwin, 1, 0);
+
       if (banner.empty())
         glk_put_string_stream(stream, (char*)"Geas 0.4");
       else
