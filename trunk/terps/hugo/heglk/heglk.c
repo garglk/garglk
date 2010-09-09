@@ -456,6 +456,10 @@ void hugo_settextwindow(int left, int top, int right, int bottom)
 		/* ...either create a new window if none exists... */
 		if (!secondwin)
 		{
+			glk_stylehint_set (wintype_TextGrid, style_Normal, stylehint_ReverseColor, 1);
+			glk_stylehint_set (wintype_TextGrid, style_Subheader, stylehint_ReverseColor, 1);
+			glk_stylehint_set (wintype_TextGrid, style_Emphasized, stylehint_ReverseColor, 1);
+
 			winid_t p;
 
 			p = glk_window_get_parent(mainwin);

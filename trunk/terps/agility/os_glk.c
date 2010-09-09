@@ -985,6 +985,8 @@ gagt_status_update_extended (void)
 	/* Clear the second status line only. */
 	glk_window_move_cursor (gagt_status_window, 0, 1);
 	status_stream = glk_window_get_stream (gagt_status_window);
+
+	glk_set_style_stream (status_stream, style_User1);
 	for (index = 0; index < width; index++)
 		glk_put_char_stream (status_stream, ' ');
 
@@ -1036,6 +1038,7 @@ gagt_status_update (void)
 {
 	glui32		width, height;		/* Status window dimensions */
 	strid_t		status_stream;		/* Status window stream */
+	int		index;			/* Compass/string index. */
 	assert (gagt_status_window != NULL);
 
 	/* Measure the status window, and do nothing if height is zero. */
@@ -1047,6 +1050,11 @@ gagt_status_update (void)
 	glk_window_clear (gagt_status_window);
 	glk_window_move_cursor (gagt_status_window, 0, 0);
 	status_stream = glk_window_get_stream (gagt_status_window);
+
+	glk_set_style_stream (status_stream, style_User1);
+	for (index = 0; index < width; index++)
+		glk_put_char_stream (status_stream, ' ');
+	glk_window_move_cursor (gagt_status_window, 0, 0);
 
 	/* Call print_statline() to refresh status line buffer contents. */
 	print_statline ();
@@ -5965,6 +5973,7 @@ init_interface (int argc, char *argv[])
 	 * we have to.
 	 */
 	status_height = gagt_extended_status_enabled ? 2 : 1;
+	glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
 	gagt_status_window = glk_window_open (gagt_main_window,
 			 		winmethod_Above|winmethod_Fixed,
 					status_height, wintype_TextGrid, 0);

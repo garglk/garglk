@@ -7,7 +7,7 @@
 SubDir TOP terps ;
 
 MAKE_ADVSYS     ?= yes ;
-MAKE_AGILITY    ?= no ;
+MAKE_AGILITY    ?= yes ;
 MAKE_ALAN2      ?= yes ;
 MAKE_ALAN3      ?= yes ;
 MAKE_FROTZ      ?= yes ;

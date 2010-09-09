@@ -47,6 +47,7 @@ static void openGlkWindows() {
     printf("FATAL ERROR: Cannot open initial window");
     glk_exit();
   }
+  glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
   glkStatusWin = glk_window_open(glkMainWin, winmethod_Above |
     winmethod_Fixed, 1, wintype_TextGrid, 0);
   glk_set_window(glkStatusWin);

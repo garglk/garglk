@@ -165,10 +165,17 @@ void reset_status_ht(void)
 	{
 		glk_window_get_size(gos_upper, NULL, &height);
 		if (mach_status_ht != height)
+		{
 			glk_window_set_arrangement(
 				glk_window_get_parent(gos_upper),
 				winmethod_Above | winmethod_Fixed,
 				mach_status_ht, NULL);
+#ifdef GARGLK
+			garglk_set_reversevideo_stream(
+				glk_window_get_stream(gos_upper),
+				TRUE);
+#endif /* GARGLK */
+		}
 	}
 }
 

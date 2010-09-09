@@ -1616,12 +1616,30 @@ void glk_set_style_stream(stream_t *str, glui32 val)
 
 void garglk_set_zcolors(glui32 fg, glui32 bg)
 {
-    gli_set_zcolors(gli_currentstr, fg, bg);
+  gli_set_zcolors(gli_currentstr, fg, bg);
+}
+
+void garglk_set_zcolors_stream(stream_t *str, glui32 fg, glui32 bg)
+{
+  if (!str) {
+    gli_strict_warning("set_style_stream: invalid ref");
+    return;
+  }
+  gli_set_zcolors(str, fg, bg);
 }
 
 void garglk_set_reversevideo(glui32 reverse)
 {
-    gli_set_reversevideo(gli_currentstr, reverse);
+  gli_set_reversevideo(gli_currentstr, reverse);
+}
+
+void garglk_set_reversevideo_stream(stream_t *str, glui32 reverse)
+{
+  if (!str) {
+    gli_strict_warning("set_style_stream: invalid ref");
+    return;
+  }
+  gli_set_reversevideo(str, reverse);
 }
 
 void glk_set_hyperlink(glui32 linkval)
@@ -1629,13 +1647,12 @@ void glk_set_hyperlink(glui32 linkval)
     gli_set_hyperlink(gli_currentstr, linkval);
 }
 
-void glk_set_hyperlink_stream(strid_t str, glui32 linkval)
+void glk_set_hyperlink_stream(stream_t *str, glui32 linkval)
 {
   if (!str) {
     gli_strict_warning("set_hyperlink_stream: invalid ref");
     return;
   }
-
   gli_set_hyperlink(str, linkval);
 }
 
@@ -1686,9 +1703,9 @@ glui32 glk_get_buffer_stream(stream_t *str, char *buf, glui32 len)
 
 glui32 glk_get_buffer_stream_uni(stream_t *str, glui32 *buf, glui32 len)
 {
-    if (!str) {
-        gli_strict_warning("get_buffer_stream_uni: invalid ref");
-        return -1;
-    }
-    return gli_get_buffer_uni(str, buf, len);
+  if (!str) {
+    gli_strict_warning("get_buffer_stream_uni: invalid ref");
+    return -1;
+  }
+  return gli_get_buffer_uni(str, buf, len);
 }

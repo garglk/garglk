@@ -2544,6 +2544,7 @@ static void
 gms_status_update (void)
 {
   glui32 width, height;
+  int index;
   assert (gms_status_window);
 
   glk_window_get_size (gms_status_window, &width, &height);
@@ -2552,6 +2553,11 @@ gms_status_update (void)
       glk_window_clear (gms_status_window);
       glk_window_move_cursor (gms_status_window, 0, 0);
       glk_set_window (gms_status_window);
+
+      glk_set_style(style_User1);
+      for (index = 0; index < width; index++)
+        glk_put_char (' ');
+      glk_window_move_cursor (gms_status_window, 1, 0);
 
       if (gms_status_length > 0)
         {
@@ -6026,6 +6032,7 @@ gms_main (void)
     gms_graphics_enabled = FALSE;
 
   /* Try to create a one-line status window.  We can live without it. */
+  glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
   gms_status_window = glk_window_open (gms_main_window,
                                        winmethod_Above | winmethod_Fixed,
                                        1, wintype_TextGrid, 0);
