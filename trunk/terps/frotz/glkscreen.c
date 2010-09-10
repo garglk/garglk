@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -30,8 +31,6 @@
 static zchar statusline[256];
 static int oldstyle = 0;
 static int curstyle = 0;
-static int upperstyle = 0;
-static int lowerstyle = 0;
 static int cury = 1;
 static int curx = 1;
 
@@ -811,29 +810,25 @@ void z_set_window (void)
 {
 	int win = zargs[0];
 
-	if (gos_curwin == gos_lower)
-		lowerstyle = curstyle;
-	else
-		upperstyle = curstyle;
-
 	if (win == 0)
 	{
 		glk_set_window(gos_lower);
 		gos_curwin = gos_lower;
-		curstyle = lowerstyle;
 	}
 	else
 	{
 		if (gos_upper)
 			glk_set_window(gos_upper);
 		gos_curwin = gos_upper;
-		curstyle = upperstyle;
 	}
 
-		if (win == 0)
-			enable_scripting = TRUE;
-		else
-			enable_scripting = FALSE;
+	if (win == 0)
+		enable_scripting = TRUE;
+	else
+		enable_scripting = FALSE;
+
+	zargs[0] = 0xf000;	/* tickle tickle! */
+	z_set_text_style();
 }
 
 /*
