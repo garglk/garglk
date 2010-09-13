@@ -936,10 +936,11 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     if (gli_conf_quotes)
     {
+#define LEFTQUOTE(c)	((c) == ' ' || (c) == '(' || (c) == '[')
         /* fails for 'tis a wonderful day in the '80s */
         if (gli_conf_quotes > 1 && ch == '\'')
         {
-            if (dwin->numchars == 0 || dwin->chars[dwin->numchars-1] == ' ')
+            if (dwin->numchars == 0 || LEFTQUOTE(dwin->chars[dwin->numchars-1]))
                 ch = UNI_LSQUO;
         }
 
@@ -951,11 +952,12 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
         if (ch == '"')
         {
-            if (dwin->numchars == 0 || dwin->chars[dwin->numchars-1] == ' ')
+            if (dwin->numchars == 0 || LEFTQUOTE(dwin->chars[dwin->numchars-1]))
                 ch = UNI_LDQUO;
             else
                 ch = UNI_RDQUO;
         }
+#undef LEFTQUOTE
     }
 
     if (gli_conf_quotes && win->attr.style != style_Preformatted)
