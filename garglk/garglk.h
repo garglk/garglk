@@ -372,6 +372,7 @@ struct glk_window_struct
 
     window_t *parent; /* pair window which contains this one */
     rect_t bbox;
+    int yadj;
     void *data; /* one of the window_*_t structures */
 
     stream_t *str; /* the window stream. */

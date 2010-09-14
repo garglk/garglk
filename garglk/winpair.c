@@ -201,7 +201,7 @@ void win_pair_redraw(window_t *win)
 	}
 
 	x0 = child->bbox.x0;
-	y0 = child->bbox.y0;
+	y0 = child->yadj ? child->bbox.y0 - child->yadj : child->bbox.y0;
 	x1 = child->bbox.x1;
 	y1 = child->bbox.y1;
 
