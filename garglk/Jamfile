@@ -13,7 +13,7 @@ if $(OS) = MINGW
     SubDirHdrs $(TOP) support zlib ;
 }
 
-if $(USESDL)
+if $(USESDL) = yes
 {
     SubDirHdrs $(TOP) support sdl ;
     SubDirHdrs $(TOP) support sdl_sound ;
@@ -33,8 +33,8 @@ GARGSRCS =
     fontdata.c 
     ;
 
-if $(USESDL) { GARGSRCS += sndsdl.c ; }
-else if $(USEFMOD) { GARGSRCS += sndfmod.c ; }
+if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
+else if $(USEFMOD) = yes { GARGSRCS += sndfmod.c ; }
 else { GARGSRCS += sndnull.c ; }
 
 if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
@@ -46,12 +46,12 @@ else if $(OS) = MACOSX { Main gargoyle : launchmac.m launcher.c ; }
 else { Main gargoyle : launchgtk.c launcher.c ; }
 
 Library libgarglkmain : main.c ;
-SharedLibrary libgarglk : $(GARGSRCS) ;
 
-SharedLinkLibraries gargoyle : libgarglk ;
+if $(STATIC) { Library libgarglk : $(GARGSRCS) ; }
+else   { SharedLibrary libgarglk : $(GARGSRCS) ; }
 
-if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL)
+if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
 {
-    LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
+    if $(STATIC)        { LinkLibraries libgarglk : SDL_sound_static ; }
+    else { LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ; }
 }
-

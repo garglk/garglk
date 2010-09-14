@@ -38,7 +38,10 @@ else
 for APP in $(APPS)
 {
     LinkLibraries $(APP) : libgarglkmain ;
-    SharedLinkLibraries $(APP) : libgarglk ;
+
+    if $(STATIC) { LinkLibraries $(APP) : libgarglk ; }
+    else   { SharedLinkLibraries $(APP) : libgarglk ; }
+
     InstallBin $(APPDIR) : $(APP)$(SUFEXE) ;
 }
 
@@ -57,7 +60,7 @@ if $(OS) = MINGW
     InstallLib $(LIBDIR) : zlib1.dll ;
 }
 
-if $(OS) = MINGW && $(USESDL)
+if $(OS) = MINGW && $(USESDL) = yes
 {
     SharedLinkLibrariesOnSharedLibrary libgarglk : SDL_sound ;
     SEARCH_SOURCE += [ FDirName $(TOP) support sdl ] ;
@@ -71,5 +74,14 @@ if $(OS) = MINGW && $(USESDL)
     InstallLib $(LIBDIR) : mikmod.dll ;
 }
 
-InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
-InstallLib $(LIBDIR) : libgarglk$(SUFDLL) ;
+if $(STATIC)
+{
+    LinkLibraries gargoyle : libgarglk ;
+    InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+}
+else
+{
+    SharedLinkLibraries gargoyle : libgarglk ;
+    InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+    InstallLib $(LIBDIR) : libgarglk$(SUFDLL) ;
+}

@@ -6,7 +6,7 @@
 # SDL Sound 
 #
 
-if $(USESDL)
+if $(USESDL) = yes
 {
     SubDir TOP support ;
     ObjDir SDL_sound ;
