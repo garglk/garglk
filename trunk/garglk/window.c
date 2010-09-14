@@ -80,6 +80,7 @@ window_t *gli_new_window(glui32 type, glui32 rock)
 
     win->parent = NULL; /* for now */
     win->data = NULL; /* for now */
+    win->yadj = 0;
 
     win->char_request = FALSE;
     win->char_request_uni = FALSE;
@@ -775,9 +776,10 @@ void gli_window_redraw(window_t *win)
 {
     if (gli_force_redraw) {
         unsigned char *color = gli_override_bg_set ? gli_window_color : win->bgcolor;
-        gli_draw_rect(win->bbox.x0, win->bbox.y0,
+        int y0 = win->yadj ? win->bbox.y0 - win->yadj : win->bbox.y0;
+        gli_draw_rect(win->bbox.x0, y0,
                 win->bbox.x1 - win->bbox.x0,
-                win->bbox.y1 - win->bbox.y0,
+                win->bbox.y1 - y0,
                 color);
     }
 

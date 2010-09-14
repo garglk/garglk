@@ -270,6 +270,7 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
 
     /* align text with bottom */
     rnd = newhgt * gli_cellh + gli_tmarginy * 2;
+    win->yadj = (box->y1 - box->y0 - rnd);
     dwin->owner->bbox.y0 += (box->y1 - box->y0 - rnd);
 
     if (newwid != dwin->width)
