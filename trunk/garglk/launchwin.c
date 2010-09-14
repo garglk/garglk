@@ -56,7 +56,7 @@ char filterlist[] =
 "All Files\0*\0"
 "\0\0";
 
-void wininit(void)
+void winstart(void)
 {
 }
 
@@ -142,7 +142,7 @@ int winargs(int argc, char **argv, char *buffer)
     return (argc == 2);
 }
 
-void winopenfile(char *buffer)
+void winbrowsefile(char *buffer)
 {
     *buffer = 0;
 
@@ -225,14 +225,14 @@ int winterp(char *path, char *exe, char *flags, char *game)
 
 int main(int argc, char **argv)
 {
-    wininit();
+    winstart();
 
     /* get dir of executable */
     winpath(dir);
 
     /* get story file */
     if (!winargs(argc, argv, buf))
-        winopenfile(buf);
+        winbrowsefile(buf);
 
     if (!strlen(buf))
         return TRUE;

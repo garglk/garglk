@@ -48,7 +48,7 @@ switch $(OS)
             LINKLIBS += -mwindows ;
         }
 
-        if $(USESDL)
+        if $(USESDL) = yes
         {
             SHRLINKLIBS += $(TOP)/support/sdl/SDL_mixer.dll ;
             SHRLINKLIBS += $(TOP)/support/sdl/SDL.dll ;
@@ -59,27 +59,35 @@ switch $(OS)
         Echo "OS is LINUX (gtk+)" ;
         PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = -lz -lm ;
 
-        if $(USESDL)
+        if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
         }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+
 
     case SOLARIS :
         Echo "OS is SOLARIS (gtk+)" ;
         PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        SHRLINKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = "-lz -lm" ;
 
-        if $(USESDL)
+        if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
         }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+
 
     case MACOSX :
         Echo "OS is MACOSX (cocoa)" ;
@@ -92,14 +100,15 @@ switch $(OS)
         LINKLIBS = "`$(PKGCONFIG) --libs`" -lz -lm ;
         FRAMEWORKS = -framework Cocoa -framework OpenGL ;
 
-        if $(USESDL)
+        if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/opt/local/include/SDL ;
             SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
         }
 
         LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
-    
+
+
     case * :
         Exit "Unknown target. Please edit 'Jamrules'." ;
 }
