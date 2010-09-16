@@ -70,10 +70,12 @@ static volatile int gli_window_alive = TRUE;
 - (void) closeWindow: (pid_t) processID;
 
 - (NSString *) openWindowDialog: (pid_t) processID
-                         prompt: (NSString *) prompt;
+                         prompt: (NSString *) prompt
+                         filter: (unsigned int) filter;
 
 - (NSString *) saveWindowDialog: (pid_t) processID
-                         prompt: (NSString *) prompt;
+                         prompt: (NSString *) prompt
+                         filter: (unsigned int) filter;
 
 - (void) abortWindowDialog: (pid_t) processID
                     prompt: (NSString *) prompt;
@@ -219,7 +221,8 @@ void winopenfile(char *prompt, char *buf, int len, int filter)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];    
 
     NSString * fileref = [gargoyle openWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]];
+                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]
+                                             filter: filter];
 
     strcpy(buf, "");
 
@@ -243,7 +246,8 @@ void winsavefile(char *prompt, char *buf, int len, int filter)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     NSString * fileref = [gargoyle saveWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]];
+                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]
+                                             filter: filter];
 
     strcpy(buf, "");
 

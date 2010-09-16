@@ -44,7 +44,13 @@ char buf[MaxBuffer];
 char tmp[MaxBuffer];
 char etc[MaxBuffer];
 
-char filterlist[] = "";
+enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
+char *winfilters[] =
+{
+    "sav",
+    "txt",
+    "*",
+};
 
 @interface GargoyleView : NSOpenGLView
 {
@@ -142,8 +148,10 @@ char filterlist[] = "";
 - (IBAction) paste: (id) sender;
 - (IBAction) performZoom: (id) sender;
 - (void) performRefresh: (NSNotification *) notice;
-- (NSString *) openFileDialog: (NSString *) prompt;
-- (NSString *) saveFileDialog: (NSString *) prompt;
+- (NSString *) openFileDialog: (NSString *) prompt
+                   fileFilter: (unsigned int) filter;
+- (NSString *) saveFileDialog: (NSString *) prompt
+                   fileFilter: (unsigned int) filter;
 - (pid_t) retrieveID;
 - (void) quit;
 @end
@@ -345,7 +353,10 @@ char filterlist[] = "";
 }
 
 - (NSString *) openFileDialog: (NSString *) prompt
+                   fileFilter: (unsigned int) filter
 {
+    int result;
+
     NSOpenPanel * openDlg = [NSOpenPanel openPanel];
 
     [openDlg setCanChooseFiles: YES];
@@ -353,20 +364,46 @@ char filterlist[] = "";
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: prompt];
 
-    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+    if (filter != FILTER_ALL)
+    {
+        NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
+                                                                             encoding: NSASCIIStringEncoding]];        
+        [openDlg setAllowedFileTypes: filterTypes];
+        [openDlg setAllowsOtherFileTypes: NO];
+        result = [openDlg runModalForDirectory: NULL file: NULL types: filterTypes];
+    }
+    else
+    {
+        result = [openDlg runModal];
+    }
+
+    if (result == NSFileHandlingPanelOKButton)
         return [openDlg filename];
 
     return NULL;
 }
 
 - (NSString *) saveFileDialog: (NSString *) prompt
+                   fileFilter: (unsigned int) filter
 {
+    int result;
+
     NSSavePanel * saveDlg = [NSSavePanel savePanel];
 
     [saveDlg setCanCreateDirectories: YES];
     [saveDlg setTitle: prompt];
 
-    if ([saveDlg runModal] == NSFileHandlingPanelOKButton)
+    if (filter != FILTER_ALL)
+    {
+        NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
+                                                                             encoding: NSASCIIStringEncoding]];        
+        [saveDlg setAllowedFileTypes: filterTypes];
+        [saveDlg setAllowsOtherFileTypes: NO];
+    }
+
+    result = [saveDlg runModal];
+
+    if (result == NSFileHandlingPanelOKButton)
         return [saveDlg filename];
 
     return NULL;
@@ -586,13 +623,14 @@ char filterlist[] = "";
 
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
+                         filter: (unsigned int) filter
 {
     id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
 
     if (storedWindow)
     {
         GargoyleWindow * window = (GargoyleWindow *) storedWindow;
-        return [window openFileDialog: prompt];
+        return [window openFileDialog: prompt fileFilter: filter];
     }
 
     return NULL;
@@ -600,13 +638,14 @@ char filterlist[] = "";
 
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
+                         filter: (unsigned int) filter
 {
     id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
 
     if (storedWindow)
     {
         GargoyleWindow * window = (GargoyleWindow *) storedWindow;
-        return [window saveFileDialog: prompt];
+        return [window saveFileDialog: prompt fileFilter: filter];
     }
 
     return NULL;
@@ -645,6 +684,8 @@ char filterlist[] = "";
 
 - (BOOL) launchFileDialog
 {
+    int result;
+    
     NSOpenPanel * openDlg = [NSOpenPanel openPanel];
 
     [openDlg setCanChooseFiles: YES];
@@ -652,7 +693,16 @@ char filterlist[] = "";
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding]];
 
-    if ([openDlg runModal] == NSFileHandlingPanelOKButton)
+    NSArray *filterTypes = [[[[[NSBundle mainBundle] infoDictionary]
+                              objectForKey:@"CFBundleDocumentTypes"]
+                             objectAtIndex: 0]
+                            objectForKey: @"CFBundleTypeExtensions"];
+
+    [openDlg setAllowedFileTypes: filterTypes];
+    [openDlg setAllowsOtherFileTypes: NO];
+    result = [openDlg runModalForDirectory: NULL file: NULL types: filterTypes];
+
+    if (result == NSFileHandlingPanelOKButton)
         return [self launchFile:[openDlg filename]];
 
     return NO;

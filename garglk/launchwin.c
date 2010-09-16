@@ -47,7 +47,7 @@ char filterlist[] =
 "Glulx Games (*.ulx)\0*.ulx;*.blb;*.blorb;*.glb;*.gblorb\0"
 "Hugo Games (*.hex)\0*.hex\0"
 "JACL Games (*.jacl,*.j2)\0*.jacl;*.j2\0"
-"Level 9 (*.sna)\0*.sna\0"
+"Level 9 (*.l9)\0*.l9;*.sna\0"
 "Magnetic Scrolls (*.mag)\0*.mag\0"
 "Quest Games (*.asl,*.cas)\0*.asl;*.cas\0"
 "TADS 2 Games (*.gam)\0*.gam;*.t3\0"
