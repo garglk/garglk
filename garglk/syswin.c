@@ -64,6 +64,14 @@ static int timeouts = 0;
 static wchar_t *cliptext = NULL;
 static int cliplen = 0;
 
+/* filters for file dialogs */
+static char *winfilters[] =
+{
+    "Saved game files (*.sav)\0*.sav\0All files (*.*)\0*.*\0\0",
+    "Text files (*.txt)\0*.txt\0All files (*.*)\0*.*\0\0",
+    "All files (*.*)\0*.*\0\0",
+};
+
 void glk_request_timer_events(glui32 millisecs)
 {
 	if (timerid != -1)
@@ -139,7 +147,7 @@ void winexit(void)
     exit(0);
 }
 
-void winopenfile(char *prompt, char *buf, int len, char *filter)
+void winopenfile(char *prompt, char *buf, int len, int filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -149,7 +157,7 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     ofn.nMaxFile = len;
     ofn.lpstrInitialDir = NULL;
     ofn.lpstrTitle = prompt;
-    ofn.lpstrFilter = filter;
+    ofn.lpstrFilter = winfilters[filter];
     ofn.nFilterIndex = 1;
     ofn.lpstrDefExt = ("");
     ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
@@ -158,7 +166,7 @@ void winopenfile(char *prompt, char *buf, int len, char *filter)
     strcpy(buf, "");
 }
 
-void winsavefile(char *prompt, char *buf, int len, char *filter)
+void winsavefile(char *prompt, char *buf, int len, int filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -168,7 +176,7 @@ void winsavefile(char *prompt, char *buf, int len, char *filter)
     ofn.nMaxFile = len;
     ofn.lpstrInitialDir = NULL;
     ofn.lpstrTitle = prompt;
-    ofn.lpstrFilter = filter;
+    ofn.lpstrFilter = winfilters[filter];
     ofn.nFilterIndex = 1;
     ofn.lpstrDefExt = ("");
     ofn.Flags = OFN_OVERWRITEPROMPT;

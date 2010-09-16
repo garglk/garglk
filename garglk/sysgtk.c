@@ -36,7 +36,6 @@
 
 static GtkWidget *frame;
 static GtkWidget *canvas;
-static GtkWidget *filedlog;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
@@ -44,7 +43,6 @@ static GtkIMContext *imcontext;
 #define MaxBuffer 1024
 static int fileselect = 0;
 static char filepath[MaxBuffer];
-static char *filename;
 
 static int timerid = -1;
 static int timeouts = 0;
@@ -53,6 +51,21 @@ static int timeouts = 0;
 static char *cliptext = NULL;
 static int cliplen = 0;
 enum clipsource { PRIMARY , CLIPBOARD };
+
+/* filters for file dialogs */
+static char *winfilternames[] =
+{
+    "Saved game files",
+    "Text files",
+    "All files",
+};
+
+static char *winfilterpatterns[] =
+{
+    "*.sav",
+    "*.txt",
+    "*",
+};
 
 static int timeout(void *data)
 {
@@ -92,52 +105,70 @@ void winexit(void)
     exit(0);
 }
 
-void winchoosefile(char *prompt, char *buf, int len, char *filter, GtkFileChooserAction action)
+void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
-    filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
-                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                    NULL);
+    GtkWidget *filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
+                                                      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                      button, GTK_RESPONSE_ACCEPT,
+                                                      NULL);
+
+    if (filter != FILTER_ALL)
+    {
+        /* first filter added becomes the default */
+        GtkFileFilter *filefilter = gtk_file_filter_new();
+        gtk_file_filter_set_name(filefilter, winfilternames[filter]);
+        gtk_file_filter_add_pattern(filefilter, winfilterpatterns[filter]);
+        gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(filedlog), filefilter);
+
+        /* need a second filter or the UI widget gets weird */
+        GtkFileFilter *allfilter = gtk_file_filter_new();
+        gtk_file_filter_set_name(allfilter, winfilternames[FILTER_ALL]);
+        gtk_file_filter_add_pattern(allfilter, winfilterpatterns[FILTER_ALL]);
+        gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(filedlog), allfilter);
+    }
+
+    if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
+    {
+        gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(filedlog), TRUE);
+        char savename[32];
+        sprintf(savename, "Untitled%s", winfilterpatterns[filter]+1);
+        gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(filedlog), savename);
+    }
+
     if (strlen(buf))
-        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(filedlog), buf);
-    
-    if (fileselect) {
+        gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(filedlog), buf);
+
+    if (fileselect)
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), filepath);
-    } else if (getenv("HOME")) {
+    else if (getenv("HOME"))
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), getenv("HOME"));
-    }
-    
-    filename = buf;
-    
+
     gint result = gtk_dialog_run(GTK_DIALOG(filedlog));
-    
-    if (result == GTK_RESPONSE_ACCEPT) {
-        strcpy(filename, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(filedlog)));
-        strcpy(filepath, gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog)));
-        fileselect = TRUE;
-    }
-    
-    if (result == GTK_RESPONSE_CANCEL) {
-        strcpy(filename, "");
-    }
-    
+
+    if (result == GTK_RESPONSE_ACCEPT)
+        strcpy(buf, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(filedlog)));
+    else
+        strcpy(buf, "");
+
+    strcpy(filepath, gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog)));
+    fileselect = TRUE;
+
     gtk_widget_destroy(filedlog);
     filedlog = NULL;
 }
 
-
-void winopenfile(char *prompt, char *buf, int len, char *filter)
+void winopenfile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
     sprintf(realprompt, "Open: %s", prompt);
-    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN);
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_OPEN);
 }
 
-void winsavefile(char *prompt, char *buf, int len, char *filter)
+void winsavefile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
     sprintf(realprompt, "Save: %s", prompt);
-    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE);
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_SAVE);
 }
 
 void winclipstore(glui32 *text, int len)

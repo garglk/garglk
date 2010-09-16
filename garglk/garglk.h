@@ -652,14 +652,16 @@ rect_t gli_compute_content_box();
 
 extern void gli_select(event_t *event, int polled);
 
+enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
+
 void wininit(int *argc, char **argv);
 void winopen(void);
 void wintitle(void);
 void winmore(void);
 void winrepaint(int x0, int y0, int x1, int y1);
 void winabort(const char *fmt, ...);
-void winopenfile(char *prompt, char *buf, int buflen, char *filter);
-void winsavefile(char *prompt, char *buf, int buflen, char *filter);
+void winopenfile(char *prompt, char *buf, int buflen, int filter);
+void winsavefile(char *prompt, char *buf, int buflen, int filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
 

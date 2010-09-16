@@ -38,7 +38,26 @@ char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
 
-char filterlist[] = "";
+char *filterlist[] =
+{
+"All Games|*.taf;*.agx;*.d[0-9][0-9];*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb",
+"Adrift Games (*.taf)|*.taf",
+"AdvSys Games (*.dat)|*.dat",
+"AGT Games (*.agx)|*.agx;*.d[0-9][0-9]",
+"Alan Games (*.acd,*.a3c)|*.acd;*.a3c",
+"Glulx Games (*.ulx)|*.ulx;*.blb;*.blorb;*.glb;*.gblorb",
+"Hugo Games (*.hex)|*.hex",
+"JACL Games (*.jacl,*.j2)|*.jacl;*.j2",
+"Level 9 (*.sna)|*.sna",
+"Magnetic Scrolls (*.mag)|*.mag",
+"Quest Games (*.asl,*.cas)|*.asl;*.cas",
+"TADS 2 Games (*.gam)|*.gam;*.t3",
+"TADS 3 Games (*.t3)|*.gam;*.t3",
+"Z-code Games (*.z?)|*.z[0-9];*.zlb;*.zblorb",
+"All Files|*",
+};
+
+const int filtercount = 15;
 
 void winstart(void)
 {
@@ -72,6 +91,36 @@ int winargs(int argc, char **argv, char *buffer)
     return (argc == 2);
 }
 
+void winfilteradd(GtkFileChooser *dialog, const char *name, const char *pattern)
+{
+    gchar **patterns;
+    gint i;
+
+    GtkFileFilter *filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter, name);
+
+    patterns = g_strsplit(pattern, ";", -1);
+    for(i = 0; patterns[i] != NULL; i++)
+        gtk_file_filter_add_pattern(filter, patterns[i]);
+    g_strfreev(patterns);
+
+    gtk_file_chooser_add_filter(dialog, filter);
+}
+
+void winfilterfiles(GtkFileChooser *dialog)
+{
+    gchar **format;
+    gint i;
+
+    for (i = 0; i < filtercount; i++)
+    {
+        format = g_strsplit(filterlist[i], "|", -1);
+        if (format[0] != NULL && format[1] != NULL)
+            winfilteradd(dialog, format[0], format[1]);
+        g_strfreev(format);
+    }
+}
+
 void winbrowsefile(char *buffer)
 {
     *buffer = 0;
@@ -84,6 +133,8 @@ void winbrowsefile(char *buffer)
 
     if (getenv("HOME"))
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(openDlg), getenv("HOME"));
+
+    winfilterfiles(GTK_FILE_CHOOSER(openDlg));
 
     gint result = gtk_dialog_run(GTK_DIALOG(openDlg));
 

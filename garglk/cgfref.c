@@ -216,28 +216,28 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
 {
     fileref_t *fref;
     char buf[256];
-    int val;
-    char *prompt, *filter;
+    int val, filter;
+    char *prompt;
 
 	strcpy(buf, "");
 
     switch (usage & fileusage_TypeMask) {
         case fileusage_SavedGame:
             prompt = "Saved game";
-			filter = "Saved game files (*.sav)\0*.sav\0All files (*.*)\0*.*\0\0";
+			filter = FILTER_SAVE;
             break;
         case fileusage_Transcript:
             prompt = "Transcript file";
-			filter = "Text files (*.txt)\0*.txt\0All files (*.*)\0*.*\0\0";
+			filter = FILTER_TEXT;
             break;
         case fileusage_InputRecord:
             prompt = "Command record file";
-			filter = "Text files (*.txt)\0*.txt\0All files (*.*)\0*.*\0\0";
+			filter = FILTER_TEXT;
             break;
         case fileusage_Data:
         default:
             prompt = "Data file";
-			filter = "All files (*.*)\0*.*\0\0";
+			filter = FILTER_ALL;
             break;
     }
 
