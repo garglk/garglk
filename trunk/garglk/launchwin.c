@@ -44,7 +44,7 @@ char filterlist[] =
 "AdvSys Games (*.dat)\0*.dat\0"
 "AGT Games (*.agx)\0*.agx;*.d$$\0"
 "Alan Games (*.acd,*.a3c)\0*.acd;*.a3c\0"
-"Glulxe Games (*.ulx)\0*.ulx;*.blb;*.blorb;*.glb;*.gblorb\0"
+"Glulx Games (*.ulx)\0*.ulx;*.blb;*.blorb;*.glb;*.gblorb\0"
 "Hugo Games (*.hex)\0*.hex\0"
 "JACL Games (*.jacl,*.j2)\0*.jacl;*.j2\0"
 "Level 9 (*.sna)\0*.sna\0"

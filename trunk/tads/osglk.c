@@ -462,7 +462,7 @@ int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
 	else
 		gprompt = filemode_ReadWrite;
 
-	if (file_type == OSFTSAVE)
+	if (file_type == OSFTSAVE || file_type == OSFTT3SAV)
 		gusage = fileusage_SavedGame;
 	else if (file_type == OSFTLOG || file_type == OSFTTEXT)
 		gusage = fileusage_Transcript;
