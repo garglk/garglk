@@ -4,7 +4,7 @@
  */
 
 #define MAX_WORDS               20
-#define STACK_SIZE              40
+#define STACK_SIZE              20
 #define MAX_UNDO                100
 #define MAX_OBJECTS             1000
 
@@ -145,6 +145,12 @@
 #define CSTR_TYPE				4
 #define ATT_TYPE				5
 #define OBJ_TYPE				6
+
+#define	CRI_NONE				0
+#define CRI_ATTRIBUTE			1
+#define CRI_USER_ATTRIBUTE		2
+#define CRI_PARENT				3
+#define CRI_SCOPE				4
 
 #define BOLD					1
 #define NOTE					2

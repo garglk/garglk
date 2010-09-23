@@ -15,6 +15,11 @@ extern glui32 					status_width, status_height;
 extern winid_t 					statuswin;
 #endif
 
+#ifdef __NDS__
+extern int						screen_width;
+extern int						screen_depth;
+#endif
+
 extern struct object_type		*object[];
 extern struct integer_type		*integer_table;
 extern struct integer_type		*integer[];
@@ -33,16 +38,16 @@ extern char						function_name[];
 extern char						temp_buffer[];
 extern char						error_buffer[];
 extern char  			        integer_buffer[16];
-extern char						user_id[];
 
 #ifndef GLK
-#ifndef NDS
+#ifndef __NDS__
 extern char						game_url[];
+extern char						user_id[];
 #endif
 #endif
 
 extern int						noun[];
-extern short int				quoted[];
+extern int						quoted[];
 extern char						*word[];
 
 extern int						resolved_attribute;
@@ -56,7 +61,7 @@ extern int						*object_backup_address;
 
 extern int						value_resolved;
 
-char 							macro_function[81];
+char 							macro_function[84];
 
 int            *
 container_resolve(container_name)
@@ -85,6 +90,17 @@ container_resolve(container_name)
 		return (&object[player]->PARENT);
 	else
 		return ((int *) NULL);
+}
+
+char		   *
+arg_text_of_word(wordnumber)
+	int			wordnumber;
+{
+	if (quoted[wordnumber] == 1) {
+		return (word[wordnumber]);
+	} else {
+		return (arg_text_of(word[wordnumber]));
+	}
 }
 
 char		   *
@@ -141,7 +157,7 @@ text_of(string)
 		sprintf(integer_buffer, "%d", execute(string));
 		return(integer_buffer);
 #ifndef GLK
-#ifndef NDS
+#ifndef __NDS__
 	} else if (!strcmp(string, "$url")) {
 		return (game_url);
 	} else if (!strcmp(string, "$user_id")) {
@@ -159,10 +175,13 @@ arg_text_of(string)
 {
 	struct string_type *resolved_string;
 	struct string_type *resolved_cstring;
+	char 			   *macro_text;
 
 	/* CHECK IF THE SUPPLIED STRING IS THE NAME OF A STRING CONSTANT,
 	 * IF NOT, RETURN THE STRING LITERAL */
-	if ((resolved_string = string_resolve(string)) != NULL) {
+	if ((macro_text = macro_resolve(string)) != NULL) {
+		return(macro_text);
+	} else if ((resolved_string = string_resolve(string)) != NULL) {
 		return (resolved_string->value);
 	} else if ((resolved_cstring = cstring_resolve(string)) != NULL) {
 		return (resolved_cstring->value);
@@ -188,7 +207,7 @@ validate(string)
 	/* LOOP OVER THE WHOLE STRING MAKING SURE THAT EACH CHARACTER IS EITHER
 	 * A DIGIT OR A MINUS SIGN */
 	for (index = 0; index < count; index++) {
-		if (!isdigit(*(string + index)) && *(string + index) != '-') {
+		if (!isdigit((int) *(string + index)) && string[index] != '-') {
 			//printf ("'%c' is not a digit\n", *(string + index));
 			return (FALSE);
 		}
@@ -238,11 +257,24 @@ value_of(value, run_time)
 		glk_window_get_size(statuswin, &status_width, &status_height);
 		return status_width;
 #else
+#ifdef __NDS__
 	} else if (!strcmp(value, "status_height")) {
+		return screen_depth;
+	} else if (!strcmp(value, "status_width")) {
+		return screen_width;
+#else
+	} else if (!strcmp(value, "status_height")) {
+		value_resolved = FALSE;
 		return -1;
 	} else if (!strcmp(value, "status_width")) {
+		value_resolved = FALSE;
 		return -1;
 #endif
+#endif
+	} else if (!strcmp(value, "unixtime")) {
+         return (time(NULL));
+	} else if (validate(value)) {
+		return (atoi(value));
 	} else if ((resolved_cinteger = cinteger_resolve(value)) != NULL) {
 		return (resolved_cinteger->value);
 	} else if ((resolved_integer = integer_resolve(value)) != NULL) {
@@ -262,15 +294,11 @@ value_of(value, run_time)
 	} else if (*value == '@') {
 		return (count_resolve(value));
 	} else {
-		if (validate(value)) {
-			return (atoi(value));
-		} else {
-			if (run_time) {
-				unkvarrun(value);
-			}
-			value_resolved = FALSE;
-			return (-1);
+		if (run_time) {
+			unkvarrun(value);
 		}
+		value_resolved = FALSE;
+		return (-1);
 	}
 }
 
@@ -282,10 +310,9 @@ integer_resolve(name)
 					iterator,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, name, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -372,10 +399,9 @@ cinteger_resolve(name)
 					iterator,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, name, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -462,10 +488,9 @@ string_resolve(name)
 					iterator,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, name, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -508,7 +533,7 @@ string_resolve(name)
 
 struct string_type *
 string_resolve_indexed(name, index)
-	 char           *name;
+	char           *name;
 	int				index;
 {
 	struct string_type *pointer = string_table;
@@ -543,10 +568,9 @@ cstring_resolve(name)
 					iterator,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, name, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -621,7 +645,7 @@ function_resolve(name)
 	 char          *name;
 {
 	char           *full_name;
-	char			core_name[81];
+	char			core_name[84];
 	int				index;
 
 	struct function_type *pointer = function_table;
@@ -668,10 +692,9 @@ expand_function(name)
 	int             index,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, name, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -719,10 +742,9 @@ macro_resolve(testString)
 	int             index,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	strncpy(expression, testString, 80);
-	expression[80] = 0;
 
 	counter = strlen(expression);
 
@@ -737,75 +759,205 @@ macro_resolve(testString)
 	if (delimiter == FALSE)
 		return (NULL);
 
-	index = value_of(expression, TRUE);
-
-	if (index < 1 || index > objects) {
-		badptrrun(expression, index);
-		return (NULL);
+	if (*expression != 0) {
+		index = value_of(expression, TRUE);
+	} else {
+		index = 0;
 	}
 
 	if (!strcmp(&expression[delimiter], "list")) {
-		return (list_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "plain")) {
-		return (plain_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "long")) {
-		return (long_output(index));
-	} else if (!strcmp(&expression[delimiter], "sub")) {
-		return (sub_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "obj")) {
-		return (obj_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "that")) {
-		return (that_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "it")) {
-		return (it_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "doesnt")) {
-		return (doesnt_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "does")) {
-		return (does_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "isnt")) {
-		return (isnt_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "is")) {
-		return (is_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "the")) {
-		return (sentence_output(index, FALSE));
-	} else if (!strcmp(&expression[delimiter], "s")) {
-		if (object[index]->attributes & PLURAL) {
-			strcpy(temp_buffer, "");
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
 		} else {
-			strcpy(temp_buffer, "s");
+			return (list_output(index, FALSE));
 		}
-		return (temp_buffer);
+	} else if (!strcmp(&expression[delimiter], "plain")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (plain_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "long")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (long_output(index));
+		}
+	} else if (!strcmp(&expression[delimiter], "sub")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (sub_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "obj")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (obj_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "that")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (that_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "it")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (it_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "doesnt")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (doesnt_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "does")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (does_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "isnt")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (isnt_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "is")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (is_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "the")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (sentence_output(index, FALSE));
+		}
+	} else if (!strcmp(&expression[delimiter], "s")) {
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			if (object[index]->attributes & PLURAL) {
+				strcpy(temp_buffer, "");
+			} else {
+				strcpy(temp_buffer, "s");
+			}
+			return (temp_buffer);
+		}
 	} else if (!strcmp(&expression[delimiter], "names")) {
-		return (object_names(index, temp_buffer));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (object_names(index, temp_buffer));
+		}
 	} else if (!strcmp(&expression[delimiter], "label")) {
-		return (object[index]->label);
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (object[index]->label);
+		}
 	} else if (!strcmp(&expression[delimiter], "List")) {
-		return (list_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (list_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Plain")) {
-		return (plain_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (plain_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Sub")) {
-		return (sub_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (sub_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Obj")) {
-		return (obj_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (obj_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "That")) {
-		return (that_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (that_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "It")) {
-		return (it_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (it_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Doesnt")) {
-		return (doesnt_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (doesnt_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Does")) {
-		return (does_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (does_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Isnt")) {
-		return (isnt_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (isnt_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "Is")) {
-		return (is_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (is_output(index, TRUE));
+		}
 	} else if (!strcmp(&expression[delimiter], "The")) {
-		return (sentence_output(index, TRUE));
+		if (index < 1 || index > objects) {
+			badptrrun(expression, index);
+			return (NULL);
+		} else {
+			return (sentence_output(index, TRUE));
+		}
 	} else {
 		strcpy (macro_function, "+macro_");
 		strcat (macro_function, &expression[delimiter]);
 		strcat (macro_function, "<");
-		strcat (macro_function, object[index]->label);
+		sprintf (temp_buffer, "%d", index);
+		strcat (macro_function, temp_buffer);
 
 		// BUILD THE FUNCTION NAME AND PASS THE OBJECT AS 
 		// THE ONLY ARGUMENT
@@ -912,19 +1064,21 @@ array_length_resolve(testString)
 
 int
 object_element_resolve(testString)
-	 char            testString[];
+	 char            *testString;
 {
 	int             index,
 					iterator,
 	                counter;
 	int             delimiter = 0;
-	char            expression[81];
+	char            expression[84];
 
 	struct integer_type *resolved_integer;
 	struct cinteger_type *resolved_cinteger;
 
 	strncpy(expression, testString, 80);
-	expression[80] = 0;
+
+	//sprintf(temp_buffer, "incoming = %s^", testString);
+	//write_text (temp_buffer);
 
 	counter = strlen(expression);
 
@@ -966,6 +1120,9 @@ object_element_resolve(testString)
 	index = object_resolve(expression);
 
 	if (index == -1) {
+		//sprintf(temp_buffer, "expression %s is not an object^", expression);
+		//write_text(temp_buffer);
+
 		// COULDN'T BE RESOLVED AS AN OBJECT, TRY AS A VARIABLE
 		if ((resolved_integer = integer_resolve(expression)) != NULL) {
 			index = resolved_integer->value;

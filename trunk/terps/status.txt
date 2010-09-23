@@ -12,7 +12,7 @@ Build status as of 06/19/2009:
 | git           | 1.2.7         |
 | glulxe        | 0.4.6         |
 | hugo          | 3.1.03        |
-| jacl          | 2.7.1         |
+| jacl          | 2.8.1         |
 | level9        | 4.1           |
 | magnetic      | 2.3           |
 | nitfol        | 0.5           |

@@ -21,7 +21,7 @@ extern int						wp;
 extern int						objects;
 extern int						custom_error;
 
-extern short int				spaced;
+extern int						spaced;
 
 int
 check_light(where)

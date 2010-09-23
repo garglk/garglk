@@ -18,7 +18,7 @@ char            text_buffer[1024];
 char           *comma = "comma\0";
 char           *then = "then\0";
 char           *word[MAX_WORDS];
-short int		quoted[MAX_WORDS];
+int				quoted[MAX_WORDS];
 int             wp;
 
 void
@@ -112,17 +112,16 @@ command_encapsulate()
 
 	length = strlen(text_buffer);
 
-	/* QUOTED IS USED TO STORE WHETHER EACH WORD WAS ENCLOSED IN QUOTES
-	 * IN THE PLAYERS COMMAND - RESET EACH WORD TO NO */
+	// QUOTED IS USED TO STORE WHETHER EACH WORD WAS ENCLOSED IN QUOTES
+	// IN THE PLAYERS COMMAND - RESET EACH WORD TO NO
     for (index = 0; index < MAX_WORDS; index++) {
 		quoted[index] = 0;
 	}
 
 	for (index = 0; index < length; index++) {
 
-		// REDCUSE EVERYTHING TO LOWER CASE EXCEPT TEXT ENCLOSED IN
-		// QUOTES
-		text_buffer[index] = tolower(text_buffer[index]);
+		// REDUSE EVERYTHING TO LOWER CASE EXCEPT TEXT ENCLOSED IN QUOTES
+		text_buffer[index] = tolower((int) text_buffer[index]);
 
 		switch (text_buffer[index]) {
 		case ':':
@@ -133,9 +132,9 @@ command_encapsulate()
 			break;
 		case ',':
 			text_buffer[index] = 0;
-			/* SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
-			 * COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
-			 * WORD IN THE COMMAND */
+			// SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
+			// COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
+			// WORD IN THE COMMAND.
 			word[position] = comma;
 			if (position < MAX_WORDS)
 				position++;
@@ -143,9 +142,9 @@ command_encapsulate()
 			break;
 		case '.':
 			text_buffer[index] = 0;
-			/* SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
-			 * COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
-			 * WORD IN THE COMMAND */
+			// SET THIS WORD TO POINT TO A STRING CONSTANT OF 'comma' AS THE
+			// COMMA ITSELF WILL BE NULLED OUT TO TERMINATE THE PRECEEDING
+			// WORD IN THE COMMAND
 			word[position] = then;
 			if (position < MAX_WORDS)
 				position++;
@@ -154,15 +153,15 @@ command_encapsulate()
 		case ';':
 		case '\r':
 		case '\n':
-			/* TERMINATE THE WHOLE COMMAND ON HITTING A NEWLINE CHARACTER, A
-			 * SEMICOLON OR A HASH */
+			// TERMINATE THE WHOLE COMMAND ON HITTING A NEWLINE CHARACTER, A
+			// SEMICOLON OR A HASH
 			text_buffer[index] = 0;
 			index = length;
 			break;
 		case '"':
 			index++;
-			/* NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR 
-			 * THE COMMAND 'write'*/	
+			// NEED TO REMEMBER THAT THIS WORD WAS ENCLOSED IN QUOTES FOR 
+			// THE COMMAND 'write'	
 			quoted[position] = 1;	
 
 			word[position] = &text_buffer[index];
@@ -170,9 +169,9 @@ command_encapsulate()
 			if (position < MAX_WORDS)
 				position++;
 
-			/* IF A WORD IS ENCLOSED IN QUOTES, KEEP GOING UNTIL THE END
-			 * OF THE LINE OR A CLOSING QUOTE IS FOUND, NOT BREAKING AT
-			 * WHITESPACE AS USUAL */
+			// IF A WORD IS ENCLOSED IN QUOTES, KEEP GOING UNTIL THE END
+			// OF THE LINE OR A CLOSING QUOTE IS FOUND, NOT BREAKING AT
+			// WHITESPACE AS USUAL
 			for (; index < length; index++) {
 				if (text_buffer[index] == '"') {
 					text_buffer[index] = 0;
@@ -197,9 +196,10 @@ command_encapsulate()
 
 	}
 
-	/* NULL OUT ALL THE WORD POINTERS BEYOND THE LAST WORD */
-	for (index = position; index < MAX_WORDS; index++)
+	// NULL OUT ALL THE WORD POINTERS BEYOND THE LAST WORD
+	for (index = position; index < MAX_WORDS; index++) {
 		word[index] = NULL;
+	}
 
 	wp = 0;
 }
@@ -215,7 +215,7 @@ jacl_truncate()
 	struct synonym_type *synonym;
 	struct filter_type *filter = filter_table;
 
-	/* REMOVE ALL THE DEFINED 'filter's FROM THE PLAYER'S COMMAND */
+	// REMOVE ALL THE DEFINED 'filter's FROM THE PLAYER'S COMMAND
 	if (filter != NULL) {
 		while (word[position] != NULL) {
 			match = FALSE;
@@ -236,7 +236,7 @@ jacl_truncate()
 		};
 	}
 
-	/* SUBTITUTE ALL THE DEFINED 'synonym's IN THE PLAYER'S COMMAND */
+	// SUBTITUTE ALL THE DEFINED 'synonym's IN THE PLAYER'S COMMAND
 	if (synonym_table != NULL) {
 		for (counter = 0; word[counter] != NULL; counter++) {
 			synonym = synonym_table;

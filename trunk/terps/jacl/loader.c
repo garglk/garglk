@@ -11,15 +11,15 @@
 
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * WITH IS ENCRYPTED */
-short int			encrypted = FALSE;
+int					encrypted = FALSE;
 
 extern char			text_buffer[];
 extern char         temp_buffer[];
 extern char			prefix[];
 extern char			error_buffer[];
 extern char			*word[];
-extern short int	quoted[];
-extern short int	punctuated[];
+extern int			quoted[];
+extern int			punctuated[];
 extern int			wp;
 
 #ifdef GLK
@@ -48,10 +48,11 @@ extern struct filter_type		*filter_table;
 
 
 struct string_type *current_string = NULL;
-struct string_type *current_cstring = NULL;
 struct integer_type *current_integer = NULL;
-struct cinteger_type *current_cinteger = NULL;
 struct integer_type *last_system_integer = NULL;
+
+extern struct string_type *current_cstring;
+extern struct cinteger_type *current_cinteger;
 
 #ifdef GLK
 extern strid_t					game_stream;
@@ -149,11 +150,12 @@ read_gamefile()
 	create_cinteger ("timer_supported", 0);
     create_cinteger ("GLK", 0);
     create_cinteger ("CGI", 1);
+    create_cinteger ("NDS", 2);
 #ifdef GLK
 	create_cinteger ("interpreter", 0);
 #else
 #ifdef __NDS__
-	create_cinteger ("interpreter", 0);
+	create_cinteger ("interpreter", 2);
 #else
 	create_cinteger ("interpreter", 1);
 #endif
@@ -1040,12 +1042,13 @@ read_gamefile()
 	/* CREATE THE CONSTANT THE RECORDS THE TOTAL NUMBER OF OBJECTS */
     create_cinteger ("objects", objects);
 
-	/* LOOP THROUGH ALL THE OBJECTS AND CALL THEIR CONSTRUCTORS */
+	/* LOOP THROUGH ALL THE OBJECTS AND CALL THEIR CONSTRUCTORS
 	for (index = 1; index <= objects; index++) {
 		strcpy (function_name, "constructor_");
 		strcat (function_name, object[index]->label);
 		execute (function_name);
 	}
+	*/
 
 	if (errors) {
 		totalerrs(errors);
@@ -1365,6 +1368,24 @@ restart_game()
 
 		free(cinteger_table);
 		cinteger_table = NULL;
+	}
+
+	if (cstring_table != NULL) {
+		if (cstring_table->next_string != NULL) {
+			do {
+				current_string = cstring_table;
+				previous_string = cstring_table;
+				while (current_string->next_string != NULL) {
+					previous_string = current_string;
+					current_string = current_string->next_string;
+				}
+				free(current_string);
+				previous_string->next_string = NULL;
+			} while (previous_string != cstring_table);
+		}
+
+		free(cstring_table);
+		cstring_table = NULL;
 	}
 
     /* FREE ALL SYNONYMS */
