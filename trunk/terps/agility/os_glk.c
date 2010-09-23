@@ -3563,7 +3563,7 @@ gagt_display_debug (void)
 
       paragraph = line->paragraph;
       sprintf (buffer,
-               "%2d:%2d->%2d A=%-3d L=%-2d I=%-2d O=%-2d R=%-2d %c%c| ",
+               "%2d:%2d->%2ld A=%-3d L=%-2d I=%-2d O=%-2d R=%-2d %c%c| ",
                paragraph ? paragraph->id + 1 : 0,
                paragraph ? paragraph->line_count : 0,
                paragraph && paragraph->special
@@ -4674,7 +4674,7 @@ gagt_command_print_version_number (glui32 version)
 {
   char buffer[64];
 
-  sprintf (buffer, "%lu.%lu.%lu",
+  sprintf (buffer, "%u.%u.%u",
            version >> 16, (version >> 8) & 0xff, version & 0xff);
   gagt_normal_string (buffer);
 }
