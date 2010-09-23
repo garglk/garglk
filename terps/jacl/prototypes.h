@@ -7,8 +7,8 @@
 strid_t open_glk_file();
 glui32 glk_get_bin_line_stream(); 
 glui32 parse_utf8();
-void convert_to_utf8();
-int convert_to_utf32();
+void convert_to_utf8(glui32 *text, int len);
+glui32 parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 #else
 void update_parameters();
 #endif
@@ -100,8 +100,9 @@ int legal_label_check();
 int attribute_test();
 char* object_names();
 char* arg_text_of();
-char* text_of_word();
+char* arg_text_of_word();
 char* text_of();
+char* text_of_word();
 char* expand_function();
 int* container_resolve();
 int condition();
@@ -137,6 +138,8 @@ void terminate();
 void set_arguments();
 void pop_stack();
 void push_stack();
+void pop_proxy();
+void push_proxy();
 void write_text();
 void status_line();
 void newline();
@@ -194,3 +197,5 @@ char* object_generator();
 char* verb_generator();
 void add_word();
 void create_language_constants();
+int select_next();
+

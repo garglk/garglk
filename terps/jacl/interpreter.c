@@ -33,23 +33,47 @@ char *location_elements[] = {
  "southwest", "up", "down", "in", "out", "points", "class", "x", "y", 
  NULL };
 
-struct stack_type				backup[STACK_SIZE];
+int             				stack = 0;
+int             				proxy_stack = 0;
 
-extern short int				encrypt;
-extern short int				encrypted;
+struct stack_type				backup[STACK_SIZE];
+struct proxy_type				proxy_backup[STACK_SIZE];
+
+struct function_type *resolved_function = NULL;
+struct string_type *resolved_string = NULL;
+
+struct string_type *new_string = NULL;
+struct string_type *current_cstring = NULL;
+struct string_type *previous_cstring = NULL;
+
+struct cinteger_type *new_cinteger = NULL;
+struct cinteger_type *current_cinteger = NULL;
+struct cinteger_type *previous_cinteger = NULL;
+
+long							bit_mask;
+extern int 						encrypt;
+extern int 						encrypted;
+extern int						after_from;
+extern int						last_exact;
 
 int								resolved_attribute;
 
-int             				stack = 0;
+/* THE ITERATION VARIABLE USED FOR LOOPS */
+int								*loop_integer = NULL;
+int								*select_integer = NULL;
+
+int								criterion_value = 0;
+int								criterion_type = 0;
+int								criterion_negate = FALSE;
 int             				current_level;
 int             				execution_level;
-int             				*loop_integer;
 int             				*ask_integer;
 int								new_x;
 int								new_y;
 
 int								interrupted = FALSE;
-
+char 							string_buffer[2048];
+char							argument_buffer[1024];
 #ifdef GLK
 extern schanid_t				sound_channel[];
 extern strid_t					game_stream;
@@ -61,11 +85,20 @@ extern strid_t 					mainstr;
 extern strid_t 					statusstr;
 extern strid_t 					quotestr;
 extern strid_t 					inputstr;
+glsi32  						top_of_loop = 0;
+glsi32  						top_of_select = 0;
+glsi32							top_of_while = 0;
+glsi32 							top_of_do_loop = 0;
 #else
 extern FILE                     *file;
 char  					        option_buffer[2024];
 int								style_stack[100];
 int								style_index = 0;
+long   							top_of_loop = 0;
+long   							top_of_select = 0;
+long   							top_of_while = 0;
+long   							top_of_do_loop = 0;
+
 #endif
 
 #ifdef __NDS__
@@ -74,6 +107,7 @@ extern int						pre_mode;
 extern int						reverse_mode;
 extern int						input_mode;
 extern int						subheader_mode;
+extern int						note_mode;
 #endif
 
 extern char						user_id[];
@@ -91,7 +125,7 @@ extern int						list_size[];
 extern int						max_size[];
 
 /* CONTAINED IN ENCAPSULATE.C */
-extern short int				quoted[];
+extern int						quoted[];
 
 extern struct object_type		*object[];
 extern struct integer_type		*integer_table;
@@ -117,6 +151,8 @@ extern char						override[];
 
 extern int						noun[];
 extern int						wp;
+extern int						start_of_this_command;
+extern int						start_of_last_command;
 extern int						buffer_index;
 extern int						objects;
 extern int						integers;
@@ -126,10 +162,15 @@ extern int						*object_element_address;
 extern int						*object_backup_address;
 extern int						walkthru_running;
 
+// VALUES FROM LOADER
+extern int						value_resolved;
+
 extern FILE           			*transcript;
 extern char						margin_string[];
 
 char  					        integer_buffer[16];
+char							called_name[1024];
+char							scope_criterion[24];
 char							*output;
 
 void
@@ -167,46 +208,35 @@ terminate(code)
 void
 build_proxy()
 {
-	int             index,
-	                counter;
+	int             index;
 
 	proxy_buffer[0] = 0;
 
 	/* LOOP THROUGH ALL THE PARAMETERS OF THE PROXY COMMAND
 	   AND BUILD THE MOVE TO BE ISSUED ON THE PLAYER'S BEHALF */
-	for (counter = 1; word[counter] != NULL; counter++) {
-		strcat(proxy_buffer, text_of_word(counter));
+	for (index = 1; word[index] != NULL; index++) {
+		strcat(proxy_buffer, text_of_word(index));
 	}
 
 	for (index = 0; index < strlen(proxy_buffer); index++) {
 		if (proxy_buffer[index] == '~') {
-			proxy_buffer[index] = ('\"');
+			proxy_buffer[index] = '\"';
 		} 
 	}
 
-	//printf("--- proxy buffer = %s\n", proxy_buffer);
+	//printf("--- proxy buffer = \"%s\"\n", proxy_buffer);
 }
 
 int
 execute(funcname)
 	 char           *funcname;
 {
-    char			called_name[1024];
-
-	int             index,
-	                to,
-	                from;
+	int             index;
 	int             counter;
 	int            *container;
-	int             contents;
 
 	int             object_1,
 	                object_2;
-
-	long            bit_mask;
-
-	struct function_type *resolved_function = NULL;
-	struct string_type *resolved_string = NULL;
 
     /* THESE VARIABLE KEEP TRACK OF if AND endif COMMANDS TO DECIDE WHETHER
      *THE CURRENT LINE OF CODE SHOULD BE EXECUTED OR NOT */
@@ -217,22 +247,13 @@ execute(funcname)
      * POINTS IN THE GAME FILE */
 #ifdef GLK
 	int				result;
-
 	glsi32			before_command = 0;
-	glsi32  		top_of_loop = 0;
-	glsi32			top_of_while = 0;
-	glsi32 			top_of_do_loop = 0;
 #else
-	long   			top_of_loop = 0;
-	long   			top_of_while = 0;
-	long   			top_of_do_loop = 0;
 	long			before_command = 0;
 #endif
 
-    /* THE ITERATION VARIABLE USED FOR LOOPS */
-    int                             *loop_integer = NULL;
 
-	strcpy (called_name, funcname);
+	strncpy (called_name, funcname, 1023);
 
 	/* GET THE FUNCTION OBJECT BY THE FUNCTION NAME */
 	resolved_function = function_resolve(called_name);
@@ -248,19 +269,26 @@ execute(funcname)
     push_stack(ftell(file));
 #endif
 
+	top_of_loop = 0;
+	top_of_select = 0;
+	top_of_while = 0;
+	top_of_do_loop = 0;
+
 	executing_function = resolved_function;
 	executing_function->call_count++;
 
-	/* CREATE ALL THE PASSED ARGUMENTS AS JACL INTEGER CONSTANTS */
+	// CREATE ALL THE PASSED ARGUMENTS AS JACL INTEGER CONSTANTS
 	set_arguments(called_name);
 
-	/* SET function_name TO THE CORE NAME STORED IN THE FUNCTION OBJECT */
-	/* LEAVING called_name TO CONTAIN THE FULL ARGUMENT LIST */
-	strcpy (function_name, executing_function->name);
-	strcpy (cstring_resolve("function_name")->value, executing_function->name);
+	// SET function_name TO THE CORE NAME STORED IN THE FUNCTION OBJECT
+	// LEAVING called_name TO CONTAIN THE FULL ARGUMENT LIST
+	strncpy (function_name, executing_function->name, 80);
+	strncpy (cstring_resolve("function_name")->value, executing_function->name, 80);
 
-	/* JUMP TO THE POINT IN THE PROCESSED GAME 
-	   FILE WHERE THIS FUNCTION STARTS */
+	//sprintf(temp_buffer, "--- starting to execute %s^", function_name);
+	//write_text(temp_buffer);
+
+	// JUMP TO THE POINT IN THE PROCESSED GAME FILE WHERE THIS FUNCTION STARTS 
 #ifdef GLK
 	glk_stream_set_position(game_stream, executing_function->position, seekmode_Start);
     before_command = executing_function->position;
@@ -279,8 +307,8 @@ execute(funcname)
 		else if (!strcmp(word[0], "endwhile")) {
 			current_level--;
 			if (current_level < execution_level) {
-				/* THIS ENDWHILE COMMAND WAS BEING EXECUTED, 
-				   NOT JUST COUNTED. */
+				// THIS ENDWHILE COMMAND WAS BEING EXECUTED, 
+				// NOT JUST COUNTED.
 				if (top_of_while == FALSE) {
 					sprintf(error_buffer, NO_WHILE, executing_function->name);
 					log_error(error_buffer, PLUS_STDOUT);
@@ -294,6 +322,33 @@ execute(funcname)
 					execution_level = current_level;
 				}
 			}
+		} else if (!strcmp(word[0], "print") && current_level != execution_level) {
+			// SKIP THIS BLOCK OF PLAIN TEXT UNTIL IT FINDS A 
+			// LINE THAT STARTS WITH A '.' OR A '}'
+#ifdef GLK
+			glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+			fgets(text_buffer, 1024, file);
+#endif
+
+			if (encrypted) jacl_decrypt(text_buffer);
+
+			while (text_buffer[0] != '.') {
+				if (text_buffer[0] == '}') {
+					// HIT THE END OF THE FUNCTION, JUST BAIL OUT
+					return (exit_function(TRUE));
+				}
+
+				// GET THE NEXT LINE
+#ifdef GLK
+				glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+				fgets(text_buffer, 1024, file);
+#endif
+
+				if (encrypted) jacl_decrypt(text_buffer);
+
+			}
 		} else if (!strcmp(word[0], "endif")) {
 			current_level--;
 			if (current_level < execution_level) {
@@ -304,10 +359,11 @@ execute(funcname)
 			current_level = 0;
 			execution_level = 0;
 		} else if (!strcmp(word[0], "else")) {
-			if (current_level == execution_level)
+			if (current_level == execution_level) {
 				execution_level--;
-			else if (current_level == execution_level + 1)
+			} else if (current_level == execution_level + 1) {
 				execution_level++;
+			}
 		} else if (current_level == execution_level) {
 			if (!strcmp(word[0], "look")) {
 				// THIS IS JUST HERE FOR BACKWARDS COMPATIBILITY
@@ -387,13 +443,21 @@ execute(funcname)
                 top_of_loop = ftell(file);
 #endif
 				if (word[1] == NULL) {
+					// IF NONE IS SUPPLIED DEFAULT TO noun3
 					loop_integer = &noun[2];
 				} else {
+					// STORE THE CONTAINER TO PUT THE CURRENT OBJECT IN
 					loop_integer = container_resolve(word[1]);
+
+					// IF THE SUPPLIED CONTAINER CAN'T BE RESOLVED
+					// DEFAULT TO noun3
 					if (loop_integer == NULL)
 						loop_integer = &noun[2];
 				}
+
+				// SET THE VALUE OF THE LOOP INDEX TO POINT TO THE FIRST OBJECT
 				*loop_integer = 1;
+
 			} else if (!strcmp(word[0], "endloop")) {
 				if (top_of_loop == FALSE) {
 					sprintf(error_buffer, NO_LOOP, executing_function->name);
@@ -409,6 +473,115 @@ execute(funcname)
 #else
                         fseek(file, top_of_loop, SEEK_SET);
 #endif
+					}
+				}
+			} else if (!strcmp(word[0], "select")) {
+				/* THE SELECT COMMAND LOOPS ONCE FOR EACH DEFINED 
+				 * OBJECT THAT MATCHES THE SUPPLIED CRITERION */
+#ifdef GLK
+				top_of_select = glk_stream_get_position(game_stream);
+#else
+                top_of_select = ftell(file);
+#endif
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun();
+					return(exit_function (TRUE));
+				} else if (word[2] == NULL) {
+					// IF NONE IS SUPPLIED DEFAULT TO noun3
+					select_integer = &noun[2];
+				} else {
+					// STORE THE CONTAINER TO PUT THE CURRENT OBJECT IN
+					select_integer = container_resolve(word[2]);
+
+					// IF THE SUPPLIED CONTAINER CAN'T BE RESOLVED
+					// DEFAULT TO noun3
+					if (select_integer == NULL) {
+						select_integer = &noun[2];
+					}
+				}
+				
+				// SET THE VALUE OF THE SELECT INDEX TO ONE BEFORE THE 
+                // FIRST OBJECT. THE NEXT FUNCTION AUTOMATICALLY INCREMENTS
+				// THE INDEX BY ONE AT THE START OF THE WHILE LOOP.
+				*select_integer = 0;
+
+				if (word[1][0] == '!') {
+					criterion_negate = TRUE;
+					strcpy(argument_buffer, &word[1][1]);
+				} else {
+					criterion_negate = FALSE;
+					strcpy(argument_buffer, word[1]);
+				}
+
+				// DETERMINE THE CRITERION FOR SELETION
+			    if (!strcmp(argument_buffer, "*held")
+    						|| !strcmp(argument_buffer, "*here")
+    						|| !strcmp(argument_buffer, "*anywhere")
+    						|| !strcmp(argument_buffer, "*present")) {
+					criterion_type = CRI_SCOPE;
+					strncpy(scope_criterion, argument_buffer, 20);
+				} else if ((criterion_value = attribute_resolve(argument_buffer))) {
+					criterion_type = CRI_ATTRIBUTE;
+				} else if ((criterion_value = user_attribute_resolve(argument_buffer))) {
+					criterion_type = CRI_USER_ATTRIBUTE;
+				} else {
+					// USE VALUE OF AS A CATCH ALL IF IT IS NOT AN ATTRIBUTE OR SCOPE
+					criterion_value = value_of(argument_buffer);
+
+					if (value_resolved) {
+						criterion_type = CRI_PARENT;
+					} else {
+						// CAN'T RESOLVE CRITERION
+						criterion_type = CRI_NONE;	
+					}
+				}
+
+				if (criterion_type != CRI_NONE) {
+					if (select_next() == FALSE) {
+						*select_integer = 0;
+						top_of_select = 0;
+					}
+				} else {
+					*select_integer = 0;
+				}
+
+				if (*select_integer == 0) {
+					// THERE ARE NO MATCHING OBJECTS SO JUMP TO THE endselect
+#ifdef GLK
+					glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+					fgets(text_buffer, 1024, file);
+#endif
+
+					if (encrypted) jacl_decrypt(text_buffer);
+
+					while (text_buffer[0] != '}') {
+						encapsulate();
+						if (word[0] != NULL && !strcmp(word[0], "endselect")) {
+							break;
+						}
+#ifdef GLK
+						glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
+#else
+						fgets(text_buffer, 1024, file);
+#endif
+					}
+				}
+			} else if (!strcmp(word[0], "endselect")) {
+				if (top_of_select == FALSE) {
+					sprintf(error_buffer, NO_LOOP, executing_function->name);
+					log_error(error_buffer, PLUS_STDOUT);
+				} else {
+					if (select_next(select_integer, criterion_type, criterion_value, scope_criterion)) {
+#ifdef GLK
+						glk_stream_set_position(game_stream, top_of_select, seekmode_Start);
+#else
+                        fseek(file, top_of_select, SEEK_SET);
+#endif
+					} else {
+						*select_integer = 0;
+						top_of_select = 0;
 					}
 				}
 			} else if (!strcmp(word[0], "break")) {
@@ -667,6 +840,7 @@ execute(funcname)
 						glk_set_style(style_Normal);
 					} 
 				}
+			} else if (!strcmp(word[0], "flush")) {
 			} else if (!strcmp(word[0], "hyperlink")) {
 				/* OUTPUT LINK TEXT AS PLAIN TEXT UNDER Glk */
 				if (word[2] == NULL) {
@@ -678,7 +852,16 @@ execute(funcname)
 				}
 #else
 #ifdef __NDS__
+			} else if (!strcmp(word[0], "flush")) {
+				jflush();
 			} else if (!strcmp(word[0], "cursor")) {
+				if (word[2] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return(exit_function (TRUE));
+				} else {
+					printf("\x1b[%d;%dH", (int) value_of(word[1], TRUE), (int) value_of(word[2], TRUE));
+				}
 			} else if (!strcmp(word[0], "stop")) {
 			} else if (!strcmp(word[0], "volume")) {
 			} else if (!strcmp(word[0], "timer")) {
@@ -698,7 +881,7 @@ execute(funcname)
 
 					// PROMPT THE USER TO INPUT A STRING AND STORE IT IN THE
 					// RESOLVED VARIABLE
-					//get_string(resolved_string->value);
+					get_string(resolved_string->value);
 				}
 				
 			} else if (!strcmp(word[0], "asknumber") || !strcmp(word[0], "getnumber")) {
@@ -766,10 +949,11 @@ execute(funcname)
 				} else {
 					if (!strcmp(word[1], "bold") 
 								|| !strcmp(word[1], "emphasised")) {
-						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						printf("\x1b[37;1m"); 	// SET TO BRIGHT WHITE
 						bold_mode = TRUE;
 					} else if (!strcmp(word[1], "note")) {
-						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						printf("\x1b[34;1m"); 	// SET TO BRIGHT BLUE
+						note_mode = TRUE;
 					} else if (!strcmp(word[1], "input")) {
 						printf("\x1b[32;0m"); 	// SET TO DIM GREEN
 						input_mode = TRUE;
@@ -780,7 +964,7 @@ execute(funcname)
 						subheader_mode = TRUE;
 					} else if (!strcmp(word[1], "reverse")
 								|| !strcmp(word[1], "inverse")) {
-						printf("\x1b[37;0m");	// SET TO DIM WHITE
+						printf("\x1b[7m");	// SET TO DIM WHITE
 						reverse_mode = TRUE;
 					} else if (!strcmp(word[1], "pre") 
 								|| !strcmp(word[1], "preformatted")) {
@@ -793,6 +977,7 @@ execute(funcname)
 						reverse_mode = FALSE;
 						input_mode = FALSE;
 						subheader_mode = FALSE;
+						note_mode = FALSE;
 					} 
 				}
 			} else if (!strcmp(word[0], "hyperlink")) {
@@ -871,7 +1056,6 @@ execute(funcname)
 					write_text(option_buffer);
 				}
 			} else if (!strcmp(word[0], "hyperlink")) {
-				char string_buffer[2048];
 				string_buffer[0] = 0;
 
 				/* USED TO CREATE A HYPERLINK WITH SESSION INFORMATION INCLUDED */
@@ -963,6 +1147,7 @@ execute(funcname)
 				}
 			/* THESE FINAL COMMANDS HAVE NO EFFECT UNDER CGIJACL 
 			   AND THERE IS NO HARM IN IGNORING THEM */
+			} else if (!strcmp(word[0], "flush")) {
 			} else if (!strcmp(word[0], "image")) {
 			} else if (!strcmp(word[0], "sound")) {
 			} else if (!strcmp(word[0], "cursor")) {
@@ -985,19 +1170,22 @@ execute(funcname)
 #else
                 push_stack(ftell(file));
 #endif
-
+				push_proxy();
 
 				build_proxy();
 
-				/* TEXT BUFFER IS THE NORMAL ARRAY FOR HOLDING THE PLAYERS
-				 * MOVE FOR PROCESSING */
-				strcpy(text_buffer, proxy_buffer);
+				// TEXT BUFFER IS THE NORMAL ARRAY FOR HOLDING THE PLAYERS
+				// MOVE FOR PROCESSING
+				strncpy(text_buffer, proxy_buffer, 1024);
 
 				command_encapsulate();
+
 				jacl_truncate();
 
 				preparse();
 				
+				pop_proxy();
+
 				pop_stack();
 			} else if (!strcmp(word[0], "override")) {
 				/* TELLS THE INTERPRETER TO LOOK FOR AN _override FUNCTION 
@@ -1018,20 +1206,26 @@ execute(funcname)
 					noproprun();
 					return(exit_function (TRUE));
 				} else {
-					if (function_resolve(arg_text_of(word[1])) == NULL && !strcmp(word[0], "execute")) {
+					/* RESOLVE ALL THE TEXT AND STORE IT IN A TEMPORARY BUFFER*/
+					string_buffer[0] = 0;
+
+					for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
+						strcat(string_buffer, arg_text_of_word(counter));
+					}
+
+					if (function_resolve(string_buffer) == NULL && !strcmp(word[0], "execute")) {
 						char * argstart;
 
 						/* REMOVE ANY PARAMETERS FROM FUNCTION NAME
 						   BEFORE DISPLAYING ERROR MESSAGE */
-						strcpy(temp_buffer, word[1]);
-						argstart = strchr(temp_buffer, '<');
+						argstart = strchr(string_buffer, '<');
 						if (argstart != NULL)
 							*argstart = 0;
 						
-						sprintf(error_buffer, UNDEFINED_FUNCTION, executing_function->name, temp_buffer);
+						sprintf(error_buffer, UNDEFINED_FUNCTION, executing_function->name, string_buffer);
 						log_error(error_buffer, PLUS_STDOUT);
 					} else {
-						execute(arg_text_of(word[1]));
+						execute(string_buffer);
 					}
 				}
 			} else if (!strcmp(word[0], "points")) {
@@ -1042,7 +1236,12 @@ execute(funcname)
 #ifdef GLK
 						glk_set_style(style_Note);
 #else
+#ifdef __NDS__
+						printf("\x1b[34;1m"); 	// SET TO BRIGHT BLUE
+						note_mode = TRUE;
+#else
 						write_text("<b><i>");
+#endif
 #endif
 						write_text(cstring_resolve("SCORE_UP")->value);
 						sprintf(temp_buffer, "%ld", value_of(word[1], TRUE));
@@ -1055,7 +1254,12 @@ execute(funcname)
 #ifdef GLK
 						glk_set_style(style_Normal);
 #else
+#ifdef __NDS__
+						printf("\x1b[37;0m"); 	// SET TO DIM WHITE
+						note_mode = FALSE;
+#else
 						write_text("</i></b>");
+#endif
 #endif
 					}
 				} else {
@@ -1066,14 +1270,13 @@ execute(funcname)
 			} else if (!strcmp(word[0], "print")) {
 				int non_space = FALSE;
 
-				/* DISPLAYS A BLOCK OF PLAIN TEXT UNTIL IT FINDS A 
-				 * LINE THAT STARTS WITH A '.' OR A '}' */
+				// DISPLAYS A BLOCK OF PLAIN TEXT UNTIL IT FINDS A 
+				// LINE THAT STARTS WITH A '.' OR A '}'
 #ifdef GLK
 				glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
 #else
                 fgets(text_buffer, 1024, file);
 #endif
-
 
 				if (encrypted) jacl_decrypt(text_buffer);
 
@@ -1101,23 +1304,25 @@ execute(funcname)
 					}
 
 					if (text_buffer[0] != 0) {
-						/* CHECK IF THERE IS THE NEED TO ADD AN 
-						 * IMPLICIT SPACE */
+						// CHECK IF THERE IS THE NEED TO ADD AN 
+						// IMPLICIT SPACE
 						index = strlen(text_buffer);
 	
 						if (text_buffer[index - 1] == '\\') {	
-							/* A BACKSLASH IS USED TO INDICATE AN IMPLICIT 
-							 * SPACE SHOULD NOT BE PRINTED */
+							// A BACKSLASH IS USED TO INDICATE AN IMPLICIT 
+							// SPACE SHOULD NOT BE PRINTED
 							text_buffer[index - 1] = 0;
 						} else if (text_buffer[index - 1] != '^') {
+							// ADD AN IMPLICIT SPACE IF THE PREVIOUS LINE
+							// DIDN'T END WITH A CARRIAGE RETURN
 							strcat(text_buffer, " ");
 						}
 	
-						/* OUTPUT THE LINE READ AS PLAIN TEXT */
+						// OUTPUT THE LINE READ AS PLAIN TEXT
 						write_text(text_buffer);
 					}
 
-					/* GET THE NEXT LINE */
+					// GET THE NEXT LINE
 #ifdef GLK
 					glk_get_bin_line_stream(game_stream, text_buffer, (glui32) 1024);
 #else
@@ -1125,7 +1330,6 @@ execute(funcname)
 #endif
 
 					if (encrypted) jacl_decrypt(text_buffer);
-
 				}
 			} else if (!strcmp(word[0], "error")) {
 				write_text("ERROR: In function ~");
@@ -1170,7 +1374,7 @@ execute(funcname)
 						unkvarrun(word[1]);
 						return (exit_function(TRUE));
 					} else {
-						*container = save_interaction(word[2]);
+						*container = save_interaction(arg_text_of_word(2));
 					}
 				} 
 			} else if (!strcmp(word[0], "restoregame")) {
@@ -1183,7 +1387,11 @@ execute(funcname)
 						unkvarrun(word[1]);
 						return (exit_function(TRUE));
 					} else {
-						*container = restore_interaction(word[2]);
+						if (word[2] == NULL) {
+							*container = restore_interaction(NULL);
+						} else {
+							*container = restore_interaction(arg_text_of_word(2));
+						}
 					}
 				} 
 			} else if (!strcmp(word[0], "restartgame")) {
@@ -1201,7 +1409,6 @@ execute(funcname)
 #endif
 			} else if (!strcmp(word[0], "setstring") ||
 						!strcmp(word[0], "addstring")) {
-				char string_buffer[2048];
 				string_buffer[0] = 0;
 
 				if (word[2] == NULL) {
@@ -1232,7 +1439,6 @@ execute(funcname)
 					}
 				}
 			} else if (!strcmp(word[0], "padstring")) {
-				char string_buffer[2048];
 				string_buffer[0] = 0;
 	
 				if (word[3] == NULL) {
@@ -1254,7 +1460,7 @@ execute(funcname)
 
 					/* string_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
 					 * IT INTO THE STRING */
-					strncpy (resolved_string->value, string_buffer, 256);
+					strncpy (resolved_string->value, string_buffer, 255);
 				}
 			} else if (!strcmp(word[0], "return")) {
 				/* RETURN FROM THIS FUNCTION, POSSIBLY RETURNING AN INTEGER VALUE */
@@ -1408,29 +1614,29 @@ execute(funcname)
 					} else {
 						int mark = 2; // SET mark TO POINT TO THE FIRST OPERATOR
 						while (word[mark + 1] != NULL) {
-							contents = value_of(word[mark + 1], TRUE);
+							counter = value_of(word[mark + 1], TRUE);
 	
 							if (word[mark][0] == '+')
-								*container += contents;
+								*container += counter;
 							else if (word[mark][0] == '-')
-								*container -= contents;
+								*container -= counter;
 							else if (word[mark][0] == '*')
-								*container = *container * contents;
+								*container = *container * counter;
 							else if (word[mark][0] == '%')
-								*container = *container % contents;
+								*container = *container % counter;
 							else if (word[mark][0] == '/') {
-								if (contents == 0) {
+								if (counter == 0) {
 									sprintf(error_buffer, DIVIDE_BY_ZERO,
 											executing_function->name);
 									log_error(error_buffer, PLUS_STDOUT);
 								} else
-									*container = *container / contents;
+									*container = *container / counter;
 							} else if (!strcmp(word[mark], "locationof")) {
-								*container = grand_of(contents, FALSE);
+								*container = grand_of(counter, FALSE);
 							} else if (!strcmp(word[mark], "grandof")) {
-								*container = grand_of(contents, TRUE);
+								*container = grand_of(counter, TRUE);
 							} else if (word[mark][0] == '=') {
-								*container = contents; 
+								*container = counter; 
 							} else {
 								sprintf(error_buffer, ILLEGAL_OPERATOR,
 										executing_function->name,
@@ -1486,7 +1692,7 @@ execute(funcname)
 				}
 			} else if (!strcmp(word[0], "inspect")) {
 				if (word[1] == NULL) {
-					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					// NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND
 					noproprun();
 					return (exit_function(TRUE));
 				} else {
@@ -1506,18 +1712,18 @@ execute(funcname)
 					badptrrun(word[1], index);
 					return (exit_function(TRUE));
 				} else {
-					from = object[index]->PARENT;
-					if (from && !(object[from]->attributes & LOCATION)) {
-						object[from]->QUANTITY += object[index]->MASS;
+					object_2 = object[index]->PARENT;
+					if (object_2 && !(object[object_2]->attributes & LOCATION)) {
+						object[object_2]->QUANTITY += object[index]->MASS;
 					}
-					to = value_of(word[3], TRUE);
-					if (to < 1 || to > objects) {
-						badptrrun(word[1], to);
+					object_1 = value_of(word[3], TRUE);
+					if (object_1 < 1 || object_1 > objects) {
+						badptrrun(word[1], object_1);
 						return (exit_function(TRUE));
 					} else {
-						object[index]->PARENT = to;
-						if (!(object[to]->attributes & LOCATION))
-							object[to]->QUANTITY -= object[index]->MASS;
+						object[index]->PARENT = object_1;
+						if (!(object[object_1]->attributes & LOCATION))
+							object[object_1]->QUANTITY -= object[index]->MASS;
 					} 
 				}
 			} else if (!strcmp(word[0], "ifstringall")) {
@@ -1546,8 +1752,17 @@ execute(funcname)
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
 					noproprun(0);
 					return (exit_function(TRUE));
-				} else if (execute(word[1])) {
-					execution_level++;
+				} else {
+					/* RESOLVE ALL THE TEXT AND STORE IT IN A TEMPORARY BUFFER*/
+					string_buffer[0] = 0;
+
+					for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
+						strcat(string_buffer, arg_text_of_word(counter));
+					}
+
+					if (execute(string_buffer)) {
+						execution_level++;
+					}
 				}
 			} else if (!strcmp(word[0], "if")) {
 				current_level++;
@@ -1784,7 +1999,7 @@ bearing(x1, y1, x2, y2)
 
 void
 set_arguments(function_call)
-  char		function_call[];
+  char		*function_call;
 {
 	/* THIS FUNCTION CREATES AN ARRAY OF JACL INTEGER CONSTANTS TO
 	   REPRESENT THE ARGUMENTS PASSED TO A JACL FUNCTION */
@@ -1807,11 +2022,12 @@ set_arguments(function_call)
 
 	for (index = 0; index < length; index++) {
 		if (function_call[index] == '<') {
-			function_call[index] = 0;
+			argument_buffer[index] = 0;
 			new_word = TRUE;
 		} else {
+			argument_buffer[index] = function_call[index];
 			if (new_word) {
-				arg_ptr[position] = &function_call[index];
+				arg_ptr[position] = &argument_buffer[index];
 				new_word = FALSE;
 				if (position < MAX_WORDS)
 					position++;
@@ -1819,9 +2035,10 @@ set_arguments(function_call)
 		}
 	}
 
+	argument_buffer[index] = 0;
+
 	/* CLEAR THE NEXT ARGUMENT POINTER */
 	arg_ptr[position] = NULL;
-
 
 	/* STORE THE VALUE OF EACH ARGUMENT PASSED*/
 	index = 0;
@@ -1862,6 +2079,7 @@ set_arguments(function_call)
 	while (arg_ptr[index] != NULL) {
 		if (index == 0) noun[3] = arg_value[index];
 		add_cinteger ("arg", arg_value[index]);
+		//printf("--- %s = %s\n", arg_ptr[index], arg_text_of(arg_ptr[index]));
 		add_cstring ("string_arg", arg_text_of(arg_ptr[index]));
         index++;
 	}
@@ -1875,11 +2093,7 @@ pop_stack()
 	stack--;
 
 	clear_cinteger ("arg");
-	clear_cinteger ("integer");
-	clear_cstring ("$string");
 	clear_cstring ("string_arg");
-	clear_cstring ("$word");
-
 
 	/* RECREATE THE arg ARRAY FOR THIS STACK FRAME */
 	for (index = 0; index < backup[stack].argcount; index++) {
@@ -1892,56 +2106,48 @@ pop_stack()
         add_cstring ("string_arg", backup[stack].str_arguments[index]);
     }
 
-	/* RECREATE THE integer ARRAY FOR THIS STACK FRAME */
-	for (index = 0; index < backup[stack].integercount; index++) {
-		add_cinteger ("integer", backup[stack].integer[index]);
-	}
-
-	/* RECREATE THE text ARRAY FOR THIS STACK FRAME */
-	for (index = 0; index < backup[stack].textcount; index++) {
-		add_cstring ("$string", backup[stack].text[index]);
-	}
-
-    /* RECREATE THE $word ARRAY FOR THIS STACK FRAME */
-	for (index = 0; index < backup[stack].commandcount; index++) {
-        add_cstring ("$word", backup[stack].command[index]);
-    }
-
 	/* RESTORE THE CONTENTS OF text_buffer */
-	for (counter = 0; counter < 256; counter++)
+	for (counter = 0; counter < 1024; counter++)
 		text_buffer[counter] = backup[stack].text_buffer[counter];
+
+	/* RESTORE THE CONTENTS OF called_name */
+	//for (counter = 0; counter < 256; counter++)
+	//called_name[counter] = backup[stack].called_name[counter];
+	strncpy(called_name, backup[stack].called_name, 1024);
+
+	/* RESTORE THE CONTENTS OF scope_criterion */
+	//for (counter = 0; counter < 21; counter++)
+	//	scope_criterion[counter] = backup[stack].scope_criterion[counter];
+	strncpy(scope_criterion, backup[stack].scope_criterion, 20);
 
 	/* RESTORE THE STORED FUNCTION NAMES THAT ARE USED WHEN AN
 	 * 'override' COMMAND IS ENCOUNTERED IN THE CURRENT FUNCTION */
-	strcpy (override, backup[stack].override);
-	strcpy (default_function, backup[stack].default_function);
+	strncpy (override, backup[stack].override, 80);
+	strncpy (default_function, backup[stack].default_function, 80);
 
 	/* RESTORE ALL THE WORD POINTERS */
 	for (counter = 0; counter < MAX_WORDS; counter++)
 		word[counter] = backup[stack].word[counter];
 
-	/* RESTORE ALL THE NOUN POINTERS */
-	for (counter = 0; counter < 4; counter++)
-		noun[counter] = backup[stack].object_pointers[counter];
-
-	/* PUSH ALL THE RESOLVED OBJECTS ONTO THE STACK */
-	for (index = 0; index < 4; index++) {
-		list_size[index] = backup[stack].list_size[index];
-		max_size[index] = backup[stack].max_size[index];
-		for (counter = 0; counter < max_size[index]; counter++) {
-			object_list[index][counter] = 
-				backup[stack].object_list[index][counter];
-		}
-	}
-
 	executing_function = backup[stack].function;
 
 	if (executing_function != NULL) {
-		strcpy (function_name, executing_function->name);
-		strcpy (cstring_resolve("function_name")->value, executing_function->name);
+		strncpy (function_name, executing_function->name, 80);
+		strncpy (cstring_resolve("function_name")->value, executing_function->name, 80);
 	}
 
 	wp = backup[stack].wp;
+	top_of_loop = backup[stack].top_of_loop;
+	top_of_select = backup[stack].top_of_select;
+	top_of_while = backup[stack].top_of_while;
+	top_of_do_loop = backup[stack].top_of_do_loop;
+	criterion_value = backup[stack].criterion_value;
+	criterion_type = backup[stack].criterion_type;
+	criterion_negate = backup[stack].criterion_negate;
+	current_level = backup[stack].current_level;
+	execution_level = backup[stack].execution_level;
+	loop_integer = backup[stack].loop_integer;
+	select_integer = backup[stack].select_integer;
 
 #ifdef GLK
 	glk_stream_set_position(game_stream, backup[stack].address, seekmode_Start);
@@ -1961,15 +2167,7 @@ push_stack(file_pointer)
 {
 	/* COPY ALL THE CURRENT SYSTEM DATA ONTO THE STACK */
 	int index;
-	int	counter = 0;
-	int	command = 0;
-	int text = 0;
-	int sarg = 0;
-	int integers = 0;
-    int arguments = 0;
-
-	struct cinteger_type *cinteger_pointer = cinteger_table;
-	struct string_type *cstring_pointer = cstring_table;
+	int counter = 0;
 
 	if (stack == STACK_SIZE) {
 		log_error("Stack overflow.", PLUS_STDERR);
@@ -1978,81 +2176,193 @@ push_stack(file_pointer)
 		backup[stack].function = executing_function;
 		backup[stack].address = file_pointer;
 		backup[stack].wp = wp;
+		backup[stack].top_of_loop = top_of_loop;
+		backup[stack].top_of_select = top_of_select;
+		backup[stack].top_of_while = top_of_while;
+		backup[stack].top_of_do_loop = top_of_do_loop;
+		backup[stack].criterion_value = criterion_value;
+		backup[stack].criterion_type = criterion_type;
+		backup[stack].criterion_negate = criterion_negate;
+		backup[stack].current_level = current_level;
+		backup[stack].execution_level = execution_level;
+		backup[stack].loop_integer = loop_integer;
+		backup[stack].select_integer = select_integer;
 		
 		/* MAKE A COPY OF THE CURRENT CONTENTS OF text_buffer */
-		for (counter = 0; counter < 256; counter++)
+		for (counter = 0; counter < 1024; counter++)
 			backup[stack].text_buffer[counter] = text_buffer[counter];
+
+		/* MAKE A COPY OF THE CURRENT CONTENTS OF called_name */
+		strncpy(backup[stack].called_name, called_name, 1024);
+
+		// MAKE A COPY OF THE CURRENT CONTENTS OF scope_criterion
+		strncpy(backup[stack].scope_criterion, scope_criterion, 20);
 
 		/* COPY THE STORED FUNCTION NAMES THAT ARE USED WHEN AN
 		 * 'override' COMMAND IS ENCOUNTERED IN THE CURRENT FUNCTION */
-		strcpy (backup[stack].override, override);
-		strcpy (backup[stack].default_function, default_function);
+		strncpy (backup[stack].override, override, 80);
+		strncpy (backup[stack].default_function, default_function, 80);
 
 		/* PUSH ALL THE WORD POINTERS ONTO THE STACK */
 		for (counter = 0; counter < MAX_WORDS; counter++)
 			backup[stack].word[counter] = word[counter];
 
+		// PUSH ALL THE ARGUMENTS AS INTEGERS ONTO THE STACK
+		index = 0;
+		current_cinteger = cinteger_table;
+
+        if (current_cinteger != NULL) {
+            do {
+                if (!strcmp(current_cinteger->name, "arg")) {
+                    backup[stack].arguments[index++] = current_cinteger->value;
+                }
+                current_cinteger = current_cinteger->next_cinteger;
+            }
+            while (current_cinteger != NULL);
+        }
+
+		// STORE THE NUMBER OF ARGUMENTS PASSED TO THIS FUNCTION
+		// THIS IS THE SAME NUMBER FOR STRINGS AND INTEGERS
+		backup[stack].argcount = index;
+
+        // PUSH ALL THE ARGUMENTS AS STRINGS STRING ONTO THE STACK
+        index = 0;
+		current_cstring = cstring_table;
+
+        if (current_cstring != NULL) {
+            do {
+                if (!strcmp(current_cstring->name, "string_arg")) {
+                    strncpy(backup[stack].str_arguments[index++], current_cstring->value, 255);
+                }
+
+                current_cstring = current_cstring->next_string;
+            }
+            while (current_cstring != NULL);
+        }
+	}
+
+	// PUSH ON TO THE NEXT STACK FRAME
+	stack++;
+}
+
+void
+pop_proxy()
+{
+	int index, counter;
+
+	proxy_stack--;
+
+	clear_cinteger ("$integer");
+	clear_cstring ("$string");
+	clear_cstring ("$word");
+
+	/* RECREATE THE integer ARRAY FOR THIS STACK FRAME */
+	for (index = 0; index < proxy_backup[proxy_stack].integercount; index++) {
+		add_cinteger ("$integer", proxy_backup[proxy_stack].integer[index]);
+	}
+
+	/* RECREATE THE text ARRAY FOR THIS STACK FRAME */
+	for (index = 0; index < proxy_backup[proxy_stack].textcount; index++) {
+		add_cstring ("$string", proxy_backup[proxy_stack].text[index]);
+	}
+
+    /* RECREATE THE $word ARRAY FOR THIS STACK FRAME */
+	for (index = 0; index < proxy_backup[proxy_stack].commandcount; index++) {
+        add_cstring ("$word", proxy_backup[proxy_stack].command[index]);
+    }
+
+	/* RESTORE ALL THE NOUN POINTERS */
+	for (counter = 0; counter < 4; counter++)
+		noun[counter] = proxy_backup[proxy_stack].object_pointers[counter];
+
+	/* PUSH ALL THE RESOLVED OBJECTS ONTO THE STACK */
+	for (index = 0; index < 4; index++) {
+		list_size[index] = proxy_backup[proxy_stack].list_size[index];
+		max_size[index] = proxy_backup[proxy_stack].max_size[index];
+		for (counter = 0; counter < max_size[index]; counter++) {
+			object_list[index][counter] = proxy_backup[proxy_stack].object_list[index][counter];
+		}
+	}
+
+	start_of_this_command = proxy_backup[proxy_stack].start_of_this_command;
+	start_of_last_command = proxy_backup[proxy_stack].start_of_last_command;
+	after_from = proxy_backup[proxy_stack].after_from;
+	last_exact = proxy_backup[proxy_stack].last_exact;
+}
+
+void
+push_proxy()
+{
+	/* COPY ALL THE CURRENT SYSTEM DATA ONTO THE STACK */
+	int index;
+	int	counter = 0;
+	int	command = 0;
+	int text = 0;
+
+	current_cinteger = cinteger_table;
+	current_cstring = cstring_table;
+
+	if (proxy_stack == STACK_SIZE) {
+		log_error("Stack overflow.", PLUS_STDERR);
+		terminate(45);
+	} else {
+		proxy_backup[proxy_stack].start_of_this_command = start_of_this_command;
+		proxy_backup[proxy_stack].start_of_last_command = start_of_last_command;
+		
 		/* PUSH ALL THE OBJECT POINTERS ONTO THE STACK */
 		for (counter = 0; counter < 4; counter++)
-			backup[stack].object_pointers[counter] = noun[counter];
+			proxy_backup[proxy_stack].object_pointers[counter] = noun[counter];
 
 		/* PUSH ALL THE RESOLVED OBJECTS ONTO THE STACK */
 		for (index = 0; index < 4; index++) {
 			for (counter = 0; counter < max_size[index]; counter++) {
-				backup[stack].object_list[index][counter] 
+				proxy_backup[proxy_stack].object_list[index][counter] 
 					=	object_list[index][counter];
 			}
-			backup[stack].list_size[index] = list_size[index];
-			backup[stack].max_size[index] = max_size[index];
+			proxy_backup[proxy_stack].list_size[index] = list_size[index];
+			proxy_backup[proxy_stack].max_size[index] = max_size[index];
 		}
 
-		/* PUSH ALL THE CURRENT ARGUMENTS AND COMMAND INTEGERS ONTO THE STACK */
-		integers = 0;
-		arguments = 0;
+		/* PUSH ALL THE CURRENT COMMAND INTEGERS ONTO THE STACK */
+		counter = 0;
 
-
-        if (cinteger_pointer != NULL) {
+        if (current_cinteger != NULL) {
             do {
-                if (!strcmp(cinteger_pointer->name, "arg")) {
-                    backup[stack].arguments[arguments++] = cinteger_pointer->value;
-                } else if (!strcmp(cinteger_pointer->name, "integer")) {
-                    backup[stack].integer[integers++] = cinteger_pointer->value;                }
-                cinteger_pointer = cinteger_pointer->next_cinteger;
+                if (!strcmp(current_cinteger->name, "$integer")) {
+                    proxy_backup[proxy_stack].integer[counter++] = current_cinteger->value;                }
+                current_cinteger = current_cinteger->next_cinteger;
             }
-            while (cinteger_pointer != NULL);
+            while (current_cinteger != NULL);
         }
 
-		backup[stack].argcount = arguments;
-		backup[stack].integercount = integers;
+		proxy_backup[proxy_stack].integercount = counter;
 
-        /* PUSH ALL THE TEXT STRING SUPPLIED BY THE CURRENT COMMAND
-           ONTO THE STACK */
+        // PUSH ALL THE TEXT STRING SUPPLIED BY THE CURRENT COMMAND ONTO THE STACK
         text = 0;
-        sarg = 0;
-		counter = 0;
 		command = 0;
 
-        if (cstring_pointer != NULL) {
+        if (current_cstring != NULL) {
             do {
-                if (!strcmp(cstring_pointer->name, "$string")) {
-                    strncpy((char *) &backup[stack].text[text++], cstring_pointer->value, 255);
-                    backup[stack].text[counter++][255] = 0;
-                } else if (!strcmp(cstring_pointer->name, "string_arg")) {
-                    strncpy((char *) &backup[stack].str_arguments[sarg++], cstring_pointer->value, 255);
-                } else if (!strcmp(cstring_pointer->name, "$word")) {
-                    strncpy((char *) &backup[stack].command[command++], cstring_pointer->value, 255);
+                if (!strcmp(current_cstring->name, "$string")) {
+                    strncpy(proxy_backup[proxy_stack].text[text++], current_cstring->value, 255);
+                    proxy_backup[proxy_stack].text[counter++][255] = 0;
+                } else if (!strcmp(current_cstring->name, "$word")) {
+                    strncpy(proxy_backup[proxy_stack].command[command++], current_cstring->value, 255);
                 }
 
-                cstring_pointer = cstring_pointer->next_string;
+                current_cstring = current_cstring->next_string;
             }
-            while (cstring_pointer != NULL);
+            while (current_cstring != NULL);
         }
 
-		backup[stack].textcount = counter;
-		backup[stack].commandcount = command;
-
+		proxy_backup[proxy_stack].textcount = counter;
+		proxy_backup[proxy_stack].commandcount = command;
+		proxy_backup[proxy_stack].after_from = after_from;
+		proxy_backup[proxy_stack].last_exact = last_exact;
 	}
-	stack++;
+
+	// PUSH ON TO THE NEXT STACK FRAME
+	proxy_stack++;
 }
 
 int
@@ -2306,11 +2616,8 @@ add_cinteger(name, value)
 {
 	/* THIS FUNCTION ADDS A NEW JACL CONSTANT TO THE LIST */
 
-	struct cinteger_type *current_cinteger;
-	struct cinteger_type *new_cinteger;
-
 	if ((new_cinteger = (struct cinteger_type *)
-		 malloc(sizeof(struct cinteger_type))) == NULL)
+		malloc(sizeof(struct cinteger_type))) == NULL)
 		outofmem();
 	else {
 		if (cinteger_table == NULL) {
@@ -2336,16 +2643,19 @@ clear_cinteger(name)
 {
     /* FREE CONSTANTS THAT HAVE SUPPLIED NAME*/
 
-	struct cinteger_type *current_cinteger;
-	struct cinteger_type *previous_cinteger;
-
+	//printf("--- clear integer %s\n", name);
 	if (cinteger_table != NULL) {
 		current_cinteger = cinteger_table;
 		previous_cinteger = cinteger_table;
 		while (current_cinteger != NULL) {
+			//sprintf(temp_buffer, "--- checking integer %s^", current_cinteger->name);
+			//write_text(temp_buffer);
 			if (!strcmp(current_cinteger->name, name)) {
+				//sprintf(temp_buffer, "--- found integer %s^", name);
+				//write_text(temp_buffer);
 				/* FREE THIS CONSTANT */
 				if (previous_cinteger == current_cinteger) {
+					// THE INTEGER BEING CLEARED IS THE FIRST INTEGER IN THE LIST
 					cinteger_table = current_cinteger->next_cinteger;
 					previous_cinteger = current_cinteger->next_cinteger;
 					free(current_cinteger);
@@ -2361,6 +2671,7 @@ clear_cinteger(name)
 			}
 		}
 	}
+	//printf("--- leaving clear integer\n");
 }
 
 void
@@ -2369,8 +2680,6 @@ add_cstring(name, value)
   char *value;
 {
 	/* ADD A STRING CONSTANT WITH THE SUPPLIED NAME AND VALUE */
-	struct string_type *current_string;
-	struct string_type *new_string;
 
 	if ((new_string = (struct string_type *)
 		 malloc(sizeof(struct string_type))) == NULL)
@@ -2380,11 +2689,11 @@ add_cstring(name, value)
 			cstring_table = new_string;
 		} else {
 			/* FIND LAST STRING IN LIST */	
-			current_string = cstring_table;
-			while (current_string->next_string != NULL) {
-				current_string = current_string->next_string;
+			current_cstring = cstring_table;
+			while (current_cstring->next_string != NULL) {
+				current_cstring = current_cstring->next_string;
 			}
-			current_string->next_string = new_string;
+			current_cstring->next_string = new_string;
 		}
 		strncpy(new_string->name, name, 40);
 		new_string->name[40] = 0;
@@ -2398,29 +2707,26 @@ void
 clear_cstring(name)
   char *name;
 {
-	struct string_type *current_string;
-	struct string_type *previous_string;
-
     /* FREE CONSTANTS THAT HAVE SUPPLIED NAME*/
 	if (cstring_table != NULL) {
-		current_string = cstring_table;
-		previous_string = cstring_table;
-		while (current_string != NULL) {
-			if (!strcmp(current_string->name, name)) {
+		current_cstring = cstring_table;
+		previous_cstring = cstring_table;
+		while (current_cstring != NULL) {
+			if (!strcmp(current_cstring->name, name)) {
 				/* FREE THIS STRING */
-				if (previous_string == current_string) {
-					cstring_table = current_string->next_string;
-					previous_string = current_string->next_string;
-					free(current_string);
-					current_string = previous_string;
+				if (previous_cstring == current_cstring) {
+					cstring_table = current_cstring->next_string;
+					previous_cstring = current_cstring->next_string;
+					free(current_cstring);
+					current_cstring = previous_cstring;
 				} else {
-					previous_string->next_string = current_string->next_string;
-					free(current_string);
-					current_string = previous_string->next_string;
+					previous_cstring->next_string = current_cstring->next_string;
+					free(current_cstring);
+					current_cstring = previous_cstring->next_string;
 				}
 			} else {
-				previous_string = current_string;
-				current_string = current_string->next_string;
+				previous_cstring = current_cstring;
+				current_cstring = current_cstring->next_string;
 			}
 		}
 	}
@@ -2430,7 +2736,7 @@ void
 inspect (object_num) 
 	int		object_num;
 {
-	/* THIS FUNCTION DISPLAYS THE STATE OF A JACL OBJECT FOR DEBUGGING */
+	// THIS FUNCTION DISPLAYS THE STATE OF A JACL OBJECT FOR DEBUGGING
 
 	int index, attribute_value;
 
@@ -2445,7 +2751,7 @@ inspect (object_num)
 	write_text(object[object_num]->label);
 
 	if (object[object_num]->attributes & LOCATION) {
-		/* OUTPUT ALL THE ATTRIBUTES WITH LOCATION ATTRIBUTE TEXT */
+		// OUTPUT ALL THE ATTRIBUTES WITH LOCATION ATTRIBUTE TEXT
 		write_text("^has location attributes: ");
 		index = 0;
 		attribute_value = 1;
@@ -2457,7 +2763,7 @@ inspect (object_num)
 			attribute_value *= 2;
 		}
 	} else {
-		/* OUTPUT ALL THE ATTRIBUTES WITH OBJECT ATTRIBUTE TEXT */
+		// OUTPUT ALL THE ATTRIBUTES WITH OBJECT ATTRIBUTE TEXT
 		write_text("^has object attributes: ");
 		index = 0;
 		attribute_value = 1;
@@ -2474,8 +2780,8 @@ inspect (object_num)
 	}
 
 	if (pointer != NULL) {
-		/* THERE ARE USER ATTRIBUTES, SO CHECK IF THIS OBJECT OR LOCATION 
-		 * HAS ANY OF THEM */
+		// THERE ARE USER ATTRIBUTES, SO CHECK IF THIS OBJECT OR LOCATION 
+		// HAS ANY OF THEM
 		do {
 			if (object[object_num]->user_attributes & pointer->value) { 
 				write_text(pointer->name);
@@ -2517,14 +2823,14 @@ inspect (object_num)
 }
 
 int
-grand_of(child, restrict)
+grand_of(child, objs_only)
      int             child,
-                     restrict;
+                     objs_only;
 {
     /* THIS FUNCTION WILL CLIMB THE OBJECT TREE STARTING AT 'CHILD' UNTIL
      * A 'PARENT' IS REACHED */
    
-    /* restrict ARGUMENT TELLS FUNCTION TO IGNORE OBJECT IF IT IS IN A
+    /* objs_only ARGUMENT TELLS FUNCTION TO IGNORE OBJECT IF IT IS IN A
      * LOCATION */
 
     int             parent;
@@ -2534,7 +2840,7 @@ grand_of(child, restrict)
         parent = object[child]->PARENT;
 
         if (object[parent]->attributes & LOCATION) {
-			if (restrict) {
+			if (objs_only) {
             	/* THE CHILDS PARENT IS LOCATION AND SEARCH IS RESTRICTED TO 
 			 	 * OBJECTS */
             	return (child);
@@ -2544,7 +2850,7 @@ grand_of(child, restrict)
         } else {
             /* KEEP LOOKING UP THE TREE UNTIL THE CHILD HAS NO
              * PARENT */
-            return (grand_of(parent, restrict));
+            return (grand_of(parent, objs_only));
         }
     } else {
         /* THE SPECIFIED OBJECT HAS NO PARENT */
@@ -2552,3 +2858,58 @@ grand_of(child, restrict)
     }
 }
 
+int
+select_next()
+{
+
+	while (++*select_integer <= objects) {
+		switch (criterion_type) {
+			case CRI_ATTRIBUTE:
+				if (object[*select_integer]->attributes & criterion_value) {
+					if (!criterion_negate) {
+						return TRUE;
+					}
+				} else {
+					if (criterion_negate) {
+						return TRUE;
+					}
+				}
+				break;
+			case CRI_USER_ATTRIBUTE:
+				if (object[*select_integer]->user_attributes & criterion_value) {
+					if (!criterion_negate) {
+						return TRUE;
+					}
+				} else {
+					if (criterion_negate) {
+						return TRUE;
+					}
+				}
+				break;
+			case CRI_PARENT:
+				if (object[*select_integer]->PARENT == criterion_value) {
+					if (!criterion_negate) {
+						return TRUE;
+					}
+				} else {
+					if (criterion_negate) {
+						return TRUE;
+					}
+				}
+				break;
+			case CRI_SCOPE:
+				if (scope(*select_integer, scope_criterion)) {
+					if (!criterion_negate) {
+						return TRUE;
+					}
+				} else {
+					if (criterion_negate) {
+						return TRUE;
+					}
+				}
+				break;
+		}
+	}
+
+	return (FALSE);
+}

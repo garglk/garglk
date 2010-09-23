@@ -28,6 +28,15 @@ int								max_size[4];
  * noun2 EXCEPTIONS	: 3
  */
 
+int             				selection;
+
+int				             	matches = 0;
+int            					highest_confidence = 0;
+int            				 	prime_suspect = 0;
+int             				done = 0;
+int             				backup_pointer = 0;
+int								everything = 0;
+
 int             				confidence[MAX_OBJECTS];
 int								possible_objects[MAX_OBJECTS];
 
@@ -44,17 +53,22 @@ int								last_exact;
 
 char							*expected_scope[3];
 
-/* THIS ARRAY DEFINES THE OBJECTS THAT THE CURRENT OBJECTS ARE
- * SUPPOSED TO BE A CHILD OF */
+// THIS ARRAY DEFINES THE OBJECTS THAT THE CURRENT OBJECTS ARE
+// SUPPOSED TO BE A CHILD OF
 int								from_objects[MAX_OBJECTS];
 
 int								after_from;
 char							*from_word;
 
-short int						object_expected = FALSE;
+int								object_expected = FALSE;
 
-char							default_function[81];
-char							object_name[81];
+char							default_function[84];
+char							object_name[84];
+
+char				            base_function[84];
+char            				before_function[84];
+char            				after_function[84];
+char            				local_after_function[84];
 
 extern char						text_buffer[];
 extern char						function_name[];
@@ -63,7 +77,7 @@ extern char						error_buffer[];
 extern char						override[];
 extern char						*word[];
 
-extern short int				quoted[];
+extern int						quoted[];
 
 extern struct object_type		*object[];
 extern int						objects;
@@ -80,8 +94,8 @@ extern struct variable_type		*variable[];
 void
 parser()
 {
-	/* THIS FUNCTION COMPARES THE WORDS IN THE PLAYER'S COMMAND TO THE
-	 * GRAMMAR TREE OF POSSIBLE COMMANDS */
+	// THIS FUNCTION COMPARES THE WORDS IN THE PLAYER'S COMMAND TO THE
+	// GRAMMAR TREE OF POSSIBLE COMMANDS
 
 	struct word_type *pointer;
 	struct word_type *matched_word = NULL;
@@ -89,10 +103,11 @@ parser()
 	int             index;
 	int             current_noun = 0;
 
-	/* RESET TO START OF PROCESSING */
+	// RESET TO START OF PROCESSING
 
-	/* THIS IS USED TO STORE THE LAST EXACT WORD MATCH IN THE PLAYERS
-     * COMMAND */
+	////printf("--- in parser\n");
+
+	// THIS IS USED TO STORE THE LAST EXACT WORD MATCH IN THE PLAYERS COMMAND
 	last_exact = -1;
 	after_from = -1;
 	from_objects[0] = 0;
@@ -100,46 +115,54 @@ parser()
 	noun[0] = FALSE;
 	noun[1] = FALSE;
 
-	/* RESET BOTH THE LISTS TO BE EMPTY */
+	// RESET BOTH THE LISTS TO BE EMPTY
+	//printf("--- reset lists\n");
 	for (index = 0; index < 4; index++) {
 		list_size[index] = 0;
 		max_size[index] = 0;
 	}
 
+	//printf("--- clear $integer\n");
     clear_cinteger("$integer");
+	//printf("--- clear $string\n");
     clear_cstring("$string"); 
+	//printf("--- clear action\n");
     clear_cstring("action"); 
 
 	if (grammar_table == NULL) {
-		/* THERE ARE NO USER DEFINED COMMANDS AVAILABLE, SO THE USER'S
-		 * COMMAND IS INEVITABLY INVALID */
+		// THERE ARE NO USER DEFINED COMMANDS AVAILABLE, SO THE USER'S
+		// COMMAND IS INEVITABLY INVALID
+		//printf("--- no grammar table\n");
 		INTERRUPTED->value = TRUE;
 		diagnose();
 		return;
 	}
 
-	/* START AT THE TOP OF THE GRAMMAR TREE */
+	//printf("--- set pointer to grammar table\n");
+	// START AT THE TOP OF THE GRAMMAR TREE
 	pointer = grammar_table;
 
 	while (word[wp] != NULL && pointer != NULL) {
+		//printf("--- wp = %d\n", wp);
+		//printf("--- word[%d] = %s\n", wp, word[wp]);
 		object_expected = FALSE;
 
 		if (!strcmp(cstring_resolve("THEN_WORD")->value, word[wp])) {
-			/* CONSIDER THIS THE END OF THIS COMMAND AS 'THEN' IS
-			 * TREATED LIKE A FULL STOP */
+			// CONSIDER THIS THE END OF THIS COMMAND AS 'THEN' IS
+			// TREATED LIKE A FULL STOP
 			break;
 		} else if ((matched_word = exact_match(pointer)) != NULL) {
-			/* THIS WORD WAS AN EXACT MATCH FOR ONE OF THE POSSIBLE WORDS
-			 * AT THE CURRENT GRAMMAR TREE LEVEL - MOVE ON! */
+			// THIS WORD WAS AN EXACT MATCH FOR ONE OF THE POSSIBLE WORDS
+			// AT THE CURRENT GRAMMAR TREE LEVEL - MOVE ON!
 			pointer = matched_word;
 			pointer = pointer->first_child;
 		} else if ((matched_word = object_match(pointer, current_noun)) != NULL) {
-			/* THIS WAS AN OBJECT PLACE HOLDER AT THIS GRAMMAR LEVEL AND
-			 * THIS POINT IN THE PLAYER'S COMMAND COULD BE RESOLVED TO
-			 * AT LEAST ONE OBJECT */
+			// THIS WAS AN OBJECT PLACE HOLDER AT THIS GRAMMAR LEVEL AND
+			// THIS POINT IN THE PLAYER'S COMMAND COULD BE RESOLVED TO
+			// AT LEAST ONE OBJECT
 
 			if (list_size[current_noun] > 1) {
-				/* MULTIPLE OBJECTS WERE RETURNED */
+				// MULTIPLE OBJECTS WERE RETURNED
 				if (matched_word->word[1] != '*') {
 					if (last_exact == -1) {
 						write_text (cstring_resolve("NO_MULTI_START")->value);
@@ -153,32 +176,32 @@ parser()
 				}
 			}
 
-			/* STORE THE EXPECTED SCOPE FOR LATER CHECKING */
+			// STORE THE EXPECTED SCOPE FOR LATER CHECKING
 			expected_scope[current_noun] = (char *) &matched_word->word;
-			//printf ("--- expected scope for noun%d is %s\n", current_noun, expected_scope[current_noun]);
+			//printf("--- expected scope for noun%d is %s\n", current_noun, expected_scope[current_noun]);
 
-			/* THE NEXT MATCH OR GROUP OF MATCHES SHOULD BE IN THE SECOND
-			 * LIST OF OBJECTS */
+			// THE NEXT MATCH OR GROUP OF MATCHES SHOULD BE IN THE SECOND
+			// LIST OF OBJECTS
 			current_noun++;
 
-			/* PUSH ON FROM THE POINT A MATCH WAS FOUND.... */
+			// PUSH ON FROM THE POINT A MATCH WAS FOUND....
 			pointer = matched_word;
 			pointer = pointer->first_child;
 		} else {
-			/* THIS IS AN UNKNOWN WORD */
+			// THIS IS AN UNKNOWN WORD
 			if (oops_word == -1 && word[wp] != NULL) {
 				oops_word = wp;
 			}
 
 			if (custom_error == TRUE) {
-				/* THERE HAS BEEN SOME CUSTOM ERROR DISPLAYED ALREADY 
-				 * SO JUST RETURN */
+				// THERE HAS BEEN SOME CUSTOM ERROR DISPLAYED ALREADY 
+				// SO JUST RETURN
 				TIME->value = FALSE;
 				INTERRUPTED->value = TRUE;
 				return;
 			} else {
-				/* THERE ARE NO MORE POSIBILITIES, THE WORD CAN'T BE
-				 * USED IN THIS CONTEXT */
+				// THERE ARE NO MORE POSIBILITIES, THE WORD CAN'T BE
+				// USED IN THIS CONTEXT
 				INTERRUPTED->value = TRUE;
 				diagnose();
 				return;
@@ -187,9 +210,9 @@ parser()
 	};
 
 	if (pointer == NULL) {
-		/* THIS CAN ONLY HAPPEN IF MOVING THE POINTER TO ITS 
-		 * FIRST CHILD RESULTS IN A NULL - AN INCOMPLETE 
-		 * GRAMMAR STATEMENT. */
+		// THIS CAN ONLY HAPPEN IF MOVING THE POINTER TO ITS 
+		// FIRST CHILD RESULTS IN A NULL - AN INCOMPLETE 
+		// GRAMMAR STATEMENT.
 		log_error(INCOMPLETE_GRAMMAR, PLUS_STDOUT);
 		INTERRUPTED->value = TRUE;
 		return;
@@ -210,6 +233,7 @@ parser()
 	 * IN ORDER TO CONSTRUCT A COMPLETE COMMAND. SHOW ERROR. */
 	do {
 		if (pointer->word[0] == '>') {
+			//printf("--- found action %s\n", pointer->word);
 			/* CALL ALL THE APPROPRIATE FUNCTIONS FOR EACH OF */
 			/* THE OBJECTS IN THE SET */
 			add_cstring("action", &pointer->word[1]);
@@ -222,7 +246,6 @@ parser()
 				for (index = 0; index < max_size[0]; index++) {
 					/* CALL ALL THE FUNCTIONS ONCE FOR EACH OJECT */
 					if (object_list[0][index] != 0) {
-						//printf ("--- calling functions for object %d\n", object_list[0][index]);
 						noun[0] = object_list[0][index];
 
 						if (MULTI_PREFIX->value) {
@@ -232,6 +255,7 @@ parser()
 							write_text(": ");
 						}
 
+						//printf("--- 1 calling functions for %s\n", object[noun[0]]->label);
 						call_functions(pointer->word);
 
 						/* IF INTERRUPTED BY SOME SPECIAL CONDITION, DON'T
@@ -242,8 +266,11 @@ parser()
 					}
 				}
 			} else {
+				// FIRST LIST ISN'T MULTI
+				//printf("--- first list isn't multi\n");
 				if (list_size[1] > 1) {
-					/* ONLY SECOND IS MULTI */
+					//printf("--- second list is multi\n");
+					// ONLY SECOND IS MULTI
 					noun[0] = first_available(0);
 
 					for (index = 0; index < max_size[1]; index++) {
@@ -258,6 +285,7 @@ parser()
 								write_text(": ");
 							}
 
+							//printf("--- 2 calling functions for %s\n", object[noun[1]]->label);
 							call_functions(pointer->word);
 
 							/* IF INTERRUPTED BY SOME SPECIAL CONDITION, DON'T
@@ -268,7 +296,8 @@ parser()
 						}
 					}
 				} else {
-					/* NEITHER OBJECT REFERENCE IS MULTI */
+					//printf("--- second list isn't multi\n");
+					// NEITHER OBJECT REFERENCE IS MULTI
 					if (list_size[0] == 0) {
 						noun[0] = 0;
 						noun[1] = 0;
@@ -279,6 +308,7 @@ parser()
 						noun[0] = first_available(0);
 						noun[1] = first_available(1);
 
+						//printf("--- 3 calling functions for %s and %s\n", object[noun[0]]->label, object[noun[1]]->label);
 						call_functions(pointer->word);
 					}
 				}
@@ -290,6 +320,9 @@ parser()
 			}
 			return;
 		} else {
+			//printf("--- move to next grammar sibling\n");
+			// MOVE THROUGH THE OPTIONS AT THIS LEVEL OF THE GRAMMAR TREE
+			// TO FIND THE ACTION THAT MATCHES THIS COMMAND
 			if (pointer->next_sibling == NULL) {
 				break;
 			} else {
@@ -317,12 +350,15 @@ first_available(list_number)
 
 	if (list_size[list_number] == 0) return (0);
 
+	//printf("--- looking for next object in list\n");
 	for (index = 0; index < max_size[list_number]; index++) {
 		if (object_list[list_number][index] != 0) {
+			//printf("--- returning object %s\n", object[object_list[list_number][index]]->label);
 			return (object_list[list_number][index]);
 		}
 	}
 	
+	//printf("--- no objects left in list\n");
 	/* NO OBJECTS LEFT IN THE LIST */
 	return (0);
 }
@@ -335,19 +371,14 @@ call_functions(base_name)
 	 * TO A PLAYER'S COMMAND GIVEN A BASE FUNCTION NAME AND THE CURRENT
 	 * VALUE OF noun1 AND noun2 */
 
-	char            base_function[81];
-	char            before_function[81];
-	char            after_function[81];
-	char            local_after_function[81];
-
 	/* THE DEFAULT IS THAT THE COMMAND IS SUCCESSFUL AND THAT TIME SHOULD
 	 * PASS. IF THE COMMAND FAILS, 'TIME' WILL BE SET TO FALSE */
 	TIME->value = TRUE;
 
-	strcpy(base_function, base_name + 1);
+	strncpy(base_function, base_name + 1, 80);
 	strcat(base_function, "_");
 
-	strcpy(override, base_function);
+	strncpy(override, base_function, 80);
 
 	strcpy(before_function, "+before_");
 	strcat(before_function, base_name + 1);
@@ -372,7 +403,7 @@ call_functions(base_name)
 	strcpy(default_function, "+default_");
 	strcat(default_function, base_name + 1);
 
-	/* EXECUTE THE GLOBAL *DEFAULT* BEFORE FUNCTION 
+	/* EXECUTE THE GLOBAL *DEFAULT* BEFORE FUNCTION
 	 * AND RETURN IF IT RETURNS TRUE */
 	if (execute("+before") != FALSE)
 		return;
@@ -615,7 +646,7 @@ build_object_list(scope_word, noun_number)
 	int				resolved_object;
 	char			*except_word;
 
-	//printf ("--- entering build object list starting at %s with a scope_word of %s\n", word[wp], scope_word->word);
+	//printf("--- entering build object list starting at %s with a scope_word of %s\n", word[wp], scope_word->word);
 	/* LOOK AHEAD FOR A FROM CLAUSE AND STORE from_object IF SO */
 	if (get_from_object(scope_word, noun_number) == FALSE) {
 		/* THERE WAS AN ERROR, AND A MESSAGE HAS ALREADY BEEN
@@ -674,7 +705,7 @@ build_object_list(scope_word, noun_number)
 			/* IF NO OBJECTS WERE MATCHED BY THE TIME WE HIT FROM THEN EITHER
 			 * PRESUME THE PLAYER MEANT 'ALL FROM' OR PRINT AN ERROR */
 			if (list_size[noun_number] == 0) {
-				//printf ("--- adding all due to empty list.\n");
+				//printf("--- adding all due to empty list.\n");
 				add_all(scope_word, noun_number);
 			}
 
@@ -726,7 +757,7 @@ build_object_list(scope_word, noun_number)
 		/* A SECOND EXCEPTION LIST EXISTS, SUBTRACT IT FROM THE FIRST */
 		//printf("--- there are some exceptions.\n");
 
-		//printf ("--- first list: %d, second list: %d\n", max_size[FIRST_LIST], max_size[SECOND_LIST]);
+		//printf("--- first list: %d, second list: %d\n", max_size[FIRST_LIST], max_size[SECOND_LIST]);
 		/* LOOP THROUGH ALL THE ITEMS IN THE SECOND LIST */
 		for (index = 0; index < max_size[SECOND_LIST]; index++) {
 			if (object_list[SECOND_LIST][index] != 0) {
@@ -802,7 +833,7 @@ set_them(noun_number)
 		for (index = 0; index < max_size[noun_number]; index++) {
 			if (object_list[noun_number][index] != 0) {
 				them[counter] = object_list[noun_number][index];
-				//printf("--- storing %s in them list\n", object[them[counter]]);
+				//printf("--- storing %s in them list\n", object[them[counter]]->label);
 				counter++;
 			}
 		}
@@ -819,7 +850,7 @@ add_all(scope_word, noun_number)
 {
 	int index, counter;
 
-	//printf ("--- trying to add all\n");
+	//printf("--- trying to add all\n");
 	counter = 0;
 
 	for (index = 1; index <= objects; index++) {
@@ -848,7 +879,7 @@ is_child_of_from(child)
 	}
 
 	while (from_objects[index] != 0) {
-		//printf ("--- in is_child from object is %s, child is %s\n", object[from_objects[index]]->label, object[child]->label);
+		//printf("--- in is_child from object is %s, child is %s\n", object[from_objects[index]]->label, object[child]->label);
 		/* THIS OLD WAY OF DOING THINGS ALLOWS SPECIFIC 'take thing from box'
 		 * WHEN thing IS INSIDE SOMETHING ELSE INSIDE box. THAT IS KINDA COOL
 		 * BUT NOT PARTICULARLY NECESSARY. BY ONLY CHECKING IMMEDIATE CHILDREN
@@ -859,7 +890,7 @@ is_child_of_from(child)
 
 		//if (parent_of(from_objects[index], child, RESTRICT)) {
 		if (object[child]->PARENT == from_objects[index]) {
-			//printf ("--- %s is in %s\n", object[child]->label, object[from_objects[index]]->label);
+			//printf("--- %s is in %s\n", object[child]->label, object[from_objects[index]]->label);
 			return (TRUE);
 		}
 		index++;
@@ -882,7 +913,7 @@ is_direct_child_of_from(child)
 	}
 
 	while (from_objects[index] != 0) {
-		//printf ("--- in is_direct from object is %s\n", object[from_objects[index]]->label);
+		//printf("--- in is_direct from object is %s\n", object[from_objects[index]]->label);
 		if (object[child]->PARENT == from_objects[index]) {	
 			//printf("--- object %s is in the from object\n", object[child]->label);
 			return (TRUE);
@@ -914,7 +945,7 @@ get_from_object(scope_word, noun_number)
 	/* SEE IF 'FROM' IS ONE OF THE TERMINATORS OF THIS CURRENT OBJECT
 	 * PLACEHOLDER. IF SO, DON'T LOOK FOR A FROM OBJECT */
 	if (terminator != NULL) {
-		//printf("--- checking if terminator word if from\n", terminator->word);
+		//printf("--- checking if terminator word (%s) is from\n", terminator->word);
 		if (!strcmp(cstring_resolve("FROM_WORD")->value, terminator->word)) {
 			//printf("--- from is a terminator, don't get a from object\n");
 			return (TRUE);
@@ -1095,18 +1126,16 @@ noun_resolve(scope_word, finding_from, noun_number)
 
 	int             index;
 	int             counter;
-#ifdef GLK
-	int             selection;
-#endif
-	int             matches = 0;
-	int             highest_confidence = 0;
-	int             prime_suspect = 0;
-	int             done = FALSE;
-	int             backup_pointer = wp;
-	int				everything = FALSE;
 
 	struct word_type *terminator = scope_word->first_child;
 	struct name_type *current_name;
+
+	matches = 0;
+	highest_confidence = 0;
+	prime_suspect = 0;
+	done = FALSE;
+	backup_pointer = wp;
+	everything = FALSE;
 
 	if (word[wp] == NULL) {
 		/* NOTHING TO RESOLVE... */
@@ -1448,6 +1477,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 			if (scope(index, "*present", UNRESTRICT) == FALSE) {
 				matches--;
 				confidence[index] = FALSE;
+				//printf("--- removing %s for not being present\n", object[index]->label);
 			}
 		}
 
@@ -1456,7 +1486,9 @@ noun_resolve(scope_word, finding_from, noun_number)
 		if (confidence[index] == 1 && return_limit > 1) {
 			if ((object[index]->MASS >= HEAVY) ||
 				(object[index]->attributes & LOCATION)) {
+				matches--;
 				confidence[index] = 0;
+				//printf("--- removing %s for being scenery\n", object[index]->label);
 			}
 		}
 
@@ -1505,7 +1537,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 			if (is_child_of_from(index) == FALSE) {
 				matches--;
 				confidence[index] = FALSE;
-				//printf ("--- removing %s due to from clause\n", object[index]->label);
+				//printf("--- removing %s due to from clause\n", object[index]->label);
 			}
 		}
 	}
@@ -1586,7 +1618,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 		/* NULL TERMINATE THE LIST */
 		multiple_resolved[counter] = 0;
 
-		//printf ("--- returning multiple objects\n");
+		//printf("--- returning multiple objects\n");
 		/* RETURN -1 TO INDICATED THERE ARE MULTIPLE OBJECTS */
 		return (-1);
 	}
@@ -1600,6 +1632,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 		situation += 4;
 	}
 
+	/* 
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
 			strcpy(function_name, "disambiguate");
@@ -1623,6 +1656,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 			}
 		}
 	}
+	*/
 
 	// CHECK IF ALL THE OBJECTS WERE REJECTED
     if (matches == 0) {
@@ -1641,7 +1675,7 @@ noun_resolve(scope_word, finding_from, noun_number)
         }
     }
 
-#ifdef GLK
+#if defined GLK || defined __NDS__
 	/* NO OBJECT HAS CLAIMED OWNERSHIP, PROMPT THE PLAYER TO SPECIFY 
 	 * WHICH ONE THEY REQUIRE. */
 	counter = 1;
@@ -1864,13 +1898,13 @@ parent_of(parent, child, restrict)
 			object[child]->PARENT != NOWHERE) {
 		/* STORE THE CHILDS PARENT OBJECT */
 		index = object[child]->PARENT;
-		//printf ("--- %s is the parent of %s\n", object[index]->label, object[child]->label);
+		//printf("--- %s is the parent of %s\n", object[index]->label, object[child]->label);
 
 		if (index == child) {
 			/* THIS CHILD HAS IT'S PARENT SET TO ITSELF */
 			sprintf(error_buffer, SELF_REFERENCE, executing_function->name, object[index]->label);
 			log_error(error_buffer, PLUS_STDOUT);
-			//printf ("--- self parent.\n");
+			//printf("--- self parent.\n");
 			return (FALSE);
 		} else	if (!(object[index]->attributes & LOCATION) 
 			&& ((object[index]->attributes & CLOSED && object[index]->attributes & CONTAINER)
@@ -1879,7 +1913,7 @@ parent_of(parent, child, restrict)
 			//printf("--- parent %s is closed\n", object[index]->label);
 			return (FALSE);
 		} else if (restrict && object[index]->MASS < HEAVY && index != parent) {
-			//printf ("--- scenery object.\n");
+			//printf("--- scenery object.\n");
 			return (FALSE);
 		} else {
 			//printf("--- comparing %s with %s\n", object[index]->label, object[parent]->label);	

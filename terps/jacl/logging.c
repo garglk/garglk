@@ -11,7 +11,7 @@
 extern char						user_id[];
 extern char						prefix[];
 
-#ifdef NDS
+#ifdef __NDS__
 void
 log_error(message, console)
 	char        *message;
@@ -47,7 +47,7 @@ log_error(message, console)
 }
 #endif
 #ifndef GLK
-#ifndef NDS
+#ifndef __NDS__
 extern char						error_log[];
 extern char						access_log[];
 

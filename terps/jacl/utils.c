@@ -135,7 +135,11 @@ create_paths(full_path)
 
 		/* THIS ADDITION OF ./ TO THE FRONT OF THE GAMEFILE IF IT IS IN THE
 		 * CURRENT DIRECTORY IS REQUIRED TO KEEP Gargoyle HAPPY. */
+#ifdef __NDS__
+		sprintf (temp_buffer, "%c%s", DIR_SEPARATOR, game_file);
+#else
 		sprintf (temp_buffer, ".%c%s", DIR_SEPARATOR, game_file);
+#endif
 		strcpy (game_file, temp_buffer);
 	} else {
 		/* STORE THE DIRECTORY THE GAME FILE IS IN WITH THE TRAILING

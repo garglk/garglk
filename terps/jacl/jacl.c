@@ -19,6 +19,7 @@
 #ifdef WIN32
 #ifndef GARGLK
 #include <windows.h>
+#include "glkterm/glk.h"
 #include "WinGlk.h"
 #endif
 #endif
@@ -165,9 +166,6 @@ struct command_type *completion_list = NULL;
 struct word_type *grammar_table = NULL;
 struct synonym_type *synonym_table = NULL;
 struct filter_type *filter_table = NULL;
-
-void convert_to_utf8(glui32 *text, int len);
-glui32 parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
 void
 glk_main(void)
@@ -691,7 +689,7 @@ save_interaction(filename)
 	if (filename == NULL) {
 		saveref = glk_fileref_create_by_prompt(fileusage_SavedGame | fileusage_BinaryMode, filemode_Write, 0);
 	} else {
-		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, text_of(filename), 0);
+		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, filename, 0);
 
 	}
 
@@ -790,7 +788,7 @@ write_text(string_buffer)
 #ifdef NOUNICODE
 	glk_put_string(chunk_buffer);
 #else
-	chunk_buffer_uni[(int) convert_to_utf32(chunk_buffer)] = 0;
+	chunk_buffer_uni[(glui32) convert_to_utf32(chunk_buffer)] = 0;
 	glk_put_string_uni(chunk_buffer_uni);
 #endif
 }
@@ -1302,6 +1300,7 @@ restore_interaction(filename)
 	frefid_t saveref;
 
 	jacl_set_window(inputwin);
+
 	if (inputwin == promptwin) {
 		glk_window_clear(promptwin);
 		newline();
@@ -1310,7 +1309,7 @@ restore_interaction(filename)
 	if (filename == NULL) {
 		saveref = glk_fileref_create_by_prompt(fileusage_SavedGame | fileusage_BinaryMode, filemode_Read, 0);
 	} else {
-		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, text_of(filename), 0);
+		saveref = glk_fileref_create_by_name(fileusage_SavedGame | fileusage_BinaryMode, filename, 0);
 	}
 
 	jacl_set_window(mainwin);

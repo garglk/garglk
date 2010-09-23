@@ -12,10 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __NDS_
+#ifdef __NDS__
 #include <nds.h>
 #include <fat.h>
-#include <filesystem.h>
 #endif
 
 #ifdef GLK
