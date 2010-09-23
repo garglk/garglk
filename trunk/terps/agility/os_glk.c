@@ -839,6 +839,7 @@ gagt_status_update_extended (void)
       /* Clear the second status line only. */
       glk_window_move_cursor (gagt_status_window, 0, 1);
       glk_set_window (gagt_status_window);
+      glk_set_style (style_User1);
       for (index = 0; index < width; index++)
         glk_put_char (' ');
 
@@ -884,6 +885,7 @@ static void
 gagt_status_update (void)
 {
   glui32 width, height;
+  int index;
   assert (gagt_status_window);
 
   glk_window_get_size (gagt_status_window, &width, &height);
@@ -892,6 +894,11 @@ gagt_status_update (void)
       glk_window_clear (gagt_status_window);
       glk_window_move_cursor (gagt_status_window, 0, 0);
       glk_set_window (gagt_status_window);
+
+      glk_set_style (style_User1);
+      for (index = 0; index < width; index++)
+        glk_put_char (' ');
+      glk_window_move_cursor (gagt_status_window, 0, 0);
 
       /* Call print_statline() to refresh status line buffer contents. */
       print_statline ();
@@ -5667,6 +5674,7 @@ init_interface (int argc, char *argv[])
    * options or flags.  We can live without a status window if we have to.
    */
   status_height = gagt_extended_status_enabled ? 2 : 1;
+  glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
   gagt_status_window = glk_window_open (gagt_main_window,
                                         winmethod_Above | winmethod_Fixed,
                                         status_height, wintype_TextGrid, 0);
@@ -5779,6 +5787,10 @@ gagt_confirm (const char *prompt)
  * open, and friends work.  It works on Linux, and on Mac (CodeWarrior).
  * It may also work for you, but if it doesn't, or if your system lacks
  * things like dup or fdopen, define GLK_ANSI_ONLY and use the safe version.
+ *
+ * If GARGLK is used, non-ansi version calls garglk_fileref_get_name()
+ * instead, and opens a file the highly portable way, but still with a
+ * Glkily nice prompt dialog.
  */
 #ifdef GLK_ANSI_ONLY
 static genfile
@@ -5910,6 +5922,10 @@ gagt_get_user_file (glui32 usage, glui32 fmode, const char *fdtype)
    * underlying file descriptor or FILE* from a Glk stream either. :-(
    */
 
+#ifdef GARGLK
+  retfile = fopen(garglk_fileref_get_name(fileref), fdtype);
+#else
+
   /* So, start by dup()'ing the first file descriptor we can, ... */
   glkfd = -1;
   for (tryfd = 0; tryfd < FD_SETSIZE; tryfd++)
@@ -5952,6 +5968,7 @@ gagt_get_user_file (glui32 usage, glui32 fmode, const char *fdtype)
   retfile = fdopen (retfd, fdtype);
   if (!retfile)
     return badfile (fSAV);
+#endif /* GARGLK */
 
   /*
    * The result of all of this should now be that retfile is a FILE* wrapper
@@ -6264,6 +6281,13 @@ gagt_startup_code (int argc, char *argv[])
     {
       gagt_gamefile = argv[argv_index];
       gagt_game_message = NULL;
+#ifdef GARGLK
+      char *s;
+      s = strrchr(gagt_gamefile, '\\');
+      if (s) garglk_set_story_name(s+1);
+      s = strrchr(gagt_gamefile, '/');
+      if (s) garglk_set_story_name(s+1);
+#endif /* GARGLK */
     }
   else
     {
@@ -6469,6 +6493,11 @@ gagt_finalizer (void)
        * configurable and overrideable for problem cases.
        */
       gagt_agility_running = FALSE;
+
+#ifdef GARGLK
+      return;
+#endif /* GARGLK */
+
 #ifndef GLK_CLEAN_EXIT
       if (!getenv ("GLKAGIL_CLEAN_EXIT"))
         {
@@ -6617,7 +6646,7 @@ glk_main (void)
 /*---------------------------------------------------------------------*/
 /*  Glk linkage relevant only to the UNIX platform                     */
 /*---------------------------------------------------------------------*/
-#ifdef __unix
+#if defined(__unix) || defined(GARGLK)
 
 #include "glkstart.h"
 
@@ -6695,6 +6724,14 @@ glkunix_startup_code (glkunix_startup_t * data)
 {
   assert (!gagt_startup_called);
   gagt_startup_called = TRUE;
+
+#ifdef GARGLK
+  garglk_set_program_name("Agility 1.1.1");
+  garglk_set_program_info(
+                  "AGiliTy 1.1.1 by Robert Masenten\n"
+                  "Glk port by Simon Baldwin\n"
+  );
+#endif /* GARGLK */
 
   return gagt_startup_code (data->argc, data->argv);
 }
