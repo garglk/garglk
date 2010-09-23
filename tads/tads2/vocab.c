@@ -5537,8 +5537,7 @@ int vocdisambig(voccxdef *ctx, vocoldef *outlist, vocoldef *inlist,
              *   go through the objects matching the current noun phrase
              *   and add them into our list 
              */
-            while (inlist[lpos].vocolfst == inlist[inpos].vocolfst
-                   && lpos < listlen)
+            while (lpos < listlen && inlist[lpos].vocolfst == inlist[inpos].vocolfst)
             {
                 /* add this object to the list of nouns */
                 list1[i] = inlist[lpos].vocolobj;
@@ -8122,7 +8121,9 @@ void voc_stk_ini(voccxdef *ctx, uint siz)
     /* allocate it if it's not already allocated */
     if (ctx->voc_stk_ptr == 0)
     {
-        ctx->voc_stk_ptr = mchalo(ctx->voccxerr, (ushort)siz, "voc_stk_ini");
+    /* siz may exceed 64k on 64-bit systems... */
+        ctx->voc_stk_ptr = (uchar *)osmalloc(siz);
+    if (!ctx->voc_stk_ptr) errsig(ctx->voccxerr, ERR_NOMEM);
         ctx->voc_stk_end = ctx->voc_stk_ptr + siz;
     }
     
