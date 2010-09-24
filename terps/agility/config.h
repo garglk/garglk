@@ -306,6 +306,12 @@
 #define REPLACE_MAIN			/* Override main. */
 #define fnamecmp	strcasecmp	/* Case insensitive filename compare. */
 #undef PLAIN
+
+#ifdef __APPLE__
+#undef NEED_STR_CMP
+#undef NEED_STRN_CMP
+#endif /* __APPLE__ */
+
 #endif
 
 
