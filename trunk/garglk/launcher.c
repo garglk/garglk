@@ -48,6 +48,7 @@
 
 #define MaxBuffer 1024
 char tmp[MaxBuffer];
+char terp[MaxBuffer];
 
 int runblorb(char *path, char *game)
 {
@@ -84,13 +85,18 @@ int runblorb(char *path, char *game)
     switch (res.chunktype)
     {
     case ID_ZCOD:
-        if (magic[0] == 6)
+        if (terp)
+            return winterp(path, terp, "", game);
+        else if (magic[0] == 6)
             return winterp(path, T_ZSIX, "", game);
         else
             return winterp(path, T_ZCODE, "", game);
         break;
 
     case ID_GLUL:
+        if (terp)
+            return winterp(path, terp, "", game);
+        else
             return winterp(path, T_GLULX, "", game);
         break;
 
@@ -102,8 +108,177 @@ int runblorb(char *path, char *game)
     return FALSE;
 }
 
+int findterp(char *file, char *target)
+{
+    FILE *f;
+    char buf[MaxBuffer];
+    char *s;
+    char *cmd, *arg;
+    int accept = 0;
+    int i;
+
+    f = fopen(file, "r");
+    if (!f)
+        return FALSE;
+
+    /* clear out terp buffer */
+    terp[0] = '\0';
+
+    while (1)
+    {
+        s = fgets(buf, sizeof buf, f);
+        if (!s)
+            break;
+
+        buf[strlen(buf)-1] = 0; /* kill newline */
+
+        if (buf[0] == '#')
+            continue;
+
+        if (buf[0] == '[')
+        {
+            for (i = 0; i < strlen(buf); i++)
+                buf[i] = tolower(buf[i]);
+
+            if (strstr(buf, target))
+                accept = 1;
+            else
+                accept = 0;
+        }
+
+        if (!accept)
+            continue;
+
+        cmd = strtok(buf, "\r\n\t ");
+        if (!cmd)
+            continue;
+
+        arg = strtok(NULL, "\r\n\t #");
+        if (!arg)
+            continue;
+
+        if (!strcmp(cmd, "terp"))
+            strcpy(terp,arg);
+    }
+
+    fclose(f);
+    return strlen(terp);
+
+}
+
+int configterp(char *path, char *game)
+{
+    char config[MaxBuffer];
+    char story[MaxBuffer];
+    char ext[MaxBuffer];
+    char *s;
+    int i;
+
+    /* set up story */
+    s = strrchr(game,'\\');
+    if (!s) s = strrchr(game, '/');
+    if (s) strcpy(story, s+1);
+    else strcpy(story, game);
+
+    if (!strlen(story))
+        return FALSE;
+
+    for (i=0; i < strlen(story); i++)
+        story[i] = tolower(story[i]);
+
+    /* set up extension */
+    strcpy(ext, "*");
+    s = strrchr(story, '.');
+    if (s) strcat(ext, s);
+    else strcat(ext, ".*");
+
+    /* game file .ini */
+    strcpy(config, game);
+    s = strrchr(config, '.');
+    if (s) strcpy(s, ".ini");
+    else strcat(config, ".ini");
+
+    if (findterp(config, story) || findterp(config, ext))
+        return TRUE;
+
+    /* game directory .ini */
+    strcpy(config, game);
+    s = strrchr(config, '\\');
+    if (!s) s = strrchr(config, '/');
+    if (s) strcpy(s+1, "garglk.ini");
+    else strcpy(config, "garglk.ini");
+
+    if (findterp(config, story) || findterp(config, ext))
+        return TRUE;
+
+    /* current directory .ini */
+    s = getcwd(config, sizeof(config));
+    if (s)
+    {
+        strcat(config, "/garglk.ini");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+    }
+
+    /* various environment directories */
+    if (getenv("XDG_CONFIG_HOME"))
+    {
+        strcpy(config, getenv("XDG_CONFIG_HOME"));
+        strcat(config, "/.garglkrc");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+
+        strcpy(config, getenv("XDG_CONFIG_HOME"));
+        strcat(config, "/garglk.ini");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+    }
+
+    if (getenv("HOME"))
+    {
+        strcpy(config, getenv("HOME"));
+        strcat(config, "/.garglkrc");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+
+        strcpy(config, getenv("HOME"));
+        strcat(config, "/garglk.ini");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+    }
+
+    if (getenv("GARGLK_INI"))
+    {
+        strcpy(config, getenv("GARGLK_INI"));
+        strcat(config, "/.garglkrc");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+
+        strcpy(config, getenv("GARGLK_INI"));
+        strcat(config, "/garglk.ini");
+        if (findterp(config, story) || findterp(config, ext))
+            return TRUE;
+    }
+
+    /* system directory */
+    strcpy(config, "/etc/garglk.ini");
+    if (findterp(config, story) || findterp(config, ext))
+        return TRUE;
+
+    /* install directory */
+    strcpy(config, path);
+    strcat(config, "/garglk.ini");
+    if (findterp(config, story) || findterp(config, ext))
+        return TRUE;
+
+    /* give up */
+    return FALSE;
+}
+
 int rungame(char *path, char *game)
 {
+    configterp(path, game);
+
     char *ext = strrchr(game, '.');
 
     if (ext)
@@ -127,6 +302,9 @@ int rungame(char *path, char *game)
         return runblorb(path, game);
     if (!strcasecmp(ext, "zblorb"))
         return runblorb(path, game);
+
+    if (strlen(terp))
+        return winterp(path, terp, "", game);
 
     if (!strcasecmp(ext, "dat"))
         return winterp(path, T_ADVSYS, "", game);
