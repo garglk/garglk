@@ -33,7 +33,6 @@ static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
 static const char * DirSeparator = "/";
 
-#define MaxBuffer 1024
 char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
@@ -174,6 +173,8 @@ int winexec(const char *cmd, char **args)
 int winterp(char *path, char *exe, char *flags, char *game)
 {
     sprintf(tmp, LaunchingTemplate, path, exe);
+
+    setenv("GARGLK_INI", path, FALSE);
 
     char *args[] = {NULL, NULL, NULL};
 

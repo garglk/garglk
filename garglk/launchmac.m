@@ -38,7 +38,6 @@ static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
 static const char * DirSeparator = "/";
 
-#define MaxBuffer 1024
 char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];

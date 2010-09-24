@@ -29,6 +29,9 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <errno.h>
+#include <unistd.h>
+
+#define MaxBuffer 1024
 
 extern void wininit(void);
 extern void winmsg(const char *msg);
