@@ -85,7 +85,7 @@ int runblorb(char *path, char *game)
     switch (res.chunktype)
     {
     case ID_ZCOD:
-        if (terp)
+        if (strlen(terp))
             return winterp(path, terp, "", game);
         else if (magic[0] == 6)
             return winterp(path, T_ZSIX, "", game);
@@ -94,7 +94,7 @@ int runblorb(char *path, char *game)
         break;
 
     case ID_GLUL:
-        if (terp)
+        if (strlen(terp))
             return winterp(path, terp, "", game);
         else
             return winterp(path, T_GLULX, "", game);
@@ -120,9 +120,6 @@ int findterp(char *file, char *target)
     f = fopen(file, "r");
     if (!f)
         return FALSE;
-
-    /* clear out terp buffer */
-    terp[0] = '\0';
 
     while (1)
     {
@@ -277,6 +274,8 @@ int configterp(char *path, char *game)
 
 int rungame(char *path, char *game)
 {
+    /* clear out terp buffer */
+    terp[0] = '\0';
     configterp(path, game);
 
     char *ext = strrchr(game, '.');
