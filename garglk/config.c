@@ -50,9 +50,13 @@ char *gli_conf_monoz = "LuxiMonoBoldOblique";
 #ifdef BUNDLED_FONTS
 char *gli_conf_monofont = "";
 char *gli_conf_propfont = "";
+float gli_conf_monosize = 12.6;	/* good size for LuxiMono */
+float gli_conf_propsize = 14.7;	/* good size for CharterBT */
 #else
-char *gli_conf_monofont = "Luxi Mono";
-char *gli_conf_propfont = "Bitstream Charter";
+char *gli_conf_monofont = "Liberation Mono";
+char *gli_conf_propfont = "Linux Libertine O";
+float gli_conf_monosize = 12.5;	/* good size for LiberationMono */
+float gli_conf_propsize = 15.5;	/* good size for Libertine */
 #endif
 
 style_t gli_tstyles[style_NUMSTYLES] =
@@ -146,8 +150,6 @@ int gli_rows = 25;
 float gli_conf_propaspect = 1.0;
 float gli_conf_monoaspect = 1.0;
 
-float gli_conf_propsize = 14.7;	/* good size for CharterBT */
-float gli_conf_monosize = 12.6;	/* good size for LuxiMono */
 int gli_baseline = 15;
 int gli_leading = 20;
 
