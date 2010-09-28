@@ -20,6 +20,7 @@ _Original source code and patches_
   * Evin Robertson
   * Chris Spiegel
   * Jörg Walter
+  * r6144
 
 <p><br/></p>
 
