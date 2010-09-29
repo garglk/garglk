@@ -66,6 +66,21 @@ static void openResourceFile() {
   frefid_t resourceFileRef;
   giblorb_err_t ecode;
 
+#ifdef HAVE_GARGLK
+  if (strrchr(resourceFileName, '/'))
+    resourceFileName = strrchr(resourceFileName, '/') + 1;
+  else if (strrchr(resourceFileName, '\\'))
+    resourceFileName = strrchr(resourceFileName, '\\') + 1;
+  if (!resourceFileName)
+      return;
+#endif
+
+  char *extension = strrchr(resourceFileName, '.');
+  if (extension)
+    strcpy(extension, ".a3r");
+  else
+    strcat(resourceFileName, ".a3r");
+
   resourceFileRef = glk_fileref_create_by_name(fileusage_BinaryMode,
 					       resourceFileName, 0);
   if (glk_fileref_does_file_exist(resourceFileRef)) {
