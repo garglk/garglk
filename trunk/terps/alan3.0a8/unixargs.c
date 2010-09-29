@@ -30,7 +30,8 @@ void args(int argc, char * argv[])
     // TODO This is the same as in winargs.c!!
     if (adventureFileName == NULL)
 	/* No game given, try program name to see if there is a game with that name */
-	if (strcmp(prgnam, PROGNAME) != 0) {
+	if (strcmp(prgnam, PROGNAME) != 0
+	    && strstr(prgnam, PROGNAME) == 0) {
 	    adventureFileName = strdup(argv[0]);
             adventureName = strdup(argv[0]);
             strcat(adventureFileName, ".a3c");

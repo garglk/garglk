@@ -154,7 +154,7 @@ static Bool differentInterpreterName(char *string) {
 #if defined(__dos__) || defined(__windows__) || defined(__cygwin__)
 #include "winargs.c"
 #else
-#if defined(__unix__) || defined(__macosx__)
+#if defined(__unix__) || defined(__macosx__) || defined(__APPLE__)
 #include "unixargs.c"
 #else
 #ifdef __mac__

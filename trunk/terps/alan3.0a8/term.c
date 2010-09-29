@@ -168,6 +168,13 @@ void statusline(void)
   glk_window_clear(glkStatusWin);
   glk_window_get_size(glkStatusWin, &glkWidth, NULL);
 
+#ifdef HAVE_GARGLK
+  int i;
+  glk_set_style(style_User1);
+  for (i = 0; i < glkWidth; i++)
+    glk_put_char(' ');
+#endif
+
   onStatusLine = TRUE;
   col = 1;
   glk_window_move_cursor(glkStatusWin, 1, 0);
