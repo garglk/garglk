@@ -6,7 +6,7 @@ Build status as of 06/19/2009:
 | agility       | 1.1.1         |
 | advsys        | 1.2           |
 | alan          | 2.8.6         |
-| alan3         | 3.0a6         |
+| alan3         | 3.0a8         |
 | frotz         | 2.4.3         |
 | geas          | 0.4           |
 | git           | 1.2.7         |

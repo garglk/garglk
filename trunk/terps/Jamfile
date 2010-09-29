@@ -95,9 +95,7 @@ if $(MAKE_ALAN2) = yes
 
 # -----------------------------------------------------------------------
 #
-# Alan interpreter 3 alpha 6
-#
-# Some fixes, same as Cugel.
+# Alan interpreter 3 alpha 8
 #
 
 if $(MAKE_ALAN3) = yes
@@ -105,13 +103,17 @@ if $(MAKE_ALAN3) = yes
     SubDir TOP terps alan3 ;
     ObjDir alan3 ;
 
-    SubDirCcFlags -funsigned-char -DGLK ;
+    SubDirCcFlags -funsigned-char -DGLK -DHAVE_GARGLK -DBUILD=0 ;
 
     Main alan3 :
-        arun.c main.c debug.c args.c exe.c inter.c parse.c rules.c stack.c
-        decode.c term.c reverse.c readline.c params.c sysdep.c
-        glkstart.c glkio.c alan.version.c
-        set.c act.c state.c syserr.c save.c
+        alan.version.c act.c actor.c args.c arun.c attribute.c
+        checkentry.c class.c current.c debug.c decode.c
+        dictionary.c event.c exe.c glkio.c glkstart.c instance.c
+        inter.c lists.c literal.c main.c memory.c msg.c options.c
+        output.c params.c parse.c readline.c reverse.c rules.c
+        save.c scan.c score.c set.c stack.c state.c syntax.c
+        sysdep.c syserr.c term.c utils.c word.c
+        AltInfo.c Container.c Location.c ParameterPosition.c StateStack.c
         ;
 
     APPS += alan3 ;
