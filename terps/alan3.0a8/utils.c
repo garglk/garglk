@@ -64,6 +64,9 @@ void terminate(int code)
 #endif
 }
 
+#ifdef HAVE_GLK
+#include "glkio.h"
+#endif
 
 /*======================================================================*/
 void printVersion(int buildNumber) {
