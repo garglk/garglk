@@ -11,7 +11,7 @@
 
 /* FUNCTIONS */
 extern AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode);
-extern Aword getAttribute(AttributeEntry *attributeTable, int attributeCode);
-extern void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aword newValue);
+extern Aptr getAttribute(AttributeEntry *attributeTable, int attributeCode);
+extern void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aptr newValue);
 
 #endif /* ATTRIBUTE_H_ */

@@ -11,7 +11,7 @@
 #include "lists.h"
 #include "memory.h"
 #include "literal.h"
-#include "parameterPosition.h"
+#include "ParameterPosition.h"
 #include "syserr.h"
 
 /* PUBLIC DATA */

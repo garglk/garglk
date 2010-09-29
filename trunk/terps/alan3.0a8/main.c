@@ -346,7 +346,7 @@ static void load(void)
     }
     if (crc != tmphdr.acdcrc) {
         sprintf(err, "Checksum error in Acode (.a3c) file (0x%lx instead of 0x%lx).",
-                crc, tmphdr.acdcrc);
+                (unsigned long) crc, (unsigned long) tmphdr.acdcrc);
         if (!ignoreErrorOption)
             syserr(err);
         else {
@@ -451,7 +451,7 @@ static void initStrings(void)
     StringInitEntry *init;
 	
     for (init = (StringInitEntry *) pointerTo(header->stringInitTable); !isEndOfArray(init); init++)
-        setInstanceAttribute(init->instanceCode, init->attributeCode, (Aword)getStringFromFile(init->fpos, init->len));
+        setInstanceAttribute(init->instanceCode, init->attributeCode, (Aptr)getStringFromFile(init->fpos, init->len));
 }
 
 /*----------------------------------------------------------------------*/
@@ -469,7 +469,8 @@ static Aint sizeOfAttributeData(void)
         size += 1;			/* For EOF */
     }
 	
-    if (size != header->attributesAreaSize)
+    if (size != header->attributesAreaSize
+        && (sizeof(AttributeHeaderEntry) == sizeof(AttributeEntry)))
         syserr("Attribute area size calculated wrong.");
     return size;
 }
@@ -483,10 +484,12 @@ static AttributeEntry *initializeAttributes(int awordSize)
     int i;
 	
     for (i=1; i<=header->instanceMax; i++) {
-        AttributeEntry *originalAttribute = pointerTo(instances[i].initialAttributes);
+        AttributeHeaderEntry *originalAttribute = pointerTo(instances[i].initialAttributes);
         admin[i].attributes = (AttributeEntry *)currentAttributeArea;
         while (!isEndOfArray(originalAttribute)) {
-            *((AttributeEntry *)currentAttributeArea) = *originalAttribute;
+            ((AttributeEntry *)currentAttributeArea)->code = originalAttribute->code;
+            ((AttributeEntry *)currentAttributeArea)->value = originalAttribute->value;
+            ((AttributeEntry *)currentAttributeArea)->stringAddress = originalAttribute->stringAddress;
             currentAttributeArea += AwordSizeOf(AttributeEntry);
             originalAttribute++;
         }

@@ -19,7 +19,7 @@ AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode)
 
 
 /*======================================================================*/
-Aword getAttribute(AttributeEntry *attributeTable, int attributeCode)
+Aptr getAttribute(AttributeEntry *attributeTable, int attributeCode)
 {
   AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
 
@@ -28,7 +28,7 @@ Aword getAttribute(AttributeEntry *attributeTable, int attributeCode)
 
 
 /*======================================================================*/
-void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aword newValue)
+void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aptr newValue)
 {
   AttributeEntry *attribute = findAttribute(attributeTable, attributeCode);
 

@@ -21,7 +21,7 @@ typedef enum LiteralType {
 typedef struct LiteralEntry {   /* LITERAL */
   Aint class;           /* Class id of the literal type */
   LiteralType type;
-  Aword value;
+  Aptr value;
 } LiteralEntry;
 
 

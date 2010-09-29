@@ -43,13 +43,13 @@ extern Bool isLiteral(int instance);
 extern Bool isNumeric(int instance);
 extern Bool isString(int instance);
 
-extern Aword getInstanceAttribute(int instance, int attribute);
+extern Aptr getInstanceAttribute(int instance, int attribute);
 extern char *getInstanceStringAttribute(int instane, int attribute);
 extern Set *getInstanceSetAttribute(int instance, int attribute);
 
-extern void setInstanceAttribute(int instance, int atr, Aword value);
+extern void setInstanceAttribute(int instance, int atr, Aptr value);
 extern void setInstanceStringAttribute(int instance, int attribute, char *string);
-extern void setInstanceSetAttribute(int instance, int atr, Aword set);
+extern void setInstanceSetAttribute(int instance, int atr, Aptr set);
 
 extern void say(int instance);
 extern void sayForm(int instance, SayForm form);

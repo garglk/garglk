@@ -59,7 +59,7 @@ static void showAttributes(AttributeEntry *attributes)
 
   i = 1;
   for (at = attributes; !isEndOfArray(at); at++) {
-    sprintf(str, "$i$t%s[%ld] = %ld", (char *) pointerTo(at->stringAddress), at->code, at->value);
+    sprintf(str, "$i$t%s[%ld] = %ld", (char *) pointerTo(at->stringAddress), (long) at->code, (long) at->value);
 #if ISO == 0
     fromIso(str, str);
 #endif
@@ -101,7 +101,7 @@ static void showInstanceLocation(int ins) {
   else if (isALocation(admin[ins].location)) {
     output("at");
     say(admin[ins].location);
-    sprintf(buffer, "[%ld]", admin[ins].location);
+    sprintf(buffer, "[%ld]", (long) admin[ins].location);
     output(buffer);
   } else if (isContainer(admin[ins].location)) {
 
@@ -110,7 +110,7 @@ static void showInstanceLocation(int ins) {
     else if (isActor(admin[ins].location))
       output("carried by");
     say(admin[ins].location);
-    sprintf(buffer, "[%ld]", admin[ins].location);
+    sprintf(buffer, "[%ld]", (long) admin[ins].location);
     output(buffer);
 
   } else
@@ -152,7 +152,7 @@ static void showInstance(int ins)
   sprintf(str, "[%d]", ins);
   output(str);
   if (instances[ins].parent) {
-      sprintf(str, "Isa %s[%ld]", (char *)pointerTo(classes[instances[ins].parent].id), instances[ins].parent);
+      sprintf(str, "Isa %s[%ld]", (char *)pointerTo(classes[instances[ins].parent].id), (long) instances[ins].parent);
     output(str);
   }
 
@@ -172,7 +172,7 @@ static void showInstance(int ins)
     if (admin[ins].script == 0)
       output("$iIs idle");
     else {
-      sprintf(str, "$iExecuting script: %ld, Step: %ld", admin[ins].script, admin[ins].step);
+      sprintf(str, "$iExecuting script: %ld, Step: %ld", (long) admin[ins].script, (long) admin[ins].step);
       output(str);
     }
   }
@@ -281,7 +281,7 @@ static void showClass(int c)
   if (classes[c].parent != 0) {
     output("Isa");
     output((char *)pointerTo(classes[classes[c].parent].id));
-    sprintf(str, "(%ld)", classes[c].parent);
+    sprintf(str, "(%ld)", (long) classes[c].parent);
     output(str);
   }
 }

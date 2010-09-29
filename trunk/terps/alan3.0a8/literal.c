@@ -43,7 +43,7 @@ void createStringLiteral(char *unquotedString) {
     litCount++;
     literals[litCount].class = header->stringClassId;
     literals[litCount].type = STRING_LITERAL;
-    literals[litCount].value = (Aword) strdup(unquotedString);
+    literals[litCount].value = (Aptr) strdup(unquotedString);
 }
 
 /*----------------------------------------------------------------------*/

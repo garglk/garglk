@@ -337,14 +337,14 @@ void schedule(Aword event, Aword where, Aword after)
 
 // TODO Move to string.c?
 /*======================================================================*/
-Aword concat(Aword s1, Aword s2)
+Aptr concat(Aptr s1, Aptr s2)
 {
     char *result = allocate(strlen((char*)s1)+strlen((char*)s2)+1);
     strcpy(result, (char*)s1);
     strcat(result, (char*)s2);
     free((char*)s1);
     free((char*)s2);
-    return (Aword)result;
+    return (Aptr)result;
 }
 
 
@@ -489,7 +489,7 @@ static char *stripWordsFromStringBackwards(Aint count, char *initialString, char
 
 
 /*======================================================================*/
-Aword strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr)
+Aptr strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr)
 {
     char *initialString = (char *)getInstanceAttribute(id, atr);
     char *theStripped;
@@ -507,7 +507,7 @@ Aword strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, i
             theStripped = stripCharsFromStringBackwards(count, initialString, &theRest);
     }
     setInstanceStringAttribute(id, atr, theRest);
-    return (Aword)theStripped;
+    return (Aptr)theStripped;
 }
 
 
@@ -650,7 +650,7 @@ Bool btw(int val, int low, int high)
 
 
 /*======================================================================*/
-Bool contains(Aword string, Aword substring)
+Bool contains(Aptr string, Aptr substring)
 {
     Bool found;
 

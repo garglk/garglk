@@ -37,8 +37,8 @@ extern jmp_buf forfeitLabel;
 extern void sys(Aword fpos, Aword len);
 extern void sayInteger(int val);
 extern void sayString(char *str);
-extern Aword strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr);
-extern Aword concat(Aword s1, Aword s2);
+extern Aptr strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr);
+extern Aptr concat(Aptr s1, Aptr s2);
 extern char *getStringFromFile(Aword fpos, Aword len);
 extern void print(Aword fpos, Aword len);
 extern void setStyle(int style);
@@ -62,7 +62,7 @@ extern void cancelEvent(Aword evt);
 
 extern int randomInteger(int from, int to);
 extern Bool btw(int val, int from, int to);
-extern Bool contains(Aword string, Aword substring);
+extern Bool contains(Aptr string, Aptr substring);
 extern Bool streq(char a[], char b[]);
 
 extern void include(int instance, int atr, Aword member);

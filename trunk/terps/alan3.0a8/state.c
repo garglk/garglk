@@ -209,7 +209,7 @@ static void freeSetAttributes(void) {
 
   if (header->setInitTable == 0) return;
   for (entry = pointerTo(header->setInitTable); *(Aword *)entry != EOF; entry++) {
-    Aword attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
+    Aptr attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
     freeSet((Set*)attributeValue);
   }
 }
@@ -225,7 +225,7 @@ static void recallSets(Set **sets) {
 
   entry = pointerTo(header->setInitTable);
   for (i = 0; i < count; i++)
-    setAttribute(admin[entry[i].instanceCode].attributes, entry[i].attributeCode, (Aword)sets[i]);
+    setAttribute(admin[entry[i].instanceCode].attributes, entry[i].attributeCode, (Aptr)sets[i]);
 }
 
 
@@ -235,7 +235,7 @@ static void freeStringAttributes(void) {
 
   if (header->stringInitTable == 0) return;
   for (entry = pointerTo(header->stringInitTable); *(Aword *)entry != EOF; entry++) {
-    Aword attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
+    Aptr attributeValue = getAttribute(admin[entry->instanceCode].attributes, entry->attributeCode);
     free((char*)attributeValue);
   }
 }
@@ -251,7 +251,7 @@ static void recallStrings(char **strings) {
 
   entry = pointerTo(header->stringInitTable);
   for (i = 0; i < count; i++)
-    setAttribute(admin[entry[i].instanceCode].attributes, entry[i].attributeCode, (Aword)strings[i]);
+    setAttribute(admin[entry[i].instanceCode].attributes, entry[i].attributeCode, (Aptr)strings[i]);
 }
 
 
