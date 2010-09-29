@@ -8,7 +8,11 @@
 #include "types.h"
 
 #ifndef PROGNAME
+#ifdef HAVE_GARGLK
+#define PROGNAME "alan3"
+#else
 #define PROGNAME "arun"
+#endif
 #endif
 
 /* DATA */
