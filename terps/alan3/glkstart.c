@@ -63,6 +63,7 @@ static void openGlkWindows() {
 /*----------------------------------------------------------------------*/
 static void openResourceFile() {
   char *resourceFileName = strdup(adventureFileName);
+  char *originalFileName = resourceFileName;
   frefid_t resourceFileRef;
   giblorb_err_t ecode;
 
@@ -72,7 +73,7 @@ static void openResourceFile() {
   else if (strrchr(resourceFileName, '\\'))
     resourceFileName = strrchr(resourceFileName, '\\') + 1;
   if (!resourceFileName)
-      return;
+    resourceFileName = originalFileName;
 #endif
 
   char *extension = strrchr(resourceFileName, '.');
@@ -87,7 +88,7 @@ static void openResourceFile() {
     resourceFile = glk_stream_open_file(resourceFileRef, filemode_Read, 0);
     ecode = giblorb_set_resource_map(resourceFile);
   }
-  free(resourceFileName);
+  free(originalFileName);
 }
 
 
