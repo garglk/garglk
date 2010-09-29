@@ -22,14 +22,14 @@ typedef struct StackStructure *Stack;
 extern Stack createStack(int size);
 extern void deleteStack(Stack stack);
 extern void dumpStack(Stack theStack);
-extern Aword pop(Stack stack);
-extern void push(Stack stack, Aword item);
-extern Aword top(Stack theStack);
+extern Aptr pop(Stack stack);
+extern void push(Stack stack, Aptr item);
+extern Aptr top(Stack theStack);
 extern int stackDepth(Stack theStack);
 
 extern void newFrame(Stack theStack, Aint noOfLocals);
-extern void setLocal(Stack theStack, Aint blocksBelow, Aint variableNumber, Aword value);
-extern Aword getLocal(Stack theStack, Aint level, Aint variable);
+extern void setLocal(Stack theStack, Aint blocksBelow, Aint variableNumber, Aptr value);
+extern Aptr getLocal(Stack theStack, Aint level, Aint variable);
 extern void endFrame(Stack theStack);
 
 #endif

@@ -84,7 +84,7 @@ Bool isString(int instance)
 
 
 /*======================================================================*/
-void setInstanceAttribute(int instance, int attribute, Aword value)
+void setInstanceAttribute(int instance, int attribute, Aptr value)
 {
     char str[80];
 
@@ -103,20 +103,20 @@ void setInstanceAttribute(int instance, int attribute, Aword value)
 void setInstanceStringAttribute(int instance, int attribute, char *string)
 {
     free((char *)getInstanceAttribute(instance, attribute));
-    setInstanceAttribute(instance, attribute, (Aword)string);
+    setInstanceAttribute(instance, attribute, (Aptr)string);
 }
 
 
 /*======================================================================*/
-void setInstanceSetAttribute(int instance, int attribute, Aword set)
+void setInstanceSetAttribute(int instance, int attribute, Aptr set)
 {
     freeSet((Set *)getInstanceAttribute(instance, attribute));
-    setInstanceAttribute(instance, attribute, (Aword)set);
+    setInstanceAttribute(instance, attribute, (Aptr)set);
 }
 
 
 /*----------------------------------------------------------------------*/
-static Aword literalAttribute(int literal, int attribute)
+static Aptr literalAttribute(int literal, int attribute)
 {
     char str[80];
 
@@ -131,7 +131,7 @@ static Aword literalAttribute(int literal, int attribute)
 
 
 /*======================================================================*/
-Aword getInstanceAttribute(int instance, int attribute)
+Aptr getInstanceAttribute(int instance, int attribute)
 {
     char str[80];
 
@@ -796,7 +796,7 @@ static void locateObject(Aword obj, Aword whr)
 static void traceEnteredClass(Aint theClass, Bool empty) {
     printf("\n<ENTERED in class ");
     printf("%s", (char *)pointerTo(classes[theClass].id));
-    printf("[%ld]%s>\n", theClass, empty?" is empty":":");
+    printf("[%ld]%s>\n", (long) theClass, empty?" is empty":":");
 }
 
 
@@ -804,7 +804,7 @@ static void traceEnteredClass(Aint theClass, Bool empty) {
 static void traceEnteredInstance(Aint instance, Bool empty) {
     printf("\n<ENTERED in instance ");
     traceSay(instance);
-    printf("[%ld]%s>\n", instance, empty?" is empty":"");
+    printf("[%ld]%s>\n", (long) instance, empty?" is empty":"");
 }
 
 

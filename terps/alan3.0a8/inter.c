@@ -274,18 +274,18 @@ static char *booleanValue(Abool bool) {
 }
 
 /*----------------------------------------------------------------------*/
-static char *stringValue(Aword adress) {
+static char *stringValue(Aptr adress) {
     static char string[100];
 
-    sprintf(string, "0x%lx (\"%s\")\t\t", adress, (char *)adress);
+    sprintf(string, "0x%lx (\"%s\")\t\t", (unsigned long) adress, (char *)adress);
     return string;
 }
 
 /*----------------------------------------------------------------------*/
-static char *pointerValue(Aword adress) {
+static char *pointerValue(Aptr adress) {
     static char string[100];
 
-    sprintf(string, "@%6lx", adress);
+    sprintf(string, "@%6lx",(unsigned long) adress);
     return string;
 }
 
@@ -442,7 +442,7 @@ void interpret(Aaddr adr)
                 break;
 
             case I_POP: {
-                Aword top = pop(stack);
+                Aptr top = pop(stack);
                 if (singleStepOption)
                     printf("POP\t%7ld", top);
                 break;
@@ -520,7 +520,7 @@ void interpret(Aaddr adr)
                 Aint len = pop(stack);
                 if (singleStepOption)
                     printf("GETSTR\t%7ld, %7ld", fpos, len);
-                push(stack, (Aword)getStringFromFile(fpos, len));
+                push(stack, (Aptr)getStringFromFile(fpos, len));
                 traceStringTopValue();
                 break;
             }
@@ -614,7 +614,7 @@ void interpret(Aaddr adr)
             case I_SET: {
                 Aint atr = pop(stack);
                 Aint id = pop(stack);
-                Aint val = pop(stack);
+                Aptr val = pop(stack);
                 if (singleStepOption) {
                     printf("SET \t%7ld, %7ld, %7ld\t\t\t\t", id, atr, val);
                 }
@@ -624,7 +624,7 @@ void interpret(Aaddr adr)
             case I_SETSTR: {
                 Aint atr = pop(stack);
                 Aint id = pop(stack);
-                Aword str = pop(stack);
+                Aptr str = pop(stack);
                 if (singleStepOption) {
                     printf("SETSTR\t%7ld, %7ld, %s\t\t\t\t", id, atr, stringValue(str));
                 }
@@ -634,7 +634,7 @@ void interpret(Aaddr adr)
             case I_SETSET: {
                 Aint atr = pop(stack);
                 Aint id = pop(stack);
-                Aword set = pop(stack);
+                Aptr set = pop(stack);
                 if (singleStepOption) {
                     printf("SETSET\t%7ld, %7ld, %7s\t\t", id, atr, pointerValue(set));
                 }
@@ -646,17 +646,17 @@ void interpret(Aaddr adr)
                 if (singleStepOption) {
                     printf("NEWSET\t\t\t");
                 }
-                push(stack, (Aword)set);
+                push(stack, (Aptr)set);
                 tracePointerTopValue();
                 break;
             }
             case I_UNION: {
-                Aword set2 = pop(stack);
-                Aword set1 = pop(stack);
+                Aptr set2 = pop(stack);
+                Aptr set1 = pop(stack);
                 if (singleStepOption) {
                     printf("UNION\t%7ld, %7ld\t\t\t\t", set1, set2);
                 }
-                push(stack, (Aword)setUnion((Set *)set1, (Set *)set2));
+                push(stack, (Aptr)setUnion((Set *)set1, (Set *)set2));
                 tracePointerTopValue();
                 freeSet((Set *)set1);
                 freeSet((Set *)set2);
@@ -699,7 +699,7 @@ void interpret(Aaddr adr)
             case I_SETSIZE: {
                 Set *set = (Set *)pop(stack);
                 if (singleStepOption)
-                    printf("SETSIZE\t%7ld\t\t", (Aword)set);
+                    printf("SETSIZE\t%7ld\t\t", (Aptr)set);
                 push(stack, setSize(set));
                 if (singleStepOption)
                     traceIntegerTopValue();
@@ -709,7 +709,7 @@ void interpret(Aaddr adr)
                 Set *set = (Set *)pop(stack);
                 Aint index = pop(stack);
                 if (singleStepOption)
-                    printf("SETMEMB\t%7ld, %7ld", (Aword)set, index);
+                    printf("SETMEMB\t%7ld, %7ld", (Aptr)set, index);
                 push(stack, getSetMember(set, index));
                 if (singleStepOption)
                     traceIntegerTopValue();
@@ -750,7 +750,7 @@ void interpret(Aaddr adr)
                 Aint id = pop(stack);
                 if (singleStepOption)
                     printf("STRATTR \t%7ld, %7ld\t", id, atr);
-                push(stack, (Aword)getInstanceStringAttribute(id, atr));
+                push(stack, (Aptr)getInstanceStringAttribute(id, atr));
                 traceStringTopValue();
                 break;
             }
@@ -759,7 +759,7 @@ void interpret(Aaddr adr)
                 Aint id = pop(stack);
                 if (singleStepOption)
                     printf("ATTRSET \t%7ld, %7ld", id, atr);
-                push(stack, (Aword)getInstanceSetAttribute(id, atr));
+                push(stack, (Aptr)getInstanceSetAttribute(id, atr));
                 tracePointerTopValue();
                 break;
             }
@@ -852,7 +852,7 @@ void interpret(Aaddr adr)
                 break;
             }
             case I_INSET: {
-                Aword set = pop(stack);
+                Aptr set = pop(stack);
                 Aword element = pop(stack);
                 if (singleStepOption)
                     printf("INSET \t%7ld, %7ld", element, set);
@@ -909,7 +909,7 @@ void interpret(Aaddr adr)
                 break;
             }
             case I_SAYSTR: {
-                Aword adr = pop(stack);
+                Aptr adr = pop(stack);
                 if (singleStepOption)
                     printf("SAYSTR\t%7ld\t\ty\t", adr);
                 sayString((char *)adr);
@@ -972,8 +972,8 @@ void interpret(Aaddr adr)
                 break;
             }
             case I_STREQ: {
-                Aword rh = pop(stack);
-                Aword lh = pop(stack);
+                Aptr rh = pop(stack);
+                Aptr lh = pop(stack);
                 if (singleStepOption)
                     printf("STREQ \t%7ld, %7ld", lh, rh);
                 push(stack, streq((char *)lh, (char *)rh));
@@ -981,8 +981,8 @@ void interpret(Aaddr adr)
                 break;
             }
             case I_STREXACT: {
-                Aword rh = pop(stack);
-                Aword lh = pop(stack);
+                Aptr rh = pop(stack);
+                Aptr lh = pop(stack);
                 if (singleStepOption)
                     printf("STREXACT \t%7ld, %7ld", lh, rh);
                 push(stack, strcmp((char *)lh, (char *)rh) == 0);
@@ -1095,8 +1095,8 @@ void interpret(Aaddr adr)
                   String functions
                   \*------------------------------------------------------------*/
             case I_CONCAT: {
-                Aword s2 = pop(stack);
-                Aword s1 = pop(stack);
+                Aptr s2 = pop(stack);
+                Aptr s1 = pop(stack);
                 if (singleStepOption)
                     printf("CONCAT \t%7ld, %7ld", s1, s2);
                 push(stack, concat(s1, s2));
@@ -1105,8 +1105,8 @@ void interpret(Aaddr adr)
             }
 
             case I_CONTAINS: {
-                Aword substring = pop(stack);
-                Aword string = pop(stack);
+                Aptr substring = pop(stack);
+                Aptr string = pop(stack);
                 if (singleStepOption)
                     printf("CONTAINS \t%7ld, %7ld", string, substring);
                 push(stack, contains(string, substring));

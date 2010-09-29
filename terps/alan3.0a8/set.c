@@ -45,7 +45,7 @@ void initSets(SetInitEntry *initTable)
     Aword *member = pointerTo(init->setAddress);
     for (i = 0; i < init->size; i++, member++)
       addToSet(set, *member);
-    setInstanceAttribute(init->instanceCode, init->attributeCode, (Aword)set);
+    setInstanceAttribute(init->instanceCode, init->attributeCode, (Aptr)set);
   }
 }
 

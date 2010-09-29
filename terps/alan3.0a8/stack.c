@@ -31,7 +31,7 @@ Stack createStack(int size)
 {
   StackStructure *theStack = NEW(StackStructure);
 
-  theStack->stack = allocate(size*sizeof(Aword));
+  theStack->stack = allocate(size*sizeof(Aptr));
   theStack->stackSize = size;
   theStack->framePointer = -1;
 
@@ -66,13 +66,13 @@ void dumpStack(Stack theStack)
 
   printf("[");
   for (i = 0; i < theStack->stackp; i++)
-    printf("%ld ", theStack->stack[i]);
+    printf("%ld ", (unsigned long) theStack->stack[i]);
   printf("]");
 }
 
 
 /*======================================================================*/
-void push(Stack theStack, Aword i)
+void push(Stack theStack, Aptr i)
 {
   if (theStack == NULL)
     syserr("NULL stack not supported anymore");
@@ -84,7 +84,7 @@ void push(Stack theStack, Aword i)
 
 
 /*======================================================================*/
-Aword pop(Stack theStack)
+Aptr pop(Stack theStack)
 {
   if (theStack == NULL)
     syserr("NULL stack not supported anymore");
@@ -96,7 +96,7 @@ Aword pop(Stack theStack)
 
 
 /*======================================================================*/
-Aword top(Stack theStack)
+Aptr top(Stack theStack)
 {
   if (theStack == NULL)
     syserr("NULL stack not supported anymore");
@@ -124,7 +124,7 @@ void newFrame(Stack theStack, Aint noOfLocals)
 
 /*======================================================================*/
 /* Local variables are numbered 1 and up and stored on their index-1 */
-Aword getLocal(Stack theStack, Aint framesBelow, Aint variableNumber)
+Aptr getLocal(Stack theStack, Aint framesBelow, Aint variableNumber)
 {
   int frame;
   int frameCount;
@@ -146,7 +146,7 @@ Aword getLocal(Stack theStack, Aint framesBelow, Aint variableNumber)
 
 
 /*======================================================================*/
-void setLocal(Stack theStack, Aint framesBelow, Aint variableNumber, Aword value)
+void setLocal(Stack theStack, Aint framesBelow, Aint variableNumber, Aptr value)
 {
   int frame;
   int frameCount;

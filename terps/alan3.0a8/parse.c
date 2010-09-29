@@ -606,7 +606,7 @@ static Bool restrictionCheck(RestrictionEntry *restriction, int instance) {
 static void runRestriction(RestrictionEntry *restriction, Parameter parameters[]) {
     if (sectionTraceOption)
         printf("\n<SYNTAX parameter #%ld Is Not of class %ld:>\n",
-               restriction->parameterNumber, restriction->class);
+               (unsigned long) restriction->parameterNumber, (unsigned long) restriction->class);
     if (restriction->stms) {
         setParameters(parameters);
         interpret(restriction->stms);
@@ -842,7 +842,7 @@ static void checkRestrictedParameters(ParameterPosition parameterPositions[], El
                         /* It wasn't ALL, we need to say something about it, so
                          * prepare a printout with $1/2/3
                          */
-                        sprintf(marker, "($%ld)", restriction->parameterNumber);
+                        sprintf(marker, "($%ld)", (unsigned long) restriction->parameterNumber);
                         setParameters(localParameters);
                         output(marker);
                         runRestriction(restriction, localParameters);
