@@ -1,0 +1,563 @@
+#line 1 "ifdef.c"
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"AAA -> yes - ok";
+
+
+
+
+
+
+
+
+
+"AAA -> no - ok";
+
+
+
+
+
+
+"good ?:";
+
+
+
+"good ?:";
+
+
+
+
+
+printf('abc' + '= %d\n', abc);
+printf('def_' + '= %d\n', def_);
+
+
+"printval is defined!";
+
+
+
+
+
+
+
+"okay!!!";
+
+
+
+
+
+
+"try string translations";
+
+#pragma message("u > 7 - ok")
+
+
+
+
+
+#pragma message("\\u00C7 > aaaa - ok")
+
+
+
+
+
+#pragma message("\\uC7 > \\xC6 - ok")
+
+
+
+
+"pragma message with a translation";
+
+#pragma message("this is a test message")
+#error "macro: " "this is a test message" "!!!"
+
+
+"try some macros with arguments";
+
+
+
+
+"testing product(10, 20): "; ((10) * (20));
+"testing product(sum(10, sum3(1, 2, 3)), product(5, 10)): ";
+   ((((10) + (((1) + (2) + (3))))) * (((5) * (10))));
+
+"testing sum(sum(sum(1, 2), sum(3, 4)), sum(sum(5, 6), sum(7, 8))): ";
+   ((((((1) + (2))) + (((3) + (4))))) + (((((5) + (6))) + (((7) + (8))))));
+
+
+
+"circular_a(100): "; CIRCULAR_A(100*A*B);
+"circular_a(circular_b(50)): "; CIRCULAR_A(CIRCULAR_B(50*B*A)*A*B);
+
+
+   "good argument expansion";
+
+
+
+
+
+
+
+    "good expansion";
+
+
+
+    
+
+"try some #if's with macro expansions";
+
+
+
+
+
+
+
+
+   "good elif with expansion!!!";
+
+
+
+
+
+
+
+
+
+    "good string #if";
+
+
+
+
+
+    "good string #else";
+
+
+
+
+
+    "good string #elif";
+
+
+"try some #if's with constant expressions"
+
+
+
+   "good if!!!"
+
+
+
+
+
+   "good if!!! (and a tough one, too)";
+
+
+
+
+
+
+
+
+
+
+
+
+
+   "good elif!!!!!!"
+
+
+
+
+
+
+
+
+
+"done with if/elif";
+
+"define some macros";
+
+
+
+"try out a positive #if";
+
+   "this is a good #if";
+
+
+
+"end of positive #if";
+
+"try a negative #if";
+
+
+
+   "this is a good #else";
+
+"end of negative #if";
+
+"try some nested #if's";
+
+      "good #if - level 1";   A
+
+      "good #if - level 2";   B
+
+
+
+      "good #else - level 3";  D
+
+      "good #if - level 2";    E
+
+
+
+
+
+
+
+
+      "good #if - level 1";    I
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    "good again";
+
+
+
+"done with nested #if's";
+
+"ifndef test";
+
+
+
+   "good ifndef else";
+
+
+   "good ifndef";
+
+
+
+
+
+
+
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+#line 1 "header.t"
+>>header line 1<<
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+'We\'re inside the header now!!!';
+
+"here's an unterminated #if...";
+
+
+
+#line 1 "header2.t"
+ 
+
+
+
+
+header2.t(6): error: #elif without #if
+
+
+hmm.... hmm.... hmm....
+
+header2.t(10): error: #else without #if
+
+
+yada, yada, yada...
+
+header2.t(14): error: #endif without #if
+
+
+  
+#line 20 "header.t"
+
+"__LINE__ and __FILE__ in the header: " 'header.t', 21;
+
+"That's it for the header.";
+>>header end<<
+header.t(25): error: #if without #endif (line 17, file header.t)
+#line 296 "ifdef.c"
+
+"This is a string.  The #include below should be ignored, because it's part of the string.  #include "
+#line 300 "ifdef.c"
+badfile.t"  That's that!"
+#line 302 "ifdef.c"
+;
+
+"This is a string with escaped \"quote marks\".  Those quotes shouldn't end the string. \"the next #include should be ignored, since it's still part of the string:  #include <badfile.t>  That's all for the string!"
+#line 310 "ifdef.c"
+;
+
+ 
+
+
+
+"Here's a string with a /*comment*/ embedded.";
+
+"Here's some mixing:"    "String"   "Done!!!" 
+
+
+ 
+
+
+
+ifdef.c(325): warning: extraneous characters following #include filename
+
+#line 1 "header.t"
+>>header line 1<<
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+'We\'re inside the header now!!!';
+
+"here's an unterminated #if...";
+
+
+
+#line 1 "header2.t"
+ 
+
+
+
+
+header2.t(6): error: #elif without #if
+
+
+hmm.... hmm.... hmm....
+
+header2.t(10): error: #else without #if
+
+
+yada, yada, yada...
+
+header2.t(14): error: #endif without #if
+
+
+  
+#line 20 "header.t"
+
+"__LINE__ and __FILE__ in the header: " 'header.t', 21;
+
+"That's it for the header.";
+>>header end<<
+header.t(25): error: #if without #endif (line 17, file header.t)
+#line 329 "ifdef.c"
+
+"That's it!";
+
+
+#line 1 "header.t"
+>>header line 1<<
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+'We\'re inside the header now!!!';
+
+"here's an unterminated #if...";
+
+
+
+#line 1 "header2.t"
+ 
+
+
+
+
+header2.t(6): error: #elif without #if
+
+
+hmm.... hmm.... hmm....
+
+header2.t(10): error: #else without #if
+
+
+yada, yada, yada...
+
+header2.t(14): error: #endif without #if
+
+
+  
+#line 20 "header.t"
+
+"__LINE__ and __FILE__ in the header: " 'header.t', 21;
+
+"That's it for the header.";
+>>header end<<
+header.t(25): error: #if without #endif (line 17, file header.t)
+#line 333 "ifdef.c"
+Line directly after the header!
+
+
+"Try some random #line directives!";
+
+
+#line 1234 "foo_test.c"
+
+hello!
+
+
+#line 6789 "test2.c"
+
+goodbye!
+
+
+#line 6 "foo_test.c"
+
+"__LINE__ and __FILE__ near the end of file: "; 7, 'foo_test.c';
+
+"Make sure we come back here after we're done with an include file.";
+
+#line 1 "header.t"
+>>header line 1<<
+ 
+ 
+
+
+
+
+
+
+
+
+
+
+'We\'re inside the header now!!!';
+
+"here's an unterminated #if...";
+
+
+
+#line 1 "header2.t"
+ 
+
+
+
+
+header2.t(6): error: #elif without #if
+
+
+hmm.... hmm.... hmm....
+
+header2.t(10): error: #else without #if
+
+
+yada, yada, yada...
+
+header2.t(14): error: #endif without #if
+
+
+  
+#line 20 "header.t"
+
+"__LINE__ and __FILE__ in the header: " 'header.t', 21;
+
+"That's it for the header.";
+>>header end<<
+header.t(25): error: #if without #endif (line 17, file header.t)
+#line 11 "foo_test.c"
+>>> back from include!!! <<<
+
+
+"Try expanding macros and calculating values in #line";
+
+#line 205 "test.h"
+
+"try __FILE__ and __LINE__";
+"__FILE__: <<'test.h'>>, __LINE__: << 207 >>\n";
+
+"__FILE__: <<
+  'test.h'
+  >>, __LINE__: <<
+#line 213 "test.h"
+  213 >> -- that was __FILE and __LINE!\n";
+
+hash table: total 30, longest 2, average 0
+number of buckets over average length: 28
+number of empty buckets: 484
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -1,0 +1,105 @@
+Building is pretty easy. Please read README, too, as it duplicates and
+expands upon much of this information.
+
+
+ALL PLATFORMS:
+
+Please understand your rights and mine: read the text file COPYING in the root
+of the source tree. If you can't abide by it, delete this source tree now.
+
+The best documentation for the SDL_sound API is SDL_sound.h. It is VERY
+heavily commented, and makes an excellent, in-depth reference to all the
+functions. The official API reference is generated from this file with
+a program called "Doxygen" (http://www.doxygen.org/)
+
+
+Borland C++ Builder for Linux (Kylix 3):
+ Unzip the "borland.zip" file in the root of the source tree and use the
+ project files in the newly-created Borland/k3 directory. Makefiles for the
+ command line compiler are in Borland/freebcc ...
+
+
+Unix:
+ (If you pulled the source from CVS), run ./bootstrap
+
+ run ./configure --help, and see if there's any options you need. Rerun
+ configure with those options. If this is confusing to you, just run
+ ./configure with no options: the defaults are generally decent, and
+ configure is usually smart enough to figure out what's best..
+
+ If configuration succeeded, run "make".
+
+ Run "make install" as root to install the library for use on your system.
+
+ This should work for most Unix-style systems, including Linux, *BSD, BeOS, and
+ MacOS X. Reports of success and failure are welcome.
+
+
+MacOS 9 users:
+ Included with the source is CWProject.sit, which contains project files for
+ CodeWarrior 5.0 and later.
+
+
+MacOS X command line tools:
+ You can use the "UNIX" instructions above if you like the command line tools.
+
+
+MacOS X Project Builder:
+ If you prefer to use Project Builder, use the project files included with
+ this source: PBProjects.tar.gz...unpack it in the root of the SDL_sound
+ folder. This archive contains several external libraries you would have 
+ to download/install manually if you used the command line tools (these
+ libraries are for extra decoders, and are NOT required for SDL_sound to
+ function...however, without them, the number of sound formats you can
+ decode is reduced.)
+
+
+BeOS:
+ You can use the "UNIX" instructions above, too.
+
+
+Win32 Visual C:
+ For Visual C, use:
+   http://icculus.org/SDL_sound/downloads/sdl_sound_visualc_srcs.zip
+ ...and unzip it somewhere. This zipfile has a complete copy of the
+ SDL_sound sources, Visual C project files, and several external libraries,
+ too. This zip is everything you should need, and you can scrap this copy of
+ the source.
+
+
+Win32 Cygwin:
+ Cygwin users can try their luck with the Unix build instructions in this
+ tarball instead.
+
+
+Win32 Borland C++ Builder 6:
+ Unzip the "borland.zip" file in the root of the source tree and use the
+ project files in the newly-created Borland/bcb6 directory. Makefiles for the
+ command line compiler are in Borland/freebcc ... these are unmaintained, and
+ you will need to go find the external libraries you want to use (those that
+ wish to maintain these project files should contact me).
+
+
+If building is successful, there will be a shared library and a binary
+ called "playsound".
+
+
+Windows CE (Microsoft PocketPC):
+ You'll need Microsoft's PocketPC development environment, and this zipfile:
+   http://icculus.org/SDL_sound/downloads/SDL_soundCE.zip
+
+ Unzip that into the root of this source tree. The new "wce" directory has
+  project files, and the source to some of the external decoders is included.
+  Note that not all of the decoders are supported on PocketPC (but please, do
+  send us patches if you get them working!)
+
+
+OTHER PLATFORMS:
+
+Send me patches, and instructions, and I'll list them here. Consider 
+joining the SDL_sound mailing list. Details are at:
+   http://icculus.org/SDL_sound/
+
+--ryan. (icculus@icculus.org)
+
+

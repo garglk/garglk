@@ -1,0 +1,27 @@
+#!/bin/sh
+# Make and execute tests
+
+case "$1" in
+    -nodef)
+        shift
+        t3make -test -I$T3_DAT -a -nodef -nobanner -nopre -Fs $T3_DAT -Fo $T3_OUT -Fy $T3_OUT -o $T3_OUT/$1.t3 $2 $3 $4 $5 $6 $7 $8 $9 >$T3_OUT/$1.log 2>&1
+        ;;
+    -debug)
+        shift
+        t3make -test -d -I$T3_DAT -a -nobanner -nopre -Fs $T3_DAT -Fo $T3_OUT -Fy $T3_OUT -o $T3_OUT/$1.t3 $2 $3 $4 $5 $6 $7 $8 $9 >$T3_OUT/$1.log 2>&1
+        ;;
+    -pre)
+        shift
+        t3make -test -I$T3_DAT -a -nobanner -Fs $T3_DAT -Fo $T3_OUT -Fy $T3_OUT -o $T3_OUT/$1.t3 $2 $3 $4 $5 $6 $7 $8 $9 >$T3_OUT/$1.log 2>&1
+        ;;
+    *)
+        t3make -test -I$T3_DAT -a -nobanner -nopre -Fs $T3_DAT -Fo $T3_OUT -Fy $T3_OUT -o $T3_OUT/$1.t3 $2 $3 $4 $5 $6 $7 $8 $9 >$T3_OUT/$1.log 2>&1
+        ;;
+esac
+
+echo "'Make' test: $1"
+
+test_exec -cs cp437 $T3_OUT/$1.t3 >>$T3_OUT/$1.log 2>&1
+test_diff $1
+
+echo

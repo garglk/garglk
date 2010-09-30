@@ -1,0 +1,499 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit
+# manually, but your changes might be modified or lost if
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the  file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+# tads 3 makefile for the library sample game
+#
+# To compile the library sample game, use this makefile with the
+# command-line compiler like this:
+#
+#   t3make -f sample
+#
+# You can also use this makefile with Workbench on Windows - start Workbench,
+# select "Load Project" from the "File" menu, and then choose this file from
+# the file selector dialog.
+#
+
+-o sample.t3
+-pre
+-nodef
+-I ../../..
+-I ../../..
+-D LANGUAGE=en_us
+-D MESSAGESTYLE=neu
+-Fy obj
+-Fo obj
+-w1
+
+##sources
+# This is the list of source files making up the sample game.
+#
+-source reflect
+-lib system
+-lib adv3/adv3
+-source sample
+-source bantest
+
+-res
+GameInfo.txt
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+DebugToolbar:rebarWidth:I:483
+*48 src win edit mode:c:\tads\build\lib\adv3\actor.t:S:0:TADS 3
+*48 src win edit mode:c:\tads\build\lib\adv3\thing.t:S:0:TADS 3
+*48 src win edit mode:c:\tads\build\lib\adv3\score.t:S:0:TADS 3
+*44 src win split:c:\tads\build\include\tadsio.h:S:0:0.000000
+*48 src win selrange:C:\TADS\build\samples\reflect.t:S:0:0,0
+*48 src win selrange:C:\TADS\build\samples\reflect.t:S:1:0,0
+*57 src win edit mode:c:\tads\build\lib\extensions\newNames.t:S:0:TADS 3
+*43 src win pos:C:\TADS\build\samples\reflect.t:R:0,0,745,359
+build:ext resfile cnt:I:0
+*52 src win split:c:\tads\build\lib\adv3\en_us\msg_neu.t:S:0:0.000000
+*50 src win selrange:c:\tads\build\lib\adv3\disambig.t:S:0:0,0
+*50 src win selrange:c:\tads\build\lib\adv3\disambig.t:S:1:19848,19848
+build:defaults set:I:1
+*45 src win pos:c:\tads\build\lib\adv3\disambig.t:R:29,15,984,734
+watch win:pos:R:1182,738,1855,885
+watch win:vis:I:0
+*48 src win selrange:C:\TADS\build\samples\bantest.t:S:0:0,0
+*48 src win selrange:C:\TADS\build\samples\bantest.t:S:1:0,0
+*44 src win split:c:\tads\build\include\vector.h:S:0:0.000000
+*42 src win selrange:C:\test\tadsproj5\verbs.t:S:0:0,0
+*42 src win selrange:C:\test\tadsproj5\verbs.t:S:1:16729,16729
+*43 src win pos:C:\TADS\build\samples\bantest.t:R:0,0,894,633
+*49 src win edit mode:C:\TADS\build\samples\Untitled1:S:0:TADS 3
+*37 src win pos:C:\test\tadsproj5\verbs.t:R:9,9,1018,641
+*42 line wrap:c:\tads\build\lib\adv3\precond.t:S:0:N
+*49 src win edit mode:C:\TADS\build\samples\Untitled2:S:0:Plain Text
+*49 src win edit mode:C:\TADS\build\samples\Untitled3:S:0:Plain Text
+log win max::I:0
+*46 line wrap:C:\TADS\build\lib\adv3\en_us\en_us.t:S:0:N
+*42 line wrap:c:\tads\build\lib\adv3\actions.t:S:0:N
+*58 src win selrange:c:\program files\tads 3\include\strcomp.h:S:0:0,0
+*58 src win selrange:c:\program files\tads 3\include\strcomp.h:S:1:0,0
+*47 src win split:c:\tads\build\lib\adv3\resolver.t:S:0:0.000000
+*53 src win pos:c:\program files\tads 3\include\strcomp.h:R:16,25,1025,657
+*44 src win pos:C:\TADS\build\lib\adv3\actions.t:R:66,72,810,431
+build:c ops:I:0
+*49 src win edit mode:C:\TADS\build\samples\reflect.t:S:0:TADS 3
+SearchToolbar:rebarNewLine:I:0
+*45 src win selrange:c:\tads\build\lib\adv3\pov.t:S:0:0,0
+*45 src win selrange:c:\tads\build\lib\adv3\pov.t:S:1:9578,9578
+MenuBar:rebarVis:I:1
+log win pos::R:430,191,1298,766
+log win vis::I:1
+*40 src win pos:c:\tads\build\lib\adv3\pov.t:R:66,72,810,431
+*47 src win selrange:C:\tads\build\samples\sample.t:S:0:0,0
+*47 src win selrange:C:\tads\build\samples\sample.t:S:1:73907,73907
+*42 src win pos:C:\tads\build\samples\sample.t:R:370,29,1270,664
+*45 src win split:c:\tads\build\lib\adv3\action.t:S:0:0.000000
+build:charmap:S:0:
+*51 src win edit mode:c:\tads\build\lib\adv3\disambig.t:S:0:TADS 3
+DocToolbar:rebarIndex:I:4
+*54 src win pos:d:\program files\tads 3\lib\adv3\objects.t:R:66,72,811,431
+*47 src win selrange:c:\tads\build\include\tadsio.h:S:0:0,0
+*47 src win selrange:c:\tads\build\include\tadsio.h:S:1:0,0
+*42 src win pos:c:\tads\build\include\tadsio.h:R:110,120,1119,752
+*49 src win edit mode:C:\TADS\build\samples\bantest.t:S:0:TADS 3
+build:include_files-sys:S:0:user
+build:include_files-sys:S:1:user
+build:include_files-sys:S:2:user
+build:include_files-sys:S:3:user
+build:include_files-sys:S:4:user
+build:include_files-sys:S:5:user
+build:include_files-sys:S:6:user
+build:include_files-sys:S:7:user
+build:include_files-sys:S:8:user
+build:include_files-sys:S:9:user
+build:include_files-sys:S:10:user
+build:include_files-sys:S:11:user
+build:include_files-sys:S:12:user
+build:include_files-sys:S:13:user
+build:include_files-sys:S:14:lib
+build:include_files-sys:S:15:user
+build:include_files-sys:S:16:lib
+build:include_files-sys:S:17:user
+*43 src win edit mode:C:\test\tadsproj5\verbs.t:S:0:TADS 3
+project win:dock id:I:16
+*48 src win split:C:\TADS\build\samples\gameinfo.txt:S:0:0.000000
+DocToolbar:rebarWidth:I:820
+*54 src win split:c:\program files\tads 3\lib\adv3\thing.t:S:0:0.000000
+*55 src win selrange:c:\tads\build\lib\adv3\en_us\msg_neu.t:S:0:0,0
+*55 src win selrange:c:\tads\build\lib\adv3\en_us\msg_neu.t:S:1:154234,154234
+*51 src win split:c:\program files\tads 3\lib\reflect.t:S:0:0.000000
+DebugToolbar:rebarVis:I:1
+*50 src win pos:c:\tads\build\lib\adv3\en_us\msg_neu.t:R:37,13,1006,674
+*59 src win edit mode:c:\program files\tads 3\include\strcomp.h:S:0:TADS 3
+*45 src win split:c:\tads\build\lib\adv3\parser.t:S:0:0.000000
+*40 line wrap:c:\tads\build\lib\adv3\modid.t:S:0:N
+*45 src win split:c:\tads\build\lib\adv3\travel.t:S:0:0.000000
+*47 src win selrange:c:\tads\build\include\vector.h:S:0:0,0
+*47 src win selrange:c:\tads\build\include\vector.h:S:1:0,0
+*42 src win pos:c:\tads\build\include\vector.h:R:0,0,917,633
+*50 src win split:c:\tads\build\lib\adv3\en_us\en_us.t:S:0:0.000000
+*45 src win split:c:\tads\build\lib\adv3\lister.t:S:0:0.000000
+*46 src win edit mode:c:\tads\build\lib\adv3\pov.t:S:0:TADS 3
+*48 src win edit mode:C:\tads\build\samples\sample.t:S:0:TADS 3
+*45 src win pos:c:\tads\build\lib\adv3\settings.t:R:44,48,789,407
+*50 src win selrange:c:\tads\build\lib\adv3\resolver.t:S:0:0,0
+*50 src win selrange:c:\tads\build\lib\adv3\resolver.t:S:1:0,0
+*45 src win split:c:\tads\build\lib\adv3\extras.t:S:0:0.000000
+*45 src win pos:c:\tads\build\lib\adv3\resolver.t:R:14,9,883,636
+*40 line wrap:c:\tads\build\lib\adv3\actor.t:S:0:N
+*48 src win edit mode:c:\tads\build\include\tadsio.h:S:0:TADS 3
+*41 src win split:C:\TADS\build\lib\cquotes.t:S:0:0.000000
+*40 line wrap:c:\tads\build\lib\adv3\thing.t:S:0:N
+*40 line wrap:c:\tads\build\lib\adv3\score.t:S:0:N
+*45 src win split:c:\tads\build\lib\adv3\report.t:S:0:0.000000
+*42 src win pos:c:\tads\build\samples\sample.t:R:65,40,747,495
+build:installer options:S:0:name=sample
+build:installer options:S:1:savext=sample
+search:start at top:I:0
+*49 line wrap:c:\tads\build\lib\extensions\newNames.t:S:0:N
+*56 src win edit mode:c:\tads\build\lib\adv3\en_us\msg_neu.t:S:0:TADS 3
+*48 src win selrange:c:\tads\build\lib\adv3\action.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\action.t:S:1:202337,202337
+*43 src win pos:c:\tads\build\lib\adv3\action.t:R:71,22,963,718
+*43 src win split:c:\tads\build\lib\adv3\exec.t:S:0:0.000000
+breakpoints:global:S:0:l
+build special file:Cover Art:S:0:
+*48 src win edit mode:c:\tads\build\include\vector.h:S:0:TADS 3
+EditToolbar:rebarNewLine:I:1
+breakpoints:cond-mode:S:0:true
+breakpoints:cond-mode:S:1:true
+breakpoints:cond-mode:S:2:true
+breakpoints:cond-mode:S:3:true
+breakpoints:cond-mode:S:4:true
+breakpoints:cond-mode:S:5:true
+breakpoints:cond-mode:S:6:true
+breakpoints:cond-mode:S:7:true
+breakpoints:cond-mode:S:8:true
+*35 src win pos:c:\tads\build\lib\tok.t:R:66,72,1035,604
+*51 src win selrange:C:\TADS\build\samples\gameinfo.txt:S:0:0,0
+*51 src win selrange:C:\TADS\build\samples\gameinfo.txt:S:1:0,0
+*46 src win pos:C:\TADS\build\samples\gameinfo.txt:R:0,0,883,633
+*41 line wrap:C:\TADS\build\samples\Untitled1:S:0:
+*57 src win selrange:c:\program files\tads 3\lib\adv3\thing.t:S:0:0,0
+*57 src win selrange:c:\program files\tads 3\lib\adv3\thing.t:S:1:390137,390137
+*41 line wrap:C:\TADS\build\samples\Untitled2:S:0:N
+*54 src win selrange:c:\program files\tads 3\lib\reflect.t:S:0:0,0
+*54 src win selrange:c:\program files\tads 3\lib\reflect.t:S:1:0,0
+*52 src win pos:c:\program files\tads 3\lib\adv3\thing.t:R:88,96,1097,728
+*41 line wrap:C:\TADS\build\samples\Untitled3:S:0:
+*49 src win pos:c:\program files\tads 3\lib\reflect.t:R:35,9,1044,641
+*43 src win split:C:\test\tadsproj5\verbs-old.t:S:0:0.000000
+*51 src win edit mode:c:\tads\build\lib\adv3\resolver.t:S:0:TADS 3
+*48 src win selrange:c:\tads\build\lib\adv3\parser.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\parser.t:S:1:190676,190676
+src win pos:gramdisp.t:R:66,72,811,431
+*43 src win pos:c:\tads\build\lib\adv3\parser.t:R:224,34,1076,681
+*48 src win selrange:c:\tads\build\lib\adv3\travel.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\travel.t:S:1:0,428
+proj search:exact case:I:0
+*43 src win pos:c:\tads\build\lib\adv3\travel.t:R:7,50,829,706
+*53 src win selrange:c:\tads\build\lib\adv3\en_us\en_us.t:S:0:0,0
+*53 src win selrange:c:\tads\build\lib\adv3\en_us\en_us.t:S:1:40112,40112
+*48 src win pos:c:\tads\build\lib\adv3\en_us\en_us.t:R:53,43,863,665
+src win split:sample.t:S:0:0.000000
+*48 src win selrange:c:\tads\build\lib\adv3\lister.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\lister.t:S:1:22430,22430
+*41 line wrap:C:\TADS\build\samples\reflect.t:S:0:N
+DocToolbar:rebarVis:I:1
+*43 src win pos:c:\tads\build\lib\adv3\events.t:R:132,144,876,503
+*45 src win split:c:\tads\build\include\reflect.h:S:0:0.000000
+*48 src win split:C:\TADS\build\samples\instruct.txt:S:0:0.000000
+auto-script:quit sequences:S:0:<nocase>[<]line[>]<space>*q(uit)?<space>*
+auto-script:quit sequences:S:1:<nocase>[<]line[>]<space>*y.*
+*48 src win selrange:c:\tads\build\lib\adv3\extras.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\extras.t:S:1:68073,68080
+*49 src win edit mode:c:\tads\build\lib\adv3\action.t:S:0:TADS 3
+*43 src win pos:c:\tads\build\lib\adv3\extras.t:R:44,48,1215,738
+SearchToolbar:rebarIndex:I:2
+*44 src win selrange:C:\TADS\build\lib\cquotes.t:S:0:0,0
+*44 src win selrange:C:\TADS\build\lib\cquotes.t:S:1:0,0
+*43 line wrap:c:\tads\build\lib\adv3\disambig.t:S:0:N
+*39 src win pos:C:\TADS\build\lib\cquotes.t:R:0,0,917,633
+*48 src win selrange:c:\tads\build\lib\adv3\report.t:S:0:0,0
+*48 src win selrange:c:\tads\build\lib\adv3\report.t:S:1:69309,69309
+*43 src win pos:c:\tads\build\lib\adv3\report.t:R:107,78,864,646
+search:wrap:I:1
+*41 line wrap:C:\TADS\build\samples\bantest.t:S:0:N
+*52 src win edit mode:C:\TADS\build\samples\gameinfo.txt:S:0:Plain Text
+*35 line wrap:C:\test\tadsproj5\verbs.t:S:0:N
+auto-script:next-id:I:203
+build special file:License File:S:0:
+*48 src win split:C:\tads\build\samples\GameInfo.txt:S:0:0.000000
+*58 src win edit mode:c:\program files\tads 3\lib\adv3\thing.t:S:0:TADS 3
+SearchToolbar:rebarWidth:I:619
+*55 src win edit mode:c:\program files\tads 3\lib\reflect.t:S:0:TADS 3
+*54 src win split:c:\program files\tads 3\include\tadsio.h:S:0:0.000000
+*46 src win selrange:c:\tads\build\lib\adv3\exec.t:S:0:0,0
+*46 src win selrange:c:\tads\build\lib\adv3\exec.t:S:1:30114,30122
+*41 src win pos:c:\tads\build\lib\adv3\exec.t:R:76,42,950,662
+*49 src win edit mode:c:\tads\build\lib\adv3\parser.t:S:0:TADS 3
+search:text:S:0:objheld
+search:text:S:1:
+docking config::S:0:CL
+docking config::S:1:W0,248,521,493,118,1801,846,D,L,stack win
+docking config::S:2:W0,248,464,20,17,228,772,D,L,project win
+docking config::S:3:W0,248,235,660,581,1126,1110,D,L,script win
+docking config::S:4:CR
+docking config::S:5:W4,447,170,252,17,1171,785,M,R,help win
+docking config::S:6:CB
+docking config::S:7:W6,649,269,449,744,1131,919,D,B,locals win
+docking config::S:8:W6,650,269,1178,714,1859,889,D,B,watch win
+docking config::S:9:CT
+docking config::S:10:W9,170,203,20,20,923,729,M,T,docsearch win
+docking config::S:11:CT
+docking config::S:12:W11,170,170,150,207,1088,718,D,T,filesearch win
+docking config::S:13:W-1,170,170,33,16,909,620,M,R,log win
+*51 line wrap:c:\program files\tads 3\include\strcomp.h:S:0:N
+*49 src win edit mode:c:\tads\build\lib\adv3\travel.t:S:0:TADS 3
+*54 src win edit mode:c:\tads\build\lib\adv3\en_us\en_us.t:S:0:TADS 3
+locals win:pos:R:453,768,1127,915
+locals win:vis:I:0
+*45 src win split:c:\tads\build\include\bytearr.h:S:0:0.000000
+main win max::I:0
+*49 src win edit mode:c:\tads\build\lib\adv3\lister.t:S:0:TADS 3
+breakpoints:file:S:0:c:\tads\build\lib\adv3\lister.t
+*38 line wrap:c:\tads\build\lib\adv3\pov.t:S:0:N
+proj search:collapse spaces:I:0
+*44 src win split:C:\TADS\build\samples\sample.t:S:0:0.000000
+*46 src win selrange:C:\test\tadsproj5\verbs-old.t:S:0:16064,16064
+*46 src win selrange:C:\test\tadsproj5\verbs-old.t:S:1:16064,16064
+*49 src win edit mode:c:\tads\build\lib\adv3\extras.t:S:0:TADS 3
+*40 line wrap:C:\tads\build\samples\sample.t:S:0:N
+*43 src win pos:c:\tads\build\lib\adv3\output.t:R:39,28,797,521
+*41 src win pos:C:\test\tadsproj5\verbs-old.t:R:155,87,1164,719
+breakpoints:status:S:0:e
+breakpoints:cond:S:0:
+search:exact case:I:0
+*45 src win edit mode:C:\TADS\build\lib\cquotes.t:S:0:TADS 3
+*40 line wrap:c:\tads\build\include\tadsio.h:S:0:N
+*49 src win edit mode:c:\tads\build\lib\adv3\report.t:S:0:TADS 3
+mdi win list::S:0:c:\tads\build\lib\adv3\lister.t
+mdi win list::S:1::log
+mdi win list::S:2:c:\tads\build\lib\adv3\thing.t
+mdi win list::S:3:c:\tads\build\lib\adv3\en_us\en_us.t
+mdi win list::S:4:c:\tads\build\lib\adv3\pov.t
+mdi win list::S:5:c:\tads\build\lib\adv3\en_us\msg_neu.t
+mdi win list::S:6:c:\tads\build\lib\adv3\disambig.t
+breakpoints:line:S:0:551
+src win selrange:sample.t:S:0:0,0
+src win selrange:sample.t:S:1:19,19
+main win pos::R:139,23,1699,1147
+build:srczipfile:S:0:test_src
+proj search:whole word:I:0
+src win pos:sample.t:R:44,48,794,481
+help win pos::R:753,167,1664,906
+help win vis::I:0
+*48 src win selrange:c:\tads\build\include\reflect.h:S:0:0,0
+*48 src win selrange:c:\tads\build\include\reflect.h:S:1:0,0
+*51 src win selrange:C:\TADS\build\samples\instruct.txt:S:0:0,0
+*51 src win selrange:C:\TADS\build\samples\instruct.txt:S:1:0,0
+build:ignore case:I:0
+*43 src win pos:c:\tads\build\include\reflect.h:R:0,0,883,633
+*46 src win pos:C:\TADS\build\samples\instruct.txt:R:0,0,883,633
+*48 line wrap:c:\tads\build\lib\adv3\en_us\msg_neu.t:S:0:N
+*47 src win edit mode:c:\tads\build\lib\adv3\exec.t:S:0:TADS 3
+docsearch win vis::I:0
+build:exe:S:0:sample.exe
+docsearch win pos::R:521,170,1416,850
+script win:pos:R:145,903,384,1118
+script win:vis:I:1
+*40 line wrap:c:\tads\build\include\vector.h:S:0:N
+build:use charmap:I:0
+*46 src win split:c:\tads\build\lib\adv3\precond.t:S:0:0.000000
+*51 src win selrange:C:\tads\build\samples\GameInfo.txt:S:0:0,0
+*51 src win selrange:C:\tads\build\samples\GameInfo.txt:S:1:0,0
+*46 src win pos:C:\tads\build\samples\GameInfo.txt:R:0,0,1087,675
+*57 src win selrange:c:\program files\tads 3\include\tadsio.h:S:0:0,0
+*57 src win selrange:c:\program files\tads 3\include\tadsio.h:S:1:14498,14498
+EditToolbar:rebarIndex:I:1
+*52 src win pos:c:\program files\tads 3\include\tadsio.h:R:110,120,1119,752
+hist win vis::I:0
+*50 src win split:C:\TADS\build\lib\adv3\en_us\en_us.t:S:0:0.000000
+*47 src win edit mode:C:\test\tadsproj5\verbs-old.t:S:0:TADS 3
+*46 src win split:c:\tads\build\lib\adv3\actions.t:S:0:0.000000
+*43 line wrap:c:\tads\build\lib\adv3\resolver.t:S:0:N
+*48 src win selrange:c:\tads\build\include\bytearr.h:S:0:0,0
+*48 src win selrange:c:\tads\build\include\bytearr.h:S:1:0,0
+*43 src win pos:c:\tads\build\include\bytearr.h:R:22,24,939,657
+src win edit mode:sample.t:S:0:TADS 3
+EditToolbar:rebarWidth:I:260
+build:include_files:S:0:tads.h
+build:include_files:S:1:t3.h
+build:include_files:S:2:lookup.h
+build:include_files:S:3:systype.h
+build:include_files:S:4:vector.h
+build:include_files:S:5:charset.h
+build:include_files:S:6:bytearr.h
+build:include_files:S:7:tadsgen.h
+build:include_files:S:8:tadsio.h
+build:include_files:S:9:reflect.h
+build:include_files:S:10:file.h
+build:include_files:S:11:dict.h
+build:include_files:S:12:tok.h
+build:include_files:S:13:gramprod.h
+build:include_files:S:14:adv3.h
+build:include_files:S:15:strcomp.h
+build:include_files:S:16:en_us.h
+SearchToolbar:rebarVis:I:1
+MenuBar:rebarNewLine:I:1
+*47 src win selrange:C:\TADS\build\samples\sample.t:S:0:0,0
+*47 src win selrange:C:\TADS\build\samples\sample.t:S:1:8735,8735
+*49 src win edit mode:c:\tads\build\include\reflect.h:S:0:TADS 3
+*52 src win edit mode:C:\TADS\build\samples\instruct.txt:S:0:Plain Text
+*42 src win pos:C:\TADS\build\samples\sample.t:R:16,5,848,600
+proj search:regex:I:0
+*41 line wrap:c:\tads\build\lib\adv3\action.t:S:0:N
+search:whole word:I:0
+*52 src win edit mode:C:\tads\build\samples\GameInfo.txt:S:0:Plain Text
+*44 line wrap:C:\TADS\build\samples\gameinfo.txt:S:0:N
+*50 line wrap:c:\program files\tads 3\lib\adv3\thing.t:S:0:N
+*58 src win edit mode:c:\program files\tads 3\include\tadsio.h:S:0:TADS 3
+*47 line wrap:c:\program files\tads 3\lib\reflect.t:S:0:N
+DebugToolbar:rebarNewLine:I:1
+build:debug_image_file:S:0:sample_dbg.t3
+build:feelies-sys:S:0:user
+build:feelies-sys:S:1:user
+search dlg:old searches:S:0:objheld
+search dlg:old searches:S:1:(putin
+search dlg:old searches:S:2:isfailure
+search dlg:old searches:S:3:followingactor = nil
+search dlg:old searches:S:4:actoractionfollow
+search dlg:old searches:S:5:newactoraction
+search dlg:old searches:S:6:nestedaction(follow
+search dlg:old searches:S:7:followingobj
+search dlg:old searches:S:8:followobj =
+search dlg:old searches:S:9:followobj = nil
+*41 line wrap:c:\tads\build\lib\adv3\parser.t:S:0:N
+*44 src win split:c:\tads\build\lib\adv3\modid.t:S:0:0.000000
+*41 line wrap:c:\tads\build\lib\adv3\travel.t:S:0:N
+*49 src win edit mode:c:\tads\build\include\bytearr.h:S:0:TADS 3
+*44 src win pos:c:\tads\build\lib\adv3\objects.t:R:66,72,808,517
+*46 line wrap:c:\tads\build\lib\adv3\en_us\en_us.t:S:0:N
+*49 src win selrange:c:\tads\build\lib\adv3\precond.t:S:0:0,0
+*49 src win selrange:c:\tads\build\lib\adv3\precond.t:S:1:11006,11006
+*44 src win pos:c:\tads\build\lib\adv3\precond.t:R:151,72,1082,751
+*53 src win pos:d:\program files\tads 3\lib\adv3\action.t:R:88,96,833,455
+*41 line wrap:c:\tads\build\lib\adv3\lister.t:S:0:N
+find dialog:pos:R:237,372,681,604
+*48 src win edit mode:C:\TADS\build\samples\sample.t:S:0:TADS 3
+*53 src win selrange:C:\TADS\build\lib\adv3\en_us\en_us.t:S:0:0,0
+*53 src win selrange:C:\TADS\build\lib\adv3\en_us\en_us.t:S:1:0,0
+*49 src win selrange:c:\tads\build\lib\adv3\actions.t:S:0:0,0
+*49 src win selrange:c:\tads\build\lib\adv3\actions.t:S:1:67688,67688
+*48 src win pos:C:\TADS\build\lib\adv3\en_us\en_us.t:R:47,42,941,675
+*44 src win pos:c:\tads\build\lib\adv3\actions.t:R:255,70,1125,699
+*41 line wrap:c:\tads\build\lib\adv3\extras.t:S:0:N
+*44 src win split:c:\tads\build\lib\adv3\actor.t:S:0:0.000000
+search dlg:old search opts:S:0:
+search dlg:old search opts:S:1:
+search dlg:old search opts:S:2:
+search dlg:old search opts:S:3:
+search dlg:old search opts:S:4:
+search dlg:old search opts:S:5:
+search dlg:old search opts:S:6:
+search dlg:old search opts:S:7:
+search dlg:old search opts:S:8:
+search dlg:old search opts:S:9:
+*44 src win split:c:\tads\build\lib\adv3\thing.t:S:0:0.000000
+*44 src win split:c:\tads\build\lib\adv3\score.t:S:0:0.000000
+*53 src win split:c:\tads\build\lib\extensions\newNames.t:S:0:0.000000
+*49 src win pos:c:\tads\build\lib\adv3\en_us\en_us.tl:R:44,48,789,407
+search:regex:I:0
+*39 line wrap:c:\tads\build\lib\adv3\exec.t:S:0:N
+mdi tab order::S:0:2,6,3,0,5,4,1
+build:rlsgam:S:0:sample.t3
+EditToolbar:rebarVis:I:1
+*50 src win edit mode:c:\tads\build\lib\adv3\precond.t:S:0:TADS 3
+main win mdi max::I:1
+*45 src win split:C:\TADS\build\samples\Untitled1:S:0:0.000000
+*45 src win pos:C:\TADS\build\samples\openState.t:R:88,96,1057,628
+*45 src win split:C:\TADS\build\samples\Untitled2:S:0:0.000000
+auto-script:default quit sequences set:I:1
+*45 src win split:C:\TADS\build\samples\Untitled3:S:0:0.000000
+*54 src win edit mode:C:\TADS\build\lib\adv3\en_us\en_us.t:S:0:TADS 3
+*50 src win edit mode:c:\tads\build\lib\adv3\actions.t:S:0:TADS 3
+*39 line wrap:C:\test\tadsproj5\verbs-old.t:S:0:
+*47 src win selrange:c:\tads\build\lib\adv3\modid.t:S:0:0,0
+*47 src win selrange:c:\tads\build\lib\adv3\modid.t:S:1:20727,20727
+build:src in all pk:I:1
+line wrap:sample.t:S:0:N
+*45 src win split:C:\TADS\build\samples\reflect.t:S:0:0.000000
+DocToolbar:rebarNewLine:I:0
+*41 line wrap:c:\tads\build\include\reflect.h:S:0:N
+*44 line wrap:C:\TADS\build\samples\instruct.txt:S:0:N
+*47 src win selrange:c:\tads\build\lib\adv3\actor.t:S:0:0,0
+*47 src win selrange:c:\tads\build\lib\adv3\actor.t:S:1:0,608
+*42 src win pos:c:\tads\build\lib\adv3\actor.t:R:264,123,1135,743
+*47 src win selrange:c:\tads\build\lib\adv3\thing.t:S:0:0,0
+*47 src win selrange:c:\tads\build\lib\adv3\thing.t:S:1:266148,266148
+*47 src win split:c:\tads\build\lib\adv3\disambig.t:S:0:0.000000
+MenuBar:rebarIndex:I:0
+*42 src win pos:c:\tads\build\lib\adv3\thing.t:R:23,7,856,734
+*47 src win selrange:c:\tads\build\lib\adv3\score.t:S:0:0,0
+*47 src win selrange:c:\tads\build\lib\adv3\score.t:S:1:6644,6651
+*39 src win pos:c:\tads\build\lib\reflect.t:R:44,48,789,407
+*42 src win pos:c:\tads\build\lib\adv3\score.t:R:66,72,1237,762
+stack win max::I:0
+mdi win title::S:0:c:\tads\build\lib\adv3\lister.t
+mdi win title::S:1:
+mdi win title::S:2:c:\tads\build\lib\adv3\thing.t
+mdi win title::S:3:c:\tads\build\lib\adv3\en_us\en_us.t
+mdi win title::S:4:c:\tads\build\lib\adv3\pov.t
+mdi win title::S:5:c:\tads\build\lib\adv3\en_us\msg_neu.t
+mdi win title::S:6:c:\tads\build\lib\adv3\disambig.t
+*56 src win selrange:c:\tads\build\lib\extensions\newNames.t:S:0:0,0
+*56 src win selrange:c:\tads\build\lib\extensions\newNames.t:S:1:0,0
+*45 src win split:C:\TADS\build\samples\bantest.t:S:0:0.000000
+*39 src win split:C:\test\tadsproj5\verbs.t:S:0:0.000000
+*51 src win pos:c:\tads\build\lib\extensions\newNames.t:R:66,72,1153,747
+*44 line wrap:C:\tads\build\samples\GameInfo.txt:S:0:N
+search:dir:I:1
+MenuBar:rebarWidth:I:431
+build:installer prog:S:0:sample_Setup.exe
+project win:pos:R:145,149,384,877
+project win:vis:I:1
+*50 line wrap:c:\program files\tads 3\include\tadsio.h:S:0:N
+*48 src win edit mode:c:\tads\build\lib\adv3\modid.t:S:0:TADS 3
+*55 src win split:c:\program files\tads 3\include\strcomp.h:S:0:0.000000
+filesearch win vis::I:0
+stack win vis::I:0
+stack win pos::R:497,142,1797,842
+filesearch win pos::R:154,231,1084,714
+DebugToolbar:rebarIndex:I:3
+*41 line wrap:c:\tads\build\include\bytearr.h:S:0:N
+*48 src win selrange:C:\TADS\build\samples\Untitled1:S:0:0,0
+*48 src win selrange:C:\TADS\build\samples\Untitled1:S:1:0,156
+*43 src win pos:C:\TADS\build\samples\Untitled1:R:132,144,1141,776
+*48 src win selrange:C:\TADS\build\samples\Untitled2:S:0:0,0
+*48 src win selrange:C:\TADS\build\samples\Untitled2:S:1:0,0
+searchMode::I:1
+*43 src win pos:C:\TADS\build\samples\Untitled2:R:154,168,1163,800
+*48 src win selrange:C:\TADS\build\samples\Untitled3:S:0:0,0
+*48 src win selrange:C:\TADS\build\samples\Untitled3:S:1:0,0
+*43 src win pos:C:\TADS\build\samples\Untitled3:R:187,65,1196,697
+*42 src win split:c:\tads\build\lib\adv3\pov.t:S:0:0.000000
+search dlg:old repl text:S:0:tt
+search dlg:old repl text:S:1:oo
+search dlg:old repl text:S:2:test111
+search dlg:old repl text:S:3:baba
+search dlg:old repl text:S:4:Statue.IsPulled
+search dlg:old repl text:S:5:Status.IsPulled
+search dlg:old repl text:S:6:XXXX
+search dlg:old repl text:S:7:
+search dlg:old repl text:S:8:tt
+search dlg:old repl text:S:9:oo
+*42 src win pos:c:\tads\build\lib\adv3\input.t:R:44,48,815,661
+*40 line wrap:C:\TADS\build\samples\sample.t:S:0:N
+*44 src win split:C:\tads\build\samples\sample.t:S:0:0.000000
+

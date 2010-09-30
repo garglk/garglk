@@ -1,0 +1,92 @@
+#
+# Extend the Jambase to build shared libraries.
+#
+
+SUFDLL ?= .so ;
+
+rule SharedLibrary
+{
+    SharedLibraryFromObjects $(<) : $(>:S=$(SUFOBJ)) ;
+    Objects $(>) ;
+}
+
+rule SharedLibraryFromObjects
+{
+    local _i _l _s ;
+
+    # Add grist to file names
+
+    _s = [ FGristFiles $(>) ] ;
+    _l = $(<:S=$(SUFDLL)) ;
+
+    # library depends on its member objects
+
+    Depends obj : $(_s) ;
+
+    # Set LOCATE for the library and its contents.  The bound
+    # value shows up as $(NEEDLIBS) on the Link actions.
+    # For compatibility, we only do this if the library doesn't
+    # already have a path.
+
+    if ! $(_l:D)
+    {
+        MakeLocate $(_l) $(_l)($(_s:BS)) : $(LOCATE_TARGET) ;
+    }
+
+    # make the library depend directly on the on-disk object files.  
+
+    Depends $(_l) : $(_s) ;
+
+    Clean clean : $(_l) ;
+
+    SharedLink $(_l) : $(_s) ;
+}
+
+rule SharedLinkLibraries
+{
+    # make library dependencies of target
+    # set NEEDLIBS variable used by 'actions Main'
+
+    local _t = [ FAppendSuffix $(<) : $(SUFEXE) ] ;
+
+    Depends $(_t) : $(>:S=$(SUFDLL)) ;
+    NEEDLIBS on $(_t) += $(>:S=$(SUFDLL)) ;
+}
+
+rule LinkLibrariesOnSharedLibrary
+{
+    # make library dependencies of target
+    # set NEEDLIBS variable used by 'actions Main'
+
+    local _t = [ FAppendSuffix $(<) : $(SUFDLL) ] ;
+
+    Depends $(_t) : $(>:S=$(SUFLIB)) ;
+    NEEDLIBS on $(_t) += $(>:S=$(SUFLIB)) ;
+}
+
+rule SharedLinkLibrariesOnSharedLibrary
+{
+    # make library dependencies of target
+    # set NEEDLIBS variable used by 'actions Main'
+
+    local _t = [ FAppendSuffix $(<) : $(SUFDLL) ] ;
+
+    Depends $(_t) : $(>:S=$(SUFDLL)) ;
+    NEEDLIBS on $(_t) += $(>:S=$(SUFDLL)) ;
+}
+
+if $(OS) = MACOSX
+{
+    actions together SharedLink bind NEEDLIBS
+    {
+        $(LINK) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) -dynamiclib $(SHRLINKFLAGS) -install_name @executable_path/$(<:D=) -o $(<) $(>) $(NEEDLIBS) $(SHRLINKLIBS)
+    }
+}
+else
+{
+    actions together SharedLink bind NEEDLIBS
+    {
+        $(LINK) -shared $(SHRLINKFLAGS) -Wl,-soname,$(<:D=) -o $(<) $(>) $(NEEDLIBS) $(SHRLINKLIBS)
+    }
+}
+

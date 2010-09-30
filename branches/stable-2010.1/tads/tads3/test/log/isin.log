@@ -1,0 +1,73 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export isin.t -> isin.t3s
+	compile _main.t -> _main.t3o
+	compile isin.t -> isin.t3o
+	link -> isin.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+is in:
+
+This is f1(1)
+This is f1(2)
+This is f1(3)
+Found it!
+This is f1(10)
+This is f1(11)
+This is f1(12)
+This is f1(13)
+This is f1(14)
+Didn't find it!
+This is f1(1)
+This is f1(2)
+Found it!
+Found it!
+This is f1(1)
+Found it!
+This is f1(1)
+This is f1(2)
+Found it!
+This is f1(1)
+This is f1(2)
+This is f1(4)
+Found it!
+This is f1(1)
+Found it!
+Found it!
+Didn't find it!
+
+not in:
+
+This is f1(1)
+This is f1(2)
+This is f1(3)
+Found it!
+This is f1(10)
+This is f1(11)
+This is f1(12)
+This is f1(13)
+This is f1(14)
+Didn't find it!
+This is f1(1)
+This is f1(2)
+Found it!
+Found it!
+This is f1(1)
+Found it!
+This is f1(1)
+This is f1(2)
+Found it!
+This is f1(1)
+This is f1(2)
+This is f1(4)
+Found it!
+This is f1(1)
+Found it!
+Found it!
+Didn't find it!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

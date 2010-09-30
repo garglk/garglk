@@ -1,0 +1,93 @@
+0.5
+	Fixed segfault loading non-infix symbols (reported by David Picton)
+	Made /globals use symbols instead of G## when possible
+	Made automapper ignore superfluous exits
+	Fixed problems when automap, replay, and @read_char are used together
+	Removed 512 byte @read limit
+	Wrapped (m/re)alloc to test for malloc(0) and Out Of Memory
+	Made showstuff detect when printing an error causes another error
+	Stop repeating typo corrections in ambiguous commands while automapping
+	Fixed sound volume bug (thanks DorianX)
+	Sped up automapper and made it not break redo
+	Improved status line
+	Fixed undo/redo for games without native undo
+	Catches unknown extended opcodes
+	Disabled symbol-guessing for games without a property table
+	added ~/.nitfolrc support
+	Use ANSI string functions when they're available
+	Added alias support
+	Catch bug in Inform to reduce chances of overflowing input buffer
+	Fixed memory leak in malformed 'or's and function calls
+	Removed shift/reduce conflicts in yacc grammar
+	Added fake locations for bent passages in automapper
+	Improved forced movement in automapper
+	Added automapper cycle and interference detection
+	Added /ralias and empty alias support
+	Made n_malloc free old undo slots if out of memory
+	Added -mapsym option
+	Resize upper window (height) upon illegal @set_cursor calls
+	Made automapper hide non-fatal errors while exploring
+	Lots of automapper bugfixes and improvements
+	Fixed @get_next_prop
+	Removed frefid_t usage
+	Fixed multiple undo corruption (reported by David Picton)
+	Minor @print_table fixes
+	Font 3 to ASCII conversion implemented (see enablefont3 in globals.c)
+	Minor undo fixes (reported by David Picton)
+	Made @restore not clear the screen
+	Minor header loading changes
+	Added short circuiting for &&, ||, 'or' grammar
+	Moved map into separate configurable window
+	Added stack depth limit option
+	Extended restore fix
+	Detect out-of-range word writing (reported by Paul David Doherty)
+	Detect object tree looping with @insert_obj (ask Amilia for elephant)
+	Fixed various problems revealed by crashme
+
+0.4
+        Added -expand command-line flag per request of David Picton
+	No longer overwrites Inform version number with userid
+	Makefile changes
+	Added script recording/playback (and appropriate debugger commands)
+	Fixed @remove to clear sibling of removed object
+	Added -help, -version command-line options
+	More header fixes
+	Made /find case insensitive
+	Fixed screen size calculation on restore
+	Fixed /restart and /restore
+	Fixed -transcript, and various minor transcripting changes
+	Added /run as a synonym for /restart
+	Added savefile->gamefile searching
+	Sound channel creation fixes (reported by DorianX)
+	Macintosh compilation and startup fixes (thanks zarf)
+	Upgraded my bison, so included inform.c doesn't require alloca
+	MACS and UNIX IntD chunks added to specify gamefile in saved games
+	A couple nasty off-by-one memory allocation bugs fixed (yay efence)
+	Doesn't glk_window_open in glk_main if it doesn't have to
+	Added symbol guessing for sourceless inform 6.10+ games
+	Further postponed automapping improvements
+	
+0.3
+	Makefile no longer depends on GNU Make features
+	Removed op_obj.h cleverness
+	Fixed some glk-specific initialization problems
+	Added more debugging commands and inform operators
+	Added debugging boolean type with "true" and "false"
+	Object handling is now more strict (but not enough)
+	Fixed out-of-range string printing problems
+	Fixed up header setting code
+	Added infinite undo/redo
+	texinfo documentation written
+	Added preliminary automapping support
+	Compressed save file writing
+	Header stuff is better but not yet perfect
+	Lots of bug fixes
+
+0.2
+	Added source-level debugger
+	Major i/o redesign/rewrite/wrapping
+	Added blorb, sound, graphics support
+	Added glk-specific initialization with perl cleverness
+
+0.1
+	Initial release

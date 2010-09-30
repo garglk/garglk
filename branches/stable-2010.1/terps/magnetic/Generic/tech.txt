@@ -1,0 +1,53 @@
+
+Magnetic Internal Data Formats
+==============================
+
+Unless otherwise stated all words are big-endian. The datafile format
+is as follows:
+
+1) Game file (.mag)
+
+Offset Size Explanation
+-----------------------
+   0    4   Magic word 'MaSc'
+   4    4   Size of datafile
+   8    4   Size of header (42 in this version)
+  12    2   Game version:
+              0. Pawn
+              1. Guild of Thieves
+              2. Jinxter
+              3. Myth, Corruption, Fish!
+              4. Magnetic Windows versions
+  14    4   Size of code [1]
+  18    4   Size of string data ( <=65536 ) [2]
+  22    4   Size of string data part 2 (the rest) [3]
+  26    4   Size of dictionary [4]
+  30    4   String table offset ( <=[2]+[3] )
+  34    4   Offset in the code block up to which undo and restart
+            data is saved. This originally had a very clear meaning
+            as the C64 versions used read-only swapping from disk
+            after that offset. Other versions are somewhat less
+            obvious, but looking at the save-routines should help.
+  38    4   Undo offset, ie. the offset in the code block at which
+            data for the undo operation is saved, usually in the
+            beginning of the main loop. A zero value works just
+            nicely if you don't care about undo (which isn't
+            foolproof anyway).
+  42   [1]  Code data
+  ++   [2]  String data 1
+  ++   [3]  String data 2
+  ++   [4]  Dictionary data
+
+2) Graphics file (.gfx). This is basically just an encapsulation of
+   the original Amiga graphics files.
+
+Offset Size Explanation
+-----------------------
+   0    4   Magic word 'MaPi'
+   4    4   Size of datafile
+ 8+4*k  4   Offset to the k:th picture data
+
+The format of the individual pictures is somewhat obscure, but the
+details can be found in the routine ms_extract() in the source file
+emu.c.
+
