@@ -72,7 +72,7 @@ static void openResourceFile() {
     resourceFileName = strrchr(resourceFileName, '/') + 1;
   else if (strrchr(resourceFileName, '\\'))
     resourceFileName = strrchr(resourceFileName, '\\') + 1;
-  if (!resourceFileName)
+  if (!strlen(resourceFileName))
     resourceFileName = originalFileName;
 #endif
 
