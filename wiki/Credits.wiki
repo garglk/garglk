@@ -34,11 +34,14 @@ _Quality assurance testing and bug reports_
   * Steve Evans
   * Ivan Gulkov
   * Karl Ove Hufthammer
+  * James Lawton
   * Amy Lear
+  * Ron Newcomb
   * Frederik Ramsberg
   * Alan De Smet
   * Pavel Soukenik
   * D. Cooper Stevenson
+  * Erik Temple
   * Peter Weston
   * Maks Verver
 
