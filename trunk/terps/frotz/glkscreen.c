@@ -33,6 +33,7 @@ static int oldstyle = 0;
 static int curstyle = 0;
 static int cury = 1;
 static int curx = 1;
+static int fixforced = 0;
 
 static int curr_fg = -2;
 static int curr_bg = -2;
@@ -169,11 +170,6 @@ void reset_status_ht(void)
 				glk_window_get_parent(gos_upper),
 				winmethod_Above | winmethod_Fixed,
 				mach_status_ht, NULL);
-#ifdef GARGLK
-			garglk_set_reversevideo_stream(
-				glk_window_get_stream(gos_upper),
-				TRUE);
-#endif /* GARGLK */
 		}
 	}
 }
@@ -184,6 +180,11 @@ void erase_window (zword w)
 		glk_window_clear(gos_lower);
 	else if (gos_upper)
 	{
+#ifdef GARGLK
+			garglk_set_reversevideo_stream(
+				glk_window_get_stream(gos_upper),
+				TRUE);
+#endif /* GARGLK */
 		memset(statusline, ' ', sizeof statusline);
 		glk_window_clear(gos_upper);
 		reset_status_ht();
@@ -306,7 +307,6 @@ void smartstatusline (void)
 	//	buf[roomlen + 1] = '|';
 
 	glk_window_move_cursor(gos_upper, 0, 0);
-	glk_set_style(style_Preformatted);
 	glk_put_buffer_uni(buf, h_screen_cols);
 	glk_window_move_cursor(gos_upper, cury - 1, curx - 1);
 }
@@ -328,13 +328,19 @@ void screen_char (zchar c)
 	/* check fixed flag in header, game can change it at whim */
 	if (gos_curwin == gos_lower)
 	{
-		static int forcefix = -1;
-		int curfix = h_flags & FIXED_FONT_FLAG;
-		if (forcefix != curfix)
+		int forcefix = ((h_flags & FIXED_FONT_FLAG) != 0);
+		int curfix = ((curstyle & FIXED_WIDTH_STYLE) != 0);
+		if (forcefix && !curfix)
 		{
-			forcefix = curfix;
 			zargs[0] = 0xf000;	/* tickle tickle! */
 			z_set_text_style();
+			fixforced = TRUE;
+		}
+		else if (!forcefix && fixforced)
+		{
+			zargs[0] = 0xf000;	/* tickle tickle! */
+			z_set_text_style();
+			fixforced = FALSE;
 		}
 	}
 
@@ -881,7 +887,6 @@ void z_show_status (void)
 
 	curx = cury = 1;
 	glk_window_move_cursor(gos_upper, 0, 0);
-	glk_set_style(style_Preformatted);
 
 	/* If the screen width is below 55 characters then we have to use
 	   the brief status line format */
