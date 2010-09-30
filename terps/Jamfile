@@ -42,7 +42,7 @@ if $(MAKE_ADVSYS) = yes
 
 # -----------------------------------------------------------------------
 #
-# Agility 1.1.1 with Glk
+# Agility 1.1.1.1 with Glk
 #
 # Agility uses some bad voodoo to get filenames back from glk filerefs.
 # We have three options:
@@ -121,7 +121,7 @@ if $(MAKE_ALAN3) = yes
 
 # -----------------------------------------------------------------------
 #
-# Frotz 2.43 / glk port
+# Frotz 2.50 / glk port
 #
 
 if $(MAKE_FROTZ) = yes
