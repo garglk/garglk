@@ -9,7 +9,7 @@ Build status as of 06/19/2009:
 | alan3         | 3.0a8         |
 | frotz         | 2.4.3         |
 | geas          | 0.4           |
-| git           | 1.2.7         |
+| git           | 1.2.8         |
 | glulxe        | 0.4.6         |
 | hugo          | 3.1.03        |
 | jacl          | 2.8.1         |

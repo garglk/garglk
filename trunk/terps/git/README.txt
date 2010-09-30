@@ -191,6 +191,11 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
+1.2.8 2010-08-25  Fixed a problem with 'undo' when compiled as 64 bit,
+                  contributed by Ben Cressey.
+                  Fixed a sign problem for the @fceil opcode, following a
+                  similar fix in Glulxe.
+
 1.2.7 2010-08-20  Floating point opcode support (VM spec 3.1.2).
                   Restart does not now discard undo information, so that a
                   restart can be undone.
