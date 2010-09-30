@@ -19,7 +19,7 @@
  */
 
 /*
- * Glk interface for AGiliTy 1.1.1
+ * Glk interface for AGiliTy 1.1.1.1
  * -------------------------------
  *
  * This module contains the the Glk porting layer for AGiliTy.  It
@@ -926,7 +926,7 @@ gagt_status_update (void)
            * We don't (yet) have a status line.  Perhaps we're at the
            * very start of a game.  Print a standard message.
            */
-          glk_put_string ("Glk AGiliTy version 1.1.1");
+          glk_put_string ("Glk AGiliTy version 1.1.1.1");
         }
 
       glk_set_window (gagt_main_window);
@@ -2877,7 +2877,7 @@ typedef const struct gagt_special_s
 /*
  * Table of special AGiliTy interpreter strings and paragraphs -- where one
  * appears in game output, we'll print out its replacement instead.  Be
- * warned; these strings are VERY specific to AGiliTy 1.1.1, and are extre-
+ * warned; these strings are VERY specific to AGiliTy 1.1.1.1, and are extre-
  * mely likely to change with any future interpreter releases.  They also
  * omit initializers with abandon, expecting the compiler to default these
  * to NULL/zero.  Replacement strings embed style encoding as |x, where x is
@@ -2893,22 +2893,22 @@ static gagt_special_t GAGT_SPECIALS[] = {
   /* Normal version of initial interpreter information block. */
   {4,
    {"This game is being executed by",
-    "AGiliTy: The (Mostly) Universal AGT Interpreter  version 1.1.1",
+    "AGiliTy: The (Mostly) Universal AGT Interpreter  version 1.1.1.1",
     "Copyright (C) 1996-99,2001 by Robert Masenten",
     "Glk version"},
    "This game is being executed by:\n\n"
-   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1|N\n"
+   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1.1|N\n"
    "    |ECopyright (C) 1996-1999,2001 by Robert Masenten|N\n"
    "    |EGlk version|N\n"},
 
   /* AGiliTy "information" screen header block. */
   {5,
    {"AGiliTy",
-    "The (Mostly) Universal AGT Interpreter, version 1.1.1",
+    "The (Mostly) Universal AGT Interpreter, version 1.1.1.1",
     "Copyright (C) 1996-1999,2001 by Robert Masenten",
     "[Glk version]",
     "-----------------------------------------------------------"},
-   "|SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1|N\n"
+   "|SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1.1|N\n"
    "|ECopyright (C) 1996-1999,2001 by Robert Masenten|N\n"
    "|EGlk version|N\n"},
 
@@ -2919,20 +2919,20 @@ static gagt_special_t GAGT_SPECIALS[] = {
 
   /* Alternative, shrunken version of initial interpreter information block. */
   {2,
-   {"Being run by AGiliTy  version 1.1.1, Copyright (C) 1996-99,2001"
+   {"Being run by AGiliTy  version 1.1.1.1, Copyright (C) 1996-99,2001"
       " Robert Masenten",
     "Glk version"},
    "This game is being executed by:\n\n"
-   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1|N\n"
+   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1.1|N\n"
    "    |ECopyright (C) 1996-1999,2001 by Robert Masenten|N\n"
    "    |EGlk version|N\n"},
 
   /* Alternative, minimal version of initial interpreter information block. */
   {1,
-   {"Being run by AGiliTy  version 1.1.1, Copyright (C) 1996-99,2001"
+   {"Being run by AGiliTy  version 1.1.1.1, Copyright (C) 1996-99,2001"
       " Robert Masenten"},
    "This game is being executed by:\n\n"
-   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1|N\n"
+   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1.1|N\n"
    "    |ECopyright (C) 1996-1999,2001 by Robert Masenten|N\n"
    "    |EGlk version|N\n"},
 
@@ -2945,11 +2945,11 @@ static gagt_special_t GAGT_SPECIALS[] = {
 
   /* Three-line version of initial interpreter information block. */
   {3,
-   {"AGiliTy: The (Mostly) Universal AGT Interpreter  version 1.1.1",
+   {"AGiliTy: The (Mostly) Universal AGT Interpreter  version 1.1.1.1",
     "Copyright (C) 1996-99,2001 by Robert Masenten",
     "Glk version"},
    "This game is being executed by:\n\n"
-   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1|N\n"
+   "    |SAGiliTy, The (Mostly) Universal AGT Interpreter, Version 1.1.1.1|N\n"
    "    |ECopyright (C) 1996-1999,2001 by Robert Masenten|N\n"
    "    |EGlk version|N\n"},
 
@@ -6726,9 +6726,9 @@ glkunix_startup_code (glkunix_startup_t * data)
   gagt_startup_called = TRUE;
 
 #ifdef GARGLK
-  garglk_set_program_name("Agility 1.1.1");
+  garglk_set_program_name("Agility 1.1.1.1");
   garglk_set_program_info(
-                  "AGiliTy 1.1.1 by Robert Masenten\n"
+                  "AGiliTy 1.1.1.1 by Robert Masenten\n"
                   "Glk port by Simon Baldwin\n"
   );
 #endif /* GARGLK */

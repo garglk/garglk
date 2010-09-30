@@ -24,7 +24,7 @@
 
 #include "glkfrotz.h"
 
-#define VERSION "2.43"
+#define VERSION "2.50"
 
 int curr_status_ht = 0;
 int mach_status_ht = 0;
