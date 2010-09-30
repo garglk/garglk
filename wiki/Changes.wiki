@@ -1,5 +1,52 @@
 #summary Summary of new features, updates, and fixes in Gargoyle releases.
 #labels Featured,Phase-Implementation
+==Changes in release 2010.1==
+
+===Gargoyle===
+
+*New*
+    * Now available for Mac OS X 10.4 and later.
+    * New default fonts: Linux Libertine and Liberation Mono.
+    * Added Unicode, true color support to Frotz.
+    * Added support for mouse and trackpad scrolling.
+    * Added floating point support to Git, Glulxe.
+    * New graphical launcher under Linux.
+    * New propfont, monofont directives to load installed OS fonts.
+    * Automatic bold / oblique applied to incomplete font families.
+
+*Fixes*
+    * Text buffers are now repainted appropriately.
+    * Multiple text buffers can be selected and scrolled properly.
+    * More consistent status line colors, behavior across interpreters.
+    * The directive to specify default interpreters now works everywhere.
+    * The scrollback buffer will now be resized dynamically during play.
+    * Each platform now uses high resolution timers.
+    * Images are now scaled with alpha-weighted RGB values.
+    * Files opened in append will follow Glk rather than POSIX behavior.
+    * Image loading and text rendering should be significantly faster.
+
+<p><br/></p>
+===Interpreters===
+
+*Updates*
+    * Agility updated to 1.1.1.1.
+    * Alan updated to 3.0a8.
+    * Frotz updated to 2.5.0.
+    * Git updated to 1.2.8.
+    * Glulxe updated to 0.4.6.
+    * JACL updated to 2.8.1.
+
+*Fixes*
+    * Agility incorporates the latest Glk changes from Simon Baldwin.
+    * Alan now handles sound, graphics correctly.
+    * Frotz should now conform to the Z-Machine Standard 1.1.
+    * Git no longer crashes after undo, restore on 64-bit systems.
+    * Hugo will now distinguish bold and italic font styles.
+    * Level 9 now tries harder to find graphics.
+    * TADS 2 no longer crashes on 64-bit systems.
+
+<p><br/></p>
+----
 
 ==Changes in release 08-25-09==
 
