@@ -1360,7 +1360,10 @@ do_tailcall:
 
     do_ceil:
         F1 = ceilf(DECODE_FLOAT(L1));
-        S1 = ENCODE_FLOAT(F1);
+        L2 = ENCODE_FLOAT(F1);
+        if ((L2 == 0x0) || (L2 == 0x80000000))
+          L2 = L1 & 0x80000000;
+        S1 = L2;
         NEXT;
 
     do_floor:
