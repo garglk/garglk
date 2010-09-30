@@ -87,6 +87,13 @@ void fontreplace(char *font, int type)
                 findfont(fontname, fontpath);
             }
 
+            if (!strlen(fontpath))
+            {
+                strcpy(fontname, font);
+                strcat(fontname, ":style=Book");
+                findfont(fontname, fontpath);
+            }
+
             if (strlen(fontpath))
             {
                 sysfont = malloc(strlen(fontpath)+1);
@@ -182,6 +189,13 @@ void fontreplace(char *font, int type)
             {
                 strcpy(fontname, font);
                 strcat(fontname, ":style=Roman");
+                findfont(fontname, fontpath);
+            }
+
+            if (!strlen(fontpath))
+            {
+                strcpy(fontname, font);
+                strcat(fontname, ":style=Book");
                 findfont(fontname, fontpath);
             }
 
