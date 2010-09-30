@@ -30,6 +30,7 @@ _Quality assurance testing and bug reports_
   * Paul Andinach
   * Konstantin Baierer
   * Eliuk Blau
+  * Emily Boeghim
   * Matt Chan
   * Steve Evans
   * Ivan Gulkov
@@ -37,12 +38,15 @@ _Quality assurance testing and bug reports_
   * James Lawton
   * Amy Lear
   * Ron Newcomb
+  * Benjamin Penney
   * Frederik Ramsberg
   * Alan De Smet
   * Pavel Soukenik
   * D. Cooper Stevenson
+  * Adam Thornton
   * Erik Temple
   * Peter Weston
+  * Johnny Winner
   * Maks Verver
 
 <p><br/></p>
