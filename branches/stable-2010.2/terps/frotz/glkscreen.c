@@ -326,22 +326,19 @@ void screen_char (zchar c)
 	}
 
 	/* check fixed flag in header, game can change it at whim */
-	if (gos_curwin == gos_lower)
+	int forcefix = ((h_flags & FIXED_FONT_FLAG) != 0);
+	int curfix = ((curstyle & FIXED_WIDTH_STYLE) != 0);
+	if (forcefix && !curfix)
 	{
-		int forcefix = ((h_flags & FIXED_FONT_FLAG) != 0);
-		int curfix = ((curstyle & FIXED_WIDTH_STYLE) != 0);
-		if (forcefix && !curfix)
-		{
-			zargs[0] = 0xf000;	/* tickle tickle! */
-			z_set_text_style();
-			fixforced = TRUE;
-		}
-		else if (!forcefix && fixforced)
-		{
-			zargs[0] = 0xf000;	/* tickle tickle! */
-			z_set_text_style();
-			fixforced = FALSE;
-		}
+		zargs[0] = 0xf000;	/* tickle tickle! */
+		z_set_text_style();
+		fixforced = TRUE;
+	}
+	else if (!forcefix && fixforced)
+	{
+		zargs[0] = 0xf000;	/* tickle tickle! */
+		z_set_text_style();
+		fixforced = FALSE;
 	}
 
 	if (gos_upper && gos_curwin == gos_upper)
