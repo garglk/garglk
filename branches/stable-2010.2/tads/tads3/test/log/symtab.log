@@ -1,0 +1,20 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export symtab.t -> symtab.t3s
+	compile _main.t -> _main.t3o
+	compile symtab.t -> symtab.t3o
+	link -> symtab.t3p
+	preinit -> symtab.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Symbol table test
+No debug symbols available
+book.sdesc: book
+ball.ldesc: This is the ball.
+sayVal(5): This is sayVal: val = 5
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

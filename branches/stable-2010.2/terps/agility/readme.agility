@@ -1,0 +1,464 @@
+=================================================
+AGILITY: THE (MOSTLY) UNIVERSAL AGT INTERPRETER
+Version 1.1.1
+=================================================
+
+  This is an interpreter for game files created with Malmberg and
+Welch's _Adventure Game Toolkit_. AGiliTy is universal in the sense
+that it understands and interprets most of the many versions of the
+AGT game file format (unlike the original interpreters which were
+only intended to run the game file format associated with them) and
+also in that it is written in ANSI C and so should be straightforward
+to port to other systems.  
+
+  It is *not* a port of the original interpreters but rather a
+completely new interpreter built around the game file format; while it
+follows the original interpreters on most things, there are some
+differences which are described below.
+
+
+----------
+ CONTENTS
+----------
+  INTRODUCTION
+  ACKNOWLEDGMENTS
+  AGT AND AGX GAME FILES
+  AGT VERSIONS SUPPORTED
+  DIFFERENCES BETWEEN AGILITY AND THE ORIGINAL INTERPRETERS
+  LIST OF SPECIAL VERBS
+  CONFIGURATION FILES
+  DEBUGGING OPTIONS
+  AGT GAME LIST
+
+
+--------------
+ INTRODUCTION
+--------------
+   For general information on AGT, I recommend Jay Goemmer's web page 
+at http://www.ltlink.com/~jgoemmer/agt.html.
+
+  The most recent release of this program can be found at the
+Interactive Fiction archive:
+    ftp://ftp.ifarchive.org/if-archive/programming/agt/agility/  
+
+  This software is copyright 1996-1999,2001 by Robert Masenten.
+This program is free software; you can redistribute it and/or modify
+it under the terms of version 2 of the GNU General Public License,
+as published by the Free Software Foundation.
+  This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+  You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+  For information on compiling and porting this program, see the file
+'porting.txt'. A list of known bugs is in the file 'buglist' and a
+list of changes from earlier versions is in 'changes.txt'. (If this is
+with an executable and not the source version, some of these files may not
+be present).
+
+   Send comments and bug reports to Robert Masenten at:
+	rcm-math@pacbell.net
+
+
+
+-----------------
+ ACKNOWLEDGMENTS
+-----------------
+Thanks to the following people:
+ *Jay Goemmer, who has sent me pages and pages of comments and bug
+reports.
+ *David Kinder, responsible for the both the Amiga and Windows ports and 
+a source of much valuable feedback.
+ *David Youd, who has uncovered many subtle and complex bugs in both
+AGiliTy and Magx.
+ *Mitch Mlinar, who has contributed several patches.
+ *Jan-Erik Karlsson, for his bug report/patch.
+ *Everyone else who has sent me suggestions and bug reports, including
+Audrey De Lisle (responsible for the red smoke), David Doherty, Al
+Golden, John Hartnup, Walter Isaac, Sami Kivela, Alexander Lehmann,
+Grant E. Metcalf, Paul Mikell, Adam Myrow, Olav Nielsen, D.J. Picton,
+Kevin Soucy, Ben Straub, "Grand Moff Tarkin", Adam Thornton, Mark
+Tilford, David Turpin, and Gil Williamson.
+ *Volker Blasius, maintainer of the Interactive Fiction Archive at 
+ftp.ifarchive.org.
+ *Robert Pelak, who suggested the name "AGiliTy".
+ *All of the other people on rai-f who suggested names for my interpreter.
+
+
+------------------------
+ AGT AND AGX GAME FILES
+------------------------
+  Games in the AGT format can be found at the Interactive Fiction archive: 
+    ftp://ftp.ifarchive.org/if-archive/games/agt
+
+  AGT games are recognizable by having several different files with
+names like 'MYGAME.D$$', 'MYGAME.DA1', 'MYGAME.DA2', ... ,
+'MYGAME.DA6', 'MYGAME.TTL', etc. They also usually come with a DOS
+runtime interpreter (usually called RUN.EXE or MRUN.EXE), which can be
+deleted without affecting AGiliTy. (DOS users might want to keep it
+around 'just in case', depending on how much hard drive space is
+available)
+
+   AGiliTy also has its own file format (with extension "AGX", which
+stands for "Adventure Game eXecutable"); existing AGT games can be
+converted into this format using the utility agt2agx which comes with
+AGiliTy. They can also be created from AGT source code by using the
+Magx compiler, available in
+    ftp://ftp.ifarchive.org/if-archive/programming/agt/magx/
+
+  The new format takes all of the various AGT files (MYGAME.DA1,
+MYGAME.DA2, MYGAME.DA3, MYGAME.DA4, MYGAME.DA5, MYGAME.DA6, MYGAME.TTL,
+MYGAME.INS, MYGAME.VOC, MYGAME.D$$, MYGAME.OPT, and parts of
+MYGAME.CFG) and puts all of the data in one file (MYGAME.AGX).
+  Aside from the reduction in directory clutter, it has the 
+following advantages:   
+ 1)It's smaller; for large games the new format can save over 100K
+    (The most extreme case I've run across so far is Shades of Gray:
+     790K vs. 568K uncompressed or 273K vs. 148K ZIPed) 
+ 2)It loads more quickly since it's closer in structure to AGiliTy's
+    internal format. (In particular, the interpreter doesn't need to
+    build the dictionary or convert metacommand opcodes into a common
+    format). 
+ 3)It's more portable. For example, there are platforms out there that
+    can't handle the 'D$$' extension.
+
+
+------------------------
+ AGT VERSIONS SUPPORTED
+------------------------
+  AGiliTy understands the following versions of AGT (which includes
+every AGT game at ftp.ifarchive.org that I know of):
+  --1.0
+  --1.18
+  --the early "Classic AGT": e.g. 1.19, 1.2, 1.21 
+  --"Classic AGT", both big and small: e.g. 1.3, 1.32, 1.35, 1.5, 1.7
+  --the "Even Bigger 1.32" used by _Cosmoserve_
+  --the "Chemically Altered 1.32" used by _Shades of Gray_, 
+  --Menichelli's 1.82[untested] and 1.83 
+  --Both known "proto-Master's Edition" 1.5 variants
+  --The proto-Master's Edition 1.6 variant used by Pork.
+  --Both Master's Edition 1.0 variants.
+  --The Master's Edition 1.5/1.51, 1.55, and 1.56/1.6/1.7. 
+
+   _The Pyramids of Mars_ and _Cliff Diver_ require configuration
+options to be set; they use variant interpreters that are supported 
+but can't be detected by the interpreter.
+  In particular, _Pyramids_ needs the ALT_ANY option and
+_Cliff Diver_ requires the IRUN option.
+
+   _Klaustrophobia_ is now supported. Use AGiliTy to play each of the
+chapters as usual. To switch between chapters, just SAVE at the end
+of one chapter and RESTORE at the beginning of the next (the
+game will tell you when to switch chapters; however, use SAVE instead
+of DONE1 or DONE2). This is still experimental and so I'd appreciate
+any feedback on how well it works (or doesn't work, as the case may
+be). 
+  Unlike the MS-DOS programs that _Klaustrophobia_ originally used for
+this, AGiliTy doesn't check that you've actually reached the end of the
+previous chapter; be warned that if you switch chapters before the game
+tells you to, things may break.
+  There is also no way for AGiliTy to support the intermission or
+endgame text from the original game: these are all printed out
+by DOS programs rather than by the AGT interpreter.
+
+
+-----------------------------------------------------------
+ DIFFERENCES BETWEEN AGILITY AND THE ORIGINAL INTERPRETERS
+-----------------------------------------------------------
+ --Disambiguation is done on the normal command entry line rather than
+having a special prompt.
+ --When asked "Which object do you mean?", it is possible to reply
+ANY, EITHER, BOTH, or ALL, as well as giving the name of an object.
+ --LISTEXIT ON, LISTEXIT OFF will turn automatic listing of exits on or
+off (in AGT there is a LIST EXITS command, so some AGT games don't list 
+exits to rooms).
+ --OOPS, UNDO, and RESTART are supported (at least on systems with
+enough memory).
+ --Adjective-only matches are accepted by the parser.
+ --The parser is capable of intelligent disambiguation. 
+ --It is is also able to expand ALL and ALL EXCEPT (when appropriate
+options are set).
+ --Some more multiple word verbs are automatically recognized (for
+example, GET IN is automatically translated into ENTER).
+ --Some built-in verbs have additional synonyms. (In particular,
+standard one-letter abbreviations are supported: X for EXAMINE, Z for
+WAIT)
+ --Game-specific synonyms are given a higher priority by the parser than
+the generic built-in synonyms.
+ --The standard error messages are different than the original (except
+in Master's Edition games where most of the standard error messages
+are included in the game file)
+ --SCRIPT output is sent to a file rather than to the printer.
+ --AGiliTy has an extended AGILDEBUG debugging verb and supports more
+detailed metacommand tracing output.  
+ --AGiliTy uses a different save file format.  
+ --COLORS is not supported, although on some systems equivalent
+functionality is supported in the configuration file.
+ --The special title screen effects of the Shades of Gray and Cosmoserve97 
+interpreters aren't duplicated. 
+ --Graphics, sound, and fonts are not supported on all platforms.
+
+
+-----------------------
+ LIST OF SPECIAL VERBS
+-----------------------
+These are all of the special verbs recognized by the interpreter:
+SCORE	Print out your score.
+NOTIFY	Turn score notification on and off
+INSTRUCTIONS or INS  Display the instructions for the game.
+INTRODUCTION or INTRO	Repeat the introduction of the game.
+VIEW <picture>  Views an illustration. (Not supported on all platforms.)
+BRIEF   Don't print room descriptions for rooms you've seen.
+VERBOSE Print room descriptions even  for rooms you've already seen.
+LIST EXITS List the exits from a room.
+LISTEXIT ON,OFF	 Turn on/off automatic listing of exits.
+SCRIPT	Start sending a transcript to a file.
+UNSCRIPT  Stop creating a transcript.
+SOUND ON, OFF  Turn sound on/off.
+LOG	Start sending all of your commands to a file.
+REPLAY <number>  Replay your commands from a file, one every <number>
+	seconds.
+REPLAY FAST  Replay your commands from a file without waiting for you
+             to read the scrolling text.
+REPLAY STEP  Replay your commands from a file, one for every keypress.
+AGILDEBUG  Access debugging commands.
+MENU	Toggle menu mode on or off.
+OOPS	Correct a word you just mistyped; must be the first command on
+	a line.
+UNDO	Undo your last move; must be the first command on a line.
+SAVE	Save the game.
+RESTORE	Restore the game.
+RESTART	Restart the game.
+QUIT	Quit 
+
+
+---------------------
+ CONFIGURATION FILES
+---------------------
+  The interpreter gets configuration information from as many as three
+places: the global configuration file (containing things that you want
+to apply to every game you play), the game-specific configuration
+file (usually with an extension '.cfg'), and, in the case of AGX-format
+games, the game file itself. 
+  Options in the game-specific file override options specified from
+the other two sources; options in the AGX file override those in the
+global file.
+
+  The following configuration options are supported on all platforms.
+Other options may be supported on your particular system; see
+appropriate platform-specific documentation for information.
+   Each option should be on a separate line in the configuration file.
+Lines starting with '#' will be treated as comments and ignored.
+Options can be negated by prefixing them with 'NO_' so that, for
+example, DEBUG would become NO_DEBUG.
+
+General options:
+  VERBOSE  Start the game in VERBOSE mode
+  DEBUG	Allow the use of AGILDEBUG for pre-Master's games (For
+	Master's Edition games, this decision is based on the DEBUG
+	flag in the game file itself)
+  DEFAULT_ERRORS  Cause AGiliTy to use its own internal defaults
+        for standard error messages even if the game file defines its own.
+	(Recommended for most Master's Edition games.)
+  PATH  Gives a space-separated search path for AGT games. [Not supported
+	on all platforms.]
+  TONE  Enables the *tone* action token, which allows games to make
+        annoying beeps on some platforms.  The only game I might recommend
+	enabling this for is  _CosmoServe_ which has some interesting
+	sound effects.  Not all platforms support this command.
+  INPUT_BOLD  Makes the input line bold. (This doesn't work on all platforms)
+  IBM_CHAR  Try to use the IBM character set; don't translate them.
+	If your platform doesn't support the IBM character set, this is
+	likely to produce garbage.
+  NO_ERROR  Supress GAME ERROR messages during play. Some poorly written 
+        AGT games contain bad metacommands, out-of-range tokens, or other 
+	problems; this option will supress the messages reporting these 
+	sorts of problems.
+  SMART_DISAMBIG   This turns on smart disambiguation. This works better
+	with some games than others. 
+  EXPAND_ALL  This turns on ALL and ALL EXCEPT expansion in the parser (by
+	default, expanding them is the responsibility of the individual
+	verb execution routines); see remarks on SMART_DISAMBIG: both of these
+	options use the same engine and so they are likely to work or fail
+	together. If you're using this, you'll probably also want to set
+	FIX_MULTINOUN.
+  IGNORE_SIZE Ignore weight and size limits on how much the player can
+        carry. (There remain limits on the size and weight of any 
+        individual object.)
+
+Game specific options
+  (Many of these are more useful to game authors than game players.)
+  PROPER_CREATURE  Treat all creature names as proper nouns.
+     (In particular, this will cause them to be capitalized and to
+     not have "the" appear in front of them.)  Use of DEFAULT_ERRORS
+     is recommended with this option. 
+  ROOMTITLE  Print the room title in bold before the room  description 
+	in pre-Master's games. (Master's Edition games do this 
+	automatically)
+  IRUN  Print error messages in first person. This should be set for 
+	_Cliff Diver_.
+  NO_BLOCK_HOSTILE  Allow the player to leave a room containing a hostile
+	creature if they go back the way they came. 
+  NO_GET_HOSTILE  Prevents the player from picking up objects in a room
+	containing a hostile creature. (Intended to be used with 
+	NO_BLOCK_HOSTILE)
+  NO_OBJECT_NOTES  Turns off notes after object description, 
+	such as '[providing light]'.
+  CONST_TIME  Increment time at a constant rate instead of randomly.  
+  SLASH_BOLD  If set the slash character toggles bold on and off.
+	(This should be set automatically for 1.8x games, but you may still
+	 need to set it explicitly for version 1.82 )
+  PRONOUN_SUBS  Do $you$-style substitutions even in  game-author 
+	defined messages. 
+  ALT_ANY This scans the ANY metacommands *with* the <verb>
+	metacommands rather than before them.  Should be set for
+	_Pyramids of Mars_ and not for any other games I know of.
+  CHECK_GRAMMAR  Print out error messages if the player enters a verb
+	with too many objects. (For example, "N KEY").
+  FORCE_LOAD  Force AGX game to load even if interpreter isn't of the
+        right version.  Don't use this unless you know what you're
+        doing: Magx doesn't assign minimum version numbers without
+        reason.
+  PURE_AFTER  Causes LOOK and other end-of-turn actions to take place
+      after AFTER commands. (This is on by default for Master's
+      Edition games.)
+  FIXED_FONT 
+      Force system to use a fixed-pitch font.
+  NO_FIXED_FONT
+      Allow the system to use proportional fonts.
+
+Technical options: These are fine tuning.
+  FIX_METAVERB  Don't run ANY metacommands when executing a metaverb.
+  FIX_MULTINOUN	  Only advance one turn when manipulating multiple nouns,
+	rather than a turn for each noun.
+  PURE_ANSWER   Require AND-connected answers to be in the right order.
+	(The Master's Edition documentation claims order doesn't
+	matter, but with the actual interpreters it does)
+
+Parse Options: These are all pretty technical.
+  PURE_DUMMY   Allow dummy verbs to be run by typing "dummy_verb3"
+  PURE_SUBNAME Allow subroutines to be run by typing "subroutine3"
+  PURE_SYNONYM Treat synonyms exactly as nouns.
+  ADJ_NOUN     Don't pick noun matches over adjective-only matches.
+ 
+
+
+-------------------
+ DEBUGGING OPTIONS
+-------------------
+  With AGILDEBUG you can access various debugging commands.  You can
+move objects around; change the values of flags, variables and
+counters; list objects in the game; examine and edit objects; and turn
+metacommand tracing on or off. 
+
+  (Note: You can change almost all of the fields associated with
+an object using the View/Edit Object option; be warned that many of
+them are not SAVEd or RESTOREd since they can't be changed during
+normal play. If you change one of these and then RESTORE or UNDO, it 
+will stay changed. Conversely, if you make a change, save, quit, and
+restore, the changed value will not be preserved. The fields having
+this behavior are marked.)
+
+  When metacommand tracing is on, every metacommand that is run will
+be displayed. You can turn off tracing of ANY metacommands and tracing
+of metacommands during disambiguation (the latter is off by default).
+
+  In addition, AGiliTy has a test mode which automatically reads a
+log file from <gamename>.LOG (or equivalent) and writes a script to
+<gamename>.SCR. In this mode, the random number generator is forced to
+be non-random, allowing for automated testing of games.
+  To use this, you create a LOG file (either by hand, by using the
+'-c' option, or by using LOG-- note that this log file needs to
+include everything from the very beginning, including the key hit at
+the end of the title screen, so if using the LOG command you'll need
+to add a line or two at the beginning.)  
+  Run AGiliTy in test mode once to get the script. Copy the script
+to some other file.  Then, whenever you make a change to your game
+file, rerun AGiliTy and compare the new script with the old one.
+(There are programs that will do this automatically and just print
+out the lines that have changed.)
+
+
+---------------
+ AGT GAME LIST
+---------------
+  Here is a list of a few of the better or more popular AGT games,
+along with their filename in ftp://ftp.ifarchive.org/if-archive/games/agt/;
+it is in no way exhaustive.
+   I've also included references to reviews in issues of SPAG and
+XYZZYnews; these can be found in if-archive/magazines/SPAG and 
+if-archive/magazines/XYZZYnews respectively.
+
+
+Shades of Gray (soggy97.zip) by Mark Baker, Steve Bauman, Belisana 
+    Magnificent, Mike Laskey, Judith Pintar, "Hercules", and Cindy Yans  
+  Widely considered to be the best AGT game ever written. This is a
+  'real life' game that is concerned more with the protagonist's
+  ideals and mental state than with "adventuring".  You open the game
+  with amnesia and need to figure out who you are and recover your
+  memory. To say more would give too much away. It's a bit uneven (it
+  was written by a team of seven people) and it opens with an
+  arbitrary puzzle that's a potental show-stopper, but overall this is
+  an excellent game.
+    SPAG 2, 8; XYZZY 11(interview with one of the authors)
+
+  
+Cosmoserve (cosmos97.zip)  Judith Pintar
+  Another strong AGT game. In it, you take the role of R.J. Wright,
+  free-lance programmer/plumber, who is trying to finish a program
+  that is due the next morning. You will need to log on to Cosmoserve
+  and interact with the other users in order to be able to do this.
+  It has a clever interface that really captures both the DOS 
+  command-line and life online pre-GUI. This is, however, a game
+  you'll have to play through several times to win since it requires
+  tight timing to be in all of the right places at the right times. 
+    SPAG 5; XYZZY 1, 11(interview with the author)
+
+
+The Jeweled Arena (tja.zip)  David S. Raley
+  This game is divided into four chapters; in each chapter you are
+  a different person (although the first and third chapters share the
+  same main character). Games like this often suffer from a lack of
+  unity; this game, however, holds together quite well.  In part, this
+  is because all of the chapters take place in a single, large,
+  setting: the city of Kumeran. You can visit locations multiple times, as
+  different characters. Locations that are unimportant in one chapter
+  may be of great importance in a later chapter. In general, the world
+  has a lot of depth, from diaries of the main characters to newspaper
+  articles to books on law. On the other hand, it could have used some
+  more beta-testing. There are several guess-the-verb puzzles and a quite
+  a few bugs; most of the bugs are just amusing, but at least one (in
+  chapter 3) can cause the game to become silently unwinnable for no
+  obvious reason if you do a certain action in the wrong place.
+
+  
+Pastoral Pitfalls (pp20.zip) Guy Marquardt
+  In this game you are the pastor of a Lutheran church; you need to
+  make it through the day fufilling all of your responsibilities
+  (which include visiting the sick, teaching a confirmation class,
+  preparing a sermon, and still finding time to pray) I haven't
+  finished this game, but the parts I've seen I've liked.  The game 
+  seems to have been well tested; it's mostly free of guess-the-verb
+  problems and bugs.   It feels very open; you have a lot of freedom
+  in what order to do things (although some care is needed so you don't
+  run out of time).  
+    XYZZY 9(preview)
+
+
+The Multi-Dimensional Thief (mdthief1.zip)  Joel Finch
+    [Summary/review by Audrey De Lisle]
+  You are a thief desiring to become a member of the Thieves' Guild.
+  The test for this is to find the way out of the house.  This seems
+  rather easy, but it's not.  One feature is a visit to OZ; another
+  feat is done while quite small.  The amazing machine is fun to use
+  and you must learn how to use it to get in an otherwise closed room.
+  You can order things from a catalog and part of the game is to
+  figure out which items you need.  I would recommend this game to
+  those who like a little humor with their puzzles.
+  [There is also a non-AGT version of this game.]
+    SPAG 2, 4, 9
+
+

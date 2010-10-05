@@ -1,0 +1,184 @@
+AGiliTY, notes for DOS ports
+----------------------------------------
+
+(For a general introduction to this program, see the file README.AGI)
+
+
+COMMAND LINE 
+
+  To run an AGT game file, run *agil* with the game file name as an
+argument; don't include any extensions. For example, to run MYGAME, enter
+
+C:\AGT> AGIL MYGAME
+  
+  Command line options can be seen by running agil without any
+arguments, but most of them were intended for debugging the
+interpreter and will not be of general interest. The one exception is
+the -d command, which outputs metacommand debugging information which
+will be of interest to authors developing AGT games.
+  
+
+
+CONFIGURATION
+
+  The DOS global configuration file is the file AGIL.CFG in the same
+directory as the executable; it can be used to set options you want to
+hold for all games run with AGiliTy. 
+
+  You can provide individual configuration of a particular game by
+creating or editing the game-specific configuration file, which should
+be in the same directory as the game data file(s) and should be named
+<game name>.CFG; e.g. MYGAME.CFG. Options specified in the
+game-specific file take precedence over ones in the global
+configuration file.
+
+
+The DOS port supports several additional options: 
+
+BIOS, which causes all output to go through the BIOS routines.
+
+COLORS, which allows the interface color scheme to be
+   set. The syntax is
+     COLORS <normal> <highlight> <background> <reverse fore> <reverse back>
+   e.g COLORS LIGHTGRAY YELLOW BLACK WHITE BLUE,  which is the default.
+       The colors are black, blue, green, cyan, red, magenta, brown, 
+   lightgray, darkgray, lightblue, lightgreen, lightcyan, lightred,
+   lightmagenta, yellow, and white. Only the first eight can be used
+   as the background colors; all sixteen can be used for the other three
+   settings.  
+     (The spellings COLOURS, lightgrey, and darkgrey are also recognized.)
+
+COMPASS, which causes the possible exits to be listed on the status
+   line.
+
+NAVARROW-- Use the keys on the numeric keypad for entering
+   movement commands instead of for editing. 
+
+KEY <key> <text> --
+  Define the text to be inserted on the line when a given function key is 
+  typed.   <key> can be 'F1', 'F2', 'F3', ..., 'F12'.  (If NAVARROW is set,
+  then 'HOME', 'END', 'PGUP', 'PGDN', 'UP', 'DOWN', 'LEFT', 'RIGHT',
+  'INS', 'DEL', 'PLUS', and 'MINUS' can also be redefined.) The
+  default definitions are listed below. A '+' at the end of the last
+  word of the text will be converted to a newline. 
+
+HISTORY -- This specifies the size of the command history list.
+  A value of 0 indicates no limit (the interpreter will remember
+  every line you typed since the beginning of the game). For DOS, the
+  default is 10. E.g.
+      history 0
+      history 20
+
+PATH -- This should contain a space-separated list of directories 
+  which will be searched for AGT games.  
+
+BLOCK_CURSOR -- Use a block cursor instead of the usual flashing underbar.
+
+50_LINE -- Display in 50-line mode.
+
+
+
+
+LINE EDITING
+  The following keys can be used when typing in commands:
+<Backspace>, <Delete> -- do what you would expect.
+<Left Arrow>, <Right Arrow> -- Move left/right.
+<Home> or <Ctrl-A> -- Move to beginning of the line.
+<End> or <Ctrl-E> -- Move to end of the line.
+<Up Arrow>, <Down Arrow> -- Scroll through past commands.
+<Ctrl-K> -- Kill to end of line.
+<Ctrl-Y> -- Yank back the last thing killed.
+
+<F1>-<F12> -- These can be configured with strings of your choice;
+  see the KEY option above.  By default, they are:
+   F1: get     
+   F2: drop
+   F3: examine
+   F4: read 
+   F5: open
+   F6: close
+   F7: inventory+
+   F8: look+
+   F9: score+ 
+   F10: help+
+   F11: save+
+   F12: restore+
+
+If NAVARROW is set, then the keys on the numeric keypad will generate 
+generate movement commands instead of being used for editing; these
+can also be redefined with KEY:
+  UP: n+
+  DOWN: s+
+  LEFT: w+
+  RIGHT: e+
+  HOME: nw+
+  END: sw+
+  PGUP: ne+
+  PGDN: se+
+  INS: enter+
+  DEL: exit+
+  PLUS: up+
+  MINUS: down+
+
+
+MISCELLANEOUS
+  The program *agtout* prints out the contents of AGT game files,
+in human readable format, writing the output to standard output.
+Under DOS, you will probably want to redirect the output to a file and
+then view it with an editor; e.g.
+   AGTOUT MYGAME > MYGAME.LST
+which will cause the output to go to MYGAME.LST.
+  Running it without arguments will give a list of command line options.
+
+
+  As described in README.AGI, AGT game files can be converted to the AGX
+format by using AGT2AGX.EXE. Just type (for example):
+
+C:\AGT> AGT2AGX MYGAME 
+
+This will create the file MYGAME.AGX from the other game files
+You can use the '-o' option to give the output file a different name.
+For example:
+
+C:\AGT> AGT2AGX MYGAME -o THEGAME
+
+will cause MYGAME.DA1...MYGAME.DA6, MYGAME.TTL, etc. to be converted into
+the file THEGAME.AGX
+
+
+NOTES ON THE DIFFERENT DOS RELEASES
+
+  There are now two binary releases for DOS: a 32-bit version and a
+16-bit version.  As of 1.0, only the 32-bit version is being actively
+updated.
+
+  The 16-bit compiler is packaged as "agil092olddos.zip"; its only
+benifit is that it will run on old (pre-386) computers that won't
+run the 32-bit version. If you actually are in this situation, you
+should drop me a note so that I know you exist.
+
+  The 32-bit version is built with the DJGPP compiler and packaged
+with the supplementary program "cwsdpmi.exe", a freeware DPMI server
+which should be left in the same directory as "agil.exe".  More
+information on DJGPP (including the source code to "cwsdpmi.exe") can
+be found at
+    http://www.delorie.com/djgpp/
+
+The copyright notice for CWSDPMI.EXE follows:
+
+==================================================================
+CWSDPMI is Copyright (C) 1995-1997  Charles W Sandmann (sandmann@clio.rice.edu)
+                               1206 Braelinn, Sugar Land, TX 77479
+
+This is release 4.  The files in this binary distribution may be
+redistributed under the GPL (with source) or without the source code
+provided:
+
+* CWSDPMI.EXE or CWSDPR0.EXE are not modified in any way except via
+CWSPARAM
+
+* Notice to users that they have the right to receive the source code
+and/or binary updates for CWSDPMI.  Distributors should indicate a
+site for the source in their documentation.
+==================================================================
+

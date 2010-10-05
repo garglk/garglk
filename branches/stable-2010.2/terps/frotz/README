@@ -1,0 +1,45 @@
+GlkFrotz v2.50 - An interpreter for most Infocom and other Z-machine games.
+Glk port created by Tor Andersson.
+Maintained by Ben Cressey and Philip Chimento.
+
+Read more on the web page:
+
+http://ghostscript.com/~tor/software/gargoyle/frotz.html
+
+Requires one non-standard Glk function. Add it to your Glk before
+you try to compile, unless you are using Gargoyle:
+
+	char * garglk_fileref_get_name(frefid_t fref);
+
+--- Original readme ---
+NFROTZ V0.3 - An interpreter for all Infocom and other Z-machine games.
+Complies with standard 1.0 of Graham Nelson's specification.
+
+Originally written by Stefan Jokisch in 1995-1997.
+Ported to Unix by Galen Hazelwood.
+Reference code and Unix port currently maintained by David Griffith.
+Windows port by David Kinder.
+NFrotz is an ncurses-based synthesis of the Windows port with the Unix
+    one, maintained by Michael Martin.
+
+- Compiles and runs on most common flavors of Unix, both open source and not.
+- Plays all Z-code games including V6.
+- Config files.
+- Configurable error checking.
+- Default use of the Quetzal file format.  Command line option to use the
+  old format.  There are several differences between the old-style save 
+  format at Quetzal such that converting from old-style and Quetzal is 
+  difficult if not impossible.  This also means you can't restore an 
+  old-style save and then save your game in Quetzal.
+- Blorb and iFiction support.
+- Full Unicode output on terminals that support it.
+- Distributed under the GNU Public License.
+
+For information on what Interactive Fiction is and how to play it, see the
+file "HOW_TO_PLAY".
+
+For installation information, see the file "INSTALL".
+
+For update history, see the file "Changelog".
+
+For information on known bugs in Frotz, see the file "BUGS".

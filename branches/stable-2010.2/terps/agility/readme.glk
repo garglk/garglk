@@ -1,0 +1,421 @@
+AGiliTy, notes for the Glk version
+----------------------------------
+
+(General information can be found in readme.agility)
+
+
+Introduction
+------------
+
+This is a port of the AGiliTy interpreter to Glk.  The complete interface
+lives in the single file
+
+	os_glk.c
+
+The main test and development system for the port is Linux, with Xglk as the
+Glk library.
+
+Glk AGiliTy is configured to be as close as possible to the pure ANSI build.
+This is because Glk is a cross-platform I/O library, so using pure ANSI gives
+it the best chance of working on multiple Glk libraries.
+
+
+Acknowledgments
+---------------
+
+Thanks to Robert Masenten, rcm-math@pacbell.net, for answering several queries
+about porting AGiliTy to Glk, and for writing AGiliTy in the first place; Ben
+Hines, bhines@alumni.ucsd.edu, for the Mac-specific portions of the Glk
+porting code; and Andrew Plotkin, <erkyrath@eblong.com>, for Glk, and for
+putting me straight on a couple of the finer points of Glk operation.
+
+
+Running Games
+-------------
+
+The interpreter understands both standard AGT game files and "AGX format"
+(AGiliTy file format) game files.  Standard AGT games are distributed as a
+collection of files, with different extensions (".d$$", ".da1", ".da2" and so
+on).  AGiliTy games use the extension ".agx".
+
+Give the name of the game to run at the system prompt.  For example, if the
+game is held in files "cosmos.d$$", "cosmos.da1", and so on, use
+
+	glkagil cosmos
+
+If several builds of Glk AGiliTy are available, linked with a selection of Glk
+libraries, they will be named appropriately, for example xagil, termagil, and
+cheapagil.
+
+The interpreter prefers that filename extensions be lower-case, that is,
+".da1", ".da2", ".agx", and so on, rather than ".DA1", ".DA2", and ".AGX".  If
+you are unpacking AGT files from ZIP archives, you may need to use unzip's '-L'
+option to make sure that filename are extracted correctly.
+
+Having said that, there's a minor GLK-specific patch in the core AGiliTy
+interpreter (filename.c, for what it's worth) that retries a file with an
+uppercase extension if the expected lowercase name is not found.  That should
+help with archives unpacked without the '-L' option.  Running a game then
+becomes
+
+	glkagil COSMOS
+
+Glk AGiliTy takes a small liberty with the C runtime on exit.  It might cause
+some problems, such as a core dump or abort, when the program exits on an
+error condition.  If you find that this happens on your system, you can either
+rebuild to avoid this, as described below, or set a value for the environment
+variable GLKAGIL_CLEAN_EXIT.
+
+As well as standard AGiliTy command line options, there are a number of Glk
+Agility specific command line options that you can specify, to vary the way
+that the game looks:
+
+	-gf	Force Glk to use only a fixed width font
+	-gp	Allow Glk to use only a proportional font
+	-ga	Try to use a suitable Glk font automatically
+	-gd	Delay for the full period in Glk
+	-gh	Delay for approximately half the period in Glk
+	-gn	Turn off all game delays in Glk
+	-gr	Turn off Glk text replacement
+	-gx	Turn off Glk abbreviation expansions
+	-gs	Display a short status window in Glk
+	-gl	Display an extended status window in Glk
+	-gc	Turn off Glk command escapes in games
+	-gD	Turn on Glk port module debug tracing
+	-g#	Test for clean exit (Glk module debugging only)
+
+See below for further information about what these options mean.
+
+
+Compiling
+---------
+
+To compile Glk AGiliTy for Linux, first unpack the source files.  You might
+need to use the -a argument to unzip in order to convert text files for your
+system.
+
+Edit Makefile.glk so that it has the right path to the Glk library you wish to
+build with.  If you want to build the IFP plugin, also edit the parts of
+Makefile.glk that have paths to IFP components.
+
+To build a standalone version of Glk AGiliTy, use
+
+	make -f Makefile.glk glkagil
+
+To build the IFP plugin, use
+
+	make -f Makefile.glk agility-1.1.1.so
+
+To clean up and delete everything in the case of a build error, use
+
+	make -f Makefile.glk clean
+
+Glk AGiliTy contains a few non-ANSI/ISO artifacts that might cause problems on
+non-Linux systems:
+
+	Fdopen(), dup(), and file descriptors, used to open save and restore
+	files, are not portable.  You can turn off these features by defining
+	GLK_ANSI_ONLY in Makefile.glk.
+
+	At times the module may indirectly call exit() from within an
+	atexit() handler.  This is "undefined" in ANSI.  The Linux and SVR4
+	C runtime libraries behave well, but if you find it causes problems
+	(for example, an occasional core dump or abort on exit) you can turn
+	it off by defining GLK_CLEAN_EXIT in Makefile.glk.
+
+See the comments in the source for Glk AGiliTy for more information on these,
+and the information on "-g#" later on in this readme file for details on how
+to check for problems with exit() and atexit().
+
+For building on the Mac platform, Ben Hines has supplied a set of Code-Warrior
+and application specific settings in a resource file, for use with the Mac Glk
+library.  You should find this file in the source distribution under the name
+
+	os_glk_MacResFile.hqx
+
+The source of Glk AGiliTy has changed somewhat since Ben created this resource
+file, so it may, or may not, currently be fully functional.
+
+
+Configuration
+-------------
+
+Glk AGiliTy opens no global configuration file, and takes no special
+configuration options.
+
+If you need to set options that can't be set with AGiliTy command-line flags,
+you'll need to create a special file called <game>.cfg alongside the other AGT
+game files, or edit any existing <game>.cfg.  Glk AGiliTy will find this file.
+
+
+Status Lines
+------------
+
+Glk AGiliTy displays a status window at the top of its display, providing the
+Glk library it is using supports separate windows.  The status window can show
+either one or two lines, for normal or extended status.
+
+The first line of status is the standard information printed by the core
+interpreter or the game, normally the location, and the game score and/or time.
+The second line shows a list of exits available, and if in a game delay, a
+waiting indicator.
+
+You can use the "-gs" option to select a short status display, and "-gl" to
+select an extended status display.
+
+Where the Glk library does not support separate windows, Glk AGiliTy will
+print the status line in "[...]" brackets at the beginning of any game output,
+but only when it has changed since the last game turn.  It will also only
+print the short status display; to get a list of exits, use the AGiliTy
+"listexits" command.
+
+
+Expanding Abbreviations
+-----------------------
+
+Many IF games systems allow a player to use single character abbreviations for
+selected common commands, for example, 'x' for 'examine', 'l' for look, and so
+on.
+
+AGiliTy expands many of these in the same way, but it's not completely
+consistent with other well-known systems.  To try to help with this, Glk
+AGiliTy will automatically expand a selection of single character commands,
+before passing the expanded string to the game as input.  It expands a command
+only if the first word of the command is a single letter, and one of the
+following:
+
+	'c' -> "close"		'g' -> "again"		'i' -> "inventory"
+	'k' -> "attack"		'l' -> "look"		'p' -> "open"
+	'q' -> "quit"		'r' -> "drop"		't' -> "take"
+	'x' -> "examine" 	'y' -> "yes"		'z' -> "wait"
+
+If you want to suppress abbreviation expansion, you can prefix your input with
+a single quote character (like putting literal strings into a spreadsheet).
+If you do this, the Glk interface will strip the quote, then pass the rest of
+the string to the main interpreter without any more changes.  So for example,
+
+	'x something
+
+will pass the string "x something" back to the game, whereas
+
+	x something
+
+will pass "examine something" back to the game.
+
+You can turn off abbreviation expansions with the command line option '-gx'.
+
+
+Game Text Output
+----------------
+
+AGT games generally presume they are running on fixed width font, 80x25 IBM PC
+displays.  They expect to have this screen width on many occasions, and use
+spaces, IBM box-drawing and other code page 437 characters, and other DOS
+'tricks' to achieve certain effects with output text, creating line breaks as
+needed.
+
+In comparison, Glk's basic text model is that the output library should take
+care of text formatting.  It behaves best when using a proportional font, and
+sticks rigidly to ISO-8859 Latin 1 character encoding which, while it has
+international characters in it, does not have box drawing characters.
+
+This leads to somewhat of a mismatch of requirements and capabilities for the
+Glk version of AGiliTy.  While Glk will work with fixed width fonts, it does
+not necessarily offer any form of attributes or color for such fonts, making
+the output appear one-dimensional and lifeless.  On the other hand, the
+assumption in games and the interpreter is that the font is fixed width, and
+the screen is 80 columns wide.
+
+To attempt to smooth over this, Glk AGiliTy will try to guess whether a chunk
+of game output text needs to be displayed in a fixed width font, or if it will
+look okay when rendered in a proportional one.  This is akin to a form of
+"screen scrape": Glk AGiliTy buffers all of the text that the game outputs,
+then runs over it with a set of functions that try to re-paragraph the text,
+identify any tables or other areas that are likely to be sensitive to font
+width, and finally print it out through Glk in what is hopefully an improved
+format.
+
+Doing this involves some guesswork on the part of Glk AGiliTy, but in testing,
+it seems to work well enough.
+
+You can use the "-ga" option to let Glk AGiliTy automatically select what
+appears to be a suitable font for output, "-gf" to force it to always use a
+fixed width font, or "-gp" to force it to always use a proportional font (if
+the Glk library has one).  You can also control it while in a game using the
+"glk fonts" command.
+
+Note that some games _do_ hint at the type of font they can be used with,
+though most don't.  A game may tell the interpreter
+
+	1) that a fixed width font is required, or
+	2) that a proportional font is acceptable, or
+	3) nothing
+
+In the third case, the interpreter does not know whether a proportional font
+can be used, or not.  The majority of AGT games seem to fall into the third
+case, and the interpreter rarely knows the font requirements of a game.
+
+Any game which does tell the interpreter what font it can use will cause Glk
+AGiliTy to use that font style on startup, and ignore any value set with the
+"-g" command line option.  You may still however alter the font control with
+"glk fonts" while in a game.
+
+In Glk libraries that have only fixed width fonts (for example, Glkterm, for
+ncurses), you will see much less difference in the display with the different
+values for font control, but it may still be useful if the text mode display
+differs widely from AGT's anticipated 80x25 dimension.
+
+Since many games rely on there being 80 columns of display width, Glk AGiliTy
+also offers a command to query the current display width.  The command to use
+is
+
+	glk width
+
+entered at the game's ">" prompt.  This prints the approximate width of the
+display window (actually, it prints the width of the status window, but
+assuming the fonts in use in each window are approximately the same, the result
+will usually be close enough).  Some Glk libraries are not able to return a
+window width.
+
+In general, where a game has a strong requirement for fixed width font text,
+80 columns or more of display width will probably be fine.
+
+
+Message Replacements
+--------------------
+
+Because Glk AGiliTy buffers all game output, and scans the buffer for ways to
+try to improve text formatting, it can also replace some of the standard
+AGiliTy interpreter messages with ones that stand out a little better in a Glk
+display.
+
+For example, games usually start up with a message something like:
+
+                   This game is being executed by
+ AGiliTy: The (Mostly) Universal AGT Interpreter  version 1.1.1
+           Copyright (C) 1996-99,2001 by Robert Masenten
+                           Glk version
+
+Glk AGiliTy will replace this with more or less the same text, but using
+heading and emphasized text.  It handles only a few messages in this way,
+typically LISTEXIT, VERBOSE, and BRIEF responses, game title pages, and the
+AGiliTy information page header.
+
+To turn this feature off, use the '-gr' command line option.
+
+
+Game Delays
+-----------
+
+In AGT games that use delays, these delays can become tiresome.  By default,
+Glk AGiliTy will delay for approximately half the time that the game specifies.
+
+You can vary this behavior with command line options: use "-gd" to make all
+delays full length; "-gh" to make all delays short, approximately half length;
+and "-gn" to turn off delays altogether.  You can also change the delay mode
+with "glk delays" while in a game.
+
+When the game is delaying, Glk AGiliTy displays a "Waiting..." indicator on
+the right hand side of the second line of any status window.
+
+You can cancel a game delay by pressing the space bar while the "Waiting..."
+indicator is active.  This will stop the delay immediately, and also suppress
+any further delays the game requests until it issues the next input line
+prompt or requests other keyboard input.
+
+A few games might not play correctly with delays turned off, so you should
+take a little care with this option.  For example, a game could clear the
+screen, print a message, delay for a short time, clear the screen again, and
+continue.  With delays turned off, Glk AGiliTy will not get the chance to
+display the message.
+
+Glk AGiliTy will not implement game delays if the Glk library does not support
+timers.
+
+
+Interpreting Commands Locally
+-----------------------------
+
+Glk AGiliTy will handle special commands if they are prefixed with the string
+'glk'.  It understands the following special commands:
+
+	help			Prints help on Glk special commands
+	summary			Prints all current Glk settings
+	version			Prints the Glk library and Glk port version
+				numbers
+	license			Prints the Glk port license
+
+	script on		Starts recording the game text output sent
+				to the main game window
+	script off		Turns off game text recording
+	inputlog on		Starts recording input lines typed by the
+				player
+	inputlog off		Stops recording input lines
+	readlog on		Reads an input log file as if it had been
+				typed by a player; reading stops automatic-
+				ally at the end of the file
+	abbreviations on	Turn abbreviation expansion on
+	abbreviations off	Turn abbreviation expansion off
+	glk fonts auto, or
+	glk fonts automatic	Let Glk AGiliTy determine the appropriate
+				font for a paragraph automatically
+	glk fonts fixed		Print all output in a fixed width font
+	glk fonts variable, or
+	glk fonts proportional	Print all output in a proportional font
+	width			Print the approximate display width; AGT
+				games may expect at least 80 characters
+	statusline extended	Show a two line, extended status display
+	statusline short	Show a single line, short status display
+	replacements on		Replace selected interpreter paragraphs with
+				improved formatted alternatives
+	replacements off	Don't replace selected interpreter paragraphs
+	delays full [or on]	Make all delays full length
+	delays short [or half]	Make all delays approximately half length
+	delays none [or off]	Turns off delays altogether
+	commands off		Turn of Glk special commands; once off, there
+				is no way to turn them back on
+
+You can abbreviate these commands, as long as the abbreviation you use is
+unambiguous.
+
+If for some reason you need to pass the string "glk" to the interpreter, you
+can, as with abbreviations above, prefix it with a single quote character.
+
+You can turn off local command handling with the command line option '-gc'.
+
+If both abbreviation expansion and local command handling are turned off, there
+is no need to use single quotes to suppress special interpreter features.
+
+
+Transcripts and Input Logs
+--------------------------
+
+AGiliTy games can themselves set up transcripts and input logs.  However, the
+meta-verbs to set them up can occasionally conflict with commands in the game.
+It may therefore be more convenient to use Glk commands to create these logs.
+
+Any Glk AGiliTy transcript or input log is in addition to those that may be
+set up by the main AGiliTy interpreter, so although not wildly useful, it's
+possible to create two transcripts and input logs at the same time.
+
+
+Glk AGiliTy Debug Options
+-------------------------
+
+The command line option "-gD" turns on debugging in the AGiliTy Glk I/O module.
+The output is really only useful when debugging Glk AGiliTy.
+
+The command line option "-g#" tests for clean program exit.  Glk AGiliTy takes
+a couple of liberties with the ANSI rules for exit handler functions.  For
+most systems, these don't cause any problems, but for some they might.
+
+To test to see if your system is affected, run Glk AGiliTy with "-g#".  The
+program will exit straight away, and if it exits cleanly (no core dumps or
+other ugly program termination), everything is fine.  Otherwise, you should
+either recompile with GLK_CLEAN_EXIT defined, or set environment variable
+GLKAGIL_CLEAN_EXIT to "true".
+
+
+--
+
+Simon Baldwin, simon_baldwin@yahoo.com

@@ -1,0 +1,57 @@
+# Gargoyle Glk -- a pretty glk library
+
+SubDir TOP garglk ;
+ObjDir garglk ;
+
+SubDirCcFlags $(GARGLKCCFLAGS) ;
+
+if $(OS) = MINGW
+{
+    SubDirHdrs $(TOP) support freetype ;
+    SubDirHdrs $(TOP) support libjpeg ;
+    SubDirHdrs $(TOP) support libpng ;
+    SubDirHdrs $(TOP) support zlib ;
+}
+
+if $(USESDL) = yes
+{
+    SubDirHdrs $(TOP) support sdl ;
+    SubDirHdrs $(TOP) support sdl_sound ;
+}
+
+if $(BUNDLEFONTS) = yes
+{
+    SubDirCcFlags -DBUNDLED_FONTS ;
+}
+
+GARGSRCS = 
+    gi_blorb.c gi_dispa.c
+    cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c cgunicod.c
+    window.c winblank.c winpair.c wingrid.c wintext.c wingfx.c winmask.c
+    event.c draw.c config.c
+    imgload.c imgscale.c
+    fontdata.c 
+    ;
+
+if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
+else if $(USEFMOD) = yes { GARGSRCS += sndfmod.c ; }
+else { GARGSRCS += sndnull.c ; }
+
+if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
+else if $(OS) = MACOSX { GARGSRCS += sysmac.m fontmac.m ; }
+else { GARGSRCS += sysgtk.c fontgtk.c ; }
+
+if $(OS) = MINGW { Main gargoyle : launchwin.c launcher.c ; }
+else if $(OS) = MACOSX { Main gargoyle : launchmac.m launcher.c ; }
+else { Main gargoyle : launchgtk.c launcher.c ; }
+
+Library libgarglkmain : main.c ;
+
+if $(STATIC) { Library libgarglk : $(GARGSRCS) ; }
+else   { SharedLibrary libgarglk : $(GARGSRCS) ; }
+
+if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
+{
+    if $(STATIC)        { LinkLibraries libgarglk : SDL_sound_static ; }
+    else { LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ; }
+}

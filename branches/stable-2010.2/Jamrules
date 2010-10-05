@@ -1,0 +1,219 @@
+# You will probably need to edit this file to get everything to compile.
+# You may want to review the SharedLink action in Jamshared as well.
+#
+
+BUILD ?= RELEASE ;
+USESDL = yes ;
+BUNDLEFONTS = yes ;
+
+CC      = gcc ;
+C++     = g++ ;
+
+if $(CROSS)
+{
+    CROSS   = "(cross-compiling)" ;
+    OS      = MINGW ;
+    SUFEXE  = .exe ;
+    CC      = i386-mingw32-gcc ;
+    C++     = i386-mingw32-g++ ;
+    AR      = i386-mingw32-ar cru ;
+    RANLIB  = i386-mingw32-ranlib ;
+    LINK    = $(CC) ;
+}
+
+if $(UNIVERSAL) = yes
+{
+    AR = libtool -static -o ;
+    RM = touch -c ;
+    ALTARCH = -arch ppc ;
+    ALTARCH += -isysroot /Developer/SDKs/MacOSX10.4u.sdk ;
+    ALTARCH += -mmacosx-version-min=10.4 ;
+}
+
+switch $(OS)
+{
+    case MINGW :
+        Echo "OS is MINGW (win32) $(CROSS)" ;
+        SUFDLL  = .dll ;
+        LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
+        SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
+        SHRLINKLIBS += $(TOP)/support/freetype/freetype6.dll ;
+        SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-8.dll ;
+        SHRLINKLIBS += $(TOP)/support/libpng/libpng14-14.dll ;
+        SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
+
+        if $(BUILD) = RELEASE || $(BUILD) = TURBO
+        {
+            SHRLINKLIBS += -mwindows ;
+            LINKLIBS += -mwindows ;
+        }
+
+        if $(USESDL) = yes
+        {
+            SHRLINKLIBS += $(TOP)/support/sdl/SDL_mixer.dll ;
+            SHRLINKLIBS += $(TOP)/support/sdl/SDL.dll ;
+        }
+
+
+    case LINUX :
+        Echo "OS is LINUX (gtk+)" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = -lz -lm ;
+
+        if $(USESDL) = yes
+        {
+            GARGLKCCFLAGS += -I/usr/include/SDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+        }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+
+
+    case SOLARIS :
+        Echo "OS is SOLARIS (gtk+)" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-2.0 gdk-x11-2.0 gobject-2.0 fontconfig" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = "-lz -lm" ;
+
+        if $(USESDL) = yes
+        {
+            GARGLKCCFLAGS += -I/usr/include/SDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+        }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+
+
+    case MACOSX :
+        Echo "OS is MACOSX (cocoa)" ;
+        SUFDLL = .dylib ;
+        MAINARCH = -arch i386 ;
+        CCFLAGS = -Wno-pointer-sign $(MAINARCH) $(ALTARCH) ;
+        PKGCONFIG = "pkg-config freetype2" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
+        SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz -lm ;
+        FRAMEWORKS = -framework Cocoa -framework OpenGL ;
+
+        if $(USESDL) = yes
+        {
+            GARGLKCCFLAGS += -I/opt/local/include/SDL ;
+            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+        }
+
+        LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
+
+
+    case * :
+        Exit "Unknown target. Please edit 'Jamrules'." ;
+}
+
+switch $(BUILD)
+{
+    case DEBUG :
+        Echo "BUILD is DEBUG" ;
+        OPTIM = -g ;
+
+    case RELEASE :
+        Echo "BUILD is RELEASE" ;
+        OPTIM = -O2 ;
+
+    case TURBO :
+        Echo "BUILD is TURBO" ;
+        OPTIM = -O3 -march=native -mtune=native ;
+
+    case PROFILE :
+        Echo "BUILD is PROFILE" ;
+        OPTIM = -g -pg ;
+        LINKFLAGS = -pg ;
+
+    case * :
+        Exit "Unknown build:" $(BUILD) ;
+}
+
+#
+# To compile windows resource files
+#
+
+rule UserObject
+{
+    switch $(>)
+    {
+    case *.rc : WindRes $(<) : $(>) ;
+    case *.m : Cc $(<) : $(>) ;
+    case * : Echo "unknown suffix on" $(>) ;
+    }
+}
+
+rule WindRes
+{
+    Depends $(<) : $(>) ;
+    Clean clean : $(<) ;
+}
+
+actions WindRes { windres -i $(>) -o $(<) --include-dir=$(>:D) }
+
+#
+# You shouldn't need to touch anything from here on.
+#
+
+HDRS = [ FDirName $(TOP) garglk ] ;
+BTOP = [ FDirName $(TOP) build $(OS:L).$(BUILD:L) ] ;
+
+rule ObjDir
+{
+    LOCATE_TARGET = [ FDirName $(BTOP) $(1) ] ;
+}
+
+include [ FDirName $(TOP) Jamshared ] ;
+
+if $(OS) = MINGW
+{
+    LINKLIBS += $(BTOP)/garglk/icons.o ;
+}
+
+rule FPrependRoot
+{
+    # FPrependRoot prefix : path ;
+    #
+    # Safely prepend a prefix to a path
+    # Use to e.g. install files into a build root
+
+    # FDirName does not allow adding a prefix to a root path
+    # ( e.g. [ FDirName /some/path /usr/bin ] -> /usr/bin )
+    #
+    # Care must be taken not to allow doubled separators in the path:
+    # this causes MkDir to fail to traverse up the directory tree
+    # and try to create the same directory twice
+
+    local _prefix = [ FDirName $(<) ] ;
+    local _path = [ FDirName $(>) ] ;
+    local _full ;
+
+    if $(_path) = $(_path:R=$(SLASH))
+    {
+        # _path is rooted
+        _full = $(_prefix) $(_path) ;
+    }
+    else
+    {
+        # _path is relative
+        if $(_path) = $(DOT)
+        {
+            _full = $(_prefix) ;
+        }
+        else
+        {
+            _full = $(_prefix) $(SLASH)$(_path) ;
+    }
+    }
+
+    return $(_full:J=) ;
+
+}
+
