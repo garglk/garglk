@@ -13,6 +13,7 @@
 /* Functions: */
 extern void syserr(char *msg);
 extern void apperr(char *msg);
+extern void playererr(char *msg);
 extern void setSyserrHandler(void (*handler)(char *));
 
 #endif

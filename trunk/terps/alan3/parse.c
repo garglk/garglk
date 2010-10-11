@@ -22,6 +22,7 @@
 #include "syserr.h"
 #include "Location.h"
 #include "instance.h"
+#include "class.h"
 #include "memory.h"
 #include "output.h"
 #include "dictionary.h"
@@ -595,18 +596,24 @@ static void complexReferencesParser(ParameterPosition *parameterPosition) {
 
 /*----------------------------------------------------------------------*/
 static Bool restrictionCheck(RestrictionEntry *restriction, int instance) {
-    if (restriction->class == RESTRICTIONCLASS_CONTAINER)
+    if (restriction->class == RESTRICTIONCLASS_CONTAINER) {
+        if (sectionTraceOption)
+            printf("\n<SYNTAX RESTRICTION WHERE parameter #%ld Isa Container, %s>\n",
+                   (long) restriction->parameterNumber,
+                   instances[instance].container != 0?"PASSED":"FAILED:");
         return instances[instance].container != 0;
-    else
+    } else {
+        if (sectionTraceOption)
+            printf("\n<SYNTAX RESTRICTION WHERE parameter #%ld Isa %s[%ld], %s>\n",
+                   (long) restriction->parameterNumber, idOfClass(restriction->class), (long) restriction->class,
+                   isA(instance, restriction->class)?"PASSED":"FAILED:");
         return isA(instance, restriction->class);
+    }
 }
 
 
 /*----------------------------------------------------------------------*/
 static void runRestriction(RestrictionEntry *restriction, Parameter parameters[]) {
-    if (sectionTraceOption)
-        printf("\n<SYNTAX parameter #%ld Is Not of class %ld:>\n",
-               (unsigned long) restriction->parameterNumber, (unsigned long) restriction->class);
     if (restriction->stms) {
         setParameters(parameters);
         interpret(restriction->stms);
@@ -949,6 +956,7 @@ static void findCandidates(Parameter parameters[], void (*instanceMatcher)(Param
     for (i = 0; i < lengthOfParameterArray(parameters); i++) {
         parameters[i].candidates = ensureParameterArrayAllocated(parameters[i].candidates);
         instanceMatcher(&parameters[i]);
+        parameters[i].candidates[0].isPronoun = parameters[i].isPronoun;
     }
 }
 
@@ -1015,7 +1023,6 @@ static void handleMultiplePosition(ParameterPosition parameterPositions[]) {
     int multiplePosition = findMultipleParameterPosition(parameterPositions);
     if (anyAll(parameterPositions)) {
         /* If the player used ALL, try to find out what was applicable */
-        // DISAMBIGUATION!!!
         disambiguateCandidatesForPosition(parameterPositions, multiplePosition, parameterPositions[multiplePosition].parameters);
         if (lengthOfParameterArray(parameterPositions[multiplePosition].parameters) == 0)
             errorWhat(parameterPositions[multiplePosition].parameters[0].firstWord);
@@ -1044,9 +1051,9 @@ static void handleMultiplePosition(ParameterPosition parameterPositions[]) {
  *
  * p, n, omni,  result,                 why?
  * -----------------------------------------------------------------
- * 0, 0, no,    errorNoSuch(w)
- * 0, 1, no,    errorNoSuch(w)
- * 0, m, no,    errorNoSuch(w)
+ * 0, 0, no,    errorNoSuch(w)/errorWhat(w)
+ * 0, 1, no,    errorNoSuch(w)/errorWhat(w)
+ * 0, m, no,    errorNoSuch(w)/errorWhat(w)
  * 1, 0, no,    ok(p)
  * 1, 1, no,    ok(p)
  * 1, m, no,    ok(p)
@@ -1070,13 +1077,22 @@ typedef Parameter *DisambiguationHandler(Parameter allCandidates[], Parameter pr
 typedef DisambiguationHandler *DisambiguationHandlerTable[3][3][2];
 
 static Parameter *disambiguate00N(Parameter allCandidates[], Parameter presentCandidates[]) {
-    errorNoSuch(allCandidates[0]); return NULL;
+    if (allCandidates[0].isPronoun)
+        errorWhat(allCandidates[0].firstWord);
+    else
+        errorNoSuch(allCandidates[0]); return NULL;
 }
 static Parameter *disambiguate01N(Parameter allCandidates[], Parameter presentCandidates[]) {
-    errorNoSuch(allCandidates[0]); return NULL;
+    if (allCandidates[0].isPronoun)
+        errorWhat(allCandidates[0].firstWord);
+    else
+        errorNoSuch(allCandidates[0]); return NULL;
 }
 static Parameter *disambiguate0MN(Parameter allCandidates[], Parameter presentCandidates[]) {
-    errorNoSuch(allCandidates[0]); return NULL;
+    if (allCandidates[0].isPronoun)
+        errorWhat(allCandidates[0].firstWord);
+    else
+        errorNoSuch(allCandidates[0]); return NULL;
 }
 static Parameter *disambiguate10N(Parameter allCandidates[], Parameter presentCandidates[]) {
     return presentCandidates;
