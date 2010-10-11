@@ -312,7 +312,7 @@ static void load(void)
     fread(&tmphdr, sizeof(tmphdr), 1, codfil);
     rewind(codfil);
     if (strncmp((char *)&tmphdr, "ALAN", 4) != 0)
-        apperr("Not an Alan game file, does not start with \"ALAN\"");
+        playererr("Not an Alan game file, does not start with \"ALAN\"");
 	
     checkVersion(&tmphdr);
 	
@@ -590,7 +590,7 @@ static void openFiles(void)
         strcpy(str, "Can't open adventure code file '");
         strcat(str, codfnm);
         strcat(str, "'.");
-        apperr(str);
+        playererr(str);
     }
 	
     /* Open Text file */
