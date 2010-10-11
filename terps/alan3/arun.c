@@ -78,11 +78,6 @@ int main(int argc, char *argv[])
 	newline();
     }
 
-#ifdef HAVE_WINGLK
-    winglk_app_set_name(adventureName);
-    winglk_window_set_title(adventureName);
-#endif
-
 #ifdef HAVE_GARGLK
     garglk_set_story_name(adventureName);
 #endif

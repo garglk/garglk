@@ -2,7 +2,7 @@
 #define CLASSES_H_
 /*----------------------------------------------------------------------*\
 
-	classes
+  classes
 
 \*----------------------------------------------------------------------*/
 
@@ -21,5 +21,6 @@ extern ClassEntry *classes; /* Class table pointer */
 
 
 /* FUNCTIONS */
+extern char *idOfClass(int theClass);
 
 #endif /* CLASSES_H_ */

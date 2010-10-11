@@ -1,4 +1,4 @@
-Build status as of 9/30/2010:
+Build status as of 10/11/2010:
 
 +---------------+---------------+
 | Interpreter   | Version       |
@@ -6,7 +6,7 @@ Build status as of 9/30/2010:
 | agility       | 1.1.1.1       |
 | advsys        | 1.2           |
 | alan          | 2.8.6         |
-| alan3         | 3.0a8         |
+| alan3         | 3.0a9         |
 | frotz         | 2.5.0         |
 | geas          | 0.4           |
 | git           | 1.2.8         |

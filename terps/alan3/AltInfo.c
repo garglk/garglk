@@ -38,18 +38,12 @@ void primeAltInfo(AltInfo *altInfo, int level, int parameter, int instance, int 
 
 
 /*----------------------------------------------------------------------*/
-static char *idOfClass(int theClass) {
-    return (char *)pointerTo(classes[theClass].id);
-}
-
-
-/*----------------------------------------------------------------------*/
 static void traceInstanceAndItsClass(AltInfo *alt)
 {
     traceSay(globalParameters[alt->parameter-1].instance);
-    printf(")");
+    printf("[%ld]", (long) globalParameters[alt->parameter-1].instance);
     if (alt->class != NO_CLASS)
-        printf(", inherited from class #%d (%s)", alt->class, idOfClass(alt->class));
+        printf(", inherited from %s[%d]", idOfClass(alt->class), alt->class);
 }
 
 
@@ -60,11 +54,11 @@ static void traceAltInfo(AltInfo *alt) {
         printf("GLOBAL");
         break;
     case LOCATION_LEVEL:
-        printf("in location #%d (", alt->instance);
+        printf("in (location) ");
         traceInstanceAndItsClass(alt);
         break;
     case PARAMETER_LEVEL:
-        printf("in parameter #%d (", alt->parameter);
+        printf("in (parameter #%d) ", alt->parameter);
         traceInstanceAndItsClass(alt);
         break;
     }

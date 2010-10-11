@@ -76,3 +76,14 @@ transcript of the commands that let to this error to the author. Thank you!");
     } else
         handler(description);
 }
+
+/*======================================================================*/
+void playererr(char *description)
+{
+    if (handler == NULL) {
+        para();
+        output("You have probably done something that is not exactly right.");
+        runtimeError("PLAYER ERROR: ", description);
+    } else
+        handler(description);
+}

@@ -6,6 +6,8 @@
 #include "class.h"
 
 /* IMPORTS */
+#include "types.h"
+#include <memory.h>
 
 
 /* CONSTANTS */
@@ -19,4 +21,10 @@ ClassEntry *classes; /* Class table pointer */
 
 
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++*/
+
+/*======================================================================*/
+char *idOfClass(int theClass) {
+    return (char *)pointerTo(classes[theClass].id);
+}
+
 
