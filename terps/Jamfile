@@ -95,7 +95,7 @@ if $(MAKE_ALAN2) = yes
 
 # -----------------------------------------------------------------------
 #
-# Alan interpreter 3 alpha 8
+# Alan interpreter 3 alpha 9
 #
 
 if $(MAKE_ALAN3) = yes
