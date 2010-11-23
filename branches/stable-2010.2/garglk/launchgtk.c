@@ -176,7 +176,7 @@ int winterp(char *path, char *exe, char *flags, char *game)
 
     setenv("GARGLK_INI", path, FALSE);
 
-    char *args[] = {NULL, NULL, NULL};
+    char *args[4] = {NULL, NULL, NULL, NULL};
 
     if (strstr(flags, "-"))
     {
