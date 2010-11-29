@@ -394,8 +394,7 @@ int getvalue(int n)
 }
 
 /* setvalue - set the value of a variable in the variable table */
-int setvalue(n,v)
-  int n,v;
+int setvalue(int n, int v)
 {
     if (n < 1 || n > vcount)
 	nerror("variable number out of range: %d",n);
