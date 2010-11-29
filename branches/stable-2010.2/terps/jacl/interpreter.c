@@ -1374,7 +1374,11 @@ execute(funcname)
 						unkvarrun(word[1]);
 						return (exit_function(TRUE));
 					} else {
-						*container = save_interaction(arg_text_of_word(2));
+						if (word[2] == NULL) {
+							*container = save_interaction(NULL);
+						} else {
+							*container = save_interaction(arg_text_of_word(2));
+						}
 					}
 				} 
 			} else if (!strcmp(word[0], "restoregame")) {

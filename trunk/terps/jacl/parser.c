@@ -1752,17 +1752,17 @@ diagnose()
 }
 
 int
-scope(index, expected, restrict)
+scope(index, expected, restricted)
          int             index;
          char           *expected;
-		 int			 restrict;
+		 int			 restricted;
 {
 	/* THIS FUNCTION DETERMINES IF THE SPECIFIED OBJECT IS IN THE SPECIFIED
 	 * SCOPE - IT RETURNS TRUE IF SO, FALSE IF NOT. */
 
 	int temp = 0;
 
-	/* WHEN THE ARGUMENT restrict IS TRUE IT HAS A MORE LIMITED
+	/* WHEN THE ARGUMENT restricted IS TRUE IT HAS A MORE LIMITED
 	 * SENSE OF WHAT IS ACCEPTABLE */
 
 	if (!strcmp(expected, "*held") || !strcmp(expected, "**held")) {
@@ -1801,16 +1801,16 @@ scope(index, expected, restrict)
 			return (FALSE);
 		} else {
 			/* IS THE OBJECT A CHILD OF THE CURRENT LOCATION SOMEHOW */
-			return (parent_of(HERE, index, restrict));
+			return (parent_of(HERE, index, restricted));
 		}
 	} else if (!strcmp(expected, "*anywhere") || !strcmp(expected, "**anywhere")) {
 		return (TRUE);
 	} else if (!strcmp(expected, "*inside") || !strcmp(expected, "**inside")) {
 		if (object_list[0][0] >0 && object_list[0][0] < objects) {
-			return (parent_of(object_list[0][0], index, restrict));
+			return (parent_of(object_list[0][0], index, restricted));
 		} else {
 			// THERE IS NO PREVIOUS OBJECT SO TREAT THIS LIKE A *here 
-			return (parent_of(HERE, index, restrict));
+			return (parent_of(HERE, index, restricted));
 		}
 	} else if (!strcmp(expected, "*present") || !strcmp(expected, "**present")) {
 		if (index == HERE) {
@@ -1876,16 +1876,16 @@ find_parent(index)
 }
 
 int
-parent_of(parent, child, restrict)
+parent_of(parent, child, restricted)
 	 int             parent,
 	                 child,
-					 restrict;
+					 restricted;
 {
 	/* THIS FUNCTION WILL CLIMB THE OBJECT TREE STARTING AT 'CHILD' UNTIL
 	 * 'PARENT' IS REACHED (RETURN TRUE), OR THE TOP OF THE TREE OR A CLOSED
 	 * OR CONCEALING OBJECT IS REACHED (RETURN FALSE). */
 	
-	/* restrict ARGUMENT TELLS FUNCTION TO IGNORE OBJECT IF IT IS IN AN
+	/* restricted ARGUMENT TELLS FUNCTION TO IGNORE OBJECT IF IT IS IN AN
 	 * OBJECT WITH A mass OF heavy OR LESS THAT IS NOT THE SUPPLIED 
 	 * PARENT ie. DON'T ACCEPT OBJECTS IN SUB OBJECTS */
 
@@ -1912,7 +1912,7 @@ parent_of(parent, child, restrict)
 			/* THE CHILDS PARENT IS CLOSED OR CONCEALING - CANT BE SEEN */
 			//printf("--- parent %s is closed\n", object[index]->label);
 			return (FALSE);
-		} else if (restrict && object[index]->MASS < HEAVY && index != parent) {
+		} else if (restricted && object[index]->MASS < HEAVY && index != parent) {
 			//printf("--- scenery object.\n");
 			return (FALSE);
 		} else {
@@ -1925,7 +1925,7 @@ parent_of(parent, child, restrict)
 			} else {
 				/* KEEP LOOKING UP THE TREE TILL THE CHILD HAS NO MORE
 				 * PARENTS */
-				return (parent_of(parent, index, restrict));
+				return (parent_of(parent, index, restricted));
 			}
 		}
 	} else {
