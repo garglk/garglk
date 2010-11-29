@@ -10,6 +10,7 @@ This list is meant to be inclusive and current.  If your name has been omitted i
 ===Development===
 _Original source code and patches_
   * Tor Andersson
+  * Ori Avtalion
   * Simon Baldwin
   * Philip Chimento
   * Ben Cressey
