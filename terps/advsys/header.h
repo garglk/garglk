@@ -66,7 +66,7 @@ extern int getabyte(int act,int off);
 extern int getoloc(int n);
 extern int getaloc(int n);
 extern int getvalue(int n);
-extern int setvalue(n,v);
+extern int setvalue(int n, int v);
 extern int getwloc(int n);
 extern int getword(int n);
 extern int putword(int n,int w);
