@@ -184,30 +184,36 @@ void winclipstore(glui32 *text, int len)
     cliptext = malloc(sizeof(char) * 4 * (len + 1));
 
     /*convert UTF-32 to UTF-8 */
-    while (i < len) {
-        if (text[i] < 0x80) {
+    while (i < len)
+    {
+        if (text[i] < 0x80)
+        {
             cliptext[k] = text[i];
             k++;
         }
-        else if (text[i] < 0x800) {
+        else if (text[i] < 0x800)
+        {
             cliptext[k  ] = (0xC0 | ((text[i] & 0x7C0) >> 6));
             cliptext[k+1] = (0x80 |  (text[i] & 0x03F)      );
             k = k + 2;
         }
-        else if (text[i] < 0x10000) {
+        else if (text[i] < 0x10000)
+        {
             cliptext[k  ] = (0xE0 | ((text[i] & 0xF000) >> 12));
             cliptext[k+1] = (0x80 | ((text[i] & 0x0FC0) >>  6));
             cliptext[k+2] = (0x80 |  (text[i] & 0x003F)       );
             k = k + 3;
         }
-        else if (text[i] < 0x200000) {
+        else if (text[i] < 0x200000)
+        {
             cliptext[k  ] = (0xF0 | ((text[i] & 0x1C0000) >> 18));
             cliptext[k+1] = (0x80 | ((text[i] & 0x03F000) >> 12));
             cliptext[k+2] = (0x80 | ((text[i] & 0x000FC0) >>  6));
             cliptext[k+3] = (0x80 |  (text[i] & 0x00003F)       );
             k = k + 4;
         }
-        else {
+        else
+        {
             cliptext[k] = '?';
             k++;
         }
@@ -226,17 +232,18 @@ void winclipsend(int source)
 
     switch (source)
     {
-    case PRIMARY:
-        gtk_clipboard_set_text(
-                gtk_clipboard_get(GDK_SELECTION_PRIMARY), cliptext, cliplen);
-        gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
-        break;
-    case CLIPBOARD:
-        gtk_clipboard_set_text(
-                gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), cliptext, cliplen);
-        gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
-        break;
-     default:return;
+        case PRIMARY:
+            gtk_clipboard_set_text(
+                    gtk_clipboard_get(GDK_SELECTION_PRIMARY), cliptext, cliplen);
+            gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
+            break;
+        case CLIPBOARD:
+            gtk_clipboard_set_text(
+                    gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), cliptext, cliplen);
+            gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+            break;
+        default:
+            return;
     }
 }
 
@@ -345,7 +352,8 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    if (event->button == 1) {
+    if (event->button == 1)
+    {
         gli_copyselect = FALSE;
         gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
         winclipsend(PRIMARY);
@@ -365,17 +373,23 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
     int x,y;
 
     if (event->is_hint)
-	gtk_widget_get_pointer(widget, &x, &y);
-    else {
+    {
+        gtk_widget_get_pointer(widget, &x, &y);
+    }
+    else
+    {
         x = event->x;
         y = event->y;
     }
 
     /* hyperlinks and selection */
-    if (gli_copyselect) {
+    if (gli_copyselect)
+    {
         gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_ibeam);
         gli_move_selection(x, y);
-    } else {
+    }
+    else
+    {
         if (gli_get_hyperlink(x, y))
             gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
         else
@@ -401,54 +415,56 @@ static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
 {
     int key = event->keyval;
 
-    if (event->state & GDK_CONTROL_MASK) {
-
-    switch(key)
+    if (event->state & GDK_CONTROL_MASK)
     {
-    case GDK_a: case GDK_A: gli_input_handle_key(keycode_Home); break;
-    case GDK_c: case GDK_C: winclipsend(CLIPBOARD); break;
-    case GDK_e: case GDK_E: gli_input_handle_key(keycode_End); break;
-    case GDK_u: case GDK_U: gli_input_handle_key(keycode_Escape); break;
-    case GDK_v: case GDK_V: winclipreceive(CLIPBOARD); break;
-    case GDK_x: case GDK_X: winclipsend(CLIPBOARD); break;
+
+        switch(key)
+        {
+            case GDK_a: case GDK_A: gli_input_handle_key(keycode_Home); break;
+            case GDK_c: case GDK_C: winclipsend(CLIPBOARD); break;
+            case GDK_e: case GDK_E: gli_input_handle_key(keycode_End); break;
+            case GDK_u: case GDK_U: gli_input_handle_key(keycode_Escape); break;
+            case GDK_v: case GDK_V: winclipreceive(CLIPBOARD); break;
+            case GDK_x: case GDK_X: winclipsend(CLIPBOARD); break;
+        }
+
+        return;
     }
 
-    return;
-    }
-
-    if (!gtk_im_context_filter_keypress(imcontext, event)) {
-
-    switch (key)
+    if (!gtk_im_context_filter_keypress(imcontext, event))
     {
-    case GDK_Return: gli_input_handle_key(keycode_Return); break;
-    case GDK_BackSpace: gli_input_handle_key(keycode_Delete); break;
-    case GDK_Delete: gli_input_handle_key(keycode_Erase); break;
-    case GDK_Tab: gli_input_handle_key(keycode_Tab); break;
-    case GDK_Prior: gli_input_handle_key(keycode_PageUp); break;
-    case GDK_Next: gli_input_handle_key(keycode_PageDown); break;
-    case GDK_Home: gli_input_handle_key(keycode_Home); break;
-    case GDK_End: gli_input_handle_key(keycode_End); break;
-    case GDK_Left: gli_input_handle_key(keycode_Left); break;
-    case GDK_Right: gli_input_handle_key(keycode_Right); break;
-    case GDK_Up: gli_input_handle_key(keycode_Up); break;
-    case GDK_Down: gli_input_handle_key(keycode_Down); break;
-    case GDK_Escape: gli_input_handle_key(keycode_Escape); break;
-    case GDK_F1: gli_input_handle_key(keycode_Func1); break;
-    case GDK_F2: gli_input_handle_key(keycode_Func2); break;
-    case GDK_F3: gli_input_handle_key(keycode_Func3); break;
-    case GDK_F4: gli_input_handle_key(keycode_Func4); break;
-    case GDK_F5: gli_input_handle_key(keycode_Func5); break;
-    case GDK_F6: gli_input_handle_key(keycode_Func6); break;
-    case GDK_F7: gli_input_handle_key(keycode_Func7); break;
-    case GDK_F8: gli_input_handle_key(keycode_Func8); break;
-    case GDK_F9: gli_input_handle_key(keycode_Func9); break;
-    case GDK_F10: gli_input_handle_key(keycode_Func10); break;
-    case GDK_F11: gli_input_handle_key(keycode_Func11); break;
-    case GDK_F12: gli_input_handle_key(keycode_Func12); break;
-    default:
-        if (key >= 32 && key <= 255)
-            gli_input_handle_key(key);
-    }
+
+        switch (key)
+        {
+            case GDK_Return: gli_input_handle_key(keycode_Return); break;
+            case GDK_BackSpace: gli_input_handle_key(keycode_Delete); break;
+            case GDK_Delete: gli_input_handle_key(keycode_Erase); break;
+            case GDK_Tab: gli_input_handle_key(keycode_Tab); break;
+            case GDK_Prior: gli_input_handle_key(keycode_PageUp); break;
+            case GDK_Next: gli_input_handle_key(keycode_PageDown); break;
+            case GDK_Home: gli_input_handle_key(keycode_Home); break;
+            case GDK_End: gli_input_handle_key(keycode_End); break;
+            case GDK_Left: gli_input_handle_key(keycode_Left); break;
+            case GDK_Right: gli_input_handle_key(keycode_Right); break;
+            case GDK_Up: gli_input_handle_key(keycode_Up); break;
+            case GDK_Down: gli_input_handle_key(keycode_Down); break;
+            case GDK_Escape: gli_input_handle_key(keycode_Escape); break;
+            case GDK_F1: gli_input_handle_key(keycode_Func1); break;
+            case GDK_F2: gli_input_handle_key(keycode_Func2); break;
+            case GDK_F3: gli_input_handle_key(keycode_Func3); break;
+            case GDK_F4: gli_input_handle_key(keycode_Func4); break;
+            case GDK_F5: gli_input_handle_key(keycode_Func5); break;
+            case GDK_F6: gli_input_handle_key(keycode_Func6); break;
+            case GDK_F7: gli_input_handle_key(keycode_Func7); break;
+            case GDK_F8: gli_input_handle_key(keycode_Func8); break;
+            case GDK_F9: gli_input_handle_key(keycode_Func9); break;
+            case GDK_F10: gli_input_handle_key(keycode_Func10); break;
+            case GDK_F11: gli_input_handle_key(keycode_Func11); break;
+            case GDK_F12: gli_input_handle_key(keycode_Func12); break;
+            default:
+                if (key >= 32 && key <= 255)
+                    gli_input_handle_key(key);
+        }
 
     }
 }
@@ -458,16 +474,16 @@ static void onkeyup(GtkWidget *widget, GdkEventKey *event, void *data)
     int key = event->keyval;
     switch(key)
     {
-    case GDK_c:
-    case GDK_C:
-    case GDK_x:
-    case GDK_X:
-    case GDK_v:
-    case GDK_V:
-        if (event->state & GDK_CONTROL_MASK) {
-            return;
-        }
-    default: break;
+        case GDK_c:
+        case GDK_C:
+        case GDK_x:
+        case GDK_X:
+        case GDK_v:
+        case GDK_V:
+            if (event->state & GDK_CONTROL_MASK)
+                return;
+        default:
+            break;
     }
     gtk_im_context_filter_keypress(imcontext, event);
 }
@@ -511,25 +527,25 @@ void winopen(void)
                                | GDK_POINTER_MOTION_HINT_MASK
                                | GDK_SCROLL_MASK);
     gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
-    	GTK_SIGNAL_FUNC(onbuttondown), NULL);
+                       GTK_SIGNAL_FUNC(onbuttondown), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
-    	GTK_SIGNAL_FUNC(onbuttonup), NULL);
+                       GTK_SIGNAL_FUNC(onbuttonup), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "scroll_event", 
-    	GTK_SIGNAL_FUNC(onscroll), NULL);
+                       GTK_SIGNAL_FUNC(onscroll), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
-    	GTK_SIGNAL_FUNC(onkeydown), NULL);
+                       GTK_SIGNAL_FUNC(onkeydown), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "key_release_event", 
-    	GTK_SIGNAL_FUNC(onkeyup), NULL);
+                       GTK_SIGNAL_FUNC(onkeyup), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
-    	GTK_SIGNAL_FUNC(onquit), "WM destroy");
+                       GTK_SIGNAL_FUNC(onquit), "WM destroy");
     gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
         GTK_SIGNAL_FUNC(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
     gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", 
-    	GTK_SIGNAL_FUNC(onresize), NULL);
+                       GTK_SIGNAL_FUNC(onresize), NULL);
     gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", 
-    	GTK_SIGNAL_FUNC(onexpose), NULL);
+                       GTK_SIGNAL_FUNC(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
     imcontext = gtk_im_multicontext_new();

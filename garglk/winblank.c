@@ -49,4 +49,3 @@ void win_blank_rearrange(window_t *win, rect_t *box)
 void win_blank_redraw(window_t *win)
 {
 }
-

@@ -72,8 +72,7 @@ void fontreplace(char *font, int type)
 
     switch (type)
     {
-    case MONOF:
-        {
+        case MONOF:
             /* regular or roman */
             fontpath[0] = '\0';
             strcpy(fontname, font);
@@ -116,7 +115,7 @@ void fontreplace(char *font, int type)
                 strcpy(sysfont, fontpath);
                 gli_conf_monob = sysfont;
                 gli_conf_monoz = sysfont;
-                
+
             }
 
             /* italic or oblique */
@@ -175,10 +174,8 @@ void fontreplace(char *font, int type)
             }
 
             return;
-        }
 
-    case PROPF:
-        {
+        case PROPF:
             /* regular or roman */
             fontpath[0] = '\0';
             strcpy(fontname, font);
@@ -221,7 +218,7 @@ void fontreplace(char *font, int type)
                 strcpy(sysfont, fontpath);
                 gli_conf_propb = sysfont;
                 gli_conf_propz = sysfont;
-                
+
             }
 
             /* italic or oblique */
@@ -280,7 +277,6 @@ void fontreplace(char *font, int type)
             }
 
             return;
-        }
     }
 }
 

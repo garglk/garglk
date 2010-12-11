@@ -47,4 +47,3 @@ void glk_cancel_hyperlink_event(winid_t win)
 }
 
 #endif /* GLK_MODULE_HYPERLINKS */
-

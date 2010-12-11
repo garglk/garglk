@@ -167,7 +167,8 @@ static void gammacopy_lcd(unsigned char *dst, unsigned char *src, int w, int h, 
 static int findhighglyph(glui32 cid, fentry_t *entries, int length)
 {
     int start = 0, end = length, mid = 0;
-    while (start < end) {
+    while (start < end)
+    {
         mid = (start + end) / 2;
         if (entries[mid].cid == cid)
             return mid;
@@ -236,17 +237,22 @@ static void loadglyph(font_t *f, glui32 cid)
                             glyphs[x].pitch * glyphs[x].h);
     }
 
-    if (cid < 256) {
+    if (cid < 256)
+    {
         f->lowloaded[cid/8] |= (1 << (cid%8));
         f->lowadvs[cid] = adv;
         memcpy(f->lowglyphs[cid], glyphs, sizeof glyphs);
-    } else {
+    }
+    else
+    {
         int idx = findhighglyph(cid, f->highentries, f->num_highentries);
-        if (idx < 0) {
+        if (idx < 0)
+        {
             idx = ~idx;
 
             /* make room if needed */
-            if (f->alloced_highentries == f->num_highentries) {
+            if (f->alloced_highentries == f->num_highentries)
+            {
                 fentry_t *newentries;
                 int newsize = f->alloced_highentries * 2;
                 if (!newsize)
@@ -254,7 +260,8 @@ static void loadglyph(font_t *f, glui32 cid)
                 newentries = malloc(newsize * sizeof(fentry_t));
                 if (!newentries)
                     return;
-                if (f->highentries) {
+                if (f->highentries)
+                {
                     memcpy(newentries, f->highentries, f->num_highentries * sizeof(fentry_t));
                     free(f->highentries);
                 }
@@ -344,25 +351,25 @@ static void loadfont(font_t *f, char *name, float size, float aspect, int style)
 
     switch (style)
     {
-    case FONTR:
-        f->make_bold = FALSE;
-        f->make_oblique = FALSE;
-        break;
+        case FONTR:
+            f->make_bold = FALSE;
+            f->make_oblique = FALSE;
+            break;
 
-    case FONTB:
-        f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
-        f->make_oblique = FALSE;
-        break;
+        case FONTB:
+            f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
+            f->make_oblique = FALSE;
+            break;
 
-    case FONTI:
-        f->make_bold = FALSE;
-        f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
-        break;
+        case FONTI:
+            f->make_bold = FALSE;
+            f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+            break;
 
-    case FONTZ:
-        f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
-        f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
-        break;
+        case FONTZ:
+            f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
+            f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+            break;
     }
 }
 
@@ -611,14 +618,18 @@ static int charkern(font_t *f, int c0, int c1)
 
 static void getglyph(font_t *f, glui32 cid, int *adv, bitmap_t **glyphs)
 {
-    if (cid < 256) {
+    if (cid < 256)
+    {
         if ((f->lowloaded[cid/8] & (1 << (cid%8))) == 0)
             loadglyph(f, cid);
         *adv = f->lowadvs[cid];
         *glyphs = f->lowglyphs[cid];
-    } else {
+    }
+    else
+    {
         int idx = findhighglyph(cid, f->highentries, f->num_highentries);
-        if (idx < 0) {
+        if (idx < 0)
+        {
             loadglyph(f, cid);
             idx = ~idx;
         }
@@ -645,8 +656,18 @@ int gli_string_width(int fidx, unsigned char *s, int n, int spw)
         int adv;
         int c = touni(*s++);
 
-        if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
-        if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
+        if (dolig && n && c == 'f' && *s == 'i')
+        {
+          c = UNI_LIG_FI;
+          s++;
+          n--;
+        }
+        if (dolig && n && c == 'f' && *s == 'l')
+        {
+          c = UNI_LIG_FL;
+          s++;
+          n--;
+        }
 
         getglyph(f, c, &adv, &glyphs);
 
@@ -685,8 +706,18 @@ int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,
 
         c = touni(*s++);
 
-        if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
-        if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
+        if (dolig && n && c == 'f' && *s == 'i')
+        {
+          c = UNI_LIG_FI;
+          s++;
+          n--;
+        }
+        if (dolig && n && c == 'f' && *s == 'l')
+        {
+          c = UNI_LIG_FL;
+          s++;
+          n--;
+        }
 
         getglyph(f, c, &adv, &glyphs);
 
@@ -733,8 +764,18 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
 
         c = *s++;
 
-        if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
-        if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
+        if (dolig && n && c == 'f' && *s == 'i')
+        {
+          c = UNI_LIG_FI;
+          s++;
+          n--;
+        }
+        if (dolig && n && c == 'f' && *s == 'l')
+        {
+          c = UNI_LIG_FL;
+          s++;
+          n--;
+        }
 
         getglyph(f, c, &adv, &glyphs);
 
@@ -778,8 +819,18 @@ int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
         int adv;
         int c = *s++;
 
-        if (dolig && n && c == 'f' && *s == 'i') { c = UNI_LIG_FI; s++; n--; }
-        if (dolig && n && c == 'f' && *s == 'l') { c = UNI_LIG_FL; s++; n--; }
+        if (dolig && n && c == 'f' && *s == 'i')
+        {
+          c = UNI_LIG_FI;
+          s++;
+          n--;
+        }
+        if (dolig && n && c == 'f' && *s == 'l')
+        {
+          c = UNI_LIG_FL;
+          s++;
+          n--;
+        }
 
         getglyph(f, c, &adv, &glyphs);
 
@@ -837,10 +888,26 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
 
     if (x1 <= dx0 || x0 >= dx1) return;
     if (y1 <= dy0 || y0 >= dy1) return;
-    if (x0 < dx0) { sx0 += dx0 - x0; x0 = dx0; }
-    if (y0 < dy0) { sy0 += dy0 - y0; y0 = dy0; }
-    if (x1 > dx1) { sx1 += dx1 - x1; x1 = dx1; }
-    if (y1 > dy1) { sy1 += dy1 - y1; y1 = dy1; }
+    if (x0 < dx0)
+    {
+      sx0 += dx0 - x0;
+      x0 = dx0;
+    }
+    if (y0 < dy0)
+    {
+      sy0 += dy0 - y0;
+      y0 = dy0;
+    }
+    if (x1 > dx1)
+    {
+      sx1 += dx1 - x1;
+      x1 = dx1;
+    }
+    if (y1 > dy1)
+    {
+      sy1 += dy1 - y1;
+      y1 = dy1;
+    }
 
     sp = src->rgba + (sy0 * src->w + sx0) * 4;
     dp = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;

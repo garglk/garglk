@@ -48,7 +48,8 @@ eventqueue_t *gli_initialize_queue (void)
 
 void gli_queue_event(eventqueue_t *queue, event_t *msg)
 {
-    if (queue) {
+    if (queue)
+    {
         eventlog_t *log = malloc(sizeof(eventlog_t));
 
         if (!log)
@@ -68,14 +69,12 @@ void gli_queue_event(eventqueue_t *queue, event_t *msg)
 
 event_t *gli_retrieve_event(eventqueue_t *queue)
 {
-    if (!queue) {
+    if (!queue)
         return 0;
-    }
 
     eventlog_t *first = queue->first;
-    if (!first) {
+    if (!first)
         return 0;
-    }
 
     event_t *msg = first->event;
     eventlog_t *next = first->next;
@@ -93,15 +92,19 @@ void gli_dispatch_event(event_t *event, int polled)
 {
     event_t *dispatch;
 
-    if (!polled) {
+    if (!polled)
+    {
         dispatch = gli_retrieve_event(gli_events_logged);
         if (!dispatch)
             dispatch = gli_retrieve_event(gli_events_polled);
-    } else {
+    }
+    else
+    {
         dispatch = gli_retrieve_event(gli_events_polled);
     }
 
-    if (dispatch) {
+    if (dispatch)
+    {
         memcpy(event,dispatch,sizeof(event_t));
         free(dispatch);
     }
@@ -120,24 +123,20 @@ void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 
     switch (type)
     {
-    case evtype_Arrange:
-    case evtype_Redraw:
-    case evtype_SoundNotify:
-    case evtype_Timer:
-        {
+        case evtype_Arrange:
+        case evtype_Redraw:
+        case evtype_SoundNotify:
+        case evtype_Timer:
             if (!gli_events_polled)
                 gli_events_polled = gli_initialize_queue();
             gli_queue_event(gli_events_polled, store);
-        }
-        break;
+            break;
 
-    default:
-        {
+        default:
             if (!gli_events_logged)
                 gli_events_logged = gli_initialize_queue();
             gli_queue_event(gli_events_logged, store);
-        }
-        break;
+            break;
     }
 }
 
@@ -183,18 +182,18 @@ void gli_input_handle_key(glui32 key)
     {
         switch (key)
         {
-        case keycode_Tab:
-            gli_input_next_focus();
-            return;
-        case keycode_PageUp:
-        case keycode_PageDown:
-        case keycode_MouseWheelUp:
-        case keycode_MouseWheelDown:
-            gli_input_scroll_focus();
-            break;
-        default:
-            gli_input_guess_focus();
-            break;
+            case keycode_Tab:
+                gli_input_next_focus();
+                return;
+            case keycode_PageUp:
+            case keycode_PageDown:
+            case keycode_MouseWheelUp:
+            case keycode_MouseWheelDown:
+                gli_input_scroll_focus();
+                break;
+            default:
+                gli_input_guess_focus();
+                break;
         }
     }
 
@@ -205,20 +204,20 @@ void gli_input_handle_key(glui32 key)
 
     switch (win->type)
     {
-    case wintype_TextGrid:
-        if (win->char_request || win->char_request_uni)
-            gcmd_grid_accept_readchar(win, key);
-        else if (win->line_request || win->line_request_uni)
-            gcmd_grid_accept_readline(win, key);
-        break;
-    case wintype_TextBuffer:
+        case wintype_TextGrid:
+            if (win->char_request || win->char_request_uni)
+                gcmd_grid_accept_readchar(win, key);
+            else if (win->line_request || win->line_request_uni)
+                gcmd_grid_accept_readline(win, key);
+            break;
+        case wintype_TextBuffer:
             if (win->char_request || win->char_request_uni)
                 gcmd_buffer_accept_readchar(win, key);
             else if (win->line_request || win->line_request_uni)
                 gcmd_buffer_accept_readline(win, key);
             else if (win->more_request || win->scroll_request)
                 gcmd_accept_scroll(win, key);
-        break;
+            break;
     }
 }
 
