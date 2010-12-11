@@ -129,7 +129,7 @@ void gli_picture_store_scaled(picture_t *pic)
     if (picptr->scaled)
         gli_picture_discard(picptr->scaled);
 
-   picptr->scaled = pic;
+    picptr->scaled = pic;
 }
 
 void gli_picture_store(picture_t *pic)
@@ -198,23 +198,26 @@ picture_t *gli_picture_load(unsigned long id)
 
         closeafter = TRUE;
         fl = fopen(filename, "rb");
-        if (!fl) {
+        if (!fl)
             return NULL;
-        }
 
-        if (fread(buf, 1, 8, fl) != 8) {
+        if (fread(buf, 1, 8, fl) != 8)
+        {
             /* Can't read the first few bytes. Forget it. */
             fclose(fl);
             return NULL;
         }
 
-        if (!png_sig_cmp(buf, 0, 8)) {
+        if (!png_sig_cmp(buf, 0, 8))
+        {
             chunktype = giblorb_ID_PNG;
         }
-        else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
+        else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF)
+        {
             chunktype = giblorb_ID_JPEG;
         }
-        else {
+        else
+        {
             /* Not a readable file. Forget it. */
             fclose(fl);
             return NULL;
@@ -324,17 +327,18 @@ static void load_image_png(FILE *fl, picture_t *pic)
     srcdata = NULL;
 
     png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (!png_ptr) {
+    if (!png_ptr)
         return;
-    }
 
     info_ptr = png_create_info_struct(png_ptr);
-    if (!info_ptr) {
+    if (!info_ptr)
+    {
         png_destroy_read_struct(&png_ptr, NULL, NULL);
         return;
     }
 
-    if (setjmp(png_jmpbuf(png_ptr))) {
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
         /* If we jump here, we had a problem reading the file */
         png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
         if (rowarray)

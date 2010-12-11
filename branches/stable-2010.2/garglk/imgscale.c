@@ -308,4 +308,3 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
     return dst;
 }
-
