@@ -47,8 +47,8 @@ glui32 glk_gestalt(glui32 id, glui32 val)
 glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr, 
     glui32 arrlen)
 {
-    switch (id) {
-        
+    switch (id)
+    {
         case gestalt_Version:
             return 0x00000700;
         
@@ -67,12 +67,14 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
                 return FALSE;
         
         case gestalt_CharOutput: 
-            if (val >= 32 && val < 0x10ffff) {
+            if (val >= 32 && val < 0x10ffff)
+            {
                 if (arr && arrlen >= 1)
                     arr[0] = 1;
                 return gestalt_CharOutput_ExactPrint;
             }
-            else {
+            else
+            {
                 /* cheaply, we don't do any translation of printed
                     characters, so the output is always one character 
                     even if it's wrong. */
@@ -120,4 +122,3 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
     
     }
 }
-

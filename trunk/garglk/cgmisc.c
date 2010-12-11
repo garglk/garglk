@@ -50,22 +50,22 @@ char gli_story_name[256] = "";
 
 void garglk_set_program_name(const char *name)
 {
-	strncpy(gli_program_name, name, sizeof gli_program_name);
-	gli_program_name[sizeof gli_program_name-1] = 0;
-	wintitle();
+    strncpy(gli_program_name, name, sizeof gli_program_name);
+    gli_program_name[sizeof gli_program_name-1] = 0;
+    wintitle();
 }
 
 void garglk_set_program_info(const char *info)
 {
-	strncpy(gli_program_info, info, sizeof gli_program_info);
-	gli_program_info[sizeof gli_program_info-1] = 0;
+    strncpy(gli_program_info, info, sizeof gli_program_info);
+    gli_program_info[sizeof gli_program_info-1] = 0;
 }
 
 void garglk_set_story_name(const char *name)
 {
-	strncpy(gli_story_name, name, sizeof gli_story_name);
-	gli_story_name[sizeof gli_story_name-1] = 0;
-	wintitle();
+    strncpy(gli_story_name, name, sizeof gli_story_name);
+    gli_story_name[sizeof gli_story_name-1] = 0;
+    wintitle();
 }
 
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;
@@ -86,21 +86,22 @@ void gli_initialize_misc()
         intended to work on Latin-1 data, and the code below correctly
         sets up the tables for that character set. */
     
-    for (ix=0; ix<256; ix++) {
+    for (ix=0; ix<256; ix++)
+    {
         char_toupper_table[ix] = ix;
         char_tolower_table[ix] = ix;
     }
-    for (ix=0; ix<256; ix++) {
-        if (ix >= 'A' && ix <= 'Z') {
+    for (ix=0; ix<256; ix++)
+    {
+        if (ix >= 'A' && ix <= 'Z')
             res = ix + ('a' - 'A');
-        }
-        else if (ix >= 0xC0 && ix <= 0xDE && ix != 0xD7) {
+        else if (ix >= 0xC0 && ix <= 0xDE && ix != 0xD7)
             res = ix + 0x20;
-        }
-        else {
+        else
             res = 0;
-        }
-        if (res) {
+
+        if (res)
+        {
             char_tolower_table[ix] = res;
             char_toupper_table[res] = ix;
         }
@@ -110,15 +111,15 @@ void gli_initialize_misc()
 
 void glk_exit()
 {
-	event_t event;
+    event_t event;
 
-	garglk_set_story_name("[ press any key to exit ]");
+    garglk_set_story_name("[ press any key to exit ]");
 
-	gli_terminated = 1;
+    gli_terminated = 1;
 
-	/* wait for gli_handle_input_key to exit() */
-	while (1)
-		glk_select(&event);
+    /* wait for gli_handle_input_key to exit() */
+    while (1)
+        glk_select(&event);
 }
 
 void glk_set_interrupt_handler(void (*func)(void))
@@ -147,22 +148,26 @@ void gidispatch_set_object_registry(
     gli_register_obj = regi;
     gli_unregister_obj = unregi;
     
-    if (gli_register_obj) {
+    if (gli_register_obj)
+    {
         /* It's now necessary to go through all existing objects, and register
             them. */
         for (win = glk_window_iterate(NULL, NULL); 
             win;
-            win = glk_window_iterate(win, NULL)) {
+            win = glk_window_iterate(win, NULL))
+        {
             win->disprock = (*gli_register_obj)(win, gidisp_Class_Window);
         }
         for (str = glk_stream_iterate(NULL, NULL); 
             str;
-            str = glk_stream_iterate(str, NULL)) {
+            str = glk_stream_iterate(str, NULL))
+        {
             str->disprock = (*gli_register_obj)(str, gidisp_Class_Stream);
         }
         for (fref = glk_fileref_iterate(NULL, NULL); 
             fref;
-            fref = glk_fileref_iterate(fref, NULL)) {
+            fref = glk_fileref_iterate(fref, NULL))
+        {
             fref->disprock = (*gli_register_obj)(fref, gidisp_Class_Fileref);
         }
     }
@@ -179,7 +184,8 @@ void gidispatch_set_retained_registry(
 
 gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
 {
-    switch (objclass) {
+    switch (objclass)
+    {
         case gidisp_Class_Window:
             return ((window_t *)obj)->disprock;
         case gidisp_Class_Stream:
@@ -188,11 +194,11 @@ gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
             return ((fileref_t *)obj)->disprock;
         case gidisp_Class_Schannel:
             return ((channel_t *)obj)->disprock;
-        default: {
+        default:
+        {
             gidispatch_rock_t dummy;
             dummy.num = 0;
             return dummy;
         }
     }
 }
-

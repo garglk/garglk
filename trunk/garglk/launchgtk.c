@@ -151,7 +151,8 @@ void winpath(char *buffer)
 
     exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
 
-    if (exelen <= 0 || exelen >= MaxBuffer) {
+    if (exelen <= 0 || exelen >= MaxBuffer)
+    {
         winmsg("Unable to locate executable path");
         exit(EXIT_FAILURE);
     }
@@ -162,7 +163,7 @@ void winpath(char *buffer)
     if ( dirpos != NULL )
         *dirpos = '\0';
 
-   return;
+    return;
 }
 
 int winexec(const char *cmd, char **args)
@@ -190,7 +191,8 @@ int winterp(char *path, char *exe, char *flags, char *game)
         args[1] = buf;
     }
 
-    if (!winexec(tmp, args)) {
+    if (!winexec(tmp, args))
+    {
         winmsg("Could not start 'terp.\nSorry.");
         return FALSE;
     }

@@ -49,12 +49,12 @@ void glk_window_flow_break(winid_t win)
 }
 
 void glk_window_erase_rect(winid_t win,
-	glsi32 left, glsi32 top, glui32 width, glui32 height)
+    glsi32 left, glsi32 top, glui32 width, glui32 height)
 {
 }
 
 void glk_window_fill_rect(winid_t win, glui32 color,
-	glsi32 left, glsi32 top, glui32 width, glui32 height)
+    glsi32 left, glsi32 top, glui32 width, glui32 height)
 {
 }
 
