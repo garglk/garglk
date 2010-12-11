@@ -61,20 +61,23 @@ int runblorb(char *path, char *game)
     sprintf(tmp, "Could not load Blorb file:\n%s\n", game);
 
     file = glkunix_stream_open_pathname(game, 0, 0);
-    if (!file) {
+    if (!file)
+    {
         winmsg(tmp);
         return FALSE;
     }
 
     err = giblorb_create_map(file, &map);
-    if (err) {
+    if (err)
+    {
         winmsg(tmp);
         return FALSE;
     }
 
     err = giblorb_load_resource(map, giblorb_method_FilePos,
             &res, giblorb_ID_Exec, 0);
-    if (err) {
+    if (err)
+    {
         winmsg(tmp);
         return FALSE;
     }
@@ -84,25 +87,25 @@ int runblorb(char *path, char *game)
 
     switch (res.chunktype)
     {
-    case ID_ZCOD:
-        if (strlen(terp))
-            return winterp(path, terp, "", game);
-        else if (magic[0] == 6)
-            return winterp(path, T_ZSIX, "", game);
-        else
-            return winterp(path, T_ZCODE, "", game);
-        break;
+        case ID_ZCOD:
+            if (strlen(terp))
+                return winterp(path, terp, "", game);
+            else if (magic[0] == 6)
+                return winterp(path, T_ZSIX, "", game);
+            else
+                return winterp(path, T_ZCODE, "", game);
+            break;
 
-    case ID_GLUL:
-        if (strlen(terp))
-            return winterp(path, terp, "", game);
-        else
-            return winterp(path, T_GLULX, "", game);
-        break;
+        case ID_GLUL:
+            if (strlen(terp))
+                return winterp(path, terp, "", game);
+            else
+                return winterp(path, T_GLULX, "", game);
+            break;
 
-    default:
-        sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", game);
-        winmsg(tmp);
+        default:
+            sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", game);
+            winmsg(tmp);
     }
     
     return FALSE;

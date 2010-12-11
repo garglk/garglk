@@ -31,19 +31,18 @@
 
 int main(int argc, char *argv[])
 {
-	glkunix_startup_t startdata;
-	startdata.argc = argc;
-	startdata.argv = malloc(argc * sizeof(char*));
-	memcpy(startdata.argv, argv, argc * sizeof(char*));
+    glkunix_startup_t startdata;
+    startdata.argc = argc;
+    startdata.argv = malloc(argc * sizeof(char*));
+    memcpy(startdata.argv, argv, argc * sizeof(char*));
 
-	gli_startup(argc, argv);
+    gli_startup(argc, argv);
 
-	if (!glkunix_startup_code(&startdata))
-		glk_exit();
+    if (!glkunix_startup_code(&startdata))
+        glk_exit();
 
-	glk_main();
-	glk_exit();
+    glk_main();
+    glk_exit();
 
-	return 0;
+    return 0;
 }
-
