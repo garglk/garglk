@@ -89,6 +89,9 @@ style_t gli_gstyles[style_NUMSTYLES] =
     {MONOR, {0x60,0x60,0x60}, {0xff,0xff,0xff}, 0}, /* User2 */
 };
 
+style_t gli_tstyles_def[style_NUMSTYLES];
+style_t gli_gstyles_def[style_NUMSTYLES];
+
 static int font2idx(char *font)
 {
     if (!strcmp(font, "monor")) return MONOR;
@@ -538,6 +541,9 @@ void gli_startup(int argc, char *argv[])
         glkunix_set_base_file(argv[argc-1]);
 
     gli_read_config(argc, argv);
+
+    memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));
+    memcpy(gli_gstyles_def, gli_gstyles, sizeof(gli_gstyles_def));
 
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
