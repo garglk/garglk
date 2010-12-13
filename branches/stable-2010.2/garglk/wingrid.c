@@ -65,9 +65,7 @@ void win_textgrid_destroy(window_textgrid_t *dwin)
     if (dwin->inbuf)
     {
         if (gli_unregister_arr)
-        {
             (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, "&+#!Cn", dwin->inarrayrock);
-        }
         dwin->inbuf = NULL;
     }
 

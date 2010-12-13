@@ -55,11 +55,11 @@ extern int gli_utf8output, gli_utf8input;
 /* Callbacks necessary for the dispatch layer.  */
 
 extern gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass);
-extern void (*gli_unregister_obj)(void *obj, glui32 objclass, 
+extern void (*gli_unregister_obj)(void *obj, glui32 objclass,
     gidispatch_rock_t objrock);
-extern gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len, 
+extern gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len,
     char *typecode);
-extern void (*gli_unregister_arr)(void *array, glui32 len, char *typecode, 
+extern void (*gli_unregister_arr)(void *array, glui32 len, char *typecode,
     gidispatch_rock_t objrock);
 
 /* Some useful type declarations. */
@@ -103,7 +103,7 @@ extern int gli_cellw;
 extern int gli_cellh;
 
 /* Usurp C1 space for ligatures and smart typography glyphs */
-#define ENC_LIG_FI 128	
+#define ENC_LIG_FI 128
 #define ENC_LIG_FL 129
 #define ENC_LSQUO 130
 #define ENC_RSQUO 131
@@ -180,6 +180,9 @@ extern char gli_workdir[];
 
 extern style_t gli_tstyles[style_NUMSTYLES];
 extern style_t gli_gstyles[style_NUMSTYLES];
+
+extern style_t gli_tstyles_def[style_NUMSTYLES];
+extern style_t gli_gstyles_def[style_NUMSTYLES];
 
 extern unsigned char gli_window_color[3];
 extern unsigned char gli_border_color[3];
@@ -320,7 +323,7 @@ struct glk_stream_struct
     window_t *win;
 
     /* for strtype_File */
-    FILE *file; 
+    FILE *file;
     int textfile;
 
     /* for strtype_Memory */
@@ -405,7 +408,7 @@ struct window_blank_s
 struct window_pair_s
 {
     window_t *owner;
-    window_t *child1, *child2; 
+    window_t *child1, *child2;
 
     /* split info... */
     glui32 dir; /* winmethod_Left, Right, Above, or Below */
@@ -618,19 +621,19 @@ void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
-extern stream_t *gli_new_stream(glui32 type, int readable, int writable, 
+extern stream_t *gli_new_stream(glui32 type, int readable, int writable,
     glui32 rock, int unicode);
 extern void gli_delete_stream(stream_t *str);
 extern stream_t *gli_stream_open_window(window_t *win);
 extern strid_t gli_stream_open_pathname(char *pathname, int textmode,
     glui32 rock);
 extern void gli_stream_set_current(stream_t *str);
-extern void gli_stream_fill_result(stream_t *str, 
+extern void gli_stream_fill_result(stream_t *str,
     stream_result_t *result);
 extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
 extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
 
-extern fileref_t *gli_new_fileref(char *filename, glui32 usage, 
+extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
     glui32 rock);
 extern void gli_delete_fileref(fileref_t *fref);
 
@@ -686,8 +689,8 @@ void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height);
 void win_graphics_redraw(window_t *win);
 void win_graphics_click(window_graphics_t *dwin, int x, int y);
 
-glui32 win_graphics_draw_picture(window_graphics_t *cutwin, 
-  glui32 image, glsi32 xpos, glsi32 ypos, 
+glui32 win_graphics_draw_picture(window_graphics_t *cutwin,
+  glui32 image, glsi32 xpos, glsi32 ypos,
   int scale, glui32 imagewidth, glui32 imageheight);
 void win_graphics_erase_rect(window_graphics_t *cutwin, int whole, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
 void win_graphics_fill_rect(window_graphics_t *cutwin, glui32 color, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
