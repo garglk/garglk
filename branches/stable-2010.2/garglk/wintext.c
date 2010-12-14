@@ -1317,16 +1317,19 @@ void gcmd_accept_scroll(window_t *win, glui32 arg)
         case keycode_Return:
             dwin->scrollpos --;
             break;
-        case ' ':
-        case keycode_PageDown:
-        //default:
-            dwin->scrollpos -= pageht;
-            break;
         case keycode_MouseWheelUp:
             dwin->scrollpos += 3;
             break;
         case keycode_MouseWheelDown:
             dwin->scrollpos -= 3;
+            break;
+        case ' ':
+        case keycode_PageDown:
+        //default:
+            if (pageht)
+                dwin->scrollpos -= pageht;
+            else
+                dwin->scrollpos = 0;
             break;
     }
 
