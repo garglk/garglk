@@ -53,15 +53,15 @@ char **tads_argv;
 
 glkunix_argumentlist_t glkunix_arguments[] =
 {
-	{ (char *) "", glkunix_arg_ValueFollows, (char *) "filename: The game file to load." },
+    { (char *) "", glkunix_arg_ValueFollows, (char *) "filename: The game file to load." },
     { NULL, glkunix_arg_End, NULL }
 };
 
 extern "C" int glkunix_startup_code(glkunix_startup_t *data)
 {
-	tads_argc = data->argc;
-	tads_argv = data->argv;
-	return TRUE;
+    tads_argc = data->argc;
+    tads_argv = data->argv;
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -168,12 +168,12 @@ void glk_main(void)
 
 #ifdef GARGLK
     garglk_set_program_name("TADS " TADS_RUNTIME_VERSION " / " T3VM_VSN_STRING);
-	garglk_set_program_info(
+    garglk_set_program_info(
                 "TADS Interpreter by Michael J. Roberts\n"
                 "TADS 2 VM version " TADS_RUNTIME_VERSION "\n"
                 "T3 VM version " T3VM_VSN_STRING "\n"
-				"Gargoyle port by Tor Andersson\n"
-	);
+                "Gargoyle port by Tor Andersson\n"
+    );
 #endif
 
     /* 
@@ -245,48 +245,48 @@ void glk_main(void)
     /* see what we have */
     switch(engine_ver)
     {
-    case VM_GGT_TADS2:
-        /* run the game using the TADS 2 engine */
-        stat = main_t2(argc, argv);
-        break;
+        case VM_GGT_TADS2:
+            /* run the game using the TADS 2 engine */
+            stat = main_t2(argc, argv);
+            break;
 
-    case VM_GGT_TADS3:
-        /* run the game using the TADS 3 engine */
-        stat = main_t3(argc, argv);
-        break;
+        case VM_GGT_TADS3:
+            /* run the game using the TADS 3 engine */
+            stat = main_t3(argc, argv);
+            break;
 
-    case VM_GGT_INVALID:
-        /* invalid file type */
-        sprintf(buf,
-            "The file you have selected (%s) is not a valid game file.\n",
-            fname);
-        mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
-        glk_set_window(mainwin);
-        glk_put_string(buf);
-        break;
+        case VM_GGT_INVALID:
+            /* invalid file type */
+            sprintf(buf,
+                    "The file you have selected (%s) is not a valid game file.\n",
+                    fname);
+            mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
+            glk_set_window(mainwin);
+            glk_put_string(buf);
+            break;
 
-    case VM_GGT_NOT_FOUND:
-        /* file not found */
-        sprintf(buf, "The game file (%s) cannot be found.\n", prog_arg);
-        mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
-        glk_set_window(mainwin);
-        glk_put_string(buf);
-        break;
+        case VM_GGT_NOT_FOUND:
+            /* file not found */
+            sprintf(buf, "The game file (%s) cannot be found.\n", prog_arg);
+            mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
+            glk_set_window(mainwin);
+            glk_put_string(buf);
+            break;
 
-    case VM_GGT_AMBIG:
-        /* ambiguous file */
-        sprintf(buf,"The game file (%s) cannot be found exactly as given, "
-               "but multiple game "
-               "files with this name and different default suffixes "
-               "(.gam, .t3) exist. "
-               "Please specify the full name of the file, including the "
-               "suffix, that you "
-               "wish to use.\n",
-               prog_arg);
-        mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
-        glk_set_window(mainwin);
-        glk_put_string(buf);
-        break;
+        case VM_GGT_AMBIG:
+            /* ambiguous file */
+            sprintf(buf,"The game file (%s) cannot be found exactly as given, "
+                        "but multiple game "
+                        "files with this name and different default suffixes "
+                        "(.gam, .t3) exist. "
+                        "Please specify the full name of the file, including the "
+                        "suffix, that you "
+                        "wish to use.\n",
+                   prog_arg);
+            mainwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 0);
+            glk_set_window(mainwin);
+            glk_put_string(buf);
+            break;
     }
 
     /* pause (if desired by OS layer) and terminate with our status code */

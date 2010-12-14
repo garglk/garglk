@@ -39,7 +39,8 @@ char *os_strlwr(char *s)
     char *sptr;
 
     sptr = s;
-    while (*sptr != 0) {
+    while (*sptr != 0)
+    {
         *sptr = tolower((unsigned char)*sptr);
         sptr++;
     }
@@ -244,10 +245,10 @@ void os_csr_busy(int flag)
  */
 long os_get_sys_clock_ms(void)
 {
-	static time_t time_zero;
-	if (time_zero == 0)
-		time_zero = time(0);
-	return ((time(0) - time_zero) * 1000);
+    static time_t time_zero;
+    if (time_zero == 0)
+        time_zero = time(0);
+    return ((time(0) - time_zero) * 1000);
 }
 
 /*
@@ -260,21 +261,21 @@ long os_get_sys_clock_ms(void)
 void os_sleep_ms(long delay_in_milliseconds)
 {
 #ifdef _WIN32
-	Sleep(delay_in_milliseconds);
+    Sleep(delay_in_milliseconds);
 #else
-	usleep(delay_in_milliseconds * 1000);
+    usleep(delay_in_milliseconds * 1000);
 #endif
 
 #if 0
-	/*
-	 *   calculate the time when we'll be done by adding the delay to the
-	 *   current time
-	 */
-	done_time = os_get_sys_clock_ms() + delay_in_milliseconds;
+    /*
+     *   calculate the time when we'll be done by adding the delay to the
+     *   current time
+     */
+    done_time = os_get_sys_clock_ms() + delay_in_milliseconds;
 
-	/* loop until the system clock says we're done */
-	while (os_get_sys_clock_ms() < done_time)
-		/* do nothing but soak up CPU cycles... */;
+    /* loop until the system clock says we're done */
+    while (os_get_sys_clock_ms() < done_time)
+        /* do nothing but soak up CPU cycles... */;
 #endif
 }
 
@@ -290,7 +291,7 @@ void os_settype(const char *f, os_filetype_t typ)
  */
 int os_paramfile(char *buf)
 {
-	return FALSE;
+    return FALSE;
 }
 
 /*
@@ -356,7 +357,7 @@ void os_instbrk(int install)
  */
 int os_break(void)
 {
-	return 0;
+    return 0;
 }
 
 /*
@@ -397,7 +398,7 @@ int os_break(void)
 #ifndef os_yield
 int os_yield(void)
 {
-	return 0;
+    return 0;
 }
 #endif
 
@@ -472,63 +473,85 @@ void os_xlat_html4(unsigned int html4_char, char *result, size_t result_buf_len)
 {
     /* Return all standard Latin-1 characters as-is */
     if (html4_char <= 128 || (html4_char >= 160 && html4_char <= 255))
+    {
         result[0] = (unsigned char)html4_char;
-    else {
-        switch (html4_char) {
-        case 130:                                      /* single back quote */
-            result[0] = '`'; break;
-        case 132:                                      /* double back quote */
-            result[0] = '\"'; break;
-        case 153:                                             /* trade mark */
-            strcpy(result, "(tm)"); return;
-        case 140:                                            /* OE ligature */
-        case 338:                                            /* OE ligature */
-            strcpy(result, "OE"); return;
-        case 339:                                            /* oe ligature */
-            strcpy(result, "oe"); return;
-        case 159:                                                   /* Yuml */
-            result[0] = 255;
-        case 376:                                        /* Y with diaresis */
-            result[0] = 'Y'; break;
-        case 352:                                           /* S with caron */
-            result[0] = 'S'; break;
-        case 353:                                           /* s with caron */
-            result[0] = 's'; break;
-        case 150:                                                /* en dash */
-        case 8211:                                               /* en dash */
-            result[0] = '-'; break;
-        case 151:                                                /* em dash */
-        case 8212:                                               /* em dash */
-            strcpy(result, "--"); return;
-        case 145:                                      /* left single quote */
-        case 8216:                                     /* left single quote */
-            result[0] = '`'; break;
-        case 146:                                     /* right single quote */
-        case 8217:                                    /* right single quote */
-        case 8218:                                    /* single low-9 quote */
-            result[0] = '\''; break;
-        case 147:                                      /* left double quote */
-        case 148:                                     /* right double quote */
-        case 8220:                                     /* left double quote */
-        case 8221:                                    /* right double quote */
-        case 8222:                                    /* double low-9 quote */
-            result[0] = '\"'; break;
-        case 8224:                                                /* dagger */
-        case 8225:                                         /* double dagger */
-        case 8240:                                        /* per mille sign */
-            result[0] = ' '; break;
-        case 139:                       /* single left-pointing angle quote */
-        case 8249:                      /* single left-pointing angle quote */
-            result[0] = '<'; break;
-        case 155:                      /* single right-pointing angle quote */
-        case 8250:                     /* single right-pointing angle quote */
-            result[0] = '>'; break;
-        case 8482:                                           /* small tilde */
-            result[0] = '~'; break;
+    }
+    else
+    {
+        switch (html4_char)
+        {
+            case 130:                                      /* single back quote */
+                result[0] = '`';
+                break;
+            case 132:                                      /* double back quote */
+                result[0] = '\"';
+                break;
+            case 153:                                             /* trade mark */
+                strcpy(result, "(tm)");
+                return;
+            case 140:                                            /* OE ligature */
+            case 338:                                            /* OE ligature */
+                strcpy(result, "OE");
+                return;
+            case 339:                                            /* oe ligature */
+                strcpy(result, "oe");
+                return;
+            case 159:                                                   /* Yuml */
+                result[0] = 255;
+                break;
+            case 376:                                        /* Y with diaresis */
+                result[0] = 'Y';
+                break;
+            case 352:                                           /* S with caron */
+                result[0] = 'S';
+                break;
+            case 353:                                           /* s with caron */
+                result[0] = 's';
+                break;
+            case 150:                                                /* en dash */
+            case 8211:                                               /* en dash */
+                result[0] = '-';
+                break;
+            case 151:                                                /* em dash */
+            case 8212:                                               /* em dash */
+                strcpy(result, "--");
+                return;
+            case 145:                                      /* left single quote */
+            case 8216:                                     /* left single quote */
+                result[0] = '`';
+                break;
+            case 146:                                     /* right single quote */
+            case 8217:                                    /* right single quote */
+            case 8218:                                    /* single low-9 quote */
+                result[0] = '\'';
+                break;
+            case 147:                                      /* left double quote */
+            case 148:                                     /* right double quote */
+            case 8220:                                     /* left double quote */
+            case 8221:                                    /* right double quote */
+            case 8222:                                    /* double low-9 quote */
+                result[0] = '\"';
+                break;
+            case 8224:                                                /* dagger */
+            case 8225:                                         /* double dagger */
+            case 8240:                                        /* per mille sign */
+                result[0] = ' ';
+                break;
+            case 139:                       /* single left-pointing angle quote */
+            case 8249:                      /* single left-pointing angle quote */
+                result[0] = '<';
+                break;
+            case 155:                      /* single right-pointing angle quote */
+            case 8250:                     /* single right-pointing angle quote */
+                result[0] = '>';
+                break;
+            case 8482:                                           /* small tilde */
+                result[0] = '~';
+                break;
             
-        default:
-            /* unmappable character - return space */
-            result[0] = (unsigned char)' ';
+            default:
+                /* unmappable character - return space */
+                result[0] = (unsigned char)' ';
         }
     }
     result[1] = 0;
@@ -640,6 +663,6 @@ void os_advise_load_charmap(char *id, char *ldesc, char *sysinfo)
  */
 void os_get_charmap(char *mapname, int charmap_id)
 {
-	strcpy(mapname, "asc7dflt");
+    strcpy(mapname, "asc7dflt");
 }
 

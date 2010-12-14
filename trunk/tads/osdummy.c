@@ -37,45 +37,45 @@ static int curattr = 0;
  */
 int os_get_sysinfo(int code, void *param, long *result)
 {
-	switch (code)
-	{
-		case SYSINFO_TEXT_HILITE:
-			*result = 1;	
-			return TRUE;
-		case SYSINFO_INTERP_CLASS:
-			*result = SYSINFO_ICLASS_TEXTGUI;
-			return TRUE;
+    switch (code)
+    {
+        case SYSINFO_TEXT_HILITE:
+            *result = 1;
+            return TRUE;
+        case SYSINFO_INTERP_CLASS:
+            *result = SYSINFO_ICLASS_TEXTGUI;
+            return TRUE;
 
-		case SYSINFO_BANNERS:
-		case SYSINFO_HTML:
-		case SYSINFO_JPEG:
-		case SYSINFO_PNG:
-		case SYSINFO_WAV:
-		case SYSINFO_MIDI:
-		case SYSINFO_WAV_MIDI_OVL:
-		case SYSINFO_WAV_OVL:
-		case SYSINFO_PREF_IMAGES:
-		case SYSINFO_PREF_SOUNDS:
-		case SYSINFO_PREF_MUSIC:
-		case SYSINFO_PREF_LINKS:
-		case SYSINFO_MPEG:
-		case SYSINFO_MPEG1:
-		case SYSINFO_MPEG2:
-		case SYSINFO_MPEG3:
-		case SYSINFO_LINKS_HTTP:
-		case SYSINFO_LINKS_FTP:
-		case SYSINFO_LINKS_NEWS:
-		case SYSINFO_LINKS_MAILTO:
-		case SYSINFO_LINKS_TELNET:
-		case SYSINFO_PNG_TRANS:
-		case SYSINFO_PNG_ALPHA:
-		case SYSINFO_OGG:
-			*result = 0;
-			return TRUE;
+        case SYSINFO_BANNERS:
+        case SYSINFO_HTML:
+        case SYSINFO_JPEG:
+        case SYSINFO_PNG:
+        case SYSINFO_WAV:
+        case SYSINFO_MIDI:
+        case SYSINFO_WAV_MIDI_OVL:
+        case SYSINFO_WAV_OVL:
+        case SYSINFO_PREF_IMAGES:
+        case SYSINFO_PREF_SOUNDS:
+        case SYSINFO_PREF_MUSIC:
+        case SYSINFO_PREF_LINKS:
+        case SYSINFO_MPEG:
+        case SYSINFO_MPEG1:
+        case SYSINFO_MPEG2:
+        case SYSINFO_MPEG3:
+        case SYSINFO_LINKS_HTTP:
+        case SYSINFO_LINKS_FTP:
+        case SYSINFO_LINKS_NEWS:
+        case SYSINFO_LINKS_MAILTO:
+        case SYSINFO_LINKS_TELNET:
+        case SYSINFO_PNG_TRANS:
+        case SYSINFO_PNG_ALPHA:
+        case SYSINFO_OGG:
+            *result = 0;
+            return TRUE;
 
-		default:
-			return FALSE;
-	}
+        default:
+            return FALSE;
+    }
 }
 
 
@@ -151,7 +151,7 @@ void os_printz(const char *str)
 void os_print(const char *str, size_t len)
 {
     if (curwin == 0)
-	fwrite(str, 1, len, stdout);
+        fwrite(str, 1, len, stdout);
 }
 
 
@@ -277,7 +277,7 @@ void os_set_screen_color(os_color_t color)
  */
 void os_set_title(const char *title)
 {
-	printf("TITLE: %s\n", title);
+    printf("TITLE: %s\n", title);
 }
 
 /*
@@ -300,8 +300,8 @@ void os_set_title(const char *title)
  */
 void os_more_prompt()
 {
-	/* I don't get this... */
-	printf("MORE?\n");
+    /* I don't get this... */
+    printf("MORE?\n");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -329,11 +329,11 @@ void os_more_prompt()
 int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
                int prompt_type, os_filetype_t file_type)
 {
-	printf("ASKFILE '%s' %c > ",
-		prompt,
-		prompt_type == OS_AFP_OPEN ? 'o' : 's');
-	return OS_AFE_CANCEL;
-	return OS_AFE_SUCCESS;
+    printf("ASKFILE '%s' %c > ",
+        prompt,
+        prompt_type == OS_AFP_OPEN ? 'o' : 's');
+    return OS_AFE_CANCEL;
+    return OS_AFE_SUCCESS;
 }
 
 /* 
@@ -345,18 +345,18 @@ int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
  */
 unsigned char *os_gets(unsigned char *buf, size_t buflen)
 {
-	size_t len;
+    size_t len;
 
-	/* read from stdin; return failure if fgets does */
-	if (fgets((char *)buf, buflen, stdin) == 0)
-		return 0;
+    /* read from stdin; return failure if fgets does */
+    if (fgets((char *)buf, buflen, stdin) == 0)
+        return 0;
 
-	/* remove the trailing newline in the result, if there is one */
-	if ((len = strlen((char *)buf)) != 0 && buf[len-1] == '\n')
-		buf[len-1] = '\0';
+    /* remove the trailing newline in the result, if there is one */
+    if ((len = strlen((char *)buf)) != 0 && buf[len-1] == '\n')
+        buf[len-1] = '\0';
 
-	/* return the buffer pointer */
-	return buf;
+    /* return the buffer pointer */
+    return buf;
 }
 
 /*
@@ -436,10 +436,10 @@ unsigned char *os_gets(unsigned char *buf, size_t buflen)
 int os_gets_timeout(unsigned char *buf, size_t bufl,
                     unsigned long timeout_in_milliseconds, int use_timeout)
 {
-	if (use_timeout)
-		return OS_EVT_TIMEOUT;
-	else
-		return os_gets(buf, bufl) == 0 ? OS_EVT_EOF : OS_EVT_LINE;
+    if (use_timeout)
+        return OS_EVT_TIMEOUT;
+    else
+        return os_gets(buf, bufl) == 0 ? OS_EVT_EOF : OS_EVT_LINE;
 }
 
 /*
@@ -490,7 +490,7 @@ void os_gets_cancel(int reset)
  */
 int os_getc(void)
 {
-	return getchar();
+    return getchar();
 }
 
 /*
@@ -522,13 +522,13 @@ int os_getc(void)
  */
 int os_getc_raw(void)
 {
-	return getchar();
+    return getchar();
 }
 
 /* wait for a character to become available from the keyboard */
 void os_waitc(void)
 {
-	getchar();
+    getchar();
 }
 
 /*
@@ -579,11 +579,11 @@ int os_get_event(unsigned long timeout_in_milliseconds, int use_timeout,
 int os_init(int *argc, char *argv[], const char *prompt,
             char *buf, int bufsiz)
 {
-	printf("INIT\n");
+    printf("INIT\n");
 }
 
 void os_term(int status)
 {
-	exit(status);
+    exit(status);
 }
 
