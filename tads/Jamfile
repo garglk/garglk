@@ -70,7 +70,7 @@ Main tadsr :
     t23run.cpp
     osansi1.c osansi2.c osansi3.c
     osglk.c
-    osnoban.c
+    osglkban.c
     t2askf.c
     t2indlg.c
     t3askf.cpp
