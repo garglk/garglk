@@ -49,7 +49,7 @@
  */
 int os_get_exe_filename(char *buf, size_t buflen, const char *argv0)
 {
-	return 0;
+    return 0;
 }
 
 /*
@@ -99,27 +99,27 @@ int os_get_exe_filename(char *buf, size_t buflen, const char *argv0)
 void os_get_special_path(char *buf, size_t buflen,
                          const char *argv0, int id)
 {
-	char *str = NULL;
+    char *str = NULL;
 
-	switch (id)
-	{
-		case OS_GSP_T3_RES:
-			str = getenv("TADS3_RESDIR");
-			break;
-		case OS_GSP_T3_LIB:
-			str = getenv("TADS3_LIBDIR");
-			break;
-		case OS_GSP_T3_INC:
-			str = getenv("TADS3_INCLUDEDIR");
-			break;
-		default:
-			str = NULL;
-			break;
-	}
+    switch (id)
+    {
+        case OS_GSP_T3_RES:
+            str = getenv("TADS3_RESDIR");
+            break;
+        case OS_GSP_T3_LIB:
+            str = getenv("TADS3_LIBDIR");
+            break;
+        case OS_GSP_T3_INC:
+            str = getenv("TADS3_INCLUDEDIR");
+            break;
+        default:
+            str = NULL;
+            break;
+    }
 
-	if (!str)
-		str = "";
-	strcpy(buf, str);
+    if (!str)
+        str = "";
+    strcpy(buf, str);
 }
 
 /* 
@@ -137,7 +137,7 @@ void os_get_special_path(char *buf, size_t buflen,
  */
 osfildef *os_exeseek(const char *argv0, const char *typ)
 {
-	return NULL;
+    return NULL;
 }
 
 
@@ -164,13 +164,13 @@ osfildef *os_exeseek(const char *argv0, const char *typ)
 int os_locate(const char *fname, int flen, const char *arg0,
               char *buf, size_t bufsiz)
 {
-	if (!osfacc(fname))
-	{
-		memcpy(buf, fname, flen);
-		buf[flen] = 0;
-		return TRUE;
-	}
-	return FALSE;
+    if (!osfacc(fname))
+    {
+        memcpy(buf, fname, flen);
+        buf[flen] = 0;
+        return TRUE;
+    }
+    return FALSE;
 }
 
 
@@ -225,8 +225,8 @@ int os_locate(const char *fname, int flen, const char *arg0,
  */
 osfildef *os_create_tempfile(const char *fname, char *buf)
 {
-	assert(FALSE && "boom");
-	return NULL;
+    assert(FALSE && "boom");
+    return NULL;
 }
 
 /*
@@ -256,7 +256,7 @@ osfildef *os_create_tempfile(const char *fname, char *buf)
  */
 int osfdel_temp(const char *fname)
 {
-	return TRUE;
+    return TRUE;
 }
 
 
@@ -267,7 +267,7 @@ int osfdel_temp(const char *fname)
  */
 void os_get_tmp_path(char *buf)
 {
-	strcpy(buf, "");
+    strcpy(buf, "");
 }
 
 

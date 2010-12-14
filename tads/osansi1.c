@@ -37,7 +37,7 @@
  */
 osfildef *osfoprt(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "r");
+    return fopen(fname, "r");
 }
 
 /* 
@@ -45,7 +45,7 @@ osfildef *osfoprt(const char *fname, os_filetype_t typ)
  */
 osfildef *osfopwt(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "w");
+    return fopen(fname, "w");
 }
 
 /*
@@ -55,11 +55,11 @@ osfildef *osfopwt(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprwt(const char *fname, os_filetype_t typ)
 {
-	FILE *fp;
-	fp = fopen(fname, "r+");
-	if (!fp)
-		fp = fopen(fname, "w+");
-	return fp;
+    FILE *fp;
+    fp = fopen(fname, "r+");
+    if (!fp)
+        fp = fopen(fname, "w+");
+    return fp;
 }
 
 /* 
@@ -69,7 +69,7 @@ osfildef *osfoprwt(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprwtt(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "w+");
+    return fopen(fname, "w+");
 }
 
 /* 
@@ -77,7 +77,7 @@ osfildef *osfoprwtt(const char *fname, os_filetype_t typ)
  */
 osfildef *osfopwb(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "wb");
+    return fopen(fname, "wb");
 }
 
 /* 
@@ -86,7 +86,7 @@ osfildef *osfopwb(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprs(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "r");
+    return fopen(fname, "r");
 }
 
 /* 
@@ -94,7 +94,7 @@ osfildef *osfoprs(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprb(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "rb");
+    return fopen(fname, "rb");
 }
 
 /* 
@@ -104,11 +104,11 @@ osfildef *osfoprb(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprwb(const char *fname, os_filetype_t typ)
 {
-	FILE *fp;
-	fp = fopen(fname, "r+b");
-	if (!fp)
-		fp = fopen(fname, "w+b");
-	return fp;
+    FILE *fp;
+    fp = fopen(fname, "r+b");
+    if (!fp)
+        fp = fopen(fname, "w+b");
+    return fp;
 }
 
 /* 
@@ -118,7 +118,7 @@ osfildef *osfoprwb(const char *fname, os_filetype_t typ)
  */
 osfildef *osfoprwtb(const char *fname, os_filetype_t typ)
 {
-	return fopen(fname, "w+b");
+    return fopen(fname, "w+b");
 }
 
 /* 
@@ -126,7 +126,7 @@ osfildef *osfoprwtb(const char *fname, os_filetype_t typ)
  */
 char *osfgets(char *buf, size_t len, osfildef *fp)
 {
-	return fgets(buf, len, fp);
+    return fgets(buf, len, fp);
 }
 
 /* 
@@ -134,7 +134,7 @@ char *osfgets(char *buf, size_t len, osfildef *fp)
  */
 int osfputs(const char *buf, osfildef *fp)
 {
-	return fputs(buf, fp);
+    return fputs(buf, fp);
 }
 
 /*
@@ -144,12 +144,12 @@ int osfputs(const char *buf, osfildef *fp)
  */
 void os_fprintz(osfildef *fp, const char *str)
 {
-	fwrite(str, 1, strlen(str), fp);
+    fwrite(str, 1, strlen(str), fp);
 }
 
 void os_fprint(osfildef *fp, const char *str, size_t len)
 {
-	fwrite(str, 1, len, fp);
+    fwrite(str, 1, len, fp);
 }
 
 /* 
@@ -157,7 +157,7 @@ void os_fprint(osfildef *fp, const char *str, size_t len)
  */
 int osfwb(osfildef *fp, const void *buf, int bufl)
 {
-	return fwrite(buf, bufl, 1, fp) != 1;
+    return fwrite(buf, bufl, 1, fp) != 1;
 }
 
 /* 
@@ -165,7 +165,7 @@ int osfwb(osfildef *fp, const void *buf, int bufl)
  */
 int osfrb(osfildef *fp, void *buf, int bufl)
 {
-	return fread(buf, bufl, 1, fp) != 1;
+    return fread(buf, bufl, 1, fp) != 1;
 }
 
 /* 
@@ -174,7 +174,7 @@ int osfrb(osfildef *fp, void *buf, int bufl)
  */
 size_t osfrbc(osfildef *fp, void *buf, size_t bufl)
 {
-	return fread(buf, 1, bufl, fp);
+    return fread(buf, 1, bufl, fp);
 }
 
 /* 
@@ -183,7 +183,7 @@ size_t osfrbc(osfildef *fp, void *buf, size_t bufl)
  */
 long osfpos(osfildef *fp)
 {
-	return ftell(fp);
+    return ftell(fp);
 }
 
 /* 
@@ -200,7 +200,7 @@ long osfpos(osfildef *fp)
  */
 int osfseek(osfildef *fp, long pos, int mode)
 {
-	return fseek(fp, pos, mode);
+    return fseek(fp, pos, mode);
 }
 
 /*
@@ -209,7 +209,7 @@ int osfseek(osfildef *fp, long pos, int mode)
 
 void osfflush(osfildef *fp)
 {
-	fflush(fp);
+    fflush(fp);
 }
 
 /* 
@@ -217,7 +217,7 @@ void osfflush(osfildef *fp)
  */
 void osfcls(osfildef *fp)
 {
-	fclose(fp);
+    fclose(fp);
 }
 
 /* 
@@ -225,7 +225,7 @@ void osfcls(osfildef *fp)
  */
 int osfdel(const char *fname)
 {
-	return remove(fname);
+    return remove(fname);
 }
 
 /* 
@@ -239,7 +239,7 @@ int osfdel(const char *fname)
  */
 int osfacc(const char *fname)
 {
-	return access(fname, 0);
+    return access(fname, 0);
 }
 
 /* 
@@ -247,6 +247,6 @@ int osfacc(const char *fname)
  */
 int osfgetc(osfildef *fp)
 {
-	return getc(fp);
+    return getc(fp);
 }
 

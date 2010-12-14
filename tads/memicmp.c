@@ -23,7 +23,7 @@
 #include <ctype.h>
 
 /*
- *   Provide memicmp, since it's not a standard libc routine.  
+ *   Provide memicmp, since it's not a standard libc routine.
  */
 int os_memicmp(const char *s1, const char *s2, int len)
 {
