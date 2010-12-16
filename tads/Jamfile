@@ -15,6 +15,7 @@ SubDirCcFlags
     # -DGLK_ANSI_ONLY # if you don't have garglk_fileref_to_name
     -DGARGOYLE
     -DVMGLOB_STRUCT
+    -DGLK_UNICODE
     ;
 
 if $(OS) = LINUX || $(OS) = SOLARIS
@@ -69,6 +70,7 @@ Library libtads3 :
 Main tadsr :
     t23run.cpp
     osansi1.c osansi2.c osansi3.c
+    osbuffer.c osparse.c
     osglk.c
     osglkban.c
     t2askf.c

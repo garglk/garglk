@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -148,6 +149,10 @@ void osfcls(osfildef *fp);
 int osfdel(const char *fname);
 int osfacc(const char *fname);
 int osfgetc(osfildef *fp);
+
+void os_put_buffer (unsigned char *buf, size_t len);
+void os_get_buffer (unsigned char *buf, size_t len);
+unsigned char *os_fill_buffer (unsigned char *buf, size_t len);
 
 /* 
  *   Convert string to all-lowercase. 

@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -663,6 +664,21 @@ void os_advise_load_charmap(char *id, char *ldesc, char *sysinfo)
  */
 void os_get_charmap(char *mapname, int charmap_id)
 {
+#ifndef GLK_UNICODE
     strcpy(mapname, "asc7dflt");
+#else
+    switch (charmap_id)
+    {
+        case OS_CHARMAP_DISPLAY:
+        case OS_CHARMAP_FILECONTENTS:
+            strcpy(mapname, "utf-8");
+            break;
+
+        case OS_CHARMAP_FILENAME:
+        default:
+            strcpy(mapname, "asc7dflt");
+            break;
+    }
+#endif
 }
 

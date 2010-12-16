@@ -364,7 +364,7 @@ contentid_t banner_contents_init(void)
     instance->len = 0;
 }
 
-void banner_contents_insert(contentid_t contents, const char *txt, glui32 len)
+void banner_contents_insert(contentid_t contents, const char *txt, size_t len)
 {
     if (!contents)
         return;
@@ -373,9 +373,7 @@ void banner_contents_insert(contentid_t contents, const char *txt, glui32 len)
     if (!(contents->chars))
         return;
 
-    glui32 x;
-    for (x = 0; x < len; x ++)
-        contents->chars[x] = txt[x];
+    memcpy(contents->chars, txt, len);
 
     contents->chars[len] = '\0';
     contents->len = len;
@@ -387,13 +385,14 @@ void banner_contents_display(contentid_t contents)
         return;
 
     winid_t win = contents->banner->win;
-    strid_t str = glk_window_get_stream(win);
     glui32 len = contents->len;
+
+    glk_set_window(win);
 
     if (contents->newline)
     {
         char ch = '\n';
-        glk_put_buffer_stream(str, &ch, 1);
+        os_put_buffer(&ch, 1);
     }
     
     if (len && (contents->chars[len-1] == '\n'))
@@ -414,8 +413,9 @@ void banner_contents_display(contentid_t contents)
         contents->banner->y = 0;
     }
 
-    glk_set_style_stream(str, contents->style);
-    glk_put_buffer_stream(str, contents->chars, len);
+    glk_set_style(contents->style);
+    os_put_buffer(contents->chars, len);
+    glk_set_window(mainwin);
     banner_contents_display(contents->next);
 }
 

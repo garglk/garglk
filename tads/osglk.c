@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -244,11 +245,9 @@ void os_printz(const char *str)
 
 void os_print(const char *str, size_t len)
 {
-    if (curwin == 0)
-    {
-        while (*str)
-            glk_put_char((unsigned char)*str++);
-    }
+    if (curwin == 0 && str)
+        os_put_buffer((unsigned char *)str, len);
+
     if (curwin == 1)
     {
         const char *p;
@@ -352,7 +351,7 @@ static void os_status_redraw(void)
     glk_window_clear(statuswin);
     glk_set_window(statuswin);
     glk_set_style(style_User1);
-    glk_put_string(buf);
+    os_put_buffer(buf, strlen(buf));
     glk_set_window(mainwin);
 }
 
@@ -531,7 +530,7 @@ unsigned char *os_gets(unsigned char *buf, size_t buflen)
 {
     event_t event;
 
-    glk_request_line_event(mainwin, buf, buflen - 1, 0);
+    os_get_buffer(buf, buflen);
 
     do
     {
@@ -541,9 +540,7 @@ unsigned char *os_gets(unsigned char *buf, size_t buflen)
     }
     while (event.type != evtype_LineInput);
 
-    buf[event.val1] = 0;
-
-    return buf;
+    return os_fill_buffer(buf, event.val1);
 }
 
 /*
