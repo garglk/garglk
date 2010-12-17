@@ -668,6 +668,7 @@ void os_banner_disp(void *banner_handle, const char *txt, size_t len)
     if (!update)
         return;
     update->banner = banner;
+    update->next = 0;
 
     if (!(banner->contents))
     {
