@@ -332,6 +332,24 @@ glui32 prepare_utf8(glui32 *buf, glui32 buflen,
 }
 
 /* http://unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1251.TXT */
+
+static const glui32 CP1251ToUnicode[128] = {
+    0x0402, 0x0403, 0x201A, 0x0453, 0x201E, 0x2026, 0x2020, 0x2021, 0x20AC, 0x2030,
+    0x0409, 0x2039, 0x040A, 0x040C, 0x040B, 0x040F, 0x0452, 0x2018, 0x2019, 0x201C,
+    0x201D, 0x2022, 0x2013, 0x2014, 0x003F, 0x2122, 0x0459, 0x203A, 0x045A, 0x045C,
+    0x045B, 0x045F, 0x00A0, 0x040E, 0x045E, 0x0408, 0x00A4, 0x0490, 0x00A6, 0x00A7,
+    0x0401, 0x00A9, 0x0404, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x0407, 0x00B0, 0x00B1,
+    0x0406, 0x0456, 0x0491, 0x00B5, 0x00B6, 0x00B7, 0x0451, 0x2116, 0x0454, 0x00BB,
+    0x0458, 0x0405, 0x0455, 0x0457, 0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415,
+    0x0416, 0x0417, 0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E, 0x041F,
+    0x0420, 0x0421, 0x0422, 0x0423, 0x0424, 0x0425, 0x0426, 0x0427, 0x0428, 0x0429,
+    0x042A, 0x042B, 0x042C, 0x042D, 0x042E, 0x042F, 0x0430, 0x0431, 0x0432, 0x0433,
+    0x0434, 0x0435, 0x0436, 0x0437, 0x0438, 0x0439, 0x043A, 0x043B, 0x043C, 0x043D,
+    0x043E, 0x043F, 0x0440, 0x0441, 0x0442, 0x0443, 0x0444, 0x0445, 0x0446, 0x0447,
+    0x0448, 0x0449, 0x044A, 0x044B, 0x044C, 0x044D, 0x044E, 0x044F
+
+};
+
 glui32 parse_cp1251(unsigned char *buf, glui32 buflen,
                      glui32 *out, glui32 outlen)
 {
@@ -347,156 +365,9 @@ glui32 parse_cp1251(unsigned char *buf, glui32 buflen,
         res = buf[pos++];
 
         if (res < 0x80)
-        {
             out[outpos++] = res;
-            continue;
-        }
-
-        switch (res)
-        {
-            case 0x80: out[outpos++] = 0x0402; break;
-            case 0x81: out[outpos++] = 0x0403; break;
-            case 0x82: out[outpos++] = 0x201A; break;
-            case 0x83: out[outpos++] = 0x0453; break;
-            case 0x84: out[outpos++] = 0x201E; break;
-            case 0x85: out[outpos++] = 0x2026; break;
-            case 0x86: out[outpos++] = 0x2020; break;
-            case 0x87: out[outpos++] = 0x2021; break;
-            case 0x88: out[outpos++] = 0x20AC; break;
-            case 0x89: out[outpos++] = 0x2030; break;
-            case 0x8A: out[outpos++] = 0x0409; break;
-            case 0x8B: out[outpos++] = 0x2039; break;
-            case 0x8C: out[outpos++] = 0x040A; break;
-            case 0x8D: out[outpos++] = 0x040C; break;
-            case 0x8E: out[outpos++] = 0x040B; break;
-            case 0x8F: out[outpos++] = 0x040F; break;
-
-            case 0x90: out[outpos++] = 0x0452; break;
-            case 0x91: out[outpos++] = 0x2018; break;
-            case 0x92: out[outpos++] = 0x2019; break;
-            case 0x93: out[outpos++] = 0x201C; break;
-            case 0x94: out[outpos++] = 0x201D; break;
-            case 0x95: out[outpos++] = 0x2022; break;
-            case 0x96: out[outpos++] = 0x2013; break;
-            case 0x97: out[outpos++] = 0x2014; break;
-            case 0x99: out[outpos++] = 0x2122; break;
-            case 0x9A: out[outpos++] = 0x0459; break;
-            case 0x9B: out[outpos++] = 0x203A; break;
-            case 0x9C: out[outpos++] = 0x045A; break;
-            case 0x9D: out[outpos++] = 0x045C; break;
-            case 0x9E: out[outpos++] = 0x045B; break;
-            case 0x9F: out[outpos++] = 0x045F; break;
-
-            case 0xA0: out[outpos++] = 0x00A0; break;
-            case 0xA1: out[outpos++] = 0x040E; break;
-            case 0xA2: out[outpos++] = 0x045E; break;
-            case 0xA3: out[outpos++] = 0x0408; break;
-            case 0xA4: out[outpos++] = 0x00A4; break;
-            case 0xA5: out[outpos++] = 0x0490; break;
-            case 0xA6: out[outpos++] = 0x00A6; break;
-            case 0xA7: out[outpos++] = 0x00A7; break;
-            case 0xA8: out[outpos++] = 0x0401; break;
-            case 0xA9: out[outpos++] = 0x00A9; break;
-            case 0xAA: out[outpos++] = 0x0404; break;
-            case 0xAB: out[outpos++] = 0x00AB; break;
-            case 0xAC: out[outpos++] = 0x00AC; break;
-            case 0xAD: out[outpos++] = 0x00AD; break;
-            case 0xAE: out[outpos++] = 0x00AE; break;
-            case 0xAF: out[outpos++] = 0x0407; break;
-
-            case 0xB0: out[outpos++] = 0x00B0; break;
-            case 0xB1: out[outpos++] = 0x00B1; break;
-            case 0xB2: out[outpos++] = 0x0406; break;
-            case 0xB3: out[outpos++] = 0x0456; break;
-            case 0xB4: out[outpos++] = 0x0491; break;
-            case 0xB5: out[outpos++] = 0x00B5; break;
-            case 0xB6: out[outpos++] = 0x00B6; break;
-            case 0xB7: out[outpos++] = 0x00B7; break;
-            case 0xB8: out[outpos++] = 0x0451; break;
-            case 0xB9: out[outpos++] = 0x2116; break;
-            case 0xBA: out[outpos++] = 0x0454; break;
-            case 0xBB: out[outpos++] = 0x00BB; break;
-            case 0xBC: out[outpos++] = 0x0458; break;
-            case 0xBD: out[outpos++] = 0x0405; break;
-            case 0xBE: out[outpos++] = 0x0455; break;
-            case 0xBF: out[outpos++] = 0x0457; break;
-
-            case 0xC0: out[outpos++] = 0x0410; break;
-            case 0xC1: out[outpos++] = 0x0411; break;
-            case 0xC2: out[outpos++] = 0x0412; break;
-            case 0xC3: out[outpos++] = 0x0413; break;
-            case 0xC4: out[outpos++] = 0x0414; break;
-            case 0xC5: out[outpos++] = 0x0415; break;
-            case 0xC6: out[outpos++] = 0x0416; break;
-            case 0xC7: out[outpos++] = 0x0417; break;
-            case 0xC8: out[outpos++] = 0x0418; break;
-            case 0xC9: out[outpos++] = 0x0419; break;
-            case 0xCA: out[outpos++] = 0x041A; break;
-            case 0xCB: out[outpos++] = 0x041B; break;
-            case 0xCC: out[outpos++] = 0x041C; break;
-            case 0xCD: out[outpos++] = 0x041D; break;
-            case 0xCE: out[outpos++] = 0x041E; break;
-            case 0xCF: out[outpos++] = 0x041F; break;
-
-            case 0xD0: out[outpos++] = 0x0420; break;
-            case 0xD1: out[outpos++] = 0x0421; break;
-            case 0xD2: out[outpos++] = 0x0422; break;
-            case 0xD3: out[outpos++] = 0x0423; break;
-            case 0xD4: out[outpos++] = 0x0424; break;
-            case 0xD5: out[outpos++] = 0x0425; break;
-            case 0xD6: out[outpos++] = 0x0426; break;
-            case 0xD7: out[outpos++] = 0x0427; break;
-            case 0xD8: out[outpos++] = 0x0428; break;
-            case 0xD9: out[outpos++] = 0x0429; break;
-            case 0xDA: out[outpos++] = 0x042A; break;
-            case 0xDB: out[outpos++] = 0x042B; break;
-            case 0xDC: out[outpos++] = 0x042C; break;
-            case 0xDD: out[outpos++] = 0x042D; break;
-            case 0xDE: out[outpos++] = 0x042E; break;
-            case 0xDF: out[outpos++] = 0x042F; break;
-
-            case 0xE0: out[outpos++] = 0x0430; break;
-            case 0xE1: out[outpos++] = 0x0431; break;
-            case 0xE2: out[outpos++] = 0x0432; break;
-            case 0xE3: out[outpos++] = 0x0433; break;
-            case 0xE4: out[outpos++] = 0x0434; break;
-            case 0xE5: out[outpos++] = 0x0435; break;
-            case 0xE6: out[outpos++] = 0x0436; break;
-            case 0xE7: out[outpos++] = 0x0437; break;
-            case 0xE8: out[outpos++] = 0x0438; break;
-            case 0xE9: out[outpos++] = 0x0439; break;
-            case 0xEA: out[outpos++] = 0x043A; break;
-            case 0xEB: out[outpos++] = 0x043B; break;
-            case 0xEC: out[outpos++] = 0x043C; break;
-            case 0xED: out[outpos++] = 0x043D; break;
-            case 0xEE: out[outpos++] = 0x043E; break;
-            case 0xEF: out[outpos++] = 0x043F; break;
-
-            case 0xF0: out[outpos++] = 0x0440; break;
-            case 0xF1: out[outpos++] = 0x0441; break;
-            case 0xF2: out[outpos++] = 0x0442; break;
-            case 0xF3: out[outpos++] = 0x0443; break;
-            case 0xF4: out[outpos++] = 0x0444; break;
-            case 0xF5: out[outpos++] = 0x0445; break;
-            case 0xF6: out[outpos++] = 0x0446; break;
-            case 0xF7: out[outpos++] = 0x0447; break;
-            case 0xF8: out[outpos++] = 0x0448; break;
-            case 0xF9: out[outpos++] = 0x0449; break;
-            case 0xFA: out[outpos++] = 0x044A; break;
-            case 0xFB: out[outpos++] = 0x044B; break;
-            case 0xFC: out[outpos++] = 0x044C; break;
-            case 0xFD: out[outpos++] = 0x044D; break;
-            case 0xFE: out[outpos++] = 0x044E; break;
-            case 0xFF: out[outpos++] = 0x044F; break;
-
-            case 0x98:
-            default:
-                /* undefined */
-                out[outpos++] = '?';
-                break;
-        }
-
-        continue;
+        else
+            out[outpos++] = CP1251ToUnicode[res - 0x80];
     }
 
     return outpos;
@@ -672,6 +543,23 @@ glui32 prepare_cp1251(glui32 *buf, glui32 buflen,
 }
 
 /* http://unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WINDOWS/CP1252.TXT */
+
+static const glui32 CP1252ToUnicode[128] = {
+    0x20AC, 0x003F, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030,
+    0x0160, 0x2039, 0x0152, 0x003F, 0x017D, 0x003F, 0x003F, 0x2018, 0x2019, 0x201C,
+    0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x003F,
+    0x017E, 0x0178, 0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7,
+    0x00A8, 0x00A9, 0x00AA, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x00AF, 0x00B0, 0x00B1,
+    0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7, 0x00B8, 0x00B9, 0x00BA, 0x00BB,
+    0x00BC, 0x00BD, 0x00BE, 0x00BF, 0x00C0, 0x00C1, 0x00C2, 0x00C3, 0x00C4, 0x00C5,
+    0x00C6, 0x00C7, 0x00C8, 0x00C9, 0x00CA, 0x00CB, 0x00CC, 0x00CD, 0x00CE, 0x00CF,
+    0x00D0, 0x00D1, 0x00D2, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x00D7, 0x00D8, 0x00D9,
+    0x00DA, 0x00DB, 0x00DC, 0x00DD, 0x00DE, 0x00DF, 0x00E0, 0x00E1, 0x00E2, 0x00E3,
+    0x00E4, 0x00E5, 0x00E6, 0x00E7, 0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED,
+    0x00EE, 0x00EF, 0x00F0, 0x00F1, 0x00F2, 0x00F3, 0x00F4, 0x00F5, 0x00F6, 0x00F7,
+    0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF
+};
+
 glui32 parse_cp1252(unsigned char *buf, glui32 buflen,
                      glui32 *out, glui32 outlen)
 {
@@ -687,156 +575,9 @@ glui32 parse_cp1252(unsigned char *buf, glui32 buflen,
         res = buf[pos++];
 
         if (res < 0x80)
-        {
             out[outpos++] = res;
-            continue;
-        }
-
-        switch (res)
-        {
-            case 0x80: out[outpos++] = 0x20AC; break;
-            case 0x82: out[outpos++] = 0x201A; break;
-            case 0x83: out[outpos++] = 0x0192; break;
-            case 0x84: out[outpos++] = 0x201E; break;
-            case 0x85: out[outpos++] = 0x2026; break;
-            case 0x86: out[outpos++] = 0x2020; break;
-            case 0x87: out[outpos++] = 0x2021; break;
-            case 0x88: out[outpos++] = 0x02C6; break;
-            case 0x89: out[outpos++] = 0x2030; break;
-            case 0x8A: out[outpos++] = 0x0160; break;
-            case 0x8B: out[outpos++] = 0x2039; break;
-            case 0x8C: out[outpos++] = 0x0152; break;
-            case 0x8E: out[outpos++] = 0x017D; break;
-
-            case 0x91: out[outpos++] = 0x2018; break;
-            case 0x92: out[outpos++] = 0x2019; break;
-            case 0x93: out[outpos++] = 0x201C; break;
-            case 0x94: out[outpos++] = 0x201D; break;
-            case 0x95: out[outpos++] = 0x2022; break;
-            case 0x96: out[outpos++] = 0x2013; break;
-            case 0x97: out[outpos++] = 0x2014; break;
-            case 0x98: out[outpos++] = 0x02DC; break;
-            case 0x99: out[outpos++] = 0x2122; break;
-            case 0x9A: out[outpos++] = 0x0161; break;
-            case 0x9B: out[outpos++] = 0x203A; break;
-            case 0x9C: out[outpos++] = 0x0153; break;
-            case 0x9E: out[outpos++] = 0x017E; break;
-            case 0x9F: out[outpos++] = 0x0178; break;
-
-            case 0xA0: out[outpos++] = 0x00A0; break;
-            case 0xA1: out[outpos++] = 0x00A1; break;
-            case 0xA2: out[outpos++] = 0x00A2; break;
-            case 0xA3: out[outpos++] = 0x00A3; break;
-            case 0xA4: out[outpos++] = 0x00A4; break;
-            case 0xA5: out[outpos++] = 0x00A5; break;
-            case 0xA6: out[outpos++] = 0x00A6; break;
-            case 0xA7: out[outpos++] = 0x00A7; break;
-            case 0xA8: out[outpos++] = 0x00A8; break;
-            case 0xA9: out[outpos++] = 0x00A9; break;
-            case 0xAA: out[outpos++] = 0x00AA; break;
-            case 0xAB: out[outpos++] = 0x00AB; break;
-            case 0xAC: out[outpos++] = 0x00AC; break;
-            case 0xAD: out[outpos++] = 0x00AD; break;
-            case 0xAE: out[outpos++] = 0x00AE; break;
-            case 0xAF: out[outpos++] = 0x00AF; break;
-
-            case 0xB0: out[outpos++] = 0x00B0; break;
-            case 0xB1: out[outpos++] = 0x00B1; break;
-            case 0xB2: out[outpos++] = 0x00B2; break;
-            case 0xB3: out[outpos++] = 0x00B3; break;
-            case 0xB4: out[outpos++] = 0x00B4; break;
-            case 0xB5: out[outpos++] = 0x00B5; break;
-            case 0xB6: out[outpos++] = 0x00B6; break;
-            case 0xB7: out[outpos++] = 0x00B7; break;
-            case 0xB8: out[outpos++] = 0x00B8; break;
-            case 0xB9: out[outpos++] = 0x00B9; break;
-            case 0xBA: out[outpos++] = 0x00BA; break;
-            case 0xBB: out[outpos++] = 0x00BB; break;
-            case 0xBC: out[outpos++] = 0x00BC; break;
-            case 0xBD: out[outpos++] = 0x00BD; break;
-            case 0xBE: out[outpos++] = 0x00BE; break;
-            case 0xBF: out[outpos++] = 0x00BF; break;
-
-            case 0xC0: out[outpos++] = 0x00C0; break;
-            case 0xC1: out[outpos++] = 0x00C1; break;
-            case 0xC2: out[outpos++] = 0x00C2; break;
-            case 0xC3: out[outpos++] = 0x00C3; break;
-            case 0xC4: out[outpos++] = 0x00C4; break;
-            case 0xC5: out[outpos++] = 0x00C5; break;
-            case 0xC6: out[outpos++] = 0x00C6; break;
-            case 0xC7: out[outpos++] = 0x00C7; break;
-            case 0xC8: out[outpos++] = 0x00C8; break;
-            case 0xC9: out[outpos++] = 0x00C9; break;
-            case 0xCA: out[outpos++] = 0x00CA; break;
-            case 0xCB: out[outpos++] = 0x00CB; break;
-            case 0xCC: out[outpos++] = 0x00CC; break;
-            case 0xCD: out[outpos++] = 0x00CD; break;
-            case 0xCE: out[outpos++] = 0x00CE; break;
-            case 0xCF: out[outpos++] = 0x00CF; break;
-
-            case 0xD0: out[outpos++] = 0x00D0; break;
-            case 0xD1: out[outpos++] = 0x00D1; break;
-            case 0xD2: out[outpos++] = 0x00D2; break;
-            case 0xD3: out[outpos++] = 0x00D3; break;
-            case 0xD4: out[outpos++] = 0x00D4; break;
-            case 0xD5: out[outpos++] = 0x00D5; break;
-            case 0xD6: out[outpos++] = 0x00D6; break;
-            case 0xD7: out[outpos++] = 0x00D7; break;
-            case 0xD8: out[outpos++] = 0x00D8; break;
-            case 0xD9: out[outpos++] = 0x00D9; break;
-            case 0xDA: out[outpos++] = 0x00DA; break;
-            case 0xDB: out[outpos++] = 0x00DB; break;
-            case 0xDC: out[outpos++] = 0x00DC; break;
-            case 0xDD: out[outpos++] = 0x00DD; break;
-            case 0xDE: out[outpos++] = 0x00DE; break;
-            case 0xDF: out[outpos++] = 0x00DF; break;
-
-            case 0xE0: out[outpos++] = 0x00E0; break;
-            case 0xE1: out[outpos++] = 0x00E1; break;
-            case 0xE2: out[outpos++] = 0x00E2; break;
-            case 0xE3: out[outpos++] = 0x00E3; break;
-            case 0xE4: out[outpos++] = 0x00E4; break;
-            case 0xE5: out[outpos++] = 0x00E5; break;
-            case 0xE6: out[outpos++] = 0x00E6; break;
-            case 0xE7: out[outpos++] = 0x00E7; break;
-            case 0xE8: out[outpos++] = 0x00E8; break;
-            case 0xE9: out[outpos++] = 0x00E9; break;
-            case 0xEA: out[outpos++] = 0x00EA; break;
-            case 0xEB: out[outpos++] = 0x00EB; break;
-            case 0xEC: out[outpos++] = 0x00EC; break;
-            case 0xED: out[outpos++] = 0x00ED; break;
-            case 0xEE: out[outpos++] = 0x00EE; break;
-            case 0xEF: out[outpos++] = 0x00EF; break;
-
-            case 0xF0: out[outpos++] = 0x00F0; break;
-            case 0xF1: out[outpos++] = 0x00F1; break;
-            case 0xF2: out[outpos++] = 0x00F2; break;
-            case 0xF3: out[outpos++] = 0x00F3; break;
-            case 0xF4: out[outpos++] = 0x00F4; break;
-            case 0xF5: out[outpos++] = 0x00F5; break;
-            case 0xF6: out[outpos++] = 0x00F6; break;
-            case 0xF7: out[outpos++] = 0x00F7; break;
-            case 0xF8: out[outpos++] = 0x00F8; break;
-            case 0xF9: out[outpos++] = 0x00F9; break;
-            case 0xFA: out[outpos++] = 0x00FA; break;
-            case 0xFB: out[outpos++] = 0x00FB; break;
-            case 0xFC: out[outpos++] = 0x00FC; break;
-            case 0xFD: out[outpos++] = 0x00FD; break;
-            case 0xFE: out[outpos++] = 0x00FE; break;
-            case 0xFF: out[outpos++] = 0x00FF; break;
-
-            case 0x81:
-            case 0x8D:
-            case 0x8F:
-            case 0x90:
-            case 0x9D:
-            default:
-                /* undefined */
-                out[outpos++] = '?';
-                break;
-        }
-
-        continue;
+        else
+            out[outpos++] = CP1252ToUnicode[res - 0x80];
     }
 
     return outpos;
@@ -1008,6 +749,23 @@ glui32 prepare_cp1252(glui32 *buf, glui32 buflen,
 }
 
 /* http://unicode.org/Public/MAPPINGS/VENDORS/APPLE/ROMAN.TXT */
+
+static const glui32 MacRomanToUnicode[128] = {
+    0x00C4, 0x00C5, 0x00C7, 0x00C9, 0x00D1, 0x00D6, 0x00DC, 0x00E1, 0x00E0, 0x00E2,
+    0x00E4, 0x00E3, 0x00E5, 0x00E7, 0x00E9, 0x00E8, 0x00EA, 0x00EB, 0x00ED, 0x00EC,
+    0x00EE, 0x00EF, 0x00F1, 0x00F3, 0x00F2, 0x00F4, 0x00F6, 0x00F5, 0x00FA, 0x00F9,
+    0x00FB, 0x00FC, 0x2020, 0x00B0, 0x00A2, 0x00A3, 0x00A7, 0x2022, 0x00B6, 0x00DF,
+    0x00AE, 0x00A9, 0x2122, 0x00B4, 0x00A8, 0x2260, 0x00C6, 0x00D8, 0x221E, 0x00B1,
+    0x2264, 0x2265, 0x00A5, 0x00B5, 0x2202, 0x2211, 0x220F, 0x03C0, 0x222B, 0x00AA,
+    0x00BA, 0x03A9, 0x00E6, 0x00F8, 0x00BF, 0x00A1, 0x00AC, 0x221A, 0x0192, 0x2248,
+    0x2206, 0x00AB, 0x00BB, 0x2026, 0x00A0, 0x00C0, 0x00C3, 0x00D5, 0x0152, 0x0153,
+    0x2013, 0x2014, 0x201C, 0x201D, 0x2018, 0x2019, 0x00F7, 0x25CA, 0x00FF, 0x0178,
+    0x2044, 0x20AC, 0x2039, 0x203A, 0xFB01, 0xFB02, 0x2021, 0x00B7, 0x201A, 0x201E,
+    0x2030, 0x00C2, 0x00CA, 0x00C1, 0x00CB, 0x00C8, 0x00CD, 0x00CE, 0x00CF, 0x00CC,
+    0x00D3, 0x00D4, 0xF8FF, 0x00D2, 0x00DA, 0x00DB, 0x00D9, 0x0131, 0x02C6, 0x02DC,
+    0x00AF, 0x02D8, 0x02D9, 0x02DA, 0x00B8, 0x02DD, 0x02DB, 0x02C7
+};
+
 glui32 parse_mac(unsigned char *buf, glui32 buflen,
                      glui32 *out, glui32 outlen)
 {
@@ -1023,156 +781,9 @@ glui32 parse_mac(unsigned char *buf, glui32 buflen,
         res = buf[pos++];
 
         if (res < 0x80)
-        {
             out[outpos++] = res;
-            continue;
-        }
-
-        switch (res)
-        {
-            case 0x80: out[outpos++] = 0x00C4; break;
-            case 0x81: out[outpos++] = 0x00C5; break;
-            case 0x82: out[outpos++] = 0x00C7; break;
-            case 0x83: out[outpos++] = 0x00C9; break;
-            case 0x84: out[outpos++] = 0x00D1; break;
-            case 0x85: out[outpos++] = 0x00D6; break;
-            case 0x86: out[outpos++] = 0x00DC; break;
-            case 0x87: out[outpos++] = 0x00E1; break;
-            case 0x88: out[outpos++] = 0x00E0; break;
-            case 0x89: out[outpos++] = 0x00E2; break;
-            case 0x8A: out[outpos++] = 0x00E4; break;
-            case 0x8B: out[outpos++] = 0x00E3; break;
-            case 0x8C: out[outpos++] = 0x00E5; break;
-            case 0x8D: out[outpos++] = 0x00E7; break;
-            case 0x8E: out[outpos++] = 0x00E9; break;
-            case 0x8F: out[outpos++] = 0x00E8; break;
-
-            case 0x90: out[outpos++] = 0x00EA; break;
-            case 0x91: out[outpos++] = 0x00EB; break;
-            case 0x92: out[outpos++] = 0x00ED; break;
-            case 0x93: out[outpos++] = 0x00EC; break;
-            case 0x94: out[outpos++] = 0x00EE; break;
-            case 0x95: out[outpos++] = 0x00EF; break;
-            case 0x96: out[outpos++] = 0x00F1; break;
-            case 0x97: out[outpos++] = 0x00F3; break;
-            case 0x98: out[outpos++] = 0x00F2; break;
-            case 0x99: out[outpos++] = 0x00F4; break;
-            case 0x9A: out[outpos++] = 0x00F6; break;
-            case 0x9B: out[outpos++] = 0x00F5; break;
-            case 0x9C: out[outpos++] = 0x00FA; break;
-            case 0x9D: out[outpos++] = 0x00F9; break;
-            case 0x9E: out[outpos++] = 0x00FB; break;
-            case 0x9F: out[outpos++] = 0x00FC; break;
-
-            case 0xA0: out[outpos++] = 0x2020; break;
-            case 0xA1: out[outpos++] = 0x00B0; break;
-            case 0xA2: out[outpos++] = 0x00A2; break;
-            case 0xA3: out[outpos++] = 0x00A3; break;
-            case 0xA4: out[outpos++] = 0x00A7; break;
-            case 0xA5: out[outpos++] = 0x2022; break;
-            case 0xA6: out[outpos++] = 0x00B6; break;
-            case 0xA7: out[outpos++] = 0x00DF; break;
-            case 0xA8: out[outpos++] = 0x00AE; break;
-            case 0xA9: out[outpos++] = 0x00A9; break;
-            case 0xAA: out[outpos++] = 0x2122; break;
-            case 0xAB: out[outpos++] = 0x00B4; break;
-            case 0xAC: out[outpos++] = 0x00A8; break;
-            case 0xAD: out[outpos++] = 0x2260; break;
-            case 0xAE: out[outpos++] = 0x00C6; break;
-            case 0xAF: out[outpos++] = 0x00D8; break;
-
-            case 0xB0: out[outpos++] = 0x221E; break;
-            case 0xB1: out[outpos++] = 0x00B1; break;
-            case 0xB2: out[outpos++] = 0x2264; break;
-            case 0xB3: out[outpos++] = 0x2265; break;
-            case 0xB4: out[outpos++] = 0x00A5; break;
-            case 0xB5: out[outpos++] = 0x00B5; break;
-            case 0xB6: out[outpos++] = 0x2202; break;
-            case 0xB7: out[outpos++] = 0x2211; break;
-            case 0xB8: out[outpos++] = 0x220F; break;
-            case 0xB9: out[outpos++] = 0x03C0; break;
-            case 0xBA: out[outpos++] = 0x222B; break;
-            case 0xBB: out[outpos++] = 0x00AA; break;
-            case 0xBC: out[outpos++] = 0x00BA; break;
-            case 0xBD: out[outpos++] = 0x03A9; break;
-            case 0xBE: out[outpos++] = 0x00E6; break;
-            case 0xBF: out[outpos++] = 0x00F8; break;
-
-            case 0xC0: out[outpos++] = 0x00BF; break;
-            case 0xC1: out[outpos++] = 0x00A1; break;
-            case 0xC2: out[outpos++] = 0x00AC; break;
-            case 0xC3: out[outpos++] = 0x221A; break;
-            case 0xC4: out[outpos++] = 0x0192; break;
-            case 0xC5: out[outpos++] = 0x2248; break;
-            case 0xC6: out[outpos++] = 0x2206; break;
-            case 0xC7: out[outpos++] = 0x00AB; break;
-            case 0xC8: out[outpos++] = 0x00BB; break;
-            case 0xC9: out[outpos++] = 0x2026; break;
-            case 0xCA: out[outpos++] = 0x00A0; break;
-            case 0xCB: out[outpos++] = 0x00C0; break;
-            case 0xCC: out[outpos++] = 0x00C3; break;
-            case 0xCD: out[outpos++] = 0x00D5; break;
-            case 0xCE: out[outpos++] = 0x0152; break;
-            case 0xCF: out[outpos++] = 0x0153; break;
-
-            case 0xD0: out[outpos++] = 0x2013; break;
-            case 0xD1: out[outpos++] = 0x2014; break;
-            case 0xD2: out[outpos++] = 0x201C; break;
-            case 0xD3: out[outpos++] = 0x201D; break;
-            case 0xD4: out[outpos++] = 0x2018; break;
-            case 0xD5: out[outpos++] = 0x2019; break;
-            case 0xD6: out[outpos++] = 0x00F7; break;
-            case 0xD7: out[outpos++] = 0x25CA; break;
-            case 0xD8: out[outpos++] = 0x00FF; break;
-            case 0xD9: out[outpos++] = 0x0178; break;
-            case 0xDA: out[outpos++] = 0x2044; break;
-            case 0xDB: out[outpos++] = 0x20AC; break;
-            case 0xDC: out[outpos++] = 0x2039; break;
-            case 0xDD: out[outpos++] = 0x203A; break;
-            case 0xDE: out[outpos++] = 0xFB01; break;
-            case 0xDF: out[outpos++] = 0xFB02; break;
-
-            case 0xE0: out[outpos++] = 0x2021; break;
-            case 0xE1: out[outpos++] = 0x00B7; break;
-            case 0xE2: out[outpos++] = 0x201A; break;
-            case 0xE3: out[outpos++] = 0x201E; break;
-            case 0xE4: out[outpos++] = 0x2030; break;
-            case 0xE5: out[outpos++] = 0x00C2; break;
-            case 0xE6: out[outpos++] = 0x00CA; break;
-            case 0xE7: out[outpos++] = 0x00C1; break;
-            case 0xE8: out[outpos++] = 0x00CB; break;
-            case 0xE9: out[outpos++] = 0x00C8; break;
-            case 0xEA: out[outpos++] = 0x00CD; break;
-            case 0xEB: out[outpos++] = 0x00CE; break;
-            case 0xEC: out[outpos++] = 0x00CF; break;
-            case 0xED: out[outpos++] = 0x00CC; break;
-            case 0xEE: out[outpos++] = 0x00D3; break;
-            case 0xEF: out[outpos++] = 0x00D4; break;
-
-            case 0xF0: out[outpos++] = 0xF8FF; break;
-            case 0xF1: out[outpos++] = 0x00D2; break;
-            case 0xF2: out[outpos++] = 0x00DA; break;
-            case 0xF3: out[outpos++] = 0x00DB; break;
-            case 0xF4: out[outpos++] = 0x00D9; break;
-            case 0xF5: out[outpos++] = 0x0131; break;
-            case 0xF6: out[outpos++] = 0x02C6; break;
-            case 0xF7: out[outpos++] = 0x02DC; break;
-            case 0xF8: out[outpos++] = 0x00AF; break;
-            case 0xF9: out[outpos++] = 0x02D8; break;
-            case 0xFA: out[outpos++] = 0x02D9; break;
-            case 0xFB: out[outpos++] = 0x02DA; break;
-            case 0xFC: out[outpos++] = 0x00B8; break;
-            case 0xFD: out[outpos++] = 0x02DD; break;
-            case 0xFE: out[outpos++] = 0x02DB; break;
-            case 0xFF: out[outpos++] = 0x02C7; break;
-
-            default:
-                /* undefined */
-                out[outpos++] = '?';
-                break;
-        }
-
-        continue;
+        else
+            out[outpos++] = MacRomanToUnicode[res - 0x80];
     }
 
     return outpos;
