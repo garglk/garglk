@@ -162,6 +162,8 @@ int os_init(int *argc, char *argv[], const char *prompt,
 
     glk_set_window(mainwin);
 
+    strcpy(rbuf, "");
+
     return 0;
 }
 
@@ -301,7 +303,6 @@ void os_status(int stat)
                                         wintype_TextGrid, 0);
         }
         strcpy(lbuf, "");
-        strcpy(rbuf, "");
     }
 }
 
