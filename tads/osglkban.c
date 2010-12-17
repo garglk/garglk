@@ -107,6 +107,8 @@ void banner_contents_display(contentid_t contents);
     os_banners_redraw();
 */
 
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 osbanid_t os_banner_init(void)
 {
     osbanid_t instance;
@@ -141,6 +143,7 @@ osbanid_t os_banner_init(void)
 
     return instance;
 }
+#pragma GCC pop_options
 
 osbanid_t os_banner_insert(osbanid_t parent, glui32 operation, osbanid_t other,
                            glui32 method, glui32 size, glui32 type, glui32 status)
@@ -344,6 +347,8 @@ void os_banners_redraw()
     banner_contents_clear();
 */
 
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
 contentid_t banner_contents_init(void)
 {
     contentid_t instance;
@@ -363,6 +368,7 @@ contentid_t banner_contents_init(void)
     instance->chars = 0;
     instance->len = 0;
 }
+#pragma GCC pop_options
 
 void banner_contents_insert(contentid_t contents, const char *txt, size_t len)
 {
@@ -668,7 +674,6 @@ void os_banner_disp(void *banner_handle, const char *txt, size_t len)
     if (!update)
         return;
     update->banner = banner;
-    update->next = 0;
 
     if (!(banner->contents))
     {
