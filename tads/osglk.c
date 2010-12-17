@@ -155,15 +155,12 @@ int os_init(int *argc, char *argv[], const char *prompt,
     if (!glk_style_measure(statuswin, style_Normal, stylehint_BackColor, &statusbg))
         statusbg = 0;
 
-    /* close statuswin; replaced by banner windows */
+    /* close statuswin; reopened on request */
     glk_window_close(statuswin, 0);
 
     statuswin = NULL;
 
     glk_set_window(mainwin);
-
-    strcat(lbuf, "");
-    strcat(rbuf, "");
 
     return 0;
 }
@@ -251,7 +248,7 @@ void os_print(const char *str, size_t len)
     if (curwin == 1)
     {
         const char *p;
-        size_t      rem;
+        size_t      rem, max;
 
         /* The string requires some fiddling for the status window */
         for (p = str, rem = len ; rem != 0 && *p == '\n'; p++, --rem)
@@ -262,8 +259,8 @@ void os_print(const char *str, size_t len)
         /* if that leaves anything, update the statusline */
         if (rem != 0)
         {
-            memcpy(lbuf, p, max(rem, sizeof(lbuf) - 1));
-            lbuf[rem] = 0;
+            max = sizeof(lbuf) - strlen(lbuf) - 1;
+            strncat(lbuf, p, rem > max ? max : rem);
             os_status_redraw();
         }
     }
@@ -294,12 +291,17 @@ void os_status(int stat)
 {
     curwin = stat;
 
-    if (stat == 1 && statuswin == NULL)
+    if (stat == 1)
     {
-        glk_stylehint_set(wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
-        statuswin = glk_window_open(mainwin,
-                                    winmethod_Above | winmethod_Fixed, 1,
-                                    wintype_TextGrid, 0);
+        if (statuswin == NULL)
+        {
+            glk_stylehint_set(wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
+            statuswin = glk_window_open(mainwin,
+                                        winmethod_Above | winmethod_Fixed, 1,
+                                        wintype_TextGrid, 0);
+        }
+        strcpy(lbuf, "");
+        strcpy(rbuf, "");
     }
 }
 
