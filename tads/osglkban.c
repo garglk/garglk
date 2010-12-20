@@ -785,6 +785,11 @@ void os_banner_set_color(void *banner_handle, os_color_t fg, os_color_t bg)
 
     if (banner->style == style_User2)
     {
+        /* store current settings */
+        glui32 oldfg = banner->fgcustom;
+        glui32 oldbg = banner->bgcustom;
+        glui32 oldtr = banner->bgtrans;
+
         /* reset custom color parameters */
         banner->fgcustom = banner->fgcolor;
         banner->bgcustom = banner->bgcolor;
@@ -795,12 +800,15 @@ void os_banner_set_color(void *banner_handle, os_color_t fg, os_color_t bg)
 
         if (!transparent)
         {
-            banner->bgcolor = bg;
+            banner->bgcustom = bg;
             banner->bgtrans = 0;
         }
-    }
 
-    os_banners_redraw();
+        if (!(banner->fgcustom == oldfg
+            && banner->bgcustom == oldbg
+            && banner->bgtrans == oldtr))
+            os_banners_redraw();
+    }
 }
 
 void os_banner_set_screen_color(void *banner_handle, os_color_t color)
