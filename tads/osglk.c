@@ -145,7 +145,7 @@ int os_init(int *argc, char *argv[], const char *prompt,
         mainbg = 0;
 
     /* get default colors for status window */
-    statuswin = statuswin = glk_window_open(mainwin,
+    statuswin = glk_window_open(mainwin,
             winmethod_Above | winmethod_Fixed, 1,
             wintype_TextGrid, 0);
 
