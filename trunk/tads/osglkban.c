@@ -204,7 +204,7 @@ osbanid_t os_banner_insert(osbanid_t parent, glui32 operation, osbanid_t other,
 
             case OS_BANNER_AFTER:
                 while (child != other && child->next)
-                    child == child->next;
+                    child = child->next;
 
                 if (child->next)
                 {
@@ -367,6 +367,8 @@ contentid_t banner_contents_init(void)
 
     instance->chars = 0;
     instance->len = 0;
+
+    return instance;
 }
 #pragma GCC pop_options
 
