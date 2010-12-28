@@ -107,8 +107,6 @@ void banner_contents_display(contentid_t contents);
     os_banners_redraw();
 */
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
 osbanid_t os_banner_init(void)
 {
     osbanid_t instance;
@@ -143,7 +141,6 @@ osbanid_t os_banner_init(void)
 
     return instance;
 }
-#pragma GCC pop_options
 
 osbanid_t os_banner_insert(osbanid_t parent, glui32 operation, osbanid_t other,
                            glui32 method, glui32 size, glui32 type, glui32 status)
@@ -312,15 +309,13 @@ void os_banners_open(osbanid_t banner)
     if (!banner)
         return;
 
-    osbanid_t parent = banner->parent;
-
     if (banner->valid)
     {
-        if (parent && parent->win)
+        if (banner->size && banner->parent && banner->parent->win)
         {
             os_banner_styles_apply(banner);
-            banner->win = glk_window_open(parent->win, banner->method, banner->size,
-                                            banner->type, banner->id);
+            banner->win = glk_window_open(banner->parent->win, banner->method,
+                                          banner->size, banner->type, banner->id);
             banner_contents_display(banner->contents);
         }
         os_banners_open(banner->children);
@@ -347,8 +342,6 @@ void os_banners_redraw()
     banner_contents_clear();
 */
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
 contentid_t banner_contents_init(void)
 {
     contentid_t instance;
@@ -370,7 +363,6 @@ contentid_t banner_contents_init(void)
 
     return instance;
 }
-#pragma GCC pop_options
 
 void banner_contents_insert(contentid_t contents, const char *txt, size_t len)
 {
@@ -510,18 +502,15 @@ void os_banner_set_size(void *banner_handle, int siz, int siz_units, int is_advi
 {
     osbanid_t banner = banner_handle;
 
-    if (!banner || !banner->valid || !banner->win)
+    if (!banner || !banner->valid)
         return;
 
-    winid_t win = banner->win;
-    winid_t pair = glk_window_get_parent(win);
     glui32 gwinsize = siz;
     glui32 gwinmeth = 0;
 
-    glk_window_get_arrangement(pair, &gwinmeth, 0, 0);
-    gwinmeth &= 
-        winmethod_Above | winmethod_Below |
-        winmethod_Left | winmethod_Right;
+    gwinmeth = banner->method &
+        (winmethod_Above | winmethod_Below |
+         winmethod_Left  | winmethod_Right);
 
     switch (siz_units)
     {
@@ -565,19 +554,14 @@ void os_banner_delete(void *banner_handle)
     banner->valid = 0;
     os_banners_redraw();
 
-    osbanid_t parent, sibling;
+    if (banner->parent && banner->parent->children == banner)
+        banner->parent->children = banner->next;
 
-    parent = banner->parent;
-    if (parent && parent->children == banner)
-        parent->children = banner->next;
+    if (banner->next)
+        banner->next->prev = banner->prev;
 
-    sibling = banner->next;
-    if (sibling)
-        sibling->prev = banner->prev;
-
-    sibling = banner->prev;
-    if (sibling)
-        sibling->next = banner->next;
+    if (banner->prev)
+        banner->prev->next = banner->next;
 
     banner_contents_clear(banner->contents);
 
@@ -652,11 +636,14 @@ int os_banner_get_charheight(void *banner_handle)
 void os_banner_clear(void *banner_handle)
 {
     osbanid_t banner = banner_handle;
-    if (!banner || !banner->valid || !banner->win)
+    if (!banner || !banner->valid)
         return;
 
-    winid_t win = banner->win;
-    glk_window_clear(win);
+    if (banner->win)
+    {
+        winid_t win = banner->win;
+        glk_window_clear(win);
+    }
 
     banner_contents_clear(banner->contents);
     banner->contents = 0;
@@ -699,22 +686,6 @@ void os_banner_disp(void *banner_handle, const char *txt, size_t len)
     banner_contents_display(update);
 }
 
-void os_banner_set_attr(void *banner_handle, int attr)
-{
-    osbanid_t banner = banner_handle;
-    if (!banner || !banner->valid || !banner->win)
-        return;
-
-    if (attr & OS_ATTR_BOLD && attr & OS_ATTR_ITALIC)
-        banner->style = style_Alert;
-    else if (attr & OS_ATTR_BOLD)
-        banner->style = style_Subheader;
-    else if (attr & OS_ATTR_ITALIC)
-        banner->style = style_Emphasized;
-    else
-        banner->style = style_Normal;
-}
-
 void os_banner_goto(void *banner_handle, int row, int col)
 {
     osbanid_t banner = banner_handle;
@@ -729,10 +700,26 @@ void os_banner_goto(void *banner_handle, int row, int col)
     }
 }
 
+void os_banner_set_attr(void *banner_handle, int attr)
+{
+    osbanid_t banner = banner_handle;
+    if (!banner || !banner->valid)
+        return;
+
+    if (attr & OS_ATTR_BOLD && attr & OS_ATTR_ITALIC)
+        banner->style = style_Alert;
+    else if (attr & OS_ATTR_BOLD)
+        banner->style = style_Subheader;
+    else if (attr & OS_ATTR_ITALIC)
+        banner->style = style_Emphasized;
+    else
+        banner->style = style_Normal;
+}
+
 void os_banner_set_color(void *banner_handle, os_color_t fg, os_color_t bg)
 {
     osbanid_t banner = banner_handle;
-    if (!banner || !banner->valid || !banner->win)
+    if (!banner || !banner->valid)
         return;
 
     glui32 reversed = 0;
@@ -816,7 +803,7 @@ void os_banner_set_color(void *banner_handle, os_color_t fg, os_color_t bg)
 void os_banner_set_screen_color(void *banner_handle, os_color_t color)
 {
     osbanid_t banner = banner_handle;
-    if (!banner || !banner->valid || !banner->win)
+    if (!banner || !banner->valid)
         return;
 
     if (!(os_color_is_param(color)))
