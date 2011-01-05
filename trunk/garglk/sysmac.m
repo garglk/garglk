@@ -486,7 +486,7 @@ void winkey(NSEvent *evt)
     gli_refresh_needed = TRUE;
 
     /* check for arrow keys */
-    if ([evt modifierFlags] & NSNumericPadKeyMask)
+    if ([evt modifierFlags] & NSFunctionKeyMask)
     {
         /* modified keys for scrolling */
         if ([evt modifierFlags] & NSCommandKeyMask
@@ -708,7 +708,7 @@ void winpoll(void)
     do
     {
         if (gli_refresh_needed)
-            winrefresh(); 
+            winrefresh();
 
         if (gli_event_waiting)
             evt = [gargoyle getWindowEvent: processID];
@@ -725,7 +725,10 @@ void gli_select(event_t *event, int polled)
     gli_curevent = event;
     gli_event_clearevent(event);
 
-    if (!polled)
+    winpoll();
+    gli_dispatch_event(gli_curevent, polled);
+
+    if (gli_curevent->type == evtype_None && !polled)
     {
         while (![monitor timeout])
         {
@@ -737,13 +740,6 @@ void gli_select(event_t *event, int polled)
             else
                 break;
         }
-    }
-
-    else
-    {
-        if (![monitor timeout])
-            winpoll();
-        gli_dispatch_event(gli_curevent, polled);
     }
 
     if (gli_curevent->type == evtype_None && [monitor timeout])
