@@ -45,7 +45,7 @@ static int fileselect = 0;
 static char filepath[MaxBuffer];
 
 static int timerid = -1;
-static int timeouts = 0;
+static volatile int timeouts = 0;
 
 /* buffer for clipboard text */
 static char *cliptext = NULL;
@@ -69,7 +69,7 @@ static char *winfilterpatterns[] =
 
 static int timeout(void *data)
 {
-    timeouts ++;
+    timeouts = 1;
     return TRUE;
 }
 
@@ -77,13 +77,13 @@ void glk_request_timer_events(glui32 millisecs)
 {
     if (timerid != -1)
     {
-        gtk_timeout_remove(timerid);
+        g_source_remove(timerid);
         timerid = -1;
     }
 
     if (millisecs)
     {
-        timerid = gtk_timeout_add(millisecs, timeout, NULL);
+        timerid = g_timeout_add(millisecs, timeout, NULL);
     }
 }
 
@@ -589,6 +589,10 @@ void gli_select(event_t *event, int polled)
     gli_curevent = event;
     gli_event_clearevent(event);
 
+    while (gtk_events_pending())
+        gtk_main_iteration();
+    gli_dispatch_event(gli_curevent, polled);
+
     if (!polled)
     {
         while (gli_curevent->type == evtype_None && !timeouts)
@@ -596,13 +600,6 @@ void gli_select(event_t *event, int polled)
             gtk_main_iteration();
             gli_dispatch_event(gli_curevent, polled);
         }
-    }
-
-    else
-    {
-        while (gtk_events_pending() && !timeouts)
-            gtk_main_iteration();
-        gli_dispatch_event(gli_curevent, polled);
     }
 
     if (gli_curevent->type == evtype_None && timeouts)
