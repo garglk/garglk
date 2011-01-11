@@ -595,8 +595,7 @@ int os_banner_getinfo(void *banner_handle, os_banner_info_t *info)
 
     info->style = gstyletab ? OS_BANNER_STYLE_TAB_ALIGN : 0;
 
-    if (!(banner->cwidth) || !(banner->cheight))
-        glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
+    glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
 
     info->rows = banner->cheight;
     info->columns = banner->cwidth;
@@ -615,8 +614,7 @@ int os_banner_get_charwidth(void *banner_handle)
     if (!banner || !banner->valid || !banner->win)
         return 0;
 
-    if (!(banner->cwidth))
-        glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
+    glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
 
     return banner->cwidth;
 }
@@ -627,8 +625,7 @@ int os_banner_get_charheight(void *banner_handle)
     if (!banner || !banner->valid || !banner->win)
         return 0;
 
-    if (!(banner->cheight))
-        glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
+    glk_window_get_size(banner->win, &(banner->cwidth), &(banner->cheight));
 
     return banner->cheight;
 }
