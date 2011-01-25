@@ -35,6 +35,7 @@ window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui
     dwin->key = key;
     dwin->keydamage = FALSE;
     dwin->size = size;
+    dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
 
     dwin->vertical = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Right);
     dwin->backward = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Above);
@@ -210,13 +211,15 @@ void win_pair_redraw(window_t *win)
 
     if (dwin->vertical)
     {
-        int xpad = (gli_wpaddingx - gli_wborderx) / 2;
-        gli_draw_rect(x1 + xpad, y0, gli_wborderx, y1 - y0, gli_border_color);
+        int xbord = dwin->wborder ? gli_wborderx : 0;
+        int xpad = (gli_wpaddingx - xbord) / 2;
+        gli_draw_rect(x1 + xpad, y0, xbord, y1 - y0, gli_border_color);
     }
     else
     {
-        int ypad = (gli_wpaddingy - gli_wbordery) / 2;
-        gli_draw_rect(x0, y1 + ypad, x1 - x0, gli_wbordery, gli_border_color);
+        int ybord = dwin->wborder ? gli_wbordery : 0;
+        int ypad = (gli_wpaddingy - ybord) / 2;
+        gli_draw_rect(x0, y1 + ypad, x1 - x0, ybord, gli_border_color);
     }
 }
 

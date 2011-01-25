@@ -52,6 +52,8 @@ window_textgrid_t *win_textgrid_create(window_t *win)
     dwin->cury = 0;
 
     dwin->inbuf = NULL;
+    dwin->line_terminators = NULL;
+
     dwin->inorgx = 0;
     dwin->inorgy = 0;
 
@@ -68,6 +70,9 @@ void win_textgrid_destroy(window_textgrid_t *dwin)
             (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, "&+#!Cn", dwin->inarrayrock);
         dwin->inbuf = NULL;
     }
+
+    if (dwin->line_terminators)
+        free(dwin->line_terminators);
 
     dwin->owner = NULL;
     free(dwin);
@@ -388,6 +393,17 @@ void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
         touch(dwin, dwin->inorgy);
     }
 
+    if (win->line_terminators && win->termct)
+    {
+        dwin->line_terminators = malloc((win->termct + 1) * sizeof(glui32));
+
+        if (dwin->line_terminators)
+        {
+            memcpy(dwin->line_terminators, win->line_terminators, win->termct * sizeof(glui32));
+            dwin->line_terminators[win->termct] = 0;
+        }
+    }
+
     if (gli_register_arr)
         dwin->inarrayrock = (*gli_register_arr)(buf, maxlen, "&+#!Cn");
 }
@@ -428,6 +444,17 @@ void win_textgrid_init_line_uni(window_t *win, glui32 *buf, int maxlen, int init
         dwin->cury = dwin->inorgy;
 
         touch(dwin, dwin->inorgy);
+    }
+
+    if (win->line_terminators && win->termct)
+    {
+        dwin->line_terminators = malloc((win->termct + 1) * sizeof(glui32));
+
+        if (dwin->line_terminators)
+        {
+            memcpy(dwin->line_terminators, win->line_terminators, win->termct * sizeof(glui32));
+            dwin->line_terminators[win->termct] = 0;
+        }
     }
 
     if (gli_register_arr)
@@ -483,10 +510,10 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 
     win->line_request = FALSE;
     win->line_request_uni = FALSE;
-    if (win->line_terminators)
+    if (dwin->line_terminators)
     {
-        free(win->line_terminators);
-        win->line_terminators = NULL;
+        free(dwin->line_terminators);
+        dwin->line_terminators = NULL;
     }
     dwin->inbuf = NULL;
     dwin->inmax = 0;
@@ -509,8 +536,20 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
         case keycode_Erase:
             key = keycode_Delete;
             break;
+        case keycode_MouseWheelUp:
+            key = keycode_PageUp;
+            break;
+        case keycode_MouseWheelDown:
+            key = keycode_PageDown;
+            break;
         default:
             key = arg;
+    }
+
+    if (key > 0xff && key < (0x100000000 - keycode_MAXVAL))
+    {
+        if (!(win->char_request_uni) || key > 0x10ffff)
+            key = keycode_Unknown;
     }
 
     win->char_request = FALSE;
@@ -555,14 +594,14 @@ static void acceptline(window_t *win, glui32 keycode)
     dwin->curx = 0;
     win->attr = dwin->origattr;
 
-    if (win->line_terminators)
+    if (dwin->line_terminators)
     {
         glui32 val2 = keycode;
         if (val2 == keycode_Return)
-            val2 = 13;
+            val2 = 0;
         gli_event_store(evtype_LineInput, win, dwin->inlen, val2);
-        free(win->line_terminators);
-        win->line_terminators = NULL;
+        free(dwin->line_terminators);
+        dwin->line_terminators = NULL;
     }
     else
     {
@@ -589,10 +628,10 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
     if (!dwin->inbuf)
         return;
 
-    if (win->line_terminators)
+    if (dwin->line_terminators && gli_window_check_terminator(arg))
     {
         glui32 *cx;
-        for (cx = win->line_terminators; *cx; cx++)
+        for (cx = dwin->line_terminators; *cx; cx++)
         {
             if (*cx == arg)
             {

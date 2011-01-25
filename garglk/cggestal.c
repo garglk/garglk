@@ -44,29 +44,29 @@ glui32 glk_gestalt(glui32 id, glui32 val)
     return glk_gestalt_ext(id, val, NULL, 0);
 }
 
-glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr, 
+glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
     glui32 arrlen)
 {
     switch (id)
     {
         case gestalt_Version:
             return 0x00000700;
-        
+
         case gestalt_LineInput:
             if (val >= 32 && val < 0x10ffff)
                 return TRUE;
             else
                 return FALSE;
-        
-        case gestalt_CharInput: 
+
+        case gestalt_CharInput:
             if (val >= 32 && val < 0x10ffff)
                 return TRUE;
             else if (val == keycode_Return)
                 return TRUE;
             else
                 return FALSE;
-        
-        case gestalt_CharOutput: 
+
+        case gestalt_CharOutput:
             if (val >= 32 && val < 0x10ffff)
             {
                 if (arr && arrlen >= 1)
@@ -76,23 +76,23 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             else
             {
                 /* cheaply, we don't do any translation of printed
-                    characters, so the output is always one character 
+                    characters, so the output is always one character
                     even if it's wrong. */
                 if (arr && arrlen >= 1)
                     arr[0] = 1;
                 return gestalt_CharOutput_CannotPrint;
             }
-        
-        case gestalt_MouseInput: 
+
+        case gestalt_MouseInput:
             if (val == wintype_TextGrid)
                 return TRUE;
             if (val == wintype_Graphics)
                 return TRUE;
             return FALSE;
-        
-        case gestalt_Timer: 
+
+        case gestalt_Timer:
             return TRUE;
-        
+
         case gestalt_Graphics:
         case gestalt_GraphicsTransparency:
             return gli_conf_graphics;
@@ -102,14 +102,16 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             if (val == wintype_Graphics)
                 return gli_conf_graphics;
             return FALSE;
-        
+
         case gestalt_Sound:
         case gestalt_SoundVolume:
         case gestalt_SoundMusic:
-        case gestalt_SoundNotify: 
+        case gestalt_SoundNotify:
             return gli_conf_sound;
 
         case gestalt_Unicode:
+            return TRUE;
+        case gestalt_UnicodeNorm:
             return TRUE;
 
         case gestalt_Hyperlinks:
@@ -117,8 +119,15 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
         case gestalt_HyperlinkInput:
             return TRUE;
 
+        case gestalt_LineInputEcho:
+            return TRUE;
+        case gestalt_LineTerminators:
+            return TRUE;
+        case gestalt_LineTerminatorKey:
+            return gli_window_check_terminator(val);
+
         default:
             return 0;
-    
+
     }
 }

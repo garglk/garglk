@@ -86,12 +86,15 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->char_request_uni = FALSE;
     win->line_request = FALSE;
     win->line_request_uni = FALSE;
-    win->line_terminators = NULL;
     win->mouse_request = FALSE;
     win->hyper_request = FALSE;
     win->more_request = FALSE;
     win->scroll_request = FALSE;
     win->image_loaded = FALSE;
+
+    win->echo_line_input = TRUE;
+    win->line_terminators = NULL;
+    win->termct = 0;
 
     attrclear(&win->attr);
     memcpy(win->bgcolor, gli_window_color, 3);
@@ -128,6 +131,12 @@ void gli_delete_window(window_t *win)
         win->str = NULL;
     }
 
+    if (win->line_terminators)
+    {
+        free(win->line_terminators);
+        win->line_terminators = NULL;
+    }
+
     prev = win->prev;
     next = win->next;
     win->prev = NULL;
@@ -144,7 +153,7 @@ void gli_delete_window(window_t *win)
 }
 
 winid_t glk_window_open(winid_t splitwin,
-        glui32 method, glui32 size, 
+        glui32 method, glui32 size,
         glui32 wintype, glui32 rock)
 {
     window_t *newwin, *pairwin, *oldparent;
@@ -181,7 +190,7 @@ winid_t glk_window_open(winid_t splitwin,
         }
 
         val = (method & winmethod_DirMask);
-        if (val != winmethod_Above && val != winmethod_Below 
+        if (val != winmethod_Above && val != winmethod_Below
             && val != winmethod_Left && val != winmethod_Right)
         {
             gli_strict_warning("window_open: invalid method (bad direction)");
@@ -357,7 +366,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
         /* begin (simpler) closation */
 
         gli_stream_fill_result(win->str, result);
-        gli_window_close(win, TRUE); 
+        gli_window_close(win, TRUE);
     }
 
     else
@@ -404,7 +413,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
 
         /* Close the child window (and descendants), so that key-deletion can
             crawl up the tree to the root window. */
-        gli_window_close(win, TRUE); 
+        gli_window_close(win, TRUE);
 
         /* This probably isn't necessary, but the child *is* gone, so just
             in case. */
@@ -421,7 +430,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
     }
 }
 
-void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size, 
+void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
     winid_t *keywin)
 {
     window_pair_t *dwin;
@@ -442,6 +451,8 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
     dwin = win->data;
 
     val = dwin->dir | dwin->division;
+    if (!dwin->wborder)
+        val |= winmethod_NoBorder;
 
     if (size)
         *size = dwin->size;
@@ -513,7 +524,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
         return;
     }
 
-    if (key && key->type == wintype_Blank 
+    if (key && key->type == wintype_Blank
         && (method & winmethod_DivisionMask) == winmethod_Fixed)
     {
         gli_strict_warning("window_set_arrangement: a Blank window cannot have a fixed size");
@@ -533,6 +544,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
     dwin->size = size;
+    dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
 
     dwin->vertical = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Right);
     dwin->backward = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Above);
@@ -941,7 +953,7 @@ void glk_request_char_event_uni(window_t *win)
 
 }
 
-void glk_request_line_event(window_t *win, char *buf, glui32 maxlen, 
+void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     glui32 initlen)
 {
     if (!win)
@@ -973,7 +985,7 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
 
 }
 
-void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen, 
+void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     glui32 initlen)
 {
     if (!win)
@@ -1005,36 +1017,70 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
 
 }
 
-void garglk_set_line_terminators(window_t *win, const glui32 *keycodes, glui32 numkeycodes)
+void glk_set_echo_line_event(window_t *win, glui32 val)
 {
     if (!win)
     {
-        gli_strict_warning("set_line_terminators: invalid ref");
+        gli_strict_warning("set_echo_line_event: invalid ref");
         return;
     }
 
-    if (!win->line_request && !win->line_request_uni)
+    switch (win->type)
     {
-        gli_strict_warning("set_line_terminators: window has no line input request");
+        case wintype_TextBuffer:
+            win->echo_line_input = (val != 0);
+            break;
+        default:
+            break;
+    }
+}
+
+void glk_set_terminators_line_event(winid_t win, glui32 *keycodes, glui32 count)
+{
+    if (!win)
+    {
+        gli_strict_warning("set_terminators_line_event: invalid ref");
         return;
+    }
+
+    switch (win->type)
+    {
+        case wintype_TextBuffer:
+        case wintype_TextGrid:
+            break;
+        default:
+            gli_strict_warning("set_terminators_line_event: window does not support keyboard input");
+            return;
     }
 
     if (win->line_terminators)
         free(win->line_terminators);
 
-    if (numkeycodes == 0)
+    if (!keycodes || count == 0)
     {
         win->line_terminators = NULL;
+        win->termct = 0;
     }
     else
     {
-        win->line_terminators = malloc((numkeycodes + 1) * sizeof(glui32));
+        win->line_terminators = malloc((count + 1) * sizeof(glui32));
         if (win->line_terminators)
         {
-            memcpy(win->line_terminators, keycodes, numkeycodes * sizeof(glui32));
-            win->line_terminators[numkeycodes] = 0;
+            memcpy(win->line_terminators, keycodes, count * sizeof(glui32));
+            win->line_terminators[count] = 0;
+            win->termct = count;
         }
     }
+}
+
+int gli_window_check_terminator(glui32 ch)
+{
+    if (ch == keycode_Escape)
+        return TRUE;
+    else if (ch >= keycode_Func12 && ch <= keycode_Func1)
+        return TRUE;
+    else
+        return FALSE;
 }
 
 void glk_request_mouse_event(window_t *win)

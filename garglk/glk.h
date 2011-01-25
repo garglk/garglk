@@ -23,40 +23,35 @@
 #ifndef GLK_H
 #define GLK_H
 
-/* glk.h: Header file for Glk API, version 0.7.0.
+/* glk.h: Header file for Glk API, version 0.7.1.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
-    http://www.eblong.com/zarf/glk/index.html
+    http://eblong.com/zarf/glk/
 
-    Portions of this file are copyright 1998-2004 by Andrew Plotkin.
-    You may copy, distribute, and incorporate it into your own programs,
-    by any means and under any conditions, as long as you do not modify it.
-    You may also modify this file, incorporate it into your own programs,
+    This file is copyright 1998-2011 by Andrew Plotkin. You may copy,
+    distribute, and incorporate it into your own programs, by any means
+    and under any conditions, as long as you do not modify it. You may
+    also modify this file, incorporate it into your own programs,
     and distribute the modified version, as long as you retain a notice
     in your program or documentation which mentions my name and the URL
     shown above.
 */
 
-/* You may have to edit the definition of glui32 to make sure it's really a
-    32-bit unsigned integer type, and glsi32 to make sure it's really a
-    32-bit signed integer type. If they're not, horrible things will happen. */
-#include <limits.h>
-#if (USHRT_MAX == 4294967295)
-typedef unsigned short glui32;
-typedef signed   short glsi32;
-#elif (UINT_MAX   == 4294967295)
-typedef unsigned int glui32;
-typedef signed   int glsi32;
-#elif (ULONG_MAX == 4294967295)
-typedef unsigned long glui32;
-typedef signed long glsi32;
-#else
-#error No 32-bit integer type found.
-#endif
+/* If your system does not have <stdint.h>, you'll have to remove this
+    include line. Then edit the definition of glui32 to make sure it's
+    really a 32-bit unsigned integer type, and glsi32 to make sure
+    it's really a 32-bit signed integer type. If they're not, horrible
+    things will happen. */
+#include <stdint.h>
+typedef uint32_t glui32;
+typedef int32_t glsi32;
 
 
 /* These are the compile-time conditionals that reveal various Glk optional
     modules. */
+#define GLK_MODULE_LINE_ECHO
+#define GLK_MODULE_LINE_TERMINATORS
 #define GLK_MODULE_UNICODE
+#define GLK_MODULE_UNICODE_NORM
 #define GLK_MODULE_IMAGE
 #define GLK_MODULE_SOUND
 #define GLK_MODULE_HYPERLINKS
@@ -72,9 +67,9 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_CharInput (1)
 #define gestalt_LineInput (2)
 #define gestalt_CharOutput (3)
-#define gestalt_CharOutput_CannotPrint (0)
-#define gestalt_CharOutput_ApproxPrint (1)
-#define gestalt_CharOutput_ExactPrint (2)
+#define   gestalt_CharOutput_CannotPrint (0)
+#define   gestalt_CharOutput_ApproxPrint (1)
+#define   gestalt_CharOutput_ExactPrint (2)
 #define gestalt_MouseInput (4)
 #define gestalt_Timer (5)
 #define gestalt_Graphics (6)
@@ -87,20 +82,24 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_SoundMusic (13)
 #define gestalt_GraphicsTransparency (14)
 #define gestalt_Unicode (15)
+#define gestalt_UnicodeNorm (16)
+#define gestalt_LineInputEcho (17)
+#define gestalt_LineTerminators (18)
+#define gestalt_LineTerminatorKey (19)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
 #define evtype_CharInput (2)
 #define evtype_LineInput (3)
 #define evtype_MouseInput (4)
-#define evtype_Arrange (5) 
+#define evtype_Arrange (5)
 #define evtype_Redraw (6)
 #define evtype_SoundNotify (7)
 #define evtype_Hyperlink (8)
 
 typedef struct event_struct {
     glui32 type;
-    winid_t win; 
+    winid_t win;
     glui32 val1, val2;
 } event_t;
 
@@ -130,7 +129,7 @@ typedef struct event_struct {
 #define keycode_Func11   (0xffffffe5)
 #define keycode_Func12   (0xffffffe4)
 /* The last keycode is always (0x100000000 - keycode_MAXVAL) */
-#define keycode_MAXVAL   (28) 
+#define keycode_MAXVAL   (28)
 
 #define style_Normal (0)
 #define style_Emphasized (1)
@@ -166,6 +165,10 @@ typedef struct stream_result_struct {
 #define winmethod_Fixed (0x10)
 #define winmethod_Proportional (0x20)
 #define winmethod_DivisionMask (0xf0)
+
+#define winmethod_Border   (0x000)
+#define winmethod_NoBorder (0x100)
+#define winmethod_BorderMask (0x100)
 
 #define fileusage_Data (0x00)
 #define fileusage_SavedGame (0x01)
@@ -211,14 +214,14 @@ extern void glk_set_interrupt_handler(void (*func)(void));
 extern void glk_tick(void);
 
 extern glui32 glk_gestalt(glui32 sel, glui32 val);
-extern glui32 glk_gestalt_ext(glui32 sel, glui32 val, glui32 *arr, 
+extern glui32 glk_gestalt_ext(glui32 sel, glui32 val, glui32 *arr,
     glui32 arrlen);
 
 extern unsigned char glk_char_to_lower(unsigned char ch);
 extern unsigned char glk_char_to_upper(unsigned char ch);
 
 extern winid_t glk_window_get_root(void);
-extern winid_t glk_window_open(winid_t split, glui32 method, glui32 size, 
+extern winid_t glk_window_open(winid_t split, glui32 method, glui32 size,
     glui32 wintype, glui32 rock);
 extern void glk_window_close(winid_t win, stream_result_t *result);
 extern void glk_window_get_size(winid_t win, glui32 *widthptr,
@@ -232,7 +235,7 @@ extern glui32 glk_window_get_rock(winid_t win);
 extern glui32 glk_window_get_type(winid_t win);
 extern winid_t glk_window_get_parent(winid_t win);
 extern winid_t glk_window_get_sibling(winid_t win);
-extern void glk_window_clear(winid_t win); 
+extern void glk_window_clear(winid_t win);
 extern void glk_window_move_cursor(winid_t win, glui32 xpos, glui32 ypos);
 
 extern strid_t glk_window_get_stream(winid_t win);
@@ -244,7 +247,7 @@ extern strid_t glk_stream_open_file(frefid_t fileref, glui32 fmode,
     glui32 rock);
 extern strid_t glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode,
     glui32 rock);
-extern void glk_stream_close(strid_t str, stream_result_t *result); 
+extern void glk_stream_close(strid_t str, stream_result_t *result);
 extern strid_t glk_stream_iterate(strid_t str, glui32 *rockptr);
 extern glui32 glk_stream_get_rock(strid_t str);
 extern void glk_stream_set_position(strid_t str, glsi32 pos, glui32 seekmode);
@@ -288,7 +291,7 @@ extern glui32 glk_fileref_does_file_exist(frefid_t fref);
 extern void glk_select(event_t *event);
 extern void glk_select_poll(event_t *event);
 
-extern void glk_request_timer_events(glui32 millisecs); 
+extern void glk_request_timer_events(glui32 millisecs);
 
 extern void glk_request_line_event(winid_t win, char *buf, glui32 maxlen,
     glui32 initlen);
@@ -298,6 +301,15 @@ extern void glk_request_mouse_event(winid_t win);
 extern void glk_cancel_line_event(winid_t win, event_t *event);
 extern void glk_cancel_char_event(winid_t win);
 extern void glk_cancel_mouse_event(winid_t win);
+
+#ifdef GLK_MODULE_LINE_ECHO
+extern void glk_set_echo_line_event(winid_t win, glui32 val);
+#endif /* GLK_MODULE_LINE_ECHO */
+
+#ifdef GLK_MODULE_LINE_TERMINATORS
+extern void glk_set_terminators_line_event(winid_t win, glui32 *keycodes,
+    glui32 count);
+#endif /* GLK_MODULE_LINE_TERMINATORS */
 
 #ifdef GLK_MODULE_UNICODE
 
@@ -329,6 +341,15 @@ extern void glk_request_line_event_uni(winid_t win, glui32 *buf,
     glui32 maxlen, glui32 initlen);
 
 #endif /* GLK_MODULE_UNICODE */
+
+#ifdef GLK_MODULE_UNICODE_NORM
+
+extern glui32 glk_buffer_canon_decompose_uni(glui32 *buf, glui32 len,
+    glui32 numchars);
+extern glui32 glk_buffer_canon_normalize_uni(glui32 *buf, glui32 len,
+    glui32 numchars);
+
+#endif /* GLK_MODULE_UNICODE_NORM */
 
 #ifdef GLK_MODULE_IMAGE
 
@@ -389,13 +410,6 @@ extern void garglk_set_program_name(const char *name);
 extern void garglk_set_program_info(const char *info);
 extern void garglk_set_story_name(const char *name);
 extern void garglk_set_config(const char *name);
-
-/* JM: functions added to support Z-machine features that aren't in the Glk standard */
-
-/* garglk_set_line_terminators - amends the current line input request to include terminating
- * key codes. any of the specified key codes will terminate input (without printing a newline),
- * and the key code will be returned in the event record as val2. */
-extern void garglk_set_line_terminators(winid_t win, const glui32 *keycodes, glui32 numkeycodes);
 
 /* garglk_unput_string - removes the specified string from the end of the output buffer, if
  * indeed it is there. */

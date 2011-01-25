@@ -22,8 +22,8 @@
  *****************************************************************************/
 
 /*
- * Private header file for the Kickass Implementation of the Glk API.
- * Glk API which this implements: version 0.7.0.
+ * Private header file for the Gargoyle Implementation of the Glk API.
+ * Glk API which this implements: version 0.7.1.
  * Glk designed by Andrew Plotkin <erkyrath@eblong.com>
  * http://www.eblong.com/zarf/glk/index.html
  */
@@ -383,7 +383,6 @@ struct glk_window_struct
 
     int line_request;
     int line_request_uni;
-    glui32 *line_terminators;
     int char_request;
     int char_request_uni;
     int mouse_request;
@@ -391,6 +390,10 @@ struct glk_window_struct
     int more_request;
     int scroll_request;
     int image_loaded;
+
+    glui32 echo_line_input;
+    glui32 *line_terminators;
+    glui32 termct;
 
     attr_t attr;
     unsigned char bgcolor[3];
@@ -417,6 +420,7 @@ struct window_pair_s
     window_t *key; /* NULL or a leaf-descendant (not a Pair) */
     int keydamage; /* used as scratch space in window closing */
     glui32 size; /* size value */
+    glui32 wborder;  /* winMethod_Border, NoBorder */
 };
 
 /* One line of the grid window. */
@@ -443,6 +447,7 @@ struct window_textgrid_s
     int incurs, inlen;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
+    glui32 *line_terminators;
 
     /* style hints and settings */
     style_t styles[style_NUMSTYLES];
@@ -496,6 +501,9 @@ struct window_textbuffer_s
     long incurs;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
+
+    glui32 echo_line_input;
+    glui32 *line_terminators;
 
     /* style hints and settings */
     style_t styles[style_NUMSTYLES];
@@ -605,6 +613,7 @@ extern void gli_window_rearrange(window_t *win, rect_t *box);
 extern void gli_window_redraw(window_t *win);
 extern void gli_window_put_char_uni(window_t *win, glui32 ch);
 extern int gli_window_unput_char_uni(window_t *win, glui32 ch);
+extern int gli_window_check_terminator(glui32 ch);
 
 extern void gli_windows_redraw(void);
 extern void gli_windows_size_change(void);
@@ -710,6 +719,10 @@ typedef glui32 gli_case_special_t[3]; /* upper, lower, title */
 /* Each of these points to a subarray of the unigen_special_array
 (in cgunicode.c). In that subarray, element zero is the length,
 and that's followed by length unicode values. */
+
+typedef glui32 gli_decomp_block_t[2]; /* count, position */
+/* The position points to a subarray of the unigen_decomp_array.
+   If the count is zero, there is no decomposition. */
 
 void gli_putchar_utf8(glui32 val, FILE *fl);
 glui32 gli_getchar_utf8(FILE *fl);
