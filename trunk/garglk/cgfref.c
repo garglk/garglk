@@ -349,6 +349,8 @@ void glkunix_set_base_file(char *filename)
     strcpy(gli_workdir, filename);
     if (strrchr(gli_workdir, '/'))
         strrchr(gli_workdir, '/')[0] = 0;
-    if (strrchr(gli_workdir, '\\'))
+    else if (strrchr(gli_workdir, '\\'))
         strrchr(gli_workdir, '\\')[0] = 0;
+    else
+        strcpy(gli_workdir, ".");
 }
