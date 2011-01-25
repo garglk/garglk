@@ -1,11 +1,11 @@
 #ifndef _GI_DISPA_H
 #define _GI_DISPA_H
 
-/* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.7.0.
+/* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.7.1.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
+    This file is copyright 1998-2011 by Andrew Plotkin. You may copy,
     distribute, and incorporate it into your own programs, by any means
     and under any conditions, as long as you do not modify it. You may
     also modify this file, incorporate it into your own programs,
@@ -17,8 +17,8 @@
 /* These constants define the classes of opaque objects. It's a bit ugly
     to put them in this header file, since more classes may be added in
     the future. But if you find yourself stuck with an obsolete version
-    of this file, adding new class definitions will be easy enough -- 
-    they will be numbered sequentially, and the numeric constants can be 
+    of this file, adding new class definitions will be easy enough --
+    they will be numbered sequentially, and the numeric constants can be
     found in the Glk specification. */
 #define gidisp_Class_Window (0)
 #define gidisp_Class_Stream (1)
@@ -40,7 +40,7 @@ typedef union gluniversal_union {
 
 /* Some well-known structures:
     event_t : [4IuQaIuIu]
-    stream_result_t : [2IuIu] 
+    stream_result_t : [2IuIu]
 */
 
 typedef struct gidispatch_function_struct {
@@ -61,23 +61,23 @@ typedef union glk_objrock_union {
 
 /* The following functions are part of the Glk library itself, not the dispatch
     layer (whose code is in gi_dispa.c). These functions are necessarily
-    implemented in platform-dependent code. 
+    implemented in platform-dependent code.
 */
 extern void gidispatch_set_object_registry(
-    gidispatch_rock_t (*regi)(void *obj, glui32 objclass), 
+    gidispatch_rock_t (*regi)(void *obj, glui32 objclass),
     void (*unregi)(void *obj, glui32 objclass, gidispatch_rock_t objrock));
 extern gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass);
 extern void gidispatch_set_retained_registry(
-    gidispatch_rock_t (*regi)(void *array, glui32 len, char *typecode), 
-    void (*unregi)(void *array, glui32 len, char *typecode, 
+    gidispatch_rock_t (*regi)(void *array, glui32 len, char *typecode),
+    void (*unregi)(void *array, glui32 len, char *typecode,
         gidispatch_rock_t objrock));
 
 /* The following functions make up the Glk dispatch layer. Although they are
     distributed as part of each Glk library (linked into the library file),
     their code is in gi_dispa.c, which is platform-independent and identical
-    in every Glk library. 
+    in every Glk library.
 */
-extern void gidispatch_call(glui32 funcnum, glui32 numargs, 
+extern void gidispatch_call(glui32 funcnum, glui32 numargs,
     gluniversal_t *arglist);
 extern char *gidispatch_prototype(glui32 funcnum);
 extern glui32 gidispatch_count_classes(void);
