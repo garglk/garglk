@@ -263,8 +263,6 @@ void smartstatusline (void)
 	int roomlen, scorelen, scoreofs;
 	int len, tmp;
 
-	statusline[curx - 1] = 0; /* terminate! */
-
 	packspaces(statusline, packed);
 	//strcpy(packed, statusline);
 	len = os_string_length(packed);
@@ -351,9 +349,12 @@ void screen_char (zchar c)
 		else {
 			if (cury == 1)
 			{
-				if (curx < sizeof statusline)
+				if (curx <= ((sizeof statusline / sizeof(zchar)) - 1))
+				{
 					statusline[curx - 1] = c;
-				curx++;
+					statusline[curx] = 0;
+				}
+				curx ++;
 				if (curx <= h_screen_cols)
 					glk_put_char_uni(c);
 				else
