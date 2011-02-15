@@ -119,7 +119,7 @@ void os_process_arguments(int argc, char *argv[])
 
 	/* Parse the options */
 	do {
-		c = zgetopt(argc, argv, "aAi:oOPQs:S:tu:xZ:");
+		c = zgetopt(argc, argv, "aAioOPQs:S:tu:xZ:");
 		switch (c)
 		{
 			case 'a': option_attribute_assignment = 1; break;
