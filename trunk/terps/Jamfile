@@ -10,6 +10,7 @@ MAKE_ADVSYS     ?= yes ;
 MAKE_AGILITY    ?= yes ;
 MAKE_ALAN2      ?= yes ;
 MAKE_ALAN3      ?= yes ;
+MAKE_BOCFEL     ?= yes ;
 MAKE_FROTZ      ?= yes ;
 MAKE_GEAS       ?= yes ;
 MAKE_GIT        ?= yes ;
@@ -117,6 +118,27 @@ if $(MAKE_ALAN3) = yes
         ;
 
     APPS += alan3 ;
+}
+
+# -----------------------------------------------------------------------
+#
+# Bocfel 0.5.0
+#
+
+if $(MAKE_BOCFEL) = yes
+{
+    SubDir TOP terps bocfel ;
+    ObjDir bocfel ;
+
+    SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
+
+    Main bocfel :
+        blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
+        objects.c osdep.c process.c random.c screen.c stack.c table.c
+        unicode.c util.c zoom.c zterp.c
+        ;
+
+    APPS += bocfel ;
 }
 
 # -----------------------------------------------------------------------
