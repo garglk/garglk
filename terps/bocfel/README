@@ -1,0 +1,18 @@
+Bocfel is an interpreter for the Z-machine, which means that it plays text
+adventure games.  For more information on the Z-machine and interpreters, please
+see http://en.wikipedia.org/wiki/Z-machine.
+
+For building instructions, please consult the BUILDING file.
+
+If you are poking around the source code, you might notice a lot of identifiers
+containing "zterp".  When I first started this project, I put it in my
+Subversion repository, but I wasn't sure it would ever go anywhere.  I quickly
+picked a rather generic name--zterp--because a name was needed for the
+repository path.  It turns out, however, that long ago somebody released a
+Z-machine interpreter called zterp, so I had to find something new.  By the time
+I realized this, however, the name "zterp" had become entrenched in the source.
+I've changed all user-visible uses of "zterp" to "bocfel", but have kept the old
+identifiers in the source.
+
+Chris Spiegel <cspiegel@gmail.com>
+http://bocfel.googlecode.com/

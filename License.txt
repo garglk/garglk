@@ -8,6 +8,8 @@ AGiliTy is copyright (c) Robert Masenten. It is released under the terms of the 
 
 Alan is copyright (c) Thomas Nilsson. It is released under the terms of the Artistic License 2.0.
 
+Bocfel is copyright (c) Chris Spiegel. It is released under the terms of the GNU General Public License.
+
 Frotz is copyright (c) Stefan Jokisch. It is released under the terms of the GNU General Public License.
 
 Geas is copyright (c) Mark Tilford and David Jones. It is released under the terms of the GNU General Public License.
