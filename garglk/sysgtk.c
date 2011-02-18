@@ -558,7 +558,7 @@ void winopen(void)
         GTK_WIDGET(frame), &geom,
         GDK_HINT_MIN_SIZE
         | GDK_HINT_MAX_SIZE
-        /* | GDK_HINT_RESIZE_INC */
+        | GDK_HINT_RESIZE_INC
         );
     gtk_window_set_default_size(GTK_WINDOW(frame), defw, defh);
 
