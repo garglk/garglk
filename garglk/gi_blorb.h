@@ -4,9 +4,9 @@
 /* gi_blorb.h: Blorb library layer for Glk API.
     gi_blorb version 1.4.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
-    http://www.eblong.com/zarf/glk/index.html
+    http://eblong.com/zarf/glk/
 
-    This file is copyright 1998-2000 by Andrew Plotkin. You may copy,
+    This file is copyright 1998-2010 by Andrew Plotkin. You may copy,
     distribute, and incorporate it into your own programs, by any means
     and under any conditions, as long as you do not modify it. You may
     also modify this file, incorporate it into your own programs,
