@@ -359,12 +359,12 @@ typedef struct attr_s
 {
     unsigned fgset   : 1;
     unsigned bgset   : 1;
+    unsigned reverse : 1;
+    unsigned         : 1;
+    unsigned style   : 4;
     unsigned fgcolor : 24;
     unsigned bgcolor : 24;
-    unsigned style   : 4;
-    unsigned reverse : 1;
-    unsigned hyper   : 4;
-    unsigned         : 5;
+    unsigned hyper   : 32;
 } attr_t;
 
 struct glk_window_struct
