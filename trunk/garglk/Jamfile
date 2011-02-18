@@ -26,11 +26,13 @@ if $(BUNDLEFONTS) = yes
 
 GARGSRCS = 
     gi_blorb.c gi_dispa.c
-    cggestal.c cgblorb.c cgfref.c cgmisc.c cgstyle.c cgstream.c cgunicod.c
-    window.c winblank.c winpair.c wingrid.c wintext.c wingfx.c winmask.c
+    cggestal.c cgblorb.c cgfref.c cgmisc.c
+    cgstyle.c cgstream.c cgunicod.c cgdate.c
+    window.c winblank.c winpair.c wingrid.c
+    wintext.c wingfx.c winmask.c
     event.c draw.c config.c
     imgload.c imgscale.c
-    fontdata.c 
+    fontdata.c
     ;
 
 if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }

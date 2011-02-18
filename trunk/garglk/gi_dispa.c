@@ -1,4 +1,4 @@
-/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.1.
+/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.2.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
@@ -68,6 +68,7 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_CharOutput_ApproxPrint", (1) },
     { "gestalt_CharOutput_CannotPrint", (0) },
     { "gestalt_CharOutput_ExactPrint", (2) },
+    { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
     { "gestalt_Graphics", (6) },
     { "gestalt_GraphicsTransparency", (14) },
@@ -294,6 +295,18 @@ static gidispatch_function_t function_table[] = {
 #ifdef GLK_MODULE_LINE_TERMINATORS
     { 0x0151, glk_set_terminators_line_event, "set_terminators_line_event" },
 #endif /* GLK_MODULE_LINE_TERMINATORS */
+#ifdef GLK_MODULE_DATETIME
+    { 0x0160, glk_current_time, "current_time" },
+    { 0x0161, glk_current_simple_time, "current_simple_time" },
+    { 0x0168, glk_time_to_date_utc, "time_to_date_utc" },
+    { 0x0169, glk_time_to_date_local, "time_to_date_local" },
+    { 0x016A, glk_simple_time_to_date_utc, "simple_time_to_date_utc" },
+    { 0x016B, glk_simple_time_to_date_local, "simple_time_to_date_local" },
+    { 0x016C, glk_date_to_time_utc, "date_to_time_utc" },
+    { 0x016D, glk_date_to_time_local, "date_to_time_local" },
+    { 0x016E, glk_date_to_simple_time_utc, "date_to_simple_time_utc" },
+    { 0x016F, glk_date_to_simple_time_local, "date_to_simple_time_local" },
+#endif /* GLK_MODULE_DATETIME */
 };
 
 glui32 gidispatch_count_classes()
@@ -595,6 +608,29 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x0151: /* set_terminators_line_event */
             return "2Qa>#Iu:";
 #endif /* GLK_MODULE_LINE_TERMINATORS */
+
+#ifdef GLK_MODULE_DATETIME
+        case 0x0160: /* current_time */
+            return "1<+[3IsIuIs]:";
+        case 0x0161: /* current_simple_time */
+            return "2Iu:Is";
+        case 0x0168: /* time_to_date_utc */
+            return "2>+[3IsIuIs]<+[8IsIsIsIsIsIsIsIs]:";
+        case 0x0169: /* time_to_date_local */
+            return "2>+[3IsIuIs]<+[8IsIsIsIsIsIsIsIs]:";
+        case 0x016A: /* simple_time_to_date_utc */
+            return "3IsIu<+[8IsIsIsIsIsIsIsIs]:";
+        case 0x016B: /* simple_time_to_date_local */
+            return "3IsIu<+[8IsIsIsIsIsIsIsIs]:";
+        case 0x016C: /* date_to_time_utc */
+            return "2>+[8IsIsIsIsIsIsIsIs]<+[3IsIuIs]:";
+        case 0x016D: /* date_to_time_local */
+            return "2>+[8IsIsIsIsIsIsIsIs]<+[3IsIuIs]:";
+        case 0x016E: /* date_to_simple_time_utc */
+            return "3>+[8IsIsIsIsIsIsIsIs]Iu:Is";
+        case 0x016F: /* date_to_simple_time_local */
+            return "3>+[8IsIsIsIsIsIsIsIs]Iu:Is";
+#endif /* GLK_MODULE_DATETIME */
 
         default:
             return NULL;
@@ -1182,6 +1218,212 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
                     NULL, 0);
             break;
 #endif /* GLK_MODULE_LINE_TERMINATORS */
+
+#ifdef GLK_MODULE_DATETIME
+        case 0x0160: /* current_time */
+            if (arglist[0].ptrflag) {
+                glktimeval_t dat;
+                glk_current_time(&dat);
+                arglist[1].sint = dat.high_sec;
+                arglist[2].uint = dat.low_sec;
+                arglist[3].sint = dat.microsec;
+            }
+            else {
+                glk_current_time(NULL);
+            }
+            break;
+        case 0x0161: /* current_simple_time */
+            arglist[2].sint = glk_current_simple_time(arglist[0].uint);
+            break;
+        case 0x0168: /* time_to_date_utc */ {
+            glktimeval_t timeval;
+            glktimeval_t *timeptr = NULL;
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                timeptr = &timeval;
+                timeval.high_sec = arglist[ix++].sint;
+                timeval.low_sec = arglist[ix++].uint;
+                timeval.microsec = arglist[ix++].sint;
+            }
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+            }
+            glk_time_to_date_utc(timeptr, dateptr);
+            if (dateptr) {
+                arglist[ix++].sint = date.year;
+                arglist[ix++].sint = date.month;
+                arglist[ix++].sint = date.day;
+                arglist[ix++].sint = date.weekday;
+                arglist[ix++].sint = date.hour;
+                arglist[ix++].sint = date.minute;
+                arglist[ix++].sint = date.second;
+                arglist[ix++].sint = date.microsec;
+            }
+            }
+            break;
+        case 0x0169: /* time_to_date_local */ {
+            glktimeval_t timeval;
+            glktimeval_t *timeptr = NULL;
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                timeptr = &timeval;
+                timeval.high_sec = arglist[ix++].sint;
+                timeval.low_sec = arglist[ix++].uint;
+                timeval.microsec = arglist[ix++].sint;
+            }
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+            }
+            glk_time_to_date_local(timeptr, dateptr);
+            if (dateptr) {
+                arglist[ix++].sint = date.year;
+                arglist[ix++].sint = date.month;
+                arglist[ix++].sint = date.day;
+                arglist[ix++].sint = date.weekday;
+                arglist[ix++].sint = date.hour;
+                arglist[ix++].sint = date.minute;
+                arglist[ix++].sint = date.second;
+                arglist[ix++].sint = date.microsec;
+            }
+            }
+            break;
+        case 0x016A: /* simple_time_to_date_utc */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 2;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+            }
+            glk_simple_time_to_date_utc(arglist[0].sint, arglist[1].uint, dateptr);
+            if (dateptr) {
+                arglist[ix++].sint = date.year;
+                arglist[ix++].sint = date.month;
+                arglist[ix++].sint = date.day;
+                arglist[ix++].sint = date.weekday;
+                arglist[ix++].sint = date.hour;
+                arglist[ix++].sint = date.minute;
+                arglist[ix++].sint = date.second;
+                arglist[ix++].sint = date.microsec;
+            }
+            }
+            break;
+        case 0x016B: /* simple_time_to_date_local */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 2;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+            }
+            glk_simple_time_to_date_local(arglist[0].sint, arglist[1].uint, dateptr);
+            if (dateptr) {
+                arglist[ix++].sint = date.year;
+                arglist[ix++].sint = date.month;
+                arglist[ix++].sint = date.day;
+                arglist[ix++].sint = date.weekday;
+                arglist[ix++].sint = date.hour;
+                arglist[ix++].sint = date.minute;
+                arglist[ix++].sint = date.second;
+                arglist[ix++].sint = date.microsec;
+            }
+            }
+            break;
+        case 0x016C: /* date_to_time_utc */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            glktimeval_t timeval;
+            glktimeval_t *timeptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+                date.year = arglist[ix++].sint;
+                date.month = arglist[ix++].sint;
+                date.day = arglist[ix++].sint;
+                date.weekday = arglist[ix++].sint;
+                date.hour = arglist[ix++].sint;
+                date.minute = arglist[ix++].sint;
+                date.second = arglist[ix++].sint;
+                date.microsec = arglist[ix++].sint;
+            }
+            if (arglist[ix++].ptrflag) {
+                timeptr = &timeval;
+            }
+            glk_date_to_time_utc(dateptr, timeptr);
+            if (timeptr) {
+                arglist[ix++].sint = timeval.high_sec;
+                arglist[ix++].uint = timeval.low_sec;
+                arglist[ix++].sint = timeval.microsec;
+            }
+            }
+            break;
+        case 0x016D: /* date_to_time_local */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            glktimeval_t timeval;
+            glktimeval_t *timeptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+                date.year = arglist[ix++].sint;
+                date.month = arglist[ix++].sint;
+                date.day = arglist[ix++].sint;
+                date.weekday = arglist[ix++].sint;
+                date.hour = arglist[ix++].sint;
+                date.minute = arglist[ix++].sint;
+                date.second = arglist[ix++].sint;
+                date.microsec = arglist[ix++].sint;
+            }
+            if (arglist[ix++].ptrflag) {
+                timeptr = &timeval;
+            }
+            glk_date_to_time_local(dateptr, timeptr);
+            if (timeptr) {
+                arglist[ix++].sint = timeval.high_sec;
+                arglist[ix++].uint = timeval.low_sec;
+                arglist[ix++].sint = timeval.microsec;
+            }
+            }
+            break;
+        case 0x016E: /* date_to_simple_time_utc */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+                date.year = arglist[ix++].sint;
+                date.month = arglist[ix++].sint;
+                date.day = arglist[ix++].sint;
+                date.weekday = arglist[ix++].sint;
+                date.hour = arglist[ix++].sint;
+                date.minute = arglist[ix++].sint;
+                date.second = arglist[ix++].sint;
+                date.microsec = arglist[ix++].sint;
+            }
+            arglist[ix+2].sint = glk_date_to_simple_time_utc(dateptr, arglist[ix].uint);
+            }
+            break;
+        case 0x016F: /* date_to_simple_time_local */ {
+            glkdate_t date;
+            glkdate_t *dateptr = NULL;
+            int ix = 0;
+            if (arglist[ix++].ptrflag) {
+                dateptr = &date;
+                date.year = arglist[ix++].sint;
+                date.month = arglist[ix++].sint;
+                date.day = arglist[ix++].sint;
+                date.weekday = arglist[ix++].sint;
+                date.hour = arglist[ix++].sint;
+                date.minute = arglist[ix++].sint;
+                date.second = arglist[ix++].sint;
+                date.microsec = arglist[ix++].sint;
+            }
+            arglist[ix+2].sint = glk_date_to_simple_time_local(dateptr, arglist[ix].uint);
+            }
+            break;
+#endif /* GLK_MODULE_DATETIME */
 
         default:
             /* do nothing */

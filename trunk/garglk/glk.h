@@ -45,7 +45,6 @@
 typedef uint32_t glui32;
 typedef int32_t glsi32;
 
-
 /* These are the compile-time conditionals that reveal various Glk optional
     modules. */
 #define GLK_MODULE_LINE_ECHO
@@ -55,6 +54,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_IMAGE
 #define GLK_MODULE_SOUND
 #define GLK_MODULE_HYPERLINKS
+#define GLK_MODULE_DATETIME
 
 /* These types are opaque object identifiers. They're pointers to opaque
     C structures, which are defined differently by each library. */
@@ -86,6 +86,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_LineInputEcho (17)
 #define gestalt_LineTerminators (18)
 #define gestalt_LineTerminatorKey (19)
+#define gestalt_DateTime (20)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
@@ -399,6 +400,40 @@ extern void glk_request_hyperlink_event(winid_t win);
 extern void glk_cancel_hyperlink_event(winid_t win);
 
 #endif /* GLK_MODULE_HYPERLINKS */
+
+#ifdef GLK_MODULE_DATETIME
+
+typedef struct glktimeval_struct {
+    glsi32 high_sec;
+    glui32 low_sec;
+    glsi32 microsec;
+} glktimeval_t;
+
+typedef struct glkdate_struct {
+    glsi32 year;     /* full (four-digit) year */
+    glsi32 month;    /* 1-12, 1 is January */
+    glsi32 day;      /* 1-31 */
+    glsi32 weekday;  /* 0-6, 0 is Sunday */
+    glsi32 hour;     /* 0-23 */
+    glsi32 minute;   /* 0-59 */
+    glsi32 second;   /* 0-59, maybe 60 during a leap second */
+    glsi32 microsec; /* 0-999999 */
+} glkdate_t;
+
+extern void glk_current_time(glktimeval_t *time);
+extern glsi32 glk_current_simple_time(glui32 factor);
+extern void glk_time_to_date_utc(glktimeval_t *time, glkdate_t *date);
+extern void glk_time_to_date_local(glktimeval_t *time, glkdate_t *date);
+extern void glk_simple_time_to_date_utc(glsi32 time, glui32 factor,
+    glkdate_t *date);
+extern void glk_simple_time_to_date_local(glsi32 time, glui32 factor,
+    glkdate_t *date);
+extern void glk_date_to_time_utc(glkdate_t *date, glktimeval_t *time);
+extern void glk_date_to_time_local(glkdate_t *date, glktimeval_t *time);
+extern glsi32 glk_date_to_simple_time_utc(glkdate_t *date, glui32 factor);
+extern glsi32 glk_date_to_simple_time_local(glkdate_t *date, glui32 factor);
+
+#endif /* GLK_MODULE_DATETIME */
 
 /* XXX non-official Glk functions that may or may not exist */
 
