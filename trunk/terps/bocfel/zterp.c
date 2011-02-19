@@ -49,7 +49,7 @@
 #define PATH_MAX	4096
 #endif
 
-#define ZTERP_VERSION	"0.5.0"
+#define ZTERP_VERSION	"0.5.1"
 
 const char *game_file;
 struct options options = {
@@ -553,7 +553,7 @@ void write_header(void)
 
   /* Standard revision # */
   STORE_BYTE(0x32, 1);
-  STORE_BYTE(0x33, 0);
+  STORE_BYTE(0x33, 1);
 }
 
 static void process_story(void)

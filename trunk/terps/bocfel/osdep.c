@@ -33,6 +33,71 @@
  * #define a macro of the same name.  At the end of the file, a generic
  * function is provided for each function that has no associated macro
  * definition.
+ *
+ * The functions required are as follows:
+ *
+ * long long zterp_os_filesize(FILE *fp)
+ *
+ * Return the size of the file referred to by fp.  It is safe to assume
+ * that the file is opened in binary mode.  The file position indicator
+ * need not be maintained.
+ *
+ * int zterp_os_have_unicode(void)
+ *
+ * The main purpose behind this function is to indicate whether
+ * transcripts will be written in UTF-8 or Latin-1.  This is, of course,
+ * not necessarily an OS matter, but I’ve run into some issues with
+ * UTF-8 and Windows (at least through Wine), so I want to be as
+ * sensible as I can with the defaults.  The user is able to override
+ * this value if he so desires.
+ * If a GLK build is not being used, this function also serves to
+ * indicate whether all I/O, not just transcripts, should be UTF-8 or
+ * not.  GLK libraries are able to be queried as to their support for
+ * Unicode so there is no need to make assumptions in that case.
+ *
+ * void zterp_os_rcfile(char *s, size_t n)
+ *
+ * Different operating systems have different ideas about where
+ * configuration data should be stored; this function will copy a
+ * suitable value for the bocfel configuration file into the buffer s
+ * which is n bytes long.
+ *
+ * The following functions are useful for non-GLK builds only.  They
+ * provide for some handling of screen functions that is normally taken
+ * care of by GLK.
+ *
+ * void zterp_os_get_winsize(unsigned *w, unsigned *h)
+ *
+ * The size of the terminal, if known, is written into *w (width) and *h
+ * (height).  If terminal size is unavalable, nothing should be written.
+ *
+ * void zterp_os_init_term(void)
+ *
+ * If something special needs to be done to prepare the terminal for
+ * output, it should be done here.  This function is called once at
+ * program startup.
+ *
+ * int zterp_os_have_style(int style)
+ *
+ * This should return true if the provided style (see style.h for valid
+ * STYLE_ values) is available.  It is safe to assume that styles will
+ * not be combined; e.g. this will not be called as:
+ * zterp_os_have_style(STYLE_BOLD | STYLE_ITALIC);
+ *
+ * int zterp_os_have_colors(void)
+ *
+ * Returns true if the terminal supports colors.
+ *
+ * void zterp_os_set_style(int style, int fg, int bg)
+ *
+ * Set both a style and foreground/background color.  Any previous
+ * settings should be ignored; for example, if the last call to
+ * zterp_os_set_style() turned on italics and the current call sets
+ * bold, the result should be bold, not bold italic.
+ * Unlike in zterp_os_have_style(), here styles may be combined.  See
+ * the Unix implementation for a reference.
+ * The colors are Z-machine colors (see §8.3.1), with the following
+ * note: the only color values that will ever be passed in are 1–9. 
  */
 
 /******************
@@ -156,16 +221,10 @@ void zterp_os_rcfile(char *s, size_t n)
 #ifndef zterp_os_filesize
 long long zterp_os_filesize(FILE *fp)
 {
-  long saved = ftell(fp), size;
-
-  if(saved == -1) return -1;
   /* Assume fseek() can seek to the end of binary streams. */
   if(fseek(fp, 0, SEEK_END) == -1) return -1;
-  size = ftell(fp);
-  if(size == -1) return -1;
-  if(fseek(fp, saved, SEEK_SET) == -1) return -1;
 
-  return size;
+  return ftell(fp);
 }
 #endif
 

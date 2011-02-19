@@ -82,7 +82,7 @@ static int rng_counter  = 0;
  *
  * Called with a value >= 1000, use that value as a normal seed.
  */
-void seed_random(int value)
+void seed_random(long value)
 {
   if(value == 0)
   {
@@ -104,9 +104,11 @@ void seed_random(int value)
 
 void zrandom(void)
 {
-  if((int16_t)zargs[0] <= 0)
+  int32_t v = (int16_t)zargs[0];
+
+  if(v <= 0)
   {
-    seed_random(-(int16_t)zargs[0]);
+    seed_random(-v);
     store(0);
   }
   else

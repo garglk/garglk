@@ -114,7 +114,12 @@ void zlog_shift(void)
 {
   int16_t places = zargs[1];
 
-  ZASSERT(places >= -15 && places <= 15, "attempting to shift more than 15 bits: %d", (int)places);
+  /* Shifting more than 15 bits is undefined, but do the most sensible thing. */
+  if(places < -15 || places > 15)
+  {
+    store(0);
+    return;
+  }
 
   if(places < 0) store(zargs[0] >> -places);
   else           store(zargs[0] <<  places);
@@ -124,7 +129,12 @@ void zart_shift(void)
 {
   int16_t number = zargs[0], places = zargs[1];
 
-  ZASSERT(places >= -15 && places <= 15, "attempting to shift more than 15 bits: %d", (int)places);
+  /* Shifting more than 15 bits is undefined, but do the most sensible thing. */
+  if(places < -15 || places > 15)
+  {
+    store(number < 0 ? -1 : 0);
+    return;
+  }
 
   /* Shifting a negative value in C has some consequences:
    * • Shifting a negative value left is undefined.
