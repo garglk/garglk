@@ -465,7 +465,7 @@ void gli_read_config(int argc, char **argv)
         readoneconfig(buf, argv0, gamefile);
     }
 #else
-    strcpy(buf, "/etc/garglk.ini");
+    strcpy(buf, GARGLKINI);
     readoneconfig(buf, argv0, gamefile);
 #endif
 

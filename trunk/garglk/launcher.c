@@ -261,7 +261,7 @@ int configterp(char *path, char *game)
     }
 
     /* system directory */
-    strcpy(config, "/etc/garglk.ini");
+    strcpy(config, GARGLKINI);
     if (findterp(config, story) || findterp(config, ext))
         return TRUE;
 
