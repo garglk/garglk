@@ -306,7 +306,7 @@ void show_message(const char *fmt, ...)
   }
   else
   {
-    errorwin = glk_window_open(mainwin->id, winmethod_Below | winmethod_Fixed, error_lines = 1, wintype_TextBuffer, 0);
+    errorwin = glk_window_open(mainwin->id, winmethod_Below | winmethod_Fixed, error_lines = 2, wintype_TextBuffer, 0);
   }
 
   /* If windows are not supported (e.g. in cheapglk), messages will not
@@ -892,7 +892,7 @@ void zget_cursor(void)
 }
 
 #ifndef ZTERP_GLK
-static int16_t fg_color = 0, bg_color = 0;
+static int16_t fg_color = 1, bg_color = 1;
 #elif defined(GARGLK)
 /* Adapted from Gargoyle’s Frotz (Copyright 2010 Ben Cressey). */
 static glui32 zcolor_map[] = {
@@ -1037,12 +1037,6 @@ void set_current_style(void)
   else                           glk_set_style(style_Normal);
 #endif
 #else
-  /* zterp_os_set_style() understands Z-machine colors: if fg_color or
-   * bg_color is 0 or 1, it does nothing: 0 means keep the current
-   * setting, so nothing needs to be done.  1 means default, and since
-   * zterp_os_set_style() resets everything, the default color is
-   * automatically selected.
-   */
   zterp_os_set_style(style, fg_color, bg_color);
 #endif
 }
@@ -1964,6 +1958,12 @@ void zget_wind_prop(void)
     case 15: /* line count */
       val = 0;
       break;
+    case 16: /* true foreground colour */
+      val = 0;
+      break;
+    case 17: /* true background colour */
+      val = 0;
+      break;
     default:
       die("unknown window property: %u", (unsigned)zargs[1]);
   }
@@ -2127,8 +2127,8 @@ void init_screen(void)
   glk_cancel_line_event(mainwin->id, NULL);
   glk_request_timer_events(0);
 #else
-  fg_color = 0;
-  bg_color = 0;
+  fg_color = 1;
+  bg_color = 1;
 #endif
 
   if(scriptio != NULL) zterp_io_close(scriptio);

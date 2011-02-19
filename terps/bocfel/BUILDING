@@ -78,6 +78,14 @@ directory is required.  Most GLK libraries will include this, but at least
 WinGLK does not.  I have included a Make.winglk that should be sufficient to
 build a WinGLK-enabled interpreter, at least with MinGW.
 
+Bocfel can also be built against Gargoyle's GLK implementation, taking full
+advantage of extra features it provides.  Ben Cressey, Gargoyle's maintainer,
+has imported Bocfel into the Gargoyle source repository, so the easiest way to
+obtain Gargoyle support is to check out the latest version of Gargoyle's source
+code; see http://code.google.com/p/garglk/source/checkout.  If you would prefer
+to use Bocfel's build system to build against Gargoyle as you would any other
+GLK library, read on.
+
 The build process for Gargoyle is slightly more involved.  Gargoyle includes a
 full-featured GLK library, but it is not designed for external use.  However,
 getting a Gargoyle- (or rather, a GarGLK-) enabled build is not too difficult.
@@ -109,6 +117,8 @@ change, but they have been stable apart from one change over the past couple of
 years.  The current (2010.1) release of Gargoyle should work, but the only
 officially supported version is whatever was current as of this version of
 Bocfel's release.
+
+-------------------------------------------------------------------------------
 
 GLK is very portable, and there is very little system-specific code that is
 needed.  However, there is a small amount.  Some libraries are, conventionally,

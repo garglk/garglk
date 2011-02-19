@@ -552,7 +552,7 @@ static int push_save(void)
   new->stack_size = sp - BASE_OF_STACK;
   new->stack = malloc(new->stack_size * sizeof *new->stack);
   if(new->stack == NULL) goto err;
-  memcpy(new->stack, BASE_OF_STACK, new->stack_size);
+  memcpy(new->stack, BASE_OF_STACK, new->stack_size * sizeof *new->stack);
 
   new->nframes = NFRAMES;
   new->frames = malloc(new->nframes * sizeof *new->frames);
@@ -979,6 +979,10 @@ err:
   return 0;
 }
 
+/* The suggested filename is ignored, because GLK and, at least as of
+ * right now, zterp_io_open(), do not provide a method to do this.
+ * The “prompt” argument added by standard 1.1 is thus also ignored.
+ */
 void zsave(void)
 {
   zterp_io *savefile;

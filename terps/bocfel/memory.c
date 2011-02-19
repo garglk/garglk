@@ -34,7 +34,7 @@ uint32_t memory_size;
 #ifdef __GNUC__
 __attribute__((__noinline__))
 #endif
-void user_store_byte(uint32_t addr, uint8_t v)
+void user_store_byte(uint16_t addr, uint8_t v)
 {
   /* If safety checks are off, there’s no point in checking these
    * special cases. */
@@ -77,7 +77,7 @@ void user_store_byte(uint32_t addr, uint8_t v)
   STORE_BYTE(addr, v);
 }
 
-void user_store_word(uint32_t addr, uint16_t v)
+void user_store_word(uint16_t addr, uint16_t v)
 {
   user_store_byte(addr + 0, v >> 8);
   user_store_byte(addr + 1, v & 0xff);

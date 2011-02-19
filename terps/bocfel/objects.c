@@ -422,6 +422,17 @@ void zget_next_prop(void)
 
 void zjin(void)
 {
+  /* @jin 0 0 is not defined, since @jin requires an object (§15) and
+   * object 0 is not actually an object (§12.3).  However, many
+   * interpreters yield a true value for this, and Torbjorn Andersson’s
+   * strictz tester expects it to be true, so go with the flow.
+   */
+  if(zargs[0] == 0 && zargs[1] == 0)
+  {
+    branch_if(1);
+    return;
+  }
+
   check_zero(0, 1);
 
   branch_if(PARENT(zargs[0]) == zargs[1]);
