@@ -5,6 +5,8 @@ ObjDir garglk ;
 
 SubDirCcFlags $(GARGLKCCFLAGS) ;
 
+SubDirCcFlags -DGARGLKINI=\\\"$(GARGLKINI)\\\" ;
+
 if $(OS) = MINGW
 {
     SubDirHdrs $(TOP) support freetype ;
