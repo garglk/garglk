@@ -39,7 +39,7 @@ char tmp[MaxBuffer];
 
 char *filterlist[] =
 {
-"All Games|*.taf;*.agx;*.d[0-9][0-9];*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb",
+"All Games|*.taf;*.agx;*.d[0-9][0-9];*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.saga;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb",
 "Adrift Games (*.taf)|*.taf",
 "AdvSys Games (*.dat)|*.dat",
 "AGT Games (*.agx)|*.agx;*.d[0-9][0-9]",
@@ -50,6 +50,7 @@ char *filterlist[] =
 "Level 9 (*.l9)|*.l9;*.sna",
 "Magnetic Scrolls (*.mag)|*.mag",
 "Quest Games (*.asl,*.cas)|*.asl;*.cas",
+"Scott Adams Grand Adventures (*.saga)|*saga",
 "TADS 2 Games (*.gam)|*.gam;*.t3",
 "TADS 3 Games (*.t3)|*.gam;*.t3",
 "Z-code Games (*.z?)|*.z[0-9];*.zlb;*.zblorb",

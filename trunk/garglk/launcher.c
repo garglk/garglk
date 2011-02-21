@@ -38,9 +38,11 @@
 #define T_LEV9      "level9"
 #define T_MGSR      "magnetic"
 #define T_QUEST     "geas"
+#define T_SCOTT     "scott"
 #define T_TADS2     "tadsr"
 #define T_TADS3     "tadsr"
 #define T_ZCODE     "frotz"
+#define T_ZGLK      "bocfel"
 #define T_ZSIX      "nitfol"
 
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
@@ -346,19 +348,19 @@ int rungame(char *path, char *game)
         return winterp(path, T_ZCODE, "", game);
     if (!strcasecmp(ext, "z2"))
         return winterp(path, T_ZCODE, "", game);
-    if (!strcasecmp(ext, "z3"))
-        return winterp(path, T_ZCODE, "", game);
-    if (!strcasecmp(ext, "z4"))
-        return winterp(path, T_ZCODE, "", game);
-    if (!strcasecmp(ext, "z5"))
-        return winterp(path, T_ZCODE, "", game);
-    if (!strcasecmp(ext, "z7"))
-        return winterp(path, T_ZCODE, "", game);
-    if (!strcasecmp(ext, "z8"))
-        return winterp(path, T_ZCODE, "", game);
 
+    if (!strcasecmp(ext, "z3"))
+        return winterp(path, T_ZGLK, "", game);
+    if (!strcasecmp(ext, "z4"))
+        return winterp(path, T_ZGLK, "", game);
+    if (!strcasecmp(ext, "z5"))
+        return winterp(path, T_ZGLK, "", game);
     if (!strcasecmp(ext, "z6"))
-        return winterp(path, T_ZSIX, "", game);
+        return winterp(path, T_ZGLK, "", game);
+    if (!strcasecmp(ext, "z7"))
+        return winterp(path, T_ZGLK, "", game);
+    if (!strcasecmp(ext, "z8"))
+        return winterp(path, T_ZGLK, "", game);
 
     if (!strcasecmp(ext, "l9"))
         return winterp(path, T_LEV9, "", game);
@@ -371,6 +373,9 @@ int rungame(char *path, char *game)
         return winterp(path, T_QUEST, "", game);
     if (!strcasecmp(ext, "cas"))
         return winterp(path, T_QUEST, "", game);
+
+    if (!strcasecmp(ext, "saga"))
+        return winterp(path, T_SCOTT, "", game);
 
     sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     winmsg(tmp);

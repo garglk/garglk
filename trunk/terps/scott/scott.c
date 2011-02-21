@@ -236,10 +236,10 @@ static int MatchUpItem(char *text, int loc)
 {
 	char *word=MapSynonym(text);
 	int ct=0;
-	
+
 	if(word==NULL)
 		word=text;
-	
+
 	while(ct<=GameHeader.NumItems)
 	{
 		if(Items[ct].AutoGet && Items[ct].Location==loc &&
@@ -279,7 +279,7 @@ static char *ReadString(FILE *f)
 				break;
 			}
 		}
-		if(c==0x60) 
+		if(c==0x60)
 			c='"'; /* pdd */
 		tmp[ct++]=c;
 	}
@@ -289,7 +289,7 @@ static char *ReadString(FILE *f)
 	memcpy(t,tmp,ct+1);
 	return(t);
 }
-	
+
 static void LoadDatabase(FILE *f, int loud)
 {
 	int ni,na,nw,nr,mc,pr,tr,wl,lt,mn,trm;
@@ -299,7 +299,7 @@ static void LoadDatabase(FILE *f, int loud)
 	Room *rp;
 	Item *ip;
 /* Load the header */
-	
+
 	/* As this was written, there were too many arguments for the
 	 * format string.  The ct that would be read from here, if there
 	 * were a conversion specifier for it, is never used; so
@@ -331,7 +331,7 @@ static void LoadDatabase(FILE *f, int loud)
 	GameHeader.NumMessages=mn;
 	Messages=(char **)MemAlloc(sizeof(char *)*(mn+1));
 	GameHeader.TreasureRoom=trm;
-	
+
 /* Load the actions */
 
 	ct=0;
@@ -355,7 +355,7 @@ static void LoadDatabase(FILE *f, int loud)
 		}
 		ap++;
 		ct++;
-	}			
+	}
 	ct=0;
 	if(loud)
 		printf("Reading %d word pairs.\n",nw);
@@ -443,7 +443,7 @@ static void OutputNumber(int a)
 	sprintf(buf,"%d ",a);
 	OutBuf(buf);
 }
-		
+
 
 #ifndef SPLIT_SCREEN
 /* Look() is called periodically, sometimes multiple times between
@@ -467,7 +467,7 @@ static void Look(void)
 	Room *r;
 	int ct,f;
 	int pos;
-	
+
 #ifdef SPLIT_SCREEN
 	glk_window_clear(Top);
 #else
@@ -1101,7 +1101,7 @@ doneit:				Output("The game is now over.\n");
 		}
 		cc++;
 	}
-	return(1+continuation);		
+	return(1+continuation);
 }
 
 
@@ -1109,7 +1109,7 @@ static int PerformActions(int vb,int no)
 {
 	static int disable_sysfunc=0;	/* Recursion lock */
 	int d=BitFlags&(1<<DARKBIT);
-	
+
 	int ct=0;
 	int fl;
 	int doagain=0;
@@ -1207,7 +1207,7 @@ static int PerformActions(int vb,int no)
 				{
 					int ct=0;
 					int f=0;
-					
+
 					if(d)
 					{
 						Output("It is dark.\n");
@@ -1367,8 +1367,24 @@ int glkunix_startup_code(glkunix_startup_t *data)
 		argc--;
 	}
 
+#ifdef GARGLK
+	garglk_set_program_name("ScottFree 1.14");
+	garglk_set_program_info(
+		"ScottFree 1.14 by Alan Cox\n"
+		"Glk port by Chris Spiegel\n");
+#endif
+
 	if(argc==2)
+	{
 		game_file = argv[1];
+#ifdef GARGLK
+		char *s;
+		s = strrchr(game_file, '\\');
+		if (s) garglk_set_story_name(s+1);
+		s = strrchr(game_file, '/');
+		if (s) garglk_set_story_name(s+1);
+#endif
+	}
 
 	return 1;
 }
@@ -1382,7 +1398,7 @@ void glk_main(void)
 	if(Bottom == NULL)
 		glk_exit();
 	glk_set_window(Bottom);
-	
+
 	if(game_file == NULL)
 		Fatal("No game provided");
 
@@ -1460,7 +1476,7 @@ Distributed under the GNU software license\n\n");
 				if(Items[LIGHT_SOURCE].Location==CARRIED ||
 					Items[LIGHT_SOURCE].Location==MyLoc)
 				{
-			
+
 					if(Options&SCOTTLIGHT)
 					{
 						Output("Light runs out in ");
