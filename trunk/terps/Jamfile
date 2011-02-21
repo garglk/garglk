@@ -20,6 +20,7 @@ MAKE_LEVEL9     ?= yes ;
 MAKE_MAGNETIC   ?= yes ;
 MAKE_NITFOL     ?= yes ;
 MAKE_SCARE      ?= yes ;
+MAKE_SCOTT      ?= yes ;
 MAKE_JACL       ?= yes ;
 
 # -----------------------------------------------------------------------
@@ -427,5 +428,20 @@ if $(MAKE_SCARE) = yes
     }
 
     APPS += scare ;
+}
+
+# -----------------------------------------------------------------------
+#
+# ScottFree 1.14 for Scott Adams games
+#
+
+if $(MAKE_SCOTT) = yes
+{
+    SubDir TOP terps scott ;
+    ObjDir scott ;
+
+    Main scott : scott.c ;
+
+    APPS += scott ;
 }
 

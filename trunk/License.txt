@@ -30,6 +30,8 @@ Nitfol is copyright (c) Evin Robertson. It is released under the terms of the GN
 
 SCARE is copyright (c) Simon Baldwin. It is released under the terms of the GNU General Public License.
 
+ScottFree is copyright (c) Alan Cox. It is released under the terms of the GNU General Public License.
+
 TADS is copyright (c) Michael J. Roberts. It is released under the terms of the GNU General Public License.
 
 The Luxi fonts are copyright (c) Bigelow & Holmes Inc. They are released under the terms of the Bigelow & Holmes Inc and URW++ GmbH Luxi font license.
