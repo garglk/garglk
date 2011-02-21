@@ -16,12 +16,12 @@ MAKE_GEAS       ?= yes ;
 MAKE_GIT        ?= yes ;
 MAKE_GLULXE     ?= yes ;
 MAKE_HUGO       ?= yes ;
+MAKE_JACL       ?= yes ;
 MAKE_LEVEL9     ?= yes ;
 MAKE_MAGNETIC   ?= yes ;
 MAKE_NITFOL     ?= yes ;
 MAKE_SCARE      ?= yes ;
 MAKE_SCOTT      ?= yes ;
-MAKE_JACL       ?= yes ;
 
 # -----------------------------------------------------------------------
 #
@@ -132,7 +132,7 @@ if $(MAKE_BOCFEL) = yes
     ObjDir bocfel ;
 
     SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
-    SubDirCcFlags -DZTERP_NO_V2 -DZTERP_NO_SAFETY_CHECKS ;
+    SubDirCcFlags -DZTERP_NO_V2 ;
 
     Main bocfel :
         blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
