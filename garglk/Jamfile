@@ -6,6 +6,7 @@ ObjDir garglk ;
 SubDirCcFlags $(GARGLKCCFLAGS) ;
 
 SubDirCcFlags -DGARGLKINI=\\\"$(GARGLKINI)\\\" ;
+SubDirCcFlags -DGARGLKPRE=\\\"$(GARGLKPRE)\\\" ;
 
 if $(OS) = MINGW
 {
