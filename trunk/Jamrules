@@ -12,8 +12,8 @@ GARGLKINI ?= /etc/garglk.ini ;
 # jam -sGARGLKPRE=gargoyle-
 GARGLKPRE ?= "" ;
 
-CC      = gcc ;
-C++     = g++ ;
+CC  ?= gcc ;
+C++ ?= g++ ;
 
 if $(CROSS)
 {
@@ -127,11 +127,8 @@ switch $(BUILD)
 
     case RELEASE :
         Echo "BUILD is RELEASE" ;
-        OPTIM = -O2 ;
-
-    case TURBO :
-        Echo "BUILD is TURBO" ;
-        OPTIM = -O3 -march=native -mtune=native ;
+        OPTIM = -O2 $(CFLAGS) ;
+        LINKFLAGS = $(LDFLAGS) ;
 
     case PROFILE :
         Echo "BUILD is PROFILE" ;
