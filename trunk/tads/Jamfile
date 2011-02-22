@@ -67,7 +67,7 @@ Library libtads3 :
     vmhostsi.cpp vmhash.cpp vmmcreg.cpp vmbifreg.cpp
     ;
 
-Main tadsr :
+Main $(GARGLKPRE)tadsr :
     t23run.cpp
     osansi1.c osansi2.c osansi3.c
     osbuffer.c osparse.c
@@ -81,9 +81,9 @@ Main tadsr :
     vmuni_cs.cpp
     ;
 
-LinkLibraries tadsr : libtads2 libtads3 ;
+LinkLibraries $(GARGLKPRE)tadsr : libtads2 libtads3 ;
 
-LINK on tadsr$(SUFEXE) = $(C++) ;
+LINK on $(GARGLKPRE)tadsr$(SUFEXE) = $(C++) ;
 
-APPS += tadsr ;
+APPS += $(GARGLKPRE)tadsr ;
 

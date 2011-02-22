@@ -35,11 +35,11 @@ if $(MAKE_ADVSYS) = yes
 
     SubDirCcFlags -w ;
 
-    Main advsys :
+    Main $(GARGLKPRE)advsys :
         advmsg.c advtrm.c advprs.c advdbs.c advint.c advjunk.c advexe.c
         glkstart.c ;
 
-    APPS += advsys ;
+    APPS += $(GARGLKPRE)advsys ;
 }
 
 # -----------------------------------------------------------------------
@@ -61,14 +61,14 @@ if $(MAKE_AGILITY) = yes
     SubDirCcFlags -DGLK ;
     SubDirCcFlags -DGLK_ANSI_ONLY ;
 
-    Main agility :
+    Main $(GARGLKPRE)agility :
         agtread.c gamedata.c util.c agxfile.c auxfile.c filename.c
         parser.c exec.c runverb.c metacommand.c savegame.c debugcmd.c
         agil.c token.c disassemble.c object.c
         interface.c os_glk.c 
         ;
 
-    APPS += agility ;
+    APPS += $(GARGLKPRE)agility ;
 }
 
 # -----------------------------------------------------------------------
@@ -86,13 +86,13 @@ if $(MAKE_ALAN2) = yes
 
     SubDirCcFlags -funsigned-char -Wno-parentheses -DGLK -DREVERSED ;
 
-    Main alan2 :
+    Main $(GARGLKPRE)alan2 :
         arun.c main.c debug.c args.c exe.c inter.c parse.c rules.c stack.c
         decode.c term.c reverse.c readline.c params.c sysdep.c
         glkstart.c glkio.c alan.version.c
         ;
 
-    APPS += alan2 ;
+    APPS += $(GARGLKPRE)alan2 ;
 }
 
 # -----------------------------------------------------------------------
@@ -107,7 +107,7 @@ if $(MAKE_ALAN3) = yes
 
     SubDirCcFlags -funsigned-char -DGLK -DHAVE_GARGLK -DBUILD=0 ;
 
-    Main alan3 :
+    Main $(GARGLKPRE)alan3 :
         alan.version.c act.c actor.c args.c arun.c attribute.c
         checkentry.c class.c current.c debug.c decode.c
         dictionary.c event.c exe.c glkio.c glkstart.c instance.c
@@ -118,7 +118,7 @@ if $(MAKE_ALAN3) = yes
         AltInfo.c Container.c Location.c ParameterPosition.c StateStack.c
         ;
 
-    APPS += alan3 ;
+    APPS += $(GARGLKPRE)alan3 ;
 }
 
 # -----------------------------------------------------------------------
@@ -143,13 +143,13 @@ if $(MAKE_BOCFEL) = yes
       SubDirCcFlags -DZTERP_UNIX ;
     }
 
-    Main bocfel :
+    Main $(GARGLKPRE)bocfel :
         blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
         objects.c osdep.c process.c random.c screen.c stack.c table.c
         unicode.c util.c zoom.c zterp.c
         ;
 
-    APPS += bocfel ;
+    APPS += $(GARGLKPRE)bocfel ;
 }
 
 # -----------------------------------------------------------------------
@@ -162,14 +162,14 @@ if $(MAKE_FROTZ) = yes
     SubDir TOP terps frotz ;
     ObjDir frotz ;
 
-    Main frotz :
+    Main $(GARGLKPRE)frotz :
         buffer.c err.c fastmem.c files.c
         input.c main.c math.c object.c process.c quetzal.c random.c
         redirect.c sound.c stream.c table.c text.c variable.c
         glkscreen.c glkmisc.c
         ;
 
-    APPS += frotz ;
+    APPS += $(GARGLKPRE)frotz ;
 }
 
 # -----------------------------------------------------------------------
@@ -192,15 +192,15 @@ if $(MAKE_GEAS) = yes
 
     SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
 
-    Main geas :
+    Main $(GARGLKPRE)geas :
         geasfile.cc geas-runner.cc geas-state.cc
         geas-util.cc geasglk.cc geasglkterm.c
         istring.cc readfile.cc
         ;
 
-    LINK on geas$(SUFEXE) = $(C++) ;
+    LINK on $(GARGLKPRE)geas$(SUFEXE) = $(C++) ;
 
-    APPS += geas ;
+    APPS += $(GARGLKPRE)geas ;
 }
 
 # -----------------------------------------------------------------------
@@ -217,13 +217,13 @@ if $(MAKE_GIT) = yes
 
     SubDirCcFlags -DUSE_INLINE -DUSE_OWN_POWF ;
 
-    Main git :
+    Main $(GARGLKPRE)git :
         git.c memory.c compiler.c opcodes.c operands.c
         peephole.c terp.c glkop.c search.c git_unix.c
         savefile.c saveundo.c gestalt.c heap.c accel.c
         ;
 
-    APPS += git ;
+    APPS += $(GARGLKPRE)git ;
 }
 
 # -----------------------------------------------------------------------
@@ -240,13 +240,13 @@ if $(MAKE_GLULXE) = yes
 
     if $(OS) != MINGW { SubDirCcFlags -DOS_UNIX ; }
 
-    Main glulxe :
+    Main $(GARGLKPRE)glulxe :
         main.c files.c vm.c exec.c funcs.c operand.c string.c glkop.c
         heap.c serial.c search.c gestalt.c osdepend.c unixstrt.c
         accel.c profile.c float.c
         ;
 
-    APPS += glulxe ;
+    APPS += $(GARGLKPRE)glulxe ;
 }
 
 # -----------------------------------------------------------------------
@@ -276,12 +276,12 @@ if $(MAKE_HUGO) = yes
         [ FDirName $(SUBDIR) source ]
         [ FDirName $(SUBDIR) heglk ] ;
 
-    Main hugo :
+    Main $(GARGLKPRE)hugo :
         he.c heexpr.c hemisc.c heobject.c heparse.c heres.c herun.c heset.c 
         stringfn.c heglk.c heglkunix.c
         ;
 
-    APPS += hugo ;
+    APPS += $(GARGLKPRE)hugo ;
 }
 
 # -----------------------------------------------------------------------
@@ -296,13 +296,13 @@ if $(MAKE_JACL) = yes
 
     SubDirCcFlags -DGLK -DGARGLK ;
 
-    Main jacl :
+    Main $(GARGLKPRE)jacl :
         jacl.c glk_startup.c findroute.c interpreter.c loader.c 
         glk_saver.c logging.c parser.c display.c utils.c jpp.c 
         resolvers.c errors.c encapsulate.c 
         ;
 
-    APPS += jacl ;
+    APPS += $(GARGLKPRE)jacl ;
 }
 
 # -----------------------------------------------------------------------
@@ -328,9 +328,9 @@ if $(MAKE_LEVEL9) = yes
     SEARCH_SOURCE = $(SUBDIR)
         [ FDirName $(SUBDIR) Glk ] ;
 
-    Main level9 : level9.c glk.c ;
+    Main $(GARGLKPRE)level9 : level9.c glk.c ;
 
-    APPS += level9 ;
+    APPS += $(GARGLKPRE)level9 ;
 }
 
 # -----------------------------------------------------------------------
@@ -359,9 +359,9 @@ if $(MAKE_MAGNETIC) = yes
 
     # SubDirCcFlags -DNOBORDER ;
 
-    Main magnetic : emu.c glk.c ;
+    Main $(GARGLKPRE)magnetic : emu.c glk.c ;
 
-    APPS += magnetic ;
+    APPS += $(GARGLKPRE)magnetic ;
 }
 
 # -----------------------------------------------------------------------
@@ -398,7 +398,7 @@ if $(MAKE_NITFOL) = yes
 
     SubDirCcFlags -DSMART_TOKENISER -DDEBUGGING -DFAST -DUSE_INLINE -DNO_TICK ;
 
-    Main nitfol : 
+    Main $(GARGLKPRE)nitfol : 
         automap.c solve.c infix.c copying.c debug.c inform.c quetzal.c
         undo.c op_call.c decode.c errmesg.c globals.c iff.c init.c 
         io.c z_io.c op_jmp.c op_math.c op_save.c op_table.c op_v6.c oplist.c
@@ -406,7 +406,7 @@ if $(MAKE_NITFOL) = yes
         sound.c graphics.c blorb.c main.c startunix.c 
         ;
 
-    APPS += nitfol ;
+    APPS += $(GARGLKPRE)nitfol ;
 }
 
 # -----------------------------------------------------------------------
@@ -424,7 +424,7 @@ if $(MAKE_SCARE) = yes
         SubDirHdrs $(TOP) support zlib ;
     }
 
-    Main scare :
+    Main $(GARGLKPRE)scare :
         sctafpar.c sctaffil.c scprops.c scvars.c scexpr.c scprintf.c
         scinterf.c scparser.c sclibrar.c scrunner.c scevents.c scnpcs.c
         scobjcts.c sctasks.c screstrs.c scgamest.c scserial.c
@@ -433,10 +433,10 @@ if $(MAKE_SCARE) = yes
 
     if $(OS) = MINGW
     {
-        SharedLinkLibraries scare : zlib1.dll ;
+        SharedLinkLibraries $(GARGLKPRE)scare : zlib1.dll ;
     }
 
-    APPS += scare ;
+    APPS += $(GARGLKPRE)scare ;
 }
 
 # -----------------------------------------------------------------------
@@ -449,8 +449,8 @@ if $(MAKE_SCOTT) = yes
     SubDir TOP terps scott ;
     ObjDir scott ;
 
-    Main scott : scott.c ;
+    Main $(GARGLKPRE)scott : scott.c ;
 
-    APPS += scott ;
+    APPS += $(GARGLKPRE)scott ;
 }
 
