@@ -49,6 +49,39 @@
 #ifdef GLK_MODULE_DATETIME
 
 #ifdef WIN32
+/* Windows needs wrappers for time functions to handle pre-epoch dates */
+
+/* 31,557,600 seconds per year */
+#define OFFSET84 ((glui32) 0x9E009580)  /* 1902-1951 => 1986-2035, +84 years */
+#define OFFSET28 ((glui32) 0x34AADC80)  /* 1952-1969 => 1980-1997, +28 years */
+
+time_t gli_mktime (struct tm * timeptr)
+{
+    glui32 offset = 0;
+    glui32 adjust = 0;
+
+    if (timeptr->tm_year < 70 && timeptr->tm_year > 1)
+    {
+        if (timeptr->tm_year < 52)
+        {
+            offset = OFFSET84;
+            adjust = 84;
+        }
+        else
+        {
+            offset = OFFSET28;
+            adjust = 28;
+        }
+    }
+    timeptr->tm_year += adjust;
+    time_t ret = mktime(timeptr) - offset;
+    timeptr->tm_year -= adjust;
+
+    return ret;
+}
+
+#define mktime gli_mktime
+
 time_t timegm(struct tm *tm)
 {
     time_t answer;
@@ -60,22 +93,73 @@ time_t timegm(struct tm *tm)
     return answer;
 }
 
+#define UTC_1901 (-2145916801)      /* Dec 31, 1901 at 23:59:59 UTC */
+#define UTC_1951 (-568080001)       /* Dec 31, 1951 at 23:59:59 UTC */
+
 static struct tm * gmtime_r(const time_t *timer, struct tm *result)
 {
-    struct tm *gm = gmtime(timer);
+    time_t eval = *timer;
+    glui32 adjust = 0;
 
-    if (gm)
-        *result = *gm;
+    if (eval < 0 && eval > UTC_1901)
+    {
+        if (eval > UTC_1951)
+        {
+            eval += OFFSET28;
+            adjust = 28;
+        }
+        else
+        {
+            eval += OFFSET84;
+            adjust = 84;
+        }
+    }
+
+    struct tm *gm = gmtime(&eval);
+
+    if (!gm)
+    {
+        time_t zero = 0;
+        gm = gmtime(&zero);
+        adjust = 0;
+    }
+
+    *result = *gm;
+    result->tm_year -= adjust;
 
     return result;
 }
 
 static struct tm * localtime_r(const time_t *timer, struct tm *result)
 {
-    struct tm *loc = localtime(timer);
+    time_t eval = *timer;
+    glui32 adjust = 0;
 
-    if (loc)
-        *result = *loc;
+    if (eval < 0 && eval > UTC_1901)
+    {
+        if (eval > UTC_1951)
+        {
+            eval += OFFSET28;
+            adjust = 28;
+        }
+        else
+        {
+            eval += OFFSET84;
+            adjust = 84;
+        }
+    }
+
+    struct tm *loc = localtime(&eval);
+
+    if (!loc)
+    {
+        time_t zero = 0;
+        loc = localtime(&zero);
+        adjust = 0;
+    }
+
+    *result = *loc;
+    result->tm_year -= adjust;
 
     return result;
 }
