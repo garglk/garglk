@@ -134,6 +134,15 @@ if $(MAKE_BOCFEL) = yes
     SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
     SubDirCcFlags -DZTERP_NO_V2 ;
 
+    if $(OS) = MINGW
+    {
+      SubDirCcFlags -DZTERP_WIN32 ;
+    }
+    else if $(OS) != MACOSX
+    {
+      SubDirCcFlags -DZTERP_UNIX ;
+    }
+
     Main bocfel :
         blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
         objects.c osdep.c process.c random.c screen.c stack.c table.c
