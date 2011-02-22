@@ -149,7 +149,7 @@ static void reflow(window_t *win)
     int inputbyte = -1;
     attr_t curattr;
     attr_t oldattr;
-    int i, k, p;
+    int i, k, p, s;
     int x;
 
     if (dwin->height < 4 || dwin->width < 20)
@@ -158,12 +158,12 @@ static void reflow(window_t *win)
     dwin->lines[0].len = dwin->numchars;
 
     /* allocate temp buffers */
-    attr_t *attrbuf = malloc(sizeof(attr_t) * dwin->scrollback * TBLINELEN);
-    glui32 *charbuf = malloc(sizeof(glui32) * dwin->scrollback * TBLINELEN);
-    int *alignbuf = malloc(sizeof(int) * dwin->scrollback);
-    picture_t **pictbuf = malloc(sizeof(size_t) * dwin->scrollback);
-    glui32 *hyperbuf = malloc(sizeof(glui32) * dwin->scrollback);
-    int *offsetbuf = malloc(sizeof(int) * dwin->scrollback);
+    attr_t *attrbuf = malloc(sizeof(attr_t) * SCROLLBACK * TBLINELEN);
+    glui32 *charbuf = malloc(sizeof(glui32) * SCROLLBACK * TBLINELEN);
+    int *alignbuf = malloc(sizeof(int) * SCROLLBACK);
+    picture_t **pictbuf = malloc(sizeof(size_t) * SCROLLBACK);
+    glui32 *hyperbuf = malloc(sizeof(glui32) * SCROLLBACK);
+    int *offsetbuf = malloc(sizeof(int) * SCROLLBACK);
 
     if (!attrbuf || !charbuf || !alignbuf || !pictbuf || !hyperbuf || !offsetbuf)
         return;
@@ -175,7 +175,9 @@ static void reflow(window_t *win)
 
     x = 0;
     p = 0;
-    for (k = dwin->scrollmax; k >= 0; k--)
+    s = dwin->scrollmax < SCROLLBACK ? dwin->scrollmax : SCROLLBACK - 1;
+
+    for (k = s; k >= 0; k--)
     {
         if (k == 0 && win->line_request)
             inputbyte = p + dwin->infence;
