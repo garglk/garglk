@@ -872,6 +872,9 @@ static int memory_restore(void)
   return 1;
 }
 
+#define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(0)
+#define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(0)
+
 static int restore_quetzal(zterp_io *savefile)
 {
   zterp_iff *iff;
@@ -880,16 +883,21 @@ static int restore_quetzal(zterp_io *savefile)
   uint8_t ifhd[13];
 
   iff = zterp_iff_parse(savefile, "IFZS");
-  if(iff == NULL) return 0;
 
-  if(!zterp_iff_find(iff, "IFhd", &size)) goto err;
-  if(size != 13) goto err;
+  if(iff == NULL ||
+     !zterp_iff_find(iff, "IFhd", &size) ||
+     size != 13 ||
+     zterp_io_read(savefile, ifhd, sizeof ifhd) != sizeof ifhd)
+  {
+    goto_err("corrupted save file or not a save file at all");
+  }
 
-  if(zterp_io_read(savefile, ifhd, sizeof ifhd) != sizeof ifhd) goto err;
-
-  if(((ifhd[0] << 8) | ifhd[1]) != header.release ) goto err;
-  if(memcmp(&ifhd[2], header.serial, sizeof header.serial) != 0) goto err;
-  if(((ifhd[8] << 8) | ifhd[9]) != header.checksum) goto err;
+  if(((ifhd[0] << 8) | ifhd[1]) != header.release ||
+     memcmp(&ifhd[2], header.serial, sizeof header.serial) != 0 ||
+     ((ifhd[8] << 8) | ifhd[9]) != header.checksum)
+  {
+    goto_err("wrong game or version");
+  }
 
   memory_snapshot();
 
@@ -897,21 +905,21 @@ static int restore_quetzal(zterp_io *savefile)
   {
     uint8_t buf[size]; /* Too big for the stack? */
 
-    if(zterp_io_read(savefile, buf, size) != size) goto err;
+    if(zterp_io_read(savefile, buf, size) != size) goto_err("unexpected eof reading compressed memory");
 
-    if(uncompress_memory(buf, size) == -1) goto death;
+    if(uncompress_memory(buf, size) == -1) goto_death("memory cannot be uncompressed");
   }
   else if(zterp_iff_find(iff, "UMem", &size))
   {
-    if(size != header.static_start) goto err;
-    if(zterp_io_read(savefile, memory, header.static_start) != header.static_start) goto death;
+    if(size != header.static_start) goto_err("memory size mismatch");
+    if(zterp_io_read(savefile, memory, header.static_start) != header.static_start) goto_death("unexpected eof reading memory");
   }
   else
   {
-    goto err;
+    goto_err("no memory chunk found");
   }
 
-  if(!zterp_iff_find(iff, "Stks", &size)) goto death;
+  if(!zterp_iff_find(iff, "Stks", &size)) goto_death("no stacks chunk found");
 
   sp = BASE_OF_STACK;
   fp = BASE_OF_FRAMES;
@@ -923,7 +931,7 @@ static int restore_quetzal(zterp_io *savefile)
     uint16_t nstack;
     uint8_t nargs = 0;
 
-    if(zterp_io_read(savefile, frame, sizeof frame) != sizeof frame) goto death;
+    if(zterp_io_read(savefile, frame, sizeof frame) != sizeof frame) goto_death("unexpected eof reading stack frame");
     n += sizeof frame;
 
     nlocals = frame[3] & 0xf;
@@ -937,7 +945,7 @@ static int restore_quetzal(zterp_io *savefile)
     {
       uint16_t l;
 
-      if(!zterp_io_read16(savefile, &l)) goto death;
+      if(!zterp_io_read16(savefile, &l)) goto_death("unexpected eof reading local variable");
       CURRENT_FRAME->locals[i] = l;
 
       n += sizeof l;
@@ -947,14 +955,14 @@ static int restore_quetzal(zterp_io *savefile)
     {
       uint16_t s;
 
-      if(!zterp_io_read16(savefile, &s)) goto death;
+      if(!zterp_io_read16(savefile, &s)) goto_death("unexpected eof reading stack entry");
       PUSH_STACK(s);
 
       n += sizeof s;
     }
   }
 
-  if(n != size) goto death;
+  if(n != size) goto_death("stack size mismatch");
 
   zterp_iff_free(iff);
   memory_snapshot_free();
@@ -968,7 +976,7 @@ death:
    * scribbed upon; if there was a successful backup, restore it.
    * Otherwise the only course of action is to exit.
    */
-  if(!memory_restore()) die("error restoring; the system is likely in an inconsistent state");
+  if(!memory_restore()) die("fatal error restoring; the system is likely in an inconsistent state");
 
 err:
   /* A snapshot may have been taken, but neither memory nor the stacks
@@ -978,6 +986,9 @@ err:
   zterp_iff_free(iff);
   return 0;
 }
+
+#undef goto_err
+#undef goto_death
 
 /* The suggested filename is ignored, because GLK and, at least as of
  * right now, zterp_io_open(), do not provide a method to do this.

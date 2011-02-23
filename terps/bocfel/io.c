@@ -155,7 +155,7 @@ err:
   return NULL;
 }
 
-/* The zterp_os_reopen_binary() calls attempt to reopen stdin/ stdout as
+/* The zterp_os_reopen_binary() calls attempt to reopen stdin/stdout as
  * binary streams so that reading/writing UTF-8 doesn’t cause unwanted
  * translations.  The mode of ZTERP_IO_TRANS is set when Unicode is
  * unavailable as a way to signal that these are text streams.
@@ -474,7 +474,7 @@ long zterp_io_readline(const zterp_io *io, uint16_t *buf, size_t len)
   return ret;
 }
 
-long long zterp_io_filesize(const zterp_io *io)
+long zterp_io_filesize(const zterp_io *io)
 {
   if(io->type == IO_STDIO && !textmode(io))
   {

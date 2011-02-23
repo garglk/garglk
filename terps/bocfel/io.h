@@ -34,7 +34,7 @@ int zterp_io_read32(const zterp_io *, uint32_t *);
 long zterp_io_getc(const zterp_io *);
 void zterp_io_putc(const zterp_io *, uint16_t);
 long zterp_io_readline(const zterp_io *, uint16_t *, size_t);
-long long zterp_io_filesize(const zterp_io *);
+long zterp_io_filesize(const zterp_io *);
 void zterp_io_flush(const zterp_io *);
 
 #endif

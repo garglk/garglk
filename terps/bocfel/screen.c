@@ -593,22 +593,34 @@ static void put_char_base(uint16_t c, int unicode)
 
         if(curwin == upperwin)
         {
-          /* If the game tries to write beyond the right or bottom edges
-           * of the window, ignore it.  For the life of me I can’t find
-           * anything in the standard relating to this, so follow the
-           * majority of interpreters.
+          /* Interpreters seem to have differing ideas about what
+           * happens when the cursor reaches the end of a line in the
+           * upper window.  Some wrap, some let it run off the edge (or,
+           * at least, stop the text at the edge).  The standard, from
+           * what I can see, says nothing on this issue.  Follow Windows
+           * Frotz and don’t wrap.
            */
+
           if(c == UNICODE_LINEFEED)
           {
-            upperwin->x = 0;
-
             if(upperwin->y < upper_window_height)
             {
+              /* GLK wraps, so printing a newline when the cursor has
+               * already reached the edge of the screen will produce two
+               * newlines.
+               */
+              if(upperwin->x < upper_window_width) GLK_PUT_CHAR(c);
+
+              /* Even if a newline isn’t explicitly printed here
+               * (because the cursor is at the edge), setting
+               * upperwin->x to 0 will cause the next character to be on
+               * the next line because the text will have wrapped.
+               */
+              upperwin->x = 0;
               upperwin->y++;
-              GLK_PUT_CHAR(c);
             }
           }
-          else if(upperwin->x < upper_window_width)
+          else if(upperwin->x < upper_window_width && upperwin->y < upper_window_height)
           {
             upperwin->x++;
             GLK_PUT_CHAR(c);

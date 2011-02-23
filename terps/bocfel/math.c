@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Chris Spiegel.
+ * Copyright 2010-2011 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
