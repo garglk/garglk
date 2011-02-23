@@ -103,7 +103,7 @@ static int xstrcasecmp(const char *s1, const char *s2)
 	return (tolower(*us1) - tolower(*--us2));
 }
 
-int xstrncasecmp(const char *s1, const char *s2, size_t n)
+static int xstrncasecmp(const char *s1, const char *s2, size_t n)
 {
 	if (n != 0) {
 		const unsigned char
@@ -1337,6 +1337,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
 	int argc = data->argc;
 	char **argv = data->argv;
+
+	if(argc < 1)
+		return 0;
 
 	while(argv[1])
 	{
