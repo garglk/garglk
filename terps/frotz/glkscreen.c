@@ -354,20 +354,33 @@ void screen_char (zchar c)
 					statusline[curx - 1] = c;
 					statusline[curx] = 0;
 				}
-				curx ++;
-				if (curx <= h_screen_cols)
+				if (curx < h_screen_cols)
+				{
 					glk_put_char_uni(c);
+				}
+				else if (curx == h_screen_cols)
+				{
+					glk_put_char_uni(c);
+					glk_window_move_cursor(gos_curwin, curx-1, cury-1);
+				}
 				else
+				{
 					smartstatusline();
+				}
+				curx ++;
 			}
 			else
 			{
-				glk_put_char_uni(c);
-				curx++;
-				if (curx > h_screen_cols) {
-					curx = 1;
-					cury++;
+				if (curx < h_screen_cols)
+				{
+					glk_put_char_uni(c);
 				}
+				else if (curx == (h_screen_cols))
+				{
+					glk_put_char_uni(c);
+					glk_window_move_cursor(gos_curwin, curx-1, cury-1);
+				}
+				curx++;
 			}
 		}
 	}
