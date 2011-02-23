@@ -20,14 +20,14 @@
  * o Room descriptions, exits, and visible items can, as in the
  *   original, be placed in a window at the top of the screen, or can be
  *   inline with user input in the main window.  The former is default,
- *   and the latter can be selected by not defining SPLIT_SCREEN.
+ *   and the latter can be selected with the -w flag.
  *
  * o Game saving and loading uses GLK, which means that providing a
  *   save game file on the command-line will no longer work.  Instead,
  *   the verb "restore" has been special-cased to call GameLoad(), which
  *   now prompts for a filename via GLK.
  */
-#define SPLIT_SCREEN
+static int split_screen = 1;
 
 #include <stdio.h>
 #include <string.h>
@@ -154,17 +154,11 @@ static int Counters[16];	/* Range unknown */
 static int CurrentCounter;
 static int SavedRoom;
 static int RoomSaved[16];	/* Range unknown */
-static int Redraw;		/* Update item window */
 static int Options;		/* Option flags set */
 static int Width;		/* Terminal width */
 static int TopHeight;		/* Height of top window */
 
-static winid_t Bottom;
-#ifdef SPLIT_SCREEN
-static winid_t Top;
-#else
-#define Top Bottom
-#endif
+static winid_t Bottom, Top;
 
 #define TRS80_LINE	"\n<------------------------------------------------------------>\n"
 
@@ -444,20 +438,6 @@ static void OutputNumber(int a)
 	OutBuf(buf);
 }
 
-
-#ifndef SPLIT_SCREEN
-/* Look() is called periodically, sometimes multiple times between
- * inputs, because when an upper window is in use, Look() clears it each
- * time.  However, if the upper window is turned off, calling Look()
- * multiple times means showing the output multiple times, which looks
- * bad.  Therefore, when the upper window is off, Look() will not do
- * anything unless NeedLook is true; this is set only when Look() is
- * explicitly called right before GetInput().
- * --Chris
- */
-static int NeedLook = 0;
-#endif
-
 static void Look(void)
 {
 	static char *ExitNames[6]=
@@ -468,12 +448,9 @@ static void Look(void)
 	int ct,f;
 	int pos;
 
-#ifdef SPLIT_SCREEN
-	glk_window_clear(Top);
-#else
-	if(!NeedLook)
-		return;
-#endif
+	if(split_screen)
+		glk_window_clear(Top);
+
 	if((BitFlags&(1<<DARKBIT)) && Items[LIGHT_SOURCE].Location!= CARRIED
 	            && Items[LIGHT_SOURCE].Location!= MyLoc)
 	{
@@ -586,7 +563,7 @@ static void LineInput(char *buf, size_t n)
 
 		if(ev.type == evtype_LineInput)
 			done = 1;
-		else if(ev.type == evtype_Arrange)
+		else if(ev.type == evtype_Arrange && split_screen)
 			Look();
 	}
 
@@ -667,12 +644,6 @@ static int GetInput(int *vb, int *no)
 	char verb[10],noun[10];
 	int vc,nc;
 	int num;
-
-#ifndef SPLIT_SCREEN
-	NeedLook = 1;
-	Look();
-	NeedLook = 0;
-#endif
 
 	do
 	{
@@ -859,21 +830,15 @@ static int PerformLine(int ct)
 						Output("I've too much to carry! ");
 					break;
 				}
-				if(Items[param[pptr]].Location==MyLoc)
-					Redraw=1;
 				Items[param[pptr++]].Location= CARRIED;
 				break;
 			case 53:
-				Redraw=1;
 				Items[param[pptr++]].Location=MyLoc;
 				break;
 			case 54:
-				Redraw=1;
 				MyLoc=param[pptr++];
 				break;
 			case 55:
-				if(Items[param[pptr]].Location==MyLoc)
-					Redraw=1;
 				Items[param[pptr++]].Location=0;
 				break;
 			case 56:
@@ -886,8 +851,6 @@ static int PerformLine(int ct)
 				BitFlags|=(1<<param[pptr++]);
 				break;
 			case 59:
-				if(Items[param[pptr]].Location==MyLoc)
-					Redraw=1;
 				Items[param[pptr++]].Location=0;
 				break;
 			case 60:
@@ -900,21 +863,18 @@ static int PerformLine(int ct)
 					Output("I am dead.\n");
 				BitFlags&=~(1<<DARKBIT);
 				MyLoc=GameHeader.NumRooms;/* It seems to be what the code says! */
-				Look();
 				break;
 			case 62:
 			{
 				/* Bug fix for some systems - before it could get parameters wrong */
 				int i=param[pptr++];
 				Items[i].Location=param[pptr++];
-				Redraw=1;
 				break;
 			}
 			case 63:
 doneit:				Output("The game is now over.\n");
 				glk_exit();
 			case 64:
-				Look();
 				break;
 			case 65:
 			{
@@ -979,8 +939,6 @@ doneit:				Output("The game is now over.\n");
 				break;
 			case 69:
 				GameHeader.LightTime=LightRefill;
-				if(Items[LIGHT_SOURCE].Location==MyLoc)
-					Redraw=1;
 				Items[LIGHT_SOURCE].Location=CARRIED;
 				BitFlags&=~(1<<LIGHTOUTBIT);
 				break;
@@ -995,8 +953,6 @@ doneit:				Output("The game is now over.\n");
 				int i1=param[pptr++];
 				int i2=param[pptr++];
 				int t=Items[i1].Location;
-				if(t==MyLoc || Items[i2].Location==MyLoc)
-					Redraw=1;
 				Items[i1].Location=Items[i2].Location;
 				Items[i2].Location=t;
 				break;
@@ -1005,8 +961,6 @@ doneit:				Output("The game is now over.\n");
 				continuation=1;
 				break;
 			case 74:
-				if(Items[param[pptr]].Location==MyLoc)
-					Redraw=1;
 				Items[param[pptr++]].Location= CARRIED;
 				break;
 			case 75:
@@ -1014,15 +968,10 @@ doneit:				Output("The game is now over.\n");
 				int i1,i2;
 				i1=param[pptr++];
 				i2=param[pptr++];
-				if(Items[i1].Location==MyLoc)
-					Redraw=1;
 				Items[i1].Location=Items[i2].Location;
-				if(Items[i2].Location==MyLoc)
-					Redraw=1;
 				break;
 			}
 			case 76:	/* Looking at adventure .. */
-				Look();
 				break;
 			case 77:
 				if(CurrentCounter>=0)
@@ -1039,7 +988,6 @@ doneit:				Output("The game is now over.\n");
 				int t=MyLoc;
 				MyLoc=SavedRoom;
 				SavedRoom=t;
-				Redraw=1;
 				break;
 			}
 			case 81:
@@ -1082,7 +1030,6 @@ doneit:				Output("The game is now over.\n");
 				int sr=MyLoc;
 				MyLoc=RoomSaved[p];
 				RoomSaved[p]=sr;
-				Redraw=1;
 				break;
 			}
 			case 88:
@@ -1130,7 +1077,6 @@ static int PerformActions(int vb,int no)
 		if(nl!=0)
 		{
 			MyLoc=nl;
-			Look();
 			return(0);
 		}
 		if(d)
@@ -1230,7 +1176,6 @@ static int PerformActions(int vb,int no)
 								return(0);
 							}
 						 	Items[ct].Location= CARRIED;
-						 	Redraw=1;
 						 	OutBuf(Items[ct].Text);
 						 	Output(": O.K.\n");
 						 	f=1;
@@ -1265,7 +1210,6 @@ static int PerformActions(int vb,int no)
 				}
 				Items[i].Location= CARRIED;
 				Output("O.K. ");
-				Redraw=1;
 				return(0);
 			}
 			if(vb==18)
@@ -1285,7 +1229,6 @@ static int PerformActions(int vb,int no)
 							Items[ct].Location=MyLoc;
 							OutBuf(Items[ct].Text);
 							Output(": O.K.\n");
-							Redraw=1;
 							f=1;
 						}
 						ct++;
@@ -1310,7 +1253,6 @@ static int PerformActions(int vb,int no)
 				}
 				Items[i].Location=MyLoc;
 				Output("O.K. ");
-				Redraw=1;
 				return(0);
 			}
 		}
@@ -1326,6 +1268,7 @@ glkunix_argumentlist_t glkunix_arguments[] =
 	{ "-s",		glkunix_arg_NoValue,		"-s		Generate authentic Scott Adams driver light messages rather than other driver style ones (Light goes out in n turns..)" },
 	{ "-t",		glkunix_arg_NoValue,		"-t		Generate TRS80 style display (terminal width is 64 characters; a line <-----------------> is displayed after the top stuff; objects have periods after them instead of hyphens" },
 	{ "-p",		glkunix_arg_NoValue,		"-p		Use for prehistoric databases which don't use bit 16" },
+	{ "-w",		glkunix_arg_NoValue,		"-w		Disable upper window" },
 	{ "",		glkunix_arg_ValueFollows,	"filename	file to load" },
 
 	{ NULL, glkunix_arg_End, NULL }
@@ -1364,6 +1307,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
 				break;
 			case 'p':
 				Options|=PREHISTORIC_LAMP;
+				break;
+			case 'w':
+				split_screen = 0;
 				break;
 		}
 		argv++;
@@ -1420,11 +1366,19 @@ void glk_main(void)
 		TopHeight = 10;
 	}
 
-#ifdef SPLIT_SCREEN
-	Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed, TopHeight, wintype_TextGrid, 0);
-	if(Top == NULL)
-		glk_exit();
-#endif
+	if(split_screen)
+	{
+		Top = glk_window_open(Bottom, winmethod_Above | winmethod_Fixed, TopHeight, wintype_TextGrid, 0);
+		if(Top == NULL)
+		{
+			split_screen = 0;
+			Top = Bottom;
+		}
+	}
+	else
+	{
+		Top = Bottom;
+	}
 
 	OutBuf("\
 Scott Free, A Scott Adams game driver in C.\n\
@@ -1433,20 +1387,12 @@ Distributed under the GNU software license\n\n");
 	LoadDatabase(f,(Options&DEBUGGING)?1:0);
 	fclose(f);
 	srand(time(NULL));
-	Look();
 	while(1)
 	{
-		if(Redraw!=0)
-		{
-			Look();
-			Redraw=0;
-		}
 		PerformActions(0,0);
-		if(Redraw!=0)
-		{
-			Look();
-			Redraw=0;
-		}
+
+		Look();
+
 		if(GetInput(&vb,&no) == -1)
 			continue;
 		switch(PerformActions(vb,no))
