@@ -49,7 +49,7 @@
 #define PATH_MAX	4096
 #endif
 
-#define ZTERP_VERSION	"0.5.1"
+#define ZTERP_VERSION	"0.5.2"
 
 const char *game_file;
 struct options options = {
@@ -546,8 +546,8 @@ void write_header(void)
       STORE_BYTE(0x27, 1);
 
       /* Default background and foreground colors. */
-      STORE_BYTE(0x2c, 9);
-      STORE_BYTE(0x2d, 2);
+      STORE_BYTE(0x2c, 1);
+      STORE_BYTE(0x2d, 1);
     }
   }
 
@@ -858,6 +858,8 @@ int main(int argc, char **argv)
       die("unknown story type: %s", chunk->name);
     }
 
+    if(chunk->offset > LONG_MAX) die("zcode offset too large");
+
     memory_size = chunk->size;
     story.offset = chunk->offset;
 
@@ -865,7 +867,7 @@ int main(int argc, char **argv)
   }
   else
   {
-    long long size = zterp_io_filesize(story.io);
+    long size = zterp_io_filesize(story.io);
 
     if(size == -1) die("unable to determine file size");
     if(size > UINT32_MAX) die("file too large");
@@ -875,6 +877,7 @@ int main(int argc, char **argv)
   }
 
   if(memory_size < 64) die("story file too small");
+  if(memory_size > SIZE_MAX) die("story file too large");
 
   memory = malloc(memory_size);
   if(memory == NULL) die("malloc: %s", strerror(errno));

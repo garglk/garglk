@@ -18,8 +18,8 @@ typedef struct
   int number;
   uint32_t type;
   char name[5];
-  size_t offset;
-  size_t size;
+  uint32_t offset;
+  uint32_t size;
 } zterp_blorb_chunk;
 
 zterp_blorb *zterp_blorb_parse(zterp_io *);

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stddef.h>
 
-long long zterp_os_filesize(FILE *);
+long zterp_os_filesize(FILE *);
 void zterp_os_get_winsize(unsigned *, unsigned *);
 int zterp_os_have_unicode(void);
 void zterp_os_rcfile(char *, size_t);

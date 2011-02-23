@@ -36,11 +36,12 @@
  *
  * The functions required are as follows:
  *
- * long long zterp_os_filesize(FILE *fp)
+ * long zterp_os_filesize(FILE *fp)
  *
  * Return the size of the file referred to by fp.  It is safe to assume
  * that the file is opened in binary mode.  The file position indicator
- * need not be maintained.
+ * need not be maintained.  If the size of the file is larger than
+ * LONG_MAX, -1 should be returned.
  *
  * int zterp_os_have_unicode(void)
  *
@@ -104,18 +105,14 @@
  * Unix functions *
  ******************/
 #ifdef ZTERP_UNIX
-#include <unistd.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <curses.h>
-#include <term.h>
 
-long long zterp_os_filesize(FILE *fp)
+long zterp_os_filesize(FILE *fp)
 {
   struct stat buf;
   int fd = fileno(fp);
 
-  if(fd == -1 || fstat(fd, &buf) == -1 || !S_ISREG(buf.st_mode) || buf.st_size > LLONG_MAX) return -1;
+  if(fd == -1 || fstat(fd, &buf) == -1 || !S_ISREG(buf.st_mode) || buf.st_size > LONG_MAX) return -1;
 
   return buf.st_size;
 }
@@ -134,6 +131,10 @@ void zterp_os_rcfile(char *s, size_t n)
 #define zterp_os_rcfile
 
 #ifndef ZTERP_GLK
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <curses.h>
+#include <term.h>
 #ifdef TIOCGWINSZ
 void zterp_os_get_winsize(unsigned *w, unsigned *h)
 {
@@ -219,7 +220,7 @@ void zterp_os_rcfile(char *s, size_t n)
  * Generic functions *
  *********************/
 #ifndef zterp_os_filesize
-long long zterp_os_filesize(FILE *fp)
+long zterp_os_filesize(FILE *fp)
 {
   /* Assume fseek() can seek to the end of binary streams. */
   if(fseek(fp, 0, SEEK_END) == -1) return -1;
