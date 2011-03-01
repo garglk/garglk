@@ -174,6 +174,7 @@ void win_textgrid_redraw(window_t *win)
             fgcolor = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
             bgcolor = attrbg(dwin->styles, &ln->attrs[a]);
             w = (b - a) * gli_cellw;
+            w += win->bbox.x1 - (x + w);
             gli_draw_rect(x, y, w, gli_leading, bgcolor);
             o = x;
             for (k = a; k < b; k++)
