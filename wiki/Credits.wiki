@@ -15,6 +15,7 @@ _Original source code and patches_
   * Philip Chimento
   * Ben Cressey
   * Oliver Henshaw
+  * Vaagn Khachatryan
   * Lorenzo Marcantonio
   * Jesse McGrew
   * Baltasar García Perez-Schofield
@@ -31,7 +32,7 @@ _Quality assurance testing and bug reports_
   * Paul Andinach
   * Konstantin Baierer
   * Eliuk Blau
-  * Emily Boeghim
+  * Emily Boegheim
   * Matt Chan
   * Steve Evans
   * Ivan Gulkov
