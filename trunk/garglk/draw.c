@@ -98,7 +98,7 @@ int gli_image_w = 0;
 int gli_image_h = 0;
 unsigned char *gli_image_rgb = NULL;
 
-#ifdef __APPLE__
+#if defined __APPLE__ || defined __USEFL__
 static const int gli_bpp = 4;
 #else
 static const int gli_bpp = 3;
@@ -433,8 +433,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
-#else
-#ifdef __APPLE__
+#elif defined __APPLE__ || defined __USEFL__
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
@@ -443,7 +442,6 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[0] = rgb[0] + mul255((short)p[0] - rgb[0], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[2] + mul255((short)p[2] - rgb[2], invalf);
-#endif
 #endif
 }
 
@@ -462,8 +460,7 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
-#else
-#ifdef __APPLE__
+#elif defined __APPLE__ || defined __USEFL__
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
@@ -472,7 +469,6 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     p[0] = rgb[0] + mul255((short)p[0] - rgb[0], invalf[0]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[2] + mul255((short)p[2] - rgb[2], invalf[2]);
-#endif
 #endif
 }
 
@@ -516,8 +512,7 @@ void gli_draw_clear(unsigned char *rgb)
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
-#else
-#ifdef __APPLE__
+#elif defined __APPLE__ || defined __USEFL__
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
@@ -526,7 +521,6 @@ void gli_draw_clear(unsigned char *rgb)
             *p++ = rgb[0];
             *p++ = rgb[1];
             *p++ = rgb[2];
-#endif
 #endif
         }
     }
@@ -560,8 +554,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
-#else
-#ifdef __APPLE__
+#elif defined __APPLE__ || defined __USEFL__
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
@@ -570,7 +563,6 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
             *p++ = rgb[0];
             *p++ = rgb[1];
             *p++ = rgb[2];
-#endif
 #endif
         }
         p0 += gli_image_s;
@@ -928,8 +920,7 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             dp[x*3+0] = sb + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sr + mul255(dp[x*3+2], na);
-#else
-#ifdef __APPLE__
+#elif defined __APPLE__ || defined __USEFL__
             dp[x*4+0] = sb + mul255(dp[x*3+0], na);
             dp[x*4+1] = sg + mul255(dp[x*3+1], na);
             dp[x*4+2] = sr + mul255(dp[x*3+2], na);
@@ -938,7 +929,6 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             dp[x*3+0] = sr + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sb + mul255(dp[x*3+2], na);
-#endif
 #endif
         }
         sp += src->w * 4;
