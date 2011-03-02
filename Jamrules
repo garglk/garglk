@@ -5,6 +5,7 @@
 BUILD ?= RELEASE ;
 USESDL ?= yes ;
 BUNDLEFONTS ?= yes ;
+GUILIB ?= gtk+ ;
 
 # jam -sGARGLKINI=/usr/local/etc/garglk.ini
 GARGLKINI ?= /etc/garglk.ini ;
@@ -62,8 +63,12 @@ switch $(OS)
 
 
     case LINUX :
-        Echo "OS is LINUX (gtk+)" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+        Echo "OS is LINUX ($(GUILIB))" ;
+        if $(GUILIB) = EFL {
+            PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
+        } else {
+            PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+        }
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;

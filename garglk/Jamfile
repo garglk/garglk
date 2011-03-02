@@ -37,6 +37,7 @@ GARGSRCS =
     imgload.c imgscale.c
     fontdata.c
     ;
+if $(GUILIB) = EFL { ObjectCcFlags draw.c : -D__USEFL__ ; }
 
 if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
 else if $(USEFMOD) = yes { GARGSRCS += sndfmod.c ; }
@@ -44,6 +45,7 @@ else { GARGSRCS += sndnull.c ; }
 
 if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
 else if $(OS) = MACOSX { GARGSRCS += sysmac.m fontmac.m ; }
+else if $(GUILIB) = EFL { GARGSRCS += sysefl.c fontgtk.c ; }
 else { GARGSRCS += sysgtk.c fontgtk.c ; }
 
 if $(OS) = MINGW { Main gargoyle : launchwin.c launcher.c ; }
