@@ -33,7 +33,6 @@
 #include <Ecore_Evas.h>
 #include <Ecore.h>
 #include <Ecore_X.h>
-#include <Elementary.h>
 
 static Ecore_Evas *frame;
 static Evas_Object *canvas;
@@ -142,77 +141,11 @@ static void disable_idlers()
     idle_enterer = NULL; idle_exiter = NULL;
 }
 
-static void
-my_fileselector_done(void *data, Evas_Object *obj, void *event_info)
-{
-    const char *selected = event_info;
-
-    char *buf = evas_object_data_get(obj, "buffer");
-    if (selected)
-        strcpy(buf, selected);
-    else
-        strcpy(buf, "");
-
-    strcpy( filepath, elm_fileselector_path_get(obj) );
-    fileselect = TRUE;
-    
-    evas_object_del(data); /*close the file selector window*/
-    elm_exit();
-}
-
 static
 void winchoosefile(char *prompt, char *buf, int len, int filter, Eina_Bool is_save)
 {
-    Evas *evas = NULL;
-    if ( frame != NULL ){ //simulate a modal dialog by disabling all events to the main window
-        ecore_evas_get( frame );
-        disable_idlers();
-        evas_event_freeze(evas);
-    }
-    /*TODO: implement file name filtering */
-    Evas_Object *win, *fs, *bg, *vbox, *hbox, *bt;
-
-    win = elm_win_add(NULL, "fileselector", ELM_WIN_BASIC);
-    elm_win_title_set(win, prompt);
-
-    bg = elm_bg_add(win);
-    elm_win_resize_object_add(win, bg);
-    evas_object_size_hint_weight_set(bg, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-    evas_object_show(bg);
-
-    vbox = elm_box_add(win);
-    elm_win_resize_object_add(win, vbox);
-    evas_object_size_hint_weight_set(vbox, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-    evas_object_show(vbox);
-
-    fs = elm_fileselector_add(win);
-    elm_fileselector_is_save_set(fs, is_save);
-    elm_fileselector_expandable_set(fs, EINA_FALSE);
-    evas_object_size_hint_weight_set(fs, EVAS_HINT_EXPAND, EVAS_HINT_EXPAND);
-    evas_object_size_hint_align_set(fs, EVAS_HINT_FILL, EVAS_HINT_FILL);
-    elm_box_pack_end(vbox, fs);
-    evas_object_show(fs);
-    evas_object_smart_callback_add(fs, "done", my_fileselector_done, win);
-
-    if (strlen(buf))
-        elm_fileselector_selected_set( fs, buf );
-
-    if (fileselect)
-        elm_fileselector_path_set( fs, filepath );
-    else if (getenv("HOME"))
-        elm_fileselector_path_set( fs, getenv("HOME") );
-
-    evas_object_resize(win, 400, 350);
-    evas_object_show(win);
-    
-    evas_object_data_set(fs, "buffer", buf);
-
-    elm_run();
-    
-    if ( evas != NULL ){ //enable events to the main window
-        enable_idlers();
-        evas_event_thaw(evas);
-    }
+    /*TODO: return the name of the gamefile plus .sav extension */
+    strcpy(buf, "");
 }
 
 void winopenfile(char *prompt, char *buf, int len, int filter)
@@ -353,7 +286,7 @@ void onresize(void *data, Evas *e, Evas_Object *obj, void *event_info)
 
     gli_resize_mask(gli_image_w, gli_image_h);
 
-    gli_image_s = gli_image_w * 4; // EFL uses 4 bpp
+    gli_image_s = gli_image_w; // 1bpp grayscale
     
     //resize the canvas and get its pixels
     evas_object_image_size_set( canvas, gli_image_w, gli_image_h );
@@ -528,7 +461,6 @@ void wininit(int *argc, char **argv)
         printf("ERROR: cannot init Evas_Ecore.\n");
         exit( EXIT_FAILURE );
     }
-    elm_init( *argc, argv );
     
     enable_idlers();
     ecore_event_handler_add( ECORE_EVENT_SIGNAL_EXIT, sig_exit_cb, NULL );
@@ -542,7 +474,7 @@ void winopen(void)
     defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
     
-    frame = ecore_evas_software_x11_new( NULL, 0, 0, 0, defw, defh );
+    frame = ecore_evas_software_x11_8_new( NULL, 0, 0, 0, defw, defh );
             if ( frame == NULL ){
                 fprintf( stderr, "Error creating the main window.\n" );
                 exit( EXIT_FAILURE );

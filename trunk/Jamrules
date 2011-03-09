@@ -5,6 +5,8 @@
 BUILD ?= RELEASE ;
 USESDL ?= yes ;
 BUNDLEFONTS ?= yes ;
+
+# jam -sGUILIB=EFL
 GUILIB ?= gtk+ ;
 
 # jam -sGARGLKINI=/usr/local/etc/garglk.ini
@@ -25,6 +27,20 @@ if $(CROSS)
     C++     = i386-mingw32-g++ ;
     AR      = i386-mingw32-ar cru ;
     RANLIB  = i386-mingw32-ranlib ;
+    LINK    = $(CC) ;
+}
+
+#cross compiling for Open Inkpot
+#jam -sIPLINUXARCH=mipsel-ip-linux-gnu
+if $(IPLINUXARCH)
+{
+    OS      = IPLINUX ;
+    GUILIB  = EFL ;
+    USESDL  = no ;
+    CC      = $(IPLINUXARCH)-gcc ;
+    C++     = $(IPLINUXARCH)-g++ ;
+    AR      = $(IPLINUXARCH)-ar cru ;
+    RANLIB  = $(IPLINUXARCH)-ranlib ;
     LINK    = $(CC) ;
 }
 
@@ -71,6 +87,23 @@ switch $(OS)
         }
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+
+        if $(USESDL) = yes
+        {
+            GARGLKCCFLAGS += -I/usr/include/SDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+        }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+
+
+    case IPLINUX :
+        Echo "OS is IPLINUX (EFL)" ;
+        PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 evas ecore ecore-x ecore-evas fontconfig" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
