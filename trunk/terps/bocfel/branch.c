@@ -49,7 +49,7 @@ void branch_if(int do_branch)
     if(offset > 1)
     {
       pc += (int16_t)offset - 2;
-      ZASSERT(pc < memory_size, "branch to invalid address %lx", (unsigned long)pc);
+      ZASSERT(pc < memory_size, "branch to invalid address 0x%lx", (unsigned long)pc);
     }
     else
     {
@@ -64,7 +64,7 @@ void zjump(void)
   pc += (int16_t)zargs[0];
   pc -= 2;
 
-  ZASSERT(pc < memory_size, "@jump to invalid address %lx", (unsigned long)pc);
+  ZASSERT(pc < memory_size, "@jump to invalid address 0x%lx", (unsigned long)pc);
 }
 
 void zjz(void)

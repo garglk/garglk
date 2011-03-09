@@ -34,6 +34,7 @@ struct options
   int enable_censorship;
   int overwrite_transcript;
   long random_seed;
+  char *random_device;
 };
 
 extern const char *game_file;

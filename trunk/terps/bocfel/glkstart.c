@@ -57,6 +57,7 @@ glkunix_argumentlist_t glkunix_arguments[] =
   { "-X",	glkunix_arg_NoValue,		"-X		enable tandy censorship" },
   { "-y",	glkunix_arg_NoValue,		"-y		when opening a transcript, overwrite rather than append to an existing file" },
   { "-z",	glkunix_arg_NumberValue,	"-z N		set initial random seed" },
+  { "-Z",	glkunix_arg_ValueFollows,	"-Z device	read initial random seed from device" },
   { "",		glkunix_arg_ValueFollows,	"filename	file to load" },
 
   { NULL, glkunix_arg_End, NULL }
@@ -95,9 +96,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, in
   extern int __argc;
   extern char **__argv;
 
-  if(!InitGlk(0x00000700)) exit(1);
+  if(!InitGlk(0x00000700)) exit(EXIT_FAILURE);
 
-  if(!process_arguments(__argc, __argv)) exit(1);
+  if(!process_arguments(__argc, __argv)) exit(EXIT_FAILURE);
 
   winglk_app_set_name("Bocfel");
 

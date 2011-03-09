@@ -18,7 +18,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <stddef.h>
 #include <stdarg.h>
 
@@ -39,24 +38,16 @@
 #include "util.h"
 #include "zterp.h"
 
-/* Windows. */
-#define FONT_NONE	-1
-#define FONT_PREVIOUS	0
-#define FONT_NORMAL	1
-#define FONT_PICTURE	2
-#define FONT_CHARACTER	3
-#define FONT_FIXED	4
-
 static struct window
 {
   unsigned style;
-  
-  int font;
-  int prev_font;
 
-  long x, y; /* Only meaningful for window 1 */
+  enum font { FONT_NONE = -1, FONT_PREVIOUS, FONT_NORMAL, FONT_PICTURE, FONT_CHARACTER, FONT_FIXED } font;
+  enum font prev_font;
+
 #ifdef ZTERP_GLK
   winid_t id;
+  long x, y; /* Only meaningful for window 1 */
   int pending_read;
   void *line;
 #endif
@@ -401,6 +392,7 @@ void close_upper_window(void)
   open_upper_window(0);
 
 #ifdef ZTERP_GLK
+  delayed_window_shrink = -1;
   saw_input = 0;
 #endif
 
@@ -471,7 +463,7 @@ static void insert_key(uint32_t key)
     term_size += 32;
 
     term_keys = realloc(term_keys, term_size * sizeof *term_keys);
-    if(term_keys == NULL) die("realloc: %s", strerror(errno));
+    if(term_keys == NULL) die("unable to allocate memory for terminating keys");
   }
 
   term_keys[term_nkeys++] = key;
@@ -573,7 +565,12 @@ static void put_char_base(uint16_t c, int unicode)
     {
       uint8_t zscii = 0;
 
-      if(curwin->font == FONT_CHARACTER && !options.disable_graphics_font)
+      /* §16 makes no mention of what a newline in font 3 should map to.
+       * Other interpreters that implement font 3 assume it stays a
+       * newline, and this makes the most sense, so don’t do any
+       * translation in that case.
+       */
+      if(curwin->font == FONT_CHARACTER && !options.disable_graphics_font && c != UNICODE_LINEFEED)
       {
         zscii = unicode_to_zscii[c];
 
@@ -669,10 +666,7 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
   int c, lastc = 0; /* Initialize lastc to shut gcc up */
   uint16_t w;
   uint32_t counter = addr;
-
-#ifndef ZTERP_NO_V2
   int current_alphabet = 0;
-#endif
 
   do
   {
@@ -709,7 +703,6 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
           shift = 0;
           break;
         case 1:
-#ifndef ZTERP_NO_V2
           if(zversion == 1)
           {
             outc(ZSCII_NEWLINE);
@@ -717,49 +710,32 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
             break;
           }
           /* fallthrough */
-#endif
         case 2: case 3:
-#ifndef ZTERP_NO_V2
-          if(zversion > 2 || (zversion == 2 && c == 1))
+          if(zversion >= 3 || (zversion == 2 && c == 1))
           {
-#endif
-          ZASSERT(!in_abbr, "abbreviation being used recursively");
-          abbrev = c;
-          shift = 0;
-#ifndef ZTERP_NO_V2
+            ZASSERT(!in_abbr, "abbreviation being used recursively");
+            abbrev = c;
+            shift = 0;
           }
           else
           {
             shift = c - 1;
           }
-#endif
           break;
-        case 4:
-#ifndef ZTERP_NO_V2
+        case 4: case 5:
           if(zversion <= 2)
           {
-            current_alphabet = (current_alphabet + 1) % 3;
+            current_alphabet = (current_alphabet + (c - 3)) % 3;
             shift = 0;
           }
           else
-#endif
-          shift = 1;
-          break;
-        case 5:
-#ifndef ZTERP_NO_V2
-          if(zversion <= 2)
           {
-            current_alphabet = (current_alphabet + 2) % 3;
-            shift = 0;
+            shift = c - 3;
           }
-          else
-#endif
-          shift = 2;
           break;
         case 6:
-#ifndef ZTERP_NO_V2
           if(zversion <= 2) shift = (current_alphabet + shift) % 3;
-#endif
+
           if(shift == 2)
           {
             shift = 0;
@@ -768,9 +744,8 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
           }
           /* fallthrough */
         default:
-#ifndef ZTERP_NO_V2
           if(zversion <= 2 && c != 6) shift = (current_alphabet + shift) % 3;
-#endif
+
           outc(atable[(26 * shift) + (c - 6)]);
           shift = 0;
           break;
@@ -791,7 +766,7 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
  */
 int print_handler(uint32_t addr, void (*outc)(uint8_t))
 {
-  ZASSERT(addr < memory_size, "print at invalid address: %lx", (unsigned long)addr);
+  ZASSERT(addr < memory_size, "print at invalid address: 0x%lx", (unsigned long)addr);
 
   return print_zcode(addr, 0, outc != NULL ? outc : put_char);
 }
@@ -1068,12 +1043,12 @@ void zset_text_style(void)
 }
 
 /* Interpreters seem to disagree on @set_font.  Given the code
-  
+
    @set_font 4 -> i;
    @set_font 1 -> j;
    @set_font 0 -> k;
    @set_font 1 -> l;
-  
+
  * the following values are returned:
  * Frotz 2.43:         0, 1, 1, 1
  * Gargoyle r384:      1, 4, 4, 4
@@ -1249,7 +1224,7 @@ static void window_change(void)
     if(y > h) y = h;
     zargs[0] = y + 1;
     zargs[1] = x + 1;
-      
+
     SWITCH_WINDOW_START(upperwin);
     zset_cursor();
     SWITCH_WINDOW_END();
@@ -1438,7 +1413,7 @@ static uint8_t zscii_from_glk(glui32 key)
     case keycode_Func11: return 143;
     case keycode_Func12: return 144;
   }
-  
+
   return ZSCII_NEWLINE;
 }
 #endif
@@ -1591,7 +1566,7 @@ static int get_input(int16_t timer, int16_t routine, struct input *input)
             if(ev.val1 <= UINT16_MAX)
             {
               uint8_t c = unicode_to_zscii[ev.val1];
-              
+
               if(c != 0) input->key = c;
             }
 
@@ -1887,8 +1862,8 @@ void zcheck_unicode(void)
 
   /* valid_unicode() will tell which Unicode characters can be printed;
    * and if the Unicode character is in the Unicode input table, it can
-   * also be read.  If Unicode is not available, then any character >
-   * 255 is invalid for both reading and writing.
+   * also be read.  If Unicode is not available, then any character >255
+   * is invalid for both reading and writing.
    */
   if(have_unicode || zargs[0] < 256)
   {
@@ -2110,10 +2085,10 @@ void init_screen(void)
     windows[i].style = STYLE_NONE;
     windows[i].font = FONT_NORMAL;
     windows[i].prev_font = FONT_NONE;
-    windows[i].x = windows[i].y = 0;
 
 #ifdef ZTERP_GLK
     if(windows[i].id != NULL) glk_window_clear(windows[i].id);
+    windows[i].x = windows[i].y = 0;
     windows[i].pending_read = 0;
     windows[i].line = NULL;
 #ifdef GLK_MODULE_LINE_TERMINATORS
@@ -2122,22 +2097,27 @@ void init_screen(void)
 #endif
   }
 
-#ifdef ZTERP_GLK
-  if(statuswin.id != NULL) glk_window_clear(statuswin.id);
-#endif
-
   close_upper_window();
 
 #ifdef ZTERP_GLK
+  if(statuswin.id != NULL) glk_window_clear(statuswin.id);
+
+  if(errorwin != NULL)
+  {
+    glk_window_close(errorwin, NULL);
+    errorwin = NULL;
+  }
+
+  glk_cancel_char_event(mainwin->id);
+  glk_cancel_line_event(mainwin->id, NULL);
+  glk_request_timer_events(0);
+  timer_running = 0;
+
 #ifdef GARGLK
   fg_color = zcolor_Default;
   bg_color = zcolor_Default;
 #endif
 
-  timer_running = 0;
-  glk_cancel_char_event(mainwin->id);
-  glk_cancel_line_event(mainwin->id, NULL);
-  glk_request_timer_events(0);
 #else
   fg_color = 1;
   bg_color = 1;

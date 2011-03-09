@@ -111,7 +111,7 @@ static void build_font3_table(void)
   zscii_to_font3[ 47] = 0x250c; /* ┌ */
   zscii_to_font3[ 48] = 0x2510; /* ┐ */
   zscii_to_font3[ 49] = 0x2518; /* ┘ */
-  
+
   /* There are a few characters that have no box-drawing equivalents.
    * These are the pieces that have connections sticking out of them,
    * used to link rooms together.  There are two options: have filled
@@ -205,7 +205,7 @@ static void build_font3_table(void)
   zscii_to_font3[120] = 0x16c9; /* ᛉ */
   zscii_to_font3[121] = 0x16a5; /* ᚥ */
   zscii_to_font3[122] = 0x16df; /* ᛟ */
-  
+
   /* These are reversed (see §16); a slightly ugly hack in screen.c is
    * used to accomplish this.
    */

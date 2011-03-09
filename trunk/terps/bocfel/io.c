@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <limits.h>
 
 #ifdef ZTERP_GLK
@@ -461,7 +460,7 @@ long zterp_io_readline(const zterp_io *io, uint16_t *buf, size_t len)
   for(ret = 0; ret < len; ret++)
   {
     long c = zterp_io_getc(io);
-    
+
     /* EOF before newline means there was a problem. */
     if(c == -1) return -1;
 

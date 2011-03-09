@@ -245,8 +245,7 @@ static int is_zero(int is_store, int is_jump)
   return 0;
 }
 
-#define check_zero(store, jump) do { if(is_zero(store, jump)) return; } while(0)
-#define ATTR_BIT(num) (1U << (7 - ((num) % 8)))
+#define check_zero(store, jump)	do { if(is_zero(store, jump)) return; } while(0)
 
 /* Attributes are stored at the very beginning of an object, so the
  * address OBJECT() returns refers directly to the attributes.  The
@@ -254,41 +253,39 @@ static int is_zero(int is_store, int is_jump)
  * find out first which byte of the attributes to look at; this is done
  * by dividing by 8.  Attributes 0-7 will be in byte 0, 8-15 in byte 1,
  * and so on.  Then the particular bit is found.  Attributes 0..7 are
- * bits 7..0, attributes 8..15 are 7..0, and so on.  7 - (attr % 8) thus
- * gives the needed bit which is then used to access the correct
- * attribute.
+ * bits 7..0, attributes 8..15 are 7..0, and so on.  Taking the
+ * remainder of the attribute divided by 8 gives the bit position,
+ * counting from the left, of the attribute.
  */
+#define ATTR_BIT(num)		(0x80U >> ((num) % 8))
 void ztest_attr(void)
 {
   check_zero(0, 1);
-
-  uint16_t o = OBJECT(zargs[0]);
-
   check_attr(zargs[1]);
 
-  branch_if(BYTE(o + (zargs[1] / 8)) & ATTR_BIT(zargs[1]));
+  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+
+  branch_if(BYTE(addr) & ATTR_BIT(zargs[1]));
 }
 
 void zset_attr(void)
 {
   check_zero(0, 0);
-
-  uint16_t o = OBJECT(zargs[0]);
-
   check_attr(zargs[1]);
 
-  STORE_BYTE(o + (zargs[1] / 8), BYTE(o + (zargs[1] / 8)) | ATTR_BIT(zargs[1]));
+  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+
+  STORE_BYTE(addr, BYTE(addr) | ATTR_BIT(zargs[1]));
 }
 
 void zclear_attr(void)
 {
   check_zero(0, 0);
-
-  uint16_t o = OBJECT(zargs[0]);
-
   check_attr(zargs[1]);
 
-  STORE_BYTE(o + (zargs[1] / 8), BYTE(o + (zargs[1] / 8)) & ~ATTR_BIT(zargs[1]));
+  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+
+  STORE_BYTE(addr, BYTE(addr) & ~ATTR_BIT(zargs[1]));
 }
 #undef ATTR_BIT
 

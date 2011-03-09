@@ -45,7 +45,7 @@ void assert_fail(const char *func, const char *file, int line, const char *fmt, 
   va_end(ap);
 
   snprintf(str + strlen(str), sizeof str - strlen(str), " (pc = 0x%lx)", zassert_pc);
-  
+
   die("%s", str);
 }
 #endif
@@ -71,7 +71,7 @@ void die(const char *fmt, ...)
   vsnprintf(str, sizeof str, fmt, ap);
   va_end(ap);
 
-  show_message("%s", str);
+  show_message("fatal error: %s", str);
 
 #ifdef ZTERP_GLK
 #ifdef GARGLK
@@ -80,7 +80,7 @@ void die(const char *fmt, ...)
   glk_exit();
 #endif
 
-  exit(1);
+  exit(EXIT_FAILURE);
 }
 
 /* This is not POSIX compliant, but it gets the job done.
@@ -146,7 +146,7 @@ int process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdeE:fgGiklLn:N:rR:sS:tT:u:UvxXyz:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdeE:fgGiklLn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -236,6 +236,9 @@ int process_arguments(int argc, char **argv)
         break;
       case 'z':
         options.random_seed = strtol(zoptarg, NULL, 10);
+        break;
+      case 'Z':
+        options.random_device = xstrdup(zoptarg);
         break;
       default:
         return 0;

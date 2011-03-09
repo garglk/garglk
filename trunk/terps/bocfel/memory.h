@@ -40,7 +40,7 @@ static void STORE_WORD(uint32_t addr, uint16_t val)
 zunused
 static uint8_t user_byte(uint16_t addr)
 {
-  ZASSERT(addr < header.static_end, "attempt to read out-of-bounds address 0x%04lx", (unsigned long)addr);
+  ZASSERT(addr < header.static_end, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
 
   return BYTE(addr);
 }
@@ -48,7 +48,7 @@ static uint8_t user_byte(uint16_t addr)
 zunused
 static uint16_t user_word(uint16_t addr)
 {
-  ZASSERT(addr < header.static_end - 1, "attempt to read out-of-bounds address 0x%04lx", (unsigned long)addr);
+  ZASSERT(addr < header.static_end - 1, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
   
   return WORD(addr);
 }

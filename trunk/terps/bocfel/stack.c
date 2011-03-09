@@ -20,7 +20,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <errno.h>
 #include <setjmp.h>
 
 #include "stack.h"
@@ -33,19 +32,6 @@
 #include "util.h"
 #include "zterp.h"
 
-#define BASE_OF_STACK	stack
-static uint16_t *TOP_OF_STACK;
-
-#define BASE_OF_FRAMES	frames
-static struct call_frame *TOP_OF_FRAMES;
-#define CURRENT_FRAME	(fp - 1)
-#define NFRAMES		((int)(fp - frames))
-
-/* Used for direct function calls (from timed input routines).
- * The method employed here was inspired by Frotz.
- */
-int direct;
-
 struct call_frame
 {
   uint32_t pc;
@@ -56,11 +42,19 @@ struct call_frame
   uint16_t locals[15];
 };
 
+static struct call_frame *frames;
+static struct call_frame *fp;
+
+#define BASE_OF_FRAMES	frames
+static struct call_frame *TOP_OF_FRAMES;
+#define CURRENT_FRAME	(fp - 1)
+#define NFRAMES		((long)(fp - frames))
+
 static uint16_t *stack;
 static uint16_t *sp;
 
-static struct call_frame *frames;
-static struct call_frame *fp;
+#define BASE_OF_STACK	stack
+static uint16_t *TOP_OF_STACK;
 
 static void PUSH_STACK(uint16_t n) { ZASSERT(sp != TOP_OF_STACK, "stack overflow"); *sp++ = n; }
 static uint16_t POP_STACK(void) { ZASSERT(sp > CURRENT_FRAME->sp, "stack underflow"); return *--sp; }
@@ -75,7 +69,7 @@ static struct save_state
   uint32_t stack_size;
   uint16_t *stack;
 
-  int nframes;
+  long nframes;
   struct call_frame *frames;
 
   struct save_state *prev, *next;
@@ -85,7 +79,7 @@ static long nsaves;
 
 static void add_frame(uint32_t pc_, uint16_t *sp_, uint8_t nlocals, uint8_t nargs, uint16_t where)
 {
-  ZASSERT(fp != TOP_OF_FRAMES, "call stack too deep: %d", NFRAMES + 1);
+  ZASSERT(fp != TOP_OF_FRAMES, "call stack too deep: %ld", NFRAMES + 1);
 
   fp->pc = pc_;
   fp->sp = sp_;
@@ -125,7 +119,7 @@ void init_stack(void)
 
   sp = BASE_OF_STACK;
   fp = BASE_OF_FRAMES;
-  
+
   /* Quetzal requires a dummy frame in non-V6 games, so do that here. */
   if(zversion != 6) add_frame(0, sp, 0, 0, 0);
 
@@ -141,13 +135,11 @@ void init_stack(void)
   }
   saves_tail = NULL;
   nsaves = 0;
-
-  direct = 0;
 }
 
 uint16_t variable(uint16_t var)
 {
-  ZASSERT(var < 0x100, "can't decode variable %u", (unsigned)var);
+  ZASSERT(var < 0x100, "unable to decode variable %u", (unsigned)var);
 
   /* Stack */
   if(var == 0)
@@ -158,7 +150,7 @@ uint16_t variable(uint16_t var)
   /* Locals */
   else if(var <= 0x0f)
   {
-    ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to store to nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
+    ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to read from nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
     return CURRENT_FRAME->locals[var - 1];
   }
 
@@ -178,7 +170,7 @@ uint16_t variable(uint16_t var)
 
 void store_variable(uint16_t var, uint16_t n)
 {
-  ZASSERT(var < 0x100, "can't decode variable %u", (unsigned)var);
+  ZASSERT(var < 0x100, "unable to decode variable %u", (unsigned)var);
 
   /* Stack. */
   if(var == 0)
@@ -189,7 +181,7 @@ void store_variable(uint16_t var, uint16_t n)
   /* Local variables. */
   else if(var <= 0x0f)
   {
-    ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to read from nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
+    ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to store to nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
     CURRENT_FRAME->locals[var - 1] = n;
   }
 
@@ -272,14 +264,17 @@ void call(int do_store)
   }
 
   jmp_to = unpack(zargs[0], 0);
-  ZASSERT(jmp_to < memory_size, "call to invalid address %08x", (unsigned)jmp_to);
+  ZASSERT(jmp_to < memory_size, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
-  nlocals = BYTE(jmp_to);
-  ZASSERT(nlocals <= 15, "too many (%d) locals at %08x", nlocals, (unsigned)jmp_to);
+  nlocals = BYTE(jmp_to++);
+  ZASSERT(nlocals <= 15, "too many (%d) locals at 0x%lx", nlocals, (unsigned long)jmp_to - 1);
 
-  if     (do_store == 1) where = BYTE(pc++); /* Where to store return value */
-  else if(do_store == 2) where = 0xff + 2;   /* Or a tag meaning push the return value */
-  else                   where = 0xff + 1;   /* Or a tag meaning no return value */
+  switch(do_store)
+  {
+    case 1:  where = BYTE(pc++); break; /* Where to store return value */
+    case 0:  where = 0xff + 1;   break; /* Or a tag meaning no return value */
+    default: where = 0xff + 2;   break; /* Or a tag meaning push the return value */
+  }
 
   add_frame(pc, sp, nlocals, znargs - 1, where);
 
@@ -291,7 +286,7 @@ void call(int do_store)
     }
     else
     {
-      if(zversion <= 4) CURRENT_FRAME->locals[i] = WORD((jmp_to + 1) + (2 * i));
+      if(zversion <= 4) CURRENT_FRAME->locals[i] = WORD(jmp_to + (2 * i));
       else              CURRENT_FRAME->locals[i] = 0;
     }
   }
@@ -299,7 +294,7 @@ void call(int do_store)
   /* Take care of locals! */
   if(zversion <= 4) jmp_to += nlocals * 2;
 
-  pc = jmp_to + 1;
+  pc = jmp_to;
 }
 
 #ifdef ZTERP_GLK
@@ -313,25 +308,14 @@ uint16_t direct_call(uint16_t routine)
 
   znargs = 1;
   zargs[0] = routine;
-  direct++;
   call(2);
 
-  process_instructions(direct);
+  process_instructions();
 
   memcpy(zargs, saved_args, sizeof saved_args);
   znargs = saved_nargs;
 
-  /* If @quit is called inside of an interrupt, process_instructions()
-   * will stop executing without any intervention from direct call
-   * routines; this means that no value will be pushed onto the stack
-   * from a return, so trying to pop the return value here will likely
-   * lead to stack underflow, or at the very least returning the wrong
-   * values.  But even if it did return the proper values, that wouldn’t
-   * be useful, because we’re trying to quit; so if the interpreter is
-   * supposed to stop, return 1 every time, which tells the input
-   * function not to re-read input.
-   */
-  return running ? POP_STACK() : 1;
+  return POP_STACK();
 }
 #endif
 
@@ -361,8 +345,8 @@ void do_return(uint16_t retval)
   }
   else if(where == 0xff + 2)
   {
-    direct--;
     PUSH_STACK(retval);
+    break_from(interrupt_level());
   }
 }
 
@@ -510,7 +494,7 @@ static uint32_t compress_memory(uint8_t **compressed)
 }
 
 /* Reverse of the above function. */
-static int uncompress_memory(uint8_t *compressed, uint32_t size)
+static int uncompress_memory(const uint8_t *compressed, uint32_t size)
 {
   uint32_t memory_index = 0;
 
@@ -661,6 +645,8 @@ static int pop_save(void)
 
 void zsave_undo(void)
 {
+  if(interrupt_level() != 0) die("@save_undo called inside of an interrupt");
+
   store(push_save());
 }
 
@@ -976,7 +962,7 @@ death:
    * scribbed upon; if there was a successful backup, restore it.
    * Otherwise the only course of action is to exit.
    */
-  if(!memory_restore()) die("fatal error restoring; the system is likely in an inconsistent state");
+  if(!memory_restore()) die("the system is likely in an inconsistent state");
 
 err:
   /* A snapshot may have been taken, but neither memory nor the stacks
@@ -998,6 +984,8 @@ void zsave(void)
 {
   zterp_io *savefile;
   int success;
+
+  if(interrupt_level() != 0) die("@save called inside of an interrupt");
 
   savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
   if(savefile == NULL)
