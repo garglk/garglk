@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Gargoyle
+TryExec=gargoyle
+Exec=gargoyle %F
+StartupNotify=true
+Terminal=false
+Type=Application
+Categories=Literature
+MimeType=application/x-ifiction

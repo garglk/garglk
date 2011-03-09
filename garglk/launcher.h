@@ -33,9 +33,7 @@
 
 #define MaxBuffer 1024
 
-extern void wininit(void);
 extern void winmsg(const char *msg);
-extern void winopenfile(char *buffer);
 extern void winpath(char *buffer);
 extern int winargs(int argc, char **argv, char *buffer);
 extern int winexec(const char *cmd, char **args);

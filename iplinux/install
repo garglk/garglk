@@ -1,0 +1,5 @@
+debian/garglk.ini         etc/
+debian/gargoyle.desktop   usr/share/applications/
+build/dist/*[!.]??        usr/bin/
+build/dist/libgarglk.so   usr/lib/
+

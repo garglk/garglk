@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+	echo application/x-ifiction=gargoyle.desktop\; >> /usr/share/applications/defaults.list
+	for ext in %extensions%; do
+	    echo application/x-ifiction:\*.$ext >> /usr/share/mime/globs
+	    echo 50:application/x-ifiction:\*.$ext >> /usr/share/mime/globs2
+	done
+fi
+

@@ -1,0 +1,35 @@
+--- ../garglk/garglk.ini	2011-03-02 21:26:35.000000000 +0100
++++ garglk.ini	2011-03-06 20:47:49.232808996 +0100
+@@ -37,7 +37,7 @@
+ graphics      1               # enable graphics
+ sound         1               # enable sound
+ 
+-lcd           1               # 0=grayscale 1=subpixel
++lcd           0               # 0=grayscale 1=subpixel
+ 
+ 
+ #===============================================================================
+@@ -49,10 +49,10 @@
+ # Omit to use the builtin fonts, or specify a font family.
+ 
+ monofont      Liberation Mono
+-monosize      12.5
++monosize      25
+ 
+ propfont      Linux Libertine O
+-propsize      15.5
++propsize      31
+ 
+ wmarginx      20              # space around the window frame
+ wmarginy      20
+@@ -63,8 +63,8 @@
+ tmarginx      7               # internal margin of text windows
+ tmarginy      7
+ 
+-leading       20              # Also known as linespacing
+-baseline      15              # Offset from top of line to baseline
++leading       30              # Also known as linespacing
++baseline      22.5              # Offset from top of line to baseline
+ 
+ # Fonts for Text Buffer windows
+ tfont  0      propr           # Normal
