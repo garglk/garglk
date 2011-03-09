@@ -63,6 +63,12 @@
  * suitable value for the bocfel configuration file into the buffer s
  * which is n bytes long.
  *
+ * void zterp_os_reopen_binary(FILE *fp)
+ *
+ * Writing UTF-8 requires that no mangling be done, such as might happen
+ * when a stream is opened in text mode.  This function should, if
+ * necessary, set the mode on the file pointer in fp to be binary.
+ *
  * The following functions are useful for non-GLK builds only.  They
  * provide for some handling of screen functions that is normally taken
  * care of by GLK.
@@ -98,7 +104,7 @@
  * Unlike in zterp_os_have_style(), here styles may be combined.  See
  * the Unix implementation for a reference.
  * The colors are Z-machine colors (see §8.3.1), with the following
- * note: the only color values that will ever be passed in are 1–9. 
+ * note: the only color values that will ever be passed in are 1–9.
  */
 
 /******************

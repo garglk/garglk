@@ -156,7 +156,7 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   elength = user_byte(dictionary + num_separators + 1);
   nentries = (int16_t)user_word(dictionary + num_separators + 2);
   base = dictionary + num_separators + 2 + 2;
-  
+
   if(nentries > 0)
   {
     ret = bsearch(encoded, &memory[base], nentries, elength, dict_compar);

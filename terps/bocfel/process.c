@@ -16,9 +16,10 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <signal.h>
+#include <setjmp.h>
 
 #ifdef ZTERP_GLK
 #include <glk.h>
@@ -41,13 +42,9 @@
 uint16_t zargs[8];
 int znargs;
 
-volatile sig_atomic_t running = 1;
-
 /* Returns 1 if decoded, 0 otherwise (omitted) */
 static int decode_base(uint8_t type, uint16_t *loc)
 {
-  ZASSERT(type < 4, "invalid type: %u", (unsigned)type);
-
   if     (type == 0) *loc = WORD(pc++);		/* Large constant. */
   else if(type == 1) *loc = BYTE(pc);		/* Small constant. */
   else if(type == 2) *loc = variable(BYTE(pc));	/* Variable. */
@@ -77,10 +74,7 @@ static void (*op[5][256])(void);
 static const char *opnames[5][256];
 enum { ZERO, ONE, TWO, VAR, EXT };
 
-static void op_call(int opt, uint8_t opnumber)
-{
-  op[opt][opnumber]();
-}
+#define op_call(opt, opnumber)	(op[opt][opnumber]())
 
 /* This nifty trick is from Frotz. */
 static void zextended(void)
@@ -251,18 +245,48 @@ void setup_opcodes(void)
 #undef OP
 }
 
-/* “level” is the level of nesting of processing as a result of
- * interrupts.  Generally this is zero.  When an interrupt starts, this
- * is called with the value 1; and if in that interrupt, another begins,
- * it’s called with 2, and so on.  Inside of an interrupt, when a return
- * happens, the variable “direct”, which holds the nesting depth, is
- * decremented.  That way the main loop can tell when an interrupt has
- * returned by comparing “level” to “direct”: if they’re unequal, the
- * interrupt has returned and this loop should terminate.
+static jmp_buf *jumps;
+static size_t njumps;
+
+/* Each time an interrupt happens, process_instructions() is called
+ * (effectively starting a whole new round of interpreting).  This
+ * variable holds the current level of interpreting: 0 for no
+ * interrupts, 1 if one interrupt has been called, 2 if an interrupt was
+ * called inside of an interrupt, and so on.
  */
-void process_instructions(int level)
+static long ilevel = -1;
+
+long interrupt_level(void)
 {
-  while(running)
+  return ilevel;
+}
+
+/* When this is called, the interrupt at level “level” will stop
+ * running: if a single interrupt is running, then break_from(1) will
+ * stop the interrupt, going back to the main program.  Breaking from
+ * interrupt level 0 (which is not actually an interrupt) will end the
+ * program.  This is how @quit is implemented.
+ */
+void break_from(long level)
+{
+  longjmp(jumps[level], 1);
+}
+
+void process_instructions(void)
+{
+  if(njumps <= ++ilevel)
+  {
+    jumps = realloc(jumps, ++njumps * sizeof *jumps);
+    if(jumps == NULL) die("unable to allocate memory for jump buffer");
+  }
+
+  if(setjmp(jumps[ilevel]) != 0)
+  {
+    ilevel--;
+    return;
+  }
+
+  while(1)
   {
     uint8_t opcode;
 
@@ -352,7 +376,10 @@ void process_instructions(int level)
 
       op_call(VAR, opcode & 0x1f);
     }
-
-    if(direct != level) break;
   }
+}
+
+void init_process(void)
+{
+  ilevel = -1;
 }

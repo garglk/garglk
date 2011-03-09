@@ -21,7 +21,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <ctype.h>
-#include <errno.h>
 #include <signal.h>
 #include <limits.h>
 
@@ -49,7 +48,7 @@
 #define PATH_MAX	4096
 #endif
 
-#define ZTERP_VERSION	"0.5.2"
+#define ZTERP_VERSION	"0.5.3"
 
 const char *game_file;
 struct options options = {
@@ -82,6 +81,7 @@ struct options options = {
   .enable_censorship = 0,
   .overwrite_transcript = 0,
   .random_seed = -1,
+  .random_device = NULL,
 };
 
 static char story_id[64];
@@ -103,7 +103,7 @@ static int zwhich;
 
 struct header header;
 
-struct
+static struct
 {
   zterp_io *io;
   long offset;
@@ -137,7 +137,7 @@ void znop(void)
 
 void zquit(void)
 {
-  running = 0;
+  break_from(0);
 }
 
 void zverify(void)
@@ -423,6 +423,7 @@ static void read_config(void)
     BOOL  (enable_censorship);
     BOOL  (overwrite_transcript);
     NUMBER(random_seed);
+    STRING(random_device);
 
     COLOR(black,   2);
     COLOR(red,     3);
@@ -510,8 +511,10 @@ void write_header(void)
   {
     uint16_t flags2 = WORD(0x10);
 
-    flags2 &= ~(FLAGS2_PICTURES | FLAGS2_SOUND | FLAGS2_MOUSE);
+    flags2 &= ~(FLAGS2_SOUND | FLAGS2_MOUSE);
     if(zversion >= 6) flags2 &= ~FLAGS2_MENUS;
+
+    if(options.disable_graphics_font) flags2 &= ~FLAGS2_PICTURES;
 
     if(options.max_saves == 0) flags2 &= ~FLAGS2_UNDO;
 
@@ -558,16 +561,12 @@ void write_header(void)
 
 static void process_story(void)
 {
-  if(zterp_io_seek(story.io, story.offset, SEEK_SET) == -1) die("can't rewind story");
+  if(zterp_io_seek(story.io, story.offset, SEEK_SET) == -1) die("unable to rewind story");
 
-  if(zterp_io_read(story.io, memory, memory_size) != memory_size) die("can't read from story file");
+  if(zterp_io_read(story.io, memory, memory_size) != memory_size) die("unable to read from story file");
 
   zversion =		BYTE(0x00);
-#ifndef ZTERP_NO_V2
   if(zversion < 1 || zversion > 8) die("only z-code versions 1-8 are supported");
-#else
-  if(zversion < 3 || zversion > 8) die("only z-code versions 3-8 are supported");
-#endif
 
   zwhich = zversion;
   if(zversion == 7 || zversion == 8) zversion = 5;
@@ -583,7 +582,7 @@ static void process_story(void)
   header.abbr =		WORD(0x18);
 
   memcpy(header.serial, &memory[0x12], sizeof header.serial);
-  
+
   /* There is no explicit “end of static” tag; but it must end by 0xffff
    * or the end of the story file, whichever is smaller.
    */
@@ -678,7 +677,7 @@ static void process_story(void)
   if(dynamic_memory == NULL)
   {
     dynamic_memory = malloc(header.static_start);
-    if(dynamic_memory == NULL) die("can't allocate memory for dynamic memory");
+    if(dynamic_memory == NULL) die("unable to allocate memory for dynamic memory");
     memcpy(dynamic_memory, memory, header.static_start);
   }
 
@@ -721,22 +720,23 @@ static void process_story(void)
 
   if(zversion <= 3) have_statuswin = create_statuswin();
   if(zversion >= 3) have_upperwin  = create_upperwin();
-  
+
   write_header();
   /* Put everything in a clean state. */
   seed_random(0);
   init_stack();
   init_screen();
+  init_process();
 
   /* Unfortunately, Beyond Zork behaves badly when the interpreter
    * number is set to DOS: it assumes that it can print out IBM PC
    * character codes and get useful results (e.g. it writes out 0x18
    * expecting an up arrow); however, if the pictures bit is set, it
-   * uses the picture font like a good citizen.  Thus turn that bit on
-   * when Beyond Zork is being used and the interpreter is set to DOS.
-   * It might make sense to do this generally, not just for Beyond Zork;
-   * but this is such a minor corner of the Z-machine that it probably
-   * doesn’t matter.  For now, peg this to Beyond Zork.
+   * uses the character graphics font like a good citizen.  Thus turn
+   * that bit on when Beyond Zork is being used and the interpreter is
+   * set to DOS.  It might make sense to do this generally, not just for
+   * Beyond Zork; but this is such a minor corner of the Z-machine that
+   * it probably doesn’t matter.  For now, peg this to Beyond Zork.
    */
   if(options.int_number == 6 &&
       (is_story("47-870915") || is_story("49-870917") ||
@@ -795,7 +795,7 @@ int main(int argc, char **argv)
   use_utf8_io = zterp_os_have_unicode();
 
 #ifndef ZTERP_GLK
-  if(!process_arguments(argc, argv)) exit(1);
+  if(!process_arguments(argc, argv)) exit(EXIT_FAILURE);
 
   zterp_os_init_term();
 #endif
@@ -813,11 +813,6 @@ int main(int argc, char **argv)
     PRINT("Runtime assertions disabled");
 #else
     PRINT("Runtime assertions enabled");
-#endif
-#ifdef ZTERP_NO_V2
-    PRINT("Version 1 and 2 support disabled");
-#else
-    PRINT("Version 1 and 2 support enabled");
 #endif
 #ifdef ZTERP_NO_CHEAT
     PRINT("Cheat support disabled");
@@ -880,7 +875,7 @@ int main(int argc, char **argv)
   if(memory_size > SIZE_MAX) die("story file too large");
 
   memory = malloc(memory_size);
-  if(memory == NULL) die("malloc: %s", strerror(errno));
+  if(memory == NULL) die("unable to allocate memory for story file");
 
   process_story();
 
@@ -897,7 +892,7 @@ int main(int argc, char **argv)
 
   setup_opcodes();
 
-  process_instructions(0);
+  process_instructions();
 
 #ifndef ZTERP_GLK
   return 0;

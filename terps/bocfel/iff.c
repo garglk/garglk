@@ -98,7 +98,7 @@ int zterp_iff_find(zterp_iff *iff, const char tag[static 4], uint32_t *size)
     {
       if(zterp_io_seek(iff->io, iff->offset, SEEK_SET) == -1) return 0;
       *size = iff->size;
-      
+
       return 1;
     }
 

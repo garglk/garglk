@@ -6,8 +6,6 @@
 #define DEFAULT_STACK_SIZE	0x1000
 #define DEFAULT_CALL_DEPTH	0x200
 
-extern int direct;
-
 void init_stack(void);
 
 uint16_t variable(uint16_t);

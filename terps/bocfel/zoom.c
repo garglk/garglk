@@ -37,7 +37,7 @@ void zstop_timer(void)
 
 void zread_timer(void)
 {
-  store((end_clock - start_clock) / CLOCKS_PER_SEC);
+  store(100 * (end_clock - start_clock) / CLOCKS_PER_SEC);
 }
 
 void zprint_timer(void)
