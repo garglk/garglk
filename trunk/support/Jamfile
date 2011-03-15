@@ -13,6 +13,11 @@ if $(USEBABEL) = yes
 
     SEARCH_SOURCE = [ FDirName $(TOP) support babel ] ;
 
+    if $(OS) != MINGW
+    {
+        SubDirCcFlags -fPIC ;
+    }
+
     Library babel_static :
         babel_handler.c ifiction.c md5.c misc.c register.c register_ifiction.c
         adrift.c advsys.c agt.c alan.c blorb.c executable.c glulx.c hugo.c

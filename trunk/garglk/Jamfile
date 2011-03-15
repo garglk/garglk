@@ -65,17 +65,21 @@ else { Main gargoyle : launchgtk.c launcher.c ; }
 
 Library libgarglkmain : main.c ;
 
-if $(STATIC) { Library libgarglk : $(GARGSRCS) ; }
-else   { SharedLibrary libgarglk : $(GARGSRCS) ; }
-
-if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
+if $(STATIC)
 {
-    if $(STATIC)        { LinkLibraries libgarglk : SDL_sound_static ; }
-    else { LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ; }
+    Library libgarglk : $(GARGSRCS) ;
 }
-
-if $(USEBABEL) = yes
+else
 {
-    if $(STATIC)        { LinkLibraries libgarglk : babel_static ; }
-    else { LinkLibrariesOnSharedLibrary libgarglk : babel_static ; }
+    SharedLibrary libgarglk : $(GARGSRCS) ;
+
+    if $(USEBABEL)
+    {
+        LinkLibrariesOnSharedLibrary libgarglk : babel_static ;
+    }
+
+    if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
+    {
+        LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
+    }
 }
