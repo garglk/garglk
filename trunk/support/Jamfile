@@ -3,7 +3,25 @@
 #
 
 #
-# SDL Sound 
+# Treaty of Babel
+#
+
+if $(USEBABEL) = yes
+{
+    SubDir TOP support ;
+    ObjDir babel ;
+
+    SEARCH_SOURCE = [ FDirName $(TOP) support babel ] ;
+
+    Library babel_static :
+        babel_handler.c ifiction.c md5.c misc.c register.c register_ifiction.c
+        adrift.c advsys.c agt.c alan.c blorb.c executable.c glulx.c hugo.c
+        level9.c magscrolls.c tads.c tads2.c tads3.c zcode.c
+        ;
+}
+
+#
+# SDL Sound
 #
 
 if $(USESDL) = yes

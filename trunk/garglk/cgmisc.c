@@ -50,9 +50,12 @@ char gli_story_name[256] = "";
 
 void garglk_set_program_name(const char *name)
 {
-    strncpy(gli_program_name, name, sizeof gli_program_name);
-    gli_program_name[sizeof gli_program_name-1] = 0;
-    wintitle();
+    if (!gli_babel_meta_author)
+    {
+        strncpy(gli_program_name, name, sizeof gli_program_name);
+        gli_program_name[sizeof gli_program_name-1] = 0;
+        wintitle();
+    }
 }
 
 void garglk_set_program_info(const char *info)
@@ -63,9 +66,12 @@ void garglk_set_program_info(const char *info)
 
 void garglk_set_story_name(const char *name)
 {
-    strncpy(gli_story_name, name, sizeof gli_story_name);
-    gli_story_name[sizeof gli_story_name-1] = 0;
-    wintitle();
+    if (!gli_babel_meta_title)
+    {
+        strncpy(gli_story_name, name, sizeof gli_story_name);
+        gli_story_name[sizeof gli_story_name-1] = 0;
+        wintitle();
+    }
 }
 
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;

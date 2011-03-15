@@ -177,6 +177,7 @@ extern unsigned char *gli_image_rgb;
  */
 
 extern char gli_workdir[];
+extern char gli_workfile[];
 
 extern style_t gli_tstyles[style_NUMSTYLES];
 extern style_t gli_gstyles[style_NUMSTYLES];
@@ -268,6 +269,9 @@ extern int gli_forceclick;
 extern int gli_copyselect;
 extern int gli_drawselect;
 extern int gli_claimselect;
+
+extern int gli_babel_meta_title;
+extern int gli_babel_meta_author;
 
 /*
  * Standard Glk I/O stuff
@@ -605,6 +609,7 @@ extern void gcmd_accept_scroll(window_t *win, glui32 arg);
 
 extern void gli_initialize_misc(void);
 extern void gli_initialize_windows(void);
+extern void gli_initialize_babel(void);
 
 extern window_t *gli_new_window(glui32 type, glui32 rock);
 extern void gli_delete_window(window_t *win);
