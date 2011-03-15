@@ -521,7 +521,7 @@ void wintitle(void)
 {
     char buf[256];
     if (strlen(gli_story_name))
-        sprintf(buf, "%s - %s", gli_program_name, gli_story_name);
+        sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
     else
         sprintf(buf, "%s", gli_program_name);
     ecore_evas_title_set(frame, buf);
