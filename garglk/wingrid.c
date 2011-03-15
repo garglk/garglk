@@ -716,6 +716,9 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
             if (arg < 32 || arg > 0xff)
                 return;
 
+            if (gli_conf_caps && (arg > 0x60 && arg < 0x7b))
+                arg -= 0x20;
+
             for (ix=dwin->inlen; ix>dwin->incurs; ix--) 
                 ln->chars[dwin->inorgx+ix] = ln->chars[dwin->inorgx+ix-1];
             attrset(&ln->attrs[dwin->inorgx+dwin->inlen], style_Input);
