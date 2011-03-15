@@ -39,8 +39,21 @@ for APP in $(APPS)
 {
     LinkLibraries $(APP) : libgarglkmain ;
 
-    if $(STATIC) { LinkLibraries $(APP) : libgarglk ; }
-    else   { SharedLinkLibraries $(APP) : libgarglk ; }
+    if $(STATIC)
+    {
+        if $(USEBABEL)
+        {
+            LinkLibraries $(APP) : libgarglk babel_static ;
+        }
+        else
+        {
+            LinkLibraries $(APP) : libgarglk ;
+        }
+    }
+    else
+    {
+        SharedLinkLibraries $(APP) : libgarglk ;
+    }
 
     InstallBin $(APPDIR) : $(APP)$(SUFEXE) ;
 }
@@ -76,7 +89,15 @@ if $(OS) = MINGW && $(USESDL) = yes
 
 if $(STATIC)
 {
-    LinkLibraries gargoyle : libgarglk ;
+    if $(USEBABEL)
+    {
+        LinkLibraries gargoyle : libgarglk babel_static ;
+    }
+    else
+    {
+        LinkLibraries gargoyle : libgarglk ;
+    }
+
     InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
 }
 else
