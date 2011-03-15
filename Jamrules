@@ -4,6 +4,7 @@
 
 BUILD ?= RELEASE ;
 USESDL ?= yes ;
+USEBABEL ?= yes ;
 BUNDLEFONTS ?= yes ;
 
 # jam -sGUILIB=EFL

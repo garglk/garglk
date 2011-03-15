@@ -22,6 +22,12 @@ if $(USESDL) = yes
     SubDirHdrs $(TOP) support sdl_sound ;
 }
 
+if $(USEBABEL) = yes
+{
+    SubDirHdrs $(TOP) support babel ;
+    SubDirCcFlags -DBABEL_HANDLER ;
+}
+
 if $(BUNDLEFONTS) = yes
 {
     SubDirCcFlags -DBUNDLED_FONTS ;
@@ -35,8 +41,9 @@ GARGSRCS =
     wintext.c wingfx.c winmask.c
     event.c draw.c config.c
     imgload.c imgscale.c
-    fontdata.c
+    fontdata.c babeldata.c
     ;
+
 if $(OS) = IPLINUX { ObjectCcFlags draw.c : -D__EFL_1BPP__ ; }
 else if $(GUILIB) = EFL { ObjectCcFlags draw.c : -D__EFL_4BPP__ ; }
 
@@ -65,4 +72,10 @@ if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
 {
     if $(STATIC)        { LinkLibraries libgarglk : SDL_sound_static ; }
     else { LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ; }
+}
+
+if $(USEBABEL) = yes
+{
+    if $(STATIC)        { LinkLibraries libgarglk : babel_static ; }
+    else { LinkLibrariesOnSharedLibrary libgarglk : babel_static ; }
 }

@@ -44,6 +44,7 @@
 #include "garglk.h"
 
 char gli_workdir[1024] = ".";
+char gli_workfile[1024] = "";
 
 char *garglk_fileref_get_name(fileref_t *fref)
 {
@@ -353,4 +354,5 @@ void glkunix_set_base_file(char *filename)
         strrchr(gli_workdir, '\\')[0] = 0;
     else
         strcpy(gli_workdir, ".");
+    strcpy(gli_workfile, filename);
 }
