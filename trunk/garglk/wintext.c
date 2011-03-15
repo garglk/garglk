@@ -1690,7 +1690,11 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
         default:
             if (arg >= 32 && arg <= 0x10FFFF)
+            {
+                if (gli_conf_caps && (arg > 0x60 && arg < 0x7b))
+                    arg -= 0x20;
                 put_text_uni(dwin, &arg, 1, dwin->incurs, 0);
+            }
             break;
     }
 

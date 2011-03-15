@@ -159,6 +159,7 @@ int gli_leading = 20;
 int gli_conf_justify = 0;
 int gli_conf_quotes = 1;
 int gli_conf_spaces = 0;
+int gli_conf_caps = 0;
 
 int gli_conf_graphics = 1;
 int gli_conf_sound = 1;
@@ -368,6 +369,8 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_quotes = atoi(arg);
         if (!strcmp(cmd, "spaces"))
             gli_conf_spaces = atoi(arg);
+        if (!strcmp(cmd, "caps"))
+            gli_conf_caps = atoi(arg);
 
         if (!strcmp(cmd, "graphics"))
             gli_conf_graphics = atoi(arg);
