@@ -52,6 +52,7 @@
 char tmp[MaxBuffer];
 char terp[MaxBuffer];
 char exe[MaxBuffer];
+char flags[MaxBuffer];
 
 int runblorb(char *path, char *game)
 {
@@ -92,18 +93,18 @@ int runblorb(char *path, char *game)
     {
         case ID_ZCOD:
             if (strlen(terp))
-                return winterp(path, strcat(exe,terp), "", game);
+                return winterp(path, strcat(exe,terp), flags, game);
             else if (magic[0] == 6)
-                return winterp(path, strcat(exe,T_ZSIX), "", game);
+                return winterp(path, strcat(exe,T_ZSIX), flags, game);
             else
-                return winterp(path, strcat(exe,T_ZCODE), "", game);
+                return winterp(path, strcat(exe,T_ZCODE), flags, game);
             break;
 
         case ID_GLUL:
             if (strlen(terp))
-                return winterp(path, strcat(exe,terp), "", game);
+                return winterp(path, strcat(exe,terp), flags, game);
             else
-                return winterp(path, strcat(exe,T_GLULX), "", game);
+                return winterp(path, strcat(exe,T_GLULX), flags, game);
             break;
 
         default:
@@ -119,7 +120,7 @@ int findterp(char *file, char *target)
     FILE *f;
     char buf[MaxBuffer];
     char *s;
-    char *cmd, *arg;
+    char *cmd, *arg, *opt;
     int accept = 0;
     int i;
 
@@ -160,8 +161,14 @@ int findterp(char *file, char *target)
         if (!arg)
             continue;
 
-        if (!strcmp(cmd, "terp"))
-            strcpy(terp,arg);
+        if (strcmp(cmd, "terp"))
+            continue;
+
+        strcpy(terp,arg);
+
+        opt = strtok(NULL, "\r\n\t #");
+        if (opt && opt[0] == '-')
+            strcpy(flags, opt);
     }
 
     fclose(f);
@@ -280,11 +287,11 @@ int configterp(char *path, char *game)
 
 int rungame(char *path, char *game)
 {
-    /* initialize exe buffer */
+    /* initialize buffers */
     strcpy(exe, GARGLKPRE);
+    strcpy(terp, "");
+    strcpy(flags, "");
 
-    /* clear out terp buffer */
-    terp[0] = '\0';
     configterp(path, game);
 
     char *ext = strrchr(game, '.');
@@ -312,7 +319,7 @@ int rungame(char *path, char *game)
         return runblorb(path, game);
 
     if (strlen(terp))
-        return winterp(path, strcat(exe,terp), "", game);
+        return winterp(path, strcat(exe,terp), flags, game);
 
     if (!strcasecmp(ext, "dat"))
         return winterp(path, strcat(exe,T_ADVSYS), "", game);
