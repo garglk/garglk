@@ -123,7 +123,7 @@ if $(MAKE_ALAN3) = yes
 
 # -----------------------------------------------------------------------
 #
-# Bocfel 0.5.1
+# Bocfel 0.5.3
 #
 
 if $(MAKE_BOCFEL) = yes
@@ -132,7 +132,6 @@ if $(MAKE_BOCFEL) = yes
     ObjDir bocfel ;
 
     SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
-    SubDirCcFlags -DZTERP_NO_V2 ;
 
     if $(OS) = MINGW
     {
