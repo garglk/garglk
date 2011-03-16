@@ -55,4 +55,4 @@ mkdir $BUNDLE/Resources/Fonts
 cp fonts/LiberationMono*.ttf $BUNDLE/Resources/Fonts
 cp fonts/LinLibertine*.otf $BUNDLE/Resources/Fonts
 
-hdiutil create -ov -srcfolder Gargoyle.app/ gargoyle-2010.1-mac.dmg
+hdiutil create -ov -srcfolder Gargoyle.app/ gargoyle-2011.1-mac.dmg
