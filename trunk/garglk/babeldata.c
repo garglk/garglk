@@ -20,9 +20,6 @@
  *                                                                            *
  *****************************************************************************/
 
-int gli_babel_meta_title = 0;
-int gli_babel_meta_author = 0;
-
 #ifdef BABEL_HANDLER
 
 #include <stdio.h>
@@ -53,17 +50,13 @@ void gli_initialize_babel(void)
                 if (babel_treaty_ctx(GET_STORY_FILE_METADATA_SEL, metaData, metaSize, ctx) > 0)
                 {
                     char *storyTitle = ifiction_get_tag(metaData, "bibliographic", "title", NULL);
-                    if (storyTitle)
-                    {
-                        garglk_set_story_name(storyTitle);
-                        gli_babel_meta_title = 1;
-                        free(storyTitle);
-                    }
                     char *storyAuthor = ifiction_get_tag(metaData, "bibliographic", "author", NULL);
-                    if (storyAuthor)
+                    if (storyTitle && storyAuthor)
                     {
-                        garglk_set_program_name(storyAuthor);
-                        gli_babel_meta_author = 1;
+                        char title[256];
+                        snprintf(title, 255, "%s - %s", storyTitle, storyAuthor);
+                        garglk_set_story_title(title);
+                        free(storyTitle);
                         free(storyAuthor);
                     }
                 }

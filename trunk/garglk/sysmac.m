@@ -336,7 +336,9 @@ void wintitle(void)
 
     char buf[256];
 
-    if (strlen(gli_story_name))
+    if (strlen(gli_story_title))
+        sprintf(buf, "%s", gli_story_title);
+    else if (strlen(gli_story_name))
         sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
     else
         sprintf(buf, "%s", gli_program_name);
