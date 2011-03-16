@@ -691,11 +691,17 @@ char *winfilters[] =
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding]];
-
-    NSArray *filterTypes = [[[[[NSBundle mainBundle] infoDictionary]
-                              objectForKey:@"CFBundleDocumentTypes"]
-                             objectAtIndex: 0]
-                            objectForKey: @"CFBundleTypeExtensions"];
+    
+    NSMutableArray *filterTypes = [NSMutableArray arrayWithCapacity:100];
+    
+    NSEnumerator *docTypeEnum = [[[[NSBundle mainBundle] infoDictionary] 
+                                  objectForKey:@"CFBundleDocumentTypes"] objectEnumerator];
+    NSDictionary *docType;
+    
+    while (docType = [docTypeEnum nextObject])
+    {
+        [filterTypes addObjectsFromArray:[docType objectForKey: @"CFBundleTypeExtensions"]];
+    }
 
     [openDlg setAllowedFileTypes: filterTypes];
     [openDlg setAllowsOtherFileTypes: NO];
