@@ -197,7 +197,7 @@ if $(MAKE_GEAS) = yes
         istring.cc readfile.cc
         ;
 
-    LINK on $(GARGLKPRE)geas$(SUFEXE) = $(C++) ;
+    LINK on $(GARGLKPRE)geas$(SUFEXE) = $(CXX) ;
 
     APPS += $(GARGLKPRE)geas ;
 }
