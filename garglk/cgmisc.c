@@ -47,15 +47,13 @@ static unsigned char char_toupper_table[256];
 char gli_program_name[256] = "Unknown";
 char gli_program_info[256] = "";
 char gli_story_name[256] = "";
+char gli_story_title[256] = "";
 
 void garglk_set_program_name(const char *name)
 {
-    if (!gli_babel_meta_author)
-    {
-        strncpy(gli_program_name, name, sizeof gli_program_name);
-        gli_program_name[sizeof gli_program_name-1] = 0;
-        wintitle();
-    }
+    strncpy(gli_program_name, name, sizeof gli_program_name);
+    gli_program_name[sizeof gli_program_name-1] = 0;
+    wintitle();
 }
 
 void garglk_set_program_info(const char *info)
@@ -66,12 +64,16 @@ void garglk_set_program_info(const char *info)
 
 void garglk_set_story_name(const char *name)
 {
-    if (!gli_babel_meta_title)
-    {
-        strncpy(gli_story_name, name, sizeof gli_story_name);
-        gli_story_name[sizeof gli_story_name-1] = 0;
-        wintitle();
-    }
+    strncpy(gli_story_name, name, sizeof gli_story_name);
+    gli_story_name[sizeof gli_story_name-1] = 0;
+    wintitle();
+}
+
+void garglk_set_story_title(const char *title)
+{
+    strncpy(gli_story_title, title, sizeof gli_story_title);
+    gli_story_title[sizeof gli_story_title-1] = 0;
+    wintitle();
 }
 
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;
@@ -119,7 +121,7 @@ void glk_exit()
 {
     event_t event;
 
-    garglk_set_story_name("[ press any key to exit ]");
+    garglk_set_story_title("[ press any key to exit ]");
 
     gli_terminated = 1;
 

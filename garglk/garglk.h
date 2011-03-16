@@ -91,6 +91,7 @@ typedef struct window_graphics_s window_graphics_t;
 extern char gli_program_name[256];
 extern char gli_program_info[256];
 extern char gli_story_name[256];
+extern char gli_story_title[256];
 extern int gli_terminated;
 
 extern window_t *gli_rootwin;
@@ -269,9 +270,6 @@ extern int gli_forceclick;
 extern int gli_copyselect;
 extern int gli_drawselect;
 extern int gli_claimselect;
-
-extern int gli_babel_meta_title;
-extern int gli_babel_meta_author;
 
 /*
  * Standard Glk I/O stuff
