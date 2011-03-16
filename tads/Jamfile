@@ -83,7 +83,7 @@ Main $(GARGLKPRE)tadsr :
 
 LinkLibraries $(GARGLKPRE)tadsr : libtads2 libtads3 ;
 
-LINK on $(GARGLKPRE)tadsr$(SUFEXE) = $(C++) ;
+LINK on $(GARGLKPRE)tadsr$(SUFEXE) = $(CXX) ;
 
 APPS += $(GARGLKPRE)tadsr ;
 

@@ -17,7 +17,7 @@ GARGLKINI ?= /etc/garglk.ini ;
 GARGLKPRE ?= "" ;
 
 CC  ?= gcc ;
-C++ ?= g++ ;
+CXX ?= g++ ;
 
 if $(CROSS)
 {
@@ -25,7 +25,7 @@ if $(CROSS)
     OS      = MINGW ;
     SUFEXE  = .exe ;
     CC      = i386-mingw32-gcc ;
-    C++     = i386-mingw32-g++ ;
+    CXX     = i386-mingw32-g++ ;
     AR      = i386-mingw32-ar cru ;
     RANLIB  = i386-mingw32-ranlib ;
     LINK    = $(CC) ;
@@ -39,7 +39,7 @@ if $(IPLINUXARCH)
     GUILIB  = EFL ;
     USESDL  = no ;
     CC      = $(IPLINUXARCH)-gcc ;
-    C++     = $(IPLINUXARCH)-g++ ;
+    CXX     = $(IPLINUXARCH)-g++ ;
     AR      = $(IPLINUXARCH)-ar cru ;
     RANLIB  = $(IPLINUXARCH)-ranlib ;
     LINK    = $(CC) ;
@@ -168,6 +168,7 @@ switch $(BUILD)
         Echo "BUILD is RELEASE" ;
         OPTIM = -O2 $(CFLAGS) ;
         LINKFLAGS = $(LDFLAGS) ;
+        SHRLINKFLAGS = $(LDFLAGS) ;
 
     case PROFILE :
         Echo "BUILD is PROFILE" ;
