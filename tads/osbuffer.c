@@ -1,6 +1,6 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2010 by Ben Cressey.                                         *
+ * Copyright (C) 2010-2011 by Ben Cressey.                                    *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -34,9 +34,9 @@ void os_put_buffer (unsigned char *buf, size_t len)
     glk_put_buffer(buf, len);
 }
 
-void os_get_buffer (unsigned char *buf, size_t len)
+void os_get_buffer (unsigned char *buf, size_t len, size_t init)
 {
-    glk_request_line_event(mainwin, buf, len - 1, 0);
+    glk_request_line_event(mainwin, buf, len - 1, init);
 }
 
 unsigned char *os_fill_buffer (unsigned char *buf, size_t len)
@@ -79,11 +79,15 @@ void os_put_buffer (unsigned char *buf, size_t len)
     free(out);
 }
 
-void os_get_buffer (unsigned char *buf, size_t len)
+void os_get_buffer (unsigned char *buf, size_t len, size_t init)
 {
     input = malloc(sizeof(glui32)*(len+1));
     max = len;
-    glk_request_line_event_uni(mainwin, input, len - 1, 0);
+
+    if (init)
+        os_parse_chars(buf, init + 1, input, len);
+
+    glk_request_line_event_uni(mainwin, input, len - 1, init);
 }
 
 unsigned char *os_fill_buffer (unsigned char *buf, size_t len)

@@ -16,6 +16,7 @@ SubDirCcFlags
     -DGARGOYLE
     -DVMGLOB_STRUCT
     -DGLK_UNICODE
+    -DGLK_TIMERS
     ;
 
 if $(OS) = LINUX || $(OS) = SOLARIS

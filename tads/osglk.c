@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
+ * Copyright (C) 2010-2011 by Ben Cressey.                                    *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -22,6 +22,8 @@
  *****************************************************************************/
 
 /* osglk.c -- glk os adapter */
+
+#include <assert.h>
 
 #include "os.h"
 #include "glk.h"
@@ -443,7 +445,7 @@ void os_set_screen_color(os_color_t color)
 void os_set_title(const char *title)
 {
 #ifdef GARGLK
-//  garglk_set_story_name(title);
+    garglk_set_story_title(title);
 #endif
 }
 
@@ -533,7 +535,7 @@ unsigned char *os_gets(unsigned char *buf, size_t buflen)
 {
     event_t event;
 
-    os_get_buffer(buf, buflen);
+    os_get_buffer(buf, buflen, 0);
 
     do
     {
@@ -620,13 +622,79 @@ unsigned char *os_gets(unsigned char *buf, size_t buflen)
  *   routine with use_timeout==FALSE.  The regular os_gets() would not
  *   satisfy this need, because it cannot resume an interrupted input.)  
  */
+static char * timebuf = NULL;
+static size_t timelen = 0;
+
 int os_gets_timeout(unsigned char *buf, size_t bufl,
                     unsigned long timeout_in_milliseconds, int use_timeout)
 {
-    if (use_timeout)
-        return OS_EVT_TIMEOUT;
-    else
-        return os_gets(buf, bufl) == 0 ? OS_EVT_EOF : OS_EVT_LINE;
+#if defined GLK_TIMERS && defined GLK_MODULE_LINE_ECHO
+    int timer = use_timeout ? timeout_in_milliseconds : 0;
+    int timeout = 0;
+    int initlen = 0;
+    event_t event;
+
+    /* restore saved buffer contents */
+    if (timebuf)
+    {
+        assert(timelen && timelen <= bufl);
+        memcpy(buf, timebuf, timelen);
+        initlen = timelen - 1;
+        buf[initlen] = 0;
+        free(timebuf);
+        timebuf = 0;
+    }
+
+    /* start timer and turn off line echo */
+    if (timer)
+    {
+        glk_request_timer_events(timer);
+        glk_set_echo_line_event(mainwin, 0);
+    }
+
+    os_get_buffer(buf, bufl, initlen);
+
+    do
+    {
+        glk_select(&event);
+        if (event.type == evtype_Arrange)
+            redraw_windows();
+        else if (event.type == evtype_Timer && (timeout = 1))
+            glk_cancel_line_event(mainwin, &event);
+    }
+    while (event.type != evtype_LineInput);
+
+    char *res = os_fill_buffer(buf, event.val1);
+
+    /* stop timer and turn on line echo */
+    if (timer)
+    {
+        glk_request_timer_events(0);
+        glk_set_echo_line_event(mainwin, 1);
+    }
+
+    /* save or print buffer contents */
+    if (res && timer)
+    {
+        if (timeout)
+        {
+            timelen = strlen(buf) + 1;
+            timebuf = malloc(timelen);
+            memcpy(timebuf, buf, timelen);
+        }
+        else
+        {
+            glk_set_style(style_Input);
+            os_print(buf, strlen(buf));
+            os_print("\n", 1);
+            glk_set_style(style_Normal);
+        }
+    }
+
+    return timeout ? OS_EVT_TIMEOUT : res ? OS_EVT_LINE : OS_EVT_EOF;
+#else
+    return OS_EVT_NOTIMEOUT;
+#endif
 }
 
 /*
@@ -652,6 +720,21 @@ int os_gets_timeout(unsigned char *buf, size_t bufl,
  */
 void os_gets_cancel(int reset)
 {
+#if defined GLK_TIMERS && defined GLK_MODULE_LINE_ECHO
+    if (timebuf)
+    {
+        glk_set_style(style_Input);
+        os_print(timebuf, strlen(timebuf));
+        os_print("\n", 1);
+        glk_set_style(style_Normal);
+
+        if (reset)
+        {
+            free(timebuf);
+            timebuf = 0;
+        }
+    }
+#endif
 }
 
 /* 
@@ -675,7 +758,6 @@ void os_gets_cancel(int reset)
  *   The translation ability of this function allows for system-dependent
  *   key mappings to functional meanings.  
  */
-
 static int glktotads(unsigned int key)
 {
     if (key < 256)
@@ -723,9 +805,15 @@ static int glktotads(unsigned int key)
     }
 }
 
+static int bufchar = 0;
+static int waitchar = 0;
+static int timechar = 0;
+
 static int getglkchar(void)
 {
     event_t event;
+
+    timechar = 0;
 
     glk_request_char_event(mainwin);
 
@@ -734,14 +822,15 @@ static int getglkchar(void)
         glk_select(&event);
         if (event.type == evtype_Arrange)
             redraw_windows();
+        else if (event.type == evtype_Timer)
+            timechar = 1;
     }
-    while (event.type != evtype_CharInput);
+    while (event.type != evtype_CharInput && event.type != evtype_Timer);
 
-    return event.val1;
+    glk_cancel_char_event(mainwin);
+
+    return timechar ? 0 : event.val1;
 }
-
-static int bufchar = 0;
-static int waitchar = 0;
 
 int os_getc(void)
 {
@@ -759,9 +848,9 @@ int os_getc(void)
 
     if (c == keycode_Return)
         c = '\n';
-    if (c == keycode_Tab)
+    else if (c == keycode_Tab)
         c = '\t';
-    if (c == keycode_Escape)
+    else if (c == keycode_Escape)
         c = '\e';
 
     if (c < 256)
@@ -827,16 +916,29 @@ void os_waitc(void)
 int os_get_event(unsigned long timeout_in_milliseconds, int use_timeout,
                  os_event_info_t *info)
 {
+#ifdef GLK_TIMERS
+    /* start timer */
+    int timer = use_timeout ? timeout_in_milliseconds : 0;
+    if (timer)
+        glk_request_timer_events(timer);
+#else
     /* we can't handle timeouts */
     if (use_timeout)
         return OS_EVT_NOTIMEOUT;
+#endif
 
     /* get a key */
     info->key[0] = os_getc_raw();
-    if (info->key[0] == 0)
+    if (info->key[0] == 0 && timechar == 0)
         info->key[1] = os_getc_raw();
 
-    /* return the keyboard event */
-    return OS_EVT_KEY;
+#ifdef GLK_TIMERS
+    /* stop timer */
+    if (timer)
+        glk_request_timer_events(0);
+#endif
+
+    /* return the event */
+    return timechar ? OS_EVT_TIMEOUT : OS_EVT_KEY;
 }
 

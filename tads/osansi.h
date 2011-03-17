@@ -151,7 +151,7 @@ int osfacc(const char *fname);
 int osfgetc(osfildef *fp);
 
 void os_put_buffer (unsigned char *buf, size_t len);
-void os_get_buffer (unsigned char *buf, size_t len);
+void os_get_buffer (unsigned char *buf, size_t len, size_t init);
 unsigned char *os_fill_buffer (unsigned char *buf, size_t len);
 
 /* 
