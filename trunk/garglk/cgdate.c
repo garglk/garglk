@@ -253,6 +253,9 @@ static glsi32 gli_simplify_time(time_t timestamp, glui32 factor)
 
 void glk_current_time(glktimeval_t *time)
 {
+#ifdef GARGLK_PROFILE_TIME
+    wincounter(time);
+#else
     struct timeval tv;
 
     if (gettimeofday(&tv, NULL)) {
@@ -262,6 +265,7 @@ void glk_current_time(glktimeval_t *time)
     }
 
     gli_timestamp_to_time(tv.tv_sec, tv.tv_usec, time);
+#endif
 }
 
 glsi32 glk_current_simple_time(glui32 factor)
