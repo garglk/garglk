@@ -1417,7 +1417,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     gli_speak_tts("", 0, 1);
 #endif
 
-    if (key > 0xff && key < (0x100000000 - keycode_MAXVAL))
+    if (key > 0xff && key < (0xffffffff - keycode_MAXVAL + 1))
     {
         if (!(win->char_request_uni) || key > 0x10ffff)
             key = keycode_Unknown;
