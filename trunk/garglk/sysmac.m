@@ -767,8 +767,9 @@ void wincounter(glktimeval_t *time)
     uint64_t tick = mach_absolute_time();
     tick *= info.numer;
     tick /= info.denom;
+    uint64_t micro = tick / 1000;
 
     time->high_sec = 0;
-    time->low_sec  = (unsigned int) tick / 1000000000;
-    time->microsec = (unsigned int) tick / 1000;
+    time->low_sec  = (unsigned int) ((micro / 1000000) & 0xFFFFFFFF);
+    time->microsec = (unsigned int) ((micro % 1000000) & 0xFFFFFFFF);
 }
