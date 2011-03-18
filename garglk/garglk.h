@@ -680,6 +680,7 @@ void winopenfile(char *prompt, char *buf, int buflen, int filter);
 void winsavefile(char *prompt, char *buf, int buflen, int filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
+void wincounter(glktimeval_t *time);
 
 void fontreplace(char *font, int type);
 void fontload(void);

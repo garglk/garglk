@@ -614,3 +614,14 @@ void gli_select(event_t *event, int polled)
 
     gli_curevent = NULL;
 }
+
+/* monotonic clock for profiling */
+void wincounter(glktimeval_t *time)
+{
+    struct timespec tick;
+    clock_gettime(CLOCK_MONOTONIC, &tick);
+
+    time->high_sec = 0;
+    time->low_sec  = (unsigned int) tick.tv_sec;
+    time->microsec = (unsigned int) tick.tv_nsec / 1000;
+}

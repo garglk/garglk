@@ -633,3 +633,11 @@ void gli_select(event_t *event, int polled)
 
     gli_curevent = NULL;
 }
+
+/* monotonic clock time for profiling */
+void wincounter(glktimeval_t *time)
+{
+    time->high_sec = 0;
+    time->low_sec  = 0;
+    time->microsec = 0;
+}

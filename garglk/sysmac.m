@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <mach/mach_time.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -754,4 +755,20 @@ void gli_select(event_t *event, int polled)
     gli_curevent = NULL;
 
     [pool drain];
+}
+
+/* monotonic clock time for profiling */
+void wincounter(glktimeval_t *time)
+{
+    static mach_timebase_info_data_t info = {0,0};
+    if (!info.denom)
+        mach_timebase_info(&info);
+
+    uint64_t tick = mach_absolute_time();
+    tick *= info.numer;
+    tick /= info.denom;
+
+    time->high_sec = 0;
+    time->low_sec  = (unsigned int) tick / 1000000000;
+    time->microsec = (unsigned int) tick / 1000;
 }

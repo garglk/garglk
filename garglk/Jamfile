@@ -8,6 +8,8 @@ SubDirCcFlags $(GARGLKCCFLAGS) ;
 SubDirCcFlags -DGARGLKINI=\\\"$(GARGLKINI)\\\" ;
 SubDirCcFlags -DGARGLKPRE=\\\"$(GARGLKPRE)\\\" ;
 
+# SubDirCcFlags -DGARGLK_PROFILE_TIME ;
+
 if $(OS) = MINGW
 {
     SubDirHdrs $(TOP) support freetype ;
