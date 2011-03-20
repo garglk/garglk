@@ -24,6 +24,7 @@ clean:
 	rm -f build-stamp
 	rm -f debian/gargoyle.postinst
 	rm -f debian/garglk.ini
+	rm -f debian/vkbd/gargoyle.ini
 
 #
 # `install' rule is not strictly necessary, but often exist as a prerequisite of
@@ -38,7 +39,7 @@ clean:
 # rule is used to install files to iplinux/tmp directory, and `binary-*' rules
 # are used to split one directory to several.
 #
-install: build debian/garglk.ini debian/gargoyle.postinst
+install: build debian/garglk.ini debian/gargoyle.postinst debian/vkbd/gargoyle.ini
 	dh_prep
 	dh_installdirs
 	
@@ -48,13 +49,20 @@ install: build debian/garglk.ini debian/gargoyle.postinst
 # Install mime info for application/x-ifiction - fictitious mime type for all IF supported by gargoyle
 #
 debian/gargoyle.postinst: debian/gargoyle.postinst.in garglk/launcher.c
-	debian/ifiction_file_exts debian/gargoyle.postinst.in garglk/launcher.c > $@
+	debian/ifiction_file_exts $^ > $@
 
 #
 # garglk.ini for Open Inkpot - font size is twice bigger
 #
 debian/garglk.ini: garglk/garglk.ini debian/garglk.ini.patch
-	patch -u -o $@ garglk/garglk.ini debian/garglk.ini.patch
+	patch -u -o $@ $^
+
+#
+# gargoyle.ini for Open Inkpot - key binding
+# TODO: choose between n516 and v3 based on target arch
+#
+debian/vkbd/gargoyle.ini: debian/vkbd/gargoyle.n516.ini
+	cp $^ $@
 
 #
 # `build' rule is also not strictly necessary, but often exist as a prerequisite
