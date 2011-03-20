@@ -39,6 +39,7 @@ if $(IPLINUXARCH)
     GUILIB  = EFL ;
     USESDL  = no ;
     CC      = $(IPLINUXARCH)-gcc ;
+    C++     = $(IPLINUXARCH)-g++ ;
     CXX     = $(IPLINUXARCH)-g++ ;
     AR      = $(IPLINUXARCH)-ar cru ;
     RANLIB  = $(IPLINUXARCH)-ranlib ;
@@ -102,7 +103,7 @@ switch $(OS)
 
     case IPLINUX :
         Echo "OS is IPLINUX (EFL)" ;
-        PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 evas ecore ecore-x ecore-evas fontconfig" ;
+        PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys eina-0 evas ecore ecore-x ecore-file ecore-evas" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;

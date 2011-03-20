@@ -3,6 +3,8 @@
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
  * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
  * Copyright (C) 2011 by Vaagn Khachatryan.                                   *
+ * Virtual keyboard implementation is based on Open Inkpot's libeoi library   *
+ *     Copyright (C) 2010 Alexander Kerner <lunohod@openinkpot.org>           *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -22,17 +24,22 @@
  *                                                                            *
  *****************************************************************************/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include "glk.h"
-#include "garglk.h"
+#include <stdbool.h>
 
 #include <Ecore_Evas.h>
 #include <Ecore.h>
 #include <Ecore_X.h>
+#include <Ecore_File.h>
+
+#include "libkeys.h"
+
+#include "glk.h"
+#include "garglk.h"
 
 static Ecore_Evas *frame;
 static Evas_Object *canvas;
@@ -43,12 +50,6 @@ static Ecore_X_Cursor ibeam_cursor;
 static Eina_Bool poll_event_queue = EINA_FALSE;
 static Ecore_Idle_Enterer *idle_enterer = NULL;
 static Ecore_Idle_Exiter *idle_exiter = NULL;
-
-/*state of control keys*/
-static int Control_R = 0;
-static int Control_L = 0;
-static int Alt_L = 0;
-static int Alt_R = 0;
 
 #define MaxBuffer 1024
 static int fileselect = 0;
@@ -62,19 +63,63 @@ static char *cliptext = NULL;
 static int cliplen = 0;
 enum clipsource { PRIMARY , CLIPBOARD };
 
-/* filters for file dialogs */
-static char *winfilternames[] =
-{
-    "Saved game files",
-    "Text files",
-    "All files",
-};
+/*describes virtual keyboard layout*/
+typedef struct vk_layout_t {
+    const char *name;
+    const char *sname;
+    keys_t *keys;
+} vk_layout_t;
 
-static char *winfilterpatterns[] =
-{
-    "*.sav",
-    "*.txt",
-    "*",
+/* holds the state of key presses and current keyboard layout */
+typedef struct vk_info_t {
+    Ecore_Timer *timer;
+    keys_t *keys;
+    char *last_key;
+    bool shift;
+    int i;
+
+    Eina_List *layouts;
+    Eina_List *curr_layout;
+} vk_info_t;
+
+/* callbacks for operations mapped to key presses */
+typedef struct {
+	char *opname;
+	void (*op)(vk_info_t *info);
+} _op;
+
+static void cursor_left(vk_info_t *info);
+static void cursor_right(vk_info_t *info);
+static void history_prev(vk_info_t *info);
+static void history_next(vk_info_t *info);
+static void page_up(vk_info_t *info);
+static void page_down(vk_info_t *info);
+static void show_settings(vk_info_t *info);
+static void new_line(vk_info_t *info);
+static void delete_char(vk_info_t *info);
+static void show_help(vk_info_t *info);
+static void change_layout(vk_info_t *info);
+static void caps_lock(vk_info_t *info);
+static void close_settings(vk_info_t *info);
+static void quit_app(vk_info_t *info);
+
+static keys_t* keys;
+_op operations[] = {
+    {"CURSOR_LEFT", cursor_left},
+    {"CURSOR_RIGHT", cursor_right},
+    {"HISTORY_PREV", history_prev},
+    {"HISTORY_NEXT", history_next},
+    {"PAGE_UP", page_up},
+    {"PAGE_DOWN", page_down},
+    {"SETTINGS", show_settings},
+    {"RETURN", new_line},
+    {"DELETE", delete_char},
+    {"HELP", show_help},
+    {"CHANGE_LAYOUT", change_layout},
+    {"CAPS_LOCK", caps_lock},
+    {"CLOSE", close_settings},
+    {"QUIT", quit_app},
+    {NULL, NULL},
 };
 
 static Eina_Bool timeout(void *data)
@@ -130,22 +175,42 @@ static Eina_Bool idle_out_cb( void *data )
 
 static void enable_idlers()
 {
-    idle_enterer = ecore_idle_enterer_add( idle_in_cb, NULL );
-    idle_exiter = ecore_idle_exiter_add( idle_out_cb, NULL );
+    if ( idle_enterer == NULL )
+        idle_enterer = ecore_idle_enterer_add( idle_in_cb, NULL );
+    if ( idle_exiter == NULL )
+        idle_exiter = ecore_idle_exiter_add( idle_out_cb, NULL );
 }
 
 static void disable_idlers()
 {
-    ecore_idle_enterer_del( idle_enterer );
-    ecore_idle_exiter_del( idle_exiter );
-    idle_enterer = NULL; idle_exiter = NULL;
+    if ( idle_enterer != NULL ){
+        ecore_idle_enterer_del( idle_enterer );
+        idle_enterer = NULL;
+    }
+    if ( idle_exiter != NULL ){
+        ecore_idle_exiter_del( idle_exiter );
+        idle_exiter = NULL;
+    }
 }
 
+/* games are saved/loaded from $(HOME)/.gargoyle/story_name.sav */
 static
 void winchoosefile(char *prompt, char *buf, int len, int filter, Eina_Bool is_save)
 {
-    /*TODO: return the name of the gamefile plus .sav extension */
-    strcpy(buf, "");
+    const char *file_name;
+    if ( strlen(gli_story_name) )
+        file_name = gli_story_name;
+    else if ( strlen(gli_story_title) )
+        file_name = gli_story_title;
+    else
+        file_name = gli_program_name;
+    
+    /*create $(HOME)/.gargoyle folder in case it doesn't exist */
+    sprintf(buf, "%s/.gargoyle", getenv("HOME"));
+    ecore_file_mkpath(buf);
+    
+    /*return the full path to the file*/
+    sprintf(buf, "%s/.gargoyle/%s.sav", getenv("HOME"), file_name);
 }
 
 void winopenfile(char *prompt, char *buf, int len, int filter)
@@ -160,6 +225,162 @@ void winsavefile(char *prompt, char *buf, int len, int filter)
     char realprompt[256];
     sprintf(realprompt, "Save: %s", prompt);
     winchoosefile(realprompt, buf, len, filter, EINA_TRUE);
+}
+
+static void cursor_left(vk_info_t *info)   { gli_input_handle_key(keycode_Left); }
+static void cursor_right(vk_info_t *info)  { gli_input_handle_key(keycode_Right); }
+static void history_prev(vk_info_t *info)  { gli_input_handle_key(keycode_Up); }
+static void history_next(vk_info_t *info)  { gli_input_handle_key(keycode_Down); }
+static void page_up(vk_info_t *info)       { gli_input_handle_key(keycode_PageUp); }
+static void page_down(vk_info_t *info)     { gli_input_handle_key(keycode_PageDown); }
+static void new_line(vk_info_t *info)      { gli_input_handle_key(keycode_Return); }
+static void delete_char(vk_info_t *info)   { gli_input_handle_key(keycode_Delete); }
+static void quit_app(vk_info_t *info)      { exit(0); }
+
+static void show_help(vk_info_t *info)     {}
+
+static void show_settings(vk_info_t *info) {}
+static void close_settings(vk_info_t *info){}
+
+/*This happens in settings menu upon pressing the Menu key*/
+static void change_layout(vk_info_t *info)
+{
+    info->curr_layout = eina_list_next(info->curr_layout);
+    if (!info->curr_layout)
+        info->curr_layout = info->layouts;
+}
+
+/*This happens in settings menu upon pressing the Zoom key*/
+static void caps_lock(vk_info_t *info)
+{
+    info->shift = !info->shift;
+}
+
+static Eina_List *
+load_layouts_from_path(Eina_List *layout_list, const char *path1,
+                       const char *path2)
+{
+    char *f, *p;
+
+    char *file = malloc(MaxBuffer);
+
+    Eina_List *l, *ls;
+
+    asprintf(&p, "%s/%s", path1, path2);
+
+    ls = ecore_file_ls(p);
+    EINA_LIST_FOREACH(ls, l, f) {
+        char *s = strrchr(f, '.');
+
+        if (!s || strcmp(s, ".ini"))
+            continue;
+		
+        *s = '\0';
+		
+        snprintf(file, MaxBuffer, "%s/%s", path2, f);
+		
+        free(f);
+		
+        keys_t *keys = keys_alloc(file);
+		
+        if (!keys)
+			continue;
+		
+		vk_layout_t *layout = malloc(sizeof(vk_layout_t));
+
+		const char *str;
+
+		str = keys_lookup(keys, "default", "name");
+		layout->name = strdup(str);
+		str = keys_lookup(keys, "default", "sname");
+		layout->sname = strdup(str);
+
+		layout->keys = keys;
+
+		layout_list = eina_list_append(layout_list, layout);
+    }
+    eina_list_free(ls);
+
+    free(p);
+    free(file);
+
+    return layout_list;
+}
+
+static const char *
+get_action(vk_info_t *info, const char *key)
+{
+    char *x;
+
+    if (info->shift)
+        asprintf(&x, "Shift+%d", info->i + 1);
+    else
+        asprintf(&x, "%d", info->i + 1);
+	vk_layout_t *layout = eina_list_data_get(info->curr_layout);
+    const char *action = keys_lookup(layout->keys, key, x);
+
+    free(x);
+
+    return action;
+}
+
+static void
+send_key(vk_info_t *info, const char *key)
+{
+    unsigned char *str = (unsigned char *) get_action(info, key);
+    if ( !strcmp(str, "space") ) str = " ";
+    
+    if ( str != NULL && str[0] >= 32 ){
+        glui32 keybuf[1] = {'?'};
+        glui32 inlen = strlen( str );
+        
+        if ( inlen )
+            gli_parse_utf8( str, inlen, keybuf, 1 );
+        
+        gli_input_handle_key( keybuf[0] );
+    }
+
+    info->i = 0;
+}
+
+static Eina_Bool
+vkbd_timer_cb(void *param)
+{
+    vk_info_t *info = param;
+
+    info->timer = NULL;
+
+    if (!info->last_key)
+        return 0;
+
+    send_key(info, info->last_key);
+    free(info->last_key);
+    info->last_key = NULL;
+
+    return 0;
+}
+
+vk_info_t * vkbd_init()
+{
+    vk_info_t *evk_info = calloc(sizeof(vk_info_t), 1);
+
+    evk_info->keys = keys_alloc("gargoyle");
+
+    evk_info->layouts =
+        load_layouts_from_path(evk_info->layouts, "/usr/share/keys",
+                               "gargoyle");
+    char *user_path;
+
+    asprintf(&user_path, "%s" "/.keys", getenv("HOME")),
+        evk_info->layouts =
+        load_layouts_from_path(evk_info->layouts, user_path, "gargoyle_custom");
+    free(user_path);
+
+    if (!evk_info->layouts)
+        return NULL;
+
+    evk_info->curr_layout = evk_info->layouts;
+    return evk_info;
 }
 
 void winclipstore(glui32 *text, int len)
@@ -358,76 +579,43 @@ static void onmotion(void *data, Evas *e, Evas_Object *obj, void *event_info)
     }
 }
 
-static void onkeydown(void *data, Evas *e, Evas_Object *obj, void *event_info)
-{
-    Evas_Event_Key_Down *eekd = (Evas_Event_Key_Down *) event_info;
-
-    if ( !strcmp( eekd->key, "Control_R" ) ) { Control_R = 1; return; }
-    if ( !strcmp( eekd->key, "Control_L" ) ) { Control_L = 1; return; }
-    if ( !strcmp( eekd->key, "Alt_R" ) ) { Alt_R = 1; return; }
-    if ( !strcmp( eekd->key, "Alt_L" ) ) { Alt_L = 1; return; }
-
-    if ( Control_R || Control_L )
-    {
-        if      ( !strcmp( eekd->keyname, "a" ) ) gli_input_handle_key(keycode_Home);
-        else if ( !strcmp( eekd->keyname, "c" ) ) winclipsend(CLIPBOARD);
-        else if ( !strcmp( eekd->keyname, "e" ) ) gli_input_handle_key(keycode_End);
-        else if ( !strcmp( eekd->keyname, "u" ) ) gli_input_handle_key(keycode_Escape);
-        else if ( !strcmp( eekd->keyname, "v" ) ) winclipreceive(CLIPBOARD);
-        else if ( !strcmp( eekd->keyname, "x" ) ) winclipsend(CLIPBOARD);
-
-        return;
-    }
-    if ( Alt_R || Alt_R ) return;
-    
-    if      ( !strcmp( eekd->key, "Return" ) ) gli_input_handle_key(keycode_Return);
-    else if ( !strcmp( eekd->key, "BackSpace" ) ) gli_input_handle_key(keycode_Delete);
-    else if ( !strcmp( eekd->key, "Delete" ) ) gli_input_handle_key(keycode_Erase);
-    else if ( !strcmp( eekd->key, "Tab" ) ) gli_input_handle_key(keycode_Tab);
-    else if ( !strcmp( eekd->key, "Prior" ) ) gli_input_handle_key(keycode_PageUp);
-    else if ( !strcmp( eekd->key, "Next" ) ) gli_input_handle_key(keycode_PageDown);
-    else if ( !strcmp( eekd->key, "Home" ) ) gli_input_handle_key(keycode_Home);
-    else if ( !strcmp( eekd->key, "End" ) ) gli_input_handle_key(keycode_End);
-    else if ( !strcmp( eekd->key, "Left" ) ) gli_input_handle_key(keycode_Left);
-    else if ( !strcmp( eekd->key, "Right" ) ) gli_input_handle_key(keycode_Right);
-    else if ( !strcmp( eekd->key, "Up" ) ) gli_input_handle_key(keycode_Up);
-    else if ( !strcmp( eekd->key, "Down" ) ) gli_input_handle_key(keycode_Down);
-    else if ( !strcmp( eekd->key, "Escape" ) ) gli_input_handle_key(keycode_Escape);
-    else if ( !strcmp( eekd->key, "F1" ) ) gli_input_handle_key(keycode_Func1);
-    else if ( !strcmp( eekd->key, "F2" ) ) gli_input_handle_key(keycode_Func2);
-    else if ( !strcmp( eekd->key, "F3" ) ) gli_input_handle_key(keycode_Func3);
-    else if ( !strcmp( eekd->key, "F4" ) ) gli_input_handle_key(keycode_Func4);
-    else if ( !strcmp( eekd->key, "F5" ) ) gli_input_handle_key(keycode_Func5);
-    else if ( !strcmp( eekd->key, "F6" ) ) gli_input_handle_key(keycode_Func6);
-    else if ( !strcmp( eekd->key, "F7" ) ) gli_input_handle_key(keycode_Func7);
-    else if ( !strcmp( eekd->key, "F8" ) ) gli_input_handle_key(keycode_Func8);
-    else if ( !strcmp( eekd->key, "F9" ) ) gli_input_handle_key(keycode_Func9);
-    else if ( !strcmp( eekd->key, "F10" ) ) gli_input_handle_key(keycode_Func10);
-    else if ( !strcmp( eekd->key, "F11" ) ) gli_input_handle_key(keycode_Func11);
-    else if ( !strcmp( eekd->key, "F12" ) ) gli_input_handle_key(keycode_Func12);
-    else {
-        unsigned char *str = (unsigned char *) eekd->string;
-        
-        if ( str != NULL && str[0] >= 32 ){
-            glui32 keybuf[1] = {'?'};
-            glui32 inlen = strlen( str );
-            
-            if ( inlen )
-                gli_parse_utf8( str, inlen, keybuf, 1 );
-            
-            gli_input_handle_key( keybuf[0] );
-        }
-    }
-}
-
 static void onkeyup(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
-    Evas_Event_Key_Up *eeku = (Evas_Event_Key_Up *) event_info;
+    vk_info_t *info = data;
+    Evas_Event_Key_Up *eeku = event_info;
 
-    if ( !strcmp( eeku->key, "Control_R" ) ) { Control_R = 0; return; }
-    if ( !strcmp( eeku->key, "Control_L" ) ) { Control_L = 0; return; }
-    if ( !strcmp( eeku->key, "Alt_R" ) ) { Alt_R = 0; return; }
-    if ( !strcmp( eeku->key, "Alt_L" ) ) { Alt_L = 0; return; }
+    /* disable the timer for keys 1-9*/
+    if (info->timer) {
+        ecore_timer_del(info->timer);
+        info->timer = NULL;
+    }
+
+    /* if there is a pending 1-9 key press that doesn't coincide with the current one, then handle it*/
+    if (info->last_key)
+        if (strcmp(info->last_key, eeku->keyname))
+            send_key(info, info->last_key);
+        else /* otherwise cycle to the next letter associated with it*/
+            info->i++; /*TODO: make this cycle through options*/
+    
+    const char* action = keys_lookup_by_event(info->keys, "main", eeku);
+    if ( strlen(action) == 0 ){
+        /* handle 1-9 keys*/
+        action = get_action(info, eeku->keyname);
+
+        if (action)
+            info->timer = ecore_timer_add(0.5, &vkbd_timer_cb, info);
+
+        if (!info->last_key || strcmp(info->last_key, eeku->keyname)) {
+            free(info->last_key);
+            info->last_key = strdup(eeku->keyname);
+        }
+    }
+    else { /* find the operation associated with the key and invoke it*/
+        _op *i;
+        for(i = operations; i->opname; ++i)
+            if(!strcmp(action, i->opname))
+                i->op(info);
+    }
 }
 
 static void onquit( Ecore_Evas *frame )
@@ -500,14 +688,13 @@ void winopen(void)
     ecore_event_handler_add( ECORE_X_EVENT_SELECTION_NOTIFY, selection_notify_handler, NULL );
     
     Evas *evas = ecore_evas_get( frame );
-    
     canvas = evas_object_image_add( evas );
+    vk_info_t *info = vkbd_init();
     
     evas_object_image_pixels_get_callback_set( canvas, onexpose, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_DOWN, onbuttondown, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_UP, onbuttonup, NULL );
-    evas_object_event_callback_add( canvas, EVAS_CALLBACK_KEY_DOWN, onkeydown, NULL );
-    evas_object_event_callback_add( canvas, EVAS_CALLBACK_KEY_UP, onkeyup, NULL );
+    evas_object_event_callback_add( canvas, EVAS_CALLBACK_KEY_UP, onkeyup, info );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_WHEEL, onscroll, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_MOVE, onmotion, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_RESIZE, onresize, NULL );

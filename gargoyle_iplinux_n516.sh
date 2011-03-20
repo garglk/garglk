@@ -1,4 +1,6 @@
-mv iplinux debian
+#!/bin/sh
+
+mv support/iplinux ./debian
 dpkg-buildpackage -amipsel -nc
-mv debian iplinux
+mv ./debian support/iplinux
 

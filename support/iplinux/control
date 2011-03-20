@@ -2,11 +2,11 @@ Source: gargoyle
 Section: games
 Priority: extra
 Maintainer: Vaagn Khachatryan <vaagn.khachatryan@gmail.com>
-Build-Depends: debhelper (>= 7)
+Build-Depends: debhelper (>= 7), ftjam, pkg-config
 Standards-Version: 3.8.4
 Homepage: http://ccxvii.net/gargoyle/
 XCS-Cross-Host-Build-Depends: debhelper (>= 7), ftjam, pkg-config
-XCS-Cross-Build-Depends: libpng12-dev, libjpeg-dev, libfreetype6-dev, libfontconfig1-dev, libevas-dev, libkeys-dev, libeoi-dev (>= 0.2.1)
+XCS-Cross-Build-Depends: libpng12-dev, libjpeg-dev, libz1-dev, libfreetype6-dev, libfontconfig1-dev, libkeys-dev, libeina-dev, libevas-dev, libecore-dev
 
 Package: gargoyle
 Architecture: any

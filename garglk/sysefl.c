@@ -131,15 +131,22 @@ static Eina_Bool idle_out_cb( void *data )
 
 static void enable_idlers()
 {
-    idle_enterer = ecore_idle_enterer_add( idle_in_cb, NULL );
-    idle_exiter = ecore_idle_exiter_add( idle_out_cb, NULL );
+    if ( idle_enterer == NULL )
+        idle_enterer = ecore_idle_enterer_add( idle_in_cb, NULL );
+    if ( idle_exiter == NULL )
+        idle_exiter = ecore_idle_exiter_add( idle_out_cb, NULL );
 }
 
 static void disable_idlers()
 {
-    ecore_idle_enterer_del( idle_enterer );
-    ecore_idle_exiter_del( idle_exiter );
-    idle_enterer = NULL; idle_exiter = NULL;
+    if ( idle_enterer != NULL ){
+        ecore_idle_enterer_del( idle_enterer );
+        idle_enterer = NULL;
+    }
+    if ( idle_exiter != NULL ){
+        ecore_idle_exiter_del( idle_exiter );
+        idle_exiter = NULL;
+    }
 }
 
 static void
