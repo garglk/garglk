@@ -1389,6 +1389,8 @@ Distributed under the GNU software license\n\n");
 	srand(time(NULL));
 	while(1)
 	{
+		glk_tick();
+
 		PerformActions(0,0);
 
 		Look();
