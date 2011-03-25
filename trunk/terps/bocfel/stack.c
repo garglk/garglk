@@ -264,10 +264,12 @@ void call(int do_store)
   }
 
   jmp_to = unpack(zargs[0], 0);
-  ZASSERT(jmp_to < memory_size, "call to invalid address 0x%lx", (unsigned long)jmp_to);
+  ZASSERT(jmp_to < memory_size - 1, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
   nlocals = BYTE(jmp_to++);
   ZASSERT(nlocals <= 15, "too many (%d) locals at 0x%lx", nlocals, (unsigned long)jmp_to - 1);
+
+  if(zversion <= 4) ZASSERT(jmp_to + (nlocals * 2) < memory_size, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
   switch(do_store)
   {
@@ -461,7 +463,7 @@ static uint32_t compress_memory(uint8_t **compressed)
      * • The end of dynamic memory is reached
      * • A non-zero value is found
      */
-    while(i < header.static_start && (memory[i] ^ dynamic_memory[i]) == 0)
+    while(i < header.static_start && (BYTE(i) ^ dynamic_memory[i]) == 0)
     {
       i++;
     }
@@ -482,7 +484,7 @@ static uint32_t compress_memory(uint8_t **compressed)
     }
 
     /* The current byte differs from the story, so write it. */
-    tmp[ret++] = memory[i] ^ dynamic_memory[i];
+    tmp[ret++] = BYTE(i) ^ dynamic_memory[i];
 
     i++;
   }
@@ -505,7 +507,8 @@ static int uncompress_memory(const uint8_t *compressed, uint32_t size)
     if(compressed[i] != 0)
     {
       if(memory_index == header.static_start) return -1;
-      memory[memory_index++] ^= compressed[i];
+      STORE_BYTE(memory_index, BYTE(memory_index) ^ compressed[i]);
+      memory_index++;
     }
     else
     {
@@ -793,10 +796,21 @@ static uint16_t *stack_backup;
 static int stack_backup_size;
 static struct call_frame *frames_backup;
 static int frames_backup_size;
-static int memory_snapshot(void)
+
+static void memory_snapshot_free(void)
 {
+  free(memory_backup);
+  free(stack_backup);
+  free(frames_backup);
+
+  memory_backup = NULL;
   stack_backup = NULL;
   frames_backup = NULL;
+}
+
+static int memory_snapshot(void)
+{
+  memory_snapshot_free();
 
   memory_backup = malloc(header.static_start);
   if(memory_backup == NULL) goto err;
@@ -822,21 +836,9 @@ static int memory_snapshot(void)
   return 1;
 
 err:
-  free(memory_backup);
-  free(stack_backup);
+  memory_snapshot_free();
 
   return 0;
-}
-
-static void memory_snapshot_free(void)
-{
-  free(memory_backup);
-  free(stack_backup);
-  free(frames_backup);
-
-  memory_backup = NULL;
-  stack_backup = NULL;
-  frames_backup = NULL;
 }
 
 static int memory_restore(void)

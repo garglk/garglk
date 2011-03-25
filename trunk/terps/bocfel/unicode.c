@@ -54,13 +54,16 @@ static uint16_t unicode_table[UNICODE_TABLE_SIZE] = {
  */
 void parse_unicode_table(uint16_t utable)
 {
-  unicode_entries = BYTE(utable);
+  if(utable >= memory_size) die("corrupted story: unicode table out of range");
 
-  ZASSERT(unicode_entries <= UNICODE_TABLE_SIZE, "too many entries in the unicode table");
+  unicode_entries = BYTE(utable++);
+
+  if(unicode_entries > UNICODE_TABLE_SIZE) die("corrupted story: too many entries in the unicode table");
+  if(utable + (2 * unicode_entries) >= memory_size) die("corrupted story: unicode table out of range");
 
   for(int i = 0; i < unicode_entries; i++)
   {
-    unicode_table[i] = WORD(utable + 1 + (2 * i));
+    unicode_table[i] = WORD(utable + (2 * i));
   }
 }
 
@@ -195,7 +198,7 @@ static void build_font3_table(void)
   zscii_to_font3[110] = 0x16be; /* ᚾ */
   zscii_to_font3[111] = 0x16a9; /* ᚩ */
   zscii_to_font3[112] = UNICODE_QUESTIONMARK; /* no good symbol */
-  zscii_to_font3[113] = 0x0068; /* ZSCII 'h'; close to the rune. */
+  zscii_to_font3[113] = 0x0068; /* Unicode 'h'; close to the rune. */
   zscii_to_font3[114] = 0x16b1; /* ᚱ */
   zscii_to_font3[115] = 0x16cb; /* ᛋ */
   zscii_to_font3[116] = 0x16cf; /* ᛏ */

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Chris Spiegel.
+ * Copyright 2010-2011 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -41,6 +41,44 @@
 
 uint16_t zargs[8];
 int znargs;
+
+static jmp_buf *jumps;
+static size_t njumps;
+
+/* Each time an interrupt happens, process_instructions() is called
+ * (effectively starting a whole new round of interpreting).  This
+ * variable holds the current level of interpreting: 0 for no
+ * interrupts, 1 if one interrupt has been called, 2 if an interrupt was
+ * called inside of an interrupt, and so on.
+ */
+static long ilevel = -1;
+
+long interrupt_level(void)
+{
+  return ilevel;
+}
+
+/* When this is called, the interrupt at level “level” will stop
+ * running: if a single interrupt is running, then break_from(1) will
+ * stop the interrupt, going back to the main program.  Breaking from
+ * interrupt level 0 (which is not actually an interrupt) will end the
+ * program.  This is how @quit is implemented.
+ */
+void break_from(long level)
+{
+  ilevel = level - 1;
+  longjmp(jumps[level], 1);
+}
+
+/* To signal a restart, longjmp() is called with 2; this advises
+ * process_instructions() to restart the story file and then continue
+ * execution, whereas a value of 1 tells it to return immediately.
+ */
+static void zrestart(void)
+{
+  ilevel = 0;
+  longjmp(jumps[0], 2);
+}
 
 /* Returns 1 if decoded, 0 otherwise (omitted) */
 static int decode_base(uint8_t type, uint16_t *loc)
@@ -96,7 +134,11 @@ static void zextended(void)
 
 static void illegal_opcode(void)
 {
+#ifndef ZTERP_NO_SAFETY_CHECKS
+  die("illegal opcode (pc = 0x%lx)", zassert_pc);
+#else
   die("illegal opcode");
+#endif
 }
 
 void setup_opcodes(void)
@@ -245,33 +287,6 @@ void setup_opcodes(void)
 #undef OP
 }
 
-static jmp_buf *jumps;
-static size_t njumps;
-
-/* Each time an interrupt happens, process_instructions() is called
- * (effectively starting a whole new round of interpreting).  This
- * variable holds the current level of interpreting: 0 for no
- * interrupts, 1 if one interrupt has been called, 2 if an interrupt was
- * called inside of an interrupt, and so on.
- */
-static long ilevel = -1;
-
-long interrupt_level(void)
-{
-  return ilevel;
-}
-
-/* When this is called, the interrupt at level “level” will stop
- * running: if a single interrupt is running, then break_from(1) will
- * stop the interrupt, going back to the main program.  Breaking from
- * interrupt level 0 (which is not actually an interrupt) will end the
- * program.  This is how @quit is implemented.
- */
-void break_from(long level)
-{
-  longjmp(jumps[level], 1);
-}
-
 void process_instructions(void)
 {
   if(njumps <= ++ilevel)
@@ -280,10 +295,20 @@ void process_instructions(void)
     if(jumps == NULL) die("unable to allocate memory for jump buffer");
   }
 
-  if(setjmp(jumps[ilevel]) != 0)
+  switch(setjmp(jumps[ilevel]))
   {
-    ilevel--;
-    return;
+    case 1: /* Normal break from interrupt. */
+      return;
+    case 2: /* Special break: a restart was requested. */
+      {
+        /* §6.1.3: Flags2 is preserved on a restart. */
+        uint16_t flags2 = WORD(0x10);
+
+        process_story();
+
+        user_store_word(0x10, flags2);
+      }
+      break;
   }
 
   while(1)
@@ -377,9 +402,4 @@ void process_instructions(void)
       op_call(VAR, opcode & 0x1f);
     }
   }
-}
-
-void init_process(void)
-{
-  ilevel = -1;
 }

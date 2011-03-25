@@ -216,7 +216,13 @@ void zterp_os_set_style(int style, int fg, int bg)
 #elif defined(ZTERP_WIN32)
 void zterp_os_rcfile(char *s, size_t n)
 {
-  snprintf(s, n, "bocfel.ini");
+  char *p;
+
+  p = getenv("APPDATA");
+  if(p == NULL) p = getenv("LOCALAPPDATA");
+  if(p == NULL) p = ".";
+
+  snprintf(s, n, "%s\\bocfel.ini", p);
 }
 #define zterp_os_rcfile
 

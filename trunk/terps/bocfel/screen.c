@@ -670,6 +670,8 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
 
   do
   {
+    ZASSERT(counter < memory_size - 1, "string runs beyond the end of memory");
+
     w = WORD(counter);
 
     for(int i = 10; i >= 0; i -= 5)
@@ -688,7 +690,7 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
       {
         uint32_t new_addr;
 
-        new_addr = WORD(header.abbr + 64 * (abbrev - 1) + 2 * c);
+        new_addr = user_word(header.abbr + 64 * (abbrev - 1) + 2 * c);
 
         /* new_addr is a word address, so multiply by 2 */
         print_zcode(new_addr * 2, 1, outc);
@@ -766,8 +768,6 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
  */
 int print_handler(uint32_t addr, void (*outc)(uint8_t))
 {
-  ZASSERT(addr < memory_size, "print at invalid address: 0x%lx", (unsigned long)addr);
-
   return print_zcode(addr, 0, outc != NULL ? outc : put_char);
 }
 
@@ -1769,7 +1769,7 @@ void zread(void)
     input.preloaded = user_byte(text + 1);
     ZASSERT(input.preloaded <= maxchars, "too many preloaded characters: %d when max is %d", input.preloaded, maxchars);
 
-    for(i = 0; i < input.preloaded; i++) string[i] = zscii_to_unicode[memory[text + i + 2]];
+    for(i = 0; i < input.preloaded; i++) string[i] = zscii_to_unicode[user_byte(text + i + 2)];
     string[i] = 0;
 
     /* Under garglk, preloaded input works as it’s supposed to.

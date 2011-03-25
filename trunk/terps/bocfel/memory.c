@@ -26,14 +26,6 @@
 uint8_t *memory, *dynamic_memory;
 uint32_t memory_size;
 
-/* With safety checks turned off, this function becomes small enough
- * that gcc decides to inline it.  Profiling has shown that this is not
- * a good choice, however, so force inlining to be off on gcc.
- * This should be checked periodically.
- */
-#ifdef __GNUC__
-__attribute__((__noinline__))
-#endif
 void user_store_byte(uint16_t addr, uint8_t v)
 {
   /* If safety checks are off, there’s no point in checking these
@@ -42,7 +34,7 @@ void user_store_byte(uint16_t addr, uint8_t v)
 #ifdef ZTERP_TANDY
   if(addr == 0x01)
   {
-    ZASSERT(v == BYTE(0x01) || (BYTE(addr) ^ v) == 8, "not allowed to modify any bits but 3 at 0x0001");
+    ZASSERT(v == BYTE(addr) || (BYTE(addr) ^ v) == 8, "not allowed to modify any bits but 3 at 0x0001");
   }
   else
 #endif
