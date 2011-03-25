@@ -30,9 +30,7 @@
 #include "osdep.h"
 #include "unicode.h"
 
-#ifndef PATH_MAX
-#define PATH_MAX	4096
-#endif
+#define MAX_PATH	4096
 
 int use_utf8_io;
 
@@ -132,7 +130,7 @@ zterp_io *zterp_io_open(const char *filename, int mode)
     glk_fileref_destroy(ref);
     if(io->file == NULL) goto err;
 #else
-    char fn[PATH_MAX], *p;
+    char fn[MAX_PATH], *p;
 
     printf("\n%s", prompt);
     fflush(stdout);

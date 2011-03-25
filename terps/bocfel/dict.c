@@ -28,7 +28,7 @@
 #include "util.h"
 #include "zterp.h"
 
-static uint8_t *separators;
+static uint16_t separators;
 static uint8_t num_separators;
 
 static uint16_t GET_WORD(uint8_t *base)
@@ -157,6 +157,9 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   nentries = (int16_t)user_word(dictionary + num_separators + 2);
   base = dictionary + num_separators + 2 + 2;
 
+  ZASSERT(elength >= (zversion <= 3 ? 4 : 6), "dictionary entry length (%d) too small", elength);
+  ZASSERT(base + (labs(nentries) * elength) < memory_size, "reported dictionary length extends beyond memory size");
+
   if(nentries > 0)
   {
     ret = bsearch(encoded, &memory[base], nentries, elength, dict_compar);
@@ -182,7 +185,11 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
 
 static int is_sep(uint8_t c)
 {
-  return c == ZSCII_SPACE || memchr(separators, c, num_separators) != NULL;
+  if(c == ZSCII_SPACE) return 1;
+
+  for(uint16_t i = 0; i < num_separators; i++) if(user_byte(separators + i) == c) return 1;
+
+  return 0;
 }
 
 static void handle_token(const uint8_t *base, const uint8_t *token, int len, uint16_t parse, uint16_t dictionary, int found, int flag)
@@ -213,16 +220,6 @@ static void handle_token(const uint8_t *base, const uint8_t *token, int len, uin
   else              user_store_byte(parse + 3, token - base + 2);
 }
 
-/* This is strlen(), except for the types. */
-static uint32_t find_zero(const uint8_t *p)
-{
-  const uint8_t *base = p;
-
-  while(*p != 0) p++;
-
-  return p - base;
-}
-
 /* The behavior of tokenize is described in §15 (under the read opcode)
  * and §13.
  *
@@ -245,21 +242,25 @@ static uint32_t find_zero(const uint8_t *p)
 void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
 {
   const uint8_t *p, *lastp;
-  uint8_t *string = &memory[text + 1 + (zversion >= 5)];
-  uint32_t text_len;
+  uint8_t *string;
+  uint32_t text_len = 0;
   const int maxwords = user_byte(parse);
   int in_word = 0;
   int found = 0;
 
   if(dictionary == 0) dictionary = header.dictionary;
 
-  ZASSERT(dictionary != 0, "attempted to tokenize without a valid dictionary");
+  ZASSERT(dictionary != 0, "attempt to tokenize without a valid dictionary");
 
   num_separators = user_byte(dictionary);
-  separators = &memory[dictionary + 1];
+  separators = dictionary + 1;
 
   if(zversion >= 5) text_len = user_byte(text + 1);
-  else              text_len = find_zero(&memory[text + 1]);
+  else              while(user_byte(text + 1 + text_len) != 0) text_len++;
+
+  ZASSERT(text + 1 + (zversion >= 5) + text_len < memory_size, "attempt to tokenize out-of-bounds string");
+
+  string = &memory[text + 1 + (zversion >= 5)];
 
   for(p = string; p - string < text_len && *p == ZSCII_SPACE; p++);
   lastp = p;
@@ -303,8 +304,11 @@ static void encode_text(uint32_t text, uint16_t len, uint16_t coded)
 {
   uint8_t encoded[8];
 
+  ZASSERT(text + len < memory_size, "reported text length extends beyond memory size");
+
   encode_string(&memory[text], len, encoded);
-  memcpy(&memory[coded], encoded, 6);
+
+  for(int i = 0; i < 6; i++) user_store_byte(coded + i, encoded[i]);
 }
 
 void ztokenise(void)

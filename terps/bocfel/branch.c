@@ -60,7 +60,7 @@ void branch_if(int do_branch)
 
 void zjump(void)
 {
-  /* -= 2 because pc has been advanced in decode_simple(). */
+  /* -= 2 because pc has been advanced past the jump instruction. */
   pc += (int16_t)zargs[0];
   pc -= 2;
 

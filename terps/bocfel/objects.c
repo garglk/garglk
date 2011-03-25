@@ -27,29 +27,25 @@
 #include "util.h"
 #include "zterp.h"
 
-/* The “user” memory store/retrieve functions are not used in this file.
- * Addresses will come from objects, and objects are tested, generally,
- * for viability in OBJECT().  I prefer as few expensive memory accesses
- * as possible, and egregious problems should (hopefully) be detected
- * before memory is accessed.
- */
-
 static uint16_t OBJECT(uint16_t n)
 {
   /* Use 32-bit arithmetic to detect 16-bit overflow. */
   uint32_t base = header.objects, obj = n, addr;
+  int objsize;
 
   if(zversion <= 3)
   {
     ZASSERT(n <= 255, "illegal object %u referenced", (unsigned)n);
     addr = base + (31 * 2) + (9 * (obj - 1));
+    objsize = 9;
   }
   else
   {
     addr = base + (63 * 2) + (14 * (obj - 1));
+    objsize = 14;
   }
 
-  ZASSERT(addr < header.static_start, "object %u out of range", (unsigned)n);
+  ZASSERT(addr + objsize < header.static_start, "object %u out of range", (unsigned)n);
 
   return addr;
 }
@@ -136,7 +132,7 @@ static uint16_t property_length(uint16_t propaddr)
 {
   uint16_t length;
   /* The address is to the data; the size byte is right before. */
-  uint8_t byte = BYTE(propaddr - 1);
+  uint8_t byte = user_byte(propaddr - 1);
 
   if(zversion <= 3)
   {
@@ -164,12 +160,12 @@ static uint8_t PROPERTY(uint16_t addr)
 
   if(zversion <= 3)
   {
-    propnum = BYTE(addr - 1) & 0x1f;
+    propnum = user_byte(addr - 1) & 0x1f;
   }
   else
   {
-    if(BYTE(addr - 1) & 0x80) propnum = BYTE(addr - 2) & 0x3f;
-    else                      propnum = BYTE(addr - 1) & 0x3f;
+    if(user_byte(addr - 1) & 0x80) propnum = user_byte(addr - 2) & 0x3f;
+    else                           propnum = user_byte(addr - 1) & 0x3f;
   }
 
   return propnum;
@@ -177,17 +173,13 @@ static uint8_t PROPERTY(uint16_t addr)
 
 static uint16_t advance_prop_addr(uint16_t propaddr)
 {
-  if(BYTE(propaddr) == 0) return 0;
+  uint8_t size;
 
-  if(zversion <= 3)
-  {
-    propaddr++;
-  }
-  else
-  {
-    if(BYTE(propaddr) & 0x80) propaddr += 2;
-    else                      propaddr += 1;
-  }
+  size = user_byte(propaddr++);
+
+  if(size == 0) return 0;
+
+  if(zversion >= 4 && (size & 0x80)) propaddr++;
 
   return propaddr;
 }
@@ -196,7 +188,7 @@ static uint16_t first_property(uint16_t object)
 {
   uint16_t propaddr = PROPADDR(object);
 
-  propaddr += (2 * BYTE(propaddr)) + 1;
+  propaddr += (2 * user_byte(propaddr)) + 1;
 
   return advance_prop_addr(propaddr);
 }
@@ -346,8 +338,8 @@ void zput_prop(void)
   ZASSERT(found, "broken story: no prop");
   ZASSERT(length == 1 || length == 2, "broken story: property too long: %u", (unsigned)length);
 
-  if(length == 1) STORE_BYTE(propaddr, zargs[2] & 0xff);
-  else            STORE_WORD(propaddr, zargs[2]);
+  if(length == 1) user_store_byte(propaddr, zargs[2] & 0xff);
+  else            user_store_word(propaddr, zargs[2]);
 }
 
 void zget_prop(void)
@@ -358,18 +350,20 @@ void zget_prop(void)
 
   if(find_prop(zargs[0], zargs[1], &propaddr, &length))
   {
-    if     (length == 1) store(BYTE(propaddr));
-    else if(length == 2) store(WORD(propaddr));
+    if     (length == 1) store(user_byte(propaddr));
+    else if(length == 2) store(user_word(propaddr));
 
     /* If the length is > 2, the story file is misbehaving.  At least
      * Christminster does this, and Frotz and Nitfol allow it, reading a
      * word, so do that here.
      */
-    else                 store(WORD(propaddr));
+    else                 store(user_word(propaddr));
   }
   else
   {
     uint32_t i;
+
+    ZASSERT(zargs[1] < (zversion <= 3 ? 32 : 64), "invalid property: %u", zargs[1]);
 
     i = header.objects + (2 * (zargs[1] - 1));
     store(WORD(i));
@@ -437,6 +431,8 @@ void zjin(void)
 
 void print_object(uint16_t obj, void (*outc)(uint8_t))
 {
+  if(obj == 0) return;
+
   print_handler(PROPADDR(obj) + 1, outc);
 }
 

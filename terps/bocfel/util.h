@@ -3,11 +3,9 @@
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR >= 7))
 #define znoreturn		__attribute__((__noreturn__))
-#define zunused			__attribute__((__unused__))
 #define zprintflike(f, a)	__attribute__((__format__(__printf__, f, a)))
 #else
 #define znoreturn
-#define zunused
 #define zprintflike(f, a)
 #endif
 

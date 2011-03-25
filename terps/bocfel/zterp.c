@@ -41,14 +41,10 @@
 #include <glk.h>
 #endif
 
-#ifndef LINE_MAX
-#define LINE_MAX	2048
-#endif
-#ifndef PATH_MAX
-#define PATH_MAX	4096
-#endif
+#define MAX_LINE	2048
+#define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.5.3"
+#define ZTERP_VERSION	"0.5.4"
 
 const char *game_file;
 struct options options = {
@@ -85,8 +81,6 @@ struct options options = {
 };
 
 static char story_id[64];
-
-static void process_story(void);
 
 uint32_t pc;
 
@@ -192,16 +186,6 @@ void store(uint16_t v)
   store_variable(BYTE(pc++), v);
 }
 
-void zrestart(void)
-{
-  /* §6.1.3: Flags2 is preserved on a restart. */
-  uint16_t flags2 = WORD(0x10);
-
-  process_story();
-
-  user_store_word(0x10, flags2);
-}
-
 void zsave5(void)
 {
   zterp_io *savefile;
@@ -221,6 +205,7 @@ void zsave5(void)
     return;
   }
 
+  ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
   n = zterp_io_write(savefile, &memory[zargs[0]], zargs[1]);
 
   zterp_io_close(savefile);
@@ -231,6 +216,7 @@ void zsave5(void)
 void zrestore5(void)
 {
   zterp_io *savefile;
+  uint8_t *buf;
   size_t n;
 
   if(znargs == 0)
@@ -246,11 +232,21 @@ void zrestore5(void)
     return;
   }
 
-  n = zterp_io_read(savefile, &memory[zargs[0]], zargs[1]);
+  buf = malloc(zargs[1]);
+  if(buf == NULL)
+  {
+    store(0);
+    return;
+  }
+
+  n = zterp_io_read(savefile, buf, zargs[1]);
+  for(size_t i = 0; i < n; i++) user_store_byte(zargs[0] + i, buf[i]);
+
+  free(buf);
 
   zterp_io_close(savefile);
 
-  store(n == zargs[1]);
+  store(n);
 }
 
 void zpiracy(void)
@@ -316,11 +312,24 @@ static void cheat(char *how)
 
     p = strtok(NULL, ":");
     if(p == NULL) return;
-    addr = strtoul(p, NULL, 16);
+
+    if(*p == 'G')
+    {
+      addr = strtoul(p + 1, NULL, 16);
+      if(addr > 239) return;
+
+      addr = header.globals + (addr * 2);
+    }
+    else
+    {
+      addr = strtoul(p, NULL, 16);
+    }
+
     p = strtok(NULL, ":");
     if(p == NULL) return;
+
     freezew_cheat[addr] = 1;
-    freezew_val  [addr] = strtoul(p, NULL, 10);
+    freezew_val  [addr] = strtoul(p, NULL, 0);
   }
 }
 
@@ -337,8 +346,8 @@ int cheat_find_freezew(uint32_t addr, uint16_t *val)
 static void read_config(void)
 {
   FILE *fp;
-  char file[PATH_MAX + 1];
-  char line[LINE_MAX];
+  char file[MAX_PATH + 1];
+  char line[MAX_LINE];
   char *key, *val, *p;
   long n;
   int story_matches = 1;
@@ -559,7 +568,7 @@ void write_header(void)
   STORE_BYTE(0x33, 1);
 }
 
-static void process_story(void)
+void process_story(void)
 {
   if(zterp_io_seek(story.io, story.offset, SEEK_SET) == -1) die("unable to rewind story");
 
@@ -588,20 +597,26 @@ static void process_story(void)
    */
   header.static_end = memory_size < 0xffff ? memory_size : 0xffff;
 
+#define PROPSIZE	(zversion <= 3 ? 62L : 126L)
+
   /* There must be at least enough room in dynamic memory for the header
-   * (64 bytes) and the global variables table (480 bytes).
+   * (64 bytes), the global variables table (480 bytes), and the
+   * property defaults table (62 or 126 bytes).
    */
-  if(header.static_start < 544)                   die("corrupted story: dynamic memory too small (%d bytes)", (int)header.static_start);
+  if(header.static_start < 64 + 480 + PROPSIZE)   die("corrupted story: dynamic memory too small (%d bytes)", (int)header.static_start);
   if(header.static_start >= memory_size)          die("corrupted story: static memory out of range");
 
   if(header.dictionary != 0 &&
      header.dictionary < header.static_start)     die("corrupted story: dictionary is not in static memory");
 
   if(header.objects < 64 ||
-     header.objects >= header.static_start)       die("corrupted story: object table is not in dynamic memory");
+     header.objects + PROPSIZE > header.static_start)
+                                                  die("corrupted story: object table is not in dynamic memory");
+
+#undef PROPSIZE
 
   if(header.globals < 64 ||
-     header.globals >= header.static_start - 479) die("corrupted story: global variables are not in dynamic memory");
+     header.globals + 480L > header.static_start) die("corrupted story: global variables are not in dynamic memory");
 
   if(header.abbr >= memory_size)                  die("corrupted story: abbreviation table out of range");
 
@@ -657,10 +672,12 @@ static void process_story(void)
     {
       uint16_t nentries = user_word(etable);
 
+      if(etable + (2 * nentries) >= memory_size) die("corrupted story: header extension table out of range");
+
       /* Unicode table. */
-      if(nentries >= 3 && user_word(etable + (2 * 3)) != 0)
+      if(nentries >= 3 && WORD(etable + (2 * 3)) != 0)
       {
-        uint16_t utable = user_word(etable + (2 * 3));
+        uint16_t utable = WORD(etable + (2 * 3));
 
         parse_unicode_table(utable);
       }
@@ -726,7 +743,6 @@ static void process_story(void)
   seed_random(0);
   init_stack();
   init_screen();
-  init_process();
 
   /* Unfortunately, Beyond Zork behaves badly when the interpreter
    * number is set to DOS: it assumes that it can print out IBM PC
@@ -808,6 +824,8 @@ int main(int argc, char **argv)
 
   if(options.show_version)
   {
+    char config[MAX_PATH] = "Configuration file: ";
+
     PRINT("Bocfel " ZTERP_VERSION);
 #ifdef ZTERP_NO_SAFETY_CHECKS
     PRINT("Runtime assertions disabled");
@@ -824,6 +842,9 @@ int main(int argc, char **argv)
 #else
     PRINT("The Tandy bit cannot be set");
 #endif
+
+    zterp_os_rcfile(config + strlen(config), sizeof config - strlen(config));
+    PRINT(config);
 
 #ifdef ZTERP_GLK
     glk_exit();
@@ -874,8 +895,26 @@ int main(int argc, char **argv)
   if(memory_size < 64) die("story file too small");
   if(memory_size > SIZE_MAX) die("story file too large");
 
-  memory = malloc(memory_size);
+  /* It’s possible for a story to be cut short in the middle of an
+   * instruction.  If so, the processing loop will run past the end of
+   * memory.  Either pc needs to be checked each and every time it is
+   * incremented, or a small guard needs to be placed at the end of
+   * memory that will trigger an illegal instruction error.  The latter
+   * is done by filling the end of memory with zeroes, which do not
+   * represent a valid instruction.
+   *
+   * There need to be at least 22 bytes for the worst case: 0xec
+   * (call_vs2) as the last byte in memory.  The next two bytes, which
+   * will be zeroes, indicate that 8 large constants, or 16 bytes, will
+   * be next.  This is a store instruction, so one more byte will be
+   * read to determine where to store.  Another byte is read to
+   * determine the next opcode; this will be zero, which is nominally a
+   * 2OP, requiring two more bytes to be read.  At this point the opcode
+   * will be looked up, resulting in an illegal instruction error.
+   */
+  memory = malloc(memory_size + 22);
   if(memory == NULL) die("unable to allocate memory for story file");
+  memset(memory + memory_size, 0, 22);
 
   process_story();
 

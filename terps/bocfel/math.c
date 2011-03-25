@@ -114,7 +114,9 @@ void zlog_shift(void)
 {
   int16_t places = zargs[1];
 
-  /* Shifting more than 15 bits is undefined, but do the most sensible thing. */
+  /* Shifting more than 15 bits is undefined (as of Standard 1.1), but
+   * do the most sensible thing.
+   */
   if(places < -15 || places > 15)
   {
     store(0);
@@ -129,7 +131,9 @@ void zart_shift(void)
 {
   int16_t number = zargs[0], places = zargs[1];
 
-  /* Shifting more than 15 bits is undefined, but do the most sensible thing. */
+  /* Shifting more than 15 bits is undefined (as of Standard 1.1), but
+   * do the most sensible thing.
+   */
   if(places < -15 || places > 15)
   {
     store(number < 0 ? -1 : 0);

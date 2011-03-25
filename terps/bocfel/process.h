@@ -12,6 +12,4 @@ long interrupt_level(void);
 void setup_opcodes(void);
 void process_instructions(void);
 
-void init_process(void);
-
 #endif

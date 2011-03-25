@@ -97,13 +97,13 @@ void write_header(void);
 
 uint32_t unpack(uint16_t, int);
 void store(uint16_t);
+void process_story(void);
 
 #ifndef ZTERP_NO_CHEAT
 int cheat_find_freezew(uint32_t, uint16_t *);
 #endif
 
 void znop(void);
-void zrestart(void);
 void zquit(void);
 void zverify(void);
 void zpiracy(void);

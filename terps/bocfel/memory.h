@@ -20,8 +20,7 @@ extern uint32_t memory_size;
 #define BYTE(addr)		(memory[addr])
 #define STORE_BYTE(addr, val)	((void)(memory[addr] = (val)))
 
-zunused
-static uint16_t WORD(uint32_t addr)
+static inline uint16_t WORD(uint32_t addr)
 {
 #ifndef ZTERP_NO_CHEAT
   uint16_t cheat_val;
@@ -30,23 +29,20 @@ static uint16_t WORD(uint32_t addr)
   return (memory[addr] << 8) | memory[addr + 1];
 }
 
-zunused
-static void STORE_WORD(uint32_t addr, uint16_t val)
+static inline void STORE_WORD(uint32_t addr, uint16_t val)
 {
   memory[addr + 0] = val >> 8;
   memory[addr + 1] = val & 0xff;
 }
 
-zunused
-static uint8_t user_byte(uint16_t addr)
+static inline uint8_t user_byte(uint16_t addr)
 {
   ZASSERT(addr < header.static_end, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
 
   return BYTE(addr);
 }
 
-zunused
-static uint16_t user_word(uint16_t addr)
+static inline uint16_t user_word(uint16_t addr)
 {
   ZASSERT(addr < header.static_end - 1, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
   
