@@ -19,6 +19,8 @@ SubDirCcFlags
     -DGLK_TIMERS
     ;
 
+# HTMLMODE ?= yes ;
+
 if $(OS) = LINUX || $(OS) = SOLARIS
 {
     SubDirCcFlags
@@ -34,15 +36,13 @@ if $(OS) = MACOSX
     LINKFLAGS = -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
 }
 
-SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
-
 SEARCH_SOURCE =
         [ FDirName $(SUBDIR) tads2 ]
         [ FDirName $(SUBDIR) tads3 ]
         $(SUBDIR)
         ;
 
-Library libtads2 :
+TADS2SRCS =
     osifc.c osrestad.c oem.c
     argize.c bif.c bifgdum.c cmap.c cmd.c dat.c dbgtr.c errmsg.c
     execmd.c fio.c fioxor.c getstr.c ler.c linfdum.c lst.c mch.c
@@ -51,10 +51,10 @@ Library libtads2 :
     ;
 
 
-Library libtads3 :
+TADS3SRCS =
     vmcrc.cpp vmmain.cpp std.cpp charmap.cpp
     resload.cpp resldexe.cpp vminit.cpp vmini_nd.cpp
-    vmconsol.cpp vmconnom.cpp vmconhmp.cpp vminitim.cpp
+    vmconsol.cpp vmconhmp.cpp vminitim.cpp
     vmcfgmem.cpp vmobj.cpp vmundo.cpp vmtobj.cpp vmpat.cpp
     vmstrcmp.cpp vmdict.cpp vmgram.cpp vmstr.cpp vmcoll.cpp
     vmiter.cpp vmlst.cpp vmsort.cpp vmsortv.cpp vmbignum.cpp
@@ -67,6 +67,21 @@ Library libtads3 :
     vmbift3.cpp vmbt3_nd.cpp vmregex.cpp vmhosttx.cpp
     vmhostsi.cpp vmhash.cpp vmmcreg.cpp vmbifreg.cpp
     ;
+
+if $(HTMLMODE) = yes
+{
+    SubDirCcFlags -DUSE_HTML -DT3_COMPILING_FOR_HTML ;
+    TADS3SRCS += vmconhtm.cpp ;
+}
+else
+{
+    TADS3SRCS += vmconnom.cpp ;
+}
+
+SUBDIRC++FLAGS = $(SUBDIRCCFLAGS) ;
+
+Library libtads2 : $(TADS2SRCS) ;
+Library libtads3 : $(TADS3SRCS) ;
 
 Main $(GARGLKPRE)tadsr :
     t23run.cpp
