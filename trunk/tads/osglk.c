@@ -71,9 +71,6 @@ int os_get_sysinfo(int code, void *param, long *result)
         case SYSINFO_TEXT_HILITE:
             *result = 1;
             return TRUE;
-        case SYSINFO_INTERP_CLASS:
-            *result = SYSINFO_ICLASS_TEXTGUI;
-            return TRUE;
         case SYSINFO_BANNERS:
             *result = 1;
             return TRUE;
@@ -81,7 +78,22 @@ int os_get_sysinfo(int code, void *param, long *result)
             *result = SYSINFO_TXC_RGB;
             return TRUE;
 
+#ifdef USE_HTML
+        case SYSINFO_INTERP_CLASS:
+            *result = SYSINFO_ICLASS_HTML;
+            return TRUE;
         case SYSINFO_HTML:
+            *result = 1;
+            return TRUE;
+#else
+        case SYSINFO_INTERP_CLASS:
+            *result = SYSINFO_ICLASS_TEXTGUI;
+            return TRUE;
+        case SYSINFO_HTML:
+            *result = 0;
+            return TRUE;
+#endif
+
         case SYSINFO_JPEG:
         case SYSINFO_PNG:
         case SYSINFO_WAV:
