@@ -325,21 +325,24 @@ get_action(vk_info_t *info, const char *key)
 }
 
 static void
-send_key(vk_info_t *info, const char *key)
+send_key(vk_info_t *info)
 {
-    unsigned char *str = (unsigned char *) get_action(info, key);
+    if (!info->last_key)
+        return;
+    
+    unsigned char *str = (unsigned char *) get_action(info, info->last_key);
     if ( !strcmp(str, "space") ) str = " ";
     
     if ( str != NULL && str[0] >= 32 ){
         glui32 keybuf[1] = {'?'};
         glui32 inlen = strlen( str );
         
-        if ( inlen )
-            gli_parse_utf8( str, inlen, keybuf, 1 );
-        
+        gli_parse_utf8( str, inlen, keybuf, 1 );
         gli_input_handle_key( keybuf[0] );
     }
-
+    
+    free(info->last_key);
+    info->last_key = NULL;
     info->i = 0;
 }
 
@@ -350,14 +353,9 @@ vkbd_timer_cb(void *param)
 
     info->timer = NULL;
 
-    if (!info->last_key)
-        return 0;
+    send_key(info);
 
-    send_key(info, info->last_key);
-    free(info->last_key);
-    info->last_key = NULL;
-
-    return 0;
+    return ECORE_CALLBACK_CANCEL;
 }
 
 vk_info_t * vkbd_init()
@@ -593,7 +591,7 @@ static void onkeyup(void *data, Evas *e, Evas_Object *obj, void *event_info)
     /* if there is a pending 1-9 key press that doesn't coincide with the current one, then handle it*/
     if (info->last_key)
         if (strcmp(info->last_key, eeku->keyname))
-            send_key(info, info->last_key);
+            send_key(info);
         else /* otherwise cycle to the next letter associated with it*/
             info->i++; /*TODO: make this cycle through options*/
     
