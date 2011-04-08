@@ -272,7 +272,7 @@ static void music_completion_callback()
     }
     if (music_channel->notify)
     {
-        gli_event_store(evtype_SoundNotify, 0, 
+        gli_event_store(evtype_SoundNotify, 0,
                         music_channel->resid, music_channel->notify);
     }
     cleanup_channel(music_channel);
@@ -291,7 +291,7 @@ static void sound_completion_callback(int chan)
     {
         if (sound_channel->notify)
         {
-            gli_event_store(evtype_SoundNotify, 0, 
+            gli_event_store(evtype_SoundNotify, 0,
                             sound_channel->resid, sound_channel->notify);
         }
         cleanup_channel(sound_channel);
@@ -306,7 +306,7 @@ static void sound_completion_callback(int chan)
         {
             if (sound_channel->notify)
             {
-                gli_event_store(evtype_SoundNotify, 0, 
+                gli_event_store(evtype_SoundNotify, 0,
                                 sound_channel->resid, sound_channel->notify);
             }
             cleanup_channel(sound_channel);
@@ -322,8 +322,8 @@ static void sound_completion_callback(int chan)
     Sound_Sample *sample = sound_channel->decode;
     sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
     Mix_ChannelFinished(&sound_completion_callback);
-    if (Mix_PlayChannel(sound_channel->sdl_channel, 
-                        sound_channel->sample, 
+    if (Mix_PlayChannel(sound_channel->sdl_channel,
+                        sound_channel->sample,
                         FALSE) >= 0)
     {
         return;
@@ -341,7 +341,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         FILE *file;
         char name[1024];
 
-        sprintf(name, "%s/SND%ld", gli_workdir, (long) snd); 
+        sprintf(name, "%s/SND%ld", gli_workdir, (long) snd);
 
         file = fopen(name, "rb");
         if (!file)
@@ -390,7 +390,12 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
                 return giblorb_ID_MOD;
         }
 
-        if (!memcmp(*buf, "\377\372", 2))	/* mp3 */
+        /* ogg */
+        if (*len > 4 && !memcmp(*buf, "OggS", 4))
+            return giblorb_ID_OGG;
+
+        /* mp3 */
+        if (*len > 2 && !memcmp(*buf, "\377\372", 2))
             return giblorb_ID_MP3;
 
         return giblorb_ID_MP3;
