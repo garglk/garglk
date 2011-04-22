@@ -108,5 +108,5 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, in
   return 0;
 }
 #else
-#error GLK on this platform is not supported.
+#error Glk on this platform is not supported.
 #endif

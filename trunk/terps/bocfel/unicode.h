@@ -17,7 +17,7 @@
 
 /* This variable controls whether Unicode is used for screen
  * output.  This affects @check_unicode as well as the ZSCII to
- * Unicode table.  With GLK it is set based on whether the GLK
+ * Unicode table.  With Glk it is set based on whether the Glk
  * implementation supports Unicode (checked with the Unicode
  * gestalt), and determines whether Unicode IO functions should
  * be used; otherwise, it is kept in parallel with use_utf8_io.

@@ -808,7 +808,7 @@ static void memory_snapshot_free(void)
   frames_backup = NULL;
 }
 
-static int memory_snapshot(void)
+static void memory_snapshot(void)
 {
   memory_snapshot_free();
 
@@ -833,12 +833,12 @@ static int memory_snapshot(void)
     memcpy(frames_backup, frames, frames_backup_size * sizeof *frames);
   }
 
-  return 1;
+  return;
 
 err:
   memory_snapshot_free();
 
-  return 0;
+  return;
 }
 
 static int memory_restore(void)
@@ -978,7 +978,7 @@ err:
 #undef goto_err
 #undef goto_death
 
-/* The suggested filename is ignored, because GLK and, at least as of
+/* The suggested filename is ignored, because Glk and, at least as of
  * right now, zterp_io_open(), do not provide a method to do this.
  * The “prompt” argument added by standard 1.1 is thus also ignored.
  */

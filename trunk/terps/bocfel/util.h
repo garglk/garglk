@@ -13,10 +13,10 @@
 extern unsigned long zassert_pc;
 #define ZPC(pc)		do { zassert_pc = pc; } while(0)
 
-zprintflike(4, 5)
+zprintflike(1, 2)
 znoreturn
-void assert_fail(const char *, const char *, int, const char *, ...);
-#define ZASSERT(expr, ...) do { if(!(expr)) assert_fail(__func__, __FILE__, __LINE__, __VA_ARGS__); } while(0)
+void assert_fail(const char *, ...);
+#define ZASSERT(expr, ...) do { if(!(expr)) assert_fail(__VA_ARGS__); } while(0)
 #else
 #define ZPC(pc)			((void)0)
 #define ZASSERT(expr, ...)	((void)0)

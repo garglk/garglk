@@ -39,12 +39,18 @@
 
 #ifdef ZTERP_GLK
 #include <glk.h>
+#ifdef GARGLK
+#include <glkstart.h>
+#include <gi_blorb.h>
+
+static schanid_t sound_channel = NULL;
+#endif
 #endif
 
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.5.4"
+#define ZTERP_VERSION	"0.5.5"
 
 const char *game_file;
 struct options options = {
@@ -52,6 +58,7 @@ struct options options = {
   .call_stack_size = DEFAULT_CALL_DEPTH,
   .disable_color = 0,
   .disable_config = 0,
+  .disable_sound = 0,
   .disable_timed = 0,
   .enable_escape = 0,
   .escape_string = NULL,
@@ -197,7 +204,7 @@ void zsave5(void)
     return;
   }
 
-  /* This should be able to suggest a filename, but GLK doesn’t support that. */
+  /* This should be able to suggest a filename, but Glk doesn’t support that. */
   savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
@@ -252,6 +259,43 @@ void zrestore5(void)
 void zpiracy(void)
 {
   branch_if(1);
+}
+
+void zsound_effect(void)
+{
+#ifdef GARGLK
+  uint8_t repeats, volume;
+  static uint32_t vols[8] = {
+    0x02000, 0x04000, 0x06000, 0x08000,
+    0x0a000, 0x0c000, 0x0e000, 0x10000
+  };
+
+  if(sound_channel == NULL || zargs[0] < 3) return;
+
+  repeats = zargs[2] >> 8;
+  volume = zargs[2] & 0xff;
+
+  if(volume == 0) volume = 1;
+  if(volume  > 8) volume = 8;
+
+  glk_schannel_set_volume(sound_channel, vols[volume - 1]);
+
+  switch(zargs[1])
+  {
+    case 1: /* prepare */
+      glk_sound_load_hint(zargs[0], 1);
+      break;
+    case 2: /* start */
+      glk_schannel_play_ext(sound_channel, zargs[0], repeats == 255 ? -1 : repeats, 0);
+      break;
+    case 3: /* stop */
+      glk_schannel_stop(sound_channel);
+      break;
+    case 4: /* finish with */
+      glk_sound_load_hint(zargs[0], 0);
+      break;
+  }
+#endif
 }
 
 /* Find a story ID roughly in the form of an IFID according to §2.2.2.1
@@ -410,6 +454,7 @@ static void read_config(void)
     NUMBER(call_stack_size);
     BOOL  (disable_color);
     BOOL  (disable_timed);
+    BOOL  (disable_sound);
     BOOL  (enable_escape);
     STRING(escape_string);
     BOOL  (disable_fixed);
@@ -494,8 +539,10 @@ void write_header(void)
 
     if(zversion == 6)
     {
-      flags1 &= ~FLAGS1_PICTURES;
-      flags1 &= ~FLAGS1_SOUND;
+      flags1 &= ~(FLAGS1_PICTURES | FLAGS1_SOUND);
+#ifdef GARGLK
+      if(sound_channel != NULL) flags1 |= FLAGS1_SOUND;
+#endif
     }
 
 #ifdef ZTERP_GLK
@@ -520,7 +567,12 @@ void write_header(void)
   {
     uint16_t flags2 = WORD(0x10);
 
-    flags2 &= ~(FLAGS2_SOUND | FLAGS2_MOUSE);
+    flags2 &= ~FLAGS2_MOUSE;
+#ifdef GARGLK
+    if(sound_channel == NULL) flags2 &= ~FLAGS2_SOUND;
+#else
+    flags2 &= ~FLAGS2_SOUND;
+#endif
     if(zversion >= 6) flags2 &= ~FLAGS2_MENUS;
 
     if(options.disable_graphics_font) flags2 &= ~FLAGS2_PICTURES;
@@ -712,7 +764,7 @@ void process_story(void)
   if(options.disable_utf8)
   {
 #ifndef ZTERP_GLK
-    /* If GLK is not being used, the ZSCII to Unicode table needs to be
+    /* If Glk is not being used, the ZSCII to Unicode table needs to be
      * aligned with the IO character set.
      */
     have_unicode = 0;
@@ -728,6 +780,14 @@ void process_story(void)
     use_utf8_io = 1;
   }
   if(options.escape_string == NULL) options.escape_string = xstrdup("1m");
+
+#ifdef GARGLK
+  if(options.disable_sound && sound_channel != NULL)
+  {
+    glk_schannel_destroy(sound_channel);
+    sound_channel = NULL;
+  }
+#endif
 
   /* Now that we have a Unicode table and the user’s Unicode
    * preferences, build the ZSCII to Unicode and Unicode to ZSCII
@@ -891,6 +951,35 @@ int main(int argc, char **argv)
     memory_size = size;
     story.offset = 0;
   }
+
+#ifdef GARGLK
+  if(glk_gestalt(gestalt_Sound, 0))
+  {
+    /* 5 for the worst case of needing to add .blb to the end plus the
+     * null character.
+     */
+    char *blorb_file = malloc(strlen(game_file) + 5);
+    if(blorb_file != NULL)
+    {
+      char *p;
+      strid_t file;
+
+      strcpy(blorb_file, game_file);
+      p = strrchr(blorb_file, '.');
+      if(p != NULL) *p = 0;
+      strcat(blorb_file, ".blb");
+
+      file = glkunix_stream_open_pathname(blorb_file, 0, 0);
+      if(file != NULL)
+      {
+        giblorb_set_resource_map(file);
+        sound_channel = glk_schannel_create(0);
+      }
+
+      free(blorb_file);
+    }
+  }
+#endif
 
   if(memory_size < 64) die("story file too small");
   if(memory_size > SIZE_MAX) die("story file too large");

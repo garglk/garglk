@@ -363,7 +363,7 @@ void zget_prop(void)
   {
     uint32_t i;
 
-    ZASSERT(zargs[1] < (zversion <= 3 ? 32 : 64), "invalid property: %u", zargs[1]);
+    ZASSERT(zargs[1] < (zversion <= 3 ? 32 : 64), "invalid property: %u", (unsigned)zargs[1]);
 
     i = header.objects + (2 * (zargs[1] - 1));
     store(WORD(i));

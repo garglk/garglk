@@ -34,8 +34,8 @@
 
 int use_utf8_io;
 
-/* Generally speaking, UNICODE_LINEFEED (10) is used as a newline.  GLK
- * requires this (GLK API 0.7.0 §2.2), and when Unicode is available, we
+/* Generally speaking, UNICODE_LINEFEED (10) is used as a newline.  Glk
+ * requires this (Glk API 0.7.0 §2.2), and when Unicode is available, we
  * write characters out by hand even with stdio, so no translation can
  * be done.  However, when stdio is being used, Unicode is not
  * available, and the file usage will be for a transcript or
@@ -58,12 +58,12 @@ struct zterp_io
 #endif
 };
 
-/* GLK does not like you to be able to pass a full filename to
- * glk_fileref_create_by_name(); this means that GLK cannot be used to
- * open arbitrary files.  However, GLK is still required to prompt for
+/* Glk does not like you to be able to pass a full filename to
+ * glk_fileref_create_by_name(); this means that Glk cannot be used to
+ * open arbitrary files.  However, Glk is still required to prompt for
  * files, such as in a save game situation.  To allow zterp_io to work
  * for opening files both with and without a prompt, it will use stdio
- * when either GLK is not available, or when GLK is available but
+ * when either Glk is not available, or when Glk is available but
  * prompting is not necessary.
  *
  * This is needed because the IFF parser is required for both opening
@@ -207,7 +207,7 @@ void zterp_io_close(zterp_io *io)
 
 int zterp_io_seek(const zterp_io *io, long offset, int whence)
 {
-  /* To smooth over differences between GLK and standard I/O, don’t
+  /* To smooth over differences between Glk and standard I/O, don’t
    * allow seeking in append-only streams.
    */
   if(io->mode & ZTERP_IO_APPEND) return -1;
