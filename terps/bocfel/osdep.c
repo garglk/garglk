@@ -51,9 +51,9 @@
  * UTF-8 and Windows (at least through Wine), so I want to be as
  * sensible as I can with the defaults.  The user is able to override
  * this value if he so desires.
- * If a GLK build is not being used, this function also serves to
+ * If a Glk build is not being used, this function also serves to
  * indicate whether all I/O, not just transcripts, should be UTF-8 or
- * not.  GLK libraries are able to be queried as to their support for
+ * not.  Glk libraries are able to be queried as to their support for
  * Unicode so there is no need to make assumptions in that case.
  *
  * void zterp_os_rcfile(char *s, size_t n)
@@ -69,9 +69,9 @@
  * when a stream is opened in text mode.  This function should, if
  * necessary, set the mode on the file pointer in fp to be binary.
  *
- * The following functions are useful for non-GLK builds only.  They
+ * The following functions are useful for non-Glk builds only.  They
  * provide for some handling of screen functions that is normally taken
- * care of by GLK.
+ * care of by Glk.
  *
  * void zterp_os_get_winsize(unsigned *w, unsigned *h)
  *

@@ -10,6 +10,7 @@ struct options
   int disable_color;
   int disable_config;
   int disable_timed;
+  int disable_sound;
   int enable_escape;
   char *escape_string;
   int disable_fixed;
@@ -109,5 +110,6 @@ void zverify(void);
 void zpiracy(void);
 void zsave5(void);
 void zrestore5(void);
+void zsound_effect(void);
 
 #endif

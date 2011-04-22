@@ -238,7 +238,7 @@ void setup_opcodes(void)
   if(zversion >= 4) OP(VAR, 0x12, znop); /* XXX buffer_mode */
   if(zversion >= 3) OP(VAR, 0x13, zoutput_stream);
   if(zversion >= 3) OP(VAR, 0x14, zinput_stream);
-  if(zversion >= 3) OP(VAR, 0x15, znop); /* XXX sound_effect */
+  if(zversion >= 3) OP(VAR, 0x15, zsound_effect);
   if(zversion >= 4) OP(VAR, 0x16, zread_char);
   if(zversion >= 4) OP(VAR, 0x17, zscan_table);
   if(zversion >= 5) OP(VAR, 0x18, znot);

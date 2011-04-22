@@ -33,15 +33,13 @@
 #ifndef ZTERP_NO_SAFETY_CHECKS
 unsigned long zassert_pc;
 
-void assert_fail(const char *func, const char *file, int line, const char *fmt, ...)
+void assert_fail(const char *fmt, ...)
 {
   va_list ap;
   char str[1024];
 
-  snprintf(str, sizeof str, "%s():%s:%d: ", func, file, line);
-
   va_start(ap, fmt);
-  vsnprintf(str + strlen(str), sizeof str - strlen(str), fmt, ap);
+  vsnprintf(str, sizeof str, fmt, ap);
   va_end(ap);
 
   snprintf(str + strlen(str), sizeof str - strlen(str), " (pc = 0x%lx)", zassert_pc);
@@ -146,7 +144,7 @@ int process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdeE:fgGiklLn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fgGiklLn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -164,6 +162,9 @@ int process_arguments(int argc, char **argv)
         break;
       case 'd':
         options.disable_timed = 1;
+        break;
+      case 'D':
+        options.disable_sound = 1;
         break;
       case 'e':
         options.enable_escape = 1;

@@ -241,11 +241,11 @@ static struct window *find_window(uint16_t window)
 
 #ifdef ZTERP_GLK
 /* When resizing the upper window, the screen’s contents should not
- * change (§8.6.1); however, the way windows are handled with GLK makes
+ * change (§8.6.1); however, the way windows are handled with Glk makes
  * this slightly impossible.  When an Inform game tries to display
  * something with “box”, it expands the upper window, displays the quote
  * box, and immediately shrinks the window down again.  This is a
- * problem under GLK because the window immediately disappears.  Other
+ * problem under Glk because the window immediately disappears.  Other
  * games, such as Bureaucracy, expect the upper window to shrink as soon
  * as it has been requested.  Thus the following system is used:
  *
@@ -312,8 +312,8 @@ void show_message(const char *fmt, ...)
   else
 #endif
   {
-    /* In GLK messages go to a separate window, but they're interleaved
-     * in non-GLK.  Put brackets around the message in an attempt to
+    /* In Glk messages go to a separate window, but they're interleaved
+     * in non-Glk.  Put brackets around the message in an attempt to
      * offset it from the game a bit.
      */
     fprintf(stderr, "\n[%s]\n", message);
@@ -490,7 +490,7 @@ void term_keys_add(uint8_t key)
     case 143: insert_key(keycode_Func11); break;
     case 144: insert_key(keycode_Func12); break;
 
-    /* Keypad 0–9 should be here, but GLK doesn’t support that. */
+    /* Keypad 0–9 should be here, but Glk doesn’t support that. */
     case 145: case 146: case 147: case 148: case 149:
     case 150: case 151: case 152: case 153: case 154:
       break;
@@ -602,7 +602,7 @@ static void put_char_base(uint16_t c, int unicode)
           {
             if(upperwin->y < upper_window_height)
             {
-              /* GLK wraps, so printing a newline when the cursor has
+              /* Glk wraps, so printing a newline when the cursor has
                * already reached the edge of the screen will produce two
                * newlines.
                */
@@ -802,7 +802,7 @@ void zerase_window(void)
     case 0:
       /* 8.7.3.2.1 says V5+ should have the cursor set to 1, 1 of the
        * erased window; V4 the lower window goes bottom left, the upper
-       * to 1, 1.  GLK doesn’t give control over the cursor when
+       * to 1, 1.  Glk doesn’t give control over the cursor when
        * clearing, and that doesn’t really seem to be an issue; so just
        * call glk_window_clear().
        */
@@ -910,7 +910,7 @@ void update_color(int which, unsigned long color)
 /* A window argument may be supplied in V6, and this needs to be implemented. */
 void zset_colour(void)
 {
-  /* GLK (apart from Gargoyle) has no color support. */
+  /* Glk (apart from Gargoyle) has no color support. */
 #if !defined(ZTERP_GLK) || defined(GARGLK)
   int16_t fg = zargs[0], bg = zargs[1];
 
@@ -1004,7 +1004,7 @@ void set_current_style(void)
 
   garglk_set_zcolors(fg_color, bg_color);
 #else
-  /* GLK can’t mix other styles with fixed-width, but the upper window
+  /* Glk can’t mix other styles with fixed-width, but the upper window
    * is always fixed, so if it is selected, there is no need to
    * explicitly request it here.  This means that another style can also
    * be applied if applicable.
@@ -1378,6 +1378,30 @@ static int istream_read_from_file(struct input *input)
   }
 
 #ifdef ZTERP_GLK
+  event_t ev;
+
+  /* It’s possible that output is buffered, meaning that until
+   * glk_select() is called, output will not be displayed.  When reading
+   * from a command-script, flush on each command so that output is
+   * visible while the script is being replayed.
+   */
+  glk_select_poll(&ev);
+  switch(ev.type)
+  {
+    case evtype_None:
+      break;
+    case evtype_Arrange:
+      window_change();
+      break;
+    default:
+      /* No other events should arrive.  Timers are only started in
+       * get_input() and are stopped before that function returns.
+       * Input events will not happen with glk_select_poll(), and no
+       * other event type is expected to be raised.
+       */
+      break;
+  }
+
   saw_input = 1;
 #endif
 
@@ -1385,9 +1409,9 @@ static int istream_read_from_file(struct input *input)
 }
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
-/* GLK returns terminating characters as keycode_*, but we need them as
+/* Glk returns terminating characters as keycode_*, but we need them as
  * ZSCII.  This should only ever be called with values that are matched
- * in the switch, because those are the only ones that GLK was told are
+ * in the switch, because those are the only ones that Glk was told are
  * terminating characters.  In the event that another keycode comes
  * through, though, treat it as Enter.
  */
@@ -1773,10 +1797,10 @@ void zread(void)
     string[i] = 0;
 
     /* Under garglk, preloaded input works as it’s supposed to.
-     * Under GLK, it can fail one of two ways:
+     * Under Glk, it can fail one of two ways:
      * 1. The preloaded text is printed out once, but is not editable.
      * 2. The preloaded text is printed out twice, the second being editable.
-     * I have chosen option #2.  For non-GLK, option #1 is done by necessity.
+     * I have chosen option #2.  For non-Glk, option #1 is done by necessity.
      */
 #ifdef GARGLK
     garglk_unput_string_uni(string);
@@ -1987,8 +2011,8 @@ void zbuffer_screen(void)
 }
 
 #ifdef GARGLK
-/* GLK does not guarantee great control over how various styles are
- * going to look, but Gargoyle does.  Abusing the GLK “style hints”
+/* Glk does not guarantee great control over how various styles are
+ * going to look, but Gargoyle does.  Abusing the Glk “style hints”
  * functions allows for quite fine-grained control over style
  * appearance.  First, clear the (important) attributes for each style,
  * and then recreate each in whatever mold is necessary.  Re-use some

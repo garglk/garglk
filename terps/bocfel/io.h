@@ -15,9 +15,9 @@ typedef struct zterp_io zterp_io;
 #define ZTERP_IO_APPEND		0x20
 
 /* This variable controls whether the IO system writes UTF-8 or
- * Latin-1; it is distinct from GLK’s Unicode setting.
+ * Latin-1; it is distinct from Glk’s Unicode setting.
  * If this is set, transcripts will be written in UTF-8, and if
- * GLK is not being used, screen output will be written in UTF-8.
+ * Glk is not being used, screen output will be written in UTF-8.
  */
 extern int use_utf8_io;
 
