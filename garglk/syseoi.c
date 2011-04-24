@@ -35,8 +35,10 @@
 #include <Ecore.h>
 #include <Ecore_X.h>
 #include <Ecore_File.h>
+#include <Edje.h>
 
-#include "libkeys.h"
+#include <libeoi_help.h>
+#include <libkeys.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -237,7 +239,11 @@ static void new_line(vk_info_t *info)      { gli_input_handle_key(keycode_Return
 static void delete_char(vk_info_t *info)   { gli_input_handle_key(keycode_Delete); }
 static void quit_app(vk_info_t *info)      { exit(0); }
 
-static void show_help(vk_info_t *info)     {}
+static void show_help(vk_info_t *info)
+{
+    eoi_help_show( ecore_evas_get( frame ),
+                  "gargoyle", "index", "", NULL, NULL);
+}
 
 static void show_settings(vk_info_t *info) {}
 static void close_settings(vk_info_t *info){}
@@ -354,6 +360,7 @@ vkbd_timer_cb(void *param)
     info->timer = NULL;
 
     send_key(info);
+    ecore_main_loop_quit();
 
     return ECORE_CALLBACK_CANCEL;
 }
@@ -645,6 +652,10 @@ void wininit(int *argc, char **argv)
     
     if ( ecore_evas_init() == 0 ){
         printf("ERROR: cannot init Evas_Ecore.\n");
+        exit( EXIT_FAILURE );
+    }
+    if ( edje_init() == 0 ){
+        printf("ERROR: cannot init Edje.\n");
         exit( EXIT_FAILURE );
     }
     

@@ -21,6 +21,7 @@ clean:
 	dh_clean # cleans all debhelper temporary files
 	$(JAM) clean
 	rm -rf build/
+	rm -rf debian/help_out/
 	rm -f build-stamp
 	rm -f debian/gargoyle.postinst
 	rm -f debian/garglk.ini
@@ -39,7 +40,7 @@ clean:
 # rule is used to install files to iplinux/tmp directory, and `binary-*' rules
 # are used to split one directory to several.
 #
-install: build debian/garglk.ini debian/gargoyle.postinst debian/vkbd/gargoyle.ini
+install: build debian/garglk.ini debian/gargoyle.postinst debian/vkbd/gargoyle.ini help
 	dh_prep
 	dh_installdirs
 	
@@ -63,6 +64,10 @@ debian/garglk.ini: garglk/garglk.ini debian/garglk.ini.patch
 #
 debian/vkbd/gargoyle.ini: debian/vkbd/gargoyle.n516.ini
 	cp $^ $@
+
+help:
+	mkdir -p debian/help_out
+	oi-help-compiler -u debian/help debian/help_out
 
 #
 # `build' rule is also not strictly necessary, but often exist as a prerequisite
