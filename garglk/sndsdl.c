@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 #include <SDL.h>
 #include <SDL_mixer.h>
@@ -104,7 +105,7 @@ schanid_t glk_schannel_create(glui32 rock)
 
     chan->rock = rock;
     chan->status = CHANNEL_IDLE;
-    chan->volume = 0x10000;
+    chan->volume = MIX_MAX_VOLUME;
     chan->resid = 0;
     chan->loop = 0;
     chan->notify = 0;
@@ -248,16 +249,16 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
         gli_strict_warning("schannel_set_volume: invalid id.");
         return;
     }
-    chan->volume = vol;
+    chan->volume = vol > 0x10000 ? MIX_MAX_VOLUME : round(pow(((double) vol) / 0x10000, log(4)) * MIX_MAX_VOLUME);
     switch (chan->status)
     {
         case CHANNEL_IDLE:
             break;
         case CHANNEL_SOUND:
-            Mix_Volume(chan->sdl_channel, vol / 512);
+            Mix_Volume(chan->sdl_channel, chan->volume);
             break;
         case CHANNEL_MUSIC:
-            Mix_VolumeMusic(vol / 512);
+            Mix_VolumeMusic(chan->volume);
             break;
     }
 }
@@ -439,7 +440,7 @@ static glui32 play_sound(schanid_t chan)
         SDL_LockAudio();
         sound_channels[chan->sdl_channel] = chan;
         SDL_UnlockAudio();
-        Mix_Volume(chan->sdl_channel, chan->volume / 512);
+        Mix_Volume(chan->sdl_channel, chan->volume);
         Mix_ChannelFinished(&sound_completion_callback);
         if (Mix_PlayChannel(chan->sdl_channel, chan->sample, chan->loop-1) >= 0)
             return 1;
@@ -472,7 +473,7 @@ static glui32 play_compressed(schanid_t chan, char *ext)
         SDL_LockAudio();
         sound_channels[chan->sdl_channel] = chan;
         SDL_UnlockAudio();
-        Mix_Volume(chan->sdl_channel, chan->volume / 512);
+        Mix_Volume(chan->sdl_channel, chan->volume);
         Mix_ChannelFinished(&sound_completion_callback);
         if (Mix_PlayChannel(chan->sdl_channel, chan->sample, 0) >= 0)
             return 1;
@@ -512,7 +513,7 @@ static glui32 play_mod(schanid_t chan, long len)
         SDL_LockAudio();
         music_channel = chan;
         SDL_UnlockAudio();
-        Mix_VolumeMusic(chan->volume / 512);
+        Mix_VolumeMusic(chan->volume);
         Mix_HookMusicFinished(&music_completion_callback);
         if (Mix_PlayMusic(chan->music, chan->loop-1) >= 0)
             return 1;
