@@ -180,8 +180,9 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     fl = fopen(fref->filename, "ab");
     if (!fl)
     {
-      sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
+      sprintf(msg, "stream_open_file: unable to open file (ab): %s", fref->filename);
       gli_strict_warning(msg);
+      return 0;
     }
     fclose(fl);
   }
