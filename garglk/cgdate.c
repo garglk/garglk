@@ -37,11 +37,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef WIN32
-#include <sys/time.h>
-#else
 #include <time.h>
-#endif
+#include <sys/time.h>
 
 #include "glk.h"
 #include "garglk.h"

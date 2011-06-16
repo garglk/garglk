@@ -39,7 +39,7 @@ static void load_image_png(FILE *fl, picture_t *pic);
 static void load_image_jpeg(FILE *fl, picture_t *pic);
 
 static piclist_t *picstore = NULL;	/* cache all loaded pictures */
-static gli_piclist_refcount = 0;	/* count references to loaded pictures */
+static int gli_piclist_refcount = 0;	/* count references to loaded pictures */
 
 static void gli_picture_discard(picture_t *pic);
 
