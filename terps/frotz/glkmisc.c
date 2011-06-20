@@ -189,53 +189,45 @@ void os_init_screen(void)
 	glk_stylehint_set(wintype_AllTypes,   style_Preformatted, stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Preformatted, stylehint_Weight, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Preformatted, stylehint_Oblique, 0);
-	glk_stylehint_set(wintype_TextGrid,   style_Preformatted, stylehint_ReverseColor, 1);
 
 	/* monob */
 	glk_stylehint_set(wintype_AllTypes,   style_Subheader,    stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Subheader,    stylehint_Weight, 1);
 	glk_stylehint_set(wintype_AllTypes,   style_Subheader,    stylehint_Oblique, 0);
-	glk_stylehint_set(wintype_TextGrid,   style_Subheader,    stylehint_ReverseColor, 1);
 
 	/* monoi */
 	glk_stylehint_set(wintype_AllTypes,   style_Alert,        stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Alert,        stylehint_Weight, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Alert,        stylehint_Oblique, 1);
-	glk_stylehint_set(wintype_TextGrid,   style_Alert,        stylehint_ReverseColor, 1);
 
 	/* monoz */
 	glk_stylehint_set(wintype_AllTypes,   style_BlockQuote,   stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_BlockQuote,   stylehint_Weight, 1);
 	glk_stylehint_set(wintype_AllTypes,   style_BlockQuote,   stylehint_Oblique, 1);
-	glk_stylehint_set(wintype_TextGrid,   style_BlockQuote,   stylehint_ReverseColor, 1);
 
 	/* propr */
 	glk_stylehint_set(wintype_TextBuffer, style_Normal,       stylehint_Proportional, 1);
 	glk_stylehint_set(wintype_TextGrid,   style_Normal,       stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Normal,       stylehint_Weight, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Normal,       stylehint_Oblique, 0);
-	glk_stylehint_set(wintype_TextGrid,   style_Normal,       stylehint_ReverseColor, 1);
 
 	/* propb */
 	glk_stylehint_set(wintype_TextBuffer, style_Header,       stylehint_Proportional, 1);
 	glk_stylehint_set(wintype_TextGrid,   style_Header,       stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Header,       stylehint_Weight, 1);
 	glk_stylehint_set(wintype_AllTypes,   style_Header,       stylehint_Oblique, 0);
-	glk_stylehint_set(wintype_TextGrid,   style_Header,       stylehint_ReverseColor, 1);
 
 	/* propi */
 	glk_stylehint_set(wintype_TextBuffer, style_Emphasized,   stylehint_Proportional, 1);
 	glk_stylehint_set(wintype_TextGrid,   style_Emphasized,   stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Emphasized,   stylehint_Weight, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Emphasized,   stylehint_Oblique, 1);
-	glk_stylehint_set(wintype_TextGrid,   style_Emphasized,   stylehint_ReverseColor, 1);
 
 	/* propi */
 	glk_stylehint_set(wintype_TextBuffer, style_Note,         stylehint_Proportional, 1);
 	glk_stylehint_set(wintype_TextGrid,   style_Note,         stylehint_Proportional, 0);
 	glk_stylehint_set(wintype_AllTypes,   style_Note,         stylehint_Weight, 1);
 	glk_stylehint_set(wintype_AllTypes,   style_Note,         stylehint_Oblique, 1);
-	glk_stylehint_set(wintype_TextGrid,   style_Note,         stylehint_ReverseColor, 1);
 
 	gos_lower = glk_window_open(0, 0, 0, wintype_TextGrid, 0);
 	if (!gos_lower)
