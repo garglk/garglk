@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 
-#define DEFAULT_STACK_SIZE	0x1000
-#define DEFAULT_CALL_DEPTH	0x200
+#include "io.h"
+
+#define DEFAULT_STACK_SIZE	0x4000
+#define DEFAULT_CALL_DEPTH	0x400
 
 void init_stack(void);
 
@@ -17,6 +19,15 @@ void call(int);
 uint16_t direct_call(uint16_t);
 #endif
 void do_return(uint16_t);
+
+int save_quetzal(zterp_io *, int);
+int restore_quetzal(zterp_io *, int);
+
+int do_save(int);
+int do_restore(int);
+
+int push_save(void);
+int pop_save(void);
 
 void zpush(void);
 void zpull(void);

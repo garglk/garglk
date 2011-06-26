@@ -70,6 +70,15 @@ void break_from(long level)
   longjmp(jumps[level], 1);
 }
 
+/* If a restore happens inside of an interrupt, the level needs to be
+ * set back to 0, but without a longjmp(), so break_from() cannot be
+ * used.
+ */
+void reset_level(void)
+{
+  ilevel = 0;
+}
+
 /* To signal a restart, longjmp() is called with 2; this advises
  * process_instructions() to restart the story file and then continue
  * execution, whereas a value of 1 tells it to return immediately.
@@ -164,8 +173,8 @@ void setup_opcodes(void)
   else              OP(ZERO, 0x09, zcatch);
   OP(ZERO, 0x0a, zquit);
   OP(ZERO, 0x0b, znew_line);
-  if(zversion == 3) OP(ZERO, 0x0c, zshow_status);
-  else              OP(ZERO, 0x0c, znop); /* §15: Technically illegal in V4+, but a V5 Wishbringer accidentally uses this opcode. */
+  if     (zversion == 3) OP(ZERO, 0x0c, zshow_status);
+  else if(zversion >= 4) OP(ZERO, 0x0c, znop); /* §15: Technically illegal in V4+, but a V5 Wishbringer accidentally uses this opcode. */
   if(zversion >= 3) OP(ZERO, 0x0d, zverify);
   if(zversion >= 5) OP(ZERO, 0x0e, zextended);
   if(zversion >= 5) OP(ZERO, 0x0f, zpiracy);
@@ -275,7 +284,7 @@ void setup_opcodes(void)
   if(zversion >= 6) OP(EXT, 0x18, zpush_stack);
   if(zversion >= 6) OP(EXT, 0x19, znop); /* XXX put_wind_prop */
   if(zversion >= 6) OP(EXT, 0x1a, zprint_form);
-  if(zversion >= 6) OP(EXT, 0x1b, znop); /* @make_menu is not necessary to implement */
+  if(zversion >= 6) OP(EXT, 0x1b, zmake_menu);
   if(zversion >= 6) OP(EXT, 0x1c, znop); /* XXX picture_table */
   if(zversion >= 6) OP(EXT, 0x1d, zbuffer_screen);
 
@@ -306,7 +315,7 @@ void process_instructions(void)
 
         process_story();
 
-        user_store_word(0x10, flags2);
+        STORE_WORD(0x10, flags2);
       }
       break;
   }
@@ -396,6 +405,8 @@ void process_instructions(void)
     else
     {
       znargs = 0;
+
+      read_pc = pc - 1;
 
       decode_var(BYTE(pc++));
 

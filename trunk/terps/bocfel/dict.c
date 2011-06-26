@@ -41,17 +41,6 @@ static void MAKE_WORD(uint8_t *base, uint16_t val)
   base[1] = val & 0xff;
 }
 
-static int in_atable(int c)
-{
-  /* 52 is A2 character 6, which is special and should not
-   * be matched, so skip over it.
-   */
-  for(int i = 0;  i < 52    ; i++) if(atable[i] == c) return i;
-  for(int i = 53; i < 26 * 3; i++) if(atable[i] == c) return i;
-
-  return -1;
-}
-
 /* Add the character c to the nth position of the encoded text.  c is a
  * 5-bit value (either a shift character, which selects an alphabet, or
  * the index into the current alphabet).
@@ -98,8 +87,13 @@ static void add_zchar(int c, int n, uint8_t *encoded)
  * 2) Because of 1, it is not worth the effort to peek ahead and see
  *    what the next character is to determine whether to shift once or
  *    to lock.
+ *
+ * Z-character 0 is a space (§3.5.1), so theoretically a space should be
+ * encoded simply with a zero.  However, Inform 6.32 encodes space
+ * (which has the value 32) as a 10-bit ZSCII code, which is the
+ * Z-characters 5, 6, 1, 0.  Assume this is correct.
  */
-static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8])
+static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[8])
 {
   int n = 0;
   const int res = zversion <= 3 ? 6 : 9;
@@ -111,7 +105,7 @@ static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8
   {
     int pos;
 
-    pos = in_atable(s[i]);
+    pos = atable_pos[s[i]];
     if(pos >= 0)
     {
       int shift = pos / 26;
@@ -122,7 +116,7 @@ static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8
     }
     else
     {
-      add_zchar(5, n++, encoded);
+      add_zchar(shiftbase + 2, n++, encoded);
       add_zchar(6, n++, encoded);
       add_zchar(s[i] >> 5, n++, encoded);
       add_zchar(s[i] & 0x1f, n++, encoded);

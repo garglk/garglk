@@ -85,17 +85,17 @@ void zand(void)
 
 void zadd(void)
 {
-  store((int16_t)zargs[0] + (int16_t)zargs[1]);
+  store(zargs[0] + zargs[1]);
 }
 
 void zsub(void)
 {
-  store((int16_t)zargs[0] - (int16_t)zargs[1]);
+  store(zargs[0] - zargs[1]);
 }
 
 void zmul(void)
 {
-  store((int16_t)zargs[0] * (int16_t)zargs[1]);
+  store(zargs[0] * zargs[1]);
 }
 
 void zdiv(void)
@@ -156,11 +156,11 @@ void zart_shift(void)
   if(number < 0)
   {
     if(places < 0) store(~(~number >> -places));
-    else           store((zargs[0] <<  places));
+    else           store(zargs[0]  <<  places);
   }
   else
   {
-    if(places < 0) store(number >> -places);
-    else           store(number <<  places);
+    if(places < 0) store(zargs[0] >> -places);
+    else           store(zargs[0] <<  places);
   }
 }
