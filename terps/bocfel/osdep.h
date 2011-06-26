@@ -10,7 +10,7 @@ void zterp_os_rcfile(char *, size_t);
 void zterp_os_reopen_binary(FILE *);
 
 #ifndef ZTERP_GLK
-void zterp_os_get_winsize(unsigned *, unsigned *);
+void zterp_os_get_screen_size(unsigned *, unsigned *);
 void zterp_os_init_term(void);
 int zterp_os_have_style(int);
 int zterp_os_have_colors(void);

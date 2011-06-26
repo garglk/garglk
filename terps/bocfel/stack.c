@@ -523,7 +523,7 @@ static int uncompress_memory(const uint8_t *compressed, uint32_t size)
 }
 
 /* Push the current game state onto the game-state stack. */
-static int push_save(void)
+int push_save(void)
 {
   struct save_state *new;
 
@@ -596,7 +596,7 @@ err:
 }
 
 /* Pop the last-stored game state and jump to it. */
-static int pop_save(void)
+int pop_save(void)
 {
   struct save_state *p;
 
@@ -708,7 +708,7 @@ static size_t quetzal_write_stack(zterp_io *savefile)
   return local_written;
 }
 
-static int save_quetzal(zterp_io *savefile)
+int save_quetzal(zterp_io *savefile, int is_meta)
 {
   if(setjmp(exception) != 0) return 0;
 
@@ -722,7 +722,7 @@ static int save_quetzal(zterp_io *savefile)
 
   WRITEID("FORM");
   WRITEID("    "); /* to be filled in */
-  WRITEID("IFZS");
+  WRITEID(is_meta ? "BFMS" : "IFZS");
 
   WRITEID("IFhd");
   WRITE32(13);
@@ -863,14 +863,14 @@ static int memory_restore(void)
 #define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(0)
 #define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(0)
 
-static int restore_quetzal(zterp_io *savefile)
+int restore_quetzal(zterp_io *savefile, int is_meta)
 {
   zterp_iff *iff;
   uint32_t size;
   uint32_t n = 0;
   uint8_t ifhd[13];
 
-  iff = zterp_iff_parse(savefile, "IFZS");
+  iff = zterp_iff_parse(savefile, is_meta ? "BFMS" : "IFZS");
 
   if(iff == NULL ||
      !zterp_iff_find(iff, "IFhd", &size) ||
@@ -978,37 +978,49 @@ err:
 #undef goto_err
 #undef goto_death
 
+/* Perform all aspects of a save, apart from storing/branching.
+ * Returns true if the save was success, false if not.
+ * “is_meta” is true if this save file is from a meta-save.
+ */
+int do_save(int is_meta)
+{
+  zterp_io *savefile;
+  int success;
+
+  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
+  if(savefile == NULL)
+  {
+    warning("unable to open save file");
+    return 0;
+  }
+
+  success = save_quetzal(savefile, is_meta);
+
+  zterp_io_close(savefile);
+
+  return success;
+}
+
 /* The suggested filename is ignored, because Glk and, at least as of
  * right now, zterp_io_open(), do not provide a method to do this.
  * The “prompt” argument added by standard 1.1 is thus also ignored.
  */
 void zsave(void)
 {
-  zterp_io *savefile;
-  int success;
-
   if(interrupt_level() != 0) die("@save called inside of an interrupt");
 
-  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
-  if(savefile == NULL)
-  {
-    warning("unable to open save file");
-
-    if(zversion <= 3) branch_if(0);
-    else              store(0);
-
-    return;
-  }
-
-  success = save_quetzal(savefile);
-
-  zterp_io_close(savefile);
+  int success = do_save(0);
 
   if(zversion <= 3) branch_if(success);
   else              store(success);
 }
 
-void zrestore(void)
+/* Perform all aspects of a restore, apart from storing/branching.
+ * Returns true if the restore was success, false if not.
+ * “is_meta” is true if this save file is expected to be from a
+ * meta-save.
+ */
+int do_restore(int is_meta)
 {
   zterp_io *savefile;
   uint16_t flags2;
@@ -1018,21 +1030,25 @@ void zrestore(void)
   if(savefile == NULL)
   {
     warning("unable to open save file");
-
-    if(zversion <= 3) branch_if(0);
-    else              store(0);
-
-    return;
+    return 0;
   }
 
   flags2 = WORD(0x10);
 
-  success = restore_quetzal(savefile);
+  success = restore_quetzal(savefile, is_meta);
 
   zterp_io_close(savefile);
 
   if(success)
   {
+    /* On a successful restore, we are outside of any interrupt (since
+     * @save cannot be called inside an interrupt), so reset the level
+     * back to zero.  In addition, there may be pending read events that
+     * need to be canceled, so do that, too.
+     */
+    reset_level();
+    cancel_all_events();
+
     /* §8.6.1.3 */
     if(zversion == 3) close_upper_window();
 
@@ -1048,6 +1064,13 @@ void zrestore(void)
     /* Redraw the status line in games that use one. */
     if(zversion <= 3) zshow_status();
   }
+
+  return success;
+}
+
+void zrestore(void)
+{
+  int success = do_restore(0);
 
   if(zversion <= 3) branch_if(success);
   else              store(success ? 2 : 0);

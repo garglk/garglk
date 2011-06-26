@@ -55,7 +55,7 @@ void user_store_byte(uint16_t addr, uint8_t v)
   {
     ZASSERT((BYTE(addr) ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
 
-    output_stream((v & FLAGS2_TRANSCRIPT) ? OSTREAM_TRANS : -OSTREAM_TRANS, 0);
+    if(!output_stream((v & FLAGS2_TRANSCRIPT) ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) v &= ~FLAGS2_TRANSCRIPT;
 
     header_fixed_font = v & FLAGS2_FIXED;
     set_current_style();

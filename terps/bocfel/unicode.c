@@ -22,6 +22,7 @@
 #include "unicode.h"
 #include "memory.h"
 #include "util.h"
+#include "zterp.h"
 
 int have_unicode;
 
@@ -83,11 +84,17 @@ uint16_t zscii_to_unicode[UINT8_MAX + 1];
 uint8_t unicode_to_zscii  [UINT16_MAX + 1];
 uint8_t unicode_to_zscii_q[UINT16_MAX + 1];
 
-/* Convenience table: pass through all values 0–255, but yield a question mark for others. */
+/* Convenience table: pass through all values 0–255, but yield a question mark
+ * for others. */
 uint8_t unicode_to_latin1[UINT16_MAX + 1];
 
 /* Convert ZSCII to Unicode line-drawing/rune characters. */
 uint16_t zscii_to_font3[UINT8_MAX + 1];
+
+/* Lookup table to see if a character is in the alphabet table.  Key is
+ * the character, value is the index in the alphabet table, or -1.
+ */
+int atable_pos[UINT8_MAX + 1];
 
 /* Not all fonts provide all characters, so there
  * may well be a lot of question marks.
@@ -220,7 +227,7 @@ static void build_font3_table(void)
 
 void setup_tables(void)
 {
-  /* First set up the ZSCII to Unicode table. */
+  /*** ZSCII to Unicode table. ***/
 
   for(int i = 0; i < UINT8_MAX + 1; i++) zscii_to_unicode[i] = UNICODE_QUESTIONMARK;
   zscii_to_unicode[ 0] = 0;
@@ -242,7 +249,7 @@ void setup_tables(void)
     zscii_to_unicode[i + 155] = c;
   }
 
-  /* Now do the Unicode to ZSCII tables. */
+  /*** Unicode to ZSCII tables. ***/
 
   /* Default values. */
   memset(unicode_to_zscii, 0, sizeof unicode_to_zscii);
@@ -270,13 +277,24 @@ void setup_tables(void)
   /* Properly translate a newline. */
   unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
 
-  /* The Unicode to Latin1 table. */
+  /*** Unicode to Latin1 table. ***/
 
   memset(unicode_to_latin1, UNICODE_QUESTIONMARK, sizeof unicode_to_latin1);
   for(int i = 0; i < 256; i++) unicode_to_latin1[i] = i;
 
-  /* Finally, the ZSCII to character graphics table. */
+  /*** ZSCII to character graphics table. ***/
+
   build_font3_table();
+
+  /*** Alphabet table. ***/
+
+  for(int i = 0; i < 256; i++) atable_pos[i] = -1;
+
+  /* 52 is A2 character 6, which is special and should not
+   * be matched, so skip over it.
+   */
+  for(int i = 0;  i < 52    ; i++) atable_pos[atable[i]] = i;
+  for(int i = 53; i < 26 * 3; i++) atable_pos[atable[i]] = i;
 }
 
 /* This is adapted from Zip2000 (Copyright 2001 Kevin Bracey). */

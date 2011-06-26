@@ -50,12 +50,6 @@ static uint16_t OBJECT(uint16_t n)
   return addr;
 }
 
-#if 0
-#define ZERO_OBJ()	warning("attempted operation on object zero");
-#else
-#define ZERO_OBJ()	((void)0)
-#endif
-
 #define OFFSET_PARENT	(zversion <= 3 ? 4 :  6)
 #define OFFSET_SIBLING	(zversion <= 3 ? 5 :  8)
 #define OFFSET_CHILD	(zversion <= 3 ? 6 : 10)
@@ -226,8 +220,6 @@ static int is_zero(int is_store, int is_jump)
 {
   if(zargs[0] == 0)
   {
-    ZERO_OBJ();
-
     if(is_store) store(0);
     if(is_jump)  branch_if(0);
 

@@ -29,6 +29,7 @@ extern uint8_t unicode_to_zscii[];
 extern uint8_t unicode_to_zscii_q[];
 extern uint8_t unicode_to_latin1[];
 extern uint16_t zscii_to_font3[];
+extern int atable_pos[];
 
 void parse_unicode_table(uint16_t);
 void setup_tables(void);
@@ -47,6 +48,7 @@ static inline int valid_unicode(uint16_t c) { return (c >= 32 && c <= 126) || c 
  */
 #if defined(ZTERP_GLK) && !defined(GLK_MODULE_UNICODE)
 #define glk_put_char_uni(...)		die("bug %s:%d: glk_put_char_uni() called with no unicode", __FILE__, __LINE__)
+#define glk_put_string_uni(...)		die("bug %s:%d: glk_put_string_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_char_event_uni(...)	die("bug %s:%d: glk_request_char_event_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_line_event_uni(...)	die("bug %s:%d: glk_request_line_event_uni() called with no unicode", __FILE__, __LINE__)
 #endif

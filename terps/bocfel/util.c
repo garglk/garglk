@@ -144,7 +144,7 @@ int process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fgGiklLn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGiklLmn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -175,6 +175,9 @@ int process_arguments(int argc, char **argv)
       case 'f':
         options.disable_fixed = 1;
         break;
+      case 'F':
+        options.assume_fixed = 1;
+        break;
       case 'g':
         options.disable_graphics_font = 1;
         break;
@@ -193,6 +196,9 @@ int process_arguments(int argc, char **argv)
       case 'L':
         options.force_utf8 = 1;
         break;
+      case 'm':
+        options.disable_meta_commands = 1;
+        break;
       case 'n':
         options.int_number = strtol(zoptarg, NULL, 10);
         break;
@@ -206,10 +212,10 @@ int process_arguments(int argc, char **argv)
         options.replay_name = xstrdup(zoptarg);
         break;
       case 's':
-        options.script_on = 1;
+        options.record_on = 1;
         break;
       case 'S':
-        options.script_name = xstrdup(zoptarg);
+        options.record_name = xstrdup(zoptarg);
         break;
       case 't':
         options.transcript_on = 1;

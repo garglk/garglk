@@ -73,7 +73,7 @@
  * provide for some handling of screen functions that is normally taken
  * care of by Glk.
  *
- * void zterp_os_get_winsize(unsigned *w, unsigned *h)
+ * void zterp_os_get_screen_size(unsigned *w, unsigned *h)
  *
  * The size of the terminal, if known, is written into *w (width) and *h
  * (height).  If terminal size is unavalable, nothing should be written.
@@ -142,7 +142,7 @@ void zterp_os_rcfile(char *s, size_t n)
 #include <curses.h>
 #include <term.h>
 #ifdef TIOCGWINSZ
-void zterp_os_get_winsize(unsigned *w, unsigned *h)
+void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 {
   struct winsize winsize;
 
@@ -152,7 +152,7 @@ void zterp_os_get_winsize(unsigned *w, unsigned *h)
     *h = winsize.ws_row;
   }
 }
-#define zterp_os_get_winsize
+#define zterp_os_get_screen_size
 #endif
 
 static const char *ital = NULL, *rev = NULL, *bold = NULL, *none = NULL;
@@ -273,8 +273,8 @@ void zterp_os_reopen_binary(FILE *fp)
 #endif
 
 #ifndef ZTERP_GLK
-#ifndef zterp_os_get_winsize
-void zterp_os_get_winsize(unsigned *w, unsigned *h)
+#ifndef zterp_os_get_screen_size
+void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 {
 }
 #endif

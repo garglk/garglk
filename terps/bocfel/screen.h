@@ -10,13 +10,16 @@
 /* Boolean flag describing whether the header bit meaning “fixed font” is set. */
 extern int header_fixed_font;
 
+extern uint32_t read_pc;
+
 void init_screen(void);
 
 int create_mainwin(void);
 int create_statuswin(void);
 int create_upperwin(void);
-void get_window_size(unsigned int *, unsigned int *);
+void get_screen_size(unsigned int *, unsigned int *);
 void close_upper_window(void);
+void cancel_all_events(void);
 
 /* Text styles. */
 #define STYLE_NONE	(0U     )
@@ -38,16 +41,16 @@ void update_color(int, unsigned long);
 
 /* Output streams. */
 #define OSTREAM_SCREEN		1
-#define OSTREAM_TRANS		2
+#define OSTREAM_SCRIPT		2
 #define OSTREAM_MEMORY		3
-#define OSTREAM_SCRIPT		4
+#define OSTREAM_RECORD		4
 
 /* Input streams. */
 #define ISTREAM_KEYBOARD	0
 #define ISTREAM_FILE		1
 
-void output_stream(int16_t, uint16_t);
-void input_stream(int);
+int output_stream(int16_t, uint16_t);
+int input_stream(int);
 
 void set_current_style(void);
 
@@ -83,6 +86,7 @@ void zcheck_unicode(void);
 void zpicture_data(void);
 void zget_wind_prop(void);
 void zprint_form(void);
+void zmake_menu(void);
 void zbuffer_screen(void);
 
 #endif

@@ -7,6 +7,7 @@ extern uint16_t zargs[];
 extern int znargs;
 
 void break_from(long);
+void reset_level(void);
 long interrupt_level(void);
 
 void setup_opcodes(void);

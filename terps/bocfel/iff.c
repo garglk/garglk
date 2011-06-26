@@ -43,7 +43,7 @@ void zterp_iff_free(zterp_iff *iff)
   }
 }
 
-zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
+zterp_iff *zterp_iff_parse(zterp_io *io, const char type[4])
 {
   uint32_t tag;
 
@@ -90,7 +90,7 @@ err:
   return NULL;
 }
 
-int zterp_iff_find(zterp_iff *iff, const char tag[static 4], uint32_t *size)
+int zterp_iff_find(zterp_iff *iff, const char tag[4], uint32_t *size)
 {
   while(iff != NULL)
   {

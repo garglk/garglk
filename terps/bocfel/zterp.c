@@ -50,7 +50,7 @@ static schanid_t sound_channel = NULL;
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.5.5"
+#define ZTERP_VERSION	"0.6.0"
 
 const char *game_file;
 struct options options = {
@@ -63,18 +63,20 @@ struct options options = {
   .enable_escape = 0,
   .escape_string = NULL,
   .disable_fixed = 0,
+  .assume_fixed = 0,
   .disable_graphics_font = 0,
   .enable_alt_graphics = 0,
   .show_id = 0,
   .disable_term_keys = 0,
   .disable_utf8 = 0,
   .force_utf8 = 0,
+  .disable_meta_commands = 0,
   .int_number = 1, /* DEC */
   .int_version = 'C',
   .replay_on = 0,
   .replay_name = NULL,
-  .script_on = 0,
-  .script_name = NULL,
+  .record_on = 0,
+  .record_name = NULL,
   .transcript_on = 0,
   .transcript_name = NULL,
   .max_saves = 10,
@@ -458,19 +460,21 @@ static void read_config(void)
     BOOL  (enable_escape);
     STRING(escape_string);
     BOOL  (disable_fixed);
+    BOOL  (assume_fixed);
     BOOL  (disable_graphics_font);
     BOOL  (enable_alt_graphics);
     BOOL  (disable_term_keys);
     BOOL  (disable_utf8);
     BOOL  (force_utf8);
+    BOOL  (disable_meta_commands);
     NUMBER(max_saves);
     BOOL  (disable_undo_compression);
     NUMBER(int_number);
     CHAR  (int_version);
     BOOL  (replay_on);
     STRING(replay_name);
-    BOOL  (script_on);
-    STRING(script_name);
+    BOOL  (record_on);
+    STRING(record_name);
     BOOL  (transcript_on);
     STRING(transcript_name);
     BOOL  (disable_abbreviations);
@@ -591,7 +595,7 @@ void write_header(void)
     STORE_BYTE(0x1e, options.int_number);
     STORE_BYTE(0x1f, options.int_version);
 
-    get_window_size(&width, &height);
+    get_screen_size(&width, &height);
 
     /* Screen height and width.
      * A height of 255 means infinite, so cap at 254.
@@ -683,6 +687,13 @@ void process_story(void)
     header.S_O =	WORD(0x2a) * 8UL;
   }
 
+  if(dynamic_memory == NULL)
+  {
+    dynamic_memory = malloc(header.static_start);
+    if(dynamic_memory == NULL) die("unable to allocate memory for dynamic memory");
+    memcpy(dynamic_memory, memory, header.static_start);
+  }
+
 #ifdef GLK_MODULE_LINE_TERMINATORS
   if(!options.disable_term_keys)
   {
@@ -743,19 +754,17 @@ void process_story(void)
     }
   }
 
-  if(dynamic_memory == NULL)
-  {
-    dynamic_memory = malloc(header.static_start);
-    if(dynamic_memory == NULL) die("unable to allocate memory for dynamic memory");
-    memcpy(dynamic_memory, memory, header.static_start);
-  }
-
   /* The configuration file cannot be read until the ID of the current
    * story is known, and the ID of the current story is not known until
    * the file has been processed; so do both of those here.
    */
   find_id();
   if(!options.disable_config) read_config();
+
+  /* Prevent the configuration file from unexpectedly being reread after
+   * @restart or @restore.
+   */
+  options.disable_config = 1;
 
   /* Most options directly set their respective variables, but a few
    * require intervention.  Delay that intervention until here so that
@@ -827,15 +836,10 @@ void process_story(void)
     options.transcript_on = 0;
   }
 
-  /* If header transcript/fixed bits have been set, either by the
-   * story or by the user, this will activate them.
-   */
-  user_store_word(0x10, WORD(0x10));
-
-  if(options.script_on)
+  if(options.record_on)
   {
-    output_stream(OSTREAM_SCRIPT, 0);
-    options.script_on = 0;
+    output_stream(OSTREAM_RECORD, 0);
+    options.record_on = 0;
   }
 
   if(options.replay_on)
@@ -877,7 +881,7 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef ZTERP_GLK
-#define PRINT(s)	do { glk_put_string(s); glk_put_char(10); } while(0)
+#define PRINT(s)	do { glk_put_string(s); glk_put_char(UNICODE_LINEFEED); } while(0)
 #else
 #define PRINT(s)	puts(s)
 #endif
@@ -914,6 +918,20 @@ int main(int argc, char **argv)
   }
 
 #undef PRINT
+
+#ifdef GARGLK
+  if(game_file == NULL)
+  {
+    frefid_t ref;
+
+    ref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_BinaryMode, filemode_Read, 0);
+    if(ref != NULL)
+    {
+      game_file = xstrdup(garglk_fileref_get_name(ref));
+      glk_fileref_destroy(ref);
+    }
+  }
+#endif
 
   if(game_file == NULL) die("no story provided");
 
@@ -982,7 +1000,7 @@ int main(int argc, char **argv)
 #endif
 
   if(memory_size < 64) die("story file too small");
-  if(memory_size > SIZE_MAX) die("story file too large");
+  if(memory_size > SIZE_MAX - 22) die("story file too large");
 
   /* It’s possible for a story to be cut short in the middle of an
    * instruction.  If so, the processing loop will run past the end of
@@ -1006,6 +1024,11 @@ int main(int argc, char **argv)
   memset(memory + memory_size, 0, 22);
 
   process_story();
+
+  /* If header transcript/fixed bits have been set, either by the
+   * story or by the user, this will activate them.
+   */
+  user_store_word(0x10, WORD(0x10));
 
   if(options.show_id)
   {
