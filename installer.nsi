@@ -2,18 +2,21 @@
 ; Gargoyle NSIS 2 installer script
 ;
 
-RequestExecutionLevel admin
-!include "MUI.nsh"
-!include FontReg.nsh
-!include FontName.nsh
-
-
 Name "Gargoyle"
 OutFile "gargoyle-2011.1-windows.exe"
 InstallDir $PROGRAMFILES\Gargoyle
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
-
 SetCompressor lzma
+
+;
+; The required plugins
+;
+
+!define MULTIUSER_EXECUTIONLEVEL Admin
+!include MultiUser.nsh
+!include MUI.nsh
+!include FontReg.nsh
+!include FontName.nsh
 
 ;
 ; The installer theme
@@ -54,6 +57,9 @@ Var SMFOLDER
 ;
 
 Section "DoInstall"
+	; Elevate rights
+    !insertmacro MULTIUSER_INIT
+
     SetOutPath $INSTDIR
 
     File "build\dist\*.exe"
@@ -146,9 +152,10 @@ SectionEnd
 ;
 
 Section "Uninstall"
+	; Elevate rights
+	!insertmacro MULTIUSER_UNINIT
 
     DeleteRegKey HKCR "Gargoyle.Story"
-
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gargoyle"
     DeleteRegKey HKLM "Software\Tor Andersson\Gargoyle"
 
