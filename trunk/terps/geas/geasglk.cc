@@ -284,6 +284,8 @@ GeasGlkInterface::make_choice (std::string label, std::vector<std::string> v)
 {
     size_t n;
 
+    glk_window_clear(inputwin);
+
     glk_put_cstring(label.c_str());
     glk_put_char(0x0a);
     n = v.size();
@@ -298,7 +300,6 @@ GeasGlkInterface::make_choice (std::string label, std::vector<std::string> v)
         glk_put_cstring("\n");
     }
 
-    glk_window_clear(inputwin);
     std::stringstream t;
     std::string s;
     std::string s1;
