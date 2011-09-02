@@ -348,7 +348,9 @@ got_choice:
 
 std::string GeasGlkInterface::absolute_name (std::string rel_name, std::string parent) const {
   std::cerr << "absolute_name ('" << rel_name << "', '" << parent << "')\n";
-  assert (parent[0] == '/');
+  if (parent[0] != '/')
+    return rel_name;
+
   if (rel_name[0] == '/')
     {
       std::cerr << "  --> " << rel_name << "\n";
