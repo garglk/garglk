@@ -109,9 +109,66 @@ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 
 For a more permanent installation, please see the INSTALL document found in the root of the source code tree.
 
-
 <p><br/></p>
 
 ==Mac==
 
-TBD
+Apple ships compilers as part of its Xcode suite, which can be downloaded from [http://connect.apple.com ADC]. The correct version of Xcode depends on the OS X version you have installed.
+
+|| *OS X* || *Name* || *Xcode* ||
+|| 10.4 || Tiger || 2.5 ||
+|| 10.5 || Leopard || 3.1 ||
+|| 10.6 || Snow Leopard || 3.2 ||
+|| 10.7 || Lion || 4.1 ||
+
+Once Xcode has been installed, you will need to download and install [http://www.macports.org/install.php Macports]. This provides access to the libraries required to build Gargoyle.
+
+----
+
+With Xcode and Macports installed, you are ready to build the libraries. Open a Terminal window and enter these commands.
+
+{{{
+sudo port install freetype +universal
+sudo port install libpng +universal
+sudo port install jpeg +universal
+sudo port install libsdl +no_x11 +universal
+sudo port install libiconv +universal
+sudo port install pkgconfig
+sudo port install libsdl_mixer +universal
+sudo port install ftjam
+}}}
+
+You can omit the +universal flag if you do not need to build Gargoyle with support for multiple CPU architectures.
+
+Note that many of pkgconfig's dependencies do not build correctly when passed the +universal argument, so you should omit it when building pkgconfig for the first time.
+
+----
+
+Once you have finished building the libraries, you are ready to check out the Gargoyle source code.
+
+{{{
+svn co http://garglk.googlecode.com/svn/trunk/ garglk
+}}}
+
+(If you have commit access, use HTTPS instead of HTTP to check out a read-write copy.)
+
+The source files will be checked out to a *garglk* folder in the working directory. Modify the last argument as appropriate to pick a different destination.
+
+When the checkout finishes, you can use these commands to compile the latest version of Gargoyle.
+
+{{{
+cd garglk
+chmod +x gargoyle_osx.sh
+./gargoyle_osx.sh
+}}}
+
+----
+
+To run the compiled version of Gargoyle, use these commands.
+
+{{{
+cd Gargoyle.app/Contents/MacOS
+./Gargoyle
+}}}
+
+The build script creates a Gargoyle bundle which can be dropped in your Applications folder. It also creates a DMG archive for distribution.
