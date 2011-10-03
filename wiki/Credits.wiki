@@ -21,6 +21,7 @@ _Original source code and patches_
   * Baltasar García Perez-Schofield
   * Evin Robertson
   * Chris Spiegel
+  * Carlo Teubner
   * Jörg Walter
   * `r6144`
 
