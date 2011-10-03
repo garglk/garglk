@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  
  * USA 
  */
 
@@ -4728,8 +4728,8 @@ gln_command_license (const char *argument)
 
   gln_normal_string ("You should have received a copy of the GNU General"
                       " Public License along with this program; if not, write"
-                      " to the Free Software Foundation, Inc., 59 Temple"
-                      " Place, Suite 330, Boston, MA  02111-1307 USA\n\n");
+                      " to the Free Software Foundation, Inc., 51 Franklin"
+                      " Street, Fifth Floor, Boston, MA 02110-1301 USA\n\n");
 
   gln_normal_string ("Please report any bugs, omissions, or misfeatures to ");
   gln_standout_string ("simon_baldwin@yahoo.com");
