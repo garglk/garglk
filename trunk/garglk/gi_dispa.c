@@ -426,7 +426,7 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x0042: /* stream_open_file */
             return "4QcIuIu:Qb";
         case 0x0043: /* stream_open_memory */
-            return "4&+#!CnIuIu:Qb";
+            return "4&#!CnIuIu:Qb";
         case 0x0044: /* stream_close */
             return "2Qb<[2IuIu]:";
         case 0x0045: /* stream_set_position */
@@ -585,7 +585,7 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x0138: /* stream_open_file_uni */
             return "4QcIuIu:Qb";
         case 0x0139: /* stream_open_memory_uni */
-            return "4&+#!IuIuIu:Qb";
+            return "4&#!IuIuIu:Qb";
         case 0x0140: /* request_char_event_uni */
             return "1Qa:";
         case 0x0141: /* request_line_event_uni */
