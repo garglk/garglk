@@ -1,12 +1,11 @@
 
-        Level 9 Interpreter v4.1
+        Level 9 Interpreter v5.1
         An interpreter for Level 9 games in any format,
         including Spectrum snapshots.
 
-        Copyright (c) 1996 Glen Summers
-        Copyright (c) 2002,2003 Glen Summers and David Kinder
-        Copyright (c) 2005,2007 Glen Summers, David Kinder,
-        Alan Staniforth, Simon Baldwin and Dieter Baron
+        Copyright (c) 1996-2011 Glen Summers and contributors.
+        Contributions from David Kinder, Alan Staniforth,
+        Simon Baldwin, Dieter Baron and Andreas Scherrer.
 
         Level9 is released under the terms of the GNU General
         Public License. See the file COPYING that is included
@@ -28,9 +27,9 @@ B, the Sinclair Spectrum and the Commodore 64 to the (then new) 16 bit
 machines such as the Amiga and the Atari ST.
 
 From disassembly of Level 9 games there are thought to be four variants of
-A-Code, which are detailed below. Thanks go to Paul David Doherty for
-analysing the games and producing the table which follows. At present this
-interpreter supports v2, v3 and v4 games.
+A-Code, which are detailed below, and all of which are supported by this
+interpreter. Thanks go to Paul David Doherty for analysing the games and
+producing the table which follows.
 
   v1    This was used for the earliest games. Spectrum v1 games had
         black text on a grey background. Games known to be released in
@@ -212,14 +211,19 @@ to the game. They are:
                 a long time.
 
   #dictionary   Lists the game dictionary. Press a key to stop the
-                listing and return to the input line. Note that the v2
-                dictionary appears to have random characters following
-                on the end: The original interpreter code to detect the
-                end of dictionary does not appear to agree with the
-                characters actually at the end.
+                listing and return to the input line.
 
   #picture      If graphics are available, shows the picture specified
                 as a number after the picture command, e.g. "#picture 520".
+
+  #seed         Sets the seed of the random number generator to the value
+                given, e.g. "#seed 42". This will make randomness within
+                the game predictable, which is useful for testing.
+
+  #play         Prompts the user for a text file from which to read
+                further input from. Input lines are read from the file
+                until the end is reached, at which point the game reverts
+                to asking the user for input.
 
 The 32-bit DOS version of Level 9 also supports several hotkeys. Press
 Alt-H when playing a game to view a list of the available hotkeys.
@@ -228,9 +232,26 @@ Alt-H when playing a game to view a list of the available hotkeys.
 History
 -------
 
+  v5.1  The bitmap graphics from the US Macintosh release of Lancelot
+        now display correctly.
+
+  v5.0  V1 games are also now supported.
+        The input logic now correctly handles commas and full stops
+        in the user's input for v3 or later games.
+        The input logic now allows hyphens and apostrophes to be
+        input, which is needed for some v2 games.
+        The dictionary listing for v2 games no longer has junk on the
+        end.
+        The graphics detection algorithm has been improved, so that it
+        now correctly finds graphics in all known games.
+        A difference in the logic between the v2 and v3 line-drawn
+        graphics has been implemented, which corrects the scaling for
+        some v2 graphics.
+        Added #seed and #play meta commands.
+
   v4.1  Corrected a bug that made Lancelot unplayable.
-	BBC B bitmaps are now shown as they appeared on the original
-	computer.
+        BBC B bitmaps are now shown as they appeared on the original
+        computer.
 
   v4.0  Implemented support for bitmap graphics.
 
@@ -246,7 +267,7 @@ History
 
   v2.0  Revised the description of v4 games to include all the post-1987
         games, which are now supported.
-        v2 games are also now supported.
+        V2 games are also now supported.
         Added meta commands.
 
   v1.0  First release.
@@ -256,14 +277,26 @@ Credits
 -------
 
 The Level9 interpreter was originally written by Glen Summers. The changes for
-3.0 were made by David Kinder (davidk.kinder@virgin.net) with additional code
-from Alan Staniforth and Simon Baldwin. For 4.0, David Kinder integrated the
-various bitmap decoders, but all the difficult work was done by Alan Staniforth
-and Dieter Baron. Alan also supplied the BBC B bitmap changes for 4.1.
+version 3.0 were made by David Kinder with additional code from Alan Staniforth
+and Simon Baldwin.
+
+For version 4.0, David Kinder integrated the various bitmap decoders, but all
+the difficult work was done by Alan Staniforth and Dieter Baron. Alan also
+supplied the BBC B bitmap changes for version 4.1.
+
+David and Andreas Scherrer worked on version 5.0 to integrate script playback
+from Andreas' .NET port of the interpreter. Andreas created a test harness to
+play through all the games, and David and Andreas then worked through the
+problems this showed up. Andreas also put much effort into painstakingly
+checking all the graphics in the games, which revealed several issues.
 
 Help, testing and information on the various Level 9 formats was provided by
-Paul David Doherty. Testing of the fix for Lancelot in 4.1 was performed by
-Guido Mureddu.
+Paul David Doherty. Testing of the fix for Lancelot in version 4.1 was
+performed by Guido Mureddu.
+
+If you have any comments or queries, contact David Kinder.
+Web: http://www.davidkinder.co.uk/
+Email: davidk.kinder@virgin.net
 
 
 The Interactive Fiction Archive

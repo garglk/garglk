@@ -327,7 +327,7 @@ if $(MAKE_LEVEL9) = yes
     SEARCH_SOURCE = $(SUBDIR)
         [ FDirName $(SUBDIR) Glk ] ;
 
-    Main $(GARGLKPRE)level9 : level9.c glk.c ;
+    Main $(GARGLKPRE)level9 : bitmap.c level9.c glk.c ;
 
     APPS += $(GARGLKPRE)level9 ;
 }

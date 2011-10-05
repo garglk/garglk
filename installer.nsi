@@ -84,8 +84,9 @@ Section "DoInstall"
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gargoyle" "NoModify" 1
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Gargoyle" "NoRepair" 1
 
-    ; Associate file types except dat and sna because they're too generic
+    ; Associate file types except dat because it's too generic
     WriteRegStr HKCR ".l9"  "" "Gargoyle.Story"
+    WriteRegStr HKCR ".sna"  "" "Gargoyle.Story"
     WriteRegStr HKCR ".t3"  "" "Gargoyle.Story"
     WriteRegStr HKCR ".z3"  "" "Gargoyle.Story"
     WriteRegStr HKCR ".z4"  "" "Gargoyle.Story"

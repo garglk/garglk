@@ -20,7 +20,7 @@ Acknowledgements
 Thanks to Alan Staniforth for considerable help with getting the some of the
 source for the base interpreter together, and for his hints on how to cover
 the porting requirements, and to David Kinder for a complete reality check on
-the port progress, and also for the v4.0 Level 9 interpreter.
+the port progress, and also for the Level 9 interpreter.
 
 Thanks also to Ben Hines <bhines@alumni.ucsd.edu> for the Mac code, which, if
 I have transcribed it correctly from earlier work with AGiliTy, should permit
@@ -84,7 +84,7 @@ To build standalone binary version of Glk Level 9, use
 
 To build the IFP plugin, use
 
-	make -f Makefile.glk level9-4.1.so
+	make -f Makefile.glk level9-5.1.so
 
 To clean up and delete everything in the case of a build error, use
 

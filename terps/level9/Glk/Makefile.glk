@@ -27,7 +27,7 @@ IFPHDRTOOL	= /usr/bin/ifphdr
 IFPHDR		= level9.hdr
 
 # Level9 version.
-VERSION		= 4.1
+VERSION		= 5.1
 
 # Common definitions.
 CC		=  gcc
@@ -42,13 +42,13 @@ CFLAGS	= -fPIC -ansi -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
 # CFLAGS= -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
 LDFLAGS	= $(DEBUG)
 
-OBJS	= level9.o glk.o
+OBJS	= level9.o bitmap.o glk.o
 OS_LIB	= $(LINKLIBS) -lm -L$(GLKLIBDIR) $(GLKLIB)
 
 all:glklevel9 level9-$(VERSION).so
 
 # Stuff copied from the generic interpreter.
-level9.h level9.c: ../level9.h ../level9.c
+level9.h level9.c bitmap.c: ../level9.h ../level9.c ../bitmap.c
 	cp ../$@ $@
 
 # Level9.c uses the non-ANSI str[n]icmp functions, so here we #define them
@@ -57,6 +57,11 @@ level9.h level9.c: ../level9.h ../level9.c
 # prototypes from level9.h are macro-redefined into gln_str[n]casecmp, so
 # everything looks fine and dandy...).
 level9.o: level9.c level9.h
+	$(CC) $(CFLAGS) 						\
+		-DNEED_STRICMP_PROTOTYPE -Dstricmp=gln_strcasecmp	\
+		-Dstrnicmp=gln_strncasecmp -c -o $@ $<
+
+bitmap.o: bitmap.c level9.h
 	$(CC) $(CFLAGS) 						\
 		-DNEED_STRICMP_PROTOTYPE -Dstricmp=gln_strcasecmp	\
 		-Dstrnicmp=gln_strncasecmp -c -o $@ $<
@@ -80,8 +85,8 @@ level9-$(VERSION).so: $(OBJS) $(IFPHDR)
 
 # Directory cleanup.
 clean:
-	rm -f $(OBJS) level9.c level9.h *.o glklevel9 level9-$(VERSION).so
-	rm -f level9_plugin.c core
+	rm -f $(OBJS) level9.c bitmap.c level9.h 
+	rm -f *.o glklevel9 level9-$(VERSION).so level9_plugin.c core
 	rm -rf distribution binaries
 
 # Distribution.
@@ -89,7 +94,7 @@ distclean: clean
 maintainer-clean: clean
 dist: distclean
 	mkdir distribution binaries
-	cd ..; zip -r Glk/distribution/Level9_4.1_Source.zip \
+	cd ..; zip -r Glk/distribution/Level9_5.1_Source.zip \
 			* -x Glk/distribution/\* Glk/binaries/
 	cp ../COPYING glk_readme.txt binaries
 	$(MAKE) -f Makefile.glk \
@@ -108,7 +113,7 @@ dist: distclean
 			GLKLIBDIR=../../cheapglk GLKINCDIR=../../cheapglk \
 			GLKMAKEINC=../../cheapglk/Make.cheapglk glklevel9
 	mv glklevel9 binaries/cheaplevel9
-	cd binaries; tar zcvf ../distribution/Level9_4.1_Linux.tgz *
+	cd binaries; tar zcvf ../distribution/Level9_5.1_Linux.tgz *
 
 # Dependencies.
 glk.o: glk.c level9.h
