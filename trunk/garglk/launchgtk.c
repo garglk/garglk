@@ -131,7 +131,9 @@ void winbrowsefile(char *buffer)
                                                       GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
                                                       NULL);
 
-    if (getenv("HOME"))
+    if (getenv("GAMES"))
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(openDlg), getenv("GAMES"));
+    else if (getenv("HOME"))
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(openDlg), getenv("HOME"));
 
     winfilterfiles(GTK_FILE_CHOOSER(openDlg));
