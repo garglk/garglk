@@ -1,6 +1,6 @@
 /* vi: set ts=2 shiftwidth=2 expandtab: 
  *
- * Copyright (C) 2002-2006  Simon Baldwin, simon_baldwin@yahoo.com
+ * Copyright (C) 2002-2011  Simon Baldwin, simon_baldwin@yahoo.com
  * Mac portions Copyright (C) 2002  Ben Hines
  *
  * This program is free software; you can redistribute it and/or modify
@@ -75,7 +75,7 @@ static const char GLN_FILE_DELIM = '/';
 /*---------------------------------------------------------------------*/
 
 /* Glk Level 9 port version number. */
-static const glui32 GLN_PORT_VERSION = 0x00020200;
+static const glui32 GLN_PORT_VERSION = 0x00020201;
 
 /*
  * We use a maximum of three Glk windows, one for status, one for pictures,
@@ -1237,7 +1237,7 @@ gln_gameid_identify_game (void)
   gln_patch_tableref_t patch;
 
   /* If the data file appears too short for a header, give up now. */
-  if (FileSize < 24)
+  if (FileSize < 30)
     return NULL;
 
   /*
@@ -3565,10 +3565,10 @@ gln_watchdog_has_timed_out (void)
           /* Reset the monitor and drop into FALSE return -- stop rejected. */
           gln_watchdog_tick ();
         }
-   }
+    }
 
-   /* No timeout indicated, or offer rejected by the user. */
-   return FALSE;
+  /* No timeout indicated, or offer rejected by the user. */
+  return FALSE;
 }
 
 
@@ -3608,7 +3608,7 @@ gln_status_update (void)
        */
       game_name = gln_gameid_get_game_name ();
       glk_put_string (game_name ? (char *) game_name
-                                : "Glk Level 9 version 4.1");
+                                : "Glk Level 9 version 5.1");
 
       glk_set_window (gln_main_window);
     }
@@ -4636,7 +4636,7 @@ static void
 gln_command_print_version_number (glui32 version)
 {
   char buffer[64];
-  
+
   sprintf (buffer, "%lu.%lu.%lu",
           (unsigned long) version >> 16,
           (unsigned long) (version >> 8) & 0xff,
@@ -6105,6 +6105,18 @@ os_set_filenumber (char *newname, int size, int file_number)
 }
 
 
+/*
+ * os_open_script_file()
+ *
+ * Handles player calls to the "#play" meta-command.  Because we have our
+ * own way of handling scripts, this function is a stub.
+ */
+FILE *
+os_open_script_file (void) {
+  return NULL;
+}
+
+
 /*---------------------------------------------------------------------*/
 /*  Functions intercepted by link-time wrappers                        */
 /*---------------------------------------------------------------------*/
@@ -6501,7 +6513,7 @@ gln_main (void)
         }
 
       /* Print out a short banner. */
-      gln_header_string ("\nLevel 9 Interpreter, version 4.1\n");
+      gln_header_string ("\nLevel 9 Interpreter, version 5.1\n");
       gln_banner_string ("Written by Glen Summers and David Kinder\n"
                          "Glk interface by Simon Baldwin\n\n");
 
@@ -6667,9 +6679,9 @@ glkunix_startup_code (glkunix_startup_t * data)
   gln_startup_called = TRUE;
 
 #ifdef GARGLK
-  garglk_set_program_name("Level 9 4.1");
+  garglk_set_program_name("Level 9 5.1");
   garglk_set_program_info(
-      "Level 9 4.1 by Glen Summers, David Kinder\n"
+      "Level 9 5.1 by Glen Summers, David Kinder\n"
       "Alan Staniforth, Simon Baldwin and Dieter Baron\n"
       "Glk Graphics support by Tor Andersson\n");
 #endif

@@ -100,7 +100,7 @@ typedef struct
 } Bitmap;
 
 #define MAX_BITMAP_WIDTH 512
-#define MAX_BITMAP_HEIGHT 216
+#define MAX_BITMAP_HEIGHT 218
 
 #if defined(_Windows) || defined(__MSDOS__) || defined (_WIN32) || defined (__WIN32__)
 	#define L9WORD(x) (*(L9UINT16*)(x))
@@ -139,6 +139,7 @@ void os_setcolour(int colour, int index);
 void os_drawline(int x1, int y1, int x2, int y2, int colour1, int colour2);
 void os_fill(int x, int y, int colour1, int colour2);
 void os_show_bitmap(int pic, int x, int y);
+FILE* os_open_script_file(void);
 
 /* routines provided by level9 interpreter */
 L9BOOL LoadGame(char* filename, char* picname);
@@ -148,13 +149,10 @@ void RestoreGame(char* filename);
 void FreeMemory(void);
 void GetPictureSize(int* width, int* height);
 L9BOOL RunGraphics(void);
-void SetScaleGraphics(L9BOOL scale);
 
 /* bitmap routines provided by level9 interpreter */
-#ifdef BITMAP_DECODER
 BitmapType DetectBitmaps(char* dir);
 Bitmap* DecodeBitmap(char* dir, BitmapType type, int num, int x, int y);
-#endif
 
 #ifdef NEED_STRICMP_PROTOTYPE
 int stricmp(const char* str1, const char* str2);

@@ -1,14 +1,11 @@
 
 Level 9 interpreter
-Version 4.1
-Copyright (c) 1996 Glen Summers.
-Copyright (c) 2002,2003 Glen Summers and David Kinder.
-Copyright (c) 2005,2007 Glen Summers, David Kinder, Alan Staniforth,
-Simon Baldwin and Dieter Baron.
+Version 5.1
+
 This guide is by David Kinder.
 
 
-Level9 has already been compiled on DOS, Windows, Amiga, Acorn, Macintosh
+Level9 has already been compiled on Windows, MS-DOS, Apple Mac, Amiga, Acorn
 and Unix systems, so it should be quite easy to get it working on any other
 modern computer.
 
@@ -129,6 +126,15 @@ void os_set_filenumber(char* NewName, int Size, int n)
 	maximum size Size) and modify it to reflect the number n, e.g.
 	os_set_filename("gamedat1.dat",2) should leave "gamedat2.dat"
 	in NewName.
+
+
+FILE* os_open_script_file(void)
+
+	os_open_script_file() should prompt the user for the name of a
+	script file, from which input will be read until the end of the
+	script file is reached, and should return a pointer to the opened
+	script file, or NULL. This function is called in response to
+	the player entering the "#play" meta-command.
 
 
 void os_graphics(int mode)

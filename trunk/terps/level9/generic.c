@@ -1,9 +1,10 @@
 /***********************************************************************\
 *
 * Level 9 interpreter
-* Version 4.1
-* Copyright (c) 1996 Glen Summers
-* Copyright (c) 2002,2003,2005,2007 Glen Summers and David Kinder
+* Version 5.1
+* Copyright (c) 1996-2011 Glen Summers and contributors.
+* Contributions from David Kinder, Alan Staniforth, Simon Baldwin,
+* Dieter Baron and Andreas Scherrer.
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License as published by
@@ -21,6 +22,7 @@
 *
 \***********************************************************************/
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include "level9.h"
@@ -39,11 +41,13 @@ void os_printchar(char c)
 		os_flush();
 		putchar('\n');
 		Column = 0;
-		return;
 	}
-	if (isprint(c) == 0) return;
-	if (TextBufferPtr >= TEXTBUFFER_SIZE) os_flush();
-	*(TextBuffer + (TextBufferPtr++)) = c;
+	else if (isprint(c) != 0)
+	{
+		if (TextBufferPtr >= TEXTBUFFER_SIZE)
+			os_flush();
+		*(TextBuffer + (TextBufferPtr++)) = c;
+	}
 }
 
 L9BOOL os_input(char *ibuff, int size)
@@ -53,7 +57,9 @@ char *nl;
 	os_flush();
 	fgets(ibuff, size, stdin);
 	nl = strchr(ibuff, '\n');
-	if (nl) *nl = 0;
+	if (nl)
+		*nl = 0;
+	return TRUE;
 }
 
 char os_readchar(int millis)
@@ -62,17 +68,33 @@ char os_readchar(int millis)
 	char c;
 
 	os_flush();
-	if (millis == 0) return 0;
+	if (millis == 0)
+		return 0;
 
+	/* Some of the Level 9 games expect to be able to wait for
+	   a character for a short while as a way of pausing, and
+	   expect 0 to be returned, while the multiple-choice games
+	   (such as The Archers) expect 'proper' keys from this
+	   routine.
+
+	   To get round this, we return 0 for the first 1024 calls,
+	   and 'proper' keys thereafter. Since The Archers and
+	   similar games ignore the returned zeros, this works quite
+	   well. A 'correct' port would solve this properly by
+	   implementing a timed wait for a key, but this is not
+	   possible using only C stdio-functions.
+	*/
 	if (++count < 1024)
-		return 0;/* fake no keypress on occasions */
+		return 0;
 	count = 0;
 
 	c = getc(stdin); /* will require enter key as well */
 	if (c != '\n')
 	{
 		while (getc(stdin) != '\n')
-			;/* unbuffer input until enter key */
+		{
+			/* unbuffer input until enter key */
+		}
 	}
 
 	return c;
@@ -85,12 +107,10 @@ L9BOOL os_stoplist(void)
 
 void os_flush(void)
 {
-static int semaphore = 0;
 int ptr, space, lastspace, searching;
 
-	if (TextBufferPtr < 1) return;
-	if (semaphore) return;
-	semaphore = 1;
+	if (TextBufferPtr < 1)
+		return;
 
 	*(TextBuffer+TextBufferPtr) = ' ';
 	ptr = 0;
@@ -101,27 +121,31 @@ int ptr, space, lastspace, searching;
 		searching = 1;
 		while (searching)
 		{
-			while (TextBuffer[space] != ' ') space++;
+			while (TextBuffer[space] != ' ')
+				space++;
 			if (space - ptr + Column > SCREENWIDTH)
 			{
 				space = lastspace;
 				printf("%.*s\n", space - ptr, TextBuffer + ptr);
 				Column = 0;
 				space++;
-				if (TextBuffer[space] == ' ') space++;
+				if (TextBuffer[space] == ' ')
+					space++;
 				TextBufferPtr -= (space - ptr);
 				ptr = space;
 				searching = 0;
 			}
-			else lastspace = space;
+			else
+				lastspace = space;
 			space++;
 		}
 	}
-	printf("%.*s", TextBufferPtr, TextBuffer + ptr);
-	Column += TextBufferPtr;
+	if (TextBufferPtr > 0)
+	{
+		printf("%.*s", TextBufferPtr, TextBuffer + ptr);
+		Column += TextBufferPtr;
+	}
 	TextBufferPtr = 0;
-
-	semaphore = 0;
 }
 
 L9BOOL os_save_file(L9BYTE * Ptr, int Bytes)
@@ -134,9 +158,11 @@ FILE *f;
 	printf("Save file: ");
 	fgets(name, 256, stdin);
 	nl = strchr(name, '\n');
-	if (nl) *nl = 0;
+	if (nl)
+		*nl = 0;
 	f = fopen(name, "wb");
-	if (!f) return FALSE;
+	if (!f)
+		return FALSE;
 	fwrite(Ptr, 1, Bytes, f);
 	fclose(f);
 	return TRUE;
@@ -152,9 +178,11 @@ FILE *f;
 	printf("Load file: ");
 	fgets(name, 256, stdin);
 	nl = strchr(name, '\n');
-	if (nl) *nl = 0;
+	if (nl)
+		*nl = 0;
 	f = fopen(name, "rb");
-	if (!f) return FALSE;
+	if (!f)
+		return FALSE;
 	*Bytes = fread(Ptr, 1, Max, f);
 	fclose(f);
 	return TRUE;
@@ -168,7 +196,8 @@ char *nl;
 	printf("Load next game: ");
 	fgets(NewName, Size, stdin);
 	nl = strchr(NewName, '\n');
-	if (nl) *nl = 0;
+	if (nl)
+		*nl = 0;
 	return TRUE;
 }
 
@@ -182,7 +211,8 @@ int i;
 #else
 	p = strrchr(NewName,'/');
 #endif
-	if (p == NULL) p = NewName;
+	if (p == NULL)
+		p = NewName;
 	for (i = strlen(p)-1; i >= 0; i--)
 	{
 		if (isdigit(p[i]))
@@ -217,12 +247,26 @@ void os_show_bitmap(int pic, int x, int y)
 {
 }
 
+FILE* os_open_script_file(void)
+{
+char name[256];
+char *nl;
+
+	os_flush();
+	printf("Script file: ");
+	fgets(name, 256, stdin);
+	nl = strchr(name, '\n');
+	if (nl)
+		*nl = 0;
+	return fopen(name, "rt");
+}
+
 int main(int argc, char **argv)
 {
 	printf("Level 9 Interpreter\n\n");
 	if (argc != 2)
 	{
-		printf("Syntax: %s <gamefile>\n",argv[0]);
+		printf("Use: %s <gamefile>\n",argv[0]);
 		return 0;
 	}
 	if (!LoadGame(argv[1],NULL))
