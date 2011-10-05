@@ -140,6 +140,8 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserA
 
     if (fileselect)
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), filepath);
+    else if (getenv("GAMES"))
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), getenv("GAMES"));
     else if (getenv("HOME"))
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(filedlog), getenv("HOME"));
 
