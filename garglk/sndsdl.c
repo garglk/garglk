@@ -131,6 +131,12 @@ schanid_t glk_schannel_create(glui32 rock)
     return chan;
 }
 
+schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
+{
+    /* not implemented */
+    return NULL;
+}
+
 static void cleanup_channel(schanid_t chan)
 {
     if (chan->sdl_rwops)
@@ -237,6 +243,13 @@ glui32 glk_schannel_play(schanid_t chan, glui32 snd)
     return glk_schannel_play_ext(chan, snd, 1, 0);
 }
 
+glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
+        glui32 *sndarray, glui32 soundcount, glui32 notify)
+{
+    /* not implemented */
+    return 0;
+}
+
 void glk_sound_load_hint(glui32 snd, glui32 flag)
 {
     /* nop */
@@ -261,6 +274,12 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
             Mix_VolumeMusic(chan->volume);
             break;
     }
+}
+
+void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
+        glui32 duration, glui32 notify)
+{
+    /* not implemented */
 }
 
 /* Notify the music channel completion */
@@ -577,6 +596,16 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     }
 
     return 0;
+}
+
+void glk_schannel_pause(schanid_t chan)
+{
+    /* not implemented */
+}
+
+void glk_schannel_unpause(schanid_t chan)
+{
+    /* not implemented */
 }
 
 void glk_schannel_stop(schanid_t chan)

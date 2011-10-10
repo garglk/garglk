@@ -23,7 +23,7 @@
 #ifndef GLK_H
 #define GLK_H
 
-/* glk.h: Header file for Glk API, version 0.7.1.
+/* glk.h: Header file for Glk API, version 0.7.3.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
@@ -53,6 +53,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_UNICODE_NORM
 #define GLK_MODULE_IMAGE
 #define GLK_MODULE_SOUND
+#define GLK_MODULE_SOUND2
 #define GLK_MODULE_HYPERLINKS
 #define GLK_MODULE_DATETIME
 
@@ -87,6 +88,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_LineTerminators (18)
 #define gestalt_LineTerminatorKey (19)
 #define gestalt_DateTime (20)
+#define gestalt_Sound2 (21)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
@@ -97,6 +99,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define evtype_Redraw (6)
 #define evtype_SoundNotify (7)
 #define evtype_Hyperlink (8)
+#define evtype_VolumeNotify (9)
 
 typedef struct event_struct {
     glui32 type;
@@ -390,6 +393,19 @@ extern void glk_schannel_set_volume(schanid_t chan, glui32 vol);
 
 extern void glk_sound_load_hint(glui32 snd, glui32 flag);
 
+#ifdef GLK_MODULE_SOUND2
+/* Note that this section is nested inside the #ifdef GLK_MODULE_SOUND.
+   GLK_MODULE_SOUND must be defined if GLK_MODULE_SOUND2 is. */
+
+extern schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume);
+extern glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
+    glui32 *sndarray, glui32 soundcount, glui32 notify);
+extern void glk_schannel_pause(schanid_t chan);
+extern void glk_schannel_unpause(schanid_t chan);
+extern void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
+    glui32 duration, glui32 notify);
+
+#endif /* GLK_MODULE_SOUND2 */
 #endif /* GLK_MODULE_SOUND */
 
 #ifdef GLK_MODULE_HYPERLINKS
