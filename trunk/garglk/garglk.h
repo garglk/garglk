@@ -23,7 +23,7 @@
 
 /*
  * Private header file for the Gargoyle Implementation of the Glk API.
- * Glk API which this implements: version 0.7.1.
+ * Glk API which this implements: version 0.7.3.
  * Glk designed by Andrew Plotkin <erkyrath@eblong.com>
  * http://www.eblong.com/zarf/glk/index.html
  */
