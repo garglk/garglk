@@ -61,7 +61,7 @@ int winglk_startup_code(const char* cmdline)
   hResources = winglk_get_resource_handle();
   LoadString(hResources,IDS_GLULXE_TITLE,sWindowTitle,256);
   winglk_window_set_title(sWindowTitle);
-  winglk_set_about_text("Windows Glulxe 0.4.6.139");
+  winglk_set_about_text("Windows Glulxe 0.4.7.139");
 
   /* Set up the help file */
   if (GetModuleFileName(0,sExeName,_MAX_PATH) == 0)

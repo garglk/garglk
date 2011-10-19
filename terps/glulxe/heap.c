@@ -266,7 +266,7 @@ void heap_free(glui32 addr)
 */
 int heap_get_summary(glui32 *valcount, glui32 **summary)
 {
-  glui32 *arr, len, pos, lx;
+  glui32 *arr, len, pos;
   heapblock_t *blo;
 
   *valcount = 0;

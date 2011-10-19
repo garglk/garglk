@@ -35,9 +35,6 @@ static int undo_chain_size = 0;
 static int undo_chain_num = 0;
 unsigned char **undo_chain = NULL;
 
-static glui32 protect_pos = 0;
-static glui32 protect_len = 0;
-
 static glui32 write_memstate(dest_t *dest);
 static glui32 write_heapstate(dest_t *dest, int portable);
 static glui32 write_stackstate(dest_t *dest, int portable);
@@ -810,9 +807,8 @@ static glui32 read_heapstate(dest_t *dest, glui32 chunklen, int portable,
 
 static glui32 write_stackstate(dest_t *dest, int portable)
 {
-  glui32 res, pos;
-  glui32 val, lx;
-  unsigned char ch;
+  glui32 res;
+  glui32 lx;
   glui32 lastframe;
 
   /* If we're storing for the purpose of undo, we don't need to do any
@@ -970,8 +966,7 @@ static glui32 write_stackstate(dest_t *dest, int portable)
 
 static glui32 read_stackstate(dest_t *dest, glui32 chunklen, int portable)
 {
-  glui32 res, pos;
-  unsigned char ch;
+  glui32 res;
   glui32 frameend, frm, frm2, frm3, locpos, frlen, numlocals;
 
   if (chunklen > stacksize)

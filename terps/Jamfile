@@ -204,7 +204,7 @@ if $(MAKE_GEAS) = yes
 
 # -----------------------------------------------------------------------
 #
-# Git 1.2.7
+# Git 1.2.9
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
@@ -227,7 +227,7 @@ if $(MAKE_GIT) = yes
 
 # -----------------------------------------------------------------------
 #
-# Glulxe 0.4.6
+# Glulxe 0.4.7
 #
 
 if $(MAKE_GLULXE) = yes

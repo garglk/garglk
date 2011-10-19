@@ -820,7 +820,7 @@ char *make_temp_string(glui32 addr)
 {
   int ix, len;
   glui32 addr2;
-  char *res, *cx;
+  char *res;
 
   if (Mem1(addr) != 0xE0)
     fatal_error("String argument to a Glk call must be unencoded.");
@@ -849,7 +849,7 @@ glui32 *make_temp_ustring(glui32 addr)
 {
   int ix, len;
   glui32 addr2;
-  glui32 *res, *cx;
+  glui32 *res;
 
   if (Mem1(addr) != 0xE2)
     fatal_error("Ustring argument to a Glk call must be unencoded.");

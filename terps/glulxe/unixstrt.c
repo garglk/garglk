@@ -23,8 +23,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
   int res;
 
 #ifdef GARGLK
-  garglk_set_program_name("Glulxe 0.4.6");
-  garglk_set_program_info("Glulxe 0.4.6 by Andrew Plotkin");
+  garglk_set_program_name("Glulxe 0.4.7");
+  garglk_set_program_info("Glulxe 0.4.7 by Andrew Plotkin");
 #endif
 
   if (data->argc <= 1) {

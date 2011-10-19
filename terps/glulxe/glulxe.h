@@ -254,20 +254,21 @@ extern glui32 perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist);
 extern strid_t find_stream_by_id(glui32 objid);
 
 /* profile.c */
+extern void setup_profile(strid_t stream, char *filename);
 extern int init_profile(void);
 #if VM_PROFILING
 extern glui32 profile_opcount;
 #define profile_tick() (profile_opcount++)
-extern void profile_in(glui32 addr, int accel);
-extern void profile_out(void);
+extern void profile_in(glui32 addr, glui32 stackuse, int accel);
+extern void profile_out(glui32 stackuse);
 extern void profile_fail(char *reason);
 extern void profile_quit(void);
 #else /* VM_PROFILING */
-#define profile_tick()       (0)
-#define profile_in(addr, accel)  (0)
-#define profile_out()        (0)
-#define profile_fail(reason) (0)
-#define profile_quit()       (0)
+#define profile_tick()         (0)
+#define profile_in(addr, stackuse, accel)  (0)
+#define profile_out(stackuse)  (0)
+#define profile_fail(reason)   (0)
+#define profile_quit()         (0)
 #endif /* VM_PROFILING */
 
 /* accel.c */
