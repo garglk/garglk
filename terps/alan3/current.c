@@ -13,7 +13,7 @@
 
 /* PUBLIC DATA */
 CurVars current;
-Bool gameStateChanged = FALSE;
+bool gameStateChanged = FALSE;
 
 
 

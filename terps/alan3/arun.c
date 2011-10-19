@@ -5,6 +5,7 @@
 	Main program for interpreter for ALAN Adventure Language
 
 \*----------------------------------------------------------------------*/
+#include <locale.h>
 
 #include "main.h"
 #include "term.h"
@@ -24,6 +25,7 @@
 #include "glk.h"
 #endif
 #endif
+
 
 #ifdef DMALLOC
 #include "dmalloc.h"
@@ -50,6 +52,9 @@ int main(int argc, char *argv[])
      */
     //dmalloc_debug_setup(getenv("DMALLOC_OPTIONS"));
 #endif
+
+    /* Pick up any locale settings */
+    setlocale(LC_ALL, "");
 
     /* Set up page format in case we get a system error */
     lin = col = 1;

@@ -30,7 +30,7 @@ void copyParameterPositions(ParameterPosition originalParameterPositions[], Para
 
 
 /*======================================================================*/
-Bool equalParameterPositions(ParameterPosition parameterPositions1[], ParameterPosition parameterPositions2[]) {
+bool equalParameterPositions(ParameterPosition parameterPositions1[], ParameterPosition parameterPositions2[]) {
     int i;
     for (i = 0; !parameterPositions1[i].endOfList; i++) {
         if (parameterPositions2[i].endOfList)

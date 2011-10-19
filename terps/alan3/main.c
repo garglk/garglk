@@ -36,12 +36,7 @@
 #include "syntax.h"
 #include "current.h"
 #include "literal.h"
-
-
-#include <time.h>
-#ifdef USE_READLINE
-#include "readline.h"
-#endif
+#include "compatibility.h"
 
 #include "alan.version.h"
 
@@ -76,9 +71,7 @@ VerbEntry *vrbs;		/* Verb table pointer */
   This routine is not used any longer, kept for sentimental reasons ;-)
  
 */
-void checkobj(obj)
-     Aword *obj;
-{
+void checkobj(Aword *obj) {
     Aword oldobj;
 	
     if (*obj != EOF)
@@ -131,6 +124,8 @@ static void runPendingEvents(void)
             printf("):>\n");
         }
         interpret(events[eventQueue[eventQueueTop].event].code);
+        if (isPreBeta2(header->version))
+            evaluateRules();
     }
 	
     for (i = 0; i<eventQueueTop; i++)
@@ -150,7 +145,6 @@ static void runPendingEvents(void)
 static FILE *codfil;
 static char codfnm[256] = "";
 static char txtfnm[256] = "";
-static char logFileName[256] = "";
 
 
 /*----------------------------------------------------------------------*/
@@ -235,8 +229,8 @@ static void checkVersion(ACodeHeader *header)
     */
 	
     char interpreterVersion[4];
-    Bool developmentVersion;
-    Bool alphaVersion;
+    bool developmentVersion;
+    bool alphaVersion;
     int compareLength;
     char gameState = header->version[3];
 	
@@ -286,50 +280,66 @@ static void checkVersion(ACodeHeader *header)
     }
 }
 
+
 /*----------------------------------------------------------------------
   Calculate where the actual memory starts. Might be different for
   different versions.
 */
 static int memoryStart(char version[4]) {
     /* Pre 3.0alpha5 had a shorter header */
-    if (version[3] == 3 && version[2] == 0 && version[0] == 'a' && version[1] <5)
+    if (isPreAlpha5(version))
         return sizeof(Pre3_0alpha5Header)/sizeof(Aword);
+    else if (isPreBeta2(version))
+        return sizeof(Pre3_0beta2Header)/sizeof(Aword);
     else
         return sizeof(ACodeHeader)/sizeof(Aword);
 }
 
 
+/*----------------------------------------------------------------------*/
+static void readTemporaryHeader(ACodeHeader *tmphdr) {
+    rewind(codfil);
+    fread(tmphdr, sizeof(*tmphdr), 1, codfil);
+    rewind(codfil);
+    if (strncmp((char *)tmphdr, "ALAN", 4) != 0)
+        playererr("Not an Alan game file, does not start with \"ALAN\"");
+}
+
 
 /*----------------------------------------------------------------------*/
-static void load(void)
-{
-    ACodeHeader tmphdr;
-    Aword crc = 0;
+static void reverseMemory() {
+    if (littleEndian()) {
+        if (debugOption||sectionTraceOption||singleStepOption)
+            output("<Hmm, this is a little-endian machine, fixing byte ordering....");
+        reverseACD();			/* Reverse content of the ACD file */
+        if (debugOption||sectionTraceOption||singleStepOption)
+            output("OK.>$n");
+    }
+}
+
+
+/*----------------------------------------------------------------------*/
+static void setupHeader(ACodeHeader tmphdr) {
+    if (!isPreBeta2(tmphdr.version))
+        header = (ACodeHeader *) pointerTo(0);
+    else {
+        header = duplicate(&memory[0], sizeof(ACodeHeader));
+        if (isPreAlpha5(tmphdr.version)) {
+	    header->ifids = 0;
+        }
+        header->prompt = 0;
+    }        
+}
+
+
+/*----------------------------------------------------------------------*/
+static void loadAndCheckMemory(ACodeHeader tmphdr, Aword crc, char err[]) {
     int i;
-    char err[100];
-	
-    rewind(codfil);
-    fread(&tmphdr, sizeof(tmphdr), 1, codfil);
-    rewind(codfil);
-    if (strncmp((char *)&tmphdr, "ALAN", 4) != 0)
-        playererr("Not an Alan game file, does not start with \"ALAN\"");
-	
-    checkVersion(&tmphdr);
-	
-    /* Allocate and load memory */
-	
-    if (littleEndian())
-        reverseHdr(&tmphdr);
-	
-    if (tmphdr.size <= sizeof(ACodeHeader)/sizeof(Aword))
-        syserr("Malformed game file. Too small.");
-	
     /* No memory allocated yet? */
     if (memory == NULL) {
         memory = allocate(tmphdr.size*sizeof(Aword));
     }
-    header = (ACodeHeader *) pointerTo(0);
-	
+
     memTop = fread(pointerTo(0), sizeof(Aword), tmphdr.size, codfil);
     if (memTop != tmphdr.size)
         syserr("Could not read all ACD code.");
@@ -355,14 +365,32 @@ static void load(void)
             output("$$ Ignored, proceed at your own risk.>$n");
         }
     }
+}
+
+
+/*----------------------------------------------------------------------*/
+static void load(void)
+{
+    ACodeHeader tmphdr;
+    Aword crc = 0;
+    char err[100];
 	
-    if (littleEndian()) {
-        if (debugOption||sectionTraceOption||singleStepOption)
-            output("<Hmm, this is a little-endian machine, fixing byte ordering....");
-        reverseACD();			/* Reverse content of the ACD file */
-        if (debugOption||sectionTraceOption||singleStepOption)
-            output("OK.>$n");
-    }
+    readTemporaryHeader(&tmphdr);
+    checkVersion(&tmphdr);
+	
+    /* Allocate and load memory */
+	
+    if (littleEndian())
+        reverseHdr(&tmphdr);
+	
+    if (tmphdr.size <= sizeof(ACodeHeader)/sizeof(Aword))
+        syserr("Malformed game file. Too small.");
+	
+    loadAndCheckMemory(tmphdr, crc, err);
+
+    reverseMemory();
+    setupHeader(tmphdr);
+
 }
 
 
@@ -372,7 +400,7 @@ static void checkDebug(void)
     /* Make sure he can't debug if not allowed! */
     if (!header->debug) {
         if (debugOption|sectionTraceOption|singleStepOption) {
-            printf("<Sorry, '%s' is not compiled for debug!>\n", adventureFileName);
+            printf("<Sorry, '%s' is not compiled for debug! Exiting.>\n", adventureFileName);
             terminate(0);
         }
         para();
@@ -437,9 +465,9 @@ static void initStaticData(void)
 	
     stxs = (SyntaxEntry *) pointerTo(header->syntaxTableAddress);
     vrbs = (VerbEntry *) pointerTo(header->verbTableAddress);
-    ruls = (RuleEntry *) pointerTo(header->ruleTableAddress);
     msgs = (MessageEntry *) pointerTo(header->messageTableAddress);
-	
+    initRules();
+
     if (header->pack)
         freq = (Aword *) pointerTo(header->freq);
 }
@@ -489,7 +517,7 @@ static AttributeEntry *initializeAttributes(int awordSize)
         while (!isEndOfArray(originalAttribute)) {
             ((AttributeEntry *)currentAttributeArea)->code = originalAttribute->code;
             ((AttributeEntry *)currentAttributeArea)->value = originalAttribute->value;
-            ((AttributeEntry *)currentAttributeArea)->stringAddress = originalAttribute->stringAddress;
+            ((AttributeEntry *)currentAttributeArea)->id = originalAttribute->id;
             currentAttributeArea += AwordSizeOf(AttributeEntry);
             originalAttribute++;
         }
@@ -572,17 +600,14 @@ static void start(void)
 
     if (where(HERO, FALSE) == startloc)
         look();
-    rules();
+    evaluateRules();
 }
-
 
 
 /*----------------------------------------------------------------------*/
 static void openFiles(void)
 {
     char str[256];
-    char *usr = "";
-    time_t tick;
 	
     /* Open Acode file */
     strcpy(codfnm, adventureFileName);
@@ -604,19 +629,7 @@ static void openFiles(void)
 	
     /* If logging open log file */
     if (transcriptOption || logOption) {
-        time(&tick);
-        sprintf(logFileName, "%s%d%s.log", adventureName, (int)tick, usr);
-#ifdef HAVE_GLK
-        glui32 fileUsage = transcriptOption?fileusage_Transcript:fileusage_InputRecord;
-        frefid_t logFileRef = glk_fileref_create_by_name(fileUsage, logFileName, 0);
-        logFile = glk_stream_open_file(logFileRef, filemode_Write, 0);
-#else
-        logFile = fopen(logFileName, "w");
-#endif
-        if (logFile == NULL) {
-            transcriptOption = FALSE;
-            logOption = FALSE;
-        }
+        startTranscript();
     }
 }
 
@@ -670,7 +683,7 @@ static void init(void)
 
 
 /*----------------------------------------------------------------------*/
-static Bool traceActor(int theActor)
+static bool traceActor(int theActor)
 {
     if (sectionTraceOption) {
         printf("\n<ACTOR ");
@@ -696,7 +709,7 @@ static char *scriptName(int theActor, int theScript)
         scriptEntry++;
         theScript--;
     }
-    return pointerTo(scriptEntry->stringAddress);
+    return pointerTo(scriptEntry->id);
 }
 
 
@@ -728,8 +741,8 @@ static void moveActor(int theActor)
                     if (traceActor(theActor))
                         printf(", SCRIPT %s[%ld], STEP %ld, Waiting another %ld turns>\n",
                                scriptName(theActor, admin[theActor].script),
-                               admin[theActor].script, admin[theActor].step+1,
-                               admin[theActor].waitCount);
+                               (long)admin[theActor].script, (long)admin[theActor].step+1,
+                               (long)admin[theActor].waitCount);
                     admin[theActor].waitCount--;
                     break;
                 }
@@ -738,7 +751,7 @@ static void moveActor(int theActor)
                     if (traceActor(theActor))
                         printf(", SCRIPT %s[%ld], STEP %ld, Evaluating:>\n",
                                scriptName(theActor, admin[theActor].script),
-                               admin[theActor].script, admin[theActor].step+1);
+                               (long)admin[theActor].script, (long)admin[theActor].step+1);
                     if (!evaluate(step->exp))
                         break;		/* Break loop, don't execute step*/
                 }
@@ -750,8 +763,8 @@ static void moveActor(int theActor)
                 if (traceActor(theActor))
                     printf(", SCRIPT %s[%ld], STEP %ld, Executing:>\n",
                            scriptName(theActor, admin[theActor].script),
-                           admin[theActor].script,
-                           admin[theActor].step);
+                           (long)admin[theActor].script,
+                           (long)admin[theActor].step);
                 interpret(step->stms);
                 step++;
                 /* ... so that we can see if he is USEing another script now */
@@ -780,8 +793,8 @@ static void moveActor(int theActor)
 void run(void)
 {
     int i;
-    Bool playerChangedState;
-    Stack theStack = NULL;
+    bool playerChangedState;
+    static Stack theStack = NULL; /* Needs to survive longjmp() */
 	
     openFiles();
     load();			/* Load program */
@@ -795,14 +808,15 @@ void run(void)
 	
     initStateStack();
 	
-    if (!ERROR_RETURNED)   /* Can happen in start section to... */
-        init();			   /* Initialise and start the adventure */
+    if (!ERROR_RETURNED)      /* Can happen in start section to... */
+        init();               /* Initialise and start the adventure */
 	
     while (TRUE) {
         if (debugOption)
             debug(FALSE, 0, 0);
 		
         runPendingEvents();
+
         current.tick++;
 		
         /* Return here if error during execution */
@@ -810,7 +824,6 @@ void run(void)
         case NO_JUMP_RETURN:
             break;
         case ERROR_RETURN:
-            //printf("ERROR_RETURN\n");
             forgetGameState();
             forceNewPlayerInput();
             break;
@@ -840,11 +853,11 @@ void run(void)
         else
             forgetGameState();
 		
-        rules();
+        evaluateRules();
         for (i = 1; i <= header->instanceMax; i++)
             if (i != header->theHero && isActor(i)) {
                 moveActor(i);
-                rules();
+                evaluateRules();
             }
     }
 #ifdef SMARTALLOC

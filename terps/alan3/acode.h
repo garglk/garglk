@@ -7,14 +7,14 @@
 #include <limits.h>
 #include <stddef.h>
 
-typedef size_t Aptr;            /* type for an ACODE memory address */
+typedef size_t Aptr;               /* Type for an ACODE memory address */
 
 #if INT_MAX==0x7fffffff
 typedef unsigned int Aword;        /* Type for an ACODE word */
 typedef unsigned int Aaddr;        /* Type for an ACODE address */
 typedef unsigned int Abool;        /* Type for an ACODE Boolean value */
 typedef signed   int Aint;         /* Type for an ACODE Integer value */
-typedef signed   int InstanceId;   /* Type for an ACODE Instance Id value */
+typedef signed   int Aid;          /* Type for an ACODE Instance Id value */
 typedef signed   int Aset;         /* Type for an ACODE Set value */
 typedef int CodeValue;             /* Definition for the packing process */
 #elif LONG_MAX==0x7fffffff
@@ -22,7 +22,7 @@ typedef unsigned long Aword;       /* Type for an ACODE word */
 typedef unsigned long Aaddr;       /* Type for an ACODE address */
 typedef unsigned long Abool;       /* Type for an ACODE Boolean value */
 typedef signed   long Aint;        /* Type for an ACODE Integer value */
-typedef signed   long InstanceId;  /* Type for an ACODE Instance Id value */
+typedef signed   long Aid;         /* Type for an ACODE Instance Id value */
 typedef signed   long Aset;        /* Type for an ACODE Integer value */
 typedef signed   long CodeValue;   /* Definition for the packing process */
 #else
@@ -105,167 +105,168 @@ typedef int WrdKind;
 
 /* Parameter Classes */
 typedef enum ClaKind {		/* NOTE! These must have the same order as */
-  CLA_OBJ = 1,			/* the name classes in NAM.H */
-  CLA_CNT = (int)CLA_OBJ<<1,
-  CLA_ACT = (int)CLA_CNT<<1,
-  CLA_NUM = (int)CLA_ACT<<1,
-  CLA_STR = (int)CLA_NUM<<1,
-  CLA_COBJ = (int)CLA_STR<<1,
-  CLA_CACT = (int)CLA_COBJ<<1
+    CLA_OBJ = 1,			/* the name classes in NAM.H */
+    CLA_CNT = (int)CLA_OBJ<<1,
+    CLA_ACT = (int)CLA_CNT<<1,
+    CLA_NUM = (int)CLA_ACT<<1,
+    CLA_STR = (int)CLA_NUM<<1,
+    CLA_COBJ = (int)CLA_STR<<1,
+    CLA_CACT = (int)CLA_COBJ<<1
 } ClaKind;
 
 
 /* Verb Qualifiers */
 typedef enum QualClass {
-  Q_DEFAULT,
-  Q_AFTER,
-  Q_BEFORE,
-  Q_ONLY
+    Q_DEFAULT,
+    Q_AFTER,
+    Q_BEFORE,
+    Q_ONLY
 } QualClass;
 
 
 /* The AMACHINE Operations */
 typedef enum OpClass {
-  C_CONST,
-  C_STMOP,
-  C_CURVAR
+    C_CONST,
+    C_STMOP,
+    C_CURVAR
 } OpClass;
 
 /* AMACHINE Text Styles */
 typedef enum TextStyle {
-  NORMAL_STYLE,
-  EMPHASIZED_STYLE,
-  PREFORMATTED_STYLE,
-  ALERT_STYLE,
-  QUOTE_STYLE
+    NORMAL_STYLE,
+    EMPHASIZED_STYLE,
+    PREFORMATTED_STYLE,
+    ALERT_STYLE,
+    QUOTE_STYLE
 } TextStyle;
 
 #define INSTRUCTION(op) ((((Aword)C_STMOP)<<28)|((Aword)op))
 #define CURVAR(op) ((((Aword)C_CURVAR)<<28)|((Aword)op))
 typedef enum InstClass {
-  I_LINE,			/* Source line debug info */
-  I_PRINT,			/* Print a string from the text file */
-  I_STYLE,			/* Set output text style */
-  I_QUIT,
-  I_LOOK,
-  I_SAVE,
-  I_RESTORE,
-  I_LIST,			/* List contents of a container */
-  I_EMPTY,
-  I_SCORE,
-  I_VISITS,
-  I_SCHEDULE,
-  I_CANCEL,
-  I_LOCATE,
-  I_MAKE,			/* Set a boolean attribute to the */
+    I_LINE,			/* Source line debug info */
+    I_PRINT,			/* Print a string from the text file */
+    I_STYLE,			/* Set output text style */
+    I_QUIT,
+    I_LOOK,
+    I_SAVE,
+    I_RESTORE,
+    I_LIST,			/* List contents of a container */
+    I_EMPTY,
+    I_SCORE,
+    I_VISITS,
+    I_SCHEDULE,
+    I_CANCEL,
+    I_LOCATE,
+    I_MAKE,			/* Set a boolean attribute to the */
 				/* value on top of stack */
-  I_SET,			/* Set a numeric attribute to the */
+    I_SET,			/* Set a numeric attribute to the */
 				/* value on top of stack */
-  I_SETSTR,			/* Set a string valued attribute to */
+    I_SETSTR,			/* Set a string valued attribute to */
 				/* the string on top of stack, */
 				/* deallocate current contents first */
-  I_SETSET,			/* Set a Set valued attribute to */
+    I_SETSET,			/* Set a Set valued attribute to */
 				/* the Set on top of stack, */
 				/* deallocate current contents first */
-  I_NEWSET,			/* Push a new, empty set at the top of stack */
-  I_ATTRIBUTE,			/* Push the value of an attribute */
-  I_ATTRSTR,			/* Push a copy of a string attribute */
-  I_ATTRSET,			/* Push a copy of a set attribute */
-  I_UNION,			/* Add a set from the top of stack to a
+    I_NEWSET,			/* Push a new, empty set at the top of stack */
+    I_ATTRIBUTE,			/* Push the value of an attribute */
+    I_ATTRSTR,			/* Push a copy of a string attribute */
+    I_ATTRSET,			/* Push a copy of a set attribute */
+    I_UNION,			/* Add a set from the top of stack to a
 				   set valued attribute */
-  I_GETSTR,			/* Get a string contents from text */
+    I_GETSTR,			/* Get a string contents from text */
 				/* file, create a copy and push it */
 				/* on top of stack */
-  I_INCR,			/* Increase an attribute */
-  I_DECR,			/* Decrease a numeric attribute */
-  I_INCLUDE,			/* Include a value in the set on stack top */
-  I_EXCLUDE,			/* Remove a value from the set on stack top */
-  I_SETSIZE,			/* Push number of members in a set */
-  I_SETMEMB,			/* Push the member with index <top>-1
+    I_INCR,			/* Increase an attribute */
+    I_DECR,			/* Decrease a numeric attribute */
+    I_INCLUDE,			/* Include a value in the set on stack top */
+    I_EXCLUDE,			/* Remove a value from the set on stack top */
+    I_SETSIZE,			/* Push number of members in a set */
+    I_SETMEMB,			/* Push the member with index <top>-1
 				   from set <top> */
-  I_CONTSIZE,			/* Push number of members in a container */
-  I_CONTMEMB,			/* Push the member with index <top>-1
+    I_CONTSIZE,			/* Push number of members in a container */
+    I_CONTMEMB,			/* Push the member with index <top>-1
 				   from container <top> */
-  I_USE,
-  I_STOP,
-  I_AT,
-  I_IN,
-  I_INSET,
-  I_HERE,
-  I_NEARBY,
-  I_NEAR,
-  I_WHERE,			/* Current position of an instance */
-  I_LOCATION,			/* The *location* an instance is at */
-  I_DESCRIBE,
-  I_SAY,
-  I_SAYINT,
-  I_SAYSTR,
-  I_IF,
-  I_ELSE,
-  I_ENDIF,
-  I_AND,
-  I_OR,
-  I_NE,
-  I_EQ,
-  I_STREQ,			/* String compare */
-  I_STREXACT,			/* Exact match */
-  I_LE,
-  I_GE,
-  I_LT,
-  I_GT,
-  I_PLUS,
-  I_MINUS,
-  I_MULT,
-  I_DIV,
-  I_NOT,
-  I_UMINUS,
-  I_RND,
-  I_RETURN,
-  I_SYSTEM,
-  I_RESTART,
-  I_BTW,
-  I_CONTAINS,
-  I_DUP,
-  I_DEPEND,
-  I_DEPCASE,
-  I_DEPEXEC,
-  I_DEPELSE,
-  I_ENDDEP,
-  I_ISA,
-  I_FRAME,
-  I_SETLOCAL,
-  I_GETLOCAL,
-  I_ENDFRAME,
-  I_LOOP,
-  I_LOOPNEXT,
-  I_LOOPEND,
-  I_SUM,			/* Aggregates */
-  I_MAX,
-  I_MIN,
-  I_COUNT,			/* COUNT aggregate & limit meta-attribute */
-  I_SHOW,
-  I_PLAY,
-  I_CONCAT,
-  I_STRIP,
-  I_POP
+    I_USE,
+    I_STOP,
+    I_AT,
+    I_IN,
+    I_INSET,
+    I_HERE,
+    I_NEARBY,
+    I_NEAR,
+    I_WHERE,			/* Current position of an instance */
+    I_LOCATION,			/* The *location* an instance is at */
+    I_DESCRIBE,
+    I_SAY,
+    I_SAYINT,
+    I_SAYSTR,
+    I_IF,
+    I_ELSE,
+    I_ENDIF,
+    I_AND,
+    I_OR,
+    I_NE,
+    I_EQ,
+    I_STREQ,			/* String compare */
+    I_STREXACT,			/* Exact match */
+    I_LE,
+    I_GE,
+    I_LT,
+    I_GT,
+    I_PLUS,
+    I_MINUS,
+    I_MULT,
+    I_DIV,
+    I_NOT,
+    I_UMINUS,
+    I_RND,
+    I_RETURN,
+    I_SYSTEM,
+    I_RESTART,
+    I_BTW,
+    I_CONTAINS,
+    I_DUP,
+    I_DEPEND,
+    I_DEPCASE,
+    I_DEPEXEC,
+    I_DEPELSE,
+    I_ENDDEP,
+    I_ISA,
+    I_FRAME,
+    I_SETLOCAL,
+    I_GETLOCAL,
+    I_ENDFRAME,
+    I_LOOP,
+    I_LOOPNEXT,
+    I_LOOPEND,
+    I_SUM,			/* Aggregates */
+    I_MAX,
+    I_MIN,
+    I_COUNT,			/* COUNT aggregate & limit meta-attribute */
+    I_SHOW,
+    I_PLAY,
+    I_CONCAT,
+    I_STRIP,
+    I_POP,
+	I_TRANSCRIPT
 } InstClass;
 
 typedef enum SayForm {
-  SAY_SIMPLE,
-  SAY_DEFINITE,
-  SAY_INDEFINITE,
-  SAY_NEGATIVE,
-  SAY_PRONOUN
+    SAY_SIMPLE,
+    SAY_DEFINITE,
+    SAY_INDEFINITE,
+    SAY_NEGATIVE,
+    SAY_PRONOUN
 } SayForm;
 
 typedef enum VarClass {
-  V_PARAM,
-  V_CURLOC,
-  V_CURACT,
-  V_CURVRB,
-  V_SCORE,
-  V_CURRENT_INSTANCE,
-  V_MAX_INSTANCE
+    V_PARAM,
+    V_CURLOC,
+    V_CURACT,
+    V_CURVRB,
+    V_SCORE,
+    V_CURRENT_INSTANCE,
+    V_MAX_INSTANCE
 } VarClass;
 
 #define OPAQUEATTRIBUTE 1
@@ -281,69 +282,69 @@ typedef enum VarClass {
 #define AwordSizeOf(x) (sizeof(x)/sizeof(Aword))
 
 typedef struct ArticleEntry {
-  Aaddr address;		/* Address of article code */
-  Abool isForm;			/* Is the article a complete form? */
+    Aaddr address;		/* Address of article code */
+    Abool isForm;			/* Is the article a complete form? */
 } ArticleEntry;
 
 typedef struct ClassEntry {	/* CLASS TABLE */
-  Aword code;			/* Own code */
-  Aaddr id;			/* Address to identifier string */
-  Aint parent;			/* Code for the parent class, 0 if none */
-  Aaddr name;			/* Address to name printing code */
-  Aint pronoun;			/* Code for the pronoun word */
-  Aaddr initialize;		/* Address to initialization statements */
-  Aaddr descriptionChecks;	/* Address of description checks */
-  Aaddr description;		/* Address of description code */
-  ArticleEntry definite;	/* Definite article entry */
-  ArticleEntry indefinite;	/* Indefinite article entry */
-  ArticleEntry negative;	/* Negative article entry */
-  Aaddr mentioned;		/* Address of code for Mentioned clause */
-  Aaddr verbs;			/* Address of verb table */
-  Aaddr entered;		/* Address of code for Entered clause */
+    Aword code;			/* Own code */
+    Aaddr id;			/* Address to identifier string */
+    Aint parent;		/* Code for the parent class, 0 if none */
+    Aaddr name;			/* Address to name printing code */
+    Aint pronoun;		/* Code for the pronoun word */
+    Aaddr initialize;		/* Address to initialization statements */
+    Aaddr descriptionChecks;	/* Address of description checks */
+    Aaddr description;		/* Address of description code */
+    ArticleEntry definite;	/* Definite article entry */
+    ArticleEntry indefinite;	/* Indefinite article entry */
+    ArticleEntry negative;	/* Negative article entry */
+    Aaddr mentioned;		/* Address of code for Mentioned clause */
+    Aaddr verbs;		/* Address of verb table */
+    Aaddr entered;		/* Address of code for Entered clause */
 } ClassEntry;
 
 typedef struct InstanceEntry {	/* INSTANCE TABLE */
-  Aint code;			/* Own code */
-  Aaddr id;			/* Address to identifier string */
-  Aint parent;			/* Code for the parent class, 0 if none */
-  Aaddr name;			/* Address to name printing code */
-  Aint pronoun;			/* Word code for the pronoun */
-  Aint initialLocation;		/* Code for current location */
-  Aaddr initialize;		/* Address to initialization statements */
-  Aint container;		/* Code for a possible container property */
-  Aaddr initialAttributes;	/* Address of attribute list */
-  Aaddr checks;			/* Address of description checks */
-  Aaddr description;		/* Address of description code */
-  ArticleEntry definite;	/* Definite article entry */
-  ArticleEntry indefinite;	/* Indefinite article entry */
-  ArticleEntry negative;	/* Negative article entry */
-  Aaddr mentioned;		/* Address to short description code */
-  Aaddr verbs;			/* Address of local verb list */
-  Aaddr entered;		/* Address of entered code (location only) */
-  Aaddr exits;			/* Address of exit list */
+    Aint code;			/* Own code */
+    Aaddr id;			/* Address to identifier string */
+    Aint parent;		/* Code for the parent class, 0 if none */
+    Aaddr name;			/* Address to name printing code */
+    Aint pronoun;		/* Word code for the pronoun */
+    Aint initialLocation;	/* Code for current location */
+    Aaddr initialize;		/* Address to initialization statements */
+    Aint container;		/* Code for a possible container property */
+    Aaddr initialAttributes;	/* Address of attribute list */
+    Aaddr checks;		/* Address of description checks */
+    Aaddr description;		/* Address of description code */
+    ArticleEntry definite;	/* Definite article entry */
+    ArticleEntry indefinite;	/* Indefinite article entry */
+    ArticleEntry negative;	/* Negative article entry */
+    Aaddr mentioned;		/* Address to short description code */
+    Aaddr verbs;		/* Address of local verb list */
+    Aaddr entered;		/* Address of entered code (location only) */
+    Aaddr exits;		/* Address of exit list */
 } InstanceEntry;
 
 typedef struct AttributeEntry {	/* ATTRIBUTE LIST */
-  Aint code;			/* Its code */
-  Aptr value;			/* Its value, a string has a dynamic
-				   string pointer, a set has a pointer
-				   to a dynamically allocated set */
-  Aaddr stringAddress;		/* Address to the name */
+    Aint code;			/* Its code */
+    Aptr value;			/* Its value, a string has a dynamic
+                                   string pointer, a set has a pointer
+                                   to a dynamically allocated set */
+    Aaddr id;                   /* Address to the name */
 } AttributeEntry;
 
 typedef struct AttributeHeaderEntry {	/* ATTRIBUTE LIST in header */
-  Aint code;			/* Its code */
-  Aword value;			/* Its value, a string has a dynamic
-				   string pointer, a set has a pointer
-				   to a dynamically allocated set */
-  Aaddr stringAddress;		/* Address to the name */
+    Aint code;			/* Its code */
+    Aword value;		/* Its value, a string has a dynamic
+                                   string pointer, a set has a pointer
+                                   to a dynamically allocated set */
+    Aaddr id;                   /* Address to the name */
 } AttributeHeaderEntry;
 
 typedef struct ExitEntry {	/* EXIT TABLE structure */
-  Aword code;			/* Direction code */
-  Aaddr checks;			/* Address of check table */
-  Aaddr action;			/* Address of action code */
-  Aword target;			/* Id for the target location */
+    Aword code;			/* Direction code */
+    Aaddr checks;		/* Address of check table */
+    Aaddr action;		/* Address of action code */
+    Aword target;		/* Id for the target location */
 } ExitEntry;
 
 
@@ -352,96 +353,102 @@ typedef struct ExitEntry {	/* EXIT TABLE structure */
 #define RESTRICTIONCLASS_STRING (-4)
 
 typedef struct RestrictionEntry { /* PARAMETER RESTRICTION TABLE */
-  Aint parameterNumber;		/* Parameter number */
-  Aint class;			/* Parameter class code */
-  Aaddr stms;			/* Exception statements */
+    Aint parameterNumber;	/* Parameter number */
+    Aint class;			/* Parameter class code */
+    Aaddr stms;			/* Exception statements */
 } RestrictionEntry;
 
 typedef struct ContainerEntry {	/* CONTAINER TABLE */
-  Aword owner;			/* Owner instance index */
-  Aint class;			/* Class to allow in container */
-  Aaddr limits;			/* Address to limit check code */
-  Aaddr header;			/* Address to header code */
-  Aaddr empty;			/* Address to code for header when empty */
-  Aaddr extractChecks;		/* Address to check before extracting */
-  Aaddr extractStatements;	/* Address to execute when extracting */
+    Aword owner;		/* Owner instance index */
+    Aint class;			/* Class to allow in container */
+    Aaddr limits;		/* Address to limit check code */
+    Aaddr header;		/* Address to header code */
+    Aaddr empty;		/* Address to code for header when empty */
+    Aaddr extractChecks;	/* Address to check before extracting */
+    Aaddr extractStatements;	/* Address to execute when extracting */
 } ContainerEntry;
 
 
 typedef struct ElementEntry {	/* SYNTAX ELEMENT TABLES */
-  Aint code;			/* Code for this element, 0 -> parameter */
-  Aword flags;			/* Flags for multiple/omni (if parameter) */
-  Aaddr next;			/* Address to next element table ... */
+    Aint code;			/* Code for this element, 0 -> parameter */
+    Aword flags;		/* Flags for multiple/omni (if parameter) */
+    Aaddr next;			/* Address to next element table ... */
 				/* ... or restrictions if code == EOS */
 } ElementEntry;
 
+typedef struct SyntaxEntryPreBeta2 {	/* SYNTAX TABLE */
+    Aint code;			/* Code for verb word */
+    Aaddr elms;			/* Address to element tables */
+} SyntaxEntryPreBeta2;
+
 typedef struct SyntaxEntry {	/* SYNTAX TABLE */
-  Aint code;			/* Code for verb word */
-  Aaddr elms;			/* Address to element tables */
+    Aint code;          /* Code for verb word, or 0 if starting with parameter */
+    Aaddr elms;			/* Address to element tables */
+    Aaddr parameterNameTable;	/* Address to a table of id-addresses giving the names of the parameters */
 } SyntaxEntry;
 
 typedef struct ParameterMapEntry {	/* PARAMETER MAPPING TABLE */
-  Aint syntaxNumber;
-  Aaddr parameterMapping;
-  Aint verbCode;
+    Aint syntaxNumber;
+    Aaddr parameterMapping;
+    Aint verbCode;
 } ParameterMapEntry;
 
 typedef struct EventEntry {	/* EVENT TABLE */
-  Aaddr stringAddress;		/* Address to name string */
-  Aaddr code;
+    Aaddr id;                   /* Address to name string */
+    Aaddr code;
 } EventEntry;
 
 typedef struct ScriptEntry {	/* SCRIPT TABLE */
-  Aaddr stringAddress;		/* Address to name string */
-  Aint code;			/* Script number */
-  Aaddr description;		/* Optional description statements */
-  Aaddr steps;			/* Address to steps */
+    Aaddr id;                   /* Address to name string */
+    Aint code;			/* Script number */
+    Aaddr description;		/* Optional description statements */
+    Aaddr steps;		/* Address to steps */
 } ScriptEntry;
 
 typedef struct StepEntry {	/* STEP TABLE */
-  Aaddr after;			/* Expression to say after how many ticks? */
-  Aaddr exp;			/* Expression to condition saying when */
-  Aaddr stms;			/* Address to the actual code */
+    Aaddr after;		/* Expression to say after how many ticks? */
+    Aaddr exp;			/* Expression to condition saying when */
+    Aaddr stms;			/* Address to the actual code */
 } StepEntry;
 
 typedef struct AltEntry {	/* VERB ALTERNATIVE TABLE */
-  Aword qual;			/* Verb execution qualifier */
-  Aint param;			/* Parameter number */
-  Aaddr checks;			/* Address of the check table */
-  Aaddr action;			/* Address of the action code */
+    Aword qual;			/* Verb execution qualifier */
+    Aint param;			/* Parameter number */
+    Aaddr checks;		/* Address of the check table */
+    Aaddr action;		/* Address of the action code */
 } AltEntry;
 
 typedef struct SourceFileEntry { /* SOURCE FILE NAME TABLE */
-  Aint fpos;
-  Aint len;
+    Aint fpos;
+    Aint len;
 } SourceFileEntry;
 
 typedef struct SourceLineEntry { /* SOURCE LINE TABLE */
-  Aint file;
-  Aint line;
+    Aint file;
+    Aint line;
 } SourceLineEntry;
 
 typedef struct StringInitEntry { /* STRING INITIALISATION TABLE */
-  Aword fpos;			/* File position */
-  Aword len;			/* Length */
-  Aint instanceCode;		/* Where to store it */
-  Aint attributeCode;
+    Aword fpos;			/* File position */
+    Aword len;			/* Length */
+    Aint instanceCode;		/* Where to store it */
+    Aint attributeCode;
 } StringInitEntry;
 
 typedef struct SetInitEntry {	/* SET INITIALISATION TABLE */
-  Aint size;			/* Size of the initial set */
-  Aword setAddress;		/* Address to the initial set */
-  Aint instanceCode;		/* Where to store it */
-  Aint attributeCode;
+    Aint size;			/* Size of the initial set */
+    Aword setAddress;		/* Address to the initial set */
+    Aint instanceCode;		/* Where to store it */
+    Aint attributeCode;
 } SetInitEntry;
 
 typedef struct DictionaryEntry { /* Dictionary */
-  Aaddr string;			/* ACODE address to string */
-  Aword classBits;		/* Word class */
-  Aword code;
-  Aaddr adjectiveRefs;		/* Address to reference list */
-  Aaddr nounRefs;		/* Address to reference list */
-  Aaddr pronounRefs;		/* Address to reference list */
+    Aaddr string;		/* ACODE address to string */
+    Aword classBits;		/* Word class */
+    Aword code;
+    Aaddr adjectiveRefs;	/* Address to reference list */
+    Aaddr nounRefs;		/* Address to reference list */
+    Aaddr pronounRefs;		/* Address to reference list */
 } DictionaryEntry;
 
 
@@ -449,162 +456,220 @@ typedef struct DictionaryEntry { /* Dictionary */
 /* AMACHINE Header */
 
 typedef struct ACodeHeader {
-/* Important info */
-  char tag[4];			/* "ALAN" */
-  char version[4];		/* Version of compiler */
-  Aword uid;			/* Unique id of the compiled game */
-  Aword size;			/* Size of ACD-file in Awords */
-/* Options */
-  Abool pack;			/* Is the text packed ? */
-  Aword stringOffset;		/* Offset to string data in game file */
-  Aword pageLength;		/* Length of a page */
-  Aword pageWidth;		/* and width */
-  Aword debug;			/* Option: debug */
-/* Data structures */
-  Aaddr classTableAddress;	/* Class table */
-  Aword classMax;		/* Number of classes */
-  Aword entityClassId;
-  Aword thingClassId;
-  Aword objectClassId;
-  Aword locationClassId;
-  Aword actorClassId;
-  Aword literalClassId;
-  Aword integerClassId;
-  Aword stringClassId;
-  Aaddr instanceTableAddress;	/* Instance table */
-  Aword instanceMax;		/* Highest number of an instance */
-  Aword theHero;		/* The hero instance code (id) */
-  Aaddr containerTableAddress;
-  Aword containerMax;
-  Aaddr scriptTableAddress;
-  Aword scriptMax;
-  Aaddr eventTableAddress;
-  Aword eventMax;
-  Aaddr syntaxTableAddress;
-  Aaddr parameterMapAddress;
-  Aword syntaxMax;
-  Aaddr dictionary;
-  Aaddr verbTableAddress;
-  Aaddr ruleTableAddress;
-  Aaddr messageTableAddress;
-/* Miscellaneous */
-  Aint attributesAreaSize;	/* Size of attribute data area in Awords */
-  Aint maxParameters;		/* Maximum number of parameters in any syntax */
-  Aaddr stringInitTable;	/* String init table address */
-  Aaddr setInitTable;		/* Set init table address */
-  Aaddr start;			/* Address to Start code */
-  Aword maximumScore;		/* Maximum score */
-  Aaddr scores;			/* Score table */
-  Aint scoreCount;		/* Max index into scores table */
-  Aaddr sourceFileTable;	/* Table of fpos/len for source filenames */
-  Aaddr sourceLineTable;	/* Table of available source lines to break on */
-  Aaddr freq;			/* Address to Char freq's for coding */
-  Aword acdcrc;			/* Checksum for acd code (excl. hdr) */
-  Aword txtcrc;			/* Checksum for text data file */
-  Aaddr ifids;			/* Address to IFIDS */
+    /* Important info */
+    char tag[4];		/* "ALAN" */
+    char version[4];		/* Version of compiler */
+    Aword uid;			/* Unique id of the compiled game */
+    Aword size;			/* Size of ACD-file in Awords */
+    /* Options */
+    Abool pack;			/* Is the text packed ? */
+    Aword stringOffset;		/* Offset to string data in game file */
+    Aword pageLength;		/* Length of a page */
+    Aword pageWidth;		/* and width */
+    Aword debug;		/* Option: debug */
+    /* Data structures */
+    Aaddr classTableAddress;	/* Class table */
+    Aword classMax;		/* Number of classes */
+    Aword entityClassId;
+    Aword thingClassId;
+    Aword objectClassId;
+    Aword locationClassId;
+    Aword actorClassId;
+    Aword literalClassId;
+    Aword integerClassId;
+    Aword stringClassId;
+    Aaddr instanceTableAddress;	/* Instance table */
+    Aword instanceMax;		/* Highest number of an instance */
+    Aword theHero;		/* The hero instance code (id) */
+    Aaddr containerTableAddress;
+    Aword containerMax;
+    Aaddr scriptTableAddress;
+    Aword scriptMax;
+    Aaddr eventTableAddress;
+    Aword eventMax;
+    Aaddr syntaxTableAddress;
+    Aaddr parameterMapAddress;
+    Aword syntaxMax;
+    Aaddr dictionary;
+    Aaddr verbTableAddress;
+    Aaddr ruleTableAddress;
+    Aaddr messageTableAddress;
+    /* Miscellaneous */
+    Aint attributesAreaSize;	/* Size of attribute data area in Awords */
+    Aint maxParameters;		/* Maximum number of parameters in any syntax */
+    Aaddr stringInitTable;	/* String init table address */
+    Aaddr setInitTable;		/* Set init table address */
+    Aaddr start;		/* Address to Start code */
+    Aword maximumScore;		/* Maximum score */
+    Aaddr scores;		/* Score table */
+    Aint scoreCount;		/* Max index into scores table */
+    Aaddr sourceFileTable;	/* Table of fpos/len for source filenames */
+    Aaddr sourceLineTable;	/* Table of available source lines to break on */
+    Aaddr freq;			/* Address to Char freq's for coding */
+    Aword acdcrc;		/* Checksum for acd code (excl. hdr) */
+    Aword txtcrc;		/* Checksum for text data file */
+    Aaddr ifids;		/* Address to IFIDS */
+    Aaddr prompt;
 } ACodeHeader;
 
+typedef struct Pre3_0beta1Header {
+    /* Important info */
+    char tag[4];		/* "ALAN" */
+    char version[4];		/* Version of compiler */
+    Aword uid;			/* Unique id of the compiled game */
+    Aword size;			/* Size of ACD-file in Awords */
+    /* Options */
+    Abool pack;			/* Is the text packed ? */
+    Aword stringOffset;		/* Offset to string data in game file */
+    Aword pageLength;		/* Length of a page */
+    Aword pageWidth;		/* and width */
+    Aword debug;		/* Option: debug */
+    /* Data structures */
+    Aaddr classTableAddress;	/* Class table */
+    Aword classMax;		/* Number of classes */
+    Aword entityClassId;
+    Aword thingClassId;
+    Aword objectClassId;
+    Aword locationClassId;
+    Aword actorClassId;
+    Aword literalClassId;
+    Aword integerClassId;
+    Aword stringClassId;
+    Aaddr instanceTableAddress;	/* Instance table */
+    Aword instanceMax;		/* Highest number of an instance */
+    Aword theHero;		/* The hero instance code (id) */
+    Aaddr containerTableAddress;
+    Aword containerMax;
+    Aaddr scriptTableAddress;
+    Aword scriptMax;
+    Aaddr eventTableAddress;
+    Aword eventMax;
+    Aaddr syntaxTableAddress;
+    Aaddr parameterMapAddress;
+    Aword syntaxMax;
+    Aaddr dictionary;
+    Aaddr verbTableAddress;
+    Aaddr ruleTableAddress;
+    Aaddr messageTableAddress;
+    /* Miscellaneous */
+    Aint attributesAreaSize;	/* Size of attribute data area in Awords */
+    Aint maxParameters;		/* Maximum number of parameters in any syntax */
+    Aaddr stringInitTable;	/* String init table address */
+    Aaddr setInitTable;		/* Set init table address */
+    Aaddr start;		/* Address to Start code */
+    Aword maximumScore;		/* Maximum score */
+    Aaddr scores;		/* Score table */
+    Aint scoreCount;		/* Max index into scores table */
+    Aaddr sourceFileTable;	/* Table of fpos/len for source filenames */
+    Aaddr sourceLineTable;	/* Table of available source lines to break on */
+    Aaddr freq;			/* Address to Char freq's for coding */
+    Aword acdcrc;		/* Checksum for acd code (excl. hdr) */
+    Aword txtcrc;		/* Checksum for text data file */
+    Aaddr ifids;		/* Address to IFIDS */
+} Pre3_0beta2Header;
+
 typedef struct Pre3_0alpha5Header {
-/* Important info */
-  char tag[4];			/* "ALAN" */
-  char version[4];		/* Version of compiler */
-  Aword uid;			/* Unique id of the compiled game */
-  Aword size;			/* Size of ACD-file in Awords */
-/* Options */
-  Abool pack;			/* Is the text packed ? */
-  Aword stringOffset;		/* Offset to string data in game file */
-  Aword pageLength;		/* Length of a page */
-  Aword pageWidth;		/* and width */
-  Aword debug;			/* Option: debug */
-/* Data structures */
-  Aaddr classTableAddress;	/* Class table */
-  Aword classMax;		/* Number of classes */
-  Aword entityClassId;
-  Aword thingClassId;
-  Aword objectClassId;
-  Aword locationClassId;
-  Aword actorClassId;
-  Aword literalClassId;
-  Aword integerClassId;
-  Aword stringClassId;
-  Aaddr instanceTableAddress;	/* Instance table */
-  Aword instanceMax;		/* Highest number of an instance */
-  Aword theHero;		/* The hero instance code (id) */
-  Aaddr containerTableAddress;
-  Aword containerMax;
-  Aaddr scriptTableAddress;
-  Aword scriptMax;
-  Aaddr eventTableAddress;
-  Aword eventMax;
-  Aaddr syntaxTableAddress;
-  Aaddr parameterMapAddress;
-  Aword syntaxMax;
-  Aaddr dictionary;
-  Aaddr verbTableAddress;
-  Aaddr ruleTableAddress;
-  Aaddr messageTableAddress;
-/* Miscellaneous */
-  Aint attributesAreaSize;	/* Size of attribute data area in Awords */
-  Aint maxParameters;		/* Maximum number of parameters in any syntax */
-  Aaddr stringInitTable;	/* String init table address */
-  Aaddr setInitTable;		/* Set init table address */
-  Aaddr start;			/* Address to Start code */
-  Aword maximumScore;		/* Maximum score */
-  Aaddr scores;			/* Score table */
-  Aint scoreCount;		/* Max index into scores table */
-  Aaddr sourceFileTable;	/* Table of fpos/len for source filenames */
-  Aaddr sourceLineTable;	/* Table of available source lines to break on */
-  Aaddr freq;			/* Address to Char freq's for coding */
-  Aword acdcrc;			/* Checksum for acd code (excl. hdr) */
-  Aword txtcrc;			/* Checksum for text data file */
+    /* Important info */
+    char tag[4];		/* "ALAN" */
+    char version[4];		/* Version of compiler */
+    Aword uid;			/* Unique id of the compiled game */
+    Aword size;			/* Size of ACD-file in Awords */
+    /* Options */
+    Abool pack;			/* Is the text packed ? */
+    Aword stringOffset;		/* Offset to string data in game file */
+    Aword pageLength;		/* Length of a page */
+    Aword pageWidth;		/* and width */
+    Aword debug;		/* Option: debug */
+    /* Data structures */
+    Aaddr classTableAddress;	/* Class table */
+    Aword classMax;		/* Number of classes */
+    Aword entityClassId;
+    Aword thingClassId;
+    Aword objectClassId;
+    Aword locationClassId;
+    Aword actorClassId;
+    Aword literalClassId;
+    Aword integerClassId;
+    Aword stringClassId;
+    Aaddr instanceTableAddress;	/* Instance table */
+    Aword instanceMax;		/* Highest number of an instance */
+    Aword theHero;		/* The hero instance code (id) */
+    Aaddr containerTableAddress;
+    Aword containerMax;
+    Aaddr scriptTableAddress;
+    Aword scriptMax;
+    Aaddr eventTableAddress;
+    Aword eventMax;
+    Aaddr syntaxTableAddress;
+    Aaddr parameterMapAddress;
+    Aword syntaxMax;
+    Aaddr dictionary;
+    Aaddr verbTableAddress;
+    Aaddr ruleTableAddress;
+    Aaddr messageTableAddress;
+    /* Miscellaneous */
+    Aint attributesAreaSize;	/* Size of attribute data area in Awords */
+    Aint maxParameters;		/* Maximum number of parameters in any syntax */
+    Aaddr stringInitTable;	/* String init table address */
+    Aaddr setInitTable;		/* Set init table address */
+    Aaddr start;		/* Address to Start code */
+    Aword maximumScore;		/* Maximum score */
+    Aaddr scores;		/* Score table */
+    Aint scoreCount;		/* Max index into scores table */
+    Aaddr sourceFileTable;	/* Table of fpos/len for source filenames */
+    Aaddr sourceLineTable;	/* Table of available source lines to break on */
+    Aaddr freq;			/* Address to Char freq's for coding */
+    Aword acdcrc;		/* Checksum for acd code (excl. hdr) */
+    Aword txtcrc;		/* Checksum for text data file */
 } Pre3_0alpha5Header;
 
 /* Error message numbers */
 typedef enum MsgKind {
-  M_UNKNOWN_WORD,
-  M_WHAT,
-  M_WHAT_WORD,
-  M_MULTIPLE,
-  M_NOUN,
-  M_AFTER_BUT,
-  M_BUT_ALL,
-  M_NOT_MUCH,
-  M_WHICH_ONE_START,
-  M_WHICH_ONE_COMMA,
-  M_WHICH_ONE_OR,
-  M_NO_SUCH,
-  M_NO_WAY,
-  M_CANT0,
-  M_SEE_START,
-  M_SEE_COMMA,
-  M_SEE_AND,
-  M_SEE_END,
-  M_CONTAINS,
-  M_CARRIES,
-  M_CONTAINS_COMMA,
-  M_CONTAINS_AND,
-  M_CONTAINS_END,
-  M_EMPTY,
-  M_EMPTYHANDED,
-  M_CANNOTCONTAIN,
-  M_SCORE,
-  M_MORE,
-  M_AGAIN,
-  M_SAVEWHERE,
-  M_SAVEOVERWRITE,
-  M_SAVEFAILED,
-  M_RESTOREFROM,
-  M_SAVEMISSING,
-  M_NOTASAVEFILE,
-  M_SAVEVERS,
-  M_SAVENAME,
-  M_REALLY,
-  M_QUITACTION,
-  M_UNDONE,
-  M_NO_UNDO,
-  M_WHICH_PRONOUN_START,
-  M_WHICH_PRONOUN_FIRST,
-  MSGMAX
+    M_UNKNOWN_WORD,
+    M_WHAT,
+    M_WHAT_WORD,
+    M_MULTIPLE,
+    M_NOUN,
+    M_AFTER_BUT,
+    M_BUT_ALL,
+    M_NOT_MUCH,
+    M_WHICH_ONE_START,
+    M_WHICH_ONE_COMMA,
+    M_WHICH_ONE_OR,
+    M_NO_SUCH,
+    M_NO_WAY,
+    M_CANT0,
+    M_SEE_START,
+    M_SEE_COMMA,
+    M_SEE_AND,
+    M_SEE_END,
+    M_CONTAINS,
+    M_CARRIES,
+    M_CONTAINS_COMMA,
+    M_CONTAINS_AND,
+    M_CONTAINS_END,
+    M_EMPTY,
+    M_EMPTYHANDED,
+    M_CANNOTCONTAIN,
+    M_SCORE,
+    M_MORE,
+    M_AGAIN,
+    M_SAVEWHERE,
+    M_SAVEOVERWRITE,
+    M_SAVEFAILED,
+    M_RESTOREFROM,
+    M_SAVEMISSING,
+    M_NOTASAVEFILE,
+    M_SAVEVERS,
+    M_SAVENAME,
+    M_REALLY,
+    M_QUITACTION,
+    M_UNDONE,
+    M_NO_UNDO,
+    M_WHICH_PRONOUN_START,
+    M_WHICH_PRONOUN_FIRST,
+	M_IMPOSSIBLE_WITH,
+    MSGMAX
 } MsgKind;
 
 #define NO_MSG MSGMAX

@@ -29,7 +29,7 @@ typedef struct CurVars {
 
 /* DATA */
 extern CurVars current;
-extern Bool gameStateChanged;
+extern bool gameStateChanged;
 
 
 /* FUNCTIONS */

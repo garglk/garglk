@@ -29,6 +29,6 @@ typedef CheckEntry CheckEntryArray[];
 
 
 /* FUNCTIONS */
-extern Bool checksFailed(Aaddr adr, Bool execute);
+extern bool checksFailed(Aaddr adr, bool execute);
 
 #endif

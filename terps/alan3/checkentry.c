@@ -6,7 +6,7 @@
 
 
 /*======================================================================*/
-Bool checksFailed(Aaddr adr, Bool execute)
+bool checksFailed(Aaddr adr, bool execute)
 {
 	CheckEntry *chk = (CheckEntry *) pointerTo(adr);
 	if (chk->exp == 0) {

@@ -16,16 +16,17 @@
 
 /* DATA: */
 
-extern Bool stopAtNextLine;
+extern bool stopAtNextLine;
 extern int currentLine;
 extern int recursionDepth;
 
 /* Global failure flag */
-extern Bool fail;
+extern bool fail;
 
 
 /* FUNCTIONS: */
 
+extern void setInterpreterMock(void (*mock)(Aaddr adr));
 extern void setInterpreterStack(Stack stack);
 extern void interpret(Aaddr adr);
 extern Aword evaluate(Aaddr adr);

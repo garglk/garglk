@@ -35,7 +35,7 @@
 
 
 /* PUBLIC DATA */
-Bool onStatusLine = FALSE; /* To know if where printing the status line or not */
+bool onStatusLine = FALSE; /* To know if where printing the status line or not */
 
 
 
@@ -100,54 +100,10 @@ extern int ioctl();
     pageWidth = win.ws_col;
 
 #else
-#ifdef __amiga__
-#include <libraries/dosextens.h>
-#include <intuition/intuition.h>
-#include <graphics/text.h>
-#include <clib/exec_protos.h>
-
-  struct Process * proc;
-  struct InfoData *id;
-  struct Window *win;
-  struct TextFont *textFont;
-  struct StandardPacket *packet;
-
-  proc = (struct Process *) FindTask(0L);
-
-  id = (struct InfoData *) allocate(sizeof(struct InfoData));
-
-  if (proc->pr_ConsoleTask) {
-    packet = (struct StandardPacket *) allocate(sizeof(struct StandardPacket));
-    packet->sp_Msg.mn_Node.ln_Name	= (char *)&(packet->sp_Pkt);
-    packet->sp_Pkt.dp_Link		= & packet->sp_Msg;
-    packet->sp_Pkt.dp_Port		= & proc->pr_MsgPort;
-    packet->sp_Pkt.dp_Type		= ACTION_DISK_INFO;
-
-    packet->sp_Pkt.dp_Arg1 = ((LONG) id) >> 2;
-
-    PutMsg ((struct MsgPort *) proc->pr_ConsoleTask, & packet->sp_Msg);
-    WaitPort(&proc->pr_MsgPort);
-    GetMsg(&proc->pr_MsgPort);
-    free((char *)packet);
-
-    win = (struct Window *) id->id_VolumeNode;
-    free(id);
-
-    /* Calculate number of characters and lines w.r.t font size and borders */
-    textFont = win->IFont;
-    pageLength = win->Height/textFont->tf_YSize-2;
-    pageWidth = win->Width/textFont->tf_XSize-3;
-  } else {
-    pageLength = header->pageLength;
-    pageWidth = header->pageWidth;
-  }
-
-#else
 
   pageLength = header->pageLength;
   pageWidth = header->pageWidth;
 
-#endif
 #endif
 #endif
 }

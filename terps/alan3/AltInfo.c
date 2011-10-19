@@ -19,6 +19,7 @@ An info node about the Verb Alternatives found and possibly executed
 #include "class.h"
 #include "params.h"
 #include "literal.h"
+#include "syntax.h"
 
 
 /* Types */
@@ -41,7 +42,7 @@ void primeAltInfo(AltInfo *altInfo, int level, int parameter, int instance, int 
 static void traceInstanceAndItsClass(AltInfo *alt)
 {
     traceSay(globalParameters[alt->parameter-1].instance);
-    printf("[%ld]", (long) globalParameters[alt->parameter-1].instance);
+    printf("[%d]", globalParameters[alt->parameter-1].instance);
     if (alt->class != NO_CLASS)
         printf(", inherited from %s[%d]", idOfClass(alt->class), alt->class);
 }
@@ -57,16 +58,21 @@ static void traceAltInfo(AltInfo *alt) {
         printf("in (location) ");
         traceInstanceAndItsClass(alt);
         break;
-    case PARAMETER_LEVEL:
-        printf("in (parameter #%d) ", alt->parameter);
+    case PARAMETER_LEVEL: {
+		char *parameterName = parameterNameInSyntax(alt->parameter);
+		if (parameterName != NULL)
+			printf("in parameter %s(#%d)=", parameterName, alt->parameter);
+		else
+			printf("in parameter #%d=", alt->parameter);
         traceInstanceAndItsClass(alt);
         break;
+	}
     }
 }
 
 
 /*----------------------------------------------------------------------*/
-static void traceVerbCheck(AltInfo *alt, Bool execute)
+static void traceVerbCheck(AltInfo *alt, bool execute)
 {
     if (sectionTraceOption && execute) {
         printf("\n<VERB %d, ", current.verb);
@@ -77,7 +83,7 @@ static void traceVerbCheck(AltInfo *alt, Bool execute)
 
 
 /*======================================================================*/
-Bool checkFailed(AltInfo *altInfo, Bool execute)
+bool checkFailed(AltInfo *altInfo, bool execute)
 {
     if (altInfo->alt != NULL && altInfo->alt->checks != 0) {
         traceVerbCheck(altInfo, execute);
@@ -113,7 +119,7 @@ static void traceVerbExecution(AltInfo *alt)
 
 
 /*======================================================================*/
-Bool executedOk(AltInfo *altInfo)
+bool executedOk(AltInfo *altInfo)
 {
     fail = FALSE;
     if (!altInfo->done && altInfo->alt->action != 0) {
@@ -127,7 +133,7 @@ Bool executedOk(AltInfo *altInfo)
 
 
 /*======================================================================*/
-Bool canBeExecuted(AltInfo *altInfo) {
+bool canBeExecuted(AltInfo *altInfo) {
     return altInfo->alt != NULL && altInfo->alt->action != 0;
 }
 
@@ -165,7 +171,7 @@ static AltInfo *nextFreeAltInfo(AltInfoArray altInfos) {
 
 
 /*----------------------------------------------------------------------*/
-static void addAlternative(AltInfoArray altInfos, int verb, int level, Aint parameterNumber, Aint theClass, InstanceId theInstance, AltEntryFinder finder) {
+static void addAlternative(AltInfoArray altInfos, int verb, int level, Aint parameterNumber, Aint theClass, Aid theInstance, AltEntryFinder finder) {
     AltInfo *altInfoP = nextFreeAltInfo(altInfos);
 	
     altInfoP->alt = (*finder)(verb, parameterNumber, theInstance, theClass);
@@ -183,7 +189,7 @@ static void addGlobalAlternatives(AltInfoArray altInfos, int verb, AltEntryFinde
 
 
 /*----------------------------------------------------------------------*/
-static void addAlternativesFromParents(AltInfoArray altInfos, int verb, int level, Aint parameterNumber, Aint theClass, InstanceId theInstance, AltEntryFinder finder){
+static void addAlternativesFromParents(AltInfoArray altInfos, int verb, int level, Aint parameterNumber, Aint theClass, Aid theInstance, AltEntryFinder finder){
     if (classes[theClass].parent != 0)
         addAlternativesFromParents(altInfos, verb, level,
                                    parameterNumber,
@@ -196,7 +202,7 @@ static void addAlternativesFromParents(AltInfoArray altInfos, int verb, int leve
 
 
 /*----------------------------------------------------------------------*/
-static void addAlternativesFromLocation(AltInfoArray altInfos, int verb, InstanceId location, AltEntryFinder finder) {
+static void addAlternativesFromLocation(AltInfoArray altInfos, int verb, Aid location, AltEntryFinder finder) {
     if (admin[location].location != 0)
         addAlternativesFromLocation(altInfos, verb, admin[location].location, finder);
 	
@@ -213,8 +219,8 @@ static void addAlternativesFromLocation(AltInfoArray altInfos, int verb, Instanc
 
 /*----------------------------------------------------------------------*/
 static void addAlternativesFromParameter(AltInfoArray altInfos, int verb, Parameter parameters[], int parameterNumber, AltEntryFinder finder) {
-    InstanceId parent;
-    InstanceId theInstance = parameters[parameterNumber-1].instance;
+    Aid parent;
+    Aid theInstance = parameters[parameterNumber-1].instance;
 	
     if (isLiteral(theInstance))
         parent = literals[literalFromInstance(theInstance)].class;
@@ -228,7 +234,7 @@ static void addAlternativesFromParameter(AltInfoArray altInfos, int verb, Parame
 
 
 /*======================================================================*/
-Bool anyCheckFailed(AltInfoArray altInfo, Bool execute)
+bool anyCheckFailed(AltInfoArray altInfo, bool execute)
 {
     int altIndex;
     
@@ -243,7 +249,7 @@ Bool anyCheckFailed(AltInfoArray altInfo, Bool execute)
 
 
 /*======================================================================*/
-Bool anythingToExecute(AltInfo altInfo[])
+bool anythingToExecute(AltInfo altInfo[])
 {
     int altIndex;
 	
@@ -306,8 +312,8 @@ AltInfo *findAllAlternatives(int verb, Parameter parameters[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool possibleWithFinder(int verb, Parameter parameters[], AltInfoFinder *finder) {
-    Bool anything;
+static bool possibleWithFinder(int verb, Parameter parameters[], AltInfoFinder *finder) {
+    bool anything;
     AltInfo *allAlternatives;
 
     allAlternatives = finder(verb, parameters);
@@ -328,7 +334,7 @@ static Bool possibleWithFinder(int verb, Parameter parameters[], AltInfoFinder *
 
 
 /*======================================================================*/
-Bool possible(int verb, Parameter inParameters[], ParameterPosition parameterPositions[])
+bool possible(int verb, Parameter inParameters[], ParameterPosition parameterPositions[])
 {
     // This is a wrapper for possibleWithFinder() which is used in unit tests
     // possible() should be used "for real".

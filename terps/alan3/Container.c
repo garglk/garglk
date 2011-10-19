@@ -46,7 +46,7 @@ static int sumAttributeInContainer(
 
 
 /*----------------------------------------------------------------------*/
-static Bool containerIsEmpty(int container)
+static bool containerIsEmpty(int container)
 {
     int i;
 
@@ -66,7 +66,7 @@ void describeContainer(int container)
 
 
 /*======================================================================*/
-Bool passesContainerLimits(Aint theContainer, Aint theAddedInstance) {
+bool passesContainerLimits(Aint theContainer, Aint theAddedInstance) {
     LimitEntry *limit;
     Aword props;
 
@@ -95,7 +95,7 @@ Bool passesContainerLimits(Aint theContainer, Aint theAddedInstance) {
 
 
 /*======================================================================*/
-int containerSize(int container, Bool directly) {
+int containerSize(int container, bool directly) {
     Aint i;
     Aint count = 0;
 

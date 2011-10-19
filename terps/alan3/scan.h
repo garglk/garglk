@@ -15,7 +15,7 @@
 
 
 /* DATA */
-extern Bool continued;
+extern bool continued;
 
 
 /* FUNCTIONS */

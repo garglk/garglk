@@ -1,14 +1,14 @@
 #include "options.h"
 
-Bool verboseOption = FALSE;
-Bool ignoreErrorOption = FALSE;
-Bool debugOption = FALSE;
-Bool sectionTraceOption = FALSE;
-Bool tracePushOption = FALSE;
-Bool traceStackOption = FALSE;
-Bool traceSourceOption = FALSE;
-Bool singleStepOption = FALSE;
-Bool transcriptOption = FALSE;
-Bool logOption = FALSE;
-Bool statusLineOption = TRUE;
-Bool regressionTestOption = FALSE;
+bool verboseOption = FALSE;
+bool ignoreErrorOption = FALSE;
+bool debugOption = FALSE;
+bool sectionTraceOption = FALSE;
+bool tracePushOption = FALSE;
+bool traceStackOption = FALSE;
+bool traceSourceOption = FALSE;
+bool singleStepOption = FALSE;
+bool transcriptOption = FALSE;
+bool logOption = FALSE;
+bool statusLineOption = TRUE;
+bool regressionTestOption = FALSE;

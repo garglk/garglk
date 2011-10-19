@@ -10,7 +10,7 @@
 
 
 /* DATA */
-Bool onStatusLine;
+bool onStatusLine;
 
 
 /* FUNCTIONS */

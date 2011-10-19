@@ -58,7 +58,7 @@ static char *removeQuotes(char *argument) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool isQuoted(char *argument) {
+static bool isQuoted(char *argument) {
     return argument[0] == '"' && strlen(argument) > 2;
 }
 
@@ -145,7 +145,7 @@ static void switches(int argc, char *argv[])
 
 
 /*----------------------------------------------------------------------*/
-static Bool differentInterpreterName(char *string) {
+static bool differentInterpreterName(char *string) {
     return strcasecmp(string, PROGNAME) != 0;
 }
 

@@ -11,6 +11,7 @@
 #include "term.h"
 #include "exe.h"
 #include "save.h"
+#include "Location.h"
 
 #define LINELENGTH 1000
 
@@ -55,10 +56,10 @@ BOOL CALLBACK AboutDialogProc(HWND hwndDlg, UINT message, WPARAM wParam, LPARAM 
 */
 
 /* TODO - length of user buffer should be used */
-Bool readline(char buffer[])
+bool readline(char buffer[])
 {
     event_t event;
-    static Bool readingCommands = FALSE;
+    static bool readingCommands = FALSE;
     static frefid_t commandFileRef;
     static strid_t commandFile;
 #ifdef HAVE_WINGLK
@@ -237,8 +238,8 @@ static int histp;		/* Points to the history recalled last */
 
 static unsigned char ch;
 static int endOfInput = 0;
-static Bool change;
-static Bool insert = TRUE;
+static bool change;
+static bool insert = TRUE;
 
 
 /*----------------------------------------------------------------------*\
@@ -277,9 +278,9 @@ static KeyMap keymap[] = {
     {0x1b, 0x1b, escHook},
     {0x1c, 0x7e, insertCh},
 #ifdef __macosx__
-  {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
+    {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
 #elif __linux__
-  {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
+    {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
 #else
     {0x7f, 0x7f, delFwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
 #endif
@@ -661,9 +662,9 @@ static void copyToUserBuffer(char *usrbuf, char *buffer) {
 */
 
 /* 4f - length of user buffer should be used */
-Bool readline(char usrbuf[])
+bool readline(char usrbuf[])
 {
-    static Bool readingCommands = FALSE;
+    static bool readingCommands = FALSE;
     static FILE *commandFile;
 
     if (readingCommands) {

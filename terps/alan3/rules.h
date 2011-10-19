@@ -21,10 +21,11 @@ typedef struct RuleEntry {   /* RULE TABLE */
 
 
 /* DATA */
-extern RuleEntry *ruls;      /* Rule table pointer */
+extern RuleEntry *rules;      /* Rule table pointer */
 
 
 /* FUNCTIONS */
-extern void rules(void);
+extern void initRules(void);
+extern void evaluateRules(void);
 
 #endif

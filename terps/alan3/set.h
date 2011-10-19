@@ -29,11 +29,11 @@ extern int setSize(Set *theSet);
 extern void clearSet(Set *theSet);
 extern Set *copySet(Set *theSet);
 extern Aword getSetMember(Set *theSet, Aint member);
-extern Bool inSet(Set *theSet, Aword member);
+extern bool inSet(Set *theSet, Aword member);
 extern void addToSet(Set *theSet, Aword newMember);
 extern void removeFromSet(Set *theSet, Aword member);
 extern Set *setUnion(Set *theSet, Set *other);
-extern Bool equalSets(Set *theSet, Set *other);
+extern bool equalSets(Set *theSet, Set *other);
 extern void freeSet(Set *theSet);
 
 #endif

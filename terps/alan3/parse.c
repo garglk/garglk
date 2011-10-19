@@ -31,7 +31,8 @@
 #include "msg.h"
 #include "literal.h"
 #include "ParameterPosition.h"
-
+#include "utils.h"
+#include "compatibility.h"
 #include "scan.h"
 
 
@@ -93,29 +94,27 @@ static Pronoun *allocatePronounArray(Pronoun *currentList) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool endOfWords(int wordIndex) {
+static bool endOfWords(int wordIndex) {
     return isEndOfArray(&playerWords[wordIndex]);
 }
 
 
 /*----------------------------------------------------------------------*/
-static void nonverb(void) {
-    if (isDirectionWord(currentWordIndex)) {
-        currentWordIndex++;
-        if (!endOfWords(currentWordIndex) && !isConjunctionWord(currentWordIndex))
-            error(M_WHAT);
-        else
-            go(current.location, dictionary[playerWords[currentWordIndex-1].code].code);
-        if (!endOfWords(currentWordIndex))
-            currentWordIndex++;
-    } else
-        error(M_WHAT);
+static void handleDirectionalCommand() {
+	currentWordIndex++;
+	if (!endOfWords(currentWordIndex) && !isConjunctionWord(currentWordIndex))
+		error(M_WHAT);
+	else
+		go(current.location, dictionary[playerWords[currentWordIndex-1].code].code);
+	if (!endOfWords(currentWordIndex))
+		currentWordIndex++;
 }
+
 
 /*----------------------------------------------------------------------*/
 static void errorWhichOne(Parameter alternative[]) {
     int p; /* Index into the list of alternatives */
-    Parameter *parameters = allocateParameterArray();
+    Parameter *parameters = allocateParameterArray(MAXENTITY);
 
     parameters[0] = alternative[0];
     setEndOfArray(&parameters[1]);
@@ -133,7 +132,7 @@ static void errorWhichOne(Parameter alternative[]) {
 /*----------------------------------------------------------------------*/
 static void errorWhichPronoun(int pronounWordIndex, Parameter alternatives[]) {
     int p; /* Index into the list of alternatives */
-    Parameter *messageParameters = allocateParameterArray();
+    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
 
     addParameterForWord(messageParameters, pronounWordIndex);
     printMessageWithParameters(M_WHICH_PRONOUN_START, messageParameters);
@@ -154,7 +153,7 @@ static void errorWhichPronoun(int pronounWordIndex, Parameter alternatives[]) {
 
 /*----------------------------------------------------------------------*/
 static void errorWhat(int playerWordIndex) {
-    Parameter *messageParameters = allocateParameterArray();
+    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
 
     addParameterForWord(messageParameters, playerWordIndex);
     printMessageWithParameters(M_WHAT_WORD, messageParameters);
@@ -164,7 +163,7 @@ static void errorWhat(int playerWordIndex) {
 
 /*----------------------------------------------------------------------*/
 static void errorAfterExcept(int butWordIndex) {
-    Parameter *messageParameters = allocateParameterArray();
+    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
     addParameterForWord(messageParameters, butWordIndex);
     printMessageWithParameters(M_AFTER_BUT, messageParameters);
     free(messageParameters);
@@ -191,7 +190,7 @@ static int fakePlayerWordForAll() {
 
 /*----------------------------------------------------------------------*/
 static void errorButAfterAll(int butWordIndex) {
-    Parameter *messageParameters = allocateParameterArray();
+    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
     addParameterForWord(messageParameters, butWordIndex);
     addParameterForWord(messageParameters, fakePlayerWordForAll());
     printMessageWithParameters(M_BUT_ALL, messageParameters);
@@ -209,23 +208,23 @@ static Aint findInstanceForNoun(int wordIndex) {
 
 /*----------------------------------------------------------------------*/
 static void errorNoSuch(Parameter parameter) {
-    globalParameters[0] = parameter;
 
     /* If there was no instance, assume the last word used is the noun,
      * then find any instance with the noun he used */
-    if (globalParameters[0].instance == -1)
-        globalParameters[0].instance = 0;
-    if (globalParameters[0].instance == 0)
-        globalParameters[0].instance = findInstanceForNoun(playerWords[parameter.lastWord].code);
-    globalParameters[0].useWords = TRUE; /* Indicate to use words and not names */
-    setEndOfArray(&globalParameters[1]);
+    if (parameter.instance == -1)
+        parameter.instance = 0;
+    if (parameter.instance == 0)
+        parameter.instance = findInstanceForNoun(playerWords[parameter.lastWord].code);
+    parameter.useWords = TRUE; /* Indicate to use words and not names */
+
+    addParameter(&globalParameters[0], &parameter);
     error(M_NO_SUCH);
 }
 
 /*----------------------------------------------------------------------*/
 static void buildAllHere(Parameter list[]) {
     int o, i = 0;
-    Bool found = FALSE;
+    bool found = FALSE;
     int word = list[0].firstWord;
 
     for (o = 1; o <= header->instanceMax; o++)
@@ -245,7 +244,7 @@ static void buildAllHere(Parameter list[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool endOfPronouns(int pronounIndex) {
+static bool endOfPronouns(int pronounIndex) {
     return isEndOfArray(&pronouns[pronounIndex]);
 }
 
@@ -269,7 +268,7 @@ static int getPronounInstances(int word, Parameter instanceParameters[]) {
 }
 
 /*----------------------------------------------------------------------*/
-static Bool inOpaqueContainer(int originalInstance) {
+static bool inOpaqueContainer(int originalInstance) {
     int instance = admin[originalInstance].location;
 
     while (isContainer(instance)) {
@@ -281,7 +280,7 @@ static Bool inOpaqueContainer(int originalInstance) {
 }
 
 /*----------------------------------------------------------------------*/
-static Bool reachable(int instance) {
+static bool reachable(int instance) {
     if (isA(instance, THING) || isA(instance, LOCATION))
         return isHere(instance, FALSE) && !inOpaqueContainer(instance);
     else
@@ -319,13 +318,13 @@ static void parsePronoun(Parameter parameters[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool anotherAdjective(int wordIndex) {
+static bool anotherAdjective(int wordIndex) {
     return !endOfWords(wordIndex) && isAdjectiveWord(wordIndex);
 }
 
 
 /*----------------------------------------------------------------------*/
-static Bool lastPossibleNoun(int wordIndex) {
+static bool lastPossibleNoun(int wordIndex) {
     return isNounWord(wordIndex) && (endOfWords(wordIndex+1) || !isNounWord(wordIndex+1));
 }
 
@@ -344,7 +343,7 @@ static void updateWithReferences(Parameter result[], int wordIndex, Aint *(*refe
 
 
 /*----------------------------------------------------------------------*/
-static void filterOutNonReachable(Parameter filteredCandidates[], Bool (*reachable)(int)) {
+static void filterOutNonReachable(Parameter filteredCandidates[], bool (*reachable)(int)) {
     int i;
     for (i = 0; !isEndOfArray(&filteredCandidates[i]); i++)
         if (!reachable(filteredCandidates[i].instance))
@@ -367,7 +366,7 @@ static void filterOutNonReachable(Parameter filteredCandidates[], Bool (*reachab
 /*----------------------------------------------------------------------*/
 static void disambiguateCandidatesForPosition(ParameterPosition parameterPositions[], int position, Parameter candidates[]) {
     int i;
-    Parameter *parameters = allocateParameterArray();
+    Parameter *parameters = allocateParameterArray(MAXENTITY);
 
     convertPositionsToParameters(parameterPositions, parameters);
     for (i = 0; !isEndOfArray(&candidates[i]); i++) {
@@ -386,8 +385,8 @@ static void disambiguateCandidatesForPosition(ParameterPosition parameterPositio
 
 
 /*----------------------------------------------------------------------*/
-static Bool parseAnyAdjectives(Parameter parameters[]) {
-    Bool adjectiveOrNounFound = FALSE;
+static bool parseAnyAdjectives(Parameter parameters[]) {
+    bool adjectiveOrNounFound = FALSE;
     while (anotherAdjective(currentWordIndex)) {
         if (lastPossibleNoun(currentWordIndex))
             break;
@@ -399,11 +398,11 @@ static Bool parseAnyAdjectives(Parameter parameters[]) {
 
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-// This new strategy will only parse the input and note the word indices
-// in the parameters, matching will be done by the match* functions
+/* Parse the input and note the word indices in the parameters,
+   matching will be done by the match* functions */
 static void parseAdjectivesAndNoun(Parameter parameters[]) {
     int firstWord, lastWord;
-    Bool adjectiveOrNounFound = FALSE;
+    bool adjectiveOrNounFound = FALSE;
 
     firstWord = currentWordIndex;
 
@@ -477,7 +476,7 @@ static void parseReferenceToPreviousMultipleParameters(Parameter parameters[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool parseOneParameter(Parameter parameters[], int parameterIndex) {
+static bool parseOneParameter(Parameter parameters[], int parameterIndex) {
     Parameter parameter[2];
     clearParameter(parameter, NULL);
 
@@ -594,19 +593,49 @@ static void complexReferencesParser(ParameterPosition *parameterPosition) {
 }
 
 
+
 /*----------------------------------------------------------------------*/
-static Bool restrictionCheck(RestrictionEntry *restriction, int instance) {
+static char *classNameAndId(int classId) {
+    static char buffer[1000] = "";
+
+    if (classId != -1)
+        sprintf(buffer, "%s[%d]", idOfClass(classId), classId);
+    else
+        sprintf(buffer, "Container");
+    return buffer;
+}
+
+
+/*----------------------------------------------------------------------*/
+static char *parameterNumberAndName(int parameterNumber) {
+    static char buffer[1000] = "";
+	char *parameterName = parameterNameInSyntax(parameterNumber);
+
+    if (parameterName != NULL)
+        sprintf(buffer, "%s(#%d)", parameterName, parameterNumber);
+    else
+        sprintf(buffer, "#%d", parameterNumber);
+    return buffer;
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceRestriction(RestrictionEntry *restriction, int classId, bool condition) {
+    printf("\n<SYNTAX RESTRICTION WHERE parameter %s Isa %s, %s>\n",
+           parameterNumberAndName(restriction->parameterNumber),
+           classNameAndId(classId), condition?"PASSED":"FAILED:");
+}
+
+
+/*----------------------------------------------------------------------*/
+static bool restrictionCheck(RestrictionEntry *restriction, int instance) {
     if (restriction->class == RESTRICTIONCLASS_CONTAINER) {
         if (sectionTraceOption)
-            printf("\n<SYNTAX RESTRICTION WHERE parameter #%ld Isa Container, %s>\n",
-                   (long) restriction->parameterNumber,
-                   instances[instance].container != 0?"PASSED":"FAILED:");
+            traceRestriction(restriction, -1, instances[instance].container != 0);
         return instances[instance].container != 0;
     } else {
         if (sectionTraceOption)
-            printf("\n<SYNTAX RESTRICTION WHERE parameter #%ld Isa %s[%ld], %s>\n",
-                   (long) restriction->parameterNumber, idOfClass(restriction->class), (long) restriction->class,
-                   isA(instance, restriction->class)?"PASSED":"FAILED:");
+            traceRestriction(restriction, restriction->class, isA(instance, restriction->class));
         return isA(instance, restriction->class);
     }
 }
@@ -649,12 +678,12 @@ static int remapParameterOrder(int syntaxNumber, ParameterPosition parameterPosi
 
 
 /*----------------------------------------------------------------------*/
-static Bool hasBit(Aword flags, Aint bit) {
+static bool hasBit(Aword flags, Aint bit) {
     return (flags & bit) != 0;
 }
 
 /*----------------------------------------------------------------------*/
-static Bool multipleAllowed(Aword flags) {
+static bool multipleAllowed(Aword flags) {
     return hasBit(flags, MULTIPLEBIT);
 }
 
@@ -722,22 +751,22 @@ static ElementEntry *elementForWord(ElementEntry *elms, Aint wordCode) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool isInstanceReferenceWord(int wordIndex) {
+static bool isInstanceReferenceWord(int wordIndex) {
     return isNounWord(wordIndex) || isAdjectiveWord(wordIndex) || isAllWord(wordIndex)
         || isLiteralWord(wordIndex) || isItWord(wordIndex) || isThemWord(wordIndex) || isPronounWord(wordIndex);
 }
 
 
 /*----------------------------------------------------------------------*/
-static Bool endOfPlayerCommand(int wordIndex) {
+static bool endOfPlayerCommand(int wordIndex) {
     return endOfWords(wordIndex) || isConjunctionWord(wordIndex);
 }
 
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-static ElementEntry *parseInputAccordingToElementTree(ElementEntry *startingElement, ParameterPosition parameterPositions[]) {
-    ElementEntry *currentElement = startingElement;
-    ElementEntry *nextElement = startingElement;
+static ElementEntry *parseInputAccordingToSyntax(SyntaxEntry *syntax, ParameterPosition parameterPositions[]) {
+    ElementEntry *currentElement = elementTreeOf(syntax);
+    ElementEntry *nextElement = currentElement;
 
     int parameterCount = 0;
     while (nextElement != NULL) {
@@ -768,7 +797,7 @@ static ElementEntry *parseInputAccordingToElementTree(ElementEntry *startingElem
         }
 
         /* Or maybe preposition? */
-        if (isPrepositionWord(currentWordIndex)) {
+        if (isPrepositionWord(currentWordIndex) || isVerbWord(currentWordIndex)) {
             /* A preposition? Or rather, an intermediate word? */
             nextElement = elementForWord(currentElement, dictionary[playerWords[currentWordIndex].code].code);
             if (nextElement != NULL) {
@@ -788,20 +817,9 @@ static ElementEntry *parseInputAccordingToElementTree(ElementEntry *startingElem
     return NULL;
 }
 
-/*----------------------------------------------------------------------*/
-static SyntaxEntry *findSyntaxTreeForVerb(int verbCode) {
-    SyntaxEntry *stx;
-    for (stx = stxs; !isEndOfArray(stx); stx++)
-        if (stx->code == verbCode)
-            return stx;
-    /* No matching syntax */
-    error(M_WHAT);
-    return NULL;
-}
-
 
 /*----------------------------------------------------------------------*/
-static Bool anyExplicitMultiple(ParameterPosition parameterPositions[]) {
+static bool anyExplicitMultiple(ParameterPosition parameterPositions[]) {
     int i;
 
     for (i = 0; !parameterPositions[i].endOfList; i++)
@@ -812,7 +830,7 @@ static Bool anyExplicitMultiple(ParameterPosition parameterPositions[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool anyAll(ParameterPosition parameterPositions[]) {
+static bool anyAll(ParameterPosition parameterPositions[]) {
     int i;
 
     for (i = 0; !parameterPositions[i].endOfList; i++)
@@ -831,7 +849,7 @@ static void checkRestrictedParameters(ParameterPosition parameterPositions[], El
     localParameters = ensureParameterArrayAllocated(localParameters);
 
     for (i=0; !parameterPositions[i].endOfList; i++)
-        copyParameter(&localParameters[i], parameterPositions[i].parameters[0]);
+        copyParameter(&localParameters[i], &parameterPositions[i].parameters[0]);
     // TODO: This is stupid, why should the caller need to handle end of array? Introduce addParameter()
     setEndOfArray(&localParameters[i]);
 
@@ -870,6 +888,18 @@ static void checkRestrictedParameters(ParameterPosition parameterPositions[], El
 
 
 /*----------------------------------------------------------------------*/
+static void impossibleWith(ParameterPosition parameterPositions[], int positionIndex) {
+	if (isPreBeta2(header->version)) {
+		error(M_CANT0);
+	} else {
+		printMessageWithInstanceParameter(M_IMPOSSIBLE_WITH, parameterPositions[positionIndex].parameters[0].instance);
+		error(NO_MSG);
+	}
+}
+
+
+
+/*----------------------------------------------------------------------*/
 static void checkNonRestrictedParameters(ParameterPosition parameterPositions[]) {
     int positionIndex;
     for (positionIndex = 0; !parameterPositions[positionIndex].endOfList; positionIndex++)
@@ -882,7 +912,7 @@ static void checkNonRestrictedParameters(ParameterPosition parameterPositions[])
                         if (!isObject(parameterPositions[positionIndex].parameters[i].instance))
                             parameterPositions[positionIndex].parameters[i].instance = 0;
             } else if (!isObject(parameterPositions[positionIndex].parameters[0].instance))
-                error(M_CANT0);
+				impossibleWith(parameterPositions, positionIndex);
         }
 }
 
@@ -989,7 +1019,7 @@ static ElementEntry *parseInput(ParameterPosition *parameterPositions) {
     SyntaxEntry *stx;
 
     stx = findSyntaxTreeForVerb(verbWordCode);
-    element = parseInputAccordingToElementTree(elementTreeOf(stx), parameterPositions);
+    element = parseInputAccordingToSyntax(stx, parameterPositions);
     handleFailedParse(element);
     current.verb = remapParameterOrder(element->flags, parameterPositions);
     return element;
@@ -1166,7 +1196,7 @@ static DisambiguationHandlerTable disambiguationHandlerTable =
     };
 
 /*----------------------------------------------------------------------*/
-static void disambiguateCandidates(Parameter *allCandidates, Bool omnipotent, Bool (*reachable)(int), DisambiguationHandlerTable handler) {
+static void disambiguateCandidates(Parameter *allCandidates, bool omnipotent, bool (*reachable)(int), DisambiguationHandlerTable handler) {
     static Parameter *presentCandidates = NULL;
     int present;
     int distant;
@@ -1208,7 +1238,7 @@ static void disambiguate(ParameterPosition parameterPositions[], ElementEntry *e
 
     for (position = 0; !parameterPositions[position].endOfList; position++) {
         ParameterPosition *parameterPosition = &parameterPositions[position];
-        Bool omni = hasBit(parameterPosition->flags, OMNIBIT);
+        bool omni = hasBit(parameterPosition->flags, OMNIBIT);
         if (!parameterPosition->all && !parameterPosition->them) {
             Parameter *parameters = parameterPosition->parameters;
             int p;
@@ -1301,16 +1331,16 @@ static int pronounWordForInstance(int instance) {
 }
 
 /*----------------------------------------------------------------------*/
-static void addPronounForInstance(int pronoun, int instanceCode) {
-    int pronounIndex;
+static void addPronounForInstance(int thePronoun, int instanceCode) {
+    int i;
 
-    for (pronounIndex = 0; !endOfPronouns(pronounIndex); pronounIndex++)
-	if (pronouns[pronounIndex].pronoun == pronoun && pronouns[pronounIndex].instance == instanceCode)
+    for (i = 0; !endOfPronouns(i); i++)
+	if (pronouns[i].pronoun == thePronoun && pronouns[i].instance == instanceCode)
 	    // Don't add the same instance twice for the same pronoun
 	    return;
-    pronouns[pronounIndex].pronoun = pronoun;
-    pronouns[pronounIndex].instance = instanceCode;
-    setEndOfArray(&pronouns[pronounIndex + 1]);
+    pronouns[i].pronoun = thePronoun;
+    pronouns[i].instance = instanceCode;
+    setEndOfArray(&pronouns[i + 1]);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1345,16 +1375,33 @@ void parse(Parameter parameters[]) {
     if (isVerbWord(currentWordIndex)) {
         verbWord = playerWords[currentWordIndex].code;
         verbWordCode = dictionary[verbWord].code;
-        currentWordIndex++;
+		if (isPreBeta2(header->version))
+			/* Pre-beta2 did not generate syntax elements for verb words, so we need to skip first word which is the verb */
+			currentWordIndex++;
         parseOneCommand(parameters, multipleParameters);
         notePronounsForParameters(parameters);
         fail = FALSE;
         action(current.verb, parameters, multipleParameters);
-    } else {
+    } else if (isDirectionWord(currentWordIndex)) {
         clearParameterArray(previousMultipleParameters);
         clearPronounList(pronouns);
-        nonverb();
-    }
+		handleDirectionalCommand();
+    } else if (isInstanceReferenceWord(currentWordIndex)) {
+		/* TODO: Here we want to pick up the parse tree for the
+		   syntaxes that start with an instance reference and do
+		   something similar to parseOneCommand(parameters,
+		   multipleParameters); but with the verb code set to
+		   something that indicates the special syntax to be used. The
+		   verbWord code is set to 0 in one of the parse table
+		   entries... */
+		verbWordCode = 0;
+		parseOneCommand(parameters, multipleParameters);
+        notePronounsForParameters(parameters);
+        fail = FALSE;
+        action(current.verb, parameters, multipleParameters);
+	} else
+        error(M_WHAT);
+
     lastWord = currentWordIndex - 1;
     if (isConjunctionWord(lastWord))
         lastWord--;

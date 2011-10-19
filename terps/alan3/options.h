@@ -3,17 +3,17 @@
 
 #include "types.h"
 
-extern Bool verboseOption;
-extern Bool ignoreErrorOption;
-extern Bool debugOption;
-extern Bool sectionTraceOption;
-extern Bool tracePushOption;
-extern Bool traceStackOption;
-extern Bool traceSourceOption;
-extern Bool singleStepOption;
-extern Bool transcriptOption;
-extern Bool logOption;
-extern Bool statusLineOption;
-extern Bool regressionTestOption;
+extern bool verboseOption;
+extern bool ignoreErrorOption;
+extern bool debugOption;
+extern bool sectionTraceOption;
+extern bool tracePushOption;
+extern bool traceStackOption;
+extern bool traceSourceOption;
+extern bool singleStepOption;
+extern bool transcriptOption;
+extern bool logOption;
+extern bool statusLineOption;
+extern bool regressionTestOption;
 
 #endif

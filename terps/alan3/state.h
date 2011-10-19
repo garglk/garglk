@@ -16,7 +16,7 @@
 
 
 /* FUNCTIONS */
-extern Bool anySavedState(void);
+extern bool anySavedState(void);
 extern void initStateStack(void);
 extern void rememberGameState(void);
 extern void forgetGameState(void);

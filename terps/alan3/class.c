@@ -7,7 +7,6 @@
 
 /* IMPORTS */
 #include "types.h"
-#include <memory.h>
 
 
 /* CONSTANTS */

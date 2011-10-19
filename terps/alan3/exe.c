@@ -1,14 +1,16 @@
 /*----------------------------------------------------------------------*\
 
-exe.c
+  exe.c
 
-Amachine instruction execution unit of Alan interpreter
+  Amachine instruction execution unit of Alan interpreter
 
 \*----------------------------------------------------------------------*/
 #include "exe.h"
 
 
 /* IMPORTS */
+#include <time.h>
+
 #include "types.h"
 #include "sysdep.h"
 
@@ -29,6 +31,8 @@ Amachine instruction execution unit of Alan interpreter
 #include "word.h"
 #include "msg.h"
 #include "actor.h"
+#include "options.h"
+#include "args.h"
 
 
 #ifdef USE_READLINE
@@ -59,6 +63,7 @@ jmp_buf forfeitLabel;       /* Player forfeit by an empty command */
 
 
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
+static char logFileName[256] = "";
 
 /*======================================================================*/
 void setStyle(int style)
@@ -82,8 +87,8 @@ void print(Aword fpos, Aword len)
     int ch = 0;
     int i;
     long savfp = 0;		/* Temporary saved text file position */
-    static Bool printFlag = FALSE; /* Printing already? */
-    Bool savedPrintFlag = printFlag;
+    static bool printFlag = FALSE; /* Printing already? */
+    bool savedPrintFlag = printFlag;
     void *info = NULL;		/* Saved decoding info */
 
 
@@ -176,7 +181,7 @@ char *getStringFromFile(Aword fpos, Aword len)
 void score(Aword sc)
 {
     if (sc == 0) {
-        Parameter *messageParameters = allocateParameterArray();
+        Parameter *messageParameters = allocateParameterArray(MAXENTITY);
         addParameterForInteger(messageParameters, current.score);
         addParameterForInteger(messageParameters, header->maximumScore);
         printMessageWithParameters(M_SCORE, messageParameters);
@@ -489,7 +494,7 @@ static char *stripWordsFromStringBackwards(Aint count, char *initialString, char
 
 
 /*======================================================================*/
-Aptr strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr)
+Aptr strip(bool stripFromBeginningNotEnd, int count, bool stripWordsNotChars, int id, int atr)
 {
     char *initialString = (char *)getInstanceAttribute(id, atr);
     char *theStripped;
@@ -512,7 +517,7 @@ Aptr strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, in
 
 
 /*======================================================================*/
-int getContainerMember(int container, int index, Bool directly) {
+int getContainerMember(int container, int index, bool directly) {
     Aint i;
     Aint count = 0;
 
@@ -639,7 +644,7 @@ int randomInteger(int from, int to)
 
 
 /*----------------------------------------------------------------------*/
-Bool btw(int val, int low, int high)
+bool btw(int val, int low, int high)
 {
     if (high > low)
         return low <= val && val <= high;
@@ -650,9 +655,9 @@ Bool btw(int val, int low, int high)
 
 
 /*======================================================================*/
-Bool contains(Aptr string, Aptr substring)
+bool contains(Aptr string, Aptr substring)
 {
-    Bool found;
+    bool found;
 
     strlow((char *)string);
     strlow((char *)substring);
@@ -667,9 +672,9 @@ Bool contains(Aptr string, Aptr substring)
 
 
 /*======================================================================*/
-Bool streq(char a[], char b[])
+bool streq(char a[], char b[])
 {
-    Bool eq;
+    bool eq;
 
     strlow(a);
     strlow(b);
@@ -681,3 +686,57 @@ Bool streq(char a[], char b[])
 
     return(eq);
 }
+
+
+
+/*======================================================================*/
+#include <sys/time.h>
+void startTranscript() {
+    time_t tick;
+
+    if (logFile != NULL)
+        return;
+
+    time(&tick);
+
+    struct timeval tv;
+    struct tm *tm;
+    gettimeofday(&tv, NULL);
+    tm = localtime(&tv.tv_sec);
+
+    sprintf(logFileName, "%s%d%02d%02d%02d%02d%02d%04d.log",
+			adventureName, tm->tm_year+1900, tm->tm_mon+1,
+			tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
+			(int)tv.tv_usec);
+#ifdef HAVE_GLK
+    glui32 fileUsage = transcriptOption?fileusage_Transcript:fileusage_InputRecord;
+    frefid_t logFileRef = glk_fileref_create_by_name(fileUsage, logFileName, 0);
+    logFile = glk_stream_open_file(logFileRef, filemode_Write, 0);
+#else
+    logFile = fopen(logFileName, "w");
+#endif
+    if (logFile == NULL) {
+        transcriptOption = FALSE;
+        logOption = FALSE;
+    } else
+        transcriptOption = TRUE;
+}
+
+
+/*======================================================================*/
+void stopTranscript() {
+    if (logFile == NULL)
+        return;
+
+	if (transcriptOption|| logOption)
+#ifdef HAVE_GLK
+		glk_stream_close(logFile, NULL);
+#else
+    fclose(logFile);
+#endif
+    logFile = NULL;
+	transcriptOption = FALSE;
+	logOption = FALSE;
+}
+
+
