@@ -14,6 +14,9 @@
 #include "checkentry.h"
 #include "rules.h"
 #include "msg.h"
+#include "utils.h"
+#include "compatibility.h"
+
 
 extern Aword *memory;
 
@@ -24,10 +27,10 @@ static Aword *addressesDone = NULL;
 static int numberDone = 0;
 static int doneSize = 0;
 
-static Bool alreadyDone(Aaddr address)
+static bool alreadyDone(Aaddr address)
 {
   int i;
-  Bool found = FALSE;
+  bool found = FALSE;
 
   if (address == 0) return TRUE;
 
@@ -340,19 +343,41 @@ static void reverseElms(Aword adr)
 }
 
 
-static void reverseSyntaxTable(Aword adr)
-{
-  SyntaxEntry *e = (SyntaxEntry *) &memory[adr];
+static void reverseSyntaxTableCurrent(Aword adr) {
+    SyntaxEntry *e = (SyntaxEntry *) &memory[adr];
 
+    if (!isEndOfArray(e)) {
+        reverseTable(adr, sizeof(SyntaxEntry));
+        while (!isEndOfArray(e)) {
+            reverseElms(e->elms);
+            reverseTable(e->parameterNameTable, sizeof(Aaddr));
+            e++;
+        }
+    }
+}
+
+
+static void reverseSyntaxTablePreBeta2(Aword adr) {
+    SyntaxEntryPreBeta2 *e = (SyntaxEntryPreBeta2 *) &memory[adr];
+
+    if (!isEndOfArray(e)) {
+        reverseTable(adr, sizeof(SyntaxEntryPreBeta2));
+        while (!isEndOfArray(e)) {
+            reverseElms(e->elms);
+            e++;
+        }
+    }
+}
+
+
+static void reverseSyntaxTable(Aword adr, char version[])
+{
   if (alreadyDone(adr)) return;
 
-  if (!isEndOfArray(e)) {
-    reverseTable(adr, sizeof(SyntaxEntry));
-    while (!isEndOfArray(e)) {
-      reverseElms(e->elms);
-      e++;
-    }
-  }
+  if (isPreBeta2(version))
+      reverseSyntaxTablePreBeta2(adr);
+  else
+      reverseSyntaxTableCurrent(adr);
 }
 
 
@@ -457,17 +482,129 @@ static void reverseSetInitTable(Aaddr adr)
 }
 
 
+
 /*----------------------------------------------------------------------*/
+static void reversePreAlpha5Header(Pre3_0alpha5Header *hdr)
+{
+  int i;
+
+  /* Reverse all words in the header except the tag */
+  for (i = 1; i < sizeof(*hdr)/sizeof(Aword); i++)
+    reverse(&((Aword *)hdr)[i]);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void reversePreAlpha5() {
+    /* NOTE that the reversePreXXX() have different header definitions */
+    Pre3_0alpha5Header *header = (Pre3_0alpha5Header *)memory;
+
+    reversePreAlpha5Header(header);
+
+    reverseDictionary(header->dictionary);
+    reverseSyntaxTable(header->syntaxTableAddress, header->version);
+    reverseParameterTable(header->parameterMapAddress);
+    reverseVerbs(header->verbTableAddress);
+    reverseClasses(header->classTableAddress);
+    reverseInstances(header->instanceTableAddress);
+    reverseScrs(header->scriptTableAddress);
+    reverseContainers(header->containerTableAddress);
+    reverseEvts(header->eventTableAddress);
+    reverseRuls(header->ruleTableAddress);
+    reverseTable(header->stringInitTable, sizeof(StringInitEntry));
+    reverseSetInitTable(header->setInitTable);
+    reverseTable(header->sourceFileTable, sizeof(SourceFileEntry));
+    reverseTable(header->sourceLineTable, sizeof(SourceLineEntry));
+    reverseStms(header->start);
+    reverseMsgs(header->messageTableAddress);
+
+    reverseTable(header->scores, sizeof(Aword));
+    reverseTable(header->freq, sizeof(Aword));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void reversePreBeta2Header(Pre3_0beta2Header *hdr)
+{
+  int i;
+
+  /* Reverse all words in the header except the tag */
+  for (i = 1; i < sizeof(*hdr)/sizeof(Aword); i++)
+    reverse(&((Aword *)hdr)[i]);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void reversePreBeta2() {
+    /* NOTE that the reversePreXXX() have different header definitions */
+    Pre3_0beta2Header *header = (Pre3_0beta2Header *)memory;
+
+    reversePreBeta2Header(header);
+
+    reverseDictionary(header->dictionary);
+    reverseSyntaxTable(header->syntaxTableAddress, header->version);
+    reverseParameterTable(header->parameterMapAddress);
+    reverseVerbs(header->verbTableAddress);
+    reverseClasses(header->classTableAddress);
+    reverseInstances(header->instanceTableAddress);
+    reverseScrs(header->scriptTableAddress);
+    reverseContainers(header->containerTableAddress);
+    reverseEvts(header->eventTableAddress);
+    reverseRuls(header->ruleTableAddress);
+    reverseTable(header->stringInitTable, sizeof(StringInitEntry));
+    reverseSetInitTable(header->setInitTable);
+    reverseTable(header->sourceFileTable, sizeof(SourceFileEntry));
+    reverseTable(header->sourceLineTable, sizeof(SourceLineEntry));
+    reverseStms(header->start);
+    reverseMsgs(header->messageTableAddress);
+
+    reverseTable(header->scores, sizeof(Aword));
+    reverseTable(header->freq, sizeof(Aword));
+}
+
+
+/*======================================================================*/
 void reverseHdr(ACodeHeader *hdr)
 {
   int i;
 
-  /* Reverse all words in the header except the first (version marking) */
-  for (i = 1; i < sizeof(ACodeHeader)/sizeof(Aword); i++)
+  /* Reverse all words in the header except the tag and the version marking */
+  for (i = 1; i < sizeof(*hdr)/sizeof(Aword); i++)
     reverse(&((Aword *)hdr)[i]);
 }
 
-/*----------------------------------------------------------------------
+
+/*----------------------------------------------------------------------*/
+static void reverseNative() {
+    /* NOTE that the reversePreXXX() have different header definitions */
+    ACodeHeader *header = (ACodeHeader *)memory;
+
+    reverseHdr(header);
+
+    reverseDictionary(header->dictionary);
+    reverseSyntaxTable(header->syntaxTableAddress, header->version);
+    reverseParameterTable(header->parameterMapAddress);
+    reverseVerbs(header->verbTableAddress);
+    reverseClasses(header->classTableAddress);
+    reverseInstances(header->instanceTableAddress);
+    reverseScrs(header->scriptTableAddress);
+    reverseContainers(header->containerTableAddress);
+    reverseEvts(header->eventTableAddress);
+    reverseRuls(header->ruleTableAddress);
+    reverseTable(header->stringInitTable, sizeof(StringInitEntry));
+    reverseSetInitTable(header->setInitTable);
+    reverseTable(header->sourceFileTable, sizeof(SourceFileEntry));
+    reverseTable(header->sourceLineTable, sizeof(SourceLineEntry));
+    reverseStms(header->prompt);
+    reverseStms(header->start);
+    reverseMsgs(header->messageTableAddress);
+
+    reverseTable(header->scores, sizeof(Aword));
+    reverseTable(header->freq, sizeof(Aword));
+}
+
+
+/*======================================================================
 
   reverseACD()
 
@@ -479,27 +616,20 @@ void reverseHdr(ACodeHeader *hdr)
 void reverseACD(void)
 {
   ACodeHeader *header = (ACodeHeader *)memory;
+  char version[4];
+  int i;
 
-  reverseHdr(header);
-  reverseDictionary(header->dictionary);
-  reverseSyntaxTable(header->syntaxTableAddress);
-  reverseParameterTable(header->parameterMapAddress);
-  reverseVerbs(header->verbTableAddress);
-  reverseClasses(header->classTableAddress);
-  reverseInstances(header->instanceTableAddress);
-  reverseScrs(header->scriptTableAddress);
-  reverseContainers(header->containerTableAddress);
-  reverseEvts(header->eventTableAddress);
-  reverseRuls(header->ruleTableAddress);
-  reverseTable(header->stringInitTable, sizeof(StringInitEntry));
-  reverseSetInitTable(header->setInitTable);
-  reverseTable(header->sourceFileTable, sizeof(SourceFileEntry));
-  reverseTable(header->sourceLineTable, sizeof(SourceLineEntry));
-  reverseStms(header->start);
-  reverseMsgs(header->messageTableAddress);
+  /* Make a copy of the version marking to reverse */
+  for (i = 0; i <= 3; i++)
+      version[i] = header->version[i];
+  reverse((Aword*)&version);
 
-  reverseTable(header->scores, sizeof(Aword));
-  reverseTable(header->freq, sizeof(Aword));
+  if (isPreAlpha5(version))
+      reversePreAlpha5();
+  else if (isPreBeta2(version))
+      reversePreBeta2();
+  else
+      reverseNative();
 
   free(addressesDone);
 }

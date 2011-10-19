@@ -17,7 +17,7 @@
 
 
 /* DATA */
-extern ClassEntry *classes; /* Class table pointer */
+extern ClassEntry *classes;		/* Class table pointer */
 
 
 /* FUNCTIONS */

@@ -97,7 +97,7 @@ if $(MAKE_ALAN2) = yes
 
 # -----------------------------------------------------------------------
 #
-# Alan interpreter 3 alpha 9
+# Alan interpreter 3 beta 2
 #
 
 if $(MAKE_ALAN3) = yes
@@ -114,7 +114,7 @@ if $(MAKE_ALAN3) = yes
         inter.c lists.c literal.c main.c memory.c msg.c options.c
         output.c params.c parse.c readline.c reverse.c rules.c
         save.c scan.c score.c set.c stack.c state.c syntax.c
-        sysdep.c syserr.c term.c utils.c word.c
+        sysdep.c syserr.c term.c utils.c word.c compatibility.c
         AltInfo.c Container.c Location.c ParameterPosition.c StateStack.c
         ;
 

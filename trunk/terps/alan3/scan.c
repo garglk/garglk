@@ -22,6 +22,7 @@
 #include "literal.h"
 #include "debug.h"
 #include "msg.h"
+#include "inter.h"
 
 #ifdef USE_READLINE
 #include "readline.h"
@@ -33,13 +34,13 @@
 
 
 /* PUBLIC DATA */
-Bool continued = FALSE;
+bool continued = FALSE;
 
 
 /* PRIVATE DATA */
 static char buf[1000]; /* The input buffer */
 static char isobuf[1000]; /* The input buffer in ISO */
-static Bool eol = TRUE; /* Looking at End of line? Yes, initially */
+static bool eol = TRUE; /* Looking at End of line? Yes, initially */
 static char *token = NULL;
 
 
@@ -52,13 +53,14 @@ void forceNewPlayerInput() {
 /*----------------------------------------------------------------------*/
 static void unknown(char token[]) {
     char *str = strdup(token);
-    Parameter *messageParameters = allocateParameterArray();
+    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
 	
 #if ISO == 0
     fromIso(str, str);
 #endif
     addParameterForString(messageParameters, str);
     printMessageWithParameters(M_UNKNOWN_WORD, messageParameters);
+	free(messageParameters);
     free(str);
     abortPlayerCommand();
 }
@@ -88,7 +90,7 @@ static int lookup(char wrd[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool isWordCharacter(int ch) {
+static bool isWordCharacter(int ch) {
     return isISOLetter(ch) || isdigit(ch) || ch == '\'' || ch == '-' || ch == '_';
 }
 
@@ -107,8 +109,8 @@ static char *gettoken(char *buf) {
     if (isISOLetter(*marker))
         while (*marker && isWordCharacter(*marker))
             marker++;
-    else if (isdigit(*marker))
-        while (isdigit(*marker))
+    else if (isdigit((int)*marker))
+        while (isdigit((int)*marker))
             marker++;
     else if (*marker == '\"') {
         marker++;
@@ -131,7 +133,14 @@ static void getLine(void) {
     para();
     do {
         statusline();
-        printAndLog("> ");
+        if (header->prompt) {
+            anyOutput = FALSE;
+            interpret(header->prompt);
+            if (anyOutput)
+                printAndLog(" ");
+            needSpace = FALSE;
+        } else
+            printAndLog("> ");
 #ifdef USE_READLINE
         if (!readline(buf)) {
             newline();
@@ -152,11 +161,7 @@ static void getLine(void) {
             glk_put_string_stream(logFile, buf);
             glk_put_char_stream(logFile, '\n');
 #else
-#ifdef __amiga__
-            fprintf(logFile, "%s", buf);
-#else
             fprintf(logFile, "%s\n", buf);
-#endif
 #endif
         }
         /* If the player input an empty command he forfeited his command */
@@ -215,8 +220,8 @@ void scan(void) {
             w = lookup(token);
             if (!isNoise(w))
                 playerWords[i++].code = w;
-        } else if (isdigit(token[0]) || token[0] == '\"') {
-            if (isdigit(token[0])) {
+        } else if (isdigit((int)token[0]) || token[0] == '\"') {
+            if (isdigit((int)token[0])) {
                 createIntegerLiteral(number(token));
             } else {
                 char *unquotedString = strdup(token);

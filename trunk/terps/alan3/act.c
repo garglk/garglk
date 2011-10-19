@@ -33,7 +33,8 @@ static void executeCommand(int verb, Parameter parameters[])
     /* Now perform actions! First try any BEFORE or ONLY from inside out */
     for (altIndex = lastAltInfoIndex(altInfos); altIndex >= 0; altIndex--) {
         if (altInfos[altIndex].alt != 0) // TODO Can this ever be NULL? Why?
-            if (altInfos[altIndex].alt->qual == (Aword)Q_BEFORE || altInfos[altIndex].alt->qual == (Aword)Q_ONLY) {
+            if (altInfos[altIndex].alt->qual == (Aword)Q_BEFORE
+                || altInfos[altIndex].alt->qual == (Aword)Q_ONLY) {
                 if (!executedOk(&altInfos[altIndex]))
                     abortPlayerCommand();
                 if (altInfos[altIndex].alt->qual == (Aword)Q_ONLY)
@@ -60,10 +61,10 @@ static void executeCommand(int verb, Parameter parameters[])
 
 /*======================================================================
  
-action()
+  action()
  
-Execute the command. Handles acting on multiple items
-such as ALL, THEM or lists of objects.
+  Execute the command. Handles acting on multiple items
+  such as ALL, THEM or lists of objects.
  
 */
 void action(int verb, Parameter parameters[], Parameter multipleMatches[])
@@ -77,6 +78,7 @@ void action(int verb, Parameter parameters[], Parameter multipleMatches[])
         for (i = 0; multipleMatches[i].instance != EOF; i++) {
             parameters[multiplePosition] = multipleMatches[i];
             output(marker);
+			// TODO: if execution for one parameter aborts we should return here, not to top level
             executeCommand(verb, parameters);
             if (multipleMatches[i+1].instance != EOF)
                 para();

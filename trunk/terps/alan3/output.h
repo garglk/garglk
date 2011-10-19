@@ -15,9 +15,9 @@
 extern int col, lin; // TODO Move to current.column & current.line?
 extern int pageLength, pageWidth;
 
-extern Bool anyOutput;
-extern Bool needSpace;
-extern Bool capitalize;
+extern bool anyOutput;
+extern bool needSpace;
+extern bool capitalize;
 
 /* Log file */
 #ifdef HAVE_GLK

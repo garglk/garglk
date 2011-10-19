@@ -11,6 +11,7 @@
 
 #include "sysdep.h"
 #include "acode.h"
+#include "memory.h"
 
 
 /* MEMORY DEBUGGING? */
@@ -21,15 +22,14 @@
 #define FORWARD
 #define NEW(type) ((type *)allocate(sizeof(type)))
 
+
 /* CONSTANTS */
 
-#ifndef __mac__
 #ifndef TRUE
 #define TRUE (0==0)
 #endif
 #ifndef FALSE
 #define FALSE (!TRUE)
-#endif
 #endif
 
 #define LITMIN (header->locmax+1)
@@ -47,11 +47,11 @@
 
 #define pointerTo(x) ((void *)&memory[x])
 #define addressOf(x) ((((long)x)-((long)memory))/sizeof(Aword))
-
+#define stringAt(x) ((char *)pointerTo(x))
 
 /* TYPES */
 
-typedef int Bool;		/* Boolean values within interpreter */
+#include <stdbool.h>
 
 /* The various tables */
 typedef struct VerbEntry {	/* VERB TABLE */

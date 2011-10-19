@@ -21,8 +21,8 @@ extern ContainerEntry *containers; /* Container table pointer */
 
 
 /* FUNCTIONS */
-extern int containerSize(int container, Bool directly);
-extern Bool passesContainerLimits(Aint container, Aint addedInstance);
+extern int containerSize(int container, bool directly);
+extern bool passesContainerLimits(Aint container, Aint addedInstance);
 extern void describeContainer(int container);
 extern void list(int cnt);
 

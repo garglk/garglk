@@ -3,7 +3,7 @@
   debug.c
 
   Debugger unit in Alan interpreter ARUN
-
+  
   \*----------------------------------------------------------------------*/
 
 #include "debug.h"
@@ -35,6 +35,7 @@
 #include "exe.h"
 
 #ifdef HAVE_GLK
+#include "glk.h"
 #define MAP_STDIO_TO_GLK
 #include "glkio.h"
 #endif
@@ -60,7 +61,7 @@ static void showAttributes(AttributeEntry *attributes)
 
     i = 1;
     for (at = attributes; !isEndOfArray(at); at++) {
-        sprintf(str, "$i$t%s[%ld] = %ld", (char *) pointerTo(at->stringAddress), (long) at->code, (long) at->value);
+        sprintf(str, "$i$t%s[%d] = %d", (char *) pointerTo(at->id), at->code, (int)at->value);
 #if ISO == 0
         fromIso(str, str);
 #endif
@@ -104,7 +105,7 @@ static void showInstanceLocation(int ins, char *prefix) {
         if (isALocation(admin[ins].location)) {
             output("at");
             say(admin[ins].location);
-            sprintf(buffer, "[%ld]", (long) admin[ins].location);
+            sprintf(buffer, "[%d]", admin[ins].location);
             output(buffer);
         } else if (isContainer(admin[ins].location)) {
 		  
@@ -113,7 +114,7 @@ static void showInstanceLocation(int ins, char *prefix) {
             else if (isActor(admin[ins].location))
                 output("carried by");
             say(admin[ins].location);
-            sprintf(buffer, "[%ld]", (long) admin[ins].location);
+            sprintf(buffer, "[%d]", admin[ins].location);
             output(buffer);
 
         } else
@@ -155,7 +156,7 @@ static void showInstance(int ins)
     sprintf(str, "[%d]", ins);
     output(str);
     if (instances[ins].parent) {
-        sprintf(str, "Isa %s[%ld]", idOfClass(instances[ins].parent), (long) instances[ins].parent);
+        sprintf(str, "Isa %s[%d]", idOfClass(instances[ins].parent), instances[ins].parent);
         output(str);
     }
 
@@ -175,7 +176,7 @@ static void showInstance(int ins)
         if (admin[ins].script == 0)
             output("$iIs idle");
         else {
-            sprintf(str, "$iExecuting script: %ld, Step: %ld", (long) admin[ins].script, (long) admin[ins].step);
+            sprintf(str, "$iExecuting script: %d, Step: %d", admin[ins].script, admin[ins].step);
             output(str);
         }
     }
@@ -232,14 +233,13 @@ static void showcnts(void)
 
 }
 
-
 /*----------------------------------------------------------------------*/
 static void showContainer(int cnt)
 {
     char str[80];
 
     if (cnt < 1 || cnt > header->containerMax) {
-        sprintf(str, "Container number out of range. Between 1 and %ld, please.", header->containerMax);
+        sprintf(str, "Container number out of range. Between 1 and %d, please.", header->containerMax);
         output(str);
         return;
     }
@@ -249,11 +249,12 @@ static void showContainer(int cnt)
     if (containers[cnt].owner != 0) {
         cnt = containers[cnt].owner;
         say(cnt);
-        sprintf(str, "$iLocation: %ld", where(cnt, TRUE));
+        sprintf(str, "$iLocation: %d", where(cnt, TRUE));
         output(str);
     }
     showContents(cnt);
 }
+#endif
 
 
 /*----------------------------------------------------------------------*/
@@ -270,7 +271,6 @@ static int sourceFileNumber(char *fileName) {
     }
     return -1;
 }
-#endif
 
 
 
@@ -287,7 +287,7 @@ static void showClassInheritance(int c) {
     if (classes[c].parent != 0) {
         output(", Isa");
         printClassName(classes[c].parent);
-        sprintf(str, "(%ld)", (long) classes[c].parent);
+        sprintf(str, "[%d]", classes[c].parent);
         output(str);
     }
 }
@@ -414,11 +414,11 @@ static void showEvents(void)
 {
     int event, i;
     char str[80];
-    Bool scheduled;
+    bool scheduled;
 
     output("Events:");
     for (event = 1; event <= header->eventMax; event++) {
-        sprintf(str, "$i%d [%s]:", event, (char *)pointerTo(events[event].stringAddress));
+        sprintf(str, "$i%d [%s]:", event, (char *)pointerTo(events[event].id));
 #if ISO == 0
         fromIso(str, str);
 #endif
@@ -504,19 +504,20 @@ static void listFiles() {
 void listLines() {
     SourceLineEntry *entry;
     for (entry = pointerTo(header->sourceLineTable); *((Aword*)entry) != EOF; entry++)
-        printf("  %s:%ld\n", sourceFileName(entry->file), entry->line);
+        printf("  %s:%d\n", sourceFileName(entry->file), entry->line);
 }
 
 
 /*----------------------------------------------------------------------*/
-static int findSourceLineIndex(int file, int line) {
+static int findSourceLineIndex(SourceLineEntry *entry, int file, int line) {
     /* Will return index to the closest line available */
-    SourceLineEntry *entry = pointerTo(header->sourceLineTable);
     int i = 0;
 
-    while (!isEndOfArray(&entry[i]) && entry[i].file <= file && entry[i].line < line)
+    while (!isEndOfArray(&entry[i]) && entry[i].file != file)
         i++;
-    if (isEndOfArray(entry))
+    while (!isEndOfArray(&entry[i]) && entry[i].file == file  && entry[i].line < line)
+        i++;
+    if (isEndOfArray(entry) || entry[i].file != file)
         return i-1;
     else
         return i;
@@ -526,7 +527,7 @@ static int findSourceLineIndex(int file, int line) {
 /*----------------------------------------------------------------------*/
 static void listBreakpoints() {
     int i;
-    Bool found = FALSE;
+    bool found = FALSE;
 
     for (i = 0; i < BREAKPOINTMAX; i++)
         if (breakpoint[i].line != 0) {
@@ -541,13 +542,13 @@ static void listBreakpoints() {
 
 
 /*======================================================================*/
-Bool breakpointIndex(int file, int line) {
+int breakpointIndex(int file, int line) {
     int i;
 
     for (i = 0; i < BREAKPOINTMAX; i++)
         if (breakpoint[i].line == line && breakpoint[i].file == file)
             return i;
-    return(-1);
+    return -1;
 }
 
 
@@ -571,9 +572,9 @@ static void setBreakpoint(int file, int line) {
     else {
         i = availableBreakpointSlot();
         if (i == -1)
-            printf("No room for more breakpoints. Delete one first\n");
+            printf("No room for more breakpoints. Delete one first.\n");
         else {
-            int lineIndex = findSourceLineIndex(file, line);
+            int lineIndex = findSourceLineIndex(pointerTo(header->sourceLineTable), file, line);
             SourceLineEntry *entry = pointerTo(header->sourceLineTable);
             char leadingText[100] = "Breakpoint";
             if (entry[lineIndex].file == EOF) {
@@ -583,7 +584,7 @@ static void setBreakpoint(int file, int line) {
                     sprintf(leadingText, "Line %d not available, breakpoint instead", line);
                 breakpoint[i].file = entry[lineIndex].file;
                 breakpoint[i].line = entry[lineIndex].line;
-                printf("%s set at %s:%ld\n", leadingText, sourceFileName(entry[lineIndex].file), entry[lineIndex].line);
+                printf("%s set at %s:%d\n", leadingText, sourceFileName(entry[lineIndex].file), entry[lineIndex].line);
                 showSourceLine(entry[lineIndex].file, entry[lineIndex].line);
                 printf("\n");
             }
@@ -606,7 +607,7 @@ static void deleteBreakpoint(int line, int file) {
 
 
 
-static Bool trc, stp, cap, psh, stk;
+static bool trc, stp, cap, psh, stk;
 static int loc;
 
 /*======================================================================*/
@@ -634,158 +635,307 @@ void restoreInfo(void)
     current.location = loc;
 }
 
-/*======================================================================*/
-void debug(Bool calledFromBreakpoint, int line, int fileNumber)
-{
-    char buf[256];
-    char c;
-    int i;
+#define HELP_COMMAND 'H'
+#define QUIT_COMMAND 'Q'
+#define EXIT_COMMAND 'X'
+#define GO_COMMAND 'G'
+#define FILES_COMMAND 'F'
+#define INSTANCES_COMMAND 'I'
+#define CLASSES_COMMAND 'C'
+#define OBJECTS_COMMAND 'O'
+#define ACTORS_COMMAND 'A'
+#define LOCATIONS_COMMAND 'L'
+#define EVENTS_COMMAND 'E'
+#define BREAK_COMMAND 'B'
+#define DELETE_COMMAND 'D'
+#define SECTION_TRACE_COMMAND 'T'
+#define INSTRUCTION_TRACE_COMMAND 'S'
+#define NEXT_COMMAND 'N'
+#define UNKNOWN_COMMAND '?'
+#define AMBIGUOUS_COMMAND '-'
 
+typedef struct DebugParseEntry {
+    char *command;
+	char *parameter;
+    char code;
+	char *helpText;
+} DebugParseEntry;
+
+static DebugParseEntry commandEntries[] = {
+    {"help", "", HELP_COMMAND, "this help"},
+    {"?", "", HELP_COMMAND, "d:o"},
+    {"break", "[file:[n]]", BREAK_COMMAND, "set breakpoint at source line [n] in [file]"},
+    {"delete", "[file:[n]]", DELETE_COMMAND, "delete breakpoint at source line [n] in [file]"},
+    {"files", "", FILES_COMMAND, "list source files"},
+    {"events", "", EVENTS_COMMAND, "show events"},
+    {"classes", "", CLASSES_COMMAND, "show class hierarchy"},
+    {"instances", "[n]", INSTANCES_COMMAND, "show instance(s)"},
+    {"objects", "[n]", OBJECTS_COMMAND, "show instance(s) that are objects"},
+    {"actors", "[n]", ACTORS_COMMAND, "show instance(s) that are actors"},
+    {"locations", "[n]", LOCATIONS_COMMAND, "show instances that are locations"},
+    {"section", "", SECTION_TRACE_COMMAND, "toggle section trace"},
+    {"single", "", INSTRUCTION_TRACE_COMMAND, "toggle single instruction trace"},
+    {"next", "", NEXT_COMMAND, "execute to next source line"},
+    {"go", "", GO_COMMAND, "go another player turn"},
+    {"exit", "", EXIT_COMMAND, "exit debug mode and return to game, get back with 'debug' as player input"},
+    {"x", "", EXIT_COMMAND, "d:o"},
+    {"quit", "", QUIT_COMMAND, "quit game"},
+    {NULL, NULL}
+};
+
+
+static char *spaces(int length) {
+	static char buf[200];
+	int i;
+
+	for (i = 0; i<length; i++)
+		buf[i] = ' ';
+	buf[i] = '\0';
+	return buf;
+}
+
+
+static char *padding(DebugParseEntry *entry, int maxLength) {
+	return spaces(maxLength-strlen(entry->command)-strlen(entry->parameter));
+}
+
+
+static void handleHelpCommand() {
+	output(alan.longHeader);
+	DebugParseEntry *entry = commandEntries;
+
+	int maxLength = 0;
+	for (entry = commandEntries; entry->command != NULL; entry++) {
+		if (strlen(entry->command)+strlen(entry->parameter) > maxLength)
+			maxLength = strlen(entry->command)+strlen(entry->parameter);
+	}
+
+	output("$nADBG Commands (can be abbreviated):");
+	for (entry = commandEntries; entry->command != NULL; entry++) {
+		char buf[200];
+		sprintf(buf, "$i%s %s %s -- %s", entry->command, entry->parameter, padding(entry, maxLength), entry->helpText);
+		output(buf);
+	}
+}
+
+
+/*----------------------------------------------------------------------*/
+static DebugParseEntry *findEntry(char *command, DebugParseEntry *entry) {
+    while (entry->command != NULL) {
+        if (strncasecmp(command, entry->command, strlen(command)) == 0)
+            return entry;
+        entry++;
+    }
+    return NULL;
+}
+
+
+/*----------------------------------------------------------------------*/
+static char parseDebugCommand(char *command) {
+    DebugParseEntry *entry = findEntry(command, commandEntries);
+    if (entry != NULL) {
+        if (strlen(command) < strlen(entry->command)) {
+            if (findEntry(command, entry+1) != NULL)
+                return AMBIGUOUS_COMMAND;
+        }
+        return entry->code;
+    } else
+        return UNKNOWN_COMMAND;
+}
+
+
+/*----------------------------------------------------------------------*/
+static void readCommand(char buf[]) {
+	char c;
+
+	capitalize = FALSE;
+	if (anyOutput) newline();
+	do {
+		output("adbg> ");
+
+#ifdef USE_READLINE
+		(void) readline(buf);
+#else
+		fgets(buf, 255, stdin);
+#endif
+		lin = 1;
+		c = buf[0];
+	} while (c == '\0');
+}
+
+
+/*----------------------------------------------------------------------*/
+static void displaySourceLocation(int line, int fileNumber) {
+	char *cause;
+	if (anyOutput) newline();
+	if (breakpointIndex(fileNumber, line) != -1)
+		cause = "Breakpoint hit at";
+	else
+		cause = "Stepping to";
+	printf("%s %s %s:%d\n", debugPrefix, cause, sourceFileName(fileNumber), line);
+	showSourceLine(fileNumber, line);
+	printf("\n");
+	anyOutput = FALSE;
+}
+
+
+/*----------------------------------------------------------------------*/
+static void toggleSectionTrace() {
+	if ((trc = !trc))
+		printf("Section trace on.");
+	else
+		printf("Section trace off.");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleBreakCommand(int fileNumber) {
+	char *parameter = strtok(NULL, ":");
+	if (parameter != NULL && isalpha((int)parameter[0])) {
+		fileNumber = sourceFileNumber(parameter);
+		if (fileNumber == -1) {
+			printf("No such file: '%s'\n", parameter);
+			return;
+		}
+		parameter = strtok(NULL, "");
+	}
+	if (parameter == NULL)
+		listBreakpoints();
+	else
+		setBreakpoint(fileNumber, atoi(parameter));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleDeleteCommand(bool calledFromBreakpoint, int line, int fileNumber) {
+	char *parameter = strtok(NULL, "");
+	if (parameter == NULL) {
+		if (calledFromBreakpoint)
+			deleteBreakpoint(line, fileNumber);
+		else
+			printf("No current breakpoint to delete\n");
+	} else
+		deleteBreakpoint(atoi(parameter), fileNumber);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleNextCommand(bool calledFromBreakpoint) {
+	stopAtNextLine = TRUE;
+	debugOption = FALSE;
+	if (!calledFromBreakpoint)
+		current.sourceLine = 0;
+	restoreInfo();
+}
+
+
+/*----------------------------------------------------------------------*/
+static void toggleInstructionTrace() {
+	if ((stp = !stp))
+		printf("Single instruction trace on.");
+	else
+		printf("Single instruction trace off.");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleLocationsCommand() {
+	char *parameter = strtok(NULL, "");
+	if (parameter == 0)
+		showLocations();
+	else
+		showLocation(atoi(parameter));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleActorsCommand() {
+	char *parameter = strtok(NULL, "");
+	if (parameter == NULL)
+		showActors();
+	else
+		showActor(atoi(parameter));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleClassesCommand() {
+	char *parameter = strtok(NULL, "");
+	if (parameter == NULL) {
+		output("Classes:");
+		showClassHierarchy(1, 0);
+	} else
+		showClass(atoi(parameter));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleObjectsCommand() {
+	char *parameter = strtok(NULL, "");
+	if (parameter == NULL)
+		showObjects();
+	else
+		showObject(atoi(parameter));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleInstancesCommand() {
+	char *parameter = strtok(NULL, "");
+
+	if (parameter == NULL)
+		showInstances();
+	else
+		showInstance(atoi(parameter));
+}
+
+
+/*======================================================================*/
+void debug(bool calledFromBreakpoint, int line, int fileNumber)
+{
     saveInfo();
 
-    if (calledFromBreakpoint) {
-        char *cause;
-        if (anyOutput) newline();
-        if (breakpointIndex(fileNumber, line) != -1)
-            cause = "Breakpoint hit at";
-        else
-            cause = "Stepping to";
-        printf("%s %s %s:%d\n", debugPrefix, cause, sourceFileName(fileNumber), line);
-        showSourceLine(fileNumber, line);
-        printf("\n");
-        anyOutput = FALSE;
-    }
+#ifdef HAVE_GLK
+    glk_set_style(style_Preformatted);
+#endif
+
+    if (calledFromBreakpoint)
+        displaySourceLocation(line, fileNumber);
 
     while (TRUE) {
-        if (anyOutput) newline();
-        do {
-            capitalize = FALSE;
-            output("adbg> ");
-#ifdef USE_READLINE
-            (void) readline(buf);
-#else
-            fgets(buf, 255, stdin);
-#endif
-            lin = 1;
-            c = buf[0];
-            i = 0;
-            sscanf(&buf[1], "%d", &i);
-        } while (c == '\0');
 
-        switch (toUpper(c)) {
-        case 'H':
-        case '?':
-            output(alan.longHeader);
-            output("$nADBG Commands:\
-      $iB [n] -- set breakpoint at source line [n]\
-      $iB     -- list breakpoints set\
-      $iD [n] -- delete breakpoint at source line [n]\
-      $iD     -- delete breakpoint at current source line [n]\
-      $iF     -- list files\
-      $iN     -- execute to next source line\
-      $iX     -- exit debug mode and return to game, get back with 'debug'\
-      $iQ     -- quit game\
-      $iC     -- show class hierarchy\
-      $iI [n] -- show instances or instance [n]\
-      $iO [n] -- show instances that are object[s]\
-      $iA [n] -- show instances that are actor[s]\
-      $iL [n] -- show instances that are location[s]\
-      $iE     -- show events\
-      $iG     -- go another player turn\
-      $iT     -- toggle trace mode\
-      $iS     -- toggle single step trace mode\
-");
-            break;
+        char commandLine[200];
+        readCommand(commandLine);
+        char *command = strtok(commandLine, " ");
+        char commandCode = parseDebugCommand(command);
 
-        case 'Q':
-            terminate(0);
-            break;
-
-        case 'X':
-            debugOption = FALSE;		/* Fall through to 'G' */
-        case 'G':
-            restoreInfo();
-            return;
-
-        case 'F':
-            listFiles();
-            //listLines();
-            break;
-
-        case 'I':
-            if (i == 0)
-                showInstances();
-            else
-                showInstance(i);
-            break;
-
-        case 'O':
-            if (i == 0)
-                showObjects();
-            else
-                showObject(i);
-            break;
-        case 'C':
-            if (i == 0) {
-                output("Classes:");
-                showClassHierarchy(1, 0);
-            } else
-                showClass(i);
-            break;
-        case 'A':
-            if (i == 0)
-                showActors();
-            else
-                showActor(i);
-            break;
-        case 'L':
-            if (i == 0)
-                showLocations();
-            else
-                showLocation(i);
-            break;
-        case 'E':
-            showEvents();
-            break;
-        case 'S':
-            if ((stp = !stp))
-                printf("Step on.");
-            else
-                printf("Step off.");
-            break;
-        case 'T':
-            if ((trc = !trc))
-                printf("Trace on.");
-            else
-                printf("Trace off.");
-            break;
-        case 'B':
-            if (i == 0)
-                listBreakpoints();
-            else
-                setBreakpoint(fileNumber, i);
-            break;
-        case 'D':
-            if (i == 0) {
-                if (calledFromBreakpoint)
-                    deleteBreakpoint(line, fileNumber);
-                else
-                    printf("No current breakpoint to delete\n");
-            } else
-                deleteBreakpoint(i, fileNumber);
-            break;
-        case 'N':
-            stopAtNextLine = TRUE;
-            debugOption = FALSE;
-            if (!calledFromBreakpoint)
-                current.sourceLine = 0;
-            restoreInfo();
-            return;
-        default:
-            output("Unknown ADBG command. ? for help.");
-            break;
+        switch (commandCode) {
+		case AMBIGUOUS_COMMAND: output("Ambiguous ADBG command abbreviation. ? for help."); break;
+        case ACTORS_COMMAND: handleActorsCommand(); break;
+        case BREAK_COMMAND: handleBreakCommand(fileNumber); break;
+        case CLASSES_COMMAND: handleClassesCommand(); break;
+        case DELETE_COMMAND: handleDeleteCommand(calledFromBreakpoint, line, fileNumber); break;
+        case EVENTS_COMMAND: showEvents(); break;
+        case EXIT_COMMAND: debugOption = FALSE; restoreInfo(); goto exit_debug;
+        case FILES_COMMAND: listFiles(); break;
+        case GO_COMMAND: restoreInfo(); goto exit_debug;
+        case HELP_COMMAND: handleHelpCommand(); break;
+        case INSTANCES_COMMAND: handleInstancesCommand(); break;
+        case INSTRUCTION_TRACE_COMMAND: toggleInstructionTrace(); break;
+        case LOCATIONS_COMMAND: handleLocationsCommand(); break;
+        case NEXT_COMMAND: handleNextCommand(calledFromBreakpoint); goto exit_debug;
+        case OBJECTS_COMMAND: handleObjectsCommand(); break;
+        case QUIT_COMMAND: terminate(0); break;
+        case SECTION_TRACE_COMMAND: toggleSectionTrace(); break;
+        default: output("Unknown ADBG command. ? for help."); break;
         }
     }
+
+ exit_debug:
+#ifdef HAVE_GLK
+    glk_set_style(style_Normal);
+#endif
+    ;
 }
 
 

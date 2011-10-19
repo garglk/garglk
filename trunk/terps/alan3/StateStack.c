@@ -56,7 +56,7 @@ void deleteStateStack(StateStack stateStack) {
 
 
 /*======================================================================*/
-Bool stateStackIsEmpty(StateStack stateStack) {
+bool stateStackIsEmpty(StateStack stateStack) {
 	return stateStack->stackPointer == 0;
 }
 

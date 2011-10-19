@@ -34,14 +34,14 @@ extern AttributeEntry *attributes; /* Dynamic attribute values */
 
 
 /* Functions: */
-extern Bool isA(int instance, int class);
-extern Bool isObject(int instance);
-extern Bool isContainer(int instance);
-extern Bool isActor(int instance);
-extern Bool isALocation(int instance);
-extern Bool isLiteral(int instance);
-extern Bool isNumeric(int instance);
-extern Bool isString(int instance);
+extern bool isA(int instance, int class);
+extern bool isObject(int instance);
+extern bool isContainer(int instance);
+extern bool isActor(int instance);
+extern bool isALocation(int instance);
+extern bool isLiteral(int instance);
+extern bool isNumeric(int instance);
+extern bool isString(int instance);
 
 extern Aptr getInstanceAttribute(int instance, int attribute);
 extern char *getInstanceStringAttribute(int instane, int attribute);
@@ -55,20 +55,20 @@ extern void say(int instance);
 extern void sayForm(int instance, SayForm form);
 extern void sayInstance(int instance);
 
-extern Bool hasDescription(int instance);
-extern Bool isDescribable(int instance);
+extern bool hasDescription(int instance);
+extern bool isDescribable(int instance);
 extern void describeAnything(int instance);
 extern void describeInstances(void);
-extern Bool describe(int instance);
+extern bool describe(int instance);
 
-extern int where(int instance, Bool directly);
+extern int where(int instance, bool directly);
 extern int locationOf(int instance);
 
-extern Bool at(int instance, int other,Bool directly);
-extern Bool in(int instance, int theContainer, Bool directly);
-extern Bool isHere(int instance, Bool directly);
-extern Bool isNearby(int instance, Bool directly);
-extern Bool isNear(int instance, int other, Bool directly);
+extern bool at(int instance, int other,bool directly);
+extern bool in(int instance, int theContainer, bool directly);
+extern bool isHere(int instance, bool directly);
+extern bool isNearby(int instance, bool directly);
+extern bool isNear(int instance, int other, bool directly);
 
 extern void locate(int instance, int whr);
 

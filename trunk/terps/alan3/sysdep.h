@@ -20,10 +20,6 @@
 
 
 /* Place definitions of OS and compiler here if necessary */
-#ifdef AZTEC_C
-#define __amiga__
-#endif
-
 #ifndef __sun__
 #ifdef sun
 #define __sun__

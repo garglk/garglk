@@ -18,10 +18,10 @@
 #endif
 
 /* PUBLIC DATA */
-Bool anyOutput = FALSE;
-Bool capitalize = FALSE;
-Bool needSpace = FALSE;
-Bool skipSpace = FALSE;
+bool anyOutput = FALSE;
+bool capitalize = FALSE;
+bool needSpace = FALSE;
+bool skipSpace = FALSE;
 
 /* Screen formatting info */
 int col, lin;
@@ -71,8 +71,8 @@ void newline(void)
 #ifndef HAVE_GLK
     char buf[256];
 
-    if (!regressionTestOption && lin >= header->pageLength - 1) {
-        printAndLog("\n");
+    if (!regressionTestOption && lin == pageLength - 1) {
+		printAndLog("\n");
         needSpace = FALSE;
         printMessage(M_MORE);
         statusline();
@@ -286,7 +286,7 @@ static void sayParameter(int p, int form)
   T = tabulation
   $ = no space needed after this, and don't capitalize
 */
-static char *printSymbol(char *str) /* IN - The string starting with '$' */
+static char *printSymbol(char str[]) /* IN - The string starting with '$' */
 {
     int advance = 2;
 
@@ -312,7 +312,7 @@ static char *printSymbol(char *str) /* IN - The string starting with '$' */
         case '-':
         case '!':
             space();
-            if (isdigit(str[2])) {
+            if (isdigit((int)str[2])) {
                 int form;
                 switch (str[1]) {
                 case '+': form = SAY_DEFINITE; break;
@@ -372,6 +372,7 @@ static char *printSymbol(char *str) /* IN - The string starting with '$' */
             capitalize = FALSE;
             break;
         default:
+            advance = 1;
             printAndLog("$");
             break;
         }
@@ -381,13 +382,13 @@ static char *printSymbol(char *str) /* IN - The string starting with '$' */
 
 
 /*----------------------------------------------------------------------*/
-static Bool inhibitSpace(char *str) {
+static bool inhibitSpace(char *str) {
     return str[0] == '$' && str[1] == '$';
 }
 
 
 /*----------------------------------------------------------------------*/
-static Bool isSpaceEquivalent(char str[]) {
+static bool isSpaceEquivalent(char str[]) {
     if (str[0] == ' ')
         return TRUE;
     else
@@ -399,10 +400,10 @@ static Bool isSpaceEquivalent(char str[]) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool punctuationNext(char *str) {
+static bool punctuationNext(char *str) {
     char *punctuation = strchr(".,!?", str[0]);
-    Bool end = str[1] == '\0';
-    Bool space = isSpaceEquivalent(&str[1]);
+    bool end = str[1] == '\0';
+    bool space = isSpaceEquivalent(&str[1]);
     return (punctuation != NULL && (end || space));
 }
 
@@ -462,7 +463,7 @@ void output(char original[])
 
 
 /*======================================================================*/
-Bool confirm(MsgKind msgno)
+bool confirm(MsgKind msgno)
 {
     char buf[80];
 

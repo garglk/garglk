@@ -37,7 +37,7 @@ extern jmp_buf forfeitLabel;
 extern void sys(Aword fpos, Aword len);
 extern void sayInteger(int val);
 extern void sayString(char *str);
-extern Aptr strip(Bool stripFromBeginningNotEnd, int count, Bool stripWordsNotChars, int id, int atr);
+extern Aptr strip(bool stripFromBeginningNotEnd, int count, bool stripWordsNotChars, int id, int atr);
 extern Aptr concat(Aptr s1, Aptr s2);
 extern char *getStringFromFile(Aword fpos, Aword len);
 extern void print(Aword fpos, Aword len);
@@ -54,20 +54,23 @@ extern void use(int act, int scr);
 extern void stop(int act);
 
 extern void empty(int cnt, int whr);
-extern int getContainerMember(int container, int index, Bool directly);
+extern int getContainerMember(int container, int index, bool directly);
 extern int randomInContainer(int cont);
 
 extern void schedule(Aword evt, Aword whr, Aword aft);
 extern void cancelEvent(Aword evt);
 
 extern int randomInteger(int from, int to);
-extern Bool btw(int val, int from, int to);
-extern Bool contains(Aptr string, Aptr substring);
-extern Bool streq(char a[], char b[]);
+extern bool btw(int val, int from, int to);
+extern bool contains(Aptr string, Aptr substring);
+extern bool streq(char a[], char b[]);
 
 extern void include(int instance, int atr, Aword member);
 extern void exclude(int instance, int atr, Aword member);
 extern void increase(int instance, int atr, Aword step);
 extern void decrease(int instance, int atr, Aword step);
+
+extern void startTranscript();
+extern void stopTranscript();
 
 #endif

@@ -8,7 +8,7 @@ void implementationOfSetEndOfArray(Aword *adr)
 }
 
 
-Bool implementationOfIsEndOfList(Aword *adr)
+bool implementationOfIsEndOfList(Aword *adr)
 {
   return *adr == EOF;
 }

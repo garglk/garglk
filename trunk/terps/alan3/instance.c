@@ -31,7 +31,7 @@ AttributeEntry *attributes; /* Dynamic attribute values */
 /* Instance query methods */
 
 /*======================================================================*/
-Bool isA(int instance, int ancestor)
+bool isA(int instance, int ancestor)
 {
     int parent;
 
@@ -46,38 +46,38 @@ Bool isA(int instance, int ancestor)
 }
 
 
-Bool isObject(int instance)
+bool isObject(int instance)
 {
   return isA(instance, OBJECT);
 }
 
-Bool isContainer(int instance)
+bool isContainer(int instance)
 {
   return instance != 0 && instances[instance].container != 0;
 }
 
-Bool isActor(int instance)
+bool isActor(int instance)
 {
   return isA(instance, ACTOR);
 }
 
-Bool isALocation(int instance)
+bool isALocation(int instance)
 {
   return isA(instance, LOCATION);
 }
 
 
-Bool isLiteral(int instance)
+bool isLiteral(int instance)
 {
   return instance > header->instanceMax;
 }
 
-Bool isNumeric(int instance)
+bool isNumeric(int instance)
 {
   return isLiteral(instance) && literals[literalFromInstance(instance)].type == NUMERIC_LITERAL;
 }
 
-Bool isString(int instance)
+bool isString(int instance)
 {
   return isLiteral(instance) && literals[literalFromInstance(instance)].type == STRING_LITERAL;
 }
@@ -138,9 +138,12 @@ Aptr getInstanceAttribute(int instance, int attribute)
     if (isLiteral(instance))
         return literalAttribute(instance, attribute);
     else {
-        if (instance > 0 && instance <= header->instanceMax)
-            return getAttribute(admin[instance].attributes, attribute);
-        else {
+        if (instance > 0 && instance <= header->instanceMax) {
+			if (attribute == -1)
+				return locationOf(instance);
+			else
+				return getAttribute(admin[instance].attributes, attribute);
+		} else {
             sprintf(str, "Can't ATTRIBUTE item (%d).", instance);
             syserr(str);
         }
@@ -178,7 +181,7 @@ static void verifyInstance(int instance, char *action) {
 
 
 /*======================================================================*/
-Bool isHere(int id, Bool directly)
+bool isHere(int id, bool directly)
 {
     verifyInstance(id, "HERE");
 
@@ -190,7 +193,7 @@ Bool isHere(int id, Bool directly)
 
 
 /*======================================================================*/
-Bool isNearby(int instance, Bool directly)
+bool isNearby(int instance, bool directly)
 {
     verifyInstance(instance, "NEARBY");
 
@@ -202,7 +205,7 @@ Bool isNearby(int instance, Bool directly)
 
 
 /*======================================================================*/
-Bool isNear(int instance, int other, Bool directly)
+bool isNear(int instance, int other, bool directly)
 {
     Aint l1, l2;
 
@@ -222,7 +225,7 @@ Bool isNear(int instance, int other, Bool directly)
 
 /*======================================================================*/
 /* Look in a container to see if the instance is in it. */
-Bool in(int instance, int container, Bool directly)
+bool in(int instance, int container, bool directly)
 {
     int loc;
 
@@ -246,7 +249,7 @@ Bool in(int instance, int container, Bool directly)
 
 /*======================================================================*/
 /* Look see if an instance is AT another. */
-Bool at(int instance, int other, Bool directly)
+bool at(int instance, int other, bool directly)
 {
     if (instance == 0 || other == 0) return FALSE;
 
@@ -300,7 +303,7 @@ int locationOf(int instance)
 
 /*======================================================================*/
 /* Return the current position of an instance, directly or not */
-int where(int instance, Bool directly)
+int where(int instance, bool directly)
 {
     verifyInstance(instance, "WHERE");
 
@@ -314,7 +317,7 @@ int where(int instance, Bool directly)
 
 
 /*----------------------------------------------------------------------*/
-static Bool executeInheritedMentioned(int class) {
+static bool executeInheritedMentioned(int class) {
     if (class == 0) return FALSE;
 
     if (classes[class].mentioned) {
@@ -326,7 +329,7 @@ static Bool executeInheritedMentioned(int class) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool mention(int instance) {
+static bool mention(int instance) {
     if (instances[instance].mentioned) {
         interpret(instances[instance].mentioned);
         return TRUE;
@@ -420,7 +423,7 @@ static char *wordWithCode(int classBit, int code) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool sayInheritedDefiniteForm(int class) {
+static bool sayInheritedDefiniteForm(int class) {
     if (class == 0) {
         syserr("No default definite article");
         return FALSE;
@@ -447,7 +450,7 @@ static void sayDefinite(int instance) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool sayInheritedIndefiniteForm(int class) {
+static bool sayInheritedIndefiniteForm(int class) {
     if (class == 0) {
         syserr("No default indefinite article");
         return FALSE;
@@ -474,7 +477,7 @@ static void sayIndefinite(int instance) {
 
 
 /*----------------------------------------------------------------------*/
-static Bool sayInheritedNegativeForm(int class) {
+static bool sayInheritedNegativeForm(int class) {
     if (class == 0) {
         syserr("No default negative form");
         return FALSE;
@@ -581,13 +584,13 @@ void sayForm(int instance, SayForm form)
 
 
 /*======================================================================*/
-Bool isDescribable(int instance) {
+bool isDescribable(int instance) {
     return isObject(instance) || isActor(instance);
 }
 
 
 /*----------------------------------------------------------------------*/
-static Bool inheritsDescriptionFrom(int class)
+static bool inheritsDescriptionFrom(int class)
 {
     if (classes[class].description != 0)
         return TRUE;
@@ -599,7 +602,7 @@ static Bool inheritsDescriptionFrom(int class)
 
 
 /*======================================================================*/
-Bool hasDescription(int instance)
+bool hasDescription(int instance)
 {
     if (instances[instance].description != 0)
         return TRUE;
@@ -710,7 +713,7 @@ void describeInstances(void)
 
 
 /*----------------------------------------------------------------------*/
-static Bool inheritedDescriptionCheck(int class)
+static bool inheritedDescriptionCheck(int class)
 {
     if (class == 0) return TRUE;
     if (!inheritedDescriptionCheck(classes[class].parent)) return FALSE;
@@ -719,7 +722,7 @@ static Bool inheritedDescriptionCheck(int class)
 }
 
 /*----------------------------------------------------------------------*/
-static Bool descriptionCheck(int instance)
+static bool descriptionCheck(int instance)
 {
     if (inheritedDescriptionCheck(instances[instance].parent)) {
         if (instances[instance].checks == 0) return TRUE;
@@ -730,9 +733,9 @@ static Bool descriptionCheck(int instance)
 
 
 /*======================================================================*/
-Bool describe(int instance)
+bool describe(int instance)
 {
-    Bool descriptionOk;
+    bool descriptionOk;
     int previousInstance = current.instance;
 
     current.instance = instance;
@@ -793,18 +796,18 @@ static void locateObject(Aword obj, Aword whr)
 
 
 /*----------------------------------------------------------------------*/
-static void traceEnteredClass(Aint theClass, Bool empty) {
+static void traceEnteredClass(Aint theClass, bool empty) {
     printf("\n<ENTERED in class ");
     printf("%s", idOfClass(theClass));
-    printf("[%ld]%s>\n", (long) theClass, empty?" is empty":":");
+    printf("[%d]%s>\n", theClass, empty?" is empty":":");
 }
 
 
 /*----------------------------------------------------------------------*/
-static void traceEnteredInstance(Aint instance, Bool empty) {
+static void traceEnteredInstance(Aint instance, bool empty) {
     printf("\n<ENTERED in instance ");
     traceSay(instance);
-    printf("[%ld]%s>\n", (long) instance, empty?" is empty":"");
+    printf("[%d]%s>\n", instance, empty?" is empty":"");
 }
 
 

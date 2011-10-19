@@ -222,7 +222,7 @@ static void restoreEventQueue(AFILE saveFile) {
     free(eventQueue);
     eventQueue = allocate(eventQueueTop*sizeof(eventQueue[0]));
   }
-  fread((void *)&eventQueue[eventQueueTop], sizeof(eventQueue[0]), eventQueueTop, saveFile);
+  fread((void *)&eventQueue[0], sizeof(eventQueue[0]), eventQueueTop, saveFile);
 }
 
 

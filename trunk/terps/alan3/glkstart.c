@@ -30,6 +30,7 @@
 #include <windows.h>
 #endif
 
+
 #ifdef HAVE_GARGLK
 #include "alan.version.h"
 #endif
@@ -57,7 +58,7 @@ static void openGlkWindows() {
             glk_exit();
     }
 #ifdef HAVE_GARGLK
-    glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
+   glk_stylehint_set (wintype_TextGrid, style_User1, stylehint_ReverseColor, 1);
 #endif
     glkStatusWin = glk_window_open(glkMainWin, winmethod_Above |
                                    winmethod_Fixed, 1, wintype_TextGrid, 0);
@@ -68,22 +69,26 @@ static void openGlkWindows() {
 
 /*----------------------------------------------------------------------*/
 static void openResourceFile() {
-    char *resourceFileName = strdup(adventureFileName);
-    char *originalFileName = resourceFileName;
+    char *originalFileName = strdup(adventureFileName);
+	char *resourceFileName = originalFileName;
     char *extension = strrchr(resourceFileName, '.');
     frefid_t resourceFileRef;
     giblorb_err_t ecode;
 
 #ifdef HAVE_GARGLK
-    if (strrchr(resourceFileName, '/'))
-        resourceFileName = strrchr(resourceFileName, '/') + 1;
-    else if (strrchr(resourceFileName, '\\'))
-        resourceFileName = strrchr(resourceFileName, '\\') + 1;
+	if (strrchr(resourceFileName, '/'))
+		resourceFileName = strrchr(resourceFileName, '/') + 1;
+	else if (strrchr(resourceFileName, '\\'))
+		resourceFileName = strrchr(resourceFileName, '\\') + 1;
+	if (!resourceFileName)
+		resourceFileName = originalFileName;
 
-    if (extension)
-        strcpy(extension, ".a3r");
-    else
-        strcat(resourceFileName, ".a3r");
+	if (extension)
+		strcpy(extension, ".a3r");
+	else
+		strcat(resourceFileName, ".a3r");
+#else
+    strcpy(extension, ".a3r");
 #endif
 
 #ifdef HAVE_WINGLK
@@ -111,9 +116,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
     /* first, open a window for error output */
     openGlkWindows();
 
-#ifdef GARGLK
-    garglk_set_program_name(alan.shortHeader);
-    garglk_set_program_info("Alan Interpreter 3.0 alpha 9 by Thomas Nilsson\n");
+#ifdef HAVE_GARGLK
+	garglk_set_program_name(alan.shortHeader);
+	garglk_set_program_info("Alan Interpreter 3.0 alpha 8 by Thomas Nilsson\n");
 #endif
 
     /* now process the command line arguments */

@@ -17,11 +17,11 @@
 
 /* Types: */
 typedef struct ParameterPosition {
-    Bool endOfList;
-    Bool explicitMultiple;
-    Bool all;
-    Bool them;
-    Bool checked;
+    bool endOfList;
+    bool explicitMultiple;
+    bool all;
+    bool them;
+    bool checked;
     Aword flags;
     Parameter *parameters;
     Parameter *exceptions;
@@ -34,7 +34,7 @@ typedef struct ParameterPosition {
 /* Functions: */
 extern void uncheckAllParameterPositions(ParameterPosition parameterPositions[]);
 extern void copyParameterPositions(ParameterPosition originalParameterPositions[], ParameterPosition parameterPositions[]);
-extern Bool equalParameterPositions(ParameterPosition parameterPositions1[], ParameterPosition parameterPositions2[]);
+extern bool equalParameterPositions(ParameterPosition parameterPositions1[], ParameterPosition parameterPositions2[]);
 extern int findMultipleParameterPosition(ParameterPosition parameterPositions[]);
 extern void markExplicitMultiple(ParameterPosition parameterPositions[], Parameter parameters[]);
 extern void convertPositionsToParameters(ParameterPosition parameterPositions[], Parameter parameters[]);

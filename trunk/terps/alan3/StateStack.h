@@ -16,7 +16,7 @@ typedef struct StateStackStructure *StateStack;
 
 /* FUNCTIONS */
 extern StateStack createStateStack(int elementSize);
-extern Bool stateStackIsEmpty(StateStack stateStack);
+extern bool stateStackIsEmpty(StateStack stateStack);
 extern void pushGameState(StateStack stateStack, void *state);
 extern void popGameState(StateStack stateStack, void *state, char **playerCommandPointer);
 extern void attachPlayerCommandsToLastState(StateStack stateStack, char *playerCommand);

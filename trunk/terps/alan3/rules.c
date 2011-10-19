@@ -14,6 +14,7 @@
 #include "debug.h"
 #include "current.h"
 #include "options.h"
+#include "compatibility.h"
 
 #ifdef HAVE_GLK
 #include "glkio.h"
@@ -21,7 +22,21 @@
 
 
 /* PUBLIC DATA */
-RuleEntry *ruls;         /* Rule table pointer */
+RuleEntry *rules;         /* Rule table pointer */
+
+
+/* PRIVATE DATA: */
+static bool *rulesLastEval;     /* Table for last evaluation of the rules */
+
+/*======================================================================*/
+void initRules() {
+    int ruleCount;
+
+    rules = (RuleEntry *) pointerTo(header->ruleTableAddress);
+
+    for (ruleCount = 0; !isEndOfArray(&rules[ruleCount]); ruleCount++);
+    rulesLastEval = allocate(ruleCount*sizeof(bool));
+}
 
 
 /*----------------------------------------------------------------------*/
@@ -61,27 +76,72 @@ static void traceRuleExecution(int i) {
 
 
 
-/*=======================================================================*/
-void rules(void)
+/*----------------------------------------------------------------------*/
+static void evaluateRulesPreBeta2(void)
 {
-    Bool change = TRUE;
+    bool change = TRUE;
     int i;
 
-    for (i = 1; !isEndOfArray(&ruls[i-1]); i++)
-	ruls[i-1].run = FALSE;
+    for (i = 1; !isEndOfArray(&rules[i-1]); i++)
+	rules[i-1].run = FALSE;
 
     while (change) {
 	change = FALSE;
-	for (i = 1; !isEndOfArray(&ruls[i-1]); i++)
-	    if (!ruls[i-1].run) {
+	for (i = 1; !isEndOfArray(&rules[i-1]); i++)
+	    if (!rules[i-1].run) {
 		traceRuleEvaluation(i);
-		if (evaluate(ruls[i-1].exp)) {
+		if (evaluate(rules[i-1].exp)) {
 		    change = TRUE;
-		    ruls[i-1].run = TRUE;
+		    rules[i-1].run = TRUE;
 		    traceRuleExecution(i);
-		    interpret(ruls[i-1].stms);
+		    interpret(rules[i-1].stms);
 		} else if (sectionTraceOption && !singleStepOption)
 		    printf(":>\n");
 	    }
     }
+}
+
+
+/*----------------------------------------------------------------------*/
+static void evaluateRulesBeta2Onwards(void)
+{
+    bool change = TRUE;
+    int i;
+
+    for (i = 1; !isEndOfArray(&rules[i-1]); i++)
+	rules[i-1].run = FALSE;
+
+    current.location = NOWHERE;
+    current.actor = 0;
+
+    while (change) {
+	change = FALSE;
+	for (i = 1; !isEndOfArray(&rules[i-1]); i++)
+	    if (!rules[i-1].run) {
+                bool triggered = evaluate(rules[i-1].exp);
+		traceRuleEvaluation(i);
+		if (triggered) {
+                    if (rulesLastEval[i-1] == false) {
+                        change = TRUE;
+                        rules[i-1].run = TRUE;
+                        traceRuleExecution(i);
+                        interpret(rules[i-1].stms);
+                    }
+                    rulesLastEval[i-1] = triggered;
+		} else {
+                    rulesLastEval[i-1] = false;
+                    if (sectionTraceOption && !singleStepOption)
+                        printf(":>\n");
+                }
+	    }
+    }
+}
+
+
+/*=======================================================================*/
+void evaluateRules(void) {
+    if (isPreBeta2(header->version))
+        evaluateRulesPreBeta2();
+    else
+        evaluateRulesBeta2Onwards();
 }

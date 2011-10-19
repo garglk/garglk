@@ -11,7 +11,7 @@
 #include "types.h"
 
 #define isEndOfArray(x) implementationOfIsEndOfList((Aword *) (x))
-extern Bool implementationOfIsEndOfList(Aword *adr);
+extern bool implementationOfIsEndOfList(Aword *adr);
 #define setEndOfArray(x) implementationOfSetEndOfArray((Aword *) (x))
 extern void implementationOfSetEndOfArray(Aword *adr);
 

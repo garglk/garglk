@@ -82,7 +82,7 @@ Aword getSetMember(Set *theSet, Aint theMember) {
 
 
 /*======================================================================*/
-Bool inSet(Set *theSet, Aword member)
+bool inSet(Set *theSet, Aword member)
 {
   int i;
 
@@ -139,7 +139,7 @@ void removeFromSet(Set *theSet, Aword member)
 
 
 /*=======================================================================*/
-Bool equalSets(Set *set1, Set *set2)
+bool equalSets(Set *set1, Set *set2)
 {
   int i;
 
