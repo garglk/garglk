@@ -222,7 +222,7 @@ read_gamefile()
 	create_cinteger ("volume", 100);
 	create_cinteger ("volume", 100);
 	create_cinteger ("volume", 100);
-	create_cinteger ("timer", 0);
+	create_cinteger ("timer", 500);
 
 	set_defaults();
 

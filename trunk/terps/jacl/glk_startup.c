@@ -102,8 +102,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
 	/* THIS OPENS AN ARBITRARY FILE, IN READ-ONLY MODE. NOTE THAT THIS FUNCTION
 	 * IS *ONLY* AVAILABLE DURING glkunix_startup_code(). IT IS INHERENT
 	 * NON-PORTABLE; IT SHOULD NOT AND CANNOT BE CALLED FROM INSIDE 
-	 * glk_main() NOTE: The middle argument TRUE indicates a text file. */
-	game_stream = glkunix_stream_open_pathname(processed_file, TRUE, 0);
+	 * glk_main() NOTE: The middle argument FALSE indicates a binary file. */
+	game_stream = glkunix_stream_open_pathname(processed_file, FALSE, 0);
 
 	if (!game_stream) {
 		strcpy (error_buffer, NOT_FOUND);

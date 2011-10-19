@@ -285,7 +285,7 @@ if $(MAKE_HUGO) = yes
 
 # -----------------------------------------------------------------------
 #
-# JACL 2.8.2 for JACL games
+# JACL 2.8.5 for JACL games
 #
 
 if $(MAKE_JACL) = yes
