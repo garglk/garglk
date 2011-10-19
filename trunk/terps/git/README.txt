@@ -1,6 +1,6 @@
 Git is an interpreter for the Glulx virtual machine. Its homepage is here:
 
-  http://diden.net/if/git
+http://ifarchive.org/indexes/if-archiveXprogrammingXglulxXinterpretersXgit.html
 
 Git's main goal in life is to be fast. It's about five times faster than Glulxe,
 and about twice as fast as Frotz (using the same Inform source compiled for the
@@ -14,8 +14,11 @@ between each prompt.
 
 Have fun, and let me know what you think!
 
-  Iain Merrick
+  Iain Merrick (Original author)
   iain@diden.net
+
+  David Kinder (Current maintainer)
+  davidk.kinder@virgin.net
 
 --------------------------------------------------------------------------------
 
@@ -31,7 +34,8 @@ hard, depending on what kind of computer you're using and whether you want Git
 to be able to display graphics and play sounds. To find a suitable Glk library,
 look here:
 
-  http://eblong.com/zarf/glk
+http://eblong.com/zarf/glk/
+http://ifarchive.org/indexes/if-archiveXprogrammingXglkXimplementations.html
 
 Exactly how you build and link everything depends on what platform you're on and
 which Glk library you're using. The supplied Makefile should work on any Unix
@@ -46,8 +50,8 @@ respectively, but I can't guarantee that they're fully up-to-date.
 
 It should be possible to build Git with any C compiler, but it works best with
 GCC, because that has a non-standard extension that Git can use for a big speed
-boost. GCC 2.95 actually generates faster code than GCC 3, so if you have a
-choice, use the former. (On OS X, this means compiling with 'gcc2'.)
+boost. GCC 2.95 actually generates faster code than later versions, so if you
+have a choice, use the former. (On OS X, this means compiling with 'gcc2'.)
 
 --------------------------------------------------------------------------------
 
@@ -116,12 +120,9 @@ KB. 256KB is usually enough to store dozens of moves.
 
 GCC 3 has bigger problems than I thought. On PowerPC, the direct threading
 option results in much slower code; and on x86, terp.c crashes GCC itself if
-direct threading is used. Therefore, I recommend that you use GCC 2.95 if
-possible. If you only have GCC 3, don't define USE_DIRECT_THREADING, at least
-until the compiler bug is fixed.
-
-Since the previous update, GCC 4 has been released, but I haven't evaluated it
-yet. If you want to give it a try, let me know how you get on!
+direct threading is used. GCC 4 seems to work, given some very limited testing,
+but still results in slow code. Therefore, I recommend that you use GCC 2.95 if
+possible. If you only have GCC 3, don't define USE_DIRECT_THREADING.
 
 Some Glk libraries, such as xglk, can't deal with memory-mapped files. You can
 tell that this is happening if Git can open .ulx files, but complains that .blb
@@ -130,9 +131,9 @@ your startup file, and make sure you're giving it a file stream rather than a
 memory stream. If you're using the git_unix.c startup file, just make sure
 USE_MMAP isn't defined.
 
-1-byte and 2-byte local variables are not implemented yet. This means git can't
-currently play games created with the Superglus system. This will be fixed at
-some point.
+1-byte and 2-byte local variables are not implemented. This means git can't
+play games created with old versions of the Superglus system. As these small
+local variables now deprecated, it is unlikely that this will be fixed.
 
 In the search opcodes, direct keys don't work unless they're exactly 4 bytes
 long.
@@ -190,6 +191,12 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 --------------------------------------------------------------------------------
 
 * Version History
+
+1.2.9 2011-08-28  Fixed a bug in glkop.c dispatching, to do with optional
+                  array arguments, following a similar fix in Glulxe.
+                  Glk array and string operations are now checked for memory
+                  overflows (though not for ROM writing), following a similar
+                  fix in Glulxe.
 
 1.2.8 2010-08-25  Fixed a problem with 'undo' when compiled as 64 bit,
                   contributed by Ben Cressey.
@@ -267,3 +274,4 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
                   Added gitWithStream() as a workaround for xglk
 
 1.0   2003-10-18  First public release
+

@@ -10,7 +10,7 @@ Build status as of 10/11/2010:
 | bocfel        | 0.6.0         |
 | frotz         | 2.5.0         |
 | geas          | 0.4           |
-| git           | 1.2.8         |
+| git           | 1.2.9         |
 | glulxe        | 0.4.6         |
 | hugo          | 3.1.03        |
 | jacl          | 2.8.2         |

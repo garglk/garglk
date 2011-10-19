@@ -231,7 +231,12 @@ do_enter_function_L1: // Arg count is in L2.
         L6 = memRead8(L1++); // LocalType
         L5 = memRead8(L1++); // LocalCount
         if (L6 != 4 && L6 != 0) // We only support 4-byte locals.
-            fatalError("Local variable wasn't 4 bytes wide");
+        {
+            if (L6 == 1 || L6 == 2)
+                fatalError("Short local variables are not supported, use Glulxe");
+            else
+                fatalError("Local variable wasn't 4 bytes wide");
+        }
         L4 += L5; // Cumulative local count.
     }
     while (L5 != 0);

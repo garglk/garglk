@@ -277,6 +277,16 @@ glui32 git_perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
        directly -- instead of bothering with the whole prototype 
        mess. */
 
+  case 0x0047: /* stream_set_current */
+    if (numargs != 1)
+      goto WrongArgNum;
+    glk_stream_set_current(git_find_stream_by_id(arglist[0]));
+    break;
+  case 0x0048: /* stream_get_current */
+    if (numargs != 0)
+      goto WrongArgNum;
+    retval = git_find_id_for_stream(glk_stream_get_current());
+    break;
   case 0x0080: /* put_char */
     if (numargs != 1)
       goto WrongArgNum;
@@ -297,6 +307,16 @@ glui32 git_perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
       goto WrongArgNum;
     retval = glk_char_to_upper(arglist[0] & 0xFF);
     break;
+  case 0x0128: /* put_char_uni */
+    if (numargs != 1)
+      goto WrongArgNum;
+    glk_put_char_uni(arglist[0]);
+    break;
+  case 0x012B: /* put_char_stream_uni */
+    if (numargs != 2)
+      goto WrongArgNum;
+    glk_put_char_stream_uni(git_find_stream_by_id(arglist[0]), arglist[1]);
+    break;
 
   WrongArgNum:
     fatalError("Wrong number of arguments to Glk function.");
@@ -306,7 +326,7 @@ glui32 git_perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
     /* Go through the full dispatcher prototype foo. */
     char *proto, *cx;
     dispatch_splot_t splot;
-    int argnum;
+    int argnum, argnum2;
 
     /* Grab the string. */
     proto = gidispatch_prototype(funcnum);
@@ -335,9 +355,11 @@ glui32 git_perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
     gidispatch_call(funcnum, argnum, splot.garglist);
 
     /* Phase 3. */
-    argnum = 0;
+    argnum2 = 0;
     cx = proto;
-    unparse_glk_args(&splot, &cx, 0, &argnum, 0, 0);
+    unparse_glk_args(&splot, &cx, 0, &argnum2, 0, 0);
+    if (argnum != argnum2)
+      fatalError("Argument counts did not match.");
 
     break;
   }
@@ -560,6 +582,12 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
 
         switch (typeclass) {
         case 'C':
+          /* This test checks for a giant array length, and cuts it down to
+             something reasonable. Future releases of this interpreter may
+             treat this case as a fatal error. */
+          if (varglist[ix+1] > gEndMem || varglist[ix]+varglist[ix+1] > gEndMem)
+            varglist[ix+1] = gEndMem - varglist[ix];
+
           garglist[gargnum].array = (void*) AddressOfArray(varglist[ix]);
           gargnum++;
           ix++;
@@ -568,6 +596,10 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
           cx++;
           break;
         case 'I':
+          /* See comment above. */
+          if (varglist[ix+1] > gEndMem/4 || varglist[ix+1] > (gEndMem-varglist[ix])/4)
+              varglist[ix+1] = (gEndMem - varglist[ix]) / 4;
+
           garglist[gargnum].array = CaptureIArray(varglist[ix], varglist[ix+1], passin);
           gargnum++;
           ix++;
@@ -679,6 +711,8 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
       }
       else {
         cx++;
+        if (isarray)
+          ix++;
       }
     }    
   }
@@ -885,6 +919,8 @@ static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
       }
       else {
         cx++;
+        if (isarray)
+          ix++;
       }
     }    
   }
@@ -914,6 +950,21 @@ strid_t git_find_stream_by_id(glui32 objid)
 
   /* Recall that class 1 ("b") is streams. */
   return classes_get(1, objid);
+}
+
+/* find_id_for_stream():
+   The converse of find_stream_by_id(). 
+   This is only needed in this file, so it's static.
+*/
+glui32 git_find_id_for_stream(strid_t str)
+{
+  gidispatch_rock_t objrock;
+
+  if (!str)
+    return 0;
+
+  objrock = gidispatch_get_objrock(str, 1);
+  return ((classref_t *)objrock.ptr)->id;
 }
 
 /* Build a hash table to hold a set of Glk objects. */
