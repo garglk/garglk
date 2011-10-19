@@ -1,5 +1,5 @@
 Glulxe: the Glulx VM interpreter
-Version 0.4.###
+Version 0.4.7
 
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glulx/index.html
@@ -34,9 +34,12 @@ comment out the "#define FLOAT_SUPPORT" line in glulxe.h.
 
 * Version
 
-###:
+0.4.7:
     Abstracted powf() to an osdepend wrapper. (Needed for Windows.)
     Fixed a @ceil bug, for some C math libraries.
+    Improved the profiling system in several ways.
+    Fixed a bug in glkop.c dispatching, to do with optional array
+    arguments.
 
 0.4.6:
     Added floating-point math feature.

@@ -5,7 +5,6 @@
 
 #include "glk.h"
 #include "glulxe.h"
-#include "opcodes.h"
 
 #define serop_KeyIndirect (0x01)
 #define serop_ZeroKeyTerminates (0x02)

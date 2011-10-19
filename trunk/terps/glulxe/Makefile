@@ -41,7 +41,7 @@ glulxe: $(OBJS) unixstrt.o
 glulxdump: glulxdump.o
 	$(CC) -o glulxdump glulxdump.o
 
-$(OBJS): glulxe.h
+$(OBJS) unixstrt.o: glulxe.h
 
 exec.o operand.o: opcodes.h
 gestalt.o: gestalt.h
