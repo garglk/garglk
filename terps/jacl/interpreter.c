@@ -9,6 +9,9 @@
 #include "prototypes.h"
 #include <string.h>
 
+char *url_encode(char *str);
+char to_hex(char code);
+
 char *location_attributes[] = {
  "VISITED ", "DARK ", "ON_WATER ", "UNDER_WATER ", "WITHOUT_AIR ", "OUTDOORS ",
  "MID_AIR ", "TIGHT_ROPE ", "POLLUTED ", "SOLVED ", "MID_WATER ", "DARKNESS ",
@@ -1019,12 +1022,12 @@ execute(funcname)
 					pop_stack();
 					return (TRUE);
 				} if (word[2] != NULL) {
-					sprintf (option_buffer, "<input class=~button~ type=\"image\" src=\"%s\" name=\"verb\" value=\"", text_of_word(2));
+					sprintf (option_buffer, "<input class=~button~ type=~image~ src=~%s~ name=~verb~ value=~", text_of_word(2));
 					strcat (option_buffer, text_of_word(1));
-					strcat (option_buffer, "\">");
+					strcat (option_buffer, "~>");
 					write_text(option_buffer);
 				} else {
-					sprintf (option_buffer, "<input class=~button~ type=\"submit\" name=\"verb\" value=\"%s\">", text_of_word(1));
+					sprintf (option_buffer, "<input class=~button~ type=~submit~ style=~width: 90px; margin: 5px;~ name=~verb~ value=~%s~>", text_of_word(1));
 					write_text(option_buffer);
 				}
 			} else if (!strcmp(word[0], "image")) {
@@ -1064,17 +1067,20 @@ execute(funcname)
 					pop_stack();
 					return (TRUE);
 				} else {
+					char * encoded = url_encode(text_of_word(2));
+
 					if (word[3] == NULL) {
-						sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", text_of_word(2), user_id);
+						sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", encoded, user_id);
 						strcat (string_buffer, text_of_word(1));
 						strcat (string_buffer, "</a>");
 					} else {
 						sprintf (string_buffer, "<a class=\"%s\" href=\"?command=", text_of_word(3));
-						strcat (string_buffer, text_of_word(2));
+						strcat (string_buffer, encoded);
 						sprintf (option_buffer, "&amp;user_id=%s\">%s</a>", user_id, text_of_word(1));
 						strcat (string_buffer, option_buffer);
 					}
 
+                    free (encoded); 
 					write_text(string_buffer);
 				}
 			} else if (!strcmp(word[0], "prompt")) {
@@ -1413,7 +1419,8 @@ execute(funcname)
 #endif
 			} else if (!strcmp(word[0], "setstring") ||
 						!strcmp(word[0], "addstring")) {
-				string_buffer[0] = 0;
+				char setstring_buffer[2048] = "";
+				struct string_type *resolved_setstring = NULL;
 
 				if (word[2] == NULL) {
 					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
@@ -1421,28 +1428,30 @@ execute(funcname)
 					return (exit_function(TRUE));
 				} else {
 					/* GET A POINTER TO THE STRING BEING MODIFIED */
-					if ((resolved_string = string_resolve(word[1])) == NULL) {
+					if ((resolved_setstring = string_resolve(word[1])) == NULL) {
 						unkstrrun(word[1]);
 						return (exit_function(TRUE));
 					}
 
 					/* RESOLVE ALL THE TEXT AND STORE IT IN A TEMPORARY BUFFER*/
 					for (counter = 2; word[counter] != NULL && counter < MAX_WORDS; counter++) {
-						strcat(string_buffer, text_of_word(counter));
+						strcat(setstring_buffer, text_of_word(counter));
 					}
 
-					/* string_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
+					/* setstring_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
 					 * IT INTO THE STRING */
 					if (!strcmp(word[0], "setstring")) {
-						strncpy (resolved_string->value, string_buffer, 255);
+						strncpy (resolved_setstring->value, setstring_buffer, 255);
 					} else {
 						/* CALCULATE HOW MUCH SPACE IS LEFT IN THE STRING */
-						counter = 255 - strlen(resolved_string->value);
+						counter = 255 - strlen(resolved_setstring->value);
 						/* THIS IS A addstring COMMAND, SO USE STRNCAT INSTEAD */
-						strncat (resolved_string->value, string_buffer, counter);
+						strncat (resolved_setstring->value, setstring_buffer, counter);
 					}
 				}
 			} else if (!strcmp(word[0], "padstring")) {
+				char setstring_buffer[2048] = "";
+				struct string_type *resolved_setstring = NULL;
 				string_buffer[0] = 0;
 	
 				if (word[3] == NULL) {
@@ -1451,7 +1460,7 @@ execute(funcname)
 					return (exit_function(TRUE));
 				} else {
 					/* GET A POINTER TO THE STRING BEING MODIFIED */
-					if ((resolved_string = string_resolve(word[1])) == NULL) {
+					if ((resolved_setstring = string_resolve(word[1])) == NULL) {
 						unkstrrun(word[1]);
 						return (exit_function(TRUE));
 					}
@@ -1459,12 +1468,12 @@ execute(funcname)
 					index = value_of(word[3], TRUE);	
 
 					for (counter = 0; counter < index; counter++) {
-					     strcat(string_buffer, text_of_word(2));
+					     strcat(setstring_buffer, text_of_word(2));
 					}
 
-					/* string_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
+					/* setstring_buffer IS NOW FILLED, COPY THE UP TO 256 BYTES OF
 					 * IT INTO THE STRING */
-					strncpy (resolved_string->value, string_buffer, 255);
+					strncpy (resolved_setstring->value, setstring_buffer, 255);
 				}
 			} else if (!strcmp(word[0], "return")) {
 				/* RETURN FROM THIS FUNCTION, POSSIBLY RETURNING AN INTEGER VALUE */
@@ -2029,8 +2038,12 @@ set_arguments(function_call)
 			argument_buffer[index] = 0;
 			new_word = TRUE;
 		} else {
+			// COPY THE CHARACTER FROM THE CALLED NAME INTO THE CURRENT
+			// ARGUMENT BUFFER        
 			argument_buffer[index] = function_call[index];
 			if (new_word) {
+				// THIS IS THE FIRST CHARACTER OF A NEW ARGUMENT SO STORE
+				// THE ADDRESS OF THIS CHARACTER IN THE ARGUMENT BUFFER
 				arg_ptr[position] = &argument_buffer[index];
 				new_word = FALSE;
 				if (position < MAX_WORDS)
@@ -2044,7 +2057,7 @@ set_arguments(function_call)
 	/* CLEAR THE NEXT ARGUMENT POINTER */
 	arg_ptr[position] = NULL;
 
-	/* STORE THE VALUE OF EACH ARGUMENT PASSED*/
+	/* STORE THE INTEGER VALUE OF EACH ARGUMENT PASSED*/
 	index = 0;
 	while (arg_ptr[index] != NULL) {
 		//arg_value[index] = value_of(arg_ptr[index], TRUE);
@@ -2130,8 +2143,10 @@ pop_stack()
 	strncpy (default_function, backup[stack].default_function, 80);
 
 	/* RESTORE ALL THE WORD POINTERS */
-	for (counter = 0; counter < MAX_WORDS; counter++)
+	for (counter = 0; counter < MAX_WORDS; counter++) {
 		word[counter] = backup[stack].word[counter];
+		quoted[counter] = backup[stack].quoted[counter];
+	}
 
 	executing_function = backup[stack].function;
 
@@ -2208,8 +2223,10 @@ push_stack(file_pointer)
 		strncpy (backup[stack].default_function, default_function, 80);
 
 		/* PUSH ALL THE WORD POINTERS ONTO THE STACK */
-		for (counter = 0; counter < MAX_WORDS; counter++)
+		for (counter = 0; counter < MAX_WORDS; counter++) {
 			backup[stack].word[counter] = word[counter];
+			backup[stack].quoted[counter] = quoted[counter];
+		}
 
 		// PUSH ALL THE ARGUMENTS AS INTEGERS ONTO THE STACK
 		index = 0;
@@ -2916,4 +2933,27 @@ select_next()
 	}
 
 	return (FALSE);
+}
+
+/* Converts an integer value to its hex character*/
+char to_hex(char code) {
+  static char hex[] = "0123456789abcdef";
+  return hex[code & 15];
+}
+
+/* Returns a url-encoded version of str */
+/* IMPORTANT: be sure to free() the returned string after use */
+char *url_encode(char *str) {
+  char *pstr = str, *buf = malloc(strlen(str) * 3 + 1), *pbuf = buf;
+  while (*pstr) {
+    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') 
+      *pbuf++ = *pstr;
+    else if (*pstr == ' ') 
+      *pbuf++ = '+';
+    else 
+      *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
+    pstr++;
+  }
+  *pbuf = '\0';
+  return buf;
 }

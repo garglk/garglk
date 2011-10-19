@@ -334,6 +334,10 @@ integer_resolve(name)
 				}
 			}
 			break;
+		} else if (expression[index] == '<') {
+			/* HIT A < BEFORE A [ THEREFORE */
+			/* IS A FUNCTION CALL, NOT AN ARRAY */
+			return (NULL);
 		} else if (expression[index] == '(') {
 			/* HIT A ( BEFORE A [ THEREFORE */
 			/* IS AN OBJECT ELEMENT, NOT AN ARRAY */
@@ -423,6 +427,10 @@ cinteger_resolve(name)
 				}
 			}
 			break;
+		} else if (expression[index] == '<') {
+			/* HIT A < BEFORE A [ THEREFORE */
+			/* IS A FUNCTION CALL, NOT AN ARRAY */
+			return (NULL);
 		} else if (expression[index] == '(') {
 			/* HIT A ( BEFORE A [ THEREFORE */
 			/* IS AN OBJECT ELEMENT, NOT AN ARRAY */
@@ -505,6 +513,10 @@ string_resolve(name)
 				}
 			}
 			break;
+		} else if (expression[index] == '<') {
+			/* HIT A < BEFORE A [ THEREFORE */
+			/* IS A FUNCTION CALL, NOT AN ARRAY */
+			return (NULL);
 		} else if (expression[index] == '(') {
 			/* HIT A ( BEFORE A [ THEREFORE */
 			/* IS AN OBJECT ELEMENT, NOT AN ARRAY */
@@ -585,6 +597,10 @@ cstring_resolve(name)
 				}
 			}
 			break;
+		} else if (expression[index] == '<') {
+			/* HIT A < BEFORE A [ THEREFORE */
+			/* IS A FUNCTION CALL, NOT AN ARRAY */
+			return (NULL);
 		} else if (expression[index] == '(') {
 			/* HIT A ( BEFORE A [ THEREFORE */
 			/* IS AN OBJECT ELEMENT, NOT AN ARRAY */
@@ -1093,6 +1109,10 @@ object_element_resolve(testString)
 				}
 			}
 			break;
+		} else if (expression[index] == '<') {
+			/* HIT A < BEFORE A [ THEREFORE */
+			/* IS A FUNCTION CALL, NOT AN ARRAY */
+			return (FALSE);
 		} else if (expression[index] == '[') {
 			/* HIT A [ BEFORE A ( THEREFORE */
 			/* THIS EXPRESSION IS AN ARRAY, NOT AN OBJECT ELEMENT */

@@ -1342,7 +1342,8 @@ glk_get_bin_line_stream(file_stream, buffer, max_length)
 	while (character != -1 && index < (int) max_length) {
 		*(buffer + index) = (char) character;
 		index++;
-		if (character == (glsi32) '\n') {
+		if (character == (glsi32) '\n' ||
+            character == (glsi32) '\r') {
 			break;
 		}
 		character = glk_get_char_stream(file_stream);
