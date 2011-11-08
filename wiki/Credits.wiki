@@ -64,6 +64,7 @@ _Platform-specific interim and final releases_
   * Ryan Hendrickson
   * Yaroslav Isakov
   * Per Liedman
+  * Matthew Twomey
   * Rémi Verschelde
   * Samuel Verschelde
 
