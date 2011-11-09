@@ -1,0 +1,106 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export vector.t -> vector.t3s
+	compile _main.t -> _main.t3o
+	compile vector.t -> vector.t3o
+	link -> vector.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+initially empty:
+after adding new members:
+   [1] 1
+   [2] 2
+   [3] 3
+after incrementing members:
+   [1] 31
+   [2] 22
+   [3] 13
+x should not be modified:
+after subtracting 22:
+   [1] 31
+   [2] 13
+after adding list:
+   [1] 31
+   [2] 13
+   [3] 50
+   [4] 60
+   [5] 70
+after subtracting list:
+   [1] 13
+   [2] 60
+after inserting at element 1:
+   [1] a
+   [2] b
+   [3] c
+   [4] 13
+   [5] 60
+after inserting at element 2:
+   [1] a
+   [2] X
+   [3] Y
+   [4] b
+   [5] c
+   [6] 13
+   [7] 60
+after removing element 3:
+   [1] a
+   [2] X
+   [3] b
+   [4] c
+   [5] 13
+   [6] 60
+after removing elements 2-4:
+   [1] a
+   [2] 13
+   [3] 60
+after prepending 999:
+   [1] 999
+   [2] a
+   [3] 13
+   [4] 60
+after adding vector:
+   [1] 999
+   [2] a
+   [3] 13
+   [4] 60
+   [5] 21
+   [6] 22
+   [7] 23
+v2:
+   [1] 21
+   [2] a
+after subtracting vector v2:
+   [1] 999
+   [2] 13
+   [3] 60
+   [4] 22
+   [5] 23
+v2 after append:
+   [1] 21
+   [2] a
+   [3] b
+v2 after appendAll:
+   [1] 21
+   [2] a
+   [3] b
+   [4] c
+   [5] d
+   [6] e
+
+list + vector:
+   [1] 4
+   [2] 5
+   [3] 6
+   [4] 1
+   [5] 2
+   [6] 3
+list - vector:
+   [1] 5
+   [2] 1
+   [3] 3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

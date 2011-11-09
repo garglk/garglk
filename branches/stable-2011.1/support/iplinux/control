@@ -1,0 +1,44 @@
+Source: gargoyle
+Section: games
+Priority: extra
+Maintainer: Vaagn Khachatryan <vaagn.khachatryan@gmail.com>
+Standards-Version: 3.8.4
+Homepage: http://ccxvii.net/gargoyle/
+XCS-Cross-Host-Build-Depends: debhelper (>= 7), ftjam, pkg-config, oi-help-compiler
+XCS-Cross-Build-Depends: libpng12-dev, libjpeg-dev, libz1-dev, libfreetype6-dev, libfontconfig1-dev, libedje-dev, libeoi-dev, libkeys-dev, libeina-dev, libevas-dev, libecore-dev
+
+Package: gargoyle
+Architecture: any
+Depends: ${shlibs:Depends}, liberation-fonts, libertine-fonts
+Description: graphical player for Interactive Fiction games
+ Gargoyle is an Interactive Fiction (text adventure) player that
+ supports all the major interactive fiction formats.
+ .
+ Most interactive fiction is distributed as portable game files. These
+ portable game files come in many formats. In the past, you used to
+ have to download a separate player (interpreter) for each format of
+ IF you wanted to play. Instead, Gargoyle provides unified player.
+ .
+ Gargoyle is based on the standard interpreters for the formats it
+ supports: .taf (Adrift games, played with Scare), .dat (AdvSys),
+ *.agx/.d$$ (AGiliTy), .asl/.cas (Quest games, played with Geas),
+ *.jacl/.j2 (JACL), .l9/.sna (Level 9), .mag (Magnetic), .gam/.t3
+ (TADS), .z1/.z2/.z3/.z4/.z5/.z6/.z7/.z8 (Inform Z-Machine games,
+ played with Frotz or Nitfol), .ulx/.blb/.blorb/.glb/.gblorb (Inform
+ or Superglús games compiled to the Glulxe VM in Blorb archives,
+ played with Git or Glulxe), .zlb, .zblorb (Inform Z-Machine games in
+ Blorb archives, played with Frotz).
+ .
+ (note: do not confuse the Git Glux interpreter with the Git DVCS or
+ the GNU Interactive Tools)
+ .
+ Gargoyle also features graphics, sounds and Unicode support.
+ .
+ Technically all the bundled interpreters support the Glk API to
+ manage I/O (keyboard, graphics, sounds, file) in IF games. Gargoyle
+ provides a Glk implementation called garglk that displays texts and
+ images in a graphical Gtk window, with care on typography.
+ .
+ Limitations:
+ .
+ * This port doesn't support sound yet.

@@ -1,0 +1,25 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export clone.t -> clone.t3s
+	symbol_export reflect.t -> reflect.t3s
+	compile _main.t -> _main.t3o
+	compile clone.t -> clone.t3o
+	compile reflect.t -> reflect.t3o
+	link -> clone.t3p
+	preinit -> clone.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+sourceTextOrder: type code = 7, val = 1
+sayName: type code = 11 <method>
+name: type code = 8, val = 'my obj'
+bulk: type code = 7, val = 20
+weight: type code = 7, val = 10
+foo: type code = 7, val = 30
+
+obj.sayName: my obj
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

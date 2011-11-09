@@ -1,0 +1,494 @@
+# Copyright 2000 Michael J. Roberts
+#
+# makefile for building TADS 3 with djgpp
+#
+# Before running this makefile, you must build the djgpp version of TADS 2,
+# because this makefile includes several object files from TADS 2.  You
+# should structure your directory tree like this:
+#
+#    xxx        <- any directory you want to put all this stuff under
+#     tads2     <- the tads 2 source directory
+#     tads3     <- the tads 3 source directory
+#
+# To accomplish this, all you will really have to do is go to your root
+# directory ("xxx") and unzip the tads 2 and tads 3 source archives into
+# that directory.
+#
+# You should build tads 2 by going to the tads 2 directory and typing this:
+#
+#   make -fmsdos/makefile.dj
+#
+# That will build all of the required object files in the tads2/msdos/djobj
+# directory.  After that, you're ready to build tads 3.
+#
+# To build TADS 3, run this makefile from the TADS 3 root directory:
+#
+#   make -fmsdos/makefile.dj
+#
+
+#----------------------------------------------------------------------------
+#
+# TADS 3 configuration
+#
+
+#
+# registration files
+#
+REG_BUILTIN = vmbifreg
+REG_METACLASS = vmmcreg
+
+
+#
+# global variable configuration - use 'struct' for maximum efficiency
+#
+T3_GLOBAL_TYPE = VMGLOB_STRUCT
+
+
+# ----------------------------------------------------------------------------
+#
+# directory configuration
+#
+
+# our directory configuration
+DOSDIR = msdos
+WCHAR_PATCH_DIR = wc_patch
+TESTDIR = test
+
+# output directories
+OBJDIR = $(DOSDIR)/djobj
+EXEDIR = $(DOSDIR)/djexe
+EXEPREDIR = $(EXEDIR)/temp
+
+# tads 2 directory - we use this to include some tads 2 files
+TADS2DIR = ../tads2
+
+# tads 2 object directory - we use a few pre-built tads 2 objects to
+# link our executables
+TADS2OBJDIR = $(TADS2DIR)/djobj
+
+# search path for sources
+VPATH=.;derived;wc_patch;msdos
+
+# ----------------------------------------------------------------------------
+#
+# build tool settings 
+#
+
+ifdef COMPILE_FOR_DEBUG
+CFLAGS_DEBUG = -gcoff
+OPTIMIZE = -m486
+LDFLAGS_DEBUG = -gcoff
+else
+CFLAGS_DEBUG = 
+OPTIMIZE = -O2 -fomit-frame-pointer -m486
+LDFLAGS_DEBUG = -s 
+endif
+
+# compiler
+CC = gcc
+#DBGFLG = -g
+CFLAGS = -I$(WCHAR_PATCH_DIR) -I$(TESTDIR) \
+         -I. -I$(DOSDIR) -I$(TADS2DIR) -I$(TADS2DIR)/msdos \
+         $(DBGFLG) \
+         -D_M_IX86 -DMSDOS \
+         -D$(T3_GLOBAL_TYPE) \
+         -DTC_TARGET_T3 \
+         $(CFLAGS_DEBUG)
+
+# linker
+LD = gcc
+LDFLAGS = $(LDFLAGS_DEBUG)
+
+# exe header stripper - produces plain COFF format
+EXE2COFF = exe2coff
+
+
+# ----------------------------------------------------------------------------
+#
+# Default target:  build everything
+#
+all:  \
+  $(EXEDIR)/t3run.exe \
+  $(EXEDIR)/tadsr.exe \
+  $(EXEDIR)/t3make.exe \
+  $(EXEDIR)/t3res.exe \
+  $(EXEDIR)/mkchrtab.exe
+
+
+#
+# delete derived files
+#
+clean:
+	del $(subst /,\,$(EXEDIR))\*.exe
+	del $(subst /,\,$(OBJDIR))\*.o
+    
+#----------------------------------------------------------------------------
+#
+# tads 3 compiler
+#
+$(EXEPREDIR)/t3make.exe: \
+    $(OBJDIR)/tcmakecl.o \
+    $(OBJDIR)/tccmdutl.o \
+    $(OBJDIR)/tcmake.o \
+    $(OBJDIR)/rcmain.o \
+    $(OBJDIR)/tclibprs.o \
+    $(OBJDIR)/std.o \
+    $(OBJDIR)/std_dbg.o \
+    $(OBJDIR)/tcglob.o \
+    $(OBJDIR)/vmerr.o \
+    $(OBJDIR)/vmerrmsg.o \
+    $(OBJDIR)/utf8.o \
+    $(OBJDIR)/charmap.o \
+    $(OBJDIR)/resload.o \
+    $(OBJDIR)/resldexe.o \
+    $(OBJDIR)/tcmain.o \
+    $(OBJDIR)/tcerr.o \
+    $(OBJDIR)/tcerrmsg.o \
+    $(OBJDIR)/tchostsi.o \
+    $(OBJDIR)/tcsrc.o \
+    $(OBJDIR)/tctok.o \
+    $(OBJDIR)/tcprs.o \
+    $(OBJDIR)/tcprsstm.o \
+    $(OBJDIR)/tcprsimg.o \
+    $(OBJDIR)/tcgen.o \
+    $(OBJDIR)/tct3.o \
+    $(OBJDIR)/tct3stm.o \
+    $(OBJDIR)/tct3img.o \
+    $(OBJDIR)/tct3unas.o \
+    $(OBJDIR)/vmhash.o \
+    $(OBJDIR)/vmwrtimg.o \
+    $(OBJDIR)/vmtypedh.o \
+    $(OBJDIR)/vmfile.o \
+    $(OBJDIR)/vminit.o \
+    $(OBJDIR)/vmini_nd.o \
+    $(OBJDIR)/vminitim.o \
+    $(OBJDIR)/vmcfgmem.o \
+    $(OBJDIR)/vmobj.o \
+    $(OBJDIR)/vmundo.o \
+    $(OBJDIR)/vmtobj.o \
+    $(OBJDIR)/vmpat.o \
+    $(OBJDIR)/vmstrcmp.o \
+    $(OBJDIR)/vmdict.o \
+    $(OBJDIR)/vmgram.o \
+    $(OBJDIR)/vmstr.o \
+    $(OBJDIR)/vmcoll.o \
+    $(OBJDIR)/vmiter.o \
+    $(OBJDIR)/vmlst.o \
+    $(OBJDIR)/vmsort.o \
+    $(OBJDIR)/vmsortv.o \
+    $(OBJDIR)/vmbignum.o \
+    $(OBJDIR)/vmvec.o \
+    $(OBJDIR)/vmintcls.o \
+    $(OBJDIR)/vmanonfn.o \
+    $(OBJDIR)/vmlookup.o \
+    $(OBJDIR)/vmbytarr.o \
+    $(OBJDIR)/vmcset.o \
+    $(OBJDIR)/vmfilobj.o \
+    $(OBJDIR)/vmstack.o \
+    $(OBJDIR)/vmpool.o \
+    $(OBJDIR)/vmpoolim.o \
+    $(OBJDIR)/vmtype.o \
+    $(OBJDIR)/vmglob.o \
+    $(OBJDIR)/vmrun.o \
+    $(OBJDIR)/vmfunc.o \
+    $(OBJDIR)/vmmeta.o \
+    $(OBJDIR)/vmpreini.o \
+    $(OBJDIR)/vmimgrb.o \
+    $(OBJDIR)/vmbif.o \
+    $(OBJDIR)/vmbifc.o \
+    $(OBJDIR)/vmimage.o \
+    $(OBJDIR)/vmrunsym.o \
+    $(OBJDIR)/vmimg_nd.o \
+    $(OBJDIR)/vmsrcf.o \
+    $(OBJDIR)/vmbiftad.o \
+    $(OBJDIR)/vmbiftio.o \
+    $(OBJDIR)/askf_tx3.o \
+    $(OBJDIR)/indlg_tx3.o \
+    $(OBJDIR)/vmsave.o \
+    $(OBJDIR)/vmcrc.o \
+    $(OBJDIR)/vmbift3.o \
+    $(OBJDIR)/vmbt3_nd.o \
+    $(OBJDIR)/vmregex.o \
+    $(OBJDIR)/vmconsol.o \
+    $(OBJDIR)/vmconmor.o \
+    $(OBJDIR)/vmconhmp.o \
+    $(OBJDIR)/os_stdio.o \
+    $(OBJDIR)/vmhosttx.o \
+    $(OBJDIR)/vmhostsi.o \
+    $(OBJDIR)/$(REG_METACLASS).o \
+    $(OBJDIR)/$(REG_BUILTIN).o \
+    $(OBJDIR)/vmuni_cs.o \
+    \
+    $(OBJDIR)/wchar.o \
+    \
+    $(TADS2OBJDIR)/osifc.o \
+    $(TADS2OBJDIR)/osnoui.o \
+    $(TADS2OBJDIR)/osdos.o \
+    $(TADS2OBJDIR)/osdosnui.o \
+    $(TADS2OBJDIR)/osdosex.o \
+    $(TADS2OBJDIR)/osrestad.o
+	$(LD) $(LDFLAGS) $^ -o $@
+	$(EXE2COFF) $@
+	
+
+#----------------------------------------------------------------------------
+#
+# tads 3 resource utility
+#
+$(EXEPREDIR)/t3res.exe: \
+    $(OBJDIR)/rcmaincl.o \
+    $(OBJDIR)/rcmain.o \
+    $(OBJDIR)/std.o \
+    \
+    $(OBJDIR)/wchar.o \
+    \
+    $(TADS2OBJDIR)/osnoui.o \
+    $(TADS2OBJDIR)/osdosex.o \
+    $(TADS2OBJDIR)/osdos.o \
+    $(TADS2OBJDIR)/osdosnui.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+
+#----------------------------------------------------------------------------
+#
+# character map utility
+#
+$(EXEPREDIR)/mkchrtab.exe: \
+    $(OBJDIR)/mkchrtab.o \
+    $(OBJDIR)/std.o \
+    $(OBJDIR)/std_dbg.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+
+#----------------------------------------------------------------------------
+#
+# the TADS 3 interpreter
+#
+$(EXEPREDIR)/t3run.exe: \
+    $(OBJDIR)/vmmaincl.o \
+    $(OBJDIR)/vmmain.o \
+    $(OBJDIR)/std.o \
+    $(OBJDIR)/std_dbg.o \
+    $(OBJDIR)/charmap.o \
+    $(OBJDIR)/resload.o \
+    $(OBJDIR)/resldexe.o \
+    $(OBJDIR)/vminit.o \
+    $(OBJDIR)/vmini_nd.o \
+    $(OBJDIR)/vmconsol.o \
+    $(OBJDIR)/vmconmor.o \
+    $(OBJDIR)/vmconhmp.o \
+    $(OBJDIR)/vminitim.o \
+    $(OBJDIR)/vmcfgmem.o \
+    $(OBJDIR)/vmobj.o \
+    $(OBJDIR)/vmundo.o \
+    $(OBJDIR)/vmtobj.o \
+    $(OBJDIR)/vmdict.o \
+    $(OBJDIR)/vmstrcmp.o \
+    $(OBJDIR)/vmpat.o \
+    $(OBJDIR)/vmgram.o \
+    $(OBJDIR)/vmstr.o \
+    $(OBJDIR)/vmcoll.o \
+    $(OBJDIR)/vmiter.o \
+    $(OBJDIR)/vmlst.o \
+    $(OBJDIR)/vmsort.o \
+    $(OBJDIR)/vmsortv.o \
+    $(OBJDIR)/vmbignum.o \
+    $(OBJDIR)/vmvec.o \
+    $(OBJDIR)/vmintcls.o \
+    $(OBJDIR)/vmanonfn.o \
+    $(OBJDIR)/vmlookup.o \
+    $(OBJDIR)/vmbytarr.o \
+    $(OBJDIR)/vmcset.o \
+    $(OBJDIR)/vmfilobj.o \
+    $(OBJDIR)/vmstack.o \
+    $(OBJDIR)/vmerr.o \
+    $(OBJDIR)/vmerrmsg.o \
+    $(OBJDIR)/vmpool.o \
+    $(OBJDIR)/vmpoolim.o \
+    $(OBJDIR)/vmtype.o \
+    $(OBJDIR)/vmtypedh.o \
+    $(OBJDIR)/utf8.o \
+    $(OBJDIR)/vmglob.o \
+    $(OBJDIR)/vmrun.o \
+    $(OBJDIR)/vmfunc.o \
+    $(OBJDIR)/vmmeta.o \
+    $(OBJDIR)/vmsa.o \
+    $(OBJDIR)/vmbif.o \
+    $(OBJDIR)/vmbifl.o \
+    $(OBJDIR)/vmimage.o \
+    $(OBJDIR)/vmimg_nd.o \
+    $(OBJDIR)/vmrunsym.o \
+    $(OBJDIR)/vmsrcf.o \
+    $(OBJDIR)/vmfile.o \
+    $(OBJDIR)/vmbiftad.o \
+    $(OBJDIR)/vmbiftio.o \
+    $(OBJDIR)/askf_os3.o \
+    $(OBJDIR)/indlg_tx3.o \
+    $(OBJDIR)/vmsave.o \
+    $(OBJDIR)/vmcrc.o \
+    $(OBJDIR)/vmbift3.o \
+    $(OBJDIR)/vmbt3_nd.o \
+    $(OBJDIR)/vmregex.o \
+    $(OBJDIR)/vmhostsi.o \
+    $(OBJDIR)/vmhosttx.o \
+    $(OBJDIR)/vmhash.o \
+    $(OBJDIR)/$(REG_METACLASS).o \
+    $(OBJDIR)/$(REG_BUILTIN).o \
+    $(OBJDIR)/vmuni_cs.o \
+    \
+    $(OBJDIR)/wchar.o \
+    \
+    $(TADS2OBJDIR)/osifc.o \
+    $(TADS2OBJDIR)/osnoui.o \
+    $(TADS2OBJDIR)/osrestad.o \
+    $(TADS2OBJDIR)/osdosnui.o \
+    $(TADS2OBJDIR)/osr.o \
+    $(TADS2OBJDIR)/osgen3r.o \
+    $(TADS2OBJDIR)/osscolor.o \
+    $(TADS2OBJDIR)/ossdosdj.o \
+    $(TADS2OBJDIR)/osdosex.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+
+#----------------------------------------------------------------------------
+#
+# combined TADS 2+3 interpreter
+#
+$(EXEPREDIR)/tadsr.exe: \
+    $(OBJDIR)/vmcl23.o \
+    $(OBJDIR)/vmmain.o \
+    $(OBJDIR)/std.o \
+    $(OBJDIR)/std_dbg.o \
+    $(OBJDIR)/charmap.o \
+    $(OBJDIR)/resload.o \
+    $(OBJDIR)/resldexe.o \
+    $(OBJDIR)/vminit.o \
+    $(OBJDIR)/vmini_nd.o \
+    $(OBJDIR)/vmconsol.o \
+    $(OBJDIR)/vmconmor.o \
+    $(OBJDIR)/vmconhmp.o \
+    $(OBJDIR)/vminitim.o \
+    $(OBJDIR)/vmcfgmem.o \
+    $(OBJDIR)/vmobj.o \
+    $(OBJDIR)/vmundo.o \
+    $(OBJDIR)/vmtobj.o \
+    $(OBJDIR)/vmstrcmp.o \
+    $(OBJDIR)/vmpat.o \
+    $(OBJDIR)/vmdict.o \
+    $(OBJDIR)/vmgram.o \
+    $(OBJDIR)/vmstr.o \
+    $(OBJDIR)/vmcoll.o \
+    $(OBJDIR)/vmiter.o \
+    $(OBJDIR)/vmlst.o \
+    $(OBJDIR)/vmsort.o \
+    $(OBJDIR)/vmsortv.o \
+    $(OBJDIR)/vmbignum.o \
+    $(OBJDIR)/vmvec.o \
+    $(OBJDIR)/vmintcls.o \
+    $(OBJDIR)/vmanonfn.o \
+    $(OBJDIR)/vmlookup.o \
+    $(OBJDIR)/vmbytarr.o \
+    $(OBJDIR)/vmcset.o \
+    $(OBJDIR)/vmfilobj.o \
+    $(OBJDIR)/vmstack.o \
+    $(OBJDIR)/vmerr.o \
+    $(OBJDIR)/vmerrmsg.o \
+    $(OBJDIR)/vmpool.o \
+    $(OBJDIR)/vmpoolim.o \
+    $(OBJDIR)/vmtype.o \
+    $(OBJDIR)/vmtypedh.o \
+    $(OBJDIR)/utf8.o \
+    $(OBJDIR)/vmglob.o \
+    $(OBJDIR)/vmrun.o \
+    $(OBJDIR)/vmfunc.o \
+    $(OBJDIR)/vmmeta.o \
+    $(OBJDIR)/vmsa.o \
+    $(OBJDIR)/vmbif.o \
+    $(OBJDIR)/vmbifl.o \
+    $(OBJDIR)/vmimage.o \
+    $(OBJDIR)/vmimg_nd.o \
+    $(OBJDIR)/vmrunsym.o \
+    $(OBJDIR)/vmsrcf.o \
+    $(OBJDIR)/vmfile.o \
+    $(OBJDIR)/vmbiftad.o \
+    $(OBJDIR)/vmbiftio.o \
+    $(OBJDIR)/askf_os3.o \
+    $(OBJDIR)/indlg_tx3.o \
+    $(OBJDIR)/vmsave.o \
+    $(OBJDIR)/vmcrc.o \
+    $(OBJDIR)/vmbift3.o \
+    $(OBJDIR)/vmbt3_nd.o \
+    $(OBJDIR)/vmregex.o \
+    $(OBJDIR)/vmhostsi.o \
+    $(OBJDIR)/vmhosttx.o \
+    $(OBJDIR)/vmhash.o \
+    $(OBJDIR)/$(REG_METACLASS).o \
+    $(OBJDIR)/$(REG_BUILTIN).o \
+    $(OBJDIR)/vmuni_cs.o \
+    \
+    $(OBJDIR)/wchar.o \
+    \
+    $(TADS2OBJDIR)/osifc.o \
+    $(TADS2OBJDIR)/osnoui.o \
+    $(TADS2OBJDIR)/osrestad.o \
+    $(TADS2OBJDIR)/osdosnui.o \
+    $(TADS2OBJDIR)/osr.o \
+    $(TADS2OBJDIR)/osgen3r.o \
+    $(TADS2OBJDIR)/osscolor.o \
+    $(TADS2OBJDIR)/ossdosdj.o \
+    $(TADS2OBJDIR)/osdosex.o \
+    \
+    $(TADS2OBJDIR)/mcm.o \
+    $(TADS2OBJDIR)/mcs.o \
+    $(TADS2OBJDIR)/mch.o \
+    $(TADS2OBJDIR)/obj.o \
+    $(TADS2OBJDIR)/cmd.o \
+    $(TADS2OBJDIR)/errmsg.o \
+    $(TADS2OBJDIR)/fioxor.o \
+    $(TADS2OBJDIR)/os0.o \
+    $(TADS2OBJDIR)/argize.o \
+    $(TADS2OBJDIR)/oserr.o \
+    $(TADS2OBJDIR)/cmap.o \
+    $(TADS2OBJDIR)/dat.o \
+    $(TADS2OBJDIR)/lst.o \
+    $(TADS2OBJDIR)/out.o \
+    $(TADS2OBJDIR)/voc.o \
+    $(TADS2OBJDIR)/bif.o \
+    $(TADS2OBJDIR)/output.o \
+    $(TADS2OBJDIR)/suprun.o \
+    $(TADS2OBJDIR)/regex.o \
+    $(TADS2OBJDIR)/vocab.o \
+    $(TADS2OBJDIR)/execmd.o \
+    $(TADS2OBJDIR)/runstat.o \
+    $(TADS2OBJDIR)/ply.o \
+    $(TADS2OBJDIR)/trd.o \
+    $(TADS2OBJDIR)/linfdum.o \
+    $(TADS2OBJDIR)/fio.o \
+    $(TADS2OBJDIR)/askf_tx.o \
+    $(TADS2OBJDIR)/indlg_tx.o \
+    $(TADS2OBJDIR)/getstr.o \
+    $(TADS2OBJDIR)/qas.o \
+    $(TADS2OBJDIR)/dbgtr.o \
+    $(TADS2OBJDIR)/ler.o \
+    $(TADS2OBJDIR)/bifgdum.o \
+    $(TADS2OBJDIR)/oem_dj.o \
+    $(TADS2OBJDIR)/run_nd.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+
+#----------------------------------------------------------------------------
+#
+# implicit rules
+#
+
+$(OBJDIR)/%.o: %.c
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -o$@ $<
+
+$(OBJDIR)/%.o: %.cpp
+	$(CC) -c $(CFLAGS) $(OPTIMIZE) -o$@ $<
+
+# stubify a linked executable
+$(EXEDIR)/%.exe: $(EXEPREDIR)/%.exe
+	$(EXE2COFF) $<
+	copy /b $(DJGPP_HOME)\bin\cwsdstub.exe+$(subst /,\,$(subst .exe,,$<)) \
+          $(subst /,\,$@)

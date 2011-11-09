@@ -1,0 +1,16 @@
+#!/bin/sh
+# Setup the test environment
+
+# go up to the main TADS 3 source directory
+cd ../..
+
+PATH=./unix/exe:./unix/test:$PATH
+
+# T3_DAT - Data files used in testing
+# T3_OUT - Our test output
+# T3_LOG - Pregenerated logfiles to diff our output against
+T3_DAT=test/data
+T3_OUT=test/out
+T3_LOG=test/log
+
+export PATH T3_DAT T3_OUT T3_LOG

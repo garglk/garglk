@@ -1,0 +1,1138 @@
+====================================================================
+AGILITY: THE (MOSTLY) UNIVERSAL AGT INTERPRETER  Version 1.1.1
+MAGX: MAKE AGX, AGT-COMPATIBLE COMPILER  Version 0.6.5 (beta)
+====================================================================
+  
+  This file contains notes on compiling and porting AGiliTy and Magx. See
+'readme.agility' or 'readme.magx' for an introduction to the program.
+The two programs are separate packages, but they have a fairly large
+base of common code, so I've decided to merge their porting notes.
+ 
+  This software may be freely redistributed under the terms of the GNU
+General Public License, version 2. Since this is free software, there
+is NO WARRANTY of any kind.
+
+  The author, Robert Masenten, can be reached at
+    rcm-math@pacbell.net
+Please tell me if you find any bugs or have any problems porting it
+to a new system.
+
+
+-----------
+ CONTENTS 
+-----------
+  This document has the following sections:
+
+1.0  LIST OF MAJOR CHANGES...
+  1.1  ...TO AGILITY SINCE VERSION 0.8.4
+  1.2  ...TO MAGX SINCE VERSION 0.4
+2.0  SOURCE FILES
+  2.1  COMMON SOURCE FILES
+  2.2  AGILITY-SPECIFIC SOURCE FILES
+  2.3  MAGX-SPECIFIC SOURCE FILES
+3.0  COMPILING
+  3.1  AGILITY PACKAGE
+  3.2  MAGX PACKAGE
+4.0  PORTING NOTES FOR BOTH SYSTEMS
+  4.1  CONFIG.H: PLATFORM SPECIFIC #DEFINES
+  4.2  VARIABLES AND FUNCTIONS DEFINED BY THE INTERPRETER
+  4.3  FILENAME.C: OVERVIEW
+  4.4  FILENAME.C: DATA TYPES  
+  4.5  FILENAME.C: FUNCTIONS
+5.0  FURTHER NOTES ON PORTING AGILITY
+  5.1  OS_*.C: THE PLATFORM-SPECIFIC INTERFACE
+  5.2  VARIABLES AND FUNCTIONS DEFINED BY THE INTERPRETER
+  5.3  OTHER FUNCTIONS THAT CAN OPTIONALLY BE SPECIFIED   
+  5.4  GRAPHICS, FONT, AND SOUND FUNCTIONS
+
+
+
+-------------------------------
+1.0  LIST OF MAJOR CHANGES... 
+-------------------------------
+
+  Theses are lists of the changes most likely to be relevant to
+porters; all of the changes are more extensivly documented in the body
+of this file and in the file 'changes.txt'.  
+
+
+----------------------------------------
+1.1  ...TO AGILITY SINCE VERSION 0.8.4
+----------------------------------------
+  --os_linux.c has been renamed os_termcap.c;  os_curses.c has become
+the main Linux display module.
+  --replay_fast flag has been added; this should be checked by
+agt_delay() and agt_newline(). 
+  --Filename handling has been completely overhauled. All file I/O now
+goes through the new file "filename.c". This has the following effects
+on porters:
+   1) filename.c needs to be compiled and linked with everything.
+   2) agt_globalfile() and get_user_file() now have return-type
+        'genfile'. (genfile is typedef'd to FILE* by default, so this
+        shouldn't break anything.) 
+   3) 'scriptfile' is now of type genfile. See comment 2.
+   4) start_interface() now takes an argument of type 'fc_type'
+       instead of 'char*', as does set_default_filenames()
+       If you are using the default filename.c, then you can get
+       the old value by looking at "fc->gamename".
+   5) If you're replacing main(), the call to run_game() now requires
+       a file context instead of a game name. (See notes on main()).
+See section 4.5 for more information. 
+  --Added fixed font formatting code as well as FIXED_FONT
+configuration option.
+  --Platform dependent information has been broken off into a seperate
+include file, config.h, which is #included in agility.h
+  --Changed source code filenames to improve readability:
+      agtread.h-->agility.h;  uagt.h-->interp.h;		
+      agtdata.c-->gamedata.c; agtdbg.c-->disassemble.c;
+      agttest.c-->agtout.c; rmem.c-->util.c
+  --Converted bool to rbool to avoid conflicts with other libraries and
+systems.
+  --Documentation of agt_textcolor() fixed.
+
+
+-----------------------------------
+1.2  ...TO MAGX SINCE VERSION 0.4 
+-----------------------------------
+  --New source file, objcomp.c, split off of compile.c.
+  --Platform dependent information has been broken off into a seperate
+include file, config.h, which is #included in agility.h.
+  --Changed source code filenames to improve readability:
+      agtread.h-->agility.h; agtdata.c-->gamedata.c; rmem.c-->util.c
+  --Converted to using filename.c for file operations. See porting.txt
+for details.
+  --Converted bool to rbool to avoid conflicts with other libraries and
+systems and eliminated occurances of 'class'.
+
+
+-------------------
+2.0  SOURCE FILES
+-------------------
+  This lists the source files that should be in this package.
+
+
+--------------------------
+2.1  COMMON SOURCE FILES
+--------------------------
+config.g -- Platform specific #defines.
+agility.h -- The header for all of the above files. 
+
+filename.c -- Functions for finding and opening files; this may
+        need to be edited or replaced on some platforms.
+
+agxfile.c -- Routines to read and write AGX game files.
+auxfile.c -- Routines to read in various additional AGT files.
+gamedata.c -- Static data structures and dictionary management routines
+util.c -- Miscellaneous utilities including string functions, wrappers
+	for dynamic allocation routines, and file I/O.
+agilstub.c -- This contains the basic output function used by the 
+	utility programs; not part of the interpreter.
+
+
+------------------------------------
+2.2  AGILITY-SPECIFIC SOURCE FILES
+------------------------------------
+interp.h -- Header for the interpreter files; contains things used by the
+	interpreter but not by agtread.c.
+exec.h -- Header for the verb execution files (exec.c, runverb.c, 
+	metacommand.c, and debugcmd.c).
+
+os_none.c, os_termcap.c, os_dos.c, os_curses.c --
+	platform specific functions, including the lowest level terminal
+	I/O routines.  os_none.c provides a minimal interface that uses
+	only ANSI C library functions; it is intended mainly as a template.
+	os_termcap.c and os_curses.c are two alternative unix backends;
+	they were developed under Linux but should work under most
+	*nix variants. (Please e-mail me about any portability problems.)
+
+agtread.c -- Routines for reading AGT game files.
+agil.c -- Initialization and the main program loop for the interpreter.
+parser.c-- The parser and the menu system.
+exec.c-- The top-level function for running player commands,
+	end-of-turn routines and miscellaneous utilities used during turn
+	execution.	
+metacommand.c-- Metacommand execution core.
+token.c-- Decoding and execution of the actual metacommand tokens.
+runverb.c-- Routines for executing verbs and the main routine
+	for executing player commands.
+object.c -- Functions for manipulating the rooms, nouns, and creatures 
+debugcmd.c-- Routines for executing the debugging verbs.
+interface.c -- The user interface for the interpreter and other semi-platform
+	dependent things including main()
+disassemble.c -- Routines to print out the metacommand execution trace.
+	(Basically a disassembler for metacommands)
+savegame.c -- Functions for saving and restoring the game state; used by 
+	RESTART and UNDO as well as SAVE and RESTORE.
+agtout.c -- Dumps out 'disassembled' AGT game files (originally written
+	as a test for agtread.c)
+agt2agx.c -- Converts from AGT to AGX format.
+
+
+---------------------------------
+2.3  MAGX-SPECIFIC SOURCE FILES
+---------------------------------
+comp.h -- Header for all compiler-specific files.
+
+compstub.c -- Interface routines, main(), error reporting routine,
+ 	and stubs for routines not used by the compiler.
+compile.c -- Core routines for compiling file.
+objcomp.c -- Routines to compile rooms, nouns, and creatures.
+command.c -- Routines to compile metacommands.
+symbol.c -- Routines to manipulate labels and check ranges.
+preproc.c -- Code for the Magx preprocessor.
+opdump.c -- Program to print out the list of meta-command tokens.
+
+
+
+----------------
+3.0  COMPILING
+----------------
+  For all of the following, you should define your platform either from
+the compiler or by adding a line to the top of config.h (e.g. #define
+LINUX). Currently LINUX, SUN, HPUX, NEXT, AMIGA, MSDOS, and PLAIN are
+supported, although some may require an appropriate os_<whatever>.c
+file to compile AGiliTY. (For example, AMIGA requires David Kinder's
+os_amiga.c file which is not included).  For Magx, only LINUX and
+MSDOS have actually been tested.
+
+  The following sections list the files that need to be compiled and
+linked to make each of the possible programs.
+
+
+----------------------
+3.1  AGILITY PACKAGE
+----------------------
+AGTOut (AGT file dumper)
+  util.c, filename.c, gamedata.c, auxfile.c, agxfile.c, 
+  agilstub.c, agtread.c, disassemble.c, agtout.c
+
+AGT2AGX (AGT to AGX conversion utility)
+  util.c, filename.c, gamedata.c, auxfile.c, agxfile.c, 
+  agilstub.c, agtread.c, agt2agx.c
+
+AGiliTy (AGT/AGX interpreter)
+  util.c, filename.c, gamedata.c, auxfile.c, agxfile.c,
+  agtread.c, disassemble.c, agil.c, parser.c, object.c,
+  exec.c, runverb.c, metacommand.c, token.c, debugcmd.c,
+  savegame.c, interface.c, os_<whatever>.c
+  (Filling in <whatever> according to your platform.)
+
+  os_curses.c uses curses.c; it has been written and tested on Linux
+with ncurses, but should work on other *nix platforms.  Use of ncurses
+is recommended.  Please e-mail me about any portability problems.
+
+  os_termcap.c is termcap-based and in principal should work on any
+UNIX platform with termcap, although I recommend instead using
+os_curses.  os_termcap.c has compiled and run successfully on both my
+Linux box and a Sun workstation, but usually requires minor tweaks
+between platforms, given the variation in terminal ioctrls between
+platforms.
+
+  os_none.c is intended mainly as a template for use by those trying
+to port AGiliTy to a new platform. It should work on any platform
+supporting ANSI C and a command line at the expense of having a status
+line. (See PORTING below for details)
+
+  os_dos.c was written to work with Borland C; I have no idea how it
+will work under other libraries or with other compilers. This should
+be compiled under the Huge memory model.
+
+
+-------------------
+3.2  MAGX PACKAGE
+-------------------
+OpDump (Prints list of metacommands and their argument types)
+  util.c, filename.c, gamedata.c, agilstub.c, opdump.c
+
+Magx (AGT compiler)
+  util.c, filename.c, gamedata.c, auxfile.c, agxfile.c,  
+  compile.c, command.c, symbol.c, preproc.c
+
+
+
+
+-------------------------------------
+4.0  PORTING NOTES FOR BOTH SYSTEMS
+-------------------------------------
+  If you are interested in porting AGiliTy or Magx to another platform
+you should contact me to avoid duplicated effort; my e-mail address is  
+   rcm-math@pacbell.net. 
+Also feel free to write if you run into any difficulties.
+
+The source code makes the following assumptions:
+--ANSI C: it uses enums, typedefs, ANSI-style prototypes, etc.
+--Text is encoded as ASCII.
+--long ints are at least 32 bits.
+--Negative numbers are represented in two's-complement.
+
+
+AGILITY
+  In an ideal world, you should only need to change "config.h",
+"os_<whatever>.c", and possibly "filename.c".  Then you could upgrade
+your port to a new version of AGiliTy by just replacing the default
+versions of these files with your own. (Any changes to the interface
+defined by these three files will be listed in the "Changes" section
+of this file.)
+
+  In the real world, you may also need to tweak the memory allocation
+routines in util.c, the higher level output routines defined in
+interface.c, or the main() routines for any of the secondary programs.
+If you need to change more than this, please send me a note so I can
+try to fix whatever problem you ran into.
+
+
+MAGX
+  It should compile and work "out of the box" on any system with a
+command line that obeys the above assumptions and for which config.h
+and filename.c have been set up correctly.
+
+  All of the user interface routines (message output, argument
+parsing, main(), etc.) are in compstub.c, so this is the only file
+that should need to be edited to (e.g.) put a GUI front-end on the 
+compiler.
+
+
+---------------------------------
+4.1  PLATFORM SPECIFIC #DEFINES
+---------------------------------
+  To begin with, you need to determine the appropriate settings for the
+various platform-specific #define statements in config.h.  Many of
+these #define's are only needed for one system or the other.
+  The following symbols can be defined:
+
+PORTSTR: The string describing this particular port.	
+   e.g. #define PORTSTR "OrfDOS Port by R.J. Wright" 
+
+NEED_STR_CMP, NEED_STRN_CMP: These should be defined if your C library
+   doesn't have strcasecmp() and strncasecmp(), respectively.
+   These are case insensitive string compare operations.
+
+HAVE_STRDUP: Set this if strdup() is defined by your C library.
+
+fix_ascii: Set this equal to 1 if your platform doesn't support IBM's 
+   extended ASCII character set (unless you want to write os_*.c
+   to deal with the extended character set). [AGiliTy only]
+
+FAST_FIXSIGN: This speeds the program up but assumes 16-bit shorts and
+   32-bit longs.
+
+MAXSTRUCT: The largest size a single data structure can be. It
+   defaults to 1 MB. This should be at least as large as CBUF_SIZE,
+   BUFF_SIZE, and DESCR_BUFFSIZE; it should also be at least 32K.
+
+BUFF_SIZE: Sets the maximum size of the file buffer used to read in
+   the game files at the beginning. The buffer is allocated
+   dynamically and will not be made larger than the size of the file
+   regardless of the setting of this variable. It will also not be
+   set smaller than an individual record size (which depends on the
+   file). So you can choose to have minimal buffering by setting this
+   to 0  or choose to buffer the whole file by making this
+   sufficiently large (The Linux port uses 1MB, for example).
+   The larger this is the faster files will load but the more
+   memory will be used in the meantime. The default is 32K.
+
+CBUF_SIZE: This is the buffer size used when loading in Master's edition 
+   '.DA6' (code) files, measured in 2-byte units. (So the actual size
+   is twice CBUF_SIZE). Nothing above 20,000 makes sense. [AGiliTy
+   only]
+
+DESCR_BUFFSIZE: The maximum size of the description text block before
+       the interpreter will read it from disk rather than storing it in 
+       memory during play; it defaults to 0 (i.e. always use the disk).
+       It should not be any larger than MAXSTRUCT. At the moment this
+       only affects AGX games; games in the 'D$$' format will always
+       use the disk.
+         Setting this option will speed up text output during play
+       at the expense of a longer loading time (and more memory used).
+       (See also the buff_maxmem variable, below).
+         In practice, game description blocks range from around 50K to
+       around 440K (for Shades of Gray), with most around 100K.  
+       [AGiliTy only]
+
+DOHASH: Define this to use hash tables for dictionary searches.
+   This speeds up loading and compiling dramatically at a small
+   increase in memory usage.
+
+UNIX_IO:  If you have Unix-like low level file I/O functions.
+   (MS-DOS, for example, does). This speeds up the reading
+   of the large game data files on some platforms. If you set this,
+   you will also need to set values for FILE_PERM, READFLAG, and
+   WRITEFLAG; see the top of util.c.
+
+OPEN_AS_TEXT  This causes text files to be opened as text files.
+	Normally they are opened as binary files and end-of-line
+	translation is done by hand, but if you have an operating
+	system for which this doesn't work you might need to define this.
+   	If you define this, the variable open_as_binary can be set to
+	cause text files to be opened as binary files, anyhow.
+	(Which can be useful when trying to compile a file uploaded
+	from another system.) 
+
+REPLACE_MENU: Define this if you replace the function agt_menu() which 
+   creates menus for the player when a game is in menu mode. See 5.3.
+   [AGiliTy only]
+
+REPLACE_MAIN: Define this if you replace main(). See 5.3. [AGiliTy only]
+
+REPLACE_GETFILE: Define this if you replace the function get_user_file(),
+   say to allow the user to pick files from a menu. See 5.3 for 
+   details. [AGiliTy only]
+ 
+REPLACE_FC: Indicates you want to redefine the fc_type type.
+  See the section 4.3 on the filename interface.
+
+pTTL, pINS, pVOC, pHNT, pCFG, pAGX  [Both systems]
+DA1, DA2, DA3, DA4, DA5, DA6, DSS, pOPT  [AGiliTy only]
+pAGT, pDAT, pMSG, pCMD, pSTD  [Magx only]
+  These should be defined to be the extensions to the various files
+  that make up an AGT game.  By default they will be ".da1", ".da2",
+  ".da3", ".da4", ".da5", ".da6", ".d$$", ".ttl", ".ins", ".voc",
+  ".opt", ".hnt", ".cfg", ".agx", ".agt", ".dat". "msg", ".cmd", and
+  ".std" which are the extensions under MS-DOS.
+  (Although not all of them are used by both programs, don't delete
+  the unused defaults as that will keep filename.c from compiling.)
+  If you are replacing filename.c, you don't need to define these.
+
+pSAV,pSCR,pLOG: These are the default extension for save, script, and 
+  log files respectivly (by default they are ".sav", ".scr", and ".log").
+  These are only used if REPLACE_GETFILE is not defined.  [AGiliTy only]
+
+AGTpSTD: This should be the file name of the generic error message
+   file, which the compiler looks for if the game doesn't have its
+   own. (By default, this will be "agt.std".)  You don't need to
+   define this if you are replacing filename.c.  [Magx Only]
+
+PREFIX_EXT  Put file name extensions before the base file name rather
+        than after.  You don't need to worry about this if you are
+        replacing filename.c.
+	
+PATH_SEP  Define to be a string containing characters that could
+        separate the directory path from the filename. If not defined,
+        then AGiliTy will assume there are none and will not try
+        to extract the path from filenames.
+          You don't need to worry about this if you are replacing
+        filename.c.
+        
+pathtest(s)  This is a macro (although you could rewrite it as a function)
+        that should check whether the given string is an absolute
+        path (e.g. in Unix, paths starting with a slash.)
+        If this is left undefined, then _all_ paths will be
+        treated as absolute. You don't need to define this if you are
+        replacing filename.c.
+ 
+(There are also a handful of symbols specific to particular
+os_<platform>.c files; see the relevant files for details).
+
+
+---------------------------------------------------------
+4.2  FUNCTIONS DEFINED BY THE INTERPRETER
+---------------------------------------------------------
+  These are defined in util.c; you are welcome to use them 
+(and in unusual circumstances you might need to change them).
+
+void *rmalloc(long size)
+void *rrealloc(void *ptr,long size)
+void r_free(void *ptr)
+rfree(ptr)
+char *rstrdup(const char *s)
+  These are interpreter's own internal memory allocation routines;
+these are wrappers around the usual functions that catch out-of-memory
+conditions (and exit the program if neccessary). Note that <size> is
+of type <long>, not <size_t>.  
+ <rfree()> is a macro that calls <r_free()> and then sets <ptr> to NULL.
+ <rstrdup> creates a duplicate copy of a string s, using
+malloc.
+
+
+---------------------------
+4.3  FILENAME.C: OVERVIEW
+---------------------------
+  You may not meed to change filename.c at all; the default interface
+is fairly flexible and should work on most systems.  In particular, if
+your system has the following properties, then the original filename.c
+should be adequate (and you can skip ahead to chapter 5):
+
+  i) Files are labeled by filenames. In particular, the file name
+     (including extension) and path are enough to find the file
+     uniquely.  
+  ii) File names can be split into a path (which says where the file
+     is) and a filename, and the separator symbol(s) can't occur in
+     the filename itself.
+  iii) The file "type" of the AGT files is indicated by an extension
+     (or prefix) to the filename.
+  iv) The ANSI file functions are all supported.
+
+  If one or more of these conditions is broken (or if you want to do
+something unusual, like read files straight out of ZIP archives), then
+you will need to either edit or replace filename.c.  All code for
+dealing with filenames and file I/O goes through this file; by
+changing it, you can radically alter the way AGiliTy and Magx find and
+access files.  
+
+   If you make major changes to the filename system, you  will
+probably also need to replace get_user_file() and
+set_default_filenames(); these are logically part of the filename
+interface, but have been put in interface.c since they shouldn't be
+linked into Magx or the various secondary programs.
+
+
+-----------------------------
+4.4  FILENAME.C: DATA TYPES
+-----------------------------
+  There are a handful of definitions and typedefs in config.h; they
+are listed here with their default settings.  You can change any of
+these (except for the filetype enum) and it won't break anything
+outside of filename.c, get_user_file(), and the various
+os_<whatever>.c files.
+
+typdef FILE* genfile;
+  The basic file object.
+
+#define BAD_TEXTFILE NULL
+#define BAD_BINFILE NULL
+  These define the value of genfile that means "this doesn't point to
+  a file."
+
+typedef char *file_id_type
+  Created by writeopen() for use by by binremove(). In the default
+  filename.c, this is just the filename.  It must be a pointer type.
+
+typedef file_context_rec *fc_type;
+  This is in agility.h, but it can be redefined by #defining
+  "REPLACE_FC" in config.h.  Nothing in the core system depends on the
+  internal structure of fc_type. (The only reason file_context_rec is in
+  agility.h at all is so that os_<whatever>.c can use it.)  This
+  specifies a "file context", basically a glorified (and generalized)
+  file name.  
+    The file context should contain whatever information is required
+  to allow the various routines in filename.c to find the neccessary
+  files.
+    Although the default filename.c version is based around file names,
+  this isn't required (at least if you're willing to replace filename.c,
+  main(), and get_user_file()).
+
+
+typedef enum {
+	fNONE  no extension
+	fDA1   the info(DA1) file
+	fDA2   the room(DA2) file
+        fDA3   the noun(DA3) file
+	fDA4   the creature(DA4) file
+	fDA5   the metacommand(DA5) file
+	fDA6   the metacommand code(DA6) file 
+	fDSS   the string(DSS) file
+	fHNT   the pophint file (not used yet)
+	fOPT   the options file
+	fTTL   the title file.
+	fSAV   a save file
+	fSCR   a script file
+	fLOG   a log file
+	fAGX   the AGX data file
+        fINS   the instruction file
+        fVOC   the vocabulary file (used for menuing)
+        fCFG   the game-specific configuration file
+        fAGT,fDAT,fMSG,fCMD,fSTD  AGT source files
+	fAGT_STD   The standard error message file
+} filetype;
+   These are all of the various file types that the file system can
+   be asked for.
+ 
+
+----------------------------
+4.4  FILENAME.C: FUNCTIONS
+----------------------------
+  The following are all of the routines that must be defined by 
+filename.c. Several of these are macros by default (these are all
+defined at the end of config.h).
+
+fc_type init_file_context(const char *name, filetype ft);
+  This creates a file context based on the given name and 
+  on the file class 'ft'.  The file class here doesn't refer to 
+  a particular file type but rather to how the context will be used;
+  the following values of are used by AGiliTy (this is specific to 
+  init_file_context; elsewhere the filetype denotes actual types of
+  files, not the broader classes here):
+     fDA1: "name" is the name of a game; the context will be used to
+       load the game data files. 
+       (AGX, DA1, DA2, ... DSS, CFG, TTL, VOC,... etc.).
+     fNONE: As in fDA1, but gamepath hasn't been set yet, so 
+       don't integrate path information until fix_file_context() is
+       called.
+     fSAV: "name" will be used to access a save file.
+     fSCR: "name" will be used to access a script file.
+     fLOG: "name" will be used to access a log file.
+     fAGX: "name" is name of an AGX file that is about to be written
+         to (agt2agx and Magx only).
+     fAGT: The context will be used to read source code. (Magx only)
+  This is called from main() and get_user_file() so if you replace 
+  both of these (and the corresponding sections of agt2agx and
+  agtout), then you don't need to implement this function.
+  (Although you still need some way to create a file context to 
+  pass to run_game() and the SAVE/RESTORE/LOG/SCRIPT routines.)  
+ 
+void fix_file_context(fc_type fc, filetype ft);
+  Similar to creat_file_context, this is called after path information
+  has been read in. It should adjust the file context to take advantage
+  of that information. (On a port that doesn't support gamepath, this
+  doesn't do anything.) 
+
+fc_type convert_file_context(fc_type fc,filetype ft,const char *name)
+  This creates a new file context based on fc and name, but possibly 
+  altered in some ways, depending on the file type.
+    If name is NULL, then this routine should copy fc, making appropriate
+  changes. If name is not NULL, then the routine should build a file
+  context based on name, but possibly with information from fc.
+    This is used for two purposes:
+  i) To create save/script/log file contexts from a game name context.
+     (in which case name will be NULL).
+     E.g. converting "mygame.agx" to "mygame.sav"
+  ii) To create contexts for new files in the same location as
+       the context fc refers to. (For example, font files, include files,
+       etc.-- which may not have the game name in their filename.)
+       e.g. converting "/usr/local/spelunker/spelunk.agx"
+         to "/usr/local/spelunker/cavepic.pcx"
+
+void release_file_context(fc_type *pfc);
+  Free the file context pointed to by pfc.
+
+char *formal_name(fc_type fc, filetype ft);
+  Return a user-readable string refering to the file associated with
+the given file context and type. This string will be used for
+reporting errors and other messages. The string should have been
+allocated with rmalloc.
+
+genfile badfile(filetype ft); 
+  Return the bad file marker for files of type ft.
+  In the default filname.c, this always returns NULL.
+
+rbool fileexist(fc_type fc, filetype ft)
+  Returns true if the file referred to by fc and ft exists.
+
+genfile readopen(fc_type fc, filetype ft, char **errstr);
+  Open the file associated with the given file context and type for
+reading.  If there is an error, *errstr should be set to point to
+an rmalloc'd error message; otherwise it should be set to NULL.
+  
+genfile writeopen(fc_type fc, filetype ft, 
+		  file_id_type *pfileid, char **errstr);
+  Open the file associated with the given context and type for
+writing.  Set *pfileid to whatever information is needed 
+for binremove() to work; *set errstr as in readopen.
+
+rbool filevalid(genfile f, filetype ft);
+  Return true if f refers to a valid file (as opposed to being NULL,
+say). ft contains the filetype of the given file, which can be
+useful if genfile is a union of several different datatypes.
+
+void readclose(genfile f);
+  Close a file that was opened using readopen.
+
+void writeclose(genfile f, file_id_type fileid);
+  Close a file that was opened using writeopen and (if neccessary)
+free any data pointed to by fileid.
+
+void binremove(genfile f, file_id_type fileid);
+  Remove a file opened by writeopen.
+
+void binseek(genfile f, long offset);
+  Seek to the location <offset> in the given file.
+
+rbool binread(genfile f, void *buff, long recsize, long recnum, 
+	char **errstr);
+  Read a block of <recnum> records each of size <recsize> from the 
+given file into the buffer <buff>. *errstr should be set as for
+binopen(). Return true on success, false on failure.
+  Hitting the end-of-file counts as an error.
+
+rbool binwrite(genfile f, void *buff, long recsize, long recnum, 
+	rbool ferr);
+  Write a block of <recnum> records each of size <recsize> from 
+buffer <buff> into the  given file. In the event of an error,
+abort the program if 'ferr' is true; otherwise just return 0.
+  Return true on success, false on failure.  
+
+long binsize(genfile f);
+  Return the size of an open binary file.
+
+rbool textrewind(genfile f);
+  Rewind the given text file to the beginning.
+
+int textgetc(genfile f);
+  Wrapper around fgetc(f).
+
+void textungetc(genfile f, char c);
+  Wrapper around ungetc(c,f). 
+  (Note the reversal of the order of arguments, done for internal
+consistency: all filename.c functions that require a file have it
+as their first argument.)
+
+int texteof(genfile f);
+  Indicate if the given text file is at the end-of-file.
+
+void textgets(genfile f, char *buff, long leng);
+  Wrapper around fgets(buff,leng,f). 
+
+void textputs(genfile f, const char *s);
+  Wrapper around fputs(buff,f).
+
+
+The default version of filename.c exports one additional function,
+which is only used by os_dos.c, os_termcap.c, and os_curses.c
+(although you are free to use it in your os_<whatever>.c file, too)
+and so doesn't need to be defined if you're writing both your own
+filename.c and os_<whatever>.c:
+
+char *assemble_filename(const char *path, const char *root, 
+			       const char *ext);
+  Concacate path, root, and ext and return the resulting
+rmalloc'd string.
+
+
+
+
+----------------------------------------
+5.0  FURTHER NOTES ON PORTING AGILITY
+----------------------------------------
+  The rest of this file discusses the details of writing a new port of
+AGiliTy.  If you have any sort of command line, you may want to start
+by getting os_none.c to work (it uses only ANSI functions) and then
+work from there.
+
+  Keep in mind that the current Linux and DOS ports have had a lot of
+bells and whistles added; the interface doesn't need to be as
+complicated as they have become. (The original os_dos.c was under 400
+lines.)
+
+
+---------------------------------------------
+5.1 OS_*.C: THE PLATFORM-SPECIFIC INTERFACE
+---------------------------------------------
+  To port AGiliTy to another platform, you also need to create the
+platform  specific os_*.c file, which handles the platform
+specific tasks of the interpreter.
+
+A few notes:
+  It is the responsibility of os_*.c to call for the updating
+of the status line by calling the function print_statline(void)
+periodically (it puts together the status line and then prints it out
+by calling agt_statline() ). At the very least, it should be called
+anytime the player is asked for input and should probably also be
+called before delay().
+
+  Output should be in a fixed-pitch font, ideally 80 columns
+wide. Some AGT games depend on both of these to format text vertically
+(e.g. both Shades of Gray and Cosmoserve).
+
+  os_*.c must contain the definitions of the following
+functions (some of them can be empty functions, of course, and many of
+them only require a few lines of code; os_none.c is both a template
+and an example of a minimal os_*.c).
+
+void agt_delay(int n)   
+   Wait n seconds.  (If fast_replay is true, don't wait at all.)
+
+int agt_rand(int a,int b)
+  Return a random number from a to b, inclusive.
+  If stable_random is set, the random number generator should have been
+initialized in a consistent way so the same numbers will be generated
+each time the program is run.
+
+void init_interface(int argc,char *argv)
+void start_interface(fc_type fc)
+   These should initialize the interface. init_interface() is called at
+the very beginning of the program, before the game or any
+configuration files have been read. It is passed the the command line
+arguments. If you replace main() then you don't need to define
+init_interface() but you need to provide similar functionality from
+within your new main().
+   start_interface() is called after the game has been read in and
+needs to finish the initialization. You may assume only agt_newline(),
+agt_puts(), and agt_option() will be called before start_interface(),
+to print out diagnostic information.
+   In addition they need to set screen_width, screen_height,
+status_width, and curr_x.(See below for what all of these are).  They
+also needs to set script_on=center_on=par_fill_on=0, after which the
+interface can safely ignore the last two of the variables. It _is_ the
+responsibility of the os_* code to echo everything to the script file
+if script_on is 1.
+   These are two functions so that start_interface() can use
+information from the game file (perhaps parsed by agt_option). If you
+aren't doing this, you can just put all of the initialization in
+init_interface() and leave start_interface() empty.
+
+void close_interface(void): 
+  This should do any cleanup necessary.
+
+char *agt_input(int in_type)
+  This should read a line of input from the player and return it in a
+malloc'd buffer. (The routine calling agt_input is responsible for
+freeing this buffer). 
+ in_type specifies the type of input being asked for:
+	0: a normal command 
+	1: a number
+	2: the answer to a question
+	3: a string (e.g. asking for the player's name)
+	4: a filename 
+	5: 'RESTART, RESTORE, UNDO, or QUIT?'
+
+char agt_getkey(rbool echo_char)
+  Get a single key-press from the keyboard. Echo it to the screen if 
+echo_char==1. 
+
+void agt_puts(const char *s) 
+  Output the string s. You may assume that s contains no newline
+characters and that the string itself will not wrap (at least as long
+as screen_width and curr_x have been correctly maintained). curr_x
+should be incremented by the length of s. (It *is* possible for
+characters to be output all the way to the rightmost column, which
+could cause the *cursor* to wrap) 
+
+void agt_newline(void)
+  Generate a newline, scrolling the screen up if necessary.
+
+void agt_clrscr(void)
+ Clear the screen and position the cursor in the upper left-hand
+ corner.
+
+void agt_statline(const char *s)
+ Display the string s on the status line. This should be printed
+ in a fixed-pitch font.
+
+void agt_textcolor(int c)
+  This really handles *all* of the details of text appearance, not
+just color. 
+  0-6,9 are colors; see os_none.c for details.
+  7= Normal: turn off all blinking, bold, color, etc. and restore
+     the text to its default appearance.
+  8= Turn on blinking. (Which can only be turned off by c=7)
+  10= Turn on fixed-pitch font. 
+  11= Turn off fixed-pitch font.
+  -1= Turn on emphasized text("Bold").
+  -2= Turn off emphasized text.
+None of these are toggles-- if any occur twice in a row, the second
+should just be ignored.
+  If you are interested in implementing a proportional font interpreter,
+you should also look at the description of font_status in 5.2.
+
+
+void agt_tone(int hz,int ms)
+  Create a tone at a frequency of hz hertz for ms milliseconds.
+This routine should check the sound_on variable; if it is 0, then the
+routine shouldn't do anything. 
+
+
+void agt_makebox(int width,int height,unsigned long flags);
+  This creates a text box of the given width and height. (These only
+include the text inside and do *not* include any border).  The text
+will be output by using agt_puts() and agt_qnewline().
+  Flags can have the following bits set:
+    TB_TTL, if the title is being printed (the box should be
+	vertically centered in this case). 
+    TB_BORDER, Print a border around the box.
+    TB_NOCENT, don't center the box horizontally; print it left justified
+Other bits are reserved for future use.
+  The actual text of the box will be printed out using the regular
+agt_puts() function interspersed with calls to the box-specific 
+agt_qnewline() (the 'q' stands for 'Quote'). 
+  You may assume that _exactly_ *width* characters of text will be
+printed out on each line (but possibly in multiple agt_puts()
+statements). agt_qnewline() will be called between lines, but will 
+not be called after the last line (agt_endbox() will be called,
+instead). You may also assume that exactly *height* lines will be
+printed out.  
+  On the other hand, it is legal for agt_textcolor() to be called
+during the output of text in a box (which is one reason why there may be
+multiple agt_puts() commands per line).
+  Text boxes should also be printed out in a fixed-pitch font.
+
+void agt_qnewline(void);
+  This is used instead of agt_newline() when text inside a box is
+being printed out. See agt_makebox() for details.
+
+void agt_endbox(void);
+  This is used at the end of a box. See agt_makebox() for details.
+It should leave the cursor in the left-most column on the line below
+the box. 
+
+genfile agt_globalfile(int fid); /* When fid=0, return global config file */
+  When fid=0, this should return an open file descripter to the global
+configuration file for the interpreter.  
+  For example, in MS-DOS, this will be the file AGIL.CFG in the same
+directory as the interpreter; in Linux it is the file '$HOME/.agilrc'.
+  For other values of fid, return NULL.
+
+rbool agt_option(int optnum,char *optstr[],rbool setflag);
+  As the interpreter parses the configuration files, it will pass any
+options it doesn't understand to this function; this can be used to
+support platform-specific configuration options.
+  The line will have been parsed into whitespace-separated words.
+*optnum*=number of words, *optstr[]* is the array contain pointers to all
+of them.  optstr[0] will be the first word on the line (and hence the
+option name).
+  *setflag* will be 1 unless the option name was prefixed by 'NO_'
+(inverting its meaning) in which case it will be 0 (and the  'NO_'
+prefix will have been stripped off).
+  Return 1 if agt_option() recognized the option, 0 otherwise
+(which will cause a warning to be printed).
+
+
+---------------------------------------------------------
+5.2  VARIABLES AND FUNCTIONS DEFINED BY THE INTERPRETER
+---------------------------------------------------------
+
+  The following variables are defined elsewhere, but need to be set and
+updated by the routines in os_*.c as they are used for
+line-break information and to format the status line: 
+
+int screen_width: the width of the screen
+
+int status_width: the width of the status line (on most systems this
+	will be the same as screen_width).
+
+int curr_x: The current x position (starting at 0).
+
+int screen_height: The height of the screen.
+	Currently the only routine that uses this is the title printing
+	routine.
+
+rbool script_on: This should be set to zero by init_interface() and
+  does not need to be changed by the interface code after that.
+  If it is 1 then all input and output should be echoed to the file 
+  associated with scriptfile. 
+
+genfile scriptfile: The file script output should go to. This is set
+  by interface.c. 
+
+
+rbool sound_on: This is set to 1 initially; if it is 0, then agt_tone()
+  shouldn't do anything. os_*  may change this.
+
+char **gamepath:  This is a pointer to a NULL-terminated array of
+  pointers to strings, each of with gives a possible path for the game
+  files. This is set to NULL initially, but you can set this to
+  a list of game file search paths if you want. It needs to be set
+  by init_interface() or agt_option() to have any effect.
+     If this is not NULL, the directories is lists will be searched
+  in order, *before* the current directory is checked. If you want
+  the current directory to be searched first, make sure that  
+  gamepath[0] is the empty string "".
+
+rbool DEBUG_AGT_CMD: By default, this is set by main() according
+  to command line options but you can change it if you want.
+  It can also be set by the player using the AGILDEBUG command.
+  This determines whether metacommand debugging information is 
+  printed out.
+
+rbool DEBUG_OUT: This should be set by init_interface(). If it is 0,
+  metacommand debugging output will go to the screen (using
+  agt_puts() and agt_newline()). If it is 1, debugging output will
+  be sent to debugfile and the interface code should also echo
+  everything to debugfile. Whether there is any debugging output
+  in the first place is determined by DEBUG_AGT_CMD.
+
+FILE *debugfile: This is the file where metacommand debugging output
+  will be sent if DEBUG_OUT is true. It should be set by init_interface().
+
+  (The Linux port, e.g., always sets debugfile to stderr and checks to
+  see if stderr and stdout refer to the same underlying file; if they
+  do it sets DEBUG_OUT to 0; if they are different, then it sets 
+  DEBUG_OUT to 1. Thus if stderr is redirected by the user, then 
+  a complete debugging log file will be written without cluttering
+  the screen. If it is not redirected then debugging output will be
+  sent to the screen through agt_puts().)
+
+
+stable_random: When this is set, the random number generator should
+  behave consistantly so as to give the same set of values each time the
+  interpreter is run. 
+
+BATCH_MODE: We are running the game with a fixed script and so 
+  output can be supressed.
+ 
+menu_mode: If true, menu input will be used instead of the usual
+  command line. This variable is managed automatically by the
+  interpreter, but you can change it if you want.
+
+
+compass_rose: This is an unsigned short with a bit set for each
+   direction the player can go; a fancy port of the interpreter could
+   use this to print something out below the status line (or even draw
+   an honest compass rose). There are 12 bits used; starting with the least
+   significant bit they represent N, S, E, W, NE, NW, SE, SW, U, D, IN,
+   and OUT.
+ 
+descr_maxmem: This is set to DESCR_BUFFSIZE at the beginning of the 
+   program, but you could change it based on the amount of memory
+   available at runtime. It must be set before the game file is 
+   read in from memory (after init_interface() but before
+   start_interface()).
+       It sets the upper limit on the size of the description block
+   before the interpreter will just leave it on disk rather than trying
+   to load it into memory at once.
+
+font_status: This is set by the interpreter; it tells whether a
+   proportional font can be use, or whether the interface must
+   use a fixed pitch font. There are three possible values:
+     0 -- The interpreter doesn't know whether proportional fonts
+          are allowed or not; it's up to the interface (or the user)
+          to make this decision. This is the setting for original AGT 
+          games and early Magx games. 
+     1 -- Fixed font needs to be on by default. 
+     2 -- Fixed font doesn't need to be on by default.
+   See also agt_textcolor().
+
+rbool fast_replay  Set by the interpreter, this is true if the
+       user is doing a fast replay from a log file.  In this case,
+       delays should be supressed and text scrolling should not be
+       stopped each screen to wait for the user. 
+
+  The following functions are defined by the interpreter but can be
+used by os_*.c
+
+
+void agt_save(void)
+void agt_restore(void) 
+void agt_quit(void)
+  These save, restore, and quit the game, respectivly. They can be called
+asyncronously (although the quit or restore won't actually occur until
+the end of the current turn).  These are intended mainly for use in
+event-driven GUIs.
+  (These haven't been tested extensively)
+
+
+void agt_newgame(fc_type fc)
+  This loads a new game, replacing the current one; like the function
+above, it doesn't take effect until the end of the current turn.
+During the start of a new game, start_interface() (but not
+init_interface) will be called again. This is intended mainly for use
+in event-driven GUIs.
+   (This hasn't been tested at all)
+
+
+-------------------------------------------------------
+5.3  OTHER FUNCTIONS THAT CAN OPTIONALLY BE SPECIFIED
+-------------------------------------------------------
+  The following functions may also, optionally, be defined in
+os_*.c, but you must insert appropriate #define statements
+into config.h to prevent the default versions from being created 
+(see above). The default versions of all of these functions are in 
+interface.c.
+
+genfile get_user_file(int ft) /* 0=script, 1=save, 2=restore,
+				3=log(read)  4=log(write) */
+  This gets a file name from the user, opens it, and returns the
+appropriate data structure. If you redefine this then define
+REPLACE_GET_FILE in config.h. You might want to redefine
+this to allow the user to pick files from a menu, for example.
+  ft tells what sort of file the user is being asked for: 0=script,
+1=save, 2=restore, 3=log file(read), 4=log file(write).
+  This is logically part of the filename system; see 4.5.
+
+void set_default_filenames(fc_type fc)
+   This is part of get_user_file and will also be left undefined
+   if REPLACE_GET_FILE is defined in config.h.
+
+int agt_menu(char *header,int size,int width,menuentry *menu);
+  This prints out a menu and gets a choice from the user. This is used
+by a few games to get menu-driven input. You should define
+REPLACE_MENU if you want to redefine this.
+  *header* is the header for the menu; e.g. 'PUT TUBA IN ?'
+  *size* is the number of entries in the menu
+  *width* is the width (in characters) of the widest one.
+  *menu[]* is the array of menu entries; menu entires are strings of
+length MENU_WIDTH (currently 50). 
+  (In interp.h: typedef char menuentry[MENU_WIDTH]; )
+  Return the index corresponding to the menu entry chosen or -1 if
+something strange happened (e.g. the player turned off menuing by
+using special keys)
+  
+
+main() 
+  By putting #define REPLACE_MAIN in config.h, you will prevent
+main() from being defined in interface.c so that os_*.c can
+define its own main function (on some platforms, this may be called
+something other than 'main()').
+  The main function needs to do the following:
+ --Call set_default_options() to make sure that all of the options are 
+     initialized to the correct defaults.
+ --Set the  various options, either from the command line or by other means
+ --Get the file name of the agt game being played (from the command line or
+     by other means).
+ --Do basic initialization of the interface (enough so that writestr()
+	and writeln() will work for diagnostic messages)
+	See the comments on init_interface() above.
+ --Call run_game( fc_type fc ), where fc is the file context of the
+      game file(s). If you're using the default filename.c, you can
+      get this context by calling init_file_context(gamename,fNONE).
+ --Terminate
+
+
+
+   
+------------------------------------------
+5.4  GRAPHICS, FONT, AND SOUND FUNCTIONS
+------------------------------------------ 
+  Master's Edition games included support for graphics and sound,
+although only a very few games were made that made any use of these
+features. The DOS and Linux ports support fonts and graphics; I don't
+know of any ports that support sound, but the core interpreter
+implements the necessary hooks.
+
+  If you actually want to implement these, you'll want to track down
+the documentation for the Master's Edition which discusses the file
+naming conventions and file formats used for these.  (You will also
+want to get your hands on the game HURRY! HURRY! which demonstrates
+all of these.)
+
+  Stub versions of these functions are currently defined at the
+beginning of interface.c; you'll need to comment out those functions
+that you are replacing.
+
+
+void fontcmd(int cmd,int font)
+   0=Load font, the name is fontlist[font]  
+   1=Restore original (startup) font  
+   2=Set game's initial font (<gamename>.FNT)
+  This sets the font used for all output text. Under DOS, the fonts
+are stored in a file name <name>.FNT. The data seems to be stored
+simply as a collection of binary bitmaps, 8x8 pixels, with eight bytes
+for each of the 256 characters in the font set (giving one byte per
+row). There doesn't seem to be any sort of header or other
+information.  
+
+
+void pictcmd(int cmd,int pict)
+  1=Show global picture, name is pictlist[pict]
+  2=Show room picture, name is pixlist[pict]
+  3=Show title picture (usually <gamename>.pcx)
+   Display the picture requested on the screen until the user presses
+a key. Pictures are stored in the PCX file format, but with nonstandard
+filename extensions which indicate the PC video mode the image was
+supposed to be viewed in. 
+  Animations are stored in the FLI format.
+
+
+int musiccmd(int cmd,int song)
+   1=play song, name is in songlist[song]
+   2=play song repeatedly, name is in songlist[song]
+   3=end repeat
+   4=end song
+   5=suspend song
+   6=resume song
+   7=clean-up sound system (called just before interpreter exits)
+   8=turn sound on
+   9=turn sound off
+   -1=Is a song playing? (0=false, 1=true)
+   -2=Is the sound on?  (0=false, 1=true)
+Songs are stored in the MUC file format:
+  The file format includes no header, but is a collection of
+six-byte records. Each record consists of three unsigned 16-bit
+numbers (stored little-endian like all numbers under AGT: the least
+significant byte comes first): the frequency (in Hertz); the length of
+time of the tone (in milliseconds); and a delay between tones (also in
+milliseconds).   
+  At least in theory, songs may also be stored in the VOC, MID, or CMF
+formats. 
+
+
+

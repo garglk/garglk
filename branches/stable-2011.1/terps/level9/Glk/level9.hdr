@@ -1,0 +1,54 @@
+#
+# IFP header definitions for Level 9
+#
+# The two main Level 9 formats are Spectrum snapshots (.sna), and Level 9
+# data files (.dat).  Neither format has a magic identifier in them, so
+# the following is based on observations only, and may be insufficient, or
+# just plain wrong.
+#
+# For .sna snapshot files containing Level 9 games V2 and above, the same
+# four bytes appear at offset 1 in the file : "58 27 9B 36".  For what it's
+# worth, these represent the values of the registers HL', and DE', I think.
+# By the way, this pattern excludes the known V1 game, which the inter-
+# preter cannot play.
+#
+# For .dat data files, the only commonality seems to be "00" at offset 13,
+# and "00 00 00" at offset 19.  This is not at all safe; for example, tar
+# archives match this pattern too.  So for now, this header file will not
+# recognize .dat data files.  You can, however, turn them into pseudo-
+# snapshots with
+#
+#    ( echo -e "\000\130\047\233\066\c"; cat somefile.dat ) >somefile.lev
+#
+# This doesn't make the file a .sna snapshot, but it does put enough of a
+# marker on it that the Level 9 plugin will find it, and since the interp-
+# reter searches in the file for the game data, it'll work.  Because this
+# is cryptic, I'll add a secondary header to look for - "LVL9" at the very
+# start of the file.  You can add this to a .dat data file with the marg-
+# inally less confusing
+#
+#    ( echo "LVL9"; cat somefile.dat ) >somefile.lev
+#
+# For now, this is, unfortunately, the best workround available.
+#
+IFP_ENGINE_TYPE="Level9"
+IFP_ENGINE_NAME="Level9"
+IFP_ENGINE_VERSION="5.1"
+
+IFP_ACCEPTOR_OFFSET=0
+IFP_ACCEPTOR_LENGTH=5
+IFP_ACCEPTOR_PATTERN="^(.. 58 27 9B 36|4C 56 4C 39 ..)$"
+
+IFP_AUTHOR_NAME="Glen Summers"
+
+IFP_BUILDER_NAME="Simon Baldwin"
+IFP_BUILDER_EMAIL="simon_baldwin@yahoo.com"
+
+IFP_ENGINE_DESCRIPTION=\
+"This is an interpreter for Level 9 games in any format, including
+ Spectrum snapshots (.sna files), and is capable of playing V2, V3,
+ and V4 Level 9 games.  Currently, the interpreter plugin recognizes
+ only snapshot files.  Other files need to be specially marked with
+ 'LVL9' in the first four bytes.\n"
+IFP_ENGINE_COPYRIGHT=\
+"Copyright (C) 2002-2007, by Glen Summers and David Kinder.\n"

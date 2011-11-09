@@ -1,0 +1,45 @@
+Gargoyle contains several components, aggregated together to form a package. Parts of this package are distributed under the terms of the GNU General Public License (GPL). Redistribution of this package is freely allowed, provided that the terms of the GPL are adhered to, including the requirement that the source code for all GPL licensed parts of this package be available from the same location as any binary package.
+
+The Gargoyle Glk library is copyright 2009 Tor Andersson. It is released under the terms of the GNU General Public License.
+
+AdvSys is copyright (c) David Michael Betz. It is released under the terms of the BSD license.
+
+AGiliTy is copyright (c) Robert Masenten. It is released under the terms of the GNU General Public License.
+
+Alan is copyright (c) Thomas Nilsson. It is released under the terms of the Artistic License 2.0.
+
+Bocfel is copyright (c) Chris Spiegel. It is released under the terms of the GNU General Public License.
+
+Frotz is copyright (c) Stefan Jokisch. It is released under the terms of the GNU General Public License.
+
+Geas is copyright (c) Mark Tilford and David Jones. It is released under the terms of the GNU General Public License.
+
+Git is copyright (c) Iain Merrick. It is released under the terms of the MIT License.
+
+Glulxe is copyright (c) Andrew Plotkin.
+
+Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
+
+JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
+
+Level 9 is copyright (c) Glen Summers, David Kinder, Alan Staniforth, Simon Baldwin and Dieter Baron. It is released under the terms of the GNU General Public License.
+
+Magnetic is copyright (c) Niclas Karlsson, David Kinder, Stefan Meier and Paul David Doherty. It is released under the terms of the GNU General Public License.
+
+Nitfol is copyright (c) Evin Robertson. It is released under the terms of the GNU General Public License.
+
+SCARE is copyright (c) Simon Baldwin. It is released under the terms of the GNU General Public License.
+
+ScottFree is copyright (c) Alan Cox. It is released under the terms of the GNU General Public License.
+
+TADS is copyright (c) Michael J. Roberts. It is released under the terms of the GNU General Public License.
+
+The Luxi fonts are copyright (c) Bigelow & Holmes Inc. They are released under the terms of the Bigelow & Holmes Inc and URW++ GmbH Luxi font license.
+
+The Bitstream Charter fonts are designed by Matthew Carter and copyright (c) Bistream Inc., Cambridge, MA. You are hereby granted permission under all Bitstream propriety rights to use, copy, modify, sublicense, sell, and redistribute the 4 Bitstream Charter (r) Type 1 outline fonts and the 4 Courier Type 1 outline fonts for any purpose and without restriction; provided, that this notice is left intact on all copies of such fonts and that Bitstream's trademark is acknowledged as shown below on all unmodified copies of the 4 Charter Type 1 fonts. BITSTREAM CHARTER is a registered trademark of Bitstream Inc.
+
+The Linux Libertine fonts are copyright (c) Philipp H. Poll. They are released under the terms of the SIL Open Font License.
+
+The Liberation fonts are copyright (c) Red Hat, Inc. They are released under the terms of the Liberation License.
+
+The authors assume no liability for damages or loss of revenue resulting from the use of any of the software herein. The software is supplied "as is" and carries no warranty, actual or implied. 

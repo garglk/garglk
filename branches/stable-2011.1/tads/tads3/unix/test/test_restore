@@ -1,0 +1,9 @@
+#!/bin/sh
+# Test restoring a saved state
+
+echo "'Restore' test: $1"
+
+test_exec -cs cp437 $T3_OUT/$2.t3 restore  >$T3_OUT/$1.log 2>&1
+test_diff $1
+
+echo

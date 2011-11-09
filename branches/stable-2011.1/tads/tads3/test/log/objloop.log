@@ -1,0 +1,73 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export objloop.t -> objloop.t3s
+	compile _main.t -> _main.t3o
+	compile objloop.t -> objloop.t3o
+	link -> objloop.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Scanning all objects:
+box
+East Room
+West Room
+ball
+book
+Starting Room
+
+Scanning all class objects:
+<class FixedItem>
+<class Item>
+<class Room>
+
+Scanning all Rooms:
+East Room
+West Room
+Starting Room
+
+Scanning all Items:
+box
+ball
+book
+
+Testing ofKind:
+startroom.ofKind(Room) = true
+startroom.ofKind(Item) = nil
+box.ofKind(Room) = nil
+box.ofKind(Item) = true
+
+Testing getSuperclassList:
+sc(startroom, 1) = <class Room>
+sc(box, 1) = <class Item>
+sc(box, 2) = <class FixedItem>
+
+Testing propDefined:
+startroom.propDefined(sdesc) = true
+startroom.propDefined(location) = nil
+book.propDefined(sdesc) = true
+book.propDefined(location) = true
+
+book.propDefined(&sdesc, PropDefDirectly) = true
+book.propDefined(&sdesc, PropDefInherits) = nil
+book.propDefined(&ldesc, PropDefDirectly) = true
+book.propDefined(&ldesc, PropDefInherits) = nil
+book.propDefined(&sdesc, PropDefGetClass) = book
+book.propDefined(&ldesc, PropDefGetClass) = book
+
+ball.propDefined(&sdesc, PropDefDirectly) = true
+ball.propDefined(&sdesc, PropDefInherits) = nil
+ball.propDefined(&ldesc, PropDefDirectly) = nil
+ball.propDefined(&ldesc, PropDefInherits) = true
+ball.propDefined(&sdesc, PropDefGetClass) = ball
+ball.propDefined(&ldesc, PropDefGetClass) = <class Item>
+
+Testing propType:
+startroom.propType(&sdesc) = 9
+startroom.propType(&location) =
+
+Done!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

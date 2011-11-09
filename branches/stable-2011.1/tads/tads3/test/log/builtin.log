@@ -1,0 +1,137 @@
+Warnings: 0
+Errors:   0
+Longest string: 124, longest list: 10
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+built-in function tests
+str.length() = 26
+str.substr(5) = [efghijklmnopqrstuvwxyz]
+str.substr(7, 11) = [ghijklmnopq]
+str.substr(7, 30) = [ghijklmnopqrstuvwxyz]
+str.substr(30) = []
+str.substr(30, 8) = []
+
+str.startsWith(a) = yes
+str.startsWith(b) = no
+str.startsWith(abc) = yes
+str.startsWith(abcdef) = yes
+str.startsWith(bc) = no
+str.startsWith(abcefg) = no
+
+str.endWith(z) = yes
+str.endWith(y) = no
+str.endsWith(xyz) = yes
+str.endsWith(tuvwxyz) = yes
+str.endsWith(xy) = no
+str.endsWith(tuvxyz) = no
+
+lst.length() = 10
+lst.sublist(5) = [five, six, seven, eight, nine, ten]
+lst.sublist(5, 3) = [five, six, seven]
+lst.sublist(5, 15) = [five, six, seven, eight, nine, ten]
+lst.sublist(15) = []
+lst.sublist(15, 3) = []
+lst.car() = one
+lst.cdr() = [two, three, four, five, six, seven, eight, nine, ten]
+[].car() = nil? yes
+[].cdr() = nil? yes
+lst - 'three' -> [one, two, four, five, six, seven, eight, nine, ten]
+lst - ['four', 'eight'] -> [one, two, three, five, six, seven, nine, ten]
+lst - ['four', '123', 'nine'] -> [one, two, three, five, six, seven, eight,
+ten]
+lst2 == ['one', [2, 3], 'four']: true
+lst2 == ['one', 2, 3, 'four']: nil
+lst2 == ['one', [3, 4], 'four']: nil
+
+dataType() tests
+dataType(nil) = 1
+dataType(true) = 2
+dataType(obj1) = 5
+dataType(&prop1) = 6
+dataType(123) = 7
+dataType('hello') = 8
+dataType('abcdefghijklmnopqrstuvwxyz1234567890' /*dynamic string*/) = 8
+dataType([1, 2, 3]) = 10
+dataType([ONE, two, three, four, five, six, seven, eight, nine, ten] /*dynamic
+list*/) = 10
+dataType(_main) = 12
+
+varargs tests
+varfunc(1): 1
+varfunc(1, 2, 3): 1, 2, 3
+
+upper/lower test
+upper('This is a TEST of UPPER and lower. 123;!@#$') = 'THIS IS A TEST OF UPPER
+AND LOWER. 123;!@#$'
+lower('This is a TEST of UPPER and lower. 123;!@#$') = 'this is a test of upper
+and lower. 123;!@#$'
+
+toString test
+toString(123) = 123
+toString(123, 8) = 173
+toString(123, 16) = 7B
+toString(true) = true
+toString(nil) = nil
+toInteger test
+toInteger('nil') = nil
+toInteger('true') = true
+toInteger('123') = 123
+toInteger('ffff', 16) = 65535
+toInteger('123', 8) = 83
+find() test
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('') = 1
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('abcdef') = 1
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('xyz') = 24
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('1234567890') = 27
+'abcdefghijklmnopqrstuvwxyz1234567890'.find('xxx') =
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('one') =
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('ONE') = 1
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('two') = 2
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('ten') = 10
+[ONE, two, three, four, five, six, seven, eight, nine, ten].indexOf('222') =
+[1, [2, 3], 4].indexOf([2, 3]) = 2
+[1, [2, 3], 4].indexOf([3, 4]) =
+[1, 2, 3, 4].intersect([3, 4, 5]) = [3, 4]
+lst3.intersect(lst4) = [four, five]
+lst3.intersect(['three', 'six']) = [three]
+['two', 'four', 'eight'].intersect(lst3) = [two, four]
+lst3.intersect(['six', 'seven', 'eight', 'nine', 'ten']) = []
+
+Regular Expression Tests
+pat1 = '%<test%>'
+pat2 = '([a-z]+) *%1'
+pat3 = '([a-z]+)([0-9]+)'
+search(pat1, 'this is a test') = [11, 4, test]
+search(pat1, 'testing some tests') = nil
+search(pat1, 'testing a test run') = [11, 4, test]
+search(pat2, 'abc def ghi') = nil
+search(pat2, 'abc def def ghi') = [5, 7, def def]
+group(1) = [5, 3, def]
+match(pat1, 'this is a test') =
+match(pat1, 'test a bit') = 4
+match(pat1, 'testing one two three') =
+match(pat3, 'abcdef123!!!') = 9
+group(1) = [1, 6, abcdef]
+group(2) = [7, 3, 123]
+replace(pat1, 'this is a test', 'TEST!!!', ReplaceOnce) = this is a TEST!!!
+replace(pat3, 'this is box123!!!', '%2%1', ReplaceOnce) = this is 123box!!!
+replace(pat2, 'abc def def ghi', '<%*><%*>', ReplaceOnce) = abc <def def><def
+def> ghi
+replace('^[a-z]*$', 'this is a test', '%*%*', ReplaceOnce) = this is a test
+replace('^[a-z]*$', 'testing', '%*%*', ReplaceOnce) = testingtesting
+replace('%([0-9][0-9][0-9]%) *[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]', 'dial
+(800) 555-1212 on phone', '"%*"', ReplaceOnce) = dial "(800) 555-1212" on phone
+replace('[0-9]+', 'abc 123 def 456 789 ghi', '(%*)', ReplaceAll) = abc (123)
+def (456) (789) ghi
+replace('[0-9]+', '123 def 456 789', '(%*)', ReplaceAll) = (123) def (456)
+(789)
+replace('[0-9]+', 'abc 123 def 456 789 ghi', '(%*)', ReplaceOnce) = abc (123)
+def 456 789 ghi
+replace('([a-z])([0-9]+)', 'x1937y2908z4200d', '%1 := %2; ', ReplaceAll) = x :=
+1937; y := 2908; z := 4200; d
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

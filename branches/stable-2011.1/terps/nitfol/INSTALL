@@ -1,0 +1,38 @@
+As far as I know, nitfol contains mostly ANSI C, so most recent C
+compilers should compile it fine. If you have any problems, let me
+know.
+
+If you have make, just use the supplied Makefile.  You may wish to
+edit it to specify options and locations of libraries. Type 'make
+target', where target is one of: xnitfol, termnitfol, cheapnitfol,
+dosnitfol, glktdnitfol, winnitfol, mudnitfol, or mpcmudnitfol,
+depending on which Glk library you wish to link with.  Typing
+'make all' will make the first three of these.
+
+If you don't have make, compile automap.c solve.c infix.c debug.c
+inform.c quetzal.c undo.c op_call.c decode.c errmesg.c globals.c iff.c
+init.c main.c io.c z_io.c op_jmp.c op_math.c op_save.c op_table.c
+op_v6.c oplist.c stack.c zscii.c tokenise.c struct.c objects.c
+portfunc.c hash.c, one of graphics.c or no_graph.c, one of blorb.c or
+no_blorb.c, and one of sound.c or no_snd.c, depending on whether your
+Glk library supports graphics, Blorb, and/or sound.  If your Glk
+library needs startup code, link in startunix.c, startwin.c,
+startdos.c, or startmac.c as appropriate.  Compile time options are
+determined by the definition or lack thereof of macros, so either pass
+them to your compiler or put them in the beginning of nitfol.h (like
+#define SMART_TOKENISER).  Look in the file 'Makefile' for a list of
+these options.  Link together the compiled c files with your Glk
+library to produce an executable.  If you make a project file to do
+your compilation for a platform lacking make, please send it to me so
+I can include it in future releases.
+
+Under djgpp, you'll need to remove the -ansi option for startunix.c /
+startdos.c to compile (non-insane suggestions to get it to define DIR
+properly with -ansi would be appreciated).
+
+If you're on a platform that doesn't normally come with compilers,
+uploading the result to gmd may be appreciated by the compiler-less
+(if no one else has done so).
+
+If something doesn't doesn't work, please complain.
+

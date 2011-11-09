@@ -1,0 +1,23 @@
+#
+# IFP header definitions for Magnetic Scrolls
+#
+# Magnetic Scrolls games data file (the text ones) begin with "MaSc" in
+# the first four characters.  This is easy to spot.
+#
+IFP_ENGINE_TYPE="Magnetic"
+IFP_ENGINE_NAME="Magnetic"
+IFP_ENGINE_VERSION="2.3"
+
+IFP_ACCEPTOR_OFFSET=0
+IFP_ACCEPTOR_LENGTH=4
+IFP_ACCEPTOR_PATTERN="^4D 61 53 63$"
+
+IFP_AUTHOR_NAME="Niclas Karlsson"
+IFP_AUTHOR_EMAIL="nkarlsso@abo.fi"
+
+IFP_BUILDER_NAME="Simon Baldwin"
+IFP_BUILDER_EMAIL="simon_baldwin@yahoo.com"
+
+IFP_ENGINE_DESCRIPTION=\
+"This is an interpreter for Magnetic Scrolls games.\n"
+IFP_ENGINE_COPYRIGHT="Copyright (C) 1997-2008  Niclas Karlsson.\n"

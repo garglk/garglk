@@ -1,0 +1,958 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.6	//
+CHANNEL_IDLE	garglk.h	/^enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };$/;"	e	enum:__anon2
+CHANNEL_MUSIC	garglk.h	/^enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };$/;"	e	enum:__anon2
+CHANNEL_SOUND	garglk.h	/^enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };$/;"	e	enum:__anon2
+COLS	window.c	8;"	d	file:
+FALSE	garglk.h	17;"	d
+FALSE	gi_blorb.c	25;"	d	file:
+FALSE	glkstart.h	25;"	d
+FLOWBREAK	garglk.h	88;"	d
+GARGLK	glk.h	317;"	d
+GLI_SUBPIX	garglk.h	64;"	d
+GLK_H	glk.h	2;"	d
+GLK_MODULE_HYPERLINKS	glk.h	27;"	d
+GLK_MODULE_IMAGE	glk.h	25;"	d
+GLK_MODULE_SOUND	glk.h	26;"	d
+GT_START_H	glkstart.h	17;"	d
+HALFSCALE	imgscale.c	28;"	d	file:
+HISTORYLEN	garglk.h	62;"	d
+ID_ABOUT	syswin.c	18;"	d	file:
+ID_CONFIG	syswin.c	19;"	d	file:
+ID_GLUL	launcher.c	26;"	d	file:
+ID_TOGSCR	syswin.c	20;"	d	file:
+ID_ZCOD	launcher.c	25;"	d	file:
+LIG_FI	garglk.h	80;"	d
+LIG_FL	garglk.h	81;"	d
+LINES	window.c	7;"	d	file:
+MAGIC_FILEREF_NUM	garglk.h	202;"	d
+MAGIC_STREAM_NUM	garglk.h	201;"	d
+MAGIC_WINDOW_NUM	garglk.h	200;"	d
+MAX	wintext.c	8;"	d	file:
+MIN	wintext.c	7;"	d	file:
+MONOB	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+MONOI	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+MONOR	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+MONOZ	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+NULL	garglk.h	20;"	d
+NULL	gi_blorb.c	19;"	d	file:
+NULL	gi_dispa.c	21;"	d	file:
+NULL	glkstart.h	28;"	d
+NUMFUNCTIONS	gi_dispa.c	27;"	d	file:
+NUMINTCONSTANTS	gi_dispa.c	24;"	d	file:
+PROPB	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+PROPI	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+PROPR	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+PROPZ	garglk.h	/^enum { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };$/;"	e	enum:__anon1
+SCALE	imgscale.c	27;"	d	file:
+SCROLLBACK	garglk.h	61;"	d
+SLOP	wintext.c	11;"	d	file:
+TBLINELEN	garglk.h	60;"	d
+TRUE	garglk.h	14;"	d
+TRUE	gi_blorb.c	22;"	d	file:
+TRUE	glkstart.h	22;"	d
+T_ADRIFT	launcher.c	11;"	d	file:
+T_ADVSYS	launcher.c	12;"	d	file:
+T_AGT	launcher.c	13;"	d	file:
+T_ALAN2	launcher.c	14;"	d	file:
+T_ALAN3	launcher.c	15;"	d	file:
+T_GLULX	launcher.c	16;"	d	file:
+T_HUGO	launcher.c	17;"	d	file:
+T_LEV9	launcher.c	18;"	d	file:
+T_MGSR	launcher.c	19;"	d	file:
+T_TADS2	launcher.c	20;"	d	file:
+T_TADS3	launcher.c	21;"	d	file:
+T_ZCODE	launcher.c	22;"	d	file:
+T_ZSIX	launcher.c	23;"	d	file:
+UNI_LDQUO	garglk.h	84;"	d
+UNI_LSQUO	garglk.h	82;"	d
+UNI_MDASH	garglk.h	87;"	d
+UNI_NDASH	garglk.h	86;"	d
+UNI_RDQUO	garglk.h	85;"	d
+UNI_RSQUO	garglk.h	83;"	d
+VERSION	garversion.h	1;"	d
+WIN32_LEAN_AND_MEAN	launcher.c	30;"	d	file:
+WIN32_LEAN_AND_MEAN	syswin.c	11;"	d	file:
+WIN32_LEAN_AND_MEAN	ttswin.c	1;"	d	file:
+_GI_BLORB_H	gi_blorb.h	2;"	d
+_GI_DISPA_H	gi_dispa.h	2;"	d
+acceptline	wingrid.c	/^static void acceptline(window_t *win)$/;"	f	file:
+acceptline	wintext.c	/^static void acceptline(window_t *win)$/;"	f	file:
+advs	draw.c	/^    int advs[256];$/;"	m	struct:font_s	file:
+argc	glkstart.h	/^    int argc;$/;"	m	struct:glkunix_startup_struct
+argtype	glkstart.h	/^    int argtype;$/;"	m	struct:glkunix_argumentlist_struct
+argv	glkstart.h	/^    char **argv;$/;"	m	struct:glkunix_startup_struct
+argv0	launcher.c	/^char argv0[1024];$/;"	v
+argv0	syswin.c	/^static char *argv0;$/;"	v	file:
+array	gi_dispa.h	/^    void *array; \/* all # arguments *\/$/;"	m	union:gluniversal_union
+arrayrock	garglk.h	/^    gidispatch_rock_t arrayrock;$/;"	m	struct:glk_stream_struct
+attrs	garglk.h	/^    unsigned char *attrs;	\/* alias to lines[0].attrs *\/$/;"	m	struct:window_textbuffer_s
+attrs	garglk.h	/^    unsigned char attrs[256];$/;"	m	struct:tgline_s
+attrs	garglk.h	/^    unsigned char attrs[TBLINELEN];$/;"	m	struct:tbline_s
+auxdatnum	gi_blorb.c	/^    int auxdatnum; \/* entry in the auxsound\/auxpict array; -1 if none.$/;"	m	struct:giblorb_chunkdesc_struct	file:
+backward	garglk.h	/^    int vertical, backward; \/* flags *\/$/;"	m	struct:window_pair_s
+bbox	garglk.h	/^    rect_t bbox;$/;"	m	struct:glk_window_struct
+bg	garglk.h	/^	unsigned char bg[3];$/;"	m	struct:style_s
+bgnd	garglk.h	/^    unsigned char bgnd[3];$/;"	m	struct:window_graphics_s
+bitmap_s	draw.c	/^struct bitmap_s$/;"	s	file:
+bitmap_t	draw.c	/^typedef struct bitmap_s bitmap_t;$/;"	t	typeref:struct:bitmap_s	file:
+blorbfile	cgblorb.c	/^static strid_t blorbfile = NULL;$/;"	v	file:
+blorbmap	cgblorb.c	/^static giblorb_map_t *blorbmap = NULL;$/;"	v	file:
+buf	garglk.h	/^    unsigned char *buf;$/;"	m	struct:glk_stream_struct
+buf	launcher.c	/^char buf[1024];$/;"	v
+bufend	garglk.h	/^    unsigned char *bufend;$/;"	m	struct:glk_stream_struct
+bufeof	garglk.h	/^    unsigned char *bufeof;$/;"	m	struct:glk_stream_struct
+buflen	garglk.h	/^    glui32 buflen;$/;"	m	struct:glk_stream_struct
+bufptr	garglk.h	/^    unsigned char *bufptr;$/;"	m	struct:glk_stream_struct
+calcwidth	wintext.c	/^static int calcwidth(window_textbuffer_t *dwin,$/;"	f	file:
+canvas	sysgtk.c	/^static GtkWidget *canvas;$/;"	v	file:
+ch	gi_dispa.h	/^    char ch; \/* Cn *\/$/;"	m	union:gluniversal_union
+chain_next	garglk.h	/^	channel_t *chain_next, *chain_prev;$/;"	m	struct:glk_schannel_struct
+chain_prev	garglk.h	/^	channel_t *chain_next, *chain_prev;$/;"	m	struct:glk_schannel_struct
+channel	garglk.h	/^	int channel;$/;"	m	struct:glk_schannel_struct
+channel_t	garglk.h	/^typedef struct glk_schannel_struct channel_t;$/;"	t	typeref:struct:glk_schannel_struct
+char_request	garglk.h	/^    int char_request;$/;"	m	struct:glk_window_struct
+char_tolower_table	cgmisc.c	/^static unsigned char char_tolower_table[256];$/;"	v	file:
+char_toupper_table	cgmisc.c	/^static unsigned char char_toupper_table[256];$/;"	v	file:
+charkern	draw.c	/^static int charkern(font_t *f, int c0, int c1)$/;"	f	file:
+chars	garglk.h	/^    unsigned char *chars;	\/* alias to lines[0].chars *\/$/;"	m	struct:window_textbuffer_s
+chars	garglk.h	/^    unsigned char chars[256];$/;"	m	struct:tgline_s
+chars	garglk.h	/^    unsigned char chars[TBLINELEN];$/;"	m	struct:tbline_s
+charstr	gi_dispa.h	/^    char *charstr; \/* S *\/$/;"	m	union:gluniversal_union
+child1	garglk.h	/^    window_t *child1, *child2; $/;"	m	struct:window_pair_s
+child2	garglk.h	/^    window_t *child1, *child2; $/;"	m	struct:window_pair_s
+chunknum	gi_blorb.c	/^    glui32 chunknum;$/;"	m	struct:giblorb_resdesc_struct	file:
+chunknum	gi_blorb.h	/^    glui32 chunknum; \/* The chunk number (for use in $/;"	m	struct:giblorb_result_struct
+chunks	gi_blorb.c	/^    giblorb_chunkdesc_t *chunks; \/* list of chunk descriptors *\/$/;"	m	struct:giblorb_map_struct	file:
+chunktype	gi_blorb.h	/^    glui32 chunktype; \/* The type of the chunk. *\/$/;"	m	struct:giblorb_result_struct
+cleanup_channel	sndsdl.c	/^static void cleanup_channel(schanid_t chan)$/;"	f	file:
+curx	garglk.h	/^    int curx, cury; \/* the window cursor position *\/$/;"	m	struct:window_textgrid_s
+cury	garglk.h	/^    int curx, cury; \/* the window cursor position *\/$/;"	m	struct:window_textgrid_s
+dashed	garglk.h	/^    int dashed;$/;"	m	struct:window_textbuffer_s
+data	draw.c	/^    unsigned char *data;$/;"	m	struct:bitmap_s	file:
+data	garglk.h	/^    void *data; \/* one of the window_*_t structures *\/$/;"	m	struct:glk_window_struct
+data	gi_blorb.h	/^    } data;$/;"	m	struct:giblorb_result_struct	typeref:union:giblorb_result_struct::__anon3
+datpos	gi_blorb.c	/^    glui32 datpos; \/* start of data (either startpos or startpos+8) *\/$/;"	m	struct:giblorb_chunkdesc_struct	file:
+desc	glkstart.h	/^    char *desc;$/;"	m	struct:glkunix_argumentlist_struct
+dibinf	syswin.c	/^static BITMAPINFO *dibinf;$/;"	v	file:
+dir	garglk.h	/^    glui32 dir; \/* winmethod_Left, Right, Above, or Below *\/$/;"	m	struct:window_pair_s
+dir	launcher.c	/^char dir[1024];$/;"	v
+dirty	garglk.h	/^    int dirty;$/;"	m	struct:tgline_s
+dirty	garglk.h	/^    int dirty;$/;"	m	struct:window_graphics_s
+dirty	garglk.h	/^    int len, newline, dirty;$/;"	m	struct:tbline_s
+disprock	garglk.h	/^	gidispatch_rock_t disprock;$/;"	m	struct:glk_schannel_struct
+disprock	garglk.h	/^    gidispatch_rock_t disprock;$/;"	m	struct:glk_fileref_struct
+disprock	garglk.h	/^    gidispatch_rock_t disprock;$/;"	m	struct:glk_stream_struct
+disprock	garglk.h	/^    gidispatch_rock_t disprock;$/;"	m	struct:glk_window_struct
+division	garglk.h	/^    glui32 division; \/* winmethod_Fixed or winmethod_Proportional *\/$/;"	m	struct:window_pair_s
+draw_bitmap	draw.c	/^static inline void draw_bitmap(bitmap_t *b, int x, int y, unsigned char *rgb)$/;"	f	file:
+draw_bitmap_lcd	draw.c	/^static inline void draw_bitmap_lcd(bitmap_t *b, int x, int y, unsigned char *rgb)$/;"	f	file:
+drawpicture	wingfx.c	/^static void drawpicture(picture_t *src, window_graphics_t *dst, $/;"	f	file:
+echostr	garglk.h	/^    stream_t *echostr; \/* the window's echo stream, if any. *\/$/;"	m	struct:glk_window_struct
+event_struct	glk.h	/^typedef struct event_struct {$/;"	s
+event_t	glk.h	/^} event_t;$/;"	t	typeref:struct:event_struct
+evtype_Arrange	glk.h	60;"	d
+evtype_CharInput	glk.h	57;"	d
+evtype_Hyperlink	glk.h	63;"	d
+evtype_LineInput	glk.h	58;"	d
+evtype_MouseInput	glk.h	59;"	d
+evtype_None	glk.h	55;"	d
+evtype_Redraw	glk.h	61;"	d
+evtype_SoundNotify	glk.h	62;"	d
+evtype_Timer	glk.h	56;"	d
+face	draw.c	/^    FT_Face face;$/;"	m	struct:font_s	file:
+fg	garglk.h	/^	unsigned char fg[3];$/;"	m	struct:style_s
+file	garglk.h	/^    FILE *file; $/;"	m	struct:glk_stream_struct
+file	gi_blorb.c	/^    strid_t file;$/;"	m	struct:giblorb_map_struct	file:
+filedlog	sysgtk.c	/^static GtkWidget *filedlog;$/;"	v	file:
+filemode_Read	glk.h	144;"	d
+filemode_ReadWrite	glk.h	145;"	d
+filemode_Write	glk.h	143;"	d
+filemode_WriteAppend	glk.h	146;"	d
+filename	garglk.h	/^    char *filename;$/;"	m	struct:glk_fileref_struct
+filename	sysgtk.c	/^static char *filename;$/;"	v	file:
+fileref_t	garglk.h	/^typedef struct glk_fileref_struct fileref_t;$/;"	t	typeref:struct:glk_fileref_struct
+filetype	garglk.h	/^    int filetype;$/;"	m	struct:glk_fileref_struct
+fileusage_BinaryMode	glk.h	141;"	d
+fileusage_Data	glk.h	134;"	d
+fileusage_InputRecord	glk.h	137;"	d
+fileusage_SavedGame	glk.h	135;"	d
+fileusage_TextMode	glk.h	140;"	d
+fileusage_Transcript	glk.h	136;"	d
+fileusage_TypeMask	glk.h	138;"	d
+filterlist	launcher.c	/^char filterlist[] =$/;"	v
+flushtts	ttswin.c	/^static void flushtts(int purge)$/;"	f	file:
+fnptr	gi_dispa.h	/^    void *fnptr;$/;"	m	struct:gidispatch_function_struct
+font	garglk.h	/^    int font;$/;"	m	struct:style_s
+font2idx	config.c	/^static int font2idx(char *font)$/;"	f	file:
+font_s	draw.c	/^struct font_s$/;"	s	file:
+font_t	draw.c	/^typedef struct font_s font_t;$/;"	t	typeref:struct:font_s	file:
+frame	sysgtk.c	/^static GtkWidget *frame;$/;"	v	file:
+frameproc	syswin.c	/^frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)$/;"	f
+frefid_t	glk.h	/^typedef struct glk_fileref_struct *frefid_t;$/;"	t	typeref:struct:glk_fileref_struct
+ftlib	draw.c	/^static FT_Library ftlib;$/;"	v	file:
+function_table	gi_dispa.c	/^static gidispatch_function_t function_table[] = {$/;"	v	file:
+gammacopy	draw.c	/^static void gammacopy(unsigned char *dst, unsigned char *src, int n)$/;"	f	file:
+gammacopy_lcd	draw.c	/^static void gammacopy_lcd(unsigned char *dst, unsigned char *src, int w, int h, int pitch)$/;"	f	file:
+gammamap	draw.c	/^static unsigned char gammamap[256];$/;"	v	file:
+garglk_color_Black	glk.h	344;"	d
+garglk_color_Blue	glk.h	340;"	d
+garglk_color_Cyan	glk.h	341;"	d
+garglk_color_Green	glk.h	339;"	d
+garglk_color_Magenta	glk.h	342;"	d
+garglk_color_Red	glk.h	338;"	d
+garglk_color_White	glk.h	337;"	d
+garglk_color_Yellow	glk.h	343;"	d
+garglk_fileref_get_name	cgfref.c	/^char *garglk_fileref_get_name(fileref_t *fref)$/;"	f
+garglk_font_Bold	glk.h	330;"	d
+garglk_font_BoldItalic	glk.h	331;"	d
+garglk_font_Italic	glk.h	329;"	d
+garglk_font_MonoBold	glk.h	334;"	d
+garglk_font_MonoBoldItalic	glk.h	335;"	d
+garglk_font_MonoItalic	glk.h	333;"	d
+garglk_font_MonoRoman	glk.h	332;"	d
+garglk_font_Roman	glk.h	328;"	d
+garglk_set_program_info	cgmisc.c	/^void garglk_set_program_info(const char *info)$/;"	f
+garglk_set_program_name	cgmisc.c	/^void garglk_set_program_name(const char *name)$/;"	f
+garglk_set_story_name	cgmisc.c	/^void garglk_set_story_name(const char *name)$/;"	f
+gcmd_accept_scroll	wintext.c	/^static void gcmd_accept_scroll(window_t *win, glui32 arg)$/;"	f	file:
+gcmd_buffer_accept_readchar	wintext.c	/^void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)$/;"	f
+gcmd_buffer_accept_readline	wintext.c	/^void gcmd_buffer_accept_readline(window_t *win, glui32 arg)$/;"	f
+gcmd_grid_accept_readchar	wingrid.c	/^void gcmd_grid_accept_readchar(window_t *win, glui32 arg)$/;"	f
+gcmd_grid_accept_readline	wingrid.c	/^void gcmd_grid_accept_readline(window_t *win, glui32 arg)$/;"	f
+gestalt_CharInput	glk.h	37;"	d
+gestalt_CharOutput	glk.h	39;"	d
+gestalt_CharOutput_ApproxPrint	glk.h	41;"	d
+gestalt_CharOutput_CannotPrint	glk.h	40;"	d
+gestalt_CharOutput_ExactPrint	glk.h	42;"	d
+gestalt_DrawImage	glk.h	46;"	d
+gestalt_Graphics	glk.h	45;"	d
+gestalt_GraphicsTransparency	glk.h	53;"	d
+gestalt_HyperlinkInput	glk.h	51;"	d
+gestalt_Hyperlinks	glk.h	50;"	d
+gestalt_LineInput	glk.h	38;"	d
+gestalt_MouseInput	glk.h	43;"	d
+gestalt_Sound	glk.h	47;"	d
+gestalt_SoundMusic	glk.h	52;"	d
+gestalt_SoundNotify	glk.h	49;"	d
+gestalt_SoundVolume	glk.h	48;"	d
+gestalt_Timer	glk.h	44;"	d
+gestalt_Version	glk.h	36;"	d
+gfont_table	draw.c	/^static font_t gfont_table[8];$/;"	v	file:
+giblorb_ID_ANNO	gi_blorb.h	43;"	d
+giblorb_ID_AUTH	gi_blorb.h	42;"	d
+giblorb_ID_Copyright	gi_blorb.h	41;"	d
+giblorb_ID_Exec	gi_blorb.h	39;"	d
+giblorb_ID_FORM	gi_blorb.c	38;"	d	file:
+giblorb_ID_FORM	sndfmod.c	12;"	d	file:
+giblorb_ID_FORM	sndsdl.c	18;"	d	file:
+giblorb_ID_IFRS	gi_blorb.c	39;"	d	file:
+giblorb_ID_JPEG	imgload.c	12;"	d	file:
+giblorb_ID_MIDI	sndfmod.c	16;"	d	file:
+giblorb_ID_MOD	sndfmod.c	11;"	d	file:
+giblorb_ID_MOD	sndsdl.c	16;"	d	file:
+giblorb_ID_MP3	sndfmod.c	17;"	d	file:
+giblorb_ID_MP3	sndsdl.c	21;"	d	file:
+giblorb_ID_OGG	sndfmod.c	13;"	d	file:
+giblorb_ID_OGG	sndsdl.c	17;"	d	file:
+giblorb_ID_PNG	imgload.c	13;"	d	file:
+giblorb_ID_Pict	gi_blorb.h	40;"	d
+giblorb_ID_RIdx	gi_blorb.c	40;"	d	file:
+giblorb_ID_Snd	gi_blorb.h	38;"	d
+giblorb_ID_WAVE	sndfmod.c	18;"	d	file:
+giblorb_ID_WAVE	sndsdl.c	22;"	d	file:
+giblorb_Inited_Magic	gi_blorb.c	77;"	d	file:
+giblorb_bsearch	gi_blorb.c	/^giblorb_resdesc_t *giblorb_bsearch(giblorb_resdesc_t *sample, $/;"	f
+giblorb_chunkdesc_struct	gi_blorb.c	/^typedef struct giblorb_chunkdesc_struct {$/;"	s	file:
+giblorb_chunkdesc_t	gi_blorb.c	/^} giblorb_chunkdesc_t;$/;"	t	typeref:struct:giblorb_chunkdesc_struct	file:
+giblorb_count_resources	gi_blorb.c	/^giblorb_err_t giblorb_count_resources(giblorb_map_t *map, glui32 usage,$/;"	f
+giblorb_create_map	gi_blorb.c	/^giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)$/;"	f
+giblorb_destroy_map	gi_blorb.c	/^giblorb_err_t giblorb_destroy_map(giblorb_map_t *map)$/;"	f
+giblorb_err_Alloc	gi_blorb.h	22;"	d
+giblorb_err_CompileTime	gi_blorb.h	21;"	d
+giblorb_err_Format	gi_blorb.h	25;"	d
+giblorb_err_None	gi_blorb.h	20;"	d
+giblorb_err_NotAMap	gi_blorb.h	24;"	d
+giblorb_err_NotFound	gi_blorb.h	26;"	d
+giblorb_err_Read	gi_blorb.h	23;"	d
+giblorb_err_t	gi_blorb.h	/^typedef glui32 giblorb_err_t;$/;"	t
+giblorb_free	gi_blorb.c	/^static void giblorb_free(void *ptr)$/;"	f	file:
+giblorb_get_resource	cgblorb.c	/^void giblorb_get_resource(glui32 usage, glui32 resnum, $/;"	f
+giblorb_get_resource_map	cgblorb.c	/^giblorb_map_t *giblorb_get_resource_map()$/;"	f
+giblorb_initialize	gi_blorb.c	/^static giblorb_err_t giblorb_initialize()$/;"	f	file:
+giblorb_initialize_map	gi_blorb.c	/^static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map)$/;"	f	file:
+giblorb_is_resource_map	cgblorb.c	/^int giblorb_is_resource_map()$/;"	f
+giblorb_load_chunk_by_number	gi_blorb.c	/^giblorb_err_t giblorb_load_chunk_by_number(giblorb_map_t *map, $/;"	f
+giblorb_load_chunk_by_type	gi_blorb.c	/^giblorb_err_t giblorb_load_chunk_by_type(giblorb_map_t *map, $/;"	f
+giblorb_load_resource	gi_blorb.c	/^giblorb_err_t giblorb_load_resource(giblorb_map_t *map, glui32 method, $/;"	f
+giblorb_make_id	gi_blorb.h	35;"	d
+giblorb_malloc	gi_blorb.c	/^static void *giblorb_malloc(glui32 len)$/;"	f	file:
+giblorb_map_struct	gi_blorb.c	/^struct giblorb_map_struct {$/;"	s	file:
+giblorb_map_t	gi_blorb.h	/^typedef struct giblorb_map_struct giblorb_map_t;$/;"	t	typeref:struct:giblorb_map_struct
+giblorb_method_DontLoad	gi_blorb.h	29;"	d
+giblorb_method_FilePos	gi_blorb.h	31;"	d
+giblorb_method_Memory	gi_blorb.h	30;"	d
+giblorb_native4	gi_blorb.c	30;"	d	file:
+giblorb_qsort	gi_blorb.c	/^static void giblorb_qsort(giblorb_resdesc_t **list, int len)$/;"	f	file:
+giblorb_realloc	gi_blorb.c	/^static void *giblorb_realloc(void *ptr, glui32 len)$/;"	f	file:
+giblorb_resdesc_struct	gi_blorb.c	/^typedef struct giblorb_resdesc_struct {$/;"	s	file:
+giblorb_resdesc_t	gi_blorb.c	/^} giblorb_resdesc_t;$/;"	t	typeref:struct:giblorb_resdesc_struct	file:
+giblorb_result_struct	gi_blorb.h	/^typedef struct giblorb_result_struct {$/;"	s
+giblorb_result_t	gi_blorb.h	/^} giblorb_result_t;$/;"	t	typeref:struct:giblorb_result_struct
+giblorb_set_resource_map	cgblorb.c	/^giblorb_err_t giblorb_set_resource_map(strid_t file)$/;"	f
+giblorb_unload_chunk	gi_blorb.c	/^giblorb_err_t giblorb_unload_chunk(giblorb_map_t *map, glui32 chunknum)$/;"	f
+gidisp_Class_Fileref	gi_dispa.h	25;"	d
+gidisp_Class_Schannel	gi_dispa.h	26;"	d
+gidisp_Class_Stream	gi_dispa.h	24;"	d
+gidisp_Class_Window	gi_dispa.h	23;"	d
+gidispatch_call	gi_dispa.c	/^void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)$/;"	f
+gidispatch_count_classes	gi_dispa.c	/^glui32 gidispatch_count_classes()$/;"	f
+gidispatch_count_functions	gi_dispa.c	/^glui32 gidispatch_count_functions()$/;"	f
+gidispatch_count_intconst	gi_dispa.c	/^glui32 gidispatch_count_intconst()$/;"	f
+gidispatch_function_struct	gi_dispa.h	/^typedef struct gidispatch_function_struct {$/;"	s
+gidispatch_function_t	gi_dispa.h	/^} gidispatch_function_t;$/;"	t	typeref:struct:gidispatch_function_struct
+gidispatch_get_function	gi_dispa.c	/^gidispatch_function_t *gidispatch_get_function(glui32 index)$/;"	f
+gidispatch_get_function_by_id	gi_dispa.c	/^gidispatch_function_t *gidispatch_get_function_by_id(glui32 id)$/;"	f
+gidispatch_get_intconst	gi_dispa.c	/^gidispatch_intconst_t *gidispatch_get_intconst(glui32 index)$/;"	f
+gidispatch_get_objrock	cgmisc.c	/^gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)$/;"	f
+gidispatch_intconst_struct	gi_dispa.h	/^typedef struct gidispatch_intconst_struct {$/;"	s
+gidispatch_intconst_t	gi_dispa.h	/^} gidispatch_intconst_t;$/;"	t	typeref:struct:gidispatch_intconst_struct
+gidispatch_prototype	gi_dispa.c	/^char *gidispatch_prototype(glui32 funcnum)$/;"	f
+gidispatch_rock_t	gi_dispa.h	/^} gidispatch_rock_t;$/;"	t	typeref:union:glk_objrock_union
+gidispatch_set_object_registry	cgmisc.c	/^void gidispatch_set_object_registry($/;"	f
+gidispatch_set_retained_registry	cgmisc.c	/^void gidispatch_set_retained_registry($/;"	f
+gli_baseline	config.c	/^int gli_baseline = 15;$/;"	v
+gli_border_color	config.c	/^unsigned char gli_border_color[3] = { 0x00, 0x00, 0x00 };$/;"	v
+gli_calc_padding	window.c	/^void gli_calc_padding(window_t *win, int *x, int *y)$/;"	f
+gli_caret_color	config.c	/^unsigned char gli_caret_color[3] = { 0x00, 0x00, 0x00 };$/;"	v
+gli_caret_shape	config.c	/^int gli_caret_shape = 2;$/;"	v
+gli_cellh	draw.c	/^int gli_cellh = 8;$/;"	v
+gli_cellw	draw.c	/^int gli_cellw = 8;$/;"	v
+gli_channellist	sndfmod.c	/^static channel_t *gli_channellist = NULL;$/;"	v	file:
+gli_channellist	sndsdl.c	/^static channel_t *gli_channellist = NULL;$/;"	v	file:
+gli_cols	config.c	/^int gli_cols = 60;$/;"	v
+gli_conf_gamma	config.c	/^float gli_conf_gamma = 1.0;$/;"	v
+gli_conf_graphics	config.c	/^int gli_conf_graphics = 1;$/;"	v
+gli_conf_justify	config.c	/^int gli_conf_justify = 0;$/;"	v
+gli_conf_lcd	config.c	/^int gli_conf_lcd = 1;$/;"	v
+gli_conf_monoaspect	config.c	/^float gli_conf_monoaspect = 1.0;$/;"	v
+gli_conf_monob	config.c	/^char *gli_conf_monob = "LuxiMonoBold";$/;"	v
+gli_conf_monoi	config.c	/^char *gli_conf_monoi = "LuxiMonoOblique";$/;"	v
+gli_conf_monor	config.c	/^char *gli_conf_monor = "LuxiMonoRegular";$/;"	v
+gli_conf_monosize	config.c	/^float gli_conf_monosize = 12.6;	\/* good size for LuxiMono *\/$/;"	v
+gli_conf_monoz	config.c	/^char *gli_conf_monoz = "LuxiMonoBoldOblique";$/;"	v
+gli_conf_propaspect	config.c	/^float gli_conf_propaspect = 1.0;$/;"	v
+gli_conf_propb	config.c	/^char *gli_conf_propb = "CharterBT-Bold";$/;"	v
+gli_conf_propi	config.c	/^char *gli_conf_propi = "CharterBT-Italic";$/;"	v
+gli_conf_propr	config.c	/^char *gli_conf_propr = "CharterBT-Roman";$/;"	v
+gli_conf_propsize	config.c	/^float gli_conf_propsize = 14.7;	\/* good size for CharterBT *\/$/;"	v
+gli_conf_propz	config.c	/^char *gli_conf_propz = "CharterBT-BoldItalic";$/;"	v
+gli_conf_quotes	config.c	/^int gli_conf_quotes = 1;$/;"	v
+gli_conf_sound	config.c	/^int gli_conf_sound = 1;$/;"	v
+gli_conf_spaces	config.c	/^int gli_conf_spaces = 0;$/;"	v
+gli_conf_speak	config.c	/^int gli_conf_speak = 0;$/;"	v
+gli_conf_stylehint	config.c	/^int gli_conf_stylehint = 0;$/;"	v
+gli_curevent	event.c	/^event_t *gli_curevent = NULL; $/;"	v
+gli_currentstr	cgstream.c	/^static stream_t *gli_currentstr = NULL;$/;"	v	file:
+gli_delete_fileref	cgfref.c	/^void gli_delete_fileref(fileref_t *fref)$/;"	f
+gli_delete_stream	cgstream.c	/^void gli_delete_stream(stream_t *str)$/;"	f
+gli_delete_window	window.c	/^void gli_delete_window(window_t *win)$/;"	f
+gli_draw_caret	draw.c	/^void gli_draw_caret(int x, int y)$/;"	f
+gli_draw_clear	draw.c	/^void gli_draw_clear(unsigned char *rgb)$/;"	f
+gli_draw_picture	draw.c	/^void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1, int dy1)$/;"	f
+gli_draw_pixel	draw.c	/^void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)$/;"	f
+gli_draw_pixel_lcd	draw.c	/^void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)$/;"	f
+gli_draw_rect	draw.c	/^void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)$/;"	f
+gli_draw_string	draw.c	/^int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,$/;"	f
+gli_event_clearevent	garglk.h	194;"	d
+gli_event_store	event.c	/^void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)$/;"	f
+gli_filereflist	cgfref.c	/^static fileref_t *gli_filereflist = NULL; $/;"	v	file:
+gli_focuswin	window.c	/^window_t *gli_focuswin = NULL; \/* The window selected by the player *\/$/;"	v
+gli_force_redraw	window.c	/^int gli_force_redraw = 1;$/;"	v
+gli_free_tts	ttswin.c	/^void gli_free_tts(void)$/;"	f
+gli_get_buffer	cgstream.c	/^static glui32 gli_get_buffer(stream_t *str, char *buf, glui32 len)$/;"	f	file:
+gli_get_builtin_font	fontdata.c	/^void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len)$/;"	f
+gli_get_char	cgstream.c	/^static glsi32 gli_get_char(stream_t *str)$/;"	f	file:
+gli_get_line	cgstream.c	/^static glui32 gli_get_line(stream_t *str, char *buf, glui32 len)$/;"	f	file:
+gli_gstyles	config.c	/^style_t gli_gstyles[style_NUMSTYLES] =$/;"	v
+gli_image_h	draw.c	/^int gli_image_h = 0;$/;"	v
+gli_image_rgb	draw.c	/^unsigned char *gli_image_rgb = NULL;$/;"	v
+gli_image_s	draw.c	/^int gli_image_s = 0;$/;"	v
+gli_image_w	draw.c	/^int gli_image_w = 0;$/;"	v
+gli_initialize_fonts	draw.c	/^void gli_initialize_fonts(void)$/;"	f
+gli_initialize_misc	cgmisc.c	/^void gli_initialize_misc()$/;"	f
+gli_initialize_sound	sndfmod.c	/^void gli_initialize_sound(void)$/;"	f
+gli_initialize_sound	sndnull.c	/^void gli_initialize_sound(void) { }$/;"	f
+gli_initialize_sound	sndsdl.c	/^void gli_initialize_sound(void)$/;"	f
+gli_initialize_tts	ttswin.c	/^void gli_initialize_tts(void)$/;"	f
+gli_initialize_windows	window.c	/^void gli_initialize_windows()$/;"	f
+gli_input_guess_focus	event.c	/^void gli_input_guess_focus()$/;"	f
+gli_input_handle_click	event.c	/^void gli_input_handle_click(int x, int y)$/;"	f
+gli_input_handle_key	event.c	/^void gli_input_handle_key(glui32 key)$/;"	f
+gli_input_next_focus	event.c	/^void gli_input_next_focus()$/;"	f
+gli_interrupt_handler	window.c	/^void (*gli_interrupt_handler)(void) = NULL;$/;"	v
+gli_leading	config.c	/^int gli_leading = 20;$/;"	v
+gli_more_align	config.c	/^int gli_more_align = 0;$/;"	v
+gli_more_color	config.c	/^unsigned char gli_more_color[3] = { 0x00, 0x00, 0x00 };$/;"	v
+gli_more_font	config.c	/^int gli_more_font = PROPB;$/;"	v
+gli_more_prompt	config.c	/^char *gli_more_prompt = "\\207 more \\207";$/;"	v
+gli_new_fileref	cgfref.c	/^fileref_t *gli_new_fileref(char *filename, glui32 usage, glui32 rock)$/;"	f
+gli_new_stream	cgstream.c	/^stream_t *gli_new_stream(glui32 type, int readable, int writable, glui32 rock)$/;"	f
+gli_new_window	window.c	/^window_t *gli_new_window(glui32 type, glui32 rock)$/;"	f
+gli_picture_drop	imgload.c	/^void gli_picture_drop(picture_t *pic)$/;"	f
+gli_picture_keep	imgload.c	/^void gli_picture_keep(picture_t *pic)$/;"	f
+gli_picture_load	imgload.c	/^picture_t *gli_picture_load(unsigned long id)$/;"	f
+gli_picture_scale	imgscale.c	/^gli_picture_scale(picture_t *src, int newcols, int newrows)$/;"	f
+gli_program_info	cgmisc.c	/^char gli_program_info[256] = "";$/;"	v
+gli_program_name	cgmisc.c	/^char gli_program_name[256] = "Unknown";$/;"	v
+gli_put_buffer	cgstream.c	/^static void gli_put_buffer(stream_t *str, char *buf, glui32 len)$/;"	f	file:
+gli_put_char	cgstream.c	/^static void gli_put_char(stream_t *str, unsigned char ch)$/;"	f	file:
+gli_read_config	config.c	/^void gli_read_config(int argc, char **argv)$/;"	f
+gli_register_arr	cgmisc.c	/^gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len, $/;"	v
+gli_register_obj	cgmisc.c	/^gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;$/;"	v
+gli_rootwin	window.c	/^window_t *gli_rootwin = NULL; \/* The topmost window. *\/$/;"	v
+gli_rows	config.c	/^int gli_rows = 25;$/;"	v
+gli_scroll_bg	config.c	/^unsigned char gli_scroll_bg[3] = { 0xb0, 0xb0, 0xb0 };$/;"	v
+gli_scroll_fg	config.c	/^unsigned char gli_scroll_fg[3] = { 0x80, 0x80, 0x80 };$/;"	v
+gli_scroll_width	config.c	/^int gli_scroll_width = 0;$/;"	v
+gli_select	sysgtk.c	/^void gli_select(event_t *event, int block)$/;"	f
+gli_select	syswin.c	/^void gli_select(event_t *event, int block)$/;"	f
+gli_set_style	cgstream.c	/^static void gli_set_style(stream_t *str, glui32 val)$/;"	f	file:
+gli_speak_tts	ttswin.c	/^void gli_speak_tts(char *buf, int len, int interrupt)$/;"	f
+gli_startup	config.c	/^void gli_startup(int argc, char *argv[])$/;"	f
+gli_story_name	cgmisc.c	/^char gli_story_name[256] = "";$/;"	v
+gli_stream_close	cgstream.c	/^void gli_stream_close(stream_t *str)$/;"	f
+gli_stream_echo_line	cgstream.c	/^void gli_stream_echo_line(stream_t *str, char *buf, glui32 len)$/;"	f
+gli_stream_fill_result	cgstream.c	/^void gli_stream_fill_result(stream_t *str, stream_result_t *result)$/;"	f
+gli_stream_open_pathname	cgstream.c	/^stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)$/;"	f
+gli_stream_open_window	cgstream.c	/^stream_t *gli_stream_open_window(window_t *win)$/;"	f
+gli_stream_set_current	cgstream.c	/^void gli_stream_set_current(stream_t *str)$/;"	f
+gli_streamlist	cgstream.c	/^static stream_t *gli_streamlist = NULL;$/;"	v	file:
+gli_streams_close_all	cgstream.c	/^void gli_streams_close_all()$/;"	f
+gli_strict_warning	garglk.h	27;"	d
+gli_string_width	draw.c	/^int gli_string_width(int fidx, unsigned char *s, int n, int spw)$/;"	f
+gli_terminated	cgmisc.c	/^int gli_terminated = 0;$/;"	v
+gli_tmarginx	config.c	/^int gli_tmarginx = 7;$/;"	v
+gli_tmarginy	config.c	/^int gli_tmarginy = 7;$/;"	v
+gli_tstyles	config.c	/^style_t gli_tstyles[style_NUMSTYLES] =$/;"	v
+gli_unregister_arr	cgmisc.c	/^void (*gli_unregister_arr)(void *array, glui32 len, char *typecode, $/;"	v
+gli_unregister_obj	cgmisc.c	/^void (*gli_unregister_obj)(void *obj, glui32 objclass, $/;"	v
+gli_wborderx	config.c	/^int gli_wborderx = 1;$/;"	v
+gli_wbordery	config.c	/^int gli_wbordery = 1;$/;"	v
+gli_window_click	window.c	/^void gli_window_click(window_t *win, int x, int y)$/;"	f
+gli_window_close	window.c	/^static void gli_window_close(window_t *win, int recurse)$/;"	f	file:
+gli_window_color	config.c	/^unsigned char gli_window_color[3] = { 0xff, 0xff, 0xff };$/;"	v
+gli_window_iterate_treeorder	window.c	/^window_t *gli_window_iterate_treeorder(window_t *win)$/;"	f
+gli_window_put_char	window.c	/^void gli_window_put_char(window_t *win, char ch)$/;"	f
+gli_window_rearrange	window.c	/^void gli_window_rearrange(window_t *win, rect_t *box)$/;"	f
+gli_window_redraw	window.c	/^void gli_window_redraw(window_t *win)$/;"	f
+gli_windowlist	window.c	/^static window_t *gli_windowlist = NULL; $/;"	v	file:
+gli_windows_rearrange	window.c	/^static void gli_windows_rearrange(void)$/;"	f	file:
+gli_windows_redraw	window.c	/^void gli_windows_redraw()$/;"	f
+gli_windows_size_change	window.c	/^void gli_windows_size_change()$/;"	f
+gli_windows_unechostream	window.c	/^void gli_windows_unechostream(stream_t *str)$/;"	f
+gli_wmarginx	config.c	/^int gli_wmarginx = 15;$/;"	v
+gli_wmarginy	config.c	/^int gli_wmarginy = 15;$/;"	v
+gli_workdir	cgfref.c	/^char gli_workdir[1024] = ".";$/;"	v
+gli_wpaddingx	config.c	/^int gli_wpaddingx = 0;$/;"	v
+gli_wpaddingy	config.c	/^int gli_wpaddingy = 0;$/;"	v
+glk_cancel_char_event	window.c	/^void glk_cancel_char_event(window_t *win)$/;"	f
+glk_cancel_hyperlink_event	nohyper.c	/^void glk_cancel_hyperlink_event(winid_t win)$/;"	f
+glk_cancel_line_event	window.c	/^void glk_cancel_line_event(window_t *win, event_t *ev)$/;"	f
+glk_cancel_mouse_event	window.c	/^void glk_cancel_mouse_event(window_t *win)$/;"	f
+glk_char_to_lower	cgmisc.c	/^unsigned char glk_char_to_lower(unsigned char ch)$/;"	f
+glk_char_to_upper	cgmisc.c	/^unsigned char glk_char_to_upper(unsigned char ch)$/;"	f
+glk_exit	cgmisc.c	/^void glk_exit()$/;"	f
+glk_fileref_create_by_name	cgfref.c	/^frefid_t glk_fileref_create_by_name(glui32 usage, char *name,$/;"	f
+glk_fileref_create_by_prompt	cgfref.c	/^frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)$/;"	f
+glk_fileref_create_from_fileref	cgfref.c	/^frefid_t glk_fileref_create_from_fileref(glui32 usage, frefid_t oldfref,$/;"	f
+glk_fileref_create_temp	cgfref.c	/^frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)$/;"	f
+glk_fileref_delete_file	cgfref.c	/^void glk_fileref_delete_file(fileref_t *fref)$/;"	f
+glk_fileref_destroy	cgfref.c	/^void glk_fileref_destroy(fileref_t *fref)$/;"	f
+glk_fileref_does_file_exist	cgfref.c	/^glui32 glk_fileref_does_file_exist(fileref_t *fref)$/;"	f
+glk_fileref_get_rock	cgfref.c	/^glui32 glk_fileref_get_rock(fileref_t *fref)$/;"	f
+glk_fileref_iterate	cgfref.c	/^frefid_t glk_fileref_iterate(fileref_t *fref, glui32 *rock)$/;"	f
+glk_fileref_struct	garglk.h	/^struct glk_fileref_struct$/;"	s
+glk_gestalt	cggestal.c	/^glui32 glk_gestalt(glui32 id, glui32 val)$/;"	f
+glk_gestalt_ext	cggestal.c	/^glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr, $/;"	f
+glk_get_buffer_stream	cgstream.c	/^glui32 glk_get_buffer_stream(stream_t *str, char *buf, glui32 len)$/;"	f
+glk_get_char_stream	cgstream.c	/^glsi32 glk_get_char_stream(stream_t *str)$/;"	f
+glk_get_line_stream	cgstream.c	/^glui32 glk_get_line_stream(stream_t *str, char *buf, glui32 len)$/;"	f
+glk_image_draw	imgnull.c	/^glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)$/;"	f
+glk_image_draw	window.c	/^glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)$/;"	f
+glk_image_draw_scaled	imgnull.c	/^glui32 glk_image_draw_scaled(winid_t win, glui32 image,$/;"	f
+glk_image_draw_scaled	window.c	/^glui32 glk_image_draw_scaled(winid_t win, glui32 image,$/;"	f
+glk_image_get_info	imgnull.c	/^glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)$/;"	f
+glk_image_get_info	window.c	/^glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)$/;"	f
+glk_objrock_union	gi_dispa.h	/^typedef union glk_objrock_union {$/;"	u
+glk_put_buffer	cgstream.c	/^void glk_put_buffer(char *buf, glui32 len)$/;"	f
+glk_put_buffer_stream	cgstream.c	/^void glk_put_buffer_stream(stream_t *str, char *buf, glui32 len)$/;"	f
+glk_put_char	cgstream.c	/^void glk_put_char(unsigned char ch)$/;"	f
+glk_put_char_stream	cgstream.c	/^void glk_put_char_stream(stream_t *str, unsigned char ch)$/;"	f
+glk_put_string	cgstream.c	/^void glk_put_string(char *s)$/;"	f
+glk_put_string_stream	cgstream.c	/^void glk_put_string_stream(stream_t *str, char *s)$/;"	f
+glk_request_char_event	window.c	/^void glk_request_char_event(window_t *win)$/;"	f
+glk_request_hyperlink_event	nohyper.c	/^void glk_request_hyperlink_event(winid_t win)$/;"	f
+glk_request_line_event	window.c	/^void glk_request_line_event(window_t *win, char *buf, glui32 maxlen, $/;"	f
+glk_request_mouse_event	window.c	/^void glk_request_mouse_event(window_t *win)$/;"	f
+glk_request_timer_events	sysgtk.c	/^void glk_request_timer_events(glui32 millisecs)$/;"	f
+glk_request_timer_events	syswin.c	/^void glk_request_timer_events(glui32 millisecs)$/;"	f
+glk_schannel_create	sndfmod.c	/^schanid_t glk_schannel_create(glui32 rock)$/;"	f
+glk_schannel_create	sndnull.c	/^schanid_t glk_schannel_create(glui32 rock)$/;"	f
+glk_schannel_create	sndsdl.c	/^schanid_t glk_schannel_create(glui32 rock)$/;"	f
+glk_schannel_destroy	sndfmod.c	/^void glk_schannel_destroy(schanid_t chan)$/;"	f
+glk_schannel_destroy	sndnull.c	/^void glk_schannel_destroy(schanid_t chan)$/;"	f
+glk_schannel_destroy	sndsdl.c	/^void glk_schannel_destroy(schanid_t chan)$/;"	f
+glk_schannel_get_rock	sndfmod.c	/^glui32 glk_schannel_get_rock(schanid_t chan)$/;"	f
+glk_schannel_get_rock	sndnull.c	/^glui32 glk_schannel_get_rock(schanid_t chan)$/;"	f
+glk_schannel_get_rock	sndsdl.c	/^glui32 glk_schannel_get_rock(schanid_t chan)$/;"	f
+glk_schannel_iterate	sndfmod.c	/^schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)$/;"	f
+glk_schannel_iterate	sndnull.c	/^schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr)$/;"	f
+glk_schannel_iterate	sndsdl.c	/^schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)$/;"	f
+glk_schannel_play	sndfmod.c	/^glui32 glk_schannel_play(schanid_t chan, glui32 snd)$/;"	f
+glk_schannel_play	sndnull.c	/^glui32 glk_schannel_play(schanid_t chan, glui32 snd)$/;"	f
+glk_schannel_play	sndsdl.c	/^glui32 glk_schannel_play(schanid_t chan, glui32 snd)$/;"	f
+glk_schannel_play_ext	sndfmod.c	/^glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)$/;"	f
+glk_schannel_play_ext	sndnull.c	/^glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats,$/;"	f
+glk_schannel_play_ext	sndsdl.c	/^glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, $/;"	f
+glk_schannel_set_volume	sndfmod.c	/^void glk_schannel_set_volume(schanid_t chan, glui32 vol)$/;"	f
+glk_schannel_set_volume	sndnull.c	/^void glk_schannel_set_volume(schanid_t chan, glui32 vol)$/;"	f
+glk_schannel_set_volume	sndsdl.c	/^void glk_schannel_set_volume(schanid_t chan, glui32 vol)$/;"	f
+glk_schannel_stop	sndfmod.c	/^void glk_schannel_stop(schanid_t chan)$/;"	f
+glk_schannel_stop	sndnull.c	/^void glk_schannel_stop(schanid_t chan)$/;"	f
+glk_schannel_stop	sndsdl.c	/^void glk_schannel_stop(schanid_t chan)$/;"	f
+glk_schannel_struct	garglk.h	/^struct glk_schannel_struct$/;"	s
+glk_select	event.c	/^void glk_select(event_t *event)$/;"	f
+glk_select_poll	event.c	/^void glk_select_poll(event_t *event)$/;"	f
+glk_set_hyperlink	nohyper.c	/^void glk_set_hyperlink(glui32 linkval)$/;"	f
+glk_set_hyperlink_stream	nohyper.c	/^void glk_set_hyperlink_stream(strid_t str, glui32 linkval)$/;"	f
+glk_set_interrupt_handler	cgmisc.c	/^void glk_set_interrupt_handler(void (*func)(void))$/;"	f
+glk_set_style	cgstream.c	/^void glk_set_style(glui32 val)$/;"	f
+glk_set_style_stream	cgstream.c	/^void glk_set_style_stream(stream_t *str, glui32 val)$/;"	f
+glk_set_window	window.c	/^void glk_set_window(window_t *win)$/;"	f
+glk_sound_load_hint	sndfmod.c	/^void glk_sound_load_hint(glui32 snd, glui32 flag)$/;"	f
+glk_sound_load_hint	sndnull.c	/^void glk_sound_load_hint(glui32 snd, glui32 flag)$/;"	f
+glk_sound_load_hint	sndsdl.c	/^void glk_sound_load_hint(glui32 snd, glui32 flag)$/;"	f
+glk_stream_close	cgstream.c	/^void glk_stream_close(stream_t *str, stream_result_t *result)$/;"	f
+glk_stream_get_current	cgstream.c	/^stream_t *glk_stream_get_current()$/;"	f
+glk_stream_get_position	cgstream.c	/^glui32 glk_stream_get_position(stream_t *str)$/;"	f
+glk_stream_get_rock	cgstream.c	/^glui32 glk_stream_get_rock(stream_t *str)$/;"	f
+glk_stream_iterate	cgstream.c	/^stream_t *glk_stream_iterate(stream_t *str, glui32 *rock)$/;"	f
+glk_stream_open_file	cgstream.c	/^stream_t *glk_stream_open_file(frefid_t fref, glui32 fmode,$/;"	f
+glk_stream_open_memory	cgstream.c	/^stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode, $/;"	f
+glk_stream_set_current	cgstream.c	/^void glk_stream_set_current(stream_t *str)$/;"	f
+glk_stream_set_position	cgstream.c	/^void glk_stream_set_position(stream_t *str, glsi32 pos, glui32 seekmode)$/;"	f
+glk_stream_struct	garglk.h	/^struct glk_stream_struct$/;"	s
+glk_style_distinguish	cgstyle.c	/^glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)$/;"	f
+glk_style_measure	cgstyle.c	/^glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)$/;"	f
+glk_stylehint_clear	cgstyle.c	/^void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)$/;"	f
+glk_stylehint_set	cgstyle.c	/^void glk_stylehint_set(glui32 wintype, glui32 style, glui32 hint, glsi32 val)$/;"	f
+glk_tick	event.c	/^void glk_tick()$/;"	f
+glk_window_clear	window.c	/^void glk_window_clear(window_t *win)$/;"	f
+glk_window_close	window.c	/^void glk_window_close(window_t *win, stream_result_t *result)$/;"	f
+glk_window_erase_rect	imgnull.c	/^void glk_window_erase_rect(winid_t win,$/;"	f
+glk_window_erase_rect	window.c	/^void glk_window_erase_rect(winid_t win,$/;"	f
+glk_window_fill_rect	imgnull.c	/^void glk_window_fill_rect(winid_t win, glui32 color,$/;"	f
+glk_window_fill_rect	window.c	/^void glk_window_fill_rect(winid_t win, glui32 color,$/;"	f
+glk_window_flow_break	imgnull.c	/^void glk_window_flow_break(winid_t win)$/;"	f
+glk_window_flow_break	window.c	/^void glk_window_flow_break(winid_t win)$/;"	f
+glk_window_get_arrangement	window.c	/^void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size, $/;"	f
+glk_window_get_echo_stream	window.c	/^strid_t glk_window_get_echo_stream(window_t *win)$/;"	f
+glk_window_get_parent	window.c	/^winid_t glk_window_get_parent(window_t *win)$/;"	f
+glk_window_get_rock	window.c	/^glui32 glk_window_get_rock(window_t *win)$/;"	f
+glk_window_get_root	window.c	/^winid_t glk_window_get_root()$/;"	f
+glk_window_get_sibling	window.c	/^winid_t glk_window_get_sibling(window_t *win)$/;"	f
+glk_window_get_size	window.c	/^void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)$/;"	f
+glk_window_get_stream	window.c	/^strid_t glk_window_get_stream(window_t *win)$/;"	f
+glk_window_get_type	window.c	/^glui32 glk_window_get_type(window_t *win)$/;"	f
+glk_window_iterate	window.c	/^winid_t glk_window_iterate(winid_t win, glui32 *rock)$/;"	f
+glk_window_move_cursor	window.c	/^void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)$/;"	f
+glk_window_open	window.c	/^winid_t glk_window_open(winid_t splitwin,$/;"	f
+glk_window_set_arrangement	window.c	/^void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid_t key)$/;"	f
+glk_window_set_background_color	imgnull.c	/^void glk_window_set_background_color(winid_t win, glui32 color)$/;"	f
+glk_window_set_background_color	window.c	/^void glk_window_set_background_color(winid_t win, glui32 color)$/;"	f
+glk_window_set_echo_stream	window.c	/^void glk_window_set_echo_stream(window_t *win, stream_t *str)$/;"	f
+glk_window_struct	garglk.h	/^struct glk_window_struct$/;"	s
+glkunix_arg_End	glkstart.h	31;"	d
+glkunix_arg_NoValue	glkstart.h	33;"	d
+glkunix_arg_NumberValue	glkstart.h	35;"	d
+glkunix_arg_ValueCanFollow	glkstart.h	34;"	d
+glkunix_arg_ValueFollows	glkstart.h	32;"	d
+glkunix_argumentlist_struct	glkstart.h	/^typedef struct glkunix_argumentlist_struct {$/;"	s
+glkunix_argumentlist_t	glkstart.h	/^} glkunix_argumentlist_t;$/;"	t	typeref:struct:glkunix_argumentlist_struct
+glkunix_arguments	glkstart.c	/^glkunix_argumentlist_t glkunix_arguments[] = {$/;"	v
+glkunix_set_base_file	cgfref.c	/^void glkunix_set_base_file(char *filename)$/;"	f
+glkunix_startup_code	glkstart.c	/^int glkunix_startup_code(glkunix_startup_t *data)$/;"	f
+glkunix_startup_struct	glkstart.h	/^typedef struct glkunix_startup_struct {$/;"	s
+glkunix_startup_t	glkstart.h	/^} glkunix_startup_t;$/;"	t	typeref:struct:glkunix_startup_struct
+glkunix_stream_open_pathname	config.c	/^strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)$/;"	f
+glsi32	glk.h	/^typedef signed long glsi32; $/;"	t
+glui32	glk.h	/^typedef unsigned long glui32; $/;"	t
+gluniversal_t	gi_dispa.h	/^} gluniversal_t;$/;"	t	typeref:union:gluniversal_union
+gluniversal_union	gi_dispa.h	/^typedef union gluniversal_union {$/;"	u
+glyphs	draw.c	/^    bitmap_t glyphs[256][GLI_SUBPIX];$/;"	m	struct:font_s	file:
+h	draw.c	/^    int w, h, lsb, top, pitch;$/;"	m	struct:bitmap_s	file:
+h	garglk.h	/^    int w, h;$/;"	m	struct:picture_s
+h	garglk.h	/^    int w, h;$/;"	m	struct:window_graphics_s
+hdc	syswin.c	/^static HDC hdc;$/;"	v	file:
+height	garglk.h	/^    int width, height;$/;"	m	struct:window_textbuffer_s
+height	garglk.h	/^    int width, height;$/;"	m	struct:window_textgrid_s
+history	garglk.h	/^    char *history[HISTORYLEN];$/;"	m	struct:window_textbuffer_s
+historyfirst	garglk.h	/^    int historyfirst, historypresent;$/;"	m	struct:window_textbuffer_s
+historypos	garglk.h	/^    int historypos;$/;"	m	struct:window_textbuffer_s
+historypresent	garglk.h	/^    int historyfirst, historypresent;$/;"	m	struct:window_textbuffer_s
+hwndframe	syswin.c	/^static HWND hwndview, hwndframe;$/;"	v	file:
+hwndview	syswin.c	/^static HWND hwndview, hwndframe;$/;"	v	file:
+id	gi_dispa.h	/^    glui32 id;$/;"	m	struct:gidispatch_function_struct
+imagealign_InlineCenter	glk.h	270;"	d
+imagealign_InlineDown	glk.h	269;"	d
+imagealign_InlineUp	glk.h	268;"	d
+imagealign_MarginLeft	glk.h	271;"	d
+imagealign_MarginRight	glk.h	272;"	d
+inarrayrock	garglk.h	/^    gidispatch_rock_t inarrayrock;$/;"	m	struct:window_textbuffer_s
+inarrayrock	garglk.h	/^    gidispatch_rock_t inarrayrock;$/;"	m	struct:window_textgrid_s
+inbuf	garglk.h	/^    char *inbuf;$/;"	m	struct:window_textbuffer_s
+inbuf	garglk.h	/^    char *inbuf;$/;"	m	struct:window_textgrid_s
+incurs	garglk.h	/^    int incurs, inlen;$/;"	m	struct:window_textgrid_s
+incurs	garglk.h	/^    long incurs;$/;"	m	struct:window_textbuffer_s
+infence	garglk.h	/^    long infence;$/;"	m	struct:window_textbuffer_s
+inited	gi_blorb.c	/^    glui32 inited; \/* holds giblorb_Inited_Magic if the map structure is $/;"	m	struct:giblorb_map_struct	file:
+inlen	garglk.h	/^    int incurs, inlen;$/;"	m	struct:window_textgrid_s
+inmax	garglk.h	/^    int inmax;$/;"	m	struct:window_textbuffer_s
+inmax	garglk.h	/^    int inmax;$/;"	m	struct:window_textgrid_s
+inorgx	garglk.h	/^    int inorgx, inorgy;$/;"	m	struct:window_textgrid_s
+inorgy	garglk.h	/^    int inorgx, inorgy;$/;"	m	struct:window_textgrid_s
+intconstant_table	gi_dispa.c	/^static gidispatch_intconst_t intconstant_table[] = {$/;"	v	file:
+isbold	cgstyle.c	/^static int isbold(int f)$/;"	f	file:
+isitalic	cgstyle.c	/^static int isitalic(int f)$/;"	f	file:
+isprop	cgstyle.c	/^static int isprop(int f)$/;"	f	file:
+key	garglk.h	/^    window_t *key; \/* NULL or a leaf-descendant (not a Pair) *\/$/;"	m	struct:window_pair_s
+keycode_Delete	glk.h	77;"	d
+keycode_Down	glk.h	75;"	d
+keycode_End	glk.h	83;"	d
+keycode_Escape	glk.h	78;"	d
+keycode_Func1	glk.h	84;"	d
+keycode_Func10	glk.h	93;"	d
+keycode_Func11	glk.h	94;"	d
+keycode_Func12	glk.h	95;"	d
+keycode_Func2	glk.h	85;"	d
+keycode_Func3	glk.h	86;"	d
+keycode_Func4	glk.h	87;"	d
+keycode_Func5	glk.h	88;"	d
+keycode_Func6	glk.h	89;"	d
+keycode_Func7	glk.h	90;"	d
+keycode_Func8	glk.h	91;"	d
+keycode_Func9	glk.h	92;"	d
+keycode_Home	glk.h	82;"	d
+keycode_Left	glk.h	72;"	d
+keycode_MAXVAL	glk.h	97;"	d
+keycode_PageDown	glk.h	81;"	d
+keycode_PageUp	glk.h	80;"	d
+keycode_Return	glk.h	76;"	d
+keycode_Right	glk.h	73;"	d
+keycode_Tab	glk.h	79;"	d
+keycode_Unknown	glk.h	71;"	d
+keycode_Up	glk.h	74;"	d
+keydamage	garglk.h	/^    int keydamage; \/* used as scratch space in window closing *\/$/;"	m	struct:window_pair_s
+ladjn	garglk.h	/^    int ladjn;$/;"	m	struct:window_textbuffer_s
+ladjw	garglk.h	/^    int ladjw;$/;"	m	struct:window_textbuffer_s
+lastid	imgload.c	/^static unsigned lastid = 0;$/;"	v	file:
+lastpic	imgload.c	/^static picture_t *lastpic = NULL;	\/* cache last one loaded *\/$/;"	v	file:
+lastseen	garglk.h	/^    int lastseen;$/;"	m	struct:window_textbuffer_s
+len	garglk.h	/^    int len, newline, dirty;$/;"	m	struct:tbline_s
+len	gi_blorb.c	/^    glui32 len;$/;"	m	struct:giblorb_chunkdesc_struct	file:
+length	gi_blorb.h	/^    glui32 length; \/* The length of the data *\/$/;"	m	struct:giblorb_result_struct
+lib_inited	gi_blorb.c	/^static int lib_inited = FALSE;$/;"	v	file:
+line_request	garglk.h	/^    int line_request;$/;"	m	struct:glk_window_struct
+lines	garglk.h	/^    tbline_t lines[SCROLLBACK];	\/* XXX make this dynamic *\/$/;"	m	struct:window_textbuffer_s
+lines	garglk.h	/^    tgline_t lines[256];$/;"	m	struct:window_textgrid_s
+lm	garglk.h	/^    int lm, rm;$/;"	m	struct:tbline_s
+load_image_jpeg	imgload.c	/^static void load_image_jpeg(FILE *fl, picture_t *pic)$/;"	f	file:
+load_image_png	imgload.c	/^static void load_image_png(FILE *fl, picture_t *pic)$/;"	f	file:
+load_sound_resource	sndsdl.c	/^static glui32 load_sound_resource(glui32 snd, long *len, char **buf)$/;"	f	file:
+loaded	draw.c	/^	char loaded[256];$/;"	m	struct:font_s	file:
+loadfont	draw.c	/^static void loadfont(font_t *f, char *name, float size, float aspect)$/;"	f	file:
+loadglyph	draw.c	/^static void loadglyph(font_t *f, int enc)$/;"	f	file:
+loop	garglk.h	/^	int loop;$/;"	m	struct:glk_schannel_struct
+lpic	garglk.h	/^    picture_t *lpic, *rpic;$/;"	m	struct:tbline_s
+lsb	draw.c	/^    int w, h, lsb, top, pitch;$/;"	m	struct:bitmap_s	file:
+m28	draw.c	78;"	d	file:
+m56	draw.c	79;"	d	file:
+m85	draw.c	80;"	d	file:
+magicnum	garglk.h	/^    glui32 magicnum;$/;"	m	struct:glk_fileref_struct
+magicnum	garglk.h	/^    glui32 magicnum;$/;"	m	struct:glk_stream_struct
+magicnum	garglk.h	/^    glui32 magicnum;$/;"	m	struct:glk_window_struct
+main	launcher.c	/^int main(int argc, char **argv)$/;"	f
+main	main.c	/^int main(int argc, char *argv[])$/;"	f
+makefont	cgstyle.c	/^static int makefont(int p, int b, int i)$/;"	f	file:
+maxval	imgscale.c	29;"	d	file:
+mouse_request	garglk.h	/^    int mouse_request;$/;"	m	struct:glk_window_struct
+mul255	draw.c	15;"	d	file:
+mul255	wingfx.c	7;"	d	file:
+music	garglk.h	/^	void *music; \/* Mix_Music (or FMOD Music) *\/$/;"	m	struct:glk_schannel_struct
+music_channel	sndsdl.c	/^static channel_t *sound_channels[MIX_CHANNELS], *music_channel;$/;"	v	file:
+music_completion_callback	sndsdl.c	/^static void music_completion_callback()$/;"	f	file:
+name	gi_dispa.h	/^    char *name;$/;"	m	struct:gidispatch_function_struct
+name	gi_dispa.h	/^    char *name;$/;"	m	struct:gidispatch_intconst_struct
+name	glkstart.h	/^    char *name;$/;"	m	struct:glkunix_argumentlist_struct
+newline	garglk.h	/^    int len, newline, dirty;$/;"	m	struct:tbline_s
+next	garglk.h	/^    fileref_t *next, *prev; \/* in the big linked list of filerefs *\/$/;"	m	struct:glk_fileref_struct
+next	garglk.h	/^    stream_t *next, *prev; \/* in the big linked list of streams *\/$/;"	m	struct:glk_stream_struct
+next	garglk.h	/^    window_t *next, *prev; \/* in the big linked list of windows *\/$/;"	m	struct:glk_window_struct
+notify	garglk.h	/^	int notify;$/;"	m	struct:glk_schannel_struct
+num	gi_dispa.h	/^    glui32 num;$/;"	m	union:glk_objrock_union
+numchars	garglk.h	/^    int numchars;		\/* number of chars in last line: lines[0] *\/$/;"	m	struct:window_textbuffer_s
+numchunks	gi_blorb.c	/^    int numchunks;$/;"	m	struct:giblorb_map_struct	file:
+numresources	gi_blorb.c	/^    int numresources;$/;"	m	struct:giblorb_map_struct	file:
+onabout	syswin.c	/^void onabout(void)$/;"	f
+onbutton	sysgtk.c	/^static void onbutton(GtkWidget *widget, GdkEventButton *event, void *data)$/;"	f	file:
+oncancel	sysgtk.c	/^static void oncancel(GtkFileSelection *widget, void *data)$/;"	f	file:
+onconfig	syswin.c	/^void onconfig(void)$/;"	f
+onexpose	sysgtk.c	/^static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)$/;"	f	file:
+onkeypress	sysgtk.c	/^static void onkeypress(GtkWidget *widget, GdkEventKey *event, void *data)$/;"	f	file:
+onokay	sysgtk.c	/^static void onokay(GtkFileSelection *widget, void *data)$/;"	f	file:
+onquit	sysgtk.c	/^static void onquit(GtkWidget *widget, void *data)$/;"	f	file:
+onresize	sysgtk.c	/^static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)$/;"	f	file:
+opaqueref	gi_dispa.h	/^    void *opaqueref; \/* Qa, Qb, Qc... *\/$/;"	m	union:gluniversal_union
+origstyle	garglk.h	/^    glui32 origstyle;$/;"	m	struct:window_textbuffer_s
+origstyle	garglk.h	/^    glui32 origstyle;$/;"	m	struct:window_textgrid_s
+owner	garglk.h	/^    window_t *owner;$/;"	m	struct:window_blank_s
+owner	garglk.h	/^    window_t *owner;$/;"	m	struct:window_graphics_s
+owner	garglk.h	/^    window_t *owner;$/;"	m	struct:window_pair_s
+owner	garglk.h	/^    window_t *owner;$/;"	m	struct:window_textbuffer_s
+owner	garglk.h	/^    window_t *owner;$/;"	m	struct:window_textgrid_s
+parent	garglk.h	/^    window_t *parent; \/* pair window which contains this one *\/$/;"	m	struct:glk_window_struct
+parsecolor	config.c	/^static void parsecolor(char *str, unsigned char *rgb)$/;"	f	file:
+picture_s	garglk.h	/^struct picture_s$/;"	s
+picture_t	garglk.h	/^typedef struct picture_s picture_t;$/;"	t	typeref:struct:picture_s
+pitch	draw.c	/^    int w, h, lsb, top, pitch;$/;"	m	struct:bitmap_s	file:
+play_music	sndsdl.c	/^static glui32 play_music(schanid_t chan, glui32 repeats, glui32 notify, $/;"	f	file:
+play_sound	sndsdl.c	/^static glui32 play_sound(schanid_t chan, glui32 repeats, glui32 notify)$/;"	f	file:
+prev	garglk.h	/^    fileref_t *next, *prev; \/* in the big linked list of filerefs *\/$/;"	m	struct:glk_fileref_struct
+prev	garglk.h	/^    stream_t *next, *prev; \/* in the big linked list of streams *\/$/;"	m	struct:glk_stream_struct
+prev	garglk.h	/^    window_t *next, *prev; \/* in the big linked list of windows *\/$/;"	m	struct:glk_window_struct
+ptr	gi_blorb.c	/^    void *ptr; \/* pointer to malloc'd data, if loaded *\/$/;"	m	struct:giblorb_chunkdesc_struct	file:
+ptr	gi_blorb.h	/^        void *ptr; \/* A pointer to the data (if you used $/;"	m	union:giblorb_result_struct::__anon3
+ptr	gi_dispa.h	/^    void *ptr;$/;"	m	union:glk_objrock_union
+ptrflag	gi_dispa.h	/^    glui32 ptrflag; \/* [ ... ] or *? *\/$/;"	m	union:gluniversal_union
+put_picture	wintext.c	/^put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align)$/;"	f	file:
+put_text	wintext.c	/^static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen)$/;"	f	file:
+radjn	garglk.h	/^    int radjn;$/;"	m	struct:window_textbuffer_s
+radjw	garglk.h	/^    int radjw;$/;"	m	struct:window_textbuffer_s
+readable	garglk.h	/^    int readable, writable;$/;"	m	struct:glk_stream_struct
+readcount	garglk.h	/^    glui32 readcount, writecount;$/;"	m	struct:glk_stream_struct
+readcount	glk.h	/^    glui32 readcount;$/;"	m	struct:stream_result_struct
+readoneconfig	config.c	/^static void readoneconfig(char *fname, char *argv0, char *gamefile)$/;"	f	file:
+rect_s	garglk.h	/^struct rect_s$/;"	s
+rect_t	garglk.h	/^typedef struct rect_s rect_t;$/;"	t	typeref:struct:rect_s
+refcount	garglk.h	/^    int refcount;$/;"	m	struct:picture_s
+reflow	wintext.c	/^static void reflow(window_t *win)$/;"	f	file:
+resid	garglk.h	/^	int resid; \/* for notifies *\/$/;"	m	struct:glk_schannel_struct
+resnum	gi_blorb.c	/^    glui32 resnum;$/;"	m	struct:giblorb_resdesc_struct	file:
+resources	gi_blorb.c	/^    giblorb_resdesc_t *resources; \/* list of resource descriptors *\/$/;"	m	struct:giblorb_map_struct	file:
+ressorted	gi_blorb.c	/^    giblorb_resdesc_t **ressorted; \/* list of pointers to descriptors $/;"	m	struct:giblorb_map_struct	file:
+rgb	garglk.h	/^    unsigned char *rgb;$/;"	m	struct:window_graphics_s
+rgba	garglk.h	/^    unsigned char *rgba;$/;"	m	struct:picture_s
+rm	garglk.h	/^    int lm, rm;$/;"	m	struct:tbline_s
+rock	garglk.h	/^	glui32 rock;$/;"	m	struct:glk_schannel_struct
+rock	garglk.h	/^    glui32 rock;$/;"	m	struct:glk_fileref_struct
+rock	garglk.h	/^    glui32 rock;$/;"	m	struct:glk_stream_struct
+rock	garglk.h	/^    glui32 rock;$/;"	m	struct:glk_window_struct
+rpic	garglk.h	/^    picture_t *lpic, *rpic;$/;"	m	struct:tbline_s
+runblorb	launcher.c	/^void runblorb(void)$/;"	f
+runterp	launcher.c	/^void runterp(char *exe, char *flags)$/;"	f
+sample	garglk.h	/^	void *sample; \/* Mix_Chunk (or FMOD Sound) *\/$/;"	m	struct:glk_schannel_struct
+sch	gi_dispa.h	/^    signed char sch; \/* Cs *\/$/;"	m	union:gluniversal_union
+schanid_t	glk.h	/^typedef struct glk_schannel_struct *schanid_t;$/;"	t	typeref:struct:glk_schannel_struct
+scrollmax	garglk.h	/^    int scrollmax;$/;"	m	struct:window_textbuffer_s
+scrolloneline	wintext.c	/^static void scrolloneline(window_textbuffer_t *dwin, int forced)$/;"	f	file:
+scrollpos	garglk.h	/^    int scrollpos;$/;"	m	struct:window_textbuffer_s
+sdl_channel	garglk.h	/^	int sdl_channel;$/;"	m	struct:glk_schannel_struct
+sdl_memory	garglk.h	/^	unsigned char *sdl_memory;$/;"	m	struct:glk_schannel_struct
+sdl_rwops	garglk.h	/^	void *sdl_rwops; \/* SDL_RWops *\/$/;"	m	struct:glk_schannel_struct
+seekmode_Current	glk.h	149;"	d
+seekmode_End	glk.h	150;"	d
+seekmode_Start	glk.h	148;"	d
+sint	gi_dispa.h	/^    glsi32 sint; \/* Is *\/$/;"	m	union:gluniversal_union
+size	garglk.h	/^    glui32 size; \/* size value *\/$/;"	m	struct:window_pair_s
+sortsplot	gi_blorb.c	/^static int sortsplot(giblorb_resdesc_t *v1, giblorb_resdesc_t *v2)$/;"	f	file:
+sound_channels	sndsdl.c	/^static channel_t *sound_channels[MIX_CHANNELS], *music_channel;$/;"	v	file:
+sound_completion_callback	sndsdl.c	/^static void sound_completion_callback(int chan)$/;"	f	file:
+spaced	garglk.h	/^    int spaced;$/;"	m	struct:window_textbuffer_s
+startpos	gi_blorb.c	/^    glui32 startpos; \/* start of chunk header *\/$/;"	m	struct:giblorb_chunkdesc_struct	file:
+startpos	gi_blorb.h	/^        glui32 startpos; \/* The position in the file (if you $/;"	m	union:giblorb_result_struct::__anon3
+status	garglk.h	/^	int status;$/;"	m	struct:glk_schannel_struct
+str	garglk.h	/^    stream_t *str; \/* the window stream. *\/$/;"	m	struct:glk_window_struct
+stream_result_struct	glk.h	/^typedef struct stream_result_struct {$/;"	s
+stream_result_t	glk.h	/^} stream_result_t;$/;"	t	typeref:struct:stream_result_struct
+stream_t	garglk.h	/^typedef struct glk_stream_struct stream_t;$/;"	t	typeref:struct:glk_stream_struct
+strid_t	glk.h	/^typedef struct glk_stream_struct  *strid_t;$/;"	t	typeref:struct:glk_stream_struct
+strtype_File	garglk.h	204;"	d
+strtype_Memory	garglk.h	206;"	d
+strtype_Window	garglk.h	205;"	d
+style	garglk.h	/^    glui32 style;$/;"	m	struct:glk_window_struct
+style_Alert	glk.h	104;"	d
+style_BlockQuote	glk.h	106;"	d
+style_Emphasized	glk.h	100;"	d
+style_Header	glk.h	102;"	d
+style_Input	glk.h	107;"	d
+style_NUMSTYLES	glk.h	110;"	d
+style_Normal	glk.h	99;"	d
+style_Note	glk.h	105;"	d
+style_Preformatted	glk.h	101;"	d
+style_Subheader	glk.h	103;"	d
+style_User1	glk.h	108;"	d
+style_User2	glk.h	109;"	d
+style_s	garglk.h	/^struct style_s$/;"	s
+style_t	garglk.h	/^typedef struct style_s style_t;$/;"	t	typeref:struct:style_s
+stylehint_BackColor	glk.h	160;"	d
+stylehint_Indentation	glk.h	152;"	d
+stylehint_Justification	glk.h	154;"	d
+stylehint_NUMHINTS	glk.h	162;"	d
+stylehint_Oblique	glk.h	157;"	d
+stylehint_ParaIndentation	glk.h	153;"	d
+stylehint_Proportional	glk.h	158;"	d
+stylehint_ReverseColor	glk.h	161;"	d
+stylehint_Size	glk.h	155;"	d
+stylehint_TextColor	glk.h	159;"	d
+stylehint_Weight	glk.h	156;"	d
+stylehint_just_Centered	glk.h	166;"	d
+stylehint_just_LeftFlush	glk.h	164;"	d
+stylehint_just_LeftRight	glk.h	165;"	d
+stylehint_just_RightFlush	glk.h	167;"	d
+styles	garglk.h	/^	style_t styles[style_NUMSTYLES];$/;"	m	struct:window_textbuffer_s
+styles	garglk.h	/^	style_t styles[style_NUMSTYLES];$/;"	m	struct:window_textgrid_s
+tbline_s	garglk.h	/^typedef struct tbline_s$/;"	s
+tbline_t	garglk.h	/^} tbline_t;$/;"	t	typeref:struct:tbline_s
+textmode	garglk.h	/^    int textmode;$/;"	m	struct:glk_fileref_struct
+tgline_s	garglk.h	/^typedef struct tgline_s$/;"	s
+tgline_t	garglk.h	/^} tgline_t;$/;"	t	typeref:struct:tgline_s
+timeout	sysgtk.c	/^static int timeout(void *data)$/;"	f	file:
+timeouts	sysgtk.c	/^static int timeouts = 0;$/;"	v	file:
+timeouts	syswin.c	/^static int timeouts = 0;$/;"	v	file:
+timerid	sysgtk.c	/^static int timerid = -1;$/;"	v	file:
+tmp	launcher.c	/^char tmp[1024];$/;"	v
+top	draw.c	/^    int w, h, lsb, top, pitch;$/;"	m	struct:bitmap_s	file:
+touch	wingrid.c	/^static void touch(window_textgrid_t *dwin, int line)$/;"	f	file:
+touch	wintext.c	/^static void touch(window_textbuffer_t *dwin, int line)$/;"	f	file:
+touchscroll	wintext.c	/^static void touchscroll(window_textbuffer_t *dwin)$/;"	f	file:
+touni	draw.c	/^static int touni(int enc)$/;"	f	file:
+txtbuf	ttswin.c	/^static WCHAR txtbuf[4096];$/;"	v	file:
+txtlen	ttswin.c	/^static int txtlen;$/;"	v	file:
+type	garglk.h	/^    glui32 type;$/;"	m	struct:glk_window_struct
+type	garglk.h	/^    int type; \/* file, window, or memory stream *\/$/;"	m	struct:glk_stream_struct
+type	gi_blorb.c	/^    glui32 type;$/;"	m	struct:giblorb_chunkdesc_struct	file:
+type	glk.h	/^    glui32 type;$/;"	m	struct:event_struct
+uch	gi_dispa.h	/^    unsigned char uch; \/* Cu *\/$/;"	m	union:gluniversal_union
+uint	gi_dispa.h	/^    glui32 uint; \/* Iu *\/$/;"	m	union:gluniversal_union
+usage	gi_blorb.c	/^    glui32 usage;$/;"	m	struct:giblorb_resdesc_struct	file:
+val	gi_dispa.h	/^    glui32 val;$/;"	m	struct:gidispatch_intconst_struct
+val1	glk.h	/^    glui32 val1, val2;$/;"	m	struct:event_struct
+val2	glk.h	/^    glui32 val1, val2;$/;"	m	struct:event_struct
+vertical	garglk.h	/^    int vertical, backward; \/* flags *\/$/;"	m	struct:window_pair_s
+viewproc	syswin.c	/^viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)$/;"	f
+voice	ttswin.c	/^static ISpVoice *voice = NULL;$/;"	v	file:
+volume	garglk.h	/^	int volume;$/;"	m	struct:glk_schannel_struct
+w	draw.c	/^    int w, h, lsb, top, pitch;$/;"	m	struct:bitmap_s	file:
+w	garglk.h	/^    int w, h;$/;"	m	struct:picture_s
+w	garglk.h	/^    int w, h;$/;"	m	struct:window_graphics_s
+width	garglk.h	/^    int width, height;$/;"	m	struct:window_textbuffer_s
+width	garglk.h	/^    int width, height;$/;"	m	struct:window_textgrid_s
+win	garglk.h	/^    window_t *win;$/;"	m	struct:glk_stream_struct
+win	glk.h	/^    winid_t win; $/;"	m	struct:event_struct
+win_blank_create	winblank.c	/^window_blank_t *win_blank_create(window_t *win)$/;"	f
+win_blank_destroy	winblank.c	/^void win_blank_destroy(window_blank_t *dwin)$/;"	f
+win_blank_rearrange	winblank.c	/^void win_blank_rearrange(window_t *win, rect_t *box)$/;"	f
+win_blank_redraw	winblank.c	/^void win_blank_redraw(window_t *win)$/;"	f
+win_graphics_click	wingfx.c	/^void win_graphics_click(window_graphics_t *dwin, int sx, int sy)$/;"	f
+win_graphics_create	wingfx.c	/^window_graphics_t *win_graphics_create(window_t *win)$/;"	f
+win_graphics_destroy	wingfx.c	/^void win_graphics_destroy(window_graphics_t *dwin)$/;"	f
+win_graphics_draw_picture	wingfx.c	/^glui32 win_graphics_draw_picture(window_graphics_t *dwin,$/;"	f
+win_graphics_erase_rect	wingfx.c	/^void win_graphics_erase_rect(window_graphics_t *dwin, int whole,$/;"	f
+win_graphics_fill_rect	wingfx.c	/^void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,$/;"	f
+win_graphics_get_size	wingfx.c	/^void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height)$/;"	f
+win_graphics_rearrange	wingfx.c	/^void win_graphics_rearrange(window_t *win, rect_t *box)$/;"	f
+win_graphics_redraw	wingfx.c	/^void win_graphics_redraw(window_t *win)$/;"	f
+win_graphics_set_background_color	wingfx.c	/^void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color)$/;"	f
+win_graphics_touch	wingfx.c	/^void win_graphics_touch(window_graphics_t *dest)$/;"	f
+win_pair_click	winpair.c	/^void win_pair_click(window_pair_t *dwin, int x, int y)$/;"	f
+win_pair_create	winpair.c	/^window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui32 size)$/;"	f
+win_pair_destroy	winpair.c	/^void win_pair_destroy(window_pair_t *dwin)$/;"	f
+win_pair_rearrange	winpair.c	/^void win_pair_rearrange(window_t *win, rect_t *box)$/;"	f
+win_pair_redraw	winpair.c	/^void win_pair_redraw(window_t *win)$/;"	f
+win_textbuffer_cancel_line	wintext.c	/^void win_textbuffer_cancel_line(window_t *win, event_t *ev)$/;"	f
+win_textbuffer_clear	wintext.c	/^void win_textbuffer_clear(window_t *win)$/;"	f
+win_textbuffer_click	wintext.c	/^void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)$/;"	f
+win_textbuffer_create	wintext.c	/^window_textbuffer_t *win_textbuffer_create(window_t *win)$/;"	f
+win_textbuffer_destroy	wintext.c	/^void win_textbuffer_destroy(window_textbuffer_t *dwin)$/;"	f
+win_textbuffer_draw_picture	wintext.c	/^glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,$/;"	f
+win_textbuffer_flow_break	wintext.c	/^glui32 win_textbuffer_flow_break(window_textbuffer_t *dwin)$/;"	f
+win_textbuffer_init_line	wintext.c	/^void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)$/;"	f
+win_textbuffer_putchar	wintext.c	/^void win_textbuffer_putchar(window_t *win, char ch)$/;"	f
+win_textbuffer_rearrange	wintext.c	/^void win_textbuffer_rearrange(window_t *win, rect_t *box)$/;"	f
+win_textbuffer_redraw	wintext.c	/^void win_textbuffer_redraw(window_t *win)$/;"	f
+win_textgrid_cancel_line	wingrid.c	/^void win_textgrid_cancel_line(window_t *win, event_t *ev)$/;"	f
+win_textgrid_clear	wingrid.c	/^void win_textgrid_clear(window_t *win)$/;"	f
+win_textgrid_click	wingrid.c	/^void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)$/;"	f
+win_textgrid_create	wingrid.c	/^window_textgrid_t *win_textgrid_create(window_t *win)$/;"	f
+win_textgrid_destroy	wingrid.c	/^void win_textgrid_destroy(window_textgrid_t *dwin)$/;"	f
+win_textgrid_init_line	wingrid.c	/^void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)$/;"	f
+win_textgrid_move_cursor	wingrid.c	/^void win_textgrid_move_cursor(window_t *win, int xpos, int ypos)$/;"	f
+win_textgrid_putchar	wingrid.c	/^void win_textgrid_putchar(window_t *win, char ch)$/;"	f
+win_textgrid_rearrange	wingrid.c	/^void win_textgrid_rearrange(window_t *win, rect_t *box)$/;"	f
+win_textgrid_redraw	wingrid.c	/^void win_textgrid_redraw(window_t *win)$/;"	f
+winabort	sysgtk.c	/^void winabort(const char *fmt, ...)$/;"	f
+winabort	syswin.c	/^void winabort(const char *fmt, ...)$/;"	f
+winblit	syswin.c	/^static void winblit(RECT r)$/;"	f	file:
+window_blank_s	garglk.h	/^struct window_blank_s$/;"	s
+window_blank_t	garglk.h	/^typedef struct window_blank_s window_blank_t;$/;"	t	typeref:struct:window_blank_s
+window_graphics_s	garglk.h	/^struct window_graphics_s$/;"	s
+window_graphics_t	garglk.h	/^typedef struct window_graphics_s window_graphics_t;$/;"	t	typeref:struct:window_graphics_s
+window_pair_s	garglk.h	/^struct window_pair_s$/;"	s
+window_pair_t	garglk.h	/^typedef struct window_pair_s window_pair_t;$/;"	t	typeref:struct:window_pair_s
+window_t	garglk.h	/^typedef struct glk_window_struct window_t;$/;"	t	typeref:struct:glk_window_struct
+window_textbuffer_s	garglk.h	/^struct window_textbuffer_s$/;"	s
+window_textbuffer_t	garglk.h	/^typedef struct window_textbuffer_s window_textbuffer_t;$/;"	t	typeref:struct:window_textbuffer_s
+window_textgrid_s	garglk.h	/^struct window_textgrid_s$/;"	s
+window_textgrid_t	garglk.h	/^typedef struct window_textgrid_s window_textgrid_t;$/;"	t	typeref:struct:window_textgrid_s
+winid_t	glk.h	/^typedef struct glk_window_struct  *winid_t;$/;"	t	typeref:struct:glk_window_struct
+wininit	sysgtk.c	/^void wininit(int *argc, char **argv)$/;"	f
+wininit	syswin.c	/^void wininit(int *argc, char **argv)$/;"	f
+winloop	syswin.c	/^void winloop(void)$/;"	f
+winmethod_Above	glk.h	126;"	d
+winmethod_Below	glk.h	127;"	d
+winmethod_DirMask	glk.h	128;"	d
+winmethod_DivisionMask	glk.h	132;"	d
+winmethod_Fixed	glk.h	130;"	d
+winmethod_Left	glk.h	124;"	d
+winmethod_Proportional	glk.h	131;"	d
+winmethod_Right	glk.h	125;"	d
+winopen	sysgtk.c	/^void winopen(void)$/;"	f
+winopen	syswin.c	/^void winopen()$/;"	f
+winopenfile	sysgtk.c	/^void winopenfile(char *prompt, char *buf, int len)$/;"	f
+winopenfile	syswin.c	/^void winopenfile(char *prompt, char *buf, int len)$/;"	f
+winpoll	syswin.c	/^void winpoll(void)$/;"	f
+winrepaint	sysgtk.c	/^void winrepaint(int x0, int y0, int x1, int y1)$/;"	f
+winrepaint	syswin.c	/^void winrepaint(int x0, int y0, int x1, int y1)$/;"	f
+winresize	syswin.c	/^void winresize(void)$/;"	f
+winsavefile	sysgtk.c	/^void winsavefile(char *prompt, char *buf, int len)$/;"	f
+winsavefile	syswin.c	/^void winsavefile(char *prompt, char *buf, int len)$/;"	f
+wintitle	sysgtk.c	/^void wintitle(void)$/;"	f
+wintitle	syswin.c	/^void wintitle(void)$/;"	f
+wintype_AllTypes	glk.h	117;"	d
+wintype_Blank	glk.h	119;"	d
+wintype_Graphics	glk.h	122;"	d
+wintype_Pair	glk.h	118;"	d
+wintype_TextBuffer	glk.h	120;"	d
+wintype_TextGrid	glk.h	121;"	d
+writable	garglk.h	/^    int readable, writable;$/;"	m	struct:glk_stream_struct
+writecount	garglk.h	/^    glui32 readcount, writecount;$/;"	m	struct:glk_stream_struct
+writecount	glk.h	/^    glui32 writecount;$/;"	m	struct:stream_result_struct
+x0	garglk.h	/^    int x0, y0;$/;"	m	struct:rect_s
+x1	garglk.h	/^    int x1, y1;$/;"	m	struct:rect_s
+y0	garglk.h	/^    int x0, y0;$/;"	m	struct:rect_s
+y1	garglk.h	/^    int x1, y1;$/;"	m	struct:rect_s

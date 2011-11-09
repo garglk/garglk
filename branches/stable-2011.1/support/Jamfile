@@ -1,0 +1,70 @@
+#
+# Jamfile for support libraries
+#
+
+#
+# Treaty of Babel
+#
+
+if $(USEBABEL) = yes
+{
+    SubDir TOP support ;
+    ObjDir babel ;
+
+    SEARCH_SOURCE = [ FDirName $(TOP) support babel ] ;
+
+    if $(OS) != MINGW
+    {
+        SubDirCcFlags -fPIC ;
+    }
+
+    Library babel_static :
+        babel_handler.c ifiction.c md5.c misc.c register.c register_ifiction.c
+        adrift.c advsys.c agt.c alan.c blorb.c executable.c glulx.c hugo.c
+        level9.c magscrolls.c tads.c tads2.c tads3.c zcode.c
+        ;
+}
+
+#
+# SDL Sound
+#
+
+if $(USESDL) = yes
+{
+    SubDir TOP support ;
+    ObjDir SDL_sound ;
+
+    SubDirCcFlags
+        -DSOUND_SUPPORTS_OGG
+        -DSOUND_SUPPORTS_SMPEG
+        #-DSOUND_USE_ALTCVT
+        ;
+
+    if $(OS) = MINGW   { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
+    if $(OS) = SOLARIS { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
+    if $(OS) = MACOSX  { SubDirCcFlags -I/opt/local/include/SDL -fPIC ; }
+
+    SEARCH_SOURCE =
+        [ FDirName $(TOP) support sdl_sound ]
+        [ FDirName $(TOP) support sdl_sound decoders ]
+        ;
+
+    if $(OS) = MINGW
+    {
+        SEARCH_SOURCE += [ FDirName $(SUBDIR) sdl ] ;
+
+        SharedLibrary SDL_sound :
+            ogg.c smpeg.c audio_convert.c alt_audio_convert.c extra_rwops.c SDL_sound.c
+            ;
+
+        SharedLinkLibrariesOnSharedLibrary SDL_sound : smpeg libvorbisfile-3 ;
+    }
+
+    if $(OS) = SOLARIS || $(OS) = MACOSX
+    {
+        Library SDL_sound_static :
+            ogg.c smpeg.c audio_convert.c extra_rwops.c SDL_sound.c
+            ;
+    }
+}
+

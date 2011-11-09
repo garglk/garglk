@@ -1,0 +1,314 @@
+# Character Mapping Table
+# Windows Latin-2 mapping
+
+# Internal Character Set Identifier - this is a string of no more than
+# four characters that uniquely and universally identifies the character
+# set.  For a given character set, this ID must be the same on every
+# platform.  The reason the ID must be the same everywhere is that the
+# run-time uses the ID, which the compiler stores in the .GAM file, to
+# choose the character set mapping file when a player loads the game.
+# In order to allow you to compile your game on one system, and have
+# players run the game on different systems, every system must use the
+# same character set identifier for the internal character set, so that
+# every platform can choose the correct character set mapping to the
+# native character set.
+#
+# IMPORTANT - to ensure that character set identifiers are universal
+# and unique, character set identifiers MUST be registered.  Currently,
+# Mike Roberts (mjr_@hotmail.com) maintains the list of registered
+# character set identifiers; please contact him by email if you would
+# like the current list or add a new character set to the list.
+#
+# You do NOT need to register *native* character sets.  The native
+# character set used to compile a game is not stored with the game,
+# because it is irrelevant once the game is compiled -- the game is
+# entirely translated to the internal character set during compilation.
+# Note, however, that the TADS run-time varies by operating system in
+# how it determines the native character set, and how it chooses a
+# character set mapping file based on the native character set.
+#
+# On DOS, the run-time chooses a native character set based on the active
+# "code page"; DOS labels code pages with 3- or 4-digit numbers.  (For
+# example, this file is for code page 437, the DOS US code page.)  The
+# run-time generates the name of the character mapping table by appending
+# the internal character set ID to the code page number, then adding the
+# extension ".tcp" -- for example, the mapping file for native code page
+# 437 to internal character set ISO Latin 1 is called "437LA1.TCP".
+# This convention is system-specific; consult the documentation for your
+# version of TADS for local conventions.
+#
+# Members of the ISO Latin-X series of character sets are all registered,
+# and are assigned identifiers such of the form "LaX", where X is the
+# numeric suffix to the ISO Latin name.  For example, ISO Latin-1 (ISO
+# 8859-1) has identifier "La1", ISO Latin-2 has identifier "La2", and
+# so on.
+#
+id = La1
+
+
+# Full name of the internal character set - this name is stored in a
+# game compiled with this internal character set, so that the run-time
+# can display a sensible error message if a suitable mapping file is
+# not available when a player loads the game.  The full name isn't used
+# for choosing the mapping file, but is meant for the player to see.
+#
+# Each registered character set has an official full name, which should
+# be used here to ensure that players encountering character mapping
+# problems can more easily determine what file they need.  The ISO
+# Latin series names should be of the form "ISO Latin-X (ISO 8859-Y)".
+#
+ldesc = ISO Latin-1 (ISO 8859-1)
+
+
+# Extra System-specific information - this can be any string of
+# characters; the meaning is system-dependent.  For DOS, this extra
+# information is ignored, so we'll just leave it out entirely here.
+# Other systems use it for varying purposes.  On Windows, for example,
+# this string contains a code page number, which the TADS run-time
+# will use as the system code page when this character set is selected
+# by a game.
+EXTRA_SYSTEM_INFO = 1250
+
+# ---------------------------------------------------------------------------
+# The ASCII subset 1-127 is the same in both character sets and therefore
+# doesn't need to be mapped
+
+#
+# The following characters have equivalent characters in both character
+# sets, so we'll provide a reversible 1-to-1 mapping.
+
+# DOS 437 <-> ISO Latin 1
+128 <-> 199
+129 <-> 252
+130 <-> 233
+131 <-> 226
+132 <-> 228
+133 <-> 224
+134 <-> 229
+135 <-> 231
+136 <-> 234
+137 <-> 235
+138 <-> 232
+139 <-> 239
+140 <-> 238
+141 <-> 236
+142 <-> 196
+143 <-> 197
+144 <-> 201
+145 <-> 230
+146 <-> 198
+147 <-> 244
+148 <-> 246
+149 <-> 242
+150 <-> 251
+151 <-> 249
+152 <-> 255
+153 <-> 214
+154 <-> 220
+155 <-> 162
+156 <-> 163
+157 <-> 165
+160 <-> 225
+161 <-> 237
+162 <-> 243
+163 <-> 250
+164 <-> 241
+165 <-> 209
+166 <-> 170
+167 <-> 186
+168 <-> 191
+170 <-> 172
+171 <-> 189
+172 <-> 188
+173 <-> 161
+174 <-> 171
+175 <-> 187
+179 <-> 166
+196 <-> 151
+230 <-> 181
+241 <-> 177
+246 <-> 247
+248 <-> 176
+249 <-> 183
+253 <-> 178
+
+#
+# there are a few characters in the DOS character set that map to the same
+# ISO Latin 1 character as some other DOS character; we'll cover those
+# here.
+
+250 -> 183
+
+#
+# these characters are mappings from ISO Latin 1 that are redundant --
+# multiple characters in ISO Latin 1 map to the same character in DOS
+# code page 437.  So, we only need to provide the mapping from ISO Latin 1.
+
+# DOS code page 437 <- ISO Latin 1
+
+196 <- 150
+
+
+#
+# The following characters from DOS code page 437 are not present in
+# ISO Latin-1.  We'll map them to character 129; this character isn't
+# used in Latin-1, so we'll use it as our invalid character code.
+# We'll map it back to character 177 in code page 437, which is a
+# half-toned gray box; this will serve as our "missing character"
+# display indicator.
+
+# DOS 437 -> ISO Latin 1 invalid (129) -> DOS 437 invalid (177)
+127 -> 129 -> 177
+158 -> 129
+159 -> 129
+169 -> 129
+176 -> 129
+177 -> 129
+178 -> 129
+180 -> 129
+181 -> 129
+182 -> 129
+183 -> 129
+184 -> 129
+185 -> 129
+186 -> 129
+187 -> 129
+188 -> 129
+189 -> 129
+190 -> 129
+191 -> 129
+192 -> 129
+193 -> 129
+194 -> 129
+195 -> 129
+197 -> 129
+198 -> 129
+199 -> 129
+200 -> 129
+201 -> 129
+202 -> 129
+203 -> 129
+204 -> 129
+205 -> 129
+206 -> 129
+207 -> 129
+208 -> 129
+209 -> 129
+210 -> 129
+211 -> 129
+212 -> 129
+213 -> 129
+214 -> 129
+215 -> 129
+216 -> 129
+217 -> 129
+218 -> 129
+219 -> 129
+220 -> 129
+221 -> 129
+222 -> 129
+223 -> 129
+224 -> 129
+225 -> 129
+226 -> 129
+227 -> 129
+228 -> 129
+229 -> 129
+231 -> 129
+232 -> 129
+233 -> 129
+234 -> 129
+235 -> 129
+236 -> 129
+237 -> 129
+238 -> 129
+239 -> 129
+240 -> 129
+242 -> 129
+243 -> 129
+244 -> 129
+245 -> 129
+247 -> 129
+251 -> 129
+252 -> 129
+254 -> 129
+255 -> 129
+
+#
+# The following characters from ISO Latin 1 do not appear in DOS code
+# page 437.  Map these ISO Latin 1 characters to our "missing character"
+# indicator (DOS code page character 177).
+
+177 <- 128
+177 <- 130
+177 <- 131
+177 <- 132
+177 <- 133
+177 <- 134
+177 <- 135
+177 <- 136
+177 <- 137
+177 <- 138
+177 <- 139
+177 <- 140
+177 <- 141
+177 <- 142
+177 <- 143
+177 <- 144
+177 <- 145
+177 <- 146
+177 <- 147
+177 <- 148
+177 <- 149
+177 <- 152
+177 <- 153
+177 <- 154
+177 <- 155
+177 <- 156
+177 <- 157
+177 <- 158
+177 <- 159
+177 <- 160
+177 <- 164
+177 <- 167
+177 <- 168
+177 <- 169
+177 <- 173
+177 <- 174
+177 <- 175
+177 <- 179
+177 <- 180
+177 <- 182
+177 <- 184
+177 <- 185
+177 <- 190
+177 <- 192
+177 <- 193
+177 <- 194
+177 <- 195
+177 <- 200
+177 <- 202
+177 <- 203
+177 <- 204
+177 <- 205
+177 <- 206
+177 <- 207
+177 <- 208
+177 <- 210
+177 <- 211
+177 <- 212
+177 <- 213
+177 <- 215
+177 <- 216
+177 <- 217
+177 <- 218
+177 <- 219
+177 <- 221
+177 <- 222
+177 <- 223
+177 <- 227
+177 <- 240
+177 <- 245
+177 <- 248
+177 <- 253
+177 <- 254

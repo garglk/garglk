@@ -1,0 +1,8 @@
+debian/garglk.ini         etc/
+debian/gargoyle.desktop   usr/share/applications/
+debian/vkbd/gargoyle.ini  usr/share/keys/
+debian/vkbd/[1-9]*.ini    usr/share/keys/gargoyle/
+build/dist/*[!.]??        usr/bin/
+build/dist/libgarglk.so   usr/lib/
+debian/help_out/*         usr/share/help/gargoyle/
+

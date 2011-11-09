@@ -1,0 +1,108 @@
+#
+# Include all the sub-projects
+# Then make install rules to copy exe files into bin
+#
+
+SubDir TOP ;
+
+SubInclude TOP garglk ;
+SubInclude TOP terps ;
+SubInclude TOP tads ;
+SubInclude TOP support ;
+
+# If SYSTEM is set, use values for a system wide install
+if $(SYSTEM)
+{
+    BINDIR = /usr/local/libexec/gargoyle ;
+    APPDIR = /usr/local/libexec/gargoyle ;
+    LIBDIR = /usr/local/lib/gargoyle ;
+    DESTDIR = / ;
+    EXEMODE = 755 ;
+    FILEMODE = 755 ;
+}
+# Otherwise use _BINDIR, _APPDIR, and _LIBDIR
+# to populate BINDIR, APPDIR, and LIBDIR with
+# values supplied on the command line (if any)
+else
+{
+    if $(DESTDIR)
+    { ITOP = [ FDirName $(DESTDIR) ] ; }
+    else
+    { ITOP = [ FDirName $(TOP) build dist ] ; }
+
+    BINDIR = [ FPrependRoot $(ITOP) : $(_BINDIR) ] ;
+    APPDIR = [ FPrependRoot $(ITOP) : $(_APPDIR) ] ;
+    LIBDIR = [ FPrependRoot $(ITOP) : $(_LIBDIR) ] ;
+}
+
+for APP in $(APPS)
+{
+    LinkLibraries $(APP) : libgarglkmain ;
+
+    if $(STATIC)
+    {
+        if $(USEBABEL)
+        {
+            LinkLibraries $(APP) : libgarglk babel_static ;
+        }
+        else
+        {
+            LinkLibraries $(APP) : libgarglk ;
+        }
+    }
+    else
+    {
+        SharedLinkLibraries $(APP) : libgarglk ;
+    }
+
+    InstallBin $(APPDIR) : $(APP)$(SUFEXE) ;
+}
+
+if $(OS) = MINGW
+{
+    # support binaries
+    SEARCH_SOURCE +=
+        [ FDirName $(TOP) support freetype ]
+        [ FDirName $(TOP) support libjpeg ]
+        [ FDirName $(TOP) support libpng ]
+        [ FDirName $(TOP) support zlib ]
+        ;
+    InstallLib $(LIBDIR) : freetype6.dll ;
+    InstallLib $(LIBDIR) : libjpeg-8.dll ;
+    InstallLib $(LIBDIR) : libpng14-14.dll ;
+    InstallLib $(LIBDIR) : zlib1.dll ;
+}
+
+if $(OS) = MINGW && $(USESDL) = yes
+{
+    SharedLinkLibrariesOnSharedLibrary libgarglk : SDL_sound ;
+    SEARCH_SOURCE += [ FDirName $(TOP) support sdl ] ;
+    InstallLib $(LIBDIR) : SDL_sound.dll ;
+    InstallLib $(LIBDIR) : SDL_mixer.dll ;
+    InstallLib $(LIBDIR) : SDL.dll ;
+    InstallLib $(LIBDIR) : smpeg.dll ;
+    InstallLib $(LIBDIR) : libogg-0.dll ;
+    InstallLib $(LIBDIR) : libvorbis-0.dll ;
+    InstallLib $(LIBDIR) : libvorbisfile-3.dll ;
+    InstallLib $(LIBDIR) : mikmod.dll ;
+}
+
+if $(STATIC)
+{
+    if $(USEBABEL)
+    {
+        LinkLibraries gargoyle : libgarglk babel_static ;
+    }
+    else
+    {
+        LinkLibraries gargoyle : libgarglk ;
+    }
+
+    InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+}
+else
+{
+    SharedLinkLibraries gargoyle : libgarglk ;
+    InstallBin $(BINDIR) : gargoyle$(SUFEXE) ;
+    InstallLib $(LIBDIR) : libgarglk$(SUFDLL) ;
+}

@@ -1,0 +1,120 @@
+# Set locations of Glk library and include directories, and Glk make include.
+# For building the IFP plugin, you should probably use Xglk headers.
+# For X Glk library:
+GLKLIBDIR	= ../../xglk
+GLKINCDIR	= ../../xglk
+GLKMAKEINC	= ../../xglk/Make.xglk
+# ..., or for curses Glk library:
+#GLKLIBDIR	= ../../glkterm
+#GLKINCDIR	= ../../glkterm
+#GLKMAKEINC	= ../../glkterm/Make.glkterm
+# ..., or for the "cheap" Glk library:
+#GLKLIBDIR	= ../../cheapglk
+#GLKINCDIR	= ../../cheapglk
+#GLKMAKEINC	= ../../cheapglk/Make.cheapglk
+
+# Set locations of IFP library and include directories, and header tool.
+# For installed IFP, these would be something like:
+IFPLIBDIR	= /usr/lib
+IFPINCDIR	= /usr/include
+IFPHDRTOOL	= /usr/bin/ifphdr
+# ...whereas for IFP newly built alongside xglk, more like:
+#IFPLIBDIR	= ../../ifp
+#IFPINCDIR	= ../../ifp
+#IFPHDRTOOL	= ../../ifp/ifphdr
+
+# IFP header definition.
+IFPHDR		= level9.hdr
+
+# Level9 version.
+VERSION		= 5.1
+
+# Common definitions.
+CC		=  gcc
+WARNINGS	= -Wall # -W
+DEBUG		=
+OPTIMIZE	= -O2 -DBITMAP_DECODER
+
+# Get the definitions for Glk LINKLIBS and GLKLIB.
+include $(GLKMAKEINC)
+
+CFLAGS	= -fPIC -ansi -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+# CFLAGS= -I$(GLKINCDIR) $(WARNINGS) $(DEBUG) $(OPTIMIZE)
+LDFLAGS	= $(DEBUG)
+
+OBJS	= level9.o bitmap.o glk.o
+OS_LIB	= $(LINKLIBS) -lm -L$(GLKLIBDIR) $(GLKLIB)
+
+all:glklevel9 level9-$(VERSION).so
+
+# Stuff copied from the generic interpreter.
+level9.h level9.c bitmap.c: ../level9.h ../level9.c ../bitmap.c
+	cp ../$@ $@
+
+# Level9.c uses the non-ANSI str[n]icmp functions, so here we #define them
+# to be functions provided by the Glk interface module (and, in a very
+# underhand way, by defining NEED_STRICMP_PROTOTYPE here, the str[n]icmp
+# prototypes from level9.h are macro-redefined into gln_str[n]casecmp, so
+# everything looks fine and dandy...).
+level9.o: level9.c level9.h
+	$(CC) $(CFLAGS) 						\
+		-DNEED_STRICMP_PROTOTYPE -Dstricmp=gln_strcasecmp	\
+		-Dstrnicmp=gln_strncasecmp -c -o $@ $<
+
+bitmap.o: bitmap.c level9.h
+	$(CC) $(CFLAGS) 						\
+		-DNEED_STRICMP_PROTOTYPE -Dstricmp=gln_strcasecmp	\
+		-Dstrnicmp=gln_strncasecmp -c -o $@ $<
+
+# Build the standalone Level9 interpreter.
+# See glk.c comments for details on the -Wl,--wrap... options.
+glklevel9: $(OBJS)
+	$(CC) $(LDFLAGS) -o glklevel9 $(OBJS) $(OS_LIB)			\
+		-Wl,--wrap,toupper,--wrap,tolower
+
+# Build an IFP plugin.
+# Wrapper toupper and tolower as above.
+level9-$(VERSION).so: $(OBJS) $(IFPHDR)
+	rm -f level9_plugin.c
+	$(IFPHDRTOOL) $(IFPHDR) level9_plugin.c
+	$(CC) -I$(IFPINCDIR) $(CFLAGS) -c level9_plugin.c
+	$(LD) -u ifpi_force_link -shared -Bsymbolic			\
+		-o $@ $(OBJS)						\
+		level9_plugin.o -L$(IFPLIBDIR) -lifppi -lm -lc		\
+		--wrap toupper --wrap tolower
+
+# Directory cleanup.
+clean:
+	rm -f $(OBJS) level9.c bitmap.c level9.h 
+	rm -f *.o glklevel9 level9-$(VERSION).so level9_plugin.c core
+	rm -rf distribution binaries
+
+# Distribution.
+distclean: clean
+maintainer-clean: clean
+dist: distclean
+	mkdir distribution binaries
+	cd ..; zip -r Glk/distribution/Level9_5.1_Source.zip \
+			* -x Glk/distribution/\* Glk/binaries/
+	cp ../COPYING glk_readme.txt binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../xglk GLKINCDIR=../../xglk \
+			GLKMAKEINC=../../xglk/Make.xglk level9-$(VERSION).so
+	mv level9-$(VERSION).so binaries
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../xglk GLKINCDIR=../../xglk \
+			GLKMAKEINC=../../xglk/Make.xglk glklevel9
+	mv glklevel9 binaries/xlevel9
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../glkterm GLKINCDIR=../../glkterm \
+			GLKMAKEINC=../../glkterm/Make.glkterm glklevel9
+	mv glklevel9 binaries/termlevel9
+	$(MAKE) -f Makefile.glk \
+			GLKLIBDIR=../../cheapglk GLKINCDIR=../../cheapglk \
+			GLKMAKEINC=../../cheapglk/Make.cheapglk glklevel9
+	mv glklevel9 binaries/cheaplevel9
+	cd binaries; tar zcvf ../distribution/Level9_5.1_Linux.tgz *
+
+# Dependencies.
+glk.o: glk.c level9.h
+ 

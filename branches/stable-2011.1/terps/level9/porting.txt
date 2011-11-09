@@ -1,0 +1,366 @@
+
+Level 9 interpreter
+Version 5.1
+
+This guide is by David Kinder.
+
+
+Level9 has already been compiled on Windows, MS-DOS, Apple Mac, Amiga, Acorn
+and Unix systems, so it should be quite easy to get it working on any other
+modern computer.
+
+The first thing that must be done is to check the typedefs in level9.h.
+The typedefs must have the following properties:
+
+	L9BYTE		unsigned 8 bit quantity
+	L9UINT16	unsigned 16 bit quantity
+	L9UINT32	unsigned 32 bit quantity
+	L9BOOL		quantity capable of holding the values
+			TRUE (1) and FALSE (0)
+
+Also the define MAX_PATH (the maximum length of the full pathname of a file)
+must be set, e.g.
+
+	#define MAX_PATH 256
+
+If graphics are not supported defining NO_SCAN_GRAPHICS will stop the
+intialization code from looking for graphics data, which may take a noticeable
+length of time on slower computers.
+
+
+It is required that several os_ functions be written for your system. Given
+below is a guide to these functions, and a very simple interface is included
+in generic.c.
+
+
+void os_printchar(char c)
+
+	os_printchar() prints a character to the output. The interface
+	can either buffer this character or print it immediately, but
+	if buffering is used then the characters must all be sent to the
+	output when the interpreter calls os_flush(). A paragraph of
+	text is output as one long stream of characters, without line
+	breaks, so the interface must provide its own word wrapping and
+	any other features that are desired, such as justification or a
+	[More] prompt. The carriage return character is always '\r',
+	rather than '\n'.
+
+
+L9BOOL os_input(char* ibuff, int size)
+
+	os_input() reads a line of text from the user, usually to accept
+	the next command to be sent to the game. The text input must be
+	stored in ibuff with a terminating zero, and be no longer than
+	size characters. Normally os_input() should return TRUE, but may
+	return FALSE to cause the entire input so far to be discarded.
+	The reason for doing so is discussed in the section at the end
+	on allowing the interpreter to load a new game without exiting.
+
+
+char os_readchar(L9UINT32 millis)
+
+	os_readchar() looks to see if a key has been pressed if one has,
+	returns the character to the interpreter immediately. If no key
+	has been pressed the interpreter should wait for a key for at
+	least the number of milliseconds given in the argument. If after
+	this period no key has been pressed, 0 should be returned. This
+	is most commonly used when a game is exited, causing it to print
+	"Press SPACE to play again" and then call os_readchar().
+
+
+L9BOOL os_stoplist(void)
+
+	Called during dictionary listing. If true is returned (typically
+	because the user has pressed a key) then the listing is stopped.
+	This routine should return immediately, without waiting. If this
+	is not possible then FALSE should be returned.
+
+
+void os_flush(void)
+
+	If the calls to os_printchar() are being buffered by the
+	interface then the buffered text must be printed when os_flush()
+	is called.
+
+
+L9BOOL os_save_file(L9BYTE* Ptr, int Bytes)
+
+	os_save_file() should prompt the user in some way (with either
+	text or a file requester) for a filename to save the area of
+	memory of size Bytes pointed to by Ptr. TRUE or FALSE should be
+	returned depending on whether or not the operation was successful.
+
+
+L9BOOL os_load_file(L9BYTE* Ptr, int* Bytes, int Max)
+
+	os_load_file() should prompt the user for the name of a file to
+	load. At most Max bytes should be loaded into the memory pointed
+	to by Ptr, and the number of bytes read should be placed into the
+	variable pointed to by Bytes.
+
+
+L9BOOL os_get_game_file(char* NewName, int Size)
+
+	os_get_game_file() should prompt the user for a new game file, to
+	be stored in NewName, which can take a maximum name of Size
+	characters. When this function is called the NewName array
+	contains the name of the currently loaded game, which can be used
+	to derive a name to prompt the user with.
+
+	This is used by at least the Adrian Mole games, which load in the
+	next part of the game after the part currently being played has
+	been completed. These games were originally written for tape-based
+	systems where the call was simply "load the next game from the
+	tape".
+
+
+void os_set_filenumber(char* NewName, int Size, int n)
+
+	os_set_filename() is for multi-part games originally written for
+	disk-based systems, which used game filenames such as
+
+		gamedat1.dat
+		gamedat2.dat
+
+	etc. The routine should take the full filename in NewName (of
+	maximum size Size) and modify it to reflect the number n, e.g.
+	os_set_filename("gamedat1.dat",2) should leave "gamedat2.dat"
+	in NewName.
+
+
+FILE* os_open_script_file(void)
+
+	os_open_script_file() should prompt the user for the name of a
+	script file, from which input will be read until the end of the
+	script file is reached, and should return a pointer to the opened
+	script file, or NULL. This function is called in response to
+	the player entering the "#play" meta-command.
+
+
+void os_graphics(int mode)
+
+	Called when graphics are turned on or off, either by the game or
+	by the user entering "graphics" or "text" as a command. If mode
+	is 0 graphics should be turned off. If mode is 1 then line drawn
+	graphics will follow, so graphics should be turned on. If mode is
+	2 then bitmap graphics will follow, so graphics should be turned
+	on, provided that appropriate bitmap graphics files are available
+	(This can be determined by calling DetectBitmaps(), which is
+	discussed below.). After an os_graphics(0) call all the other
+	graphics functions should do nothing.
+
+	Typically, if mode is not 0 the code will allocate some suitable
+	bitmap for drawing graphics into. For line drawn graphics, to
+	determine the size of the bitmap the code should call
+	GetPictureSize(). The graphics routines should draw in a bitmap of
+	the size returned by this function, and then scale the bitmap
+	appropriately for display. If instead the graphics code tries to
+	scale the co-ordinates passed to os_drawline() and os_fill() then
+	problems occur with fill colours "leaking" into other areas of the
+	picture. The values returned by GetPictureSize() will not change
+	unless a new game is loaded.
+
+	The graphics bitmap for line drawn graphics is always 4 colour.
+	The 4 colours are chosen from a possible 8 by calls to
+	os_setcolour (see below). Note that a call to os_setcolour() must
+	affect the colour of pixels already drawn on the bitmap. For
+	example, suppose a pixel in the bitmap is set to the first colour
+	in the palette during drawing, which at that moment is red. If
+	later the first colour in the palette is set to blue, at the end
+	the pixel should be shown blue.
+
+	In order to actually draw graphics, the input routines os_input()
+	and os_readchar() should call RunGraphics(). This is discussed
+	further below.
+
+
+void os_cleargraphics(void)
+
+	Clear the current graphics bitmap by filling the entire bitmap
+	with colour 0.
+
+
+void os_setcolour(int colour, int index)
+
+	Set the given colour in the graphics bitmap's palette to the
+	colour at the given index in the interpreter's table of colours.
+
+	The actual table of colours in the interpreters provided by
+	Level 9 vary across different machines. An acceptable palette
+	that matches reasonably closely to the Amiga releases is as
+	follows (all colours are 8 bit R,G,B):
+
+		0x00,0x00,0x00  (black)
+		0xFF,0x00,0x00  (red)
+		0x30,0xE8,0x30  (green)
+		0xFF,0xFF,0x00  (yellow)
+		0x00,0x00,0xFF  (blue)
+		0xA0,0x68,0x00  (brown)
+		0x00,0xFF,0xFF  (cyan)
+		0xFF,0xFF,0xFF  (white)
+
+
+void os_drawline(int x1, int y1, int x2, int y2, int colour1, int colour2)
+
+	Draw a line on the graphics bitmap between (x1,y1) and (x2,y2).
+	Note that either point may lie outside of the bitmap, and that it
+	is the responsibility of the routine to clip to the appropriate
+	co-ordinates.
+
+	For each point on the line, if the colour at that point is equal
+	to colour2 the pixel's colour should be changed to colour1, else
+	it should not be modified.
+
+
+void os_fill(int x, int y, int colour1, int colour2)
+
+	If the pixel's colour at (x,y) is equal to colour2, fill the
+	region containing (x,y) with colour1. The boundaries of the
+	region are defined as those areas of the bitmap with a colour
+	other than colour2.
+
+
+void os_show_bitmap(int pic, int x, int y)
+
+	Show the bitmap given by the number pic at the co-ordinates
+	(x,y).
+
+	Note that the game can request the same picture several times
+	in a row: it is a good idea for ports to record the last picture
+	number and check it against any new requests.
+
+	The interpreter source code provides a decoder that understands
+	most Level 9 bitmap formats. The decoder is accessed by calling
+	DecodeBitmap(), which is discussed below.
+
+
+int main(int argc, char** argv)
+
+	You must provide your own main() entry point for the program.
+	The simplest such main() is given in generic.c, which just calls
+	LoadGame() and then sits in a loop calling RunGame(). These
+	functions are discussed below.
+
+
+The interpreter provides several functions to be called by the interface
+code. These are:
+
+
+L9BOOL LoadGame(char* filename, char* picname)
+
+	LoadGame() attempts to load filename and then searches it for
+	a valid Level 9 game. If it is successful TRUE is returned, else
+	FALSE. The previous game in memory will be overwritten if the
+	file filename can be loaded, even if it does not contain a Level 9
+	game, so even if LoadGame() returns FALSE it must be assumed that
+	the game memory has changed.
+
+	The second argument is the name of the file containing picture
+	data, and may be NULL. Ports should usually ask the user for just
+	the filename and derive picname from it in some way. The
+	recommended approach is to first try the filename with an extension
+	of ".pic" and then try replacing the filename with "picture.dat".
+
+
+L9BOOL RunGame(void)
+
+	If LoadGame() has been successful, RunGame() can be called to run
+	the Level 9 game. Each call to RunGame() executes a single opcode
+	of the game. In pre-emptive multitasking systems or systems without
+	any multitasking it is enough to sit in a loop calling RunGame(),
+	e.g.
+		while (RunGame());
+
+	RunGame() returns TRUE if an opcode code was executed and FALSE if
+	the game is stopped, either by an error or by a call to StopGame().
+
+
+void StopGame(void)
+
+	StopGame() stops the current game from playing.
+
+
+void RestoreGame(char *inFile)
+
+	RestoreGame() attempts to restore the currently running game to 
+	the position stored in the inFile saved game file. This gives 
+	interface code a means to restore a game position.
+
+
+void FreeMemory(void)
+
+	FreeMemory() frees memory used to store the game. This routine
+	should be called when exiting the interpreter.
+
+
+void GetPictureSize(int* width, int* height)
+
+	Returns the width and height of the bitmap that graphics should
+	be drawn into. This is constant for any particular game.
+
+
+L9BOOL RunGraphics(void)
+
+	Runs an opcode of the graphics routines. If a graphics opcode was
+	run TRUE is returned, otherwise FALSE.
+
+	The simplest way to get graphics to display is to add a loop to
+	repeatedly call RunGraphics() to os_input() and os_readchar():
+
+		while (RunGraphics());
+		/* Now draw graphics bitmap on display... */
+
+	Optionally, the code can provide a more "atmospheric" recreation
+	of the games by drawing the graphics slowly, as was the case on
+	the old 8-bit computers. This is achieved by calling RunGraphics()
+	several times then waiting for a while before calling it again.
+	Note that when waiting the code should still respond to user
+	input.
+
+
+BitmapType DetectBitmaps(char* dir)
+
+	Given a directory, returns the type of bitmap picture files in it,
+	or NO_BITMAPS if there are no bitmaps.
+
+	This function is only available if the preprocessor symbol
+	BITMAP_DECODER is defined.
+
+
+Bitmap* DecodeBitmap(char* dir, BitmapType type, int num, int x, int y)
+
+	This function loads and decodes the specified bitmap, returning
+	a Bitmap structure. The structure contains the width and height
+	of the bitmap, a palette of up to 32 colours used in the bitmap,
+	and the actual data as an array of indexes into the palette.
+
+	This function is only available if the preprocessor symbol
+	BITMAP_DECODER is defined.
+
+
+One more complex feature of the interpreter is that a new Level 9 game can
+be loaded without exiting and restarting the interpreter. This is of use
+in a windowing environment. In this case, both main() and the code that
+catches a "New Game" menu item should call a routine such as the example
+new_game() below. This ensures that each new game does not use up more and
+more of the interpreter's stack.
+
+int newgame(char* game_name)
+{
+  static int playing = FALSE;
+
+  if (LoadGame(game,NULL))
+  {
+    if (playing)
+      return -1;
+
+    playing = TRUE;
+    while (RunGame());
+    playing = FALSE;
+  }
+  else
+    warn("Unable to load game");
+
+  return -1;
+}
+

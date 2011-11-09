@@ -1,0 +1,47 @@
+Original Frotz reference code:
+	Stefan Jokisch <stefan.jokisch@gmx.de>
+
+Original Unix port:
+	Galen Hazelwood <galenh@micron.net>
+
+New Frotz reference code:
+	Jim Dunleavy <jim.dunleavy@erha.ie>
+	David Griffith <dgriffi@cs.csubak.edu>
+
+New Unix port:
+	David Griffith <dgriffi@cs.csubak.edu>
+
+V6 semi-support:
+	Alembic Petrofsky <alembic@petrofsky.berkeley.ca.us>
+
+OSS sound support (from xfrotz 2.32.1):
+	Daniel Schepler
+
+Treaty of Babel code:
+	L. Ross Raszewski
+
+Unicode support (largely from WinFrotz):
+	David Kinder
+	Michael Martin (curses interface to WinFrotz)
+
+NFrotz port:
+	Michael Martin
+
+The original Frotz special thanks list:
+
+Thanks also to those who posted to rec.arts.int-fiction feedback on what I
+was doing with Unix Frotz, people who checked the betas for bugs, and sent
+in patches.  These include, but are not limited to:
+
+Torbjorn Anderson, Timo Korvola, Martin Frost, Mihail Milushev, David
+Picton, Chris Sullivan, Leonard Richardson, Stephen Kitt, Paul E Coad,
+Paul Janzen, Brad Town, Jason C Penney, Denis Hirschfeldt, Jacob Nevins,
+Matteo De Luigi, Steven Frank, Thomas Troeger, David Kinder, and others
+that I've forgotten.
+
+Michael Edmonson (author of Rezrov) and Evin Robertson (author of Nitfol)
+deserve recognition for the ideas that I've borrowed from their programs.
+
+For NFrotz, thanks are also due to John Campbell, David Cuthbert, and
+Simon Fowler for their assistance in testing, and to Torbjorn Anderson
+for some additional patches.

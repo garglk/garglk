@@ -1,0 +1,68 @@
+#!/bin/sh
+# Setup test environment and run all tests
+
+. test_env
+
+# Delete old test output
+rm -f $T3_OUT/*
+
+# object test - doesn't produce any output; mostly check for no crashiness
+test_obj
+
+# Preprocessor tests
+for i in ansi circ circ2 embed define ifdef concat varmacpp; do
+    test_pp $i
+done
+
+# Execution tests
+for i in basic finally dstr fnredef builtin undo gotofin; do
+    test_ex $i
+done
+
+# "Make" tests
+
+for i in anon isin htmlify listprop foreach vector lclprop lookup propaddr funcparm newprop anonobj nested badnest varmac bignum bignum2 unicode anon isin htmlify listprop foreach vector lclprop lookup propaddr funcparm newprop anonobj nested badnest varmac objloop anonvarg; do
+    test_make $i $i
+done
+
+for i in catch save html addlist listpar arith; do
+    test_make -nodef $i $i
+done
+
+for i in extfunc objrep funcrep conflict; do
+    test_make -nodef $i ${i}1 ${i}2
+done
+
+test_make -pre vocext vocext1 vocext2 reflect
+
+for i in extern objmod; do
+    test_make -nodef $i ${i}1 ${i}2 ${i}3
+done
+
+test_make -nodef gram2 t3lib/tok gram2
+test_make -debug stack stack t3lib/reflect
+test_make -pre targprop targprop t3lib/reflect
+
+# These tests require running preinit (testmake normally suppresses it)
+for i in vec_pre symtab enumprop modtobj undef undef2; do
+    test_make $i -pre $i
+done
+
+# ITER does a save/restore test
+test_make iter iter
+test_restore iter2 iter
+
+# "Preinit" tests
+test_pre preinit
+
+echo
+
+ls $T3_OUT/*.succ 2>/dev/null
+echo
+ls $T3_OUT/*.diff 2>/dev/null
+
+if [ $? = 0 ]; then
+    echo "*** DIFFERENCE FILES FOUND ***"
+else
+    echo "*** SUCCESS ***"
+fi

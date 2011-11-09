@@ -1,0 +1,58 @@
+	Files to build: 10
+	symbol_export _main.t -> _main.t3s
+	symbol_export vocext1.t -> vocext1.t3s
+	symbol_export vocext2.t -> vocext2.t3s
+	symbol_export reflect.t -> reflect.t3s
+	compile _main.t -> _main.t3o
+	compile vocext1.t -> vocext1.t3o
+	compile vocext2.t -> vocext2.t3o
+	compile reflect.t -> reflect.t3o
+	link -> vocext.t3p
+	preinit -> vocext.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+noun 'book': [blue_book, red_book]
+noun 'booklet': [blue_book, red_book]
+plural 'books': []
+noun 'tome': [blue_book, red_book]
+plural 'tomes': [blue_book, red_book]
+adjective 'red': [red_book]
+adjective 'musty': []
+
+redBook.noun: [chapter, volume, booklet, book, tome]
+blueBook.noun: [chapter, volume, booklet, book, tome]
+blueBook.plural: [tomes]
+redBook.adjective: [ancient, red]
+blueBook.adjective: [ancient, blue]
+blueBook.plural: [tomes]
+
+noun 'switch': [light_switch]
+noun 'light': [light_switch]
+lightSwitch.noun: [light, switch]
+lightSwitch.adjective: nil
+
+Iterating over each dictionary entry...
+   light: light_switch noun
+   tomes: blue_book plural
+   tomes: red_book plural
+   red: red_book adjective
+   switch: light_switch noun
+   volume: blue_book noun
+   volume: red_book noun
+   blue: blue_book adjective
+   book: blue_book noun
+   book: red_book noun
+   tome: blue_book noun
+   tome: red_book noun
+   ancient: blue_book adjective
+   ancient: red_book adjective
+   chapter: blue_book noun
+   chapter: red_book noun
+   booklet: blue_book noun
+   booklet: red_book noun
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
