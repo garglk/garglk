@@ -499,13 +499,6 @@ void gli_read_config(int argc, char **argv)
         readoneconfig(buf, argv0, gamefile);
     }
 
-    tmp = (char *) getcwd(buf, sizeof buf);
-    if (tmp)
-    {
-        strcat(buf, "/garglk.ini");
-        readoneconfig(buf, argv0, gamefile);
-    }
-
     if (argc > 1)
     {
         strcpy(buf, argv[argc-1]);

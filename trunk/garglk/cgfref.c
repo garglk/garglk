@@ -355,7 +355,5 @@ void glkunix_set_base_file(char *filename)
     else
         strcpy(gli_workdir, ".");
     strcpy(gli_workfile, filename);
-#ifdef __APPLE__
     chdir(gli_workdir);
-#endif
 }
