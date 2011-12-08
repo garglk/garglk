@@ -33,6 +33,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <stdint.h>
 
 /* Convert a string to all-lowercase */
 char *os_strlwr(char *s)
@@ -61,6 +62,70 @@ void os_rand(long *seed)
     *seed = (long)t;
 }
 
+/*
+ *   Xorshift PRNG from http://www.jstatsoft.org/v08/i14/paper
+ */
+static uint32_t seed[4];
+
+unsigned long xorshift(void)
+{
+    uint32_t x;
+    x = seed[0] ^ (seed[0] << 11);
+    seed[0] = seed[1];
+    seed[1] = seed[2];
+    seed[2] = seed[3];
+
+    return (seed[3] = (seed[3] ^ (seed[3] >> 19)) ^ (x ^ (x >> 8)));
+}
+
+void xorinit(void)
+{
+    seed[0] = time(NULL);
+    seed[1] = seed[0] << 1;
+    seed[2] = seed[0] & seed[1];
+    seed[3] = seed[1] & ~seed[2];
+    xorshift();
+}
+
+/*
+ *   Generate random bytes for use in seeding a PRNG.
+ */
+void os_gen_rand_bytes(unsigned char *buf, size_t len)
+{
+    /* seed the Xorshift PRNG */
+    xorinit();
+
+    int ct, val;
+    for (ct = 0; ct < len; ct++)
+    {
+        val = xorshift();
+        buf[ct] = (val - 1) & 0xFF;
+    }
+}
+
+/*
+ *   Generate a name for a temporary file.
+ */
+int os_gen_temp_filename(char *buf, size_t buflen)
+{
+    char tmpdir[OSFNMAX], fname[50];
+
+    /* get the system temporary directory */
+    os_get_tmp_path(tmpdir);
+
+    /* seed the Xorshift PRNG */
+    xorinit();
+
+    /* generate a random filename  */
+    sprintf(fname, "TADS-%08lx-%08lx-%08lx-%08lx.tmp",
+            xorshift(), xorshift(), xorshift(), xorshift());
+
+    /* build the full path */
+    os_build_full_path(buf, buflen, tmpdir, fname);
+
+    /* success */
+    return TRUE;
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -682,3 +747,31 @@ void os_get_charmap(char *mapname, int charmap_id)
 #endif
 }
 
+/*
+ *   Implementation of vasprintf for MinGW.
+ */
+#ifndef vasprintf
+int vasprintf(char **sptr, const char *fmt, va_list argv)
+{
+    int wanted = vsnprintf(*sptr = NULL, 0, fmt, argv);
+    if((wanted < 0) || ((*sptr = malloc( 1 + wanted )) == NULL))
+        return -1;
+
+    return vsprintf(*sptr, fmt, argv);
+}
+#endif
+
+int os_asprintf(char **bufptr, const char *fmt, ...)
+{
+	int retval;
+	va_list argv;
+	va_start(argv, fmt);
+	retval = vasprintf(bufptr, fmt, argv);
+	va_end(argv);
+	return retval;
+}
+
+int os_vasprintf(char **bufptr, const char *fmt, va_list ap)
+{
+    return vasprintf(bufptr, fmt, ap);
+}

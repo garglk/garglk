@@ -207,9 +207,9 @@ int osfseek(osfildef *fp, long pos, int mode)
  *   Flush a file.  
  */
 
-void osfflush(osfildef *fp)
+int osfflush(osfildef *fp)
 {
-    fflush(fp);
+    return fflush(fp);
 }
 
 /* 

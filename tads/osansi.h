@@ -144,7 +144,7 @@ int osfrb(osfildef *fp, void *buf, int bufl);
 size_t osfrbc(osfildef *fp, void *buf, size_t bufl);
 long osfpos(osfildef *fp);
 int osfseek(osfildef *fp, long pos, int mode);
-void osfflush(osfildef *fp);
+int osfflush(osfildef *fp);
 void osfcls(osfildef *fp);
 int osfdel(const char *fname);
 int osfacc(const char *fname);

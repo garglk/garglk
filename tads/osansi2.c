@@ -395,9 +395,9 @@ void os_remext(char *fn)
  *   sufficiently DOS-like for the extension parsing routines, the same
  *   will be true of path parsing.  
  */
-char *os_get_root_name(char *buf)
+char *os_get_root_name(const char *buf)
 {
-    char *rootname;
+    const char *rootname;
 
     /* scan the name for path separators */
     for (rootname = buf ; *buf != '\0' ; ++buf)
@@ -416,7 +416,7 @@ char *os_get_root_name(char *buf)
     }
 
     /* return the last root name candidate */
-    return rootname;
+    return (char *) rootname;
 }
 
 /*
@@ -493,6 +493,72 @@ void os_get_path_name(char *pathbuf, size_t pathbuflen, const char *fname)
     /* copy it and null-terminate it */
     memcpy(pathbuf, fname, len);
     pathbuf[len] = '\0';
+}
+
+/*
+ *   Canonicalize a path: remove ".." and "." relative elements
+ */
+void canonicalize_path(char *path)
+{
+    char *p;
+    char *start;
+
+    /* keep going until we're done */
+    for (start = p = path ; ; ++p)
+    {
+        /* if it's a separator, note it and process the path element */
+        if (*p == '\\' || *p == '/' || *p == '\0')
+        {
+            /*
+             *   check the path element that's ending here to see if it's a
+             *   relative item - either "." or ".."
+             */
+            if (p - start == 1 && *start == '.')
+            {
+                /*
+                 *   we have a '.' element - simply remove it along with the
+                 *   path separator that follows
+                 */
+                if (*p == '\\' || *p == '/')
+                    memmove(start, p + 1, strlen(p+1) + 1);
+                else if (start > path)
+                    *(start - 1) = '\0';
+                else
+                    *start = '\0';
+            }
+            else if (p - start == 2 && *start == '.' && *(start+1) == '.')
+            {
+                char *prv;
+
+                /*
+                 *   we have a '..' element - find the previous path element,
+                 *   if any, and remove it, along with the '..' and the
+                 *   subsequent separator
+                 */
+                for (prv = start ;
+                     prv > path && (*(prv-1) != '\\' || *(prv-1) == '/') ;
+                     --prv) ;
+
+                /* if we found a separator, remove the previous element */
+                if (prv > start)
+                {
+                    if (*p == '\\' || *p == '/')
+                        memmove(prv, p + 1, strlen(p+1) + 1);
+                    else if (start > path)
+                        *(start - 1) = '\0';
+                    else
+                        *start = '\0';
+                }
+            }
+
+            /* note the start of the next element */
+            start = p + 1;
+        }
+
+        /* stop at the end of the string */
+        if (*p == '\0')
+            break;
+    }
 }
 
 /*
@@ -712,5 +778,176 @@ void os_cvt_url_dir(char *result_buf, size_t result_buf_size,
 
     /* add a null terminator and we're done */
     *dst = '\0';
+}
+
+/*
+ *   Get the absolute, fully qualified filename for a file.
+ */
+int os_get_abs_filename(char *result_buf, size_t result_buf_size,
+                        const char *filename)
+{
+    char *filename_buf = (char *) malloc(OSFNMAX+1);
+
+    /* make sure the filename has a path component */
+    if (os_get_root_name(filename) == filename)
+        strcpy(filename_buf, "./");
+    else
+        strcpy(filename_buf, "");
+
+    strcat(filename_buf, filename);
+
+    char *res;
+#ifdef _WIN32
+    res = _fullpath(result_buf, filename_buf, result_buf_size);
+#else
+    res = realpath(filename_buf, result_buf);
+#endif
+    free(filename_buf);
+
+    if (!res)
+    {
+        strcpy(result_buf, filename);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+/*
+ *   Safe strcpy 
+ */
+static void safe_strcpy(char *dst, size_t dstlen, const char *src)
+{
+    size_t copylen;
+
+    /* do nothing if there's no output buffer */
+    if (dst == 0 || dstlen == 0)
+        return;
+
+    /* do nothing if the source and destination buffers are the same */
+    if (dst == src)
+        return;
+
+    /* use an empty string if given a null string */
+    if (src == 0)
+        src = "";
+
+    /* 
+     *   figure the copy length - use the smaller of the actual string size
+     *   or the available buffer size, minus one for the null terminator 
+     */
+    copylen = strlen(src);
+    if (copylen > dstlen - 1)
+        copylen = dstlen - 1;
+
+    /* copy the string (or as much as we can) */
+    memcpy(dst, src, copylen);
+
+    /* null-terminate it */
+    dst[copylen] = '\0';
+}
+
+/*
+ *   Determine if the given file is in the given directory.
+ */
+int os_is_file_in_dir(const char *filename, const char *path,
+                      int allow_subdirs)
+{
+    char filename_buf[OSFNMAX], path_buf[OSFNMAX];
+    size_t flen, plen;
+
+    /* absolute-ize the filename, if necessary */
+    if (!os_is_file_absolute(filename))
+    {
+        os_get_abs_filename(filename_buf, sizeof(filename_buf), filename);
+        filename = filename_buf;
+    }
+
+    /* absolute-ize the path, if necessary */
+    if (!os_is_file_absolute(path))
+    {
+        os_get_abs_filename(path_buf, sizeof(path_buf), path);
+        path = path_buf;
+    }
+
+    /* 
+     *   canonicalize the paths, to remove .. and . elements - this will make
+     *   it possible to directly compare the path strings 
+     */
+    safe_strcpy(filename_buf, sizeof(filename_buf), filename);
+    canonicalize_path(filename_buf);
+    filename = filename_buf;
+
+    safe_strcpy(path_buf, sizeof(path_buf), path);
+    canonicalize_path(path_buf);
+    path = path_buf;
+
+    /* get the length of the filename and the length of the path */
+    flen = strlen(filename);
+    plen = strlen(path);
+
+    /* if the path ends in a separator character, ignore that */
+    if (plen > 0 && (path[plen-1] == '\\' || path[plen-1] == '/'))
+        --plen;
+
+    /* 
+     *   Check that the filename has 'path' as its path prefix.  First, check
+     *   that the leading substring of the filename matches 'path', ignoring
+     *   case.  Note that we need the filename to be at least two characters
+     *   longer than the path: it must have a path separator after the path
+     *   name, and at least one character for a filename past that.  
+     */
+    if (flen < plen + 2 || memicmp(filename, path, plen) != 0)
+        return FALSE;
+
+    /* 
+     *   Okay, 'path' is the leading substring of 'filename'; next make sure
+     *   that this prefix actually ends at a path separator character in the
+     *   filename.  (This is necessary so that we don't confuse "c:\a\b.txt"
+     *   as matching "c:\abc\d.txt" - if we only matched the "c:\a" prefix,
+     *   we'd miss the fact that the file is actually in directory "c:\abc",
+     *   not "c:\a".) 
+     */
+    if (filename[plen] != '\\' && filename[plen] != '/')
+        return FALSE;
+
+    /*
+     *   We're good on the path prefix - we definitely have a file that's
+     *   within the 'path' directory or one of its subdirectories.  If we're
+     *   allowed to match on subdirectories, we already have our answer
+     *   (true).  If we're not allowed to match subdirectories, we still have
+     *   one more check, which is that the rest of the filename is free of
+     *   path separator charactres.  If it is, we have a file that's directly
+     *   in the 'path' directory; otherwise it's in a subdirectory of 'path'
+     *   and thus isn't a match.  
+     */
+    if (allow_subdirs)
+    {
+        /* 
+         *   filename is in the 'path' directory or one of its
+         *   subdirectories, and we're allowed to match on subdirectories, so
+         *   we have a match 
+         */
+        return TRUE;
+    }
+    else
+    {
+        const char *p;
+
+        /* 
+         *   We're not allowed to match subdirectories, so scan the rest of
+         *   the filename for path separators.  If we find any, the file is
+         *   in a subdirectory of 'path' rather than directly in 'path'
+         *   itself, so it's not a match.  If we don't find any separators,
+         *   we have a file directly in 'path', so it's a match. 
+         */
+        for (p = filename ; *p != '\0' && *p != '/' && *p != '\\' ; ++p) ;
+
+        /* 
+         *   if we reached the end of the string without finding a path
+         *   separator character, it's a match 
+         */
+        return (*p == '\0');
+    }
 }
 

@@ -17,6 +17,7 @@ SubDirCcFlags
     -DVMGLOB_STRUCT
     -DGLK_UNICODE
     -DGLK_TIMERS
+    -DTC_TARGET_T3
     ;
 
 # HTMLMODE ?= yes ;
@@ -52,7 +53,7 @@ TADS2SRCS =
 
 
 TADS3SRCS =
-    vmcrc.cpp vmmain.cpp std.cpp charmap.cpp
+    vmglk.cpp vmcrc.cpp vmmain.cpp std.cpp charmap.cpp
     resload.cpp resldexe.cpp vminit.cpp vmini_nd.cpp
     vmconsol.cpp vmconhmp.cpp vminitim.cpp
     vmcfgmem.cpp vmobj.cpp vmundo.cpp vmtobj.cpp vmpat.cpp
@@ -66,6 +67,12 @@ TADS3SRCS =
     vmsrcf.cpp vmfile.cpp vmbiftad.cpp vmsave.cpp
     vmbift3.cpp vmbt3_nd.cpp vmregex.cpp vmhosttx.cpp
     vmhostsi.cpp vmhash.cpp vmmcreg.cpp vmbifreg.cpp
+    vmtmpfil.cpp vmnetfillcl.cpp vmdynfunc.cpp vmstrbuf.cpp vmpack.cpp
+    vmfref.cpp vmlog.cpp vmisaac.cpp md5.cpp sha2.cpp
+    tcmain.cpp tcgen.cpp tcsrc.cpp tctok.cpp tcglob.cpp
+    tcprs.cpp tcprsstm.cpp tcprs_rt.cpp tcprsnf.cpp tcprsnl.cpp
+    tct3.cpp tct3unas.cpp tct3stm.cpp tct3nl.cpp tct3_d.cpp
+    tcerr.cpp tcerrmsg.cpp
     ;
 
 if $(HTMLMODE) = yes

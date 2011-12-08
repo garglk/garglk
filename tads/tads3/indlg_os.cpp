@@ -42,7 +42,8 @@ Modified
 int CVmConsole::input_dialog(VMG_ int icon_id, const char *prompt,
                              int standard_button_set,
                              const char **buttons, int button_count,
-                             int default_index, int cancel_index)
+                             int default_index, int cancel_index,
+                             int bypass_script)
 {
     char ui_prompt[256];
     const char *ui_buttons[10];

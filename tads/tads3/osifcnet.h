@@ -935,7 +935,10 @@ class TadsThreadList;
  *   Include the appropriate system-specific header 
  */
 
-#if defined(_WIN32)
+#if defined(GARGOYLE)
+#include "osnetdum.h"
+
+#elif defined(_WIN32)
 #include "osnetwin.h"
 
 #elif defined(UNIX) || defined(FROBTADS)
