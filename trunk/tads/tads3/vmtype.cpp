@@ -71,6 +71,13 @@ int vm_val_t::equals(VMG_ const vm_val_t *v, int depth) const
         /* we match if the other value is the same integer */
         return (v->typ == VM_INT && v->val.intval == this->val.intval);
 
+    case VM_BIFPTR:
+    case VM_BIFPTRX:
+        /* we match if the other value refers to the same function */
+        return (v->typ == VM_BIFPTR
+                && v->val.bifptr.set_idx == this->val.bifptr.set_idx
+                && v->val.bifptr.func_idx == this->val.bifptr.func_idx);
+
     case VM_ENUM:
         return (v->typ == VM_ENUM && v->val.enumval == this->val.enumval);
 
@@ -85,6 +92,10 @@ int vm_val_t::equals(VMG_ const vm_val_t *v, int depth) const
             const_equals(vmg_ this,
                          G_const_pool->get_ptr(this->val.ofs), v, depth);
 
+    case VM_OBJX:
+        /* match if it's the same object */
+        return (v->typ == typ && v->val.obj == this->val.obj);
+        
     case VM_CODEOFS:
     case VM_FUNCPTR:
         /* we match if the other value is the same code offset */
@@ -131,14 +142,23 @@ uint vm_val_t::calc_hash(VMG_ int depth) const
         return (uint)((val.ofs & 0xffff)
                       ^ ((val.ofs & 0xffff0000) >> 16));
 
+    case VM_OBJX:
+        /* use a 16-bit hash of the object ID */
+        return (uint)((val.obj & 0xffff)
+                      ^ ((val.obj & 0xffff0000) >> 16));
+
     case VM_PROP:
         /* use the property ID as the hash */
         return (uint)val.prop;
 
     case VM_INT:
-        /* use a 16-bit hash of the int */
-        return (uint)((val.intval & 0xffff)
-                      ^ ((val.intval & 0xffff0000) >> 16));
+    case VM_BIFPTR:
+    case VM_BIFPTRX:
+        /* 
+         *   the set index and function index both tend to be small integers;
+         *   multiply them and keep the low-order 16 bits 
+         */
+        return (uint)(val.bifptr.set_idx * val.bifptr.func_idx) & 0xffff;
 
     case VM_ENUM:
         /* use a 16-bit hash of the enum value */
@@ -228,6 +248,137 @@ int vm_val_t::gen_compare_to(VMG_ const vm_val_t *v) const
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Cast to integer 
+ */
+int32 vm_val_t::cast_to_int(VMG0_) const
+{
+    /* check the type */
+    switch (typ)
+    {
+    case VM_TRUE:
+        return 1;
+
+    case VM_NIL:
+        return 0;
+
+    case VM_INT:
+        /* it's already an integer - just return it as it is */
+        return val.intval;
+
+    case VM_SSTRING:
+        {
+            /* get the string constant */
+            const char *p = G_const_pool->get_ptr(val.ofs);
+            
+            /* parse it as an integer */
+            vm_val_t i;
+            CVmObjString::parse_num_val(
+                vmg_ &i, p + VMB_LEN, vmb_get_len(p), 10, TRUE);
+
+            /* return the integer */
+            return i.val.intval;
+        }
+
+    case VM_OBJ:
+        /* ask the object to do the conversion */
+        return vm_objp(vmg_ val.obj)->cast_to_int(vmg0_);
+
+    default:
+        /* there's no integer conversion */
+        err_throw(VMERR_NO_INT_CONV);
+        AFTER_ERR_THROW(return 0;)
+    }
+}
+
+/*
+ *   Cast to numeric (integer or BigNumber)
+ */
+void vm_val_t::cast_to_num(VMG_ vm_val_t *retval) const
+{
+    /* check the type */
+    switch (typ)
+    {
+    case VM_TRUE:
+        retval->set_int(1);
+        break;
+
+    case VM_NIL:
+        retval->set_int(0);
+        break;
+        
+    case VM_INT:
+        /* it's already numeric */
+        retval->set_int(val.intval);
+        break;
+
+    case VM_SSTRING:
+        {
+            /* get the string constant */
+            const char *p = G_const_pool->get_ptr(val.ofs);
+
+            /* parse it as an integer */
+            CVmObjString::parse_num_val(
+                vmg_ retval, p + VMB_LEN, vmb_get_len(p), 10, FALSE);
+        }
+        break;
+
+    case VM_OBJ:
+        /* ask the object to do the conversion */
+        vm_objp(vmg_ val.obj)->cast_to_num(vmg_ retval, val.obj);
+        break;
+
+    default:
+        /* there's no numeric conversion */
+        err_throw(VMERR_NO_NUM_CONV);
+    }
+}
+
+/*
+ *   Cast to string 
+ */
+const char *vm_val_t::cast_to_string(VMG_ vm_val_t *new_str) const
+{
+    /* presume the value is just our own value */
+    *new_str = *this;
+
+    switch (typ)
+    {
+    case VM_SSTRING:
+        /* return the string as is */
+        return get_as_string(vmg0_);
+
+    case VM_OBJ:
+        /* cast the object to string */
+        return vm_objp(vmg_ val.obj)->cast_to_string(vmg_ val.obj, new_str);
+
+    case VM_INT:
+        /* create a printable decimal representation of the string */
+        {
+            /* format the number into a temporary buffer */
+            char buf[20];
+            sprintf(buf, "%ld", (long)val.intval);
+
+            /* create a new string object for the number */
+            new_str->set_obj(
+                CVmObjString::create(vmg_ FALSE, buf, strlen(buf)));
+
+            /* return the string buffer */
+            return new_str->get_as_string(vmg0_);
+        }
+
+    case VM_NIL:
+        /* return an empty string */
+        new_str->set_obj(CVmObjString::create(vmg_ FALSE, 0));
+        return new_str->get_as_string(vmg0_);
+        
+    default:
+        err_throw(VMERR_NO_STR_CONV);
+        AFTER_ERR_THROW(return 0;)
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Get the underlying string constant value. 
  */
 const char *vm_val_t::get_as_string(VMG0_) const
@@ -246,6 +397,33 @@ const char *vm_val_t::get_as_string(VMG0_) const
     else
     {
         /* other types do not have underlying strings */
+        return 0;
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get as a code pointer 
+ */
+const uchar *vm_val_t::get_as_codeptr(VMG0_) const
+{
+    /* check my type */
+    switch (typ)
+    {
+    case VM_CODEOFS:
+    case VM_FUNCPTR:
+        /* 
+         *   these types contain code pool offsets - translate the offset to
+         *   a physical pointer 
+         */
+        return (const uchar *)G_code_pool->get_ptr(val.ofs);
+
+    case VM_CODEPTR:
+        /* it's already a physical code pointer */
+        return (const uchar *)val.ptr;
+        
+    default:
+        /* other types do not contain code pointers */
         return 0;
     }
 }
@@ -276,57 +454,83 @@ const char *vm_val_t::get_as_list(VMG0_) const
 
 /* ------------------------------------------------------------------------ */
 /*
- *   get the effective number of elements when this value is used as the
- *   right-hand side of a '+' or '-' operator whose left-hand side is a
- *   collection type
+ *   Is this indexable as a list? 
  */
-size_t vm_val_t::get_coll_addsub_rhs_ele_cnt(VMG0_) const
+int vm_val_t::is_listlike(VMG0_) const
 {
-    /* the handling depends on the type */
-    switch(typ)
-    {
-    case VM_LIST:
-        /* it's a static list - return the number of elements in the list */
-        return vmb_get_len(G_const_pool->get_ptr(val.ofs));
-
-    case VM_OBJ:
-        /* ask the object what it thinks */
-        return vm_objp(vmg_ val.obj)->get_coll_addsub_rhs_ele_cnt(vmg0_);
-
-    default:
-        /* for any other type, there's only one element */
-        return 1;
-    }
+    return (get_as_list(vmg0_) != 0
+            || (typ == VM_OBJ
+                && (vm_objp(vmg_ val.obj)->get_as_list()
+                    || vm_objp(vmg_ val.obj)->is_listlike(vmg_ val.obj))));
 }
 
 /*
- *   get the nth element of a collection add/sub operation of which we're
- *   the right-hand side 
+ *   Get the number of elements in a list-like object 
  */
-void vm_val_t::get_coll_addsub_rhs_ele(VMG_ size_t idx,
-                                       vm_val_t *result) const
+int vm_val_t::ll_length(VMG0_) const
 {
-    /* the handling depends on the type */
-    switch(typ)
+    /* try it as a regular list first */
+    const char *p;
+    if ((p = get_as_list(vmg0_)) != 0)
+        return vmb_get_len(p);
+
+    /* try it as an object */
+    if (typ == VM_OBJ)
+        return vm_objp(vmg_ val.obj)->ll_length(vmg_ val.obj);
+
+    /* we don't have a length */
+    return -1;
+}
+
+/*
+ *   Get an indexed value 
+ */
+void vm_val_t::ll_index(VMG_ vm_val_t *ret, const vm_val_t *idx) const
+{
+    /* try it as a regular list first, then as an object */
+    const char *p;
+    if ((p = get_as_list(vmg0_)) != 0)
     {
-    case VM_LIST:
-        /* it's a static list - get the nth element from the list */
-        CVmObjList::index_list(vmg_ result,
-                               G_const_pool->get_ptr(val.ofs), idx);
-        break;
+        /* get the index as an integer value */
+        int i = idx->cast_to_int(vmg0_);
 
-    case VM_OBJ:
-        /* ask the object for its indexed value */
-        vm_objp(vmg_ val.obj)->get_coll_addsub_rhs_ele(
-            vmg_ result, val.obj, idx);
-        break;
+        /* check the range */
+        if (i < 1 || i > (int)vmb_get_len(p))
+            err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
-    default:
-        /* for anything else, we have just our own value */
-        *result = *this;
-        break;
+        /* it's in range - retrieve the element */
+        vmb_get_dh(p + VMB_LEN + (size_t)((i - 1) * VMB_DATAHOLDER), ret);
+    }
+    else if (typ == VM_OBJ)
+    {
+        /* use the object method, allowing operator overloading */
+        vm_objp(vmg_ val.obj)->index_val_ov(vmg_ ret, val.obj, idx);
+    }
+    else if ((p = get_as_string(vmg0_)) != 0)
+    {
+        /* string - parse the string as an integer in decimal format */
+        CVmObjString::parse_num_val(
+            vmg_ ret, p + VMB_LEN, vmb_get_len(p), 10, TRUE);
+    }
+    else
+    {
+        /* no value */
+        ret->set_nil();
     }
 }
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Is this an object of the given class? 
+ */
+int vm_val_t::is_instance_of(VMG_ vm_obj_id_t cls) const
+{
+    return (typ == VM_OBJ
+            && cls != VM_INVALID_OBJ
+            && vm_objp(vmg_ val.obj)->is_instance_of(vmg_ cls));
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -359,4 +563,16 @@ void vm_val_t::set_datatype(VMG_ const vm_val_t *v)
         /* for any other type, return our internal type code */
         set_int((int)v->typ);
     }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Is this a function pointer of some kind?
+ */
+int vm_val_t::is_func_ptr(VMG0_) const
+{
+    return (typ == VM_FUNCPTR
+            || typ == VM_BIFPTR
+            || (typ == VM_OBJ
+                && vm_objp(vmg_ val.obj)->get_invoker(vmg_ 0)));
 }

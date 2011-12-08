@@ -67,21 +67,64 @@ call %tstbat%\testmake listprop listprop
 call %tstbat%\testmake foreach foreach
 call %tstbat%\testmake vector vector
 call %tstbat%\testmake vector2 vector2
+call %tstbat%\testmake vector3 vector3
 call %tstbat%\testmake lclprop lclprop
 call %tstbat%\testmake lookup lookup
+call %tstbat%\testmake lookup2 lookup2
+call %tstbat%\testmake lookup3 lookup3
+call %tstbat%\testmake lookupdef lookupdef
+call %tstbat%\testmake strbuf strbuf
+call %tstbat%\testrun strbuf_restore strbuf -restore
 call %tstbat%\testmake propaddr propaddr
 call %tstbat%\testmake funcparm funcparm
 call %tstbat%\testmake newprop newprop
 call %tstbat%\testmake anonobj anonobj
+call %tstbat%\testmake anonfunc anonfunc
 call %tstbat%\testmake nested nested
 call %tstbat%\testmake badnest badnest
 call %tstbat%\testmake varmac varmac
+call %tstbat%\testmake setsc setsc
+call %tstbat%\testmake substr substr
 call %tstbat%\testmake -debug stack stack reflect
 call %tstbat%\testmake -pre targprop targprop reflect
 call %tstbat%\testmake -pre clone clone reflect
 call %tstbat%\testmake anonvarg anonvarg
 call %tstbat%\testmake inh_next inh_next
 call %tstbat%\testmake multidyn multidyn
+call %tstbat%\testmake opoverload opoverload
+call %tstbat%\testmake -script -nodef inkey inkey
+call %tstbat%\testmake -nodef rand rand
+call %tstbat%\testmake strcomp2 strcomp2
+call %tstbat%\testmake strcomp3 strcomp3
+call %tstbat%\testmake findreplace findreplace
+call %tstbat%\testmake rexreplace rexreplace
+call %tstbat%\testmake rexassert rexassert
+call %tstbat%\testmake hashes hashes
+call %tstbat%\testmake join join
+call %tstbat%\testmake -norun -pre dyncomp dyncomp dynfunc
+call %tstbat%\testrun dyncomp_save dyncomp -save dyncomp.t3v
+call %tstbat%\testrun dyncomp_restore dyncomp -restore dyncomp.t3v
+call %tstbat%\testmake asi asi
+call %tstbat%\testmake spec2html spec2html
+call %tstbat%\testmake spec2text spec2text
+call %tstbat%\testmake propptr propptr
+call %tstbat%\testmake -pre printexpr printexpr dynfunc
+call %tstbat%\testmake -pre dynctx dynctx dynfunc
+call %tstbat%\testmake -cp cp1252 -pre bytarr bytarr
+call %tstbat%\testmake -cp cp1252 -pre bytarr2 bytarr2
+call %tstbat%\testmake sprintf sprintf
+call %tstbat%\testmake split split
+call %tstbat%\testmake shr shr
+call %tstbat%\testmake ifnil ifnil
+call %tstbat%\testmake testaddr1 testaddr1 testaddr1b
+call %tstbat%\testmake testaddr2 testaddr2
+call %tstbat%\testmake testaddr3 testaddr3
+call %tstbat%\testmake testaddr4 testaddr4
+call %tstbat%\testmake strtpl strtpl
+call %tstbat%\testmake listminmax listminmax
+call %tstbat%\testmake defined_test1 defined
+call %tstbat%\testmake defined_test2 defined defined2
+call %tstbat%\testmake datatypexlat datatypexlat
 
 rem  These tests require running preinit (testmake normally suppresses it)
 call %tstbat%\testmake -pre vec_pre vec_pre
@@ -92,6 +135,24 @@ call %tstbat%\testmake -pre undef undef
 call %tstbat%\testmake -pre undef2 undef2
 call %tstbat%\testmake -pre multimethod_dynamic multimethod multmeth
 call %tstbat%\testmake -pre multimethod_static -DMULTMETH_STATIC_INHERITED multimethod multmeth
+call %tstbat%\testmake -pre multimethod_dynamic2 multimethod multimethod2 multmeth
+call %tstbat%\testmake -pre multimethod_static2 -DMULTMETH_STATIC_INHERITED multimethod multimethod2 multmeth
+call %tstbat%\testmake -pre namedparam namedparam multmeth
+call %tstbat%\testmake -pre optargs optargs
+call %tstbat%\testmake -pre optargs_err optargs_err
+call %tstbat%\testmake -pre optargs_err2 optargs_err2
+call %tstbat%\testmake -pre bifptr bifptr dynfunc
+call %tstbat%\testmake -pre setmethod setmethod dynfunc
+call %tstbat%\testmake -pre lclvars lclvars lclvars2 reflect dynfunc
+call %tstbat%\testmake -pre dynamicGrammar dynamicGrammar tok dynfunc gramprod
+call %tstbat%\testmake -pre triplequote triplequote
+call %tstbat%\testmake -pre newembed newembed
+call %tstbat%\testmake -pre newembederr newembederr
+
+call %tstbat%\testpack packfile
+call %tstbat%\testpack packfloats
+call %tstbat%\testmake packstr packstr
+call %tstbat%\testmake packarr packarr
 
 rem  ITER does a save/restore test
 call %tstbat%\testmake iter iter

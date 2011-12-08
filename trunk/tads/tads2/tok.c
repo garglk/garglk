@@ -174,8 +174,8 @@ void tok_read_defines(tokcxdef *ctx, osfildef *fp, errcxdef *ec)
 
             /* set up a new symbol of the appropriate size */
             df = (tokdfdef *)mchalo(ec,
-                                    (ushort)(sizeof(tokdfdef) + osrp2(buf)
-                                                    + osrp2(buf+2) - 1),
+                                    (sizeof(tokdfdef) + osrp2(buf)
+                                     + osrp2(buf+2) - 1),
                                     "tok_read_defines");
             df->explen = osrp2(buf+2);
             df->nm = df->expan + df->explen;
@@ -293,7 +293,7 @@ void tok_add_define(tokcxdef *ctx, char *sym, int len,
 
     /* allocate space for the symbol */
     df = (tokdfdef *)mchalo(ctx->tokcxerr,
-                            (ushort)(sizeof(tokdfdef) + len + explen - 1),
+                            (sizeof(tokdfdef) + len + explen - 1),
                             "tok_add_define");
 
     /* set up the new symbol */
@@ -746,7 +746,7 @@ static int tokgetlin(tokcxdef *ctx, int dopound)
             if (!ctx->tokcxbuf)
             {
                 /* allocate 1k as a default buffer */
-                ctx->tokcxbuf = (char *)mchalo(ctx->tokcxerr, (ushort)1024,
+                ctx->tokcxbuf = (char *)mchalo(ctx->tokcxerr, 1024,
                                                "tok");
                 ctx->tokcxbsz = 1024;
             }
@@ -1542,7 +1542,7 @@ void tokaddinc(tokcxdef *ctx, char *path, int pathlen)
     
     /* allocate storage for and set up a new path structure */
     newpath = (tokpdef *)mchalo(ctx->tokcxerr,
-                                (ushort)(sizeof(tokpdef) + pathlen - 1),
+                                (sizeof(tokpdef) + pathlen - 1),
                                 "tokaddinc");
     newpath->tokplen = pathlen;
     newpath->tokpnxt = (tokpdef *)0;

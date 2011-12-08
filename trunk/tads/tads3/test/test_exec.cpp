@@ -43,21 +43,33 @@ public:
         con->flush(vmg_ VM_NL_NONE);
 
         /* delete the output formatter */
-        delete con;
+        con->delete_obj(vmg0_);
     }
 
     /* initialize */
-    void client_init(struct vm_globals *,
-                     const char *, int,
+    void client_init(struct vm_globals *vmg,
+                     const char *script_file, int script_quiet,
                      const char *,
                      const char *,
                      const char *)
     {
-        /* do nothing */
+        /* set up for global access */
+        VMGLOB_PTR(vmg);
+
+        /* if we have a script file, set up script input on the console */
+        if (script_file != 0)
+        {
+            G_console->open_script_file(
+                vmg_ script_file, script_quiet, FALSE);
+        }
     }
 
     /* terminate */
-    void client_terminate(struct vm_globals *) { }
+    void client_terminate(struct vm_globals *vmg)
+    {
+        VMGLOB_PTR(vmg);
+        G_console->close_script_file(vmg0_);
+    }
 
     /* pre-execution initialization */
     void pre_exec(struct vm_globals *globals)
@@ -76,8 +88,8 @@ public:
     void post_exec_err(struct vm_globals *) { }
 
     /* display an error */
-    void display_error(struct vm_globals *, const char *msg,
-                       int add_blank_line)
+    void display_error(struct vm_globals *, const struct CVmException *,
+                       const char *msg, int add_blank_line)
     {
         /* display the error on the stdio console */
         printf("%s\n", msg);

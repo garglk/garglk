@@ -29,6 +29,7 @@ Modified
 #include "vmerrnum.h"
 #include "vmmeta.h"
 #include "vmstack.h"
+#include "vmrun.h"
 
 
 /* ------------------------------------------------------------------------ */

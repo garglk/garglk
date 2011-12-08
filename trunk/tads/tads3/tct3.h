@@ -71,8 +71,11 @@ const vm_datatype_t VM_VOCAB_LIST = VM_MAKE_INTERNAL_TYPE(0);
 /* debugger local symbol record size */
 #define TCT3_DBG_LCLSYM_HDR_SIZE  6
 
+/* debugger frame record header size */
+#define TCT3_DBG_FRAME_SIZE    8
+
 /* debugger record format version */
-#define TCT3_DBG_FMT_VSN       1
+#define TCT3_DBG_FMT_VSN       2
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -230,6 +233,9 @@ const int TCT3_METAID_ANONFN = 5;
 /* intrinsic class modifiers */
 const int TCT3_METAID_ICMOD = 6;
 
+/* lookup table */
+const int TCT3_METAID_LOOKUP_TABLE = 7;
+
 /*
  *   IMPORTANT!!!  When adding new entries to this list of pre-defined
  *   metaclasses, you must:
@@ -240,7 +246,7 @@ const int TCT3_METAID_ICMOD = 6;
  */
 
 /* last metaclass ID - adjust when new entries are added */
-const int TCT3_METAID_LAST = 6;
+const int TCT3_METAID_LAST = 7;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -470,6 +476,14 @@ public:
     int find_or_add_meta(const char *nm, size_t len,
                          class CTcSymMetaclass *sym);
 
+    /* 
+     *   Get the property ID for the given method table index in the given
+     *   metaclass.  The metaclass ID is given as the internal metaclass ID
+     *   (without the "/version" suffix), not as the external class name.
+     *   Returns a parse node for the property, or null if it's not found.  
+     */
+    CTcPrsNode *get_metaclass_prop(const char *name, ushort idx) const;
+
     /* get a metaclass symbol by the metaclass's global identifier */
     class CTcSymMetaclass *find_meta_sym(const char *nm, size_t len);
 
@@ -503,8 +517,8 @@ public:
      *   Add a function set to the dependency table - returns the index of
      *   the function set in the table 
      */
-    int add_fnset(const char *fnset_extern_name, size_t len);
-    int add_fnset(const char *fnset_extern_name)
+    ushort add_fnset(const char *fnset_extern_name, size_t len);
+    ushort add_fnset(const char *fnset_extern_name)
         { return add_fnset(fnset_extern_name, strlen(fnset_extern_name)); }
 
     /* get the name of a function set given its index */
@@ -708,6 +722,12 @@ public:
     /* record a full stack reset back to function entry conditions */
     void note_rst() { sp_depth_ = 0; }
 
+    /* 
+     *   do post-call cleanup: generate a named argument table pointer if
+     *   needed, remove the named arguments from the stack
+     */
+    void post_call_cleanup(const struct CTcNamedArgs *named_args);
+
     /*
      *   Open/close a method/function.  "Open" generates a placeholder method
      *   header and sets up our generator globals to prepare for a new
@@ -719,12 +739,15 @@ public:
                      struct CTcAbsFixup **fixup_list_head,
                      class CTPNCodeBody *code_body,
                      class CTcPrsSymtab *goto_tab,
-                     int argc, int varargs,
-                     int is_constructor, int is_self_available,
+                     int argc, int opt_argc, int varargs,
+                     int is_constructor, int is_op_overload,
+                     int is_self_available,
                      struct tct3_method_gen_ctx *ctx);
     void close_method(int local_cnt,
+                      class CTcPrsSymtab *local_symtab,
                       class CTcTokFileDesc *end_desc, long end_linenum,
-                      struct tct3_method_gen_ctx *ctx);
+                      struct tct3_method_gen_ctx *ctx,
+                      struct CTcNamedArgTab *named_arg_tab_head);
     void close_method_cleanup(struct tct3_method_gen_ctx *ctx);
 
     /*
@@ -755,6 +778,10 @@ public:
     int is_in_constructor() const { return in_constructor_; }
     void set_in_constructor(int f) { in_constructor_ = f; }
 
+    /* determine if we're compiling an operator overload method */
+    int is_in_op_overload() const { return in_op_overload_; }
+    void set_in_op_overload(int f) { in_op_overload_ = f; }
+
     /*   
      *   set the method offset - the code body object calls this when it's
      *   about to start generating code to let us know the offset of the
@@ -771,6 +798,15 @@ public:
      */
     void add_debug_line_table(ulong ofs);
 
+    /* 
+     *   Set dynamic (run-time) compilation mode.  This mode must be used for
+     *   code compiled during program execution, such as for an "eval()"
+     *   facility.  In dynamic compilation, all pool addresses are already
+     *   resolved from the loaded program, and we can't add anything to any
+     *   of the constant or code pools.  
+     */
+    void set_dyn_eval() { eval_for_dyn_ = TRUE; }
+
     /*
      *   Set debug evaluation mode.  If 'speculative' is true, it means
      *   that we're generating an expression for speculative evaluation,
@@ -785,6 +821,9 @@ public:
         /* note that we're evaluating for the debugger */
         eval_for_debug_ = TRUE;
 
+        /* this is a special type of run-time dynamic compilation */
+        eval_for_dyn_ = TRUE;
+
         /* note the speculative mode */
         speculative_ = speculative;
 
@@ -793,9 +832,10 @@ public:
     }
 
     /* set normal evaluation mode */
-    void set_normal_eval() { eval_for_debug_ = FALSE; }
+    void set_normal_eval() { eval_for_debug_ = eval_for_dyn_ = FALSE; }
 
-    /* determine if we're in debugger evaluation mode */
+    /* determine if we're in dynamic/debugger evaluation mode */
+    int is_eval_for_dyn() const { return eval_for_dyn_; }
     int is_eval_for_debug() const { return eval_for_debug_; }
 
     /* determine if we're in speculative evaluation mode */
@@ -889,6 +929,10 @@ private:
     /* build the source file line maps */
     void build_source_line_maps();
 
+    /* build the local symbol records */
+    void build_local_symbol_records(class CTcCodeStream *cs,
+                                    class CVmHashTable *tab);
+
     /* build the multi-method initializer list */
     void build_multimethod_initializers();
 
@@ -897,6 +941,10 @@ private:
 
     /* symbol table enumerator callback for the multi-method stubs */
     static void multimethod_stub_cb(void *ctx, CTcSymbol *sym);
+
+    /* write an overloaded operator property export */
+    void write_op_export(CVmImageWriter *image_writer,
+                         class CTcSymProp *prop);
 
     /* write the static initializer list to the image file */
     void write_static_init_list(CVmImageWriter *image_writer,
@@ -1009,6 +1057,12 @@ private:
     /* flag: we're currently compiling a constructor */
     uint in_constructor_ : 1;
 
+    /* flag: we're currently compiling an operator overload method */
+    uint in_op_overload_ : 1;
+
+    /* flag: we're generating code for dynamic (run-time) compilation */
+    uint eval_for_dyn_ : 1;
+
     /* flag: we're generating an expression for debugger use */
     uint eval_for_debug_ : 1;
 
@@ -1020,6 +1074,32 @@ private:
      *   is true 
      */
     int debug_stack_level_;
+
+    /* 
+     *   String interning hash table.  This is a table of short string
+     *   literals that we've generated into the data segment.  Whenever we
+     *   generate a new string literal, we'll check this table to see if
+     *   we've previously stored the identical string.  If so, we'll simply
+     *   use the original string rather than generating a new copy.  This can
+     *   reduce the size of the object file by eliminating duplication of
+     *   common short strings.
+     *   
+     *   Note that string interning has the potential to change run-time
+     *   semantics in some other languages, but not in TADS.  There are two
+     *   common issues in other languages.  First, in C/C++, a string
+     *   constant is technically a writable buffer.  This means that two
+     *   distinct string literals in the source code really need to be
+     *   treated as distinct memory locations, even if they have identical
+     *   contents, because the program might write to one buffer and expect
+     *   the other to remain unchanged.  This doesn't apply to TADS because
+     *   string literals are strictly read-only.  Second, strings in many
+     *   languages are objects with reference semantics for comparisons; two
+     *   distinct source-code strings must therefore have distinct reference
+     *   identities.  String comparisons in TADS are always by value, so
+     *   there's no need for distinct references if two strings have
+     *   identical contents.  
+     */
+    class CVmHashTable *strtab_;
 
     /*
      *   Static table of image file metaclass dependency indices for the
@@ -1074,6 +1154,20 @@ struct tct3_tadsobj_ctx
 
     /* data stream to which we're writing the object */
     CTcDataStream *stream;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Named arguments information.  This keeps track of the named arguments
+ *   for a generated call.  
+ */
+struct CTcNamedArgs
+{
+    /* number of named arguments */
+    int cnt;
+
+    /* argument list */
+    class CTPNArglist *args;
 };
 
 

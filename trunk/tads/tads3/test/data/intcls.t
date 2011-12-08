@@ -39,6 +39,20 @@ main(args)
       <<y.getSuperclassList().length()>>\n";
     "first superclass of BigNumber = IntrinsicClass:
       <<sayTF(y.getSuperclassList()[1] == IntrinsicClass)>>\n";
+
+    "\b";
+
+    "BigNumber is an IntrinsicClass:
+      <<sayTF(BigNumber.ofKind(IntrinsicClass))>>\n";
+    "BigNumber is actually an intrinsic class:
+      <<sayTF(IntrinsicClass.isIntrinsicClass(BigNumber))>>\n";
+    "y is actually an intrinsic class:
+      <<sayTF(IntrinsicClass.isIntrinsicClass(y))>>\n";
+    "List is an IntrinsicClass: <<sayTF(List.ofKind(IntrinsicClass))>>\n";
+    "List is actually an intrinsic class:
+      <<sayTF(IntrinsicClass.isIntrinsicClass(List))>>\n";
+    "[1,2,3] is actually an intrinsic class:
+      <<sayTF(IntrinsicClass.isIntrinsicClass([1,2,3]))>>\n";
 }
 
 sayTF(val)

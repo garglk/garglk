@@ -302,7 +302,7 @@ void emtjmp(emtcxdef *ctx, uchar op, uint lbl)
         ctx->emtcxlbl[fwd].emtlofs = ctx->emtcxofs;       /* remember where */
         p->emtllnk = fwd;          /* make it new head of this label's list */
     }
-    emtint2(ctx, diff);
+    emtint2s(ctx, diff);
 }
 
 /* set up the labels - put all in free list */

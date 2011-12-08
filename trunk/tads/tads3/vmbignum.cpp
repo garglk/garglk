@@ -25,6 +25,8 @@ Modified
 #include <assert.h>
 #include <limits.h>
 #include <stdarg.h>
+#include <math.h>
+#include <float.h>
 
 #include "t3std.h"
 #include "vmtype.h"
@@ -41,6 +43,7 @@ Modified
 #include "vmbif.h"
 #include "vmmeta.h"
 #include "vmlst.h"
+#include "vmdatasrc.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -91,7 +94,8 @@ int (CVmObjBigNum::
     &CVmObjBigNum::getp_cosh,
     &CVmObjBigNum::getp_tanh,
     &CVmObjBigNum::getp_pi,
-    &CVmObjBigNum::getp_e
+    &CVmObjBigNum::getp_e,
+    &CVmObjBigNum::getp_numType
 };
 
 
@@ -128,7 +132,7 @@ const unsigned char CVmObjBigNum::pi_[] =
 
     /* 
      *   the first 2048 decimal digits of pi, packed two to a byte (typed
-     *   in from memory, I hope I got everything right :) 
+     *   in from memory - I hope I got everything right :) 
      */
 
     /* 1-100 */
@@ -338,83 +342,9 @@ vm_obj_id_t CVmObjBigNum::create_from_stack(VMG_ const uchar **pc_ptr,
     }
     else if (strval != 0)
     {
-        utf8_ptr p;
-        size_t rem;
-        size_t prec;
-        int pt;
-        int significant;
-        int digcnt;
-        
-        /* set up to scan the string */
-        p.set((char *)strval + VMB_LEN);
-        rem = vmb_get_len(strval);
-
-        /* skip leading spaces */
-        for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
-
-        /* skip the sign if present */
-        if (rem != 0 && (p.getch() == '-' || p.getch() == '+'))
-            p.inc(&rem);
-
-        /* we haven't yet found a significant leading digit */
-        significant = FALSE;
-
-        /* scan digits */
-        for (prec = 0, digcnt = 0, pt = FALSE ; rem != 0 ; p.inc(&rem))
-        {
-            wchar_t ch;
-
-            /* get this character */
-            ch = p.getch();
-            
-            /* see what we have */
-            if (is_digit(ch))
-            {
-                /* 
-                 *   if it's not a zero, note that we've found a
-                 *   significant digit 
-                 */
-                if (ch != '0')
-                    significant = TRUE;
-                
-                /* 
-                 *   if we have found a significant digit so far, count
-                 *   this one - do not count leading zeroes, whether they
-                 *   occur before or after the decimal point 
-                 */
-                if (significant)
-                    ++prec;
-
-                /* count the digit in any case */
-                ++digcnt;
-            }
-            else if (ch == '.' && !pt)
-            {
-                /* decimal point - note it and keep going */
-                pt = TRUE;
-            }
-            else if (ch == 'e' || ch == 'E')
-            {
-                /* exponent - that's the end of the mantissa */
-                break;
-            }
-            else
-            {
-                /* we've reached the end of the number */
-                break;
-            }
-        }
-
-        /* 
-         *   if the precision is zero, the number must be zero - use the
-         *   actual number of digits for the default precision, so that a
-         *   value specified as "0.0000000" has eight digits of precision
-         */
-        if (prec == 0)
-            prec = digcnt;
-
-        /* use the precision necessary to store the entire string */
-        digits = prec;
+        /* parse the string to infer the precision */
+        digits = precision_from_string(
+            strval + VMB_LEN, vmb_get_len(strval), 10);
     }
     else if (objval != 0)
     {
@@ -449,7 +379,7 @@ vm_obj_id_t CVmObjBigNum::create_from_stack(VMG_ const uchar **pc_ptr,
     {
         /* create the value based on the integer value */
         id = vm_new_id(vmg_ FALSE, FALSE, FALSE);
-        new (vmg_ id) CVmObjBigNum(vmg_ val->val.intval, digits);
+        new (vmg_ id) CVmObjBigNum(vmg_ (long)val->val.intval, digits);
     }
 
     /* discard arguments */
@@ -475,6 +405,436 @@ vm_obj_id_t CVmObjBigNum::create(VMG_ int in_root_set,
     new (vmg_ id) CVmObjBigNum(vmg_ val, digits);
     return id;
 }
+
+/* create from an unsigned integer value */
+vm_obj_id_t CVmObjBigNum::createu(VMG_ int in_root_set,
+                                  ulong val, size_t digits)
+{
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ digits);
+    set_uint_val(((CVmObjBigNum *)vm_objp(vmg_ id))->get_ext(), val);
+    return id;
+}
+
+/* create from a 64-bit unsigned int */
+vm_obj_id_t CVmObjBigNum::create_rp8(VMG_ int in_root_set,
+                                     const char *buf)
+{
+    /* 
+     *   create the BigNumber object big enough to hold a 64-bit integer
+     *   value, which can have up to 20 digits 
+     */
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ 20);
+    CVmObjBigNum *n = (CVmObjBigNum *)vm_objp(vmg_ id);
+
+    /* set the value */
+    n->set_rp8((const uchar *)buf);
+
+    /* the source value is unsigned, so it's always non-negative */
+    set_neg(n->get_ext(), FALSE);
+
+    /* return the object */
+    return id;
+}
+
+/* create from a 64-bit signed int */
+vm_obj_id_t CVmObjBigNum::create_rp8s(VMG_ int in_root_set,
+                                      const char *buf)
+{
+    /* 
+     *   create the BigNumber object big enough to hold a 64-bit integer
+     *   value, which can have up to 20 digits 
+     */
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ 20);
+    CVmObjBigNum *n = (CVmObjBigNum *)vm_objp(vmg_ id);
+
+    /* make a private copy of the source value */
+    uchar p[8];
+    memcpy(p, buf, 8);
+
+    /* 
+     *   If the value is negative, as indicated by the sign bit on the most
+     *   significant byte, get the absolute value by computing the two's
+     *   complement.  This makes the arithmetic easy because we can do the
+     *   bit twiddling with unsigned values, and just set the BigNum sign bit
+     *   when we're done with all of that.
+     *   
+     *   Note that this 2's complement arithmetic is truly portable - it
+     *   doesn't matter whether the local machine's native int type is
+     *   big-endian or little-endian or some bizarre interleaved-endian, or
+     *   if it uses 2's complement notation or some other wacky bygone scheme
+     *   (1's complement, sign bit only, etc).  The reason this code is
+     *   portable regardless of the local notation is that we're not
+     *   operating on local int types: we're operating on a buffer that's in
+     *   a universal notation that we define as 64-bit 2's complement
+     *   little-endian.  We're doing our work at the byte level, so as long
+     *   as the local machine has 8+-bit bytes (which is a requirement for
+     *   the platform to have a C compiler), this code is portable.  
+     */
+    int neg = (p[7] & 0x80) != 0;
+    if (neg)
+        twos_complement_p8(p);
+
+    /* set the 64-bit int value */
+    n->set_rp8(p);
+
+    /* set the sign bit */
+    set_neg(n->get_ext(), neg);
+
+    /* return the object */
+    return id;
+}
+
+/* set the value from an unsigned 64-bit little-endian buffer */
+void CVmObjBigNum::set_rp8(const uchar *p)
+{
+    /* 
+     *   set up temporary registers with enough precision for 64-bit ints (we
+     *   need at most 20 digits for these values) 
+     */
+    char tmp1[5 + 20] = { 20, 0, 0, 0, 0 };
+    char tmp2[5 + 20] = { 20, 0, 0, 0, 0 };
+
+    /*
+     *   shift in bits 24 at a time - this makes the math fit in 32-bit ints
+     *   so that we don't have to worry about int overflows 
+     */
+    set_uint_val(get_ext(),
+                 (((ulong)p[7]) << 16) | (((ulong)p[6]) << 8) | p[5]);
+
+    mul_by_long(get_ext(), 0x01000000);
+    set_uint_val(tmp1, (((ulong)p[4]) << 16) | (((ulong)p[3]) << 8) | p[2]);
+    compute_sum_into(tmp2, get_ext(), tmp1);
+
+    mul_by_long(tmp2, 0x10000);
+    set_uint_val(tmp1, (((ulong)p[1]) << 8) | p[0]);
+    compute_sum_into(get_ext(), tmp2, tmp1);
+}
+
+/* create from a string value */
+vm_obj_id_t CVmObjBigNum::create(VMG_ int in_root_set,
+                                 const char *str, size_t len, size_t digits)
+{
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ str, len, digits);
+    return id;
+}
+
+/* create from a string value, inferring the required precision */
+vm_obj_id_t CVmObjBigNum::create(VMG_ int in_root_set,
+                                 const char *str, size_t len)
+{
+    int digits = precision_from_string(str, len, 10);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ str, len, digits);
+    return id;
+}
+
+/* create from a string value in a given radix */
+vm_obj_id_t CVmObjBigNum::create_radix(
+    VMG_ int in_root_set, const char *str, size_t len, int radix)
+{
+    int digits = precision_from_string(str, len, radix);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    if (radix == 10)
+        new (vmg_ id) CVmObjBigNum(vmg_ str, len, digits);
+    else
+    {
+        new (vmg_ id) CVmObjBigNum(vmg_ digits);
+        ((CVmObjBigNum *)vm_objp(vmg_ id))->set_str_val(vmg_ str, len, radix);
+    }
+    return id;
+}
+
+/* create from a double value, with enough precision for a native double */
+vm_obj_id_t CVmObjBigNum::create(VMG_ int in_root_set, double val)
+{
+    int digits = DBL_DIG + 2;
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ val, digits);
+    return id;
+}
+
+/* create from a double value, with specified precision */
+vm_obj_id_t CVmObjBigNum::create(VMG_ int in_root_set, double val,
+                                 size_t digits)
+{
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ val, digits);
+    return id;
+}
+
+/*
+ *   Create from a BER-encoded compressed integer value 
+ */
+vm_obj_id_t CVmObjBigNum::create_from_ber(VMG_ int in_root_set,
+                                          const char *buf, size_t len)
+{
+    /* 
+     *   Create the object. The source value has 7 bits of precision per
+     *   byte.  We need log(2)/log(10) digits of precision per bit of
+     *   precision, which is about 0.30103 digits per bit.
+     */
+    int prec = (int)(len*7*0.30103 + 0.5);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ prec);
+    CVmObjBigNum *n = (CVmObjBigNum *)vm_objp(vmg_ id);
+    char *ext = n->get_ext();
+
+    /* allocate two temporary registers for intermediate sums */
+    char *t1, *t2;
+    uint hdl1, hdl2;
+    alloc_temp_regs(vmg_ (size_t)prec, 2, &t1, &hdl1, &t2, &hdl2);
+
+    /* zero the accumulator (start with t1) */
+    set_zero(t1);
+
+    /* set up a stack register for the base-128 digits */
+    char dig[5 + 3] = { 3, 0, 0, 0, 0 };
+
+    /* starting at the most significant byte, shift in the bits */
+    for (size_t i = 0 ; i < len ; ++i)
+    {
+        /* multiply the accumulator by 2^7 */
+        mul_by_long(t1, 128);
+
+        /* add in the next base-128 digit */
+        set_uint_val(dig, buf[i] & 0x7f);
+        compute_sum_into(t2, t1, dig);
+
+        /* swap registers so that t2 becomes the accumulator */
+        char *tt = t1; t1 = t2; t2 = tt;
+    }
+
+    /* copy the accumulator into the result */
+    copy_val(ext, t1, FALSE);
+
+    /* done with the temporary registers */
+    release_temp_regs(vmg_ 2, hdl1, hdl2);
+
+    /* return the new ID */
+    return id;
+}
+
+/*
+ *   Create from a floating point value encoded in an IEEE 754-2008 binary
+ *   interchange format, little-endian order.  We accept bit sizes of 16, 32,
+ *   64, and 128 (half, single, double, and quad precision).
+ *   
+ */
+vm_obj_id_t CVmObjBigNum::create_from_ieee754(
+    VMG_ int in_root_set, const char *buf, int bits)
+{
+    /* 
+     *   Create the object.  Use the decimal equivalent precision of the IEEE
+     *   754 object.  Note that we use 17 digits for doubles; the binary type
+     *   stores 53 bits of mantissa == 15.95 decimal digits, but there's a
+     *   pathological case at 1+epsilon, which is 1 + 2e-16, which requires
+     *   17 decimal digits to store.  
+     */
+    int prec = (bits == 16 ? 4 : bits == 32 ? 8 : bits == 64 ? 17 :
+                bits == 128 ? 35 : 8);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    new (vmg_ id) CVmObjBigNum(vmg_ prec);
+    CVmObjBigNum *n = (CVmObjBigNum *)vm_objp(vmg_ id);
+
+    /* decode the IEEE 754 value */
+    n->set_ieee754_value(vmg_ buf, bits);
+
+    /* return the new object id */
+    return id;
+}
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parse a string representation of a number in the given radix to
+ *   determine the precision required to hold the value.  
+ */
+int CVmObjBigNum::precision_from_string(const char *str, size_t len, int radix)
+{
+    /* for decimal values, parse the full floating point format */
+    if (radix == 10)
+        return precision_from_string(str, len);
+
+    /* set up to scan the string */
+    utf8_ptr p((char *)str);
+    size_t rem = len;
+
+    /* skip leading spaces */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
+    /* skip the sign if present */
+    if (rem != 0 && (p.getch() == '-' || p.getch() == '+'))
+        p.inc(&rem);
+
+    /* skip more spaces after the sign */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
+    /* scan digits */
+    int prec, significant = FALSE;
+    for (prec = 0 ; rem != 0 ; p.inc(&rem))
+    {
+        /* get this character */
+        wchar_t ch = p.getch();
+
+        /* get the digit value of this character */
+        int d;
+        if (ch >= '0' && ch <= '9')
+            d = ch - '0';
+        else if (ch >= 'A' && ch <= 'Z')
+            d = ch - 'A' + 10;
+        else if (ch >= 'a' && ch <= 'z')
+            d = ch - 'a' + 10;
+        else
+            break;
+
+        /* if the digit isn't within the radix, it's not a digit after all */
+        if (d >= radix)
+            break;
+        
+        /* it's significant if it's not a leading zero */
+        if (ch != '0')
+            significant = TRUE;
+
+        /* 
+         *   if we have found a significant digit so far, count this one - do
+         *   not count leading zeros, whether they occur before or after the
+         *   decimal point 
+         */
+        if (significant)
+            ++prec;
+    }
+
+    /*
+     *   Figure the decimal precision required to hold a number in the given
+     *   radix.  This is a simple linear conversion: N base-R digits require
+     *   log(R)/log(10) decimal digits.  Using log10 as our canonical log
+     *   base means that log(R)/log(10) == log(R)/1 == log(R).  
+     */
+    return (int)ceil(prec * log10((double)radix));
+}
+
+/*
+ *   Parse a string representation of a number to determine the precision
+ *   required to hold the value. 
+ */
+int CVmObjBigNum::precision_from_string(const char *str, size_t len)
+{
+    /* set up to scan the string */
+    utf8_ptr p((char *)str);
+    size_t rem = len;
+
+    /* skip leading spaces */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+    
+    /* skip the sign if present */
+    if (rem != 0 && (p.getch() == '-' || p.getch() == '+'))
+        p.inc(&rem);
+    
+    /* skip more spaces after the sign */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
+    /* we haven't yet found a significant leading digit */
+    int significant = FALSE;
+    
+    /* scan digits */
+    size_t prec;
+    int pt;
+    int digcnt;
+    for (prec = 0, digcnt = 0, pt = FALSE ; rem != 0 ; p.inc(&rem))
+    {
+        /* get this character */
+        wchar_t ch = p.getch();
+
+        /* see what we have */
+        if (is_digit(ch))
+        {
+            /* 
+             *   if it's not a zero, note that we've found a significant
+             *   digit 
+             */
+            if (ch != '0')
+                significant = TRUE;
+            
+            /* 
+             *   if we have found a significant digit so far, count this one
+             *   - do not count leading zeros, whether they occur before or
+             *   after the decimal point 
+             */
+            if (significant)
+                ++prec;
+            
+            /* count the digit in any case */
+            ++digcnt;
+        }
+        else if (ch == '.' && !pt)
+        {
+            /* decimal point - note it and keep going */
+            pt = TRUE;
+        }
+        else if (ch == 'e' || ch == 'E')
+        {
+            /* exponent - that's the end of the mantissa */
+            break;
+        }
+        else
+        {
+            /* we've reached the end of the number */
+            break;
+        }
+    }
+    
+    /* 
+     *   if the precision is zero, the number must be zero - use the actual
+     *   number of digits for the default precision, so that a value
+     *   specified as "0.0000000" has eight digits of precision 
+     */
+    if (prec == 0)
+        prec = digcnt;
+    
+    /* return the precision necessary to store the entire string */
+    return prec;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Cast a value to BigNumber 
+ */
+void CVmObjBigNum::cast_to_bignum(VMG_ vm_val_t *bnval,
+                                  const vm_val_t *srcval)
+{
+    const char *str;
+    if (srcval->typ == VM_INT)
+    {
+        /* create from the integer value */
+        bnval->set_obj(create(
+            vmg_ FALSE, (long)srcval->val.intval, (size_t)10));
+    }
+    else if ((str = srcval->get_as_string(vmg0_)) != 0)
+    {
+        /* get the string length and buffer pointer */
+        size_t len = vmb_get_len(str);
+        str += VMB_LEN;
+
+        /* create from the string value */
+        bnval->set_obj(create(vmg_ FALSE, str, len));
+    }
+    else if (srcval->typ == VM_OBJ && is_bignum_obj(vmg_ srcval->val.obj))
+    {
+        /* it's already a BigNumber - just return the same value */
+        bnval->set_obj(srcval->val.obj);
+    }
+    else
+    {
+        /* can't cast to BigNumber */
+        err_throw(VMERR_NO_BIGNUM_CONV);
+    }
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -509,7 +869,7 @@ CVmObjBigNum::CVmObjBigNum(VMG_ long val, size_t digits)
     alloc_bignum(vmg_ digits);
 
     /* set the value */
-    set_int_val(val);
+    set_int_val(ext_, val);
 }
 
 /*
@@ -522,6 +882,18 @@ CVmObjBigNum::CVmObjBigNum(VMG_ const char *str, size_t len, size_t digits)
 
     /* set the value */
     set_str_val(str, len);
+}
+
+/*
+ *   Create from a double value 
+ */
+CVmObjBigNum::CVmObjBigNum(VMG_ double val, size_t digits)
+{
+    /* allocate space */
+    alloc_bignum(vmg_ digits);
+
+    /* set the value */
+    set_double_val(ext_, val);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -554,7 +926,7 @@ void CVmObjBigNum::alloc_bignum(VMG_ size_t digits)
     set_prec(ext_, digits);
 
     /* initialize the value to zero */
-    set_int_val(0);
+    set_int_val(ext_, 0);
 
     /* clear the flags */
     ext_[VMBN_FLAGS] = 0;
@@ -578,17 +950,17 @@ size_t CVmObjBigNum::calc_alloc(size_t digits)
 /*
  *   Write to a 'data' mode file 
  */
-int CVmObjBigNum::write_to_data_file(osfildef *fp)
+int CVmObjBigNum::write_to_data_file(CVmDataSource *fp)
 {
     char buf[16];
 
     /* write the number of digits (i.e., the precision) */
     oswp2(buf, get_prec(ext_));
-    if (osfwb(fp, buf, 2))
+    if (fp->write(buf, 2))
         return 1;
 
     /* write our entire extension */
-    if (osfwb(fp, ext_, calc_alloc(get_prec(ext_))))
+    if (fp->write(ext_, calc_alloc(get_prec(ext_))))
         return 1;
 
     /* success */
@@ -599,14 +971,14 @@ int CVmObjBigNum::write_to_data_file(osfildef *fp)
  *   Read from a 'data' mode file and instantiate a new BigNumber object to
  *   hold the result 
  */
-int CVmObjBigNum::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
+int CVmObjBigNum::read_from_data_file(VMG_ vm_val_t *retval, CVmDataSource *fp)
 {
     char buf[16];
     size_t prec;
     CVmObjBigNum *bignum;
 
     /* read the precision */
-    if (osfrb(fp, buf, 2))
+    if (fp->read(buf, 2))
         return 1;
     prec = osrp2(buf);
 
@@ -615,7 +987,7 @@ int CVmObjBigNum::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
     bignum = (CVmObjBigNum *)vm_objp(vmg_ retval->val.obj);
 
     /* read the bytes into the new object's extension */
-    if (osfrb(fp, bignum->get_ext(), calc_alloc(prec)))
+    if (fp->read(bignum->get_ext(), calc_alloc(prec)))
         return 1;
 
     /* success */
@@ -627,34 +999,36 @@ int CVmObjBigNum::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
 /*
  *   Set my value to a given integer value
  */
-void CVmObjBigNum::set_int_val(long val)
+void CVmObjBigNum::set_int_val(char *ext, long val)
+{
+    if (val < 0)
+    {
+        set_uint_val(ext, -val);
+        set_neg(ext, TRUE);
+    }
+    else
+    {
+        set_uint_val(ext, val);
+    }
+}
+
+void CVmObjBigNum::set_uint_val(char *ext, ulong val)
 {
     size_t prec;
     int exp;
 
     /* get the precision */
-    prec = get_prec(ext_);
+    prec = get_prec(ext);
     
     /* set the type to number */
-    set_type(ext_, VMBN_T_NUM);
+    ext[VMBN_FLAGS] = 0;
+    set_type(ext, VMBN_T_NUM);
 
-    /* set the sign bit */
-    if (val < 0)
-    {
-        /* set the value negative */
-        set_neg(ext_, TRUE);
-
-        /* use the absolute value for the mantissa */
-        val = -val;
-    }
-    else
-    {
-        /* set the value positive */
-        set_neg(ext_, FALSE);
-    }
+    /* the value is unsigned, so it's non-negative */
+    set_neg(ext, FALSE);
 
     /* initially zero the mantissa */
-    memset(ext_ + VMBN_MANT, 0, (prec + 1)/2);
+    memset(ext + VMBN_MANT, 0, (prec + 1)/2);
 
     /* initialize the exponent to zero */
     exp = 0;
@@ -674,20 +1048,20 @@ void CVmObjBigNum::set_int_val(long val)
          *   shift our number one place right to accommodate this next
          *   higher-order digit 
          */
-        shift_right(ext_, 1);
+        shift_right(ext, 1);
 
         /* set the new most significant digit */
-        set_dig(ext_, 0, dig);
+        set_dig(ext, 0, dig);
 
         /* that's another factor of 10 */
         ++exp;
     }
 
     /* set the exponent */
-    set_exp(ext_, exp);
+    set_exp(ext, exp);
 
     /* normalize the number */
-    normalize(ext_);
+    normalize(ext);
 }
 
 /*
@@ -695,17 +1069,8 @@ void CVmObjBigNum::set_int_val(long val)
  */
 void CVmObjBigNum::set_str_val(const char *str, size_t len)
 {
-    size_t prec;
-    int exp;
-    utf8_ptr p;
-    size_t rem;
-    int neg;
-    size_t idx;
-    int pt;
-    int significant;
-
     /* get the precision */
-    prec = get_prec(ext_);
+    size_t prec = get_prec(ext_);
 
     /* set the type to number */
     set_type(ext_, VMBN_T_NUM);
@@ -714,18 +1079,17 @@ void CVmObjBigNum::set_str_val(const char *str, size_t len)
     memset(ext_ + VMBN_MANT, 0, (prec + 1)/2);
 
     /* set up to scan the string */
-    p.set((char *)str);
-    rem = len;
+    utf8_ptr p((char *)str);
+    size_t rem = len;
 
     /* initialize the exponent to zero */
-    exp = 0;
+    int exp = 0;
 
     /* presume it will be positive */
-    neg = FALSE;
+    int neg = FALSE;
 
     /* skip leading spaces */
-    while (rem != 0 && is_space(p.getch()))
-        p.inc(&rem);
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
 
     /* check for a sign */
     if (rem != 0 && p.getch() == '+')
@@ -743,11 +1107,15 @@ void CVmObjBigNum::set_str_val(const char *str, size_t len)
     /* set the sign */
     set_neg(ext_, neg);
 
+    /* skip spaces after the sign */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
     /* we haven't yet found a significant digit */
-    significant = FALSE;
+    int significant = FALSE;
 
     /* shift the digits into the value */
-    for (idx = 0, pt = FALSE ; rem != 0 ; p.inc(&rem))
+    int pt = FALSE;
+    for (size_t idx = 0 ; rem != 0 ; p.inc(&rem))
     {
         wchar_t ch;
 
@@ -766,7 +1134,7 @@ void CVmObjBigNum::set_str_val(const char *str, size_t len)
 
             /* 
              *   if it's significant, add it to the number - skip leading
-             *   zeroes, since they add no information to the number 
+             *   zeros, since they add no information to the number 
              */
             if (significant)
             {
@@ -872,44 +1240,243 @@ void CVmObjBigNum::set_str_val(const char *str, size_t len)
     normalize(ext_);
 }
 
+/*
+ *   Set my string value with a given radix.  If the radix is decimal, we'll
+ *   use the regular floating point parser.  Otherwise we'll parse it as an
+ *   integer value in the given radix.  
+ */
+void CVmObjBigNum::set_str_val(VMG_ const char *str, size_t len, int radix)
+{
+    /* if it's decimal, parse as a floating point value */
+    if (radix == 0)
+    {
+        set_str_val(str, len);
+        return;
+    }
+
+    /* set the initial value to zero */
+    set_zero(ext_);
+    set_neg(ext_, FALSE);
+
+    /* set up to scan the string */
+    utf8_ptr p((char *)str);
+    size_t rem = len;
+
+    /* skip leading spaces */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
+    /* check for a sign */
+    int neg = FALSE;
+    if (rem != 0 && p.getch() == '+')
+    {
+        /* skip the sign */
+        p.inc(&rem);
+    }
+    else if (rem != 0 && p.getch() == '-')
+    {
+        /* note the sign and skip it */
+        neg = TRUE;
+        p.inc(&rem);
+    }
+
+    /* skip spaces after the sign */
+    for ( ; rem != 0 && is_space(p.getch()) ; p.inc(&rem)) ;
+
+    /* allocate a temporary register for swapping with the accumulator */
+    uint thdl;
+    char *tmp = alloc_temp_reg(vmg_ get_prec(ext_), &thdl);
+    char *t1 = ext_, *t2 = tmp;
+
+    /* parse the digits */
+    int significant = FALSE;
+    for ( ; rem != 0 ; p.inc(&rem))
+    {
+        /* get the next character */
+        wchar_t ch = p.getch();
+
+        /* get the digit value of this character */
+        int d;
+        if (ch >= '0' && ch <= '9')
+            d = ch - '0';
+        else if (ch >= 'A' && ch <= 'Z')
+            d = ch - 'A' + 10;
+        else if (ch >= 'a' && ch <= 'z')
+            d = ch - 'a' + 10;
+        else
+            break;
+
+        /* if the digit isn't within the radix, it's not a digit after all */
+        if (d >= radix)
+            break;
+
+        /* if it's not a leading zero, it's significant */
+        if (ch != '0')
+            significant = TRUE;
+
+        /* if it's a significant digit, add it to the accumulator */
+        if (significant)
+        {
+            /* 
+             *   Set up a stack register with the digit value.  The radix can
+             *   be up to 36, so the digit value can be up to 35, so we need
+             *   up to two decimal digits to represent the digit value. 
+             */
+            char dreg[5 + 2] = { 2, 0, 0, 0, 0 };
+            set_uint_val(dreg, d);
+
+            /* shift the accumulator and add the digit */
+            mul_by_long(t1, radix);
+            compute_abs_sum_into(t2, t1, dreg);
+
+            /* swap the accumulators */
+            char *tt = t1;
+            t1 = t2;
+            t2 = tt;
+        }
+    }
+
+    /* if we ended up with the value in 'tmp', copy it into our result */
+    if (t1 != ext_)
+        copy_val(ext_, t1, FALSE);
+
+    /* free our temporary register */
+    release_temp_reg(vmg_ thdl);
+
+    /* set the sign */
+    set_neg(ext_, neg);
+}
+
+/*
+ *   Set my value to the given double 
+ */
+void CVmObjBigNum::set_double_val(char *ext, double val)
+{
+    /* get the precision */
+    size_t prec = get_prec(ext);
+
+    /* set the type to number */
+    set_type(ext, VMBN_T_NUM);
+
+    /* set the sign bit */
+    if (val < 0)
+    {
+        set_neg(ext, TRUE);
+        val = -val;
+    }
+    else
+        set_neg(ext, FALSE);
+
+    /* zero the mantissa */
+    memset(ext + VMBN_MANT, 0, (prec + 1)/2);
+
+    /* 
+     *   Initialize our exponent 'exp' to the integer portion of log10(val).
+     *   If val is a power of 10, exp == log10(val) is an integer, and val is
+     *   exactly one times 10^exp (e.g., if val is 1000, log10(val) == 3.0,
+     *   and val == 1*10^3).  If val isn't a power of 10, 10^exp is the
+     *   nearest power of 10 below val.  For example, log10(1500) == 3.176,
+     *   so exp == int(log10(1500)) == 3, so val = 1.5*10^3.  In other words,
+     *   the value can be represented as some number between 1 and 10 times
+     *   10^exp.  Our storage format is close to this: we store the mantissa
+     *   as a value between 0 and 1.  So what we *really* want for the
+     *   exponent is log10(val)+1 - this will give us an exponent that we can
+     *   multiply by some number between 0 and 1 to recreate 'val'.  
+     */
+    int exp = (int)log10(val) + 1;
+    set_exp(ext, exp);
+
+    /* 
+     *   We know that val divided by 10^exp is between 0 and 1.  So the most
+     *   significant digit of val is val/10^(exp-1).  We can then divide the
+     *   remainder of that calculation by 10^(exp-2) to get the next digit,
+     *   and the remainder of that by 10^(exp-3) for the next digit, and so
+     *   on.  Keep going until we've filled out our digits.
+     */
+    double base = pow(10.0, exp - 1);
+    for (size_t i = 0 ; i < prec ; ++i, base /= 10.0)
+    {
+        /* 
+         *   get the most significant remaining digit by dividing by the
+         *   log10 exponent of the current value 
+         */
+        int dig = (int)(val / base);
+        set_dig(ext, i, dig);
+
+        /* get the remainder */
+        val = fmod(val, base);
+    }
+
+    /* normalize the number */
+    normalize(ext);
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Convert to an integer value 
  */
-long CVmObjBigNum::convert_to_int()
+long CVmObjBigNum::convert_to_int(int &ov) const
 {
-    size_t prec = get_prec(ext_);
-    int is_neg = get_neg(ext_);
-    int exp = get_exp(ext_);
+    /* get the magnitude */
+    ov = FALSE;
+    ulong m = convert_to_int_base(ext_, ov);
+
+    /* apply the sign and check limits */
+    if (get_neg(ext_))
+    {
+        /* 
+         *   a T3 VM int is a 32-bit signed value (irrespective of the local
+         *   platform int size), so the magnitude of a negative value can't
+         *   exceed 2147483648
+         */
+        if (m > 2147483648U)
+            ov = TRUE;
+
+        /* negate the number and return it */
+        return -(long)m;
+    }
+    else
+    {
+        /* 
+         *   a T3 VM positive int value can't exceed 2147483647L (regardless
+         *   of the local platform int size) 
+         */
+        if (m > 2147483647U)
+            ov = TRUE;
+
+        /* return the value */
+        return (long)m;
+    }
+}
+
+/*
+ *   Convert to unsigned int 
+ */
+ulong CVmObjBigNum::convert_to_uint(int &ov) const
+{
+    /* negative numbers can't be converted to unsigned */
+    ov = get_neg(ext_);
+
+    /* return the magnitude */
+    return convert_to_int_base(ext_, ov);
+}
+
+/*
+ *   Get the magnitude of an integer value, ignoring the sign
+ */
+ulong CVmObjBigNum::convert_to_int_base(const char *ext, int &ov)
+{
+    size_t prec = get_prec(ext);
+    int exp = get_exp(ext);
     size_t idx;
     size_t stop_idx;
-    long acc;
     int round_inc;
     
-    /*
-     *   T3 VM integer value limits.
-     *   
-     *   Note: The T3 VM integer type is ALWAYS a signed 32 bit value,
-     *   regardless of the local integer size.  So we have to use HARD-CODED
-     *   numbers here, NOT the limits.h values (LONG_MAX, LONG_MIN).  
-     */
-    const long long_max = 2147483647L;
-    const long long_min = (-2147483647L - 1);
-
     /* start the accumulator at zero */
-    acc = 0;
+    unsigned long acc = 0;
 
-    /* presume no rounding */
-    round_inc = 0;
-
-    /* check to see if the first fractional digit is represented */
-    if (exp >= 0 && (size_t)exp < prec)
-    {
-        /* if the digit is 5 or over, round up */
-        if (get_dig(ext_, (size_t)exp) >= 5)
-            round_inc = (is_neg ? -1 : 1);
-    }
+    /* get the rounding direction for truncating at the decimal point */
+    round_inc = get_round_dir(ext, exp);
 
     /* stop at the first fractional digit */
     if (exp <= 0)
@@ -935,34 +1502,919 @@ long CVmObjBigNum::convert_to_int()
         for (idx = 0 ; idx < stop_idx ; ++idx)
         {
             /* get this digit */
-            int dig = get_dig(ext_, idx);
+            int dig = get_dig(ext, idx);
 
             /* make sure that shifting the accumulator won't overflow */
-            if (is_neg ? acc < (long_min/10) : acc > (long_max/10))
-                err_throw(VMERR_NUM_OVERFLOW);
+            ov |= (acc > ULONG_MAX/10);
 
             /* shift the accumulator */
             acc *= 10;
             
             /* make sure this digit won't overflow the 32-bit VM int type */
-            if (is_neg ? acc < (long_min + dig) : acc > (long_max - dig))
-                err_throw(VMERR_NUM_OVERFLOW);
+            ov |= (acc > (ULONG_MAX - dig));
 
             /* add the digit */
-            if (is_neg)
-                acc -= dig;
-            else
-                acc += dig;
+            acc += dig;
         }
     }
 
     /* make sure rounding won't overflow */
-    if (is_neg ? acc < long_min - round_inc : acc > long_max - round_inc)
-        err_throw(VMERR_NUM_OVERFLOW);
+    ov |= (acc > ULONG_MAX - round_inc);
 
     /* return the result adjusted for rounding */
     return acc + round_inc;
 }
+
+/*
+ *   Convert to a 64-bit portable representation, signed 
+ */
+void CVmObjBigNum::wp8s(char *buf, int &ov) const
+{
+    /* note if the value is negative */
+    int neg = get_neg(ext_);
+
+    /* generate the absolute value */
+    wp8abs(buf, ov);
+
+    /* if it's negative, compute the 2's complement of the buffer */
+    if (neg)
+    {
+        /* take the 2's complement */
+        twos_complement_p8((unsigned char *)buf);
+
+        /* if it didn't come out negative, we have an overflow */
+        ov |= ((buf[7] & 0x80) == 0);
+    }
+    else
+    {
+        /* positive - the sign bit is set, we overflowed */
+        ov |= (buf[7] & 0x80);
+    }
+}
+
+/*
+ *   Convert to a 64-bit portable representation, unsigned
+ */
+void CVmObjBigNum::wp8(char *buf, int &ov) const
+{
+    /* generate the absolute value */
+    wp8abs(buf, ov);
+
+    /* 
+     *   if the value is negative, we can't represent it as unsigned; take
+     *   the two's complement in case they want the truncated version of the
+     *   value, and set the overflow flag 
+     */
+    if (get_neg(ext_))
+    {
+        ov = TRUE;
+        twos_complement_p8((unsigned char *)buf);
+    }
+}
+
+/*
+ *   generate the portable 64-bit integer representation of the absolute
+ *   value of the number 
+ */
+void CVmObjBigNum::wp8abs(char *buf, int &ov) const
+{
+    /* 
+     *   as a rough cut, if the number is greater than 10^30, it's definitely
+     *   too big for a 64-bit integer buffer 
+     */
+    ov = (get_exp(ext_) > 30);
+
+    /* 
+     *   Make a local copy of the value - we need at most 20 digits of
+     *   precision, since we only want the integer part.  
+     */
+    char tmp[5 + 20] = { 20, 0, 0, 0, 0 };
+    copy_val(tmp, ext_, TRUE);
+
+    /* 
+     *   Divide the value by 2^32.  This splits the value into two 32-bit
+     *   halves for us, which are then easy to arrange into the buffer with
+     *   integer arithmetic.  
+     */
+    ulong lo, hi;
+    div_by_2e32(tmp, &lo);
+    hi = convert_to_int_base(tmp, ov);
+
+    /* 
+     *   store the low part in the first four bytes, the high part in the
+     *   next four bytes 
+     */
+    oswp4(buf, lo);
+    oswp4(buf + 4, hi);
+}
+
+/*
+ *   Encode the integer portion of the number as a BER compressed integer. 
+ */
+void CVmObjBigNum::encode_ber(VMG_ char *buf, size_t buflen, size_t &outlen,
+                              int &ov)
+{
+    /* BER can only store unsigned integers */
+    ov = get_neg(ext_);
+
+    /* clear the output buffer */
+    outlen = 0;
+
+    /* make a temporary copy of the value in a temp register */
+    uint thdl;
+    char *tmp = alloc_temp_reg(vmg_ get_prec(ext_), &thdl);
+    copy_val(tmp, ext_, FALSE);
+
+    /* keep going until the number is zero or we run out of space */
+    int z;
+    while (!(z = is_zero(tmp)) && outlen < buflen)
+    {
+        /* get the low-order 7 bits by getting the remainder mod 128 */
+        ulong rem;
+        div_by_long(tmp, 128, &rem);
+        
+        /* store it */
+        buf[outlen++] = (char)rem;
+    }
+
+    /* release the temporary register */
+    release_temp_reg(vmg_ thdl);
+
+    /* if we ran out of buffer before we ran out of digits, we overflowed */
+    ov |= (!z);
+
+    /* if we wrote nothing, write a trivial zero value */
+    if (outlen == 0)
+        buf[outlen++] = 0;
+
+    /* 
+     *   We stored the bytes from least significant to most significant, but
+     *   the standard format is the other way around.  Reverse the bytes.  
+     */
+    int i, j;
+    for (i = 0, j = (int)outlen - 1 ; i < j ; ++i, --j)
+    {
+        char tmpc = buf[i];
+        buf[i] = buf[j];
+        buf[j] = tmpc;
+    }
+
+    /* set the high bit in every byte except the last one */
+    for (i = 0 ; i < (int)outlen - 1 ; ++i)
+        buf[i] |= 0x80;
+}
+
+/*
+ *   Calculate the 2's complement of a portable 8-byte integer buffer 
+ */
+void CVmObjBigNum::twos_complement_p8(unsigned char *p)
+{
+    size_t i;
+    int carry;
+    for (i = 0, carry = 1 ; i < 8 ; ++i)
+    {
+        p[i] = (~p[i] + carry) & 0xff;
+        carry &= (p[i] == 0);
+    }
+}
+
+/*
+ *   Convert to double 
+ */
+double CVmObjBigNum::convert_to_double(VMG0_) const
+{
+    /* note the precision and sign */
+    size_t prec = get_prec(ext_);
+    int is_neg = get_neg(ext_);
+
+    /* if we're not a number (INF, NAN), it's an error */
+    if (get_type(ext_) != VMBN_T_NUM)
+        err_throw(VMERR_NO_DOUBLE_CONV);
+
+    /* 
+     *   if our absolute value is too large to store in a double, throw an
+     *   overflow error 
+     */
+    if (compare_abs(ext_, cache_dbl_max(vmg0_)) > 1)
+        err_throw(VMERR_NUM_OVERFLOW);
+
+    /* 
+     *   Our value is represented as .abcdef * 10^exp, where a is our first
+     *   digit, b is our second digit, etc.  Start off the accumulator with
+     *   our most significant digit, a.  The actual numeric value of this
+     *   digit is a*10^(exp-1) - one less than the exponent, because of the
+     *   implied decimal point at the start of the mantissa.  
+     */
+    double base = pow(10.0, get_exp(ext_) - 1);
+    double acc = get_dig(ext_, 0) * base;
+
+    /* 
+     *   Now add in the remaining digits, starting from the second most
+     *   significant.
+     *   
+     *   We might have more precision than a double can hold.  Digits added
+     *   beyond the precision of the double will have no effect on the double
+     *   value, since a double will naturally drop digits at the less
+     *   significant end when we exceed its precision.  There's no point in
+     *   adding digits beyond that point.  The maximum number of digits a
+     *   native double can hold is given by the float.h constant DBL_DIG; go
+     *   a couple of digits beyond this anyway, since many float packages
+     *   perform intermediate calculations at slightly higher precision and
+     *   can thus benefit from an extra digit or two for rounding purposes.  
+     */
+    size_t max_digits = (prec > DBL_DIG + 2 ? DBL_DIG + 2 : prec);
+    for (size_t idx = 1 ; idx < max_digits ; ++idx)
+    {
+        /* get this digit */
+        int dig = get_dig(ext_, idx);
+
+        /* adjust the exponent base for this digit */
+        base /= 10.0;
+        
+        /* add the digit */
+        acc += dig * base;
+    }
+
+    /* apply the sign */
+    if (is_neg)
+        acc = -acc;
+
+    /* return the result */
+    return acc;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   IEEE 754-2008 binary interchange format buffer manipulation.  We arrange
+ *   our buffer in little-endian order to match the idiosyncratic TADS
+ *   pack/unpack formats, but otherwise we use the standard IEEE formats.  
+ */
+
+/* IEEE 754-2008 buffer */
+struct ieee754
+{
+    ieee754(char *buf, int bits)
+    {
+        /* remember the buffer and bit size */
+        this->buf = (unsigned char *)buf;
+        this->bits = bits;
+        this->bytes = bits/8;
+        
+        /* get the mantissa size (in bits) for the format size */
+        mbits = (bits == 16 ? 10 :
+                 bits == 32 ? 23 :
+                 bits == 64 ? 52 :
+                 bits == 128 ? 112 :
+                 0);
+        if (mbits == 0)
+            err_throw(VMERR_NO_DOUBLE_CONV);
+        
+        /* the exponent uses the leftover bits, minus the sign bit */
+        ebits = bits - mbits - 1;
+        
+        /* figure the exponent bias - it's the halfway point for the range */
+        ebias = (1 << (ebits - 1)) - 1;
+        
+        /* figure the exponent range */
+        emin = 1 - ebias;
+        emax = ebias;
+    }
+
+    /* 
+     *   Get the number of decimal digits this type can represent.  The
+     *   decimal precision is fractional, since the IEEE type is binary; we
+     *   round up to the next integer.  There's a 
+     */
+    int decimal_digits()
+    {
+        return bits == 16 ? 4 : bits == 32 ? 8 : bits == 64 ? 17 :
+            bits == 128 ? 35 : 0;
+    }
+
+    /* get the maximum number of decimal digits in the exponent */
+    int decimal_exp_digits()
+    {
+        return ebits <= 5 ? 2 : ebits <= 7 ? 3 : ebits <= 11 ? 4 : 5;
+    }
+
+    /* is the value infinity? */
+    int is_infinity() const
+    {
+        /* infinity has an exponent of emax+1 and a zero mantissa */
+        return get_exp() == emax + 1 && is_mantissa_zero();
+    }
+
+    /* set Infinity */
+    void set_infinity(int neg)
+    {
+        /* 
+         *   Infinity is represented with the maximum exponent plus one, and
+         *   the mantissa set to all zeros.  Infinities can be positive or
+         *   negative, so set the sign bit.  
+         */
+        memset(buf, 0, bytes);
+        set_exp(emax + 1);
+        set_sign(neg);
+    }
+
+    /* is the value zero? */
+    int is_zero() const
+    {
+        /* 
+         *   a zero is represented by all bits zero except possibly the sign
+         *   bit, which is 0 for +0 and 1 for -0 
+         */
+        int sum = 0;
+        for (int i = 0 ; i < bytes - 1 ; ++i)
+            sum += buf[i];
+
+        return sum == 0 && (buf[bytes-1] & 0x7f) == 0;
+    }
+
+    /* set Zero */
+    void set_zero(int neg)
+    {
+        /* 
+         *   Zero is represented with an exponent of zero and all zero bits
+         *   in the mantissa.  Zeros can be positive or negative, so set the
+         *   sign bit.  
+         */
+        memset(buf, 0, bytes);
+        set_sign(neg);
+    }
+
+    /* is this a NAN value? */
+    int is_nan() const
+    {
+        /* a NAN value has an exponent of emax+1 and a non-zero mantissa */
+        return get_exp() == emax + 1 && !is_mantissa_zero();
+    }
+
+    /* is the mantissa zero? */
+    int is_mantissa_zero() const
+    {
+        /* add up the full bytes of the mantissa, plus the partial high byte */
+        int imsb = mantissa_msb_index();
+        int sum = buf[imsb] & mantissa_msb_mask();
+        for (int i = 0 ; i < imsb ; sum += buf[i++]) ;
+
+        /* the mantissa is zero if the sum of the bytes is zero */
+        return (sum == 0);
+    }
+
+    /* get the bit mask for the partial high-order byte of the mantissa */
+    unsigned char mantissa_msb_mask() const
+    {
+        if (ebits <= 7)
+            return (0x7f >> ebits);
+        else if (ebits <= 15)
+            return (0xff >> (ebits - 7));
+        else
+        {
+            assert(FALSE);
+            return 0;
+        }
+    }
+
+    /* get the index of the most significant byte of the mantissa */
+    int mantissa_msb_index() const
+    {
+        if (ebits <= 7)
+            return bytes - 1;
+        else if (ebits <= 15)
+            return bytes - 2;
+        else
+        {
+            assert(FALSE);
+            return 0;
+        }
+    }
+
+    /* set NAN (not a number) */
+    void set_nan()
+    {
+        /* 
+         *   NAN (Not A Number) is represented with the maximum exponent plus
+         *   one, and a non-zero mantissa.  
+         */
+        set_exp(emax + 1);
+        set_mbit(0, 1);
+    }
+
+    /* get the sign bit - false -> positive, true -> negative */
+    int get_sign() const
+    {
+        return (buf[bytes-1] & 0x80) != 0;
+    }
+
+    /* set the sign bit */
+    void set_sign(int neg)
+    {
+        if (neg)
+            buf[bytes-1] |= 0x80;
+        else
+            buf[bytes-1] &= 0x7f;
+    }
+
+    /* get the byte index and bit mask for a mantissa bit */
+    inline void get_mbit_ptr(int &byteidx, unsigned char &mask, int n) const
+    {
+        /* figure the raw bit vector index, past the sign and exponent bits */
+        n += 1 + ebits;
+
+        /* get the byte index (little-endian order) */
+        byteidx = bytes - 1 - n/8;
+
+        /* get the bit index within the byte, and the corresponding bit mask */
+        n = 7 - (n % 8);
+        mask = 1 << n;
+    }
+
+    /* set the nth bit of the mantissa (0 is the high-order bit) */
+    void set_mbit(int n, int bit)
+    {
+        /* get the mantissa byte index and mask */
+        int byteidx;
+        unsigned char mask;
+        get_mbit_ptr(byteidx, mask, n);
+
+        /* set or clear the bit */
+        if (bit)
+            buf[byteidx] |= mask;
+        else
+            buf[byteidx] &= ~mask;
+    }
+    
+    /* 
+     *   Round up - add 1 to the lowest bit.  Returns true if we carried to
+     *   out of the highest order bit, false if not. 
+     *   
+     *   Carrying means that we carried into the implied "1" above the first
+     *   stored bit.  That bumps that bit to 0 and carries to the next bit,
+     *   so we now have an implied "10" before the first bit.  The caller
+     *   must renormalize simply by incrementing the exponent.  (The caller
+     *   doesn't have to worry about whether this is a normal or subnormal
+     *   number, because bumping the exponent works for both.  For
+     *   subnormals, we carry into the implied "0" above the first bit, which
+     *   bumps it to 1, which puts us in the normalized range, which we
+     *   represent by bumping the exponent up one to emin.)  
+     */
+    int round_up()
+    {
+        /* add to the low byte, and carry as needed to whole bytes */
+        int imsb = mantissa_msb_index();
+        for (int i = 0 ; i < imsb ; ++i)
+        {
+            if (buf[i] == 0xff)
+            {
+                /* this overflows the byte - zero it and carry to the next */
+                buf[i] = 0;
+            }
+            else
+            {
+                /* no overflow - increment this byte and return "no carry" */
+                buf[i] += 1;
+                return FALSE;
+            }
+        }
+        
+        /* 
+         *   if we got this far, we've carried into the most significant
+         *   byte, which is a partial byte - we need to use the msb bit mask
+         *   for this arithmetic 
+         */
+        unsigned char mask = mantissa_msb_mask();
+        int b = (buf[imsb] + 1) & mask;
+        buf[imsb] &= ~mask;
+        buf[imsb] |= b;
+
+        /* if we wrapped that to zero, we carried into the implied lead bit */
+        return (b == 0);
+    }
+
+    int get_mbit(int n) const
+    {
+        /* get the mantissa byte index and mask */
+        int byteidx;
+        unsigned char mask;
+        get_mbit_ptr(byteidx, mask, n);
+
+        /* return the bit value */
+        return (buf[byteidx] & mask) != 0;
+    }
+
+    /* set the exponent, adjusting for the bias */
+    void set_exp(int e)
+    {
+        /* add the bias, and set the raw exponent */
+        set_raw_exp(ebias + e);
+    }
+
+    /* set the raw exponent, without the bias adjustment */
+    void set_raw_exp(int e)
+    {
+        int mask;
+        if (ebits <= 7)
+        {
+            /* it fits entirely in the first byte */
+            mask = (0xff << (7 - ebits)) & 0x7f;
+            buf[bytes-1] &= ~mask;
+            buf[bytes-1] |= (e << (7 - ebits)) & mask;
+        }
+        else if (ebits <= 15)
+        {
+            /* it fits in the first two bytes */
+            buf[bytes-1] &= 0x80;
+            buf[bytes-1] |= (e >> (ebits - 7)) & 0x7f;
+            
+            mask = (0xff << (15 - ebits)) & 0xff;
+            buf[bytes-2] &= ~mask;
+            buf[bytes-2] |= (e << (15 - ebits)) & mask;
+        }
+        else
+        {
+            /* we don't currently handle anything above quad precision */
+            assert(FALSE);
+        }
+    }
+
+    /* get the exponent, adjusting for the bias */
+    int get_exp() const { return get_raw_exp() - ebias; }
+
+    /* get the raw exponent */
+    int get_raw_exp() const
+    {
+        int mask;
+        if (ebits <= 7)
+        {
+            /* it fits entirely in the first byte */
+            mask = (0xff << (7 - ebits)) & 0x7f;
+            return (int)(buf[bytes-1] & mask) >> (7 - ebits);
+        }
+        else if (ebits <= 15)
+        {
+            /* it fits in the first two bytes */
+            int e = (int)(buf[bytes-1] & 0x7f) << (ebits - 7);
+
+            mask = (0xff << (15 - ebits)) & 0xff;
+            return e | (int)(buf[bytes-2] & mask) >> (15 - ebits);
+        }
+        else
+        {
+            /* we don't currently handle anything above quad precision */
+            assert(FALSE);
+            return 0;
+        }
+    }
+
+    /* overall bit size (16, 32, 64, or 128) */
+    int bits;
+
+    /* overall byte length */
+    int bytes;
+
+    /* mantissa size in bits */
+    int mbits;
+
+    /* exponent size in bits */
+    int ebits;
+
+    /* minimum and maximum exponent values, and exponent bias */
+    int emin, emax;
+    int ebias;
+
+    /* our buffer - the caller provides this */
+    unsigned char *buf;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Convert to IEEE 754-2008 binary interchange format.  'bits' is the
+ *   number of bits in the format; we accept all of the standard format sizes
+ *   (16, 32, 64, 128).  Our output conforms to the IEEE standard for the
+ *   format, except that we generate the buffer in the reverse byte order;
+ *   this is for consistency with the idiosyncratic TADS pack/unpack formats,
+ *   which use little-endian ordering for consistency with the standard TADS
+ *   integer interchange formats.  To get the fully standard format, simply
+ *   reverse the byte order of the buffer we return.  
+ */
+void CVmObjBigNum::convert_to_ieee754(VMG_ char *buf, int bits, int &ov)
+{
+    /* no overflow yet */
+    ov = FALSE;
+
+    /* set up the buffer descriptor */
+    ieee754 val(buf, bits);
+
+    /* 
+     *   Check for zero, infinity, and NAN.  These all have special
+     *   representations that don't follow from the arithmetic algorithm
+     *   below.  
+     */
+    if (is_zero(ext_))
+    {
+        val.set_zero(get_neg(ext_));
+        return;
+    }
+    else if (is_infinity(ext_))
+    {
+        val.set_infinity(get_neg(ext_));
+        return;
+    }
+    else if (is_nan(ext_))
+    {
+        val.set_nan();
+        return;
+    }
+
+    /* 
+     *   Figure the precision we need for our intermediate calculations.  Our
+     *   most demanding calculation is the log2 of the value; we need to be
+     *   able to represent the full precision of the binary type in the
+     *   *fractional* part of the log2 result.  The log2 result can have up
+     *   to the maximum exponent as the whole part, so the precision we need
+     *   for this calculation is (decimal digits of mantissa) + (decimal
+     *   digits of exponent).  Add a couple of guard digits as usual so that
+     *   we don't lose significant precision in rounding in intermediate
+     *   calculations.  
+     */
+    int prec = val.decimal_digits() + val.decimal_exp_digits() + 2;
+
+    /* 
+     *   Set up some registers for intermediate calculations.  We don't have
+     *   to allocate these since we know the upper bound to the precision
+     *   we'll need (namely 35+2 for the 128-bit type). 
+     */
+    char t1[5+37] = { (char)prec, 0, 0, 0, 0 };
+    char t2buf[5+37] = { (char)prec, 0, 0, 0, 0 }, *t2 = t2buf;
+    char t3buf[5+37] = { (char)prec, 0, 0, 0, 0 }, *t3 = t3buf;
+
+    /*
+     *   The target format represents the number as A*2^B.  Call our value N.
+     *   Observe that N == 2^(log2(N)) for any N.  Let's separate out log2(N)
+     *   into its whole and fractional parts - call them W and F: so log2(N)
+     *   == W+F, which makes N == 2^(W+F) == 2^W * 2^F == 2^F * 2^W.  Recall
+     *   that the format we're looking for is A*2^B, which we now have: A is
+     *   2^F, and B is W.
+     *   
+     *   That will give us *a* binary representation of the number, but not
+     *   necessarily the canonical representation: we have to normalize by
+     *   choosing the exponent such that the implied (but not stored) first
+     *   bit of the mantissa is 1.  The ln2 calculation will get us close; we
+     *   then need to adjust the exponent once we start pulling out the bits
+     *   of the mantissa.  
+     */
+
+    /* get/cache ln2 to the required precision */
+    const char *ln2 = cache_ln2(vmg_ prec);
+
+    /* 
+     *   Get the absolute value of the argument.  Our format and the IEEE
+     *   format both represent the value as a combination of an absolute
+     *   value and a sign, so the only thing we need to do with the sign is
+     *   to set the same sign on the result as on the input.  For the log
+     *   calculation, though, we need to be working with a positive value. 
+     */
+    copy_val(t2, ext_, TRUE);
+    set_neg(t2, FALSE);
+
+    /* calculate t1=ln(self), t2=t1/ln(2) == ln2(self) */
+    compute_ln_into(vmg_ t1, t2);
+    compute_quotient_into(vmg_ t2, 0, t1, ln2);
+
+    /* get the whole part as an integer - this is the "B" value as above */
+    copy_val(t1, t2, FALSE);
+    compute_whole(t1);
+    int b = convert_to_int_base(t1, ov);
+    if (get_neg(t1))
+        b = -b;
+
+    /* 
+     *   Calculate 2^fractional part - this is the "A" value as above.  2^y =
+     *   e^(y*ln2), so calculate t2*ln2 into t3, then e^t3 back into t2.  
+     */
+    compute_frac(t2);
+    compute_prod_into(t1, t2, ln2);
+    compute_exp_into(vmg_ t2, t1);
+
+    /*
+     *   If 'b' is less than emin-1 (the subnormal exponent value), we need
+     *   to raise it back up to emin-1.  Do this by halving the mantissa and
+     *   incrementing 'b', repeating until 'b' is emin-1.
+     *   
+     *   If 'b' is less than emin-1 by more than the bit precision of the
+     *   target type, we won't have any bits to store, so store zero.  
+     */
+    if (b < val.emin - 1 - val.mbits)
+    {
+        val.set_zero(get_neg(ext_));
+        return;
+    }
+    while (b < val.emin - 1)
+    {
+        div_by_long(t2, 2);
+        b += 1;
+    }
+
+    /* 
+     *   Extract the bits of the mantissa.  Do this by repeatedly shifting
+     *   and subtracting: starting with divisor = 1, if decimal mantissa >=
+     *   divisor, subtract divisor and set the current bit in the output to
+     *   1, otherwise set the output bit to 0; set divisor = divisor/2,
+     *   repeat until we've filled the output mantissa.  A is 2^fraction,
+     *   where -1 < fraction < 1, so 0.5 < A < 2.
+     *   
+     *   Normalization requires that the output mantissa start with an
+     *   implied 1.  This means that we ignore leading zeros; for each
+     *   leading zero, we decrement b but don't set an output bit.  When we
+     *   reach the first 1 bit, we don't store it, either, since it's implied
+     *   by normalization.  However, if we reach emin-1 for 'b', we're in the
+     *   subnormalization range, which means we can't decrement the exponent
+     *   any further; instead, start storing leading zeros.  (Subnormal
+     *   means that the number is stored with an implied *0* leading bit, and
+     *   the special stored exponent value of emin-1, which implies an actual
+     *   exponent of emin.)  
+     */
+    copy_val(t1, (const char *)one_, FALSE);
+    int mbit, sig;
+    for (mbit = 0, sig = FALSE ; mbit < val.mbits ; div_by_long(t1, 2))
+    {
+        /* the current bit is 1 if t2 >= t1 */
+        if (compare_abs(t2, t1) >= 0)
+        {
+            /* 
+             *   it's a 1 bit - if it's the first 1 bit, note that we've
+             *   found a significant bit, but don't store it, since the first
+             *   bit is implied in the output format 
+             */
+            if (sig || b == val.emin - 1)
+                val.set_mbit(mbit++, 1);
+            else
+                sig = TRUE;
+
+            /* subtract t2 from t1 */
+            compute_abs_diff_into(t3, t2, t1);
+
+            /* swap t3 and t2 to keep the accumulator named t2 */
+            char *ttmp = t2; t2 = t3; t3 = ttmp;
+        }
+        else
+        {
+            /* 
+             *   It's a zero bit - store it if we've found a 1 already, OR
+             *   the exponent is already at the subnormal value.  Otherwise
+             *   just decrement the exponent.  
+             */
+            if (sig || b == val.emin - 1)
+                val.set_mbit(mbit++, 0);
+            else
+                --b;
+        }
+    }
+
+    /* 
+     *   Round the result: if the remainder is less than half of the last
+     *   bit's value (i.e., t2 < t1), round down (i.e., do nothing).  If the
+     *   remainder is greater than half of the last bit's value (i.e. t2 >
+     *   t1), round up (add 1 to the low-order bit).  If the remainder is
+     *   exactly half of the last bit's value, round up if the last bit was a
+     *   1, down if it was a 0.  
+     */
+    int r = compare_abs(t2, t1);
+    if (r > 0 || (r == 0 && val.get_mbit(val.mbits-1)))
+    {
+        /* round up; if that carries out, increment the exponent */
+        if (val.round_up())
+            ++b;
+    }
+
+    /* if 'b' wound up above the maximum for the format, it's an overflow */
+    if (b > val.emax)
+    {
+        val.set_infinity(get_neg(ext_));
+        ov = TRUE;
+        return;
+    }
+
+    /* store the final exponent and sign */
+    val.set_exp(b);
+    val.set_sign(get_neg(ext_));
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Convert from IEEE 754-2008 format to BigNumber format.  This takes an
+ *   IEEE 754-2008 binary interchange buffer in the given bit size (16, 32,
+ *   64, or 128) and loads the value into the BigNumber.  The buffer is in
+ *   the standard IEEE format, except that it's little endian, for
+ *   consistency with the TADS pack/unpack formats.  To convert a buffer in
+ *   the fully standard IEEE format, simply reverse the byte order before
+ *   converting.  
+ */
+void CVmObjBigNum::set_ieee754_value(VMG_ const char *buf, int bits)
+{
+    /* set up the buffer descriptor */
+    ieee754 val((char *)buf, bits);
+
+    /* check for special values */
+    if (val.is_zero())
+    {
+        set_zero(ext_);
+        set_neg(ext_, val.get_sign());
+        return;
+    }
+    else if (val.is_nan())
+    {
+        set_type(ext_, VMBN_T_NAN);
+        return;
+    }
+    else if (val.is_infinity())
+    {
+        set_type(ext_, VMBN_T_INF);
+        set_neg(ext_, val.get_sign());
+        return;
+    }
+
+    /* 
+     *   figure the precision for our intermediate calculations based on the
+     *   precision of the source format in decimal digits 
+     */
+    int prec = val.decimal_digits() + 2;
+
+    /* 
+     *   Set up some registers for intermediate calculations.  We don't have
+     *   to allocate these since we know the upper bound to the precision
+     *   we'll need (namely 35+2 for the 128-bit type).  
+     */
+    char t1[5+37] = { (char)prec, 0, 0, 0, 0 };
+    char t2buf[5+37] = { (char)prec, 0, 0, 0, 0 }, *t2 = t2buf;
+    char t3buf[5+37] = { (char)prec, 0, 0, 0, 0 }, *t3 = t3buf;
+
+    /*
+     *   The IEEE value is represented as A * 2^B, for some non-zero value of
+     *   A.  If the exponent is emin-1, A is represented as 0.bbbbb, where
+     *   the b's are bits of the mantissa.  For any other exponent, A is
+     *   represented as 1.bbbbb.  To compute our value, then, start with 2^B
+     *   in register t1 and zero in the accumulator.  If the leading bit is 1
+     *   (exponent >= emin), add r1 to the accumulator.  Divide t1 by 2 and
+     *   loop: if the current bit is set, add t1 to the accumulator.  Repeat
+     *   for each bit of the mantissa.  
+     */
+    
+    /* calculate t1 = 2^B = e^(B*ln2) */
+    const char *ln2 = cache_ln2(vmg_ prec);
+    int e = val.get_exp();
+    set_int_val(t1, e);
+    compute_prod_into(t2, t1, ln2);
+    compute_exp_into(vmg_ t1, t2);
+
+    /* 
+     *   If b > emin-1, there's an implied 1 bit for the whole part.  If b ==
+     *   emin-1, we have a subnormal number, meaning that the implied lead
+     *   bit is 0, and the actual exponent is val.emin.  
+     */
+    if (e > val.emin - 1)
+    {
+        /* normalized - add the implied leading "1" bit */
+        copy_val(t3, t1, FALSE);
+    }
+    else
+    {
+        /* 
+         *   subnormal - the implied leading bit is "0", but the actual
+         *   exponent value is emin - one higher than it appears
+         */
+        set_zero(t3);
+        mul_by_long(t1, 2);
+    }
+
+    /* add each bit of the mantissa */
+    for (int i = 0 ; i < val.mbits ; ++i)
+    {
+        /* divide the power-of-two multiplier by 2 for the next lower place */
+        div_by_long(t1, 2);
+
+        /* if this mantissa bit is 1, add t1 to the accumulator */
+        if (val.get_mbit(i))
+        {
+            /* t2 <- acc + power of two */
+            compute_sum_into(t2, t3, t1);
+
+            /* swap t2 and t3 so that t3 is the accumulator again */
+            char *ttmp = t3; t3 = t2; t2 = ttmp;
+        }
+    }
+
+    /* set the sign and normalize the value */
+    set_neg(t3, val.get_sign());
+    normalize(t3);
+
+    /* copy the result into our extension */
+    copy_val(ext_, t3, TRUE);
+}
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -976,12 +2428,176 @@ const char *CVmObjBigNum::cast_to_string(VMG_ vm_obj_id_t self,
 }
 
 /*
+ *   Convert to string with a given radix 
+ */
+const char *CVmObjBigNum::explicit_to_string(
+    VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix, int flags) const
+{
+    /*
+     *   If they want a non-decimal conversion, and we're a whole integer
+     *   without a fractional part, generate the integer representation in
+     *   the given radix.  If we have a fractional part, or the requested
+     *   radix is decimal, use the floating-point formatter instead.
+     *   
+     *   Also use an integer conversion if we've been specfically asked for
+     *   an integer conversion.  
+     */
+    if ((radix != 10 && is_frac_zero(ext_))
+        || (flags & TOSTR_ROUND) != 0)
+    {
+        /* 
+         *   it's all integer, and we have a non-decimal radix - format as an
+         *   integer 
+         */
+        return cvt_to_string_in_radix(vmg_ self, new_str, radix);
+    }
+    else
+    {   
+        /* 
+         *   no radix, or we have a fraction - use the basic floating-point
+         *   formatter with default options 
+         */
+        return cvt_to_string(vmg_ self, new_str, ext_, 100, -1, -1, -1, 0, 0);
+    }
+}
+
+/*
+ *   Convert an integer value to a string in the given radix (2-36)
+ */
+const char *CVmObjBigNum::cvt_to_string_in_radix(
+    VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix) const
+{
+    /* check for special values: zeros, NaNs, and infinities */
+    const char *fixed = 0;
+    int neg = get_neg(ext_);
+    if (is_zero(ext_))
+    {
+        /* show zero as "0" in all bases */
+        fixed = "0";
+    }
+    else if (is_infinity(ext_))
+    {
+        /* 
+         *   show infinity as "1.#INF" for positive or unsigned, "-1.#INF"
+         *   for negative infinity 
+         */
+        fixed = (neg ? "-1.#INF" : "1.#INF");
+    }
+    else if (is_nan(ext_))
+    {
+        /* not a number */
+        fixed = "1.#NAN";
+    }
+    else
+    {
+        /* make a temporary copy of the number */
+        uint thdl;
+        char *tmp = alloc_temp_reg(vmg_ get_prec(ext_), &thdl);
+        err_try
+        {
+            /* copy the value into our temporary register */
+            copy_val(tmp, ext_, FALSE);
+
+            /* if there's a fractional part, round to integer */
+            round_to_int(tmp);
+
+            /* 
+             *   It's an ordinary non-zero number.  Figure how many digits
+             *   the integer portion will take in the given radix.  This is
+             *   fairly simple: a D digit number in decimal requires
+             *   D/log10(R) digits in base R, rounding up.  Our storage
+             *   format makes it easy to determine D - it's simply our
+             *   base-10 exponent.  
+             */
+            int len = (int)ceil(get_exp(ext_) / log10((double)radix));
+
+            /* if the value is zero, we need one digit for the zero */
+            if (len == 0)
+                len = 1;
+            
+            /* if it's negative, add space for the '-' */
+            if (neg)
+                len += 1;
+            
+            /* create the string */
+            new_str->set_obj(CVmObjString::create(vmg_ FALSE, len));
+            CVmObjString *str = (CVmObjString *)vm_objp(vmg_ new_str->val.obj);
+            char *buf = str->cons_get_buf(), *p = buf;
+            
+            /* add the '-' sign if negative */
+            if (neg)
+            {
+                *p++ = '-';
+                ++buf;
+                --len;
+            }
+            
+            /* generate the digits */
+            while (!is_zero(tmp) && p - buf < len)
+            {
+                /* get the next digit */
+                unsigned long rem;
+                div_by_long(tmp, radix, &rem);
+
+                /* add it to the output */
+                *p++ = (char)(rem < 10 ? rem + '0' : rem - 10 + 'A');
+            }
+            
+            /* 
+             *   We just generated the digits in reverse order.  Reverse the
+             *   string so that they're in the right order. 
+             */
+            char *p1, *p2, tmp;
+            for (p1 = buf, p2 = p - 1 ; p2 > p1 ; --p2, ++p1)
+                tmp = *p1, *p1 = *p2, *p2 = tmp;
+
+            /* if we generated no digits, generate a zero */
+            if (p == buf)
+                *p++ = '0';
+
+            /* set the final length, in case rounding left us off by one */
+            str->cons_set_len(p - str->cons_get_buf());
+        }
+        err_finally
+        {
+            /* release our temporary register */
+            release_temp_reg(vmg_ thdl);
+        }
+        err_end;
+    }
+
+    /* if we came up with a fixed source string, create the string object */
+    if (fixed != 0)
+        new_str->set_obj(CVmObjString::create(
+            vmg_ FALSE, fixed, strlen(fixed)));
+
+    /* return the new string buffer */
+    return new_str->get_as_string(vmg0_);
+}
+
+/*
+ *   convert to a string, storing the result in the given buffer if it'll
+ *   fit, otherwise in a new string 
+ */
+const char *CVmObjBigNum::cvt_to_string_buf(
+    VMG_ vm_val_t *new_str, char *buf, size_t buflen,
+    int max_digits, int whole_places, int frac_digits, int exp_digits,
+    ulong flags)
+{
+    /* convert to a string into our buffer */
+    return cvt_to_string_gen(
+        vmg_ new_str, ext_,
+        max_digits, whole_places, frac_digits, exp_digits, flags, 0,
+        buf, buflen);
+}
+
+/*
  *   convert to a string, storing the result in the given buffer 
  */
-char *CVmObjBigNum::cvt_to_string_buf(VMG_ char *buf, size_t buflen,
-                                      int max_digits, int whole_places,
-                                      int frac_digits, int exp_digits,
-                                      ulong flags)
+const char *CVmObjBigNum::cvt_to_string_buf(
+    VMG_ char *buf, size_t buflen,
+    int max_digits, int whole_places, int frac_digits, int exp_digits,
+    ulong flags)
 {
     /* convert to a string into our buffer */
     return cvt_to_string_gen(vmg_ 0, ext_, max_digits, whole_places,
@@ -990,14 +2606,43 @@ char *CVmObjBigNum::cvt_to_string_buf(VMG_ char *buf, size_t buflen,
 }
 
 /*
+ *   Convert an integer value to a string, storing the result in the buffer.
+ *   This can be used to apply the whole set of floating-point formatting
+ *   options to an ordinary integer value, without going to the trouble of
+ *   creating a BigNumber object. 
+ */
+const char *CVmObjBigNum::cvt_int_to_string_buf(
+    VMG_ char *buf, size_t buflen, int32 intval,
+    int max_digits, int whole_places, int frac_digits, int exp_digits,
+    ulong flags)
+{
+    /* 
+     *   Set up a stack register with the number.  Allow 20 digits of
+     *   precision so that this can extend to 64-bit ints in the future.  
+     */
+    char tmp[5 + 20] = { 20, 0, 0, 0, 0 };
+    set_int_val(tmp, intval);
+
+    /* 
+     *   set the actual precision to equal the exponent, since zeros after
+     *   the decimal point aren't significant for an integer source
+     */
+    set_prec(tmp, get_exp(tmp));
+    
+    /* convert to a string into our buffer */
+    return cvt_to_string_gen(vmg_ 0, tmp, max_digits, whole_places,
+                             frac_digits, exp_digits, flags, 0,
+                             buf, buflen);
+}
+
+
+/*
  *   Convert to a string, creating a new string object to hold the result 
  */
-const char *CVmObjBigNum::cvt_to_string(VMG_ vm_obj_id_t self,
-                                        vm_val_t *new_str,
-                                        const char *ext,
-                                        int max_digits, int whole_places,
-                                        int frac_digits, int exp_digits,
-                                        ulong flags, vm_val_t *lead_fill)
+const char *CVmObjBigNum::cvt_to_string(
+    VMG_ vm_obj_id_t self, vm_val_t *new_str, const char *ext,
+    int max_digits, int whole_places, int frac_digits, int exp_digits,
+    ulong flags, vm_val_t *lead_fill)
 {
     const char *ret;
 
@@ -1009,7 +2654,8 @@ const char *CVmObjBigNum::cvt_to_string(VMG_ vm_obj_id_t self,
      *   create a new string to hold the result
      */
     ret = cvt_to_string_gen(vmg_ new_str, ext, max_digits, whole_places,
-                            frac_digits, exp_digits, flags, lead_fill, 0, 0);
+                            frac_digits, exp_digits,
+                            flags, lead_fill, 0, 0);
 
     /* discard our gc protection */
     G_stk->discard();
@@ -1023,14 +2669,12 @@ const char *CVmObjBigNum::cvt_to_string(VMG_ vm_obj_id_t self,
  *   we'll allocate a new string object, filling in new_str with the
  *   object reference; otherwise, we'll format into the given buffer.  
  */
-char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
-                                      const char *ext,
-                                      int max_digits, int whole_places,
-                                      int frac_digits, int exp_digits,
-                                      ulong flags, vm_val_t *lead_fill,
-                                      char *buf, size_t buflen)
+const char *CVmObjBigNum::cvt_to_string_gen(
+    VMG_ vm_val_t *new_str, const char *ext,
+    int max_digits, int whole_places, int frac_digits, int exp_digits,
+    ulong flags, vm_val_t *lead_fill, char *buf, size_t buflen)
 {
-    int always_sign = ((flags & VMBN_FORMAT_SIGN) != 0);
+    char plus_sign = '\0';
     int always_sign_exp = ((flags & VMBN_FORMAT_EXP_SIGN) != 0);
     int always_exp = ((flags & VMBN_FORMAT_EXP) != 0);
     int lead_zero = ((flags & VMBN_FORMAT_LEADING_ZERO) != 0);
@@ -1057,6 +2701,17 @@ char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
     size_t lead_fill_len;
     char *tmp_ext = 0;
     uint tmp_hdl;
+    int max_sig = ((flags & VMBN_FORMAT_MAXSIG) != 0);
+    int all_out_cnt, sig_out_cnt;
+
+    /* we haven't written out any digits yet */
+    all_out_cnt = sig_out_cnt = 0;
+
+    /* note the sign character to use for positive numbers, if any */
+    if (pos_lead_space)
+        plus_sign = ' ';
+    else if ((flags & VMBN_FORMAT_SIGN) != 0)
+        plus_sign = '+';
 
     /* get the fill string, if a value was provided */
     if (lead_fill != 0 && lead_fill->typ != VM_NIL)
@@ -1089,56 +2744,88 @@ char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
      *   decimal point is simply the exponent if it's greater than zero,
      *   or zero otherwise.)  
      */
-    if (exp > max_digits)
+    if (max_digits >= 0 && exp > max_digits)
         always_exp = TRUE;
+        
 
     /* 
      *   If we're not required to use exponential notation, but our
      *   absolute value is so small that we wouldn't show anything
-     *   "0.00000..." (i.e., we'd have too many zeroes after the decimal
+     *   "0.00000..." (i.e., we'd have too many zeros after the decimal
      *   point to show any actual digits of our number), use exponential
      *   notation.  If our exponent is negative, its absolute value is the
-     *   number of zeroes we'd show after the decimal point before the
+     *   number of zeros we'd show after the decimal point before the
      *   first non-zero digit.  
      */
-    if (exp < 0
+    if (max_digits >= 0
+        && exp < 0
         && (-exp > max_digits
             || (frac_digits != -1 && -exp > frac_digits)))
+        always_exp = TRUE;
+
+    /*
+     *   If we're the "compact" mode flag is set, use scientific notation if
+     *   the displayed decimal exponent is less than -4 or greater than the
+     *   number of digits after the decimal point.  (The displayed exponent
+     *   is one lower than the internal exponent, since the normalized format
+     *   has no digits before the decimal point but the displayed scientific
+     *   notation format shows one whole-part digit.)  
+     */
+    if ((flags & VMBN_FORMAT_COMPACT) != 0
+        && (exp < -3 || (max_digits >= 0 && exp - 1 > max_digits)))
         always_exp = TRUE;
 
     /* calculate how many digits we'd need in non-scientific notation */
     if (exp < 0)
     {
-        /* we have leading zeroes before the first significant digit */
+        /* we have leading zeros before the first significant digit */
         non_sci_digs = -exp + prec;
     }
     else if (exp > prec)
     {
-        /* we have trailing zeroes after the last significant digit */
+        /* we have trailing zeros after the last significant digit */
         non_sci_digs = exp + prec;
     }
     else
     {
         /* 
-         *   we have no leading or trailing zeroes to represent - only the
+         *   we have no leading or trailing zeros to represent - only the
          *   digits actually stored need to be displayed 
          */
         non_sci_digs = prec;
     }
 
     /* 
-     *   Figure out how much space we need for our string: use the smaller
-     *   of max_digits or the actual space we need for non-scientific
-     *   notation, plus overhead space for the sign, a leading zero, a
-     *   decimal point, an 'E' for the exponent, an exponent sign, and up
-     *   to five digits for the exponent (16-bit integer -> -32768 to
-     *   32767).  Also add one extra digit in case we need to add a digit
-     *   due to rounding.  
+     *   Figure out how much space we need for our string.  Start with the
+     *   length of the basic digit string, which is the smaller of max_digits
+     *   or the actual space we need for non-scientific notation.  
      */
-    if (max_digits < non_sci_digs)
+    if (max_digits >= 0 && max_digits < non_sci_digs)
+    {
+        /* max_digits limits the number of characters we can show */
         req_chars = max_digits;
+
+        /* 
+         *.  ..but if it only counts significant digits, and the exponent
+         *   is negative, we might also have to show all those leading zeros
+         *   over and above the max_digits limit 
+         */
+        if (max_sig && exp < 0)
+            req_chars += -exp;
+    }
     else
+    {
+        /* there's no cap on digits, so we could have to show them all */
         req_chars = non_sci_digs;
+    }
+
+    /* 
+     *   Now add overhead space for the sign symbol, a leading zero, a
+     *   decimal point, an 'E' for the exponent, an exponent sign, and up to
+     *   five digits for the exponent (16-bit integer -> -32768 to 32767).
+     *   Also allow an extra character in case we need to add a digit due to
+     *   rounding.  
+     */
     req_chars += 11;
 
     /*
@@ -1206,19 +2893,30 @@ char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
         req_chars += frac_digits;
 
     /* check to see if the caller passed in a buffer */
-    if (buf != 0)
+    if (buf == 0 || buflen < req_chars + VMB_LEN)
     {
-        /* 
-         *   the caller passed in a buffer - if it's not big enough to
-         *   hold the result, return failure 
+        /*
+         *   Either the caller didn't pass us a buffer at all, or it's not
+         *   big enough.  If the caller can accept a new String object as the
+         *   buffer, create the String; otherwise it's an error. 
          */
-        if (buflen < req_chars + VMB_LEN)
+        if (new_str != 0)
+        {
+            /* allocate a new string, and use it as the result buffer */
+            buf = CVmObjString::alloc_str_buf(vmg_ new_str, 0, 0, req_chars);
+            buflen = req_chars;
+        }
+        else
+        {
+            /* we have no where to put the result - return failure */
             return 0;
+        }
     }
     else
     {
-        /* no buffer - allocate a new string */
-        buf = CVmObjString::alloc_str_buf(vmg_ new_str, 0, 0, req_chars);
+        /* we're going to use the caller's buffer, so there's no new string */
+        if (new_str != 0)
+            new_str->set_nil();
     }
 
     /* check for special values */
@@ -1231,27 +2929,27 @@ char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
     case VMBN_T_NAN:
         /* not a number - show "1.#NAN" */
         strcpy(buf + VMB_LEN, "1.#NAN");
-        oswp2(buf, 6);
+        vmb_put_len(buf, 6);
         return buf;
 
     case VMBN_T_INF:
         /* positive or negative infinity */
         if (get_neg(ext))
         {
-            strcpy(buf + VMB_LEN, "-1.#INF");
-            oswp2(buf, 7);
+            memcpy(buf + VMB_LEN, "-1.#INF", 7);
+            vmb_put_len(buf, 7);
         }
         else
         {
-            strcpy(buf + VMB_LEN, "1.#INF");
-            oswp2(buf, 6);
+            memcpy(buf + VMB_LEN, "1.#INF", 6);
+            vmb_put_len(buf, 6);
         }
         return buf;
 
     default:
         /* other values are not valid */
-        strcpy(buf + VMB_LEN, "1.#???");
-        oswp2(buf, 6);
+        memcpy(buf + VMB_LEN, "1.#???", 6);
+        vmb_put_len(buf, 6);
         return buf;
     }
 
@@ -1267,9 +2965,14 @@ char *CVmObjBigNum::cvt_to_string_gen(VMG_ vm_val_t *new_str,
          *   limit the new precision to the maximum digits to be shown, or
          *   our existing precision, whichever is lower 
          */
-        new_prec = max_digits;
-        if (prec < new_prec)
+        if (max_digits < 0)
             new_prec = prec;
+        else
+        {
+            new_prec = max_digits;
+            if (prec < new_prec)
+                new_prec = prec;
+        }
 
         /* allocate the space */
         alloc_temp_regs(vmg_ (size_t)new_prec, 1, &tmp_ext, &tmp_hdl);
@@ -1315,18 +3018,26 @@ start_over:
      *   if the digits before the decimal point exceed our maximum number
      *   of digits allowed, we'll need to use exponential format
      */
-    if (dig_before_pt > max_digits)
+    if (max_digits >= 0 && dig_before_pt > max_digits)
     {
         always_exp = TRUE;
         goto start_over;
     }
 
     /* 
-     *   Limit digits after the decimal point according to the maximum
-     *   digits allowed and the number we'll show before the decimal
-     *   point.
+     *   Limit digits after the decimal point according to the maximum digits
+     *   allowed and the number we'll show before the decimal point.  If we
+     *   have an explicit number of fractional digits to show, that overrides
+     *   the limit.  
      */
-    dig_after_pt = max_digits - dig_before_pt;
+    if (max_digits >= 0)
+        dig_after_pt = max_digits - dig_before_pt;
+    else if (frac_digits >= 0)
+        dig_after_pt = frac_digits;
+    else if (prec > dig_before_pt)
+        dig_after_pt = prec - dig_before_pt;
+    else
+        dig_after_pt = 0;
 
     /* start writing after the buffer length prefix */
     p = buf + VMB_LEN;
@@ -1415,10 +3126,8 @@ start_over:
      */
     if (get_neg(ext))
         *p++ = '-';
-    else if (always_sign)
-        *p++ = '+';
-    else if (pos_lead_space)
-        *p++ = ' ';
+    else if (plus_sign != '\0')
+        *p++ = plus_sign;
 
     /* 
      *   if we have no digits before the decimal, and we're adding a
@@ -1429,8 +3138,17 @@ start_over:
         /* add the leading zero */
         *p++ = '0';
 
-        /* reduce the limit on the digits after the decimal point */
-        --dig_after_pt;
+        /* 
+         *   If we have a total digit limit, reduce the limit on the digits
+         *   after the decimal point, since this leading zero comes out of
+         *   our overall digit budget.  This doesn't apply if max_digits is
+         *   the number of significant digits.  
+         */
+        if (max_digits >= 0 && !max_sig)
+            --dig_after_pt;
+
+        /* count it in the output counter for all digits */
+        all_out_cnt++;
     }
 
     /*
@@ -1445,7 +3163,9 @@ start_over:
      *   exponential format won't give us any more room - in such cases we
      *   simply have an impossible request.  
      */
-    if (!always_exp && frac_digits != -1 && dig_after_pt < frac_digits
+    if (max_digits >=0 && !always_exp
+        && frac_digits != -1
+        && dig_after_pt < frac_digits
         && dig_before_pt > 1)
     {
         /* switch to exponential format and start over */
@@ -1469,11 +3189,24 @@ start_over:
 
         /* add it to the string */
         *p++ = (dig + '0');
+
+        /* count it */
+        all_out_cnt++;
+        if (dig != 0 || sig_out_cnt != 0)
+            sig_out_cnt++;
     }
 
-    /* if we ran out of precision, add zeroes */
+    /* if we ran out of precision, add zeros */
     for ( ; idx < dig_before_pt ; ++idx)
+    {
+        /* add the zero */
         *p++ = '0';
+
+        /* count it */
+        all_out_cnt++;
+        if (sig_out_cnt != 0)
+            sig_out_cnt++;
+    }
 
     /* 
      *   Add the decimal point.  Show the decimal point unless
@@ -1501,7 +3234,7 @@ start_over:
         {
             /* 
              *   for now assume we'll show the point; we'll take it back
-             *   out if we don't encounter anything but zeroes 
+             *   out if we don't encounter anything but zeros 
              */
             show_pt = TRUE;
         }
@@ -1516,8 +3249,8 @@ start_over:
 
         /* 
          *   remember the current position as the last trailing non-zero -
-         *   if we don't find anything but zeroes and decide to remove the
-         *   trailing zeroes, we'll also remove the decimal point by
+         *   if we don't find anything but zeros and decide to remove the
+         *   trailing zeros, we'll also remove the decimal point by
          *   coming back here 
          */
         last_non_zero = p;
@@ -1547,22 +3280,31 @@ start_over:
 
         /* 
          *   if we haven't yet reached the first non-zero digit, display
-         *   as many zeroes as necessary 
+         *   as many zeros as necessary 
          */
         if (idx == 0 && exp < 0)
         {
             int cnt;
 
             /* 
-             *   display leading zeroes based no the exponent: if exp is
+             *   display leading zeros based no the exponent: if exp is
              *   zero, we don't need any; if exp is -1, we need one; if
              *   exp is -2, we need two, and so on 
              */
-            for (cnt = exp ; cnt != 0 && frac_len < frac_lim ;
-                 ++cnt, ++frac_len)
+            for (cnt = exp ; cnt != 0 && frac_len < frac_lim ; ++cnt)
             {
                 /* add a zero */
                 *p++ = '0';
+
+                /* 
+                 *   if we're counting all digits (not just significant
+                 *   digits), count this digit against the total 
+                 */
+                if (!max_sig)
+                    ++frac_len;
+
+                /* count it in the total digits out */
+                all_out_cnt++;
             }
         }
 
@@ -1577,24 +3319,62 @@ start_over:
 
             /* 
              *   if it's not a zero, note the location - if we decide to
-             *   trim trailing zeroes, we'll want to keep at least this
+             *   trim trailing zeros, we'll want to keep at least this
              *   much, since this is a significant trailing digit 
              */
             if (dig != 0)
                 last_non_zero = p;
+
+            /* count it */
+            all_out_cnt++;
+            if (dig != 0 || sig_out_cnt != 0)
+                sig_out_cnt++;
+        }
+
+        /*
+         *   If the "keep trailing zeros" flag is set, and there's a
+         *   max_digits quota that we haven't filled, add trailing zeros as
+         *   needed. 
+         */
+        if ((flags & VMBN_FORMAT_TRAILING_ZEROS) != 0 && max_digits >= 0)
+        {
+            /* 
+             *   fill out the request: if max_digits is stated in significant
+             *   digits, count the number of significant digits we've written
+             *   so far, otherwise count all digits written so far 
+             */
+            for (int i = max_sig ? sig_out_cnt : all_out_cnt ;
+                 i < max_digits ; ++i)
+            {
+                /* add a digit */
+                *p++ = '0';
+
+                /* count it */
+                all_out_cnt++;
+                if (sig_out_cnt != 0)
+                    sig_out_cnt++;
+            }
         }
 
         /* 
-         *   add the trailing zeroes if we ran out of precision before we
+         *   add the trailing zeros if we ran out of precision before we
          *   filled the requested number of places 
          */
         if (frac_digits != -1)
         {
-            /* fill out the remaining request length with zeroes */
+            /* fill out the remaining request length with zeros */
             for ( ; frac_len < frac_lim ; ++frac_len)
+            {
+                /* add a zero */
                 *p++ = '0';
+
+                /* count it */
+                all_out_cnt++;
+                if (sig_out_cnt != 0)
+                    sig_out_cnt++;
+            }
         }
-        else
+        else if (!(flags & VMBN_FORMAT_TRAILING_ZEROS))
         {
             char *p1;
             
@@ -1607,13 +3387,11 @@ start_over:
             
             /* 
              *   We can use whatever length we like, so remove meaningless
-             *   trailing zeroes.  Before we do this, though, make sure we
-             *   aren't rounding up the last trailing zero - if the next
-             *   digit is 5 or higher, we'll round the final zero to a 1.  
+             *   trailing zeros.  Before we do this, though, make sure we
+             *   aren't rounding up the last trailing zero - if we need to
+             *   round the last digit up, the final zero is really a 1.  
              */
-            if (p > last_non_zero
-                && idx < prec
-                && get_dig(ext, idx) >= 5)
+            if (p > last_non_zero && get_round_dir(ext, idx))
             {
                 /* 
                  *   That last zero is significant after all, since we're
@@ -1627,7 +3405,7 @@ start_over:
 
             /*   
              *   We've checked for rounding in the last digit, so we can now
-             *   safely remove meaningless trailing zeroes.  If this leaves a
+             *   safely remove meaningless trailing zeros.  If this leaves a
              *   completely empty buffer, not counting a sign and/or a
              *   decimal point, it means that we have a fractional number
              *   that we're showing without an exponent, and the number of
@@ -1657,11 +3435,8 @@ start_over:
         }
     }
 
-    /*
-     *   Check for rounding.  If another digit remains, and that digit is
-     *   greater than or equal to 5, round up.  
-     */
-    if (idx < prec && get_dig(ext, idx) >= 5)
+    /* if necessary, round up at the last digit */
+    if (get_round_dir(ext, idx))
     {
         char *rp;
         int need_carry;
@@ -1731,55 +3506,15 @@ start_over:
          */
         if (need_carry)
         {
-            int carry;
-
-            /* 
-             *   clear the digit that provoked the rounding - we don't
-             *   want to round again on the next iteration 
-             */
+            /* truncate at this digit, and round up what we're keeping */
             set_dig(tmp_ext, idx, 0);
-            
-            /* round up the number starting at the previous digit */
-            for (carry = TRUE ; idx != 0 ; )
-            {
-                /* move to the previous digit */
-                --idx;
-
-                /* if this digit is a 9, we'll need to carry */
-                if (get_dig(tmp_ext, idx) == 9)
-                {
-                    /* adjust this digit and keep going */
-                    set_dig(tmp_ext, idx, 0);
-                }
-                else
-                {
-                    /* bump this digit up one */
-                    set_dig(tmp_ext, idx, get_dig(tmp_ext, idx) + 1);
-                    
-                    /* we're done */
-                    carry = FALSE;
-                    break;
-                }
-            }
-
-            /* if we need to carry one more place, shift it */
-            if (carry)
-            {
-                /* shift the number */
-                shift_right(tmp_ext, 1);
-
-                /* adjust the exponent accordingly */
-                set_exp(tmp_ext, get_exp(tmp_ext) + 1);
-
-                /* insert the leading 1 */
-                set_dig(tmp_ext, 0, 1);
-            }
+            round_up_abs(tmp_ext, idx);
 
             /* 
              *   if this pushes us over the maximum digit range, switch to
              *   scientific notation 
              */
-            if (dig_cnt + 1 > max_digits)
+            if (max_digits >= 0 && dig_cnt + 1 > max_digits)
                 always_exp = TRUE;
 
             /* go back and start over */
@@ -1828,12 +3563,12 @@ start_over:
         }
         else
         {
-            char buf[20];
+            char expbuf[20];
             char *ep;
             int dig_cnt;
 
             /* build the exponent in reverse */
-            for (dig_cnt = 0, ep = buf + sizeof(buf) ; disp_exp != 0 ;
+            for (dig_cnt = 0, ep = expbuf + sizeof(expbuf) ; disp_exp != 0 ;
                  disp_exp /= 10, ++dig_cnt)
             {
                 /* move back one character */
@@ -1843,7 +3578,7 @@ start_over:
                 *ep = (disp_exp % 10) + '0';
             }
 
-            /* if necessary, add leading zeroes to the exponent */
+            /* if necessary, add leading zeros to the exponent */
             if (exp_digits != -1 && exp_digits > dig_cnt)
             {
                 for ( ; dig_cnt < exp_digits ; ++dig_cnt)
@@ -1851,19 +3586,17 @@ start_over:
             }
 
             /* copy the exponent into the output */
-            for ( ; ep < buf + sizeof(buf) ; ++ep)
+            for ( ; ep < expbuf + sizeof(expbuf) ; ++ep)
                 *p++ = *ep;
         }
     }
-
-    /* set the string length */
-    vmb_put_len(buf, p - (buf + VMB_LEN));
 
     /* if we allocated a temporary register, free it */
     if (tmp_ext != 0)
         release_temp_regs(vmg_ 1, tmp_hdl);
 
-    /* return the string buffer */
+    /* set the string length and return the buffer */
+    vmb_put_len(buf, p - buf - VMB_LEN);
     return buf;
 }
 
@@ -2081,7 +3814,7 @@ void CVmObjBigNum::normalize(char *ext)
             /* note the location of the first non-zero digit */
             nonzero_idx = idx;
 
-            /* note that the number isn't all zeroes */
+            /* note that the number isn't all zeros */
             all_zero = FALSE;
 
             /* no need to keep searching */
@@ -2089,8 +3822,8 @@ void CVmObjBigNum::normalize(char *ext)
         }
     }
 
-    /* if it's zero, set the canonical zero format */
-    if (all_zero)
+    /* if it's zero or underflows, set the canonical zero format */
+    if (all_zero || get_exp(ext) - nonzero_idx < -32768)
     {
         /* set the value to zero */
         set_zero(ext);
@@ -2110,67 +3843,7 @@ void CVmObjBigNum::normalize(char *ext)
 }
 
 /*
- *   Round the value up - increments the least significant digit
- */
-void CVmObjBigNum::round_up_abs(char *ext)
-{
-    int idx;
-    int carry;
-
-    /* 
-     *   Scan from least significant and apply the rounding.  Keep going
-     *   until we reach the most significant digit.  
-     */
-    for (carry = TRUE, idx = get_prec(ext) ; idx != 0 ; )
-    {
-        int dig;
-        
-        /* move to the next position */
-        --idx;
-
-        /* get the digit at this position */
-        dig = get_dig(ext, idx);
-
-        /* check to see if we'll need to carry past this digit */
-        if (dig == 9)
-        {
-            /* set it to zero and keep going to do the carry */
-            set_dig(ext, idx, 0);
-        }
-        else
-        {
-            /* increment this digit */
-            set_dig(ext, idx, dig + 1);
-
-            /* no need to carry - note it and stop looping */
-            carry = FALSE;
-            break;
-        }
-    }
-
-    /* 
-     *   if we carried past the most significant digit, we must shift the
-     *   value right, dropping the least significant digit, and insert a
-     *   leading 1 
-     */
-    if (carry)
-    {
-        /* shift the mantissa */
-        shift_right(ext, 1);
-
-        /* compensate for the shift in the exponent */
-        set_exp(ext, get_exp(ext) + 1);
-
-        /* insert the leading 1 */
-        set_dig(ext, 0, 1);
-    }
-
-    /* we know the value is non-zero now */
-    ext[VMBN_FLAGS] &= ~VMBN_F_ZERO;
-}
-
-/*
- *   Copy a value, extending with zeroes if expanding, or truncating or
+ *   Copy a value, extending with zeros if expanding, or truncating or
  *   rounding, as desired, if the precision changes 
  */
 void CVmObjBigNum::copy_val(char *dst, const char *src, int round)
@@ -2206,11 +3879,8 @@ void CVmObjBigNum::copy_val(char *dst, const char *src, int round)
                (VMBN_MANT - VMBN_EXP) + (dst_prec + 1)/2);
 
         /* check for rounding */
-        if (round && dst_prec < src_prec && get_dig(src, dst_prec) >= 5)
-        {
-            /* round the value */
+        if (round && get_round_dir(src, dst_prec))
             round_up_abs(dst);
-        }
     }
 }
 
@@ -2222,7 +3892,6 @@ void CVmObjBigNum::mul_by_long(char *ext, unsigned long val)
     size_t idx;
     size_t prec = get_prec(ext);
     unsigned long carry = 0;
-    int trail_dig = 0;
     
     /* 
      *   start at the least significant digit and work up through the
@@ -2249,10 +3918,17 @@ void CVmObjBigNum::mul_by_long(char *ext, unsigned long val)
     }
 
     /* if we have a carry left over, shift it in */
+    int dropped_dig = 0, dropped_val = 0;
     while (carry != 0)
     {
-        /* remember the digit we're dropping */
-        trail_dig = get_dig(ext, prec - 1);
+        /* 
+         *   Note if the previous dropped digit is non-zero, then note the
+         *   newly dropped digit.  dropped_val tells us if there's anything
+         *   non-zero after the last digit, in case the last digit turns out
+         *   to be a 5.  
+         */
+        dropped_val |= dropped_dig;
+        dropped_dig = get_dig(ext, prec - 1);
 
         /* shift the number and adjust the exponent */
         shift_right(ext, 1);
@@ -2265,42 +3941,72 @@ void CVmObjBigNum::mul_by_long(char *ext, unsigned long val)
         carry /= 10;
     }
 
-    /* round up if the dropped trailing digit is 5 or higher */
-    if (trail_dig >= 5)
-        round_up_abs(ext);
+    /* 
+     *   round up if the dropped digits are >5000..., or they're exactly
+     *   5000... and the last digit we're keeping is odd 
+     */
+    round_for_dropped_digits(ext, dropped_dig, dropped_val);
 
     /* normalize the result */
     normalize(ext);
 }
 
 /*
- *   Divide by an integer constant value 
+ *   Divide the magnitude of the number by 2^23.  This is a special case
+ *   of div_by_long() for splitting a number into 32-bit chunks.  Returns
+ *   with the quotient in 'ext', and the remainder in 'remp'.  
  */
-void CVmObjBigNum::div_by_long(char *ext, unsigned long val)
+void CVmObjBigNum::div_by_2e32(char *ext, unsigned long *remp)
 {
     size_t in_idx;
     size_t out_idx;
     int sig;
     size_t prec = get_prec(ext);
     unsigned long rem = 0;
+    int exp = get_exp(ext);
 
-    /*
-     *   start at the most significant digit and work down 
-     */
-    for (rem = 0, sig = FALSE, in_idx = out_idx = 0 ;
-         in_idx < prec || out_idx < prec ; ++in_idx)
+    /* if it's entirely fractional, the result is 0 with remainder 0 */
+    if (exp <= 0)
     {
-        long quo;
-        
-        /* 
-         *   shift this digit into the remainder - if we're past the end
-         *   of the number, shift in an implied trailing zero 
-         */
-        rem *= 10;
-        rem += (in_idx < prec ? get_dig(ext, in_idx) : 0);
+        *remp = 0;
+        set_zero(ext);
+        return;
+    }
 
-        /* calculate the quotient */
-        quo = rem / val;
+    /* start at the most significant digit and work down */
+    for (rem = 0, sig = FALSE, in_idx = out_idx = 0 ;
+         out_idx < prec ; ++in_idx)
+    {
+        /* 
+         *   Multiply the remainder by 10.  10 == (2+8), so this is the sum
+         *   of rem<<1 and rem<<3.  This is handy because it makes it
+         *   relatively easy to calculate the overflow from the 32-bit
+         *   accumulator on 32-bit platforms: the overflow is the sum of the
+         *   high bit and the high three bits, plus the carry from the low
+         *   part.  The low part has a carry of 1 if rem<<1 + rem<<3 exceeds
+         *   0xffffffff, which we can calculate in 32 bits as rem<<1 >
+         *   0xffffffff - rem<<3.  
+         */
+        ulong rem1 = (rem << 1) & 0xffffffff;
+        ulong rem3 = (rem << 3) & 0xffffffff;
+        ulong hi = ((rem >> 31) & 0x00000001)
+                   + ((rem >> 29) & 0x00000007)
+                   + (rem1 > 0xffffffff - rem3 ? 1 : 0);
+        rem = (rem1 + rem3) & 0xffffffff;
+
+        /* 
+         *   Add the current digit into the remainder.  We again need to
+         *   carry the overflow into the high part. 
+         */
+        ulong dig = (in_idx < prec ? get_dig(ext, in_idx) : 0);
+        hi += dig > 0xffffffff - rem ? 1 : 0;
+        rem = (rem + dig) & 0xffffffff;
+
+        /*
+         *   We now have the quotient of rem/2^32 in 'hi', and the remainder
+         *   in 'rem'.
+         */
+        int quo = (int)hi;
 
         /* if the quotient is non-zero, we've found a significant digit */
         if (quo != 0)
@@ -2308,44 +4014,151 @@ void CVmObjBigNum::div_by_long(char *ext, unsigned long val)
 
         /* 
          *   if we've found a significant digit, store it; otherwise, just
-         *   reduce the exponent to account for an implied leading zero
-         *   that we won't actually store 
+         *   reduce the exponent to account for an implied leading zero that
+         *   we won't actually store 
          */
         if (sig)
         {
             /* store the digit */
-            set_dig(ext, out_idx, (int)quo);
+            set_dig(ext, out_idx++, quo);
 
-            /* move on to the next output digit */
-            ++out_idx;
+            /* 
+             *   if we've reached the decimal place, stop here, since we're
+             *   doing integer division 
+             */
+            if ((int)out_idx == exp)
+                break;
         }
         else
         {
-            /* all leading zeroes so far - adjust the exponent */
-            set_exp(ext, get_exp(ext) - 1);
+            /* all leading zeros so far - adjust the exponent */
+            set_exp(ext, --exp);
+
+            /* if this leaves us with a fractional result, we're done */
+            if (exp == 0)
+                break;
         }
 
-        /* calculate the remainder */
+        /* 
+         *   If we've reached the last input digit and the remainder is zero,
+         *   we're done - fill out the rest of the number with trailing
+         *   zeros and stop looping.  If we've reached the decimal point in
+         *   the output, stop here, since we're doing an integer division.  
+         */
+        if (rem == 0 && in_idx >= prec)
+        {
+            /* if we don't have any significant digits, we have a zero */
+            if (!sig)
+            {
+                set_zero(ext);
+                out_idx = prec;
+            }
+
+            /* we have our result */
+            break;
+        }
+    }
+
+    /* fill out the rest of the number with zeros */
+    for ( ; out_idx < prec ; ++out_idx)
+        set_dig(ext, out_idx, 0);
+
+    /* normalize the result */
+    normalize(ext);
+
+    /* pass back the remainder */
+    *remp = rem;
+}
+
+/*
+ *   Divide by an integer constant value.  Note that 'val' must not exceed
+ *   ULONG_MAX/10, because we have to be able to compute intermediate integer
+ *   dividend values up to 10*val.  
+ */
+void CVmObjBigNum::div_by_long(char *ext, unsigned long val,
+                               unsigned long *remp)
+{
+    size_t in_idx;
+    size_t out_idx;
+    int sig;
+    size_t prec = get_prec(ext);
+    unsigned long rem = 0;
+    int exp = get_exp(ext);
+
+    /* 
+     *   if we're doing integer division, and the dividend is entirely
+     *   fractional, the result is 0 with remainder 0 
+     */
+    if (remp != 0 && exp <= 0)
+    {
+        *remp = 0;
+        set_zero(ext);
+        return;
+    }
+
+    /* start at the most significant digit and work down */
+    for (rem = 0, sig = FALSE, in_idx = out_idx = 0 ;
+         out_idx < prec ; ++in_idx)
+    {
+        /* 
+         *   shift this digit into the remainder - if we're past the end
+         *   of the number, shift in an implied trailing zero 
+         */
+        rem *= 10;
+        rem += (in_idx < prec ? get_dig(ext, in_idx) : 0);
+
+        /* calculate the quotient and the next remainder */
+        long quo = rem / val;
         rem %= val;
+
+        /* if the quotient is non-zero, we've found a significant digit */
+        if (quo != 0)
+            sig = TRUE;
+
+        /* 
+         *   if we've found a significant digit, store it; otherwise, just
+         *   reduce the exponent to account for an implied leading zero that
+         *   we won't actually store 
+         */
+        if (sig)
+        {
+            /* store the digit */
+            set_dig(ext, out_idx++, (int)quo);
+
+            /* 
+             *   if we've reached the decimal place, and the caller wants the
+             *   remainder, stop here - the caller wants the integer quotient
+             *   and remainder rather than the full quotient 
+             */
+            if (remp != 0 && (int)out_idx == exp)
+                break;
+        }
+        else
+        {
+            /* all leading zeros so far - adjust the exponent */
+            set_exp(ext, --exp);
+
+            /* 
+             *   if we're doing integer division, and this leaves us with a
+             *   fractional result, we're done 
+             */
+            if (remp != 0 && exp == 0)
+                break;
+        }
 
         /* 
          *   if we've reached the last input digit and the remainder is
          *   zero, we're done - fill out the rest of the number with
-         *   trailing zeroes and stop looping
+         *   trailing zeros and stop looping
          */
         if (rem == 0 && in_idx >= prec)
         {
             /* check to see if we have any significant digits */
-            if (sig)
-            {
-                /* fill out the rest of the number with zeroes */
-                for ( ; out_idx < prec ; ++out_idx)
-                    set_dig(ext, out_idx, 0);
-            }
-            else
+            if (!sig)
             {
                 /* no significant digits - the result is zero */
                 set_zero(ext);
+                out_idx = prec;
             }
 
             /* we have our result */
@@ -2353,14 +4166,32 @@ void CVmObjBigNum::div_by_long(char *ext, unsigned long val)
         }
     }
         
-    /* 
-     *   Round up if the next digit that we can't store is 5 or higher.
-     *   The next digit can be calculated by shifting in the implied
-     *   trailing zero (i.e., multiplying the remainder by 10 and adding
-     *   zero) then dividing it by the divisor.
-     */
-    if ((rem * 10)/val >= 5)
-        round_up_abs(ext);
+    /* fill out any remaining output digits with zeros */
+    for ( ; out_idx < prec ; ++out_idx)
+        set_dig(ext, out_idx, 0);
+
+    /* pass back the remainder if desired */
+    if (remp != 0)
+    {
+        /* hand back the integer remainder */
+        *remp = rem;
+    }
+    else
+    {
+        /*
+         *   We're computing the full-precision quotient, not the quotient
+         *   and remainder.  Round up if the remainder is more than half the
+         *   divisor, or it's exactly half the divisor and the last digit is
+         *   odd.
+         *   
+         *   (This is effectively testing to see if the next digits are
+         *   5000...  or higher.  The next digit is the whole part of
+         *   remainder*10/val, so it's >=5 if remainder/val >= 0.5, which is
+         *   to say remainder >= val/2, or remainder*2 >= val.)  
+         */
+        if (rem*2 > val || (rem*2 == val && (get_dig(ext, prec-1) & 1)))
+            round_up_abs(ext);
+    }
 
     /* normalize the result */
     normalize(ext);
@@ -2478,36 +4309,37 @@ int CVmObjBigNum::getp_format(VMG_ vm_obj_id_t self,
                               vm_val_t *retval, uint *argc)
 {
     int orig_argc = (argc != 0 ? *argc : 0);
-    int max_digits;
+    int max_digits = -1;
     uint flags = 0;
     int whole_places = -1;
     int frac_digits = -1;
     int exp_digits = -1;
     vm_val_t *lead_fill = 0;
-    static CVmNativeCodeDesc desc(1, 5);
+    static CVmNativeCodeDesc desc(0, 6);
     
     /* check arguments */
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
     /* get the maximum digit count */
-    max_digits = CVmBif::pop_int_val(vmg0_);
+    if (orig_argc >= 1)
+        max_digits = CVmBif::pop_int_or_nil(vmg_ -1);
 
     /* get the flags */
     if (orig_argc >= 2)
-        flags = CVmBif::pop_int_val(vmg0_);
+        flags = CVmBif::pop_int_or_nil(vmg_ 0);
 
     /* get the whole places */
     if (orig_argc >= 3)
-        whole_places = CVmBif::pop_int_val(vmg0_);
+        whole_places = CVmBif::pop_int_or_nil(vmg_ -1);
 
     /* get the fraction digits */
     if (orig_argc >= 4)
-        frac_digits = CVmBif::pop_int_val(vmg0_);
+        frac_digits = CVmBif::pop_int_or_nil(vmg_ -1);
 
     /* get the exponent digits */
     if (orig_argc >= 5)
-        exp_digits = CVmBif::pop_int_val(vmg0_);
+        exp_digits = CVmBif::pop_int_or_nil(vmg_ -1);
 
     /* 
      *   get the lead fill string if provided (leave it on the stack to
@@ -2828,23 +4660,14 @@ int CVmObjBigNum::getp_frac(VMG_ vm_obj_id_t self,
                             vm_val_t *retval, uint *argc)
 {
     char *new_ext;
-    size_t idx;
-    int exp = get_exp(ext_);
-    size_t prec = get_prec(ext_);
 
     /* check arguments and allocate the result value */
     if (setup_getp_0(vmg_ self, retval, argc, &new_ext))
         return TRUE;
     
-    /* make a copy in the new object */
-    memcpy(new_ext, ext_, calc_alloc(prec));
-
-    /* clear out the first n digits, where n is the exponent */
-    for (idx = 0 ; idx < prec && (int)idx < exp ; ++idx)
-        set_dig(new_ext, idx, 0);
-
-    /* normalize the result */
-    normalize(new_ext);
+    /* make a copy in the new object, and get the fractional portion */
+    memcpy(new_ext, ext_, calc_alloc(get_prec(ext_)));
+    compute_frac(new_ext);
     
     /* remove my self-reference */
     G_stk->discard();
@@ -2860,32 +4683,14 @@ int CVmObjBigNum::getp_whole(VMG_ vm_obj_id_t self,
                              vm_val_t *retval, uint *argc)
 {
     char *new_ext;
-    size_t idx;
-    int exp = get_exp(ext_);
-    size_t prec = get_prec(ext_);
 
     /* check arguments and allocate the result value */
     if (setup_getp_0(vmg_ self, retval, argc, &new_ext))
         return TRUE;
 
-    /* make a copy in the new object */
-    memcpy(new_ext, ext_, calc_alloc(prec));
-
-    /* check what we have */
-    if (exp <= 0)
-    {
-        /* it's an entirely fractional number - the result is zero */
-        set_zero(new_ext);
-    }
-    else
-    {
-        /* clear digits after the decimal point */
-        for (idx = (size_t)exp ; idx < prec ; ++idx)
-            set_dig(new_ext, idx, 0);
-
-        /* normalize the result */
-        normalize(new_ext);
-    }
+    /* make a copy in the new object, and get the whole part */
+    memcpy(new_ext, ext_, calc_alloc(get_prec(ext_)));
+    compute_whole(new_ext);
 
     /* remove my self-reference */
     G_stk->discard();
@@ -2948,61 +4753,8 @@ int CVmObjBigNum::getp_round_dec(VMG_ vm_obj_id_t self,
     }
     else
     {
-        int need_to_round;
-        size_t idx;
-        
-        /* 
-         *   the digit after the last digit is part of the number - note
-         *   it so we can tell if we need to round later
-         */
-        need_to_round = (get_dig(new_ext, post_idx) >= 5);
-        
-        /* set all of the digits to be elided to zero */
-        for (idx = (size_t)post_idx ; idx < prec ; ++idx)
-            set_dig(new_ext, idx, 0);
-
-        /* if we need to round, do so now */
-        if (need_to_round)
-        {
-            int carry;
-            
-            /* increment the last digit, and apply carry as far as needed */
-            for (carry = TRUE, idx = (size_t)post_idx ; idx != 0 ; )
-            {
-                /* move to the next digit */
-                --idx;
-
-                /* check to see if we need to carry */
-                if (get_dig(new_ext, idx) == 9)
-                {
-                    /* set it to zero, then keep going to carry */
-                    set_dig(new_ext, idx, 0);
-                }
-                else
-                {
-                    /* increment the digit */
-                    set_dig(new_ext, idx, get_dig(new_ext, idx) + 1);
-
-                    /* no need to carry */
-                    carry = FALSE;
-                    break;
-                }
-            }
-
-            /* if we needed to carry, insert a leading 1 */
-            if (carry)
-            {
-                /* shift the number right one place */
-                shift_right(new_ext, 1);
-
-                /* adjust the exponent upwards */
-                ++exp;
-                set_exp(new_ext, exp);
-
-                /* insert the leading 1 */
-                set_dig(new_ext, 0, 1);
-            }
-        }
+        /* round it */
+        round_to(new_ext, post_idx);
 
         /* normalize the result */
         normalize(new_ext);
@@ -3049,7 +4801,7 @@ int CVmObjBigNum::getp_abs(VMG_ vm_obj_id_t self,
      *   if I'm negative infinity, we don't need any precision in the new
      *   value 
      */
-    if (get_type(ext_) == VMBN_T_INF)
+    if (is_infinity(ext_))
         prec = 1;
 
     /* create a new number with the same precision as the original */
@@ -3989,11 +5741,6 @@ int CVmObjBigNum::getp_deg2rad(VMG_ vm_obj_id_t self,
     /* divide pi by 180 */
     div_by_long(ext1, 180);
 
-    /* go back to our working precision, rounding if necessary */
-    set_prec(ext1, prec);
-    if (get_dig(ext1, prec) >= 5)
-        round_up_abs(ext1);
-
     /* multiply our value by pi/180 */
     compute_prod_into(new_ext, ext_, ext1);
 
@@ -4037,11 +5784,6 @@ int CVmObjBigNum::getp_rad2deg(VMG_ vm_obj_id_t self,
 
         /* divide pi by 180 */
         div_by_long(ext1, 180);
-
-        /* go back to our working precision, rounding if necessary */
-        set_prec(ext1, prec);
-        if (get_dig(ext1, prec) >= 5)
-            round_up_abs(ext1);
 
         /* divide by pi/180 */
         compute_quotient_into(vmg_ new_ext, 0, ext_, ext1);
@@ -4301,7 +6043,16 @@ char *CVmObjBigNum::calc_asin_series(char *ext1, char *ext2,
         for (i = 3 ; i < n ; i += 2)
             mul_by_long(ext4, i);
         
-        /* divide by even numbers up to and including n-1 */
+        /* 
+         *   Divide by even numbers up to and including n-1.  Note that we
+         *   use div_by_long() because it's faster than using a BigNumber
+         *   divisor.  div_by_long() has a limit of ULONG_MAX/10 for the
+         *   divisor; we shouldn't have to worry about exceeding that, since
+         *   our maximum precision is 64k digits.  The series will converge
+         *   to our maximum precision long before 'i' gets close to
+         *   ULONG_MAX/10.  (Even if not, computing billions of series terms
+         *   would take so long that we'd never get there anyway.)  
+         */
         for (i = 2 ; i < n ; i += 2)
             div_by_long(ext4, i);
         
@@ -4466,7 +6217,12 @@ int CVmObjBigNum::getp_atan(VMG_ vm_obj_id_t self,
                 /* copy the current power term from r2 into r4 */
                 copy_val(ext4, ext2, FALSE);
 
-                /* divide by the current term constant */
+                /* 
+                 *   divide by the current term constant (we will never have
+                 *   to compute billions of terms to reach our maximum
+                 *   possible 64k digits of precision, so 'n' will always be
+                 *   way less than the div_by_long limit of ULONG_MAX/10) 
+                 */
                 div_by_long(ext4, n);
 
                 /* negate this term if necessary */
@@ -4890,6 +6646,103 @@ int CVmObjBigNum::calc_sinhcosh(VMG_ vm_obj_id_t self,
 }
 
 /* ------------------------------------------------------------------------ */
+/* 
+ *   Compute the fractional part of a number (replacing the value in place).
+ *   This effectively subtracts the integer portion of the number, leaving
+ *   only the fractional portion.  
+ */
+void CVmObjBigNum::compute_frac(char *ext)
+{
+    /* get the exponent and precision */
+    int exp = get_exp(ext);
+    size_t prec = get_prec(ext);
+
+    /* clear out the first n digits, where n is the exponent */
+    for (size_t idx = 0 ; idx < prec && (int)idx < exp ; ++idx)
+        set_dig(ext, idx, 0);
+
+    /* normalize the result */
+    normalize(ext);
+}
+
+/*
+ *   Get the whole part of a number (replacing the value in place).  This
+ *   truncates the number to its integer portion, with no rounding.  
+ */
+void CVmObjBigNum::compute_whole(char *ext)
+{
+    /* get the exponent and precision */
+    int exp = get_exp(ext);
+    size_t prec = get_prec(ext);
+
+    /* check what we have */
+    if (exp <= 0)
+    {
+        /* it's an entirely fractional number - the result is zero */
+        set_zero(ext);
+    }
+    else
+    {
+        /* clear digits after the decimal point */
+        for (size_t idx = (size_t)exp ; idx < prec ; ++idx)
+            set_dig(ext, idx, 0);
+
+        /* normalize the result */
+        normalize(ext);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   property evaluator - numType: get the number type information
+ */
+
+/* 
+ *   number types defined in bignum.h - these are part of the public API, so
+ *   they can't be changed 
+ */
+#define NumTypeNum    0x0001
+#define NumTypeNAN    0x0002
+#define NumTypePInf   0x0004
+#define NumTypeNInf   0x0008
+#define NumTypePZero  0x0010
+#define NumTypeNZero  0x0020
+
+
+int CVmObjBigNum::getp_numType(VMG_ vm_obj_id_t self,
+                               vm_val_t *retval, uint *argc)
+{
+    /* check arguments */
+    static CVmNativeCodeDesc desc(0);
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* set the appropriate flags */
+    switch (get_type(ext_))
+    {
+    case VMBN_T_NUM:
+        retval->set_int(NumTypeNum
+                        | (is_zero(ext_)
+                           ? (get_neg(ext_) ? NumTypeNZero : NumTypePZero)
+                           : 0));
+        break;
+
+    case VMBN_T_INF:
+        retval->set_int(get_neg(ext_) ? NumTypeNInf : NumTypePInf);
+        break;
+
+    case VMBN_T_NAN:
+    default:
+        retval->set_int(NumTypeNAN);
+        break;
+    }
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
 /*
  *   Compute a natural logarithm 
  */
@@ -5031,7 +6884,11 @@ char *CVmObjBigNum::compute_ln_series_into(VMG_ char *ext1, char *ext2,
         /* advance n */
         n += 2;
         
-        /* divide the power by n */
+        /* 
+         *   divide the power by n (we will never have to compute billions of
+         *   terms to get our maximum 64k digits of precision, so 'n' will
+         *   always be way less than the div_by_long limit of ULONG_MAX/10) 
+         */
         div_by_long(ext2, n);
         
         /* if it's too small to notice, we're done */
@@ -5068,7 +6925,7 @@ void CVmObjBigNum::compute_exp_into(VMG_ char *dst, const char *src)
     /* get the constant value of ln10 to the required precision */
     ln10 = cache_ln10(vmg_ prec + 3);
 
-    /* allocate some temporary registers */
+    /* allocate temporary registers */
     alloc_temp_regs(vmg_ prec + 3, 6,
                     &ext1, &hdl1, &ext2, &hdl2, &ext3, &hdl3,
                     &ext4, &hdl4, &ext5, &hdl5, &ext6, &hdl6);
@@ -5177,28 +7034,35 @@ void CVmObjBigNum::compute_exp_into(VMG_ char *dst, const char *src)
         compute_prod_into(ext3, ext1, ln10);
 
         /* 
-         *   While our input value is greater than 0.5, divide it by two
-         *   to make it smaller than 0.5.  This will speed up the series
-         *   convergence.  When we're done, we'll correct for the
-         *   divisions my squaring the result: e^2x = (e^x)^2 
+         *   While our input value is greater than 0.5, divide it by two to
+         *   make it smaller than 0.5.  This will speed up the series
+         *   convergence.  When we're done, we'll correct for the divisions
+         *   by squaring the result the same number of times that we halved
+         *   'x', because e^2x = (e^x)^2.
          */
         copy_val(ext1, get_one(), FALSE);
         div_by_long(ext1, 2);
         for (twos = 0 ; compare_abs(ext3, ext1) > 0 ; ++twos)
             div_by_long(ext3, 2);
 
-        /* start with 1 in our accumulator (r1) */
-        copy_val(ext1, get_one(), FALSE);
+        /* 
+         *   Start with 1+x in our accumulator (r1).  This unrolls the
+         *   trivial first two steps of the loop, where n=0 (term=1) and n=1
+         *   (term=x). 
+         */
+        copy_val(ext2, get_one(), FALSE);
+        compute_sum_into(ext1, ext2, ext3);
 
-        /* copy our series argument into the current-power register (r2) */
-        copy_val(ext2, ext3, FALSE);
+        /* get term n=2 (x^2) into the current-power register (r2) */
+        compute_prod_into(ext2, ext3, ext3);
 
-        /* start with 1 in our factorial register (r4) */
+        /* start with 2 in our factorial register (r4) */
         copy_val(ext4, get_one(), FALSE);
+        mul_by_long(ext4, 2);
 
-        /* start at the first term */
-        n = 1;
-        n_fact = 1;
+        /* start at term n=2, n! = 2 */
+        n = 2;
+        n_fact = 2;
         use_int_fact = TRUE;
 
         /* go until we reach the required precision */
@@ -5215,7 +7079,7 @@ void CVmObjBigNum::compute_exp_into(VMG_ char *dst, const char *src)
                 div_by_long(ext5, n_fact);
 
                 /* calculate the next n! integer, if it'll fit in a long */
-                if (n_fact > LONG_MAX/(n+1))
+                if (n_fact > LONG_MAX/10/(n+1))
                 {
                     /* 
                      *   it'll be too big next time - we'll have to start
@@ -5446,12 +7310,17 @@ const char *CVmObjBigNum::cache_ln10(VMG_ size_t prec)
     err_try
     {
         /* 
-         *   Compute sqrt(10) - 10 is too large for the series to
-         *   converge, but sqrt(10) is good.  We'll correct for this later
-         *   by doubling the result of the series expansion, which gives
-         *   us the correct result: ln(a^b) = b*ln(a), and sqrt(x) =
-         *   x^(1/2), hence ln(sqrt(x)) = ln(x)/2, which means that ln(x)
-         *   = 2*ln(sqrt(x)).  
+         *   Compute sqrt(10) - 10 is too large for the series to converge,
+         *   but sqrt(10) is good.  We'll correct for this later by doubling
+         *   the result of the series expansion, which gives us the correct
+         *   result: ln(a^b) = b*ln(a), and sqrt(x) = x^(1/2), hence
+         *   ln(sqrt(x)) = ln(x)/2, which means that ln(x) = 2*ln(sqrt(x)).
+         *   
+         *   Note that we have to do this the hard way, by explicitly doing
+         *   the ln series rather than just calling compute_ln_into() to get
+         *   the value directly.  Why?  Because compute_ln_into() needs the
+         *   cached value of ln(10) to do its work.  If we called
+         *   compute_ln_into() here, we'd get stuck in a recursion loop.  
          */
 
         /* compute sqrt(10), for quick series convergence */
@@ -5473,6 +7342,37 @@ const char *CVmObjBigNum::cache_ln10(VMG_ size_t prec)
         release_temp_regs(vmg_ 5, hdl1, hdl2, hdl3, hdl4, hdl5);
     }
     err_end;
+
+    /* return the register pointer */
+    return ext;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Cache the natural logarithm of 2 to the given precision and return the
+ *   value 
+ */
+const char *CVmObjBigNum::cache_ln2(VMG_ size_t prec)
+{
+    char *ext;
+    int expanded;
+    static const unsigned char two[] = { 0x01, 0x00, 0x01, 0x00, 0x00, 0x20 };
+
+    /* round up the precision to minimize recalculations */
+    prec = (prec + 7) & ~7;
+
+    /* get the ln2 cache register */
+    ext = G_bignum_cache->get_ln2_reg(calc_alloc(prec), &expanded);
+    if (ext == 0)
+        err_throw(VMERR_OUT_OF_MEMORY);
+
+    /* if we had a cached value with enough precision, return it */
+    if (!expanded && get_prec(ext) >= prec)
+        return ext;
+
+    /* reallocated - set the new precision and recalculate ln2 */
+    set_prec(ext, prec);
+    compute_ln_into(vmg_ ext, (const char *)two);
 
     /* return the register pointer */
     return ext;
@@ -5610,6 +7510,64 @@ const char *CVmObjBigNum::cache_e(VMG_ size_t prec)
     /* return the register pointer */
     return ext;
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Cache DBL_MAX 
+ */
+const char *CVmObjBigNum::cache_dbl_max(VMG0_)
+{
+    /* get the cache register; use the platform precision for a double */
+    size_t prec = DBL_DIG;
+    int expanded;
+    char *ext = G_bignum_cache->get_dbl_max_reg(calc_alloc(prec), &expanded);
+
+    /* if that failed, throw an error */
+    if (ext == 0)
+        err_throw(VMERR_OUT_OF_MEMORY);
+
+    /* if we got a previously cached value, return it */
+    if (!expanded && get_prec(ext) >= prec)
+        return ext;
+
+    /* we allocated or reallocated the register, so set the new precision */
+    set_prec(ext, prec);
+
+    /* store DBL_MAX in the register */
+    set_double_val(ext, DBL_MAX);
+
+    /* return the register */
+    return ext;
+}
+
+/*
+ *   Cache DBL_MIN 
+ */
+const char *CVmObjBigNum::cache_dbl_min(VMG0_)
+{
+    /* get the cache register; use the platform precision for a double */
+    size_t prec = DBL_DIG;
+    int expanded;
+    char *ext = G_bignum_cache->get_dbl_min_reg(calc_alloc(prec), &expanded);
+
+    /* if that failed, throw an error */
+    if (ext == 0)
+        err_throw(VMERR_OUT_OF_MEMORY);
+
+    /* if we got a previously cached value, return it */
+    if (!expanded && get_prec(ext) >= prec)
+        return ext;
+
+    /* we allocated or reallocated the register, so set the new precision */
+    set_prec(ext, prec);
+
+    /* store DBL_MIN in the register */
+    set_double_val(ext, DBL_MIN);
+
+    /* return the register */
+    return ext;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -5955,7 +7913,7 @@ void CVmObjBigNum::calc_cos_series(VMG_ char *new_ext, char *ext1,
 /* 
  *   add a value 
  */
-void CVmObjBigNum::add_val(VMG_ vm_val_t *result,
+int CVmObjBigNum::add_val(VMG_ vm_val_t *result,
                            vm_obj_id_t self, const vm_val_t *val)
 {
     vm_val_t val2;
@@ -5977,13 +7935,16 @@ void CVmObjBigNum::add_val(VMG_ vm_val_t *result,
 
     /* discard the GC protection items */
     G_stk->discard(2);
+
+    /* handled */
+    return TRUE;
 }
 
 /* 
  *   subtract a value 
  */
-void CVmObjBigNum::sub_val(VMG_ vm_val_t *result,
-                           vm_obj_id_t self, const vm_val_t *val)
+int CVmObjBigNum::sub_val(VMG_ vm_val_t *result,
+                          vm_obj_id_t self, const vm_val_t *val)
 {
     vm_val_t val2;
 
@@ -6004,13 +7965,16 @@ void CVmObjBigNum::sub_val(VMG_ vm_val_t *result,
 
     /* discard the GC protection items */
     G_stk->discard(2);
+
+    /* handled */
+    return TRUE;
 }
 
 /* 
  *   multiply a value 
  */
-void CVmObjBigNum::mul_val(VMG_ vm_val_t *result,
-                           vm_obj_id_t self, const vm_val_t *val)
+int CVmObjBigNum::mul_val(VMG_ vm_val_t *result,
+                          vm_obj_id_t self, const vm_val_t *val)
 {
     vm_val_t val2;
 
@@ -6031,13 +7995,16 @@ void CVmObjBigNum::mul_val(VMG_ vm_val_t *result,
 
     /* discard the GC protection items */
     G_stk->discard(2);
+
+    /* handled */
+    return TRUE;
 }
 
 /* 
  *   divide a value 
  */
-void CVmObjBigNum::div_val(VMG_ vm_val_t *result,
-                           vm_obj_id_t self, const vm_val_t *val)
+int CVmObjBigNum::div_val(VMG_ vm_val_t *result,
+                          vm_obj_id_t self, const vm_val_t *val)
 {
     vm_val_t val2;
 
@@ -6058,12 +8025,15 @@ void CVmObjBigNum::div_val(VMG_ vm_val_t *result,
 
     /* discard the GC protection items */
     G_stk->discard(2);
+
+    /* handled */
+    return TRUE;
 }
 
 /* 
  *   negate the number
  */
-void CVmObjBigNum::neg_val(VMG_ vm_val_t *result, vm_obj_id_t self)
+int CVmObjBigNum::neg_val(VMG_ vm_val_t *result, vm_obj_id_t self)
 {
     char *new_ext;
     size_t prec = get_prec(ext_);
@@ -6081,14 +8051,14 @@ void CVmObjBigNum::neg_val(VMG_ vm_val_t *result, vm_obj_id_t self)
     {
         /* return myself unchanged */
         result->set_obj(self);
-        return;
+        return TRUE;
     }
 
     /* push a self-reference while we're working */
     G_stk->push()->set_obj(self);
 
     /* if I'm an infinity, we don't need any precision in the result */
-    if (get_type(ext_) == VMBN_T_INF)
+    if (is_infinity(ext_))
         prec = 1;
 
     /* create a new number with the same precision as the original */
@@ -6103,6 +8073,9 @@ void CVmObjBigNum::neg_val(VMG_ vm_val_t *result, vm_obj_id_t self)
 
     /* remove my self-reference */
     G_stk->discard();
+
+    /* handled */
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -6480,7 +8453,7 @@ int CVmObjBigNum::compute_eq_round(VMG_ const char *ext1, const char *ext2)
 /*
  *   Make an exact comparison for equality.  If one value is more precise
  *   than the other, we'll implicitly extend the shorter value to the
- *   right with trailing zeroes.  
+ *   right with trailing zeros.  
  */
 int CVmObjBigNum::compute_eq_exact(const char *ext1, const char *ext2)
 {
@@ -6535,7 +8508,7 @@ int CVmObjBigNum::compute_eq_exact(const char *ext1, const char *ext2)
 
     /* 
      *   compare digits up to the smaller precision, then make sure that
-     *   the larger-precision value's digits are all zeroes from there out 
+     *   the larger-precision value's digits are all zeros from there out 
      */
     for (idx = 0 ; idx < min_prec ; ++idx)
     {
@@ -6544,7 +8517,7 @@ int CVmObjBigNum::compute_eq_exact(const char *ext1, const char *ext2)
             return FALSE;
     }
 
-    /* check the longer one to make sure it's all zeroes */
+    /* check the longer one to make sure it's all zeros */
     if (longer != 0)
     {
         /* scan the remainder of the longer one */
@@ -6562,18 +8535,14 @@ int CVmObjBigNum::compute_eq_exact(const char *ext1, const char *ext2)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Compute the sum of two absolute values into the given buffer
+ *   Compute the sum of two absolute values into the given buffer.
  */
 void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
                                         const char *ext1, const char *ext2)
 {
-    int max_exp;
-    int lo1, hi1;
-    int lo2, hi2;
-    int lo3, hi3;
-    int pos;
-    int carry;
-    int trail_dig;
+    int exp1 = get_exp(ext1), exp2 = get_exp(ext2), new_exp;
+    int prec1 = get_prec(ext1), prec2 = get_prec(ext2);
+    int new_prec = get_prec(new_ext);
 
     /* if one or the other is identically zero, return the other value */
     if (is_zero(ext1))
@@ -6594,20 +8563,20 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
      *   will have the desired effect of dropping the least significant
      *   digits if any digits must be dropped 
      */
-    max_exp = get_exp(ext1);
-    if (get_exp(ext2) > max_exp)
-        max_exp = get_exp(ext2);
-    set_exp(new_ext, max_exp);
+    new_exp = exp1;
+    if (exp2 > new_exp)
+        new_exp = exp2;
+    set_exp(new_ext, new_exp);
 
     /* compute the digit positions at the bounds of each of our values */
-    hi1 = get_exp(ext1) - 1;
-    lo1 = get_exp(ext1) - get_prec(ext1);
+    int hi1 = exp1 - 1;
+    int lo1 = exp1 - prec1;
 
-    hi2 = get_exp(ext2) - 1;
-    lo2 = get_exp(ext2) - get_prec(ext2);
+    int hi2 = exp2 - 1;
+    int lo2 = exp2 - prec2;
 
-    hi3 = get_exp(new_ext) - 1;
-    lo3 = get_exp(new_ext) - get_prec(new_ext);
+    int hi3 = new_exp - 1;
+    int lo3 = new_exp - new_prec;
 
     /*
      *   If one of the values provides a digit one past the end of our
@@ -6618,23 +8587,25 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
      *   significant digits from one of the two inputs - we can't be
      *   cutting off both inputs.  
      */
-    trail_dig = 0;
-    if (lo3-1 >= lo1 && lo3-1 <= hi1)
+    int trail_dig, trail_val;
+    if (lo3 - 1 >= lo1 && lo3 - 1 <= hi1)
     {
         /* remember the digit */
-        trail_dig = get_dig(ext1, get_exp(ext1) - (lo3-1) - 1);
+        trail_dig = get_dig(ext1, exp1 - (lo3-1) - 1);
+        trail_val = get_ORdigs(ext1, exp1 - (lo3-1));
     }
-    else if (lo3-1 >= lo2 && lo3-1 <= hi2)
+    else if (lo3 - 1 >= lo2 && lo3 - 1 <= hi2)
     {
         /* remember the digit */
-        trail_dig = get_dig(ext2, get_exp(ext2) - (lo3-1) - 1);
+        trail_dig = get_dig(ext2, exp2 - (lo3-1) - 1);
+        trail_val = get_ORdigs(ext2, exp2 - (lo3-1));
     }
 
     /* no carry yet */
-    carry = 0;
+    int carry = 0;
 
     /* add the digits */
-    for (pos = lo3 ; pos <= hi3 ; ++pos)
+    for (int pos = lo3 ; pos <= hi3 ; ++pos)
     {
         int acc;
 
@@ -6643,11 +8614,11 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
 
         /* add the first value digit if it's in range */
         if (pos >= lo1 && pos <= hi1)
-            acc += get_dig(ext1, get_exp(ext1) - pos - 1);
+            acc += get_dig(ext1, exp1 - pos - 1);
 
         /* add the second value digit if it's in range */
         if (pos >= lo2 && pos <= hi2)
-            acc += get_dig(ext2, get_exp(ext2) - pos - 1);
+            acc += get_dig(ext2, exp2 - pos - 1);
 
         /* check for carry */
         if (acc > 9)
@@ -6663,7 +8634,7 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
         }
 
         /* set the digit in the result */
-        set_dig(new_ext, get_exp(new_ext) - pos - 1, acc);
+        set_dig(new_ext, new_exp - pos - 1, acc);
     }
 
     /* 
@@ -6677,7 +8648,8 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
          *   remember the last digit of the result, which we won't have
          *   space to store after the shift 
          */
-        trail_dig = get_dig(new_ext, get_prec(new_ext) - 1);
+        trail_val |= trail_dig;
+        trail_dig = get_dig(new_ext, new_prec - 1);
         
         /* shift the result right */
         shift_right(new_ext, 1);
@@ -6692,9 +8664,11 @@ void CVmObjBigNum::compute_abs_sum_into(char *new_ext,
     /* the sum of two absolute values is always positive */
     set_neg(new_ext, FALSE);
 
-    /* round up the value if the trailing digit is 5 or higher */
-    if (trail_dig >= 5)
-        round_up_abs(new_ext);
+    /* 
+     *   round up if the trailing digits are >5000..., or exactly 5000...
+     *   and the last digit is odd 
+     */
+    round_for_dropped_digits(new_ext, trail_dig, trail_val);
 
     /* normalize the number */
     normalize(new_ext);
@@ -6811,7 +8785,7 @@ void CVmObjBigNum::compute_abs_diff_into(char *new_ext,
          *   have to borrow.  If the next digit is 4 or less, we know for
          *   a fact we won't have to borrow.  If the next digit is 5,
          *   though, we must look at the rest of the number to see if
-         *   there's anything but trailing zeroes.  
+         *   there's anything but trailing zeros.  
          */
         idx = (size_t)(get_exp(ext2) - (lo3-1) - 1);
         if (get_dig(ext2, idx) >= 6)
@@ -6896,7 +8870,6 @@ void CVmObjBigNum::compute_prod_into(char *new_ext,
     size_t out_idx;
     size_t start_idx;
     int out_exp;
-    int trail_dig;
     
     /* start out with zero in the accumulator */
     memset(new_ext + VMBN_MANT, 0, (new_prec + 1)/2);
@@ -6917,7 +8890,7 @@ void CVmObjBigNum::compute_prod_into(char *new_ext,
     out_exp = get_exp(ext1) + get_exp(ext2) - prec2;
 
     /* there's no trailing accumulator digit yet */
-    trail_dig = 0;
+    int trail_dig = 0, trail_val = 0;
 
     /* 
      *   Loop over digits in the bottom number, from least significant to
@@ -6989,6 +8962,7 @@ void CVmObjBigNum::compute_prod_into(char *new_ext,
         if (idx2 != 0 || carry != 0)
         {
             /* remember the trailing digit that we're going to drop */
+            trail_val |= trail_dig;
             trail_dig = get_dig(new_ext, new_prec - 1);
 
             /* shift the accumulator */
@@ -7012,8 +8986,7 @@ void CVmObjBigNum::compute_prod_into(char *new_ext,
     set_neg(new_ext, get_neg(ext1) != get_neg(ext2));
 
     /* if the trailing digit is 5 or greater, round up */
-    if (trail_dig >= 5)
-        round_up_abs(new_ext);
+    round_for_dropped_digits(new_ext, trail_dig, trail_val);
 
     /* normalize the number */
     normalize(new_ext);
@@ -7066,7 +9039,7 @@ void CVmObjBigNum::compute_quotient_into(VMG_ char *new_ext,
 
     /* 
      *   Calculate the precision we need for the running remainder.  We
-     *   must retain in the remainder enough precision to calculate exact
+     *   must retain enough precision in the remainder to calculate exact
      *   differences, so we need the greater of the precisions of the
      *   dividend and the divisor, plus enough extra digits for the
      *   maximum relative shifting.  We will have to shift at most one
@@ -7317,12 +9290,13 @@ void CVmObjBigNum::compute_quotient_into(VMG_ char *new_ext,
             set_exp(new_ext, quo_exp);
 
             /* 
-             *   this is the last digit, which we calculated for rounding
-             *   purposes only - if it's 5 or greater, round up the value,
-             *   otherwise leave it as it is 
+             *   This is the last digit, which we calculated for rounding
+             *   purposes only.  If it's greater than 5, round up.  If it's
+             *   exactly 5 and we have a non-zero remainder, round up.  If
+             *   it's exactly 5 and we have a zero remainder, round up if the
+             *   last digit is odd.  
              */
-            if (acc >= 5)
-                round_up_abs(new_ext);
+            round_for_dropped_digits(new_ext, acc, !zero_remainder);
 
             /* we've reached the rounding digit - we can stop now */
             break;
@@ -7512,13 +9486,8 @@ int CVmObjBigNum::compare_abs(const char *ext1, const char *ext2)
 const char *CVmObjBigNum::round_val(VMG_ vm_val_t *new_val, const char *ext,
                                     size_t digits, int always_create)
 {
-    char *new_ext;
-    int idx;
-    int need_carry;
-    int need_round;
-
     /* presume we need rounding */
-    need_round = TRUE;
+    int need_round = TRUE;
 
     /* 
      *   if the value is already no longer than the requested precision,
@@ -7527,8 +9496,7 @@ const char *CVmObjBigNum::round_val(VMG_ vm_val_t *new_val, const char *ext,
      *   the original object; likewise, don't bother changing anything if
      *   it's not a number 
      */
-    if (digits >= get_prec(ext) || get_dig(ext, digits) < 5
-        || get_type(ext) != VMBN_T_NUM)
+    if (get_type(ext) != VMBN_T_NUM || !get_round_dir(ext, digits))
     {
         if (always_create)
         {
@@ -7545,10 +9513,10 @@ const char *CVmObjBigNum::round_val(VMG_ vm_val_t *new_val, const char *ext,
             return ext;
         }
     }
-    
+
     /* allocate a new object with the requested precision */
     new_val->set_obj(create(vmg_ FALSE, digits));
-    new_ext = get_objid_ext(vmg_ new_val->val.obj);
+    char *new_ext = get_objid_ext(vmg_ new_val->val.obj);
 
     /* copy the sign, exponent, and type information */
     set_prec(new_ext, digits);
@@ -7581,45 +9549,182 @@ const char *CVmObjBigNum::round_val(VMG_ vm_val_t *new_val, const char *ext,
     /* copy the mantissa up to the requested new precision */
     memcpy(new_ext + VMBN_MANT, ext + VMBN_MANT, (digits + 1)/2);
 
-    /* apply the rounding */
-    for (need_carry = TRUE, idx = digits ; idx != 0 ; )
+    /* round it up */
+    round_up_abs(new_ext, digits);
+
+    /* return the new extension */
+    return new_ext;
+}
+
+/*
+ *   Round the extension to the nearest integer 
+ */
+void CVmObjBigNum::round_to_int(char *ext)
+{
+    /* 
+     *   the exponent is equal to the number of digits before the decimal
+     *   point, so that's the number of digits we want to keep 
+     */
+    round_to(ext, get_exp(ext));
+}
+
+/*
+ *   Round the extension to the given number of digits 
+ */
+void CVmObjBigNum::round_to(char *ext, int digits)
+{
+    /* if we're dropping digits, and we need to round up, round up */
+    int prec = get_prec(ext);
+    if (digits < prec)
     {
-        /* move to the previous index value */
+        /* note if we need to round up */
+        int r = get_round_dir(ext, digits);
+
+        /* zero the digits beyond the last one we're keeping */
+        for (int i = digits ; i < prec ; ++i)
+            set_dig(ext, i, 0);
+
+        /* round up if necessary */
+        if (r)
+            round_up_abs(ext, digits);
+    }
+}
+
+/*
+ *   get the OR sum of digits from the given starting place to least
+ *   significant 
+ */
+int CVmObjBigNum::get_ORdigs(const char *ext, int d)
+{
+    int sum, prec = get_prec(ext);
+    for (sum = 0 ; d < prec ; sum |= get_dig(ext, d++)) ;
+    return sum;
+}
+
+/*
+ *   Determine the direction to round a value to the given number of digits.
+ *   Returns 1 to round up, 0 to round down - this is effectively the value
+ *   to add at the last digit we're keeping.  
+ */
+int CVmObjBigNum::get_round_dir(const char *ext, int digits)
+{
+    /* if the dropped digit is beyond the precision, there's no roundig */
+    int prec = get_prec(ext);
+    if (digits >= prec)
+        return 0;
+
+    /* 
+     *   if the first dropped digit is greater than 5, round up; if it's less
+     *   than 5, round down; otherwise we have to break the tie 
+     */
+    int d = get_dig(ext, digits);
+    if (d > 5)
+        return 1;
+    if (d < 5)
+        return 0;
+
+    /* 
+     *   it's a 5 - if there are any non-zero digits after this point, the
+     *   value is greater than 5, so round up 
+     */
+    for (int i = digits + 1 ; i < prec ; ++i)
+    {
+        /* if it's a non-zero digit, round up */
+        if (get_dig(ext, i) != 0)
+            return 1;
+    }
+
+    /* 
+     *   It's exactly 5000...., so we need to break the tie by rounding to
+     *   the nearest even digit in the last digit we're keeping.  Get that
+     *   last digit.  
+     */
+    d = (digits > 0 ? get_dig(ext, digits - 1) : 0);
+
+    /* 
+     *   If the digit is already even, round down (return 0) to stay at that
+     *   even value.  If it's odd, round up (return 1) to get to the next
+     *   even digit.  (d & 1) happens to be 1 if it's odd, 0 if it's even.
+     */
+    return d & 1;
+}
+
+/*
+ *   Round a number based on dropped digits lost during a calculation.
+ *   'trail_dig' is the most significant dropped digit, and 'trail_val' is
+ *   the "|" sum of all of the less significant dropped digits.  
+ */
+void CVmObjBigNum::round_for_dropped_digits(
+    char *ext, int trail_dig, int trail_val)
+{
+    if (trail_dig > 5
+        || (trail_dig == 5 && trail_val > 0)
+        || (trail_dig == 5 && trail_val == 0
+            && (get_dig(ext, get_prec(ext)-1) & 1) != 0))
+        round_up_abs(ext);
+}
+
+/*
+ *   Round a number up.  This adds 1 starting at the least significant digit
+ *   of the number. 
+ */
+void CVmObjBigNum::round_up_abs(char *ext)
+{
+    round_up_abs(ext, get_prec(ext));
+}
+
+/*
+ *   Round a number up.  This adds 1 starting at the least significant digit
+ *   we're keeping.  
+ */
+void CVmObjBigNum::round_up_abs(char *ext, int keep_digits)
+{
+    /* start with a "carry" into the least significant digit */
+    int carry = TRUE;
+
+    /* propagate the carry through the number's digits */
+    for (int idx = keep_digits ; idx != 0 ; )
+    {
+        /* move to the next more significant digit */
         --idx;
 
-        /* round up - if it's a 9, we need to carry */
-        if (get_dig(new_ext, idx) == 9)
+        /* add the carry */
+        int d = get_dig(ext, idx);
+        if (d < 9)
         {
-            /* make it a zero, and keep going to carry it */
-            set_dig(new_ext, idx, 0);
+            /* bump it up */
+            set_dig(ext, idx, d + 1);
+
+            /* no carrying required, so we can stop now */
+            carry = FALSE;
+            break;
         }
         else
         {
-            /* bump it up */
-            set_dig(new_ext, idx, get_dig(new_ext, idx) + 1);
-
-            /* no carrying required, so we can stop now */
-            need_carry = FALSE;
-            break;
+            /* it's a '9', so bump it up to '0' and carry to the next digit */
+            set_dig(ext, idx, 0);
         }
     }
 
     /* 
-     *   if we need to carry, we must have had all nines, in which case we
-     *   now have all zeroes - put a 1 in for the first digit, and
-     *   increase the exponent to account for the change 
+     *   If we carried out of the top digit, we must have had all nines, in
+     *   which case we now have all zeros.  Put a 1 in the first digit and
+     *   increase the exponent to renormalize. 
      */
-    if (need_carry)
+    if (carry)
     {
-        /* set the lead digit to 1 */
-        set_dig(new_ext, 0, 1);
+        /* shift the mantissa */
+        shift_right(ext, 1);
 
         /* increase the exponent */
-        set_exp(new_ext, get_exp(new_ext) + 1);
+        set_exp(ext, get_exp(ext) + 1);
+        
+        /* set the lead digit to 1 */
+        set_dig(ext, 0, 1);
     }
 
-    /* return the new extension */
-    return new_ext;
+    /* we know the value is non-zero now */
+    ext[VMBN_FLAGS] &= ~VMBN_F_ZERO;
 }
 
 /*
@@ -7637,7 +9742,7 @@ int CVmObjBigNum::cvt_to_bignum(VMG_ vm_obj_id_t self, vm_val_t *val) const
         G_stk->push()->set_obj(self);
         
         /* it's an integer - convert it to a BigNum */
-        val->set_obj(create(vmg_ FALSE, val->val.intval, 32));
+        val->set_obj(create(vmg_ FALSE, (long)val->val.intval, 32));
 
         /* done protecting my object reference */
         G_stk->discard();
@@ -7814,8 +9919,11 @@ CVmBigNumCache::CVmBigNumCache(size_t max_regs)
 
     /* we haven't allocated the constants registers yet */
     ln10_.clear();
+    ln2_.clear();
     pi_.clear();
     e_.clear();
+    dbl_max_.clear();
+    dbl_min_.clear();
 }
 
 /*
@@ -7835,8 +9943,11 @@ CVmBigNumCache::~CVmBigNumCache()
 
     /* free the constant value registers */
     ln10_.free_mem();
+    ln2_.free_mem();
     pi_.free_mem();
     e_.free_mem();
+    dbl_max_.free_mem();
+    dbl_min_.free_mem();
 }
 
 /*

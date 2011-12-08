@@ -35,34 +35,80 @@ class CTcPrsNode: public CTcPrsNodeBase
 public:
     /*
      *   Generate code to assign into the expression as an lvalue.  By
-     *   default, we'll throw an error; a default node should never be
-     *   called upon to generate code as an assignment target, because the
-     *   impossibility of this condition should be detected during
-     *   parsing.  Each class that overrides check_lvalue() to return true
-     *   must override this to generate code for an assignment.
+     *   default, we'll throw an error; a default node should never be called
+     *   upon to generate code as an assignment target, because the
+     *   impossibility of this condition should be detected during parsing.
+     *   Each class that overrides check_lvalue() to return true must
+     *   override this to generate code for an assignment.
+     *   
+     *   'typ' specifies the type of assignment - this specifies the
+     *   assignment operator being generated.
+     *   
+     *   'phase' indicates what part of the assignment we're generating.  For
+     *   a simple assignment, this routine will be called only once, with
+     *   phase set to 1.  For a compound assignment, this routine will be
+     *   called twice.  The first call is phase 1. This can do one of two
+     *   things:
+     *   
+     *   - Generate the entire assignment code, and return TRUE to indicate
+     *   that the assignment has been handled.  The caller will generate no
+     *   more code.  This should be used when the particular combination of
+     *   assignment type and lvalue can be specially optimized in the
+     *   bytecode. 
+     *   
+     *   - Generate code to evaluate the lvalue's value, and prepare the
+     *   stack for eventual assignment to the lvalue, and return FALSE.  The
+     *   caller in this case will then generate generic code to combine the
+     *   lvalue and rvalue.  For example, with operator '+=', the caller will
+     *   generate the ADD instruction to compute 'lvalue + rvalue'.  The
+     *   caller will finally call the routine again with phase set to 2.
+     *   
+     *   During phase 2, the routine must generate code to assign the rvalue
+     *   at top of stack to the lvalue.
      *   
      *   Returns true if the assignment type was handled, false if not.
-     *   Simple assignment must always be handled, but composite
-     *   assignments (such as "+=" or "*=") can refused.  If the
-     *   assignment isn't handled, the caller must perform a generic
-     *   calculation to compute the result of the assignment (for example,
-     *   for "+=", the caller must generate code compute the sum of the
-     *   right-hand side and the original value of the left-hand side),
-     *   then call gen_code_asi() again to generate a simple assignment.
+     *   Simple assignment must always be handled, but composite assignments
+     *   (such as "+=" or "*=") can refused.  If the assignment isn't
+     *   handled, the caller must perform a generic calculation to compute
+     *   the result of the assignment (for example, for "+=", the caller must
+     *   generate code compute the sum of the right-hand side and the
+     *   original value of the left-hand side), then call gen_code_asi()
+     *   again to generate a simple assignment.
      *   
      *   In general, gen_code_asi() must generate code for complex
      *   assignments itself only when it can take advantage of special
-     *   opcodes that would result in more efficient generated code.  When
-     *   no special opcodes are available for the assignment, there's no
-     *   need for special coding here.
+     *   opcodes that would result in more efficient generated code.  When no
+     *   special opcodes are available for the assignment, there's no need
+     *   for special coding here.
      *   
-     *   If 'ignore_error' is true, this should not generate an error if
-     *   this node is not a suitable lvalue, but should simply return
-     *   false.  
+     *   If 'ignore_error' is true, this should not generate an error if this
+     *   node is not a suitable lvalue, but should simply return false.
+     *   
+     *   'explicit' is true if this is an explicit assignment by user code,
+     *   false if it's an assignment generated automatically by the compiler.
+     *   Implicit assignments don't count for the purposes of unused value
+     *   warnings.  These warnings are primarily to alert the user that they
+     *   could delete an unnecessary assignment from their code, or
+     *   conversely that they might have forgotten to do something with the
+     *   value that the assignment would suggest they intended to do, but
+     *   with a compiler-generated assignment there's nothing for the user to
+     *   delete to fix the warning.
+     *   
+     *   'ctx' is the address of a 'void *' variable (a generic pointer).
+     *   This is for the callee's use during a two-phase compound operator
+     *   assignment, for passing itself context information between the
+     *   phases.  On phase 1, the callee can allocate a structure and store
+     *   it at *ctx.  On phase 2, the callee can then look at this structure
+     *   to retrieve information saved from the first phase.  The callee is
+     *   responsible for deleting the structure on the second phase.  For
+     *   single-phase TC_ASI_SIMPLE calls, the caller can simply pass a null
+     *   pointer for ctx, so the callee must not attempt to store anything
+     *   here during a simple assignment call.  
      */
-    virtual int gen_code_asi(int discard, tc_asitype_t typ,
+    virtual int gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *op,
                              class CTcPrsNode *rhs,
-                             int ignore_error);
+                             int ignore_error, int xplicit, void **ctx);
 
     /*
      *   Generate code to take the address of the expression.  By default,
@@ -99,14 +145,16 @@ public:
      *   call-indirect instruction to call the result of evaluating the
      *   expression.  
      */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /*
      *   Generate code to apply operator 'new' to the expression.  By
      *   default, 'new' cannot be applied to an expression; nodes that
      *   allow operator 'new' must override this.  
      */
-    virtual void gen_code_new(int discard, int argc, int varargs,
+    virtual void gen_code_new(int discard, int argc,
+                              int varargs, struct CTcNamedArgs *named_args,
                               int from_call, int is_transient);
 
     /*
@@ -129,7 +177,8 @@ public:
     virtual void gen_code_member(int discard,
                                  class CTcPrsNode *prop_expr,
                                  int prop_is_expr,
-                                 int argc, int varargs);
+                                 int argc, int varargs,
+                                 struct CTcNamedArgs *named_args);
 
     /*
      *   Generate code for an object on the left side of a '.' expression.
@@ -161,7 +210,9 @@ public:
      */
     static void s_gen_member_rhs(int discard,
                                  class CTcPrsNode *prop_expr,
-                                 int prop_is_expr, int argc, int varargs);
+                                 int prop_is_expr,
+                                 int argc, int varargs,
+                                 struct CTcNamedArgs *named_args);
 
     /*
      *   Get the property ID of this expression.  If the property ID is
@@ -221,24 +272,36 @@ public:
     virtual void gen_code(int discard) = 0;
 
     /* 
-     *   Generate code to assign to the symbol.  By default, we'll
-     *   generate an error indicating that the symbol cannot be assigned
-     *   into.  As with CTcPrsNode::gen_code_asi(), this returns true if
-     *   the assignment was generated, false if the caller must generate a
-     *   generic assignment; simple assignment must always return true.
+     *   Generate code to assign to the symbol.  By default, we'll generate
+     *   an error indicating that the symbol cannot be assigned into.  As
+     *   with CTcPrsNode::gen_code_asi(), this returns true if the assignment
+     *   was generated, false if the caller must generate a generic
+     *   assignment; simple assignment must always return true.
      *   
-     *   If 'rhs' is null, the caller has already generated the value to
-     *   be assigned, so this code doesn't need to do that.  Otherwise,
-     *   this code must generate the rvalue code.  The reason that 'rhs'
-     *   is passed down at all is that we can sometimes optimize the type
-     *   of opcode we generate according to the type of value being
-     *   assigned, especially when a constant value is being assigned.
+     *   If 'rhs' is null, the caller has already generated the value to be
+     *   assigned, so this code doesn't need to do that.  Otherwise, this
+     *   code must generate the rvalue code.  The reason that 'rhs' is passed
+     *   down at all is that we can sometimes optimize the type of opcode we
+     *   generate according to the type of value being assigned, especially
+     *   when a constant value is being assigned.
      *   
-     *   If 'ignore_error' is true, this should not log an error if the
-     *   value cannot be assigned.  
+     *   If 'ignore_error' is true, this should not log an error if the value
+     *   cannot be assigned.
+     *   
+     *   'xplicit' is true if this is an explicit assignment by user code,
+     *   false if it's an assignment generated automatically by the compiler.
+     *   Implicit assignments don't count for the purposes of unused value
+     *   warnings.  These warnings are primarily to alert the user that they
+     *   could delete an unnecessary assignment from their code, or
+     *   conversely that they might have forgotten to do something with the
+     *   value that the assignment would suggest they intended to do, but
+     *   with a compiler-generated assignment there's nothing for the user to
+     *   delete to fix the warning.  
      */
-    virtual int gen_code_asi(int discard, tc_asitype_t typ,
-                             class CTcPrsNode *rhs, int ignore_error);
+    virtual int gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *op,
+                             class CTcPrsNode *rhs,
+                             int ignore_error, int xplicit, void **ctx);
 
     /* 
      *   Generate code for taking the address of the symbol.  By default,
@@ -251,14 +314,16 @@ public:
      *   Generate code to call the symbol.  By default, we can't call a
      *   symbol.  
      */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /* 
      *   generate code for operator 'new' applied to the symbol, with the
      *   given number of arguments; by default, we can't generate any such
      *   code 
      */
-    virtual void gen_code_new(int discard, int argc, int varargs,
+    virtual void gen_code_new(int discard, int argc,
+                              int varargs, struct CTcNamedArgs *named_args,
                               int is_transient);
 
     /* evaluate a property ID */
@@ -268,7 +333,8 @@ public:
     virtual void gen_code_member(int discard,
                                  class CTcPrsNode *prop_expr,
                                  int prop_is_expr,
-                                 int argc, int varargs);
+                                 int argc, int varargs,
+                                 struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     virtual vm_obj_id_t gen_code_obj_predot(int *is_self);
@@ -279,7 +345,7 @@ public:
      *   default, we'll write nothing and return false, since most symbols
      *   aren't used in local symbol tables.  
      */
-    virtual int write_to_debug_frame() { return FALSE; }
+    virtual int write_to_debug_frame(int test_only) { return FALSE; }
 
     /*
      *   Write the symbol to the global symbol table in the debugging

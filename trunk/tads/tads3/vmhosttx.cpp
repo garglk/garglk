@@ -183,10 +183,9 @@ void CVmHostIfcText::add_resource(unsigned long ofs, unsigned long siz,
 void CVmHostIfcText::add_resource(const char *fname, size_t fnamelen,
                                   const char *resname, size_t resnamelen)
 {
-    CResEntry *entry;
-
     /* create a new entry desribing the resource */
-    entry = new CResEntry(resname, resnamelen, TRUE, fname, fnamelen);
+    CResEntry *entry = new CResEntry(
+        resname, resnamelen, TRUE, fname, fnamelen);
 
     /* add it to the table */
     restab_->add(entry);
@@ -199,15 +198,14 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
                                         size_t resnamelen,
                                         unsigned long *res_size)
 {
-    CResEntry *entry;
     osfildef *fp;
     char buf[OSFNMAX];
     char *fname;
     char fname_buf[OSFNMAX];
-    char path[OSFNMAX];
+    char image_dir[OSFNMAX];
 
     /* try finding an entry in the resource map */
-    entry = (CResEntry *)restab_->find(resname, resnamelen);
+    CResEntry *entry = (CResEntry *)restab_->find(resname, resnamelen);
     if (entry != 0)
     {
         /* found it - check the type */
@@ -228,7 +226,7 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
         }
         else
         {
-            /* it's a link to a a local file */
+            /* it's a link to a local file */
             fname = entry->link_;
         }
     }
@@ -236,11 +234,17 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
     {
         /* 
          *   There's no entry in the resource map, so convert the resource
-         *   name from the URL notation to local file system conventions,
-         *   and look for a file with the given name.
-         *   
-         *   First, make a null-terminated copy of the resource name,
-         *   limiting the copy to our buffer size.  
+         *   name from the URL notation to local file system conventions, and
+         *   look for a file with the given name.  This is allowed only if
+         *   the file safety level setting is 3 (read only local directory
+         *   access) or lower.  
+         */
+        if (get_io_safety_read() > 3)
+            return 0;
+        
+        /*   
+         *   Make a null-terminated copy of the resource name, limiting the
+         *   copy to our buffer size.  
          */
         if (resnamelen > sizeof(buf) - 1)
             resnamelen = sizeof(buf) - 1;
@@ -250,29 +254,53 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
         /* convert the resource name to a URL */
         os_cvt_url_dir(fname_buf, sizeof(fname_buf), buf, FALSE);
         fname = fname_buf;
+
+        /* if that yields an absolute path, it's an error */
+        if (os_is_file_absolute(fname))
+            return 0;
+
+        /* 
+         *   If it's not in the image file folder, it's also an error - we
+         *   don't allow paths to parent folders via "..", for example.  If
+         *   we don't have an image file folder to compare it to, fail, since
+         *   we can't properly sandbox it.  
+         */
+        if (ext_[0] == 0 || !os_is_file_in_dir(fname, image_dir, TRUE))
+            return 0;
     }
 
     /* 
      *   If we get this far, it's because we have a local file name in
-     *   'fname' that we need to loo up.  
+     *   'fname' that we need to look up.  
      */
-
-    /* 
-     *   external resources are relative to the image file, so make sure we
-     *   have an image file name 
-     */
-    if (ext_[0] == 0)
-        return 0;
 
     /* get the path to the image file */
-    os_get_path_name(path, sizeof(path), ext_[0]);
+    image_dir[0] = '\0';
+    if (ext_[0] != '\0')
+        os_get_path_name(image_dir, sizeof(image_dir), ext_[0]);
 
-    /* 
-     *   build the full path name by combining the image file path with the
-     *   relative path we got from the resource name URL, as converted local
-     *   file system conventions 
-     */
-    os_build_full_path(buf, sizeof(buf), path, fname);
+    /* if we have a relative filename, build the full path */
+    if (os_is_file_absolute(fname))
+    {
+        /* it's already a fully-qualified filename - use it as-is */
+        lib_strcpy(buf, sizeof(buf), fname);
+    }
+    else
+    {
+        /* 
+         *   It's a relative filename path.  The base for relative paths is
+         *   the image file folder, so make sure we have an image file name.
+         */
+        if (ext_[0] == 0)
+            return 0;
+
+        /* 
+         *   build the full path name by combining the image file path with
+         *   the relative path we got from the resource name URL, as
+         *   converted local file system conventions 
+         */
+        os_build_full_path(buf, sizeof(buf), image_dir, fname);
+    }
 
     /* try opening the file */
     fp = osfoprb(buf, OSFTBIN);
@@ -303,11 +331,9 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
  */
 int CVmHostIfcText::resfile_exists(const char *resname, size_t resnamelen)
 {
-    osfildef *fp;
-    unsigned long res_size;
-
     /* try opening the resource file */
-    fp = find_resource(resname, resnamelen, &res_size);
+    unsigned long res_size;
+    osfildef *fp = find_resource(resname, resnamelen, &res_size);
 
     /* check to see if we successfully opened the resource */
     if (fp != 0)

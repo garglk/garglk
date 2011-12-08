@@ -38,6 +38,22 @@ Modified
 /* error creating file */
 #define VMERR_CREATE_FILE         104
 
+/* error closing/committing file */
+#define VMERR_CLOSE_FILE          105
+
+/* error deleting file */
+#define VMERR_DELETE_FILE         106
+
+/* data packer parsing error at format string index %d */
+#define VMERR_PACK_PARSE          107
+
+/* data packer argument mismatch at format string index %d */
+#define VMERR_PACK_ARG_MISMATCH   108
+
+/* data packer argument count mismatch at format string index %d */
+#define VMERR_PACK_ARGC_MISMATCH  109
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -195,6 +211,15 @@ Modified
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Network errors 
+ */
+
+/* network safety level error (operation prohibited by safety settings) */
+#define VMERR_NETWORK_SAFETY      400
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Property-related errors 
  */
 
@@ -224,6 +249,13 @@ Modified
 
 /* invalid data in saved metaclass */
 #define VMERR_BAD_SAVED_META_DATA 1208
+
+/* storage server error */
+#define VMERR_STORAGE_SERVER_ERR  1209
+
+/* save file description table too large (64k format limit) */
+#define VMERR_DESC_TAB_OVERFLOW   1210
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -320,6 +352,48 @@ Modified
 /* tree depth too large for equality test/hash calculation */
 #define VMERR_TREE_TOO_DEEP_EQ    2030
 
+/* cannot convert value to integer */
+#define VMERR_NO_INT_CONV         2031
+
+/* bad type for modulo */
+#define VMERR_BAD_TYPE_MOD        2032
+
+/* bad type for bitwise AND */
+#define VMERR_BAD_TYPE_BIT_AND    2033
+
+/* bad type for bitwise OR */
+#define VMERR_BAD_TYPE_BIT_OR     2034
+
+/* bad type for XOR */
+#define VMERR_BAD_TYPE_XOR        2035
+
+/* bad type for left shift */
+#define VMERR_BAD_TYPE_SHL        2036
+
+/* bad type for arithmetic right shift */
+#define VMERR_BAD_TYPE_ASHR       2037
+
+/* bad type for bitwise NOT */
+#define VMERR_BAD_TYPE_BIT_NOT    2038
+
+/* code pointer value required */
+#define VMERR_CODEPTR_VAL_REQD    2039
+
+/* 
+ *   exception object required (the VM threw an error based on an exception
+ *   class defined in the bytecode program, but 'new X' didn't yield an
+ *   object) 
+ */
+#define VMERR_EXCEPTION_OBJ_REQD  2040
+
+/* cannot convert value to double */
+#define VMERR_NO_DOUBLE_CONV      2041
+
+/* cannot convert value to number */
+#define VMERR_NO_NUM_CONV         2042
+
+/* bad type for logical right shift */
+#define VMERR_BAD_TYPE_LSHR       2043
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -334,6 +408,16 @@ Modified
 
 /* nil object reference */
 #define VMERR_NIL_DEREF           2203
+
+/* missing named argument */
+#define VMERR_MISSING_NAMED_ARG   2204
+
+/* invalid type for call */
+#define VMERR_BAD_TYPE_CALL       2205
+
+/* 'self' cannot be nil */
+#define VMERR_NIL_SELF            2206
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -409,6 +493,9 @@ Modified
  */
 #define VMERR_INTCLS_GENERAL_ERROR 2315
 
+/* stack access out of bounds */
+#define VMERR_STACK_OUT_OF_BOUNDS 2316
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -422,6 +509,12 @@ Modified
 
 /* restart - restart program execution */
 #define VMERR_DBG_RESTART         2392
+
+/* halt - terminate the program */
+#define VMERR_DBG_HALT            2394
+
+/* interrupt - user interrupted current operation (Ctrl+Break, etc) */
+#define VMERR_DBG_INTERRUPT       2395
    
 
 /* ------------------------------------------------------------------------ */
@@ -445,7 +538,12 @@ Modified
 /*
  *   BigNumber package errors 
  */
+
+/* out of temporary registers - BigNumber calculation too complex */
 #define VMERR_BIGNUM_NO_REGS      2600
 
-#endif /* VMERRNUM_H */
+/* value can't be converted to BigNumber */
+#define VMERR_NO_BIGNUM_CONV      2601
 
+
+#endif /* VMERRNUM_H */

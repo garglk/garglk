@@ -17,7 +17,7 @@ _main(args)
 {
     try
     {
-        t3SetSay(&_say_embed);
+        t3SetSay(_say_embed);
         main();
     }
     catch (RuntimeError rte)

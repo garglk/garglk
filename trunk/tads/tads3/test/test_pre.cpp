@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     {
         /* load, run, and write */
         vm_run_preinit(file_in, argv[1], file_out, hostifc, &clientifc,
-                       argv + curarg + 1, argc - curarg - 1, 0);
+                       argv + curarg + 1, argc - curarg - 1, 0, 0);
         
         /* note the success status */
         status = OSEXSUCC;
@@ -144,3 +144,4 @@ int main(int argc, char **argv)
     /* exit with appropriate results */
     return status;
 }
+

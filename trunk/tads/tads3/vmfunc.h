@@ -34,19 +34,20 @@ Modified
  */
 
 /*   
- *   The function header is a packed array of bytes, with each element
- *   stored in a canonical binary format for binary portability.  No
- *   padding is present except where otherwise specified.  The fields in
- *   the function header, starting at offset zero, are:
+ *   The function header is a packed array of bytes, with each element stored
+ *   in a canonical binary format for binary portability.  No padding is
+ *   present except where otherwise specified.  The fields in the function
+ *   header, starting at offset zero, are:
  *   
- *   UBYTE argc - the number of parameters the function expects to
- *   receive.  If the high-order bit is set (i.e., (argc & 0x80) != 0),
- *   then the function takes a variable number of parameters, with a
- *   minimum of (argc & 0x7f) and no maximum.  If the high-order bit is
- *   clear, argc gives the exact number of parameters required.
+ *   UBYTE argc - the number of parameters the function expects to receive.
+ *   If the high-order bit is set (i.e., (argc & 0x80) != 0), then the
+ *   function takes a variable number of parameters, with a minimum of (argc
+ *   & 0x7f) and no maximum.  If the high-order bit is clear, argc gives the
+ *   exact number of parameters required.
  *   
- *   UBYTE reserved - reserved for future use.  This value should always
- *   be set to zero in the current version.
+ *   UBYTE optional_argc - number of additional optional parameters the
+ *   function can receive, beyond the fixed arguments given by the 'argc'
+ *   field.
  *   
  *   UINT2 locals - the number of local variables the function uses.  This
  *   does not count the implicit argument counter local variable, which is
@@ -57,12 +58,12 @@ Modified
  *   calculations, and actual parameters to functions invoked by this code.
  *   
  *   UINT2 exception_table_ofs - the byte offset from the start of this
- *   method header of the function's exception table.  This value is zero
- *   if the function has no exception table.
+ *   method header of the function's exception table.  This value is zero if
+ *   the function has no exception table.
  *   
- *   UINT2 debug_ofs - the byte offset from the start of this method
- *   header of the function's debugger records.  This value is zero if the
- *   function has no debugger records.
+ *   UINT2 debug_ofs - the byte offset from the start of this method header
+ *   of the function's debugger records.  This value is zero if the function
+ *   has no debugger records.  
  */
 
 /* minimum function header size supported by this version of the VM */
@@ -71,17 +72,38 @@ const size_t VMFUNC_HDR_MIN_SIZE = 10;
 class CVmFuncPtr
 {
 public:
+    CVmFuncPtr() { p_ = 0; }
+    CVmFuncPtr(VMG_ pool_ofs_t ofs);
+    CVmFuncPtr(const char *p) { p_ = (const uchar *)p; }
+    CVmFuncPtr(const uchar *p) { p_ = p; }
+    CVmFuncPtr(VMG_ const vm_val_t *val) { set(vmg_ val); }
+
     /* initialize with a pointer to the start of the function */
     void set(const uchar *p) { p_ = p; }
 
+    /* set from a vm_val_t; returns true on success, false on failure */
+    int set(VMG_ const vm_val_t *val);
+
+    /* get the header pointer */
+    const uchar *get() const { return p_; }
+
     /* copy from another function pointer */
     void copy_from(const CVmFuncPtr *fp) { p_ = fp->p_; }
+
+    /* get a vm_val_t pointer to this function */
+    int get_fnptr(VMG_ vm_val_t *v);
 
     /* get the minimum argument count */
     int get_min_argc() const
     {
         /* get the argument count, but mask out the varargs bit */
         return (int)(get_argc() & 0x7f);
+    }
+
+    /* get the maximum argument count, not counting varargs */
+    int get_max_argc() const
+    {
+        return get_min_argc() + (int)get_opt_argc();
     }
 
     /* is this a varargs function? */
@@ -93,8 +115,8 @@ public:
      */
     int argc_ok(int argc) const
     {
-        /* check for an exact match */
-        if (argc == get_min_argc())
+        /* check for match to the min-max range */
+        if (argc >= get_min_argc() && argc <= get_max_argc())
         {
             /* we have an exact match, so we're fine */
             return TRUE;
@@ -128,6 +150,9 @@ public:
      *   of arguments must match the nominal count.  
      */
     uchar get_argc() const { return *(p_ + 0); }
+
+    /* get the additional optional argument count */
+    uint get_opt_argc() const { return *(p_ + 1); }
 
     /* get the number of locals */
     uint get_local_cnt() const { return osrp2(p_ + 2); }
@@ -336,20 +361,43 @@ public:
     int is_ctx_local() const { return (get_flags() & 2) != 0; }
 
     /* get the length of my name string */
-    uint get_sym_len(VMG0_) const
-        { return osrp2(p_ + G_dbg_lclsym_hdr_size); }
+    uint get_sym_len(VMG0_) const { return osrp2(get_symptr(vmg0_)); }
 
     /* get a pointer to my name string - this is not null-terminated */
-    const char *get_sym(VMG0_) const
-        { return (char *)(p_ + G_dbg_lclsym_hdr_size + 2); }
+    const char *get_sym(VMG0_) const { return get_symptr(vmg0_) + 2; }
 
     /* increment this pointer to point to the next symbol in the frame */
     void inc(VMG0_)
-        { p_ += G_dbg_lclsym_hdr_size + 2 + get_sym_len(vmg0_); }
+    {
+        /* skip the in-line symbol, or the pointer */
+        if (is_sym_inline())
+            p_ += get_sym_len(vmg0_) + 2;
+        else
+            p_ += 4;
+
+        /* skip the header */
+        p_ += G_dbg_lclsym_hdr_size;
+    }
+
+    /* is my symbol in-line or in the constant pool? */
+    int is_sym_inline() const { return !(get_flags() & 0x0004); }
+
+    /* 
+     *   Set up a vm_val_t for the symbol.  For an in-line symbol, this
+     *   creates a new string object; for a constant pool element, this
+     *   returns a VM_SSTR pointer to it. 
+     */
+    void get_str_val(VMG_ vm_val_t *val) const;
 
 private:
     /* get my flags value */
     uint get_flags() const { return osrp2(p_ + 2); }
+
+    /* 
+     *   get a pointer to my symbol data - this points to a UINT2 length
+     *   prefix followed by the bytes of the UTF-8 string 
+     */
+    const char *get_symptr(VMG0_) const;
         
     /* initialize with a pointer to the first byte of our entry */
     void set(const uchar *p) { p_ = p; }
@@ -381,8 +429,17 @@ public:
     uint get_sym_count() const { return osrp2(p_ + 2); }
 
     /* set up a pointer to the first symbol */
-    void set_first_sym_ptr(CVmDbgFrameSymPtr *entry)
-        { entry->set(p_ + 4); }
+    void set_first_sym_ptr(VMG_ CVmDbgFrameSymPtr *entry)
+        { entry->set(p_ + G_dbg_frame_size); }
+
+    /* get the bytecode range covered by the frame */
+    uint get_start_ofs(VMG0_)
+        { return G_dbg_frame_size >= 8 ? osrp2(p_ + 4) : 0; }
+    uint get_end_ofs(VMG0_)
+        { return G_dbg_frame_size >= 8 ? osrp2(p_ + 6) : 0; }
+
+    /* is this frame nested in the given frame? */
+    int is_nested_in(VMG_ const class CVmDbgTablePtr *dp, int i);
 
 private:
     /* initialize with a pointer to the first byte of our entry */

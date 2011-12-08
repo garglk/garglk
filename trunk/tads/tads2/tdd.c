@@ -128,6 +128,8 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     char     **argp;
     char      *arg;
     char      *infile;
+    char       infile_abs[OSFNMAX];      /* fully-qualified input file name */
+    char       infile_path[OSFNMAX];         /* absolute path to input file */
     ulong      swapsize = 0xffffffffL;        /* allow unlimited swap space */
     int        swapena = OS_DEFAULT_SWAP_ENABLED;      /* swapping enabled? */
     int        i;
@@ -149,7 +151,7 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     uchar     *myheap;
     uint       lclsiz = TDD_LCLSIZ;
     uint       poolsiz = TDD_POOLSIZ;
-    int        safety_level;                   /* file safety level setting */
+    int        safety_read, safety_write;      /* file safety level setting */
     char      *restore_file = 0;              /* saved game file to restore */
     char      *charmap = 0;                       /* character mapping file */
     int        charmap_none = FALSE;            /* use no character mapping */
@@ -170,7 +172,7 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     tokaddinc(tc, "", 0);
 
     /* set safety level 2 by default */
-    safety_level = 2;
+    safety_read = safety_write = 2;
 
     /* parse arguments */
     for (i = 1, argp = argv + 1 ; i < argc ; ++argp, ++i)
@@ -212,12 +214,20 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
                         tddusage_s(ec);
 
                     /* get the safety level from the argument */
-                    safety_level = atoi(p);
+                    safety_read = *p - '0';
+                    safety_write = (*(p+1) != '\0' ? *(p+1) - '0' :
+                                    safety_read);
 
-                    /* tell the host system about the setting */
+                    /* range-check the values */
+                    if (safety_read < 0 || safety_read > 4
+                        || safety_write < 0 || safety_write > 4)
+                        tddusage_s(ec);
+
+                    /* tell the host system about the settings */
                     if (appctx != 0 && appctx->set_io_safety_level != 0)
                         (*appctx->set_io_safety_level)
-                            (appctx->io_safety_level_ctx, safety_level);
+                            (appctx->io_safety_level_ctx,
+                             safety_read, safety_write);
                 }
                 break;
 
@@ -361,8 +371,8 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     mctx->mcmcxrvc = mctx;
 
     /* allocate and initialize parsing context */
-    pctx = (prscxdef *)mchalo(ec, (ushort)(sizeof(prscxdef) + poolsiz +
-                                           lclsiz), "tcdmain");
+    pctx = (prscxdef *)mchalo(ec, (sizeof(prscxdef) + poolsiz +
+                                   lclsiz), "tcdmain");
     pctx->prscxerr = ec;
     pctx->prscxtok = tc;
     pctx->prscxmem = mctx;
@@ -387,8 +397,8 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     tc->tokcxscx = (void *)pctx;
 
     /* allocate a code generator context */
-    ectx = (emtcxdef *)mchalo(ec, (ushort)(sizeof(emtcxdef) +
-                                           511*sizeof(emtldef)), "tcdmain");
+    ectx = (emtcxdef *)mchalo(ec, (sizeof(emtcxdef) +
+                                   511*sizeof(emtldef)), "tcdmain");
     ectx->emtcxerr = ec;
     ectx->emtcxmem = pctx->prscxmem;
     ectx->emtcxptr = 0;   /* mcmalo(pctx->prscxmem, 1024, &ectx->emtcxobj); */
@@ -408,9 +418,13 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     vocini(&vocctx, ec, mctx, &runctx, undoptr, 50, 50, 100);    
     
     /* allocate stack and heap */
-    mystack = (runsdef *)mchalo(ec, (ushort)(stksiz * sizeof(runsdef)),
-                                             "runtime stack");
-    myheap = mchalo(ec, (ushort)heapsiz, "runtime heap");
+    mystack = (runsdef *)mchalo(ec, (stksiz * sizeof(runsdef)),
+                                "runtime stack");
+    myheap = mchalo(ec, heapsiz, "runtime heap");
+
+    /* get the absolute path for the input file */
+    os_get_abs_filename(infile_abs, sizeof(infile_abs), infile);
+    os_get_path_name(infile_path, sizeof(infile_path), infile_abs);
 
     /* set up execution context */
     runctx.runcxerr = ec;
@@ -432,6 +446,7 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     runctx.runcxdmc = &supctx;
     runctx.runcxext = 0;
     runctx.runcxgamename = infile;
+    runctx.runcxgamepath = infile_path;
 
     /* set up setup context */
     supctx.supcxerr = ec;
@@ -454,12 +469,12 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     dbg.dbgcxrun = &runctx;
     dbg.dbgcxlin = (lindef *)0;
     dbg.dbgcxnams = 2048;
-    dbg.dbgcxnam = (char *)mchalo(ec, (ushort)dbg.dbgcxnams, "bp names");
+    dbg.dbgcxnam = (char *)mchalo(ec, dbg.dbgcxnams, "bp names");
     dbg.dbgcxnamf = 0;
     dbg.dbgcxhstl = 4096;
     dbg.dbgcxhstf = 0;
     dbg.dbgcxui = 0;
-    dbg.dbgcxhstp = (char *)mchalo(ec, (ushort)dbg.dbgcxhstl, "history buf");
+    dbg.dbgcxhstp = (char *)mchalo(ec, dbg.dbgcxhstl, "history buf");
     
     memset(dbg.dbgcxbp, 0, sizeof(dbg.dbgcxbp));       /* clear breakpoints */
     memset(dbg.dbgcxwx, 0, sizeof(dbg.dbgcxwx));           /* clear watches */
@@ -472,7 +487,8 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
     bifctx.bifcxrnd = 0;
     bifctx.bifcxrndset = FALSE;
     bifctx.bifcxappctx = appctx;
-    bifctx.bifcxsafety = safety_level;
+    bifctx.bifcxsafetyr = safety_read;
+    bifctx.bifcxsafetyw = safety_write;
     bifctx.bifcxsavext = save_ext;
     
     /* initialize the regular expression parser context */
@@ -554,7 +570,30 @@ static void tddmain1(errcxdef *ec, int argc, char **argv, appctxdef *appctx,
 
         /* tell the debugger user interface that we're terminating */
         dbguterm(&dbg);
+
+        /* delete the voc context */
+        vocterm(&vocctx);
+
+        /* delete the undo context */
+        if (undoptr != 0)
+            objuterm(undoptr);
+
+        /* release the object cache structures */
+        mcmcterm(mctx);
+        mcmterm(globalctx);
+
     ERRENDCLN(ec)
+
+    /* delete the voc context */
+    vocterm(&vocctx);
+
+    /* delete the undo context */
+    if (undoptr != 0)
+        objuterm(undoptr);
+
+    /* release the object cache structures */
+    mcmcterm(mctx);
+    mcmterm(globalctx);
 }
 
 /* log an error */

@@ -31,6 +31,9 @@ Modified
 class CVmBifT3: public CVmBif
 {
 public:
+    /* function vector */
+    static vm_bif_desc bif_table[];
+
     /* run the garbage collector */
     static void run_gc(VMG_ uint argc);
 
@@ -61,13 +64,24 @@ public:
     /* get a stack trace */
     static void get_stack_trace(VMG_ uint argc);
 
+    /* look up a named argument */
+    static void get_named_arg(VMG_ uint argc);
+
+    /* get a named argument list */
+    static void get_named_arg_list(VMG_ uint argc);
+
 protected:
     /* 
      *   service routine - retrieve source information for a given code
      *   location 
      */
-    static void get_source_info(VMG_ ulong entry_addr, ulong method_ofs,
+    static void get_source_info(VMG_ const uchar *entry_addr, ulong method_ofs,
                                 vm_val_t *retval);
+
+    /* get the local variables for a stack level */
+    static void get_stack_locals(VMG_ vm_val_t *fp, const uchar *entry_addr,
+                                 ulong method_ofs,
+                                 vm_val_t *local_tab, vm_val_t *frameref_obj);
 };
 
 /*
@@ -76,6 +90,9 @@ protected:
 class CVmBifT3Test: public CVmBif
 {
 public:
+    /* function vector */
+    static vm_bif_desc bif_table[];
+
     /* get an instance's unique identifier number */
     static void get_obj_id(VMG_ uint argc);
 
@@ -85,6 +102,7 @@ public:
     /* get the Unicode character code for the first character of a string */
     static void get_charcode(VMG_ uint argc);
 };
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -97,6 +115,9 @@ public:
 /* break into the debugger */
 #define T3DBG_BREAK     2
 
+/* write a message to the debug log */
+#define T3DBG_LOG       3
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -107,25 +128,27 @@ public:
  */
 #ifdef VMBIF_DEFINE_VECTOR
 
-void (*G_bif_t3[])(VMG_ uint) =
+vm_bif_desc CVmBifT3::bif_table[] =
 {
-    &CVmBifT3::run_gc,
-    &CVmBifT3::set_say,
-    &CVmBifT3::get_vm_vsn,
-    &CVmBifT3::get_vm_id,
-    &CVmBifT3::get_vm_banner,
-    &CVmBifT3::get_vm_preinit_mode,
-    &CVmBifT3::debug_trace,
-    &CVmBifT3::get_global_symtab,
-    &CVmBifT3::alloc_new_prop,
-    &CVmBifT3::get_stack_trace
+    { &CVmBifT3::run_gc, 0, 0, FALSE },
+    { &CVmBifT3::set_say, 0, 0, FALSE },
+    { &CVmBifT3::get_vm_vsn, 0, 0, FALSE },
+    { &CVmBifT3::get_vm_id, 0, 0, FALSE },
+    { &CVmBifT3::get_vm_banner, 0, 0, FALSE },
+    { &CVmBifT3::get_vm_preinit_mode, 0, 0, FALSE },
+    { &CVmBifT3::debug_trace, 1, 0, TRUE },
+    { &CVmBifT3::get_global_symtab, 0, 0, FALSE },
+    { &CVmBifT3::alloc_new_prop, 0, 0, FALSE },
+    { &CVmBifT3::get_stack_trace, 0, 1, FALSE },
+    { &CVmBifT3::get_named_arg, 1, 1, FALSE },
+    { &CVmBifT3::get_named_arg_list, 0, 0, FALSE }
 };
 
-void (*G_bif_t3_test[])(VMG_ uint) =
+vm_bif_desc CVmBifT3Test::bif_table[] =
 {
-    &CVmBifT3Test::get_obj_id,
-    &CVmBifT3Test::get_obj_gc_state,
-    &CVmBifT3Test::get_charcode
+    { &CVmBifT3Test::get_obj_id, 1, 0, FALSE },
+    { &CVmBifT3Test::get_obj_gc_state, 1, 0, FALSE },
+    { &CVmBifT3Test::get_charcode, 1, 0, FALSE }
 };
 
 #endif /* VMBIF_DEFINE_VECTOR */

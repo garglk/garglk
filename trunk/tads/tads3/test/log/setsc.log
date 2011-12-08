@@ -1,0 +1,52 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export setsc.t -> setsc.t3s
+	compile _main.t -> _main.t3o
+	compile setsc.t -> setsc.t3o
+	link -> setsc.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+objA:
+   class A
+   A.prop1...
+
+objB:
+   class B
+   B.prop1...
+
+objC:
+   class C
+   C.prop1...
+
+objD:
+   class D
+   D.prop1... A.prop1... B.prop1... C.prop1...
+
+new D:
+   class D
+   D.prop1... A.prop1... B.prop1... C.prop1...
+
+objD modified to [TadsObject]:
+
+objD modified to [A, C]:
+   class A
+   A.prop1... C.prop1...
+
+new D modified to [B, C]:
+   class B
+   B.prop1... C.prop1...
+
+new D restored to [A, B, C]:
+   class A
+   A.prop1... B.prop1... C.prop1...
+
+new D after changing C to [B]:
+   class A
+   A.prop1... C.prop1... B.prop1...
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

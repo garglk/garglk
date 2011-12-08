@@ -53,7 +53,7 @@ Modified
 void CVmBifTable::call_func(VMG_ uint set_index, uint func_index, uint argc)
 {
     vm_bif_entry_t *entry;
-    void (*func)(VMG_ uint argc);
+    vm_bif_desc *desc;
     
     /* get the function set */
     entry = table_[set_index];
@@ -64,22 +64,22 @@ void CVmBifTable::call_func(VMG_ uint set_index, uint func_index, uint argc)
                     ERR_TYPE_TEXTCHAR, names_[set_index]);
 
     /* get the function pointer */
-    func = entry->func[func_index];
+    desc = &entry->func[func_index];
 
     /* if the function is null, we can't call it */
-    if (func == 0)
+    if (desc->func == 0)
         err_throw_a(VMERR_UNAVAIL_INTRINSIC, 2,
                     ERR_TYPE_TEXTCHAR, names_[set_index],
                     ERR_TYPE_INT, func_index);
 
     /* call the function */
-    (*func)(vmg_ argc);
+    (*desc->func)(vmg_ argc);
 }
 
 /*
  *   Handle adding a function set entry that's unresolvable at load-time 
  */
-void CVmBifTable::add_entry_unresolved(const char *func_set_id)
+void CVmBifTable::add_entry_unresolved(VMG_ const char *func_set_id)
 {
     /*
      *   Since this is the call-time resolver, allow loading of the image
@@ -95,3 +95,34 @@ void CVmBifTable::add_entry_unresolved(const char *func_set_id)
     /* count the new entry */
     ++count_;
 }
+
+/*
+ *   Get a function's descriptor 
+ */
+const vm_bif_desc *CVmBifTable::get_desc(uint set_index, uint func_index)
+{
+    vm_bif_entry_t *entry;
+    vm_bif_desc *desc;
+
+    /* validate that the set index is in range */
+    if (set_index >= count_)
+        return 0;
+
+    /* get the function set, and make sure it's valid */
+    entry = table_[set_index];
+    if (entry == 0)
+        return 0;
+
+    /* validate that the function index is in range */
+    if (func_index > entry->func_count)
+        return 0;
+
+    /* get the descriptor, and make sure there's a function pointer */
+    desc = &entry->func[func_index];
+    if (desc->func == 0)
+        return 0;
+
+    /* return the descriptor */
+    return desc;
+}
+

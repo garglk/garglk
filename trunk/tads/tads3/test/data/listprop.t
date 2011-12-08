@@ -10,6 +10,7 @@ main(argc)
     local lst, str;
 
     x = [1, 2, 3].length();
+    "length([1,2,3])=<<x>>\n";
 
     lst = [4, 5, 6];
     x = lst.length();
@@ -17,6 +18,15 @@ main(argc)
     lst += [7, 8];
     x = lst.length();
 
+    lst = lst.splice(1, 0, 1, 2, 3);
+    "lst=<<sayList(lst)>>:\n";
+    "sublist(2, 3) = <<sayList(lst.sublist(2, 3))>>\n";
+    "sublist(6, 10) = <<sayList(lst.sublist(6, 10))>>\n";
+    "sublist(7) = <<sayList(lst.sublist(7))>>\n";
+    "sublist(-4, 2) = <<sayList(lst.sublist(-4, 2))>>\n";
+    "sublist(-3) = <<sayList(lst.sublist(-3))>>\n";
+
+    "\b";
     "[1, 2, 3, 4, 5, 6], keep>3 =
         <<sayList([1,2,3,4,5,6].subset({x: x > 3}))>>\n";
 
@@ -138,6 +148,12 @@ main(argc)
     y = y.insertAt(5, 777, 888, 999);
     "insert3: <<sayList(y)>>\n";
 
+    y = y.insertAt(-2, 1234, 5678);
+    "insert4: <<sayList(y)>>\n";
+
+    y = y.removeElementAt(-4).removeElementAt(-3);
+    "undid insert4: <<sayList(y)>>\n";
+
     "\b";
 
     y = y.removeElementAt(6);
@@ -148,6 +164,12 @@ main(argc)
 
     y = y.removeElementAt(y.length());
     "removeAt(length): <<sayList(y)>>\n";
+
+    y = y.removeElementAt(-2);
+    "removeAt(-2): <<sayList(y)>>\n";
+
+    y = y.insertAt(-1, 44);
+    "undid removeAt(-2): <<sayList(y)>>\n";
 
     "\b";
 
@@ -160,8 +182,20 @@ main(argc)
     y = y.removeRange(y.length() - 1, y.length());
     "removeRange(length-1, length): <<sayList(y)>>\n";
 
-    "\b";
+    y = List.generate({i: i*10}, 10);
+    y = y.removeRange(-3, -2);
+    "removeRange(-3, -2): <<sayList(y)>>\n";
 
+    "\b";
+    x = List.generate({i: makeString(96+i)}, 10);
+    "x=<<sayList(x)>>:\n";
+    "splice(3, 2, 'x', 'y')=<<sayList(x.splice(3, 2, 'x', 'y'))>>\n";
+    "splice(3, 5, 'x', 'y')=<<sayList(x.splice(3, 5, 'x', 'y'))>>\n";
+    "splice(7, 10, 'x', 'y')=<<sayList(x.splice(7, 10, 'x', 'y'))>>\n";
+    "splice(0, 5, 'x', 'y')=<<sayList(x.splice(0, 5, 'x', 'y'))>>\n";
+    "splice(-2, 0, 'x', 'y')=<<sayList(x.splice(-2, 0, 'x', 'y'))>>\n";
+
+    "\b";
     "'goodbye', len = <<'goodbye'.length()>>\n";
 
     str = 'hello';

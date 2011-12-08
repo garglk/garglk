@@ -68,6 +68,7 @@ public:
     void write_entrypt(uint32 entry_ofs, size_t method_header_size,
                        size_t exc_entry_size, size_t line_entry_size,
                        size_t dbg_hdr_size, size_t dbg_lclsym_hdr_size,
+                       size_t dbg_frame_hdr_size,
                        int dbg_vsn_id);
 
     /*

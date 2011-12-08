@@ -42,7 +42,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self);
@@ -59,7 +60,8 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate a function call expression */
-    void gen_code_call(int discard, int argc, int varargs);
+    void gen_code_call(int discard, int argc, int varargs,
+                       struct CTcNamedArgs *named_args);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -85,11 +87,24 @@ public:
     void gen_code(int discard, int for_condition);
 };
 
+
 /* ------------------------------------------------------------------------ */
 /*
  *   "definingobj" 
  */
 class CTPNDefiningobj: public CTPNDefiningobjBase
+{
+public:
+    /* generate code */
+    void gen_code(int discard, int for_condition);
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   "invokee" 
+ */
+class CTPNInvokee: public CTPNInvokeeBase
 {
 public:
     /* generate code */
@@ -110,13 +125,14 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
 protected:
     /* generate a multi-method inherited() call */
     void gen_code_mminh(CTcSymFunc *func, int discard,
                         class CTcPrsNode *prop_expr, int prop_is_expr,
-                        int argc, int varargs);
+                        int argc, int varargs, struct CTcNamedArgs *named_args);
 };
 
 /*
@@ -134,7 +150,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 };
 
 /*
@@ -152,7 +169,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -173,14 +191,20 @@ public:
 class CTPNConst: public CTPNConstBase
 {
 public:
-    CTPNConst(CTcConstVal *val) : CTPNConstBase(val) { }
+    CTPNConst(const CTcConstVal *val) : CTPNConstBase(val) { }
 
     /* generate code for the constant */
     void gen_code(int discard, int for_condition);
 
     /* generate code for operator 'new' applied to this expression */
-    void gen_code_new(int discard, int argc, int varargs, int from_call,
-                      int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int from_call, int is_transient);
+
+    /* generate code for assigning to this expression */
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     CTcPrsNode *rhs, 
+                     int ignore_errors, int xplicit, void **ctx);
 
     /* evaluate a property ID */
     vm_prop_id_t gen_code_propid(int check_only, int is_expr);
@@ -188,16 +212,31 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* generate a function call expression */
-    void gen_code_call(int discard, int argc, int varargs);
+    void gen_code_call(int discard, int argc, int varargs,
+                       struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self);
 
     /* generate code to push an integer constant */
     static void s_gen_code_int(long intval);
+
+    /* generate code to push a string constant */
+    static void s_gen_code_str(const CTcConstVal *val);
+    static void s_gen_code_str(const char *str, size_t len);
+
+    /* generate code to push a symbol's name as a string constant */
+    static void s_gen_code_str(const class CTcSymbol *sym);
+
+    /* 
+     *   generate code to push a string, using the correct code for the
+     *   current compilation mode (static vs dynamic) 
+     */
+    static void s_gen_code_str_by_mode(const class CTcSymbol *sym);
 };
 
 /*
@@ -208,8 +247,14 @@ class CTPNDebugConst: public CTPNConst
 public:
     CTPNDebugConst(CTcConstVal *val) : CTPNConst(val) { }
 
+    /* debugger constants aren't actual constants - they require code gen */
+    CTcConstVal *get_const_val() { return 0; }
+
     /* generate code for the constant */
     void gen_code(int discard, int for_condition);
+
+    /* generate a constant string */
+    static void s_gen_code_str(const char *str, size_t len);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -228,6 +273,7 @@ CTPNUnary_def(CTPNNeg);
 
 /* pre-increment */
 CTPNUnary_side_def(CTPNPreInc);
+void CTPNPreInc_gen_code(class CTcPrsNode *sub, int discard);
 
 /* pre-decrement */
 CTPNUnary_side_def(CTPNPreDec);
@@ -309,22 +355,25 @@ CTPNBin_def(CTPNBAnd);
 CTPNBin_def(CTPNBXor);
 
 /* greater than */
-CTPNBin_def(CTPNGt);
+CTPNBin_cmp_def(CTPNGt);
 
 /* greater or equal */
-CTPNBin_def(CTPNGe);
+CTPNBin_cmp_def(CTPNGe);
 
 /* less than */
-CTPNBin_def(CTPNLt);
+CTPNBin_cmp_def(CTPNLt);
 
 /* less or equal */
-CTPNBin_def(CTPNLe);
+CTPNBin_cmp_def(CTPNLe);
 
 /* bit shift left */
 CTPNBin_def(CTPNShl);
 
-/* bit shift right */
-CTPNBin_def(CTPNShr);
+/* arithmetic shift right */
+CTPNBin_def(CTPNAShr);
+
+/* logical shift right */
+CTPNBin_def(CTPNLShr);
 
 /* multiply */
 CTPNBin_def(CTPNMul);
@@ -487,6 +536,8 @@ public:
 
 /* add and assign */
 CTPNBin_side_def(CTPNAddAsi);
+void CTPNAddAsi_gen_code(class CTcPrsNode *left, class CTcPrsNode *right,
+                         int discard);
 
 /* subtract and assign */
 CTPNBin_side_def(CTPNSubAsi);
@@ -512,8 +563,11 @@ CTPNBin_side_def(CTPNBXorAsi);
 /* bit shift left and assign */
 CTPNBin_side_def(CTPNShlAsi);
 
-/* bit shift right and assign */
-CTPNBin_side_def(CTPNShrAsi);
+/* arithmetic shift right and assign */
+CTPNBin_side_def(CTPNAShrAsi);
+
+/* logical shift right and assign */
+CTPNBin_side_def(CTPNLShrAsi);
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -529,8 +583,9 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code to assign a value to the symbol */
-    int gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                     int ignore_errors);
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 };
 
 
@@ -560,14 +615,15 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs)
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args)
     {
         /* 
          *   let the subnode do the work, since "&obj" is the same as
          *   "obj" in any context 
          */
         sub_->gen_code_member(discard, prop_expr, prop_is_expr,
-                              argc, varargs);
+                              argc, varargs, named_args);
     }
 
     /* evaluate a property ID */
@@ -589,6 +645,20 @@ public:
          */
         return sub_->gen_code_obj_predot(is_self);
     }
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   If-nil operator ??
+ */
+class CTPNIfnil: public CTPNIfnilBase
+{
+public:
+    CTPNIfnil(class CTcPrsNode *first, class CTcPrsNode *second)
+        : CTPNIfnilBase(first, second) { }
+
+    /* generate code for the conditional */
+    void gen_code(int discard, int for_condition);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -620,18 +690,21 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code to assign a value to the symbol */
-    int gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                     int ignore_errors);
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 
     /* generate code to take the address of the symbol */
     void gen_code_addr();
 
     /* generate code to call the symbol */
-    void gen_code_call(int discard, int argc, int varargs);
+    void gen_code_call(int discard, int argc, int varargs,
+                       struct CTcNamedArgs *named_args);
 
     /* generate code for operator 'new' applied to this expression */
-    void gen_code_new(int discard, int argc, int varargs, int from_call,
-                      int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int from_call, int is_transient);
 
     /* evaluate a property ID */
     vm_prop_id_t gen_code_propid(int check_only, int is_expr);
@@ -639,7 +712,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self);
@@ -659,18 +733,21 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code to assign a value to the symbol */
-    int gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                     int ignore_errors);
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 
     /* generate code to take the address of the symbol */
     void gen_code_addr();
 
     /* generate code to call the symbol */
-    void gen_code_call(int discard, int argc, int varargs);
+    void gen_code_call(int discard, int argc, int varargs,
+                       struct CTcNamedArgs *named_args);
 
     /* generate code for operator 'new' applied to this expression */
-    void gen_code_new(int discard, int argc, int varargs, int from_call,
-                      int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int from_call, int is_transient);
 
     /* evaluate a property ID */
     vm_prop_id_t gen_code_propid(int check_only, int is_expr);
@@ -678,7 +755,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self);
@@ -700,8 +778,9 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code for assigning into this node */
-    int gen_code_asi(int discard, tc_asitype_t typ,
-                     class CTcPrsNode *rhs, int ignore_errors);
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     class CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -742,6 +821,19 @@ public:
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Embedded <<one of>> list in a string 
+ */
+class CTPNStrOneOf: public CTPNStrOneOfBase
+{
+public:
+    CTPNStrOneOf(int dstr, class CTPNList *lst, class CTcSymObj *state_obj)
+        : CTPNStrOneOfBase(dstr, lst, state_obj) { }
+
+    void gen_code(int discard, int for_condition);
+};
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Argument List 
  */
 class CTPNArglist: public CTPNArglistBase
@@ -760,7 +852,7 @@ public:
     }
 
     /* generate code for an argument list */
-    void gen_code_arglist(int *varargs);
+    void gen_code_arglist(int *varargs, struct CTcNamedArgs &named_args);
 };
 
 /*
@@ -788,8 +880,12 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code for operator 'new' applied to this expression */
-    void gen_code_new(int discard, int argc, int varargs, int from_call,
-                      int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int from_call, int is_transient);
+
+    /* generate code for a call to 'rand' */
+    int gen_code_rand(int discard, int for_condition);
 };
 
 
@@ -807,8 +903,9 @@ public:
     void gen_code(int discard, int for_condition);
 
     /* generate code to assign a value to the symbol */
-    int gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                     int ignore_errors);
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 };
 
 /*
@@ -873,7 +970,8 @@ public:
      *   that the assignment is fully processed anyway, since there's no
      *   need for the caller to try generating any code either. 
      */
-    virtual int gen_code_asi(int, tc_asitype_t, class CTcPrsNode *, int)
+    virtual int gen_code_asi(int, int phase, tc_asitype_t, const char *,
+                             class CTcPrsNode *, int, int, void **)
     {
         return TRUE;
     }
@@ -889,16 +987,17 @@ public:
      *   this, but don't bother issuing an error since we will have shown
      *   an error for the undefined symbol in the first place 
      */
-    virtual void gen_code_call(int, int, int) { }
+    virtual void gen_code_call(int, int, int, struct CTcNamedArgs *) { }
 
     /* 
      *   generate code for operator 'new' applied to this expression - we
      *   can't generate any code, but suppress errors as usual 
      */
-    void gen_code_new(int, int, int, int) { }
+    void gen_code_new(int, int, int, struct CTcNamedArgs *, int) { }
 
     /* generate a member expression */
-    void gen_code_member(int, class CTcPrsNode *, int, int, int) { }
+    void gen_code_member(int, class CTcPrsNode *, int, int, int,
+                         struct CTcNamedArgs *) { }
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self)
@@ -916,9 +1015,9 @@ class CTcSymFunc: public CTcSymFuncBase
 {
 public:
     CTcSymFunc(const char *str, size_t len, int copy,
-               int argc, int varargs, int has_retval,
+               int argc, int opt_argc, int varargs, int has_retval,
                int is_multimethod, int is_mm_base, int is_extern)
-        : CTcSymFuncBase(str, len, copy, argc, varargs, has_retval,
+        : CTcSymFuncBase(str, len, copy, argc, opt_argc, varargs, has_retval,
                          is_multimethod, is_mm_base, is_extern)
     {
         /* 
@@ -936,7 +1035,8 @@ public:
     virtual void gen_code_addr();
 
     /* generate a call */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /* 
      *   Get my code pool address.  This is valid only after the linking
@@ -960,7 +1060,7 @@ public:
      *   will be kept with its associated anchor to allow for relocation
      *   of the function during the linking process.  
      */
-    void set_abs_addr(ulong addr)
+    void set_abs_addr(uint32 addr)
     {
         /* remember the address */
         abs_addr_ = addr;
@@ -1002,12 +1102,15 @@ public:
     virtual void gen_code(int discard);
 
     /* generate code for operator 'new' */
-    void gen_code_new(int discard, int argc, int varargs, int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int is_transient);
 
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self)
@@ -1056,23 +1159,29 @@ public:
     virtual void gen_code_addr();
 
     /* generate code for operator 'new' */
-    void gen_code_new(int discard, int argc, int varargs, int is_transient);
+    void gen_code_new(int discard, int argc, int varargs,
+                      struct CTcNamedArgs *named_args,
+                      int is_transient);
 
     /* static code to generate code for 'new' */
     static void s_gen_code_new(int discard, vm_obj_id_t obj_id,
                                tc_metaclass_t meta,
-                               int argc, int varargs, int is_transient);
+                               int argc, int varargs,
+                               struct CTcNamedArgs *named_args,
+                               int is_transient);
 
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* static code to generate a member expression */
     static void s_gen_code_member(int discard,
                                   class CTcPrsNode *prop_expr,
                                   int prop_is_expr, int argc,
-                                  vm_obj_id_t obj_id, int varargs);
+                                  vm_obj_id_t obj_id,
+                                  int varargs, struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self);
@@ -1094,6 +1203,25 @@ public:
 };
 
 /*
+ *   Function-like object symbol.  This is an object that's invokable as a
+ *   function, such as an anonymous function object or a DynamicFunc
+ *   instance.  These occur in the dynamic compiler only.  
+ */
+class CTcSymFuncObj: public CTcSymObj
+{
+public:
+    CTcSymFuncObj(const char *str, size_t len, int copy, vm_obj_id_t obj_id,
+                  int is_extern, tc_metaclass_t meta, class CTcDictEntry *dict)
+        : CTcSymObj(str, len, copy, obj_id, is_extern, meta, dict)
+    {
+    }
+
+    /* generate a call */
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
+};
+
+/*
  *   property 
  */
 class CTcSymProp: public CTcSymPropBase
@@ -1109,11 +1237,14 @@ public:
     virtual void gen_code_addr();
 
     /* assign to the property */
-    virtual int gen_code_asi(int discard, tc_asitype_t typ,
-                             class CTcPrsNode *rhs, int ignore_errors);
+    virtual int gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *op,
+                             class CTcPrsNode *rhs,
+                             int ignore_errors, int xplicit, void **ctx);
 
     /* generate a call */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /* evaluate a property ID */
     vm_prop_id_t gen_code_propid(int check_only, int is_expr);
@@ -1121,7 +1252,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self)
@@ -1188,14 +1320,18 @@ public:
     void gen_code_setlcl();
 
     /* assign to the variable */
-    virtual int gen_code_asi(int discard, tc_asitype_t typ,
-                             class CTcPrsNode *rhs, int ignore_errors);
+    virtual int gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *op,
+                             class CTcPrsNode *rhs,
+                             int ignore_errors, int xplicit,
+                             void **ctx);
 
     /* 
      *   generate a call - invoking a local as a function assumes that the
      *   local contains a method or function pointer 
      */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /* evaluate a property ID */
     vm_prop_id_t gen_code_propid(int check_only, int is_expr);
@@ -1203,7 +1339,8 @@ public:
     /* generate a member expression */
     void gen_code_member(int discard,
                          class CTcPrsNode *prop_expr, int prop_is_expr,
-                         int argc, int varargs);
+                         int argc, int varargs,
+                         struct CTcNamedArgs *named_args);
 
     /* get the object value for a '.' expression */
     vm_obj_id_t gen_code_obj_predot(int *is_self)
@@ -1217,7 +1354,30 @@ public:
     }
 
     /* write the symbol to a debug frame */
-    virtual int write_to_debug_frame();
+    virtual int write_to_debug_frame(int test_only);
+};
+
+/*
+ *   Run-time dynamic code local variable symbol.  This is the symbol type
+ *   for a local accessed via a StackFrameRef object, for use in DynamicFunc
+ *   compilations.  
+ */
+class CTcSymDynLocal: public CTcSymDynLocalBase
+{
+public:
+    CTcSymDynLocal(const char *str, size_t len, int copy,
+                   tctarg_obj_id_t fref, int varnum, int ctxidx)
+        : CTcSymDynLocalBase(str, len, copy, fref, varnum, ctxidx)
+    {
+    }
+
+    /* generate code */
+    void gen_code(int discard);
+
+    /* generate code for assigning into this node */
+    int gen_code_asi(int discard, int phase, tc_asitype_t typ, const char *op,
+                     class CTcPrsNode *rhs,
+                     int ignore_errors, int xplicit, void **ctx);
 };
 
 /*
@@ -1227,7 +1387,7 @@ class CTcSymBif: public CTcSymBifBase
 {
 public:
     CTcSymBif(const char *str, size_t len, int copy,
-              int func_set_id, int func_idx, int has_retval,
+              ushort func_set_id, ushort func_idx, int has_retval,
               int min_argc, int max_argc, int varargs)
         : CTcSymBifBase(str, len, copy, func_set_id, func_idx,
                         has_retval, min_argc, max_argc, varargs) { }
@@ -1236,10 +1396,18 @@ public:
     virtual void gen_code(int discard);
 
     /* generate a call */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
+
+    /* generate code for an address '&' operator */
+    virtual void gen_code_addr();
 
     /* write the symbol to an image file's global symbol table */
     int write_to_image_file_global(class CVmImageWriter *image_writer);
+
+    /* add a runtime symbol table entry */
+    void add_runtime_symbol(class CVmRuntimeSymbols *symtab);
+
 };
 
 /*
@@ -1256,7 +1424,8 @@ public:
     virtual void gen_code(int discard);
 
     /* generate a call */
-    virtual void gen_code_call(int discard, int argc, int varargs);
+    virtual void gen_code_call(int discard, int argc, int varargs,
+                               struct CTcNamedArgs *named_args);
 
     /* write the symbol to an image file's global symbol table */
     int write_to_image_file_global(class CVmImageWriter *image_writer);
@@ -1282,8 +1451,8 @@ public:
 class CTPNAnonFunc: public CTPNAnonFuncBase
 {
 public:
-    CTPNAnonFunc(class CTPNCodeBody *code_body, int has_retval)
-        : CTPNAnonFuncBase(code_body, has_retval)
+    CTPNAnonFunc(class CTPNCodeBody *code_body, int has_retval, int is_method)
+        : CTPNAnonFuncBase(code_body, has_retval, is_method)
     {
     }
 
@@ -1299,11 +1468,11 @@ class CTPNCodeBody: public CTPNCodeBodyBase
 {
 public:
     CTPNCodeBody(class CTcPrsSymtab *lcltab, class CTcPrsSymtab *gototab,
-                 class CTPNStm *stm, int argc, int varargs,
+                 class CTPNStm *stm, int argc, int opt_argc, int varargs,
                  int varargs_list, class CTcSymLocal *varargs_list_local,
                  int local_cnt, int self_valid,
                  struct CTcCodeBodyRef *enclosing_code_body)
-        : CTPNCodeBodyBase(lcltab, gototab, stm, argc, varargs,
+        : CTPNCodeBodyBase(lcltab, gototab, stm, argc, opt_argc, varargs,
                            varargs_list, varargs_list_local,
                            local_cnt, self_valid, enclosing_code_body)
     {
@@ -1319,6 +1488,9 @@ public:
 
         /* no nested symbol table list yet */
         first_nested_symtab_ = 0;
+
+        /* no named argument tables yet */
+        named_arg_tables_ = 0;
     }
 
     /* 
@@ -1363,6 +1535,16 @@ public:
         return fin_ret_lcl_;
     }
 
+    /* 
+     *   Add a named argument table to the code body.  Each call that has
+     *   named arguments requires one of these tables.  We keep a list of
+     *   tables, and generate them all at the end of the method.  Returns a
+     *   label that can be used to write a forward reference offset to the
+     *   table's offset in the code stream.  
+     */
+    struct CTcCodeLabel *add_named_arg_tab(
+        const struct CTcNamedArgs *named_args);
+
 protected:
     /* 
      *   callback for enumerating local frame symbol table entries - write
@@ -1376,8 +1558,11 @@ protected:
      */
     static void enum_for_param_ctx(void *ctx, class CTcSymbol *sym);
 
+    /* enumerator for generating named parameter bindings */
+    static void enum_for_named_params(void *ctx, class CTcSymbol *sym);
+
     /* write the debug information table to the code stream */
-    void build_debug_table(ulong start_ofs);
+    void build_debug_table(ulong start_ofs, int include_lines);
 
     /* show disassembly */
     void show_disassembly(unsigned long start_ofs,
@@ -1386,6 +1571,9 @@ protected:
 
     /* head of list of nested symbol tables */
     class CTcPrsSymtab *first_nested_symtab_;
+
+    /* head of list of named argument tables */
+    struct CTcNamedArgTab *named_arg_tables_;
 
     /* 
      *   ID of local variable for temporarily storing the expression value
@@ -1479,9 +1667,10 @@ public:
     CTPNStmFor(class CTcPrsNode *init_expr,
                class CTcPrsNode *cond_expr,
                class CTcPrsNode *reinit_expr,
+               class CTPNForIn *in_exprs,
                class CTcPrsSymtab *symtab,
                class CTPNStmEnclosing *enclosing_stm)
-        : CTPNStmForBase(init_expr, cond_expr, reinit_expr,
+        : CTPNStmForBase(init_expr, cond_expr, reinit_expr, in_exprs,
                          symtab, enclosing_stm)
     {
     }
@@ -1508,6 +1697,70 @@ protected:
     /* our 'continue' label */
     struct CTcCodeLabel *cont_lbl_;
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   '<variable> in <expression>' node, for 'for' statements 
+ */
+class CTPNVarIn: public CTPNVarInBase
+{
+public:
+    CTPNVarIn(class CTcPrsNode *lval, class CTcPrsNode *expr,
+              int iter_local_id)
+        : CTPNVarInBase(lval, expr, iter_local_id) { }
+
+    /* generate code */
+    virtual void gen_code(int discard, int for_condition);
+
+    /* generate the condition part of the 'for' */
+    virtual void gen_forstm_cond(struct CTcCodeLabel *endlbl);
+
+    /* generate the reinit part of the 'for' */
+    virtual void gen_forstm_reinit();
+
+    /* 
+     *   Generate the iterator initializer.  This is a static method so that
+     *   it can be shared by for..in and foreach..in.  'kw' is the keyword
+     *   for the statement type that we're generating ("for" or "foreach"),
+     *   so that we can show the appropriate statement type in any error
+     *   messages.  
+     */
+    static void gen_iter_init(class CTcPrsNode *coll_expr, int iter_local_id,
+                              const char *kw);
+
+    /* 
+     *   Generate the iterator condition.  This is a static method so that it
+     *   can be shared by for..in and foreach..in. 
+     */
+    static void gen_iter_cond(class CTcPrsNode *lval, int iter_local_id,
+                              struct CTcCodeLabel *&endlbl, const char *kw);
+};
+
+/*
+ *   '<variable> in <from> .. <to>' node, for 'for' statements 
+ */
+class CTPNVarInRange: public CTPNVarInRangeBase
+{
+public:
+    CTPNVarInRange(class CTcPrsNode *lval,
+                   class CTcPrsNode *from_expr,
+                   class CTcPrsNode *to_expr,
+                   class CTcPrsNode *step_expr,
+                   int to_local_id, int step_local_id)
+        : CTPNVarInRangeBase(lval, from_expr, to_expr, step_expr,
+                             to_local_id, step_local_id)
+    { }
+
+    /* generate code */
+    virtual void gen_code(int discard, int for_condition);
+
+    /* generate the condition part of the 'for' */
+    virtual void gen_forstm_cond(struct CTcCodeLabel *endlbl);
+
+    /* generate the reinit part of the 'for' */
+    virtual void gen_forstm_reinit();
+};
+
 
 /* ------------------------------------------------------------------------ */
 /*

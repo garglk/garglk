@@ -36,6 +36,10 @@ Modified
 /* use ISAAC */
 #define VMBIFTADS_RNG_ISAAC
 
+#ifdef VMBIFTADS_RNG_ISAAC
+#include "vmisaac.h"
+#endif
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -44,6 +48,9 @@ Modified
 class CVmBifTADS: public CVmBif
 {
 public:
+    /* function vector */
+    static vm_bif_desc bif_table[];
+
     /*
      *   General functions 
      */
@@ -53,8 +60,9 @@ public:
     static void nextobj(VMG_ uint argc);
     static void randomize(VMG_ uint argc);
     static void rand(VMG_ uint argc);
-    static void cvtstr(VMG_ uint argc);
-    static void cvtnum(VMG_ uint argc);
+    static void toString(VMG_ uint argc);
+    static void toInteger(VMG_ uint argc);
+    static void toNumber(VMG_ uint argc);
     static void gettime(VMG_ uint argc);
     static void re_match(VMG_ uint argc);
     static void re_search(VMG_ uint argc);
@@ -69,10 +77,14 @@ public:
     static void get_min(VMG_ uint argc);
     static void make_string(VMG_ uint argc);
     static void get_func_params(VMG_ uint argc);
+    static void sprintf(VMG_ uint argc);
 
 protected:
     /* enumerate objects (common handler for firstobj and nextobj) */
     static void enum_objects(VMG_ uint argc, vm_obj_id_t start_obj);
+
+    /* common handler for toInteger and toNumber */
+    static void toIntOrNum(VMG_ uint argc, int int_only);
 };
 
 
@@ -125,26 +137,6 @@ public:
 #endif /* VMBIFTADS_RNG_ISAAC */
 };
 
-/* ------------------------------------------------------------------------ */
-/*
- *   ISAAC Random Number Generator definitions
- */
-#ifdef VMBIFTADS_RNG_ISAAC
-
-#define ISAAC_RANDSIZL   (8)
-#define ISAAC_RANDSIZ    (1<<ISAAC_RANDSIZL)
-
-struct isaacctx
-{
-    ulong cnt;
-    ulong rsl[ISAAC_RANDSIZ];
-    ulong mem[ISAAC_RANDSIZ];
-    ulong a;
-    ulong b;
-    ulong c;
-};
-#endif /* VMBIFTADS_RNG_ISAAC */
-
 /* end of section protected against multiple inclusion */
 #endif /* VMBIFTAD_H */
 
@@ -161,30 +153,32 @@ struct isaacctx
 #ifdef VMBIF_DEFINE_VECTOR
 
 /* TADS general data manipulation functions */
-void (*G_bif_tadsgen[])(VMG_ uint) =
+vm_bif_desc CVmBifTADS::bif_table[] =
 {
-    &CVmBifTADS::datatype,
-    &CVmBifTADS::getarg,
-    &CVmBifTADS::firstobj,
-    &CVmBifTADS::nextobj,
-    &CVmBifTADS::randomize,
-    &CVmBifTADS::rand,
-    &CVmBifTADS::cvtstr,
-    &CVmBifTADS::cvtnum,
-    &CVmBifTADS::gettime,
-    &CVmBifTADS::re_match,
-    &CVmBifTADS::re_search,
-    &CVmBifTADS::re_group,
-    &CVmBifTADS::re_replace,
-    &CVmBifTADS::savepoint,
-    &CVmBifTADS::undo,
-    &CVmBifTADS::save,
-    &CVmBifTADS::restore,
-    &CVmBifTADS::restart,
-    &CVmBifTADS::get_max,
-    &CVmBifTADS::get_min,
-    &CVmBifTADS::make_string,
-    &CVmBifTADS::get_func_params
+    { &CVmBifTADS::datatype, 1, 0, FALSE },                            /* 0 */
+    { &CVmBifTADS::getarg, 1, 0, FALSE },                              /* 1 */
+    { &CVmBifTADS::firstobj, 0, 2, FALSE },                            /* 2 */
+    { &CVmBifTADS::nextobj, 1, 2, FALSE },                             /* 3 */
+    { &CVmBifTADS::randomize, 0, 0, FALSE },                           /* 4 */
+    { &CVmBifTADS::rand, 1, 0, TRUE },                                 /* 5 */
+    { &CVmBifTADS::toString, 1, 1, FALSE },                            /* 6 */
+    { &CVmBifTADS::toInteger, 1, 1, FALSE },                           /* 7 */
+    { &CVmBifTADS::gettime, 0, 1, FALSE },                             /* 8 */
+    { &CVmBifTADS::re_match, 2, 1, FALSE },                            /* 9 */
+    { &CVmBifTADS::re_search, 2, 1, FALSE },                          /* 10 */
+    { &CVmBifTADS::re_group, 1, 0, FALSE },                           /* 11 */
+    { &CVmBifTADS::re_replace, 3, 2, FALSE },                         /* 12 */
+    { &CVmBifTADS::savepoint, 0, 0, FALSE },                          /* 13 */
+    { &CVmBifTADS::undo, 0, 0, FALSE },                               /* 14 */
+    { &CVmBifTADS::save, 1, 0, FALSE },                               /* 15 */
+    { &CVmBifTADS::restore, 1, 0, FALSE },                            /* 16 */
+    { &CVmBifTADS::restart, 0, 0, FALSE },                            /* 17 */
+    { &CVmBifTADS::get_max, 1, 0, TRUE },                             /* 18 */
+    { &CVmBifTADS::get_min, 1, 0, TRUE },                             /* 19 */
+    { &CVmBifTADS::make_string, 1, 1, FALSE },                        /* 20 */
+    { &CVmBifTADS::get_func_params, 1, 0, FALSE },                    /* 21 */
+    { &CVmBifTADS::toNumber, 1, 1, FALSE },                           /* 23 */
+    { &CVmBifTADS::sprintf, 1, 0, TRUE }                              /* 24 */
 };
 
 #endif /* VMBIF_DEFINE_VECTOR */

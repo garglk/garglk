@@ -24,8 +24,10 @@ Modified
 #define VMGLOB_DECLARE
 
 /* include the globals header */
+#include "t3std.h"
 #include "vmglob.h"
 
+/* ------------------------------------------------------------------------ */
 /*
  *   In the VARS configuration, we need to provide storage for all of the
  *   variables.  
@@ -39,21 +41,25 @@ Modified
 #include "vmparam.h"
 #include "vmpredef.h"
 #include "vminit.h"
+#include "vmtobj.h"
 
 /* remove the declaring macros for the globals */
 #undef VM_GLOBAL_OBJDEF
 #undef VM_GLOBAL_PREOBJDEF
 #undef VM_GLOBAL_PRECOBJDEF
 #undef VM_GLOBAL_VARDEF
+#undef VM_GLOBAL_ARRAYDEF
 
 /* provide new defining macros for the globals */
 #define VM_GLOBAL_OBJDEF(typ, var) typ *G_##var##_X;
 #define VM_GLOBAL_PREOBJDEF(typ, var) typ G_##var##_X;
 #define VM_GLOBAL_PRECOBJDEF(typ, var, ctor_args) typ G_##var##_X ctor_args;
 #define VM_GLOBAL_VARDEF(typ, var) typ G_##var##_X;
+#define VM_GLOBAL_ARRAYDEF(typ, var, eles) typ G_##var##_X[eles];
 
 /* include the variable definitions */
 #include "vmglobv.h"
+
 
 #endif /* VMGLOB_VARS */
 

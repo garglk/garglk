@@ -280,6 +280,7 @@ public:
      */
     void run(VMG_ const char *const *argv, int argc,
              class CVmRuntimeSymbols *global_symtab,
+             class CVmRuntimeSymbols *macro_symtab,
              const char *saved_state);
 
     /* run all static initializers */
@@ -293,10 +294,13 @@ public:
     void unload(VMG0_);
 
     /* 
-     *   Create a global LookupTable to hold hte symbols in the global
+     *   Create a global LookupTable to hold the symbols in the global
      *   symbol table.
      */
     void create_global_symtab_lookup_table(VMG0_);
+
+    /* create a global LookupTable to hold the symbols in the macro table */
+    void create_macro_symtab_lookup_table(VMG0_);
 
     /* determine if the given block type identifiers match */
     static int block_type_is(const char *type1, const char *type2)
@@ -318,6 +322,9 @@ public:
     /* get the filename of the loaded image */
     const char *get_filename() const { return fname_; }
 
+    /* get the fully-qualified, absolute directory path of the loaded image */
+    const char *get_path() const { return path_; }
+
     /* 
      *   check to see if the image file has a global symbol table (GSYM
      *   block) 
@@ -329,6 +336,9 @@ public:
      *   for reflection purposes 
      */
     vm_obj_id_t get_reflection_symtab() const { return reflection_symtab_; }
+
+    /* get the object ID of the LookupTable with the macro table */
+    vm_obj_id_t get_reflection_macros() const { return reflection_macros_; }
 
     /*
      *   perform dynamic linking after loading, resetting, or restoring 
@@ -343,6 +353,9 @@ public:
 
     /* allocate a new property ID */
     vm_prop_id_t alloc_new_prop(VMG0_);
+
+    /* get the last property ID currently in use */
+    vm_prop_id_t get_last_prop(VMG0_);
 
     /* save/restore the synthesized export table */
     void save_synth_exports(VMG_ class CVmFile *fp);
@@ -397,6 +410,9 @@ private:
 
     /* load a Global Symbols (GSYM) block into the runtime symbol table */
     void load_runtime_symtab_from_gsym(VMG_ ulong siz);
+
+    /* load a Macro Symbols (MACR) block into the runtime symbol table */
+    void load_runtime_symtab_from_macr(VMG_ ulong siz);
 
     /* load a Macro Symbols (MACR) block */
     void load_macros(VMG_ ulong siz);
@@ -457,6 +473,12 @@ private:
     /* image filename */
     char *fname_;
 
+    /* 
+     *   fully-qualified, absolute directory path to the file (this is just
+     *   the directory path, sans the filename) 
+     */
+    char *path_;
+
     /* the base seek offset of the image stream within the image file */
     long base_seek_ofs_;
 
@@ -500,8 +522,18 @@ private:
      */
     class CVmRuntimeSymbols *runtime_symtab_;
 
+    /* 
+     *   The runtime macro definitions table, if we have one.  As with the
+     *   runtime global symbol table, we build this from the debug records,
+     *   or from the records passed in from the compiler during preinit. 
+     */
+    class CVmRuntimeSymbols *runtime_macros_;
+
     /* object ID of LookupTable containing the global symbol table */
     vm_obj_id_t reflection_symtab_;
+
+    /* object ID of LookupTable containing the macro symbol table */
+    vm_obj_id_t reflection_macros_;
 
     /* head/tail of list of static initializer pages */
     class CVmStaticInitPage *static_head_;
@@ -671,6 +703,10 @@ public:
 
     /* read bytes into a buffer */
     virtual void read_bytes(char *buf, size_t len);
+    virtual size_t read_nbytes(char *buf, size_t len);
+
+    /* read a line (not used for this object) */
+    virtual char *read_line(char *buf, size_t len) { return 0; }
 
     /* write bytes */
     virtual void write_bytes(const char *, size_t);
@@ -678,6 +714,8 @@ public:
     /* get/set the seek position */
     virtual long get_seek_pos() const { return fp_->get_seek(); }
     virtual void set_seek_pos(long pos) { fp_->seek(pos); }
+
+    virtual long get_len() { return len_; }
 
 private:
     /* our underlying image file reader */

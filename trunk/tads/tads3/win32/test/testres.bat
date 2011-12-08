@@ -32,7 +32,7 @@ rem  run the resource bundler
 %tstbin%\capture >>%tstout%\%_1%.log %tstbin%\t3res %tstout%\%_1%.t3 %_res%
 
 rem  run the program
-%tstbin%\capture >>%tstout%\%_1%.log %tstbin%\test_exec -cs cp437 %tstout%\%_1%.t3
+%tstbin%\capture >>%tstout%\%_1%.log %tstbin%\test_exec -cs cp437 -norand %tstout%\%_1%.t3
 
 rem  check for differences
 call %tstbat%\testdiff %_1%

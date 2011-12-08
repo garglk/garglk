@@ -36,6 +36,14 @@ Modified
 #include "vmbytarr.h"
 #include "vmbignum.h"
 #include "vmhost.h"
+#include "vmimage.h"
+#include "vmnetfil.h"
+#include "vmnet.h"
+#include "vmhash.h"
+#include "vmpack.h"
+#include "sha2.h"
+#include "md5.h"
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -52,23 +60,31 @@ int (CVmObjFile::
      *CVmObjFile::func_table_[])(VMG_ vm_obj_id_t self,
                                  vm_val_t *retval, uint *argc) =
 {
-    &CVmObjFile::getp_undef,
-    &CVmObjFile::getp_open_text,
-    &CVmObjFile::getp_open_data,
-    &CVmObjFile::getp_open_raw,
-    &CVmObjFile::getp_get_charset,
-    &CVmObjFile::getp_set_charset,
-    &CVmObjFile::getp_close_file,
-    &CVmObjFile::getp_read_file,
-    &CVmObjFile::getp_write_file,
-    &CVmObjFile::getp_read_bytes,
-    &CVmObjFile::getp_write_bytes,
-    &CVmObjFile::getp_get_pos,
-    &CVmObjFile::getp_set_pos,
-    &CVmObjFile::getp_set_pos_end,
-    &CVmObjFile::getp_open_res_text,
-    &CVmObjFile::getp_open_res_raw,
-    &CVmObjFile::getp_get_size
+    &CVmObjFile::getp_undef,                                     /* index 0 */
+    &CVmObjFile::getp_open_text,                                       /* 1 */
+    &CVmObjFile::getp_open_data,                                       /* 2 */
+    &CVmObjFile::getp_open_raw,                                        /* 3 */
+    &CVmObjFile::getp_get_charset,                                     /* 4 */
+    &CVmObjFile::getp_set_charset,                                     /* 5 */
+    &CVmObjFile::getp_close_file,                                      /* 6 */
+    &CVmObjFile::getp_read_file,                                       /* 7 */
+    &CVmObjFile::getp_write_file,                                      /* 8 */
+    &CVmObjFile::getp_read_bytes,                                      /* 9 */
+    &CVmObjFile::getp_write_bytes,                                    /* 10 */
+    &CVmObjFile::getp_get_pos,                                        /* 11 */
+    &CVmObjFile::getp_set_pos,                                        /* 12 */
+    &CVmObjFile::getp_set_pos_end,                                    /* 13 */
+    &CVmObjFile::getp_open_res_text,                                  /* 14 */
+    &CVmObjFile::getp_open_res_raw,                                   /* 15 */
+    &CVmObjFile::getp_get_size,                                       /* 16 */
+    &CVmObjFile::getp_get_mode,                                       /* 17 */
+    &CVmObjFile::getp_getRootName,                                    /* 18 */
+    &CVmObjFile::getp_deleteFile,                                     /* 19 */
+    &CVmObjFile::getp_setMode,                                        /* 20 */
+    &CVmObjFile::getp_packBytes,                                      /* 21 */
+    &CVmObjFile::getp_unpackBytes,                                    /* 22 */
+    &CVmObjFile::getp_sha256,                                         /* 23 */
+    &CVmObjFile::getp_digestMD5                                       /* 24 */
 };
 
 /*
@@ -81,16 +97,10 @@ enum vmobjfil_meta_fnset
     VMOBJFILE_OPEN_DATA = 2,
     VMOBJFILE_OPEN_RAW = 3,
     VMOBJFILE_OPEN_RES_TEXT = 14,
-    VMOBJFILE_OPEN_RES_RAW = 15
+    VMOBJFILE_OPEN_RES_RAW = 15,
+    VMOBJFILE_GET_ROOT_NAME = 18,
+    VMOBJFILE_DELETE_FILE = 19
 };
-
-/* ------------------------------------------------------------------------ */
-/*
- *   Special filename designators 
- */
-
-/* library defaults file */
-#define SFID_LIB_DEFAULTS    0x0001
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -115,9 +125,8 @@ vm_obj_id_t CVmObjFile::create_from_stack(VMG_ const uchar **pc_ptr,
  */
 vm_obj_id_t CVmObjFile::create(VMG_ int in_root_set)
 {
-    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, TRUE, FALSE);
-
     /* instantiate the object */
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, TRUE, FALSE);
     new (vmg_ id) CVmObjFile();
 
     /* files are always transient */
@@ -131,16 +140,14 @@ vm_obj_id_t CVmObjFile::create(VMG_ int in_root_set)
  *   Create with the given character set object and file handle.  
  */
 vm_obj_id_t CVmObjFile::create(VMG_ int in_root_set,
-                               vm_obj_id_t charset, osfildef *fp,
-                               unsigned long flags, int mode, int access,
-                               int create_readbuf,
-                               unsigned long res_start, unsigned long res_end)
+                               CVmNetFile *netfile,
+                               vm_obj_id_t charset, CVmDataSource *fp,
+                               int mode, int access, int create_readbuf)
 {
-    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, TRUE, FALSE);
-
     /* instantiate the object */
-    new (vmg_ id) CVmObjFile(vmg_ charset, fp, flags, mode, access,
-                             create_readbuf, res_start, res_end);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, TRUE, FALSE);
+    new (vmg_ id) CVmObjFile(
+        vmg_ netfile, charset, fp, mode, access, create_readbuf);
 
     /* files are always transient */
     G_obj_table->set_obj_transient(id);
@@ -153,27 +160,23 @@ vm_obj_id_t CVmObjFile::create(VMG_ int in_root_set,
 /*
  *   Instantiate 
  */
-CVmObjFile::CVmObjFile(VMG_ vm_obj_id_t charset, osfildef *fp,
-                       unsigned long flags, int mode, int access,
-                       int create_readbuf,
-                       unsigned long res_start, unsigned long res_end)
+CVmObjFile::CVmObjFile(VMG_ CVmNetFile *netfile,
+                       vm_obj_id_t charset, CVmDataSource *fp,
+                       int mode, int access, int create_readbuf)
 {
     /* allocate and initialize our extension */
     ext_ = 0;
-    alloc_ext(vmg_ charset, fp, flags, mode, access, create_readbuf,
-              res_start, res_end);
+    alloc_ext(vmg_ netfile, charset, fp, 0, mode, access, create_readbuf);
 }
 
 /*
  *   Allocate and initialize our extension 
  */
-void CVmObjFile::alloc_ext(VMG_ vm_obj_id_t charset, osfildef *fp,
+void CVmObjFile::alloc_ext(VMG_ CVmNetFile *netfile,
+                           vm_obj_id_t charset, CVmDataSource *fp,
                            unsigned long flags, int mode, int access,
-                           int create_readbuf,
-                           unsigned long res_start, unsigned long res_end)
+                           int create_readbuf)
 {
-    size_t siz;
-
     /* 
      *   if we already have an extension, delete it (and release our
      *   underlying system file, if any) 
@@ -184,7 +187,7 @@ void CVmObjFile::alloc_ext(VMG_ vm_obj_id_t charset, osfildef *fp,
      *   Figure the needed size.  We need at least the standard extension;
      *   if we also need a read buffer, figure in space for that as well. 
      */
-    siz = sizeof(vmobjfile_ext_t);
+    size_t siz = sizeof(vmobjfile_ext_t);
     if (create_readbuf)
         siz += sizeof(vmobjfile_readbuf_t);
 
@@ -192,13 +195,12 @@ void CVmObjFile::alloc_ext(VMG_ vm_obj_id_t charset, osfildef *fp,
     ext_ = (char *)G_mem->get_var_heap()->alloc_mem(siz, this);
 
     /* store the data we received from the caller */
+    get_ext()->netfile = netfile;
     get_ext()->fp = fp;
     get_ext()->charset = charset;
     get_ext()->flags = flags;
     get_ext()->mode = (unsigned char)mode;
     get_ext()->access = (unsigned char)access;
-    get_ext()->res_start = res_start;
-    get_ext()->res_end = res_end;
 
     /* 
      *   point to our read buffer, for which we allocated space contiguously
@@ -207,11 +209,12 @@ void CVmObjFile::alloc_ext(VMG_ vm_obj_id_t charset, osfildef *fp,
     if (create_readbuf)
     {
         /* point to our read buffer object */
-        get_ext()->readbuf = (vmobjfile_readbuf_t *)(get_ext() + 1);
+        vmobjfile_readbuf_t *rb = (vmobjfile_readbuf_t *)(get_ext() + 1);
+        get_ext()->readbuf = rb;
 
         /* initialize the read buffer with no initial data */
-        get_ext()->readbuf->rem = 0;
-        get_ext()->readbuf->ptr.set(0);
+        rb->rem = 0;
+        rb->ptr = rb->buf;
     }
     else
     {
@@ -231,7 +234,24 @@ void CVmObjFile::notify_delete(VMG_ int /*in_root_set*/)
     {
         /* close our file if we have one */
         if (get_ext()->fp != 0)
-            osfcls(get_ext()->fp);
+            delete get_ext()->fp;
+
+        /* close the network file */
+        err_try
+        {
+            if (get_ext()->netfile != 0)
+                get_ext()->netfile->close(vmg0_);
+        }
+        err_catch(exc)
+        {
+            /* 
+             *   Since we're being deleted by the garbage collector, there's
+             *   no way to relay this error to the bytecode program - it
+             *   evidently lost track of the file, so it must not care about
+             *   the ending disposition.  Just discard the error.
+             */
+        }
+        err_end;
 
         /* free our extension */
         G_mem->get_var_heap()->free_mem(ext_);
@@ -281,30 +301,102 @@ int CVmObjFile::call_stat_prop(VMG_ vm_val_t *result,
                                const uchar **pc_ptr, uint *argc,
                                vm_prop_id_t prop)
 {
+    /* 
+     *   set up a blank recursive call descriptor, to be filled in when we
+     *   know which function we're calling 
+     */
+    uint midx = G_meta_table
+                ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
+    vm_rcdesc rc(vmg_ "",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 (ushort)midx, G_stk->get(0), argc != 0 ? *argc : 0);
+
     /* translate the property into a function vector index */
-    switch(G_meta_table
-           ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop))
+    switch(midx)
     {
     case VMOBJFILE_OPEN_TEXT:
-        return s_getp_open_text(vmg_ result, argc, FALSE);
+        rc.name = "File.openTextFile";
+        return s_getp_open_text(vmg_ result, argc, FALSE, &rc);
 
     case VMOBJFILE_OPEN_DATA:
-        return s_getp_open_data(vmg_ result, argc);
+        rc.name = "File.openDataFile";
+        return s_getp_open_data(vmg_ result, argc, &rc);
 
     case VMOBJFILE_OPEN_RAW:
-        return s_getp_open_raw(vmg_ result, argc, FALSE);
+        rc.name = "File.openRawFile";
+        return s_getp_open_raw(vmg_ result, argc, FALSE, &rc);
 
     case VMOBJFILE_OPEN_RES_TEXT:
-        return s_getp_open_text(vmg_ result, argc, TRUE);
+        rc.name = "File.openTextResource";
+        return s_getp_open_text(vmg_ result, argc, TRUE, &rc);
 
     case VMOBJFILE_OPEN_RES_RAW:
-        return s_getp_open_raw(vmg_ result, argc, TRUE);
+        rc.name = "File.openRawResource";
+        return s_getp_open_raw(vmg_ result, argc, TRUE, &rc);
+
+    case VMOBJFILE_GET_ROOT_NAME:
+        return s_getp_getRootName(vmg_ result, argc);
+
+    case VMOBJFILE_DELETE_FILE:
+        return s_getp_deleteFile(vmg_ result, argc);
 
     default:
         /* it's not one of ours - inherit from the base object metaclass */
         return CVmObject::call_stat_prop(vmg_ result, pc_ptr, argc, prop);
     }
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Static "open" methods 
+ */
+
+int CVmObjFile::getp_open_text(VMG_ vm_obj_id_t self,
+                               vm_val_t *retval, uint *argc)
+{
+    vm_rcdesc rc(vmg_ "File.openTextFile",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_OPEN_TEXT, G_stk->get(0), argc);
+    return s_getp_open_text(vmg_ retval, argc, FALSE, &rc);
+}
+
+int CVmObjFile::getp_open_data(VMG_ vm_obj_id_t self,
+                               vm_val_t *retval, uint *argc)
+{
+    vm_rcdesc rc(vmg_ "File.openDataFile",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_OPEN_DATA, G_stk->get(0), argc);
+    return s_getp_open_data(vmg_ retval, argc, &rc);
+}
+
+int CVmObjFile::getp_open_raw(VMG_ vm_obj_id_t self,
+                              vm_val_t *retval, uint *argc)
+{
+    vm_rcdesc rc(vmg_ "File.openRawFile",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_OPEN_RAW, G_stk->get(0), argc);
+    return s_getp_open_raw(vmg_ retval, argc, FALSE, &rc);
+}
+
+int CVmObjFile::getp_open_res_text(VMG_ vm_obj_id_t self,
+                                   vm_val_t *retval, uint *argc)
+{
+    vm_rcdesc rc(vmg_ "File.openTextResource",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_OPEN_RES_TEXT, G_stk->get(0), argc);
+    return s_getp_open_text(vmg_ retval, argc, TRUE, &rc);
+}
+
+int CVmObjFile::getp_open_res_raw(VMG_ vm_obj_id_t self,
+                                  vm_val_t *retval, uint *argc)
+{
+    vm_rcdesc rc(vmg_ "File.openRawResource",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_OPEN_RES_RAW, G_stk->get(0), argc);
+    return s_getp_open_raw(vmg_ retval, argc, TRUE, &rc);
+}
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -338,21 +430,16 @@ void CVmObjFile::reload_from_image(VMG_ vm_obj_id_t /*self*/,
  */
 void CVmObjFile::load_image_data(VMG_ const char *ptr, size_t siz)
 {
-    vm_obj_id_t charset;
-    unsigned long flags;
-    int mode;
-    int access;
-
     /* read our character set */
-    charset = vmb_get_objid(ptr);
+    vm_obj_id_t charset = vmb_get_objid(ptr);
     ptr += VMB_OBJECT_ID;
 
     /* get the mode and access values */
-    mode = (unsigned char)*ptr++;
-    access = (unsigned char)*ptr++;
+    int mode = (unsigned char)*ptr++;
+    int access = (unsigned char)*ptr++;
 
     /* get the flags */
-    flags = t3rp4u(ptr);
+    unsigned long flags = t3rp4u(ptr);
 
     /* 
      *   add in the out-of-sync flag, since we've restored the state from a
@@ -362,13 +449,13 @@ void CVmObjFile::load_image_data(VMG_ const char *ptr, size_t siz)
     flags |= VMOBJFILE_OUT_OF_SYNC;
 
     /* 
-     *   Initialize our extension - we have no underlying native file
-     *   handle, since the file is out of sync by virtue of being loaded
-     *   from a previously saved image state.  Note that we don't need a
-     *   read buffer because the file is inherently out of sync and thus
-     *   cannot be read.  
+     *   Initialize our extension - we have no underlying network file
+     *   descriptor or native file handle, since the file is out of sync by
+     *   virtue of being loaded from a previously saved image state.  Note
+     *   that we don't need a read buffer because the file is inherently out
+     *   of sync and thus cannot be read.  
      */
-    alloc_ext(vmg_ charset, 0, flags, mode, access, FALSE, 0, 0);
+    alloc_ext(vmg_ 0, charset, 0, flags, mode, access, FALSE);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -387,7 +474,7 @@ void CVmObjFile::save_to_file(VMG_ class CVmFile *fp)
 void CVmObjFile::restore_from_file(VMG_ vm_obj_id_t self,
                                    CVmFile *fp, CVmObjFixup *)
 {
-    /* files are always transient, so should never be savd */
+    /* files are always transient, so should never be saved */
 }
 
 /* ------------------------------------------------------------------------ */
@@ -399,13 +486,17 @@ void CVmObjFile::mark_refs(VMG_ uint state)
     /* mark our character set object, if we have one */
     if (get_ext()->charset != VM_INVALID_OBJ)
         G_obj_table->mark_all_refs(get_ext()->charset, state);
+
+    /* mark our network file descriptor's references */
+    if (get_ext()->netfile != 0)
+        get_ext()->netfile->mark_refs(vmg_ state);
 }
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Note that we're seeking within the file.
  */
-void CVmObjFile::note_file_seek(VMG_ vm_obj_id_t self, int is_explicit)
+void CVmObjFile::note_file_seek(VMG_ int is_explicit)
 {
     /* 
      *   if it's an explicit seek, invalidate our internal read buffer and
@@ -433,7 +524,7 @@ void CVmObjFile::note_file_seek(VMG_ vm_obj_id_t self, int is_explicit)
  *   dissimilar operations.  In other words, if we read then write, we must
  *   seek before the write, and likewise if we write then read.  
  */
-void CVmObjFile::switch_read_write_mode(int writing)
+void CVmObjFile::switch_read_write_mode(VMG_ int writing)
 {
     /* if we're writing, invalidate the read buffer */
     if (writing && get_ext()->readbuf != 0)
@@ -455,13 +546,12 @@ void CVmObjFile::switch_read_write_mode(int writing)
          *   location to flush the stdio buffers 
          */
         if ((writing && !was_writing) || (!writing && was_writing))
-            osfseek(get_ext()->fp, osfpos(get_ext()->fp), OSFSK_SET);
+            get_ext()->fp->seek(get_pos(vmg0_), OSFSK_SET);
     }
 
     /* 
      *   remember that this operation is stdio-buffered, so that we'll know
-     *   we need to seek if we perform the opposite type of application
-     *   after this one 
+     *   we need to seek if we perform the opposite operation after this one 
      */
     get_ext()->flags |= VMOBJFILE_STDIO_BUF_DIRTY;
 
@@ -474,34 +564,120 @@ void CVmObjFile::switch_read_write_mode(int writing)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Retrieve the filename and access mode arguments. 
+ *   Retrieve the filename argument, and optionally the access mode argument.
+ *   Sets up network storage server access to the file, if applicable.
+ *   Returns a network/local file descriptor that the caller can use to open
+ *   the local file system object. 
+ *   
+ *   If '*access' is zero at entry, we'll retrieve the access argument from
+ *   the stack for a non-resource file.  (Resource files always use access
+ *   mode READ, so there's no extra argument for those.)  If '*access' is
+ *   non-zero, we'll simply use the given access mode.
+ *   
+ *   This leaves the argument values on the stack - the caller must discard
+ *   when done with them.  
  */
-void CVmObjFile::get_filename_and_access(VMG_ char *fname, size_t fname_siz,
-                                         int *access, int is_resource_file)
+CVmNetFile *CVmObjFile::get_filename_and_access(
+    VMG_ const vm_rcdesc *rc, int *access, int is_resource_file,
+    os_filetype_t file_type, const char *mime_type)
 {
-    int is_special_file = FALSE;
-    
-    /* 
-     *   check to see if we have an explicit filename string, or an integer
-     *   giving a special system file ID 
+    /*
+     *   If it's a resource file, the access mode is always READ, and there's
+     *   no access mode argument.  If the caller provided a non-zero access
+     *   mode, there's also no argument - we just use the caller's mode.  If
+     *   the caller specified zero as the mode, it means we have to read the
+     *   mode from an extra integer argument.  
      */
-    if (G_stk->get(0)->typ == VM_INT)
+    if (is_resource_file)
     {
-        char path[OSFNMAX];
+        /* resource file - the only access mode possible is READ */
+        *access = VMOBJFILE_ACCESS_READ;
+    }
+    else if (*access == 0)
+    {
+        /* get the access mode from the stack */
+        *access = G_stk->get(1)->num_to_int();
 
-        /* start with no path, in case we have trouble retrieving it */
-        path[0] = '\0';
-        
-        /* we have an integer, which is a special file designator */
-        switch (CVmBif::pop_int_val(vmg0_))
+        /* delete access isn't allowed in byte code */
+        if (*access == VMOBJFILE_ACCESS_DELETE)
+            err_throw(VMERR_BAD_VAL_BIF);
+    }
+
+    /* figure the network file access mode */
+    int nmode;
+    switch (*access)
+    {
+    case VMOBJFILE_ACCESS_READ:
+        /* read access; file must exist */
+        nmode = NETF_READ;
+        break;
+
+    case VMOBJFILE_ACCESS_WRITE:
+        /* write access; create or replace existing file */ 
+        nmode = NETF_WRITE | NETF_CREATE | NETF_TRUNC;
+        break;
+
+    case VMOBJFILE_ACCESS_RW_KEEP:
+        /* read/write access; keep an existing file or create a new one */
+        nmode = NETF_READ | NETF_WRITE | NETF_CREATE;
+        break;
+
+    case VMOBJFILE_ACCESS_RW_TRUNC:
+        /* read/write access; truncate an existing file or create a new one */
+        nmode = NETF_READ | NETF_WRITE | NETF_CREATE | NETF_TRUNC;
+        break;
+
+    case VMOBJFILE_ACCESS_DELETE:
+        /* delete mode */
+        nmode = NETF_DELETE;
+        break;
+
+    default:
+        /* invalid mode */
+        err_throw(VMERR_BAD_VAL_BIF);
+    }
+
+    /* we don't have a network file descriptor yet */
+    CVmNetFile *netfile = 0;
+    char fname[OSFNMAX];
+
+    /* check to see what kind of file spec we have */
+    if (is_resource_file)
+    {
+        /* a resource file must be given as a string name - retrieve it */
+        CVmBif::get_str_val_fname(vmg_ fname, sizeof(fname),
+                                  CVmBif::get_str_val(vmg_ G_stk->get(0)));
+
+        /* resources are always local, so create a local file descriptor */
+        netfile = CVmNetFile::open_local(vmg_ fname, 0, nmode, file_type);
+    }
+    else if (G_stk->get(0)->typ == VM_INT)
+    {
+        /* an integer value is a special file ID */
+        int sfid = G_stk->get(0)->num_to_int();
+
+        /* resolve the file system path for the given special file ID */
+        char path[OSFNMAX] = { '\0' };
+        const char *base = 0;
+        switch (sfid)
         {
         case SFID_LIB_DEFAULTS:
+            /* library defaults file - T3_APP_DATA/settings.txt */
+            base = "settings.txt";
+            goto app_data_file;
+            
+        case SFID_WEBUI_PREFS:
+            /* Web UI preferences - T3_APP_DATA/webprefs.txt */
+            base = "webprefs.txt";
+            goto app_data_file;
+            
+        app_data_file:
             /* get the system application data path */
-            G_host_ifc->get_special_file_path(path, sizeof(path),
-                                              OS_GSP_T3_APP_DATA);
+            G_host_ifc->get_special_file_path(
+                path, sizeof(path), OS_GSP_T3_APP_DATA);
 
             /* add the filename */
-            os_build_full_path(fname, fname_siz, path, "settings.txt");
+            os_build_full_path(fname, sizeof(fname), path, base);
             break;
 
         default:
@@ -509,211 +685,252 @@ void CVmObjFile::get_filename_and_access(VMG_ char *fname, size_t fname_siz,
             err_throw(VMERR_BAD_VAL_BIF);
         }
 
-        /* note that we have a special file, for file safety purposes */
-        is_special_file = TRUE;
+        /* create the special file desriptor */
+        netfile = CVmNetFile::open(
+            vmg_ fname, sfid, nmode, file_type, mime_type);
     }
     else
     {
-        /* we must have an explicit filename string - pop it */
-        CVmBif::pop_str_val_fname(vmg_ fname, fname_siz);
+        /* regular file - create the network file descriptor */
+        netfile = CVmNetFile::open(
+            vmg_ G_stk->get(0), rc, nmode, file_type, mime_type);
+    }
+    
+    /* 
+     *   If this isn't a resource file, check the file safety mode to see if
+     *   the operation is allowed.  Reading resources is always allowed,
+     *   regardless of the safety mode, since resources are read-only and are
+     *   inherently constrained in the paths they can access.  
+     */
+    if (!is_resource_file)
+    {
+        err_try
+        {
+            check_safety_for_open(vmg_ netfile, *access);
+        }
+        err_catch(exc)
+        {
+            /* abandon the net file descriptor and bubble up the error */
+            netfile->abandon(vmg0_);
+            err_rethrow();
+        }
+        err_end;
     }
 
-    /* 
-     *   retrieve the access mode; if it's a resource file, the mode is
-     *   implicitly 'read' 
-     */
-    if (is_resource_file)
-        *access = VMOBJFILE_ACCESS_READ;
-    else
-        *access = CVmBif::pop_int_val(vmg0_);
-
-    /*
-     *   If this isn't a special file, then check the file safety mode to
-     *   ensure this operation is allowed.  Reading resources is always
-     *   allowed, regardless of the safety mode, since resources are
-     *   read-only and are inherently constrained in the paths they can
-     *   access.  Likewise, special files bypass the safety settings, because
-     *   the interpreter controls the names and locations of these files,
-     *   ensuring that they're inherently safe.  
-     */
-    if (!is_resource_file && !is_special_file)
-        check_safety_for_open(vmg_ fname, *access);
+    /* return the network file descriptor */
+    return netfile;
 }
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Pop a character set mapper argument.  If there's no argument, we'll
+ *   create and return a mapper for the default character set. 
+ */
+vm_obj_id_t CVmObjFile::get_charset_arg(VMG_ int argn, int argc)
+{
+    /* presume we won't find a valid argument value */
+    vm_obj_id_t obj = VM_INVALID_OBJ;
+
+    /* if there's an argument, pop it */
+    if (argn < argc)
+        obj = CVmBif::get_charset_obj(vmg_ argn);
+    
+    /* if we don't have a character set yet, create the default */
+    if (obj == VM_INVALID_OBJ)
+    {
+        /* get the default local character set for file contents */
+        char csname[32];
+        os_get_charmap(csname, OS_CHARMAP_FILECONTENTS);
+        
+        /* create the mapper */
+        obj = CVmObjCharSet::create(vmg_ FALSE, csname, strlen(csname));
+    }
+
+    /* return the character set */
+    return obj;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Static property evaluator - open a text file 
  */
 int CVmObjFile::s_getp_open_text(VMG_ vm_val_t *retval, uint *in_argc,
-                                 int is_resource_file)
+                                 int is_resource_file, const vm_rcdesc *rc)
 {
+    /* check arguments */
     uint argc = (in_argc != 0 ? *in_argc : 0);
     static CVmNativeCodeDesc desc_file(2, 1);
     static CVmNativeCodeDesc desc_res(1, 1);
-    char fname[OSFNMAX];
-    int access;
-    vm_obj_id_t cset_obj;
-    osfildef *fp;
-    int create_readbuf;
-    unsigned long res_start;
-    unsigned long res_end;
-    unsigned int flags;
-
-    /* check arguments */
     if (get_prop_check_argc(retval, in_argc,
                             is_resource_file ? &desc_res : &desc_file))
         return TRUE;
 
-    /* initialize the flags to indicate a text-mode file */
-    flags = 0;
+    /* 
+     *   retrieve the filename and access mode arguments, and set up network
+     *   storage server access if applicable 
+     */
+    int access = 0;
+    CVmNetFile *netfile = get_filename_and_access(
+        vmg_ rc, &access, is_resource_file, OSFTTEXT, "text/plain");
 
-    /* add the resource-file flag if appropriate */
-    if (is_resource_file)
-        flags |= VMOBJFILE_IS_RESOURCE;
+    err_try
+    {
+        /* presume we won't need a read buffer */
+        int create_readbuf = FALSE;
 
-    /* presume we can use the entire file */
-    res_start = 0;
-    res_end = 0;
+        /* retrieve the character set object */
+        vm_obj_id_t cset_obj = get_charset_arg(vmg_ 2, argc);
 
-    /* retrieve the filename */
-    get_filename_and_access(vmg_ fname, sizeof(fname),
-                            &access, is_resource_file);
+        /* push the character map object onto the stack for gc protection */
+        G_stk->push()->set_obj(cset_obj);
+        
+        /* open the file for reading or writing, as appropriate */
+        CVmDataSource *ds = 0;
+        osfildef *fp = 0;
+        switch(access)
+        {
+        case VMOBJFILE_ACCESS_READ:
+            /* open a resource file or file system file, as appropriate */
+            if (is_resource_file)
+            {
+                /* it's a resource - open it */
+                unsigned long res_len;
+                fp = G_host_ifc->find_resource(
+                    netfile->lclfname, strlen(netfile->lclfname), &res_len);
+                
+                /* 
+                 *   if we found the resource, note the start and end seek
+                 *   positions, so we can limit reading of the underlying
+                 *   file to the section that contains the resource data 
+                 */
+                if (fp != 0)
+                {
+                    /* 
+                     *   find_resource() handed us back a file handle
+                     *   positioned at the start of the resource data stream,
+                     *   possibly within a larger file; note the current
+                     *   offset as the starting offset in case we need to
+                     *   seek within the resource later 
+                     */
+                    long res_start = osfpos(fp);
+                    
+                    /* 
+                     *   note where the resource ends - it might be embedded
+                     *   within a larger file, so we need to limit reading to
+                     *   the extent from the resource map 
+                     */
+                    long res_end = res_start + res_len;
+                    
+                    /* create the data source */
+                    ds = new CVmResFileSource(fp, res_start, res_end);
+                }
+            }
+            else
+            {
+                /* 
+                 *   It's not a resource - open an ordinary text file for
+                 *   reading.  Even though we're going to treat the file as a
+                 *   text file, open it in binary mode, since we'll do our
+                 *   own universal newline translations; this allows us to
+                 *   work with files in any character set, and using almost
+                 *   any newline conventions, so files copied from other
+                 *   systems will be fully usable even if they haven't been
+                 *   fixed up to local conventions.  
+                 */
+                fp = osfoprb(netfile->lclfname, OSFTTEXT);
 
-    /* presume we won't need a read buffer */
-    create_readbuf = FALSE;
+                /* if that worked, create the data source */
+                if (fp != 0)
+                    ds = new CVmFileSource(fp);
+            }
+            
+            /* make sure we opened it successfully */
+            if (fp == 0)
+                G_interpreter->throw_new_class(
+                    vmg_ G_predef->file_not_found_exc,
+                    0, "file not found");
 
-    /* if there's a character set name or object, retrieve it */
-    if (argc > 2)
+            /* we need a read buffer */
+            create_readbuf = TRUE;
+            break;
+            
+        case VMOBJFILE_ACCESS_WRITE:
+            /* open for writing */
+            fp = osfopwb(netfile->lclfname, OSFTTEXT);
+            
+            /* make sure we created it successfully */
+            if (fp == 0)
+                G_interpreter->throw_new_class(
+                    vmg_ G_predef->file_creation_exc,
+                    0, "error creating file");
+
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+            break;
+
+        case VMOBJFILE_ACCESS_RW_KEEP:
+            /* open for read/write, keeping existing contents */
+            fp = osfoprwb(netfile->lclfname, OSFTTEXT);
+            
+            /* make sure we were able to find or create the file */
+            if (fp == 0)
+                G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
+                                               0, "error opening file");
+            
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+
+            /* we need a read buffer */
+            create_readbuf = TRUE;
+            break;
+            
+        case VMOBJFILE_ACCESS_RW_TRUNC:
+            /* open for read/write, truncating existing contents */
+            fp = osfoprwtb(netfile->lclfname, OSFTTEXT);
+            
+            /* make sure we were successful */
+            if (fp == 0)
+                G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
+                                               0, "error opening file");
+            
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+
+            /* we need a read buffer */
+            create_readbuf = TRUE;
+            break;
+            
+        default:
+            /* invalid access mode */
+            fp = 0;
+            err_throw(VMERR_BAD_VAL_BIF);
+        }
+        
+        /* create our file object */
+        retval->set_obj(create(vmg_ FALSE, netfile, cset_obj, ds,
+                               VMOBJFILE_MODE_TEXT, access, create_readbuf));
+
+        /* 
+         *   the network file descriptor is stored in the File object now, so
+         *   we no longer need to delete it 
+         */
+        netfile = 0;
+
+        /* discard arguments and gc protection */
+        G_stk->discard(argc + 1);
+    }
+    err_finally
     {
         /* 
-         *   check to see if it's a CharacterSet object; if it's not, it
-         *   must be a string giving the character set name 
+         *   If we created a network file descriptor and didn't hand it off
+         *   to the File object, we're abandoning the object.  
          */
-        if (G_stk->get(0)->typ == VM_OBJ
-            && CVmObjCharSet::is_charset(vmg_ G_stk->get(0)->val.obj))
-        {
-            /* retrieve the CharacterSet reference */
-            cset_obj = CVmBif::pop_obj_val(vmg0_);
-        }
-        else
-        {
-            const char *str;
-            size_t len;
-            
-            /* it's not a CharacterSet, so it must be a character set name */
-            str = G_stk->get(0)->get_as_string(vmg0_);
-            if (str == 0)
-                err_throw(VMERR_BAD_TYPE_BIF);
-
-            /* get the length and skip the length prefix */
-            len = vmb_get_len(str);
-            str += VMB_LEN;
-
-            /* create a mapper for the given name */
-            cset_obj = CVmObjCharSet::create(vmg_ FALSE, str, len);
-        }
+        if (netfile != 0)
+            netfile->abandon(vmg0_);
     }
-    else
-    {
-        /* no character set is specified - use US-ASCII by default */
-        cset_obj = CVmObjCharSet::create(vmg_ FALSE, "us-ascii", 8);
-    }
-
-    /* push the character map object onto the stack for gc protection */
-    G_stk->push()->set_obj(cset_obj);
-
-    /* open the file for reading or writing, as appropriate */
-    switch(access)
-    {
-    case VMOBJFILE_ACCESS_READ:
-        /* open a resource file or file system file, as appropriate */
-        if (is_resource_file)
-        {
-            unsigned long res_len;
-            
-            /* it's a resource - open it */
-            fp = G_host_ifc->find_resource(fname, strlen(fname), &res_len);
-
-            /* 
-             *   if we found the resource, note the start and end seek
-             *   positions, so we can limit reading of the underlying file
-             *   to the section that contains the resource data 
-             */
-            if (fp != 0)
-            {
-                /* the file is initially at the start of the resource data */
-                res_start = osfpos(fp);
-
-                /* note the offset of the first byte after the resource */
-                res_end = res_start + res_len;
-            }
-        }
-        else
-        {
-            /* 
-             *   Not a resource - open an ordinary text file for reading.
-             *   Even though we're going to treat the file as a text file,
-             *   open it in binary mode, since we'll do our own universal
-             *   newline translations; this allows us to work with files in
-             *   any character set, and using almost any newline
-             *   conventions, so files copied from other systems will be
-             *   fully usable even if they haven't been fixed up to local
-             *   conventions.  
-             */
-            fp = osfoprb(fname, OSFTTEXT);
-        }
-
-        /* make sure we opened it successfully */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_not_found_exc,
-                                           0, "file not found");
-
-        /* we need a read buffer */
-        create_readbuf = TRUE;
-        break;
-
-    case VMOBJFILE_ACCESS_WRITE:
-        /* open for writing */
-        fp = osfopwb(fname, OSFTTEXT);
-
-        /* make sure we created it successfully */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_creation_exc,
-                                           0, "error creating file");
-        break;
-
-    case VMOBJFILE_ACCESS_RW_KEEP:
-        /* open for read/write, keeping existing contents */
-        fp = osfoprwb(fname, OSFTTEXT);
-
-        /* make sure we were able to find or create the file */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
-                                           0, "error opening file");
-        break;
-
-    case VMOBJFILE_ACCESS_RW_TRUNC:
-        /* open for read/write, truncating existing contents */
-        fp = osfoprwtb(fname, OSFTTEXT);
-
-        /* make sure we were successful */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
-                                           0, "error opening file");
-        break;
-
-    default:
-        fp = 0;
-        err_throw(VMERR_BAD_VAL_BIF);
-    }
-
-    /* create our file object */
-    retval->set_obj(create(vmg_ FALSE, cset_obj, fp, flags,
-                           VMOBJFILE_MODE_TEXT, access, create_readbuf,
-                           res_start, res_end));
-
-    /* discard gc protection */
-    G_stk->discard();
+    err_end;
 
     /* handled */
     return TRUE;
@@ -722,134 +939,171 @@ int CVmObjFile::s_getp_open_text(VMG_ vm_val_t *retval, uint *in_argc,
 /*
  *   Static property evaluator - open a data file
  */
-int CVmObjFile::s_getp_open_data(VMG_ vm_val_t *retval, uint *argc)
+int CVmObjFile::s_getp_open_data(VMG_ vm_val_t *retval, uint *argc,
+                                 const vm_rcdesc *rc)
 {
     /* use the generic binary file opener in 'data' mode */
-    return open_binary(vmg_ retval, argc, VMOBJFILE_MODE_DATA, FALSE);
+    return open_binary(vmg_ retval, argc, VMOBJFILE_MODE_DATA, FALSE, rc);
 }
 
 /*
  *   Static property evaluator - open a raw file
  */
 int CVmObjFile::s_getp_open_raw(VMG_ vm_val_t *retval, uint *argc,
-                                int is_resource_file)
+                                int is_resource_file, const vm_rcdesc *rc)
 {
     /* use the generic binary file opener in 'raw' mode */
     return open_binary(vmg_ retval, argc, VMOBJFILE_MODE_RAW,
-                       is_resource_file);
+                       is_resource_file, rc);
 }
 
 /*
  *   Generic binary file opener - common to 'data' and 'raw' files 
  */
-int CVmObjFile::open_binary(VMG_ vm_val_t *retval, uint *argc, int mode,
-                            int is_resource_file)
+int CVmObjFile::open_binary(VMG_ vm_val_t *retval, uint *in_argc, int mode,
+                            int is_resource_file, const vm_rcdesc *rc)
 {
+    /* check arguments */
+    uint argc = (in_argc != 0 ? *in_argc : 0);
     static CVmNativeCodeDesc file_desc(2);
     static CVmNativeCodeDesc res_desc(1);
-    char fname[OSFNMAX];
-    int access;
-    osfildef *fp;
-    unsigned long res_start;
-    unsigned long res_end;
-    unsigned int flags;
-
-    /* check arguments */
-    if (get_prop_check_argc(retval, argc,
+    if (get_prop_check_argc(retval, in_argc,
                             is_resource_file ? &res_desc : &file_desc))
         return TRUE;
 
-    /* initialize the flags */
-    flags = 0;
-
-    /* set the resource-file flag, if appropriate */
-    if (is_resource_file)
-        flags |= VMOBJFILE_IS_RESOURCE;
-
-    /* presume we can use the entire file */
-    res_start = 0;
-    res_end = 0;
-
     /* retrieve the filename and access mode */
-    get_filename_and_access(vmg_ fname, sizeof(fname),
-                            &access, is_resource_file);
+    int access = 0;
+    CVmNetFile *netfile = get_filename_and_access(
+        vmg_ rc, &access, is_resource_file,
+        OSFTBIN, "application/octet-stream");
 
-    /* open the file in binary mode, with the desired access type */
-    switch(access)
+    err_try
     {
-    case VMOBJFILE_ACCESS_READ:
-        /* open the resource or ordinary file, as appropriate */
-        if (is_resource_file)
+        osfildef *fp;
+        CVmDataSource *ds = 0;
+
+        /* open the file in binary mode, with the desired access type */
+        switch(access)
         {
-            unsigned long res_len;
-
-            /* it's a resource - open it */
-            fp = G_host_ifc->find_resource(fname, strlen(fname), &res_len);
-
-            /* 
-             *   if we found the resource, note the start and end seek
-             *   positions, so we can limit reading of the underlying file
-             *   to the section that contains the resource data 
-             */
-            if (fp != 0)
+        case VMOBJFILE_ACCESS_READ:
+            /* open the resource or ordinary file, as appropriate */
+            if (is_resource_file)
             {
-                /* the file is initially at the start of the resource data */
-                res_start = osfpos(fp);
+                unsigned long res_len;
+                
+                /* it's a resource - open it */
+                fp = G_host_ifc->find_resource(
+                    netfile->lclfname, strlen(netfile->lclfname), &res_len);
 
-                /* note the offset of the first byte after the resource */
-                res_end = res_start + res_len;
+                /* 
+                 *   if we found the resource, note the start and end seek
+                 *   positions, so we can limit reading of the underlying
+                 *   file to the section that contains the resource data 
+                 */
+                if (fp != 0)
+                {
+                    /* 
+                     *   find_resource() hands us a file handle positioned at
+                     *   the start of the resource data - note the seek
+                     *   offset in case we need to seek around within the
+                     *   resource stream later on 
+                     */
+                    long res_start = osfpos(fp);
+                    
+                    /* 
+                     *   note the end of the resource, in case it's embedded
+                     *   within a larger physical file 
+                     */
+                    long res_end = res_start + res_len;
+                    
+                    /* create the data source */
+                    ds = new CVmResFileSource(fp, res_start, res_end);
+                }
             }
+            else
+            {
+                /* open the ordinary file in binary mode for reading only */
+                fp = osfoprb(netfile->lclfname, OSFTBIN);
+                
+                /* create the data source */
+                if (fp != 0)
+                    ds = new CVmFileSource(fp);
+            }
+            
+            /* make sure we were able to find it and open it */
+            if (fp == 0)
+                G_interpreter->throw_new_class(
+                    vmg_ G_predef->file_not_found_exc, 0, "file not found");
+            break;
+            
+        case VMOBJFILE_ACCESS_WRITE:
+            /* open in binary mode for writing only */
+            fp = osfopwb(netfile->lclfname, OSFTBIN);
+            
+            /* make sure we were able to create the file successfully */
+            if (fp == 0)
+                G_interpreter->throw_new_class(
+                    vmg_ G_predef->file_creation_exc,
+                    0, "error creating file");
+            
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+            break;
+            
+        case VMOBJFILE_ACCESS_RW_KEEP:
+            /* open for read/write, keeping existing contents */
+            fp = osfoprwb(netfile->lclfname, OSFTBIN);
+            
+            /* make sure we were able to find or create the file */
+            if (fp == 0)
+                G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
+                                               0, "error opening file");
+            
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+            break;
+            
+        case VMOBJFILE_ACCESS_RW_TRUNC:
+            /* open for read/write, truncating existing contents */
+            fp = osfoprwtb(netfile->lclfname, OSFTBIN);
+            
+            /* make sure we were successful */
+            if (fp == 0)
+                G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
+                                               0, "error opening file");
+            
+            /* create the data source */
+            ds = new CVmFileSource(fp);
+            break;
+            
+        default:
+            fp = 0;
+            err_throw(VMERR_BAD_VAL_BIF);
         }
-        else
-        {
-            /* open the ordinary file in binary mode for reading only */
-            fp = osfoprb(fname, OSFTBIN);
-        }
+        
+        /* create our file object */
+        retval->set_obj(create(
+            vmg_ FALSE, netfile, VM_INVALID_OBJ, ds, mode, access, FALSE));
 
-        /* make sure we were able to find it and open it */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_not_found_exc,
-                                           0, "file not found");
-        break;
-
-    case VMOBJFILE_ACCESS_WRITE:
-        /* open in binary mode for writing only */
-        fp = osfopwb(fname, OSFTBIN);
-
-        /* make sure we were able to create the file successfully */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_creation_exc,
-                                           0, "error creating file");
-        break;
-
-    case VMOBJFILE_ACCESS_RW_KEEP:
-        /* open for read/write, keeping existing contents */
-        fp = osfoprwb(fname, OSFTBIN);
-
-        /* make sure we were able to find or create the file */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
-                                           0, "error opening file");
-        break;
-
-    case VMOBJFILE_ACCESS_RW_TRUNC:
-        /* open for read/write, truncating existing contents */
-        fp = osfoprwtb(fname, OSFTBIN);
-
-        /* make sure we were successful */
-        if (fp == 0)
-            G_interpreter->throw_new_class(vmg_ G_predef->file_open_exc,
-                                           0, "error opening file");
-        break;
-
-    default:
-        fp = 0;
-        err_throw(VMERR_BAD_VAL_BIF);
+        /* 
+         *   we've handed off the network file descriptor to the File object,
+         *   so we no longer have responsibility for it 
+         */
+        netfile = 0;
     }
+    err_finally
+    {
+        /* 
+         *   if we created a network file descriptor and didn't hand it off
+         *   to the new File object, we're abandoning it 
+         */
+        if (netfile != 0)
+            netfile->abandon(vmg0_);
+    }
+    err_end;
 
-    /* create our file object */
-    retval->set_obj(create(vmg_ FALSE, VM_INVALID_OBJ, fp,
-                           flags, mode, access, FALSE, res_start, res_end));
+    /* discard arguments */
+    G_stk->discard(argc);
 
     /* handled */
     return TRUE;
@@ -860,25 +1114,30 @@ int CVmObjFile::open_binary(VMG_ vm_val_t *retval, uint *argc, int mode,
  *   Check the safety settings to determine if an open operation is allowed.
  *   If the access is not allowed, we'll throw an error.  
  */
-void CVmObjFile::check_safety_for_open(VMG_ const char *fname, int access)
+void CVmObjFile::check_safety_for_open(VMG_ CVmNetFile *nf, int access)
 {
-    int safety;
-    int in_same_dir;
+    /* 
+     *   If it's a special file, a temporary file, or it's on the network
+     *   storage server, allow it.  The safety level doesn't apply to special
+     *   files, since they're inherently sandboxed.  It doesn't apply to temp
+     *   files, since these names can only be obtained from the VM and are
+     *   inherently safe.  The network server has its own security rules, so
+     *   we don't need (or want) to apply local sandboxing there.  
+     */
+    if (nf->sfid != 0 || nf->is_temp || nf->is_net_file())
+        return;
     
     /* get the current file safety level from the host application */
-    safety = G_host_ifc->get_io_safety();
-
+    int read_level = G_host_ifc->get_io_safety_read();
+    int write_level = G_host_ifc->get_io_safety_write();
+    
     /* 
-     *   Check to see if the file is in the current directory - if not, we
-     *   may have to disallow the operation based on safety level settings.
-     *   If the file has any sort of directory prefix, assume it's not in
-     *   the same directory; if not, it must be.  This is actually overly
-     *   conservative, since the path may be a relative path or even an
-     *   absolute path that points to the current directory, but the
-     *   important thing is whether we're allowing files to specify paths at
-     *   all.  
+     *   Check to see if the file is in the same directory as the game file
+     *   (or any subdirectory).  If not, we may have to disallow the
+     *   operation based on safety level settings.  
      */
-    in_same_dir = (os_get_root_name((char *)fname) == fname);
+    int in_same_dir = os_is_file_in_dir(
+        nf->lclfname, G_image_loader->get_path(), TRUE);
 
     /* check for conformance with the safety level setting */
     switch (access)
@@ -890,8 +1149,8 @@ void CVmObjFile::check_safety_for_open(VMG_ const char *fname, int access)
          *   READ_ANY_WRITE_CUR or lower to read from a file not in the
          *   current directory 
          */
-        if (safety > VM_IO_SAFETY_READ_CUR
-            || (!in_same_dir && safety > VM_IO_SAFETY_READ_ANY_WRITE_CUR))
+        if (read_level > VM_IO_SAFETY_READ_CUR
+            || (!in_same_dir && read_level > VM_IO_SAFETY_READ_ANY_WRITE_CUR))
         {
             /* this operation is not allowed - throw an error */
             G_interpreter->throw_new_class(vmg_ G_predef->file_safety_exc,
@@ -902,13 +1161,14 @@ void CVmObjFile::check_safety_for_open(VMG_ const char *fname, int access)
     case VMOBJFILE_ACCESS_WRITE:
     case VMOBJFILE_ACCESS_RW_KEEP:
     case VMOBJFILE_ACCESS_RW_TRUNC:
+    case VMOBJFILE_ACCESS_DELETE:
         /* 
-         *   writing - we must be safety level of at least READWRITE_CUR to
-         *   write at all, and we must be at level MINIMUM to write a file
-         *   that's not in the current directory 
+         *   writing or deleting - we must be safety level of at least
+         *   READWRITE_CUR to write at all, and we must be at level MINIMUM
+         *   to write a file that's not in the current directory 
          */
-        if (safety > VM_IO_SAFETY_READWRITE_CUR
-            || (!in_same_dir && safety > VM_IO_SAFETY_MINIMUM))
+        if (write_level > VM_IO_SAFETY_READWRITE_CUR
+            || (!in_same_dir && write_level > VM_IO_SAFETY_MINIMUM))
         {
             /* this operation is not allowed - throw an error */
             G_interpreter->throw_new_class(vmg_ G_predef->file_safety_exc,
@@ -948,25 +1208,15 @@ int CVmObjFile::getp_get_charset(VMG_ vm_obj_id_t self, vm_val_t *retval,
 int CVmObjFile::getp_set_charset(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                  uint *argc)
 {
-    static CVmNativeCodeDesc desc(1);
-
     /* check arguments */
+    static CVmNativeCodeDesc desc(1);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
-    /* make sure it's really a character set object */
-    if (G_stk->get(0)->typ != VM_NIL
-        && (G_stk->get(0)->typ != VM_OBJ
-            || !CVmObjCharSet::is_charset(vmg_ G_stk->get(0)->val.obj)))
-        err_throw(VMERR_BAD_TYPE_BIF);
+    /* retrieve and save the character set argument */
+    get_ext()->charset = get_charset_arg(vmg_ 0, 1);
 
-    /* remember the new character set */
-    if (G_stk->get(0)->typ == VM_NIL)
-        get_ext()->charset = VM_INVALID_OBJ;
-    else
-        get_ext()->charset = G_stk->get(0)->val.obj;
-
-    /* discard the argument */
+    /* discard arguments */
     G_stk->discard();
 
     /* no return value */
@@ -1015,6 +1265,38 @@ void CVmObjFile::check_write_access(VMG0_)
                                        "wrong file mode");
 }
 
+/*
+ *   Check that we're in raw mode 
+ */
+void CVmObjFile::check_raw_mode(VMG0_)
+{
+    /* if we're not in raw mode, throw an error */
+    if (get_ext()->mode != VMOBJFILE_MODE_RAW)
+        G_interpreter->throw_new_class(vmg_ G_predef->file_mode_exc,
+                                       0, "wrong file mode");
+}
+
+/*
+ *   Check that we've a valid raw readable file 
+ */
+void CVmObjFile::check_raw_read(VMG0_)
+{
+    check_valid_file(vmg0_);
+    check_read_access(vmg0_);
+    check_raw_mode(vmg0_);
+}
+
+
+/*
+ *   Check that we've a valid raw writable file 
+ */
+void CVmObjFile::check_raw_write(VMG0_)
+{
+    check_valid_file(vmg0_);
+    check_write_access(vmg0_);
+    check_raw_mode(vmg0_);
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1032,11 +1314,52 @@ int CVmObjFile::getp_close_file(VMG_ vm_obj_id_t self, vm_val_t *retval,
     /* make sure we are allowed to perform operations on the file */
     check_valid_file(vmg0_);
 
-    /* close the underlying system file */
-    osfcls(get_ext()->fp);
+    /* 
+     *   take over the network file descriptor from the File object - we're
+     *   going to either close it or abandon it, which deletes it, so we
+     *   don't need to delete it again when the File object is collected 
+     */
+    CVmNetFile *netfile = get_ext()->netfile;
+    get_ext()->netfile = 0;
 
-    /* forget the underlying system file, since it's no longer valid */
+    /* 
+     *   Explicitly flush the file, to detect any errors flushing our final
+     *   write buffers.  The regular osifc close ignores errors, so we have
+     *   to check with an explicit flush if we want this information. 
+     */
+    err_try
+    {
+        /* flush buffers */
+        get_ext()->fp->flush();
+    }
+    err_catch(exc)
+    {
+        /* 
+         *   The flush failed, so the close effectively failed.  Close the
+         *   file anyway to release system resources.
+         */
+        delete get_ext()->fp;
+
+        /* 
+         *   Abandon the network file object.  Since we failed to close the
+         *   local copy properly, we don't want to update the server copy (if
+         *   it exists) with corrupt data. 
+         */
+        if (netfile != 0)
+            netfile->abandon(vmg0_);
+
+        /* rethrow the error */
+        err_rethrow();
+    }
+    err_end;
+
+    /* close and explicitly forget the data source */
+    delete get_ext()->fp;
     get_ext()->fp = 0;
+
+    /* if there's a network file, close it */
+    if (netfile != 0)
+        netfile->close(vmg0_);
 
     /* no return value */
     retval->set_nil();
@@ -1068,10 +1391,10 @@ int CVmObjFile::getp_read_file(VMG_ vm_obj_id_t self, vm_val_t *retval,
     check_read_access(vmg0_);
 
     /* note the implicit seeking */
-    note_file_seek(vmg_ self, FALSE);
+    note_file_seek(vmg_ FALSE);
 
     /* flush stdio buffers as needed and note the read operation */
-    switch_read_write_mode(FALSE);
+    switch_read_write_mode(vmg_ FALSE);
 
     /* read according to our mode */
     switch(get_ext()->mode)
@@ -1105,28 +1428,36 @@ int CVmObjFile::getp_read_file(VMG_ vm_obj_id_t self, vm_val_t *retval,
  */
 void CVmObjFile::read_text_mode(VMG_ vm_val_t *retval)
 {
-    CVmObjString *str;
-    size_t str_len;
-    osfildef *fp = get_ext()->fp;
+    /* get our file data source and read buffer from the extension */
+    CVmDataSource *fp = get_ext()->fp;
     vmobjfile_readbuf_t *readbuf = get_ext()->readbuf;
-    CCharmapToUni *charmap;
-    int is_res_file = ((get_ext()->flags & VMOBJFILE_IS_RESOURCE) != 0);
-
-    /* we haven't yet constructed a string */
-    str = 0;
-    str_len = 0;
 
     /* get our character mapper */
-    charmap = ((CVmObjCharSet *)vm_objp(vmg_ get_ext()->charset))
-              ->get_to_uni(vmg0_);
+    CCharmapToUni *charmap =
+        ((CVmObjCharSet *)vm_objp(vmg_ get_ext()->charset))
+        ->get_to_uni(vmg0_);
 
-    /* assume we'll fail to read anything, in which case we'll return nil */
-    retval->set_nil();
+    /* replenish the buffer if it's empty */
+    if (readbuf->rem == 0 && !readbuf->refill(fp))
+    {
+        /* end of file - return nil */
+        retval->set_nil();
+        return;
+    }
 
     /* 
-     *   push the nil value - we'll always keep our intermediate value on
-     *   the stack so that the garbage collector will know it's referenced 
+     *   Allocate a string object for the result.  We have no idea how long
+     *   the line will be, so start with an arbitrary guess; we'll adjust the
+     *   buffer up or down as needed. 
      */
+    vm_obj_id_t strid = CVmObjString::create(vmg_ FALSE, 128);
+    CVmObjString *str = (CVmObjString *)vm_objp(vmg_ strid);
+    char *dst = str->cons_get_buf();
+
+    /* this string will be the return value */
+    retval->set_obj(strid);
+
+    /* push it for gc protection */
     G_stk->push(retval);
 
     /*
@@ -1136,160 +1467,44 @@ void CVmObjFile::read_text_mode(VMG_ vm_val_t *retval)
      */
     for (;;)
     {
-        wchar_t found_nl;
-        char *start;
-        size_t new_len;
-        size_t nl_len;
-
-        /* replenish the read buffer if it's empty */
-        if (readbuf->rem == 0
-            && !readbuf->refill(charmap, fp, is_res_file, get_ext()->res_end))
+        /* read the next character; if we can't, we're at EOF */
+        wchar_t ch;
+        size_t chlen;
+        if (!readbuf->getch(ch, fp, charmap))
             break;
 
-        /* note where we started this chunk */
-        start = readbuf->ptr.getptr();
-
-        /* scan for and remove any trailing newline */
-        for (found_nl = '\0' ; readbuf->rem != 0 ;
-             readbuf->ptr.inc(&readbuf->rem))
+        /* if this is a CR, LF, or U+2028, it's the end of the line */
+        if (ch == '\n' || ch == '\r' || ch == 0x2028)
         {
-            wchar_t cur;
-            
-            /* get the current character */
-            cur = readbuf->ptr.getch();
+            /* newline - skip CR-LF and LR-CR pairs */
+            wchar_t nxt = (ch == '\n' ? '\r' : ch == '\r' ? '\n' : 0);
+            size_t b;
+            if (nxt != 0 && readbuf->peekch(ch, fp, charmap, b) && ch == nxt)
+                readbuf->commit_peek(b);
 
-            /* 
-             *   check for a newline (note that 0x2028 is the unicode line
-             *   separator character) 
-             */
-            if (cur == '\n' || cur == '\r' || cur == 0x2028)
-            {
-                /* note the newline */
-                found_nl = cur;
-                
-                /* no need to look any further */
-                break;
-            }
-        }
-        
-        /* note the length of the current segment */
-        new_len = readbuf->ptr.getptr() - start;
-        
-        /* 
-         *   if there's a newline character, include an extra byte for the
-         *   '\n' we'll include in the result 
-         */
-        nl_len = (found_nl != '\0');
-        
-        /* 
-         *   If this is our first segment, construct a new string from this
-         *   chunk; otherwise, add to the existing string.
-         *   
-         *   Note that in either case, if we found a newline in the buffer,
-         *   we will NOT add the actual newline we found to the result
-         *   string.  Rather, we'll add a '\n' character to the result
-         *   string, no matter what kind of newline we found.  This ensures
-         *   that the data read uses a consistent format, regardless of the
-         *   local system convention where the file was created.  
-         */
-        if (str == 0)
-        {
-            /* create our first segment's string */
-            retval->set_obj(CVmObjString::
-                            create(vmg_ FALSE, new_len + nl_len));
-            str = (CVmObjString *)vm_objp(vmg_ retval->val.obj);
-            
-            /* copy the segment into the string object */
-            memcpy(str->cons_get_buf(), start, new_len);
-
-            /* add a '\n' if we found a newline */
-            if (found_nl != '\0')
-                *(str->cons_get_buf() + new_len) = '\n';
-            
-            /* this is the length of the string so far */
-            str_len = new_len + nl_len;
-            
-            /* 
-             *   replace the stack placeholder with our string, so the
-             *   garbage collector will know it's still in use 
-             */
-            G_stk->discard();
-            G_stk->push(retval);
+            /* whichever type of newline we read, store it as LF */
+            ch = 10;
+            chlen = 1;
         }
         else
         {
-            CVmObjString *new_str;
-            
-            /* 
-             *   create a new string to hold the contents of the old string
-             *   plus the new buffer 
-             */
-            retval->set_obj(CVmObjString::create(vmg_ FALSE,
-                str_len + new_len + nl_len));
-            new_str = (CVmObjString *)vm_objp(vmg_ retval->val.obj);
-            
-            /* copy the old string into the new string */
-            memcpy(new_str->cons_get_buf(),
-                   str->get_as_string(vmg0_) + VMB_LEN, str_len);
-
-            /* add the new chunk after the copy of the old string */
-            memcpy(new_str->cons_get_buf() + str_len, start, new_len);
-
-            /* add the newline if necessary */
-            if (found_nl != '\0')
-                *(new_str->cons_get_buf() + str_len + new_len) = '\n';
-            
-            /* the new string now replaces the old string */
-            str = new_str;
-            str_len += new_len + nl_len;
-            
-            /* 
-             *   replace our old intermediate value on the stack with the
-             *   new string - the old string isn't needed any more, so we
-             *   can leave it unreferenced, but we are still using the new
-             *   string 
-             */
-            G_stk->discard();
-            G_stk->push(retval);
+            /* ordinary character - figure the output character length */
+            chlen = utf8_ptr::s_wchar_size(ch);
         }
         
-        /* if we found a newline in this segment, we're done */
-        if (found_nl != '\0')
-        {
-            /* skip the newline in the input */
-            readbuf->ptr.inc(&readbuf->rem);
-
-            /* replenish the read buffer if it's empty */
-            if (readbuf->rem == 0)
-                readbuf->refill(charmap, fp, is_res_file, get_ext()->res_end);
-
-            /* 
-             *   check for a complementary newline character, for systems
-             *   that use \n\r or \r\n pairs 
-             */
-            if (readbuf->rem != 0)
-            {
-                wchar_t nxt;
-                
-                /* get the next character */
-                nxt = readbuf->ptr.getch();
-                
-                /* check for a complementary character */
-                if ((found_nl == '\n' && nxt == '\r')
-                    || (found_nl == '\r' && nxt == '\n'))
-                {
-                    /* 
-                     *   we have a pair sequence - skip the second character
-                     *   of the sequence 
-                     */
-                    readbuf->ptr.inc(&readbuf->rem);
-                }
-            }
+        /* ensure we have enough space for it in our string */
+        dst = str->cons_ensure_space(vmg_ dst, chlen, 128);
             
-            /* we've found the newline, so we're done with the string */
+        /* add this character to the string */
+        dst += utf8_ptr::s_putch(dst, ch);
+
+        /* if we just read a newline, we're done */
+        if (ch == '\n')
             break;
-        }
     }
+
+    /* close the string */
+    str->cons_shrink_buffer(vmg_ dst);
 
     /* 
      *   we now can discard the string we've been keeping on the stack to
@@ -1306,10 +1521,10 @@ void CVmObjFile::read_data_mode(VMG_ vm_val_t *retval)
     char buf[32];
     CVmObjString *str_obj;
     vm_obj_id_t str_id;
-    osfildef *fp = get_ext()->fp;
+    CVmDataSource *fp = get_ext()->fp;
 
     /* read the type flag */
-    if (osfrb(fp, buf, 1))
+    if (fp->read(buf, 1))
     {
         /* end of file - return nil */
         retval->set_nil();
@@ -1317,20 +1532,20 @@ void CVmObjFile::read_data_mode(VMG_ vm_val_t *retval)
     }
 
     /* see what we have */
-    switch((vm_datatype_t)buf[0])
+    switch(buf[0])
     {
     case VMOBJFILE_TAG_INT:
         /* read the INT4 value */
-        if (osfrb(fp, buf, 4))
+        if (fp->read(buf, 4))
             goto io_error;
 
         /* set the integer value from the buffer */
-        retval->set_int(osrp4(buf));
+        retval->set_int(osrp4s(buf));
         break;
 
     case VMOBJFILE_TAG_ENUM:
         /* read the UINT4 value */
-        if (osfrb(fp, buf, 4))
+        if (fp->read(buf, 4))
             goto io_error;
 
         /* set the 'enum' value */
@@ -1343,7 +1558,7 @@ void CVmObjFile::read_data_mode(VMG_ vm_val_t *retval)
          *   higher than the actual length of the string, because it
          *   includes the length prefix bytes 
          */
-        if (osfrb(fp, buf, 2))
+        if (fp->read(buf, 2))
             goto io_error;
 
         /* 
@@ -1356,7 +1571,7 @@ void CVmObjFile::read_data_mode(VMG_ vm_val_t *retval)
         str_obj = (CVmObjString *)vm_objp(vmg_ str_id);
 
         /* read the bytes of the string into the object's buffer */
-        if (osfrb(fp, str_obj->cons_get_buf(), osrp2(buf) - 2))
+        if (fp->read(str_obj->cons_get_buf(), osrp2(buf) - 2))
             goto io_error;
 
         /* success - set the string return value, and we're done */
@@ -1399,6 +1614,74 @@ io_error:
                                    0, "file I/O error");
 }
 
+/*
+ *   Internal read routine 
+ */
+int CVmObjFile::read_file(VMG_ char *buf, int32 &len)
+{
+    /* get the data source */
+    CVmDataSource *fp = get_ext()->fp;
+
+    /* make sure it's valid */
+    if ((get_ext()->flags & VMOBJFILE_OUT_OF_SYNC) != 0 || fp == 0)
+        return FALSE;
+
+    /* deal with stdio buffering if we're changing modes */
+    switch_read_write_mode(vmg_ FALSE);
+
+    /* read according to the mode */
+    switch (get_ext()->mode)
+    {
+    case VMOBJFILE_MODE_TEXT:
+        {
+            /* get the read buffer and character mapper */
+            vmobjfile_readbuf_t *readbuf = get_ext()->readbuf;
+            CCharmapToUni *charmap =
+                ((CVmObjCharSet *)vm_objp(vmg_ get_ext()->charset))
+                ->get_to_uni(vmg0_);
+
+            /* loop until we satisfy the request */
+            int32 actual;
+            for (actual = 0 ; ; )
+            {
+                /* peek at the next character */
+                wchar_t ch;
+                size_t b;
+                if (!readbuf->peekch(ch, fp, charmap, b))
+                    break;
+
+                /* make sure it'll fit */
+                size_t csiz = utf8_ptr::s_wchar_size(ch);
+                if (actual + (int32)csiz > len)
+                    break;
+
+                /* store this character */
+                actual += utf8_ptr::s_putch(buf + actual, ch);
+
+                /* advance to the next character */
+                readbuf->commit_peek(b);
+            }
+
+            /* set the actual return length */
+            len = actual;
+        }
+        break;
+
+    case VMOBJFILE_MODE_RAW:
+        /* do the direct read */
+        len = fp->readc(buf, (size_t)len);
+        break;
+
+    default:
+        /* can't handle others */
+        return FALSE;
+    }
+
+    /* success */
+    return TRUE;
+}
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Property evaluator - write to the file
@@ -1429,7 +1712,7 @@ int CVmObjFile::getp_write_file(VMG_ vm_obj_id_t self, vm_val_t *retval,
     check_write_access(vmg0_);
 
     /* deal with stdio buffering if we're changing modes */
-    switch_read_write_mode(TRUE);
+    switch_read_write_mode(vmg_ TRUE);
 
     /* read according to our mode */
     switch(get_ext()->mode)
@@ -1478,9 +1761,11 @@ void CVmObjFile::write_text_mode(VMG_ const vm_val_t *val)
               ->get_to_local(vmg0_);
     
     /* convert the value to a string */
-    constp = CVmObjString::cvt_to_str(vmg_ &new_str,
-                                      conv_buf, sizeof(conv_buf),
-                                      val, 10);
+    constp = CVmObjString::cvt_to_str(
+        vmg_ &new_str, conv_buf, sizeof(conv_buf), val, 10, 0);
+
+    /* protect the new string (if any) from gc while working */
+    G_stk->push(&new_str);
 
     /* scan for newlines - we need to write newline sequences specially */
     for (startp = constp + VMB_LEN, rem = vmb_get_len(constp) ;
@@ -1511,7 +1796,16 @@ void CVmObjFile::write_text_mode(VMG_ const vm_val_t *val)
         /* if we're at a newline, skip it */
         if (rem != 0)
             ++p, --rem;
+
+        /* note where the new chunk starts */
+        startp = p;
     }
+
+    /* done with the gc protection */
+    G_stk->discard();
+
+    /* invalidate any read buffer */
+    note_file_seek(vmg_ FALSE);
 }
 
 /*
@@ -1520,7 +1814,7 @@ void CVmObjFile::write_text_mode(VMG_ const vm_val_t *val)
 void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
 {
     char buf[32];
-    osfildef *fp = get_ext()->fp;
+    CVmDataSource *fp = get_ext()->fp;
     vm_val_t new_str;
     const char *constp;
 
@@ -1532,10 +1826,10 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
         buf[0] = VMOBJFILE_TAG_INT;
         
         /* add the value in INT4 format */
-        oswp4(buf + 1, val->val.intval);
+        oswp4s(buf + 1, val->val.intval);
         
         /* write out the type prefix plus the value */
-        if (osfwb(fp, buf, 5))
+        if (fp->write(buf, 5))
             goto io_error;
 
         /* done */
@@ -1549,7 +1843,7 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
         oswp4(buf + 1, val->val.enumval);
 
         /* write out the type prefix plus the value */
-        if (osfwb(fp, buf, 5))
+        if (fp->write(buf, 5))
             goto io_error;
 
         /* done */
@@ -1562,7 +1856,7 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
     write_binary_string:
         /* write the type prefix byte */
         buf[0] = VMOBJFILE_TAG_STRING;
-        if (osfwb(fp, buf, 1))
+        if (fp->write(buf, 1))
             goto io_error;
 
         /* 
@@ -1570,11 +1864,11 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
          *   the bytes of the prefix itself in the length count 
          */
         oswp2(buf, vmb_get_len(constp) + 2);
-        if (osfwb(fp, buf, 2))
+        if (fp->write(buf, 2))
             goto io_error;
 
         /* write the string's bytes */
-        if (osfwb(fp, constp + VMB_LEN, vmb_get_len(constp)))
+        if (fp->write(constp + VMB_LEN, vmb_get_len(constp)))
             goto io_error;
 
         /* done */
@@ -1594,7 +1888,7 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
 
             /* write the type tag */
             buf[0] = VMOBJFILE_TAG_BIGNUM;
-            if (osfwb(fp, buf, 1))
+            if (fp->write(buf, 1))
                 goto io_error;
 
             /* write it out */
@@ -1610,7 +1904,7 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
 
             /* write the type tag */
             buf[0] = VMOBJFILE_TAG_BYTEARRAY;
-            if (osfwb(fp, buf, 1))
+            if (fp->write(buf, 1))
                 goto io_error;
             
             /* write the array */
@@ -1640,7 +1934,7 @@ void CVmObjFile::write_data_mode(VMG_ const vm_val_t *val)
          *   file.  
          */
         buf[0] = VMOBJFILE_TAG_TRUE;
-        if (osfwb(fp, buf, 1))
+        if (fp->write(buf, 1))
             goto io_error;
         
         /* done */
@@ -1674,7 +1968,6 @@ int CVmObjFile::getp_read_bytes(VMG_ vm_obj_id_t self, vm_val_t *retval,
     CVmObjByteArray *arr;
     unsigned long idx;
     unsigned long len;
-    int is_res_file = ((get_ext()->flags & VMOBJFILE_IS_RESOURCE) != 0);
 
     /* check arguments */
     if (get_prop_check_argc(retval, in_argc, &desc))
@@ -1718,44 +2011,17 @@ int CVmObjFile::getp_read_bytes(VMG_ vm_obj_id_t self, vm_val_t *retval,
     G_stk->push()->set_obj(self);
 
     /* note the implicit seeking */
-    note_file_seek(vmg_ self, FALSE);
+    note_file_seek(vmg_ FALSE);
 
     /* deal with stdio buffering issues if necessary */
-    switch_read_write_mode(FALSE);
-
-    /* 
-     *   limit the reading to the remaining data in the file, if it's a
-     *   resource file 
-     */
-    if (is_res_file)
-    {
-        unsigned long cur_seek_pos;
-
-        /* check to see where we are relative to the end of the resource */
-        cur_seek_pos = osfpos(get_ext()->fp);
-        if (cur_seek_pos >= get_ext()->res_end)
-        {
-            /* we're already past the end - there's nothing left */
-            len = 0;
-        }
-        else
-        {
-            unsigned long limit;
-
-            /* calculate the limit */
-            limit = get_ext()->res_end - cur_seek_pos;
-
-            /* apply the limit if the request exceeds it */
-            if (len > limit)
-                len = limit;
-        }
-    }
+    switch_read_write_mode(vmg_ FALSE);
 
     /* 
      *   read the data into the array, and return the number of bytes we
      *   actually manage to read 
      */
-    retval->set_int(arr->read_from_file(get_ext()->fp, idx, len));
+    retval->set_int(arr->read_from_file(
+        vmg_ arr_val.val.obj, get_ext()->fp, idx, len, TRUE));
 
     /* discard our gc protection */
     G_stk->discard();
@@ -1773,62 +2039,137 @@ int CVmObjFile::getp_write_bytes(VMG_ vm_obj_id_t self, vm_val_t *retval,
 {
     static CVmNativeCodeDesc desc(1, 2);
     uint argc = (in_argc != 0 ? *in_argc : 0);
-    vm_val_t arr_val;
-    CVmObjByteArray *arr;
-    unsigned long idx;
+    vm_val_t srcval;
+    CVmObjByteArray *arr = 0;
+    CVmObjFile *file = 0;
+    unsigned long idx, has_idx = FALSE;
     unsigned long len;
 
     /* check arguments */
     if (get_prop_check_argc(retval, in_argc, &desc))
         return TRUE;
 
-    /* make sure we are allowed to perform operations on the file */
+    /* make sure it's a valid file, with write access, in raw mode */
     check_valid_file(vmg0_);
-
-    /* check that we have write access */
     check_write_access(vmg0_);
+    check_raw_mode(vmg0_);
 
-    /* make sure the byte array argument is really a byte array */
-    G_stk->pop(&arr_val);
-    if (arr_val.typ != VM_OBJ
-        || !CVmObjByteArray::is_byte_array(vmg_ arr_val.val.obj))
+    /* pop the source object argument */
+    G_stk->pop(&srcval);
+    if (srcval.typ != VM_OBJ)
+        err_throw(VMERR_OBJ_VAL_REQD);
+
+    /* check the object type */
+    if (CVmObjByteArray::is_byte_array(vmg_ srcval.val.obj))
+    {
+        /* get the ByteArray object, suitably cast */
+        arr = (CVmObjByteArray *)vm_objp(vmg_ srcval.val.obj);
+
+        /* assume we'll write the entire byte array */
+        idx = 1;
+        len = arr->get_element_count();
+    }
+    else if (CVmObjFile::is_file_obj(vmg_ srcval.val.obj))
+    {
+        /* get the file object, suitably cast */
+        file = (CVmObjFile *)vm_objp(vmg_ srcval.val.obj);
+
+        /* make sure it's in raw mode */
+        if (file->get_ext()->mode != VMOBJFILE_MODE_RAW)
+            G_interpreter->throw_new_class(vmg_ G_predef->file_mode_exc,
+                                           0, "wrong file mode");
+
+        /* assume we'll copy the file from the current seek offset onward */
+        idx = file->get_pos(vmg0_);
+        len = file->get_file_size(vmg0_);
+    }
+    else
+    {
+        /* invalid source type */
         err_throw(VMERR_BAD_TYPE_BIF);
-    
-    /* we know it's a byte array, so we can simply cast it */
-    arr = (CVmObjByteArray *)vm_objp(vmg_ arr_val.val.obj);
-
-    /* assume we'll write the entire byte array */
-    idx = 1;
-    len = arr->get_element_count();
+    }
 
     /* if we have a starting index, retrieve it */
     if (argc >= 2)
-        idx = (unsigned long)CVmBif::pop_int_val(vmg0_);
+    {
+        /* if it's nil, just ignore it, otherwise pop the int value */
+        if (G_stk->get(0)->typ == VM_NIL)
+            G_stk->discard();
+        else
+        {
+            idx = (unsigned long)CVmBif::pop_int_val(vmg0_);
+            has_idx = TRUE;
+        }
+    }
 
     /* if we have a length, retrieve it */
     if (argc >= 3)
-        len = (unsigned long)CVmBif::pop_int_val(vmg0_);
+    {
+        /* if it's nil, just ignore it, otherwise pop the int value */
+        if (G_stk->get(0)->typ == VM_NIL)
+            G_stk->discard();
+        else
+            len = (unsigned long)CVmBif::pop_int_val(vmg0_);
+    }
 
-    /* push a self-reference for gc protection */
+    /* push a self-reference and a source reference for gc protection */
     G_stk->push()->set_obj(self);
+    G_stk->push(&srcval);
 
     /* flush stdio buffers as needed and note the read operation */
-    switch_read_write_mode(TRUE);
+    switch_read_write_mode(vmg_ TRUE);
 
-    /* 
-     *   write the bytes to the file - on success (zero write_to_file
-     *   return), return nil, on failure (non-zero write_to_file return),
-     *   return true 
-     */
-    if (arr->write_to_file(get_ext()->fp, idx, len))
+    /* do the copy according to the source type */
+    if (arr != 0)
     {
-        /* we failed to write the bytes - throw an I/O exception */
-        G_interpreter->throw_new_class(vmg_ G_predef->file_io_exc,
-                                       0, "file I/O error");
+        /* 
+         *   write the bytes to the file - on success (zero write_to_file
+         *   return), return nil, on failure (non-zero write_to_file return),
+         *   return true 
+         */
+        if (arr->write_to_file(get_ext()->fp, idx, len))
+        {
+            /* we failed to write the bytes - throw an I/O exception */
+            G_interpreter->throw_new_class(vmg_ G_predef->file_io_exc,
+                                           0, "file I/O error");
+        }
+    }
+    else if (file != 0)
+    {
+        /* 
+         *   if there's an explicit starting seek position, go there; if it
+         *   wasn't specified, the default is the current seek location, so
+         *   we just leave well enough alone in that case 
+         */
+        if (has_idx)
+            file->set_pos(vmg_ idx);
+
+        /* copy the requested byte range */
+        while (len != 0)
+        {
+            /* read the next chunk of bytes */
+            char buf[1024];
+            int32 cur = (len < (int32)sizeof(buf) ? len : sizeof(buf));
+            if (!file->read_file(vmg_ buf, cur))
+                G_interpreter->throw_new_class(vmg_ G_predef->file_io_exc,
+                                               0, "file I/O error");
+
+            /* if we read zero bytes, we've reached EOF */
+            if (cur == 0)
+                break;
+
+            /* write out this chunk */
+            if (get_ext()->fp->write(buf, (size_t)cur))
+                G_interpreter->throw_new_class(vmg_ G_predef->file_io_exc,
+                                               0, "file I/O error");
+
+            /* deduct this hunk from the remaining length */
+            len -= cur;
+        }
     }
 
     /* discard our gc protection */
-    G_stk->discard();
+    G_stk->discard(2);
 
     /* no return value - return nil by default */
     retval->set_nil();
@@ -1845,7 +2186,6 @@ int CVmObjFile::getp_get_pos(VMG_ vm_obj_id_t self, vm_val_t *retval,
                              uint *argc)
 {
     static CVmNativeCodeDesc desc(0);
-    unsigned long cur_pos;
 
     /* check arguments */
     if (get_prop_check_argc(retval, argc, &desc))
@@ -1854,17 +2194,31 @@ int CVmObjFile::getp_get_pos(VMG_ vm_obj_id_t self, vm_val_t *retval,
     /* make sure we are allowed to perform operations on the file */
     check_valid_file(vmg0_);
 
-    /* get the current seek position */
-    cur_pos = osfpos(get_ext()->fp);
-
-    /* if this is a resource file, adjust for the base offset */
-    cur_pos -= get_ext()->res_start;
-
-    /* return the seek position */
-    retval->set_int(cur_pos);
+    /* get the position */
+    retval->set_int(get_pos(vmg0_));
 
     /* handled */
     return TRUE;
+}
+
+/*
+ *   Get the current file position 
+ */
+long CVmObjFile::get_pos(VMG0_)
+{
+    /* get the seek position in the underlying file */
+    long pos = get_ext()->fp->get_pos();
+
+    /* 
+     *   if we have a read buffer, adjust for buffering: the underlying file
+     *   corresponds to the end of the read buffer, so subtract the number of
+     *   bytes remaining in the read buffer 
+     */
+    if (get_ext()->readbuf != 0)
+        pos -= get_ext()->readbuf->rem;
+
+    /* return the result */
+    return pos;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1875,7 +2229,6 @@ int CVmObjFile::getp_set_pos(VMG_ vm_obj_id_t self, vm_val_t *retval,
                              uint *argc)
 {
     static CVmNativeCodeDesc desc(1);
-    int is_res_file = ((get_ext()->flags & VMOBJFILE_IS_RESOURCE) != 0);
     unsigned long pos;
 
     /* check arguments */
@@ -1886,29 +2239,36 @@ int CVmObjFile::getp_set_pos(VMG_ vm_obj_id_t self, vm_val_t *retval,
     check_valid_file(vmg0_);
 
     /* note the seeking operation */
-    note_file_seek(vmg_ self, TRUE);
+    note_file_seek(vmg_ TRUE);
 
     /* retrieve the target seek position */
     pos = CVmBif::pop_long_val(vmg0_);
 
-    /* adjust for the resource base offset */
-    pos += get_ext()->res_start;
-
-    /* 
-     *   if this is a resource file, move the position at most to the first
-     *   byte after the end of the resource 
-     */
-    if (is_res_file && pos > get_ext()->res_end)
-        pos = get_ext()->res_end;
-
     /* seek to the new position */
-    osfseek(get_ext()->fp, pos, OSFSK_SET);
+    get_ext()->fp->seek(pos, OSFSK_SET);
 
     /* no return value */
     retval->set_nil();
 
     /* handled */
     return TRUE;
+}
+
+/*
+ *   Set position - internal version 
+ */
+int CVmObjFile::set_pos(VMG_ long pos)
+{
+    /* make sure it's valid */
+    if ((get_ext()->flags & VMOBJFILE_OUT_OF_SYNC) != 0
+        || get_ext()->fp == 0)
+        return FALSE;
+
+    /* note the seek */
+    note_file_seek(vmg_ TRUE);
+
+    /* set the seek position */
+    return !get_ext()->fp->seek(pos, OSFSK_SET);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1919,7 +2279,6 @@ int CVmObjFile::getp_set_pos_end(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                  uint *argc)
 {
     static CVmNativeCodeDesc desc(0);
-    int is_res_file = ((get_ext()->flags & VMOBJFILE_IS_RESOURCE) != 0);
 
     /* check arguments */
     if (get_prop_check_argc(retval, argc, &desc))
@@ -1929,19 +2288,10 @@ int CVmObjFile::getp_set_pos_end(VMG_ vm_obj_id_t self, vm_val_t *retval,
     check_valid_file(vmg0_);
 
     /* note the seeking operation */
-    note_file_seek(vmg_ self, TRUE);
+    note_file_seek(vmg_ TRUE);
 
-    /* handle according to whether it's a resource or not */
-    if (is_res_file)
-    {
-        /* resource - seek to the first byte after the resource data */
-        osfseek(get_ext()->fp, get_ext()->res_end, OSFSK_SET);
-    }
-    else
-    {
-        /* normal file - simply seek to the end of the file */
-        osfseek(get_ext()->fp, 0, OSFSK_END);
-    }
+    /* seek to the end position */
+    get_ext()->fp->seek(0, OSFSK_END);
 
     /* no return value */
     retval->set_nil();
@@ -1958,7 +2308,6 @@ int CVmObjFile::getp_get_size(VMG_ vm_obj_id_t self, vm_val_t *retval,
                               uint *argc)
 {
     static CVmNativeCodeDesc desc(0);
-    int is_res_file = ((get_ext()->flags & VMOBJFILE_IS_RESOURCE) != 0);
 
     /* check arguments */
     if (get_prop_check_argc(retval, argc, &desc))
@@ -1967,78 +2316,464 @@ int CVmObjFile::getp_get_size(VMG_ vm_obj_id_t self, vm_val_t *retval,
     /* make sure we are allowed to perform operations on the file */
     check_valid_file(vmg0_);
 
-    /* note the seeking operation */
-    note_file_seek(vmg_ self, TRUE);
-
-    /* handle according to whether it's a resource or not */
-    if (is_res_file)
-    {
-        /* resource - we know the size from the resource descriptor */
-        retval->set_int(get_ext()->res_end - get_ext()->res_start + 1);
-    }
-    else
-    {
-        osfildef *fp = get_ext()->fp;
-        unsigned long cur_pos;
-        
-        /* 
-         *   It's a normal file.  Remember the current seek position, then
-         *   seek to the end of the file.  
-         */
-        cur_pos = osfpos(fp);
-        osfseek(fp, 0, OSFSK_END);
-
-        /* the current position gives us the length of the file */
-        retval->set_int(osfpos(fp));
-
-        /* seek back to where we started */
-        osfseek(fp, cur_pos, OSFSK_SET);
-    }
+    /* get the size */
+    retval->set_int(get_file_size(vmg0_));
 
     /* handled */
     return TRUE;
 }
+
+/*
+ *   Get the size, internal version 
+ */
+long CVmObjFile::get_file_size(VMG0_)
+{
+    /* make sure it's valid */
+    if ((get_ext()->flags & VMOBJFILE_OUT_OF_SYNC) != 0
+        || get_ext()->fp == 0)
+        return -1;
+
+    /* note the seeking operation */
+    note_file_seek(vmg_ TRUE);
+
+    /* get the size */
+    return get_ext()->fp->get_size();
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Property evaluator - get the file mode
+ */
+int CVmObjFile::getp_get_mode(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                              uint *argc)
+{
+    static CVmNativeCodeDesc desc(0);
+
+    /* check arguments */
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* make sure we are allowed to perform operations on the file */
+    check_valid_file(vmg0_);
+
+    /* return the mode */
+    retval->set_int(get_ext()->mode);
+
+    /* handled */
+    return TRUE;
+}
+
+/*
+ *   Get the mode, internal version 
+ */
+int CVmObjFile::get_file_mode(VMG0_)
+{
+    return get_ext()->mode;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Property evaluator - setMode - change the file mode
+ */
+int CVmObjFile::getp_setMode(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                             uint *oargc)
+{
+    /* check arguments */
+    static CVmNativeCodeDesc desc(1, 1);
+    int argc = (oargc != 0 ? *oargc : 0);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+    
+    /* make sure we are allowed to perform operations on the file */
+    check_valid_file(vmg0_);
+    
+    /* retrieve the mode argument */
+    int mode = CVmBif::pop_int_val(vmg0_);
+    --argc;
+
+    /* presume no character set or read buffer */
+    vm_obj_id_t cset = VM_INVALID_OBJ;
+    int create_readbuf = FALSE;
+
+    /* save the retained settings from the current extension */
+    vmobjfile_ext_t *ext = get_ext();
+    CVmDataSource *fp = ext->fp;
+    CVmNetFile *netfile = ext->netfile;
+    unsigned long flags = ext->flags;
+    int access = ext->access;
+
+    /* check the mode */
+    switch (mode)
+    {
+    case VMOBJFILE_MODE_TEXT:
+        /* text mode - we need a character mapper in this mode */
+        cset = get_charset_arg(vmg_ 0, argc);
+
+        /* 
+         *   if we're open with read access, we need a read buffer in order
+         *   to do the character set translation 
+         */
+        if (access == VMOBJFILE_ACCESS_READ)
+            create_readbuf = TRUE;
+        break;
+
+    case VMOBJFILE_MODE_DATA:
+    case VMOBJFILE_MODE_RAW:
+        /* 
+         *   data mode or raw mode - we don't use a character mapper for this
+         *   mode, so if the argument is present, simply discard it 
+         */
+        if (argc >= 2)
+            G_stk->discard();
+        break;
+
+    default:
+        /* invalid mode */
+        err_throw(VMERR_BAD_VAL_BIF);
+    }
+    
+    /* push the character set object (if any) for gc protection */
+    G_stk->push_obj_or_nil(vmg_ cset);
+
+    /* 
+     *   remove the data source and network file descriptor from the
+     *   extension, so that they're not deleted when we reallocate it 
+     */
+    ext->fp = 0;
+    ext->netfile = 0;
+
+    /* 
+     *   Reallocate the extension.  This will set up the correct structures
+     *   for the new file mode. 
+     */
+    alloc_ext(vmg_ netfile, cset, fp, flags, mode, access, create_readbuf);
+
+    /* discard arguments and gc protection */
+    G_stk->discard(argc + 1);
+
+    /* handled */
+    return TRUE;
+}
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   getRootName property evaluator - get the root filename of a given
+ *   string.  This is a static (class) method.  
+ */
+int CVmObjFile::s_getp_getRootName(VMG_ vm_val_t *retval, uint *argc)
+{
+    static CVmNativeCodeDesc desc(1);
+    char buf[OSFNMAX*2];
+    const char *ret;
+
+    /* check arguments */
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* get the string argument into our buffer */
+    CVmBif::pop_str_val_fname(vmg_ buf, sizeof(buf));
+
+    /* set up a no-access file descriptor to determine where the file is */
+    CVmNetFile *nf = CVmNetFile::open(vmg_ buf, 0, 0, OSFTUNK, 0);
+
+    /*
+     *   If the file is on the network storage server, we always use the Unix
+     *   convention, regardless of the local naming rules.  Otherwise, use
+     *   the local OS API to get the root name.  
+     */
+    if (nf->is_net_file())
+    {
+        /* 
+         *   We're in network mode, so use the Unix path conventions.  Simply
+         *   scan for the last '/' character; if we find it, the root name is
+         *   the part after the '/', otherwise it's the whole string.  
+         */
+        const char *sl = strrchr(buf, '/');
+        ret = (sl != 0 ? sl + 1 : buf);
+    }
+    else
+    {
+        /* it's not a network file - use the local filename rules */
+        ret = os_get_root_name(buf);
+    }
+
+    /* done with the net file desriptor */
+    nf->abandon(vmg0_);
+
+    /* return the string */
+    retval->set_obj(CVmObjString::create(vmg_ FALSE, ret, strlen(ret)));
+
+    /* handled */
+    return TRUE;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   deleteFile() property evaluator - deletes a file
+ */
+int CVmObjFile::s_getp_deleteFile(VMG_ vm_val_t *retval, uint *in_argc)
+{
+    /* check arguments */
+    uint argc = (in_argc != 0 ? *in_argc : 0);
+    static CVmNativeCodeDesc desc(1);
+    if (get_prop_check_argc(retval, in_argc, &desc))
+        return TRUE;
+
+    /* get the filename; use the DELETE access mode */
+    vm_rcdesc rc(vmg_ "File.deleteFile",
+                 CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
+                 VMOBJFILE_DELETE_FILE, G_stk->get(0), argc);
+    int access = VMOBJFILE_ACCESS_DELETE;
+    CVmNetFile *netfile = get_filename_and_access(
+        vmg_ &rc, &access, FALSE, OSFTUNK, "application/octet-stream");
+
+    /* close the network file descriptor - this will delete the file */
+    netfile->close(vmg0_);
+
+    /* discard arguments */
+    G_stk->discard(1);
+
+    /* handled */
+    return TRUE;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   property evaluator - unpackBytes 
+ */
+int CVmObjFile::getp_unpackBytes(VMG_ vm_obj_id_t self,
+                                 vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(1);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* check that the it's a valid file open with read access in "raw" mode */
+    check_raw_read(vmg0_);
+
+    /* get the format string, but leave it on the stack */
+    const char *fmt = G_stk->get(0)->get_as_string(vmg0_);
+    if (fmt == 0)
+        err_throw(VMERR_BAD_TYPE_BIF);
+
+    /* get the format string pointer and length */
+    size_t fmtlen = vmb_get_len(fmt);
+    fmt += VMB_LEN;
+
+    /* save 'self' for gc protection */
+    G_stk->push_obj(vmg_ self);
+
+    /* unpack the data from our file stream into a list, returning the list */
+    CVmPack::unpack(vmg_ retval, fmt, fmtlen, get_ext()->fp);
+
+    /* discard our arguments and gc protection */
+    G_stk->discard(argc + 1);
+        
+    /* handled */
+    return TRUE;
+}
+
+/* 
+ *   property evaluator - packBytes
+ */
+int CVmObjFile::getp_packBytes(VMG_ vm_obj_id_t self,
+                               vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(1, 0, TRUE);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* check that the it's a valid file open with write access in "raw" mode */
+    check_raw_write(vmg0_);
+
+    /* save 'self' for gc protection */
+    G_stk->push_obj(vmg_ self);
+
+    /* remember the starting seek position */
+    long start = get_pos(vmg0_);
+
+    /* pack the arguments into our file data stream */
+    CVmPack::pack(vmg_ 1, argc, get_ext()->fp);
+
+    /* discard our gc protection and our arguments */
+    G_stk->discard(argc + 1);
+
+    /* return the number of bytes packed */
+    retval->set_int(get_pos(vmg0_) - start);
+    
+    /* handled */
+    return TRUE;
+}
+
+
+/* 
+ *   property evaluator - sha256
+ */
+int CVmObjFile::getp_sha256(VMG_ vm_obj_id_t self,
+                            vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(0, 1);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* check that the it's a valid file open with read access in "raw" mode */
+    check_raw_read(vmg0_);
+
+    /* retrieve the length value, if present; if not, use the file size */
+    long len = (argc >= 1 && G_stk->get(0)->typ != VM_NIL
+                ? G_stk->get(0)->num_to_int()
+                : get_file_size(vmg0_));
+
+    /* save 'self' for gc protection */
+    G_stk->push_obj(vmg_ self);
+
+    /* calculate the hash */
+    char hash[65];
+    sha256_datasrc(hash, get_ext()->fp, len);
+
+    /* return the hash value */
+    retval->set_obj(CVmObjString::create(vmg_ FALSE, hash, 64));
+
+    /* discard our gc protection and our arguments */
+    G_stk->discard(argc + 1);
+
+    /* handled */
+    return TRUE;
+}
+
+
+/* 
+ *   property evaluator - digestMD5
+ */
+int CVmObjFile::getp_digestMD5(VMG_ vm_obj_id_t self,
+                               vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(0, 1);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* check that the it's a valid file open with read access in "raw" mode */
+    check_raw_read(vmg0_);
+
+    /* retrieve the length value, if present; if not, use the file size */
+    long len = (argc >= 1 && G_stk->get(0)->typ != VM_NIL
+                ? G_stk->get(0)->num_to_int()
+                : get_file_size(vmg0_));
+
+    /* save 'self' for gc protection */
+    G_stk->push_obj(vmg_ self);
+
+    /* calculate the hash */
+    char hash[33];
+    md5_datasrc(hash, get_ext()->fp, len);
+
+    /* return the hash value */
+    retval->set_obj(CVmObjString::create(vmg_ FALSE, hash, 32));
+
+    /* discard our gc protection and our arguments */
+    G_stk->discard(argc + 1);
+
+    /* handled */
+    return TRUE;
+}
+
+
+
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Refill the read buffer.  Returns true if the buffer contains any data
  *   on return, false if we're at end of file.  
  */
-int vmobjfile_readbuf_t::refill(CCharmapToUni *charmap,
-                                osfildef *fp, int is_res_file,
-                                unsigned long res_seek_end)
+int vmobjfile_readbuf_t::refill(CVmDataSource *fp)
 {
-    unsigned long read_limit;
+    /* if the buffer is already full, do nothing */
+    if (rem == sizeof(buf))
+        return FALSE;
     
-    /* if the buffer isn't empty, ignore the request */
+    /* 
+     *   if there's anything left in the buffer, move it to the start of the
+     *   buffer 
+     */
     if (rem != 0)
-        return TRUE;
-
-    /* presume there's no read limit */
-    read_limit = 0;
-
-    /* if it's a resource file, limit the size */
-    if (is_res_file)
     {
-        unsigned long cur_seek_ofs;
-
-        /* make sure we're not already past the end */
-        cur_seek_ofs = osfpos(fp);
-        if (cur_seek_ofs >= res_seek_end)
-            return FALSE;
-
-        /* calculate the amount of data remaining in the resource */
-        read_limit = res_seek_end - cur_seek_ofs;
+        memmove(buf, ptr, rem);
+        ptr = buf + rem;
     }
-    
-    /* read the text */
-    rem = charmap->read_file(fp, buf, sizeof(buf), read_limit);
+    else
+        ptr = buf;
 
-    /* read from the start of the buffer */
-    ptr.set(buf);
+    /* fill up the rest of the buffer */
+    size_t cur = fp->readc(ptr, sizeof(buf) - rem);
+    rem += cur;
 
-    /* indicate that we have more data to read */
-    return (rem != 0);
+    /* return success if we managed to read any bytes on this round */
+    return (cur != 0);
 }
 
+/*
+ *   Read a character 
+ */
+int vmobjfile_readbuf_t::getch(wchar_t &ch,
+                               CVmDataSource *fp,
+                               class CCharmapToUni *charmap)
+{
+    /* keep going until we map a character or run out of input */
+    for (;;)
+    {
+        /* try mapping a character - if we get one, return success */
+        if (charmap->mapchar(ch, (const char *&)ptr, rem))
+            return TRUE;
 
+        /* 
+         *   we don't have enough bytes to map a whole character, so refill
+         *   our buffer; if that fails, we're at EOF 
+         */
+        if (!refill(fp))
+            return FALSE;
+    }
+}
+
+/*
+ *   Peek at the next character
+ */
+int vmobjfile_readbuf_t::peekch(wchar_t &ch,
+                                CVmDataSource *fp,
+                                class CCharmapToUni *charmap,
+                                size_t &in_bytes)
+{
+    /* keep going until we map a character or run out of input */
+    for (;;)
+    {
+        /* try mapping a character - if we get one, return success */
+        char *ptr2 = ptr;
+        size_t rem2 = rem;
+        if (charmap->mapchar(ch, (const char *&)ptr2, rem2))
+        {
+            in_bytes = rem - rem2;
+            return TRUE;
+        }
+
+        /* 
+         *   we don't have enough bytes to map a whole character, so refill
+         *   our buffer; if that fails, we're at EOF 
+         */
+        if (!refill(fp))
+            return FALSE;
+    }
+}

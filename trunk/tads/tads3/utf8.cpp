@@ -49,7 +49,7 @@ size_t utf8_ptr::setwchars(const wchar_t *src, size_t src_count,
             setch(*src);
             
             /* deduct this space from the remaining buffer size */
-            bufsiz -= outbytes;
+            bufsiz -= curbytes;
         }
         else
         {

@@ -42,7 +42,8 @@ Modified
 int CVmConsole::input_dialog(VMG_ int /*icon_id*/,
                              const char *prompt, int standard_button_set,
                              const char **buttons, int button_count,
-                             int default_index, int cancel_index)
+                             int default_index, int cancel_index,
+                             int bypass_script)
 {
     /* keep going until we get a valid response */
     for (;;)
@@ -54,6 +55,7 @@ int CVmConsole::input_dialog(VMG_ int /*icon_id*/,
         char *resp;
         int match_cnt;
         int last_found;
+        int err;
         static const struct
         {
             const char *buttons[3];
@@ -179,10 +181,14 @@ int CVmConsole::input_dialog(VMG_ int /*icon_id*/,
 
         /* read the response */
         format_text(vmg_ " >");
-        read_line(vmg_ buf, sizeof(buf));
+        err = read_line(vmg_ buf, sizeof(buf), bypass_script);
 
         /* close the input font tag */
         format_text(vmg_ "</font>");
+
+        /* on error, return 0 */
+        if (err)
+            return 0;
 
         /* skip any leading spaces in the reply */
         for (resp = buf ; isspace(*resp) ; ++resp) ;

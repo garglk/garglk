@@ -225,6 +225,12 @@ Modified
 /* '<>' operator is obsolete */
 #define TCERR_LTGT_OBSOLETE       10064
 
+/* integer constant exceeds maximum value */
+#define TCERR_INT_CONST_OV        10065
+
+/* unrecognized escape sequence \%c in string */
+#define TCERR_BACKSLASH_SEQ       10066
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -337,7 +343,7 @@ Modified
 #define TCERR_EXPECTED_SEMI       11015
 
 /* expected ">>" and the continuation of the string, found "%.*s" */
-#define TCERR_EXPECTED_DSTR_CONT  11016
+#define TCERR_EXPECTED_STR_CONT   11016
 
 /* expected ',' in argument list, found "%.*s" */
 #define TCERR_EXPECTED_ARG_COMMA  11017
@@ -933,6 +939,69 @@ Modified
 /* argument list is missing after inherited<> */
 #define TCERR_MMINH_MISSING_ARG_LIST   11214
 
+/* "..." cannot be used with a named argument value */
+#define TCERR_NAMED_ARG_NO_ELLIPSIS    11215
+
+/* argument %.*s must be optional */
+#define TCERR_ARG_MUST_BE_OPT          11216
+
+/* named argument '%.*s' has a type - named arguments can't be typed */
+#define TCERR_NAMED_ARG_NO_TYPE        11217
+
+/* expected -> instead of ',' after %dth element in LookupTable list */
+#define TCERR_LOOKUP_LIST_EXPECTED_ARROW   11218
+
+/* found -> in a list that appeared to be an ordinary list */
+#define TCERR_ARROW_IN_LIST            11219
+
+/* misplaced -> in a LookupTable list after %dth element */
+#define TCERR_MISPLACED_ARROW_IN_LIST  11220
+
+/* expected end of list after default value */
+#define TCERR_LOOKUP_LIST_EXPECTED_END_AT_DEF 11221
+
+/* 'operator' not valid within a 'propertyset' */
+#define TCERR_OPER_IN_PROPSET          11222
+
+/* expected ']' in 'operator []' */
+#define TCERR_EXPECTED_RBRACK_IN_OP    11223
+
+/* invalid operator overloading */
+#define TCERR_BAD_OP_OVERLOAD          11224
+
+/* wrong number of arguments for overloaded operator */
+#define TCERR_OP_OVERLOAD_WRONG_FORMALS  11225
+
+/* can't define new global symbols at run-time */
+#define TCERR_RT_CANNOT_DEFINE_GLOBALS 11226
+
+/* 'for..in' variable %.*s is not defined as a local variable */
+#define TCERR_FOR_IN_NOT_LOCAL         11227
+
+/* 
+ *   unexpected '%.*s' in << >> expression in string (mismatched 'end',
+ *   'else', 'default', etc) 
+ */
+#define TCERR_BAD_EMBED_END_TOK        11228
+
+/* expected << at start of string template found '%.*s' */
+#define TCERR_STRTPL_MISSING_LANGLE    11229
+
+/* expected >> at end of string template, found '%.*s' */
+#define TCERR_STRTPL_MISSING_RANGLE    11230
+
+/* only one '*' is allowed in a string template */
+#define TCERR_STRTPL_MULTI_STAR        11231
+
+/* 
+ *   wrong prototype for string template processor function %.*s - expected
+ *   %d parameters and a return value 
+ */
+#define TCERR_STRTPL_FUNC_MISMATCH     11232
+
+/* invalid defined() syntax */
+#define TCERR_DEFINED_SYNTAX           11233
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1056,7 +1125,7 @@ Modified
 /* expression on right of assignment operator has no value */
 #define TCERR_ASI_EXPR_HAS_NO_VAL 11538
 
-/* wrong number of arguments to function %.*s: %d required, %d actual */
+/* wrong number of arguments to function %.*s: %s required, %d actual */
 #define TCERR_WRONG_ARGC_FOR_FUNC 11539
 
 /* transfer into 'finally' block via 'goto' is not allowed */
@@ -1121,6 +1190,22 @@ Modified
 
 /* inherited<> function not found */
 #define TCERR_MMINH_UNDEF_FUNC    11560
+
+/* named parameter support function %.*s missing */
+#define TCERR_NAMED_PARAM_MISSING_FUNC  11561
+
+/* optional parameter support function %.*s missing */
+#define TCERR_OPT_PARAM_MISSING_FUNC  11562
+
+/* <<one of>> requires class OneOfIndexGen to be defined */
+#define TCERR_ONEOF_REQ_GENCLS     11563
+
+/* <<one of>> requires getNextIndex to be a property name */
+#define TCERR_ONEOF_REQ_GETNXT     11564
+
+/* metaclass %.*s is not defined in this module */
+#define TCERR_EXT_METACLASS        11565
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -1287,7 +1372,8 @@ Modified
 /* symbol "%.*s" cannot be exported - reserved for compiler use */
 #define TCERR_RESERVED_EXPORT     15015
 
-/* unused - 15016 */
+/* expression too complex */
+#define TCERR_EXPR_TOO_COMPLEX    15016
 
 /* property 'construct' is not defined */
 #define TCERR_CONSTRUCT_NOT_DEFINED 15017

@@ -20,6 +20,7 @@ Modified
   10/08/99 MJRoberts  - Creation
 */
 
+#include "t3std.h"
 #include "vminit.h"
 #include "vmglob.h"
 

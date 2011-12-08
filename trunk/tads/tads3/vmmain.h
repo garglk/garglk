@@ -41,7 +41,7 @@ Modified
  *   file name that was being executed at the time the game was saved.  
  */
 int vm_get_game_arg(int argc, const char *const *argv,
-                    char *buf, size_t buflen);
+                    char *buf, size_t buflen, int *engine_type);
 
 /*
  *   Given a game file argument, determine which engine (TADS 2 or TADS 3)
@@ -124,9 +124,10 @@ int vm_run_image(class CVmMainClientIfc *clientifc,
                  const char *const *prog_argv, int prog_argc,
                  const char *script_file, int script_quiet,
                  const char *log_file, const char *cmd_log_file,
-                 int load_from_exe, int show_banner,
+                 int load_from_exe, int show_banner, int seed_rand,
                  const char *charset, const char *log_charset,
-                 const char *saved_state, const char *res_dir);
+                 const char *saved_state, const char *res_dir,
+                 class TadsNetConfig *netconfig);
 
 /*
  *   Execute an image file using argc/argv conventions.  We'll parse the
@@ -159,6 +160,35 @@ int vm_run_image_main(class CVmMainClientIfc *clientifc,
                       int argc, char **argv, int defext, int test_mode,
                       class CVmHostIfc *hostifc);
 
+/*
+ *   Show the interface report.  This writes an XML listing of the
+ *   metaclasses and intrinsic function sets to the standard output.  
+ */
+void vm_interface_report(class CVmMainClientIfc *cli, const char *fname);
+
+/*
+ *   Get the IFID from the GameInfo resource.  This looks for the
+ *   gameinfo.txt resource in the image file or resource directory, then
+ *   scans the contents for its IFID field.  If we find an IFID, we return an
+ *   allocated buffer containing the IFID string (or the first IFID string,
+ *   if the GameInfo contains multiple IFIDs); otherwise we return null.  The
+ *   caller is responsible for freeing the returned buffer with
+ *   lib_free_str().
+ *   
+ *   Note that the host interface's resource map for the image file is
+ *   generally initialized when the image file is loaded, so this routine
+ *   must be called AFTER the image file has been loaded through the regular
+ *   loader.  If you want a more general-purpose GameInfo extractor that
+ *   doesn't rely on the interpreter's image loader, you should use the Babel
+ *   API tools, which parse the image file directly.  This routine is
+ *   intended as a lightweight alternative to the Babel tools for use in the
+ *   interpreter, where we're certainly already going to invoke the full
+ *   image loader anyway.  
+ */
+char *vm_get_ifid(class CVmHostIfc *hostifc);
+
+
+/* ------------------------------------------------------------------------ */
 /*
  *   VM Main client services interface.  Callers of the vm_run_image
  *   functions must provide an implementation of this interface. 
@@ -277,11 +307,39 @@ public:
      *   If 'add_blank_line' is true, the implementation should add a blank
      *   line after the error, if appropriate for the display device.  If
      *   we're displaying the message in an alert box on a GUI, for example,
-     *   this can be ignored.  
+     *   this can be ignored.
      */
     virtual void display_error(struct vm_globals *globals,
+                               const struct CVmException *exc,
                                const char *msg, int add_blank_line) = 0;
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Very basic client interface implementation using stdio 
+ */
+class CVmMainClientIfcStdio: public CVmMainClientIfc
+{
+public:
+    virtual void set_plain_mode() { }
+    virtual class CVmConsoleMain *create_console(struct vm_globals *)
+        { return 0; }
+    virtual void delete_console(struct vm_globals *, class CVmConsoleMain *) { }
+    virtual void client_init(struct vm_globals *, const char *, int,
+                             const char *, const char *, const char *) { }
+    virtual void client_terminate(struct vm_globals *) { }
+    virtual void pre_exec(struct vm_globals *) { }
+    virtual void post_exec(struct vm_globals *) { }
+    virtual void post_exec_err(struct vm_globals *) { }
+
+    virtual void display_error(struct vm_globals *,
+                               const struct CVmException *,
+                               const char *msg, int add_blank_line)
+    {
+        printf(add_blank_line ? "%s\n" : "%s", msg);
+    }
+};
+
 
 #endif /* VMMAIN_H */
 

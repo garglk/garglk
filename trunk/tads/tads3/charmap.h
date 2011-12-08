@@ -109,6 +109,13 @@ protected:
                                    const char *table_name,
                                    charmap_type_t *map_type);
 
+    /*
+     *   Open and characterize a map file, checking name synonyms 
+     */
+    static osfildef *open_map_file_syn(class CResLoader *res_loader,
+                                       const char *table_name,
+                                       charmap_type_t *map_type);
+
     /* check a name to see if it matches one of the names for ASCII */
     static int name_is_ascii_synonym(const char *table_name)
     {
@@ -122,15 +129,55 @@ protected:
                 || stricmp(table_name, "us") == 0);
     }
 
+    /* check for a utf-8 synonym */
+    static int name_is_utf8_synonym(const char *table_name)
+    {
+        return (stricmp(table_name, "utf-8") == 0
+                || stricmp(table_name, "utf8") == 0);
+    }
+
+    /* check for ucs2-le synonyms */
+    static int name_is_ucs2le_synonym(const char *table_name)
+    {
+        return (stricmp(table_name, "utf-16le") == 0
+                || stricmp(table_name, "utf16le") == 0
+                || stricmp(table_name, "utf_16le") == 0
+                || stricmp(table_name, "unicodel") == 0
+                || stricmp(table_name, "unicode-l") == 0
+                || stricmp(table_name, "unicode-le") == 0
+                || stricmp(table_name, "ucs-2le") == 0
+                || stricmp(table_name, "ucs2le") == 0);
+    }
+
+    /* check for ucs2-be synonyms */
+    static int name_is_ucs2be_synonym(const char *table_name)
+    {
+        return (stricmp(table_name, "utf-16be") == 0
+                || stricmp(table_name, "utf16be") == 0
+                || stricmp(table_name, "utf_16be") == 0
+                || stricmp(table_name, "unicodeb") == 0
+                || stricmp(table_name, "unicode-b") == 0
+                || stricmp(table_name, "unicode-be") == 0
+                || stricmp(table_name, "ucs-2be") == 0
+                || stricmp(table_name, "ucs2be") == 0);
+    }
+
     /* check a name to see if it matches one of the names for ISO 8859-1 */
     static int name_is_8859_1_synonym(const char *table_name)
     {
         /* accept any of the various names for ISO 8859-1 */
         return (stricmp(table_name, "iso-8859-1") == 0
                 || stricmp(table_name, "iso_8859-1") == 0
+                || stricmp(table_name, "iso_8859_1") == 0
+                || stricmp(table_name, "iso8859-1") == 0
+                || stricmp(table_name, "iso8859_1") == 0
+                || stricmp(table_name, "8859-1") == 0
+                || stricmp(table_name, "8859_1") == 0
                 || stricmp(table_name, "iso-ir-100") == 0
                 || stricmp(table_name, "latin1") == 0
+                || stricmp(table_name, "latin-1") == 0
                 || stricmp(table_name, "l1") == 0
+                || stricmp(table_name, "iso1") == 0
                 || stricmp(table_name, "cp819") == 0);
     }
 
@@ -163,11 +210,25 @@ public:
                                const char *table_name);
 
     /*
+     *   Validate a UTF-8 buffer.  If we find any ill-formed byte sequences,
+     *   we'll convert the errant bytes to '?' characters.
+     */
+    static void validate(char *buf, size_t len);
+
+    /*
      *   Determine if the given byte sequence forms a complete character in
      *   the local character set.  Returns true if so, false if not.  'len'
      *   must be at least 1.  
      */
     virtual int is_complete_char(const char *p, size_t len) const = 0;
+
+    /*
+     *   Map one character.  Advances the input pointer and length past the
+     *   character.  If there's a complete character at 'p', maps the
+     *   character and returns true; if additional bytes are needed to form a
+     *   complete character, leaves 'p' unchanged and returns false.  
+     */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len) = 0;
 
     /*
      *   Convert a string from the local character set to Unicode.
@@ -239,8 +300,8 @@ public:
      *   from the underlying file.  If this is zero, then the read size is
      *   unlimited.  
      */
-    virtual size_t read_file(osfildef *fp, char *buf, size_t bufl,
-                             unsigned long read_limit) = 0;
+    virtual size_t read_file(class CVmDataSource *fp,
+                             char *buf, size_t bufl) = 0;
 
 protected:
     /* delete the mapping */
@@ -364,6 +425,19 @@ public:
                     size_t *src_bytes_used) const;
 
     /*
+     *   Map to utf8, allocating a new buffer.  Fills in 'buf' with a pointer
+     *   to the new buffer, which we allocate via t3malloc() with enough
+     *   space for the mapped string plus a null terminator.  Maps the string
+     *   into the buffer and adds a null byte.  Returns the byte length of
+     *   the mapped string (not including the null byte).
+     *   
+     *   The caller is responsible for freeing the new buffer with t3free()
+     *   when done with it.
+     */
+    size_t map_utf8_alo(char **buf, const char *src, size_t srclen) const;
+    
+
+    /*
      *   Convert a null-terminated UTF-8 string to the local character set.
      *   
      *   Returns the byte length of the result.  If the result is too long
@@ -412,7 +486,7 @@ public:
      *   set.  Returns zero on success, non-zero if an error occurs writing
      *   the data.  
      */
-    int write_file(osfildef *fp, const char *buf, size_t bufl);
+    int write_file(class CVmDataSource *fp, const char *buf, size_t bufl);
 
     /* 
      *   determine if the given Unicode character has a mapping to the local
@@ -640,8 +714,7 @@ class CCharmapToUniUTF8: public CCharmapToUni
 {
 public:
     /* read from a file */
-    virtual size_t read_file(osfildef *fp, char *buf, size_t bufl,
-                             unsigned long read_limit);
+    virtual size_t read_file(class CVmDataSource *fp, char *buf, size_t bufl);
 
     /* determine if a byte sequence forms a complete character */
     virtual int is_complete_char(const char *p, size_t len) const
@@ -652,6 +725,30 @@ public:
          *   inferred byte length, we have a complete character.  
          */
         return (len >= utf8_ptr::s_charsize(*p));
+    }
+
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        /* make sure we have a complete character */
+        size_t clen = utf8_ptr::s_charsize(*p);
+        if (len >= clen)
+        {
+            /* read the character */
+            ch = utf8_ptr::s_getch(p);
+
+            /* advance the input pointers */
+            p += clen;
+            len -= clen;
+
+            /* success */
+            return TRUE;
+        }
+        else
+        {
+            /* incomplete character */
+            return FALSE;
+        }
     }
 
     /* map a string */
@@ -672,7 +769,7 @@ public:
     virtual size_t map2(char **output_ptr, size_t *output_buf_len,
                         const char *input_ptr, size_t input_len,
                         size_t *partial_len) const;
-    
+
 protected:
     /* we don't need a mapping table - ignore any that is set */
     virtual void set_mapping(wchar_t, wchar_t) { }
@@ -690,8 +787,7 @@ class CCharmapToUniUcs2: public CCharmapToUni
 {
 public:
     /* read from a file */
-    virtual size_t read_file(osfildef *fp, char *buf, size_t bufl,
-                             unsigned long read_limit);
+    virtual size_t read_file(class CVmDataSource *fp, char *buf, size_t bufl);
 
     /* determine if a byte sequence forms a complete character */
     virtual int is_complete_char(const char *, size_t len) const
@@ -737,6 +833,25 @@ public:
     /* map a string */
     size_t map(char **output_ptr, size_t *output_buf_len,
                const char *input_ptr, size_t input_len) const;
+
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        if (len >= 2)
+        {
+            /* map the character */
+            ch = (unsigned char)*p++;
+            ch |= ((unsigned char)*p++) << 8;
+
+            /* deduct it from the length */
+            len -= 2;
+
+            /* success */
+            return TRUE;
+        }
+        else
+            return FALSE;
+    }
 };
 
 /* ------------------------------------------------------------------------ */
@@ -749,6 +864,25 @@ public:
     /* map a string */
     size_t map(char **output_ptr, size_t *output_buf_len,
                const char *input_ptr, size_t input_len) const;
+
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        if (len >= 2)
+        {
+            /* map the character */
+            ch = ((unsigned char)*p++) << 8;
+            ch |= (unsigned char)*p++;
+
+            /* deduct it from the length */
+            len -= 2;
+
+            /* success */
+            return TRUE;
+        }
+        else
+            return FALSE;
+    }
 };
 
 /* ------------------------------------------------------------------------ */
@@ -759,8 +893,7 @@ class CCharmapToUniSB_basic: public CCharmapToUni
 {
 public:
     /* read from a single-byte input file, translating to UTF-8 */
-    virtual size_t read_file(osfildef *fp, char *buf, size_t bufl,
-                             unsigned long read_limit);
+    virtual size_t read_file(class CVmDataSource *fp, char *buf, size_t bufl);
 
     /* determine if a byte sequence forms a complete character */
     virtual int is_complete_char(const char *, size_t) const
@@ -804,6 +937,28 @@ public:
     size_t map(char **output_ptr, size_t *output_buf_len,
                const char *input_ptr, size_t input_len) const;
 
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        if (len >= 1)
+        {
+            /* map the character */
+            ch = (unsigned char)*p++;
+
+            /* substitude U+FFFD for any invalid character */
+            if (ch > 127)
+                ch = 0xFFFD;
+
+            /* deduct it from the length */
+            len -= 1;
+
+            /* success */
+            return TRUE;
+        }
+        else
+            return FALSE;
+    }
+
 protected:
     /* 
      *   there's no map for the ASCII translation, so we can ignore
@@ -831,6 +986,24 @@ public:
     /* map a string */
     size_t map(char **output_ptr, size_t *output_buf_len,
                const char *input_ptr, size_t input_len) const;
+
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        if (len >= 1)
+        {
+            /* map the character */
+            ch = map_[(unsigned char)*p++];
+
+            /* deduct it from the length */
+            len -= 1;
+
+            /* success */
+            return TRUE;
+        }
+        else
+            return FALSE;
+    }
 
 protected:
     /* set a mapping */
@@ -936,9 +1109,52 @@ public:
         }
     }
 
+    /* map one character */
+    virtual int mapchar(wchar_t &ch, const char *&p, size_t &len)
+    {
+        /* get the first byte's translation entry */
+        cmap_mb_entry e = map_[(unsigned char)*p];
+
+        /* check if we have a single-byte or double-byte character */
+        if (e.sub != 0)
+        {
+            /* double-byte character */
+            if (len >= 2)
+            {
+                /* get the second character mapping */
+                ch = e.sub[(unsigned char)*++p];
+
+                /* skip the two bytes */
+                p += 1;
+                len -= 2;
+
+                /* success */
+                return TRUE;
+            }
+        }
+        else
+        {
+            /* single-byte character */
+            if (len >= 1)
+            {
+                /* get the mapping */
+                ch = e.ch;
+
+                /* skip the character */
+                p += 1;
+                len -= 1;
+
+                /* success */
+                return TRUE;
+            }
+        }
+
+        /* if we made it this far, we don't have a complete character */
+        return FALSE;
+    }
+
     /* read from a multi-byte input file, translating to UTF-8 */
-    virtual size_t read_file(osfildef *fp, char *buf, size_t bufl,
-                             unsigned long read_limit);
+    virtual size_t read_file(class CVmDataSource *fp, char *buf, size_t bufl);
 
     /* map a string */
     size_t map(char **output_ptr, size_t *output_buf_len,
@@ -974,16 +1190,21 @@ private:
 /* ------------------------------------------------------------------------ */
 /*
  *   Character mapper for double-byte character sets to UTF-8.  This maps
- *   from local character sets that use a two-byte sequence to represent
- *   each local character.
+ *   from local character sets that use a two-byte sequence to represent each
+ *   local character.
  *   
  *   For now, this is a trivial subclass of the multi-byte mapper; that
- *   mapper handles the more general case of varying-length local
- *   characters, so it can easily handle the case where every where is
- *   represented by two bytes.  If there is sufficient demand for it, a
+ *   mapper handles the more general case where each character can have a
+ *   different byte length, so it readily handles the case where every
+ *   character is two bytes.  If there's ever any demand for it, a
  *   special-case subclass to handle double-byte character sets specifically
- *   could provide efficiency gains, since it wouldn't have to check each
- *   lead byte to determine the character sequence length.  
+ *   could provide slight efficiency gains, since it wouldn't have to check
+ *   each lead byte to determine the character sequence length.  I don't
+ *   expect this will be needed, though: there just aren't many fixed
+ *   double-byte character sets in use (apart from the UCS2 sets, which we
+ *   already have special handling for), and there's little chance of new
+ *   ones arising in the future since Unicode is rapidly making the whole
+ *   idea of vendor character sets obsolete.  
  */
 class CCharmapToUniDB: public CCharmapToUniMB
 {

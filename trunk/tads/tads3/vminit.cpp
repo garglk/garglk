@@ -47,6 +47,9 @@ Modified
 #include "vmparam.h"
 #include "vmmain.h"
 #include "vmtobj.h"
+#include "osifcnet.h"
+#include "vmhash.h"
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -104,26 +107,27 @@ void vm_init_base(vm_globals **vmg, const vm_init_options *opts)
     /* remember the host interface */
     G_host_ifc = opts->hostifc;
 
+    /* initialize the system debug log file name */
+    char path[OSFNMAX];
+    opts->hostifc->get_special_file_path(path, sizeof(path), OS_GSP_LOGFILE);
+    os_build_full_path(G_syslogfile, sizeof(G_syslogfile),
+                       path, "tadslog.txt");
+
     /* we don't have a resource loader for program resources yet */
     G_res_loader = 0;
 
     /* create the object table */
-    VM_IFELSE_ALLOC_PRE_GLOBAL(G_obj_table = new CVmObjTable(),
-                               G_obj_table->init());
+    VM_IF_ALLOC_PRE_GLOBAL(G_obj_table = new CVmObjTable());
+    G_obj_table->init(vmg0_);
 
     /* 
      *   Create the memory manager.  Empirically, our hybrid heap allocator
      *   is faster than the standard C++ run-time library's allocator on many
      *   platforms, so use it instead of hte basic 'malloc' allocator. 
      */
-    G_varheap = new CVmVarHeapHybrid();
+    G_varheap = new CVmVarHeapHybrid(G_obj_table);
     // G_varheap = new CVmVarHeapMalloc(); to use the system 'malloc' instead
     G_mem = new CVmMemory(vmg_ G_varheap);
-
-    /* create a stack */
-    VM_IFELSE_ALLOC_PRE_GLOBAL(
-        G_stk = new CVmStack(VM_STACK_SIZE, vm_init_stack_reserve()),
-        G_stk->init());
 
     /* create the undo manager */
     G_undo = new CVmUndo(VM_UNDO_MAX_RECORDS, VM_UNDO_MAX_SAVEPTS);
@@ -139,12 +143,16 @@ void vm_init_base(vm_globals **vmg, const vm_init_options *opts)
     CVmObjTads::class_init(vmg0_);
 
     /* create the byte-code interpreter */
-    VM_IFELSE_ALLOC_PRE_GLOBAL(G_interpreter = new CVmRun(),
-                               G_interpreter->init());
+    VM_IFELSE_ALLOC_PRE_GLOBAL(
+        G_interpreter = new CVmRun(VM_STACK_SIZE, vm_init_stack_reserve()),
+        G_interpreter->init());
 
     /* presume we won't create debugger information */
     G_debugger = 0;
     G_srcf_table = 0;
+
+    /* presume we don't have a network configuration */
+    G_net_config = 0;
 
     /* initialize the debugger if present */
     vm_init_debugger(vmg0_);
@@ -258,7 +266,7 @@ void vm_init_base(vm_globals **vmg, const vm_init_options *opts)
         sprintf(buf, msg, charset);
 
         /* display it */
-        opts->clientifc->display_error(VMGLOB_ADDR, buf, TRUE);
+        opts->clientifc->display_error(VMGLOB_ADDR, 0, buf, TRUE);
     }
 }
 
@@ -311,25 +319,30 @@ void vm_terminate(vm_globals *vmg__, CVmMainClientIfc *clientifc)
     /* delete debugger objects */
     vm_terminate_debug_delete(vmg0_);
 
+    /* delete dynamic compilation objects */
+    if (G_dyncomp != 0)
+    {
+        delete G_dyncomp;
+        G_dyncomp = 0;
+    }
+
     /* delete the constant pools */
     VM_IFELSE_ALLOC_PRE_GLOBAL(delete G_code_pool,
                                G_code_pool->terminate());
     VM_IFELSE_ALLOC_PRE_GLOBAL(delete G_const_pool,
                                G_const_pool->terminate());
 
+    /* delete the object table */
+    G_obj_table->delete_obj_table(vmg0_);
+    VM_IF_ALLOC_PRE_GLOBAL(delete G_obj_table);
+
     /* delete the dependency tables */
+    G_bif_table->clear(vmg0_);
     delete G_meta_table;
     delete G_bif_table;
 
     /* delete the undo manager */
     delete G_undo;
-
-    /* delete the stack */
-    VM_IF_ALLOC_PRE_GLOBAL(delete G_stk);
-
-    /* delete the object table */
-    G_obj_table->delete_obj_table(vmg0_);
-    VM_IF_ALLOC_PRE_GLOBAL(delete G_obj_table);
 
     /* delete the memory manager and heap manager */
     delete G_mem;

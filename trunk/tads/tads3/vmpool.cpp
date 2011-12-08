@@ -113,7 +113,7 @@ void CVmPoolPaged::attach_backing_store(CVmPoolBackingStore *backing_store)
 /*
  *   Allocate a page slot 
  */
-void CVmPoolPaged::alloc_page_slots(size_t slots)
+void CVmPoolPaged::alloc_page_slots(size_t nslots)
 {
     size_t old_slots;
     size_t i;
@@ -122,11 +122,11 @@ void CVmPoolPaged::alloc_page_slots(size_t slots)
     old_slots = page_slots_;
 
     /* if the new size isn't bigger than the old size, ignore the request */
-    if (slots <= page_slots_)
+    if (nslots <= page_slots_)
         return;
 
     /* if necessary, expand the master page array */
-    if (slots > page_slots_max_)
+    if (nslots > page_slots_max_)
     {
         size_t siz;
 
@@ -134,7 +134,7 @@ void CVmPoolPaged::alloc_page_slots(size_t slots)
          *   Increase the maximum, leaving some room for dynamically added
          *   pages. 
          */
-        page_slots_max_ = slots + 10;
+        page_slots_max_ = nslots + 10;
 
         /* calculate the new allocation size */
         siz = page_slots_max_ * sizeof(pages_[0]);
@@ -147,7 +147,7 @@ void CVmPoolPaged::alloc_page_slots(size_t slots)
     }
 
     /* set the new size */
-    page_slots_ = slots;
+    page_slots_ = nslots;
 
     /* clear the new subarrays */
     for (i = old_slots ; i < page_slots_ ; ++i)
@@ -242,7 +242,7 @@ void CVmPoolPaged2::attach_backing_store(CVmPoolBackingStore *backing_store)
 /*
  *   Allocate a page slot 
  */
-void CVmPoolPaged2::alloc_page_slots(size_t slots)
+void CVmPoolPaged2::alloc_page_slots(size_t nslots)
 {
     size_t old_slots;
     size_t old_sub_cnt;
@@ -252,14 +252,14 @@ void CVmPoolPaged2::alloc_page_slots(size_t slots)
     old_slots = page_slots_;
 
     /* if the new size isn't bigger than the old size, ignore the request */
-    if (slots <= page_slots_)
+    if (nslots <= page_slots_)
         return;
 
     /* note the original subarray count */
     old_sub_cnt = get_subarray_count();
 
     /* set the new size */
-    page_slots_ = slots;
+    page_slots_ = nslots;
 
     /* note the new subarray count */
     new_sub_cnt = get_subarray_count();

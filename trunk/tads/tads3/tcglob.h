@@ -61,6 +61,9 @@ TC_GLOB_DECLARE class CTcCodeStream *G_cs_main;
 /* static initializer code stream */
 TC_GLOB_DECLARE class CTcCodeStream *G_cs_static;
 
+/* local variable name stream */
+TC_GLOB_DECLARE class CTcDataStream *G_lcl_stream;
+
 /* generated data (constant) stream */
 TC_GLOB_DECLARE class CTcDataStream *G_ds;
 
@@ -87,6 +90,13 @@ TC_GLOB_DECLARE class CTcDataStream *G_static_init_id_stream;
 
 /* target-specific code generator class */
 TC_GLOB_DECLARE class CTcGenTarg *G_cg;
+
+/* 
+ *   Run-time metaclass table.  When we're doing dynamic compilation, the
+ *   interpreter will set this to its live metaclass table for the loaded
+ *   program. 
+ */
+TC_GLOB_DECLARE class CVmMetaTable *G_metaclass_tab;
 
 /* 
  *   object ID fixup list head, and flag indicating whether to keep object
@@ -118,6 +128,45 @@ TC_GLOB_DECLARE int G_debug;
 
 /* disassembly output stream, if disassembly display is desired */
 TC_GLOB_DECLARE class CTcUnasOut *G_disasm_out;
+
+/*
+ *   Image file sizes.  For the normal compiler, these are fixed quantities
+ *   based on the current VM version we're targeting.  For the dynamic
+ *   compiler, these are adjusted to match the data from the loaded image
+ *   file; this is necessary to ensure that code we generate matches static
+ *   code loaded from the image.  
+ */
+struct tc_image_info
+{
+    /* size of the method header */
+    int mhdr;
+
+    /* size of the exception table entry */
+    int exc_entry;
+
+    /* debugger table header size */
+    int dbg_hdr;
+
+    /* debugger line table entry size */
+    int dbg_line;
+
+    /* debugger frame record size */
+    int dbg_frame;
+
+    /* local symbol header size */
+    int lcl_hdr;
+
+    /* debug record format version ID */
+    int dbg_fmt_vsn;
+};
+TC_GLOB_DECLARE tc_image_info G_sizes;
+
+/*
+ *   Compiler interface to the live VM.  In dynamic compilation mode, the VM
+ *   supplies the compiler with this object to provide the compiler with
+ *   access to VM resources.  
+ */
+TC_GLOB_DECLARE class CTcVMIfc *G_vmifc;
 
 #endif /* VMGLOB_H */
 

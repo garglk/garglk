@@ -115,7 +115,7 @@ public:
      *   Allocate a temporary register with a minimum of the given byte
      *   size.  Returns a pointer to the register's buffer, and fills in
      *   '*hdl' with the handle of the register, which must be used to
-     *   relesae the register.  
+     *   release the register.  
      */
     char *alloc_reg(size_t siz, uint *hdl);
 
@@ -136,6 +136,10 @@ public:
     char *get_ln10_reg(size_t siz, int *expanded)
         { return alloc_reg(&ln10_, siz, expanded); }
     
+    /* get the constant ln(2) register */
+    char *get_ln2_reg(size_t siz, int *expanded)
+        { return alloc_reg(&ln2_, siz, expanded); }
+
     /* get the constant pi register */
     char *get_pi_reg(size_t siz, int *expanded)
         { return alloc_reg(&pi_, siz, expanded); }
@@ -143,6 +147,14 @@ public:
     /* get the constant e register */
     char *get_e_reg(size_t siz, int *expanded)
         { return alloc_reg(&e_, siz, expanded); }
+
+    /* get the DBL_MAX register */
+    char *get_dbl_max_reg(size_t siz, int *expanded)
+        { return alloc_reg(&dbl_max_, siz, expanded); }
+
+    /* get the DBL_MIN register */
+    char *get_dbl_min_reg(size_t siz, int *expanded)
+        { return alloc_reg(&dbl_min_, siz, expanded); }
 
 private:
     /* make sure a register is allocated to a given size, and return it */
@@ -167,11 +179,18 @@ private:
     /* constant register for ln(10) */
     CVmBigNumCacheReg ln10_;
 
+    /* constant register for ln(2) */
+    CVmBigNumCacheReg ln2_;
+
     /* constant register for pi */
     CVmBigNumCacheReg pi_;
 
     /* constant register for e */
     CVmBigNumCacheReg e_;
+
+    /* constant registers for DBL_MAX and DBL_MIN */
+    CVmBigNumCacheReg dbl_max_;
+    CVmBigNumCacheReg dbl_min_;
 
     /* maximum number of registers we can create */
     size_t max_regs_;
@@ -203,7 +222,7 @@ private:
  *.  0x0000 -> normal number
  *.  0x0002 -> NOT A NUMBER
  *.  0x0004 -> INFINITY (sign bit indicates sign of infinity)
- *.  0x0006 -> reserved - should always be zero for now
+ *.  0x0006 -> reserved for future use
  *   
  *   (flags & 0x0008) - zero bit; if set, the number's value is zero
  *   
@@ -266,6 +285,21 @@ private:
 
 /* use European-style formatting */
 #define VMBN_FORMAT_EUROSTYLE     0x0080
+
+/* 
+ *   Use scientific notation if it's more compact, a la C printf 'g' format.
+ *   This automatically uses exponent notation if the exponent is less then
+ *   -4 or greater than or equal to the number of digits after the decimal
+ *   point.  
+ */
+#define VMBN_FORMAT_COMPACT       0x0100
+
+/* max_digits counts only significant digits, not leading zeros */
+#define VMBN_FORMAT_MAXSIG        0x0200
+
+/* keep trailing zeros to fill out the max_digits count */
+#define VMBN_FORMAT_TRAILING_ZEROS 0x0400
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -376,7 +410,10 @@ enum vmobjbn_meta_fnset
     VMOBJBN_GET_PI = 33,
 
     /* get e (static method) */
-    VMOBJBN_GET_E = 34
+    VMOBJBN_GET_E = 34,
+
+    /* numType */
+    VMOBJN_numType = 35
 };
 
 /* ------------------------------------------------------------------------ */
@@ -404,14 +441,15 @@ public:
      *   write to a 'data' mode file - returns zero on success, non-zero on
      *   I/O or other error 
      */
-    int write_to_data_file(osfildef *fp);
+    int write_to_data_file(class CVmDataSource *fp);
 
     /* 
      *   Read from a 'data' mode file, creating a new BigNumber object to
      *   hold the result.  Returns zero on success, non-zero on failure.  On
      *   success, *retval will be filled in with the new BigNumber object.  
      */
-    static int read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp);
+    static int read_from_data_file(
+        VMG_ vm_val_t *retval, class CVmDataSource *fp);
 
     /* create dynamically using stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
@@ -433,12 +471,73 @@ public:
     /* create with a given precision */
     static vm_obj_id_t create(VMG_ int in_root_set, size_t digits);
 
-    /* create with a given value */
+    /* create from a given integer value */
     static vm_obj_id_t create(VMG_ int in_root_set, long val, size_t digits);
+
+    /* create from a given unsigned integer value */
+    static vm_obj_id_t createu(VMG_ int in_root_set, ulong val, size_t digits);
+
+    /* create from a given string value, with a given precision */
+    static vm_obj_id_t create(VMG_ int in_root_set,
+                              const char *str, size_t len, size_t digits);
+
+    /* create from a double, with enough precision for a native double */
+    static vm_obj_id_t create(VMG_ int in_root_set, double val);
+
+    /* create from a double, with a given precision */
+    static vm_obj_id_t create(VMG_ int in_root_set, double val, size_t digits);
+
+    /* 
+     *   Create from a 64-bit integer in portable little-endian notation.
+     *   This is the 64-bit int equivalent of osrp2(), osrp4(), etc - the
+     *   name is meant to parallel those names.  The buffer must be stored in
+     *   our standard portable format: little-endian, two's complement.
+     *   create_rp8() treats the value as unsigned, create_rp8s() treats it
+     *   as signed.  
+     */
+    static vm_obj_id_t create_rp8(VMG_ int in_root_set, const char *buf);
+    static vm_obj_id_t create_rp8s(VMG_ int in_root_set, const char *buf);
+
+    /* create from a BER-encoded compressed unsigned integer buffer */
+    static vm_obj_id_t create_from_ber(VMG_ int in_root_set,
+                                       const char *buf, size_t len);
+
+    /* create from an IEEE 754-2008 binary interchange format buffer */
+    static vm_obj_id_t create_from_ieee754(
+        VMG_ int in_root_set, const char *buf, int bits);
+
+    /* 
+     *   create from a string value, using the precision required to hold the
+     *   value in the string 
+     */
+    static vm_obj_id_t create(VMG_ int in_root_set,
+                              const char *str, size_t len);
+
+    /* 
+     *   create from a string value in a given radix, using the precision
+     *   required to hold the value in the string 
+     */
+    static vm_obj_id_t create_radix(VMG_ int in_root_set,
+                                    const char *str, size_t len, int radix);
 
     /* determine if an object is a BigNumber */
     static int is_bignum_obj(VMG_ vm_obj_id_t obj)
         { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
+
+    /* 
+     *   Cast a value to a BigNumber.  We can convert strings, integers, and
+     *   of course BigNumber values.  Fills in bnval with the BigNumber
+     *   value, which will be newly allocated if the source isn't already a
+     *   BigNumber (in which case bnval is just a copy of srcval).  
+     */
+    static void cast_to_bignum(VMG_ vm_val_t *bnval, const vm_val_t *srcval);
+
+    /* 
+     *   get the precision required to hold the number with the given string
+     *   representation 
+     */
+    static int precision_from_string(const char *str, size_t len);
+    static int precision_from_string(const char *str, size_t len, int radix);
 
     /* notify of deletion */
     void notify_delete(VMG_ int in_root_set);
@@ -478,23 +577,23 @@ public:
                            class CVmFile *fp, class CVmObjFixup *fixup);
 
     /* add a value */
-    void add_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int add_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* subtract a value */
-    void sub_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int sub_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* multiply */
-    void mul_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int mul_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* divide */
-    void div_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int div_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* negate */
-    void neg_val(VMG_ vm_val_t *result, vm_obj_id_t self);
+    int neg_val(VMG_ vm_val_t *result, vm_obj_id_t self);
 
     /* check a value for equality */
     int equals(VMG_ vm_obj_id_t self, const vm_val_t *val, int depth) const;
@@ -516,62 +615,96 @@ public:
     virtual const char *cast_to_string(VMG_ vm_obj_id_t self,
                                        vm_val_t *new_str) const;
 
+    /*
+     *   Explicitly cast to string with a given radix 
+     */
+    virtual const char *explicit_to_string(
+        VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix, int flags) const;
+
     /* 
-     *   Static method to convert big number data to a string.  We'll
-     *   create a new string object and store a reference in new_str,
-     *   returning a pointer to its data buffer.
+     *   Static method to convert big number data to a string.  We'll create
+     *   a new string object and store a reference in new_str, returning a
+     *   pointer to its data buffer.
      *   
      *   max_digits is the maximum number of digits we should produce.  If
-     *   our precision is greater than this would allow, we'll round.  If
-     *   we have more digits before the decimal point than this would
-     *   allow, we'll use exponential notation.
+     *   our precision is greater than this would allow, we'll round.  If we
+     *   have more digits before the decimal point than this would allow,
+     *   we'll use exponential notation.
      *   
-     *   whole_places is the number of places before the decimal point
-     *   that we should produce.  This is a minimum; if we need more
-     *   places (and we're not in exponential notation), we'll take the
-     *   additional places.  If, however, we don't manage to fill this
-     *   quota, we'll pad with spaces to the left.  We ignore whole_places
-     *   in exponential format.
+     *   If the flag VMBN_FORMAT_MAXSIG is set, max_digits is taken as the
+     *   maximum number of *significant* digits to display. That is, we won't
+     *   count leading zeros against the maximum.
      *   
-     *   frac_digits is the number of digits after the decimal point that
-     *   we should produce.  We'll round if we have more precision than
-     *   this would allow, or pad with zeroes if we don't have enough
-     *   precision.  If frac_digits is -1, we will produce as many
-     *   fractional digits as we need up to the max_digits limit.
+     *   whole_places is the number of places before the decimal point that
+     *   we should produce.  This is a minimum; if we need more places (and
+     *   we're not in exponential notation), we'll take the additional
+     *   places.  If, however, we don't manage to fill this quota, we'll pad
+     *   with spaces to the left.  We ignore whole_places in exponential
+     *   format.
+     *   
+     *   frac_digits is the number of digits after the decimal point that we
+     *   should produce.  We'll round if we have more precision than this
+     *   would allow, or pad with zeros if we don't have enough precision.
+     *   If frac_digits is -1, we will produce as many fractional digits as
+     *   we need up to the max_digits limit.
      *   
      *   If the VMBN_FORMAT_EXP flag isn't set, we'll format the number
      *   without an exponent as long as we have enough space in max_digits
-     *   for the part before the decimal point, and we have enough space
-     *   in max_digits and frac_digits that a number with a small absolute
-     *   value wouldn't show up as all zeroes.
+     *   for the part before the decimal point, and we have enough space in
+     *   max_digits and frac_digits that a number with a small absolute value
+     *   wouldn't show up as all zeros.
      *   
-     *   If the VMBN_FORMAT_POINT flag is set, we'll show a decimal point
-     *   for all numbers.  Otherwise, if frac_digits is zero, or
-     *   frac_digits is -1 and the number has no fractional part, we'll
-     *   suppress the decimal point.  This doesn't matter when frac_digits
-     *   is greater than zero, or it's -1 and there's a fractional part to
-     *   display.
+     *   If the VMBN_FORMAT_POINT flag is set, we'll show a decimal point for
+     *   all numbers.  Otherwise, if frac_digits is zero, or frac_digits is
+     *   -1 and the number has no fractional part, we'll suppress the decimal
+     *   point.  This doesn't matter when frac_digits is greater than zero,
+     *   or it's -1 and there's a fractional part to display.
      *   
-     *   If exp_digits is non-zero, it specifies the minimum number of
-     *   digits to display in the exponent.  We'll pad with zeroes to make
-     *   this many digits if necessary.
+     *   If exp_digits is non-zero, it specifies the minimum number of digits
+     *   to display in the exponent.  We'll pad with zeros to make this many
+     *   digits if necessary.
      *   
-     *   If lead_fill is provided, it must be a string value.  We'll fill
-     *   the string with the characters from this string, looping to
-     *   repeat the string if necessary.  If this string isn't provided,
-     *   we'll use leading spaces.  This is only needed if the
-     *   whole_places value requires us to insert filler.  
+     *   If lead_fill is provided, it must be a string value.  We'll fill the
+     *   string with the characters from this string, looping to repeat the
+     *   string if necessary.  If this string isn't provided, we'll use
+     *   leading spaces.  This is only needed if the whole_places value
+     *   requires us to insert filler.  
      */
-    static const char *cvt_to_string(VMG_ vm_obj_id_t self, vm_val_t *new_str,
-                                     const char *ext,
-                                     int max_digits, int whole_places,
-                                     int frac_digits, int exp_digits,
-                                     ulong flags, vm_val_t *lead_fill);
+    static const char *cvt_to_string(
+        VMG_ vm_obj_id_t self, vm_val_t *new_str, const char *ext,
+        int max_digits, int whole_places, int frac_digits, int exp_digits,
+        ulong flags, vm_val_t *lead_fill);
 
     /* format the value into the given buffer */
-    char *cvt_to_string_buf(VMG_ char *buf, size_t buflen, int max_digits,
-                            int whole_places, int frac_digits, int exp_digits,
-                            ulong flags);
+    const char *cvt_to_string_buf(
+        VMG_ char *buf, size_t buflen, int max_digits,
+        int whole_places, int frac_digits, int exp_digits, ulong flags);
+
+    /* 
+     *   format the value into the given buffer, or into a new String if the
+     *   value overflows the buffer 
+     */
+    const char *cvt_to_string_buf(
+        VMG_ vm_val_t *new_str, char *buf, size_t buflen, int max_digits,
+        int whole_places, int frac_digits, int exp_digits, ulong flags);
+        
+
+    /* 
+     *   format a regular integer value into a buffer as though it were a
+     *   BigNumber value 
+     */
+    static const char *cvt_int_to_string_buf(
+        VMG_ char *buf, size_t buflen, int32 intval,
+        int max_digits, int whole_places, int frac_digits, int exp_digits,
+        ulong flags);
+
+    /* format as an integer in a given radix */
+    const char *cvt_to_string_in_radix(
+        VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix) const;
+
+    /* get the fractional part/whole part */
+    static void compute_frac(char *ext);
+    static void compute_whole(char *ext);
 
     /* compute a sum */
     static void compute_sum(VMG_ vm_val_t *result,
@@ -606,7 +739,7 @@ public:
     /* 
      *   Determine if two values are exactly equal.  If one value has more
      *   precision than the other, we'll implicitly extend the shorter
-     *   value with trailing zeroes. 
+     *   value with trailing zeros. 
      */
     static int compute_eq_exact(const char *ext1, const char *ext2);
 
@@ -629,16 +762,115 @@ public:
                                  size_t digits, int always_create);
 
     /* set my value to a given integer value */
-    void set_int_val(long val);
+    static void set_int_val(char *ext, long val);
+    static void set_uint_val(char *ext, ulong val);
+
+    /* set from a portable little-endian 64-bit unsigned int buffer */
+    void set_rp8(const uchar *p);
+
+    /* set my value to the given double */
+    static void set_double_val(char *ext, double val);
 
     /* set my value to a given string */
     void set_str_val(const char *str, size_t len);
+    void set_str_val(VMG_ const char *str, size_t len, int radix);
 
     /* get my data pointer */
     char *get_ext() const { return ext_; }
 
-    /* convert to an integer value */
-    long convert_to_int();
+    /* cast to integer */
+    virtual long cast_to_int(VMG0_) const
+    {
+        /* return the integer conversion */
+        return convert_to_int();
+    }
+
+    /* get my integer value */
+    virtual int get_as_int(long *val) const
+    {
+        /* return the integer conversion */
+        *val = convert_to_int();
+        return TRUE;
+    }
+
+    /* 
+     *   Convert to an integer value (signed or unsigned).  We set 'ov' to
+     *   true if the value overflows the integer type. 
+     */
+    long convert_to_int(int &ov) const;
+    ulong convert_to_uint(int &ov) const;
+
+    /* convert to integer, throwing an error on overflow */
+    long convert_to_int() const
+    {
+        int ov;
+        long l = convert_to_int(ov);
+        if (ov)
+            err_throw(VMERR_NUM_OVERFLOW);
+        return l;
+    }
+    ulong convert_to_uint() const
+    {
+        int ov;
+        ulong l = convert_to_uint(ov);
+        if (ov)
+            err_throw(VMERR_NUM_OVERFLOW);
+        return l;
+    }
+
+    /* cast to numeric */
+    virtual void cast_to_num(VMG_ vm_val_t *val, vm_obj_id_t self) const
+    {
+        /* we're already numeric - just return myself unchanged */
+        val->set_obj(self);
+    }
+
+    /* convert to double */
+    double convert_to_double(VMG0_) const;
+
+    /* 
+     *   Convert to the IEEE 754-2008 binary interchange format with the
+     *   given bit size.  These are a portable formats, which are not
+     *   necessarily the same as any of the local system's native floating
+     *   point types (although most modern hardware does use this format for
+     *   its native types, modulo byte order).  The defined sizes are 16, 32,
+     *   64, and 128 bits; 32 bits corresponds to the single-precision (C
+     *   "float") type, and 64 bits corresponds to the double-precision (C
+     *   "double") type.  We assume that the buffer is big enough for the
+     *   requested bit size.  We use the standard IEEE format, *except* that
+     *   we use little-endian byte order for consistency with the TADS
+     *   pack/unpack formats. 
+     */
+    void convert_to_ieee754(VMG_ char *buf, int bits, int &ov);
+
+    /* set the value from an IEEE 754 buffer */
+    void set_ieee754_value(VMG_ const char *buf, int bits);
+
+    /* 
+     *   Write a 64-bit integer representation, using the standard TADS
+     *   portable integer format: 8-bit bytes, little-endian, two's
+     *   complement.  These are analogous to the osifc routines oswp2(),
+     *   oswp2s(), etc., thus the names.
+     *   
+     *   (Why don't we need more osifc routines for these?  Because BigNumber
+     *   internal representation is all under the control of the portable
+     *   code, and the byte buffer representation is portable as well.  We
+     *   don't need osifc code for a portable-to-portable conversion.  The
+     *   integer routines do need osifc code because they convert to and from
+     *   the local platform integer format, which obviously varies.  Even
+     *   that could be done portably in principle, by using integer
+     *   arithmetic; but we don't do it that way, because osifc code can be
+     *   ruthlessly efficient on most platforms by directly accessing the
+     *   byte structure of the local int type rather than doing a bunch of
+     *   arithmetic.  There's no such efficiency gain possible with
+     *   BigNumbers, which aren't native anywhere.)  
+     */
+    void wp8(char *buf, int &ov) const;
+    void wp8s(char *buf, int &ov) const;
+
+    /* write a BER compressed integer representation */
+    void encode_ber(VMG_ char *buf, size_t buflen, size_t &result_len,
+                    int &ov);
 
 protected:
     /* create with no extension */
@@ -653,20 +885,24 @@ protected:
     /* create with a given precision, initializing with a string value */
     CVmObjBigNum(VMG_ const char *str, size_t len, size_t digits);
 
+    /* create with a given precision, initializing with a double value */
+    CVmObjBigNum(VMG_ double val, size_t digits);
+
     /* convert a value to a BigNumber */
     int cvt_to_bignum(VMG_ vm_obj_id_t self, vm_val_t *val) const;
 
+    /* get the magnitude of the integer conversion, ignoring the sign bit */
+    static ulong convert_to_int_base(const char *ext, int &ov);
+
     /* 
      *   general string conversion routine - converts to a string, storing
-     *   the result either in the caller's buffer, or in a new string
-     *   created for the conversion 
+     *   the result either in the caller's buffer, or in a new string created
+     *   for the conversion if the caller's buffer isn't big enough 
      */
-    static char *cvt_to_string_gen(VMG_ vm_val_t *new_str,
-                                   const char *ext,
-                                   int max_digits, int whole_places,
-                                   int frac_digits, int exp_digits,
-                                   ulong flags, vm_val_t *lead_fill,
-                                   char *buf, size_t buflen);
+    static const char *cvt_to_string_gen(
+        VMG_ vm_val_t *new_str, const char *ext,
+        int max_digits, int whole_places, int frac_digits, int exp_digits,
+        ulong flags, vm_val_t *lead_fill, char *buf, size_t buflen);
 
     /* property evaluator - undefined property */
     int getp_undef(VMG_ vm_obj_id_t, vm_val_t *, uint *) { return FALSE; }
@@ -774,6 +1010,9 @@ protected:
     /* property evaluator - get e */
     int getp_e(VMG_ vm_obj_id_t, vm_val_t *val, uint *argc)
         { return s_getp_e(vmg_ val, argc); }
+
+    /* property evaluator - get the number type */
+    int getp_numType(VMG_ vm_obj_id_t, vm_val_t *val, uint *argc);
 
     /* static property evaluator - get pi */
     static int s_getp_pi(VMG_ vm_val_t *val, uint *argc);
@@ -896,7 +1135,7 @@ protected:
     static int get_exp(const char *ext)
         { return osrp2s(ext + VMBN_EXP); }
     static void set_exp(char *ext, int exp)
-        { oswp2(ext + VMBN_EXP, exp); }
+        { oswp2s(ext + VMBN_EXP, exp); }
 
     /* get the negative sign flag */
     static int get_neg(const char *ext)
@@ -992,18 +1231,62 @@ protected:
     /* multiply a number by a long integer value */
     static void mul_by_long(char *ext, unsigned long val);
 
-    /* divide a number by a long integer value */
-    static void div_by_long(char *ext, unsigned long val);
+    /* 
+     *   Divide a number by a long integer value.
+     *   
+     *   Important: 'val' must not exceed ULONG_MAX/10.  Our algorithm
+     *   computes integer dividends from ext's digits; these can range up to
+     *   10*val and have to fit in a ulong, thus the ULONG_MAX/10 limit on
+     *   val.  
+     */
+    static void div_by_long(char *ext, unsigned long val,
+                            unsigned long *remp = 0);
+
+    /* divide by 2^32 */
+    static void div_by_2e32(char *ext, unsigned long *remainder);
+
+    /* 
+     *   store the portable 64-bit integer representation of the absolute
+     *   value of this number in the given buffer 
+     */
+    void wp8abs(char *buf, int &ov) const;
+
+    /* compute the 2's complement of a p8 (64-bit little-endian int) buffer */
+    static void twos_complement_p8(unsigned char *buf);
 
     /* increment a number's absolute value */
     static void increment_abs(char *ext);
 
-    /* round a number's value up - increments the least significant digit */
+    /* round for digits dropped during a calculation */
+    static void round_for_dropped_digits(
+        char *ext, int trail_dig, int trail_val);
+
+    /* get the OR sum of digits from 'd' to least significant */
+    static int get_ORdigs(const char *ext, int d);
+
+    /* round an extension to the nearest integer */
+    static void round_to_int(char *ext);
+
+    /* round an extension to the given number of digits */
+    static void round_to(char *ext, int digits);
+
+    /* 
+     *   get the rounding direction for rounding to the given number of
+     *   digits: 1 means round up, 0 means round down, so you can simply add
+     *   the return value to the last digit you're keeping 
+     */
+    static int get_round_dir(const char *ext, int digits);
+
+    /* 
+     *   round up: add 1 to the least significant digit of the number we're
+     *   keeping (if not specified, we're keep all digits) 
+     */
     static void round_up_abs(char *ext);
+    static void round_up_abs(char *ext, int keep_digits);
 
     /* 
      *   copy a value - if the new value has greater precision than the
-     *   old value, we'll extend with zeroes in the new least significance
+     *   old value, we'll extend with zeros in the new least significance
      *   digits; if the new value has smaller precision than the old
      *   value, and 'round' is false, we'll simply truncate the value to
      *   the new precision.  If 'round' is true and we're reducing the
@@ -1029,7 +1312,7 @@ protected:
         /* set the type to ordinary number */
         set_type(ext, VMBN_T_NUM);
 
-        /* set the mantissa to all zeroes */
+        /* set the mantissa to all zeros */
         memset(ext + VMBN_MANT, 0, (get_prec(ext) + 1)/2);
     }
 
@@ -1068,6 +1351,10 @@ protected:
         /* if it's anything but an ordinary number, indicate NAN */
         return (get_type(ext) != VMBN_T_NUM);
     }
+
+    /* check for infinities */
+    static int is_infinity(const char *ext)
+        { return get_type(ext) == VMBN_T_INF; }
 
     /* calculate a Taylor series for sin(x) */
     void calc_sin_series(VMG_ char *new_ext, char *ext1, char *ext2,
@@ -1126,6 +1413,9 @@ protected:
      */
     static const char *cache_ln10(VMG_ size_t prec);
 
+    /* get ln(2) */
+    static const char *cache_ln2(VMG_ size_t prec);
+
     /* cache pi to the required precision */
     static const char *cache_pi(VMG_ size_t prec);
 
@@ -1134,6 +1424,10 @@ protected:
 
     /* get the constant value 1 */
     static const char *get_one() { return (const char *)one_; }
+
+    /* cache DBL_MAX, DBL_MIN */
+    static const char *cache_dbl_max(VMG0_);
+    static const char *cache_dbl_min(VMG0_);
 
     /* constant value 1 */
     static const unsigned char one_[];
@@ -1151,7 +1445,7 @@ class CVmMetaclassBigNum: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "bignumber/030000"; }
+    const char *get_meta_name() const { return "bignumber/030001"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

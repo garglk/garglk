@@ -600,7 +600,7 @@ void errini(errcxdef *ctx, osfildef *fp)
     (void)osfrb(fp, buf, 2);
     ctx->errcxsksz = osrp2(buf);
     siz = ctx->errcxsksz * sizeof(errmdef);
-    ctx->errcxseek = (errmfdef *)mchalo(ctx, (ushort)siz, "error messages");
+    ctx->errcxseek = (errmfdef *)mchalo(ctx, siz, "error messages");
     for (i = 0; i < ctx->errcxsksz; ++i)
     {
         (void)osfrb(fp, buf, 6);

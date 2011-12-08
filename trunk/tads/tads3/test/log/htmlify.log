@@ -8,7 +8,7 @@
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0
-This is a &lt;test> of htmlify!
+This is a &lt;test&gt; of htmlify!
 &amp; this is another!
 tab    tab tab (not keeping tabs)
 tab<tab>tab<tab>tab<tab>(keeping tabs)

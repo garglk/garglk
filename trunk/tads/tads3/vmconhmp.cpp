@@ -999,7 +999,7 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                     break;
                 
                 /* skip any whitespace */
-                while (t3_is_space(c))
+                while (t3_is_whitespace(c))
                     c = next_wchar(sp, slenp);
                 
                 /* if we found an '=', switch to parsing the value */
@@ -1037,7 +1037,7 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                 /* if we haven't started the name yet, skip whitespace */
                 if (attr_qu_ == 0 && attrval_[0] == L'\0')
                 {
-                    while (t3_is_space(c))
+                    while (t3_is_whitespace(c))
                         c = next_wchar(sp, slenp);
                 }
 
@@ -1077,7 +1077,7 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                      *   if it's a space or a '>', and the attribute isn't
                      *   quoted, this marks the end of the attribute 
                      */
-                    if (attr_qu_ == 0 && (t3_is_space(c) || c == '>'))
+                    if (attr_qu_ == 0 && (t3_is_whitespace(c) || c == '>'))
                     {
                         /* return to tag mode */
                         html_parse_state_ = VMCON_HPS_TAG;
@@ -1141,6 +1141,7 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                     }
                 }
                 else if (html_allow_alt_
+                         && !html_in_ignore_
                          && w_stricmp(attrname_, L"alt") == 0)
                 {
                     /* write out the ALT string */
@@ -1313,6 +1314,23 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
             }
             else
             {
+                wchar_t curCh;
+                
+                /* check for entities */
+                if (c == '&')
+                {
+                    /* parse the entity (fetches the next character) */
+                    c = parse_entity(vmg_ &curCh, sp, slenp);
+                }
+                else
+                {
+                    /* use this character literally */
+                    curCh = c;
+
+                    /* get the next character */
+                    c = next_wchar(sp, slenp);
+                }
+                
                 /* 
                  *   if we're gathering a title, and there's room in the
                  *   title buffer for more (always leaving room for a null
@@ -1332,7 +1350,7 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                      *   map this character into the local character set and
                      *   add it to the buffer 
                      */
-                    if (G_cmap_to_ui->map(c, &html_title_ptr_, &rem)
+                    if (G_cmap_to_ui->map(curCh, &html_title_ptr_, &rem)
                         > orig_rem)
                     {
                         /* 
@@ -1351,9 +1369,6 @@ wchar_t CVmFormatter::resume_html_parsing(VMG_ wchar_t c,
                     }
                 }
             }
-                
-            /* get the next character */
-            c = next_wchar(sp, slenp);
 
             /* don't display anything in an ignore section */
             continue;
@@ -1693,181 +1708,12 @@ wchar_t CVmFormatter::parse_html_markup(VMG_ wchar_t c,
     }
     else if (c == '&')
     {
-        const size_t MAXAMPLEN = 10;
-        char ampbuf[MAXAMPLEN];
-        char *dst;
-        const char *orig_s;
-        size_t orig_slen;
-        const struct amp_tbl_t *ampptr;
-        size_t lo, hi, cur;
+        /* parse the HTML markup */
+        wchar_t ent;
+        c = parse_entity(vmg_ &ent, sp, slenp);
 
-        /* 
-         *   remember where the part after the '&' begins, so we can come
-         *   back here later if necessary 
-         */
-        orig_s = *sp;
-        orig_slen = *slenp;
-
-        /* get the character after the ampersand */
-        c = next_wchar(sp, slenp);
-
-        /* if it's numeric, parse the number */
-        if (c == '#')
-        {
-            uint val;
-
-            /* skip the '#' */
-            c = next_wchar(sp, slenp);
-
-            /* check for hex */
-            if (c == 'x' || c == 'X')
-            {
-                /* skip the 'x' */
-                c = next_wchar(sp, slenp);
-
-                /* read the hex number */
-                for (val = 0 ; is_xdigit(c) ;
-                     c = next_wchar(sp, slenp))
-                {
-                    /* accumulate this digit into the value */
-                    val *= 16;
-                    if (is_digit(c))
-                        val += c - '0';
-                    else if (c >= 'a' && c <= 'f')
-                        val += c - 'a' + 10;
-                    else
-                        val += c - 'A' + 10;
-                }
-            }
-            else
-            {
-                /* read the number */
-                for (val = 0 ; is_digit(c) ;
-                     c = next_wchar(sp, slenp))
-                {
-                    /* accumulate this digit into the value */
-                    val *= 10;
-                    val += c - '0';
-                }
-            }
-
-            /* if we found a ';' at the end, skip it */
-            if (c == ';')
-                c = next_wchar(sp, slenp);
-
-            /* translate and write the character */
-            buffer_char(vmg_ (wchar_t)val);
-
-            /* we're done with this character */
-            return c;
-        }
-
-        /*
-         *   Parse the sequence after the '&'.  Parse up to the closing
-         *   semicolon, or any non-alphanumeric, or until we fill up the
-         *   buffer.  
-         */
-        for (dst = ampbuf ;
-             c != '\0' && (is_digit(c) || is_alpha(c))
-                 && dst < ampbuf + MAXAMPLEN - 1 ;
-             c = next_wchar(sp, slenp))
-        {
-            /* copy this character to the name buffer */
-            *dst++ = (char)c;
-        }
-
-        /* null-terminate the name */
-        *dst = '\0';
-
-        /* do a binary search for the name */
-        lo = 0;
-        hi = sizeof(amp_tbl)/sizeof(amp_tbl[0]) - 1;
-        for (;;)
-        {
-            int diff;
-
-            /* if we've converged, look no further */
-            if (lo > hi
-                || lo >= sizeof(amp_tbl)/sizeof(amp_tbl[0]))
-            {
-                ampptr = 0;
-                break;
-            }
-
-            /* split the difference */
-            cur = lo + (hi - lo)/2;
-            ampptr = &amp_tbl[cur];
-
-            /* see where we are relative to the target item */
-            diff = strcmp(ampptr->cname, ampbuf);
-            if (diff == 0)
-            {
-                /* this is it */
-                break;
-            }
-            else if (lo >= hi)
-            {
-                /* failed to find it */
-                ampptr = 0;
-                break;
-            }
-            else if (diff > 0)
-            {
-                /* this one is too high - check the lower half */
-                hi = (cur == hi ? hi - 1 : cur);
-            }
-            else
-            {
-                /* this one is too low - check the upper half */
-                lo = (cur == lo ? lo + 1 : cur);
-            }
-        }
-
-        /* skip to the appropriate next character */
-        if (c == ';')
-        {
-            /* name ended with semicolon - skip the semicolon */
-            c = next_wchar(sp, slenp);
-        }
-        else if (ampptr != 0)
-        {
-            int skipcnt;
-
-            /* found the name - skip its exact length */
-            skipcnt = strlen(ampptr->cname);
-            for (*sp = orig_s, *slenp = orig_slen ; skipcnt != 0 ;
-                 c = next_wchar(sp, slenp), --skipcnt) ;
-
-            /* 
-             *   that positions us on the last character of the entity name;
-             *   skip one more, so that we're on the character after the
-             *   entity name 
-             */
-            c = next_wchar(sp, slenp);
-        }
-
-        /* if we found the entry, write out the character */
-        if (ampptr != 0)
-        {
-            /* we found it - write it out */
-            buffer_char(vmg_ ampptr->html_cval);
-        }
-        else
-        {
-            /* 
-             *   we didn't find it - ignore the entire sequence, and just
-             *   write it out verbatim; start by writing out the ampersand 
-             */
-            buffer_char(vmg_ '&');
-
-            /* 
-             *   now go back and scan from the next character after the
-             *   ampersand 
-             */
-            *sp = orig_s;
-            *slenp = orig_slen;
-            c = next_wchar(sp, slenp);
-        }
+        /* translate it and write it out */
+        buffer_char(vmg_ ent);
 
         /* proceed with the next character */
         return c;
@@ -1885,6 +1731,191 @@ wchar_t CVmFormatter::parse_html_markup(VMG_ wchar_t c,
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Parse an HTML entity markup.  Call this with the current character
+ *   pointer at the '&'.  We'll parse the entity name and return it in *ent.
+ *   The return value is the next character to be parsed after the entity.  
+ */
+wchar_t CVmFormatter::parse_entity(VMG_ wchar_t *ent, const char **sp,
+                                   size_t *slenp)
+{
+    const size_t MAXAMPLEN = 10;
+    char ampbuf[MAXAMPLEN];
+    char *dst;
+    const char *orig_s;
+    size_t orig_slen;
+    const struct amp_tbl_t *ampptr;
+    size_t lo, hi, cur;
+    wchar_t c;
+
+    /* 
+     *   remember where the part after the '&' begins, so we can come back
+     *   here later if necessary 
+     */
+    orig_s = *sp;
+    orig_slen = *slenp;
+    
+    /* get the character after the ampersand */
+    c = next_wchar(sp, slenp);
+
+    /* if it's numeric, parse the number */
+    if (c == '#')
+    {
+        uint val;
+        
+        /* skip the '#' */
+        c = next_wchar(sp, slenp);
+        
+        /* check for hex */
+        if (c == 'x' || c == 'X')
+        {
+            /* skip the 'x' */
+            c = next_wchar(sp, slenp);
+            
+            /* read the hex number */
+            for (val = 0 ; is_xdigit(c) ; c = next_wchar(sp, slenp))
+            {
+                /* accumulate this digit into the value */
+                val *= 16;
+                if (is_digit(c))
+                    val += c - '0';
+                else if (c >= 'a' && c <= 'f')
+                    val += c - 'a' + 10;
+                else
+                    val += c - 'A' + 10;
+            }
+        }
+        else
+        {
+            /* read the number */
+            for (val = 0 ; is_digit(c) ; c = next_wchar(sp, slenp))
+            {
+                /* accumulate this digit into the value */
+                val *= 10;
+                val += c - '0';
+            }
+        }
+        
+        /* if we found a ';' at the end, skip it */
+        if (c == ';')
+            c = next_wchar(sp, slenp);
+
+        /* return the entity from the numeric character value */
+        *ent = (wchar_t)val;
+        
+        /* we're done with this character */
+        return c;
+    }
+    
+    /*
+     *   Parse the sequence after the '&'.  Parse up to the closing
+     *   semicolon, or any non-alphanumeric, or until we fill up the buffer.
+     */
+    for (dst = ampbuf ;
+         c != '\0' && (is_digit(c) || is_alpha(c))
+             && dst < ampbuf + MAXAMPLEN - 1 ;
+         c = next_wchar(sp, slenp))
+    {
+        /* copy this character to the name buffer */
+        *dst++ = (char)c;
+    }
+    
+    /* null-terminate the name */
+    *dst = '\0';
+    
+    /* do a binary search for the name */
+    lo = 0;
+    hi = sizeof(amp_tbl)/sizeof(amp_tbl[0]) - 1;
+    for (;;)
+    {
+        int diff;
+        
+        /* if we've converged, look no further */
+        if (lo > hi
+            || lo >= sizeof(amp_tbl)/sizeof(amp_tbl[0]))
+        {
+            ampptr = 0;
+            break;
+        }
+
+        /* split the difference */
+        cur = lo + (hi - lo)/2;
+        ampptr = &amp_tbl[cur];
+        
+        /* see where we are relative to the target item */
+        diff = strcmp(ampptr->cname, ampbuf);
+        if (diff == 0)
+        {
+            /* this is it */
+            break;
+        }
+        else if (lo >= hi)
+        {
+            /* failed to find it */
+            ampptr = 0;
+            break;
+        }
+        else if (diff > 0)
+        {
+            /* this one is too high - check the lower half */
+            hi = (cur == hi ? hi - 1 : cur);
+        }
+        else
+        {
+            /* this one is too low - check the upper half */
+            lo = (cur == lo ? lo + 1 : cur);
+        }
+    }
+
+    /* skip to the appropriate next character */
+    if (c == ';')
+    {
+        /* name ended with semicolon - skip the semicolon */
+        c = next_wchar(sp, slenp);
+    }
+    else if (ampptr != 0)
+    {
+        int skipcnt;
+
+        /* found the name - skip its exact length */
+        skipcnt = strlen(ampptr->cname);
+        for (*sp = orig_s, *slenp = orig_slen ; skipcnt != 0 ;
+             c = next_wchar(sp, slenp), --skipcnt) ;
+
+        /* 
+         *   that positions us on the last character of the entity name; skip
+         *   one more, so that we're on the character after the entity name 
+         */
+        c = next_wchar(sp, slenp);
+    }
+    
+    /* if we found the entry, write out the character */
+    if (ampptr != 0)
+    {
+        /* we found it - return the character value */
+        *ent = ampptr->html_cval;
+    }
+    else
+    {
+        /* 
+         *   we didn't find it - ignore the entire sequence, and just write
+         *   it out verbatim; for our caller's purposes, the result of the
+         *   parse is just the '&' itself 
+         */
+        *ent = '&';
+        
+        /* now go back and scan from the next character after the ampersand */
+        *sp = orig_s;
+        *slenp = orig_slen;
+        c = next_wchar(sp, slenp);
+    }
+
+    /* return the next character */
+    return c;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Service routine - read a number represented as a base-10 string of wide
  *   characters 
  */
@@ -1894,7 +1925,7 @@ int CVmFormatter::wtoi(const wchar_t *p)
     int neg = FALSE;
 
     /* skip any leading whitespace */
-    while (is_space(*p))
+    while (t3_is_whitespace(*p))
         ++p;
 
     /* check for a leading sign */

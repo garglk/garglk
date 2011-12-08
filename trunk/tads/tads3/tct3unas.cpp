@@ -69,7 +69,7 @@ t3_instr_info_t CTcT3Unasm::instr_info[] =
     /* 0x0d */ { "pushparlst", 1, { T3OP_TYPE_8U }},
     /* 0x0e */ { "makelstpar", 0 },
     /* 0x0f */ { "pushenum",   1, { T3OP_TYPE_ENUM }},
-    /* 0x10 */ { "db 0x10", 0 },
+    /* 0x10 */ { "pushbifptr", 2, { T3OP_TYPE_16U, T3OP_TYPE_16U }},
     /* 0x11 */ { "db 0x11", 0 },
     /* 0x12 */ { "db 0x12", 0 },
     /* 0x13 */ { "db 0x13", 0 },
@@ -139,8 +139,8 @@ t3_instr_info_t CTcT3Unasm::instr_info[] =
     /* 0x53 */ { "db 0x53", 0 },
     /* 0x54 */ { "ret", 0 },
     /* 0x55 */ { "db 0x55", 0 },
-    /* 0x56 */ { "db 0x56", 0 },
-    /* 0x57 */ { "db 0x57", 0 },
+    /* 0x56 */ { "namedargptr", 2, { T3OP_TYPE_8U, T3OP_TYPE_16U }},
+    /* 0x57 */ { "namedargtab", 0 },             /* varying-length operands */
     /* 0x58 */ { "call", 2, { T3OP_TYPE_8U, T3OP_TYPE_CODE_ABS }},
     /* 0x59 */ { "ptrcall", 1, { T3OP_TYPE_8U }},
     /* 0x5a */ { "db 0x5a", 0 },
@@ -178,12 +178,12 @@ t3_instr_info_t CTcT3Unasm::instr_info[] =
     /* 0x77 */ { "delegate",   2, { T3OP_TYPE_8U, T3OP_TYPE_PROP }},
     /* 0x78 */ { "ptrdelegate", 1, { T3OP_TYPE_PROP }},
     /* 0x79 */ { "db 0x79", 0 },
-    /* 0x7a */ { "db 0x7a", 0 },
-    /* 0x7b */ { "db 0x7b", 0 },
-    /* 0x7c */ { "db 0x7c", 0 },
-    /* 0x7d */ { "db 0x7d", 0 },
-    /* 0x7e */ { "db 0x7e", 0 },
-    /* 0x7f */ { "db 0x7f", 0 },
+    /* 0x7a */ { "swap2", 0 },
+    /* 0x7b */ { "swapn", 2, { T3OP_TYPE_8U, T3OP_TYPE_8U }},
+    /* 0x7c */ { "getargn0", 0 },
+    /* 0x7d */ { "argargn1", 0 },
+    /* 0x7e */ { "getargn2", 0 },
+    /* 0x7f */ { "getargn3", 0 },
     /* 0x80 */ { "getlcl1", 1, { T3OP_TYPE_8U }},
     /* 0x81 */ { "getlcl2", 1, { T3OP_TYPE_16U }},
     /* 0x82 */ { "getarg1", 1, { T3OP_TYPE_8U }},
@@ -199,8 +199,8 @@ t3_instr_info_t CTcT3Unasm::instr_info[] =
     /* 0x8c */ { "getdbargc", 1, { T3OP_TYPE_16U }},
     /* 0x8d */ { "swap", 0 },
     /* 0x8e */ { "pushctxele", 1, { T3OP_TYPE_CTX_ELE }},
-    /* 0x8f */ { "db 0x8f", 0 },
-    /* 0x90 */ { "switch", 0 },
+    /* 0x8f */ { "dup2", 0 },
+    /* 0x90 */ { "switch", 0 },                  /* varying-length operands */
     /* 0x91 */ { "jmp", 1, { T3OP_TYPE_CODE_REL }},
     /* 0x92 */ { "jt", 1, { T3OP_TYPE_CODE_REL }},
     /* 0x93 */ { "jf", 1, { T3OP_TYPE_CODE_REL }},
@@ -218,20 +218,20 @@ t3_instr_info_t CTcT3Unasm::instr_info[] =
     /* 0x9f */ { "jnotnil", 1, { T3OP_TYPE_CODE_REL }},
     /* 0xa0 */ { "jr0t", 1, { T3OP_TYPE_CODE_REL }},
     /* 0xa1 */ { "jr0f", 1, { T3OP_TYPE_CODE_REL }},
-    /* 0xa2 */ { "db 0xa2", 0 },
+    /* 0xa2 */ { "iternext", 2, { T3OP_TYPE_16U, T3OP_TYPE_CODE_REL }},
     /* 0xa3 */ { "db 0xa3", 0 },
     /* 0xa4 */ { "db 0xa4", 0 },
     /* 0xa5 */ { "db 0xa5", 0 },
-    /* 0xa6 */ { "db 0xa6", 0 },
+    /* 0xa6 */ { "getspn", 1, { T3OP_TYPE_8U }},
     /* 0xa7 */ { "db 0xa7", 0 },
     /* 0xa8 */ { "db 0xa8", 0 },
     /* 0xa9 */ { "db 0xa9", 0 },
-    /* 0xaa */ { "db 0xaa", 0 },
-    /* 0xab */ { "db 0xab", 0 },
-    /* 0xac */ { "db 0xac", 0 },
-    /* 0xad */ { "db 0xad", 0 },
-    /* 0xae */ { "db 0xae", 0 },
-    /* 0xaf */ { "db 0xaf", 0 },
+    /* 0xaa */ { "getlcln1", 0 },
+    /* 0xab */ { "getlcln1", 0 },
+    /* 0xac */ { "getlcln2", 0 },
+    /* 0xad */ { "getlcln3", 0 },
+    /* 0xae */ { "getlcln4", 0 },
+    /* 0xaf */ { "getlcln5", 0 },
     /* 0xb0 */ { "say", 1, { T3OP_TYPE_STR }},
     /* 0xb1 */ { "builtin_a", 2, { T3OP_TYPE_8U, T3OP_TYPE_8U }},
     /* 0xb2 */ { "builtin_b", 2, { T3OP_TYPE_8U, T3OP_TYPE_8U }},
@@ -450,6 +450,41 @@ void CTcT3Unasm::disasm_instr(CTcUnasSrc *src, CTcUnasOut *out, char ch_op)
         /* done */
         break;
 
+    case OPC_NAMEDARGTAB:
+        /* named argument table */
+        src->next_byte(ch);
+        src->next_byte(ch+1);
+        src->next_byte(ch+2);
+        acc = osrp2(ch);
+        out->print("len=0x%x, cnt=0x%x [", (uint)acc, (uint)(uchar)*ch);
+        acc = (uchar)*ch;
+
+        /* show the names */
+        for (i = 0 ; i < (int)acc ; ++i)
+        {
+            /* get the length */
+            src->next_byte(ch);
+            src->next_byte(ch);
+            uint len = osrp2(ch);
+
+            /* get the name */
+            char name[128];
+            uint j;
+            for (j = 0 ; j < len && j < sizeof(name) ; ++j)
+                src->next_byte(name + j);
+
+            /* show the name */
+            out->print("%s%.*s", i > 0 ? ", " : ":", (int)j, name);
+
+            /* skip any excess portion of the name */
+            for ( ; j < len ; ++j)
+                src->next_byte(ch);
+        }
+
+        /* end the list, and we're done */
+        out->print("]");
+        break;
+
     default:
         /* show all parameters */
         for (i = 0 ; i < info->op_cnt ; ++i)
@@ -549,7 +584,7 @@ void CTcT3Unasm::disasm_instr(CTcUnasSrc *src, CTcUnasOut *out, char ch_op)
                                -(int)acc, src->get_ofs() - 2 + acc);
                 else
                     out->print("+0x%04x (0x%08lx)",
-                               acc, src->get_ofs() - 2 + acc);
+                               (int)acc, src->get_ofs() - 2 + acc);
                 break;
 
             case T3OP_TYPE_OBJ:

@@ -1,0 +1,22 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export optargs_err2.t -> optargs_err2.t3s
+	compile _main.t -> _main.t3o
+	compile optargs_err2.t -> optargs_err2.t3o
+optargs_err2.t(20): error: wrong number of arguments to function "f1": 2-4 required, 1 actual
+optargs_err2.t(24): error: wrong number of arguments to function "f1": 2-4 required, 5 actual
+optargs_err2.t(26): error: wrong number of arguments to function "f2": 2-4 required, 1 actual
+optargs_err2.t(30): error: wrong number of arguments to function "f2": 2-4 required, 5 actual
+optargs_err2.t(32): error: wrong number of arguments to function "f3": 2-3 required, 1 actual
+optargs_err2.t(35): error: wrong number of arguments to function "f3": 2-3 required, 4 actual
+Errors:   6
+Warnings: 0
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+VM Error: file not found
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

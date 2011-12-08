@@ -45,6 +45,12 @@ main(args)
 
     obj.setSuperclassList([B, C]);
     test('new D modified to [B, C]', obj);
+
+    obj.setSuperclassList([A, B, C]);
+    test('new D restored to [A, B, C]', obj);
+
+    C.setSuperclassList([B]);
+    test('new D after changing C to [B]', obj);
 }
 
 test(id, obj)

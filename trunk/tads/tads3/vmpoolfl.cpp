@@ -40,7 +40,6 @@ void CVmPoolFlat::attach_backing_store(CVmPoolBackingStore *backing_store)
     size_t i;
     char *dst;
     size_t pg_cnt;
-    size_t siz;
     pool_ofs_t ofs;
     
     /* inherit the base implementation */
@@ -55,8 +54,8 @@ void CVmPoolFlat::attach_backing_store(CVmPoolBackingStore *backing_store)
      *   enough for all of the pages. 
      */
     pg_cnt = backing_store_->vmpbs_get_page_count();
-    siz = page_size_ * pg_cnt;
-    mem_ = (char *)t3malloc(siz);
+    siz_ = page_size_ * pg_cnt;
+    mem_ = (char *)t3malloc(siz_);
     if (mem_ == 0)
         err_throw(VMERR_OUT_OF_MEMORY);
 

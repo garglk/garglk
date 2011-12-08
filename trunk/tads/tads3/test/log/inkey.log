@@ -1,0 +1,22 @@
+	Files to build: 3
+	symbol_export inkey.t -> inkey.t3s
+	compile inkey.t -> inkey.t3o
+	link -> inkey.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Input and input key tests.
+Enter a command: hello
+You entered: "hello"
+Press a key...You typed: "x"
+Enter an event...Event code = 1, additional data = "y"
+Dialog...
+Response = 2
+Response = 2
+Response = 1
+Done!!!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

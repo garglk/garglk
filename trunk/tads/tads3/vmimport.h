@@ -91,6 +91,9 @@ VM_IMPORT_OBJ("T3StackInfo", stack_info_cls)
 /* entrypoint function for restoring a saved state on startup */
 VM_IMPORT_FUNC("mainRestore", main_restore_func)
 
+/* "length" method property */
+VM_IMPORT_PROP("length", length_prop)
+
 /* 
  *   the objects used to represent constant strings and lists, respectively,
  *   in method calls to such values 
@@ -106,6 +109,13 @@ VM_NOIMPORT_OBJ(VM_IMPORT_NAME_CONSTLST, const_lst_obj)
  */
 VM_NOIMPORT_OBJ(VM_IMPORT_NAME_LASTPROPOBJ, last_prop_obj)
 
+/* storage server error */
+VM_IMPORT_OBJ("StorageServerError", storage_server_error)
+
+/* String class imports */
+VM_IMPORT_PROP("String.specialsToHtml.flags", string_sth_flags)
+VM_IMPORT_PROP("String.specialsToHtml.tag", string_sth_tag)
+
 /* 
  *   the properties that the GrammarProd intrinsic class uses to indicate in
  *   a match tree the first and last token index of each match 
@@ -114,6 +124,9 @@ VM_IMPORT_PROP("GrammarProd.firstTokenIndex", gramprod_first_tok)
 VM_IMPORT_PROP("GrammarProd.lastTokenIndex", gramprod_last_tok)
 VM_IMPORT_PROP("GrammarProd.tokenList", gramprod_token_list)
 VM_IMPORT_PROP("GrammarProd.tokenMatchList", gramprod_token_match_list)
+VM_IMPORT_PROP("GrammarProd.grammarTag", gramprod_tag)
+VM_IMPORT_PROP("GrammarProd.miscVocab", misc_vocab)
+VM_IMPORT_PROP("GrammarProd.altProps", gramprod_alt_props)
 
 /* 
  *   classes that GrammarProd.getGrammarInfo() instantiates to store the
@@ -139,10 +152,45 @@ VM_IMPORT_OBJ("File.FileSyncException", file_sync_exc)
 VM_IMPORT_OBJ("File.FileClosedException", file_closed_exc)
 VM_IMPORT_OBJ("File.FileModeException", file_mode_exc)
 VM_IMPORT_OBJ("File.FileSafetyException", file_safety_exc)
+VM_IMPORT_PROP("FileSpec.getFilename", filespec_getFilename)
+VM_IMPORT_PROP("FileSpec.closeFile", filespec_closeFile)
+
+/* exceptions for the DynamicFunc intrinsic class */
+VM_IMPORT_OBJ("DynamicFunc.CompilerException", compiler_exc)
 
 /* properties for comparators */
 VM_IMPORT_PROP("IfcComparator.calcHash", calc_hash_prop)
 VM_IMPORT_PROP("IfcComparator.matchValues", match_values_prop)
+
+/* properties for overloaded operators */
+VM_IMPORT_PROP("operator +", operator_add)
+VM_IMPORT_PROP("operator -", operator_sub)
+VM_IMPORT_PROP("operator *", operator_mul)
+VM_IMPORT_PROP("operator /", operator_div)
+VM_IMPORT_PROP("operator %", operator_mod)
+VM_IMPORT_PROP("operator ^", operator_xor)
+VM_IMPORT_PROP("operator <<", operator_shl)
+VM_IMPORT_PROP("operator >>", operator_ashr)
+VM_IMPORT_PROP("operator >>>", operator_lshr)
+VM_IMPORT_PROP("operator ~", operator_bit_not)
+VM_IMPORT_PROP("operator &", operator_bit_and)
+VM_IMPORT_PROP("operator |", operator_bit_or)
+VM_IMPORT_PROP("operator negate", operator_neg)
+VM_IMPORT_PROP("operator []", operator_idx)
+VM_IMPORT_PROP("operator []=", operator_setidx)
+
+/* objects and properties for the TADS Networking package */
+VM_IMPORT_OBJ("TadsNet.NetException", net_exception)
+VM_IMPORT_OBJ("TadsNet.SocketDisconnectException", net_reset_exception)
+VM_IMPORT_OBJ("TadsNet.NetSafetyException", net_safety_exception)
+VM_IMPORT_OBJ("TadsNet.NetEvent", net_event)
+VM_IMPORT_OBJ("TadsNet.NetRequestEvent", net_request_event)
+VM_IMPORT_OBJ("TadsNet.NetTimeoutEvent", net_timeout_event)
+VM_IMPORT_OBJ("TadsNet.NetReplyEvent", net_reply_event)
+VM_IMPORT_OBJ("TadsNet.FileUpload", file_upload_cl)
+VM_IMPORT_PROP("TadsNet.FileUpload.file", file_upload_fileObj)
+VM_IMPORT_PROP("TadsNet.FileUpload.contentType", file_upload_contentType)
+VM_IMPORT_PROP("TadsNet.FileUpload.filename", file_upload_filename)
 
 
 /*

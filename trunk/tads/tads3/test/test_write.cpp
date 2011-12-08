@@ -146,7 +146,7 @@ int main(int argc, char **argv)
         iw->prepare(1, tool_data);
 
         /* write the entrypoint - enter at code offset zero */
-        iw->write_entrypt(0, 14, 10, 10, 2, 6, 1);
+        iw->write_entrypt(0, 14, 10, 10, 2, 6, 4, 1);
 
         /* write an empty function set dependency table */
         iw->write_func_dep(bif, sizeof(bif)/sizeof(bif[0]));

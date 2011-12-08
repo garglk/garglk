@@ -206,7 +206,7 @@ static void dbgpbval(dbgcxdef *ctx, dattyp typ, uchar *val,
     switch(typ)
     {
     case DAT_NUMBER:
-        sprintf(buf, "%ld", osrp4(val));
+        sprintf(buf, "%ld", (long)osrp4s(val));
         len = strlen(buf);
         break;
         

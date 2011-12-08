@@ -156,6 +156,10 @@ void CVmObjCharSet::alloc_ext(VMG_ const char *charset_name,
     memcpy(extp->charset_name, charset_name, charset_name_len);
     extp->charset_name[charset_name_len] = '\0';
 
+    /* presume we won't be able to load the character sets */
+    extp->to_local = 0;
+    extp->to_uni = 0;
+
     /* get the resource loader */
     res_ldr = G_host_ifc->get_cmap_res_loader();
 
@@ -246,7 +250,7 @@ void CVmObjCharSet::load_from_image(VMG_ vm_obj_id_t self,
 void CVmObjCharSet::save_to_file(VMG_ class CVmFile *fp)
 {
     /* write the name length */
-    fp->write_int2(get_ext_ptr()->charset_name_len);
+    fp->write_uint2(get_ext_ptr()->charset_name_len);
 
     /* write the bytes of the name */
     fp->write_bytes(get_ext_ptr()->charset_name,
@@ -402,7 +406,12 @@ int CVmObjCharSet::getp_is_mappable(VMG_ vm_obj_id_t self,
 
     /* get the argument and check what type we have */
     G_stk->pop(&arg);
-    if ((str = arg.get_as_string(vmg0_)) != 0)
+    if (to_local == 0)
+    {
+        /* no mapping is available, so it's not mappable */
+        retval->set_nil();
+    }
+    else if ((str = arg.get_as_string(vmg0_)) != 0)
     {
         size_t len;
         utf8_ptr p;
@@ -479,7 +488,12 @@ int CVmObjCharSet::getp_is_rt_mappable(VMG_ vm_obj_id_t self,
 
     /* get the argument and check what type we have */
     G_stk->pop(&arg);
-    if ((str = arg.get_as_string(vmg0_)) != 0)
+    if (to_local == 0 || to_uni == 0)
+    {
+        /* no character sets, so it's not mappable */
+        retval->set_nil();
+    }
+    else if ((str = arg.get_as_string(vmg0_)) != 0)
     {
         size_t len;
         utf8_ptr p;

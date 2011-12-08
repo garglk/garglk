@@ -64,7 +64,17 @@ Modified
 #include "vmbytarr.h"
 #include "vmcset.h"
 #include "vmfilobj.h"
+#include "vmtmpfil.h"
 #include "vmpat.h"
 #include "vmstrcmp.h"
+#include "vmstrbuf.h"
+#include "vmdynfunc.h"
+#include "vmfref.h"
 
+/*
+ *   If networking is enabled, include the networking metaclasses.  
+ */
+#ifdef TADSNET
+#include "vmmcnet.h"
+#endif
 

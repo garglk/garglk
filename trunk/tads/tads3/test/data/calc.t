@@ -42,17 +42,17 @@ CalcTokenizer: Tokenizer
     rules_ =
     [
         /* skip whitespace */
-        ['[ \t]+', nil, &tokCvtSkip, nil],
+        ['whitespace', '[ \t]+', nil, &tokCvtSkip, nil],
 
         /* numbers */
-        ['(%.[0-9]+|[0-9]+(%.[0-9]*)?)([eE][+-]?[0-9]+)?',
+        ['numbers', '(%.[0-9]+|[0-9]+(%.[0-9]*)?)([eE][+-]?[0-9]+)?',
          tokFloat, nil, nil],
 
         /* operators */
-        ['[(+*-/)!^?]', tokOp, nil, nil],
+        ['operators', '[(+*-/)!^?]', tokOp, nil, nil],
 
         /* words */
-        ['[a-zA-Z]+', tokWord, &tokCvtLower, nil]
+        ['words', '[a-zA-Z]+', tokWord, &tokCvtLower, nil]
     ]
 ;
 

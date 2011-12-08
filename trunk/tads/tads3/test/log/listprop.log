@@ -3,14 +3,19 @@
 	symbol_export listprop.t -> listprop.t3s
 	compile _main.t -> _main.t3o
 	compile listprop.t -> listprop.t3o
-listprop.t(8): warning: value is assigned to local variable "x" but the value is never used
 	link -> listprop.t3
-Errors:   0
-Warnings: 1
 
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0
+length([1,2,3])=3
+lst=[1, 2, 3, 4, 5, 6, 7, 8]:
+sublist(2, 3) = [2, 3, 4]
+sublist(6, 10) = [6, 7, 8]
+sublist(7) = [7, 8]
+sublist(-4, 2) = [5, 6]
+sublist(-3) = [6, 7, 8]
+
 [1, 2, 3, 4, 5, 6], keep>3 = [4, 5, 6]
 lst = [6, 5, 4, 3, 2, 1], keep>3 = [6, 5, 4]
 lst = [6, 5, 4, 3, 2, 1, 9, 0, 10, -1, 11, -2], keep>3 = [6, 5, 4, 9, 10, 11]
@@ -83,14 +88,26 @@ prepend: [99, 88, 77, 1, 2, 3, 4, 5]
 insert1: [1, 2, 3, 10, 20, 30, 40, 50]
 insert2: [1, 2, 3, 10, 20, 30, 40, 50, 44, 55, 66]
 insert3: [1, 2, 3, 10, 777, 888, 999, 20, 30, 40, 50, 44, 55, 66]
+insert4: [1, 2, 3, 10, 777, 888, 999, 20, 30, 40, 50, 44, 1234, 5678, 55, 66]
+undid insert4: [1, 2, 3, 10, 777, 888, 999, 20, 30, 40, 50, 44, 55, 66]
 
 removeAt(6): [1, 2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55, 66]
 removeAt(1): [2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55, 66]
 removeAt(length): [2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55]
+removeAt(-2): [2, 3, 10, 777, 999, 20, 30, 40, 50, 55]
+undid removeAt(-2): [2, 3, 10, 777, 999, 20, 30, 40, 50, 44, 55]
 
 removeRange(3, 7): [2, 3, 40, 50, 44, 55]
 removeRange(1, 2): [40, 50, 44, 55]
 removeRange(length-1, length): [40, 50]
+removeRange(-3, -2): [10, 20, 30, 40, 50, 60, 70, 100]
+
+x=[a, b, c, d, e, f, g, h, i, j]:
+splice(3, 2, 'x', 'y')=[a, b, x, y, e, f, g, h, i, j]
+splice(3, 5, 'x', 'y')=[a, b, x, y, h, i, j]
+splice(7, 10, 'x', 'y')=[a, b, c, d, e, f, x, y]
+splice(0, 5, 'x', 'y')=[a, b, c, d, e, f, g, h, i, j, x, y]
+splice(-2, 0, 'x', 'y')=[a, b, c, d, e, f, g, h, x, y, i, j]
 
 'goodbye', len = 7
 str = 'hello', len = 5

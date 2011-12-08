@@ -1,0 +1,110 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export packfile.t -> packfile.t3s
+	compile _main.t -> _main.t3o
+	compile packfile.t -> packfile.t3o
+	link -> packfile.t3p
+	preinit -> packfile.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Format code = a020 [ 'abcdefghij']
+Format code = "this is a ""test"" of a literal string!" []
+Format code = "literal"5 "another"5 []
+Format code = {404142434445} []
+Format code = {415A}10 {4D}5 []
+Format code = a0 [ 'null-terminated latin-1 string']
+Format code = u0 [ 'null-terminated UTF-8 string: àáâãä']
+Format code = w0 [ 'null-terminated wide character string: àáâãä']
+Format code = h0 [ 'ABCDE']
+Format code = H0 [ 'ABCDE']
+Format code = a035 [ 'null-term A w/len']
+Format code = u035 [ 'null-term U w/len: àáâãä']
+Format code = w035 [ 'null-term W w/len: àáâãä']
+Format code = a010 [ 'null-term ']
+Format code = u010 [ 'null-term ']
+Format code = w010 [ 'null-term ']
+Format code = [l s]3 [[ 1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5), 0 (0x0)]]
+Format code = C/[l s] [[ 1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5), 0 (0x0)]]
+Format code = C/[l s] [[ 1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5), 6 (0x6)]]
+Format code = a4/s [ 10 (0xA), 11 (0xB), 12 (0xC), 13 (0xD)]
+Format code = h8! [ '1122334455667788']
+Format code = h8 [ '11223344']
+Format code = C/h! [ '112233445566778899AA']
+Format code = C/w! [ 'UCS-2 with byte length prefix.']
+Format code = a50 [ 'This is a nul-padded string with length 50.']
+Format code = a20 [ 'a20 string, which sh']
+Format code = A50 [ 'This is a space-padded string with length 50.']
+Format code = u20 [ 'u20: Şßàáâãä']
+Format code = U20 [ 'U20: Şßàáâãä']
+Format code = w80 W80 [ 'Here\'s a wide character string.', 'Wide character
+with space padding.']
+Format code = C/a [ 'This is a test string with a length prefix.']
+Format code = C/u [ 'UTF-8 with length prefix: òóôõö.']
+Format code = C/w [ 'UCS-2 with length prefix: òóôõö.']
+Format code = C/H [ '4865782077697468206C656E67746820707265666978']
+Format code = C/h C/H [ '8656870282C69202F64646D', '68657820284229206F6464E']
+Format code = a4/a [ 'alpha length prefix']
+Format code = C/[C/a] [[ 'group with length prefix', 'with strings with length
+prefixes!']]
+Format code = (C/a)3 [ 'group string one', 'second group string', 'group string
+the third']
+Format code = C/[[l C/[a6] s]] [[[ 305419896 (0x12345678), [ 'one', 'two',
+'three'], 9320 (0x2468)], [ 1432778632 (0x55667788), [ 'four', 'five'], 13124
+(0x3344)], [ -553866495 (0xDEFCAB01), [ 'six', 'seven', 'eight', 'nine'], 17185
+(0x4321)]]]
+Format code = h20 H20 [ '8656870282C692000000', '68657820284229000000']
+Format code = c3C5 [ 1 (0x1), 127 (0x7F), -1 (0xFFFFFFFF), 127 (0x7F), 128
+(0x80), 255 (0xFF), 0 (0x0), 0 (0x0)]
+Format code = [s3][S3]s>S> [[ 4660 (0x1234), 9029 (0x2345), 13398 (0x3456)], [
+35243 (0x89AB), 43981 (0xABCD), 52719 (0xCDEF)], 21862 (0x5566), 43707
+(0xAABB)]
+Format code = l3L3(lL)> [ 270544960 (0x10203040), 305419896 (0x12345678),
+1887473824 (0x708090A0), 305441741 (bignum) (0x1234ABCD), 287454020 (bignum)
+(0x11223344), 1432778632 (bignum) (0x55667788), 33818120 (0x2040608), 168496141
+(bignum) (0xA0B0C0D)]
+Format code = q3[Q3]q>Q> [ 2147483647 (bignum) (0x7FFFFFFF), -5000 (bignum)
+(0x-1388), 9223372036854775807 (bignum) (0x7FFFFFFFFFFFFFFF), [ 4294967295
+(bignum) (0xFFFFFFFF), 18446744073709551615 (bignum) (0xFFFFFFFFFFFFFFFF),
+12345678909876 (bignum) (0xB3A73CE51B4)], 270544960 (bignum) (0x10203040),
+1889579200 (bignum) (0x70A0B0C0)]
+Format code = L3~ [ 100 (0x64), 2000000000 (0x77359400), 4000000000 (bignum)
+(0xEE6B2800)]
+Format code = L3>~ [ 100 (0x64), 2000000000 (0x77359400), 4000000000 (bignum)
+(0xEE6B2800)]
+Format code = q4~ [ 100 (0x64), 2000000000 (0x77359400), 4000000000 (bignum)
+(0xEE6B2800), 8000000000 (bignum) (0x1DCD65000)]
+Format code = q4>~ [ 100 (0x64), 2000000000 (0x77359400), 4000000000 (bignum)
+(0xEE6B2800), 8000000000 (bignum) (0x1DCD65000)]
+Format code = [f2][d2] f> d> [[ 1 (bignum) (0x1), 2 (bignum) (0x2)], [ -1
+(bignum) (0x-1), -2 (bignum) (0x-2)], 1 (bignum) (0x1), -2 (bignum) (0x-2)]
+Format code = [f2][d2](fd)> [[ 1234.5677 (bignum), 999.99902 (bignum)], [ -
+888.88800000000003 (bignum), -777.77700000000004 (bignum)], 1000.0001 (bignum),
+-2000.0002 (bignum)]
+Format code = C/a@20a10@25a3@30x5a3 [ '***at sign***', '@20+-@25', '@25',
+'pas']
+Format code = (a10 @5 a5)3 [ 'aaaaaAAAAA', 'AAAAA', 'bbbbbBBBBB', 'BBBBB',
+'cccccCCCCC', 'CCCCC']
+Format code = a10 (a5 @5! a5) [ 'aaaaaccccc', ' {{{a', 'ccccc']
+Format code = a x:s! s x:l! l a10 X:l! l [ 'A', 4660 (0x1234), 1450744508
+(0x56789ABC), 'ABCDEFGHD3', 287454020 (0x11223344)]
+Format code = l X:l l X:l l [ -1716864052 (0x99AABBCC), -1716864052
+(0x99AABBCC), -1716864052 (0x99AABBCC)]
+Format code = C/as5 [ 'int array shorter than count', 1024 (0x400), 1025
+(0x401), 0 (0x0), 0 (0x0), 0 (0x0)]
+Format code = C/a C/a [ 'byte array as char',
+'ghijklmnopqrstuvwxyz{|}~€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜']
+Format code = C/a C/u [ 'byte array as utf8',
+'ghijklmnopqrstuvwxyz{|}~€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜']
+Format code = C/a C/b [ 'byte array as bytes',
+ghijklmnopqrstuvwxyz{|}~€‚ƒ„…†‡ˆ‰Š‹Œ‘’“”•–—˜]
+Format code = l s a4/(s s) [ 10 (0xA), 11 (0xB), 1 (0x1), 2 (0x2), 3 (0x3), 4
+(0x4), 5 (0x5), 0 (0x0)]
+Format code = k* [ 1 (0x1), 2 (0x2), 127 (0x7F), 128 (0x80), 129 (0x81), 16511
+(0x407F), 4000000000 (bignum) (0xEE6B2800), 18446744073709551615 (bignum)
+(0xFFFFFFFFFFFFFFFF), 1234567890987654321 (bignum) (0x112210F4B16C1CB1)]
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

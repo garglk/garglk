@@ -65,11 +65,9 @@ int CVmObjIter::get_prop(VMG_ vm_prop_id_t prop, vm_val_t *retval,
                          vm_obj_id_t self, vm_obj_id_t *source_obj,
                          uint *argc)
 {
-    uint func_idx;
-    
     /* translate the property into a function vector index */
-    func_idx = G_meta_table
-               ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
+    uint func_idx = G_meta_table->prop_to_vector_idx(
+        metaclass_reg_->get_reg_idx(), prop);
 
     /* call the appropriate function */
     if ((this->*func_table_[func_idx])(vmg_ self, retval, argc))
@@ -216,15 +214,13 @@ int CVmObjIterIdx::getp_get_cur_key(VMG_ vm_obj_id_t self, vm_val_t *retval,
 int CVmObjIterIdx::getp_get_next(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                  uint *argc)
 {
-    long idx;
-    static CVmNativeCodeDesc desc(0);
-
     /* check arguments */
+    static CVmNativeCodeDesc desc(0);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
     /* get the next index, which is one higher than the current index */
-    idx = get_cur_index() + 1;
+    long idx = get_cur_index() + 1;
 
     /* if the current value is out of range, throw an error */
     if (idx > get_last_valid())
@@ -239,6 +235,34 @@ int CVmObjIterIdx::getp_get_next(VMG_ vm_obj_id_t self, vm_val_t *retval,
     /* handled */
     return TRUE;
 }
+
+/*
+ *   get the next iteration item 
+ */
+int CVmObjIterIdx::iter_next(VMG_ vm_obj_id_t self, vm_val_t *val)
+{
+    /* get the next index, which is one higher than the current index */
+    long idx = get_cur_index() + 1;
+
+    /* if the current value is out of range, throw an error */
+    if (idx <= get_last_valid())
+    {
+        /* retrieve the value */
+        get_indexed_val(vmg_ idx, val);
+
+        /* save the current index in our internal state */
+        set_cur_index(vmg_ self, idx);
+
+        /* we got a value */
+        return TRUE;
+    }
+    else
+    {
+        /* no more values available */
+        return FALSE;
+    }
+}
+
 
 /*
  *   Retrieve an indexed value from my collection 
@@ -263,7 +287,7 @@ void CVmObjIterIdx::get_indexed_val(VMG_ long idx, vm_val_t *retval)
         /* it's an object - index it */
         idx_val.set_int(idx);
         vm_objp(vmg_ coll.val.obj)
-            ->index_val(vmg_ retval, coll.val.obj, &idx_val);
+            ->index_val_ov(vmg_ retval, coll.val.obj, &idx_val);
         break;
 
     default:
@@ -275,7 +299,7 @@ void CVmObjIterIdx::get_indexed_val(VMG_ long idx, vm_val_t *retval)
          *   assert failure here.  Nonetheless, just throw an error, since
          *   this will make for a more pleasant indication of the problem.  
          */
-        err_throw(VMERR_BAD_TYPE_BIF);
+        err_throw(VMERR_CANNOT_INDEX_TYPE);
         break;
     }
 }
@@ -286,9 +310,8 @@ void CVmObjIterIdx::get_indexed_val(VMG_ long idx, vm_val_t *retval)
 int CVmObjIterIdx::getp_is_next_avail(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                       uint *argc)
 {
-    static CVmNativeCodeDesc desc(0);
-
     /* check arguments */
+    static CVmNativeCodeDesc desc(0);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 

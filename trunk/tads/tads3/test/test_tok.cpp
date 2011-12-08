@@ -33,6 +33,7 @@ Modified
 #include "tcprs.h"
 #include "vmimage.h"
 #include "vmrunsym.h"
+#include "vmmeta.h"
 #include "t3test.h"
 
 
@@ -222,6 +223,22 @@ int main(int argc, char **argv)
  */
 void CVmRuntimeSymbols::add_sym(const char *, size_t,
                                 const vm_val_t *)
+{
+}
+
+/* dummy implementation of runtime metaclass table */
+vm_meta_entry_t *CVmMetaTable::get_entry_by_id(const char *id) const
+{
+    return 0;
+}
+
+CTcSymObj *CTcParser::add_gen_obj_stat(CTcSymObj *)
+{
+    return 0;
+}
+
+void CTcParser::add_gen_obj_prop_stat(
+    CTcSymObj *, CTcSymProp *, const CTcConstVal *)
 {
 }
 

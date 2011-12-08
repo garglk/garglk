@@ -42,22 +42,6 @@ public:
 
 /* ------------------------------------------------------------------------ */
 /*
- *   adjust_for_debug() information structure 
- */
-struct tcpn_debug_info
-{
-    /* true -> speculative evaluation mode */
-    int speculative;
-
-    /* 
-     *   stack level - 0 is the active level, 1 is the first enclosing
-     *   level, and so on 
-     */
-    int stack_level;
-};
-
-/* ------------------------------------------------------------------------ */
-/*
  *   Parse Tree Expression Node - base class.  As we parse an expression,
  *   we build a tree of these objects to describe the source code.
  *   
@@ -145,6 +129,14 @@ public:
         get_const_val()->set(((CTcPrsNodeBase *)src)->get_const_val());
     }
 
+    /* 
+     *   Is this value guaranteed to be a boolean value?  Certain operators
+     *   produce boolean results regardless of the operands.  In particular,
+     *   the comparison operators (==, !=, >, <, >=, <=) and the logical NOT
+     *   operator (!) always produce boolean results. 
+     */
+    virtual int is_bool() const { return FALSE; }
+
     /*
      *   Check to see if this expression can possibly be a valid lvalue.
      *   Return true if so, false if not.  This check is made before
@@ -219,6 +211,10 @@ public:
     virtual const textchar_t *get_sym_text() const { return 0; }
     virtual size_t get_sym_text_len() const { return 0; }
 
+    /* check for a match to the given symbol text */
+    virtual int sym_text_matches(const char *str, size_t len) const
+        { return FALSE; }
+
     /*
      *   Fold constant expressions, given a finished symbol table.  We do
      *   most of our constant folding during the initial parsing, but some
@@ -252,22 +248,25 @@ public:
     }
 
     /*
-     *   Adjust the expression for use as a debugger expression.  Code
-     *   generation for debugger expressions is somewhat different than
-     *   for normal expressions; this routine should allocate a new node,
-     *   if necessary, for debugger use.  Returns the current node if no
-     *   changes are necessary, or a new node if changes are needed.
+     *   Adjust the expression for use as a dynamic (run-time) compilation
+     *   expression expression.  Dynamic expressions include debugger
+     *   expression evaluations and the run-time "eval()" facility.
+     *   
+     *   Code generation for dynamic expressions is somewhat different than
+     *   for normal expressions.  This routine should allocate and return a
+     *   new node, if necessary, for dynamic use.  If no changes are
+     *   necessary, simply return 'this'.
      *   
      *   If 'speculative' is true, the expression is being evaluated
      *   speculatively by the debugger.  This means that the user hasn't
-     *   explicitly asked for the expression to be evaluated, but rather
-     *   the debugger is making a guess that the expression might be of
-     *   interest to the user and is making an unsolicited attempt to
-     *   offer it to the user.  Because the debugger is only guessing that
-     *   the expression is interesting, the expression must not be
-     *   evaluated if it has any side effects at all.  
+     *   explicitly asked for the expression to be evaluated, but rather the
+     *   debugger is making a guess that the expression might be of interest
+     *   to the user and is making an unsolicited attempt to offer it to the
+     *   user.  Because the debugger is only guessing that the expression is
+     *   interesting, the expression must not be evaluated if it has any side
+     *   effects at all.  
      */
-    virtual class CTcPrsNode *adjust_for_debug(const tcpn_debug_info *info);
+    virtual class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info);
 };
 
 /* ------------------------------------------------------------------------ */

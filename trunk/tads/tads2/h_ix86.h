@@ -26,7 +26,7 @@ Modified
 #define osrndsz(s) (((s)+3) & ~3)
 
 /* round a pointer to worst-case alignment boundary */
-#define osrndpt(p) ((uchar *)((((ulong)(p)) + 3) & ~3))
+#define osrndpt(p) ((uchar *)((((unsigned long)(p)) + 3) & ~3))
 
 /* read unaligned portable unsigned 2-byte value, returning int */
 #define osrp2(p) ((int)*(unsigned short *)(p))
@@ -36,12 +36,27 @@ Modified
 
 /* write int to unaligned portable 2-byte value */
 #define oswp2(p, i) (*(unsigned short *)(p)=(unsigned short)(i))
+#define oswp2s(p, i) oswp2(p, i)
 
-/* read unaligned portable 4-byte value, returning long */
-#define osrp4(p) (*(long *)(p))
+/* read unaligned portable 4-byte value, returning unsigned long */
+#define osrp4(p) (*(unsigned long *)(p))
+#define osrp4s(p) (*(long *)(p))
 
 /* write long to unaligned portable 4-byte value */
 #define oswp4(p, l) (*(long *)(p)=(l))
+#define oswp4s(p, l) oswp4(p, l)
+
+/* read float from portable 4-byte buffer (IEEE 754-2008 format) */
+float osrpfloat(const void *p);
+
+/* write float to portable 4-byte buffer (IEEE 754-2008 format) */
+void oswpfloat(void *p, float f);
+
+/* write double to portable 8-byte buffer (IEEE 754-2008 format) */
+double osrpdouble(const void *p);
+
+/* read double from portable 8-byte buffer (IEEE 754-2008 format) */
+void oswpdouble(void *p, double d);
 
 
 #endif /* H_IX86_H */

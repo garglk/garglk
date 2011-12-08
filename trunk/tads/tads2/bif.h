@@ -72,7 +72,8 @@ struct bifcxdef
     int       bifcxseed3;                   /* third seed for new generator */
     int       bifcxrndset;                   /* randomize() has been called */
     biffildef bifcxfile[BIFFILMAX];          /* file handles for fopen, etc */
-    uint      bifcxsafety;                         /* file I/O safety level */
+    int       bifcxsafetyr;                 /* file I/O safety level - read */
+    int       bifcxsafetyw;                /* file I/O safety level - write */
     char     *bifcxsavext;        /* saved game extension (null by default) */
     struct appctxdef *bifcxappctx;              /* host application context */
     re_context bifcxregex;          /* regular expression searching context */

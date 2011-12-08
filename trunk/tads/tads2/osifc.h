@@ -53,6 +53,7 @@ Modified
 #define OSIFC_H
 
 #include <stdlib.h>
+#include <stdarg.h>
 #include "appctx.h"
 
 #ifdef __cplusplus
@@ -156,29 +157,92 @@ extern "C" {
 /* int osrp2s(unsigned char *p); */
 
 /* 
- *   Write int to unaligned portable 2-byte value.  The portable
+ *   Write unsigned int to unaligned portable 2-byte value.  The portable
  *   representation stores the low-order byte first in memory, so
  *   oswp2(0x1234) should result in storing a byte value 0x34 in the first
- *   byte, and 0x12 in the second byte. 
+ *   byte, and 0x12 in the second byte.  
  */
-/* void oswp2(unsigned char *p, int i); */
+/* void oswp2(unsigned char *p, unsigned int i); */
+
+/*
+ *   Write signed int to unaligned portable 2-byte value.  Negative values ar
+ *   stored in two's complement notation.  E.g., -1 is stored as FF.FF,
+ *   -32768 is stored as 00.80 (little-endian).  
+ *   
+ *   Virtually all modern hardware uses two's complement notation as the
+ *   native representation, which makes this routine a trivial synonym of
+ *   osrp2() (i.e., #define oswp2s(p,i) oswp2(p,i)).  We distinguish the
+ *   signed version on the extremely off chance that TADS is ever ported to
+ *   wacky hardware with a different representation for negative integers
+ *   (one's complement, sign bit, etc).  
+ */
+/* void oswp2s(unsigned char *p, int i); */
 
 /* 
- *   Read an unaligned portable 4-byte value, returning long.  The
- *   underlying value should be considered signed, and the result is
- *   signed.  The portable representation stores the bytes starting with
- *   the least significant: the value 0x12345678 is stored with 0x78 in
- *   the first byte, 0x56 in the second byte, 0x34 in the third byte, and
- *   0x12 in the fourth byte.  
+ *   Read an unaligned unsigned portable 4-byte value, returning long.  The
+ *   underlying value should be considered signed, and the result is signed.
+ *   The portable representation stores the bytes starting with the least
+ *   significant: the value 0x12345678 is stored with 0x78 in the first byte,
+ *   0x56 in the second byte, 0x34 in the third byte, and 0x12 in the fourth
+ *   byte.
  */
-/* long osrp4(unsigned char *p); */
+/* unsigned long osrp4(unsigned char *p); */
+
+/*
+ *   Read an unaligned signed portable 4-byte value, returning long. 
+ */
+/* long osrp4s(unsigned char *p); */
 
 /* 
- *   Write a long to an unaligned portable 4-byte value.  The portable
- *   representation stores the low-order byte first in memory, so
+ *   Write an unsigned long to an unaligned portable 4-byte value.  The
+ *   portable representation stores the low-order byte first in memory, so
  *   0x12345678 is written to memory as 0x78, 0x56, 0x34, 0x12.  
  */
-/* void oswp4(unsigned char *p, long l); */
+/* void oswp4(unsigned char *p, unsigned long l); */
+
+/*
+ *   Write a signed long, using little-endian byte order and two's complement
+ *   notation for negative numbers.  This is a trivial synonym for oswp4()
+ *   for all platforms with native two's complement arithmetic (which is
+ *   virtually all modern platforms).  See oswp2s() for more discussion.
+ */
+/* void oswp4s(unsigned char *p, long l); */
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   varargs va_copy() extension.
+ *   
+ *   On some compilers, va_list is a reference type.  This means that if a
+ *   va_list value is passed to a function that uses va_arg() to step through
+ *   the referenced arguments, the caller's copy of the va_list might be
+ *   updated on return.  This is problematic in cases where the caller needs
+ *   to use the va_list again in another function call, since the va_list is
+ *   no longer pointing to the first argument for the second call.  C99 has a
+ *   solution in the form of the va_copy() macro.  Unfortunately, this isn't
+ *   typically available in pre-C99 compilers, and isn't standard in *any*
+ *   C++ version.  We thus virtualize it here in a macro.
+ *   
+ *   os_va_copy() has identical semantics to C99 va_copy().  A matching call
+ *   to os_va_copy_end() must be made for each call to os_va_copy() before
+ *   the calling function returns; this has identical semantics to C99
+ *   va_end().
+ *   
+ *   Because our semantics are identical to the C99 version, we provide a
+ *   default definition here for compilers that define va_copy().  Platform
+ *   headers must provide suitable definitions only if their compilers don't
+ *   have va_copy().  We also provide a definition for GCC compilers that
+ *   define the private __va_copy macro, which also has the same semantics.
+ */
+#ifdef va_copy
+# define os_va_copy(dst, src) va_copy(dst, src)
+# define os_va_copy_end(dst)  va_end(dst)
+#else
+# if defined(__GNUC__) && defined(__va_copy)
+#  define os_va_copy(dst, src) __va_copy(dst, src)
+#  define os_va_copy_end(dst)  va_end(dst)
+# endif
+#endif
 
 
 
@@ -938,9 +1002,9 @@ int os_get_exe_filename(char *buf, size_t buflen, const char *argv0);
  *   is out of date with respect to the calling code.
  *   
  *   This routine can be implemented using one of the strategies below, or a
- *   combination of these.  These are merely suggestions, though, and
- *   systems are free to ignore these and implement this routine using
- *   whatever scheme is the best fit to local conventions.
+ *   combination of these.  These are merely suggestions, though, and systems
+ *   are free to ignore these and implement this routine using whatever
+ *   scheme is the best fit to local conventions.
  *   
  *   - Relative to argv[0].  Some systems use this approach because it keeps
  *   all of the TADS files together in a single install directory tree, and
@@ -957,15 +1021,14 @@ int os_get_exe_filename(char *buf, size_t buflen, const char *argv0);
  *   
  *   - Hard-coded paths.  Some systems have universal conventions for the
  *   installation configuration of compiler-like tools, so the paths to our
- *   component files can be hard-coded based on these conventions.  Note
- *   that it is common on some systems to use hard-coded paths by default
- *   but allow these to be overridden using environment variables or the
- *   like - this is often a good option because it makes life easy for most
- *   users, who use the default install configuration and thus do not need
- *   to set any environment variables, while still allowing for special
- *   cases where users cannot use the default configuration for some reason.
+ *   component files can be hard-coded based on these conventions.
  *   
- *   
+ *   - Hard-coded default paths with environment variable overrides.  Let the
+ *   user set environment variables if they want, but use the standard system
+ *   paths as hard-coded defaults if the variables aren't set.  This is often
+ *   the best choice; users who expect the standard system conventions won't
+ *   have to fuss with any manual settings or even be aware of them, while
+ *   users who need custom settings aren't stuck with the defaults.
  */
 void os_get_special_path(char *buf, size_t buflen,
                          const char *argv0, int id);
@@ -1011,6 +1074,24 @@ void os_get_special_path(char *buf, size_t buflen,
  *   user-specific directory. 
  */
 #define OS_GSP_T3_APP_DATA 5
+
+/*
+ *   TADS 3 interpreter - system configuration files.  This is used for files
+ *   that affect all games, and generally all users on the system, so it
+ *   should be in a central location.  On Windows, for example, we simply
+ *   store these files in the install directory containing the intepreter
+ *   binary.  
+ */
+#define OS_GSP_T3_SYSCONFIG  6
+
+/*
+ *   System log files.  This is the directory for system-level status, debug,
+ *   and error logging files.  (Note that we're NOT talking about in-game
+ *   transcript logging per the SCRIPT command.  SCRIPT logs are usually sent
+ *   to files selected by the user via a save-file dialog, so these don't
+ *   need a special location.)
+ */
+#define OS_GSP_LOGFILE  7
 
 
 /* 
@@ -1156,13 +1237,39 @@ osfildef *os_create_tempfile(const char *fname, char *buf);
  */
 int osfdel_temp(const char *fname);
 
-
 /*
  *   Get the temporary file path.  This should fill in the buffer with a
  *   path prefix (suitable for strcat'ing a filename onto) for a good
  *   directory for a temporary file, such as the swap file.  
  */
 void os_get_tmp_path(char *buf);
+
+/* 
+ *   Generate a name for a temporary file.  This constructs a random file
+ *   path in the system temp directory that isn't already used by an existing
+ *   file.
+ *   
+ *   On systems with long filenames, this can be implemented by selecting a
+ *   GUID-strength random name (such as 32 random hex digits) with a decent
+ *   random number generator.  That's long enough that the odds of a
+ *   collision are essentially zero.  On systems that only support short
+ *   filenames, the odds of a collision are non-zero, so the routine should
+ *   actually check that the chosen filename doesn't exist.
+ *   
+ *   Optionally, before returning, this routine *may* create (and close) an
+ *   empty placeholder file to "reserve" the chosen filename.  This isn't
+ *   required, and on systems with long filenames it's usually not necessary
+ *   because of the negligible chance of a collision.  On systems with short
+ *   filenames, a placeholder can be useful to prevent a subsequent call to
+ *   this routine, or a separate process, from using the same filename before
+ *   the caller has had a chance to use the returned name to create the
+ *   actual temp file.
+ *   
+ *   Returns true on success, false on failure.  This can fail if there's no
+ *   system temporary directory defined, or the temp directory is so full of
+ *   other files that we can't find an unused filename.  
+ */
+int os_gen_temp_filename(char *buf, size_t buflen);
 
 
 /* ------------------------------------------------------------------------ */
@@ -1195,14 +1302,25 @@ void os_addext(char *fname, const char *ext);
 void os_remext(char *fname);
 
 /*
- *   Get a pointer to the root name portion of a filename.  This is the
- *   part of the filename after any path or directory prefix.  For
- *   example, on Unix, given the string "/home/mjr/deep.gam", this
- *   function should return a pointer to the 'd' in "deep.gam".  If the
- *   filename doesn't appear to have a path prefix, it should simply
- *   return the argument unchanged.  
+ *   Get a pointer to the root name portion of a filename.  This is the part
+ *   of the filename after any path or directory prefix.  For example, on
+ *   Unix, given the string "/home/mjr/deep.gam", this function should return
+ *   a pointer to the 'd' in "deep.gam".  If the filename doesn't appear to
+ *   have a path prefix, it should simply return the argument unchanged.
+ *   
+ *   IMPORTANT: the returned pointer MUST point into the original 'buf'
+ *   string, and the contents of that buffer must NOT be modified.  The
+ *   return value must point into the same buffer because there are no
+ *   allowances for the alternatives.  In particular, (a) you can't return a
+ *   pointer to newly allocated memory, because callers won't free it, so
+ *   doing so would cause a memory leak; and (b) you can't return a pointer
+ *   to an internal static buffer, because callers might call this function
+ *   more than once and still rely on a value returned on an older call,
+ *   which would be invalid if a static buffer could be overwritten on each
+ *   call.  For these reasons, it's required that the return value point to a
+ *   position within the original string passed in 'buf'.  
  */
-char *os_get_root_name(char *buf);
+char *os_get_root_name(const char *buf);
 
 /*
  *   Determine whether a filename specifies an absolute or relative path.
@@ -1296,42 +1414,191 @@ void os_build_full_path(char *fullpathbuf, size_t fullpathbuflen,
                         const char *path, const char *filename);
 
 /*
- *   Convert an OS filename path to a relative URL.  Paths provided to
- *   this function should always be relative to the current directory, so
- *   the resulting URL should be relative.  If end_sep is true, it means
- *   that the last character of the result should be a '/', even if the
- *   input path doesn't end with a path separator character.
+ *   Convert an OS filename path to a relative URL-like format.  (We call
+ *   these URLs, but they're not really; they're just our own canonical
+ *   format that's based on the URL system.)
+ *   
+ *   Paths provided to this function should always be relative to the current
+ *   directory, so the resulting URL should be relative.  If end_sep is true,
+ *   it means that the last character of the result should be a '/', even if
+ *   the input path doesn't end with a path separator character.
+ *   
+ *   Also, make ONLY the following '%' substitutions: change '%' to '%25',
+ *   and change ':' to '%3A'.  Do NOT quote spaces or other non-safe
+ *   characters.
  *   
  *   This routine should replace all system-specific path separator
- *   characters in the input name with forward slashes ('/').  In
- *   addition, if a relative path on the system starts with a path
- *   separator, that leading path separator should be removed; for
- *   example, on the Macintosh, a path of ":images:rooms:startroom.jpeg"
- *   should be converted to "images/rooms/startroom.jpeg".
+ *   characters in the input name with forward slashes ('/').  In addition,
+ *   if the local system's relative path convention uses an initial path
+ *   separator character, that leading separator should be removed; for
+ *   example, on Mac OS 9, the path ":images:rooms:startroom.jpeg" would be
+ *   converted to "images/rooms/startroom.jpeg".
+ *   
+ *   Do NOT include a URI scheme in the result (e.g., don't start the result
+ *   with "file://").  Simply make it a relative URL path fragment.
+ *   
+ *   Character sets: the input could be in local or UTF-8 character sets.
+ *   The implementation shouldn't care, though - just treat bytes in the
+ *   range 0-127 as plain ASCII, and everything else as opaque.  I.e., do not
+ *   quote or otherwise modify characters outside the 0-127 range.  
  */
 void os_cvt_dir_url(char *result_buf, size_t result_buf_size,
                     const char *src_path, int end_sep);
 
 /*
- *   Convert a relative URL into a relative filename path.  Paths provided
- *   to this function should always be relative, so the resulting path
- *   should be relative to the current directory.  This function
- *   essentially reverses the transformation done by os_cvt_dir_url().  If
- *   end_sep is true, the path should end with a path separator character,
- *   so that filenames can be strcat'ed onto the result to form a full
- *   filename.
+ *   Convert a relative URL into a relative filename path.
+ *   
+ *   Paths provided to this function should always be relative, so the
+ *   resulting path should be relative to the current directory.  This
+ *   function essentially reverses the transformation done by
+ *   os_cvt_dir_url().  If end_sep is true, the path should end with a path
+ *   separator character, so that filenames can be strcat'ed onto the result
+ *   to form a full filename.
+ *   
+ *   In particular, change '/' to the local path separator character, and
+ *   decode '%xx' sequences into the corresponding ASCII characters.
+ *   
+ *   URL paths passed to this routine must NOT include a scheme (e.g.,
+ *   "file://").  They will always be relative path fragments.  Because
+ *   they're relative, they should not start with a '/' path separator - they
+ *   should start with the first relative path component.
+ *   
+ *   For example, on Windows, "images/rooms/startroom.jpg" would be converted
+ *   to "images\rooms\startroom.jpg".  On Mac OS 9, the same URL path would
+ *   be converted to ":images:rooms:startroom.jpg".  
+ *   
+ *   Character sets: use the same rules as for os_cvt_dir_url().  
  */
 void os_cvt_url_dir(char *result_buf, size_t result_buf_size,
                     const char *src_url, int end_sep);
 
+/*
+ *   Get the absolute, fully qualified filename for a file.  This fills in
+ *   'result_buf' with the absolute path to the given file, taking into
+ *   account the current working directory and any other implied environment
+ *   information that affects the way the file system would resolve the given
+ *   file name to a specific file on disk if we opened the file now using
+ *   this name.
+ *   
+ *   The returned path should be absolute, meaning that it's independent of
+ *   the current working directory or any other environment settings.  That
+ *   is, this path should still refer to the same file even if the working
+ *   directory changes.
+ *   
+ *   On many systems, a given file might be reachable through more than one
+ *   absolute path.  For example, on Unix it might be possible to reach a
+ *   file through multiple symbolic links to the file itself or to parent
+ *   directories.  It's up to the implementation to determine which path to
+ *   use in such cases.
+ *   
+ *   On success, returns true.  If it's not possible to resolve the file name
+ *   to an absolute path, the routine copies the original filename to the
+ *   result buffer exactly as given, and returns false.  
+ */
+int os_get_abs_filename(char *result_buf, size_t result_buf_size,
+                        const char *filename);
+
+/*
+ *   Determine if the given file is in the given directory.  Returns true if
+ *   so, false if not.  'filename' is a relative or absolute file name;
+ *   'path' is a relative or absolute directory path, such as one returned
+ *   from os_get_path_name().
+ *   
+ *   If 'include_subdirs' is true, the function returns true if the file is
+ *   either directly in the directory 'path', OR it's in any subdirectory of
+ *   'path'.  If 'include_subdirs' is false, the function returns true only
+ *   if the file is directly in the given directory.
+ *   
+ *   This routine is allowed to return "false negatives" - that is, it can
+ *   claim that the file isn't in the given directory even when it actually
+ *   is.  The reason is that it's not always possible to determine for sure
+ *   that there's not some way for a given file path to end up in the given
+ *   directory.  In contrast, a positive return must be reliable.
+ *   
+ *   If possible, this routine should actually resolve the names through the
+ *   file system to determine the path relationship, rather than merely
+ *   analyzing the text superficially.  This can be important because many
+ *   systems have multiple ways to reach a given file, so the actual location
+ *   of a file might not be possible to determine based on its name alone.
+ *   For example, there could be symbolic links in the 'filename' directory
+ *   path that end up pointing to a directory whose name isn't actually
+ *   mentioned anywhere in the file path.
+ *   
+ *   SECURITY NOTE: If possible, implementations should fully resolve all
+ *   symbolic links, relative paths (e.g., Unix ".."), etc, before rendering
+ *   judgment.  One important application for this routine is to determine if
+ *   a file is in a sandbox directory, to enforce security restrictions that
+ *   prevent a program from accessing files outside of a designated folder.
+ *   If the implementation fails to resolve symbolic links or relative paths,
+ *   a malicious program or user could bypass the security restriction by,
+ *   for example, creating a symbolic link within the sandbox directory that
+ *   points to the root folder.  Implementations can avoid this loophole by
+ *   converting the file and directory names to absolute paths and resolving
+ *   all symbolic links and relative notation before comparing the paths.
+ */
+int os_is_file_in_dir(const char *filename, const char *path,
+                      int include_subdirs);
+
 
 /* ------------------------------------------------------------------------ */
 /*
- *   get a suitable seed for a random number generator; should use the
- *   system clock or some other source of an unpredictable and changing
- *   seed value 
+ *   Get a suitable seed for a random number generator; should use the system
+ *   clock or some other source of an unpredictable and changing seed value.
  */
 void os_rand(long *val);
+
+/*
+ *   Generate random bytes for use in seeding a PRNG (pseudo-random number
+ *   generator).  This is an extended version of os_rand() for PRNGs that use
+ *   large seed vectors containing many bytes, rather than the simple 32-bit
+ *   seed that os_rand() assumes.
+ *   
+ *   As with os_rand(), this function isn't meant to be used directly as a
+ *   random number source for ongoing use - instead, this is intended mostly
+ *   for seeding a PRNG, which will then be used as the primary source of
+ *   random numbers.  The big problem with using this routine directly as a
+ *   randomness source is that some implementations might rely heavily on
+ *   environmental randomness, such as the real-time clock or OS usage
+ *   statistics.  Such sources tend to provide reasonable entropy from one
+ *   run to the next, but not within a single session, as the underlying data
+ *   sources don't change rapidly enough.
+ *   
+ *   Ideally, this routine should generate *truly* random bytes obtained from
+ *   hardware sources.  Not all systems can provide that, though, so true
+ *   randomness isn't guaranteed.  Here are the suggested implementation
+ *   options, in descending order of desirability:
+ *   
+ *   1.  Use a hardware source of true randomness, such as a /dev/rand type
+ *   of device.  However, note that this call should return reasonably
+ *   quickly, so always use a non-blocking source.  Some Unix /dev/rand
+ *   devices, for example, can block indefinitely to allow sufficient entropy
+ *   to accumulate.
+ *   
+ *   2. Use a cryptographic random number source provided by the OS.  Some
+ *   systems provide this as an API service.  If going this route, be sure
+ *   that the OS generator is itself "seeded" with some kind of true
+ *   randomness source, as it defeats the whole purpose if you always return
+ *   a fixed pseudo-random sequence each time the program runs.
+ *   
+ *   3. Use whatever true random sources are available locally to seed a
+ *   software pseudo-random number generator, then generate bytes from your
+ *   PRNG.  Some commonly available sources of true randomness are a
+ *   high-resolution timer, the system clock, the current process ID,
+ *   logged-in user ID, environment variables, uninitialized pages of memory,
+ *   the IP address; each of these sources might give you a few bits of
+ *   entropy at best, so the best bet is to use an ensemble.  You could, for
+ *   example, concatenate a bunch of this type of information together and
+ *   calculate an MD5 or SHA1 hash to mix the bits more thoroughly.  For the
+ *   PRNG, use a cryptographic generator.  (You could use the ISAAC generator
+ *   from TADS 3, as that's a crypto PRNG, but it's probably better to use a
+ *   different generator here since TADS 3 is going to turn around and use
+ *   this function's output to seed ISAAC - seeding one ISAAC instance with
+ *   another ISAAC's output seems likely to magnify any weaknesses in the
+ *   ISAAC algorithm.)  Note that this option is basically the DIY version of
+ *   option 2.  Option 2 is better because the OS probably has access to
+ *   better sources of true randomness than an application does.  
+ */
+void os_gen_rand_bytes(unsigned char *buf, size_t len);
 
 
 /* ------------------------------------------------------------------------ */
@@ -1411,6 +1678,44 @@ void os_rand(long *val);
  */
 void os_printz(const char *str);
 void os_print(const char *str, size_t len);
+
+/*
+ *   Print to the debugger console.  These routines are for interactive
+ *   debugger builds only: they display the given text to a separate window
+ *   within the debugger UI (separate from the main game command window)
+ *   where the debugger displays status information specific to the debugging
+ *   session (such as compiler/build output, breakpoint status messages,
+ *   etc).  For example, TADS Workbench on Windows displays these messages in
+ *   its "Debug Log" window.
+ *   
+ *   These routines only need to be implemented for interactive debugger
+ *   builds, such as TADS Workbench on Windows.  These can be omitted for
+ *   regular interpreter builds.  
+ */
+void os_dbg_printf(const char *fmt, ...);
+void os_dbg_vprintf(const char *fmt, va_list args);
+
+/*
+ *   Allocating sprintf and vsprintf.  These work like the regular C library
+ *   sprintf and vsprintf funtions, but they allocate a return buffer that's
+ *   big enough to hold the result, rather than formatting into a caller's
+ *   buffer.  This protects against buffer overruns and ensures that the
+ *   result isn't truncated.
+ *   
+ *   On return, '*bufptr' is filled in with a pointer to a buffer allocated
+ *   with osmalloc().  This buffer contains the formatted string result.  The
+ *   caller is responsible for freeing the buffer by calling osfree().
+ *   *bufptr can be null on return if an error occurs.
+ *   
+ *   The return value is the number of bytes written to the allocated buffer,
+ *   not including the null terminator.  If an error occurs, the return value
+ *   is -1 and *bufptr is undefined.
+ *   
+ *   Many modern C libraries provide equivalents of these, usually called
+ *   asprintf() and vasprintf(), respectively.  
+ */
+/* int os_asprintf(char **bufptr, const char *fmt, ...); */
+/* int os_vasprintf(char **bufptr, const char *fmt, va_list ap); */
 
 
 /* 
@@ -1893,15 +2198,15 @@ unsigned char *os_gets(unsigned char *buf, size_t bufl);
  *   before the user presses Return (or the local equivalent).
  *   
  *   If the user presses Return before the timeout expires, we store the
- *   command line in the given buffer, just as os_gets() would, and we
- *   return OS_EVT_LINE.  We also update the display in the same manner that
+ *   command line in the given buffer, just as os_gets() would, and we return
+ *   OS_EVT_LINE.  We also update the display in the same manner that
  *   os_gets() would, by moving the cursor to a new line and scrolling the
  *   displayed text as needed.
  *   
- *   If a timeout occurs before the user presses Return, we store the
- *   command line so far in the given buffer, statically store the cursor
- *   position, insert mode, buffer text, and anything else relevant to the
- *   editing state, and we return OS_EVT_TIMEOUT.
+ *   If a timeout occurs before the user presses Return, we store the command
+ *   line so far in the given buffer, statically store the cursor position,
+ *   insert mode, buffer text, and anything else relevant to the editing
+ *   state, and we return OS_EVT_TIMEOUT.
  *   
  *   If the implementation does not support the timeout operation, this
  *   routine should simply return OS_EVT_NOTIMEOUT immediately when called;
@@ -1913,16 +2218,16 @@ unsigned char *os_gets(unsigned char *buf, size_t bufl);
  *   When we return OS_EVT_TIMEOUT, the caller is responsible for doing one
  *   of two things.
  *   
- *   The first possibility is that the caller performs some work that
- *   doesn't require any display operations (in other words, the caller
- *   doesn't invoke os_printf, os_getc, or anything else that would update
- *   the display), and then calls os_gets_timeout() again.  In this case, we
- *   will use the editing state that we statically stored before we returned
+ *   The first possibility is that the caller performs some work that doesn't
+ *   require any display operations (in other words, the caller doesn't
+ *   invoke os_printf, os_getc, or anything else that would update the
+ *   display), and then calls os_gets_timeout() again.  In this case, we will
+ *   use the editing state that we statically stored before we returned
  *   OS_EVT_TIMEOUT to continue editing where we left off.  This allows the
- *   caller to perform some computation in the middle of user command
- *   editing without interrupting the user - the extra computation is
- *   transparent to the user, because we act as though we were still in the
- *   midst of the original editing.
+ *   caller to perform some computation in the middle of user command editing
+ *   without interrupting the user - the extra computation is transparent to
+ *   the user, because we act as though we were still in the midst of the
+ *   original editing.
  *   
  *   The second possibility is that the caller wants to update the display.
  *   In this case, the caller must call os_gets_cancel() BEFORE making any
@@ -1937,8 +2242,8 @@ unsigned char *os_gets(unsigned char *buf, size_t bufl);
  *   that we'll restore the cursor position, insertion state, and anything
  *   else relevant.  Note that if os_gets_cancel(FALSE) was called, we must
  *   re-display the command line under construction, but if os_gets_cancel()
- *   was never called, we will not have to make any changes to the display
- *   at all.
+ *   was never called, we will not have to make any changes to the display at
+ *   all.
  *   
  *   Note that when resuming an interrupted editing session (interrupted via
  *   os_gets_cancel()), the caller must re-display the prompt prior to
@@ -1946,17 +2251,21 @@ unsigned char *os_gets(unsigned char *buf, size_t bufl);
  *   
  *   Note that we can return OS_EVT_EOF in addition to the other codes
  *   mentioned above.  OS_EVT_EOF indicates that an error occurred reading,
- *   which usually indicates that the application is being terminated or
- *   that some hardware error occurred reading the keyboard.  
+ *   which usually indicates that the application is being terminated or that
+ *   some hardware error occurred reading the keyboard.  
  *   
  *   If 'use_timeout' is false, the timeout should be ignored.  Without a
- *   timeout, the function behaves the same as os_gets(), except that it
- *   will resume editing of a previously-interrupted command line if
- *   appropriate.  (This difference is why the timeout is optional: a caller
- *   might not need a timeout, but might still want to resume a previous
- *   input that did time out, in which case the caller would invoke this
- *   routine with use_timeout==FALSE.  The regular os_gets() would not
- *   satisfy this need, because it cannot resume an interrupted input.)  
+ *   timeout, the function behaves the same as os_gets(), except that it will
+ *   resume editing of a previously-interrupted command line if appropriate.
+ *   (This difference is why the timeout is optional: a caller might not need
+ *   a timeout, but might still want to resume a previous input that did time
+ *   out, in which case the caller would invoke this routine with
+ *   use_timeout==FALSE.  The regular os_gets() would not satisfy this need,
+ *   because it cannot resume an interrupted input.)
+ *   
+ *   Note that a zero timeout has the same meaning as for os_get_event(): if
+ *   input is available IMMEDIATELY, return the input, otherwise return
+ *   immediately with the OS_EVT_TIMEOUT result code.  
  */
 int os_gets_timeout(unsigned char *buf, size_t bufl,
                     unsigned long timeout_in_milliseconds, int use_timeout);
@@ -2085,6 +2394,7 @@ void os_waitc(void);
 #define CMD_WORDKILL 31                   /* delete word right (translated) */
 #define CMD_EOF   32                                   /* end-of-file (raw) */
 #define CMD_BREAK 33     /* break (Ctrl-C or local equivalent) (translated) */
+#define CMD_INS   34                                    /* insert key (raw) */
 
 
 /*
@@ -2179,18 +2489,25 @@ typedef union os_event_info_t os_event_info_t;
 
 
 /*
- *   Get an input event.  The event types are shown above.  If use_timeout
- *   is false, this routine should simply wait until one of the events it
- *   recognizes occurs, then return the appropriate information on the
- *   event.  If use_timeout is true, this routine should return
- *   OS_EVT_TIMEOUT after the given number of milliseconds elapses if no
- *   event occurs first.
+ *   Get an input event.  The event types are shown above.  If use_timeout is
+ *   false, this routine should simply wait until one of the events it
+ *   recognizes occurs, then return the appropriate information on the event.
+ *   If use_timeout is true, this routine should return OS_EVT_TIMEOUT after
+ *   the given number of milliseconds elapses if no event occurs first.
  *   
  *   This function is not obligated to obey the timeout.  If a timeout is
  *   specified and it is not possible to obey the timeout, the function
- *   should simply return OS_EVT_NOTIMEOUT.  The trivial implementation
- *   thus checks for a timeout, returns an error if specified, and
- *   otherwise simply waits for the user to press a key.  
+ *   should simply return OS_EVT_NOTIMEOUT.  The trivial implementation thus
+ *   checks for a timeout, returns an error if specified, and otherwise
+ *   simply waits for the user to press a key.
+ *   
+ *   A timeout value of 0 does *not* mean that there's no timeout (i.e., it
+ *   doesn't mean we should wait indefinitely) - that's specified by passing
+ *   FALSE for use_timeout.  A zero timeout also doesn't meant that the
+ *   function should unconditionally return OS_EVT_TIMEOUT.  Instead, a zero
+ *   timeout specifically means that IF an event is available IMMEDIATELY,
+ *   without blocking the thread, we should return that event; otherwise we
+ *   should immediately return a timeout event.  
  */
 int os_get_event(unsigned long timeout_in_milliseconds, int use_timeout,
                  os_event_info_t *info);
@@ -2339,50 +2656,51 @@ int os_input_dialog(int icon_id, const char *prompt, int standard_button_set,
 /* ------------------------------------------------------------------------ */
 /*
  *   Get the current system high-precision timer.  This function returns a
- *   value giving the wall-clock ("real") time in milliseconds, relative
- *   to any arbitrary zero point.  It doesn't matter what this value is
- *   relative to -- the only important thing is that the values returned
- *   by two different calls should differ by the number of actual
- *   milliseconds that have elapsed between the two calls.  On most
- *   single-user systems, for example, this will probably return the
- *   number of milliseconds since the user turned on the computer.
+ *   value giving the wall-clock ("real") time in milliseconds, relative to
+ *   any arbitrary zero point.  It doesn't matter what this value is relative
+ *   to -- the only important thing is that the values returned by two
+ *   different calls should differ by the number of actual milliseconds that
+ *   have elapsed between the two calls.  This might be the number of
+ *   milliseconds since the computer was booted, since the current user
+ *   logged in, since midnight of the previous night, since the program
+ *   started running, since 1-1-1970, etc - it doesn't matter what the epoch
+ *   is, so the implementation can use whatever's convenient on the local
+ *   system.
  *   
- *   True millisecond precision is NOT required.  Each implementation
- *   should simply use the best precision available on the system.  If
- *   your system doesn't have any kind of high-precision clock, you can
- *   simply use the time() function and multiply the result by 1000 (but
- *   see the note below about exceeding 32-bit precision).
+ *   True millisecond precision is NOT required.  Each implementation should
+ *   simply use the best precision available on the system.  If your system
+ *   doesn't have any kind of high-precision clock, you can simply use the
+ *   time() function and multiply the result by 1000 (but see the note below
+ *   about exceeding 32-bit precision).
  *   
  *   However, it *is* required that the return value be in *units* of
  *   milliseconds, even if your system clock doesn't have that much
- *   precision; so on a system that uses its own internal clock units,
- *   this routine must multiply the clock units by the appropriate factor
- *   to yield milliseconds for the return value.
+ *   precision; so on a system that uses its own internal clock units, this
+ *   routine must multiply the clock units by the appropriate factor to yield
+ *   milliseconds for the return value.
  *   
  *   It is also required that the values returned by this function be
  *   monotonically increasing.  In other words, each subsequent call must
- *   return a value that is equal to or greater than the value returned
- *   from the last call.  On some systems, you must be careful of two
- *   special situations.
+ *   return a value that is equal to or greater than the value returned from
+ *   the last call.  On some systems, you must be careful of two special
+ *   situations.
  *   
  *   First, the system clock may "roll over" to zero at some point; for
  *   example, on some systems, the internal clock is reset to zero at
  *   midnight every night.  If this happens, you should make sure that you
- *   apply a bias after a roll-over to make sure that the value returned
- *   from this return continues to increase despite the reset of the
- *   system clock.
+ *   apply a bias after a roll-over to make sure that the value returned from
+ *   this return continues to increase despite the reset of the system clock.
  *   
  *   Second, a 32-bit signed number can only hold about twenty-three days
- *   worth of milliseconds.  While it seems unlikely that a TADS game
- *   would run for 23 days without a break, it's certainly reasonable to
- *   expect that the computer itself may run this long without being
- *   rebooted.  So, if your system uses some large type (a 64-bit number,
- *   for example) for its high-precision timer, you may want to store a
- *   zero point the very first time this function is called, and then
- *   always subtract this zero point from the large value returned by the
- *   system clock.  If you're using time(0)*1000, you should use this
- *   technique, since the result of time(0)*1000 will almost certainly not
- *   fit in 32 bits in most cases.
+ *   worth of milliseconds.  While it seems unlikely that a TADS game would
+ *   run for 23 days without a break, it's certainly reasonable to expect
+ *   that the computer itself may run this long without being rebooted.  So,
+ *   if your system uses some large type (a 64-bit number, for example) for
+ *   its high-precision timer, you may want to store a zero point the very
+ *   first time this function is called, and then always subtract this zero
+ *   point from the large value returned by the system clock.  If you're
+ *   using time(0)*1000, you should use this technique, since the result of
+ *   time(0)*1000 will almost certainly not fit in 32 bits in most cases.  
  */
 long os_get_sys_clock_ms(void);
 
@@ -2627,22 +2945,28 @@ void os_tzset(void);
 #endif
 
 /*
- *   Set the default saved-game extension.  This routine will NOT be
- *   called when we're using the standard saved game extension; this
- *   routine will be invoked only if we're running as a stand-alone game,
- *   and the game author specified a non-standard saved-game extension
- *   when creating the stand-alone game.
+ *   Set the default saved-game extension.  This routine will NOT be called
+ *   when we're using the standard saved game extension; this routine will be
+ *   invoked only if we're running as a stand-alone game, and the game author
+ *   specified a non-standard saved-game extension when creating the
+ *   stand-alone game.
  *   
  *   This routine is not required if the system does not use the standard,
  *   semi-portable os0.c implementation.  Even if the system uses the
- *   standard os0.c implementation, it can provide an empty routine here
- *   if the system code doesn't need to do anything special with this
+ *   standard os0.c implementation, it can provide an empty routine here if
+ *   the system code doesn't need to do anything special with this
  *   information.
  *   
- *   The extension is specified as a null-terminated string.  The
- *   extension does NOT include the leading period.  
+ *   The extension is specified as a null-terminated string.  The extension
+ *   does NOT include the leading period.  
  */
 void os_set_save_ext(const char *ext);
+
+/* 
+ *   Get the saved game extension previously set with os_set_save_ext().
+ *   Returns null if no custom extension has been set.
+ */
+const char *os_get_save_ext();
 
 
 /* ------------------------------------------------------------------------*/

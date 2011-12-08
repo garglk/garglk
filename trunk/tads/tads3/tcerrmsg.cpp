@@ -446,6 +446,15 @@ const err_msg_t tc_messages_english[] =
     "the varying operator syntax was sometimes confusing to people "
     "reading source code." },
 
+    { TCERR_INT_CONST_OV,
+    "integer constant exceeds maximum value",
+    "An integer constant value exceeds the maximum that can be stored. "
+    "Integers are limited to -2147483648 to 2147483647." },
+
+    { TCERR_BACKSLASH_SEQ,
+    "invalid backslash escape sequence \\%c in string",
+    "The backslash sequence \\%c is not valid." },
+
     { TCERR_INTERNAL_EXPLAN,
     "Please report this error to the compiler's maintainer.",
     "This indicates a problem within the compiler itself.  Please report "
@@ -635,7 +644,7 @@ const err_msg_t tc_messages_english[] =
     "required semicolon.  If a semicolon is already present, check "
     "for unbalanced parentheses or other expression errors." },
 
-    { TCERR_EXPECTED_DSTR_CONT,
+    { TCERR_EXPECTED_STR_CONT,
     "expected '>>' and the string continuation, but found \"%~.*s\"",
     "Expected '>>' after the embedded expression, followed by the "
     "continuation of the string, but found \"%~.*s\" instead.  Check the "
@@ -987,10 +996,10 @@ const err_msg_t tc_messages_english[] =
     "semicolon, or supply the missing expression." },
 
     { TCERR_MISSING_FOR_PART,
-    "missing expression in \"for\" statement - \"%~.*s\" unexpected",
+    "missing expression in \"for\" statement - expected ';', found '%~.*s'",
     "A \"for\" statement requires three expressions, separated by "
-    "semicolons ';'.  This statement does not have all of the required "
-    "expressions, but ends unexpectedly at \"%~.*s\".  Add the missing "
+    "semicolons ';'.  This statement doesn't seem to have all of the required "
+    "parts - it ends unexpectedly at \"%~.*s\".  Add the missing "
     "parts or correct the syntax." },
 
     { TCERR_REQ_FOR_INIT_COMMA,
@@ -2008,6 +2017,140 @@ const err_msg_t tc_messages_english[] =
     "If the function doesn't take any arguments, use empty parentheses, "
     "'()', to indicate the empty argument list." },
 
+    { TCERR_NAMED_ARG_NO_ELLIPSIS,
+    "a pass-by-name argument value cannot use an ellipsis '...'",
+    "A named argument value (\"name: expression\") cannot be combined "
+    "with an ellipsis '...'.  The ellipsis expands a list value into "
+    "a series of positional arguments.  This isn't meaningful with a "
+    "named argument, because a named argument is passed by name rather "
+    "than by position." },
+
+    { TCERR_ARG_MUST_BE_OPT,
+    "parameter '%.*s' must be optional because it follows an "
+    "optional parameter",
+    "The parameter variable '%.*s' in this function or method definition "
+    "must be declared as optional, because it follows one or more other "
+    "optional arguments in the list. Argument values are assigned to parameter "
+    "names in left-to-right order at run-time, so once you have one optional "
+    "parameter to the list, all of the parameters that follow it must be "
+    "optional as well. You can make this parameter optional by adding "
+    "a '?' suffix after the variable name, or by adding an '= expression' "
+    "default value expression after the name." },
+
+    { TCERR_NAMED_ARG_NO_TYPE,
+    "formal parameter '%.*s' is named - a type declaration isn't allowed",
+    "The formal parameter '%.*s' is named (it uses a ':' suffix), so it "
+    "can't have a type declaration.  Multimethod selection is based "
+    "strictly on the positional arguments; named parameters aren't "
+    "used in the selection process, so they can't be declared with types." },
+
+    { TCERR_LOOKUP_LIST_EXPECTED_ARROW,
+    "missing -> in %dth element in LookupTable list",
+    "An arrow '->' was expected in the %dth element of the LookupTable "
+    "list.  This list appears to be a LookupTable list, because earlier "
+    "elements use the Key->Value notation, so every element must given "
+    "as a Key->Value pair." },
+
+    { TCERR_ARROW_IN_LIST,
+    "unexpected -> found in list (after %dth element)",
+    "An arrow '->' was found in a list expression, after the %dth element. "
+    "The arrow isn't allowed here because the expression appears to be an "
+    "ordinary list, not a LookupTable list.  If you intended this to be "
+    "a LookupTable list, every element must be given as a Key->Value pair." },
+
+    { TCERR_MISPLACED_ARROW_IN_LIST,
+    "misplaced -> in LookupTable list after %dth element - expected comma",
+    "A comma ',' should appear after the %dth element of the LookupTable "
+    "list, but an arrow '->' was found instead.  The arrow appears to be "
+    "misplaced. Each Key->Value pair in a LookupTable list should be "
+    "separated from the next by a comma." },
+
+    { TCERR_LOOKUP_LIST_EXPECTED_END_AT_DEF,
+    "LookupTable list must end after default *-> value, but found \"%~.*s\"",
+    "A LookupTable list must end after the default value (specified with "
+    "\"*->Value\"), but the compiler found \"%~.*s\" where the closing "
+    "bracket ']' should be. Rearrange the list so that the default "
+    "value is in the final position in the list." },
+
+    { TCERR_OPER_IN_PROPSET,
+    "an 'operator' property cannot be defined within a 'propertyset'",
+    "An 'operator' property cannot be defined within a 'propertyset' "
+    "group. You must move the 'operator' property definition outside "
+    "of the group." },
+
+    { TCERR_EXPECTED_RBRACK_IN_OP,
+    "expected ']' in 'operator []', found '%~.*s'",
+    "The ']' in an 'operator []' property declaration was missing (the "
+    "compiler found '%~.*s' where the ']' should go)." },
+
+    { TCERR_BAD_OP_OVERLOAD,
+    "invalid overloaded operator '%~.*s'",
+    "The 'operator' property type requires one of the overloadable "
+    "operators, but the compiler found '%~.*s' where the operator "
+    "should appear.  You must specify one of the overloadable operator "
+    "symbols:  + - * / % ^ << >> ~ | & [] []=" },
+
+    { TCERR_OP_OVERLOAD_WRONG_FORMALS,
+    "wrong number of parameters defined for overloaded operator (%d required)",
+    "This 'operator' property has the wrong number of parameters. "
+    "This overloaded operator requires %d parameter(s)." },
+
+    { TCERR_RT_CANNOT_DEFINE_GLOBALS,
+    "new global symbols (\"%~.*s\") cannot be defined in "
+    "run-time code compilation",
+    "Code compiled during program execution cannot define new global "
+    "symbols.  The code being compiled attempted to define \"%~.*s\"." },
+
+    { TCERR_FOR_IN_NOT_LOCAL,
+    "'for..in' variable %.*s is not defined as a local variable",
+    "The variable \"%.*s\" is being used as the control variable "
+    "of a 'for..in' statement, but this variable isn't defined as a "
+    "local variable. Check that the variable name is correct. If so, "
+    "you must add a 'local' statement defining this variable (or simply "
+    "add the word 'local' before the variable name in the 'in' clause)." },
+
+    { TCERR_BAD_EMBED_END_TOK,
+    "<<%.*s>> found in string without a matching %s",
+    "The compiler found the embedded keyword <<%.*s>> in this string, "
+    "but this wasn't preceded by a matching %s. Check that all "
+    "keywords are present and spelled correctly. If you're using nested "
+    "<<if>>'s or the like, the problem might be that the begin/end "
+    "aren't balanced properly for one of the nested levels." },
+
+    { TCERR_STRTPL_MISSING_LANGLE,
+    "expected '<<' at start of string template, but found '%.*s'",
+    "The compiler expected to find '<<' at the start of the string "
+    "template definition (after the word 'template'), but found '%.*s'. "
+    "Check the syntax, and insert the missing '<<'." },
+
+    { TCERR_STRTPL_MISSING_RANGLE,
+    "expected '>>' at end of string template, but found '%.*s'",
+    "The compiler expected to find '>>' at the end of the string "
+    "template definition, but found '%.*s'. This symbol isn't allowed "
+    "within a string template, so the compiler is guessing that this "
+    "is really the end of the statement and that the template is missing "
+    "its closing '>>'. Check the syntax. If you really meant to include "
+    "this symbol in the template, you must change it to something else, "
+    "since it's not an allowed template element. If you simply left off "
+    "the closing '>>', add it at the end of the definition." },
+
+    { TCERR_STRTPL_MULTI_STAR,
+    "only one '*' is allowed in a string template",
+    "This string template definition has more than one '*' symbol. "
+    "Only one '*' is allowed in a string template." },
+
+    { TCERR_STRTPL_FUNC_MISMATCH,
+    "string template processor function %.*s() does not match template - "
+    "must take %d parameter(s) and return a value",
+    "The processor function %.*s() for this string template does not "
+    "match the template usage. It must be defined as a function taking "
+    "%d argument(s) and returning a value." },
+
+    { TCERR_DEFINED_SYNTAX,
+    "invalid syntax for defined() operator - argument must be a symbol name",
+    "The syntax for the defined() operator is invalid. This operator "
+    "requires a single symbol name as the argument, in parentheses." },
+
     { TCERR_CODEGEN_NO_MEM,
     "out of memory for code generation",
     "Out of memory.  The compiler cannot allocate memory to generate "
@@ -2263,9 +2406,9 @@ const err_msg_t tc_messages_english[] =
     "where a single-quoted string was intended." },
 
     { TCERR_WRONG_ARGC_FOR_FUNC,
-    "wrong number of arguments to function \"%~.*s\": %d required, %d actual",
+    "wrong number of arguments to function \"%~.*s\": %s required, %d actual",
     "The call to function \"%~.*s\" has the wrong number of arguments.  "
-    "The function requires %d argument(s), but this call has %d.  Check "
+    "The function requires %s argument(s), but this call has %d.  Check "
     "the argument list." },
 
     { TCERR_GOTO_INTO_FINALLY,
@@ -2304,22 +2447,22 @@ const err_msg_t tc_messages_english[] =
     "properties defined in the intrinsic class itself." },
 
     { TCERR_FOREACH_NO_CREATEITER,
-    "Container.createIterator is not defined - foreach cannot be used",
+    "Container.createIterator is not defined - %s..in is not valid",
     "The intrinsic class Container's method createIterator is not defined, "
-    "so the 'foreach' statement cannot be used.  Be sure to include "
-    "<tads.h> or <systype.h> in this source file." },
+    "so the %s..in syntax cannot be used.  This should be corrected if you "
+    "#include <tads.h> or <systype.h> in this source file." },
 
     { TCERR_FOREACH_NO_GETNEXT,
-    "Iterator.getNext is not defined - foreach cannot be used",
+    "Iterator.getNext is not defined - %s..in cannot be used",
     "The intrinsic class Iterator's method getNext is not defined, "
-    "so the 'foreach' statement cannot be used.  Be sure to include "
-    "<tads.h> or <systype.h> in this source file." },
+    "so the '%s..in' statement cannot be used.  This should be corrected if "
+    "you #include <tads.h> or <systype.h> in this source file." },
 
     { TCERR_FOREACH_NO_ISNEXTAVAIL,
-    "Iterator.isNextAvailable is not defined - foreach cannot be used",
+    "Iterator.isNextAvailable is not defined - %s..in cannot be used",
     "The intrinsic class Iterator's method isNextAvailable is not defined, "
-    "so the 'foreach' statement cannot be used.  Be sure to include "
-    "<tads.h> or <systype.h> in this source file." },
+    "so the '%s..in' statement cannot be used.  This should be corrected if "
+    "you #include <tads.h> or <systype.h> in this source file." },
 
     { TCERR_INVALID_TYPE_FOR_EXPORT,
     "symbol \"%~.*s\" is not a valid type for export",
@@ -2410,6 +2553,43 @@ const err_msg_t tc_messages_english[] =
     "The function \"%~.*s\" with the specified inherited<> type list is "
     "not defined.  The inherited<> type list must exactly match the "
     "definition of the function you wish to call." },
+
+    { TCERR_NAMED_PARAM_MISSING_FUNC,
+    "named parameters require support function \"%~.*s\", which is undefined",
+    "This program uses named parameters, so it depends on the built-in "
+    "support function \"%~.*s\". This is not defined or is not a built-in "
+    "function. Check that you're including the current version of the "
+    "system header file 't3.h' in the build." },
+
+    { TCERR_OPT_PARAM_MISSING_FUNC,
+    "optional parameters require support function \"%~.*s\", which is undefined",
+    "This program uses optional parameters, so it depends on the built-in "
+    "support function \"%~.*s\". This is not defined or is not a built-in "
+    "function. Check that you're including the current version of the "
+    "system header file 't3.h' in the build.  (An optional parameter is "
+    "a function or method argument declared with a '?' after the variable "
+    "name, or with '=' and a default expression after the name." },
+
+    { TCERR_ONEOF_REQ_GENCLS,
+    "<<one of>> requires class OneOfIndexGen to be defined in the program",
+    "<<one of>> requires your program to define the class OneOfIndexGen. "
+    "This class isn't defined. Make sure that you're using the current "
+    "version of the system library file _main.t." },
+
+    { TCERR_ONEOF_REQ_GETNXT,
+    "<<one of>> requires getNextIndex to be defined as a property",
+    "<<one of>> requires your program to define the property getNextIndex, "
+    "as part of class OneOfIndexGen. This symbol is used as a different "
+    "type in the program. Make sure that you're using the current version "
+    "of the sy stem library file _main.t" },
+
+    { TCERR_EXT_METACLASS,
+    "intrinsic class '%.*s' is not defined in this module",
+    "The intrinsic class '%.*s' is not defined in this source module. "
+    "To refer to this class within this module, you must declare it. "
+    "The usual way to declare an intrinsic class is simply to #include "
+    "the system header file that defines the class, near the beginning "
+    "of your source file." },
 
     { TCERR_SYMEXP_INV_TYPE,
     "invalid symbol type in symbol file",
@@ -2752,6 +2932,12 @@ const err_msg_t tc_messages_english[] =
     "The external name \"%~.*s\" illegally appears in an 'export' statement.  "
     "The compiler automatically provides an export for this symbol, "
     "so the program cannot explicitly export this name itself." },
+
+    { TCERR_EXPR_TOO_COMPLEX,
+    "expression too complex",
+    "The expression is too complex.  If possible, simplify the "
+    "expression by breaking it up into sub-expressions, storing "
+    "intermediate values in local variables." },
 
     { TCERR_CONSTRUCT_NOT_DEFINED,
     "property \"construct\" is not defined",

@@ -1,0 +1,36 @@
+	Files to build: 6
+	symbol_export _main.t -> _main.t3s
+	symbol_export triplequote.t -> triplequote.t3s
+	compile _main.t -> _main.t3o
+	compile triplequote.t -> triplequote.t3o
+	link -> triplequote.t3p
+	preinit -> triplequote.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+""Test of various mode switching. Triple-single.More mode switching. Triple
+single end.Even more. Triple single and back to it.
+Again with the doubles. Double-singleDouble-triple and ending.This is a triple-
+quoted string. "It's very nice," someone said. What about ""pairs of quotes""?
+They should be fine. And we should also handle a whole run of escaped quotes,
+as in these 10: """""""""". That's it for this one.
+
+"And how about quotes around the whole string?"
+
+""Or ""pairs"" of quotes???""
+
+There's the empty triple-quoted string, of course:
+
+And what about a string of 16 quotes? As in: """"""""""
+
+This is a regular string with i=123 embedded.
+
+This is a triple quoted string with "embedded quotes"!!!
+
+On to triple quote embeddings. i=123, j=345, and is i==j? No. How about i!=j?
+Yes! And using if: i and j are unequal.
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

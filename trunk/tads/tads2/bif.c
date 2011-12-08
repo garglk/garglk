@@ -716,7 +716,7 @@ void biffnd(bifcxdef *ctx, int argc)
             switch(val.runstyp)
             {
             case DAT_NUMBER:
-                if (val.runsv.runsvnum != osrp4(p1 + 1)) continue;
+                if (val.runsv.runsvnum != osrp4s(p1 + 1)) continue;
                 break;
                 
             case DAT_SSTRING:
@@ -1037,6 +1037,15 @@ void bifask(bifcxdef *ctx, int argc)
                 break;
             }
         }
+
+        /* check for a transcript */
+        if (file_type == OSFTUNK
+            && prompt_type == OS_AFP_SAVE
+            && bif_stristr(pbuf, "script") != 0)
+        {
+            /* looks like a log file */
+            file_type = OSFTLOG;
+        }
     }
 
     /* ask for a file */
@@ -1076,7 +1085,7 @@ void bifask(bifcxdef *ctx, int argc)
 
         /* write the return code as the first element */
         *p++ = DAT_NUMBER;
-        oswp4(p, err);
+        oswp4s(p, err);
         p += 4;
 
         /* write the 'nil' second element if there's an error */
@@ -1739,7 +1748,7 @@ void bifoph(bifcxdef *ctx, int argc)
 static uchar *bifputnum(uchar *lstp, uint val)
 {
     *lstp++ = DAT_NUMBER;
-    oswp4(lstp, (long)val);
+    oswp4s(lstp, (long)val);
     return(lstp + 4);
 }
 
@@ -1800,7 +1809,7 @@ void biftim(bifcxdef *ctx, int argc)
         p = bifputnum(p, tblock->tm_min);
         p = bifputnum(p, tblock->tm_sec);
         *p++ = DAT_NUMBER;
-        oswp4(p, (long)timer);
+        oswp4s(p, (long)timer);
         
         val.runstyp = DAT_LIST;
         val.runsv.runsvstr = ret;
@@ -2482,6 +2491,23 @@ void biffopen(bifcxdef *ctx, int argc)
     p = runpopstr(ctx->bifcxrun);
     bifcstr(ctx, fname, (size_t)sizeof(fname), p);
 
+    /* 
+     *   If it's a relative path, combine it with the game file path to form
+     *   the absolute path.  This ensures that relative paths are always
+     *   relative to the original working directory if the OS-level working
+     *   directory has changed. 
+     */
+    if (!os_is_file_absolute(fname))
+    {
+        /* combine the game file path with the relative filename */
+        char newname[OSFNMAX];
+        os_build_full_path(newname, sizeof(newname),
+                           ctx->bifcxrun->runcxgamepath, fname);
+
+        /* replace the original filename with the full path */
+        strcpy(fname, newname);
+    }
+
     /* get the mode string */
     mode = runpopstr(ctx->bifcxrun);
     modelen = osrp2(mode) - 2;
@@ -2572,21 +2598,18 @@ void biffopen(bifcxdef *ctx, int argc)
          *   ask the host system for the current level, and override any
          *   setting we previously had 
          */
-        ctx->bifcxsafety =
-            (*appctx->get_io_safety_level)(appctx->io_safety_level_ctx);
+        (*appctx->get_io_safety_level)(
+            appctx->io_safety_level_ctx,
+            &ctx->bifcxsafetyr, &ctx->bifcxsafetyw);
     }
 
     /* 
-     *   Check to see if the file is in the current directory - if not, we
-     *   may have to disallow the operation based on safety level
-     *   settings.  If the file has any sort of directory prefix, assume
-     *   it's not in the same directory; if not, it must be.  This is
-     *   actually overly conservative, since the path may be a relative
-     *   path or even an absolute path that points to the current
-     *   directory, but the important thing is whether we're allowing
-     *   files to specify paths at all.  
+     *   Check to see if the file is in the current working directory - if
+     *   not, we may have to disallow the operation based on safety level
+     *   settings.
      */
-    in_same_dir = (os_get_root_name(fname) == fname);
+    in_same_dir = os_is_file_in_dir(fname, ctx->bifcxrun->runcxgamepath,
+                                    FALSE);
 
     /* check file safety settings */
     switch(main_mode)
@@ -2597,8 +2620,8 @@ void biffopen(bifcxdef *ctx, int argc)
          *   (read/write current directory) to write at all, and we must be
          *   level 0 to write a file that's not in the current directory 
          */
-        if (ctx->bifcxsafety > 2
-            || (!in_same_dir && ctx->bifcxsafety > 0))
+        if (ctx->bifcxsafetyw > 2
+            || (!in_same_dir && ctx->bifcxsafetyw > 0))
         {
             /* this operation is not allowed - return failure */
             runpnil(ctx->bifcxrun);
@@ -2613,8 +2636,8 @@ void biffopen(bifcxdef *ctx, int argc)
          *   level 1 (read any directory) or lower to read a file that's not
          *   in the current directory 
          */
-        if (ctx->bifcxsafety > 3
-            || (!in_same_dir && ctx->bifcxsafety > 1))
+        if (ctx->bifcxsafetyr > 3
+            || (!in_same_dir && ctx->bifcxsafetyr > 1))
         {
             /* this operation is not allowed - return failure */
             runpnil(ctx->bifcxrun);
@@ -2819,7 +2842,7 @@ void biffwrite(bifcxdef *ctx, int argc)
         switch(typ)
         {
         case DAT_NUMBER:
-            oswp4(buf, val.runsv.runsvnum);
+            oswp4s(buf, val.runsv.runsvnum);
             if (osfwb(fp, buf, 4))
                 goto ret_error;
             break;
@@ -2945,7 +2968,7 @@ void biffread(bifcxdef *ctx, int argc)
         case DAT_NUMBER:
             if (osfrb(fp, buf, 4))
                 goto ret_error;
-            runpnum(ctx->bifcxrun, osrp4(buf));
+            runpnum(ctx->bifcxrun, osrp4s(buf));
             break;
             
         case DAT_SSTRING:
@@ -3448,12 +3471,12 @@ void bifresearch(bifcxdef *ctx, int argc)
          *   substr(). 
          */
         *p++ = DAT_NUMBER;
-        oswp4(p, match_ofs + 1);
+        oswp4s(p, match_ofs + 1);
         p += 4;
 
         /* add the length element */
         *p++ = DAT_NUMBER;
-        oswp4(p, result_len);
+        oswp4s(p, result_len);
         p += 4;
 
         /* add the result string */
@@ -3535,13 +3558,13 @@ void bifregroup(bifcxdef *ctx, int argc)
     /* add the starting character position of the group - adjust to 1-bias */
     *p++ = DAT_NUMBER;
     numval = (long)(reg->start_ofs - ctx->bifcxregex.strbuf) + 1;
-    oswp4(p, numval);
+    oswp4s(p, numval);
     p += 4;
 
     /* add the length of the group */
     *p++ = DAT_NUMBER;
     numval = (long)(reg->end_ofs - reg->start_ofs);
-    oswp4(p, numval);
+    oswp4s(p, numval);
     p += 4;
 
     /* set up the string */
@@ -3656,7 +3679,7 @@ void bifinpevt(bifcxdef *ctx, int argc)
 
     /* set up the event type element */
     *p++ = DAT_NUMBER;
-    oswp4(p, evt);
+    oswp4s(p, evt);
     p += 4;
 
     /* add the event parameters, if any */
@@ -4188,7 +4211,7 @@ void bifinpdlg(bifcxdef *ctx, int argc)
                 int resid;
                 
                 /* it's a standard system label ID - get the ID */
-                id = (int)osrp4(p + 1);
+                id = (int)osrp4s(p + 1);
 
                 /* translate it to the appropriate string resource */
                 switch(id)

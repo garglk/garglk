@@ -29,6 +29,7 @@ Modified
 #include "vmbif.h"
 #include "vmfile.h"
 #include "vmlst.h"
+#include "vmrun.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -73,7 +74,7 @@ void CVmObjStrComp::delete_ext(VMG0_)
         size_t i;
         
         /* delete each first-level mapping table */
-        for (i = 0 ; i < sizeof(ext->equiv)/sizeof(ext->equiv[0]) ; ++i)
+        for (i = 0 ; i < countof(ext->equiv) ; ++i)
         {
             /* if this table is present, delete it */
             if (ext->equiv[i] != 0)
@@ -209,7 +210,7 @@ protected:
 class CVmObjStrCompMapReaderList: public CVmObjStrCompMapReader
 {
 public:
-    CVmObjStrCompMapReaderList(const char *lst)
+    CVmObjStrCompMapReaderList(const vm_val_t *lst)
     {
         /* remember the list */
         lst_ = lst;
@@ -225,7 +226,7 @@ public:
                               wchar_t *val_buf, size_t *value_ch_cnt)
     {
         vm_val_t val;
-        const char *sublst;
+        vm_val_t sublst;
         const char *refstr;
         const char *valstr;
         size_t copy_rem;
@@ -236,18 +237,18 @@ public:
         copy_rem = *value_ch_cnt;
 
         /* retrieve the next element of the list */
-        CVmObjList::index_list(vmg_ &val, lst_, idx_);
+        lst_->ll_index(vmg_ &sublst, idx_);
 
         /* get the value as a sublist */
-        if ((sublst = val.get_as_list(vmg0_)) == 0)
+        if (!sublst.is_listlike(vmg0_) || sublst.ll_length(vmg0_) < 0)
             err_throw(VMERR_BAD_TYPE_BIF);
 
         /* retrieve the reference character string (sublst's 1st element) */
-        CVmObjList::index_list(vmg_ &val, sublst, 1);
+        sublst.ll_index(vmg_ &val, 1);
         refstr = val.get_as_string(vmg0_);
 
         /* retrieve the value string (sublst's 2nd element) */
-        CVmObjList::index_list(vmg_ &val, sublst, 2);
+        sublst.ll_index(vmg_ &val, 2);
         valstr = val.get_as_string(vmg0_);
 
         /* make sure the reference and value strings are indeed strings */
@@ -281,13 +282,13 @@ public:
         }
 
         /* get the upper-case flags (sublst's 3rd element) */
-        CVmObjList::index_list(vmg_ &val, sublst, 3);
+        sublst.ll_index(vmg_ &val, 3);
         if (val.typ != VM_INT)
             err_throw(VMERR_BAD_TYPE_BIF);
         *uc_result_flags = val.val.intval;
 
         /* get the lower-case flags (sublst's 4th element) */
-        CVmObjList::index_list(vmg_ &val, sublst, 4);
+        sublst.ll_index(vmg_ &val, 4);
         if (val.typ != VM_INT)
             err_throw(VMERR_BAD_TYPE_BIF);
         *lc_result_flags = val.val.intval;
@@ -298,7 +299,7 @@ public:
     
 protected:
     /* my list data */
-    const char *lst_;
+    const vm_val_t *lst_;
 
     /* the list index of the next mapping to retrieve */
     size_t idx_;
@@ -330,7 +331,7 @@ vm_obj_id_t CVmObjStrComp::create_from_stack(
 {
     size_t trunc_len;
     int case_sensitive;
-    const char *lst;
+    const vm_val_t *lst;
     vm_obj_id_t id;
     CVmObjStrComp *obj;
     size_t equiv_cnt;
@@ -370,35 +371,34 @@ vm_obj_id_t CVmObjStrComp::create_from_stack(
     else
     {
         size_t i;
+        int ec;
         
         /* get the list value from the argument */
-        lst = G_stk->get(0)->get_as_list(vmg0_);
-        if (lst == 0)
+        lst = G_stk->get(0);
+        if (!lst->is_listlike(vmg0_)
+            || (ec = lst->ll_length(vmg0_)) < 0)
             err_throw(VMERR_BAD_TYPE_BIF);
 
-        /* the list contains one entry per equivalence mapping */
-        equiv_cnt = vmb_get_len(lst);
-
         /* run through the list and count the value string characters */
-        for (i = 1, total_chars = 0 ; i <= equiv_cnt ; ++i)
+        for (i = 1, total_chars = 0, equiv_cnt = ec ; i <= equiv_cnt ; ++i)
         {
+            vm_val_t sublst;
             vm_val_t val;
-            const char *sublst;
             const char *strp;
             utf8_ptr ustrp;
 
             /* get this mapping from the list */
-            CVmObjList::index_list(vmg_ &val, lst, i);
+            lst->ll_index(vmg_ &sublst, i);
 
             /* make sure it's a sublist */
-            if ((sublst = val.get_as_list(vmg0_)) == 0)
+            if (!sublst.is_listlike(vmg0_))
                 err_throw(VMERR_BAD_TYPE_BIF);
 
             /* 
              *   get the second element of the mapping sublist - this is the
              *   value string 
              */
-            CVmObjList::index_list(vmg_ &val, sublst, 2);
+            sublst.ll_index(vmg_ &val, 2);
             if ((strp = val.get_as_string(vmg0_)) == 0)
                 err_throw(VMERR_BAD_TYPE_BIF);
 
@@ -510,7 +510,7 @@ void CVmObjStrComp::alloc_ext(VMG_ size_t trunc_len, int case_sensitive,
      *   we have no equivalence mappings installed yet, so clear out the
      *   first tier of the mapping array 
      */
-    for (i = 0 ; i < sizeof(ext->equiv)/sizeof(ext->equiv[0]) ; ++i)
+    for (i = 0 ; i < countof(ext->equiv) ; ++i)
         ext->equiv[i] = 0;
 
     /* load the mappings */
@@ -573,7 +573,7 @@ void CVmObjStrComp::save_to_file(VMG_ class CVmFile *fp)
  */
 ulong CVmObjStrComp::write_to_stream(VMG_ CVmStream *str, ulong *bytes_avail)
 {
-    wchar_t ref_ch;
+    wchar_t ref_ch_base;
     vmobj_strcmp_ext *ext = get_ext();
     size_t i;
     vmobj_strcmp_equiv ***p;
@@ -603,14 +603,14 @@ ulong CVmObjStrComp::write_to_stream(VMG_ CVmStream *str, ulong *bytes_avail)
     }
 
     /* write out the serialization structure header */
-    str->write_int2(ext->trunc_len);
-    str->write_int2(ext->case_sensitive ? 0x0001 : 0x0000);
-    str->write_int2(equiv_cnt);
-    str->write_int2(total_value_ch);
+    str->write_uint2(ext->trunc_len);
+    str->write_uint2(ext->case_sensitive ? 0x0001 : 0x0000);
+    str->write_uint2(equiv_cnt);
+    str->write_uint2(total_value_ch);
 
     /* run through our equivalence table again and write the mappings */
-    for (ref_ch = 0, i = 0, p = ext->equiv ;
-         i < sizeof(ext->equiv)/sizeof(ext->equiv[0]) ; ++i, ++p, ++ref_ch)
+    for (ref_ch_base = 0, i = 0, p = ext->equiv ; i < countof(ext->equiv) ;
+         ++i, ++p, ref_ch_base += 256)
     {
         vmobj_strcmp_equiv **ep;
         size_t j;
@@ -629,17 +629,17 @@ ulong CVmObjStrComp::write_to_stream(VMG_ CVmStream *str, ulong *bytes_avail)
                 wchar_t *vp;
                 
                 /* write the fixed part of the mapping */
-                str->write_int2(ref_ch);
+                str->write_uint2(ref_ch_base + j);
                 str->write_byte((uchar)(*ep)->val_ch_cnt);
-                str->write_int4((*ep)->uc_result_flags);
-                str->write_int4((*ep)->lc_result_flags);
+                str->write_uint4((*ep)->uc_result_flags);
+                str->write_uint4((*ep)->lc_result_flags);
 
                 /* write the value mapping characters */
                 for (k = (*ep)->val_ch_cnt, vp = (*ep)->val_ch ; k != 0 ;
                      --k, ++vp)
                 {
                     /* write this character */
-                    str->write_int2(*vp);
+                    str->write_uint2(*vp);
                 }
             }
         }
@@ -661,7 +661,7 @@ void CVmObjStrComp::count_equiv_mappings(size_t *equiv_cnt,
 
     /* run through our table and count up the mappings */
     for (*total_value_ch = 0, *equiv_cnt = 0, i = 0, p = ext->equiv ;
-         i < sizeof(ext->equiv)/sizeof(ext->equiv[0]) ; ++i, ++p)
+         i < countof(ext->equiv) ; ++i, ++p)
     {
         vmobj_strcmp_equiv **ep;
         size_t j;
@@ -968,9 +968,17 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
             }
 
             /* 
-             *   if we make it here, we matched the equivalence mapping -
-             *   we've already skipped the input we matched, so simply keep
-             *   going 
+             *   if we didn't make it to the end of the equivalence string,
+             *   we must have run out of source before we matched the whole
+             *   string, so we don'to have a match 
+             */
+            if (vlen != 0)
+                return 0;
+
+            /* 
+             *   If we make it here, we matched the equivalence mapping.
+             *   We've already skipped the input we matched, so simply keep
+             *   going.  
              */
             continue;
         }
@@ -1026,3 +1034,78 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
     }
 }
 
+/* 
+ *   Check for an approximation match to a given character.  This checks the
+ *   given input string for a match to the approximation for a given
+ *   reference character.  Returns the number of characters in the match, or
+ *   zero if there's no match.  
+ */
+size_t CVmObjStrComp::match_chars(const wchar_t *valstr, size_t vallen,
+                                  wchar_t refch)
+{
+    vmobj_strcmp_ext *ext = get_ext();
+    int fold_case = !(ext->case_sensitive);
+    vmobj_strcmp_equiv **t1;
+    vmobj_strcmp_equiv *eq;
+    wchar_t valch = *valstr;
+    const wchar_t *start = valstr;
+
+    /* check for an exact match first */
+    if (refch == valch)
+        return 1;
+            
+    /* check for a case-folded match if we're insensitive to case */
+    if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
+        return 1;
+
+    /* check for a reference equivalence mapping */
+    if ((t1 = ext->equiv[(refch >> 8) & 0xFF]) != 0
+        && (eq = t1[refch & 0xFF]) != 0)
+    {
+        wchar_t *vp;
+        size_t vlen;
+
+        /* match each character from the mapping string */
+        for (vp = eq->val_ch, vlen = eq->val_ch_cnt ;
+             vallen != 0 && vlen != 0 ; ++vp, --vlen)
+        {
+            /* get this mapping character */
+            refch = *vp;
+
+            /* if we have an exact match, keep going */
+            if (refch == valch)
+            {
+                /* matched - skip this character and keep going */
+                ++valstr;
+                --vallen;
+                continue;
+            }
+
+            /* check for a case-folded match if appropriate */
+            if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
+            {
+                /* matched - skip this input character */
+                ++valstr;
+                --vallen;
+                continue;
+            }
+
+            /* no match */
+            return 0;
+        }
+
+        /* we've matched the mapping - return the match length */
+        return valstr - start;
+    }
+
+    /* it doesn't match any of the possibilities */
+    return 0;
+}
+
+/*
+ *   Get the truncation length 
+ */
+size_t CVmObjStrComp::trunc_len() const
+{
+    return get_ext()->trunc_len;
+}

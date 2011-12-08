@@ -206,5 +206,23 @@ kf(B b1, B b2) { "\nf(B b1=<<b1.name>>, B b2=<<b2.name>>) "; inherited(b1, b2); 
 kf(B b1, C c1) { "\nf(B b1=<<b1.name>>, C c1=<<c1.name>>) "; inherited(b1, c1); }
 kf(C c1, A a1) { "\nf(C c1=<<c1.name>>, A a1=<<a1.name>>) "; inherited(c1, a1); }
 kf(C c1, B b1) { "\nf(C c1=<<c1.name>>, B b1=<<b1.name>>) "; inherited(c1, b1); }
-kf(C c1, C c2) { "\f(C c1=<<c1.name>>, C c2=<<c2.name>>) "; inherited(c1, c2); }
+kf(C c1, C c2) { "\nf(C c1=<<c1.name>>, C c2=<<c2.name>>) "; inherited(c1, c2); }
 
+replace kf(B b1, B b2)
+{
+    "\n!!Replaced!! f(B b1=<<b1.name>>, B b2=<<b2.name>>) ";
+    inherited(b1, b2);
+}
+
+modify kf(A a1, B b1)
+{
+    "\n!!Modified!! f(A a1=<<a1.name>>, B b1=<<b1.name>>) ";
+
+    "\n[ inherited:";
+    inherited(a1, b1);
+    "\n..back from inherited!]";
+
+    "\n[ replaced:";
+    replaced(a1, b1);
+    "\n.. back from replaced!]";
+}

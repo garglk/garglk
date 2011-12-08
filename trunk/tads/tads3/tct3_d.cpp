@@ -23,11 +23,7 @@ Modified
 #include "tctarg.h"
 #include "tcprs.h"
 
-/*
- *   Build the debug table - not required when we're compiling code in the
- *   debugger, since debugger-generated code can't itself be debugged 
- */
-void CTPNCodeBody::build_debug_table(ulong)
+void CTcGenTarg::add_debug_line_table(ulong)
 {
 }
 

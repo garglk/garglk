@@ -892,6 +892,11 @@ parse_options:
                 else
                     goto missing_option_arg;
             }
+            else if (strcmp(argv[curarg], "-statpct") == 0)
+            {
+                /* note that we want status percentage updates */
+                mk->set_status_pct_mode(TRUE);
+            }
             else
             {
                 /* unknown option - report usage error */
@@ -1132,7 +1137,7 @@ parse_options:
         /* show the banner */
         /* copyright-date-string */
         printf("TADS Compiler %d.%d.%d%s  "
-               "Copyright 1999, 2007 Michael J. Roberts\n",
+               "Copyright 1999, 2010 Michael J. Roberts\n",
                TC_VSN_MAJOR, TC_VSN_MINOR, TC_VSN_REV, patch_id);
     }
 

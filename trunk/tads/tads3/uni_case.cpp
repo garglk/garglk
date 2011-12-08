@@ -267,8 +267,9 @@ int main()
             break;
 
         case 'Z':
-            /* it's a space of some kind */
-            attr = T3_CTYPE_SPACE;
+            /* Zp, Zl -> vertical space; otherwise it's a horizontal space */
+            attr = (chartype[1] == 'p' || chartype[1] == 'l'
+                    ? T3_CTYPE_VSPACE : T3_CTYPE_SPACE);
             break;
 
         case 'P':
@@ -278,13 +279,39 @@ int main()
 
         case 'C':
             /* 
-             *   control character - check the bidi class to see if it's a
-             *   spacing character of some kind 
+             *   Control character - check the bidi class to see if it's a
+             *   spacing character of some kind.
+             *   
+             *.     WS - ordinary horizontal whitespace
+             *.     S - horizontal separator (tab, etc); counts as whitespace
+             *.     B - vertical whitespace (CR, LF, etc)
              */
-            if ((bidi[0] == 'B' && bidi[1] == '\0')
-                || (bidi[0] == 'W' && bidi[1] == 'S' && bidi[2] == '\0')
+            if (ch == 0x0B)
+            {
+                /* TADS-specific \b character -> vertical whitespace */
+                attr = T3_CTYPE_VSPACE;
+            }
+            else if (ch == 0x0E || ch == 0x0F)
+            {
+                /* TADS-specific \v and \^ -> device controls */
+                attr = T3_CTYPE_NONE;
+            }
+            else if (ch == 0x15)
+            {
+                /* TADS-specific '\ ' quoted space -> ordinary character */
+                attr = T3_CTYPE_NONE;
+            }
+            else if ((bidi[0] == 'W' && bidi[1] == 'S' && bidi[2] == '\0')
                 || (bidi[0] == 'S' && bidi[1] == '\0'))
+            {
+                /* WS, S -> whitespace */
                 attr = T3_CTYPE_SPACE;
+            }
+            else if (bidi[0] == 'B' && bidi[1] == '\0')
+            {
+                /* B -> vertical whitespace */
+                attr = T3_CTYPE_VSPACE;
+            }
             break;
         }
 
@@ -301,7 +328,8 @@ int main()
 
                 /* clear it out */
                 memset(attr_page[ch / ATTR_PAGE_SIZE],
-                       T3_CTYPE_NONE, ATTR_PAGE_SIZE * sizeof(unsigned char));
+                       T3_CTYPE_UNDEF,
+                       ATTR_PAGE_SIZE * sizeof(unsigned char));
             }
 
             /* add the mapping */
@@ -398,6 +426,14 @@ int main()
                     attr_name = "T3_CTYPE_PUNCT";
                     break;
 
+                case T3_CTYPE_VSPACE:
+                    attr_name = "T3_CTYPE_VSPACE";
+                    break;
+
+                case T3_CTYPE_UNDEF:
+                    attr_name = "T3_CTYPE_UNDEF";
+                    break;
+
                 default:
                     attr_name = "???";
                     break;
@@ -406,7 +442,10 @@ int main()
                 /* get the name */
                 nm = ch_name[i * ATTR_PAGE_SIZE + j];
                 if (nm == 0)
+                {
                     nm = "(unused)";
+                    attr_name = "T3_CTYPE_UNDEF";
+                }
 
                 /* add the listing */
                 printf("    %-15s,  /* %04x  %s */\n",

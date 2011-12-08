@@ -1,0 +1,227 @@
+/* copyright 2006 MJRoberts */
+/* style sheet for TADS 3 System Manual */
+
+body {
+    background: #ffffff;
+    font: 10pt/14pt Verdana, Arial, Helvetica, Sans-Serif;
+    color: #000000;
+    line-height: 1.4;
+    margin: 0px 0px 1.5em 0px;
+}
+
+table {
+    font: 10pt/14pt Verdana, Arial, Helvetica, Sans-Serif;
+}
+
+h1 {
+    font: 18pt/24pt Georgia, Times New Roman, New York, Times, Serif;
+    font-weight: normal;
+    color: #000080;
+}
+
+h2 {
+    font: 14pt/20pt Georgia, Times New Roman, New York, Times, Serif;
+    font-weight: normal;
+    color: #000080;
+}
+
+h3 {
+    font: 12pt/16pt Georgia, Times New Roman, New York, Times, Serif;
+    font-weight: normal;
+    color: #000080;
+}
+
+h4 {
+    font: 11pt/14pt Georgia, Times New Roman, New York, Times, Serif;
+    color: #000080;
+}
+
+div.section_title {
+    width: 100%;
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+    font-family: Verdana, Arial, Helvetica, Sans-Serif;
+    font-weight: bold;
+    color: #000080;
+    background: #d0d0d0;
+}
+
+div.topbar {
+    width: 100%;
+    background: #c0c0c0;
+}
+
+div.main {
+    margin-top: 15px; 
+    margin-left: 10px; 
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+div.nav {
+    margin-left: 5px;
+    margin-top: 15px;
+    font-size: 90%;
+    color: #606060;
+}
+
+a.nav {
+    text-decoration: none;
+}
+
+a.nav:hover {
+    text-decoration: underline;
+}
+
+hr.navb {
+    margin-top: 2em;
+    margin-bottom: 0px;
+}
+
+div.navb {
+    margin-left: 5px;
+    margin-top: 0px;
+    font-size: 90%;
+    color: #606060;
+}
+
+span.navnp {
+    margin-left: 1.5em;
+}
+
+div.footer {
+    margin-top: 25px;
+    margin-bottom: 15px;
+    margin-left: 10px;
+    color: #808080;
+    font-size: 90%;
+}
+
+div.code {
+    font-family: Courier New, Courier, monospace;
+    white-space: pre;
+    margin-left: 2em;
+    color: #000080;
+}
+
+span.code {
+    font-family: Courier New, Courier, monospace;
+    color: #000080;
+}
+
+div.cmdline {
+    font-family: Courier New, Courier, monospace;
+    white-space: pre;
+    margin-left: 2em;
+    color: #006000;
+}
+
+div.syntax {
+    font-family: Times New Roman, Times, New York, Serif;
+    margin-left: 2em;
+    white-space: pre;
+}
+
+span.synLit {
+    font-family: Courier New, Courier, monospace;
+    font-weight: bold;
+    color: #D00000;
+}
+
+span.synPar {
+    font-family: Times New Roman, Times, New York, Serif;
+    font-style: italic;
+    color: #0000D0;
+}
+
+span.synMark {
+    font-family: Times New Roman, Times, New York, Serif;
+    font-style: italic;
+    color: #00A000;
+}
+
+span.synMark {
+}
+
+
+div.sectoc {
+    margin-left: 1em;
+}
+
+a.sectoc {
+    text-decoration: none;
+}
+
+a.sectoc:hover {
+    text-decoration: underline;
+}
+
+
+div.toc1 {
+    margin-top: 0.5em;
+    margin-bottom: 0.25em;
+    margin-left: 1em;
+    font-weight: bold;
+}
+
+div.toc2 {
+    margin-left: 2em;
+}
+
+div.toc3 {
+    margin-left: 3em;
+}
+
+a.toc {
+    text-decoration: none;
+}
+
+a.toc:hover {
+    text-decoration: underline;
+}
+
+div.title {
+    margin-top: 5px;
+    margin-left: 5px;
+    margin-right: 5px;
+    font-size: 90%;
+    font-style: italic;
+}
+
+div.fdef {
+    margin-left: 3em;
+    margin-top: 0.5em;
+    margin-bottom: 2em;
+}
+
+span.errid {
+    color: #000080;
+}
+
+div.errvb {
+    margin-left: 3em;
+}
+
+span.tall {
+    line-height: 1.5em;
+}
+
+ol.doublespace li {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+ol.doublespace li li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+ul.doublespace li {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+ul.doublespace li li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}

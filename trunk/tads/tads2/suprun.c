@@ -208,7 +208,7 @@ void supcont(void *ctx0, objnum obj, prpnum prp)
     if (!ctx->supcxbuf)
     {
         ctx->supcxlen = 512;
-        ctx->supcxbuf = mchalo(ctx->supcxerr, (ushort)ctx->supcxlen,
+        ctx->supcxbuf = mchalo(ctx->supcxerr, ctx->supcxlen,
                                "supcont");
     }
 
@@ -238,7 +238,7 @@ void supcont(void *ctx0, objnum obj, prpnum prp)
 
                     /* allocate a new buffer */
                     newbuf = mchalo(ctx->supcxerr,
-                                    (ushort)(len + 512), "supcont");
+                                    (len + 512), "supcont");
 
                     /* copy the old buffer's contents into the new buffer */
                     memcpy(newbuf, ctx->supcxbuf, ctx->supcxlen);

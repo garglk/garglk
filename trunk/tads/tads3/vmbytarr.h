@@ -92,11 +92,7 @@ public:
      */
     static int call_stat_prop(VMG_ vm_val_t *result,
                               const uchar **pc_ptr, uint *argc,
-                              vm_prop_id_t prop)
-    {
-        /* explicitly inherit our superclass handling */
-        return CVmObject::call_stat_prop(vmg_ result, pc_ptr, argc, prop);
-    }
+                              vm_prop_id_t prop);
 
     /* reserve constant data */
     virtual void reserve_const_data(VMG_ class CVmConstMapper *mapper,
@@ -118,12 +114,20 @@ public:
          */
     }
 
+    /* cast to string - assumes the bytes as Latin-1 characters */
+    virtual const char *cast_to_string(VMG_ vm_obj_id_t self,
+                                       vm_val_t *new_str) const;
+
     /* create an array with no initial contents */
     static vm_obj_id_t create(VMG_ int in_root_set);
 
     /* create an array with a given number of elements */
     static vm_obj_id_t create(VMG_ int in_root_set,
                               unsigned long element_count);
+
+    /* create an array by mapping a string through a character set */
+    static vm_obj_id_t create_from_string(
+        VMG_ const vm_val_t *strval, const char *str, const vm_val_t *mapval);
 
     /* 
      *   determine if an object is a byte array - it is if the object's
@@ -173,12 +177,12 @@ public:
                            class CVmFile *fp, class CVmObjFixup *fixup);
 
     /* index the array */
-    void index_val(VMG_ vm_val_t *result, vm_obj_id_t self,
-                   const vm_val_t *index_val);
+    int index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
+                    const vm_val_t *index_val);
 
     /* set an indexed element of the array */
-    void set_index_val(VMG_ vm_val_t *new_container, vm_obj_id_t self,
-                       const vm_val_t *index_val, const vm_val_t *new_val);
+    int set_index_val_q(VMG_ vm_val_t *new_container, vm_obj_id_t self,
+                        const vm_val_t *index_val, const vm_val_t *new_val);
 
     /* 
      *   Check a value for equality.  We will match another byte array with
@@ -199,6 +203,13 @@ public:
     unsigned long get_element_count() const
         { return t3rp4u(get_ext_ptr()); }
 
+    /* get the byte at a given 1-based index */
+    unsigned char get_element(unsigned long idx) const
+    {
+        size_t avail;
+        return *get_ele_ptr(idx, &avail);
+    }
+
     /* 
      *   construction: copy (without undo) bytes from a buffer into the byte
      *   array 
@@ -214,7 +225,7 @@ public:
      *   Write the specified region of the array to a file.  Returns zero on
      *   success, non-zero on failure. 
      */
-    int write_to_file(osfildef *fp, unsigned long start_idx,
+    int write_to_file(class CVmDataSource *fp, unsigned long start_idx,
                       unsigned long len) const;
 
     /* 
@@ -224,20 +235,40 @@ public:
      *   than the number of bytes requested if we reach the end of the file
      *   before satisfying the request.  
      */
-    unsigned long read_from_file(osfildef *fp, unsigned long start_idx,
-                                 unsigned long len);
+    unsigned long read_from_file(VMG_ vm_obj_id_t self,
+                                 class CVmDataSource *fp,
+                                 unsigned long start_idx, unsigned long len,
+                                 int save_undo);
 
     /* 
      *   write to a 'data' mode file - returns zero on success, non-zero on
      *   failure 
      */
-    int write_to_data_file(osfildef *fp);
+    int write_to_data_file(class CVmDataSource *fp);
 
     /* 
      *   read from a 'data' mode file, creating a new ByteArray object to
      *   hold the bytes from the file 
      */
-    static int read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp);
+    static int read_from_data_file(VMG_ vm_val_t *retval,
+                                   class CVmDataSource *fp);
+
+    /* 
+     *   Copy bytes into a buffer.  Returns the number of bytes actually
+     *   copied (this might be less than the requested size, because the
+     *   ByteArray might not have enough contents to fill the request). 
+     */
+    size_t copy_to_buf(unsigned char *buf, unsigned long idx, size_t cnt)
+        const;
+
+    /* 
+     *   Copy bytes from a buffer into the array, saving undo.  Returns the
+     *   actual number of bytes copied, which might be less than the
+     *   requested size, since the ByteArray might not be big enough to
+     *   accommodate the write. 
+     */
+    size_t copy_from_buf_undo(VMG_ vm_obj_id_t self, const unsigned char *buf,
+                              unsigned long idx, size_t cnt);
 
 protected:
     /* load image data */
@@ -288,6 +319,21 @@ protected:
 
     /* property evaluator - write integer */
     int getp_write_int(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - packBytes */
+    int getp_packBytes(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - unpackBytes */
+    int getp_unpackBytes(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - static ByteArray.unpackBytes */
+    static int static_packBytes(VMG_ vm_val_t *retval, uint *argc);
+
+    /* property evaluator - sha256 */
+    int getp_sha256(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - digestMD5 */
+    int getp_digestMD5(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
 
     /* 
      *   Given a 1-based index, get a pointer to the byte at the index, and
@@ -371,9 +417,6 @@ protected:
     void move_bytes(unsigned long dst_idx, unsigned long src_idx,
                     unsigned long cnt);
 
-    /* copy bytes into a buffer */
-    void copy_to_buf(unsigned char *buf, unsigned long idx, size_t cnt) const;
-
     /* copy bytes from a buffer into the array */
     void copy_from_buf(const unsigned char *buf,
                        unsigned long idx, size_t cnt);
@@ -404,7 +447,7 @@ class CVmMetaclassByteArray: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "bytearray/030001"; }
+    const char *get_meta_name() const { return "bytearray/030002"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

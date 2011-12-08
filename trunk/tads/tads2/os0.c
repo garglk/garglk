@@ -105,7 +105,7 @@ static int os0main_internal(int oargc, char **oargv,
     if (oargv != 0 && oargv[0] != 0
         && (fp = os_exeseek(oargv[0], "RCFG")) != 0)
     {
-        osfrb(fp, &fsiz, sizeof(fsiz));
+        (void)osfrb(fp, &fsiz, sizeof(fsiz));
     }
     else if (config != 0
              && os_locate(config, (int)strlen(config), oargv[0], buf,
@@ -129,7 +129,7 @@ static int os0main_internal(int oargc, char **oargv,
         if (configbuf != 0)
         {
             /* read the configuration file into the buffer */
-            osfrb(fp, configbuf, (size_t)fsiz);
+            (void)osfrb(fp, configbuf, (size_t)fsiz);
 
             /* null-terminate it */
             configbuf[fsiz] = '\0';

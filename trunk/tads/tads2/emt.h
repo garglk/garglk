@@ -102,15 +102,25 @@ void emtval(emtcxdef *ctx, struct tokdef *tok, uchar *base);
   memcpy((ctx)->emtcxptr + (ctx)->emtcxofs,ptr,(size_t)(siz)),\
   (void)((ctx)->emtcxofs += (siz)))
 
-/* emit a 2-byte integer value */
+/* emit an 2-byte unsigned integer value */
 /* void emtint2(emtcxdef *ctx, int i); */
 #define emtint2(ctx,i) \
  (emtres(ctx, (ushort)2), oswp2((ctx)->emtcxptr + (ctx)->emtcxofs, i), \
- (ctx)->emtcxofs+=2)
+  (ctx)->emtcxofs+=2)
+
+/* emit a 2-byte signed integer value */
+/* void emtint2s(emtcxdef *ctx, int i); */
+#define emtint2s(ctx,i) \
+ (emtres(ctx, (ushort)2), oswp2s((ctx)->emtcxptr + (ctx)->emtcxofs, i), \
+  (ctx)->emtcxofs+=2)
 
 /* emit a 2-byte integer at a particular offset in the code */
 #define emtint2at(ctx,i,ofs) \
  (oswp2((ctx)->emtcxptr + (ofs), i))
+
+/* emit a signed 2-byte integer at a particular offset in the code */
+#define emtint2sat(ctx,i,ofs) \
+ (oswp2s((ctx)->emtcxptr + (ofs), i))
 
 /* read a 2-byte integer previously emitted */
 #define emtint2from(ctx, ofs) \
@@ -119,7 +129,7 @@ void emtval(emtcxdef *ctx, struct tokdef *tok, uchar *base);
 /* emit a 4-byte integer value */
 /* void emtint4(emtcxdef *ctx, long l); */
 #define emtint4(ctx,l) \
- (emtres(ctx, (ushort)4), oswp4((ctx)->emtcxptr + (ctx)->emtcxofs, l), \
+ (emtres(ctx, (ushort)4), oswp4s((ctx)->emtcxptr + (ctx)->emtcxofs, l), \
  (ctx)->emtcxofs+=4)
 
 

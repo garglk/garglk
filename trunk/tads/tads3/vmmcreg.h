@@ -47,6 +47,7 @@ Modified
  */
 #include "vmmccore.h"
 
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Metaclass registration entry.  Each registered metaclass defines an

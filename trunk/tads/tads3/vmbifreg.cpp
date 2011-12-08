@@ -57,8 +57,9 @@ Modified
 /* done with the vector definition */
 #undef VMBIF_DEFINE_VECTOR
 
-#define MAKE_ENTRY(entry_name, entry_table) \
-    { entry_name, sizeof(entry_table)/sizeof(entry_table[0]), entry_table }
+#define MAKE_ENTRY(entry_name, cls) \
+    { entry_name, countof(cls::bif_table), cls::bif_table, \
+      &cls::attach, &cls::detach }
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -69,16 +70,16 @@ Modified
 vm_bif_entry_t G_bif_reg_table[] =
 {
     /* T3 VM system function set, v1 */
-    MAKE_ENTRY("t3vm/010005", G_bif_t3),
+    MAKE_ENTRY("t3vm/010006", CVmBifT3),
 
     /* T3 VM Testing interface, v1 */
-    MAKE_ENTRY("t3vmTEST/010000", G_bif_t3_test),
+    MAKE_ENTRY("t3vmTEST/010000", CVmBifT3Test),
     
     /* TADS generic data manipulation functions */
-    MAKE_ENTRY("tads-gen/030006", G_bif_tadsgen),
+    MAKE_ENTRY("tads-gen/030007", CVmBifTADS),
 
     /* TADS input/output functions */
-    MAKE_ENTRY("tads-io/030007", G_bif_tadsio),
+    MAKE_ENTRY("tads-io/030007", CVmBifTIO),
 
     // !!! ADD ANY HOST-SPECIFIC FUNCTION SETS HERE
 

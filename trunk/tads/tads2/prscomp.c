@@ -538,7 +538,7 @@ startover:
                        ctx->prscxpool);
                 diff = (int)(curctab->prsctcase[i].prsctofs
                              - ctx->prscxemt->emtcxofs);
-                emtint2(ctx->prscxemt, diff);
+                emtint2s(ctx->prscxemt, diff);
             }
             
             /* done with this table - free it */
@@ -550,7 +550,7 @@ startover:
         if (myswctl.prscsdflt)
         {
             int diff = (int)(myswctl.prscsdflt - ctx->prscxemt->emtcxofs);
-            emtint2(ctx->prscxemt, diff);
+            emtint2s(ctx->prscxemt, diff);
         }
         else
             emtint2(ctx->prscxemt, 2);           /* no default - skip ahead */
@@ -1481,7 +1481,7 @@ static void prsobj(prscxdef *ctx, noreg tokdef *objtok, int numsc,
                     case TOKTNUMBER:
                         typ = DAT_NUMBER;
                         val = valbuf;
-                        oswp4(valbuf, expr->prsnv.prsnvt.tokval);
+                        oswp4s(valbuf, expr->prsnv.prsnvt.tokval);
                         break;
                         
                     case TOKTNIL:
@@ -1677,7 +1677,7 @@ static void prsspec(prscxdef *ctx, int modflag)
                 uchar *newptr;
                 
                 newsiz = ctx->prscxsps + len + 128;
-                newptr = mchalo(ctx->prscxerr, (ushort)newsiz, "prsspec");
+                newptr = mchalo(ctx->prscxerr, newsiz, "prsspec");
                 
                 /* copy old area, if there was one */
                 if (ctx->prscxspp)
@@ -1769,7 +1769,7 @@ static void prsfmt(prscxdef *ctx)
         
         /* get more storage */
         newsiz = ctx->prscxfss + len + 256;
-        newptr = mchalo(ctx->prscxerr, (ushort)newsiz, "prsfmt");
+        newptr = mchalo(ctx->prscxerr, newsiz, "prsfmt");
         
         /* set up new storage */
         if (ctx->prscxfsp)
@@ -1826,7 +1826,7 @@ static void prscmpd(prscxdef *ctx)
         
         /* get more storage */
         newsiz = ctx->prscxcps + need + 256;
-        newptr = mchalo(ctx->prscxerr, (ushort)newsiz, "prscmpd");
+        newptr = mchalo(ctx->prscxerr, newsiz, "prscmpd");
 
         /* set up new storage */
         if (ctx->prscxcpp)

@@ -72,16 +72,6 @@ extern "C" {
  *   Include the appropriate hardware-specific header. 
  */
 
-#ifdef __ppc__
-#define _M_PPC
-#else
-#ifdef __x86_64__
-#define _M_IX86_64
-#else
-#define _M_IX86
-#endif
-#endif
-
 /*
  *   Intel x86 processors - 32-bit
  */
@@ -133,10 +123,6 @@ extern "C" {
  *   all of the headers, and instead just select one big file for each
  *   system-specific definitions.  
  */
-
-#ifdef GARGOYLE
-#include "osansi.h"
-#else
 
 #ifdef _WIN32
 # include "oswin.h"
@@ -201,7 +187,6 @@ extern "C" {
 #include "osfrobtads.h"
 #endif
 
-#endif /* SPATTERLIGHT */
 
 /* **************** add other systems here **************** */
 

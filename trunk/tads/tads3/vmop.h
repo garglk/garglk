@@ -35,6 +35,7 @@ Modified
 #define OPC_PUSHPARLST   0x0D                /* push varargs parameter list */
 #define OPC_MAKELSTPAR   0x0E           /* push varargs parameter from list */
 #define OPC_PUSHENUM     0x0F                         /* push an enum value */
+#define OPC_PUSHBIFPTR   0x10      /* push a pointer to a built-in function */
 
 #define OPC_NEG          0x20                                     /* negate */
 #define OPC_BNOT         0x21                                /* bitwise NOT */
@@ -44,7 +45,7 @@ Modified
 #define OPC_BAND         0x25                                /* bitwise AND */
 #define OPC_BOR          0x26                                 /* bitwise OR */
 #define OPC_SHL          0x27                                 /* shift left */
-#define OPC_SHR          0x28                                /* shift right */
+#define OPC_ASHR          0x28                    /* arithmetic shift right */
 #define OPC_XOR          0x29                        /* bitwise/logical XOR */
 #define OPC_DIV          0x2A                                     /* divide */
 #define OPC_MOD          0x2B                            /* MOD (remainder) */
@@ -52,6 +53,7 @@ Modified
 #define OPC_BOOLIZE      0x2D           /* convert top of stack to true/nil */
 #define OPC_INC          0x2E            /* increment value at top of stack */
 #define OPC_DEC          0x2F            /* decrement value at top of stack */
+#define OPC_LSHR         0x30                        /* logical shift right */
 
 #define OPC_EQ           0x40                                     /* equals */
 #define OPC_NE           0x41                                 /* not equals */
@@ -64,6 +66,9 @@ Modified
 #define OPC_RETNIL       0x51                                 /* return nil */
 #define OPC_RETTRUE      0x52                                /* return true */
 #define OPC_RET          0x54                       /* return with no value */
+
+#define OPC_NAMEDARGPTR  0x56            /* pointer to named argument table */
+#define OPC_NAMEDARGTAB  0x57                       /* named argument table */
 
 #define OPC_CALL         0x58                              /* function call */
 #define OPC_PTRCALL      0x59              /* function call through pointer */
@@ -91,6 +96,14 @@ Modified
 #define OPC_DELEGATE     0x77                /* delegate to object on stack */
 #define OPC_PTRDELEGATE  0x78          /* delegate through property pointer */
 
+#define OPC_SWAP2        0x7A        /* swap top two elements with next two */
+#define OPC_SWAPN        0x7B           /* swap elements at operand indices */
+
+#define OPC_GETARGN0     0x7C                            /* get argument #0 */
+#define OPC_GETARGN1     0x7D                            /* get argument #1 */
+#define OPC_GETARGN2     0x7E                            /* get argument #2 */
+#define OPC_GETARGN3     0x7F                            /* get argument #3 */
+
 #define OPC_GETLCL1      0x80                      /* push a local variable */
 #define OPC_GETLCL2      0x81                /* push a local (2-byte index) */
 #define OPC_GETARG1      0x82                           /* push an argument */
@@ -110,6 +123,9 @@ Modified
 #define PUSHCTXELE_TARGPROP 0x01                    /* push target property */
 #define PUSHCTXELE_TARGOBJ  0x02                      /* push target object */
 #define PUSHCTXELE_DEFOBJ   0x03                    /* push defining object */
+#define PUSHCTXELE_INVOKEE  0x04                        /* push the invokee */
+
+#define OPC_DUP2         0x8F       /* duplicate the top two stack elements */
 
 #define OPC_SWITCH       0x90                    /* jump through case table */
 #define OPC_JMP          0x91                       /* unconditional branch */
@@ -118,7 +134,7 @@ Modified
 #define OPC_JE           0x94                              /* jump if equal */
 #define OPC_JNE          0x95                          /* jump if not equal */
 #define OPC_JGT          0x96                       /* jump if greater than */
-#define OPC_JGE          0x97
+#define OPC_JGE          0x97                   /* jump if greater or equal */
 #define OPC_JLT          0x98                          /* jump if less than */
 #define OPC_JLE          0x99                 /* jump if less than or equal */
 #define OPC_JST          0x9A                      /* jump and save if true */
@@ -129,6 +145,19 @@ Modified
 #define OPC_JNOTNIL      0x9F                            /* jump if not nil */
 #define OPC_JR0T         0xA0                         /* jump if R0 is true */
 #define OPC_JR0F         0xA1                        /* jump if R0 is false */
+#define OPC_ITERNEXT     0xA2                              /* iterator next */
+
+#define OPC_GETSETLCL1R0 0xA3 /* set local from R0 and leave value on stack */
+#define OPC_GETSETLCL1   0xA4         /* set local and leave value on stack */
+#define OPC_DUPR0        0xA5                              /* push R0 twice */
+#define OPC_GETSPN       0xA6           /* get stack element at given index */
+
+#define OPC_GETLCLN0     0xAA                               /* get local #0 */
+#define OPC_GETLCLN1     0xAB                               /* get local #1 */
+#define OPC_GETLCLN2     0xAC                               /* get local #2 */
+#define OPC_GETLCLN3     0xAD                               /* get local #3 */
+#define OPC_GETLCLN4     0xAE                               /* get local #4 */
+#define OPC_GETLCLN5     0xAF                               /* get local #5 */
 
 #define OPC_SAY          0xB0                  /* display a constant string */
 #define OPC_BUILTIN_A    0xB1              /* call built-in func from set 0 */

@@ -695,6 +695,9 @@ struct vocerr_va_info
      *   to point to user_msg[].  
      */
     char *outp;
+
+    /* size of the output buffer, in bytes */
+    size_t outsiz;
 };
 
 /*
@@ -713,6 +716,7 @@ static void vocerr_va_prep(voccxdef *ctx, struct vocerr_va_info *info,
 
     /* use the output buffer from the info structure */
     info->outp = info->user_msg;
+    info->outsiz = sizeof(info->user_msg);
 
     /* 
      *   if the user has a parseError or parseErrorParam function, see if it
@@ -868,6 +872,7 @@ static void vocerr_va_prep(voccxdef *ctx, struct vocerr_va_info *info,
 
             /* use the remainder of the buffer for the final formatting */
             info->outp = info->user_msg + len + 1;
+            info->outsiz = sizeof(info->user_msg) - len - 1;
         }
         else
         {
@@ -891,14 +896,20 @@ static void vocerr_va_prep(voccxdef *ctx, struct vocerr_va_info *info,
 static void vocerr_va(voccxdef *ctx, struct vocerr_va_info *info,
                       int err, char *f, va_list argptr)
 {
+    char *buf;
+    
     /* turn on output */
     (void)tioshow(ctx->voccxtio);
 
     /* build the string to display */
-    vsprintf(info->outp, info->fmt, argptr);
+    if (os_vasprintf(&buf, info->fmt, argptr) >= 0)
+    {
+        /* display it */
+        tioputs(ctx->voccxtio, buf);
 
-    /* display it */
-    tioputs(ctx->voccxtio, info->outp);
+        /* free the buffer */
+        osfree(buf);
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -3329,7 +3340,7 @@ void voc_parse_types(voccxdef *ctx)
 
             /* add this type to the return list */
             *typp++ = DAT_NUMBER;
-            oswp4(typp, curtyp);
+            oswp4s(typp, curtyp);
             typp += 4;
         }
     }
@@ -3564,7 +3575,7 @@ void voc_parse_np(voccxdef *ctx)
          *   (adjusting to 1-based indexing) 
          */
         *lstp++ = DAT_NUMBER;
-        oswp4(lstp, next + 1);
+        oswp4s(lstp, next + 1);
         lstp += 4;
 
         /* build the list */
@@ -3609,10 +3620,10 @@ void voc_parse_np(voccxdef *ctx)
 
             /* add the first and last index, adjusting to 1-based indexing */
             *lstp++ = DAT_NUMBER;
-            oswp4(lstp, firstidx + 1);
+            oswp4s(lstp, firstidx + 1);
             lstp += 4;
             *lstp++ = DAT_NUMBER;
-            oswp4(lstp, lastidx + 1);
+            oswp4s(lstp, lastidx + 1);
             lstp += 4;
 
             /* add the objects */
@@ -3636,7 +3647,7 @@ void voc_parse_np(voccxdef *ctx)
 
                 /* add the flags */
                 *lstp++ = DAT_NUMBER;
-                oswp4(lstp, objlist[i].vocolflg);
+                oswp4s(lstp, objlist[i].vocolflg);
                 lstp += 4;
             }
 
@@ -4387,7 +4398,7 @@ void voc_parse_disambig(voccxdef *ctx)
 
     /* store the status code in the first element */
     *lstp++ = DAT_NUMBER;
-    oswp4(lstp, err);
+    oswp4s(lstp, err);
     lstp += 4;
 
     /* store the remainder of the list */
@@ -4942,7 +4953,7 @@ static int voc_disambig_hook(voccxdef *ctx, objnum verb, objnum actor,
         if (lstsiz > 0 && *lstp == DAT_NUMBER)
         {
             /* get the status code */
-            ret = osrp4(lstp+1);
+            ret = osrp4s(lstp+1);
 
             /* skip the element */
             lstadv(&lstp, &lstsiz);
@@ -5300,7 +5311,7 @@ int vocdisambig(voccxdef *ctx, vocoldef *outlist, vocoldef *inlist,
             char vbuf[4];
             
             v1 = atol(inlist[inpos].vocolfst);
-            oswp4(vbuf, v1);
+            oswp4s(vbuf, v1);
             vocsetobj(ctx, ctx->voccxnum, DAT_NUMBER, vbuf,
                       &inlist[inpos], &outlist[outpos]);
             ++outpos;
@@ -5537,7 +5548,8 @@ int vocdisambig(voccxdef *ctx, vocoldef *outlist, vocoldef *inlist,
              *   go through the objects matching the current noun phrase
              *   and add them into our list 
              */
-            while (lpos < listlen && inlist[lpos].vocolfst == inlist[inpos].vocolfst)
+            while (inlist[lpos].vocolfst == inlist[inpos].vocolfst
+                   && lpos < listlen)
             {
                 /* add this object to the list of nouns */
                 list1[i] = inlist[lpos].vocolobj;
@@ -6032,7 +6044,7 @@ int vocdisambig(voccxdef *ctx, vocoldef *outlist, vocoldef *inlist,
                 char  vbuf[4];
 
                 v1 = atol(inlist[inpos].vocolfst);
-                oswp4(vbuf, v1);
+                oswp4s(vbuf, v1);
                 vocsetobj(ctx, ctx->voccxnum, DAT_NUMBER, vbuf,
                           &inlist[inpos], &outlist[outpos]);
                 outlist[outpos].vocolflg = VOCS_NUM;
@@ -8121,9 +8133,7 @@ void voc_stk_ini(voccxdef *ctx, uint siz)
     /* allocate it if it's not already allocated */
     if (ctx->voc_stk_ptr == 0)
     {
-    /* siz may exceed 64k on 64-bit systems... */
-        ctx->voc_stk_ptr = (uchar *)osmalloc(siz);
-    if (!ctx->voc_stk_ptr) errsig(ctx->voccxerr, ERR_NOMEM);
+        ctx->voc_stk_ptr = mchalo(ctx->voccxerr, siz, "voc_stk_ini");
         ctx->voc_stk_end = ctx->voc_stk_ptr + siz;
     }
     

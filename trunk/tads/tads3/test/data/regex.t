@@ -15,12 +15,12 @@ main(args)
         
         "string: "; str = inputLine();
 
-        match = rexMatch(pat, str);
+        match = rexSearch(pat, str);
         if (match == nil)
             "No match.\n";
         else
         {
-            "Match length = <<match>>\n";
+            "Match=[<<match[3]>>] (ofs <<match[1]>>, len <<match[2]>>)\n";
             for (local i = 1 ; i < 9 ; ++i)
             {
                 local g = rexGroup(i);

@@ -52,13 +52,15 @@ public:
     static int is_anonfn_obj(VMG_ vm_obj_id_t obj)
         { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
+    /* we don't look like a list to user code */
+    int is_listlike(VMG_ vm_obj_id_t) { return FALSE; }
+
     /* create dynamically using stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
                                          uint argc);
 
-    /* get a property */
-    int get_prop(VMG_ vm_prop_id_t prop, vm_val_t *val,
-                 vm_obj_id_t self, vm_obj_id_t *source_obj, uint *argc);
+    /* invoke */
+    int get_invoker(VMG_ vm_val_t *val);
 
     /* check for equality - compare strictly by reference */
     int equals(VMG_ vm_obj_id_t self, const vm_val_t *val, int) const
@@ -91,7 +93,7 @@ protected:
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Registration table object 
+ *   Registration table objects
  */
 class CVmMetaclassAnonFn: public CVmMetaclass
 {

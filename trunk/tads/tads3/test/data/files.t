@@ -69,6 +69,47 @@ main(args)
 
     /* -------------------------------------------------------------------- */
     /*
+     *   text file read/write with seeking 
+     */
+    try
+    {
+        fp = File.openTextFile(
+            'test.txt', FileAccessReadWriteKeep, 'us-ascii');
+    }
+    catch (FileException fExc)
+    {
+        "Error opening file test.txt for read/write/keep:
+        <<fExc.displayException()>>\n";
+        return;
+    }
+
+    "test.txt: size = <<fp.getFileSize()>>\n";
+
+    /* read back the data */
+    local line50 = nil;
+    for (i = 0 ; ; ++i)
+    {
+        local sol = fp.getPos();
+        local val = fp.readFile();
+        if (val == nil)
+            break;
+        else if (val.find('line 50') != nil)
+            line50 = sol;
+    }
+
+    /* seek back to line 50 */
+    "Seeking to <<line50>>\n";
+    fp.setPos(line50);
+
+    /* re-write the remainder of the file */
+    for (i = 50 ; i < 75 ; ++i)
+        fp.writeFile('This is the NEW line <<i>>!!!\n');
+
+    /* done */
+    fp.closeFile();
+
+    /* -------------------------------------------------------------------- */
+    /*
      *   binary file 
      */
 

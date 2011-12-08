@@ -73,6 +73,9 @@ const char TCGEN_STATIC_CODE_STREAM = 9;
  */
 const char TCGEN_STATIC_INIT_ID_STREAM = 10;
 
+/* local variable name stream - for local variable frame information */
+const char TCGEN_LCL_VAR_STREAM = 11;
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -254,7 +257,7 @@ public:
     }
 
     /* read an INT4 value at the given offset */
-    uint read4_at(ulong ofs)
+    int read4_at(ulong ofs)
     {
         char buf[4];
 
@@ -263,7 +266,7 @@ public:
         buf[1] = get_byte_at(ofs + 1);
         buf[2] = get_byte_at(ofs + 2);
         buf[3] = get_byte_at(ofs + 3);
-        return osrp4(buf);
+        return osrp4s(buf);
     }
 
     /* read a UINT4 value at the given offset */
@@ -659,22 +662,7 @@ public:
      *   Returns the previous local frame, so that the caller can restore
      *   the enclosing frame when leaving a nested frame.  
      */
-    class CTcPrsSymtab *set_local_frame(class CTcPrsSymtab *symtab)
-    {
-        class CTcPrsSymtab *old_frame;
-
-        /* remember the original local frame, so we can return it later */
-        old_frame = cur_frame_;
-        
-        /* remember the current frame */
-        cur_frame_ = symtab;
-
-        /* add it to the local frame list for the method if necessary */
-        add_local_frame(symtab);
-
-        /* return the original local frame */
-        return old_frame;
-    }
+    class CTcPrsSymtab *set_local_frame(class CTcPrsSymtab *symtab);
 
     /* get the local frame count for this method */
     size_t get_frame_count() const { return frame_cnt_; }
@@ -1144,6 +1132,42 @@ struct CTcStreamAnchor: CTcCSPrsAllocObj
      *   should not be written to the image file. 
      */
     unsigned int replaced_ : 1;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Dynamic compiler interface to the live VM.  The compiler uses this to
+ *   access VM resources required during compilation.  
+ */
+class CTcVMIfc
+{
+public:
+    virtual ~CTcVMIfc() { }
+
+    /* 
+     *   Add a generated object.  This creates a live object in the VM and
+     *   returns its ID.  
+     */
+    virtual tctarg_obj_id_t new_obj(tctarg_obj_id_t cls) = 0;
+
+    /* validate an object ID */
+    virtual int validate_obj(tctarg_obj_id_t obj) = 0;
+    
+    /*
+     *   Add a property value to a generated object. 
+     */
+    virtual void set_prop(tctarg_obj_id_t obj, tctarg_prop_id_t prop,
+                          const class CTcConstVal *val) = 0;
+
+    /* validate a property ID */
+    virtual int validate_prop(tctarg_prop_id_t prop) = 0;
+
+    /* validate a built-in function pointer */
+    virtual int validate_bif(uint set_index, uint func_index) = 0;
+
+    /* validate a constant pool address for a string/list */
+    virtual int validate_pool_str(uint32 pool_ofs) = 0;
+    virtual int validate_pool_list(uint32 pool_ofs) = 0;
 };
 
 #endif /* TCGEN_H */

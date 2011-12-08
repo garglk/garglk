@@ -1,0 +1,44 @@
+<html>
+<title>TADS 3 Library Containment API</title>
+
+<h3>TADS 3 Library Containment API</h3>
+
+<!---------------------------------------------------------------------->
+<h4>isIn(obj)</h4>
+
+<p>Tests to determine if the object is contained within obj.  Returns true
+if so, nil if not.  This method doesn't pay any attention to whether 
+containers are open or closed; it simply determines if a containment
+relationship exists between the two objects.  This method also doesn't
+distinguish among different types of containment, so it returns true
+if this object is within obj, even if obj is a surface or other type
+of container.
+
+<!---------------------------------------------------------------------->
+<h4>moveInto(obj)</h4>
+
+<p>Moves the object so that it is contained within obj.  Removes the
+object from its current container or containers by calling 
+removeFromContents(self) for each container.  Updates any internal
+status information recording the object's container.  Adds the object
+to its new container's contents by calling the new container's
+addToContents(self) method.
+
+<!---------------------------------------------------------------------->
+<h4>addToContents(obj)</h4>
+
+<p>Adds obj to this object's contents.  If this object can contain objects
+in only one fashion, it should add the object to its single type of
+containment list.  If this object can contain objects in different ways,
+then the method should add the object to the 'in' containment list, or,
+if it doesn't have an 'in' list, its default list, as defined by the object.
+
+<!---------------------------------------------------------------------->
+<h4>removeFromContents(obj)</h4>
+
+<p>Removes obj from this object's contents.  If this object has multiple
+types of contents, the method should remove the object from the appropriate
+contents list.
+
+</html>
+

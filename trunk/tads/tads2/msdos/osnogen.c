@@ -16,3 +16,10 @@ Modified
 /* "plain" mode flag */
 int os_f_plain = 1;
 
+void os_set_save_ext(const char *ext)
+{
+}
+char *os_get_save_ext()
+{
+    return 0;
+}

@@ -122,6 +122,7 @@ CVmImageLoader::CVmImageLoader(CVmImageFile *fp, const char *fname,
                                long base_ofs)
 {
     size_t i;
+    char fname_abs[OSFNMAX], path[OSFNMAX];
     
     /* remember the underlying image file interface */
     fp_ = fp;
@@ -129,6 +130,11 @@ CVmImageLoader::CVmImageLoader(CVmImageFile *fp, const char *fname,
     /* remember the image filename and the base seek offset */
     fname_ = lib_copy_str(fname);
     base_seek_ofs_ = base_ofs;
+
+    /* save the file's fully-qualified, absolute directory path */
+    os_get_abs_filename(fname_abs, sizeof(fname_abs), fname);
+    os_get_path_name(path, sizeof(path), fname_abs);
+    path_ = lib_copy_str(path);
 
     /* we don't know the file version yet */
     ver_ = 0;
@@ -151,9 +157,11 @@ CVmImageLoader::CVmImageLoader(CVmImageFile *fp, const char *fname,
 
     /* no runtime symbols loaded yet */
     runtime_symtab_ = 0;
+    runtime_macros_ = 0;
 
     /* there's no reflection LookupTable yet */
     reflection_symtab_ = VM_INVALID_OBJ;
+    reflection_macros_ = VM_INVALID_OBJ;
 
     /* create the exported symbol hash table */
     exports_ = new CVmHashTable(64, new CVmHashFuncCS(), TRUE);
@@ -179,12 +187,15 @@ CVmImageLoader::~CVmImageLoader()
     for (i = 0 ; i < sizeof(pools_)/sizeof(pools_[0]) ; ++i)
         delete pools_[i];
 
-    /* delete the filename string */
+    /* delete the filename string and path */
     lib_free_str(fname_);
+    lib_free_str(path_);
 
-    /* if we have our own runtime symbol table, delete it */
+    /* if we have our own runtime symbol/macro tables, delete them */
     if (runtime_symtab_ != 0)
         delete runtime_symtab_;
+    if (runtime_macros_ != 0)
+        delete runtime_macros_;
 
     /* delete the exports tables */
     delete exports_;
@@ -336,20 +347,23 @@ void CVmImageLoader::load(VMG0_)
              *   This block type is unknown, so ignore it.  If a new block
              *   type is added in the future, an older VM version won't
              *   recognize the new block, but it can still load the image
-             *   file simply by omitting any unrecognized new blocks.
-             *   Since the image file will not be complete in this case,
-             *   it may not work properly.
+             *   file simply by omitting any unrecognized new blocks.  Since
+             *   the image file will not be complete in this case, it may not
+             *   work properly.
              *   
-             *   To allow for future block types which contain advisory
-             *   data, which can safely be ignored by older VM versions,
-             *   while also allowing for the possibility of changes that
-             *   create incompatibilities, we have a flag in the header
-             *   that indicates whether the block is required or not.  If
-             *   this block is marked as mandatory, throw an error, since
-             *   we don't recognize the block.  
+             *   To allow for future block types which contain advisory data,
+             *   which can safely be ignored by older VM versions, while also
+             *   allowing for the possibility of changes that create
+             *   incompatibilities, we have a flag in the header that
+             *   indicates whether the block is required or not.  If this
+             *   block is marked as mandatory, throw an error, since we don't
+             *   recognize the block.  Note that this is a version-related
+             *   error (i.e., a VM update should fix it), so set the version
+             *   flag in the exception.  
              */
             if ((flags & VMIMAGE_DBF_MANDATORY) != 0)
-                err_throw(VMERR_UNKNOWN_IMAGE_BLOCK);
+                err_throw_a(VMERR_UNKNOWN_IMAGE_BLOCK, 1,
+                            ERR_TYPE_VERSION_FLAG);
 
             /* skip past the block */
             fp_->skip_ahead(siz);
@@ -382,6 +396,18 @@ void CVmImageLoader::load(VMG0_)
     G_meta_table->create_intrinsic_class_instances(vmg0_);
 
     /* 
+     *   Cache certain metaclass method table entries that are used by the
+     *   VM: Iterator.getNext [Iterator#1], Iterator.isNextAvailable
+     *   [Iterator#2].  
+     */
+    vm_meta_entry_t *mcoll = G_meta_table->get_entry_by_id("iterator");
+    if (mcoll != 0)
+    {
+        G_iter_get_next = mcoll->xlat_func(1);
+        G_iter_next_avail = mcoll->xlat_func(2);
+    }
+
+    /* 
      *   Attach the code pool and constant pool to their backing stores,
      *   which are the pool objects we loaded from the image file. 
      */
@@ -400,6 +426,16 @@ void CVmImageLoader::load(VMG0_)
      *   loading the image file
      */
     vm_init_after_load(vmg0_);
+
+    /* 
+     *   Let the UI inspect the built-ins linked by the program.  The UI
+     *   might use different initial display configurations depending on the
+     *   function sets and/or intrinsic classes the program uses.  For
+     *   example, Workbench on Windows initially hides the HTML TADS window
+     *   if the network functions are linked, since these are normally used
+     *   to implement a Web UI, which uses a separate display window.
+     */
+    os_init_ui_after_load(G_bif_table, G_meta_table);
 
     /* forget the image loader */
     G_image_loader = 0;
@@ -632,11 +668,14 @@ void CVmImageLoader::load_resource_file(CVmImageLoaderMres *res_ifc)
         else
         {
             /* 
-             *   unknown block type - ignore it, unless it's mandatory, in
-             *   which case this is an error 
+             *   Unknown block type - ignore it, unless it's mandatory, in
+             *   which case this is an error.  This is a version-related
+             *   error (fixable by updating to the latest version), so set
+             *   the version flag in the exception, if we throw one.  
              */
             if ((flags & VMIMAGE_DBF_MANDATORY) != 0)
-                err_throw(VMERR_UNKNOWN_IMAGE_BLOCK);
+                err_throw_a(VMERR_UNKNOWN_IMAGE_BLOCK, 1,
+                            ERR_TYPE_VERSION_FLAG);
 
             /* skip past the block */
             fp_->skip_ahead(siz);
@@ -670,11 +709,12 @@ void CVmImageLoader::read_image_header()
     memcpy(timestamp_, buf + sizeof(VMIMAGE_SIG)-1 + 2 + 32, 24);
 
     /* 
-     *   check the version to ensure that it's within the range that this
-     *   loader implementation supports 
+     *   Check the version to ensure that it's within the range that this
+     *   loader implementation supports.  If not, throw an error, and mark is
+     *   as a version-related error.  
      */
     if (ver_ > 1)
-        err_throw(VMERR_IMAGE_INCOMPAT_VSN);
+        err_throw_a(VMERR_IMAGE_INCOMPAT_VSN, 1, ERR_TYPE_VERSION_FLAG);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -683,9 +723,10 @@ void CVmImageLoader::read_image_header()
  */
 void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
                          CVmRuntimeSymbols *global_symtab,
+                         CVmRuntimeSymbols *macro_symtab,
                          const char *saved_state)
 {
-    CVmRuntimeSymbols *orig_runtime_symtab;
+    CVmRuntimeSymbols *orig_runtime_symtab, *orig_runtime_macros;
     pool_ofs_t entry_code_ofs;
     int entry_code_argc;
     
@@ -725,6 +766,7 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
 
     /* remember the original runtime symbol table */
     orig_runtime_symtab = runtime_symtab_;
+    orig_runtime_macros = runtime_macros_;
 
     /* catch any errors so we restore globals on the way out */
     err_try
@@ -739,8 +781,10 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
          */
         if (global_symtab != 0)
             runtime_symtab_ = global_symtab;
+        if (macro_symtab != 0)
+            runtime_macros_ = macro_symtab;
 
-        /* create a LookupTable for the reflection symbols, if we have any */
+        /* create a LookupTable for the reflection symbols, if any */
         create_global_symtab_lookup_table(vmg0_);
 
         /* 
@@ -753,6 +797,11 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
             /* set up an object value for the table and push it */
             G_stk->push()->set_obj(reflection_symtab_);
         }
+
+        /* create and stack the reflection LookupTable for macros */
+        create_macro_symtab_lookup_table(vmg0_);
+        if (reflection_macros_ != VM_INVALID_OBJ)
+            G_stk->push()->set_obj(reflection_macros_);
 
         /* 
          *   run static initializers (do this after creating the symbol
@@ -821,10 +870,16 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
          *   list of argument strings, and the name of the initial saved
          *   state file to restore, if any).  
          */
-        G_interpreter->do_call(vmg_ 0, entry_code_ofs, entry_code_argc,
-                               VM_INVALID_OBJ, VM_INVALID_PROP,
-                               VM_INVALID_OBJ, VM_INVALID_OBJ,
-                               "main entrypoint");
+        G_stk->push()->set_propid(VM_INVALID_PROP);
+        G_stk->push()->set_nil();
+        G_stk->push()->set_nil();
+        G_stk->push()->set_nil_obj();
+        G_stk->push()->set_fnptr(entry_code_ofs);
+        vm_rcdesc rc("Main entrypoint");
+        G_interpreter->do_call(
+            vmg_ 0,
+            (const uchar *)G_code_pool->get_ptr(entry_code_ofs),
+            entry_code_argc, &rc);
 
         /* 
          *   if we pushed a global symbol table LookupTable object, pop it -
@@ -832,6 +887,8 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
          *   collector, since it's always implicitly referenced from the
          *   intrinsic function that retrieves the symbol table object 
          */
+        if (reflection_macros_ != VM_INVALID_OBJ)
+            G_stk->discard();
         if (reflection_symtab_ != VM_INVALID_OBJ)
             G_stk->discard();
     }
@@ -840,8 +897,9 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
         /* forget the image loader */
         G_image_loader = 0;
 
-        /* restore the original runtime symbol table */
+        /* restore the original runtime symbol tables */
         runtime_symtab_ = orig_runtime_symtab;
+        runtime_macros_ = orig_runtime_macros;
     }
     err_end;
 }
@@ -874,22 +932,29 @@ void CVmImageLoader::run_static_init(VMG0_)
             err_try
             {
                 /* evaluate the property */
-                G_interpreter->get_prop(vmg_ 0, &target, prop, &target, 0);
+                G_interpreter->get_prop(vmg_ 0, &target, prop, &target, 0, 0);
             }
             err_catch(exc)
             {
-                char errbuf[512];
-                const char *obj_name;
-                size_t obj_len;
-                const char *prop_name;
-                size_t prop_len;
+                /* 
+                 *   If the "error" is a debugger terminate, pass it through
+                 *   - this simply means that the user is manually ending the
+                 *   program via the debugger UI.  Likewise for restarts or
+                 *   interrupts.
+                 */
+                if (exc->get_error_code() == VMERR_DBG_HALT
+                    || exc->get_error_code() == VMERR_DBG_RESTART
+                    || exc->get_error_code() == VMERR_DBG_INTERRUPT)
+                    err_rethrow();
                 
                 /* get the message for the exception that occurred */
+                char errbuf[512];
                 CVmRun::get_exc_message(vmg_ exc, errbuf, sizeof(errbuf),
                                         FALSE);
 
                 /* presume we won't find names */
-                obj_name = prop_name = 0;
+                size_t obj_len = 0, prop_len = 0;
+                const char *obj_name = 0, *prop_name = 0;
 
                 /* find the obj and prop names in the global symbols */
                 if (runtime_symtab_ != 0)
@@ -906,12 +971,12 @@ void CVmImageLoader::run_static_init(VMG0_)
                 /* if we didn't find the names, use placeholders */
                 if (obj_name == 0)
                 {
-                    obj_name = "<unknown object>";
+                    obj_name = "[object name not available]";
                     obj_len = strlen(obj_name);
                 }
                 if (prop_name == 0)
                 {
-                    prop_name = "<unknown property>";
+                    prop_name = "[property name not available]";
                     prop_len = strlen(prop_name);
                 }
 
@@ -942,7 +1007,7 @@ void CVmImageLoader::unload(VMG0_)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Create a LookupTable to hold the symbols in the global symbol table 
+ *   Create a LookupTable to hold the symbols in the global symbol table. 
  */
 void CVmImageLoader::create_global_symtab_lookup_table(VMG0_)
 {
@@ -965,8 +1030,7 @@ void CVmImageLoader::create_global_symtab_lookup_table(VMG0_)
     
     /* create a LookupTable to hold the symbols */
     reflection_symtab_ = CVmObjLookupTable::
-                         create(vmg_ FALSE, 256,
-                                runtime_symtab_->get_sym_count());
+        create(vmg_ FALSE, 256, runtime_symtab_->get_sym_count());
 
     /* get the object, properly cast */
     lookup = (CVmObjLookupTable *)vm_objp(vmg_ reflection_symtab_);
@@ -991,7 +1055,7 @@ void CVmImageLoader::create_global_symtab_lookup_table(VMG0_)
             /* it's an intrinsic class modifier - skip it */
             continue;
         }
-        
+
         /* create a string object to hold this symbol */
         str.set_obj(CVmObjString::create(vmg_ FALSE, sym->sym, sym->len));
 
@@ -1000,6 +1064,102 @@ void CVmImageLoader::create_global_symtab_lookup_table(VMG0_)
          *   the symbol's value is the lookup entry value 
          */
         lookup->add_entry(vmg_ &str, &sym->val);
+    }
+
+    /* done working - discard our gc protection */
+    G_stk->discard();
+}
+
+/*
+ *   Create a LookupTable to hold the symbols in the macro table
+ */
+void CVmImageLoader::create_macro_symtab_lookup_table(VMG0_)
+{
+    CVmObjLookupTable *lookup;
+    vm_runtime_sym *sym;
+
+    /* 
+     *   if we don't have a runtime macro table, we can't create the
+     *   reflection LookupTable 
+     */
+    if (runtime_macros_ == 0)
+        return;
+
+    /* if we already created the table, there's no need to create another */
+    if (reflection_macros_ != VM_INVALID_OBJ)
+        return;
+
+    /* create a LookupTable to hold the symbols */
+    reflection_macros_ = CVmObjLookupTable::
+        create(vmg_ FALSE, 256, runtime_macros_->get_sym_count());
+
+    /* get the object, properly cast */
+    lookup = (CVmObjLookupTable *)vm_objp(vmg_ reflection_macros_);
+
+    /* push the lookup table onto the stack for gc protection */
+    G_stk->push()->set_obj(reflection_macros_);
+
+    /* run through the symbols and populate the LookupTable */
+    for (sym = runtime_macros_->get_head() ; sym != 0 ; sym = sym->nxt)
+    {
+        vm_val_t str;
+        vm_val_t lst;
+        vm_val_t args;
+        vm_val_t v;
+        int i;
+
+        /* create a string object to hold this symbol */
+        str.set_obj(CVmObjString::create(vmg_ FALSE, sym->sym, sym->len));
+
+        /* stack it for gc protection */
+        G_stk->push(&str);
+
+        /* 
+         *   Create a list to hold the definition.  We represent this as
+         *   [expansion_string, [argument_list], flags]. 
+         */
+        lst.set_obj(CVmObjList::create(vmg_ FALSE, 3));
+        G_stk->push(&lst);
+        CVmObjList *lstp = (CVmObjList *)vm_objp(vmg_ lst.val.obj);
+        lstp->cons_clear();
+
+        /* create and store the expansion string */
+        v.set_obj(CVmObjString::create(
+            vmg_ FALSE, sym->macro_expansion, sym->macro_exp_len));
+        lstp->cons_set_element(0, &v);
+
+        /* create the argument list */
+        args.set_obj(CVmObjList::create(vmg_ FALSE, sym->macro_argc));
+        CVmObjList *argp = (CVmObjList *)vm_objp(vmg_ args.val.obj);
+        argp->cons_clear();
+
+        /* store the argument list in the definition list */
+        lstp->cons_set_element(1, &args);
+
+        /* store the arguments */
+        for (i = 0 ; i < sym->macro_argc ; ++i)
+        {
+            /* create the string */
+            char *p = sym->macro_args[i];
+            size_t len = strlen(p);
+            v.set_obj(CVmObjString::create(vmg_ FALSE, p, len));
+
+            /* store it in the argument list */
+            argp->cons_set_element(i, &v);
+        }
+
+        /* store the flags */
+        v.set_int(sym->macro_flags);
+        lstp->cons_set_element(2, &v);
+
+        /* 
+         *   add the macro to the lookup table - the symbol string is the
+         *   key, and the symbol's value is the definition list
+         */
+        lookup->add_entry(vmg_ &str, &lst);
+
+        /* done with the symbol and list gc protection */
+        G_stk->discard(2);
     }
 
     /* done working - discard our gc protection */
@@ -1042,6 +1202,14 @@ void CVmImageLoader::load_entrypt(VMG_ ulong siz)
 
     /* set the debug version ID */
     G_dbg_fmt_vsn = osrp2(buf+14);
+
+    /* set the frame size */
+    G_dbg_frame_size = 4;
+    if (siz >= 2)
+    {
+        read_data(buf, 2, &siz);
+        G_dbg_frame_size = osrp2(buf);
+    }
 
     /* note that we've loaded it */
     loaded_entrypt_ = TRUE;
@@ -1164,11 +1332,18 @@ void CVmImageLoader::load_static_objs(VMG_ ulong siz)
         if (large_objs)
         {
             /* 
-             *   make sure the object size doesn't overflow the local
-             *   hardware limits 
+             *   Make sure the object size doesn't overflow the local
+             *   hardware limits.  (This test is only necessary if such an
+             *   overflow is possible given the datatypes.  On most modern
+             *   architectures, it simply isn't possible because OSMALMAX is
+             *   at least as large as any 32-bit value we could read here.
+             *   Note that the value we read here is explicitly a 32-bit
+             *   value, so the biggest it could possibly be is 0xFFFFFFFF.)  
              */
+#if 0xFFFFFFFFU > OSMALMAX
             if (t3rp4u(buf + 4) > (unsigned long)OSMALMAX)
                 err_throw(VMERR_OBJ_SIZE_OVERFLOW);
+#endif
             
             /* read the object size */
             obj_size = (size_t)t3rp4u(buf + 4);
@@ -1493,7 +1668,7 @@ void CVmImageLoader::load_funcset_dep(VMG_ ulong siz)
      *   set index in the table is implicit in the load order, we need to
      *   make sure we're starting with a completely clean configuration 
      */
-    G_bif_table->clear();
+    G_bif_table->clear(vmg0_);
 
     /* read the number of entries in the table */
     read_data(buf, 2, &siz);
@@ -1513,7 +1688,7 @@ void CVmImageLoader::load_funcset_dep(VMG_ ulong siz)
         buf[len] = '\0';
 
         /* add the dependency */
-        G_bif_table->add_entry(buf);
+        G_bif_table->add_entry(vmg_ buf);
     }
 }
 
@@ -1599,9 +1774,14 @@ void CVmImageLoader::load_runtime_symtab_from_gsym(VMG_ ulong siz)
         else if (dat_len + sym_len > sizeof(buf))
         {
             /* 
-             *   the extra data block is too long - truncate the extra data
-             *   so that we don't overflow our buffer, but proceed anyway
-             *   with the truncated extra data 
+             *   The extra data block is too long for our fixed buffer.
+             *   Truncate the extra data so that we don't overflow our
+             *   buffer, but proceed anyway with the truncated extra data.
+             *   Note that we won't lose any data we care about, since any
+             *   extra data beyond our buffer size is additional future
+             *   format data that we don't know how to handle anyway.  By
+             *   design, we're allowed to skip extra data that we don't know
+             *   how to read.  
              */
             read_data(buf, sizeof(buf), &siz);
 
@@ -1636,16 +1816,33 @@ void CVmImageLoader::load_runtime_symtab_from_gsym(VMG_ ulong siz)
         case TC_SYM_PROP:
             /* set up the property value */
             val.set_propid(osrp2(dat));
+
+            /* check the 'dictionary property' flag */
+            if (dat_len >= 3 && (dat[0] & 0x01) != 0)
+            {
+                // $$$ it's a dictionary property
+            }
             break;
 
         case TC_SYM_ENUM:
             /* set up the enum value */
             val.set_enum(t3rp4u(dat));
+
+            /* check the 'enum token' flag */
+            if (dat_len >= 5 && (dat[0] & 0x01) != 0)
+            {
+                // $$$ it's an 'enum token'
+            }
             break;
 
         case TC_SYM_METACLASS:
             /* set up the metaclass object value */
             val.set_obj(t3rp4u(dat + 2));
+            break;
+
+        case TC_SYM_BIF:
+            /* built-in function */
+            val.set_bifptr(osrp2(dat + 2), osrp2(dat));
             break;
 
         default:
@@ -1660,6 +1857,107 @@ void CVmImageLoader::load_runtime_symtab_from_gsym(VMG_ ulong siz)
         /* if we found a valid type, add it to the table */
         if (val.typ != VM_EMPTY)
             runtime_symtab_->add_sym(sym_name, sym_len, &val);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Load a Macro Definitions (MACR) block into the runtime symbol table 
+ */
+void CVmImageLoader::load_runtime_symtab_from_macr(VMG_ ulong siz)
+{
+    const size_t TOK_SYM_MAX_LEN = 80;
+    char buf[10];
+    char sym[TOK_SYM_MAX_LEN];
+    ulong cnt;
+
+    /* allocate the macro table if we haven't already done so */
+    if (runtime_macros_ == 0)
+        runtime_macros_ = new CVmRuntimeSymbols();
+
+    /* read the symbol count */
+    read_data(buf, 4, &siz);
+    cnt = t3rp4u(buf);
+
+    /* read the symbols and populate the symbol table */
+    for ( ; cnt != 0 ; --cnt)
+    {
+        size_t sym_len;
+        size_t exp_len;
+        int argc;
+        unsigned int flags;
+        int i;
+
+        /* read the symbol's length */
+        read_data(buf, 2, &siz);
+        sym_len = osrp2(buf);
+
+        /* if it fits, read it */
+        if (sym_len <= TOK_SYM_MAX_LEN)
+        {
+            /* read the name */
+            read_data(sym, sym_len, &siz);
+        }
+        else
+        {
+            /* it's too long - skip it */
+            skip_data(sym_len, &siz);
+        }
+
+        /* read the flags and argument count */
+        read_data(buf, 4, &siz);
+        flags = osrp2(buf);
+        argc = osrp2(buf + 2);
+
+        /* remember the current position */
+        long start_pos = fp_->get_seek();
+        ulong start_siz = siz;
+
+        /* count up the argument sizes */
+        size_t arg_len = 0;
+        for (i = 0 ; i < argc ; ++i)
+        {
+            /* read this argument length */
+            read_data(buf, 2, &siz);
+            size_t l = osrp2(buf);
+
+            /* add it to the total, plus a null byte */
+            arg_len += l + 1;
+
+            /* skip it in the file */
+            skip_data(l, &siz);
+        }
+
+        /* read the expansion size */
+        read_data(buf, 4, &siz);
+        exp_len = osrp4(buf);
+
+        /* allocate the symbol entry */
+        vm_runtime_sym *entry = runtime_macros_->add_macro(
+            sym, sym_len, exp_len, flags, argc, arg_len);
+
+        /* seek back to the start of the argument list */
+        fp_->seek(start_pos);
+        siz = start_siz;
+
+        /* read the arguments */
+        for (i = 0 ; i < argc ; ++i)
+        {
+            /* read the argument length */
+            read_data(buf, 2, &siz);
+            size_t l = osrp2(buf);
+
+            /* read this argument, and null-terminate it */
+            read_data(entry->macro_args[i], l, &siz);
+            entry->macro_args[i][l] = '\0';
+
+            /* commit the storage */
+            entry->commit_macro_arg(i, l + 1);
+        }
+
+        /* read the expansion */
+        skip_data(4, &siz);
+        read_data(entry->macro_expansion, exp_len, &siz);
     }
 }
 
@@ -2077,7 +2375,7 @@ void CVmImageLoader::save_synth_exports(VMG_ CVmFile *fp)
      *   can come back and fix it up later 
      */
     pos = fp->get_pos();
-    fp->write_int4(0);
+    fp->write_uint4(0);
 
     /* enumerate all of the entries through our save callback */
     synth_exports_->enum_entries(&save_synth_export_cb, &ctx);
@@ -2085,7 +2383,7 @@ void CVmImageLoader::save_synth_exports(VMG_ CVmFile *fp)
     /* go back and fix up the count, then seek back to the end */
     end_pos = fp->get_pos();
     fp->set_pos(pos);
-    fp->write_int4(ctx.cnt);
+    fp->write_uint4(ctx.cnt);
     fp->set_pos(end_pos);
 }
 
@@ -2099,7 +2397,7 @@ void CVmImageLoader::save_synth_export_cb(void *ctx0, CVmHashEntry *entry0)
     char buf[VMB_DATAHOLDER];
 
     /* write this entry's length and name to the file */
-    ctx->fp->write_int2(entry->getlen());
+    ctx->fp->write_uint2(entry->getlen());
     ctx->fp->write_bytes(entry->getstr(), entry->getlen());
 
     /* write the value as a dataholder */
@@ -2208,29 +2506,41 @@ vm_prop_id_t CVmImageLoader::alloc_new_prop(VMG0_)
 }
 
 /*
+ *   Get the last property ID.  This returns the last valid property ID
+ *   currently in use in the program. 
+ */
+vm_prop_id_t CVmImageLoader::get_last_prop(VMG0_)
+{
+    /* get LastPropObj[1] */
+    vm_val_t vec, ele;
+    vec.set_obj(G_predef->last_prop_obj);
+    vec.ll_index(vmg_ &ele, 1);
+
+    /* return the value */
+    return ele.val.prop;
+}
+
+/*
  *   Set the last property ID.  This updates the LastPropObj synthetic
  *   export object, so that the last property ID is properly integrated with
  *   the undo and save/restore mechanisms.  
  */
 void CVmImageLoader::set_last_prop(VMG_ vm_prop_id_t last_prop)
 {
-    CVmObjVector *vec;
-    vm_val_t idx_val;
-    vm_val_t new_val;
-    vm_val_t new_cont;
-
     /* get the LastPropObj vector */
-    vec = (CVmObjVector *)vm_objp(vmg_ G_predef->last_prop_obj);
+    CVmObjVector *vec = (CVmObjVector *)vm_objp(vmg_ G_predef->last_prop_obj);
 
     /* 
      *   set up the values - the index is always 1, since the vector
      *   contains only one element; and the value contains the new last
      *   property ID 
      */
+    vm_val_t idx_val, new_val;
     idx_val.set_int(1);
     new_val.set_propid(G_predef->last_prop);
 
     /* update the vector */
+    vm_val_t new_cont;
     vec->set_index_val(vmg_ &new_cont, G_predef->last_prop_obj,
                        &idx_val, &new_val);
 }
@@ -2793,6 +3103,26 @@ void CVmImageFileStream::read_bytes(char *buf, size_t len)
 
     /* copy the data from the image file to the caller's buffer */
     fp_->copy_data(buf, len);
+}
+
+/*
+ *   read bytes, allowing short reads without error 
+ */
+size_t CVmImageFileStream::read_nbytes(char *buf, size_t len)
+{
+    /* limit the read to the available size */
+    if (len > len_)
+        len = len_;
+
+    /* deduct the space we're reading from the remaining data size */
+    len_ -= len;
+
+    /* copy the data from the image file to the caller's buffer */
+    if (len != 0)
+        fp_->copy_data(buf, len);
+
+    /* return the length actually read */
+    return len;
 }
 
 /*

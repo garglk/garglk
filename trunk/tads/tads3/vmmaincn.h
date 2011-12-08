@@ -62,7 +62,7 @@ public:
         con->flush(vmg_ VM_NL_NONE);
         
         /* delete the output formatter */
-        delete con;
+        con->delete_obj(vmg0_);
     }
 
     /* initialize */
@@ -77,15 +77,18 @@ public:
 
         /* if we have a script file, set up script input on the console */
         if (script_file != 0)
-            G_console->open_script_file(script_file, script_quiet, FALSE);
+        {
+            G_console->open_script_file(
+                vmg_ script_file, script_quiet, FALSE);
+        }
 
         /* if we have a log file, set up logging on the console */
         if (log_file != 0)
-            G_console->open_log_file(log_file);
+            G_console->open_log_file(vmg_ log_file);
 
         /* set up command logging on the console if desired */
         if (cmd_log_file != 0)
-            G_console->open_command_log(cmd_log_file, TRUE);
+            G_console->open_command_log(vmg_ cmd_log_file, TRUE);
 
         /* tell the HTML renderer that we're a T3 caller */
         G_console->format_text(vmg_ "<?T3>");
@@ -109,10 +112,14 @@ public:
     void post_exec_err(struct vm_globals *) { }
 
     /* display an error */
-    void display_error(struct vm_globals *vmg, const char *msg,
-                       int add_blank_line)
+    void display_error(struct vm_globals *vmg, const struct CVmException *exc,
+                       const char *msg, int add_blank_line)
     {
         CVmConsole *con;
+        size_t len;
+
+        /* check for a newline at the end of the message */
+        int has_nl = ((len = strlen(msg)) != 0 && msg[len-1] == '\n');
         
         /* set up for global access */
         VMGLOB_PTR(vmg);
@@ -149,8 +156,6 @@ public:
             /* add a blank line if desired */
             if (add_blank_line)
             {
-                size_t len;
-                
                 /* add one newline */
                 os_printz("\n");
 
@@ -158,7 +163,7 @@ public:
                  *   if the message itself didn't end with a newline, add
                  *   another newline 
                  */
-                if ((len = strlen(msg)) == 0 || msg[len-1] != '\n')
+                if (!has_nl)
                     os_printz("\n");
             }
         }

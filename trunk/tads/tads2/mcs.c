@@ -38,8 +38,8 @@ void mcsini(mcscxdef *ctx, mcmcx1def *gmemctx, ulong maxsiz,
     ctx->mcscxtab = (mcsdsdef **)0;                   /* anticipate failure */
     
     /* allocate space from the low-level heap for page table and one page */
-    p = mchalo(errctx, (ushort)((MCSPAGETAB * sizeof(mcsdsdef *))
-                                + (MCSPAGECNT * sizeof(mcsdsdef))), "mcsini");
+    p = mchalo(errctx, ((MCSPAGETAB * sizeof(mcsdsdef *))
+                        + (MCSPAGECNT * sizeof(mcsdsdef))), "mcsini");
     
     /* set up the context with pointers to this chunk */
     ctx->mcscxtab = (mcsdsdef **)p;
@@ -62,7 +62,7 @@ void mcsini(mcscxdef *ctx, mcmcx1def *gmemctx, ulong maxsiz,
     if (swapfilename != 0)
     {
         ctx->mcscxfname = (char *)mchalo(errctx,
-                                         (ushort)(strlen(swapfilename)+1),
+                                         (strlen(swapfilename)+1),
                                          "mcsini");
         strcpy(ctx->mcscxfname, swapfilename);
     }
@@ -122,11 +122,11 @@ static void mcscompact(mcscxdef *ctx)
 
                 /* seek to old location and get the piece */
                 osfseek(ctx->mcscxfp, ptr_in, OSFSK_SET);
-                osfrb(ctx->mcscxfp, buf, (size_t)rdsiz);
+                (void)osfrb(ctx->mcscxfp, buf, (size_t)rdsiz);
                 
                 /* seek to new location and write the piece */
                 osfseek(ctx->mcscxfp, ptr_out, OSFSK_SET);
-                osfwb(ctx->mcscxfp, buf, (size_t)rdsiz);
+                (void)osfwb(ctx->mcscxfp, buf, (size_t)rdsiz);
                 
                 /* adjust the pointers by the size copied */
                 ptr_in += rdsiz;
@@ -250,7 +250,7 @@ mcsseg mcsout(mcscxdef *ctx, uint objid, uchar *ptr, ushort siz,
         {
             ctx->mcscxtab[min >> 8] = 
                 (mcsdsdef *)mchalo(ctx->mcscxerr,
-                                   (ushort)(MCSPAGECNT * sizeof(mcsdsdef)),
+                                   (MCSPAGECNT * sizeof(mcsdsdef)),
                                    "mcsout");
         }
 

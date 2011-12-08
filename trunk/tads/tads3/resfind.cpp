@@ -442,7 +442,8 @@ int main(int argc, char **argv)
         /* read the chunk */
         if (osfrb(fp, buf, cur))
         {
-            fprintf(stderr, "error reading %u bytes from file\n", cur);
+            fprintf(stderr, "error reading %u bytes from file\n",
+                    (unsigned)cur);
             osfcls(fp);
             exit(2);
         }

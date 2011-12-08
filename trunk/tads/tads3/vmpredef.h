@@ -35,6 +35,7 @@ Modified
 #define VM_IMPORT_NAME_RTERRMSG      "exceptionMessage"
 #define VM_IMPORT_NAME_CONSTSTR      "*ConstStrObj"
 #define VM_IMPORT_NAME_CONSTLST      "*ConstLstObj"
+#define VM_IMPORT_NAME_ISARGTABLE    "_isNamedArgTable"
 
 /*
  *   pre-defined values 

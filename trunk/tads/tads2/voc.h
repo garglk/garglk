@@ -612,8 +612,12 @@ void vocini(voccxdef *vocctx, errcxdef *errctx, mcmcxdef *memctx,
             runcxdef *runctx, objucxdef *undoctx, int fuses,
             int daemons, int notifiers);
 
-/* allocate fuse/daemon/notifier array for voc ctx initialization */
+/* clean up the voc context - frees memory allocated by vocini() */
+void vocterm(voccxdef *vocctx);
+
+/* allocate/free fuse/daemon/notifier array for voc ctx initialization */
 void vocinialo(voccxdef *ctx, vocddef **what, int cnt);
+void voctermfree(vocddef *what);
 
 /* get a vocidef given an object number */
 /* vocidef *vocinh(voccxdef *ctx, objnum obj); */

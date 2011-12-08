@@ -57,12 +57,16 @@ public:
      */
     utf8_ptr(char *str) { set(str); }
 
+    /* create from another utf8 pointer */
+    utf8_ptr(const utf8_ptr *p) { set(p->p_); }
+
     /* 
      *   Set the pointer to a new underlying buffer.  The pointer must
      *   point to the first byte of a valid character if there are already
      *   characters in the buffer.  
      */
     void set(char *str) { p_ = str; }
+    void set(const utf8_ptr *p) { p_ = p->p_; }
 
     /*
      *   Get the character at the current position 
@@ -81,7 +85,7 @@ public:
      *   the character preceding the current character, (2) returns the
      *   character two positions before the current character, and so on. 
      */
-    wchar_t getch_before(size_t ofs) const { return s_getch_before(p_,ofs); }
+    wchar_t getch_before(size_t ofs) const { return s_getch_before(p_, ofs); }
 
     /*
      *   Encode a character into the buffer at the current position, and
@@ -147,6 +151,10 @@ public:
         p_ = p;
     }
 
+    /* increment by a give number of characters */
+    void inc_by(size_t cnt)
+        { for ( ; cnt > 0 ; inc(), --cnt) ; }
+
     /* decrement the pointer by one character */
     void dec() { p_ = s_dec(p_); }
 
@@ -175,22 +183,7 @@ public:
      *   count the number of characters in the given number of bytes,
      *   starting at the current byte 
      */
-    size_t len(size_t bytecnt) const
-    {
-        char *end;
-        char *p;
-        size_t cnt;
-
-        /* calculate the ending point */
-        p = p_;
-        end = p + bytecnt;
-
-        /* increment until we run out of bytes */ 
-        for (cnt = 0 ; p < end ; p = s_inc(p), ++cnt) ;
-
-        /* return the result */
-        return cnt;
-    }
+    size_t len(size_t bytecnt) const { return s_len(p_, bytecnt); }
 
     /* get the byte size of the current character */
     size_t charsize() const { return s_charsize(*p_); }
@@ -199,16 +192,7 @@ public:
      *   Get the number of bytes in the given number of characters
      *   starting at the current position.  
      */
-    size_t bytelen(size_t charcnt) const
-    {
-        char *p;
-
-        /* skip the given number of characters */
-        for (p = p_ ; charcnt != 0 ; p = s_inc(p), --charcnt) ;
-
-        /* return the number of bytes we skipped */
-        return (p - p_);
-    }
+    size_t bytelen(size_t charcnt) const { return s_bytelen(p_, charcnt); }
 
     /*
      *   count the number of characters to the null terminator
@@ -357,13 +341,13 @@ public:
     }
 
     /* increment a pointer to a buffer, returning the result */
-    static char *s_inc(char *p)
+    static char *s_inc(const char *p)
     {
         /* 
          *   increment the pointer by the size of the current character
          *   and return the result 
          */
-        return p + s_charsize(*p);
+        return (char *)p + s_charsize(*p);
     }
 
     /* get the size of the character at the given byte pointer */
@@ -405,6 +389,31 @@ public:
         return (1 +
                 ((((ch & 0x80) >> 7) | ((ch & 0x80) >> 6))
                  & (1 + ((ch & 0x20) >> 5))));
+    }
+
+    /* count the number of characters in the given number of bytes */
+    static size_t s_len(const char *p, size_t bytecnt)
+    {
+        /* get the ending pointer */
+        const char *end = p + bytecnt;
+
+        /* increment until we run out of bytes */ 
+        size_t cnt;
+        for (cnt = 0 ; p < end ; p = s_inc(p), ++cnt) ;
+
+        /* return the result */
+        return cnt;
+    }
+
+    /* count the number of bytes in the given number of characters */
+    static size_t s_bytelen(const char *str, size_t charcnt)
+    {
+        /* skip the given number of characters */
+        const char *p;
+        for (p = str ; charcnt != 0 ; p = s_inc(p), --charcnt) ;
+
+        /* return the number of bytes we skipped */
+        return (p - str);
     }
 
     /* 
@@ -455,7 +464,7 @@ public:
         /*   
          *   Continuation bytes have the pattern 10xxxxxx.  Initial bytes
          *   never have this pattern.  So, if a byte ANDed with 0xC0 is
-         *   0x80 (i.e., the high two bits have the exact patern '10'),
+         *   0x80 (i.e., the high two bits have the exact pattern '10'),
          *   we're on a continuation byte.
          *   
          *   To avoid conditionals, which can be expensive because they
@@ -545,6 +554,61 @@ public:
              */
             return (last_ch - p);
         }
+    }
+
+    /*
+     *   Convert a utf8 string to a wchar_t string, with null termination.
+     *   Returns the number of wchar_t characters in the string.  If the
+     *   given buffer isn't sufficient, we'll only convert as many characters
+     *   as will fit, but we'll still return the full length of the string.  
+     */
+    static size_t to_wcharz(wchar_t *buf, size_t bufcnt, const char *str,
+                            size_t len)
+    {
+        /* we need at least one character for null termination */
+        if (bufcnt > 0)
+        {
+            /* convert the string, reserving space for a null */
+            size_t cnt = to_wchar(buf, bufcnt - 1, str, len);
+
+            /* add the null termination */
+            buf[bufcnt-1] = 0;
+
+            /* return the character count */
+            return cnt;
+        }
+        else
+        {
+            /* 
+             *   the output buffer is zero length, so we can't convert
+             *   anything and can't null terminate; just calculate the length
+             */
+            return to_wchar(buf, bufcnt, str, len);
+        }
+    }
+
+    /*
+     *   Convert a utf8 string to a wchar_t string, without null termination.
+     */
+    static size_t to_wchar(wchar_t *buf, size_t bufcnt, const char *str,
+                           size_t len)
+    {
+        utf8_ptr p;
+        int cnt;
+
+        /* scan the string */
+        for (cnt = 0, p.set((char *)str) ; len != 0 ; p.inc(&len), ++cnt)
+        {
+            /* if there's room, add this character to the output buffer */
+            if (bufcnt > 0)
+            {
+                *buf++ = p.getch();
+                --bufcnt;
+            }
+        }
+
+        /* return the character count */
+        return cnt;
     }
 
 private:

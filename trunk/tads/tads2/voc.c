@@ -159,7 +159,7 @@ static void vocwset(voccxdef *ctx, vocdef *v, prpnum p, objnum objn,
 #else
             ctx->voccxwp[pg] =
                 (vocwdef *)mchalo(ctx->voccxerr,
-                                  (ushort)(VOCWPGSIZ * sizeof(vocwdef)),
+                                  (VOCWPGSIZ * sizeof(vocwdef)),
                                   "vocwset");
 #endif
         }
@@ -283,7 +283,7 @@ void vocadd2(voccxdef *ctx, prpnum p, objnum objn, int classflg,
     if (ctx->voccxrem < need)
     {
         /* not enough space in current page; allocate a new one */
-        ctx->voccxpool = mchalo(ctx->voccxerr, (ushort)VOCPGSIZ, "vocadd2");
+        ctx->voccxpool = mchalo(ctx->voccxerr, VOCPGSIZ, "vocadd2");
         ctx->voccxrem = VOCPGSIZ;
     }
     
@@ -337,7 +337,7 @@ void vocialo(voccxdef *ctx, objnum obj)
     {
         ctx->voccxinh[obj >> 8] =
             (vocidef **)mchalo(ctx->voccxerr,
-                               (ushort)(256 * sizeof(vocidef *)), "vocialo");
+                               (256 * sizeof(vocidef *)), "vocialo");
         memset(ctx->voccxinh[obj >> 8], 0, (size_t)(256 * sizeof(vocidef *)));
     }
 }
@@ -384,7 +384,7 @@ void vociadd(voccxdef *ctx, objnum obj, objnum loc,
         {
             /* nothing left on current page; allocate a new page */
             ctx->voccxip[++(ctx->voccxiplst)] =
-                mchalo(ctx->voccxerr, (ushort)VOCISIZ, "vociadd");
+                mchalo(ctx->voccxerr, VOCISIZ, "vociadd");
             ctx->voccxilst = 0;
         }
 
@@ -538,6 +538,26 @@ void vocini(voccxdef *vocctx, errcxdef *errctx, mcmcxdef *memctx,
 
     /* no entries in vocwdef free list yet */
     vocctx->voccxwfre = VOCCXW_NONE;
+}
+
+/* uninitialize the voc context */
+void vocterm(voccxdef *ctx)
+{
+    /* delete the fuses, daemons, and notifiers */
+    voctermfree(ctx->voccxfus);
+    voctermfree(ctx->voccxdmn);
+    voctermfree(ctx->voccxalm);
+
+    /* delete the private stack */
+    if (ctx->voc_stk_ptr != 0)
+        mchfre(ctx->voc_stk_ptr);
+}
+
+/* clean up the vocab context */
+void voctermfree(vocddef *what)
+{
+    if (what != 0)
+        mchfre(what);
 }
 
 /*

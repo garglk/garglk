@@ -20,11 +20,18 @@ Modified
   03/11/00 MJRoberts  - Creation
 */
 
+#include <time.h>
+
 #include "t3std.h"
 #include "vmtype.h"
 #include "vmbif.h"
 #include "vmbift3.h"
 #include "vmstack.h"
+#include "vmrun.h"
+#include "charmap.h"
+#include "vmdatasrc.h"
+#include "vmlog.h"
+
 
 /*
  *   Debug Trace 
@@ -51,6 +58,36 @@ void CVmBifT3::debug_trace(VMG_ uint argc)
         check_argc(vmg_ argc, 1);
 
         /* tell the caller there's no debugger */
+        retval_nil(vmg0_);
+        break;
+
+    case T3DBG_LOG:
+        {
+            /* check arguments and retrieve the string */
+            check_argc(vmg_ argc, 2);
+            const char *str = G_stk->get(0)->get_as_string(vmg0_);
+            if (str == 0)
+                err_throw(VMERR_BAD_TYPE_BIF);
+
+            /* decode and skip the length prefix */
+            int len = vmb_get_len(str);
+            str += VMB_LEN;
+            
+            /* convert the string to the local file character set */
+            char *lstr;
+            size_t llen = G_cmap_to_file->map_utf8_alo(&lstr, str, len);
+
+            /* log the message */
+            vm_log(vmg_ lstr, llen);
+
+            /* done with the mapped string */
+            t3free(lstr);
+
+            /* discard the string */
+            G_stk->discard();
+        }
+
+        /* no return value */
         retval_nil(vmg0_);
         break;
 

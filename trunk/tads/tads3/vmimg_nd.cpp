@@ -67,6 +67,6 @@ void CVmImageLoader::fix_gsym_meta(VMG0_)
  */
 void CVmImageLoader::load_macros(VMG_ ulong siz)
 {
-    /* skip the block */
-    fp_->skip_ahead(siz);
+    /* load the data into the runtime reflection macro table */
+    load_runtime_symtab_from_macr(vmg_ siz);
 }

@@ -140,6 +140,9 @@ CTcMake::CTcMake()
     /* assume we're not in test reporting mode */
     test_report_mode_ = FALSE;
 
+    /* assume we're not in status percentage mode */
+    status_pct_mode_ = FALSE;
+
     /* assume we won't want quoted filenames */
     quoted_fname_mode_ = FALSE;
 
@@ -641,6 +644,7 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
     int run_preinit;
     char exe_path[OSFNMAX];
     CVmRuntimeSymbols *volatile runtime_symtab = 0;
+    CVmRuntimeSymbols *volatile runtime_macros = 0;
     int seqno;
     
     /* no warnings or errors so far */
@@ -667,7 +671,7 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
     err_try
     {
         textchar_t qu_buf[OSFNMAX*2 + 2], qu_buf_out[OSFNMAX*2 + 2];
-        int step_cnt;
+        int step_cnt, step_cur = 0;
         char img_tool_data[4];
         CVmCRC32 mod_crc;
 
@@ -1061,6 +1065,29 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                     }
                 }
             }
+
+            /* 
+             *   if we're still not building the image file, check to see if
+             *   any resource files are newer - if so, we'll need to relink
+             *   to get a clean slate for refreshing the resources 
+             */
+            if  (!build_image && res_list != 0 && res_list->get_count() != 0)
+            {
+                /* scan each resource file */
+                for (CRcResEntry *r = res_list->get_head() ; r != 0 ;
+                     r = r->get_next())
+                {
+                    /* check this timestamp */
+                    os_file_time_t resmod;
+                    if (os_get_file_mod_time(&resmod, r->get_fname())
+                        || os_cmp_file_times(&resmod, &imgmod) > 0)
+                    {
+                        /* we need to rebuild the image */
+                        build_image = TRUE;
+                        break;
+                    }
+                }
+            }
         }
 
         /* if we have to link the image file, count the step */
@@ -1072,9 +1099,15 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
             /* count the preinit step if necessary */
             if (run_preinit)
                 ++step_cnt;
+
+            /* count the resource bundler step if necessary */
+            if (res_list != 0 && res_list->get_count() != 0)
+                ++step_cnt;
         }
         
         /* display the initial estimate of the number of build steps */
+        if (status_pct_mode_)
+            hostifc->print_step("%%PCT:0/%d\n", step_cnt);
         if (step_cnt != 0)
             hostifc->print_step("Files to build: %d\n", step_cnt);
 
@@ -1103,6 +1136,11 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                 hostifc->print_step("symbol_export %s -> %s\n",
                                     get_step_fname(qu_buf, srcfile),
                                     get_step_fname(qu_buf_out, symfile));
+
+                /* add the percentage display, if desired */
+                if (status_pct_mode_)
+                    hostifc->print_step("%%PCT:%d/%d\n", step_cur, step_cnt);
+                ++step_cur;
                 
                 /* we need to build the symbol file */
                 build_symbol_file(hostifc, res_loader, srcfile, symfile,
@@ -1137,6 +1175,11 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                                     get_step_fname(qu_buf, srcfile),
                                     get_step_fname(qu_buf_out, objfile));
                 
+                /* add the percentage display, if desired */
+                if (status_pct_mode_)
+                    hostifc->print_step("%%PCT:%d/%d\n", step_cur, step_cnt);
+                ++step_cur;
+
                 /* we need to build the object file */
                 build_object_file(hostifc, res_loader, srcfile, objfile,
                                   mod, errcnt, warncnt);
@@ -1170,10 +1213,11 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                 link_output = inter_file;
 
                 /* 
-                 *   we're running preinit, so we need to build a symbol
-                 *   table to send it 
+                 *   we're running preinit, so we need to build a global
+                 *   symbol table and a macro table to pass to preinit 
                  */
                 runtime_symtab = new CVmRuntimeSymbols();
+                runtime_macros = new CVmRuntimeSymbols();
             }
             else
             {
@@ -1185,9 +1229,15 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
             hostifc->print_step("link -> %s\n",
                                 get_step_fname(qu_buf, link_output));
 
+            /* add the percentage display, if desired */
+            if (status_pct_mode_)
+                hostifc->print_step("%%PCT:%d/%d\n", step_cur, step_cnt);
+            ++step_cur;
+
             /* build it */
             build_image_file(hostifc, res_loader, link_output,
-                             errcnt, warncnt, runtime_symtab, img_tool_data);
+                             errcnt, warncnt, runtime_symtab, runtime_macros,
+                             img_tool_data);
 
             /* if an error occurred, don't bother with preinit */
             if (*errcnt != 0 || (warnings_as_errors_ && *warncnt != 0))
@@ -1203,6 +1253,11 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                 CVmHostIfc *vmhostifc;
                 CVmMainClientConsole clientifc;
                 
+                /* add the percentage display, if desired */
+                if (status_pct_mode_)
+                    hostifc->print_step("%%PCT:%d/%d\n", step_cur, step_cnt);
+                ++step_cur;
+
                 /* note what we're doing */
                 hostifc->print_step(
                     "preinit -> %s\n",
@@ -1244,7 +1299,7 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
                     /* run preinit to build the image file */
                     vm_run_preinit(file_in, link_output,
                                    file_out, vmhostifc, &clientifc, 0, 0,
-                                   runtime_symtab);
+                                   runtime_symtab, runtime_macros);
                 }
                 err_finally
                 {
@@ -1262,12 +1317,17 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
             }
 
             /* 
-             *   if we have any resources to add, and we're not compiling for
-             *   debugging, add the resources 
+             *   if we have any resources, add them to the image (or just add
+             *   links to them, if compiling for debugging) 
              */
             if (res_list != 0 && res_list->get_count() != 0)
             {
                 CRcHostIfcTcmake rc_hostifc(hostifc);
+
+                /* add the percentage display, if desired */
+                if (status_pct_mode_)
+                    hostifc->print_step("%%PCT:%d/%d\n", step_cur, step_cnt);
+                ++step_cur;
 
                 /* mention what we're doing */
                 hostifc->print_step(
@@ -1325,6 +1385,10 @@ void CTcMake::build(CTcHostIfc *hostifc, int *errcnt, int *warncnt,
     /* if we created a runtime symbol table, delete it */
     if (runtime_symtab != 0)
         delete runtime_symtab;
+
+    /* likewise the macro table */
+    if (runtime_macros != 0)
+        delete runtime_macros;
 
     /* done with the resource loader */
     delete res_loader;
@@ -1960,23 +2024,23 @@ void CTcMake::write_build_config_to_sym_file(CVmFile *fp)
          def = def->get_next(), ++cnt) ;
 
     /* write the count */
-    fp->write_int2(cnt);
+    fp->write_uint2(cnt);
 
     /* write each option */
     for (def = def_head_ ; def != 0 ; def = def->get_next())
     {
         /* write the symbol */
-        fp->write_int2(get_strlen(def->get_sym()));
+        fp->write_uint2(get_strlen(def->get_sym()));
         fp->write_bytes(def->get_sym(), get_strlen(def->get_sym()));
 
         /* write the expansion */
         if (def->get_expan() != 0)
         {
-            fp->write_int2(get_strlen(def->get_expan()));
+            fp->write_uint2(get_strlen(def->get_expan()));
             fp->write_bytes(def->get_expan(), get_strlen(def->get_expan()));
         }
         else
-            fp->write_int2(0);
+            fp->write_uint2(0);
 
         /* write the define/undefine flag */
         buf[0] = (char)def->is_def();
@@ -1995,13 +2059,13 @@ void CTcMake::write_build_config_to_sym_file(CVmFile *fp)
          inc = inc->get_next(), ++cnt) ;
 
     /* write the count */
-    fp->write_int2(cnt);
+    fp->write_uint2(cnt);
 
     /* write the list */
     for (inc = inc_head_ ; inc != 0 ; inc = inc->get_next())
     {
         /* write the entry */
-        fp->write_int2(get_strlen(inc->get_path()));
+        fp->write_uint2(get_strlen(inc->get_path()));
         fp->write_bytes(inc->get_path(), get_strlen(inc->get_path()));
     }
 
@@ -2029,7 +2093,7 @@ void CTcMake::write_build_config_to_sym_file(CVmFile *fp)
     }
 
     /* write the count, excluding the actual source file */
-    fp->write_int2(cnt);
+    fp->write_uint2(cnt);
 
     /* write the descriptors */
     for ( ; desc != 0 ; desc = desc->get_next())
@@ -2040,7 +2104,7 @@ void CTcMake::write_build_config_to_sym_file(CVmFile *fp)
          *   be able to detect a change in the configuration that points us
          *   to a different resolved local file.  
          */
-        fp->write_int2(get_strlen(desc->get_fname()));
+        fp->write_uint2(get_strlen(desc->get_fname()));
         fp->write_bytes(desc->get_fname(), get_strlen(desc->get_fname()));
     }
 }
@@ -2053,6 +2117,7 @@ void CTcMake::build_image_file(CTcHostIfc *hostifc,
                                const char *image_fname,
                                int *error_count, int *warning_count,
                                CVmRuntimeSymbols *runtime_symtab,
+                               CVmRuntimeSymbols *runtime_macros,
                                const char tool_data[4])
 {
     osfildef *fpout;
@@ -2158,13 +2223,25 @@ void CTcMake::build_image_file(CTcHostIfc *hostifc,
          *   the build, since we're not producing a valid image file in this
          *   case anyway.  
          */
-        if (runtime_symtab != 0 && *error_count == 0)
+        if (*error_count == 0)
         {
-            /* enumerate the global symbols into our builder callback */
-            G_prs->get_global_symtab()
-                ->enum_entries(&build_runtime_symtab_cb, runtime_symtab);
-        }
+            /* build the global symbol table if desired */
+            if (runtime_symtab != 0)
+            {
+                /* enumerate the global symbols into our builder callback */
+                G_prs->get_global_symtab()
+                    ->enum_entries(&build_runtime_symtab_cb, runtime_symtab);
+            }
 
+            /* build the macro table if desired */
+            if (runtime_macros != 0)
+            {
+                /* enumerate the macros into our builder callback */
+                G_tok->get_defines_table()
+                    ->enum_entries(&build_runtime_macro_cb, runtime_macros);
+            }
+        }
+            
         /* close our output file */
         if (fp != 0)
         {
@@ -2202,13 +2279,58 @@ void CTcMake::build_image_file(CTcHostIfc *hostifc,
  */
 void CTcMake::build_runtime_symtab_cb(void *ctx, class CTcSymbol *sym)
 {
-    CVmRuntimeSymbols *symtab;
-    
     /* get our runtime symbol table object (it's the context) */
-    symtab = (CVmRuntimeSymbols *)ctx;
+    CVmRuntimeSymbols *symtab = (CVmRuntimeSymbols *)ctx;
 
     /* build the value for this symbol according to its type */
     sym->add_runtime_symbol(symtab);
+}
+
+/*
+ *   Enumeration callback for building the runtime macro table from the
+ *   compiler macro table 
+ */
+void CTcMake::build_runtime_macro_cb(void *ctx, class CVmHashEntry *e)
+{
+    int i;
+    size_t arglen;
+    
+    /* cast the context and hash entry */
+    CVmRuntimeSymbols *symtab = (CVmRuntimeSymbols *)ctx;
+    CTcHashEntryPp *macro = (CTcHashEntryPp *)e;
+
+    /* figure the flags - these are the same as the image file MACR flags */
+    uint flags = 0;
+    if (macro->has_args())
+        flags |= 0x0001;
+    if (macro->has_varargs())
+        flags |= 0x0002;
+
+    /* compute the total string length of the argument names */
+    for (i = 0, arglen = 0 ; i < macro->get_argc() ; ++i)
+        arglen += strlen(macro->get_arg_name(i)) + 1;
+
+    /* add the macro entry to the table */
+    vm_runtime_sym *sym = symtab->add_macro(
+        macro->getstr(), macro->getlen(),
+        macro->get_orig_expan_len(), flags,
+        macro->get_argc(), arglen);
+
+    /* store the expansion */
+    memcpy(sym->macro_expansion, macro->get_orig_expansion(),
+           macro->get_orig_expan_len());
+
+    /* store the argument names */
+    for (i = 0 ; i < macro->get_argc() ; ++i)
+    {
+        /* copy the argument name */
+        const char *p = macro->get_arg_name(i);
+        size_t len = strlen(p) + 1;
+        memcpy(sym->macro_args[i], p, len);
+
+        /* commit the space */
+        sym->commit_macro_arg(i, len);
+    }
 }
 
 /*
@@ -2260,6 +2382,10 @@ void CTcMake::set_compiler_options()
     G_tok->add_define("__TADS_VERSION_MAJOR", buf);
     sprintf(buf, "%d", TC_VSN_MINOR);
     G_tok->add_define("__TADS_VERSION_MINOR", buf);
+
+    /* add the preprocess macro format version number */
+    sprintf(buf, "%d", TCTOK_MACRO_FORMAT_VERSION);
+    G_tok->add_define("__TADS_MACRO_FORMAT_VERSION", buf);
 
     /* add a symbol for __TADS3 */
     G_tok->add_define("__TADS3", "1");

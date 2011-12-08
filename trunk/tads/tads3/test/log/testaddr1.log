@@ -1,0 +1,17 @@
+	Files to build: 7
+	symbol_export _main.t -> _main.t3s
+	symbol_export testaddr1.t -> testaddr1.t3s
+	symbol_export testaddr1b.t -> testaddr1b.t3s
+	compile _main.t -> _main.t3o
+	compile testaddr1.t -> testaddr1.t3o
+	compile testaddr1b.t -> testaddr1b.t3o
+	link -> testaddr1.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+a = &f: dataType(a) = 12, a(7) = 14
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

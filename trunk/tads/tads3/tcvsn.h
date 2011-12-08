@@ -25,8 +25,8 @@ Modified
 
 /* compiler major/minor/revision version number */
 #define TC_VSN_MAJOR  3
-#define TC_VSN_MINOR  0
-#define TC_VSN_REV    18
+#define TC_VSN_MINOR  1
+#define TC_VSN_REV    0
 
 /*
  *   Patch number.  This is an even finer release number that can be used for
@@ -34,7 +34,7 @@ Modified
  *   increase, but still must be identified as separate builds.  This is only
  *   shown if it's non-zero.  
  */
-#define TC_VSN_PATCH  1
+#define TC_VSN_PATCH  0
 
 /* 
  *   Development build iteration - this is a sub-sub-sub version number that

@@ -81,10 +81,57 @@ main(args)
     v += [2, 4, 6];
     x -= v;
     "list - vector:\n<<sayVector(x)>>";
+
+    "\b";
+    v = Vector.generate({i: i*10}, 10);
+    "Vector.generate multiples of 10:\n<<sayVector(v)>>";
+
+    "\b";
+    v.splice(5, 2);
+    "splice(5,2): <<sayVectorI(v)>>\n";
+
+    v.splice(-2, 0, 'a', 'b', 'c');
+    "splice(-2,0,a,b,c): <<sayVectorI(v)>>\n";
+
+    v.splice(0, 0, 'd', 'e', 'f');
+    "splice(0,0,d,e,f): <<sayVectorI(v)>>\n";
+
+    v.splice(-2, 9, 'x');
+    "splice(-2,9,x): <<sayVectorI(v)>>\n";
+
+    v.splice(1, 0, 'xxx', 'yyy');
+    "splice(1,0,xxx,yyy): <<sayVectorI(v)>>\n";
+
+    "\b";
+    "toList(-3): <<sayVectorI(v.toList(-3))>>\n";
+
+    x = Vector.generate({i: i*11}, 10);
+    x.copyFrom(v, -3, -5, 3);
+    "copyFrom(-3, -5, 3): <<sayVectorI(x)>>\n";
+
+    x.fillValue('fill', -6, 3);
+    "fillValue(fill, -6, 3): <<sayVectorI(x)>>\n";
+
+    x.insertAt(-2, 'one', 'two');
+    "insertAt(-2, one, two): <<sayVectorI(x)>>\n";
+
+    x.removeElementAt(-3);
+    "removeElementAt(-3): <<sayVectorI(x)>>\n";
+
+    x.removeRange(-7, -5);
+    "removeRange(-7, -5): <<sayVectorI(x)>>\n";
 }
 
 sayVector(v)
 {
     for (local i = 1, local cnt = v.length() ; i <= cnt ; ++i)
         "\t[<<i>>] <<v[i]>>\n";
+}
+
+sayVectorI(v)
+{
+    "[";
+    for (local i in 1..v.length())
+        "<<if i > 1>>, <<end>><<v[i]>>";
+    "]";
 }

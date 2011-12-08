@@ -1,0 +1,109 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export spec2html.t -> spec2html.t3s
+	compile _main.t -> _main.t3o
+	compile spec2html.t -> spec2html.t3o
+	link -> spec2html.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Src:  This is a test of the specialsToHtml() conversion process.
+Disp: This is a test of the specialsToHtml() conversion process.
+s2h:  This is a test of the specialsToHtml() conversion process.
+
+Src:  These first strings have no special characters, but we'll get to that
+presently.
+Disp: These first strings have no special characters, but we'll get to that
+presently.
+s2h:  These first strings have no special characters, but we'll get to that
+presently.
+
+Src:  We have some \ \ quoted spaces \ \ in this one.
+Disp: We have some  quoted spaces  in this one.
+s2h:  We have some&nbsp; quoted spaces&nbsp; in this one.
+
+Src:  Mixing \  \  quoted and \ \   \   unquoted spaces.
+Disp: Mixing  quoted and   unquoted spaces.
+s2h:  Mixing&nbsp; quoted and&nbsp;&nbsp; unquoted spaces.
+
+Src:  This one has some <q>quote <q>markups</q> end quote</q>.
+Disp: This one has some <q>quote <q>markups</q> end quote</q>.
+s2h:  This one has some &ldquo;quote &lsquo;markups&rsquo; end quote&rdquo;.
+
+Src:  Let's try <q>quote
+Disp: Let's try <q>quote
+s2h:  Let's try &ldquo;quote
+
+Src:  <q>markups</q>
+Disp: <q>markups</q>
+s2h:   &lsquo;markups&rsquo;
+
+Src:  end quote</q> across elements!
+Disp: end quote</q> across elements!
+s2h:  end quote&rdquo; across elements!
+
+Src:  Some newline conversions: newline\nblank\bthree newlines\n\n\nthree
+blanks\b\b\bnewline-blank-newline-blank\n\b\n\b
+Disp: Some newline conversions: newline
+blank
+
+three newlines
+three blanks
+
+
+
+newline-blank-newline-blank
+
+
+
+s2h:  Some newline conversions: newline<br>blank<br><br>three newlines<br>three
+blanks<br><br><br><br>newline-blank-newline-blank<br><br><br>
+
+Src:  A tag across lines: <a href="test
+Disp: A tag across lines: <a href="test
+s2h:  A tag across lines:
+
+Src:  <link>">hyperlinked text here</
+Disp: <link>">hyperlinked text here</
+s2h:  <a href="test<link>">hyperlinked text here
+
+Src:  a>
+Disp: a>
+s2h:  </a>
+
+Src:  Caps flag: \^<q>in quotes</q>, nocaps: \v<a href='link
+Disp: Caps flag: <Q>in quotes</q>, nocaps: <a href='link
+s2h:  Caps flag: &ldquo;In quotes&rdquo;, nocaps:
+
+Src:  -<across>-lines'>ALL CAPS</a>
+Disp: -<across>-lines'>ALL CAPS</a>
+s2h:  <a href='link-<across>-lines'>aLL CAPS</a>
+
+Src:  BR with HEIGHT attributes... first, height=0<br height=0>\nNow
+height=1<br height=1>And height=2<br height=2>And now a height=0 at the start
+of a line\n<br height=0>And height=2 at start of line\n<br height=2>
+Disp: BR with HEIGHT attributes... first, height=0<br height=0>
+Now height=1<br height=1>And height=2<br height=2>And now a height=0 at the
+start of a line
+<br height=0>And height=2 at start of line
+<br height=2>
+s2h:  BR with HEIGHT attributes... first, height=0<br>Now height=1<br><br>And
+height=2<br><br><br>And now a height=0 at the start of a line<br>And height=2
+at start of line<br><br><br>
+
+Src:
+Tabs:\none\ttwo\tthree\tfour\tfive\tsix\n\ta\tb\tc\td\nhello\tgoodbye\tthat
+should be all
+Disp: Tabs:
+one    two three   four    five    six
+   a   b   c   d
+hello  goodbye that should be all
+s2h:  Tabs:<br>one&nbsp;&nbsp;&nbsp; two three&nbsp;&nbsp;
+four&nbsp;&nbsp;&nbsp; five&nbsp;&nbsp;&nbsp; six<br>&nbsp;&nbsp; a&nbsp;&nbsp;
+b&nbsp;&nbsp; c&nbsp;&nbsp; d<br>hello&nbsp; goodbye that should be all
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

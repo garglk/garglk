@@ -1,0 +1,29 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export anonfunc.t -> anonfunc.t3s
+	compile _main.t -> _main.t3o
+	compile anonfunc.t -> anonfunc.t3o
+	link -> anonfunc.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+[main 1] type(f) = fn, f(7) = 8
+[main 2] type(f) = obj, f(7) = 108
+[main 3] type(f) = fn, f(7) = 9
+[obj.m 1] type(f) = fn, f(7) = 8
+[obj.m 2] type(f) = obj, f(7) = 208
+[obj.m 3] type(f) = obj, f(7) = 308
+[obj.m 4] type(f) = fn, f(7) = 9
+[obj.m 5] type(f) = obj, f(7) = 1008
+[obj.m 6] type(f) = obj, f(7) = 508
+[obj.m 7] type(f) = obj, f(7) = 358
+[obj.m 8] type(f) = obj, f(7) = 1009
+[obj.m 9] type(f) = fn, f(7) = 708
+[obj.m 10] type(f) = obj, f(7) = 908
+[obj.m 11] type(f) = obj, f(7) = 1018
+[obj.m 12] type(f) = obj, f(7) = 808
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

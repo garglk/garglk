@@ -3400,6 +3400,7 @@ void os_print(const char *str, size_t len)
     }
 }
 
+#ifndef FROBTADS          /* hack - should refactor to avoid need for ifdef */
 void os_flush(void)
 {
     /* 
@@ -3410,6 +3411,7 @@ void os_flush(void)
     if (os_f_plain)
         fflush(stdout);
 }
+#endif
 
 void os_update_display(void)
 {
@@ -5440,6 +5442,11 @@ void os_set_save_ext(const char *ext)
     /* ignore the setting */
 }
 
+const char *os_get_save_ext()
+{
+    /* we ignore the setting, so always return null */
+    return 0;
+}
 
 /* ------------------------------------------------------------------------ */
 /*

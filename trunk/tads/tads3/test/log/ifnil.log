@@ -1,0 +1,31 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export ifnil.t -> ifnil.t3s
+	compile _main.t -> _main.t3o
+	compile ifnil.t -> ifnil.t3o
+	link -> ifnil.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Constant tests:
+nil ?? 100 = 100
+nil ?? a = 123
+200 ?? 300 = 200
+400 ?? a = 400
+
+Non-constant tests:
+a ?? 500 = 123
+a ?? c = 123
+b ?? 600 = 600
+b ?? c = 456
+
+Side effect tests:
+f(a) ?? f(700) = [This is f(123)] 123
+f(b) ?? f(800) = [This is f()] [This is f(800)] 800
+nil ?? f(900) = [This is f(900)] 900
+1000 ?? f(1100) = 1000
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -22,6 +22,8 @@ Modified
 
 #include "t3std.h"
 #include "tchost.h"
+#include "osifcnet.h"
+
 
 /* ------------------------------------------------------------------------ */
 /*

@@ -20,12 +20,12 @@ Modified
   11/02/97 MJRoberts  - Creation
 */
 
+#include <string.h>
 #ifndef DJGPP
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include <string.h>
 #include <share.h>
 #endif /* DJGPP */
 
@@ -201,9 +201,56 @@ static const char *oss_get_exe(const char *argv0)
  */
 static const char *oss_get_exe(const char *argv0)
 {
-    /*
-     *   for non-microsoft compilers, we'll have to rely on the run-time
-     *   library to pass the fully-qualified path to the executable in argv0 
+    /* static path buffer, in case we need to build the path ourselves */
+    static char path[OSFNMAX];
+    char *p;
+    
+    /* 
+     *   For non-microsoft compilers, we don't know of any RTL mechanisms for
+     *   getting the full exe path.  Some compilers always give us a
+     *   fully-qualified path in argv[0], so check that first - if it looks
+     *   like an absolute path, just return it. 
+     */
+    if (os_is_file_absolute(argv0))
+        return argv0;
+
+    /* 
+     *   Okay, the RTL startup routine didn't give us any help - it looks
+     *   like we have a relative filename, so the RTL probably just passed us
+     *   the first token on the DOS/cmd.exe command line.  The shell will
+     *   have searched for the given filename first in the current directory,
+     *   then in each directory listed in the PATH environment variable.  So,
+     *   first build out the full absolute path to the file as though it were
+     *   in the current working directory; if the resulting file exists,
+     *   return that path.  
+     */
+    os_get_abs_filename(path, sizeof(path), argv0);
+    if (!osfacc(path))
+        return path;
+
+    /* 
+     *   The file doesn't exist in the working directory, so it must be
+     *   somewhere in the PATH list.  Search the path.
+     */
+#ifdef TURBO
+    /* 
+     *   borland version - RTL searchpath() searches the PATH and returns a
+     *   static buffer with the full path, if we found it 
+     */
+    if ((p = searchpath(argv0)) != 0)
+    {
+        /* 
+         *   Found it.  Build out the full absolute path, since the PATH
+         *   variable could itself have relative path references. 
+         */
+        os_get_abs_filename(path, sizeof(path), p);
+        return path;
+    }
+#endif
+
+    /* 
+     *   We didn't find the file on the path.  Give up and just return the
+     *   original filenamem. 
      */
     return argv0;
 }
@@ -249,11 +296,13 @@ void os_get_special_path(char *buf, size_t buflen, const char *argv0, int id)
     {
     case OS_GSP_T3_RES:
     case OS_GSP_T3_APP_DATA:
+    case OS_GSP_T3_SYSCONFIG:
+    case OS_GSP_LOGFILE:
         /* 
-         *   For DOS/Windows, we keep all TADS 3 system resources, as well as
-         *   application data files, in the root install directory.  This is
-         *   the same directory that contains the executable, so we simply
-         *   need to get the path name of the executable.  
+         *   For DOS/Windows, we keep these items in the root install
+         *   directory.  This is the same directory that contains the
+         *   executable, so we simply need to get the path name of the
+         *   executable.  
          */
         os_get_path_name(buf, buflen, oss_get_exe(argv0));
 

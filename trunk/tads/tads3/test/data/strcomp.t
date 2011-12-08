@@ -1,3 +1,4 @@
+#charset <win1251>
 #include <tads.h>
 #include <strcomp.h>
 
@@ -5,16 +6,20 @@ main(args)
 {
     local comp = new StringComparator(6, nil,
         [
-         ['\u00DF', 'ss', 0x0100, 0x0200],
-         ['\u00E0', 'a',  0x1000, 0x2000],
-         ['\u00E1', 'a',  0x4000, 0x8000]
+         ['\u00DF', 'ss', 0x0100, 0x0200],  // Eszett, DOS Alt+225
+         ['\u00E0', 'a',  0x1000, 0x2000],  // a-grave, DOS Alt+133
+         ['\u00E1', 'a',  0x4000, 0x8000]   // a-acute, DOS Alt+160
         ]);
+
+    local tests = [
+        ['daﬂ', '
 
     "Type QUIT to quit.\n";
     for (;;)
     {
         local s1, s2;
         local m, h1, h2;
+
         
         "\bDictionary string: ";
         s1 = inputLine();

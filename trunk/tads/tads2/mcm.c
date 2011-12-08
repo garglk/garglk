@@ -115,6 +115,13 @@ mcmcxdef *mcmcini(mcmcx1def *globalctx, uint pages,
     return(ret);
 }
 
+/* uninitialize a client context */
+void mcmcterm(mcmcxdef *ctx)
+{
+    /* delete the context memory */
+    mchfre(ctx);
+}
+
 /* initialize a new global context */
 mcmcx1def *mcmini(ulong max, uint pages, ulong swapsize,
                   osfildef *swapfp, char *swapfilename, errcxdef *errctx)
@@ -214,6 +221,40 @@ mcmcx1def *mcmini(ulong max, uint pages, ulong swapsize,
 }
 
 /*
+ *   Uninitialize the cache manager.  Frees the memory allocated for the
+ *   cache, including the context structure itself.  
+ */
+void mcmterm(mcmcx1def *ctx)
+{
+    mcmhdef *cur, *nxt;
+    
+    /* 
+     *   Free each chunk in the cache block list, *except* the last one.  The
+     *   last one is special: it's actually the first chunk allocated, since
+     *   we build the list in reverse order, and the first chunk pointer
+     *   points into the middle of the actual allocation block, since we
+     *   sub-allocated the context structure itself and the page table out of
+     *   that memory. 
+     */
+    for (cur = ctx->mcmcxhpch ; cur != 0 && cur->mcmhnxt != 0 ; cur = nxt)
+    {
+        /* remember the next chunk, and delete this one */
+        nxt = cur->mcmhnxt;
+        mchfre(cur);
+    }
+
+    /* 
+     *   As described above, the last chunk in the list is the first
+     *   allocated, and it points into the middle of the actual allocated
+     *   memory block.  Luckily, we do have a handy pointer to the start of
+     *   the memory block, namely the context pointer - it's the first thing
+     *   allocated out of the block, so it's the same as the block pointer.
+     *   Freeing the context frees this last/first chunk. 
+     */
+    mchfre(ctx);
+}
+
+/*
  *   Allocate a new object, returning a pointer to its memory.  The new
  *   object is locked upon return.  The object number for the new object
  *   is returned at *nump.
@@ -280,7 +321,7 @@ static void mcmcliexp(mcmcxdef *cctx, mcmon clinum)
         mcmon     *p;
         
         /* this page is not allocated - allocate it */
-        p = (mcmon *)mchalo(ctx->mcmcxerr, (ushort)(256 * sizeof(mcmon)),
+        p = (mcmon *)mchalo(ctx->mcmcxerr, (256 * sizeof(mcmon)),
                             "client mapping page");
         cctx->mcmcxmtb[clinum >> 8] = p;
         for (i = 0 ; i < 256 ; ++i) *p++ = MCMONINV;
@@ -608,7 +649,7 @@ startover:
     pagenum = ctx->mcmcxpage++;                      /* get a new page slot */
     
     ctx->mcmcxtab[pagenum] =
-         (mcmodef *)mchalo(ctx->mcmcxerr, (ushort)MCMPAGESIZE, "mcmoal");
+         (mcmodef *)mchalo(ctx->mcmcxerr, MCMPAGESIZE, "mcmoal");
     mcmadpg(ctx, pagenum, MCMONINV);
     goto startover;
 
@@ -773,7 +814,7 @@ static uchar *mcmhalo(mcmcx1def *ctx)
     if (ctx->mcmcxmax < MCMCHUNK) return((uchar *)0);
 
     ERRBEGIN(ctx->mcmcxerr)
-        chunk = mchalo(ctx->mcmcxerr, (ushort)size, "mcmhalo");
+        chunk = mchalo(ctx->mcmcxerr, size, "mcmhalo");
     ERRCATCH(ctx->mcmcxerr, err)
         ctx->mcmcxmax = 0;      /* remember we can't allocate anything more */
         return((uchar *)0);                             /* return no memory */

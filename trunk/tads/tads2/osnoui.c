@@ -34,6 +34,10 @@ Modified
 #include <time.h>
 #include <sys/stat.h>
 
+#ifdef __WIN32__
+#include <Windows.h>
+#endif
+
 #include "os.h"
 #include "run.h"
 
@@ -142,9 +146,9 @@ void os_remext(char *fn)
  *   sufficiently DOS-like for the extension parsing routines, the same
  *   will be true of path parsing.  
  */
-char *os_get_root_name(char *buf)
+char *os_get_root_name(const char *buf)
 {
-    char *rootname;
+    const char *rootname;
 
     /* scan the name for path separators */
     for (rootname = buf ; *buf != '\0' ; ++buf)
@@ -162,8 +166,13 @@ char *os_get_root_name(char *buf)
         }
     }
 
-    /* return the last root name candidate */
-    return rootname;
+    /* 
+     *   Return the last root name candidate that we found.  (Cast it to
+     *   non-const for the caller's convenience: *we're* not allowed to
+     *   modify this buffer, but the caller is certainly free to pass in a
+     *   writable buffer, and they're free to write to it after we return.)  
+     */
+    return (char *)rootname;
 }
 
 /*
@@ -405,14 +414,14 @@ static int pathfind(const char *fname, int flen, const char *pathvar,
 {
     char   *e;
     
-    if ( !(e = getenv(pathvar)) )
+    if ( (e = getenv(pathvar)) == 0 )
         return(0);
     for ( ;; )
     {
         char   *sep;
         size_t  len;
         
-        if ( (sep = strchr(e, OSPATHSEP)) )
+        if ( (sep = strchr(e, OSPATHSEP)) != 0 )
         {
             len = (size_t)(sep-e);
             if (!len) continue;
@@ -488,6 +497,326 @@ int os_locate(const char *fname, int flen, const char *arg0,
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   ISAAC random number generator.  This is a small, fast, cryptographic
+ *   quality random number generator that we use internally for some generic
+ *   purposes:
+ *   
+ *   - for os_gen_temp_filename(), we use it to generate a GUID-style random
+ *   filename
+ *   
+ *   - for our generic implementation of os_gen_rand_bytes(), we use it as
+ *   the source of the random bytes 
+ */
+
+/* 
+ *   include ISAAC if we're using our generic temporary filename generator
+ *   with long filenames, or we're using our generic os_gen_rand_bytes() 
+ */
+#if !defined(OSNOUI_OMIT_TEMPFILE) && (defined(__WIN32__) || !defined(MSDOS))
+#define INCLUDE_ISAAC
+#endif
+#ifdef USE_GENRAND
+#define INCLUDE_ISAAC
+#endif
+
+#ifdef INCLUDE_ISAAC
+/*
+ *   ISAAC random number generator implementation, for generating
+ *   GUID-strength random temporary filenames 
+ */
+#define ISAAC_RANDSIZL   (8)
+#define ISAAC_RANDSIZ    (1<<ISAAC_RANDSIZL)
+static struct isaacctx
+{
+    /* RNG context */
+    unsigned long cnt;
+    unsigned long rsl[ISAAC_RANDSIZ];
+    unsigned long mem[ISAAC_RANDSIZ];
+    unsigned long a;
+    unsigned long b;
+    unsigned long c;
+} *S_isaacctx;
+
+#define _isaac_rand(r) \
+    ((r)->cnt-- == 0 ? \
+     (isaac_gen_group(r), (r)->cnt=ISAAC_RANDSIZ-1, (r)->rsl[(r)->cnt]) : \
+     (r)->rsl[(r)->cnt])
+#define isaac_rand() _isaac_rand(S_isaacctx)
+
+#define isaac_ind(mm,x)  ((mm)[(x>>2)&(ISAAC_RANDSIZ-1)])
+#define isaac_step(mix,a,b,mm,m,m2,r,x) \
+    { \
+        x = *m;  \
+        a = ((a^(mix)) + *(m2++)) & 0xffffffff; \
+        *(m++) = y = (isaac_ind(mm,x) + a + b) & 0xffffffff; \
+        *(r++) = b = (isaac_ind(mm,y>>ISAAC_RANDSIZL) + x) & 0xffffffff; \
+    }
+
+#define isaac_mix(a,b,c,d,e,f,g,h) \
+    { \
+        a^=b<<11; d+=a; b+=c; \
+        b^=c>>2;  e+=b; c+=d; \
+        c^=d<<8;  f+=c; d+=e; \
+        d^=e>>16; g+=d; e+=f; \
+        e^=f<<10; h+=e; f+=g; \
+        f^=g>>4;  a+=f; g+=h; \
+        g^=h<<8;  b+=g; h+=a; \
+        h^=a>>9;  c+=h; a+=b; \
+    }
+
+/* generate the group of numbers */
+static void isaac_gen_group(struct isaacctx *ctx)
+{
+    unsigned long a;
+    unsigned long b;
+    unsigned long x;
+    unsigned long y;
+    unsigned long *m;
+    unsigned long *mm;
+    unsigned long *m2;
+    unsigned long *r;
+    unsigned long *mend;
+
+    mm = ctx->mem;
+    r = ctx->rsl;
+    a = ctx->a;
+    b = (ctx->b + (++ctx->c)) & 0xffffffff;
+    for (m = mm, mend = m2 = m + (ISAAC_RANDSIZ/2) ; m<mend ; )
+    {
+        isaac_step(a<<13, a, b, mm, m, m2, r, x);
+        isaac_step(a>>6,  a, b, mm, m, m2, r, x);
+        isaac_step(a<<2,  a, b, mm, m, m2, r, x);
+        isaac_step(a>>16, a, b, mm, m, m2, r, x);
+    }
+    for (m2 = mm; m2<mend; )
+    {
+        isaac_step(a<<13, a, b, mm, m, m2, r, x);
+        isaac_step(a>>6,  a, b, mm, m, m2, r, x);
+        isaac_step(a<<2,  a, b, mm, m, m2, r, x);
+        isaac_step(a>>16, a, b, mm, m, m2, r, x);
+    }
+    ctx->b = b;
+    ctx->a = a;
+}
+
+static void isaac_init(unsigned long *rsl)
+{
+    static int inited = FALSE;
+    int i;
+    unsigned long a;
+    unsigned long b;
+    unsigned long c;
+    unsigned long d;
+    unsigned long e;
+    unsigned long f;
+    unsigned long g;
+    unsigned long h;
+    unsigned long *m;
+    unsigned long *r;
+    struct isaacctx *ctx;
+
+    /* allocate the context if we don't already have it set up */
+    if ((ctx = S_isaacctx) == 0)
+        ctx = S_isaacctx = (struct isaacctx *)malloc(sizeof(struct isaacctx));
+
+    /* 
+     *   If we're already initialized, AND the caller isn't re-seeding with
+     *   explicit data, we're done.  
+     */
+    if (inited && rsl == 0)
+        return;
+    inited = TRUE;
+
+    ctx->a = ctx->b = ctx->c = 0;
+    m = ctx->mem;
+    r = ctx->rsl;
+    a = b = c = d = e = f = g = h = 0x9e3779b9;         /* the golden ratio */
+
+    /* scramble the initial settings */
+    for (i = 0 ; i < 4 ; ++i)
+    {
+        isaac_mix(a, b, c, d, e, f, g, h);
+    }
+
+    /* 
+     *   if they sent in explicit initialization bytes, use them; otherwise
+     *   seed the generator with truly random bytes from the system 
+     */
+    if (rsl != 0)
+        memcpy(ctx->rsl, rsl, sizeof(ctx->rsl));
+    else
+        os_gen_rand_bytes((unsigned char *)ctx->rsl, sizeof(ctx->rsl));
+
+    /* initialize using the contents of ctx->rsl[] as the seed */
+    for (i = 0 ; i < ISAAC_RANDSIZ ; i += 8)
+    {
+        a += r[i];   b += r[i+1]; c += r[i+2]; d += r[i+3];
+        e += r[i+4]; f += r[i+5]; g += r[i+6]; h += r[i+7];
+        isaac_mix(a, b, c, d, e, f, g, h);
+        m[i] = a;   m[i+1] = b; m[i+2] = c; m[i+3] = d;
+        m[i+4] = e; m[i+5] = f; m[i+6] = g; m[i+7] = h;
+    }
+
+    /* do a second pass to make all of the seed affect all of m */
+    for (i = 0 ; i < ISAAC_RANDSIZ ; i += 8)
+    {
+        a += m[i];   b += m[i+1]; c += m[i+2]; d += m[i+3];
+        e += m[i+4]; f += m[i+5]; g += m[i+6]; h += m[i+7];
+        isaac_mix(a, b, c, d, e, f, g, h);
+        m[i] = a;   m[i+1] = b; m[i+2] = c; m[i+3] = d;
+        m[i+4] = e; m[i+5] = f; m[i+6] = g; m[i+7] = h;
+    }
+
+    /* fill in the first set of results */
+    isaac_gen_group(ctx);
+
+    /* prepare to use the first set of results */    
+    ctx->cnt = ISAAC_RANDSIZ;
+}
+#endif /* INCLUDE_ISAAC */
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Generic implementation of os_gen_rand_bytes().  This can be used when
+ *   the operating system doesn't have a native source of true randomness,
+ *   but prefereably only as a last resort - see below for why.
+ *   
+ *   This generator uses ISAAC to generate the bytes, seeded by the system
+ *   time.  This algorithm isn't nearly as good as using a native OS-level
+ *   randomness source, since any decent OS API will have access to
+ *   considerably more sources of true entropy.  In a portable setting, we
+ *   have very little in the way of true randomness available.  The most
+ *   reliable portable source of randomness is the system clock; if it has
+ *   resolution in the millisecond range, this gives us roughly 10-12 bits of
+ *   real entropy if we assume that the user is running the program manually,
+ *   in that there should be no pattern to the exact program start time -
+ *   even a series of back-to-back runs would be pretty random in the part of
+ *   the time below about 1 second.  We *might* also be able to get a little
+ *   randomness from the memory environment, such as the current stack
+ *   pointer, the state of the malloc() allocator as revealed by the address
+ *   of a newly allocated block, the contents of uninitialized stack
+ *   variables and uninitialized malloc blocks, and the contents of the
+ *   system registers as saved by setjmp.  These memory settings are not
+ *   entirely likely to vary much from one run to the next: most modern OSes
+ *   virtualize the process environment to such an extent that each fresh run
+ *   will start with exactly the same initial memory environment, including
+ *   the stack address and malloc heap configuration.
+ *   
+ *   We make the most of these limited entropy sources by using them to seed
+ *   an ISAAC RNG, then generating the returned random bytes via ISAAC.
+ *   ISAAC's design as a cryptographic RNG means that it thoroughly mixes up
+ *   the meager set of random bits we hand it, so the bytes returned will
+ *   statistically look nice and random.  However, don't be fooled into
+ *   thinking that this magnifies the basic entropy we have as inputs - it
+ *   doesn't.  If we only have 10-12 bits of entropy from the timer, and
+ *   everything else is static, our byte sequence will represent 10-12 bits
+ *   of entropy scattered around through a large set of mathematically (and
+ *   deterministically) derived bits.  The danger is that the "birthday
+ *   problem" dictates that with 12 bits of variation from one run to the
+ *   next, we'd have a good chance of seeing a repeat of the *exact same byte
+ *   sequence* within about 100 runs.  This is why it's so much better to
+ *   customize this routine using a native OS mechanism whenever possible.  
+ */
+#ifdef USE_GENRAND
+
+void os_gen_rand_bytes(unsigned char *buf, size_t buflen)
+{
+    union
+    {
+        unsigned long r[ISAAC_RANDSIZ];
+        struct
+        {
+            unsigned long r1[15];
+            jmp_buf env;
+        } o;
+    } r;
+    void *p, *q;
+    
+    /* 
+     *   Seed ISAAC with what little entropy we have access to in a generic
+     *   cross-platform implementation:
+     *   
+     *   - the current wall-clock time
+     *.  - the high-precision (millisecond) system timer
+     *.  - the current stack pointer
+     *.  - an arbitrary heap pointer obtained from malloc()
+     *.  - whatever garbage is in the random heap pointer from malloc()
+     *.  - whatever random garbage is in the rest of our stack buffer 'r'
+     *.  - the contents of system registers from 'setjmp'
+     *   
+     *   The millisecond timer is by far the most reliable source of real
+     *   entropy we have available.  The wall clock time doesn't vary quickly
+     *   enough to produce more than a few bits of entropy from run to run;
+     *   all of the memory factors could be absolutely deterministic from run
+     *   to run, depending on how thoroughly the OS virtualizes the process
+     *   environment at the start of a run.  For example, some systems clear
+     *   memory pages allocated to a process, as a security measure to
+     *   prevent old data from one process from becoming readable by another
+     *   process.  Some systems virtualize the memory space such that the
+     *   program is always loaded at the same virtual address, always has its
+     *   stack at the same virtual address, etc.
+     *   
+     *   Note that we try to add some variability to our malloc heap probing,
+     *   first by making the allocation size vary according to the low bits
+     *   of the system millisecond timer, then by doing a second allocation
+     *   to take into account the effect of the randomized size of the first
+     *   allocation.  This should avoid getting the exact same results every
+     *   time we run, even if the OS arranges for the heap to have exactly
+     *   the same initial layout with every run, since our second malloc will
+     *   have initial conditions that vary according to the size our first
+     *   malloc.  This arguably doesn't introduce a lot of additional real
+     *   entropy, since we're already using the system timer directly in the
+     *   calculation anyway: in a sufficiently predictable enough heap
+     *   environment, our two malloc() calls will yield the same results for
+     *   a given timer value, so we're effectively adding f(timer) for some
+     *   deterministic function f(), which is the same in terms of additional
+     *   real entropy as just adding the timer again, which is the same as
+     *   adding nothing.  
+     */
+    r.r[0] = (unsigned long)time(0);
+    r.r[1] = (unsigned long)os_get_sys_clock_ms();
+    r.r[2] = (unsigned long)buf;
+    r.r[3] = (unsigned long)&buf;
+    p = malloc((size_t)(os_get_sys_clock_ms() & 1023) + 17);
+    r.r[4] = (unsigned long)p;
+    r.r[5] = *(unsigned long *)p;
+    r.r[6] = *((unsigned long *)p + 10);
+    q = malloc(((size_t)p & 1023) + 19);
+    r.r[7] = (unsigned long)p;
+    r.r[8] = *(unsigned long *)p;
+    r.r[9] = *((unsigned long *)p + 10);
+    setjmp(r.o.env);
+
+    free(p);
+    free(q);
+
+    /* initialize isaac with our seed data */
+    isaac_init(r.r);
+
+    /* generate random bytes from isaac to fill the buffer */
+    while (buflen > 0)
+    {
+        unsigned long n;
+        size_t copylen;
+        
+        /* generate a number */
+        n = isaac_rand();
+
+        /* copy it into the buffer */
+        copylen = buflen < sizeof(n) ? buflen : sizeof(n);
+        memcpy(buf, &n, copylen);
+
+        /* advance our buffer pointer */
+        buf += copylen;
+        buflen -= copylen;
+    }
+}
+
+#endif /* USE_GENRAND */
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Temporary files
  *   
  *   This default implementation is layered on the normal osifc file APIs, so
@@ -512,86 +841,31 @@ int os_locate(const char *fname, int flen, const char *arg0,
 osfildef *os_create_tempfile(const char *swapname, char *buf)
 {
     osfildef *fp;
+    const char *fname;
 
     /* if a name wasn't provided, generate a name */
     if (swapname == 0)
     {
-        int     attempt;
-        size_t  len;
-        time_t  timer;
-        int     found;
-        int     tries;
+        /* generate a name for the file */
+        os_gen_temp_filename(buf, OSFNMAX);
 
-        /* 
-         *   try once with the temporary file path; if that fails, simply
-         *   try using the current working directory 
-         */
-        for (found = FALSE, tries = 0 ; !found && tries < 2 ; ++tries)
-        {
-            /* 
-             *   If this is the first try, get the appropriate path for a
-             *   temp file.  If that failed, try using the current
-             *   directory. 
-             */
-            if (tries == 0)
-            {
-                /* get the temporary path */
-                os_get_tmp_path(buf);
-                len = strlen(buf);
-            }
-            else
-            {
-                /* 
-                 *   the temporary path didn't work, so this time try it in
-                 *   the current directory 
-                 */
-                buf[0] = '\0';
-                len = 0;
-            }
-
-            /* get the current time, as a basis for a unique identifier */
-            time(&timer);
-
-            /* try until we find a non-existent filename */
-            for (attempt = 0 ; attempt < 100 ; ++attempt)
-            {
-                /* generate a name based on time and try number */
-                sprintf(buf + len, "SW%06ld.%03d",
-                        (long)timer % 999999, attempt);
-                
-                /* check to see if a file by this name already exists */
-                if (osfacc(buf))
-                {
-                    /* the file doesn't exist - try creating it */
-                    fp = osfoprwtb(buf, OSFTSWAP);
-
-                    /* if that succeeded, return this file */
-                    if (fp != 0)
-                    {
-                        /* set the file's type in the OS, if necessary */
-                        os_settype(buf, OSFTSWAP);
-
-                        /* we're done - return the open file handle */
-                        return fp;
-                    }
-                }
-            }
-        }
-
-        /* we failed to find a name we could use - give up */
-        return 0;
+        /* use the generated name */
+        fname = buf;
     }
     else
     {
-        /* open the file they gave us */
-        fp = osfoprwtb(swapname, OSFTSWAP);
-
-        /* set the file's type in the OS, if necessary */
-        os_settype(swapname, OSFTSWAP);
-
-        /* return the file pointer */
-        return fp;
+        /* use the name they passed in */
+        fname = swapname;
     }
+
+    /* open the file in binary write/truncate mode */
+    fp = osfoprwtb(fname, OSFTSWAP);
+
+    /* set the file's type in the OS, if necessary */
+    os_settype(fname, OSFTSWAP);
+
+    /* return the file pointer */
+    return fp;
 }
 
 /*
@@ -607,6 +881,44 @@ int osfdel_temp(const char *fname)
     return osfdel(fname);
 }
 
+#if defined(MSDOS) && !defined(__WIN32__)
+#define SHORT_FILENAMES
+#endif
+
+#ifndef SHORT_FILENAMES
+/*
+ *   Generate a name for a temporary file.  This is the long filename
+ *   version, suitable only for platforms that can handle filenames of at
+ *   least 45 characters in just the root name portion.  For systems with
+ *   short filenames (e.g., MS-DOS, this must use a different algorithm - see
+ *   the MSDOS section below for a fairly portable "8.3" implementation.  
+ */
+int os_gen_temp_filename(char *buf, size_t buflen)
+{
+    char tmpdir[OSFNMAX], fname[50];
+
+    /* get the system temporary directory */
+    os_get_tmp_path(tmpdir);
+
+    /* seed ISAAC with random data from the system */
+    isaac_init(0);
+
+    /* 
+     *   Generate a GUID-strength random filename.  ISAAC is a cryptographic
+     *   quality RNG, so the chances of collisions with other filenames
+     *   should be effectively zero. 
+     */
+    sprintf(fname, "TADS-%08lx-%08lx-%08lx-%08lx.tmp",
+            isaac_rand(), isaac_rand(), isaac_rand(), isaac_rand());
+
+    /* build the full path */
+    os_build_full_path(buf, buflen, tmpdir, fname);
+
+    /* success */
+    return TRUE;
+}
+
+#endif
 #endif /* OSNOUI_OMIT_TEMPFILE */
 
 /* ------------------------------------------------------------------------ */
@@ -628,7 +940,19 @@ void os_fprint(osfildef *fp, const char *str, size_t len)
     fprintf(fp, "%.*s", (int)len, str);
 }
 
-#ifdef MSDOS
+/* ------------------------------------------------------------------------ */
+
+#ifdef __WIN32__
+/*
+ *   Windows implementation - get the temporary file path. 
+ */
+void os_get_tmp_path(char *buf)
+{
+    GetTempPath(OSFNMAX, buf);
+}
+#endif
+
+#if defined(MSDOS) && !defined(__WIN32__)
 /*
  *   MS-DOS implementation - Get the temporary file path.  Tries getting
  *   the values of various environment variables that are typically used
@@ -676,6 +1000,91 @@ void os_get_tmp_path(char *buf)
     /* didn't find anything - leave the prefix empty */
     buf[0] = '\0';
 }
+
+/*
+ *   Generate a name for a temporary file.  This implementation is suitable
+ *   for MS-DOS and other platforms with short filenames - for the simpler
+ *   and more generic long-filename version, see above.  On systems where
+ *   filenames are limited to short names, we can't pack enough randomness
+ *   into a filename to guarantee uniqueness by virtue of randomness alone,
+ *   so we cope by actually checking for an existing file for each random
+ *   name we roll up, trying again if our selected name is in use.  
+ */
+int os_gen_temp_filename(char *buf, size_t buflen)
+{
+    osfildef *fp;
+    int attempt;
+    size_t len;
+    time_t timer;
+    int pass;
+
+    /* 
+     *   Fail if our buffer is smaller than OSFNMAX.  os_get_tmp_path()
+     *   assumes an OSFNMAX-sized buffer, so we'll have problems if the
+     *   passed-in buffer is shorter than that. 
+     */
+    if (buflen < OSFNMAX)
+        return FALSE;
+
+    /* 
+     *   Try a few times with the temporary file path; if we can't find an
+     *   available filename there, try again with the working directory.  
+     */
+    for (pass = 1 ; pass <= 2 ; ++pass)
+    {
+        /* get the directory path */
+        if (pass == 1)
+        {
+            /* first pass - use the system temp directory */
+            os_get_tmp_path(buf);
+            len = strlen(buf);
+        }
+        else
+        {
+            /* 
+             *   second pass - we couldn't find any free names in the system
+             *   temp directory, so try the working directory 
+             */
+            buf[0] = '\0';
+            len = 0;
+        }
+        
+        /* get the current time, as a basis for a unique identifier */
+        time(&timer);
+        
+        /* try until we find a non-existent filename */
+        for (attempt = 0 ; attempt < 100 ; ++attempt)
+        {
+            /* generate a name based on time and try number */
+            sprintf(buf + len, "SW%06ld.%03d",
+                    (long)timer % 999999, attempt);
+            
+            /* check to see if a file by this name already exists */
+            if (osfacc(buf))
+            {
+                /* the file doesn't exist - try creating it */
+                fp = osfoprwtb(buf, OSFTSWAP);
+                
+                /* if that succeeded, return this file */
+                if (fp != 0)
+                {
+                    /* set the file's type in the OS, if necessary */
+                    os_settype(buf, OSFTSWAP);
+
+                    /* close the file - it's just an empty placeholder */
+                    osfcls(fp);
+
+                    /* return success */
+                    return TRUE;
+                }
+            }
+        }
+    }
+    
+    /* we couldn't find a free filename - return failure */
+    return FALSE;
+}
+
 #endif /* MSDOS */
 
 #ifdef USE_NULLSTYPE

@@ -29,6 +29,7 @@ Modified
 #include "vmobj.h"
 #include "vmundo.h"
 #include "vmhash.h"
+#include "utf8.h"
 
 
 /* forward-declare the class */
@@ -126,7 +127,86 @@ struct vm_dict_ext
 
     /* type of comparator */
     vm_dict_comp_type comparator_type_;
+
+    /* Trie of our entries, for spelling correction */
+    struct vmdict_TrieNode *trie_;
 };
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   For spelling correction, we maintain a Trie on the dictionary in
+ *   parallel to the hash table.  
+ */
+
+/* 
+ *   Trie Node - a node in the trie tree.
+ */
+struct vmdict_TrieNode
+{
+    vmdict_TrieNode(vmdict_TrieNode *nxt, wchar_t c)
+    {
+        /* remember the transition character from our parent to us */
+        ch = c;
+
+        /* we don't have any words in this node yet */
+        word_cnt = 0;
+
+        /* remember our next sibling link */
+        this->nxt = nxt;
+
+        /* we don't have any children yet */
+        chi = 0;
+    }
+
+    ~vmdict_TrieNode()
+    {
+        /* delete the subtree */
+        while (chi != 0)
+        {
+            /* unlink this child */
+            vmdict_TrieNode *n = chi;
+            chi = chi->nxt;
+
+            /* delete it */
+            delete n;
+        }
+    }
+
+    /* add a word */
+    void add_word(const char *str, size_t len);
+
+    /* find a word */
+    vmdict_TrieNode *find_word(const char *str, size_t len);
+
+    /* delete a word */
+    void del_word(const char *str, size_t len);
+
+    /* 
+     *   Transition character from parent to this node.  Append this
+     *   character to the string that reached the parent node to get the
+     *   string that reaches the child node. 
+     */
+    wchar_t ch;
+
+    /* 
+     *   Number of words at this node.  Since we use the Trie only for
+     *   spelling correction, we don't care about any of the other data
+     *   stored per word; we can look that up through the hash table.  All we
+     *   care about is whether or not a given node has any words associated
+     *   with it.  Since the same word can be entered in the dictionary
+     *   several times, we need to keep a count - that way, we can track
+     *   dynamic removal of words by matching deletions against insertions.  
+     */
+    int word_cnt;
+
+    /* the head of the list of child nodes */
+    vmdict_TrieNode *chi;
+
+    /* our next sibling */
+    vmdict_TrieNode *nxt;
+};
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -261,6 +341,24 @@ public:
     unsigned int calc_str_hash(VMG_ const vm_val_t *valstrval,
                                const char *valstr, size_t vallen);
 
+    /* add a string/obj/prop association from a VMB_LEN+buffer string */
+    void add_word(VMG_ vm_obj_id_t self, const char *str,
+                  vm_obj_id_t obj, vm_prop_id_t prop)
+        { add_word(vmg_ self, str + VMB_LEN, vmb_get_len(str), obj, prop); }
+
+    /* add a string/obj/prop association */
+    void add_word(VMG_ vm_obj_id_t self, const char *str, size_t len,
+                  vm_obj_id_t obj, vm_prop_id_t voc_prop);
+
+    /* remove a string/obj/prop association, given a VMB_LEN+buffer string */
+    void del_word(VMG_ vm_obj_id_t self, const char *str,
+                  vm_obj_id_t obj, vm_prop_id_t prop)
+        { del_word(vmg_ self, str + VMB_LEN, vmb_get_len(str), obj, prop); }
+
+    /* remove a string/obj/prop association */
+    void del_word(VMG_ vm_obj_id_t self, const char *str, size_t len,
+                  vm_obj_id_t obj, vm_prop_id_t voc_prop);
+
 protected:
     CVmObjDict(VMG0_);
 
@@ -272,6 +370,9 @@ protected:
 
     /* fill the hash table with entries from the image data */
     void build_hash_from_image(VMG0_);
+
+    /* build the Trie from the hash table */
+    void build_trie(VMG0_);
 
     /* property evaluation - undefined property */
     int getp_undef(VMG_ vm_obj_id_t, vm_val_t *, uint *) { return FALSE; }
@@ -294,18 +395,8 @@ protected:
     /* property evaluation - addWord */
     int getp_add(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
 
-    /* service routine for getp_add - add a single string */
-    void getp_add_string(VMG_ vm_obj_id_t self,
-                         const char *str, vm_obj_id_t obj,
-                         vm_prop_id_t voc_prop);
-
     /* property evaluation - delWord */
     int getp_del(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
-
-    /* service routine for getp_del - remove a single string */
-    void getp_del_string(VMG_ vm_obj_id_t self,
-                         const char *str, vm_obj_id_t obj,
-                         vm_prop_id_t voc_prop);
 
     /* property evaluation - isWordDefined */
     int getp_is_defined(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
@@ -313,6 +404,9 @@ protected:
     /* property evaluation - forEachWord */
     int getp_for_each_word(VMG_ vm_obj_id_t self, vm_val_t *retval,
                            uint *argc);
+
+    /* property evaluation - find corrections for a misspelled word */
+    int getp_correct(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* get my extension, properly cast */
     vm_dict_ext *get_ext() const { return (vm_dict_ext *)ext_; }
@@ -537,7 +631,7 @@ class CVmMetaclassDict: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "dictionary2/030000"; }
+    const char *get_meta_name() const { return "dictionary2/030001"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

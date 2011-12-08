@@ -35,6 +35,9 @@ struct CVmPool_pg
 {
     /* memory containing the data in this page */
     const char *mem;
+
+    /* actual size of the page data */
+    size_t siz;
 };
 
    
@@ -146,13 +149,6 @@ public:
     CVmPool() { }
     virtual ~CVmPool() { }
 
-    /*
-     *   Get the dynamic data manager for the pool.  If the pool supports
-     *   dynamic data, it should return a non-null pointer.  If the pool
-     *   doesn't support dynamic data, it should return null.  
-     */
-    virtual class CVmPoolDynamic *get_dynamic_ifc() { return 0; }
-
     /* 
      *   Attach to the given backing store to provide the the page data.  
      */
@@ -181,17 +177,10 @@ public:
     /* virtual const char *get_ptr(pool_ofs_t ofs) = 0; */
 
     /*
-     *   Translate an address from a pool offset to a physical location, and
-     *   return a writable pointer to the location.  This will fail for any
-     *   type of pool implementation that doesn't support writable memory
-     *   pointers (for example, the swapping pool doesn't allow write
-     *   pointers, because it doesn't keep track of dirty pages when
-     *   performing swapping).
-     *   
-     *   As with get_ptr(), this isn't actually virtual, but is instead to be
-     *   defined in each final subclass.  
+     *   Given a pointer into physical memory, get the pool offset.  Returns
+     *   true if the pointer is a valid pointer into the pool, false if not.
      */
-    /* virtual char *get_writable_ptr(pool_ofs_t ofs) = 0; */
+    /* virtual int get_ofs(const char *p, pool_ofs_t *ofs) = 0; */
 
     /* 
      *   Get the page size.  This reflects the size of the pages in the
@@ -203,6 +192,9 @@ public:
     /* get the number of pages in the pool */
     size_t get_page_count() const;
 
+    /* validate an offset */
+    /* virtual int validate_ofs(pool_ofs_t ofs) = 0; */
+
 protected:
     /* 
      *   page size in bytes - this is simply the number of bytes on each page
@@ -212,9 +204,6 @@ protected:
 
     /* backing store */
     class CVmPoolBackingStore *backing_store_;
-
-    /* our single contiguous allocation block */
-    char *mem_;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -222,10 +211,6 @@ protected:
  *   "Flat" memory pool.  This type of pool loads all pages into a single
  *   contiguous chunk of memory.  This is suitable for platforms with large
  *   linear memory spaces, such as 32-bit platforms.
- *   
- *   This type of pool does not support dynamic allocation, so it's not
- *   suitable for use in a debugger build or other configurations that
- *   require dynamic allocation of pool space.  
  */
 class CVmPoolFlat: public CVmPool
 {
@@ -253,8 +238,28 @@ public:
      */
     inline const char *get_ptr(pool_ofs_t ofs) { return mem_ + ofs; }
 
-    /* we do not support writable pointers */
-    inline char *get_writable_ptr(pool_ofs_t ofs) { return 0; }
+    /* validate an address */
+    inline int validate_ofs(pool_ofs_t ofs)
+        { return (ofs > 0 && ofs < (pool_ofs_t)siz_); }
+
+    /* get the pool offset given a pointer */
+    inline int get_ofs(const char *p, pool_ofs_t *ofs)
+    {
+        /* if it's in our memory block, it's a valid pointer */
+        if (p >= mem_ && p < mem_ + siz_)
+        {
+            *ofs = p - mem_;
+            return TRUE;
+        }
+        else
+            return FALSE;
+    }
+
+    /* our single contiguous allocation block */
+    char *mem_;
+
+    /* total size of the memory block */
+    long siz_;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -501,120 +506,14 @@ protected:
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Dynamic pool manager interface.  This is an abstract interface that
- *   provides a way to create new pool objects dynamically, and later
- *   delete those objects.
- *   
- *   Some types of pools support this interface, others do not.  
- */
-
-/*
- *   Dynamic pool object handle.  Each object in a dynamic pool is
- *   identified by an object handle.  When the dynpool_compress() method
- *   is called in the dynamic pool interface, the pool addresses of
- *   objects can change.  
- */
-class CVmPoolDynObj
-{
-public:
-    CVmPoolDynObj(pool_ofs_t ofs, size_t len)
-    {
-        /* remember my location and size */
-        ofs_ = ofs;
-        len_ = len;
-
-        /* not in a list yet */
-        nxt_ = prv_ = 0;
-
-        /* presume it's in use */
-        is_free_ = FALSE;
-    }
-    
-    /* get/set the current pool address of this object */
-    pool_ofs_t get_ofs() const { return ofs_; }
-    void set_ofs(pool_ofs_t ofs) { ofs_ = ofs; }
-
-    /* get/set my length */
-    size_t get_len() const { return len_; }
-    void set_len(size_t len) { len_ = len; }
-
-    /* get/set the next object in the list */
-    CVmPoolDynObj *get_next() const { return nxt_; }
-    void set_next(CVmPoolDynObj *obj) { nxt_ = obj; }
-
-    /* get/set the previous object in the list */
-    CVmPoolDynObj *get_prev() const { return prv_; }
-    void set_prev(CVmPoolDynObj *obj) { prv_ = obj; }
-
-    /* get/set the 'free' flag */
-    int is_free() const { return is_free_; }
-    void set_free(int f) { is_free_ = f; }
-
-private:
-    /* my pool address */
-    pool_ofs_t ofs_;
-
-    /* my length */
-    size_t len_;
-
-    /* next/previous dynamic object in the list */
-    CVmPoolDynObj *nxt_;
-    CVmPoolDynObj *prv_;
-
-    /* flag: this object's pool space is free */
-    uint is_free_ : 1;
-};
-
-/*
- *   dynamic pool manager interface 
- */
-class CVmPoolDynamic
-{
-public:
-    /* 
-     *   Allocate a new object in the pool.  Returns a non-null object
-     *   handle on success, or zero on failure.  This can fail for
-     *   different reasons: the object might be too large to fit in a
-     *   single pool page, or there might be insufficient physical memory
-     *   available.  
-     */
-    virtual CVmPoolDynObj *dynpool_alloc(size_t len) = 0;
-
-    /*
-     *   Delete an object in the pool. 
-     */
-    virtual void dynpool_delete(CVmPoolDynObj *obj) = 0;
-
-    /*
-     *   Compress the pool.  To the extent possible, rearranges the
-     *   dynamic objects in the pool to remove space left vacant by
-     *   deleted objects.  When this is called, the addresses of pool
-     *   objects can change; this is the only time that addresses can
-     *   change.  This should be called after each batch of deletions to
-     *   ensure that pool space is not wasted.  (Deleting an object
-     *   doesn't automatically compress the pool, so that a single
-     *   compression pass can be made after a batch of deletions.)  
-     */
-    virtual void dynpool_compress() = 0;
-};
-
-/* ------------------------------------------------------------------------ */
-/*
  *   In-memory pool implementation.  This pool implementation pre-loads
  *   all available pages in the pool and keeps the complete pool in memory
  *   at all times.  
  */
-class CVmPoolInMem: public CVmPoolPaged, public CVmPoolDynamic
+class CVmPoolInMem: public CVmPoolPaged
 {
 public:
-    CVmPoolInMem()
-    {
-        /* no pages yet -> no dynamic pages */
-        first_dyn_page_ = 0;
-
-        /* no dynamic objects yet */
-        dyn_head_ = dyn_tail_ = 0;
-    }
+    CVmPoolInMem() { }
 
     /* 
      *   delete - call our non-virtual terminator (use the non-virtual
@@ -634,9 +533,6 @@ public:
         CVmPoolPaged::terminate();
     }
 
-    /* I provide a dynamic pool interface */
-    virtual class CVmPoolDynamic *get_dynamic_ifc() { return this; }
-
     /* attach to the backing store - loads all pages */
     void attach_backing_store(class CVmPoolBackingStore *backing_store);
 
@@ -654,46 +550,42 @@ public:
         return (pages_[get_page_for_ofs(ofs)].mem + get_ofs_for_ofs(ofs));
     }
 
-    /* 
-     *   get a writable pointer - we allow write pointers as long as the
-     *   backing store does 
-     */
-    inline char *get_writable_ptr(pool_ofs_t ofs)
+    /* validate an offset value */
+    inline int validate_ofs(pool_ofs_t ofs)
     {
+        /* get the page and the offset in the page */
+        size_t pg = get_page_for_ofs(ofs);
+        size_t pgofs = get_ofs_for_ofs(ofs);
+
         /* 
-         *   If the backing store allows writing to its pages, allow
-         *   writing.  In any case, if the offset is in a dynamic page, we
-         *   can always write to it, regardless of backing store policy,
-         *   because we allocate and control the dynamic pages ourselves.  
+         *   to be valid, it must be within the range of valid pages, the
+         *   page must be allocated, and the offset in the page must be
+         *   within the page's actual allocated size 
          */
-        if (backing_store_->vmpbs_is_writable()
-            || get_page_for_ofs(ofs) >= first_dyn_page_)
-        {
-            /* 
-             *   the backing store memory is writable - return a writable
-             *   version of the normal pointer to this memory 
-             */
-            return (char *)get_ptr(ofs);
-        }
-        else
-        {
-            /* the backing store memory is non-writable - return failure */
-            return 0;
-        }
+        return (pg < page_slots_
+                && pages_[pg].mem != 0
+                && pgofs < pages_[pg].siz);
     }
 
-    /* 
-     *   dynamic pool interface 
-     */
+    /* get the pool offset given a pointer */
+    inline int get_ofs(const char *p, pool_ofs_t *ofs)
+    {
+        /* check each page */
+        pool_ofs_t page_ofs = 0;
+        for (size_t i = 0 ; i < page_slots_ ; ++i, page_ofs += page_size_)
+        {
+            /* if it's in this page, it's a valid address */
+            const char *mem = pages_[i].mem;
+            if (p >= mem && p < mem + pages_[i].siz)
+            {
+                *ofs = (p - mem) + page_ofs;
+                return TRUE;
+            }
+        }
 
-    /* allocate a dynamic object */
-    virtual CVmPoolDynObj *dynpool_alloc(size_t len);
-
-    /* delete a dyanmic object */
-    virtual void dynpool_delete(CVmPoolDynObj *obj);
-
-    /* compress the dynamic portion of the pool */
-    virtual void dynpool_compress();
+        /* didn't find it */
+        return FALSE;
+    }
 
 private:
     /* non-virtual termination */
@@ -701,27 +593,6 @@ private:
 
     /* free any pages we allocated from the backing store */
     void free_backing_pages();
-
-    /* add a dynamic handle at the end of the list */
-    void append_dyn(CVmPoolDynObj *obj);
-
-    /* insert a dynamic handle after the given dynamic handle */
-    void insert_dyn(CVmPoolDynObj *obj, CVmPoolDynObj *new_obj);
-
-    /* unlink a dynamic handle from the list */
-    void unlink_dyn(CVmPoolDynObj *obj);
-
-    /* 
-     *   First dynamically-allocated page index - all pages from this page
-     *   to the last page are dynamic.  If this page index is equal to the
-     *   total number of pages, there are no dynamic pages, since this
-     *   index refers to an invalid page.  
-     */
-    size_t first_dyn_page_;
-
-    /* head and tail of list of dynamic pool objects */
-    CVmPoolDynObj *dyn_head_;
-    CVmPoolDynObj *dyn_tail_;
 };
 
 #endif /* VMPOOL_H */

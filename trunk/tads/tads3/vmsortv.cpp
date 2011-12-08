@@ -54,7 +54,7 @@ int CVmQSortVal::compare(VMG_ size_t a, size_t b)
         G_stk->push(&val_a);
 
         /* invoke the callback */
-        G_interpreter->call_func_ptr(vmg_ &compare_fn_, 2, "sort.compare", 0);
+        G_interpreter->call_func_ptr(vmg_ &compare_fn_, 2, &rc, 0);
 
         /* get the result */
         val = *G_interpreter->get_r0();

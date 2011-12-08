@@ -224,7 +224,7 @@ static re_state_id re_alloc_state(re_context *ctx)
      */
     if (ctx->next_state >= ctx->tuples_alloc)
     {
-        int new_alloc;
+        uint new_alloc;
         
         /* bump the size by a bit */
         new_alloc = ctx->tuples_alloc + 100;
@@ -235,7 +235,7 @@ static re_state_id re_alloc_state(re_context *ctx)
             /* allocate the initial memory block */
             ctx->tuple_arr =
                 (re_tuple *)mchalo(ctx->errctx,
-                                   (ushort)(new_alloc * sizeof(re_tuple)),
+                                   (new_alloc * sizeof(re_tuple)),
                                    "regex");
         }
         else
@@ -244,7 +244,7 @@ static re_state_id re_alloc_state(re_context *ctx)
             
             /* allocate a new memory block */
             ptr = (re_tuple *)mchalo(ctx->errctx,
-                                     (ushort)(new_alloc * sizeof(re_tuple)),
+                                     (new_alloc * sizeof(re_tuple)),
                                      "regex");
             
             /* copy the old memory to the new memory */
@@ -1511,7 +1511,7 @@ static void re_save_search_str(re_context *ctx, const char *str, size_t len)
         ctx->strbufsiz = ((len + 255) & ~255);
 
         /* allocate it */
-        ctx->strbuf = (char *)mchalo(ctx->errctx, (ushort)ctx->strbufsiz,
+        ctx->strbuf = (char *)mchalo(ctx->errctx, ctx->strbufsiz,
                                      "regex str");
     }
 

@@ -51,7 +51,10 @@ CVmHostIfcStdio::CVmHostIfcStdio(const char *argv0)
      *   the default safety level allows reading and writing to the current
      *   directory only 
      */
-    io_safety_ = VM_IO_SAFETY_READWRITE_CUR;
+    io_safety_read_ = VM_IO_SAFETY_READWRITE_CUR;
+    io_safety_write_ = VM_IO_SAFETY_READWRITE_CUR;
+    net_client_safety_ = VM_NET_SAFETY_LOCALHOST;
+    net_server_safety_ = VM_NET_SAFETY_LOCALHOST;
 }
 
 /*

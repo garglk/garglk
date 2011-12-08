@@ -124,12 +124,7 @@ struct vm_tadsobj_hdr
     /* calculate the hash code for a property */
     unsigned int calc_hash(uint prop) const
     {
-        /* 
-         *   Simply take the property ID modulo the table size.  We always
-         *   use a power of 2 as the hash table size, so the remainder is
-         *   easy to calculate using a bit mask rather than a more expensive
-         *   integer division. 
-         */
+        /* simply take the property ID modulo the table size */
         return (unsigned int)(prop & (hash_siz - 1));
     }
 
@@ -324,6 +319,26 @@ public:
     /* invoke the object's finalizer */
     virtual void invoke_finalizer(VMG_ vm_obj_id_t self);
 
+    // $$$ testing
+    virtual int equals(VMG_ vm_obj_id_t self, const vm_val_t *val,
+                       int depth) const
+    {
+        if (((vm_tadsobj_hdr *)ext_)->hash_siz == 0)
+            return TRUE;
+        else
+            return (val->typ == VM_OBJ && val->val.obj == self);
+    }
+
+    virtual uint calc_hash(VMG_ vm_obj_id_t self, int /*depth*/) const
+    {
+        if (((vm_tadsobj_hdr *)ext_)->hash_siz == 0)
+            return 0;
+        else
+            return (uint)(((ulong)self & 0xffff)
+                          ^ (((ulong)self & 0xffff0000) >> 16));
+    }
+    // $$$ end testing
+
     /* get the number of superclasses of this object */
     virtual int get_superclass_count(VMG_ vm_obj_id_t self) const
     {
@@ -430,6 +445,9 @@ public:
     void reload_from_image(VMG_ vm_obj_id_t self,
                            const char *ptr, size_t siz);
 
+    /* perform post-load initialization */
+    void post_load_init(VMG_ vm_obj_id_t self);
+
     /* determine if the object has been changed since it was loaded */
     int is_changed_since_load() const;
 
@@ -453,17 +471,7 @@ public:
 
     /* get a pointer to the object for the nth superclass */
     CVmObjTads *get_sc_objp(VMG_ ushort n) const
-    {
-        CVmObjTads **objpp;
-
-        /* if we haven't stored the superclass object pointer yet, do so */
-        objpp = &get_hdr()->sc[n].objp;
-        if (*objpp == 0)
-            *objpp = (CVmObjTads *)vm_objp(vmg_ get_hdr()->sc[n].id);
-
-        /* return the object pointer */
-        return *objpp;
-    }
+        { return get_hdr()->sc[n].objp; }
 
     /* set the nth superclass to the given object */
     void set_sc(VMG_ ushort n, vm_obj_id_t obj)
@@ -497,7 +505,7 @@ protected:
      */
     static vm_obj_id_t create_from_stack_multi(VMG_ uint argc,
                                                int is_transient);
-
+    
     /* get the load image object flags */
     uint get_li_obj_flags() const
         { return get_hdr()->li_obj_flags; }
@@ -554,7 +562,7 @@ protected:
         { get_hdr()->sc_cnt = cnt; }
 
     /* change the superclass list */
-    void change_superclass_list(VMG_ const char *lstp, ushort cnt);
+    void change_superclass_list(VMG_ const vm_val_t *lst, int cnt);
 
     /* clear all undo flags */
     void clear_undo_flags();
@@ -604,6 +612,17 @@ protected:
     int getp_set_sc_list(VMG_ vm_obj_id_t self,
                          vm_val_t *retval, uint *in_argc);
 
+    /* object table iteration callback for setSuperclassList */
+    static void set_sc_cb(VMG_ vm_obj_id_t obj, void *ctx);
+
+    /* property evaluator - getMethod */
+    int getp_get_method(VMG_ vm_obj_id_t self,
+                        vm_val_t *retval, uint *in_argc);
+
+    /* property evaluator - setMethod */
+    int getp_set_method(VMG_ vm_obj_id_t self,
+                        vm_val_t *retval, uint *in_argc);
+
     /* property evaluation function table */
     static int (CVmObjTads::*func_table_[])(VMG_ vm_obj_id_t self,
                                             vm_val_t *retval, uint *argc);
@@ -617,7 +636,7 @@ class CVmMetaclassTads: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "tads-object/030004"; }
+    const char *get_meta_name() const { return "tads-object/030005"; }
     
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)
@@ -761,6 +780,308 @@ public:
             call_stat_prop(vmg_ result, pc_ptr, argc, prop);
     }
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   object ID + pointer structure 
+ */
+struct tadsobj_objid_and_ptr
+{
+    vm_obj_id_t id;
+    CVmObjTads *objp;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Cached superclass inheritance path.  This is a linear list, in
+ *   inheritance search order, of the superclasses of a given object.  
+ */
+struct tadsobj_inh_path
+{
+    /* number of path elements */
+    ushort cnt;
+
+    /* path elements (we overallocate the structure to the actual size) */
+    tadsobj_objid_and_ptr sc[1];
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Queue element for the inheritance path search queue 
+ */
+struct pfq_ele
+{
+    /* object ID of this element */
+    vm_obj_id_t obj;
+
+    /* pointer to the object */
+    CVmObjTads *objp;
+
+    /* next queue element */
+    pfq_ele *nxt;
+};
+
+/* allocation page */
+struct pfq_page
+{
+    /* next page in the list */
+    pfq_page *nxt;
+
+    /* the elements for this page */
+    pfq_ele eles[50];
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Queue for search_for_prop().  This implements a special-purpose work
+ *   queue that we use to keep track of the objects yet to be processed in
+ *   our depth-first search across the inheritance tree.  
+ */
+class CVmObjTadsInhQueue
+{
+public:
+    CVmObjTadsInhQueue()
+    {
+        init();
+    }
+
+    void init()
+    {
+        /* there's nothing in the free list or the queue yet */
+        head_ = 0;
+        free_ = 0;
+
+        /* we have no elements yet */
+        alloc_ = 0;
+    }
+
+    ~CVmObjTadsInhQueue()
+    {
+        pfq_page *cur;
+        pfq_page *nxt;
+
+        /* delete all of the allocated pages */
+        for (cur = alloc_ ; cur != 0 ; cur = nxt)
+        {
+            /* remember the next page */
+            nxt = cur->nxt;
+
+            /* free this page */
+            t3free(cur);
+        }
+    }
+
+    /* get the head of the queue */
+    pfq_ele *get_head() const { return head_; }
+
+    /* remove the head of the queue and return the object ID */
+    vm_obj_id_t remove_head()
+    {
+        /* if there's a head element, remove it */
+        if (head_ != 0)
+        {
+            pfq_ele *ele;
+
+            /* note the element */
+            ele = head_;
+
+            /* unlink it from the list */
+            head_ = head_->nxt;
+
+            /* link the element into the free list */
+            ele->nxt = free_;
+            free_ = ele;
+
+            /* return the object ID from the element we removed */
+            return ele->obj;
+        }
+        else
+        {
+            /* there's nothing in the queue */
+            return VM_INVALID_OBJ;
+        }
+    }
+
+    /* clear the queue */
+    void clear()
+    {
+        /* move everything from the queue to the free list */
+        while (head_ != 0)
+        {
+            pfq_ele *cur;
+
+            /* unlink this element from the queue */
+            cur = head_;
+            head_ = cur->nxt;
+
+            /* link it into the free list */
+            cur->nxt = free_;
+            free_ = cur;
+        }
+    }
+
+    /* determine if the queue is empty */
+    int is_empty() const
+    {
+        /* we're empty if there's no head element in the list */
+        return (head_ == 0);
+    }
+
+    /* allocate a path from the contents of the queue */
+    tadsobj_inh_path *create_path() const
+    {
+        ushort cnt;
+        pfq_ele *cur;
+        tadsobj_inh_path *path;
+        tadsobj_objid_and_ptr *dst;
+
+        /* count the elements in the queue */
+        for (cnt = 0, cur = head_ ; cur != 0 ; cur = cur->nxt)
+        {
+            /* only non-nil elements count */
+            if (cur->obj != VM_INVALID_OBJ)
+                ++cnt;
+        }
+
+        /* allocate the path */
+        path = (tadsobj_inh_path *)t3malloc(
+            sizeof(tadsobj_inh_path) + (cnt-1)*sizeof(path->sc[0]));
+
+        /* initialize the path */
+        path->cnt = cnt;
+        for (dst = path->sc, cur = head_ ; cur != 0 ; cur = cur->nxt)
+        {
+            /* only store non-nil elements */
+            if (cur->obj != VM_INVALID_OBJ)
+            {
+                dst->id = cur->obj;
+                dst->objp = cur->objp;
+                ++dst;
+            }
+        }
+
+        /* return the new path */
+        return path;
+    }
+
+    /*
+     *   Insert an object into the queue.  We'll insert after the given
+     *   element (null indicates that we insert at the head of the queue).
+     *   Returns a pointer to the newly-inserted element.  
+     */
+    pfq_ele *insert_obj(VMG_ vm_obj_id_t obj, CVmObjTads *objp,
+                        pfq_ele *ins_pt)
+    {
+        pfq_ele *ele;
+
+        /*
+         *   If the exact same element is already in the queue, delete the
+         *   old copy.  This will happen in situations where we have multiple
+         *   superclasses that all inherit from a common base class: we want
+         *   the common base class to come in inheritance order after the
+         *   last superclass that inherits from the common base.  By deleting
+         *   previous queue entries that match new queue entries, we ensure
+         *   that the common class will move to follow (in inheritance order)
+         *   the last class that derives from it.  
+         */
+        for (ele = head_ ; ele != 0 ; ele = ele->nxt)
+        {
+            /* if this is the same thing we're inserting, remove it */
+            if (ele->obj == obj)
+            {
+                /* 
+                 *   clear the element (don't unlink it, as this could cause
+                 *   confusion for the caller, who's tracking an insertion
+                 *   point and traversal point) 
+                 */
+                ele->obj = VM_INVALID_OBJ;
+                ele->objp = 0;
+
+                /* 
+                 *   no need to look any further - we know we can never have
+                 *   the same element appear twice in the queue, thanks to
+                 *   this very code 
+                 */
+                break;
+            }
+        }
+
+        /* allocate our new element */
+        ele = alloc_ele();
+        ele->obj = obj;
+        ele->objp = objp;
+
+        /* insert it at the insertion point */
+        if (ins_pt == 0)
+        {
+            /* insert at the head */
+            ele->nxt = head_;
+            head_ = ele;
+        }
+        else
+        {
+            /* insert after the selected item */
+            ele->nxt = ins_pt->nxt;
+            ins_pt->nxt = ele;
+        }
+
+        /* return the new element */
+        return ele;
+    }
+
+protected:
+    /* allocate a new element */
+    pfq_ele *alloc_ele()
+    {
+        pfq_ele *ele;
+
+        /* if we have nothing in the free list, allocate more elements */
+        if (free_ == 0)
+        {
+            pfq_page *pg;
+            size_t i;
+
+            /* allocate another page */
+            pg = (pfq_page *)t3malloc(sizeof(pfq_page));
+
+            /* link it into our master page list */
+            pg->nxt = alloc_;
+            alloc_ = pg;
+
+            /* link all of its elements into the free list */
+            for (ele = pg->eles, i = sizeof(pg->eles)/sizeof(pg->eles[0]) ;
+                 i != 0 ; --i, ++ele)
+            {
+                /* link this one into the free list */
+                ele->nxt = free_;
+                free_ = ele;
+            }
+        }
+
+        /* take the next element off the free list */
+        ele = free_;
+        free_ = free_->nxt;
+
+        /* return the element */
+        return ele;
+    }
+
+    /* head of the active queue */
+    pfq_ele *head_;
+
+    /* head of the free element list */
+    pfq_ele *free_;
+
+    /*
+     *   Linked list of element pages.  We allocate memory for elements in
+     *   blocks, to reduce allocation overhead.  
+     */
+    pfq_page *alloc_;
+};
+
+
+
 
 #endif /* VMTOBJ_H */
 
