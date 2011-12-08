@@ -10,6 +10,7 @@
 
 <h4>Index to Versions</h4>
 <ul>
+<li><a href='#tads2515'><b>Version 2.5.15</b></a><br>
 <li><a href='#tads2514'><b>Version 2.5.14</b></a><br>
 <li><a href='#tads2513'><b>Version 2.5.13</b></a><br>
 <li><a href='#tads2512'><b>Version 2.5.12</b></a><br>
@@ -90,6 +91,65 @@ href='ftp://ftp.ifarchive.org/if-archive/programming/tads2/manuals/'>
 ftp://ftp.ifarchive.org/if-archive/programming/tads2/manuals/</a>
 (note that ftp.ifarchive.org is the new home, effective August 2001,
 of the former ftp.gmd.de archive).
+
+<!------------------------------------------------------------------------>
+<br><br><hr>
+<h3><a name='tads2515'>Version 2.5.15</a></h3>
+<i>Released on ?</i>
+
+<ul>
+
+<li>In past versions of the text-only interpreters, if an
+&lt;ABOUTBOX&gt; section contained an &lt;IMG&gt; tag with an ALT
+attribute, the ALT text was displayed.  It shouldn't have been,
+because the text-only systems aren't supposed to display
+<i>anything</i> that's within an &lt;ABOUTBOX&gt; section.  This has
+been corrected.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000063">bugdb.tads.org #0000063</a>)
+
+<li>The text-only interpreters now parse and translate HTML
+entity markups ("&amp" sequences) within &lt;TITLE&gt; tags when
+setting the window title.  (In past versions, the text-only
+interpreters simply displayed the literal text of the &amp;
+sequences.  The HTML interpreters didn't have this problem,
+so this change doesn't affect them.)
+
+(<a href="http://bugdb.tads.org/view.php?id=0000062">bugdb.tads.org #0000062</a>)
+
+<li>Some older games (specifically, compiled with a version before
+TADS 2.3.0, from 1999) use an old version of the file dialog functions
+that wasn't able to specify the file type.  For modern GUI operating
+systems, the file type is fairly important, because the file selection
+dialog usually uses this to filter the file list, and to set default
+file types or extensions for new files.  The interpreter now tries to
+infer when the interpreter is asking for the name of a transcript
+file, by looking at the prompt string.  If it sees the word "script"
+or "transcript" the prompt string, the interpreter now assumes that
+it's asking for a transcript file, and sets the appropriate default
+file type in the dialog.
+
+<li>The interpreter core engine is now more careful at game
+termination to release allocated memory.  This generally won't make
+any difference to players, as the operating system usually frees this
+memory anyway at program exit, but it should improve stability in
+interpreters that can run multiple games in series.
+
+<li>In the past, it was possible for a game to crash the interpreter
+by returning a fairly long (around 200-character) message from
+parseError or parseErrorParam.  This has been corrected.  (<a
+href="http://bugdb.tads.org/view.php?id=100">bugdb.tads.org
+#0000100</a>)
+
+<li>Some internal changes in the code address problems related to
+memory management on 64-bit processors.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000084">bugdb.tads.org #0000084</a>)
+
+
+</ul>
+
+
 
 <!------------------------------------------------------------------------>
 <br><br><hr>

@@ -104,6 +104,7 @@ void CVmBifTIOExt::show_popup_menu(VMG_ uint argc)
     /* allocate the return list */
     lst_obj = CVmObjList::create(vmg_ FALSE, elecnt);
     lst = (CVmObjList *)vm_objp(vmg_ lst_obj);
+    lst->cons_clear();
 
     /* protect the list from garbage collection */
     val.set_obj(lst_obj);
@@ -155,9 +156,9 @@ static void enable_sys_menu_cmd_item(VMG_ const vm_val_t *idval, int stat)
  */
 void CVmBifTIOExt::enable_sys_menu_cmd(VMG_ uint argc)
 {
-    const char *lst;
     vm_val_t *valp;
     int stat;
+    int cnt;
     
     /* check arguments */
     check_argc(vmg_ argc, 2);
@@ -171,17 +172,14 @@ void CVmBifTIOExt::enable_sys_menu_cmd(VMG_ uint argc)
      *   IDs.  Check what we have.  
      */
     valp = G_stk->get(0);
-    if ((lst = valp->get_as_list(vmg0_)) != 0)
+    if (valp->is_listlike(vmg0_) && (cnt = valp->ll_length(vmg0_)) >= 0)
     {
-        size_t cnt;
-        vm_val_t ele;
-        
         /* set the status for each element */
-        for (cnt = vmb_get_len(lst), lst += VMB_LEN ; cnt != 0 ;
-             --cnt, lst += VMB_DATAHOLDER)
+        for (int i = 1 ; i <= cnt ; ++i)
         {
             /* get this element value */
-            vmb_get_dh(lst, &ele);
+            vm_val_t ele;
+            valp->ll_index(vmg_ &ele, i);
 
             /* set the status */
             enable_sys_menu_cmd_item(vmg_ &ele, stat);
@@ -191,30 +189,6 @@ void CVmBifTIOExt::enable_sys_menu_cmd(VMG_ uint argc)
     {
         /* it's a single value - handle it individually */
         enable_sys_menu_cmd_item(vmg_ valp, stat);
-    }
-    else if (valp->typ == VM_OBJ
-             && CVmObjVector::is_vector_obj(vmg_ valp->val.obj))
-    {
-        CVmObjVector *vec;
-        size_t cnt;
-        size_t i;
-        
-        /* cast it to a vector */
-        vec = (CVmObjVector *)vm_objp(vmg_ valp->val.obj);
-
-        /* iterate over the elements */
-        for (i = 1, cnt = vec->get_element_count() ; i <= cnt ; ++i)
-        {
-            vm_val_t idx;
-            vm_val_t ele;
-            
-            /* get this element */
-            idx.set_int(i);
-            vec->index_val(vmg_ &ele, valp->val.obj, &idx);
-
-            /* set the status */
-            enable_sys_menu_cmd_item(vmg_ &ele, stat);
-        }
     }
 
     /* discard the arguments, and we're done */

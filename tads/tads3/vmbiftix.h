@@ -21,6 +21,9 @@ Modified
 class CVmBifTIOExt: public CVmBif
 {
 public:
+    /* function vector */
+    static vm_bif_desc bif_table[];
+
     /* show a popup menu */
     static void show_popup_menu(VMG_ uint argc);
 
@@ -43,10 +46,10 @@ public:
 #ifdef VMBIF_DEFINE_VECTOR
 
 /* TADS input/output extension functions */
-void (*G_bif_tadsio_ext[])(VMG_ uint) =
+vm_bif_desc CVmBifTIOExt::bif_table[] =
 {
-    &CVmBifTIOExt::show_popup_menu,
-    &CVmBifTIOExt::enable_sys_menu_cmd
+    { &CVmBifTIOExt::show_popup_menu, 3, 0, FALSE },
+    { &CVmBifTIOExt::enable_sys_menu_cmd, 2, 0, FALSE }
 };
 
 #endif /* VMBIF_DEFINE_VECTOR */

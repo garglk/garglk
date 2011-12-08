@@ -22,6 +22,8 @@ object myObj:
     createInstanceOf(...)
     createTransientInstanceOf(...)
     setSuperclassList(a)
+    getMethod(a)
+    setMethod(a, b)
     inherited from Object:
       ofKind(a)
       getSuperclassList
@@ -46,6 +48,8 @@ object otherObj:
     createInstanceOf(...)
     createTransientInstanceOf(...)
     setSuperclassList(a)
+    getMethod(a)
+    setMethod(a, b)
     inherited from Object:
       ofKind(a)
       getSuperclassList

@@ -184,11 +184,18 @@ struct mcmcxdef
 mcmcx1def *mcmini(ulong max, uint pages, ulong swapsize,
                   osfildef *swapfp, char *swapfilename, errcxdef *errctx);
 
+/* terminate the cache manager - frees the structure and all cache memory */
+void mcmterm(mcmcx1def *ctx);
+
 /* allocate a client context */
 mcmcxdef *mcmcini(mcmcx1def *globalctx, uint pages,
                   void (*loadfn)(void *, mclhd, uchar *, ushort),
                   void *loadctx,
                   void (*revertfn)(void *, mcmon), void *revertctx);
+
+/* terminate a client context - frees the structure memory */
+void mcmcterm(mcmcxdef *ctx);
+
 
 /*
  *   Lock a cache object, bringing it into memory if necessary.  Returns

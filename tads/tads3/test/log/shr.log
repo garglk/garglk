@@ -1,0 +1,44 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export shr.t -> shr.t3s
+	compile _main.t -> _main.t3o
+	compile shr.t -> shr.t3o
+	link -> shr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+1 >> 1 = 0
+1 >>> 1 = 0
+
+128 >> 1 = 64
+128 >>> 1 = 64
+
+2147483647 >> 1 = 1073741823
+2147483647 >>> 1 = 1073741823
+
+-1 >> 1 = -1
+-1 >>> 1 = 2147483647
+
+-1 >> 1 = -1
+-1 >>> 1 = 2147483647
+
+-2 >> 1 = -1
+-2 >>> 1 = 2147483647
+
+-3 >> 1 = -2
+-3 >>> 1 = 2147483646
+
+-2147483648 >> 1 = -1073741824
+-2147483648 >>> 1 = 1073741824
+
+-2147483648 >> 2 = -536870912
+-2147483648 >>> 2 = 536870912
+
+-1 >> 16 = -1
+-1 >>> 16 = 65535
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

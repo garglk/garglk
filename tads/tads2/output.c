@@ -213,6 +213,8 @@ static objnum    cmdActor;                                 /* current actor */
 /* forward declarations of static functions */
 static void outstring_stream(struct out_stream_info *stream, char *s);
 static void outchar_noxlat_stream(struct out_stream_info *stream, char c);
+static char out_parse_entity(char *outbuf, size_t outbuf_size,
+                             char **sp, size_t *slenp);
 
 
 /* ------------------------------------------------------------------------ */
@@ -426,7 +428,10 @@ static void do_log_print(out_stream_info *stream, const char *str)
 
     /* display to the log file */
     if (logfp != 0 && G_os_moremode)
+    {
         os_fprintz(logfp, str);
+        osfflush(logfp);
+    }
 }
 
 
@@ -1751,7 +1756,7 @@ static void out_pop_stream()
  *   display a string of a given length to a given stream 
  */
 static int outformatlen_stream(out_stream_info *stream,
-                               char *s, uint slen)
+                               char *s, size_t slen)
 {
     char     c;
     int      done = 0;
@@ -2105,6 +2110,7 @@ static int outformatlen_stream(out_stream_info *stream,
                             }
                         }
                         else if (!stricmp(attrname, "alt")
+                                 && !stream->html_in_ignore
                                  && stream->html_allow_alt)
                         {
                             /* write out the ALT string */
@@ -2149,18 +2155,40 @@ static int outformatlen_stream(out_stream_info *stream,
          */
         if (stream->html_in_ignore && c != '<')
         {
+            /* check for entities */
+            char cbuf[50];
+            if (c == '&')
+            {
+                /* translate the entity */
+                c = out_parse_entity(cbuf, sizeof(cbuf), &s, &slen);
+            }
+            else
+            {
+                /* it's an ordinary character - copy it out literally */
+                cbuf[0] = c;
+                cbuf[1] = '\0';
+
+                /* get the next character */
+                c = nextout(&s, &slen);
+            }
+
             /* 
              *   if we're gathering a title, and there's room in the title
              *   buffer for more (always leaving room for a null
              *   terminator), add this to the title buffer 
              */
-            if (stream->html_in_title
-                && (stream->html_title_ptr+1 <
-                    stream->html_title_buf + sizeof(stream->html_title_buf)))
-                *stream->html_title_ptr++ = c;
-
-            /* get the next character */
-            c = nextout(&s, &slen);
+            if (stream->html_in_title)
+            {
+                char *cbp;
+                for (cbp = cbuf ; *cbp != '\0' ; ++cbp)
+                {
+                    /* if there's room, add it */
+                    if (stream->html_title_ptr + 1 <
+                        stream->html_title_buf
+                        + sizeof(stream->html_title_buf))
+                        *stream->html_title_ptr++ = *cbp;
+                }
+            }
 
             /* don't display anything in an ignore section */
             continue;
@@ -2579,187 +2607,13 @@ static int outformatlen_stream(out_stream_info *stream,
             }
             else if (c == '&')
             {
-                char  ampbuf[10];
-                char *dst;
-                char *orig_s;
-                size_t orig_slen;
+                /* parse it */
                 char  xlat_buf[50];
-                const struct amp_tbl_t *ampptr;
-                size_t lo, hi, cur;
+                c = out_parse_entity(xlat_buf, sizeof(xlat_buf), &s, &slen);
 
-                /* 
-                 *   remember where the part after the '&' begins, so we
-                 *   can come back here later if necessary 
-                 */
-                orig_s = s;
-                orig_slen = slen;
-                                        
-                /* get the character after the ampersand */
-                c = nextout(&s, &slen);
-
-                /* if it's numeric, parse the number */
-                if (c == '#')
-                {
-                    uint val;
-                    
-                    /* skip the '#' */
-                    c = nextout(&s, &slen);
-
-                    /* check for hex */
-                    if (c == 'x' || c == 'X')
-                    {
-                        /* skip the 'x' */
-                        c = nextout(&s, &slen);
-                        
-                        /* read the hex number */
-                        for (val = 0 ; isxdigit((uchar)c) ;
-                             c = nextout(&s, &slen))
-                        {
-                            /* accumulate the current digit into the value */
-                            val *= 16;
-                            if (outisdg(c))
-                                val += c - '0';
-                            else if (c >= 'a' && c <= 'f')
-                                val += c - 'a' + 10;
-                            else
-                                val += c - 'A' + 10;
-                        }
-                    }
-                    else
-                    {
-                        /* read the number */
-                        for (val = 0 ; outisdg(c) ; c = nextout(&s, &slen))
-                        {
-                            /* accumulate the current digit into the value */
-                            val *= 10;
-                            val += c - '0';
-                        }
-                    }
-
-                    /* if we found a ';' at the end, skip it */
-                    if (c == ';')
-                        c = nextout(&s, &slen);
-
-                    /* translate and write the character */
-                    outchar_html_stream(stream, val);
-
-                    /* we're done with this character */
-                    continue;
-                }
-
-                /*
-                 *   Parse the sequence after the '&'.  Parse up to the
-                 *   closing semicolon, or any non-alphanumeric, or until
-                 *   we fill up the buffer.
-                 */
-                for (dst = ampbuf ;
-                     c != '\0' && (outisdg(c) || outisal(c))
-                         && dst < ampbuf + sizeof(ampbuf) - 1 ;
-                     *dst++ = c, c = nextout(&s, &slen)) ;
-
-                /* null-terminate the name */
-                *dst = '\0';
-
-                /* do a binary search for the name */
-                lo = 0;
-                hi = sizeof(amp_tbl)/sizeof(amp_tbl[0]) - 1;
-                for (;;)
-                {
-                    int diff;
-                    
-                    /* if we've converged, look no further */
-                    if (lo > hi || lo >= sizeof(amp_tbl)/sizeof(amp_tbl[0]))
-                    {
-                        ampptr = 0;
-                        break;
-                    }
-
-                    /* split the difference */
-                    cur = lo + (hi - lo)/2;
-                    ampptr = &amp_tbl[cur];
-
-                    /* see where we are relative to the target item */
-                    diff = strcmp(ampptr->cname, ampbuf);
-                    if (diff == 0)
-                    {
-                        /* this is it */
-                        break;
-                    }
-                    else if (diff > 0)
-                    {
-                        /* make sure we don't go off the end */
-                        if (cur == hi && cur == 0)
-                        {
-                            /* we've failed to find it */
-                            ampptr = 0;
-                            break;
-                        }
-                        
-                        /* this one is too high - check the lower half */
-                        hi = (cur == hi ? hi - 1 : cur);
-                    }
-                    else
-                    {
-                        /* this one is too low - check the upper half */
-                        lo = (cur == lo ? lo + 1 : cur);
-                    }
-                }
-
-                /* skip to the appropriate next character */
-                if (c == ';')
-                {
-                    /* name ended with semicolon - skip the semicolon */
-                    c = nextout(&s, &slen);
-                }
-                else if (ampptr != 0)
-                {
-                    int skipcnt;
-
-                    /* found the name - skip its exact length */
-                    skipcnt = strlen(ampptr->cname);
-                    for (s = orig_s, slen = orig_slen ; skipcnt != 0 ;
-                         c = nextout(&s, &slen), --skipcnt) ;
-                }
-
-                /* if we found the entry, write out the character */
-                if (ampptr != 0)
-                {
-                    /* 
-                     *   if this one has an external mapping table entry,
-                     *   use the mapping table entry; otherwise, use the
-                     *   default OS routine mapping 
-                     */
-                    if (ampptr->expan != 0)
-                    {
-                        /* 
-                         *   we have an explicit expansion from the
-                         *   mapping table file - use it 
-                         */
-                        outstring_noxlat_stream(stream, ampptr->expan);
-                    }
-                    else
-                    {
-                        /* 
-                         *   there's no mapping table expansion - use the
-                         *   default OS code expansion 
-                         */
-                        os_xlat_html4(ampptr->html_cval, xlat_buf,
-                                      sizeof(xlat_buf));
-                        outstring_noxlat_stream(stream, xlat_buf);
-                    }
-                }
-                else
-                {
-                    /* 
-                     *   didn't find it - output the '&' literally, then
-                     *   back up and output the entire sequence following 
-                     */
-                    s = orig_s;
-                    slen = orig_slen;
-                    outchar_stream(stream, '&');
-                    c = nextout(&s, &slen);
-                }
-
+                /* write it out (we've already translated it) */
+                outstring_noxlat_stream(stream, xlat_buf);
+                
                 /* proceed with the next character */
                 continue;
             }
@@ -2791,6 +2645,202 @@ static int outformatlen_stream(out_stream_info *stream,
     /* success */
     return 0;
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parse an HTML entity markup 
+ */
+static char out_parse_entity(char *outbuf, size_t outbuf_size,
+                             char **sp, size_t *slenp)
+{
+    char  ampbuf[10];
+    char *dst;
+    char *orig_s;
+    size_t orig_slen;
+    const struct amp_tbl_t *ampptr;
+    size_t lo, hi, cur;
+    char  c;
+
+    /* 
+     *   remember where the part after the '&' begins, so we can come back
+     *   here later if necessary 
+     */
+    orig_s = *sp;
+    orig_slen = *slenp;
+
+    /* get the character after the ampersand */
+    c = nextout(sp, slenp);
+
+    /* if it's numeric, parse the number */
+    if (c == '#')
+    {
+        uint val;
+        
+        /* skip the '#' */
+        c = nextout(sp, slenp);
+
+        /* check for hex */
+        if (c == 'x' || c == 'X')
+        {
+            /* skip the 'x' */
+            c = nextout(sp, slenp);
+
+            /* read the hex number */
+            for (val = 0 ; isxdigit((uchar)c) ; c = nextout(sp, slenp))
+            {
+                /* accumulate the current digit into the value */
+                val *= 16;
+                if (outisdg(c))
+                    val += c - '0';
+                else if (c >= 'a' && c <= 'f')
+                    val += c - 'a' + 10;
+                else
+                    val += c - 'A' + 10;
+            }
+        }
+        else
+        {
+            /* read the number */
+            for (val = 0 ; outisdg(c) ; c = nextout(sp, slenp))
+            {
+                /* accumulate the current digit into the value */
+                val *= 10;
+                val += c - '0';
+            }
+        }
+        
+        /* if we found a ';' at the end, skip it */
+        if (c == ';')
+            c = nextout(sp, slenp);
+        
+        /* translate the character into the output buffer */
+        os_xlat_html4(val, outbuf, outbuf_size);
+        
+        /* we're done with this character */
+        return c;
+    }
+
+    /*
+     *   Parse the sequence after the '&'.  Parse up to the closing
+     *   semicolon, or any non-alphanumeric, or until we fill up the buffer.
+     */
+    for (dst = ampbuf ;
+         c != '\0' && (outisdg(c) || outisal(c))
+             && dst < ampbuf + sizeof(ampbuf) - 1 ;
+         *dst++ = c, c = nextout(sp, slenp)) ;
+    
+    /* null-terminate the name */
+    *dst = '\0';
+    
+    /* do a binary search for the name */
+    lo = 0;
+    hi = sizeof(amp_tbl)/sizeof(amp_tbl[0]) - 1;
+    for (;;)
+    {
+        int diff;
+        
+        /* if we've converged, look no further */
+        if (lo > hi || lo >= sizeof(amp_tbl)/sizeof(amp_tbl[0]))
+        {
+            ampptr = 0;
+            break;
+        }
+        
+        /* split the difference */
+        cur = lo + (hi - lo)/2;
+        ampptr = &amp_tbl[cur];
+        
+        /* see where we are relative to the target item */
+        diff = strcmp(ampptr->cname, ampbuf);
+        if (diff == 0)
+        {
+            /* this is it */
+            break;
+        }
+        else if (diff > 0)
+        {
+            /* make sure we don't go off the end */
+            if (cur == hi && cur == 0)
+            {
+                /* we've failed to find it */
+                ampptr = 0;
+                break;
+            }
+            
+            /* this one is too high - check the lower half */
+            hi = (cur == hi ? hi - 1 : cur);
+        }
+        else
+        {
+            /* this one is too low - check the upper half */
+            lo = (cur == lo ? lo + 1 : cur);
+        }
+    }
+    
+    /* skip to the appropriate next character */
+    if (c == ';')
+    {
+        /* name ended with semicolon - skip the semicolon */
+        c = nextout(sp, slenp);
+    }
+    else if (ampptr != 0)
+    {
+        int skipcnt;
+        
+        /* found the name - skip its exact length */
+        skipcnt = strlen(ampptr->cname);
+        for (*sp = orig_s, *slenp = orig_slen ; skipcnt != 0 ;
+             c = nextout(sp, slenp), --skipcnt) ;
+    }
+    
+    /* if we found the entry, write out the character */
+    if (ampptr != 0)
+    {
+        /* 
+         *   if this one has an external mapping table entry, use the mapping
+         *   table entry; otherwise, use the default OS routine mapping 
+         */
+        if (ampptr->expan != 0)
+        {
+            /* 
+             *   we have an explicit expansion from the mapping table file -
+             *   use it 
+             */
+            size_t copylen = strlen(ampptr->expan);
+            if (copylen > outbuf_size - 1)
+                copylen = outbuf_size - 1;
+
+            memcpy(outbuf, ampptr->expan, copylen);
+            outbuf[copylen] = '\0';
+        }
+        else
+        {
+            /* 
+             *   there's no mapping table expansion - use the default OS code
+             *   expansion 
+             */
+            os_xlat_html4(ampptr->html_cval, outbuf, outbuf_size);
+        }
+    }
+    else
+    {
+        /* 
+         *   didn't find it - output the '&' literally, then back up and
+         *   output the entire sequence following 
+         */
+        *sp = orig_s;
+        *slenp = orig_slen;
+        c = nextout(sp, slenp);
+
+        /* fill in the '&' return value */
+        outbuf[0] = '&';
+        outbuf[1] = '\0';
+    }
+
+    /* return the next character */
+    return c;
+}
+                      
 
 
 /* ------------------------------------------------------------------------ */
@@ -2956,7 +3006,10 @@ int outformatlen(char *s, uint slen)
 
     /* if there's a log file, write to the log file as well */
     if (logfp != 0)
+    {
         outformatlen_stream(&G_log_disp, orig_s, orig_slen);
+        osfflush(logfp);
+    }
 
 done:
     /* if we called the filter, remove the result from the stack */
@@ -2985,7 +3038,10 @@ void outblank()
 
     /* if we're logging, generate the newline to the log file as well */
     if (logfp != 0)
+    {
         outblank_stream(&G_log_disp);
+        osfflush(logfp);
+    }
 }
 
 
@@ -3099,6 +3155,9 @@ void out_logfile_print(char *txt, int nl)
         if (G_log_disp.html_target && G_log_disp.html_mode)
             os_fprintz(logfp, "<BR HEIGHT=0>\n");
     }
+
+    /* flush the output */
+    osfflush(logfp);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -3325,7 +3384,10 @@ void outflushn(int nl)
 
     /* flush the log stream, if we have an open log file */
     if (logfp != 0)
+    {
         outflushn_stream(&G_log_disp, nl);
+        fflush(logfp);
+    }
 }
 
 /*

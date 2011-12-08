@@ -39,8 +39,8 @@ VM_GLOBALS_BEGIN
     VM_GLOBAL_PREOBJDEF(class CVmPool_CLASS, code_pool)
 
     /* the stack */
-    VM_GLOBAL_PRECOBJDEF(class CVmStack, stk,
-                         (VM_STACK_SIZE, vm_init_stack_reserve()))
+//    VM_GLOBAL_PRECOBJDEF(class CVmStack, stk,
+//                         (VM_STACK_SIZE, vm_init_stack_reserve()))
 
     /* metaclass dependency table for loaded image file */
     VM_GLOBAL_OBJDEF(class CVmMetaTable, meta_table)
@@ -55,7 +55,8 @@ VM_GLOBALS_BEGIN
     VM_GLOBAL_OBJDEF(class CTcPrsSymtab, sym_table)
 
     /* byte code interpreter */
-    VM_GLOBAL_PREOBJDEF(class CVmRun, interpreter)
+    VM_GLOBAL_PRECOBJDEF(class CVmRun, interpreter,
+                         (VM_STACK_SIZE, vm_init_stack_reserve()))
 
     /* size of each exception table entry in the image file */
     VM_GLOBAL_VARDEF(size_t, exc_entry_size)
@@ -71,6 +72,9 @@ VM_GLOBALS_BEGIN
 
     /* debug record format version */
     VM_GLOBAL_VARDEF(int, dbg_fmt_vsn)
+
+    /* debug frame record size */
+    VM_GLOBAL_VARDEF(int, dbg_frame_size)
 
     /* debugger API */
     VM_GLOBAL_OBJDEF(class CVmDebug, debugger)
@@ -143,7 +147,28 @@ VM_GLOBALS_BEGIN
     VM_GLOBAL_OBJDEF(class CVmBigNumCache, bignum_cache)
 
     /* TadsObject inheritance path analysis queue */
-    VM_GLOBAL_OBJDEF(class CVmObjTadsInhQueue, tadsobj_queue)
+    VM_GLOBAL_PREOBJDEF(class CVmObjTadsInhQueue, tadsobj_queue)
+
+    /* dynamic compiler */
+    VM_GLOBAL_OBJDEF(class CVmDynamicCompiler, dyncomp)
+
+    /* web host configuration */
+    VM_GLOBAL_OBJDEF(class TadsNetConfig, net_config)
+
+    /* network I/O message queue */
+    VM_GLOBAL_OBJDEF(class TadsMessageQueue, net_queue)
+
+   /* 
+    *   The isNextAvailable() and getNext() properties from the Collection
+    *   entry in the metaclass table.  We initialize these after loading the
+    *   program so that CVmObject::iter_next() has quick access to these
+    *   properties for executing iterator loops.  
+    */
+   VM_GLOBAL_VARDEF(uint16, iter_get_next)
+   VM_GLOBAL_VARDEF(uint16, iter_next_avail)
+
+   /* system debug log file name */
+   VM_GLOBAL_ARRAYDEF(char, syslogfile, OSFNMAX)
 
 VM_GLOBALS_END
 

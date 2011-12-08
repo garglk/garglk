@@ -27,6 +27,8 @@ Modified
 #include "vmcoll.h"
 #include "vmglob.h"
 #include "vmstack.h"
+#include "vmrun.h"
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -42,10 +44,10 @@ Modified
  *.  DATAHOLDER element[2]
  *.  etc, up to number_of_elements_used (NOT the number allocated)
  *   
- *   The object extension for a a vector is almost identical, but adds a
- *   prefix giving the "allocated" size of the vector, and a suffix with a
- *   pointer to our original image data (if applicable) plus one bit per
- *   element after the end of the element[] list for undo bits:
+ *   The object extension for a vector is almost identical, but adds a prefix
+ *   giving the "allocated" size of the vector, and a suffix with a pointer
+ *   to our original image data (if applicable) plus one bit per element
+ *   after the end of the element[] list for undo bits:
  *   
  *   UINT2 allocated_elements
  *.  UINT2 number_of_elements
@@ -55,9 +57,9 @@ Modified
  *.  undo_bits
  *   
  *   The allocated_elements counter gives the total number of elements
- *   allocated in the vector; this can be greater than the number of
- *   elements actually in use, in which case we have free space that we can
- *   use to add elements without reallocating the vector's memory.
+ *   allocated in the vector; this can be greater than the number of elements
+ *   actually in use, in which case we have free space that we can use to add
+ *   elements without reallocating the vector's memory.
  *   
  *   The undo_bits are packed 8 bits per byte.  Note that the undo_bits
  *   follow all allocated slots, so these do not change location when we
@@ -96,6 +98,10 @@ public:
     /* create with a given number of elements */
     static vm_obj_id_t create(VMG_ int in_root_set, size_t element_count);
 
+    /* create with initial contents */
+    static vm_obj_id_t create_fill(VMG_ int in_root_set, size_t element_count,
+                                   ...);
+
     /* 
      *   determine if an object is a vector - it is if the object's
      *   virtual metaclass registration index matches the class's static
@@ -104,21 +110,30 @@ public:
     static int is_vector_obj(VMG_ vm_obj_id_t obj)
         { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
+    /* vectors are list-like for read access */
+    int is_listlike(VMG_ vm_obj_id_t) { return TRUE; }
+    int ll_length(VMG_ vm_obj_id_t) { return get_element_count(); }
+
     /* set a property */
     void set_prop(VMG_ class CVmUndo *undo,
                   vm_obj_id_t self, vm_prop_id_t prop, const vm_val_t *val);
+
+    /* call a static property */
+    static int call_stat_prop(VMG_ vm_val_t *result,
+                              const uchar **pc_ptr, uint *argc,
+                              vm_prop_id_t prop);
 
     /* get a property */
     int get_prop(VMG_ vm_prop_id_t prop, vm_val_t *val,
                  vm_obj_id_t self, vm_obj_id_t *source_obj, uint *argc);
 
     /* add a value to the vector, yielding a new vector */
-    void add_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int add_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* subtract a value from the vector, yielding a new vector */
-    void sub_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int sub_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* undo operations */
     void notify_new_savept();
@@ -162,33 +177,13 @@ public:
     void reload_from_image(VMG_ vm_obj_id_t self,
                            const char *ptr, size_t siz);
 
-    /*
-     *   When we're the right-hand side of a '+' or '-' operation whose
-     *   left-hand side is another collection type that treats these
-     *   operators as concatenation/set subtraction, add/subtract our
-     *   elements individually.  
-     */
-    virtual size_t get_coll_addsub_rhs_ele_cnt(VMG0_) const
-        { return get_element_count(); }
-    virtual void get_coll_addsub_rhs_ele(VMG_ vm_val_t *result,
-                                         vm_obj_id_t self, size_t idx)
-    {
-        vm_val_t idx_val;
-
-        /* set up the index value */
-        idx_val.set_int((int)idx);
-
-        /* index the vector */
-        index_val(vmg_ result, self, &idx_val);
-    }
-
     /* index the vector */
-    void index_val(VMG_ vm_val_t *result, vm_obj_id_t self,
-                   const vm_val_t *index_val);
+    int index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
+                    const vm_val_t *index_val);
 
     /* set an indexed element of the vector */
-    void set_index_val(VMG_ vm_val_t *new_container, vm_obj_id_t self,
-                       const vm_val_t *index_val, const vm_val_t *new_val);
+    int set_index_val_q(VMG_ vm_val_t *new_container, vm_obj_id_t self,
+                        const vm_val_t *index_val, const vm_val_t *new_val);
 
     /* 
      *   Check a value for equality.  We will match any list or vector with
@@ -216,6 +211,13 @@ public:
     /* get the number of elements in the vector */
     size_t get_element_count() const
         { return vmb_get_len(get_vector_ext_ptr() + 2); }
+
+    /* get an element without any range checking */
+    void get_element(size_t idx, vm_val_t *val) const
+    {
+        /* get the data from the data holder in our extension */
+        vmb_get_dh(get_element_ptr(idx), val);
+    }
 
 protected:
     /* load image data */
@@ -298,13 +300,6 @@ protected:
          *   fixed increment size 
          */
         return 16;
-    }
-
-    /* get an element */
-    void get_element(size_t idx, vm_val_t *val) const
-    {
-        /* get the data from the data holder in our extension */
-        vmb_get_dh(get_element_ptr(idx), val);
     }
 
     /* push an element onto the stack */
@@ -413,6 +408,10 @@ protected:
     void set_element_count_undo(VMG_ vm_obj_id_t self,
                                 size_t new_element_count);
 
+    /* insert elements into the vector, keeping undo */
+    void insert_elements_undo(VMG_ vm_obj_id_t self,
+                              int ins_idx, int add_cnt);
+
     /* delete elements from the vector, keeping undo */
     void remove_elements_undo(VMG_ vm_obj_id_t self,
                               size_t start_idx, size_t del_cnt);
@@ -423,7 +422,7 @@ protected:
 
     /* general handler for indexWhich, lastIndexWhich, and countWhich */
     int gen_index_which(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc,
-                        int forward, int count_only);
+                        int forward, int count_only, vm_rcdesc *rc);
 
     /* property evaluator - undefined function */
     int getp_undef(VMG_ vm_obj_id_t, vm_val_t *, uint *) { return FALSE; }
@@ -457,7 +456,7 @@ protected:
 
     /* general processor for forEach/forEachAssoc */
     int for_each_gen(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc,
-                     int pass_key_to_cb);
+                     int pass_key_to_cb, vm_rcdesc *rc);
 
     /* property evaluator - mapAll */
     int getp_map_all(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
@@ -519,6 +518,39 @@ protected:
     int getp_remove_element(VMG_ vm_obj_id_t self, vm_val_t *retval,
                             uint *argc);
 
+    /* property evaluator - join into a string */
+    int getp_join(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - generate */
+    int getp_generate(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
+        { return static_getp_generate(vmg_ retval, argc); }
+
+    /* static property evaluator - generate */
+    static int static_getp_generate(VMG_ vm_val_t *retval, uint *argc);
+
+    /* property evaluator - splice */
+    int getp_splice(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - get the index of the minimum element */
+    int getp_indexOfMin(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                        uint *argc);
+
+    /* property evaluator - get the minimum value in the list */
+    int getp_minVal(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                    uint *argc);
+
+    /* property evaluator - get the index of the maximum element */
+    int getp_indexOfMax(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                        uint *argc);
+
+    /* property evaluator - get the maximum value in the list */
+    int getp_maxVal(VMG_ vm_obj_id_t self, vm_val_t *retval,
+                    uint *argc);
+
+    /* general handler for the various min/max methods */
+    int get_minmax(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc,
+                   const vm_rcdesc *rc, int sense, int want_index);
+
     /* property evaluation function table */
     static int (CVmObjVector::*func_table_[])(VMG_ vm_obj_id_t self,
                                               vm_val_t *retval, uint *argc);
@@ -533,7 +565,7 @@ class CVmMetaclassVector: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "vector/030004"; }
+    const char *get_meta_name() const { return "vector/030005"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

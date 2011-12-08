@@ -179,7 +179,7 @@ int os_yield(void)
 }
 
 
-#endif __DPMI16__
+#endif /* __DPMI16__ */
 
 
 int main(argc, argv)

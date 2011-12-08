@@ -31,7 +31,7 @@ Modified
  */
 #define MAKE_VERSION_NUMBER(major,minor,maint) \
     (((major) << 16) | ((minor) << 8) | (maint))
-#define T3VM_VSN_NUMBER  MAKE_VERSION_NUMBER(3,0,18)
+#define T3VM_VSN_NUMBER  MAKE_VERSION_NUMBER(3,1,0)
 
 /*
  *   The VM identification string 
@@ -42,7 +42,7 @@ Modified
  *   The VM short version string.  This contains merely the version number,
  *   in display format.  
  */
-#define T3VM_VSN_STRING "3.0.18.1"
+#define T3VM_VSN_STRING "3.1.0"
 
 /*
  *   The VM banner string.  A VM program can obtain this value through the
@@ -50,7 +50,7 @@ Modified
  */
 /* copyright-date-string */
 #define T3VM_BANNER_STRING \
-    "T3 VM " T3VM_VSN_STRING " - Copyright 1999, 2009 Michael J. Roberts"
+    "T3 VM " T3VM_VSN_STRING " - Copyright 1999, 2011 Michael J. Roberts"
 
 #endif /* VMVSN_H */
 

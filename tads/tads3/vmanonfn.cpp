@@ -20,6 +20,7 @@ Modified
   03/21/00 MJRoberts  - Creation
 */
 
+#include "t3std.h"
 #include "vmobj.h"
 #include "vmanonfn.h"
 #include "vmerr.h"
@@ -56,8 +57,20 @@ vm_obj_id_t CVmObjAnonFn::create_from_stack(VMG_ const uchar **pc_ptr,
 
     /* retrieve our function pointer argument */
     G_stk->pop(&funcptr);
-    if (funcptr.typ != VM_FUNCPTR)
+    if (funcptr.typ == VM_FUNCPTR)
+    {
+        /* it's a regular function pointer - accept it */
+    }
+    else if (funcptr.typ == VM_OBJ
+             && vm_objp(vmg_ funcptr.val.obj)->get_invoker(vmg_ 0))
+    {
+        /* it's a pointer to an invokable object - accept it */
+    }
+    else
+    {
+        /* it's not a valid function pointer */
         err_throw(VMERR_FUNCPTR_VAL_REQD);
+    }
 
     /* create the new object */
     id = vm_new_id(vmg_ FALSE, TRUE, FALSE);
@@ -84,36 +97,23 @@ vm_obj_id_t CVmObjAnonFn::create_from_stack(VMG_ const uchar **pc_ptr,
     return id;
 }
 
-/* ------------------------------------------------------------------------ */
 /*
- *   Get a property 
+ *   Invoke 
  */
-int CVmObjAnonFn::get_prop(VMG_ vm_prop_id_t prop, vm_val_t *val,
-                           vm_obj_id_t self, vm_obj_id_t *source_obj,
-                           uint *argc)
+int CVmObjAnonFn::get_invoker(VMG_ vm_val_t *val)
 {
-    /* 
-     *   if the property is the special ObjectCallProp property, return
-     *   our first element 
-     */
-    if (prop == G_predef->obj_call_prop && prop != VM_INVALID_PROP)
+    /* our first vector element is our function pointer */
+    if (val != 0)
     {
-        static CVmNativeCodeDesc desc(0);
-
-        /* check for arguments */
-        if (get_prop_check_argc(val, argc, &desc))
-            return TRUE;
-
-        /* return our first element */
+        /* get the function pointer */
         get_element(0, val);
 
-        /* we're the source object */
-        *source_obj = self;
-
-        /* success */
-        return TRUE;
+        /* if this is itself an invokable value, get its invoker */
+        if (val->typ == VM_OBJ)
+            return vm_objp(vmg_ val->val.obj)->get_invoker(vmg_ val);
     }
 
-    /* it's not one of our own - inherit default handling */
-    return CVmObjVector::get_prop(vmg_ prop, val, self, source_obj, argc);
+    /* we are indeed invokable */
+    return TRUE;
 }
+

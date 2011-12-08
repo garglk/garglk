@@ -373,6 +373,9 @@ objucxdef *objuini(mcmcxdef *memctx, ushort undosiz,
                    ushort (*sizecb)(void *ctx, uchar *data),
                    void *callctx);
 
+/* free the undo context - releases memory allocated by objuini() */
+void objuterm(objucxdef *undoctx);
+
 /* discard all undo context (for times such as restarting) */
 void objulose(objucxdef *undoctx);
 

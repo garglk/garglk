@@ -72,7 +72,7 @@ void CVmImageWriter::prepare(uint vsn, const char tool_data[4])
     fp_->write_bytes(VMIMAGE_SIG, sizeof(VMIMAGE_SIG)-1);
 
     /* write the version number */
-    fp_->write_int2(vsn);
+    fp_->write_uint2(vsn);
 
     /* write the 28 reserved bytes, setting all to zero */
     memset(buf, 0, 28);
@@ -105,7 +105,7 @@ void CVmImageWriter::begin_block(const char *block_id, int mandatory)
     /* store the type string */
     memcpy(buf, block_id, 4);
 
-    /* store four bytes of zeroes as a placeholder for the size */
+    /* store four bytes of zeros as a placeholder for the size */
     memset(buf+4, 0, 4);
 
     /* compute the flags */
@@ -156,7 +156,7 @@ void CVmImageWriter::end_block()
      *   field with the size of the block's data.
      */
     fp_->set_pos(block_start_ + 4);
-    fp_->write_int4(siz);
+    fp_->write_uint4(siz);
 
     /* 
      *   seek back to the end of the block, so we can resume writing data
@@ -220,6 +220,7 @@ void CVmImageWriter::write_entrypt(uint32 entry_ofs, size_t method_hdr_size,
                                    size_t line_entry_size,
                                    size_t dbg_hdr_size,
                                    size_t dbg_lclsym_hdr_size,
+                                   size_t dbg_frame_hdr_size,
                                    int dbg_vsn_id)
 {
     char buf[32];
@@ -232,10 +233,11 @@ void CVmImageWriter::write_entrypt(uint32 entry_ofs, size_t method_hdr_size,
     oswp2(buf+10, dbg_hdr_size);
     oswp2(buf+12, dbg_lclsym_hdr_size);
     oswp2(buf+14, dbg_vsn_id);
+    oswp2(buf+16, dbg_frame_hdr_size);
 
     /* open the block, write the data, and close the block */
     begin_block("ENTP", TRUE);
-    fp_->write_bytes(buf, 16);
+    fp_->write_bytes(buf, 18);
     end_block();
 }
 
@@ -281,17 +283,17 @@ void CVmImageWriter::write_meta_dep_item(const char *metaclass_name)
 
     /* write a placeholder next record offset */
     mcld_ofs_pos_ = fp_->get_pos();
-    fp_->write_int2(0);
+    fp_->write_uint2(0);
     
     /* write the metaclass name */
     write_dep_block_item(metaclass_name);
 
     /* write a placeholder property vector count */
     mcld_propcnt_pos_ = fp_->get_pos();
-    fp_->write_int2(0);
+    fp_->write_uint2(0);
 
     /* write the property record size (2 bytes) */
-    fp_->write_int2(2);
+    fp_->write_uint2(2);
 
     /* no properties yet */
     mcld_prop_cnt_ = 0;
@@ -303,7 +305,7 @@ void CVmImageWriter::write_meta_dep_item(const char *metaclass_name)
 void CVmImageWriter::write_meta_item_prop(uint prop_id)
 {
     /* write the property ID */
-    fp_->write_int2(prop_id);
+    fp_->write_uint2(prop_id);
 
     /* count it */
     ++mcld_prop_cnt_;
@@ -324,7 +326,7 @@ void CVmImageWriter::end_meta_prop_list()
 
         /* go back and write the property count */
         fp_->set_pos(mcld_propcnt_pos_);
-        fp_->write_int2(mcld_prop_cnt_);
+        fp_->write_uint2(mcld_prop_cnt_);
 
         /* we no longer have a property count fixup to apply */
         mcld_propcnt_pos_ = 0;
@@ -759,7 +761,7 @@ void CVmImageWriter::end_objs_block(uint object_count)
 
     /* go back and fix up the object count in the header */
     fp_->set_pos(objs_prefix_);
-    fp_->write_int2(object_count);
+    fp_->write_uint2(object_count);
 
     /* seek back to the original position */
     fp_->set_pos(pos);
@@ -785,10 +787,10 @@ void CVmImageWriter::begin_srcf_block(int count)
     begin_block("SRCF", FALSE);
 
     /* write the number of entries */
-    fp_->write_int2(count);
+    fp_->write_uint2(count);
 
     /* each source line record is 8 bytes in the current format */
-    fp_->write_int2(8);
+    fp_->write_uint2(8);
 }
 
 /*
@@ -802,21 +804,21 @@ void CVmImageWriter::begin_srcf_entry(int orig_index, const char *fname)
     srcf_entry_pos_ = fp_->get_pos();
 
     /* write a placeholder size entry */
-    fp_->write_int4(0);
+    fp_->write_uint4(0);
     
     /* write the original index */
-    fp_->write_int2(orig_index);
+    fp_->write_uint2(orig_index);
 
     /* write the length of the name */
     len = get_strlen(fname);
-    fp_->write_int2(len);
+    fp_->write_uint2(len);
 
     /* write the filename */
     fp_->write_bytes(fname, len);
 
     /* we have no line record yet, so write a placeholder count */
     srcf_line_pos_ = fp_->get_pos();
-    fp_->write_int4(0);
+    fp_->write_uint4(0);
     srcf_line_cnt_ = 0;
 }
 
@@ -826,8 +828,8 @@ void CVmImageWriter::begin_srcf_entry(int orig_index, const char *fname)
 void CVmImageWriter::write_srcf_line_entry(ulong linenum, ulong addr)
 {
     /* write the line number and address */
-    fp_->write_int4(linenum);
-    fp_->write_int4(addr);
+    fp_->write_uint4(linenum);
+    fp_->write_uint4(addr);
 
     /* count it */
     ++srcf_line_cnt_;
@@ -843,11 +845,11 @@ void CVmImageWriter::end_srcf_entry()
     /* go back and fix up the line record count */
     pos = fp_->get_pos();
     fp_->set_pos(srcf_line_pos_);
-    fp_->write_int4(srcf_line_cnt_);
+    fp_->write_uint4(srcf_line_cnt_);
 
     /* go back and fix up the total entry size record */
     fp_->set_pos(srcf_entry_pos_);
-    fp_->write_int4(pos - srcf_entry_pos_);
+    fp_->write_uint4(pos - srcf_entry_pos_);
 
     /* seek back to the end of the block */
     fp_->set_pos(pos);
@@ -909,7 +911,7 @@ void CVmImageWriter::begin_gsym_block()
     gsym_prefix_ = fp_->get_pos();
 
     /* write a placehodler object count and the metaclass index */
-    fp_->write_int4(0);
+    fp_->write_uint4(0);
 }
 
 /*
@@ -923,9 +925,9 @@ void CVmImageWriter::write_gsym_entry(const char *sym, size_t sym_len,
      *   write the length of the symbol, length of the extra data, and the
      *   symbol type 
      */
-    fp_->write_int2(sym_len);
-    fp_->write_int2(dat_len);
-    fp_->write_int2(type_id);
+    fp_->write_uint2(sym_len);
+    fp_->write_uint2(dat_len);
+    fp_->write_uint2(type_id);
 
     /* write the symbol name */
     fp_->write_bytes(sym, sym_len);
@@ -946,7 +948,7 @@ void CVmImageWriter::end_gsym_block(ulong cnt)
 
     /* go back and fix up the count in the header */
     fp_->set_pos(gsym_prefix_);
-    fp_->write_int4(cnt);
+    fp_->write_uint4(cnt);
 
     /* seek back to the original position */
     fp_->set_pos(pos);
@@ -975,7 +977,7 @@ void CVmImageWriter::begin_mhls_block()
     mhls_cnt_pos_ = fp_->get_pos();
 
     /* write a placehodler count */
-    fp_->write_int4(0);
+    fp_->write_uint4(0);
 
     /* there are no entries yet */
     mhls_cnt_ = 0;
@@ -987,7 +989,7 @@ void CVmImageWriter::begin_mhls_block()
 void CVmImageWriter::write_mhls_entry(ulong addr)
 {
     /* write the address */
-    fp_->write_int4(addr);
+    fp_->write_uint4(addr);
 
     /* count the entry */
     ++mhls_cnt_;
@@ -1005,7 +1007,7 @@ void CVmImageWriter::end_mhls_block()
 
     /* go back and fix up the count in the header */
     fp_->set_pos(mhls_cnt_pos_);
-    fp_->write_int4(mhls_cnt_);
+    fp_->write_uint4(mhls_cnt_);
 
     /* seek back to the original position */
     fp_->set_pos(pos);
@@ -1037,13 +1039,13 @@ void CVmImageWriter::begin_sini_block(ulong static_cs_ofs, ulong init_cnt)
      *   at a later date are part of a given image file's data or not (if
      *   the header is too small to contain them, they're not present) 
      */
-    fp_->write_int4(12);
+    fp_->write_uint4(12);
 
     /* write the starting static code segment offset */
-    fp_->write_int4(static_cs_ofs);
+    fp_->write_uint4(static_cs_ofs);
 
     /* write the initializer count */
-    fp_->write_int4(init_cnt);
+    fp_->write_uint4(init_cnt);
 }
 
 /*

@@ -103,7 +103,7 @@ void vocinialo(voccxdef *ctx, vocddef **what, int cnt)
     vocddef *p;
     
     *what = (vocddef *)mchalo(ctx->voccxerr,
-                              (ushort)(cnt * sizeof(vocddef)), "vocinialo");
+                              (cnt * sizeof(vocddef)), "vocinialo");
 
     /* set all object/function entries to MCMONINV to indicate not-in-use */
     for (p = *what ; cnt ; ++p, --cnt)
@@ -1859,7 +1859,7 @@ static int exeloop(voccxdef *ctx, objnum actor, objnum verb,
 
                 /* it's a number - set numObj.value */
                 v1 = atol(dolist[i].vocolfst);
-                oswp4(&v2, v1);
+                oswp4s(&v2, v1);
                 vocsetobj(ctx, ctx->voccxnum, DAT_NUMBER, &v2,
                           &dolist[i], &dolist[i]);
             }
@@ -2415,7 +2415,7 @@ static void voc_askobj_indirect(voccxdef *ctx, vocoldef *dolist,
         {
             /* write the flags */
             *lstp++ = DAT_NUMBER;
-            oswp4(lstp, dolist[j].vocolflg);
+            oswp4s(lstp, dolist[j].vocolflg);
             lstp += 4;
         }
 

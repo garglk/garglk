@@ -28,7 +28,8 @@ void vm_run_preinit(class CVmFile *origfp, const char *orig_image_fname,
                     class CVmFile *newfp, class CVmHostIfc *hostifc,
                     class CVmMainClientIfc *clientifc,
                     const char *const *argv, int argc,
-                    class CVmRuntimeSymbols *global_symtab);
+                    class CVmRuntimeSymbols *global_symtab,
+                    class CVmRuntimeSymbols *macros);
 
 #endif /* VMPREINI_H */
 

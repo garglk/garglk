@@ -30,8 +30,169 @@ Modified
 #include "vmundo.h"
 #include "vmrun.h"
 #include "charmap.h"
+#include "utf8.h"
 #include "vmstr.h"
 #include "vmcset.h"
+#include "vmdatasrc.h"
+#include "vmpack.h"
+#include "sha2.h"
+#include "md5.h"
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Byte Array data source 
+ */
+class CVmByteArraySource: public CVmDataSource
+{
+public:
+    /* set up a data source on the entire range of the array */
+    CVmByteArraySource(VMG_ vm_obj_id_t arr)
+    {
+        /* remember the array and globals */
+        this->vmg = VMGLOB_ADDR;
+        this->arr_id = arr;
+        this->arr = (CVmObjByteArray *)vm_objp(vmg_ arr);
+
+        /* we provide access to the entire range of the array */
+        this->idx = 0;
+        this->start_idx = 0;
+        this->end_idx = this->arr->get_element_count();
+    }
+
+    /* set up a data source on a slice of the array */
+    CVmByteArraySource(VMG_ vm_obj_id_t arr, long start_idx, long len)
+    {
+        /* remember the array and globals */
+        this->vmg = VMGLOB_ADDR;
+        this->arr_id = arr;
+        this->arr = (CVmObjByteArray *)vm_objp(vmg_ arr);
+
+        /* remember our window */
+        this->idx = start_idx;
+        this->start_idx = start_idx;
+        this->end_idx = start_idx + len;
+
+        /* limit the window to the actual available size */
+        if ((unsigned long)end_idx > this->arr->get_element_count())
+            end_idx = this->arr->get_element_count();
+    }
+
+    /* read bytes; returns 0 on success, non-zero on error */
+    virtual int read(void *buf, size_t len)
+    {
+        /* limit the read to the available length */
+        size_t rdlen = (idx + (long)len > end_idx
+                        ? (size_t)(end_idx - idx) : len);
+
+        /* copy the requested bytes starting at the current index */
+        size_t copied = arr->copy_to_buf((unsigned char *)buf, idx + 1, rdlen);
+
+        /* move past the bytes copied */
+        idx += copied;
+
+        /* we were successful if we copied exactly the requested length */
+        return copied != len;
+    }
+
+    /* read bytes; returns the number of bytes read */
+    virtual int readc(void *buf, size_t len)
+    {
+        /* limit the read to the available length */
+        size_t rdlen = (idx + (long)len > end_idx
+                        ? (size_t)(end_idx - idx) : len);
+
+        /* copy the requested bytes */
+        size_t copied = arr->copy_to_buf((unsigned char *)buf, idx + 1, rdlen);
+
+        /* move past the bytes copied */
+        idx += copied;
+
+        /* return the number of bytes actually read */
+        return copied;
+    }
+
+    /* write bytes; returns 0 on success, non-zero on error */
+    virtual int write(const void *buf, size_t len)
+    {
+        /* establish global access */
+        VMGLOB_PTR(vmg);
+        
+        /* limit the write to the available length */
+        size_t wrtlen = (idx + (long)len > end_idx
+                         ? (size_t)(end_idx - idx) : len);
+
+        /* copy the requested bytes (saving undo) */
+        size_t copied = arr->copy_from_buf_undo(
+            vmg_ arr_id, (const unsigned char *)buf, idx + 1, wrtlen);
+
+        /* move past the bytes copied */
+        idx += copied;
+
+        /* we were successful if we copied exactly the requested length */
+        return copied != len;
+    }
+
+    /* get the length of our slice of the array in bytes */
+    virtual long get_size() { return end_idx - start_idx; }
+
+    /* get the current seek location */
+    virtual long get_pos() { return idx - start_idx; }
+
+    /* set the current seek location - 'mode' is an OSFSK_xxx mode */
+    virtual int seek(long ofs, int mode)
+    {
+        switch (mode)
+        {
+        case OSFSK_SET:
+            idx = start_idx + ofs;
+            break;
+
+        case OSFSK_CUR:
+            idx += ofs;
+            break;
+
+        case OSFSK_END:
+            idx = end_idx + ofs;
+            break;
+
+        default:
+            return 1;
+        }
+
+        /* make sure it's in range */
+        if (idx < start_idx)
+            idx = start_idx;
+        else if (idx > end_idx)
+            idx = end_idx;
+
+        /* success */
+        return 0;
+    }
+
+    /* flush - returns 0 on success, non-zero on error */
+    virtual int flush() { return 0; }
+
+    /* close the underlying system resource */
+    virtual void close() { }
+
+protected:
+    /* our underlying array */
+    vm_obj_id_t arr_id;
+    CVmObjByteArray *arr;
+
+    /* current read/write index in the array */
+    long idx;
+
+    /* the bounds of the slice of the array we present as the file */
+    long start_idx;
+    long end_idx;
+
+    /* we need globals in some interface routines without the VMG_ param */
+    vm_globals *vmg;
+};
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -69,15 +230,22 @@ int (CVmObjByteArray::
      *CVmObjByteArray::func_table_[])(VMG_ vm_obj_id_t self,
                                       vm_val_t *retval, uint *argc) =
 {
-    &CVmObjByteArray::getp_undef,
-    &CVmObjByteArray::getp_length,
-    &CVmObjByteArray::getp_subarray,
-    &CVmObjByteArray::getp_copy_from,
-    &CVmObjByteArray::getp_fill_val,
-    &CVmObjByteArray::getp_to_string,
-    &CVmObjByteArray::getp_read_int,
-    &CVmObjByteArray::getp_write_int
+    &CVmObjByteArray::getp_undef,                                      /* 0 */
+    &CVmObjByteArray::getp_length,                                     /* 1 */
+    &CVmObjByteArray::getp_subarray,                                   /* 2 */
+    &CVmObjByteArray::getp_copy_from,                                  /* 3 */
+    &CVmObjByteArray::getp_fill_val,                                   /* 4 */
+    &CVmObjByteArray::getp_to_string,                                  /* 5 */
+    &CVmObjByteArray::getp_read_int,                                   /* 6 */
+    &CVmObjByteArray::getp_write_int,                                  /* 7 */
+    &CVmObjByteArray::getp_packBytes,                                  /* 8 */
+    &CVmObjByteArray::getp_unpackBytes,                                /* 9 */
+    &CVmObjByteArray::getp_sha256,                                    /* 10 */
+    &CVmObjByteArray::getp_digestMD5                                  /* 11 */
 };
+
+/* static property indices */
+const int PROPIDX_packBytes = 8;
 
 
 /* ------------------------------------------------------------------------ */
@@ -91,6 +259,7 @@ vm_obj_id_t CVmObjByteArray::create_from_stack(VMG_ const uchar **pc_ptr,
     CVmObjByteArray *arr;
     unsigned long cnt;
     vm_val_t *arg1;
+    const char *str;
 
     /* check our arguments */
     if (argc < 1)
@@ -117,14 +286,31 @@ vm_obj_id_t CVmObjByteArray::create_from_stack(VMG_ const uchar **pc_ptr,
         /* set each element to zero */
         arr->fill_with(0, 1, cnt);
     }
+    else if ((str = arg1->get_as_string(vmg0_)) != 0)
+    {
+        /*
+         *   String argument - we're creating a byte array from the string.
+         *   We can map it from a character set, or we can just stuff the
+         *   character values into bytes.  Check arguments - we must have one
+         *   or two of them (the string, and the optional character set) 
+         */
+        if (argc < 1 || argc > 2)
+            err_throw(VMERR_WRONG_NUM_OF_ARGS);
+
+        /* fetch the character mapper, if there is one */
+        const vm_val_t *cmap = (argc >= 2 ? G_stk->get(1) : 0);
+
+        /* create the byte array */
+        id = create_from_string(vmg_ G_stk->get(0), str, cmap);
+    }
     else if (arg1->typ == VM_OBJ && is_byte_array(vmg_ arg1->val.obj))
     {
         unsigned long src_idx;
         unsigned long src_cnt;
-        CVmObjByteArray *src_arr;
 
         /* remember the source array */
-        src_arr = (CVmObjByteArray *)vm_objp(vmg_ arg1->val.obj);
+        CVmObjByteArray *src_arr =
+            (CVmObjByteArray *)vm_objp(vmg_ arg1->val.obj);
 
         /* get the count from the array */
         src_cnt = src_arr->get_element_count();
@@ -198,6 +384,109 @@ vm_obj_id_t CVmObjByteArray::create_from_stack(VMG_ const uchar **pc_ptr,
     G_stk->discard(argc);
 
     /* return the new object */
+    return id;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Create a new byte array from a string, mapping through the given
+ *   character set object if present, or just stuffing the character values
+ *   into bytes if not.  
+ */
+vm_obj_id_t CVmObjByteArray::create_from_string(
+    VMG_ const vm_val_t *strval, const char *str, const vm_val_t *mapval)
+{
+    /* we can't allocate our object until we know the mapped byte count */
+    vm_obj_id_t id = VM_INVALID_OBJ;
+    CVmObjByteArray *arr = 0;
+    
+    /* get the string's length and skip the length prefix */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /*
+     *   We have two modes: map to bytes via a character set, or stuff
+     *   unmapped character values into bytes.  Check which mode we're using.
+     */
+    if (mapval == 0 || mapval->typ == VM_NIL)
+    {
+        /* 
+         *   No character mapper - just stuff each character into a byte.  If
+         *   a character is outside the 0..255 range, it's an error.  
+         */
+
+        /* count the number of characters */
+        utf8_ptr p((char *)str);
+        size_t clen = p.len(len);
+
+        /* allocate the array - each string character is one array byte */
+        id = create(vmg_ FALSE, clen);
+        arr = (CVmObjByteArray *)vm_objp(vmg_ id);
+
+        /* copy bytes into the array */
+        for (int idx = 1 ; len != 0 ; )
+        {
+            /* translate a buffer-full */
+            unsigned char buf[256];
+            size_t cur = 0;
+            for ( ; len != 0 && cur < sizeof(buf) ; p.inc(&len))
+            {
+                /* get the next character; make sure it fits in a byte */
+                wchar_t ch = p.getch();
+                if (ch > 255)
+                    err_throw(VMERR_NUM_OVERFLOW);
+                
+                /* save it */
+                buf[cur++] = (unsigned char)ch;
+            }
+            
+            /* copy this chunk to the array */
+            arr->cons_copy_from_buf(buf, idx, cur);
+            idx += cur;
+        }
+    }
+    else
+    {
+        /* interpret the character set argument */
+        vm_obj_id_t mapid = CVmBif::get_charset_obj(vmg_ mapval);
+
+        /* get the to-local mapping from the character set */
+        CCharmapToLocal *mapper =
+            ((CVmObjCharSet *)vm_objp(vmg_ mapid))->get_to_local(vmg0_);
+
+        /* 
+         *   first, do a mapping with a null output buffer to determine how
+         *   many bytes we need for the mapping 
+         */
+        size_t src_bytes_used;
+        size_t byte_len = mapper->map_utf8(0, 0, str, len, &src_bytes_used);
+        
+        /* allocate a new ByteArray with the required number of bytes */
+        id = CVmObjByteArray::create(vmg_ FALSE, byte_len);
+        arr = (CVmObjByteArray *)vm_objp(vmg_ id);
+        
+        /* convert it again, this time storing the bytes */
+        for (size_t out_idx = 1 ; len != 0 ; )
+        {
+            char buf[128];
+            
+            /* convert a buffer-full */
+            byte_len = mapper->map_utf8(buf, sizeof(buf), str, len,
+                                        &src_bytes_used);
+            
+            /* store the bytes in the byte array */
+            arr->cons_copy_from_buf((unsigned char *)buf, out_idx, byte_len);
+            
+            /* advance past the output bytes we used */
+            out_idx += byte_len;
+            
+            /* advance past the source bytes we used */
+            str += src_bytes_used;
+            len -= src_bytes_used;
+        }
+    }
+
+    /* return the new array's object ID */
     return id;
 }
 
@@ -366,6 +655,25 @@ void CVmObjByteArray::notify_delete(VMG_ int /*in_root_set*/)
 }
 
 /* ------------------------------------------------------------------------ */
+/*
+ *   Cast to string.  Maps to string treating the bytes as Latin-1
+ *   characters. 
+ */
+const char *CVmObjByteArray::cast_to_string(
+    VMG_ vm_obj_id_t self, vm_val_t *new_str) const
+{
+    /* set up a source stream to read from the byte array into the string */
+    CVmByteArraySource src(vmg_ self);
+
+    /* create the string */
+    new_str->set_obj(CVmObjString::create_latin1(vmg_ FALSE, &src));
+
+    /* return the new string's byte buffer */
+    return new_str->get_as_string(vmg0_);
+}
+
+
+/* ------------------------------------------------------------------------ */
 /* 
  *   set a property 
  */
@@ -374,6 +682,31 @@ void CVmObjByteArray::set_prop(VMG_ class CVmUndo *,
                                const vm_val_t *)
 {
     err_throw(VMERR_INVALID_SETPROP);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get a static property 
+ */
+int CVmObjByteArray::call_stat_prop(VMG_ vm_val_t *result,
+                                    const uchar **pc_ptr, uint *argc,
+                                    vm_prop_id_t prop)
+{
+    /* get the function table index */
+    int idx = G_meta_table->prop_to_vector_idx(
+        metaclass_reg_->get_reg_idx(), prop);
+
+    /* check for static methods we define in ByteArray */
+    switch (idx)
+    {
+    case PROPIDX_packBytes:
+        /* the static version of packBytes() */
+        return static_packBytes(vmg_ result, argc);
+
+    default:
+        /* not one of ours - defer to the superclass */
+        return CVmObject::call_stat_prop(vmg_ result, pc_ptr, argc, prop);
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -635,7 +968,7 @@ void CVmObjByteArray::load_image_data(VMG_ const char *ptr, size_t siz)
     /* if the size is smaller than we'd expect, set extra elements to nil */
     if (siz < VMB_LEN + (VMB_DATAHOLDER * cnt))
     {
-        /* fill everything with zeroes to start with */
+        /* fill everything with zeros to start with */
         fill_with(0, 1, cnt);
     }
 
@@ -760,8 +1093,8 @@ void CVmObjByteArray::restore_from_file(VMG_ vm_obj_id_t self,
 /*
  *   Retrieve the value at the given index 
  */
-void CVmObjByteArray::index_val(VMG_ vm_val_t *result, vm_obj_id_t self,
-                                const vm_val_t *index_val)
+int CVmObjByteArray::index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
+                                 const vm_val_t *index_val)
 {
     unsigned char *p;
     size_t avail;
@@ -779,16 +1112,19 @@ void CVmObjByteArray::index_val(VMG_ vm_val_t *result, vm_obj_id_t self,
 
     /* return the value as an integer */
     result->set_int((int)(unsigned short)*p);
+
+    /* handled */
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
 /* 
  *   set an indexed element of the array 
  */
-void CVmObjByteArray::set_index_val(VMG_ vm_val_t *new_container,
-                                    vm_obj_id_t self,
-                                    const vm_val_t *index_val,
-                                    const vm_val_t *new_val)
+int CVmObjByteArray::set_index_val_q(VMG_ vm_val_t *new_container,
+                                     vm_obj_id_t self,
+                                     const vm_val_t *index_val,
+                                     const vm_val_t *new_val)
 {
     unsigned char *p;
     size_t avail;
@@ -820,6 +1156,9 @@ void CVmObjByteArray::set_index_val(VMG_ vm_val_t *new_container,
 
     /* the result is the original array value */
     new_container->set_obj(self);
+
+    /* handled */
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -990,7 +1329,7 @@ void CVmObjByteArray::copy_from(unsigned long dst_idx,
 
     /* 
      *   if there's any copying size left, we ran out of source array bytes
-     *   - fill the balance of the destination array with zeroes
+     *   - fill the balance of the destination array with zeros
      */
     if (cnt != 0)
         fill_with(0, dst_idx, cnt);
@@ -1404,11 +1743,11 @@ int CVmObjByteArray::getp_to_string(VMG_ vm_obj_id_t self,
                                     vm_val_t *retval, uint *in_argc)
 {
     uint argc = (in_argc != 0 ? *in_argc : 0);
-    static CVmNativeCodeDesc desc(1, 2);
+    static CVmNativeCodeDesc desc(0, 3);
     unsigned long idx;
     unsigned long cnt;
-    vm_obj_id_t charset_id;
-    CCharmapToUni *mapper;
+    vm_val_t charset;
+    CCharmapToUni *mapper = 0;
     size_t str_len;
     CVmObjString *str;
 
@@ -1417,14 +1756,14 @@ int CVmObjByteArray::getp_to_string(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* get the character set object */
-    charset_id = CVmBif::pop_obj_val(vmg0_);
+    charset.set_nil();
+    if (argc >= 1)
+        charset.set_obj_or_nil(CVmBif::pop_charset_obj(vmg0_));
 
-    /* make sure it's really a character set object */
-    if (!CVmObjCharSet::is_charset(vmg_ charset_id))
-        err_throw(VMERR_BAD_TYPE_BIF);
-
-    /* get the to-unicode mapping object from the character set */
-    mapper = ((CVmObjCharSet *)vm_objp(vmg_ charset_id))->get_to_uni(vmg0_);
+    /* if we got a CharacterSet, get its to-unicode mapper */
+    if (charset.typ != VM_NIL)
+        mapper = ((CVmObjCharSet *)vm_objp(vmg_ charset.val.obj))
+                 ->get_to_uni(vmg0_);
 
     /* if there's a starting index, retrieve it */
     if (argc >= 2)
@@ -1462,24 +1801,32 @@ int CVmObjByteArray::getp_to_string(VMG_ vm_obj_id_t self,
     else if (idx + cnt - 1 > get_element_count())
         cnt = get_element_count() + 1 - idx;
 
-    /* 
-     *   map to a string without a destination buffer, to determine the
-     *   required length to store the string 
-     */
-    str_len = map_to_string(idx, cnt, 0, 0, mapper);
-
-    /* push a self-ref for gc protection */
+    /* push a self-ref for gc protection, and a ref to the character set */
     G_stk->push()->set_obj(self);
+    G_stk->push(&charset);
 
-    /* push a ref to the character mapper as well */
-    G_stk->push()->set_obj(charset_id);
+    /* map via the character mapper, or as raw unicode character values */
+    if (mapper != 0)
+    {
+        /*
+         *   We have a character set mapper.  First, measure the required
+         *   buffer length by mapping to a null buffer.  
+         */
+        str_len = map_to_string(idx, cnt, 0, 0, mapper);
+        
+        /* allocate a string of the required length */
+        retval->set_obj(CVmObjString::create(vmg_ FALSE, str_len));
+        str = (CVmObjString *)vm_objp(vmg_ retval->val.obj);
 
-    /* allocate a string of the required length */
-    retval->set_obj(CVmObjString::create(vmg_ FALSE, str_len));
-    str = (CVmObjString *)vm_objp(vmg_ retval->val.obj);
-
-    /* map the string, actually storing the bytes this time */
-    map_to_string(idx, cnt, str, str_len, mapper);
+        /* map the string, actually storing the bytes this time */
+        map_to_string(idx, cnt, str, str_len, mapper);
+    }
+    else
+    {
+        /* there's no mapper - treat our bytes as unicode character codes */
+        CVmByteArraySource src(vmg_ self, idx - 1, cnt);
+        retval->set_obj(CVmObjString::create_latin1(vmg_ FALSE, &src));
+    }
 
     /* discard the gc protection */
     G_stk->discard(2);
@@ -1560,9 +1907,19 @@ size_t CVmObjByteArray::map_to_string(unsigned long idx,
 /*
  *   Copy bytes from the array to a buffer 
  */
-void CVmObjByteArray::copy_to_buf(unsigned char *buf,
-                                  unsigned long idx, size_t len) const
+size_t CVmObjByteArray::copy_to_buf(unsigned char *buf,
+                                    unsigned long idx, size_t len) const
 {
+    /* we haven't copied any bytes so far */
+    size_t actual = 0;
+
+    /* limit it to the actual available space */
+    unsigned long contlen = get_element_count();
+    if (idx > contlen)
+        len = 0;
+    else if (idx + len > contlen)
+        len = contlen - idx + 1;
+
     /* keep going until we satisfy the request */
     while (len != 0)
     {
@@ -1572,6 +1929,10 @@ void CVmObjByteArray::copy_to_buf(unsigned char *buf,
 
         /* get the next chunk */
         p = get_ele_ptr(idx, &avail);
+
+        /* if there's nothing left, stop */
+        if (avail == 0)
+            break;
 
         /* copy the available bytes or the reamining desired bytes */
         copy_len = avail;
@@ -1585,7 +1946,33 @@ void CVmObjByteArray::copy_to_buf(unsigned char *buf,
         buf += copy_len;
         idx += copy_len;
         len -= copy_len;
+        actual += copy_len;
     }
+
+    /* return the actual size copied */
+    return actual;
+}
+
+/*
+ *   Copy bytes from a buffer into the array, saving undo 
+ */
+size_t CVmObjByteArray::copy_from_buf_undo(VMG_ vm_obj_id_t self,
+                                           const unsigned char *buf,
+                                           unsigned long idx, size_t len)
+{
+    /* limit the size to the remaining length from 'idx' */
+    unsigned long avail_len = get_element_count() - idx + 1;
+    if (len > avail_len)
+        len = (size_t)avail_len;
+
+    /* save undo */
+    save_undo(vmg_ self, idx, len);
+
+    /* copy the bytes */
+    copy_from_buf(buf, idx, len);
+
+    /* return the copy length */
+    return len;
 }
 
 /*
@@ -1604,7 +1991,7 @@ void CVmObjByteArray::copy_from_buf(const unsigned char *buf,
         /* get the next chunk */
         p = get_ele_ptr(idx, &avail);
 
-        /* copy the available bytes or the reamining desired bytes */
+        /* copy the available bytes or the remaining desired bytes */
         copy_len = avail;
         if (copy_len > len)
             copy_len = len;
@@ -1616,6 +2003,21 @@ void CVmObjByteArray::copy_from_buf(const unsigned char *buf,
         buf += copy_len;
         idx += copy_len;
         len -= copy_len;
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Swap byte order 
+ */
+static void swap_bytes(unsigned char *buf, int len)
+{
+    int i, j;
+    for (i = 0, j = len - 1 ; i < j ; ++i, --j)
+    {
+        unsigned char tmp = buf[i];
+        buf[i] = buf[j];
+        buf[j] = tmp;
     }
 }
 
@@ -1678,60 +2080,34 @@ int CVmObjByteArray::getp_read_int(VMG_ vm_obj_id_t self,
 
     case 2:
         /* 
-         *   16-bit integer.  First, pull out an unsigned 16-bit value using
-         *   the selected byte order.  
+         *   16-bit integer.  Our standard portable order is little-endian,
+         *   so swap bytes if it's big-endian.  
          */
-        switch(fmt & FmtOrderMask)
-        {
-        case FmtLittleEndian:
-        default:
-            result = cbuf[0]
-                     + (((unsigned int)cbuf[1]) << 8);
-            break;
+        if ((fmt & FmtOrderMask) == FmtBigEndian)
+            swap_bytes(cbuf, 2);
 
-        case FmtBigEndian:
-            result = (((unsigned int)cbuf[0]) << 8)
-                     + cbuf[1];
-            break;
-        }
-
-        /* 
-         *   Now make it a signed value if appropriate.  To ensure we get the
-         *   proper results regardless of local data sizes, we'll write it
-         *   back to the buffer in portable format, then use the OS-defined
-         *   signed 16-bit extraction macro to convert it back to a signed
-         *   value.  
-         */
+        /* it's little-endian now, so pull out the signed or unsigned value */
         if ((fmt & FmtSignedMask) == FmtSigned)
-        {
-            oswp2(cbuf, result);
             result = osrp2s(cbuf);
-        }
+        else
+            result = osrp2(cbuf);
+
         break;
 
     case 4:
         /* 
-         *   32-bit integer.  Pull out a signed 32-bit value using the
-         *   selected byte order.  Since we can't represent a 32-bit unsigned
-         *   value in the VM, we can ignore the signedness format.  
+         *   32-bit integer.  Convert to our standard little-endian ordering
+         *   if it's currently big-endian, by swapping the byte order.
          */
-        switch(fmt & FmtOrderMask)
-        {
-        case FmtLittleEndian:
-        default:
-            result = ((unsigned long)cbuf[0])
-                     + (((unsigned long)cbuf[1]) << 8)
-                     + (((unsigned long)cbuf[2]) << 16)
-                     + (((unsigned long)cbuf[3]) << 24);
-            break;
+        if ((fmt & FmtOrderMask) == FmtBigEndian)
+            swap_bytes(cbuf, 4);
 
-        case FmtBigEndian:
-            result = (((unsigned long)cbuf[0]) << 24)
-                     + (((unsigned long)cbuf[1]) << 16)
-                     + (((unsigned long)cbuf[2]) << 8)
-                     + ((unsigned long)cbuf[3]);
-            break;
-        }
+        /* it's little-endian now, so pull out the signed or unsigned value */
+        if ((fmt & FmtSignedMask) == FmtSigned)
+            result = osrp4s(cbuf);
+        else
+            result = osrp4(cbuf);
+        break;
     }
 
     /* return the result */
@@ -1793,42 +2169,28 @@ int CVmObjByteArray::getp_write_int(VMG_ vm_obj_id_t self,
         break;
 
     case 2:
-        /* 16-bit integer - store in the proper byte order */
-        switch(fmt & FmtOrderMask)
-        {
-        case FmtLittleEndian:
-        default:
-            cbuf[0] = (char)(val & 0xFF);
-            cbuf[1] = (char)((val & 0xFF00) >> 8);
-            break;
-
-        case FmtBigEndian:
-            cbuf[0] = (char)((val & 0xFF00) >> 8);
-            cbuf[1] = (char)(val & 0xFF);
-            break;
-        }
+        /* 16-bit integer - start with our standard little-endian format */
+        if ((fmt & FmtSignedMask) == FmtSigned)
+            oswp2s(cbuf, (int)val);
+        else
+            oswp2(cbuf, (int)val);
         break;
 
     case 4:
-        /* 32-bit integer - store in the proper byte order */
-        switch(fmt & FmtOrderMask)
-        {
-        case FmtLittleEndian:
-        default:
-            cbuf[0] = (char)(val & 0xFF);
-            cbuf[1] = (char)((val & 0xFF00) >> 8);
-            cbuf[2] = (char)((val & 0xFF0000) >> 16);
-            cbuf[3] = (char)((val & 0xFF000000) >> 24);
-            break;
-
-        case FmtBigEndian:
-            cbuf[0] = (char)((val & 0xFF000000) >> 24);
-            cbuf[1] = (char)((val & 0xFF0000) >> 16);
-            cbuf[2] = (char)((val & 0xFF00) >> 8);
-            cbuf[3] = (char)(val & 0xFF);
-            break;
-        }
+        /* 32-bit integer - start with our standard little-endian format */
+        if ((fmt & FmtSignedMask) == FmtSigned)
+            oswp4s(cbuf, val);
+        else
+            oswp4(cbuf, val);
+        break;
     }
+
+    /* swap bytes if they want big-endian */
+    if (siz > 1 && (fmt & FmtOrderMask) == FmtBigEndian)
+        swap_bytes(cbuf, siz);
+
+    /* save undo for the change */
+    save_undo(vmg_ self, idx, siz);
 
     /* store the byte representation we've constructed */
     copy_from_buf(cbuf, idx, siz);
@@ -1847,7 +2209,7 @@ int CVmObjByteArray::getp_write_int(VMG_ vm_obj_id_t self,
  *   Write bytes from the specified region of the array to a file.  Returns
  *   zero on success, non-zero on failure.  
  */
-int CVmObjByteArray::write_to_file(osfildef *fp, unsigned long start_idx,
+int CVmObjByteArray::write_to_file(CVmDataSource *fp, unsigned long start_idx,
                                    unsigned long len) const
 {
     unsigned long rem;
@@ -1890,7 +2252,7 @@ int CVmObjByteArray::write_to_file(osfildef *fp, unsigned long start_idx,
          *   write out this chunk - if an error occurs, abort with a failure
          *   indication 
          */
-        if (osfwb(fp, p, chunk))
+        if (fp->write(p, chunk))
             return 1;
 
         /* move our counters past this chunk */
@@ -1906,13 +2268,17 @@ int CVmObjByteArray::write_to_file(osfildef *fp, unsigned long start_idx,
  *   Read bytes from the file into the specified region of the array.
  *   Returns the number of bytes actually read.  
  */
-unsigned long CVmObjByteArray::read_from_file(osfildef *fp,
-                                              unsigned long start_idx,
-                                              unsigned long len)
+unsigned long CVmObjByteArray::read_from_file(
+    VMG_ vm_obj_id_t self, CVmDataSource *fp,
+    unsigned long start_idx, unsigned long len, int undo)
 {
     unsigned long rem;
     unsigned long idx;
     unsigned long total;
+
+    /* make sure the starting index is at least 1 */
+    if (start_idx < 1)
+        err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* 
      *   if the starting index is past the end of the array, there's nothing
@@ -1927,6 +2293,10 @@ unsigned long CVmObjByteArray::read_from_file(osfildef *fp,
      */
     if (start_idx + len - 1 > get_element_count())
         len = get_element_count() - start_idx + 1;
+
+    /* save undo */
+    if (undo)
+        save_undo(vmg_ self, start_idx, len);
 
     /* keep going until we satisfy the request or run into a problem */
     for (idx = start_idx, rem = len, total = 0 ; rem != 0 ; )
@@ -1945,7 +2315,7 @@ unsigned long CVmObjByteArray::read_from_file(osfildef *fp,
             chunk = (size_t)rem;
 
         /* read as much as we can of this chunk */
-        cur_read = osfrbc(fp, p, chunk);
+        cur_read = fp->readc(p, chunk);
 
         /* add this amount into the total so far */
         total += cur_read;
@@ -1971,13 +2341,13 @@ unsigned long CVmObjByteArray::read_from_file(osfildef *fp,
 /*
  *   Write to a 'data' mode file 
  */
-int CVmObjByteArray::write_to_data_file(osfildef *fp)
+int CVmObjByteArray::write_to_data_file(CVmDataSource *fp)
 {
     char buf[16];
 
     /* write the number of bytes in our array */
     oswp4(buf, get_element_count());
-    if (osfwb(fp, buf, 4))
+    if (fp->write(buf, 4))
         return 1;
 
     /* write the bytes */
@@ -1987,14 +2357,15 @@ int CVmObjByteArray::write_to_data_file(osfildef *fp)
 /*
  *   Read from a 'data' mode file 
  */
-int CVmObjByteArray::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
+int CVmObjByteArray::read_from_data_file(VMG_ vm_val_t *retval,
+                                         CVmDataSource *fp)
 {
     char buf[16];
     CVmObjByteArray *arr;
     unsigned long len;
 
     /* read the number of bytes in the array */
-    if (osfrb(fp, buf, 4))
+    if (fp->read(buf, 4))
         return 1;
     len = t3rp4u(buf);
 
@@ -2002,8 +2373,8 @@ int CVmObjByteArray::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
     retval->set_obj(create(vmg_ FALSE, len));
     arr = (CVmObjByteArray *)vm_objp(vmg_ retval->val.obj);
 
-    /* read the bytes */
-    if (arr->read_from_file(fp, 1, len) != len)
+    /* read the bytes (it's a new object, so don't save undo) */
+    if (arr->read_from_file(vmg_ retval->val.obj, fp, 1, len, FALSE) != len)
     {
         /* 
          *   we didn't manage to read all of the bytes - since the value was
@@ -2016,5 +2387,245 @@ int CVmObjByteArray::read_from_data_file(VMG_ vm_val_t *retval, osfildef *fp)
 
     /* success */
     return 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   property evaluator - packBytes 
+ */
+int CVmObjByteArray::getp_packBytes(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = oargc != 0 ? *oargc : 0;
+    static CVmNativeCodeDesc desc(2, 0, TRUE);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* retrieve the starting index from the first argument */
+    long idx = CVmBif::pop_long_val(vmg0_);
+    --argc;
+
+    /* limit the index to 1..length */
+    if (idx < 1)
+        idx = 1;
+    else if ((ulong)idx > get_element_count())
+        idx = get_element_count();
+
+    /* adjust to a zero-based index */
+    --idx;
+
+    /* set up a data source for the byte array */
+    CVmByteArraySource dst(vmg_ self);
+
+    /* seek to the starting index */
+    dst.seek(idx, OSFSK_SET);
+
+    /* do the packing */
+    CVmPack::pack(vmg_ 0, argc, &dst);
+
+    /* discard the arguments */
+    G_stk->discard(argc);
+
+    /* return the number of bytes written */
+    retval->set_int(dst.get_pos() - idx);
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Property evaluator - static ByteArray.packBytes().  This version of the
+ *   method creates a new ByteArray object containing the packed bytes.  
+ */
+int CVmObjByteArray::static_packBytes(VMG_ vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = oargc != 0 ? *oargc : 0;
+    static CVmNativeCodeDesc desc(1, 0, TRUE);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* set up an in-memory data stream to receive the packed data */
+    CVmMemorySource *dst = new CVmMemorySource(0);
+
+    err_try
+    {
+        /* do the packing */
+        CVmPack::pack(vmg_ 0, argc, dst);
+
+        /* create a byte array to hold the packed data */
+        long len = dst->get_size();
+        retval->set_obj(create(vmg_ FALSE, len));
+        CVmObjByteArray *arr = (CVmObjByteArray *)vm_objp(vmg_ retval->val.obj);
+
+        /* 
+         *   copy the bytes from the stream to the byte array; it's a new
+         *   object, so there's no undo to save 
+         */
+        dst->seek(0, OSFSK_SET);
+        arr->read_from_file(vmg_ retval->val.obj, dst, 1, len, FALSE);
+    }
+    err_finally
+    {
+        /* done with the data stream */
+        delete dst;
+    }
+    err_end;
+
+    /* discard the arguments */
+    G_stk->discard(argc);
+
+    /* handled */
+    return TRUE;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   property evaluator - unpackBytes 
+ */
+int CVmObjByteArray::getp_unpackBytes(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = oargc != 0 ? *oargc : 0;
+    static CVmNativeCodeDesc desc(2);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* retrieve the starting index from the first argument */
+    long idx = CVmBif::pop_long_val(vmg0_);
+    --argc;
+
+    /* limit the index to 1..length */
+    if (idx < 1)
+        idx = 1;
+    else if ((ulong)idx > get_element_count())
+        idx = get_element_count();
+
+    /* get the format string, but leave it on the stack for gc protection */
+    const char *fmt = G_stk->get(0)->get_as_string(vmg0_);
+
+    /* get the format string length and buffer pointer */
+    size_t fmtlen = vmb_get_len(fmt);
+    fmt += VMB_LEN;
+
+    /* set up a data source for the byte array */
+    CVmByteArraySource src(vmg_ self);
+
+    /* seek to the starting index */
+    src.seek(idx - 1, OSFSK_SET);
+
+    /* do the unpacking */
+    CVmPack::unpack(vmg_ retval, fmt, fmtlen, &src);
+
+    /* discard arguments */
+    G_stk->discard(argc);
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   property evaluator - sha256
+ */
+int CVmObjByteArray::getp_sha256(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = oargc != 0 ? *oargc : 0;
+    static CVmNativeCodeDesc desc(0, 2);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* get the starting index and length */
+    long cnt = get_element_count();
+    long idx = argc >= 1 ? CVmBif::pop_int_val(vmg0_) : 1;
+    long len = argc >= 2 ? CVmBif::pop_int_val(vmg0_) : cnt;
+
+    /* set up a data source on the array, and seek to the starting index */
+    CVmByteArraySource src(vmg_ self);
+    src.seek(idx - 1, OSFSK_SET);
+
+    /* calculate the hash */
+    char buf[65];
+    sha256_datasrc(buf, &src, len);
+
+    /* return the string */
+    retval->set_obj(CVmObjString::create(vmg_ FALSE, buf, 64));
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   property evaluator - digestMD5
+ */
+int CVmObjByteArray::getp_digestMD5(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    /* check arguments */
+    uint argc = oargc != 0 ? *oargc : 0;
+    static CVmNativeCodeDesc desc(0, 2);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* get the starting index and length */
+    long cnt = get_element_count();
+    long idx = argc >= 1 ? CVmBif::pop_int_val(vmg0_) : 1;
+    long len = argc >= 2 ? CVmBif::pop_int_val(vmg0_) : cnt;
+
+    /* limit the starting index to the available range */
+    if (idx < 1)
+        idx = 1;
+    else if (idx > cnt + 1)
+        idx = cnt + 1;
+
+    /* limit the length to the range remaining */
+    if (len < 0)
+        len = 0;
+    else if (len > cnt - idx + 1)
+        len = cnt - idx + 1;
+
+    /* set up the hash accumulator */
+    md5_state_t ctx;
+    md5_init(&ctx);
+
+    /* feed the selected range of bytes into the hash */
+    while (len > 0)
+    {
+        /* get the next chunk */
+        size_t avail;
+        unsigned char *p = get_ele_ptr(idx, &avail);
+
+        /* use the whole chunk, up to the amount remaining in the request */
+        size_t cur = (len < (long)avail ? (size_t)len : avail);
+
+        /* feed this chunk into the hash */
+        md5_append(&ctx, p, cur);
+
+        /* deduct this chunk from the remaining length */
+        len -= cur;
+    }
+
+    /* calculate the hash result */
+    const int HASH_BYTES = 16;
+    unsigned char hash[HASH_BYTES];
+    md5_finish(&ctx, hash);
+
+    /* convert the binary hash to printable hex digits */
+    char buf[HASH_BYTES*2], *bufp = buf;
+    for (int i = 0 ; i < HASH_BYTES ; ++i, bufp += 2)
+        byte_to_xdigits(bufp, hash[i]);
+
+    /* return the string */
+    retval->set_obj(CVmObjString::create(vmg_ FALSE, buf, HASH_BYTES*2));
+
+    /* handled */
+    return TRUE;
 }
 

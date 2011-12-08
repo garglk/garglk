@@ -88,13 +88,17 @@ public:
         vm_val_t cobj_val;
         VMGLOB_PTR(globals_);
 
+        /* set up a recursive call context */
+        vm_rcdesc rc;
+        rc.init_ret(vmg_ "HashComparator.calcHash");
+
         /* create a string object to represent the argument, and push it */
         G_stk->push()->set_obj(CVmObjString::create(vmg_ FALSE, str, len));
 
         /* invoke the calcHash method */
         cobj_val.set_obj(comparator_);
         G_interpreter->get_prop(vmg_ 0, &cobj_val, G_predef->calc_hash_prop,
-                                &cobj_val, 1);
+                                &cobj_val, 1, &rc);
 
         /* retrieve the result from R0 */
         val = *G_interpreter->get_r0();
@@ -156,13 +160,14 @@ int (CVmObjDict::
      *CVmObjDict::func_table_[])(VMG_ vm_obj_id_t self,
                                  vm_val_t *retval, uint *argc) =
 {
-    &CVmObjDict::getp_undef,
-    &CVmObjDict::getp_set_comparator,
-    &CVmObjDict::getp_find,
-    &CVmObjDict::getp_add,
-    &CVmObjDict::getp_del,
-    &CVmObjDict::getp_is_defined,
-    &CVmObjDict::getp_for_each_word
+    &CVmObjDict::getp_undef,                                           /* 0 */
+    &CVmObjDict::getp_set_comparator,                                  /* 1 */
+    &CVmObjDict::getp_find,                                            /* 2 */
+    &CVmObjDict::getp_add,                                             /* 3 */
+    &CVmObjDict::getp_del,                                             /* 4 */
+    &CVmObjDict::getp_is_defined,                                      /* 5 */
+    &CVmObjDict::getp_for_each_word,                                   /* 6 */
+    &CVmObjDict::getp_correct                                          /* 7 */
 };
 
 /* ------------------------------------------------------------------------ */
@@ -237,6 +242,9 @@ CVmObjDict::CVmObjDict(VMG0_)
     /* no hash table yet */
     get_ext()->hashtab_ = 0;
 
+    /* no Trie yet */
+    get_ext()->trie_ = 0;
+
     /* no non-image entries yet */
     get_ext()->modified_ = FALSE;
 
@@ -257,6 +265,10 @@ void CVmObjDict::notify_delete(VMG_ int /*in_root_set*/)
         /* free our hash table */
         if (get_ext()->hashtab_ != 0)
             delete get_ext()->hashtab_;
+
+        /* free our Trie */
+        if (get_ext()->trie_ != 0)
+            delete get_ext()->trie_;
 
         /* free the extension */
         G_mem->get_var_heap()->free_mem(ext_);
@@ -367,6 +379,13 @@ void CVmObjDict::create_hash_table(VMG0_)
         delete get_ext()->hashtab_;
     }
 
+    /* if we had a previous trie, get rid of it */
+    if (get_ext()->trie_ != 0)
+    {
+        delete get_ext()->trie_;
+        get_ext()->trie_ = 0;
+    }
+
     /* store the new hash table in the extension */
     get_ext()->hashtab_ = new_tab;
 }
@@ -429,11 +448,18 @@ int CVmObjDict::match_strings(VMG_ const vm_val_t *valstrval,
             G_stk->push()->set_obj(
                 CVmObjString::create(vmg_ FALSE, valstr, vallen));
         }
-        
-        /* call the comparator's matchValues method */
-        cobj_val.set_obj(get_ext()->comparator_);
-        G_interpreter->get_prop(vmg_ 0, &cobj_val,
-                                G_predef->match_values_prop, &cobj_val, 2);
+
+        {
+            /* set up a recursive call context */
+            vm_rcdesc rc;
+            rc.init_ret(vmg_ "HashComparator.matchValues");
+
+            /* call the comparator's matchValues method */
+            cobj_val.set_obj(get_ext()->comparator_);
+            G_interpreter->get_prop(vmg_ 0, &cobj_val,
+                                    G_predef->match_values_prop, &cobj_val, 2,
+                                    &rc);
+        }
 
         /* get the result from R0 */
         *result_val = *G_interpreter->get_r0();
@@ -484,10 +510,17 @@ unsigned int CVmObjDict::calc_str_hash(VMG_ const vm_val_t *valstrval,
                 CVmObjString::create(vmg_ FALSE, valstr, vallen));
         }
 
-        /* call the comparator object's calcHash method */
-        cobj_val.set_obj(get_ext()->comparator_);
-        G_interpreter->get_prop(vmg_ 0, &cobj_val, G_predef->calc_hash_prop,
-                                &cobj_val, 1);
+        {
+            /* set up a recursive call context */
+            vm_rcdesc rc;
+            rc.init_ret(vmg_ "HashComparator.calcHash");
+
+            /* call the comparator object's calcHash method */
+            cobj_val.set_obj(get_ext()->comparator_);
+            G_interpreter->get_prop(vmg_ 0, &cobj_val,
+                                    G_predef->calc_hash_prop,
+                                    &cobj_val, 1, &rc);
+        }
 
         /* get the result from R0 */
         result = *G_interpreter->get_r0();
@@ -882,7 +915,7 @@ int CVmObjDict::getp_add(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
     vm_val_t str_val;
     vm_prop_id_t voc_prop;
     CVmObject *objp;
-    const char *lst;
+    int lstcnt;
     const char *str;
     static CVmNativeCodeDesc desc(3);
 
@@ -901,39 +934,28 @@ int CVmObjDict::getp_add(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
         err_throw(VMERR_OBJ_VAL_REQD);
 
     /* if the string argument is a list, add each word from the list */
-    if ((lst = str_val.get_as_list(vmg0_)) != 0)
+    if (str_val.is_listlike(vmg0_)
+        && (lstcnt = str_val.ll_length(vmg0_)) >= 0)
     {
-        size_t cnt;
-        size_t idx;
-        vm_val_t ele_val;
-
-        /* get and skip the list count prefix */
-        cnt = vmb_get_len(lst);
-
         /* iterate over the list, using 1-based indices */
-        for (idx = 1 ; idx <= cnt ; ++idx)
+        for (int idx = 1 ; idx <= lstcnt ; ++idx)
         {
             /* get the next value from the list */
-            CVmObjList::index_list(vmg_ &ele_val, lst, idx);
+            vm_val_t ele_val;
+            str_val.ll_index(vmg_ &ele_val, idx);
 
             /* get the next string value */
             if ((str = ele_val.get_as_string(vmg0_)) == 0)
                 err_throw(VMERR_STRING_VAL_REQD);
 
             /* set this string */
-            getp_add_string(vmg_ self, str, obj, voc_prop);
-
-            /* 
-             *   refresh the list pointer, in case it was const pool data
-             *   and got swapped out by resolving the string pointer 
-             */
-            lst = str_val.get_as_list(vmg0_);
+            add_word(vmg_ self, str, obj, voc_prop);
         }
     }
     else if ((str = str_val.get_as_string(vmg0_)) != 0)
     {
         /* add the string */
-        getp_add_string(vmg_ self, str, obj, voc_prop);
+        add_word(vmg_ self, str, obj, voc_prop);
     }
     else
     {
@@ -951,19 +973,12 @@ int CVmObjDict::getp_add(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
 /*
  *   Service routine for getp_add() - add a single string 
  */
-void CVmObjDict::getp_add_string(VMG_ vm_obj_id_t self,
-                                 const char *str, vm_obj_id_t obj,
-                                 vm_prop_id_t voc_prop)
+void CVmObjDict::add_word(VMG_ vm_obj_id_t self,
+                          const char *str, size_t len,
+                          vm_obj_id_t obj, vm_prop_id_t voc_prop)
 {
-    size_t len;
-    int added;
-
-    /* get the string's length prefix */
-    len = vmb_get_len(str);
-    str += 2;
-
     /* add the entry */
-    added = add_hash_entry(vmg_ str, len, TRUE, obj, voc_prop, FALSE);
+    int added = add_hash_entry(vmg_ str, len, TRUE, obj, voc_prop, FALSE);
 
     /* 
      *   if there's a global undo object, and we actually added a new
@@ -995,7 +1010,7 @@ int CVmObjDict::getp_del(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
     vm_obj_id_t obj;
     vm_val_t str_val;
     vm_prop_id_t voc_prop;
-    const char *lst;
+    int lstcnt;
     const char *str;
     static CVmNativeCodeDesc desc(3);
 
@@ -1009,39 +1024,28 @@ int CVmObjDict::getp_del(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
     voc_prop = CVmBif::pop_propid_val(vmg0_);
 
     /* if the string argument is a list, add each word from the list */
-    if ((lst = str_val.get_as_list(vmg0_)) != 0)
+    if (str_val.is_listlike(vmg0_)
+        && (lstcnt = str_val.ll_length(vmg0_)) >= 0)
     {
-        size_t cnt;
-        size_t idx;
-        vm_val_t ele_val;
-
-        /* get and skip the list count prefix */
-        cnt = vmb_get_len(lst);
-
         /* iterate over the list, using 1-based indices */
-        for (idx = 1 ; idx <= cnt ; ++idx)
+        for (int idx = 1 ; idx <= lstcnt ; ++idx)
         {
             /* get the next value from the list */
-            CVmObjList::index_list(vmg_ &ele_val, lst, idx);
+            vm_val_t ele_val;
+            str_val.ll_index(vmg_ &ele_val, idx);
 
             /* get the next string value */
             if ((str = ele_val.get_as_string(vmg0_)) == 0)
                 err_throw(VMERR_STRING_VAL_REQD);
 
             /* remove this string */
-            getp_del_string(vmg_ self, str, obj, voc_prop);
-
-            /* 
-             *   refresh the list pointer, in case it was const pool data
-             *   and got swapped out by resolving the string pointer 
-             */
-            lst = str_val.get_as_list(vmg0_);
+            del_word(vmg_ self, str, obj, voc_prop);
         }
     }
     else if ((str = str_val.get_as_string(vmg0_)) != 0)
     {
         /* remove the string */
-        getp_del_string(vmg_ self, str, obj, voc_prop);
+        del_word(vmg_ self, str, obj, voc_prop);
     }
     else
     {
@@ -1059,19 +1063,12 @@ int CVmObjDict::getp_del(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc)
 /*
  *   Service routine for getp_del - delete a string value 
  */
-void CVmObjDict::getp_del_string(VMG_ vm_obj_id_t self,
-                                 const char *str, vm_obj_id_t obj,
-                                 vm_prop_id_t voc_prop)
+void CVmObjDict::del_word(VMG_ vm_obj_id_t self,
+                          const char *str, size_t len,
+                          vm_obj_id_t obj, vm_prop_id_t voc_prop)
 {
-    size_t len;
-    int deleted;
-
-    /* get the string's length prefix */
-    len = vmb_get_len(str);
-    str += 2;
-
     /* delete this entry */
-    deleted = del_hash_entry(vmg_ str, len, obj, voc_prop);
+    int deleted = del_hash_entry(vmg_ str, len, obj, voc_prop);
 
     /* 
      *   if there's a global undo object, and we actually deleted an
@@ -1100,8 +1097,9 @@ void CVmObjDict::getp_del_string(VMG_ vm_obj_id_t self,
  */
 struct isdef_ctx
 {
-    isdef_ctx(VMG_ CVmObjDict *dict_obj, vm_val_t *filter,
-              const vm_val_t *val, const char *str, size_t len)
+    isdef_ctx(VMG_ CVmObjDict *dict_obj,
+              vm_val_t *filter, const vm_val_t *val,
+              const char *str, size_t len)
     {
         /* remember the VM globals and dictionary object */
         globals = VMGLOB_ADDR;
@@ -1135,6 +1133,9 @@ struct isdef_ctx
 
     /* dictionary we're searching */
     CVmObjDict *dict;
+
+    /* recursive native caller context */
+    vm_rcdesc rc;
 };
 
 /*
@@ -1175,7 +1176,7 @@ void CVmObjDict::isdef_cb(void *ctx0, CVmHashEntry *entry0)
 
             /* call the filter callback */
             G_interpreter->call_func_ptr(vmg_ ctx->filter_func, 1,
-                                         "Dictionary.isDefined", 0);
+                                         &ctx->rc, 0);
 
             /* get the result */
             valp = G_interpreter->get_r0();
@@ -1247,6 +1248,7 @@ int CVmObjDict::getp_is_defined(VMG_ vm_obj_id_t self, vm_val_t *val,
 
     /* enumerate matches for the string */
     isdef_ctx ctx(vmg_ this, &filter, arg0, strp, strl);
+    ctx.rc.init(vmg_ "Dict.isDefined", self, 5, arg0, orig_argc);
     get_ext()->hashtab_->enum_hash_matches(hash, &isdef_cb, &ctx);
 
     /* if we found any matches, return true; otherwise, return nil */
@@ -1270,6 +1272,9 @@ struct for_each_word_enum_cb_ctx
 
     /* globals */
     vm_globals *vmg;
+
+    /* recursive native caller context */
+    vm_rcdesc rc;
 };
 
 /*
@@ -1333,8 +1338,7 @@ static void for_each_word_enum_cb(void *ctx0, CVmHashEntry *entry0)
         G_stk->push()->set_obj(p->obj_);
 
         /* invoke the callback */
-        G_interpreter->call_func_ptr(vmg_ ctx->cb_val, 3,
-                                     "Dictionary.forEachWord", 0);
+        G_interpreter->call_func_ptr(vmg_ ctx->cb_val, 3, &ctx->rc, 0);
     }
 }
 
@@ -1346,6 +1350,7 @@ int CVmObjDict::getp_for_each_word(VMG_ vm_obj_id_t self, vm_val_t *retval,
 {
     static CVmNativeCodeDesc desc(1);
     vm_val_t *cb_val;
+    int orig_argc = (argc != 0 ? *argc : 0);
     for_each_word_enum_cb_ctx ctx;
 
     /* check arguments */
@@ -1365,6 +1370,7 @@ int CVmObjDict::getp_for_each_word(VMG_ vm_obj_id_t self, vm_val_t *retval,
      */
     ctx.vmg = VMGLOB_ADDR;
     ctx.cb_val = cb_val;
+    ctx.rc.init(vmg_ "Dict.forEachWord", self, 6, cb_val, orig_argc);
     get_ext()->hashtab_->safe_enum_entries(for_each_word_enum_cb, &ctx);
 
     /* discard arguments and gc protection */
@@ -1372,6 +1378,429 @@ int CVmObjDict::getp_for_each_word(VMG_ vm_obj_id_t self, vm_val_t *retval,
 
     /* there's no return value */
     retval->set_nil();
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Correction list entry.  Each time we match a word in the spelling
+ *   correction generator, we'll add one of these entries to our list of
+ *   matched words.  This lets us check for words that we've already found
+ *   (since it's often possible to find a match via more than one editing
+ *   route). 
+ */
+struct corr_word
+{
+    void *operator new(size_t siz, size_t strl)
+    {
+        return t3mallocnew(siz + (strl-1)*sizeof(wchar_t));
+    }
+    void operator delete(void *ptr) { t3free(ptr); }
+
+    corr_word(wchar_t *str, size_t strl, int dist, int repl, corr_word *nxt)
+    {
+        memcpy(this->str, str, strl*sizeof(wchar_t));
+        this->strl = strl;
+        this->dist = dist;
+        this->repl = repl;
+        this->nxt = nxt;
+    }
+
+    /* next in list */
+    corr_word *nxt;
+
+    /* best edit distance found for this word */
+    int dist;
+
+    /* number of character replacements */
+    int repl;
+
+    /* text of the word (we overallocate the structure to make room) */
+    size_t strl;
+    wchar_t str[1];
+};
+
+/* correction types */
+enum corr_type { NoChange, Insertion, Deletion, Replacement, Transposition };
+
+/*
+ *   Correction stack element.  This represents a state in the correction
+ *   process. 
+ */
+struct corr_state
+{
+    /* 
+     *   Allocate space.  During the state processing, we need to add one
+     *   character to the last state to form certain subsequent states, so
+     *   always overallocate our string by one character.  This allows us to
+     *   build the next-state strings in place in our buffer.  
+     */
+    void *operator new(size_t siz, size_t strl)
+    {
+        return t3mallocnew(siz + strl*sizeof(wchar_t));
+    }
+    void operator delete(void *ptr) { t3free(ptr); }
+
+    corr_state(vmdict_TrieNode *root)
+    {
+        init(0, 0, 0, 0, 0,
+             root, NoChange, 0);
+    }
+    corr_state(const wchar_t *str, size_t strl, int dist, int repl,
+               size_t ipos, vmdict_TrieNode *node, corr_type typ,
+               corr_state *nxt)
+    {
+        init(str, strl, dist, repl, ipos, node, typ, nxt);
+    }
+
+    void init(const wchar_t *str, size_t strl, int dist, int repl,
+              size_t ipos, vmdict_TrieNode *node, corr_type typ,
+              corr_state *nxt)
+    {
+        memcpy(this->str, str, strl*sizeof(wchar_t));
+        this->strl = strl;
+        this->dist = dist;
+        this->repl = repl;
+        this->ipos = ipos;
+        this->node = node;
+        this->typ = typ;
+        this->nxt = nxt;
+    }
+
+    /* next state in the stack */
+    corr_state *nxt;
+
+    /* edit distance so far */
+    int dist;
+
+    /* number of replacement transitions */
+    int repl;
+
+    /* current character index in the input string */
+    size_t ipos;
+
+    /* current Trie node in the dictionary */
+    vmdict_TrieNode *node;
+
+    /* type of last transition */
+    corr_type typ;
+
+    /* the string (we overallocate the structure to make room) */
+    size_t strl;
+    wchar_t str[1];
+};
+
+/* correction state stack */
+struct corr_stack
+{
+    corr_stack(vmdict_TrieNode *root)
+    {
+        /* start the stack with an empty initial state */
+        top = new (0) corr_state(root);
+    }
+
+    int empty() const { return top == 0; }
+
+    void push(const wchar_t *str, size_t strl, int dist, int repl,
+              size_t ipos, vmdict_TrieNode *node, corr_type typ)
+    {
+        top = new (strl) corr_state(
+            str, strl, dist, repl, ipos, node, typ, top);
+    }
+
+    corr_state *pop()
+    {
+        /* retrieve and unlink the top state */
+        corr_state *ret = top;
+        top = top->nxt;
+
+        /* return the state we unlinked */
+        return ret;
+    }
+
+    /* top of the stack */
+    corr_state *top;
+};
+
+
+/*
+ *   property evaluation - get a list of possible corrections for a
+ *   misspelled word 
+ */
+int CVmObjDict::getp_correct(VMG_ vm_obj_id_t self,
+                             vm_val_t *retval, uint *argc)
+{
+    const char *str;
+    size_t strl;
+    int max_dist;
+    static CVmNativeCodeDesc desc(2);
+
+    /* check arguments */
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* pop the word string and maximum edit distance */
+    str = CVmBif::pop_str_val(vmg0_);
+    max_dist = CVmBif::pop_int_val(vmg0_);
+
+    /* get the string length and character pointer */
+    strl = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /* for easier processing, convert the string to a wchar_t array */
+    size_t wcnt = utf8_ptr::to_wcharz(0, 0, str, strl);
+    wchar_t *wstr = new wchar_t[wcnt+1];
+    utf8_ptr::to_wcharz(wstr, wcnt+1, str, strl);
+
+    /* if we have a StringComparator, fetch it */
+    CVmObjStrComp *cmp = 0;
+    size_t trunc_len = 0;
+    if (get_ext()->comparator_type_ == VMDICT_COMP_STRCOMP)
+    {
+        /* get the comparator */
+        cmp = (CVmObjStrComp *)get_ext()->comparator_obj_;
+
+        /* note the truncation length */
+        trunc_len = cmp->trunc_len();
+    }
+
+    /* if we don't have the Trie yet, build it */
+    if (get_ext()->trie_ == 0)
+        build_trie(vmg0_);
+
+    /* create a stack with the initial empty state */
+    corr_stack stk(get_ext()->trie_);
+
+    /* start with an empty result list */
+    corr_word *results = 0;
+
+    /* process states until the stack is empty */
+    while (!stk.empty())
+    {
+        /* pop the next state */
+        corr_state *s = stk.pop();
+
+        /* 
+         *   Check for an 'accept' state.  This is a state where we've
+         *   exhausted the input word, and we're at a Trie node that has at
+         *   least one word defined.
+         */
+        if (s->node->word_cnt != 0 && s->ipos == wcnt)
+        {
+            /*
+             *   We've found a matching word (i.e., a candidate dictionary
+             *   match for the misspelled input word).  Scan the list of
+             *   candidates we've already found to see if we've already
+             *   matched this word.
+             */
+            corr_word *w;
+            for (w = results ; w != 0 ; w = w->nxt)
+            {
+                if (w->strl == s->strl
+                    && memcmp(w->str, s->str, s->strl*sizeof(wchar_t)) == 0)
+                    break;
+            }
+
+            /* if we didn't find an entry, add a new one */
+            if (w == 0)
+                results = w = new (s->strl) corr_word(
+                    s->str, s->strl, s->dist, s->repl, results);
+
+            /* keep the lowest edit distance we've found so far */
+            if (s->dist < w->dist
+                || (s->dist == w->dist && s->repl < w->repl))
+            {
+                w->dist = s->dist;
+                w->repl = s->repl;
+            }
+        }
+
+        /*
+         *   If we have any edit distance left, try an insertion (i.e., the
+         *   input word has an extra letter relative to the dictionary word).
+         *   Don't do insertions directly after deletions, though, since
+         *   they'd just cancel out.  
+         */
+        if (s->dist < max_dist && s->ipos < wcnt && s->typ != Deletion)
+            stk.push(s->str, s->strl, s->dist + 1, s->repl, s->ipos + 1,
+                     s->node, Insertion);
+
+        /* try each possible dictionary transition from here */
+        for (vmdict_TrieNode *chi = s->node->chi ; chi != 0 ;
+             chi = chi->nxt)
+        {
+            /* 
+             *   Build the next-state string.  Note that we can just add the
+             *   character directly to the current state's string buffer,
+             *   since we always allocate state structures with one extra
+             *   character of padding for just this purpose. 
+             */
+            s->str[s->strl] = chi->ch;
+
+            /* 
+             *   Check for a match to the current character.  If we have a
+             *   StringComparator, ask the comparator to check the match.
+             *   Otherwise just check for an exact character match. 
+             */
+            size_t matchlen = 0;
+            if (s->ipos < wcnt)
+            {
+                if (cmp != 0)
+                {
+                    /* we have a comparator - check it for the match */
+                    matchlen = cmp->match_chars(
+                        wstr + s->ipos, wcnt - s->ipos, chi->ch);
+                }
+                else
+                {
+                    /* no comparator - do a simple character comparison */
+                    if (wstr[s->ipos] == chi->ch)
+                        matchlen = 1;
+                }
+                
+                /* if we have a match, push a state for it */
+                if (matchlen != 0)
+                    stk.push(s->str, s->strl + 1, s->dist, s->repl,
+                             s->ipos + matchlen, chi, NoChange);
+            }
+            else
+            {
+                /* 
+                 *   we've reached the end of the input; but if the current
+                 *   edit string is at least the truncation length in the
+                 *   string comparator, consider this a character match as
+                 *   well 
+                 */
+                if (trunc_len != 0
+                    && s->strl >= trunc_len
+                    && s->ipos >= trunc_len)
+                    stk.push(s->str, s->strl + 1, s->dist, s->repl,
+                             s->ipos, chi, NoChange);
+            }
+
+            /* if we have any edit distance remaining, try corrections */
+            if (s->dist < max_dist)
+            {
+                /* try a replaced letter */
+                if (s->ipos < wcnt != 0 && matchlen == 0)
+                    stk.push(s->str, s->strl + 1, s->dist + 1, s->repl + 1,
+                             s->ipos + 1, chi, Replacement);
+
+                /* try a deletion (i.e., the input is missing a character) */
+                if (s->typ != Insertion)
+                    stk.push(s->str, s->strl + 1, s->dist + 1, s->repl,
+                             s->ipos, chi, Deletion);
+            }
+
+            /* 
+             *   if we just did a replacement edit, check to see if it's
+             *   actually a transposition 
+             */
+            if (s->typ == Replacement
+                && s->ipos > 0 && s->ipos < wcnt
+                && wstr[s->ipos - 1] == chi->ch
+                && wstr[s->ipos] == s->str[s->strl - 1])
+                stk.push(s->str, s->strl + 1, s->dist, s->repl - 1,
+                         s->ipos + 1, chi, Transposition);
+        }
+
+        /* we've finished processing the current state */
+        delete s;
+    }
+
+    /* done with the wchar_t version of the word */
+    delete [] wstr;
+
+    /* 
+     *   Count up the number of result entries.  Only count words with a
+     *   non-zero edit distance - words with a zero edit distance are already
+     *   matches for the input word, so we can't consider them to be
+     *   corrections for it. 
+     */
+    corr_word *r;
+    int i;
+    for (r = results, i = 0 ; r != 0 ; r = r->nxt)
+    {
+        /* if this word has a non-zero edit distance, count it */
+        if (r->dist != 0)
+            ++i;
+    }
+
+    /* allocate a List to hold the results */
+    vm_obj_id_t lst_id = CVmObjList::create(vmg_ FALSE, i);
+    CVmObjList *lst = (CVmObjList *)vm_objp(vmg_ lst_id);
+    lst->cons_clear();
+
+    /* push it for gc protection */
+    G_stk->push()->set_obj(lst_id);
+
+    /* create a List [word, distance] for each result */
+    for (r = results, i = 0 ; r != 0 ; r = r->nxt)
+    {
+        vm_val_t val;
+
+        /* 
+         *   If this word has a zero edit distance, skip it.  A word with a
+         *   zero edit distance is already a match for the original, so it
+         *   can't be considered a correction.  
+         */
+        if (r->dist == 0)
+            continue;
+        
+        /* create the sublist */
+        vm_obj_id_t sub_id = CVmObjList::create(vmg_ FALSE, 3);
+        CVmObjList *sub = (CVmObjList *)vm_objp(vmg_ sub_id);
+
+        /* add it to the main list */
+        val.set_obj(sub_id);
+        lst->cons_set_element(i, &val);
+
+        /* measure the utf8 space needed for the string */
+        utf8_ptr rp;
+        size_t rplen = rp.setwchars(r->str, r->strl, 0);
+
+        /* create the word string */
+        vm_obj_id_t lstr_id = CVmObjString::create(vmg_ FALSE, rplen);
+        CVmObjString *lstr = (CVmObjString *)vm_objp(vmg_ lstr_id);
+
+        /* encode it */
+        rp.set(lstr->cons_get_buf());
+        rp.setwchars(r->str, r->strl, rplen);
+
+        /* add it to the sublist */
+        val.set_obj(lstr_id);
+        sub->cons_set_element(0, &val);
+
+        /* add the edit distance */
+        val.set_int(r->dist);
+        sub->cons_set_element(1, &val);
+
+        /* add the character replacement count */
+        val.set_int(r->repl);
+        sub->cons_set_element(2, &val);
+
+        /* count it */
+        ++i;
+    }
+
+    /* delete the result list */
+    while (results != 0)
+    {
+        /* unlink this element */
+        r = results;
+        results = results->nxt;
+
+        /* delete it */
+        delete r;
+    }
+
+    /* return the list value */
+    retval->set_obj(lst_id);
+
+    /* done with the gc protection */
+    G_stk->discard();
 
     /* handled */
     return TRUE;
@@ -1624,6 +2053,11 @@ void CVmObjDict::remove_weak_ref_cb(void *ctx0, CVmHashEntry *entry0)
         /* check to see if this object is free - if so, remove this record */
         if (G_obj_table->is_obj_deletable(cur->obj_))
         {
+            /* if we have a trie, delete the trie entry */
+            if (ctx->dict->get_ext()->trie_ != 0)
+                ctx->dict->get_ext()->trie_->del_word(
+                    entry->getstr(), entry->getlen());
+
             /* delete the entry */
             entry->del_entry(ctx->dict->get_ext()->hashtab_,
                              cur->obj_, cur->prop_);
@@ -1804,6 +2238,117 @@ void CVmObjDict::build_hash_from_image(VMG0_)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Callback context for trie-building enumeration 
+ */
+struct trie_cb_ctx
+{
+    vmdict_TrieNode *t;
+};
+
+/* hash table enumeration callback for building the trie */
+static void trie_cb(void *ctx0, CVmHashEntry *entry0)
+{
+    /* get the context and hash entries, properly cast */
+    trie_cb_ctx *ctx = (trie_cb_ctx *)ctx0;
+    CVmHashEntryDict *entry = (CVmHashEntryDict *)entry0;
+
+    /* add this word to the trie */
+    ctx->t->add_word(entry->getstr(), entry->getlen());
+}
+
+/*
+ *   Build the Trie from the hash table 
+ */
+void CVmObjDict::build_trie(VMG0_)
+{
+    trie_cb_ctx ctx;
+
+    /* if we already have a trie, there's nothing to do */
+    if (get_ext()->trie_ != 0)
+        return;
+
+    /* create the root node */
+    ctx.t = get_ext()->trie_ = new vmdict_TrieNode(0, 0);
+
+    /* enumerate the hash table to build the trie */
+    get_ext()->hashtab_->enum_entries(trie_cb, &ctx);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Trie operations 
+ */
+
+/* add a word to the Trie */
+void vmdict_TrieNode::add_word(const char *str, size_t len)
+{
+    vmdict_TrieNode *n;
+    utf8_ptr p((char *)str);
+
+    /* scan the string and walk the Trie */
+    for (n = this ; len != 0 ; p.inc(&len))
+    {
+        /* get this character */
+        wchar_t ch = p.getch();
+
+        /* find the child node for this letter */
+        vmdict_TrieNode *chi;
+        for (chi = n->chi ; chi != 0 && chi->ch != ch ; chi = chi->nxt) ;
+
+        /* if there's no existing child for this letter, add one */
+        if (chi == 0)
+            n->chi = chi = new vmdict_TrieNode(n->chi, ch);
+
+        /* advance to this child node */
+        n = chi;
+    }
+
+    /* 'n' is the final node for this word, so count the word there */
+    n->word_cnt += 1;
+}
+
+/* find a node for a given word */
+vmdict_TrieNode *vmdict_TrieNode::find_word(const char *str, size_t len)
+{
+    vmdict_TrieNode *n;
+    utf8_ptr p((char *)str);
+
+    /* scan the string and walk the Trie */
+    for (n = this ; len != 0 ; p.inc(&len))
+    {
+        /* get this character */
+        wchar_t ch = p.getch();
+
+        /* find the child node for this letter */
+        vmdict_TrieNode *chi;
+        for (chi = n->chi ; chi != 0 && chi->ch != ch ; chi = chi->nxt) ;
+
+        /* if we didn't find a child, the word isn't in the trie */
+        if (chi == 0)
+            return 0;
+
+        /* advance to this child node */
+        n = chi;
+    }
+
+    /* we've reached the final node for the word - return it */
+    return n;
+}
+
+/* delete a word from the Trie */
+void vmdict_TrieNode::del_word(const char *str, size_t len)
+{
+    /* find the final node for this word */
+    vmdict_TrieNode *n = find_word(str, len);
+
+    /* if we found it, decrement its word count */
+    if (n != 0 && n->word_cnt != 0)
+        n->word_cnt -= 1;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Add an entry 
  */
 int CVmObjDict::add_hash_entry(VMG_ const char *p, size_t len, int copy,
@@ -1823,6 +2368,10 @@ int CVmObjDict::add_hash_entry(VMG_ const char *p, size_t len, int copy,
 
         /* add it to the table */
         get_ext()->hashtab_->add(entry);
+
+        /* if we have a trie, add it to the trie */
+        if (get_ext()->trie_ != 0)
+            get_ext()->trie_->add_word(p, len);
     }
 
     /* add the obj/prop to the entry's item list */
@@ -1844,7 +2393,11 @@ int CVmObjDict::del_hash_entry(VMG_ const char *str, size_t len,
     /* if we found it, delete the obj/prop entry */
     if (entry != 0)
     {
-        /* delete the entry */
+        /* if we have a trie, delete the trie entry */
+        if (get_ext()->trie_ != 0)
+            get_ext()->trie_->del_word(str, len);
+        
+        /* delete the hash table entry */
         return entry->del_entry(get_ext()->hashtab_, obj, voc_prop);
     }
 
@@ -1866,6 +2419,13 @@ void CVmObjDict::reset_to_image(VMG_ vm_obj_id_t self)
 
         /* forget it */
         get_ext()->hashtab_ = 0;
+    }
+
+    /* delete the Trie */
+    if (get_ext()->trie_ != 0)
+    {
+        delete get_ext()->trie_;
+        get_ext()->trie_ = 0;
     }
 
     /* rebuild the hash table from the image file data */
@@ -1917,11 +2477,11 @@ void CVmObjDict::save_to_file(VMG_ CVmFile *fp)
     save_file_ctx ctx;
 
     /* write the current comparator object */
-    fp->write_int4(get_ext()->comparator_);
+    fp->write_uint4(get_ext()->comparator_);
     
     /* remember the starting seek position and write a placeholder count */
     cnt_pos = fp->get_pos();
-    fp->write_int4(0);
+    fp->write_uint4(0);
 
     /* enumerate the entries to write out each one */
     ctx.fp = fp;
@@ -1934,7 +2494,7 @@ void CVmObjDict::save_to_file(VMG_ CVmFile *fp)
 
     /* go back and write out the symbol count prefix */
     fp->set_pos(cnt_pos);
-    fp->write_int4(ctx.cnt);
+    fp->write_uint4(ctx.cnt);
 
     /* seek back to the end */
     fp->set_pos(end_pos);
@@ -1954,7 +2514,7 @@ void CVmObjDict::save_file_cb(void *ctx0, CVmHashEntry *entry0)
     VMGLOB_PTR(ctx->vmg);
 
     /* write out this entry's name */
-    ctx->fp->write_int2(entry->getlen());
+    ctx->fp->write_uint2(entry->getlen());
     ctx->fp->write_bytes(entry->getstr(), entry->getlen());
 
     /* count the items in this entry's list */
@@ -1981,7 +2541,7 @@ void CVmObjDict::save_file_cb(void *ctx0, CVmHashEntry *entry0)
     ++ctx->cnt;
 
     /* write the item count */
-    ctx->fp->write_int2(cnt);
+    ctx->fp->write_uint2(cnt);
 
     /* write out each item in this entry's list */
     for (cur = entry->get_head() ; cur != 0 ; cur = cur->nxt_)
@@ -1990,8 +2550,8 @@ void CVmObjDict::save_file_cb(void *ctx0, CVmHashEntry *entry0)
         if (G_obj_table->is_obj_persistent(cur->obj_))
         {
             /* write out the object and property for this entry */
-            ctx->fp->write_int4((long)cur->obj_);
-            ctx->fp->write_int2((int)cur->prop_);
+            ctx->fp->write_uint4((long)cur->obj_);
+            ctx->fp->write_uint2((int)cur->prop_);
         }
     }
 }
@@ -2011,6 +2571,13 @@ void CVmObjDict::restore_from_file(VMG_ vm_obj_id_t self,
     {
         delete get_ext()->hashtab_;
         get_ext()->hashtab_ = 0;
+    }
+
+    /* delete the Trie if we have one */
+    if (get_ext()->trie_ != 0)
+    {
+        delete get_ext()->trie_;
+        get_ext()->trie_ = 0;
     }
 
     /* 

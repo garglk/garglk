@@ -24,6 +24,7 @@ Modified
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #include "os.h"
 #include "t3std.h"
@@ -43,6 +44,11 @@ Modified
 #include "vmsave.h"
 #include "vmtype.h"
 #include "vmrunsym.h"
+#include "vmmcreg.h"
+#include "vmbifreg.h"
+#include "vmbiftad.h"
+#include "sha2.h"
+#include "vmnet.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -58,9 +64,10 @@ int vm_run_image(CVmMainClientIfc *clientifc,
                  const char *const *prog_argv, int prog_argc,
                  const char *script_file, int script_quiet,
                  const char *log_file, const char *cmd_log_file,
-                 int load_from_exe, int show_banner,
+                 int load_from_exe, int show_banner, int seed_rand,
                  const char *charset, const char *log_charset,
-                 const char *saved_state, const char *res_dir)
+                 const char *saved_state, const char *res_dir,
+                 TadsNetConfig *netconfig)
 {
     CVmFile *fp = 0;
     CVmImageLoader *volatile loader = 0;
@@ -83,6 +90,9 @@ int vm_run_image(CVmMainClientIfc *clientifc,
     clientifc->client_init(VMGLOB_ADDR, script_file, script_quiet,
                            log_file, cmd_log_file,
                            show_banner ? T3VM_BANNER_STRING : 0);
+
+    /* set the networking configuration in the globals */
+    G_net_config = netconfig;
 
     /* catch any errors that occur during loading and running */
     err_try
@@ -128,27 +138,55 @@ int vm_run_image(CVmMainClientIfc *clientifc,
         /* let the client prepare for execution */
         clientifc->pre_exec(VMGLOB_ADDR);
 
+        /* if desired, seed the random number generator */
+        if (seed_rand)
+            CVmBifTADS::randomize(vmg_ 0);
+
+#ifdef TADSNET
+        /* 
+         *   if we have a network configuration, get the game's IFID - this
+         *   is needed to identify the game to the storage server 
+         */
+        if (netconfig != 0)
+        {
+            char *ifid = vm_get_ifid(hostifc);
+            if (ifid != 0)
+            {
+                netconfig->set("ifid", ifid);
+                t3free(ifid);
+            }
+        }
+#endif /* TADSNET */
+
         /* run the program from the main entrypoint */
-        loader->run(vmg_ prog_argv, prog_argc, 0, saved_state);
+        loader->run(vmg_ prog_argv, prog_argc, 0, 0, saved_state);
 
         /* tell the client we're done with execution */
         clientifc->post_exec(VMGLOB_ADDR);
     }
     err_catch(exc)
     {
-        char errbuf[512];
+        /* 
+         *   report anything except DEBUG VM HALT, which is special: it
+         *   indicates that the user explicitly terminated execution via the
+         *   debugger UI, so there's obviously no need to report an error 
+         */
+        if (exc->get_error_code() != VMERR_DBG_HALT)
+        {
+            char errbuf[512];
 
-        /* tell the client execution failed due to an error */
-        clientifc->post_exec_err(VMGLOB_ADDR);
-
-        /* note the error code for returning to the caller */
-        retval = exc->get_error_code();
-
-        /* get the message for the error */
-        CVmRun::get_exc_message(vmg_ exc, errbuf, sizeof(errbuf), TRUE);
-        
-        /* display the message */
-        clientifc->display_error(VMGLOB_ADDR, errbuf, FALSE);
+            /* tell the client execution failed due to an error */
+            clientifc->post_exec_err(VMGLOB_ADDR);
+            
+            /* note the error code for returning to the caller */
+            retval = exc->get_error_code();
+            
+            /* get the message for the error */
+            CVmRun::get_exc_message(vmg_ exc, errbuf, sizeof(errbuf), TRUE);
+            
+            /* display the message */
+            clientifc->display_error(VMGLOB_ADDR, exc, errbuf, FALSE);
+        }
     }
     err_end;
 
@@ -164,6 +202,16 @@ int vm_run_image(CVmMainClientIfc *clientifc,
 
     /* notify the client */
     clientifc->client_terminate(VMGLOB_ADDR);
+
+#ifdef TADSNET
+    /* 
+     *   Delete the network configuration, if we have one.  Note that a
+     *   network configuration might have been created dyanmically during
+     *   execution even if the caller didn't originally provide one.  
+     */
+    if (G_net_config != 0)
+        delete G_net_config;
+#endif
 
     /* terminate the VM */
     vm_terminate(vmg__, clientifc);
@@ -210,6 +258,50 @@ static char *get_opt_arg(int argc, char **argv, int *curarg, int optlen)
     return argv[*curarg];
 }
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Create the network configuration object, if we haven't already.
+ */
+#ifdef TADSNET
+static void create_netconfig(
+    CVmMainClientIfc *clientifc, TadsNetConfig *&netconfig, char **argv)
+{
+    if (netconfig == 0)
+    {
+        /* create the object */
+        netconfig = new TadsNetConfig();
+
+        /* build the path to the web config file */
+        char confname[OSFNMAX], confpath[OSFNMAX];
+        os_get_special_path(confpath, sizeof(confpath), argv[0],
+                            OS_GSP_T3_SYSCONFIG);
+        os_build_full_path(confname, sizeof(confname),
+                           confpath, "tadsweb.config");
+        
+        /* if there's a net configuration file, read it */
+        osfildef *fp = osfoprb(confname, OSFTTEXT);
+        if (fp != 0)
+        {
+            /* read the file into the configuration object */
+            netconfig->read(fp, clientifc);
+            
+            /* done with the file */
+            osfcls(fp);
+        }
+        else
+        {
+            /* warn that the file is missing */
+            char *msg = t3sprintf_alloc(
+                "Warning: -webhost mode specified, but couldn't "
+                "read web configuration file \"%s\"", confname);
+            clientifc->display_error(0, 0, msg, FALSE);
+            t3free(msg);
+        }
+    }
+}
+#endif /* TADSNET */
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Main Entrypoint for command-line invocations.  For simplicity, a
@@ -242,6 +334,11 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
     const char *charset;
     const char *log_charset;
     char *saved_state;
+    int seed_rand;
+    class TadsNetConfig *netconfig = 0;
+#ifdef TADSNET
+    char *storage_sid = 0;
+#endif
 
     /* we haven't found an image file yet */
     found_image = FALSE;
@@ -267,6 +364,9 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
     /* presume we won't load from the .exe file */
     load_from_exe = FALSE;
 
+    /* presume we'll seed the RNG */
+    seed_rand = TRUE;
+
     /* check to see if we can load from the .exe file */
     {
         osfildef *fp;
@@ -280,6 +380,32 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             
             /* note that we want to load from the executable */
             load_from_exe = TRUE;
+        }
+
+        /* 
+         *   if loading from the exe file, get the custom saved game suffix,
+         *   if defined 
+         */
+        if (load_from_exe
+            && (fp = os_exeseek(argv[0], "SAVX")) != 0)
+        {
+            ushort len;
+            char buf[OSFNMAX];
+            
+            /* read the length and the name */
+            if (!osfrb(fp, &len, sizeof(len))
+                && len < sizeof(buf)
+                && !osfrb(fp, buf, len))
+            {
+                /* null-terminate the string */
+                buf[len] = '\0';
+
+                /* save it in the OS layer */
+                os_set_save_ext(buf);
+            }
+
+            /* close the file */
+            osfcls(fp);
         }
     }
 
@@ -335,27 +461,63 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             break;
 
         case 'n':
-            if (strcmp(argv[curarg], "-nobanner") == 0)
+            if (argv[curarg][2] == 's')
+            {
+                /* network safety level - parse the ## arguments */
+                const char *cli = &argv[curarg][3];
+                const char *srv = &argv[curarg][4];
+
+                /* if there's no server level, use the one level for both */
+                if (*cli == '\0' || *srv == '\0')
+                    srv = cli;
+
+                /* validate the arguments */
+                if (*cli < '0' || *cli > '2'
+                    || *srv < '0' || *srv > '2')
+                    goto opt_error;
+
+                /* set the level */
+                hostifc->set_net_safety(*cli - '0', *srv - '0');
+            }
+            else if (strcmp(argv[curarg], "-nobanner") == 0)
             {
                 /* make a note not to show the banner */
                 show_banner = FALSE;
+            }
+            else if (strcmp(argv[curarg], "-norand") == 0
+                     || strcmp(argv[curarg], "-norandomize") == 0)
+            {
+                /* make a note not to seed the RNG */
+                seed_rand = FALSE;
             }
             else
                 goto opt_error;
             break;
             
         case 's':
-            /* file safety level - check the range */
-            if (argv[curarg][2] < '0' || argv[curarg][2] > '4'
-                || argv[curarg][3] != '\0')
+            /* file safety level */
             {
-                /* invalid level */
-                goto opt_error;
-            }
-            else
-            {
-                /* set the level in the host application */
-                hostifc->set_io_safety(argv[curarg][2] - '0');
+                /* get the read and write levels, if specified separately */
+                const char *rd = &argv[curarg][2];
+                const char *wrt = &argv[curarg][3];
+
+                /* if there's no write level, base it on the read level */
+                if (*rd == '\0' || *wrt == '\0')
+                    wrt = rd;
+                    
+                /* check the ranges */
+                if (*rd < '0' || *rd > '4'
+                    || *wrt < '0' || *wrt > '4'
+                    || *(wrt+1) != '\0')
+                {
+                    /* invalid level */
+                    goto opt_error;
+                }
+                else
+                {
+                    /* set the level in the host application */
+                    hostifc->set_io_safety(*rd - '0', *wrt - '0');
+                }
             }
             break;
 
@@ -411,6 +573,54 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             if (res_dir == 0)
                 goto opt_error;
             break;
+
+        case 'X':
+            /* special system operations */
+            if (strcmp(argv[curarg], "-Xinterfaces") == 0 && curarg+1 < argc)
+            {
+                /* write out the interface report, then terminate */
+                vm_interface_report(clientifc, argv[++curarg]);
+                stat = OSEXSUCC;
+                goto done;
+            }
+            else
+                goto opt_error;
+            break;
+
+#ifdef TADSNET
+        case 'w':
+            /* -webhost, -websid, -webimage */
+            if (strcmp(argv[curarg], "-webhost") == 0 && curarg+1 < argc)
+            {
+                /* if necessary, create the web hosting config object */
+                create_netconfig(clientifc, netconfig, argv);
+
+                /* set the web host name */
+                netconfig->set("hostname", argv[++curarg]);
+            }
+            else if (strcmp(argv[curarg], "-websid") == 0
+                     && curarg+1 < argc)
+            {
+                /* web storage server SID - save it for later */
+                storage_sid = argv[++curarg];
+            }
+            else if (strcmp(argv[curarg], "-webimage") == 0
+                     && curarg+1 < argc)
+            {
+                /* 
+                 *   Original URL of image file.  This is provided for
+                 *   logging purposes only; 
+                 */
+                create_netconfig(clientifc, netconfig, argv);
+                netconfig->set("image.url", argv[++curarg]);
+            }
+            else
+            {
+                /* invalid option - flag an error */
+                goto opt_error;
+            }
+            break;
+#endif /* TADSNET */
 
         default:
         opt_error:
@@ -546,7 +756,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                     "file might be corrupted.\n");
 
             /* display the message */
-            clientifc->display_error(0, buf, FALSE);
+            clientifc->display_error(0, 0, buf, FALSE);
         }
         else if (!hide_usage)
         {
@@ -562,14 +772,20 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                     "  -i file - read command input from file (quiet mode)\n"
                     "  -I file - read command input from file (echo mode)\n"
                     "  -l file - log all console input/output to file\n"
+                    "  -norand - don't seed the random number generator\n"
+                    "  -ns##   - set the network safety level for Client "
+                    "and Server (each # is from\n"
+                    "            0 to 2 - 0 is the least restrictive, 2 "
+                    "allows no network access)\n"
                     "  -o file - log console input to file\n"
                     "  -plain  - run in plain mode (no cursor positioning, "
                     "colors, etc.)\n"
                     "  -r file - restore saved state from file\n"
                     "  -R dir  - set directory for external resources\n"
-                    "  -s#     - set I/O safety level (# in range 0 to 4 - 0 "
-                    "is the least\n"
-                    "            restrictive, 4 allows no file I/O at all)\n"
+                    "  -s##    - set I/O safety level for Read and Write "
+                    " (each # is from 0 to 4 -\n"
+                    "            0 is the least restrictive, 4 allows no "
+                    "file access at all)\n"
                     "\n"
                     "If provided, the optional extra arguments are passed "
                     "to the program's\n"
@@ -578,11 +794,12 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                     load_from_exe ? "[- " : "<image-file-name> [");
             
             /* display the message */
-            clientifc->display_error(0, buf, FALSE);
+            clientifc->display_error(0, 0, buf, FALSE);
         }
         
         /* return failure */
-        return OSEXFAIL;
+        stat = OSEXFAIL;
+        goto done;
     }
 
     /* 
@@ -592,14 +809,24 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
      */
     if (test_mode && curarg <= argc && argv[curarg] != 0)
         argv[curarg] = os_get_root_name(argv[curarg]);
-    
+
+#ifdef TADSNET
+    /*
+     *   if there's a storage server SID, add it to the net configuration
+     */
+    if (netconfig != 0 && storage_sid != 0)
+        netconfig->set("storage.sessionid", storage_sid);
+#endif /* TADSNET */
+
     /* run the program */
     stat = vm_run_image(clientifc, image_file_name, hostifc,
                         argv + curarg, argc - curarg,
                         script_file, script_quiet, log_file, cmd_log_file,
-                        load_from_exe, show_banner,
+                        load_from_exe, show_banner, seed_rand,
                         charset, log_charset,
-                        saved_state, res_dir);
+                        saved_state, res_dir, netconfig);
+
+done:
 
     /* return the status code */
     return stat;
@@ -732,13 +959,16 @@ static int vm_get_game_file_from_savefile(const char *savefile,
  *   thereby resolve which interpreter to use.  
  */
 int vm_get_game_arg(int argc, const char *const *argv,
-                    char *buf, size_t buflen)
+                    char *buf, size_t buflen, int *engine_type)
 {
     int i;
     const char *restore_file;
 
     /* presume we won't find a file to restore */
     restore_file = 0;
+
+    /* presume we won't identify the engine type based soley on arguments */
+    *engine_type = VM_GGT_INVALID;
 
     /* 
      *   Scan the arguments for the union of the TADS 2 and TADS 3 command
@@ -851,7 +1081,11 @@ int vm_get_game_arg(int argc, const char *const *argv,
             break;
 
         case 'n':
-            /* tads 3 "-nobanner" - no arguments */
+            /* 
+             *   tads3 "-ns", "-nobanner", "-norand" take no arguments (-ns
+             *   does have extra parameter characters, but they have to be
+             *   concatenated as part of the same argv entry, as in "-ns11") 
+             */
             break;
 
         case 's':
@@ -904,6 +1138,30 @@ int vm_get_game_arg(int argc, const char *const *argv,
                 /* the file to be restored is the next argument */
                 ++i;
                 restore_file = argv[i];
+            }
+            break;
+
+        case 'X':
+            /* TADS 3 special system commands */
+            if (strcmp(argv[i], "-Xinterfaces") == 0)
+            {
+                /* 
+                 *   this is a stand-alone command that doesn't require a
+                 *   game file; return the engine type directly 
+                 */
+                strcpy_limit(buf, "", buflen);
+                *engine_type = VM_GGT_TADS3;
+                return TRUE;
+            }
+            break;
+
+        case 'w':
+            /* tads 3 -webhost, -websid */
+            if (strcmp(argv[i], "-webhost") == 0
+                || strcmp(argv[i], "-websid") == 0)
+            {
+                /* this takes an additional argument */
+                ++i;
             }
             break;
         }
@@ -1075,4 +1333,258 @@ int vm_get_game_type(const char *filename,
     /* we found more than one match, so the type is ambiguous */
     return VM_GGT_AMBIG;
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Generate the interface report 
+ */
+void vm_interface_report(CVmMainClientIfc *cli, const char *fname)
+{
+    int i;
+    char nm[256];
+    char buf[300];
+    char *p;
+
+    /* open the output file */
+    osfildef *fp = osfopwt(fname, OSFTTEXT);
+    if (fp == 0)
+    {
+        cli->display_error(
+            0, 0, "-Xinterfaces failed: unable to open output file", FALSE);
+        return;
+    }
+    
+    /* start the XML file */
+    os_fprintz(fp, "<?xml version=\"1.0\"?>\n"
+               "<tads3 xmlns="
+               "\"http://www.tads.org/xmlns/tads3/UpdateData\">\n");
+
+    /* write the metaclass interface list */
+    os_fprintz(fp, " <metaclasses>\n");
+    for (i = 0 ; G_meta_reg_table[i].meta != 0 ; ++i)
+    {
+        /* copy the name string */
+        lib_strcpy(nm, sizeof(nm),
+                   (*G_meta_reg_table[i].meta)->get_meta_name());
+
+        /* null-terminate at the version delimiter */
+        p = strchr(nm, '/');
+        *p++ = '\0';
+
+        /* display the information */
+        t3sprintf(buf, sizeof(buf),
+                  "  <metaclass>\n"
+                  "   <id>%s</id>\n"
+                  "   <version>%s</version>\n"
+                  "  </metaclass>\n",
+                  nm, p);
+        os_fprintz(fp, buf);
+    }
+    os_fprintz(fp, " </metaclasses>\n");
+
+    /* write the built-in function information */
+    os_fprintz(fp, " <functionsets>\n");
+    for (i = 0 ; G_bif_reg_table[i].func_set_id != 0 ; ++i)
+    {
+        /* get the function set name/version string */
+        lib_strcpy(nm, sizeof(nm), G_bif_reg_table[i].func_set_id);
+
+        /* null-terminate at the version delimiter */
+        p = strchr(nm, '/');
+        *p++ = '\0';
+
+        /* display the information */
+        t3sprintf(buf, sizeof(buf),
+                  "  <functionset>\n"
+                  "   <id>%s</id>\n"
+                  "   <version>%s</version>\n"
+                  "  </functionset>\n",
+                  nm, p);
+        os_fprintz(fp, buf);
+    }
+    os_fprintz(fp, " </functionsets>\n");
+
+    /* end the XML file */
+    os_fprintz(fp, "</tads3>\n");
+
+    /* done with the file */
+    osfcls(fp);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Retrieve the IFID from the gameinfo.txt resource 
+ */
+char *vm_get_ifid(CVmHostIfc *hostifc)
+{
+    /* first, find the gameinfo.txt resource */
+    unsigned long siz;
+    osfildef *fp = hostifc->find_resource("gameinfo.txt", 12, &siz);
+
+    /* if we didn't find the resource, there's no IFID */
+    if (fp == 0)
+        return 0;
+
+    /* 
+     *   allocate a buffer to load the gameinfo.txt contents into (leave room
+     *   for an extra newline at the end, for uniformity) 
+     */
+    char *buf = (char *)t3malloc(siz + 1);
+    if (buf == 0)
+        return 0;
+
+    /* presume we won't find an IFID */
+    char *ifid = 0;
+
+    /* load the contents */
+    if (!osfrb(fp, buf, siz))
+    {
+        char *p, *dst;
+        
+        /* get the buffer end pointer */
+        char *endp = buf + siz;
+        
+        /* change CR-LF, LF-CR, and CR to '\n' */
+        for (p = dst = buf ; p < endp ; )
+        {
+            if (*p == 10)
+            {
+                /* LF - store as '\n', and skip the CR in an LF-CR pair */
+                *dst++ = '\n';
+                if (++p < endp && *p == 13)
+                    ++p;
+            }
+            else if (*p == 13)
+            {
+                /* CR - store as '\n', and skip the LF in a CR-LF pair */
+                *dst++ = '\n';
+                if (++p < endp && *p == 10)
+                    ++p;
+            }
+            else
+            {
+                /* copy others as-is */
+                *dst++ = *p++;
+            }
+        }
+
+        /* note the new end pointer */
+        endp = dst;
+
+        /* remove comments and blank lines, and merge continuation lines */
+        for (p = dst = buf ; p < endp ; )
+        {
+            /* skip leading whitespace */
+            for ( ; p < endp && isspace(*p) ; ++p) ;
+
+            /* if that's the end of the buffer, we're done */
+            if (p == endp)
+                break;
+
+            /* skip blank lines */
+            if (*p == '\n')
+            {
+                ++p;
+                continue;
+            }
+
+            /* skip comment lines */
+            if (*p == '#')
+            {
+                /* skip to the end of the line */
+                for ( ; p < endp && *p != '\n' ; ++p) ;
+                continue;
+            }
+
+            /* 
+             *   We're on a line with actual contents.  Merge continuation
+             *   lines: a continuation line is a line following this line
+             *   that starts with a space and contains at least one
+             *   non-whitespace character.  
+             */
+            while (p < endp)
+            {
+                /* scan and copy to the end of this line */
+                for ( ; p < endp && *p != '\n' ; *dst++ = *p++) ;
+
+                /* check the next line to see if it's a continuation line */
+                if (p < endp && *(p+1) != '\n' && isspace(*(p+1)))
+                {
+                    /* scan ahead for non-whitespace */
+                    char *q;
+                    for (q = p + 1 ; q < endp && *q != '\n' && isspace(*q) ;
+                         ++q) ;
+
+                    /* if we found something, it's a continuation line */
+                    if (q < endp && *q != '\n')
+                    {
+                        /* convert the newline to whitespace in the output */
+                        *dst++ = ' ';
+
+                        /* skip the whitespace */
+                        p = q;
+
+                        /* resume scanning this line */
+                        continue;
+                    }
+                }
+
+                /* 
+                 *   It's not a continuation line.  Store a newline at the
+                 *   end of the line. 
+                 */
+                *dst++ = '\n';
+
+                /* skip the newline */
+                if (p < endp)
+                    ++p;
+
+                /* done processing this line */
+                break;
+            }
+        }
+
+        /* note the new end pointer */
+        endp = dst;
+
+        /* 
+         *   Okay, the buffer is in a nice canonical format, so we can search
+         *   for the IFID name/value pair. 
+         */
+        for (p = buf ; p < endp ; ++p)
+        {
+            /* if we're at the IFID line, retrieve the value */
+            if (memicmp(p, "ifid:", 5) == 0)
+            {
+                /* this is the IFID line - skip the IFID: and whitespace */
+                for (p += 5 ; p < endp && isspace(*p) ; ++p) ;
+
+                /* 
+                 *   the IFID is the portion up to the next space, newline,
+                 *   or comma 
+                 */
+                char *start;
+                for (start = p ; p < endp && *p != '\n' && !isspace(*p) ;
+                     ++p) ;
+
+                /* allocate a copy of the IFID */
+                ifid = lib_copy_str(start, p - start);
+
+                /* we're done */
+                break;
+            }
+            
+            /* scan ahead to the end of the line */
+            for ( ; p < endp && *p != '\n' ; ++p) ;
+        }
+    }
+
+    /* done with the gameinfo.txt file and the buffer we loaded it into */
+    osfcls(fp);
+    t3free(buf);
+
+    /* return the IFID, if we found one */
+    return ifid;
+}
+
 

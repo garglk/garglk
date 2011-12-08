@@ -48,6 +48,9 @@ enum vmobjgram_meta_fnset
  */
 enum vmgram_match_type
 {
+    /* uninitialized */
+    VMGRAM_MATCH_UNDEF = 0,
+    
     /* production - matches a sub-production */
     VMGRAM_MATCH_PROD = 1,
 
@@ -115,42 +118,6 @@ enum vmgram_match_type
  *   VMGRAM_MATCH_STAR - no additional data 
  */
 
-/* pull the various parts out of an alternative byte stream */
-#define vmgram_alt_score(p)      osrp2(p)
-#define vmgram_alt_badness(p)    osrp2((p) + 2)
-#define vmgram_alt_procobj(p)    ((vm_obj_id_t)t3rp4u((p) + 4))
-#define vmgram_alt_tokcnt(p)     osrp2((p) + 8)
-#define vmgram_alt_tokptr(p)     ((p) + 10)
-
-/* pull the header parts out of a token in an alternative */
-#define vmgram_tok_prop(p)       ((vm_prop_id_t)osrp2(p))
-#define vmgram_tok_type(p)       (*((p) + 2))
-
-/* pull the production object from a VMGRAM_MATCH_PROD token */
-#define vmgram_tok_prod_obj(p)   ((vm_obj_id_t)t3rp4u((p) + 3))
-
-/* pull the part-of-speech property from a VMGRAM_MATCH_SPEECH token */
-#define vmgram_tok_voc_prop(p)   ((vm_prop_id_t)osrp2((p) + 3))
-
-/* pull the literal length/text from a VMGRAM_MATCH_LITERAL token */
-#define vmgram_tok_lit_len(p)    osrp2((p) + 3)
-#define vmgram_tok_lit_txt(p)    ((p) + 5)
-
-/* pull the enum from a VMGRAM_MATCH_TOKTYPE token */
-#define vmgram_tok_tok_enum(p)   ((ulong)t3rp4u((p) + 3))
-
-/* pull the count/nth property from a VMGRAM_MATCH_NSPEECH token */
-#define vmgram_tok_vocn_cnt(p)      osrp2((p) + 3)
-#define vmgram_tok_vocn_prop(p, n)  osrp2((p) + 5 + (n)*2)
-
-/* get the size of a token of the given type */
-#define VMGRAM_TOK_PROD_SIZE     (3 + 4)
-#define VMGRAM_TOK_SPEECH_SIZE   (3 + 2)
-#define VMGRAM_TOK_LIT_SIZE(p)   (3 + 2 + vmgram_tok_lit_len(p))
-#define VMGRAM_TOK_TYPE_SIZE     (3 + 4)
-#define VMGRAM_TOK_STAR_SIZE     (3 + 0)
-#define VMGRAM_TOK_NSPEECH_SIZE(p) (3 + 2 + vmgram_tok_vocn_cnt(p)*2)
-
 /* property/match result enumeration entry */
 struct vmgram_match_info
 {
@@ -169,11 +136,14 @@ struct vm_gram_ext
     /* 
      *   The last comparator object we used to calculate hash values for
      *   literals.  Each time we need literal hash values, we'll check to see
-     *   if we are using the same comparator we were last time; if so, we'll
+     *   if we're using the same comparator we were last time; if so, we'll
      *   use the cached hash values, otherwise we'll recalculate them.  We
      *   reference this object weakly.  
      */
     vm_obj_id_t comparator_;
+
+    /* flag: our rule list has been modified since load time */
+    uint modified_ : 1;
 
     /* flag: we've cached hash values for our literals */
     uint hashes_cached_ : 1;
@@ -197,8 +167,13 @@ struct vm_gram_ext
     size_t prop_enum_max_;
 
     /* array of rule alternatives */
-    struct vmgram_alt_info *alts_;
+    struct vmgram_alt_info **alts_;
+
+    /* number of alternatives currently in use */
     size_t alt_cnt_;
+
+    /* number of alternatives allocated */
+    size_t alt_alo_;
 };
 
 /*
@@ -207,9 +182,15 @@ struct vm_gram_ext
  */
 struct vmgram_alt_info
 {
+    vmgram_alt_info(size_t ntoks);
+    ~vmgram_alt_info();
+
     /* the alternative's score and badness values */
     int score;
     int badness;
+
+    /* flag: this alternative is marked for deletion */
+    int del;
 
     /* 
      *   the "processor object" for this alternative - this is the class we
@@ -227,6 +208,43 @@ struct vmgram_alt_info
  */
 struct vmgram_tok_info
 {
+    vmgram_tok_info() { typ = VMGRAM_MATCH_UNDEF; }
+    ~vmgram_tok_info()
+    {
+        switch (typ)
+        {
+        case VMGRAM_MATCH_LITERAL:
+            t3free(typinfo.lit.str);
+            break;
+
+        case VMGRAM_MATCH_NSPEECH:
+            t3free(typinfo.nspeech.props);
+            break;
+        }
+    }
+
+    void set_literal(const char *str, size_t len)
+    {
+        set_literal(len);
+        memcpy(typinfo.lit.str, str, len);
+    }
+
+    void set_literal(size_t len)
+    {
+        typ = VMGRAM_MATCH_LITERAL;
+        typinfo.lit.len = len;
+        typinfo.lit.hash = 0;
+        typinfo.lit.str = (char *)t3malloc(len);
+    }
+
+    void set_nspeech(size_t cnt)
+    {
+        typ = VMGRAM_MATCH_NSPEECH;
+        typinfo.nspeech.cnt = cnt;
+        typinfo.nspeech.props = (vm_prop_id_t *)t3malloc(
+            cnt * sizeof(vm_prop_id_t));
+    }
+
     /* 
      *   property association - this is the property of the processor object
      *   that we'll set to point to the match object or input token if we
@@ -277,6 +295,7 @@ struct vmgram_tok_info
 class CVmObjGramProd: public CVmObject
 {
     friend class CVmMetaclassGramProd;
+    friend struct CVmGramCompResults;
 
 public:
     /* metaclass registration object */
@@ -323,23 +342,19 @@ public:
     void notify_new_savept() { }
 
     /* apply undo */
-    void apply_undo(VMG_ struct CVmUndoRecord *) { }
+    void apply_undo(VMG_ struct CVmUndoRecord *rec);
 
     /* discard additional information associated with an undo record */
-    void discard_undo(VMG_ struct CVmUndoRecord *) { }
+    void discard_undo(VMG_ struct CVmUndoRecord *rec);
 
     /* mark a reference in an undo record */
-    void mark_undo_ref(VMG_ struct CVmUndoRecord *) { }
+    void mark_undo_ref(VMG_ struct CVmUndoRecord *rec);
 
     /* remove stale weak references from an undo record */
     void remove_stale_undo_weak_ref(VMG_ struct CVmUndoRecord *) { }
 
-    /* 
-     *   mark references - we can only reference root-set objects (since
-     *   we cannot be modified during execution), hence we don't need to
-     *   mark anything here 
-     */
-    void mark_refs(VMG_ uint) { }
+    /* mark object references */
+    void mark_refs(VMG_ uint state);
 
     /* remove weak references */
     void remove_stale_weak_refs(VMG0_);
@@ -347,14 +362,11 @@ public:
     /* load from an image file */
     void load_from_image(VMG_ vm_obj_id_t self, const char *ptr, size_t siz);
 
-    /* 
-     *   restore to image file state/save/restore - we can't change at
-     *   run-time, so there's nothing to save or load 
-     */
-    void reset_to_image(VMG_ vm_obj_id_t /*self*/) { }
-    void save_to_file(VMG_ class CVmFile *) { }
+    /* restart/save/restore */
+    void reset_to_image(VMG_ vm_obj_id_t self);
+    void save_to_file(VMG_ class CVmFile *fp);
     void restore_from_file(VMG_ vm_obj_id_t self,
-                           class CVmFile *, class CVmObjFixup *) { }
+                           class CVmFile *fp, class CVmObjFixup *fixups);
 
     /* determine if the object has been changed since it was loaded */
     int is_changed_since_load() const { return FALSE; }
@@ -373,6 +385,47 @@ protected:
     /* private constructor */
     CVmObjGramProd(VMG0_);
 
+    /* clear the alternative list */
+    void clear_alts();
+
+    /* ensure that there's space for the given number of alternatives */
+    void ensure_alts(size_t cnt, size_t margin);
+
+    /* insert/delete an alternative, without keeping undo information */
+    void insert_alt(vm_obj_id_t self, size_t idx, vmgram_alt_info *alt);
+    void delete_alt(size_t idx);
+
+    /* check the alternative list for circular references */
+    void check_circular_refs(vm_obj_id_t self);
+
+    /* build the grammarAltProps list for a match object */
+    void build_alt_props(VMG_ vm_obj_id_t match_obj);
+    size_t build_alt_props_list(VMG_ vm_obj_id_t match_obj,
+                                class CVmObjList *lst);
+
+    /* add an alternative from a parsed rule, keeping undo */
+    void add_alt(VMG_ vm_obj_id_t self, class CTcGramProdAlt *alt,
+                 vm_obj_id_t dict, vm_obj_id_t match);
+
+    /* delete an alternative, keeping undo */
+    void delete_alt_undo(VMG_ vm_obj_id_t self, int idx);
+
+    /* delete a batch of alternatives - deletes each item marked with 'del' */
+    void delete_marked_alts(VMG_ vm_obj_id_t self, vm_obj_id_t dict);
+
+    /* find a literal in the surviving alternatives */
+    int find_literal_in_alts(const char *str, size_t len);
+
+    /* save to a data stream */
+    void save_to_stream(VMG_ class CVmStream *dst);
+
+    /* mark references in an alt list (for garbage collection tracing) */
+    void mark_alt_refs(VMG_ const vmgram_alt_info *alt, uint state);
+
+    /* load alternatives from a stream, in image file format */
+    void load_alts(VMG_ vm_obj_id_t self,
+                   class CVmStream *src, class CVmObjFixup *fixups);
+
     /* property evaluation - undefined property */
     int getp_undef(VMG_ vm_obj_id_t, vm_val_t *, uint *) { return FALSE; }
 
@@ -381,6 +434,15 @@ protected:
 
     /* property evaluation - getGrammarInfo */
     int getp_get_gram_info(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - delete an alternative */
+    int getp_deleteAlt(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - delete all alternatives */
+    int getp_clearAlts(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* property evaluator - add an alternative */
+    int getp_addAlt(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
 
     /* get my extension, properly cast */
     vm_gram_ext *get_ext() const { return (vm_gram_ext *)ext_; }
@@ -392,9 +454,6 @@ protected:
     /* search a token for a match to the given vocabulary property */
     static int find_prop_in_tok(const struct vmgramprod_tok *tok,
                                 vm_prop_id_t prop);
-
-    /* get the next token in an alternative */
-    static const char *get_next_alt_tok(const char *tokp);
 
     /* enqueue our alternatives */
     void enqueue_alts(VMG_ class CVmGramProdMem *mem,
@@ -478,20 +537,20 @@ class CVmMetaclassGramProd: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "grammar-production/030001"; }
+    const char *get_meta_name() const { return "grammar-production/030002"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)
     {
         new (vmg_ id) CVmObjGramProd(vmg0_);
-        G_obj_table->set_obj_gc_characteristics(id, FALSE, TRUE);
+        G_obj_table->set_obj_gc_characteristics(id, TRUE, TRUE);
     }
 
     /* create from restoring from saved state */
     void create_for_restore(VMG_ vm_obj_id_t id)
     {
         new (vmg_ id) CVmObjGramProd(vmg0_);
-        G_obj_table->set_obj_gc_characteristics(id, FALSE, TRUE);
+        G_obj_table->set_obj_gc_characteristics(id, TRUE, TRUE);
     }
 
     /* create dynamically using stack arguments */

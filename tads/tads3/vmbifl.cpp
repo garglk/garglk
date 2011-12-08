@@ -47,24 +47,35 @@ Modified
  */
 void CVmBifTable::call_func(VMG_ uint set_index, uint func_index, uint argc)
 {
-    vm_bif_entry_t *entry;
-    void (*func)(VMG_ uint argc);
-    
-    /* get the function set */
-    entry = table_[set_index];
-
-    /* get the function pointer */
-    func = entry->func[func_index];
-
-    /* call the function */
-    (*func)(vmg_ argc);
+    /* 
+     *   find the function set in the registration table, get the function
+     *   descriptor from the set's function table, and invoke the function
+     *   pointer from the function descriptor 
+     */
+    (*table_[set_index]->func[func_index].func)(vmg_ argc);
 }
+
+/*
+ *   Get a function's descriptor 
+ */
+const vm_bif_desc *CVmBifTable::get_desc(uint set_index, uint func_index)
+{
+    /* 
+     *   find the function in the registration table, and return the function
+     *   descriptor from the set's function table 
+     */
+    return &table_[set_index]->func[func_index];
+}
+
 
 /*
  *   Handle adding a function set entry that's unresolvable at load-time 
  */
-void CVmBifTable::add_entry_unresolved(const char *func_set_id)
+void CVmBifTable::add_entry_unresolved(VMG_ const char *func_set_id)
 {
-    /* we can't load it - throw an error */
-    err_throw_a(VMERR_UNKNOWN_FUNC_SET, 1, ERR_TYPE_TEXTCHAR, func_set_id);
+    /* this is the static-link version, so an unresolved entry is an error */
+    err_throw_a(VMERR_UNKNOWN_FUNC_SET, 3,
+                ERR_TYPE_TEXTCHAR, func_set_id,
+                ERR_TYPE_FUNCSET, func_set_id,
+                ERR_TYPE_VERSION_FLAG);
 }

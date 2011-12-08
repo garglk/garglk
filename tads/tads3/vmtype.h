@@ -171,6 +171,29 @@ enum vm_datatype_t
     VM_ENUM,
 
     /*
+     *   Built-in function pointer.  This is represented as an integer value
+     *   with the BIF table entry index (the function set ID) in the high 16
+     *   bits, and the function index (the index of the function within its
+     *   function set) in the low 16 bits.  
+     */
+    VM_BIFPTR,
+
+    /*
+     *   Special internal pseudo-type for execute-on-evaluation objects.
+     *   This is used when an anonymous object or dynamically created string
+     *   is stored in an object property *as a method*, meaning that the
+     *   object is executed upon evaluation rather than simply returned as an
+     *   object value.  This is never stored in an image file, but it can be
+     *   stored in a saved game file.  It's never used in a value that's
+     *   visible to user code; it's only for internal storage within
+     *   TadsObject property tables and the like.  
+     */
+    VM_OBJX,
+
+    /* the equivalent of VM_OBJX for built-in function pointers */
+    VM_BIFPTRX,
+
+    /*
      *   First invalid type ID.  Tools (such as compilers and debuggers)
      *   can use this ID and any higher ID values to flag their own
      *   internal types.  
@@ -178,7 +201,12 @@ enum vm_datatype_t
     VM_FIRST_INVALID_TYPE
 };
 
-/* macro to create a private type constant for internal use in a tool */
+/* 
+ *   Macro to create a private type constant for internal use in a tool.  The
+ *   compiler uses this to create special non-VM values for its own use
+ *   during compilation.  Types created with this macro must never appear in
+ *   an image file, and must never be exposed to user bytecode via any APIs.
+ */
 #define VM_MAKE_INTERNAL_TYPE(idx) \
     ((vm_datatype_t)(((int)VM_FIRST_INVALID_TYPE) + (idx)))
 
@@ -192,7 +220,7 @@ struct vm_val_t
     union
     {
         /* stack/code pointer */
-        void *ptr;
+        const void *ptr;
 
         /* object reference */
         vm_obj_id_t obj;
@@ -211,6 +239,13 @@ struct vm_val_t
 
         /* native code descriptor */
         const class CVmNativeCodeDesc *native_desc;
+
+        /* pointer to built-in function */
+        struct
+        {
+            unsigned short set_idx;
+            unsigned short func_idx;
+        } bifptr;
     } val;
 
     /* set various types of values */
@@ -218,9 +253,8 @@ struct vm_val_t
     void set_nil() { typ = VM_NIL; }
     void set_true() { typ = VM_TRUE; }
     void set_stack(void *ptr) { typ = VM_STACK; val.ptr = ptr; }
-    void set_codeptr(void *ptr) { typ = VM_CODEPTR; val.ptr = ptr; }
+    void set_codeptr(const void *ptr) { typ = VM_CODEPTR; val.ptr = ptr; }
     void set_obj(vm_obj_id_t obj) { typ = VM_OBJ; val.obj = obj; }
-    void set_nil_obj() { typ = VM_NIL; val.obj = VM_INVALID_OBJ; }
     void set_propid(vm_prop_id_t prop) { typ = VM_PROP; val.prop = prop; }
     void set_int(int32 intval) { typ = VM_INT; val.intval = intval; }
     void set_enum(uint32 enumval) { typ = VM_ENUM; val.enumval = enumval; }
@@ -229,8 +263,23 @@ struct vm_val_t
     void set_list(pool_ofs_t ofs) { typ = VM_LIST; val.ofs = ofs; }
     void set_codeofs(pool_ofs_t ofs) { typ = VM_CODEOFS; val.ofs = ofs; }
     void set_fnptr(pool_ofs_t ofs) { typ = VM_FUNCPTR; val.ofs = ofs; }
+    void set_bifptr(ushort set_idx, ushort func_idx)
+    {
+        typ = VM_BIFPTR;
+        val.bifptr.set_idx = set_idx;
+        val.bifptr.func_idx = func_idx;
+    }
     void set_native(const class CVmNativeCodeDesc *desc)
         { typ = VM_NATIVE_CODE; val.native_desc = desc; }
+
+    /*
+     *   Set nil, specifically for a value that might be interpreted as an
+     *   object ID.  This sets the object ID field to invalid in addition to
+     *   setting the value type to nil, so that callers that just look at the
+     *   object ID will see an explicitly invalid object value rather than
+     *   something random.  
+     */
+    void set_nil_obj() { typ = VM_NIL; val.obj = VM_INVALID_OBJ; }
 
     /* 
      *   set an object or nil value: if the object ID is VM_INVALID_OBJ,
@@ -246,6 +295,12 @@ struct vm_val_t
         if (obj == VM_INVALID_OBJ)
             typ = VM_NIL;
     }
+
+    /* get an object, or a null pointer if it's not an object */
+    vm_obj_id_t get_as_obj() const { return typ == VM_OBJ ? val.obj : 0; }
+
+    /* is this an object of the given class? */
+    int is_instance_of(VMG_ vm_obj_id_t cls) const;
 
     /* set to an integer giving the datatype of the given value */
     void set_datatype(VMG_ const vm_val_t *val);
@@ -271,6 +326,12 @@ struct vm_val_t
     const char *get_as_string(VMG0_) const;
 
     /*
+     *   Cast the value to a string.  This attempts to reinterpret the value
+     *   as a string.   
+     */
+    const char *cast_to_string(VMG_ vm_val_t *new_str) const;
+
+    /*
      *   Get the underlying list constant value.  If the value does not
      *   have an underlying list constant (because it is of a type that
      *   does not store list data), this returns null. 
@@ -278,19 +339,40 @@ struct vm_val_t
     const char *get_as_list(VMG0_) const;
 
     /*
-     *   Get the effective number of elements from this value when the
-     *   value is used as the right-hand side of a '+' or '-' operator
-     *   whose left-hand side implies that the operation involved is a set
-     *   operation (this is the case is the left-hand side is of certain
-     *   collection types, such as list, array, or vector); and get the
-     *   nth element in that context.  Most types of values contribute
-     *   only one element to these operations, but some collection types
-     *   supply their elements individually, rather than the collection
-     *   itself, for these operations.  'idx' is the 1-based index of the
-     *   element to retrieve.  
+     *   Is the value indexable as a list?  This returns true for types that
+     *   have contiguous integer indexes from 1..number of elements.  
      */
-    size_t get_coll_addsub_rhs_ele_cnt(VMG0_) const;
-    void get_coll_addsub_rhs_ele(VMG_ size_t idx, vm_val_t *result) const;
+    int is_listlike(VMG0_) const;
+
+    /* 
+     *   For a list-like object, get the number of elements.  If this isn't a
+     *   list-like object, returns -1. 
+     */
+    int ll_length(VMG0_) const;
+
+    /* 
+     *   For a list-like object, get an indexed element.  The index is
+     *   1-based, per our usual conventions.
+     */
+    void ll_index(VMG_ vm_val_t *ret, const vm_val_t *idx) const;
+
+    /* index with a 1-based integer */
+    void ll_index(VMG_ vm_val_t *ret, int idx) const
+    {
+        vm_val_t vidx;
+        vidx.set_int(idx);
+        ll_index(vmg_ ret, &vidx);
+    }
+
+    /* get as a native code pointer value */
+    const uchar *get_as_codeptr(VMG0_) const;
+
+    /* 
+     *   Is this a function pointer of some kind?  This returns true if it's
+     *   a plain function pointer, a built-in function pointer, or an object
+     *   with an invoker (which covers anonymous and dynamic functions). 
+     */
+    int is_func_ptr(VMG0_) const;
 
     /*
      *   Convert a numeric value to an integer value.  If the value isn't
@@ -340,6 +422,21 @@ struct vm_val_t
     }
 
     /* 
+     *   Cast to an integer value.  
+     */
+    int32 cast_to_int(VMG0_) const;
+
+    /*
+     *   Cast to a numeric type - integer or BigNumber.  If the value is
+     *   already numeric, we'll return the value unchanged.  Otherwise, if an
+     *   automatic conversion to a numeric type is possible, we'll return the
+     *   converted value.  We'll return the "simplest" type that can
+     *   precisely represent the value, meaning the type that uses the least
+     *   memory and that's fastest for computations.  
+     */
+    void cast_to_num(VMG_ vm_val_t *val) const;
+
+    /* 
      *   determine if the numeric value is zero; throws an error if the
      *   value is not numeric 
      */
@@ -377,16 +474,14 @@ struct vm_val_t
      *   
      *   'depth' has the same meaning as in calc_hash().  
      */
-    int equals(VMG_ const vm_val_t *v) const { return equals(vmg_ v, 0); }
-    int equals(VMG_ const vm_val_t *val, int depth) const;
+    int equals(VMG_ const vm_val_t *val, int depth = 0) const;
 
     /*
      *   Calculate a hash for the value.  The meaning of the hash varies by
      *   type, but is stable for a given value.  'depth' is a recursion depth
      *   counter, with the same meaning as in CVmObject::calc_hash().  
      */
-    uint calc_hash(VMG0_) const { return calc_hash(vmg_ 0); }
-    uint calc_hash(VMG_ int depth) const;
+    uint calc_hash(VMG_ int depth = 0) const;
 
     /*
      *   Compare this value to the given value.  Returns a value greater than
@@ -570,6 +665,20 @@ inline void vmb_put_uint2(char *buf, uint16 i) { oswp2(buf, i); }
 inline uint16 vmb_get_uint2(const char *buf) { return osrp2(buf); }
 
 /*
+ *   Portable binary unsigned 4-byte integer 
+ */
+const size_t VMB_UINT4 = 4;
+inline void vmb_put_uint4(char *buf, uint32 i) { oswp4(buf, i); }
+inline uint32 vmb_get_uint4(const char *buf) { return osrp4(buf); }
+
+/*
+ *   Portable binary signed 4-byte integer 
+ */
+const size_t VMB_INT4 = 4;
+inline void vmb_put_int4(char *buf, int32 i) { oswp4s(buf, i); }
+inline int32 vmb_get_int4(const char *buf) { return osrp4s(buf); }
+
+/*
  *   Portable binary object ID. 
  */
 const size_t VMB_OBJECT_ID = 4;
@@ -627,7 +736,7 @@ inline vm_obj_id_t vmb_get_dh_obj(const char *buf)
 
 /* get an integer value from a portable dataholder */
 inline int32 vmb_get_dh_int(const char *buf)
-    { return (int32)osrp4(buf+1); }
+    { return (int32)osrp4s(buf+1); }
 
 /* get a property ID value from a portable dataholder */
 inline vm_prop_id_t vmb_get_dh_prop(const char *buf)

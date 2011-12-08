@@ -150,6 +150,17 @@ public:
     int add_new_record_ptr_key(VMG_ vm_obj_id_t obj, void *key,
                                const vm_val_t *val);
 
+    /* add a new record with a pointer key and no separate value data */
+    int add_new_record_ptr_key(VMG_ vm_obj_id_t obj, void *key)
+    {
+        /* set up a nil value to fill the value slot in the record */
+        vm_val_t nilval;
+        nilval.set_nil();
+
+        /* save the record */
+        return add_new_record_ptr_key(vmg_ obj, key, &nilval);
+    }
+
     /*
      *   Apply undo to the latest savepoint.  After applying the undo
      *   records, we delete all undo records to the savepoint; this leaves

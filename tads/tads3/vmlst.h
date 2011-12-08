@@ -26,6 +26,7 @@ Modified
 #include "vmcoll.h"
 #include "vmglob.h"
 #include "vmstack.h"
+#include "vmrun.h"
 
 
 class CVmObjList: public CVmObjCollection
@@ -57,17 +58,10 @@ public:
      */
     static vm_obj_id_t create_from_params(VMG_ uint idx, uint cnt);
 
-    /* 
-     *   call a static property - we don't have any of our own, so simply
-     *   "inherit" the base class handling 
-     */
+    /* call a static property */
     static int call_stat_prop(VMG_ vm_val_t *result,
                               const uchar **pc_ptr, uint *argc,
-                              vm_prop_id_t prop)
-    {
-        return CVmObjCollection::
-            call_stat_prop(vmg_ result, pc_ptr, argc, prop);
-    }
+                              vm_prop_id_t prop);
 
     /* reserve constant data */
     virtual void reserve_const_data(VMG_ class CVmConstMapper *mapper,
@@ -96,18 +90,24 @@ public:
      */
     static vm_obj_id_t create(VMG_ int in_root_set, const char *lst);
 
+    /* get an element, given a zero-based index */
+    void get_element(size_t idx, vm_val_t *val) const
+    {
+        /* get the data from the data holder in our extension */
+        vmb_get_dh(get_element_ptr(idx), val);
+    }
+
     /*
-     *   List construction: set an element.  List contents are immutable,
-     *   so they cannot be changed after the list is constructed.
-     *   However, it is often convenient to construct a list one element
-     *   at a time, so a caller can create the list with the appropriate
-     *   number of elements, then use this routine to set each element of
-     *   the list individually.
+     *   List construction: set an element.  List contents are immutable, so
+     *   they cannot be changed after the list is constructed.  However, it
+     *   is often convenient to construct a list one element at a time, so a
+     *   caller can create the list with the appropriate number of elements,
+     *   then use this routine to set each element of the list individually.
      *   
-     *   idx is the index of the element in the list; the first element is
-     *   at index zero.  Note that this routine does *not* allocate
-     *   memory; the list must be pre-allocated to its full number of
-     *   elements.
+     *   idx is the index of the element in the list; the first element is at
+     *   index zero.  Note that this routine does *not* allocate memory; the
+     *   list must be pre-allocated to its full number of elements.  Use
+     *   cons_ensure_space to expand the list as needed.  
      */
     void cons_set_element(size_t idx, const vm_val_t *val);
 
@@ -142,6 +142,34 @@ public:
      */
     void cons_set_len(size_t len)
         { vmb_put_len(ext_, len); }
+
+    /*
+     *   During construction, ensure there's enough space in the list to hold
+     *   an added item at the given index (0-based).  If not, expands the
+     *   list to make it large enough to hold the given new elements plus the
+     *   margin.  The margin is to ensure that we don't keep reallocating one
+     *   element at a time when the caller is adding items iteratively.  The
+     *   added elements are automatically set to nil.  
+     */
+    void cons_ensure_space(VMG_ size_t idx, size_t margin);
+
+    /* 
+     *   During construction, clear a range of the list by setting each
+     *   element in the range (inclusive of the endpoints) to nil.  If the
+     *   construction process could trigger garbage collection, it's
+     *   important for the caller to clear the list first.  Uninitialized
+     *   elements could happen to look like pointers to invalid objects, so
+     *   if the gc runs, it could try to follow one of these invalid pointers
+     *   and cause a crash.  The index values are 0-based.  
+     */
+    void cons_clear(size_t start_idx, size_t end_idx);
+
+    /* clear the entire list (set the whole list to nil) */
+    void cons_clear()
+    {
+        if (get_ele_count() != 0)
+            cons_clear(0, get_ele_count() - 1);
+    }
 
     /* notify of deletion */
     void notify_delete(VMG_ int in_root_set);
@@ -190,22 +218,22 @@ public:
      *   any case, we don't modify this list itself, but create a new list
      *   object to hold the result.
      */
-    void add_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int add_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /*
      *   Index the list 
      */
-    void index_val(VMG_ vm_val_t *result, vm_obj_id_t self,
-                   const vm_val_t *index_val);
+    int index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
+                    const vm_val_t *index_val);
 
     /*
      *   Set an indexed element of the list.  Since the contents of a list
      *   object cannot be changed, we'll return in *new_container a new
      *   list object that we create with the modified contents.  
      */
-    void set_index_val(VMG_ vm_val_t *new_container, vm_obj_id_t self,
-                       const vm_val_t *index_val, const vm_val_t *new_val);
+    int set_index_val_q(VMG_ vm_val_t *new_container, vm_obj_id_t self,
+                        const vm_val_t *index_val, const vm_val_t *new_val);
 
     /* 
      *   Subtract a value from the list.  This creates a new list with the
@@ -213,14 +241,19 @@ public:
      *   We do not modify the original list; instead, we create a new list
      *   object with the new value.  
      */
-    void sub_val(VMG_ vm_val_t *result,
-                 vm_obj_id_t self, const vm_val_t *val);
+    int sub_val(VMG_ vm_val_t *result,
+                vm_obj_id_t self, const vm_val_t *val);
 
     /* 
      *   get as a list - simply return our extension, which is in the
      *   required portable list format 
      */
     const char *get_as_list() const { return ext_; }
+
+    /* I'm the original list-like object */
+    int is_listlike(VMG_ vm_obj_id_t /*self*/) { return TRUE; }
+    int ll_length(VMG_ vm_obj_id_t /*self*/) { return get_ele_count(); }
+    
 
     /* 
      *   Check a value for equality.  We will match any constant list that
@@ -287,18 +320,6 @@ public:
                                 const char *lst, int depth);
 
     /*
-     *   When we're the right-hand side of a '+' or '-' operation whose
-     *   left-hand side is another collection type that treats these
-     *   operators as concatenation/set subtraction, add/subtract our
-     *   elements individually.  
-     */
-    size_t get_coll_addsub_rhs_ele_cnt(VMG0_) const
-        { return vmb_get_len(ext_); }
-    void get_coll_addsub_rhs_ele(VMG_ vm_val_t *result,
-                                 vm_obj_id_t self, size_t idx)
-        { index_list(vmg_ result, ext_, idx); }
-
-    /*
      *   Constant list indexing routine.  Indexes the given constant list
      *   (which must be in portable format, with leading UINT2 element
      *   count followed by the list's elements in portable data holder
@@ -333,10 +354,10 @@ public:
                                const vm_val_t *new_val);
 
     /*
-     *   Find a value within a list.  If we find the value, we'll set
-     *   *idxp to the index (starting at zero for the first element) of
-     *   the item we found, and we'll return true; if we don't find the
-     *   value, we'll return false.  
+     *   Find a value within a list.  If we find the value, we'll set *idxp
+     *   to the index (starting at 1 for the first element) of the item we
+     *   found, and we'll return true; if we don't find the value, we'll
+     *   return false.  
      */
     static int find_in_list(VMG_ const vm_val_t *lst,
                             const vm_val_t *val, size_t *idxp);
@@ -440,7 +461,7 @@ public:
     static int gen_index_which(VMG_ vm_val_t *retval,
                                const vm_val_t *self_val,
                                const char *lst, uint *argc,
-                               int forward);
+                               int forward, vm_rcdesc *rc);
 
     /* getUnique */
     static int getp_get_unique(VMG_ vm_val_t *retval,
@@ -451,6 +472,10 @@ public:
     static int getp_append_unique(VMG_ vm_val_t *retval,
                                   const vm_val_t *self_val,
                                   const char *lst, uint *argc);
+
+    /* appendUnique - internal interface */
+    static void append_unique(VMG_ vm_val_t *retval,
+                              const vm_val_t *self, const vm_val_t *other);
 
     /* append */
     static int getp_append(VMG_ vm_val_t *retval,
@@ -482,19 +507,66 @@ public:
                                  const vm_val_t *self_val,
                                  const char *lst, uint *argc);
 
+    /* property evaluator - splice */
+    static int getp_splice(VMG_ vm_val_t *retval,
+                           const vm_val_t *self_val,
+                           const char *lst, uint *argc);
+
+    /* property evaluator - join */
+    static int getp_join(VMG_ vm_val_t *retval,
+                         const vm_val_t *self_val,
+                         const char *lst, uint *argc);
+
+    /* property evaluator - generate */
+    static int getp_generate(VMG_ vm_val_t *retval,
+                             const vm_val_t * /*self*/,
+                             const char * /*lst*/, uint *argc)
+        { return static_getp_generate(vmg_ retval, argc); }
+
+    /* static property evaluator - generate */
+    static int static_getp_generate(VMG_ vm_val_t *retval, uint *argc);
+
+    /* property evaluator - index of minimum value */
+    static int getp_indexOfMin(VMG_ vm_val_t *retval,
+                               const vm_val_t *self_val,
+                               const char *lst, uint *argc);
+
+    /* property evaluator - minimum value in list */
+    static int getp_minVal(VMG_ vm_val_t *retval,
+                           const vm_val_t *self_val,
+                           const char *lst, uint *argc);
+
+    /* property evaluator - index of maximum value in list */
+    static int getp_indexOfMax(VMG_ vm_val_t *retval,
+                               const vm_val_t *self_val,
+                               const char *lst, uint *argc);
+
+    /* property evaluator - maximum value in list */
+    static int getp_maxVal(VMG_ vm_val_t *retval,
+                           const vm_val_t *self_val,
+                           const char *lst, uint *argc);
+    
+
 protected:
     /* general processor for forEach and forEachAssoc */
     static int for_each_gen(VMG_ vm_val_t *retval,
                             const vm_val_t *self_val,
                             const char *lst, uint *argc,
-                            int send_idx_to_cb);
+                            int send_idx_to_cb, vm_rcdesc *rc);
+
+    /* general min/max handler, for minIndex, minVal, maxIndex, maxVal */
+    static int get_minmax(VMG_ vm_val_t *retval,
+                          const vm_val_t *self_val,
+                          const char *lst, uint *in_argc,
+                          const vm_rcdesc *rc,
+                          int sense, int want_index);
 
     /*
      *   Compute the intersection of two lists.  Returns a new list with the
      *   elements that occur in both lists.  
      */
-    static vm_obj_id_t intersect(VMG_ const vm_val_t *lst1,
-                                 const vm_val_t *lst2);
+    static vm_obj_id_t intersect(VMG_ const vm_val_t *l1,
+                                 const vm_val_t *l2);
 
     /* insert the arguments into the list at the given index */
     static void insert_elements(VMG_ vm_val_t *retval,
@@ -520,13 +592,6 @@ protected:
 
     /* get the number of elements in the list */
     size_t get_ele_count() const { return vmb_get_len(ext_); }
-
-    /* get an element, given a zero-based index */
-    void get_element(size_t idx, vm_val_t *val) const
-    {
-        /* get the data from the data holder in our extension */
-        vmb_get_dh(get_element_ptr(idx), val);
-    }
 
     /* get the number of elements in a constant list */
     static size_t get_ele_count_const(const char *lstval)
@@ -651,7 +716,7 @@ class CVmMetaclassList: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "list/030007"; }
+    const char *get_meta_name() const { return "list/030008"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

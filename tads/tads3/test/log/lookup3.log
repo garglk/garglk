@@ -1,0 +1,31 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export lookup3.t -> lookup3.t3s
+	compile _main.t -> _main.t3o
+	compile lookup3.t -> lookup3.t3o
+	link -> lookup3.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+t[one] = 111, t[two] = 222, t[three] = 333, t[four] = 444
+.. t[one] = 111
+.. t[two] = 222
+.. t[three] = 333
+.. t[four] = 444
+
+t[one] = A, t[two] = B, t[three] = C, t[four] = D
+.. t[one] = A
+.. t[two] = B
+.. t[three] = C
+.. t[four] = D
+
+t[one] = 123, t[two] = 234, t[three] = 345, t[four] = 456
+.. t[one] = 123
+.. t[two] = 234
+.. t[three] = 345
+.. t[four] = 456
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

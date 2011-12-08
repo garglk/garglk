@@ -67,14 +67,25 @@ Modified
     ((((unsigned char*)(p))[1] = (i) >> 8), \
      (((unsigned char*)(p))[0] = (i) & 255))
 
+#define oswp2s(p,i) oswp2(p,i)
+
 /* 
  *   Read an unaligned portable 4-byte value, returning long.  
  */
-#define osrp4(p) \
+#define osrp4s(p) \
     (((long)osc2l(p,0)) \
      + ((long)(osc2l(p,1)) << 8) \
      + ((long)(osc2l(p,2) << 16)) \
      + (osc2sl(p,3) << 24))
+
+/* 
+ *   Read an unaligned portable 4-byte value, returning unsigned long.  
+ */
+#define osrp4(p) \
+    ((osc2l(p,0)) \
+     + ((osc2l(p,1)) << 8) \
+     + ((osc2l(p,2) << 16)) \
+     + (osc2l(p,3) << 24))
 
 /* 
  *   Write a long to an unaligned portable 4-byte value.  
@@ -84,5 +95,7 @@ Modified
      (((unsigned char*)(p))[1] = (i) >> 8), \
      (((unsigned char*)(p))[2] = (i) >> 16, \
      (((unsigned char*)(p))[3] = (i) >> 24)))
+
+#define oswp4s(p,i) oswp4(p,i)
 
 #endif /* H_PPC_H */

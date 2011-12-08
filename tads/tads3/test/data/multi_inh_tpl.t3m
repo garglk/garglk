@@ -1,0 +1,63 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+
+
+##sources
+-source multi_inh_tpl
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:393,532,913,693
+log win vis::I:1
+log win pos::R:76,55,770,509
+*51 src win pos:C:\TADS\tads3\test\data\multi_inh_tpl.t:R:95,38,869,507
+watch win:expression list 0:S:0:testMe
+watch win:expression list 0:S:1:testMeAgain
+watch win:expression list 0:S:2:testMeShape
+build:installer options:S:0:name=multi_inh_tpl_dbg
+build:installer options:S:1:savext=multi_inh_tpl_dbg
+search:start at top:I:0
+breakpoints:cond-mode:S:0:true
+search:wrap:I:1
+docking config::S:0:CL
+docking config::S:1:CR
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:W3,270,170,2,371,302,521,D,locals win
+docking config::S:5:W3,270,170,304,371,604,521,D,watch win
+docking config::S:6:CR
+docking config::S:7:W6,170,170,212,113,851,478,M,stack win
+docking config::S:8:W6,170,170,264,138,966,621,M,log win
+docking config::S:9:CL
+docking config::S:10:W9,170,270,2,371,302,521,D,project win
+search:text:S:0:doactiononce
+locals win:vis:I:1
+locals win:pos:R:-153,532,367,693
+main win max::I:0
+search:exact case:I:0
+main win pos::R:16,35,1111,830
+build:exe:S:0:multi_inh_tpl_dbg.exe
+src win list::S:0:C:\TADS\tads3\test\data\multi_inh_tpl.t
+hist win vis::I:0
+build:debug_image_file:S:0:C:\TADS\tads3\test\data\multi_inh_tpl_dbg.t3
+build:rlsgam:S:0:multi_inh_tpl_dbg_rls.t3
+main win mdi max::I:0
+search:dir:I:1
+build:installer prog:S:0:multi_inh_tpl_dbg_Setup.exe
+project win:vis:I:1
+project win:pos:R:-170,17,-9,523
+stack win pos::R:24,30,655,366
+stack win vis::I:1
+src win title::S:0:C:\TADS\tads3\test\data\multi_inh_tpl.t
+

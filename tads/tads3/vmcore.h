@@ -48,7 +48,7 @@ Function
   function set - you can add it where the comments indicate in your copy of
   vmbifreg_core.cpp.  The MAKE_ENTRY() line would look like this:
 
-    MAKE_ENTRY("core-sample/010000", G_bif_core_sample);
+    MAKE_ENTRY("core-sample/010000", CVmBifSample);
 
   Use the same name you use for the variable defined in the initialization
   list near the end of the file.  For the string, you can use anything you
@@ -111,6 +111,18 @@ Modified
 class CVmBifSample: public CVmBif
 {
 public:
+    /* 
+     *   The function vector.  Every function-set class must have a static
+     *   member called 'bif_table' containing an array of pointers to the
+     *   functions in the set.  The registration mechanism uses this to
+     *   connect calls from the image file to their actual C++
+     *   implementations.  The order of the vector must match the order
+     *   defined in the library header file for the function set, since the
+     *   compiler generates ordinal references to the member functions.  
+     */
+    static vm_bif_desc bif_table[];
+
+    /* function set member functions */
     static void display_text(VMG_ uint argc);
     static void read_text(VMG_ uint argc);
 };
@@ -128,14 +140,19 @@ public:
  *   
  *   ALSO IMPORTANT - the ORDER of the definitions here is significant.  You
  *   must use the EXACT SAME ORDER in your "intrinsic" definition in the
- *   header file you create for inclusion in your TADS (.t) source code.  
+ *   header file you create for inclusion in your TADS (.t) source code.
+ *   
+ *   The vector must always be called 'bif_table', and it must be a static
+ *   member of the function-set class.  The order of the functions defined
+ *   here MUST match the order in the library header file for the function
+ *   set, since the compiler generates ordinal references to the functions.  
  */
 #ifdef VMBIF_DEFINE_VECTOR
 
-void (*G_bif_sample[])(VMG_ uint) =
+vm_bif_desc CVmBifSample::bif_table[] =
 {
-    &CVmBifSample::display_text,
-    &CVmBifSample::read_text
+    { &CVmBifSample::display_text, 1, 0, FALSE },
+    { &CVmBifSample::read_text, 0, 0, FALSE }
 };
 
 #endif

@@ -24,6 +24,7 @@ Modified
 #include "t3std.h"
 #include "vmglob.h"
 #include "vmtype.h"
+#include "vmrun.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -81,6 +82,9 @@ public:
 
     /* flag: sort descending */
     int descending_;
+
+    /* recursive native caller context */
+    vm_rcdesc rc;
 };
 
 #endif /* VMSORT_H */

@@ -36,6 +36,7 @@ Modified
 #include "tct3.h"
 #include "vmimage.h"
 #include "vmrunsym.h"
+#include "vmmeta.h"
 #include "t3test.h"
 #include "tcmake.h"
 
@@ -241,9 +242,16 @@ void CVmRuntimeSymbols::add_sym(const char *, size_t,
 {
 }
 
-/*
- *   dummy 'make' object implementation 
- */
-void CTcMake::write_build_config_to_sym_file(class CVmFile *)
+void CTcGenTarg::add_debug_line_table(ulong)
 {
+}
+
+void CTPNObjProp::check_locals()
+{
+}
+
+/* dummy implementation of runtime metaclass table */
+vm_meta_entry_t *CVmMetaTable::get_entry_by_id(const char *id) const
+{
+    return 0;
 }

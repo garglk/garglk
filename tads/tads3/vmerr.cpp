@@ -236,6 +236,11 @@ static void err_throw_v(err_id_t error_code, int param_count, va_list va)
     exc->error_code_ = error_code;
     exc->param_count_ = param_count;
 
+    /* presume this is not an out-of-date version error */
+    exc->version_flag_ = FALSE;
+    exc->metaclass_ = 0;
+    exc->funcset_ = 0;
+
     /* 
      *   link to the previous exception on the stack, so that we can pop
      *   this exception when we're done with it 
@@ -330,6 +335,36 @@ static void err_throw_v(err_id_t error_code, int param_count, va_list va)
              *   null termination 
              */
             param->type_ = ERR_TYPE_CHAR;
+            break;
+
+        case ERR_TYPE_FUNCSET:
+            /* 
+             *   It's a char* string with a function set ID.  These are not
+             *   stored in the parameters, but go in the funcset_ slot in the
+             *   exception object. 
+             */
+            sptr = va_arg(va, char *);
+            exc->funcset_ = err_store_param_str(sptr, strlen(sptr));
+            break;
+
+        case ERR_TYPE_METACLASS:
+            /* 
+             *   It's a char* string with a metaclass ID.  These are not
+             *   stored in the parameters, but go in the metaclass_ slot in
+             *   the exception object.  
+             */
+            sptr = va_arg(va, char *);
+            exc->metaclass_ = err_store_param_str(sptr, strlen(sptr));
+            break;
+
+        case ERR_TYPE_VERSION_FLAG:
+            /* 
+             *   This parameter is a flag indicating that the error is due to
+             *   an out-of-date interpreter build.  This has no parameter
+             *   data; we simply set the flag in the exception to indicate
+             *   the version error type.  
+             */
+            exc->version_flag_ = TRUE;
             break;
         }
     }
@@ -636,6 +671,27 @@ const char *err_get_msg(const err_msg_t *msg_array, size_t msg_count,
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Format a message, allocating a buffer 
+ */
+char *err_format_msg(const char *msg, const CVmException *exc)
+{
+    /* 
+     *   format the message into a null buffer to calculate the length; add a
+     *   byte for null termination 
+     */
+    size_t len = err_format_msg(0, 0, msg, exc) + 1;
+
+    /* allocate a buffer */
+    char *buf = (char *)t3malloc(len);
+
+    /* format the message into the new buffer */
+    err_format_msg(buf, len, msg, exc);
+
+    /* return the buffer */
+    return buf;
+}
+
+/*
  *   Format a message with the parameters contained in an exception object.
  *   Suports the following format codes:
  *   
@@ -648,17 +704,15 @@ const char *err_get_msg(const err_msg_t *msg_array, size_t msg_count,
  *   
  *   %% - Formats as a single percent sign.  
  */
-void err_format_msg(char *outbuf, size_t outbuflen,
-                    const char *msg, const CVmException *exc)
+size_t err_format_msg(char *outbuf, size_t outbuflen,
+                      const char *msg, const CVmException *exc)
 {
     int curarg;
     const char *p;
     char *dst;
     int exc_argc;
-
-    /* if there's no space at all, ignore the request */
-    if (outbuf == 0 || outbuflen == 0)
-        return;
+    size_t need = 0;
+    size_t rem = outbuflen;
 
     /* get the number of parameters in the exception object */
     exc_argc = (exc == 0 ? 0 : exc->get_param_count());
@@ -672,20 +726,15 @@ void err_format_msg(char *outbuf, size_t outbuflen,
     /* if there's no message, there's nothing to return */
     if (msg == 0)
     {
-        *dst = '\0';
-        return;
+        ++need;
+        if (outbuflen != 0)
+            *dst = '\0';
+        return need;
     }
 
     /* scan the format string for formatting codes */
     for (p = msg ; *p != '\0' ; ++p)
     {
-        /* 
-         *   If we're out of space, stop now.  Make sure we leave room for
-         *   the terminating null byte. 
-         */
-        if (dst + 1 >= outbuf + outbuflen)
-            break;
-        
         /* if it's a format specifier, translate it */
         if (*p == '%')
         {
@@ -702,7 +751,9 @@ void err_format_msg(char *outbuf, size_t outbuflen,
              */
             if (curarg >= exc_argc)
             {
-                *dst++ = *p;
+                ++need;
+                if (rem > 1)
+                    --rem, *dst++ = *p;
                 continue;
             }
 
@@ -789,13 +840,21 @@ void err_format_msg(char *outbuf, size_t outbuflen,
             if (use_strlen)
                 len = strlen(src);
 
-            /* figure out how much of the value we can copy */
-            if (len > outbuflen - (dst - outbuf) - 1)
-                len = outbuflen - (dst - outbuf) - 1;
+            /* count the full 'len' in our space needs */
+            need +=len;
 
-            /* copy the value and advance past it in the output buffer */
-            memcpy(dst, src, len);
-            dst += len;
+            /* copy as much as we can */
+            if (rem > 1)
+            {
+                /* limit it to the remaining space, minus a null byte */
+                if (len > rem - 1)
+                    len = rem - 1;
+
+                /* copy the value and advance past it in the output buffer */
+                memcpy(dst, src, len);
+                dst += len;
+                rem -= len;
+            }
 
             /* consume the argument */
             ++curarg;
@@ -803,11 +862,17 @@ void err_format_msg(char *outbuf, size_t outbuflen,
         else
         {
             /* just copy the current character as it is */
-            *dst++ = *p;
+            ++need;
+            if (rem > 1)
+                --rem, *dst++ = *p;
         }
     }
 
     /* add the trailing null */
-    *dst++ = '\0';
+    if (rem != 0)
+        *dst++ = '\0';
+
+    /* return the space required */
+    return need;
 }
 

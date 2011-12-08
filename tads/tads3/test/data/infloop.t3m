@@ -1,0 +1,135 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the  file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+
+##sources
+
+##sources
+-lib system.tl
+  -x gameinfo
+  -x file
+-source infloop.t
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+src win pos:c:\tads\build\lib\_main.t:R:54,163,759,560
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:333,574,859,735
+build:image_resources-sys:S:0:user
+build:c ops:I:0
+src win options:text color:C:0,0,0
+log win vis::I:1
+log win pos::R:73,59,754,524
+build:include_files-sys:S:0:system
+build:include_files-sys:S:1:system
+build:include_files-sys:S:2:system
+build:include_files-sys:S:3:system
+build:include_files-sys:S:4:system
+build:include_files-sys:S:5:system
+build:include_files-sys:S:6:system
+build:include_files-sys:S:7:system
+build:include_files-sys:S:8:system
+build:include_files-sys:S:9:system
+build:include_files-sys:S:10:system
+build:include_files-sys:S:11:system
+build:include_files-sys:S:12:lib
+build:include_files-sys:S:13:system
+build:include_files-sys:S:14:lib
+project win:dock id:I:7
+src win options:tab size:I:8
+srcfiles:path:S:0:C:\TADS\build\lib\_main.t
+srcfiles:path:S:1:c:\tads\build\include\tads.h
+srcfiles:path:S:2:c:\tads\build\include\t3.h
+srcfiles:path:S:3:c:\tads\build\include\lookup.h
+srcfiles:path:S:4:c:\tads\build\include\tadsgen.h
+srcfiles:path:S:5:c:\tads\build\include\tadsio.h
+srcfiles:path:S:6:c:\tads\build\include\systype.h
+srcfiles:path:S:7:c:\tads\build\include\charset.h
+srcfiles:path:S:8:c:\tads\build\include\bytearr.h
+srcfiles:path:S:9:c:\tads\build\include\reflect.h
+srcfiles:path:S:10:C:\TADS\tads3\test\data\infloop.t
+src win pos:c:\tads\build\lib\adv3\us_eng.h:R:66,72,771,469
+build:installer options:S:0:name=infloop
+build:installer options:S:1:savext=infloop
+search:start at top:I:0
+stack win:dock id:I:9
+watch win:dock id:I:5
+search:wrap:I:1
+search:text:S:0:
+docking config::S:0:CL
+docking config::S:1:CL
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:W3,270,170,-153,567,373,728,D
+docking config::S:5:W3,270,170,399,567,925,728,D
+docking config::S:6:CL
+docking config::S:7:W6,236,270,-170,17,-9,558,D
+docking config::S:8:CB
+docking config::S:9:W8,170,170,291,90,849,473,M
+locals win:vis:I:1
+locals win:pos:R:-219,574,307,735
+main win max::I:0
+search:exact case:I:0
+main win pos::R:29,7,1136,821
+srcdir::S:0:C:\TADS\build\lib\
+build:image_resources:S:0:GameInfo.txt
+src win options:use win colors:I:1
+build:ignore case:I:0
+build:exe:S:0:infloop.exe
+src win options:bkg color:C:255,255,255
+src win list::S:0:C:\TADS\tads3\test\data\infloop.t
+src win list::S:1:C:\TADS\build\lib\_main.t
+build:use charmap:I:0
+src win options:font name:S:0:Courier New
+hist win vis::I:0
+srcfiles:fname:S:0:c:\tads\build\lib\_main.t
+srcfiles:fname:S:1:c:\tads\build\include\tads.h
+srcfiles:fname:S:2:c:\tads\build\include\t3.h
+srcfiles:fname:S:3:c:\tads\build\include\lookup.h
+srcfiles:fname:S:4:c:\tads\build\include\tadsgen.h
+srcfiles:fname:S:5:c:\tads\build\include\tadsio.h
+srcfiles:fname:S:6:c:\tads\build\include\systype.h
+srcfiles:fname:S:7:c:\tads\build\include\charset.h
+srcfiles:fname:S:8:c:\tads\build\include\bytearr.h
+srcfiles:fname:S:9:c:\tads\build\include\reflect.h
+srcfiles:fname:S:10:infloop.t
+editor:cmdline:S:0:+%n "%f"
+build:include_files:S:0:tads.h
+build:include_files:S:1:t3.h
+build:include_files:S:2:lookup.h
+build:include_files:S:3:tadsgen.h
+build:include_files:S:4:tadsio.h
+build:include_files:S:5:systype.h
+build:include_files:S:6:charset.h
+build:include_files:S:7:bytearr.h
+build:include_files:S:8:file.h
+build:include_files:S:9:dict.h
+build:include_files:S:10:tok.h
+build:include_files:S:11:vector.h
+build:include_files:S:12:adv3.h
+build:include_files:S:13:gramprod.h
+build:include_files:S:14:us_eng.h
+src win pos:C:\TADS\tads3\test\data\infloop.t:R:88,96,793,493
+src win options:font size:I:10
+locals win:dock id:I:4
+editor:program:S:0:DDE:epsilon,open,epsilon
+build:rlsgam:S:0:infloop_rls.t3
+search:dir:I:1
+build:installer prog:S:0:infloop_Setup.exe
+project win:vis:I:1
+project win:pos:R:-236,17,-9,565
+stack win pos::R:24,35,574,389
+stack win vis::I:1
+src win title::S:0:infloop.t
+src win title::S:1:c:\tads\build\lib\_main.t
+src win pos:infloop.t:R:110,120,815,517
+

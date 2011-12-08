@@ -9,6 +9,24 @@
 
 #COMPILE_FOR_DEBUG = 1
 !ifdef COMPILE_FOR_DEBUG
+OBJSUBDIR = dbg
+CFLAGS_DEBUG = -Zi
+CFLAGS_OPT = -Od
+LDFLAGS_DEBUG = /debug
+LCFLAGS_OPT =
+!else
+OBJSUBDIR = rls
+CFLAGS_DEBUG = -Zi
+!if $(MSVCPP_VER) >= 9
+CFLAGS_OPT = -Ox -GL -DNDEBUG=1 -GR- -EHs-c- -Gm- -GF
+LDFLAGS_OPT = /LTCG /OPT:REF /OPT:ICF
+!elseif $(MSVCPP_VER) >= 7
+CFLAGS_OPT = -Ox -GL -DNDEBUG=1 -GR- -GX- -Gm- -GF
+LDFLAGS_OPT = /LTCG /OPT:REF /OPT:ICF
+!else
+CFLAGS_OPT = -O2
+LDFLAGS_OPT =
+!endif
 LDFLAGS_DEBUG = /debug
 !endif
 
@@ -16,9 +34,9 @@ LDFLAGS_DEBUG = /debug
 # executables, library, and MSDOS-specific source file directories
 EXEDIR = exe
 LIBDIR = lib
-RESDIR = winobjs32
+RESDIR = winobjs32\$(OBJSUBDIR)
 MSDOSDIR = msdos
-OBJDIR = winobjs32
+OBJDIR = winobjs32\$(OBJSUBDIR)
 
 # compiler warning level
 CC_WARNING_LEVEL = 3
@@ -43,10 +61,11 @@ CFLAGS_WARN = -W$(CC_WARNING_LEVEL) -WX
 #   Build for 32-bit Windows
 #
 
-CFLAGS= -c -Zi -I. -Imsdos -DMSDOS -c \
- $(DBGFLG) -D_Windows -nologo -DMICROSOFT -W$(CC_WARNING_LEVEL) \
- $(CFLAGS_CRT_DEPRECATIONS)
-LDFLAGS= $(LDFLAGS_DEBUG) /nologo
+CFLAGS= -c -MT -I. -Imsdos -DMSDOS \
+   $(DBGFLG) -D_Windows -nologo -DMICROSOFT -W$(CC_WARNING_LEVEL) \
+   $(CFLAGS_CRT_DEPRECATIONS) \
+   $(CFLAGS_DEBUG) $(CFLAGS_OPT)
+LDFLAGS= $(LDFLAGS_DEBUG) $(LDFLAGS_OPT) /nologo
 LIBOBJS= $(OBJDIR)ler.obj 
 OVLFLG=
 
@@ -61,10 +80,11 @@ all: trwin32.exe
 # Build 32-bit console application
 #
 
-CFLAGS= -c -Zi -I. -Imsdos -DMSDOS -c \
+CFLAGS= -c -MT -I. -Imsdos -DMSDOS \
    -D__WIN32__ $(DBGFLG) -nologo -DMICROSOFT $(CFLAGS_WARN) \
-   $(CFLAGS_CRT_DEPRECATIONS)
-LDFLAGS= $(LDFLAGS_DEBUG)
+   $(CFLAGS_CRT_DEPRECATIONS) \
+   $(CFLAGS_DEBUG) $(CFLAGS_OPT)
+LDFLAGS= $(LDFLAGS_DEBUG) $(LDFLAGS_OPT)
 LIBOBJS= $(OBJDIR)\ler.obj 
 OVLFLG=
 
@@ -233,7 +253,7 @@ lint: $(LINTFILES)
 $(TC_PROG).exe: $(TCOBJS)
 	$(LD) $(LDFLAGS) @<<
 $**
-user32.lib
+user32.lib AdvApi32.lib
 /OUT:$@
 /MAP:$(TC_PROG).map
 /DEF:$(TC_DEF_FILE)
@@ -260,7 +280,7 @@ tr:  $(TR_PROG).exe tadserr.msg
 $(TR_PROG).exe: $(RUNOBJS) $(CHAROBJS) $(TR_OEM_OBJ) $(RESDIR)\t2r32.res
 	$(LD) $(LDFLAGS) @<<
 $**
-user32.lib
+user32.lib AdvApi32.lib
 /OUT:$@
 /MAP:$(TR_PROG).map
 /DEF:$(TR_DEF_FILE)
@@ -273,7 +293,7 @@ tdb:  $(TDB_PROG).exe tadserr.msg
 $(TDB_PROG).exe: $(DBGOBJS) $(TR_OEM_OBJ)
 	$(LD) $(LDFLAGS) @<<
 $**
-user32.lib
+user32.lib AdvApi32.lib
 /OUT:$@
 /MAP:$(TDB_PROG).map
 /DEF:$(TDB_DEF_FILE)
@@ -302,17 +322,20 @@ $**
 
 # character map generator
 mkchrtab32: $(EXEDIR)\mkchrtab32.exe
-$(EXEDIR)\mkchrtab32.exe: $(OBJDIR)\mkchrtab.obj $(OBJDIR)\osterm.obj
+$(EXEDIR)\mkchrtab32.exe: $(OBJDIR)\mkchrtab.obj $(OBJDIR)\osterm.obj \
+        $(OBJDIR)\osdosnui.obj $(OBJDIR)\osnoui.obj
     $(LD) $(LDFLAGS) @<<
 $**
+AdvApi32.lib
 /OUT:$@
 <<
 
 # build the TADS resource manager
 $(TADSRSC_PROG):  $(OBJDIR)\tadsrsc.obj $(OBJDIR)\osnoui.obj \
-                  $(OBJDIR)\osterm.obj
+                  $(OBJDIR)\osterm.obj  $(OBJDIR)\osdosnui.obj
 	$(LD) $(LDFLAGS) @<<
 $**
+AdvApi32.lib
 /OUT:$@
 <<
 
@@ -336,7 +359,7 @@ $(EXEDIR)\win_la1.tcp: win_la1.tcs
 
 
 #
-# ordinary object $(file associations
+# ordinary object file associations
 #
 $(OBJDIR)\mcm.obj:  mcm.c
 $(OBJDIR)\mcs.obj:  mcs.c
@@ -490,9 +513,11 @@ $(OBJDIR)\run_d.obj: run.c
 $(EXEDIR)\untrx32.exe: untrx.c
     $(CC) -I$(BCDIR)\include -I. -Imsdos -DMSDOS -Fo$@ untrx.c
 
-$(EXEDIR)\tadsmdoc32.exe: $(OBJDIR)\tadsmdoc.obj $(OBJDIR)\osterm.obj
+$(EXEDIR)\tadsmdoc32.exe: $(OBJDIR)\tadsmdoc.obj $(OBJDIR)\osterm.obj \
+    $(OBJDIR)\osdosnui.obj $(OBJDIR)\osnoui.obj
 	$(LD) $(LDFLAGS) @<<
 $**
+AdvApi32.lib
 /OUT:$@
 <<
 

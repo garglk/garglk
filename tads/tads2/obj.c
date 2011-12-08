@@ -850,7 +850,7 @@ objucxdef *objuini(mcmcxdef *ctx, ushort siz,
         siz = 0xff00 - sizeof(objucxdef) + 1;
 
     ret = (objucxdef *)mchalo(ctx->mcmcxgl->mcmcxerr,
-                              (ushort)(sizeof(objucxdef) + siz - 1),
+                              (sizeof(objucxdef) + siz - 1),
                               "objuini");
     
     ret->objucxmem  = ctx;
@@ -874,6 +874,13 @@ void objulose(objucxdef *ctx)
         ctx->objucxprv  =
         ctx->objucxtail =
         ctx->objucxtop  = 0;
+}
+
+/* uninitialize the undo context - release allocated memory */
+void objuterm(objucxdef *uctx)
+{
+    /* free the undo memory block */
+    mchfre(uctx);
 }
 
 /* revert object to original (post-compilation) values */

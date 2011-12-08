@@ -1,0 +1,35 @@
+	Files to build: 5
+	symbol_export _main.t -> _main.t3s
+	symbol_export hashes.t -> hashes.t3s
+	compile _main.t -> _main.t3o
+	compile hashes.t -> hashes.t3o
+	link -> hashes.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+String = This is a test string to check out the hash functions!
+md5 = 85522CDA02A7515B707B02DDCD54190D
+sha256 = 2FD8F1BF8C2AE1442CB5DF40AB9C2F7F538A9678392CB02B15C6620D28FAC806
+
+ByteArray = !"#$%&'()*+,-
+./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|
+}~
+md5 = E5DF5A39F2B8CB71B24E1D8038F93131
+sha256 = CB2A9233ADC1225C5C495C46E62CF6308223C5E241EF33AD109F03141B57966A
+
+ByteArray range 34..58 (A-Z)
+md5 = 437BBA8E0BF58337674F4539E75186AC
+sha256 = D6EC6898DE87DDAC6E5B3611708A7AA1C2D298293349CC1A6C299A1DB7149D38
+
+File 'hashes.t'
+md5 = B329B70198EA469FB7DD90BA4F5F55E5
+sha256 = 1E7D83E90137337086BD3B14B558146709678AB11BD3A52BC95F2AAC72340334
+
+File 'hashes.t', range idx=256 len=3000
+md5 = 9543F4455687447BCD087561D5FFCF1F
+sha256 = E380FA5A0EE4A43F0EFDB31336E30533AA46DBB7295519799FA8E0387BA755A9
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

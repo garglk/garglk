@@ -83,21 +83,9 @@ public:
      *   Create the source file reader.  We take ownership of the mapper
      *   object, so we'll delete it when we're deleted. 
      */
-    CTcSrcFile(osfildef *fp, class CCharmapToUni *mapper)
-    {
-        /* remember my source file */
-        fp_ = fp;
+    CTcSrcFile(osfildef *fp, class CCharmapToUni *mapper);
 
-        /* net yet at end of file */
-        at_eof_ = FALSE;
-
-        /* there's no data in the buffer yet */
-        rem_ = 0;
-
-        /* remember my character mapper */
-        mapper_ = mapper;
-    }
-    
+    /* delete */
     virtual ~CTcSrcFile();
 
     /* 
@@ -222,7 +210,7 @@ protected:
     unsigned int at_eof_ : 1;
     
     /* my source file */
-    osfildef *fp_;
+    class CVmDataSource *fp_;
 
     /* read buffer */
     char buf_[1024];
@@ -244,7 +232,7 @@ protected:
 class CTcSrcMemory: public CTcSrcObject
 {
 public:
-    CTcSrcMemory(const char *buf, class CCharmapToUni *mapper);
+    CTcSrcMemory(const char *buf, size_t len, class CCharmapToUni *mapper);
     ~CTcSrcMemory();
 
     /* read the next line */

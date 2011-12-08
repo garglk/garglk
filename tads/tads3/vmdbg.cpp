@@ -24,6 +24,7 @@ Modified
 #include <string.h>
 
 #include "t3std.h"
+#include "vmuni.h"
 #include "os.h"
 #include "charmap.h"
 #include "vmglob.h"
@@ -48,7 +49,14 @@ Modified
 #include "vmhost.h"
 #include "vmvec.h"
 #include "vmbignum.h"
+#include "vmstr.h"
+#include "vmstrbuf.h"
+#include "vmpat.h"
 #include "vmanonfn.h"
+#include "vmlookup.h"
+#include "vmdynfunc.h"
+#include "vmmeta.h"
+#include "osifcnet.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -106,11 +114,9 @@ public:
             t3vsprintf(buf, sizeof(buf), msg, args);
 
             /* append as much of it as possible to our buffer */
-            strncpy(errmsg_free_, buf,
-                    sizeof(errmsg_) - (errmsg_free_ - errmsg_) - 1);
-
-            /* ensure the message is null-terminated */
-            errmsg_[sizeof(errmsg_) - 1] = '\0';
+            lib_strcpy(errmsg_free_,
+                       sizeof(errmsg_) - (errmsg_free_ - errmsg_) - 1,
+                       buf);
 
             /* advance the free pointer past what we just added */
             errmsg_free_ += strlen(errmsg_free_);
@@ -228,9 +234,9 @@ int CVmDbgSymtab::find_symbol(const textchar_t *sym, size_t len,
         uint i;
         
         /* iterate over the symbols in this frame */
-        for (i = frame.get_sym_count(), frame.set_first_sym_ptr(&sym_ptr) ;
-             i != 0 ;
-             --i, sym_ptr.inc(vmg0_))
+        for (i = frame.get_sym_count(),
+             frame.set_first_sym_ptr(vmg_ &sym_ptr) ;
+             i != 0 ; --i, sym_ptr.inc(vmg0_))
         {
             /* if this one matches, we found it */
             if (sym_ptr.get_sym_len(vmg0_) == len
@@ -297,6 +303,9 @@ int CVmDbgSymtab::find_symbol(const textchar_t *sym, size_t len,
  */
 CVmDebug::CVmDebug(VMG0_)
 {
+    /* create our debugger break event object */
+    break_event_ = new OS_Event(TRUE);
+
     /* we have not yet been initialized during program load */
     program_inited_ = FALSE;
 
@@ -308,10 +317,6 @@ CVmDebug::CVmDebug(VMG0_)
 
     /* there's no valid debug pointer yet */
     dbg_ptr_valid_ = FALSE;
-
-    /* no method headers loaded yet */
-    method_hdr_ = 0;
-    method_hdr_cnt_ = 0;
 
     /* 
      *   start in step-in mode, so that we break as soon as we start
@@ -334,18 +339,24 @@ CVmDebug::CVmDebug(VMG0_)
      *   zero) 
      */
     cur_stm_start_ = cur_stm_end_ = 0;
+    entry_ = 0;
 
     /* create our reverse-lookup hash tables */
     obj_rev_table_ = new CVmHashTable(256, new CVmHashFuncDbgRev, TRUE);
     prop_rev_table_ = new CVmHashTable(256, new CVmHashFuncDbgRev, TRUE);
     func_rev_table_ = new CVmHashTable(256, new CVmHashFuncDbgRev, TRUE);
     enum_rev_table_ = new CVmHashTable(256, new CVmHashFuncDbgRev, TRUE);
+    bif_rev_table_ = new CVmHashTable(256, new CVmHashFuncDbgRev, TRUE);
 
     /* create a host interface for the compiler */
     hostifc_ = new CTcHostIfcDebug();
 
     /* no halt requested yet */
     G_interpreter->set_halt_vm(FALSE);
+
+    /* we haven't allocated a method header list yet */
+    method_hdr_ = 0;
+    method_hdr_cnt_ = 0;
 }
 
 /*
@@ -361,10 +372,14 @@ CVmDebug::~CVmDebug()
     delete prop_rev_table_;
     delete func_rev_table_;
     delete enum_rev_table_;
+    delete bif_rev_table_;
 
-    /* if we allocated a method header array, delete it */
+    /* delete the method header list */
     if (method_hdr_ != 0)
         t3free(method_hdr_);
+
+    /* release the debugger break event */
+    break_event_->release_ref();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -379,8 +394,8 @@ void CVmDebug::init(VMG_ const char *image_fname)
     /* tell the UI to initialize */
     CVmDebugUI::init(vmg_ image_fname);
 
-    /* initialize the compiler */
-    CTcMain::init(hostifc_, G_host_ifc->get_cmap_res_loader(), 0);
+    /* initialize the dynamic compiler */
+    CVmDynamicCompiler::get(vmg0_);
 }
 
 /*
@@ -410,9 +425,6 @@ void CVmDebug::terminate(VMG0_)
     /* tell the breakpoint objects we're about to terminate */
     for (i = 0, bp = bp_ ; i < VMDBG_BP_MAX ; ++i, ++bp)
         bp->do_terminate(vmg0_);
-
-    /* terminate the compiler */
-    CTcMain::terminate();
 }
 
 
@@ -460,6 +472,11 @@ void CVmDebug::add_rev_sym(const char *sym, size_t sym_len,
         table = enum_rev_table_;
         break;
 
+    case TC_SYM_BIF:
+        /* built-in function */
+        table = bif_rev_table_;
+        break;
+
     default:
         /* 
          *   ignore other symbol types - we don't maintain reverse-lookup
@@ -481,10 +498,9 @@ void CVmDebug::add_rev_sym(const char *sym, size_t sym_len,
 const char *CVmDebug::find_rev_sym(const CVmHashTable *tab,
                                    ulong val) const
 {
-    CVmHashEntryDbgRev *entry;
-    
     /* look up the symbol */
-    entry = (CVmHashEntryDbgRev *)tab->find((char *)&val, sizeof(val));
+    CVmHashEntryDbgRev *entry =
+        (CVmHashEntryDbgRev *)tab->find((char *)&val, sizeof(val));
 
     /* if we found it, return the name pointer, otherwise null */
     return (entry != 0 ? entry->get_sym() : 0);
@@ -553,6 +569,51 @@ const char *CVmDebug::get_modifying_sym(const char *sym_name) const
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Given a function header address, get the associated symbol 
+ */
+const char *CVmDebug::funchdr_to_sym(
+    VMG_ const uchar *func_addr, char *buf) const
+{
+    /* convert the function address to a value */
+    CVmFuncPtr fp((const char *)func_addr);
+    vm_val_t v;
+    if (fp.get_fnptr(vmg_ &v))
+    {
+        /* check the type */
+        const char *ret;
+        switch (v.typ)
+        {
+        case VM_OBJ:
+            /* code object - return the symbol for the object, if any */
+            if ((ret = objid_to_sym(v.val.obj)) == 0)
+            {
+                ret = buf;
+                sprintf(buf, "DynamicFunc#%lx", (unsigned long)v.val.obj);
+            }
+            return ret;
+
+        case VM_FUNCPTR:
+        case VM_CODEOFS:
+            /* function pointer or code offset - return the function */
+            if ((ret = funcaddr_to_sym(v.val.ofs)) == 0)
+            {
+                ret = buf;
+                sprintf(buf, "func#%lx", (unsigned long)v.val.ofs);
+            }
+            return ret;
+
+        default:
+            break;
+        }
+    }
+
+    /* there's no symbolic form of the address */
+    return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Get information on the source location at a given stack level 
  */
 int CVmDebug::get_source_info(VMG_ const char **fname,
@@ -561,8 +622,7 @@ int CVmDebug::get_source_info(VMG_ const char **fname,
     CVmFuncPtr func_ptr;
     CVmDbgLinePtr line_ptr;
     CVmSrcfEntry *srcf_entry;
-    ulong stm_start;
-    ulong stm_end;
+    const uchar *stm_start, *stm_end;
 
     /* if there's no source file table, we can't get any information */
     if (G_srcf_table == 0)
@@ -602,8 +662,7 @@ void CVmDebug::enum_locals(VMG_ void (*cbfunc)(void *, const char *, size_t),
     CVmDbgTablePtr dbg_ptr;
     CVmDbgFramePtr frame_ptr;
     CVmDbgFrameSymPtr sym;
-    ulong stm_start;
-    ulong stm_end;
+    const uchar *stm_start, *stm_end;
     uint i;
     uint frame_id;
 
@@ -628,7 +687,7 @@ void CVmDebug::enum_locals(VMG_ void (*cbfunc)(void *, const char *, size_t),
         dbg_ptr.set_frame_ptr(vmg_ &frame_ptr, frame_id);
 
         /* set up a pointer to the first symbol */
-        frame_ptr.set_first_sym_ptr(&sym);
+        frame_ptr.set_first_sym_ptr(vmg_ &sym);
 
         /* iterate through the frame and call the callback for each symbol */
         for (i = frame_ptr.get_sym_count() ; i != 0 ; --i, sym.inc(vmg0_))
@@ -638,30 +697,100 @@ void CVmDebug::enum_locals(VMG_ void (*cbfunc)(void *, const char *, size_t),
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Callback for enumerating the named argument table, to add the named
+ *   arguments to the stack trace. 
+ */
+struct named_arg_stack_ctx
+{
+    named_arg_stack_ctx(CVmDebug *dbg, char *p, size_t rem, int argc)
+    {
+        this->dbg = dbg;
+        this->p = p;
+        this->rem = rem;
+        this->argc = argc;
+    }
+
+    /* debugger object */
+    CVmDebug *dbg;
+
+    /* current write buffer position */
+    char *p;
+    size_t rem;
+
+    /* number of arguments so far, including previous position arguments */
+    int argc;
+
+    void append(const char *txt, size_t len)
+    {
+        if (len < rem)
+        {
+            memcpy(p, txt, len);
+            p += len;
+            rem -= len;
+            *p = '\0';
+        }
+        else if (rem > 3)
+        {
+            strcpy(p, "...");
+            rem = 0;
+        }
+        else
+        {
+            rem = 0;
+        }
+    }
+    void append(const char *txt) { append(txt, strlen(txt)); }
+
+    void add(VMG_ const char *name, size_t len, const vm_val_t *val)
+    {
+        /* add "<comma> name: val" */
+        if (argc++ > 0)
+            append(", ");
+
+        /* add the name */
+        append(name, len);
+
+        /* add the colon */
+        append(":");
+
+        /* add the value */
+        dbg->format_val(vmg_ p, rem, val);
+
+        /* advance past it */
+        size_t l = strlen(p);
+        p += l;
+        rem -= l;
+    }
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Build a stack traceback listing 
  */
 void CVmDebug::build_stack_listing(VMG_
                                    void (*cbfunc)(void *, const char *, int),
                                    void *cbctx, int source_info)
 {
-    ulong method_ofs;
+    const uchar *methodp;
     vm_val_t *fp;
     vm_obj_id_t self_obj;
-    pool_ofs_t entry_addr;
+    const uchar *entry;
+    const vm_rcdesc *rc;
     int level;
     
     /* start at the current function */
     fp = G_interpreter->get_frame_ptr();
     self_obj = G_interpreter->get_self(vmg0_);
-    entry_addr = entry_ofs_;
-    method_ofs = pc_ - entry_ofs_;
+    entry = entry_;
+    methodp = pc_;
 
     /* iterate through the frames */
-    for (level = 0 ; fp != 0 ;
-         fp = G_interpreter->get_enclosing_frame_ptr(vmg_ fp), ++level)
+    for (level = 0, rc = 0 ; fp != 0 ; ++level)
     {
         vm_obj_id_t def_obj;
         int argc;
+        const vm_val_t *argp = 0;
         char buf[256];
         int i;
         char *p;
@@ -679,31 +808,128 @@ void CVmDebug::build_stack_listing(VMG_
         def_obj = G_interpreter->get_defining_obj_from_frame(vmg_ fp);
 
         /* determine whether we have an object.method or a function call */
-        if (method_ofs == 0)
+        if (methodp == 0)
         {
             /* 
-             *   a zero method offset indicates a native caller making a
-             *   recursive entry into the byte-code interpreter 
+             *   A zero method offset indicates a native caller making a
+             *   recursive entry into the byte-code interpreter.  If we have
+             *   a recursive caller context, we can get the information from
+             *   it; otherwise show a generic "System" caller.  
              */
             sprintf(buf, "<System>");
-
-            /* 
-             *   we don't know anything about the arguments to a native
-             *   routine 
-             */
             argc = 0;
+            if (rc != 0)
+            {
+                /* check what kind of native caller we have */
+                if (rc->bifptr.typ != VM_NIL)
+                {
+                    /* we have a built-in function at this level */
+                    const char *func_sym = bif_to_sym(
+                        rc->bifptr.val.bifptr.set_idx,
+                        rc->bifptr.val.bifptr.func_idx);
+                    if (func_sym != 0)
+                        sprintf(buf, "%.255s", func_sym);
+                    else
+                        sprintf(buf, "intrinsicFunction#%d.%d",
+                                (rc->bifptr.val.intval >> 16) & 0xffff,
+                                rc->bifptr.val.intval & 0xffff);
+
+                    /* use the arguments from the native descriptor */
+                    argc = rc->argc;
+                    argp = rc->argp;
+                }
+                else if (rc->self.typ != VM_NIL)
+                {
+                    const char *ic_sym = 0;
+                    const char *prop_sym = 0;
+                    
+                    /* intrinsic class method - get the metaclass */
+                    CVmMetaclass *mc;
+                    switch (rc->self.typ)
+                    {
+                    case VM_OBJ:
+                        /* get the metaclass from the object */
+                        mc = vm_objp(vmg_ rc->self.val.obj)
+                             ->get_metaclass_reg();
+                        break;
+
+                    case VM_LIST:
+                        /* list constant - use the List metaclass */
+                        mc = CVmObjList::metaclass_reg_;
+                        break;
+
+                    case VM_SSTRING:
+                        /* string constant - use the String metaclass */
+                        mc = CVmObjString::metaclass_reg_;
+                        break;
+
+                    default:
+                        /* other types don't have metaclasses */
+                        mc = 0;
+                        break;
+                    }
+
+                    /* get the registration table entry */
+                    vm_meta_entry_t *me =
+                        mc == 0 ? 0 :
+                        G_meta_table->get_entry_from_reg(mc->get_reg_idx());
+
+                    /* get the metaclass object and property from the entry */
+                    if (me != 0)
+                    {
+                        /* get the IntrinsicClass object */
+                        ic_sym = objid_to_sym(me->class_obj_);
+
+                        /* get the property ID */
+                        prop_sym = propid_to_sym(me->xlat_func(rc->method_idx));
+                    }
+
+                    /* build the object.property name */
+                    if (ic_sym != 0)
+                        sprintf(buf, "%.255s [", ic_sym);
+                    else if (me != 0)
+                        sprintf(buf, "IntrinsicClass#%lx [",
+                                (unsigned long)me->class_obj_);
+                    else
+                        sprintf(buf, "IntrinsicClass [");
+
+                    /* add the 'self' object */
+                    size_t cur_len = strlen(buf);
+                    p = buf + cur_len;
+                    rem = sizeof(buf) - cur_len;
+                    format_val(vmg_ p, rem - 10, &rc->self);
+
+                    /* add the property separator */
+                    cur_len = strlen(p);
+                    rem -= cur_len;
+                    p += cur_len;
+                    if (rem > 10)
+                    {
+                        *p++ = ']';
+                        *p++ = '.';
+                        *p = '\0';
+                        rem -= 2;
+                    }
+
+                    /* add the property name */
+                    if (rem > 15)
+                    {
+                        if (prop_sym != 0)
+                            sprintf(p, "%.*s", rem - 1, prop_sym);
+                        else if (me != 0)
+                            sprintf(p, "prop#%x",
+                                    (int)me->xlat_func(rc->method_idx));
+                        else
+                            sprintf(p, "prop#?");
+                    }
+
+                    /* use the arguments from the native descriptor */
+                    argc = rc->argc;
+                    argp = rc->argp;
+                }
+            }
         }
-        else if (def_obj == VM_INVALID_OBJ)
-        {
-            const char *func_sym;
-            
-            /* it's a function call */
-            if ((func_sym = funcaddr_to_sym(entry_addr)) != 0)
-                sprintf(buf, "%.255s", func_sym);
-            else
-                sprintf(buf, "%08lx", entry_addr);
-        }
-        else
+        else if (def_obj != VM_INVALID_OBJ)
         {
             const char *def_obj_sym;
             const char *self_obj_sym;
@@ -734,7 +960,7 @@ void CVmDebug::build_stack_listing(VMG_
                  *   special format for the display 
                  */
                 is_anon_fn = TRUE;
-                sprintf(buf, "{anonfn:%lx}", def_obj);
+                sprintf(buf, "{anonfn:%lx}", (unsigned long)def_obj);
             }
             else if (self_obj_sym != 0)
             {
@@ -748,12 +974,13 @@ void CVmDebug::build_stack_listing(VMG_
                  *   show the defining object name and add the 'self' object
                  *   number 
                  */
-                sprintf(buf, "%.240s [%lx]", def_obj_sym, self_obj);
+                sprintf(buf, "%.240s [%lx]",
+                        def_obj_sym, (unsigned long)self_obj);
             }
             else
             {
                 /* there's no name to be had, so use the object number */
-                sprintf(buf, "[%lx]", self_obj);
+                sprintf(buf, "[%lx]", (unsigned long)self_obj);
             }
 
             /* prepare to add to the buffer */
@@ -778,18 +1005,26 @@ void CVmDebug::build_stack_listing(VMG_
                 sprintf(p, ".prop#%x", (uint)prop_id);
             }
         }
+        else if (entry != 0)
+        {
+            const char *func_sym;
+            char fbuf[256];
+            
+            /* no object, so it's a function - find the symbol */
+            if ((func_sym = funchdr_to_sym(vmg_ entry, fbuf)) != 0)
+                sprintf(buf, "%.255s", func_sym);
+            else
+                sprintf(buf, "bytecode#%08lx", (unsigned long)entry);
+        }
 
         /* get the remainder of the buffer */
         p = buf + strlen(buf);
         rem = sizeof(buf) - (p - buf);
 
         /* add the open paren */
-        if (entry_addr != 0)
-        {
-            open_paren_ptr = p;
-            *p++ = '(';
-            --rem;
-        }
+        open_paren_ptr = p;
+        *p++ = '(';
+        --rem;
 
         /* add the arguments */
         for (i = 0 ; i < argc ; ++i)
@@ -814,6 +1049,7 @@ void CVmDebug::build_stack_listing(VMG_
              *   an ellipsis indicating we ran out of room 
              */
             format_val(vmg_ p, rem - 10,
+                       argp != 0 ? argp - i :
                        G_interpreter->get_param_from_frame(vmg_ fp, i));
 
             /* move past the latest addition */
@@ -826,21 +1062,52 @@ void CVmDebug::build_stack_listing(VMG_
             {
                 *p++ = ',';
                 *p++ = ' ';
+                *p = '\0';
                 rem -= 2;
             }
         }
 
-        /* add a close paren */
-        if (entry_addr != 0)
+        /* check for named arguments */
+        vm_val_t *nargp;
+        const uchar *t = CVmRun::get_named_args_from_frame(vmg_ fp, &nargp);
+        if (t != 0)
         {
-            close_paren_ptr = p;
-            *p++ = ')';
+            /* get the number of named arguments in the table */
+            int cnt = osrp2(t);
+            t += 2;
+
+            /* 
+             *   Display the named arguments.  The compiler builds the table
+             *   in right-to-left order, reflecting the order of pushing the
+             *   arguments onto the stack.  For readability, reverse this for
+             *   display, so that the display order matches the original
+             *   source code order.  
+             */
+            named_arg_stack_ctx ctx(this, p, rem, argc);
+            nargp += (cnt - 1);
+            for (int i = (cnt-1)*2 ; i >= 0 ; i -= 2, --nargp)
+            {
+                /* get this item's name and figure its length */
+                uint ofs = osrp2(t + i);
+                uint len = osrp2(t + i + 2) - ofs;
+
+                /* add the name */
+                ctx.add(vmg_ (const char *)t + ofs, len, nargp);
+            }
+
+            /* advance past the data we wrote */
+            p = ctx.p;
+            rem = ctx.rem;
         }
 
+        /* add a close paren */
+        close_paren_ptr = p;
+        *p++ = ')';
+
         /* if we have room, add the method offset */
-        if (entry_addr != 0 && rem > 12)
+        if (methodp != 0 && entry != 0 && rem > 12)
         {
-            sprintf(p, "+ %lx", method_ofs);
+            sprintf(p, " + 0x%lX", (unsigned long)(methodp - entry));
             p += strlen(p);
         }
 
@@ -848,11 +1115,8 @@ void CVmDebug::build_stack_listing(VMG_
         *p++ = '\n';
         *p = '\0';
 
-        /* 
-         *   if the method offset is non-zero, and they want source line
-         *   information, add it 
-         */
-        if (method_ofs != 0 && source_info)
+        /* if they want source line information, add it */
+        if (methodp != 0 && source_info)
         {
             const char *fname;
             unsigned long linenum;
@@ -942,9 +1206,24 @@ void CVmDebug::build_stack_listing(VMG_
         (*cbfunc)(cbctx, buf, strlen(buf));
 
         /* move on to the enclosing frame */
-        entry_addr = G_interpreter
-                     ->get_enclosing_entry_ptr_from_frame(vmg_ fp);
-        method_ofs = G_interpreter->get_return_ofs_from_frame(vmg_ fp);
+        if (rc != 0 && rc->return_addr != 0)
+        {
+            /* 
+             *   recursive context - stay in the same frame, but move to the
+             *   bytecode caller
+             */
+            methodp = rc->return_addr;
+            rc = 0;
+        }
+        else
+        {
+            /* no recursive context - move to the next stack frame */
+            entry = G_interpreter
+                    ->get_enclosing_entry_ptr_from_frame(vmg_ fp);
+            methodp = G_interpreter->get_return_addr_from_frame(vmg_ fp);
+            rc = G_interpreter->get_rcdesc_from_frame(vmg_ fp);
+            fp = G_interpreter->get_enclosing_frame_ptr(vmg_ fp);
+        }
     }
 }
 
@@ -952,7 +1231,7 @@ void CVmDebug::build_stack_listing(VMG_
 /*
  *   Toggle a breakpoint 
  */
-int CVmDebug::toggle_breakpoint(VMG_ ulong code_addr,
+int CVmDebug::toggle_breakpoint(VMG_ const uchar *code_addr,
                                 const char *cond, int change,
                                 int *bpnum, int *did_set,
                                 char *errbuf, size_t errbuflen)
@@ -964,21 +1243,7 @@ int CVmDebug::toggle_breakpoint(VMG_ ulong code_addr,
     if (code_addr != 0)
     {
         /* get a writable pointer to the code location */
-        code_ptr = G_code_pool->get_writable_ptr(code_addr);
-
-        /* if that failed, we can't set a breakpoint */
-        if (code_ptr == 0)
-        {
-            /* set a message if appropriate */
-            if (errbuf != 0 && errbuflen != 0)
-            {
-                strncpy(errbuf, "unable to write code address", errbuflen - 1);
-                errbuf[errbuflen - 1] = '\0';
-            }
-            
-            /* return failure */
-            return 1;
-        }
+        code_ptr = (char *)code_addr;
     }
     else
     {
@@ -1003,11 +1268,8 @@ int CVmDebug::toggle_breakpoint(VMG_ ulong code_addr,
         {
             /* generate a message */
             if (errbuf != 0 && errbuflen != 0)
-            {
-                strncpy(errbuf, "out of internal breakpoint records",
-                        errbuflen - 1);
-                errbuf[errbuflen - 1] = '\0';
-            }
+                lib_strcpy(errbuf, errbuflen,
+                           "out of internal breakpoint records");
 
             /* return failure */
             return 2;
@@ -1139,10 +1401,7 @@ int CVmDebug::set_breakpoint_condition(VMG_ int bpnum,
     {
         /* set the error message if needed */
         if (errbuf != 0 && errbuflen != 0)
-        {
-            strncpy(errbuf, "invalid breakpoint", errbuflen - 1);
-            errbuf[errbuflen - 1] = '\0';
-        }
+            lib_strcpy(errbuf, errbuflen, "invalid breakpoint");
 
         /* return failure */
         return 1;
@@ -1214,7 +1473,7 @@ CVmDebugBp *CVmDebug::alloc_bp()
 /*
  *   Find a breakpoint at a given address 
  */
-CVmDebugBp *CVmDebug::find_bp(ulong code_addr)
+CVmDebugBp *CVmDebug::find_bp(const uchar *code_addr)
 {
     size_t i;
     CVmDebugBp *bp;
@@ -1241,16 +1500,185 @@ CVmDebugBp *CVmDebug::find_bp(ulong code_addr)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Format a value, allocating space 
+ */
+char *CVmDebug::format_val(VMG_ const vm_val_t *val)
+{
+    /* first, do the formatting to figure the space we need */
+    size_t len = format_val(vmg_ 0, 0, val);
+
+    /* allocate space */
+    char *buf = (char *)t3malloc(len + 1);
+
+    /* do the formatting for real this time */
+    format_val(vmg_ buf, len + 1, val);
+
+    /* return the allocated buffer */
+    return buf;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Generic string traverser - for utf-8 or ucs-2 strings
+ */
+class StrSource
+{
+public:
+    virtual wchar_t nextch() = 0;
+    size_t rem;
+};
+
+class StrSourceUTF: public StrSource
+{
+public:
+    StrSourceUTF *init(const char *p)
+    {
+        rem = vmb_get_len(p);
+        this->p.set((char *)p + VMB_LEN);
+        return this;
+    }
+
+    virtual wchar_t nextch()
+    {
+        if (rem > 0)
+        {
+            wchar_t ch = p.getch();
+            p.inc(&rem);
+            return ch;
+        }
+        else return 0;
+    }
+
+    utf8_ptr p;
+};
+
+class StrSourceWide: public StrSource
+{
+public:
+    StrSourceWide *init(const wchar_t *p, size_t len)
+    {
+        this->p = p;
+        this->rem = len;
+        return this;
+    }
+
+    virtual wchar_t nextch()
+    {
+        if (rem > 0)
+        {
+            --rem;
+            return *p++;
+        }
+        else
+            return 0;
+    }
+
+    const wchar_t *p;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Lookup table enumerator for building an inline value display 
+ */
+
+/* callback context */
+struct lookup_lister_ctx
+{
+    /* debugger object */
+    CVmDebug *dbg;
+
+    /* the output buffer */
+    char *dst;
+    size_t dstlen;
+
+    /* the total space we need so far */
+    size_t retlen;
+
+    /* number of items so far */
+    int cnt;
+
+    /* enumerator callback, static version */
+    static void scb(
+        VMG_ const vm_val_t *key, const vm_val_t *val, void *ctx0)
+    {
+        /* get our context, properly cast, and call its handler */
+        lookup_lister_ctx *ctx = (lookup_lister_ctx *)ctx0;
+        ctx->cb(vmg_ key, val);
+    }
+
+    /* enumerator callback, method version */
+    void cb(VMG_ const vm_val_t *key, const vm_val_t *val)
+    {
+        /* if this isn't the first element, add a comma */
+        if (cnt++ != 0)
+            append(",");
+        
+        /* format this key (or just "*" if this is the default value) */
+        if (key != 0)
+            consume(dbg->format_val(vmg_ dst, dstlen, key));
+        else
+            append("*");
+
+        /* add the -> */
+        append("->");
+
+        /* format the value */
+        consume(dbg->format_val(vmg_ dst, dstlen, val));
+    }
+
+    /* append text */
+    void append(const char *txt) { append(txt, strlen(txt)); }
+    void append(const char *txt, size_t len)
+    {
+        /* copy up to the available space */
+        size_t copylen = (len < dstlen ? len : dstlen > 0 ? dstlen - 1 : 0);
+
+        /* copy as much as we can */
+        if (copylen != 0)
+            memcpy(dst, txt, copylen);
+
+        /* consume the space */
+        consume(len);
+    }
+
+    /* consume space */
+    void consume(size_t len)
+    {
+        /* count the full text length in the target size */
+        retlen += len;
+
+        /* skip the space, but always leave room for a null terminator */
+        if (dst != 0 && dstlen > 0)
+        {
+            if (len < dstlen)
+            {
+                dst += len;
+                dstlen -= len;
+            }
+            else
+            {
+                dst += dstlen - 1;
+                dstlen = 1;
+            }
+        }
+    }
+};
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Format a value into the given buffer 
  */
-void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
+size_t CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
 {
     const char *p;
     char buf[128];
-
-    /* if there's no buffer, we can't do anything */
-    if (dstlen == 0)
-        return;
+    size_t retlen = 0;
+    StrSource *ps = 0;
+    StrSourceUTF psUTF;
+    StrSourceWide psWide;
 
     /* format the value based on the type */
     switch(val->typ)
@@ -1274,62 +1702,56 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
         {
             /* try it as a string */
             if ((p = vm_objp(vmg_ val->val.obj)->get_as_string(vmg0_)) != 0)
+            {
+                ps = psUTF.init(p);
                 goto format_string;
+            }
 
             /* try it as a list */
-            if ((p = vm_objp(vmg_ val->val.obj)->get_as_list()) != 0)
+            if (vm_objp(vmg_ val->val.obj)->get_as_list() != 0)
                 goto format_list;
 
             /* try it as a BigNumber */
             if (CVmObjBigNum::is_bignum_obj(vmg_ val->val.obj))
             {
-                CVmObjBigNum *bn;
-                char *nump;
-
                 /* cast it to a BigNumber object */
-                bn = (CVmObjBigNum *)vm_objp(vmg_ val->val.obj);
+                CVmObjBigNum *bn = (CVmObjBigNum *)vm_objp(vmg_ val->val.obj);
 
-                /* set up a prefix to flag it as a BigNumber value */
-                sprintf(buf, "obj#%lx (BigNumber ", (ulong)val->val.obj);
-
-                /* 
-                 *   write at the end of our prefix, minus two bytes for
-                 *   the length prefix that the string converter will
-                 *   write into the buffer (we'll fix up the ovewritten
-                 *   bytes later) 
-                 */
-                nump = buf + strlen(buf) - 2;
-
-                /* format it into our buffer */
-                if (bn->cvt_to_string_buf(vmg_ nump,
-                                          sizeof(buf) - (nump - buf) - 4,
-                                          64, -1, -1, -1, 0) != 0)
+                /* try formatting it as a numeric value */
+                if (bn->cvt_to_string_buf(
+                    vmg_ buf, sizeof(buf), -1, -1, -1, -1,
+                    VMBN_FORMAT_POINT | VMBN_FORMAT_COMPACT) != 0)
                 {
-                    size_t len;
-                    
-                    /* get the length prefix */
-                    len = vmb_get_len(nump);
-
-                    /* put the close of the string */
-                    strcpy(nump + len + 2, ")");
-
-                    /* fix up the bytes we overwrote with the length prefix */
-                    *nump = 'r';
-                    *(nump + 1) = ' ';
-                    
-                    /* use the buffer */
-                    p = buf;
-                    
-                    /* handled */
-                    break;
+                    /*
+                     *   We got a string, but it's in length-prefix notation.
+                     *   Change it to C notation by moving the string
+                     *   contents to the bottom of the buffer and
+                     *   null-terminating.
+                     */
+                    size_t len = vmb_get_len(buf);
+                    memmove(buf, buf + VMB_LEN, len);
+                    buf[len] = '\0';
                 }
+                else
+                {
+                    /* couldn't format it - show it as an obj# value */
+                    sprintf(buf, "obj#%lx (BigNumber)",
+                            (unsigned long)val->val.obj);
+                    p = buf;
+                }
+                    
+                /* use the buffer */
+                p = buf;
+
+                /* handled */
+                break;
             }
 
             /* 
              *   It's a dynamically-created object with no name.  Show it
              *   by object it. 
              */
-            sprintf(buf, "obj#%lx", (ulong)val->val.obj);
+            sprintf(buf, "obj#%lx", (unsigned long)val->val.obj);
 
             /* if possible, add the name of the of the superclass */
             if (vm_objp(vmg_ val->val.obj)
@@ -1346,6 +1768,100 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
                 {
                     /* add "(superclass name)" after the numeric ID */
                     sprintf(buf + strlen(buf), " (%.100s)", p);
+                }
+            }
+
+            /* 
+             *   if it's a StringBuffer, Vector, or LookupTable, start the
+             *   result buffer with the object ID string, but also add an
+             *   inline expansion of the contents 
+             */
+            if (CVmObjStringBuffer::is_string_buffer_obj(vmg_ val->val.obj)
+                || (CVmObjVector::is_vector_obj(vmg_ val->val.obj)
+                    && !CVmObjAnonFn::is_anonfn_obj(vmg_ val->val.obj))
+                || CVmObjLookupTable::is_lookup_table_obj(vmg_ val->val.obj)
+                || CVmObjPattern::is_pattern_obj(vmg_ val->val.obj))
+            {
+                /* figure the length we need to add for the type name */
+                size_t len = strlen(buf);
+                retlen += len + 1;
+                
+                /* if there's room, add the type name */
+                if (dstlen > len + 1)
+                {
+                    memcpy(dst, buf, len);
+                    dst[len] = ' ';
+                    dst += len + 1;
+                    dstlen -= len + 1;
+                }
+
+                /* if it's a StringBuffer, add the string contents */
+                if (CVmObjStringBuffer::is_string_buffer_obj(vmg_ val->val.obj))
+                {
+                    CVmObjStringBuffer *strbuf =
+                        ((CVmObjStringBuffer *)vm_objp(vmg_ val->val.obj));
+                    ps = psWide.init(strbuf->get_buf(), strbuf->get_len());
+                    goto format_string;
+                }
+
+                /* if it's a RexPattern object, add the pattern string */
+                if (CVmObjPattern::is_pattern_obj(vmg_ val->val.obj))
+                {
+                    /* get the pattern */
+                    CVmObjPattern *pat =
+                        (CVmObjPattern *)vm_objp(vmg_ val->val.obj);
+
+                    /* get the source string, if it has one */
+                    const vm_val_t *patval;
+                    if ((patval = pat->get_orig_str()) != 0
+                        && (p = patval->get_as_string(vmg0_)) != 0)
+                    {
+                        /* got it - go add the string to the display */
+                        ps = psUTF.init(p);
+                        goto format_string;
+                    }
+                }
+
+                /*  if it's a Vector, add the contents in list format */
+                if (CVmObjVector::is_vector_obj(vmg_ val->val.obj))
+                    goto format_list;
+
+                /* if it's a lookup table, add the table contents */
+                if (CVmObjLookupTable::is_lookup_table_obj(vmg_ val->val.obj))
+                {
+                    /* get the lookup table object, properly cast */
+                    CVmObjLookupTable *lt =
+                        (CVmObjLookupTable *)vm_objp(vmg_ val->val.obj);
+
+                    /* set up our enumerator context */
+                    lookup_lister_ctx lctx;
+                    lctx.dbg = this;
+                    lctx.dst = dst;
+                    lctx.dstlen = dstlen;
+                    lctx.retlen = retlen;
+                    lctx.cnt = 0;
+
+                    /* start the list */
+                    lctx.append("[");
+
+                    /* enumerate the table's contents */
+                    lt->for_each(vmg_ &lctx.scb, &lctx);;
+
+                    /* if there's a default value, add it */
+                    vm_val_t defval;
+                    lt->get_default_val(&defval);
+                    if (defval.typ != VM_NIL)
+                        lctx.cb(vmg_ 0, &defval);
+
+                    /* end the list */
+                    lctx.append("]");
+
+                    /* null-terminate the table */
+                    if (lctx.dst != 0 && lctx.dstlen > 0)
+                        *lctx.dst = '\0';
+                    
+                    /* we've handled this value fully */
+                    return lctx.retlen;
                 }
             }
 
@@ -1376,7 +1892,7 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
         /* enum ID - get the enum name */
         p = enum_to_sym(val->val.enumval);
 
-        /* if there's no s ymbol, use the numeric enum ID */
+        /* if there's no symbol, use the numeric enum ID */
         if (p == 0)
         {
             sprintf(buf, "enum#%x", (uint)val->val.enumval);
@@ -1384,167 +1900,163 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
         }
         break;
 
+    case VM_BIFPTR:
+        /* built-in function pointer - get the function name */
+        p = bif_to_sym(val->val.bifptr.set_idx, val->val.bifptr.func_idx);
+        if (p != 0)
+        {
+            /* we have a symbol - use it with an ampersand operator */
+            sprintf(buf, "&%.127s", p);
+            p = buf;
+        }
+        else
+        {
+            /* there's no symbol, so use the numeric ID */
+            sprintf(buf, "&intrinsic_function#%u:%u",
+                    val->val.bifptr.set_idx, val->val.bifptr.func_idx);
+            p = buf;
+        }
+        break;
+
     case VM_INT:
         /* integer */
-        sprintf(buf, "%ld", val->val.intval);
+        sprintf(buf, "%ld", (long)val->val.intval);
         p = buf;
         break;
 
     case VM_SSTRING:
         /* length-prefixed string - get a pointer to the data */
-        p = G_const_pool->get_ptr(val->val.ofs);
+        ps = psUTF.init(G_const_pool->get_ptr(val->val.ofs));
 
     format_string:
-        /* 
-         *   first, add an open quote, if we minimally have room for the
-         *   quote plus a null terminator 
-         */
+        /* add an open quote, if we have room for it */
+        ++retlen;
         if (dstlen > 1)
         {
             *dst++ = '\'';
             --dstlen;
         }
         
-        /* copy as much as we can */
+        /* 
+         *   keep going until we run out of source text or space in our
+         *   output buffer - leave ourselves 5 extra bytes (close quote,
+         *   "..." if we run out of space, and null terminator) 
+         */
+        while (ps->rem != 0)
         {
-            size_t rem;
-            utf8_ptr strp;
-
-            /* read and skip the length prefix */
-            rem = osrp2(p);
-            p += 2;
-
-            /* set up a utf-8 pointer to the source string */
-            strp.set((char *)p);
+            /* get the current unicode character code */
+            wchar_t uni = ps->nextch();
 
             /* 
-             *   keep going until we run out of source text or space in
-             *   our output buffer - leave ourselves 5 extra bytes (close
-             *   quote, "..." if we run out of space, and null terminator) 
+             *   determine if the character is mappable to the local
+             *   character set 
              */
-            for ( ; rem != 0 && dstlen > 5 ; strp.inc(&rem))
+            int mappable = G_cmap_to_ui->is_mappable(uni);
+            
+            /* 
+             *   If there's no mapping, insert a '\u' sequence for the
+             *   character.  If the character is in the non-printable control
+             *   character range, use a backslash representation as well.  If
+             *   the character is a backslash or single quote, also represent
+             *   it as a backslash sequence, since it would need to be quoted
+             *   in a string submitted to the compiler.  
+             */
+            if (uni < 32 || uni == '\\' || uni == '\'')
             {
-                wchar_t uni;
-                int mappable;
-
-                /* get the current unicode character code */
-                uni = strp.getch();
-
-                /* 
-                 *   determine if the character is mappable to the local
-                 *   character set 
-                 */
-                mappable = G_cmap_to_ui->is_mappable(uni);
-
-                /* 
-                 *   If there's no mapping, insert a '\u' sequence for the
-                 *   character.  If the character is in the non-printable
-                 *   control character range, use a backslash
-                 *   representation as well.  If the character is a
-                 *   backslash or single quote, also represent it as a
-                 *   backslash sequence, since it would need to be quoted
-                 *   in a string submitted to the compiler.  
-                 */
-                if (uni < 32 || uni == '\\' || uni == '\'')
+                char esc;
+                unsigned int dig;
+                
+                switch(uni)
                 {
-                    char esc;
-                    unsigned int dig;
-
-                    switch(uni)
+                case 9:
+                    /* tab - '\t' */
+                    esc = 't';
+                    
+                do_escape:
+                    /* add the escape sequence */
+                    retlen += 2;
+                    if (dstlen > 2)
                     {
-                    case 9:
-                        /* tab - '\t' */
-                        esc = 't';
-
-                    do_escape:
-                        /* we need two bytes, plus our 5 reserve */
-                        if (dstlen < 2 + 5)
-                            goto out_of_str_space;
-
-                        /* add the escape sequence */
                         *dst++ = '\\';
                         *dst++ = esc;
-
-                        /* consume the two bytes */
                         dstlen -= 2;
-                        break;
-                        
-                    case 10:
-                        /* newline - '\n' */
-                        esc = 'n';
-                        goto do_escape;
-                        
-                    case 0x000F:
-                        /* caps - '\^' */
-                        esc = '^';
-                        goto do_escape;
-
-                    case 0x000E:
-                        /* uncaps - '\v' */
-                        esc = 'v';
-                        goto do_escape;
-
-                    case 0x000B:
-                        /* blank - '\b' */
-                        esc = 'b';
-                        goto do_escape;
-
-                    case 0x0015:
-                        /* quoted space - '\ ' */
-                        esc = ' ';
-                        goto do_escape;
-
-                    case '\\':
-                    case '\'':
-                        esc = (char)uni;
-                        goto do_escape;
-
-                    default:
-                        /* 
-                         *   represent anything else as a hex sequence -
-                         *   we need four bytes, plus the 5 reserve 
-                         */
-                        if (dstlen < 4 + 5)
-                            goto out_of_str_space;
-
+                    }
+                    break;
+                    
+                case 10:
+                    /* newline - '\n' */
+                    esc = 'n';
+                    goto do_escape;
+                    
+                case 13:
+                    /* return - '\r' */
+                    esc = 'r';
+                    goto do_escape;
+                    
+                case 0x000F:
+                    /* caps - '\^' */
+                    esc = '^';
+                    goto do_escape;
+                    
+                case 0x000E:
+                    /* uncaps - '\v' */
+                    esc = 'v';
+                    goto do_escape;
+                    
+                case 0x000B:
+                    /* blank - '\b' */
+                    esc = 'b';
+                    goto do_escape;
+                    
+                case 0x0015:
+                    /* quoted space - '\ ' */
+                    esc = ' ';
+                    goto do_escape;
+                    
+                case '\\':
+                case '\'':
+                    esc = (char)uni;
+                    goto do_escape;
+                    
+                default:
+                    /* represent anything else as a hex sequence */
+                    retlen += 4;
+                    if (dstlen > 4)
+                    {
                         /* add the backslash and 'x' */
                         *dst++ = '\\';
                         *dst++ = 'x';
-
+                        
                         /* add the the first hex digit */
                         dig = (uni >> 4) & 0xF;
                         *dst++ = dig + (dig < 10 ? '0' : 'A' - 10);
-
+                        
                         /* add the second hex digit */
                         dig = (uni & 0xF);
                         *dst++ = dig + (dig < 10 ? '0' : 'A' - 10);
-
+                        
                         /* consume the space */
                         dstlen -= 4;
-                        break;
                     }
+                    break;
                 }
-                else if (!mappable)
+            }
+            else if (!mappable)
+            {
+                int i;
+                unsigned int c;
+                
+                /* 
+                 *   the '\u' sequence requires six bytes (backslash, 'u',
+                 *   and the four hex digits of the character code) 
+                 */
+                retlen += 6;
+                if (dstlen > 6)
                 {
-                    int i;
-                    unsigned int c;
-                    
-                    /* 
-                     *   the '\u' sequence requires six bytes (backslash,
-                     *   'u', and the four hex digits of the character
-                     *   code), plus the 5 reserve we always leave, so if
-                     *   we don't have room stop now 
-                     */
-                    if (dstlen < 5 + 6)
-                        break;
-
-                    /* consume the space */
-                    dstlen -= 6;
-
                     /* add the '\u' */
                     *dst++ = '\\';
                     *dst++ = 'u';
-
+                    
                     /* add the four hex digits */
                     for (c = (unsigned int)uni, i = 0 ; i < 4 ; ++i)
                     {
@@ -1555,120 +2067,116 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
                         
                         /* generate the next hex digit */
                         *dst++ = dig + (dig < 10 ? '0' : 'A' - 10);
-
+                        
                         /* shift up so the next digit is in current */
                         c <<= 4;
                     }
-                }
-                else
-                {
-                    char buf[20];
-                    size_t xlat_len;
                     
-                    /* get the translation of this character */
-                    xlat_len = G_cmap_to_ui->map_char(uni, buf, sizeof(buf));
-
-                    /* if there's no room, stop now */
-                    if (dstlen < xlat_len + 5)
-                        break;
-
-                    /* copy the translation */
-                    memcpy(dst, buf, xlat_len);
-
-                    /* advance past the space we've used */
-                    dst += xlat_len;
-                    dstlen -= xlat_len;
+                    /* consume the space */
+                    dstlen -= 6;
                 }
             }
-
-        out_of_str_space:
-            /* add an ellipsis at the end if we ran out of space */
-            if (rem != 0 && dstlen >= 5)
+            else
             {
-                *dst++ = '.';
-                *dst++ = '.';
-                *dst++ = '.';
-                dstlen -= 3;
+                char buf[20];
+                size_t xlat_len;
+                size_t copy_len;
+                
+                /* get the translation of this character */
+                xlat_len = G_cmap_to_ui->map_char(uni, buf, sizeof(buf));
+                copy_len = (dstlen <= 1 ? 0 :
+                            xlat_len < dstlen ? xlat_len :
+                            dstlen - 1);
+                
+                /* copy the translation */
+                memcpy(dst, buf, copy_len);
+                
+                /* advance past the space we've used */
+                retlen += xlat_len;
+                dst += copy_len;
+                dstlen -= copy_len;
             }
-
-            /* add the close quote */
-            if (dstlen > 1)
-                *dst++ = '\'';
-
-            /* add the null terminator */
-            if (dstlen > 0)
-                *dst++ = '\0';
         }
+        
+        /* add the close quote */
+        retlen += 1;
+        if (dstlen > 1)
+            *dst++ = '\'';
+        
+        /* add the null terminator */
+        if (dstlen > 0)
+            *dst++ = '\0';
 
         /* we're done - don't bother with the normal copying */
-        return;
+        return retlen;
 
     case VM_LIST:
-        /* constant list - get the data pointer */
-        p = G_const_pool->get_ptr(val->val.ofs);
-
     format_list:
         {
-            size_t i;
-            size_t cnt;
-            
             /* get the element count */
-            cnt = vmb_get_len(p);
+            size_t cnt = val->ll_length(vmg0_);
 
             /* add the open bracket */
-            if (dstlen >= 2)
+            retlen += 1;
+            if (dstlen > 1)
             {
                 *dst++ = '[';
                 --dstlen;
             }
 
             /* scan through the elements (using a 1-based counter) */
-            for (i = 1 ; i <= cnt && dstlen > 7 ; ++i)
+            for (size_t i = 1 ; i <= cnt ; ++i)
             {
-                vm_val_t val;
-                size_t cur_len;
-
                 /* get this element */
-                CVmObjList::index_list(vmg_ &val, p, i);
+                vm_val_t ele;
+                val->ll_index(vmg_ &ele, i);
 
-                /* add this element, leaving room for closing data */
-                format_val(vmg_ dst, dstlen - 7, &val);
+                /* format the element */
+                size_t cur_len = format_val(vmg_ dst, dstlen, &ele);
+                retlen += cur_len;
 
-                /* skip past this value */
-                cur_len = strlen(dst);
-                dst += cur_len;
-                dstlen -= cur_len;
+                /* consume the space */
+                if (dst != 0 && dstlen > 0)
+                {
+                    if (cur_len < dstlen)
+                    {
+                        dstlen -= cur_len;
+                        dst += cur_len;
+                    }
+                    else
+                    {
+                        dst += dstlen - 1;
+                        dstlen = 1;
+                    }
+                }
 
                 /* add a comma between elements if possible */
-                if (dstlen > 6 && i != cnt)
+                if (i != cnt)
                 {
-                    *dst++ = ',';
-                    --dstlen;
+                    retlen += 1;
+                    if (dstlen > 1)
+                    {
+                        *dst++ = ',';
+                        --dstlen;
+                    }
                 }
             }
 
-            /* 
-             *   if we didn't exhaust the list, and we have room, indicate
-             *   that more follows 
-             */
-            if (i <= cnt && dstlen >= 5)
+            /* add the closing bracket if possible */
+            retlen += 1;
+            if (dstlen > 1)
             {
-                *dst++ = '.';
-                *dst++ = '.';
-                *dst++ = '.';
-                dstlen -= 3;
+                *dst++ = ']';
+                --dstlen;
             }
 
-            /* add the closing bracket if possible */
-            if (dstlen >= 2)
-                *dst++ = ']';
-
             /* add the null terminator */
-            *dst = '\0';
+            if (dstlen > 0)
+                *dst = '\0';
         }
 
         /* we're done - don't bother with normal copying */
-        return;
+        return retlen;
 
     case VM_FUNCPTR:
         /* function pointer - get the function name */
@@ -1677,7 +2185,7 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
         /* if there's no symbol, use the numeric function address */
         if (p == 0)
         {
-            sprintf(buf, "function#%08lx", (ulong)val->val.ofs);
+            sprintf(buf, "function#%08lx", (unsigned long)val->val.ofs);
             p = buf;
         }
         break;
@@ -1688,17 +2196,85 @@ void CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
     }
 
     /* copy as much of the value as possible into the buffer */
-    strncpy(dst, p, dstlen);
+    retlen = strlen(p);
+    lib_strcpy(dst, dstlen, p);
 
     /* make sure the buffer is null-terminated */
-    dst[dstlen - 1] = '\0';
+    if (dstlen > 0)
+        dst[dstlen - 1] = '\0';
+
+    /* return the total length required */
+    return retlen;
 }
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Callback context structure for enum_props_eval_cb 
+ *   Format a value as a special 
  */
-struct enum_props_eval_cb_ctx
+void CVmDebug::format_special(VMG_ char *buf, size_t buflen,
+                              const vm_val_t *val)
+{
+    /* we need a fairly fixed size for the buffer: "#__type xxxxxxxx" */
+    if (buflen < 25)
+    {
+        buf[0] = '\0';
+        return;
+    }
+    
+    switch (val->typ)
+    {
+    case VM_NIL:
+        strcpy(buf, "nil");
+        return;
+
+    case VM_TRUE:
+        strcpy(buf, "true");
+        return;
+
+    case VM_OBJ:
+        sprintf(buf, "#__obj %lu", (unsigned long)val->val.obj);
+        return;
+
+    case VM_PROP:
+        sprintf(buf, "#__prop %u", (unsigned int)val->val.prop);
+        break;
+
+    case VM_INT:
+        sprintf(buf, "%ld", (long)val->val.intval);
+        return;
+
+    case VM_SSTRING:
+        sprintf(buf, "#__sstr %lu", (unsigned long)val->val.ofs);
+        return;
+
+    case VM_LIST:
+        sprintf(buf, "#__list %lu", (unsigned long)val->val.ofs);
+        return;
+
+    case VM_FUNCPTR:
+        sprintf(buf, "#__func %lu", (unsigned long)val->val.ofs);
+        return;
+
+    case VM_ENUM:
+        sprintf(buf, "#__enum %lu", (unsigned long)val->val.enumval);
+        return;
+
+    case VM_BIFPTR:
+        sprintf(buf, "#__bifptr %u %u",
+                val->val.bifptr.set_idx, val->val.bifptr.func_idx);
+        return;
+
+    default:
+        strcpy(buf, "#__invalid");
+        return;
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Callback context structure for aggregation enumerations
+ */
+struct eval_enum_cb_ctx
 {
     /* the UI callback function to invoke and its own context */
     void (*ui_cb)(void *, const char *, int, const char *);
@@ -1712,6 +2288,39 @@ struct enum_props_eval_cb_ctx
 };
 
 /*
+ *   Lookup table enumeration callback for expression evaluation
+ */
+static void enum_lookup_keys_cb(
+    VMG_ const vm_val_t *key, const vm_val_t *val, void *ctx0)
+{
+    /* get our context, properly cast */
+    eval_enum_cb_ctx *ctx = (eval_enum_cb_ctx *)ctx0;
+
+    /* format the key value */
+    char keybuf[256];
+    keybuf[0] = '[';
+    ctx->dbg->format_val(vmg_ keybuf+1, sizeof(keybuf)-3, key);
+    strcat(keybuf, "]");
+
+    /* 
+     *   For the relationship, generate the special __type# notation for the
+     *   key.  This is a special debugger-only compact format with full
+     *   round-trip fidelity for all value types.  Some values have no
+     *   ordinary source code representation, such as objects without symbol
+     *   names; the __type# notation ensures that every value is
+     *   representable in source.  Note that we also use the "!" notation to
+     *   let the debugger know that this is the whole child expression rather
+     *   than an operator that we join with the key expression.  
+     */
+    char relbuf[128], valbuf[120];
+    ctx->dbg->format_special(vmg_ valbuf, sizeof(valbuf), key);
+    sprintf(relbuf, "![%s]", valbuf);
+    
+    /* send the formatted values to the debugger UI */
+    (*ctx->ui_cb)(ctx->ui_cb_ctx, keybuf, strlen(keybuf), relbuf);
+}
+
+/*
  *   Object property enumeration callback for evaluating an object-valued
  *   expression.  
  */
@@ -1719,10 +2328,8 @@ static void enum_props_eval_cb(VMG_ void *ctx0,
                                vm_obj_id_t self, vm_prop_id_t prop,
                                const vm_val_t *val)
 {
-    enum_props_eval_cb_ctx *ctx = (enum_props_eval_cb_ctx *)ctx0;
-    const char *prop_name;
-    vm_val_t ov_val;
-    vm_obj_id_t src_obj;
+    /* get our context, properly cast */
+    eval_enum_cb_ctx *ctx = (eval_enum_cb_ctx *)ctx0;
 
     /* 
      *   The property enumerator tells us about all of the properties
@@ -1732,8 +2339,10 @@ static void enum_props_eval_cb(VMG_ void *ctx0,
      *   properties can't be seen in the actual object, we don't want to show
      *   them here.  
      */
-    if (vm_objp(vmg_ ctx->obj)->get_prop(vmg_ prop, &ov_val,
-                                         ctx->obj, &src_obj, 0)
+    vm_val_t ov_val;
+    vm_obj_id_t src_obj;
+    if (vm_objp(vmg_ ctx->obj)
+           ->get_prop(vmg_ prop, &ov_val, ctx->obj, &src_obj, 0)
         && src_obj != self)
     {
         /* 
@@ -1747,7 +2356,7 @@ static void enum_props_eval_cb(VMG_ void *ctx0,
     }
 
     /* get the name of this property */
-    prop_name = ctx->dbg->propid_to_sym(prop);
+    const char *prop_name = ctx->dbg->propid_to_sym(prop);
 
     /* 
      *   if we couldn't get a name for the property, don't bother invoking
@@ -1769,6 +2378,7 @@ static void enum_props_eval_cb(VMG_ void *ctx0,
     case VM_SSTRING:
     case VM_LIST:
     case VM_FUNCPTR:
+    case VM_BIFPTR:
         /* 
          *   these types are all valid for enumeration - invoke the UI
          *   callback
@@ -1786,14 +2396,14 @@ static void enum_props_eval_cb(VMG_ void *ctx0,
 /*
  *   Evaluate an expression 
  */
-int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
+int CVmDebug::eval_expr(VMG_ char *result, size_t resultlen,
+                        const char *expr,
                         int level, int *is_lval, int *is_openable,
                         void (*aggcb)(void *, const char *,
                                       int, const char *),
                         void *aggctx, int speculative)
 {
-    int err;
-    CVmPoolDynObj *code_obj;
+    vm_obj_id_t code_obj;
     vm_val_t expr_val;
     CVmDbgSymtab local_symtab;
     vmdbg_step_save_t old_step;
@@ -1809,16 +2419,16 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
     if (is_openable != 0)
         *is_openable = FALSE;
 
-    /* clear the buffer in case we can't evaluate the expression */
-    buf[0] = '\0';
-    
+    /* we don't have a result string yet */
+    if (result != 0 && resultlen > 0)
+        *result = '\0';
+
     /* get information on the indicated stack level */
     {
         CVmFuncPtr func_ptr;
         CVmDbgLinePtr line_ptr;
         CVmDbgTablePtr dbg_ptr;
-        ulong stm_start;
-        ulong stm_end;
+        const uchar *stm_start, *stm_end;
 
         if (get_stack_level_info(vmg_ level, &func_ptr, &line_ptr,
                                  &stm_start, &stm_end)
@@ -1840,11 +2450,26 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
     defining_obj = G_interpreter->get_defining_obj_at_level(vmg_ level);
 
     /* compile the expression */
-    if ((err = compile_expr(vmg_ expr, level, &local_symtab,
-                            self_obj != VM_INVALID_OBJ,
-                            speculative, is_lval,
-                            &code_obj, buf, buflen)) != 0)
-        return err;
+    CVmDynCompResults comp_results;
+    compile_expr(vmg_ expr, level, &local_symtab,
+                 self_obj != VM_INVALID_OBJ
+                 && target_prop != VM_INVALID_PROP,
+                 speculative, is_lval, &code_obj, &comp_results);
+
+    /* if we got a compilation error, return failure */
+    if (comp_results.err != 0)
+    {
+        /* copy the result message, if desired */
+        if (comp_results.msgbuf != 0)
+        {
+            /* copy the message to the caller's buffer (if there is one) */
+            if (result != 0)
+                lib_strcpy(result, resultlen, comp_results.msgbuf);
+        }
+        
+        /* return the error */
+        return comp_results.err;
+    }
 
     /* note the pre-call stack depth */
     G_interpreter->save_context(vmg_ &run_ctx);
@@ -1852,28 +2477,27 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
     /* set up for the recursive execution */
     prepare_for_eval(&old_step);
 
+    /* push the code object onto the stack for gc protection */
+    G_stk->push()->set_obj(code_obj);
+
     /* execute the code in a protected block */
+    int err = 0;
     err_try
     {
+        /* set up the invocation frame */
+        vm_val_t *fp = G_stk->push(5);
+        (fp++)->set_propid(target_prop);
+        (fp++)->set_obj_or_nil(orig_target_obj);
+        (fp++)->set_obj_or_nil(defining_obj);
+        (fp++)->set_obj_or_nil(self_obj);
+        (fp++)->set_obj(code_obj);
+        
         /* execute the code in a recursive call to the VM */
-        G_interpreter->do_call(vmg_ 0, code_obj->get_ofs(), 0,
-                               self_obj, target_prop,
-                               orig_target_obj, defining_obj, "dbg eval");
+        vm_rcdesc rc("dbg eval");
+        G_interpreter->call_func_ptr_fr(vmg_ G_stk->get(0), 0, &rc, 0);
     }
     err_catch(exc)
     {
-        const char *msg;
-        size_t msg_len;
-        static const char prefix[] = "error: ";
-
-        /* copy the prefix into the buffer if there's room */
-        if (buflen > sizeof(prefix) + 20)
-        {
-            memcpy(buf, prefix, sizeof(prefix));
-            buflen -= sizeof(prefix) - 1;
-            buf += sizeof(prefix) - 1;
-        }
-        
         /* note the error */
         err = exc->get_error_code();
 
@@ -1885,35 +2509,38 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
         if (err == VMERR_UNHANDLED_EXC)
         {
             /* get the message from the exception */
-            msg = CVmRun::get_exc_message(vmg_ exc, &msg_len);
+            size_t msg_len;
+            const char *msg = CVmRun::get_exc_message(vmg_ exc, &msg_len);
             if (msg == 0)
                 msg = "Unhandled program exception";
 
             /* limit the size to the caller's buffer size */
-            if (msg_len > buflen - 1)
-                msg_len = buflen - 1;
-
-            /* copy it into the caller's buffer and null-terminate it */
-            memcpy(buf, msg, msg_len);
-            buf[msg_len] = '\0';
+            t3sprintf(result, resultlen, "error: %.*s", (int)msg_len, msg);
         }
         else
         {
             /* format the VM error message into the caller's result buffer */
-            msg = err_get_msg(vm_messages, vm_message_count, err, FALSE);
-            err_format_msg(buf, buflen, msg, exc);
+            const char *msg = err_get_msg(
+                vm_messages, vm_message_count, err, FALSE);
+            char *msgf = err_format_msg(msg, exc);
+
+            /* format the full copy for the caller */
+            t3sprintf(result, resultlen, "error: %s", msgf);
+
+            /* free the base message */
+            t3free(msgf);
         }
     }
     err_end;
+
+    /* discard the code object */
+    G_stk->discard();
 
     /* restore the original execution mode */
     restore_from_eval(&old_step);
 
     /* restore the interpreter context */
     G_interpreter->restore_context(vmg_ &run_ctx);
-
-    /* delete the byte code object */
-    G_code_pool->get_dynamic_ifc()->dynpool_delete(code_obj);
 
     /* get the return value, if any */
     if (err == 0)
@@ -1924,8 +2551,8 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
         /* leave the value on the stack for gc protection */
         G_stk->push(&expr_val);
 
-        /* format the value into the buffer */
-        format_val(vmg_ buf, buflen, &expr_val);
+        /* format the value into an allocated buffer */
+        format_val(vmg_ result, resultlen, &expr_val);
     }
     else
     {
@@ -1936,7 +2563,6 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
     /* if an aggregation callback is provided, use it */
     if (aggcb != 0)
     {
-        const char *p;
         size_t cnt;
         size_t i;
         
@@ -1944,20 +2570,16 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
         switch(expr_val.typ)
         {
         case VM_LIST:
-            /* get the pointer to the constant list data */
-            p = G_const_pool->get_ptr(expr_val.val.ofs);
-
         agg_list:
             /* get the element count */
-            cnt = vmb_get_len(p);
+            cnt = expr_val.ll_length(vmg0_);
 
             /* iterate through the elements */
             for (i = 1 ; i <= cnt ; ++i)
             {
-                char idxbuf[30];
-                
                 /* format an index operator for this index */
-                sprintf(idxbuf, "[%u]", i);
+                char idxbuf[30];
+                sprintf(idxbuf, "[%u]", (unsigned int)i);
 
                 /* invoke the callback with this subitem */
                 (*aggcb)(aggctx, idxbuf, strlen(idxbuf), "");
@@ -1966,46 +2588,41 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
 
         case VM_OBJ:
             /* if it's a list object, use the list contents */
-            if ((p = vm_objp(vmg_ expr_val.val.obj)->get_as_list()) != 0)
+            if (vm_objp(vmg_ expr_val.val.obj)->get_as_list() != 0
+                || (CVmObjVector::is_vector_obj(vmg_ expr_val.val.obj)
+                    && !CVmObjAnonFn::is_anonfn_obj(vmg_ expr_val.val.obj)))
                 goto agg_list;
 
-            /* if it's an array, handle it specially */
-            if (CVmObjVector::is_vector_obj(vmg_ expr_val.val.obj))
+            /* set up our callback context in case we need it */
+            eval_enum_cb_ctx cb_ctx;
+            cb_ctx.ui_cb = aggcb;
+            cb_ctx.ui_cb_ctx = aggctx;
+            cb_ctx.dbg = this;
+            cb_ctx.obj = expr_val.val.obj;
+
+            /* handle lookup tables specially */
+            if (CVmObjLookupTable::is_lookup_table_obj(vmg_ expr_val.val.obj))
             {
-                CVmObjVector *vec;
-                size_t cnt;
+                /* get the lookup table object, properly cast */
+                CVmObjLookupTable *lt =
+                    (CVmObjLookupTable *)vm_objp(vmg_ expr_val.val.obj);
+                
+                /* enumerate the table's keys */
+                lt->for_each(vmg_ enum_lookup_keys_cb, &cb_ctx);
 
-                /* cast it to an array object */
-                vec = (CVmObjVector *)vm_objp(vmg_ expr_val.val.obj);
+                /* if it has a default value, include it in the listing */
+                vm_val_t defval;
+                lt->get_default_val(&defval);
+                if (defval.typ != VM_NIL)
+                    (*aggcb)(aggctx, "*", 3, "!.getDefaultValue()");
 
-                /* iterate through the elements */
-                cnt = vec->get_element_count();
-                for (i = 1 ; i <= cnt ; ++i)
-                {
-                    char idxbuf[30];
-                    
-                    /* foramt an index operator for this index */
-                    sprintf(idxbuf, "[%u]", i);
-
-                    /* invoke the callback with this subitem */
-                    (*aggcb)(aggctx, idxbuf, strlen(idxbuf), "");
-                }
-
-                /* we've handled the item */
+                /* done */
                 break;
             }
 
             /* determine if the object provides a property list */
             if (vm_objp(vmg_ expr_val.val.obj)->provides_props(vmg0_))
             {
-                enum_props_eval_cb_ctx cb_ctx;
-
-                /* set up our callback context */
-                cb_ctx.ui_cb = aggcb;
-                cb_ctx.ui_cb_ctx = aggctx;
-                cb_ctx.dbg = this;
-                cb_ctx.obj = expr_val.val.obj;
-
                 /* enumerate the properties */
                 vm_objp(vmg_ expr_val.val.obj)
                     ->enum_props(vmg_ expr_val.val.obj, &enum_props_eval_cb,
@@ -2039,7 +2656,9 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
              *   otherwise it's not 
              */
             if (vm_objp(vmg_ expr_val.val.obj)->get_as_list() != 0
-                || CVmObjVector::is_vector_obj(vmg_ expr_val.val.obj)
+                || (CVmObjVector::is_vector_obj(vmg_ expr_val.val.obj)
+                    && !CVmObjAnonFn::is_anonfn_obj(vmg_ expr_val.val.obj))
+                || CVmObjLookupTable::is_lookup_table_obj(vmg_ expr_val.val.obj)
                 || vm_objp(vmg_ expr_val.val.obj)->provides_props(vmg0_))
                 *is_openable = TRUE;
             else
@@ -2064,281 +2683,28 @@ int CVmDebug::eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
 /*
  *   Compile an expression 
  */
-int CVmDebug::compile_expr(VMG_ const char *expr,
-                           int level, CVmDbgSymtab *local_symtab,
-                           int self_valid, int speculative,
-                           int *is_lval, CVmPoolDynObj **code_obj,
-                           char *dstbuf, size_t dstbuflen)
+void CVmDebug::compile_expr(VMG_ const char *expr,
+                            int level, CVmDbgSymtab *local_symtab,
+                            int self_valid, int speculative,
+                            int *is_lval, vm_obj_id_t *code_obj,
+                            CVmDynCompResults *results)
 {
-    int err;
-    CTcPrsNode *expr_node;
-    CTPNStmReturn *ret_stm;
-    CTPNCodeBody *code_body;
-    tcprsmem_state_t prsmem_state;
-    CTcPrsDbgSymtab *old_symtab;
-    CVmPoolDynamic *dyn_code;
-    size_t copy_len;
-    ulong copy_ofs;
-    char *dst;
-    tcpn_debug_info adjust_info;
-    int need_err_msg;
+    /* set up our compilation mode descriptors */
+    tcpn_dyncomp_info adjust_info(TRUE, speculative, level);
+    CVmDynCompDebug dbg_info(local_symtab, adjust_info, self_valid);
 
-    /* presume we won't need an error message formatted */
-    need_err_msg = FALSE;
+    /* compile the code via the dynamic compiler */
+    *code_obj = CVmDynamicCompiler::get(vmg0_)->compile(
+        vmg_ FALSE, VM_INVALID_OBJ, VM_INVALID_OBJ, VM_INVALID_OBJ, 0,
+        expr, strlen(expr), DCModeExpression, &dbg_info, results);
 
-    /* 
-     *   get the dynamic code pool manager - if it's not available, we
-     *   have no place to put the compiled code, so we can't continue 
-     */
-    if ((dyn_code = G_code_pool->get_dynamic_ifc()) == 0)
-        return 1;
+    /* exclude debugger objects from save/restore/undo */
+    if (*code_obj != VM_INVALID_OBJ)
+        G_obj_table->set_obj_transient(*code_obj);
 
-    /* set up the parser with our local symbol table */
-    old_symtab = G_prs->set_debug_symtab(local_symtab);
-
-    /* 
-     *   save the parser memory pool state, so we can reset it when we're
-     *   done (this allows us to discard any parser memory we allocate
-     *   while we're working - we only need it while compiling, and can
-     *   discard it when we're done) 
-     */
-    G_prsmem->save_state(&prsmem_state);
-
-    /* presume no error will occur */
-    err = 0;
-
-    /* presume we won't generate an expression node */
-    expr_node = 0;
-
-    /* catch any errors that occur during compilation or code generation */
-    err_try
-    {
-        /* set up the tokenizer with the source buffer */
-        G_tok->set_source_buf(expr);
-
-        /* read the first token */
-        G_tok->next();
-
-        /* reset the compiler error counters for the new expression */
-        G_tcmain->reset_error_counts();
-
-        /* 
-         *   clear the message buffer in the host interface, so we will
-         *   capture the text of the first error message generated after
-         *   this point 
-         */
-        hostifc_->reset_messages();
-
-        /* compile the expression */
-        expr_node = G_prs->parse_expr();
-
-        /* don't proceed if compilation failed for any reason */
-        if (expr_node == 0 || G_tcmain->get_error_count() != 0)
-            goto compilation_done;
-
-        /* fold constants in the expression */
-        expr_node = expr_node->fold_constants(G_prs->get_global_symtab());
-        if (expr_node == 0)
-            goto compilation_done;
-
-        /* adjust the expression for debugger execution */
-        adjust_info.speculative = speculative;
-        adjust_info.stack_level = level;
-        expr_node = expr_node->adjust_for_debug(&adjust_info);
-        if (expr_node == 0)
-            goto compilation_done;
-
-        /* check to see if the expression is an lvalue */
-        if (is_lval != 0)
-        {
-            /* check the expression node to see if it's an lvalue */
-            *is_lval = expr_node
-                       ->check_lvalue_resolved(G_prs->get_global_symtab());
-        }
-
-        /* 
-         *   Put the expression within a 'return' statement, and put the
-         *   'return' statement within a code body.  If 'self' is
-         *   available, provide an object statement object, so that the
-         *   code generator knows that 'self' is valid within the
-         *   generated code.  
-         */
-        ret_stm = new CTPNStmReturn(expr_node);
-        code_body = new CTPNCodeBody(G_prs->get_global_symtab(),
-                                     0, ret_stm, 0, FALSE, FALSE, 0, 0,
-                                     self_valid, 0);
-
-        /* set the appropriate debug modes in the code generator */
-        G_cg->set_debug_eval(speculative, level);
-
-        /* make the global symbol table active for code generation */
-        G_cs->set_symtab(G_prs->get_global_symtab());
-
-        /* generate code */
-        code_body->gen_code(FALSE, FALSE);
-
-    compilation_done:
-        ;
-    }
-    err_catch(exc)
-    {
-        /* note the error code */
-        err = exc->get_error_code();
-
-        /* 
-         *   if the caller provided a result buffer, format the error
-         *   message into the result buffer 
-         */
-        if (G_tcmain->get_error_count() != 0)
-        {
-            /* 
-             *   a compilation error was logged - use the error message we
-             *   captured in the host interface 
-             */
-            need_err_msg = TRUE;
-        }
-        else if (dstbuf != 0)
-        {
-            const char *msg;
-
-            /* get the message for the compiler error */
-            msg = tcerr_get_msg(err, FALSE);
-            err_format_msg(dstbuf, dstbuflen, msg, exc);
-        }
-    }
-    err_end;
-
-    /* if a compilation error occurred, return failure */
-    if (err != 0)
-    {
-        /* parsing failed - no need to go on */
-        goto done;
-    }
-    else if (G_tcmain->get_error_count() != 0 || expr_node == 0)
-    {
-        /* parse errors were reported - no need to go on */
-        err = G_tcmain->get_first_error();
-        need_err_msg = TRUE;
-        goto done;
-    }
-
-    /* finish the code - if there's a value, return it */
-    if (G_cg->get_sp_depth() != 0)
-    {
-        /* there's a value on the stack - return it */
-        G_cg->write_op(OPC_RETVAL);
-    }
-    else
-    {
-        /* no value - just return nil */
-        G_cg->write_op(OPC_RETNIL);
-    }
-
-    /* if any errors occurred generating code, fail */
-    if (G_tcmain->get_error_count() != 0)
-    {
-        err = 1;
-        need_err_msg = TRUE;
-        goto done;
-    }
-
-    /* 
-     *   if the code stream is too large, we can't save the code in the
-     *   code pool 
-     */
-    if (G_cs->get_ofs() > G_code_pool->get_page_size())
-    {
-        err = 1;
-        need_err_msg = TRUE;
-        goto done;
-    }
-
-    /* get the amount of data to copy */
-    copy_len = (size_t)G_cs->get_ofs();
-
-    /* start reading at offset zero in the code stream */
-    copy_ofs = 0;
-
-    /* allocate code pool space for the code */
-    *code_obj = dyn_code->dynpool_alloc(copy_len);
-    if (*code_obj == 0)
-    {
-        err = 1;
-        need_err_msg = TRUE;
-        goto done;
-    }
-
-    /* get a writable pointer to the allocated code pool space */
-    dst = G_code_pool->get_writable_ptr((*code_obj)->get_ofs());
-    if (dst == 0)
-    {
-        /* release the code pool object */
-        dyn_code->dynpool_delete(*code_obj);
-
-        /* give up */
-        err = 1;
-        need_err_msg = TRUE;
-        goto done;
-    }
-
-    /* move the generated code into the code pool */
-    while (copy_len != 0)
-    {
-        const char *src;
-        ulong avail_len;
-        
-        /* get the next block */
-        src = G_cs->get_block_ptr(copy_ofs, copy_len, &avail_len);
-
-        /* copy the data */
-        memcpy(dst, src, (size_t)avail_len);
-
-        /* advance past the copied data */
-        dst += (size_t)avail_len;
-        copy_len -= (size_t)avail_len;
-        copy_ofs += avail_len;
-    }
-
-done:
-    /* restore the original symbol table in the parser */
-    G_prs->set_debug_symtab(old_symtab);
-
-    /* reset the tokenizer */
-    G_tok->reset();
-
-    /* reset the code generator streams */
-    G_ds->reset();
-    G_cs->reset();
-    G_os->reset();
-
-    /* 
-     *   reset the parser's memory pool, since we don't need any of the
-     *   intermediate compilation data any longer 
-     */
-    G_prsmem->reset(&prsmem_state);
-
-    /* generate an error message if necessary */
-    if (need_err_msg && dstbuf != 0)
-    {
-        /* 
-         *   if we logged a compiler error, report the first one we found;
-         *   otherwise, use an empty message 
-         */
-        if (G_tcmain->get_error_count())
-        {
-            /* get the first error message captured in our host interface */
-            strncpy(dstbuf, hostifc_->get_error_msg(), dstbuflen - 1);
-            dstbuf[dstbuflen - 1] = '\0';
-        }
-        else
-        {
-            /* we don't have an error code, so there's no message */
-            dstbuf[0] = '\0';
-        }
-    }
-
-    /* return the result */
-    return err;
+    /* pass the lvalue information back to the caller */
+    if (is_lval != 0)
+        *is_lval = dbg_info.is_lval;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -2351,6 +2717,9 @@ void CVmDebug::set_step_over(VMG0_)
     single_step_ = TRUE;
     step_in_ = FALSE;
     step_out_ = FALSE;
+
+    /* we're in run mode again */
+    break_event_->reset();
 
     /* 
      *   note the current stack frame depth - we won't stop until the
@@ -2369,6 +2738,9 @@ void CVmDebug::set_step_out(VMG0_)
     step_in_ = FALSE;
     step_out_ = TRUE;
 
+    /* we're in run mode again */
+    break_event_->reset();
+
     /*
      *   Keep stepping until we're at an enclosing stack frame level - to
      *   do this, note the current frame depth, but decrement it, since we
@@ -2381,15 +2753,54 @@ void CVmDebug::set_step_out(VMG0_)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Note a RETURN for single-step purposes 
+ */
+void CVmDebug::step_return(VMG0_)
+{
+    /*
+     *   Note the frame depth for single-stepping purposes.  If we're in STEP
+     *   OVER mode, and we're now in a frame where we can once again stop for
+     *   stepping, clear the step-over flag.  Don't actually stop now; that
+     *   can wait until the next steppable instruction.  But do note that we
+     *   *should* stop at the next steppable instruction.
+     *   
+     *   This check usually isn't required, since in most cases we'd match
+     *   the frame-depth criterion anyway at the next instruction in the
+     *   caller.  However, if the caller isn't steppable (e.g., it's native
+     *   code), and the caller turns around and calls another routine, we
+     *   could incorrectly think that the new routine was being called from
+     *   the routine that's returning.  This can happen if the new routine
+     *   has more arguments than the old one, or the caller pushes some
+     *   temporary state onto the stack.  In either case, the frame depth in
+     *   the new routine will look deeper than it did in the old routine, so
+     *   we'll think it's a callee of the old routine rather than a peer.  By
+     *   explicitly tracing through the return, we ensure that we realize
+     *   that we should resume stepping in the new routine.  
+     */
+    if (single_step_ && !step_in_
+        && G_interpreter->get_frame_depth(vmg0_) < step_frame_depth_)
+    {
+        /* we're in a caller - stop at the next steppable instruction */
+        if (step_over_bp_)
+            orig_step_in_ = TRUE;
+        else
+            step_in_ = TRUE;
+
+        /* we're in run mode again */
+        break_event_->reset();
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Synchronize our internal memory of the last execution point 
  */
-void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr,
-                             pool_ofs_t method_start_ofs)
+void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr, const uchar *entry)
 {
     CVmFuncPtr func_ptr;
     CVmDbgLinePtr line_ptr;
-    ulong stm_start, stm_end;
-    unsigned int exec_ofs;
+    const uchar *stm_start, *stm_end;
 
     /* 
      *   if we're already in the debugger, don't change anything - this must
@@ -2402,13 +2813,11 @@ void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr,
     G_interpreter->set_current_func_ptr(vmg_ &func_ptr);
 
     /* get the byte-code offset of this instruction */
-    pc_ = (pc_ptr == 0 ? 0 : G_interpreter->pc_to_code_ofs(vmg_ pc_ptr));
+    pc_ = pc_ptr;
+    entry_ = entry;
 
-    /* for the UI, compute the offset from the start of the method */
-    exec_ofs = (unsigned int)(pc_ - method_start_ofs);
-    
     /* get the boundaries of the current source code statement */
-    if (CVmRun::get_stm_bounds(vmg_ &func_ptr, exec_ofs, &line_ptr,
+    if (CVmRun::get_stm_bounds(vmg_ &func_ptr, pc_ - entry_, &line_ptr,
                                &stm_start, &stm_end))
     {
         /* remember the current function pointer */
@@ -2418,7 +2827,7 @@ void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr,
         cur_stm_line_.copy_from(&line_ptr);
 
         /* remember the method start offset */
-        entry_ofs_ = method_start_ofs;
+        entry_ = entry;
 
         /* remember the statement bounds */
         cur_stm_start_ = stm_start;
@@ -2430,7 +2839,7 @@ void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr,
     else
     {
         /* the statement has no valid bounds; clear the debug info */
-        entry_ofs_ = 0;
+        entry_ = 0;
         cur_stm_start_ = 0;
         cur_stm_end_ = 0;
     }
@@ -2440,17 +2849,16 @@ void CVmDebug::sync_exec_pos(VMG_ const uchar *pc_ptr,
 /*
  *   Single-step interrupt 
  */
-void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
+void CVmDebug::step(VMG_ const uchar **pc_ptr, const uchar *entry,
                     int hit_bp, int error_code)
 {
-    unsigned int exec_ofs;
     int line_ptr_valid;
     CVmFuncPtr func_ptr;
     CVmDbgLinePtr line_ptr;
     int bpnum;
     int hit_global_bp;
     int stop_for_step;
-    ulong stm_start, stm_end;
+    const uchar *stm_start, *stm_end;
     int trace_over_bp;
     vm_val_t orig_r0;
     int released_stack_reserve = FALSE;
@@ -2500,7 +2908,8 @@ void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
     trace_over_bp = FALSE;
 
     /* get the byte-code offset of this instruction */
-    pc_ = (pc_ptr == 0 ? 0 : G_interpreter->pc_to_code_ofs(vmg_ *pc_ptr));
+    pc_ = (pc_ptr != 0 ? *pc_ptr : 0);
+    entry_ = entry;
 
     /* 
      *   If we're in single-step mode, assume we'll stop for stepping.  If
@@ -2656,22 +3065,14 @@ void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
         /* set up a pointer to the current function's header */
         G_interpreter->set_current_func_ptr(vmg_ &func_ptr);
         
-        /* for the UI, compute the offset from the start of the method */
-        exec_ofs = (unsigned int)(pc_ - method_start_ofs);
-        
         /* get the boundaries of the current source code statement */
         line_ptr_valid =
-            CVmRun::get_stm_bounds(vmg_ &func_ptr, exec_ofs, &line_ptr,
+            CVmRun::get_stm_bounds(vmg_ &func_ptr, pc_ - entry_, &line_ptr,
                                    &stm_start, &stm_end);
-        
-        /* adjust the statement boundaries to absolute addresses */
-        stm_start += method_start_ofs;
-        stm_end += method_start_ofs;
     }
     else
     {
         /* we're in native code, so there is no valid byte code location */
-        exec_ofs = 0;
         line_ptr_valid = FALSE;
         stm_start = stm_end = 0;
     }
@@ -2745,7 +3146,7 @@ void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
         cur_stm_line_.copy_from(&line_ptr);
 
         /* remember the method start offset */
-        entry_ofs_ = method_start_ofs;
+        entry_ = entry;
 
         /* remember the statement bounds */
         cur_stm_start_ = stm_start;
@@ -2765,25 +3166,17 @@ void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
          *   call the UI interactive command loop - this won't return
          *   until the user tells us to resume execution 
          */
-        CVmDebugUI::cmd_loop(vmg_ bpnum, error_code, &exec_ofs);
+        const uchar *pc = pc_;
+        CVmDebugUI::cmd_loop(vmg_ bpnum, error_code, &pc);
 
         /* restore breakpoints now that we're resuming execution */
         restore_all_bps(vmg0_);
 
-        /* 
-         *   convert the UI's method offset back into an absolute code
-         *   offset (we can never move the execution point outside of the
-         *   current method, so we merely have to add the current method
-         *   start entry address to the method offset) 
-         */
-        pc_ = entry_ofs_ + exec_ofs;
+        /* update our execution pointer in case the UI moved it */
+        pc_ = pc;
 
-        /* 
-         *   before returning, re-translate the code pool offset of the
-         *   current execution point back into a memory address, in case
-         *   we moved the execution point 
-         */
-        *pc_ptr = (const uchar *)G_code_pool->get_ptr(pc_);
+        /* update the caller's execution pointer as well */
+        *pc_ptr = pc;
 
         /* 
          *   get the boundaries of the current statement, in case it
@@ -2791,15 +3184,9 @@ void CVmDebug::step(VMG_ const uchar **pc_ptr, pool_ofs_t method_start_ofs,
          *   debugger, so we can tell (if we're stepping) whether we've
          *   left the most recent statement or not 
          */
-        if (CVmRun::get_stm_bounds(vmg_ &func_ptr_, exec_ofs,
+        if (!CVmRun::get_stm_bounds(vmg_ &func_ptr_, pc - entry,
                                    &cur_stm_line_,
                                    &cur_stm_start_, &cur_stm_end_))
-        {
-            /* adjust the statement boundaries to absolute addresses */
-            cur_stm_start_ += entry_ofs_;
-            cur_stm_end_ += entry_ofs_;
-        }
-        else
         {
             /* we have no information for this statement */
             cur_stm_start_ = cur_stm_end_ = 0;
@@ -2928,15 +3315,13 @@ void CVmDebug::restore_all_bps(VMG0_)
 /*
  *   Determine if a code location is within the current active method 
  */
-int CVmDebug::is_in_current_method(VMG_ unsigned long code_addr)
+int CVmDebug::is_in_current_method(VMG_ const uchar *code_addr)
 {
-    ulong end_addr;
-    
     /* 
      *   if the current debug pointer isn't valid, we can't make this
      *   determination, so indicate that we're not in the active method 
      */
-    if (!dbg_ptr_valid_)
+    if (!dbg_ptr_valid_ || code_addr == 0)
         return FALSE;
 
     /* 
@@ -2944,16 +3329,17 @@ int CVmDebug::is_in_current_method(VMG_ unsigned long code_addr)
      *   an exception table, it's the endpoint; otherwise, the debug table
      *   is the endpoint. 
      */
-    end_addr = entry_ofs_ + (func_ptr_.get_exc_ofs() != 0
-                             ? func_ptr_.get_exc_ofs()
-                             : func_ptr_.get_debug_ofs());
+    const uchar *end_addr = entry_
+                            + (func_ptr_.get_exc_ofs() != 0
+                               ? func_ptr_.get_exc_ofs()
+                               : func_ptr_.get_debug_ofs());
 
     /* 
      *   if the code address is between the entrypoint address for the
      *   active method and the ending address we just calculated, it's in
      *   the active method; otherwise, it's somewhere else 
      */
-    return (code_addr >= entry_ofs_ && code_addr < end_addr);
+    return (code_addr >= entry_ && code_addr < end_addr);
 }
 
 
@@ -2968,7 +3354,8 @@ int CVmDebug::is_in_current_method(VMG_ unsigned long code_addr)
  */
 int CVmDebug::get_stack_level_info(VMG_ int level, CVmFuncPtr *func_ptr,
                                    CVmDbgLinePtr *line_ptr,
-                                   ulong *stm_start, ulong *stm_end) const
+                                   const uchar **stm_start,
+                                   const uchar **stm_end) const
 {
     /* 
      *   if we're at level 0, it's the current method; otherwise, get the
@@ -2994,8 +3381,9 @@ int CVmDebug::get_stack_level_info(VMG_ int level, CVmFuncPtr *func_ptr,
     }
     else
     {
-        vm_val_t *fp;
-        ulong ret_ofs;
+        vm_val_t *fp = G_interpreter->get_frame_ptr();
+        const vm_rcdesc *rc = G_interpreter->get_rcdesc_from_frame(vmg_ fp);
+        const uchar *retp = G_interpreter->get_return_addr_from_frame(vmg_ fp);
 
         /* 
          *   Enclosing level - walk up the stack to the desired level.
@@ -3004,28 +3392,56 @@ int CVmDebug::get_stack_level_info(VMG_ int level, CVmFuncPtr *func_ptr,
          *   the first enclosing level, we actually want the current
          *   frame.  
          */
-        for (fp = G_interpreter->get_frame_ptr() ; level > 1 && fp != 0 ;
-             fp = G_interpreter->get_enclosing_frame_ptr(vmg_ fp), --level) ;
+        for ( ; level > 1 && fp != 0 ; --level)
+        {
+            /* 
+             *   if there's a native caller context at this level, the level
+             *   counts twice, since the native caller counts as its own
+             *   stack level 
+             */
+            if (rc != 0)
+            {
+                /* move to the recursive caller's return address */
+                retp = rc->return_addr;
+
+                /* move up to the bytecode caller by clearing 'rc' */
+                rc = 0;
+
+                /* count the level */
+                if (--level <= 1)
+                    break;
+            }
+
+            /* move up to the enclosing level */
+            fp = G_interpreter->get_enclosing_frame_ptr(vmg_ fp);
+            rc = G_interpreter->get_rcdesc_from_frame(vmg_ fp);
+            retp = G_interpreter->get_return_addr_from_frame(vmg_ fp);
+        }
 
         /* 
-         *   if we didn't reach the desired level, or the frame pointer is
-         *   null, we didn't find the requested frame - return failure 
+         *   If we didn't reach the desired level, or the frame pointer is
+         *   null, we didn't find the requested frame - return failure.  
          */
         if (level > 1 || fp == 0)
             return 1;
 
-        /* set up a function pointer for the return address from this frame */
-        G_interpreter->set_return_funcptr_from_frame(vmg_ func_ptr, fp);
+        /* if we stopped at a native frame, there's no source location */
+        if (rc != 0)
+            return 1;
 
-        /* get the return address for the frame */
-        ret_ofs = G_interpreter->get_return_ofs_from_frame(vmg_ fp);
+        /* get the entry address from the frame */
+        const uchar *entry =
+            G_interpreter->get_enclosing_entry_ptr_from_frame(vmg_ fp);
+
+        /* set up a function pointer for the method */
+        G_interpreter->set_return_funcptr_from_frame(vmg_ func_ptr, fp);
 
         /* 
          *   Find the source line information for the return address in
          *   the frame.  Return failure if there's no debug information
          *   for the method.  
          */
-        if (!CVmRun::get_stm_bounds(vmg_ func_ptr, ret_ofs,
+        if (!CVmRun::get_stm_bounds(vmg_ func_ptr, retp - entry,
                                     line_ptr, stm_start, stm_end))
             return 1;
 
@@ -3047,14 +3463,14 @@ void CVmDebug::alloc_method_header_list(ulong cnt)
     if (method_hdr_ != 0)
     {
         /* 
-         *   if we're growing the list, expand it; otherwise ignore the
-         *   new allocation 
+         *   if we're growing the list, expand it; otherwise ignore the new
+         *   allocation 
          */
         if (cnt > method_hdr_cnt_)
         {
             /* expand the list */
             method_hdr_ = (ulong *)t3realloc(method_hdr_,
-                                             cnt * sizeof(ulong));
+                cnt * sizeof(method_hdr_[0]));
 
             /* note the new size */
             method_hdr_cnt_ = cnt;
@@ -3063,7 +3479,7 @@ void CVmDebug::alloc_method_header_list(ulong cnt)
     else
     {
         /* allocate the new list */
-        method_hdr_ = (ulong *)t3malloc(cnt * sizeof(ulong));
+        method_hdr_ = (ulong *)t3malloc(cnt * sizeof(method_hdr_[0]));
 
         /* note the size */
         method_hdr_cnt_ = cnt;
@@ -3075,15 +3491,20 @@ void CVmDebug::alloc_method_header_list(ulong cnt)
  *   address.  This searches the method header list for the nearest method
  *   header whose address is less than the given address.  
  */
-pool_ofs_t CVmDebug::find_method_header(pool_ofs_t ofs)
+const uchar *CVmDebug::find_method_header(VMG_ const uchar *addr)
 {
     ulong lo;
     ulong hi;
+    pool_ofs_t ofs;
 
     /* if there are no method headers, there's nothing to find */
     if (method_hdr_cnt_ == 0)
         return 0;
-    
+
+    /* if this isn't a valid pool address, we won't have an entry for it */
+    if (!G_code_pool->get_ofs((const char *)addr, &ofs))
+        return 0;
+
     /* perform a binary search of the method header list */
     lo = 0;
     hi = method_hdr_cnt_ - 1;
@@ -3121,7 +3542,7 @@ pool_ofs_t CVmDebug::find_method_header(pool_ofs_t ofs)
         else
         {
             /* found it - return this start address */
-            return addr;
+            return (const uchar *)G_code_pool->get_ptr(addr);
         }
     }
 
@@ -3226,7 +3647,7 @@ CVmDebugBp::CVmDebugBp()
     disabled_ = FALSE;
     
     /* no original instruction yet */
-    orig_instr_ = (char)OPC_NOP;
+    orig_instr_ = OPC_NOP;
     
     /* no condition expression or byte code object yet */
     cond_ = 0;
@@ -3234,7 +3655,7 @@ CVmDebugBp::CVmDebugBp()
     compiled_cond_ = 0;
     has_cond_ = FALSE;
     stop_on_change_ = FALSE;
-    prv_val = 0;
+    prv_val_ = 0;
 }
    
 
@@ -3255,50 +3676,24 @@ CVmDebugBp::~CVmDebugBp()
  */
 void CVmDebugBp::do_terminate(VMG0_)
 {
-    /* release our object table global variable, if we have one */
-    if (prv_val != 0)
+    /* release our object table global variables */
+    if (prv_val_ != 0)
     {
-        G_obj_table->delete_global_var(prv_val);
-        prv_val = 0;
+        G_obj_table->delete_global_var(prv_val_);
+        prv_val_ = 0;
     }
-
-#if 0 // $$$
-    // It's not necessary to delete my condition object explicitly -
-    // when the code pool is unloaded, it'll delete all remaining
-    // dynamic objects.  I'm not sure I like this approach - it seems
-    // cleaner to have each object's owner explicitly free it, and
-    // we're clearly the owner of this object - but there's no
-    // practical reason to worry about it.  So, I'll leave it like
-    // this for now and maybe revisit it later.
-    //
-    // (For future reference, what's needed is a pre-termination
-    // cleanup pass that vmmain.cpp makes BEFORE calling loader->unload(),
-    // because that routine will detach the backing stores and thereby
-    // clean up the code pool's dynamic objects.  If we're going to
-    // explicitly delete our object here, this needs to be done before
-    // the code pool's backing store is detached.  Note that doing things
-    // in that order will NOT result in redundant deletions, since deleting
-    // our object will remove it from the code pool's dynamic object list
-    // and the object thus won't be deleted again by the backing store
-    // detach operation.  However, if we detach first and then delete
-    // later, we'll have the redundant deletion problem.)
-    
-    /* if I have a compiled condition object, delete it */
     if (compiled_cond_ != 0)
     {
-        /* delete the object */
-        G_code_pool->get_dynamic_ifc()->dynpool_delete(compiled_cond_);
-
-        /* forget the object */
+        G_obj_table->delete_global_var(compiled_cond_);
         compiled_cond_ = 0;
     }
-#endif /* 0 */
 }
 
 /*
  *   Set the breakpoint's information 
  */
-int CVmDebugBp::set_info(VMG_ ulong code_addr, const char *cond, int change,
+int CVmDebugBp::set_info(VMG_ const uchar *code_addr,
+                         const char *cond, int change,
                          int disabled, char *errbuf, size_t errbuflen)
 {
     int err;
@@ -3316,18 +3711,14 @@ int CVmDebugBp::set_info(VMG_ ulong code_addr, const char *cond, int change,
     /* remember the original instruction at the code address */
     if (code_addr != 0)
     {
-        char *code_ptr;
-
         /* get a writable pointer to the code location */
-        code_ptr = G_code_pool->get_writable_ptr(code_addr_);
+        uchar *code_ptr = (uchar *)code_addr;
 
         /* 
-         *   if we got a valid code pointer, remember the original
-         *   instruction at the code address, so that we can restore this
-         *   instruction when we remove the BP instruction 
+         *   remember the original instruction at this address so that we can
+         *   restore it when we remove the BP instruction 
          */
-        if (code_ptr != 0)
-            orig_instr_ = *code_ptr;
+        orig_instr_ = *code_ptr;
 
         /* set the BP instruction if appropriate */
         set_bp_instr(vmg_ TRUE, FALSE);
@@ -3343,13 +3734,10 @@ int CVmDebugBp::set_info(VMG_ ulong code_addr, const char *cond, int change,
 int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
                               char *errbuf, size_t errbuflen)
 {
-    /* if we already have a compiled condition object, delete it */
+    /* delete any existing condition variable */
     if (compiled_cond_ != 0)
     {
-        /* delete the object */
-        G_code_pool->get_dynamic_ifc()->dynpool_delete(compiled_cond_);
-
-        /* forget the object */
+        G_obj_table->delete_global_var(compiled_cond_);
         compiled_cond_ = 0;
     }
 
@@ -3362,7 +3750,7 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
         const char *p;
 
         /* scan for a non-blank character */
-        for (p = new_cond ; is_space(*p) ; ++p) ;
+        for (p = new_cond ; t3_is_whitespace(*p) ; ++p) ;
 
         /* 
          *   if we scanned the entire string without finding anything but
@@ -3378,7 +3766,6 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
         size_t new_cond_len;
         CVmDbgSymtab *symtab;
         CVmDbgSymtab local_symtab;
-        int err;
 
         /* presume we won't find a local symbol table */
         symtab = 0;
@@ -3390,23 +3777,19 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
          */
         if (code_addr_ != 0)
         {
-            pool_ofs_t method_addr;
             CVmFuncPtr func_ptr;
             CVmDbgLinePtr line_ptr;
             CVmDbgTablePtr dbg_ptr;
-            ulong stm_start;
-            ulong stm_end;
+            const uchar *stm_start, *stm_end;
 
-            /* find the entry pointer for the selected code address */
-            method_addr = G_debugger->find_method_header(code_addr_);
-
-            /* set up a function pointer at the code location */
-            func_ptr.set((const uchar *)G_code_pool->get_ptr(method_addr));
+            /* get the method header for the breakpoint location */
+            func_ptr.set(G_debugger->find_method_header(vmg_ code_addr_));
 
             /* set up the line pointer */
-            if (CVmRun::get_stm_bounds(vmg_ &func_ptr,
-                                       code_addr_ - method_addr,
-                                       &line_ptr, &stm_start, &stm_end)
+            if (func_ptr.get() != 0
+                && CVmRun::get_stm_bounds(vmg_ &func_ptr,
+                                          code_addr_ - func_ptr.get(),
+                                          &line_ptr, &stm_start, &stm_end)
                 && func_ptr.set_dbg_ptr(&dbg_ptr))
             {
                 /* 
@@ -3432,13 +3815,23 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
          *   Presume that 'self' will be valid in this context.  If it
          *   isn't, 'self' will be nil at run-time, so no harm will be done.
          */
-        err = G_debugger->compile_expr(vmg_ new_cond, 0, symtab, TRUE,
-                                       FALSE, 0, &compiled_cond_,
-                                       errbuf, errbuflen);
+        CVmDynCompResults results;
+        vm_obj_id_t co;
+        G_debugger->compile_expr(vmg_ new_cond, 0, symtab, TRUE,
+                                 FALSE, 0, &co, &results);
 
         /* if an error occurred, return the error code */
-        if (err != 0)
-            return err;
+        if (results.err != 0)
+        {
+            if (results.msgbuf != 0)
+                lib_strcpy(errbuf, errbuflen, results.msgbuf);
+
+            return results.err;
+        }
+
+        /* create a global variable to hold the condition object reference */
+        compiled_cond_ = G_obj_table->create_global_var();
+        compiled_cond_->val.set_obj(co);
 
         /* note that we have a condition */
         has_cond_ = TRUE;
@@ -3474,14 +3867,14 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
              *   for this so that our value is tracked in the garbage
              *   collector.  
              */
-            if (prv_val == 0)
-                prv_val = G_obj_table->create_global_var();
+            if (prv_val_ == 0)
+                prv_val_ = G_obj_table->create_global_var();
             
             /* 
              *   set the value to 'empty' to indicate that we haven't
              *   evaluated our expression for the first time yet 
              */
-            prv_val->val.set_empty();
+            prv_val_->val.set_empty();
 
             /* 
              *   evaluate the condition to initialize our memory of the
@@ -3498,10 +3891,10 @@ int CVmDebugBp::set_condition(VMG_ const char *new_cond, int change,
         has_cond_ = FALSE;
 
         /* if we had a global variable for the condition, delete it */
-        if (prv_val != 0)
+        if (prv_val_ != 0)
         {
-            G_obj_table->delete_global_var(prv_val);
-            prv_val = 0;
+            G_obj_table->delete_global_var(prv_val_);
+            prv_val_ = 0;
         }
     }
 
@@ -3539,7 +3932,8 @@ int CVmDebugBp::eval_cond(VMG0_)
         vm_obj_id_t defining_obj;
         vm_prop_id_t target_prop;
         vm_val_t *valp;
-
+        vm_val_t *fp;
+        
         /* get the 'self' object at the current stack level */
         self_obj = G_interpreter->get_self_at_level(vmg_ 0);
 
@@ -3551,10 +3945,17 @@ int CVmDebugBp::eval_cond(VMG0_)
             G_interpreter->get_orig_target_obj_at_level(vmg_ 0);
         defining_obj = G_interpreter->get_defining_obj_at_level(vmg_ 0);
 
+        /* set up the frame context */
+        fp = G_stk->push(5);
+        (fp++)->set_propid(target_prop);
+        (fp++)->set_obj_or_nil(orig_target_obj);
+        (fp++)->set_obj_or_nil(defining_obj);
+        (fp++)->set_obj_or_nil(self_obj);
+        *(fp++) = compiled_cond_->val;
+
         /* execute the code */
-        G_interpreter->do_call(vmg_ 0, compiled_cond_->get_ofs(), 0,
-                               self_obj, target_prop,
-                               orig_target_obj, defining_obj, "dbg cond");
+        vm_rcdesc rc("dbg cond");
+        G_interpreter->call_func_ptr(vmg_ &compiled_cond_->val, 0, &rc, 0);
 
         /* get the return value */
         valp = G_interpreter->get_r0();
@@ -3571,11 +3972,11 @@ int CVmDebugBp::eval_cond(VMG0_)
              *   never evaluated the value before, so the value can't have
              *   changed; simply remember the new value in this case.  
              */
-            ret = (prv_val->val.typ != VM_EMPTY
-                   && !prv_val->val.equals(vmg_ valp));
+            ret = (prv_val_->val.typ != VM_EMPTY
+                   && !prv_val_->val.equals(vmg_ valp));
 
             /* remember the new value for next time */
-            prv_val->val = *valp;
+            prv_val_->val = *valp;
         }
         else
         {
@@ -3640,38 +4041,31 @@ void CVmDebugBp::set_bp_instr(VMG_ int set, int always)
     /* if I have a code address, set or remove the BP instruction */
     if (code_addr_ != 0)
     {
-        char *code_ptr;
-
         /* get a writable pointer to the code location */
-        code_ptr = G_code_pool->get_writable_ptr(code_addr_);
+        uchar *code_ptr = (uchar *)code_addr_;
 
-        /* proceed only if we got a valid code pointer */
-        if (code_ptr != 0)
+        /* check to see if we're setting or removing the BP instruction */
+        if (set)
         {
-            /* check to see if we're setting or removing the BP instruction */
-            if (set)
-            {
-                /* 
-                 *   if we're not in the debugger, write the BP
-                 *   instruction to the address - don't do this if we're
-                 *   in the debugger, since we remove all BP instructions
-                 *   from the code while the debugger has control to
-                 *   prevent any recursive debugger invocations from
-                 *   taking place 
-                 */
-                if (always || !G_debugger->is_in_debugger())
-                    *code_ptr = (char)OPC_BP;
-            }
-            else
-            {
-                /* 
-                 *   Restore the original instruction to that location.
-                 *   This isn't necessary if we're in the debugger, since
-                 *   we remove all BP's when the debugger takes control.  
-                 */
-                if (always || !G_debugger->is_in_debugger())
-                    *code_ptr = orig_instr_;
-            }
+            /* 
+             *   if we're not in the debugger, write the BP instruction to
+             *   the address - don't do this if we're in the debugger, since
+             *   we remove all BP instructions from the code while the
+             *   debugger has control to prevent any recursive debugger
+             *   invocations from taking place 
+             */
+            if (always || !G_debugger->is_in_debugger())
+                *code_ptr = OPC_BP;
+        }
+        else
+        {
+            /* 
+             *   Restore the original instruction to that location.  This
+             *   isn't necessary if we're in the debugger, since we remove
+             *   all BP's when the debugger takes control.  
+             */
+            if (always || !G_debugger->is_in_debugger())
+                *code_ptr = orig_instr_;
         }
     }
 }

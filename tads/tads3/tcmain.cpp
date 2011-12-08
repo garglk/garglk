@@ -132,6 +132,26 @@ void CTcMain::init(CTcHostIfc *hostifc, CResLoader *res_loader,
     /* perform static initializations on the parser symbol table class */
     CTcPrsSymtab::s_init();
 
+    /* 
+     *   Set the image file structure sizes for the current T3 VM spec we're
+     *   targeting.  When we're doing dynamic compilation, the DynamicFunc
+     *   object will overwrite these with the actual settings for the loaded
+     *   image file before it invokes the code generator.  
+     */
+    G_sizes.mhdr = TCT3_METHOD_HDR_SIZE;
+    G_sizes.exc_entry = TCT3_EXC_ENTRY_SIZE;
+    G_sizes.dbg_hdr = TCT3_DBG_HDR_SIZE;
+    G_sizes.dbg_line = TCT3_LINE_ENTRY_SIZE;
+    G_sizes.lcl_hdr = TCT3_DBG_LCLSYM_HDR_SIZE;
+    G_sizes.dbg_fmt_vsn = TCT3_DBG_FMT_VSN;
+    G_sizes.dbg_frame = TCT3_DBG_FRAME_SIZE;
+
+    /* assume we won't have a loaded image file metaclass table */
+    G_metaclass_tab = 0;
+
+    /* we don't have a dynamic compiler interface yet */
+    G_vmifc = 0;
+
     /* create the compiler main object */
     G_tcmain = new CTcMain(res_loader, default_charset);
 }
@@ -271,6 +291,9 @@ CTcMain::CTcMain(CResLoader *res_loader, const char *default_charset)
     /* create the static initializer identifier stream */
     G_static_init_id_stream = new CTcDataStream(TCGEN_STATIC_INIT_ID_STREAM);
 
+    /* create the local variable name stream */
+    G_lcl_stream = new CTcDataStream(TCGEN_LCL_VAR_STREAM);
+
     /* create the target-specific code generator */
     G_cg = new CTcGenTarg();
 
@@ -312,6 +335,7 @@ CTcMain::~CTcMain()
     delete G_bignum_stream;
     delete G_int_class_stream;
     delete G_static_init_id_stream;
+    delete G_lcl_stream;
 
     /* delete the console output character map, if there is one */
     if (console_mapper_ != 0)
@@ -586,7 +610,7 @@ static void format_message(const char *msg, unsigned long options)
                  *   if we're at the end of the line, or we're over the line
                  *   width and we found a space, break here 
                  */
-                if (*p == '\0' || p - start >= line_wid && sp != 0)
+                if (*p == '\0' || (p - start >= line_wid && sp != 0))
                 {
                     /* if we've reached the end, print the rest */
                     if (*p == '\0')

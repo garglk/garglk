@@ -57,8 +57,8 @@ public:
         return (ret != 0 ? ret : this);
     }
 
-    /* adjust for debugging */
-    class CTcPrsNode *adjust_for_debug(const tcpn_debug_info *info)
+    /* adjust for dynamic (run-time) compilation */
+    class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info)
     {
         /* 
          *   if this expression has side effects, don't allow it to be
@@ -68,7 +68,7 @@ public:
             err_throw(VMERR_BAD_SPEC_EVAL);
         
         /* adjust my subexpression */
-        sub_ = sub_->adjust_for_debug(info);
+        sub_ = sub_->adjust_for_dyn(info);
 
         /* return myself otherwise unchanged */
         return this;
@@ -156,16 +156,16 @@ public:
         return (ret != 0 ? ret : this);
     }
 
-    /* adjust for debugging */
-    class CTcPrsNode *adjust_for_debug(const tcpn_debug_info *info)
+    /* adjust for dynamic (run-time) compilation */
+    class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info)
     {
         /* if I have side effects, don't allow speculative evaluation */
         if (info->speculative && has_side_effects())
             err_throw(VMERR_BAD_SPEC_EVAL);
         
         /* adjust the left and right subexpressions */
-        left_ = left_->adjust_for_debug(info);
-        right_ = right_->adjust_for_debug(info);
+        left_ = left_->adjust_for_dyn(info);
+        right_ = right_->adjust_for_dyn(info);
 
         /* return myself otherwise unchanged */
         return this;
@@ -198,11 +198,23 @@ protected:
  *   they can use this generic class definition macro.  
  */
 #define CTPNBin_def(scname) \
-    class scname: public CTPNBin \
+class scname: public CTPNBin \
 { \
 public: \
     CTPNBin_ctor(scname); \
     void gen_code(int discard, int for_condition); \
+}
+
+/*
+ *   define a CTPNBin target subclass for a binary comparison operator 
+ */
+#define CTPNBin_cmp_def(scname) \
+class scname: public CTPNBin \
+{ \
+public: \
+    CTPNBin_ctor(scname); \
+    void gen_code(int discard, int for_condition); \
+    virtual int is_bool() const { return TRUE; } \
 }
 
 /* 
@@ -385,6 +397,31 @@ protected:
 //     CTPNStmEnclosing *enclosing_;
 // };
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Base class for 'for' statement 'var in collection' and 'var in from..to'
+ *   expressions.  We keep a separate list of these nodes for a 'for'
+ *   statement, for code generation purposes.  These expression nodes reside
+ *   in the initializer clause of the 'for', but they implicitly generate
+ *   code in the condition and reinit phases as well.  
+ */
+class CTPNForInBase: public CTcPrsNode
+{
+public:
+    CTPNForInBase()
+    {
+        nxt_ = 0;
+    }
+
+    /* get/set the next list entry */
+    class CTPNForIn *getnxt() const { return nxt_; }
+    void setnxt(class CTPNForIn *nxt) { nxt_ = nxt; }
+
+protected:
+    /* next in list of 'in' clauses for this 'for' */
+    class CTPNForIn *nxt_;
+};
 
 #endif /* TCPNINT_H */
 

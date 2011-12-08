@@ -41,6 +41,12 @@ typedef int re_state_id;
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   forward declarations 
+ */
+typedef struct regex_scan_frame regex_scan_frame;
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Group register structure.  Each register keeps track of the starting
  *   and ending offset of the group's text within the original search
  *   string.  
@@ -88,6 +94,13 @@ enum re_recog_type
     /* beginning and end of text */
     RE_TEXT_BEGIN,
     RE_TEXT_END,
+
+    /* 
+     *   same position as parent lookback assertion - this is used for
+     *   lookback assertions to assert that the assertion ends at the point
+     *   where the assertion occurs in the match string 
+     */
+    RE_LOOKBACK_POS,
 
     /* start and end of a word */
     RE_WORD_BEGIN,
@@ -142,17 +155,26 @@ enum re_recog_type
     /* null character (used in range recognizers) */
     RE_NULLCHAR,
 
-    /* positive assertion */
+    /* positive look-ahead assertion */
     RE_ASSERT_POS,
 
-    /* negative assertion */
+    /* negative look-ahead assertion */
     RE_ASSERT_NEG,
+
+    /* positive look-back assertion */
+    RE_ASSERT_BACKPOS,
+
+    /* negative look-back assertion */
+    RE_ASSERT_BACKNEG,
 
     /* loop entry: zero the associated loop variable */
     RE_ZERO_VAR,
 
     /* loop branch: inspect loop criteria and branch accordingly */
-    RE_LOOP_BRANCH
+    RE_LOOP_BRANCH,
+
+    /* vertical whitespace */
+    RE_VSPACE
 };
 
 
@@ -182,12 +204,18 @@ struct re_tuple
 
         /* 
          *   if this has a sub-machine, this is the start and end info (used
-         *   for RE_ASSERT_POS, RE_ASSERT_NEG) 
+         *   for the assertion entry states: RE_ASSERT_POS, RE_ASSERT_NEG,
+         *   RE_ASSERT_BACKPOS, RE_ASSERT_BACKNEG) 
          */
         struct
         {
+            /* sub-machine start/end states */
             re_state_id init;
             re_state_id final;
+
+            /* for look-back assertions, the match length range */
+            int minlen;
+            int maxlen;
         } sub;
 
         /* 
@@ -299,21 +327,24 @@ struct re_compiled_pattern_base
      *   case-sensitive, so alphabetic characters in the pattern are matched
      *   without regard to case.  
      */
-    int case_sensitive : 1;
+    unsigned int case_sensitive : 1;
+
+    /* is the case sensitivity explicit or defaulted? */
+    unsigned int case_sensitivity_specified : 1;
 
     /* 
      *   <MIN> or <MAX> match mode -- if this flag is set, we match the
      *   longest string in case of ambiguity; otherwise we match the
      *   shortest.  
      */
-    int longest_match : 1;
+    unsigned int longest_match : 1;
 
     /* 
      *   <FirstEnd> or <FirstBeg> match mode -- if this flag is set, we
      *   match (in a search) the string that starts first in case of
      *   ambiguity; otherwise, we match the string that ends first 
      */
-    int first_begin : 1;
+    unsigned int first_begin : 1;
 };
 
 /*
@@ -376,9 +407,6 @@ public:
     /* free a pattern previously created with compile_pattern() */
     static void free_pattern(re_compiled_pattern *pattern);
 
-    /* set the default case sensitivity */
-    void set_default_case_sensitive(int f) { default_case_sensitive_ = f; }
-
 protected:
     /* reset the parser */
     void reset();
@@ -416,7 +444,8 @@ protected:
 
     /* build a positive or negative assertion machine */
     void build_assert(struct re_machine *new_machine,
-                      struct re_machine *sub_machine, int is_negative);
+                      struct re_machine *sub_machine,
+                      int is_negative, int is_lookback);
 
     /* build an alternation recognizer */
     void build_alter(struct re_machine *new_machine,
@@ -468,8 +497,14 @@ protected:
     /* break any infinite loops in the machine */
     void break_loops(re_machine *machine);
 
+    /* get the match length for a state */
+    void get_match_length(re_state_id init, re_state_id final,
+                          int *minlen, int *maxlen,
+                          regex_scan_frame *stack);
+
     /* find an infinite loop back to the given state */
-    int find_loop(re_machine *machine, re_state_id cur_state);
+    int break_loops(re_state_id init, re_state_id final,
+                    regex_scan_frame *stack);
 
     /* optimize away meaningless branch-to-branch transitions */
     void remove_branch_to_branch(re_machine *machine);
@@ -495,9 +530,6 @@ protected:
 
     /* maximum number of entries in range buffer */
     size_t range_buf_max_;
-
-    /* are our expressions case-sensitive by default? */
-    int default_case_sensitive_;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -523,11 +555,18 @@ protected:
  *   to avoid unnecessary copying 
  */
 
+enum regex_frame_type
+{
+    ST_EPS1 = 1,                /* doing first branch of two-branch epsilon */
+    ST_EPS2 = 2,               /* doing second branch of two-branch epsilon */
+    ST_ASSERT = 3                                     /* doing an assertion */
+};
+
 /* the base structure for a stacked state */
 struct regex_stack_entry
 {
     /* the backtrack type identifier */
-    short typ;
+    regex_frame_type typ;
 
     /* the starting offset in the string */
     int start_ofs;
@@ -543,6 +582,15 @@ struct regex_stack_entry
 
     /* the return value for this state */
     int retval;
+
+    /*
+     *   The look-back iteration.  For a look-back assertion, we have to
+     *   check each starting point over the range of possible match lengths,
+     *   until we've either found a success condition or exhausted the range
+     *   of possible match lengths.  This keeps track of where we are in the
+     *   iteration.  
+     */
+    int iter;
 
     /* stack offset of previous frame */
     int prv_sp;
@@ -573,6 +621,8 @@ struct regex_stack_var
 /* state stack class */
 class CRegexStack
 {
+    friend class reg_deltas;
+    
 public:
     CRegexStack()
     {
@@ -600,8 +650,8 @@ public:
     }
 
     /* push a new state */
-    void push(ushort typ, int start_ofs, int str_ofs,
-              re_state_id state, re_state_id final)
+    void push(regex_frame_type typ, int start_ofs, int str_ofs,
+              re_state_id state, re_state_id final, int iter)
     {
         regex_stack_entry *fp;
 
@@ -627,6 +677,7 @@ public:
         fp->str_ofs = str_ofs;
         fp->state = state;
         fp->final = final;
+        fp->iter = iter;
 
         /* push it onto the stack */
         fp->prv_sp = sp_;
@@ -657,6 +708,14 @@ public:
             var->val.loopvar = loop_vars[id];
     }
 
+    /* propagate a group register or loop variable from another frame */
+    void propagate(const regex_stack_var *src)
+    {
+        regex_stack_var *dst;
+        if (sp_ != -1 && (dst = new_reg_or_var(src->id)) != 0)
+            memcpy(dst, src, sizeof(*dst));
+    }
+
     /* 
      *   get the type of the state at top of stack; if there is no state,
      *   returns -1 
@@ -679,32 +738,59 @@ public:
         regex_stack_entry *fp;
 
         /* traverse the given number of frames from the top of the stack */
-        for (fp = (regex_stack_entry *)(buf_ + sp_) ; depth != 0 ; --depth)
-            fp = (regex_stack_entry *)(buf_ + fp->prv_sp);
+        for (fp = (regex_stack_entry *)(buf_ + sp_) ;
+             depth != 0 && fp != 0 ; --depth, fp = get_parent_frame(fp)) ;
 
         /* return the frame pointer */
         return fp;
     }
 
+    /* 
+     *   Get the parent lookback assertion match position.  This scans up the
+     *   stack for the nearest assertion frame, and returns its match
+     *   position.  
+     */
+    int get_lookback_pos()
+    {
+        /* scan up the stack for a lookback frame */
+        for (regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_) ;
+             fp != 0 ; fp = get_parent_frame(fp))
+        {
+            /* if this is an assert frame, return the position */
+            if (fp->typ == ST_ASSERT)
+                return fp->str_ofs;
+        }
+
+        /* didn't find it */
+        return -1;
+    }
+
+    /* get the parent stack entry */
+    regex_stack_entry *get_parent_frame(regex_stack_entry *fp)
+    {
+        if (fp->prv_sp < 0)
+            return 0;
+        else
+            return (regex_stack_entry *)(buf_ + fp->prv_sp);
+    }
+
     /* pop a state */
     void pop(int *start_ofs, int *str_ofs,
              re_state_id *state, re_state_id *final,
-             re_group_register *regs, short *loop_vars)
+             re_group_register *regs, short *loop_vars, int *iter)
     {
-        regex_stack_entry *fp;
-        regex_stack_var *var;
-
         /* get the stack pointer */
-        fp = (regex_stack_entry *)(buf_ + sp_);
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
 
         /* restore the string offset and state ID */
         *start_ofs = fp->start_ofs;
         *str_ofs = fp->str_ofs;
         *state = fp->state;
         *final = fp->final;
+        *iter = fp->iter;
         
         /* run through the saved registers/variables in the state */
-        for (var = (regex_stack_var *)(fp + 1) ;
+        for (regex_stack_var *var = (regex_stack_var *)(fp + 1) ;
              var < (regex_stack_var *)(buf_ + used_) ; ++var)
         {
             /* sense the type */
@@ -738,21 +824,21 @@ public:
     }
 
     /* 
-     *   Save the current state at the top of the stack and push a new
-     *   state.  This is used to traverse the second branch of a two-branch
-     *   epsilon: we first have to save the results of the first branch,
-     *   including the return value and its registers, and we then have to
-     *   restore the initial register/loop state as it was before the first
-     *   branch.
+     *   Swap the current state with the state at the top of the stack, and
+     *   push a second copy of the restored state.  This is used to traverse
+     *   the second branch of a two-branch epsilon: we first have to save the
+     *   results of the first branch, including the return value and its
+     *   registers, and we then have to restore the initial register/loop
+     *   state as it was before the first branch.
      *   
      *   We save the final state and restore the initial state by swapping
      *   the group registers in the saved state with those in the current
      *   state.  This brings back the initial conditions to the current
-     *   machine state, while saving everything that's changed in the
-     *   current machine state in the stack frame.  We'll likewise swap the
-     *   machine state and string offset.  Later, this same final machine
-     *   state can be restored by first restoring the machine state to the
-     *   initial state, then popping this frame.
+     *   machine state, while saving everything that's changed in the current
+     *   machine state in the stack frame.  We'll likewise swap the machine
+     *   state and string offset.  Later, this same final machine state can
+     *   be restored by first restoring the machine state to the initial
+     *   state, then popping this frame.
      *   
      *   On return, the stack frame that was active on entry will be set to
      *   contain the current machine state, and the current machine state
@@ -760,21 +846,53 @@ public:
      *   we'll have pushed a new stack frame for the new current machine
      *   state.  
      */
-    void save_and_push(int retval,
-                       ushort typ, int *start_ofs, int *str_ofs,
+    void swap_and_push(int retval, regex_frame_type typ,
+                       int *start_ofs, int *str_ofs,
                        re_state_id *state, re_state_id *final,
                        re_group_register *regs, short *loop_vars)
     {
-        regex_stack_entry *fp;
-        regex_stack_var *var;
-        int tmp_ofs;
-        re_state_id tmp_id;
+        /* swap the current state wtih the top of stack */
+        swap(start_ofs, str_ofs, state, final, regs, loop_vars);
 
+        /* save the return value from the outgoing state */
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
+        fp->retval = retval;
+
+        /* push a copy of the restored state */
+        push(typ, *start_ofs, *str_ofs, *state, *final, 0);
+    }
+
+    /*
+     *   Swap the current active state with the top of stack, then pop the
+     *   frame. 
+     */
+    void swap_and_pop(int *start_ofs, int *str_ofs,
+                      re_state_id *state, re_state_id *final,
+                      re_group_register *regs, short *loop_vars, int *iter)
+    {
+        /* swap the current state wtih the top of stack */
+        swap(start_ofs, str_ofs, state, final, regs, loop_vars);
+
+        /* save the return value from the outgoing state */
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
+        *iter = fp->iter;
+
+        /* discard the frame */
+        discard();
+    }
+
+    /*
+     *   Swap the current state with the top stack frame 
+     */
+    void swap(int *start_ofs, int *str_ofs,
+              re_state_id *state, re_state_id *final,
+              re_group_register *regs, short *loop_vars)
+    {
         /* get the stack pointer */
-        fp = (regex_stack_entry *)(buf_ + sp_);
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
 
         /* swap the string offset */
-        tmp_ofs = *str_ofs;
+        int tmp_ofs = *str_ofs;
         *str_ofs = fp->str_ofs;
         fp->str_ofs = tmp_ofs;
 
@@ -784,7 +902,7 @@ public:
         fp->start_ofs = tmp_ofs;
 
         /* swap the current machine state */
-        tmp_id = *state;
+        re_state_id tmp_id = *state;
         *state = fp->state;
         fp->state = tmp_id;
 
@@ -794,7 +912,7 @@ public:
         fp->final = tmp_id;
 
         /* swap all group and loop registers with the current state */
-        for (var = (regex_stack_var *)(fp + 1) ;
+        for (regex_stack_var *var = (regex_stack_var *)(fp + 1) ;
              var < (regex_stack_var *)(buf_ + used_) ; ++var)
         {
             /* sense the type */
@@ -817,12 +935,6 @@ public:
                 var->val.loopvar = tmp;
             }
         }
-
-        /* save the return value from the outgoing state */
-        fp->retval = retval;
-
-        /* push a copy of the restored state */
-        push(typ, *start_ofs, *str_ofs, *state, *final);
     }
 
 protected:
@@ -950,6 +1062,15 @@ public:
                       const char *searchstr, size_t searchlen,
                       re_group_register *regs);
 
+    /*
+     *   Get/set the default case sensititivy for searching and matching.
+     *   This controls the case sensitivity for patterns that don't include
+     *   explicit <case> or <nocase> flags.  Explicit flags in the pattern
+     *   override this default.  
+     */
+    int get_default_case_sensitive() const { return default_case_sensitive_; }
+    void set_default_case_sensitive(int f) { default_case_sensitive_ = f; }
+
 protected:
     /* match a string to a compiled expression */
     int match(const char *entire_str,
@@ -989,6 +1110,9 @@ protected:
 
     /* match state stack */
     CRegexStack stack_;
+
+    /* default case sensitivity, for patterns that don't specify it */
+    unsigned int default_case_sensitive_ : 1;
 };
 
 /*
@@ -1009,6 +1133,9 @@ public:
     {
     }
 
+    /* clear out our group registers */
+    void clear_group_regs() { CRegexSearcher::clear_group_regs(regs_); }
+
     /* search for a pattern, using our internal group registers */
     int search_for_pattern(const re_compiled_pattern *pattern,
                            const char *entirestr,
@@ -1019,7 +1146,7 @@ public:
         group_cnt_ = pattern->group_cnt;
 
         /* clear the group registers */
-        clear_group_regs(regs_);
+        clear_group_regs();
 
         /* search for the compiled pattern using our group register */
         return CRegexSearcher::search_for_pattern(
@@ -1035,7 +1162,7 @@ public:
         group_cnt_ = pattern->group_cnt;
 
         /* clear the group registers */
-        clear_group_regs(regs_);
+        clear_group_regs();
 
         /* search for the compiled pattern using our group register */
         return CRegexSearcher::match_pattern(
@@ -1073,6 +1200,13 @@ public:
 
     /* get the number of groups in the last pattern we searched */
     int get_group_cnt() const { return group_cnt_; }
+
+    /* copy group registers from another search */
+    void copy_group_regs(CRegexSearcherSimple *s)
+    {
+        memcpy(regs_, s->regs_, sizeof(regs_));
+        group_cnt_ = s->group_cnt_;
+    }
 
 protected:
     /* group registers */

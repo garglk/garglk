@@ -42,13 +42,15 @@ Modified
  *.  UINT2 bucket_index[N]
  *.  value[1]
  *.  value[2]
- *.  value[3]
- *.  etc
+ *.  ...
+ *.  value[N]
+ *.  --- the following are only used in version 030003 and later ---
+ *.  DATAHOLDER default_value
  *   
- *   value_count gives the number of value slots allocated.  Free value
- *   slots are kept in a linked list, the head of which is at the 1-based
- *   index given by first_free_index.  If first_free_index is zero, there
- *   are no free value slots.
+ *   value_count gives the number of value slots allocated.  Free value slots
+ *   are kept in a linked list, the head of which is at the 1-based index
+ *   given by first_free_index.  If first_free_index is zero, there are no
+ *   free value slots.
  *   
  *   Each bucket_index[i] is the 1-based index of the first value in the
  *   chain for that hash bucket.  If the value in a bucket_index[i] is zero,
@@ -65,7 +67,14 @@ Modified
  *   
  *   next_index gives the 1-based index of the next value in the chain for
  *   that bucket; a value of zero indicates that this is the last value in
- *   the chain.  
+ *   the chain.
+ *   
+ *   For version 030003 and later, additional data MAY be supplied.  This can
+ *   be detected by checking the data block size: if more bytes follow the
+ *   last value slot, the extended version 030003 elements are present.
+ *   
+ *   default_value is the default value to return when the table is indexed
+ *   by a key that doesn't exist in the table.  This is nil by default.  
  */
 
 /* value entry size */
@@ -221,6 +230,12 @@ struct vm_lookup_ext
     vm_lookup_val *first_free;
 
     /* 
+     *   default value - this is returned when we index the table by a key
+     *   that doesn't exist in the table 
+     */
+    vm_val_t default_value;
+
+    /* 
      *   buckets (we overallocate the structure to make room): each bucket
      *   points to the first entry in the list of entries at this hash value 
      */
@@ -247,7 +262,10 @@ enum lookuptab_undo_action
     LOOKUPTAB_UNDO_DEL,
 
     /* we modified the value for a given key */
-    LOOKUPTAB_UNDO_MOD
+    LOOKUPTAB_UNDO_MOD,
+
+    /* we changed the default value for the table */
+    LOOKUPTAB_UNDO_DEFVAL
 };
 
 
@@ -260,6 +278,7 @@ class CVmObjLookupTable: public CVmObjCollection
 {
     friend class CVmObjIterLookupTable;
     friend class CVmMetaclassLookupTable;
+    friend class CVmObjWeakRefLookupTable;
     
 public:
     /* metaclass registration object */
@@ -273,6 +292,10 @@ public:
         return (meta == metaclass_reg_
                 || CVmObjCollection::is_of_metaclass(meta));
     }
+
+    /* is this a lookup table object? */
+    static int is_lookup_table_obj(VMG_ vm_obj_id_t obj)
+        { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
     /* create */
     static vm_obj_id_t create(VMG_ int in_root_set,
@@ -362,24 +385,52 @@ public:
      */
     int is_changed_since_load() const { return TRUE; }
 
+    /* get an entry; returns true if the entry exists, false if not */
+    int index_check(VMG_ vm_val_t *result, const vm_val_t *index_val);
+
     /* get a value by index */
-    void index_val(VMG_ vm_val_t *result,
-                   vm_obj_id_t self,
-                   const vm_val_t *index_val);
+    int index_val_q(VMG_ vm_val_t *result,
+                    vm_obj_id_t self,
+                    const vm_val_t *index_val);
 
     /* set a value by index */
-    void set_index_val(VMG_ vm_val_t *new_container,
-                       vm_obj_id_t self,
-                       const vm_val_t *index_val,
-                       const vm_val_t *new_val);
+    int set_index_val_q(VMG_ vm_val_t *new_container,
+                        vm_obj_id_t self,
+                        const vm_val_t *index_val,
+                        const vm_val_t *new_val);
     
     /* add an entry - does not generate undo */
     void add_entry(VMG_ const vm_val_t *key, const vm_val_t *val);
 
+    /* set or add an entry - does not generate undo */
+    void set_or_add_entry(VMG_ const vm_val_t *key, const vm_val_t *val);
+
+    /* make a list of keys/values in the table */
+    void keys_to_list(VMG_ vm_val_t *lst,
+                      int (*filter)(VMG_ const vm_val_t *, const vm_val_t *)
+                      = 0)
+        { make_list(vmg_ lst, TRUE, filter); }
+    void vals_to_list(VMG_ vm_val_t *lst,
+                      int (*filter)(VMG_ const vm_val_t *, const vm_val_t *)
+                      = 0)
+        { make_list(vmg_ lst, FALSE, filter); }
+
+    /* iterate over the table's contents through a callback */
+    void for_each(VMG_ void (*cb)(VMG_ const vm_val_t *key,
+                                  const vm_val_t *val, void *ctx), void *ctx);
+
+    /* get the default value */
+    void get_default_val(vm_val_t *val);
+
 protected:
     /* get and range-check the constructor arguments */
-    static void get_constructor_args(VMG_ uint argc, size_t *bucket_count,
-                                     size_t *init_capacity);
+    static void get_constructor_args(VMG_ uint argc,
+                                     size_t *bucket_count,
+                                     size_t *init_capacity,
+                                     vm_val_t *src_obj);
+
+    /* populate the table from a Key->Value list or vector */
+    void populate_from_list(VMG_ const vm_val_t *src_obj);
 
     /* load or reload image data */
     void load_image_data(VMG_ const char *ptr, size_t siz);
@@ -491,7 +542,7 @@ protected:
 
     /* general forEach/forEachAssoc processor */
     int for_each_gen(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc,
-                     int pass_key_to_cb);
+                     int pass_key_to_cb, struct vm_rcdesc *rc);
 
     /* get the number of buckets in the table */
     int getp_count_buckets(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
@@ -504,10 +555,34 @@ protected:
 
     /* make a list of all of the values in the table */
     int getp_vals_to_list(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+    
+    /* get the default value */
+    int getp_get_def_val(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* set the default value */
+    int getp_set_def_val(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
 
     /* general handler for making a list of keys or values */
-    int make_list(VMG_ vm_obj_id_t self,
-                  vm_val_t *retval, uint *argc, int store_keys);
+    int getp_make_list(VMG_ vm_obj_id_t self,
+                       vm_val_t *retval, uint *argc, int store_keys);
+
+    /* get the nth key */
+    int getp_nthKey(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* get the nth value */
+    int getp_nthVal(VMG_ vm_obj_id_t self, vm_val_t *val, uint *argc);
+
+    /* 
+     *   Get the nth element's key and/or value.  This only counts in-use
+     *   buckets.  If idx is zero, we return the default value.  If idx is
+     *   out of range, we throw an error. 
+     */
+    void get_nth_ele(VMG_ vm_val_t *key, vm_val_t *val,
+                     vm_obj_id_t self, long idx);
+
+    /* make a list of the keys or values in the table */
+    void make_list(VMG_ vm_val_t *retval, int store_keys,
+                   int (*filter)(VMG_ const vm_val_t *, const vm_val_t *));
 
     /* add a record to the global undo stream */
     void add_undo_rec(VMG_ vm_obj_id_t self,
@@ -591,7 +666,7 @@ class CVmMetaclassLookupTable: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "lookuptable/030002"; }
+    const char *get_meta_name() const { return "lookuptable/030003"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)
@@ -632,7 +707,7 @@ class CVmMetaclassWeakRefLookupTable: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "weakreflookuptable/030000"; }
+    const char *get_meta_name() const { return "weakreflookuptable/030001"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

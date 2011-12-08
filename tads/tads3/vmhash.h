@@ -34,6 +34,7 @@ Modified
 class CVmHashFunc
 {
 public:
+    virtual ~CVmHashFunc() { }
     virtual unsigned int compute_hash(const char *str, size_t len) const = 0;
 };
 

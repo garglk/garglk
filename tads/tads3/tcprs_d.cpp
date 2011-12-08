@@ -34,6 +34,9 @@ Modified
 void CTPNStmBase::add_debug_line_rec()
 {
 }
+void CTPNStmBase::add_debug_line_rec(CTcTokFileDesc *, long)
+{
+}
 
 /*
  *   Anonymous functions are illegal in the debugger 
@@ -55,11 +58,6 @@ CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int /*short_form*/)
  */
 void CTcParser::init_local_ctx()
 {
-}
-
-tctarg_prop_id_t CTcParser::alloc_ctx_var_prop()
-{
-    return TCTARG_INVALID_PROP;
 }
 
 int CTcParser::alloc_ctx_arr_idx()
@@ -86,3 +84,13 @@ void CTcPrsSymtab::add_to_global_symtab(CTcPrsSymtab *, CTcSymbol *)
 void CTcParser::set_source_text_group_mode(int)
 {
 }
+
+CTcPrsNode *CTPNStmLabelBase::fold_constants(CTcPrsSymtab *)
+{
+    return 0;
+}
+unsigned long CTPNStmLabelBase::get_control_flow(int) const
+{
+    return 0;
+}
+

@@ -20,6 +20,40 @@ Modified
   08/02/99 MJRoberts  - Creation
 */
 
+/*
+ *   Saved game header structure:
+ *   
+ *.    <17 bytes>  - signature, "T3-state-vXXX\015\012\032", where XXX is
+ *.                  the hex version number
+ *.    UINT4       - stream size, counting from the timestamp on
+ *.    UINT4       - CRC32 checksum of stream, from the timestamp on
+ *.    <24 bytes>  - timestamp of the game file, to ensure that this saved
+ *.                  state file is only applied to the correct image file
+ *.    UINT2       - length of filename in bytes
+ *.    <? bytes>   - image file name; length given by preceding UINT2
+ *.    UINT2       - number of bytes in metadata table
+ *.    <? bytes>   - metadata table
+ *.    <? bytes>   - object stream data
+ *   
+ *   The metadata table contains any number of name/value string pairs.
+ *   These are arbitrary values that allow the game to store descriptive
+ *   information about the saved game that the interpreter and other tools
+ *   can display to the user, to jog the user's memory when reviewing a
+ *   collection of saved game files.  The format of the table is:
+ *   
+ *.    UINT2       - number of string/value pairs
+ *.    <? bytes>   - first pair
+ *.    <? bytes>   - second pair
+ *.    ...etc...
+ *   
+ *   Each pair has this format:
+ *   
+ *.    UINT2       - length of the name string
+ *.    UINT2       - length of the value string
+ *.    <? bytes>   - name string
+ *.    <? bytes>   - value string
+ */
+
 #include "t3std.h"
 #include "os.h"
 #include "vmglob.h"
@@ -32,6 +66,8 @@ Modified
 #include "vmundo.h"
 #include "vmmeta.h"
 #include "vmcrc.h"
+#include "vmlookup.h"
+#include "vmstr.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -52,7 +88,7 @@ Modified
  *   positions as a precaution against later getting into unwinnable
  *   states).  
  */
-#define VMSAVEFILE_SIG "T3-state-v0009\015\012\032"
+#define VMSAVEFILE_SIG "T3-state-v000A\015\012\032"
 
 
 /* ------------------------------------------------------------------------ */
@@ -93,9 +129,57 @@ static unsigned long compute_checksum(CVmFile *fp, unsigned long len)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Callback for enumerating the LookupTable entries for the metadata table
+ *   while saving a game 
+ */
+struct metatab_saver
+{
+    metatab_saver(CVmFile *fp)
+    {
+        this->fp = fp;
+        this->cnt = 0;
+    }
+
+    /* number of name/value pairs we've written so far */
+    int cnt;
+
+    /* file we're writing to */
+    CVmFile *fp;
+
+    /* LookupTable::for_each callback */
+    static void cb(VMG_ const vm_val_t *key, const vm_val_t *val, void *ctx)
+    {
+        /* the context is our 'this' pointer */
+        metatab_saver *self = (metatab_saver *)ctx;
+        CVmFile *fp = self->fp;
+
+        /* both the key and value must be strings for us to save them */
+        const char *keystr = key->get_as_string(vmg0_);
+        const char *valstr = val->get_as_string(vmg0_);
+        if (keystr != 0 && valstr != 0)
+        {
+            size_t len;
+            
+            /* save the key string */
+            fp->write_uint2(len = vmb_get_len(keystr));
+            fp->write_bytes(keystr + VMB_LEN, len);
+
+            /* save the value string */
+            fp->write_uint2(len = vmb_get_len(valstr));
+            fp->write_bytes(valstr + VMB_LEN, len);
+
+            /* count the pair */
+            self->cnt += 1;
+        }
+    }
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Save VM state to a file 
  */
-void CVmSaveFile::save(VMG_ CVmFile *fp)
+void CVmSaveFile::save(VMG_ CVmFile *fp, CVmObjLookupTable *metatab)
 {
     const char *fname;
     size_t fname_len;
@@ -111,8 +195,8 @@ void CVmSaveFile::save(VMG_ CVmFile *fp)
     startpos = fp->get_pos();
 
     /* write a placeholder for the stream size and checksum */
-    fp->write_int4(0);
-    fp->write_int4(0);
+    fp->write_uint4(0);
+    fp->write_uint4(0);
 
     /* write the image file's timestamp */
     fp->write_bytes(G_image_loader->get_timestamp(), 24);
@@ -126,8 +210,39 @@ void CVmSaveFile::save(VMG_ CVmFile *fp)
      *   load if we start the interpreter specifying only the saved state
      *   to be restored 
      */
-    fp->write_int2(strlen(fname));
+    fp->write_uint2(fname_len);
     fp->write_bytes(fname, fname_len);
+
+    /* if there's a metadata table, write it out */
+    if (metatab != 0)
+    {
+        /* write a placeholder for the length and entry count */
+        long metapos = fp->get_pos();
+        fp->write_uint2(0);
+        fp->write_uint2(0);
+
+        /* run through the table and write out the entries */
+        metatab_saver ctx(fp);
+        metatab->for_each(vmg_ &ctx.cb, &ctx);
+
+        /* go back and fix up the table length and entry count */
+        endpos = fp->get_pos();
+        fp->set_pos(metapos);
+        fp->write_uint2((int)(endpos - metapos - 2));
+        fp->write_uint2(ctx.cnt);
+
+        /* it's an error if this table exceeds 64k */
+        if (endpos - metapos > 0xffff)
+            err_throw(VMERR_DESC_TAB_OVERFLOW);
+
+        /* seek back to the end of the table */
+        fp->set_pos(endpos);
+    }
+    else
+    {
+        /* there's no metadata table - just write a zero-byte length */
+        fp->write_uint2(0);
+    }
 
     /* save all modified object state */
     G_obj_table->save(vmg_ fp);
@@ -159,8 +274,8 @@ void CVmSaveFile::save(VMG_ CVmFile *fp)
      *   that we know their values 
      */
     fp->set_pos(startpos);
-    fp->write_int4(datasize);
-    fp->write_int4(crcval);
+    fp->write_uint4(datasize);
+    fp->write_uint4(crcval);
 
     /* seek back to the end of the file */
     fp->set_pos(endpos);
@@ -267,6 +382,12 @@ int CVmSaveFile::restore(VMG_ CVmFile *fp)
     fp->set_pos_from_cur(fp->read_int2());
 
     /* 
+     *   skip the metadata table - it's provided for browsing tools, and we
+     *   have no use for it ourselves 
+     */
+    fp->set_pos_from_cur(fp->read_int2());
+
+    /* 
      *   discard all undo information - any undo information we currently
      *   have obviously can't be applied to the restored state 
      */
@@ -323,6 +444,10 @@ int CVmSaveFile::restore(VMG_ CVmFile *fp)
     /* restore the garbage collector's enabled state */
     G_obj_table->enable_gc(vmg_ old_gc_enabled);
 
+    /* if any error occurred, throw the error */
+    if (err != 0)
+        err_throw(err);
+
     /* 
      *   explicitly run garbage collection, since any dynamic objects that
      *   were reachable before the restore only through non-transient
@@ -330,10 +455,6 @@ int CVmSaveFile::restore(VMG_ CVmFile *fp)
      *   references having been replaced now 
      */
     G_obj_table->gc_full(vmg0_);
-
-    /* if any error occurred, throw the error */
-    if (err != 0)
-        err_throw(err);
 
     /* success */
     return 0;

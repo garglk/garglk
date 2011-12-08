@@ -25,8 +25,21 @@ Modified
 class CVmSaveFile
 {
 public:
-    /* save state to a file */
-    static void save(VMG_ class CVmFile *fp);
+    /* 
+     *   Save state to a file.  Writes the state information to the given
+     *   open file stream.
+     *   
+     *   'metatab' is an optional LookupTable object containing
+     *   string->string associations.  We'll write each key/value pair to the
+     *   save file in the metadata header section.  This section allows the
+     *   interpreter and external tools to display user-readable information
+     *   on the saved game.  For example, you could store things like the
+     *   current location, chapter number, score, etc - things that would
+     *   help the user identify the context of the saved game when looking
+     *   for the one he/she wishes to restore.  
+     */
+    static void save(VMG_ class CVmFile *fp,
+                     class CVmObjLookupTable *metatab);
 
     /* 
      *   given a saved state file, read the name of the image file that

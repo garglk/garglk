@@ -360,7 +360,7 @@ typedef struct tcderrdef tcderrdef;
  */
 static char vsn_major[] = "2";
 static char vsn_minor[] = "5";
-static char vsn_maint[] = "14";
+static char vsn_maint[] = "15";
 
 
 /*
@@ -493,7 +493,7 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     struct tm *tblock;
     char      *datetime;
     char       datebuf[15];
-    long       totsize;
+    ulong      totsize;
     uchar     *myheap;
     runsdef   *mystack;
     char      *strfile = 0;                  /* name of string capture file */
@@ -1057,9 +1057,9 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     /* allocate and initialize parsing context */
 
     totsize = sizeof(prscxdef) + (long)poolsiz + (long)lclsiz;
-    if (totsize != (ushort)totsize)
+    if (totsize != (size_t)totsize)
         errsig1(ec, ERR_PRSCXSIZ, ERRTINT, (int)(65535 - sizeof(prscxdef)));
-    pctx = (prscxdef *)mchalo(ec, (ushort)totsize, "tcdmain");
+    pctx = (prscxdef *)mchalo(ec, (size_t)totsize, "tcdmain");
     pctx->prscxerr = ec;
     pctx->prscxtok = tc;
     pctx->prscxmem = mctx;
@@ -1112,13 +1112,13 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
 
     /* allocate stack and heap */
     totsize = (ulong)stksiz * (ulong)sizeof(runsdef);
-    if (totsize != (ushort)totsize)
+    if (totsize != (size_t)totsize)
         errsig1(ec, ERR_STKSIZE, ERRTINT, (uint)(65535/sizeof(runsdef)));
-    mystack = (runsdef *)mchalo(ec, (ushort)totsize, "runtime stack");
-    myheap = mchalo(ec, (ushort)heapsiz, "runtime heap");
+    mystack = (runsdef *)mchalo(ec, (size_t)totsize, "runtime stack");
+    myheap = mchalo(ec, (size_t)heapsiz, "runtime heap");
 
     /* set up linear symbol table for 'goto' labels */
-    labmem = mchalo(ec, (ushort)labsiz, "main1");
+    labmem = mchalo(ec, (size_t)labsiz, "main1");
     toktlini(ec, &labtab, labmem, labsiz);
     labtab.toktlsc.toktnxt = (toktdef *)&symtab;       /* 2nd to last table */
 
@@ -1164,7 +1164,7 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     
     /* allocate a code generator context */
     ectx = (emtcxdef *)mchalo(ec,
-                             (ushort)(sizeof(emtcxdef) + 511*sizeof(emtldef)),
+                              (sizeof(emtcxdef) + 511*sizeof(emtldef)),
                               "tcdmain");
     ectx->emtcxerr = ec;
     ectx->emtcxmem = pctx->prscxmem;

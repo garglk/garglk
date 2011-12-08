@@ -201,6 +201,7 @@ void CVmObjClass::build_prop_list(VMG_ vm_obj_id_t self, vm_val_t *retval)
 
     /* get it as a list object, properly cast */
     lst = (CVmObjList *)vm_objp(vmg_ retval->val.obj);
+    lst->cons_clear();
 
     /* start the list with our own properties */
     if (entry != 0)
@@ -279,6 +280,50 @@ size_t CVmObjClass::list_class_props(VMG_ vm_obj_id_t self,
     return cnt;
 }
 
+
+/*
+ *   get a static property 
+ */
+int CVmObjClass::call_stat_prop(VMG_ vm_val_t *result, const uchar **pc_ptr,
+                                uint *argc, vm_prop_id_t prop)
+{
+    /* translate the property into a function vector index */
+    switch(G_meta_table
+           ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop))
+    {
+    case 1:
+        /* isIntrinsicClass(x) */
+        return s_getp_is_int_class(vmg_ result, argc);
+
+    default:
+        /* 
+         *   we don't define this one - inherit the default from the base
+         *   object metaclass 
+         */
+        return CVmObject::call_stat_prop(vmg_ result, pc_ptr, argc, prop);
+    }
+}
+
+/*
+ *   static method: isIntrinsicClass(x) 
+ */
+int CVmObjClass::s_getp_is_int_class(VMG_ vm_val_t *result, uint *argc)
+{
+    /* check arguments */
+    static CVmNativeCodeDesc desc(1);
+    if (get_prop_check_argc(result, argc, &desc))
+        return TRUE;
+
+    /* return true if we have an object of type intrinsic class */
+    vm_val_t *v = G_stk->get(0);
+    result->set_logical(v->typ == VM_OBJ && is_intcls_obj(vmg_ v->val.obj));
+
+    /* discard the argument */
+    G_stk->discard();
+
+    /* handled */
+    return TRUE;
+}
 
 /* 
  *   get a property 

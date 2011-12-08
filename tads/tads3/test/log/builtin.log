@@ -74,12 +74,72 @@ toString(123, 8) = 173
 toString(123, 16) = 7B
 toString(true) = true
 toString(nil) = nil
+toString(0xffffffff, 10) = -1
+toString(0xffffffff, 16) = FFFFFFFF
+toString(0xffffffff, 8) = 37777777777
+toString(0xffffffff, 2) = 11111111111111111111111111111111
+toString(0xffffffff, 10, nil) = 4294967295
+toString(0xffffffff, 16, true) = -1
+toString(0xffffffff, 8, true) = -1
+toString(0xffffffff, 2, true) = -1
 toInteger test
-toInteger('nil') = nil
-toInteger('true') = true
-toInteger('123') = 123
+toInteger('nil') = 0
+toInteger('true') = 1
+toInteger(' nil ') = 0
+toInteger(' true ') = 1
+toInteger(' + 123') = 123
 toInteger('ffff', 16) = 65535
 toInteger('123', 8) = 83
+toInteger('11111111', 2) = 255
+toInteger('100', 12) = 144
+toInteger('ABCDEF', 16) = 11259375
+toInteger('abcdef', 15) = 546284
+toInteger('ABCDEF', 14) = 29777
+toInteger(' - ABCDEF', 13) = -1845
+toInteger('ABCDEF', 12) = 131
+toInteger('ABCDEF', 11) = 10
+toInteger('ABCDEF', 10) = 0
+toInteger('6789', 10) = 6789
+toInteger('6789', 9) = 557
+toInteger('6789', 8) = 55
+toInteger('6789', 7) = 6
+toInteger('2147483640') = 2147483640
+toInteger('2147483647') = 2147483647
+toInteger('2147483648') = Runtime Error: 2023
+toInteger('2147483649') = Runtime Error: 2023
+toInteger('2147483650') = Runtime Error: 2023
+toInteger('-2147483647') = -2147483647
+toInteger('-2147483648') = -2147483648
+toInteger('-2147483649') = Runtime Error: 2023
+toInteger('7fffffff', 16) = 2147483647
+toInteger('80000000', 16) = -2147483648
+toInteger('80000001', 16) = -2147483647
+toInteger('-7fffffff', 16) = -2147483647
+toInteger('-80000000', 16) = -2147483648
+toInteger('-80000001', 16) = Runtime Error: 2023
+toInteger('ffffffff', 16) = -1
+toInteger('ffffffff1', 16) = Runtime Error: 2023
+toInteger('11fffffff', 16) = Runtime Error: 2023
+toInteger('1ffffffff', 16) = Runtime Error: 2023
+toNumber('ABCDEF', 16) = 11259375
+toNumber('7fffffff', 16) = 2147483647
+toNumber('80000000', 16) = -2147483648
+toNumber('100000000', 16) = 4294967296 (BigNumber)
+toNumber('ffffffffffffffff', 16) = 18446744073709551615 (BigNumber)
+toNumber('ZZZZZZZ', 36) = 78364164095 (BigNumber)
+toNumber('1000000000') = 1000000000
+toNumber('2000000000') = 2000000000
+toNumber('4000000000') = 4000000000 (BigNumber)
+toNumber('1.234') = 1.234 (BigNumber)
+toNumber('1234e') = 1234
+toNumber('1234e+') = 1234
+toNumber('1234e+20e') = 123400000000000000000000 (BigNumber)
+toNumber('.1234e+2') = 12.34 (BigNumber)
+toNumber('1234.') = 1234 (BigNumber)
+toNumber(true) = 1
+toNumber(nil) = 0
+toNumber(' true ', 16) = 1
+toNumber(' nil ', 7) = 0
 find() test
 'abcdefghijklmnopqrstuvwxyz1234567890'.find('') = 1
 'abcdefghijklmnopqrstuvwxyz1234567890'.find('abcdef') = 1
@@ -109,6 +169,47 @@ search(pat1, 'testing a test run') = [11, 4, test]
 search(pat2, 'abc def ghi') = nil
 search(pat2, 'abc def def ghi') = [5, 7, def def]
 group(1) = [5, 3, def]
+search(pat4='<lparen>(.*?)<space>*<alpha>+<rparen>', '/hrabes/vyhrabala (v cem)
+(asfd)') = [19, 7, (v cem)]
+   %1 = 'v' (index=20, len=1)
+search(pat4='<lparen>(.*?)<space>*<alpha>+<rparen>', '/hrabes/vyhrabala (verb
+cem) (asfd)') = [19, 10, (verb cem)]
+   %1 = 'verb' (index=20, len=4)
+search(pat4a='<lparen>(.*?)(<space>*<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %1 = 'v' (index=20, len=1)
+   %2 = ' cem' (index=21, len=4)
+search(pat4a='<lparen>(.*?)(<space>*<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %1 = 'verb' (index=20, len=4)
+   %2 = ' cem' (index=24, len=4)
+search(pat4b='<lparen>(.*?)<space>*(<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %1 = 'v' (index=20, len=1)
+   %2 = 'cem' (index=22, len=3)
+search(pat4b='<lparen>(.*?)<space>*(<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %1 = 'verb' (index=20, len=4)
+   %2 = 'cem' (index=25, len=3)
+search(pat4c='<lparen>(|(.*?)<space>)(<alpha>+)<rparen>', '/hrabes/vyhrabala (v
+cem) (asfd)') = [19, 7, (v cem)]
+   %1 = 'v ' (index=20, len=2)
+   %2 = 'v' (index=20, len=1)
+   %3 = 'cem' (index=22, len=3)
+search(pat4c='<lparen>(|(.*?)<space>)(<alpha>+)<rparen>', '/hrabes/vyhrabala
+(verb cem) (asfd)') = [19, 10, (verb cem)]
+   %1 = 'verb ' (index=20, len=5)
+   %2 = 'verb' (index=20, len=4)
+   %3 = 'cem' (index=25, len=3)
+search(pat5='%((|(.*) )(<alpha>+)%)', 'test (a xyz) TEST') = [6, 7, (a xyz)]
+   %1 = 'a ' (index=7, len=2)
+   %2 = 'a' (index=7, len=1)
+   %3 = 'xyz' (index=9, len=3)
+search(pat5='%((|(.*) )(<alpha>+)%)', 'test (abc xyz) TEST') = [6, 9, (abc
+xyz)]
+   %1 = 'abc ' (index=7, len=4)
+   %2 = 'abc' (index=7, len=3)
+   %3 = 'xyz' (index=11, len=3)
 match(pat1, 'this is a test') =
 match(pat1, 'test a bit') = 4
 match(pat1, 'testing one two three') =

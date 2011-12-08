@@ -23,24 +23,19 @@ Modified
 #include "vmglob.h"
 #include "vmobj.h"
 #include "vmstr.h"
+#include "vmdatasrc.h"
 
+
+/* ------------------------------------------------------------------------ */
 /*
- *   File intrinsic class.  Our extension keeps track of our osfildef (our
- *   underlying native file handle), our character set object, and our flags.
+ *   File intrinsic class.  Our extension keeps track of our data source (our
+ *   abstract file handle), our character set object, and our flags.
  *   
- *   osfildef *fp
+ *   CVmDataSource *fp
  *.  objid charset
  *.  byte mode (text/data/raw)
  *.  byte access (read/write/both)
  *.  uint32 flags
- *.  uint32 res_start
- *.  uint32 res_end
- *   
- *   The 'res_start' and 'res_end' fields are valid only for resource files.
- *   These give the starting seek position and ending seek position (which
- *   is the offset of the first byte AFTER THE END of the resource - in
- *   other words, the first invalid offset in the file) of the data of a
- *   resource, which might be embedded in a file containing other data.
  *   
  *   Our image file data leaves out the file handle, since it can't be
  *   loaded:
@@ -51,7 +46,7 @@ Modified
  *.  uint32 flags
  *   
  *   An open file is inherently transient, so its state cannot be loaded,
- *   restored, or undone.
+ *   restored, or undone.  
  */
 
 class CVmObjFile: public CVmObject
@@ -59,6 +54,39 @@ class CVmObjFile: public CVmObject
     friend class CVmMetaclassFile;
 
 public:
+    /*
+     *   Special filename designators.  These integer values can be passed to
+     *   the Open methods (from bytecode) in place of the filename string.
+     *   These designate system files whose actual location is determined by
+     *   the interpreter.
+     *   
+     *   The special file mechanism is designed to give games a well-defined
+     *   portable way to access global, cross-game files outside of the game
+     *   sandbox, while still protecting the local file system against
+     *   malicious (or just buggy) games.  The actual system path and
+     *   filename of a given special file is determined by the interpreter,
+     *   so games can't use this to access arbitrary files - only the
+     *   designated special files are accessible.
+     *   
+     *   Note that the integer values defined here must not be changed in
+     *   future releases, since they're a published part of the API - i.e.,
+     *   bytecode programs hard-code the integer values.  
+     */
+
+    /* 
+     *   Library defaults file.  This is defined as a system file, common to
+     *   all games, where we can store global cross-game preference settings.
+     *   This is generally stored in the interpreter install directory.  
+     */
+    static const int SFID_LIB_DEFAULTS = 1;
+
+    /*
+     *   Web UI preferences file.  This is a system file common to all games
+     *   that stores the UI settings for the Web UI client.  
+     */
+    static const int SFID_WEBUI_PREFS = 2;
+
+
     /* metaclass registration object */
     static class CVmMetaclass *metaclass_reg_;
     class CVmMetaclass *get_metaclass_reg() const { return metaclass_reg_; }
@@ -70,6 +98,10 @@ public:
         return (meta == metaclass_reg_
                 || CVmObject::is_of_metaclass(meta));
     }
+
+    /* is 'obj' a File object? */
+    static int is_file_obj(VMG_ vm_obj_id_t obj)
+        { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
     /* create from stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
@@ -97,10 +129,9 @@ public:
 
     /* create with the given character set and file handle */
     static vm_obj_id_t create(VMG_ int in_root_set,
-                              vm_obj_id_t charset, osfildef *fp,
-                              unsigned long flags, int mode, int access,
-                              int create_readbuf,
-                              unsigned long res_start, unsigned long res_end);
+                              class CVmNetFile *netfile,
+                              vm_obj_id_t charset, CVmDataSource *fp,
+                              int mode, int access, int create_readbuf);
 
     /* notify of deletion */
     void notify_delete(VMG_ int in_root_set);
@@ -152,22 +183,39 @@ public:
      *   given file with the given access mode.  If the access is not
      *   allowed, we'll throw an error.  
      */
-    static void check_safety_for_open(VMG_ const char *fname, int access);
+    static void check_safety_for_open(VMG_ class CVmNetFile *f, int access);
+
+    /* get the file's size; returns -1 if the file isn't open or valid */
+    long get_file_size(VMG0_);
+
+    /* get the mode - returns a VMOBJFILE_MODE_xxx value */
+    int get_file_mode(VMG0_);
+
+    /* seek; returns true on success, false on failure */
+    int set_pos(VMG_ long pos);
+
+    /* 
+     *   Read the file, storing the result in the caller's buffer.  The
+     *   request is a suggested read size; we'll attempt to fill this as
+     *   closely as possible, but we might return less than requested (never
+     *   more) due to reaching the end of the file or due to character
+     *   conversions.  Returns true on success, false on failure.
+     */
+    int read_file(VMG_ char *buf, int32 &len);
 
 protected:
     /* create with no initial contents */
     CVmObjFile() { ext_ = 0; }
 
     /* create with the given character set and file object */
-    CVmObjFile(VMG_ vm_obj_id_t charset, osfildef *fp, unsigned long flags,
-               int mode, int access, int create_readbuf,
-               unsigned long res_start, unsigned long res_end);
+    CVmObjFile(VMG_ class CVmNetFile *netfile, vm_obj_id_t charset,
+               CVmDataSource *fp, int mode, int access, int create_readbuf);
 
     /* allocate our extension */
-    void alloc_ext(VMG_ vm_obj_id_t charset, osfildef *fp,
+    void alloc_ext(VMG_ class CVmNetFile *netfile,
+                   vm_obj_id_t charset, CVmDataSource *fp,
                    unsigned long flags, int mode, int access,
-                   int create_readbuf,
-                   unsigned long res_start, unsigned long res_end);
+                   int create_readbuf);
 
     /* load or reload data from the image file */
     void load_image_data(VMG_ const char *ptr, size_t siz);
@@ -202,47 +250,83 @@ protected:
     /* property evaluator - set seek position */
     int getp_set_pos(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
+    /* get the seek position */
+    long get_pos(VMG0_);
+
     /* property evaluator - set seek position to end of file */
     int getp_set_pos_end(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluator - openFileText */
-    int getp_open_text(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
-        { return s_getp_open_text(vmg_ retval, argc, FALSE); }
+    int getp_open_text(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluator - openFileData */
-    int getp_open_data(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
-        { return s_getp_open_data(vmg_ retval, argc); }
+    int getp_open_data(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluator - openFileRaw */
-    int getp_open_raw(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
-        { return s_getp_open_raw(vmg_ retval, argc, FALSE); }
+    int getp_open_raw(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluator - openResourceText */
-    int getp_open_res_text(VMG_ vm_obj_id_t self, vm_val_t *ret, uint *argc)
-        { return s_getp_open_text(vmg_ ret, argc, TRUE); }
+    int getp_open_res_text(VMG_ vm_obj_id_t self, vm_val_t *ret, uint *argc);
+
+    /* property evaluator - openResourceRaw */
+    int getp_open_res_raw(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluator - get size */
     int getp_get_size(VMG_ vm_obj_id_t self, vm_val_t *ret, uint *argc);
 
-    /* property evaluator - openResourceRaw */
-    int getp_open_res_raw(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
-        { return s_getp_open_raw(vmg_ retval, argc, TRUE); }
-
+    /* get the file's mode */
+    int getp_get_mode(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* static property evaluators for the openFileXxx creator methods */
     static int s_getp_open_text(VMG_ vm_val_t *retval, uint *argc,
-                                int is_resource_file);
-    static int s_getp_open_data(VMG_ vm_val_t *retval, uint *argc);
+                                int is_resource_file,
+                                const struct vm_rcdesc *rc);
+    static int s_getp_open_data(VMG_ vm_val_t *retval, uint *argc,
+                                const struct vm_rcdesc *rc);
     static int s_getp_open_raw(VMG_ vm_val_t *retval, uint *argc,
-                               int is_resource_file);
+                               int is_resource_file,
+                               const struct vm_rcdesc *rc);
+
+    /* property evaluator - getRootName */
+    int getp_getRootName(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
+        { return s_getp_getRootName(vmg_ retval, argc); }
+
+    /* static property evaluator for getRootName */
+    static int s_getp_getRootName(VMG_ vm_val_t *retval, uint *argc);
+
+    /* property evaluator - deleteFile */
+    int getp_deleteFile(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
+        { return s_getp_deleteFile(vmg_ retval, argc); }
+
+    /* static property evaluator for deleteFile */
+    static int s_getp_deleteFile(VMG_ vm_val_t *retval, uint *argc);
+
+    /* property evaluator - setMode */
+    int getp_setMode(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - packBytes */
+    int getp_packBytes(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - unpackBytes */
+    int getp_unpackBytes(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - sha256 */
+    int getp_sha256(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
+
+    /* property evaluator - digestMD5 */
+    int getp_digestMD5(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* retrieve the filename and access arguments for an 'open' method */
-    static void get_filename_and_access(VMG_ char *fname, size_t fname_siz,
-                                        int *access, int is_resource_file);
+    static class CVmNetFile *get_filename_and_access(
+        VMG_ const struct vm_rcdesc *rc, int *access, int is_resource_file,
+        os_filetype_t file_type, const char *mime_type);
+
+    /* pop a character set mapper argument */
+    static vm_obj_id_t get_charset_arg(VMG_ int argn, int argc);
 
     /* generic binary file opener - common to 'raw' and 'data' files */
     static int open_binary(VMG_ vm_val_t *retval, uint *argc, int mode,
-                           int is_resource_file);
+                           int is_resource_file, const struct vm_rcdesc *rc);
 
     /* read a value in text/data mode */
     void read_text_mode(VMG_ vm_val_t *retval);
@@ -265,6 +349,13 @@ protected:
     void check_read_access(VMG0_);
     void check_write_access(VMG0_);
 
+    /* check that we're open in raw mode */
+    void check_raw_mode(VMG0_);
+
+    /* check that we're valid, in raw mode, and read/write */
+    void check_raw_read(VMG0_);
+    void check_raw_write(VMG0_);
+
     /*
      *   Note a file seek position change.
      *   
@@ -274,13 +365,13 @@ protected:
      *   'is_explicit' is true; if we're simply reading or writing, which
      *   affects the file position implicitly, 'is_explicit' is false.  
      */
-    void note_file_seek(VMG_ vm_obj_id_t self, int is_explicit);
+    void note_file_seek(VMG_ int is_explicit);
 
     /* 
      *   check for a switch between reading and writing, flushing our
      *   underlying stdio buffers if necessary 
      */
-    void switch_read_write_mode(int writing);
+    void switch_read_write_mode(VMG_ int writing);
 
     /* get my extension, properly cast */
     struct vmobjfile_ext_t *get_ext() const
@@ -296,8 +387,14 @@ protected:
  */
 struct vmobjfile_ext_t
 {
-    /* our native file handle */
-    osfildef *fp;
+    /* 
+     *   Our network/local file descriptor.  This handles network storage
+     *   server operations when we're running in web server mode. 
+     */
+    class CVmNetFile *netfile;
+    
+    /* our abstract data source (usually an OS file) */
+    CVmDataSource *fp;
 
     /* our character set object */
     vm_obj_id_t charset;
@@ -313,21 +410,6 @@ struct vmobjfile_ext_t
 
     /* read buffer, if we have one */
     struct vmobjfile_readbuf_t *readbuf;
-
-    /*
-     *   Base offset of the data in the file.  For a resource file, this
-     *   gives the offset of the first byte of the resource data within the
-     *   larger file containing the resource.  For an ordinary file, this is
-     *   always zero.  
-     */
-    unsigned long res_start;
-
-    /*
-     *   Resource end offset.  For a resource file, this is the offset of
-     *   the first byte after the end of the resource data.  For an ordinary
-     *   file, this is not valid and must be ignored.  
-     */
-    unsigned long res_end;
 };
 
 /*
@@ -337,7 +419,7 @@ struct vmobjfile_ext_t
 struct vmobjfile_readbuf_t
 {
     /* current read pointer */
-    utf8_ptr ptr;
+    char *ptr;
 
     /* bytes remaining in read buffer */
     size_t rem;
@@ -345,9 +427,22 @@ struct vmobjfile_readbuf_t
     /* read buffer */
     char buf[512];
 
+    /* read a character */
+    int getch(wchar_t &ch, CVmDataSource *fp, class CCharmapToUni *charmap);
+
+    /* peek at the next character */
+    int peekch(wchar_t &ch, CVmDataSource *fp, class CCharmapToUni *charmap,
+               size_t &in_bytes);
+
+    /* commit a 'peekch' */
+    void commit_peek(size_t last_in_bytes)
+    {
+        ptr += last_in_bytes;
+        rem -= last_in_bytes;
+    }
+
     /* refill the buffer, if it's empty */
-    int refill(CCharmapToUni *charmap, osfildef *fp,
-               int is_res_file, unsigned long res_seek_end);
+    int refill(CVmDataSource *fp);
 };
 
 /* 
@@ -376,14 +471,6 @@ struct vmobjfile_readbuf_t
  */
 #define VMOBJFILE_LAST_OP_WRITE     0x0004
 
-/* 
- *   This file is a resource.  When this is set, the start and end seek
- *   positions are used to limit operations on the file to the resource's
- *   valid range within the OS-level file; this is necessary because the
- *   resource could be embedded in a larger file that contains other data.  
- */
-#define VMOBJFILE_IS_RESOURCE       0x0008
-
 
 /*
  *   modes 
@@ -399,7 +486,7 @@ struct vmobjfile_readbuf_t
 #define VMOBJFILE_ACCESS_WRITE    0x02
 #define VMOBJFILE_ACCESS_RW_KEEP  0x03
 #define VMOBJFILE_ACCESS_RW_TRUNC 0x04
-
+#define VMOBJFILE_ACCESS_DELETE   0xF000               /* internal use only */
 
 
 /* ------------------------------------------------------------------------ */
@@ -462,7 +549,7 @@ class CVmMetaclassFile: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "file/030002"; }
+    const char *get_meta_name() const { return "file/030003"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

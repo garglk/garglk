@@ -1,0 +1,20 @@
+	Files to build: 8
+	symbol_export _main.t -> _main.t3s
+	symbol_export printexpr.t -> printexpr.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	compile _main.t -> _main.t3o
+	compile printexpr.t -> printexpr.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	link -> printexpr.t3p
+	preinit -> printexpr.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+a = A!, b = B!
+After eval: a=A!*MOD*, b=B!
+a=A!*MOD*, b=f.B!
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

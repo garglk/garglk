@@ -29,14 +29,14 @@ Modified
 /* global to keep track of all allocations */
 IF_DEBUG(ulong mchtotmem;)
 
-uchar *mchalo(errcxdef *ctx, ushort siz, char *comment)
+uchar *mchalo(errcxdef *ctx, size_t siz, char *comment)
 {
     uchar *ret;
 
     VARUSED(comment);
     IF_DEBUG(mchtotmem += siz;)
 
-    ret = (uchar *)osmalloc((size_t)(unsigned)siz);
+    ret = (uchar *)osmalloc(siz);
     if (ret)
         return(ret);
     else

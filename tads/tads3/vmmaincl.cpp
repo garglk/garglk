@@ -15,16 +15,27 @@ Name
 Function
   This is a command-line entrypoint wrapper for executing a VM program.
   This can be used on command-line OS's (DOS, Unix, etc) where a graphical
-  user interface is not needed.
+  user interface isn't needed, AND where the OS (or C run-time library) calls
+  'main()' with the conventional C-style argv vector consisting of a list of
+  space delimited tokens.
 
-  If a graphical user interface to execute a VM program is required, this
-  module should not be used.  Instead, an OS-specific version must be
-  written; the OS version obtain the name of the program to run (via a
-  file selector or by communication with the graphical shell, for example),
-  then must initialize the VM, invoke vm_run_image(), then terminate the
-  VM.  The OS version must, in other words, do pretty much everything this
-  version does, but should use its own OS-specific means to obtain the name
-  of the image file to run rather than reading it from argc/argv.
+  If your system doesn't do the standard argv vector construction, you must
+  replace this module with a custom, OS-specific module that constructs the
+  C-style argument vector.  The OS version should obtain the name of the
+  program to run (via a file selector or by communication with the graphical
+  shell, for example), then initialize the VM, invoke vm_run_image(), then
+  terminate the VM.  The OS version must, in other words, do pretty much
+  everything this version does, but should use its own OS-specific means to
+  obtain the name of the image file to run rather than reading it from
+  argc/argv.  You must also synthesize an argv vector using the standard C
+  conventions, minimally specifying one argument (in addition to the standard
+  argv[0] program name argument) specifying the name of the .t3 file to run.
+  If you provide a UI to let the user specify other VM startup options and/or
+  command-line arguments to pass to the .t3 program, you'll have to
+  synthesize the argv vector with the correct switch syntax described in
+  vmmaincl.cpp.  The layout of the argv vector is: [0]=t3run executable
+  filename, followed by t3run switches, the .t3 file name, and finally
+  any user arguments to pass to the .t3 file.
 Notes
   
 Modified
@@ -37,6 +48,7 @@ Modified
 #include "vmmain.h"
 #include "vmmaincn.h"
 #include "vmhostsi.h"
+#include "osifcnet.h"
 
 
 /*
@@ -66,14 +78,11 @@ int main(int argc, char **argv)
             break;
         }
     }
-    
-    /* create the host interface */
-    hostifc = new CVmHostIfcStdio(argv[0]);
 
     /* 
      *   Initialize the OS layer.  Since this is a command-line-only
-     *   implementation, there's no need to ask the OS layer to try to get
-     *   us a filename to run, so pass in null for the prompt and filename
+     *   implementation, there's no need to ask the OS layer to try to get us
+     *   a filename to run, so pass in null for the prompt and filename
      *   buffer.  
      */
     os_init(&argc, argv, 0, 0, 0);
@@ -81,9 +90,25 @@ int main(int argc, char **argv)
     /* install the OS break handler while we're running */
     os_instbrk(1);
 
+    /* create the host interface */
+    hostifc = new CVmHostIfcStdio(argv[0]);
+
     /* invoke the basic entrypoint */
     stat = vm_run_image_main(&clientifc, "t3run", argc, argv,
                              TRUE, FALSE, hostifc);
+
+#ifdef TADSNET
+    /* 
+     *   Disconnect the Web UI, if applicable.  Leave any final UI window
+     *   state displayed until the user manually closes it, so that the user
+     *   can read any final messages displayed when the game program
+     *   terminated. 
+     */
+    osnet_disconnect_webui(FALSE);
+
+    /* shut down the network layer, if applicable */
+    os_net_cleanup();
+#endif
 
     /* remove the OS break handler */
     os_instbrk(0);
@@ -101,6 +126,13 @@ int main(int argc, char **argv)
     os_term(stat);
 
     /* we shouldn't get here, but in case os_term doesn't really exit... */
-    return stat;
+    AFTER_OS_TERM(return stat;)
 }
 
+/*
+ *   For command-line builds, we don't have any special UI setup that depends
+ *   on the loaded intrinsics, so we can stub out this routine.  
+ */
+void os_init_ui_after_load(class CVmBifTable *, class CVmMetaTable *)
+{
+}

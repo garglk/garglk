@@ -41,7 +41,8 @@ void vm_run_preinit(CVmFile *origfp, const char *image_fname,
                     CVmFile *newfp, class CVmHostIfc *hostifc,
                     class CVmMainClientIfc *clientifc, 
                     const char *const *argv, int argc,
-                    class CVmRuntimeSymbols *runtime_symtab)
+                    class CVmRuntimeSymbols *runtime_symtab,
+                    class CVmRuntimeSymbols *runtime_macros)
 {
     vm_globals *vmg__;
     CVmImageLoader *volatile loader = 0;
@@ -76,7 +77,7 @@ void vm_run_preinit(CVmFile *origfp, const char *image_fname,
         G_preinit_mode = TRUE;
 
         /* run it, using the runtime symbols the caller sent us */
-        loader->run(vmg_ argv, argc, runtime_symtab, 0);
+        loader->run(vmg_ argv, argc, runtime_symtab, runtime_macros, 0);
 
         /* 
          *   seek back to the start of the image file, since we need to

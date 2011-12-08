@@ -21,6 +21,9 @@ Modified
 #define VMSTACK_H
 
 #include "vmtype.h"
+#include "vmerr.h"
+#include "vmerrnum.h"
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -131,6 +134,32 @@ public:
         return ret;
     }
 
+    /* push, checking space */
+    void push_check(const vm_val_t *val) { *push_check() = *val; }
+    vm_val_t *push_check() { check_throw(1); return push(); }
+    vm_val_t *push_check(unsigned int n) { check_throw(n); return push(n); }
+
+    /*
+     *   Insert space for 'num' slots at index 'idx'.  If 'idx' is zero, this
+     *   is the same as pushing 'num' slots.  Returns a pointer to the first
+     *   slot allocated.  
+     */
+    vm_val_t *insert(size_t idx, size_t num)
+    {
+        /* make sure there's room */
+        check_space(num);
+
+        /* add the space */
+        sp_ += num;
+
+        /* if idx is non-zero, move the idx slots by num to make room */
+        if (idx != 0)
+            memmove(sp_ - idx, sp_ - idx - num, idx*sizeof(*sp_));
+
+        /* return the start of the inserted block */
+        return sp_ - idx - num;
+    }
+
     /* 
      *   Get an element.  Elements are numbered from zero to (depth - 1).
      *   Element number zero is the item most recently pushed onto the
@@ -177,8 +206,15 @@ public:
      *   before it crashed the interpreter.  So it's desirable to be
      *   compatible with such files.)  
      */
-    int check_space(int slots) const
-        { return (get_depth() + slots <= max_depth_); }
+    int check_space(int nslots) const
+        { return (get_depth() + nslots <= max_depth_); }
+
+    /* check space for 'nslots' new slots, throwing an error on overflow */
+    void check_throw(int nslots) const
+    {
+        if (!check_space(nslots))
+            err_throw(VMERR_STACK_OVERFLOW);
+    }
 
     /* 
      *   Release the reserve.  Debuggers can use this to allow manual

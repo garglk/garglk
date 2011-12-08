@@ -25,8 +25,11 @@ Modified
 #include <assert.h>
 
 #include "t3std.h"
+#include "tct3drv.h"
+#include "tcprs.h"
 #include "vmtype.h"
 #include "vmstack.h"
+#include "vmrun.h"
 #include "vmlst.h"
 #include "vmstr.h"
 #include "vmgram.h"
@@ -36,6 +39,45 @@ Modified
 #include "vmdict.h"
 #include "vmtobj.h"
 #include "vmpredef.h"
+#include "vmfile.h"
+#include "vmbif.h"
+#include "vmdynfunc.h"
+#include "vmpredef.h"
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Grammar production object - undo record.  This records a deleted or
+ *   replaced alternative at a given index.  
+ */
+#define VMGRAM_UNDO_DELETED    1                 /* alternative was deleted */
+#define VMGRAM_UNDO_REPLACED   2                /* alternative was replaced */
+#define VMGRAM_UNDO_ADDED      3                   /* alternative was added */
+struct vmgram_undo_rec
+{
+    vmgram_undo_rec(int op, int idx, vmgram_alt_info *alt)
+    {
+        this->idx = idx;
+        this->op = op;
+        this->alt = alt;
+    }
+
+    ~vmgram_undo_rec()
+    {
+        /* delete our alternative */
+        if (alt != 0)
+            delete alt;
+    }
+
+    /* original index of 'alt' in the production's alternative list */
+    int idx;
+
+    /* operation that was performed */
+    int op;
+
+    /* the original alternative rule data */
+    vmgram_alt_info *alt;
+};
 
 
 /* ------------------------------------------------------------------------ */
@@ -198,6 +240,25 @@ private:
     /* amount of space remaining in current block */
     size_t cur_rem_;
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Alternative object 
+ */
+
+vmgram_alt_info::vmgram_alt_info(size_t ntoks)
+{
+    toks = new vmgram_tok_info[ntoks];
+    tok_cnt = ntoks;
+    score = 0;
+    badness = 0;
+    del = FALSE;
+}
+
+vmgram_alt_info::~vmgram_alt_info()
+{
+    delete [] toks;
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -513,10 +574,17 @@ int (CVmObjGramProd::
      *CVmObjGramProd::func_table_[])(VMG_ vm_obj_id_t self,
                                      vm_val_t *retval, uint *argc) =
 {
-    &CVmObjGramProd::getp_undef,
-    &CVmObjGramProd::getp_parse,
-    &CVmObjGramProd::getp_get_gram_info
+    &CVmObjGramProd::getp_undef,                                       /* 0 */
+    &CVmObjGramProd::getp_parse,                                       /* 1 */
+    &CVmObjGramProd::getp_get_gram_info,                               /* 2 */
+    &CVmObjGramProd::getp_addAlt,                                      /* 3 */
+    &CVmObjGramProd::getp_deleteAlt,                                   /* 4 */
+    &CVmObjGramProd::getp_clearAlts                                    /* 5 */
 };
+
+/* property indices */
+const int PROPIDX_deleteAlt = 4;
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -529,11 +597,33 @@ int (CVmObjGramProd::
 vm_obj_id_t CVmObjGramProd::create_from_stack(VMG_ const uchar **pc_ptr,
                                               uint argc)
 {
-    /* this type of object cannot be dynamically created */
-    err_throw(VMERR_BAD_DYNAMIC_NEW);
+    /* create an empty new grammar production */
+    vm_obj_id_t id = vm_new_id(vmg_ FALSE, TRUE, TRUE);
+    new (vmg_ id) CVmObjGramProd(vmg0_);
+    CVmObjGramProd *prod = (CVmObjGramProd *)vm_objp(vmg_ id);
 
-    /* we won't reach this point, but the compiler might not know */
-    AFTER_ERR_THROW(return VM_INVALID_OBJ;)
+    /* 
+     *   mark the object as modified-since-load, since it was never part of
+     *   the image file 
+     */
+    prod->get_ext()->modified_ = TRUE;
+
+    /* check arguments */
+    if (argc == 0)
+    {
+        /* no arguments - create a new production with no rules defined */
+    }
+    else
+    {
+        /* invalid argument list */
+        err_throw(VMERR_WRONG_NUM_OF_ARGS);
+    }
+
+    /* discard arguments */
+    G_stk->discard(argc);
+
+    /* return the new ID */
+    return id;
 }
 
 /*
@@ -549,9 +639,13 @@ CVmObjGramProd::CVmObjGramProd(VMG0_)
     get_ext()->image_data_ = 0;
     get_ext()->image_data_size_ = 0;
 
+    /* we haven't been modified yet */
+    get_ext()->modified_ = FALSE;
+
     /* we haven't set up our alternatives yet */
     get_ext()->alts_ = 0;
     get_ext()->alt_cnt_ = 0;
+    get_ext()->alt_alo_ = 0;
 
     /* we haven't cached any hash values yet */
     get_ext()->hashes_cached_ = FALSE;
@@ -581,13 +675,16 @@ void CVmObjGramProd::notify_delete(VMG_ int in_root_set)
     /* free our additional data */
     if (ext_ != 0)
     {
-        /* 
-         *   If we've allocated our alternatives, delete the memory.  We
-         *   allocate the entire complex structure in one block, which we use
-         *   for the alts_ array, so we merely need to delete that one block.
-         */
-        if (get_ext()->alts_ != 0)
-            t3free(get_ext()->alts_);
+        /* if we've allocated alternatives, delete them */
+        vmgram_alt_info **alts = get_ext()->alts_;
+        if (alts != 0)
+        {
+            /* delete the alternative objects */
+            clear_alts();
+
+            /* free the alternative array itself */
+            t3free(alts);
+        }
 
         /* delete our memory pool */
         delete get_ext()->mem_;
@@ -600,6 +697,96 @@ void CVmObjGramProd::notify_delete(VMG_ int in_root_set)
     }
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   clear the alternative list 
+ */
+void CVmObjGramProd::clear_alts()
+{
+    /* delete each alternative */
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i)
+        delete get_ext()->alts_[i];
+
+    /* there are no more alternatives in the list */
+    get_ext()->alt_cnt_ = 0;
+}
+
+/*
+ *   ensure there's room for the given number of alternatives 
+ */
+void CVmObjGramProd::ensure_alts(size_t cnt, size_t margin)
+{
+    /* if there's not room, allocate a bigger array */
+    if (cnt > get_ext()->alt_alo_)
+    {
+        /* allocate or reallocate at the required size plus the margin */
+        cnt += margin;
+        size_t siz = cnt * sizeof(get_ext()->alts_[0]);
+        if (get_ext()->alts_ != 0)
+        {
+            get_ext()->alts_ = (vmgram_alt_info **)t3realloc(
+                get_ext()->alts_, siz);
+        }
+        else
+        {
+            get_ext()->alts_ = (vmgram_alt_info **)t3malloc(siz);
+        }
+
+        /* set the new allocated count */
+        get_ext()->alt_alo_ = cnt;
+    }
+}
+
+/*
+ *   insert an alternative at the given index (no undo) 
+ */
+void CVmObjGramProd::insert_alt(
+    vm_obj_id_t self, size_t idx, vmgram_alt_info *alt)
+{
+    /* make sure we have room for one more alternative */
+    ensure_alts(get_ext()->alt_cnt_ + 1, 8);
+
+    /* get the alt list */
+    vmgram_alt_info **alts = get_ext()->alts_;
+
+    /* open a hole in the array for the new alternative */
+    for (size_t i = get_ext()->alt_cnt_ ; i > idx ; --i)
+        alts[i] = alts[i-1];
+
+    /* adjust the count */
+    get_ext()->alt_cnt_ += 1;
+
+    /* plug in the new alternative */
+    alts[idx] = alt;
+
+    /* we've been modified since load time */
+    get_ext()->modified_ = TRUE;
+
+    /* note if this adds a circular rule */
+    if (alt->tok_cnt != 0
+        && alt->toks->typ == VMGRAM_MATCH_PROD
+        && alt->toks->typinfo.prod_obj == self)
+        get_ext()->has_circular_alt = TRUE;
+}
+
+/*
+ *   delete the alternative at the given index (no undo) 
+ */
+void CVmObjGramProd::delete_alt(size_t idx)
+{
+    /* remove it from the array and close the gap */
+    for ( ; idx + 1 < get_ext()->alt_cnt_ ; ++idx)
+        get_ext()->alts_[idx] = get_ext()->alts_[idx+1];
+
+    /* adjust the count */
+    get_ext()->alt_cnt_ -= 1;
+
+    /* we've been modified since load time */
+    get_ext()->modified_ = TRUE;
+}
+
+
+/* ------------------------------------------------------------------------ */
 /* 
  *   get a property 
  */
@@ -635,184 +822,395 @@ void CVmObjGramProd::set_prop(VMG_ class CVmUndo *undo,
     err_throw(VMERR_INVALID_SETPROP);
 }
 
+/* ------------------------------------------------------------------------ */
 /* 
  *   load from an image file 
  */
 void CVmObjGramProd::load_from_image(VMG_ vm_obj_id_t self,
                                      const char *ptr, size_t siz)
 {
-    const char *p;
-    size_t alt_cnt;
-    size_t tok_cnt;
-    size_t i;
-    size_t alo_siz;
-    vmgram_alt_info *next_alt;
-    vmgram_tok_info *next_tok;
-    char *next_byte;
-
     /* remember where our image data comes from */
     get_ext()->image_data_ = ptr;
     get_ext()->image_data_size_ = siz;
 
     /* 
-     *   For our alternatives structure, start with the base amount of
-     *   memory, which is the amount we'll need for the array of alternative
-     *   entries themselves.  The first UINT2 gives the number of
-     *   alternatives in our grammar rule.  
+     *   Rebuild the list from the image file data.  Note that an image file
+     *   doesn't have a fixup table, since it defines the object numbering
+     *   space in the first place. 
      */
-    alt_cnt = osrp2(ptr);
-    alo_siz = alt_cnt * sizeof(vmgram_alt_info);
+    CVmReadOnlyMemoryStream src(ptr, siz);
+    load_alts(vmg_ self, &src, 0);
 
-    /* 
-     *   Scan the alternatives.  Check for circular (left-recursive)
-     *   alternatives, and add up how much memory we'll need for our decoded
-     *   alternatives structure. 
-     */
-    for (i = alt_cnt, p = ptr + 2, tok_cnt = 0 ; i != 0 ; --i)
+    /* we haven't been modified since being loaded from the image */
+    get_ext()->modified_ = FALSE;
+}
+
+/*
+ *   reset to the image file 
+ */
+void CVmObjGramProd::reset_to_image(VMG_ vm_obj_id_t self)
+{
+    /* if we we were modified and have image data, reload the image data */
+    if (get_ext()->modified_ && get_ext()->image_data_ != 0)
     {
-        const char *tokp;
-        size_t alt_tok_cnt;
-        size_t j;
+        /* load from our original data stream */
+        CVmReadOnlyMemoryStream src(
+            get_ext()->image_data_, get_ext()->image_data_size_);
+        load_alts(vmg_ self, &src, 0);
 
-        /* get the token count and first token for this alternative */
-        alt_tok_cnt = vmgram_alt_tokcnt(p);
-        tokp = vmgram_alt_tokptr(p);
+        /* we haven't been modified since being loaded from the image */
+        get_ext()->modified_ = FALSE;
 
+        /* reset the comparator caching information */
+        get_ext()->comparator_ = VM_INVALID_OBJ;
+        get_ext()->hashes_cached_ = FALSE;
+    }
+}
+
+/*
+ *   save to a file 
+ */
+void CVmObjGramProd::save_to_file(VMG_ CVmFile *fp)
+{
+    /* if we've been dynamically modified, save our contents */
+    if (get_ext()->modified_)
+    {
+        /* save to the file */
+        CVmFileStream dst(fp);
+        save_to_stream(vmg_ &dst);
+    }
+}
+
+/*
+ *   Save to a data stream 
+ */
+void CVmObjGramProd::save_to_stream(VMG_ CVmStream *fp)
+{
+    /* write the number of alternatives */
+    fp->write_uint2(get_ext()->alt_cnt_);
+
+    /* write the alternatives */
+    vmgram_alt_info **altp = get_ext()->alts_;
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i, ++altp)
+    {
+        /* get the alternative pointer */
+        vmgram_alt_info *alt = *altp;
+        
+        /* write the alternative header */
+        fp->write_int2(alt->score);
+        fp->write_int2(alt->badness);
+        fp->write_uint4((ulong)alt->proc_obj);
+        fp->write_uint2(alt->tok_cnt);
+        
+        /* write the token list */
+        vmgram_tok_info *tok = alt->toks;
+        for (size_t j = 0 ; j < alt->tok_cnt ; ++j, ++tok)
+        {
+            /* write the fixed part of the token */
+            fp->write_uint2((uint)tok->prop);
+            fp->write_byte((uchar)tok->typ);
+            
+            /* write the extra data according to the token type */
+            switch (tok->typ)
+            {
+            case VMGRAM_MATCH_PROD:
+                /* write the object ID */
+                fp->write_uint4((ulong)tok->typinfo.prod_obj);
+                break;
+                
+            case VMGRAM_MATCH_SPEECH:
+                /* write the part-of-speech property */
+                fp->write_uint2((uint)tok->typinfo.speech_prop);
+                break;
+                
+            case VMGRAM_MATCH_NSPEECH:
+                /* array of part-of-speech properties - write the count */
+                fp->write_uint2(tok->typinfo.nspeech.cnt);
+                
+                /* write the array elements */
+                for (size_t k = 0 ; k < tok->typinfo.nspeech.cnt ; ++k)
+                    fp->write_uint2((uint)tok->typinfo.nspeech.props[k]);
+                
+                /* done */
+                break;
+                
+            case VMGRAM_MATCH_LITERAL:
+                /* literal string - write the length, then the bytes */
+                fp->write_uint2(tok->typinfo.lit.len);
+                fp->write_bytes(tok->typinfo.lit.str, tok->typinfo.lit.len);
+                break;
+                
+            case VMGRAM_MATCH_TOKTYPE:
+                /* token type */
+                fp->write_uint4((ulong)tok->typinfo.toktyp_enum);
+                break;
+                
+            case VMGRAM_MATCH_STAR:
+                /* star - no additional data */
+                break;
+            }
+        }
+    }
+}
+
+/*
+ *   restore from a file 
+ */
+void CVmObjGramProd::restore_from_file(VMG_ vm_obj_id_t self,
+                                       CVmFile *fp, CVmObjFixup *fixups)
+{
+    /* load our alternative list from the file stream */
+    CVmFileStream src(fp);
+    load_alts(vmg_ self, &src, fixups);
+}
+
+/*
+ *   Load alternative data from a data source.  This is our common handler
+ *   for loading from the image file and restoring from a saved game file.  
+ */
+void CVmObjGramProd::load_alts(VMG_ vm_obj_id_t self,
+                               CVmStream *src, CVmObjFixup *fixups)
+{
+    /* delete any existing alternative list */
+    clear_alts();
+
+    /* presume there will be no circular alternatives */
+    get_ext()->has_circular_alt = FALSE;
+
+    /* read the number of alternatives */
+    size_t alt_cnt = src->read_uint2();
+
+    /* ensure there's room for the new list */
+    ensure_alts(alt_cnt, 0);
+
+    /* load the alternatives */
+    for (size_t i = 0 ; i < alt_cnt ; ++i)
+    {
+        /* read the alternative header */
+        int score = src->read_int2();
+        int badness = src->read_int2();
+        vm_obj_id_t proc_obj = (vm_obj_id_t)src->read_uint4();
+        uint tokcnt = src->read_uint2();
+
+        /* fix up the processor object ID */
+        if (fixups != 0)
+            proc_obj = fixups->get_new_id(vmg_ proc_obj);
+
+        /* create this alternative */
+        vmgram_alt_info *alt = new vmgram_alt_info(tokcnt);
+        alt->score = score;
+        alt->badness = badness;
+        alt->proc_obj = proc_obj;
+
+        /* add it to the list in our extension */
+        get_ext()->alt_cnt_ += 1;
+        get_ext()->alts_[i] = alt;
+
+        /* get the first token */
+        vmgram_tok_info *tok = alt->toks;
+
+        /* read the tokens */
+        for (size_t j = 0 ; j < tokcnt ; ++j, ++tok)
+        {
+            /* read the fixed part of the token */
+            tok->prop = (vm_prop_id_t)src->read_uint2();
+            tok->typ = (vmgram_match_type)src->read_byte();
+
+            /* read the extra data according to the token type */
+            switch (tok->typ)
+            {
+            case VMGRAM_MATCH_PROD:
+                /* read the object ID */
+                tok->typinfo.prod_obj = (vm_obj_id_t)src->read_uint4();
+
+                /* fix it up if necessary */
+                if (fixups != 0)
+                    tok->typinfo.prod_obj = fixups->get_new_id(
+                        vmg_ tok->typinfo.prod_obj);
+                break;
+
+            case VMGRAM_MATCH_SPEECH:
+                /* read the part-of-speech property */
+                tok->typinfo.speech_prop = (vm_prop_id_t)src->read_uint2();
+                break;
+
+            case VMGRAM_MATCH_NSPEECH:
+                /* array of part-of-speech properties */
+                {
+                    /* read the count */
+                    size_t propcnt = src->read_uint2();
+
+                    /* allocate the array */
+                    tok->set_nspeech(propcnt);
+
+                    /* read the properties */
+                    for (size_t k = 0 ; k < propcnt ; ++k)
+                    {
+                        tok->typinfo.nspeech.props[k] =
+                            (vm_prop_id_t)src->read_uint2();
+                    }
+                }
+                break;
+
+            case VMGRAM_MATCH_LITERAL:
+                /* literal string */
+                {
+                    /* read the length */
+                    size_t len = src->read_uint2();
+
+                    /* allocate the string */
+                    tok->set_literal(len);
+
+                    /* read the string */
+                    src->read_bytes(tok->typinfo.lit.str, len);
+                }
+                break;
+
+            case VMGRAM_MATCH_TOKTYPE:
+                /* token type */
+                tok->typinfo.toktyp_enum = src->read_uint4();
+                break;
+
+            case VMGRAM_MATCH_STAR:
+                /* star - no additional data */
+                break;
+            }
+        }
+        
         /* 
-         *   For our allocation size, add the amount of memory we need for
-         *   this alternative entry's array of tokens. 
+         *   If the first token of the alternative is a recursive reference
+         *   to this production itself, we have a circular reference.  Note
+         *   this, since we have to handle it specially when parsing. 
          */
-        alo_siz += alt_tok_cnt * sizeof(vmgram_tok_info);
-
-        /* include these tokens in the cumulative token count */
-        tok_cnt += alt_tok_cnt;
-
-        /* if the alternative is circular, note it */
-        if (alt_tok_cnt != 0
-            && vmgram_tok_type(tokp) == VMGRAM_MATCH_PROD
-            && vmgram_tok_prod_obj(tokp) == self)
+        tok = alt->toks;
+        if (tokcnt != 0
+            && tok->typ == VMGRAM_MATCH_PROD
+            && tok->typinfo.prod_obj == self)
         {
             /* note the existence of a circular reference */
             get_ext()->has_circular_alt = TRUE;
         }
-
-        /* scan the tokens to see how much memory we'll need to store them */
-        for (j = 0 ; j < alt_tok_cnt ; ++j, tokp = get_next_alt_tok(tokp))
-        {
-            /* check what sort of extra memory we'll need for this token */
-            switch(vmgram_tok_type(tokp))
-            {
-            case VMGRAM_MATCH_NSPEECH:
-                /* we need the array of vm_prop_id_t's */
-                alo_siz += osrndsz(vmgram_tok_vocn_cnt(tokp)
-                                   * sizeof(vm_prop_id_t));
-                break;
-                
-            case VMGRAM_MATCH_LITERAL:
-                /* we need space for the string */
-                alo_siz += osrndsz(vmgram_tok_lit_len(tokp));
-                break;
-            }
-        }
-
-        /* the next alternative starts after the last token */
-        p = tokp;
     }
+}
 
-    /* 
-     *   Allocate our block of memory to store the decoded alternatives.  Put
-     *   the whole thing in one block, and put the alternative array at the
-     *   start of the block. 
-     */
-    get_ext()->alt_cnt_ = alt_cnt;
-    get_ext()->alts_ = next_alt = (vmgram_alt_info *)t3malloc(alo_siz);
-
-    /* allocate the tokens right after the alternative array */
-    next_tok = (vmgram_tok_info *)&get_ext()->alts_[alt_cnt];
-
-    /* allocate the other miscellaneous data after the token array */
-    next_byte = (char *)&next_tok[tok_cnt];
-
-    /* run through the image data again and decode it */
-    for (i = alt_cnt, p = ptr + 2, tok_cnt = 0 ; i != 0 ; --i)
+/* ------------------------------------------------------------------------ */
+/*
+ *   apply undo 
+ */
+void CVmObjGramProd::apply_undo(VMG_ CVmUndoRecord *undo_rec)
+{
+    /* we only store pointer records, so ignore other types */
+    if (undo_rec->id.ptrval != 0)
     {
-        const char *tokp;
-        size_t alt_tok_cnt;
-        size_t j;
+        /* get our private undo record, properly cast */
+        vmgram_undo_rec *rec = (vmgram_undo_rec *)undo_rec->id.ptrval;
 
-        /* get the token count and first token for this alternative */
-        alt_tok_cnt = vmgram_alt_tokcnt(p);
-        tokp = vmgram_alt_tokptr(p);
+        /* get the 'self' object from the undo record */
+        vm_obj_id_t self = undo_rec->obj;
 
-        /* set up this alternative structure */
-        next_alt->score = vmgram_alt_score(p);
-        next_alt->badness = vmgram_alt_badness(p);
-        next_alt->proc_obj = vmgram_alt_procobj(p);
-        next_alt->tok_cnt = vmgram_alt_tokcnt(p);
-        next_alt->toks = next_tok;
+        /* get the original alternative object and its original index */
+        vmgram_alt_info *alt = rec->alt;
+        int idx = rec->idx;
 
-        /* consume this alternative entry */
-        ++next_alt;
-
-        /* scan and decode the tokens */
-        for (j = 0 ; j < alt_tok_cnt ; ++j, tokp = get_next_alt_tok(tokp))
+        /* get our alternative list and count */
+        vmgram_alt_info **alts = get_ext()->alts_;
+        
+        /* apply undo based on the event type */
+        switch (rec->op)
         {
-            size_t k;
-            
-            /* set up this token's base information */
-            next_tok->prop = vmgram_tok_prop(tokp);
-            next_tok->typ = vmgram_tok_type(tokp);
+        case VMGRAM_UNDO_DELETED:
+            /* deleted a record - re-insert it at the original index */
+            insert_alt(self, idx, alt);
 
-            /* decode the type-specific data */
-            switch(vmgram_tok_type(tokp))
-            {
-            case VMGRAM_MATCH_PROD:
-                next_tok->typinfo.prod_obj = vmgram_tok_prod_obj(tokp);
-                break;
+            /* the grammar prod object owns it now - clear it in the undo */
+            rec->alt = 0;
+            break;
 
-            case VMGRAM_MATCH_SPEECH:
-                next_tok->typinfo.speech_prop = vmgram_tok_voc_prop(tokp);
-                break;
-                
-            case VMGRAM_MATCH_NSPEECH:
-                /* set up our array, using the miscellaneous space pool */
-                next_tok->typinfo.nspeech.cnt = vmgram_tok_vocn_cnt(tokp);
-                next_tok->typinfo.nspeech.props = (vm_prop_id_t *)next_byte;
+        case VMGRAM_UNDO_REPLACED:
+            /* replaced a record - restore it at the original index */
+            alts[idx] = alt;
+            break;
 
-                /* copy the properties */
-                for (k = 0 ; k < next_tok->typinfo.nspeech.cnt ; ++k)
-                    next_tok->typinfo.nspeech.props[k] =
-                        vmgram_tok_vocn_prop(tokp, k);
+        case VMGRAM_UNDO_ADDED:
+            /* added a new record - delete the record at this index */
+            delete_alt(idx);
 
-                /* consume the space from the pool */
-                next_byte += osrndsz(next_tok->typinfo.nspeech.cnt
-                                     * sizeof(vm_prop_id_t));
-                break;
-
-            case VMGRAM_MATCH_LITERAL:
-                /* take the space out of the miscellaneous space pool */
-                next_tok->typinfo.lit.len = vmgram_tok_lit_len(tokp);
-                next_tok->typinfo.lit.str = next_byte;
-
-                /* copy the data */
-                memcpy(next_tok->typinfo.lit.str, vmgram_tok_lit_txt(tokp),
-                       next_tok->typinfo.lit.len);
-
-                /* consume the space from the pool */
-                next_byte += osrndsz(next_tok->typinfo.lit.len);
-                break;
-
-            case VMGRAM_MATCH_TOKTYPE:
-                next_tok->typinfo.toktyp_enum = vmgram_tok_tok_enum(tokp);
-                break;
-            }
-
-            /* consume the token slot */
-            ++next_tok;
+            /* check for circular references */
+            check_circular_refs(self);
+            break;
         }
+    }
+}
 
-        /* the next alternative starts after the last token */
-        p = tokp;
+/*
+ *   discard extra undo record information
+ */
+void CVmObjGramProd::discard_undo(VMG_ CVmUndoRecord *undo_rec)
+{
+    /* check for our private record type */
+    if (undo_rec->id.ptrval != 0)
+    {
+        /* get our private undo record, properly cast */
+        vmgram_undo_rec *rec = (vmgram_undo_rec *)undo_rec->id.ptrval;
+
+        /* delete it */
+        delete rec;
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   mark object references in an undo record 
+ */
+void CVmObjGramProd::mark_undo_ref(VMG_ CVmUndoRecord *undo_rec)
+{
+    /* check for our private record type */
+    if (undo_rec->id.ptrval != 0)
+    {
+        /* get our private undo record, properly cast */
+        vmgram_undo_rec *rec = (vmgram_undo_rec *)undo_rec->id.ptrval;
+
+        /* if it record an alternative, mark its references */
+        if (rec->alt != 0)
+            mark_alt_refs(vmg_ rec->alt, VMOBJ_REACHABLE);
+    }
+}
+
+/*
+ *   mark references 
+ */
+void CVmObjGramProd::mark_refs(VMG_ uint state)
+{
+    /* if we've been dynamically modified, we could have non-root refs */
+    if (get_ext()->modified_)
+    {
+        /* run through our alternative list */
+        vmgram_alt_info *const *altp = get_ext()->alts_;
+        for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i, ++altp)
+            mark_alt_refs(vmg_ *altp, state);
+    }
+}
+
+/*
+ *   mark references in an alternative 
+ */
+void CVmObjGramProd::mark_alt_refs(VMG_ const vmgram_alt_info *alt, uint state)
+{
+    /* mark the match object */
+    if (alt->proc_obj != VM_INVALID_OBJ)
+        G_obj_table->mark_all_refs(alt->proc_obj, state);
+
+    /* run through the token list */
+    vmgram_tok_info *tok = alt->toks;
+    for (size_t j = 0 ; j < alt->tok_cnt ; ++j, ++tok)
+    {
+        /* only production matches have object references */
+        if (tok->typ == VMGRAM_MATCH_PROD
+            && tok->typinfo.prod_obj != VM_INVALID_OBJ)
+        {
+            /* mark the reference */
+            G_obj_table->mark_all_refs(tok->typinfo.prod_obj, state);
+        }
     }
 }
 
@@ -842,6 +1240,7 @@ void CVmObjGramProd::remove_stale_weak_refs(VMG0_)
 }
 
 
+/* ------------------------------------------------------------------------ */
 /*
  *   Context for enum_props_cb 
  */
@@ -891,8 +1290,9 @@ void CVmObjGramProd::enum_props_cb(VMG_ void *ctx0, vm_prop_id_t prop,
     ctx->cnt++;
 }
 
+/* ------------------------------------------------------------------------ */
 /*
- *   Execute the parseToken method 
+ *   Execute the parseTokens method 
  */
 int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
                                vm_val_t *retval, uint *argc)
@@ -900,14 +1300,13 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
     vm_val_t *tokval;
     vm_val_t dictval;
     CVmObjDict *dict;
-    size_t tok_cnt;
-    size_t i;
+    int tok_cnt;
+    int i;
     vmgramprod_tok *tok;
-    const char *toklistp;
     int orig_argc = (argc != 0 ? *argc : 0);
     CVmGramProdQueue queues;
     CVmObjList *lst;
-    size_t succ_cnt;
+    int succ_cnt;
     CVmGramProdMatchEntry *match;
     static CVmNativeCodeDesc desc(2);
     
@@ -927,11 +1326,9 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
      *   collector 
      */
     tokval = G_stk->get(0);
-    if ((toklistp = tokval->get_as_list(vmg0_)) == 0)
+    if (!tokval->is_listlike(vmg0_)
+        || (tok_cnt = tokval->ll_length(vmg0_)) < 0)
         err_throw(VMERR_LIST_VAL_REQD);
-
-    /* get the length of the token list */
-    tok_cnt = vmb_get_len(tokval->get_as_list(vmg0_));
 
     /* check for a dictionary argument */
     if (orig_argc >= 2)
@@ -981,7 +1378,7 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
         vm_val_t ele_val;
         vm_val_t tok_typ_val;
         vm_val_t tok_str_val;
-        const char *subp;
+        int subcnt;
         const char *tokstrp;
 
         /* presume we won't have any vocabulary properties for the word */
@@ -989,19 +1386,19 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
         tok[i].matches_ = 0;
 
         /* get this element from the list, and treat it as a list */
-        CVmObjList::index_list(vmg_ &ele_val, toklistp, i+1);
-        subp = ele_val.get_as_list(vmg0_);
+        tokval->ll_index(vmg_ &ele_val, i + 1);
 
-        /* if this element isn't a list, it's an error */
-        if (subp == 0)
+        /* make sure the sub-val is a list */
+        if (!ele_val.is_listlike(vmg0_)
+            || (subcnt = ele_val.ll_length(vmg0_)) < 0)
             err_throw(VMERR_BAD_TYPE_BIF);
 
         /* 
          *   parse the token sublist: the first element is the token value,
          *   and the second element is the token type 
          */
-        CVmObjList::index_list(vmg_ &tok_str_val, subp, 1);
-        CVmObjList::index_list(vmg_ &tok_typ_val, subp, 2);
+        ele_val.ll_index(vmg_ &tok_str_val, 1);
+        ele_val.ll_index(vmg_ &tok_typ_val, 2);
 
         /* use the value if it's an enumerator; if not, use zero */
         if (tok_typ_val.typ == VM_ENUM)
@@ -1086,14 +1483,7 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
     lst = (CVmObjList *)vm_objp(vmg_ retval->val.obj);
 
     /* initially clear the elements of the return list to nil */
-    for (i = 0 ; i < succ_cnt ; ++i)
-    {
-        vm_val_t nil_val;
-
-        /* set this element to nil */
-        nil_val.set_nil();
-        lst->cons_set_element(i, &nil_val);
-    }
+    lst->cons_clear();
 
     /* push the list momentarily to protect it from garbage collection */
     G_stk->push(retval);
@@ -1122,6 +1512,9 @@ int CVmObjGramProd::getp_parse(VMG_ vm_obj_id_t self,
 
         /* push the token match value list for gc protection */
         G_stk->push(&tok_match_val);
+
+        /* clear it out */
+        ((CVmObjList *)vm_objp(vmg_ tok_match_val.val.obj))->cons_clear();
 
         /* build the object tree for this success object */
         build_match_tree(vmg_ match->match_, tokval, &tok_match_val,
@@ -1296,26 +1689,23 @@ void CVmObjGramProd::build_match_tree(VMG_ const CVmGramProdMatch *match,
     }
     else
     {
-        const char *lstp;
-
         /* get the token list */
-        lstp = toklist->get_as_list(vmg0_);
+        int lstcnt = toklist->ll_length(vmg0_);
 
         /* make sure the index is in range */
-        if (match->tok_pos_ < vmb_get_len(lstp))
+        if ((int)match->tok_pos_ < lstcnt)
         {
             vm_val_t ele_val;
             CVmObjList *match_lst;
             
             /* get the token from the list */
-            CVmObjList::index_list(vmg_ &ele_val, lstp, match->tok_pos_ + 1);
+            toklist->ll_index(vmg_ &ele_val, match->tok_pos_ + 1);
 
             /* 
              *   the token is itself a list, whose first element is the
              *   token's value - retrieve the value 
              */
-            lstp = ele_val.get_as_list(vmg0_);
-            CVmObjList::index_list(vmg_ retval, lstp, 1);
+            ele_val.ll_index(vmg_ retval, 1);
 
             /* 
              *   Store the token match result in the result list.  If this is
@@ -1779,7 +2169,7 @@ void CVmObjGramProd::enqueue_alts(VMG_ CVmGramProdMem *mem,
                                   CVmGramProdMatch *circ_match,
                                   CVmObjDict *dict)
 {
-    const vmgram_alt_info *altp;
+    vmgram_alt_info *const *altp;
     size_t i;
     int need_to_clone;
     int has_circ;
@@ -1813,35 +2203,29 @@ void CVmObjGramProd::enqueue_alts(VMG_ CVmGramProdMem *mem,
     for (altp = get_ext()->alts_, i = get_ext()->alt_cnt_ ; i != 0 ;
          --i, ++altp)
     {
-        vmgram_tok_info *first_tokp;
-        vmgram_tok_info *tokp;
-        size_t cur_alt_tok;
-        size_t alt_tok_cnt;
-        size_t tok_idx;
-        int found_mismatch;
-        int prod_before;
-        int is_circ;
-        
         /* start at the first token remaining in the string */
-        tok_idx = start_tok_pos;
+        size_t tok_idx = start_tok_pos;
 
         /* get the first token for this alternative */
-        tokp = first_tokp = altp->toks;
+        vmgram_tok_info *first_tokp = (*altp)->toks;
+
+        /* start at the first token */
+        vmgram_tok_info *tokp = first_tokp;
 
         /* get the number of tokens in the alternative */
-        alt_tok_cnt = altp->tok_cnt;
+        size_t alt_tok_cnt = (*altp)->tok_cnt;
         
         /* presume we will find no mismatches in this check */
-        found_mismatch = FALSE;
+        int found_mismatch = FALSE;
 
         /* 
          *   note whether this alternative is a direct circular reference
          *   or not (it is directly circular if the first token points
          *   back to this same production) 
          */
-        is_circ = (alt_tok_cnt != 0
-                   && tokp->typ == VMGRAM_MATCH_PROD
-                   && tokp->typinfo.prod_obj == self);
+        int is_circ = (alt_tok_cnt != 0
+                       && tokp->typ == VMGRAM_MATCH_PROD
+                       && tokp->typinfo.prod_obj == self);
         
         /* 
          *   we don't have a production before the current item (this is
@@ -1849,10 +2233,10 @@ void CVmObjGramProd::enqueue_alts(VMG_ CVmGramProdMem *mem,
          *   current token or any following token when trying to match a
          *   literal, part of speech, or token type) 
          */
-        prod_before = FALSE;
+        int prod_before = FALSE;
 
         /* scan the tokens in the alternative */
-        for (cur_alt_tok = 0 ; cur_alt_tok < alt_tok_cnt ;
+        for (size_t cur_alt_tok = 0 ; cur_alt_tok < alt_tok_cnt ;
              ++cur_alt_tok, ++tokp)
         {
             int match;
@@ -2070,7 +2454,7 @@ void CVmObjGramProd::enqueue_alts(VMG_ CVmGramProdMem *mem,
             
             /* create and enqueue the new state */
             state = enqueue_new_state(mem, start_tok_pos, enclosing_state,
-                                      altp, self, &need_to_clone, queues,
+                                      *altp, self, &need_to_clone, queues,
                                       has_circ);
 
             /* 
@@ -2104,7 +2488,7 @@ void CVmObjGramProd::enqueue_alts(VMG_ CVmGramProdMem *mem,
 void CVmObjGramProd::cache_hashes(VMG_ CVmObjDict *dict)
 {
     vm_obj_id_t comparator;
-    vmgram_alt_info *alt;
+    vmgram_alt_info **alt;
     size_t i;
 
     /* get the comparator */
@@ -2118,7 +2502,7 @@ void CVmObjGramProd::cache_hashes(VMG_ CVmObjDict *dict)
         size_t j;
 
         /* run through our tokens */
-        for (j = alt->tok_cnt, tok = alt->toks ; j != 0 ; --j, ++tok)
+        for (j = (*alt)->tok_cnt, tok = (*alt)->toks ; j != 0 ; --j, ++tok)
         {
             /* if this is a literal token, calculate its hash value */
             if (tok->typ == VMGRAM_MATCH_LITERAL)
@@ -2308,37 +2692,6 @@ int CVmObjGramProd::find_prop_in_tok(const vmgramprod_tok *tok,
     return FALSE;
 }
 
-/*
- *   Get the next token item after the given item in an alternative
- */
-const char *CVmObjGramProd::get_next_alt_tok(const char *tokp)
-{
-    switch(vmgram_tok_type(tokp))
-    {
-    case VMGRAM_MATCH_PROD:
-        return tokp + VMGRAM_TOK_PROD_SIZE;
-        
-    case VMGRAM_MATCH_SPEECH:
-        return tokp + VMGRAM_TOK_SPEECH_SIZE;
-
-    case VMGRAM_MATCH_NSPEECH:
-        return tokp + VMGRAM_TOK_NSPEECH_SIZE(tokp);
-
-    case VMGRAM_MATCH_LITERAL:
-        return tokp + VMGRAM_TOK_LIT_SIZE(tokp);
-
-    case VMGRAM_MATCH_TOKTYPE:
-        return tokp + VMGRAM_TOK_TYPE_SIZE;
-
-    case VMGRAM_MATCH_STAR:
-        return tokp + VMGRAM_TOK_STAR_SIZE;
-
-    default:
-        err_throw(VMERR_INVAL_METACLASS_DATA);
-        AFTER_ERR_THROW(return 0;)
-    }
-}
-
 /* ------------------------------------------------------------------------ */
 /*
  *   Execute the getGrammarInfo() method - builds and returns an information
@@ -2350,7 +2703,7 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
     vm_obj_id_t alt_lst_id;
     CVmObjList *alt_lst;
     size_t i;
-    vmgram_alt_info *altp;
+    vmgram_alt_info **altp;
     static CVmNativeCodeDesc desc(0);
 
     /* check arguments */
@@ -2367,6 +2720,7 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
     /* create a list to hold the rule alternatives */
     alt_lst_id = CVmObjList::create(vmg_ FALSE, get_ext()->alt_cnt_);
     alt_lst = (CVmObjList *)vm_objp(vmg_ alt_lst_id);
+    alt_lst->cons_clear();
 
     /* push it onto the stack for protection from garbage collection */
     G_stk->push()->set_obj(alt_lst_id);
@@ -2397,8 +2751,9 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
         }
 
         /* create a list to hold the token descriptors */
-        tok_lst_id = CVmObjList::create(vmg_ FALSE, altp->tok_cnt);
+        tok_lst_id = CVmObjList::create(vmg_ FALSE, (*altp)->tok_cnt);
         tok_lst = (CVmObjList *)vm_objp(vmg_ tok_lst_id);
+        tok_lst->cons_clear();
 
         /* push this momentarily for gc protection */
         G_stk->push()->set_obj(tok_lst_id);
@@ -2407,7 +2762,7 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
          *   Run through the tokens in the rule alternative, and build a list
          *   of token descriptor structures. 
          */
-        for (j = 0, tokp = altp->toks ; j < altp->tok_cnt ; ++j, ++tokp)
+        for (j = 0, tokp = (*altp)->toks ; j < (*altp)->tok_cnt ; ++j, ++tokp)
         {
             vm_val_t tok_obj_val;
 
@@ -2529,9 +2884,9 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
          *   which is the imported GrammarAltInfo class object.  
          */
         G_stk->push()->set_obj(tok_lst_id);
-        G_stk->push()->set_obj(altp->proc_obj);
-        G_stk->push()->set_int(altp->badness);
-        G_stk->push()->set_int(altp->score);
+        G_stk->push()->set_obj((*altp)->proc_obj);
+        G_stk->push()->set_int((*altp)->badness);
+        G_stk->push()->set_int((*altp)->score);
         G_stk->push()->set_obj(G_predef->gramprod_gram_alt_info);
         alt_obj_val.set_obj(CVmObjTads::create_from_stack(vmg_ 0, 5));
 
@@ -2557,3 +2912,644 @@ int CVmObjGramProd::getp_get_gram_info(VMG_ vm_obj_id_t self,
     return TRUE;
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   deleteAlt() method - remove an alternative from our rule list 
+ */
+int CVmObjGramProd::getp_deleteAlt(VMG_ vm_obj_id_t self,
+                                   vm_val_t *retval, uint *oargc)
+{
+    const vm_val_t *v;
+    
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(1, 1);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* get the ID argument */
+    vm_val_t *id = G_stk->get(0);
+
+    /* get the dictionary, if present */
+    vm_obj_id_t dict = VM_INVALID_OBJ;
+    if (argc >= 2
+        && (v = G_stk->get(1))->typ != VM_NIL
+        && (v->typ != VM_OBJ
+            || !CVmObjDict::is_dictionary_obj(vmg_ dict = v->val.obj)))
+        err_throw(VMERR_BAD_TYPE_BIF);
+
+    /* push 'self' for gc protection */
+    G_interpreter->push_obj(vmg_ self);
+
+    /* check the ID type */
+    const char *idstr;
+    if (id->typ == VM_INT)
+    {
+        /* get the index of the alternative to delete */
+        int idx = id->val.intval;
+
+        /* make sure it's in range */
+        if (idx < 1 || idx > (int)get_ext()->alt_cnt_)
+            err_throw(VMERR_INDEX_OUT_OF_RANGE);
+
+        /* mark the item for deletion */
+        get_ext()->alts_[idx-1]->del = TRUE;
+    }
+    else if ((idstr = id->get_as_string(vmg0_)) != 0)
+    {
+        /* get the length and buffer pointer for the tag */
+        size_t idlen = vmb_get_len(idstr);
+        idstr += VMB_LEN;
+        
+        /* get the garmmarTag property import */
+        vm_prop_id_t grammarTag = G_predef->gramprod_tag;
+
+        /* set up a recursive invoker for grammarTag */
+        vm_rcdesc rc(vmg_ "GrammarProd.deleteAlt", self,
+                     PROPIDX_deleteAlt, id, argc);
+        
+        /*
+         *   Delete by tag name.  Run through the alternatives and delete
+         *   each one whose match object's grammarTag property matches the
+         *   given tag name.  Work backwards through the array to avoid the
+         *   overhead of closing gaps when we delete items.  
+         */
+        for (int idx = get_ext()->alt_cnt_ ; idx != 0 ; )
+        {
+            /* on to the next index */
+            --idx;
+
+            /* get this item's match object */
+            vm_obj_id_t m = get_ext()->alts_[idx]->proc_obj;
+
+            /* 
+             *   if there's a match object, and the 'grammarTag' import is
+             *   defined, check the match object's grammarTag value 
+             */
+            if (m != VM_INVALID_OBJ && grammarTag != VM_INVALID_PROP)
+            {
+                /* evaluate m.grammarProd */
+                vm_val_t mval;
+                mval.set_obj(m);
+                G_interpreter->get_prop(
+                    vmg_ 0, &mval, grammarTag, &mval, 0, &rc);
+
+                /* if it's a string, compare it */
+                const char *gt = G_interpreter->get_r0()->get_as_string(vmg0_);
+                if (gt != 0
+                    && vmb_get_len(gt) == idlen
+                    && memcmp(gt + VMB_LEN, idstr, idlen) == 0)
+                {
+                    /* it's a match - mark it for deletion */
+                    get_ext()->alts_[idx]->del = TRUE;
+                }
+            }
+        }
+    }
+    else if (id->typ == VM_OBJ)
+    {
+        /* 
+         *   Delete each alternative whose match object equals or is a
+         *   subclass of the given object.  Work backwards from the end of
+         *   the list to avoid the overhead of closing the gap when we delete
+         *   an item earlier in the array.  
+         */
+        for (int idx = get_ext()->alt_cnt_ ; idx != 0 ; )
+        {
+            /* on to the next index */
+            --idx;
+            
+            /* check for a match to the match object */
+            vm_obj_id_t m = get_ext()->alts_[idx]->proc_obj;
+            if (m != VM_INVALID_OBJ
+                && (m == id->val.obj
+                    || vm_objp(vmg_ m)->is_instance_of(vmg_ id->val.obj)))
+            {
+                /* it's a match - mark it for deletion */
+                get_ext()->alts_[idx]->del = TRUE;
+            }
+        }
+    }
+    else
+    {
+        /* invalid type */
+        err_throw(VMERR_BAD_VAL_BIF);
+    }
+
+    /* delete the marked batch */
+    delete_marked_alts(vmg_ self, dict);
+
+    /* return self */
+    retval->set_obj(self);
+
+    /* discard arguments and gc protection */
+    G_stk->discard(argc + 1);
+
+    /* handled */
+    return TRUE;
+}
+
+/*
+ *   Delete the marked alternatives.  This runs through the alternative list
+ *   and deletes each alternative marked with the 'del' flag.  We save undo
+ *   for the deletions and update the dictionary (if provided) to remove
+ *   literals associated with this production that are no longer used in any
+ *   alternative after the deletions.  
+ */
+void CVmObjGramProd::delete_marked_alts(
+    VMG_ vm_obj_id_t self, vm_obj_id_t dict)
+{
+    /* get the alt list */
+    vmgram_alt_info **alts = get_ext()->alts_;
+
+    /* if there's a dictionary, delete the words that are no longer in use */
+    if (dict != VM_INVALID_OBJ
+        && G_predef->misc_vocab != VM_INVALID_PROP)
+    {
+        /* get the dictionary object, properly cast */
+        CVmObjDict *dictp = (CVmObjDict *)vm_objp(vmg_ dict);
+
+        /* run through the alternatives being deleted */
+        for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i)
+        {
+            /* get this item */
+            vmgram_alt_info *alt = alts[i];
+
+            /* if it's not being deleted, skip it */
+            if (!alt->del)
+                continue;
+
+            /* run through its token list looking for literals */
+            vmgram_tok_info *tok = alt->toks;
+            for (size_t j = 0 ; j < alt->tok_cnt ; ++j, ++tok)
+            {
+                /* 
+                 *   if it's a literal, and it's not defined in a surviving
+                 *   alternative, delete it from the dictionary 
+                 */
+                if (tok->typ == VMGRAM_MATCH_LITERAL
+                    && !find_literal_in_alts(
+                        tok->typinfo.lit.str,tok->typinfo.lit.len))
+                {
+                    /* it's no longer used - remove it from the dictionary */
+                    dictp->del_word(
+                        vmg_ dict, tok->typinfo.lit.str, tok->typinfo.lit.len,
+                        self, G_predef->misc_vocab);
+                }
+            }
+        }
+    }
+
+    /* 
+     *   Perform the deletions.  Work backwards from the end of the array to
+     *   avoid overhead closing gaps in the array. 
+     */
+    for (size_t i = get_ext()->alt_cnt_ ; i > 0 ; )
+    {
+        /* get the next item */
+        vmgram_alt_info *alt = alts[--i];
+
+        /* if it's marked for deletion, delete it */
+        if (alt->del)
+        {
+            /* unmark it, in case we later restore it via undo */
+            alt->del = FALSE;
+
+            /* 
+             *   If this is the only remaining alternative with the same
+             *   match object that's being deleted, rebuild the match
+             *   object's grammarAltProps list.  If there's another
+             *   alternative yet to be deleted that uses the same match
+             *   object, don't bother doing the rebuild now, since we'll do
+             *   it again when the loop reaches the earlier alternative, and
+             *   we only need to do it once for the whole batch.  
+             */
+            int rebuild = TRUE;
+            for (size_t j = 0 ; j < i ; ++j)
+            {
+                /* 
+                 *   if this one's being deleted, and it has the same match
+                 *   object, skip the rebuild now since we'll do it when we
+                 *   get to 'j' in the main loop 
+                 */
+                if (alts[j]->del && alts[j]->proc_obj == alt->proc_obj)
+                {
+                    rebuild = FALSE;
+                    break;
+                }
+            }
+
+            /* do the rebuild if this is our last chance */
+            if (rebuild)
+                build_alt_props(vmg_ alt->proc_obj);
+
+            /* delete it */
+            delete_alt_undo(vmg_ self, i);
+        }
+    }
+
+    /* check for circular references */
+    check_circular_refs(self);
+}
+
+/*
+ *   Scan surviving alternatives (not marked with 'del') for a given literal 
+ */
+int CVmObjGramProd::find_literal_in_alts(const char *str, size_t len)
+{
+    /* 
+     *   Scan the surviving alternatives to see if this same literal token
+     *   appears in any of them.  If not, it's no longer in use in the
+     *   production, so delete it from the dictionary.  
+     */
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i)
+    {
+        /* get this item */
+        vmgram_alt_info *alt = get_ext()->alts_[i];
+        
+        /* if it's being deleted, skip it */
+        if (alt->del)
+            continue;
+
+        /* it's still alive - scan its tokens */
+        vmgram_tok_info *tok = alt->toks;
+        for (size_t j = 0 ; j < alt->tok_cnt ; ++j, ++tok)
+        {
+            /* if this is a matching literal, the word is still in use */
+            if (tok->typ == VMGRAM_MATCH_LITERAL
+                && tok->typinfo.lit.len == len
+                && memcmp(tok->typinfo.lit.str, str, len) == 0)
+                return TRUE;
+        }
+    }
+
+    /* didn't find it */
+    return FALSE;
+}
+
+/*
+ *   delete an alternative, keeping undo 
+ */
+void CVmObjGramProd::delete_alt_undo(VMG_ vm_obj_id_t self, int idx)
+
+{
+    /* create an undo record for deleting this item */
+    vmgram_undo_rec *rec = new vmgram_undo_rec(
+        VMGRAM_UNDO_DELETED, idx, get_ext()->alts_[idx]);
+
+    /* save the record */
+    if (!G_undo->add_new_record_ptr_key(vmg_ self, rec))
+        delete rec;
+    
+    /* remove the alternative from the array */
+    delete_alt(idx);
+}
+
+/*
+ *   Check for circular references.  After deleting one or more alternatives,
+ *   call this to see if we can clear the circular reference flag.  This
+ *   scans the surviging alternatives, and clears the flag if none of them
+ *   are circular.  
+ */
+void CVmObjGramProd::check_circular_refs(vm_obj_id_t self)
+{
+    /* presume no circular references */
+    get_ext()->has_circular_alt = FALSE;
+
+    /* scan the alternative list */
+    vmgram_alt_info **altp = get_ext()->alts_;
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i, ++altp)
+    {
+        /* get the alternative */
+        vmgram_alt_info *alt = *altp;
+        
+        /* check for a circular reference */
+        if (alt->tok_cnt != 0
+            && alt->toks->typ == VMGRAM_MATCH_PROD
+            && alt->toks->typinfo.prod_obj == self)
+        {
+            /* it's circular - set the flag */
+            get_ext()->has_circular_alt = TRUE;
+
+            /* no need to look any further */
+            break;
+        }
+    }
+}
+
+/*
+ *   Rebuild the grammarAltProps list for a given match object.  This creates
+ *   a list of all of the properties used in "->" expressions in all of the
+ *   alternatives associated with the match object. 
+ */
+void CVmObjGramProd::build_alt_props(VMG_ vm_obj_id_t match_obj)
+{
+    /* if there's no grammarAltProps property export, skip this */
+    if (G_predef->gramprod_alt_props == VM_INVALID_PROP)
+        return;
+
+    /* first do a scan without an output list to count the properties */
+    size_t cnt = build_alt_props_list(vmg_ match_obj, 0);
+
+    /* create the list */
+    vm_val_t lstval;
+    lstval.set_obj(CVmObjList::create(vmg_ FALSE, cnt));
+    CVmObjList *lst = (CVmObjList *)vm_objp(vmg_ lstval.val.obj);
+
+    /* build the list */
+    build_alt_props_list(vmg_ match_obj, lst);
+
+    /* keep only unique properties in the list */
+    lst->cons_uniquify(vmg0_);
+
+    /* store it in the match object under grammarAltProps */
+    vm_objp(vmg_ match_obj)->set_prop(
+        vmg_ G_undo, match_obj, G_predef->gramprod_alt_props, &lstval);
+}
+
+/*
+ *   Build the grammarAltProps list for a given object, storing the results
+ *   in the given list.  Returns the number of properties we found.
+ */
+size_t CVmObjGramProd::build_alt_props_list(
+    VMG_ vm_obj_id_t match_obj, CVmObjList *lst)
+{
+    /* we haven't stored any properties yet */
+    size_t n = 0;
+    
+    /* run through the surviving alternatives */
+    vmgram_alt_info **alts = get_ext()->alts_;
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i, ++alts)
+    {
+        /* 
+         *   if this alternative isn't being deleted, and it's associated
+         *   with the given match object, add its properties to the list 
+         */
+        vmgram_alt_info *alt = *alts;
+        if (!alt->del && alt->proc_obj == match_obj)
+        {
+            /* scan its token list */
+            vmgram_tok_info *tok = alt->toks;
+            for (size_t j = 0 ; j < alt->tok_cnt ; ++j, ++tok)
+            {
+                /* if this token has a target property, add it to the list */
+                if (tok->prop != VM_INVALID_PROP)
+                {
+                    /* if we have a list, store it */
+                    if (lst != 0)
+                    {
+                        vm_val_t v;
+                        v.set_propid(tok->prop);
+                        lst->cons_set_element(n, &v);
+                    }
+                    
+                    /* count it */
+                    ++n;
+                }
+            }
+        }
+    }
+
+    /* return the number of properties we stored */
+    return n;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   clearAlts() method - removes all alternatives 
+ */
+int CVmObjGramProd::getp_clearAlts(VMG_ vm_obj_id_t self,
+                                   vm_val_t *retval, uint *oargc)
+{
+    const vm_val_t *v;
+
+    /* check arguments */
+    int argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(0, 1);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* get the dictionary object, if specified */
+    vm_obj_id_t dict = VM_INVALID_OBJ;
+    if (argc >= 1
+        && (v = G_stk->get(0))->typ != VM_NIL
+        && (v->typ != VM_OBJ
+            || !CVmObjDict::is_dictionary_obj(vmg_ dict = v->val.obj)))
+        err_throw(VMERR_BAD_TYPE_BIF);
+
+    /* mark every alternative for deletion */
+    for (size_t i = 0 ; i < get_ext()->alt_cnt_ ; ++i)
+        get_ext()->alts_[i]->del = TRUE;
+
+    /* save 'self' for gc protection */
+    G_interpreter->push_obj(vmg_ self);
+
+    /* delete the batch */
+    delete_marked_alts(vmg_ self, dict);
+
+    /* return self */
+    retval->set_obj(self);
+
+    /* discard arguments and gc protection */
+    G_stk->discard(argc + 1);
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   addAlt() method - add a new alternative
+ */
+
+/* compiler results/callback object for grammar rule parsing */
+struct CVmGramCompResults: public CVmDynCompResults
+{
+    CVmGramCompResults(vm_obj_id_t self, CVmObjGramProd *selfp,
+                       vm_obj_id_t dict, vm_obj_id_t match)
+    {
+        this->self = self;
+        this->selfp = selfp;
+        this->dict = dict;
+        this->match = match;
+    }
+
+    /* save the parsed grammar rule data in our object */
+    virtual void save_grammar(
+        VMG_ CTcGramProdAlt *alts, CTcGramPropArrows *arrows)
+    {
+        /* add each alternative */
+        for ( ; alts != 0 ; alts = alts->get_next())
+            selfp->add_alt(vmg_ self, alts, dict, match);
+    }
+
+    /* self - the GrammarProd that we're adding rules to */
+    vm_obj_id_t self;
+    CVmObjGramProd *selfp;
+
+    /* the Dictionary object in scope for the grammar rules */
+    vm_obj_id_t dict;
+
+    /* the match object for the alternatives */
+    vm_obj_id_t match;
+};
+
+/* add an alternative to the production */
+void CVmObjGramProd::add_alt(VMG_ vm_obj_id_t self, CTcGramProdAlt *alt,
+                             vm_obj_id_t dict, vm_obj_id_t match)
+{
+    /* add it at the last position */
+    int idx = get_ext()->alt_cnt_;
+
+    /* count the tokens in the rule */
+    CTcGramProdTok *tok;
+    int ntoks;
+    for (ntoks = 0, tok = alt->get_tok_head() ; tok != 0 ;
+         ++ntoks, tok = tok->get_next()) ;
+
+    /* create our internal alt object */
+    vmgram_alt_info *ai = new vmgram_alt_info(ntoks);
+
+    /* set the attributes */
+    ai->proc_obj = match;
+    ai->score = alt->get_score();
+    ai->badness = alt->get_badness();
+
+    /* translate from the parsed token list to our internal token list */
+    vmgram_tok_info *ti = ai->toks;
+    for (tok = alt->get_tok_head() ; tok != 0 ; ++ti, tok = tok->get_next())
+    {
+        /* set the property association */
+        ti->prop = tok->get_prop_assoc();
+
+        /* set the type and type-specific data */
+        switch (tok->get_type())
+        {
+        case TCGRAM_UNKNOWN:
+            ti->typ = VMGRAM_MATCH_UNDEF;
+            break;
+
+        case TCGRAM_PROD:
+            ti->typ = VMGRAM_MATCH_PROD;
+            ti->typinfo.prod_obj = tok->getval_prod()->get_obj_id();
+            break;
+
+        case TCGRAM_PART_OF_SPEECH:
+            ti->typ = VMGRAM_MATCH_SPEECH;
+            ti->typinfo.speech_prop = tok->getval_part_of_speech();
+            break;
+
+        case TCGRAM_LITERAL:
+            /* set the literal in our token structure */
+            ti->set_literal(
+                tok->getval_literal_txt(), tok->getval_literal_len());
+
+            /* add the token to the dictionary */
+            if (dict != VM_INVALID_OBJ
+                && G_predef->misc_vocab != VM_INVALID_PROP)
+            {
+                ((CVmObjDict *)vm_objp(vmg_ dict))->add_word(
+                    vmg_ dict, ti->typinfo.lit.str, ti->typinfo.lit.len,
+                    self, G_predef->misc_vocab);
+            }
+            break;
+
+        case TCGRAM_TOKEN_TYPE:
+            ti->typ = VMGRAM_MATCH_TOKTYPE;
+            ti->typinfo.toktyp_enum = tok->getval_token_type();
+            break;
+
+        case TCGRAM_STAR:
+            ti->typ = VMGRAM_MATCH_STAR;
+            break;
+
+        case TCGRAM_PART_OF_SPEECH_LIST:
+            ti->set_nspeech(tok->getval_part_list_len());
+            for (size_t i = 0 ; i < ti->typinfo.nspeech.cnt ; ++i)
+                ti->typinfo.nspeech.props[i] = tok->getval_part_list_ele(i);
+            break;
+        }
+    }
+
+    /* add it to the object */
+    insert_alt(self, idx, ai);
+
+    /* create and add an undo record */
+    vmgram_undo_rec *rec = new vmgram_undo_rec(VMGRAM_UNDO_ADDED, idx, 0);
+    if (!G_undo->add_new_record_ptr_key(vmg_ self, rec))
+        delete rec;
+}
+
+/* addAlt() implementation */
+int CVmObjGramProd::getp_addAlt(VMG_ vm_obj_id_t self,
+                                vm_val_t *retval, uint *oargc)
+{
+    const vm_val_t *v;
+    
+    /* check arguments */
+    uint argc = (oargc != 0 ? *oargc : 0);
+    static CVmNativeCodeDesc desc(2, 2);
+    if (get_prop_check_argc(retval, oargc, &desc))
+        return TRUE;
+
+    /* the first argument is the rule list */
+    const vm_val_t *alt = G_stk->get(0);
+    const char *altp = alt->get_as_string(vmg0_);
+    if (altp == 0)
+        err_throw(VMERR_STRING_VAL_REQD);
+
+    /* get the source length and buffer pointer */
+    size_t altlen = vmb_get_len(altp);
+    altp += VMB_LEN;
+
+    /* the next argument is the match object class */
+    vm_obj_id_t match = VM_INVALID_OBJ;
+    v = G_stk->get(1);
+    if (v->typ != VM_OBJ
+        || !CVmObjTads::is_tadsobj_obj(vmg_ match = v->val.obj))
+        err_throw(VMERR_BAD_TYPE_BIF);
+
+    /* next comes the optional dictionary argument */
+    vm_obj_id_t dict = VM_INVALID_OBJ;
+    if (argc >= 3
+        && (v = G_stk->get(2))->typ != VM_NIL
+        && (v->typ != VM_OBJ
+            || !CVmObjDict::is_dictionary_obj(vmg_ (dict = v->val.obj))))
+        err_throw(VMERR_INVAL_OBJ_TYPE);
+
+    /* next comes the optional symbol table */
+    vm_obj_id_t symtab = VM_INVALID_OBJ;
+    if (argc >= 4 && (v = G_stk->get(3))->typ != VM_NIL)
+    {
+        /* get the value, and make sure it's an object */
+        symtab = v->val.obj;
+        if (v->typ != VM_OBJ)
+            err_throw(VMERR_OBJ_VAL_REQD);
+    }
+
+    /* push self for gc protection */
+    G_interpreter->push_obj(vmg_ self);
+
+    /* dynamically compile the alt list */
+    CVmGramCompResults results(self, this, dict, match);
+    CVmDynamicCompiler *comp = CVmDynamicCompiler::get(vmg0_);
+    comp->compile(vmg_ FALSE, symtab, VM_INVALID_OBJ, VM_INVALID_OBJ,
+                  alt, altp, altlen, DCModeGramAlt, 0, &results);
+
+    /* check for errors */
+    if (results.err != 0)
+        results.throw_error(vmg0_);
+
+    /* rebuild the grammarAltProps property for the match object */
+    build_alt_props(vmg_ match);
+
+    /* discard arguments and gc protection */
+    G_stk->discard(argc + 1);
+
+    /* return self */
+    retval->set_obj(self);
+
+    /* handled */
+    return TRUE;
+}

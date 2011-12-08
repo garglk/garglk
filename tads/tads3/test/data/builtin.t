@@ -2,8 +2,9 @@
  *   built-in function tests 
  */
 
-#include "t3.h"
-#include "tads.h"
+#include <t3.h>
+#include <tads.h>
+#include <bignum.h>
 
 obj1: object
     prop1 = "Hello"
@@ -123,13 +124,74 @@ function main()
     "toString(123, 16) = <<toString(123, 16)>>\n";
     "toString(true) = <<toString(true)>>\n";
     "toString(nil) = <<toString(nil)>>\n";
+    "toString(0xffffffff, 10) = <<toString(0xffffffff, 10)>>\n";
+    "toString(0xffffffff, 16) = <<toString(0xffffffff, 16)>>\n";
+    "toString(0xffffffff, 8) = <<toString(0xffffffff, 8)>>\n";
+    "toString(0xffffffff, 2) = <<toString(0xffffffff, 2)>>\n";
+    "toString(0xffffffff, 10, nil) = <<toString(0xffffffff, 10, nil)>>\n";
+    "toString(0xffffffff, 16, true) = <<toString(0xffffffff, 16, true)>>\n";
+    "toString(0xffffffff, 8, true) = <<toString(0xffffffff, 8, true)>>\n";
+    "toString(0xffffffff, 2, true) = <<toString(0xffffffff, 2, true)>>\n";
 
     "toInteger test\n";
     "toInteger('nil') = <<bool2str(toInteger('nil'))>>\n";
     "toInteger('true') = <<bool2str(toInteger('true'))>>\n";
-    "toInteger('123') = <<toInteger('123')>>\n";
-    "toInteger('ffff', 16) = <<toInteger('ffff', 16)>>\n";
-    "toInteger('123', 8) = <<toInteger('123', 8)>>\n";
+    "toInteger('  nil   ') = <<bool2str(toInteger(' nil   '))>>\n";
+    "toInteger(' true   ') = <<bool2str(toInteger(' true   '))>>\n";
+    testToInt(' + 123');
+    testToInt('ffff', 16);
+    testToInt('123', 8);
+    testToInt('11111111', 2);
+    testToInt('100', 12);
+    testToInt('ABCDEF', 16);
+    testToInt('abcdef', 15);
+    testToInt('ABCDEF', 14);
+    testToInt(' - ABCDEF', 13);
+    testToInt('ABCDEF', 12);
+    testToInt('ABCDEF', 11);
+    testToInt('ABCDEF', 10);
+    testToInt('6789', 10);
+    testToInt('6789', 9);
+    testToInt('6789', 8);
+    testToInt('6789', 7);
+    testToInt('2147483640');
+    testToInt('2147483647');
+    testToInt('2147483648');
+    testToInt('2147483649');
+    testToInt('2147483650');
+    testToInt('-2147483647');
+    testToInt('-2147483648');
+    testToInt('-2147483649');
+    testToInt('7fffffff', 16);
+    testToInt('80000000', 16);
+    testToInt('80000001', 16);
+    testToInt('-7fffffff', 16);
+    testToInt('-80000000', 16);
+    testToInt('-80000001', 16);
+    testToInt('ffffffff', 16);
+    testToInt('ffffffff1', 16);
+    testToInt('11fffffff', 16);
+    testToInt('1ffffffff', 16);
+
+    testToNum('ABCDEF', 16);
+    testToNum('7fffffff', 16);
+    testToNum('80000000', 16);
+    testToNum('100000000', 16);
+    testToNum('ffffffffffffffff', 16);
+    testToNum('ZZZZZZZ', 36);
+    testToNum('1000000000');
+    testToNum('2000000000');
+    testToNum('4000000000');
+    testToNum('1.234');
+    testToNum('1234e');
+    testToNum('1234e+');
+    testToNum('1234e+20e');
+    testToNum('.1234e+2');
+    testToNum('1234.');
+    testToNum(true);
+    testToNum(nil);
+    testToNum('  true  ', 16);
+    testToNum('  nil  ', 7);
 
 #if 0
     // omit these from the automated tests - the times vary, so we can't
@@ -182,9 +244,44 @@ varfunc(...)
     }
 }
 
+testToInt(str, radix?)
+{
+    "toInteger(<<toNumStr(str)>><<radix ? ', ' + radix : ''>>) = ";
+    try
+    {
+        "<<radix ? toInteger(str, radix) : toInteger(str) >>\n";
+    }
+    catch (RuntimeError exc)
+    {
+        "<<exc.display>>\n";
+    }
+}
+
+testToNum(str, radix?)
+{
+    "toNumber(<<toNumStr(str)>><<radix ? ', ' + radix : ''>>) = ";
+    local n = radix ? toNumber(str, radix) : toNumber(str);
+    tadsSay(n);
+    if (dataType(n) == TypeObject && n.ofKind(BigNumber))
+        " (BigNumber)";
+    "\n";
+}
+
+toNumStr(str)
+{
+    if (str == nil)
+        return 'nil';
+    else if (str == true)
+        return 'true';
+    else if (dataType(str) == TypeSString)
+        return '\'<<str>>\'';
+    else
+        return str;
+}
+
 bool2str(x)
 {
-    return x ? 'true' : 'nil';
+    return x == true ? 'true' : x == nil ? 'nil' : x;
 }
 
 function sayList(lst)
@@ -235,6 +332,28 @@ regex_tests()
         <<sayList(rexSearch(pat2, 'abc def def ghi'))>>\n";
     "group(1) = <<sayList(rexGroup(1))>>\n";
 
+    local pat4 = '<lparen>(.*?)<space>*<alpha>+<rparen>';
+    local subj4 = '/hrabes/vyhrabala (v cem) (asfd)';
+    local subj4a = '/hrabes/vyhrabala (verb cem) (asfd)';
+    search('pat4', pat4, subj4);
+    search('pat4', pat4, subj4a);
+
+    local pat4a = '<lparen>(.*?)(<space>*<alpha>+)<rparen>';
+    search('pat4a', pat4a, subj4);
+    search('pat4a', pat4a, subj4a);
+
+    local pat4b = '<lparen>(.*?)<space>*(<alpha>+)<rparen>';
+    search('pat4b', pat4b, subj4);
+    search('pat4b', pat4b, subj4a);
+
+    local pat4c = '<lparen>(|(.*?)<space>)(<alpha>+)<rparen>';
+    search('pat4c', pat4c, subj4);
+    search('pat4c', pat4c, subj4a);
+
+    local pat5 = '%((|(.*) )(<alpha>+)%)';
+    search('pat5', pat5, 'test (a xyz) TEST');
+    search('pat5', pat5, 'test (abc xyz) TEST');
+
     "match(pat1, 'this is a test') = <<rexMatch(pat1, 'this is a test')>>\n";
     "match(pat1, 'test a bit') =
          <<rexMatch(pat1, 'test a bit')>>\n";
@@ -278,3 +397,14 @@ regex_tests()
                      ReplaceAll)>>\n";
 }
 
+search(name, pat, subj)
+{
+    "search(<<name>>='<<pat.htmlify()>>', '<<subj.htmlify()>>') =
+       <<sayList(rexSearch(pat, subj))>>\n";
+    for (local i = 1 ; i <= 10 ; ++i)
+    {
+        local g = rexGroup(i);
+        if (g != nil)
+            "\t%<<i>> = '<<g[3].htmlify()>>' (index=<<g[1]>>, len=<<g[2]>>)\n";
+    }
+}

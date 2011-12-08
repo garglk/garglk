@@ -35,11 +35,13 @@ VPATH=msdos
 # debug or relesae mode flags
 ifdef COMPILE_FOR_DEBUG
 CFLAGS_DEBUG = -gcoff
-OPTIMIZE = -m486
+#OPTIMIZE = -m486
+OPTIMIZE = 
 LDFLAGS_DEBUG = -gcoff
 else
 CFLAGS_DEBUG = 
-OPTIMIZE = -O2 -fomit-frame-pointer -m486
+#OPTIMIZE = -O2 -fomit-frame-pointer -m486
+OPTIMIZE = -O2 -fomit-frame-pointer 
 LDFLAGS_DEBUG = -s 
 endif
 
@@ -240,6 +242,7 @@ tadsrsc:  $(EXEDIR)/tadsrsc.exe
 $(EXEDIR)/tadsrsc.exe: \
     $(OBJDIR)/tadsrsc.o \
     $(OBJDIR)/osnoui.o \
+    $(OBJDIR)/osdosnui.o \
     $(OBJDIR)/osterm.o
 	$(LD) $(LDFLAGS) $^ -o $@
 

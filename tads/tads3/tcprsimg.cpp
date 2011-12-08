@@ -542,13 +542,14 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
     char txtbuf[4096];
     const char *txt;
     size_t len;
-    char buf[10];
+    char buf[12];
     int is_extern;
     int ext_replace;
     int ext_modify;
     int has_retval;
     int varargs;
     int argc;
+    int opt_argc;
     int is_multimethod, is_multimethod_base;
     int mod_base_cnt;
     CTcSymFunc *sym;
@@ -564,16 +565,17 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
     len = strlen(txt);
 
     /* read our extra data */
-    fp->read_bytes(buf, 10);
+    fp->read_bytes(buf, 12);
     argc = osrp2(buf);
-    varargs = buf[2];
-    has_retval = buf[3];
-    is_extern = buf[4];
-    ext_replace = buf[5];
-    ext_modify = buf[6];
-    is_multimethod = (buf[7] & 1) != 0;
-    is_multimethod_base = (buf[7] & 2) != 0;
-    mod_base_cnt = osrp2(buf + 8);
+    opt_argc = osrp2(buf + 2);
+    varargs = buf[4];
+    has_retval = buf[5];
+    is_extern = buf[6];
+    ext_replace = buf[7];
+    ext_modify = buf[8];
+    is_multimethod = (buf[9] & 1) != 0;
+    is_multimethod_base = (buf[9] & 2) != 0;
+    mod_base_cnt = osrp2(buf + 10);
 
     /* look up any existing symbol */
     sym = (CTcSymFunc *)G_prs->get_global_symtab()->find(txt, len);
@@ -590,8 +592,9 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
          *   It's not defined yet - create the new definition and add it
          *   to the symbol table.  
          */
-        sym = new CTcSymFunc(txt, len, FALSE, argc, varargs, has_retval,
-                             is_multimethod, is_multimethod_base, is_extern);
+        sym = new CTcSymFunc(txt, len, FALSE, argc, opt_argc, varargs,
+                             has_retval, is_multimethod, is_multimethod_base,
+                             is_extern);
         G_prs->get_global_symtab()->add_entry(sym);
 
         /* it's an error if we're replacing a previously undefined function */
@@ -618,8 +621,9 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
          *   keep in sync with the file, but don't bother adding the fake
          *   symbol object to the symbol table 
          */
-        sym = new CTcSymFunc(txt, len, FALSE, argc, varargs, has_retval,
-                             is_multimethod, is_multimethod_base, is_extern);
+        sym = new CTcSymFunc(txt, len, FALSE, argc, opt_argc, varargs,
+                             has_retval, is_multimethod, is_multimethod_base,
+                             is_extern);
     }
     else if (sym->get_argc() != argc
              || sym->is_varargs() != varargs
@@ -1643,24 +1647,20 @@ int CTcSymPropBase::load_from_obj_file(class CVmFile *fp,
                                        const textchar_t *fname,
                                        tctarg_prop_id_t *prop_xlat)
 {
-    const char *txt;
-    size_t len;
-    ulong id;
-    CTcSymProp *sym;
-
     /* read the symbol name information */
+    const char *txt;
     if ((txt = base_read_from_sym_file(fp)) == 0)
         return 1;
-    len = strlen(txt);
+    size_t len = strlen(txt);
 
     /* read our property ID */
-    id = fp->read_uint4();
+    ulong id = fp->read_uint4();
 
     /* 
      *   If this symbol is already defined, make sure the original
      *   definition is a property.  If it's not defined, define it anew.  
      */
-    sym = (CTcSymProp *)G_prs->get_global_symtab()->find(txt, len);
+    CTcSymProp *sym = (CTcSymProp *)G_prs->get_global_symtab()->find(txt, len);
     if (sym == 0)
     {
         /* 
@@ -1786,8 +1786,8 @@ int CTcSymBifBase::load_from_obj_file(class CVmFile *fp,
     size_t len;
     CTcSymBif *sym;
     char buf[10];
-    int func_set_id;
-    int func_idx;
+    ushort func_set_id;
+    ushort func_idx;
     int has_retval;
     int min_argc;
     int max_argc;

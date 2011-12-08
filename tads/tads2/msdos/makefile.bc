@@ -333,7 +333,7 @@ mkchrtab.exe: mkchrtab.obj osterm.obj
 
 # build the TADS resource manager
 tadsrsc:  tadsrsc.exe
-tadsrsc.exe:  tadsrsc.obj osnoui.obj osterm.obj
+tadsrsc.exe:  tadsrsc.obj osnoui.obj osdosnui.obj osterm.obj
 	$(LD) $(LDFLAGS) @&&!
 $(CRT0) $**
 $*

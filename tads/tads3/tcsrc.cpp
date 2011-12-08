@@ -28,9 +28,32 @@ Modified
 #include "tcsrc.h"
 #include "tcglob.h"
 #include "charmap.h"
+#include "vmdatasrc.h"
 
 
 /* ------------------------------------------------------------------------ */
+/*
+ *   Source files 
+ */
+
+/*
+ *   Construction
+ */
+CTcSrcFile::CTcSrcFile(osfildef *fp, class CCharmapToUni *mapper)
+{
+    /* remember my source file */
+    fp_ = new CVmFileSource(fp);
+
+    /* net yet at end of file */
+    at_eof_ = FALSE;
+    
+    /* there's no data in the buffer yet */
+    rem_ = 0;
+    
+    /* remember my character mapper */
+    mapper_ = mapper;
+}
+
 /*
  *   Deletion 
  */
@@ -38,7 +61,7 @@ CTcSrcFile::~CTcSrcFile()
 {
     /* close my source file */
     if (fp_ != 0)
-        osfcls(fp_);
+        delete fp_;
 
     /* release my character mapper */
     if (mapper_ != 0)
@@ -453,7 +476,7 @@ size_t CTcSrcFile::read_line(char *buf, size_t bufl)
         if (rem_ == 0)
         {
             /* load another buffer-full */
-            rem_ = mapper_->read_file(fp_, buf_, sizeof(buf_), 0);
+            rem_ = mapper_->read_file(fp_, buf_, sizeof(buf_));
 
             /* 
              *   If we didn't read anything, we've reached the end of the
@@ -580,7 +603,7 @@ size_t CTcSrcFile::read_line(char *buf, size_t bufl)
                 if (rem_ == 0)
                 {
                     /* read more data */
-                    rem_ = mapper_->read_file(fp_, buf_, sizeof(buf_), 0);
+                    rem_ = mapper_->read_file(fp_, buf_, sizeof(buf_));
 
                     /* start over at the start of the buffer */
                     p_ = buf_;
@@ -638,26 +661,19 @@ size_t CTcSrcFile::read_line(char *buf, size_t bufl)
 /*
  *   allocate 
  */
-CTcSrcMemory::CTcSrcMemory(const char *buf, CCharmapToUni *mapper)
+CTcSrcMemory::CTcSrcMemory(const char *buf, size_t len, CCharmapToUni *mapper)
 {
-    size_t len;
-    size_t alo_len;
-    char *p;
-
-    /* get the length of the null-terminated source string */
-    len = strlen(buf);
-
     /* 
      *   Allocate a buffer for a UTF8-encoded copy of the buffer -
      *   allocate three bytes per byte of the original, since this is the
      *   worst case for expansion of the encoding.  Allocate one extra
      *   byte to ensure we have space for a null terminator.  
      */
-    alo_len = len*3;
+    size_t alo_len = len*3;
     buf_alo_ = (char *)t3malloc(alo_len + 1);
 
     /* map the buffer */
-    p = buf_alo_;
+    char *p = buf_alo_;
     mapper->map(&p, &alo_len, buf, len);
 
     /* null-terminate the translated buffer */

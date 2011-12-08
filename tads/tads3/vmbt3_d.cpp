@@ -25,6 +25,7 @@ Modified
 #include "vmbif.h"
 #include "vmbift3.h"
 #include "vmstack.h"
+#include "vmrun.h"
 #include "vmdbg.h"
 
 /*
@@ -56,6 +57,27 @@ void CVmBifT3::debug_trace(VMG_ uint argc)
 
         /* tell the caller we were successful */
         retval_true(vmg0_);
+        break;
+
+    case T3DBG_LOG:
+        {
+            /* check arguments and retrieve the string */
+            check_argc(vmg_ argc, 2);
+
+            /* get the string in the UI character set */
+            char *str = pop_str_val_ui(vmg_ 0, 0);
+            if (str != 0)
+            {
+                /* display the message in the debugger UI */
+                os_dbg_printf("%s\n", str);
+
+                /* free the string */
+                t3free(str);
+            }
+        }
+        
+        /* no return value */
+        retval_nil(vmg0_);
         break;
 
     default:

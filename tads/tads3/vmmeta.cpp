@@ -194,9 +194,18 @@ void CVmMetaTable::add_entry(const char *metaclass_id, size_t func_cnt,
              *   high as the requested version 
              */
             if (strcmp(vsn, entry_vsn) > 0)
-                err_throw_a(VMERR_METACLASS_TOO_OLD, 2,
+            {
+                /* 
+                 *   throw the error; this is a version mismatch error, so
+                 *   flag it as a version error and include the metaclass
+                 *   dependency information 
+                 */
+                err_throw_a(VMERR_METACLASS_TOO_OLD, 4,
                             ERR_TYPE_TEXTCHAR, metaclass_id,
-                            ERR_TYPE_TEXTCHAR, entry_vsn);
+                            ERR_TYPE_TEXTCHAR, entry_vsn,
+                            ERR_TYPE_METACLASS, metaclass_id,
+                            ERR_TYPE_VERSION_FLAG);
+            }
             
             /* add this entry */
             add_entry(metaclass_id, idx, func_cnt, min_prop, max_prop);
@@ -206,8 +215,15 @@ void CVmMetaTable::add_entry(const char *metaclass_id, size_t func_cnt,
         }
     }
 
-    /* we didn't find it - throw an error */
-    err_throw_a(VMERR_UNKNOWN_METACLASS, 1, ERR_TYPE_TEXTCHAR, metaclass_id);
+    /* 
+     *   We didn't find it.  This is probably an out-of-date VM issue, so
+     *   flag it as a version error, and include the metaclass dependency
+     *   information.  
+     */
+    err_throw_a(VMERR_UNKNOWN_METACLASS, 3,
+                ERR_TYPE_TEXTCHAR, metaclass_id,
+                ERR_TYPE_METACLASS, metaclass_id,
+                ERR_TYPE_VERSION_FLAG);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -218,11 +234,8 @@ void CVmMetaTable::add_entry(const char *metaclass_id,
                              uint idx, size_t func_cnt,
                              vm_prop_id_t min_prop, vm_prop_id_t max_prop)
 {
-    vm_meta_reg_t *entry;
-    size_t prop_xlat_cnt;
-
     /* get the registration table entry from the index */
-    entry = &G_meta_reg_table[idx];
+    vm_meta_reg_t *entry = &G_meta_reg_table[idx];
     
     /* remember the defining class object */
     table_[count_].meta_ = *entry->meta;
@@ -231,6 +244,7 @@ void CVmMetaTable::add_entry(const char *metaclass_id,
     table_[count_].set_meta_name(metaclass_id);
 
     /* calculate the number of entries in the table */
+    size_t prop_xlat_cnt;
     if (min_prop == VM_INVALID_PROP || max_prop == VM_INVALID_PROP)
         prop_xlat_cnt = 0;
     else
@@ -327,6 +341,51 @@ void CVmMetaTable::add_entry_if_new(uint reg_table_idx, size_t func_cnt,
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Look up an entry by external ID 
+ */
+vm_meta_entry_t *CVmMetaTable::get_entry_by_id(const char *id) const
+{
+    /* find the version suffix in the metaclass name, if any */
+    size_t name_len;
+    const char *vsn = lib_find_vsn_suffix(id, '/', "000000", &name_len);
+
+    /* look up the metaclass by name */
+    size_t i;
+    vm_meta_entry_t *entry;
+    for (i = 0, entry = table_ ; i < count_ ; ++entry, ++i)
+    {
+        /* find the version number in this entry */
+        size_t entry_name_len;
+        const char *entry_vsn = lib_find_vsn_suffix(
+            entry->image_meta_name_, '/', "000000", &entry_name_len);
+
+        /* see if this is a match */
+        if (name_len == entry_name_len
+            && memcmp(id, entry->image_meta_name_, name_len) == 0)
+        {
+            /* 
+             *   we found a match to the name; make sure the version is at
+             *   least as high as requested 
+             */
+            if (strcmp(vsn, entry_vsn) <= 0)
+            {
+                /* the loaded version is at least as new, so return it */
+                return entry;
+            }
+            else
+            {
+                /* it's too old, so it's effectively not available */
+                return 0;
+            }
+        }
+    }
+
+    /* didn't find a match */
+    return 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Invoke the VM-stack-based constructor for the metaclass at the given
  *   index 
  */
@@ -412,7 +471,7 @@ void CVmMetaTable::write_to_file(CVmFile *fp)
     size_t i;
 
     /* write the number of entries */
-    fp->write_int2(get_count());
+    fp->write_uint2(get_count());
 
     /* write each entry */
     for (i = 0 ; i < get_count() ; ++i)
@@ -428,19 +487,19 @@ void CVmMetaTable::write_to_file(CVmFile *fp)
         nm = entry->image_meta_name_;
 
         /* write the length of the name, followed by the name */
-        fp->write_int2(strlen(nm));
+        fp->write_uint2(strlen(nm));
         fp->write_bytes(nm, strlen(nm));
 
         /* write our associated IntrinsicClass object's ID */
-        fp->write_int4(entry->class_obj_);
+        fp->write_uint4(entry->class_obj_);
 
         /* 
          *   Write the property table information - write the number of
          *   function entries, and the minimum and maximum property ID's. 
          */
-        fp->write_int2(entry->func_xlat_cnt_);
-        fp->write_int2(entry->min_prop_);
-        fp->write_int2(entry->min_prop_ + entry->prop_xlat_cnt_);
+        fp->write_uint2(entry->func_xlat_cnt_);
+        fp->write_uint2(entry->min_prop_);
+        fp->write_uint2(entry->min_prop_ + entry->prop_xlat_cnt_);
 
         /* 
          *   Write out the property translation table.  The function
@@ -454,7 +513,7 @@ void CVmMetaTable::write_to_file(CVmFile *fp)
          *   run our counter from 1 to the function table count.  
          */
         for (j = 1 ; j <= entry->func_xlat_cnt_ ; ++j)
-            fp->write_int2(entry->xlat_func(j));
+            fp->write_uint2(entry->xlat_func(j));
     }
 }
 
@@ -596,5 +655,56 @@ void CVmMetaTable::forget_intrinsic_class_instances(VMG0_)
     /* go through our table and clear out our IntrinsicClass references */
     for (idx = 0, entry = table_ ; idx < count_ ; ++idx, ++entry)
         entry->class_obj_ = VM_INVALID_OBJ;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Build a translation table from run-time metaclass index to compiler
+ *   TC_META_xxx ID. 
+ */
+tc_metaclass_t *CVmMetaTable::build_runtime_to_compiler_id_table(VMG0_)
+{
+    vm_meta_reg_t *entry;
+    int i, cnt;
+
+    /* count the metaclass registration table size */
+    for (entry = G_meta_reg_table, cnt = 0 ; entry->meta != 0 ;
+         ++entry, ++cnt) ;
+
+    /* 
+     *   allocate the translation table - this is simply an array indexed by
+     *   metaclass registration index and yielding the corresponding compiler
+     *   metaclass ID 
+     */
+    tc_metaclass_t *xlat = (tc_metaclass_t *)t3malloc(cnt * sizeof(xlat[0]));
+
+    /* scan the registration table for compiler-recognized classes */
+    for (entry = G_meta_reg_table, i = 0 ; entry->meta != 0 ; ++entry, ++i)
+    {
+        /* get its name */
+        const char *nm = (*entry->meta)->get_meta_name();
+
+        /* scan for the version number suffix - we'll ignore it if found */
+        const char *p;
+        for (p = nm ; *p != '\0' && *p != '/' ; ++p) ;
+
+        /* note the length up to the version suffix delimiter */
+        size_t len = p - nm;
+
+        /* check for the known names */
+        if (len == 11 && memcmp(nm, "tads-object", 11) == 0)
+            xlat[i] = TC_META_TADSOBJ;
+        else if (len == 11 && memcmp(nm, "dictionary2", 11) == 0)
+            xlat[i] = TC_META_DICT;
+        else if (len == 18 && memcmp(nm, "grammar-production", 18) == 0)
+            xlat[i] = TC_META_GRAMPROD;
+        else if (len == 13 && memcmp(nm, "int-class-mod", 13) == 0)
+            xlat[i] = TC_META_ICMOD;
+        else
+            xlat[i] = TC_META_UNKNOWN;
+    }
+
+    /* return the translation table */
+    return xlat;
 }
 

@@ -224,6 +224,9 @@ public:
     virtual void convert_to_const_data(VMG_ class CVmConstMapper *mapper,
                                        vm_obj_id_t self);
 
+    /* get the next iteration item */
+    virtual int iter_next(VMG_ vm_obj_id_t self, vm_val_t *val);
+
 protected:
     /* create */
     CVmObjIterIdx() { ext_ = 0; }

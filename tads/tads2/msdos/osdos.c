@@ -92,6 +92,7 @@ Modified
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include <time.h>
 
@@ -221,6 +222,8 @@ char *scrbase;
 
 static osfar_t int oldvmode;
 extern int os_f_plain;
+extern void osnoui_init();
+extern void osnoui_uninit();
 
 /* initialize screen display */
 void os_scrini(void)
@@ -270,6 +273,10 @@ int os_init(int *argc, char *argv[], const char *prompt,
     FILE   *fp;
     char    nbuf[128];
     int     found_arg;
+    struct _stat statbuf;
+
+    /* initialize the base non-UI package */
+    osnoui_init();
 
     /*
      *   Scan for the -kbfix95 argument.  If we find it, set the flag to use
@@ -344,17 +351,29 @@ int os_init(int *argc, char *argv[], const char *prompt,
     /* initialize the console */
     oss_con_init();
 
+    /* get the status on the standard output handle */
+    if (!_fstat(_fileno(stdout), &statbuf))
+    {
+        /* 
+         *   if the standard output has been redirected to a file, use plain
+         *   mode, and turn off MORE mode at the console formatter level 
+         */
+        if ((statbuf.st_mode & _S_IFREG) != 0)
+        {
+            os_plain();
+            G_os_moremode = FALSE;
+        }
+    }
+
     /* do some extra console setup in plain mode */
     if (os_f_plain)
     {
-        struct _stat statbuf;
-
         /* get status on the standard input handle */
-        if (!_fstat(_fileno(stdin),  &statbuf))
+        if (!_fstat(_fileno(stdin), &statbuf))
         {
             /* 
              *   if the standard input has been redirected to a file, turn
-             *   off MORE mode at the console formatter level
+             *   off MORE mode at the console formatter level 
              */
             if ((statbuf.st_mode & _S_IFREG) != 0)
                 G_os_moremode = FALSE;
@@ -421,6 +440,9 @@ int os_init(int *argc, char *argv[], const char *prompt,
  */
 void os_uninit(void)
 {
+    /* un-initialize the base non-UI package */
+    osnoui_uninit();
+
     /* un-initialize the console */
     oss_con_uninit();
 }
@@ -1578,6 +1600,9 @@ static int oss_interpret_2nd_key(int c, int translated)
         break;
     case 0121:                                                      /* PgDn */
         oss_command_pending = CMD_PGDN;
+        break;
+    case 0122:
+        oss_command_pending = CMD_INS;                            /* Insert */
         break;
     case 132:                                               /* control-PgUp */
         oss_command_pending = CMD_TOP;
@@ -3443,3 +3468,51 @@ int oss_eof_on_stdin()
 #endif
 
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   Default implementation of sprintf equivalents with memory allocation.
+ *   The old Borland library doesn't have a version of sprintf with buffer
+ *   limits, nor does DJGPP, so we take a somewhat cheesy but workable
+ *   approach: we format to the NUL: device to do the length counting.  
+ */
+#if defined(TURBO) || defined(DJGPP)
+int os_asprintf(char **bufptr, const char *fmt, ...)
+{
+    va_list argp;
+    int ret;
+
+    va_start(argp, fmt);
+    ret = os_vasprintf(bufptr, fmt, argp);
+    va_end(argp);
+
+    return ret;
+}
+
+int os_vasprintf(char **bufptr, const char *fmt, va_list argp)
+{
+    int len;
+    FILE *fp;
+
+    /* open the NUL: device so that we can do our length counting */
+    fp = fopen("NUL", "w");
+    if (fp == 0)
+        return -1;
+
+    /* format the string to NUL: */
+    len = fprintf(fp, fmt, argp);
+
+    /* done with the file */
+    fclose(fp);
+
+    /* if the fprintf failed, return failure */
+    if (len < 0)
+        return -1;
+
+    /* allocate a buffer */
+    if ((*bufptr = (char *)osmalloc(len + 1)) == 0)
+        return -1;
+
+    /* format the result */
+    return vsprintf(*bufptr, fmt, argp);
+}
+#endif /* TURBO */

@@ -22,8 +22,11 @@ Modified
 */
 
 #include <string.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include <windows.h>
+#include <Wincrypt.h>
 
 #include "std.h"
 #include "os.h"
@@ -43,25 +46,6 @@ static char S_open_file_dir[OSFNMAX];
  */
 extern HINSTANCE oss_G_hinstance;
 
-
-/* ------------------------------------------------------------------------ */
-/*
- *   initialize 
- */
-int os_init(int *argc, char *argv[], const char *prompt,
-            char *buf, int bufsiz)
-{
-    /* nothing to do - just return success */
-    return 0;
-}
-
-/*
- *   uninitialize 
- */
-void os_uninit()
-{
-    /* nothing tod o */
-}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -575,6 +559,11 @@ void os_set_save_ext(const char *ext)
         sprintf(keyname, "%s\\DefaultIcon", classname);
         set_reg_key(keyname, "", cmd);
     }
+}
+
+const char *os_get_save_ext()
+{
+    return (default_saved_game_ext[0] != '\0' ? default_saved_game_ext : 0);
 }
 
 
@@ -1207,3 +1196,4 @@ char *os_strlwr(char *s)
 {
     return strlwr(s);
 }
+

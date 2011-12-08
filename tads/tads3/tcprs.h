@@ -72,6 +72,9 @@ enum tcprs_codebodytype
     /* anonymous function */
     TCPRS_CB_ANON_FN,
 
+    /* anonymous method */
+    TCPRS_CB_ANON_METHOD,
+
     /* short-form anonymous function */
     TCPRS_CB_SHORT_ANON_FN
 };
@@ -97,6 +100,40 @@ public:
 
     /* initialize - call this after the code generator is set up */
     void init();
+
+    /* 
+     *   reset - for dynamic code compilation in the interpreter, this resets
+     *   internal state for the start of a new compilation 
+     */
+    void reset()
+    {
+        /* forget any old local symbol table */
+        local_symtab_ = 0;
+
+        /* clear out all of our lists */
+        nested_stm_head_ = nested_stm_tail_ = 0;
+        anon_obj_head_ = anon_obj_tail_ = 0;
+        nonsym_obj_head_ = nonsym_obj_tail_ = 0;
+        exp_head_ = exp_tail_ = 0;
+        enclosing_stm_ = 0;
+        dict_cur_ = dict_head_ = dict_tail_ = 0;
+        dict_prop_head_ = 0;
+        gramprod_head_ = gramprod_tail_ = 0;
+        template_head_ = template_tail_ = 0;
+        cur_code_body_ = 0;
+
+        /* clear out any symbol table references */
+        local_symtab_ = 0;
+        enclosing_local_symtab_ = 0;
+        goto_symtab_ = 0;
+    }
+
+    /* 
+     *   define (def=TRUE) or look up (def=FALSE) a special compiler-defined
+     *   property 
+     */
+    class CTcSymProp *def_special_prop(int def, const char *name,
+                                       tc_prop_id *idp = 0);
 
     /*
      *   Set the module information.  This tells us the module's name (as
@@ -183,6 +220,22 @@ public:
     /* get the global symbol table */
     class CTcPrsSymtab *get_global_symtab() const { return global_symtab_; }
 
+    /* set the global symbol table */
+    class CTcPrsSymtab *set_global_symtab(class CTcPrsSymtab *t)
+    {
+        /* remember the old table */
+        class CTcPrsSymtab *old = global_symtab_;
+
+        /* set the new table */
+        global_symtab_ = t;
+
+        /* refresh the cache of special internal symbols */
+        cache_special_props(FALSE);
+
+        /* return the old symbol table */
+        return old;
+    }
+
     /* get the current local symbol table */
     class CTcPrsSymtab *get_local_symtab() const { return local_symtab_; }
 
@@ -206,6 +259,10 @@ public:
     int get_syntax_only() const { return syntax_only_; }
     void set_syntax_only(int f) { syntax_only_ = f; }
 
+    /* get/set the debugger expression flag */
+    int is_debug_expr() const { return debug_expr_; }
+    void set_debug_expr(int f) { debug_expr_ = f; }
+
     /* 
      *   Get the constructor and finalize property ID's - all constructors
      *   and finalizers have these property ID's respectively 
@@ -216,8 +273,9 @@ public:
     /* get the constructor property symbol */
     class CTcSymProp *get_constructor_sym() const { return constructor_sym_; }
 
-    /* get the object-call property */
-    tc_prop_id get_objcall_prop() const { return objcall_prop_; }
+    /* get the exported GrammarProd exported */
+    tc_prop_id get_grammarTag_prop() const;
+    tc_prop_id get_grammarInfo_prop() const;
 
     /*
      *   Check for unresolved external symbols.  Scans the global symbol
@@ -309,6 +367,12 @@ public:
     /* parse a 'grammar' top-level statement */
     class CTPNStmTop *parse_grammar(int *err, int replace, int modify);
 
+    /* parse a grammar token list (an alternative list) */
+    void parse_gram_alts(int *err, class CTcSymObj *gram_obj,
+                         class CTcGramProdEntry *prod,
+                         struct CTcGramPropArrows *arrows,
+                         class CTcGramAltFuncs *funcs);
+
     /* parse and flatten a set of grammar rules */
     class CTcPrsGramNode *flatten_gram_rule(int *err);
 
@@ -360,6 +424,9 @@ public:
     /* parse a template definition statement */
     class CTPNStmTop *parse_template_def(int *err,
                                          const class CTcToken *class_tok);
+
+    /* parse a string template definition statement */
+    class CTPNStmTop *parse_string_template_def(int *err);
 
     /* add a template definition */
     void add_template_def(class CTcSymObj *class_sym,
@@ -455,6 +522,25 @@ public:
                                            struct tcprs_term_info *term_info,
                                            int is_transient);
 
+    /*
+     *   Add a generated object.  This is used for objects created implicitly
+     *   rather than defined in the source code.  For the static compiler,
+     *   we'll create an anonymous object and set up its definition
+     *   statements.  For the dynamic compiler, we'll actually create the VM
+     *   object directly.  
+     */
+    class CTcSymObj *add_gen_obj(const char *clsname);
+    class CTcSymObj *add_gen_obj(class CTcSymObj *cls);
+    class CTcSymObj *add_gen_obj()
+        { return add_gen_obj((class CTcSymObj *)0); }
+
+    /* add constant property values to a generated object */
+    void add_gen_obj_prop(class CTcSymObj *obj, const char *prop, int val);
+    void add_gen_obj_prop(class CTcSymObj *obj, const char *prop,
+                          const char *val);
+    void add_gen_obj_prop(class CTcSymObj *obj, const char *prop,
+                          const CTcConstVal *val);
+
     /* parse an object template instance in an object body */
     void parse_obj_template(int *err, class CTPNStmObject *obj_stm);
 
@@ -479,6 +565,10 @@ public:
      */
     int match_template(const class CTcObjTemplateItem *tpl_head,
                        class CTcObjTemplateInst *src, size_t src_cnt);
+
+    /* get the first string template */
+    class CTcStrTemplate *get_str_template_head() const
+        { return str_template_head_; }
 
     /* parse property definition within an object */
     void parse_obj_prop(int *err, class CTPNStmObject *obj_stm, int replace,
@@ -521,9 +611,9 @@ public:
      *   valid, while for a stand-alone function it isn't.  
      */
     class CTPNCodeBody *parse_code_body(int eq_before_brace, int is_obj_prop,
-                                        int self_valid,
-                                        int *p_argc, int *p_varargs,
-                                        int *p_varargs_list,
+                                        int self_valid, 
+                                        int *p_argc, int *p_opt_argc,
+                                        int *p_varargs, int *p_varargs_list,
                                         class CTcSymLocal **
                                             p_varargs_list_local,
                                         int *has_retval, int *err,
@@ -538,12 +628,15 @@ public:
     class CTPNCodeBody *parse_nested_code_body(
         int eq_before_brace,
         int self_valid,
-        int *p_argc, int *p_varargs,
-        int *p_varargs_list,
-        class CTcSymLocal **p_varargs_list_local,
+        int *p_argc, int *p_opt_argc, int *p_varargs,
+        int *p_varargs_list, class CTcSymLocal **p_varargs_list_local,
         int *has_retval, int *err,
         class CTcPrsSymtab *local_symtab,
         tcprs_codebodytype cb_type);
+
+    /* insert a propertyset expansion */
+    void insert_propset_expansion(struct propset_def *propset_stack,
+                                  int propset_depth);
 
     /* parse a formal parameter list */
     void parse_formal_list(int count_only, int opt_allowed,
@@ -555,19 +648,24 @@ public:
                            class CTcFormalTypeList **type_list);
 
     /*
-     *   Parse a compound statement.  The caller must skip the opening
-     *   '{'; on return, we'll have skipped the closing '}'.
-     *   enclosing_symtab is the enclosing scope's symbol table, and
-     *   local_symtab is the symbol table for the new scope within the
+     *   Parse a compound statement.  If 'skip_lbrace' is true, we'll skip
+     *   the opening '{', otherwise the caller must already have skipped it.
+     *   If 'need_rbrace' is true, we require the block to be closed by an
+     *   '}', which we'll skip before returning; otherwise, the block can end
+     *   at end-of-file on the token stream.
+     *   
+     *   'enclosing_symtab' is the enclosing scope's symbol table, and
+     *   'local_symtab' is the symbol table for the new scope within the
      *   compound statement; if the caller has not already allocated a new
      *   symbol table for the inner scope, it should simply pass the same
      *   value for both symbol tables.
      *   
-     *   'enclosing_switch' is the immediately enclosing switch statement,
-     *   if any.  This is only set when we're parsing the immediate body
-     *   of a switch statement.  
+     *   'enclosing_switch' is the immediately enclosing switch statement, if
+     *   any.  This is only set when we're parsing the immediate body of a
+     *   switch statement.  
      */
-    class CTPNStmComp *parse_compound(int *err, int skip_lbrace,
+    class CTPNStmComp *parse_compound(int *err,
+                                      int skip_lbrace, int need_rbrace,
                                       class CTPNStmSwitch *enclosing_switch,
                                       int use_enclosing_scope);
 
@@ -613,6 +711,11 @@ public:
     /* parse a 'for' statement */
     class CTPNStm *parse_for(int *err);
 
+    /* parse an 'in' clause in a 'for' statement */
+    class CTcPrsNode *parse_for_in_clause(
+        class CTcPrsNode *lval,
+        class CTPNForIn *&head, class CTPNForIn *&tail);
+
     /* parse a 'foreach' statement */
     class CTPNStm *parse_foreach(int *err);
 
@@ -639,6 +742,9 @@ public:
 
     /* parse a 'throw' */
     class CTPNStm *parse_throw(int *err);
+
+    /* parse an 'operator' property name */
+    int parse_op_name(class CTcToken *tok, int *op_argp = 0);
 
     /*
      *   Create a symbol node.  We'll look up the symbol in local scope.
@@ -815,6 +921,10 @@ public:
      */
     void add_nested_stm(class CTPNStmTop *stm);
 
+    /* get the head of the nested statement list */
+    class CTPNStmTop *get_first_nested_stm() const
+        { return nested_stm_head_; }
+
     /* add an anonymous object to our list */
     void add_anon_obj(class CTcSymObj *obj);
 
@@ -829,9 +939,6 @@ public:
 
     /* set up a local context */
     void init_local_ctx();
-
-    /* allocate a context variable property ID */
-    tctarg_prop_id_t alloc_ctx_var_prop();
 
     /* 
      *   allocate a context variable index - this assigns an array index
@@ -906,7 +1013,40 @@ public:
     /* get the miscVocab property symbol */
     tctarg_prop_id_t get_miscvocab_prop() const { return miscvocab_prop_; }
 
+    /* property symbols for the operator overload properties */
+    class CTcSymProp *ov_op_add_;
+    class CTcSymProp *ov_op_sub_;
+    class CTcSymProp *ov_op_mul_;
+    class CTcSymProp *ov_op_div_;
+    class CTcSymProp *ov_op_mod_;
+    class CTcSymProp *ov_op_xor_;
+    class CTcSymProp *ov_op_shl_;
+    class CTcSymProp *ov_op_ashr_;
+    class CTcSymProp *ov_op_lshr_;
+    class CTcSymProp *ov_op_bnot_;
+    class CTcSymProp *ov_op_bor_;
+    class CTcSymProp *ov_op_band_;
+    class CTcSymProp *ov_op_neg_;
+    class CTcSymProp *ov_op_idx_;
+    class CTcSymProp *ov_op_setidx_;
+
+    /* embedded expression token capture list */
+    class CTcEmbedTokenList *embed_toks_;
+
 private:
+    /* cache the special properties, defining them if desired */
+    void cache_special_props(int def);
+
+    /* 
+     *   Static compiler handling for object generation.  These are
+     *   implemented only in the static compiler; they're stubbed out for the
+     *   dynamic compiler, because the dynamic compiler generates objects in
+     *   the live VM through the G_vmifc interface instead.  
+     */
+    CTcSymObj *add_gen_obj_stat(class CTcSymObj *cls);
+    void add_gen_obj_prop_stat(class CTcSymObj *obj, class CTcSymProp *prop,
+                               const CTcConstVal *val);
+
     /* clear the anonymous function local context information */
     void clear_local_ctx();
 
@@ -1046,11 +1186,11 @@ private:
     /* the finalizer property ID */
     tc_prop_id finalize_prop_;
 
-    /* object-call property ID */
-    tc_prop_id objcall_prop_;
-
     /* grammarInfo property symbol */
     class CTcSymProp *graminfo_prop_;
+
+    /* grammarTag property symbol */
+    class CTcSymProp *gramtag_prop_;
 
     /* miscVocab property ID */
     tctarg_prop_id_t miscvocab_prop_;
@@ -1067,7 +1207,6 @@ private:
     /* sourceTextGroupName, sourceTextGroupOrder */
     class CTcSymProp *src_group_mod_sym_;
     class CTcSymProp *src_group_seq_sym_;
-    
 
     /* 
      *   Source text order index.  Each time we encounter an object
@@ -1108,6 +1247,12 @@ private:
      *   won't show "unreachable code" errors.  
      */
     uint syntax_only_ : 1;
+
+    /*
+     *   Flag: debugger expression mode.  We accept some special internal
+     *   syntax in this mode that's not allowed in ordinary source code.  
+     */
+    uint debug_expr_ : 1;
 
     /*
      *   Code block parsing state
@@ -1253,6 +1398,14 @@ private:
     class CTcObjTemplateInst *template_expr_;
     size_t template_expr_max_;
 
+    /* 
+     *   String template list.  String templates are unrelated to object
+     *   templates; these are for custom syntax in << >> expressions in
+     *   strings.  
+     */
+    class CTcStrTemplate *str_template_head_;
+    class CTcStrTemplate *str_template_tail_;
+
     /* head and tail of exported symbol list */
     class CTcPrsExport *exp_head_;
     class CTcPrsExport *exp_tail_;
@@ -1341,6 +1494,106 @@ private:
     char *module_name_;
     int module_seqno_;
 };
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Grammar tree parser - property arrow list
+ */
+struct CTcGramPropArrows
+{
+    CTcGramPropArrows() { cnt = 0; }
+    
+    /* maximum number of arrows */
+    static const size_t max_arrows = 100;
+
+    /* array of property arrows */
+    class CTcSymProp *prop[max_arrows];
+
+    /* number of arrows */
+    size_t cnt;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Grammar tree parser - compiler interface functions.  We abstract a
+ *   number of functions from the compiler interface to allow for differences
+ *   in behavior between regular static compilation and run-time construction
+ *   of grammar rules.  
+ */
+class CTcGramAltFuncs
+{
+public:
+    /* look up a property symbol, defining it if it's undefined */
+    virtual class CTcSymProp *look_up_prop(
+        const class CTcToken *tok, int show_err) = 0;
+
+    /* declare a grammar production symbol */
+    virtual class CTcGramProdEntry *declare_gramprod(
+        const char *txt, size_t len) = 0;
+
+    /* check the given enum for use as a production token */
+    virtual void check_enum_tok(class CTcSymEnum *enumsym) = 0;
+
+    /* handle EOF in an alternative list */
+    virtual void on_eof(int *err) = 0;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Grammar tree node - base class 
+ */
+class CTcPrsGramNode: public CTcTokenSource
+{
+public:
+    CTcPrsGramNode()
+    {
+        /* we have no siblings yet */
+        next_ = 0;
+    }
+
+    /* get the next token - does nothing by default */
+    virtual const CTcToken *get_next_token() { return 0; }
+
+    /* consolidate OR nodes at the top of the subtree */
+    virtual CTcPrsGramNode *consolidate_or() = 0;
+
+    /* flatten CAT nodes together in the tree */
+    virtual void flatten_cat() { /* by default, do nothing */ }
+
+    /* am I an "or" node? */
+    virtual int is_or() { return FALSE; }
+
+    /* am I a "cat" node? */
+    virtual int is_cat() { return FALSE; }
+
+    /* get my token - if I'm not a token node, returns null */
+    virtual const CTcToken *get_tok() const { return 0; }
+
+    /* initialize expansion - by default, we do nothing */
+    virtual void init_expansion() { }
+
+    /* 
+     *   Advance to the next expansion state.  Returns true if we 'carry' out
+     *   of the current item, which means that we were already at our last
+     *   state and hence are wrapping back to our first state.  Returns false
+     *   if we advanced to a new state without wrapping back.
+     *   
+     *   By default, since normal items have only one alternative, we don't
+     *   do anything but return a 'carry, since each advance takes us back to
+     *   our single and initial state.  
+     */
+    virtual int advance_expansion() { return TRUE; }
+
+    /* clone the current expansion subtree */
+    virtual CTcPrsGramNode *clone_expansion() const = 0;
+
+    /* next sibling node */
+    CTcPrsGramNode *next_;
+};
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1474,6 +1727,47 @@ public:
     class CTcSymProp *prop_;
 };
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   String template entry.  A string template defines custom syntax for
+ *   embedded << >> expressions in strings.  
+ */
+class CTcStrTemplate
+{
+public:
+    CTcStrTemplate()
+    {
+        /* initially clear the token list */
+        head = tail = 0;
+        cnt = 0;
+        star = FALSE;
+
+        /* no function symbol yet */
+        func = 0;
+
+        /* not in the global list yet */
+        nxt = 0;
+    }
+
+    /* append a token to the list */
+    void append_tok(const CTcToken *tok);
+
+    /* the token list */
+    CTcTokenEle *head, *tail;
+
+    /* number of tokens in the list */
+    int cnt;
+
+    /* do we have a '*' token? */
+    int star;
+
+    /* the processor function symbol */
+    class CTcSymFunc *func;
+
+    /* next list element */
+    CTcStrTemplate *nxt;
+};
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1997,6 +2291,13 @@ public:
                 && memcmp(get_ext_name(), txt, get_ext_len()) == 0);
     }
 
+    /* determine if my name matches the leading substring */
+    int ext_name_starts_with(const char *txt) const
+    {
+        return (get_ext_len() >= get_strlen(txt)
+                && memcmp(get_ext_name(), txt, get_strlen(txt)) == 0);
+    }
+
     /* determine if my symbol name matches the given export's */
     int sym_matches(const CTcPrsExport *exp) const
     {
@@ -2037,7 +2338,10 @@ enum tcprs_undef_action
     TCPRS_UNDEF_ADD_PROP,
 
     /* add a "property" entry unconditionally, with no warning */
-    TCPRS_UNDEF_ADD_PROP_NO_WARNING
+    TCPRS_UNDEF_ADD_PROP_NO_WARNING,
+
+    /* add a "weak" property entry without warning */
+    TCPRS_UNDEF_ADD_PROP_WEAK
 };
 
 /* parser symbol table */
@@ -2045,7 +2349,7 @@ class CTcPrsSymtab
 {
 public:
     CTcPrsSymtab(CTcPrsSymtab *parent_scope);
-    ~CTcPrsSymtab();
+    virtual ~CTcPrsSymtab();
 
     /* allocate parser symbol tables out of the parser memory pool */
     void *operator new(size_t siz);
@@ -2075,9 +2379,6 @@ public:
      */
     class CTcSymbol *find(const textchar_t *sym, size_t len,
                           CTcPrsSymtab **symtab);
-
-    /* find a symbol directly in this table, without searching parents */
-    class CTcSymbol *find_direct(const textchar_t *sym, size_t len);
 
     /* find a symbol without changing its referenced status */
     class CTcSymbol *find_noref(const textchar_t *sym, size_t len,
@@ -2114,11 +2415,21 @@ public:
      *   add an entry if the symbol isn't defined, this *always* returns a
      *   valid symbol object.  
      */
-    class CTcSymbol *find_or_def_prop_explicit(const char *sym, size_t len,
-                                               int copy_str)
+    class CTcSymbol *find_or_def_prop_explicit(
+        const char *sym, size_t len, int copy_str)
     {
         return find_or_def(sym, len, copy_str,
                            TCPRS_UNDEF_ADD_PROP_NO_WARNING);
+    }
+
+    /*
+     *   Find a symbol; if the symbol isn't defined, define it as a property
+     *   without warning, but flag it as a "weak" definition. 
+     */
+    class CTcSymbol *find_or_def_prop_weak(
+        const char *sym, size_t len, int copy_str)
+    {
+        return find_or_def(sym, len, copy_str, TCPRS_UNDEF_ADD_PROP_WEAK);
     }
         
     /*
@@ -2135,24 +2446,30 @@ public:
                            ? TCPRS_UNDEF_ADD_PROP : TCPRS_UNDEF_ADD_UNDEF);
     }
 
+    /*
+     *   Find a symbol.  If the symbol is already defined as a "weak"
+     *   property, delete it to make way for the new definition. 
+     */
+    class CTcSymbol *find_delete_weak(const char *sym, size_t len);
+
     /* add a formal parameter symbol */
-    void add_formal(const textchar_t *sym, size_t len, int formal_num,
-                    int copy_str);
+    class CTcSymLocal *add_formal(const textchar_t *sym, size_t len,
+                                  int formal_num, int copy_str);
 
     /* add a local variable symbol */
     class CTcSymLocal *add_local(const textchar_t *sym, size_t len,
                                  int local_num, int copy_str,
                                  int init_assigned, int init_referenced);
 
+    /* 
+     *   add the current token as a local symbol, initially unassigned and
+     *   unreferenced 
+     */
+    class CTcSymLocal *add_local(int local_num);
+
     /* add a 'goto' symbol */
     class CTcSymLabel *add_code_label(const textchar_t *sym, size_t len,
                                       int copy_str);
-
-    /* add an entry to the table */
-    void add_entry(class CTcSymbol *sym);
-
-    /* remove an entry */
-    void remove_entry(class CTcSymbol *sym);
 
     /* enumerate entries in the table through a callback */
     void enum_entries(void (*func)(void *, class CTcSymbol *), void *ctx);
@@ -2175,6 +2492,49 @@ public:
     /* get/set the next entry in the linked list */
     CTcPrsSymtab *get_list_next() const { return list_next_; }
     void set_list_next(CTcPrsSymtab *nxt) { list_next_ = nxt; }
+
+    /*
+     *   The low-level virtual interface.  All searching and manipulation of
+     *   the underlying hash table goes through these routines.  This allows
+     *   subclasses to implement the symbol table as a view of another data
+     *   structure.
+     *   
+     *   The compiler itself just uses the underlying hash table directly.
+     *   The dynamic compiler for interpreter "eval()" functionality uses a
+     *   customized version that creates a view of an underlying user-code
+     *   LookupTable object.  
+     */
+
+    /* find a symbol directly in this table, without searching parents */
+    virtual class CTcSymbol *find_direct(const textchar_t *sym, size_t len);
+
+    /* add an entry to the table */
+    virtual void add_entry(class CTcSymbol *sym);
+
+    /* remove an entry */
+    virtual void remove_entry(class CTcSymbol *sym);
+
+    /* expand my byte code range to include the given location */
+    void add_to_range(int ofs)
+    {
+        /* 
+         *   if we don't have a starting offset yet, or this is before it,
+         *   this is the new start offset 
+         */
+        if (start_ofs_ == 0 || ofs < start_ofs_)
+            start_ofs_ = ofs;
+
+        /* 
+         *   if we don't have an ending offset yet, or this is after it, this
+         *   is the ending offset 
+         */
+        if (ofs > end_ofs_)
+            end_ofs_ = ofs;
+    }
+
+    /* get my bytecode offset range */
+    int get_start_ofs() const { return start_ofs_; }
+    int get_end_ofs() const { return end_ofs_; }
 
 protected:
     /* add an entry to a global symbol table */
@@ -2201,6 +2561,14 @@ protected:
 
     /* hash function */
     static class CVmHashFunc *hash_func_;
+
+    /*
+     *   Byte code range covered by this frame.  This is the range of offsets
+     *   within the method where this frame is in effect.  The range is
+     *   inclusive of the start offset and exclusive of the end offset.  
+     */
+    int start_ofs_;
+    int end_ofs_;
 
     /*
      *   Next symbol table in local scope chain.  For each function or
@@ -2425,6 +2793,9 @@ public:
     {
         /* the type is unknown */
         typ_ = TC_CVT_UNK;
+
+        /* assume it's a true constant, not just a compile-time constant */
+        ctc_ = FALSE;
     }
 
     /* 
@@ -2466,9 +2837,14 @@ public:
 
     /* set a single-quoted string value */
     void set_sstr(const char *val, size_t len);
+    void set_sstr(const CTcToken *tok);
 
     /* set a list value */
     void set_list(class CTPNList *lst);
+
+    /* for the debugger only: set a pre-resolved constant pool value */
+    void set_sstr(uint32 ofs);
+    void set_list(uint32 ofs);
 
     /* set an object reference value */
     void set_obj(ulong obj, enum tc_metaclass_t meta)
@@ -2499,6 +2875,13 @@ public:
         val_.codebodyval_ = code_body;
     }
 
+    /* set a built-in function pointer value */
+    void set_bifptr(class CTcSymBif *sym)
+    {
+        typ_ = TC_CVT_BIFPTR;
+        val_.bifptrval_ = sym;
+    }
+
     /* set a nil/true value */
     void set_nil() { typ_ = TC_CVT_NIL; }
     void set_true() { typ_ = TC_CVT_TRUE; }
@@ -2516,6 +2899,9 @@ public:
     {
         typ_ = (val ? TC_CVT_TRUE : TC_CVT_NIL);
     }
+
+    /* is this a boolean value? */
+    int is_bool() const { return typ_ == TC_CVT_NIL || typ_ == TC_CVT_TRUE; }
 
     /* get my type */
     tc_constval_type_t get_type() const { return typ_; }
@@ -2535,7 +2921,14 @@ public:
     size_t get_val_str_len() const { return val_.strval_.strval_len_; }
 
     /* get my list value (no type checking) */
-    class CTPNList *get_val_list() const { return val_.listval_; }
+    class CTPNList *get_val_list() const { return val_.listval_.l_; }
+
+    /* 
+     *   for debugger expressions only: the string/list as a pre-resolved
+     *   constant pool address 
+     */
+    uint32 get_val_str_ofs() const { return val_.strval_.pool_ofs_; }
+    uint32 get_val_list_ofs() const { return val_.listval_.pool_ofs_; }
 
     /* get my object reference value (no type checking) */
     ulong get_val_obj() const
@@ -2553,6 +2946,10 @@ public:
     /* get my anonymous function pointer value (no type checking) */
     class CTPNCodeBody *get_val_anon_func_ptr() const
         { return val_.codebodyval_; }
+
+    /* get my built-in function pointer symbol value (noi type checking) */
+    class CTcSymBif *get_val_bifptr_sym() const
+        { return val_.bifptrval_; }
 
     /*
      *   Determine if this value equals a given constant value.  Returns
@@ -2581,6 +2978,14 @@ public:
                  || (typ_ == TC_CVT_INT && get_val_int() == 0));
     }
 
+    /*
+     *   Set/get the compile-time constant flag.  A compile-time constant is
+     *   a value that's constant at compile-time, but which can vary from one
+     *   compilation to the next.  The defined() operator has this property.
+     */
+    void set_ctc(int f) { ctc_ = f; }
+    int is_ctc() const { return ctc_; }
+    
 private:
     /* my type */
     tc_constval_type_t typ_;
@@ -2610,11 +3015,27 @@ private:
         {
             const char *strval_;
             size_t strval_len_;
+
+            /* 
+             *   For debugger expressions only: the pre-resolved constant
+             *   pool address in the live running program of a string or list
+             *   expression.  This type is indicated by setting the value
+             *   data type to string or list, and setting the token value
+             *   pointer for that type to null.  
+             */
+            uint32 pool_ofs_;
         }
         strval_;
 
         /* my list value */
-        class CTPNList *listval_;
+        struct
+        {
+            class CTPNList *l_;
+
+            /* for debugger expressions only: the pre-resolved pool address */
+            uint32 pool_ofs_;
+        }
+        listval_;
 
         /* property ID value */
         uint propval_;
@@ -2634,12 +3055,35 @@ private:
          */
         class CTcSymFunc *funcptrval_;
 
+        /* built-in function pointer value */
+        class CTcSymBif *bifptrval_;
+
         /* 
          *   code body pointer value - we store the underlying code body
          *   for anonymous functions 
          */
         class CTPNCodeBody *codebodyval_;
     } val_;
+
+    /*
+     *   Is this a compile-time constant value?  A compile-time constant is a
+     *   value that has a fixed constant value as of compile time, but could
+     *   vary from one compilation to another.  The defined() operator
+     *   produces this type of constant, for example.
+     *   
+     *   The main distinction between a true constant and a compile-time
+     *   constant is that true constants generate warnings when they produce
+     *   invariant code, such as when a true constant is used as the
+     *   condition of an 'if'.  Compile-time constants are specifically for
+     *   producing code that's invariant once compiled, but which can vary
+     *   across compilations, allowing for more sophisticated configuration
+     *   management.  For example, defined() makes it possible to produce
+     *   code that only gets compiled when a particular symbol is included in
+     *   the build, so that code in module A can refer to symbols defined in
+     *   module B when module B is included in the build, but will
+     *   automatically omit the referring code when module B is omitted.
+     */
+    uint ctc_ : 1;
 };
 
 
@@ -2680,8 +3124,11 @@ enum tc_asitype_t
     /* shift left: x <<= 1 */
     TC_ASI_SHL,
 
-    /* shift right: x >>= 1 */
-    TC_ASI_SHR,
+    /* arithmetic shift right: x >>= 1 */
+    TC_ASI_ASHR,
+
+    /* logical shift right: x >>>= 1 */
+    TC_ASI_LSHR,
 
     /* pre-increment */
     TC_ASI_PREINC,
@@ -2693,7 +3140,17 @@ enum tc_asitype_t
     TC_ASI_POSTINC,
 
     /* post-decrement */
-    TC_ASI_POSTDEC
+    TC_ASI_POSTDEC,
+
+    /* 
+     *   Subscript assignment: []=
+     *   
+     *   This isn't actually an operator in the language, but subscripted
+     *   assignments are handled specially because of the way subscript
+     *   assignment generates a new container value.  So a[b] = c is actually
+     *   treated as a = a.operator[]=(b, c).  
+     */
+    TC_ASI_IDX
 };
 
 
@@ -3216,12 +3673,12 @@ protected:
 };
 
 /*
- *   shift right
+ *   arithmetic shift right
  */
-class CTcPrsOpShr: public CTcPrsOpArith
+class CTcPrsOpAShr: public CTcPrsOpArith
 {
 public:
-    CTcPrsOpShr() : CTcPrsOpArith(TOKT_SHR) { }
+    CTcPrsOpAShr() : CTcPrsOpArith(TOKT_ASHR) { }
 
     /* build a new tree out of our left-hand and right-hand subtrees */
     class CTcPrsNode
@@ -3229,7 +3686,24 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return a >> b; }
+    long calc_result(long a, long b) const { return t3_ashr(a, b); }
+};
+
+/*
+ *   logical shift right 
+ */
+class CTcPrsOpLShr: public CTcPrsOpArith
+{
+public:
+    CTcPrsOpLShr() : CTcPrsOpArith(TOKT_LSHR) { }
+
+    /* build a new tree out of our left-hand and right-hand subtrees */
+    class CTcPrsNode
+        *build_tree(class CTcPrsNode *left,
+                    class CTcPrsNode *right) const;
+
+protected:
+    long calc_result(long a, long b) const { return t3_lshr(a, b); }
 };
 
 /*
@@ -3356,8 +3830,8 @@ public:
      */
     static class CTcPrsNode *eval_const_not(class CTcPrsNode *lhs);
 
-    /* parse a double-quoted string with embedded expressions */
-    static class CTcPrsNode *parse_dstr_embed();
+    /* parse a string with embedded expressions */
+    static class CTcPrsNode *parse_embedding(struct CTcEmbedBuilder *builder);
 
     /* parse a list */
     static class CTcPrsNode *parse_list();
@@ -3366,6 +3840,48 @@ public:
     static class CTcPrsNode *parse_primary();
 
 protected:
+    /* embedded expression: parse an expression list */
+    static CTcPrsNode *parse_embedding_list(
+        struct CTcEmbedBuilder *b, int &eos, struct CTcEmbedLevel *parent);
+
+    /* embedded expression: parse an <<if>> or <<unless>> embedding */
+    static CTcPrsNode *parse_embedded_if(
+        struct CTcEmbedBuilder *b, int unless,
+        int &eos, struct CTcEmbedLevel *parent);
+
+    /* parse a single embedded expression */
+    static CTcPrsNode *parse_embedded_expr(
+        struct CTcEmbedBuilder *b, class CTcEmbedTokenList *tl);
+
+    /* embedded expression: parse an <<one of>> embedding */
+    static CTcPrsNode *parse_embedded_oneof(
+        struct CTcEmbedBuilder *b, int &eos, struct CTcEmbedLevel *parent);
+
+    /* embedded expression: parse an <<first time>>...<<only>> embedding */
+    static CTcPrsNode *parse_embedded_firsttime(
+        struct CTcEmbedBuilder *b, int &eos, struct CTcEmbedLevel *parent);
+
+    /* create the parse node for a <<one of>> structure */
+    static CTcPrsNode *create_oneof_node(
+        struct CTcEmbedBuilder *b, class CTPNList *lst, const char *attrs);
+
+    /* capture an embedded expression to a saved token list */
+    static void capture_embedded(struct CTcEmbedBuilder *b,
+                                 class CTcEmbedTokenList *tl);
+
+    /* 
+     *   Match an end token for an embedded expression construct - <<end>>,
+     *   <<else>>, etc.  This version parses captured tokens.
+     */
+    static int parse_embedded_end_tok(class CTcEmbedTokenList *tl,
+                                      struct CTcEmbedLevel *parent,
+                                      const char **open_kw);
+
+    /* parse an end token directly from the token stream */
+    static int parse_embedded_end_tok(struct CTcEmbedBuilder *b,
+                                      struct CTcEmbedLevel *parent,
+                                      const char **open_kw);
+
     /* parse an anonymous function */
     static class CTcPrsNode *parse_anon_func(int short_form);
 
@@ -3426,11 +3942,22 @@ protected:
 };
 
 /*
+ *   if-nil operator ?? 
+ */
+class CTcPrsOpIfnil: public CTcPrsOp
+{
+public:
+    CTcPrsOpIfnil() { }
+    class CTcPrsNode *parse() const;
+};
+
+/*
  *   tertiary conditional operator 
  */
 class CTcPrsOpIf: public CTcPrsOp
 {
 public:
+    CTcPrsOpIf() { }
     class CTcPrsNode *parse() const;
 };
 

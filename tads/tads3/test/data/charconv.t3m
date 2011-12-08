@@ -1,0 +1,80 @@
+# TADS 3 makefile
+#
+# Warning: this file was mechanically generated.  You may edit this file
+# manually, but your changes might be modified or discarded when
+# you load this file into a TADS development tool.  The TADS tools
+# generally retain the comment at the start of the file and the
+# comment marked "##sources" below, but other comments might be
+# discarded, the formatting might be changed, and some option
+# settings might be modified.
+
+-o charconv.t3
+
+##sources
+-source charconv
+
+# The following is machine-generated - DO NOT EDIT
+[Config:devsys]
+*37 src win pos:c:\tads\build\lib\_main.t:R:88,96,1104,642
+build:ext resfile cnt:I:0
+build:defaults set:I:1
+watch win:vis:I:1
+watch win:pos:R:555,795,1236,956
+log win vis::I:1
+log win pos::R:24,45,1042,762
+build:installer options:S:0:name=charconv_dbg
+build:installer options:S:1:savext=charconv_dbg
+search:start at top:I:0
+breakpoints:global:S:0:l
+breakpoints:cond-mode:S:0:true
+src win pos:charconv.t:R:110,120,1126,666
+search:wrap:I:1
+docking config::S:0:CL
+docking config::S:1:CL
+docking config::S:2:CR
+docking config::S:3:CB
+docking config::S:4:CB
+docking config::S:5:CB
+docking config::S:6:CB
+docking config::S:7:CB
+docking config::S:8:CB
+docking config::S:9:CB
+docking config::S:10:CL
+docking config::S:11:CB
+docking config::S:12:W11,270,170,2,620,302,770,D,locals win
+docking config::S:13:W11,270,170,304,620,604,770,D,watch win
+docking config::S:14:CR
+docking config::S:15:W14,170,170,224,105,955,648,M,stack win
+docking config::S:16:W14,170,170,224,105,1250,851,M,log win
+docking config::S:17:CL
+docking config::S:18:W17,170,270,2,620,302,770,D,project win
+search:text:S:0:s.subset
+locals win:vis:I:1
+locals win:pos:R:-153,795,529,956
+main win max::I:0
+breakpoints:file:S:0:charconv.t
+breakpoints:status:S:0:e
+breakpoints:cond:S:0:
+search:exact case:I:0
+breakpoints:line:S:0:45
+main win pos::R:28,11,1446,1070
+srcdir::S:0:C:\TADS\build\lib\
+build:exe:S:0:charconv_dbg.exe
+src win list::S:0:C:\TADS\tads3\test\data\charconv.t
+src win list::S:1:C:\TADS\build\lib\_main.t
+hist win vis::I:0
+prog_args:args:S:0:charconv.t test.out
+build:debug_image_file:S:0:C:\TADS\tads3\test\data\charconv_dbg.t3
+build:rlsgam:S:0:charconv_dbg_rls.t3
+prog_args:cmdfile:S:0:
+main win mdi max::I:0
+prog_args:logfile:S:0:
+search:dir:I:1
+build:installer prog:S:0:charconv_dbg_Setup.exe
+project win:vis:I:1
+project win:pos:R:-170,17,-9,786
+stack win pos::R:24,45,747,559
+stack win vis::I:1
+src win title::S:0:charconv.t
+src win title::S:1:c:\tads\build\lib\_main.t
+

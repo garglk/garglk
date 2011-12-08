@@ -27,6 +27,7 @@ Modified
 #include "vmbif.h"
 #include "vmbiftad.h"
 #include "vmfile.h"
+#include "vmrun.h"
 
 
 /* ------------------------------------------------------------------------ */

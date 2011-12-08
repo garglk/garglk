@@ -38,11 +38,11 @@ Modified
  *   An out-of-memory error is signalled if insufficient memory
  *   is available.  The comment is for debugging purposes only.
  */
-uchar *mchalo(errcxdef *ctx, ushort siz, char *comment);
+uchar *mchalo(errcxdef *ctx, size_t siz, char *comment);
 
 /* allocate a structure */
 #define MCHNEW(errctx, typ, comment) \
- ((typ *)mchalo(errctx, (ushort)sizeof(typ), comment))
+ ((typ *)mchalo(errctx, sizeof(typ), comment))
 
 /* free a block of memory */
 /* void mchfre(uchar *ptr); */

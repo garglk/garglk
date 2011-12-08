@@ -72,6 +72,15 @@ public:
      *   might have.  
      */
     void gen_binary(uchar opc, int discard, int for_condition);
+
+    /* 
+     *   Generate code for a binary operator as part of a compound
+     *   assignment.  For example, this is used to generate the '+' portion
+     *   of '+='.  The caller must already have generated code to push the
+     *   left operand; we generate the right operand plus the opcode to apply
+     *   the operator.  
+     */
+    void gen_binary_ca(uchar opc);
 };
 
 /* ------------------------------------------------------------------------ */
@@ -251,6 +260,29 @@ protected:
     /* the block enclosing this block */
     CTPNStmEnclosing *enclosing_;
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Base class for 'for' statement 'var in collection' and 'var in from..to'
+ *   expressions.  We keep a separate list of these nodes for a 'for'
+ *   statement, for code generation purposes.  These expression nodes reside
+ *   in the initializer clause of the 'for', but they implicitly generate
+ *   code in the condition and reinit phases as well.  
+ */
+class CTPNForIn: public CTPNForInBase
+{
+public:
+    CTPNForIn() { }
+
+    /* generate the condition part of the 'for' */
+    virtual void gen_forstm_cond(struct CTcCodeLabel *endlbl) = 0;
+
+    /* generate the reinit part of the 'for' */
+    virtual void gen_forstm_reinit() = 0;
+
+protected:
+};
+
 
 #endif /* TCT3INT_H */
 

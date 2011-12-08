@@ -20,6 +20,7 @@ Modified
   07/21/99 MJRoberts  - Creation
 */
 
+#include "t3std.h"
 #include "vminit.h"
 #include "vmpool.h"
 
@@ -44,5 +45,3 @@ void vm_init_in_mem(vm_globals **vmg, const vm_init_options *opts)
     VM_IF_ALLOC_PRE_GLOBAL(G_code_pool = new CVmPoolInMem());
     VM_IF_ALLOC_PRE_GLOBAL(G_const_pool = new CVmPoolInMem());
 }
-
-

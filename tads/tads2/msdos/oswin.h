@@ -25,6 +25,7 @@ extern "C" {
 #endif
 
 #include <share.h>
+#include <fcntl.h>
 
 /* include general DOS/Windows definitions */
 #include "osdosbas.h"
@@ -69,48 +70,73 @@ extern "C" {
 /* newline sequence - DOS/Windows use CR-LF */
 #define OS_NEWLINE_SEQ  "\r\n"
 
+/* internal file-open routine */
+osfildef *os_fsopen(const char *fname, const char *mode, int omode, int sh);
+
 /* open text file for reading; returns NULL on error */
 /* osfildef *osfoprt(const char *fname, os_filetype_t typ); */
-#define osfoprt(fname, typ) _fsopen(fname, "r", _SH_DENYWR)
+#define osfoprt(fname, typ) \
+    os_fsopen(fname, "r", _O_RDONLY | _O_TEXT, _SH_DENYWR)
 
 /* open text file for 'volatile' reading; returns NULL on error */
 /* osfildef *osfoprtv(const char *fname, os_filetype_t typ); */
-#define osfoprtv(fname, typ) _fsopen(fname, "r", _SH_DENYNO)
+#define osfoprtv(fname, typ) \
+    os_fsopen(fname, "r", _O_RDONLY | _O_TEXT, _SH_DENYNO)
 
 /* open text file for writing; returns NULL on error */
 /* osfildef *osfopwt(const char *fname, os_filetype_t typ); */
-#define osfopwt(fname, typ) _fsopen(fname, "w", _SH_DENYWR)
+#define osfopwt(fname, typ) \
+    os_fsopen(fname, "w", \
+              _O_CREAT | _O_TRUNC | _O_WRONLY | _O_TEXT, _SH_DENYWR)
 
 /* open text file for reading/writing; don't truncate */
-osfildef *osfoprwt(const char *fname, os_filetype_t typ);
+#define osfoprwt(fname, typ) \
+    os_fsopen(fname, "r+", _O_CREAT | _O_RDWR | _O_TEXT, _SH_DENYRW)
 
 /* open text file for reading/writing; truncate; returns NULL on error */
 /* osfildef *osfoprwtt(const char *fname, os_filetype_t typ); */
-#define osfoprwtt(fname, typ) _fsopen(fname, "w+", _SH_DENYWR)
+#define osfoprwtt(fname, typ) \
+    os_fsopen(fname, "w+", \
+              _O_CREAT | _O_TRUNC | _O_RDWR | _O_TEXT, _SH_DENYWR)
 
 /* open binary file for writing; returns NULL on error */
 /* osfildef *osfopwb(const char *fname, os_filetype_t typ); */
-#define osfopwb(fname, typ) _fsopen(fname, "wb", _SH_DENYWR)
+#define osfopwb(fname, typ) \
+    os_fsopen(fname, "wb", \
+              _O_CREAT | _O_TRUNC | _O_WRONLY | _O_BINARY, _SH_DENYWR)
 
 /* open SOURCE file for reading - use appropriate text/binary mode */
 /* osfildef *osfoprs(const char *fname, os_filetype_t typ); */
-#define osfoprs(fname, typ) _fsopen(fname, "rb", _SH_DENYWR)
+#define osfoprs(fname, typ) \
+    os_fsopen(fname, "rb", _O_RDONLY | _O_BINARY, _SH_DENYWR)
 
 /* open binary file for reading; returns NULL on erorr */
 /* osfildef *osfoprb(const char *fname, os_filetype_t typ); */
-#define osfoprb(fname, typ) _fsopen(fname, "rb", _SH_DENYWR)
+#define osfoprb(fname, typ) \
+    os_fsopen(fname, "rb", _O_RDONLY | _O_BINARY, _SH_DENYWR)
 
 /* open binary file for 'volatile' reading; returns NULL on erorr */
 /* osfildef *osfoprbv(const char *fname, os_filetype_t typ); */
-#define osfoprbv(fname, typ) _fsopen(fname, "rb", _SH_DENYNO)
+#define osfoprbv(fname, typ) \
+    os_fsopen(fname, "rb", _O_RDONLY | _O_BINARY, _SH_DENYNO)
 
 /* open binary file for reading/writing; don't truncate */
-osfildef *osfoprwb(const char *fname, os_filetype_t typ);
+#define osfoprwb(fname, typ) \
+    os_fsopen(fname, "r+b", _O_CREAT | _O_RDWR | _O_BINARY, _SH_DENYRW)
 
 /* open binary file for reading/writing; truncate; returns NULL on error */
 /* osfildef *osfoprwtb(const char *fname, os_filetype_t typ); */
-#define osfoprwtb(fname, typ) _fsopen(fname, "w+b", _SH_DENYWR)
+#define osfoprwtb(fname, typ) \
+    os_fsopen(fname, "w+b", \
+              _O_CREAT | _O_TRUNC | _O_RDWR | _O_BINARY, _SH_DENYWR)
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   sprintf equivalents with buffer allocation 
+ */
+int os_asprintf(char **bufptr, const char *fmt, ...);
+int os_vasprintf(char **bufptr, const char *fmt, va_list ap);
 
 
 /* ------------------------------------------------------------------------ */

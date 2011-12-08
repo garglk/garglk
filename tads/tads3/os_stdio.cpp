@@ -566,3 +566,6 @@ void os_banner_goto(void *banner_handle, int row, int col)
 {
 }
 
+void os_init_ui_after_load(class CVmBifTable *, class CVmMetaTable *)
+{
+}

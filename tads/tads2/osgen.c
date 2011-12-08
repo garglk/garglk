@@ -3171,6 +3171,12 @@ void os_set_save_ext(const char *ext)
     /* ignore the setting */
 }
 
+const char *os_get_save_ext()
+{
+    /* we ignore the setting, so always return null */
+    return 0;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*

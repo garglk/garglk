@@ -1,0 +1,102 @@
+	Files to build: 12
+	symbol_export _main.t -> _main.t3s
+	symbol_export dynamicGrammar.t -> dynamicGrammar.t3s
+	symbol_export tok.t -> tok.t3s
+	symbol_export dynfunc.t -> dynfunc.t3s
+	symbol_export gramprod.t -> gramprod.t3s
+	compile _main.t -> _main.t3o
+	compile dynamicGrammar.t -> dynamicGrammar.t3o
+	compile tok.t -> tok.t3o
+	compile dynfunc.t -> dynfunc.t3o
+	compile gramprod.t -> gramprod.t3o
+	link -> dynamicGrammar.t3p
+	preinit -> dynamicGrammar.t3
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0
+Dictionary contents:
+'(' (atom.miscVocab)
+')' (atom.miscVocab)
+'*' (factor.miscVocab)
+'+' (term.miscVocab)
+'-' (term.miscVocab)
+'/' (factor.miscVocab)
+'tan' (tanFunc.fname)
+'cos' (cosFunc.fname)
+'sin' (sinFunc.fname)
+'^' (.miscVocab)
+'e' (atom.miscVocab)
+'sine' (sinFunc.fname)
+'pi' (atom.miscVocab)
+
+[pow0(pow):ExprNode2 [pow(atom):ExprNode2 3 ] ] [pow0(pow):ExprNode2
+[pow(atom):ExprNode2 4 ] ] * [pow0(pow):ExprNode2 [pow(atom):ExprNode2 5 ] ] *
+[pow0(pow):ExprNode2 [pow(atom):ExprNode2 6 ] ] [pow0(pow):ExprNode2
+[pow(atom):ExprNode2 7 ] ] * [pow0(pow):ExprNode2 [pow(atom):ExprNode2 8 ] ] *
++
+expr(main) [3 * 4 * 5 + 6 * 7 * 8]
+ term(expr) [3 * 4 * 5 + 6 * 7 * 8]
+  term(factor) [3 * 4 * 5]
+   factor(expr) [3 * 4 * 5]
+    factor(expr) [3 * 4]
+     factor(pow) [3]
+      pow0(pow) [3]
+       pow(atom) [3]
+        atom(int) [3]
+         '3'
+     '*'
+     pow0(pow) [4]
+      pow(atom) [4]
+       atom(int) [4]
+        '4'
+    '*'
+    pow0(pow) [5]
+     pow(atom) [5]
+      atom(int) [5]
+       '5'
+  '+'
+  factor(expr) [6 * 7 * 8]
+   factor(expr) [6 * 7]
+    factor(pow) [6]
+     pow0(pow) [6]
+      pow(atom) [6]
+       atom(int) [6]
+        '6'
+    '*'
+    pow0(pow) [7]
+     pow(atom) [7]
+      atom(int) [7]
+       '7'
+   '*'
+   pow0(pow) [8]
+    pow(atom) [8]
+     atom(int) [8]
+      '8'
+
+[pow0(pow):ExprNode2 [pow(atom):ExprNode2 [new[fname]:FuncNode2
+[pow0(pow):ExprNode2 [pow(expr):ExprNode2 [pow(atom):ExprNode2 [pi] ] [e] ^] ]
+sin] ] ]
+expr(main) [sin ( pi ^ e )]
+ term(factor) [sin ( pi ^ e )]
+  factor(pow) [sin ( pi ^ e )]
+   pow0(pow) [sin ( pi ^ e )]
+    pow(atom) [sin ( pi ^ e )]
+     new[fname] [sin ( pi ^ e )]
+      'sin'
+      expr(main) [pi ^ e]
+       term(factor) [pi ^ e]
+        factor(pow) [pi ^ e]
+         pow0(pow) [pi ^ e]
+          pow(expr) [pi ^ e]
+           pow(atom) [pi]
+            pi/e [pi]
+             'pi'
+           '^'
+           pi/e [e]
+            'e'
+
+
+(T3VM) Memory blocks still in use:
+
+Total blocks in use: 0

@@ -45,6 +45,7 @@ void vmb_put_dh(char *buf, const vm_val_t *val)
     switch(val->typ)
     {
     case VM_OBJ:
+    case VM_OBJX:
         /* store the object ID as a UINT4 */
         oswp4(buf+1, val->val.obj);
         break;
@@ -55,8 +56,14 @@ void vmb_put_dh(char *buf, const vm_val_t *val)
         break;
 
     case VM_INT:
-        /* store the integer as a UINT4 */
         oswp4(buf+1, val->val.intval);
+        break;
+
+    case VM_BIFPTR:
+    case VM_BIFPTRX:
+        /* store the integer as two UINT2s: function index, set index */
+        oswp2(buf+1, val->val.bifptr.func_idx);
+        oswp2(buf+3, val->val.bifptr.set_idx);
         break;
 
     case VM_ENUM:
@@ -88,6 +95,7 @@ void vmb_get_dh_val(const char *buf, vm_val_t *val)
     switch((vm_datatype_t)buf[0])
     {
     case VM_OBJ:
+    case VM_OBJX:
         /* get the object ID from the UINT4 */
         val->val.obj = (vm_obj_id_t)t3rp4u(buf+1);
         break;
@@ -98,8 +106,14 @@ void vmb_get_dh_val(const char *buf, vm_val_t *val)
         break;
 
     case VM_INT:
-        /* get the integer from the UINT4 */
         val->val.intval = osrp4(buf+1);
+        break;
+
+    case VM_BIFPTR:
+    case VM_BIFPTRX:
+        /* read the function index and set index as UINT2s */
+        val->val.bifptr.func_idx = osrp2(buf+1);
+        val->val.bifptr.set_idx = osrp2(buf+3);
         break;
 
     case VM_ENUM:

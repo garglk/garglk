@@ -101,6 +101,32 @@ list - vector:
    [2] 1
    [3] 3
 
+Vector.generate multiples of 10:
+   [1] 10
+   [2] 20
+   [3] 30
+   [4] 40
+   [5] 50
+   [6] 60
+   [7] 70
+   [8] 80
+   [9] 90
+   [10] 100
+
+splice(5,2): [10, 20, 30, 40, 70, 80, 90, 100]
+splice(-2,0,a,b,c): [10, 20, 30, 40, 70, 80, a, b, c, 90, 100]
+splice(0,0,d,e,f): [10, 20, 30, 40, 70, 80, a, b, c, 90, 100, d, e, f]
+splice(-2,9,x): [10, 20, 30, 40, 70, 80, a, b, c, 90, 100, d, x]
+splice(1,0,xxx,yyy): [xxx, yyy, 10, 20, 30, 40, 70, 80, a, b, c, 90, 100, d, x]
+
+toList(-3): [100, d, x]
+copyFrom(-3, -5, 3): [11, 22, 33, 44, 55, 100, d, x, 99, 110]
+fillValue(fill, -6, 3): [11, 22, 33, 44, fill, fill, fill, x, 99, 110]
+insertAt(-2, one, two): [11, 22, 33, 44, fill, fill, fill, x, one, two, 99,
+110]
+removeElementAt(-3): [11, 22, 33, 44, fill, fill, fill, x, one, 99, 110]
+removeRange(-7, -5): [11, 22, 33, 44, x, one, 99, 110]
+
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0

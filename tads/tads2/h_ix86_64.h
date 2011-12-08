@@ -21,6 +21,10 @@ Modified
 #ifndef H_IX86_64_H
 #define H_IX86_64_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 /* ------------------------------------------------------------------------ */
 /* 
  *   Define local covers for the 32-bit and 16-bit integer types.
@@ -47,12 +51,9 @@ Modified
  *   types to portable types, by taking into account the way our compiler
  *   maps from C to native.
  */
-
-#define SIZEOF_INT 4
-#define SIZEOF_SHORT 2
-
 #if SIZEOF_INT == 4
 typedef int hix_int32;
+typedef unsigned int hix_uint32;
 #else
 #error SIZEOF_INT must be defined in your makefile - \
  set SIZEOF_INT to the number of bytes in an 'int' for your compiler
@@ -82,12 +83,17 @@ typedef unsigned short hix_uint16;
 
 /* write int to unaligned portable 2-byte value */
 #define oswp2(p, i) (*(hix_uint16 *)(p)=(hix_uint16)(i))
+#define oswp2s(p, i) oswp2(p, i)
 
-/* read unaligned portable 4-byte value, returning long */
-#define osrp4(p) (*(hix_int32 *)(p))
+/* read unaligned portable 4-byte value, returning unsigned long */
+#define osrp4(p) (*(hix_uint32 *)(p))
 
-/* write long to unaligned portable 4-byte value */
+/* read unaligned portable 4-byte value, returning signed long */
+#define osrp4s(p) (*(hix_int32 *)(p))
+
+/* write unsigned/signed long to unaligned portable 4-byte value */
 #define oswp4(p, l) (*(hix_int32 *)(p)=(l))
+#define oswp4s(p, l) oswp4(p, l)
 
 
 #endif /* H_IX86_64_H */

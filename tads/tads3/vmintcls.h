@@ -63,6 +63,17 @@ public:
     static int is_intcls_obj(VMG_ vm_obj_id_t obj)
         { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
+    /* 
+     *   get my metaclass registration table index - this can be compared to
+     *   the metaclass_reg_ element for a given C++ intrinsic class
+     *   implementation to determine if this intrinsic class object is the
+     *   intrinsic class object for a given C++ intrinsic class 
+     */
+    uint get_meta_idx() const { return osrp2(ext_ + 2); }
+
+    /* get my metaclass table entry */
+    struct vm_meta_entry_t *get_meta_entry(VMG0_) const;
+
     /* create dynamically using stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
                                          uint argc);
@@ -76,8 +87,7 @@ public:
      */
     static int call_stat_prop(VMG_ vm_val_t *result,
                               const uchar **pc_ptr, uint *argc,
-                              vm_prop_id_t prop)
-        { return CVmObject::call_stat_prop(vmg_ result, pc_ptr, argc, prop); }
+                              vm_prop_id_t prop);
 
     /* determine if I'm an instance of the given object */
     virtual int is_instance_of(VMG_ vm_obj_id_t obj);
@@ -171,23 +181,15 @@ public:
      */
     vm_obj_id_t find_mod_src_obj(VMG_ vm_obj_id_t self, vm_obj_id_t mod_obj);
 
+    /* static method: isIntrinsicClass(x) */
+    static int s_getp_is_int_class(VMG_ vm_val_t *result, uint *argc);
+
 protected:
     /* create with no initial contents */
     CVmObjClass() { ext_ = 0; }
 
     /* create with a given dependency table index */
     CVmObjClass(VMG_ int in_root_set, uint meta_idx, vm_obj_id_t self);
-
-    /* 
-     *   get my metaclass registration table index - this can be compared to
-     *   the metaclass_reg_ element for a given C++ intrinsic class
-     *   implementation to determine if this intrinsic class object is the
-     *   intrinsic class object for a given C++ intrinsic class 
-     */
-    uint get_meta_idx() const { return osrp2(ext_ + 2); }
-
-    /* get my metaclass table entry */
-    struct vm_meta_entry_t *get_meta_entry(VMG0_) const;
 
     /* list our intrinsic class's properties */
     size_t list_class_props(VMG_ vm_obj_id_t self,
@@ -238,7 +240,7 @@ class CVmMetaclassClass: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "intrinsic-class/030000"; }
+    const char *get_meta_name() const { return "intrinsic-class/030001"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

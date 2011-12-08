@@ -106,6 +106,22 @@ Modified
 #define USE_PATHSEARCH                  /* use search paths for tads files */
 #define USE_STDARG
 
+#if defined(TURBO) || defined(DJGPP)
+#define USE_GENRAND
+#endif
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   os_va_copy - on Intel platforms, va_list is a simple pointer type, so
+ *   this can be handled with a simple assignment.  Don't define this for
+ *   DJGPP, since we can use the compiler-provided va_copy instead (which
+ *   we'll do in osifc.h).  
+ */
+#ifndef DJGPP
+# define os_va_copy(dst, src) ((dst) = (src))
+# define os_va_copy_end(dst)
+#endif
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -297,6 +313,15 @@ void *oss_win_realloc(void *ptr, size_t siz);
 
 /* free all allocated memory blocks */
 void oss_win_free_all();
+
+/* 
+ *   notify oss_win that we've reached the program's main entrypoing; this
+ *   detaches any existing memory allocations from the master deletion list,
+ *   since anything allocated before 'main' must have been allocated by a C++
+ *   static object constructor, and thus must not be considered dynamic
+ *   memory to be deleted between interpreter invocations 
+ */
+void oss_win_static_init_done();
 
 # else /* __WIN32__ */
 

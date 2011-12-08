@@ -41,22 +41,22 @@ Modified
 
 void *operator new(size_t siz)
 {
-    return t3malloc(siz);
+    return t3malloc(siz, T3MALLOC_TYPE_NEW);
 }
 
 void operator delete(void *ptr)
 {
-    t3free(ptr);
+    t3free(ptr, T3MALLOC_TYPE_NEW);
 }
 
 void *operator new[](size_t siz)
 {
-    return t3malloc(siz);
+    return t3malloc(siz, T3MALLOC_TYPE_NEWARR);
 }
 
 void operator delete[](void *ptr)
 {
-    t3free(ptr);
+    t3free(ptr, T3MALLOC_TYPE_NEWARR);
 }
 
 #endif /* T3_DEBUG */

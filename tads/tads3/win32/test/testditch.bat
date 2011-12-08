@@ -13,7 +13,7 @@ rem  Switch to the Ditch3 directory
 pushd %tstditch%
 
 rem  Run the script
-call  testditch %1.cmd %tstroot%\%tstout%\%2.log
+call  testditch %1.cmd %tstout%\%2.log
 
 rem  Switch back to the test directory
 popd

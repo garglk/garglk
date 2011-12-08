@@ -71,8 +71,8 @@ struct vm_profiler_rec
     vm_obj_id_t obj;
     vm_prop_id_t prop;
 
-    /* the entrypoint of the function, for a function */
-    pool_ofs_t func;
+    /* the entrypoint of the method */
+    const uchar *func;
 
     /* the cumulative time DIRECTLY in this function (not in children) */
     vm_prof_time sum_direct;

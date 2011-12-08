@@ -35,7 +35,96 @@ Modified
 #include "tcerr.h"
 #include "vmbignum.h"
 #include "vmrunsym.h"
+#include "vmhash.h"
+#include "vmmeta.h"
 #include "tct3unas.h"
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Named argument call table.  The code body maintains a list of tables,
+ *   one per call with named arguments.  At the end of the code body, we
+ *   generate the tables as part of the instruction stream.  
+ */
+struct CTcNamedArgTab
+{
+    CTcNamedArgTab(const CTcNamedArgs *args)
+    {
+        /* remember the argument list */
+        arglist = args->args;
+        cnt = args->cnt;
+
+        /* create a code label for the table's opcode stream location */
+        lbl = G_cs->new_label_fwd();
+
+        /* not in a list yet */
+        nxt = 0;
+    }
+
+    /* generate this table */
+    void generate()
+    {
+        /* define the label location and start the table */
+        CTcPrsNode::def_label_pos(lbl);
+        G_cg->write_op(OPC_NAMEDARGTAB);
+
+        /* write a placeholder for the table size */
+        ulong start = G_cs->get_ofs();
+        G_cs->write2(0);
+
+        /* write the number of arguments in the list */
+        G_cs->write2(cnt);
+
+        /* write placeholders for the index entries */
+        ulong idx = G_cs->get_ofs(), idx0 = idx;
+        for (CTPNArg *arg = arglist->get_arg_list_head() ; arg != 0 ;
+             arg = arg->get_next_arg())
+        {
+            /* if it's a named argument, write an index placeholder */
+            if (arg->is_named_param())
+                G_cs->write2(0);
+        }
+
+        /* write a final index marker, for computing the last item's length */
+        G_cs->write2(0);
+
+        /* write the strings */
+        for (CTPNArg *arg = arglist->get_arg_list_head() ; arg != 0 ;
+             arg = arg->get_next_arg())
+        {
+            /* if it's a named argument, write it out */
+            if (arg->is_named_param())
+            {
+                /* write its index pointer */
+                G_cs->write2_at(idx, G_cs->get_ofs() - idx0);
+
+                /* write the string */
+                G_cs->write(arg->get_name(), arg->get_name_len());
+
+                /* advance the index pointer */
+                idx += 2;
+            }
+        }
+
+        /* write the final index marker */
+        G_cs->write2_at(idx, G_cs->get_ofs() - idx0);
+
+        /* go back and fill in the table length prefix */
+        G_cs->write2_at(start, G_cs->get_ofs() - start - 2);
+    }
+
+    /* argument list */
+    const CTPNArglist *arglist;
+
+    /* number of named arguments */
+    int cnt;
+
+    /* code label for the table's location in the opcode stream */
+    CTcCodeLabel *lbl;
+
+    /* next in list */
+    CTcNamedArgTab *nxt;
+};
 
 
 /* ------------------------------------------------------------------------ */
@@ -88,6 +177,7 @@ CTcGenTarg::CTcGenTarg()
     add_meta("vector");
     add_meta("anon-func-ptr");
     add_meta("int-class-mod/030000");
+    add_meta("lookuptable/030003");
 
     /*
      *   Set up the initial translation table for translating from our
@@ -119,17 +209,24 @@ CTcGenTarg::CTcGenTarg()
     /* not in a constructor */
     in_constructor_ = FALSE;
 
+    /* not in an operator overload */
+    in_op_overload_ = FALSE;
+
     /* no debug line record pointers yet */
     debug_line_cnt_ = 0;
     debug_line_head_ = debug_line_tail_ = 0;
 
-    /* normal (non-debug) evaluation mode */
+    /* normal (static compiler, non-debug) evaluation mode */
+    eval_for_dyn_ = FALSE;
     eval_for_debug_ = FALSE;
     speculative_ = FALSE;
     debug_stack_level_ = 0;
 
     /* no multi-method initializer object yet */
     mminit_obj_ = VM_INVALID_OBJ;
+
+    /* create the string interning hash table */
+    strtab_ = new CVmHashTable(1024, new CVmHashFuncCS(), TRUE);
 }
 
 /*
@@ -179,11 +276,14 @@ CTcGenTarg::~CTcGenTarg()
         nxt = debug_line_head_->nxt;
 
         /* delete this one */
-        delete debug_line_head_;
+        t3free(debug_line_head_);
 
         /* move on */
         debug_line_head_ = nxt;
     }
+
+    /* delete the string table */
+    delete strtab_;
 }
 
 /* start loading the image file metaclass dependency table */
@@ -229,6 +329,8 @@ void CTcGenTarg::load_image_file_meta_table(
         predef_meta_idx_[TCT3_METAID_ANONFN] = idx;
     else if (len == 13 && memcmp(nm, "int-class-mod", 13) == 0)
         predef_meta_idx_[TCT3_METAID_ICMOD] = idx;
+    else if (len == 11 && memcmp(nm, "lookuptable", 11) == 0)
+        predef_meta_idx_[TCT3_METAID_LOOKUP_TABLE] = idx;
 }
 
 /*
@@ -283,7 +385,7 @@ int CTcGenTarg::add_meta(const char *nm, size_t len,
          */
         if (rem < 7)
         {
-            /* add zeroes to pad out to a six-place version string */
+            /* add zeros to pad out to a six-place version string */
             extra_len = 7 - rem;
             extra_ptr = "000000";
         }
@@ -407,6 +509,65 @@ tc_meta_entry *CTcGenTarg::find_meta_entry(const char *nm, size_t len,
     return 0;
 }
 
+/* 
+ *   Get the property ID for the given method table index in the given
+ *   metaclass.  The metaclass ID is given as the internal metaclass ID
+ *   (without the "/version" suffix), not as the external class name.
+ *   
+ *   The method table index is 0-based.  
+ */
+CTcPrsNode *CTcGenTarg::get_metaclass_prop(const char *name, ushort idx) const
+{
+    vm_prop_id_t propid;
+
+    /*
+     *   If we have a loaded metaclass table from the running program, use
+     *   it.  This will be the case if we're doing a dynamic or debugging
+     *   compilation.  If we do, use it, since it has the direct information
+     *   on the loaded classes.
+     *   
+     *   If there's no metaclass table, this is an ordinary static
+     *   compilation, so get the metaclass information from the symbol table.
+     */
+    if (G_metaclass_tab != 0)
+    {
+        /* look up the metaclass in the table */
+        vm_meta_entry_t *entry = G_metaclass_tab->get_entry_by_id(name);
+
+        /* if  we didn't find the entry, return failure */
+        if (entry == 0)
+            return 0;
+
+        /* 
+         *   Get the property from the table.  Note that xlat_func() uses a
+         *   1-based index. 
+         */
+        if ((propid = entry->xlat_func(idx + 1)) == VM_INVALID_PROP)
+            return 0;
+    }
+    else
+    {
+        /* static compilation - look up the metaclass in the symbol table */
+        CTcSymMetaclass *sym = G_cg->find_meta_sym(name, strlen(name));
+        if (sym == 0)
+            return 0;
+        
+        /* get the metaclass method table entry at the given index */
+        CTcSymMetaProp *mprop = sym->get_nth_prop(idx);
+        if (mprop == 0 || mprop->prop_ == 0)
+            return 0;
+
+        /* get the property ID from the method table entry */
+        propid = mprop->prop_->get_prop();
+    }
+
+    /* set up a constant value for the property ID */
+    CTcConstVal pv;
+    pv.set_prop(propid);
+
+    /* return a constant parse node for the property ID */
+    return new CTPNConst(&pv);
+}
 
 /*
  *   Find a metaclass symbol given the global identifier 
@@ -521,12 +682,12 @@ void CTcGenTarg::set_meta_sym(int meta_idx, class CTcSymMetaclass *sym)
 /*
  *   Add an entry to the function set dependency table 
  */
-int CTcGenTarg::add_fnset(const char *nm, size_t len)
+ushort CTcGenTarg::add_fnset(const char *nm, size_t len)
 {
     tc_fnset_entry *ent;
     const char *sl;
     size_t sl_len;
-    size_t idx;
+    ushort idx;
 
     /* find the version part of the new name, if present */
     for (sl = nm, sl_len = len ; sl_len != 0 && *sl != '/' ; ++sl, --sl_len) ;
@@ -725,6 +886,56 @@ void CTcGenTarg::write_op(uchar opc)
 try_combine:
     switch(opc)
     {
+    case OPC_DUP:
+        /* combine GETR0 + DUP -> DUPR0 */
+        if (last_op_ == OPC_GETR0)
+        {
+            opc = OPC_DUPR0;
+            goto combine;
+        }
+        break;
+
+    case OPC_DISC:
+        /* combine DISC+DISC -> DISC1<2> */
+        if (last_op_ == OPC_DISC)
+        {
+            /* 
+             *   Switch the old DISC to DISC1<2>.  We're deleting a one-byte
+             *   op and replacing a one-byte op with a two-byte op, so we're
+             *   going from two bytes to two bytes total - no net deletion
+             *   (op_len = 0).  The new DISC1 is a two-byte instruction
+             *   (prv_len).  
+             */
+            op_len = 0;
+            prv_len = 2;
+            opc = OPC_DISC1;
+
+            /* write the <2> operand, overwriting the second DISC */
+            G_cs->write_at(G_cs->get_ofs() - 1, 2);
+
+            /* go replace the op */
+            goto combine;
+        }
+        break;
+
+    case OPC_DISC1:
+        /* combine DISC1<n> + DISC -> DISC1<n+1> */
+        if (last_op_ == OPC_DISC
+            && (uchar)G_cs->get_byte_at(G_cs->get_ofs() - 2) != 0xff)
+        {
+            /* up the DISC1 operand */
+            G_cs->write_at(G_cs->get_ofs() - 2,
+                           G_cs->get_byte_at(G_cs->get_ofs() - 2) + 1);
+
+            /* keep the DISC1 */
+            opc = OPC_DISC1;
+            prv_len = 2;
+
+            /* apply the combination */
+            goto combine;
+        }
+        break;
+
     case OPC_JF:
         /* 
          *   if the last instruction was a comparison, we can use the
@@ -966,13 +1177,29 @@ try_combine:
         break;
 
     case OPC_SETLCL1:
-        /* we can combine this with a preceding GETR0 */
+        /* combine GETR0 + SETLCL1 -> SETLCL1R0 */
         if (last_op_ == OPC_GETR0)
         {
             /* generate a combined SETLCL1R0 */
             opc = OPC_SETLCL1R0;
             goto combine;
         }
+
+        /* combine DUP + SETLCL1 -> GETSETLCL1 */
+        if (last_op_ == OPC_DUP)
+        {
+            opc = OPC_GETSETLCL1;
+            goto combine;
+        }
+
+        /* combine DUPR0 + SETLCL1 -> GETSETLCL1R0 */
+        if (last_op_ == OPC_DUPR0)
+        {
+            opc = OPC_GETSETLCL1R0;
+            goto combine;
+        }
+        break;
+
         break;
 
     case OPC_GETPROP:
@@ -984,6 +1211,25 @@ try_combine:
             opc = OPC_GETPROPLCL1;
 
             /* overwrite the preceding two-byte instruction */
+            prv_len = 2;
+            goto combine;
+
+        case OPC_GETLCLN0:
+        case OPC_GETLCLN1:
+        case OPC_GETLCLN2:
+        case OPC_GETLCLN3:
+        case OPC_GETLCLN4:
+        case OPC_GETLCLN5:
+            /* add a byte to pad things to the same length as a GETLCL1 */
+            G_cs->write(0);
+
+            /* write the local number operand of the GETPROPLCL1 */
+            G_cs->write_at(G_cs->get_ofs() - 2, last_op_ - OPC_GETLCLN0);
+
+            /* get property of one-byte-addressable local */
+            opc = OPC_GETPROPLCL1;
+
+            /* overwrite the preceding now-two-byte instruction */
             prv_len = 2;
             goto combine;
 
@@ -1042,16 +1288,42 @@ try_combine:
         /* we can replace GETLCL1 + IDXINT8 with IDXLCL1INT8 */
         if (last_op_ == OPC_GETLCL1)
         {
-            uchar idx;
+            /* add the index operand at the second byte after the GETLCL1 */
+            uchar idx = G_cs->get_byte_at(G_cs->get_ofs() - op_len + 1);
+            G_cs->write_at(G_cs->get_ofs() - op_len, idx);
 
-            /* rewrite the GETLCL1 to add the index operand */
-            idx = G_cs->get_byte_at(G_cs->get_ofs() - 1);
-            G_cs->write_at(G_cs->get_ofs() - 2, idx);
-
-            /* add another byte to compensate for the insertion */
-            G_cs->write(0);
+            /* 
+             *   we're going from GETLCL1 <l> IDXINT8 <i> (4 bytes) to
+             *   IDXLCL1INT8 <l> <i> (3 bytes), for a net deletion of one
+             *   byte - but that's only if we've already written the <i>
+             *   operand, so the net deletion is actually op_len-1
+             */
+            op_len -= 1;
 
             /* go back and combine into what's now a three-byte opcode */
+            opc = OPC_IDXLCL1INT8;
+            prv_len = 3;
+            goto combine;
+        }
+        if (last_op_ >= OPC_GETLCLN0 && last_op_ <= OPC_GETLCLN5)
+        {
+            /* write the local# at the byte after the GETLCLNx */
+            G_cs->write_at(G_cs->get_ofs() - op_len, last_op_ - OPC_GETLCLN0);
+
+            /* 
+             *   if we haven't already written the IDXINT8 operand, write a
+             *   placeholder for it, since 'combine:' can't add bytes 
+             */
+            if (op_len == 1)
+                G_cs->write(0);
+
+            /* 
+             *   We're going from GETLCLNx IDXINT8 <i> (3 bytes) to
+             *   IDXLCL1INT8 <l> <i> (3 bytes), so there's no net deletion.
+             */
+            op_len = 0;
+
+            /* go back and combine into the three-byte index-by-local op */
             opc = OPC_IDXLCL1INT8;
             prv_len = 3;
             goto combine;
@@ -1059,57 +1331,95 @@ try_combine:
         break;
 
     case OPC_SETIND:
-        /* we can replace SETLCL1 + <small int> + SETIND with SETINDLCL1I8 */
-        if (second_last_op_ == OPC_SETLCL1)
+        /* we can replace GETLCL1 + <small int> + SETIND with SETINDLCL1I8 */
+        if (second_last_op_ == OPC_GETLCL1
+            || (second_last_op_ >= OPC_GETLCLN0
+                && second_last_op_ <= OPC_GETLCLN5))
         {
-            uchar idx;
+            int idx, lcl;
+            int getlcl_len, push_len;
 
-            /* check the middle opcode */
+            /* get the local number and the GETLCL instruction length */
+            if (second_last_op_ == OPC_GETLCL1)
+            {
+                /* it's GETLCL1 <n> - two bytes */
+                getlcl_len = 2;
+            }
+            else
+            {
+                /* no operands - the local is encoded in the opcode itself */
+                lcl = second_last_op_ - OPC_GETLCLN0;
+                getlcl_len = 1;
+            }
+
+            /* check the middle opcode for an int push */
             switch(last_op_)
             {
             case OPC_PUSHINT8:
-                /* 
-                 *   go back and put the index value in the right spot in the
-                 *   third instruction back 
-                 */
-                idx = G_cs->get_byte_at(G_cs->get_ofs() - 2);
-                G_cs->write_at(G_cs->get_ofs() - 3, idx);
+                /* get the index from the PUSHINT8 */
+                idx = (int)(uchar)G_cs->get_byte_at(G_cs->get_ofs() - 2);
+                push_len = 2;
+
+                /* get the local, if it's a GETLCL1 */
+                if (second_last_op_ == OPC_GETLCL1)
+                    lcl = G_cs->get_byte_at(G_cs->get_ofs() - push_len - 2);
 
                 /* 
-                 *   Go back and combine into what's now a 3-byte
-                 *   instruction: we'll remove the SETIND and the
-                 *   PUSHINT8+val, for three bytes removed, but we're adding
-                 *   one byte, so we have a net current opcode length (to
-                 *   remove) of two bytes.  Since we're combining three
+                 *   PUSHINT8 pushes a signed value, but SETINDLCL1I8 uses an
+                 *   unsigned value, so make sure the PUSHINT8 value is in
+                 *   range 
+                 */
+                if (idx < 127)
+                    goto combine_setind;
+
+                /* not combinable */
+                break;
+
+            case OPC_PUSHINT:
+                /* get the int value */
+                idx = G_cs->read4_at(G_cs->get_ofs() - 5);
+                push_len = 5;
+
+                /* get the local, if it's a GETLCL1 */
+                if (second_last_op_ == OPC_GETLCL1)
+                    lcl = G_cs->get_byte_at(G_cs->get_ofs() - push_len - 2);
+
+                /* if the index is 0-255, we can combine the instructions */
+                if (idx >= 0 && idx <= 255)
+                    goto combine_setind;
+
+                /* not combinable */
+                break;
+
+            case OPC_PUSH_0:
+            case OPC_PUSH_1:
+                /* it's a one-byte PUSH */
+                idx = last_op_ - OPC_PUSH_0;
+                push_len = 1;
+
+                /* get the local, if it's a GETLCL1 */
+                if (second_last_op_ == OPC_GETLCL1)
+                    lcl = G_cs->get_byte_at(G_cs->get_ofs() - push_len - 2);
+
+            combine_setind:
+                /* write the operands of the SETINDLCLI8 */
+                G_cs->write_at(
+                    G_cs->get_ofs() - getlcl_len - push_len, (uchar)lcl);
+                G_cs->write_at(
+                    G_cs->get_ofs() - getlcl_len - push_len + 1, (uchar)idx);
+
+                /* 
+                 *   Go back and do the combine.  Remove GETLCL<var>,
+                 *   PUSH<idx>, and SETIND (getlcl_len + push_len + 1 bytes),
+                 *   and replace them with SETINDLCL1I8<var><idx> (3 bytes).
+                 *   The net deletion goes in op_len, and the new length goes
+                 *   in prv_len.  Also, since we're combining three
                  *   instructions into one, we're losing our second-to-last
                  *   opcode.  
                  */
                 opc = OPC_SETINDLCL1I8;
                 second_last_op_ = OPC_NOP;
-                op_len = 2;
-                prv_len = 3;
-                goto combine;
-
-            case OPC_PUSH_0:
-                idx = 0;
-                goto combine_setind;
-
-            case OPC_PUSH_1:
-                idx = 1;
-
-            combine_setind:
-                /* go back and add the index value */
-                G_cs->write_at(G_cs->get_ofs() - 2, idx);
-
-                /* 
-                 *   go back and combine the instructions - we're removing a
-                 *   net of one byte, since we're removing two one-byte
-                 *   instructions and extending the old 2-byte instruction
-                 *   into a 3-byte instruction 
-                 */
-                opc = OPC_SETINDLCL1I8;
-                second_last_op_ = OPC_NOP;
-                op_len = 1;
+                op_len = getlcl_len + push_len - 2;
                 prv_len = 3;
                 goto combine;
             }
@@ -1136,15 +1446,28 @@ void CTcGenTarg::write_callprop(int argc, int varargs, vm_prop_id_t prop)
      *   if the previous instruction was GETLCL1, combine it with the
      *   CALLPROP to form a single CALLPROPLCL1 instruction 
      */
-    if (last_op_ == OPC_GETLCL1)
+    if (last_op_ == OPC_GETLCL1
+        || (last_op_ >= OPC_GETLCLN0 && last_op_ <= OPC_GETLCLN5))
     {
         uchar lcl;
 
-        /* get the local variable ID from the GETLCL1 instruction */
-        lcl = G_cs->get_byte_at(G_cs->get_ofs() - 1);
+        /* if it was a GETLCLNx, expand it out to a GETLCL1 */
+        if (last_op_ == OPC_GETLCL1)
+        {
+            /* it's already a GETLCL1 - just get the index */
+            lcl = G_cs->get_byte_at(G_cs->get_ofs() - 1);
 
-        /* back up and delete the GETLCL1 instruction */
-        G_cs->dec_ofs(2);
+            /* back up and delete the GETLCL1 instruction */
+            G_cs->dec_ofs(2);
+        }
+        else
+        {
+            /* it's a GETLCLNx - infer the local number from the opcode */
+            lcl = last_op_ - OPC_GETLCLN0;
+
+            /* delete the instruction */
+            G_cs->dec_ofs(1);
+        }
 
         /* roll back the peephole for the instruction deletion */
         last_op_ = second_last_op_;
@@ -1233,19 +1556,76 @@ void CTcGenTarg::note_bytecode(ulong len)
 }
 
 /*
+ *   Hash table entry for an interned string.  This keeps track of a string
+ *   that we've previously generated to the data segment, for reuse if we
+ *   need to generate another copy of the same string literal.  
+ */
+class CInternEntry: public CVmHashEntryCS
+{
+public:
+    CInternEntry(const char *str, size_t len, CTcStreamAnchor *anchor)
+        : CVmHashEntryCS(str, len, FALSE)
+    {
+        anchor_ = anchor;
+    }
+
+    /* the string's fixup list anchor */
+    CTcStreamAnchor *anchor_;
+};
+
+/*
  *   Add a string to the constant pool 
  */
 void CTcGenTarg::add_const_str(const char *str, size_t len,
                                CTcDataStream *ds, ulong ofs)
 {
-    CTcStreamAnchor *anchor;
-    
+    /* 
+     *   If it's a short string, look to see if we've already written it.  If
+     *   so, we can reuse the previous copy.  The odds of a string being
+     *   duplicated generally decrease rapidly with the length of the string,
+     *   and the cost of checking for an old copy increases, so don't bother
+     *   if the string is over a threshold length.  
+     */
+    const size_t intern_threshold = 40;
+    if (len < intern_threshold)
+    {
+        /* look for an old copy */
+        CInternEntry *e = (CInternEntry *)strtab_->find(str, len);
+
+        /* 
+         *   If we found it, simply add a fixup for the new use to the
+         *   existing fixup list.  This will cause the caller to point the
+         *   new literal to the existing copy, without generating a duplicate
+         *   copy in the data segment.  
+         */
+        if (e != 0)
+        {
+            /* 
+             *   add a fixup to the existing string's fixup list for the
+             *   caller's new reference 
+             */
+            CTcAbsFixup::add_abs_fixup(e->anchor_->fixup_list_head_, ds, ofs);
+
+            /* we're done */
+            return;
+        }
+    }
+
     /* 
      *   Add an anchor for the item, and add a fixup for the reference
      *   from ds@ofs to the item. 
      */
-    anchor = G_ds->add_anchor(0, 0);
+    CTcStreamAnchor *anchor = G_ds->add_anchor(0, 0);
     CTcAbsFixup::add_abs_fixup(anchor->fixup_list_head_, ds, ofs);
+
+    /*
+     *   If this is a short string, add it to our list of interned strings.
+     *   This will let us reuse this copy of the string in the data segment
+     *   if we need to generate another literal later with identical
+     *   contents.  
+     */
+    if (len < intern_threshold)
+        strtab_->add(new CInternEntry(str, len, anchor));
 
     /* write the length prefix */
     G_ds->write2(len);
@@ -1323,7 +1703,7 @@ vm_obj_id_t CTcGenTarg::gen_bignum_obj(const char *txt, size_t len)
     utf8_ptr p;
     size_t rem;
     int dig[2];
-    char dig_idx;
+    int dig_idx;
     int sig;
     size_t tot_digits;
     size_t prec;
@@ -1531,18 +1911,18 @@ vm_obj_id_t CTcGenTarg::gen_bignum_obj(const char *txt, size_t len)
         str->write((char)(dig[0] << 4));
 
     /* 
-     *   if we had no significant digits, the number is all zeroes, so in
-     *   this special case treat all of the zeroes as significant 
+     *   if we had no significant digits, the number is all zeros, so in
+     *   this special case treat all of the zeros as significant 
      */
     if (prec == 0 && tot_digits != 0)
     {
         /* note that the value is zero */
         val_zero = TRUE;
         
-        /* use the zeroes as significant digits */
+        /* use the zeros as significant digits */
         prec = tot_digits;
         
-        /* write out the zeroes */
+        /* write out the zeros */
         for ( ; tot_digits > 1 ; tot_digits -= 2)
             str->write(0);
         if (tot_digits > 0)
@@ -1714,6 +2094,7 @@ void CTcGenTarg::write_const_as_dh(CTcDataStream *ds, ulong ofs,
         break;
 
     case TC_CVT_UNK:
+    case TC_CVT_BIFPTR:
         /* unknown - ignore it */
         break;
     }
@@ -1768,51 +2149,7 @@ void CTcGenTarg::set_method_ofs(ulong ofs)
     G_cs->set_method_ofs(ofs);
 }
 
-/*
- *   Add a debug line table to our list 
- */
-void CTcGenTarg::add_debug_line_table(ulong ofs)
-{
-    size_t idx;
-    uchar *p;
 
-    /* calculate the index of the next free entry on its page */
-    idx = (size_t)(debug_line_cnt_ % TCT3_DEBUG_LINE_PAGE_SIZE);
-    
-    /* 
-     *   if we've completely filled the last page, allocate a new one - we
-     *   know we've exhausted the page if we're at the start of a new page
-     *   (i.e., the index is zero) 
-     */
-    if (idx == 0)
-    {
-        tct3_debug_line_page *pg;
-        
-        /* allocate the new page */
-        pg = (tct3_debug_line_page *)t3malloc(sizeof(*pg));
-
-        /* link it in at the end of the list */
-        pg->nxt = 0;
-        if (debug_line_tail_ == 0)
-            debug_line_head_ = pg;
-        else
-            debug_line_tail_->nxt = pg;
-        debug_line_tail_ = pg;
-    }
-
-    /* get a pointer to the entry */
-    p = debug_line_tail_->line_ofs + (idx * TCT3_DEBUG_LINE_REC_SIZE);
-
-    /* 
-     *   set this entry - one byte for the code stream ID, then a UINT4
-     *   with the offset in the stream
-     */
-    *p = G_cs->get_stream_id();
-    oswp4(p + 1, ofs);
-
-    /* count it */
-    ++debug_line_cnt_;
-}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1827,8 +2164,9 @@ void CTcGenTarg::open_method(CTcCodeStream *stream,
                              CTcAbsFixup **fixup_list_head,
                              CTPNCodeBody *code_body,
                              CTcPrsSymtab *goto_tab,
-                             int argc, int varargs,
-                             int is_constructor, int is_self_available,
+                             int argc, int opt_argc, int varargs,
+                             int is_constructor, int is_op_overload,
+                             int is_self_available,
                              tct3_method_gen_ctx *ctx)
 {
     /* set the code stream as the current code generator output stream */
@@ -1836,6 +2174,7 @@ void CTcGenTarg::open_method(CTcCodeStream *stream,
 
     /* set the method properties in the code generator */
     set_in_constructor(is_constructor);
+    set_in_op_overload(is_op_overload);
     stream->set_self_available(is_self_available);
 
     /* we obviously can't combine any past instructions */
@@ -1882,11 +2221,18 @@ void CTcGenTarg::open_method(CTcCodeStream *stream,
      *   their real values after we've generated the byte code.  
      */
     stream->write(argc | (varargs ? 0x80 : 0));           /* argument count */
-    stream->write(0);                                 /* reserved zero byte */
+    stream->write((char)opt_argc);    /* additional optional argument count */
     stream->write2(0); /* number of locals - won't know until after codegen */
     stream->write2(0);      /* total stack - won't know until after codegen */
     stream->write2(0);             /* exception table offset - presume none */
     stream->write2(0);    /* debug record offset - presume no debug records */
+
+    /*
+     *   If the header size in the globals is greater than the fixed size we
+     *   write, pad out the remainder with zero bytes. 
+     */
+    for (int i = G_sizes.mhdr - 10 ; i > 0 ; --i)
+        stream->write(0);
 
     /* remember the starting offset of the code */
     ctx->code_start_ofs = stream->get_ofs();
@@ -1902,8 +2248,10 @@ void CTcGenTarg::open_method(CTcCodeStream *stream,
  *   Close a method 
  */
 void CTcGenTarg::close_method(int local_cnt,
+                              CTcPrsSymtab *local_symtab,
                               CTcTokFileDesc *end_desc, long end_linenum,
-                              tct3_method_gen_ctx *ctx)
+                              tct3_method_gen_ctx *ctx,
+                              CTcNamedArgTab *named_arg_tab_head)
 {
     /* get the output code stream from the context */
     CTcCodeStream *stream = ctx->stream;
@@ -1944,9 +2292,13 @@ void CTcGenTarg::close_method(int local_cnt,
         }
     }
 
+    /* generate any named argument tables */
+    for (CTcNamedArgTab *nt = named_arg_tab_head ; nt != 0 ; nt = nt->nxt)
+        nt->generate();
+
     /* 
      *   release labels allocated for the code block; this will log an error
-     *   if any labels are not defined 
+     *   if any labels are undefined 
      */
     stream->release_labels();
 
@@ -1975,6 +2327,13 @@ void CTcGenTarg::close_method(int local_cnt,
      *   needed for intermediate computations.  
      */
     stream->write2_at(ctx->method_ofs + 4, get_max_sp_depth() + local_cnt);
+
+    /*
+     *   Before writing the exception table, mark the endpoint of the range
+     *   of the main local scope and any enclosing scopes.  
+     */
+    for (CTcPrsSymtab *t = local_symtab ; t != 0 ; t = t->get_parent())
+        t->add_to_range(G_cs->get_ofs() - ctx->method_ofs);
 
     /* 
      *   Generate the exception table, if we have one.  If we have no
@@ -2010,11 +2369,41 @@ void CTcGenTarg::close_method_cleanup(tct3_method_gen_ctx *ctx)
     /* we're no longer in a constructor, if we ever were */
     set_in_constructor(FALSE);
 
+    /* likewise an operator overload method */
+    set_in_op_overload(FALSE);
+
     /* clear the current code body */
     ctx->stream->set_code_body(ctx->old_code_body);
 
     /* always leave the main code stream active by default */
     G_cs = G_cs_main;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Do post-CALL cleanup 
+ */
+void CTcGenTarg::post_call_cleanup(const CTcNamedArgs *named_args)
+{
+    /* write the named argument table pointer, if necessary */
+    if (named_args != 0 && named_args->cnt != 0)
+    {
+        /* 
+         *   We need a named argument table.  Add the table to the curren
+         *   code body, which will generate a label for us to use to
+         *   reference the table.  
+         */
+        CTcCodeLabel *tab_lbl = G_cs->get_code_body()
+                                ->add_named_arg_tab(named_args);
+
+        /* write the op: NamedArgPtr <named arg cnt>, <table offset> */
+        G_cg->write_op(OPC_NAMEDARGPTR);
+        G_cs->write((char)named_args->cnt);
+        G_cs->write_ofs2(tab_lbl, 0);
+
+        /* NamedArgPtr pops the arguments when executed */
+        G_cg->note_pop(named_args->cnt);
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -2055,8 +2444,8 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         2,                                         /* 0x0D - OPC_PUSHPARLST */
         1,                                         /* 0x0E - OPC_MAKELSTPAR */
         5,                                           /* 0x0F - OPC_PUSHENUM */
+        5,                                         /* 0x10 - OPC_PUSHBIFPTR */
 
-        1,                                                 /* 0x10 - unused */
         1,                                                 /* 0x11 - unused */
         1,                                                 /* 0x12 - unused */
         1,                                                 /* 0x13 - unused */
@@ -2081,7 +2470,7 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         1,                                               /* 0x25 - OPC_BAND */
         1,                                                /* 0x26 - OPC_BOR */
         1,                                                /* 0x27 - OPC_SHL */
-        1,                                                /* 0x28 - OPC_SHR */
+        1,                                               /* 0x28 - OPC_ASHR */
         1,                                                /* 0x29 - OPC_XOR */
         1,                                                /* 0x2A - OPC_DIV */
         1,                                                /* 0x2B - OPC_MOD */
@@ -2089,8 +2478,8 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         1,                                            /* 0x2D - OPC_BOOLIZE */
         1,                                                /* 0x2E - OPC_INC */
         1,                                                /* 0x2F - OPC_DEC */
+        1,                                               /* 0x31 - OPC_LSHR */
 
-        1,                                                 /* 0x30 - unused */
         1,                                                 /* 0x31 - unused */
         1,                                                 /* 0x32 - unused */
         1,                                                 /* 0x33 - unused */
@@ -2132,8 +2521,9 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         1,                                                /* 0x54 - OPC_RET */
 
         1,                                                 /* 0x55 - unused */
-        1,                                                 /* 0x56 - unused */
-        1,                                                 /* 0x57 - unused */
+
+        4,                                        /* 0x56 - OPC_NAMEDARGPTR */
+        0,               /* 0x57 - OPC_NAMEDARGTAB - variable-size operands */
 
         6,                                               /* 0x58 - OPC_CALL */
         2,                                            /* 0x59 - OPC_PTRCALL */
@@ -2174,13 +2564,13 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         2,                                        /* 0x78 - OPC_PTRDELEGATE */
 
         1,                                                 /* 0x79 - unused */
-        1,                                                 /* 0x7A - unused */
-        1,                                                 /* 0x7B - unused */
-        1,                                                 /* 0x7C - unused */
-        1,                                                 /* 0x7D - unused */
-        1,                                                 /* 0x7E - unused */
-        1,                                                 /* 0x7F - unused */
+        1,                                                  /* 0x7A - SWAP2 */
+        3,                                                  /* 0x7B - SWAPN */
 
+        1,                                           /* 0x7C - OPC_GETARGN0 */
+        1,                                           /* 0x7D - OPC_GETARGN1 */
+        1,                                           /* 0x7E - OPC_GETARGN2 */
+        1,                                           /* 0x7F - OPC_GETARGN3 */
         2,                                            /* 0x80 - OPC_GETLCL1 */
         3,                                            /* 0x81 - OPC_GETLCL2 */
         2,                                            /* 0x82 - OPC_GETARG1 */
@@ -2198,7 +2588,7 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
 
         2,                                         /* 0x8E - OPC_PUSHCTXELE */
 
-        1,                                                 /* 0x8F - unused */
+        1,                                                   /* 0x8F - DUP2 */
 
         0,                 /* 0x90 - OPC_SWITCH - variable-size instruction */
         3,                                                /* 0x91 - OPC_JMP */
@@ -2218,21 +2608,22 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         3,                                            /* 0x9F - OPC_JNOTNIL */
         3,                                               /* 0xA0 - OPC_JR0T */
         3,                                               /* 0xA1 - OPC_JR0F */
+        5,                                           /* 0xA2 - OPC_ITERNEXT */
 
-        1,                                                 /* 0xA2 - unused */
-        1,                                                 /* 0xA3 - unused */
-        1,                                                 /* 0xA4 - unused */
-        1,                                                 /* 0xA5 - unused */
-        1,                                                 /* 0xA6 - unused */
+        2,                                           /* 0xA3 - GETSETLCL1R0 */
+        2,                                             /* 0xA4 - GETSETLCL1 */
+        1,                                                  /* 0xA5 - DUPR0 */
+        2,                                                 /* 0xA6 - GETSPN */
         1,                                                 /* 0xA7 - unused */
         1,                                                 /* 0xA8 - unused */
         1,                                                 /* 0xA9 - unused */
-        1,                                                 /* 0xAA - unused */
-        1,                                                 /* 0xAB - unused */
-        1,                                                 /* 0xAC - unused */
-        1,                                                 /* 0xAD - unused */
-        1,                                                 /* 0xAE - unused */
-        1,                                                 /* 0xAF - unused */
+
+        1,                                               /* 0xAA - GETLCLN0 */
+        1,                                               /* 0xAB - GETLCLN1 */
+        1,                                               /* 0xAC - GETLCLN2 */
+        1,                                               /* 0xAD - GETLCLN3 */
+        1,                                               /* 0xAE - GETLCLN4 */
+        1,                                               /* 0xAF - GETLCLN5 */
 
         5,                                                /* 0xB0 - OPC_SAY */
         3,                                          /* 0xB1 - OPC_BUILTIN_A */
@@ -2248,8 +2639,8 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         1,                                              /* 0xBA - OPC_INDEX */
         3,                                        /* 0xBB - OPC_IDXLCL1INT8 */
         2,                                           /* 0xBC - OPC_IDXLINT8 */
-
         1,                                                 /* 0xBD - unused */
+
         1,                                                 /* 0xBE - unused */
         1,                                                 /* 0xBF - unused */
 
@@ -2324,7 +2715,7 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
         1,                                                 /* 0xFC - unused */
         1,                                                 /* 0xFD - unused */
         1,                                                 /* 0xFE - unused */
-        255,                                               /* 0xFF - unused */
+        255                                                /* 0xFF - unused */
     };
     
     /* 
@@ -2400,7 +2791,15 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
              *   count UINT2, the final INT2) plus 7 bytes times the number
              *   of cases.  
              */
-            ofs += 5 + 7*str->readu2_at(ofs+1);
+            ofs += 1 + 2 + (VMB_DATAHOLDER + 2)*str->readu2_at(ofs+1) + 2;
+            break;
+
+        case OPC_NAMEDARGTAB:
+            /* 
+             *   NamedArgTab - the first operand is a UINT2 giving the length
+             *   of the table 
+             */
+            ofs += 1 + 2 + str->readu2_at(ofs+1);
             break;
 
         case OPC_JMP:
@@ -2768,8 +3167,6 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
  */
 CTcCodeLabel *CTcPrsNode::gen_jump_ahead(uchar opc)
 {
-    CTcCodeLabel *lbl;
-
     /* 
      *   check to see if we should suppress the jump for peephole
      *   optimization 
@@ -2781,7 +3178,7 @@ CTcCodeLabel *CTcPrsNode::gen_jump_ahead(uchar opc)
     G_cg->write_op(opc);
 
     /* allocate a new label */
-    lbl = G_cs->new_label_fwd();
+    CTcCodeLabel *lbl = G_cs->new_label_fwd();
 
     /* 
      *   write the forward offset to the label (this will generate a fixup
@@ -2883,15 +3280,17 @@ void CTcPrsNode::gen_code_cond(CTcCodeLabel *then_label,
 /*
  *   generate code for assignment to this node 
  */
-int CTcPrsNode::gen_code_asi(int, tc_asitype_t, CTcPrsNode *,
-                             int ignore_error)
+int CTcPrsNode::gen_code_asi(int, int phase, tc_asitype_t, const char *,
+                             CTcPrsNode *,
+                             int ignore_error, int, void **)
 {
     /* 
-     *   if ignoring errors, the caller is trying to assign if possible
-     *   but doesn't require it to be possible; simply return false to
-     *   indicate that nothing happened if this is the case 
+     *   If ignoring errors, the caller is trying to assign if possible but
+     *   doesn't require it to be possible; simply return false to indicate
+     *   that nothing happened if this is the case.  Also ignore errors on
+     *   phase 2, since we'll already have reported an error on phase 1.  
      */
-    if (ignore_error)
+    if (ignore_error || phase > 1)
         return FALSE;
     
     /* we should never get here - throw an internal error */
@@ -2911,7 +3310,8 @@ void CTcPrsNode::gen_code_addr()
 /*
  *   Generate code to call the expression as a function or method.  
  */
-void CTcPrsNode::gen_code_call(int discard, int argc, int varargs)
+void CTcPrsNode::gen_code_call(int discard, int argc, int varargs,
+                               CTcNamedArgs *named_args)
 {
     /* function/method calls are never valid in speculative mode */
     if (G_cg->is_speculative())
@@ -2945,6 +3345,9 @@ void CTcPrsNode::gen_code_call(int discard, int argc, int varargs)
     /* PTRCALL pops the arguments plus the function pointer */
     G_cg->note_pop(argc + 1);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* 
      *   if the caller isn't going to discard the return value, push the
      *   result, which is sitting in R0 
@@ -2959,7 +3362,7 @@ void CTcPrsNode::gen_code_call(int discard, int argc, int varargs)
 /*
  *   Generate code for operator 'new' applied to this node
  */
-void CTcPrsNode::gen_code_new(int, int, int, int, int)
+void CTcPrsNode::gen_code_new(int, int, int, CTcNamedArgs *, int, int)
 {
     /* operator 'new' cannot be applied to a default node */
     G_tok->log_error(TCERR_INVAL_NEW_EXPR);
@@ -2970,7 +3373,8 @@ void CTcPrsNode::gen_code_new(int, int, int, int, int)
  */
 void CTcPrsNode::gen_code_member(int discard,
                                  CTcPrsNode *prop_expr, int prop_is_expr,
-                                 int argc, int varargs)
+                                 int argc, int varargs,
+                                 CTcNamedArgs *named_args)
 {
     /* evaluate my own expression to yield the object value */
     gen_code(FALSE, FALSE);
@@ -2980,7 +3384,8 @@ void CTcPrsNode::gen_code_member(int discard,
         G_cg->write_op(OPC_SWAP);
 
     /* use the generic code to generate the rest */
-    s_gen_member_rhs(discard, prop_expr, prop_is_expr, argc, varargs);
+    s_gen_member_rhs(discard, prop_expr, prop_is_expr,
+                     argc, varargs, named_args);
 }
 
 /*
@@ -2991,12 +3396,14 @@ void CTcPrsNode::gen_code_member(int discard,
  */
 void CTcPrsNode::s_gen_member_rhs(int discard,
                                   CTcPrsNode *prop_expr, int prop_is_expr,
-                                  int argc, int varargs)
+                                  int argc, int varargs,
+                                  CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
 
-    /* we can't call methods with argument in speculative mode */
-    if (argc != 0 && G_cg->is_speculative())
+    /* we can't call methods with arguments in speculative mode */
+    if (G_cg->is_speculative()
+        && (argc != 0 || (named_args != 0 && named_args->cnt != 0)))
         err_throw(VMERR_BAD_SPEC_EVAL);
 
     /* get or generate the property ID value */
@@ -3065,6 +3472,9 @@ void CTcPrsNode::s_gen_member_rhs(int discard,
         G_cg->note_pop(argc + 2);
     }
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if we're not discarding the result, push it from R0 */
     if (!discard)
     {
@@ -3116,7 +3526,8 @@ void CTPNSelf::gen_code(int discard, int)
  */
 void CTPNSelf::gen_code_member(int discard,
                                CTcPrsNode *prop_expr, int prop_is_expr,
-                               int argc, int varargs)
+                               int argc, int varargs,
+                               CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
     
@@ -3125,7 +3536,8 @@ void CTPNSelf::gen_code_member(int discard,
         G_tok->log_error(TCERR_SELF_NOT_AVAIL);
 
     /* don't allow arguments in speculative eval mode */
-    if (argc != 0 && G_cg->is_speculative())
+    if (G_cg->is_speculative()
+        && (argc != 0 || (named_args != 0 && named_args->cnt != 0)))
         err_throw(VMERR_BAD_SPEC_EVAL);
 
     /* generate the property value */
@@ -3214,6 +3626,9 @@ void CTPNSelf::gen_code_member(int discard,
         }
     }
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if the result is needed, push it */
     if (!discard)
     {
@@ -3273,7 +3688,8 @@ void CTPNReplaced::gen_code(int discard, int for_condition)
 /*
  *   'replaced()' call - this invokes the modified base code 
  */
-void CTPNReplaced::gen_code_call(int discard, int argc, int varargs)
+void CTPNReplaced::gen_code_call(int discard, int argc, int varargs,
+                                 CTcNamedArgs *named_args)
 {
     /* get the modified base function symbol */
     CTcSymFunc *mod_base = G_cs->get_code_body()->get_replaced_func();
@@ -3300,13 +3716,17 @@ void CTPNReplaced::gen_code_call(int discard, int argc, int varargs)
     /* call removes arguments */
     G_cg->note_pop(argc);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* make sure the argument count is correct */
-    if (mod_base != 0
-        && (mod_base->is_varargs() ? argc < mod_base->get_argc()
-                                   : argc != mod_base->get_argc()))
+    if (mod_base != 0 && !mod_base->argc_ok(argc))
+    {
+        char buf[128];
         G_tok->log_error(TCERR_WRONG_ARGC_FOR_FUNC,
                          (int)mod_base->get_sym_len(), mod_base->get_sym(),
-                         mod_base->get_argc(), argc);
+                         mod_base->get_argc_desc(buf), argc);
+    }
 
     /* if we're not discarding, push the return value from R0 */
     if (!discard)
@@ -3388,6 +3808,26 @@ void CTPNDefiningobj::gen_code(int discard, int)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   "invokee" 
+ */
+
+/*
+ *   generate code 
+ */
+void CTPNInvokee::gen_code(int discard, int)
+{
+    /* if we're not discarding the result, push the invokee value */
+    if (!discard)
+    {
+        G_cg->write_op(OPC_PUSHCTXELE);
+        G_cs->write(PUSHCTXELE_INVOKEE);
+        G_cg->note_push();
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   "inherited" 
  */
 void CTPNInh::gen_code(int, int)
@@ -3405,7 +3845,7 @@ void CTPNInh::gen_code(int, int)
  */
 void CTPNInh::gen_code_member(int discard,
                               CTcPrsNode *prop_expr, int prop_is_expr,
-                              int argc, int varargs)
+                              int argc, int varargs, CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
 
@@ -3425,7 +3865,8 @@ void CTPNInh::gen_code_member(int discard,
         if (f != 0 && f->is_multimethod())
         {
             /* generate the multi-method inherited() code */
-            gen_code_mminh(f, discard, prop_expr, prop_is_expr, argc, varargs);
+            gen_code_mminh(f, discard, prop_expr, prop_is_expr,
+                           argc, varargs, named_args);
 
             /* we're done */
             return;
@@ -3487,6 +3928,9 @@ void CTPNInh::gen_code_member(int discard,
         G_cg->note_pop(argc + 1);
     }
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if the result is needed, push it */
     if (!discard)
     {
@@ -3497,8 +3941,19 @@ void CTPNInh::gen_code_member(int discard,
 
 void CTPNInh::gen_code_mminh(CTcSymFunc *func, int discard,
                              CTcPrsNode *prop_expr, int prop_is_expr,
-                             int argc, int varargs)
+                             int argc, int varargs,
+                             CTcNamedArgs *named_args)
 {
+    /*
+     *   If the function has an associated global symbol from a modification,
+     *   use the global symbol instead.  The modified function doesn't have a
+     *   real symbol, so we can't use it; but fortunately, the global symbol
+     *   applies to all modified versions as well, since they all inherit
+     *   from the same base function.  
+     */
+    while (func->get_mod_global() != 0)
+        func = func->get_mod_global();
+
     /*
      *   There are two forms of inherited() for multi-methods.
      *   
@@ -3532,7 +3987,7 @@ void CTPNInh::gen_code_mminh(CTcSymFunc *func, int discard,
         else
         {
             /* generate the call */
-            mmci->gen_code_call(discard, argc + 1, varargs);
+            mmci->gen_code_call(discard, argc + 1, varargs, named_args);
         }
     }
     else
@@ -3567,7 +4022,7 @@ void CTPNInh::gen_code_mminh(CTcSymFunc *func, int discard,
         if (ifunc != 0 && ifunc->get_type() == TC_SYM_FUNC)
         {
             /* generate the call */
-            ifunc->gen_code_call(discard, argc, varargs);
+            ifunc->gen_code_call(discard, argc, varargs, named_args);
         }
         else
         {
@@ -3596,7 +4051,8 @@ void CTPNInhClass::gen_code(int discard, int for_condition)
  */
 void CTPNInhClass::gen_code_member(int discard,
                                    CTcPrsNode *prop_expr, int prop_is_expr,
-                                   int argc, int varargs)
+                                   int argc, int varargs,
+                                   CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
     CTcSymbol *objsym;
@@ -3670,6 +4126,9 @@ void CTPNInhClass::gen_code_member(int discard,
         G_cg->note_pop(argc + 1);
     }
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if the result is needed, push it */
     if (!discard)
     {
@@ -3696,7 +4155,8 @@ void CTPNDelegated::gen_code(int discard, int for_condition)
  */
 void CTPNDelegated::gen_code_member(int discard,
                                     CTcPrsNode *prop_expr, int prop_is_expr,
-                                    int argc, int varargs)
+                                    int argc, int varargs,
+                                    CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
 
@@ -3761,6 +4221,9 @@ void CTPNDelegated::gen_code_member(int discard,
         /* this removes arguments, the object, and the property pointer */
         G_cg->note_pop(argc + 2);
     }
+
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
 
     /* if the result is needed, push it */
     if (!discard)
@@ -3838,21 +4301,11 @@ void CTPNConst::gen_code(int discard, int)
         break;
 
     case TC_CVT_SSTR:
-        /* write the instruction to push a constant pool string */
-        G_cg->write_op(OPC_PUSHSTR);
-        
-        /* 
-         *   add the string to the constant pool, creating a fixup at the
-         *   current code stream location 
-         */
-        G_cg->add_const_str(val_.get_val_str(), val_.get_val_str_len(),
-                            G_cs, G_cs->get_ofs());
+        /* generate the string */
+        s_gen_code_str(&val_);
 
-        /* 
-         *   write a placeholder address - this will be corrected by the
-         *   fixup that add_const_str() created for us 
-         */
-        G_cs->write4(0);
+        /* s_gen_code_int notes a push, which we'll do also, so cancel it */
+        G_cg->note_pop();
         break;
 
     case TC_CVT_LIST:
@@ -3921,6 +4374,33 @@ void CTPNConst::gen_code(int discard, int)
     G_cg->note_push();
 }
 
+int CTPNConst::gen_code_asi(int discard, int phase,
+                            tc_asitype_t typ, const char *op,
+                            CTcPrsNode *, 
+                            int ignore_errors, int, void **)
+{
+    /* 
+     *   If ignoring errors, just indicate that we can't do the assignment.
+     *   Also ignore errors on phase 2, since we'll already have generated an
+     *   error during phase 1. 
+     */
+    if (ignore_errors || phase > 1)
+        return FALSE;
+
+    /* 
+     *   We can't assign to a constant.  The parser will catch most errors of
+     *   this type before we ever get here, but for expressions that resolve
+     *   to global symbols (such as objects or functions), it can't know
+     *   until code generation time that the expression won't be assignable. 
+     */
+    G_tok->log_error(typ == TC_ASI_PREINC || typ == TC_ASI_PREDEC
+                     || typ == TC_ASI_POSTINC || typ == TC_ASI_POSTDEC
+                     ? TCERR_INVALID_UNARY_LVALUE : TCERR_INVALID_LVALUE,
+                     op);
+    return FALSE;
+}
+
+
 /*
  *   generate code to push an integer value 
  */
@@ -3955,10 +4435,71 @@ void CTPNConst::s_gen_code_int(long intval)
 }
 
 /*
+ *   Generate code to push a symbol's name as a string constant value 
+ */
+void CTPNConst::s_gen_code_str(const CTcSymbol *sym)
+{
+    /* generate the string for the symbol name */
+    s_gen_code_str(sym->get_sym(), sym->get_sym_len());
+}
+
+/*
+ *   Generate code to push a symbol's name as a string constant value,
+ *   according to the code generation mode.
+ */
+void CTPNConst::s_gen_code_str_by_mode(const CTcSymbol *sym)
+{
+    /* check the mode */
+    if (G_cg->is_eval_for_dyn())
+    {
+        /* dynamic evaluation - use in-line strings */
+        CTPNDebugConst::s_gen_code_str(sym->get_sym(), sym->get_sym_len());
+    }
+    else
+    {
+        /* static compilation - use the constant pool */
+        s_gen_code_str(sym->get_sym(), sym->get_sym_len());
+    }
+}
+
+/*
+ *   Generate code to push a string constant value 
+ */
+void CTPNConst::s_gen_code_str(const CTcConstVal *val)
+{
+    s_gen_code_str(val->get_val_str(), val->get_val_str_len());
+}
+
+/*
+ *   Generate code to push a string constant value 
+ */
+void CTPNConst::s_gen_code_str(const char *str, size_t len)
+{
+    /* write the instruction to push a constant pool string */
+    G_cg->write_op(OPC_PUSHSTR);
+
+    /* note the push */
+    G_cg->note_push();
+
+    /* 
+     *   add the string to the constant pool, creating a fixup at the current
+     *   code stream location 
+     */
+    G_cg->add_const_str(str, len, G_cs, G_cs->get_ofs());
+
+    /* 
+     *   write a placeholder address - this will be corrected by the fixup
+     *   that add_const_str() created for us 
+     */
+    G_cs->write4(0);
+}
+
+/*
  *   Generate code to apply operator 'new' to the constant.  We can apply
  *   'new' only to constant object values. 
  */
-void CTPNConst::gen_code_new(int discard, int argc, int varargs,
+void CTPNConst::gen_code_new(int discard,
+                             int argc, int varargs, CTcNamedArgs *named_args,
                              int /*from_call*/, int is_transient)
 {
     /* check the type */
@@ -3973,7 +4514,7 @@ void CTPNConst::gen_code_new(int discard, int argc, int varargs,
          */
         CTcSymObj::s_gen_code_new(discard,
                                   val_.get_val_obj(), val_.get_val_obj_meta(),
-                                  argc, varargs, is_transient);
+                                  argc, varargs, named_args, is_transient);
         break;
 
     default:
@@ -3987,14 +4528,16 @@ void CTPNConst::gen_code_new(int discard, int argc, int varargs,
  *   Generate code to make a function call to this expression.  If we're
  *   calling a function, we can generate this directly.  
  */
-void CTPNConst::gen_code_call(int discard, int argc, int varargs)
+void CTPNConst::gen_code_call(int discard, int argc,
+                              int varargs, CTcNamedArgs *named_args)
 {
     /* check our type */
     switch(val_.get_type())
     {
     case TC_CVT_FUNCPTR:
         /* generate a call to our function symbol */
-        val_.get_val_funcptr_sym()->gen_code_call(discard, argc, varargs);
+        val_.get_val_funcptr_sym()->gen_code_call(
+            discard, argc, varargs, named_args);
         break;
 
     default:
@@ -4030,7 +4573,7 @@ vm_prop_id_t CTPNConst::gen_code_propid(int check_only, int is_expr)
  */
 void CTPNConst::gen_code_member(int discard,
                                 CTcPrsNode *prop_expr, int prop_is_expr,
-                                int argc, int varargs)
+                                int argc, int varargs, CTcNamedArgs *named_args)
 {
     /* check our constant type */
     switch(val_.get_type())
@@ -4038,7 +4581,8 @@ void CTPNConst::gen_code_member(int discard,
     case TC_CVT_OBJ:
         /* call the object symbol code to do the work */
         CTcSymObj::s_gen_code_member(discard, prop_expr, prop_is_expr,
-                                     argc, val_.get_val_obj(), varargs);
+                                     argc, val_.get_val_obj(),
+                                     varargs, named_args);
         break;
 
     case TC_CVT_LIST:
@@ -4056,7 +4600,7 @@ void CTPNConst::gen_code_member(int discard,
 
         /* use standard member generation */
         CTcPrsNode::s_gen_member_rhs(discard, prop_expr, prop_is_expr,
-                                     argc, varargs);
+                                     argc, varargs, named_args);
         break;
 
     default:
@@ -4099,18 +4643,53 @@ void CTPNDebugConst::gen_code(int discard, int for_condition)
     switch(val_.get_type())
     {
     case TC_CVT_SSTR:
-        /* write the in-line string instruction */
-        G_cg->write_op(OPC_PUSHSTRI);
-        G_cs->write2(val_.get_val_str_len());
-        G_cs->write(val_.get_val_str(), val_.get_val_str_len());
+        if (val_.get_val_str() == 0)
+        {
+            /* validate the string address */
+            if (G_vmifc
+                && !G_vmifc->validate_pool_str(val_.get_val_str_ofs()))
+            {
+                /* treat it as nil */
+                G_cg->write_op(OPC_PUSHNIL);
+                G_cg->note_push();
+                break;
+            }
 
-        /* note the value push */
-        G_cg->note_push();
+            /* we have a pre-resolved pool offset */
+            G_cg->write_op(OPC_PUSHSTR);
+            G_cs->write4(val_.get_val_str_ofs());
+            G_cg->note_push();
+        }
+        else
+        {
+            /* write the in-line string instruction */
+            s_gen_code_str(val_.get_val_str(), val_.get_val_str_len());
+        }
         break;
 
     case TC_CVT_LIST:
-        /* we should never have a constant list when debugging */
-        assert(FALSE);
+        if (val_.get_val_list() == 0)
+        {
+            /* validate the list address */
+            if (G_vmifc
+                && !G_vmifc->validate_pool_list(val_.get_val_list_ofs()))
+            {
+                /* treat it as nil */
+                G_cg->write_op(OPC_PUSHNIL);
+                G_cg->note_push();
+                break;
+            }
+
+            /* we have a pre-resolved pool offset */
+            G_cg->write_op(OPC_PUSHLST);
+            G_cs->write4(val_.get_val_list_ofs());
+            G_cg->note_push();
+        }
+        else
+        {
+            /* we should never have a regular constant list when debugging */
+            assert(FALSE);
+        }
         break;
 
     case TC_CVT_FUNCPTR:
@@ -4127,24 +4706,46 @@ void CTPNDebugConst::gen_code(int discard, int for_condition)
         G_cg->note_push();
         break;
 
+    case TC_CVT_BIFPTR:
+        /* validate the property ID if possible */
+        if (G_vmifc &&
+            !G_vmifc->validate_bif(
+                val_.get_val_bifptr_sym()->get_func_set_id(),
+                val_.get_val_bifptr_sym()->get_func_idx()))
+        {
+            /* treat it as nil */
+            G_cg->write_op(OPC_PUSHNIL);
+            G_cg->note_push();
+            break;
+        }       
+
+        /* generate the built-in function pointer instruction */
+        G_cg->write_op(OPC_PUSHBIFPTR);
+        G_cs->write2(val_.get_val_bifptr_sym()->get_func_idx());
+        G_cs->write2(val_.get_val_bifptr_sym()->get_func_set_id());
+
+        /* note the value push */
+        G_cg->note_push();
+        break;
+
     case TC_CVT_ANONFUNCPTR:
         /* 
-         *   we should never see an anonymous function pointer in the
-         *   debugger 
+         *   we should never see an anonymous function pointer constant in
+         *   the debugger - these will always be represented as objects
+         *   intead 
          */
         assert(FALSE);
         break;
 
     case TC_CVT_FLOAT:
         {
-            CTcSymMetaclass *sym;
-
             /* 
              *   find the 'BigNumber' metaclass - if it's not defined, we
              *   can't create BigNumber values 
              */
-            sym = (CTcSymMetaclass *)G_prs->get_global_symtab()
-                  ->find("BigNumber", 9);
+            CTcSymMetaclass *sym =
+                (CTcSymMetaclass *)G_prs->get_global_symtab()->find(
+                    "BigNumber", 9);
             if (sym == 0 || sym->get_type() != TC_SYM_METACLASS)
                 err_throw(VMERR_INVAL_DBG_EXPR);
 
@@ -4169,11 +4770,54 @@ void CTPNDebugConst::gen_code(int discard, int for_condition)
         }
         break;
 
+    case TC_CVT_OBJ:
+        /* validate the object ID if possible */
+        if (G_vmifc && !G_vmifc->validate_obj(val_.get_val_obj()))
+        {
+            /* treat it as nil */
+            G_cg->write_op(OPC_PUSHNIL);
+            G_cg->note_push();
+            break;
+        }
+
+        /* use the default handling */
+        goto use_default;
+
+    case TC_CVT_PROP:
+        /* validate the property ID if possible */
+        if (G_vmifc &&
+            !G_vmifc->validate_prop((tctarg_prop_id_t)val_.get_val_prop()))
+        {
+            /* treat it as nil */
+            G_cg->write_op(OPC_PUSHNIL);
+            G_cg->note_push();
+            break;
+        }
+
+        /* use the default handling */
+        goto use_default;
+
     default:
+    use_default:
         /* handle normally for anything else */
         CTPNConst::gen_code(discard, for_condition);
         break;
     }
+}
+
+/*
+ *   Generate a string value in a debug/dynamic code context.  This generates
+ *   an in-line string rather than a constant pool reference.  
+ */
+void CTPNDebugConst::s_gen_code_str(const char *str, size_t len)
+{
+    /* write the PUSHSTRI <len> <string bytes> */
+    G_cg->write_op(OPC_PUSHSTRI);
+    G_cs->write2(len);
+    G_cs->write(str, len);
+
+    /* note the value push */
+    G_cg->note_push();
 }
 
 
@@ -4249,13 +4893,29 @@ void CTPNBin::gen_binary(uchar opc, int discard, int for_condition)
         G_cg->write_op(opc);
 
         /* 
-         *   boolean operators all remove two values and push one, so
-         *   there's a net pop 
+         *   binary operators all remove two values and push one, so there's
+         *   a net pop 
          */
         G_cg->note_pop();
     }
 }
 
+/*
+ *   Generate a binary-operator opcode for a compound assignment.  This omits
+ *   generating the left operand, because the compound assignment operator
+ *   will already have done that.  
+ */
+void CTPNBin::gen_binary_ca(uchar opc)
+{
+    /* generate the right operand (the left is already on the stack) */
+    right_->gen_code(FALSE, FALSE);
+
+    /* generate the operator */
+    G_cg->write_op(opc);
+
+    /* a binary op removes two values and pushes one */
+    G_cg->note_pop();
+}
 
 
 /* ------------------------------------------------------------------------ */
@@ -4296,6 +4956,13 @@ void CTPNBoolize::gen_code(int discard, int for_condition)
         /* done */
         return;
     }
+
+    /* 
+     *   if the sub-expression is already guaranteed to be a boolean value,
+     *   there's nothing we need to do 
+     */
+    if (sub_->is_bool())
+        return;
     
     /*
      *   Generate the subexpression and apply the BOOLIZE operator.  Since
@@ -4345,16 +5012,18 @@ void CTPNNeg::gen_code(int discard, int)
  */
 void CTPNPreInc::gen_code(int discard, int)
 {
-    /* ask the subnode to generate it */
-    if (!sub_->gen_code_asi(discard, TC_ASI_PREINC, 0, FALSE))
-    {
-        /* 
-         *   the subnode didn't handle it - generate code to evaluate the
-         *   subnode, increment that value, then assign the result back to
-         *   the subnode with a simple assignment 
-         */
-        sub_->gen_code(FALSE, FALSE);
+    /* use the static handler */
+    CTPNPreInc_gen_code(sub_, discard);
+}
 
+/* static pre-inc code generator, for sharing with other nodes */
+void CTPNPreInc_gen_code(CTcPrsNode *sub, int discard)
+{
+    /* ask the subnode to generate it */
+    void *ctx;
+    if (!sub->gen_code_asi(discard, 1, TC_ASI_PREINC, "++",
+                           0, FALSE, TRUE, &ctx))
+    {
         /* increment the value at top of stack */
         G_cg->write_op(OPC_INC);
 
@@ -4364,7 +5033,8 @@ void CTPNPreInc::gen_code(int discard, int)
          *   value on the stack, since the result is the value *after* the
          *   increment 
          */
-        sub_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        sub->gen_code_asi(discard, 2, TC_ASI_PREINC, "++",
+                          0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -4375,15 +5045,10 @@ void CTPNPreInc::gen_code(int discard, int)
 void CTPNPreDec::gen_code(int discard, int)
 {
     /* ask the subnode to generate it */
-    if (!sub_->gen_code_asi(discard, TC_ASI_PREDEC, 0, FALSE))
+    void *ctx;
+    if (!sub_->gen_code_asi(discard, 1, TC_ASI_PREDEC, "--",
+                            0, FALSE, TRUE, &ctx))
     {
-        /* 
-         *   the subnode didn't handle it - generate code to evaluate the
-         *   subnode, decrement that value, then assign the result back to
-         *   the subnode with a simple assignment 
-         */
-        sub_->gen_code(FALSE, FALSE);
-
         /* decrement the value at top of stack */
         G_cg->write_op(OPC_DEC);
 
@@ -4393,7 +5058,8 @@ void CTPNPreDec::gen_code(int discard, int)
          *   value on the stack, since the result is the value *after* the
          *   decrement 
          */
-        sub_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        sub_->gen_code_asi(discard, 2, TC_ASI_PREDEC, "--",
+                           0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -4404,15 +5070,10 @@ void CTPNPreDec::gen_code(int discard, int)
 void CTPNPostInc::gen_code(int discard, int)
 {
     /* ask the subnode to generate it */
-    if (!sub_->gen_code_asi(discard, TC_ASI_POSTINC, 0, FALSE))
+    void *ctx;
+    if (!sub_->gen_code_asi(discard, 1, TC_ASI_POSTINC, "++",
+                            0, FALSE, TRUE, &ctx))
     {
-        /* 
-         *   the subnode didn't handle it - generate code to evaluate the
-         *   subnode, increment that value, then assign the result back to
-         *   the subnode with a simple assignment 
-         */
-        sub_->gen_code(FALSE, FALSE);
-
         /* 
          *   if we're keeping the result, duplicate the value at top of
          *   stack prior to the increment - since this is a
@@ -4435,7 +5096,8 @@ void CTPNPostInc::gen_code(int discard, int)
          *   because we've already pushed the actual result, which is the
          *   original value before the increment operation.
          */
-        sub_->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, FALSE);
+        sub_->gen_code_asi(TRUE, 2, TC_ASI_POSTINC, "++",
+                           0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -4446,15 +5108,10 @@ void CTPNPostInc::gen_code(int discard, int)
 void CTPNPostDec::gen_code(int discard, int)
 {
     /* ask the subnode to generate it */
-    if (!sub_->gen_code_asi(discard, TC_ASI_POSTDEC, 0, FALSE))
+    void *ctx;
+    if (!sub_->gen_code_asi(discard, 1, TC_ASI_POSTDEC, "--",
+                            0, FALSE, TRUE, &ctx))
     {
-        /* 
-         *   the subnode didn't handle it - generate code to evaluate the
-         *   subnode, decrement that value, then assign the result back to
-         *   the subnode with a simple assignment 
-         */
-        sub_->gen_code(FALSE, FALSE);
-
         /* 
          *   if we're keeping the result, duplicate the value at top of
          *   stack prior to the decrement - since this is a
@@ -4477,7 +5134,8 @@ void CTPNPostDec::gen_code(int discard, int)
          *   because we've already pushed the actual result, which is the
          *   original value before the decrement operation.
          */
-        sub_->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, FALSE);
+        sub_->gen_code_asi(TRUE, 2, TC_ASI_POSTDEC, "--",
+                           0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -4491,7 +5149,7 @@ void CTPNNew::gen_code(int discard, int /*for condition*/)
      *   ask my subexpression to generate the code - at this point we
      *   don't know the number of arguments, so pass in zero for now 
      */
-    sub_->gen_code_new(discard, 0, FALSE, FALSE, transient_);
+    sub_->gen_code_new(discard, 0, FALSE, 0, FALSE, transient_);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -4575,10 +5233,11 @@ void CTPNOr::gen_code(int discard, int for_condition)
     def_label_pos(lbl);
 
     /* 
-     *   if the result is not going to be used directly for a condition,
-     *   we must boolean-ize the value 
+     *   If the result is not going to be used directly for a condition, we
+     *   must boolean-ize the value.  This isn't necessary if both of the
+     *   operands are already guaranteed to be boolean values.  
      */
-    if (!for_condition)
+    if (!for_condition && !(left_->is_bool() && right_->is_bool()))
         G_cg->write_op(OPC_BOOLIZE);
 }
 
@@ -4672,10 +5331,11 @@ void CTPNAnd::gen_code(int discard, int for_condition)
     G_cg->note_pop();
 
     /* 
-     *   if the result is not going to be used directly for a condition,
-     *   we must boolean-ize the value 
+     *   If the result is not going to be used directly for a condition, we
+     *   must boolean-ize the value.  This isn't necessary if both of the
+     *   sub-expressions are already guaranteed to be boolean values.  
      */
-    if (!for_condition)
+    if (!for_condition && !(left_->is_bool() && right_->is_bool()))
         G_cg->write_op(OPC_BOOLIZE);
 }
 
@@ -4998,11 +5658,20 @@ void CTPNShl::gen_code(int discard, int)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   bit-shift right
+ *   arithmetic shift right '>>'
  */
-void CTPNShr::gen_code(int discard, int)
+void CTPNAShr::gen_code(int discard, int)
 {
-    gen_binary(OPC_SHR, discard, FALSE);
+    gen_binary(OPC_ASHR, discard, FALSE);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   logical shift right '>>>'
+ */
+void CTPNLShr::gen_code(int discard, int)
+{
+    gen_binary(OPC_LSHR, discard, FALSE);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -5196,7 +5865,8 @@ void CTPNAsi::gen_code(int discard, int)
      *   on the right.  Simple assignments cannot be refused, so we don't
      *   need to try to do any assignment work ourselves.  
      */
-    left_->gen_code_asi(discard, TC_ASI_SIMPLE, right_, FALSE);
+    left_->gen_code_asi(discard, 1, TC_ASI_SIMPLE, "=",
+                        right_, FALSE, TRUE, 0);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -5205,19 +5875,36 @@ void CTPNAsi::gen_code(int discard, int)
  */
 void CTPNAddAsi::gen_code(int discard, int)
 {
+    /* use the static handler */
+    CTPNAddAsi_gen_code(left_, right_, discard);
+}
+
+/* static handler, for sharing with other node types */
+void CTPNAddAsi_gen_code(CTcPrsNode *left, CTcPrsNode *right, int discard)
+{
     /* 
      *   ask the left subnode to generate an add-and-assign; if it can't,
      *   handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_ADD, right_, FALSE))
+    void *ctx;
+    if (!left->gen_code_asi(discard, 1, TC_ASI_ADD, "+=",
+                            right, FALSE, TRUE, &ctx))
     {
         /* 
-         *   there's no special coding for this assignment type -- compute
+         *   There's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
-         *   assignment, which cannot be refused
+         *   assignment, which cannot be refused.  We've already generated
+         *   the left side above, so generate the right side.  
          */
-        gen_binary(OPC_ADD, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        right->gen_code(FALSE, FALSE);
+
+        /* generate the add (which pops two and adds one -> net one pop) */
+        G_cg->write_op(OPC_ADD);
+        G_cg->note_pop();
+
+        /* generate the simple assignment to the lhs */
+        left->gen_code_asi(discard, 2, TC_ASI_ADD, "+=",
+                           0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5231,15 +5918,18 @@ void CTPNSubAsi::gen_code(int discard, int)
      *   ask the left subnode to generate a subtract-and-assign; if it
      *   can't, handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_SUB, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_SUB, "-=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_SUB, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_SUB);
+        left_->gen_code_asi(discard, 2, TC_ASI_SUB, "-=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5253,15 +5943,18 @@ void CTPNMulAsi::gen_code(int discard, int)
      *   ask the left subnode to generate a multiply-and-assign; if it
      *   can't, handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_MUL, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_MUL, "*=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_MUL, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_MUL);
+        left_->gen_code_asi(discard, 2, TC_ASI_MUL, "*=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5275,15 +5968,18 @@ void CTPNDivAsi::gen_code(int discard, int)
      *   ask the left subnode to generate a divide-and-assign; if it
      *   can't, handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_DIV, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_DIV, "/=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_DIV, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_DIV);
+        left_->gen_code_asi(discard, 2, TC_ASI_DIV, "/=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5297,15 +5993,18 @@ void CTPNModAsi::gen_code(int discard, int)
      *   ask the left subnode to generate a mod-and-assign; if it can't,
      *   handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_MOD, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_MOD, "%=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_MOD, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_MOD);
+        left_->gen_code_asi(discard, 2, TC_ASI_MOD, "%=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5319,15 +6018,18 @@ void CTPNBAndAsi::gen_code(int discard, int)
      *   ask the left subnode to generate an AND-and-assign; if it can't,
      *   handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_BAND, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_BAND, "&=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_BAND, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_BAND);
+        left_->gen_code_asi(discard, 2, TC_ASI_BAND, "&=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5341,15 +6043,18 @@ void CTPNBOrAsi::gen_code(int discard, int)
      *   ask the left subnode to generate an OR-and-assign; if it can't,
      *   handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_BOR, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_BOR, "|=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_BOR, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_BOR);
+        left_->gen_code_asi(discard, 2, TC_ASI_BOR, "|=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5363,15 +6068,18 @@ void CTPNBXorAsi::gen_code(int discard, int)
      *   ask the left subnode to generate an XOR-and-assign; if it can't,
      *   handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_BXOR, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_BXOR, "^=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_XOR, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_XOR);
+        left_->gen_code_asi(discard, 2, TC_ASI_BXOR, "^=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5385,37 +6093,68 @@ void CTPNShlAsi::gen_code(int discard, int)
      *   ask the left subnode to generate an shift-left-and-assign; if it
      *   can't, handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_SHL, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_SHL, "<<=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_SHL, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_SHL);
+        left_->gen_code_asi(discard, 2, TC_ASI_SHL, "<<=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
 /* ------------------------------------------------------------------------ */
 /*
- *   bit-shift right and assign
+ *   arithmetic shift right and assign '>>='
  */
-void CTPNShrAsi::gen_code(int discard, int)
+void CTPNAShrAsi::gen_code(int discard, int)
 {
     /* 
      *   ask the left subnode to generate a shift-right-and-assign; if it
      *   can't, handle it generically 
      */
-    if (!left_->gen_code_asi(discard, TC_ASI_SHR, right_, FALSE))
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_ASHR, ">>=",
+                             right_, FALSE, TRUE, &ctx))
     {
         /* 
          *   there's no special coding for this assignment type -- compute
          *   the result generically, then assign the result as a simple
          *   assignment, which cannot be refused 
          */
-        gen_binary(OPC_SHR, FALSE, FALSE);
-        left_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        gen_binary_ca(OPC_ASHR);
+        left_->gen_code_asi(discard, 2, TC_ASI_ASHR, ">>=",
+                            0, FALSE, TRUE, &ctx);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   logical shift right and assign '>>>=' 
+ */
+void CTPNLShrAsi::gen_code(int discard, int)
+{
+    /* 
+     *   ask the left subnode to generate a shift-right-and-assign; if it
+     *   can't, handle it generically 
+     */
+    void *ctx;
+    if (!left_->gen_code_asi(discard, 1, TC_ASI_LSHR, ">>>=",
+                             right_, FALSE, TRUE, &ctx))
+    {
+        /* 
+         *   there's no special coding for this assignment type -- compute
+         *   the result generically, then assign the result as a simple
+         *   assignment, which cannot be refused 
+         */
+        gen_binary_ca(OPC_LSHR);
+        left_->gen_code_asi(discard, 2, TC_ASI_LSHR, ">>>=",
+                            0, FALSE, TRUE, &ctx);
     }
 }
 
@@ -5431,92 +6170,319 @@ void CTPNSubscript::gen_code(int discard, int)
 /*
  *   assign to a subscripted value
  */
-int CTPNSubscript::gen_code_asi(int discard, tc_asitype_t typ,
-                                CTcPrsNode *rhs, int)
+int CTPNSubscript::gen_code_asi(int discard, int phase,
+                                tc_asitype_t typ, const char *op,
+                                CTcPrsNode *rhs,
+                                int, int xplicit, void **ctx)
 {
-    /* 
-     *   If this isn't a simple assignment, tell the caller to emit the
-     *   generic code to compute the composite result, then call us again
-     *   for a simple assignment.  We can't add any value with specialized
-     *   instructions for composite assignments, so there's no point in
-     *   dealing with those here. 
-     */
-    if (typ != TC_ASI_SIMPLE)
-        return FALSE;
-    
-    /* 
-     *   Generate the value to assign to the element - that's the right
-     *   side of the assignment operator.  If rhs is null, it means the
-     *   caller has already done this.  
-     */
-    if (rhs != 0)
-        rhs->gen_code(FALSE, FALSE);
+    void *sctx;
 
     /* 
-     *   if we're not discarding the result, duplicate the value to be
-     *   assigned, so that it's left on the stack after we're finished
-     *   (this is necessary because we'll consume one copy with the SETIND
-     *   instruction) 
+     *   An assignment to a subscript expression is not what it appears.
+     *   It's actually a compound assignment that evaluates the subscript
+     *   expression, assigns the RHS, and then assigns the *result* of that
+     *   first assignment to the left operand of the index operator.  In
+     *   other words, a[b]=c is effectively rewritten as this:
+     *   
+     *.     a = a.operator[]=(b, c)
+     *   
+     *   which, by analogy with the other compound assignment operators, we
+     *   can rewrite as
+     *   
+     *.     a []== (b, c)
      */
+    if (typ == TC_ASI_SIMPLE)
+    {
+        int rhs_depth;
+        int extra_disc = 0;
+        
+        /*
+         *   Simple assignment.  Generate the value to assign to the element
+         *   - that's the right side of the assignment operator.  If rhs is
+         *   null, it means the caller has already done this.  
+         */
+        if (rhs != 0)
+        {
+            /* generate code for the RHS */
+            rhs->gen_code(FALSE, FALSE);
+        }
+        
+        /* 
+         *   if we're not discarding the result, duplicate the value to be
+         *   assigned, so that it's left on the stack after we're finished
+         *   (this is necessary because we'll consume one copy with the
+         *   SETIND instruction) 
+         */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+        }
+        
+        /* note the stack depth where the RHS value resides */
+        rhs_depth = G_cg->get_sp_depth();
+
+        /* 
+         *   Generate the value to be subscripted - that's my left-hand side.
+         *   Generate this as phase 1 of a two-phase assignment, with the
+         *   special pseudo-operator '[]='.  (Ignore the return value; no one
+         *   can fully handle this type of assignment in phase 1.  Also, note
+         *   that we don't yet have the right-hand value to assign - it's the
+         *   result of the SETIND yet to come.)  
+         */
+        left_->gen_code_asi(FALSE, 1, TC_ASI_IDX, op,
+                            0, TRUE, xplicit, &sctx);
+
+        /*
+         *   The phase 1 []= code could have left context information on the
+         *   stack that it will need in phase 2, in addition to the LHS value
+         *   that we need for the SETIND we're about to generate.  For the
+         *   SETIND, we need the RHS value at index 1, just above the LHS
+         *   value.  So if the new depth is more than 1 greater than the RHS
+         *   depth, we need to do some stack rearrangement.  
+         */
+        if (G_cg->get_sp_depth() != rhs_depth + 1)
+        {
+            /* figure the distance to the RHS */
+            int dist = G_cg->get_sp_depth() - rhs_depth;
+
+            /* the instruction can only accommodate a distance up to 255 */
+            if (dist > 255)
+                G_tok->log_error(TCERR_EXPR_TOO_COMPLEX);
+
+            /* re-push the RHS */
+            G_cg->write_op(OPC_GETSPN);
+            G_cs->write((uchar)dist);
+            G_cg->note_push();
+
+            /* 
+             *   swap it with the left operand of the [] to get everything in
+             *   the proper order 
+             */
+            G_cg->write_op(OPC_SWAP);
+
+            /* 
+             *   the original RHS we pushed is now superfluous, so we'll need
+             *   to explicitly pop it when we're done 
+             */
+            extra_disc += 1;
+        }
+
+        /* generate the index value - that's my right-hand side */
+        right_->gen_code(FALSE, FALSE);
+
+        /* generate the assign-to-indexed-value opcode */
+        G_cg->write_op(OPC_SETIND);
+        
+        /* setind pops three and pushes one - net of pop 2 */
+        G_cg->note_pop(2);
+
+        /*
+         *   The top value now on the stack is the new container value.  The
+         *   new container will be different from the old container in some
+         *   cases (with lists, for example, because we must create a new
+         *   list object to contain the modified list value).  Therefore, if
+         *   my left-hand side is an lvalue, we must assign the new container
+         *   to the left-hand side - this makes something like "x[1] = 5"
+         *   actually change the value in "x" if "x" is a local variable.  If
+         *   my left-hand side isn't an lvalue, don't bother with this step,
+         *   and simply discard the new container value.
+         *   
+         *   Handle the assignment to the new container as phase 2 of the
+         *   '[]=' pseudo-operator that we set up above.  This ensures that
+         *   the left operand had a chance to save any sub-expression values,
+         *   which it can now reuse.
+         *   
+         *   Regardless of whether we're keeping the result of the overall
+         *   expression, we're definitely not keeping the result of assigning
+         *   the new container - the result of the assignment is the value
+         *   assigned, not the container.  Thus, discard = true in this call.
+         *   
+         *   
+         *   There's a special case that's handled through the peep-hole
+         *   optimizer: if we are assigning to a local variable and indexing
+         *   with a constant integer value, we will have converted the whole
+         *   operation to a SETINDLCL1I8.  That instruction takes care of
+         *   assigning the value back to the rvalue, so we don't need to
+         *   generate a separate rvalue assignment.  
+         */
+        if (G_cg->get_last_op() == OPC_SETINDLCL1I8)
+        {
+            /* 
+             *   no assignment is necessary - we just need to account for the
+             *   difference in the stack arrangement with this form of the
+             *   assignment, which is that we don't leave the container value
+             *   on the stack 
+             */
+            G_cg->note_pop();
+        }
+        else if (!left_->gen_code_asi(TRUE, 2, TC_ASI_IDX, op,
+                                      0, TRUE, xplicit, &sctx))
+        {
+            /* no assignment is possible; discard the new container value */
+            G_cg->write_op(OPC_DISC);
+            G_cg->note_pop();
+        }
+
+        /* discard any extra stack elements */
+        while (extra_disc-- != 0)
+        {
+            G_cg->write_op(OPC_DISC);
+            G_cg->note_pop();
+        }
+
+        /* handled */
+        return TRUE;
+    }
+    else if (phase == 1)
+    {
+        /* 
+         *   Compound assignment, phase 1.  Generate the lvalue's value, and
+         *   also leave the indexee and index values on the stack separately
+         *   for use later in doing the assignment to indexee[index].  
+         */
+        
+        /* 
+         *   Generate the value to be subscripted - that's my left-hand side.
+         *   Generate it as phase 1 of assignment through my pseudo-operator
+         *   []=. 
+         */
+        left_->gen_code_asi(FALSE, 1, TC_ASI_IDX, op,
+                            0, TRUE, xplicit, &sctx);
+
+        /* 
+         *   save the context in the caller's context holder, so that it'll
+         *   get passed back to us on the second pass 
+         */
+        *ctx = sctx;
+
+        /* generate the index value - that's my right-hand side */
+        right_->gen_code(FALSE, FALSE);
+
+        /* duplicate them both so we have them later, for the assignment */
+        G_cg->write_op(OPC_DUP2);
+        G_cg->note_push(2);
+
+        /* generate the INDEX operator to compute indexee[index] */
+        G_cg->write_op(OPC_INDEX);
+        G_cg->note_pop();
+
+        /*
+         *   If the caller pushed a RHS value for its own use in assigning,
+         */
+
+        /* tell the caller to proceed (i.e., we didn't finish the job) */
+        return FALSE;
+    }
+    else if (phase == 2)
+    {
+        /*
+         *   Compound assignment, phase 2.  We now have the combined value to
+         *   be assigned on the stack, followed by the indexee and index
+         *   values on the stack.  
+         */
+
+        /* restore the left-side phase 1 context from the caller */
+        sctx = *ctx;
+
+        /* if the assigned value will be further assigned, save a copy */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+        }
+
+        /* 
+         *   The stack is now (bottom to top) INDEXEE INDEX RHS RHS (if
+         *   !discard) or INDEXEE INDEX RHS (if discard).  SETIND needs it to
+         *   be (RHS) RHS INDEXEE INDEX.  Swap the top one or two elements
+         *   with the next two to rearrange into SETIDX order.  
+         */
+        if (discard)
+        {
+            /* INDEXEE INDEX RHS -> RHS INDEX INDEXEE */
+            G_cg->write_op(OPC_SWAPN);
+            G_cs->write(0);
+            G_cs->write(2);
+
+            /* -> RHS INDEXEE INDEX */
+            G_cg->write_op(OPC_SWAP);
+        }
+        else
+        {
+            /* swap INDEXEE INDEX with RHS RHS */
+            G_cg->write_op(OPC_SWAP2);
+        }
+
+        /* assign the rhs to the indexed value */
+        G_cg->write_op(OPC_SETIND);
+        G_cg->note_pop(2);
+
+        /* 
+         *   The new container value is now on the stack; assign it to our
+         *   left-hand side.  Note that the SETINDLCL1I8 optimization (see
+         *   the simple assignment case above) is impossible here, because we
+         *   had to generate the code to carry out the combination operator
+         *   (the '+' in '+=', for example) before the SETIND.  There's thus
+         *   nothing for the SETIND to combine with.
+         *   
+         *   Generate as phase 2 of the []= assignment we started in phase 1.
+         */
+        if (!left_->gen_code_asi(TRUE, 2, TC_ASI_IDX, op,
+                                 0, TRUE, xplicit, &sctx))
+        {
+            /* no assignment was necessary; discard the container value */
+            G_cg->write_op(OPC_DISC);
+            G_cg->note_pop();
+        }
+
+        /* handled */
+        return TRUE;
+    }
+    else
+    {
+        /* ignore any other phases */
+        return FALSE;
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   If-nil operator 
+ */
+void CTPNIfnil::gen_code(int discard, int for_condition)
+{
+    /* generate the first operand */
+    first_->gen_code(FALSE, FALSE);
+
+    /* check to see if we're keeping the result or merely testing it */
     if (!discard)
     {
+        /* we're keep the result - make a copy for the JNOTNIL */
         G_cg->write_op(OPC_DUP);
         G_cg->note_push();
     }
-    
-    /* generate the value to be subscripted - that's my left-hand side */
-    left_->gen_code(FALSE, FALSE);
 
-    /* generate the index value - that's my right-hand side */
-    right_->gen_code(FALSE, FALSE);
+    /* if it's not nil, we're done - jump to the end of the operator */
+    CTcCodeLabel *lbl_end = gen_jump_ahead(OPC_JNOTNIL);
+    G_cg->note_pop();
 
-    /* generate the assign-to-indexed-value opcode */
-    G_cg->write_op(OPC_SETIND);
-
-    /* setind pops three and pushes one - net of pop 2 */
-    G_cg->note_pop(2);
-
-    /*
-     *   The top value now on the stack is the new container value.  The new
-     *   container will be different from the old container in some cases
-     *   (with lists, for example, because we must create a new list object
-     *   to contain the modified list value).  Therefore, if my left-hand
-     *   side is an lvalue, we must assign the new container to the left-hand
-     *   side - this makes something like "x[1] = 5" actually change the
-     *   value in "x" if "x" is a local variable.  If my left-hand side isn't
-     *   an lvalue, don't bother with this step, and simply discard the new
-     *   container value.
-     *   
-     *   Regardless of whether we're keeping the result of the overall
-     *   expression, we're definitely not keeping the result of assigning the
-     *   new container - the result of the assignment is the value assigned,
-     *   not the container.  Thus, discard = true in this call.  
-     *   
-     *   There's a special case that's handled through the peep-hole
-     *   optimizer: if we are assigning to a local variable and indexing with
-     *   a constant integer value, we will have converted the whole operation
-     *   to a SETINDLCL1I8.  That instruction takes care of assigning the
-     *   value back to the rvalue, so we don't need to generate a separate
-     *   rvalue assignment.  
+    /* 
+     *   We're on the 'nil' branch now, meaning we're not going to yield the
+     *   first value after all.  If we're yielding anything, discard the
+     *   extra yielding copy we made of the first value. 
      */
-    if (G_cg->get_last_op() == OPC_SETINDLCL1I8)
+    if (!discard)
     {
-        /* 
-         *   no assignment is necessary - we just need to account for the
-         *   difference in the stack arrangement with this form of the
-         *   assignment, which is that we don't leave the value on the stack 
-         */
-        G_cg->note_pop();
-    }
-    else if (!left_->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, TRUE))
-    {
-        /* no assignment is possible; discard the new container value */
         G_cg->write_op(OPC_DISC);
         G_cg->note_pop();
     }
 
-    /* handled */
-    return TRUE;
+    /* generate the 'nil' branch, yielding the second operand */
+    second_->gen_code(discard, for_condition);
+
+    /* this is the end of the test - generate the end label */
+    def_label_pos(lbl_end);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -5525,9 +6491,6 @@ int CTPNSubscript::gen_code_asi(int discard, tc_asitype_t typ,
  */
 void CTPNIf::gen_code(int discard, int for_condition)
 {
-    CTcCodeLabel *lbl_else;
-    CTcCodeLabel *lbl_end;
-
     /* 
      *   Generate the condition value - we need the value regardless of
      *   whether the overall result is going to be used, because we need
@@ -5538,7 +6501,7 @@ void CTPNIf::gen_code(int discard, int for_condition)
     first_->gen_code(FALSE, TRUE);
  
     /* if the condition is false, jump to the 'else' expression part */
-    lbl_else = gen_jump_ahead(OPC_JF);
+    CTcCodeLabel *lbl_else = gen_jump_ahead(OPC_JF);
 
     /* JF pops a value */
     G_cg->note_pop();
@@ -5563,7 +6526,7 @@ void CTPNIf::gen_code(int discard, int for_condition)
     }
  
     /* unconditionally jump over the 'else' part */
-    lbl_end = gen_jump_ahead(OPC_JMP);
+    CTcCodeLabel *lbl_end = gen_jump_ahead(OPC_JMP);
 
     /* set the label for the 'else' part */
     def_label_pos(lbl_else);
@@ -5623,8 +6586,10 @@ void CTPNSym::gen_code(int discard, int)
 /*
  *   assign to a symbol
  */
-int CTPNSym::gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                          int ignore_errors)
+int CTPNSym::gen_code_asi(int discard, int phase,
+                          tc_asitype_t typ, const char *op,
+                          CTcPrsNode *rhs,
+                          int ignore_errors, int xplicit, void **ctx)
 {
     /* 
      *   Look up the symbol; if it's undefined and there's a "self" object
@@ -5636,7 +6601,8 @@ int CTPNSym::gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
     return G_cs->get_symtab()
         ->find_or_def_prop_implied(get_sym_text(), get_sym_text_len(),
                                    FALSE, G_cs->is_self_available())
-        ->gen_code_asi(discard, typ, rhs, ignore_errors);
+        ->gen_code_asi(discard, phase, typ, op, rhs,
+                       ignore_errors, xplicit, ctx);
 }
 
 /*
@@ -5645,15 +6611,14 @@ int CTPNSym::gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
 void CTPNSym::gen_code_addr()
 {
     /* 
-     *   Look up our symbol in the symbol table, then ask the resulting
-     *   symbol to generate the appropriate code.  If the symbol isn't
-     *   defined, and we have a "self" object available (i.e., we're in
-     *   method code), define the symbol by default as a property.
+     *   Look up our symbol in the global symbol table, then ask the
+     *   resulting symbol to generate the appropriate code.  If the symbol
+     *   isn't defined, assume it's a property.
      *   
      *   Note that we look only in the global symbol table, because local
-     *   symbols have no address value.  So, even if the symbol is defined
-     *   in the local table, ignore the local definition and look at the
-     *   global definition.  
+     *   symbols have no address value.  So, even if the symbol is defined in
+     *   the local table, ignore the local definition and look at the global
+     *   definition.  
      */
     G_prs->get_global_symtab()
         ->find_or_def_prop_explicit(get_sym_text(), get_sym_text_len(),
@@ -5664,7 +6629,8 @@ void CTPNSym::gen_code_addr()
 /*
  *   call the symbol 
  */
-void CTPNSym::gen_code_call(int discard, int argc, int varargs)
+void CTPNSym::gen_code_call(int discard, int argc, int varargs,
+                            CTcNamedArgs *named_args)
 {
     /*
      *   Look up our symbol in the symbol table, then ask the resulting
@@ -5675,13 +6641,14 @@ void CTPNSym::gen_code_call(int discard, int argc, int varargs)
     G_cs->get_symtab()
         ->find_or_def_prop_implied(get_sym_text(), get_sym_text_len(),
                                    FALSE, G_cs->is_self_available())
-        ->gen_code_call(discard, argc, varargs);
+        ->gen_code_call(discard, argc, varargs, named_args);
 }
 
 /*
  *   generate code for 'new' 
  */
 void CTPNSym::gen_code_new(int discard, int argc, int varargs,
+                           CTcNamedArgs *named_args,
                            int /*from_call*/, int is_transient)
 {
     /*
@@ -5691,7 +6658,7 @@ void CTPNSym::gen_code_new(int discard, int argc, int varargs,
      */
     G_cs->get_symtab()
         ->find_or_def_undef(get_sym_text(), get_sym_text_len(), FALSE)
-        ->gen_code_new(discard, argc, varargs, is_transient);
+        ->gen_code_new(discard, argc, varargs, named_args, is_transient);
 }
 
 /*
@@ -5739,7 +6706,8 @@ vm_prop_id_t CTPNSym::gen_code_propid(int check_only, int is_expr)
  *   generate code for a member expression 
  */
 void CTPNSym::gen_code_member(int discard, CTcPrsNode *prop_expr,
-                              int prop_is_expr, int argc, int varargs)
+                              int prop_is_expr,
+                              int argc, int varargs, CTcNamedArgs *named_args)
 {
     /* 
      *   Look up the symbol, and let it do the work.  There's no
@@ -5748,7 +6716,8 @@ void CTPNSym::gen_code_member(int discard, CTcPrsNode *prop_expr,
      */
     G_cs->get_symtab()
         ->find_or_def_undef(get_sym_text(), get_sym_text_len(), FALSE)
-        ->gen_code_member(discard, prop_expr, prop_is_expr, argc, varargs);
+        ->gen_code_member(discard, prop_expr, prop_is_expr,
+                          argc, varargs, named_args);
 }
 
 /*
@@ -5778,12 +6747,14 @@ void CTPNSymResolved::gen_code(int discard, int)
 /*
  *   assign to a symbol 
  */
-int CTPNSymResolved::gen_code_asi(int discard, tc_asitype_t typ,
+int CTPNSymResolved::gen_code_asi(int discard, int phase,
+                                  tc_asitype_t typ, const char *op,
                                   CTcPrsNode *rhs,
-                                  int ignore_errors)
+                                  int ignore_errors, int xplicit, void **ctx)
 {
     /* let the symbol handle it */
-    return sym_->gen_code_asi(discard, typ, rhs, ignore_errors);
+    return sym_->gen_code_asi(discard, phase, typ, op, rhs, 
+                              ignore_errors, xplicit, ctx);
 }
 
 /*
@@ -5798,20 +6769,22 @@ void CTPNSymResolved::gen_code_addr()
 /*
  *   call the symbol 
  */
-void CTPNSymResolved::gen_code_call(int discard, int argc, int varargs)
+void CTPNSymResolved::gen_code_call(int discard, int argc, int varargs,
+                                    CTcNamedArgs *named_args)
 {
     /* let the symbol handle it */
-    sym_->gen_code_call(discard, argc, varargs);
+    sym_->gen_code_call(discard, argc, varargs, named_args);
 }
 
 /*
  *   generate code for 'new' 
  */
-void CTPNSymResolved::gen_code_new(int discard, int argc, int varargs,
+void CTPNSymResolved::gen_code_new(int discard, int argc,
+                                   int varargs, CTcNamedArgs *named_args,
                                    int /*from_call*/, int is_transient)
 {
     /* let the symbol handle it */
-    sym_->gen_code_new(discard, argc, varargs, is_transient);
+    sym_->gen_code_new(discard, argc, varargs, named_args, is_transient);
 }
 
 /*
@@ -5828,10 +6801,12 @@ vm_prop_id_t CTPNSymResolved::gen_code_propid(int check_only, int is_expr)
  */
 void CTPNSymResolved::gen_code_member(int discard, 
                                       CTcPrsNode *prop_expr, int prop_is_expr,
-                                      int argc, int varargs)
+                                      int argc, int varargs,
+                                      CTcNamedArgs *named_args)
 {
     /* let the symbol handle it */
-    sym_->gen_code_member(discard, prop_expr, prop_is_expr, argc, varargs);
+    sym_->gen_code_member(discard, prop_expr, prop_is_expr,
+                          argc, varargs, named_args);
 }
 
 /*
@@ -5882,65 +6857,81 @@ void CTPNSymDebugLocal::gen_code(int discard, int for_condition)
 /*
  *   generate code for assigning to this variable 
  */
-int CTPNSymDebugLocal::gen_code_asi(int discard, tc_asitype_t typ,
-                                    CTcPrsNode *rhs, int ignore_error)    
+int CTPNSymDebugLocal::gen_code_asi(int discard, int phase,
+                                    tc_asitype_t typ, const char *,
+                                    CTcPrsNode *rhs,
+                                    int, int, void **)
 {
-    /* 
-     *   if this isn't a simple assignment, use the generic combination
-     *   assignment computation 
-     */
-    if (typ != TC_ASI_SIMPLE)
-        return FALSE;
+    /* check what we're doing */
+    if (typ == TC_ASI_SIMPLE || phase == 2)
+    {        
+        /* 
+         *   Simple assignment, or phase 2 of a compound assignment.  In
+         *   either case, just assign the rvalue to the variable.  
+         */
+        if (rhs != 0)
+            rhs->gen_code(FALSE, FALSE);
 
-    /* generate the value to be assigned */
-    if (rhs != 0)
-        rhs->gen_code(FALSE, FALSE);
-
-    /* 
-     *   if we're not discarding the result, duplicate the value so we'll
-     *   have a copy after the assignment 
-     */
-    if (!discard)
-    {
-        G_cg->write_op(OPC_DUP);
-        G_cg->note_push();
+        /* 
+         *   if we're not discarding the result, duplicate the value so we'll
+         *   have a copy after the assignment 
+         */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+        }
+        
+        /* check for a context property */
+        if (ctx_arr_idx_ == 0)
+        {
+            /* 
+             *   generate the debug-local-set instruction - the operands are
+             *   the variable number and the stack frame index 
+             */
+            G_cg->write_op(is_param_ ? OPC_SETDBARG : OPC_SETDBLCL);
+            G_cs->write2(var_id_);
+            G_cs->write2(frame_idx_);
+        }
+        else
+        {
+            /* get the local containing our context object */
+            G_cg->write_op(OPC_GETDBLCL);
+            G_cs->write2(var_id_);
+            G_cs->write2(frame_idx_);
+            
+            /* set the actual variable value in the context object */
+            CTPNConst::s_gen_code_int(ctx_arr_idx_);
+            G_cg->write_op(OPC_SETIND);
+            G_cg->write_op(OPC_DISC);
+            
+            /* 
+             *   we did three pops (SETIND), then a push (SETIND), then a pop
+             *   (DISC) - this is a net of three extra pops 
+             */
+            G_cg->note_pop(3);
+        }
+        
+        /* the debug-local-set removes the rvalue from the stack */
+        G_cg->note_pop();
+        
+        /* handled */
+        return TRUE;
     }
-
-    /* check for a context property */
-    if (ctx_arr_idx_ == 0)
+    else if (phase == 1)
     {
         /* 
-         *   generate the debug-local-set instruction - the operands are
-         *   the variable number and the stack frame index 
+         *   Compound assignment, phase 1.  Simply generate our value and let
+         *   the caller proceed with the generic combination operator. 
          */
-        G_cg->write_op(is_param_ ? OPC_SETDBARG : OPC_SETDBLCL);
-        G_cs->write2(var_id_);
-        G_cs->write2(frame_idx_);
+        gen_code(FALSE, FALSE);
+        return FALSE;
     }
     else
     {
-        /* get the local containing our context object */
-        G_cg->write_op(OPC_GETDBLCL);
-        G_cs->write2(var_id_);
-        G_cs->write2(frame_idx_);
-
-        /* set the actual variable value in the context object */
-        CTPNConst::s_gen_code_int(ctx_arr_idx_);
-        G_cg->write_op(OPC_SETIND);
-        G_cg->write_op(OPC_DISC);
-
-        /* 
-         *   we did three pops (SETIND), then a push (SETIND), then a pop
-         *   (DISC) - this is a net of three extra pops
-         */
-        G_cg->note_pop(3);
+        /* ignore other phases */
+        return FALSE;
     }
-
-    /* the debug-local-set removes the rvalue from the stack */
-    G_cg->note_pop();
-
-    /* handled */
-    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -6030,12 +7021,215 @@ void CTPNDstrEmbed::gen_code(int, int)
     }
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   embedded <<one of>> list 
+ */
+void CTPNStrOneOf::gen_code(int discard, int for_condition)
+{
+    /*
+     *   There are two components to the <<one of>> list.  First, there's the
+     *   list of strings.  Second, there's an anonymous OneOfIndexGen object
+     *   that we create; this object holds our state and generates our index
+     *   values.
+     *   
+     *   In the simple case, the list is just a constant list of constant
+     *   strings.  However, if the enclosing string is a dstring, each of
+     *   these will be a dstring; and even if the outer string is an sstring,
+     *   these could contain further embedded expressions, in which case they
+     *   won't be constant.
+     *   
+     *   If the list is constant, we generate list[generator.getNextIndex()].
+     *   This selects a string from the list and leaves it on the stack,
+     *   which is just what our parent node wants.
+     *   
+     *   If the list isn't constant, we generate a switch on
+     *   generator.getNextIndex(), and then fill in the case table from the
+     *   list: each case label is the index, and each case's body is the code
+     *   generated for the list element, followed by a 'break' to the end of
+     *   the switch.  The effect once again is to pick an item from the list
+     *   and push its value onto the stack.  
+     */
+
+    /* look up the getNextIndex property */
+    CTcSymProp *propsym = (CTcSymProp *)G_prs->get_global_symtab()->
+                          find_or_def_prop_explicit("getNextIndex", 12, FALSE);
+    if (propsym->get_type() != TC_SYM_PROP)
+    {
+        G_tok->log_error(TCERR_ONEOF_REQ_GETNXT);
+        return;
+    }
+
+    /* synthesize a constant value for the property */
+    CTcConstVal propc;
+    propc.set_prop(propsym->get_prop());
+    CTPNConst *getNextIndex = new CTPNConst(&propc);
+
+    /* generate the list */
+    CTcConstVal *c = lst_->get_const_val();
+    if (c != 0)
+    {
+        /* the list is a constant - push the list value */
+        lst_->gen_code(FALSE, FALSE);
+
+        /* call generator.getNextIndex() to get the next index */
+        state_obj_->gen_code_member(FALSE, getNextIndex, FALSE, 0, FALSE, 0);
+
+        /* index the list (this pops two values and pushes one) */
+        G_cg->write_op(OPC_INDEX);
+        G_cg->note_pop();
+    }
+    else
+    {
+        /* the list is non-constant - start by generating the index */
+        state_obj_->gen_code_member(FALSE, getNextIndex, FALSE, 0, FALSE, 0);
+
+        /* note the number of list elements */
+        int i, cnt = lst_->get_count();
+
+        /* generate the SWITCH <case_cnt> */
+        G_cg->write_op(OPC_SWITCH);
+        G_cs->write2(cnt);
+        G_cg->note_pop();
+
+        /* 
+         *   Build the case table.  Each label is an index value; leave the
+         *   jump offset zero for now, since we'll have to fill it in as we
+         *   generate the code. 
+         */
+        ulong caseofs = G_cs->get_ofs();
+        for (i = 1 ; i <= cnt ; ++i)
+        {
+            /* write the case label as the 1-based index value */
+            char buf[VMB_DATAHOLDER];
+            vm_val_t val;
+            val.set_int(i);
+            vmb_put_dh(buf, &val);
+            G_cs->write(buf, VMB_DATAHOLDER);
+
+            /* write a placeholder for the jump offset */
+            G_cs->write2(0);
+        }
+
+        /* write a placeholder for the default case */
+        G_cs->write2(0);
+
+        /* create a forward label for the 'break' to the end of the switch */
+        CTcCodeLabel *brklbl = G_cs->new_label_fwd();
+
+        /* 
+         *   Now run through the table and generate the code for each list
+         *   element. 
+         */
+        CTPNListEle *ele;
+        for (i = 1, ele = lst_->get_head() ; ele != 0 && i <= cnt ;
+             ++i, caseofs += VMB_DATAHOLDER + 2, ele = ele->get_next())
+        {
+            /* set the jump to this case in the case table */
+            G_cs->write2_at(caseofs + VMB_DATAHOLDER,
+                            G_cs->get_ofs() - (caseofs + VMB_DATAHOLDER));
+
+            /* generate the code for this list element */
+            ele->get_expr()->gen_code(discard, for_condition);;
+
+            /* generate a jump to the end of the table */
+            G_cg->write_op(OPC_JMP);
+            G_cs->write_ofs2(brklbl, 0);
+
+            /* 
+             *   since all of these branches proceed in parallel, only one
+             *   push counts, so don't count every iteration - pretend that
+             *   we've already popped the value that this case generated 
+             */
+            if (!discard)
+                G_cg->note_pop();
+        }
+
+        /* write the default case - just push nil */
+        G_cs->write2_at(caseofs, G_cs->get_ofs() - caseofs);
+        if (!discard)
+        {
+            G_cg->write_op(OPC_PUSHNIL);
+            G_cg->note_push();
+        }
+
+        /* this is the end of the switch - set the 'break' label here */
+        def_label_pos(brklbl);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Create or define an internal compiler-defined function in the program. 
+ */
+static CTcSymFunc *get_internal_func(const char *nm,
+                                     int argc, int opt_argc, int varargs,
+                                     int has_retval)
+{
+    /* get the symbol length */
+    size_t len = strlen(nm);
+
+    /* look up the function symbol */
+    CTcSymFunc *fn =
+        (CTcSymFunc *)G_prs->get_global_symtab()->find_delete_weak(nm, len);
+    if (fn == 0)
+    {
+        /* it's not defined - create an implied declaration for it */
+        fn = new CTcSymFunc(nm, len, FALSE, argc, opt_argc, varargs,
+                            has_retval, FALSE, FALSE, TRUE);
+
+        /* add it to the global symbol table */
+        G_prs->get_global_symtab()->add_entry(fn);
+    }
+    else if (fn->get_type() != TC_SYM_FUNC)
+    {
+        /* it's defined, but not as a function - this is an error */
+        G_tok->log_error(TCERR_REDEF_AS_FUNC, (int)len, nm);
+        fn = 0;
+    }
+
+    /* return the function */
+    return fn;
+}
+
+/*
+ *   Get an internal built-in function by name 
+ */
+static CTcSymBif *get_internal_bif(const char *nm, int err)
+{
+    /* look up the symbol */
+    size_t len = strlen(nm);
+    CTcSymBif *fn = (CTcSymBif *)G_prs->get_global_symtab()->find(nm, len);
+
+    /* if it wasn't found, flag an error */
+    if (fn == 0)
+        G_tok->log_error(err, (int)len, nm);
+
+    /* return the function */
+    return fn;
+}
+
+/*
+ *   Call an internal built-in function by name.  This is for simple calls
+ *   with fixed arguments and no named parameters, keeping the return value.
+ */
+static void call_internal_bif(const char *nm, int err, int argc)
+{
+    /* look up the function */
+    CTcSymBif *fn = get_internal_bif(nm, err);
+
+    /* if we got it, call it */
+    if (fn != 0)
+        fn->gen_code_call(FALSE, argc, FALSE, 0);
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Argument list
  */
-void CTPNArglist::gen_code_arglist(int *varargs)
+void CTPNArglist::gen_code_arglist(int *varargs, CTcNamedArgs &named_args)
 {
     CTPNArg *arg;
     int i;
@@ -6046,8 +7240,10 @@ void CTPNArglist::gen_code_arglist(int *varargs)
      *   scan the argument list for varargs - if we have any, we must
      *   treat all of them as varargs 
      */
-    for (*varargs = FALSE, fixed_cnt = 0, arg = get_arg_list_head() ;
-         arg != 0 ; arg = arg->get_next_arg())
+    for (*varargs = FALSE, fixed_cnt = named_args.cnt = 0,
+         named_args.args = this, arg = get_arg_list_head() ;
+         arg != 0 ;
+         arg = arg->get_next_arg())
     {
         /* if this is a varargs argument, we have varargs */
         if (arg->is_varargs())
@@ -6055,28 +7251,56 @@ void CTPNArglist::gen_code_arglist(int *varargs)
             /* note it */
             *varargs = TRUE;
         }
+        else if (arg->is_named_param())
+        {
+            /* count the named argument */
+            named_args.cnt += 1;
+        }
         else
         {
-            /* count another fixed argument */
+            /* count another fixed positional argument */
             ++fixed_cnt;
         }
     }
 
+    /*
+     *   If we have named arguments, push them ahead of the position
+     *   arguments.  
+     */
+    if (named_args.cnt != 0)
+    {
+        /* 
+         *   Run through the argument list again, evaluating only named
+         *   arguments on this pass.
+         */
+        for (i = argc_, arg = get_arg_list_head() ; arg != 0 ;
+             arg = arg->get_next_arg(), --i)
+        {
+            /* if it's a named argument, push it */
+            if (arg->is_named_param())
+                arg->gen_code(FALSE, FALSE);
+        }
+    }
+
     /* 
-     *   Push each argument in the list - start with the last element and
-     *   work backwards through the list to the first element.  The parser
-     *   builds the list in reverse order, so we must merely follow the
-     *   list from head to tail.
+     *   Push each positional argument in the list.  The arguments on the
+     *   stack go in right-to-left order.  The parser builds the internal
+     *   list of argument expressions in reverse order, so we must merely
+     *   follow the list from head to tail.
      *   
      *   We need each argument value to be pushed (hence discard = false),
-     *   and we need the assignable value of each argument expression
-     *   (hence for_condition = false).  
+     *   and we need the assignable value of each argument expression (hence
+     *   for_condition = false).  
      */
     for (pushed_varargs_counter = FALSE, i = argc_,
          arg = get_arg_list_head() ; arg != 0 ;
          arg = arg->get_next_arg(), --i)
     {
         int depth;
+
+        /* skip named arguments on this pass */
+        if (arg->is_named_param())
+            continue;
 
         /* note the stack depth before generating the value */
         depth = G_cg->get_sp_depth();
@@ -6124,7 +7348,9 @@ void CTPNArglist::gen_code_arglist(int *varargs)
     }
 }
 
-/* ------------------------------------------------------------------------ */
+/* 
+ *   ------------------------------------------------------------------------
+ */
 /*
  *   argument list entry
  */
@@ -6172,16 +7398,130 @@ CTPNCall::CTPNCall(CTcPrsNode *func, class CTPNArglist *arglist)
 /*
  *   generate code 
  */
-void CTPNCall::gen_code(int discard, int)
+void CTPNCall::gen_code(int discard, int for_condition)
 {
-    int varargs;
-    
+    /* check for special functions */
+    if (get_func()->sym_text_matches("rand", 4)
+        && gen_code_rand(discard, for_condition))
+        return;
+
     /* push the argument list */
-    get_arg_list()->gen_code_arglist(&varargs);
+    int varargs;
+    CTcNamedArgs named_args;
+    get_arg_list()->gen_code_arglist(&varargs, named_args);
 
     /* generate an appropriate call instruction */
     get_func()->gen_code_call(discard, get_arg_list()->get_argc(),
-                              varargs);
+                              varargs, &named_args);
+}
+
+/*
+ *   Generate code for a call to 'rand'.  If we have multiple arguments,
+ *   rand() is special because it doesn't evaluate all of its arguments.
+ *   Instead, it picks an argument at random, and evaluates only that single
+ *   selected argument, yielding the result.  
+ */
+int CTPNCall::gen_code_rand(int discard, int for_condition)
+{
+    /* get our argument list, and the number of arguments */
+    CTPNArglist *args = get_arg_list();
+    int argc = args->get_argc();
+
+    /* if we have zero or one argument, use the normal call */
+    if (argc < 2)
+        return FALSE;
+
+    /* if we have variable arguments, use the normal call */
+    CTPNArg *arg;
+    for (arg = args->get_arg_list_head() ; arg != 0 ;
+         arg = arg->get_next_arg())
+    {
+        if (arg->is_varargs())
+            return FALSE;
+    }
+
+    /* 
+     *   We have a fixed number of arguments greater than one, so this is the
+     *   special form of the rand() call.  First, generate an ordinary call
+     *   to rand() to select a number from 0 to argc-1.
+     */
+    CTcNamedArgs named_args;
+    named_args.cnt = 0;
+    CTPNConst::s_gen_code_int(argc);
+    get_func()->gen_code_call(FALSE, 1, FALSE, &named_args);
+
+    /* generate the SWITCH <case_cnt> */
+    G_cg->write_op(OPC_SWITCH);
+    G_cs->write2(argc);
+    G_cg->note_pop();
+
+    /* 
+     *   Build the case table.  The rand() call gave us an integer from 0 to
+     *   argc-1 inclusive, so our case labels are simply the argument index
+     *   values, starting at zero.  Note that the argument list is stored
+     *   right to left, so the index values of the list elements run from
+     *   argc-1 down to 0.  Since we're making a random selection anyway the
+     *   order shouldn't really matter; however, for the sake of regression
+     *   tests for pre-3.1 games, we want to use the same index ordering that
+     *   rand() did in the old version, where rand() itself chose one of its
+     *   pre-evaluated arguments.  When running in regression mode with a
+     *   fixed random number stream, using the same index ordering will
+     *   ensure that we get the same results when running existing tests.  
+     */
+    ulong caseofs = G_cs->get_ofs();
+    int i;
+    for (i = argc - 1 ; i >= 0 ; --i)
+    {
+        /* write the case label as the 0-based argument index */
+        char buf[VMB_DATAHOLDER];
+        vm_val_t val;
+        val.set_int(i);
+        vmb_put_dh(buf, &val);
+        G_cs->write(buf, VMB_DATAHOLDER);
+
+        /* write a placeholder for the jump offset */
+        G_cs->write2(0);
+    }
+
+    /* write a placeholder for the default case */
+    G_cs->write2(0);
+
+    /* create a forward label for the 'break' to the end of the switch */
+    CTcCodeLabel *brklbl = G_cs->new_label_fwd();
+
+    /* generate the argument expressions */
+    for (arg = args->get_arg_list_head() ; arg != 0 ;
+         arg = arg->get_next_arg(), caseofs += VMB_DATAHOLDER + 2)
+    {
+        /* set the jump to this case in the case table */
+        G_cs->write2_at(caseofs + VMB_DATAHOLDER,
+                        G_cs->get_ofs() - (caseofs + VMB_DATAHOLDER));
+
+        /* generate the argument expression */
+        arg->get_arg_expr()->gen_code(discard, for_condition);
+
+        /* generate a jump to the end of the table */
+        G_cg->write_op(OPC_JMP);
+        G_cs->write_ofs2(brklbl, 0);
+
+        /* we generate the branches in parallel, so only one push counts */
+        if (!discard)
+            G_cg->note_pop();
+    }
+
+    /* write the default case - just push nil if we need a value */
+    G_cs->write2_at(caseofs, G_cs->get_ofs() - caseofs);
+    if (!discard)
+    {
+        G_cg->write_op(OPC_PUSHNIL);
+        G_cg->note_push();
+    }
+
+    /* this is the end of the switch - set the 'break' label here */
+    def_label_pos(brklbl);
+
+    /* tell the caller that we handled the code generation */
+    return TRUE;
 }
 
 /*
@@ -6189,6 +7529,7 @@ void CTPNCall::gen_code(int discard, int)
  *   looks like a function call: NEW(CALL(object-contents, ARGLIST(...))).
  */
 void CTPNCall::gen_code_new(int discard, int argc, int varargs,
+                            CTcNamedArgs *named_args,
                             int from_call, int is_transient)
 {
     /* 
@@ -6201,13 +7542,18 @@ void CTPNCall::gen_code_new(int discard, int argc, int varargs,
         G_tok->log_error(TCERR_INVAL_NEW_EXPR);
         return;
     }
+
+    /* use our own named_args structure if the caller didn't provide one */
+    CTcNamedArgs my_named_args;
+    if (named_args == 0)
+        named_args = &my_named_args;
     
     /* generate the argument list */
-    get_arg_list()->gen_code_arglist(&varargs);
+    get_arg_list()->gen_code_arglist(&varargs, *named_args);
 
     /* generate the code for the 'new' call */
-    get_func()->gen_code_new(discard, get_arg_list()->get_argc(), varargs,
-                             TRUE, is_transient);
+    get_func()->gen_code_new(discard, get_arg_list()->get_argc(),
+                             varargs, named_args, TRUE, is_transient);
 }
 
 
@@ -6219,133 +7565,321 @@ void CTPNMember::gen_code(int discard, int)
 {
     /* ask the object expression to generate the code */
     get_obj_expr()->gen_code_member(discard, get_prop_expr(), prop_is_expr_,
-                                    0, FALSE);
+                                    0, FALSE, 0);
 }
+
+/* context for two-phase compound assignment to a member expression */
+struct member_ca_ctx
+{
+    member_ca_ctx(int is_self, vm_obj_id_t obj, vm_prop_id_t prop)
+    {
+        this->is_self = is_self;
+        this->obj = obj;
+        this->prop = prop;
+    }
+    
+    int is_self;
+    vm_obj_id_t obj;
+    vm_prop_id_t prop;
+};
 
 /*
  *   assign to member expression
  */
-int CTPNMember::gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
-                             int ignore_errors)
+int CTPNMember::gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *op,
+                             CTcPrsNode *rhs,
+                             int ignore_errors, int, void **ctx)
 {
     int is_self;
     vm_obj_id_t obj;
     vm_prop_id_t prop;
 
-    /* 
-     *   if it's not a simple assignment, tell the caller to generate the
-     *   generic code to compute the composite value, and then call us
-     *   again for a simple assignment 
-     */
-    if (typ != TC_ASI_SIMPLE)
-        return FALSE;
+    /* if this is phase 2 of a compound assignment, retrieve the context */
+    if (phase == 2)
+    {
+        /* cast the generic context pointer to our structure */
+        member_ca_ctx *cctx = (member_ca_ctx *)*ctx;
 
-    /* generate the right-hand side, unless the caller has already done so */
-    if (rhs != 0)
-        rhs->gen_code(FALSE, FALSE);
-    
+        /* retrieve the context information */
+        is_self = cctx->is_self;
+        obj = cctx->obj;
+        prop = cctx->prop;
+
+        /* we're done with the context object - delete it */
+        delete cctx;
+    }
+
     /* 
-     *   if the caller wants to use the assigned value, push a copy --
-     *   we'll consume one copy in the SETPROP or related instruction, so
-     *   we'll need another copy for the caller 
+     *   if this is a simple assignment, start by generating the right-hand
+     *   side, unless the caller has already done so 
      */
-    if (!discard)
+    if (typ == TC_ASI_SIMPLE && rhs != 0)
+        rhs->gen_code(FALSE, FALSE);
+
+    /* 
+     *   If this is a simple assignment, or it's phase 2 of a two-phase
+     *   assignment, we now have the RHS at top of stack, and we're about to
+     *   perform the actual assignment.  If the caller wants to further use
+     *   the assigned value, push a copy, since we'll consume the RHS value
+     *   currently on the stack with our SETPROP or related instruction. 
+     */
+    if (!discard && (typ == TC_ASI_SIMPLE || phase == 2))
     {
         G_cg->write_op(OPC_DUP);
         G_cg->note_push();
     }
 
-    /* 
-     *   Determine what we have on the left: we could have self, a
-     *   constant object value, or any other expression.  
+    /*
+     *   If this is a simple assignment, or phase 1 of a two-phase compound
+     *   assignment, generate the object and property expressions. 
      */
-    obj = get_obj_expr()->gen_code_obj_predot(&is_self);
-
-    /* 
-     *   determine what kind of property expression we have - don't
-     *   generate any code for now, since we may need to generate some
-     *   more code ahead of the property generation 
-     */
-    prop = get_prop_expr()->gen_code_propid(TRUE, prop_is_expr_);
-
-    /* determine what we need to do based on the operands */
-    if (prop == VM_INVALID_PROP)
+    if (typ == TC_ASI_SIMPLE || phase == 1)
     {
         /* 
-         *   We're assigning through a property pointer -- we must
-         *   generate a PTRSETPROP instruction.
-         *   
-         *   Before we generate the property expression, we must generate
-         *   the object expression.  If we got a constant object, we must
-         *   generate code to push that object value; otherwise, the code
-         *   to generate the object value is already generated. 
+         *   Determine what we have on the left: we could have self, a
+         *   constant object value, or any other expression.  
          */
-        if (is_self)
-        {
-            /* self - generate code to push the "self" value */
-            G_cg->write_op(OPC_PUSHSELF);
-            G_cg->note_push();
-        }
-        else if (obj != VM_INVALID_OBJ)
-        {
-            /* constant object - generate code to push the value */
-            G_cg->write_op(OPC_PUSHOBJ);
-            G_cs->write_obj_id(obj);
-            G_cg->note_push();
-        }
-
-        /* generate the property value expression */
-        get_prop_expr()->gen_code_propid(FALSE, prop_is_expr_);
-
-        /* generate the PTRSETPROP instruction */
-        G_cg->write_op(OPC_PTRSETPROP);
-
-        /* ptrsetprop removes three elements */
-        G_cg->note_pop(3);
-    }
-    else
-    {
+        obj = get_obj_expr()->gen_code_obj_predot(&is_self);
+        
         /* 
-         *   We have a constant property value, so we have several
-         *   instructions to choose from.  If we're assigning to a
-         *   property of "self", use SETPROPSELF.  If we're assigning to a
-         *   constant object, use OBJSETPROP.  Otherwise, use the plain
-         *   SETPROP. 
+         *   determine what kind of property expression we have - don't
+         *   generate any code for now, since we may need to generate some
+         *   more code ahead of the property generation 
          */
-        if (is_self)
+        prop = get_prop_expr()->gen_code_propid(TRUE, prop_is_expr_);
+        
+        /* determine what we need to do based on the operands */
+        if (prop == VM_INVALID_PROP)
         {
-            /* write the SETPROPSELF */
-            G_cg->write_op(OPC_SETPROPSELF);
-            G_cs->write_prop_id(prop);
+            /* 
+             *   We're assigning through a property pointer -- we must
+             *   generate a PTRSETPROP instruction.
+             *   
+             *   Before we generate the property expression, we must generate
+             *   the object expression.  If we got a constant object, we must
+             *   generate code to push that object value; otherwise, the code
+             *   to generate the object value is already generated.  
+             */
+            if (is_self)
+            {
+                /* self - generate code to push the "self" value */
+                G_cg->write_op(OPC_PUSHSELF);
+                G_cg->note_push();
+            }
+            else if (obj != VM_INVALID_OBJ)
+            {
+                /* constant object - generate code to push the value */
+                G_cg->write_op(OPC_PUSHOBJ);
+                G_cs->write_obj_id(obj);
+                G_cg->note_push();
+            }
 
-            /* setpropself removes the value */
-            G_cg->note_pop();
-        }
-        else if (obj != VM_INVALID_OBJ)
-        {
-            /* write the OBJSETPROP */
-            G_cg->write_op(OPC_OBJSETPROP);
-            G_cs->write_obj_id(obj);
-            G_cs->write_prop_id(prop);
-
-            /* objsetprop removes the value */
-            G_cg->note_pop();
+            /* generate the property value expression */
+            get_prop_expr()->gen_code_propid(FALSE, prop_is_expr_);
+            
+            /*
+             *   If this is phase 1 of a two-phase compound assignment, we'll
+             *   need the object and property values that we've just stacked
+             *   again in phase 2.  Save separate copies via DUP2.  
+             */
+            if (typ != TC_ASI_SIMPLE)
+            {
+                G_cg->write_op(OPC_DUP2);
+                G_cg->note_push(2);
+            }
         }
         else
         {
             /* 
-             *   write the normal SETPROP; we already generated the code
-             *   to push the object value, so it's where it should be 
+             *   We're assigning to a fixed property ID.  If the object
+             *   expression was not 'self' or a fixed object ID, we have an
+             *   object value on the stack; otherwise we have nothing on the
+             *   stack.
+             *   
+             *   For a two-phase assignment, we'll need the object value
+             *   again during the second phase, so if we did indeed stack a
+             *   value, make a copy of it for our use in phase 2.  
              */
-            G_cg->write_op(OPC_SETPROP);
-            G_cs->write_prop_id(prop);
-
-            /* setprop removes the value and the object */
-            G_cg->note_pop(2);
+            if (typ != TC_ASI_SIMPLE && !is_self && obj == VM_INVALID_OBJ)
+            {
+                G_cg->write_op(OPC_DUP);
+                G_cg->note_push();
+            }
         }
     }
 
-    /* handled */
+    /*
+     *   If this is phase 1 of a two-phase assignment, stop here: we've
+     *   stacked the necessary obj and prop information for the actual
+     *   assignment codegen in phase 2, and we've stacked the obj.prop value
+     *   for the combination operator to access.  Save context information
+     *   and return, telling the caller to proceed with the unrolled
+     *   operation.  
+     */
+    if (typ != TC_ASI_SIMPLE && phase == 1)
+    {
+        /* save the object and property information in the phase context */
+        *ctx = new member_ca_ctx(is_self, obj, prop);
+
+        /* evaluate the property */
+        if (prop == VM_INVALID_PROP)
+        {
+            /* property pointer - call with zero arguments */
+            G_cg->write_op(OPC_PTRCALLPROP);
+            G_cs->write(0);
+
+            /* this pops the object and property */
+            G_cg->note_pop(2);
+        }
+        else
+        {
+            /* constant property */
+            if (is_self)
+            {
+                /* get property of self */
+                G_cg->write_op(OPC_GETPROPSELF);
+                G_cs->write_prop_id(prop);
+            }
+            else if (obj != VM_INVALID_OBJ)
+            {
+                /* constant object */
+                G_cg->write_op(OPC_OBJGETPROP);
+                G_cs->write_obj_id(obj);
+                G_cs->write_prop_id(prop);
+            }
+            else
+            {
+                /* it's an object expression */
+                G_cg->write_op(OPC_GETPROP);
+                G_cs->write_prop_id(prop);
+
+                /* this pops the object value */
+                G_cg->note_pop();
+            }
+        }
+
+        /* all of these leave the value in R0 - retrieve it */
+        G_cg->write_op(OPC_GETR0);
+        G_cg->note_push();
+
+        /* tell the caller to proceed with the unrolled assignment */
+        return FALSE;
+    }
+
+    /*
+     *   If we're doing a simple assignment, or this is phase 2 of a compound
+     *   assignment, it's time to do the actual assignment. 
+     */
+    if (typ == TC_ASI_SIMPLE || phase == 2)
+    {
+        /* determine how to make the assignment based on the operands */
+        if (prop == VM_INVALID_PROP)
+        {
+            /*
+             *   If this is phase 2 of a compound assignment, get the stack
+             *   back in order.  We currently have (from bottom to top) obj
+             *   prop RHS RHS (if !discard), or obj prop RHS (if discard).
+             *   Swap the top one or two elements for the next two.  
+             */
+            if (typ != TC_ASI_SIMPLE && phase == 2)
+            {
+                if (discard)
+                {
+                    /* obj prop RHS -> RHS prop obj */
+                    G_cg->write_op(OPC_SWAPN);
+                    G_cs->write(0);
+                    G_cs->write(2);
+                    
+                    /* RHS prop obj -> RHS obj prop */
+                    G_cg->write_op(OPC_SWAP);
+                }
+                else
+                {
+                    /* obj prop RHS RHS -> RHS RHS obj prop */
+                    G_cg->write_op(OPC_SWAP2);
+                }
+            }
+                
+            /* generate the PTRSETPROP instruction */
+            G_cg->write_op(OPC_PTRSETPROP);
+
+            /* ptrsetprop removes three elements */
+            G_cg->note_pop(3);
+        }
+        else
+        {
+            /* constant property value */
+
+            /* 
+             *   If this is phase 2, and we have an object on the stack, we
+             *   need to rearrange the stack into the proper order:
+             *   
+             *   !discard: stack = (obj RHS RHS), and we need (RHS RHS obj).
+             *   
+             *   discard: stack = (obj RHS), and we need (obj RHS).  Just do
+             *   a SWAP.
+             *   
+             *   If there's no object on the stack, there's no need to do any
+             *   rearrangement.  
+             */
+            if (phase == 2 && !is_self && obj == VM_INVALID_OBJ)
+            {
+                if (discard)
+                {
+                    /* obj RHS -> RHS obj */
+                    G_cg->write_op(OPC_SWAP);
+                }
+                else
+                {
+                    /* obj RHS RHS -> RHS RHS obj */
+                    G_cg->write_op(OPC_SWAPN);
+                    G_cs->write(0);
+                    G_cs->write(2);
+                }
+            }
+
+            /* 
+             *   We have several instructions to choose from.  If we're
+             *   assigning to a property of "self", use SETPROPSELF.  If
+             *   we're assigning to a constant object, use OBJSETPROP.
+             *   Otherwise, use the plain SETPROP.
+             */
+            if (is_self)
+            {
+                /* write the SETPROPSELF */
+                G_cg->write_op(OPC_SETPROPSELF);
+                G_cs->write_prop_id(prop);
+
+                /* setpropself removes the RHS value */
+                G_cg->note_pop();
+            }
+            else if (obj != VM_INVALID_OBJ)
+            {
+                /* write the OBJSETPROP */
+                G_cg->write_op(OPC_OBJSETPROP);
+                G_cs->write_obj_id(obj);
+                G_cs->write_prop_id(prop);
+
+                /* objsetprop removes the RHS value */
+                G_cg->note_pop();
+            }
+            else
+            {
+                /* 
+                 *   write the normal SETPROP; we already generated the code
+                 *   to push the object value, so it's where it should be 
+                 */
+                G_cg->write_op(OPC_SETPROP);
+                G_cs->write_prop_id(prop);
+                
+                /* setprop removes the value and the object */
+                G_cg->note_pop(2);
+            }
+        }
+    }
+
+    /* we're done with the operation */
     return TRUE;
 }
 
@@ -6355,15 +7889,15 @@ int CTPNMember::gen_code_asi(int discard, tc_asitype_t typ, CTcPrsNode *rhs,
  */
 void CTPNMemArg::gen_code(int discard, int)
 {
-    int varargs;
-    
     /* push the argument list */
-    get_arg_list()->gen_code_arglist(&varargs);
+    int varargs;
+    CTcNamedArgs named_args;
+    get_arg_list()->gen_code_arglist(&varargs, named_args);
 
     /* ask the object expression to generate the code */
     get_obj_expr()->gen_code_member(discard, get_prop_expr(), prop_is_expr_,
                                     get_arg_list()->get_argc(),
-                                    varargs);
+                                    varargs, &named_args);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -6373,7 +7907,7 @@ void CTPNMemArg::gen_code(int discard, int)
 void CTPNList::gen_code(int discard, int for_condition)
 {
     CTPNListEle *ele;
-    
+
     /*
      *   Before we construct the list dynamically, check to see if the
      *   list is constant.  If it is, we need only built the list in the
@@ -6399,44 +7933,69 @@ void CTPNList::gen_code(int discard, int for_condition)
             /* note the push */
             G_cg->note_push();
         }
-
-        /* done */
-        return;
-    }
-
-    /*
-     *   It's not a constant list, so we must generate code to construct a
-     *   list dynamically.  Push each element of the list.  We need each
-     *   value (hence discard = false), and we require the assignable
-     *   value of each expression (hence for_condition = false).  Push the
-     *   argument list in reverse order, since the run-time metaclass
-     *   requires this ordering.  
-     */
-    for (ele = get_tail() ; ele != 0 ; ele = ele->get_prev())
-        ele->gen_code(FALSE, FALSE);
-
-    /* generate a NEW instruction for an object of metaclass LIST */
-    if (get_count() <= 255)
-    {
-        /* the count will fit in one byte - use the short form */
-        G_cg->write_op(OPC_NEW1);
-        G_cs->write((char)get_count());
-        G_cs->write((char)G_cg->get_predef_meta_idx(TCT3_METAID_LIST));
     }
     else
     {
-        /* count doesn't fit in one byte - use the long form */
-        G_cg->write_op(OPC_NEW2);
-        G_cs->write2(get_count());
-        G_cs->write2(G_cg->get_predef_meta_idx(TCT3_METAID_LIST));
-    }
-    
-    /* new1/new2 remove arguments */
-    G_cg->note_pop(get_count());
+        /*
+         *   It's not a constant list, so we must generate code to construct
+         *   a list dynamically.  Push each element of the list.  We need
+         *   each value (hence discard = false), and we require the
+         *   assignable value of each expression (hence for_condition =
+         *   false).  Push the argument list in reverse order, since the
+         *   run-time metaclass requires this ordering.  
+         */
+        for (ele = get_tail() ; ele != 0 ; ele = ele->get_prev())
+            ele->gen_code(FALSE, FALSE);
 
-    /* if we're not discarding the value, push it */
-    if (!discard)
+        /* generate a NEW instruction for an object of metaclass LIST */
+        if (get_count() <= 255)
+        {
+            /* the count will fit in one byte - use the short form */
+            G_cg->write_op(OPC_NEW1);
+            G_cs->write((char)get_count());
+            G_cs->write((char)G_cg->get_predef_meta_idx(TCT3_METAID_LIST));
+        }
+        else
+        {
+            /* count doesn't fit in one byte - use the long form */
+            G_cg->write_op(OPC_NEW2);
+            G_cs->write2(get_count());
+            G_cs->write2(G_cg->get_predef_meta_idx(TCT3_METAID_LIST));
+        }
+        
+        /* new1/new2 remove arguments */
+        G_cg->note_pop(get_count());
+
+        /* if we're not discarding the value, push it */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_GETR0);
+            G_cg->note_push();
+        }
+    }
+
+    /*
+     *   If this is a lookup table list, and we're not discarding the value,
+     *   create the actual LookupTable object from the list source.  If we're
+     *   discarding the value there's no need to create the object, since
+     *   doing so will have no meaningful side effects.  
+     */
+    if (!discard && is_lookup_table_)
     {
+        /* 
+         *   To construct the lookup table, we simply pass the list of [key,
+         *   value, key, value...] elements to the LookupTable constructor.
+         *   The list is already on the stack, so simply call the constructor
+         *   with one argument.  
+         */
+        G_cg->write_op(OPC_NEW1);
+        G_cs->write(1);
+        G_cs->write((char)G_cg->get_predef_meta_idx(TCT3_METAID_LOOKUP_TABLE));
+
+        /* NEW1 removes arguments */
+        G_cg->note_pop(1);
+
+        /* push the result */
         G_cg->write_op(OPC_GETR0);
         G_cg->note_push();
     }
@@ -6470,14 +8029,16 @@ void CTcSymbol::gen_code_addr()
  *   generate code to assign to the symbol - in general, we cannot assign
  *   to a symbol, so we'll just log an error 
  */
-int CTcSymbol::gen_code_asi(int, tc_asitype_t, class CTcPrsNode *,
-                            int ignore_error)
+int CTcSymbol::gen_code_asi(int, int phase, tc_asitype_t, const char *,
+                            class CTcPrsNode *,
+                            int ignore_error, int, void **)
 {
     /* 
-     *   if we're ignoring errors, simply return false to indicate that
-     *   nothing happened 
+     *   If we're ignoring errors, simply return false to indicate that
+     *   nothing happened.  Ignore errors on phase 2, since we'll already
+     *   have generated an error on phase 1.  
      */
-    if (ignore_error)
+    if (ignore_error || phase > 1)
         return FALSE;
 
     /* log the error */
@@ -6495,7 +8056,7 @@ int CTcSymbol::gen_code_asi(int, tc_asitype_t, class CTcPrsNode *,
  *   Generate code for calling the symbol.  By default, we can't call a
  *   symbol. 
  */
-void CTcSymbol::gen_code_call(int, int, int)
+void CTcSymbol::gen_code_call(int, int, int, CTcNamedArgs *)
 {
     /* log an error */
     G_tok->log_error(TCERR_CANNOT_CALL_SYM, (int)get_sym_len(), get_sym());
@@ -6504,7 +8065,7 @@ void CTcSymbol::gen_code_call(int, int, int)
 /*
  *   Generate code for operator 'new' 
  */
-void CTcSymbol::gen_code_new(int, int, int, int)
+void CTcSymbol::gen_code_new(int, int, int, CTcNamedArgs *, int)
 {
     G_tok->log_error(TCERR_INVAL_NEW_EXPR);
 }
@@ -6527,7 +8088,8 @@ vm_prop_id_t CTcSymbol::gen_code_propid(int check_only, int is_expr)
  */
 void CTcSymbol::gen_code_member(int discard,
                                 CTcPrsNode *prop_expr, int prop_is_expr,
-                                int argc, int varargs)
+                                int argc, int varargs,
+                                CTcNamedArgs *named_args)
 {
     /* by default, a symbol cannot be used as an object expression */
     G_tok->log_error(TCERR_SYM_NOT_OBJ, (int)get_sym_len(), get_sym());
@@ -6579,18 +8141,16 @@ void CTcSymFunc::gen_code(int discard)
  */
 void CTcSymFunc::gen_code_addr()
 {
-    /* 
-     *   the address of a function cannot be taken - using the name alone
-     *   yields the address 
-     */
-    G_tok->log_error(TCERR_INVAL_FUNC_ADDR, (int)get_sym_len(), get_sym());
+    /* '&function' is the same as 'function' with no arguments */
+    gen_code(FALSE);
 }
 
 
 /*
  *   call the symbol 
  */
-void CTcSymFunc::gen_code_call(int discard, int argc, int varargs)
+void CTcSymFunc::gen_code_call(int discard, int argc, int varargs,
+                               CTcNamedArgs *named_args)
 {
     /*
      *   If this is a multi-method base function, a call to the function is
@@ -6627,23 +8187,8 @@ void CTcSymFunc::gen_code_call(int discard, int argc, int varargs)
         func.gen_code(FALSE, FALSE);
 
         /* look up _multiMethodCall */
-        static const char mmc_name[] = "_multiMethodCall";
-        static const size_t mmc_len = sizeof(mmc_name) - 1;
-        CTcSymFunc *mmc = (CTcSymFunc *)G_prs->get_global_symtab()->find(
-            mmc_name, mmc_len);
-        if (mmc == 0)
-        {
-            /* it's not defined - add an implied declaration for it */
-            mmc = new CTcSymFunc(mmc_name, mmc_len, FALSE, 1, TRUE, TRUE,
-                                 FALSE, FALSE, TRUE);
-            G_prs->get_global_symtab()->add_entry(mmc);
-        }
-        else if(mmc->get_type() != TC_SYM_FUNC)
-        {
-            /* it's defined, but not as a function - this is an error */
-            G_tok->log_error(TCERR_REDEF_AS_FUNC, (int)mmc_len, mmc_name);
-            return;
-        }
+        CTcSymFunc *mmc = get_internal_func(
+            "_multiMethodCall", 1, 0, TRUE, TRUE);
 
         /* 
          *   Generate the call.  Note that there are always two arguments at
@@ -6651,7 +8196,8 @@ void CTcSymFunc::gen_code_call(int discard, int argc, int varargs)
          *   The argument list is just one argument because we've already
          *   constructed a list out of it.  
          */
-        mmc->gen_code_call(discard, 2, FALSE);
+        if (mmc != 0)
+            mmc->gen_code_call(discard, 2, FALSE, named_args);
     }
     else
     {
@@ -6664,10 +8210,10 @@ void CTcSymFunc::gen_code_call(int discard, int argc, int varargs)
         G_cs->write((char)argc);
 
         /* check the mode */
-        if (G_cg->is_eval_for_debug())
+        if (G_cg->is_eval_for_dyn())
         {
             /* 
-             *   debugger expression compilation - we know the absolute
+             *   dynamic (run-time) compilation - we know the absolute
              *   address already, since all symbols are pre-resolved in the
              *   debugger 
              */
@@ -6688,10 +8234,17 @@ void CTcSymFunc::gen_code_call(int discard, int argc, int varargs)
         /* call removes arguments */
         G_cg->note_pop(argc);
 
+        /* do post-call cleanup: named arg removal, etc */
+        G_cg->post_call_cleanup(named_args);
+
         /* make sure the argument count is correct */
-        if (varargs_ ? argc < argc_ : argc != argc_)
+        if (!argc_ok(argc))
+        {
+            char buf[128];
             G_tok->log_error(TCERR_WRONG_ARGC_FOR_FUNC,
-                             (int)get_sym_len(), get_sym(), argc_, argc);
+                             (int)get_sym_len(), get_sym(),
+                             get_argc_desc(buf), argc);
+        }
 
         /* if we're not discarding, push the return value from R0 */
         if (!discard)
@@ -6775,11 +8328,13 @@ void CTcSymObj::gen_code_addr()
 /*
  *   Generate a 'new' expression 
  */
-void CTcSymObj::gen_code_new(int discard, int argc, int varargs,
+void CTcSymObj::gen_code_new(int discard, int argc,
+                             int varargs, CTcNamedArgs *named_args,
                              int is_transient)
 {
     /* use our static generator */
-    s_gen_code_new(discard, obj_id_, metaclass_, argc, varargs, is_transient);
+    s_gen_code_new(discard, obj_id_, metaclass_,
+                   argc, varargs, named_args, is_transient);
 }
 
 /*
@@ -6792,7 +8347,9 @@ void CTcSymObj::gen_code_new(int discard, int argc, int varargs,
  */
 void CTcSymObj::s_gen_code_new(int discard, vm_obj_id_t obj_id,
                                tc_metaclass_t meta,
-                               int argc, int varargs, int is_transient)
+                               int argc, int varargs,
+                               CTcNamedArgs *named_args,
+                               int is_transient)
 {
     /* 
      *   push the base class object - this is always the first argument
@@ -6831,8 +8388,6 @@ void CTcSymObj::s_gen_code_new(int discard, vm_obj_id_t obj_id,
         G_cg->write_op(OPC_VARARGC);
     }
 
-    /* figure the metaclass index - the compiler can only generate known
-
     /* 
      *   write the NEW instruction - since we always add TADS Object to
      *   our metaclass table before we start compiling any code, we know
@@ -6863,6 +8418,9 @@ void CTcSymObj::s_gen_code_new(int discard, vm_obj_id_t obj_id,
     /* new1 removes the arguments */
     G_cg->note_pop(argc + 1);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* 
      *   if they're not discarding the value, push the new object
      *   reference, which will be in R0 when the constructor returns 
@@ -6879,10 +8437,11 @@ void CTcSymObj::s_gen_code_new(int discard, vm_obj_id_t obj_id,
  */
 void CTcSymObj::gen_code_member(int discard,
                                 CTcPrsNode *prop_expr, int prop_is_expr,
-                                int argc, int varargs)
+                                int argc, int varargs,
+                                CTcNamedArgs *named_args)
 {
     s_gen_code_member(discard, prop_expr, prop_is_expr,
-                      argc, obj_id_, varargs);
+                      argc, obj_id_, varargs, named_args);
 }
 
 /*
@@ -6891,7 +8450,8 @@ void CTcSymObj::gen_code_member(int discard,
  */
 void CTcSymObj::s_gen_code_member(int discard,
                                   CTcPrsNode *prop_expr, int prop_is_expr,
-                                  int argc, vm_obj_id_t obj_id, int varargs)
+                                  int argc, vm_obj_id_t obj_id,
+                                  int varargs, CTcNamedArgs *named_args)
 {
     vm_prop_id_t prop;
 
@@ -6998,6 +8558,9 @@ void CTcSymObj::s_gen_code_member(int discard,
         G_cg->note_pop(argc + 2);
     }
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if they want the result, push it onto the stack */
     if (!discard)
     {
@@ -7026,6 +8589,38 @@ void CTcSymObj::add_runtime_symbol(CVmRuntimeSymbols *symtab)
     /* add our entry */
     val.set_obj(obj_id_);
     symtab->add_sym(get_sym(), get_sym_len(), &val);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Invokable object 
+ */
+void CTcSymFuncObj::gen_code_call(int discard, int argc, int varargs,
+                                  CTcNamedArgs *named_args)
+{
+    /* write the varargs modifier if appropriate */
+    if (varargs)
+        G_cg->write_op(OPC_VARARGC);
+
+    /* push my value as the function pointer */
+    gen_code(discard);
+
+    /* generate the pointer-call instruction and argument count */
+    G_cg->write_op(OPC_PTRCALL);
+    G_cs->write((char)argc);
+
+    /* ptrcall removes arguments and the function pointer */
+    G_cg->note_pop(argc + 1);
+    
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+    
+    /* if we're not discarding, push the return value from R0 */
+    if (!discard)
+    {
+        G_cg->write_op(OPC_GETR0);
+        G_cg->note_push();
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -7081,7 +8676,8 @@ void CTcSymProp::gen_code(int discard)
  */
 void CTcSymProp::gen_code_member(int discard,
                                  CTcPrsNode *prop_expr, int prop_is_expr,
-                                 int argc, int varargs)
+                                 int argc, int varargs,
+                                 CTcNamedArgs *named_args)
 {
     /* generate code to evaluate the property */
     gen_code(FALSE);
@@ -7092,7 +8688,7 @@ void CTcSymProp::gen_code_member(int discard,
 
     /* use the standard member generation */
     CTcPrsNode::s_gen_member_rhs(discard, prop_expr, prop_is_expr,
-                                 argc, varargs);
+                                 argc, varargs, named_args);
 }
 
 /*
@@ -7111,15 +8707,19 @@ void CTcSymProp::gen_code_addr()
 /*
  *   assign to a property, implicitly of the "self" object 
  */
-int CTcSymProp::gen_code_asi(int discard, tc_asitype_t typ,
-                             class CTcPrsNode *rhs, int /*ignore_errors*/)
+int CTcSymProp::gen_code_asi(int discard, int phase,
+                             tc_asitype_t typ, const char *,
+                             class CTcPrsNode *rhs,
+                             int /*ignore_errors*/, int /*explicit*/,
+                             void ** /*ctx*/)
 {
     /* if there's no "self" object, we can't make this assignment */
     if (!G_cs->is_self_available())
     {
-        /* log an error */
-        G_tok->log_error(TCERR_SETPROP_NEEDS_OBJ,
-                         (int)get_sym_len(), get_sym());
+        /* log an error if it's phase 1 */
+        if (phase == 1)
+            G_tok->log_error(TCERR_SETPROP_NEEDS_OBJ,
+                             (int)get_sym_len(), get_sym());
 
         /* 
          *   indicate that we're finished, since there's nothing more we
@@ -7128,49 +8728,88 @@ int CTcSymProp::gen_code_asi(int discard, tc_asitype_t typ,
         return TRUE;
     }
 
-    /* 
-     *   if it's not a simple assignment, tell the caller to do the
-     *   composite work and get back to us with the value to store 
-     */
-    if (typ != TC_ASI_SIMPLE)
-        return FALSE;
-
-    /* 
-     *   generate the right-hand side's expression for assignment, unless
-     *   the caller has already done so 
-     */
-    if (rhs != 0)
-        rhs->gen_code(FALSE, FALSE);
-
-    /* 
-     *   if we're not discarding the value, make a copy - we'll consume a
-     *   copy in the SETPROP instruction, so we need one more copy to
-     *   return to the enclosing expression 
-     */
-    if (!discard)
+    /* check what we're doing */
+    if (typ == TC_ASI_SIMPLE)
     {
-        G_cg->write_op(OPC_DUP);
-        G_cg->note_push();
+        /* 
+         *   Simple assignment.  Generate the right-hand side's expression
+         *   for assignment, unless the caller has already done so.
+         */
+        if (rhs != 0)
+            rhs->gen_code(FALSE, FALSE);
+
+        /* 
+         *   if we're not discarding the value, make a copy - we'll consume a
+         *   copy in the SETPROP instruction, so we need one more copy to
+         *   return to the enclosing expression 
+         */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+        }
+        
+        /* 
+         *   write the SETPROP instruction - use the special form to assign
+         *   to "self" 
+         */
+        G_cg->write_op(OPC_SETPROPSELF);
+        G_cs->write_prop_id(prop_);
+        
+        /* setpropself removes the value */
+        G_cg->note_pop();
+
+        /* handled */
+        return TRUE;
     }
+    else if (phase == 1)
+    {
+        /* 
+         *   Phase 1 of a compound assignment.  Generate the property value
+         *   so that the compound operator can combine it with the RHS. 
+         */
+        gen_code(FALSE);
 
-    /* 
-     *   write the SETPROP instruction - use the special form to assign to
-     *   "self" 
-     */
-    G_cg->write_op(OPC_SETPROPSELF);
-    G_cs->write_prop_id(prop_);
+        /* proceed with the unrolled assignment */
+        return FALSE;
+    }
+    else if (phase == 2)
+    {
+        /* 
+         *   Phase 2 of a compound assignment.  The combined value of
+         *   (self.prop <op> RHS) is on the stack, so complete the
+         *   assignment.  
+         */
 
-    /* setpropself removes the value */
-    G_cg->note_pop();
+        /* if the caller will want to use the RHS value, make a copy */
+        if (!discard)
+        {
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+        }
 
-    /* handled */
-    return TRUE;
+        /* write the SETPROP */
+        G_cg->write_op(OPC_SETPROPSELF);
+        G_cs->write_prop_id(prop_);
+
+        /* setpropself removes the value */
+        G_cg->note_pop();
+
+        /* done */
+        return TRUE;
+    }
+    else
+    {
+        /* other phases aren't handled */
+        return FALSE;
+    }
 }
 
 /*
  *   call the symbol 
  */
-void CTcSymProp::gen_code_call(int discard, int argc, int varargs)
+void CTcSymProp::gen_code_call(int discard, int argc, int varargs,
+                               CTcNamedArgs *named_args)
 {
     /* 
      *   if there's no "self", we can't invoke a property without an
@@ -7183,7 +8822,8 @@ void CTcSymProp::gen_code_call(int discard, int argc, int varargs)
     }
 
     /* don't allow calling with arguments in speculative mode */
-    if (argc != 0 && G_cg->is_speculative())
+    if (G_cg->is_speculative()
+        && (argc != 0 || (named_args != 0 && named_args->cnt != 0)))
         err_throw(VMERR_BAD_SPEC_EVAL);
 
     /* generate code to invoke the property of "self" */
@@ -7218,6 +8858,9 @@ void CTcSymProp::gen_code_call(int discard, int argc, int varargs)
         /* callpropself removes arguments */
         G_cg->note_pop(argc);
     }
+
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
 
     /* if we're not discarding, push the return value from R0 */
     if (!discard)
@@ -7372,7 +9015,17 @@ void CTcSymLocal::gen_code(int discard)
 void CTcSymLocal::s_gen_code_getlcl(int var_num, int is_param)
 {
     /* use the shortest form of the instruction that we can */
-    if (var_num <= 255)
+    if (is_param && var_num < 4)
+    {
+        /* arguments 0-3 have dedicated opcodes */
+        G_cg->write_op(OPC_GETARGN0 + var_num);
+    }
+    else if (!is_param && var_num < 6)
+    {
+        /* locals 0-5 have dedicated opcodes */
+        G_cg->write_op(OPC_GETLCLN0 + var_num);
+    }
+    else if (var_num <= 255)
     {
         /* 8-bit local number - use the one-byte form */
         G_cg->write_op(is_param ? OPC_GETARG1 : OPC_GETLCL1);
@@ -7392,13 +9045,20 @@ void CTcSymLocal::s_gen_code_getlcl(int var_num, int is_param)
 /*
  *   assign a value 
  */
-int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
-                              class CTcPrsNode *rhs, int ignore_errors)
+int CTcSymLocal::gen_code_asi(int discard, int phase,
+                              tc_asitype_t typ, const char *,
+                              class CTcPrsNode *rhs,
+                              int ignore_errors,
+                              int xplicit, void **)
 {
     int adding;
     
-    /* mark the variable as having had a value assigned to it */
-    set_val_assigned(TRUE);
+    /* 
+     *   if this is an explicit assignment, mark the variable as having had a
+     *   value assigned to it 
+     */
+    if (xplicit)
+        set_val_assigned(TRUE);
 
     /* 
      *   if the assignment is anything but simple, this references the
@@ -7414,16 +9074,25 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
      *   combined calculate-and-assign sequence, depending on the type of
      *   assignment calculation we're performing.
      */
-    if (is_ctx_local_ && typ != TC_ASI_SIMPLE)
+    if (is_ctx_local_ && typ != TC_ASI_SIMPLE && phase == 1)
     {
         /* 
-         *   it's a context local and it's not a simple assignment, so we
-         *   can't perform any special calculate-and-assign sequence - tell
-         *   the caller to calculate the full result first and then try
-         *   again using simple assignment 
+         *   It's a context local, and it's not a simple assignment, so we
+         *   can't perform any special calculate-and-assign sequence.  For
+         *   phase 1, generate the value and tell the caller to calculate the
+         *   full result first and then try again using simple assignment.
          */
+        gen_code(FALSE);
         return FALSE;
     }
+
+    /* 
+     *   If this is phase 2 of a compound assignment, treat it the same as a
+     *   simple assignment.  The RHS is on the stack, and we simply need to
+     *   complete the assignment to the local.
+     */
+    if (phase == 2)
+        typ = TC_ASI_SIMPLE;
 
     /* 
      *   check the type of assignment - we can optimize the code
@@ -7535,7 +9204,11 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
     add_or_sub:
         /* if this is a parameter, there's nothing special we can do */
         if (is_param())
+        {
+            if (phase == 1)
+                gen_code(FALSE);
             return FALSE;
+        }
         
         /* 
          *   Add/subtract to a local/parameter.  If the right-hand side is a
@@ -7622,7 +9295,11 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
     case TC_ASI_PREINC:
         /* if this is a parameter, there's nothing special we can do */
         if (is_param())
+        {
+            if (phase == 1)
+                gen_code(FALSE);
             return FALSE;
+        }
 
         /* generate code to increment the local */
         G_cg->write_op(OPC_INCLCL);
@@ -7638,7 +9315,11 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
     case TC_ASI_POSTINC:
         /* if this is a parameter, there's nothing special we can do */
         if (is_param())
+        {
+            if (phase == 1)
+                gen_code(FALSE);
             return FALSE;
+        }
 
         /* 
          *   if we're not discarding, push the local's value prior to
@@ -7658,7 +9339,11 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
     case TC_ASI_PREDEC:
         /* if this is a parameter, there's nothing special we can do */
         if (is_param())
+        {
+            if (phase == 1)
+                gen_code(FALSE);
             return FALSE;
+        }
 
         /* generate code to decrement the local */
         G_cg->write_op(OPC_DECLCL);
@@ -7674,7 +9359,11 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
     case TC_ASI_POSTDEC:
         /* if this is a parameter, there's nothing special we can do */
         if (is_param())
+        {
+            if (phase == 1)
+                gen_code(FALSE);
             return FALSE;
+        }
 
         /* 
          *   if we're not discarding, push the local's value prior to
@@ -7692,7 +9381,12 @@ int CTcSymLocal::gen_code_asi(int discard, tc_asitype_t typ,
         return TRUE;
 
     default:
-        /* we can't do anything special with other assignment types */
+        /* 
+         *   For other special assignment types, simply generate the value of
+         *   the local, and tell the caller to proceed with the unrolled
+         *   assignment.  
+         */
+        gen_code(FALSE);
         return FALSE;
     }
 }
@@ -7770,7 +9464,8 @@ void CTcSymLocal::s_gen_code_setlcl_stk(int var_num, int is_param)
 /*
  *   call the symbol 
  */
-void CTcSymLocal::gen_code_call(int discard, int argc, int varargs)
+void CTcSymLocal::gen_code_call(int discard, int argc, int varargs,
+                                CTcNamedArgs *named_args)
 {
     /* 
      *   to call a local, we'll simply evaluate the local normally, then
@@ -7803,6 +9498,9 @@ void CTcSymLocal::gen_code_call(int discard, int argc, int varargs)
     /* ptrcall removes the arguments and the function pointer */
     G_cg->note_pop(argc + 1);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if we're not discarding the value, push the result */
     if (!discard)
     {
@@ -7834,7 +9532,8 @@ vm_prop_id_t CTcSymLocal::gen_code_propid(int check_only, int /*is_expr*/)
  */
 void CTcSymLocal::gen_code_member(int discard,
                                   CTcPrsNode *prop_expr, int prop_is_expr,
-                                  int argc, int varargs)
+                                  int argc, int varargs,
+                                  CTcNamedArgs *named_args)
 {
     /* generate code to evaluate the local */
     gen_code(FALSE);
@@ -7845,15 +9544,38 @@ void CTcSymLocal::gen_code_member(int discard,
 
     /* use the standard member generation */
     CTcPrsNode::s_gen_member_rhs(discard, prop_expr, prop_is_expr,
-                                 argc, varargs);
+                                 argc, varargs, named_args);
 }
 
 /*
  *   write to a debug record 
  */
-int CTcSymLocal::write_to_debug_frame()
+int CTcSymLocal::write_to_debug_frame(int test_only)
 {
-    int flags;
+    /* if this is test-only mode, just note that we will write it */
+    if (test_only)
+        return TRUE;
+
+    /* 
+     *   For version 2+ static compilation, write the symbol name
+     *   out-of-line, to the separate stream for local variable names.  This
+     *   allows us to consolidate the names so that each name is stored only
+     *   once in the file.  This saves a lot of space since there are a few
+     *   common local names that appear over and over.  Version 1 always
+     *   wrote names in-line, and we also have to write the names in-line
+     *   when generating dynamic code, since we can't add to the constant
+     *   pool in this case.
+     *   
+     *   Also, store all 1- and 2-character names in-line.  1-character names
+     *   are smaller if stored in-line since they'll take only three bytes
+     *   (two bytes for the length, one byte for the string) vs four bytes
+     *   for a shared pool pointer.  2-char names are a wash on the frame
+     *   storage, but it's still more efficient to store them in-line because
+     *   we avoid also creating the constant pool entry for them.  
+     */
+    int inl = (len_ <= 2
+               || G_sizes.dbg_fmt_vsn < 2
+               || G_cg->is_eval_for_dyn());
     
     /* 
      *   write my ID - if we're a context variable, we want to write the
@@ -7865,11 +9587,13 @@ int CTcSymLocal::write_to_debug_frame()
         G_cs->write2(var_num_);
 
     /* compute my flags */
-    flags = 0;
+    int flags = 0;
     if (is_param_)
-        flags |= 1;
+        flags |= 0x0001;
     if (is_ctx_local_)
-        flags |= 2;
+        flags |= 0x0002;
+    if (!inl)
+        flags |= 0x0004;
 
     /* write my flags */
     G_cs->write2(flags);
@@ -7877,13 +9601,176 @@ int CTcSymLocal::write_to_debug_frame()
     /* write my local context array index */
     G_cs->write2(get_ctx_arr_idx());
 
-    /* write the length of my symbol name */
-    G_cs->write2(len_);
-    G_cs->write(str_, len_);
+    /* add zeros to pad any future version information for the target VM */
+    for (int i = G_sizes.lcl_hdr - 6 ; i > 0 ; --i)
+        G_cs->write(0);
+
+    /* 
+     *   write the name - either to the separate stream for local names, or
+     *   inline if necessary 
+     */
+    if (inl)
+    {
+        /* write the symbol name to the table in-line */
+        G_cs->write2(len_);
+        G_cs->write(str_, len_);
+    }
+    else
+    {
+        /* add a fixup from the table to the local stream */
+        CTcStreamAnchor *anchor = G_lcl_stream->add_anchor(0, 0);
+        CTcAbsFixup::add_abs_fixup(anchor->fixup_list_head_,
+                                   G_cs, G_cs->get_ofs());
+
+        /* add the placeholder to the table (this is what we fix up) */
+        G_cs->write4(0);
+
+        /* write the name to the local stream */
+        G_lcl_stream->write2(len_);
+        G_lcl_stream->write(str_, len_);
+    }
 
     /* we did write this symbol */
     return TRUE;
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Dynamic code local.  This is a symbol for a local variable in an active
+ *   stack frame during dynamic compilation.  
+ */
+
+/*
+ *   generate code to evaluate the variable's value 
+ */
+void CTcSymDynLocal::gen_code(int discard)
+{
+    /* there are no side effects, so do nothing if discarding the value */
+    if (discard)
+        return;
+
+    /* 
+     *   to retrieve a dynamic frame local, we simply need to evaluate
+     *   fref[index], where 'fref' is the StackFrameRef object and 'index' is
+     *   an integer giving the frame index of the variable 
+     */
+
+    /* push the frame object */
+    G_cg->write_op(OPC_PUSHOBJ);
+    G_cs->write_obj_id(fref_);
+    G_cg->note_push();
+
+    /* push the variable's frame index */
+    CTPNConst::s_gen_code_int(varnum_);
+
+    /* index the frame object */
+    G_cg->write_op(OPC_INDEX);
+
+    /* INDEX pops two items and pushes one for a net of one pop */
+    G_cg->note_pop(1);
+
+    /* 
+     *   if this is a context local, we now have the context object, so we
+     *   need to further index it by the variable's context index 
+     */
+    if (ctxidx_ != 0)
+    {
+        /* index the context object by the context index */
+        CTPNConst::s_gen_code_int(varnum_);
+        G_cg->write_op(OPC_INDEX);
+
+        /* INDEX pops two items and pushes one */
+        G_cg->note_pop(1);
+    }
+}
+
+/*
+ *   generate code to assign to the variable 
+ */
+int CTcSymDynLocal::gen_code_asi(int discard, int phase,
+                                 tc_asitype_t typ, const char *,
+                                 class CTcPrsNode *rhs,
+                                 int, int, void **)
+{
+    /* if this is a complex assignment, use the default two-phase process */
+    if (typ != TC_ASI_SIMPLE && phase == 1)
+    {
+        /* 
+         *   generate our value, and tell the caller to calculate the
+         *   compound expression result and assign the value with a separate
+         *   call 
+         */
+        gen_code(FALSE);
+        return FALSE;
+    }
+
+    /* if the rhs isn't already on the stack, generate it */
+    if (rhs != 0)
+        rhs->gen_code(FALSE, FALSE);
+
+    /* 
+     *   if we're not disarding the rhs value, make an extra copy, as we'll
+     *   consume our copy in the performing the assignment 
+     */
+    if (!discard)
+    {
+        G_cg->write_op(OPC_DUP);
+        G_cg->note_push();
+    }
+
+    /* 
+     *   to assign to a local variable, perform a set-index operation through
+     *   the frame object - that is, evaluate "fref[index] = value" 
+     */
+    
+    /* push the frame object */
+    G_cg->write_op(OPC_PUSHOBJ);
+    G_cs->write_obj_id(fref_);
+    G_cg->note_push();
+
+    /* push the variable's frame index */
+    CTPNConst::s_gen_code_int(varnum_);
+
+    /* 
+     *   if this is a context local, frame[index] yields the context object,
+     *   so we need to retrieve that before proceeding 
+     */
+    if (ctxidx_ != 0)
+    {
+        /* get frame[varnum] - that gives us the context object */
+        G_cg->write_op(OPC_INDEX);
+
+        /* INDEX pops two items and pushes one for a net 1 pop */
+        G_cg->note_pop();
+
+        /* 
+         *   now push the context index - the actual assignment will be
+         *   ctxobj[ctxidx] = rhs 
+         */
+        CTPNConst::s_gen_code_int(ctxidx_);
+    }
+
+    /* perform the assignment */
+    G_cg->write_op(OPC_SETIND);
+
+    /* 
+     *   Discard the new container value.  This is the result of doing an
+     *   index-assign through the frame object, which is simply the original
+     *   frame object; even if it were changing, it's not something we'd need
+     *   to store anywhere since this is an internal indexing operation.  
+     */
+    G_cg->write_op(OPC_DISC);
+
+    /* 
+     *   the SETIND pops the rhs, index, and indexee, and pushes the
+     *   container, which we then discard, for a net pop of 3 
+     */
+    G_cg->note_pop(3);
+
+    /* handled */
+    return TRUE;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -7898,13 +9785,14 @@ int CTcSymLocal::write_to_debug_frame()
 void CTcSymBif::gen_code(int discard)
 {
     /* generate a call */
-    gen_code_call(discard, 0, FALSE);
+    gen_code_call(discard, 0, FALSE, 0);
 }
 
 /*
  *   Generate code to call the built-in function 
  */
-void CTcSymBif::gen_code_call(int discard, int argc, int varargs)
+void CTcSymBif::gen_code_call(int discard, int argc, int varargs,
+                              CTcNamedArgs *named_args)
 {
     /* don't allow calling built-in functions in speculative mode */
     if (G_cg->is_speculative())
@@ -7965,6 +9853,9 @@ void CTcSymBif::gen_code_call(int discard, int argc, int varargs)
     /* the built-in functions always remove arguments */
     G_cg->note_pop(argc);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* 
      *   if they're not discarding the value, push it - the value is
      *   sitting in R0 after the call returns
@@ -7976,6 +9867,31 @@ void CTcSymBif::gen_code_call(int discard, int argc, int varargs)
     }
 }
 
+/*
+ *   take the address of the built-in function
+ */
+void CTcSymBif::gen_code_addr()
+{
+    /* generate PUSHBIFPTR <function set index> <function index> */
+    G_cg->write_op(OPC_PUSHBIFPTR);
+    G_cs->write2(func_idx_);
+    G_cs->write2(func_set_id_);
+
+    /* this pushes one element */
+    G_cg->note_push();
+}
+
+/*
+ *   add a runtime symbol table entry 
+ */
+void CTcSymBif::add_runtime_symbol(CVmRuntimeSymbols *symtab)
+{
+    vm_val_t val;
+
+    /* add an entry for our absolute address */
+    val.set_bifptr(func_set_id_, func_idx_);
+    symtab->add_sym(get_sym(), get_sym_len(), &val);
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -7994,7 +9910,8 @@ void CTcSymExtfn::gen_code(int /*discard*/)
 /*
  *   generate a call to the symbol
  */
-void CTcSymExtfn::gen_code_call(int /*discard*/, int /*argc*/, int /*varargs*/)
+void CTcSymExtfn::gen_code_call(int /*discard*/, int /*argc*/, int /*varargs*/,
+                                CTcNamedArgs * /*named_args*/)
 {
     //$$$ to be implemented
     assert(FALSE);
@@ -8012,8 +9929,7 @@ void CTcSymExtfn::gen_code_call(int /*discard*/, int /*argc*/, int /*varargs*/)
 void CTcSymLabel::gen_code(int discard)
 {
     /* it's not legal to evaluate a code label; log an error */
-    G_tok->log_error(TCERR_CANNOT_EVAL_LABEL,
-                     (int)get_sym_len(), get_sym());
+    G_tok->log_error(TCERR_CANNOT_EVAL_LABEL, (int)get_sym_len(), get_sym());
 }
 
 /* ------------------------------------------------------------------------ */
@@ -8026,6 +9942,14 @@ void CTcSymLabel::gen_code(int discard)
  */
 void CTcSymMetaclass::gen_code(int discard)
 {
+    /* 
+     *   mark it as referenced - if the metaclass wasn't defined in this file
+     *   but was merely imported from a symbol file, we now need to write it
+     *   to the object file anyway, since its class object ID has been
+     *   referenced 
+     */
+    ref_ = TRUE;
+    
     /* 
      *   the metaclass name refers to the IntrinsicClass instance
      *   associated with the metaclass 
@@ -8040,9 +9964,17 @@ void CTcSymMetaclass::gen_code(int discard)
 /*
  *   generate code for operator 'new' applied to the metaclass 
  */
-void CTcSymMetaclass::gen_code_new(int discard, int argc, int varargs,
+void CTcSymMetaclass::gen_code_new(int discard, int argc,
+                                   int varargs, CTcNamedArgs *named_args,
                                    int is_transient)
 {
+    /* if this is an external metaclass, we can't generate code */
+    if (ext_)
+    {
+        G_tok->log_error(TCERR_EXT_METACLASS, (int)get_sym_len(), get_sym());
+        return;
+    }
+
     /* if we have varargs, write the modifier */
     if (varargs)
         G_cg->write_op(OPC_VARARGC);
@@ -8063,6 +9995,9 @@ void CTcSymMetaclass::gen_code_new(int discard, int argc, int varargs,
     /* new1/new2 remove arguments */
     G_cg->note_pop(argc);
 
+    /* do post-call cleanup: named arg removal, etc */
+    G_cg->post_call_cleanup(named_args);
+
     /* if we're not discarding the value, push it */
     if (!discard)
     {
@@ -8076,8 +10011,16 @@ void CTcSymMetaclass::gen_code_new(int discard, int argc, int varargs,
  */
 void CTcSymMetaclass::gen_code_member(int discard, CTcPrsNode *prop_expr,
                                       int prop_is_expr,
-                                      int argc, int varargs)
+                                      int argc, int varargs,
+                                      CTcNamedArgs *named_args)
 {
+    /* if this is an external metaclass, we can't generate code */
+    if (ext_)
+    {
+        G_tok->log_error(TCERR_EXT_METACLASS, (int)get_sym_len(), get_sym());
+        return;
+    }
+
     /* generate code to push our class object onto the stack */
     gen_code(FALSE);
 
@@ -8087,7 +10030,7 @@ void CTcSymMetaclass::gen_code_member(int discard, CTcPrsNode *prop_expr,
 
     /* use the standard member generation */
     CTcPrsNode::s_gen_member_rhs(discard, prop_expr, prop_is_expr,
-                                 argc, varargs);
+                                 argc, varargs, named_args);
 }
 
 /*
@@ -8095,9 +10038,12 @@ void CTcSymMetaclass::gen_code_member(int discard, CTcPrsNode *prop_expr,
  */
 void CTcSymMetaclass::add_runtime_symbol(CVmRuntimeSymbols *symtab)
 {
-    vm_val_t val;
+    /* don't do this for external metaclasses */
+    if (ext_)
+        return;
 
     /* add our entry */
+    vm_val_t val;
     val.set_obj(get_class_obj());
     symtab->add_sym(get_sym(), get_sym_len(), &val);
 }
@@ -8178,9 +10124,142 @@ void CTcT3ExcTable::write_to_code_stream()
         G_cs->write2(entry->end_ofs);
         G_cs->write_obj_id(entry->exc_obj_id);
         G_cs->write2(entry->catch_ofs);
+
+        /* pad any excess beyond the v1 size with zero bytes */
+        for (int j = G_sizes.exc_entry - 10 ; j > 0 ; --j)
+            G_cs->write(0);
     }
 }
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parameter default value enumeration context. 
+ */
+struct defval_ctx
+{
+    defval_ctx()
+    {
+        nv = 0;
+        nvalo = 128;
+        v = new CTcSymLocal *[nvalo];
+    }
+
+    ~defval_ctx()
+    {
+        delete [] v;
+    }
+
+    void add(CTcSymLocal *l)
+    {
+        /* if there's not room, expand the array */
+        if (nv == nvalo)
+        {
+            CTcSymLocal **vnew = new CTcSymLocal*[nvalo + 128];
+            memcpy(vnew, v, nvalo * sizeof(*vnew));
+            delete [] v;
+            v = vnew;
+            nvalo += 128;
+        }
+
+        /* add it */
+        v[nv++] = l;
+    }
+
+    /* sort the list in ascending order of sequence number */
+    void sort() { qsort(v, nv, sizeof(*v), &compare); }
+    static int compare(const void *a0, const void *b0)
+    {
+        const CTcSymLocal *a = *(const CTcSymLocal **)a0;
+        const CTcSymLocal *b = *(const CTcSymLocal **)b0;
+
+        return a->get_defval_seqno() - b->get_defval_seqno();
+    }
+
+    /* generate code to initialize an optional positional parameter */
+    static void gen_opt_positional(CTcSymLocal *lcl)
+    {
+        /*   
+         *   The code we want to generate is this, in pseudo code (where 'n'
+         *   is our position among the arguments):
+         *   
+         *.    if (n <= argcount)
+         *.       lcl = getArg(n)
+         *.    else
+         *.       lcl = default_expression;
+         *   
+         *   The 'else' applies only if there's a default expression with the
+         *   local; otherwise we simply leave it with the nil initial value.
+         */
+
+        /* if n > argcount... */
+        CTPNConst::s_gen_code_int(lcl->get_param_index() + 1);
+        G_cg->write_op(OPC_GETARGC);
+        G_cg->note_push();
+
+        /* ...jump to the 'not found' branch... */
+        CTcCodeLabel *nf_lbl = G_cs->new_label_fwd();
+        G_cg->write_op(OPC_JGT);
+        G_cs->write_ofs2(nf_lbl, 0);
+        G_cg->note_pop(2);
+        
+        /* getArg(n) */
+        CTPNConst::s_gen_code_int(lcl->get_param_index() + 1);
+        call_internal_bif("getArg", TCERR_OPT_PARAM_MISSING_FUNC, 1);
+
+        /* if there's a default value, generate it */
+        if (lcl->get_defval_expr() != 0)
+        {
+            /* we're done with the 'then' branch - jump to the assignment */
+            CTcCodeLabel *asi_lbl = G_cs->new_label_fwd();
+            G_cg->write_op(OPC_JMP);
+            G_cs->write_ofs2(asi_lbl, 0);
+            
+            /* define the 'not found' label - come here to set the default */
+            CTcPrsNode::def_label_pos(nf_lbl);
+
+            /* generate the default expression */
+            lcl->get_defval_expr()->gen_code(FALSE, FALSE);
+
+            /* we're ready to do the assignment */
+            CTcPrsNode::def_label_pos(asi_lbl);
+
+            /* 
+             *   since we're sharing the assignment (coming up next) with the
+             *   main branch, we need to account for the extra push on this
+             *   branch 
+             */
+            G_cg->note_pop();
+        }
+
+        /* 
+         *   Assign the value we decided upon to the local.  Don't count this
+         *   as an explicit assignment of a value for warning purposes; this
+         *   is effectively the same kind of assignment as the kind that
+         *   binds an actual argument to this formal parameter, so it
+         *   shouldn't count as any more explicit an assignment than that
+         *   does.  
+         */
+        lcl->gen_code_asi(TRUE, 1, TC_ASI_SIMPLE, "=",
+                          0, FALSE, FALSE, 0);
+
+        /* 
+         *   if there was no default value, the 'not found' branch jumps
+         *   here, past the assignment, since we have no value to assign 
+         */
+        if (lcl->get_defval_expr() == 0)
+            CTcPrsNode::def_label_pos(nf_lbl);
+    }
+
+    /* array of local variables with default values */
+    CTcSymLocal **v;
+
+    /* allocated size of 'v' array */
+    int nvalo;
+
+    /* number of entries in 'v' array */
+    int nv;
+};
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -8217,8 +10296,18 @@ void CTPNCodeBody::gen_code(int, int)
     G_cg->open_method(is_static_ ? G_cs_static : G_cs_main,
                       fixup_owner_sym_, fixup_list_anchor_,
                       this, gototab_,
-                      argc_, varargs_, is_constructor_, self_valid_,
-                      &gen_ctx);
+                      argc_, opt_argc_, varargs_,
+                      is_constructor_, op_overload_,
+                      self_valid_, &gen_ctx);
+
+    /* 
+     *   Add a line record at the start of the method for all of the
+     *   generated method prolog code.  Some prolog code can throw errors, so
+     *   we want a line record at the start of the code body to indicate the
+     *   location of any such errors. 
+     */
+    if (start_desc_ != 0)
+        G_cs->add_line_rec(start_desc_, start_linenum_);
 
     /* 
      *   Add each local symbol table enclosing the code body's primary
@@ -8231,10 +10320,9 @@ void CTPNCodeBody::gen_code(int, int)
      */
     if (lcltab_ != 0)
     {
-        CTcPrsSymtab *tab;
-
         /* add each frame outside the primary frame to the code gen list */
-        for (tab = lcltab_->get_parent() ; tab != 0 ; tab = tab->get_parent())
+        for (CTcPrsSymtab *tab = lcltab_->get_parent() ; tab != 0 ;
+             tab = tab->get_parent())
             G_cs->set_local_frame(tab);
     }
 
@@ -8299,125 +10387,255 @@ void CTPNCodeBody::gen_code(int, int)
     }
 
     /* 
+     *   generate other special parameter setup code: named arguments and
+     *   default values 
+     */
+    if (lcltab_ != 0)
+    {
+        /* 
+         *   generate bindings for named parameters and optional positional
+         *   parameters that don't have default expressions, and build the
+         *   array of optional parameters with default expressions
+         */
+        defval_ctx dctx;
+        lcltab_->enum_entries(&enum_for_named_params, &dctx);
+
+        /* sort the default value list in left-to-right parameter order */
+        dctx.sort();
+
+        /* generate the default value assignments */
+        for (int i = 0 ; i < dctx.nv ; ++i)
+        {
+            /* get this local */
+            CTcSymLocal *lcl = dctx.v[i];
+
+            /* generate the proper code depending on the parameter type */
+            if (lcl->is_named_param())
+            {
+                /* 
+                 *   Named parameter with a default.
+                 *   
+                 *   If the default is a constant, call t3GetNamedArg(name,
+                 *   defVal).  This returns the argument value, or the
+                 *   default value if the argument isn't defined.
+                 *   
+                 *   If the default value expression isn't a constant, we
+                 *   can't evaluate it until we know whether or not the
+                 *   argument is defined, since the expression could have
+                 *   side effects that we don't want to trigger unless we
+                 *   really need to evaluate the expression.  So in this
+                 *   case, we have to look up the argument first, and set the
+                 *   default only the argument doesn't exist.
+                 *   
+                 *   Note that we could handle both cases with the
+                 *   non-constant handling, since it would make no difference
+                 *   semantically to defer evaluating a constant until after
+                 *   checking to see if the argument exists.  However, the
+                 *   separate version for constants yields faster and smaller
+                 *   byte code, so we use it as an optimization for a common
+                 *   case.  
+                 */
+                if (lcl->get_defval_expr()->is_const())
+                {
+                    /* constant default - use t3GetNamedArg(name, defval) */
+                    lcl->get_defval_expr()->gen_code(FALSE, FALSE);
+                    CTPNConst::s_gen_code_str_by_mode(lcl);
+                    call_internal_bif("t3GetNamedArg",
+                                      TCERR_NAMED_PARAM_MISSING_FUNC, 2);
+                }
+                else
+                {
+                    /* 
+                     *   Non-constant default value.  We don't want to
+                     *   evaluate the argument unless necessary in this case,
+                     *   so start by calling t3GetNamedArg(name).  This will
+                     *   throw an error if the argument doesn't exist, so do
+                     *   this in an implied try/catch block.  If we return
+                     *   without an error, simply proceed with the value
+                     *   returned.  If an error is thrown, catch the error
+                     *   and *then* evaluate the default value.  
+                     */
+                    ulong start_ofs = G_cs->get_ofs();
+                    CTPNConst::s_gen_code_str_by_mode(lcl);
+                    call_internal_bif("t3GetNamedArg",
+                                      TCERR_NAMED_PARAM_MISSING_FUNC, 1);
+
+                    /* that's the end of the implied 'try' section */
+                    ulong end_ofs = G_cs->get_ofs() - 1;
+
+                    /* 
+                     *   On a successful return, the result value will be at
+                     *   top of stack, so just jump past the evaluation of
+                     *   the default value.  Since we're done with this
+                     *   branch, clear what it left on the stack, since the
+                     *   'catch' branch will leave the same thing on the
+                     *   stack in parallel.  
+                     */
+                    CTcCodeLabel *asi_lbl = gen_jump_ahead(OPC_JMP);
+                    G_cg->note_pop();
+
+                    /* this is the start of our implied 'catch' block */
+                    G_cg->get_exc_table()->add_catch(
+                        start_ofs, end_ofs, VM_INVALID_OBJ, G_cs->get_ofs());
+                    G_cg->note_push();
+
+                    /* discard the exception */
+                    G_cg->write_op(OPC_DISC);
+                    G_cg->note_pop();
+
+                    /* generate the default value expression */
+                    lcl->get_defval_expr()->gen_code(FALSE, FALSE);
+
+                    /* this is the common 'assign' branch point */
+                    def_label_pos(asi_lbl);
+                }
+
+                /* assign the top-of-stack value to the local */
+                lcl->gen_code_asi(TRUE, 1, TC_ASI_SIMPLE, "=", 0, 
+                                  FALSE, FALSE, 0);
+            }
+            else
+            {
+                /* it's a positional parameter - generate it */
+                dctx.gen_opt_positional(lcl);
+            }
+        }
+    }
+
+    /*
+     *   If this is a dynamic function (a DynamicFunc object), and it's
+     *   defined with the 'function' keyword (not 'method'), and it has a
+     *   'self', we need to set up the method context to point to the
+     *   enclosing frame object's method context.  
+     */
+    if (G_cg->is_eval_for_dyn()
+        && is_dyn_func_
+        && self_valid_
+        && (self_referenced_ || full_method_ctx_referenced_))
+    {
+        /*
+         *   We need the method context.  For dyanmic code, the invokee is
+         *   the DynamicFunc, and the DynamicFunc makes the context available
+         *   via its indexed value [1].  
+         */
+        G_cg->write_op(OPC_PUSHCTXELE);
+        G_cs->write(PUSHCTXELE_INVOKEE);
+        CTPNConst::s_gen_code_int(1);
+        G_cg->write_op(OPC_INDEX);
+
+        /* we pushed the invokee and popped it again with the INDEX */
+        G_cg->note_push();
+        G_cg->note_pop();
+
+        /* 
+         *   The invokee will store the appropriate object in its [1]
+         *   element, according to which type of method context we need.
+         *   Generate the appropriate 'set' for it.  
+         */
+        if (full_method_ctx_referenced_)
+        {
+            /* load the full method context */
+            G_cg->write_op(OPC_LOADCTX);
+        }
+        else
+        {
+            /* load the 'self' object */
+            G_cg->write_op(OPC_SETSELF);
+        }
+
+        /* that pops the context object */
+        G_cg->note_pop();
+    }
+
+    /* 
      *   Generate code to initialize each enclosing-context-pointer local -
      *   these variables allow us to find the context objects while we're
      *   running inside this function.
      *   
-     *   We *have to* generate context level 1 last.  Context level 1 does a
-     *   set-self to re-establish the method context (if there is one), and
-     *   once we've changed to the method context 'self', we can no longer
-     *   access the anonymous function pointer context, which is in 'self'
-     *   until we change it.  So, we have to wait and do level 1 last, so
-     *   that we're completely done with the anonymous function context
-     *   before we lose it.
-     *   
-     *   To ensure we generate level 1 last, make two passes: in the first
-     *   pass, generate everything except level 1; on the second pass,
-     *   generate only level 1.  This two-pass approach guarantees that level
-     *   1 will be the last one generated, regardless of where it appears in
-     *   the list.  (We can't just rearrange the list - not easily, at least
-     *   - because the list is in order of function object ('self') context
-     *   slot index.)  
+     *   Before 3.1, we had to generate context level 1 last, because this
+     *   level sets 'self' for an anonymous function to the saved 'self' from
+     *   the context.  Starting with 3.1, the stack frame has a separate
+     *   entry for the invokee, so we no longer conflate the anonymous
+     *   function object with 'self'.  
      */
-    for (int ctx_pass = 1 ; ctx_pass <= 2 ; ++ctx_pass)
+    for (ctx_idx = 0, cur_ctx = ctx_head_ ; cur_ctx != 0 ;
+         cur_ctx = cur_ctx->nxt_, ++ctx_idx)
     {
-        /* loop over each context entry */
-        for (ctx_idx = 0, cur_ctx = ctx_head_ ; cur_ctx != 0 ;
-             cur_ctx = cur_ctx->nxt_, ++ctx_idx)
+        /* 
+         *   Get this context value, stored in invokee[n+2].  Note that the
+         *   context object indices start at 2 because the FUNCPTR value for
+         *   the code itself is at index 1.  
+         */
+        G_cg->write_op(OPC_PUSHCTXELE);
+        G_cs->write(PUSHCTXELE_INVOKEE);
+        CTPNConst::s_gen_code_int(ctx_idx + 2);
+        G_cg->write_op(OPC_INDEX);
+
+        /* 
+         *   we pushed the object, then popped the object and index and
+         *   pushed the indexed value - this is a net of no change with one
+         *   maximum push 
+         */
+        G_cg->note_push();
+        G_cg->note_pop();
+
+        /*
+         *   If this is context level 1, and this context has a 'self', and
+         *   we need either 'self' or the full method context from the
+         *   lexically enclosing scope, generate code to load the self or the
+         *   full method context (as appropriate) from our local context.
+         *   
+         *   The enclosing method context is always stored in the context at
+         *   level 1, because this is inherently shared context for all
+         *   enclosed lexical scopes.  We thus only have to worry about this
+         *   for context level 1.  
+         */
+        if (cur_ctx->level_ == 1
+            && !is_anon_method_
+            && self_valid_
+            && (self_referenced_ || full_method_ctx_referenced_))
         {
-            /* 
-             *   Context level 1 *must* be generated last.  If we're on pass
-             *   1 and this is level 1, skip it for now; if we're on pass 2,
-             *   skip everything *except* level 1. 
-             */
-            if ((ctx_pass == 1 && cur_ctx->level_ == 1)
-                || (ctx_pass == 2 && cur_ctx->level_ != 1))
-                continue;
+            CTPNCodeBody *outer;
             
             /* 
-             *   Get this context value, stored in the function object
-             *   ('self') at index value 2+n (n=0,1,...).  Note that the
-             *   context object indices start at 2 because the code pointer
-             *   for the function is at index 1.  
+             *   we just put our context object on the stack in preparation
+             *   for storing it - make a duplicate copy of it for our own
+             *   purposes 
              */
-            G_cg->write_op(OPC_PUSHSELF);
-            CTPNConst::s_gen_code_int(ctx_idx + 2);
-            G_cg->write_op(OPC_INDEX);
-
-            /* 
-             *   we pushed the object, then popped the object and index and
-             *   pushed the indexed value - this is a net of no change with
-             *   one maximum push 
-             */
+            G_cg->write_op(OPC_DUP);
             G_cg->note_push();
-            G_cg->note_pop();
-
-            /*
-             *   If this is context level 1, and this context has a 'self',
-             *   and we need either 'self' or the full method context from
-             *   the lexically enclosing scope, generate code to load the
-             *   self or the full method context (as appropriate) from our
-             *   local context.
-             *   
-             *   The enclosing method context is always stored in the context
-             *   at level 1, because this is inherently shared context for
-             *   all enclosed lexical scopes.  We thus only have to worry
-             *   about this for context level 1.  
-             */
-            if (cur_ctx->level_ == 1
-                && self_valid_
-                && (self_referenced_ || full_method_ctx_referenced_))
-            {
-                CTPNCodeBody *outer;
+            
+            /* get the saved method context from the context object */
+            CTPNConst::s_gen_code_int(TCPRS_LOCAL_CTX_METHODCTX);
+            G_cg->write_op(OPC_INDEX);
                 
-                /* 
-                 *   we just put our context object on the stack in
-                 *   preparation for storing it - make a duplicate copy of it
-                 *   for our own purposes 
-                 */
-                G_cg->write_op(OPC_DUP);
-                G_cg->note_push();
-                
-                /* get the saved method context from the context object */
-                CTPNConst::s_gen_code_int(TCPRS_LOCAL_CTX_METHODCTX);
-                G_cg->write_op(OPC_INDEX);
-                
-                /* 
-                 *   Load the context.  We must check the outermost context
-                 *   to determine what it stored, because we must load
-                 *   whatever it stored.  
-                 */
-                if ((outer = get_outermost_enclosing()) != 0
-                    && outer->local_ctx_needs_full_method_ctx())
-                {
-                    /* load the full method context */
-                    G_cg->write_op(OPC_LOADCTX);
-                }
-                else
-                {
-                    /* load the 'self' object */
-                    G_cg->write_op(OPC_SETSELF);
-                }
-                
-                /* 
-                 *   we popped two values and pushed one in the INDEX, then
-                 *   popped a value in the LOADCTX or SETSELF: the net is
-                 *   removal of two elements and no additional maximum depth 
-                 */
-                G_cg->note_pop(2);
-            }
-
-            /* store the context value in the appropriate local variable */
-            CTcSymLocal::s_gen_code_setlcl_stk(cur_ctx->var_num_, FALSE);
-
             /* 
-             *   if we just did context level 1, and this is pass 2, we're
-             *   done - pass 2's only function is to do level 1, so once we
-             *   reach it, there's nothing left to do 
+             *   Load the context.  We must check the outermost context to
+             *   determine what it stored, because we must load whatever it
+             *   stored.  
              */
-            if (ctx_pass == 2 && cur_ctx->level_ == 1)
-                break;
+            if ((outer = get_outermost_enclosing()) != 0
+                && outer->local_ctx_needs_full_method_ctx())
+            {
+                /* load the full method context */
+                G_cg->write_op(OPC_LOADCTX);
+            }
+            else
+            {
+                /* load the 'self' object */
+                G_cg->write_op(OPC_SETSELF);
+            }
+            
+            /* 
+             *   we popped two values and pushed one in the INDEX, then
+             *   popped a value in the LOADCTX or SETSELF: the net is removal
+             *   of two elements and no additional maximum depth 
+             */
+            G_cg->note_pop(2);
         }
+
+        /* store the context value in the appropriate local variable */
+        CTcSymLocal::s_gen_code_setlcl_stk(cur_ctx->var_num_, FALSE);
     }
 
     /* 
@@ -8429,8 +10647,19 @@ void CTPNCodeBody::gen_code(int, int)
     if (has_local_ctx_ && self_valid_
         && (local_ctx_needs_self_ || local_ctx_needs_full_method_ctx_))
     {
-        /* check to see what we need */
-        if (local_ctx_needs_full_method_ctx_)
+        /* 
+         *   Check to see what we need.  If we're marked as needing the full
+         *   method context, OR our outermost enclosing context has the full
+         *   context, we need to generate the full context.  Intermediate
+         *   nesting levels of anonymous functions can need less context than
+         *   inner levels, but the context we actually generate at the outer
+         *   level depends on the innermost function's needs.  So we simply
+         *   need to follow the lead of the outermost level, since that's
+         *   what the inner levels will all do.  
+         */
+        CTPNCodeBody *outer = get_outermost_enclosing();
+        if (local_ctx_needs_full_method_ctx_
+            || (outer != 0 && outer->local_ctx_needs_full_method_ctx()))
         {
             /* 
              *   we need the full method context - generate code to store it
@@ -8486,8 +10715,8 @@ void CTPNCodeBody::gen_code(int, int)
 #ifdef T3_DEBUG
     if (G_cg->get_sp_depth() != 0)
     {
-        printf("---> stack depth is %d after block codegen!\n",
-               G_cg->get_sp_depth());
+        printf("---> stack depth is %d after block codegen (line %ld)!\n",
+               G_cg->get_sp_depth(), end_linenum_);
         if (fixup_owner_sym_ != 0)
             printf("---> code block for %.*s\n",
                    (int)fixup_owner_sym_->get_sym_len(),
@@ -8496,14 +10725,26 @@ void CTPNCodeBody::gen_code(int, int)
 #endif
 
     /* close the method */
-    G_cg->close_method(local_cnt_, end_desc_, end_linenum_, &gen_ctx);
+    G_cg->close_method(local_cnt_, lcltab_, end_desc_, end_linenum_,
+                       &gen_ctx, named_arg_tables_);
 
     /* remember the head of the nested symbol table list */
     first_nested_symtab_ = G_cs->get_first_frame();
 
-    /* generate debug records if appropriate */
-    if (G_debug)
-        build_debug_table(gen_ctx.method_ofs);
+    /* 
+     *   Generate debug records.  If we're in debug mode, include the full
+     *   symbolic debugging information, including source line locations.
+     *   For release builds, include only the local variable symbols and
+     *   frame information; we need those even in release builds, for
+     *   reflection purposes.
+     *   
+     *   If we're generating this code for a debugger evaluation, omit
+     *   symbols.  We don't need reflection support for debugger expressions,
+     *   since there doesn't seem to be any practical reason you'd need it
+     *   there.  
+     */
+    if (!G_cg->is_eval_for_debug())
+        build_debug_table(gen_ctx.method_ofs, G_debug);
 
     /* check for unreferenced labels and issue warnings */
     check_unreferenced_labels();
@@ -8659,12 +10900,356 @@ void CTPNCodeBody::enum_for_param_ctx(void *, class CTcSymbol *sym)
             /* get the actual parameter value from the stack */
             CTcSymLocal::s_gen_code_getlcl(lcl->get_var_num(), TRUE);
 
-            /* store the value in the context variable */
-            lcl->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, TRUE);
+            /* 
+             *   Store the value in the context variable.  This is an implied
+             *   assignment equivalent to binding a formal to its actual
+             *   value. 
+             */
+            lcl->gen_code_asi(TRUE, 1, TC_ASI_SIMPLE, "=",
+                              0, TRUE, FALSE, 0);
         }
     }
 }
 
+/*
+ *   local symbol table enumerator for generating named argument bindings 
+ */
+void CTPNCodeBody::enum_for_named_params(void *ctx, class CTcSymbol *sym)
+{
+    /* 
+     *   If this is a local, and it's a named parameter, generate code to
+     *   bind it.  If it's optional and has a default value expression, skip
+     *   it on this pass, since we need to generate default expressions in
+     *   the order in which they appear in the argument list to ensure that
+     *   dependencies are resolved properly and side effects happen in the
+     *   proper order.  
+     */
+    if (sym->get_type() == TC_SYM_LOCAL)
+    {
+        /* get the symbol, properly cast */
+        CTcSymLocal *lcl = (CTcSymLocal *)sym;
+
+        /* check what we have */
+        if (lcl->get_defval_expr() != 0)
+        {
+            /*   
+             *   It's an optional parameter (positional or named) with a
+             *   default value.  We can't generate the binding yet, since we
+             *   need to generate these in left-to-right order, and the table
+             *   enumeration is in hash-table order instead.  So just add it
+             *   to the context list, which we'll sort into the proper
+             *   left-right sequence later.
+             */
+            ((defval_ctx *)ctx)->add(lcl);
+        }
+        else if (lcl->is_named_param())
+        {
+            /* 
+             *   It's a named parameter - generate the binding code.  If it's
+             *   optional, call t3GetNamedArg(name, nil) to use the default
+             *   nil value if it's not defined.  If it's not optional, use
+             *   t3GetNamedArg(name) to throw an error on failure.
+             */
+            int fargc = 1;
+            if (lcl->is_opt_param())
+            {
+                /* optional parameter - call t3GetNamedArg(argname, nil) */
+                G_cg->write_op(OPC_PUSHNIL);
+                G_cg->note_push();
+                ++fargc;
+            }
+
+            /* push the parameter name and call the appropriate builtin */
+            CTPNConst::s_gen_code_str_by_mode(sym);
+            call_internal_bif("t3GetNamedArg",
+                              TCERR_NAMED_PARAM_MISSING_FUNC, fargc);
+
+            /* 
+             *   Assign the result to the local.  This is an implied
+             *   assignment equivalent to binding an actual argument value to
+             *   this formal. 
+             */
+            lcl->gen_code_asi(TRUE, 1, TC_ASI_SIMPLE, "=",
+                              0, FALSE, FALSE, 0);
+        }
+        else if (lcl->is_opt_param())
+        {
+            /* 
+             *   It's an optional parameter without a default value (we know
+             *   there's no default, since we handled that case above).
+             *   Generate code to load it if present.  
+             */
+            defval_ctx::gen_opt_positional(lcl);
+        }
+    }
+}
+
+/*
+ *   Add a named argument call table to the list.  This is invoked each time
+ *   we generate a call that uses named parameters.  We defer generation of
+ *   the argument name tables until the end of the method, to avoid having to
+ *   jump past inline tables while executing opcodes.  
+ */
+CTcCodeLabel *CTPNCodeBody::add_named_arg_tab(const CTcNamedArgs *named_args)
+{
+    /* allocate the tracking object */
+    CTcNamedArgTab *tab = new (G_prsmem) CTcNamedArgTab(named_args);
+
+    /* link it into our list */
+    tab->nxt = named_arg_tables_;
+    named_arg_tables_ = tab;
+
+    /* return the code label for the table */
+    return tab->lbl;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Debugger records and local symbol table
+ */
+
+/* local symbol enumeration callback context */
+struct write_local_to_debug_frame_ctx
+{
+    /* are we just counting the entries? */
+    int count_only;
+
+    /* number of symbols written so far */
+    int count;
+};
+
+/*
+ *   Callback for symbol table enumeration - write a local variable entry to
+ *   the code stream for a debug frame record.  
+ */
+void CTPNCodeBody::write_local_to_debug_frame(void *ctx0, CTcSymbol *sym)
+{
+    write_local_to_debug_frame_ctx *ctx;
+
+    /* cast our context */
+    ctx = (write_local_to_debug_frame_ctx *)ctx0;
+
+    /* write it out */
+    if (sym->write_to_debug_frame(ctx->count_only))
+    {
+        /* we wrote the symbol - count it */
+        ++(ctx->count);
+    }
+}
+
+/*
+ *   Build the debug information table for a code body 
+ */
+void CTPNCodeBody::build_debug_table(ulong start_ofs, int include_lines)
+{
+    size_t i;
+
+    /*
+     *   Count up the frames that contain local variables.  Frames that
+     *   contain no locals can be elided to reduce the size of the file,
+     *   since they carry no information.  
+     */
+    CTcPrsSymtab *frame;
+    int frame_cnt;
+    for (frame_cnt = 0, frame = G_cs->get_first_frame() ; frame != 0 ;
+         frame = frame->get_list_next())
+    {
+        /* enumerate the entries through our counting callback */
+        write_local_to_debug_frame_ctx cbctx;
+        cbctx.count = 0;
+        cbctx.count_only = TRUE;
+        frame->enum_entries(&write_local_to_debug_frame, &cbctx);
+
+        /* check to see if it has any locals */
+        if (cbctx.count != 0)
+        {
+            /* it has locals - renumber it to the current list position */
+            ++frame_cnt;
+            frame->set_list_index(frame_cnt);
+        }
+        else
+        {
+            /* no locals - flag it as empty by setting its list index to 0 */
+            frame->set_list_index(0);
+        }
+    }
+
+    /*
+     *   If we're not writing line records, and we don't have any frames with
+     *   local variables, skip writing the debug table.  The debug table in
+     *   this case is for local variable reflection information only, so if
+     *   we don't have any locals, we don't need the table at all.  
+     */
+    if (!include_lines && frame_cnt == 0)
+        return;
+
+    /* fix up the debug record offset in the prolog to point here */
+    G_cs->write2_at(start_ofs + 8, G_cs->get_ofs() - start_ofs);
+
+    /*
+     *   Write the debug table header.  In the current VM version, this is
+     *   empty, so we have nothing to write.  However, if we're dynamically
+     *   targeting a newer version, pad out any expected header space with
+     *   zeros.  
+     */
+    for (int j = G_sizes.dbg_hdr ; j > 0 ; --j)
+        G_cs->write(0);
+
+    /* 
+     *   Add this offset to our list of line records.  If we're creating an
+     *   object file, upon re-loading the object file, we'll need to go
+     *   through all of the line record tables and fix up the file references
+     *   to the final file numbering system at link time, so we need this
+     *   memory of where the line record are.  We'll also need to fix up the
+     *   local variable name records to point to the consolidated set of
+     *   strings in the constant pool.  
+     */
+    G_cg->add_debug_line_table(G_cs->get_ofs());
+
+    /* if desired, write the source code location ("line") records */
+    if (include_lines)
+    {
+        /* write the number of line records */
+        G_cs->write2(G_cs->get_line_rec_count());
+
+        /* write the line records themselves */
+        for (i = 0 ; i < G_cs->get_line_rec_count() ; ++i)
+        {
+            /* get this record */
+            tcgen_line_t *rec = G_cs->get_line_rec(i);
+
+            /* write the offset of the statement's first opcode */
+            G_cs->write2(rec->ofs);
+
+            /* write the source file ID and line number */
+            G_cs->write2(rec->source_id);
+            G_cs->write4(rec->source_line);
+
+            /* 
+             *   Get the frame for the line record.  If the frame is empty,
+             *   use the parent frame instead, since we omit empty frames.
+             */
+            CTcPrsSymtab *fr = rec->frame;
+            while (fr != 0 && fr->get_list_index() == 0)
+                fr = fr->get_parent();
+
+            /* write the frame ID */
+            G_cs->write2(fr == 0 ? 0 : fr->get_list_index());
+
+            /* add any padding expected in the target VM version */
+            for (int j = G_sizes.dbg_line - 10 ; j > 0 ; --j)
+                G_cs->write(0);
+        }
+    }
+    else
+    {
+        /* no line records - write zero as the line count */
+        G_cs->write2(0);
+    }
+
+    /* 
+     *   write a placeholder pointer to the next byte after the end of the
+     *   frame table 
+     */
+    ulong post_ptr_ofs = G_cs->get_ofs();
+    G_cs->write2(0);
+
+    /* write the frame count */
+    G_cs->write2(frame_cnt);
+
+    /* 
+     *   Write a placeholder frame index table.  We will come back and fix up
+     *   this table as we actually write out the frames, but we don't
+     *   actually know how big the individual frame records will be yet, so
+     *   we can only write placeholders for them for now.  First, note where
+     *   the frame index table begins.  
+     */
+    ulong index_ofs = G_cs->get_ofs();
+
+    /* write the placeholder index entries */
+    for (i = 0 ; i < (size_t)frame_cnt ; ++i)
+        G_cs->write2(0);
+
+    /* write the individual frames */
+    for (frame = G_cs->get_first_frame() ; frame != 0 ;
+         frame = frame->get_list_next())
+    {
+        /* 
+         *   if this frame has a zero list index, it means that it contains
+         *   no writable symbols, so we can omit it from the debug table 
+         */
+        if (frame->get_list_index() == 0)
+            continue;
+
+        /* 
+         *   go back and fill in the correct offset (from the entry itself)
+         *   in the index table entry for this frame 
+         */
+        G_cs->write2_at(index_ofs, G_cs->get_ofs() - index_ofs);
+
+        /* move on to the next index entry */
+        index_ofs += 2;
+
+        /* 
+         *   Get the effective parent.  If the actual parent doesn't have a
+         *   list index, it's empty, so we're not writing it.  Find the
+         *   nearest parent of the parent that we'll actually write, and use
+         *   that as our effective parent. 
+         */
+        CTcPrsSymtab *par;
+        for (par = frame->get_parent() ;
+             par != 0 && par->get_list_index() == 0 ;
+             par = par->get_parent()) ;
+
+        /* write the ID of the enclosing frame */
+        G_cs->write2(par != 0 ? par->get_list_index() : 0);
+
+        /* 
+         *   write a placeholder for the count of the number of entries in
+         *   the frame, and remember where the placeholder is so we can come
+         *   back and fix it up later 
+         */
+        ulong count_ofs = G_cs->get_ofs();
+        G_cs->write2(0);
+
+        /* add the bytecode range covered, if there's room in the format */
+        if (G_sizes.dbg_frame >= 8)
+        {
+            G_cs->write2(frame->get_start_ofs());
+            G_cs->write2(frame->get_end_ofs());
+        }
+
+        /* pad out any extra space */
+        for (int j = G_sizes.dbg_frame - 8 ; j > 0 ; --j)
+            G_cs->write(0);
+
+        /* initialize the enumeration callback context */
+        write_local_to_debug_frame_ctx cbctx;
+        cbctx.count = 0;
+        cbctx.count_only = FALSE;
+
+        /* write this frame table's entries */
+        frame->enum_entries(&write_local_to_debug_frame, &cbctx);
+
+        /* go back and fix up the symbol count */
+        G_cs->write2_at(count_ofs, cbctx.count);
+    }
+
+    /* 
+     *   go back and fill in the post-pointer offset - this is a pointer to
+     *   the next byte after the end of the frame table; write the offset
+     *   from the post-pointer field to the current location 
+     */
+    G_cs->write2_at(post_ptr_ofs, G_cs->get_ofs() - post_ptr_ofs);
+
+    /* 
+     *   write the required UINT4 zero value after the frame table - this
+     *   is a placeholder for future expansion (if we add more information
+     *   to the debug table later, this value will be non-zero to indicate
+     *   the presence of the additional information) 
+     */
+    G_cs->write4(0);
+}
 
 /* ------------------------------------------------------------------------ */
 /*

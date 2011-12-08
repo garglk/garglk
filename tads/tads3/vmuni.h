@@ -38,13 +38,15 @@ wchar_t t3_to_upper(wchar_t ch);
  *   Character types.  Types are mutually exclusive, so a character has
  *   exactly one type.  
  */
-#define T3_CTYPE_NONE   0       /* character doesn't fit any other category */
+#define T3_CTYPE_UNDEF  0                        /* character isn't defined */
 #define T3_CTYPE_ALPHA  1           /* alphabetic, with no case information */
 #define T3_CTYPE_UPPER  2                          /* upper-case alphabetic */
 #define T3_CTYPE_LOWER  3                          /* lower-case alphabetic */
 #define T3_CTYPE_DIGIT  4                                          /* digit */
 #define T3_CTYPE_SPACE  5                          /* horizontal whitespace */
 #define T3_CTYPE_PUNCT  6                                    /* punctuation */
+#define T3_CTYPE_VSPACE 7                            /* vertical whitespace */
+#define T3_CTYPE_NONE   8       /* character doesn't fit any other category */
 
 /* get the character type */
 unsigned char t3_get_chartype(wchar_t ch);
@@ -83,16 +85,35 @@ inline int t3_is_digit(wchar_t ch)
     return (t3_get_chartype(ch) == T3_CTYPE_DIGIT);
 }
 
-/* whitespace? */
+/* horizontal whitespace? */
 inline int t3_is_space(wchar_t ch)
 {
     return (t3_get_chartype(ch) == T3_CTYPE_SPACE);
+}
+
+/* vertical whitespace? */
+inline int t3_is_vspace(wchar_t ch)
+{
+    return (t3_get_chartype(ch) == T3_CTYPE_VSPACE);
+}
+
+/* any whitespace, horizontal or vertical? */
+inline int t3_is_whitespace(wchar_t ch)
+{
+    int t = t3_get_chartype(ch);
+    return (t == T3_CTYPE_SPACE || t == T3_CTYPE_VSPACE);
 }
 
 /* punctuation? */
 inline int t3_is_punct(wchar_t ch)
 {
     return (t3_get_chartype(ch) == T3_CTYPE_PUNCT);
+}
+
+/* is it a defined unicode character? */
+inline int t3_is_unichar(wchar_t ch)
+{
+    return (t3_get_chartype(ch) != T3_CTYPE_UNDEF);
 }
 
 #endif /* VMUNI_H */

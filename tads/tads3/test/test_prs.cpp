@@ -38,6 +38,7 @@ Modified
 #include "tcmake.h"
 #include "vmimage.h"
 #include "vmrunsym.h"
+#include "vmmeta.h"
 #include "t3test.h"
 
 
@@ -290,7 +291,7 @@ int main(int argc, char **argv)
                 G_tok->next();
                 entry = new CTcSymFunc(G_tok->getcur()->get_text(),
                                        G_tok->getcur()->get_text_len(),
-                                       FALSE, 0, FALSE, TRUE,
+                                       FALSE, 0, 0, FALSE, TRUE,
                                        FALSE, FALSE, FALSE);
                 G_prs->get_global_symtab()->add_entry(entry);
 
@@ -455,3 +456,8 @@ void CVmRuntimeSymbols::add_sym(const char *, size_t,
 {
 }
 
+/* dummy implementation of runtime metaclass table */
+vm_meta_entry_t *CVmMetaTable::get_entry_by_id(const char *id) const
+{
+    return 0;
+}

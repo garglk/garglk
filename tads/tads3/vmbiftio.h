@@ -31,6 +31,9 @@ Modified
 class CVmBifTIO: public CVmBif
 {
 public:
+    /* function vector */
+    static vm_bif_desc bif_table[];
+
     /*
      *   Input/output functions 
      */
@@ -53,6 +56,7 @@ public:
     static void flush_output(VMG_ uint argc);
     static void input_timeout(VMG_ uint argc);
     static void input_cancel(VMG_ uint argc);
+    static void log_input_event(VMG_ uint argc);
 
     /*
      *   banner window functions 
@@ -156,43 +160,45 @@ protected:
 #ifdef VMBIF_DEFINE_VECTOR
 
 /* TADS input/output functions */
-void (*G_bif_tadsio[])(VMG_ uint) =
+vm_bif_desc CVmBifTIO::bif_table[] =
 {
-    &CVmBifTIO::say,
-    &CVmBifTIO::logging,
-    &CVmBifTIO::clearscreen,
-    &CVmBifTIO::more,
-    &CVmBifTIO::input,
-    &CVmBifTIO::inputkey,
-    &CVmBifTIO::inputevent,
-    &CVmBifTIO::inputdialog,
-    &CVmBifTIO::askfile,
-    &CVmBifTIO::timedelay,
-    &CVmBifTIO::sysinfo,
-    &CVmBifTIO::status_mode,
-    &CVmBifTIO::status_right,
-    &CVmBifTIO::res_exists,
-    &CVmBifTIO::set_script_file,
-    &CVmBifTIO::get_charset,
-    &CVmBifTIO::flush_output,
-    &CVmBifTIO::input_timeout,
-    &CVmBifTIO::input_cancel,
+    { &CVmBifTIO::say, 1, 0, TRUE },                                   /* 0 */
+    { &CVmBifTIO::logging, 1, 1, FALSE },                              /* 1 */
+    { &CVmBifTIO::clearscreen, 0, 0, FALSE },                          /* 2 */
+    { &CVmBifTIO::more, 0, 0, FALSE },                                 /* 3 */
+    { &CVmBifTIO::input, 0, 0, FALSE },                                /* 4 */
+    { &CVmBifTIO::inputkey, 0, 0, FALSE },                             /* 5 */
+    { &CVmBifTIO::inputevent, 0, 1, FALSE },                           /* 6 */
+    { &CVmBifTIO::inputdialog, 5, 0, FALSE },                          /* 7 */
+    { &CVmBifTIO::askfile, 4, 0, FALSE },                              /* 8 */
+    { &CVmBifTIO::timedelay, 1, 0, FALSE },                            /* 9 */
+    { &CVmBifTIO::sysinfo, 1, 0, TRUE },                              /* 10 */
+    { &CVmBifTIO::status_mode, 1, 0, FALSE },                         /* 11 */
+    { &CVmBifTIO::status_right, 1, 0, FALSE },                        /* 12 */
+    { &CVmBifTIO::res_exists, 1, 0, FALSE },                          /* 13 */
+    { &CVmBifTIO::set_script_file, 1, 1, FALSE },                     /* 14 */
+    { &CVmBifTIO::get_charset, 1, 0, FALSE },                         /* 15 */
+    { &CVmBifTIO::flush_output, 0, 0, FALSE },                        /* 16 */
+    { &CVmBifTIO::input_timeout, 0, 1, FALSE },                       /* 17 */
+    { &CVmBifTIO::input_cancel, 1, 0, FALSE },                        /* 18 */
+    
+    { &CVmBifTIO::banner_create, 8, 0, FALSE },                       /* 19 */
+    { &CVmBifTIO::banner_delete, 1, 0, FALSE },                       /* 20 */
+    { &CVmBifTIO::banner_clear, 1, 0, FALSE },                        /* 21 */
+    { &CVmBifTIO::banner_say, 1, 0, TRUE },                           /* 22 */
+    { &CVmBifTIO::banner_flush, 1, 0, FALSE },                        /* 23 */
+    { &CVmBifTIO::banner_size_to_contents, 1, 0, FALSE },             /* 24 */
+    { &CVmBifTIO::banner_goto, 3, 0, FALSE },                         /* 25 */
+    { &CVmBifTIO::banner_set_text_color, 3, 0, FALSE },               /* 26 */
+    { &CVmBifTIO::banner_set_screen_color, 2, 0, FALSE },             /* 27 */
+    { &CVmBifTIO::banner_get_info, 1, 0, FALSE },                     /* 28 */
+    { &CVmBifTIO::banner_set_size, 4, 0, FALSE },                     /* 29 */
 
-    &CVmBifTIO::banner_create,
-    &CVmBifTIO::banner_delete,
-    &CVmBifTIO::banner_clear,
-    &CVmBifTIO::banner_say,
-    &CVmBifTIO::banner_flush,
-    &CVmBifTIO::banner_size_to_contents,
-    &CVmBifTIO::banner_goto,
-    &CVmBifTIO::banner_set_text_color,
-    &CVmBifTIO::banner_set_screen_color,
-    &CVmBifTIO::banner_get_info,
-    &CVmBifTIO::banner_set_size,
+    { &CVmBifTIO::log_console_create, 3, 0, FALSE },                  /* 30 */
+    { &CVmBifTIO::log_console_close, 1, 0, FALSE },                   /* 31 */
+    { &CVmBifTIO::log_console_say, 1, 0, TRUE },                      /* 32 */
 
-    &CVmBifTIO::log_console_create,
-    &CVmBifTIO::log_console_close,
-    &CVmBifTIO::log_console_say
+    { &CVmBifTIO::log_input_event, 1, 0, FALSE }                      /* 33 */
 };
 
 #endif /* VMBIF_DEFINE_VECTOR */

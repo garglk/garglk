@@ -320,6 +320,18 @@ main(args)
     y = new BigNumber('-3.203');
     "x = <<x>>, y = <<y>>, x*y = <<x*y>>\n";
 
+    x = new BigNumber('1.7');
+    y = new BigNumber('0.25');
+    "x = <<x>>, y = <<y>>, x*y = <<x*y>>\n";
+
+    x = new BigNumber('1.9');
+    y = new BigNumber('0.25');
+    "x = <<x>>, y = <<y>>, x*y = <<x*y>>\n";
+
+    x = new BigNumber('1.9');
+    y = new BigNumber('0.33');
+    "x = <<x>>, y = <<y>>, x*y = <<x*y>>\n";
+
     "\b";
 
     /*
@@ -658,6 +670,42 @@ main(args)
     catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
 
     x = new BigNumber('0.567');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('0.499999999');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('0.50000');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('0.50001');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('1.49999');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('1.50000');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('1.50001');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('2.50000');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('2.50001');
+    try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
+    catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
+
+    x = new BigNumber('3.50000');
     try { "x = <<x>>, toInteger(x) = <<toInteger(x)>>\n"; }
     catch (RuntimeError err) { "error: <<err.exceptionMessage>>\n"; }
 

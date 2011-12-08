@@ -45,6 +45,7 @@ Modified
 #include "vmvsn.h"
 #include "vmmaincn.h"
 #include "vmhostsi.h"
+#include "osifcnet.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -93,6 +94,11 @@ static int main_t2(int argc, char **argv)
     /* invoke the tads 2 main entrypoint */
     stat = os0main2(argc, argv, trdmain, "", 0, 0);
 
+#ifdef TADSNET
+    /* shut down the network layer */
+    os_net_cleanup();
+#endif
+
     /* done with the break handler */
     os_instbrk(0);
 
@@ -128,6 +134,11 @@ static int main_t3(int argc, char **argv)
     stat = vm_run_image_main(&clientifc, "t3run", argc, argv,
                              TRUE, FALSE, hostifc);
 
+#ifdef TADSNET
+    /* shut down the network layer */
+    os_net_cleanup();
+#endif
+
     /* uninitialize the OS layer */
     os_uninit();
 
@@ -141,7 +152,7 @@ static int main_t3(int argc, char **argv)
     os_term(stat);
 
     /* we shouldn't get here, but in case os_term doesn't really exit... */
-    return stat;
+    AFTER_OS_TERM(return stat;)
 }
 
 /* ------------------------------------------------------------------------ */
@@ -166,7 +177,7 @@ int main(int argc, char **argv)
         main_t2(1, argv);
         
         /* that's all we need to do with this option */
-        os_term(OSEXSUCC);
+        AFTER_OS_TERM(os_term(OSEXSUCC);)
     }
     else if (argc == 2 && stricmp(argv[1], "-help3") == 0)
     {
@@ -174,11 +185,11 @@ int main(int argc, char **argv)
         main_t3(1, argv);
         
         /* that's all we need to do with this option */
-        os_term(OSEXSUCC);
+        AFTER_OS_TERM(os_term(OSEXSUCC);)
     }
 
     /* look at the arguments and try to find the program name */
-    if (!vm_get_game_arg(argc, argv, prog_arg, sizeof(prog_arg)))
+    if (!vm_get_game_arg(argc, argv, prog_arg, sizeof(prog_arg), &engine_ver))
     {
         /* 
          *   there's no game file name specified or implied - show the
@@ -208,9 +219,10 @@ int main(int argc, char **argv)
     }
 
     /* determine the type of the game we have */
-    engine_ver = vm_get_game_type(prog_arg, fname, sizeof(fname),
-                                  defexts,
-                                  sizeof(defexts)/sizeof(defexts[0]));
+    if (prog_arg[0] != '\0')
+        engine_ver = vm_get_game_type(prog_arg, fname, sizeof(fname),
+                                      defexts,
+                                      sizeof(defexts)/sizeof(defexts[0]));
 
     /* presume failure */
     stat = OSEXFAIL;
@@ -225,8 +237,8 @@ int main(int argc, char **argv)
 
     case VM_GGT_TADS3:
         /* run the game using the TADS 3 engine */
-        stat = main_t3(argc, argv);
-        break;
+        AFTER_OS_TERM(stat =) main_t3(argc, argv);
+        AFTER_OS_TERM(break;)
 
     case VM_GGT_INVALID:
         /* invalid file type */
@@ -255,6 +267,13 @@ int main(int argc, char **argv)
     /* pause (if desired by OS layer) and terminate with our status code */
     os_expause();
     os_term(stat);
-    return stat;
+    AFTER_OS_TERM(return stat;)
 }
 
+/*
+ *   For command-line builds, we don't have any special UI setup that depends
+ *   on the loaded intrinsics, so we can stub out this routine.  
+ */
+void os_init_ui_after_load(class CVmBifTable *, class CVmMetaTable *)
+{
+}

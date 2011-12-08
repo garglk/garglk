@@ -128,6 +128,7 @@ struct runcxdef
     int         runcxexc;                    /* count of external functions */
     uint        runcxlofs;        /* offset of last line record encountered */
     char       *runcxgamename;                     /* name of the .GAM file */
+    char       *runcxgamepath;      /* absolute directory path of .GAM file */
 };
 typedef struct runcxdef runcxdef;
 

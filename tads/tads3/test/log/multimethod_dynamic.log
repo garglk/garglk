@@ -100,11 +100,17 @@ f(C c1=C, C c2=C)
 f(C c1=C, B b1=C)
 f(C c1=C, A a1=C)
 f(B b1=C, C c1=C)
-f(B b1=C, B b2=C)
+!!Replaced!! f(B b1=C, B b2=C)
 f(B b1=C, A a1=C)
 f(A a1=C, C c1=C)
+!!Modified!! f(A a1=C, B b1=C)
+[ inherited:
+f(A a1=C, A a2=C)
+..back from inherited!]
+[ replaced:
 f(A a1=C, B b1=C)
 f(A a1=C, A a2=C)
+.. back from replaced!]
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0

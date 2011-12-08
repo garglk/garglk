@@ -25,6 +25,7 @@ Modified
 #include "vmhash.h"
 #include "vmobj.h"
 #include "tcprstyp.h"
+#include "osifcnet.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -55,11 +56,12 @@ struct CVmDebugBp
      *   non-zero if an error occurs (such as compiling the condition
      *   expression) 
      */
-    int set_info(VMG_ ulong code_addr, const char *cond, int change,
+    int set_info(VMG_ const uchar *code_addr,
+                 const char *cond, int change,
                  int disabled, char *errbuf, size_t errbuflen);
 
     /* get my code address */
-    ulong get_code_addr() const { return code_addr_; }
+    const uchar *get_code_addr() const { return code_addr_; }
 
     /* 
      *   Set the condition text - returns zero on success, non-zero if an
@@ -86,7 +88,8 @@ struct CVmDebugBp
     void set_bp_instr(VMG_ int set, int always);
 
     /* check to see if I have a condition */
-    int has_condition() const { return has_cond_ && compiled_cond_ != 0; }
+    int has_condition() const
+        { return has_cond_ && compiled_cond_ != 0; }
 
     /* 
      *   Is our condition a stop-on-change condition?  This returns true if
@@ -112,7 +115,7 @@ struct CVmDebugBp
 
 private:
     /* code address of breakpoint */
-    ulong code_addr_;
+    const uchar *code_addr_;
 
     /* condition expression */
     char *cond_;
@@ -121,7 +124,7 @@ private:
     size_t cond_buf_len_;
 
     /* code object with compiled expression */
-    class CVmPoolDynObj *compiled_cond_;
+    vm_globalvar_t *compiled_cond_;
 
     /* 
      *   The previous value of the condition.  If this is a stop-on-change
@@ -130,14 +133,14 @@ private:
      *   haven't yet computed the "old" value, this will have the 'empty'
      *   type.  
      */
-    vm_globalvar_t *prv_val;
+    vm_globalvar_t *prv_val_;
 
     /* 
      *   original instruction byte at this breakpoint (we replace the
      *   instruction byte with the BP instruction, but we must remember
      *   the original for when we clear or disable the breakpoint) 
      */
-    char orig_instr_;
+    uchar orig_instr_;
 
     /* flag: breakpoint is in use */
     uint in_use_ : 1;
@@ -211,6 +214,17 @@ public:
     /* determine if the debugger has control */
     int is_in_debugger() const { return in_debugger_ != 0; }
 
+    /*
+     *   Get the break event object.  Routines that wait for OS_Event list
+     *   should include this in their event lists, so that they unblock
+     *   immediately if the user requests a manual debugger break. 
+     */
+    class OS_Event *get_break_event()
+    {
+        break_event_->add_ref();
+        return break_event_;
+    }
+
 
     /* -------------------------------------------------------------------- */
     /*
@@ -236,8 +250,16 @@ public:
     const char *funcaddr_to_sym(pool_ofs_t func_addr) const
         { return find_rev_sym(func_rev_table_, (ulong)func_addr); }
 
+    const char *funchdr_to_sym(VMG_ const uchar *func_addr, char *buf) const;
+
     const char *enum_to_sym(ulong enum_id) const
         { return find_rev_sym(enum_rev_table_, enum_id); }
+
+    const char *bif_to_sym(uint setidx, uint funcidx) const
+    {
+        ulong idx = ((ulong)setidx << 16) | funcidx;
+        return find_rev_sym(bif_rev_table_, idx);
+    }
 
     /* 
      *   Given a symbol name, get the final modifying object.  If the symbol
@@ -249,9 +271,9 @@ public:
 
     /* -------------------------------------------------------------------- */
     /*
-     *   Method header list
+     *   Method header list 
      */
-    
+
     /* allocate the method header list */
     void alloc_method_header_list(ulong cnt);
 
@@ -260,7 +282,7 @@ public:
      *   address.  This searches the method header list for the nearest
      *   method header whose address is less than the given address.  
      */
-    pool_ofs_t find_method_header(pool_ofs_t ofs);
+    const uchar *find_method_header(VMG_ const uchar *addr);
 
     /* get the number of method headers */
     ulong get_method_header_cnt() const { return method_hdr_cnt_; }
@@ -323,7 +345,7 @@ public:
      *   expression that must evaluate to true when the breakpoint is
      *   encountered for the breakpoint to suspend execution.  
      */
-    int toggle_breakpoint(VMG_ ulong code_addr,
+    int toggle_breakpoint(VMG_ const uchar *code_addr,
                           const char *cond, int change,
                           int *bpnum, int *did_set,
                           char *errbuf, size_t errbuflen);
@@ -362,6 +384,9 @@ public:
         single_step_ = TRUE;
         step_in_ = TRUE;
         step_out_ = FALSE;
+
+        /* we're in run mode again */
+        break_event_->reset();
     }
 
     /*
@@ -396,6 +421,9 @@ public:
         /* set single-step-in mode */
         set_step_in();
 
+        /* break out of any event wait */
+        break_event_->signal();
+
         /* 
          *   Forget our last execution location, so that we'll stop again
          *   even if we haven't moved from our last break location.  Since
@@ -429,6 +457,7 @@ public:
         single_step_ = FALSE;
         step_in_ = FALSE;
         step_out_ = FALSE;
+        break_event_->reset();
     }
 
     /*
@@ -457,6 +486,20 @@ public:
         step_out_ = info->old_step_out;
     }
 
+    /* 
+     *   format a value, allocating space (the caller must free the space,
+     *   using t3free) 
+     */
+    char *format_val(VMG_ const struct vm_val_t *val);
+
+    /* format a value into a buffer */
+    size_t format_val(VMG_ char *buf, size_t buflen,
+                      const struct vm_val_t *val);
+
+    /* format a value in the special __value# format */
+    void format_special(VMG_ char *buf, size_t buflen,
+                        const struct vm_val_t *val);
+
 
     /* -------------------------------------------------------------------- */
     /*
@@ -465,10 +508,10 @@ public:
      *   location must be within the current method.  Updates
      *   *exec_ofs_ptr with the method offset of the new location.  
      */
-    int set_exec_ofs(unsigned int *exec_ofs_ptr, unsigned long code_addr)
+    int set_exec_ofs(const uchar **exec_ptr, const uchar *code_addr)
     {
         /* set the method offset pointer */
-        *exec_ofs_ptr = (unsigned int)(code_addr - entry_ofs_);
+        *exec_ptr = code_addr;
 
         /* success */
         return 0;
@@ -478,7 +521,7 @@ public:
      *   Determine if a code location is within the current active method.
      *   Returns true if so, false if not. 
      */
-    int is_in_current_method(VMG_ unsigned long code_addr);
+    int is_in_current_method(VMG_ const uchar *code_addr);
 
     /* -------------------------------------------------------------------- */
     /*
@@ -487,7 +530,7 @@ public:
      *   expression - 0 is the currently active method, 1 is its caller,
      *   and so on.  
      */
-    int eval_expr(VMG_ char *buf, size_t buflen, const char *expr,
+    int eval_expr(VMG_ char *result, size_t result_len, const char *expr,
                   int level, int *is_lval, int *is_openable,
                   void (*aggcb)(void *, const char *, int, const char *),
                   void *aggctx, int speculative);
@@ -508,11 +551,11 @@ public:
      *   which might not even be in the active stack when the condition is
      *   compiled.  
      */
-    int compile_expr(VMG_ const char *expr,
-                     int level, class CVmDbgSymtab *local_symtab,
-                     int self_valid, int speculative, int *is_lval,
-                     class CVmPoolDynObj **code_obj,
-                     char *dst_buf, size_t dst_buf_len);
+    void compile_expr(VMG_ const char *expr,
+                      int level, class CVmDbgSymtab *local_symtab,
+                      int self_valid, int speculative, int *is_lval,
+                      vm_obj_id_t *code_obj,
+                      struct CVmDynCompResults *results);
 
     /* -------------------------------------------------------------------- */
     /*
@@ -538,15 +581,28 @@ protected:
      *   in order to resume execution.  bp is true if we encountered a
      *   breakpoint, false if we're single-stepping.  
      */
-    void step(VMG_ const uchar **pc_ptr, pool_ofs_t, int bp,
+    void step(VMG_ const uchar **pc_ptr, const uchar *entry, int bp,
               int error_code);
+
+    /*
+     *   Step through a return.  This doesn't actually stop in the debugger,
+     *   but for the purposes of STEP OVER, notes that we're leaving a frame
+     *   level.  This is unnecessary in most cases, since we'd do a step() at
+     *   the next instruction in the caller anyway.  However, if the caller
+     *   is native code that will turn around and call another byte-code
+     *   routine, this ensures that we notice that we've left one byte-code
+     *   routine and entered another.  If we didn't do this, and the next
+     *   routine called had more arguments, we'd miss single-stepping into
+     *   the next routine because we'd think we were at an enclosing level
+     *   rather than a peer level.  
+     */
+    void step_return(VMG0_);
 
     /* 
      *   synchronize the internal execution point - acts like a step()
      *   without actually stopping 
      */
-    void sync_exec_pos(VMG_ const uchar *pc_ptr,
-                       pool_ofs_t method_start_ofs);
+    void sync_exec_pos(VMG_ const uchar *pc_ptr, const uchar *entry);
 
     /* 
      *   Get single-step mode - returns true if we're stopping at each
@@ -573,22 +629,15 @@ protected:
      */
     int get_stack_level_info(VMG_ int level, class CVmFuncPtr *func_ptr,
                              class CVmDbgLinePtr *line_ptr,
-                             ulong *stm_start, ulong *stm_end) const;
+                             const uchar **stm_start, const uchar **stm_end)
+        const;
 
-    /* 
-     *   look up a symbol in one of our reverse mapping tables
-     */
-    const char *find_rev_sym(const class CVmHashTable *hashtab,
-                             ulong val) const;
-
-    /*
-     *   Format a value into a buffer 
-     */
-    void format_val(VMG_ char *buf, size_t buflen,
-                    const struct vm_val_t *val);
+    /* look up a symbol in one of our reverse mapping tables */
+    const char *find_rev_sym(
+        const class CVmHashTable *hashtab, ulong val) const;
 
     /* find a breakpoint given a code address */
-    CVmDebugBp *find_bp(ulong code_addr);
+    CVmDebugBp *find_bp(const uchar *code_addr);
 
     /* allocate a new breakpoint record */
     CVmDebugBp *alloc_bp();
@@ -603,13 +652,13 @@ protected:
 
 private:
     /* flag: debugger has control */
-    int in_debugger_ : 1;
+    unsigned int in_debugger_ : 1;
     
     /* 
      *   single-step mode - if this is true, we're stepping through code;
      *   otherwise, we're running until we hit a breakpoint 
      */
-    int single_step_ : 1;
+    unsigned int single_step_ : 1;
 
     /* 
      *   step-in mode - if this is true, and single_step_ is true, we'll
@@ -618,7 +667,7 @@ private:
      *   level as the current statement (in other words, we're stepping
      *   over subroutine calls made by the current statement) 
      */
-    int step_in_ : 1 ;
+    unsigned int step_in_ : 1 ;
 
     /* 
      *   Step-out mode - if this is true, and single_step_ is true, we'll
@@ -627,28 +676,28 @@ private:
      *   native code interaction, because we actually know to stop on a
      *   step-out using step-over with an enclosing stack level.)  
      */
-    int step_out_ : 1;
+    unsigned int step_out_ : 1;
 
     /* 
      *   step-over-breakpoint mode - if this is true, we're stepping over
      *   a breakpoint 
      */
-    int step_over_bp_ : 1;
+    unsigned int step_over_bp_ : 1;
 
     /* 
      *   Original step flags - these store the step flags that will be in
      *   effect after we finish a step_over_bp operation 
      */
-    int orig_single_step_ : 1;
-    int orig_step_in_ : 1;
-    int orig_step_out_ : 1;
+    unsigned int orig_single_step_ : 1;
+    unsigned int orig_step_in_ : 1;
+    unsigned int orig_step_out_ : 1;
 
     /* 
      *   flag: we've been initialized during program load; when this flag is
      *   set, we'll have to make corresponding uninitializations when the
      *   program terminates 
      */
-    int program_inited_ : 1;
+    unsigned int program_inited_ : 1;
 
     /* breakpoint being stepped over */
     CVmDebugBp *step_over_bp_bp_;
@@ -673,13 +722,13 @@ private:
      *   functions might not have debug tables at all.  
      */
     CVmDbgTablePtr dbg_ptr_;
-    int dbg_ptr_valid_ : 1;
+    unsigned int dbg_ptr_valid_ : 1;
 
     /* function header pointer for current function */
-    pool_ofs_t entry_ofs_;
+    const uchar *entry_;
 
     /* current program counter */
-    pool_ofs_t pc_;
+    const uchar *pc_;
 
     /* debugger line records for current statement */
     CVmDbgLinePtr cur_stm_line_;
@@ -692,8 +741,8 @@ private:
      *   current byte-code offset is within these boundaries, (inclusive),
      *   we know we're within the same statement.  
      */
-    ulong cur_stm_start_;
-    ulong cur_stm_end_;
+    const uchar *cur_stm_start_;
+    const uchar *cur_stm_end_;
 
     /*
      *   User interface context.  We maintain this location for use by the
@@ -710,6 +759,7 @@ private:
     class CVmHashTable *prop_rev_table_;
     class CVmHashTable *func_rev_table_;
     class CVmHashTable *enum_rev_table_;
+    class CVmHashTable *bif_rev_table_;
 
     /* breakpoints */
     CVmDebugBp bp_[VMDBG_BP_MAX];
@@ -733,6 +783,14 @@ private:
      */
     ulong *method_hdr_;
     ulong method_hdr_cnt_;
+
+    /* 
+     *   Debugger break event.  We'll signal this whenever the user tells us
+     *   to break into the program.  Event wait routines (such as
+     *   getNetEvent()) can include this in their wait list so that they're
+     *   interrupted immediately on a debug break.  
+     */
+    class OS_Event *break_event_;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -769,8 +827,7 @@ public:
      *   This routine should not return until it is ready to let the
      *   program continue execution. 
      */
-    static void cmd_loop(VMG_ int bp_number,
-                         int error_code, unsigned int *exec_ofs);
+    static void cmd_loop(VMG_ int bp_number, int error_code, const uchar **pc);
 };
 
 

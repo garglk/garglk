@@ -11,13 +11,14 @@ static char RCSid[] =
  */
 /*
 Name
-  tcprsnl.cpp - TADS 3 Compiler Parser - NO LINKER module
+  tcprsnl.cpp - TADS 3 Compiler Parser - "no linker" module
 Function
-  This module can be linked with programs that don't require any
-  linker functionality.  This module contains dummy entrypoints
-  for functions and methods that would normally be linked from
-  tcprsimg.cpp, which contains the actual implementations of these
-  methods.
+  This module can be linked with programs that don't require any linker
+  functionality, such as for debugger or interpreter-with-eval builds.  The
+  module provides dummy entrypoints for functions and methods that would
+  normally be linked from tcprsimg.cpp, so that we don't have to drag in that
+  whole file (and its dependencies) for configurations that don't need its
+  functionality.
 Notes
   
 Modified
@@ -37,6 +38,7 @@ Modified
 #include "vmhash.h"
 #include "tcmain.h"
 #include "vmfile.h"
+#include "tcmake.h"
 
 void CTcSymObjBase::apply_internal_fixups()
 {
@@ -61,3 +63,9 @@ int CTcSymbolBase::load_from_obj_file(CVmFile *, const textchar_t *,
     assert(FALSE);
     return 0;
 }
+
+void CTcMake::write_build_config_to_sym_file(CVmFile *fp)
+{
+    assert(FALSE);
+}
+

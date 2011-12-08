@@ -25,12 +25,24 @@ Modified
 #ifndef VMHOST_H
 #define VMHOST_H
 
+#include "os.h"
+
 /* ------------------------------------------------------------------------ */
 /*
- *   I/O Safety Levels.  These are defined as integers, not an enum,
- *   because they form a hierarchy; a higher value imposes all of the
- *   restrictions of all lower values, plus additional restrictions of its
- *   own.  
+ *   I/O Safety Levels.  These are defined as integers, not an enum, because
+ *   they form a hierarchy; a higher value imposes all of the restrictions of
+ *   all lower values, plus additional restrictions of its own.
+ *   
+ *   In the past, there was a single safety level that controlled both read
+ *   and write.  In 3.1 we separated the read and write levels.  Because
+ *   of the history, each level specifies separate read and write permissions
+ *   that were formerly combined in that level.  The descriptions still apply
+ *   even though we track the levels separately - some levels must be
+ *   interpreted differently for reading vs writing.  For example, if the
+ *   read level is 3, it allows current-directory reading, but if the write
+ *   level is 3, it denies all write access.  Separating the levels allows
+ *   for combinations that weren't formerly possible: for exmaple, -s04 (read
+ *   0, write 4) allows reading anywhere but writing nowhere.  
  */
 
 /* level 0: minimum safety; read/write any file */
@@ -47,6 +59,21 @@ const int VM_IO_SAFETY_READ_CUR = 3;
 
 /* level 4: maximum safety; no file reading or writing allowed */
 const int VM_IO_SAFETY_MAXIMUM = 4;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Network safety levels. 
+ */
+
+/* level 0: minimum safety; all network access */
+const int VM_NET_SAFETY_MINIMUM = 0;
+
+/* level 1: localhost access only */
+const int VM_NET_SAFETY_LOCALHOST = 1;
+
+/* level 2: no network access */
+const int VM_NET_SAFETY_MAXIMUM = 2;
 
 
 /* ------------------------------------------------------------------------ */
@@ -93,11 +120,12 @@ public:
     virtual ~CVmHostIfc() { }
   
     /* 
-     *   Get the file I/O safety level.  This allows the host application
-     *   to control the file operations that a program running under the
-     *   VM may perform.  See the VM_IO_SAFETY_xxx values above.  
+     *   Get the file I/O safety read and write levels.  These allow the host
+     *   application to control the file operations that a program running
+     *   under the VM may perform.  See the VM_IO_SAFETY_xxx values above.  
      */
-    virtual int get_io_safety() = 0;
+    virtual int get_io_safety_read() = 0;
+    virtual int get_io_safety_write() = 0;
 
     /* 
      *   set the I/O safety level - this should only be done in response
@@ -105,7 +133,22 @@ public:
      *   never as a result of some programmatic operation by the executing
      *   image 
      */
-    virtual void set_io_safety(int level) = 0;
+    virtual void set_io_safety(int read_level, int write_level) = 0;
+
+    /*
+     *   Get the network safety level settings.  This works like the I/O
+     *   safety level, but applies to network access.  The client level
+     *   controls the game's access to network services as a client, such as
+     *   the game making http requests of a web server.  The server level
+     *   controls the game's ability to create network services that accept
+     *   incoming connections from other processes and machines.  
+     */
+    virtual void get_net_safety(int *client_level, int *server_level) = 0;
+
+    /*
+     *   Set the network safety level. 
+     */
+    virtual void set_net_safety(int client_level, int server_level) = 0;
 
     /*
      *   Get the resource loader for character mapping tables.  This

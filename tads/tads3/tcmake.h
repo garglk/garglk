@@ -417,6 +417,13 @@ public:
      */
     void set_test_report_mode(int flag) { test_report_mode_ = flag; }
 
+    /* 
+     *   set status percentage mode - in this mode, we'll output special
+     *   status update lines with a percent-done indication, for use by
+     *   container environments such as Workbench 
+     */
+    void set_status_pct_mode(int flag) { status_pct_mode_ = flag; }
+
     /* set quoted filenames mode for error messages */
     void set_err_quoted_fnames(int flag) { quoted_fname_mode_ = flag; }
 
@@ -689,10 +696,14 @@ private:
                           const textchar_t *image_fname,
                           int *error_count, int *warning_count,
                           class CVmRuntimeSymbols *runtime_symtab,
+                          class CVmRuntimeSymbols *runtime_macros,
                           const char tool_data[4]);
 
     /* symbol enumeration callback: build runtime symbol table */
     static void build_runtime_symtab_cb(void *ctx, class CTcSymbol *sym);
+
+    /* symbol enumeration callback: build runtime macro table */
+    static void build_runtime_macro_cb(void *ctx, class CVmHashEntry *e);
 
     /* set compiler options in the G_tcmain object */
     void set_compiler_options();
@@ -812,6 +823,9 @@ private:
      *   independent of local path name conventions
      */
     int test_report_mode_;
+
+    /* true -> percent-done reporting mode */
+    int status_pct_mode_;
 
     /* true -> use quoted filenames in error messages */
     int quoted_fname_mode_;

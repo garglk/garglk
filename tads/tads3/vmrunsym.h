@@ -13,36 +13,36 @@ Function
   Defines a symbol table structure that allows us to convey the global
   symbols from the compiler or image loader to the interpreter.
 
-  When the compiler runs pre-initialization, or when the image loader
-  finds debug symbols in a program, the interpreter builds a LookupTable
-  object containing the global symbol table.  This provides a "reflection"
-  mechanism that lets the running program inspect its own symbol table.
+  When the compiler runs pre-initialization, or when the image loader finds
+  debug symbols in a program, the interpreter builds a LookupTable object
+  containing the global symbol table.  This provides a "reflection" mechanism
+  that lets the running program inspect its own symbol table.
 
-  Because we have two very different ways of getting the symbol
-  information -- from the compiler, or from the image file's debug records
-  -- we define this class as an intermediary provide a common mechanism for
+  Because we have two very different ways of getting the symbol information
+  -- from the compiler, or from the image file's debug records -- we define
+  this class as an intermediary that provides a common mechanism for
   conveying the information to the interpreter.  Note that, when the
-  information is coming from the compiler, there is usually not a debug
-  symbol table in the image file, because the compiler usually only runs
+  information is coming from the compiler, there's usually not a debug symbol
+  table in the image file, because the compiler usually only runs
   pre-initialization on programs compiled for release (i.e., with no debug
   information), so we can't count on debug records in the image file as a
   common conveyance mechanism.
 
-  This is a very simple linked list storage class, because we have no
-  need to search this symbol table.  The only things we do with this type of
+  This is a very simple linked list storage class, because we have no need
+  to search this symbol table.  The only things we do with this type of
   symbol table are to load it with all of the symbols from the compiler or
   image file's debug records, and then enumerate all of our symbols to build
   a run-time LookupTable.
 
   One final note: we could conceivably avoid having this other data
   representation by having the compiler build a LookupTable directly and
-  storing it in the image file.  However, this would put the LookupTable
-  into the root set, so it could never be deleted.  By building the
-  LookupTable dynamically during pre-initialization, the table will be
-  automatically garbage collected before the image file is finalized if the
-  program doesn't retain a reference to it in a location accessible from the
-  root set.  This allows the program to control the presence of this extra
-  information in a very natural way.
+  storing it in the image file.  However, this would put the LookupTable into
+  the root set, so it could never be deleted.  By building the LookupTable
+  dynamically during pre-initialization, the table will be automatically
+  garbage collected before the image file is finalized if the program doesn't
+  retain a reference to it in a location accessible from the root set.  This
+  allows the program to control the presence of this extra information in a
+  very natural way.
 Notes
   
 Modified
@@ -70,6 +70,11 @@ public:
 
     /* add a symbol */
     void add_sym(const char *sym, size_t len, const vm_val_t *val);
+
+    /* add a macro definition */
+    struct vm_runtime_sym *add_macro(const char *sym, size_t len,
+                                     size_t explen, unsigned int flags,
+                                     int argc, size_t arglen);
 
     /* get the first symbol */
     struct vm_runtime_sym *get_head() const { return head_; }
@@ -126,17 +131,40 @@ struct vm_runtime_sym
     /* next symbol in the list */
     vm_runtime_sym *nxt;
 
-    /* the value of the symbol */
-    vm_val_t val;
+    /* the symbol name */
+    char *sym;
 
     /* the length of the name */
     size_t len;
 
+    /* the value of the symbol */
+    vm_val_t val;
+
+    /* for a macro, the flags from the MACR record */
+    unsigned int macro_flags;
+
+    /* for a macro, the expansion of the macro */
+    char *macro_expansion;
+    size_t macro_exp_len;
+
+    /* for a macro, the number of formal parameters */
+    int macro_argc;
+
+    /* for a macro, the argument list */
+    char **macro_args;
+
     /* 
-     *   the name - the structure is overallocated to make room for the full
-     *   text of the name here 
+     *   Commit storage for a macro argument.  Arguments MUST be stored
+     *   sequentially, starting from number 0.  The caller must
+     *   null-terminate each name, AND must include the null byte in the
+     *   'len' value.  
      */
-    char sym[1];
+    void commit_macro_arg(int i, size_t len)
+    {
+        /* if this isn't the last argument, set the next allocation pointer */
+        if (i + 1 < macro_argc)
+            macro_args[i + 1] = macro_args[i] + len;
+    }
 };
 
 #endif /* VMRUNSYM_H */

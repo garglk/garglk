@@ -23,6 +23,8 @@ Modified
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdarg.h>
 
 #include "os.h"
 
@@ -48,6 +50,9 @@ typedef struct mem_prefix_t
 /* head and tail of memory allocation linked list */
 static mem_prefix_t *mem_head = 0;
 static mem_prefix_t *mem_tail = 0;
+
+/* head and tail of static memory allocation list */
+static mem_prefix_t *static_mem_head = 0, *static_mem_tail = 0;
 
 /*
  *   Allocate a block, storing it in a doubly-linked list of blocks and
@@ -130,6 +135,52 @@ void oss_win_free(void *ptr)
 }
 
 /*
+ *   Notify the oss_win layer that we're past static initializations.  The
+ *   main entrypoint (main or WinMain, according to the build type) should
+ *   call this immediately (or nearly immediately) after entry.  This takes
+ *   any memory blocks allocated before this point, and detaches them from
+ *   the master deletion list, so that they won't be deleted on a future
+ *   oss_win_free_all() call.  Anything allocated before the main program
+ *   entrypoint must have been allocated by a C++ static object constructor,
+ *   so it must not be counted among dynamically allocated program objects,
+ *   even though it was malloc'd or new'd.
+ *   
+ *   This is important for HTML TADS, Workbench, and any other configuration
+ *   that cycles in and out of multiple invocations of the interpreter.  HTML
+ *   TADS and Workbench use oss_win_free_all() to clear out all memory
+ *   allocated by the interpreter after the interpreter exits.  This ensures
+ *   that we completely clean up after each interpreter invocation, freeing
+ *   all memory allocated within the interpreter, even if the interpreter
+ *   leaves blocks unfreed.  The complication is that TADS 3, being a C++
+ *   program, allocates memory with malloc() and 'new' statically, from
+ *   constructors for static objects.  These static allocations must not be
+ *   freed between interpreter invocations, because static objects have
+ *   process lifetime - we have no way to reinitialize them when we re-invoke
+ *   the interpreter.  This routine solves the problem by explicitly
+ *   segregating any statically allocated objects from the recycle list.
+ *   Anything that was allocated before 'main' has to have come form a static
+ *   object constructor, so we can take those objects and move them to a
+ *   separate list.  
+ */
+void oss_win_static_init_done()
+{
+    /* if there's anything in the memory list, move it to the static list */
+    if (mem_tail != 0)
+    {
+        /* append the memory list to the static list */
+        mem_head->prv = static_mem_tail;
+        if (static_mem_tail != 0)
+            static_mem_tail->nxt = mem_head;
+        else
+            static_mem_head = mem_head;
+        static_mem_tail = mem_tail;
+
+        /* the dynamic memory list is now empty */
+        mem_head = mem_tail = 0;
+    }
+}
+
+/*
  *   Free all memory blocks 
  */
 void oss_win_free_all()
@@ -153,3 +204,31 @@ void oss_win_free_all()
     mem_tail = 0;
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   sprintf equivalents with buffer allocation 
+ */
+int os_asprintf(char **bufptr, const char *fmt, ...)
+{
+    va_list argp;
+    int ret;
+
+    va_start(argp, fmt);
+    ret = os_vasprintf(bufptr, fmt, argp);
+    va_end(argp);
+
+    return ret;
+}
+
+int os_vasprintf(char **bufptr, const char *fmt, va_list argp)
+{
+    /* count the length of the result */
+    int len = _vscprintf(fmt, argp);
+
+    /* allocate a buffer */
+    if ((*bufptr = (char *)osmalloc(len + 1)) == 0)
+        return -1;
+
+    /* format the result */
+    return _vsnprintf(*bufptr, len + 1, fmt, argp);
+}
