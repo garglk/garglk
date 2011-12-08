@@ -42,7 +42,8 @@ Modified
 int CVmConsole::input_dialog(VMG_ int /*icon_id*/,
                              const char *prompt, int standard_button_set,
                              const char **buttons, int button_count,
-                             int default_index, int cancel_index)
+                             int default_index, int cancel_index,
+                             int bypass_script)
 {
     /* keep going until we get a valid response */
     for (;;)

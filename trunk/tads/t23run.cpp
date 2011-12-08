@@ -198,7 +198,7 @@ void glk_main(void)
     }
 
     /* look at the arguments and try to find the program name */
-    if (!vm_get_game_arg(argc, argv, prog_arg, sizeof(prog_arg)))
+    if (!vm_get_game_arg(argc, argv, prog_arg, sizeof(prog_arg), &engine_ver))
     {
         /* 
          *   there's no game file name specified or implied - show the

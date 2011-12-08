@@ -40,7 +40,8 @@ Modified
  */
 int CVmConsole::askfile(VMG_ const char *prompt, size_t prompt_len,
                         char *reply, size_t replen,
-                        int /*dialog_type*/, os_filetype_t /*file_type*/)
+                        int /*dialog_type*/, os_filetype_t /*file_type*/,
+                        int bypass_script)
 {
     /* show the prompt */
     format_text(vmg_ prompt, prompt_len);

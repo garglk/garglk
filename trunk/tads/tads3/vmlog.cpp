@@ -22,6 +22,11 @@ Modified
 #include "vmdatasrc.h"
 #include "charmap.h"
 
+#ifdef GARGOYLE
+#include <time.h>
+#include <sys/time.h>
+#endif /* GARGOYLE */
+
 
 /* ------------------------------------------------------------------------ */
 /*
