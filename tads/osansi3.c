@@ -82,7 +82,7 @@ void xorinit(void)
 {
     seed[0] = time(NULL);
     seed[1] = seed[0] << 1;
-    seed[2] = seed[0] & seed[1];
+    seed[2] = getpid();
     seed[3] = seed[1] & ~seed[2];
     xorshift();
 }
