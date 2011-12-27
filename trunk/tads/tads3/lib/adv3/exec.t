@@ -426,7 +426,7 @@ parseTokenLoop:
                 senseContext.setSenseContext(targetActor, sight);
 
             /* set up a transcript to receive the command results */
-            withCommandTranscript(CommandTranscript, new function()
+            withCommandTranscript(CommandTranscript, function()
             {
                 /* 
                  *   Execute the action.
@@ -1088,7 +1088,7 @@ _newAction(transcriptClass, issuingActor, targetActor, actionClass, [objs])
 newActionObj(transcriptClass, issuingActor, targetActor, actionObj, [objs])
 {
     /* create the results object and install it as the global transcript */
-    return withCommandTranscript(transcriptClass, new function()
+    return withCommandTranscript(transcriptClass, function()
     {
         /* install the resolved objects in the action */
         actionObj.setResolvedObjects(objs...);
@@ -1608,6 +1608,43 @@ class MessageResult: object
      */
     resolveMessageText(sources, msg, params)
     {
+        /*
+         *   If we have more than one source object, it means that the
+         *   command has more than one object slot (such as a TIAction,
+         *   which has direct and indirect objects).  Rearrange the list so
+         *   that the nearest caller is the first object in the list.  If
+         *   one of these source objects provides an override, we generally
+         *   want to get the message from the immediate caller rather than
+         *   the other object.  Note that we only care about the *first*
+         *   source object we find in the stack trace, because we only care
+         *   about the actual message generator call; enclosing calls
+         *   aren't relevant to the message priority because they don't
+         *   necessarily have anything to do with the messaging.  
+         */
+        if (sources.length() > 1)
+        {
+            /* look through the stack trace for a 'self' in the source list */
+            local tr = t3GetStackTrace();
+            for (local i = 1, local trCnt = tr.length() ; i <= trCnt ; ++i)
+            {
+                /* check this 'self' */
+                local s = tr[i].self_;
+                local sIdx = sources.indexOf(s);
+                if (sIdx != nil)
+                {
+                    /* 
+                     *   it's a match - move this object to the head of the
+                     *   list so that we give its message bindings priority
+                     */
+                    if (sIdx != 1)
+                        sources = [s] + (sources - s);
+
+                    /* no need to look any further */
+                    break;
+                }
+            }
+        }
+
         /*
          *   The message can be given either as a string or as a property
          *   of the actor's verb message object.  If it's the latter, look

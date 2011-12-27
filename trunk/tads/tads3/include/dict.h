@@ -25,7 +25,7 @@
  *   the type is the vocabulary property (&noun, &adjective, etc) that
  *   associates the word with an object.  
  */
-intrinsic class Dictionary 'dictionary2/030000': Object
+intrinsic class Dictionary 'dictionary2/030001': Object
 {
     /*
      *   Constructor:
@@ -166,7 +166,7 @@ intrinsic class Dictionary 'dictionary2/030000': Object
     isWordDefined(str, filter?);
 
     /*
-     *   Invoke the callback func(str, obj, prop) for each word in the
+     *   Invoke the callback func(obj, str, prop) for each word in the
      *   dictionary.  Note that the callback can be invoked with a single
      *   string multiple times, since the callback is invoked once per
      *   word/object/property association; in other words, the callback is
@@ -174,6 +174,55 @@ intrinsic class Dictionary 'dictionary2/030000': Object
      *   compilation.  
      */
     forEachWord(func);
+
+    /*
+     *   Get a list of possible spelling corrections for the given word.
+     *   This searches the dictionary for words that match the given word
+     *   within the given maximum "edit distance".
+     *   
+     *   The return value is a list giving all of the words in the dictionary
+     *   that match the input string within the given maximum edit distance.
+     *   Any given dictionary word will appear only once in the returned
+     *   list.  The list is in arbitrary order.  Each entry consists of a
+     *   sublist, [word, dist, repl], where 'word' is a matching dictionary
+     *   word, 'dist' is the edit distance between that dictionary word and
+     *   the input string, and 'repl' is the number of character replacements
+     *   performed.  (The replacement count is included in the edit distance,
+     *   but it's called out separately because some correctors treat
+     *   replacements as heavier changes than other edits.  A caller could
+     *   use this to break ties for corrections of the same distance.
+     *   Consider "book" and "box" as corrections for "bok": both have edit
+     *   distance 1, but "book" has no replacements, while "box" has one.)
+     *   
+     *   The edit distance between two words is defined as the number of
+     *   single-character insertions, deletions, replacements, and
+     *   transpositions necessary to transform one word into another.  For
+     *   example, OPNE can be transformed into OPEN by transposing the N-E
+     *   pair, for an edit distance of 1.  XAEMINE can be transformed into
+     *   EXAMINE by inserting an E at the beginning, and then deleting the E
+     *   at the third letter, for an edit distance of 2.
+     *   
+     *   Choosing the maximum edit distance is essentially heuristic.  Higher
+     *   values make the search take longer, and yield more matches - which
+     *   increases the chances that the right match will be found, but also
+     *   increases the number of false matches to sift through.  The
+     *   literature on spelling correction suggests that 2 is a good value in
+     *   practice, across a wide range of applications, based on the most
+     *   frequent patterns of human typographical errors.  However, you'll
+     *   probably do better to vary the distance based on the word length:
+     *   perhaps 1 for words up to 4 letters, 2 for 5-7 letters, and 3 for
+     *   words of 8 letters or more.
+     *   
+     *   If the dictionary has a StringComparator object as its current
+     *   comparator, the results will take into account its case folding
+     *   setting, truncation length, and character mappings.  These
+     *   "approximations" are NOT considered to be edits, so they don't count
+     *   against the maximum edit distance.  Custom comparators (not of the
+     *   StringComparator class) are ignored: if you use a custom comparator,
+     *   this method will only find matches based on the exact text of the
+     *   dictionary words.  
+     */
+    correctSpelling(str, maxEditDistance);
 }
 
 /* 

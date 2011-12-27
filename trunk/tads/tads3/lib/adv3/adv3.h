@@ -26,6 +26,7 @@
 #include <tok.h>
 #include <t3.h>
 #include <vector.h>
+#include <strbuf.h>
 #include <file.h>
 #include <dict.h>
 
@@ -798,6 +799,13 @@ enum PathTo;
  */
 #define DigitFormatGroupComma   0x0002
 #define DigitFormatGroupPeriod  0x0004
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   aHref() flags 
+ */
+#define AHREF_Plain  0x0001    /* plain text hyperlink (no underline/color) */
 
 
 /* ------------------------------------------------------------------------ */

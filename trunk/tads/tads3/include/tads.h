@@ -43,6 +43,13 @@
 /* include the system type definitions */
 #include "systype.h"
 
+/* if we're building a network program, include the net headers */
+#ifdef TADS_INCLUDE_NET
+#include <tadsnet.h>
+#include <httpsrv.h>
+#include <httpreq.h>
+#endif
+
 
 /* ------------------------------------------------------------------------ */
 /*

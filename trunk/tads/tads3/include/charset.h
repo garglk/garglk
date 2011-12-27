@@ -26,25 +26,28 @@ intrinsic class CharacterSet 'character-set/030001': Object
      *   Constructor:
      *   
      *   new CharacterSet(charsetName) - creates an object to represent the
-     *   named local character set.  Certain character set names are
-     *   pre-defined:
+     *   named local character set.  Certain common character set names are
+     *   built into the system:
      *   
      *   us-ascii - the plain 7-bit ASCII character set
-     *.  utf-8 - Unicode UTF-8 (a multi-byte unicode encoding)
+     *.  latin1 - 8-bit Western Europe extended ASCII (also called ISO 8859-1)
+     *.  utf-8 - Unicode UTF-8 (varying byte length Unicode encoding)
      *.  utf-16le - little-endian 16-bit Unicode
      *.  utf-16be - big-endian 16-bit Unicode
      *   
-     *   In addition, any character set for which the VM has an external
-     *   mapping file can be used.  Check your platform-specific T3
-     *   installation notes for infomration on how character set mapping
-     *   files are implemented on your version of T3.
+     *   You can extend this basic set using mapping files.  You can create
+     *   your own mapping files (see the System Manual to learn how), so
+     *   there's essentially no limit to the character sets that TADS can
+     *   work with.  You'll probably never need to create your own custom
+     *   mappings, though, because the standard TADS distributions include a
+     *   large set of pre-built mappings that cover most systems currently in
+     *   use.  The standard set includes the various ISO 8859 variants, plus
+     *   proprietary code pages for Windows, DOS, and Mac OS.
      *   
-     *   A CharacterSet can be created for a non-existent mapping, but the
-     *   object cannot be used to perform any mappings; an
-     *   UnknownCharacterSetException will be thrown if any mapping is
-     *   attempted with a CharacterSet object that has non-existent local
-     *   mappings.  You can determine if the local mapping exists with the
-     *   isMappingKnown method.  
+     *   If the named mapping doesn't exist, a CharacterSet object will still
+     *   be created, but it'll throw an error (UnknownCharacterSetException)
+     *   if you attempt to use it to perform any mappings.  You can determine
+     *   if the mapping exists with the isMappingKnown method.  
      */
 
     /*

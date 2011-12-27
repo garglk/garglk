@@ -130,7 +130,7 @@ class GrammarAltTokInfo: object
      *   part-of-speech property that this token slot matches
      *   
      *   GramTokTypeNSpeech - this is a list of property IDs giving the
-     *   part-of-speech proeprties that this token slot matches
+     *   part-of-speech properties that this token slot matches
      *   
      *   GramTokTypeLiteral - this is a string giving the literal that this
      *   slot matches
@@ -143,3 +143,39 @@ class GrammarAltTokInfo: object
     gramTokenInfo = nil
 ;
 
+/*
+ *   Dynamic match object interface.  This is a mix-in class that should be
+ *   used as a superclass for any class used as the match object when
+ *   creating new alternatives dynamically with GrammarProd.addAlt().
+ *   
+ *   This class provides an implementation of grammarInfo() that works like
+ *   the version the compiler generates for static match objects.  In this
+ *   case, we use the grammarAltProps information that addAlt() stores in
+ *   the match object.  
+ */
+class DynamicProd: object
+    /* 
+     *   Generate match information.  This returns the same information
+     *   that grammarInfo() returns for match objects that the compiler
+     *   generates for static 'grammar' statements.  
+     */
+    grammarInfo()
+    {
+        return [grammarTag] + grammarAltProps.mapAll({ p: self.(p) });
+    }
+
+    /* 
+     *   grammarTag - the name for the collection of alternatives
+     *   associated with the match object.  This name is primarily for
+     *   debugging purposes; it appears as the first element of the
+     *   grammarInfo() result list. 
+     */
+    grammarTag = 'new-alt'
+
+    /* 
+     *   grammarAltProps - the list of "->" properties used in all of the
+     *   alternatives associated with this match object.  addAlts() stores
+     *   this list automatically - there's no need to create it manually.  
+     */
+    grammarAltProps = []
+;

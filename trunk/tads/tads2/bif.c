@@ -2609,7 +2609,7 @@ void biffopen(bifcxdef *ctx, int argc)
      *   settings.
      */
     in_same_dir = os_is_file_in_dir(fname, ctx->bifcxrun->runcxgamepath,
-                                    FALSE);
+                                    TRUE);
 
     /* check file safety settings */
     switch(main_mode)

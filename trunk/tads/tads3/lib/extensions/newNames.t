@@ -1,10 +1,11 @@
 /* 
  *   Copyright (c) 2000, 2007 by Michael J. Roberts.  All Rights Reserved.
  *   
- *   NOTE - As of TADS 3.0.19, this extension is incorporated into the
- *   standard adv3 library, so there's no need to add it separately to your
- *   project.  This file is now included in the distribution for reference
- *   only.
+ *   NOTE: THIS FILE IS OBSOLETE!  As of TADS 3.0.19, everything in this
+ *   extension is incorporated directly into the standard adv3 library, so
+ *   there's no need to add it separately to your project.  You should
+ *   remove it from your project's list of source files.  This file is now
+ *   included in the distribution for historical reference only.
  *   
  *   
  *   TADS 3 Library Extension - New Names

@@ -25,7 +25,9 @@
 /*
  *   base class for all tokenizer errors (to allow blanket 'catch') 
  */
-class TokenizerError: Exception;
+class TokenizerError: Exception
+    displayException() { "Tokenizer exception"; }
+;
 
 /*
  *   no match for token 
@@ -43,6 +45,9 @@ class TokErrorNoMatch: TokenizerError
          */
         curChar_ = str.substr(1, 1);
     }
+
+    displayException()
+        { "Tokenizer error: unexpected character '<<curChar_>>'"; }
 
     /* 
      *   The remainder of the string.  This is the part that couldn't be

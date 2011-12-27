@@ -475,7 +475,7 @@ libScore: PreinitObject
          *   Run through all of the Achievement objects to see if we can
          *   derive a maximum score for the game. 
          */
-        forEachInstance(Achievement, new function(obj) {
+        forEachInstance(Achievement, function(obj) {
             local m;
             
             /*

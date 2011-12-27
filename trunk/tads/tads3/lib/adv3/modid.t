@@ -159,7 +159,7 @@ class ModuleID: object
          *   sort the list by listing order (and alphabetically by name
          *   where listing orders are the same) 
          */
-        lst = lst.sort(SortAsc, new function(a, b) {
+        lst = lst.sort(SortAsc, function(a, b) {
 
             /* if the listings order differ, sort by listing order */
             if (a.listingOrder != b.listingOrder)
@@ -225,6 +225,34 @@ class GameInfoModuleID: MetadataModuleID
      *   updates.  Each new version release of the same game - even major
      *   new versions - should use the same IFID, so that the versions can
      *   all be related to one another as the same game.
+     *   
+     *   If the game has multiple IFIDs, list them here, separated by
+     *   commas.  You should NOT *intentionally* create multiple IFIDs for
+     *   your game; once you've created an IFID, it should be the unique
+     *   and permanent identifier for the game.  In particular, do NOT
+     *   create a new IFID for a new version: the whole series of releases
+     *   throughout a game's lifetime should be identified by a single
+     *   IFID, so that archivists will know that the versions are all
+     *   incarnations of the same work.
+     *   
+     *   The reason that multiple IFIDs are allowed at all is that many
+     *   older games were not assigned explicit UUID-style IFIDs when
+     *   released.  In such cases, the game has an "implied" IFID based on
+     *   an MD5 hash of the compiled game file's contents.  Every release
+     *   that doesn't contain an explicit IFID will therefore have a
+     *   different implied IFID.  So, for example, if you've already
+     *   released versions 1, 2, and 3 of your game, and you didn't assign
+     *   explicit IFID values to those releases, each version will have a
+     *   different implied IFID.  When you release version 4, you should
+     *   NOT assign a new UUID-style IFID.  Instead, in the IFID string
+     *   here, list ALL THREE of the implied IFIDs from the past releases.
+     *   Each of the three IFIDs counts from now on as an IFID for the
+     *   work, for all versions collectively.  (By placing the list of
+     *   IFIDs in version 4, you prevent version 4 from adding yet another
+     *   implied IFID of its own: the explicit IFID list supersedes the
+     *   implied IFID.)  See the Babel spec for more information, and for
+     *   instructions on how to calculate the implied IFID for a TADS game
+     *   that was released without a UUID-style IFID.  
      */
     IFID = ''
 
@@ -426,6 +454,9 @@ class GameInfoModuleID: MetadataModuleID
 
         /* done with the file - close it */
         f.closeFile();
+
+        /* remember the primary IFID in the globals */
+        libGlobal.IFID = rexReplace([',.*$', '<space>+'], IFID, '');
     }
 
     /* 
@@ -502,7 +533,7 @@ class GameInfoModuleID: MetadataModuleID
  *   these properties):
  *
  *.  IFID - a random 32-digit hex number to uniquely identify the game;
- *.    you can generate one with http://www.tads.org/ifidgen/ifidgen.pl
+ *.    you can generate one at http://www.tads.org/ifidgen/ifidgen
  *.  name - the name of the game
  *.  byline - the main author credit: "by so and so"
  *.  htmlByline - the main author credit as an HTML fragment
@@ -562,7 +593,7 @@ moduleAdv3: ModuleID
     byline = 'by Michael J.\ Roberts'
     htmlByline = 'by <a href="mailto:mjr_@hotmail.com">'
                  + 'Michael J.\ Roberts</a>'
-    version = '3.0.18.1'
+    version = '3.1.0'
 
     /*
      *   We use a listing order of 50 so that, if all of the other credits

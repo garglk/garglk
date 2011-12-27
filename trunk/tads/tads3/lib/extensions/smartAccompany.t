@@ -8,6 +8,17 @@
    *
    *   by Eric Eve
    *
+   *   A small extension that improves the ordering and grouping of reports 
+   *   from an NPC in an AccompanyingState following the player character. 
+   *   For a full explanation of what this extension does, and how it works, 
+   *   see Example 3 in the Tech Man article on Manipulating the Transcript. 
+   *
+   *   Version 1.3; 27-May-09
+   *
+   *   Version 1.3 fixes a bug which causes the name of the following actor 
+   *   (and nothing else) to be displayed in a separate sentence when the 
+   *   actor follows the player character from a dark room. 
+   *
    *   version 1.2; 04-May-09
    *
    *   Version 1.2 fixes a bug that can cause a run-time error when a report 
@@ -16,17 +27,14 @@
    *   Version 1.1 fixes a bug that could cause a run-time error when travel 
    *   between rooms is disallowed.
    *
-   *   A small extension that improves the ordering and grouping of reports 
-   *   from an NPC in an AccompanyingState following the player character. 
-   *   For a full explanation of what this extension does, and how it works, 
-   *   see Example 3 in the Tech Man article on Manipulating the Transcript.
+   *
    */
 
 ModuleID
     name = 'smartAccompany'
     byline = 'by Eric Eve'
     htmlByline = 'by <a href="mailto:eric.eve@hmc.ox.ac.uk">Eric Eve</a>'
-    version = '1.2'
+    version = '1.3'
     listingOrder = 75
 ;
 
@@ -117,6 +125,15 @@ modify AccompanyingState
          */        
         
         str = stringLister.makeSimpleList(vec.toList);
+        
+        /*   
+         *   If we're left with an empty string, there's nothing left to do, 
+         *   so we should stop here rather than go on to display a 
+         *   fragmentary sentence.
+         */
+        
+        if(str == '')
+            return;
         
         /* 
          *   Put the actor's name back at the start of the string, and 

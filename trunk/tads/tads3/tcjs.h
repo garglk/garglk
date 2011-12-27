@@ -265,6 +265,10 @@ public:
      *   ${,args n m} = same as ${args}, but start the list with a comma if
      *   it's non empty, otherwise generate nothing
      *   
+     *   ${args[] n m varargs} = same as ${args}, but enclose the list in
+     *   square brackets to make it an array at run-time.  If varargs is
+     *   true, we already have a varargs list on the stack.
+     *   
      *   $$ = a single literal '$'
      *   
      *   After expanding the '$' expressions, we pop the stack expressions
@@ -399,16 +403,23 @@ public:
     int is_speculative() const { return FALSE; }
     int get_debug_stack_level() const { return 0; }
 
-protected:
     /* push/pop expressions to/from the js stack */
     void push_js_expr(js_expr_buf &buf);
     void pop_js_expr() { pop_js_exprs(1); }
     void pop_js_exprs(int n);
     int get_sp_depth() const { return expr_stack_depth; }
 
+    /* pop the js expression stack, appending the top of stack to a buffer */
+    void pop_js_expr(js_expr_buf &buf)
+    {
+        copy_js_expr(buf, 1);
+        pop_js_expr();
+    }
+
     /* copy the contents of stack[n] to a buffer */
     void copy_js_expr(js_expr_buf &dst, int n);
 
+protected:
     /* expression stack head */
     js_expr_ele *expr_stack;
     int expr_stack_depth;

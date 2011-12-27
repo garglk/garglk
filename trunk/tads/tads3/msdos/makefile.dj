@@ -233,6 +233,7 @@ $(EXEPREDIR)/t3make.exe: \
     $(OBJDIR)/vmuni_cs.o \
     $(OBJDIR)/vmnetfillcl.o \
     $(OBJDIR)/osnetdum.o \
+    $(OBJDIR)/vmlog.o \
     $(OBJDIR)/md5.o \
     $(OBJDIR)/sha2.o \
     \
@@ -360,6 +361,7 @@ $(EXEPREDIR)/t3run.exe: \
     $(OBJDIR)/vmuni_cs.o \
     $(OBJDIR)/osnetdum.o \
     $(OBJDIR)/vmnetfillcl.o \
+    $(OBJDIR)/vmlog.o \
     $(OBJDIR)/sha2.o \
     $(OBJDIR)/md5.o \
     \
@@ -481,6 +483,7 @@ $(EXEPREDIR)/tadsr.exe: \
     $(OBJDIR)/vmuni_cs.o \
     $(OBJDIR)/vmnetfillcl.o \
     $(OBJDIR)/osnetdum.o \
+    $(OBJDIR)/vmlog.o \
     $(OBJDIR)/md5.o \
     $(OBJDIR)/sha2.o \
     \

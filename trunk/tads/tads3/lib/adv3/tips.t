@@ -3,7 +3,7 @@
 /*
  *   TADS 3 Tips, by Krister Fundin (fundin@yahoo.com). Provides a uniform
  *   way of providing one-time only tips to the player (and especially to
- *   unexperienced players) when certain things happen in the game.  
+ *   inexperienced players) when certain things happen in the game.  
  */
 
 #include <adv3.h>
@@ -45,7 +45,7 @@ transient tipManager: InitObject, PostRestoreObject, PostUndoObject
     execute()
     {
         /* go through all tips */
-        forEachInstance(Tip, new function(tip)
+        forEachInstance(Tip, function(tip)
         {
             /*
              *   see if this one has been shown, according to its own

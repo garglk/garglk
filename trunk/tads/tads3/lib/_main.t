@@ -16,6 +16,7 @@
 
 #include "tads.h"
 #include "reflect.h"
+#include "strbuf.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -54,119 +55,118 @@ _mainRestore(args, restoreFile)
  */
 _mainCommon(args, restoreFile)
 {    
-    /* keep going as long as we keep restarting */
-    for (;;)
+    try
     {
-        try
+        /* 
+         *   Keep going as long as we keep restarting.  Note that the
+         *   restoreFile only counts on the first iteration, so we clear it
+         *   out after each iteration; if we RESTART after that, we'll want
+         *   to just start the game from the beginning.  
+         */
+        for ( ; ; restoreFile = nil)
         {
             /* perform load-time initialization */
             initAfterLoad();
-            
-            /* if we're not in preinit-only mode, run the program */
-            if (!t3GetVMPreinitMode())
+
+            /* if we're in preinit-only mode, we're done */
+            if (t3GetVMPreinitMode())
+                return;
+
+            /* catch any RESTART signals thrown out of the main entrypoint */
+            try
             {
                 /* 
                  *   If there's a saved state file to restore, call our
                  *   mainRestore() function instead of main().  If
                  *   mainRestore() isn't defined, show a message to this
-                 *   effect but keep going. 
+                 *   effect but keep going.  
                  */
-                if (restoreFile != nil)
+                if (restoreFile != nil
+                    && dataType(mainGlobal.mainRestoreFunc) == TypeFuncPtr)
                 {
-                    /* check for a mainRestore function */
-                    if (dataType(mainGlobal.mainRestoreFunc) == TypeFuncPtr)
+                    /* 
+                     *   Call the user's main startup-and-restore
+                     *   entrypoint function.  Note that we call indirectly
+                     *   through our function pointer so that we don't
+                     *   force a function called mainRestore() to be linked
+                     *   with the program.  
+                     */
+                    (mainGlobal.mainRestoreFunc)(args, restoreFile);
+                }
+                else
+                {
+                    /* 
+                     *   if we have a restore file but no mainRestore
+                     *   routine, explain to the user that they'll have to
+                     *   restore manually 
+                     */
+                    if (restoreFile != nil)
                     {
-                        try
-                        {
-                            /* 
-                             *   Call the user's main startup-and-restore
-                             *   entrypoint function.  Note that we call
-                             *   indirectly through our function pointer
-                             *   so that we don't force a function called
-                             *   mainRestore() to be linked with the
-                             *   program.  
-                             */
-                            (mainGlobal.mainRestoreFunc)(args, restoreFile);
-                        }
-                        finally
-                        {
-                            /* 
-                             *   whatever happens, forget the saved state
-                             *   file, since we do not want to restore it
-                             *   again after restarting or anything else
-                             *   that takes us back through the main
-                             *   entrypoint again 
-                             */
-                            restoreFile = nil;
-                        }
-                    }
-                    else
-                    {
-                        /* 
-                         *   there's no mainRestore, so we can't restore
-                         *   the saved state - note the problem 
-                         */
                         "\n[This program cannot restore the saved position
                         file automatically.  Please try restoring the
                         saved position file again using a command within
                         the program.]\b";
-
-                        /* call the ordinary main */
-                        main(args);
                     }
-                }
-                else
-                {
-                    /* call the user's main program entrypoint */
+
+                    /* call the selected main entrypoint */
                     main(args);
                 }
+
+                /* 
+                 *   we made it through the main entrypoint without a
+                 *   restart, so we're done 
+                 */
+                break;
             }
+            catch (RestartSignal rsig)
+            {
+                /* 
+                 *   call the intrinsic restartGame function to reset all
+                 *   of the static objects to their initial state 
+                 */
+                restartGame();
 
-            /* we're done - break out of the restart loop */
-            break;
-        }
-        catch (RestartSignal rsig)
-        {
-            /* 
-             *   call the intrinsic restartGame function to reset all of
-             *   the static objects to their initial state 
-             */
-            restartGame();
+                /* 
+                 *   Now that we've reset the VM, update the restart ID in
+                 *   the main globals.  Note that we waited until now to do
+                 *   this, because this change would have been lost in the
+                 *   reset if we'd made the change before the reset.  Note
+                 *   also that the 'rsig' object itself will survive the
+                 *   reset because the thrower presumably allocated it
+                 *   dynamically, hence it's not a static object subject to
+                 *   reset.  
+                 */
+                mainGlobal.restartID = rsig.restartID;
 
-            /* 
-             *   Now that we've reset the VM, update the restart ID in the
-             *   main globals.  Note that we waited until now to do this,
-             *   because this change would have been lost in the reset if
-             *   we'd made the change before the reset.  Note also that the
-             *   'rsig' object itself will survive the reset because the
-             *   thrower presumably allocated it dynamically, hence it's
-             *   not a static object subject to reset.  
-             */
-            mainGlobal.restartID = rsig.restartID;
-
-            /*
-             *   Now we can just continue on to the next iteration of the
-             *   restart loop.  This will take us back to the
-             *   initialization and enter the game as though we'd just
-             *   started the program again. 
-             */
+                /*
+                 *   Now we can just continue on to the next iteration of
+                 *   the restart loop.  This will take us back to the
+                 *   initialization and enter the game as though we'd just
+                 *   started the program again.  
+                 */
+            }
         }
-        catch (ProgramException exc)
-        {
-            /* 
-             *   just re-throw these out to the VM, so that the VM exits to
-             *   the operating system with an error indication 
-             */
-            throw exc;
-        }
-        catch (Exception exc)
-        {
-            /* display the unhandled exception */
-            "\n<<exc.displayException()>>\n";
-
-            /* we can't go on - break out of the restart loop */
-            break;
-        }
+    }
+    catch (ProgramException exc)
+    {
+        /* 
+         *   just re-throw these out to the VM, so that the VM exits to
+         *   the operating system with an error indication 
+         */
+        throw exc;
+    }
+    catch (Exception exc)
+    {
+        /* write output to the main console */
+        t3SetSay(_default_display_fn);
+        
+        /* display the unhandled exception */
+        "\n<<exc.displayException()>>\n";
+    }
+    finally
+    {
+        /* before exiting, call registered exit handlers */
+        mainAtExit.callHandlers();
     }
 }
 
@@ -207,17 +207,16 @@ initAfterLoad()
     if (!mainGlobal.preinited_)
     {
         /* 
-         *   Explicitly run garbage collection prior to preinit.  This is
-         *   usually harmless but unnecessary, since it usually doesn't
-         *   much matter whether unreachable objects are still sitting in
-         *   memory or not; but under certain conditions it's important.
+         *   Explicitly run garbage collection prior to preinit.
          *   
-         *   In particular, object loops (over all objects, or over all
-         *   instances of a given class) can still see otherwise
-         *   unreachable objects.  It's common to do these kinds of loops
-         *   in preinit to set up static data caches and tables and so on.
-         *   So, if there were any garbage objects lying around, preinit
-         *   might find them and register them into tables or what not.
+         *   In most cases, this is unnecessary, but in some cases it's
+         *   important.  In particular, object loops (over all objects, or
+         *   over all instances of a given class) can still see otherwise
+         *   unreachable objects.  It's common to do object loops in
+         *   preinit to set up static data caches and tables and so on.  If
+         *   there *were* any garbage objects lying around, preinit could
+         *   find them via object loops, and might register them into
+         *   tables or what not.
          *   
          *   Even considering the preinit object loop, doing a garbage
          *   collection sweep would *still* be redundant in most cases,
@@ -231,8 +230,8 @@ initAfterLoad()
          *   
          *   To ensure that we deal gracefully with this combination of
          *   conditions - garbage objects, RESTART, and object loops in
-         *   preinit - simply perform an explicit garbage collection cycle
-         *   before invoking preinit.  
+         *   preinit - simply do an explicit garbage collection run before
+         *   invoking preinit.  
          */
         t3RunGC();
 
@@ -403,7 +402,7 @@ class ModuleExecObject: object
              *   re-cast the execAfterMe lists as execBeforeMe lists.  
              */
             forEachInstance(self,
-                new function(obj)
+                function(obj)
                 {
                     foreach(local dependent in obj.execAfterMe)
                         dependent.execBeforeMe += obj;
@@ -587,8 +586,9 @@ class BreakLoopSignal: Exception
 /* ------------------------------------------------------------------------ */
 /*
  *   Get the "translated" datatype of a value.  This is essentially the
- *   same as dataType(), except that anonymous function objects are
- *   indicated as ordinary function pointer (TypeFuncPtr).  
+ *   same as dataType(), except that anonymous function objects and dynamic
+ *   function objects are treated as being "function pointer" types
+ *   (TypeFuncPtr).  
  */
 dataTypeXlat(val)
 {
@@ -598,7 +598,9 @@ dataTypeXlat(val)
     t = dataType(val);
     
     /* if it's an anonymous function, return TypeFuncPtr */
-    if (t == TypeObject && val.ofKind(AnonFuncPtr))
+    if (t == TypeObject
+        && (val.ofKind(AnonFuncPtr)
+            || (defined(DynamicFunc) && val.ofKind(DynamicFunc))))
         return TypeFuncPtr;
 
     /* otherwise, just return the base type */
@@ -615,11 +617,42 @@ dataTypeXlat(val)
  *   exception.  Subclasses should override this method.  
  */
 class Exception: object
+    /* construct, with an optional message describing the error */
+    construct(msg?, ...)
+    {
+        /* if there's a message, save it, otherwise keep the default */
+        if (msg != nil)
+            errmsg_ = msg;
+    }
+
     /* display the exception - should always be overridden */
     displayException()
     {
-        "Unknown exception";
+        "<<errmsg_>>";
     }
+
+    /* 
+     *   Get the exception message as a string.  This captures the output
+     *   of displayException() and returns it a string.  Use this instead
+     *   of accessing errmsg_, since that member is private and might not
+     *   reflect the actual displayed message. 
+     */
+    getExceptionMessage()
+    {
+        /* capture and return the displayed exception message as a string */
+        return _outputCapture({: displayException() });
+    }
+
+    /* 
+     *   Private member: The error message passed to the constructor, if
+     *   any.  Note that this doesn't necessarily contain the actual
+     *   displayed exception message, since displayException() can be
+     *   overridden in subclasses to display additional parameters or other
+     *   text entirely.  The definitive message is the one that
+     *   displayException() generates.  If you want the displayed message
+     *   as a string, use getExceptionMessage().  
+     */
+    errmsg_ = 'Unknown exception'
 
     /* 
      *   Display a stack trace, given a list of T3StackInfo objects.  Note
@@ -656,7 +689,6 @@ class Exception: object
          */
         if (haveSrc || mainGlobal.reflectionObj != nil)
         {
-            "\nStack trace:\n";
             for (local i = 1, local cnt = stackList.length() ; i <= cnt ; ++i)
             {
                 local cur = stackList[i];
@@ -665,7 +697,7 @@ class Exception: object
                 if (i == 1)
                     "--&gt;";
                 else
-                    "\ \ ";
+                    "\ \ \ ";
 
                 /* 
                  *   if there's a system reflection object, show symbolic
@@ -675,8 +707,8 @@ class Exception: object
                 if (mainGlobal.reflectionObj != nil)
                 {
                     /* reflection is available - show full symbolic info */
-                    _tads_io_say(mainGlobal.reflectionObj.
-                                 formatStackFrame(cur, true));
+                    "<<mainGlobal.reflectionObj.
+                      formatStackFrame(cur, true)>>";
                 }
                 else
                 {
@@ -727,11 +759,19 @@ class RuntimeError: Exception
             stack_ = stack_.sublist(2);
     }
 
+    /* create a runtime error with a given error message */
+    newRuntimeError(errno, msg)
+    {
+        local e = new RuntimeError(errno);
+        e.exceptionMessage = msg;
+        return e;
+    }
+
     /* display the exception */
     displayException()
     {
         /* show the exception message */
-        "Runtime error: <<exceptionMessage>>";
+        "Runtime error: <<exceptionMessage>>\n";
 
         /* show a stack trace if possible */
         showStackTrace(stack_);
@@ -740,17 +780,10 @@ class RuntimeError: Exception
     /* check to see if it's a debugger signal of some kind */
     isDebuggerSignal()
     {
-        switch(errno_)
-        {
-        case 2391:                       /* debugger 'abort command' signal */
-        case 2392:                             /* debugger 'restart' signal */
-            /* it's a debugger signal */
-            return true;
-
-        default:
-            /* not a debugger signal */
-            return nil;
-        }
+        return errno_ is in (
+            2391,                        /* debugger 'abort command' signal */
+            2392                               /* debugger 'restart' signal */
+        );
     }
 
     /* the VM error number of the exception */
@@ -777,6 +810,7 @@ export exceptionMessage;
  *   platform. 
  */
 class UnknownCharSetException: Exception
+    displayException = "Unknown character set"
 ;
 
 /* 
@@ -802,12 +836,124 @@ class ProgramException: Exception
     displayException() { "<<exceptionMessage>> "; }
 ;
 
+/*
+ *   A StorageServerError is thrown when a file operation on a remote
+ *   storage server fails.  The storage server is used when the game runs
+ *   on a Web game server in client/server mode.  In Web mode, files are
+ *   stored on a separate storage server rather than on the Web server
+ *   itself, so that the files can be transparently accessed if the game is
+ *   continued from another Web server.  This exception is used when a
+ *   request to the storage server fails, which could be due to an error on
+ *   the storage server, a network error communicating between the game
+ *   server and the storage server, or an invalid request (e.g., incorrect
+ *   user credentials).  
+ */
+class StorageServerError: RuntimeError
+    construct(errno, msg)
+    {
+        /* 
+         *   Do the base class construction.  Note that errno is the
+         *   VM-level error number, which is usually just the generic
+         *   "storage server error" code.  The storage server provides a
+         *   separate, more specific error code of its own as the first
+         *   token of the message string.  
+         */
+        inherited(errno);
+        
+        /* 
+         *   storage server error messages are formatted with an error code
+         *   as the first space-delimited token, and a human-readable
+         *   message following 
+         */
+        local sp = msg.find(' ');
+        errCode = msg.substr(1, sp - 1);
+        msg = msg.substr(sp + 1);
+
+        /* 
+         *   If the error code is a negative integer, it's an error on the
+         *   client side sending the HTTP request to the storage server.
+         *   If it's a positive integer, it's an HTTP error code from the
+         *   storage server.  Otherwise it's an error abbreviation token
+         *   from the server. 
+         */
+        local errNum = toInteger(errCode);
+        if (errNum < 0)
+        {
+            local reqErrs = [
+                -1 -> 'out of memory',
+                -2 -> 'unable to connect',
+                -3 -> 'network error',
+                -4 -> 'invalid parameters',
+                -5 -> 'error reading temporary file',
+                -6 -> 'error writing temporary file',
+                * -> 'error code <<errNum>>'
+            ];
+            errMsg = reqErrs[errNum];
+        }
+        else if (errNum > 0)
+            errMsg = 'HTTP error (status code <<errCode>>)';
+        else
+            errMsg = msg;
+    }
+
+    /* the storage server error code */
+    errCode = nil
+
+    /* 
+     *   error message - this is the message text we get back from the
+     *   storage server for a request that's successful at the HTTP level
+     *   but fails on the storage server, OR a message describing the HTTP
+     *   error or network error that caused the request to fail 
+     */
+    errMsg = 'no details available'
+
+    /* display the exception */
+    displayException()
+    {
+        /* show the exception message */
+        "Storage server error: <<errMsg>>\n";
+
+        /* show a stack trace if possible */
+        showStackTrace(stack_);
+    }
+;
+
+/* export this for use by the interpreter networking package */
+export StorageServerError 'StorageServerError';
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Default string display function.  Our main entrypoint code
  *   establishes this function as the default output function.  
  */
 _default_display_fn(str) { _tads_io_say(str); }
+
+/*
+ *   Raw output capture.  This bypasses any filtering and directly captures
+ *   any output generated by the callback. 
+ */
+_outputCapture(func)
+{
+    /* temporarily set the low-level string output to capture output */
+    local buf = new StringBuffer();
+    local oldSay = t3SetSay({str: buf.append(str)});
+
+    /* make sure we restore the "say" function on the way out */
+    try
+    {
+        /* call the callback in the new capture context */
+        func();
+
+        /* return the captured data */
+        return toString(buf);
+    }
+    finally
+    {
+        /* restore the old "say" function */
+        t3SetSay(oldSay);
+    }
+}
 
 
 /* ------------------------------------------------------------------------ */
@@ -821,7 +967,8 @@ class T3StackInfo: object
      *   Construct a stack level object.  The system invokes this
      *   constructor with information on the stack level.
      */
-    construct(func, obj, prop, selfObj, argList, srcInfo)
+    construct(func, obj, prop, selfObj, argList, srcInfo,
+              locals, namedArgs, frameDesc)
     {
         /* remember the values */
         func_ = func;
@@ -830,6 +977,9 @@ class T3StackInfo: object
         self_ = selfObj;
         argList_ = argList;
         srcInfo_ = srcInfo;
+        locals_ = locals;
+        namedArgs_ = namedArgs;
+        frameDesc_ = frameDesc;
     }
 
     /*
@@ -838,11 +988,20 @@ class T3StackInfo: object
      */
     isSystem()
     {
-        /* 
-         *   if it's a system routine, we won't have a function OR an
-         *   object method 
+        /*
+         *   It's a system function if:
+         *   
+         *   - we have NEITHER a function nor a method
+         *.  - the function is a built-in function pointer
+         *.  - the defining object is an intrinsic class
+         *   
+         *   The first case applies to pre-3.0.19 VMs, where no information
+         *   was available for native callers.  Starting in 3.0.19, full
+         *   information is available.  
          */
-        return func_ == nil && obj_ == nil;
+        return ((func_ == nil && obj_ == nil)
+                || dataType(func_) == TypeBifPtr
+                || (obj_ != nil && IntrinsicClass.isIntrinsicClass(obj_)));
     }
 
     /* 
@@ -867,33 +1026,115 @@ class T3StackInfo: object
      */
     self_ = nil
 
-    /* the list of arguments to the function or method */
+    /* 
+     *   The list of positional arguments to the function or method.  Each
+     *   element is the value of an argument; the list is arranged in the
+     *   same order as the arguments. 
+     */
     argList_ = []
 
     /*
+     *   Local variables.  This is a LookupTable containing the local
+     *   variables currently in scope at this stack level.  Each element in
+     *   the table has a string key (index) giving the name of the local
+     *   variable, and each corresponding value is the local's current
+     *   value.  The table is only included when the stack listing was
+     *   produced by a call to t3GetStackTrace() with the T3GetStackLocals
+     *   flag set; otherwise it's nil.  If the locals were requested, and
+     *   the stack level has no local variables, this will be an empty
+     *   lookup table.  
+     */
+    locals_ = nil
+
+    /*
+     *   Named arguments.  This is a LookupTable containing the named
+     *   arguments passed in from this stack level.  Each element in the
+     *   table has a string key (index) giving the name of the argument,
+     *   and each corresponding value is the value of that argument.  If
+     *   there are no named arguments, this value is nil.  
+     */
+    namedArgs_ = nil
+
+    /*
      *   The source location of the next code to be executed in the
-     *   function or method in this frame.  If debugging records are
-     *   available for the current execution point in this frame, this
-     *   will contain a list of two values:
+     *   function or method in this frame.  If source-level debugging
+     *   information is available for the current execution point in this
+     *   frame, this will contain a list of two values:
      *   
      *   srcInfo_[1] = string giving the name of the source file
      *.  srcInfo_[2] = integer giving the line number in the source file
      *   
-     *   If the program wasn't compiled with debugging records, or the
-     *   current code location in the frame doesn't have any source
-     *   information, this will be set to nil.
+     *   If the program wasn't compiled with source-level debugging
+     *   information, or the current code location in the frame doesn't
+     *   have any source information, this will be set to nil.
      *   
-     *   Note that this gives the location of the *next* statement to be
-     *   executed in this frame, when control returns to the frame.  This
-     *   means that the location is frequently the next statement after
-     *   the one that called the next inner frame, because this is where
-     *   execution will resume when control returns to the frame.  
+     *   Note that the location reflected here is the *return address* in
+     *   this frame - that is, the code location that will be executed when
+     *   control returns to the frame.  This means that the source location
+     *   will frequently appear as the next executable line after the one
+     *   that called the next inner frame, because this is where execution
+     *   will resume when control returns to the frame.  
      */
     srcInfo_ = nil
+
+    /*
+     *   A StackFrameDesc object that can be used to get information from
+     *   the frame and change local variables in the frame.  
+     */
+    frameDesc_ = nil
 ;
 
 /* export T3StackInfo for use by the system */
 export T3StackInfo;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Stream state object for String.specialsToHtml().
+ */
+class SpecialsToHtmlState: object
+    /* 
+     *   Reset the state.  This should be used when the output stream
+     *   context is reset, such as when clearing the window.  
+     */
+    resetState()
+    {
+        flags_ = 0;
+        tag_ = '';
+    }
+
+    /* 
+     *   Explicitly reset to the start of a line.  This can be called after
+     *   a non-output operation that resets the line position, such as
+     *   reading an input line.  
+     */
+    resetLine()
+    {
+        /* reset the in-line flag, space flag, qspace flag, and tab column */
+        flags_ &= ~(0x0001 | 0x0040 | 0x0080 | 0x0300);
+    }
+
+    /* 
+     *   Internal output state flags at end of last string parsed.  This is
+     *   a combination of bit flags:
+     *   
+     *   0x0001 - last string ended within a line of text
+     *.  0x0002 - caps flag '\^' pending
+     *.  0x0004 - lowercase flag '\v' pending
+     *.  0x0008 - last string ended within an HTML tag
+     *.  0x0010 - last string ended in double-quoted HTML tag attribute text
+     *.  0x0020 - last string ended in single-quoted HTML tag attribute text
+     *.  0x0040 - last string ended with an ordinary space
+     *.  0x0080 - last string ended with a quoted space '\ '
+     *.  0x0100 - <Q> parity level: 0=double quotes, 1=single quotes
+     *.  0x0300 - distance from last '\t' tab column (0..3)
+     */
+    flags_ = 0
+
+    /* tag in progress at end of last string parsed */
+    tag_ = ''
+;
+    
 
 
 /* ------------------------------------------------------------------------ */
@@ -933,3 +1174,258 @@ mainGlobal: object
     mainRestoreFunc = nil
 ;
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   At-exit handlers.  This is a registry for custom handlers that are to
+ *   be invoked just before the program terminates.  
+ */
+transient mainAtExit: object
+    /*
+     *   Add an at-exit handler.  User code can call this to register a
+     *   handler that will be invoked just before the program exits. 
+     */
+    addHandler(func)
+    {
+        handlers.append(func);
+    }
+
+    /* call our exit handlers */
+    callHandlers()
+    {
+        /* call each handler in the list */
+        foreach (local f in handlers)
+        {
+            try
+            {
+                /* call this handler */
+                f();
+            }
+            catch (Exception exc)
+            {
+                /* display and ignore any exceptions it throws */
+                "\nError in exit handler: <<exc.displayException()>>\n";
+            }
+        }
+    }
+
+    /* list of exit handlers */
+    handlers = static new Vector()
+;
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   <<one of>> index generator.  The compiler generates an anonymous
+ *   instance of this class for each <<one of>> list in string, setting the
+ *   property 'numItems' to the number of items in the list, and
+ *   'listAttrs' property to a string giving the sequence type.  The
+ *   compiler generates a call to getNextIndex() within the string to get
+ *   the next index value, which is an integer from 1 to numItems.  
+ */
+class OneOfIndexGen: object
+    /* number of list items */
+    numItems = 1
+
+    /* 
+     *   List attributes.  This is a string with a comma-delimited list of
+     *   tokens describing the treatment on the list for each fetch.  The
+     *   first call to getNextIndex() takes the first token off the list
+     *   and generates an appropriate return value, possibly queuing up a
+     *   list of future values.  The next call to getNextIndex() reads from
+     *   the queue.  Once the queue is exhausted, the next call takes the
+     *   second token off the attribute list and repeats the process.  Once
+     *   the attribute list is down to one token, we don't remove the
+     *   token, but simply repeat it forever.
+     *   
+     *   For example, 'seq,rand' runs through the entire list in sequence
+     *   once, then generates independently random values from then on.
+     *   'shuffle,stop' runs through the list once in shuffled order, then
+     *   repeats the last pick from the shuffled list forever.
+     *   
+     *   The individual attribute values are:
+     *   
+     *   rand - pick an item at random, independently of past selections.
+     *   
+     *   rand-norpt - pick an item at random, but don't pick the single
+     *   most recent item chosen, to avoid repeating the same thing twice
+     *   in a row.
+     *   
+     *   rand-wt - pick an item by random, weighting the items with
+     *   decreasing probabilities.  The last item is given relative weight
+     *   1, the second to last weight 2, the third to last weight 3, etc.
+     *   In other words, the nth item from the end of the list is n times
+     *   as likely to be picked as the last item.  The picks are
+     *   independent.
+     *   
+     *   seq - run through the items in sequence (1, 2, ... numItems).
+     *   
+     *   shuffle - run through the list in a shuffled order.
+     *   
+     *   shuffle2 - shuffle the list into a random order, but only run
+     *   through half before reshuffling
+     *   
+     *   stop - repeat the previous selection forever.  (This should only
+     *   be used as the second or later attribute in the list, since it
+     *   depends on a prior selection being made.)  
+     */
+    listAttrs = ''
+
+    /* 
+     *   Get the next index value.  Returns an integer from 1 to numItems.
+     *   The algorithm for choosing the index depends on the list type, as
+     *   defined by listAttrs.  
+     */
+    getNextIndex()
+    {
+        /* if we're out of items, generate the next iteration of the list */
+        if (idx_ > lst_.length())
+        {
+            /* pull out the first item from the attributes */
+            local alst = listAttrs.split(',', 2);
+
+            /* 
+             *   If we have more than one attribute, keep only the
+             *   remaining attributes, since the first attribute is for the
+             *   first list iteration only. 
+             */
+            if (alst.length() > 1)
+                listAttrs = alst[2];
+
+            /* some of the attributes are interested in the last item */
+            local last = lst_.length() >= 1 ? lst_[lst_.length()] : nil;
+
+            /* build the list for the head attribute */
+            local pick;
+            switch (alst[1])
+            {
+            case 'stop':
+                /* reuse the last item every time from now on */
+                lst_ = [last ?? 1];
+                break;
+
+            case 'seq':
+                /* run through the list in sequence */
+                lst_ = List.generate({i: i}, numItems);
+                break;
+                
+            case 'rand':
+                /* 
+                 *   pick an item at random, independent of other picks -
+                 *   just generate a single item list, since we'll want to
+                 *   pick at random again next time 
+                 */
+                lst_ = [rand(numItems) + 1];
+                break;
+
+            case 'rand-norpt':
+                /* 
+                 *   Pick an item at random, but don't repeat the last item
+                 *   chosen.  Pick repeatedly until we select an item that
+                 *   doesn't match the last selection, if there is one.
+                 *   Exception: if the list has only one item, it's
+                 *   impossible to choose a different item, so don't try.  
+                 */
+                do
+                {
+                    pick = rand(numItems) + 1;
+                }
+                while (numItems > 1 && pick == last);
+                lst_ = [pick];
+                break;
+
+            case 'rand-wt':
+                /* 
+                 *   Pick an item at random, independently of other trials,
+                 *   weighting the list in decreasing order of probability.
+                 *   The relative weights are 1 for the last item, 2 for
+                 *   the second to last item, 3 for the third to last, etc.
+                 *   This gives us a total weight of n(n+1)/2, so start by
+                 *   picking a number in that range.  1 represents the last
+                 *   item, 2..3 the second to last, 3..5 the third, etc.  
+                 */
+                pick = rand(numItems*(numItems+1)/2) + 1;
+                for (local i in 1..numItems ; ; pick -= i)
+                {
+                    /* if pick is <= i, it's this item */
+                    if (pick <= i)
+                    {
+                        lst_ = [numItems - i + 1];
+                        break;
+                    }
+                }
+                break;
+
+            case 'shuffle':
+            case 'shuffle2':
+                /* 
+                 *   Shuffle the list.  Populate the list with the integer
+                 *   values from 1 to numItems, then shuffle the list into
+                 *   a random order.
+                 *   
+                 *   The shuffling algorithm, as a physical analogy: Start
+                 *   with a deck of cards labeled 1 to numItems.  Put all
+                 *   of the cards in a hat.  Pick a card at random from the
+                 *   hat and set it aside - call this the "pile".  Pick
+                 *   another random card from the hat and put it on the top
+                 *   of the pile.  Repeat until the hat is empty.  We now
+                 *   have a pile of the cards arranged in random order.
+                 *   
+                 *   To implement this, we create a vector and fill it with
+                 *   integers from 1 to numItems.  Partition the vector
+                 *   with an index 'i': items from 1..i are the hat, items
+                 *   from i+1..numItems are the deck.  To draw a card at
+                 *   random, we pick a random number from 1..i.  To remove
+                 *   it from the hat, we swap it into position 'i', because
+                 *   that will effectively shrink the hat by one slot and
+                 *   grow the pile by one slot.  Decrement i and repeat.  
+                 */
+                lst_ = Vector.generate({i: i}, numItems);
+                for (local i in numItems..2 step -1)
+                {
+                    /* pick a random element from the remaining set */
+                    pick = rand(i) + 1;
+                    
+                    /* swap the chosen item and the last element */
+                    local tmp = lst_[i];
+                    lst_[i] = lst_[pick];
+                    lst_[pick] = tmp;
+                }
+
+                /* 
+                 *   The whole point of shuffling is to avoid obvious
+                 *   repetition, so make sure we don't repeat any previous
+                 *   item from a previous run through the list as the first
+                 *   item of the new list.  If the first item matches the
+                 *   previous item, reshuffle it into a random spot in the
+                 *   list.  (If the list only has one item, of course, this
+                 *   is pointless, so don't bother in that case.)  
+                 */
+                if (lst_[1] == last && numItems > 1)
+                {
+                    pick = rand(numItems - 1) + 2;
+                    lst_[1] = lst_[pick];
+                    lst_[pick] = last;
+                }
+
+                /* 
+                 *   in half-shuffle mode, only keep the first half of the
+                 *   list, so that we re-shuffle halfway through 
+                 */
+                if (alst[1] == 'shuffle2' && numItems > 2)
+                    lst_ = lst_.toList(1, numItems/2);
+                break;
+            }
+
+            /* start from the first item in the list */
+            idx_ = 1;
+        }
+
+        /* return and consume the next item */
+        return lst_[idx_++];
+    }
+
+    /* generated list */
+    lst_ = []
+
+    /* current position in the list */
+    idx_ = 1
+;

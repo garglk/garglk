@@ -6,7 +6,8 @@
  *   This file is part of TADS 3.  
  */
 
-#include "tads.h"
+#include <tads.h>
+#include <strbuf.h>
 #include "reflect.h"
 
 /* ------------------------------------------------------------------------ */
@@ -55,7 +56,7 @@ reflectionServices: PreinitObject
     valToSymbol(val)
     {
         local sym;
-        
+
         /* the representation depends on the type */
         switch(dataType(val))
         {
@@ -80,6 +81,14 @@ reflectionServices: PreinitObject
             if (val.ofKind(self))
                 return inherited();
 
+            /* check for intrinsic classes */
+            if (IntrinsicClass.isIntrinsicClass(val))
+            {
+                /* intrinsic classes should always be in the symbol table */
+                sym = reverseSymtab_[val];
+                return (sym != nil ? sym : '{intrinsicClass}');
+            }
+
             /* use our special value-to-symbol method on the object itself */
             return val.valToSymbol();
             
@@ -89,16 +98,28 @@ reflectionServices: PreinitObject
              *   been allocated dynamically 
              */
             sym = reverseSymtab_[val];
-            return (sym != nil ? sym : '(prop)');
+            return (sym != nil ? sym : '{prop}');
 
         case TypeFuncPtr:
+            /* 
+             *   look for a name; if it doesn't have one, it must be an
+             *   anonymous function 
+             */
+            sym = reverseSymtab_[val];
+            return (sym != nil ? sym : '{anonFunc}');
+            
         case TypeEnum:
             /* these should always convert directly to symbols */
             sym = reverseSymtab_[val];
-            return (sym != nil ? sym : '???');
+            return (sym != nil ? sym : '{enum}');
+
+        case TypeBifPtr:
+            /* these should always convert directly to symbols */
+            sym = reverseSymtab_[val];
+            return (sym != nil ? sym : '{intrinsicFunc}');
 
         case TypeNativeCode:
-            return '(native code)';
+            return '{native code}';
 
         default:
             return '???';
@@ -110,13 +131,13 @@ reflectionServices: PreinitObject
      */
     formatStackFrame(fr, includeSourcePos)
     {
-        local ret;
+        local ret = new StringBuffer();
         
         /* see what kind of frame we have */
         if (fr.func_ != nil)
         {
             /* it's a function */
-            ret = valToSymbol(fr.func_);
+            ret.append(valToSymbol(fr.func_));
         }
         else if (fr.obj_ != nil)
         {
@@ -127,44 +148,70 @@ reflectionServices: PreinitObject
              *   anonymous function. 
              */
             if (fr.obj_.ofKind(AnonFuncPtr))
-                ret = '{anonFunc}';
+                ret.append('{anonFunc}');
             else
-                ret = valToSymbol(fr.self_) + '.' + valToSymbol(fr.prop_);
+            {
+                ret.append(valToSymbol(fr.self_));
+                ret.append('.');
+                ret.append(valToSymbol(fr.prop_));
+            }
         }
         else
         {
             /* no function or object - must be a system routine */
-            ret = '(System)';
+            ret.append('(System)');
         }
 
         /* if it's not a system routine, add the argument list */
-        if (!fr.isSystem())
+        if (fr.argList_ != nil)
         {
             /* add the open paren */
-            ret += '(';
-
+            ret.append('(');
+            
             /* add the arguments */
-            for (local i = 1, local len = fr.argList_.length() ;
-                 i <= len ; ++i)
+            local i, len = fr.argList_.length();
+            for (i = 1 ; i <= len ; ++i)
             {
                 /* if it's not the first one, add a comma */
                 if (i != 1)
-                    ret += ', ';
+                    ret.append(', ');
 
                 /* add this value */
-                ret += valToSymbol(fr.argList_[i]);
+                ret.append(valToSymbol(fr.argList_[i]).htmlify());
+            }
+
+            /* add any named arguments */
+            if (fr.namedArgs_ != nil)
+            {
+                /* add each key from the named argument table */
+                fr.namedArgs_.forEachAssoc(function(key, val)
+                {
+                    /* add a separator if this isn't the first item */
+                    if (i++ != 1)
+                        ret.append(', ');
+
+                    /* add this "name: value" */
+                    ret.append(key);
+                    ret.append(':');
+                    ret.append(valToSymbol(val));
+                });
             }
 
             /* add the close paren */
-            ret += ')';
+            ret.append(')');
 
             /* if desired, add the source location */
             if (includeSourcePos && fr.srcInfo_ != nil)
-                ret += ' ' + fr.srcInfo_[1] + ', line ' + fr.srcInfo_[2];
+            {
+                ret.append(' ');
+                ret.append(fr.srcInfo_[1]);
+                ret.append(', line ');
+                ret.append(fr.srcInfo_[2]);
+            }
         }
 
         /* return the result */
-        return ret;
+        return toString(ret);
     }
 
     /* the global symbol table */
@@ -195,14 +242,14 @@ modify Object
          *   We didn't get a symbol, so there's no source file name.  See
          *   if we can find source-file names for the superclasses, though.
          */
-        sym = '(obj:';
+        sym = '{obj:';
         found = nil;
         foreach (local sc in getSuperclassList())
         {
             local scSym;
 
             /* add a comma to the list if this isn't the first element */
-            if (sym != '(obj:')
+            if (sym != '{obj:')
                 sym += ',';
                 
             /* if we have a name here, add it to the list */
@@ -217,7 +264,7 @@ modify Object
             else
             {
                 /* we don't have a name for this superclass; say so */
-                sym += '(anonymous)';
+                sym += '{anonymous}';
             }
         }
 
@@ -225,7 +272,7 @@ modify Object
          *   if we found any named superclasses, return the list of names;
          *   otherwise, just say (obj) 
          */
-        return (found ? sym + ')' : '(obj)');
+        return (found ? sym + '}' : '{obj}');
     }
 ;
 

@@ -25,19 +25,29 @@
  *   ByteArray is particularly useful for reading and writing binary files,
  *   since it lets you manipulate the raw bytes in a file directly. 
  */
-intrinsic class ByteArray 'bytearray/030001': Object
+intrinsic class ByteArray 'bytearray/030002': Object
 {
     /*
      *   Constructors:
      *   
-     *   new ByteArray(length) - create a byte array with the given number
-     *   of bytes.  All elements in the new array are initialized to zero.
+     *   new ByteArray(length) - create a byte array with the given number of
+     *   bytes.  All elements in the new array are initialized to zero.
      *   
      *   new ByteArray(byteArray, startIndex?, length?) - create a new byte
      *   array as a copy of the given byte range of the given byte array,
      *   which must be an object of intrinsic class ByteArray.  If the
      *   starting index and length are not given, the new object is a
-     *   complete copy of the source byte array.  
+     *   complete copy of the source byte array.
+     *   
+     *   new ByteArray(string, charset?) - create a new byte array by
+     *   mapping the given string to bytes.  If 'charset' is provided,
+     *   it's a CharacterSet object, or a string giving the name of a
+     *   character set; the characters are mapped to bytes using this
+     *   character set mapping.  If 'charset' is missing or nil, the
+     *   Unicode character codes of the characters are used as the byte
+     *   values for the new array; in this mode, the character codes
+     *   must each fit into a byte, meaning that they're in the range 0
+     *   to 255, or a numeric overflow error will occur.  
      */
 
     /* 
@@ -71,10 +81,7 @@ intrinsic class ByteArray 'bytearray/030001': Object
 
     /*
      *   Convert a range of bytes in the array to a string, interpreting the
-     *   bytes in the array as characters in the given character set.  The
-     *   resulting string is, of course, a standard T3 string encoded in the
-     *   Unicode character set, so the value returned is not dependent upon
-     *   the mapping character set.
+     *   bytes in the array as characters in the given character set. 
      *   
      *   If the starting index and length are not given, the entire byte
      *   array is converted to a string.  'charset' must be an object of
@@ -144,11 +151,73 @@ intrinsic class ByteArray 'bytearray/030001': Object
      *   signedness is important only when reading the value back in.  
      */
     writeInt(startIndex, format, val);
+
+    /*
+     *   Pack data values into bytes according to a format definition string,
+     *   and store the packed bytes in the byte array starting at the given
+     *   index.
+     *   
+     *   'idx' is the starting index in the array for the packed bytes.
+     *   'format' is the format string, which specifies the binary
+     *   representations to use for the argument values.  The remaining
+     *   arguments after 'format' are the data values to pack.
+     *   
+     *   Returns the number of bytes written to the array.  (More precisely,
+     *   returns the final write pointer as a byte offset from 'idx'.  If a
+     *   positioning code like @ or X is used in the string, it's possible
+     *   that more bytes were actually written.)
+     *   
+     *   You can also call packBytes a static method, on the ByteArray class
+     *   itself:
+     *   
+     *.      ByteArray.packBytes(format, ...)
+     *   
+     *   The static version of the method packs the data into bytes the same
+     *   way the regular method does, but returns a new ByteArray object
+     *   containing the packed bytes.  Note that there's no index argument
+     *   with the static version.
+     *   
+     *   Refer to Byte Packing in the System Manual for details.  
+     */
+    packBytes(idx, format, ...);
+
+    /*
+     *   Unpack bytes from the byte array starting at the given index, and
+     *   translate the bytes into data values according to the given format
+     *   string.
+     *   
+     *   'idx' is the starting index in the array for the unpacking, and
+     *   'format' is the format string.  Returns a list of the unpacked
+     *   values.
+     *   
+     *   Refer to Byte Packing in the System Manual for details.  
+     */
+    unpackBytes(idx, format);
+
+    /*
+     *   Get the SHA-256 hash of the bytes in the array.  This calculates the
+     *   256-bit Secure Hash Algorithm 2 hash value, returning the hash as a
+     *   64-character string of hex digits.  The hash value is computed on
+     *   the UTF-8 representation of the string.  If 'idx' and 'len' are
+     *   specified, they give the range of bytes to include in the hash; the
+     *   default is to hash the whole array.  
+     */
+    sha256(idx?, len?);
+
+    /*
+     *   Get the MD5 digest of the string.  This calculates the 128-bit RSA
+     *   MD5 digest value, returning the digest as a 32-character string of
+     *   hex digits.  The hash value is computed on the UTF-8 representation
+     *   of the string.  If 'idx' and 'len' are specified, the give the range
+     *   of bytes to include in the hash; the default is to hash the whole
+     *   array.  
+     */
+    digestMD5();
 }
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Integer format codes 
+ *   Integer format codes, for readInt() and writeInt()
  */
 
 /* integer sizes */

@@ -3421,7 +3421,7 @@ modify InteractiveResolver
         if (actor_.canMatchPronounType(typ) && !actor_.isPlayerChar())
         {
             /* the match is the target actor */
-            return [new ResolveInfo(actor_, 0)];
+            return [new ResolveInfo(actor_, 0, nil)];
         }
 
         /* we didn't match it */
@@ -3652,8 +3652,8 @@ unwornState: ThingState;
  *
  *   We perform the following conversions:
  *
- *   '---' -> &zwnbsp;&emdash;
- *.  '--' -> &zwnbsp;&endash;
+ *   '---' -> &zwnbsp;&mdash;
+ *.  '--' -> &zwnbsp;&ndash;
  *.  sentence-ending punctuation -> same + &ensp;
  *
  *   Since this routine is called so frequently, we hard-code the
@@ -3683,20 +3683,21 @@ typographicalOutputFilter: OutputFilter
         val = rexReplace(abbrevPat, val, '%1. ', ReplaceAll);
 
         /*
-         *   Replace dashes with typographical hyphens.  Note that we check
-         *   for the three-hyphen sequence first, because if we did it the
-         *   other way around, we'd incorrectly find the first two hyphens
-         *   of each '---' sequence and replace them with an en-dash,
-         *   causing us to miss the '---' sequences entirely.
-         *
+         *   Replace dashes with typographical hyphens.  Three hyphens in a
+         *   row become an em-dash, and two in a row become an en-dash.
+         *   Note that we look for the three-hyphen sequence first, because
+         *   if we did it the other way around, we'd incorrectly find the
+         *   first two hyphens of each '---' sequence and replace them with
+         *   an en-dash, causing us to miss the '---' sequences entirely.
+         *   
          *   We put a no-break marker (\uFEFF) just before each hyphen, and
          *   an okay-to-break marker (\u200B) just after, to ensure that we
          *   won't have a line break between the preceding text and the
          *   hyphen, and to indicate that a line break is specifically
-         *   allowed if needed to the right of the hyphen.
+         *   allowed if needed to the right of the hyphen.  
          */
-        val = val.findReplace('---', '\uFEFF&mdash;\u200B', ReplaceAll);
-        val = val.findReplace('--',  '\uFEFF&ndash;\u200B', ReplaceAll);
+        val = val.findReplace(['---', '--'],
+                              ['\uFEFF&mdash;\u200B', '\uFEFF&ndash;\u200B']);
 
         /* return the result */
         return val;
@@ -4745,6 +4746,9 @@ parseIntTokens(toks)
 /* special "apostrophe-s" token */
 enum token tokApostropheS;
 
+/* special apostrophe token for plural possessives ("the smiths' house") */
+enum token tokPluralApostrophe;
+
 /* special abbreviation-period token */
 enum token tokAbbrPeriod;
 
@@ -4824,6 +4828,15 @@ cmdTokenizer: Tokenizer
          tokWord, &tokCvtApostropheS, nil],
 
         /*
+         *   A plural word ending in an apostrophe.  We parse this as two
+         *   separate tokens: one for the word and one for the apostrophe. 
+         */
+        ['plural possessive word',
+         new RexPattern('<Alpha|-|&><AlphaNum|-|&|squote>*<squote>'
+                        + '(?!<AlphaNum>)'),
+         tokWord, &tokCvtPluralApostrophe, nil],
+
+        /*
          *   Words - note that we convert everything to lower-case.  A word
          *   must start with an alphabetic character, a hyphen, or an
          *   ampersand; after the initial character, a word can contain
@@ -4894,13 +4907,37 @@ cmdTokenizer: Tokenizer
          *   pull out the apostrophe-s part
          */
         w = txt.substr(1, txt.length() - 2);
-        s = txt.substr(txt.length() - 1);
+        s = txt.substr(-2);
 
         /* add the part before the apostrophe as the main token type */
         toks.append([w, typ, w]);
 
         /* add the apostrophe-s as a separate special token */
         toks.append([s, tokApostropheS, s]);
+    }
+
+    /*
+     *   Handle a plural apostrophe word ("the smiths' house").  We'll
+     *   return this as two tokens: one for the plural word, and one for
+     *   the apostrophe. 
+     */
+    tokCvtPluralApostrophe(txt, typ, toks)
+    {
+        local w;
+        local s;
+
+        /*
+         *   pull out the part up to but not including the apostrophe, and
+         *   separately pull out the apostrophe 
+         */
+        w = txt.substr(1, txt.length() - 1);
+        s = txt.substr(-1);
+
+        /* add the part before the apostrophe as the main token type */
+        toks.append([w, typ, w]);
+
+        /* add the apostrophe-s as a separate special token */
+        toks.append([s, tokPluralApostrophe, s]);
     }
 
     /*
@@ -5008,7 +5045,8 @@ cmdTokenizer: Tokenizer
             }
             else if (i + 1 <= len
                      && getTokType(toks[i]) == tokWord
-                     && getTokType(toks[i+1]) == tokApostropheS)
+                     && getTokType(toks[i+1]) is in
+                        (tokApostropheS, tokPluralApostrophe))
             {
                 /*
                  *   it's a word followed by an apostrophe-s token - these
@@ -5021,10 +5059,13 @@ cmdTokenizer: Tokenizer
             }
 
             /*
-             *   if another token follows, and the next token isn't a
-             *   punctuation mark, add a space before the next token
+             *   If another token follows, and the next token isn't a
+             *   punctuation mark, and the previous token wasn't an open
+             *   paren, add a space before the next token.
              */
-            if (i != len && rexMatch(patPunct, getTokVal(toks[i+1])) == nil)
+            if (i != len
+                && rexMatch(patPunct, getTokVal(toks[i+1])) == nil
+                && getTokVal(toks[i]) != '(')
                 str += ' ';
         }
 
@@ -5037,7 +5078,7 @@ cmdTokenizer: Tokenizer
         '<nocase>twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety')
     patSpelledUnits = static new RexPattern(
         '<nocase>one|two|three|four|five|six|seven|eight|nine')
-    patPunct = static new RexPattern('[.,;:?!]')
+    patPunct = static new RexPattern('[.,;:?!)]')
 ;
 
 
@@ -6696,7 +6737,7 @@ grammar possessiveAdjPhrase(my): 'my' : MyAdjProd
 ;
 
 grammar possessiveAdjPhrase(npApostropheS):
-    nounPhrase->np_ tokApostropheS->apost_ : LayeredNounPhraseProd
+    ('the' | ) nounPhrase->np_ tokApostropheS->apost_ : LayeredNounPhraseProd
 
     /* get the original text without the "'s" suffix */
     getOrigMainText()
@@ -6707,7 +6748,9 @@ grammar possessiveAdjPhrase(npApostropheS):
 ;
 
 grammar possessiveAdjPhrase(ppApostropheS):
-    pluralPhrase->np_ tokApostropheS->apost_ : LayeredNounPhraseProd
+    ('the' | ) pluralPhrase->np_
+       (tokApostropheS->apost_ | tokPluralApostrophe->apost_)
+    : LayeredNounPhraseProd
 
     /* get the original text without the "'s" suffix */
     getOrigMainText()
@@ -6750,7 +6793,9 @@ grammar possessiveNounPhrase(yours): 'yours' : YoursNounProd;
 grammar possessiveNounPhrase(mine): 'mine' : MineNounProd;
 
 grammar possessiveNounPhrase(npApostropheS):
-    (nounPhrase->np_ | pluralPhrase->np_) tokApostropheS->apost_
+    ('the' | )
+    (nounPhrase->np_ tokApostropheS->apost_
+     | pluralPhrase->np (tokApostropheS->apost_ | tokPluralApostrophe->apost_))
     : LayeredNounPhraseProd
 
     /* get the original text without the "'s" suffix */
@@ -7187,6 +7232,7 @@ grammar literalPhrase(empty): [badness 400]: EmptyLiteralPhraseProd
  */
 grammar miscWordList(wordOrNumber):
     tokWord->txt_ | tokInt->txt_ | tokApostropheS->txt_
+    | tokPluralApostrophe->txt_
     | tokPoundInt->txt_ | tokString->txt_ | tokAbbrPeriod->txt_
     : NounPhraseWithVocab
     getVocabMatchList(resolver, results, extraFlags)
@@ -7202,7 +7248,8 @@ grammar miscWordList(wordOrNumber):
 ;
 
 grammar miscWordList(list):
-    (tokWord->txt_ | tokInt->txt_ | tokApostropheS->tok_ | tokAbbrPeriod->txt_
+    (tokWord->txt_ | tokInt->txt_ | tokApostropheS->txt_
+     | tokPluralApostrophe->txt_ | tokAbbrPeriod->txt_
      | tokPoundInt->txt_ | tokString->txt_) miscWordList->lst_
     : NounPhraseWithVocab
     getVocabMatchList(resolver, results, extraFlags)
@@ -8373,19 +8420,24 @@ modify TAction
     /* announce a default object used with this action */
     announceDefaultObject(obj, whichObj, resolvedAllObjects)
     {
-        local prep;
-        local nm = obj.getAnnouncementDistinguisher().theName(obj);
-
         /*
          *   get any direct object preposition - this is the part inside
          *   the "(what)" specifier parens, excluding the last word
          */
         rexSearch('<lparen>(.*<space>+)?<alpha>+<rparen>', verbPhrase);
-        prep = (rexGroup(1) == nil ? '' : rexGroup(1)[3]);
+        local prep = (rexGroup(1) == nil ? '' : rexGroup(1)[3]);
 
         /* do any verb-specific adjustment of the preposition */
         if (prep != nil)
             prep = adjustDefaultObjectPrep(prep, obj);
+
+        /* 
+         *   get the object name - we need to distinguish from everything
+         *   else in scope, since we considered everything in scope when
+         *   making our pick 
+         */
+        local nm = obj.getAnnouncementDistinguisher(
+            gActor.scopeList()).theName(obj);
 
         /* show the preposition (if any) and the object */
         return (prep == '' ? nm : prep + nm);
@@ -8645,12 +8697,9 @@ modify TIAction
     /* announce a default object used with this action */
     announceDefaultObject(obj, whichObj, resolvedAllObjects)
     {
-        local verb;
-        local prep;
-
         /* presume we won't have a verb or preposition */
-        verb = '';
-        prep = '';
+        local verb = '';
+        local prep = '';
 
         /*
          *   Check the full phrasing - if we're showing the direct object,
@@ -8689,9 +8738,16 @@ modify TIAction
             break;
         }
 
+        /* 
+         *   get the object name - we need to distinguish from everything
+         *   else in scope, since we considered everything in scope when
+         *   making our pick 
+         */
+        local nm = obj.getAnnouncementDistinguisher(
+            gActor.scopeList()).theName(obj);
+
         /* build and return the complete phrase */
-        return spSuffix(verb) + spSuffix(prep)
-            + obj.getAnnouncementDistinguisher().theName(obj);
+        return spSuffix(verb) + spSuffix(prep) + nm;
     }
 
     /* announce all defaulted objects */
@@ -9205,7 +9261,8 @@ VerbRule(Drop)
 ;
 
 VerbRule(Examine)
-    ('examine' | 'inspect' | 'x' | 'look' 'at' | 'l' 'at') dobjList
+    ('examine' | 'inspect' | 'x'
+     | 'look' 'at' | 'l' 'at' | 'look' | 'l') dobjList
     : ExamineAction
     verbPhrase = 'examine/examining (what)'
 ;
@@ -9460,7 +9517,7 @@ VerbRule(AskVague)
 VerbRule(TellVague)
     [badness 500] 'tell' singleDobj singleTopic
     : AskVagueAction
-    verbPhrase = 'ask/asking (whom)'
+    verbPhrase = 'tell/telling (whom)'
 ;
 
 VerbRule(TalkTo)
@@ -9918,7 +9975,7 @@ VerbRule(ReplayQuiet)
 ;
 
 VerbRule(VagueTravel) 'go' | 'walk' : VagueTravelAction
-    verbPhrase = 'go'
+    verbPhrase = 'go/going'
 ;
 
 VerbRule(Travel)

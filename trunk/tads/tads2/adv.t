@@ -1,7 +1,7 @@
 /* Copyright (c) 1988-2000 by Michael J. Roberts.  All Rights Reserved. */
 /*
    adv.t  - standard adventure definitions for TADS games
-   Version 2.5.14
+   Version 2.5.15
    
    This file is part of TADS:  The Text Adventure Development System.
    Please see the file LICENSE.TAD (which should be part of the TADS

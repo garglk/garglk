@@ -66,21 +66,6 @@ public:
     virtual void gen_code_addr();
 
     /*
-     *   Generate an if-then-else condition test.  This is called on the
-     *   controlling expression of an if-then-else, and can also be called on
-     *   subexpressions of short-circuit operators (|| and &&).  The purpose
-     *   of this type of code generation is to avoid pushing the result of
-     *   the controlling expression onto the stack when this can be avoided,
-     *   and generate a jump to the appropriate if-else branch directly.
-     *   
-     *   Either then_label or else_label will be non-null; the one that's
-     *   null directly follows the condition test, so we are simply to fall
-     *   through to that code rather than jump to it explicitly.  
-     */
-    virtual void gen_code_cond(struct CTcCodeLabel *then_label,
-                               struct CTcCodeLabel *else_label);
-    
-    /*
      *   Generate code to call the expression as a function or method.
      *   The caller will already have generated code to push the argument
      *   list; this routine only needs to generate code to make the call.

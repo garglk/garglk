@@ -253,6 +253,7 @@ libMessages: MessageHelper
     putDestUnder(obj) { return 'under ' + obj.theNameObj; }
     putDestBehind(obj) { return 'behind ' + obj.theNameObj; }
     putDestFloor(obj) { return 'to ' + obj.theNameObj; }
+    putDestRoom(obj) { return 'into ' + obj.theNameObj; }
 
     /* the list separator character in the middle of a list */
     listSepMiddle = ", "
@@ -351,19 +352,8 @@ libMessages: MessageHelper
     /* get the string to display for a footnote reference */
     footnoteRef(num)
     {
-        local str;
-
         /* set up a hyperlink for the note that enters the "note n" command */
-        str = '<sup>[<a href="footnote ' + num + '"><.a>';
-
-        /* show the footnote number in square brackets */
-        str += num;
-        
-        /* end the hyperlink */
-        str += '<./a></a>]</sup>';
-
-        /* return the text */
-        return str;
+        return '<sup>[<<aHref('footnote ' + num, toString(num))>>]</sup>';
     }
 
     /* first footnote notification */
@@ -641,9 +631,15 @@ libMessages: MessageHelper
      */
     announceMultiActionObject(obj, whichObj, action)
     {
-        return '<./p0>\n<.announceObj>'
-            + obj.getAnnouncementDistinguisher().name(obj)
-            + ':<./announceObj> <.p0>';
+        /* 
+         *   get the display name - we only need to differentiate this
+         *   object from the other objects in the iteration 
+         */
+        local nm = obj.getAnnouncementDistinguisher(
+            action.getResolvedObjList(whichObj)).name(obj);
+
+        /* build the announcement */
+        return '<./p0>\n<.announceObj>' + nm + ':<./announceObj> <.p0>';
     }
 
     /*
@@ -658,10 +654,15 @@ libMessages: MessageHelper
      */
     announceAmbigActionObject(obj, whichObj, action)
     {
+        /* 
+         *   get the display name - distinguish the object from everything
+         *   else in scope, since we chose from a set of ambiguous options 
+         */
+        local nm = obj.getAnnouncementDistinguisher(gActor.scopeList())
+            .theName(obj);
+
         /* announce the object in "assume" style, ending with a newline */
-        return '<.assume>'
-            + obj.getAnnouncementDistinguisher().theName(obj)
-            + '<./assume>\n';
+        return '<.assume>' + nm + '<./assume>\n';
     }
 
     /*
@@ -774,11 +775,10 @@ libMessages: MessageHelper
      *   single-quoted string value, not display a value itself, because
      *   this prompt is passed to inputFile(). 
      */
-    getSavePrompt =
-        'Please select a file in which to save the current position'
+    getSavePrompt = 'Save game to file'
 
     /* get the restore-game prompt */
-    getRestorePrompt = 'Please select the saved position file to restore'
+    getRestorePrompt = 'Restore game from file'
 
     /* successfully saved */
     saveOkay() { "<.parser>Saved.<./parser> "; }
@@ -794,6 +794,25 @@ libMessages: MessageHelper
         to write this file.<./parser> ";
     }
 
+    /* save failed due to storage server request error */
+    saveFailedOnServer(exc)
+    {
+        "<.parser>Failed, because of a problem accessing the storage server:
+        <<makeSentence(exc.errMsg)>><./parser>";
+    }
+
+    /* 
+     *   make an error message into a sentence, by capitalizing the first
+     *   letter and adding a period at the end if it doesn't already have
+     *   one 
+     */
+    makeSentence(msg)
+    {
+        return rexReplace(
+            ['^<space>*[a-z]', '(?<=[^.?! ])<space>*$'], msg,
+            [{m: m.toUpper()}, '.']);
+    }
+
     /* note that we're restoring at startup via a saved-position launch */
     noteMainRestore() { "<.parser>Restoring saved game...<./parser>\n"; }
 
@@ -802,6 +821,13 @@ libMessages: MessageHelper
 
     /* restore canceled */
     restoreCanceled() { "<.parser>Canceled.<./parser> "; }
+
+    /* restore failed due to storage server request error */
+    restoreFailedOnServer(exc)
+    {
+        "<.parser>Failed, because of a problem accessing the storage server:
+        <<makeSentence(exc.errMsg)>><./parser>";
+    }
 
     /* restore failed because the file was not a valid saved game file */
     restoreInvalidFile()
@@ -835,13 +861,22 @@ libMessages: MessageHelper
         restored.<./parser> ";
     }
 
-    /* error showing the input file dialog (or whatever) */
+    /* error showing the input file dialog (or character-mode equivalent) */
     filePromptFailed()
     {
         "<.parser>A system error occurred asking for a filename.
         Your computer might be running low on memory, or might have a
         configuration problem.<./parser> ";
     }
+
+    /* error showing the input file dialog, with a system error message */
+    filePromptFailedMsg(msg)
+    {
+        "<.parser>Failed: <<makeSentence(msg)>><./parser> ";
+    }
+
+    /* Web UI inputFile error: uploaded file is too large */
+    webUploadTooBig = 'The file you selected is too large to upload.'
 
     /* PAUSE prompt */
     pausePrompt()
@@ -867,9 +902,14 @@ libMessages: MessageHelper
     /* acknowledge starting an input script */
     inputScriptOkay(fname)
     {
-        "<.parser>Reading commands from <q><<fname.htmlify()
-         >></q>...<./parser>\n ";
+        "<.parser>Reading commands from <q><<
+          File.getRootName(fname).htmlify()>></q>...<./parser>\n ";
     }
+
+    /* error opening input script */
+    inputScriptFailed = "<.parser>Failed; the script input file could
+        not be opened.<./parser> "
+        
 
     /* get the scripting inputFile prompt message */
     getScriptingPrompt = 'Please select a name for the new script file'
@@ -877,10 +917,22 @@ libMessages: MessageHelper
     /* acknowledge scripting on */
     scriptingOkay()
     {
-        "<.parser>Text will now be saved to the script file.
+        "<.parser>The transcript will be saved to the file.
         Type <<aHref('script off', 'SCRIPT OFF', 'Turn off scripting')>> to
         discontinue scripting.<./parser> ";
     }
+
+    scriptingOkayWebTemp()
+    {
+        "<.parser>The transcript will be saved.
+        Type <<aHref('script off', 'SCRIPT OFF', 'Turn off scripting')>>
+        to discontinue scripting and download the saved
+        transcript.<./parser> ";
+    }
+
+    /* scripting failed */
+    scriptingFailed = "<.parser>Failed; an error occurred opening
+        the script file.<./parser> "
 
     /* acknowledge cancellation of script file dialog */
     scriptingCanceled = "<.parser>Canceled.<./parser> "
@@ -900,6 +952,10 @@ libMessages: MessageHelper
                      <<aHref('record off', 'RECORD OFF',
                              'Turn off recording')>>
                      to stop recording commands.<.parser> "
+
+    /* recording failed */
+    recordingFailed = "<.parser>Failed; an error occurred opening
+        the command recording file.<./parser> "
 
     /* acknowledge cancellation */
     recordingCanceled = "<.parser>Canceled.<./parser> "
@@ -1066,6 +1122,13 @@ libMessages: MessageHelper
         or restoring defaults.  You must install a more recent version
         in order to use this feature.<./parser> "
 
+    /* RESTORE DEFAULTS file open/read error */
+    defaultsFileReadError(exc)
+    {
+        "<.parser>An error occurred reading the default settings
+        file.  The global defaults can't be restored.<./parser> ";
+    }
+
     /* SAVE DEFAULTS file creation error */
     defaultsFileWriteError = "<.parser>An error occurred writing
         the default settings file.  The defaults have not been
@@ -1157,8 +1220,8 @@ libMessages: MessageHelper
     /* show a 'next chapter' link */
     menuNextChapter(keylist, title, hrefNext, hrefUp)
     {
-        "Next: <a href='<<hrefNext>>'><<title>></a>;
-        <b>\^<<keylist[M_PREV][1]>></b>=<a href='<<hrefUp>>'>Menu</a>";
+        "Next: <<aHref(hrefNext, title)>>;
+        <b>\^<<keylist[M_PREV][1]>></b>=<<aHref(hrefUp, 'Menu')>>";
     }
 
     /*
@@ -1624,6 +1687,49 @@ libMessages: MessageHelper
         gMessageParams(obj);
         "{The obj/he} {goes} out. ";
     }
+
+    /* 
+     *   Standard dialog titles, for the Web UI.  These are shown in the
+     *   title bar area of the Web UI dialog used for inputDialog() calls.
+     *   These correspond to the InDlgIconXxx icons.  The conventional
+     *   interpreters use built-in titles when titles are needed at all,
+     *   but in the Web UI we have to generate these ourselves. 
+     */
+    dlgTitleNone = 'Note'
+    dlgTitleWarning = 'Warning'
+    dlgTitleInfo = 'Note'
+    dlgTitleQuestion = 'Question'
+    dlgTitleError = 'Error'
+
+    /*
+     *   Standard dialog button labels, for the Web UI.  These are built in
+     *   to the conventional interpreters, but in the Web UI we have to
+     *   generate these ourselves.  
+     */
+    dlgButtonOk = 'OK'
+    dlgButtonCancel = 'Cancel'
+    dlgButtonYes = 'Yes'
+    dlgButtonNo = 'No'
+
+    /* web UI alert when a new user has joined a multi-user session */
+    webNewUser(name) { "\b[<<name>> has joined the session.]\n"; }
+
+    /*
+     *   Warning prompt for inputFile() warnings generated when reading a
+     *   script file, for the Web UI.  The interpreter normally displays
+     *   these warnings directly, but in Web UI mode, the program is
+     *   responsible, so we need localized messages.  
+     */
+    inputFileScriptWarning(warning, filename)
+    {
+        /* remove the two-letter error code at the start of the string */
+        warning = warning.substr(3);
+
+        /* build the message */
+        return warning + ' Do you wish to proceed?';
+    }
+    inputFileScriptWarningButtons = [
+        '&Yes, use this file', '&Choose another file', '&Stop the script']
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -3930,6 +4036,13 @@ playerActionMessages: MessageHelper
     cannotThrowAtContentsMsg = '{You/he} {must} remove {the iobj/him}
         from {the dobj/him} before {it actor/he} {can} do that. '
 
+    /* can't throw through a sense connector */
+    cannotThrowThroughMsg(target, loc)
+    {
+        gMessageParams(target, loc);
+        return '{You/he} {cannot} throw anything through {the loc/him}. ';
+    }
+
     /* shouldn't throw something at the floor */
     shouldNotThrowAtFloorMsg =
         '{You/he} should just {|have} put {it dobj/him} down instead. '
@@ -4229,7 +4342,7 @@ npcActionMessages: playerActionMessages
 scoreChangeTip: Tip
     "If you&rsquo;d prefer not to be notified about score changes in the
     future, type <<aHref('notify off', 'NOTIFY OFF', 'Turn off score
-    notificatons')>>."
+    notifications')>>."
 ;
 
 footnotesTip: Tip
@@ -5301,19 +5414,20 @@ explicitExitLister: ExitLister
 statuslineExitLister: ExitLister
     showListEmpty(pov, parent)
     {
-        "<br><b>Exits:</b> <i>None</i><br>";
+        "<<statusHTML(3)>><b>Exits:</b> <i>None</i><<statusHTML(4)>>";
     }
     showListPrefixWide(cnt, pov, parent)
     {
-        "<br><b>Exits:</b> ";
+        "<<statusHTML(3)>><b>Exits:</b> ";
     }
     showListSuffixWide(cnt, pov, parent)
     {
-        "<br>";
+        "<<statusHTML(4)>>";
     }
     showListItem(obj, options, pov, infoTab)
     {
-        "<a plain href='<<obj.dir_.name>>'><<obj.dir_.name>></a>";
+        "<<aHref(obj.dir_.name, obj.dir_.name, 'Go ' + obj.dir_.name,
+                 AHREF_Plain)>>";
     }
     showListSeparator(options, curItemNum, totalItems)
     {
@@ -5496,7 +5610,7 @@ class SuggestedTopicLister: Lister
         {
             gMessageParams(askingActor, targetActor);
             "<<isExplicit ? '' : '('>>{You askingActor/he} {have} nothing
-            specific in mind right now to discuss with
+            specific in mind {right now|just then} to discuss with
             {the targetActor/him}.<<isExplicit ? '' : ')'>> ";
         }
     }

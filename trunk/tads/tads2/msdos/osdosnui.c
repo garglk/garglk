@@ -494,7 +494,8 @@ int os_is_file_in_dir(const char *filename, const char *path,
          *   itself, so it's not a match.  If we don't find any separators,
          *   we have a file directly in 'path', so it's a match. 
          */
-        for (p = filename ; *p != '\0' && *p != '/' && *p != '\\' ; ++p) ;
+        for (p = filename + plen + 1 ;
+             *p != '\0' && *p != '/' && *p != '\\' ; ++p) ;
 
         /* 
          *   if we reached the end of the string without finding a path

@@ -525,7 +525,7 @@ _multiMethodBuildBindings()
      *   so we can look up our function names for diagnostic purposes 
      */
     local nameTab = new LookupTable(128, 256);
-    t3GetGlobalSymbols().forEachAssoc(new function(key, val)
+    t3GetGlobalSymbols().forEachAssoc(function(key, val)
     {
         /* if it's a function, store a value-to-name association */
         if (dataType(val) == TypeFuncPtr)
@@ -533,7 +533,7 @@ _multiMethodBuildBindings()
     });
 
     /* run through each entry in the method table */
-    _multiMethodRegistry.funcTab_.forEachAssoc(new function(baseFunc, val)
+    _multiMethodRegistry.funcTab_.forEachAssoc(function(baseFunc, val)
     {
         /* look up the base function's name */
         local name = nameTab[baseFunc];
@@ -713,7 +713,7 @@ _multiMethodBuildBindings()
      *   look up the cached information whenever we need to perform an
      *   inherited() call.  
      */
-    _multiMethodRegistry.funcTab_.forEachAssoc(new function(baseFunc, val)
+    _multiMethodRegistry.funcTab_.forEachAssoc(function(baseFunc, val)
     {
         /* get the binding property for the base function */
         local prop = _multiMethodRegistry.boundFuncTab_[baseFunc];

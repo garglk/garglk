@@ -603,10 +603,20 @@ class SenseConnector: MultiLoc
         return new CheckStatusFailure(&cannotReachThroughMsg, dest, self);
     }
 
+    /*
+     *   Check throwing an object through me.  This is called when an actor
+     *   tries to throw a projectile 'obj' at 'dest' via a path that
+     *   includes 'self'.  By default, we don't allow it.
+     */
+    checkThrowThrough(obj, dest)
+    {
+        return new CheckStatusFailure(&cannotThrowThroughMsg, dest, self);
+    }
+
     /* check for moving via a path */
     checkMoveViaPath(obj, dest, op)
     {
-        /* if moving through us, don't allow it */
+        /* if moving through us, run the separate Move check */
         if (op == PathThrough)
             return checkMoveThrough(obj, dest);
 
@@ -621,9 +631,24 @@ class SenseConnector: MultiLoc
     /* check for touching via a path */
     checkTouchViaPath(obj, dest, op)
     {
-        /* if moving through us, don't allow it */
+        /* if reaching through us, run the separate Touch check */
         if (op == PathThrough)
             return checkTouchThrough(obj, dest);
+
+        /* if we can inherit, do so */
+        if (canInherit())
+            return inherited(obj, dest, op);
+
+        /* return success by default */
+        return checkStatusSuccess;
+    }
+
+    /* check for throwing via a path */
+    checkThrowViaPath(obj, dest, op)
+    {
+        /* if throwing through us, run the separate Throw check */
+        if (op == PathThrough)
+            return checkThrowThrough(obj, dest);
 
         /* if we can inherit, do so */
         if (canInherit())
@@ -713,7 +738,7 @@ class Occluder: object
         local pov = senseTmp.pointOfView;
             
         /* run through the table, and apply our rule to each object */
-        objs.forEachAssoc(new function(key, val)
+        objs.forEachAssoc(function(key, val)
         {
             /* if this object is occluded, set its path to opaque */
             if (occludeObj(key, sense, pov))
@@ -759,6 +784,15 @@ class DistanceConnector: SenseConnector, Intangible
         return new CheckStatusFailure(&tooDistantMsg, dest);
     }
 
+    /*
+     *   When checking for throwing through this container, specialize the
+     *   failure message to indicate that distance is the specific problem.
+     */
+    checkThrowThrough(obj, dest)
+    {
+        return new CheckStatusFailure(&tooDistanceMsg, dest);
+    }
+
     /* 
      *   Do allow moving an object through a distance connector.  This
      *   should generally only be involved at all when we're moving an
@@ -771,22 +805,24 @@ class DistanceConnector: SenseConnector, Intangible
      */
     checkMoveThrough(obj, dest) { return checkStatusSuccess; }
 
-    /* 
-     *   If we're responsible for blocking a thrown object's flight, we
-     *   need to provide a custom message.  The default says that we
-     *   deflected the object as though we were a physical barrier.
-     *   Instead, in our case, the problem isn't deflection but simply
-     *   range - so we need to explain that the projectile fell short of
-     *   the target.
+    /*
+     *   Report the reason that we stopped a thrown projectile from hitting
+     *   its intended target.  This is called when we're along the path
+     *   between the thrower and the intended target, AND 'self' objects to
+     *   the action.
      *   
-     *   By default, we assume that this connector interposes such a great
-     *   distance that a character can't throw something all the way to the
-     *   other side, which is why we provide this special message.  If you
-     *   do want to allow actors to throw things all the way through the
-     *   distance connector to the connected location, you can override
-     *   checkMoveThrough like this:
+     *   The default version of this method in Thing reports that the
+     *   projectile hits 'self', as though self were a physical obstruction
+     *   like a fence or wall.  In the case of a distance connector,
+     *   though, the reason isn't usually obstruction, but simply that the
+     *   connector imposes such a distance that the actor can't throw the
+     *   projectile far enough to reach the intended target.  We therefore
+     *   override the Thing version to report that the projectile fell
+     *   short of the target.
      *   
-     *   checkMoveThrough(obj, dest) { return checkStatusSuccess; } 
+     *   Note that if you do want to allow throwing a projectile across the
+     *   distance represented by this connector, you can override
+     *   checkThrowThrough() to return checkStatusSuccess.  
      */
     throwTargetHitWith(projectile, path)
     {

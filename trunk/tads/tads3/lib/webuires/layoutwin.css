@@ -1,0 +1,19 @@
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+}
+html {
+    overflow: hidden;
+    height: 100%;
+}
+iframe {
+    margin: 0px;
+    padding: 0px;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    border: 0px;
+}

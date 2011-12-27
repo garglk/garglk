@@ -20,7 +20,7 @@
 /*
  *   The tads-gen function set 
  */
-intrinsic 'tads-gen/030006'
+intrinsic 'tads-gen/030007'
 {
     /*
      *   Get the type of the given value.  This returns a TypeXxx value.
@@ -83,22 +83,31 @@ intrinsic 'tads-gen/030006'
     /*
      *   Select a random number or a random value.
      *   
-     *   If only one argument is supplied, and this argument is an integer
-     *   value, the function returns an integer from 0 to one less than the
-     *   argument value.  For example, rand(10) returns a number from 0 to 9
-     *   inclusive.
+     *   If exactly one argument is supplied, the result depends on the type
+     *   of the argument:
      *   
-     *   If one argument is supplied, and the argument is a list, the
-     *   function randomly selects one of the values from the list and
-     *   returns it.
+     *   - Integer: the function returns an integer from 0 to one less than
+     *   the argument value.  For example, rand(10) returns a number from 0
+     *   to 9 inclusive.
+     *   
+     *   - List: the function randomly selects one of the values from the
+     *   list and returns it.
+     *   
+     *   - String: the function generates a random string by replacing each
+     *   character of the argument string with a randomly chosen character,
+     *   selected from a specific range specified by the argument character.
+     *   For example, each 'a' in the input string is replaced by a random
+     *   lower-case letter from a to z, each 'A' is replaced by a capital
+     *   letter, and each 'd' is replaced by a random digit 0 to 9.  See the
+     *   System Manual for the full list of the character codes.
      *   
      *   If more than one argument is supplied, the function randomly selects
-     *   one of the arguments and returns it.  (Note that since this is an
-     *   ordinary function call, all of the arguments are evaluated,
-     *   triggering any side effects of those evaluations.)
+     *   one of the arguments and returns it.  Note that this is an ordinary
+     *   function call, so all of the arguments are evaluated, triggering any
+     *   side effects of those evaluations.
      *   
-     *   In all cases, the random number selection is uniformly distributed,
-     *   meaning that each possible return value has equal probability.  
+     *   In all cases, the random numbers are uniformly distributed, meaning
+     *   that each possible return value has equal probability.  
      */
     rand(x, ...);
 
@@ -108,22 +117,57 @@ intrinsic 'tads-gen/030006'
      *   the numeric base given by 'radix' (which can be any value from 2 to
      *   36), or base 10 (decimal) if 'radix' is omitted; nil or true, in
      *   which case the string 'nil' or 'true' is returned; a string, which
-     *   is returned unchanged; or a BigNumber, in which case the value is
-     *   converted to a string representation in decimal.  (Note that in the
-     *   case of BigNumber, you might prefer to use BigNumber.formatString(),
-     *   as that gives you much more control over the formatting.)  
+     *   is returned unchanged; or a BigNumber, in which case the number is
+     *   converted to a string representation in the given radix.  Note that
+     *   in the case of BigNumber, you might prefer to use
+     *   BigNumber.formatString(), as that gives you much more control over
+     *   the formatting for floating-point values.
+     *   
+     *   'radix' is only meaningful with numeric values, namely integers and
+     *   BigNumbers.  For BigNumbers, only whole integer values can be
+     *   displayed in a non-decimal radix; if the number has a fractional
+     *   part, the radix will be ignored and the number will be shown in
+     *   decimal.
+     *   
+     *   'isSigned' indicates whether or not the value should be treated as
+     *   "signed", meaning that negative values are represented with a "-"
+     *   sign followed by the absolute value.  If 'isSigned' is nil, a
+     *   negative value won't be converted to its absolute value before being
+     *   displayed, but will instead be re-interpreted within its type system
+     *   as an unsigned value.  For regular integers, this means that the
+     *   result depends on the native hardware storage format for negative
+     *   integers.  Most modern hardware uses two's complement notation,
+     *   which represents -1 as 0xFFFFFFFF, -2 as 0xFFFFFFFE, etc.  Most
+     *   types other than integer don't have distinct signed and unsigned
+     *   interpretations, so 'isSigned' isn't meaningful with most other
+     *   types.  With BigNumber in particular, the only effect is to omit the
+     *   "-" sign for negative values.  
      */
-    toString(val, radix?);
+    toString(val, radix?, isSigned?);
 
     /*
-     *   Convert the given value to an integer.  If 'val' is a string, the
-     *   function parses the value as an integer value in the numeric base
-     *   given by 'radix' (which can be one of 2, 8, 10, or 16), or base 10
-     *   (decimal) if 'radix' is omitted.  If 'val' is the string 'true' or
-     *   'nil', the function returns true or nil, respectively.  If 'val' is
-     *   a BigNumber value, the value is rounded to the nearest integer; an
-     *   exception ("numeric overflow") is thrown if the number is out of
-     *   range for a 32-bit integer.  
+     *   Convert the given value to an integer.
+     *   
+     *   If 'val' is a string, the function parses the string's contents as
+     *   an integer in the numeric base given by 'radix, which can be any
+     *   integer from 2 to 36.  If 'radix' is omitted or nil, the default is
+     *   base 10 (decimal).  The value is returned as an integer.  If the
+     *   number represented by the string is too large for a 32-bit integer,
+     *   a numeric overflow error occurs.
+     *   
+     *   If 'val' is true, or the string 'true', the return value is 1.  If
+     *   'val' is nil, or the string 'nil', the return value is 0.  Leading
+     *   and trailing spaces are ignored for these strings.
+     *   
+     *   If 'val' is a BigNumber value, the value is rounded to the whole
+     *   number, and returned as an integer value.  A numeric overflow error
+     *   occurs if the number is out of range for a 32-bit integer.  (If you
+     *   want to round a BigNumber to the nearest integer and get the result
+     *   as another BigNumber value, use the getWhole() method of the
+     *   BigNumber.)
+     *   
+     *   See also toNumber(), which can also parse floating point values and
+     *   whole numbers too large for the ordinary integer type.  
      */
     toInteger(val, radix?);
 
@@ -206,16 +250,59 @@ intrinsic 'tads-gen/030006'
      *   Search for the given regular expression pattern (which can be given
      *   as a regular expression string or as a RexPattern object) within the
      *   given string, and replace one or more occurrences of the pattern
-     *   with the given replacement text.  If 'flags' includes ReplaceAll,
-     *   all occurrences of the pattern are replaced; otherwise only the
-     *   first occurrence is replaced.  'index', if provided, is the starting
-     *   character index of the search; instances of the pattern before this
-     *   index will be ignored.  Returns the result string with all of the
-     *   desired replacements.  When an instance of the pattern is found and
-     *   then replaced, the replacement string is not rescanned for further
-     *   occurrences of the text, so there's no danger of infinite recursion;
-     *   instead, scanning proceeds from the next character after the
-     *   replacement text.
+     *   with the given replacement text.
+     *   
+     *   The search pattern can also be given as a *list* of search patterns.
+     *   In this case, we'll search for each of the patterns and replace each
+     *   one with the corresponding replacement text.  If the replacement is
+     *   itself given a list in this case, each element of the pattern list
+     *   is replaced by the corresponding element of the replacement list.
+     *   If there are more patterns than replacements, the extra patterns are
+     *   replaced by empty strings; any extra replacements are simply
+     *   ignored.  If the replacement is a single value rather than a list,
+     *   each pattern is replaced by that single replacement value.
+     *   
+     *   'flags' is a combination of the ReplaceXxx bit flags, using '|'.  If
+     *   the flags include ReplaceAll, all occurrences of the pattern are
+     *   replaced; otherwise only the first occurrence is replaced.
+     *   
+     *   If ReplaceIgnoreCase is included, the capitalization of the match
+     *   pattern is ignored, so letters in the pattern match both their
+     *   upper- and lower-case equivalents.  Otherwise the case will be
+     *   matched exactly. If ReplaceFollowCase AND ReplaceIgnoreCase are
+     *   included, lower-case letters in the replacement text are capitalized
+     *   as needed to follow the capitalization pattern of the actual text
+     *   matched: if all the letters in the match are lower-case, the
+     *   replacement is lower case; if all are upper-case, the replacement is
+     *   changed to all upper-case; if there's a mix of cases in the match,
+     *   the first letter of the replacement is capitalized and the rest are
+     *   left in lower-case.
+     *   
+     *   The ReplaceSerial flag controls how the search proceeds when
+     *   multiple patterns are specified.  By default, we search for each one
+     *   of the patterns, and replace the leftmost match.  If ReplaceOnce is
+     *   specified, we're done; otherwise we continue by searching again for
+     *   all of the patterns, this time in the remainder of the string (after
+     *   that first replacement), and again we replace the leftmost match.
+     *   This proceeds until we can't find any more matches for any of the
+     *   patterns.  If ReplaceSerial is included in the flags, we start by
+     *   searching only for the first pattern, replacing one or all
+     *   occurrences depending on the ReplaceOnce or ReplaceAll flag.  Next,
+     *   if ReplaceAll is specified OR we didn't find any matches for the
+     *   first pattern, we start over with the result and search for the
+     *   second pattern, replacing one or all occurrences of it.  We repeat
+     *   this for each pattern.
+     *   
+     *   If the flags are omitted entirely, the default is ReplaceAll
+     *   (replace all occurrences, exact case, parallel searching).
+     *   
+     *   'index', if provided, is the starting character index of the search;
+     *   instances of the pattern before this index will be ignored.  Returns
+     *   the result string with all of the desired replacements.  When an
+     *   instance of the pattern is found and then replaced, the replacement
+     *   string is not rescanned for further occurrences of the text, so
+     *   there's no danger of infinite recursion; instead, scanning proceeds
+     *   from the next character after the replacement text.
      *   
      *   The replacement text can use "%n" sequences to substitute group
      *   matches from the input into the output.  %1 is replaced by the match
@@ -223,7 +310,7 @@ intrinsic 'tads-gen/030006'
      *   entire matched input.  (Because of the special meaning of "%", you
      *   must use "%%" to include a percent sign in the replacement text.)  
      */
-    rexReplace(pat, str, replacement, flags, index?);
+    rexReplace(pat, str, replacement, flags?, index?);
 
     /*
      *   Create an UNDO savepoint.  This adds a marker to the VM's internal
@@ -250,9 +337,19 @@ intrinsic 'tads-gen/030006'
      *   Save the current system state into the given file.  This uses the
      *   VM's internal state-save mechanism to store the current state of all
      *   persistent objects in the given file.  Any existing file is
-     *   overwritten.  
+     *   overwritten.
+     *   
+     *   'metatab' is an optional LookupTable containing string key/value
+     *   pairs to be saved with the file as descriptive metadata.  The
+     *   interpreter and other tools can display this information to the user
+     *   when browsing a collection of saved game files, to help the user
+     *   remember the details of each saved position.  It's up to the game to
+     *   determine what to include; the list can include any information
+     *   relevant to the game that would be helpful when reviewing saved
+     *   position files, such as the room name, score, turn count, chapter
+     *   name, etc.  
      */
-    saveGame(filename);
+    saveGame(filename, metatab?);
 
     /*
      *   Restore a previously saved state file.  This loads the states of all
@@ -289,15 +386,16 @@ intrinsic 'tads-gen/030006'
 
     /*
      *   Create a string by repeating the given value the given number of
-     *   times.  If the repeat count isn't specified, the default is 1.
-     *   'val' can be a string, in which case the string is simply repeated
-     *   the given number of times; an integer, in which case the given
-     *   Unicode character is repeated; or a list of integers, in which case
-     *   the given Unicode characters are repeated, in the order of the list.
-     *   The list format can be used to create a string from a list of
-     *   Unicode characters that you've been manipulating as a character
-     *   array, which is sometimes a more convenient or efficient way to do
-     *   certain types of string handling than using the actual string type.
+     *   times.  If the repeat count isn't specified, the default is 1; a
+     *   repeat count less than zero throws an error.  'val' can be a string,
+     *   in which case the string is simply repeated the given number of
+     *   times; an integer, in which case the given Unicode character is
+     *   repeated; or a list of integers, in which case the given Unicode
+     *   characters are repeated, in the order of the list.  The list format
+     *   can be used to create a string from a list of Unicode characters
+     *   that you've been manipulating as a character array, which is
+     *   sometimes a more convenient or efficient way to do certain types of
+     *   string handling than using the actual string type.  
      */
     makeString(val, repeatCount?);
 
@@ -311,6 +409,63 @@ intrinsic 'tads-gen/030006'
      *   ("varying") arguments, nil if not.  
      */
     getFuncParams(func);
+
+    /*
+     *   Convert the given value to a number.  This is similar to
+     *   toInteger(), but can parse strings containing floating point numbers
+     *   and whole numbers too large for ordinary integers.
+     *   
+     *   If 'val' is an integer or BigNumber value, the return value is
+     *   simply 'val'.
+     *   
+     *   If 'val' is a string, the function parses the string's contents as a
+     *   number in the given 'radix', which can be any integer from 2 to 36.
+     *   If 'radix' is omitted, the default is 10 for decimal.  If the radix
+     *   is decimal, and the number contains a decimal point (a period, '.')
+     *   or an exponent (which consists of the letter 'e' or 'E', an optional
+     *   '+' or '-' sign, and one or more digits), the value is parsed as a
+     *   floating point number, and a BigNumber value is returned.  For any
+     *   other radix, decimal points and exponents are considered non-number
+     *   characters.  For an integral value, the result will be an integer if
+     *   the number is within the range that fits in an integer, otherwise
+     *   the result is a BigNumber.  The routine will simply stop parsing at
+     *   the first non-number character it encounters, so no error will occur
+     *   if the string contains text following the number.  If the text
+     *   doesn't contain any number characters at all, the result is zero.
+     *   
+     *   If val is true or the string 'true', return 1; if nil or the string
+     *   'nil', returns 0.  Leading and trailing spaces are ignored in the
+     *   string versions of these values.  
+     */
+    toNumber(val, radix?);
+
+    /*
+     *   Format values into a string.  This is similar to the traditional C
+     *   language "printf" family of functions: it takes a "format string"
+     *   containing a mix of plain text and substitution parameters, and a
+     *   set of values to plug in to the substitution parameters, and returns
+     *   a new string containing the formatted result.
+     *   
+     *   'format' is the format string.  Most characters of the format string
+     *   are simply copied verbatim to the result.  However, each '%' in the
+     *   format string begins a substitution parameter; the '%' is followed
+     *   by one or more optional qualifiers, then by a type code letter.  The
+     *   corresponding value from the argument list is formatted into a
+     *   string according to the type code, and then replaces the entire '%'
+     *   sequence in the result string.  By default, the first '%' parameter
+     *   corresponds to the first additional argument after 'format', the
+     *   second '%' corresponds to the second additional argument, and so on.
+     *   You can override the default argument position of a '%' using the
+     *   '$' qualifier - see below.
+     *   
+     *   The arguments following 'format' are the values to be substituted
+     *   for the '%' parameters in the format string.
+     *   
+     *   The return value is a string containing the formatted result.
+     *   
+     *   See the System Manual for the list of '%' codes.  
+     */
+    sprintf(format, ...);
 }
 
 /*
@@ -323,8 +478,11 @@ intrinsic 'tads-gen/030006'
 /*
  *   rexReplace() flags 
  */
-#define ReplaceOnce  0x0000
-#define ReplaceAll   0x0001
+#define ReplaceAll         0x0001
+#define ReplaceIgnoreCase  0x0002
+#define ReplaceFollowCase  0x0004
+#define ReplaceSerial      0x0008
+#define ReplaceOnce        0x0010
 
 /*
  *   getTime() flags 

@@ -129,7 +129,7 @@ senseInfoTableSubset(senseTab, func)
     vec = new Vector(32);
 
     /* scan the table for objects matching criteria given by 'func' */
-    senseTab.forEachAssoc(new function(obj, info)
+    senseTab.forEachAssoc(function(obj, info)
     {
         /* if the function accepts this object, include it in the vector */
         if ((func)(obj, info))
@@ -1579,7 +1579,7 @@ class Thing: VocabObject
          *   run through the table of visible objects, and mark each one
          *   that's contained within 'self' as having been seen 
          */
-        infoTab.forEachAssoc(new function(obj, info)
+        infoTab.forEachAssoc(function(obj, info)
         {
             if (obj.isIn(self) && !obj.suppressAutoSeen)
                 actor.setHasSeen(obj);
@@ -1596,7 +1596,7 @@ class Thing: VocabObject
     setAllSeenBy(infoTab, actor)
     {
         /* mark everything as seen, except suppressAutoSeen items */
-        infoTab.forEachAssoc(new function(obj, info)
+        infoTab.forEachAssoc(function(obj, info)
         {
             if (!obj.suppressAutoSeen)
                 actor.setHasSeen(obj);
@@ -2351,44 +2351,72 @@ class Thing: VocabObject
      *   see if we should actually use distinguishers for this; if so, we
      *   call getInScopeDistinguisher() to find the correct distinguisher,
      *   otherwise we use the "null" distinguisher, which simply lists
-     *   objects by their base names.  
+     *   objects by their base names.
+     *   
+     *   'lst' is the list of other objects from which we're trying to
+     *   differentiate 'self'.  The reason 'lst' is given is that it lets
+     *   us choose the simplest name for each object that usefully
+     *   distinguishes it; to do this, we need to know exactly what we're
+     *   distinguishing it from.  
      */
-    getAnnouncementDistinguisher()
+    getAnnouncementDistinguisher(lst)
     {
         return (gameMain.useDistinguishersInAnnouncements
-                ? getInScopeDistinguisher()
+                ? getBestDistinguisher(lst)
                 : nullDistinguisher);
     }
 
     /*
      *   Get a distinguisher that differentiates me from all of the other
      *   objects in scope, if possible, or at least from some of the other
-     *   objects in scope.  We use this to generate object announcements,
-     *   since it will do the best job of distinguishing the object being
-     *   announced from other nearby objects.  
+     *   objects in scope.
      */
     getInScopeDistinguisher()
     {
+        /* return the best distinguisher for the objects in scope */
+        return getBestDistinguisher(gActor.scopeList());
+    }
+
+    /*
+     *   Get a distinguisher that differentiates me from all of the other
+     *   objects in the given list, if possible, or from as many of the
+     *   other objects as possible. 
+     */
+    getBestDistinguisher(lst)
+    {
         local bestDist, bestCnt;
 
-        /* get the list of objects in scope, excluding myself */
-        local s = gActor.scopeList() - self;
+        /* remove 'self' from the list */
+        lst -= self;
 
         /* 
-         *   now include only the objects that are basic equivalents -
-         *   these are the only ones we care about telling apart from us,
-         *   since all of the other objects can be distinguished by their
-         *   disambig name 
+         *   Try the "null" distinguisher, which distinguishes objects
+         *   simply by their base names - if that can tell us apart from
+         *   the other objects, there's no need for anything more
+         *   elaborate.  So, calculate the list of indistinguishable
+         *   objects using the null distinguisher, and if it's empty, we
+         *   can just use the null distinguisher as our result.  
          */
-        s = s.subset({obj: !basicDistinguisher.canDistinguish(self, obj)});
+        if (lst.subset({obj: !nullDistinguisher.canDistinguish(self, obj)})
+            .length() == 0)
+            return nullDistinguisher;
 
-        /* if we're unique by vocabulary, don't bother */
-        if (s.length() == 0)
+        /* 
+         *   Reduce the list to the set of objects that are basic
+         *   equivalents of mine - these are the only ones we care about
+         *   telling apart from us, since all of the other objects can be
+         *   distinguished by their disambig name.  
+         */
+        lst = lst.subset(
+            {obj: !basicDistinguisher.canDistinguish(self, obj)});
+
+        /* if the basic distinguisher can tell us apart, just use it */
+        if (lst.length() == 0)
             return basicDistinguisher;
 
         /* as a last resort, fall back on the basic distinguisher */
         bestDist = basicDistinguisher;
-        bestCnt = s.countWhich({obj: bestDist.canDistinguish(self, obj)});
+        bestCnt = lst.countWhich({obj: bestDist.canDistinguish(self, obj)});
 
         /* 
          *   run through my distinguisher list looking for the
@@ -2402,13 +2430,13 @@ class Thing: VocabObject
                 continue;
 
             /* check to see how many objects 'dist' can distinguish me from */
-            local cnt = s.countWhich({obj: dist.canDistinguish(self, obj)});
+            local cnt = lst.countWhich({obj: dist.canDistinguish(self, obj)});
 
             /* 
              *   if it can distinguish me from every other object, use this
              *   one - it uniquely identifies me 
              */
-            if (cnt == s.length())
+            if (cnt == lst.length())
                 return dist;
 
             /* 
@@ -2466,9 +2494,9 @@ class Thing: VocabObject
      *   command rather than running the command iteratively on each of the
      *   individual coins and bills present.
      *   
-     *   We can have be associated with more than one collective group.
-     *   For example, a diamond could be in a "treasure" group as well as a
-     *   "jewelry" group.  
+     *   The value is a list because this object can be associated with
+     *   more than one collective group.  For example, a diamond could be
+     *   in a "treasure" group as well as a "jewelry" group.  
      *   
      *   The associated collective objects are normally of class
      *   CollectiveGroup.  By default, if our 'collectiveGroup' property is
@@ -3125,7 +3153,7 @@ class Thing: VocabObject
              *   information table.  
              */
             remoteLst = new Vector(5);
-            infoTab.forEachAssoc(new function(obj, info)
+            infoTab.forEachAssoc(function(obj, info)
             {
                 /* if this object isn't in our top-level room, note it */
                 if (obj != outer && !obj.isIn(outer))
@@ -4583,7 +4611,7 @@ class Thing: VocabObject
         found = nil;
         
         /* scan each of our containers for one in common with 'loc' */
-        forEachContainer(new function(loc) {
+        forEachContainer(function(loc) {
             /*
              *   If this location of ours is a direct container of the
              *   other object, it is a common location, so note it.  
@@ -4608,7 +4636,7 @@ class Thing: VocabObject
         found = nil;
         
         /* scan each of our containers for one in common with 'loc' */
-        forEachContainer(new function(loc) {
+        forEachContainer(function(loc) {
             /*
              *   If this location of ours is a direct container of the
              *   other object, it is a common location, so note it.  
@@ -4625,7 +4653,7 @@ class Thing: VocabObject
          *   we didn't find obj's container among our direct containers,
          *   so try our direct container's containers 
          */
-        forEachContainer(new function(loc) {
+        forEachContainer(function(loc) {
             local cur;
 
             /* try finding for a common container of this container */
@@ -5217,7 +5245,7 @@ class Thing: VocabObject
                  *   we're indirectly in 'obj', so get the containment
                  *   branch on which we're contained by 'obj' 
                  */
-                forEachContainer(new function(x)
+                forEachContainer(function(x)
                 {
                     if (x == obj || x.isIn(obj))
                         cont = x;
@@ -5373,7 +5401,8 @@ class Thing: VocabObject
     addToContents(obj)
     {
         /* add the object to my contents list */
-        contents += obj;
+        if (contents.indexOf(obj) == nil)
+            contents += obj;
     }
 
     /*
@@ -5538,7 +5567,7 @@ class Thing: VocabObject
         }
 
         /* traverse the path, sending a notification to each element */
-        traversePath(path, new function(target, op) {
+        traversePath(path, function(target, op) {
             /* notify this path element */
             target.notifyMoveViaPath(self, newContainer, op);
 
@@ -6108,7 +6137,7 @@ class Thing: VocabObject
              *   point, so we can't use the path 
              */
             ok = true;
-            traversePath(path, new function(target, op) {
+            traversePath(path, function(target, op) {
                 /*
                  *   Invoke the check property on this target.  If it
                  *   doesn't allow the traversal, the path is unusable. 
@@ -6821,7 +6850,7 @@ class Thing: VocabObject
         /* build a table of all of the objects we can reach */
         siz = objs.getEntryCount();
         tab = new LookupTable(32, siz == 0 ? 32 : siz);
-        objs.forEachAssoc(new function(cur, val)
+        objs.forEachAssoc(function(cur, val)
         {
             /* add this object's sense information to the table */
             cur.addToSenseInfoTable(sense, tab);
@@ -7000,7 +7029,7 @@ class Thing: VocabObject
              *   calculations, and note objects that have ambient energy to
              *   propagate.  
              */
-            objs.forEachAssoc(new function(cur, val)
+            objs.forEachAssoc(function(cur, val)
             {
                 /* clear old sensory information for this object */
                 cur.clearSenseInfo();
@@ -7727,7 +7756,7 @@ class Thing: VocabObject
     sendNotifyRemove(obj, newLoc, msg)
     {
         /* send notification to each container, as appropriate */
-        forEachContainer(new function(loc) {
+        forEachContainer(function(loc) {
             /*
              *   If this container contains the new location, don't send it
              *   (or its parents) notification, since we're not leaving it.
@@ -8437,7 +8466,7 @@ class Thing: VocabObject
          *   objects before their contents, except when the special desc
          *   list order specifically says otherwise.  
          */
-        return lst.sort(SortAsc, new function(a, b) {
+        return lst.sort(SortAsc, function(a, b) {
             /* if the list orders are different, go by list order */
             if (a.specialDescOrder != b.specialDescOrder)
                 return a.specialDescOrder - b.specialDescOrder;

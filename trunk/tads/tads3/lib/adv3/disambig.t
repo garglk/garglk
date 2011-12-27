@@ -160,7 +160,7 @@ ownershipDistinguisher: Distinguisher
     objInScope(obj, matchList, fullMatchList)
     {
         /* it's in scope if it's an owner of an object in the base list */
-        if (matchList.indexWhich(new function(m) {
+        if (matchList.indexWhich(function(m) {
 
             /* get the owner, or the location if there's no owner */
             m = m.obj_;
@@ -189,7 +189,7 @@ ownershipDistinguisher: Distinguisher
              *   like we're matching the original list object(s) instead. 
              */
             local owned = matchList.mapAll({m: m.obj_})
-                .subset(new function(m) {
+                .subset(function(m) {
                 
                 /* get the owner or location */
                 local o = m.getNominalOwner();
@@ -585,6 +585,11 @@ class DisambigResults: BasicResolveResults
     noMatch(action, txt)
     {
         /* throw an error indicating the problem */
+        throw new UnmatchedDisambigException(txt.toLower().htmlify());
+    }
+
+    noMatchPoss(action, txt)
+    {
         throw new UnmatchedDisambigException(txt.toLower().htmlify());
     }
 

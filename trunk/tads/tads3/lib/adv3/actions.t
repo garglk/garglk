@@ -245,50 +245,19 @@ class PostUndoObject: ModuleExecObject
  *   Special "save" action.  This command saves the current game state to
  *   an external file for later restoration. 
  */
-DefineSystemAction(Save)
-    execSystemAction()
-    {
-        local result;
-        local origElapsedTime;
+DefineAction(Save, FileOpAction)
+    /* the file dialog prompt */
+    filePromptMsg = (gLibMessages.getSavePrompt())
 
-        /* note the current elapsed game time */
-        origElapsedTime = realTimeManager.getElapsedTime();
+    /* we're asking for a file to save, or type t3-save */
+    fileDisposition = InFileSave
+    fileTypeID = FileTypeT3Save
 
-        /* ask for a file */
-        result = getInputFile(gLibMessages.getSavePrompt(), InFileSave,
-                              FileTypeT3Save, 0);
-
-        /* check the inputFile response */
-        switch(result[1])
-        {
-        case InFileSuccess:
-            /* perform the save on the given file */
-            performSave(result[2]);
-
-            /* done */
-            break;
-
-        case InFileFailure:
-            /* advise of the failure of the prompt */
-            gLibMessages.filePromptFailed();
-            break;
-
-        case InFileCancel:
-            /* acknowledge the cancellation */
-            gLibMessages.saveCanceled();
-            break;
-        }
-
-        /* 
-         *   restore the original elapsed game time, so that the time spent
-         *   in the file selector dialog doesn't count against the game
-         *   time 
-         */
-        realTimeManager.setElapsedTime(origElapsedTime);
-    }
-
+    /* cancel message */
+    showCancelMsg() { gLibMessages.saveCanceled(); }
+    
     /* perform a save */
-    performSave(fname)
+    performFileOp(fname, ack, desc:?)
     {
         /* before saving the game, notify all PreSaveObject instances */
         PreSaveObject.classExec();
@@ -300,7 +269,15 @@ DefineSystemAction(Save)
         try
         {
             /* try saving the game */
-            saveGame(fname);
+            saveGame(fname, gameMain.getSaveDesc(desc));
+        }
+        catch (StorageServerError sse)
+        {
+            /* the save failed due to a storage server problem - explain */
+            gLibMessages.saveFailedOnServer(sse);
+
+            /* done */
+            return;
         }
         catch (RuntimeError err)
         {
@@ -345,7 +322,7 @@ DefineAction(SaveString, SaveAction)
          *   Perform the save, using the filename given in our fname_
          *   parameter, trimmed of quotes.  
          */
-        performSave(fname_.getStringText());
+        performFileOp(fname_.getStringText(), true);
     }
 ;
 
@@ -425,7 +402,10 @@ DefineSystemAction(Restore)
 
         case InFileFailure:
             /* advise of the failure of the prompt */
-            gLibMessages.filePromptFailed();
+            if (result.length() > 1)
+                gLibMessages.filePromptFailedMsg(result[2]);
+            else
+                gLibMessages.filePromptFailed();
             break;
 
         case InFileCancel:
@@ -506,6 +486,14 @@ DefineSystemAction(Restore)
         {
             /* restore the file */
             restoreGame(fname);
+        }
+        catch (StorageServerError sse)
+        {
+            /* failed due to a storage server error - explain the problem */
+            gLibMessages.restoreFailedOnServer(sse);
+
+            /* indicate failure */
+            return nil;
         }
         catch (RuntimeError err)
         {
@@ -1113,7 +1101,7 @@ DefineSystemAction(About)
         
         /* watch for any output while showing module information */
         anyOutput = outputManager.curOutputStream
-                    .watchForOutput(new function()
+                    .watchForOutput(function()
         {
             /* show information for each module */
             foreach (local cur in ModuleID.getModuleList())
@@ -1153,6 +1141,14 @@ transient scriptStatus: object
     noteWithoutScriptWarning = nil
 ;
 
+/* 
+ *   Property: object is a web temp file.  The Web UI uses this to flag
+ *   that a file we're saving to is actually a temp file that will be
+ *   offered as a downloadable file to the client after the file is written
+ *   and closed. 
+ */
+property isWebTempFile;
+
 /*
  *   A base class for file-oriented actions, such as SCRIPT, RECORD, and
  *   REPLAY.  We provide common handling that prompts interactively for a
@@ -1172,13 +1168,21 @@ DefineSystemAction(FileOp)
     /* show our cancellation mesage */
     showCancelMsg = ""
 
-    /* carry out our file operation */
-    performFileOp(fname, ack)
+    /* 
+     *   Carry out our file operation.
+     *   
+     *   'desc' is an optional named argument giving a description string
+     *   entered by the user via the Save Game dialog.  Some versions of
+     *   the Save Game dialog let the user enter this additional
+     *   information, which can be stored as part of the saved game
+     *   metadata.  
+     */
+    performFileOp(fname, ack, desc:?)
     {
         /* 
          *   Each concrete action subclass must override this to carry out
          *   our operation.  This is called when the user has successfully
-         *   selected a filename for the operatoin.  
+         *   selected a filename for the operation.  
          */
     }
 
@@ -1209,12 +1213,18 @@ DefineSystemAction(FileOp)
         {
         case InFileSuccess:
             /* carry out our file operation */
-            performFileOp(result[2], ack);
+            if (result.length >= 3)
+                performFileOp(result[2], ack, desc:result[3]);
+            else
+                performFileOp(result[2], ack);
             break;
 
         case InFileFailure:
             /* advise of the failure of the prompt */
-            gLibMessages.filePromptFailed();
+            if (result.length() > 1)
+                gLibMessages.filePromptFailedMsg(result[2]);
+            else
+                gLibMessages.filePromptFailed();
             break;
 
         case InFileCancel:
@@ -1233,6 +1243,9 @@ DefineSystemAction(FileOp)
 
     /* we can't include this in undo, as it affects external files */
     includeInUndo = nil
+
+    /* don't allow repeating with AGAIN */
+    isRepeatable = nil
 ;
 
 /*
@@ -1258,23 +1271,38 @@ DefineAction(Script, FileOpAction)
     performFileOp(fname, ack)
     {
         /* turn on logging */
-        setLogFile(fname, LogTypeTranscript);
+        if (aioSetLogFile(fname, LogTypeTranscript))
+        {
+            /* remember that scripting is in effect */
+            scriptStatus.scriptFile = fname;
 
-        /* remember that scripting is in effect */
-        scriptStatus.scriptFile = fname;
+            /* 
+             *   forget any past warning that we've issued about NOTE
+             *   without a script in effect; the next time scripting isn't
+             *   active, we'll want to issue a new warning, since they
+             *   might not be aware at that point that the scripting we're
+             *   starting now has ended 
+             */
+            scriptStatus.noteWithoutScriptWarning = nil;
 
-        /* 
-         *   forget any past warning that we've issued about NOTE without
-         *   a script in effect; the next time scripting isn't active,
-         *   we'll want to issue a new warning, since they might not be
-         *   aware at that point that the scripting we're starting now has
-         *   ended 
-         */
-        scriptStatus.noteWithoutScriptWarning = nil;
+            /* note that logging is active, if acknowledgment is desired */
+            if (ack)
+            {
+                if (fname.isWebTempFile)
+                    gLibMessages.scriptingOkayWebTemp();
+                else
+                    gLibMessages.scriptingOkay();
+            }
+        }
+        else
+        {
+            /* scripting is no longer in effect */
+            scriptStatus.scriptFile = nil;
 
-        /* note that logging is active, if acknowledgment is desired */
-        if (ack)
-            gLibMessages.scriptingOkay();
+            /* show an error, if acknowledgment is desired */
+            if (ack)
+                gLibMessages.scriptingFailed();
+        }
     }
 ;
 
@@ -1322,7 +1350,7 @@ DefineSystemAction(ScriptOff)
         }
 
         /* cancel scripting in the interpreter's output layer */
-        setLogFile(nil, LogTypeTranscript);
+        aioSetLogFile(nil, LogTypeTranscript);
 
         /* remember that scripting is no longer in effect */
         scriptStatus.scriptFile = nil;
@@ -1359,14 +1387,24 @@ DefineAction(Record, FileOpAction)
     performFileOp(fname, ack)
     {
         /* turn on command logging */
-        setLogFile(fname, logFileType);
+        if (aioSetLogFile(fname, logFileType))
+        {
+            /* remember that recording is in effect */
+            scriptStatus.recordFile = fname;
 
-        /* remember that recording is in effect */
-        scriptStatus.recordFile = fname;
+            /* note that logging is active, if acknowledgment is desired */
+            if (ack)
+                gLibMessages.recordingOkay();
+        }
+        else
+        {
+            /* recording failed */
+            scriptStatus.recordFile = nil;
 
-        /* note that logging is active, if acknowledgment is desired */
-        if (ack)
-            gLibMessages.recordingOkay();
+            /* show an error if acknowledgment is desired */
+            if (ack)
+                gLibMessages.recordingFailed();
+        }
     }
 
     /* the log file type - by default, we open a regular command log */
@@ -1414,7 +1452,7 @@ DefineSystemAction(RecordOff)
         }
 
         /* cancel recording in the interpreter's output layer */
-        setLogFile(nil, LogTypeCommand);
+        aioSetLogFile(nil, LogTypeCommand);
 
         /* remember that recording is no longer in effect */
         scriptStatus.recordFile = nil;
@@ -1452,10 +1490,12 @@ DefineAction(Replay, FileOpAction)
          *   acknowledgment even if we're in 'quiet' mode. 
          */
         if (ack)
-            gLibMessages.inputScriptOkay(fname);
+            gLibMessages.inputScriptOkay(
+                fname.ofKind(TemporaryFile) ? fname.getFilename() : fname);
 
         /* activate the script file */
-        setScriptFile(fname, scriptOptionFlags);
+        if (!setScriptFile(fname, scriptOptionFlags))
+            gLibMessages.inputScriptFailed();
     }
 ;
 
@@ -2009,56 +2049,15 @@ DefineLiteralAction(SpecialTopic)
      */
     encodeOrig(txt)
     {
-        /* first, replace any percent signs with '%%' sequences */
-        txt = txt.findReplace('%', '%%', ReplaceAll);
-
-        /* next, replace any double quotes with '%q' sequences */
-        txt = txt.findReplace('"', '%q', ReplaceAll);
-
-        /* return the text */
-        return txt;
+        /* replace '%' with '%%', and double quotes with '%q' */
+        return txt.findReplace(['%', '"'], ['%%', '%q']);
     }
 
     /* decode our encoding */
     decodeOrig(txt)
     {
-        /* find each '%' sequence and decode it */
-        for (local idx = 1 ; idx <= txt.length() ; )
-        {
-            /* find the next '%' */
-            idx = txt.find('%', idx);
-
-            /* if we found nothing, we're done */
-            if (idx == nil)
-                break;
-
-            /* 
-             *   if it's the last character, ignore it, as all of our
-             *   encodings are two characters long 
-             */
-            if (idx == txt.length())
-                break;
-
-            /* check what we have next */
-            switch (txt.substr(idx + 1, 1))
-            {
-            case 'q':
-                /* it's a quote */
-                txt = txt.findReplace('%q', '"', ReplaceOnce, idx);
-                break;
-
-            case '%':
-                /* it's a single percent sign */
-                txt = txt.findReplace('%%', '%', ReplaceOnce, idx);
-                break;
-            }
-
-            /* continue searching from the next character */
-            ++idx;
-        }
-
-        /* return the result */
-        return txt;
+        /* replace '%%' with '%', and '%q' with '"' */
+        return txt.findReplace(['%%', '%q'], ['%', '"']);
     }
 ;
 
@@ -2118,12 +2117,10 @@ DefineSystemAction(Topics)
 DefineTIAction(GiveTo)
     getDefaultIobj(np, resolver)
     {
-        local obj;
-
         /* check the actor for a current interlocutor */
-        obj = resolver.getTargetActor().getCurrentInterlocutor();
+        local obj = resolver.getTargetActor().getCurrentInterlocutor();
         if (obj != nil)
-            return [new ResolveInfo(obj, 0)];
+            return [new ResolveInfo(obj, 0, np)];
         else
             return inherited(np, resolver);
     }
@@ -2211,12 +2208,10 @@ giveMeToAskFor: GlobalRemapping
 DefineTIAction(ShowTo)
     getDefaultIobj(np, resolver)
     {
-        local obj;
-
         /* check the actor for a current interlocutor */
-        obj = resolver.getTargetActor().getCurrentInterlocutor();
+        local obj = resolver.getTargetActor().getCurrentInterlocutor();
         if (obj != nil)
-            return [new ResolveInfo(obj, 0)];
+            return [new ResolveInfo(obj, 0, np)];
         else
             return inherited(np, resolver);
     }
@@ -2358,17 +2353,14 @@ DefineTAction(Consult)
 DefineTopicTAction(ConsultAbout, IndirectObject)
     getDefaultDobj(np, resolver)
     {
-        local actor;
-        local obj;
-        
         /* 
          *   if the actor has consulted something before, and that object
-         *   is still visible, use it as the default this consultation 
+         *   is still visible, use it as the default for this consultation 
          */
-        actor = resolver.getTargetActor();
-        obj = actor.lastConsulted;
+        local actor = resolver.getTargetActor();
+        local obj = actor.lastConsulted;
         if (obj != nil && actor.canSee(obj))
-            return [new ResolveInfo(obj, DefaultObject)];
+            return [new ResolveInfo(obj, DefaultObject, np)];
         else
             return inherited(np, resolver);
     }

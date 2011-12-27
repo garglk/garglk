@@ -461,7 +461,7 @@ class TouchObjCondition: PreCondition
             if (path != nil)
             {
                 /* traverse the path to find what blocks our touch */
-                stat = sourceObj.traversePath(path, new function(ele, op)
+                stat = sourceObj.traversePath(path, function(ele, op)
                 {
                     /*
                      *   If we can continue the reach via this path element,

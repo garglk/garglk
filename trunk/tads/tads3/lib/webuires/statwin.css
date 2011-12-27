@@ -1,0 +1,90 @@
+/*
+ *   TADS Web UI - style sheet for statusline window.
+ */
+
+html {
+    margin: 0px;
+    border: 0px;
+    padding: 0px;
+    overflow: hidden;
+}
+
+body.statusline {
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+    border: 0px;
+    background: #C0C0C0;        /* preference setting */
+    color: #000000;             /* preference setting */
+}
+
+/* Because we override links in this division, we need to re-override
+   "plain" style links as well - otherwise the "body.statusline a:link"
+   selector would override the base "a.plain:link" selector due to the
+   greater specificity of the former.  We thus need to provide at least
+   an equally specific a.plain rule in this context. */
+body.statusline a.plain:link {
+    color: inherit;
+    color: expression(this.parentNode.currentStyle
+                      ? this.parentNode.currentStyle.color : "normal");
+}
+
+body.statusline a:link {
+    color: #0000ff; /* preference setting */
+}
+body.statusline a:hover, body.statusline a.plain:hover {
+    color: #ff00ff; /* preference setting */
+}
+body.statusline a:active, body.statusline a.plain:active,
+body.statusline a:focus, body.statusline a.plain:focus {
+    color: #ff0000; /* preference setting */
+}
+
+div.statusline {
+    width: 100%;
+    padding: 0px;
+    margin: 0px;
+    position: relative;
+}
+
+div#statusMain {
+    padding: 0px 8px;
+    margin: 0;
+    border-bottom: 1px solid black;
+}
+
+div.statusleft {
+    display: inline;
+    float: left;
+    padding: 0.5ex 0px;
+}
+div.statusright {
+    display: inline;
+    padding: 0.5ex 0px;
+    float: right;
+}
+div.statusStrut {
+    clear: both;
+    height: 0px;
+}
+
+div#statusMenu {
+    display: inline;
+    float: right;
+    height: 100%;
+}
+div#statusMenu img {
+    border: none;
+    padding: 0.5ex 8px;
+    vertical-align: middle;
+}
+
+div#netThrobberDiv {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    background: url("netspinner.gif") transparent no-repeat center right;
+    display: none;
+}

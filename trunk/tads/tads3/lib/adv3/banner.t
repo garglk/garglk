@@ -37,7 +37,7 @@
  *   doesn't need to worry about these tracking objects, since the banner
  *   manager automatically handles them.  
  */
-class BannerWindow: object
+class BannerWindow: OutputStreamWindow
     /*
      *   Construct the object.
      *   
@@ -263,44 +263,6 @@ class BannerWindow: object
         outputStream_.writeToStream(txt);
     }
 
-    /* 
-     *   Invoke the given callback function, setting the default output
-     *   stream to the banner's output stream for the duration of the
-     *   call.  This allows invoking any code that writes to the current
-     *   default output stream and displaying the result in the banner.  
-     */
-    captureOutput(func)
-    {
-        local oldStr;
-        
-        /* make my output stream the global default */
-        oldStr = outputManager.setOutputStream(outputStream_);
-
-        /* make sure we restore the default output stream on the way out */
-        try
-        {
-            /* invoke the callback function */
-            (func)();
-        }
-        finally
-        {
-            /* restore the original default output stream */
-            outputManager.setOutputStream(oldStr);
-        }
-    }
-
-    /* 
-     *   Make my output stream the default in the output manager.  Returns
-     *   the previous default output stream; the caller can note the return
-     *   value and use it later to restore the original output stream via a
-     *   call to outputManager.setOutputStream(), if desired.  
-     */
-    setOutputStream()
-    {
-        /* set my stream as the default */
-        return outputManager.setOutputStream(outputStream_);
-    }
-
     /* flush any pending output to the banner */
     flushBanner() { bannerFlush(handle_); }
 
@@ -389,23 +351,6 @@ class BannerWindow: object
     }
 
     /*
-     *   Create our output stream.  We'll create a BannerOutputStream and
-     *   set it up with our default output filters.  Subclasses can
-     *   override this as needed to customize the output stream. 
-     */
-    createOutputStream()
-    {
-        /* create a banner output stream */
-        outputStream_ = new transient BannerOutputStream(handle_);
-
-        /* set up the default filters */
-        outputStream_.addOutputFilter(typographicalOutputFilter);
-        outputStream_.addOutputFilter(new transient ParagraphManager());
-        outputStream_.addOutputFilter(styleTagFilter);
-        outputStream_.addOutputFilter(langMessageBuilder);
-    }
-
-    /*
      *   Create the system-level banner window.  This can be customized as
      *   needed, although this default implementation should be suitable
      *   for most instances.
@@ -424,6 +369,12 @@ class BannerWindow: object
 
         /* if we got a valid handle, we succeeded */
         return (handle_ != nil);
+    }
+
+    /* create our banner output stream */
+    createOutputStreamObj()
+    {
+        return new transient BannerOutputStream(handle_);
     }
 
     /*
@@ -488,13 +439,6 @@ class BannerWindow: object
 
     /* the handle to my system-level banner window */
     handle_ = nil
-
-    /*
-     *   My output stream - this is a transient OutputStream instance.
-     *   We'll automatically create an output stream when we show the
-     *   banner.  
-     */
-    outputStream_ = nil
 
     /* 
      *   Creation parameters.  We store these when we create the banner,
@@ -1010,7 +954,7 @@ bannerTracker: PostRestoreObject, PostUndoObject
          *   For each one whose ID shows up in the active UI display list,
          *   tell the BannerWindow object its current UI handle.  
          */
-        forEachInstance(BannerWindow, new function(cur)
+        forEachInstance(BannerWindow, function(cur)
         {
             local uiCur;
             
