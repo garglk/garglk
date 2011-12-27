@@ -352,6 +352,20 @@ class CommandAnnouncement: CommandReport
  *   which objects.  
  */
 class MultiObjectAnnouncement: CommandAnnouncement
+    construct(preCalcMsg, obj, whichObj, action)
+    {
+        /* do the inherited work */
+        inherited(obj, whichObj, action);
+
+        /* 
+         *   if we have a pre-calculated message, use it instead of the
+         *   message we just generated - this lets the caller explicitly
+         *   set the message as desired 
+         */
+        if (preCalcMsg != nil)
+            messageText_ = preCalcMsg;
+    }
+
     /* show the announceMultiActionObject message */
     messageProp_ = &announceMultiActionObject
 ;
@@ -892,7 +906,7 @@ class CommandTranscript: OutputFilter
          *   display each report that made it past that check without any
          *   further conditions.  
          */
-        callWithSenseContext(nil, nil, new function()
+        callWithSenseContext(nil, nil, function()
         {
             /* show the reports */            
             foreach (local cur in reports_)
@@ -1102,10 +1116,11 @@ class CommandTranscript: OutputFilter
      *   Announce one of a set of objects to a multi-object action.  We'll
      *   record this announcement for display with our report list.  
      */
-    announceMultiActionObject(obj, whichObj)
+    announceMultiActionObject(preCalcMsg, obj, whichObj)
     {
         /* save a multi-action object announcement */
-        addReport(new MultiObjectAnnouncement(obj, whichObj, gAction));
+        addReport(new MultiObjectAnnouncement(
+            preCalcMsg, obj, whichObj, gAction));
     }
 
     /*

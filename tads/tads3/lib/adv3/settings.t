@@ -100,19 +100,73 @@ class SettingsItem: object
      */
     settingDesc = ""
 
+    /*
+     *   Should this item be included in listings shown to the user?  If
+     *   this is true, the UI will include this setting in a display list
+     *   of current settings shown to the user on request, by calling our
+     *   settingDesc method.  
+     */
+    includeInListing = true
+
     /* 
      *   Get the textual representation of the setting - returns a string
      *   representing the setting as it should appear in the external
      *   configuration file.  We use this to write the setting to the file.
+     *   
+     *   Note that this is only needed if the default saveItem() method is
+     *   used.  
      */
     settingToText() { /* subclasses must override */ }
 
     /* 
      *   Set the current value to the contents of the given string.  The
      *   string contains a textual representation of a setting value, as
-     *   previously generated with settingToText().  
+     *   previously generated with settingToText().
+     *   
+     *   This is only needed if the default restoreItem() method is used.  
      */
     settingFromText(str) { /* subclasses must override */ }
+
+    /*
+     *   Load from a settings file.  By default, this simply calls the
+     *   setting file object to load the data. 
+     *   
+     *   This implementation is suitable for any scalar type, so this won't
+     *   need to be overwritten for subclasses that only need to load a
+     *   single string value from the file.  Subclasses that implement
+     *   complex (non-scalar) datatypes can override this as needed to read
+     *   multiple line items from the file.  
+     */
+    restoreItem(s)
+    {
+        /* look up the file item by ID */
+        local fileItem = s.getItem(settingID);
+
+        /* 
+         *   if this item appears in the file, retrieve its value; if not,
+         *   restore my factory default setting 
+         */
+        settingFromText(fileItem != nil ? fileItem.val_ : factoryDefault);
+    }
+
+    /*
+     *   Save to a settings file.  By default, this makes a string out of
+     *   our value and updates or adds our corresponding entry in the file.
+     *   
+     *   This implementation is suitable for any scalar type, so this won't
+     *   need to be overwritten for subclasses that only need to store a
+     *   single string value in the file.  Subclasses that implement
+     *   complex (non-scalar) datatypes can override this as needed to
+     *   manipulate multiple line items in the file.
+     */
+    saveItem(s)
+    {
+        /* get the string representation of my value */
+        local val = settingToText();
+
+        /* add or replace it in the file */
+        s.setItem(settingID, val);
+    }
 
     /* 
      *   My "factory default" setting.  At pre-init time, before we've
@@ -149,6 +203,82 @@ class BinarySettingsItem: SettingsItem
     isOn = nil
 ;
 
+/*
+ *   A string settings item.  This is for variables that have scalar string
+ *   values.  Value strings can contain anything except newlines.  
+ */
+class StringSettingsItem: SettingsItem
+    /* convert to text */
+    settingToText()
+    {
+        /* quote the value if necessary */
+        return quoteValue(val);
+    }
+
+    /* parse text */
+    settingFromText(str)
+    {
+        /* 
+         *   If the value isn't quoted, use the value as-is, trimming off
+         *   leading and trailing spaces.  If it at least starts with a
+         *   quote, remove the leading and trailing quote (if present) and
+         *   translate backslash sequences.  
+         */
+        if (rexMatch('^<space>*"', str))
+        {
+            /* it's quoted - remove the quotes and translate backslashes */
+            val = rexReplace(
+                [leadTrailSpPat, '\\"', '\\\\', '\\n', '\\r'], str,
+                ['', '"', '\\', '\n', '\r']);
+        }
+        else
+        {
+            /* no leading quote; just trim spaces */
+            rexMatch(trimSpPat, str);
+            val = rexGroup(1)[3];
+        }
+    }
+
+    leadTrailSpPat = static new RexPattern('^<space>+|<space>+$')
+    trimSpPat = static new RexPattern('^<space>*(.*?)<space>*$')
+
+    /* 
+     *   Class method: quote a string value for storing in the file.  If
+     *   the string has any leading or trailing spaces, starts with a
+     *   double quote, or contains any newlines, we'll quote it; otherwise
+     *   we'll return it as-is.  
+     */
+    quoteValue(str)
+    {
+        /* 
+         *   if the value needs quoting, quote it, otherwise just return it
+         *   unchanged 
+         */
+        if (rexSearch(needQuotePat, str))
+        {
+            /* 
+             *   add quotes around the string, and backslash-escape any
+             *   quotes, backslashes, or newlines within the string 
+             */
+            return '"' + val.findReplace(
+                ['"', '\\', '\n', '\r'], ['\\"', '\\\\', '\\n', '\\r'])
+                + '"';
+        }
+        else
+        {
+            /* quotes aren't needed*/
+            return str;
+        }
+    }
+
+    needQuotePat = static new RexPattern('^<space>+|^"|[\r\n]')
+
+    /* our current value string */
+    val = ''
+;
+    
+    
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -159,18 +289,18 @@ class BinarySettingsItem: SettingsItem
 settingsManager: object
     /*
      *   Save the current settings.  This writes out the current settings
-     *   to the global settings file.  On any error, the method throws an
-     *   exception:
+     *   to the global settings file.
+     *   
+     *   On any error, the method throws an exception.  Possible errors
+     *   include:
      *   
      *   - FileCreationException indicates that the settings file couldn't
      *   be opened for writing.  
      */
     saveSettings()
     {
-        local s;
-        
         /* retrieve the current settings */
-        s = retrieveSettings();
+        local s = retrieveSettings();
 
         /* if that failed, there's nothing more we can do */
         if (s == nil)
@@ -178,9 +308,9 @@ settingsManager: object
 
         /* 
          *   Update the file's contents with all of the current in-memory
-         *   settings objects. 
+         *   settings objects (applying the filter condition, if provided).
          */
-        forEachInstance(SettingsItem, {item: s.saveItem(item)});
+        forEachInstance(SettingsItem, { item: item.saveItem(s) });
 
         /* write out the settings */
         storeSettings(s);
@@ -196,16 +326,14 @@ settingsManager: object
      */
     restoreSettings()
     {
-        local s;
-        
         /* retrieve the current settings */
-        s = retrieveSettings();
+        local s = retrieveSettings();
 
         /* 
          *   update all of the in-memory settings objects with the values
          *   from the file 
          */
-        forEachInstance(SettingsItem, {item: s.restoreItem(item)});
+        forEachInstance(SettingsItem, {item: item.restoreItem(s)});
     }
 
     /* 
@@ -221,7 +349,8 @@ settingsManager: object
         local f;
         local s = new SettingsFileData();
         local linePat = new RexPattern(
-            '<space>*(<alphanum|.>+)<space>*=<space>*([^\n]*)\n?$');
+            '<space>*(<alphanum|-|_|$|lsquare|rsquare|percent|dot>+)'
+            + '<space>*=<space>*([^\n]*)\n?$');
         
         /* 
          *   Try opening the settings file.  Older interpreters don't
@@ -299,8 +428,6 @@ settingsManager: object
     /* store the given SettingsFileData to the global settings file */
     storeSettings(s)
     {
-        local f;
-        
         /* 
          *   Open the "library defaults" file.  Note that we don't have to
          *   worry here about the old-interpreter situation that we handle
@@ -309,7 +436,7 @@ settingsManager: object
          *   have to retrieve the current file's contents before we can
          *   store the new contents.  
          */
-        f = File.openTextFile(LibraryDefaultsFile, FileAccessWrite);
+        local f = File.openTextFile(LibraryDefaultsFile, FileAccessWrite);
 
         /* write each line of the file's contents */
         foreach (local item in s.lst_)
@@ -351,6 +478,28 @@ class SettingsFileData: object
         lst_ = new Vector(16);
     }
 
+    /* 
+     *   find an item - returns a SettinsFileItem for the key, or nil if
+     *   there's no existing item 
+     */
+    getItem(id)
+    {
+        /* return the entry from our ID-keyed table */
+        return tab_[id];
+    }
+
+    /* iterate over all data (non-comment) items in the file */
+    forEach(func)
+    {
+        /* scan the list */
+        foreach (local s in lst_)
+        {
+            /* if this is a data item, pass it to the callback */
+            if (s.ofKind(SettingsFileItem))
+                func(s.id_, s.val_);
+        }
+    }
+
     /* add a variable */
     addItem(id, val)
     {
@@ -366,6 +515,19 @@ class SettingsFileData: object
         tab_[id] = item;
     }
 
+    /* set a variable, adding a new variable if it doesn't already exist */
+    setItem(id, val)
+    {
+        /* look for an existing SettingsFileItem entry for my ID */
+        local fileItem = getItem(id);
+        
+        /* update the item if it exists, otherwise add a new one */
+        if (fileItem != nil)
+            fileItem.val_ = val;
+        else
+            addItem(id, val);
+    }
+
     /* add a comment line */
     addComment(str)
     {
@@ -373,69 +535,19 @@ class SettingsFileData: object
         lst_.append(new SettingsFileComment(str));
     }
 
-    /*
-     *   Save an item.  This takes the current value from the given
-     *   SettingsItem, and saves it to the in-memory representation of the
-     *   file.  
-     */
-    saveItem(memItem)
+    /* delete an item */
+    delItem(id)
     {
-        local id;
-        local val;
-        local fileItem;
-
-        /* get the item's ID */
-        id = memItem.settingID;
-
-        /* get the string representation of the item's value */
-        val = memItem.settingToText();
-        
-        /* 
-         *   look for a SettingsFileItem with the ID of the memory item
-         *   we're saving 
-         */
-        fileItem = tab_[id];
-
-        /* 
-         *   If the file item exists, update its value with the value from
-         *   the in-memory item.  Otherwise, simply add a new file item
-         *   with the given ID and value. 
-         */
-        if (fileItem != nil)
+        /* if it's in our table, delete it */
+        local item = tab_[id];
+        if (item != nil)
         {
-            /* 
-             *   this variable was already in the file, so update it with
-             *   the new value 
-             */
-            fileItem.val_ = val;
-        }
-        else
-        {
-            /* this variable wasn't previously in the file, so add it */
-            addItem(id, val);
-        }
-    }
+            /* delete it from the lookup table */
+            tab_.removeElement(id);
 
-    /*
-     *   Restore an item.  We'll look for a value for the given item in the
-     *   file contents.  If we find the file item, we'll restore its value
-     *   to the in-memory item.  If we don't find the file item, we'll
-     *   restore the factory default.  
-     */
-    restoreItem(memItem)
-    {
-        local fileItem;
-        
-        /* look up the file item by ID */
-        fileItem = tab_[memItem.settingID];
-
-        /* 
-         *   if this item appears in the file, restore its value; if not,
-         *   restore it to its factory default setting 
-         */
-        memItem.settingFromText(fileItem != nil
-                                ? fileItem.val_
-                                : memItem.factoryDefault);
+            /* delete it from the file source list */
+            lst_.removeElement(item);
+        }
     }
 
     /* lookup table of values, keyed by variable name */

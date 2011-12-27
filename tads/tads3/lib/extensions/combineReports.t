@@ -8,7 +8,7 @@
    *
    *   by Eric Eve
    *
-   *   Version 1.03 (10-Feb-09)
+   *   Version 1.04 (27-Feb-11)
    *
    *   This extension is a further development of Example 2 in the Technical 
    *   Manual article on Manipulating the Transcript. If this extension is 
@@ -172,15 +172,25 @@ modify PutBehindAction
  */
 
 actionReportManager: object
+    
+    /* 
+     *   The minimum number of objects that must be in a list before we 
+     *   attempt to summarize it. Normally this will be 2, but it may be 
+     *   that some games will want to change it to 1, for example, so that 
+     *   the same reporting style is used for singleton objects as for lists.
+     */
+    
+    minLengthToSummarize = 2
+    
     afterActionMain()
     {        
         /* 
-         *   If the action isn't iterating over at least two direct objects 
-         *   we have nothing to do, so we'll stop before doing any messing 
-         *   with the transcript
+         *   If the action isn't iterating over at least 
+         *   minLengthToSummarize direct objects we have nothing to do, so 
+         *   we'll stop before doing any messing with the transcript
          */
         
-        if(gAction.dobjList_.length() < 2)
+        if(gAction.dobjList_.length() < minLengthToSummarize)
             return;
         
           
@@ -399,7 +409,8 @@ actionReportManager: object
      *   also allows authors to opt in to any future version of 
      *   processFailures that does do something.
      */
-    summarizeFailures = nil
+    summarizeFailures = nil   
+    
 ;
 
 /* 

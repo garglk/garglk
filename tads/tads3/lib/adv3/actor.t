@@ -599,7 +599,10 @@ class TopicDatabase: object
         resp.handleTopic(fromActor, topic);
     }
 
-    /* find the best response (a TopicEntry object) for the given topic */
+    /* 
+     *   find the best response (a TopicEntry object) for the given topic
+     *   (a ResolvedTopic object) 
+     */
     findTopicResponse(fromActor, topic, convType, path)
     {
         local topicList;
@@ -616,8 +619,9 @@ class TopicDatabase: object
         if (topicList == nil)
             return nil;
 
-        /* scan our topic list for the best match */
-        best = nil;
+        /* scan our topic list for the best match(es) */
+        best = new Vector();
+        bestScore = nil;
         foreach (local cur in topicList)
         {
             /* get this item's score */
@@ -631,11 +635,133 @@ class TopicDatabase: object
              */
             if (score != nil
                 && cur.checkIsActive()
-                && (best == nil || score > bestScore))
+                && (bestScore == nil || score >= bestScore))
             {
-                best = cur;
+                /* clear the vector if we've found a better score */
+                if (bestScore != nil && score > bestScore)
+                    best = new Vector();
+
+                /* add this match to the list of ties for this score */
+                best.append(cur);
+
+                /* note the new best score */
                 bestScore = score;
             }
+        }
+
+        /*
+         *   If the best-match list is empty, we have no matches.  If
+         *   there's just one match, we have a winner.  If we found more
+         *   than one match tied for first place, we need to pick one
+         *   winner.  
+         */
+        if (best.length() == 0)
+        {
+            /* no matches at all */
+            best = nil;
+        }
+        else if (best.length() == 1)
+        {
+            /* exactly one match - it's easy to pick the winner */
+            best = best[1];
+        }
+        else
+        {
+            /* 
+             *   We have multiple topics tied for first place.  Run through
+             *   the topic list and ask each topic to propose the winner. 
+             */
+            local toks = topic.topicProd.getOrigTokenList().mapAll(
+                {x: getTokVal(x)});
+            local winner = nil;
+            foreach (local t in best)
+            {
+                /* ask this topic what it thinks the winner should be */
+                winner = t.breakTopicTie(t, topic, fromActor, toks);
+
+                /* if the topic had an opinion, we can stop searching */
+                if (winner != nil)
+                    break;
+            }
+
+            /* 
+             *   If no one had an opinion, run through the list again and
+             *   try to pick by vocabulary match strength.  This is only
+             *   possible when all of the topics are associated with
+             *   simulation objects; if any topics have pattern matches, we
+             *   can't use this method.  
+             */
+            if (winner == nil)
+            {
+                local rWinner = nil;
+                foreach (local t in best)
+                {
+                    /* get this topic's match object(s) */
+                    local m = t.matchObj;
+                    if (m == nil)
+                    {
+                        /* 
+                         *   there's no match object - it's not comparable
+                         *   to others in terms of match strength, so we
+                         *   can't use this method to break the tie 
+                         */
+                        winner = nil;
+                        break;
+                    }
+
+                    /* 
+                     *   If it's a list, search for an element with a
+                     *   ResolveInfo entry in the topic match, using the
+                     *   strongest match if we find more than one.
+                     *   Otherwise, just use the strength of this match.  
+                     */
+                    local ri;
+                    if (m.ofKind(Collection))
+                    {
+                        /* search for a ResolveInfo object */
+                        foreach (local mm in m)
+                        {
+                            /* get this topic */
+                            local riCur = topic.getResolveInfo(mm);
+
+                            /* if this is the best match so far, keep it */
+                            if (compareVocabMatch(riCur, ri) > 0)
+                                ri = riCur;
+                        }
+                    }
+                    else
+                    {
+                        /* get the ResolveInfo object */
+                        ri = topic.getResolveInfo(m);
+                    }
+
+                    /* 
+                     *   if we didn't find a match, we can't use this
+                     *   method to break the tie 
+                     */
+                    if (ri == nil)
+                    {
+                        winner = nil;
+                        break;
+                    }
+
+                    /* 
+                     *   if this is the best match so far, elect it as the
+                     *   tentative winner 
+                     */
+                    if (compareVocabMatch(ri, rWinner) > 0)
+                    {
+                        rWinner = ri;
+                        winner = t;
+                    }
+                }
+            }
+
+            /* 
+             *   if there's a tie-breaking winner, use it; otherwise just
+             *   arbitrarily pick the first item in the list of ties 
+             */
+            best = (winner != nil ? winner : best[1]);
         }
 
         /*
@@ -672,6 +798,48 @@ class TopicDatabase: object
 
         /* return the best matching response object, if any */
         return best;
+    }
+
+    /*
+     *   Compare the vocabulary match strengths of two ResolveInfo objects,
+     *   for the purposes of breaking ties in topic matching.  Uses the
+     *   usual comparison/sorting return value conventions: -1 means that a
+     *   is weaker than b, 0 means they're equivalent, 1 means a is
+     *   stronger than b.  
+     */
+    compareVocabMatch(a, b)
+    {
+        /* 
+         *   If both are nil, they're equivalent.  If one or the other is
+         *   nil, the non-nil item is stronger.  
+         */
+        if (a == nil && b == nil)
+            return 0;
+        if (a == nil)
+            return -1;
+        if (b == nil)
+            return 1;
+
+        /* 
+         *   Both are valid objects, so compare based on the vocabulary
+         *   match flags.
+         */
+        local fa = a.flags_, fb = b.flags_;
+
+        /* check plural truncations - no plural truncation is better */
+        if ((fa & PluralTruncated) && !(fb & PluralTruncated))
+            return -1;
+        if (!(fa & PluralTruncated) && (fb & PluralTruncated))
+            return 1;
+
+        /* check any truncation - no truncation is better */
+        if ((fa & VocabTruncated) && !(fb & VocabTruncated))
+            return -1;
+        if (!(fa & VocabTruncated) && (fb & VocabTruncated))
+            return 1;
+
+        /* we can't find any reason to prefer one over the other */
+        return 0;
     }
 
     /* show our suggested topic list */
@@ -1435,7 +1603,7 @@ class ConvNode: ActorTopicDatabase
         conversationManager.beginResponse(actor);
 
         /* show our text, watching to see if we generate any output */
-        disp = outputManager.curOutputStream.watchForOutput(new function()
+        disp = outputManager.curOutputStream.watchForOutput(function()
         {
             /* 
              *   if we have a continuation list, invoke it; otherwise if we
@@ -2205,16 +2373,16 @@ class TopicEntry: object
     altTopicList = []
 
     /* 
-     *   Match the topic.  This is abstract in this base class; it must be
-     *   defined by each concrete subclass.  This returns nil if there's
-     *   no match, or an integer value if there's a match.  The higher the
+     *   Match a topic.  This is abstract in this base class; it must be
+     *   defined by each concrete subclass.  This returns nil if there's no
+     *   match, or an integer value if there's a match.  The higher the
      *   number's value, the stronger the match.
      *   
      *   This is abstract in the base class because the meaning of 'topic'
      *   varies by subclass, according to which type of command it's used
      *   with.  For example, in ASK and TELL commands, 'topic' is a
      *   ResolvedTopic describing the topic in the player's command; for
-     *   GIVE and SHOW commands, it's the resolved simulation object.
+     *   GIVE and SHOW commands, it's the resolved simulation object.  
      */
     // matchTopic(fromActor, topic) { return nil; }
 
@@ -2238,6 +2406,48 @@ class TopicEntry: object
      *   some other reason.  
      */
     // isMatchPossible(actor, scopeList) { return true; }
+
+    /*
+     *   Break a tie among matching topics entries.  The topic database
+     *   searcher calls this on each matching topic entry when it finds
+     *   multiple entries tied for first place, based on their match
+     *   scores.  This gives the entries a chance to figure out which one
+     *   is actually the best match for the input, given the other entries
+     *   that also matched.
+     *   
+     *   This method returns a TopicEntry object - one of the objects from
+     *   the match list - if it has an opinion as to which one should take
+     *   precedence.  It returns nil if it doesn't know or doesn't care.
+     *   Returning nil gives the other topics in the match list a chance to
+     *   make the selection.  If all of the objects in the list return nil,
+     *   the topic database searcher simply picks one of the topic matches
+     *   arbitrarily.
+     *   
+     *   'matchList' is the list of tied TopicEntry objects.  'topic' is
+     *   the ResolvedTopic object from the parser, representing the
+     *   player's input phrase that we're matching.  'fromActor' is the
+     *   actor performing the command.  'toks' is a list of strings giving
+     *   the word tokens of the noun phrase.
+     *   
+     *   The topic database searcher calls this method for each matching
+     *   topic entry in the case of a tie, and simply accepts the opinion
+     *   of the first one that expresses an opinion by returning a non-nil
+     *   value.  There's no voting; whoever happens to get *and use* the
+     *   first say also gets the last word.  We expect that this won't be a
+     *   problem in practice: when this comes up at all, it's because there
+     *   are a couple of closely related topic entries that are active in a
+     *   particular context, and you need a special bit of tweaking to pick
+     *   the right one for a given input phrase.  Simply pick one of the
+     *   involved entries and define this method there.  
+     */
+    breakTopicTie(matchList, topic, fromActor, toks)
+    {
+        /* 
+         *   we don't have an opinion - defer to the next object in the
+         *   list, or allow an arbitrary selection 
+         */
+        return nil;
+    }
 
     /*
      *   Set pronouns for the topic, if possible.  If the topic corresponds
@@ -2594,6 +2804,9 @@ class TopicMatchTopic: TopicEntry
      *   object or objects in matchObj, or the pattern in matchPattern.
      *   Note that we always try both ways of matching, so a single
      *   AskTellTopic can define both a pattern and an object list.
+     *   
+     *   'topic' is a ResolvedTopic object describing the player's text
+     *   input and the list of objects that the parser matched to the text.
      *   
      *   Subclasses can override this as desired to use other ways of
      *   matching.  
@@ -5373,7 +5586,7 @@ class AgendaItem: object
 PreinitObject
     execute()
     {
-        forEachInstance(AgendaItem, new function(item) {
+        forEachInstance(AgendaItem, function(item) {
             /* 
              *   If this item is initially active, add the item to its
              *   actor's agenda. 
@@ -6582,12 +6795,9 @@ class Actor: Thing, Schedulable, Traveler, ActorTopicDatabase
          */
         if (actor == nil || !canTalkTo(actor))
         {
-            local tt;
-            local res;
-            
             /* set up a TALK TO command and a resolver */
-            tt = new TalkToAction();
-            res = new Resolver(tt, gIssuingActor, gActor);
+            local tt = new TalkToAction();
+            local res = new Resolver(tt, gIssuingActor, gActor);
             
             /* get the default direct object */
             actor = tt.getDefaultDobj(new EmptyNounPhraseProd(), res);
@@ -7211,6 +7421,19 @@ class Actor: Thing, Schedulable, Traveler, ActorTopicDatabase
 
         /* turn off the sense cache now that we're done */
         libGlobal.disableSenseCache();
+    }
+
+    /*
+     *   Get my "look around" location name as a string.  This returns a
+     *   string containing the location name that we display in the status
+     *   line or at the start of a "look around" description of my
+     *   location.  
+     */
+    getLookAroundName()
+    {
+        return mainOutputStream.captureOutput(
+            {: location.lookAroundWithinName(self, getVisualAmbient()) })
+            .specialsToText();
     }
 
     /*
@@ -9636,7 +9859,7 @@ class Actor: Thing, Schedulable, Traveler, ActorTopicDatabase
          *   reporting a parser failure, we want the message to be
          *   displayed no matter what the scope situation is. 
          */
-        callWithSenseContext(nil, nil, new function()
+        callWithSenseContext(nil, nil, function()
         {
             /* check who's talking to whom */
             if (issuingActor.isPlayerChar())

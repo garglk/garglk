@@ -146,7 +146,41 @@ intrinsic 'tads-io/030007'
      *   selected a file, whose name is given as a string in the second
      *   element of the result list; InFileFailure indicates a system error
      *   of some kind showing the dialog; and InFileCancel indicates that the
-     *   user explicitly canceled the dialog.  
+     *   user explicitly canceled the dialog.
+     *   
+     *   On success (return list[1] == InFileSuccess), the list contains the
+     *   following additional elements:
+     *   
+     *.     [2] = the selected filename
+     *.     [3] = nil (reserved for future use)
+     *.     [4] = script warning message, or nil if no warning
+     *   
+     *   The warning message is a string to be displayed to the user to warn
+     *   about a possible error condition in the script input.  The script
+     *   reader checks the file specified in the script to see if it's valid;
+     *   if the dialog type is Open, the script reader verifies that the file
+     *   exists, and for a Save dialog the reader warns if the file *does*
+     *   already exist or is not writable.  In the conventional UI, the
+     *   script reader displays these warnings directly to the user through
+     *   the console UI, but this isn't possible in the Web UI since the user
+     *   might be running on a remote browser.  Instead, the script reader
+     *   still checks for the possible errors, but rather than displaying any
+     *   warnings, it returns them here.  The caller is responsible for
+     *   displaying the warning and asking the user for confirmation.
+     *   
+     *   For localization purposes, the warning message starts with a
+     *   two-letter code indicating the specific error, followed by a space,
+     *   followed by the English text of the warning.  The codes are:
+     *   
+     *.   OV - the script might overwrite an existing file (Save dialog)
+     *.   WR - the file can't be created/written (Save dialog)
+     *.   RD - the file doesn't exist/can't be read (Open dialog)
+     *   
+     *   Note that the warning message will always be nil if the script
+     *   reader displayed the warning message itself.  This means that your
+     *   program can unconditionally display this message if it's non-nil -
+     *   there's no danger that the script reader will have redundantly
+     *   displayed the message.  
      */
     inputFile(prompt, dialogType, fileType, flags);
 
@@ -422,6 +456,29 @@ intrinsic 'tads-io/030007'
      *   output window.  
      */
     logConsoleSay(handle, ...);
+
+    /*
+     *   Log an input event that's obtained externally - i.e., from a source
+     *   other than the system input APIs (inputLine, inputKey, inputEvent,
+     *   etc).  This adds the event to any command or event log that the
+     *   system is currently writing, as set with setLogFile().
+     *   
+     *   It's only necessary to call this function when obtaining user input
+     *   from custom code that bypasses the system input APIs.  The system
+     *   input functions all log events automatically, so you must not call
+     *   this for input obtained from them (doing so would write each input
+     *   twice, since it's already being written once by the input
+     *   functions).  For example, this is useful for the Web UI, since it
+     *   obtains input via network transactions with the javascript client.
+     *   
+     *   'evt' is a list describing the event, using the same format that
+     *   inputEvent() returns.  Note one special extension: if the first
+     *   element of the list is a string, the string is used as the tag name
+     *   if we're writing an event script.  This can be used to write custom
+     *   events or events with no InEvtXxx type code, such as <dialog> input
+     *   events.
+     */
+    logInputEvent(evt);
 }
 
 /* log file types */
@@ -450,6 +507,7 @@ intrinsic 'tads-io/030007'
 #define InEvtLine        6
 #define InEvtSysCommand  0x100
 #define InEvtEndQuietScript  10000
+#define InEvtEndScript       10003
 
 /*
  *   Command codes for InEvtSysCommand 

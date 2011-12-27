@@ -12,6 +12,10 @@
 /* include the library header */
 #include "adv3.h"
 
+infiniteLoop()
+{
+    for (local i = 1 ; i < 100 ; ) ;
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -4426,6 +4430,12 @@ class Room: Fixture, BasicLocation, RoomAutoConnector
     }
 
     /*
+     *   Since we could be our own nominal drop destination, we need a
+     *   message to describe things being put here.
+     */
+    putDestMessage = &putDestRoom
+
+    /*
      *   The nominal actor container.  By default, this is the room's
      *   nominal drop destination, which is usually the floor or
      *   equivalent.  
@@ -4489,7 +4499,9 @@ class Room: Fixture, BasicLocation, RoomAutoConnector
          *   location is either 'self' or is in 'self', return the
          *   location 
          */
-        if ((loc = part.location) != nil && (loc == self || loc.isIn(self)))
+        if (part != nil
+            && (loc = part.location) != nil
+            && (loc == self || loc.isIn(self)))
             return loc;
 
         /* we don't have the part */
@@ -6932,7 +6944,7 @@ class Vehicle: NestedRoom, Traveler
     forEachTravelingActor(func)
     {
         /* invoke the callback on each actor in our contents */
-        allContents().forEach(new function(obj) {
+        allContents().forEach(function(obj) {
             if (obj.isActor)
                 (func)(obj);
         });

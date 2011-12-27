@@ -1,20 +1,54 @@
 <html>
 <title>Recent Changes to the TADS 3 Library</title>
 
-<style type="text/css"><!--
+<style type="text/css">
+<!--
+body {
+    font: 10pt/14pt Verdana, Arial, Helvetica, Sans-Serif;
+}
+h1 {
+    font: 18pt/24pt Georgia, Times New Roman, New York, Times, Serif;
+    color: #400060;
+}
+h2 {
+    font: 14pt/18pt Georgia, Times New Roman, New York, Times, Serif;
+    color: #600060;
+}
+h3 {
+    background: #f0f0f0;
+    border-top: 1px solid #d8d8d8;
+    margin-top: 2.5em;
+    padding: 1ex 1ex 1ex 1ex;
+    font: 12pt/14pt Georgia, Times New Roman, New York, Times, Serif;
+    color: #600060;
+}
+li {
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+}
+li ul {
+    margin-top: 0.75em;
+}
+li li {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+}
+li p {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+ul.toc li {
+    margin: 0;
+}
 
 div.sepbar {
-   width: 100%;
-   padding-left: 5px;
-   padding-right: 5px;
-   padding-top: 3px;
-   padding-bottom: 3px;
-   margin-bottom: 1.5em;
-   margin-top: 1.5em;
-   background: #c0c0f0;
-   color: #000040;
-   font-size: 125%;
-   text-align: center;
+    width: 100%;
+    background: #f0f0f0;
+    border-top: 1px solid #d8d8d8;
+    margin-top: 2.5em;
+    padding: 1ex 1ex 1ex 1ex;
+    font: 12pt/14pt Georgia, Times New Roman, New York, Times, Serif;
+    color: #600060;
 }
 
 div.firstentry {
@@ -29,7 +63,8 @@ div.entry {
    border-top: 1px solid #c0c0c0;
 }
 
---></style>
+//-->
+</style>
 
 <body>
 
@@ -39,7 +74,8 @@ div.entry {
 Changes are listed in reverse chronological order (the most recent
 changes are first).
 
-<ul>
+<ul class=toc>
+<li><a href='#310'>3.1.0</a>
 <li><a href='#3018a'>3.0.18.1</a>
 <li><a href='#3018'>3.0.18</a>
 <li><a href='#3017a'>3.0.17.1</a>
@@ -73,6 +109,453 @@ changes are first).
 <li><a href='#305'>3.0.5</a>
 <li><a href='#304'>3.0.4 and earlier</a>
 </ul>
+
+<!------------------------------- 3.1.0 --------------------------------->
+<div class="sepbar"><a name='310'></a>3.1.0</div>
+<p><b><i>Released 12/21/2011</i></b>
+<p>
+
+<!------------------->
+<div class=firstentry>
+
+The on-again, off-again <a
+href='#getInScopeDistinguisher'>detailed-naming scheme</a> is now on
+again, this time with enhancements that will (hopefully) make it here
+to stay.  This feature was first introduced in version 3.0.10, then
+disabled by default in 3.0.11 due to rough edges in that first
+attempt.  It's reinstated in this release, with improvements.  This
+improved version has been separately available for some time in an
+extension called newNames.t, so it's seen some testing and we think
+it'll provide good results.
+
+<p>The problem with the 3.0.10 implementation was that it made the
+object-name announcements unnaturally verbose - it added an excess of
+qualifiers to object names compared to what a human speaker would use.
+The new version tries to be smarter about adding only useful detail,
+by using more contextual information.  For a multi-object
+announcement, for example, the new version only adds enough detail to
+distinguish the objects being announced from one another (rather than
+from everything else in scope), and also considers the context at a
+fixed point in time.  The new version also uses the ordinary name for
+an object whenever that's enough to distinguish it; it only uses the
+(usually more verbose) disambig name when it's needed.
+
+<p>If you find that the new version still produces awkward
+announcements, or if you just prefer the original style, you can
+disable this feature: just set
+gameMain.useDistinguishersInAnnouncements = nil.  This makes the
+parser revert to the basic object names in announcements.
+
+<p>Note that this change makes the newNames.t extension superfluous,
+since the library now incorporates it in its entirety.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+It's now possible for a game to provide custom code to break ties in
+topic matches, when more than one topic matches the player's input
+with the same score.  In the past, the parser just chose a matching
+topic entry arbitrarily.  In some cases, it's possible for the game to
+make a smarter choice based on the exact input text.  In addition, the
+parser now automatically filters tie lists by selecting exact text
+matches over truncated text matches.
+
+<p>To add a custom tie-breaker, you add the method breakTopicTie to
+one or more of your TopicEntry objects.  This method receives as
+arguments the list of tied TopicEntry objects, the original
+ResolvedTopic object from the parser, the atcor, and the original
+input token list.  When a topic tie occurs, the parser calls this
+method on each tied TopicEntry object in turn, in in arbitrary order.
+This method can either select the tie-breaker or do nothing.  If it
+selects the tie-breaker, the selection process ends immediately with
+the selected winner; otherwise, the parser continues calling
+breakTopicTie on the remaining TopicEntry objects in the list of ties.
+
+<p>This method was added to address a situation where two topics
+happened to match the same input due to vocabulary truncation.
+Suppose we have a game object that matches the vocabulary "elephant",
+and another that matches "elephants".  If the player enters ASK ABOUT
+ELEPHANT, the word ELEPHANT in the input will match both game objects,
+since the parser allows the user to abbreviate words by truncating to
+the first six characters only.  Now suppose we have separate topic
+entries for these two objects, and that both topics are active at the
+same time and have the same match score.  This results in a topic tie,
+triggering the new tie-breaking code.
+
+<p>For the sake of this example, let's suppose that you want to
+distinguish between ASK ABOUT ELEPHANT and ASK ABOUT ELEPHANTS (which
+stands to reason, as you probably wouldn't have created both topic
+entries otherwise).  In the past, since we have a tie between the two
+topic entries, the parser simply chose one arbitrarily.  You can now
+specifically select one or the other for a given entry, by writing a
+breakTopicTie method.  Since we want ASK ABOUT ELEPHANT to match the
+singular version of the topic, here's how the method would look:
+
+<p>
+<pre>
+    breakTopicTie(matches, topic, actor, toks)
+    {
+        if (toks[1].toLower() == 'elephant')
+            return self;
+        return nil;
+    }
+</pre>
+
+<p>You can add this method to either TopicEntry object, but it really
+belongs conceptually with the singular version of the topic.
+
+<p>The default handling for breakTopicTie() is simply to return nil,
+which defers to other objects in the list to make the selection.
+
+<p>For the specific case of truncation matching, you actually don't
+have to write a breakTopicTie() method after all, since the parser now
+<b>also</b> uses vocabulary truncation to break ties on its own.  It
+does this <b>after</b> applying any custom breakTopicTie() results.
+That is, if breakTopicTie() fails to break the tie, because none of
+the TopicEntry objects return a non-nil result for the method, the
+parser tries to break the tie on its own by comparing vocabulary
+truncation flags.  If one topic entry matched with truncation, and
+another didn't, the parser will select the one that matched without
+truncation.
+
+<p>The parser selects by truncation because this is probably the most
+common basis for selection.  But it's certainly not the only basis.
+Other selection criteria could include word order, and the presence or
+absence of certain words.  Those sorts of criteria would be very
+difficult to encode into a general framework, thus breakTopicTie()
+leaves it to the game to make the selection.
+
+<p>This feature addresses <a
+href="http://bugdb.tads.org/view.php?id=78">bugdb.tads.org #0000078</a>.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The scheme that selects which message to display for a reportFailure()
+or similar message call had a problem when a verb had both a direct
+and an indirect object, <i>and</i> both of those objects had overrides
+for the same message.  The message generator always gave priority to
+the direct object when both objects had overrides, which was wrong if
+the message was due to a condition relating to the indirect object.
+For example, given an Underside and a Container, both with limited
+bulk, "PUT Underside IN Container" showed the Underside's bulk error
+message ("The Container won't fit under the Underside"), since the
+Underside is the direct object.
+
+<p>The message generator now gives priority to the <i>calling</i>
+object.  The generator looks in the stack trace for a "self" object in
+the source list, and gives priority to the first source object it
+finds.  This is the source object whose method is actually generating
+the message; this will usually be a verify(), check(), or action()
+method to process a verb, so presumably it's the object to which the
+error condition applies.
+
+<p>(It's certainly valid to generate messages from other places than
+the verify(), check(), and action() methods, or indeed from an object
+that's not one of the message sources.  But the source priority
+shouldn't matter in those cases, because the message presumably has no
+particular object affiliation anyway if it's not being generated by
+code attached to one of the source objects.)
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=61">bugdb.tads.org #0000061</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The new TAction methods getDobjTokens() and getDobjWords() make it easier
+to retrieve the original text entered by the player to refer to the current
+direct object.  These work only when there's an active direct object
+(a non-nil object in gDobj).
+
+<p>The corresponding new TIAction methods getIobjTokens() and getIobjWords()
+retrieve the original text of the current indirect object.
+
+<p>The token lists returned generally contain the full phrase that the
+player entered, including qualifiers like articles ("the") and possessives.
+When the player enters a list ("take book, bell, and candle"), the
+token list will only include the phrase for the current object, not
+the whole list. 
+
+<p>Original text isn't always available even when there's a valid
+direct/indirect object in play.  For example, text isn't generally
+available when the action is a nested or implied action, since these
+actions are synthesized internally within the game rather than being
+parsed from user input.  The new methods return nil when there's no
+original text available for the corresponding objects.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+In the past, the getOrigTokenList() method on a noun phrase that had
+been manually disambiguated ("which book do you mean...") returned
+only the tokens of the user's last answer.  For example, if the player
+typed "take book", and answered the "which book" question with "blue",
+then getOrigTokenList() on the resulting noun phrase returned just the
+"blue" token.
+
+<p>The parser now builds a token list that has the complete original
+noun phrase plus the disambiguation answer (or answers, if multiple
+questions were needed to narrow the list sufficiently).  The naive way
+to do this (at least in English) might be to simply prepend the
+disambiguation answer to the original noun phrase, on the assumption
+that the answer is simply an adjective modifying the original phrase;
+this would work for the "blue book" example above.  One problem with
+this is that some names include prepositional phrases, such as "stack
+of bills"; we'd want a "which one?" answer of "$20" to turn this into
+"stack of $20 bills" instead of "$20 stack of bills", since that would
+mean something rather different.  The bigger problem is that the
+parser accepts a number of answer formats that aren't mere adjectives,
+such as "the blue one", "both", "any of them", and "2" or "second" or
+"the second one" to pick the second item listed in the parser's "which
+book" question.  These obviously would produce nonsense using the
+naive algorithm.
+
+<p>The parser's solution is to append each new answer parenthetically
+to the end of the original phrase.  This produces a result that's at
+least comprehensible (and usually pretty good) for any answer format,
+because it parallels the way the phrase was actually built, as a
+series of post hoc clarifications: "book (the blue one)" or "tea (Earl
+Gray) (hot)".  Further, if there's a need to display the phrase to the
+player, it should make sense to the player because it parrots back
+what they just typed, retaining the same word order and grouping.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+SenseConnector now overrides checkThrowViaPath(), to handle throwing
+objects across the connector independently of "move" and "reach"
+operations.  In the past, throwing was handled as equivalent to
+moving, but this caused an unintended change of behavior when
+DistanceConnector was recently changed (in 3.0.16) to allow moving
+objects across a distance.
+
+<p>SenseConnector also defines a new method, checkThrowThrough().
+This method is the "throw" equivalent of the existing methods
+checkMoveThrough() and checkTouchThrough().  The default definition of
+the new method returns a failure indication, parallel to the
+corresponding existing methods for "move" and "reach".
+
+<p>Finally, DistanceConnector overrides checkThrowThrough() in
+parallel to its corresponding overrides for "move" and "reach".
+
+<p>This change (a) restores the pre-3.0.16 behavior for throwing
+across a distance, by disallowing it, and (b) makes it possible to
+define independent move, reach, and throw handling for sense
+connectors.
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The English parser now accepts "LOOK <i>thing</i>" and "L
+<i>think</i>" as synonyms for "LOOK AT <i>thing</i>", since it's been
+observed that many novice players use this syntax.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=91">bugdb.tads.org #0000091</a>)
+
+</div>
+
+
+<!------------------->
+<div class=entry>
+
+Thing.addToContents() now skips adding the child object to the
+'contents' list if it's already there.  In the past, it was possible
+to cause an item to added to its parent's contents list twice, by
+explicitly using moveInto() in an initializeThing() override; this
+caused strange behavior, such as listing the child item twice in
+contents list messages.  The extra check avoids this unintended
+duplication.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=67">bugdb.tads.org #0000067</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+Using a RoomPart as a regular contents item in a room (rather than as
+an element of a roomParts list) caused a run-time error on LOOK AROUND
+in some cases.  This has been corrected.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=76">bugdb.tads.org #0000076</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+In the past, if you put one StretchyContainer inside another, the library
+didn't properly enforce the bulkCapacity of the outer container when adding
+new contents to the inner container.  (Since the inner container is itself
+a StretchyContainer, its bulk can increase when a new item is added, which
+can make it too large for the outer container.)  This has been corrected.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=68">bugdb.tads.org #0000068</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+ASK ABOUT and other topic verbs sometimes didn't work properly when
+plural words were used in the topic phrase.  This has been corrected.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=69">bugdb.tads.org #0000069</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The English command grammar now allows "the" as an article in
+possessive phrases, as in "the orc's axe".  In the past, possessive
+phrases didn't allow any article qualifier (the library took the
+overly narrow view that possessives are usually proper names, as in
+"Bob's book").
+
+<p>In addition, plural possessives, signified by an apostrophe at the
+end of a plural word, are now accepted.  For example, "the Smiths'
+house" would be accepted if "Smiths" is defined as a plural word.
+(<a href="http://bugdb.tads.org/view.php?id=77">bugdb.tads.org #0000077</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The Lister had a bug involving list groups with minimum group sizes.
+If there weren't enough candidate items to list with a group,
+according to the group's minGroupSize property, but there were more
+than one item, the list builder incorrectly included only one of the
+items in the final list, omitting the others.  This has been corrected
+- the list builder now includes moves all of the candidate items to
+the "singles" list, so they all show up in the final list.
+(<a href="http://bugdb.tads.org/view.php?id=83">bugdb.tads.org #0000083</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+In the past, if a command contained a noun phrase of the form THE ONE
+IN <i>CONTAINER</i>, and the phrase required interactive
+disambiguation, the parser incorrectly acted as though the player
+answered the "which one do you mean?" prompt with ALL.  This was due
+to a parser bug; it's now fixed.
+
+(<a href="http://bugdb.tads.org/view.php?id=95">bugdb.tads.org #0000095</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The parser now gives priority to a possessive-phrase interpretation of
+a noun phrase that doesn't match anything in scope, in cases where the
+same words could be interpreted as a plain noun phrase without any
+possessive qualifiers.  For example, in the library sample game, we
+have an object defined with vocabulary words including "Bob's fish
+cleaner", which means that "Bob's" is defined as an adjective in the
+dictionary.  "Bob" also is the name of an actor in the game, so the
+word "Bob's" in player input can be interpreted in two ways: as an
+adjective, or as a possessive qualifier.  If the player enters a noun
+phrase such as "Bob's desk", the same phrase can be interpreted with
+two very different grammatical structures: the possessive qualifier
+"Bob's" modifying an underlying noun phrase "desk", or the noun phrase
+"Bob's desk", where the first word is a simple adjective from the
+dictionary.  In the past, the parser considered the two phrasings be
+equally strong at the structural level.  If one phrasing has a valid
+resolution (i.e., it could be mapped to in-scope objects) and the
+other doesn't, the structural equivalence doesn't matter, because the
+parser always picks the phrase that has the best resolution to game
+objects.  However, in cases where neither phrasing has a resolution -
+because there's no desk in scope at all, say - the parser picks the
+interpretation based on structural strength.  Since the two phrasings
+were equally strong, the parser picked one arbitrarily.  If the winner
+happened to be the adjective interpretation, this produced the odd
+error message "You see no bob's desk here."  Now, with this change,
+the parser gives priority to the possessive interpretation in cases
+where other things are equal, so the error will be "You see no desk
+here."  This is a better message because the unmatched object really
+is simply "desk", regardless of whose desk it is; reporting that
+"bob's desk" is the missing object seems overly literal.
+
+(<a href="http://bugdb.tads.org/view.php?id=96">bugdb.tads.org #0000096</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+Room now provides a suitable message for cases where objects are
+thrown within the room, but there's no floor object among the room
+part list for the room.  In the past, this caused a run-time error,
+because there was no message defined for this situation.
+
+<p>When an object is thrown, the library's default handling is simply
+to drop the object into the room, as though the player had typed DROP
+<i>PROJECTILE</i>.  The default message, though, describes the object
+as "falling <i>to the floor</i>", where <i>to the floor</i> is
+replaced by a message that depends on the "nominal drop destination"
+for the location - i.e., the object where things are <i>described</i>
+as landing when dropped in the room.  The standard nominal drop is the
+room's floor, which is to say the Floor object in the room's roomParts
+list.  If there's no floor object, though, the fallback is the Room
+itself.  The run-time error occurred because Room didn't have the
+associated message property for this situation.  The <i>to the
+floor</i> phrase in the message is obtained via the putDestMessage
+property, which Room didn't define.  Room now defines this property as
+the message property pointer &amp;putDestRoom.  libMessages in the
+English library in turn defines putDestRoom to display "into <i>the
+room</i>".  The result is that THROW PROJECTILE AT WALL in a room
+without a floor now properly replies "...and falls into <i>the
+room</i>", instead of causing a run-time error.
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=78">bugdb.tads.org #0000078</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+Using replaceAction with GiveTo sometimes caused a run-time error.
+(This was due a complex interaction with the giveMeToAskFor global
+remapping.  AskFor is a "topic" action, but GiveTo isn't; the remapping
+tried to resolve the GiveTo direct object as a topic for AskFor, but
+within the context of the GiveTo verb, which didn't provide one of
+the required resolver methods, createTopicQualifierResolver.  This
+method is now defined for the base Action class, since this situation
+creates a dependency on it even for ordinary non-topic action types.)
+
+<p>(<a href="http://bugdb.tads.org/view.php?id=103">bugdb.tads.org #0000103</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The English library message for an empty topic inventory has been reworded
+slightly for the past-tense version, replacing "right now" with "just then".
+
+</div>
+
 
 <!------------------------------- 3.0.18.1 --------------------------------->
 <div class="sepbar"><a name='3018a'></a>3.0.18.1</div>
@@ -229,7 +712,7 @@ involving a locational qualifier, using nothing more than an adjective
 or noun from one of the location names.  For example:
 
 <p><pre>
-&lt;take torch
+&gt;take torch
 Which torch do you mean, the torch in the left sconce, or the torch in
 the right sconce?
 

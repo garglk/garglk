@@ -2186,7 +2186,8 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
                  *   see if the file signature matches a known media type.  
                  */
                 if (len > 10
-                    && bufp[0] == 0xff && bufp[1] == 0xd8
+                    && (unsigned char)bufp[0] == 0xff
+                    && (unsigned char)bufp[1] == 0xd8
                     && memcmp(bufp+6, "JFIF", 4) == 0)
                 {
                     /* it's a JPEG image */

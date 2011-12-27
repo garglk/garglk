@@ -1,0 +1,77 @@
+/*
+ *   TADS Web UI - style sheet for command window.  The command window is
+ *   where we display the traditional terminal-style conversation between
+ *   player and game, with game output alternating with command-line
+ *   input.
+ */
+
+html {
+    border: 0px;
+    margin: 0px;
+    padding: 0px;
+    border-collapse: collapse;
+}
+body.cmdwin {
+    border: 0px;
+    border-collapse: collapse;
+    margin: 8px;
+}
+div.outputdiv {
+    padding: 0px;
+    margin: 0px;
+}
+span.cmdlineActive {
+    white-space: nowrap;
+}
+input.cmdline {
+    background: transparent;
+    outline: 0px;
+    border: 0px;
+    margin: 0px;
+    white-space: nowrap;
+    border: 0px solid black; 
+    vertical-align: baseline;
+}
+.cmdline {
+    /* the following can be controlled by the player via the preferences
+       mechanism - we mention them here for documentation only, since
+       the default is to inherit the body settings */
+    /* font-family: inherit; */
+    /* font-size: inherit; */
+    /* color: inherit; */
+    /* font-weight: normal; */
+    /* font-style: normal; */
+}
+.cmdlineOld {
+    white-space: pre;
+}
+.cmdlineInterrupted {
+    white-space: pre;
+    color: #707070;
+}
+span.cmdFromUser {
+}
+div.bottomSpacerDiv {
+    height: 2em;
+}
+div#maindiv {
+    margin: 0px;
+    padding: 0px;
+}
+div#maindiv_lineht {
+    position: absolute;
+    top: -3em;
+    height: 1.4em;
+}
+div#cmdline_probe {
+    position: absolute;
+    top: -3000px;
+}
+
+div.morePrompt {
+    color: #ffffff;
+    border-top: 1px dotted #808080;
+    background: #0000a0;
+    margin: 0px -1em;
+    padding: 4px 2em;
+}

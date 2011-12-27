@@ -29,6 +29,7 @@
 #define TypeFuncPtr     12
 #define TypeNativeCode  14
 #define TypeEnum        15
+#define TypeBifPtr      16
 
 
 /* ------------------------------------------------------------------------ */
@@ -102,8 +103,26 @@ intrinsic class Object 'root-object/030004'
  *   The IntrinsicClass intrinsic class.  Objects of this type represent the
  *   intrinsic classes themselves.  
  */
-intrinsic class IntrinsicClass 'intrinsic-class/030000': Object
+intrinsic class IntrinsicClass 'intrinsic-class/030001': Object
 {
+    /*
+     *   Class method: is the given value an IntrinsicClass object?  This
+     *   returns true if so, nil if not.  
+     *   
+     *   It's not possible to determine if an object is an IntrinsicClass
+     *   object using x.ofKind(IntrinsicClass) or via x.getSuperclassList().
+     *   This is because those methods traverse the nominal class tree:
+     *   [1,2,3] is a List, and List is an Object.  However, List and Object
+     *   themselves are represented by IntrinsicClass instances, and it's
+     *   occasionally useful to know if you're dealing with such an object.
+     *   That's where this method comes in.
+     *   
+     *   This method returns nil for instances of an intrinsic class.  For
+     *   example, isIntrinsicClass([1,2,3]) returns nil, because [1,2,3] is a
+     *   List instance.  If you get the superclass list for [1,2,3], though,
+     *   that will be [List], and isIntrinsicClass(List) returns true.
+     */
+    isIntrinsicClass(obj);
 }
 
 /*
@@ -218,7 +237,7 @@ intrinsic class AnonFuncPtr 'anon-func-ptr': Vector
  *   defines with the "class" or "object" statements descend from this
  *   class.  
  */
-intrinsic class TadsObject 'tads-object/030004': Object
+intrinsic class TadsObject 'tads-object/030005': Object
 {
     /* 
      *   Create an instance of this object: in other words, create a new
@@ -268,7 +287,13 @@ intrinsic class TadsObject 'tads-object/030004': Object
      *   
      *   We could obtain the same effect dynamically like so:
      *   
-     *   local d = TadsObject.createInstanceOf([A, x], B, [C, y]); 
+     *   local d = TadsObject.createInstanceOf([A, x], B, [C, y]);
+     *   
+     *   Note that only *actual* lists are interpreted as constructor
+     *   invokers here.  A list-like object (with operator[] and length()
+     *   methods) will be treated as a simple superclass, since otherwise it
+     *   wouldn't be possible to specify the no-constructor format for such a
+     *   superclass.  
      */
     static createInstanceOf(...);
 
@@ -288,6 +313,30 @@ intrinsic class TadsObject 'tads-object/030004': Object
      *   the list.  
      */
     setSuperclassList(scList);
+
+    /* 
+     *   Get a method value.  If the property is a method, this returns a
+     *   function pointer to the method; this does NOT evaluate the method.
+     *   If the property is not a method, this returns nil.
+     *   
+     *   The returned function pointer can be called like an ordinary
+     *   function, but such a call will have no 'self' value, so the
+     *   disembodied method won't be able to refer to properties or methods
+     *   of 'self'.  The main use of this method is to get a method of one
+     *   object to assign as a method of another object using setMethod().  
+     */
+    getMethod(prop);
+
+    /*
+     *   Set a method value.  Assigns the given function (which must be a
+     *   function pointer value) to the given property of 'self'.  This
+     *   effectively adds a new method to the object.
+     *   
+     *   The function can be an ordinary named function, or a method pointer
+     *   retrieved from this object or from another object with getMethod().
+     *   Anonymous functions are NOT allowed here.  
+     */
+    setMethod(prop, func);
 }
 
 
@@ -304,7 +353,7 @@ intrinsic class TadsObject 'tads-object/030004': Object
 /*
  *   The native string type. 
  */
-intrinsic class String 'string/030005': Object
+intrinsic class String 'string/030006': Object
 {
     /* get the length of the string */
     length();
@@ -337,19 +386,290 @@ intrinsic class String 'string/030005': Object
     endsWith(str);
 
     /* 
-     *   Map to a byte array, converting to the given character set.
-     *   'charset' must be an object of intrinsic class CharacterSet; the
+     *   Map to a byte array, converting to the given character set.  If
+     *   'charset' is provided, it must be an object of intrinsic class
+     *   CharacterSet, or a string giving the name of a character set.  The
      *   characters in the string will be mapped from the internal Unicode
      *   representation to the appropriate byte representation in the given
-     *   character set.  
+     *   character set.  Any unmappable characters are replaced with the
+     *   usual default/missing character for the set, as defined by the
+     *   mapping.
+     *   
+     *   If 'charset' is omitted or nil, the byte array is created simply by
+     *   treating the Unicode character code of each character in the string
+     *   as a byte value.directly to byte value.  A byte can only hold values
+     *   from 0 to 255, so a numeric overflow will occur if any character
+     *   code is outside this range.  
      */
-    mapToByteArray(charset);
+    mapToByteArray(charset?);
 
     /* 
      *   Replace one occurrence or all occurrences of the given substring
-     *   with the given new string.  
+     *   with the given new string.
+     *   
+     *   'self' is the subject string, which we search for instances of the
+     *   replacement.  'origStr' is the string to search for within 'self',
+     *   and 'newStr' is the string to replace it with on each occurrence.
+     *   
+     *   'newStr' can be a function (regular or anonymous) instead of a list.
+     *   In this case, it's invoked as 'newStr(match, index, orig)' for each
+     *   match where 'match' is the matching text, 'index' is the index
+     *   within the original subject string of the match, and 'orig' is the
+     *   full original subject string.  This function must return a string
+     *   value, which is used as the replacement text.  Using a function
+     *   allows greater flexibility in specifying the replacement, since it
+     *   can vary the replacement according to the actual text matched and
+     *   its position in the subject string.
+     *   
+     *   'flags' is a combination of ReplaceXxx flags specifying the search
+     *   options.  It's optional; if omitted, the default is ReplaceAll.
+     *   
+     *   'index' is the starting index within 'self' for the search.  If this
+     *   is given, we'll ignore any matches that start before the starting
+     *   index.  If 'index' is omitted, we start the search at the beginning
+     *   of the string.  If 'index' is negative, it's an index from the end
+     *   of the string: -1 is the last character, -2 the second to last, etc.
+     *   
+     *   'origStr' can be given as a list of search strings, rather than a
+     *   single string.  In this case, we'll search for each of the strings
+     *   in the list, and replace each one with 'newStr'.  If 'newStr' is
+     *   also a list, each match to an element of the 'origStr' list is
+     *   replaced with the corresponding element (at the same index) of the
+     *   'newStr' list.  If there are more 'origStr' elements than 'newStr'
+     *   elements, each match to an excess 'origStr' element is replaced with
+     *   an empty string.  This allows you to perform several replacements
+     *   with a single call.
+     *   
+     *   There are two search modes when 'origStr' is a list.  The default is
+     *   "parallel" mode.  In this mode, we search for all of the 'origStr'
+     *   elements, and replace the leftmost match.  We then search the
+     *   remainder of the string, after this first match, again searching for
+     *   all of the 'origStr' elements.  Again we replace the leftmost match.
+     *   We repeat this until we run out of matches.
+     *   
+     *   The other option is "serial" mode, which you select by including
+     *   ReplaceSerial in the flags argument.  In serial mode, we start by
+     *   searching only for the first 'origStr' element.  We replace each
+     *   occurrence throughout the string (unless we're in ReplaceOnce mode,
+     *   in which case we stop after the first replacement).  If we're in
+     *   ReplaceOnce mode and we did a replacement, we're done.  Otherwise,
+     *   we start over with the updated string, containing the replacements
+     *   so far, and search it for the second 'origStr' element, replacing
+     *   each occurrence (or just the first, in ReplaceOnce mode).  We repeat
+     *   this for each 'origStr' element.
+     *   
+     *   The key difference between the serial and parallel modes is that the
+     *   serial mode re-scans the updated string after replacing each
+     *   'origStr' element, so replacement text could itself be further
+     *   modified.  Parallel mode, in contrast, never re-scans replacement
+     *   text.  
      */
-    findReplace(origStr, newStr, flags, index?);
+    findReplace(origStr, newStr, flags?, index?);
+
+    /*
+     *   Splice: delete 'del' characters starting at 'idx', and insert the
+     *   string 'ins' in their place.  'ins' is optional; if omitted, this
+     *   simply does the deletion without inserting anything.  
+     */
+    splice(idx, del, ins?);
+
+    /*
+     *   Split the string into substrings at the given delimiter, or of a
+     *   given fixed length.
+     *   
+     *   'delim' is the delimiter.  It can be one of the following:
+     *   
+     *   - A string or RexPattern, giving the delimiter where we split the
+     *   string.  We search 'self' for matches to this string or pattern, and
+     *   split it at each instance we find, returning a list of the resulting
+     *   substrings.  For example, 'one,two,three'.split(',') returns the
+     *   list ['one', 'two', 'three'].  The delimiter separates parts, so
+     *   it's not part of the returned substrings.
+     *   
+     *   - An integer, giving a substring length.  We split the string into
+     *   substrings of this exact length (except that the last element will
+     *   have whatever's left over).  For example, 'abcdefg'.split(2) returns
+     *   ['ab', 'cd', 'ef', 'g'].
+     *   
+     *   If 'delim' is omitted or nil, the default is 1, so we'll split the
+     *   string into one-character substrings.
+     *   
+     *   If 'limit' is included, it's an integer giving the maximum number of
+     *   elements to return in the result list.  If we reach the limit, we'll
+     *   stop the search and return the entire rest of the string as the last
+     *   element of the result list.  If 'limit' is 1, we simply return a
+     *   list consisting of the source string, since a limit of one element
+     *   means that we can't make any splits at all.  
+     */
+    split(delim?, limit?);
+
+    /*
+     *   Convert special characters and TADS markups to standard HTML
+     *   markups.  Returns a new string with the contents of the 'self'
+     *   string processed as described below.
+     *   
+     *   'stateobj' is an object containing the state of the output stream.
+     *   This allows an output stream to process its contents a bit at a
+     *   time, by maintaining the state of the stream from one call to the
+     *   next.  This object gives the prior state of the stream on entry, and
+     *   is updated on return to contain the new state after processing this
+     *   string.  If this is omitted or nil, a default initial starting state
+     *   is used.  The function uses the following properties of the object:
+     *   
+     *   stateobj.flags_ is an integer with a collection of flag bits giving
+     *   the current line state
+     *   
+     *   stateobj.tag_ is a string containing the text of the tag currently
+     *   in progress.  If the string ends in the middle of a tag, this will
+     *   be set on return to the text of the tag up to the end of the string,
+     *   so that the next call can resume processing the tag where the last
+     *   call left off.
+     *   
+     *   
+     *   The function makes the following conversions:
+     *   
+     *   \n -> <BR>, or nothing at the start of a line
+     *   
+     *   \b -> <BR> at the start of a line, or <BR><BR> within a line
+     *   
+     *   \ (quoted space) -> &nbsp; if followed by a space or another quoted
+     *   space, or an ordinary space if followed by a non-space character
+     *   
+     *   \t -> a sequence of &nbsp; characters followed by a space, padding
+     *   to the next 8-character tab stop.  This can't take into account the
+     *   font metrics, since that's determined by the browser, so it should
+     *   only be used with a monospaced font.
+     *   
+     *   \^ -> sets an internal flag to capitalize the next character
+     *   
+     *   \v -> sets an internal flag to lower-case the next character
+     *   
+     *   <Q> ... </Q> -> &ldquo; ... &rdquo; or &lsquo; ... &rsquo;,
+     *   depending on the nesting level
+     *   
+     *   <BR HEIGHT=N> -> N <BR> tags if at the start of a line, N+1 <BR>
+     *   tags if within a line
+     *   
+     *   
+     *   Note that this isn't a general-purpose HTML corrector: it doesn't
+     *   correct ill-formed markups or standardize deprecated syntax or
+     *   browser-specific syntax.  This function is specifically for
+     *   standardizing TADS-specific syntax, so that games can use the
+     *   traditional TADS syntax with the Web UI.  
+     */
+    specialsToHtml(stateobj?);
+
+    /*
+     *   Convert special characters and HTML markups to plain text, as it
+     *   would appear if written out through the regular console output
+     *   writer and displayed on a plain text terminal.  Returns a new string
+     *   with the contents of the 'self' string processed as described below.
+     *   This works very much like specialsToHtml(), but rather than
+     *   generating standard HTML output, we generate plain text output.
+     *   
+     *   'stateobj' has the same meaning asin specialsToHtml().  
+     *   
+     *   The function makes the following conversions:
+     *   
+     *   \n -> \n, or nothing at the start of a line
+     *   
+     *   \b -> \n at the start of a line, or \n\n within a line
+     *   
+     *   \ (quoted space) -> regular space
+     *   
+     *   \^ -> sets an internal flag to capitalize the next character
+     *   
+     *   \v -> sets an internal flag to lower-case the next character
+     *   
+     *   <Q> ... </Q> -> "..." or '...' depending on the quote nesting level
+     *   
+     *   <BR HEIGHT=n> -> N \n characters at the start of a line, N+1 \n
+     *   characters within a line
+     *   
+     *   <P> -> \n at the start of a line, \n\n within a line
+     *   
+     *   <TAG> -> nothing for all other tags
+     *   
+     *   &amp; -> &
+     *   
+     *   &lt; -> <
+     *   
+     *   &gt; -> >
+     *   
+     *   &quot; -> "
+     *   
+     *   &ldquo; and &rdquo; -> "
+     *   
+     *   &lsquo; and &rsquo; -> '
+     *   
+     *   &#dddd; -> Unicode character dddd 
+     */
+    specialsToText(stateobj?);
+
+    /*
+     *   Encode a URL parameter string.  Spaces are encoded as "+", and all
+     *   other non-alphanumeric characters except - and _ are encoded as
+     *   "%xx" sequences.  
+     */
+    urlEncode();
+    
+    /*
+     *   Decode a URL parameter string.  This reverses the effect of
+     *   urlEncode(), returning a string with the encodings translated back
+     *   into ordinary characters.  Any sequences that do not form valid
+     *   UTF-8 characters are converted to '?'.  
+     */
+    urlDecode();
+
+    /*
+     *   Get the SHA-256 hash of the string.  This calculates the 256-bit
+     *   Secure Hash Algorithm 2 hash value, returning the hash as a
+     *   64-character string of hex digits.  The hash value is computed on
+     *   the UTF-8 representation of the string.  
+     */
+    sha256();
+
+    /*
+     *   Get the MD5 digest of the string.  This calculates the 128-bit RSA
+     *   MD5 digest value, returning the digest as a 32-character string of
+     *   hex digits.  The hash value is computed on the UTF-8 representation
+     *   of the string. 
+     */
+    digestMD5();
+
+    /*
+     *   Pack the arguments into bytes, and create a new string from the byte
+     *   values.  The characters of the new string correspond to the packed
+     *   byte values, so each character will have a Unicode character number
+     *   from 0 to 255.
+     *   
+     *   'format' is a format string describing the packed formats for the
+     *   values, and the rest of the arguments are the values to pack into
+     *   the string.  Returns a string containing the packed bytes.
+     *   
+     *   See Byte Packing in the System Manual for more details.  
+     */
+    static packBytes(format, ...);
+
+    /*
+     *   Unpack this string, interpreting the characters in the string as
+     *   byte values, and unpacking the bytes according to the format string.
+     *   Each character in the string must have a Unicode character number
+     *   from 0 to 255; if any characters are outside this range, an error is
+     *   thrown.
+     *   
+     *   This method can be used to unpack a string created with
+     *   String.packBytes().  In most cases, using the same format string
+     *   that was used to pack the bytes will re-create the original values.
+     *   This method can also be convenient for parsing plain text that's
+     *   arranged into fixed-width fields.
+     *   
+     *   'format' is the format string describing the packed byte format.
+     *   Returns a list consisting of the unpacked values.
+     *   
+     *   See Byte Packing in the System Manual for more details.  
+     */
+    unpackBytes(format);
 }
 
 /*
@@ -381,17 +701,23 @@ intrinsic class String 'string/030005': Object
 /*
  *   Flags for String.findReplace 
  */
+#define ReplaceAll         0x0001
+#define ReplaceIgnoreCase  0x0002
+#define ReplaceFollowCase  0x0004
+#define ReplaceSerial      0x0008
+#define ReplaceOnce        0x0010
 
-/* replace only one occurrence, or replace all occurrences */
-#define ReplaceOnce  0x0000
-#define ReplaceAll   0x0001
+/* property exports for specialsToHtml's state object */
+property flags_, tag_;
+export flags_ 'String.specialsToHtml.flags';
+export tag_ 'String.specialsToHtml.tag';
 
 
 /* ------------------------------------------------------------------------ */
 /*
  *   The native list type 
  */
-intrinsic class List 'list/030007': Collection
+intrinsic class List 'list/030008': Collection
 {
     /* 
      *   Select a subset of the list: returns a new list consisting only
@@ -522,10 +848,14 @@ intrinsic class List 'list/030007': Collection
     prepend(val);
 
     /* 
-     *   Insert one or more elements at the given index.  If the index is 1,
-     *   the elements will be inserted before the first existing element.
-     *   If the index is one higher than the number of elements, the
-     *   elements will be inserted after all existing elements.
+     *   Insert one or more elements at the given index.  If the starting
+     *   index is 1, the elements will be inserted before the first existing
+     *   element.  If the index is one higher than the number of elements,
+     *   the elements will be inserted after all existing elements.  If the
+     *   index is negative, it counts backwards from the end of the list: -1
+     *   inserts before the last element, -2 inserts before the second to
+     *   last, and so on.  If the index is zero, the new elements are
+     *   inserted after the last element.
      *   
      *   Note that a list value argument will simply be inserted as a single
      *   element.
@@ -536,17 +866,19 @@ intrinsic class List 'list/030007': Collection
 
     /*
      *   Delete the element at the given index, reducing the length of the
-     *   list by one element.  Returns a new list with the given element
-     *   removed.  
+     *   list by one element.  If the index is negative, it counts from the
+     *   end of the list: -1 is the last element, -2 is the second to last,
+     *   etc.  Returns a new list with the given element removed.  
      */
     removeElementAt(index);
 
     /*
-     *   Delete the range of elements starting at startingIndex and ending
-     *   at endingIndex.  The elements at the ends of the range are included
-     *   in the deletion.  If startingIndex == endingIndex, only one element
-     *   is removed.  Returns a new list with the given element range
-     *   removed.  
+     *   Delete the range of elements starting at startingIndex and ending at
+     *   endingIndex.  The elements at the ends of the range are included in
+     *   the deletion.  If startingIndex == endingIndex, only one element is
+     *   removed.  If either index is negative, it counts from the end of the
+     *   list: -1 is the last element, -2 is the second to last, etc.
+     *   Returns a new list with the given element range removed.  
      */
     removeRange(startingIndex, endingIndex);
 
@@ -555,6 +887,84 @@ intrinsic class List 'list/030007': Collection
      *   first to last.  No return value.  
      */
     forEachAssoc(func);
+
+    /*
+     *   Class method: Generate a new list.  'func' is a callback function,
+     *   which can take zero or one argument.  'n' is the number of elements
+     *   for the new list.  For each element, 'func' is invoked as func() if
+     *   it takes no arguments, or func(idx) if it takes one argument, where
+     *   'idx' is the index of the element being generated.  The return value
+     *   of the call to 'func' is stored as the list element.  The method
+     *   returns the resulting list.  For example, a list of the first ten
+     *   even positive integers: List.generate({i: i*2}, 10).  
+     */
+    static generate(func, n);
+
+    /*
+     *   Splice new values into the list.  Deletes the 'del' list items
+     *   starting at 'idx', then inserts the extra arguments in their place.
+     *   Returns a new list reflecting the spliced values.  To insert items
+     *   without deleting anything, pass 0 for 'del'.  To delete items
+     *   without inserting anything, omit any additional arguments.  
+     */
+    splice(idx, del, ...);
+
+    /*
+     *   Combine the list elements into a string.  This converts each element
+     *   into a string value using the usual default conversions (or throws
+     *   an error if string conversion isn't possible), then concatenates the
+     *   values together and returns the result.  If 'separator' is provided,
+     *   it's a string that's interposed between elements; if this is
+     *   omitted, the elements are concatenated together with no extra
+     *   characters in between.  
+     */
+    join(sep?);
+
+    /*
+     *   Get the index of the list item with the minimum value.  If 'func' is
+     *   missing, this simply returns the index of the list element with the
+     *   smallest value, comparing the element values as though using the '>'
+     *   and '<' operators.  If 'func' is specified, it must be a function;
+     *   it's called as func(x) for each value in the list, and the result of
+     *   the overall call is the index of the element for which func(x)
+     *   returns the smallest value.  For example, if you have a list of
+     *   strings l, l.indexOfMin({x: x.length()}) returns the index of the
+     *   shortest string in the list.  
+     */
+    indexOfMin(func?);
+
+    /*
+     *   Get the minimum value in the list.  If 'func' is missing, this
+     *   returns the minimum element value.  If 'func' is specified, it must
+     *   be a function; it's called as func(x) for each value in the list,
+     *   and the result of the overall method call is the element value x
+     *   that minimizes func(x).  For example, if l is a list of strings,
+     *   l.minVal({x: x.length()}) returns the shortest string.  
+     */
+    minVal(func?);
+
+    /*
+     *   Get the index of the list item with the maximum value.  If 'func' is
+     *   missing, this simply returns the index of the list element with the
+     *   largest value, comparing the element values as though using the '>'
+     *   and '<' operators.  If 'func' is specified, it must be a function;
+     *   it's called as func(x) for each value in the list, and the result of
+     *   the overall call is the index of the element for which func(x)
+     *   returns the greatest value.  For example, if you have a list of
+     *   strings l, l.indexOfMax({x: x.length()}) returns the index of the
+     *   longest string in the list.  
+     */
+    indexOfMax(func?);
+
+    /*
+     *   Get the maximum value in the list.  If 'func' is missing, this
+     *   returns the largest element value.  If 'func' is specified, it must
+     *   be a function; it's called as func(x) for each value in the list,
+     *   and the result of the overall method call is the element value x
+     *   that maximizes func(x).  For example, if l is a list of strings,
+     *   l.maxVal({x: x.length()}) returns the longest string.  
+     */
+    maxVal(func?);
 }
 
 /*
@@ -564,6 +974,12 @@ intrinsic class List 'list/030007': Collection
  */
 #define SortAsc    nil
 #define SortDesc   true
+
+/*
+ *   Export length() as the element counter method for list-like objects in
+ *   general. 
+ */
+export length 'length';
 
 
 /* ------------------------------------------------------------------------ */
@@ -588,6 +1004,105 @@ intrinsic class RexPattern 'regex-pattern/030000': Object
 
     /* retrieve the original pattern string used to construct the object */
     getPatternString();
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   StackFrameDesc intrinsic class.  This class provides access to a stack
+ *   frame.  It lets us retrieve the values of local variables and method
+ *   context variables (self, definingobj, targetobj, targetprop).  It also
+ *   allows us to assign new values to local variables.
+ *   
+ *   To get the value of a local variable in the frame, simply use
+ *   frame[name], where 'frame' is the StackFrameDesc object for the frame,
+ *   and 'name' is a string giving the name of the local variable to
+ *   retrieve.  If the frame is active, this retrieves the live value of the
+ *   variable from the frame; otherwise it retrieves the value from a
+ *   snapshot containing the last value before the routine returned to its
+ *   caller.
+ *   
+ *   To assign a new value to a local in the frame, assign a value to
+ *   frame[name] for the desired variable name.  If the frame is active, this
+ *   updates the live variable in the stack frame, so when execution returns
+ *   to the caller the variable will have the new value.  If the frame is
+ *   inactive, it updates the snapshot we made when the routine returned to
+ *   its caller.
+ *   
+ *   This object can't be created with 'new'.  Instead, you obtain these
+ *   objects via the t3GetStackTrace() function.  That function retrieves
+ *   information on an active stack frame in the current call stack,
+ *   including the frame object.  
+ */
+intrinsic class StackFrameDesc 'stack-frame-desc/030000'
+{
+    /*
+     *   Is the stack frame active?  A stack frame is active until the
+     *   function or method it represents returns to its caller.  When the
+     *   routine returns, the frame becomes inactive.
+     *   
+     *   When the routine is about to return (so the frame is about to become
+     *   inacive), the StackFrameDesc object makes a private snapshot of the
+     *   variables in the frame.  Subsequent access to the locals will
+     *   automatically use the snapshot copy, so you can continue to access
+     *   the locals as normal without worrying about whether or not the
+     *   actual stack frame still exists.  This allows you to continue to
+     *   access and modify the values of the variables after the routine has
+     *   exited.  
+     */
+    isActive();
+
+    /*
+     *   Get a LookupTable consisting of all of the variables (local
+     *   variables and parameters) in the frame.  Each element in the table
+     *   is keyed by the name of a variable, and contains the current value
+     *   of the variable.
+     *   
+     *   The returned lookup table is a snapshot copy of the current values
+     *   of the variables.  If the underlying variable values in the frame
+     *   change, the lookup table won't be affected, since it's just a
+     *   separate copy made at the moment this routine is called.  Similarly,
+     *   changing the value of an entry in the returned lookup table won't
+     *   affect the actual variable in the stack frame.
+     *   
+     *   To retrieve the current live value of a variable in the actual stack
+     *   frame, use frame[name], where 'frame' is the StackFrameDesc object
+     *   for the frame, and 'name' is a string giving the variable name.  
+     */
+    getVars();
+
+    /*
+     *   Get the value of 'self' in this frame. 
+     */
+    getSelf();
+
+    /*
+     *   Get the value of 'definingobj' in this frame. 
+     */
+    getDefiningObj();
+
+    /*
+     *   Get the value of 'targetobj' in this frame. 
+     */
+    getTargetObj();
+
+    /*
+     *   Get the value of 'targetprop' in this frame. 
+     */
+    getTargetProp();
+
+    /*
+     *   Get the value of 'invokee' in this frame. 
+     */
+    getInvokee();
+}
+
+/*
+ *   A StackFrameRef is an internal object used with StackFrameDesc.  This
+ *   type is used internally by the VM; user code can't create an instance of
+ *   this class directly with 'new', and the class has no public methods.  
+ */
+intrinsic class StackFrameRef 'stack-frame-ref/030000'
+{
 }
 
 #endif /* _SYSTYPE_H_ */

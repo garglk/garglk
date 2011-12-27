@@ -140,7 +140,7 @@ inputManager: PostRestoreObject
              *   Read the input.  (Note that if our timeout is nil, this
              *   will simply act like the ordinary untimed inputLine.)  
              */
-            result = inputLineTimeout(timeout);
+            result = aioInputLineTimeout(timeout);
 
             /*
              *   If we're not allowing real-time event processing, freeze
@@ -175,16 +175,15 @@ inputManager: PostRestoreObject
             case InEvtTimeout:
                 /* 
                  *   We got a timeout without finishing the input line.
-                 *   This means that we have reached the time when the
-                 *   next real-time event is ready to execute.  Simply
-                 *   continue looping; we'll process all real-time events
-                 *   that are ready to go, then we'll resume reading the
-                 *   command.  
+                 *   This means that we've reached the time when the next
+                 *   real-time event is ready to execute.  Simply continue
+                 *   looping; we'll process all real-time events that are
+                 *   ready to go, then we'll resume reading the command.  
                  *   
                  *   Before we proceed, though, notify the command
                  *   sequencer (via the command-interrupt pseudo-tag) that
-                 *   we're at the start of output text after an
-                 *   interrupted command line input 
+                 *   we're at the start of output text after an interrupted
+                 *   command line input 
                  */
                 "<.commandint>";
                 break;
@@ -230,6 +229,28 @@ inputManager: PostRestoreObject
                 statusLine.showStatusLine();
 
                 /* back for more */
+                break;
+
+            case 'newGuest':
+                /* 
+                 *   Synthetic "new guest" event from the Web UI.  This
+                 *   indicates that a new user has joined the session.  The
+                 *   parameter is the new user's screen name.  Announce the
+                 *   new user's arrival as a real-time event, and go back
+                 *   to reading input.  
+                 */
+                "<.commandint>";
+                libMessages.webNewUser(result[2]);
+                break;
+
+            case 'logError':
+                /*
+                 *   Synthetic "log error" event from the Web UI.  The UI
+                 *   posts this type of an event when an error occurs in an
+                 *   asynchronous task, where it's not possible to display
+                 *   an error message directly. 
+                 */
+                "<.commandint>\b<<result[2]>>\b";
                 break;
             }
         }
@@ -281,7 +302,7 @@ inputManager: PostRestoreObject
         t0 = realTimeManager.getElapsedTime();
 
         /* run the MORE prompt */
-        morePrompt();
+        aioMorePrompt();
 
         /* if the transcript was previously active, re-activate it */
         if (wasTranscriptActive)
@@ -309,6 +330,61 @@ inputManager: PostRestoreObject
             processRealTimeEvents(true);
         }
     }
+
+    /*
+     *   Ask for an input file.  Freezes the real-time event clock for the
+     *   duration of reading the event.  
+     */
+    getInputFile(prompt, dialogType, fileType, flags)
+    {
+        /* 
+         *   note the game elapsed time before we start - we want to
+         *   freeze the real-time clock while we're waiting for the user
+         *   to respond, since this system verb exists outside of the
+         *   usual time flow of the game 
+         */
+        local origElapsedTime = realTimeManager.getElapsedTime();
+        
+        /* ask for a file */
+        local result = aioInputFile(prompt, dialogType, fileType, flags);
+
+        /* 
+         *   restore the game real-time counter to what it was before we
+         *   started the interactive response 
+         */
+        realTimeManager.setElapsedTime(origElapsedTime);
+
+        /* return the result from inputFile */
+        return result;
+    }
+
+    /*
+     *   Ask for input through a dialog.  Freezes the real-time clock for
+     *   the duration of the dialog display.  The arguments are the same as
+     *   for the built-in inputDialog() function.  
+     */
+    getInputDialog(icon, prompt, buttons, defaultButton, cancelButton)
+    {
+        /* 
+         *   note the current elapsed game real time, so we can restore it
+         *   after the dialog is done
+         */
+        local origElapsedTime = realTimeManager.getElapsedTime();
+
+        /* show the dialog */
+        local result = aioInputDialog(icon, prompt, buttons,
+                                      defaultButton, cancelButton);
+
+        /* 
+         *   restore the real-time counter, so that the time spent in the
+         *   dialog doesn't count 
+         */
+        realTimeManager.setElapsedTime(origElapsedTime);
+
+        /* return the dialog result */
+        return result;
+    }
+    
 
     /*
      *   Read a keystroke, processing real-time events while waiting, if
@@ -384,7 +460,7 @@ inputManager: PostRestoreObject
              *   Read the input.  (Note that if our timeout is nil, this
              *   will simply act like the ordinary untimed inputLine.)  
              */
-            result = inputEvent(timeout);
+            result = aioInputEvent(timeout);
 
             /*
              *   If we're not allowing real-time event processing, freeze
@@ -412,11 +488,10 @@ inputManager: PostRestoreObject
             case InEvtTimeout:
                 /* 
                  *   We got a timeout without finishing the input line.
-                 *   This means that we have reached the time when the
-                 *   next real-time event is ready to execute.  Simply
-                 *   continue looping; we'll process all real-time events
-                 *   that are ready to go, then we'll resume reading the
-                 *   command.  
+                 *   This means that we've reached the time when the next
+                 *   real-time event is ready to execute.  Simply continue
+                 *   looping; we'll process all real-time events that are
+                 *   ready to go, then we'll restart the event wait.
                  */
                 break;
             
@@ -479,7 +554,7 @@ inputManager: PostRestoreObject
     cancelInputInProgress(reset)
     {
         /* cancel the interpreter's internal input state */
-        inputLineCancel(reset);
+        aioInputLineCancel(reset);
 
         /* if we were editing a command line, terminate the editing session */
         if (inputLineInProgress)
@@ -653,12 +728,12 @@ inputManager: PostRestoreObject
     {
         /* 
          *   Reset the inputLine state.  If we had any previously
-         *   interrupted input from the current interpreter session,
-         *   forget it by cancelling and resetting the input line.  If we
-         *   had an interrupted line in the session being restored, forget
-         *   about that, too.  
+         *   interrupted input from the current interpreter session, forget
+         *   it by canceling and resetting the input line.  If we had an
+         *   interrupted line in the session being restored, forget about
+         *   that, too.  
          */
-        inputLineCancel(true);
+        aioInputLineCancel(true);
         inputLineInProgress = nil;
         inputEventInProgress = nil;
 

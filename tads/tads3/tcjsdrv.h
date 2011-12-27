@@ -179,7 +179,10 @@ public:
     vm_obj_id_t gen_code_obj_predot(int *is_self);
 
     /* generate code to push an integer constant */
-    static void s_gen_code_int(long intval);
+    static void s_gen_code_int(class js_expr_buf &expr, long intval);
+
+    /* generate code into an expression buffer */
+    void gen_code(class js_expr_buf &expr);
 };
 
 /*
@@ -424,10 +427,6 @@ public:
 
     /* generate code */
     void gen_code(int discard, int for_condition);
-
-    /* generate a condition */
-    virtual void gen_code_cond(struct CTcCodeLabel *then_label,
-                               struct CTcCodeLabel *else_label);
 };
 
 
@@ -444,10 +443,6 @@ public:
 
     /* generate code */
     void gen_code(int discard, int for_condition);
-
-    /* generate a condition */
-    virtual void gen_code_cond(struct CTcCodeLabel *then_label,
-                               struct CTcCodeLabel *else_label);
 };
 
 
@@ -1344,6 +1339,9 @@ public:
         /* return the local ID */
         return fin_ret_lcl_;
     }
+
+    /* generate as an anonymous function */
+    void js_anon_func();
 
 protected:
     /* 

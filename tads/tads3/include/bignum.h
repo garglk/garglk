@@ -36,10 +36,10 @@
  *   value, the more memory the object consumes, and the more time it takes
  *   to perform calculations using the value.  
  */
-intrinsic class BigNumber 'bignumber/030000': Object
+intrinsic class BigNumber 'bignumber/030001': Object
 {
     /* format to a string */
-    formatString(maxDigits, flags?,
+    formatString(maxDigits?, flags?,
                  wholePlaces?, fracDigits?, expDigits?, leadFiller?);
 
     /* 
@@ -58,7 +58,7 @@ intrinsic class BigNumber 'bignumber/030000': Object
      *   Return a new number, with the same value as this number but with
      *   the given number of decimal digits of precision.  If the new
      *   precision is higher than the old precision, this will increase
-     *   the precision to the requested new size and add trailing zeroes
+     *   the precision to the requested new size and add trailing zeros
      *   to the value.  If the new precision is lower than the old
      *   precision, we'll round the number for the reduced precision.  
      */
@@ -215,13 +215,22 @@ intrinsic class BigNumber 'bignumber/030000': Object
     cosh();
     tanh();
 
-    /* get the value of pi to a given precision */
+    /* class method: get the value of pi to a given precision */
     getPi(digits);
 
-    /* get the value of e to a given precision */
+    /* class method: get the value of e to a given precision */
     getE(digits);
+
+    /*
+     *   Get the type of this number.  This returns a combination of
+     *   NumTypeXxx flags, combined with the '|' operator.  This can be used
+     *   to check for special values, such as infinites and "not a number"
+     *   values.  
+     */
+    numType();
 }
 
+/* ------------------------------------------------------------------------ */
 /*
  *   flags for formatString 
  */
@@ -229,7 +238,7 @@ intrinsic class BigNumber 'bignumber/030000': Object
 /* always show a sign, even if positive */
 #define BignumSign          0x0001
 
-/* always show in exponential format */
+/* always show in exponential format (scientific notation, as in "1.0e20") */
 #define BignumExp           0x0002
 
 /* always show a sign in the exponent, even if positive */
@@ -256,6 +265,75 @@ intrinsic class BigNumber 'bignumber/030000': Object
  *   thousands, millions, etc 
  */
 #define BignumEuroStyle     0x0080
+
+/* 
+ *   "Compact" format: use the shorter of the regular format and scientific
+ *   notation.  If the scientific notation exponent is less than -4 or
+ *   greater than or equal to the number of digits after the decimal point,
+ *   we'll use scientific notation; otherwise we'll use the plain format. 
+ */
+#define BignumCompact      0x0100
+
+/* 
+ *   maxDigits counts only significant digits; leading zeros aren't counted
+ *   against the maximum. 
+ */
+#define BignumMaxSigDigits 0x0200
+
+/* 
+ *   Keep trailing zeros.  If there's a maxDigits value, this keeps enough
+ *   trailing zeros so that the number of digits shown equals maxDigits.  By
+ *   default, trailing zeros after the decimal point are removed. 
+ */
+#define BignumKeepTrailingZeros 0x0400
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Number type flags, for numType() 
+ */
+
+/*
+ *   Number type: ordinary number. 
+ */
+#define NumTypeNum  0x0001
+
+/* 
+ *   Number type: "Not a number" (NaN).  This indicates that the value is the
+ *   result of a calculation with invalid input(s).  Currently there are no
+ *   BigNumber calculations that return NaNs, as all functions on invalid
+ *   inputs throw errors instead.  But it's possible to construct NaN value,
+ *   such as by reading an IEEE 754-2008 NaN value from a file via
+ *   unpackBytes().  
+ */
+#define NumTypeNAN  0x0002
+
+/* 
+ *   Number type: positive infinity, negative infinity.  These indicate a
+ *   value that overflowed the capacity of the BigNumber type, or a
+ *   calculation that yields infinity (e.g., tan(pi/2)).  Currently there are
+ *   no BigNumber calculations that return Infinities, as all functions where
+ *   an overflow is possible throw errors instead.  But it's possible to
+ *   construct an Infinity value, such as by reading an IEEE 754-2008
+ *   Infinity value from a file via unpackBytes().  
+ */
+#define NumTypePInf 0x0004
+#define NumTypeNInf 0x0008
+#define NumTypeInf  (NumTypePInf | NumTypeNInf)
+
+/*
+ *   Number type: zero, positive or negative.  Mathematically, zero is
+ *   neither positive nor negative, but the BigNumber type retains a sign for
+ *   all values, even zeros.  Negative zeros can come from calculations
+ *   that yield negative results with absolute values too small for the
+ *   internal representation.  It's also possible to construct a negative
+ *   zero, such as by reading an IEEE 754-2008 negative zero value from a
+ *   file via unpackBytes().  
+ */
+#define NumTypePZero  0x0010
+#define NumTypeNZero  0x0020
+#define NumTypeZero (NumTypePZero | NumTypeNZero)
+
 
 #endif /* _BIGNUM_H_ */
 

@@ -24,7 +24,7 @@
  *   the original unchanged.  Vector allows new values to be added and
  *   existing values to be changed in place, without creating a new object.)
  */
-intrinsic class Vector 'vector/030004': Collection
+intrinsic class Vector 'vector/030005': Collection
 {
     /* 
      *   Create a list with the same elements as the vector.  If 'start' is
@@ -44,7 +44,9 @@ intrinsic class Vector 'vector/030004': Collection
      *   source vector or list starting at the element given by 'src_start',
      *   and are copied into 'self' starting at the index given by
      *   'dst_start'.  At most 'cnt' values are copied, but we stop when we
-     *   reach the last element of either the source or destination values.  
+     *   reach the last element of either the source or destination values.
+     *   If either index is negative, it counts from the end of the vector:
+     *   -1 is the last element, -2 is the second to last, and so on.  
      */
     copyFrom(src, src_start, dst_start, cnt);
 
@@ -52,7 +54,8 @@ intrinsic class Vector 'vector/030004': Collection
      *   Fill with a given value, starting at the given element (the first
      *   element if not specified), and running for the given number of
      *   elements (the remaining existing elements of the vector, if not
-     *   specified).  The vector is expanded if necessary.  
+     *   specified).  The vector is expanded if necessary.  A negative
+     *   starting index counts backwards from the last element.  
      */
     fillValue(val, start?, cnt?);
 
@@ -170,13 +173,16 @@ intrinsic class Vector 'vector/030004': Collection
     setLength(newElementCount);
 
     /* 
-     *   Insert one or more elements at the given index.  If the index is
-     *   1, the elements will be inserted before the first existing
+     *   Insert one or more elements at the given index.  If the starting
+     *   index is 1, the elements will be inserted before the first existing
      *   element.  If the index is one higher than the number of elements,
-     *   the elements will be inserted after all existing elements.
+     *   the elements will be inserted after all existing elements.  A
+     *   negative starting index counts from the end of the vector: -1 is the
+     *   last element, -2 is the second to last, and so on.  A zero starting
+     *   index inserts after the last existing element.
      *   
-     *   Note that a list value argument will simply be inserted as a
-     *   single element.
+     *   Note that a list value argument will simply be inserted as a single
+     *   element.
      *   
      *   Returns 'self'.  
      */
@@ -184,16 +190,20 @@ intrinsic class Vector 'vector/030004': Collection
 
     /*
      *   Delete the element at the given index, reducing the length of the
-     *   vector by one element.  Returns 'self'.  
+     *   vector by one element.  If 'index' is negative, it counts from the
+     *   end of the vector: -1 is the last element, -2 is the second to last,
+     *   and so on.  Returns 'self'.  
      */
     removeElementAt(index);
 
     /*
-     *   Delete the range of elements starting at startingIndex and ending
-     *   at endingIndex.  The elements at the ends of the range are
-     *   included in the deletion.  If startingIndex == endingIndex, only
-     *   one element is removed.  Reduces the length of the vector by the
-     *   number of elements removed.  Returns 'self'.  
+     *   Delete the range of elements starting at startingIndex and ending at
+     *   endingIndex.  The elements at the ends of the range are included in
+     *   the deletion.  If startingIndex == endingIndex, only one element is
+     *   removed.  If either index is negative, it counts backwards from the
+     *   last element: -1 is the last element, -2 is the second to last, and
+     *   so on.  The length of the vector is reduced by the number of
+     *   elements removed.  Returns 'self'.  
      */
     removeRange(startingIndex, endingIndex);
 
@@ -230,6 +240,84 @@ intrinsic class Vector 'vector/030004': Collection
      *   return value is 'self'.  
      */
     removeElement(val);
+
+    /*
+     *   Splice new values into the vector.  Deletes the 'del' elements
+     *   starting at 'idx', then inserts the extra arguments in their place.
+     *   Updates the vector in place.  To insert items without deleting
+     *   anything, pass 0 for 'del'.  To delete items without inserting
+     *   anything, omit any additional arguments.  Returns 'self'.
+     */
+    splice(idx, del, ...);
+
+    /*
+     *   Combine the vector elements into a string.  This converts each
+     *   element into a string value using the usual default conversions (or
+     *   throws an error if string conversion isn't possible), then
+     *   concatenates the values together and returns the result.  If
+     *   'separator' is provided, it's a string that's interposed between
+     *   elements; if this is omitted, the elements are concatenated together
+     *   with no extra characters in between.  
+     */
+    join(sep?);
+
+    /*
+     *   Class method: Generate a new Vector.  'func' is a callback function,
+     *   which can take zero or one argument.  'n' is the number of elements
+     *   for the new list.  For each element, 'func' is invoked as func() if
+     *   it takes no arguments, or func(idx) if it takes one argument, where
+     *   'idx' is the index of the element being generated.  The return value
+     *   of the call to 'func' is stored as the list element.  The method
+     *   returns the resulting list.  For example, a vector of the first ten
+     *   even positive integers: Vector.generate({i: i*2}, 10).  
+     */
+    static generate(func, n);
+
+    /*
+     *   Get the index of the element with the minimum value.  If 'func' is
+     *   missing, this simply returns the index of the element with the
+     *   smallest value, comparing the element values as though using the '>'
+     *   and '<' operators.  If 'func' is specified, it must be a function;
+     *   it's called as func(x) for each element's value, and the result of
+     *   the overall call is the index of the element for which func(x)
+     *   returns the smallest value.  For example, if you have a vector v
+     *   containing string elements, v.indexOfMin({x: x.length()}) returns
+     *   the index of the shortest string.  
+     */
+    indexOfMin(func?);
+
+    /*
+     *   Get the minimum element value.  If 'func' is missing, this simply
+     *   returns the smallest element value.  If 'func' is specified, it must
+     *   be a function; it's called as func(x) for each element value x, and
+     *   the result of the overall method call is the element value x that
+     *   minimizes func(x).  For example, if v is a vector containing string
+     *   elements, v.minVal({x: x.length()}) returns the shortest string.  
+     */
+    minVal(func?);
+
+    /*
+     *   Get the index of the element the maximum value.  If 'func' is
+     *   missing, this simply returns the index of the element with the
+     *   largest value, comparing the element values as though using the '>'
+     *   and '<' operators.  If 'func' is specified, it must be a function;
+     *   it's called as func(x) for each element value x, and the result of
+     *   the overall call is the index of the element for which func(x)
+     *   returns the greatest value.  For example, if you have a vector v
+     *   containing string elements, v.indexOfMax({x: x.length()}) returns
+     *   the index of the longest string.  
+     */
+    indexOfMax(func?);
+
+    /*
+     *   Get the maximum element value.  If 'func' is missing, this returns
+     *   the largest element value.  If 'func' is specified, it must be a
+     *   function; it's called as func(x) for each element value x, and the
+     *   result of the overall method call is the element value x that
+     *   maximizes func(x).  For example, if v is a vector containing string
+     *   elements, v.minVal({x: x.length()}) returns the longest string.  
+     */
+    maxVal(func?);
 }
 
 #endif /* _VECTOR_H_ */

@@ -29,14 +29,15 @@ public:
 
     /*
      *   Generate code for a unary operator with no side effects.  We'll
-     *   generate code for the subexpression, then generate the given opcode.
+     *   generate code for the subexpression, then apply the given javascript
+     *   operator to the result.
      *   
      *   If 'discard' is true, we won't generate the opcode.  We know the
      *   opcode has no side effects, so if the result of the calculation
      *   isn't going to be used, there's no point in calculating it in the
      *   first place.  
      */
-    void gen_unary(uchar opc, int discard, int for_condition);
+    void gen_unary(const char *op, int discard, int for_condition);
 };
 
 
@@ -53,14 +54,14 @@ public:
     /*
      *   Generate code for a binary operator with no side effects.  We'll
      *   generate code for the left operand, then for the right operand, then
-     *   generate the opcode.
+     *   apply the given javascript operator to the pair.
      *   
      *   If 'discard' is true, we won't generate the opcode.  We know that
      *   the opcode has no side effects, so if the result of the calculation
      *   isn't needed, we need not apply the opcode; we simply want to
      *   evaluate the subexpressions for any side effects they might have.  
      */
-    void gen_binary(uchar opc, int discard, int for_condition);
+    void gen_binary(const char *op, int discard, int for_condition);
 };
 
 /* ------------------------------------------------------------------------ */

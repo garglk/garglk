@@ -515,9 +515,8 @@ class Lister: object
              */
             if (mem.length() < groups[i].minGroupSize)
             {
-                /* put the item into the singles list */
-                if (mem.length() > 0)
-                    singles.append(mem[1]);
+                /* put the item(s) into the singles list */
+                singles.appendAll(mem);
 
                 /* eliminate this item from the group list */
                 groups.removeElementAt(i);
@@ -619,7 +618,7 @@ class Lister: object
             else
             {
                 /* show the prefix */
-                showListPrefixWide(itemCount, pov, parent);
+                showListPrefixWide(itemCount, pov, parent, lst: lst);
             }
             
             /* 
@@ -1035,10 +1034,14 @@ class Lister: object
      *   books" will have an itemCount of 5.  (The purpose of itemCount is
      *   to allow the message to have grammatical agreement in number.)
      *   
+     *   'lst' is the entire list, which some languages need for
+     *   grammatical agreement.  This is passed as a named argument, so an
+     *   overrider can omit it from the parameter list if it's not needed.
+     *   
      *   This will never be called with an itemCount of zero, because we
      *   will instead use showListEmpty() to display an empty list.  
      */
-    showListPrefixWide(itemCount, pov, parent) { }
+    showListPrefixWide(itemCount, pov, parent, lst:) { }
 
     /* 
      *   show the suffix for a 'wide' listing - this is a message that

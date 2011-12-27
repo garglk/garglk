@@ -1130,6 +1130,12 @@ class StretchyContainer: Container
      */
     checkBulkChangeWithin(changingObj)
     {
+        /*
+         *   Do any inherited work, in case we have a limit on our own
+         *   internal bulk. 
+         */
+        inherited(changingObj);
+
         /* 
          *   This might cause a change in my own bulk, since my bulk
          *   depends on the bulks of my contents.  When this is called,
@@ -3729,7 +3735,7 @@ class PresentLater: object
          *   scan every PresentLater object, and move each one with the
          *   given key into the game 
          */
-        forEachInstance(PresentLater, new function(obj) {
+        forEachInstance(PresentLater, function(obj) {
             if (obj.plKey == key)
                 obj.makePresent();
         });
@@ -3757,7 +3763,7 @@ class PresentLater: object
          *   scan every PresentLater object, check each one's key, and make
          *   each one with the given key present 
          */
-        forEachInstance(PresentLater, new function(obj) {
+        forEachInstance(PresentLater, function(obj) {
             /* consider this object if its key matches */
             if (obj.plKey == key)
             {

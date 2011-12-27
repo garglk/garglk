@@ -274,7 +274,7 @@ class Resolver: object
             }
 
             /* create a list of ResolveInfo objects from the antecedents */
-            lst = scopeLst.toList().mapAll({x: new ResolveInfo(x, 0)});
+            lst = scopeLst.toList().mapAll({x: new ResolveInfo(x, 0, np)});
         }
 
         /* 
@@ -449,7 +449,7 @@ class Resolver: object
          *   create a ResolveInfo for each object, with the 'MatchedAll'
          *   flag set for each object 
          */
-        result.applyAll({x: new ResolveInfo(x, MatchedAll)});
+        result.applyAll({x: new ResolveInfo(x, MatchedAll, np)});
 
         /* run through the list and apply each object's own filtering */
         result = getAction().finishResolveList(result, whichObject, np, nil);
@@ -464,13 +464,11 @@ class Resolver: object
      */
     getAllDefaults()
     {
-        local lst;
-        
         /* ask the action to resolve 'all' for the direct object */
-        lst = action_.getAllDobj(actor_, getScopeList());
+        local lst = action_.getAllDobj(actor_, getScopeList());
 
         /* return the results as ResolveInfo objects */
-        return lst.mapAll({x: new ResolveInfo(x, 0)});
+        return lst.mapAll({x: new ResolveInfo(x, 0, nil)});
     }
 
     /*
@@ -803,13 +801,11 @@ class IobjResolver: Resolver
     /* get all possible default objects */
     getAllDefaults()
     {
-        local lst;
-        
         /* ask the action to resolve 'all' for the indirect object */
-        lst = action_.getAllIobj(actor_, getScopeList());
+        local lst = action_.getAllIobj(actor_, getScopeList());
 
         /* return the results as ResolveInfo objects */
-        return lst.mapAll({x: new ResolveInfo(x, 0)});
+        return lst.mapAll({x: new ResolveInfo(x, 0, nil)});
     }
 
     /* filter an ambiguous noun phrase */

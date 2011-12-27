@@ -7,18 +7,21 @@ ModuleID
     name = 'TCommandTopic Library Extension'
     byline = 'by Eric Eve'
     htmlByline = 'by <a href="mailto:eric.eve@hmc.ox.ac.uk">Eric Eve</a>'
-    version = '3.1'    
+    version = '3.2'    
     listingOrder = 70
 }
 
 /* 
  *   VERSION HISTORY 
  *
- *   v3.1 01-Mar-08 - Adding handling on Actor to trap System Actions issued
+ *   v3.2 21-Jul-09 - adds cmdDir to CommandHelper so that the direction of a
+ *   TravelAction can be inspected.
+ *
+ *   v3.1 01-Mar-08 - Added handling on Actor to trap System Actions issued
  *   as commands to NPCs.
  *
  *   v3.0 08-Jul-07 - Added handling to ActorState to allow optional blocking
- *   of SystemActions and TopicActions directed at the Actor without needed
+ *   of SystemActions and TopicActions directed at the Actor without needing
  *   to provide custom CommandTopics to trap them.
  *   Also enhanced CommandHelper.proper() to deal more intelligently with
  *   possessives.
@@ -192,21 +195,24 @@ modify CommandTopic
  */
 CommandHelper : object
    handleAction(fromActor, action)
-   {
-     cmdDobj = action.getDobj;
-     cmdIobj = action.getIobj;   
-     cmdTopic = action.getTopic;
-     cmdAction = action;
-     cmdPhrase = proper(action.ofKind(TopicActionBase) ? topicCmdPhrase : youToMe(action.getInfPhrase));
-   }
-   cmdDobj = nil
-   cmdIobj = nil
-   cmdAction = nil
-   cmdPhrase = nil  
-   cmdTopic = nil
-   topicCmdPhrase
-   {
-      /* 
+    {
+        cmdDobj = action.getDobj;
+        cmdIobj = action.getIobj;   
+        cmdTopic = action.getTopic;
+        cmdAction = action;
+        cmdDir = action.getDirection;   
+        cmdPhrase = proper(action.ofKind(TopicActionBase) ? topicCmdPhrase : 
+                           youToMe(action.getInfPhrase));
+    }
+    cmdDobj = nil
+    cmdIobj = nil
+    cmdAction = nil
+    cmdPhrase = nil  
+    cmdTopic = nil
+    cmdDir = nil 
+    topicCmdPhrase
+    {
+        /* 
        *   This is a hack to get round the fact that 
        *   TopicTAction.getVerbPhrase() references gTopicText, which in turn 
        *   references gAction (which is the wrong action at this point), so 
@@ -485,8 +491,4 @@ class SuggestedCommandTopic : SuggestedTopic
 suggestionCommandGroup : SuggestionListGroup
      groupPrefix = "tell {it targetActor/him} to "
 ;
-
-
-
-
 

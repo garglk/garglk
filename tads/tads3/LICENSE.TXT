@@ -21,7 +21,7 @@
 
 TADS 3 FREEWARE SOURCE CODE LICENSE
 
-The TADS 3 source code is Copyright 1998, 2003 by Michael J. Roberts.
+The TADS 3 source code is Copyright 1998, 2010 by Michael J. Roberts.
 
 The author hereby grants you permission to use, copy, and distribute
 this software, if you agree to the following conditions:

@@ -17,44 +17,13 @@
 
 /* ------------------------------------------------------------------------ */
 /* 
- *   in case the 'score' module isn't included, make sure we can refer to
- *   totalScore as a property 
+ *   In case the 'score' module isn't included, make sure we can refer to
+ *   totalScore as a property.  Likewise for the banner API and Web UI
+ *   frame API.  
  */
 property totalScore;
-
-
-/* ------------------------------------------------------------------------ */
-/*
- *   The banner window for the status line.  
- */
-statuslineBanner: BannerWindow
-    removeBanner()
-    {
-        /* inherit the base handling */
-        inherited();
-
-        /* 
-         *   notify the statusLine object that it needs to refigure the
-         *   display mode 
-         */
-        statusLine.statusDispMode = nil;
-    }
-
-    /* initialize */
-    initBannerWindow()
-    {
-        /* if we're already initialized, do nothing */
-        if (inited_)
-            return;
-
-        /* inherit the default handling (to set our 'inited_' flag) */
-        inherited();
-        
-        /* tell the status line to initialize its banner window */
-        statusLine.initBannerWindow(self);
-    }
-;
-
+property showBanner, setSize, sizeToContents;
+property flushWin, resize;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -162,9 +131,13 @@ transient statusRightOutputStream: OutputStream
  *   a rigid format for the statusline (exactly one line high, no control
  *   over colors, and with the strict left/right bifurcation).  We'll only
  *   use this method if we're on a text-only interpreter that doesn't
- *   support the banner API.  
+ *   support the banner API.
+ *   
+ *   StatusModeBrowser - use the Web UI.  This is similar to API mode, but
+ *   instead of using banner windows we use Web UI windows, which are
+ *   implemented as IFRAMEs in the browser.  
  */
-enum StatusModeApi, StatusModeTag, StatusModeText;
+enum StatusModeApi, StatusModeTag, StatusModeText, StatusModeBrowser;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -237,15 +210,19 @@ transient statusLine: object
              *   old-style text mode, use plain text, since the formatting
              *   is rigidly defined in this mode.  
              */
-            if (statusDispMode != StatusModeText)
+            switch (statusDispMode)
             {
+            case StatusModeTag:
+            case StatusModeApi:
+            case StatusModeBrowser:
                 /* show the HTML status line */
                 showStatusHtml();
-            }
-            else
-            {
+                break;
+
+            case StatusModeText:
                 /* show the status line in plain text mode */
                 showStatusText();
+                break;
             }
         }
         finally
@@ -270,7 +247,7 @@ transient statusLine: object
          *   turn if we're reading an input script, which is nice because
          *   it provides a visual indication that something's happening. 
          */
-        if (statusDispMode == StatusModeApi)
+        if (statusDispMode is in (StatusModeApi, StatusModeBrowser))
             statuslineBanner.flushBanner();
     }
 
@@ -281,21 +258,29 @@ transient statusLine: object
      */
     showStatusHtml()
     {
-        /* hyperlink the location name to a "look around" command */
-        "<a plain href='<<gLibMessages.commandLookAround>>'>";
-            
+        /* 
+         *   start the left half, and write the <A HREF> to hyperlink the
+         *   location name to a "look around" command 
+         */
+        "<<statusHTML(0)>><<
+          aHref(gLibMessages.commandLookAround, nil, nil, AHREF_Plain)>>";
+
         /* show the left part of the status line */
         showStatusLeft();
             
-        /* set up for the score part on the right half */
-        "</a><tab align=right><a plain
-            href='<<gLibMessages.commandFullScore>>'>";
-        
+        /* 
+         *   end the left portion and start the right portion, then
+         *   generate the <A HREF> to link the score to a FULL SCORE
+         *   command 
+         */
+        "<./a></a><<statusHTML(1)>><<
+          aHref(gLibMessages.commandFullScore, nil, nil, AHREF_Plain)>>";
+          
         /* show the right part of the status line */
         showStatusRight();
-        
-        /* end the score link */
-        "</a>";
+          
+        /* end the score link, and end the right half wrapper */
+        "<./a></a><<statusHTML(2)>>";
         
         /* add the status-line exit list, if desired */
         if (gPlayerChar.location != nil)
@@ -392,17 +377,13 @@ transient statusLine: object
     /*
      *   Set up the status line's color scheme.  This is called each time
      *   we redraw the status line to set the background and text colors.
-     *   We simply show a <BODY> tag that selects the parameterized colors
-     *   STATUSBG and STATUSTEXT.  (These are called "parameterized" colors
-     *   because they don't select specific colors, but rather select
-     *   whatever colors the interpreter wishes to use for the status line.
-     *   In many cases, the interpreter lets the user select these colors
-     *   via a Preferences dialog.)  
+     *   We call the statusline banner window to do the work, since the
+     *   mechanism is different between the traditional and Web UIs.
      */
     setColorScheme()
     {
-        /* set up the interpreter's standard status line colors */
-        "<body bgcolor=statusbg text=statustext>";
+        /* call the banner window to do the work */
+        statuslineBanner.setColorScheme();
     }
 
     /* 
@@ -443,6 +424,14 @@ transient statusLine: object
             setColorScheme();
 
             /* done */
+            break;
+
+        case StatusModeBrowser:
+            /* browser UI - clear the window */
+            statuslineBanner.clearWindow();
+
+            /* switch to its output stream */
+            oldStr = statuslineBanner.setOutputStream();
             break;
 
         case StatusModeTag:
@@ -503,6 +492,11 @@ transient statusLine: object
             statuslineBanner.sizeToContents();
             break;
 
+        case StatusModeBrowser:
+            /* browser mode - flush the window and update the content size */
+            statuslineBanner.flushWin();
+            break;
+
         case StatusModeTag:
             /* HTML <BANNER> mode - end the <BANNER> tag */
             statusTagOutputStream.writeToStream('</banner>');
@@ -545,7 +539,7 @@ transient statusLine: object
              */
             statusDispMode = StatusModeApi;
         }
-        else if (systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
+        else if (outputManager.htmlMode)
         {
             /*
              *   We failed to create a banner API window, and we're running

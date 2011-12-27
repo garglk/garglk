@@ -361,9 +361,8 @@ DefineSystemAction(Instructions)
             ", so you might want to capture them to a file (so that
             you can print them out, for example).  Would you like to
             proceed?
-            \n(<a href='yes'>Y</a> is affirmative, or type
-            <a href='script'>SCRIPT</a> to capture to
-            a file) &gt; ";
+            \n(<<aHref('yes', 'Y')>> is affirmative, or type
+            <<aHref('script', 'SCRIPT')>> to capture to a file) &gt; ";
 
             /* ask for input */
             str = inputManager.getInputLine(nil, nil);
@@ -444,8 +443,8 @@ DefineSystemAction(Instructions)
         <q>Great, I can type absolutely anything I want, in plain English,
         and the story will do my bidding,</q> or <q>Great, now I have to
         figure out yet another heinously complex command language for
-        a computer program; I think I&rsquo;ll go play Minefield.</q>  Well,
-        neither extreme is quite true.
+        a computer program; I think I&rsquo;ll go play Minesweeper.</q>
+        Well, neither extreme is quite true.
 
         \bIn actual play, you&rsquo;ll only need a fairly small set of
         commands, and the commands are mostly in ordinary English, so
@@ -966,7 +965,7 @@ DefineSystemAction(Instructions)
         might simply be on the wrong track; step back and think about other
         ways of approaching the problem.  If the response is something more
         specific, it might be a clue. <q>The guard says <q>you can&rsquo;t
-        open that here!</q>\ and snatches the box from your hands</q> &emdash;
+        open that here!</q>\ and snatches the box from your hands</q> &mdash;
         this might indicate that you have to get the guard to leave, or
         that you should take the box somewhere else before you open it,
         for example.
@@ -1051,7 +1050,8 @@ topInstructionsMenu: MenuItem 'How to Play Interactive Fiction';
     isChapterMenu = true
     title = 'Introduction'
     heading = nil
-    menuContents =
+    menuContents()
+    {
         "\b<b>Introduction</b>
         \bWelcome!  If you&rsquo;ve never played Interactive Fiction
         before, these instructions are designed to help you
@@ -1061,10 +1061,17 @@ topInstructionsMenu: MenuItem 'How to Play Interactive Fiction';
         summary of the special features of this story.
         \b
         To make the instructions easier to navigate, they&rsquo;re
-        broken up into chapters.  At the end of each chapter, just press
-        <b><<curKeyList[M_SEL][1].toUpper()>></b> to proceed to
-        the next chapter, or <b><<curKeyList[M_PREV][1].toUpper()>></b>
-        to return to the chapter list. "
+        broken up into chapters. ";
+
+        if (curKeyList != nil && curKeyList.length() > 0)
+            "At the end of each chapter, just press
+            <b><<curKeyList[M_SEL][1].toUpper()>></b> to proceed to
+            the next chapter, or <b><<curKeyList[M_PREV][1].toUpper()>></b>
+            to return to the chapter list. ";
+        else
+            "To flip through the chapters, click on the links or
+            use the Left/Right arrow keys. ";
+    }
 ;
 
 + InstructionsMenu 'Entering Commands' ->(&showCommandsChapter);

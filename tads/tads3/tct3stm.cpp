@@ -322,8 +322,7 @@ void CTPNVarIn::gen_iter_init(CTcPrsNode *coll_expr, int iter_local_id,
          *   collection expression 
          */
         if (coll_expr != 0)
-            coll_expr->gen_code_member(FALSE, create_iter, FALSE,
-                                       0, FALSE, FALSE);
+            coll_expr->gen_code_member(FALSE, create_iter, FALSE, 0, FALSE, 0);
 
         /* assign the result to the internal iterator stack local */
         CTcSymLocal::s_gen_code_setlcl_stk(iter_local_id, FALSE);

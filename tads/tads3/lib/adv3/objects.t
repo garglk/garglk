@@ -530,7 +530,7 @@ class SensoryEmanation: Intangible
          *   interest.  
          */
         newInfo = gPlayerChar.senseInfoTable(sense);
-        newInfo.forEachAssoc(new function(obj, info)
+        newInfo.forEachAssoc(function(obj, info)
         {
             /* 
              *   remove this item if it's not of the subclass of interest,
@@ -541,7 +541,7 @@ class SensoryEmanation: Intangible
         });
 
         /* run through the new list and note each change */
-        newInfo.forEachAssoc(new function(obj, info)
+        newInfo.forEachAssoc(function(obj, info)
         {
             /* treat this as a new command visually */
             "<.commandsep>";
@@ -569,7 +569,7 @@ class SensoryEmanation: Intangible
         /* run through the old list and note each item no longer sensed */
         if (oldInfo != nil)
         {
-            oldInfo.forEachAssoc(new function(obj, info)
+            oldInfo.forEachAssoc(function(obj, info)
             {
                 /* if this item isn't in the new list, note its departure */
                 if (newInfo[obj] == nil)
@@ -785,7 +785,7 @@ class SensoryEvent: object
          *   limit the number of objects we have to test with a more
          *   expensive sense path calculation.  
          */
-        source.connectionTable().forEachAssoc(new function(cur, val)
+        source.connectionTable().forEachAssoc(function(cur, val)
         {
             /* 
              *   If this object defines the observer notification method,
@@ -1217,7 +1217,7 @@ class CollectiveGroup: Thing
     expandPronounList(typ, lst)
     {
         /* restore our individuals to the list */
-        forEachInstance(Thing, new function(obj) {
+        forEachInstance(Thing, function(obj) {
             if (obj.hasCollectiveGroup(self))
                 lst += obj;
         });
@@ -1266,7 +1266,7 @@ class CollectiveGroup: Thing
     getVisibleIndividuals(tab)
     {
         /* keep only those items that are individuals of this collective */
-        tab.forEachAssoc(new function(key, val)
+        tab.forEachAssoc(function(key, val)
         {
             /* remove this item if it's not an individual of mine */
             if (!key.hasCollectiveGroup(self))
@@ -1290,7 +1290,7 @@ class CollectiveGroup: Thing
         if (location == nil && !ofKind(BaseMultiLoc))
         {
             /* check everything in the connection table */
-            tab.forEachAssoc(new function(cur, val) {
+            tab.forEachAssoc(function(cur, val) {
                 /* if this is one of our individuals, check it */
                 if (cur.hasCollectiveGroup(self))
                 {
@@ -1330,7 +1330,7 @@ class CollectiveGroup: Thing
             inherited(src, vec);
 
         /* look for an individual among the source object's connections */
-        src.connectionTable().forEachAssoc(new function(cur, val) {
+        src.connectionTable().forEachAssoc(function(cur, val) {
             /* if this is one of our individuals, check it */
             if (cur.hasCollectiveGroup(self))
             {
@@ -3771,7 +3771,15 @@ class Lockable: Linkable
                          : gLibMessages.currentlyUnlocked);
     }
 
-    /* description of the object as locked or unlocked */
+    /* 
+     *   Description of the object's current locked state.  In English,
+     *   this simply returns one of 'locked' or 'unlocked'.  (Note that
+     *   this is provided as a convenience to games, for generating
+     *   messages about the object that include its state.  The library
+     *   doesn't use this message itself, so overriding this won't change
+     *   any library messages - in particular, it won't change the
+     *   examineStatus message.)  
+     */
     lockedDesc = (isLocked() ? gLibMessages.lockedMsg(self)
                              : gLibMessages.unlockedMsg(self))
 
@@ -4836,6 +4844,8 @@ class BasicContainer: BulkLimiter
             gLibMessages.smellIsFromWithout(obj, self);
     }
 
+    /* message when an object is too large (all by itself) to fit in me */
+    tooLargeForContainerMsg = &tooLargeForContainerMsg
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -5327,7 +5337,7 @@ class Settable: Thing
      *   in a specific primary format when there are superficially
      *   different ways of expressing the same value.  For example, if the
      *   setting is numeric, this could do things like trim off leading
-     *   zeroes; for a text value, it could ensure the value is in the
+     *   zeros; for a text value, it could ensure the value is in the
      *   proper case.  
      */
     canonicalizeSetting(val)
@@ -5464,7 +5474,7 @@ class NumberedDial: Dial
 
     /*
      *   Canonicalize a proposed setting value.  For numbers, strip off any
-     *   leading zeroes, since these don't change the meaning of the value.
+     *   leading zeros, since these don't change the meaning of the value.
      */
     canonicalizeSetting(val)
     {

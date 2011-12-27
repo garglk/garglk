@@ -61,6 +61,10 @@ CTcGenTarg::~CTcGenTarg()
         pop_js_expr();
 }
 
+/*
+ *   push a computed expression onto the value stack, replacing operands
+ *   taken from the stack 
+ */
 void CTcGenTarg::js_expr(const char *str, ...)
 {
     char tpl[128];
@@ -112,12 +116,18 @@ void CTcGenTarg::js_expr(const char *str, ...)
                 /* check what follows */
                 ++src;
                 if ((memcmp(src, "args ", 5) == 0 && isdigit(*(src+5))
-                     || (memcmp(src, ",args ", 6) == 0 && isdigit(*src+6))))
+                     || (memcmp(src, ",args ", 6) == 0 && isdigit(*src+6))
+                     || (memcmp(src, "args[] ", 7) == 0 && isdigit(*src+6))))
                 {
                     /* note if it's the comma form */
                     int comma = (*src == ',');
                     if (comma)
                         ++src;
+
+                    /* note if it's the array form */
+                    int array = *src == '[' && *(src+1) == ']';
+                    if (array)
+                        src += 2;
 
                     /* get and skip the stack index value */
                     for (src += 5, n = atoi(src++) ; isdigit(*src) ; ++src) ;
@@ -129,9 +139,47 @@ void CTcGenTarg::js_expr(const char *str, ...)
                     /* get and skip the arg count value */
                     for (m = atoi(src) ; isdigit(*src) ; ++src) ;
 
+                    /* for the array form, get and skip the varargs flag */
+                    int varargs = FALSE;
+                    if (array)
+                    {
+                        /* skip the space */
+                        if (*src++ != ' ')
+                            G_tok->throw_internal_error(TCERR_BAD_JS_TPL);
+
+                        /* get and skip the varargs flag */
+                        for (varargs = atoi(src) ; isdigit(*src) ; ++src) ;
+                    }
+
                     /* add a leading comma if desired and applicable */
                     if (comma && m != 0)
                         expr += ',';
+
+                    /* start the varargs list if applicable */
+                    if (array)
+                    {
+                        /* check for varargs */
+                        if (varargs)
+                        {
+                            /* 
+                             *   it's varargs, so the argument list was set
+                             *   up as an array to start with - all we need
+                             *   to do is add the single argument list
+                             *   expression from the stack 
+                             */
+                            m = 1;
+                        }
+                        else
+                        {
+                            /* 
+                             *   it's not varargs, so the argument list
+                             *   consists of the 'm' expression on the stack
+                             *   - add an open bracket to make the list we
+                             *   generate into an array 
+                             */
+                            expr += '[';
+                        }
+                    }
 
                     /* copy each expression */
                     for ( ; m != 0 ; ++n, --m)
@@ -143,6 +191,10 @@ void CTcGenTarg::js_expr(const char *str, ...)
                         if (m > 1 && rem != 0)
                             expr += ',';
                     }
+
+                    /* add the ']' at the end of the array, if applicable */
+                    if (array && !varargs)
+                        expr += ']';
 
                     /* mark the last element as used */
                     --n;
@@ -346,44 +398,15 @@ void CTcPrsNode::s_gen_member_rhs(int discard,
                                   CTcPrsNode *prop_expr, int prop_is_expr,
                                   int argc, int varargs)
 {
-    vm_prop_id_t prop;
-
     /* we can't call methods with arguments in speculative mode */
     if (argc != 0 && G_cg->is_speculative())
         err_throw(VMERR_BAD_SPEC_EVAL);
 
     /* get or generate the property ID value */
-    prop = prop_expr->gen_code_propid(FALSE, prop_is_expr);
+    prop_expr->gen_code_propid(FALSE, prop_is_expr);
 
-    /* 
-     *   if we got a property ID, generate a simple property evaluation call;
-     *   otherwise, generate a variable property call 
-     */
-    if (prop != VM_INVALID_PROP)
-    {
-        /* fixed property ID - top of stack is obj, remainder is arg list */
-        if (varargs)
-            G_cg->js_expr("T3_getprop($1, T3P_%d, $2)", prop);
-        else
-            G_cg->js_expr("T3_getprop($1, T3P_%d, [${args 2 %d}])",
-                          prop, argc);
-    }
-    else
-    {
-        /* the property ID is an expression */
-        if (G_cg->is_speculative())
-        {
-            /* speculative debug mode is not currently supported */
-            assert(FALSE);
-        }
-        else
-        {
-            if (varargs)
-                G_cg->js_expr("T3_getprop($1, $2, $3)");
-            else
-                G_cg->js_expr("T3_getprop($1, $2, [${args 3 %d}]", argc);
-        }
-    }
+    /* generate the getprop */
+    G_cg->js_expr("T3_getprop($1, $2, ${args[] 3 %d %d})", argc, varargs);
 }
 
 /*
@@ -428,8 +451,6 @@ void CTPNSelf::gen_code_member(int discard,
                                CTcPrsNode *prop_expr, int prop_is_expr,
                                int argc, int varargs)
 {
-    vm_prop_id_t prop;
-    
     /* make sure "self" is available */
     if (!G_cs->is_self_available())
         G_tok->log_error(TCERR_SELF_NOT_AVAIL);
@@ -438,43 +459,15 @@ void CTPNSelf::gen_code_member(int discard,
     if (argc != 0 && G_cg->is_speculative())
         err_throw(VMERR_BAD_SPEC_EVAL);
 
-    /* generate the property value */
-    prop = prop_expr->gen_code_propid(FALSE, prop_is_expr);
+    /* we currently don't implement speculative evaluation at all */
+    if (G_cg->is_speculative())
+        assert(FALSE);
 
-    /* check for a constant vs expression property ID */
-    if (prop != VM_INVALID_PROP)
-    {
-        /* we have a constant property ID */
-        if (G_cg->is_speculative())
-        {
-            /* not currently supported */
-            assert(FALSE);
-        }
-        else
-        {
-            if (varargs)
-                G_cg->js_expr("T3_getprop(this, T3P_%d, $1)", prop);
-            else
-                G_cg->js_expr("T3_getprop(this, T3P_%d, [${args 1 %d}]",
-                              prop, argc);
-        }
-    }
-    else
-    {
-        /* property pointer expression */
-        if (G_cg->is_speculative())
-        {
-            /* not supported */
-            assert(FALSE);
-        }
-        else
-        {
-            if (varargs)
-                G_cg->js_expr("T3_getprop(this, $1, $2)");
-            else
-                G_cg->js_expr("T3_getprop(this, $1, [${args 2 %d}]", argc);
-        }
-    }
+    /* generate the property value */
+    prop_expr->gen_code_propid(FALSE, prop_is_expr);
+
+    /* generate the getprop */
+    G_cg->js_expr("T3_getprop(this, $1, ${args[] 2 %d %d})", argc, varargs);
 }
 
 
@@ -558,11 +551,7 @@ void CTPNTargetprop::gen_code(int discard, int)
 
     /* if we're not discarding the result, push the target property ID */
     if (!discard)
-    {
-        G_cg->write_op(OPC_PUSHCTXELE);
-        G_cs->write(PUSHCTXELE_TARGPROP);
-        G_cg->note_push();
-    }
+        G_cg->js_expr("T3V_targetprop");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -581,11 +570,7 @@ void CTPNTargetobj::gen_code(int discard, int)
 
     /* if we're not discarding the result, push the target object ID */
     if (!discard)
-    {
-        G_cg->write_op(OPC_PUSHCTXELE);
-        G_cs->write(PUSHCTXELE_TARGOBJ);
-        G_cg->note_push();
-    }
+        G_cg->js_expr("T3V_targetobj");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -604,11 +589,7 @@ void CTPNDefiningobj::gen_code(int discard, int)
 
     /* if we're not discarding the result, push the defining object ID */
     if (!discard)
-    {
-        G_cg->write_op(OPC_PUSHCTXELE);
-        G_cs->write(PUSHCTXELE_DEFOBJ);
-        G_cg->note_push();
-    }
+        G_cg->js_expr("T3V_defobj");
 }
 
 
@@ -633,8 +614,6 @@ void CTPNInh::gen_code_member(int discard,
                               CTcPrsNode *prop_expr, int prop_is_expr,
                               int argc, int varargs)
 {
-    vm_prop_id_t prop;
-
     /* 
      *   make sure "self" is available - we obviously can't inherit
      *   anything if we're not in an object's method 
@@ -647,55 +626,11 @@ void CTPNInh::gen_code_member(int discard,
         err_throw(VMERR_BAD_SPEC_EVAL);
 
     /* generate the property value */
-    prop = prop_expr->gen_code_propid(FALSE, prop_is_expr);
+    prop_expr->gen_code_propid(FALSE, prop_is_expr);
 
-    /* 
-     *   if we got a property ID, generate a simple INHERIT;
-     *   otherwise, generate a PTRINHERIT 
-     */
-    if (prop != VM_INVALID_PROP)
-    {
-        /* generate a varargs modifier if necessary */
-        if (varargs)
-            G_cg->write_op(OPC_VARARGC);
-        
-        /* we have a constant property ID - generate a regular INHERIT */
-        G_cg->write_op(OPC_INHERIT);
-        G_cs->write((char)argc);
-        G_cs->write_prop_id(prop);
-
-        /* this removes arguments */
-        G_cg->note_pop(argc);
-    }
-    else
-    {
-        /* 
-         *   if we have a varargs list, modify the call instruction that
-         *   follows to make it a varargs call 
-         */
-        if (varargs)
-        {
-            /* swap the top of the stack to get the arg counter back on top */
-            G_cg->write_op(OPC_SWAP);
-            
-            /* write the varargs modifier */
-            G_cg->write_op(OPC_VARARGC);
-        }
-
-        /* a property pointer is on the stack - write a PTRINHERIT */
-        G_cg->write_op(OPC_PTRINHERIT);
-        G_cs->write((int)argc);
-
-        /* this removes arguments and the property pointer */
-        G_cg->note_pop(argc + 1);
-    }
-
-    /* if the result is needed, push it */
-    if (!discard)
-    {
-        G_cg->write_op(OPC_GETR0);
-        G_cg->note_push();
-    }
+    /* generate the inhprop call */
+    G_cg->js_expr("T3ctx.T3_inhprop($1, ${args[] 2 %d %d})",
+                  argc, varargs);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -719,7 +654,6 @@ void CTPNInhClass::gen_code_member(int discard,
                                    CTcPrsNode *prop_expr, int prop_is_expr,
                                    int argc, int varargs)
 {
-    vm_prop_id_t prop;
     CTcSymbol *objsym;
     vm_obj_id_t obj;
 
@@ -746,57 +680,12 @@ void CTPNInhClass::gen_code_member(int discard,
     }
 
     /* generate the property value */
-    prop = prop_expr->gen_code_propid(FALSE, prop_is_expr);
+    prop_expr->gen_code_propid(FALSE, prop_is_expr);
 
-    /* 
-     *   if we got a property ID, generate a simple EXPINHERIT; otherwise,
-     *   generate a PTREXPINHERIT 
-     */
-    if (prop != VM_INVALID_PROP)
-    {
-        /* add a varargs modifier if needed */
-        if (varargs)
-            G_cg->write_op(OPC_VARARGC);
-        
-        /* we have a constant property ID - generate a regular EXPINHERIT */
-        G_cg->write_op(OPC_EXPINHERIT);
-        G_cs->write((char)argc);
-        G_cs->write_prop_id(prop);
-        G_cs->write_obj_id(obj);
-
-        /* this removes argumnts */
-        G_cg->note_pop(argc);
-    }
-    else
-    {
-        /* 
-         *   if we have a varargs list, modify the call instruction that
-         *   follows to make it a varargs call 
-         */
-        if (varargs)
-        {
-            /* swap the top of the stack to get the arg counter back on top */
-            G_cg->write_op(OPC_SWAP);
-            
-            /* write the varargs modifier */
-            G_cg->write_op(OPC_VARARGC);
-        }
-        
-        /* a property pointer is on the stack - write a PTREXPINHERIT */
-        G_cg->write_op(OPC_PTREXPINHERIT);
-        G_cs->write((int)argc);
-        G_cs->write_obj_id(obj);
-
-        /* this removes arguments and the property pointer */
-        G_cg->note_pop(argc + 1);
-    }
-
-    /* if the result is needed, push it */
-    if (!discard)
-    {
-        G_cg->write_op(OPC_GETR0);
-        G_cg->note_push();
-    }
+    /* generate the inhprop */
+    G_cg->js_expr("T3ctx.T3_inhprop_from(T3O_%.*s, $1, ${args[] 2 %d %d})",
+                  objsym->getlen(), objsym->getstr(),
+                  argc, varargs);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -819,8 +708,6 @@ void CTPNDelegated::gen_code_member(int discard,
                                     CTcPrsNode *prop_expr, int prop_is_expr,
                                     int argc, int varargs)
 {
-    vm_prop_id_t prop;
-
     /* 
      *   make sure "self" is available - we obviously can't delegate
      *   anything if we're not in an object's method 
@@ -832,63 +719,14 @@ void CTPNDelegated::gen_code_member(int discard,
     if (G_cg->is_speculative())
         err_throw(VMERR_BAD_SPEC_EVAL);
 
+    /* generate the property value */
+    prop_expr->gen_code_propid(FALSE, prop_is_expr);
+
     /* generate the delegatee expression */
     delegatee_->gen_code(FALSE, FALSE);
 
-    /* if we have an argument counter, put it back on top */
-    if (varargs)
-        G_cg->write_op(OPC_SWAP);
-
-    /* generate the property value */
-    prop = prop_expr->gen_code_propid(FALSE, prop_is_expr);
-
-    /* 
-     *   if we got a property ID, generate a simple DELEGATE; otherwise,
-     *   generate a PTRDELEGATE 
-     */
-    if (prop != VM_INVALID_PROP)
-    {
-        /* add a varargs modifier if needed */
-        if (varargs)
-            G_cg->write_op(OPC_VARARGC);
-
-        /* we have a constant property ID - generate a regular DELEGATE */
-        G_cg->write_op(OPC_DELEGATE);
-        G_cs->write((char)argc);
-        G_cs->write_prop_id(prop);
-
-        /* this removes arguments and the object value */
-        G_cg->note_pop(argc + 1);
-    }
-    else
-    {
-        /* 
-         *   if we have a varargs list, modify the call instruction that
-         *   follows to make it a varargs call 
-         */
-        if (varargs)
-        {
-            /* swap the top of the stack to get the arg counter back on top */
-            G_cg->write_op(OPC_SWAP);
-
-            /* write the varargs modifier */
-            G_cg->write_op(OPC_VARARGC);
-        }
-
-        /* a property pointer is on the stack - write a PTRDELEGATE */
-        G_cg->write_op(OPC_PTRDELEGATE);
-        G_cs->write((int)argc);
-
-        /* this removes arguments, the object, and the property pointer */
-        G_cg->note_pop(argc + 2);
-    }
-
-    /* if the result is needed, push it */
-    if (!discard)
-    {
-        G_cg->write_op(OPC_GETR0);
-        G_cg->note_push();
-    }
+    /* generate the delegate call */
+    G_cg->js_expr("T3_delegate($1, $2, ${args[] 3 %d %d})", argc, varargs);
 }
 
 
@@ -900,22 +738,7 @@ void CTPNArgc::gen_code(int discard, int)
 {
     /* generate the argument count, if we're not discarding */
     if (!discard)
-    {
-        if (G_cg->is_eval_for_debug())
-        {
-            /* generate a debug argument count evaluation */
-            G_cg->write_op(OPC_GETDBARGC);
-            G_cs->write2(G_cg->get_debug_stack_level());
-        }
-        else
-        {
-            /* generate the normal argument count evaluation */
-            G_cg->write_op(OPC_GETARGC);
-        }
-
-        /* we push one element */
-        G_cg->note_push();
-    }
+        G_cg->js_expr("arguments.length");
 }
 
 
@@ -928,150 +751,173 @@ void CTPNConst::gen_code(int discard, int)
     /* if we're discarding the value, do nothing */
     if (discard)
         return;
+
+    /* generate the value into an expression buffer */
+    js_expr_buf expr;
+    gen_code(expr);
+
+    /* push the expression onto the value stack */
+    G_cg->push_js_expr(expr);
+}
+
+/*
+ *   append a constant value to an expression buffer
+ */
+void CTPNConst::gen_code(js_expr_buf &expr)
+{
+    char buf[64];
     
     /* generate the appropriate type of push for the value */
     switch(val_.get_type())
     {
     case TC_CVT_NIL:
-        G_cg->write_op(OPC_PUSHNIL);
+        expr += "null";
         break;
 
     case TC_CVT_TRUE:
-        G_cg->write_op(OPC_PUSHTRUE);
+        expr += "true";
         break;
 
     case TC_CVT_INT:
         /* write the push-integer instruction */
-        s_gen_code_int(val_.get_val_int());
-
-        /* s_gen_code_int notes a push, which we'll do also, so cancel it */
-        G_cg->note_pop();
+        s_gen_code_int(expr, val_.get_val_int());
         break;
 
     case TC_CVT_FLOAT:
-        /* we'll represent it as a BigNumber object */
-        G_cg->write_op(OPC_PUSHOBJ);
-
-        /* generate the BigNumber object and write its ID */
-        G_cs->write_obj_id(G_cg->gen_bignum_obj(val_.get_val_float(),
-                                                val_.get_val_float_len()));
+        /* represent it as a regular js floating point value */
+        expr.append(val_.get_val_float(), val_.get_val_float_len());
         break;
 
     case TC_CVT_SSTR:
-        /* write the instruction to push a constant pool string */
-        G_cg->write_op(OPC_PUSHSTR);
-        
-        /* 
-         *   add the string to the constant pool, creating a fixup at the
-         *   current code stream location 
-         */
-        G_cg->add_const_str(val_.get_val_str(), val_.get_val_str_len(),
-                            G_cs, G_cs->get_ofs());
+        {
+            /* start with an open quote */
+            expr += '"';
 
-        /* 
-         *   write a placeholder address - this will be corrected by the
-         *   fixup that add_const_str() created for us 
-         */
-        G_cs->write4(0);
+            /* add characters from the string, quoting specials */
+            const char *start, *str = val_.get_val_str();
+            size_t len = val_.get_val_str_len();
+            for (start = str ; ; ++str, --len)
+            {
+                /* we need to escape double quotes and control characters */
+                int esc = (*str == '"' || *str < 32);
+                
+                /* 
+                 *   if we're escaping this character, or we've reached the
+                 *   end of the string, copy out the chunk up to this point 
+                 */
+                if ((len == 0 || esc) && str != start)
+                    expr.append(start, str - start);
+                
+                /* if this is the end of the string, we're done */
+                if (len == 0)
+                    break;
+                
+                /* escape the current character if necessary */
+                if (esc)
+                {
+                    /* escape it */
+                    if (*str == '"')
+                    {
+                        /* double quote - generate the \" sequence */
+                        expr += "\\\"";
+                    }
+                    else
+                    {
+                        /* control character - generate an octal \nnn sequence */
+                        char escbuf[30];
+                        sprintf(escbuf, "\\%03o", *str);
+                        expr += escbuf;
+                    }
+                    
+                    /* the next segment starts at the next character */
+                    start = str + 1;
+                }
+            }
+            
+            /* add the close quote */
+            expr += '"';
+        }
         break;
 
     case TC_CVT_LIST:
-        /* write the instruction */
-        G_cg->write_op(OPC_PUSHLST);
+        {
+            /* open the array expression */
+            expr += '[';
+            
+            /* add the list elements */
+            int i;
+            CTPNListEle *cur;
+            for (cur = val_.get_val_list()->get_head(), i = 0 ; cur != 0 ;
+                 cur = cur->get_next(), ++i)
+            {
+                /* add a comma before each element after the first */
+                if (i != 0)
+                    expr += ',';
+                
+                /* generate this expression */
+                cur->get_expr()->gen_code(FALSE, FALSE);
 
-        /* 
-         *   add the list to the constant pool, creating a fixup at the
-         *   current code stream location 
-         */
-        G_cg->add_const_list(val_.get_val_list(), G_cs, G_cs->get_ofs());
-
-        /* 
-         *   write a placeholder address - this will be corrected by the
-         *   fixup that add_const_list() created for us
-         */
-        G_cs->write4(0);
+                /* pop it into the expression buffer */
+                G_cg->pop_js_expr(expr);
+            }
+            
+            /* close the array expression */
+            expr += ']';
+        }
         break;
 
     case TC_CVT_OBJ:
         /* generate the object ID */
-        G_cg->write_op(OPC_PUSHOBJ);
-        G_cs->write_obj_id(val_.get_val_obj());
+        // $$$ need the symbolic name instead
+        sprintf(buf, "T3O_%d", val_.get_val_obj());
+        expr += buf;
         break;
 
     case TC_CVT_PROP:
-        /* generate the property address */
-        G_cg->write_op(OPC_PUSHPROPID);
-        G_cs->write_prop_id(val_.get_val_prop());
+        /* generate the property ID */
+        // $$$ need the symbolic name instead
+        sprintf(buf, "T3P_%d", val_.get_val_prop());
+        expr += buf;
         break;
 
     case TC_CVT_ENUM:
         /* generate the enum value */
-        G_cg->write_op(OPC_PUSHENUM);
-        G_cs->write_enum_id(val_.get_val_enum());
+        // $$$ need the symbolic name instead
+        sprintf(buf, "T3E_%d", val_.get_val_enum());
+        expr += buf;
         break;
 
     case TC_CVT_FUNCPTR:
-        /* generate the function pointer instruction */
-        G_cg->write_op(OPC_PUSHFNPTR);
-
-        /* add a fixup for the function address */
-        val_.get_val_funcptr_sym()->add_abs_fixup(G_cs);
-
-        /* write out a placeholder - arbitrarily use zero */
-        G_cs->write4(0);
+        {
+            /* generate the function pointer */
+            CTcSymFunc *func = val_.get_val_funcptr_sym();
+            expr.append(func->getstr(), func->getlen());
+        }
         break;
 
     case TC_CVT_ANONFUNCPTR:
-        /* generate the function pointer instruction */
-        G_cg->write_op(OPC_PUSHFNPTR);
+        /* generate a js anonymous function from the code body */
+        val_.get_val_anon_func_ptr()->js_anon_func();
 
-        /* add a fixup for the code body address */
-        val_.get_val_anon_func_ptr()->add_abs_fixup(G_cs);
-
-        /* write our a placeholder */
-        G_cs->write4(0);
+        /* that's our value - pop it into the expression buffer */
+        G_cg->pop_js_expr(expr);
         break;
 
     default:
         /* anything else is an internal error */
         G_tok->throw_internal_error(TCERR_GEN_UNK_CONST_TYPE);
     }
-
-    /* all of these push a value */
-    G_cg->note_push();
 }
 
 /*
  *   generate code to push an integer value 
  */
-void CTPNConst::s_gen_code_int(long intval)
+void CTPNConst::s_gen_code_int(js_expr_buf &expr, long intval)
 {
-    /* push the smallest format that will fit the value */
-    if (intval == 0)
-    {
-        /* write the special PUSH_0 instruction */
-        G_cg->write_op(OPC_PUSH_0);
-    }
-    else if (intval == 1)
-    {
-        /* write the special PUSH_1 instruction */
-        G_cg->write_op(OPC_PUSH_1);
-    }
-    else if (intval < 127 && intval >= -128)
-    {
-        /* it fits in eight bits */
-        G_cg->write_op(OPC_PUSHINT8);
-        G_cs->write((char)intval);
-    }
-    else
-    {
-        /* it doesn't fit in 8 bits - use a full 32 bits */
-        G_cg->write_op(OPC_PUSHINT);
-        G_cs->write4(intval);
-    }
-
-    /* however we did it, we left one value on the stack */
-    G_cg->note_push();
+    char buf[32];
+    
+    sprintf(buf, "%d", intval);
+    expr += buf;
 }
 
 /*
@@ -1133,6 +979,10 @@ vm_prop_id_t CTPNConst::gen_code_propid(int check_only, int is_expr)
     switch(val_.get_type())
     {
     case TC_CVT_PROP:
+        /* generate the code */
+        // $$$ make it symbolic?
+        G_cg->js_expr("T3P_%d", val_.get_val_prop());
+
         /* return the constant property ID */
         return (vm_prop_id_t)val_.get_val_prop();
 
@@ -1140,6 +990,8 @@ vm_prop_id_t CTPNConst::gen_code_propid(int check_only, int is_expr)
         /* other values cannot be used as properties */
         if (!check_only)
             G_tok->log_error(TCERR_INVAL_PROP_EXPR);
+
+        /* indicate it's not a property value */
         return VM_INVALID_PROP;
     }
 }
@@ -1169,10 +1021,6 @@ void CTPNConst::gen_code_member(int discard,
          *   normal, then use the standard member generation 
          */
         gen_code(FALSE, FALSE);
-
-        /* if we have an argument counter, put it back on top */
-        if (varargs)
-            G_cg->write_op(OPC_SWAP);
 
         /* use standard member generation */
         CTcPrsNode::s_gen_member_rhs(discard, prop_expr, prop_is_expr,
@@ -1211,89 +1059,8 @@ vm_obj_id_t CTPNConst::gen_code_obj_predot(int *is_self)
  */
 void CTPNDebugConst::gen_code(int discard, int for_condition)
 {
-    /* if we're discarding the value, do nothing */
-    if (discard)
-        return;
-
-    /* generate the appropriate type of push for the value */
-    switch(val_.get_type())
-    {
-    case TC_CVT_SSTR:
-        /* write the in-line string instruction */
-        G_cg->write_op(OPC_PUSHSTRI);
-        G_cs->write2(val_.get_val_str_len());
-        G_cs->write(val_.get_val_str(), val_.get_val_str_len());
-
-        /* note the value push */
-        G_cg->note_push();
-        break;
-
-    case TC_CVT_LIST:
-        /* we should never have a constant list when debugging */
-        assert(FALSE);
-        break;
-
-    case TC_CVT_FUNCPTR:
-        /* generate the function pointer instruction */
-        G_cg->write_op(OPC_PUSHFNPTR);
-
-        /* 
-         *   write the actual function address - no need for fixups in the
-         *   debugger, since everything's fully resolved 
-         */
-        G_cs->write4(val_.get_val_funcptr_sym()->get_code_pool_addr());
-
-        /* note the value push */
-        G_cg->note_push();
-        break;
-
-    case TC_CVT_ANONFUNCPTR:
-        /* 
-         *   we should never see an anonymous function pointer in the
-         *   debugger 
-         */
-        assert(FALSE);
-        break;
-
-    case TC_CVT_FLOAT:
-        {
-            CTcSymMetaclass *sym;
-
-            /* 
-             *   find the 'BigNumber' metaclass - if it's not defined, we
-             *   can't create BigNumber values 
-             */
-            sym = (CTcSymMetaclass *)G_prs->get_global_symtab()
-                  ->find("BigNumber", 9);
-            if (sym == 0 || sym->get_type() != TC_SYM_METACLASS)
-                err_throw(VMERR_INVAL_DBG_EXPR);
-
-            /* push the floating value as an immediate string */
-            G_cg->write_op(OPC_PUSHSTRI);
-            G_cs->write2(val_.get_val_str_len());
-            G_cs->write(val_.get_val_str(), val_.get_val_str_len());
-
-            /* create the new BigNumber object from the string */
-            G_cg->write_op(OPC_NEW2);
-            G_cs->write2(1);
-            G_cs->write2(sym->get_meta_idx());
-
-            /* retrieve the value */
-            G_cg->write_op(OPC_GETR0);
-
-            /* 
-             *   note the net push of one value (we pushed the argument,
-             *   popped the argument, and pushed the new object) 
-             */
-            G_cg->note_push();
-        }
-        break;
-
-    default:
-        /* handle normally for anything else */
-        CTPNConst::gen_code(discard, for_condition);
-        break;
-    }
+    /* not currently implemented */
+    assert(FALSE);
 }
 
 
@@ -1321,7 +1088,7 @@ void CTPNDebugConst::gen_code(int discard, int for_condition)
  *   should be TRUE.  In most cases, the caller's own 'for_condition'
  *   status is not relevant and should thus not be passed through.  
  */
-void CTPNUnary::gen_unary(uchar opc, int discard, int for_condition)
+void CTPNUnary::gen_unary(const char *op, int discard, int for_condition)
 {
     /* 
      *   Generate the operand.  Pass through the 'discard' status to the
@@ -1333,7 +1100,7 @@ void CTPNUnary::gen_unary(uchar opc, int discard, int for_condition)
 
     /* apply the operator if we're not discarding the result */
     if (!discard)
-        G_cg->write_op(opc);
+        G_cg->js_expr("%s($1)", op);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1353,7 +1120,7 @@ void CTPNUnary::gen_unary(uchar opc, int discard, int for_condition)
  *   conversions as a BOOLIZE instruction should it pass TRUE for
  *   'for_condition'.  
  */
-void CTPNBin::gen_binary(uchar opc, int discard, int for_condition)
+void CTPNBin::gen_binary(const char *op, int discard, int for_condition)
 {
     /* 
      *   generate the operands, passing through the discard and
@@ -1364,16 +1131,7 @@ void CTPNBin::gen_binary(uchar opc, int discard, int for_condition)
 
     /* generate our operand if we're not discarding the result */
     if (!discard)
-    {
-        /* apply the operator */
-        G_cg->write_op(opc);
-
-        /* 
-         *   boolean operators all remove two values and push one, so
-         *   there's a net pop 
-         */
-        G_cg->note_pop();
-    }
+        G_cg->js_expr("($1)%s($2)", op);
 }
 
 
@@ -1385,13 +1143,12 @@ void CTPNBin::gen_binary(uchar opc, int discard, int for_condition)
 void CTPNNot::gen_code(int discard, int)
 {
     /*
-     *   Generate the subexpression and apply the NOT opcode.  Note that
-     *   we can compute the subexpression as though we were applying a
-     *   condition, because the NOT opcode takes exactly the same kind of
-     *   input as any condition opcode; we can thus avoid an extra
-     *   conversion in some cases.  
+     *   Generate the subexpression and apply the NOT opcode.  Note that we
+     *   have to generate the subexpression as a regular value, not a
+     *   conditional, since javascript treats empty strings as false values
+     *   with this operator.  
      */
-    gen_unary(OPC_NOT, discard, TRUE);
+    gen_unary("!", discard, FALSE);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1417,13 +1174,8 @@ void CTPNBoolize::gen_code(int discard, int for_condition)
         return;
     }
     
-    /*
-     *   Generate the subexpression and apply the BOOLIZE operator.  Since
-     *   we're explicitly boolean-izing the value, there's no need for the
-     *   subexpression to do the same thing, so the subexpression can
-     *   pretend it's generating for a conditional.  
-     */
-    gen_unary(OPC_BOOLIZE, discard, TRUE);
+    /* turn it into a boolean value */
+    gen_unary("T3_boolize", discard, for_condition);
 }
 
 
@@ -1433,7 +1185,7 @@ void CTPNBoolize::gen_code(int discard, int for_condition)
  */
 void CTPNBNot::gen_code(int discard, int)
 {
-    gen_unary(OPC_BNOT, discard, FALSE);
+    gen_unary("~", discard, FALSE);
 }
 
 
@@ -1456,7 +1208,7 @@ void CTPNPos::gen_code(int discard, int)
  */
 void CTPNNeg::gen_code(int discard, int)
 {
-    gen_unary(OPC_NEG, discard, FALSE);
+    gen_unary("-", discard, FALSE);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1476,15 +1228,7 @@ void CTPNPreInc::gen_code(int discard, int)
         sub_->gen_code(FALSE, FALSE);
 
         /* increment the value at top of stack */
-        G_cg->write_op(OPC_INC);
-
-        /* 
-         *   generate a simple assignment back to the subexpression; if
-         *   we're using the value, let the simple assignment leave its
-         *   value on the stack, since the result is the value *after* the
-         *   increment 
-         */
-        sub_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        G_cg->js_expr("++($1)");
     }
 }
 
@@ -1505,15 +1249,7 @@ void CTPNPreDec::gen_code(int discard, int)
         sub_->gen_code(FALSE, FALSE);
 
         /* decrement the value at top of stack */
-        G_cg->write_op(OPC_DEC);
-
-        /* 
-         *   generate a simple assignment back to the subexpression; if
-         *   we're using the value, let the simple assignment leave its
-         *   value on the stack, since the result is the value *after* the
-         *   decrement 
-         */
-        sub_->gen_code_asi(discard, TC_ASI_SIMPLE, 0, FALSE);
+        G_cg->js_expr("--($1)");
     }
 }
 
@@ -1533,29 +1269,8 @@ void CTPNPostInc::gen_code(int discard, int)
          */
         sub_->gen_code(FALSE, FALSE);
 
-        /* 
-         *   if we're keeping the result, duplicate the value at top of
-         *   stack prior to the increment - since this is a
-         *   post-increment, the result is the value *before* the
-         *   increment 
-         */
-        if (!discard)
-        {
-            G_cg->write_op(OPC_DUP);
-            G_cg->note_push();
-        }
-
         /* increment the value at top of stack */
-        G_cg->write_op(OPC_INC);
-
-        /* 
-         *   Generate a simple assignment back to the subexpression.
-         *   Discard the result of this assignment, regardless of whether
-         *   the caller wants the result of the overall expression,
-         *   because we've already pushed the actual result, which is the
-         *   original value before the increment operation.
-         */
-        sub_->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, FALSE);
+        G_cg->js_expr("($1)++");
     }
 }
 
@@ -1575,29 +1290,8 @@ void CTPNPostDec::gen_code(int discard, int)
          */
         sub_->gen_code(FALSE, FALSE);
 
-        /* 
-         *   if we're keeping the result, duplicate the value at top of
-         *   stack prior to the decrement - since this is a
-         *   post-decrement, the result is the value *before* the
-         *   decrement 
-         */
-        if (!discard)
-        {
-            G_cg->write_op(OPC_DUP);
-            G_cg->note_push();
-        }
-
         /* decrement the value at top of stack */
-        G_cg->write_op(OPC_DEC);
-
-        /* 
-         *   Generate a simple assignment back to the subexpression.
-         *   Discard the result of this assignment, regardless of whether
-         *   the caller wants the result of the overall expression,
-         *   because we've already pushed the actual result, which is the
-         *   original value before the decrement operation.
-         */
-        sub_->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, FALSE);
+        G_cg->js_expr("($1)--");
     }
 }
 
@@ -1644,6 +1338,9 @@ void CTPNComma::gen_code(int discard, int for_condition)
      */
     left_->gen_code(TRUE, TRUE);
     right_->gen_code(discard, for_condition);
+
+    /* write the js comma expression */
+    G_cg->js_expr("($1),($2)");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1652,99 +1349,19 @@ void CTPNComma::gen_code(int discard, int for_condition)
  */
 void CTPNOr::gen_code(int discard, int for_condition)
 {
-    CTcCodeLabel *lbl;
-    
-    /* 
-     *   First, evaluate the left-hand side; we need the result even if
-     *   we're discarding the overall expression, since we will check the
-     *   result to see if we should even evaluate the right-hand side.
-     *   We're using the value for a condition, so don't bother
-     *   boolean-izing it.  
-     */
+    /* generate the left and right subexpressions */
     left_->gen_code(FALSE, TRUE);
+    right_->gen_code(discard, TRUE);
 
-    /* 
-     *   If the left-hand side is true, there's no need to evaluate the
-     *   right-hand side (and, in fact, we're not even allowed to evaluate
-     *   the right-hand side because of the short-circuit logic rule).
-     *   So, if the lhs is true, we want to jump around the code to
-     *   evaluate the rhs, saving the 'true' result if we're not
-     *   discarding the overall result. 
-     */
-    lbl = gen_jump_ahead(discard ? OPC_JT : OPC_JST);
-
-    /* 
-     *   Evaluate the right-hand side.  We don't need to save the result
-     *   unless we need the result of the overall expression.  Generate
-     *   the value as though we were going to booleanize it ourselves,
-     *   since we'll do just that (hence pass for_condition = TRUE).  
-     */
-    right_->gen_code(discard, TRUE); 
-
-    /*
-     *   If we discarded the result, we generated a JT which explicitly
-     *   popped a value.  If we didn't discard the result, we generated a
-     *   JST; this may or may not pop the value.  However, if it doesn't
-     *   pop the value (save on true), it will bypass the right side
-     *   evaluation, and will thus "pop" that value in the sense that it
-     *   will never be pushed.  So, note a pop either way.  
-     */
-    G_cg->note_pop();
-
-    /* define the label for the jump over the rhs */
-    def_label_pos(lbl);
+    /* generate the OR */
+    G_cg->js_expr("($1)||($2)");
 
     /* 
      *   if the result is not going to be used directly for a condition,
      *   we must boolean-ize the value 
      */
     if (!for_condition)
-        G_cg->write_op(OPC_BOOLIZE);
-}
-
-/*
- *   Generate code for the short-circuit OR when used in a condition.  We can
- *   use the fact that we're being used conditionally to avoid actually
- *   pushing the result value onto the stack, instead simply branching to the
- *   appropriate point in the enclosing control structure instead.  
- */
-void CTPNOr::gen_code_cond(CTcCodeLabel *then_label,
-                           CTcCodeLabel *else_label)
-{
-    CTcCodeLabel *internal_then;
-
-    /*
-     *   First, generate the conditional code for our left operand.  If the
-     *   condition is true, we can short-circuit the rest of the expression
-     *   by jumping directly to the 'then' label.  If the caller provided a
-     *   'then' label, we can jump directly to the caller's 'then' label;
-     *   otherwise, we must synthesize our own internal label, which we'll
-     *   define at the end of our generated code so that we'll fall through
-     *   on true to the enclosing code.  In any case, we want to fall through
-     *   if the condition is false, so that control will flow to the code for
-     *   our right operand if the left operand is false.  
-     */
-    internal_then = (then_label == 0 ? G_cs->new_label_fwd() : then_label);
-    left_->gen_code_cond(internal_then, 0);
-
-    /* 
-     *   Now, generate code for our right operand.  We can generate this code
-     *   using the caller's destination labels directly: if we reach this
-     *   code at all, it's because the left operand was false, in which case
-     *   the result is simply the value of the right operand.  
-     */
-    right_->gen_code_cond(then_label, else_label);
-
-    /* 
-     *   If we created an internal 'then' label, it goes at the end of our
-     *   generated code: this ensures that we fall off the end of our code
-     *   if the left subexpression is true, which is what the caller told us
-     *   they wanted when they gave us a null 'then' label.  If the caller
-     *   gave us an explicit 'then' label, we'll have jumped there directly
-     *   if the first subexpression was true.  
-     */
-    if (then_label == 0)
-        def_label_pos(internal_then);
+        G_cg->js_expr("T3_boolize($1)");
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1753,97 +1370,20 @@ void CTPNOr::gen_code_cond(CTcCodeLabel *then_label,
  */
 void CTPNAnd::gen_code(int discard, int for_condition)
 {
-    CTcCodeLabel *lbl;
-
-    /* 
-     *   first, evaluate the left-hand side; we need the result even if
-     *   we're discarding the overall expression, since we will check the
-     *   result to see if we should even evaluate the right-hand side 
-     */
+    /* generate the left and right subexpressions */
     left_->gen_code(FALSE, TRUE);
- 
-    /* 
-     *   If the left-hand side is false, there's no need to evaluate the
-     *   right-hand side (and, in fact, we're not even allowed to evaluate
-     *   the right-hand side because of the short-circuit logic rule).
-     *   So, if the lhs is false, we want to jump around the code to
-     *   evaluate the rhs, saving the false result if we're not discarding
-     *   the overall result.  
-     */
-    lbl = gen_jump_ahead(discard ? OPC_JF : OPC_JSF);
-
-    /* 
-     *   Evaluate the right-hand side.  We don't need to save the result
-     *   unless we need the result of the overall expression.  
-     */
     right_->gen_code(discard, TRUE);
- 
-    /* define the label for the jump over the rhs */
-    def_label_pos(lbl);
 
-    /*
-     *   If we discarded the result, we generated a JF which explicitly
-     *   popped a value.  If we didn't discard the result, we generated a
-     *   JSF; this may or may not pop the value.  However, if it doesn't
-     *   pop the value (save on false), it will bypass the right side
-     *   evaluation, and will thus "pop" that value in the sense that it
-     *   will never be pushed.  So, note a pop either way.  
-     */
-    G_cg->note_pop();
+    /* generate the AND */
+    G_cg->js_expr("($1)&&($2)");
 
     /* 
      *   if the result is not going to be used directly for a condition,
      *   we must boolean-ize the value 
      */
     if (!for_condition)
-        G_cg->write_op(OPC_BOOLIZE);
+        G_cg->js_expr("T3_boolize($1)");
 }
-
-/*
- *   Generate code for the short-circuit AND when used in a condition.  We
- *   can use the fact that we're being used conditionally to avoid actually
- *   pushing the result value onto the stack, instead simply branching to the
- *   appropriate point in the enclosing control structure instead.  
- */
-void CTPNAnd::gen_code_cond(CTcCodeLabel *then_label,
-                            CTcCodeLabel *else_label)
-{
-    CTcCodeLabel *internal_else;
-
-    /*
-     *   First, generate the conditional code for our left operand.  If the
-     *   condition is false, we can short-circuit the rest of the expression
-     *   by jumping directly to the 'else' label.  If the caller provided an
-     *   'else' label, we can jump directly to the caller's 'else' label;
-     *   otherwise, we must synthesize our own internal label, which we'll
-     *   define at the end of our generated code so that we'll fall through
-     *   on false to the enclosing code.  In any case, we want to fall
-     *   through if the condition is true, so that control will flow to the
-     *   code for our right operand if the left operand is true.  
-     */
-    internal_else = (else_label == 0 ? G_cs->new_label_fwd() : else_label);
-    left_->gen_code_cond(0, internal_else);
-
-    /* 
-     *   Now, generate code for our right operand.  We can generate this code
-     *   using the caller's destination labels directly: if we reach this
-     *   code at all, it's because the left operand was true, in which case
-     *   the result is simply the value of the right operand.  
-     */
-    right_->gen_code_cond(then_label, else_label);
-
-    /* 
-     *   If we created an internal 'else' label, it goes at the end of our
-     *   generated code: this ensures that we fall off the end of our code
-     *   if the left subexpression is false, which is what the caller told
-     *   us they wanted when they gave us a null 'else' label.  If the
-     *   caller gave us an explicit 'else' label, we'll have jumped there
-     *   directly if the first subexpression was false.  
-     */
-    if (else_label == 0)
-        def_label_pos(internal_else);
-}
-
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -3155,7 +2695,7 @@ void CTPNDstrEmbed::gen_code(int, int)
 /*
  *   Argument list
  *   
- *   For fixed arguments, generate as 'argc' stack entries.
+ *   For fixed arguments, generate as 'argc' stack elements.
  *   
  *   For varargs, generate as a single stack entry containing an array with
  *   the arguments.  
@@ -5649,6 +5189,33 @@ void CTPNCodeBody::enum_for_param_ctx(void *, class CTcSymbol *sym)
             lcl->gen_code_asi(TRUE, TC_ASI_SIMPLE, 0, TRUE);
         }
     }
+}
+
+/*
+ *   generate as an anonymous function 
+ */
+void CTPNCodeBody::js_anon_func()
+{
+    /* generate the body onto the js expression stack */
+    gen_code(FALSE, FALSE);
+
+    /* start with the 'function' keyword and open the arg list */
+    js_expr_buf expr;
+    expr += "function(";
+
+    /* add the argument names */
+    for (int i = 0 ; i < argc_ ; ++i)
+    {
+        char buf[32];
+        sprintf(buf, "%sa%d", i == 0 ? "" : ",", i);
+        expr += buf;
+    }
+
+    /* close the arg list and add the placeholder for the body */
+    expr += ")$1";
+
+    /* push this as our new expression */
+    G_cg->js_expr((const char *)expr);
 }
 
 
