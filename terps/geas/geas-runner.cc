@@ -2117,12 +2117,13 @@ void geas_implementation::run_script (string s, string &rv)
 
   if (tok[0] == '{')
     {
-      uint brace1, brace2;
-      for (brace1 = 0; brace1 < s.length() && s[brace1] != '{'; brace1 ++)
+      uint brace1 = c1 + 1, brace2;
+      for (brace2 = s.length() - 1; brace2 >= brace1 && s[brace2] != '}'; brace2 --)
 	;
-      for (brace2 = s.length() - 1; brace2 > 0 && s[brace2] != '}'; brace2 --)
-	;
-      run_script (s.substr (brace1 + 1, brace2 - brace1 - 2));
+      if (brace2 >= brace1)
+	run_script (s.substr (brace1, brace2 - brace1));
+      else
+	gi->debug_print ("Unterminated brace block in " + s);
       return;
     }
 
