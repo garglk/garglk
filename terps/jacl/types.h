@@ -25,6 +25,7 @@ struct proxy_type {
 };
 
 struct stack_type {
+	FILE 			*infile, *outfile;
 	int             arguments[MAX_WORDS];
     char			str_arguments[MAX_WORDS][256];
 	char            text_buffer[1024];
@@ -36,10 +37,6 @@ struct stack_type {
 	int				quoted[MAX_WORDS];
 	int				wp;
 	int				argcount;
-	long   			top_of_loop;
-	long   			top_of_select;
-	long   			top_of_while;
-	long   			top_of_do_loop;
 	int				*loop_integer;
 	int				*select_integer;
 	int				criterion_value;
@@ -48,8 +45,20 @@ struct stack_type {
 	int				current_level;
 	int				execution_level;
 #ifdef GLK
+	glsi32 			top_of_loop;
+	glsi32   		top_of_select;
+	glsi32   		top_of_while;
+	glsi32   		top_of_iterate;
+	glsi32   		top_of_update;
+	glsi32  		top_of_do_loop;
 	glsi32          address;
 #else
+	long   			top_of_loop;
+	long   			top_of_select;
+	long   			top_of_while;
+	long   			top_of_iterate;
+	long   			top_of_update;
+	long   			top_of_do_loop;
 	long			address;
 #endif
 	struct function_type *function;

@@ -48,6 +48,7 @@ extern char						user_id[];
 
 extern int						noun[];
 extern int						quoted[];
+extern int						percented[];
 extern char						*word[];
 
 extern int						resolved_attribute;
@@ -62,6 +63,7 @@ extern int						*object_backup_address;
 extern int						value_resolved;
 
 char 							macro_function[84];
+int								value_has_been_resolved;
 
 int            *
 container_resolve(container_name)
@@ -93,13 +95,42 @@ container_resolve(container_name)
 }
 
 char		   *
+var_text_of_word(wordnumber)
+	int			wordnumber;
+{
+    char *value;
+
+	if (percented[wordnumber] == FALSE) {
+		return (word[wordnumber]);
+	} else {
+        value_has_been_resolved = TRUE;
+        value = arg_text_of(word[wordnumber]);
+        while (value_has_been_resolved && percented[wordnumber]) {
+           value = arg_text_of(value);
+		   percented[wordnumber]--;
+		}
+
+		return (value);
+	}
+}
+
+char		   *
 arg_text_of_word(wordnumber)
 	int			wordnumber;
 {
+    char *value;
+
 	if (quoted[wordnumber] == 1) {
 		return (word[wordnumber]);
 	} else {
-		return (arg_text_of(word[wordnumber]));
+        value_has_been_resolved = TRUE;
+        value = arg_text_of(word[wordnumber]);
+        while (value_has_been_resolved && percented[wordnumber]) {
+           value = arg_text_of(value);
+		   percented[wordnumber]--;
+		}
+
+		return (value);
 	}
 }
 
@@ -107,10 +138,19 @@ char		   *
 text_of_word(wordnumber)
 	int			wordnumber;
 {
+    char *value;
+
 	if (quoted[wordnumber] == 1) {
 		return (word[wordnumber]);
 	} else {
-		return (text_of(word[wordnumber]));
+        value_has_been_resolved = TRUE;
+        value = text_of(word[wordnumber]);
+        while (value_has_been_resolved && percented[wordnumber]) {
+           value = text_of(value);
+		   percented[wordnumber]--;
+		}
+
+		return (value);
 	}
 }
 
@@ -129,20 +169,25 @@ text_of(string)
 	/* CHECK IF THE SUPPLIED STRING IS THE NAME OF A STRING CONSTANT,
 	 * IF NOT, RETURN THE STRING LITERAL */
 	if ((return_string = macro_resolve(string)) != NULL) {
+        value_has_been_resolved = FALSE;
 		return(return_string);
 	} else if ((resolved_integer = integer_resolve(string)) != NULL) {
+        value_has_been_resolved = FALSE;
 		integer_buffer[0] = 0;
 		sprintf(integer_buffer, "%d", resolved_integer->value);
 		return(integer_buffer);
 	} else if ((resolved_cinteger = cinteger_resolve(string)) != NULL) {
+        value_has_been_resolved = FALSE;
 		integer_buffer[0] = 0;
 		sprintf(integer_buffer, "%d", resolved_cinteger->value);
 		return(integer_buffer);
 	} else if (object_element_resolve(string)) {
+        value_has_been_resolved = FALSE;
 		integer_buffer[0] = 0;
 		sprintf(integer_buffer, "%d", oec);
 		return(integer_buffer);
 	} else if ((index = object_resolve(string)) != -1) {
+        value_has_been_resolved = FALSE;
 		if (index < 1 || index > objects) {
 			badptrrun(string, index);
 			return ("");
@@ -154,17 +199,21 @@ text_of(string)
 	} else if ((resolved_cstring = cstring_resolve(string)) != NULL) {
 		return (resolved_cstring->value);
 	} else if (function_resolve(string) != NULL) {
+        value_has_been_resolved = FALSE;
 		sprintf(integer_buffer, "%d", execute(string));
 		return(integer_buffer);
 #ifndef GLK
 #ifndef __NDS__
 	} else if (!strcmp(string, "$url")) {
+        value_has_been_resolved = FALSE;
 		return (game_url);
 	} else if (!strcmp(string, "$user_id")) {
+        value_has_been_resolved = FALSE;
 		return (user_id);
 #endif
 #endif
 	} else {
+        value_has_been_resolved = FALSE;
 		return (string);
 	}
 }
@@ -180,12 +229,15 @@ arg_text_of(string)
 	/* CHECK IF THE SUPPLIED STRING IS THE NAME OF A STRING CONSTANT,
 	 * IF NOT, RETURN THE STRING LITERAL */
 	if ((macro_text = macro_resolve(string)) != NULL) {
+        value_has_been_resolved = FALSE;
 		return(macro_text);
 	} else if ((resolved_string = string_resolve(string)) != NULL) {
 		return (resolved_string->value);
 	} else if ((resolved_cstring = cstring_resolve(string)) != NULL) {
+        value_has_been_resolved = FALSE;
 		return (resolved_cstring->value);
 	} else {
+        value_has_been_resolved = FALSE;
 		return (string);
 	}
 }

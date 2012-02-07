@@ -1126,6 +1126,7 @@ noun_resolve(scope_word, finding_from, noun_number)
 
 	int             index;
 	int             counter;
+	int				first_word = TRUE;
 
 	struct word_type *terminator = scope_word->first_child;
 	struct name_type *current_name;
@@ -1175,7 +1176,19 @@ noun_resolve(scope_word, finding_from, noun_number)
 		 * NAME */
 	}
 
+	// CLEAR THE ERROR BUFFER AND USE IT TO STORE ALL THE WORDS THE PLAYER
+	// HAS USED TO REFER TO THE OBJECT
+	error_buffer[0] = 0;
+
 	while (word[wp] != NULL) {
+		// ADD THE WORDS USED TO error_buffer FOR POSSIBLE USE
+		// IN A DISABMIGUATE EMESSAGE
+		if (first_word == FALSE) {		
+			strcat(error_buffer, " ");
+		}
+		strcat(error_buffer, word[wp]);	
+		first_word = FALSE;
+
 		/* LOOP THROUGH WORDS IN THE PLAYER'S INPUT */
 
 		/* RESET TERMINATOR TO THE FIRST OF THE TERMINATING WORDS */
@@ -1505,14 +1518,26 @@ noun_resolve(scope_word, finding_from, noun_number)
 		}
 	}
 
+	// CALCULATE THE HIGHEST CONFIDENCE OF ALL THE POSSIBLE OBJECTS
+	highest_confidence = 0;
+
+	for (index = 1; index <= objects; index++) {
+		if (confidence[index] > highest_confidence) {
+			highest_confidence = confidence[index];
+		}
+	}
+
 	/* REMOVE ANY OBJECTS THAT ARE NOT IN THEIR VERB'S SPECIFIED SCOPE */
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
 			if (scope(index, "*present", UNRESTRICT) != FALSE) {
-				/* TAKE SPECIAL NOT OF AN OBJECT THAT IS PRESENT
-				 * IN CASE NO OBJECT ARE LEFT AFTER SPECIFIED SCOPE
-				 * IS USED TO FILTER THE LIST */
-				prime_suspect = index;
+				// TAKE SPECIAL NOT OF AN OBJECT THAT IS PRESENT
+				// AND AT LEAST EQUAL FOR THE HIGHEST CONFIDENCE
+				// IN CASE NO OBJECT ARE LEFT AFTER SPECIFIED SCOPE
+				// IS USED TO FILTER THE LIST */
+				if (confidence[index] == highest_confidence) {
+					prime_suspect = index;
+				}
 				//printf("--- storing %s as prime_suspect\n", object[index]->label);
 			}
 
@@ -1548,8 +1573,10 @@ noun_resolve(scope_word, finding_from, noun_number)
 	 * CONFIDENCE UNLESS A PLURAL NAME WAS USED. IN THAT CASE, ONLY 
 	 * EXCLUDE OBJECTS THAT DO NOT HAVE ONE OF THE NAMES SUPPLIED */
 	if (matches > 1 && return_limit == 1) {
-		/* CALCULATE THE HIGHEST CONFIDENCE NOW THAT OBJECTS NOT IN SCOPE 
-	 	* HAVE BEEN REMOVED */
+		// CALCULATE THE HIGHEST CONFIDENCE NOW THAT OBJECTS
+	 	// NOT IN SCOPE HAVE BEEN REMOVED 
+		highest_confidence = 0;
+
 		for (index = 1; index <= objects; index++) {
 			if (confidence[index] > highest_confidence) {
 				highest_confidence = confidence[index];
@@ -1679,6 +1706,8 @@ noun_resolve(scope_word, finding_from, noun_number)
 	/* NO OBJECT HAS CLAIMED OWNERSHIP, PROMPT THE PLAYER TO SPECIFY 
 	 * WHICH ONE THEY REQUIRE. */
 	counter = 1;
+	write_text(cstring_resolve("BY")->value);
+	write_text(error_buffer);
 	write_text(cstring_resolve("REFERRING_TO")->value);
 	for (index = 1; index <= objects; index++) {
 		if (confidence[index] != FALSE) {
@@ -1708,6 +1737,8 @@ noun_resolve(scope_word, finding_from, noun_number)
 #else
     /* IF MORE THAT ONE OBJECT STILL REMAINS, PROMPT THE PLAYER TO SPECIFY 
      * WHICH ONE THEY REQUIRE. */
+	write_text(cstring_resolve("WHEN_YOU_SAY")->value);
+	write_text(error_buffer);
     write_text(cstring_resolve("MUST_SPECIFY")->value);
     for (index = 1; index <= objects; index++) {
         if (confidence[index] != FALSE) {

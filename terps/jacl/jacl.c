@@ -13,9 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+
+#include "csv.h"
 
 #ifdef WIN32
 #ifndef GARGLK
@@ -44,6 +45,8 @@ schanid_t 			sound_channel[8] = { NULL, NULL, NULL, NULL,
 
 event_t				*cancelled_event;
 
+extern struct csv_parser parser_csv;
+
 extern char			text_buffer[];
 extern char			*word[];
 extern short int	quoted[];
@@ -68,6 +71,7 @@ struct	string_type	*resolved_string;
 
 char            include_directory[81] = "\0";
 char            temp_directory[81] = "\0";
+char            data_directory[81] = "\0";
 char            special_prompt[81] = "\n: \0";
 char            file_prompt[5] = ": \0";
 char            bookmark[81] = "\0";
@@ -237,6 +241,9 @@ glk_main(void)
 		}
 	}
 
+	// INTIALISE THE CSV PARSER
+	csv_init(&parser_csv, CSV_APPEND_NULL);
+  
 	/* NO PREPROCESSOR ERRORS, LOAD THE GAME FILE */
 	read_gamefile();
 
@@ -605,8 +612,8 @@ word_check()
 		write_text("for more details.^^");
 		write_text("You should have received a copy of the GNU General ");
 		write_text("Public License along with this program; if not, write ");
-		write_text("to the Free Software Foundation, Inc., 51 Franklin Street, ");
-		write_text("Fifth Floor, Boston, MA 02110-1301 USA.^^");
+		write_text("to the Free Software Foundation, Inc., 675 Mass Ave, ");
+		write_text("Cambridge, MA 02139, USA.^^");
 		sprintf(temp_buffer, "OBJECTS DEFINED:   %d^", objects);
 		write_text(temp_buffer);
 		TIME->value = FALSE;
@@ -795,7 +802,7 @@ write_text(string_buffer)
 }
 
 void
-sleep(unsigned int mseconds)
+jacl_sleep(unsigned int mseconds)
 {
 	int multiplier = CLOCKS_PER_SEC / 1000;
 

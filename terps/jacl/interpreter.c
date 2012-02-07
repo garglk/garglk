@@ -7,7 +7,64 @@
 #include "language.h"
 #include "types.h"
 #include "prototypes.h"
+#include "csv.h"
+#include "errno.h"
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#ifdef WIN32
+struct flock {
+	short l_type;
+	short l_whence;
+	off_t l_start;
+	off_t l_len;
+	pid_t l_pid;
+};
+
+#define F_DUPFD  0
+#define F_GETFD  1
+#define F_SETFD  2
+#define F_GETFL  3
+#define F_SETFL  4
+#define F_GETLK  5
+#define F_SETLK  6
+#define F_SETLKW 7
+
+#define F_RDLCK  0
+#define F_WRLCK  1
+#define F_UNLCK  2
+
+int fcntl(int __fd, int __cmd, ...) { return 0; }
+#endif /* WIN32 */
+
+#ifndef strcasestr
+char *strcasestr(const char *s, const char *find)
+{
+	char c, sc;
+	size_t len;
+
+	if ((c = *find++) != 0) {
+		c = (char)tolower((unsigned char)c);
+		len = strlen(find);
+		do {
+			do {
+				if ((sc = *s++) == 0)
+					return (NULL);
+			} while ((char)tolower((unsigned char)sc) != c);
+		} while (strncasecmp(s, find, len) != 0);
+		s--;
+	}
+	return ((char *)s);
+}
+#endif
+
+#define MAX_TRY 10 
+
+struct flock	read_lck;
+int				read_fd;
+struct flock	write_lck;
+int				write_fd;
 
 char *url_encode(char *str);
 char to_hex(char code);
@@ -36,8 +93,15 @@ char *location_elements[] = {
  "southwest", "up", "down", "in", "out", "points", "class", "x", "y", 
  NULL };
 
+struct csv_parser				parser_csv;
+char							in_name[1024];
+char							out_name[1024];
+FILE 							*infile, *outfile;
+
 int             				stack = 0;
 int             				proxy_stack = 0;
+
+int             				field_no = 0;
 
 struct stack_type				backup[STACK_SIZE];
 struct proxy_type				proxy_backup[STACK_SIZE];
@@ -54,10 +118,13 @@ struct cinteger_type *current_cinteger = NULL;
 struct cinteger_type *previous_cinteger = NULL;
 
 long							bit_mask;
-extern int 						encrypt;
 extern int 						encrypted;
 extern int						after_from;
 extern int						last_exact;
+
+extern char						temp_directory[];
+extern char						data_directory[];
+char							csv_buffer[1024];
 
 int								resolved_attribute;
 
@@ -91,6 +158,8 @@ extern strid_t 					inputstr;
 glsi32  						top_of_loop = 0;
 glsi32  						top_of_select = 0;
 glsi32							top_of_while = 0;
+glsi32							top_of_iterate = 0;
+glsi32							top_of_update = 0;
 glsi32 							top_of_do_loop = 0;
 #else
 extern FILE                     *file;
@@ -100,6 +169,8 @@ int								style_index = 0;
 long   							top_of_loop = 0;
 long   							top_of_select = 0;
 long   							top_of_while = 0;
+long   							top_of_iterate = 0;
+long   							top_of_update = 0;
 long   							top_of_do_loop = 0;
 
 #endif
@@ -180,6 +251,9 @@ void
 terminate(code)
 	 int             code;
 {
+	// FREE ANY EXTRA RAM ALLOCATED BY THE CSV PARSER
+	csv_free(&parser_csv);
+
 #ifdef GLK
 	int index;
     event_t			event;
@@ -230,6 +304,43 @@ build_proxy()
 	//printf("--- proxy buffer = \"%s\"\n", proxy_buffer);
 }
 
+void 
+cb1 (void *s, size_t i, void *not_used) {
+	struct string_type *resolved_cstring;
+
+	//sprintf (temp_buffer, "Trying to set field %d to equal %s^", field_no, (char *) s);
+	//write_text(temp_buffer);
+
+	sprintf (temp_buffer, "field[%d]", field_no);
+
+	if ((resolved_cstring = cstring_resolve(temp_buffer)) != NULL) {
+		//write_text("Resolved ");
+		//write_text(temp_buffer);
+        //write_text("^");
+		strncpy (resolved_cstring->value, s, i);
+		resolved_cstring->value[i] = 0;
+		//sprintf(temp_buffer, "Setting field %d to ~%s~^", field_no, (char *) s);
+		//write_text(temp_buffer);
+		// INCREMENT THE FIELD NUMBER SO THE NEXT ONE GETS STORED IN THE RIGHT CONSTANT
+		field_no++;	
+	} else {
+		write_text("Can't resolve ");
+		write_text(temp_buffer);
+        write_text("^");
+	}
+
+}
+
+void 
+cb2 (int c, void *not_used) {
+	// THE END OF THE RECORD HAS BEEN REACHED, EXPORT THE NUMBER OF FIELDS READ
+	struct cinteger_type *resolved_cinteger;
+
+	if ((resolved_cinteger = cinteger_resolve("field_count")) != NULL) {
+		resolved_cinteger->value = field_no;
+	}
+}
+
 int
 execute(funcname)
 	 char           *funcname;
@@ -275,6 +386,8 @@ execute(funcname)
 	top_of_loop = 0;
 	top_of_select = 0;
 	top_of_while = 0;
+	top_of_iterate = 0;
+	top_of_update = 0;
 	top_of_do_loop = 0;
 
 	executing_function = resolved_function;
@@ -321,7 +434,40 @@ execute(funcname)
 #else
                     fseek(file, top_of_while, SEEK_SET);
 #endif
-
+					execution_level = current_level;
+				}
+			}
+		} else if (!strcmp(word[0], "enditerate")) {
+			current_level--;
+			if (current_level < execution_level) {
+				// THIS ENDITERATE COMMAND WAS BEING EXECUTED, 
+				// NOT JUST COUNTED.
+				if (top_of_iterate == FALSE) {
+					sprintf(error_buffer, NO_ITERATE, executing_function->name);
+					log_error(error_buffer, PLUS_STDOUT);
+				} else {
+#ifdef GLK
+					glk_stream_set_position(game_stream, top_of_iterate, seekmode_Start);
+#else
+                    fseek(file, top_of_iterate, SEEK_SET);
+#endif
+					execution_level = current_level;
+				}
+			}
+		} else if (!strcmp(word[0], "endupdate")) {
+			current_level--;
+			if (current_level < execution_level) {
+				// THIS ENDUPDATE COMMAND WAS BEING EXECUTED, 
+				// NOT JUST COUNTED.
+				if (top_of_update == FALSE) {
+					sprintf(error_buffer, NO_UPDATE, executing_function->name);
+					log_error(error_buffer, PLUS_STDOUT);
+				} else {
+#ifdef GLK
+					glk_stream_set_position(game_stream, top_of_update, seekmode_Start);
+#else
+                    fseek(file, top_of_update, SEEK_SET);
+#endif
 					execution_level = current_level;
 				}
 			}
@@ -411,6 +557,206 @@ execute(funcname)
 						fseek(file, top_of_do_loop, SEEK_SET);
 #endif
 
+					}
+				}
+			} else if (!strcmp(word[0], "iterate")) {
+				int i;
+
+				// A NEW iterate LOOP MEANS STARTING BACK AT THE FIRST FIELD
+				field_no = 0;
+
+				current_level++;
+				/* THIS LOOP COMES BACK TO THE START OF THE LINE CURRENTLY
+				   EXECUTING, NOT THE LINE AFTER */
+
+				top_of_iterate = before_command;
+
+				// infile REMAINS OPEN DURING THE ITERATION, ONLY NEEDS 
+				// OPENING THE FIRST TIME
+				if (infile == NULL) {
+					strcpy (temp_buffer, data_directory);
+					strcat (temp_buffer, prefix);
+					strcat (temp_buffer, "-");
+					strcat (temp_buffer, text_of_word(1));
+					strcat (temp_buffer, ".csv");
+
+					infile = fopen(temp_buffer, "rb");
+	
+					if (word[2] != NULL && !strcmp(word[2], "skip_header")) {
+						fgets(csv_buffer, 1024, infile);
+					}
+				}
+
+				if (infile == NULL) {
+    				sprintf(error_buffer, "Failed to open file %s: %s\n", temp_buffer, strerror(errno));
+					log_error(error_buffer, LOG_ONLY);
+    				infile = NULL;
+  				} else {
+					if (word[1] == NULL) {
+						/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+						noproprun();
+						return(exit_function (TRUE));
+					} else {
+						// IF THERE IS ANOTHER RECORD TO READ FROM THE CSV FILE THEN
+						// SET THE field[] CONSTANTS AND INCREMENT THE execution_level
+						fgets(csv_buffer, 1024, infile);
+            			if (!feof(infile)) {
+  							i = strlen(csv_buffer);
+							//sprintf (temp_buffer, "Read ~%s~ with %d bytes.^", csv_buffer, i);
+							//write_text(temp_buffer);
+    						if (csv_parse(&parser_csv, csv_buffer, i, cb1, cb2, (void *) NULL) != i) {
+      							sprintf(error_buffer, "Error parsing file: %s\n", csv_strerror(csv_error(&parser_csv)));
+								log_error(error_buffer, PLUS_STDOUT);
+      							fclose(infile);
+      							infile = NULL;
+    						} else {
+								// A LINE HAS BEEN SUCCESSFULLY READ, EXECUTE THE CONTENTS OF THE LOOP
+								execution_level++;
+							}
+						} else {
+							fclose(infile);
+							infile = NULL;
+						}
+					}
+				}
+			} else if (!strcmp(word[0], "update")) {
+				int i;
+				int try = 0; 
+
+				// SET UP THE RECORD LOCKING STRUCTURE, THE ADDRESS OF WHICH
+				// IS PASSED TO THE fcntl() SYSTEM CALL
+				write_lck.l_type = F_WRLCK;	// SETTING A WRITE LOCK
+				write_lck.l_whence = 0;		// OFFSET l_start FROM BEGINNING OF FILE
+				write_lck.l_start = 0LL; 
+				write_lck.l_len = 0LL;		// UNTIL THE END OF THE FILE ADDRESS SPACE
+
+				read_lck.l_type = F_RDLCK;	// SETTING A READ LOCK
+				read_lck.l_whence = 0;		// OFFSET l_start FROM BEGINNING OF FILE
+				read_lck.l_start = 0LL; 
+				read_lck.l_len = 0LL;		// UNTIL THE END OF THE FILE ADDRESS SPACE
+
+				// A NEW iterate LOOP MEANS STARTING BACK AT THE FIRST FIELD
+				field_no = 0;
+
+				current_level++;
+				// THIS LOOP COMES BACK TO THE START OF THE LINE CURRENTLY
+				// EXECUTING, NOT THE LINE AFTER 
+
+				top_of_update = before_command;
+
+				// infile REMAINS OPEN DURING THE ITERATION, ONLY NEEDS 
+				// OPENING THE FIRST TIME
+				if (infile == NULL) {
+					strcpy (in_name, data_directory);
+					strcat (in_name, prefix);
+					strcat (in_name, "-");
+					strcat (in_name, text_of_word(1));
+					strcat (in_name, ".csv");
+
+					infile = fopen(in_name, "rb");
+				}
+
+				if (outfile == NULL) {
+					// OPEN A TEMPORARY OUTPUT FILE TO WRITE THE MODIFICATIONS TO
+					strcpy (out_name, data_directory);
+					strcat (out_name, prefix);
+					strcat (out_name, "-");
+					strcat (out_name, text_of_word(1));
+					strcat (out_name, "-");
+					strcat (out_name, user_id);
+					strcat (out_name, ".csv");
+
+					outfile = fopen(out_name, "wb");
+				}
+
+				if (infile == NULL) {
+    				sprintf(error_buffer, "Failed to open input CSV file ~%s~: %s\n", in_name, strerror(errno));
+					log_error(error_buffer, LOG_ONLY);
+					if (outfile != NULL) {
+						fclose(outfile);
+						outfile = NULL;
+					}
+					return(exit_function (TRUE));
+  				} else {
+					if (outfile == NULL) {
+    					sprintf(error_buffer, "Failed to open output CSV file ~%s~: %s\n", out_name, strerror(errno));
+						log_error(error_buffer, LOG_ONLY);
+						if (infile != NULL) {
+	    					fclose(infile);
+							infile = NULL;
+						}
+						return(exit_function (TRUE));
+					} else {
+						write_fd = fileno(outfile);
+						// ATTEMPT LOCKING OUTPUT FILE MAX_TRY TIMES BEFORE GIVING UP. 
+  						while (fcntl(write_fd, F_SETLK, &write_lck)<0) {  
+     						if (errno == EAGAIN || errno == EACCES) { 
+         						// THERE MIGHT BE OTHER ERROR CASES IN WHICH 
+          						// USERS MIGHT TRY AGAIN 
+          						if (++try < MAX_TRY) { 
+               						jacl_sleep(1000); 
+               						continue; 
+          						} 
+         						sprintf(error_buffer, "File busy unable to get lock on output file.\n"); 
+								log_error(error_buffer, PLUS_STDOUT);
+								return(exit_function (TRUE));
+      						} 
+  						} 
+
+						try = 0;
+
+						read_fd = fileno(infile);
+						// ATTEMPT LOCKING OUTPUT FILE MAX_TRY TIMES BEFORE GIVING UP. 
+  						while (fcntl(read_fd, F_SETLK, &read_lck)<0) {  
+     						if (errno == EAGAIN || errno == EACCES) { 
+         						// THERE MIGHT BE OTHER ERROR CASES IN WHICH 
+          						// USERS MIGHT TRY AGAIN 
+          						if (++try < MAX_TRY) { 
+               						jacl_sleep(1000); 
+               						continue; 
+          						} 
+         						sprintf(error_buffer, "File busy unable to get lock on input file.\n"); 
+								log_error(error_buffer, PLUS_STDOUT);
+								return(exit_function (TRUE));
+      						} 
+  						} 
+
+						if (word[1] == NULL) {
+							/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+							noproprun();
+							return(exit_function (TRUE));
+						} else {
+							// IF THERE IS ANOTHER RECORD TO READ FROM THE CSV FILE THEN
+							// SET THE field[] CONSTANTS AND INCREMENT THE execution_level
+							fgets(csv_buffer, 1024, infile);
+	            			if (!feof(infile)) {
+	  							i = strlen(csv_buffer);
+	    						if (csv_parse(&parser_csv, csv_buffer, i, cb1, cb2, (int *) &field_no) != i) {
+	      							sprintf(error_buffer, "Error parsing file: %s\n", csv_strerror(csv_error(&parser_csv)));
+									log_error(error_buffer, PLUS_STDOUT);
+									read_lck.l_type = F_UNLCK;	// SETTING A READ LOCK
+  									fcntl(read_fd, F_SETLK, &read_lck);
+	      							fclose(infile);
+	      							infile = NULL;
+	    						} else {
+									// A LINE HAS BEEN SUCCESSFULLY READ, EXECUTE THE CONTENTS OF THE LOOP
+									execution_level++;
+								}
+							} else {
+								write_lck.l_type = F_UNLCK;	// REMOVE THE WRITE LOCK
+  								fcntl(write_fd, F_SETLK, &write_lck);
+								fclose(outfile);
+
+								read_lck.l_type = F_UNLCK;	// REMOVE THE READ LOCK
+  								fcntl(read_fd, F_SETLK, &read_lck);
+								fclose(infile);
+
+								rename (out_name, in_name);
+
+								outfile = NULL;
+								infile = NULL;
+							}
+						}
 					}
 				}
 			} else if (!strcmp(word[0], "while")) {
@@ -1015,6 +1361,27 @@ execute(funcname)
 					write_text(temp_buffer);
 
 				}
+			} else if (!strcmp(word[0], "getenv")) {
+				struct string_type *resolved_setstring = NULL;
+
+				if (word[2] == NULL) {
+					noproprun();
+					pop_stack();
+					return (TRUE);
+				} else {
+					// GET A POINTER TO THE STRING BEING MODIFIED
+					if ((resolved_setstring = string_resolve(word[1])) == NULL) {
+						unkstrrun(word[1]);
+						return (exit_function(TRUE));
+					}
+
+					// COPY THE VARIABLE OF THE CGI VARIABLE INTO THE SPECIFIED STRING VARIABLE
+					if (getenv(text_of_word(2)) != NULL) {
+						strncpy (resolved_setstring->value, getenv(text_of_word(2)), 255);
+					} else {
+						strncpy (resolved_setstring->value, "", 255);
+					}
+				}
 			} else if (!strcmp(word[0], "button")) {
 				/* USED TO CREATE AN HTML BUTTON */
 				if (word[1] == NULL) {
@@ -1030,19 +1397,6 @@ execute(funcname)
 					sprintf (option_buffer, "<input class=~button~ type=~submit~ style=~width: 90px; margin: 5px;~ name=~verb~ value=~%s~>", text_of_word(1));
 					write_text(option_buffer);
 				}
-			} else if (!strcmp(word[0], "image")) {
-				/*
-				if (word[3] == NULL) {
-					noproprun();
-					pop_stack();
-					return (TRUE);
-				} else {
-					sprintf
-						(temp_buffer, "<p>\n<IMG BORDER=0 SRC=\"%s\" ALIGN=\"%s\" ALT=\"%s\" HSPACE=5 VSPACE=5>\n</p>",
-						 word[1], word[2], word[3]);
-					write_text(temp_buffer);
-				}
-				*/
 			} else if (!strcmp(word[0], "hidden")) {
 				sprintf (temp_buffer, "<INPUT TYPE=\"hidden\" NAME=\"user_id\" VALUE=\"%s\">", user_id);
 				write_text(temp_buffer);
@@ -1058,7 +1412,7 @@ execute(funcname)
 					strcat(option_buffer, "\"></a>");
 					write_text(option_buffer);
 				}
-			} else if (!strcmp(word[0], "hyperlink")) {
+			} else if (!strcmp(word[0], "hyperlink") || !strcmp(word[0], "hyperlinkNE")) {
 				string_buffer[0] = 0;
 
 				/* USED TO CREATE A HYPERLINK WITH SESSION INFORMATION INCLUDED */
@@ -1067,7 +1421,13 @@ execute(funcname)
 					pop_stack();
 					return (TRUE);
 				} else {
-					char * encoded = url_encode(text_of_word(2));
+					char * encoded;
+
+					if (!strcmp(word[0], "hyperlink")) {
+						encoded = url_encode(text_of_word(2));
+					} else {
+						encoded = text_of_word(2);
+					}
 
 					if (word[3] == NULL) {
 						sprintf (string_buffer, "<a href=\"?command=%s&amp;user_id=%s\">", encoded, user_id);
@@ -1080,13 +1440,21 @@ execute(funcname)
 						strcat (string_buffer, option_buffer);
 					}
 
-                    free (encoded); 
+					if (!strcmp(word[0], "hyperlink")) {
+                    	free (encoded); 
+					}
+
 					write_text(string_buffer);
 				}
 			} else if (!strcmp(word[0], "prompt")) {
 				/* USED TO OUTPUT A HTML INPUT CONTROL THAT CONTAINS SESSION INFORMATION */
-				sprintf(temp_buffer, "<input id=\"JACLCommandPrompt\" type=text name=~command~>\n");
-				write_text(temp_buffer);
+				if (word[1] != NULL) {
+					sprintf(temp_buffer, "<input id=\"JACLCommandPrompt\" type=text name=~command~ onKeyPress=~%s~>\n", word[1]);
+					write_text(temp_buffer);
+				} else {
+					sprintf(temp_buffer, "<input id=\"JACLCommandPrompt\" type=text name=~command~>\n");
+					write_text(temp_buffer);
+				}
 				sprintf(temp_buffer, "<input type=hidden name=\"user_id\" value=\"%s\">", user_id);
 				write_text(temp_buffer);
 			} else if (!strcmp(word[0], "style")) {
@@ -1155,7 +1523,32 @@ execute(funcname)
 			   AND THERE IS NO HARM IN IGNORING THEM */
 			} else if (!strcmp(word[0], "flush")) {
 			} else if (!strcmp(word[0], "image")) {
+				if (word[1] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return (exit_function(TRUE));
+				} else {
+					if (word[2] == NULL) {
+						sprintf(option_buffer, "<img src=~%s~>", text_of_word(1));
+					} else {
+						sprintf(option_buffer, "<img class=~%s~ src=~%s~>", text_of_word(2), text_of_word(1));
+					}
+
+					write_text(option_buffer);
+				}
 			} else if (!strcmp(word[0], "sound")) {
+				if (word[2] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return (exit_function(TRUE));
+				} else {
+					write_text("<audio autoplay=~autoplay~>");
+					if (word[3] == NULL) {
+						sprintf(option_buffer, "<source src=~%s~ type=~%s~>", text_of_word(1), text_of_word(2));
+						write_text(option_buffer);
+					}
+					write_text("</audio>");
+				}
 			} else if (!strcmp(word[0], "cursor")) {
 			} else if (!strcmp(word[0], "timer")) {
 			} else if (!strcmp(word[0], "volume")) {
@@ -1337,6 +1730,10 @@ execute(funcname)
 
 					if (encrypted) jacl_decrypt(text_buffer);
 				}
+			} else if (!strcmp(word[0], "mesg")) {
+				for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
+					fprintf(stderr, "%s", text_of_word(counter));
+				}
 			} else if (!strcmp(word[0], "error")) {
 				write_text("ERROR: In function ~");
 				write_text(executing_function->name);
@@ -1417,6 +1814,70 @@ execute(funcname)
 			} else if (!strcmp(word[0], "undomove")) {
 			} else if (!strcmp(word[0], "updatestatus")) {
 #endif
+			} else if (!strcmp(word[0], "split")) {
+
+				// 0     1       2      3         4
+				// split counter source delimiter destination
+
+				int *split_container;
+				char split_buffer[256] = "";
+				char container_buffer[256] = "";
+				char delimiter[256] = ""; 
+				char *match = NULL;
+				struct string_type *resolved_splitstring = NULL;
+
+				strcpy (split_buffer, text_of_word(2));
+				strcpy (delimiter, text_of_word(3));
+
+				char *source = split_buffer;
+
+				if (word[4] == NULL) {
+					/* NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND */
+					noproprun(0);
+					return (exit_function(TRUE));
+				} else {
+					split_container = container_resolve(var_text_of_word(1));
+
+					if (split_container == NULL) {
+						unkvarrun(var_text_of_word(1));
+						return (exit_function(TRUE));
+					} else {
+						*split_container = 0;
+						match = source;		// THERE IS ALWAYS ONE MATCH, EVEN IF
+											// NO DELIMETERS ARE FOUND
+
+						while ((match = strstr(source, delimiter))) {
+							*match = 0;
+							strcpy(container_buffer, var_text_of_word(4));
+							strcat(container_buffer, "[");
+							sprintf(integer_buffer, "%d", *split_container);
+							strcat(container_buffer, integer_buffer);
+							strcat(container_buffer, "]");
+
+							if ((resolved_splitstring = string_resolve(container_buffer)) == NULL) {
+								unkstrrun(var_text_of_word(4));
+								return (exit_function(TRUE));
+							} else {
+								strcpy(resolved_splitstring->value, source);
+								source = match + strlen(delimiter);
+								(*split_container)++;
+							}
+						}
+						strcpy(container_buffer, var_text_of_word(4));
+						strcat(container_buffer, "[");
+						sprintf(integer_buffer, "%d", *split_container);
+						strcat(container_buffer, integer_buffer);
+						strcat(container_buffer, "]");
+
+						if ((resolved_splitstring = string_resolve(container_buffer)) == NULL) {
+							unkstrrun(word[1]);
+							return (exit_function(TRUE));
+						} else {
+							strcpy(resolved_splitstring->value, source);
+							(*split_container)++;
+						}
+					}
+				}
 			} else if (!strcmp(word[0], "setstring") ||
 						!strcmp(word[0], "addstring")) {
 				char setstring_buffer[2048] = "";
@@ -1428,7 +1889,7 @@ execute(funcname)
 					return (exit_function(TRUE));
 				} else {
 					/* GET A POINTER TO THE STRING BEING MODIFIED */
-					if ((resolved_setstring = string_resolve(word[1])) == NULL) {
+					if ((resolved_setstring = string_resolve(var_text_of_word(1))) == NULL) {
 						unkstrrun(word[1]);
 						return (exit_function(TRUE));
 					}
@@ -1619,7 +2080,7 @@ execute(funcname)
 					noproprun();
 					return (exit_function(TRUE));
 				} else {
-					container = container_resolve(word[1]);
+					container = container_resolve(var_text_of_word(1));
 
 					if (container == NULL) {
 						unkvarrun(word[1]);
@@ -1701,6 +2162,73 @@ execute(funcname)
 					} else {
 						unkattrun(3);
 						return (exit_function(TRUE));
+					}
+				}
+			} else if (!strcmp(word[0], "append")) {
+				int first = TRUE;
+
+				if (word[2] == NULL) {
+					// NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND
+					noproprun();
+					return (exit_function(TRUE));
+				} else {
+					strcpy (temp_buffer, data_directory);
+					strcat (temp_buffer, prefix);
+					strcat (temp_buffer, "-");
+					strcat (temp_buffer, text_of_word(1));
+					strcat (temp_buffer, ".csv");
+
+					outfile = fopen(temp_buffer, "ab");
+
+					if (outfile == NULL) {
+    					sprintf(error_buffer, "Failed to open file %s: %s\n", temp_buffer, strerror(errno));
+						log_error(error_buffer, PLUS_STDOUT);
+  					} else {
+						for (counter = 2; word[counter] != NULL && counter < MAX_WORDS; counter++) {
+							output = text_of_word(counter);			
+							if (*output != 0) {
+								if (first == FALSE) {
+	  								fputc(',', outfile);
+								}
+	  							csv_fwrite(outfile, output, (size_t) strlen(output));
+								first = FALSE;
+							}
+						}
+	
+						// TERMINATE THE LINE
+						fputc('\n', outfile);
+						
+						// FLUSH AND CLOSE THE FILE
+						fflush(outfile);
+					}
+
+					fclose(outfile);
+					outfile = NULL;
+				}
+			} else if (!strcmp(word[0], "insert")) {
+				int first = TRUE;
+
+				if (word[1] == NULL) {
+					// NOT ENOUGH PARAMETERS SUPPLIED FOR THIS COMMAND
+					noproprun();
+					return (exit_function(TRUE));
+				} else {
+					if (outfile == NULL) {
+						log_error("Insert statement not inside an 'update' loop.", PLUS_STDOUT);
+  					} else {
+						for (counter = 1; word[counter] != NULL && counter < MAX_WORDS; counter++) {
+							output = text_of_word(counter);			
+							if (*output != 0) {
+								if (first == FALSE) {
+	  								fputc(',',(FILE *)outfile);
+								}
+	  							csv_fwrite((FILE *)outfile, output, (size_t) strlen(output));
+								first = FALSE;
+							}
+						}
+	
+						// TERMINATE THE LINE
+						fputc('\n', (FILE *)outfile);
 					}
 				}
 			} else if (!strcmp(word[0], "inspect")) {
@@ -1805,6 +2333,8 @@ execute(funcname)
 				|| !strcmp(word[wp], "ifstring")
 				|| !strcmp(word[wp], "ifstringall")
 				|| !strcmp(word[wp], "ifexecute")
+				|| !strcmp(word[wp], "iterate")
+				|| !strcmp(word[wp], "update")
 				|| !strcmp(word[wp], "while")
 				|| !strcmp(word[wp], "whileall")) {
 			current_level++;
@@ -1827,6 +2357,20 @@ int
 exit_function(return_code)
 	int			return_code;
 {
+	if (infile != NULL) {
+		read_lck.l_type = F_UNLCK;	// SETTING A READ LOCK
+  		fcntl(read_fd, F_SETLK, &read_lck);
+    	fclose(infile);
+		infile = NULL;
+	}
+
+	if (outfile != NULL) {
+		write_lck.l_type = F_UNLCK;	// SETTING A WRITE LOCK
+  		fcntl(write_fd, F_SETLK, &write_lck);
+		fclose(outfile);
+		outfile = NULL;
+	}
+	
 	/* POP THE STACK REGARDLESS OF THE RETURN CODE */
 	pop_stack();
 
@@ -2157,8 +2701,12 @@ pop_stack()
 
 	wp = backup[stack].wp;
 	top_of_loop = backup[stack].top_of_loop;
+	outfile = backup[stack].outfile;
+	infile = backup[stack].infile;
 	top_of_select = backup[stack].top_of_select;
 	top_of_while = backup[stack].top_of_while;
+	top_of_iterate = backup[stack].top_of_iterate;
+	top_of_update = backup[stack].top_of_update;
 	top_of_do_loop = backup[stack].top_of_do_loop;
 	criterion_value = backup[stack].criterion_value;
 	criterion_type = backup[stack].criterion_type;
@@ -2192,12 +2740,18 @@ push_stack(file_pointer)
 		log_error("Stack overflow.", PLUS_STDERR);
 		terminate(45);
 	} else {
+		backup[stack].infile = infile;
+		infile = NULL;
+		backup[stack].outfile = outfile;
+		outfile = NULL;
 		backup[stack].function = executing_function;
 		backup[stack].address = file_pointer;
 		backup[stack].wp = wp;
 		backup[stack].top_of_loop = top_of_loop;
 		backup[stack].top_of_select = top_of_select;
 		backup[stack].top_of_while = top_of_while;
+		backup[stack].top_of_iterate = top_of_iterate;
+		backup[stack].top_of_update = top_of_update;
 		backup[stack].top_of_do_loop = top_of_do_loop;
 		backup[stack].criterion_value = criterion_value;
 		backup[stack].criterion_type = criterion_type;
@@ -2583,40 +3137,47 @@ str_test(first)
 
 	// GET THE TWO STRING VALUES TO COMPARE
 
-	if (quoted[first] == 1) {
-		/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-		 * AS LITERAL TEXT */
-		index = word[first];
-	} else {
-		index = arg_text_of(word[first]);
-	}
-
-	if (quoted[first + 2] == 1) {
-		/* THE STRING IS ENCLOSED IN QUOTES, SO CONSIDER IT
-		 * AS LITERAL TEXT */
-		compare = word[first + 2];
-	} else {
-		compare = arg_text_of(word[first + 2]);
-	}
+	index = arg_text_of_word(first);
+	compare = arg_text_of_word(first + 2);
 
 	if (!strcmp(word[first + 1], "==") || !strcmp(word[first + 1], "=")) {
-		if (!strcmp(index, compare)) {
+		if (!strcasecmp(index, compare)) {
 			return (TRUE);
 		} else {
 			return (FALSE);
 		}
 	} else if (!strcmp(word[first + 1], "!contains")) {
-		if (strstr(index, compare))
+		if (strcasestr(index, compare))
 			return (FALSE);
 		else
 			return (TRUE);
 	} else if (!strcmp(word[first + 1], "contains")) {
+		if (strcasestr(index, compare))
+			return (TRUE);
+		else
+			return (FALSE);
+	} else if (!strcmp(word[first + 1], "<>") || !strcmp(word[first + 1], "!=")) {
+		if (strcasecmp(index, compare))
+			return (TRUE);
+		else
+			return (FALSE);
+	} else if (!strcmp(word[first + 1], "==C") || !strcmp(word[first + 1], "=C")) {
+		if (!strcmp(index, compare)) {
+			return (TRUE);
+		} else {
+			return (FALSE);
+		}
+	} else if (!strcmp(word[first + 1], "!containsC")) {
+		if (strstr(index, compare))
+			return (FALSE);
+		else
+			return (TRUE);
+	} else if (!strcmp(word[first + 1], "containsC")) {
 		if (strstr(index, compare))
 			return (TRUE);
 		else
 			return (FALSE);
-	} else if (!strcmp(word[first + 1], "<>")
-			   || !strcmp(word[first + 1], "!=")) {
+	} else if (!strcmp(word[first + 1], "<>C") || !strcmp(word[first + 1], "!=C")) {
 		if (strcmp(index, compare))
 			return (TRUE);
 		else

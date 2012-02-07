@@ -25,7 +25,7 @@ extern char			temp_buffer[];
 extern char			error_buffer[];
 extern char			processed_file[];
 
-extern short int	encrypt;
+short int			encrypt;
 extern short int	release;
 
 glkunix_startup_t *arguments;

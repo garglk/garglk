@@ -285,7 +285,7 @@ if $(MAKE_HUGO) = yes
 
 # -----------------------------------------------------------------------
 #
-# JACL 2.8.5 for JACL games
+# JACL 2.9.0 for JACL games
 #
 
 if $(MAKE_JACL) = yes
@@ -298,7 +298,7 @@ if $(MAKE_JACL) = yes
     Main $(GARGLKPRE)jacl :
         jacl.c glk_startup.c findroute.c interpreter.c loader.c 
         glk_saver.c logging.c parser.c display.c utils.c jpp.c 
-        resolvers.c errors.c encapsulate.c 
+        resolvers.c errors.c encapsulate.c libcsv.c
         ;
 
     APPS += $(GARGLKPRE)jacl ;

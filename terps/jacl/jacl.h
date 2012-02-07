@@ -39,16 +39,17 @@
 #ifdef WIN32
 #define DIR_SEPARATOR '\\'
 #define TEMP_DIR "temp\\"
+#define DATA_DIR "data\\"
 #define INCLUDE_DIR "include\\"
 #endif
 
 #ifndef WIN32
 #define DIR_SEPARATOR '/'
+#define DATA_DIR "data/"
 #define TEMP_DIR "temp/"
 #define INCLUDE_DIR "include/"
 #endif
 
 #ifdef __APPLE__
 #define get_string jacl_get_string
-#define sleep jacl_sleep
 #endif
