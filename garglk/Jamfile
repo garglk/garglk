@@ -27,7 +27,7 @@ if $(USESDL) = yes
 if $(USEBABEL) = yes
 {
     SubDirHdrs $(TOP) support babel ;
-    SubDirCcFlags -DBABEL_HANDLER ;
+    SubDirCcFlags -DBABEL_HANDLER -Isupport/babel ;
 }
 
 if $(BUNDLEFONTS) = yes
