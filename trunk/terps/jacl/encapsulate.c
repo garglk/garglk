@@ -19,6 +19,7 @@ char           *comma = "comma\0";
 char           *then = "then\0";
 char           *word[MAX_WORDS];
 int				quoted[MAX_WORDS];
+int				percented[MAX_WORDS];
 int             wp;
 
 void
@@ -35,6 +36,7 @@ encapsulate()
 	 * IN THE PLAYERS COMMAND - RESET EACH WORD TO NO */
     for (index = 0; index < MAX_WORDS; index++) {
 		quoted[index] = 0;
+		percented[index] = 0;
 	}
 
 	for (index = 0; index < length; index++) {
@@ -84,6 +86,10 @@ encapsulate()
 			break;
 		default:
 			if (new_word) {
+                if (text_buffer[index] == '%' && text_buffer[index+1] != ' ' && text_buffer[index+1] != '\t') {
+					percented[position]++;
+                    break;
+				}
 				word[position] = &text_buffer[index];
 				new_word = FALSE;
 				if (position < MAX_WORDS)

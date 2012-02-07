@@ -120,6 +120,30 @@ read_gamefile()
 
 	create_cstring ("function_name", "JACL*Internal");
 
+	// THESE ARE THE FIELDS FOR THE CSV PARSER
+	create_cstring ("field", "field0");
+	create_cstring ("field", "field1");
+	create_cstring ("field", "field2");
+	create_cstring ("field", "field3");
+	create_cstring ("field", "field4");
+	create_cstring ("field", "field5");
+	create_cstring ("field", "field6");
+	create_cstring ("field", "field7");
+	create_cstring ("field", "field8");
+	create_cstring ("field", "field9");
+	create_cstring ("field", "field10");
+	create_cstring ("field", "field11");
+	create_cstring ("field", "field12");
+	create_cstring ("field", "field13");
+	create_cstring ("field", "field14");
+	create_cstring ("field", "field15");
+	create_cstring ("field", "field16");
+	create_cstring ("field", "field17");
+	create_cstring ("field", "field18");
+	create_cstring ("field", "field19");
+
+	create_cinteger ("field_count", 0);
+
 	create_integer ("compass", 0);
 	// START AT -1 AS TIME PASSES BEFORE THE FIRST PROMPT
 	create_integer ("total_moves", -1); 
@@ -1605,6 +1629,8 @@ create_language_constants()
 		create_cstring	("NO_MOVES", NO_MOVES);
 	if (cstring_resolve("TYPE_NUMBER") == NULL)
 		create_cstring	("TYPE_NUMBER", TYPE_NUMBER);
+	if (cstring_resolve("BY") == NULL)
+		create_cstring	("BY", BY);
 	if (cstring_resolve("REFERRING_TO") == NULL)
 		create_cstring	("REFERRING_TO", REFERRING_TO);
 	if (cstring_resolve("WALKTHRU_WORD") == NULL)
@@ -1751,6 +1777,8 @@ create_language_constants()
 		create_cstring	("BACK_REFERENCE", BACK_REFERENCE);
 	if (cstring_resolve("BACK_REFERENCE_END") == NULL)
 		create_cstring	("BACK_REFERENCE_END", BACK_REFERENCE_END);
+	if (cstring_resolve("WHEN_YOU_SAY") == NULL)
+		create_cstring	("WHEN_YOU_SAY", WHEN_YOU_SAY);
 	if (cstring_resolve("MUST_SPECIFY") == NULL)
 		create_cstring	("MUST_SPECIFY", MUST_SPECIFY);
 	if (cstring_resolve("OR_WORD") == NULL)

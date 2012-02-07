@@ -13,8 +13,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-    MA 02110-1301 USA.
+    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "jacl.h"
@@ -48,13 +47,15 @@ int					lines_written;
 FILE 	 	        *outputFile = NULL;
 FILE   	    		*inputFile = NULL;
 
+char				*stripped_line;
+
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * WITH BEING PREPARED FOR RELEASE (DON'T INCLUDE DEBUG LIBARIES) */
 short int			release = FALSE;
 
 /* INDICATES THAT THE CURRENT '.j2' FILE BEING WORKED 
  * SHOULD BE ENCRYPTED */
-short int			encrypt = TRUE;
+short int			do_encrypt = TRUE;
 
 /* INDICATES THAT THE CURRENT '.processed' FILE BRING WRITTEN SHOULD NOW
  * HAVE EACH LINE ENCRYPTED AS THE FIRST NONE COMMENT LINE HAS BEEN HIT */
@@ -189,9 +190,9 @@ process_file(sourceFile1, sourceFile2)
 			}
 		} else {
 			/* STRIP WHITESPACE FROM LINE BEFORE WRITING TO OUTPUTFILE. */
-			stripwhite(text_buffer);
+			stripped_line = stripwhite(text_buffer);
 
-			if (!encrypting && text_buffer[0] != '#' && text_buffer[0] != '\0' && encrypt & release) {
+			if (!encrypting && *stripped_line != '#' && *stripped_line != '\0' && do_encrypt & release) {
 				/* START ENCRYPTING FROM THE FIRST NON-COMMENT LINE IN
 				 * THE SOURCE FILE */
 #ifdef WIN32
@@ -204,10 +205,10 @@ process_file(sourceFile1, sourceFile2)
 
 			/* ENCRYPT PROCESSED FILE IF REQUIRED */
 			if (encrypting) {
-				jacl_encrypt(text_buffer);
+				jacl_encrypt(stripped_line);
 			}
 
-			fputs(text_buffer, outputFile);
+			fputs(stripped_line, outputFile);
 
 			lines_written++;
 			if (lines_written == 1) {

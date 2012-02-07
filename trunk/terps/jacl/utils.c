@@ -26,6 +26,7 @@ extern char   			        bookmark[];
 extern char            			walkthru[];
 extern char						include_directory[];
 extern char            			temp_directory[];
+extern char            			data_directory[];
 extern char            			temp_buffer[];
 
 void
@@ -96,6 +97,7 @@ random_number()
 	/* GENERATE A RANDOM NUMBER BETWEEN 0 AND THE CURRENT VALUE OF
 	 * THE JACL VARIABLE MAX_RAND */
 
+	rand();
 	return (1 + (int) ((float) MAX_RAND->value * rand() / (RAND_MAX + 1.0)));
 }
 
@@ -171,6 +173,11 @@ create_paths(full_path)
 		strcpy(temp_directory, game_path);
 		strcat(temp_directory, TEMP_DIR);
 	}
+
+	if (data_directory[0] == 0) {
+		strcpy(data_directory, game_path);
+		strcat(data_directory, DATA_DIR);
+	}
 }
 
 int
@@ -188,26 +195,29 @@ jacl_whitespace(character)
 	}
 }
 
-void
+char *
 stripwhite (string)
-     char *string;
+		char *string;
 {
-	register int i = 0;
+    int i;
 
 	/* STRIP WHITESPACE FROM THE START AND END OF STRING. */
-	while (jacl_whitespace (string[i])) i++;
-
-	if (i) strcpy (string, string + i);
+	while (jacl_whitespace (*string)) string++;
 
 	i = strlen (string) - 1;
 
-	while (i >= 0 && (jacl_whitespace (string[i]) || string[i] == '\n' || string[i] == '\r')) i--;
+	while (i >= 0 && ((jacl_whitespace (*(string+ i))) || *(string + i) == '\n' || *(string + i) == '\r')) i--;
 
 #ifdef WIN32
-	string[++i] = '\r';
+    i++;
+	*(string + i) = '\r';
 #endif
-	string[++i] = '\n';
-	string[++i] = '\0';
+    i++;
+	*(string + i) = '\n';
+    i++;
+	*(string + i) = '\0';
+
+    return string;
 }
 
 void
