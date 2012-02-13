@@ -1961,18 +1961,6 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
       return true;
     }
 
-  for (uint i = 0; i < current_places.size(); i ++)
-    if (cmd == "go to " + current_places[i][1] ||
-	cmd == "go to " + current_places[i][2])
-      {
-	if (current_places[i].size() == 5)
-	  run_script_as (state.location, current_places[i][4]);
-	//run_script (current_places[i][4]);
-	else
-	  goto_room (current_places[i][3]);
-	return true;
-      }
-
   for (uint i = 0; i < ARRAYSIZE(dir_names); i ++)
     if (cmd == dir_names[i] || cmd == "go " + dir_names[i] ||
 	cmd == short_dir_names[i] || cmd == "go " + short_dir_names[i])
@@ -1998,6 +1986,27 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	  }
 	return true;
       }
+
+  if ((match = match_command (cmd, "go to #@room#")) ||
+      (match = match_command (cmd, "go #@room#")))
+    {
+      assert (match.bindings.size() == 1);
+      string destination = match.bindings[0].var_text;
+      for (uint i = 0; i < current_places.size(); i ++) {
+	if (ci_equal(destination, current_places[i][1]) ||
+	    ci_equal(destination, current_places[i][2]))
+	  {
+	    if (current_places[i].size() == 5)
+	      run_script_as (state.location, current_places[i][4]);
+	      //run_script (current_places[i][4]);
+	    else
+	      goto_room (current_places[i][3]);
+	    return true;
+	  }
+      }
+      display_error ("badplace", destination);
+      return true;
+    }
 
   if (ci_equal (cmd, "inventory") || ci_equal (cmd, "i"))
     {
