@@ -54,6 +54,7 @@ protected:
 
     virtual void set_foreground (std::string);
     virtual void set_background (std::string);
+    virtual GeasResult set_style (const GeasFontStyle &);
 
     virtual uint make_choice (std::string, std::vector<std::string>);
 
@@ -86,6 +87,7 @@ void glk_main(void)
 {
     char err_buf[1024];
     char cur_buf[1024];
+    glk_stylehint_set(wintype_TextBuffer, style_User2, stylehint_ReverseColor, 1);
     /* Open the main window. */
     mainglkwin = glk_window_open(0, 0, 0, wintype_TextBuffer, 1);
     if (!mainglkwin) {
@@ -231,10 +233,26 @@ GeasGlkInterface::print_newline ()
 }
 
 
-#if 0
-GeasResult GeasGlkInterface::set_style (const GeasFontStyle &style)
-{ return r_success; }
-#endif
+GeasResult
+GeasGlkInterface::set_style (const GeasFontStyle &style)
+{
+    // Glk styles are defined before the window opens, so at this point we can only
+    // pick the most suitable style, not define a new one.
+    glui32 match;
+    if (style.is_italic && style.is_bold)
+        match = style_Alert;
+    else if (style.is_italic)
+        match = style_Emphasized;
+    else if (style.is_bold)
+        match = style_Subheader;
+    else if (style.is_underlined)
+        match = style_User2;
+    else
+        match = style_Normal;
+
+    glk_set_style_stream(glk_window_get_stream(mainglkwin), match);
+    return r_success;
+}
 
 void
 GeasGlkInterface::set_foreground (std::string s) 
