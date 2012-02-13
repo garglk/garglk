@@ -14,6 +14,7 @@ _Original source code and patches_
   * Simon Baldwin
   * Philip Chimento
   * Ben Cressey
+  * Sebastian Geerken
   * Oliver Henshaw
   * Maarten ter Huurne
   * Vaagn Khachatryan
