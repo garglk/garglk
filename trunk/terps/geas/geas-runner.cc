@@ -740,7 +740,7 @@ void geas_implementation::look()
       if ((tmp = get_svar ("quest.doorways.places")) != "")
 	print_formatted ("You can go to " + tmp + ".");
       if ((tmp = get_svar ("quest.lookdesc")) != "")
-	print_formatted ("|b" + tmp + "|xb");
+	print_formatted (tmp);
     }
 }      
 
@@ -2341,7 +2341,7 @@ void geas_implementation::run_script (string s, string &rv)
 	{
 	  for (uint i = 0; i < gb->data.size(); i ++)
 	    {
-	      print_normal (gb->data[i]);
+	      print_formatted (gb->data[i]);
 	      print_newline();
 	    }
 	}
