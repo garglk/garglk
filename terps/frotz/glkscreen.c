@@ -896,7 +896,9 @@ void z_show_status (void)
 	glk_set_window(gos_upper);
 	gos_curwin = gos_upper;
 
+#ifdef GARGLK
 	garglk_set_reversevideo(TRUE);
+#endif /* GARGLK */
 
 	curx = cury = 1;
 	glk_window_move_cursor(gos_upper, 0, 0);
