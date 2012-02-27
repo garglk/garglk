@@ -12,6 +12,7 @@ _Original source code and patches_
   * Tor Andersson
   * Ori Avtalion
   * Simon Baldwin
+  * Sylvain Beucler
   * Philip Chimento
   * Ben Cressey
   * Sebastian Geerken
