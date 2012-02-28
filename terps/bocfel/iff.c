@@ -1,11 +1,11 @@
 /*-
- * Copyright 2010 Chris Spiegel.
+ * Copyright 2010-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -47,7 +47,7 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[4])
 {
   uint32_t tag;
 
-  zterp_iff *iff = NULL;
+  zterp_iff *iff = NULL, *tail = NULL;
 
   if(zterp_io_seek(io, 0, SEEK_SET) == -1) goto err;
 
@@ -71,9 +71,12 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[4])
     new->io = io;
     new->offset = zterp_io_tell(io);
     new->size = size;
+    new->next = NULL;
 
-    new->next = iff;
-    iff = new;
+    if(iff == NULL) iff = new;
+    else            tail->next = new;
+
+    tail = new;
 
     if(new->offset == -1) goto err;
 

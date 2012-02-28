@@ -1,11 +1,11 @@
 /*-
- * Copyright 2010-2011 Chris Spiegel.
+ * Copyright 2010-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of

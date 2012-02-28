@@ -41,16 +41,4 @@ uint16_t unicode_tolower(uint16_t);
  */
 static inline int valid_unicode(uint16_t c) { return (c >= 32 && c <= 126) || c >= 160; }
 
-/* Somehwat ugly hack to get around the fact that Unicode
- * functions may not exist.  If GLK_MODULE_UNICODE is not
- * defined, then have_unicode must not be set to true.  This is
- * solely to prevent link errors.
- */
-#if defined(ZTERP_GLK) && !defined(GLK_MODULE_UNICODE)
-#define glk_put_char_uni(...)		die("bug %s:%d: glk_put_char_uni() called with no unicode", __FILE__, __LINE__)
-#define glk_put_string_uni(...)		die("bug %s:%d: glk_put_string_uni() called with no unicode", __FILE__, __LINE__)
-#define glk_request_char_event_uni(...)	die("bug %s:%d: glk_request_char_event_uni() called with no unicode", __FILE__, __LINE__)
-#define glk_request_line_event_uni(...)	die("bug %s:%d: glk_request_line_event_uni() called with no unicode", __FILE__, __LINE__)
-#endif
-
 #endif
