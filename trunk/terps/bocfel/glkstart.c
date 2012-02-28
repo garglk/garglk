@@ -1,11 +1,11 @@
 /*-
- * Copyright 2010 Chris Spiegel.
+ * Copyright 2010-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -27,6 +27,7 @@
 #include "util.h"
 #include "zterp.h"
 
+zexternally_visible
 glkunix_argumentlist_t glkunix_arguments[] =
 {
   { "-a",	glkunix_arg_NumberValue,	"-a N		set the size of the evaluation stack" },
@@ -67,6 +68,7 @@ glkunix_argumentlist_t glkunix_arguments[] =
   { NULL, glkunix_arg_End, NULL }
 };
 
+zexternally_visible
 int glkunix_startup_code(glkunix_startup_t *data)
 {
   if(!process_arguments(data->argc, data->argv)) return 0;
@@ -91,6 +93,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 int InitGlk(unsigned int);
 
+zexternally_visible
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, int cmdshow)
 {
   /* This works (with a linker message) under MinGW, but I don’t

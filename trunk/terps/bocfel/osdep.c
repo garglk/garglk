@@ -1,11 +1,11 @@
 /*-
- * Copyright 2010-2011 Chris Spiegel.
+ * Copyright 2010-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -174,6 +174,7 @@ void zterp_os_init_term(void)
 
   have_colors = none != NULL && fg_string != NULL && bg_string != NULL;
 }
+#define zterp_os_init_term
 
 int zterp_os_have_style(int style)
 {
@@ -186,10 +187,14 @@ int zterp_os_have_style(int style)
 
   return 0;
 }
+#define zterp_os_have_style
+
 int zterp_os_have_colors(void)
 {
   return have_colors;
 }
+#define zterp_os_have_colors
+
 void zterp_os_set_style(int style, int fg, int bg)
 {
   /* If the terminal cannot be reset, nothing can be used. */
@@ -207,7 +212,7 @@ void zterp_os_set_style(int style, int fg, int bg)
     if(bg > 1) putp(tparm(bg_string, bg - 2, 0, 0, 0, 0, 0, 0, 0, 0));
   }
 }
-#define zterp_os_init_term
+#define zterp_os_set_style
 #endif
 
 /*********************
@@ -283,14 +288,23 @@ void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 void zterp_os_init_term(void)
 {
 }
+#endif
+
+#ifndef zterp_os_have_style
 int zterp_os_have_style(int style)
 {
   return 0;
 }
+#endif
+
+#ifndef zterp_os_have_colors
 int zterp_os_have_colors(void)
 {
   return 0;
 }
+#endif
+
+#ifndef zterp_os_set_style
 void zterp_os_set_style(int style, int fg, int bg)
 {
 }

@@ -1,11 +1,11 @@
 /*-
- * Copyright 2010-2011 Chris Spiegel.
+ * Copyright 2010-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -981,27 +981,26 @@ void zget_cursor(void)
 #ifndef ZTERP_GLK
 static int16_t fg_color = 1, bg_color = 1;
 #elif defined(GARGLK)
-/* Adapted from Gargoyle’s Frotz (Copyright 2010 Ben Cressey). */
 static glui32 zcolor_map[] = {
   zcolor_Default,
 
-  0x000000,		/*  2 = black */
-  0xef0000,		/*  3 = red */
-  0x00d600,		/*  4 = green */
-  0xefef00,		/*  5 = yellow */
-  0x006bb5,		/*  6 = blue */
-  0xff00ff,		/*  7 = magenta */
-  0x00efef,		/*  8 = cyan */
-  0xffffff,		/*  9 = white */
-  0xb5b5b5,		/* 10 = light grey */
-  0x8c8c8c,		/* 11 = medium grey */
-  0x5a5a5a		/* 12 = dark grey */
+  0x000000,	/* Black */
+  0xef0000,	/* Red */
+  0x00d600,	/* Green */
+  0xefef00,	/* Yellow */
+  0x006bb5,	/* Blue */
+  0xff00ff,	/* Magenta */
+  0x00efef,	/* Cyan */
+  0xffffff,	/* White */
+  0xb5b5b5,	/* Light grey */
+  0x8c8c8c,	/* Medium grey */
+  0x5a5a5a,	/* Dark grey */
 };
 static glui32 fg_color = zcolor_Default, bg_color = zcolor_Default;
 
 void update_color(int which, unsigned long color)
 {
-  if(which < 2 || which > 9) return;
+  if(which < 2 || which > 12) return;
 
   zcolor_map[which - 1] = color;
 }
@@ -1024,8 +1023,9 @@ void zset_colour(void)
 
   /* XXX -1 is a valid color in V6. */
 #ifdef GARGLK
-  if(fg >= 1 && fg <= (zversion == 6 ? 12 : 9)) fg_color = zcolor_map[fg - 1];
-  if(bg >= 1 && bg <= (zversion == 6 ? 12 : 9)) bg_color = zcolor_map[bg - 1];
+  if(fg >= 1 && fg <= (zversion >= 5 ? 12 : 9)) fg_color = zcolor_map[fg - 1];
+  if(bg >= 1 && bg <= (zversion >= 5 ? 12 : 9)) bg_color = zcolor_map[bg - 1];
+
 #else
   if(fg >= 1 && fg <= 9) fg_color = fg;
   if(bg >= 1 && bg <= 9) bg_color = bg;
@@ -1035,12 +1035,22 @@ void zset_colour(void)
 #endif
 }
 
-/* Adapted from Gargoyle’s Frotz (Copyright 2010 Ben Cressey). */
 #ifdef GARGLK
-#define zB(i)	(((((i) >> 10) & 0x1f) << 3) | ((((i) >> 10) & 0x1f) >> 2))
-#define zG(i)	(((((i) >>  5) & 0x1f) << 3) | ((((i) >>  5) & 0x1f) >> 2))
-#define zR(i)	(((((i) >>  0) & 0x1f) << 3) | ((((i) >>  0) & 0x1f) >> 2))
-#define zRGB(i)	(zR(i) << 16 | zG(i) << 8 | zB(i))
+/* Convert a 15-bit color to a 24-bit color. */
+static glui32 convert_color(unsigned long color)
+{
+  /* Map 5-bit color values to 8-bit. */
+  const uint8_t table[] = {
+    0x00, 0x08, 0x10, 0x19, 0x21, 0x29, 0x31, 0x3a,
+    0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
+    0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
+    0xc5, 0xce, 0xd6, 0xde, 0xe6, 0xef, 0xf7, 0xff
+  };
+
+  return table[(color & 0x001f) >>  0] << 16 |
+         table[(color & 0x03e0) >>  5] << 8  |
+         table[(color & 0x7c00) >> 10] << 0;
+}
 #endif
 
 void zset_true_colour(void)
@@ -1048,10 +1058,10 @@ void zset_true_colour(void)
 #ifdef GARGLK
   long fg = (int16_t)zargs[0], bg = (int16_t)zargs[1];
 
-  if     (fg >=  0) fg_color = zRGB(fg);
+  if     (fg >=  0) fg_color = convert_color(fg);
   else if(fg == -1) fg_color = zcolor_Default;
 
-  if     (bg >=  0) bg_color = zRGB(bg);
+  if     (bg >=  0) bg_color = convert_color(bg);
   else if(bg == -1) bg_color = zcolor_Default;
 
   set_current_style();
@@ -1108,8 +1118,11 @@ void set_current_style(void)
 #else
   /* Glk can’t mix other styles with fixed-width, but the upper window
    * is always fixed, so if it is selected, there is no need to
-   * explicitly request it here.  This means that another style can also
-   * be applied if applicable.
+   * explicitly request it here.  In addition, the user can disable
+   * fixed-width fonts or tell Bocfel to assume that the output font is
+   * already fixed (e.g. in an xterm); in either case, there is no need
+   * to request a fixed font.
+   * This means that another style can also be applied if applicable.
    */
   if(use_fixed_font() &&
      !options.disable_fixed &&
@@ -1985,6 +1998,19 @@ static int handle_meta_command(const uint32_t *string)
       put_string("[restore failed]");
     }
   }
+  else if(unicmp(string, "help") == 0)
+  {
+    put_string(
+        "/undo: undo a turn\n"
+        "/scripton: start a transcript\n"
+        "/scriptoff: stop a transcript\n"
+        "/recon: start a command record\n"
+        "/recoff: stop a command record\n"
+        "/replay: replay a command record\n"
+        "/save: save the game\n"
+        "/restore: restore a game saved by /save"
+        );
+  }
   else
   {
     put_string("[unknown command]");
@@ -2256,10 +2282,10 @@ void zprint_form(void)
 
   for(uint16_t i = 0; i < user_word(zargs[0]); i++)
   {
-    put_char_u(zscii_to_unicode[user_byte(zargs[0] + 2 + i)]);
+    put_char(user_byte(zargs[0] + 2 + i));
   }
 
-  put_char_u(UNICODE_LINEFEED);
+  put_char(ZSCII_NEWLINE);
 
   SWITCH_WINDOW_END();
 }

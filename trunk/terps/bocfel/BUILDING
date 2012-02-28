@@ -31,12 +31,12 @@ extending support beyond ASCII.  For now, though, it is much easier to assume
 ASCII, because almost everybody uses a character set that is compatible with it,
 including the Z-machine.
 
-A 32-bit system is probably a requirement.  I have tried to avoid the assumption
-that "int" is 32 bits, and it is entirely possible that I have succeeded and a
-system with 16-bit ints would work properly.  However, there are some lookup
-tables that are 65K each, which would probably cause fits for 16-bit systems.
-As with the ASCII requirement, if I ever happen upon a 16-bit system with a C99
-compiler, I will probably try to get Bocfel working with it. 
+A 32-bit (or greater) system is probably a requirement.  I have tried to avoid
+the assumption that "int" is 32 bits, and it is entirely possible that I have
+succeeded and a system with 16-bit ints would work properly.  However, there are
+some lookup tables that are 65K each, which would probably cause fits for 16-bit
+systems.  As with the ASCII requirement, if I ever happen upon a 16-bit system
+with a C99 compiler, I will probably try to get Bocfel working with it. 
 
 I make use of fixed-width types such as uint8_t and uint16_t.  As a practical
 side-effect, Bocfel requires a system with 8-, 16-, and 32-bit 2's complement

@@ -1,11 +1,11 @@
 /*-
- * Copyright 2009-2011 Chris Spiegel.
+ * Copyright 2009-2012 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
  * Bocfel is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version
- * 2, as published by the Free Software Foundation.
+ * 2 or 3, as published by the Free Software Foundation.
  *
  * Bocfel is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -50,7 +50,7 @@ static schanid_t sound_channel = NULL;
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.6.0"
+#define ZTERP_VERSION	"0.6.1"
 
 const char *game_file;
 struct options options = {
@@ -676,15 +676,15 @@ void process_story(void)
 
   if(header.abbr >= memory_size)                  die("corrupted story: abbreviation table out of range");
 
-  header.file_length =	WORD(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
+  header.file_length = WORD(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
   if(header.file_length > memory_size)            die("story's reported size (%lu) greater than file size (%lu)", (unsigned long)header.file_length, (unsigned long)memory_size);
 
-  header.checksum =	WORD(0x1c);
+  header.checksum = WORD(0x1c);
 
   if(zwhich == 6 || zwhich == 7)
   {
-    header.R_O =	WORD(0x28) * 8UL;
-    header.S_O =	WORD(0x2a) * 8UL;
+    header.R_O = WORD(0x28) * 8UL;
+    header.S_O = WORD(0x2a) * 8UL;
   }
 
   if(dynamic_memory == NULL)
@@ -856,6 +856,7 @@ void process_story(void)
 }
 
 #ifdef ZTERP_GLK
+zexternally_visible
 void glk_main(void)
 #else
 int main(int argc, char **argv)
