@@ -89,7 +89,7 @@ switch $(OS)
         }
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+        LINKLIBS = -lz -lm -lrt "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
@@ -106,7 +106,7 @@ switch $(OS)
         PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys libeoi eina-0 evas ecore ecore-x ecore-file ecore-evas edje" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+        LINKLIBS = -lz -lm -lrt "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
