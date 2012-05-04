@@ -538,11 +538,8 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
             key = keycode_Delete;
             break;
         case keycode_MouseWheelUp:
-            key = keycode_PageUp;
-            break;
         case keycode_MouseWheelDown:
-            key = keycode_PageDown;
-            break;
+            return;
         default:
             key = arg;
     }

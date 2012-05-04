@@ -1338,10 +1338,11 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 /* Keybinding functions. */
 
 /* Any key, when text buffer is scrolled. */
-void gcmd_accept_scroll(window_t *win, glui32 arg)
+int gcmd_accept_scroll(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->data;
     int pageht = dwin->height - 2;        /* 1 for prompt, 1 for overlap */
+    int startpos = dwin->scrollpos;
 
     switch (arg)
     {
@@ -1360,9 +1361,11 @@ void gcmd_accept_scroll(window_t *win, glui32 arg)
             break;
         case keycode_MouseWheelUp:
             dwin->scrollpos += 3;
+            startpos = TRUE;
             break;
         case keycode_MouseWheelDown:
             dwin->scrollpos -= 3;
+            startpos = TRUE;
             break;
         case ' ':
         case keycode_PageDown:
@@ -1379,6 +1382,8 @@ void gcmd_accept_scroll(window_t *win, glui32 arg)
     if (dwin->scrollpos < 0)
         dwin->scrollpos = 0;
     touchscroll(dwin);
+
+    return (startpos || dwin->scrollpos);
 }
 
 /* Any key, during character input. Ends character input. */
@@ -1404,11 +1409,8 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
             key = keycode_Delete;
             break;
         case keycode_MouseWheelUp:
-            key = keycode_PageUp;
-            break;
         case keycode_MouseWheelDown:
-            key = keycode_PageDown;
-            break;
+            return;
         default:
             key = arg;
     }
