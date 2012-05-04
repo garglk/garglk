@@ -602,7 +602,7 @@ extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
-extern void gcmd_accept_scroll(window_t *win, glui32 arg);
+extern int gcmd_accept_scroll(window_t *win, glui32 arg);
 
 /* Declarations of library internal functions. */
 

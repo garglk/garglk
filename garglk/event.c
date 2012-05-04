@@ -168,11 +168,6 @@ void glk_tick()
 /* Handle a keystroke. */
 void gli_input_handle_key(glui32 key)
 {
-    if (gli_terminated)
-    {
-        winexit();
-    }
-
     if (gli_more_focus)
     {
         gli_input_more_focus();
@@ -202,6 +197,8 @@ void gli_input_handle_key(glui32 key)
     if (!win)
         return;
 
+    int defer_exit = 0;
+
     switch (win->type)
     {
         case wintype_TextGrid:
@@ -216,8 +213,13 @@ void gli_input_handle_key(glui32 key)
             else if (win->line_request || win->line_request_uni)
                 gcmd_buffer_accept_readline(win, key);
             else if (win->more_request || win->scroll_request)
-                gcmd_accept_scroll(win, key);
+                defer_exit = gcmd_accept_scroll(win, key);
             break;
+    }
+
+    if (gli_terminated && !defer_exit)
+    {
+        winexit();
     }
 }
 
