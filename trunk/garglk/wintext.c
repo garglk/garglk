@@ -996,7 +996,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 #undef LEFTQUOTE
     }
 
-    if (gli_conf_quotes && win->attr.style != style_Preformatted)
+    if (gli_conf_dashes && win->attr.style != style_Preformatted)
     {
         if (ch == '-')
         {
@@ -1004,7 +1004,10 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
             if (dwin->dashed == 2)
             {
                 dwin->numchars--;
-                ch = UNI_NDASH;
+                if (gli_conf_dashes == 2)
+                    ch = UNI_NDASH;
+                else
+                    ch = UNI_MDASH;
             }
             if (dwin->dashed == 3)
             {
