@@ -227,6 +227,7 @@ extern int gli_conf_safeclicks;
 
 extern int gli_conf_justify;
 extern int gli_conf_quotes;
+extern int gli_conf_dashes;
 extern int gli_conf_spaces;
 extern int gli_conf_caps;
 

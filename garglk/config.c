@@ -158,6 +158,7 @@ int gli_leading = 20;
 
 int gli_conf_justify = 0;
 int gli_conf_quotes = 1;
+int gli_conf_dashes = 1;
 int gli_conf_spaces = 0;
 int gli_conf_caps = 0;
 
@@ -367,6 +368,8 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_justify = atoi(arg);
         if (!strcmp(cmd, "quotes"))
             gli_conf_quotes = atoi(arg);
+        if (!strcmp(cmd, "dashes"))
+            gli_conf_dashes = atoi(arg);
         if (!strcmp(cmd, "spaces"))
             gli_conf_spaces = atoi(arg);
         if (!strcmp(cmd, "caps"))
