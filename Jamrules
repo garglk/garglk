@@ -88,13 +88,13 @@ switch $(OS)
             PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
         }
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = -lz -lm -lrt "`$(PKGCONFIG) --libs`" ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
+        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -105,13 +105,13 @@ switch $(OS)
         Echo "OS is IPLINUX (EFL)" ;
         PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys libeoi eina-0 evas ecore ecore-x ecore-file ecore-evas edje" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
-        LINKLIBS = -lz -lm -lrt "`$(PKGCONFIG) --libs`" ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm -lrt ;
+        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
