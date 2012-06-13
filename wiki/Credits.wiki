@@ -38,6 +38,7 @@ _Quality assurance testing and bug reports_
   * Eliuk Blau
   * Emily Boegheim
   * Matt Chan
+  * Wayne Clipperton
   * Steve Evans
   * Ivan Gulkov
   * Karl Ove Hufthammer
