@@ -56,6 +56,7 @@ protected:
     virtual void set_background (std::string);
     virtual GeasResult set_style (const GeasFontStyle &);
 
+    virtual std::string get_string ();
     virtual uint make_choice (std::string, std::vector<std::string>);
 
   virtual std::string absolute_name (std::string, std::string) const;
@@ -297,6 +298,25 @@ GeasGlkInterface::get_file (std::string fname) const
   return rv;
 }
 
+std::string
+GeasGlkInterface::get_string ()
+{
+    char buf[200];
+    glk_request_line_event(inputwin, buf, (sizeof buf) - 1, 0);
+    while(1) {
+        event_t ev;
+
+        glk_select(&ev);
+
+        if (ev.type == evtype_LineInput && ev.win == inputwin) {
+            return std::string(buf, ev.val1);
+        }
+        /* All other events, including timer, are deliberately
+         * ignored.
+         */
+    }
+}
+
 uint
 GeasGlkInterface::make_choice (std::string label, std::vector<std::string> v)
 {
@@ -326,28 +346,7 @@ GeasGlkInterface::make_choice (std::string label, std::vector<std::string> v)
     s1 = "Choose [1-" + s + "]> ";
     glk_put_string_stream(inputwinstream, (char *)(s1.c_str()));
 
-    int choice = 1;
-    char buf[200];
-    glk_request_line_event(inputwin, buf, (sizeof buf) - 1, 0);
-    while(1) {
-        event_t ev;
-
-        glk_select(&ev);
-
-        switch(ev.type) {
-        case evtype_LineInput:
-            if(ev.win == inputwin) {
-                buf[ev.val1] = '\0';
-                choice = atoi(buf);
-                goto got_choice;
-            }
-            break;
-        /* All other events, including timer, are deliberately
-         * ignored.
-         */
-        }
-    }
-got_choice:
+    int choice = atoi(get_string().c_str());
     if(choice < 1) {
         choice = 1;
     }
