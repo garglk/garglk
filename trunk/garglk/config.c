@@ -318,6 +318,34 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
         if (!strcmp(cmd, "cols"))
             gli_cols = atoi(arg);
 
+        if (!strcmp(cmd, "minrows"))
+        {
+            int r = atoi(arg);
+            if (gli_rows < r)
+                gli_rows = r;
+        }
+
+        if (!strcmp(cmd, "maxrows"))
+        {
+            int r = atoi(arg);
+            if (gli_rows > r)
+                gli_rows = r;
+        }
+
+        if (!strcmp(cmd, "mincols"))
+        {
+            int c = atoi(arg);
+            if (gli_cols < c)
+                gli_cols = c;
+        }
+
+        if (!strcmp(cmd, "maxcols"))
+        {
+            int c = atoi(arg);
+            if (gli_cols > c)
+                gli_cols = c;
+        }
+
         if (!strcmp(cmd, "lockrows"))
             gli_conf_lockrows = atoi(arg);
         if (!strcmp(cmd, "lockcols"))
