@@ -56,6 +56,25 @@ static void gli_windows_rearrange(void)
     if (gli_rootwin)
     {
         rect_t box;
+
+        if (gli_conf_lockcols)
+        {
+            int desired_width = gli_wmarginx_save * 2 + gli_cellw * gli_cols;
+            if (desired_width > gli_image_w)
+                gli_wmarginx = gli_wmarginx_save;
+            else
+                gli_wmarginx = (gli_image_w - gli_cellw * gli_cols)/2;
+        }
+
+        if (gli_conf_lockrows)
+        {
+            int desired_height = gli_wmarginy_save * 2 + gli_cellh * gli_rows;
+            if (desired_height > gli_image_h)
+                gli_wmarginy = gli_wmarginy_save;
+            else
+                gli_wmarginy = (gli_image_h - gli_cellh * gli_rows)/2;
+        }
+
         box.x0 = gli_wmarginx;
         box.y0 = gli_wmarginy;
         box.x1 = gli_image_w - gli_wmarginx;
