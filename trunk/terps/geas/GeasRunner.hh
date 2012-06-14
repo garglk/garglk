@@ -111,7 +111,6 @@ protected:
 public:
   virtual std::string absolute_name (std::string rel_name, std::string parent) const = 0;
   virtual std::string get_file (std::string filename) const = 0;
-  virtual std::string get_string () { return "-- NOT SUPPORTED YET --"; }
   virtual void debug_print (std::string s) { std::cerr << s << std::endl; }
   virtual GeasResult wait_keypress (std::string) { return r_not_supported; }
   virtual GeasResult pause (int msec) { return r_not_supported; }
@@ -138,7 +137,11 @@ public:
    */
   virtual GeasResult play_sound (std::string filename, bool looped, bool sync)
   { return r_not_supported; }
-  
+
+  /* Asks the user to type a free format string
+   */
+  virtual std::string get_string () = 0;
+
   /* Presents a list with header 'info', and prompts the user to
    * choose one item from 'choices'.
    * returns the index chosen.
