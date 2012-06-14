@@ -147,8 +147,14 @@ int gli_wbordery = 1;
 int gli_tmarginx = 7;
 int gli_tmarginy = 7;
 
+int gli_wmarginx_save = 15;
+int gli_wmarginy_save = 15;
+
 int gli_cols = 60;
 int gli_rows = 25;
+
+int gli_conf_lockcols = FALSE;
+int gli_conf_lockrows = FALSE;
 
 float gli_conf_propaspect = 1.0;
 float gli_conf_monoaspect = 1.0;
@@ -312,10 +318,25 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
         if (!strcmp(cmd, "cols"))
             gli_cols = atoi(arg);
 
+        if (!strcmp(cmd, "lockrows"))
+            gli_conf_lockrows = atoi(arg);
+        if (!strcmp(cmd, "lockcols"))
+            gli_conf_lockcols = atoi(arg);
+
+        if (!strcmp(cmd, "wmarginx"))
+        {
+            gli_wmarginx = atoi(arg);
+            gli_wmarginx_save = gli_wmarginx;
+        }
+
+        if (!strcmp(cmd, "wmarginy"))
+        {
+            gli_wmarginy = atoi(arg);
+            gli_wmarginy_save = gli_wmarginy;
+        }
+
         if (!strcmp(cmd, "wpaddingx")) gli_wpaddingx = atoi(arg);
         if (!strcmp(cmd, "wpaddingy")) gli_wpaddingy = atoi(arg);
-        if (!strcmp(cmd, "wmarginx")) gli_wmarginx = atoi(arg);
-        if (!strcmp(cmd, "wmarginy")) gli_wmarginy = atoi(arg);
         if (!strcmp(cmd, "wborderx")) gli_wborderx = atoi(arg);
         if (!strcmp(cmd, "wbordery")) gli_wbordery = atoi(arg);
         if (!strcmp(cmd, "tmarginx")) gli_tmarginx = atoi(arg);

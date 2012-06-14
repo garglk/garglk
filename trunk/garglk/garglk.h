@@ -211,6 +211,8 @@ extern int gli_wbordery;
 
 extern int gli_wmarginx;
 extern int gli_wmarginy;
+extern int gli_wmarginx_save;
+extern int gli_wmarginy_save;
 extern int gli_wpaddingx;
 extern int gli_wpaddingy;
 extern int gli_tmarginx;
@@ -231,8 +233,11 @@ extern int gli_conf_dashes;
 extern int gli_conf_spaces;
 extern int gli_conf_caps;
 
-extern int gli_rows;
 extern int gli_cols;
+extern int gli_rows;
+
+extern int gli_conf_lockcols;
+extern int gli_conf_lockrows;
 
 extern unsigned char gli_scroll_bg[3];
 extern unsigned char gli_scroll_fg[3];
