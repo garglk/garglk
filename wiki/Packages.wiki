@@ -1,5 +1,5 @@
 #summary Links to Gargoyle packages prepared by the community.
-#labels Phase-Deploy,Featured
+#labels EPhase-Deploy,Featured
 
 ==Official distributions==
 
@@ -29,8 +29,8 @@ Gargoyle packages are not included out of the box in some distributions, so Linu
 Known packages for the current release are listed below. Although these are not "official" packages, you are still encouraged to report any bugs that you find to the [http://code.google.com/p/garglk/issues/list issue tracker] or the [http://groups.google.com/group/garglk-dev mailing list].
 
 || *Distribution* || *Maintainer* || *Version* || *Location* ||
-|| Archlinux || Eric Forgeot || 08-25-09 || [http://aur.archlinux.org/packages.php?ID=16008 aur.archlinux.org] ||
-|| Debian || Eric Forgeot || 08-25-09 || [http://ifiction.free.fr/index.php?id=iflinux ifiction.free.fr] ||
+|| Archlinux || no one || 2011 || [http://aur.archlinux.org/packages.php?ID=16008 aur.archlinux.org] ||
+|| Debian || Debian Games Team / Sylvain Beucler || 2011 || [http://packages.debian.org/sid/gargoyle-free DEB] ||
 || Mandriva || Rémi Verschelde || 12-25-08 || [http://akantar.free.fr/remi/rpm/ RPM] ||
 || Gentoo || Ryan Hendrickson / Yaroslav Isakov || 12-25-08 || [http://bugs.gentoo.org/253098 gentoo.org] ||
 || OpenBSD || Stuart Henderson || 08-25-09 || [http://openports.se/games/gargoyle openports] ||
