@@ -6,7 +6,9 @@ This document provides platform-specific steps for developers interested in comp
 
   * [Developers#Windows Windows]
   * [Developers#Ubuntu Ubuntu]
+  * [Developers#FreeBSD FreeBSD]
   * [Developers#Mac Mac]
+
 
 Please note: these steps are meant for advanced users only. Just about everyone will find the binary packages more useful. The most recent release can always be found on the Downloads tab.
 
@@ -110,6 +112,42 @@ export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
 For a more permanent installation, please see the INSTALL document found in the root of the source code tree.
 
 <p><br/></p>
+
+
+===FreeBSD===
+
+If you wish to compile gargoyle from sources, just edit Jamrules and add:
+
+{{{
+OS = BSD ;
+}}}
+
+and before case LINUX :
+
+add:
+
+{{{
+case BSD :
+        Echo "OS is BSD ($(GUILIB))" ;
+        if $(GUILIB) = EFL {
+            PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
+        } else {
+            PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+        }
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
+        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+
+        if $(USESDL) = yes
+        {
+            GARGLKCCFLAGS += -I/usr/include/SDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+        }
+
+        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
+        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
+}}}
+
 
 ==Mac==
 
