@@ -41,6 +41,7 @@
 #define giblorb_ID_MOD  (giblorb_make_id('M', 'O', 'D', ' '))
 #define giblorb_ID_OGG  (giblorb_make_id('O', 'G', 'G', 'V'))
 #define giblorb_ID_FORM (giblorb_make_id('F', 'O', 'R', 'M'))
+#define giblorb_ID_AIFF (giblorb_make_id('A', 'I', 'F', 'F'))
 
 /* non-standard types */
 #define giblorb_ID_MP3  (giblorb_make_id('M', 'P', '3', ' '))
@@ -575,6 +576,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     switch (type)
     {
         case giblorb_ID_FORM:
+        case giblorb_ID_AIFF:
         case giblorb_ID_WAVE:
             return play_sound(chan);
             break;
