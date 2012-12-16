@@ -1460,48 +1460,38 @@ static void acceptline(window_t *win, glui32 keycode)
     gli_speak_tts(dwin->chars+dwin->infence, len, 1);
 #endif
 
-    /* Store in history. */
+    /*
+     * Store in history.
+     * The history is a ring buffer, with historypresent being the index of the most recent
+     * element and historyfirst the index of the oldest element.
+     * A history entry should not repeat the string from the entry before it.
+     */
     if (len)
     {
-        s = malloc((len + 1) * 4);
-        memcpy(s, dwin->chars + dwin->infence, len * 4);
+        s = malloc((len + 1) * sizeof(glui32));
+        memcpy(s, dwin->chars + dwin->infence, len * sizeof(glui32));
         s[len] = 0;
 
-        if (dwin->history[dwin->historypresent])
-        {
-            free(dwin->history[dwin->historypresent]);
-            dwin->history[dwin->historypresent] = NULL;
-        }
+        free(dwin->history[dwin->historypresent]);
+        dwin->history[dwin->historypresent] = NULL;
 
-        if (dwin->history[dwin->historypresent] != dwin->history[dwin->historyfirst] )
-            o = dwin->history[dwin->historypresent - 1];
-        else
-            o = NULL;
-
+        o = dwin->history[(dwin->historypresent == 0 ? HISTORYLEN : dwin->historypresent) - 1];
         olen = o ? strlen_uni(o) : 0;
 
         if (len != olen || memcmp(s, o, olen * sizeof(glui32)))
         {
-
             dwin->history[dwin->historypresent] = s;
 
-            dwin->historypresent ++;
-            if (dwin->historypresent >= HISTORYLEN)
-                dwin->historypresent -= HISTORYLEN;
+            dwin->historypresent++;
+            if (dwin->historypresent == HISTORYLEN)
+                dwin->historypresent = 0;
 
             if (dwin->historypresent == dwin->historyfirst)
             {
                 dwin->historyfirst++;
-                if (dwin->historyfirst >= HISTORYLEN)
-                    dwin->historyfirst -= HISTORYLEN;
+                if (dwin->historyfirst == HISTORYLEN)
+                    dwin->historyfirst = 0;
             }
-
-            if (dwin->history[dwin->historypresent])
-            {
-                free(dwin->history[dwin->historypresent]);
-                dwin->history[dwin->historypresent] = NULL;
-            }
-
         }
         else
         {
