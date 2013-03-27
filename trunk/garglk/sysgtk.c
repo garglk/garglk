@@ -111,6 +111,7 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserA
                                                       GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                                       button, GTK_RESPONSE_ACCEPT,
                                                       NULL);
+    char *curdir;
 
     if (filter != FILTER_ALL)
     {
@@ -152,8 +153,12 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserA
     else
         strcpy(buf, "");
 
-    strcpy(filepath, gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog)));
-    fileselect = TRUE;
+    curdir = gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog));
+    if (curdir != NULL && strlen(curdir) < sizeof(filepath))
+    {
+        strcpy(filepath, curdir);
+        fileselect = TRUE;
+    }
 
     gtk_widget_destroy(filedlog);
     filedlog = NULL;
