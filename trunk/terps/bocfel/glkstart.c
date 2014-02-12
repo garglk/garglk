@@ -30,48 +30,15 @@
 zexternally_visible
 glkunix_argumentlist_t glkunix_arguments[] =
 {
-  { "-a",	glkunix_arg_NumberValue,	"-a N		set the size of the evaluation stack" },
-  { "-A",	glkunix_arg_NumberValue,	"-A N		set the size of the call stack" },
-  { "-c",	glkunix_arg_NoValue,		"-c		disable color" },
-  { "-C",	glkunix_arg_NoValue,		"-C		disable the use of a config file" },
-  { "-d",	glkunix_arg_NoValue,		"-d		disable timed input" },
-  { "-D",	glkunix_arg_NoValue,		"-D		disable sound effects" },
-  { "-e",	glkunix_arg_NoValue,		"-e		enable ANSI escapes in the transcript" },
-  { "-E",	glkunix_arg_ValueFollows,	"-E string	set the escape string for -e" },
-  { "-f",	glkunix_arg_NoValue,		"-f		disable fixed-width fonts" },
-  { "-F",	glkunix_arg_NoValue,		"-F		assume font is fixed-width" },
-  { "-g",	glkunix_arg_NoValue,		"-g		disable the character graphics font" },
-  { "-G",	glkunix_arg_NoValue,		"-G		enable alternative box-drawing character graphics" },
-  { "-i",	glkunix_arg_NoValue,		"-i		display the id of the story file and exit" },
-  { "-k",	glkunix_arg_NoValue,		"-k		disable the use of terminating keys (notably used in Beyond Zork)" },
-  { "-l",	glkunix_arg_NoValue,		"-l		disable utf-8 transcripts" },
-  { "-L",	glkunix_arg_NoValue,		"-L		force utf-8 transcrips" },
-  { "-m",	glkunix_arg_NoValue,		"-m		disable meta commands" },
-  { "-n",	glkunix_arg_NumberValue,	"-n N		set the interpreter number (see 11.1.3 in The Z-machine Standards Document 1.0)" },
-  { "-N",	glkunix_arg_NumberValue,	"-N N		set the interpreter version (see 11.1.3.1 in The Z-machine Standards Document 1.0)" },
-  { "-r",	glkunix_arg_NoValue,		"-r		start the story by replaying a command record" },
-  { "-R",	glkunix_arg_NoValue,		"-R filename	set the filename to be used if replaying a command record" },
-  { "-s",	glkunix_arg_NoValue,		"-s		start the story with command recording on" },
-  { "-S",	glkunix_arg_NoValue,		"-S filename	set the filename to be used if command recording is turned on" },
-  { "-t",	glkunix_arg_NoValue,		"-t		start the story with transcripting on" },
-  { "-T",	glkunix_arg_ValueFollows,	"-T filename	set the filename to be used if transcription is turned on" },
-  { "-u",	glkunix_arg_NumberValue,	"-u N		set the maximum number of undo slots" },
-  { "-U",	glkunix_arg_NoValue,		"-U		disable compression in undo slots" },
-  { "-v",	glkunix_arg_NoValue,		"-v		display version information" },
-  { "-x",	glkunix_arg_NoValue,		"-x		disable expansion of abbreviations" },
-  { "-X",	glkunix_arg_NoValue,		"-X		enable tandy censorship" },
-  { "-y",	glkunix_arg_NoValue,		"-y		when opening a transcript, overwrite rather than append to an existing file" },
-  { "-z",	glkunix_arg_NumberValue,	"-z N		set initial random seed" },
-  { "-Z",	glkunix_arg_ValueFollows,	"-Z device	read initial random seed from device" },
-  { "",		glkunix_arg_ValueFollows,	"filename	file to load" },
-
+#include "help.h"
+  { "",		glkunix_arg_ValueFollows,	"file to load" },
   { NULL, glkunix_arg_End, NULL }
 };
 
 zexternally_visible
 int glkunix_startup_code(glkunix_startup_t *data)
 {
-  if(!process_arguments(data->argc, data->argv)) return 0;
+  process_arguments(data->argc, data->argv);
 
 #ifdef GARGLK
   garglk_set_program_name("Bocfel");
@@ -105,7 +72,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, in
 
   if(!InitGlk(0x00000700)) exit(EXIT_FAILURE);
 
-  if(!process_arguments(__argc, __argv)) exit(EXIT_FAILURE);
+  process_arguments(__argc, __argv);
 
   winglk_app_set_name("Bocfel");
 

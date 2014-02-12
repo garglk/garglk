@@ -1,5 +1,5 @@
-#ifndef OBJECTS_H
-#define OBJECTS_H
+#ifndef ZTERP_OBJECTS_H
+#define ZTERP_OBJECTS_H
 
 #include <stdint.h>
 

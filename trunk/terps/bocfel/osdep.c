@@ -160,7 +160,7 @@ static char *fg_string = NULL, *bg_string = NULL;
 static int have_colors = 0;
 void zterp_os_init_term(void)
 {
-  if(setupterm(NULL, STDIN_FILENO, NULL) != OK) return;
+  if(setupterm(NULL, STDOUT_FILENO, NULL) != OK) return;
 
   /* prefer italics over underline for emphasized text */
   ital = tgetstr("ZH", NULL);

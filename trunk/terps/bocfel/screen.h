@@ -10,8 +10,6 @@
 /* Boolean flag describing whether the header bit meaning “fixed font” is set. */
 extern int header_fixed_font;
 
-extern uint32_t read_pc;
-
 void init_screen(void);
 
 int create_mainwin(void);
@@ -29,6 +27,8 @@ void cancel_all_events(void);
 #define STYLE_FIXED	(1U << 3)
 
 void show_message(const char *, ...);
+void screen_print(const char *);
+void screen_puts(const char *);
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
 void term_keys_reset(void);

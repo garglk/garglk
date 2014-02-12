@@ -99,7 +99,7 @@ int atable_pos[UINT8_MAX + 1];
  */
 static void build_font3_table(void)
 {
-  for(int i = 0; i < UINT8_MAX; i++) zscii_to_font3[i] = UNICODE_QUESTIONMARK;
+  for(int i = 0; i < UINT8_MAX; i++) zscii_to_font3[i] = UNICODE_REPLACEMENT;
 
   zscii_to_font3[ 32] = UNICODE_SPACE;
   zscii_to_font3[ 33] = 0x2190; /* ← */
@@ -186,7 +186,7 @@ static void build_font3_table(void)
   zscii_to_font3[ 93] = 0x2193; /* ↓ */
   zscii_to_font3[ 94] = 0x2195; /* ↕ */
   zscii_to_font3[ 95] = 0x2b1c; /* ⬜ */
-  zscii_to_font3[ 96] = UNICODE_QUESTIONMARK;
+  zscii_to_font3[ 96] = 0x003f; /* ? */
   zscii_to_font3[ 97] = 0x16aa; /* ᚪ */
   zscii_to_font3[ 98] = 0x16d2; /* ᛒ */
   zscii_to_font3[ 99] = 0x16c7; /* ᛇ */
@@ -202,7 +202,7 @@ static void build_font3_table(void)
   zscii_to_font3[109] = 0x16d7; /* ᛗ */
   zscii_to_font3[110] = 0x16be; /* ᚾ */
   zscii_to_font3[111] = 0x16a9; /* ᚩ */
-  zscii_to_font3[112] = UNICODE_QUESTIONMARK; /* no good symbol */
+  zscii_to_font3[112] = 0x15be; /* ᖾ */
   zscii_to_font3[113] = 0x0068; /* Unicode 'h'; close to the rune. */
   zscii_to_font3[114] = 0x16b1; /* ᚱ */
   zscii_to_font3[115] = 0x16cb; /* ᛋ */
@@ -220,14 +220,37 @@ static void build_font3_table(void)
   zscii_to_font3[123] = 0x2191; /* ↑ */
   zscii_to_font3[124] = 0x2193; /* ↓ */
   zscii_to_font3[125] = 0x2195; /* ↕ */
-  zscii_to_font3[126] = UNICODE_QUESTIONMARK;
+  zscii_to_font3[126] = 0x003f; /* ? */
+
+  /* If the interpreter number is 9 (Apple IIc), Beyond Zork uses (at
+   * least some) MouseText characters instead of the characters
+   * specified in the standard for font 3.  The following were obtained
+   * by looking at a disassembly of Beyond Zork; the list will be
+   * revised if more non-standard character uses are discovered.
+   *
+   * As with the quirky behavior in the DOS version of Beyond Zork (see
+   * process_story() in zterp.c), this is only active when the story
+   * file is Beyond Zork, because as far as the standard is concerned,
+   * this behavior is wrong, and font 3 should be identical for all
+   * interpreter types.
+   */
+  if(options.int_number == 9 && is_beyond_zork())
+  {
+    zscii_to_font3[ 72] = 0x2190; /* ← */
+    zscii_to_font3[ 74] = 0x2193; /* ↓ */
+    zscii_to_font3[ 75] = 0x2191; /* ↑ */
+    zscii_to_font3[ 76] = 0x2594; /* ▔ */
+    zscii_to_font3[ 85] = 0x2192; /* → */
+    zscii_to_font3[ 90] = 0x2595; /* ▕ */
+    zscii_to_font3[ 95] = 0x258f; /* ▏ */
+  }
 }
 
 void setup_tables(void)
 {
   /*** ZSCII to Unicode table. ***/
 
-  for(int i = 0; i < UINT8_MAX + 1; i++) zscii_to_unicode[i] = UNICODE_QUESTIONMARK;
+  for(int i = 0; i < UINT8_MAX + 1; i++) zscii_to_unicode[i] = UNICODE_REPLACEMENT;
   zscii_to_unicode[0] = 0;
   zscii_to_unicode[ZSCII_NEWLINE] = UNICODE_LINEFEED;
 
@@ -239,10 +262,7 @@ void setup_tables(void)
   {
     uint16_t c = unicode_table[i];
 
-    if(!valid_unicode(c)) c = UNICODE_QUESTIONMARK;
-
-    /* If Unicode is not available, then any values > 255 are invalid. */
-    else if(!have_unicode && c > 255) c = UNICODE_QUESTIONMARK;
+    if(!valid_unicode(c)) c = UNICODE_REPLACEMENT;
 
     zscii_to_unicode[i + 155] = c;
   }
@@ -277,7 +297,7 @@ void setup_tables(void)
 
   /*** Unicode to Latin1 table. ***/
 
-  memset(unicode_to_latin1, UNICODE_QUESTIONMARK, sizeof unicode_to_latin1);
+  memset(unicode_to_latin1, LATIN1_QUESTIONMARK, sizeof unicode_to_latin1);
   for(int i = 0; i < 256; i++) unicode_to_latin1[i] = i;
 
   /*** ZSCII to character graphics table. ***/
@@ -354,4 +374,17 @@ uint16_t unicode_tolower(uint16_t c)
   else if(c >= 0x400 && c < 0x460) c = cyrillic        [c - 0x400] + 0x400;
 
   return c;
+}
+
+/* Convert a char (assumed to be ASCII) to Unicode.  Printable values,
+ * plus newline, are converted to their corresponding Unicode values;
+ * the rest are converted to the Unicode replacement character (�).
+ * This is a function rather than a table because it is rarely used, so
+ * performance is not a concern.
+ */
+uint16_t char_to_unicode(char c)
+{
+  if(c == '\n')              return UNICODE_LINEFEED;
+  else if(c < 32 || c > 126) return UNICODE_REPLACEMENT;
+  else                       return c;
 }

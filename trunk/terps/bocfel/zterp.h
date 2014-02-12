@@ -1,5 +1,5 @@
-#ifndef ZTERP_H
-#define ZTERP_H
+#ifndef ZTERP_ZTERP_H
+#define ZTERP_ZTERP_H
 
 #include <stdint.h>
 
@@ -36,6 +36,7 @@ struct options
   int disable_abbreviations;
   int enable_censorship;
   int overwrite_transcript;
+  int override_undo;
   long random_seed;
   char *random_device;
 };
@@ -70,8 +71,8 @@ extern struct options options;
 #define FLAGS2_SOUND		(1U << 7)
 #define FLAGS2_MENUS		(1U << 8)
 
-#define STATUS_IS_TIME()	(zversion == 3 && (BYTE(0x01) & FLAGS1_STATUSTYPE))
-#define TIMER_AVAILABLE()	(zversion >= 4 && (BYTE(0x01) & FLAGS1_TIMED))
+#define status_is_time()	(zversion == 3 && (BYTE(0x01) & FLAGS1_STATUSTYPE))
+#define timer_available()	(zversion >= 4 && (BYTE(0x01) & FLAGS1_TIMED))
 
 struct header
 {
@@ -93,25 +94,27 @@ extern uint32_t pc;
 extern int zversion;
 extern struct header header;
 extern uint8_t atable[];
+extern int is_infocom_v1234;
 
-int is_story(const char *);
+int is_beyond_zork(void);
+int is_journey(void);
+int is_sherlock(void);
 
 void write_header(void);
 
 uint32_t unpack(uint16_t, int);
 void store(uint16_t);
-void process_story(void);
 
 #ifndef ZTERP_NO_CHEAT
 int cheat_find_freezew(uint32_t, uint16_t *);
 #endif
 
 void znop(void);
+void zrestart(void);
 void zquit(void);
 void zverify(void);
 void zpiracy(void);
 void zsave5(void);
 void zrestore5(void);
-void zsound_effect(void);
 
 #endif

@@ -16,7 +16,7 @@ typedef struct zterp_iff zterp_iff;
     )
 
 /* Reverse of above. */
-#define IDSTR(n) ((char[5]){ \
+#define IDSTR(n) ((unsigned char[5]){ \
     ((uint32_t)n >> 24) & 0xff, \
     ((uint32_t)n >> 16) & 0xff, \
     ((uint32_t)n >>  8) & 0xff, \

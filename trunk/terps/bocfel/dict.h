@@ -1,5 +1,5 @@
-#ifndef DICTIONARY_H
-#define DICTIONARY_H
+#ifndef ZTERP_DICT_H
+#define ZTERP_DICT_H
 
 #include <stdint.h>
 

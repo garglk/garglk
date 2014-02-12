@@ -81,6 +81,37 @@ void die(const char *fmt, ...)
   exit(EXIT_FAILURE);
 }
 
+void help(void)
+{
+  /* Simulate a glkunix_argumentlist_t structure so help can be shared. */
+  const struct
+  {
+    const char *flag;
+    enum { glkunix_arg_NoValue, glkunix_arg_NumberValue, glkunix_arg_ValueFollows } arg;
+    const char *description;
+  }
+  flags[] = {
+#include "help.h"
+  };
+
+  screen_puts("Usage: bocfel [args] filename");
+  for(size_t i = 0; i < sizeof flags / sizeof *flags; i++)
+  {
+    char line[1024];
+    const char *arg;
+
+    switch(flags[i].arg)
+    {
+      case glkunix_arg_NumberValue:  arg = "number"; break;
+      case glkunix_arg_ValueFollows: arg = "string"; break;
+      default:                       arg = "";       break;
+    }
+
+    snprintf(line, sizeof line, "%s %-12s%s", flags[i].flag, arg, flags[i].description);
+    screen_puts(line);
+  }
+}
+
 /* This is not POSIX compliant, but it gets the job done.
  * It should not be called more than once.
  */
@@ -140,11 +171,12 @@ char *xstrdup(const char *s)
   return r;
 }
 
-int process_arguments(int argc, char **argv)
+enum arg_status arg_status = ARG_OK;
+void process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGiklLmn:N:rR:sS:tT:u:UvxXyz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhiklLmn:N:rR:sS:tT:u:UvxXyYz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -184,6 +216,9 @@ int process_arguments(int argc, char **argv)
       case 'G':
         options.enable_alt_graphics = 1;
         break;
+      case 'h':
+        arg_status = ARG_HELP;
+        return;
       case 'i':
         options.show_id = 1;
         break;
@@ -241,6 +276,9 @@ int process_arguments(int argc, char **argv)
       case 'y':
         options.overwrite_transcript = 1;
         break;
+      case 'Y':
+        options.override_undo = 1;
+        break;
       case 'z':
         options.random_seed = strtol(zoptarg, NULL, 10);
         break;
@@ -248,12 +286,11 @@ int process_arguments(int argc, char **argv)
         options.random_device = xstrdup(zoptarg);
         break;
       default:
-        return 0;
+        arg_status = ARG_FAIL;
+        return;
     }
   }
 
   /* Just ignore excess stories for now. */
   if(zoptind < argc) game_file = argv[zoptind];
-
-  return 1;
 }
