@@ -144,8 +144,8 @@ if $(MAKE_BOCFEL) = yes
 
     Main $(GARGLKPRE)bocfel :
         blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
-        objects.c osdep.c process.c random.c screen.c stack.c table.c
-        unicode.c util.c zoom.c zterp.c
+        meta.c objects.c osdep.c process.c random.c screen.c sound.c
+        stack.c unicode.c util.c zoom.c zterp.c
         ;
 
     APPS += $(GARGLKPRE)bocfel ;

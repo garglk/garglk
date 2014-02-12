@@ -17,8 +17,15 @@
 extern uint8_t *memory, *dynamic_memory;
 extern uint32_t memory_size;
 
-#define BYTE(addr)		(memory[addr])
-#define STORE_BYTE(addr, val)	((void)(memory[addr] = (val)))
+static inline uint8_t BYTE(uint32_t addr)
+{
+  return memory[addr];
+}
+
+static inline void STORE_BYTE(uint32_t addr, uint8_t val)
+{
+  memory[addr] = val;
+}
 
 static inline uint16_t WORD(uint32_t addr)
 {
@@ -51,5 +58,12 @@ static inline uint16_t user_word(uint16_t addr)
 
 void user_store_byte(uint16_t, uint8_t);
 void user_store_word(uint16_t, uint16_t);
+
+void zcopy_table(void);
+void zscan_table(void);
+void zloadw(void);
+void zloadb(void);
+void zstoreb(void);
+void zstorew(void);
 
 #endif

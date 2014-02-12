@@ -43,13 +43,13 @@ void znot(void)
 void zdec_chk(void)
 {
   int16_t new;
-  int16_t val = zargs[1];
+  int16_t val = as_signed(zargs[1]);
 
   zdec();
 
   /* The z-spec 1.1 requires indirect variable references to the stack not to push/pop */
-  if(zargs[0] == 0) new = *stack_top_element();
-  else              new = variable(zargs[0]);
+  if(zargs[0] == 0) new = as_signed(*stack_top_element());
+  else              new = as_signed(variable(zargs[0]));
 
   branch_if(new < val);
 }
@@ -57,13 +57,13 @@ void zdec_chk(void)
 void zinc_chk(void)
 {
   int16_t new;
-  int16_t val = zargs[1];
+  int16_t val = as_signed(zargs[1]);
 
   zinc();
 
   /* The z-spec 1.1 requires indirect variable references to the stack not to push/pop */
-  if(zargs[0] == 0) new = *stack_top_element();
-  else              new = variable(zargs[0]);
+  if(zargs[0] == 0) new = as_signed(*stack_top_element());
+  else              new = as_signed(variable(zargs[0]));
 
   branch_if(new > val);
 }
@@ -101,18 +101,18 @@ void zmul(void)
 void zdiv(void)
 {
   ZASSERT(zargs[1] != 0, "divide by zero");
-  store((int16_t)zargs[0] / (int16_t)zargs[1]);
+  store(as_signed(zargs[0]) / as_signed(zargs[1]));
 }
 
 void zmod(void)
 {
   ZASSERT(zargs[1] != 0, "divide by zero");
-  store((int16_t)zargs[0] % (int16_t)zargs[1]);
+  store(as_signed(zargs[0]) % as_signed(zargs[1]));
 }
 
 void zlog_shift(void)
 {
-  int16_t places = zargs[1];
+  int16_t places = as_signed(zargs[1]);
 
   /* Shifting more than 15 bits is undefined (as of Standard 1.1), but
    * do the most sensible thing.
@@ -129,7 +129,7 @@ void zlog_shift(void)
 
 void zart_shift(void)
 {
-  int16_t number = zargs[0], places = zargs[1];
+  int16_t number = as_signed(zargs[0]), places = as_signed(zargs[1]);
 
   /* Shifting more than 15 bits is undefined (as of Standard 1.1), but
    * do the most sensible thing.

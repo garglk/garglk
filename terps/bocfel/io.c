@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include <limits.h>
 
 #ifdef ZTERP_GLK
@@ -30,7 +31,9 @@
 #include "osdep.h"
 #include "unicode.h"
 
+#ifndef ZTERP_GLK
 #define MAX_PATH	4096
+#endif
 
 int use_utf8_io;
 
@@ -42,8 +45,8 @@ int use_utf8_io;
  * command-script, use '\n' as a newline so translation can be done;
  * this is the only case where streams are opened in text mode.
  *
- * zterp_io_stdio() and zterp_io_stdout() are considered text-mode if
- * Unicode is not available, binary otherwise.
+ * zterp_io_stdout() is considered text-mode if Unicode is not
+ * available, binary otherwise.
  */
 #define textmode(io)	(!use_utf8_io && ((io->mode) & (ZTERP_IO_TRANS | ZTERP_IO_INPUT)))
 
@@ -88,7 +91,7 @@ zterp_io *zterp_io_open(const char *filename, int mode)
   if(textmode(io)) smode[1] = 0;
 
 #ifdef ZTERP_GLK
-  int usage = fileusage_BinaryMode, filemode;
+  glui32 usage = fileusage_BinaryMode, filemode;
 
   if     (mode & ZTERP_IO_SAVE)  usage |= fileusage_SavedGame;
   else if(mode & ZTERP_IO_TRANS) usage |= fileusage_Transcript;
@@ -361,7 +364,7 @@ long zterp_io_getc(const zterp_io *io)
     {
       ret = (c & 0x1f) << 6;
 
-      if(!read_byte(io, &c)) return UNICODE_QUESTIONMARK;
+      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
       ret |= (c & 0x3f);
     }
@@ -369,11 +372,11 @@ long zterp_io_getc(const zterp_io *io)
     {
       ret = (c & 0x0f) << 12;
 
-      if(!read_byte(io, &c)) return UNICODE_QUESTIONMARK;
+      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
       ret |= ((c & 0x3f) << 6);
 
-      if(!read_byte(io, &c)) return UNICODE_QUESTIONMARK;
+      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
       ret |= (c & 0x3f);
     }
@@ -384,15 +387,15 @@ long zterp_io_getc(const zterp_io *io)
        */
       zterp_io_seek(io, 3, SEEK_CUR);
 
-      ret = UNICODE_QUESTIONMARK;
+      ret = UNICODE_REPLACEMENT;
     }
     else /* Invalid value. */
     {
-      ret = UNICODE_QUESTIONMARK;
+      ret = UNICODE_REPLACEMENT;
     }
   }
 
-  if(ret > UINT16_MAX) ret = UNICODE_QUESTIONMARK;
+  if(ret > UINT16_MAX) ret = UNICODE_REPLACEMENT;
 
   return ret;
 }
@@ -412,7 +415,7 @@ void zterp_io_putc(const zterp_io *io, uint16_t c)
 {
   if(!use_utf8_io)
   {
-    if(c > UINT8_MAX) c = UNICODE_QUESTIONMARK;
+    if(c > UINT8_MAX) c = LATIN1_QUESTIONMARK;
 #ifdef ZTERP_GLK
     if(io->type == IO_GLK)
     {

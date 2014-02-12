@@ -33,24 +33,19 @@
 #include "process.h"
 #include "random.h"
 #include "screen.h"
+#include "sound.h"
 #include "stack.h"
 #include "unicode.h"
 #include "util.h"
 
 #ifdef ZTERP_GLK
 #include <glk.h>
-#ifdef GARGLK
-#include <glkstart.h>
-#include <gi_blorb.h>
-
-static schanid_t sound_channel = NULL;
-#endif
 #endif
 
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.6.1"
+#define ZTERP_VERSION	"0.6.3"
 
 const char *game_file;
 struct options options = {
@@ -79,12 +74,13 @@ struct options options = {
   .record_name = NULL,
   .transcript_on = 0,
   .transcript_name = NULL,
-  .max_saves = 10,
+  .max_saves = 100,
   .disable_undo_compression = 0,
   .show_version = 0,
   .disable_abbreviations = 0,
   .enable_censorship = 0,
   .overwrite_transcript = 0,
+  .override_undo = 0,
   .random_seed = -1,
   .random_device = NULL,
 };
@@ -134,45 +130,6 @@ uint8_t atable[26 * 3] =
   ',', '!', '?', '_', '#', '\'','"', '/', '\\','-', ':', '(', ')',
 };
 
-void znop(void)
-{
-}
-
-void zquit(void)
-{
-  break_from(0);
-}
-
-void zverify(void)
-{
-  uint16_t checksum = 0;
-  uint32_t remaining = header.file_length - 0x40;
-
-  if(zterp_io_seek(story.io, story.offset + 0x40, SEEK_SET) == -1)
-  {
-    branch_if(0);
-    return;
-  }
-
-  while(remaining != 0)
-  {
-    uint8_t buf[8192];
-    uint32_t to_read = remaining < sizeof buf ? remaining : sizeof buf;
-
-    if(zterp_io_read(story.io, buf, to_read) != to_read)
-    {
-      branch_if(0);
-      return;
-    }
-
-    for(uint32_t i = 0; i < to_read; i++) checksum += buf[i];
-
-    remaining -= to_read;
-  }
-
-  branch_if(checksum == header.checksum);
-}
-
 uint32_t unpack(uint16_t addr, int string)
 {
   switch(zwhich)
@@ -193,111 +150,6 @@ uint32_t unpack(uint16_t addr, int string)
 void store(uint16_t v)
 {
   store_variable(BYTE(pc++), v);
-}
-
-void zsave5(void)
-{
-  zterp_io *savefile;
-  size_t n;
-
-  if(znargs == 0)
-  {
-    zsave();
-    return;
-  }
-
-  /* This should be able to suggest a filename, but Glk doesn’t support that. */
-  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
-  if(savefile == NULL)
-  {
-    store(0);
-    return;
-  }
-
-  ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
-  n = zterp_io_write(savefile, &memory[zargs[0]], zargs[1]);
-
-  zterp_io_close(savefile);
-
-  store(n == zargs[1]);
-}
-
-void zrestore5(void)
-{
-  zterp_io *savefile;
-  uint8_t *buf;
-  size_t n;
-
-  if(znargs == 0)
-  {
-    zrestore();
-    return;
-  }
-
-  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY | ZTERP_IO_SAVE);
-  if(savefile == NULL)
-  {
-    store(0);
-    return;
-  }
-
-  buf = malloc(zargs[1]);
-  if(buf == NULL)
-  {
-    store(0);
-    return;
-  }
-
-  n = zterp_io_read(savefile, buf, zargs[1]);
-  for(size_t i = 0; i < n; i++) user_store_byte(zargs[0] + i, buf[i]);
-
-  free(buf);
-
-  zterp_io_close(savefile);
-
-  store(n);
-}
-
-void zpiracy(void)
-{
-  branch_if(1);
-}
-
-void zsound_effect(void)
-{
-#ifdef GARGLK
-  uint8_t repeats, volume;
-  static uint32_t vols[8] = {
-    0x02000, 0x04000, 0x06000, 0x08000,
-    0x0a000, 0x0c000, 0x0e000, 0x10000
-  };
-
-  if(sound_channel == NULL || zargs[0] < 3) return;
-
-  repeats = zargs[2] >> 8;
-  volume = zargs[2] & 0xff;
-
-  if(volume == 0) volume = 1;
-  if(volume  > 8) volume = 8;
-
-  glk_schannel_set_volume(sound_channel, vols[volume - 1]);
-
-  switch(zargs[1])
-  {
-    case 1: /* prepare */
-      glk_sound_load_hint(zargs[0], 1);
-      break;
-    case 2: /* start */
-      glk_schannel_play_ext(sound_channel, zargs[0], repeats == 255 ? -1 : repeats, 0);
-      break;
-    case 3: /* stop */
-      glk_schannel_stop(sound_channel);
-      break;
-    case 4: /* finish with */
-      glk_sound_load_hint(zargs[0], 0);
-      break;
-  }
-#endif
 }
 
 /* Find a story ID roughly in the form of an IFID according to §2.2.2.1
@@ -332,9 +184,68 @@ static void find_id(void)
   }
 }
 
-int is_story(const char *id)
+static int is_story(const char *id)
 {
   return strcmp(story_id, id) == 0;
+}
+
+int is_beyond_zork(void)
+{
+  return is_story("47-870915") || is_story("49-870917") || is_story("51-870923") || is_story("57-871221");
+}
+
+int is_journey(void)
+{
+  return is_story("83-890706");
+}
+
+int is_sherlock(void)
+{
+  return is_story("97-871026") || is_story("21-871214") || is_story("22-880112") || is_story("22-88011") || is_story("22-88011");
+}
+
+int is_infocom_v1234;
+static void check_infocom(void)
+{
+  /* All V1234 games from the Infocom fact sheet for which both a
+   * release and serial number are available.
+   */
+  const char *v1234[] = {
+    "1-841226",   "47-850313",  "64-850404",  "84-850516",  "105-850605", "131-850628", 
+    "132-850702", "143-850711", "77-850814",  "79-851122",  "97-851218",  "99-861014",  
+    "86-870212",  "116-870602", "160-880521", "23-840809",  "25-840917",  "18-820311",  
+    "19-820427",  "21-820512",  "22-820809",  "26-821108",  "27-831005",  "28-850129",  
+    "10-830810",  "15-831107",  "16-831118",  "16-840518",  "24-851118",  "29-860820",  
+    "62-840706",  "108-840809", "119-840822", "47-840914",  "56-841221",  "58-851002",  
+    "59-851108",  "60-861002",  "235-861118", "37-861215",  "22-830916",  "22-840522",  
+    "48-860103",  "57-860121",  "118-860325", "160-860521", "50-860711",  "59-860730",  
+    "203-870506", "219-870912", "221-870918", "4-860918",   "9-861022",   "13-880501",  
+    "70-870423",  "77-870428",  "117-870512", "19-870722",  "20-870722",  "1-830306",   
+    "1-830517",   "1-830614",   "6-830619",   "20-830708",  "26-831014",  "29-840118",  
+    "37-851003",  "39-880501",  "26-870730",  "86-840320",  "15-840501",  "15-840522",  
+    "15-840612",  "15-840716",  "17-850208",  "16-850515",  "16-850603",  "18-850919",  
+    "17-831001",  "67-831208",  "85-840106",  "4-840131",   "6-840508",   "13-851021",  
+    "15-851108",  "18-860904",  "63-850916",  "87-860904",  "15-820901",  "17-821021",  
+    "18-830114",  "28-861221",  "36-870106",  "63-870218",  "87-870326",  "107-870430", 
+    "14-841005",  "14-841005",  "18-850222",  "5-830222",   "7-830419",   "8-830521",   
+    "8-840521",   "1-851202",   "1-860221",   "14-860313",  "11-860509",  "12-860926",  
+    "15-870628",  "68-850501",  "69-850920",  "13-830524",  "18-830910",  "20-831119",  
+    "21-831208",  "22-840924",  "23-840925",  "2-AS000C",   "15-UG3AU5",  "23-820428",  
+    "25-820515",  "26-820803",  "28-821013",  "30-830330",  "75-830929",  "76-840509",  
+    "88-840726",  "119-880429", "7-UG3AU5",   "15-820308",  "17-820427",  "18-820512",  
+    "19-820721",  "22-830331",  "23-830411",  "22-840518",  "48-840904",  "63-860811",  
+    "10-820818",  "12-821025",  "15-830331",  "16-830410",  "15-840518",  "17-840727",  
+    "25-860811",
+  };
+
+  for(size_t i = 0; i < sizeof v1234 / sizeof *v1234; i++)
+  {
+    if(is_story(v1234[i]))
+    {
+      is_infocom_v1234 = 1;
+      return;
+    }
+  }
 }
 
 #ifndef ZTERP_NO_CHEAT
@@ -480,6 +391,7 @@ static void read_config(void)
     BOOL  (disable_abbreviations);
     BOOL  (enable_censorship);
     BOOL  (overwrite_transcript);
+    BOOL  (override_undo);
     NUMBER(random_seed);
     STRING(random_device);
 
@@ -544,9 +456,7 @@ void write_header(void)
     if(zversion == 6)
     {
       flags1 &= ~(FLAGS1_PICTURES | FLAGS1_SOUND);
-#ifdef GARGLK
-      if(sound_channel != NULL) flags1 |= FLAGS1_SOUND;
-#endif
+      if(sound_loaded()) flags1 |= FLAGS1_SOUND;
     }
 
 #ifdef ZTERP_GLK
@@ -572,11 +482,7 @@ void write_header(void)
     uint16_t flags2 = WORD(0x10);
 
     flags2 &= ~FLAGS2_MOUSE;
-#ifdef GARGLK
-    if(sound_channel == NULL) flags2 &= ~FLAGS2_SOUND;
-#else
-    flags2 &= ~FLAGS2_SOUND;
-#endif
+    if(!sound_loaded()) flags2 &= ~FLAGS2_SOUND;
     if(zversion >= 6) flags2 &= ~FLAGS2_MENUS;
 
     if(options.disable_graphics_font) flags2 &= ~FLAGS2_PICTURES;
@@ -624,7 +530,7 @@ void write_header(void)
   STORE_BYTE(0x33, 1);
 }
 
-void process_story(void)
+static void process_story(void)
 {
   if(zterp_io_seek(story.io, story.offset, SEEK_SET) == -1) die("unable to rewind story");
 
@@ -653,31 +559,31 @@ void process_story(void)
    */
   header.static_end = memory_size < 0xffff ? memory_size : 0xffff;
 
-#define PROPSIZE	(zversion <= 3 ? 62L : 126L)
+#define PROPSIZE	(zversion <= 3 ? 62UL : 126UL)
 
   /* There must be at least enough room in dynamic memory for the header
    * (64 bytes), the global variables table (480 bytes), and the
    * property defaults table (62 or 126 bytes).
    */
-  if(header.static_start < 64 + 480 + PROPSIZE)   die("corrupted story: dynamic memory too small (%d bytes)", (int)header.static_start);
-  if(header.static_start >= memory_size)          die("corrupted story: static memory out of range");
+  if(header.static_start < 64UL + 480UL + PROPSIZE) die("corrupted story: dynamic memory too small (%d bytes)", (int)header.static_start);
+  if(header.static_start >= memory_size)            die("corrupted story: static memory out of range");
 
   if(header.dictionary != 0 &&
-     header.dictionary < header.static_start)     die("corrupted story: dictionary is not in static memory");
+     header.dictionary < header.static_start)       die("corrupted story: dictionary is not in static memory");
 
   if(header.objects < 64 ||
      header.objects + PROPSIZE > header.static_start)
-                                                  die("corrupted story: object table is not in dynamic memory");
+                                                    die("corrupted story: object table is not in dynamic memory");
 
 #undef PROPSIZE
 
   if(header.globals < 64 ||
-     header.globals + 480L > header.static_start) die("corrupted story: global variables are not in dynamic memory");
+     header.globals + 480UL > header.static_start)  die("corrupted story: global variables are not in dynamic memory");
 
-  if(header.abbr >= memory_size)                  die("corrupted story: abbreviation table out of range");
+  if(header.abbr >= memory_size)                    die("corrupted story: abbreviation table out of range");
 
   header.file_length = WORD(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
-  if(header.file_length > memory_size)            die("story's reported size (%lu) greater than file size (%lu)", (unsigned long)header.file_length, (unsigned long)memory_size);
+  if(header.file_length > memory_size)              die("story's reported size (%lu) greater than file size (%lu)", (unsigned long)header.file_length, (unsigned long)memory_size);
 
   header.checksum = WORD(0x1c);
 
@@ -790,13 +696,8 @@ void process_story(void)
   }
   if(options.escape_string == NULL) options.escape_string = xstrdup("1m");
 
-#ifdef GARGLK
-  if(options.disable_sound && sound_channel != NULL)
-  {
-    glk_schannel_destroy(sound_channel);
-    sound_channel = NULL;
-  }
-#endif
+  /* If the offset is not zero, then this must be a Blorb file. */
+  if(!options.disable_sound) init_sound(story.offset > 0);
 
   /* Now that we have a Unicode table and the user’s Unicode
    * preferences, build the ZSCII to Unicode and Unicode to ZSCII
@@ -823,9 +724,7 @@ void process_story(void)
    * Beyond Zork; but this is such a minor corner of the Z-machine that
    * it probably doesn’t matter.  For now, peg this to Beyond Zork.
    */
-  if(options.int_number == 6 &&
-      (is_story("47-870915") || is_story("49-870917") ||
-       is_story("51-870923") || is_story("57-871221")))
+  if(options.int_number == 6 && is_beyond_zork())
   {
     STORE_WORD(0x10, WORD(0x10) | FLAGS2_PICTURES);
   }
@@ -848,11 +747,132 @@ void process_story(void)
     options.replay_on = 0;
   }
 
+  check_infocom();
+
   if(zversion == 6)
   {
     zargs[0] = pc;
     call(0);
   }
+}
+
+void znop(void)
+{
+}
+
+void zrestart(void)
+{
+  /* §6.1.3: Flags2 is preserved on a restart. */
+  uint16_t flags2 = WORD(0x10);
+
+  process_story();
+
+  STORE_WORD(0x10, flags2);
+
+  interrupt_reset();
+}
+
+void zquit(void)
+{
+  interrupt_quit();
+}
+
+void zverify(void)
+{
+  uint16_t checksum = 0;
+  uint32_t remaining = header.file_length - 0x40;
+
+  if(zterp_io_seek(story.io, story.offset + 0x40, SEEK_SET) == -1)
+  {
+    branch_if(0);
+    return;
+  }
+
+  while(remaining != 0)
+  {
+    uint8_t buf[8192];
+    uint32_t to_read = remaining < sizeof buf ? remaining : sizeof buf;
+
+    if(zterp_io_read(story.io, buf, to_read) != to_read)
+    {
+      branch_if(0);
+      return;
+    }
+
+    for(uint32_t i = 0; i < to_read; i++) checksum += buf[i];
+
+    remaining -= to_read;
+  }
+
+  branch_if(checksum == header.checksum);
+}
+
+void zsave5(void)
+{
+  zterp_io *savefile;
+  size_t n;
+
+  if(znargs == 0)
+  {
+    zsave();
+    return;
+  }
+
+  /* This should be able to suggest a filename, but Glk doesn’t support that. */
+  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
+  if(savefile == NULL)
+  {
+    store(0);
+    return;
+  }
+
+  ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
+  n = zterp_io_write(savefile, &memory[zargs[0]], zargs[1]);
+
+  zterp_io_close(savefile);
+
+  store(n == zargs[1]);
+}
+
+void zrestore5(void)
+{
+  zterp_io *savefile;
+  uint8_t *buf;
+  size_t n;
+
+  if(znargs == 0)
+  {
+    zrestore();
+    return;
+  }
+
+  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY | ZTERP_IO_SAVE);
+  if(savefile == NULL)
+  {
+    store(0);
+    return;
+  }
+
+  buf = malloc(zargs[1]);
+  if(buf == NULL)
+  {
+    store(0);
+    return;
+  }
+
+  n = zterp_io_read(savefile, buf, zargs[1]);
+  for(size_t i = 0; i < n; i++) user_store_byte(zargs[0] + i, buf[i]);
+
+  free(buf);
+
+  zterp_io_close(savefile);
+
+  store(n);
+}
+
+void zpiracy(void)
+{
+  branch_if(1);
 }
 
 #ifdef ZTERP_GLK
@@ -876,40 +896,54 @@ int main(int argc, char **argv)
   use_utf8_io = zterp_os_have_unicode();
 
 #ifndef ZTERP_GLK
-  if(!process_arguments(argc, argv)) exit(EXIT_FAILURE);
-
-  zterp_os_init_term();
+  process_arguments(argc, argv);
 #endif
 
+  if(arg_status != ARG_OK)
+  {
+    /* It’s too early to properly set up all tables (neither the
+     * alphabet nor Unicode table has been read from the story file),
+     * but since help() prints to the screen, it needs to at least have
+     * the basic tables created so that non-Unicode platforms have
+     * proper translations available.
+     */
+    setup_tables();
+    help();
 #ifdef ZTERP_GLK
-#define PRINT(s)	do { glk_put_string(s); glk_put_char(UNICODE_LINEFEED); } while(0)
+    glk_exit();
 #else
-#define PRINT(s)	puts(s)
+    if(arg_status == ARG_HELP) exit(0);
+    else                       exit(EXIT_FAILURE);
+#endif
+  }
+
+#ifndef ZTERP_GLK
+  zterp_os_init_term();
 #endif
 
   if(options.show_version)
   {
     char config[MAX_PATH] = "Configuration file: ";
 
-    PRINT("Bocfel " ZTERP_VERSION);
+    screen_puts("Bocfel " ZTERP_VERSION);
 #ifdef ZTERP_NO_SAFETY_CHECKS
-    PRINT("Runtime assertions disabled");
+    screen_puts("Runtime assertions disabled");
 #else
-    PRINT("Runtime assertions enabled");
+    screen_puts("Runtime assertions enabled");
 #endif
 #ifdef ZTERP_NO_CHEAT
-    PRINT("Cheat support disabled");
+    screen_puts("Cheat support disabled");
 #else
-    PRINT("Cheat support enabled");
+    screen_puts("Cheat support enabled");
 #endif
 #ifdef ZTERP_TANDY
-    PRINT("The Tandy bit can be set");
+    screen_puts("The Tandy bit can be set");
 #else
-    PRINT("The Tandy bit cannot be set");
+    screen_puts("The Tandy bit cannot be set");
 #endif
 
     zterp_os_rcfile(config + strlen(config), sizeof config - strlen(config));
-    PRINT(config);
+    screen_puts(config);
 
 #ifdef ZTERP_GLK
     glk_exit();
@@ -917,8 +951,6 @@ int main(int argc, char **argv)
     exit(0);
 #endif
   }
-
-#undef PRINT
 
 #ifdef GARGLK
   if(game_file == NULL)
@@ -934,7 +966,11 @@ int main(int argc, char **argv)
   }
 #endif
 
-  if(game_file == NULL) die("no story provided");
+  if(game_file == NULL)
+  {
+    help();
+    die("no story provided");
+  }
 
   story.io = zterp_io_open(game_file, ZTERP_IO_RDONLY);
   if(story.io == NULL) die("cannot open file %s", game_file);
@@ -971,35 +1007,6 @@ int main(int argc, char **argv)
     story.offset = 0;
   }
 
-#ifdef GARGLK
-  if(glk_gestalt(gestalt_Sound, 0))
-  {
-    /* 5 for the worst case of needing to add .blb to the end plus the
-     * null character.
-     */
-    char *blorb_file = malloc(strlen(game_file) + 5);
-    if(blorb_file != NULL)
-    {
-      char *p;
-      strid_t file;
-
-      strcpy(blorb_file, game_file);
-      p = strrchr(blorb_file, '.');
-      if(p != NULL) *p = 0;
-      strcat(blorb_file, ".blb");
-
-      file = glkunix_stream_open_pathname(blorb_file, 0, 0);
-      if(file != NULL)
-      {
-        giblorb_set_resource_map(file);
-        sound_channel = glk_schannel_create(0);
-      }
-
-      free(blorb_file);
-    }
-  }
-#endif
-
   if(memory_size < 64) die("story file too small");
   if(memory_size > SIZE_MAX - 22) die("story file too large");
 
@@ -1026,27 +1033,18 @@ int main(int argc, char **argv)
 
   process_story();
 
-  /* If header transcript/fixed bits have been set, either by the
-   * story or by the user, this will activate them.
-   */
-  user_store_word(0x10, WORD(0x10));
-
   if(options.show_id)
   {
-#ifdef ZTERP_GLK
-    glk_put_string(story_id);
-    glk_exit();
-#else
-    puts(story_id);
-    exit(0);
-#endif
+    screen_puts(story_id);
   }
+  else
+  {
+    /* If header transcript/fixed bits have been set, either by the
+     * story or by the user, this will activate them.
+     */
+    user_store_word(0x10, WORD(0x10));
 
-  setup_opcodes();
-
-  process_instructions();
-
-#ifndef ZTERP_GLK
-  return 0;
-#endif
+    setup_opcodes();
+    process_instructions();
+  }
 }

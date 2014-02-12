@@ -1,6 +1,8 @@
 #ifndef ZTERP_UTIL_H
 #define ZTERP_UTIL_H
 
+#include <stdint.h>
+
 #ifdef ZTERP_GLK
 #include <glk.h>
 #endif
@@ -17,6 +19,23 @@
 #define zexternally_visible	__attribute__((__externally_visible__))
 #else
 #define zexternally_visible
+#endif
+
+/* Values are usually stored in a uint16_t because most parts of the
+ * Z-machine make use of 16-bit unsigned integers.  However, in a few
+ * places the unsigned value must be treated as signed.  The “obvious”
+ * solution is to simply convert to an int16_t, but this is technically
+ * implementation-defined behavior in C and not guaranteed to provide
+ * the expected result.  In order to be maximally portable, this
+ * function converts a uint16_t to its int16_t counterpart manually.
+ * Although it ought to be slower, both Gcc and Clang recognize this
+ * construct and generate the same code as a direct conversion.  An
+ * alternative direct conversion method is included here for reference.
+ */
+#if 1
+static inline int16_t as_signed(uint16_t n) { return n & 0x8000 ? (long)n - 0x10000L : n; }
+#else
+static inline int16_t as_signed(uint16_t n) { return n; }
 #endif
 
 #ifndef ZTERP_NO_SAFETY_CHECKS
@@ -38,9 +57,12 @@ void warning(const char *, ...);
 zprintflike(1, 2)
 znoreturn
 void die(const char *, ...);
+void help(void);
 
 char *xstrdup(const char *);
-int process_arguments(int, char **);
+
+extern enum arg_status { ARG_OK, ARG_HELP, ARG_FAIL } arg_status;
+void process_arguments(int, char **);
 
 /* Somewhat ugly hack to get around the fact that some Glk functions may
  * not exist.  These function calls should all be guarded (e.g.

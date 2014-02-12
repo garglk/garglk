@@ -9,7 +9,9 @@
 
 #define UNICODE_LINEFEED	10
 #define UNICODE_SPACE		32
-#define UNICODE_QUESTIONMARK	63
+#define UNICODE_REPLACEMENT	65533
+
+#define LATIN1_QUESTIONMARK	63
 
 #define ZSCII_NEWLINE		13
 #define ZSCII_SPACE		32
@@ -35,6 +37,7 @@ void parse_unicode_table(uint16_t);
 void setup_tables(void);
 
 uint16_t unicode_tolower(uint16_t);
+uint16_t char_to_unicode(char);
 
 /* Standard 1.1 notes that Unicode characters 0–31 and 127–159
  * are invalid due to the fact that they’re control codes.

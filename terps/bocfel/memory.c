@@ -16,9 +16,12 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <stdint.h>
 
 #include "memory.h"
+#include "branch.h"
+#include "process.h"
 #include "screen.h"
 #include "util.h"
 #include "zterp.h"
@@ -73,4 +76,68 @@ void user_store_word(uint16_t addr, uint16_t v)
 {
   user_store_byte(addr + 0, v >> 8);
   user_store_byte(addr + 1, v & 0xff);
+}
+
+void zcopy_table(void)
+{
+  uint16_t first = zargs[0], second = zargs[1], size = zargs[2];
+
+  if(second == 0)
+  {
+    for(uint16_t i = 0; i < size; i++) user_store_byte(first + i, 0);
+  }
+  else if( (first > second) || as_signed(size) < 0 )
+  {
+    long n = labs(as_signed(size));
+    for(long i = 0; i < n; i++) user_store_byte(second + i, user_byte(first + i));
+  }
+  else
+  {
+    for(uint16_t i = 0; i < size; i++) user_store_byte(second + size - i - 1, user_byte(first + size - i - 1));
+  }
+}
+
+void zscan_table(void)
+{
+  uint16_t addr = zargs[1];
+
+  if(znargs < 4) zargs[3] = 0x82;
+
+  for(uint16_t i = 0; i < zargs[2]; i++)
+  {
+    if(
+        ( (zargs[3] & 0x80) && (user_word(addr) == zargs[0])) ||
+        (!(zargs[3] & 0x80) && (user_byte(addr) == zargs[0]))
+      )
+    {
+      store(addr);
+      branch_if(1);
+      return;
+    }
+
+    addr += zargs[3] & 0x7f;
+  }
+
+  store(0);
+  branch_if(0);
+}
+
+void zloadw(void)
+{
+  store(user_word(zargs[0] + (2 * zargs[1])));
+}
+
+void zloadb(void)
+{
+  store(user_byte(zargs[0] + zargs[1]));
+}
+
+void zstoreb(void)
+{
+  user_store_byte(zargs[0] + zargs[1], zargs[2]);
+}
+
+void zstorew(void)
+{
+  user_store_word(zargs[0] + (2 * zargs[1]), zargs[2]);
 }

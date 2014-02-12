@@ -148,7 +148,7 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   encode_string(token, len, encoded);
 
   elength = user_byte(dictionary + num_separators + 1);
-  nentries = (int16_t)user_word(dictionary + num_separators + 2);
+  nentries = as_signed(user_word(dictionary + num_separators + 2));
   base = dictionary + num_separators + 2 + 2;
 
   ZASSERT(elength >= (zversion <= 3 ? 4 : 6), "dictionary entry length (%d) too small", elength);
@@ -186,20 +186,39 @@ static int is_sep(uint8_t c)
   return 0;
 }
 
-static void handle_token(const uint8_t *base, const uint8_t *token, int len, uint16_t parse, uint16_t dictionary, int found, int flag)
+static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement, size_t replen, uint16_t dictionary)
 {
   uint16_t d;
-  const uint8_t examine[] = { 'e', 'x', 'a', 'm', 'i', 'n', 'e' };
-  const uint8_t again[] = { 'a', 'g', 'a', 'i', 'n' };
-  const uint8_t wait[] = { 'w', 'a', 'i', 't' };
+
+  d = dict_find(replacement, replen, dictionary);
+
+  if(d == 0) return original;
+
+  return d;
+}
+
+static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, uint16_t dictionary, int found, int flag, int start_of_sentence)
+{
+  uint16_t d;
 
   d = dict_find(token, len, dictionary);
 
-  if(!options.disable_abbreviations && base == token && len == 1)
+  if(
+      zversion < 5 &&
+      is_infocom_v1234 &&
+      start_of_sentence &&
+      !options.disable_abbreviations &&
+      len == 1)
   {
-    if     (*token == 'x') d = dict_find(examine, sizeof examine, dictionary);
-    else if(*token == 'g') d = dict_find(again, sizeof again, dictionary);
-    else if(*token == 'z') d = dict_find(wait, sizeof wait, dictionary);
+    const uint8_t examine[] = { 'e', 'x', 'a', 'm', 'i', 'n', 'e' };
+    const uint8_t again[] = { 'a', 'g', 'a', 'i', 'n' };
+    const uint8_t wait[] = { 'w', 'a', 'i', 't' };
+    const uint8_t oops[] = { 'o', 'o', 'p', 's' };
+
+    if     (*token == 'x') d = lookup_replacement(d, examine, sizeof examine, dictionary);
+    else if(*token == 'g') d = lookup_replacement(d, again, sizeof again, dictionary);
+    else if(*token == 'z') d = lookup_replacement(d, wait, sizeof wait, dictionary);
+    else if(*token == 'o') d = lookup_replacement(d, oops, sizeof oops, dictionary);
   }
 
   if(flag && d == 0) return;
@@ -241,6 +260,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
   const int maxwords = user_byte(parse);
   int in_word = 0;
   int found = 0;
+  int start_of_sentence = 1;
 
   if(dictionary == 0) dictionary = header.dictionary;
 
@@ -273,13 +293,17 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
     {
       if(in_word)
       {
-        handle_token(string, lastp, p - lastp, parse, dictionary, found++, flag);
+        handle_token(string, lastp, p - lastp, parse, dictionary, found++, flag, start_of_sentence);
+        start_of_sentence = 0;
       }
 
       /* §13.6.1: Separators (apart from a space) are tokens too. */
       if(text_len != 0 && *p != ZSCII_SPACE)
       {
-        handle_token(string, p, 1, parse, dictionary, found++, flag);
+        handle_token(string, p, 1, parse, dictionary, found++, flag, start_of_sentence);
+
+        if(*p == '.') start_of_sentence = 1;
+        else          start_of_sentence = 0;
       }
 
       if(found == maxwords) break;

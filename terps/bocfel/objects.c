@@ -27,21 +27,21 @@
 #include "util.h"
 #include "zterp.h"
 
-static uint16_t OBJECT(uint16_t n)
+static uint16_t find_object(uint16_t n)
 {
   /* Use 32-bit arithmetic to detect 16-bit overflow. */
-  uint32_t base = header.objects, obj = n, addr;
+  uint32_t base = header.objects, object = n, addr;
   int objsize;
 
   if(zversion <= 3)
   {
     ZASSERT(n <= 255, "illegal object %u referenced", (unsigned)n);
-    addr = base + (31 * 2) + (9 * (obj - 1));
+    addr = base + (31 * 2) + (9 * (object - 1));
     objsize = 9;
   }
   else
   {
-    addr = base + (63 * 2) + (14 * (obj - 1));
+    addr = base + (63 * 2) + (14 * (object - 1));
     objsize = 14;
   }
 
@@ -55,22 +55,22 @@ static uint16_t OBJECT(uint16_t n)
 #define OFFSET_CHILD	(zversion <= 3 ? 6 : 10)
 #define OFFSET_PROP	(zversion <= 3 ? 7 : 12)
 
-#define PARENT(object)		RELATION(object, OFFSET_PARENT)
-#define SIBLING(object)		RELATION(object, OFFSET_SIBLING)
-#define CHILD(object)		RELATION(object, OFFSET_CHILD)
+#define parent_of(object)		relation(object, OFFSET_PARENT)
+#define sibling_of(object)		relation(object, OFFSET_SIBLING)
+#define child_of(object)		relation(object, OFFSET_CHILD)
 
-#define SET_PARENT(obj1, obj2)	SET_OBJECT(obj1, obj2, OFFSET_PARENT)
-#define SET_SIBLING(obj1, obj2)	SET_OBJECT(obj1, obj2, OFFSET_SIBLING)
-#define SET_CHILD(obj1, obj2)	SET_OBJECT(obj1, obj2, OFFSET_CHILD)
+#define set_parent(obj1, obj2)		set_relation(obj1, obj2, OFFSET_PARENT)
+#define set_sibling(obj1, obj2)		set_relation(obj1, obj2, OFFSET_SIBLING)
+#define set_child(obj1, obj2)		set_relation(obj1, obj2, OFFSET_CHILD)
 
-static uint16_t PROPADDR(uint16_t n)
+static uint16_t property_address(uint16_t n)
 {
-  return WORD(OBJECT(n) + OFFSET_PROP);
+  return WORD(find_object(n) + OFFSET_PROP);
 }
 
-static uint16_t RELATION(uint16_t object, int offset)
+static uint16_t relation(uint16_t object, int offset)
 {
-  return zversion <= 3 ? BYTE(OBJECT(object) + offset) : WORD(OBJECT(object) + offset);
+  return zversion <= 3 ? BYTE(find_object(object) + offset) : WORD(find_object(object) + offset);
 }
 
 /*
@@ -80,45 +80,45 @@ static uint16_t RELATION(uint16_t object, int offset)
  * the 48 attribute flags     parent    sibling   child     properties
  * ---48 bits in 6 bytes---   ---3 words, i.e. 6 bytes----  ---2 bytes--
  */
-static void SET_OBJECT(uint16_t obj1, uint16_t obj2, int offset)
+static void set_relation(uint16_t obj1, uint16_t obj2, int offset)
 {
-  if(zversion <= 3) STORE_BYTE(OBJECT(obj1) + offset, obj2);
-  else              STORE_WORD(OBJECT(obj1) + offset, obj2);
+  if(zversion <= 3) STORE_BYTE(find_object(obj1) + offset, obj2);
+  else              STORE_WORD(find_object(obj1) + offset, obj2);
 }
 
-static void remove_obj(uint16_t object)
+static void remove_object(uint16_t object)
 {
-  uint16_t parent = PARENT(object);
+  uint16_t parent = parent_of(object);
 
   if(parent != 0)
   {
-    uint16_t child = CHILD(parent);
+    uint16_t child = child_of(parent);
 
     /* Direct child */
     if(child == object)
     {
       /* parent->child = parent->child->sibling */
-      SET_CHILD(parent, SIBLING(child));
+      set_child(parent, sibling_of(child));
     }
     else
     {
-      while(SIBLING(child) != object)
+      while(sibling_of(child) != object)
       {
         /* child = child->sibling */
-        child = SIBLING(child);
+        child = sibling_of(child);
       }
 
       /* Now the sibling of child is the object to remove. */
 
       /* child->sibling = child->sibling->sibling */
-      SET_SIBLING(child, SIBLING(SIBLING(child)));
+      set_sibling(child, sibling_of(sibling_of(child)));
     }
 
     /* object->parent = 0 */
-    SET_PARENT(object, 0);
+    set_parent(object, 0);
 
     /* object->sibling = 0 */
-    SET_SIBLING(object, 0);
+    set_sibling(object, 0);
   }
 }
 
@@ -148,18 +148,18 @@ static uint16_t property_length(uint16_t propaddr)
   return length;
 }
 
-static uint8_t PROPERTY(uint16_t addr)
+static uint8_t property_number(uint16_t propaddr)
 {
   uint8_t propnum;
 
   if(zversion <= 3)
   {
-    propnum = user_byte(addr - 1) & 0x1f;
+    propnum = user_byte(propaddr - 1) & 0x1f;
   }
   else
   {
-    if(user_byte(addr - 1) & 0x80) propnum = user_byte(addr - 2) & 0x3f;
-    else                           propnum = user_byte(addr - 1) & 0x3f;
+    if(user_byte(propaddr - 1) & 0x80) propnum = user_byte(propaddr - 2) & 0x3f;
+    else                               propnum = user_byte(propaddr - 1) & 0x3f;
   }
 
   return propnum;
@@ -180,7 +180,7 @@ static uint16_t advance_prop_addr(uint16_t propaddr)
 
 static uint16_t first_property(uint16_t object)
 {
-  uint16_t propaddr = PROPADDR(object);
+  uint16_t propaddr = property_address(object);
 
   propaddr += (2 * user_byte(propaddr)) + 1;
 
@@ -196,14 +196,14 @@ static uint16_t next_property(uint16_t propaddr)
 
 #define FOR_EACH_PROPERTY(object, addr) for(uint16_t addr = first_property(object); addr != 0; addr = next_property(addr))
 
-static int find_prop(uint16_t object, uint16_t property, uint16_t *propaddr, uint16_t *length)
+static int find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr, uint16_t *proplen)
 {
   FOR_EACH_PROPERTY(object, addr)
   {
-    if(PROPERTY(addr) == property)
+    if(property_number(addr) == propnum)
     {
       *propaddr = addr;
-      *length = property_length(addr);
+      *proplen = property_length(addr);
       return 1;
     }
   }
@@ -215,6 +215,12 @@ static void check_attr(uint16_t attr)
 {
   ZASSERT(attr <= (zversion <= 3 ? 31 : 47), "invalid attribute: %u", (unsigned)attr);
 }
+
+/* Sherlock has a bug causing it to clear (and maybe set) attribute 48
+ * (see the remarks in §12).  If this attribute seen and the story is
+ * Sherlock, treat it as a no-op.
+ */
+#define sherlock_attr(attr) do { if(attr == 48 && is_sherlock()) return; } while(0)
 
 static int is_zero(int is_store, int is_jump)
 {
@@ -231,8 +237,13 @@ static int is_zero(int is_store, int is_jump)
 
 #define check_zero(store, jump)	do { if(is_zero(store, jump)) return; } while(0)
 
+static void check_propnum(uint16_t propnum)
+{
+  ZASSERT(propnum > 0 && propnum < (zversion <= 3 ? 32 : 64), "invalid property: %u", (unsigned)propnum);
+}
+
 /* Attributes are stored at the very beginning of an object, so the
- * address OBJECT() returns refers directly to the attributes.  The
+ * address find_object() returns refers directly to the attributes.  The
  * leftmost bit is attribute 0.  Thus these attribute functions need to
  * find out first which byte of the attributes to look at; this is done
  * by dividing by 8.  Attributes 0-7 will be in byte 0, 8-15 in byte 1,
@@ -247,7 +258,7 @@ void ztest_attr(void)
   check_zero(0, 1);
   check_attr(zargs[1]);
 
-  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+  uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
   branch_if(BYTE(addr) & ATTR_BIT(zargs[1]));
 }
@@ -255,9 +266,10 @@ void ztest_attr(void)
 void zset_attr(void)
 {
   check_zero(0, 0);
+  sherlock_attr(zargs[1]);
   check_attr(zargs[1]);
 
-  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+  uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
   STORE_BYTE(addr, BYTE(addr) | ATTR_BIT(zargs[1]));
 }
@@ -265,9 +277,10 @@ void zset_attr(void)
 void zclear_attr(void)
 {
   check_zero(0, 0);
+  sherlock_attr(zargs[1]);
   check_attr(zargs[1]);
 
-  uint16_t addr = OBJECT(zargs[0]) + (zargs[1] / 8);
+  uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
   STORE_BYTE(addr, BYTE(addr) & ~ATTR_BIT(zargs[1]));
 }
@@ -277,25 +290,25 @@ void zremove_obj(void)
 {
   check_zero(0, 0);
 
-  remove_obj(zargs[0]);
+  remove_object(zargs[0]);
 }
 
 void zinsert_obj(void)
 {
   check_zero(0, 0);
 
-  remove_obj(zargs[0]);
+  remove_object(zargs[0]);
 
-  SET_SIBLING(zargs[0], CHILD(zargs[1]));
-  SET_CHILD(zargs[1], zargs[0]);
-  SET_PARENT(zargs[0], zargs[1]);
+  set_sibling(zargs[0], child_of(zargs[1]));
+  set_child(zargs[1], zargs[0]);
+  set_parent(zargs[0], zargs[1]);
 }
 
 void zget_sibling(void)
 {
   check_zero(1, 1);
 
-  uint16_t sibling = SIBLING(zargs[0]);
+  uint16_t sibling = sibling_of(zargs[0]);
 
   store(sibling);
   branch_if(sibling != 0);
@@ -305,7 +318,7 @@ void zget_child(void)
 {
   check_zero(1, 1);
 
-  uint16_t child = CHILD(zargs[0]);
+  uint16_t child = child_of(zargs[0]);
 
   store(child);
   branch_if(child != 0);
@@ -315,47 +328,47 @@ void zget_parent(void)
 {
   check_zero(1, 0);
 
-  store(PARENT(zargs[0]));
+  store(parent_of(zargs[0]));
 }
 
 void zput_prop(void)
 {
   check_zero(0, 0);
+  check_propnum(zargs[1]);
 
-  uint16_t propaddr, length;
+  uint16_t propaddr, proplen;
   int found;
 
-  found = find_prop(zargs[0], zargs[1], &propaddr, &length);
+  found = find_property(zargs[0], zargs[1], &propaddr, &proplen);
 
   ZASSERT(found, "broken story: no prop");
-  ZASSERT(length == 1 || length == 2, "broken story: property too long: %u", (unsigned)length);
+  ZASSERT(proplen == 1 || proplen == 2, "broken story: property too long: %u", (unsigned)proplen);
 
-  if(length == 1) user_store_byte(propaddr, zargs[2] & 0xff);
-  else            user_store_word(propaddr, zargs[2]);
+  if(proplen == 1) user_store_byte(propaddr, zargs[2] & 0xff);
+  else             user_store_word(propaddr, zargs[2]);
 }
 
 void zget_prop(void)
 {
   check_zero(1, 0);
+  check_propnum(zargs[1]);
 
-  uint16_t propaddr, length;
+  uint16_t propaddr, proplen;
 
-  if(find_prop(zargs[0], zargs[1], &propaddr, &length))
+  if(find_property(zargs[0], zargs[1], &propaddr, &proplen))
   {
-    if     (length == 1) store(user_byte(propaddr));
-    else if(length == 2) store(user_word(propaddr));
+    if     (proplen == 1) store(user_byte(propaddr));
+    else if(proplen == 2) store(user_word(propaddr));
 
-    /* If the length is > 2, the story file is misbehaving.  At least
+    /* If the proplen is > 2, the story file is misbehaving.  At least
      * Christminster does this, and Frotz and Nitfol allow it, reading a
      * word, so do that here.
      */
-    else                 store(user_word(propaddr));
+    else                  store(user_word(propaddr));
   }
   else
   {
-    uint32_t i;
-
-    ZASSERT(zargs[1] < (zversion <= 3 ? 32 : 64), "invalid property: %u", (unsigned)zargs[1]);
+    uint16_t i;
 
     i = header.objects + (2 * (zargs[1] - 1));
     store(WORD(i));
@@ -372,35 +385,41 @@ void zget_prop_len(void)
 void zget_prop_addr(void)
 {
   check_zero(1, 0);
+  /* Theoretically this should check whether the requested property is
+   * valid (i.e. is within the proper range for the current story type).
+   * However, at least one game (Mingsheng) attempts to get the address
+   * of an invalid property (115); the standard could be read to
+   * indicate that zero should be returned for *any* invalid property,
+   * so do that.
+   */
 
   uint16_t propaddr, length;
 
-  if(find_prop(zargs[0], zargs[1], &propaddr, &length)) store(propaddr);
-  else store(0);
+  if(find_property(zargs[0], zargs[1], &propaddr, &length)) store(propaddr);
+  else                                                      store(0);
 }
 
 void zget_next_prop(void)
 {
   check_zero(1, 0);
 
-  uint16_t object = zargs[0], property = zargs[1];
+  uint16_t object = zargs[0], propnum = zargs[1], found_propnum = 0;
   int next = 0;
-  int found_prop = 0;
 
   FOR_EACH_PROPERTY(object, propaddr)
   {
-    uint8_t propnum = PROPERTY(propaddr);
+    uint8_t current_propnum = property_number(propaddr);
 
-    if(property == 0 || next)
+    if(propnum == 0 || next)
     {
-      found_prop = propnum;
+      found_propnum = current_propnum;
       break;
     }
 
-    if(propnum == property) next = 1;
+    if(current_propnum == propnum) next = 1;
   }
 
-  store(found_prop);
+  store(found_propnum);
 }
 
 void zjin(void)
@@ -418,14 +437,14 @@ void zjin(void)
 
   check_zero(0, 1);
 
-  branch_if(PARENT(zargs[0]) == zargs[1]);
+  branch_if(parent_of(zargs[0]) == zargs[1]);
 }
 
 void print_object(uint16_t obj, void (*outc)(uint8_t))
 {
   if(obj == 0) return;
 
-  print_handler(PROPADDR(obj) + 1, outc);
+  print_handler(property_address(obj) + 1, outc);
 }
 
 void zprint_obj(void)

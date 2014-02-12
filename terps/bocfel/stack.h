@@ -8,6 +8,8 @@
 #define DEFAULT_STACK_SIZE	0x4000
 #define DEFAULT_CALL_DEPTH	0x400
 
+extern int seen_save_undo;
+
 void init_stack(void);
 
 uint16_t variable(uint16_t);
@@ -26,8 +28,10 @@ int restore_quetzal(zterp_io *, int);
 int do_save(int);
 int do_restore(int);
 
-int push_save(void);
-int pop_save(void);
+enum save_type { SAVE_GAME, SAVE_USER };
+int push_save(enum save_type, uint32_t, const char *);
+int pop_save(enum save_type, long);
+void list_saves(enum save_type, void (*)(const char *));
 
 void zpush(void);
 void zpull(void);

@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <setjmp.h>
+#include <time.h>
 
 #include "stack.h"
 #include "branch.h"
@@ -59,7 +60,7 @@ static uint16_t *TOP_OF_STACK;
 static void PUSH_STACK(uint16_t n) { ZASSERT(sp != TOP_OF_STACK, "stack overflow"); *sp++ = n; }
 static uint16_t POP_STACK(void) { ZASSERT(sp > CURRENT_FRAME->sp, "stack underflow"); return *--sp; }
 
-static struct save_state
+struct save_state
 {
   uint32_t pc;
 
@@ -72,10 +73,22 @@ static struct save_state
   long nframes;
   struct call_frame *frames;
 
-  struct save_state *prev, *next;
-} *saves_head, *saves_tail;
+  time_t when;
+  char *desc;
 
-static long nsaves;
+  struct save_state *prev, *next;
+};
+
+static struct save_stack
+{
+  struct save_state *head;
+  struct save_state *tail;
+
+  long max;
+  long count;
+} save_stacks[2];
+
+int seen_save_undo = 0;
 
 static void add_frame(uint32_t pc_, uint16_t *sp_, uint8_t nlocals, uint8_t nargs, uint16_t where)
 {
@@ -88,6 +101,47 @@ static void add_frame(uint32_t pc_, uint16_t *sp_, uint8_t nlocals, uint8_t narg
   fp->where = where;
 
   fp++;
+}
+
+static struct save_state *new_save_state(void)
+{
+  struct save_state *new;
+
+  new = malloc(sizeof *new);
+  if(new != NULL)
+  {
+    new->memory = NULL;
+    new->stack = NULL;
+    new->frames = NULL;
+    new->desc = NULL;
+    new->when = time(NULL);
+  }
+
+  return new;
+}
+
+static void free_save_state(struct save_state *s)
+{
+  if(s != NULL)
+  {
+    free(s->memory);
+    free(s->stack);
+    free(s->frames);
+    free(s->desc);
+    free(s);
+  }
+}
+
+static void clear_save_stack(struct save_stack *s)
+{
+  while(s->head != NULL)
+  {
+    struct save_state *tmp = s->head;
+    s->head = s->head->next;
+    free_save_state(tmp);
+  }
+  s->tail = NULL;
+  s->count = 0;
 }
 
 void init_stack(void)
@@ -123,18 +177,14 @@ void init_stack(void)
   /* Quetzal requires a dummy frame in non-V6 games, so do that here. */
   if(zversion != 6) add_frame(0, sp, 0, 0, 0);
 
-  /* Free all previous save states (from @save_undo). */
-  while(saves_head != NULL)
-  {
-    struct save_state *tmp = saves_head;
-    saves_head = saves_head->next;
-    free(tmp->stack);
-    free(tmp->frames);
-    free(tmp->memory);
-    free(tmp);
-  }
-  saves_tail = NULL;
-  nsaves = 0;
+  /* Free all @save_undo save states. */
+  clear_save_stack(&save_stacks[SAVE_GAME]);
+  save_stacks[SAVE_GAME].max = options.max_saves;
+  seen_save_undo = 0;
+
+  /* Free all /ps save states. */
+  clear_save_stack(&save_stacks[SAVE_USER]);
+  save_stacks[SAVE_USER].max = 25;
 }
 
 uint16_t variable(uint16_t var)
@@ -348,7 +398,7 @@ void do_return(uint16_t retval)
   else if(where == 0xff + 2)
   {
     PUSH_STACK(retval);
-    break_from(interrupt_level());
+    interrupt_return();
   }
 }
 
@@ -460,7 +510,7 @@ static uint32_t compress_memory(uint8_t **compressed)
     long run = i;
 
     /* Count zeroes.  Stop counting when:
-     * • The end of dynamic memory is reached
+     * • The end of dynamic memory is reached, or
      * • A non-zero value is found
      */
     while(i < header.static_start && (BYTE(i) ^ dynamic_memory[i]) == 0)
@@ -522,19 +572,28 @@ static int uncompress_memory(const uint8_t *compressed, uint32_t size)
   return 0;
 }
 
-/* Push the current game state onto the game-state stack. */
-int push_save(void)
+/* Push the current state onto the specified save stack. */
+int push_save(enum save_type type, uint32_t whichpc, const char *desc)
 {
+  struct save_stack *s = &save_stacks[type];
   struct save_state *new;
 
-  if(options.max_saves == 0) return -1;
+  if(options.max_saves == 0) return 0;
 
-  new = malloc(sizeof *new);
-  if(new == NULL) goto err;
-  new->stack = NULL;
-  new->frames = NULL;
+  new = new_save_state();
+  if(new == NULL) return 0;
 
-  new->pc = pc;
+  if(desc != NULL)
+  {
+    new->desc = malloc(strlen(desc) + 1);
+    if(new->desc != NULL) strcpy(new->desc, desc);
+  }
+  else
+  {
+    new->desc = NULL;
+  }
+
+  new->pc = whichpc;
 
   new->stack_size = sp - BASE_OF_STACK;
   new->stack = malloc(new->stack_size * sizeof *new->stack);
@@ -560,49 +619,81 @@ int push_save(void)
 
   /* If the maximum number has been reached, drop the last element.
    * A negative value for max_saves means there is no maximum.
+   *
+   * Small note: calling @restore_undo twice should succeed both times
+   * if @save_undo was called twice (or three, four, etc. times).  If
+   * there aren’t enough slots, however, @restore_undo calls that should
+   * work will fail because the earlier save states will have been
+   * dropped.  This can easily be seen by running TerpEtude’s undo test
+   * with the slot count set to 1.  By default, the number of save slots
+   * is 100, so this will not be an issue unless a game goes out of its
+   * way to cause problems.
    */
-  if(options.max_saves > 0 && nsaves == options.max_saves)
+  if(s->max > 0 && s->count == s->max)
   {
-    struct save_state *tmp = saves_tail;
-    saves_tail = saves_tail->prev;
-    if(saves_tail == NULL) saves_head = NULL;
-    else                   saves_tail->next = NULL;
-    free(tmp->stack);
-    free(tmp->frames);
-    free(tmp->memory);
-    free(tmp);
-    nsaves--;
+    struct save_state *tmp = s->tail;
+    s->tail = s->tail->prev;
+    if(s->tail == NULL) s->head = NULL;
+    else                s->tail->next = NULL;
+    free_save_state(tmp);
+    s->count--;
   }
 
-  new->next = saves_head;
+  new->next = s->head;
   new->prev = NULL;
   if(new->next != NULL) new->next->prev = new;
-  saves_head = new;
-  if(saves_tail == NULL) saves_tail = new;
+  s->head = new;
+  if(s->tail == NULL) s->tail = new;
 
-  nsaves++;
+  s->count++;
 
   return 1;
 
 err:
-  if(new != NULL)
-  {
-    free(new->stack);
-    free(new->frames);
-    free(new);
-  }
+  free_save_state(new);
 
   return 0;
 }
 
-/* Pop the last-stored game state and jump to it. */
-int pop_save(void)
+/* Remove the first “n” saves from the specified stack.  If there are
+ * not enough saves available, remove all saves.
+ */
+static void trim_saves(enum save_type type, long n)
 {
+  struct save_stack *s = &save_stacks[type];
+
+  while(n-- > 0 && s->count > 0)
+  {
+    struct save_state *tmp = s->head;
+
+    s->head = s->head->next;
+    s->count--;
+    free_save_state(tmp);
+    if(s->head != NULL) s->head->prev = NULL;
+    if(s->count == 0) s->tail = NULL;
+  }
+}
+
+/* Pop the specified state from the specified stack and jump to it.
+ * Indices start at 0, with 0 being the most recent save.
+ */
+int pop_save(enum save_type type, long i)
+{
+  struct save_stack *s = &save_stacks[type];
   struct save_state *p;
+  uint16_t flags2;
 
-  if(nsaves == 0) return 0;
+  /* If the user requests an index one beyond the size of the stack,
+   * trim_saves() will remove all saves, so make sure that does not
+   * happen.
+   */
+  if(i >= s->count) return 0;
 
-  p = saves_head;
+  flags2 = WORD(0x10);
+
+  trim_saves(type, i);
+
+  p = s->head;
 
   pc = p->pc;
 
@@ -625,42 +716,104 @@ int pop_save(void)
   fp = BASE_OF_FRAMES + p->nframes;
   memcpy(BASE_OF_FRAMES, p->frames, sizeof *p->frames * p->nframes);
 
-  /* Never pop off the last state.  A story has every right to call
-   * @restore_undo as many times as it called @save_undo.  However, if
-   * there aren’t enough save slots, popping off the last state would
-   * cause @restore_undo to return failure when it should not.
+  trim_saves(type, 1);
+
+  /* §6.1.2.2: As with @restore, header values marked with Rst (in
+   * §11) should be reset.  Unlike with @restore, it can be assumed
+   * that the game was saved by the same interpreter, but it cannot be
+   * assumed that the screen size is the same as it was at the time
+   * @save_undo was called.
    */
-  if(nsaves > 1)
-  {
-    saves_head = saves_head->next;
-    saves_head->prev = NULL;
+  write_header();
 
-    free(p->stack);
-    free(p->frames);
-    free(p->memory);
-    free(p);
-
-    nsaves--;
-  }
+  /* §6.1.2: Flags 2 should be preserved. */
+  STORE_WORD(0x10, flags2);
 
   return 2;
 }
 
+void list_saves(enum save_type type, void (*printer)(const char *))
+{
+  struct save_stack *s = &save_stacks[type];
+  long nsaves = s->count;
+
+  if(s->count == 0)
+  {
+    printer("[no saves available]");
+    return;
+  }
+
+  for(struct save_state *p = s->tail; p != NULL; p = p->prev)
+  {
+    char formatted_time[128];
+    /* “buf” will store either the formatted time or the user-provided
+     * description; the description comes from @read, which will never
+     * read more than 256 characters.  Pad to accommodate the index,
+     * newline, and potential asterisk.
+     */
+    char buf[300];
+    struct tm *tm;
+    char *desc;
+
+    tm = localtime(&p->when);
+    if(tm == NULL || strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0)
+    {
+      snprintf(formatted_time, sizeof formatted_time, "<no time information>");
+    }
+
+    if(p->desc != NULL) desc = p->desc;
+    else                desc = formatted_time;
+
+    snprintf(buf, sizeof buf, "%ld. %s%s\n", nsaves--, desc, p->prev == NULL ? " *" : "");
+    printer(buf);
+  }
+}
+
 void zsave_undo(void)
 {
-  if(interrupt_level() != 0) die("@save_undo called inside of an interrupt");
+  if(in_interrupt()) die("@save_undo called inside of an interrupt");
 
-  store(push_save());
+  /* If override undo is set, all calls to @save_undo are reported as
+   * failure; the interpreter still reports that @save_undo is
+   * available, however.  These values will be tuned if it becomes
+   * necessary (i.e. if some games behave badly).
+   */
+  if(options.override_undo)
+  {
+    store(0);
+  }
+  else
+  {
+    /* On the first call to @save_undo, switch over to game-based save
+     * states instead of interpreter-generated save states.
+     */
+    if(!seen_save_undo)
+    {
+      clear_save_stack(&save_stacks[SAVE_GAME]);
+      seen_save_undo = 1;
+    }
+
+    store(push_save(SAVE_GAME, pc, NULL));
+  }
 }
 
 void zrestore_undo(void)
 {
-  uint16_t flags2;
+  /* If @save_undo has not been called, @restore_undo should fail, even
+   * if there are interpreter-generated save states available.
+   */
+  if(!seen_save_undo)
+  {
+    store(0);
+  }
+  else
+  {
+    int success = pop_save(SAVE_GAME, 0);
 
-  /* §6.1.2: Flags 2 should be preserved. */
-  flags2 = WORD(0x10);
-  store(pop_save());
-  STORE_WORD(0x10, flags2);
+    store(success);
+
+    if(success != 0) interrupt_reset();
+  }
 }
 
 /* Quetzal save/restore functions. */
@@ -715,7 +868,7 @@ int save_quetzal(zterp_io *savefile, int is_meta)
   size_t local_written = 0;
   size_t game_len;
   uint32_t memsize;
-  uint8_t *compressed;
+  uint8_t *compressed = NULL;
   uint8_t *mem = memory;
   long stks_pos;
   size_t stack_size;
@@ -891,11 +1044,28 @@ int restore_quetzal(zterp_io *savefile, int is_meta)
 
   if(zterp_iff_find(iff, "CMem", &size))
   {
-    uint8_t buf[size]; /* Too big for the stack? */
+    uint8_t *buf;
 
-    if(zterp_io_read(savefile, buf, size) != size) goto_err("unexpected eof reading compressed memory");
+    /* Dynamic memory is 64KB, and a worst-case save should take up
+     * 1.5× that value, or 96KB.  Simply double the 64KB to avoid
+     * potential edge-case problems.
+     */
+    if(size > 131072) goto_err("reported CMem size too large (%lu bytes)", (unsigned long)size);
+    buf = malloc(size * sizeof *buf);
 
-    if(uncompress_memory(buf, size) == -1) goto_death("memory cannot be uncompressed");
+    if(zterp_io_read(savefile, buf, size) != size)
+    {
+      free(buf);
+      goto_err("unexpected eof reading compressed memory");
+    }
+
+    if(uncompress_memory(buf, size) == -1)
+    {
+      free(buf);
+      goto_death("memory cannot be uncompressed");
+    }
+
+    free(buf);
   }
   else if(zterp_iff_find(iff, "UMem", &size))
   {
@@ -1007,7 +1177,7 @@ int do_save(int is_meta)
  */
 void zsave(void)
 {
-  if(interrupt_level() != 0) die("@save called inside of an interrupt");
+  if(in_interrupt()) die("@save called inside of an interrupt");
 
   int success = do_save(0);
 
@@ -1041,20 +1211,15 @@ int do_restore(int is_meta)
 
   if(success)
   {
-    /* On a successful restore, we are outside of any interrupt (since
-     * @save cannot be called inside an interrupt), so reset the level
-     * back to zero.  In addition, there may be pending read events that
-     * need to be canceled, so do that, too.
-     */
-    reset_level();
+    /* If there are any pending read events, cancel on successful restore. */
     cancel_all_events();
 
     /* §8.6.1.3 */
     if(zversion == 3) close_upper_window();
 
-    /* The save might be from a different interpreter with different
-     * capabilities, so update the header to indicate what the current
-     * capabilities are...
+    /* §6.1.2.2: The save might be from a different interpreter with
+     * different capabilities, so update the header to indicate what the
+     * current capabilities are...
      */
     write_header();
 
@@ -1074,4 +1239,10 @@ void zrestore(void)
 
   if(zversion <= 3) branch_if(success);
   else              store(success ? 2 : 0);
+
+  /* On a successful restore, we are outside of any interrupt (since
+   * @save cannot be called inside an interrupt), so reset the level
+   * back to zero.
+   */
+  if(success) interrupt_reset();
 }

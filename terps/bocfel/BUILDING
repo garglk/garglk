@@ -50,7 +50,10 @@ featured, including timed input and cursor control, allowing games like Border
 Zone and Seastalker to run as intended.  Non-Glk builds use nothing but standard
 C functions.  This has the advantage of running on systems where Glk has not
 been ported, but the disadvantage of missing important features.  Non-Glk builds
-are generally not useful.
+are generally not useful apart from testing; a non-Glk build will read from
+standard input and write to standard output, so can be used for regression
+testing such as with Andrew Plotkin's RegTest
+(http://eblong.com/zarf/plotex/regtest.html).
 
 The first thing to do is edit config.mk and set $PLATFORM to the proper value.
 See the comments in that file for an explanation.  There are other variables
@@ -81,10 +84,9 @@ to build a Windows Glk-enabled interpreter, at least with MinGW.
 Bocfel can also be built against Gargoyle's Glk implementation, taking full
 advantage of extra features it provides.  Ben Cressey, Gargoyle's maintainer,
 has imported Bocfel into the Gargoyle source repository, so the easiest way to
-obtain Gargoyle support is to check out the latest version of Gargoyle's source
-code; see http://code.google.com/p/garglk/source/checkout.  If you would prefer
-to use Bocfel's build system to build against Gargoyle as you would any other
-Glk library, read on.
+obtain Gargoyle support is to simply download Gargoyle; see
+http://garglk.googlecode.com/.  If you would prefer to use Bocfel's build system
+to build against Gargoyle as you would any other Glk library, read on.
 
 The build process for Gargoyle is slightly more involved.  Gargoyle includes a
 full-featured Glk library, but it is not designed for external use.  However,
@@ -114,7 +116,7 @@ ideally this would be the version to build against.  However, Gargoyle does, by
 and large, implement a standard API, so the version should not make a large
 difference.  There are a few Gargoyle-specific extensions that can possibly
 change, but they have been stable apart from one change over the past couple of
-years.  The current (2010.1) release of Gargoyle should work, but the only
+years.  The current (2011) release of Gargoyle should work, but the only
 officially supported version is whatever was current as of this version of
 Bocfel's release.
 

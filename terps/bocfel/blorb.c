@@ -60,7 +60,7 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
     uint32_t usage, number, start, type;
     zterp_blorb_chunk *new;
     long saved;
-    uint32_t idx;
+    size_t idx;
 
     if(!zterp_io_read32(io, &usage) || !zterp_io_read32(io, &number) || !zterp_io_read32(io, &start)) goto err;
 
@@ -110,7 +110,7 @@ void zterp_blorb_free(struct zterp_blorb *blorb)
   free(blorb);
 }
 
-const zterp_blorb_chunk *zterp_blorb_find(struct zterp_blorb *blorb, uint32_t usage, int number)
+const zterp_blorb_chunk *zterp_blorb_find(struct zterp_blorb *blorb, uint32_t usage, uint32_t number)
 {
   for(size_t i = 0; i < blorb->nchunks; i++)
   {
