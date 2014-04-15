@@ -298,7 +298,7 @@ void win_textgrid_clear(window_t *win)
     for (k = 0; k < dwin->height; k++)
     {
         touch(dwin, k);
-        for (j = 0; j < sizeof dwin->lines[k].chars; j++)
+        for (j = 0; j < (sizeof dwin->lines[k].chars / sizeof *dwin->lines[k].chars); j++)
             dwin->lines[k].chars[j] = ' ';
         memset(dwin->lines[k].attrs, 0, sizeof dwin->lines[k].attrs);
     }
