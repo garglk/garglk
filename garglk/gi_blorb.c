@@ -142,8 +142,10 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
         glk_stream_set_position(file, nextpos, seekmode_Start);
 
         readlen = glk_get_buffer_stream(file, buffer, 8);
-        if (readlen != 8)
+        if (readlen != 8) {
+            giblorb_free(chunks);
             return giblorb_err_Read;
+        }
 
         type = giblorb_native4(buffer+0);
         len = giblorb_native4(buffer+4);
@@ -175,8 +177,10 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
         if (nextpos & 1)
             nextpos++;
 
-        if (nextpos > totallength)
+        if (nextpos > totallength) {
+            giblorb_free(chunks);
             return giblorb_err_Format;
+        }
     }
 
     /* The basic IFF structure seems to be ok, and we have a list of
@@ -262,8 +266,11 @@ static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map)
                         * sizeof(giblorb_resdesc_t));
                     ressorted = (giblorb_resdesc_t **)giblorb_malloc(numres
                         * sizeof(giblorb_resdesc_t *));
-                    if (!ressorted || !resources)
+                    if (!ressorted || !resources) {
+                        giblorb_free(resources);
+                        giblorb_free(ressorted);
                         return giblorb_err_Alloc;
+                    }
 
                     ix2 = 0;
                     for (jx=0; jx<numres; jx++) {
@@ -279,9 +286,12 @@ static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map)
                             ix2++;
 
                         if (ix2 >= map->numchunks
-                            || map->chunks[ix2].startpos != respos)
+                                || map->chunks[ix2].startpos != respos) {
+                            giblorb_free(resources);
+                            giblorb_free(ressorted);
                             return giblorb_err_Format; /* start pos does
-                                not match a real chunk */
+                                                          not match a real chunk */
+                        }
 
                         res->chunknum = ix2;
 

@@ -161,7 +161,7 @@ static void reflow(window_t *win)
     attr_t *attrbuf = malloc(sizeof(attr_t) * SCROLLBACK * TBLINELEN);
     glui32 *charbuf = malloc(sizeof(glui32) * SCROLLBACK * TBLINELEN);
     int *alignbuf = malloc(sizeof(int) * SCROLLBACK);
-    picture_t **pictbuf = malloc(sizeof(size_t) * SCROLLBACK);
+    picture_t **pictbuf = malloc(sizeof(picture_t *) * SCROLLBACK);
     glui32 *hyperbuf = malloc(sizeof(glui32) * SCROLLBACK);
     int *offsetbuf = malloc(sizeof(int) * SCROLLBACK);
 

@@ -527,10 +527,15 @@ static glui32 *gli_buffer_canon_decompose_uni(glui32 *buf,
                it straight into the destination. */
             if (destlen >= destsize)
             {
+                glui32 *tmp;
+
                 destsize = destsize * 2;
-                dest = (glui32 *)realloc(dest, destsize * sizeof(glui32));
-                if (!dest)
+                tmp = realloc(dest, destsize * sizeof(glui32));
+                if (!tmp) {
+                    free(dest);
                     return NULL;
+                }
+                dest = tmp;
             }
             dest[destlen] = ch;
             destlen++;
@@ -550,10 +555,15 @@ static glui32 *gli_buffer_canon_decompose_uni(glui32 *buf,
         if (destlen+count >= destsize)
         {
             /* Okay, that wasn't enough. Expand more. */
+            glui32 *tmp;
+
             destsize = destsize * 2 + count;
-            dest = (glui32 *)realloc(dest, destsize * sizeof(glui32));
-            if (!dest)
+            tmp = realloc(dest, destsize * sizeof(glui32));
+            if (!tmp) {
+                free(dest);
                 return NULL;
+            }
+            dest = tmp;
         }
         for (jx=0; jx<count; jx++)
         {

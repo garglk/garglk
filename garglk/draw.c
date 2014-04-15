@@ -615,8 +615,10 @@ static int charkern(font_t *f, int c0, int c1)
     g0 = FT_Get_Char_Index(f->face, touni(c0));
     g1 = FT_Get_Char_Index(f->face, touni(c1));
 
-    if (g0 == 0 || g1 == 0)
+    if (g0 == 0 || g1 == 0) {
+        free(item);
         return 0;
+    }
 
     err = FT_Get_Kerning(f->face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err)
