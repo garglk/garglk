@@ -59,7 +59,7 @@ int winargs(int argc, char **argv, char *buffer)
 void winpath(char *buffer)
 {
     char exepath[MaxBuffer] = {0};
-    unsigned int exelen;
+    ssize_t exelen;
 
     exelen = readlink("/proc/self/exe", exepath, sizeof(exepath));
 

@@ -194,7 +194,7 @@ picture_t *gli_picture_load(unsigned long id)
         char filename[1024];
         unsigned char buf[8];
 
-        sprintf(filename, "%s/PIC%ld", gli_workdir, id); 
+        sprintf(filename, "%s/PIC%lu", gli_workdir, id); 
 
         closeafter = TRUE;
         fl = fopen(filename, "rb");
