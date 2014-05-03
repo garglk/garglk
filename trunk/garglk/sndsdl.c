@@ -379,7 +379,11 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         }
 
         fseek(file, 0, 0);
-        if (fread(*buf, 1, *len, file) != *len && !feof(file)) return 0;
+        if (fread(*buf, 1, *len, file) != *len && !feof(file))
+        {
+            fclose(file);
+            return 0;
+        }
         fclose(file);
 
         /* AIFF */

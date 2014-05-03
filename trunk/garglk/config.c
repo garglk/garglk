@@ -482,7 +482,6 @@ void gli_read_config(int argc, char **argv)
     char argv0[1024] = "default";
     char buf[1024];
     int i;
-    char *tmp;
 
     /* load argv0 with name of executable without suffix */
     if (strrchr(argv[0], '\\'))

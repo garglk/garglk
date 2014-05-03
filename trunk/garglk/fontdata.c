@@ -72,7 +72,7 @@ void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len)
 
         default:
             *ptr = 0;
-            len = 0;
+            *len = 0;
     }
 }
 

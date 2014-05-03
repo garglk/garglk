@@ -166,7 +166,15 @@ static void reflow(window_t *win)
     int *offsetbuf = malloc(sizeof(int) * SCROLLBACK);
 
     if (!attrbuf || !charbuf || !alignbuf || !pictbuf || !hyperbuf || !offsetbuf)
+    {
+        free(attrbuf);
+        free(charbuf);
+        free(alignbuf);
+        free(pictbuf);
+        free(hyperbuf);
+        free(offsetbuf);
         return;
+    }
 
     /* copy text to temp buffers */
 
