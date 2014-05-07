@@ -19,6 +19,10 @@ GLKMAKEFILE = Make.cheapglk
 #GLKLIBDIR = ../xglk
 #GLKMAKEFILE = Make.xglk
 
+#GLKINCLUDEDIR = ../remglk
+#GLKLIBDIR = ../remglk
+#GLKMAKEFILE = Make.remglk
+
 # Pick a C compiler.
 #CC = cc
 CC = gcc

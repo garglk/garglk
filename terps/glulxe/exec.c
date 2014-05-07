@@ -34,7 +34,10 @@ void execute_loop()
     profile_tick();
     /* Do OS-specific processing, if appropriate. */
     glk_tick();
-
+    
+    /* Stash the current opcode's address, in case the interpreter needs to serialize the VM state out-of-band. */
+    prevpc = pc;
+    
     /* Fetch the opcode number. */
     opcode = Mem1(pc);
     pc++;
@@ -666,7 +669,7 @@ void execute_loop()
 
       case op_restore:
         profile_fail("restore");
-        value = perform_restore(find_stream_by_id(inst[0].value));
+        value = perform_restore(find_stream_by_id(inst[0].value), FALSE);
         if (value == 0) {
           /* We've succeeded, and the stack now contains the callstub
              saved during saveundo. Ignore this opcode's operand. */

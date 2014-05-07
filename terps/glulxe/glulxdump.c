@@ -37,7 +37,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "glk.h"
+#include <string.h>
+
+/* If your system doesn't have stdint.h, you'll have to edit the typedefs
+   below to make unsigned and signed 32-bit integers. */
+#include <stdint.h>
+typedef uint32_t glui32;
+typedef int32_t glsi32;
 
 #include "opcodes.h"
 
@@ -68,6 +74,9 @@
 #define Mem2(adr)  (Read2(memmap+(adr)))
 #define Mem4(adr)  (Read4(memmap+(adr)))
 
+/* The following #defines are copied directly from header.h in the inform6
+   distribution. */
+
 #define nop_gc 0
 #define add_gc 1
 #define sub_gc 2
@@ -91,50 +100,99 @@
 #define jge_gc 20
 #define jgt_gc 21
 #define jle_gc 22
-#define call_gc 23
-#define return_gc 24
-#define catch_gc 25
-#define throw_gc 26
-#define tailcall_gc 27
-#define copy_gc 28
-#define copys_gc 29
-#define copyb_gc 30
-#define sexs_gc 31
-#define sexb_gc 32
-#define aload_gc 33
-#define aloads_gc 34
-#define aloadb_gc 35
-#define aloadbit_gc 36
-#define astore_gc 37
-#define astores_gc 38
-#define astoreb_gc 39
-#define astorebit_gc 40
-#define stkcount_gc 41
-#define stkpeek_gc 42
-#define stkswap_gc 43
-#define stkroll_gc 44
-#define stkcopy_gc 45
-#define streamchar_gc 46
-#define streamnum_gc 47
-#define streamstr_gc 48
-#define gestalt_gc 49
-#define debugtrap_gc 50
-#define getmemsize_gc 51
-#define setmemsize_gc 52
-#define random_gc 53
-#define setrandom_gc 54
-#define quit_gc 55
-#define verify_gc 56
-#define restart_gc 57
-#define save_gc 58
-#define restore_gc 59
-#define saveundo_gc 60
-#define restoreundo_gc 61
-#define protect_gc 62
-#define glk_gc 63
-#define getstringtbl_gc 64
-#define setstringtbl_gc 65
-#define streamunichar_gc 66
+#define jltu_gc 23
+#define jgeu_gc 24
+#define jgtu_gc 25
+#define jleu_gc 26
+#define call_gc 27
+#define return_gc 28
+#define catch_gc 29
+#define throw_gc 30
+#define tailcall_gc 31
+#define copy_gc 32
+#define copys_gc 33
+#define copyb_gc 34
+#define sexs_gc 35
+#define sexb_gc 36
+#define aload_gc 37
+#define aloads_gc 38
+#define aloadb_gc 39
+#define aloadbit_gc 40
+#define astore_gc 41
+#define astores_gc 42
+#define astoreb_gc 43
+#define astorebit_gc 44
+#define stkcount_gc 45
+#define stkpeek_gc 46
+#define stkswap_gc 47
+#define stkroll_gc 48
+#define stkcopy_gc 49
+#define streamchar_gc 50
+#define streamnum_gc 51
+#define streamstr_gc 52
+#define gestalt_gc 53
+#define debugtrap_gc 54
+#define getmemsize_gc 55
+#define setmemsize_gc 56
+#define jumpabs_gc 57
+#define random_gc 58
+#define setrandom_gc 59
+#define quit_gc 60
+#define verify_gc 61
+#define restart_gc 62
+#define save_gc 63
+#define restore_gc 64
+#define saveundo_gc 65
+#define restoreundo_gc 66
+#define protect_gc 67
+#define glk_gc 68
+#define getstringtbl_gc 69
+#define setstringtbl_gc 70
+#define getiosys_gc 71
+#define setiosys_gc 72
+#define linearsearch_gc 73
+#define binarysearch_gc 74
+#define linkedsearch_gc 75
+#define callf_gc 76
+#define callfi_gc 77
+#define callfii_gc 78
+#define callfiii_gc 79
+#define streamunichar_gc 80
+#define mzero_gc 81
+#define mcopy_gc 82
+#define malloc_gc 83
+#define mfree_gc 84
+#define accelfunc_gc 85
+#define accelparam_gc 86
+#define numtof_gc 87
+#define ftonumz_gc 88
+#define ftonumn_gc 89
+#define ceil_gc 90
+#define floor_gc 91
+#define fadd_gc 92
+#define fsub_gc 93
+#define fmul_gc 94
+#define fdiv_gc 95
+#define fmod_gc 96
+#define sqrt_gc 97
+#define exp_gc 98
+#define log_gc 99
+#define pow_gc 100
+#define sin_gc 101
+#define cos_gc 102
+#define tan_gc 103
+#define asin_gc 104
+#define acos_gc 105
+#define atan_gc 106
+#define atan2_gc 107
+#define jfeq_gc 108
+#define jfne_gc 109
+#define jflt_gc 110
+#define jfle_gc 111
+#define jfgt_gc 112
+#define jfge_gc 113
+#define jisnan_gc 114
+#define jisinf_gc 115
 
 typedef struct opcode_struct
 {  
@@ -145,81 +203,141 @@ typedef struct opcode_struct
   int no;           /* Number of operands */
 } opcode_t;
 
+/* The following #defines, and the opcodes_table, are copied directly from
+   asm.c in the inform6 distribution. */
+
 #define St      1     /* Store (last operand is store-mode) */
 #define Br      2     /* Branch (last operand is a label) */
 #define Rf      4     /* "Return flag": execution never continues after this
                          opcode (e.g., is a return or unconditional jump) */
+#define St2 8     /* Store2 (second-to-last operand is store (Glulx)) */
+
+
+#define GOP_Unicode      1   /* uses_unicode_features */
+#define GOP_MemHeap      2   /* uses_memheap_features */
+#define GOP_Acceleration 4   /* uses_acceleration_features */
+#define GOP_Float        8   /* uses_float_features */
+
 #define uchar char
 
 static opcode_t opcodes_table[] = 
 {
-  { (uchar *) "nop",            0x00,  0, 0, 0 },
-  { (uchar *) "add",            0x10, St, 0, 3 },
-  { (uchar *) "sub",            0x11, St, 0, 3 },
-  { (uchar *) "mul",            0x12, St, 0, 3 },
-  { (uchar *) "div",            0x13, St, 0, 3 },
-  { (uchar *) "mod",            0x14, St, 0, 3 },
-  { (uchar *) "neg",            0x15, St, 0, 2 },
-  { (uchar *) "bitand",         0x18, St, 0, 3 },
-  { (uchar *) "bitor",          0x19, St, 0, 3 },
-  { (uchar *) "bitxor",         0x1A, St, 0, 3 },
-  { (uchar *) "bitnot",         0x1B, St, 0, 2 },
-  { (uchar *) "shiftl",         0x1C, St, 0, 3 },
-  { (uchar *) "sshiftr",        0x1D, St, 0, 3 },
-  { (uchar *) "ushiftr",        0x1E, St, 0, 3 },
-  { (uchar *) "jump",           0x20, Br|Rf, 0, 1 },
-  { (uchar *) "jz",             0x22, Br, 0, 2 },
-  { (uchar *) "jnz",            0x23, Br, 0, 2 },
-  { (uchar *) "jeq",            0x24, Br, 0, 3 },
-  { (uchar *) "jne",            0x25, Br, 0, 3 },
-  { (uchar *) "jlt",            0x26, Br, 0, 3 },
-  { (uchar *) "jge",            0x27, Br, 0, 3 },
-  { (uchar *) "jgt",            0x28, Br, 0, 3 },
-  { (uchar *) "jle",            0x29, Br, 0, 3 },
-  { (uchar *) "call",           0x30, St, 0, 3 },
-  { (uchar *) "return",         0x31, Rf, 0, 1 },
-  { (uchar *) "catch",          0x32, Br|St, 0, 2 },
-  { (uchar *) "throw",          0x33, Rf, 0, 2 },
-  { (uchar *) "tailcall",       0x34, Rf, 0, 2 },
-  { (uchar *) "copy",           0x40, St, 0, 2 },
-  { (uchar *) "copys",          0x41, St, 0, 2 },
-  { (uchar *) "copyb",          0x42, St, 0, 2 },
-  { (uchar *) "sexs",           0x44, St, 0, 2 },
-  { (uchar *) "sexb",           0x45, St, 0, 2 },
-  { (uchar *) "aload",          0x48, St, 0, 3 },
-  { (uchar *) "aloads",         0x49, St, 0, 3 },
-  { (uchar *) "aloadb",         0x4A, St, 0, 3 },
-  { (uchar *) "aloadbit",       0x4B, St, 0, 3 },
-  { (uchar *) "astore",         0x4C,  0, 0, 3 },
-  { (uchar *) "astores",        0x4D,  0, 0, 3 },
-  { (uchar *) "astoreb",        0x4E,  0, 0, 3 },
-  { (uchar *) "astorebit",      0x4F,  0, 0, 3 },
-  { (uchar *) "stkcount",       0x50, St, 0, 1 },
-  { (uchar *) "stkpeek",        0x51, St, 0, 2 },
-  { (uchar *) "stkswap",        0x52,  0, 0, 0 },
-  { (uchar *) "stkroll",        0x53,  0, 0, 2 },
-  { (uchar *) "stkcopy",        0x54,  0, 0, 1 },
-  { (uchar *) "streamchar",     0x70,  0, 0, 1 },
-  { (uchar *) "streamnum",      0x71,  0, 0, 1 },
-  { (uchar *) "streamstr",      0x72,  0, 0, 1 },
-  { (uchar *) "gestalt",        0x0100, St, 0, 3 },
-  { (uchar *) "debugtrap",      0x0101, 0, 0, 1 },
+  { (uchar *) "nop",        0x00,  0, 0, 0 },
+  { (uchar *) "add",        0x10, St, 0, 3 },
+  { (uchar *) "sub",        0x11, St, 0, 3 },
+  { (uchar *) "mul",        0x12, St, 0, 3 },
+  { (uchar *) "div",        0x13, St, 0, 3 },
+  { (uchar *) "mod",        0x14, St, 0, 3 },
+  { (uchar *) "neg",        0x15, St, 0, 2 },
+  { (uchar *) "bitand",     0x18, St, 0, 3 },
+  { (uchar *) "bitor",      0x19, St, 0, 3 },
+  { (uchar *) "bitxor",     0x1A, St, 0, 3 },
+  { (uchar *) "bitnot",     0x1B, St, 0, 2 },
+  { (uchar *) "shiftl",     0x1C, St, 0, 3 },
+  { (uchar *) "sshiftr",    0x1D, St, 0, 3 },
+  { (uchar *) "ushiftr",    0x1E, St, 0, 3 },
+  { (uchar *) "jump",       0x20, Br|Rf, 0, 1 },
+  { (uchar *) "jz",     0x22, Br, 0, 2 },
+  { (uchar *) "jnz",        0x23, Br, 0, 2 },
+  { (uchar *) "jeq",        0x24, Br, 0, 3 },
+  { (uchar *) "jne",        0x25, Br, 0, 3 },
+  { (uchar *) "jlt",        0x26, Br, 0, 3 },
+  { (uchar *) "jge",        0x27, Br, 0, 3 },
+  { (uchar *) "jgt",        0x28, Br, 0, 3 },
+  { (uchar *) "jle",        0x29, Br, 0, 3 },
+  { (uchar *) "jltu",       0x2A, Br, 0, 3 },
+  { (uchar *) "jgeu",       0x2B, Br, 0, 3 },
+  { (uchar *) "jgtu",       0x2C, Br, 0, 3 },
+  { (uchar *) "jleu",       0x2D, Br, 0, 3 },
+  { (uchar *) "call",       0x30, St, 0, 3 },
+  { (uchar *) "return",     0x31, Rf, 0, 1 },
+  { (uchar *) "catch",      0x32, Br|St, 0, 2 },
+  { (uchar *) "throw",      0x33, Rf, 0, 2 },
+  { (uchar *) "tailcall",   0x34, Rf, 0, 2 },
+  { (uchar *) "copy",       0x40, St, 0, 2 },
+  { (uchar *) "copys",      0x41, St, 0, 2 },
+  { (uchar *) "copyb",      0x42, St, 0, 2 },
+  { (uchar *) "sexs",       0x44, St, 0, 2 },
+  { (uchar *) "sexb",       0x45, St, 0, 2 },
+  { (uchar *) "aload",      0x48, St, 0, 3 },
+  { (uchar *) "aloads",     0x49, St, 0, 3 },
+  { (uchar *) "aloadb",     0x4A, St, 0, 3 },
+  { (uchar *) "aloadbit",   0x4B, St, 0, 3 },
+  { (uchar *) "astore",     0x4C,  0, 0, 3 },
+  { (uchar *) "astores",    0x4D,  0, 0, 3 },
+  { (uchar *) "astoreb",    0x4E,  0, 0, 3 },
+  { (uchar *) "astorebit",  0x4F,  0, 0, 3 },
+  { (uchar *) "stkcount",   0x50, St, 0, 1 },
+  { (uchar *) "stkpeek",    0x51, St, 0, 2 },
+  { (uchar *) "stkswap",    0x52,  0, 0, 0 },
+  { (uchar *) "stkroll",    0x53,  0, 0, 2 },
+  { (uchar *) "stkcopy",    0x54,  0, 0, 1 },
+  { (uchar *) "streamchar", 0x70,  0, 0, 1 },
+  { (uchar *) "streamnum",  0x71,  0, 0, 1 },
+  { (uchar *) "streamstr",  0x72,  0, 0, 1 },
+  { (uchar *) "gestalt",    0x0100, St, 0, 3 },
+  { (uchar *) "debugtrap",  0x0101, 0, 0, 1 },
   { (uchar *) "getmemsize",     0x0102, St, 0, 1 },
   { (uchar *) "setmemsize",     0x0103, St, 0, 2 },
-  { (uchar *) "random",         0x0110, St, 0, 2 },
-  { (uchar *) "setrandom",      0x0111,  0, 0, 1 },
-  { (uchar *) "quit",           0x0120,  0, 0, 0 },
-  { (uchar *) "verify",         0x0121, St, 0, 1 },
-  { (uchar *) "restart",        0x0122,  0, 0, 0 },
-  { (uchar *) "save",           0x0123, St, 0, 2 },
-  { (uchar *) "restore",        0x0124, St, 0, 2 },
-  { (uchar *) "saveundo",       0x0125, St, 0, 1 },
+  { (uchar *) "jumpabs",    0x0104, Rf, 0, 1 },
+  { (uchar *) "random",     0x0110, St, 0, 2 },
+  { (uchar *) "setrandom",  0x0111,  0, 0, 1 },
+  { (uchar *) "quit",       0x0120, Rf, 0, 0 },
+  { (uchar *) "verify",     0x0121, St, 0, 1 },
+  { (uchar *) "restart",    0x0122,  0, 0, 0 },
+  { (uchar *) "save",       0x0123, St, 0, 2 },
+  { (uchar *) "restore",    0x0124, St, 0, 2 },
+  { (uchar *) "saveundo",   0x0125, St, 0, 1 },
   { (uchar *) "restoreundo",    0x0126, St, 0, 1 },
-  { (uchar *) "protect",        0x0127,  0, 0, 2 },
-  { (uchar *) "glk",            0x0130, St, 0, 3 },
+  { (uchar *) "protect",    0x0127,  0, 0, 2 },
+  { (uchar *) "glk",        0x0130, St, 0, 3 },
   { (uchar *) "getstringtbl",   0x0140, St, 0, 1 },
   { (uchar *) "setstringtbl",   0x0141, 0, 0, 1 },
-  { (uchar *) "streamunichar",  0x73,  0, 0, 1 },
+  { (uchar *) "getiosys",   0x0148, St|St2, 0, 2 },
+  { (uchar *) "setiosys",   0x0149, 0, 0, 2 },
+  { (uchar *) "linearsearch",   0x0150, St, 0, 8 },
+  { (uchar *) "binarysearch",   0x0151, St, 0, 8 },
+  { (uchar *) "linkedsearch",   0x0152, St, 0, 7 },
+  { (uchar *) "callf",      0x0160, St, 0, 2 },
+  { (uchar *) "callfi",     0x0161, St, 0, 3 },
+  { (uchar *) "callfii",    0x0162, St, 0, 4 },
+  { (uchar *) "callfiii",   0x0163, St, 0, 5 },
+  { (uchar *) "streamunichar", 0x73,  0, GOP_Unicode, 1 },
+  { (uchar *) "mzero",      0x170,  0, GOP_MemHeap, 2 },
+  { (uchar *) "mcopy",      0x171,  0, GOP_MemHeap, 3 },
+  { (uchar *) "malloc",     0x178,  St, GOP_MemHeap, 2 },
+  { (uchar *) "mfree",      0x179,  0, GOP_MemHeap, 1 },
+  { (uchar *) "accelfunc",  0x180,  0, GOP_Acceleration, 2 },
+  { (uchar *) "accelparam", 0x181,  0, GOP_Acceleration, 2 },
+  { (uchar *) "numtof",     0x190,  St, GOP_Float, 2 },
+  { (uchar *) "ftonumz",    0x191,  St, GOP_Float, 2 },
+  { (uchar *) "ftonumn",    0x192,  St, GOP_Float, 2 },
+  { (uchar *) "ceil",       0x198,  St, GOP_Float, 2 },
+  { (uchar *) "floor",      0x199,  St, GOP_Float, 2 },
+  { (uchar *) "fadd",       0x1A0,  St, GOP_Float, 3 },
+  { (uchar *) "fsub",       0x1A1,  St, GOP_Float, 3 },
+  { (uchar *) "fmul",       0x1A2,  St, GOP_Float, 3 },
+  { (uchar *) "fdiv",       0x1A3,  St, GOP_Float, 3 },
+  { (uchar *) "fmod",       0x1A4,  St|St2, GOP_Float, 4 },
+  { (uchar *) "sqrt",       0x1A8,  St, GOP_Float, 2 },
+  { (uchar *) "exp",        0x1A9,  St, GOP_Float, 2 },
+  { (uchar *) "log",        0x1AA,  St, GOP_Float, 2 },
+  { (uchar *) "pow",        0x1AB,  St, GOP_Float, 3 },
+  { (uchar *) "sin",        0x1B0,  St, GOP_Float, 2 },
+  { (uchar *) "cos",        0x1B1,  St, GOP_Float, 2 },
+  { (uchar *) "tan",        0x1B2,  St, GOP_Float, 2 },
+  { (uchar *) "asin",       0x1B3,  St, GOP_Float, 2 },
+  { (uchar *) "acos",       0x1B4,  St, GOP_Float, 2 },
+  { (uchar *) "atan",       0x1B5,  St, GOP_Float, 2 },
+  { (uchar *) "atan2",      0x1B6,  St, GOP_Float, 3 },
+  { (uchar *) "jfeq",       0x1C0,  Br, GOP_Float, 4 },
+  { (uchar *) "jfne",       0x1C1,  Br, GOP_Float, 4 },
+  { (uchar *) "jflt",       0x1C2,  Br, GOP_Float, 3 },
+  { (uchar *) "jfle",       0x1C3,  Br, GOP_Float, 3 },
+  { (uchar *) "jfgt",       0x1C4,  Br, GOP_Float, 3 },
+  { (uchar *) "jfge",       0x1C5,  Br, GOP_Float, 3 },
+  { (uchar *) "jisnan",     0x1C8,  Br, GOP_Float, 2 },
+  { (uchar *) "jisinf",     0x1C9,  Br, GOP_Float, 2 },
 };
 
 static int read_header(FILE *fl);
@@ -256,9 +374,7 @@ glui32 checksum;
 int main(int argc, char *argv[])
 {
   FILE *fl;
-  int ix, jx;
-  int ch;
-  int startpos;
+  int ix;
   glui32 val;
   char *filename = NULL;
 
@@ -345,14 +461,14 @@ int main(int argc, char *argv[])
   fl = NULL;
 
   if (dumpheader) {
-    printf("Version:   %08lx\n", version);
-    printf("RAMSTART:  %08lx\n", ramstart);
-    printf("ENDGAME:   %08lx\n", endgamefile);
-    printf("ENDMEM:    %08lx\n", endmem);
-    printf("STACKSIZE: %08lx\n", stacksize);
-    printf("StartFunc: %08lx\n", startfuncaddr);
-    printf("StringTbl: %08lx\n", stringtable);
-    printf("CheckSum:  %08lx\n", checksum);
+    printf("Version:   %08lx\n", (long)version);
+    printf("RAMSTART:  %08lx\n", (long)ramstart);
+    printf("ENDGAME:   %08lx\n", (long)endgamefile);
+    printf("ENDMEM:    %08lx\n", (long)endmem);
+    printf("STACKSIZE: %08lx\n", (long)stacksize);
+    printf("StartFunc: %08lx\n", (long)startfuncaddr);
+    printf("StringTbl: %08lx\n", (long)stringtable);
+    printf("CheckSum:  %08lx\n", (long)checksum);
   }
 
   if (dumpstrings || dumpfuncs)
@@ -418,7 +534,7 @@ void dump_ram()
     }
     else if (ch == 0xE0) {
       if (dumpstrings) {
-        printf("String (%08lx): ", startpos);
+        printf("String (%08lx): ", (long)startpos);
         pos++;
         while (1) {
           ch = Mem1(pos);
@@ -445,7 +561,7 @@ void dump_ram()
       glui32 exstart;
       int opmodes[16];
 
-      printf("Function (%08lx), ", startpos);
+      printf("Function (%08lx), ", (long)startpos);
       if (ch == 0xC0)
         printf("stack-called:");
       else
@@ -491,7 +607,7 @@ void dump_ram()
           opcode = (opcode << 8) | ch;
         }
         opco = &opcodes_table[findopcode(opcode)];
-        printf("  %08lx: %12s ", pos-exstart, opco->name);
+        printf("  %08lx: %12s ", (long)(pos-exstart), opco->name);
 
         for (jx=0; jx<opco->no; jx+=2) {
           ch = Mem1(pos); pos++;
@@ -572,7 +688,7 @@ void dump_ram()
               printf(" (rtrue)");
             }
             else {
-              printf(" (%08lx)", (pos-exstart)+val-2+1);
+              printf(" (%08lx)", (long)((pos-exstart)+val-2+1));
             }
           }
         }
@@ -671,12 +787,12 @@ void dump_objs()
 
     ch = Mem1(startpos);
     if (ch != 0x70) {
-      printf("Non-object in object list (%08lx)\n", startpos);
+      printf("Non-object in object list (%08lx)\n", (long)startpos);
       return;
     }
     pos = startpos+1;
 
-    printf("Object (%08lx):\n", startpos);
+    printf("Object (%08lx):\n", (long)startpos);
     printf("    attrs:");
     for (ix=0; ix<7; ix++) {
       ch = Mem1(pos); pos++; 
@@ -730,7 +846,7 @@ void print_string(glui32 pos)
   unsigned char ch;
   ch = Mem1(pos);
   if (ch != 0xE0) {
-    printf("<nonstring %08lx>", pos);
+    printf("<nonstring %08lx>", (long)pos);
     return;
   }
   pos++;
@@ -745,7 +861,6 @@ void print_string(glui32 pos)
 
 void print_proptable(glui32 pos)
 {
-  unsigned char ch;
   int ix, jx;
   int numprops;
   
@@ -766,12 +881,12 @@ void print_proptable(glui32 pos)
     propflags = Mem2(pos);
     pos += 2;
     printf("  num=%d, len=%d, flags=%d, addr=%08lx\n",
-      propnum, proplen, propflags, addr);
+      propnum, proplen, propflags, (long)addr);
     printf("  :");
     for (jx=0; jx<proplen; jx++) {
       glsi32 val = Mem4(addr);
       addr += 4;
-      printf(" %lx", val);
+      printf(" %lx", (long)val);
     }
     printf("\n");
   }
@@ -783,10 +898,10 @@ void dump_action_table()
 
   len = Mem4(posactiontbl);
 
-  printf("Action table at %08lx: %ld entries\n", posactiontbl, len);
+  printf("Action table at %08lx: %ld entries\n", (long)posactiontbl, (long)len);
   for (lx=0; lx<len; lx++) {
     val = Mem4(posactiontbl + 4 + lx*4);
-    printf("%ld: %08lx\n", lx, val);
+    printf("%ld: %08lx\n", (long)lx, (long)val);
   }
 }
 
@@ -798,10 +913,10 @@ void dump_dict_table()
 
   len = Mem4(posdicttbl);
 
-  printf("Dictionary table at %08lx: %ld entries\n", posdicttbl, len);
+  printf("Dictionary table at %08lx: %ld entries\n", (long)posdicttbl, (long)len);
   for (lx=0; lx<len; lx++) {
     addr = posdicttbl + 4 + lx*16;
-    printf("%08lx: ", addr);
+    printf("%08lx: ", (long)addr);
     for (ix=0; ix<9; ix++) {
       ch = Mem1(addr+1+ix);
       if (ch == '\0')
@@ -810,11 +925,11 @@ void dump_dict_table()
     }
     printf(" : ");
     val = Mem2(addr+10);
-    printf("flags=%04lx", val);
+    printf("flags=%04lx", (long)val);
     val = Mem2(addr+12);
-    printf(", verbnum=%04lx", val);
+    printf(", verbnum=%04lx", (long)val);
     val = Mem2(addr+14);
-    printf(", filler=%lx", val);
+    printf(", filler=%lx", (long)val);
     printf("\n");
   }
 }
@@ -823,17 +938,16 @@ void dump_grammar_table()
 {
   glui32 lx, len, val, addr;
   int numlines;
-  char ch;
-  int ix, jx;
+  int jx;
 
   len = Mem4(posgrammartbl);
 
-  printf("Grammar table at %08lx: %ld entries\n", posgrammartbl, len);
+  printf("Grammar table at %08lx: %ld entries\n", (long)posgrammartbl, (long)len);
 
   for (lx=0; lx<len; lx++) {
     addr = posgrammartbl + 4 + lx*4;
     addr = Mem4(addr);
-    printf("%03ld: %08lx: ", lx, addr);
+    printf("%03ld: %08lx: ", (long)lx, (long)addr);
     numlines = Mem1(addr);
     addr++;
     printf("%d lines:\n", numlines);
@@ -843,7 +957,7 @@ void dump_grammar_table()
       addr += 2;
       val = Mem1(addr);
       addr++;
-      printf("    ac %04lx; fl %02lx :", action, val);
+      printf("    ac %04lx; fl %02lx :", (long)action, (long)val);
       while (1) {
         toktype = Mem1(addr);
         addr++;
@@ -853,7 +967,7 @@ void dump_grammar_table()
         }
         tokdata = Mem4(addr);
         addr += 4;
-        printf(" %02lx(%04lx)", toktype, tokdata);
+        printf(" %02lx(%04lx)", (long)toktype, (long)tokdata);
       }
     }
   }

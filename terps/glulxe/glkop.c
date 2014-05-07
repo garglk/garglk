@@ -13,16 +13,21 @@
    - We can read or write to a 32-bit integer in VM memory using the macros
      ReadMemory(addr) and WriteMemory(addr), where addr is an address
      taken from the argument list.
-   - A character array is an actual array of bytes somewhere in terp
-     memory, whose actual address can be computed by the macro
-     AddressOfArray(addr). Again, addr is a VM address from the argument
-     list.
+   - A character array is a sequence of bytes somewhere in VM memory.
+     The array can be turned into a C char array by the macro
+     CaptureCArray(addr, len), and released by ReleaseCArray().
+     The passin, passout hints may be used to avoid unnecessary copying.
    - An integer array is a sequence of integers somewhere in VM memory.
      The array can be turned into a C integer array by the macro
      CaptureIArray(addr, len), and released by ReleaseIArray().
      These macros are responsible for fixing byte-order and alignment
      (if the C ABI does not match the VM's). The passin, passout hints
      may be used to avoid unnecessary copying.
+   - A Glk object array is a sequence of integers in VM memory. It is
+     turned into a C pointer array (remember that C pointers may be more
+     than 4 bytes!) The pointer array is allocated by
+     CapturePtrArray(addr, len, objclass) and released by ReleasePtrArray().
+     Again, the macros handle the conversion.
    - A Glk structure (such as event_t) is a set of integers somewhere
      in VM memory, which can be read and written with the macros
      ReadStructField(addr, fieldnum) and WriteStructField(addr, fieldnum).
@@ -46,12 +51,18 @@
     (((addr) == 0xffffffff) \
       ? (StkW4(stackptr, (val)), stackptr += 4) \
       : (MemW4((addr), (val))))
-#define AddressOfArray(addr)  \
-    (memmap + (addr))
+#define CaptureCArray(addr, len, passin)  \
+    (grab_temp_c_array(addr, len, passin))
+#define ReleaseCArray(ptr, addr, len, passout)  \
+    (release_temp_c_array(ptr, addr, len, passout))
 #define CaptureIArray(addr, len, passin)  \
-    (grab_temp_array(addr, len, passin))
+    (grab_temp_i_array(addr, len, passin))
 #define ReleaseIArray(ptr, addr, len, passout)  \
-    (release_temp_array(ptr, addr, len, passout))
+    (release_temp_i_array(ptr, addr, len, passout))
+#define CapturePtrArray(addr, len, objclass, passin)  \
+    (grab_temp_ptr_array(addr, len, objclass, passin))
+#define ReleasePtrArray(ptr, addr, len, objclass, passout)  \
+    (release_temp_ptr_array(ptr, addr, len, objclass, passout))
 #define ReadStructField(addr, fieldnum)  \
     (((addr) == 0xffffffff) \
       ? (stackptr -= 4, Stk4(stackptr)) \
@@ -120,11 +131,9 @@ typedef struct classtable_struct {
 static int num_classes = 0;
 classtable_t **classes = NULL;
 
-static glui32 find_id_for_stream(strid_t str);
-
 static classtable_t *new_classtable(glui32 firstid);
 static void *classes_get(int classid, glui32 objid);
-static classref_t *classes_put(int classid, void *obj);
+static classref_t *classes_put(int classid, void *obj, glui32 origid);
 static void classes_remove(int classid, void *obj);
 
 static gidispatch_rock_t glulxe_classtable_register(void *obj, 
@@ -135,9 +144,25 @@ static gidispatch_rock_t glulxe_retained_register(void *array,
   glui32 len, char *typecode);
 static void glulxe_retained_unregister(void *array, glui32 len, 
   char *typecode, gidispatch_rock_t objrock);
+static long glulxe_array_locate(void *array, glui32 len,
+  char *typecode, gidispatch_rock_t objrock, int *elemsizeref);
+static gidispatch_rock_t glulxe_array_restore(long bufkey,
+  glui32 len, char *typecode, void **arrayref);
 
-static glui32 *grab_temp_array(glui32 addr, glui32 len, int passin);
-static void release_temp_array(glui32 *arr, glui32 addr, glui32 len, int passout);
+/* This is only needed for autorestore. */
+extern gidispatch_rock_t glulxe_classtable_register_existing(void *obj,
+  glui32 objclass, glui32 dispid);
+
+/* The library_select_hook is called every time the VM blocks for input.
+   The app might take this opportunity to autosave, for example. */
+static void (*library_select_hook)(glui32) = NULL;
+
+static char *grab_temp_c_array(glui32 addr, glui32 len, int passin);
+static void release_temp_c_array(char *arr, glui32 addr, glui32 len, int passout);
+static glui32 *grab_temp_i_array(glui32 addr, glui32 len, int passin);
+static void release_temp_i_array(glui32 *arr, glui32 addr, glui32 len, int passout);
+static void **grab_temp_ptr_array(glui32 addr, glui32 len, int objclass, int passin);
+static void release_temp_ptr_array(void **arr, glui32 addr, glui32 len, int objclass, int passout);
 
 static void prepare_glk_args(char *proto, dispatch_splot_t *splot);
 static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
@@ -145,12 +170,25 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
 static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
   int *argnumptr, glui32 subaddress, int subpassout);
 
+static char *get_game_id(void);
+
 /* init_dispatch():
-   Set up the class hash tables and other startup-time stuff. 
+   Set up the class hash tables and other startup-time stuff.
 */
 int init_dispatch()
 {
   int ix;
+  
+  /* What with one thing and another, this *could* be called more than
+     once. We only need to allocate the tables once. */
+  if (classes)
+      return TRUE;
+  
+  /* Set up the game-ID hook. (This is ifdeffed because not all Glk
+     libraries have this call.) */
+#ifdef GI_DISPA_GAME_ID_AVAILABLE
+  gidispatch_set_game_id_hook(&get_game_id);
+#endif /* GI_DISPA_GAME_ID_AVAILABLE */
     
   /* Allocate the class hash tables. */
   num_classes = gidispatch_count_classes();
@@ -170,7 +208,14 @@ int init_dispatch()
     &glulxe_classtable_unregister);
   gidispatch_set_retained_registry(&glulxe_retained_register, 
     &glulxe_retained_unregister);
-    
+  
+  /* If the library supports autorestore callbacks, set those up too.
+     (These are only used in iosglk, currently.) */
+#ifdef GIDISPATCH_AUTORESTORE_REGISTRY
+  gidispatch_set_autorestore_registry(&glulxe_array_locate,
+    &glulxe_array_restore);
+#endif // GIDISPATCH_AUTORESTORE_REGISTRY
+  
   return TRUE;
 }
 
@@ -207,6 +252,13 @@ glui32 perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
       goto WrongArgNum;
     glk_put_char_stream(find_stream_by_id(arglist[0]), arglist[1] & 0xFF);
     break;
+  case 0x00C0: /* select */
+    /* call a library hook on every glk_select() */
+    if (library_select_hook)
+      library_select_hook(arglist[0]);
+    /* but then fall through to full dispatcher, because there's no real
+       need for speed here */
+    goto FullDispatcher;
   case 0x00A0: /* char_to_lower */
     if (numargs != 1)
       goto WrongArgNum;
@@ -232,6 +284,7 @@ glui32 perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist)
     fatal_error("Wrong number of arguments to Glk function.");
     break;
 
+  FullDispatcher:
   default: {
     /* Go through the full dispatcher prototype foo. */
     char *proto, *cx;
@@ -503,7 +556,7 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
               varglist[ix+1] = endmem - varglist[ix];
           }
           verify_array_addresses(varglist[ix], varglist[ix+1], 1);
-          garglist[gargnum].array = AddressOfArray(varglist[ix]);
+          garglist[gargnum].array = CaptureCArray(varglist[ix], varglist[ix+1], passin);
           gargnum++;
           ix++;
           garglist[gargnum].uint = varglist[ix];
@@ -519,6 +572,18 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
           }
           verify_array_addresses(varglist[ix], varglist[ix+1], 4);
           garglist[gargnum].array = CaptureIArray(varglist[ix], varglist[ix+1], passin);
+          gargnum++;
+          ix++;
+          garglist[gargnum].uint = varglist[ix];
+          gargnum++;
+          cx++;
+          break;
+        case 'Q':
+          /* This case was added after the giant arrays were deprecated,
+             so we don't bother to allow for that case. We just verify
+             the length. */
+          verify_array_addresses(varglist[ix], varglist[ix+1], 4);
+          garglist[gargnum].array = CapturePtrArray(varglist[ix], varglist[ix+1], (*cx-'a'), passin);
           gargnum++;
           ix++;
           garglist[gargnum].uint = varglist[ix];
@@ -698,7 +763,7 @@ static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
       }
     }
     if (!skipval) {
-      glui32 thisval;
+      glui32 thisval = 0;
 
       if (typeclass == '[') {
 
@@ -710,6 +775,7 @@ static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
 
         switch (typeclass) {
         case 'C':
+          ReleaseCArray(garglist[gargnum].array, varglist[ix], varglist[ix+1], passout);
           gargnum++;
           ix++;
           gargnum++;
@@ -717,6 +783,13 @@ static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
           break;
         case 'I':
           ReleaseIArray(garglist[gargnum].array, varglist[ix], varglist[ix+1], passout);
+          gargnum++;
+          ix++;
+          gargnum++;
+          cx++;
+          break;
+        case 'Q':
+          ReleasePtrArray(garglist[gargnum].array, varglist[ix], varglist[ix+1], (*cx-'a'), passout);
           gargnum++;
           ix++;
           gargnum++;
@@ -863,21 +936,62 @@ strid_t find_stream_by_id(glui32 objid)
     return NULL;
 
   /* Recall that class 1 ("b") is streams. */
-  return classes_get(1, objid);
+  return classes_get(gidisp_Class_Stream, objid);
+}
+
+/* find_id_for_window():
+   Return the ID of a given Glk window.
+*/
+glui32 find_id_for_window(winid_t win)
+{
+  gidispatch_rock_t objrock;
+
+  if (!win)
+    return 0;
+
+  objrock = gidispatch_get_objrock(win, gidisp_Class_Window);
+  return ((classref_t *)objrock.ptr)->id;
 }
 
 /* find_id_for_stream():
-   The converse of find_stream_by_id(). 
-   This is only needed in this file, so it's static.
+   Return the ID of a given Glk stream.
 */
-static glui32 find_id_for_stream(strid_t str)
+glui32 find_id_for_stream(strid_t str)
 {
   gidispatch_rock_t objrock;
 
   if (!str)
     return 0;
 
-  objrock = gidispatch_get_objrock(str, 1);
+  objrock = gidispatch_get_objrock(str, gidisp_Class_Stream);
+  return ((classref_t *)objrock.ptr)->id;
+}
+
+/* find_id_for_fileref():
+   Return the ID of a given Glk fileref.
+*/
+glui32 find_id_for_fileref(frefid_t fref)
+{
+  gidispatch_rock_t objrock;
+
+  if (!fref)
+    return 0;
+
+  objrock = gidispatch_get_objrock(fref, gidisp_Class_Fileref);
+  return ((classref_t *)objrock.ptr)->id;
+}
+
+/* find_id_for_schannel():
+   Return the ID of a given Glk schannel.
+*/
+glui32 find_id_for_schannel(schanid_t schan)
+{
+  gidispatch_rock_t objrock;
+
+  if (!schan)
+    return 0;
+
+  objrock = gidispatch_get_objrock(schan, gidisp_Class_Schannel);
   return ((classref_t *)objrock.ptr)->id;
 }
 
@@ -913,8 +1027,9 @@ static void *classes_get(int classid, glui32 objid)
   return NULL;
 }
 
-/* Put a Glk object in the appropriate hash table. */
-static classref_t *classes_put(int classid, void *obj)
+/* Put a Glk object in the appropriate hash table. If origid is zero,
+   invent a new unique ID for it. */
+static classref_t *classes_put(int classid, void *obj, glui32 origid)
 {
   int bucknum;
   classtable_t *ctab;
@@ -926,8 +1041,15 @@ static classref_t *classes_put(int classid, void *obj)
   if (!cref)
     return NULL;
   cref->obj = obj;
-  cref->id = ctab->lastid;
-  ctab->lastid++;
+  if (!origid) {
+    cref->id = ctab->lastid;
+    ctab->lastid++;
+  }
+  else {
+    cref->id = origid;
+    if (ctab->lastid <= origid)
+      ctab->lastid = origid+1;
+  }
   bucknum = cref->id % CLASSHASH_SIZE;
   cref->bucknum = bucknum;
   cref->next = ctab->bucket[bucknum];
@@ -974,7 +1096,7 @@ static gidispatch_rock_t glulxe_classtable_register(void *obj,
 {
   classref_t *cref;
   gidispatch_rock_t objrock;
-  cref = classes_put(objclass, obj);
+  cref = classes_put(objclass, obj, 0);
   objrock.ptr = cref;
   return objrock;
 }
@@ -985,7 +1107,82 @@ static void glulxe_classtable_unregister(void *obj, glui32 objclass,
   classes_remove(objclass, obj);
 }
 
-static glui32 *grab_temp_array(glui32 addr, glui32 len, int passin)
+gidispatch_rock_t glulxe_classtable_register_existing(void *obj,
+  glui32 objclass, glui32 dispid)
+{
+  classref_t *cref;
+  gidispatch_rock_t objrock;
+  cref = classes_put(objclass, obj, dispid);
+  objrock.ptr = cref;
+  return objrock;
+}
+
+static char *grab_temp_c_array(glui32 addr, glui32 len, int passin)
+{
+  arrayref_t *arref = NULL;
+  char *arr = NULL;
+  glui32 ix, addr2;
+
+  if (len) {
+    arr = (char *)glulx_malloc(len * sizeof(char));
+    arref = (arrayref_t *)glulx_malloc(sizeof(arrayref_t));
+    if (!arr || !arref) 
+      fatal_error("Unable to allocate space for array argument to Glk call.");
+
+    arref->array = arr;
+    arref->addr = addr;
+    arref->elemsize = 1;
+    arref->retained = FALSE;
+    arref->len = len;
+    arref->next = arrays;
+    arrays = arref;
+
+    if (passin) {
+      for (ix=0, addr2=addr; ix<len; ix++, addr2+=1) {
+        arr[ix] = Mem1(addr2);
+      }
+    }
+  }
+
+  return arr;
+}
+
+static void release_temp_c_array(char *arr, glui32 addr, glui32 len, int passout)
+{
+  arrayref_t *arref = NULL;
+  arrayref_t **aptr;
+  glui32 ix, val, addr2;
+
+  if (arr) {
+    for (aptr=(&arrays); (*aptr); aptr=(&((*aptr)->next))) {
+      if ((*aptr)->array == arr)
+        break;
+    }
+    arref = *aptr;
+    if (!arref)
+      fatal_error("Unable to re-find array argument in Glk call.");
+    if (arref->addr != addr || arref->len != len)
+      fatal_error("Mismatched array argument in Glk call.");
+
+    if (arref->retained) {
+      return;
+    }
+
+    *aptr = arref->next;
+    arref->next = NULL;
+
+    if (passout) {
+      for (ix=0, addr2=addr; ix<len; ix++, addr2+=1) {
+        val = arr[ix];
+        MemW1(addr2, val);
+      }
+    }
+    glulx_free(arr);
+    glulx_free(arref);
+  }
+}
+
+static glui32 *grab_temp_i_array(glui32 addr, glui32 len, int passin)
 {
   arrayref_t *arref = NULL;
   glui32 *arr = NULL;
@@ -1015,7 +1212,7 @@ static glui32 *grab_temp_array(glui32 addr, glui32 len, int passin)
   return arr;
 }
 
-static void release_temp_array(glui32 *arr, glui32 addr, glui32 len, int passout)
+static void release_temp_i_array(glui32 *arr, glui32 addr, glui32 len, int passout)
 {
   arrayref_t *arref = NULL;
   arrayref_t **aptr;
@@ -1050,15 +1247,97 @@ static void release_temp_array(glui32 *arr, glui32 addr, glui32 len, int passout
   }
 }
 
-gidispatch_rock_t glulxe_retained_register(void *array,
+static void **grab_temp_ptr_array(glui32 addr, glui32 len, int objclass, int passin)
+{
+  arrayref_t *arref = NULL;
+  void **arr = NULL;
+  glui32 ix, addr2;
+
+  if (len) {
+    arr = (void **)glulx_malloc(len * sizeof(void *));
+    arref = (arrayref_t *)glulx_malloc(sizeof(arrayref_t));
+    if (!arr || !arref) 
+      fatal_error("Unable to allocate space for array argument to Glk call.");
+
+    arref->array = arr;
+    arref->addr = addr;
+    arref->elemsize = sizeof(void *);
+    arref->retained = FALSE;
+    arref->len = len;
+    arref->next = arrays;
+    arrays = arref;
+
+    if (passin) {
+      for (ix=0, addr2=addr; ix<len; ix++, addr2+=4) {
+        glui32 thisval = Mem4(addr2);
+        if (thisval)
+          arr[ix] = classes_get(objclass, thisval);
+        else
+          arr[ix] = NULL;
+      }
+    }
+  }
+
+  return arr;
+}
+
+static void release_temp_ptr_array(void **arr, glui32 addr, glui32 len, int objclass, int passout)
+{
+  arrayref_t *arref = NULL;
+  arrayref_t **aptr;
+  glui32 ix, val, addr2;
+
+  if (arr) {
+    for (aptr=(&arrays); (*aptr); aptr=(&((*aptr)->next))) {
+      if ((*aptr)->array == arr)
+        break;
+    }
+    arref = *aptr;
+    if (!arref)
+      fatal_error("Unable to re-find array argument in Glk call.");
+    if (arref->addr != addr || arref->len != len)
+      fatal_error("Mismatched array argument in Glk call.");
+
+    if (arref->retained) {
+      return;
+    }
+
+    *aptr = arref->next;
+    arref->next = NULL;
+
+    if (passout) {
+      for (ix=0, addr2=addr; ix<len; ix++, addr2+=4) {
+        void *opref = arr[ix];
+        if (opref) {
+          gidispatch_rock_t objrock = 
+            gidispatch_get_objrock(opref, objclass);
+          val = ((classref_t *)objrock.ptr)->id;
+        }
+        else {
+          val = 0;
+        }
+        MemW4(addr2, val);
+      }
+    }
+    glulx_free(arr);
+    glulx_free(arref);
+  }
+}
+
+static gidispatch_rock_t glulxe_retained_register(void *array,
   glui32 len, char *typecode)
 {
   gidispatch_rock_t rock;
   arrayref_t *arref = NULL;
   arrayref_t **aptr;
+  int elemsize = 0;
 
-  if (typecode[4] != 'I' || array == NULL) {
-    /* We only retain integer arrays. */
+  if (typecode[4] == 'C')
+    elemsize = 1;
+  else if (typecode[4] == 'I')
+    elemsize = 4;
+
+  if (!elemsize || array == NULL) {
     rock.ptr = NULL;
     return rock;
   }
@@ -1070,7 +1349,7 @@ gidispatch_rock_t glulxe_retained_register(void *array,
   arref = *aptr;
   if (!arref)
     fatal_error("Unable to re-find array argument in Glk call.");
-  if (arref->elemsize != 4 || arref->len != len)
+  if (arref->elemsize != elemsize || arref->len != len)
     fatal_error("Mismatched array argument in Glk call.");
 
   arref->retained = TRUE;
@@ -1079,15 +1358,20 @@ gidispatch_rock_t glulxe_retained_register(void *array,
   return rock;
 }
 
-void glulxe_retained_unregister(void *array, glui32 len, 
+static void glulxe_retained_unregister(void *array, glui32 len,
   char *typecode, gidispatch_rock_t objrock)
 {
   arrayref_t *arref = NULL;
   arrayref_t **aptr;
   glui32 ix, addr2, val;
+  int elemsize = 0;
 
-  if (typecode[4] != 'I' || array == NULL) {
-    /* We only retain integer arrays. */
+  if (typecode[4] == 'C')
+    elemsize = 1;
+  else if (typecode[4] == 'I')
+    elemsize = 4;
+
+  if (!elemsize || array == NULL) {
     return;
   }
 
@@ -1102,17 +1386,122 @@ void glulxe_retained_unregister(void *array, glui32 len,
     fatal_error("Mismatched array reference in Glk call.");
   if (!arref->retained)
     fatal_error("Unretained array reference in Glk call.");
-  if (arref->elemsize != 4 || arref->len != len)
+  if (arref->elemsize != elemsize || arref->len != len)
     fatal_error("Mismatched array argument in Glk call.");
 
   *aptr = arref->next;
   arref->next = NULL;
 
-  for (ix=0, addr2=arref->addr; ix<arref->len; ix++, addr2+=4) {
-    val = ((glui32 *)array)[ix];
-    MemW4(addr2, val);
+  if (elemsize == 1) {
+    for (ix=0, addr2=arref->addr; ix<arref->len; ix++, addr2+=1) {
+      val = ((char *)array)[ix];
+      MemW1(addr2, val);
+    }
   }
+  else if (elemsize == 4) {
+    for (ix=0, addr2=arref->addr; ix<arref->len; ix++, addr2+=4) {
+      val = ((glui32 *)array)[ix];
+      MemW4(addr2, val);
+    }
+  }
+
   glulx_free(array);
   glulx_free(arref);
+}
+
+static long glulxe_array_locate(void *array, glui32 len,
+  char *typecode, gidispatch_rock_t objrock, int *elemsizeref)
+{
+  arrayref_t *arref = NULL;
+  arrayref_t **aptr;
+  int elemsize = 0;
+
+  if (typecode[4] == 'C')
+    elemsize = 1;
+  else if (typecode[4] == 'I')
+    elemsize = 4;
+
+  if (!elemsize || array == NULL) {
+    *elemsizeref = 0; // No need to save the array separately
+    return (unsigned char *)array - memmap;
+  }
+  
+  for (aptr=(&arrays); (*aptr); aptr=(&((*aptr)->next))) {
+    if ((*aptr)->array == array)
+      break;
+  }
+  arref = *aptr;
+  if (!arref)
+    fatal_error("Unable to re-find array argument in array_locate.");
+  if (arref != objrock.ptr)
+    fatal_error("Mismatched array reference in array_locate.");
+  if (!arref->retained)
+    fatal_error("Unretained array reference in array_locate.");
+  if (arref->elemsize != elemsize || arref->len != len)
+    fatal_error("Mismatched array argument in array_locate.");
+  
+  *elemsizeref = arref->elemsize;
+  return arref->addr;
+}
+
+static gidispatch_rock_t glulxe_array_restore(long bufkey,
+  glui32 len, char *typecode, void **arrayref)
+{
+  gidispatch_rock_t rock;
+  int elemsize = 0;
+
+  if (typecode[4] == 'C')
+    elemsize = 1;
+  else if (typecode[4] == 'I')
+    elemsize = 4;
+
+  if (!elemsize) {
+    unsigned char *buf = memmap + bufkey;
+    *arrayref = buf;
+    rock.ptr = NULL;
+    return rock;
+  }
+
+  if (elemsize == 1) {
+    char *cbuf = grab_temp_c_array(bufkey, len, FALSE);
+    rock = glulxe_retained_register(cbuf, len, typecode);
+    *arrayref = cbuf;
+  }
+  else {
+    glui32 *ubuf = grab_temp_i_array(bufkey, len, FALSE);
+    rock = glulxe_retained_register(ubuf, len, typecode);
+    *arrayref = ubuf;
+  }
+  return rock;
+}
+
+void set_library_select_hook(void (*func)(glui32))
+{
+  library_select_hook = func;
+}
+
+/* Create a string identifying this game. We use the first 64 bytes of the
+   memory map, encoded as hex,
+*/
+static char *get_game_id()
+{
+  /* This buffer gets rewritten on every call, but that's okay -- the caller
+     is supposed to copy out the result. */
+  static char buf[2*64+2];
+  int ix, jx;
+
+  if (!memmap)
+    return NULL;
+
+  for (ix=0, jx=0; ix<64; ix++) {
+    char ch = memmap[ix];
+    int val = ((ch >> 4) & 0x0F);
+    buf[jx++] = ((val < 10) ? (val + '0') : (val + 'A' - 10));
+    val = (ch & 0x0F);
+    buf[jx++] = ((val < 10) ? (val + '0') : (val + 'A' - 10));
+  }
+  buf[jx++] = '\0';
+
+  return buf;
 }
 

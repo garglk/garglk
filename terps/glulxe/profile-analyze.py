@@ -9,7 +9,8 @@ which does nothing but call other functions will be considered uncostly.)
 
 Optionally, this script can also read the debug output of the Inform 6
 compiler (or the assembly output), and use that to figure out the
-names of all the functions that were profiled.
+names of all the functions that were profiled. Both the old and new
+(Inform 6.33) debug file format are supported.
 
 You can also generate profiling output in the same form as dumbfrotz's
 Z-machine profiling output. (If that happens to be what you want.) Use
@@ -24,23 +25,23 @@ Using this script is currently a nuisance. The requirements:
 - Run Glulxe, using the "--profile profile-raw" option. Play some of
   the game, and quit. This generates a data file called "profile-raw".
 - Run this script, giving gameinfo.dbg and profile-raw as arguments.
-  (You can provide dispatch_dump.xml as an optional third argument.
+- You can provide "--glk dispatch_dump.xml" as an optional extra argument.
   This file gives the names of Glk functions; it is available from
-  https://github.com/erkyrath/glk-dev/tree/master/dispatch_dump .)
+  https://github.com/erkyrath/glk-dev/tree/master/dispatch_dump .
 
 To sum up, in command-line form:
 
 % inform -G -k game.inf
 % glulxe --profile profile-raw game.ulx
-% python profile-analyze.py profile-raw gameinfo.dbg dispatch_dump.xml
+% python profile-analyze.py profile-raw gameinfo.dbg --glk dispatch_dump.xml
 
-You can also use the assembly output of the Inform compiler, which you
-get with the -a switch. Save the output and use it instead of the debug
-file:
+You can replace the debug output with the assembly output of the Inform
+compiler, which you get with the -a switch. Save the output and use it
+instead of the debug file:
 
 % inform -G -a game.inf > game.asm
 % glulxe --profile profile-raw game.ulx
-% python profile-analyze.py profile-raw game.asm dispatch_dump.xml
+% python profile-analyze.py profile-raw game.asm --glk dispatch_dump.xml
 
 The limitations:
 
@@ -48,23 +49,17 @@ The profiling code is not smart about VM operations that rearrange the
 call stack. In fact, it's downright stupid. @restart, @restore,
 @restoreundo, or @throw will kill the interpreter.
 
-Inform's -k switch does not work correctly with game files larger than
-16 megabytes.
+The old debug file format (Inform 6.32 and earlier) does not work correctly
+with game files larger than 16 megabytes. 
 
-Inform's -a switch does not display code for veneer functions, so if
-you use that data, these will not be named; they will be listed as
-"<???>". This is a particular nuisance because veneer functions are
-often the most costly ones. (Therefore, you'll almost certainly want
-to use -k.)
-
-If you leave off the "dispatch_dump.xml" argument, everything will
+If you leave off the "--glk dispatch_dump.xml" argument, everything will
 still work, but @glk function entries will be listed by number rather
 than by name.
 
 You can explore the profiling data in more detail by running the script
 interactively:
 
-% python -i profile-analyze.py profile-raw game.asm dispatch_dump.xml
+% python -i profile-analyze.py profile-raw game.asm --glk dispatch_dump.xml
 
 After it runs, you'll be left at a Python prompt. The environment
 will contain mappings called "functions" (mapping addresses to
@@ -133,36 +128,53 @@ by the entire program; its max_depth is zero.
 """
 
 import sys, os.path
+import optparse
 import xml.sax
 from struct import unpack
 
-dumb_frotz_mode = False
+popt = optparse.OptionParser(usage='profile-analyze.py [options] profile-raw [ gameinfo.dbg | game.asm ]')
 
-if ('--dumbfrotz' in sys.argv):
-    sys.argv.remove('--dumbfrotz')
-    dumb_frotz_mode = True
+popt.add_option('--glk',
+                action='store', dest='dispatchfile', metavar='DISPATCH_DUMP',
+                help='path to dispatch_dump.xml file (optional)')
+popt.add_option('--dumbfrotz',
+                action='store_true', dest='dumbfrotz',
+                help='use dumbfrotz-compatible output format')
+popt.add_option('-d', '--debug',
+                action='store_true', dest='debugonly',
+                help='read only the debug data, no profile data')
 
-if (len(sys.argv) < 2):
-    print "Usage: profile-analyze.py [--dumbfrotz] profile-raw [ gameinfo.dbg | game.asm ] [ dispatch_dump.xml ]"
+(opts, args) = popt.parse_args()
+
+if (not args):
+    print 'Usage: profile-analyze.py [--dumbfrotz] [--glk dispatch_dump.xml] profile-raw [ gameinfo.dbg | game.asm ]'
     sys.exit(1)
 
-profile_raw = sys.argv[1]
-if (not os.path.exists(profile_raw)):
-    print 'File not readable:', profile_raw
-    sys.exit(1)
+profile_raw = None
+game_file_data = None
 
-game_asm = None
-if (len(sys.argv) >= 3):
-    game_asm = sys.argv[2]
-    if (not os.path.exists(game_asm)):
-        print 'File not readable:', game_asm
+if not opts.debugonly:
+    # Normal operation
+    profile_raw = args[0]
+    if (not os.path.exists(profile_raw)):
+        print 'File not readable:', profile_raw
         sys.exit(1)
 
-dispatch_dump = None
-if (len(sys.argv) >= 4):
-    dispatch_dump = sys.argv[3]
-    if (not os.path.exists(dispatch_dump)):
-        print 'File not readable:', dispatch_dump
+    if (len(args) >= 2):
+        game_file_data = args[1]
+        if (not os.path.exists(game_file_data)):
+            print 'File not readable:', game_file_data
+            sys.exit(1)
+else:
+    # Debug-only operation
+    game_file_data = args[0]
+    if (not os.path.exists(game_file_data)):
+        print 'File not readable:', game_file_data
+        sys.exit(1)
+
+if (opts.dispatchfile):
+    if (not os.path.exists(opts.dispatchfile)):
+        print 'File not readable:', opts.dispatchfile
         sys.exit(1)
 
 special_functions = {
@@ -250,7 +262,298 @@ class ProfileRawHandler(xml.sax.handler.ContentHandler):
             func = Function(addr, hexaddr, attrs)
             functions[addr] = func
 
-def parse_asm(fl):
+class SFrameHandler:
+    def __init__(self, tag, parent=None, depth=None, children={}, active=None, handler=None):
+        self.tag = tag
+        self.parent = parent
+        self.depth = depth
+        self.children = children
+        self.handler = handler
+        if active is None:
+            active = (handler is not None)
+        self.active = active
+
+class SFrameFrame:
+    def __init__(self, name, attrs, depth):
+        self.name = name
+        self.attrs = attrs
+        self.depth = depth
+        self.children = None
+        self.handler = None
+        self.accumchar = None
+        self.accumobj = None
+
+    def final(self):
+        self.name = None
+        self.attrs = None
+        self.children = None
+        self.handler = None
+        self.accumchar = None
+        self.accumobj = None
+            
+class SimpleXMLFrame(xml.sax.handler.ContentHandler):
+    def __init__(self):
+        xml.sax.handler.ContentHandler.__init__(self)
+        self.sstack = None
+        self.taghandlers = {}
+        self.init()
+
+    def startDocument(self):
+        self.sstack = []
+
+    def endDocument(self):
+        assert len(self.sstack) == 0
+        
+    def startElement(self, name, attrs):
+        parframe = None
+        if self.sstack:
+            parframe = self.sstack[-1]
+            
+        frame = SFrameFrame(name, attrs, len(self.sstack))
+        self.sstack.append(frame)
+
+        parhan = None
+        if parframe and parframe.children:
+            parhan = parframe.children.get(name)
+        if parhan is not None:
+            if type(parhan) is list:
+                parhan = parhan[0]
+            frame.handler = parhan
+            if parhan in (int, str):
+                frame.accumchar = []
+            elif parhan is ():
+                taghan = self.taghandlers[name]
+                frame.handler = taghan
+                frame.children = taghan.children
+                frame.accumobj = {}
+            elif callable(parhan):
+                frame.handler = parhan
+                frame.accumchar = []
+            else:
+                raise Exception('unknown element handler thingie: %s' % (parhan,))
+        else:
+            taghan = self.taghandlers.get(name)
+            if taghan:
+                active = taghan.active
+                if active:
+                    if taghan.parent is not None:
+                        if not (parframe and parframe.name == taghan.parent):
+                            active = False
+                    if taghan.depth is not None:
+                        if not (frame.depth == taghan.depth):
+                            active = False
+                if active:
+                    frame.handler = taghan
+                    frame.children = taghan.children
+                    frame.accumobj = {}
+
+    def characters(self, data):
+        frame = self.sstack[-1]
+        if frame.accumchar is not None:
+            frame.accumchar.append(data)
+
+    def endElement(self, name):
+        frame = self.sstack.pop()
+        assert frame.name == name
+        
+        res = None
+        if frame.handler is None:
+            pass
+        elif frame.handler is str:
+            res = ''.join(frame.accumchar)
+        elif frame.handler is int:
+            val = ''.join(frame.accumchar)
+            res = int(val.strip())
+        elif isinstance(frame.handler, SFrameHandler):
+            if frame.handler.handler:
+                res = frame.handler.handler(frame.name, frame.attrs, frame.accumobj)
+            else:
+                res = frame.accumobj
+        elif callable(frame.handler):
+            val = ''.join(frame.accumchar)
+            res = frame.handler(frame.name, frame.attrs, val)
+        else:
+            raise Exception('unknown element handler thingie: %s' % (frame.handler,))
+        
+        frame.final()
+        
+        if self.sstack and res is not None:
+            parframe = self.sstack[-1]
+            if parframe.accumobj is not None:
+                if type(parframe.children.get(name)) is list:
+                    subls = parframe.accumobj.get(name)
+                    if subls:
+                        subls.append(res)
+                    else:
+                        subls = [ res ]
+                        parframe.accumobj[name] = subls
+                else:
+                    parframe.accumobj[name] = res
+
+    def handle_tag(self, tag, parent=None, depth=None, children={},
+                   active=None, handler=None):
+        self.taghandlers[tag] = SFrameHandler(tag, parent, depth, children, active, handler)
+
+class NewDebugFile:
+    def __init__(self):
+        self.sourcefiles = {}
+        self.constants = {}
+        self.objects = []
+        self.globals = []
+        self.arrays = []
+        self.functions = []
+
+class NewDebugSourceFile:
+    def __init__(self, index, filename):
+        self.index = index
+        self.filename = filename
+    def __repr__(self):
+        return '<SourceFile %d: "%s">' % (self.index, self.filename,)
+
+class NewDebugConstant:
+    def __init__(self, ident, value=None, sourceloc=None):
+        self.id = ident
+        self.value = value
+        if not sourceloc:
+            sourceloc = 'compiler'
+        self.sourceloc = sourceloc
+    def __repr__(self):
+        return '<Constant "%s": %d (%s)>' % (self.id, self.value, self.sourceloc)
+
+class NewDebugObject:
+    def __init__(self, ident, value=None, sourceloc=None, artificial=False):
+        self.id = ident
+        self.value = value
+        if not sourceloc:
+            sourceloc = 'compiler'
+        self.sourceloc = sourceloc
+        self.artificial = '*' if artificial else ''
+    def __repr__(self):
+        return '<Object "%s"%s: %d (%s)>' % (self.id, self.artificial, self.value, self.sourceloc)
+
+class NewDebugGlobal:
+    def __init__(self, ident, address, sourceloc=None):
+        self.id = ident
+        self.address = address
+        if not sourceloc:
+            sourceloc = 'compiler'
+        self.sourceloc = sourceloc
+    def __repr__(self):
+        return '<Global "%s" at %d (%s)>' % (self.id, self.address, self.sourceloc)
+
+class NewDebugArray:
+    def __init__(self, ident, address, bytecount, bytesperel, sourceloc=None):
+        self.id = ident
+        self.address = address
+        self.bytecount = bytecount
+        self.bytesperel = bytesperel
+        self.elcount = bytecount / bytesperel
+        if not sourceloc:
+            sourceloc = 'compiler'
+        self.sourceloc = sourceloc
+    def __repr__(self):
+        return '<Array "%s", %d els of %d bytes (%d total), at %d (%s)>' % (self.id, self.elcount, self.bytesperel, self.bytecount, self.address, self.sourceloc)
+
+class NewDebugFunction:
+    def __init__(self, ident, address, args=(), sourceloc=None, artificial=False):
+        self.id = ident
+        self.address = address
+        self.args = args
+        if not sourceloc:
+            sourceloc = 'veneer'
+        self.sourceloc = sourceloc
+        self.artificial = '*' if artificial else ''
+    def __repr__(self):
+        return '<Function "%s"%s at %d (%s)>' % (self.id, self.artificial, self.address, self.sourceloc)
+
+class NewDebugSourceLoc:
+    def __init__(self, line, fileref=None):
+        self.line = line
+        self.fileref = fileref
+    def __repr__(self):
+        if (isinstance(self.fileref, NewDebugSourceFile)):
+            return '<SourceLoc "%s" line %d>' % (self.fileref.filename, self.line)
+        elif (self.fileref):
+            return '<SourceLoc file #%d, line %d>' % (self.fileref, self.line)
+        else:
+            return '<SourceLoc line %d>' % (self.line,)
+
+class NewDebugHandler(SimpleXMLFrame):
+    def init(self):
+        self._debugfile = NewDebugFile()
+        
+        self.handle_tag('source', parent='inform-story-file',
+                        children={'given-path':str},
+                        handler=self.handle_source_file)
+        self.handle_tag('constant', parent='inform-story-file',
+                        children={'identifier':str, 'value':int, 'source-code-location':()},
+                        handler=self.handle_constant)
+        self.handle_tag('object', parent='inform-story-file',
+                        children={'identifier':self.handle_ident_artificial, 'value':int, 'source-code-location':()},
+                        handler=self.handle_object)
+        self.handle_tag('global-variable', parent='inform-story-file',
+                        children={'identifier':str, 'address':int, 'source-code-location':()},
+                        handler=self.handle_global_var)
+        self.handle_tag('array', parent='inform-story-file',
+                        children={'identifier':str, 'value':int, 'byte-count':int, 'bytes-per-element':int, 'source-code-location':()},
+                        handler=self.handle_array)
+        self.handle_tag('routine', parent='inform-story-file',
+                        children={'identifier':self.handle_ident_artificial, 'address':int, 'source-code-location':(), 'local-variable':[()]},
+                        handler=self.handle_function)
+        self.handle_tag('source-code-location', active=False,
+                        children={'line':int, 'file-index':int},
+                        handler=self.handle_source_code_loc)
+        self.handle_tag('local-variable',
+                        children={'identifier':str})
+
+    def debugfile(self):
+        return self._debugfile
+
+    def handle_source_file(self, name, attrs, obj):
+        srcfile = NewDebugSourceFile(int(attrs['index']), obj['given-path'])
+        self._debugfile.sourcefiles[srcfile.index] = srcfile
+
+    def handle_constant(self, name, attrs, obj):
+        con = NewDebugConstant(obj['identifier'], obj.get('value'), obj.get('source-code-location'))
+        self._debugfile.constants[con.id] = con
+
+    def handle_object(self, name, attrs, obj):
+        (ident, artificial) = obj['identifier']
+        con = NewDebugObject(ident, obj.get('value'), obj.get('source-code-location'), artificial=artificial)
+        self._debugfile.objects.append(con)
+
+    def handle_global_var(self, name, attrs, obj):
+        glob = NewDebugGlobal(obj['identifier'], obj['address'], obj.get('source-code-location'))
+        self._debugfile.globals.append(glob)
+
+    def handle_array(self, name, attrs, obj):
+        arr = NewDebugArray(obj['identifier'], obj['value'], obj['byte-count'], obj['bytes-per-element'], obj.get('source-code-location'))
+        self._debugfile.arrays.append(arr)
+
+    def handle_function(self, name, attrs, obj):
+        (ident, artificial) = obj['identifier']
+        args = obj.get('local-variable')
+        if not args:
+            args = ()
+        else:
+            args = tuple([ loc['identifier'] for loc in args ])
+        func = NewDebugFunction(ident, obj['address'], args, obj.get('source-code-location'), artificial=artificial)
+        self._debugfile.functions.append(func)
+
+    def handle_ident_artificial(self, name, attrs, obj):
+        artificial = attrs.get('artificial')
+        return (obj.strip(), artificial)
+
+    def handle_source_code_loc(self, name, attrs, obj):
+        fileref = obj.get('file-index')
+        if fileref is not None:
+            srcfile = self._debugfile.sourcefiles.get(fileref)
+            if srcfile:
+                fileref = srcfile
+        return NewDebugSourceLoc(obj['line'], fileref)
+
+            
+def parse_inform_assembly(fl):
     global sourcemap
     sourcemap = {}
     
@@ -478,85 +781,113 @@ class DebugFile:
             self.functions[funcnum] = func
         return func
                         
-# Begin the work
+# Read in the various files
             
-if (dispatch_dump):
-    xml.sax.parse(dispatch_dump, DispatchDumpHandler())
-        
-xml.sax.parse(profile_raw, ProfileRawHandler())
+if (opts.dispatchfile):
+    # Fills out the glk_functions global
+    xml.sax.parse(opts.dispatchfile, DispatchDumpHandler())
 
-source_start = min([ func.addr for func in functions.values()
-    if not func.special ])
+if (profile_raw):
+    # Fills out the functions global
+    xml.sax.parse(profile_raw, ProfileRawHandler())
 
-if (not dumb_frotz_mode):
-    print 'Code segment begins at', hex(source_start)
-    print len(functions), 'called functions found in', profile_raw
-
-if (game_asm):
-    fl = open(game_asm, 'rb')
+if (game_file_data):
+    # Fill out the sourcemap global, by one of various methods
+    need_function_address_offset = False
+    fl = open(game_file_data, 'rb')
     val = fl.read(2)
     fl.close()
     if (not val):
         pass
     elif (val == '\xde\xbf'):
-        fl = open(game_asm, 'rb')
+        need_function_address_offset = True
+        fl = open(game_file_data, 'rb')
         debugfile = DebugFile(fl)
         fl.close()
         sourcemap = {}
         for func in debugfile.functions.values():
-            sourcemap[func.addr] = ( func.linenum[1], func.name)
+            sourcemap[func.addr] = ( func.linenum[1], func.name )
+    elif (val == '<?'):
+        han = NewDebugHandler()
+        xml.sax.parse(game_file_data, han)
+        debugfile = han.debugfile()
+        sourcemap = {}
+        for func in debugfile.functions:
+            linenum = 0
+            if func.sourceloc and isinstance(func.sourceloc, NewDebugSourceLoc):
+                linenum = func.sourceloc.line
+            sourcemap[func.address] = ( linenum, func.id )
     else:
-        fl = open(game_asm, 'rU')
-        parse_asm(fl)
+        need_function_address_offset = True
+        fl = open(game_file_data, 'rU')
+        parse_inform_assembly(fl)
         fl.close()
 
-if (sourcemap):
-    badls = []
-
-    for (addr, func) in functions.items():
-        if (func.special):
-            continue
-        tup = sourcemap.get(addr-source_start)
-        if (not tup):
-            badls.append(addr)
-            continue
-        (linenum, funcname) = tup
-        func.name = funcname
-        func.linenum = linenum
+if (profile_raw):
+    # If there is profile data, display it.
     
-    if (not dumb_frotz_mode):
-        if (badls):
-            print len(badls), 'functions from', profile_raw, 'did not appear in asm (veneer functions)'
+    source_start = min([ func.addr for func in functions.values()
+        if not func.special ])
+
+    # For old debug formats, all the function addresses are relative to
+    # the start of function memory. For the new format, they're all
+    # correct as-is.
+    if need_function_address_offset:
+        function_address_offset = source_start
+    else:
+        function_address_offset = 0
     
-    function_names = {}
-    for func in functions.values():
-        function_names[func.name] = func
-
-if (sourcemap):
-    uncalled_funcs = [ funcname for (addr, (linenum, funcname)) in sourcemap.items() if (addr+source_start) not in functions ]
-    if (not dumb_frotz_mode):
-        print len(uncalled_funcs), 'functions found in', game_asm, 'were never called'
-
-if (dumb_frotz_mode):
-    ls = functions.values()
-    ls.sort(lambda x1, x2: cmp(x2.total_ops, x1.total_ops))
-    ops_executed = 0
-    routine_calls = 0
-    max_stack_use = max([func.max_stack_use for func in ls])
-    for func in ls:
-        if (func.total_ops > ops_executed):
-            ops_executed = func.total_ops
-        routine_calls = routine_calls + func.call_count
-    print 'Total opcodes: %lu' % ops_executed
-    print 'Total routine calls: %lu' % routine_calls
-    print 'Max. stack usage: %li' % max_stack_use
-    print ''
-    print '%-35s      %-10s      %-10s %-10s %-4s' % ('Routine', 'Ops', 'Ops(+Subs)', 'Calls', 'Nest')
-    for func in ls:
-        func.dump_dumbfrotz_style()
-else:
-    print 'Functions that consumed the most time (excluding children):'
-    ls = functions.values()
-    ls.sort(lambda x1, x2: cmp(x2.self_time, x1.self_time))
-    for func in ls[:10]:
-        func.dump()
+    if (not opts.dumbfrotz):
+        print 'Code segment begins at', hex(source_start)
+        print len(functions), 'called functions found in', profile_raw
+    
+    if (sourcemap):
+        badls = []
+    
+        for (addr, func) in functions.items():
+            if (func.special):
+                continue
+            tup = sourcemap.get(addr-function_address_offset)
+            if (not tup):
+                badls.append(addr)
+                continue
+            (linenum, funcname) = tup
+            func.name = funcname
+            func.linenum = linenum
+        
+        if (not opts.dumbfrotz):
+            if (badls):
+                print len(badls), 'functions from', profile_raw, 'did not appear in asm (veneer functions)'
+        
+        function_names = {}
+        for func in functions.values():
+            function_names[func.name] = func
+    
+    if (sourcemap):
+        uncalled_funcs = [ funcname for (addr, (linenum, funcname)) in sourcemap.items() if (addr+function_address_offset) not in functions ]
+        if (not opts.dumbfrotz):
+            print len(uncalled_funcs), 'functions found in', game_file_data, 'were never called'
+    
+    if (opts.dumbfrotz):
+        ls = functions.values()
+        ls.sort(lambda x1, x2: cmp(x2.total_ops, x1.total_ops))
+        ops_executed = 0
+        routine_calls = 0
+        max_stack_use = max([func.max_stack_use for func in ls])
+        for func in ls:
+            if (func.total_ops > ops_executed):
+                ops_executed = func.total_ops
+            routine_calls = routine_calls + func.call_count
+        print 'Total opcodes: %lu' % ops_executed
+        print 'Total routine calls: %lu' % routine_calls
+        print 'Max. stack usage: %li' % max_stack_use
+        print ''
+        print '%-35s      %-10s      %-10s %-10s %-4s' % ('Routine', 'Ops', 'Ops(+Subs)', 'Calls', 'Nest')
+        for func in ls:
+            func.dump_dumbfrotz_style()
+    else:
+        print 'Functions that consumed the most time (excluding children):'
+        ls = functions.values()
+        ls.sort(lambda x1, x2: cmp(x2.self_time, x1.self_time))
+        for func in ls[:10]:
+            func.dump()

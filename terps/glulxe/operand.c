@@ -31,8 +31,8 @@ static int array_LLLS[4] = { modeform_Load, modeform_Load, modeform_Load, modefo
 static operandlist_t list_LLLS = { 4, 4, array_LLLS };
 static int array_LLLLS[5] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Store };
 static operandlist_t list_LLLLS = { 5, 4, array_LLLLS };
-static int array_LLLLLS[6] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Store };
-static operandlist_t list_LLLLLS = { 6, 4, array_LLLLLS };
+/* static int array_LLLLLS[6] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Store };
+static operandlist_t list_LLLLLS = { 6, 4, array_LLLLLS }; */ /* not currently used */
 static int array_LLLLLLS[7] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Store };
 static operandlist_t list_LLLLLLS = { 7, 4, array_LLLLLLS };
 static int array_LLLLLLLS[8] = { modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Load, modeform_Store };
@@ -431,6 +431,7 @@ void parse_operands(oparg_t *args, operandlist_t *oplist)
         break;
 
       default:
+        value = 0;
         fatal_error("Unknown addressing mode in load operand.");
       }
 
