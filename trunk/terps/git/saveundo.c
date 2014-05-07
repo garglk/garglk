@@ -261,10 +261,13 @@ static void reserveSpace (git_uint32 n)
         else
         {
             assert (u == gUndo);
-            gUndo = NULL;
+            if (n > 0)
+            {
+                gUndo = NULL;
 
-            deleteRecord (u);
-            assert (gUndoSize == 0);
+                deleteRecord (u);
+                assert (gUndoSize == 0);
+            }
             break;
         }
     }
