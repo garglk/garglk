@@ -30,6 +30,10 @@ glui32 localsbase;
 glui32 endmem;
 glui32 protectstart, protectend;
 
+/* This is not needed for VM operation, but it may be needed for
+   autosave/autorestore. */
+glui32 prevpc;
+
 void (*stream_char_handler)(unsigned char ch);
 void (*stream_unichar_handler)(glui32 ch);
 
@@ -43,6 +47,7 @@ void setup_vm()
   int res;
 
   pc = 0; /* Clear this, so that error messages are cleaner. */
+  prevpc = 0;
 
   /* Read in all the size constants from the game file header. */
 
@@ -51,6 +56,9 @@ void setup_vm()
 
   glk_stream_set_position(gamefile, gamefile_start+8, seekmode_Start);
   res = glk_get_buffer_stream(gamefile, (char *)buf, 4 * 7);
+  if (res != 4 * 7) {
+    fatal_error("The game file header is too short.");
+  }
   
   ramstart = Read4(buf+0);
   endgamefile = Read4(buf+4);
@@ -72,6 +80,11 @@ void setup_vm()
     || (stacksize & 0xFF)) {
     nonfatal_warning("One of the segment boundaries in the header is not "
       "256-byte aligned.");
+  }
+
+  if (endgamefile != gamefile_len) {
+    nonfatal_warning("The gamefile length does not match the header "
+      "endgamefile length.");
   }
 
   if (ramstart < 0x100 || endgamefile < ramstart || origendmem < endgamefile) {
@@ -111,6 +124,8 @@ void setup_vm()
 */
 void finalize_vm()
 {
+  stream_set_table(0);
+
   if (memmap) {
     glulx_free(memmap);
     memmap = NULL;
@@ -119,6 +134,8 @@ void finalize_vm()
     glulx_free(stack);
     stack = NULL;
   }
+
+  final_serial();
 }
 
 /* vm_restart(): 
@@ -158,6 +175,7 @@ void vm_restart()
   stackptr = 0;
   frameptr = 0;
   pc = 0;
+  prevpc = 0;
   stream_set_iosys(0, 0);
   stream_set_table(origstringtable);
   valstackbase = 0;

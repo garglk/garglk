@@ -6,12 +6,24 @@
 #include "glk.h"
 #include "glulxe.h"
 
+int vm_exited_cleanly = TRUE;
 strid_t gamefile = NULL; /* The stream containing the Glulx file. */
 glui32 gamefile_start = 0; /* The position within the stream. (This will not 
     be zero if the Glulx file is a chunk inside a Blorb archive.) */
 glui32 gamefile_len = 0; /* The length within the stream. */
 char *init_err = NULL;
 char *init_err2 = NULL;
+
+/* The library_start_hook is called at the beginning of glk_main. This
+   is not normally necessary -- the library can do all its setup work
+   before calling glk_main -- but iosglk has some weird cases which
+   require it. */
+static void (*library_start_hook)(void) = NULL;
+/* The library_autorestore_hook is called right after the VM's initial
+   setup. This is an appropriate time to autorestore an initial game
+   state, if the library has that capability. (Currently, only iosglk
+   does.) */
+static void (*library_autorestore_hook)(void) = NULL;
 
 static winid_t get_error_win(void);
 static void stream_hexnum(glsi32 val);
@@ -22,6 +34,11 @@ static void stream_hexnum(glsi32 val);
 */
 void glk_main()
 {
+  vm_exited_cleanly = FALSE;
+  
+  if (library_start_hook)
+    library_start_hook();
+  
   if (init_err) {
     fatal_error_2(init_err, init_err2);
     return;
@@ -46,11 +63,29 @@ void glk_main()
   }
 
   setup_vm();
+  if (library_autorestore_hook)
+    library_autorestore_hook();
   execute_loop();
   finalize_vm();
 
+  gamefile = NULL;
+  gamefile_start = 0;
+  gamefile_len = 0;
+  init_err = NULL;
+  vm_exited_cleanly = TRUE;
+  
   profile_quit();
   glk_exit();
+}
+
+void set_library_start_hook(void (*func)(void))
+{
+  library_start_hook = func;
+}
+
+void set_library_autorestore_hook(void (*func)(void))
+{
+  library_autorestore_hook = func;
 }
 
 /* get_error_win():

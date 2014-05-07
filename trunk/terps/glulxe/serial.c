@@ -33,7 +33,7 @@ int max_undo_level = 8;
 
 static int undo_chain_size = 0;
 static int undo_chain_num = 0;
-unsigned char **undo_chain = NULL;
+static unsigned char **undo_chain = NULL;
 
 static glui32 write_memstate(dest_t *dest);
 static glui32 write_heapstate(dest_t *dest, int portable);
@@ -63,6 +63,23 @@ int init_serial()
     return FALSE;
 
   return TRUE;
+}
+
+/* final_serial():
+   Clean up memory when the VM shuts down.
+*/
+void final_serial()
+{
+  if (undo_chain) {
+    int ix;
+    for (ix=0; ix<undo_chain_num; ix++) {
+      glulx_free(undo_chain[ix]);
+    }
+    glulx_free(undo_chain);
+  }
+  undo_chain = NULL;
+  undo_chain_size = 0;
+  undo_chain_num = 0;
 }
 
 /* perform_saveundo():
@@ -242,7 +259,7 @@ glui32 perform_save(strid_t str)
   int ix;
   glui32 res, lx, val;
   glui32 memstart, memlen, stackstart, stacklen, heapstart, heaplen;
-  glui32 filestart, filelen;
+  glui32 filestart=0, filelen;
 
   stream_get_iosys(&val, &lx);
   if (val != 2) {
@@ -371,8 +388,12 @@ glui32 perform_save(strid_t str)
    1 on failure. Note that if it succeeds, the frameptr, localsbase,
    and valstackbase registers are invalid; they must be rebuilt from
    the stack.
+ 
+   If fromshell is true, the restore is being invoked by the library
+   shell (an autorestore of some kind). This currently happens only in
+   iosglk.
 */
-glui32 perform_restore(strid_t str)
+glui32 perform_restore(strid_t str, int fromshell)
 {
   dest_t dest;
   int ix;
@@ -382,9 +403,10 @@ glui32 perform_restore(strid_t str)
   glui32 *heapsumarr = NULL;
 
   stream_get_iosys(&val, &lx);
-  if (val != 2) {
+  if (val != 2 && !fromshell) {
     /* Not using the Glk I/O system, so bail. This function only
-       knows how to read from a Glk stream. */
+       knows how to read from a Glk stream. (But in the autorestore
+       case, iosys hasn't been set yet, so ignore this test.) */
     fatal_error("Streams are only available in Glk I/O system.");
   }
 
@@ -424,7 +446,7 @@ glui32 perform_restore(strid_t str)
 
   while (res == 0 && dest.pos < filestart+filelen) {
     /* Read a chunk and deal with it. */
-    glui32 chunktype, chunkstart, chunklen;
+    glui32 chunktype=0, chunkstart=0, chunklen=0;
     unsigned char dummy;
 
     if (res == 0) {
@@ -748,8 +770,8 @@ static glui32 write_heapstate_sub(glui32 sumlen, glui32 *sumarray,
 
 static int sort_heap_summary(void *p1, void *p2)
 {
-  glui32 *v1 = (glui32 *)p1;
-  glui32 *v2 = (glui32 *)p2;
+  glui32 v1 = *(glui32 *)p1;
+  glui32 v2 = *(glui32 *)p2;
 
   if (v1 < v2)
     return -1;

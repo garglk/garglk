@@ -6,6 +6,9 @@
 #ifndef _GLULXE_H
 #define _GLULXE_H
 
+/* Import definitions for glui32, glsi32, and other Glk types. */
+#include "glk.h"
+
 /* We define our own TRUE and FALSE and NULL, because ANSI
    is a strange world. */
 #ifndef TRUE
@@ -18,17 +21,28 @@
 #define NULL 0
 #endif
 
-/* You may have to edit the definition of glui16 to make sure it's really a
-   16-bit unsigned integer type, and glsi16 to make sure it's really a
-   16-bit signed integer type. If they're not, horrible things will happen. */
-typedef unsigned short glui16; 
-typedef signed short glsi16; 
+/* If glk.h defined GLK_ATTRIBUTE_NORETURN, great, we'll use it.
+   (This is a function attribute for functions that never return, e.g
+   glk_exit().) If we have an older glk.h, that definition is missing,
+   so we define it as a blank stub. */
+#ifndef GLK_ATTRIBUTE_NORETURN
+#define GLK_ATTRIBUTE_NORETURN
+#endif // GLK_ATTRIBUTE_NORETURN
 
-/* Uncomment this definition to turn on memory-address checking. In
-   this mode, all reads and writes to main memory will be checked to
-   ensure they're in range. This is slower, but prevents malformed
+/* If your system does not have <stdint.h>, you'll have to remove this
+    include line. Then edit the definition of glui16 to make sure it's
+    really a 16-bit unsigned integer type, and glsi16 to make sure
+    it's really a 16-bit signed integer type. If they're not, horrible
+    things will happen. */
+#include <stdint.h>
+typedef uint16_t glui16;
+typedef int16_t glsi16;
+
+/* Comment this definition to turn off memory-address checking. With
+   verification on, all reads and writes to main memory will be checked
+   to ensure they're in range. This is slower, but prevents malformed
    game files from crashing the interpreter. */
-/* #define VERIFY_MEMORY_ACCESS (1) */
+#define VERIFY_MEMORY_ACCESS (1)
 
 /* Uncomment this definition to turn on Glulx VM profiling. In this
    mode, all function calls are timed, and the timing information is
@@ -126,6 +140,7 @@ typedef struct operandlist_struct {
 
 /* Some useful globals */
 
+extern int vm_exited_cleanly;
 extern strid_t gamefile;
 extern glui32 gamefile_start, gamefile_len;
 extern char *init_err, *init_err2;
@@ -148,12 +163,15 @@ extern glui32 valstackbase;
 extern glui32 localsbase;
 extern glui32 endmem;
 extern glui32 protectstart, protectend;
+extern glui32 prevpc;
 
 extern void (*stream_char_handler)(unsigned char ch);
 extern void (*stream_unichar_handler)(glui32 ch);
 
 /* main.c */
-extern void fatal_error_handler(char *str, char *arg, int useval, glsi32 val);
+extern void set_library_start_hook(void (*)(void));
+extern void set_library_autorestore_hook(void (*)(void));
+extern void fatal_error_handler(char *str, char *arg, int useval, glsi32 val) GLK_ATTRIBUTE_NORETURN;
 extern void nonfatal_warning_handler(char *str, char *arg, int useval, glsi32 val);
 #define fatal_error(s)  (fatal_error_handler((s), NULL, FALSE, 0))
 #define fatal_error_2(s1, s2)  (fatal_error_handler((s1), (s2), FALSE, 0))
@@ -218,9 +236,11 @@ extern int heap_apply_summary(glui32 valcount, glui32 *summary);
 extern void heap_sanity_check(void);
 
 /* serial.c */
+extern int max_undo_level;
 extern int init_serial(void);
+extern void final_serial(void);
 extern glui32 perform_save(strid_t str);
-extern glui32 perform_restore(strid_t str);
+extern glui32 perform_restore(strid_t str, int fromshell);
 extern glui32 perform_saveundo(void);
 extern glui32 perform_restoreundo(void);
 extern glui32 perform_verify(void);
@@ -249,9 +269,14 @@ extern void glulx_sort(void *addr, int count, int size,
 extern glui32 do_gestalt(glui32 val, glui32 val2);
 
 /* glkop.c */
+extern void set_library_select_hook(void (*func)(glui32));
 extern int init_dispatch(void);
 extern glui32 perform_glk(glui32 funcnum, glui32 numargs, glui32 *arglist);
 extern strid_t find_stream_by_id(glui32 objid);
+extern glui32 find_id_for_window(winid_t win);
+extern glui32 find_id_for_stream(strid_t str);
+extern glui32 find_id_for_fileref(frefid_t fref);
+extern glui32 find_id_for_schannel(schanid_t schan);
 
 /* profile.c */
 extern void setup_profile(strid_t stream, char *filename);

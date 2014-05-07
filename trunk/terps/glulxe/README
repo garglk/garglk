@@ -1,5 +1,5 @@
 Glulxe: the Glulx VM interpreter
-Version 0.4.7
+Version 0.5.2
 
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glulx/index.html
@@ -34,14 +34,37 @@ comment out the "#define FLOAT_SUPPORT" line in glulxe.h.
 
 * Version
 
-0.4.7:
+0.5.2 (Mar 27, 2014):
+    Added acceleration functions 8 through 13, which work correctly when
+    NUM_ATTR_BYTES is changed.
+
+0.5.1 (Mar 10, 2013):
+    Fixed a bug in glkop.c that prevented get_buffer_stream() from
+    working right.
+    Updated profile-analyze.py to understand the upcoming, updated I6
+    debug file format. (See http://inform7.com/mantis/view.php?id=1073)
+    The old format is still supported.
+
+0.5.0 (Oct 18, 2012):
+    Turned on memory-range checking in the default build. (Should have
+    done this years ago.)
+    Fixed a bug where @setmemsize could crash an open char memory stream
+    or char line input request.
+    Updated glkop.c to handle arrays of Glk objects. (This is needed to
+    support glk_schannel_play_multi().)
+    Added hooks for the library to execute at startup and select time.
+    Added a hook which allows the library to get and pass on a game ID
+    string.
+    Clean up all memory allocation when the VM exits.
+
+0.4.7 (Oct 10, 2011):
     Abstracted powf() to an osdepend wrapper. (Needed for Windows.)
     Fixed a @ceil bug, for some C math libraries.
     Improved the profiling system in several ways.
     Fixed a bug in glkop.c dispatching, to do with optional array
     arguments.
 
-0.4.6:
+0.4.6 (Aug 17, 2010):
     Added floating-point math feature.
     Updated winstart.c. (Thanks David Kinder.)
     Fixed @random even more, on Windows.
@@ -49,7 +72,7 @@ comment out the "#define FLOAT_SUPPORT" line in glulxe.h.
     @getiosys works right when the two store operands are different
     variable types. (E.g., one local and one global.)
 
-0.4.5:
+0.4.5 (Nov 23, 2009):
     VERIFY_MEMORY_ACCESS now detects writes to the ROM section of memory.
     Fixed off-by-eight bug in @astorebit and @aloadbit with negative bit
     numbers.
@@ -62,13 +85,13 @@ comment out the "#define FLOAT_SUPPORT" line in glulxe.h.
     in the future, it will be a fatal error.
     Better fix for the @random bug.
 
-0.4.4:
+0.4.4 (Mar 11, 2009):
     Added profiling code, which is turned off by default. To compile it 
     in, define VM_PROFILING in Makefile or in glulxe.h.
     Added function-accleration feature.
     Fixed bug where @random 0 was returning only positive numbers.
 
-0.4.3:
+0.4.3 (Jan 23, 2008):
     Verify the presence of Unicode calls in the Glk library at runtime.
     (Thanks Simon Baldwin.)
     Added a compile-time option to check for invalid memory accesses.
@@ -78,45 +101,45 @@ comment out the "#define FLOAT_SUPPORT" line in glulxe.h.
     Fixed a linked-list handling error for Glk unicode arrays. (Thanks
     David Kinder.)
 
-0.4.2:
+0.4.2 (Feb 15, 2007):
     Fixed a bug that preventing compiling with old (pre-Unicode) Glk
     libraries.
 
-0.4.1:
+0.4.1 (Feb 11, 2007):
     Added array copy and heap allocation functionality. (Glulx spec 
     3.1.0.)
 
-0.4.0:
+0.4.0 (Aug 13, 2006):
     Added Unicode functionality. (Glulx spec 3.0.0.)
 
-0.3.5:
+0.3.5 (Aug 24, 2000):
     Fixed El-Stupido bug in the modulo opcode.
 
-0.3.4:
+0.3.4 (Jul 11, 2000):
     Finally supports string arguments to Glk calls.
 
-0.3.3:
+0.3.3 (Mar 29, 2000):
     Added setiosys, getiosys opcodes.
     Fixed bug in binarysearch.
 
-0.3.2:
+0.3.2 (Feb 21, 2000):
     Added search, jumpabs, callf, and gestalt opcodes.
 
-0.3.1:
+0.3.1 (Aug 23, 1999):
     Startup code now handles Blorb files correctly.
 
-0.3.0:
+0.3.0 (Aug 17, 1999):
     Added support for compressed strings.
 
-0.2.2:
+0.2.2 (Jun 15, 1999):
     Another pre-release version.
 
-0.2.0:
+0.2.0 (May 30, 1999):
     A pre-release version.
 
 * Permissions
 
-The source code in this package is copyright 1999-2010 by Andrew Plotkin.
+The source code in this package is copyright 1999-2012 by Andrew Plotkin.
 You may copy and distribute it freely, by any means and under any conditions,
 as long as the code and documentation is not changed. You may also
 incorporate this code into your own program and distribute that, or modify
