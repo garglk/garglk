@@ -62,7 +62,7 @@ int winglk_startup_code(const char* cmdline)
 }
 
 #define CACHE_SIZE (256 * 1024)
-#define UNDO_SIZE (768 * 1024)
+#define UNDO_SIZE (2 * 1024 * 1024)
 
 void fatalError (const char * s)
 {

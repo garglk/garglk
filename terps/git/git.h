@@ -21,13 +21,8 @@
 #define _str2(s) #s
 #define _str(s) _str2(s)
 
-#if GIT_PATCH == 0
-#define GIT_VERSION_STR \
-_str(GIT_MAJOR) "." _str(GIT_MINOR)
-#else
 #define GIT_VERSION_STR \
 _str(GIT_MAJOR) "." _str(GIT_MINOR) "." _str(GIT_PATCH)
-#endif
 
 // git.c
 

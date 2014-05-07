@@ -32,7 +32,7 @@ Boolean macglk_startup_code(macglk_startup_t *data)
 }
 
 #define CACHE_SIZE (256 * 1024L)
-#define UNDO_SIZE (768 * 1024L)
+#define UNDO_SIZE (2 * 1024 * 1024L)
 
 void glk_main ()
 {

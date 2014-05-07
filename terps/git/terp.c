@@ -51,6 +51,9 @@ int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
 }
 
 #ifdef USE_OWN_POWF
+float git_powf(float x, float y);
+
+#ifdef GARGLK
 float git_powf(float x, float y)
 {
   if (x == 1.0f)
@@ -61,6 +64,8 @@ float git_powf(float x, float y)
     return 1.0f;
   return powf(x,y);
 }
+#endif
+
 #endif
 
 // -------------------------------------------------------------

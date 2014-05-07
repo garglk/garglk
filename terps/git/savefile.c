@@ -18,8 +18,8 @@ static git_uint32 readWord (strid_t file)
 
 static int sort_heap_summary(const void *p1, const void *p2)
 {
-    const glui32 *v1 = (const glui32 *)p1;
-    const glui32 *v2 = (const glui32 *)p2;
+    glui32 v1 = *((const glui32 *)p1);
+    glui32 v2 = *((const glui32 *)p2);
 
     if (v1 < v2)
         return -1;

@@ -8,8 +8,6 @@
 #include <glk.h>
 #include <glkstart.h> // This comes with the Glk library.
 
-#include <string.h>
-
 #ifdef USE_MMAP
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -25,11 +23,14 @@ glkunix_argumentlist_t glkunix_arguments[] =
 };
 
 #define CACHE_SIZE (256 * 1024L)
-#define UNDO_SIZE (512 * 1024L)
-
-int gHasInited = 0;
+#define UNDO_SIZE (2 * 1024 * 1024L)
 
 #ifdef GARGLK
+
+#include <string.h>
+
+int gHasInited = 0;
+char * gStartupError = 0;
 
 void fatalError (const char * s)
 {
@@ -60,7 +61,6 @@ void fatalError (const char * s)
 // Fast loader that uses some fancy Unix features.
 
 const char * gFilename = 0;
-char * gStartupError = 0;
 
 int glkunix_startup_code(glkunix_startup_t *data)
 {
@@ -77,8 +77,13 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
     if (data->argc <= 1)
     {
+#ifdef GARGLK
         gStartupError = "No file given";
         return 1;
+#else
+        printf ("usage: git gamefile.ulx\n");
+        return 0;
+#endif
     }
 
 #ifdef GARGLK
@@ -100,9 +105,11 @@ void glk_main ()
     int          file;
     struct stat  info;
     const char * ptr;
-
+    
+#ifdef GARGLK
 	if (gStartupError)
 		fatalError(gStartupError);
+#endif
 
     file = open (gFilename, O_RDONLY);
     if (file < 0)
@@ -112,28 +119,41 @@ void glk_main ()
         goto error;
     
     if (info.st_size < 256)
-		fatalError("This is too small to be a glulx file.");
+    {
+#ifdef GARGLK
+        fatalError("This is too small to be a glulx file.");
+#else
+        fprintf (stderr, "This is too small to be a glulx file.\n");
+        exit (1);
+#endif
+    }
 
     ptr = mmap (NULL, info.st_size, PROT_READ, MAP_PRIVATE, file, 0);
     if (ptr == MAP_FAILED)
         goto error;
 
+#ifdef GARGLK
 	gHasInited = 1;
+#endif
         
     git (ptr, info.st_size, CACHE_SIZE, UNDO_SIZE);
     munmap ((void*) ptr, info.st_size);
     return;
     
 error:
-	sprintf(errmsg, "git: %s", strerror(errno));
+#ifdef GARGLK
+    sprintf(errmsg, "git: %s", strerror(errno));
     fatalError(errmsg);
+#else
+    perror ("git");
+    exit (errno);
+#endif
 }
 
 #else
 // Generic loader that should work anywhere.
 
 strid_t gStream = 0;
-char * gStartupError = 0;
 
 int glkunix_startup_code(glkunix_startup_t *data)
 {
@@ -150,8 +170,13 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
     if (data->argc <= 1)
     {
+#ifdef GARGLK
         gStartupError = "No file given";
         return 1;
+#else
+        printf ("usage: git gamefile.ulx\n");
+        return 0;
+#endif
     }
 
 #ifdef GARGLK
@@ -170,13 +195,17 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 void glk_main ()
 {
+#ifdef GARGLK
 	if (gStartupError)
 		fatalError(gStartupError);
+#endif
 
     if (gStream == NULL)
         fatalError ("could not open game file");
 
-	gHasInited = 1;
+#ifdef GARGLK
+    gHasInited = 1;
+#endif
 
     gitWithStream (gStream, CACHE_SIZE, UNDO_SIZE);
 }

@@ -18,7 +18,7 @@ Have fun, and let me know what you think!
   iain@diden.net
 
   David Kinder (Current maintainer)
-  davidk.kinder@virgin.net
+  davidk@davidkinder.co.uk
 
 --------------------------------------------------------------------------------
 
@@ -191,6 +191,22 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 --------------------------------------------------------------------------------
 
 * Version History
+
+1.3.3 2014-03-15  Added acceleration functions 8 through 13, which work
+                  correctly when the Inform 6 compiler setting NUM_ATTR_BYTES
+                  is changed, contributed by Andrew Plotkin.
+
+1.3.2 2013-03-26  A further fix to glkop.c, following the similar fix added to
+                  Glulxe 0.5.1.
+                  Increased the default undo buffer size in all ports to 2Mb.
+
+1.3.1 2012-11-09  Further fixes to glkop.c, following similar fixes added to
+                  Glulxe 0.5.0.
+
+1.3.0 2011-12-16  Fixed a bug in glkop.c dispatching, to do with arrays
+                  of opaque objects, following a similar fix in Glulxe.
+                  Fixed a problem with the memory heap not being sorted
+                  correctly on restore, contributed by Brady Garvin.
 
 1.2.9 2011-08-28  Fixed a bug in glkop.c dispatching, to do with optional
                   array arguments, following a similar fix in Glulxe.
