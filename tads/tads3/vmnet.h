@@ -1138,7 +1138,7 @@ public:
     {
         /*
          *   Add a reference to the message on behalf of our caller.  The
-         *   caller's original reference is about to be transfered to the
+         *   caller's original reference is about to be transferred to the
          *   queue (and later to the recipient) via post(), but the caller
          *   also wants to hang on to the message, so it needs a second
          *   reference for its own copy. 
