@@ -700,6 +700,8 @@ picture_t *gli_picture_load(unsigned long id);
 void gli_picture_store(picture_t *pic);
 picture_t *gli_picture_retrieve(unsigned long id, int scaled);
 picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
+void gli_picture_increment(picture_t *pic);
+void gli_picture_decrement(picture_t *pic);
 void gli_piclist_increment(void);
 void gli_piclist_decrement(void);
 
