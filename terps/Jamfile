@@ -395,7 +395,7 @@ if $(MAKE_NITFOL) = yes
     SubDir TOP terps nitfol ;
     ObjDir nitfol ;
 
-    SubDirCcFlags -DSMART_TOKENISER -DDEBUGGING -DFAST -DUSE_INLINE -DNO_TICK ;
+    SubDirCcFlags -fgnu89-inline -DSMART_TOKENISER -DDEBUGGING -DFAST -DUSE_INLINE -DNO_TICK ;
 
     Main $(GARGLKPRE)nitfol : 
         automap.c solve.c infix.c copying.c debug.c inform.c quetzal.c
