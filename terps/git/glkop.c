@@ -63,10 +63,15 @@
     (((addr) == 0xffffffff) \
       ? (gStackPointer -= 1, Stk4(gStackPointer)) \
       : (memRead32(addr)))
-#define WriteMemory(addr, val)  \
-    if ((addr) == 0xffffffff) \
-    { StkW4(gStackPointer, (val)); gStackPointer += 1;} \
-	else memWrite32((addr), (val))
+#define WriteMemory(addr, val)                          \
+  do {                                                  \
+    if ((addr) == 0xffffffff) {                         \
+      StkW4(gStackPointer, (val));                      \
+      gStackPointer += 1;                               \
+    } else {                                            \
+      memWrite32((addr), (val));                        \
+    }                                                   \
+  } while (0)
 #define CaptureCArray(addr, len, passin)  \
     (grab_temp_c_array(addr, len, passin))
 #define ReleaseCArray(ptr, addr, len, passout)  \
@@ -83,10 +88,15 @@
     (((addr) == 0xffffffff) \
       ? (gStackPointer -= 1, Stk4(gStackPointer)) \
       : (memRead32((addr)+(fieldnum)*4)))
-#define WriteStructField(addr, fieldnum, val)  \
-    if ((addr) == 0xffffffff) \
-    { StkW4(gStackPointer, (val)); gStackPointer += 1;} \
-	else memWrite32((addr)+(fieldnum)*4, (val))
+#define WriteStructField(addr, fieldnum, val)           \
+  do {                                                  \
+    if ((addr) == 0xffffffff) {                         \
+      StkW4(gStackPointer, (val));                      \
+      gStackPointer += 1;                               \
+    } else {                                            \
+      memWrite32((addr)+(fieldnum)*4, (val));           \
+    }                                                   \
+  } while (0)
 
 #define glulx_malloc malloc
 #define glulx_free free
@@ -252,7 +262,7 @@ static void parse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
 static void unparse_glk_args(dispatch_splot_t *splot, char **proto, int depth,
   int *argnumptr, glui32 subaddress, int subpassout);
 
-static char *get_game_id(void);
+static maybe_unused char *get_game_id(void);
 
 /* git_init_dispatch():
    Set up the class hash tables and other startup-time stuff.
@@ -1477,11 +1487,11 @@ static char *get_game_id()
   static char buf[2*64+2];
   int ix, jx;
 
-  if (!gRom)
+  if (!gInitMem)
     return NULL;
 
   for (ix=0, jx=0; ix<64; ix++) {
-    char ch = gRom[ix];
+    char ch = gInitMem[ix];
     int val = ((ch >> 4) & 0x0F);
     buf[jx++] = ((val < 10) ? (val + '0') : (val + 'A' - 10));
     val = (ch & 0x0F);

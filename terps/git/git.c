@@ -119,7 +119,7 @@ void gitWithStream (strid_t str, git_uint32 cacheSize, git_uint32 undoSize)
     if (4 != glk_get_buffer_stream (str, buffer, 4))
         fatalError ("can't read from game file stream");
     
-    if (read32 (buffer) == FORM)
+    if (readtag (buffer) == FORM)
     {
         giblorb_result_t result = handleBlorb (str);
         gamePos = result.data.startpos;

@@ -76,7 +76,7 @@ typedef struct BlockHeader
     git_uint16 numHashNodes; // Number of lookup-able addresses in this block.
     git_uint16 compiledSize; // Total size of this block, in 4-byte words.
     git_uint32 glulxSize;    // Size of the glulx code this block represents, in bytes.
-    git_uint32 runCounter;   // Total number of opcodes executed in this block.
+    git_uint32 runCounter;   // Total number of times this block was retrieved from the cache
 }                            // (used to determine which blocks stay in the cache)
 BlockHeader;
 
@@ -98,6 +98,7 @@ GIT_INLINE Block getCode (git_uint32 pc)
         if (n->address == pc)
         {
             gBlockHeader = (BlockHeader*) ((git_uint32*)n + n->headerOffset);
+            gBlockHeader->runCounter++;
             return (git_uint32*)n + n->codeOffset;
         }
         n = n->u.next;

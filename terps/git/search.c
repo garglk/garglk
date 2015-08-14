@@ -125,7 +125,8 @@ glui32 git_linear_search(glui32 key, glui32 keysize,
 
    The KeyIndirect and ReturnIndex options may be used.
 */
-glui32 git_binary_search(glui32 key, glui32 keysize, 
+
+static glui32 binary_search_generic(glui32 key, glui32 keysize,
   glui32 start, glui32 structsize, glui32 numstructs, 
   glui32 keyoffset, glui32 options)
 {
@@ -184,6 +185,96 @@ glui32 git_binary_search(glui32 key, glui32 keysize,
     return -1;
   else
     return 0;
+}
+
+static glui32 binary_search_16bit(git_uint16 key, glui32 start,
+  glui32 structsize, glui32 numstructs,
+  glui32 keyoffset, glui32 options)
+{
+  glui32 addr, top, bot, val;
+  git_uint16 m;
+  int retindex = ((options & serop_ReturnIndex) != 0);
+
+  bot = 0;
+  top = numstructs;
+  while (bot < top) {
+    val = (top+bot) / 2;
+    addr = start + val * structsize;
+
+    m = memRead16(addr + keyoffset);
+    if (m == key) {
+      if (retindex)
+	return val;
+      else
+	return addr;
+    } else if (m < key) {
+      bot = val + 1;
+    } else {
+      top = val;
+    }
+  }
+
+  if (retindex)
+    return -1;
+  else
+    return 0;
+}
+
+static glui32 binary_search_32bit(git_uint32 key, glui32 start,
+  glui32 structsize, glui32 numstructs,
+  glui32 keyoffset, glui32 options)
+{
+  glui32 addr, top, bot, val, m;
+  int retindex = ((options & serop_ReturnIndex) != 0);
+
+  bot = 0;
+  top = numstructs;
+  while (bot < top) {
+    val = (top+bot) / 2;
+    addr = start + val * structsize;
+
+    m = memRead32(addr + keyoffset);
+    if (m == key) {
+      if (retindex)
+	return val;
+      else
+	return addr;
+    } else if (m < key) {
+      bot = val + 1;
+    } else {
+      top = val;
+    }
+  }
+
+  if (retindex)
+    return -1;
+  else
+    return 0;
+}
+
+glui32 git_binary_search(glui32 key, glui32 keysize,
+  glui32 start, glui32 structsize, glui32 numstructs,
+  glui32 keyoffset, glui32 options)
+{
+  if (keysize == 2) {
+    git_uint16 key16;
+    if ((options & serop_KeyIndirect) != 0) {
+      key16 = memRead16(key);
+    } else {
+      key16 = key;
+    }
+    return binary_search_16bit(key16, start, structsize, numstructs, keyoffset, options);
+  }
+  if (keysize == 4) {
+    git_uint32 key32;
+    if ((options & serop_KeyIndirect) != 0) {
+      key32 = memRead32(key);
+    } else {
+      key32 = key;
+    }
+    return binary_search_32bit(key32, start, structsize, numstructs, keyoffset, options);
+  }
+  return binary_search_generic(key, keysize, start, structsize, numstructs, keyoffset, options);
 }
 
 /* linked_search():

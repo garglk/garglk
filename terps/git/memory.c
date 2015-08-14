@@ -4,15 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-const git_uint8 * gRom;
-git_uint8 * gRam;
+const git_uint8 * gInitMem;
+git_uint8 * gMem;
 
 git_uint32 gRamStart;
 git_uint32 gExtStart;
 git_uint32 gEndMem;
 git_uint32 gOriginalEndMem;
-
-#define RAM_OVERLAP 8
 
 void initMemory (const git_uint8 * gamefile, git_uint32 size)
 {
@@ -22,25 +20,19 @@ void initMemory (const git_uint8 * gamefile, git_uint32 size)
 	if (size < 36)
 		fatalError("This file is too small to be a valid glulx gamefile");
 	
-	// Set up a basic environment that will
-	// let us inspect the header.
-
-	gRom = gamefile;
-	gRamStart = 36;
+	gInitMem = gamefile;
 
 	// Check the magic number. From the spec:
 	//     * Magic number: 47 6C 75 6C, which is to say ASCII 'Glul'.
 
-	if (memRead32 (0) != 0x476c756c)
+	if (read32 (gInitMem + 0) != 0x476c756c)
 		fatalError("This is not a glulx game file");
 
 	// Load the correct values for ramstart, extstart and endmem.
-	// (Load ramstart last because it's required by memRead32 --
-	// if we get a wonky ramstart, the other reads could fail.)
 
-	gOriginalEndMem = gEndMem = memRead32 (16);
-	gExtStart = memRead32 (12);
-	gRamStart = memRead32 (8);
+	gRamStart = read32 (gInitMem + 8);
+	gExtStart = read32 (gInitMem + 12);
+	gOriginalEndMem = gEndMem = read32 (gInitMem + 16);
 
 	// Make sure the values are sane.
 
@@ -71,21 +63,15 @@ void initMemory (const git_uint8 * gamefile, git_uint32 size)
 	// Allocate the RAM. We'll duplicate the last few bytes of ROM
 	// here so that reads which cross the ROM/RAM boundary don't fail.
 
-	gRamStart -= RAM_OVERLAP; // Adjust RAM boundary to include some ROM.
+	gMem = malloc (gEndMem);
+        if (gMem == NULL)
+	    fatalError ("Failed to allocate game RAM");
 
-	gRam = malloc (gEndMem - gRamStart);
-    if (gRam == NULL)
-        fatalError ("Failed to allocate game RAM");
-
-	gRam -= gRamStart;
-
-	// Copy the initial contents of RAM.
-	memcpy (gRam + gRamStart, gRom + gRamStart, gExtStart - gRamStart);
+	// Copy the initial memory contents.
+	memcpy (gMem, gInitMem, gExtStart);
 
 	// Zero out the extended RAM.
-	memset (gRam + gExtStart, 0, gEndMem - gExtStart);
-
-	gRamStart += RAM_OVERLAP; // Restore boundary to its previous value.
+	memset (gMem + gExtStart, 0, gEndMem - gExtStart);
 }
 
 int verifyMemory ()
@@ -94,15 +80,15 @@ int verifyMemory ()
 
     git_uint32 n;
     for (n = 0 ; n < gExtStart ; n += 4)
-        checksum += read32 (gRom + n);
+        checksum += read32 (gInitMem + n);
     
-    checksum -= read32 (gRom + 32);
-    return (checksum == read32 (gRom + 32)) ? 0 : 1;
+    checksum -= read32 (gInitMem + 32);
+    return (checksum == read32 (gInitMem + 32)) ? 0 : 1;
 }
 
 int resizeMemory (git_uint32 newSize, int isInternal)
 {
-    git_uint8* newRam;
+    git_uint8* newMem;
     
     if (newSize == gEndMem)
         return 0; // Size is not changed.
@@ -113,19 +99,16 @@ int resizeMemory (git_uint32 newSize, int isInternal)
     if (newSize & 0xFF)
         fatalError ("Can only resize Glulx memory space to a 256-byte boundary.");
     
-    gRamStart -= RAM_OVERLAP; // Adjust RAM boundary to include some ROM.
-    newRam = realloc(gRam + gRamStart, newSize - gRamStart);
-    if (!newRam)
+    newMem = realloc(gMem, newSize);
+    if (!newMem)
     {	
-        gRamStart += RAM_OVERLAP; // Restore boundary to its previous value.
         return 1; // Failed to extend memory.
     }
     if (newSize > gEndMem)
-        memset (newRam + gEndMem - gRamStart, 0, newSize - gEndMem);
+        memset (newMem + gEndMem, 0, newSize - gEndMem);
 
-    gRam = newRam - gRamStart;
+    gMem = newMem;
     gEndMem = newSize;
-    gRamStart += RAM_OVERLAP; // Restore boundary to its previous value.
     return 0;
 }
 
@@ -143,14 +126,14 @@ void resetMemory (git_uint32 protectPos, git_uint32 protectSize)
     for (i = gRamStart; i < gExtStart; ++i)
     {
         if (i >= protectEnd || i < protectPos)
-            gRam [i] = gRom [i];
+            gMem [i] = gInitMem [i];
     }
 
     // Zero out the extended RAM.
     for (i = gExtStart; i < gEndMem; ++i)
     {
         if (i >= protectEnd || i < protectPos)
-            gRam [i] = 0;
+            gMem [i] = 0;
     }
 }
 
@@ -159,18 +142,17 @@ void shutdownMemory ()
     // We didn't allocate the ROM, so we
     // only need to dispose of the RAM.
     
-    free (gRam + gRamStart - RAM_OVERLAP);
+    free (gMem);
     
     // Zero out all our globals.
     
     gRamStart = gExtStart = gEndMem = gOriginalEndMem = 0;
-    gRom = gRam = NULL;
+    gInitMem = gMem = NULL;
 }
 
-git_uint32 memReadError (git_uint32 address)
+void memReadError (git_uint32 address)
 {
     fatalError ("Out-of-bounds memory access");
-    return 0;
 }
 
 void memWriteError (git_uint32 address)

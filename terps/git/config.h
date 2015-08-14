@@ -83,4 +83,18 @@ typedef unsigned long git_uint32;
 
 typedef float git_float;
 
+
+#if defined(__GNUC__)
+// GCC and compatible compilers such as clang
+#  define maybe_unused  __attribute__((__unused__))
+#  define noreturn      __attribute__((__noreturn__))
+#elif defined(_MSC_VER)
+// Microsoft Visual Studio
+#  define maybe_unused
+#  define noreturn      __declspec(noreturn)
+#else
+#  define maybe_unused
+#  define noreturn
+#endif
+
 #endif // GIT_CONFIG_H

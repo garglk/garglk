@@ -304,7 +304,8 @@ void parseUndoStub (git_uint32 * pc, int mode)
 
 void parseCatchStub (git_uint32 * pc, int * modes)
 {
-    git_uint32 tokenVal, branchVal;
+    git_uint32 tokenVal;
+    git_sint32 branchVal;
     git_uint32 branchConst = 0;
     Block stubCode;
 

@@ -192,6 +192,9 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
+1.3.4 2015-06-13  Performance improvements from Peter De Wachter, which give
+                  approximately a 15% speed increase.
+
 1.3.3 2014-03-15  Added acceleration functions 8 through 13, which work
                   correctly when the Inform 6 compiler setting NUM_ATTR_BYTES
                   is changed, contributed by Andrew Plotkin.

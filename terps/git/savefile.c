@@ -4,15 +4,15 @@
 
 static void writeWord (git_sint32 word)
 {
-    char buffer [4];
+    git_uint8 buffer [4];
     write32 (buffer, word);
-    glk_put_buffer (buffer, 4);
+    glk_put_buffer ((char *) buffer, 4);
 }
 
 static git_uint32 readWord (strid_t file)
 {
-    char buffer [4];
-    glk_get_buffer_stream (file, buffer, 4);
+    git_uint8 buffer [4];
+    glk_get_buffer_stream (file, (char *) buffer, 4);
     return (git_uint32) read32 (buffer);
 }
 
@@ -47,13 +47,13 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
         return 1;
 
     // Read IFF header.
-    if (readWord (file) != read32("FORM"))
+    if (readWord (file) != readtag("FORM"))
         return 1; // Not an IFF file.
     
     fileSize = readWord (file);
     fileStart = glk_stream_get_position (file);
     
-    if (readWord (file) != read32("IFZS"))
+    if (readWord (file) != readtag("IFZS"))
         return 1; // Not a Quetzal file.
     
     // Discard the current heap.
@@ -63,12 +63,11 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
     
     while (glk_stream_get_position(file) < fileStart + fileSize)
     {
-        git_uint32 chunkType, chunkSize, chunkStart;
+        git_uint32 chunkType, chunkSize;
         chunkType = readWord (file);
         chunkSize = readWord (file);
-        chunkStart = glk_stream_get_position (file);
 
-        if (chunkType == read32("IFhd"))
+        if (chunkType == readtag("IFhd"))
         {
             if (gotIdent)
                 return 1;
@@ -81,11 +80,11 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
             for (i = 0 ; i < 128 ; ++i)
             {
                 glui32 c = glk_get_char_stream (file);
-                if (gRom [i] != c)
+                if (gInitMem [i] != c)
                     return 1;
             }
         }
-        else if (chunkType == read32("Stks"))
+        else if (chunkType == readtag("Stks"))
         {
             if (gotStack)
                 return 1;
@@ -99,7 +98,7 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
             for ( ; chunkSize > 0 ; chunkSize -= 4)
                 *gStackPointer++ = readWord(file);
         }
-        else if (chunkType == read32("CMem"))
+        else if (chunkType == readtag("CMem"))
         {
             git_uint32 bytesRead = 0;
             if (gotMemory)
@@ -126,7 +125,7 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
                 
                 for (++mult ; mult > 0 ; --mult, ++i)
                     if (i >= protectEnd || i < protectPos)
-                        gRam [i] = gRom [i] ^ c;
+                        gMem [i] = gInitMem [i] ^ c;
             }
 
             while (i < gEndMem && bytesRead < chunkSize)
@@ -143,16 +142,16 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
                 
                 for (++mult ; mult > 0 ; --mult, ++i)
                     if (i >= protectEnd || i < protectPos)
-                        gRam [i] = c;
+                        gMem [i] = c;
             }
 
             while (i < gExtStart)
                 if (i >= protectEnd || i < protectPos)
-                    gRam [i] = gRom [i], ++i;
+                    gMem [i] = gInitMem [i], ++i;
 
             while (i < gEndMem)
                 if (i >= protectEnd || i < protectPos)
-                    gRam [i] = 0, ++i;
+                    gMem [i] = 0, ++i;
 
             if (bytesRead != chunkSize)
                 return 1; // Too much data!
@@ -160,7 +159,7 @@ git_sint32 restoreFromFile (git_sint32 * base, git_sint32 id,
             if (chunkSize & 1)
                 glk_get_char_stream (file);
         }
-        else if (chunkType == read32("MAll"))
+        else if (chunkType == readtag("MAll"))
         {
             glui32 heapSize = 0;
             glui32 * heap = 0;
@@ -246,7 +245,7 @@ git_sint32 saveToFile (git_sint32 * base, git_sint32 * sp, git_sint32 id)
     // Header chunk.
     glk_put_string ("IFhd");
     writeWord (128);
-    glk_put_buffer ((char *) gRom, 128);
+    glk_put_buffer ((char *) gInitMem, 128);
 
     // Stack chunk.
     glk_put_string ("Stks");
@@ -272,8 +271,8 @@ git_sint32 saveToFile (git_sint32 * base, git_sint32 * sp, git_sint32 id)
     writeWord (gEndMem);
     for (zeroCount = 0, n = gRamStart ; n < gEndMem ; ++n)
     {
-        unsigned char romC = (n < gExtStart) ? gRom[n] : 0;
-        unsigned char c = ((git_uint32) romC) ^ ((git_uint32) gRam[n]);
+        unsigned char romC = (n < gExtStart) ? gInitMem[n] : 0;
+        unsigned char c = ((git_uint32) romC) ^ ((git_uint32) gMem[n]);
         if (c == 0)
             ++zeroCount;
         else

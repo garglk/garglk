@@ -46,6 +46,10 @@
 
 #endif // USE_BIG_ENDIAN_UNALIGNED
 
+GIT_INLINE git_uint32 readtag (const char *ptr) {
+	return read32((const git_uint8 *)ptr);
+}
+
 // Accessing single bytes is easy on any platform.
 
 #define read8(ptr)     (*((git_uint8*)(ptr)))
@@ -63,12 +67,12 @@ extern git_uint32 gOriginalEndMem; // The value of EndMem when the game was firs
 // both the ROM, which is constant for the entire run of the program,
 // and the original RAM, which is useful for checking what's changed
 // when saving to disk or remembering a position for UNDO.
-extern const git_uint8 * gRom;
+extern const git_uint8 * gInitMem;
 
-// This is the current contents of RAM. This pointer actually points
-// to the start of ROM, so that you don't have to keep adding and
-// subtracting gRamStart, but don't try to access ROM via this pointer.
-extern git_uint8 * gRam;
+// This is the current contents of memory. This buffer includes
+// both the ROM and the current contents of RAM.
+extern git_uint8 * gMem;
+
 
 // --------------------------------------------------------------
 // Functions
@@ -98,62 +102,56 @@ extern void shutdownMemory ();
 // Utility functions -- these just pass an appropriate
 // string to fatalError().
 
-extern git_uint32 memReadError (git_uint32 address);
-extern void memWriteError (git_uint32 address);
+extern noreturn void memReadError (git_uint32 address);
+extern noreturn void memWriteError (git_uint32 address);
 
 // Functions for reading and writing game memory.
 
 GIT_INLINE git_uint32 memRead32 (git_uint32 address)
 {
-	if (address <= gRamStart - 4)
-		return read32 (gRom + address);
-	else if (address <= gEndMem - 4)
-		return read32 (gRam + address);
+    if (address <= gEndMem - 4)
+        return read32 (gMem + address);
     else
-        return memReadError (address);
+        return memReadError (address), 0;
 }
 
 GIT_INLINE git_uint32 memRead16 (git_uint32 address)
 {
-	if (address <= gRamStart - 4)
-		return read16 (gRom + address);
-	else if (address <= gEndMem - 2)
-		return read16 (gRam + address);
+    if (address <= gEndMem - 2)
+        return read16 (gMem + address);
     else
-        return memReadError (address);
+        return memReadError (address), 0;
 }
 
 GIT_INLINE git_uint32 memRead8 (git_uint32 address)
 {
-    if (address <= gRamStart - 4)
-        return read8 (gRom + address);
-    else if (address < gEndMem)
-        return read8 (gRam + address);
+    if (address < gEndMem)
+        return read8 (gMem + address);
     else
-        return memReadError (address);
+        return memReadError (address), 0;
 }
 
 GIT_INLINE void memWrite32 (git_uint32 address, git_uint32 val)
 {
-	if (address >= gRamStart && address <= (gEndMem - 4))
-		write32 (gRam + address, val);
-	else
+    if (address >= gRamStart && address <= (gEndMem - 4))
+        write32 (gMem + address, val);
+    else
         memWriteError (address);
 }
 
 GIT_INLINE void memWrite16 (git_uint32 address, git_uint32 val)
 {
-	if (address >= gRamStart && address <= (gEndMem - 2))
-		write16 (gRam + address, val);
-	else
+    if (address >= gRamStart && address <= (gEndMem - 2))
+        write16 (gMem + address, val);
+    else
         memWriteError (address);
 }
 
 GIT_INLINE void memWrite8 (git_uint32 address, git_uint32 val)
 {
-	if (address >= gRamStart && address < gEndMem)
-		write8 (gRam + address, val);
-	else
+    if (address >= gRamStart && address < gEndMem)
+        write8 (gMem + address, val);
+    else
         memWriteError (address);
 }
 
