@@ -383,7 +383,7 @@ void frame_set_var(unsigned frame, int var, zword val)
   stack_stack[stack_frames[frame].stack_stack_start + (var - 1)] = val;;
 }
 
-N_INLINE zword get_var(int var)
+zword get_var(int var)
 {
   if(var < 0x10) {
     if(var != 0) {
@@ -398,7 +398,7 @@ N_INLINE zword get_var(int var)
   return LOWORD(z_globaltable + (var - 0x10) * ZWORD_SIZE);
 }
 
-N_INLINE void set_var(int var, zword val)
+void set_var(int var, zword val)
 {
   if(var < 0x10) {
     if(var != 0) {
