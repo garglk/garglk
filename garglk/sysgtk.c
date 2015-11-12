@@ -428,8 +428,13 @@ static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
         switch(key)
         {
             case GDK_a: case GDK_A: gli_input_handle_key(keycode_Home); break;
+            case GDK_b: case GDK_B: gli_input_handle_key(keycode_Left); break;
             case GDK_c: case GDK_C: winclipsend(CLIPBOARD); break;
+            case GDK_d: case GDK_D: gli_input_handle_key(keycode_Erase); break;
             case GDK_e: case GDK_E: gli_input_handle_key(keycode_End); break;
+            case GDK_f: case GDK_F: gli_input_handle_key(keycode_Right); break;
+            case GDK_n: case GDK_N: gli_input_handle_key(keycode_Down); break;
+            case GDK_p: case GDK_P: gli_input_handle_key(keycode_Up); break;
             case GDK_u: case GDK_U: gli_input_handle_key(keycode_Escape); break;
             case GDK_v: case GDK_V: winclipreceive(CLIPBOARD); break;
             case GDK_x: case GDK_X: winclipsend(CLIPBOARD); break;
