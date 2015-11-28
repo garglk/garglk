@@ -124,6 +124,8 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
 
 void win_textbuffer_destroy(window_textbuffer_t *dwin)
 {
+    int i;
+
     if (dwin->inbuf)
     {
         if (gli_unregister_arr)
@@ -138,6 +140,16 @@ void win_textbuffer_destroy(window_textbuffer_t *dwin)
 
     if (dwin->line_terminators)
         free(dwin->line_terminators);
+
+    for (i = 0; i < dwin->scrollback; i++) {
+        if (dwin->lines[i].lpic) {
+            gli_picture_decrement(dwin->lines[i].lpic);
+        }
+
+        if (dwin->lines[i].rpic) {
+            gli_picture_decrement(dwin->lines[i].rpic);
+        }
+    }
 
     free(dwin->lines);
     free(dwin);
@@ -1137,8 +1149,14 @@ void win_textbuffer_clear(window_t *win)
     for (i = 0; i < dwin->scrollback; i++)
     {
         dwin->lines[i].len = 0;
+
+        if (dwin->lines[i].lpic)
+            gli_picture_decrement(dwin->lines[i].lpic);
         dwin->lines[i].lpic = 0;
+        if (dwin->lines[i].rpic)
+            gli_picture_decrement(dwin->lines[i].rpic);
         dwin->lines[i].rpic = 0;
+
         dwin->lines[i].lhyper = 0;
         dwin->lines[i].rhyper = 0;
         dwin->lines[i].lm = 0;
@@ -1767,6 +1785,7 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
 
     hyperlink = dwin->owner->attr.hyper;
 
+    gli_picture_increment(pic);
     error = put_picture(dwin, pic, align, hyperlink);
 
     return error;
