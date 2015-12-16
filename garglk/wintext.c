@@ -205,6 +205,7 @@ static void reflow(window_t *win)
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginLeft;
             pictbuf[x] = dwin->lines[k].lpic;
+            gli_picture_increment(pictbuf[x]);
             hyperbuf[x] = dwin->lines[k].lhyper;
             x++;
         }
@@ -214,6 +215,7 @@ static void reflow(window_t *win)
             offsetbuf[x] = p;
             alignbuf[x] = imagealign_MarginRight;
             pictbuf[x] = dwin->lines[k].rpic;
+            gli_picture_increment(pictbuf[x]);
             hyperbuf[x] = dwin->lines[k].rhyper;
             x++;
         }
