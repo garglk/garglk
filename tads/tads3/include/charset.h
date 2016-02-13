@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright (c) 2001, 2006 Michael J. Roberts
@@ -8,8 +9,6 @@
  *   This header defines the CharacterSet intrinsic class.  
  */
 
-#ifndef _CHARSET_H_
-#define _CHARSET_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -94,4 +93,3 @@ intrinsic class CharacterSet 'character-set/030001': Object
     isRoundTripMappable(val);
 }
 
-#endif /* _CHARSET_H_ */

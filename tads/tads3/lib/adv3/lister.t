@@ -37,10 +37,8 @@ class Lister: object
      */
     showListAll(lst, options, indent)
     {
-        local infoTab;
-    
         /* create a sense information table with each item in full view */
-        infoTab = new LookupTable(16, 32);
+        local infoTab = new LookupTable(16, 32);
         foreach (local cur in lst)
         {
             /* add a plain view sensory description to the info list */
@@ -96,28 +94,22 @@ class Lister: object
      */
     showList(pov, parent, lst, options, indent, infoTab, parentGroup)
     {
-        local groups;
-        local groupTab;
-        local singles;
-        local origLst;
-        local itemCount;
-
         /* remember the original list */
-        origLst = lst;
+        local origLst = lst;
 
         /* filter the list to get only the items we actually will list */
         lst = getFilteredList(lst, infoTab);
 
         /* create a lookup table to keep track of the groups we've seen */
-        groupTab = new LookupTable();
-        groups = new Vector(10);
+        local groupTab = new LookupTable();
+        local groups = new Vector(10);
         
         /* set up a vector to keep track of the singles */
-        singles = new Vector(10);
+        local singles = new Vector(10);
 
         /* figure the groupings */
-        itemCount = getListGrouping(groupTab, groups, singles,
-                                    lst, parentGroup);
+        local itemCount = getListGrouping(groupTab, groups, singles,
+                                          lst, parentGroup);
 
         /*
          *   Now that we've figured out what's in the list and how it's
@@ -682,6 +674,7 @@ class Lister: object
                     if ((options & ListTall) != 0
                         && (options & ListRecurse) != 0
                         && contentsListed(cur)
+                        && !contentsListedSeparately(cur)
                         && getListedContents(cur, infoTab) != [])
                     {
                         /* show the item with its contents */
@@ -935,6 +928,7 @@ class Lister: object
             if ((options & ListTall) != 0
                 && (options & ListRecurse) != 0
                 && contentsListed(cur)
+                && !contentsListedSeparately(cur)
                 && getListedContents(cur, infoTab) != [])
             {
                 /* show the item with its contents */

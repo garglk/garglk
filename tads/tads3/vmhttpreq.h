@@ -93,6 +93,24 @@ struct vm_httpreq_cookie
             delete nxt;
     }
 
+    /* clone this cookie and our list tail */
+    vm_httpreq_cookie *clone()
+    {
+        /* clone myself */
+        vm_httpreq_cookie *c = new vm_httpreq_cookie(
+            name, strlen(name), val, val != 0 ? strlen(val) : 0);
+
+        /* clone my list tail */
+        if (nxt != 0)
+            c->nxt = nxt->clone();
+
+        /* return the clone */
+        return c;
+    }
+
+    /* send the cookie; returns true on success, false on failure */
+    int send(class TadsServerThread *t);
+
     /* name of the cookie */
     char *name;
 
@@ -264,6 +282,10 @@ protected:
     /* send a reply */
     int getp_sendReply(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
+    /* common handler for sendReply and sendReplyAsync */
+    int common_sendReply(
+        VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc, int wait);
+
     /* start a chunked reply */
     int getp_startChunkedReply(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                uint *argc);
@@ -275,6 +297,10 @@ protected:
     /* finish a chunked reply */
     int getp_endChunkedReply(VMG_ vm_obj_id_t self, vm_val_t *retval,
                              uint *argc);
+
+    /* send a reply asynchronously */
+    int getp_sendReplyAsync(
+        VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc);
 
     /* property evaluation function table */
     static int (CVmObjHTTPRequest::*func_table_[])(VMG_ vm_obj_id_t self,
@@ -290,7 +316,7 @@ class CVmMetaclassHTTPRequest: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "http-request/030000"; }
+    const char *get_meta_name() const { return "http-request/030001"; }
 
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

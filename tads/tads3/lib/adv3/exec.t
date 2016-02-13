@@ -65,7 +65,7 @@ executeCommand(targetActor, issuingActor, toks, firstInSentence)
         targetActor = issuingActor;
 
         /* switch to the issuer's sense context */
-        senseContext.setSenseContext(targetActor, sight);
+        senseContext.setSenseContext(issuingActor, sight);
     }
 
     /*
@@ -140,7 +140,7 @@ parseTokenLoop:
                     /* if we got any matches, try to resolve actors */
                     lst = lst.mapAll({x: x.resolveNouns(
                         issuingActor, issuingActor,
-                        new ActorResolveResults())});
+                        new TryAsActorResolveResults())});
 
                     /* drop any that didn't yield any results */
                     lst = lst.subset({x: x != nil && x.length() != 0});
@@ -421,8 +421,19 @@ parseTokenLoop:
             /* 
              *   If the command is directed to a different actor than the
              *   issuer, change to the target actor's sense context.  
+             *   
+             *   On the other hand, if this is a conversational command
+             *   (e.g., BOB, YES or BOB, GOODBYE), execute it within the
+             *   sense context of the issuer, even when a target is
+             *   specified.  Target actors in conversational commands
+             *   designate the interlocutor rather than the performing
+             *   actor: BOB, YES doesn't ask Bob to say "yes", but rather
+             *   means that the player character (the issuer) is saying
+             *   "yes" to Bob.
              */
-            if (actorSpecified && targetActor != issuingActor)
+            if (action != nil && action.isConversational(issuingActor))
+                senseContext.setSenseContext(issuingActor, sight);
+            else if (actorSpecified && targetActor != issuingActor)
                 senseContext.setSenseContext(targetActor, sight);
 
             /* set up a transcript to receive the command results */

@@ -135,14 +135,14 @@ extern "C" {
  */
 
 #ifdef GARGOYLE
-#include "osansi.h"
+#include "osgarglk.h"
 #else
 
 #ifdef _WIN32
 # include "oswin.h"
 #endif
 #ifdef __MSDOS__
-# ifdef __WIN32__
+# ifdef T_WIN32
 /* Windows-specific definitions are in oswin.h */
 #  include "oswin.h"
 # else
@@ -201,7 +201,7 @@ extern "C" {
 #include "osfrobtads.h"
 #endif
 
-#endif /* SPATTERLIGHT */
+#endif /* GARGOYLE */
 
 /* **************** add other systems here **************** */
 

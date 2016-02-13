@@ -44,9 +44,9 @@ Modified
 /* ------------------------------------------------------------------------ */
 /*
  *   The largest buffer length we can store is the smaller of OSMALMAX or the
- *   maximum (positive) value for an int32 (2^31-1).
+ *   maximum (positive) value for an int32_t (2^31-1).
  */
-const int32 STRBUF_MAX_LEN = (OSMALMAX < 0x7fffffff ? OSMALMAX : 0x7fffffff);
+const int32_t STRBUF_MAX_LEN = (OSMALMAX < 0x7fffffff ? OSMALMAX : 0x7fffffff);
 
 
 /* ------------------------------------------------------------------------ */
@@ -60,13 +60,13 @@ struct strbuf_undo_rec
     enum strbuf_undo_action action;
 
     /* index of start of replacement */
-    int32 idx;
+    int32_t idx;
 
     /* length of old replaced data */
-    int32 old_len;
+    int32_t old_len;
 
     /* length of new data */
-    int32 new_len;
+    int32_t new_len;
 
     /* old data */
     wchar_t str[1];
@@ -77,10 +77,10 @@ struct strbuf_undo_rec
  *   Allocate an extension structure 
  */
 vm_strbuf_ext *vm_strbuf_ext::alloc_ext(VMG_ CVmObjStringBuffer *self,
-                                        int32 alo, int32 inc)
+                                        int32_t alo, int32_t inc)
 {
     /* calculate how much space we need */
-    int32 siz = sizeof(vm_strbuf_ext) + (alo-1)*sizeof(wchar_t);
+    int32_t siz = sizeof(vm_strbuf_ext) + (alo-1)*sizeof(wchar_t);
 
     /* allocate the memory */
     vm_strbuf_ext *ext = (vm_strbuf_ext *)G_mem->get_var_heap()->alloc_mem(
@@ -102,7 +102,7 @@ vm_strbuf_ext *vm_strbuf_ext::alloc_ext(VMG_ CVmObjStringBuffer *self,
  */
 vm_strbuf_ext *vm_strbuf_ext::expand_ext(VMG_ CVmObjStringBuffer *self,
                                          vm_strbuf_ext *old_ext,
-                                         int32 new_len)
+                                         int32_t new_len)
 {
     /* if the buffer is big enough to hold the new length, we're done */
     if (old_ext->alo >= new_len)
@@ -113,8 +113,8 @@ vm_strbuf_ext *vm_strbuf_ext::expand_ext(VMG_ CVmObjStringBuffer *self,
      *   of 'inc' from the old extension, so allocate enough for the new
      *   length, rounded up 
      */
-    int32 new_alo = ((new_len + old_ext->inc - 1) / old_ext->inc)
-                    * old_ext->inc;
+    int32_t new_alo = ((new_len + old_ext->inc - 1) / old_ext->inc)
+                      * old_ext->inc;
     vm_strbuf_ext *new_ext = alloc_ext(vmg_ self, new_alo, old_ext->inc);
 
     /* copy the current string buffer to the new extension */
@@ -162,7 +162,7 @@ int (CVmObjStringBuffer::
 /*
  *   construction
  */
-CVmObjStringBuffer::CVmObjStringBuffer(VMG_ int32 alo, int32 inc)
+CVmObjStringBuffer::CVmObjStringBuffer(VMG_ int32_t alo, int32_t inc)
 {
     /* allocate our extension structure */
     ext_ = (char *)vm_strbuf_ext::alloc_ext(vmg_ this, alo, inc);
@@ -172,7 +172,7 @@ CVmObjStringBuffer::CVmObjStringBuffer(VMG_ int32 alo, int32 inc)
  *   create a StringBuffer with a given allocation size
  */
 vm_obj_id_t CVmObjStringBuffer::create(VMG_ int in_root_set,
-                                       int32 alo, int32 inc)
+                                       int32_t alo, int32_t inc)
 {
     /* allocate the object ID */
     vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
@@ -391,9 +391,9 @@ void CVmObjStringBuffer::load_image_data(VMG_ const char *ptr, size_t siz)
         G_mem->get_var_heap()->free_mem(ext_);
 
     /* read the string and allocation data from the image data */
-    uint32 alo = osrp4(ptr);
-    uint32 inc = osrp4(ptr + 4);
-    uint32 len = osrp4(ptr + 8);
+    uint32_t alo = osrp4(ptr);
+    uint32_t inc = osrp4(ptr + 4);
+    uint32_t len = osrp4(ptr + 8);
 
     /* limit the sizes */
     if (alo < 16)
@@ -450,8 +450,8 @@ void CVmObjStringBuffer::save_to_file(VMG_ class CVmFile *fp)
 void CVmObjStringBuffer::restore_from_file(VMG_ vm_obj_id_t self,
                                            CVmFile *fp, CVmObjFixup *fixups)
 {
-    const int32 bufchars = 256;
-    char buf[bufchars * sizeof(uint16)];
+    const int32_t bufchars = 256;
+    char buf[bufchars * sizeof(uint16_t)];
     
     /* free our existing extension, if we have one */
     if (ext_ != 0)
@@ -459,9 +459,9 @@ void CVmObjStringBuffer::restore_from_file(VMG_ vm_obj_id_t self,
 
     /* read the fixed fields */
     fp->read_bytes(buf, 12);
-    int32 alo = vmb_get_int4(buf);
-    int32 inc = vmb_get_int4(buf + 4);
-    int32 len = vmb_get_int4(buf + 8);
+    int32_t alo = vmb_get_int4(buf);
+    int32_t inc = vmb_get_int4(buf + 4);
+    int32_t len = vmb_get_int4(buf + 8);
 
     /* allocate the extension structure */
     vm_strbuf_ext *ext = vm_strbuf_ext::alloc_ext(vmg_ this, alo, inc);
@@ -476,12 +476,12 @@ void CVmObjStringBuffer::restore_from_file(VMG_ vm_obj_id_t self,
 
     /* read the string contents */
     wchar_t *dst;
-    int32 rem;
+    int32_t rem;
     for (dst = ext->buf, rem = len ; rem != 0 ; )
     {
         /* read one buffer-full, or 'rem', whichever is less */
-        int32 cur = rem > bufchars ? bufchars : rem;
-        fp->read_bytes(buf, cur * sizeof(uint16));
+        int32_t cur = rem > bufchars ? bufchars : rem;
+        fp->read_bytes(buf, cur * sizeof(uint16_t));
 
         /* deduct this read from the total */
         rem -= cur;
@@ -497,7 +497,7 @@ void CVmObjStringBuffer::restore_from_file(VMG_ vm_obj_id_t self,
  */
 void CVmObjStringBuffer::add_undo_rec(
     VMG_ vm_obj_id_t self, strbuf_undo_action action,
-    int32 idx, int32 old_len, int32 new_len)
+    int32_t idx, int32_t old_len, int32_t new_len)
 {
     /* 
      *   if we're not inserting or deleting anything, there's no change, so
@@ -521,7 +521,7 @@ void CVmObjStringBuffer::add_undo_rec(
      *   For a deletion or replacement, we need to make a copy of the
      *   characters we're removing, so we need old_len extra wchar_t's.  
      */
-    int32 siz = sizeof(strbuf_undo_rec);
+    int32_t siz = sizeof(strbuf_undo_rec);
     if (action == STRBUF_UNDO_DEL || action == STRBUF_UNDO_REPL)
         siz += (old_len - 1) * sizeof(wchar_t);
 
@@ -581,7 +581,7 @@ int CVmObjStringBuffer::equals(VMG_ vm_obj_id_t self,
         /* compare the buffers character by character */
         CVmObjStringBuffer *other =
             (CVmObjStringBuffer *)vm_objp(vmg_ val->val.obj);
-        int32 len1 = get_ext()->len, len2 = other->get_ext()->len;
+        int32_t len1 = get_ext()->len, len2 = other->get_ext()->len;
         const wchar_t *buf1 = get_ext()->buf, *buf2 = other->get_ext()->buf;
 
         /* if the lengths aren't equal, they're not equal */
@@ -612,14 +612,14 @@ int CVmObjStringBuffer::equals_str(const char *str) const
     /* get the buffer pointers and character lengths */
     const wchar_t *p1 = get_ext()->buf;
     utf8_ptr p2((char *)str + VMB_LEN);
-    int32 len1 = get_ext()->len, len2 = p2.len(vmb_get_len(str));
+    int32_t len1 = get_ext()->len, len2 = p2.len(vmb_get_len(str));
 
     /* if the lengths don't match, we can't be equal */
     if (len1 != len2)
         return FALSE;
 
     /* compare character by character */
-    for (int32 i = 0 ; i < len1 ; ++i, ++p1, p2.inc())
+    for (int32_t i = 0 ; i < len1 ; ++i, ++p1, p2.inc())
     {
         if (*p1 != p2.getch())
             return FALSE;
@@ -645,9 +645,9 @@ int CVmObjStringBuffer::compare_to(VMG_ vm_obj_id_t self,
         /* compare the buffers character by character */
         CVmObjStringBuffer *other =
             (CVmObjStringBuffer *)vm_objp(vmg_ val->val.obj);
-        int32 len1 = get_ext()->len, len2 = other->get_ext()->len;
+        int32_t len1 = get_ext()->len, len2 = other->get_ext()->len;
         const wchar_t *buf1 = get_ext()->buf, *buf2 = other->get_ext()->buf;
-        for (int32 i = 0 ; i < len1 && i < len2 ; ++i, ++buf1, ++buf2)
+        for (int32_t i = 0 ; i < len1 && i < len2 ; ++i, ++buf1, ++buf2)
         {
             if (*buf1 < *buf2)
                 return -1;
@@ -683,10 +683,10 @@ int CVmObjStringBuffer::compare_str(const char *str) const
     /* get the buffer pointers and character lengths */
     const wchar_t *p1 = get_ext()->buf;
     utf8_ptr p2((char *)str + VMB_LEN);
-    int32 len1 = get_ext()->len, len2 = p2.len(vmb_get_len(str));
+    int32_t len1 = get_ext()->len, len2 = p2.len(vmb_get_len(str));
 
     /* compare character by character */
-    for (int32 i = 0 ; i < len1 ; ++i, ++p1, p2.inc())
+    for (int32_t i = 0 ; i < len1 ; ++i, ++p1, p2.inc())
     {
         wchar_t c1 = *p1, c2 = p2.getch();
         if (c1 < c2)
@@ -711,10 +711,10 @@ uint CVmObjStringBuffer::calc_hash(VMG_ vm_obj_id_t self, int) const
 {
     uint hash = 0;
     const wchar_t *p = get_ext()->buf;
-    int32 len = get_ext()->len;
+    int32_t len = get_ext()->len;
 
     /* calculate the hash */
-    for (int32 i = 0 ; i < len ; ++i)
+    for (int32_t i = 0 ; i < len ; ++i)
         hash += *p++;
 
     /* return the result */
@@ -732,7 +732,8 @@ uint CVmObjStringBuffer::calc_hash(VMG_ vm_obj_id_t self, int) const
  *   will delete '*len' characters and insert '*ins' characters in their
  *   place.  
  */
-void CVmObjStringBuffer::adjust_args(int32 *idx, int32 *len, int32 *ins) const
+void CVmObjStringBuffer::adjust_args(
+    int32_t *idx, int32_t *len, int32_t *ins) const
 {
     vm_strbuf_ext *ext = get_ext();
     
@@ -754,7 +755,7 @@ void CVmObjStringBuffer::adjust_args(int32 *idx, int32 *len, int32 *ins) const
     /* make sure the insertion wouldn't push us past the limit */
     if (ins != 0)
     {
-        int32 del = (len != 0 ? *len : 0);
+        int32_t del = (len != 0 ? *len : 0);
         if (*ins < 0)
             *ins = 0;
         else if (*idx + *ins + ext->len - del > STRBUF_MAX_LEN)
@@ -765,15 +766,15 @@ void CVmObjStringBuffer::adjust_args(int32 *idx, int32 *len, int32 *ins) const
 /*
  *   Calculate the length in bytes in UTF-8 format 
  */
-int32 CVmObjStringBuffer::utf8_length() const
+int32_t CVmObjStringBuffer::utf8_length() const
 {
     vm_strbuf_ext *ext = get_ext();
 
     /* get our character length */
-    int32 rem = ext->len;
+    int32_t rem = ext->len;
 
     /* start with a zero length */
-    int32 bytelen = 0;
+    int32_t bytelen = 0;
 
     /* scan our characters */
     for (const wchar_t *p = ext->buf ; rem > 0 ; ++p, --rem)
@@ -801,7 +802,7 @@ int32 CVmObjStringBuffer::utf8_length() const
  *   would copy a fractional character, we'll omit that fractional character
  *   and stop at the previous whole character.  
  */
-void CVmObjStringBuffer::to_utf8(char *buf, int32 &idx, int32 &bytelen)
+void CVmObjStringBuffer::to_utf8(char *buf, int32_t &idx, int32_t &bytelen)
 {
     vm_strbuf_ext *ext = get_ext();
 
@@ -809,7 +810,7 @@ void CVmObjStringBuffer::to_utf8(char *buf, int32 &idx, int32 &bytelen)
     adjust_args(&idx, 0, 0);
 
     /* we haven't copied any bytes yet */
-    int32 actual = 0;
+    int32_t actual = 0;
 
     /* set up a utf8 pointer for the output buffer */
     utf8_ptr dst(buf);
@@ -818,7 +819,7 @@ void CVmObjStringBuffer::to_utf8(char *buf, int32 &idx, int32 &bytelen)
      *   copy characters until we reach the end of the string, or exhaust the
      *   requested number of bytes 
      */
-    for (actual = 0 ; actual < bytelen && idx < (int32)ext->len ; ++idx)
+    for (actual = 0 ; actual < bytelen && idx < (int32_t)ext->len ; ++idx)
     {
         /* get the next source character */
         wchar_t c = ext->buf[idx];
@@ -843,7 +844,7 @@ void CVmObjStringBuffer::to_utf8(char *buf, int32 &idx, int32 &bytelen)
  *   Make a String object out of a substring of the buffer 
  */
 const char *CVmObjStringBuffer::substr_to_string(
-    VMG_ vm_val_t *new_str, int32 idx, int32 len) const
+    VMG_ vm_val_t *new_str, int32_t idx, int32_t len) const
 {
     vm_strbuf_ext *ext = get_ext();
 
@@ -852,7 +853,7 @@ const char *CVmObjStringBuffer::substr_to_string(
 
     /* calculate the size in bytes of the UTF-8 version of the string */
     utf8_ptr p;
-    int32 bytelen = p.setwchars(ext->buf + idx, len, 0);
+    int32_t bytelen = p.setwchars(ext->buf + idx, len, 0);
 
     /* allocate a string */
     new_str->set_obj(CVmObjString::create(vmg_ FALSE, bytelen));
@@ -873,13 +874,13 @@ int CVmObjStringBuffer::index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
                                     const vm_val_t *index_val)
 {
     /* get the index as an integer */
-    int32 idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* adjust to zero-based indexing or a negative end-based index */
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* ensure idx is in range */
-    if (idx < 0 || idx >= (int32)get_ext()->len)
+    if (idx < 0 || idx >= (int32_t)get_ext()->len)
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* return a one-character string of the character at this index */
@@ -898,16 +899,14 @@ int CVmObjStringBuffer::set_index_val_q(VMG_ vm_val_t *result,
                                         const vm_val_t *index_val,
                                         const vm_val_t *new_val)
 {
-    wchar_t ch;
-
     /* the index must be an integer */
-    long idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* adjust to zero-based indexing or a negative end-based index */
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* ensure idx is in range */
-    if (idx < 0 || idx >= (int32)get_ext()->len)
+    if (idx < 0 || idx >= (int32_t)get_ext()->len)
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* 
@@ -915,10 +914,16 @@ int CVmObjStringBuffer::set_index_val_q(VMG_ vm_val_t *result,
      *   value to set at the given character.  Otherwise, cast it to a string
      *   and take its first character.  
      */
-    if (new_val->is_numeric())
+    wchar_t ch;
+    if (new_val->is_numeric(vmg0_))
     {
         /* it's an integer - treat it as a unicode character value */
-        ch = (wchar_t)new_val->num_to_int();
+        int32_t ich = new_val->num_to_int(vmg0_);
+        if (ich < 0 || ich > 65535)
+            err_throw(VMERR_BAD_VAL_BIF);
+
+        /* it's in range - cast to wchar_t */
+        ch = (wchar_t)ich;
     }
     else
     {
@@ -944,14 +949,14 @@ int CVmObjStringBuffer::set_index_val_q(VMG_ vm_val_t *result,
  *   Ensure that the buffer is big enough to hold the given number of
  *   characters 
  */
-void CVmObjStringBuffer::ensure_space(VMG_ int32 len)
+void CVmObjStringBuffer::ensure_space(VMG_ int32_t len)
 {
     /* if the desired new length exceeds the limit, it's an error */
     if (len > STRBUF_MAX_LEN)
         err_throw(VMERR_STR_TOO_LONG);
 
     /* if the desired new length exceeds the current allocation, expand it */
-    if (len > (int32)get_ext()->alo)
+    if (len > (int32_t)get_ext()->alo)
     {
         ext_ = (char *)vm_strbuf_ext::expand_ext(
             vmg_ this, get_ext(), len);
@@ -961,7 +966,8 @@ void CVmObjStringBuffer::ensure_space(VMG_ int32 len)
 /*
  *   Open a gap for an insertion and/or delete characters for a deletion. 
  */
-void CVmObjStringBuffer::splice_move(VMG_ int32 idx, int32 del, int32 ins)
+void CVmObjStringBuffer::splice_move(
+    VMG_ int32_t idx, int32_t del, int32_t ins)
 {
     /* 
      *   if we're adding more than we're deleting, expand the buffer if
@@ -988,8 +994,8 @@ void CVmObjStringBuffer::splice_move(VMG_ int32 idx, int32 del, int32 ins)
  *   splice text into the buffer
  */
 void CVmObjStringBuffer::splice_text(VMG_ vm_obj_id_t self,
-                                     int32 idx, int32 del_chars,
-                                     const wchar_t *src, int32 ins_chars,
+                                     int32_t idx, int32_t del_chars,
+                                     const wchar_t *src, int32_t ins_chars,
                                      int undo)
 {
     /* check arguments */
@@ -1010,13 +1016,13 @@ void CVmObjStringBuffer::splice_text(VMG_ vm_obj_id_t self,
  *   splice UTF-8 text into the buffer
  */
 void CVmObjStringBuffer::splice_text(VMG_ vm_obj_id_t self,
-                                     int32 idx, int32 del_chars,
-                                     const char *src, int32 ins_bytes,
+                                     int32_t idx, int32_t del_chars,
+                                     const char *src, int32_t ins_bytes,
                                      int undo)
 {
     /* figure the character length of the string */
     utf8_ptr p((char *)src);
-    int32 ins_chars = p.len(ins_bytes);
+    int32_t ins_chars = p.len(ins_bytes);
 
     /* check arguments */
     adjust_args(&idx, &del_chars, &ins_chars);
@@ -1062,11 +1068,11 @@ int CVmObjStringBuffer::getp_char_at(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* pop the index and adjust to 0-based or end-based */
-    int32 idx = CVmBif::pop_int_val(vmg0_);
+    int32_t idx = CVmBif::pop_int_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* make sure it's in range */
-    if (idx < 0 || idx >= (int32)get_ext()->len)
+    if (idx < 0 || idx >= (int32_t)get_ext()->len)
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* return the character at the given index, as an integer Unicode code */
@@ -1116,7 +1122,7 @@ int CVmObjStringBuffer::getp_insert(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* pop the insertion index; adjust to 0-based or end-based indexing */
-    int32 idx = CVmBif::pop_int_val(vmg0_);
+    int32_t idx = CVmBif::pop_int_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* get or cast the string; leave it on the stack for gc protection */
@@ -1147,7 +1153,7 @@ int CVmObjStringBuffer::getp_copyChars(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* pop the insertion index; adjust to 0-based or end-based indexing */
-    int32 idx = CVmBif::pop_int_val(vmg0_);
+    int32_t idx = CVmBif::pop_int_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* get or cast the string; leave it on the stack for gc protection */
@@ -1191,11 +1197,11 @@ int CVmObjStringBuffer::getp_delete(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* pop the deletion index and adjust to 0-based or end-based */
-    int32 idx = CVmBif::pop_int_val(vmg0_);
+    int32_t idx = CVmBif::pop_int_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* pop the length, if provided; if not, delete the rest of the string */
-    int32 len;
+    int32_t len;
     if (argc >= 2)
         len = CVmBif::pop_int_val(vmg0_);
     else
@@ -1221,11 +1227,11 @@ int CVmObjStringBuffer::getp_splice(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* pop the insertion index and adjust to 0-based or end-based */
-    int32 idx = CVmBif::pop_int_val(vmg0_);
+    int32_t idx = CVmBif::pop_int_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* pop the deletion length */
-    int32 del = CVmBif::pop_int_val(vmg0_);
+    int32_t del = CVmBif::pop_int_val(vmg0_);
 
     /* get or cast the string; leave it on the stack for gc protection */
     vm_val_t strval;
@@ -1258,11 +1264,11 @@ int CVmObjStringBuffer::getp_substr(VMG_ vm_obj_id_t self,
         return TRUE;
 
     /* retrieve the starting index, and adjust for 0-based or end-based */
-    int32 idx = CVmBif::pop_long_val(vmg0_);
+    int32_t idx = CVmBif::pop_long_val(vmg0_);
     idx += (idx < 0 ? get_ext()->len : -1);
 
     /* if there's a length, pop it; otherwise use the rest of the string */
-    int32 len = get_ext()->len;
+    int32_t len = get_ext()->len;
     if (argc >= 2)
         len = CVmBif::pop_long_val(vmg0_);
 

@@ -32,11 +32,6 @@
 #include "trd.h"
 #include "vmvsn.h"
 
-static inline int max(int a, int b)
-{
-    return a > b ? a : b;
-}
-
 static void redraw_windows(void);
 static void os_status_redraw(void);
 extern void os_banners_redraw(void);
@@ -179,6 +174,18 @@ int os_init(int *argc, char *argv[], const char *prompt,
     strcpy(rbuf, "");
 
     return 0;
+}
+
+/*
+ *   Uninitialize.  This is called prior to progam termination to reverse
+ *   the effect of any changes made in os_init().  For example, if
+ *   os_init() put the terminal in raw mode, this should restore the
+ *   previous terminal mode.  This routine should not terminate the
+ *   program (so don't call exit() here) - the caller might have more
+ *   processing to perform after this routine returns.
+ */
+void os_uninit(void)
+{
 }
 
 void os_term(int status)

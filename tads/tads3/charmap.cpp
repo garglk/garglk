@@ -1302,10 +1302,8 @@ int CCharmapToLocal::write_file(CVmDataSource *fp,
 size_t CCharmapToLocalUTF8::map(wchar_t unicode_char, char **output_ptr,
                                 size_t *output_len) const
 {
-    size_t map_len;
-    
     /* get the character size */
-    map_len = utf8_ptr::s_wchar_size(unicode_char);
+    size_t map_len = utf8_ptr::s_wchar_size(unicode_char);
     
     /* if we don't have room for one more character, abort */
     if (*output_len < map_len)
@@ -1334,8 +1332,6 @@ size_t CCharmapToLocalUTF8::map_utf8(char *dest, size_t dest_len,
                                      utf8_ptr src, size_t src_byte_len,
                                      size_t *src_bytes_used) const
 {
-    size_t copy_len;
-
     /* 
      *   if they didn't give us a destination buffer, tell them how much
      *   space is needed for the copy - this is identical to the length of
@@ -1348,29 +1344,30 @@ size_t CCharmapToLocalUTF8::map_utf8(char *dest, size_t dest_len,
         return src_byte_len;
     }
 
-    /* copy as much as we can, up to the output buffer length */
-    copy_len = src_byte_len;
+    /* assume we'll be able to copy the whole string */
+    size_t copy_len = src_byte_len;
+
+    /* if there's not enough space for the whole string, limit it */
     if (copy_len > dest_len)
+    {
+        /* copy no more than the output buffer length */
         copy_len = dest_len;
 
-    /* 
-     *   if the last byte we'd copy is a continuation byte, don't copy it
-     *   so that we keep whole characters intact 
-     */
-    if (copy_len > 0
-        && utf8_ptr::s_is_continuation(src.getptr() + copy_len - 1))
-    {
-        /* don't copy this byte */
-        --copy_len;
+        /* 
+         *   If this splits a character into two pieces, back up until we're
+         *   at a character boundary - that is, the first byte of the next
+         *   chunk is a non-continuation character.
+         */
+        while (copy_len > 0
+               && utf8_ptr::s_is_continuation(src.getptr() + copy_len))
+            --copy_len;
 
         /* 
-         *   check the previous byte as well, since a given character can
-         *   be up to three bytes long (hence we might have two
-         *   continuation bytes) 
+         *   If that left us with zero bytes, just do the partial copy to
+         *   ensure we don't get stuck in a zero-at-a-time infinite loop.
          */
-        if (copy_len > 0
-            && utf8_ptr::s_is_continuation(src.getptr() + copy_len - 1))
-            --copy_len;
+        if (copy_len == 0)
+            copy_len = dest_len;
     }
 
     /* if we have an output buffer, copy the data */
@@ -1391,10 +1388,8 @@ size_t CCharmapToLocalUTF8::map_utf8(char *dest, size_t dest_len,
 size_t CCharmapToLocalUTF8::map_utf8z(char *dest, size_t dest_len,
                                       utf8_ptr src) const
 {
-    size_t src_len;
-
     /* get the source length */
-    src_len = strlen(src.getptr());
+    size_t src_len = strlen(src.getptr());
 
     /* copy the bytes */
     map_utf8(dest, dest_len, src, src_len, 0);
@@ -1426,11 +1421,9 @@ size_t CCharmapToLocalUTF8::map_utf8z(char *dest, size_t dest_len,
 size_t CCharmapToLocalSB::map(wchar_t unicode_char, char **output_ptr,
                               size_t *output_len) const
 {
-    const unsigned char *mapping;
-    size_t map_len;
-    
     /* get the mapping */
-    mapping = get_xlation(unicode_char, &map_len);
+    size_t map_len;
+    const unsigned char *mapping = get_xlation(unicode_char, &map_len);
     
     /* if we don't have room for one more character, abort */
     if (*output_len < map_len)
@@ -1459,17 +1452,14 @@ size_t CCharmapToLocalSB::map_utf8(char *dest, size_t dest_len,
                                    utf8_ptr src, size_t src_byte_len,
                                    size_t *src_bytes_used) const
 {
-    utf8_ptr src_start;
-    size_t cur_total;
-    char *srcend;
-
     /* remember where we started */
-    src_start = src;
+    utf8_ptr src_start = src;
 
     /* compute where the source buffer ends */
-    srcend = src.getptr() + src_byte_len;
+    char *srcend = src.getptr() + src_byte_len;
 
     /* copy characters until we reach the end of the source string */
+    size_t cur_total;
     for (cur_total = 0 ; src.getptr() < srcend ; src.inc())
     {
         const unsigned char *mapping;
@@ -2150,21 +2140,40 @@ void CCharmapToUni::load_table(osfildef *fp)
 size_t CCharmapToUni::map_str(char *outbuf, size_t outbuflen,
                               const char *input_str)
 {
-    size_t input_len;
-    size_t output_len;
-    
-    /* get the length of the input string */
-    input_len = strlen(input_str);
-
     /* map the string to the output buffer */
-    output_len = map(&outbuf, &outbuflen, input_str, input_len);
+    size_t output_len = map(&outbuf, &outbuflen, input_str, strlen(input_str));
 
-    /* if there's space remaining in the output buffer, add the null byte */
+    /* if there's space remaining in the output buffer, add a null byte */
     if (outbuflen != 0)
         *outbuf = '\0';
 
     /* return the number of bytes needed for the conversion */
     return output_len;
+}
+
+/*
+ *   Map a counted-length string into a buffer 
+ */
+size_t CCharmapToUni::map_str(char *outbuf, size_t outbuflen,
+                              const char *input_str, size_t input_len)
+{
+    /* map the string to the output buffer and return the result */
+    return map(&outbuf, &outbuflen, input_str, input_len);
+}
+
+/*
+ *   Map a null-terminated string, allocating space for the result 
+ */
+size_t CCharmapToUni::map_str_alo(char **outbuf, const char *input_str)
+{
+    /* figure the space needed */
+    size_t outlen = map_str(0, 0, input_str);
+
+    /* allocate the buffer */
+    *outbuf = (char *)t3malloc(outlen + 1);
+
+    /* map the sring */
+    return map_str(*outbuf, outlen, input_str);
 }
 
 /*

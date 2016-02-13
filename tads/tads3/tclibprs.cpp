@@ -355,7 +355,7 @@ void CTcLibParser::scan_source(const char *val)
     char full_name[OSFNMAX];
 
     /* convert the value from a URL-style path to a local path */
-    os_cvt_url_dir(rel_path, sizeof(rel_path), val, FALSE);
+    os_cvt_url_dir(rel_path, sizeof(rel_path), val);
 
     /* build the full name */
     os_build_full_path(full_name, sizeof(full_name), lib_path_, rel_path);
@@ -375,7 +375,7 @@ void CTcLibParser::scan_library(const char *val)
     char full_name[OSFNMAX];
 
     /* convert the value from a URL-style path to a local path */
-    os_cvt_url_dir(rel_path, sizeof(rel_path), val, FALSE);
+    os_cvt_url_dir(rel_path, sizeof(rel_path), val);
 
     /* build the full name */
     os_build_full_path(full_name, sizeof(full_name), lib_path_, rel_path);
@@ -395,7 +395,7 @@ void CTcLibParser::scan_resource(const char *val)
     char full_name[OSFNMAX];
 
     /* convert the value from a URL-style path to a local path */
-    os_cvt_url_dir(rel_path, sizeof(rel_path), val, FALSE);
+    os_cvt_url_dir(rel_path, sizeof(rel_path), val);
 
     /* build the full name */
     os_build_full_path(full_name, sizeof(full_name), lib_path_, rel_path);

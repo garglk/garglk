@@ -22,6 +22,7 @@ Modified
 #include "vmnetfil.h"
 #include "vmnet.h"
 #include "vmfile.h"
+#include "vmdatasrc.h"
 #include "vmerr.h"
 #include "vmerrnum.h"
 #include "vmrun.h"
@@ -211,8 +212,7 @@ CVmNetFile *CVmNetFile::open(VMG_ const char *fname, int sfid,
                 fname, ticket.get());
             
             /* set up a file stream writer on the temp file */
-            CVmFile *file = new CVmFile(fp, 0);
-            CVmFileStream reply(file);
+            CVmFileSource reply(fp);
             
             /* download the file from the server into the temp file */
             char *headers = 0;
@@ -226,9 +226,6 @@ CVmNetFile *CVmNetFile::open(VMG_ const char *fname, int sfid,
             /* get the reply status */
             char *stat = vmnet_get_storagesrv_stat(
                 vmg_ hstat, &reply, headers);
-
-            /* done with the file writer */
-            delete file;
 
             /* done with the headers */
             delete headers;
@@ -344,8 +341,7 @@ void CVmNetFile::close(VMG0_)
 
         /* send the GET request */
         char *headers = 0;
-        char reply[128] = "...";
-        CVmMemoryStream rstr(reply, sizeof(reply));
+        CVmMemorySource rstr(1024);
         int hstat = OS_HttpClient::request(
             0, G_net_config->get("storage.domain"), 80,
             "GET", url, 0, 0, 0, &rstr, &headers, 0, 0);
@@ -354,7 +350,6 @@ void CVmNetFile::close(VMG0_)
         t3free(url);
 
         /* get the reply code from the server */
-        rstr.set_len(rstr.get_seek_pos());
         stat = vmnet_get_storagesrv_stat(vmg_ hstat, &rstr, headers);
 
         /* done with the headers */
@@ -373,8 +368,7 @@ void CVmNetFile::close(VMG0_)
             err_throw(VMERR_CLOSE_FILE);
         
         /* set up a stream reader on the temp file */
-        CVmFile *file = new CVmFile(fp, 0);
-        CVmFileStream *st = new CVmFileStream(file);
+        CVmFileSource *st = new CVmFileSource(fp);
 
         /* get the ticket for writing this file */
         ServerTicket ticket(vmg_ srvfname, sfid);
@@ -391,8 +385,7 @@ void CVmNetFile::close(VMG0_)
             "%sputfile", G_net_config->get("storage.rootpath", "/"));
 
         /* send the POST request */
-        char reply[1024] = "...";
-        CVmMemoryStream rstr(reply, sizeof(reply));
+        CVmMemorySource rstr(128);
         char *headers = 0;
         int hstat = OS_HttpClient::request(
             0, G_net_config->get("storage.domain"), 80,
@@ -402,11 +395,7 @@ void CVmNetFile::close(VMG0_)
         t3free(url);
         delete post;
 
-        /* done with the temp file */
-        delete file;
-
         /* get the reply code from the server */
-        rstr.set_len(rstr.get_seek_pos());
         stat = vmnet_get_storagesrv_stat(vmg_ hstat, &rstr, headers);
 
         /* done with the headers */
@@ -442,8 +431,7 @@ static int server_file_check(VMG_ const char *srvfname, const char *mode)
         srvfname, ticket.get(), mode);
 
     /* send the request */
-    char reply[128] = "";
-    CVmMemoryStream rstr(reply, sizeof(reply));
+    CVmMemorySource rstr(128);
     int hstat = OS_HttpClient::request(
         0, G_net_config->get("storage.domain"), 80,
         "GET", url, 0, 0, 0, &rstr, 0, 0, 0);
@@ -452,7 +440,10 @@ static int server_file_check(VMG_ const char *srvfname, const char *mode)
     t3free(url);
     
     /* check the result */
-    return hstat == 200 && reply[0] == 'Y';
+    char reply[128];
+    return (hstat == 200
+            && rstr.readc(reply, sizeof(reply)) >= 1
+            && reply[0] == 'Y');
 }
 
 /* ------------------------------------------------------------------------ */
@@ -501,5 +492,172 @@ int CVmNetFile::can_write(VMG_ const char *fname, int sfid)
 
     /* return the result */
     return ret;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get the file mode
+ */
+int CVmNetFile::get_file_mode(
+    VMG_ unsigned long *mode, unsigned long *attrs, int follow_links)
+{
+    /* 
+     *   if it's a network file, check with the server to see if the file
+     *   exists; otherwise check the local file system 
+     */
+    int ret;
+    if (is_net_file())
+    {
+        /* 
+         *   network file - if the file exists, it's simply a regular file,
+         *   since that's all we support 
+         */
+        ret = server_file_check(vmg_ srvfname, "R");
+        *mode = (ret ? OSFMODE_FILE : 0);
+    }
+    else
+    {
+        /* local file - get the local file mode */
+        ret = osfmode(lclfname, follow_links, mode, attrs);
+    }
+    
+    /* return the result */
+    return ret;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get file status 
+ */
+int CVmNetFile::get_file_stat(VMG_ os_file_stat_t *stat, int follow_links)
+{
+    if (is_net_file())
+    {
+        /* not supported for network files */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+        AFTER_ERR_THROW(return FALSE);
+    }
+    else
+    {
+        /* local file - get the local file status */
+        return os_file_stat(lclfname, follow_links, stat);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Resolve a symbolic link
+ */
+int CVmNetFile::resolve_symlink(VMG_ char *target, size_t target_size)
+{
+    if (is_net_file())
+    {
+        /* 
+         *   the storage server doesn't support symbolic links, so there's
+         *   never anything to resolve 
+         */
+        if (target_size != 0)
+            target[0] = '\0';
+        return FALSE;
+    }
+    else
+    {
+        /* local file - get the local file status */
+        return os_resolve_symlink(lclfname, target, target_size);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Rename a file
+ */
+void CVmNetFile::rename_to(VMG_ CVmNetFile *newname)
+{
+    if (is_net_file())
+    {
+        /* the storage server doesn't support directory creation */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+    }
+    else
+    {
+        /* create the file locally */
+        rename_to_local(vmg_ newname);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Create a directory 
+ */
+void CVmNetFile::mkdir(VMG_ int create_parents)
+{
+    if (is_net_file())
+    {
+        /* the storage server doesn't support directory creation */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+    }
+    else
+    {
+        /* create the file locally */
+        mkdir_local(vmg_ create_parents);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Remove a directory 
+ */
+void CVmNetFile::rmdir(VMG_ int remove_contents)
+{
+    if (is_net_file())
+    {
+        /* the storage server doesn't support directory removal */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+    }
+    else
+    {
+        /* create the file locally */
+        rmdir_local(vmg_ remove_contents);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Read a directory 
+ */
+int CVmNetFile::readdir(VMG_ const char *nominal_path, vm_val_t *retval)
+{
+    if (is_net_file())
+    {
+        /* the storage server doesn't support directory listings */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+        AFTER_ERR_THROW(return FALSE);
+    }
+    else
+    {
+        /* read the local directory */
+        return readdir_local(vmg_ nominal_path, retval, 0, 0, FALSE);
+    }
+}
+
+/*
+ *   Read a directory, enumerating contents through a callback
+ */
+int CVmNetFile::readdir_cb(VMG_ const char *nominal_path,
+                           const struct vm_rcdesc *rc,
+                           const vm_val_t *cb, int recursive)
+{
+    if (is_net_file())
+    {
+        /* the storage server doesn't support directory listings */
+        err_throw(VMERR_NET_FILE_NOIMPL);;
+        AFTER_ERR_THROW(return FALSE);
+    }
+    else
+    {
+        /* read the local directory */
+        return readdir_local(vmg_ nominal_path, 0, rc, cb, recursive);
+    }
 }
 

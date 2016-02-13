@@ -38,6 +38,7 @@ Modified
 #include "vmhash.h"
 #include "vmmeta.h"
 #include "tct3unas.h"
+#include "vmop.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -1691,28 +1692,18 @@ void CTcGenTarg::add_const_list(CTPNList *lst,
 /*
  *   Generate a BigNumber object 
  */
-vm_obj_id_t CTcGenTarg::gen_bignum_obj(const char *txt, size_t len)
+vm_obj_id_t CTcGenTarg::gen_bignum_obj(
+    const char *txt, size_t len, int promoted)
 {
-    vm_obj_id_t id;
-    long size_ofs;
-    long end_ofs;
-    long num_ofs;
+    /* if the value was promoted from integer due to overflow, warn */
+    if (promoted)
+        G_tok->log_warning(TCERR_INT_CONST_OV);
+
+    /* write to BigNumber object stream */
     CTcDataStream *str = G_bignum_stream;
-    int exp;
-    int decpt;
-    utf8_ptr p;
-    size_t rem;
-    int dig[2];
-    int dig_idx;
-    int sig;
-    size_t tot_digits;
-    size_t prec;
-    int neg;
-    int val_zero;
-    uchar flags;
 
     /* generate a new object ID for the BigNumber */
-    id = new_obj_id();
+    vm_obj_id_t id = new_obj_id();
 
     /* 
      *   add the object ID to the non-symbol object list - this is
@@ -1721,235 +1712,69 @@ vm_obj_id_t CTcGenTarg::gen_bignum_obj(const char *txt, size_t len)
     G_prs->add_nonsym_obj(id);
 
     /* 
-     *   generate the object data to the BigNumber data stream
+     *   Get the BigNumber representation, inferring the radix.  The
+     *   tokenizer can pass us integer strings with '0x' (hex) or '0' (octal)
+     *   prefixes when the numbers they contain are too big for the 32-bit
+     *   signed integer type.  Floating-point values never have a radix
+     *   prefix.
      */
+    size_t bnlen;
+    char *bn = CVmObjBigNum::parse_str_alo(bnlen, txt, len, 0);
 
-    /* 
-     *   write the OBJS header - object ID plus byte count for
-     *   metaclass-specific data 
-     */
+    /* write the OBJS header - object ID plus byte count for metaclass data */
     str->write_obj_id(id);
-    size_ofs = str->get_ofs();
-    str->write2(0);
+    str->write2(bnlen);
+
+    /* write the BigNumber contents */
+    str->write(bn, bnlen);
+
+    /* free the BigNumber value */
+    delete [] bn;
+
+    /* return the new object ID */
+    return id;
+}
+
+/*
+ *   Generate a RexPattern object 
+ */
+vm_obj_id_t CTcGenTarg::gen_rexpat_obj(const char *txt, size_t len)
+{
+    /* write to RexPattern object stream */
+    CTcDataStream *rs = G_rexpat_stream;
+
+    /* generate a new object ID for the RexPattern object */
+    vm_obj_id_t id = new_obj_id();
+
+    /* add the object ID to the non-symbol object list */
+    G_prs->add_nonsym_obj(id);
 
     /* 
-     *   write the metaclass-specific data for the BigNumber metaclass 
+     *   write the OBJS header - object ID plus byte count for metaclass data
+     *   (a DATAHOLDER pointing to the constant string)
      */
-
-    /* remember where the number starts */
-    num_ofs = str->get_ofs();
-
-    /* write placeholders for the precision, exponent, and flags */
-    str->write2(0);
-    str->write2(0);
-    str->write(0);
-
-    /* start at the beginning of the number's text */
-    p.set((char *)txt);
-    rem = len;
-
-    /* presume the value won't be zero */
-    val_zero = FALSE;
-
-    /* check for leading sign indicators */
-    for (neg = FALSE ; rem != 0 ; p.inc(&rem))
-    {
-        /* if it's a sign, note it and keep scanning */
-        if (p.getch() == '-')
-        {
-            /* negative sign - note it and keep going */
-            neg = !neg;
-        }
-        else if (p.getch() == '+')
-        {
-            /* positive sign - ignore it and keep going */
-        }
-        else
-        {
-            /* not a sign character - stop scanning for signs */
-            break;
-        }
-    }
-
-    /* scan the digits of the number */
-    for (exp = 0, sig = FALSE, decpt = FALSE, prec = 0, tot_digits = 0,
-         dig_idx = 0 ; rem != 0 ; p.inc(&rem))
-    {
-        wchar_t ch;
-        
-        /* get this character */
-        ch = p.getch();
-
-        /* see what we have */
-        if (is_digit(ch))
-        {
-            /* 
-             *   if it's non-zero, it's definitely significant; otherwise,
-             *   it's significant only if we've seen a significant digit
-             *   already 
-             */
-            if (ch != '0')
-                sig = TRUE;
-
-            /* count it in the total digits whether or not its significant */
-            ++tot_digits;
-            
-            /* if the digit is significant, add it to the number */
-            if (sig)
-            {
-                /* add another digit to our buffer */
-                dig[dig_idx++] = value_of_digit(ch);
-
-                /* count the precision */
-                ++prec;
-
-                /* 
-                 *   if we haven't found the decimal point yet, count the
-                 *   exponent change
-                 */
-                if (!decpt)
-                    ++exp;
-                
-                /* 
-                 *   if we have two digits now, write out another byte of
-                 *   the number 
-                 */
-                if (dig_idx == 2)
-                {
-                    /* write out this digit pair */
-                    str->write((char)((dig[0] << 4) + dig[1]));
-
-                    /* the buffer is now empty */
-                    dig_idx = 0;
-                }
-            }
-            else if (decpt)
-            {
-                /* 
-                 *   we have a leading insignificant zero following the
-                 *   decimal point - decrease the exponent 
-                 */
-                --exp;
-            }
-        }
-        else if (!decpt && ch == '.')
-        {
-            /* we've found the decimal point - note it */
-            decpt = TRUE;
-        }
-        else if (ch == 'e' || ch == 'E')
-        {
-            int neg_exp = FALSE;
-            long acc;
-            
-            /* we've found our exponent - check for a sign */
-            p.inc(&rem);
-            if (rem != 0)
-            {
-                if (p.getch() == '-')
-                {
-                    /* note the sign and skip the '-' */
-                    neg_exp = TRUE;
-                    p.inc(&rem);
-                }
-                else if (p.getch() == '+')
-                {
-                    /* skip the '+' */
-                    p.inc(&rem);
-                }
-            }
-
-            /* scan the digits */
-            for (acc = 0 ; rem != 0 ; p.inc(&rem))
-            {
-                long new_acc;
-                
-                /* if this isn't a digit, we're done */
-                if (!is_digit(p.getch()))
-                    break;
-
-                /* add in this digit */
-                new_acc = acc*10 + value_of_digit(p.getch());
-                if ((!neg_exp && new_acc > 32767)
-                    || (neg_exp && new_acc > 32768))
-                    break;
-
-                /* set the new accumulator */
-                acc = new_acc;
-            }
-
-            /* set the sign */
-            if (neg_exp)
-                acc = -acc;
-
-            /* 
-             *   add this exponent to the exponent we derived for the
-             *   number itself 
-             */
-            exp = (int)(exp + acc);
-
-            /* 
-             *   since we scanned the string in our own loop, make sure we
-             *   haven't reached the end of the buffer - if we have, we're
-             *   done with the outer loop now 
-             */
-            if (rem == 0)
-                break;
-        }
-        else
-        {
-            /* 
-             *   anything else is invalid, so we've reached the end of the
-             *   number - stop scanning
-             */
-            break;
-        }
-    }
-
-    /* if we have a pending digit, write it out */
-    if (dig_idx == 1)
-        str->write((char)(dig[0] << 4));
+    rs->write_obj_id(id);
+    rs->write2(VMB_DATAHOLDER);
 
     /* 
-     *   if we had no significant digits, the number is all zeros, so in
-     *   this special case treat all of the zeros as significant 
+     *   Add the source text as an ordinary constant string.  Generate its
+     *   fixup in the RexPattern stream, in the DATAHOLDER we're about to
+     *   write. 
      */
-    if (prec == 0 && tot_digits != 0)
-    {
-        /* note that the value is zero */
-        val_zero = TRUE;
-        
-        /* use the zeros as significant digits */
-        prec = tot_digits;
-        
-        /* write out the zeros */
-        for ( ; tot_digits > 1 ; tot_digits -= 2)
-            str->write(0);
-        if (tot_digits > 0)
-            str->write(0);
+    add_const_str(txt, len, rs, rs->get_ofs() + 1);
 
-        /* 
-         *   the exponent for the value zero is always 1 (this is a
-         *   normalization rule) 
-         */
-        exp = 1;
-    }
+    /* 
+     *   Set up the constant string value.  Use zero as the pool offset,
+     *   since the fixup for the constant string will fill this in when the
+     *   pool layout is finalized. 
+     */
+    vm_val_t val;
+    val.set_sstring(0);
 
-    /* construct the flags */
-    flags = 0;
-    if (neg)
-        flags |= VMBN_F_NEG;
-    if (val_zero)
-        flags |= VMBN_F_ZERO;
-
-    /* go back and fix up the precision, exponent, and flags values */
-    str->write2_at(num_ofs, prec);
-    str->write2_at(num_ofs + 2, exp);
-    str->write_at(num_ofs + 4, flags);
-
-    /* fix up the size */
-    end_ofs = str->get_ofs();
-    str->write2_at(size_ofs, end_ofs - size_ofs - 2);
+    /* write the RexPattern data (a DATAHOLDER for the const string) */
+    char buf[VMB_DATAHOLDER];
+    vmb_put_dh(buf, &val);
+    rs->write(buf, VMB_DATAHOLDER);
 
     /* return the new object ID */
     return id;
@@ -1983,7 +1808,8 @@ void CTcGenTarg::write_const_as_dh(CTcDataStream *ds, ulong ofs,
     case TC_CVT_FLOAT:
         /* generate the BigNumber object */
         val.set_obj(gen_bignum_obj(src->get_val_float(),
-                                   src->get_val_float_len()));
+                                   src->get_val_float_len(),
+                                   src->is_promoted()));
 
         /* add a fixup for the object ID */
         if (G_keep_objfixups)
@@ -2005,6 +1831,17 @@ void CTcGenTarg::write_const_as_dh(CTcDataStream *ds, ulong ofs,
          *   real value 
          */
         val.set_sstring(0);
+        break;
+
+
+    case TC_CVT_RESTR:
+        /* generate the RexPattern object */
+        val.set_obj(gen_rexpat_obj(src->get_val_str(),
+                                   src->get_val_str_len()));
+
+        /* add a fixup for the object ID */
+        if (G_keep_objfixups)
+            CTcIdFixup::add_fixup(&G_objfixup, ds, ofs + 1, val.val.obj);
         break;
 
     case TC_CVT_LIST:
@@ -2159,15 +1996,13 @@ void CTcGenTarg::set_method_ofs(ulong ofs)
 /*
  *   Open a method 
  */
-void CTcGenTarg::open_method(CTcCodeStream *stream,
-                             CTcSymbol *fixup_owner_sym,
-                             CTcAbsFixup **fixup_list_head,
-                             CTPNCodeBody *code_body,
-                             CTcPrsSymtab *goto_tab,
-                             int argc, int opt_argc, int varargs,
-                             int is_constructor, int is_op_overload,
-                             int is_self_available,
-                             tct3_method_gen_ctx *ctx)
+void CTcGenTarg::open_method(
+    CTcCodeStream *stream,
+    CTcSymbol *fixup_owner_sym, CTcAbsFixup **fixup_list_head,
+    CTPNCodeBody *code_body, CTcPrsSymtab *goto_tab,
+    int argc, int opt_argc, int varargs,
+    int is_constructor, int is_op_overload, int is_self_available,
+    tct3_method_gen_ctx *ctx)
 {
     /* set the code stream as the current code generator output stream */
     G_cs = ctx->stream = stream;
@@ -2425,298 +2260,6 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
     ulong ofs;
     ulong end_ofs;
     uchar prv_op;
-    static const size_t op_siz[] =
-    {
-        0,                                                 /* 0x00 - unused */
-
-        1,                                             /* 0x01 - OPC_PUSH_0 */
-        1,                                             /* 0x02 - OPC_PUSH_1 */
-        2,                                           /* 0x03 - OPC_PUSHINT8 */
-        5,                                            /* 0x04 - OPC_PUSHINT */
-        5,                                            /* 0x05 - OPC_PUSHSTR */
-        5,                                            /* 0x06 - OPC_PUSHLST */
-        5,                                            /* 0x07 - OPC_PUSHOBJ */
-        1,                                            /* 0x08 - OPC_PUSHNIL */
-        1,                                           /* 0x09 - OPC_PUSHTRUE */
-        3,                                         /* 0x0A - OPC_PUSHPROPID */
-        5,                                          /* 0x0B - OPC_PUSHFNPTR */
-        0,               /* 0x0C - OPC_PUSHSTRI - variable-size instruction */
-        2,                                         /* 0x0D - OPC_PUSHPARLST */
-        1,                                         /* 0x0E - OPC_MAKELSTPAR */
-        5,                                           /* 0x0F - OPC_PUSHENUM */
-        5,                                         /* 0x10 - OPC_PUSHBIFPTR */
-
-        1,                                                 /* 0x11 - unused */
-        1,                                                 /* 0x12 - unused */
-        1,                                                 /* 0x13 - unused */
-        1,                                                 /* 0x14 - unused */
-        1,                                                 /* 0x15 - unused */
-        1,                                                 /* 0x16 - unused */
-        1,                                                 /* 0x17 - unused */
-        1,                                                 /* 0x18 - unused */
-        1,                                                 /* 0x19 - unused */
-        1,                                                 /* 0x1A - unused */
-        1,                                                 /* 0x1B - unused */
-        1,                                                 /* 0x1C - unused */
-        1,                                                 /* 0x1D - unused */
-        1,                                                 /* 0x1E - unused */
-        1,                                                 /* 0x1F - unused */
-
-        1,                                                /* 0x20 - OPC_NEG */
-        1,                                               /* 0x21 - OPC_BNOT */
-        1,                                                /* 0x22 - OPC_ADD */
-        1,                                                /* 0x23 - OPC_SUB */
-        1,                                                /* 0x24 - OPC_MUL */
-        1,                                               /* 0x25 - OPC_BAND */
-        1,                                                /* 0x26 - OPC_BOR */
-        1,                                                /* 0x27 - OPC_SHL */
-        1,                                               /* 0x28 - OPC_ASHR */
-        1,                                                /* 0x29 - OPC_XOR */
-        1,                                                /* 0x2A - OPC_DIV */
-        1,                                                /* 0x2B - OPC_MOD */
-        1,                                                /* 0x2C - OPC_NOT */
-        1,                                            /* 0x2D - OPC_BOOLIZE */
-        1,                                                /* 0x2E - OPC_INC */
-        1,                                                /* 0x2F - OPC_DEC */
-        1,                                               /* 0x31 - OPC_LSHR */
-
-        1,                                                 /* 0x31 - unused */
-        1,                                                 /* 0x32 - unused */
-        1,                                                 /* 0x33 - unused */
-        1,                                                 /* 0x34 - unused */
-        1,                                                 /* 0x35 - unused */
-        1,                                                 /* 0x36 - unused */
-        1,                                                 /* 0x37 - unused */
-        1,                                                 /* 0x38 - unused */
-        1,                                                 /* 0x39 - unused */
-        1,                                                 /* 0x3A - unused */
-        1,                                                 /* 0x3B - unused */
-        1,                                                 /* 0x3C - unused */
-        1,                                                 /* 0x3D - unused */
-        1,                                                 /* 0x3E - unused */
-        1,                                                 /* 0x3F - unused */
-
-        1,                                                 /* 0x40 - OPC_EQ */
-        1,                                                 /* 0x41 - OPC_NE */
-        1,                                                 /* 0x42 - OPC_LT */
-        1,                                                 /* 0x43 - OPC_LE */
-        1,                                                 /* 0x44 - OPC_GT */
-        1,                                                 /* 0x45 - OPC_GE */
-
-        1,                                                 /* 0x46 - unused */
-        1,                                                 /* 0x47 - unused */
-        1,                                                 /* 0x48 - unused */
-        1,                                                 /* 0x49 - unused */
-        1,                                                 /* 0x4A - unused */
-        1,                                                 /* 0x4B - unused */
-        1,                                                 /* 0x4C - unused */
-        1,                                                 /* 0x4D - unused */
-        1,                                                 /* 0x4E - unused */
-        1,                                                 /* 0x4F - unused */
-
-        1,                                             /* 0x50 - OPC_RETVAL */
-        1,                                             /* 0x51 - OPC_RETNIL */
-        1,                                            /* 0x52 - OPC_RETTRUE */
-        1,                                                 /* 0x53 - unused */
-        1,                                                /* 0x54 - OPC_RET */
-
-        1,                                                 /* 0x55 - unused */
-
-        4,                                        /* 0x56 - OPC_NAMEDARGPTR */
-        0,               /* 0x57 - OPC_NAMEDARGTAB - variable-size operands */
-
-        6,                                               /* 0x58 - OPC_CALL */
-        2,                                            /* 0x59 - OPC_PTRCALL */
-
-        1,                                                 /* 0x5A - unused */
-        1,                                                 /* 0x5B - unused */
-        1,                                                 /* 0x5C - unused */
-        1,                                                 /* 0x5D - unused */
-        1,                                                 /* 0x5E - unused */
-        1,                                                 /* 0x5F - unused */
-
-        3,                                            /* 0x60 - OPC_GETPROP */
-        4,                                           /* 0x61 - OPC_CALLPROP */
-        2,                                        /* 0x62 - OPC_PTRCALLPROP */
-        3,                                        /* 0x63 - OPC_GETPROPSELF */
-        4,                                       /* 0x64 - OPC_CALLPROPSELF */
-        2,                                    /* 0x65 - OPC_PTRCALLPROPSELF */
-        7,                                         /* 0x66 - OPC_OBJGETPROP */
-        8,                                        /* 0x67 - OPC_OBJCALLPROP */
-        3,                                        /* 0x68 - OPC_GETPROPDATA */
-        1,                                     /* 0x69 - OPC_PTRGETPROPDATA */
-        4,                                        /* 0x6A - OPC_GETPROPLCL1 */
-        5,                                       /* 0x6B - OPC_CALLPROPLCL1 */
-        3,                                          /* 0x6C - OPC_GETPROPR0 */
-        4,                                         /* 0x6D - OPC_CALLPROPR0 */
-
-        1,                                                 /* 0x6E - unused */
-        1,                                                 /* 0x6F - unused */
-        1,                                                 /* 0x70 - unused */
-        1,                                                 /* 0x71 - unused */
-
-        4,                                            /* 0x72 - OPC_INHERIT */
-        2,                                         /* 0x73 - OPC_PTRINHERIT */
-        8,                                         /* 0x74 - OPC_EXPINHERIT */
-        6,                                      /* 0x75 - OPC_PTREXPINHERIT */
-        1,                                            /* 0x76 - OPC_VARARGC */
-        4,                                           /* 0x77 - OPC_DELEGATE */
-        2,                                        /* 0x78 - OPC_PTRDELEGATE */
-
-        1,                                                 /* 0x79 - unused */
-        1,                                                  /* 0x7A - SWAP2 */
-        3,                                                  /* 0x7B - SWAPN */
-
-        1,                                           /* 0x7C - OPC_GETARGN0 */
-        1,                                           /* 0x7D - OPC_GETARGN1 */
-        1,                                           /* 0x7E - OPC_GETARGN2 */
-        1,                                           /* 0x7F - OPC_GETARGN3 */
-        2,                                            /* 0x80 - OPC_GETLCL1 */
-        3,                                            /* 0x81 - OPC_GETLCL2 */
-        2,                                            /* 0x82 - OPC_GETARG1 */
-        3,                                            /* 0x83 - OPC_GETARG2 */
-        1,                                           /* 0x84 - OPC_PUSHSELF */
-        5,                                           /* 0x85 - OPC_GETDBLCL */
-        5,                                           /* 0x86 - OPC_GETDBARG */
-        1,                                            /* 0x87 - OPC_GETARGC */
-        1,                                                /* 0x88 - OPC_DUP */
-        1,                                               /* 0x89 - OPC_DISC */
-        2,                                              /* 0x8A - OPC_DISC1 */
-        1,                                              /* 0x8B - OPC_GETR0 */
-        3,                                          /* 0x8C - OPC_GETDBARGC */
-        1,                                               /* 0x8D - OPC_SWAP */
-
-        2,                                         /* 0x8E - OPC_PUSHCTXELE */
-
-        1,                                                   /* 0x8F - DUP2 */
-
-        0,                 /* 0x90 - OPC_SWITCH - variable-size instruction */
-        3,                                                /* 0x91 - OPC_JMP */
-        3,                                                 /* 0x92 - OPC_JT */
-        3,                                                 /* 0x93 - OPC_JF */
-        3,                                                 /* 0x94 - OPC_JE */
-        3,                                                /* 0x95 - OPC_JNE */
-        3,                                                /* 0x96 - OPC_JGT */
-        3,                                                /* 0x97 - OPC_JGE */
-        3,                                                /* 0x98 - OPC_JLT */
-        3,                                                /* 0x99 - OPC_JLE */
-        3,                                                /* 0x9A - OPC_JST */
-        3,                                                /* 0x9B - OPC_JSF */
-        3,                                               /* 0x9C - OPC_LJSR */
-        3,                                               /* 0x9D - OPC_LRET */
-        3,                                               /* 0x9E - OPC_JNIL */
-        3,                                            /* 0x9F - OPC_JNOTNIL */
-        3,                                               /* 0xA0 - OPC_JR0T */
-        3,                                               /* 0xA1 - OPC_JR0F */
-        5,                                           /* 0xA2 - OPC_ITERNEXT */
-
-        2,                                           /* 0xA3 - GETSETLCL1R0 */
-        2,                                             /* 0xA4 - GETSETLCL1 */
-        1,                                                  /* 0xA5 - DUPR0 */
-        2,                                                 /* 0xA6 - GETSPN */
-        1,                                                 /* 0xA7 - unused */
-        1,                                                 /* 0xA8 - unused */
-        1,                                                 /* 0xA9 - unused */
-
-        1,                                               /* 0xAA - GETLCLN0 */
-        1,                                               /* 0xAB - GETLCLN1 */
-        1,                                               /* 0xAC - GETLCLN2 */
-        1,                                               /* 0xAD - GETLCLN3 */
-        1,                                               /* 0xAE - GETLCLN4 */
-        1,                                               /* 0xAF - GETLCLN5 */
-
-        5,                                                /* 0xB0 - OPC_SAY */
-        3,                                          /* 0xB1 - OPC_BUILTIN_A */
-        3,                                          /* 0xB2 - OPC_BUILTIN_B */
-        3,                                          /* 0xB3 - OPC_BUILTIN_C */
-        3,                                          /* 0xB4 - OPC_BUILTIN_D */
-        3,                                           /* 0xB5 - OPC_BUILTIN1 */
-        4,                                           /* 0xB6 - OPC_BUILTIN2 */
-        0,      /* 0xB7 - OPC_CALLEXT (reserved; not currently implemented) */
-        1,                                              /* 0xB8 - OPC_THROW */
-        1,                                             /* 0xB9 - OPC_SAYVAL */
-
-        1,                                              /* 0xBA - OPC_INDEX */
-        3,                                        /* 0xBB - OPC_IDXLCL1INT8 */
-        2,                                           /* 0xBC - OPC_IDXLINT8 */
-        1,                                                 /* 0xBD - unused */
-
-        1,                                                 /* 0xBE - unused */
-        1,                                                 /* 0xBF - unused */
-
-        3,                                               /* 0xC0 - OPC_NEW1 */
-        5,                                               /* 0xC1 - OPC_NEW2 */
-        3,                                             /* 0xC2 - OPC_TRNEW1 */
-        5,                                             /* 0xC3 - OPC_TRNEW2 */
-
-        1,                                                 /* 0xC4 - unused */
-        1,                                                 /* 0xC5 - unused */
-        1,                                                 /* 0xC6 - unused */
-        1,                                                 /* 0xC7 - unused */
-        1,                                                 /* 0xC8 - unused */
-        1,                                                 /* 0xC9 - unused */
-        1,                                                 /* 0xCA - unused */
-        1,                                                 /* 0xCB - unused */
-        1,                                                 /* 0xCC - unused */
-        1,                                                 /* 0xCD - unused */
-        1,                                                 /* 0xCE - unused */
-        1,                                                 /* 0xCF - unused */
-
-        3,                                             /* 0xD0 - OPC_INCLCL */
-        3,                                             /* 0xD1 - OPC_DECLCL */
-        3,                                           /* 0xD2 - OPC_ADDILCL1 */
-        7,                                           /* 0xD3 - OPC_ADDILCL4 */
-        3,                                           /* 0xD4 - OPC_ADDTOLCL */
-        3,                                         /* 0xD5 - OPC_SUBFROMLCL */
-        2,                                           /* 0xD6 - OPC_ZEROLCL1 */
-        3,                                           /* 0xD7 - OPC_ZEROLCL2 */
-        2,                                            /* 0xD8 - OPC_NILLCL1 */
-        3,                                            /* 0xD9 - OPC_NILLCL2 */
-        2,                                            /* 0xDA - OPC_ONELCL1 */
-        3,                                            /* 0xDB - OPC_ONELCL2 */
-
-        1,                                                 /* 0xDC - unused */
-        1,                                                 /* 0xDD - unused */
-        1,                                                 /* 0xDE - unused */
-        1,                                                 /* 0xDF - unused */
-
-        2,                                            /* 0xE0 - OPC_SETLCL1 */
-        3,                                            /* 0xE1 - OPC_SETLCL2 */
-        2,                                            /* 0xE2 - OPC_SETARG1 */
-        3,                                            /* 0xE3 - OPC_SETARG2 */
-        1,                                             /* 0xE4 - OPC_SETIND */
-        3,                                            /* 0xE5 - OPC_SETPROP */
-        1,                                         /* 0xE6 - OPC_PTRSETPROP */
-        3,                                        /* 0xE7 - OPC_SETPROPSELF */
-        7,                                         /* 0xE8 - OPC_OBJSETPROP */
-        5,                                           /* 0xE9 - OPC_SETDBLCL */
-        5,                                           /* 0xEA - OPC_SETDBARG */
-
-        1,                                            /* 0xEB - OPC_SETSELF */
-        1,                                            /* 0xEC - OPC_LOADCTX */
-        1,                                           /* 0xED - OPC_STORECTX */
-        2,                                          /* 0xEE - OPC_SETLCL1R0 */
-        3,                                       /* 0xEF - OPC_SETINDLCL1I8 */
-
-        1,                                                 /* 0xF0 - unused */
-
-        1,                                                 /* 0xF1 - OPC_BP */
-        1,                                                /* 0xF2 - OPC_NOP */
-
-        1,                                                 /* 0xF3 - unused */
-        1,                                                 /* 0xF4 - unused */
-        1,                                                 /* 0xF5 - unused */
-        1,                                                 /* 0xF6 - unused */
-        1,                                                 /* 0xF7 - unused */
-        1,                                                 /* 0xF8 - unused */
-        1,                                                 /* 0xF9 - unused */
-        1,                                                 /* 0xFA - unused */
-        1,                                                 /* 0xFB - unused */
-        1,                                                 /* 0xFC - unused */
-        1,                                                 /* 0xFD - unused */
-        1,                                                 /* 0xFE - unused */
-        255                                                /* 0xFF - unused */
-    };
     
     /* 
      *   scan the code stream starting at the given offset, continuing
@@ -3147,7 +2690,7 @@ void CTcGenTarg::remove_jumps_to_jumps(CTcCodeStream *str, ulong start_ofs)
              *   consult our table of instruction lengths to determine the
              *   offset of the next instruction 
              */
-            ofs += op_siz[op];
+            ofs += CVmOpcodes::op_siz[op];
             break;
         }
 
@@ -4292,12 +3835,22 @@ void CTPNConst::gen_code(int discard, int)
         break;
 
     case TC_CVT_FLOAT:
-        /* we'll represent it as a BigNumber object */
+        /* write the push-object instruction for the BigNumber object */
         G_cg->write_op(OPC_PUSHOBJ);
 
         /* generate the BigNumber object and write its ID */
-        G_cs->write_obj_id(G_cg->gen_bignum_obj(val_.get_val_float(),
-                                                val_.get_val_float_len()));
+        G_cs->write_obj_id(G_cg->gen_bignum_obj(
+            val_.get_val_float(), val_.get_val_float_len(),
+            val_.is_promoted()));
+        break;
+
+    case TC_CVT_RESTR:
+        /* write the push-object instruction for the RexPattern object */
+        G_cg->write_op(OPC_PUSHOBJ);
+
+        /* generate the RexPattern object and write its ID */
+        G_cs->write_obj_id(G_cg->gen_rexpat_obj(
+            val_.get_val_str(), val_.get_val_str_len()));
         break;
 
     case TC_CVT_SSTR:
@@ -4587,6 +4140,7 @@ void CTPNConst::gen_code_member(int discard,
 
     case TC_CVT_LIST:
     case TC_CVT_SSTR:
+    case TC_CVT_RESTR:
     case TC_CVT_FLOAT:
         /* 
          *   list/string/BigNumber constant - generate our value as
@@ -4759,6 +4313,36 @@ void CTPNDebugConst::gen_code(int discard, int for_condition)
             G_cs->write2(1);
             G_cs->write2(sym->get_meta_idx());
 
+            /* retrieve the value */
+            G_cg->write_op(OPC_GETR0);
+
+            /* 
+             *   note the net push of one value (we pushed the argument,
+             *   popped the argument, and pushed the new object) 
+             */
+            G_cg->note_push();
+        }
+        break;
+
+    case TC_CVT_RESTR:
+        {
+            /* find the RexPattern metaclass */
+            CTcSymMetaclass *sym =
+                (CTcSymMetaclass *)G_prs->get_global_symtab()->find(
+                    "RexPattern", 10);
+            if (sym == 0 || sym->get_type() != TC_SYM_METACLASS)
+                err_throw(VMERR_INVAL_DBG_EXPR);
+
+            /* push the pattern source string value as an immediate string */
+            G_cg->write_op(OPC_PUSHSTRI);
+            G_cs->write2(val_.get_val_str_len());
+            G_cs->write(val_.get_val_str(), val_.get_val_str_len());
+
+            /* create the new RexPattern object from the string */
+            G_cg->write_op(OPC_NEW2);
+            G_cs->write2(1);
+            G_cs->write2(sym->get_meta_idx());
+            
             /* retrieve the value */
             G_cg->write_op(OPC_GETR0);
 
@@ -5292,8 +4876,6 @@ void CTPNOr::gen_code_cond(CTcCodeLabel *then_label,
  */
 void CTPNAnd::gen_code(int discard, int for_condition)
 {
-    CTcCodeLabel *lbl;
-
     /* 
      *   first, evaluate the left-hand side; we need the result even if
      *   we're discarding the overall expression, since we will check the
@@ -5309,7 +4891,7 @@ void CTPNAnd::gen_code(int discard, int for_condition)
      *   evaluate the rhs, saving the false result if we're not discarding
      *   the overall result.  
      */
-    lbl = gen_jump_ahead(discard ? OPC_JF : OPC_JSF);
+    CTcCodeLabel *lbl = gen_jump_ahead(discard ? OPC_JF : OPC_JSF);
 
     /* 
      *   Evaluate the right-hand side.  We don't need to save the result
@@ -6209,9 +5791,9 @@ int CTPNSubscript::gen_code_asi(int discard, int phase,
         
         /* 
          *   if we're not discarding the result, duplicate the value to be
-         *   assigned, so that it's left on the stack after we're finished
-         *   (this is necessary because we'll consume one copy with the
-         *   SETIND instruction) 
+         *   assigned, so that we leave a copy on the stack after we're
+         *   finished.  This is necessary because the SETIND instruction will
+         *   consume one copy of the value.
          */
         if (!discard)
         {
@@ -6225,10 +5807,10 @@ int CTPNSubscript::gen_code_asi(int discard, int phase,
         /* 
          *   Generate the value to be subscripted - that's my left-hand side.
          *   Generate this as phase 1 of a two-phase assignment, with the
-         *   special pseudo-operator '[]='.  (Ignore the return value; no one
+         *   special pseudo-operator '[]='.  Ignore the return value; no one
          *   can fully handle this type of assignment in phase 1.  Also, note
          *   that we don't yet have the right-hand value to assign - it's the
-         *   result of the SETIND yet to come.)  
+         *   result of the SETIND yet to come.  
          */
         left_->gen_code_asi(FALSE, 1, TC_ASI_IDX, op,
                             0, TRUE, xplicit, &sctx);
@@ -6239,9 +5821,25 @@ int CTPNSubscript::gen_code_asi(int discard, int phase,
          *   that we need for the SETIND we're about to generate.  For the
          *   SETIND, we need the RHS value at index 1, just above the LHS
          *   value.  So if the new depth is more than 1 greater than the RHS
-         *   depth, we need to do some stack rearrangement.  
+         *   depth, we need to do some stack rearrangement.
+         *   
+         *   If phase 1 left *nothing* on the stack, it means that the value
+         *   being indexed can't handle assignments at all, as in
+         *   self[i]=val.  This is acceptable: we can still perform the []=
+         *   portion to assign to the indexed element, but we won't be able
+         *   to do the second part, which is assigning the result of the []=
+         *   operator to the lhs of the [] operator.  We'll simply ignore
+         *   that second part in this case.
          */
-        if (G_cg->get_sp_depth() != rhs_depth + 1)
+        if (G_cg->get_sp_depth() == rhs_depth)
+        {
+            /* 
+             *   the lhs of [] is not assignable; simply generate the lhs so
+             *   that we can index it 
+             */
+            left_->gen_code(FALSE, FALSE);
+        }
+        else if (G_cg->get_sp_depth() > rhs_depth + 1)
         {
             /* figure the distance to the RHS */
             int dist = G_cg->get_sp_depth() - rhs_depth;
@@ -6992,10 +6590,8 @@ CTPNDstrEmbed::CTPNDstrEmbed(CTcPrsNode *sub)
  */
 void CTPNDstrEmbed::gen_code(int, int)
 {
-    int orig_depth;
-
     /* note the stack depth before generating the expression */
-    orig_depth = G_cg->get_sp_depth();
+    int orig_depth = G_cg->get_sp_depth();
     
     /* 
      *   Generate code for the embedded expression.  If the expression has a
@@ -7177,7 +6773,7 @@ static CTcSymFunc *get_internal_func(const char *nm,
     {
         /* it's not defined - create an implied declaration for it */
         fn = new CTcSymFunc(nm, len, FALSE, argc, opt_argc, varargs,
-                            has_retval, FALSE, FALSE, TRUE);
+                            has_retval, FALSE, FALSE, TRUE, TRUE);
 
         /* add it to the global symbol table */
         G_prs->get_global_symtab()->add_entry(fn);
@@ -7906,8 +7502,6 @@ void CTPNMemArg::gen_code(int discard, int)
  */
 void CTPNList::gen_code(int discard, int for_condition)
 {
-    CTPNListEle *ele;
-
     /*
      *   Before we construct the list dynamically, check to see if the
      *   list is constant.  If it is, we need only built the list in the
@@ -7944,7 +7538,7 @@ void CTPNList::gen_code(int discard, int for_condition)
          *   false).  Push the argument list in reverse order, since the
          *   run-time metaclass requires this ordering.  
          */
-        for (ele = get_tail() ; ele != 0 ; ele = ele->get_prev())
+        for (CTPNListEle *ele = get_tail() ; ele != 0 ; ele = ele->get_prev())
             ele->gen_code(FALSE, FALSE);
 
         /* generate a NEW instruction for an object of metaclass LIST */
@@ -8152,6 +7746,14 @@ void CTcSymFunc::gen_code_addr()
 void CTcSymFunc::gen_code_call(int discard, int argc, int varargs,
                                CTcNamedArgs *named_args)
 {
+    /* we can't call a function that doesn't have a prototype */
+    if (!has_proto_)
+    {
+        G_tok->log_error(TCERR_FUNC_CALL_NO_PROTO,
+                         (int)get_sym_len(), get_sym());
+        return;
+    }
+
     /*
      *   If this is a multi-method base function, a call to the function is
      *   actually a call to _multiMethodCall('name', args).  
@@ -9045,14 +8647,10 @@ void CTcSymLocal::s_gen_code_getlcl(int var_num, int is_param)
 /*
  *   assign a value 
  */
-int CTcSymLocal::gen_code_asi(int discard, int phase,
-                              tc_asitype_t typ, const char *,
-                              class CTcPrsNode *rhs,
-                              int ignore_errors,
-                              int xplicit, void **)
+int CTcSymLocal::gen_code_asi(
+    int discard, int phase, tc_asitype_t typ, const char *,
+    class CTcPrsNode *rhs, int ignore_errors, int xplicit, void **)
 {
-    int adding;
-    
     /* 
      *   if this is an explicit assignment, mark the variable as having had a
      *   value assigned to it 
@@ -9099,6 +8697,7 @@ int CTcSymLocal::gen_code_asi(int discard, int phase,
      *   generation to use more compact instruction sequences for certain
      *   types of assignments 
      */
+    int adding;
     switch(typ)
     {
     case TC_ASI_SIMPLE:
@@ -9464,8 +9063,8 @@ void CTcSymLocal::s_gen_code_setlcl_stk(int var_num, int is_param)
 /*
  *   call the symbol 
  */
-void CTcSymLocal::gen_code_call(int discard, int argc, int varargs,
-                                CTcNamedArgs *named_args)
+void CTcSymLocal::gen_code_call(
+    int discard, int argc, int varargs, CTcNamedArgs *named_args)
 {
     /* 
      *   to call a local, we'll simply evaluate the local normally, then
@@ -9530,10 +9129,9 @@ vm_prop_id_t CTcSymLocal::gen_code_propid(int check_only, int /*is_expr*/)
 /*
  *   evaluate a member expression 
  */
-void CTcSymLocal::gen_code_member(int discard,
-                                  CTcPrsNode *prop_expr, int prop_is_expr,
-                                  int argc, int varargs,
-                                  CTcNamedArgs *named_args)
+void CTcSymLocal::gen_code_member(
+    int discard, CTcPrsNode *prop_expr, int prop_is_expr,
+    int argc, int varargs, CTcNamedArgs *named_args)
 {
     /* generate code to evaluate the local */
     gen_code(FALSE);
@@ -9676,7 +9274,7 @@ void CTcSymDynLocal::gen_code(int discard)
     if (ctxidx_ != 0)
     {
         /* index the context object by the context index */
-        CTPNConst::s_gen_code_int(varnum_);
+        CTPNConst::s_gen_code_int(ctxidx_);
         G_cg->write_op(OPC_INDEX);
 
         /* INDEX pops two items and pushes one */
@@ -10271,10 +9869,6 @@ struct defval_ctx
  */
 void CTPNCodeBody::gen_code(int, int)
 {
-    CTcCodeBodyCtx *cur_ctx;
-    int ctx_idx;
-    tct3_method_gen_ctx gen_ctx;
-
     /* if I've been replaced, don't bother generating any code */
     if (replaced_)
         return;
@@ -10293,12 +9887,12 @@ void CTPNCodeBody::gen_code(int, int)
      *   symbol table entry - fixups referencing us might already have been
      *   created by the time we generate our code).  
      */
-    G_cg->open_method(is_static_ ? G_cs_static : G_cs_main,
-                      fixup_owner_sym_, fixup_list_anchor_,
-                      this, gototab_,
-                      argc_, opt_argc_, varargs_,
-                      is_constructor_, op_overload_,
-                      self_valid_, &gen_ctx);
+    tct3_method_gen_ctx gen_ctx;
+    G_cg->open_method(
+        is_static_ ? G_cs_static : G_cs_main,
+        fixup_owner_sym_, fixup_list_anchor_,
+        this, gototab_, argc_, opt_argc_, varargs_,
+        is_constructor_, op_overload_, self_valid_, &gen_ctx);
 
     /* 
      *   Add a line record at the start of the method for all of the
@@ -10558,6 +10152,8 @@ void CTPNCodeBody::gen_code(int, int)
      *   entry for the invokee, so we no longer conflate the anonymous
      *   function object with 'self'.  
      */
+    CTcCodeBodyCtx *cur_ctx;
+    int ctx_idx;
     for (ctx_idx = 0, cur_ctx = ctx_head_ ; cur_ctx != 0 ;
          cur_ctx = cur_ctx->nxt_, ++ctx_idx)
     {
@@ -11523,15 +11119,6 @@ void CTPNStmStaticPropInit::gen_code(int, int)
  */
 void CTPNStmObject::gen_code(int, int)
 {
-    CTPNSuperclass *sc;
-    CTPNObjProp *prop;
-    int sc_cnt;
-    ulong start_ofs;
-    uint internal_flags;
-    uint obj_flags;
-    CTcDataStream *str;
-    int bad_sc;
-
     /* if this object has been replaced, don't generate any code for it */
     if (replaced_)
         return;
@@ -11540,10 +11127,10 @@ void CTPNStmObject::gen_code(int, int)
     add_implicit_constructor();
 
     /* get the appropriate stream for generating the data */
-    str = obj_sym_->get_stream();
+    CTcDataStream *str = obj_sym_->get_stream();
 
     /* clear the internal flags */
-    internal_flags = 0;
+    uint internal_flags = 0;
 
     /* 
      *   if we're a modified object, set the 'modified' flag in the object
@@ -11557,7 +11144,7 @@ void CTPNStmObject::gen_code(int, int)
         internal_flags |= TCT3_OBJ_TRANSIENT;
 
     /* clear the object flags */
-    obj_flags = 0;
+    uint obj_flags = 0;
 
     /* 
      *   If we're specifically marked as a 'class' object, or we're a
@@ -11567,7 +11154,7 @@ void CTPNStmObject::gen_code(int, int)
         obj_flags |= TCT3_OBJFLG_CLASS;
 
     /* remember our starting offset in the object stream */
-    start_ofs = str->get_ofs();
+    ulong start_ofs = str->get_ofs();
 
     /* 
      *   store our stream offset in our defining symbol, for storage in
@@ -11592,7 +11179,7 @@ void CTPNStmObject::gen_code(int, int)
     str->write2(0);
 
     /* write the fixed property count */
-    str->write2(prop_cnt_);
+    str->write2(proplist_.cnt_);
 
     /* write the object flags */
     str->write2(obj_flags);
@@ -11601,12 +11188,12 @@ void CTPNStmObject::gen_code(int, int)
      *   First, go through the superclass list and verify that each
      *   superclass is actually an object.  
      */
-    for (bad_sc = FALSE, sc_cnt = 0, sc = first_sc_ ; sc != 0 ; sc = sc->nxt_)
+    int bad_sc = FALSE;
+    int sc_cnt = 0;
+    for (CTPNSuperclass *sc = get_first_sc() ; sc != 0 ; sc = sc->nxt_)
     {
-        CTcSymObj *sc_sym;
-
         /* look up the superclass in the global symbol table */
-        sc_sym = (CTcSymObj *)sc->get_sym();
+        CTcSymObj *sc_sym = (CTcSymObj *)sc->get_sym();
 
         /* make sure it's defined, and that it's really an object */
         if (sc_sym == 0)
@@ -11671,7 +11258,7 @@ void CTPNStmObject::gen_code(int, int)
      *   the property ID's aren't finalized until after linking.  For now,
      *   just write them out in the order in which they were defined.  
      */
-    for (prop = first_prop_ ; prop != 0 ; prop = prop->nxt_)
+    for (CTPNObjProp *prop = proplist_.first_ ; prop != 0 ; prop = prop->nxt_)
     {
         /* make sure we have a valid property symbol */
         if (prop->get_prop_sym() != 0)
@@ -11697,9 +11284,7 @@ void CTPNStmObject::gen_code(int, int)
  */
 void CTPNStmObject::check_locals()
 {
-    CTPNObjProp *prop;
-
     /* check for unreferenced locals for each property */
-    for (prop = first_prop_ ; prop != 0 ; prop = prop->nxt_)
+    for (CTPNObjProp *prop = proplist_.first_ ; prop != 0 ; prop = prop->nxt_)
         prop->check_locals();
 }

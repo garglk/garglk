@@ -197,7 +197,7 @@ int main(int argc, char **argv)
          */
         /* copyright-date-string */
         printf("TADS Interpreter - "
-               "Copyright (c) 1993, 2007 Michael J. Roberts\n"
+               "Copyright (c) 1993, 2012 Michael J. Roberts\n"
                "TADS 2 VM version " TADS_RUNTIME_VERSION " / "
                "T3 VM version " T3VM_VSN_STRING "\n\n");
 

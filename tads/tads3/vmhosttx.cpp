@@ -97,13 +97,11 @@ CVmHostIfcText::CVmHostIfcText()
  */
 CVmHostIfcText::~CVmHostIfcText()
 {
-    size_t i;
-
     /* delete our hash table */
     delete restab_;
 
     /* delete our external filenames */
-    for (i = 0 ; i < ext_cnt_ ; ++i)
+    for (size_t i = 0 ; i < ext_cnt_ ; ++i)
         lib_free_str(ext_[i]);
 
     /* delete our array of external filename entries */
@@ -202,7 +200,16 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
     char buf[OSFNMAX];
     char *fname;
     char fname_buf[OSFNMAX];
-    char image_dir[OSFNMAX];
+    char res_dir[OSFNMAX] = "";
+
+    /* 
+     *   get the resource directory - if there's an explicit resource path
+     *   specified, use that, otherwise use the image file folder 
+     */
+    if (res_dir_ != 0)
+        lib_strcpy(res_dir, sizeof(res_dir), res_dir_);
+    else if (ext_[0] != 0)
+        os_get_path_name(res_dir, sizeof(res_dir), ext_[0]);
 
     /* try finding an entry in the resource map */
     CResEntry *entry = (CResEntry *)restab_->find(resname, resnamelen);
@@ -252,7 +259,7 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
         buf[resnamelen] = '\0';
 
         /* convert the resource name to a URL */
-        os_cvt_url_dir(fname_buf, sizeof(fname_buf), buf, FALSE);
+        os_cvt_url_dir(fname_buf, sizeof(fname_buf), buf);
         fname = fname_buf;
 
         /* if that yields an absolute path, it's an error */
@@ -260,12 +267,15 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
             return 0;
 
         /* 
-         *   If it's not in the image file folder, it's also an error - we
+         *   If it's not in the resource file folder, it's also an error - we
          *   don't allow paths to parent folders via "..", for example.  If
-         *   we don't have an image file folder to compare it to, fail, since
-         *   we can't properly sandbox it.  
+         *   we don't have an resource file folder to compare it to, fail,
+         *   since we can't properly sandbox it.  Resource files are always
+         *   sandboxed to the resource directory, even if the file safety
+         *   settings are less restrictive.
          */
-        if (ext_[0] == 0 || !os_is_file_in_dir(fname, image_dir, TRUE))
+        if (res_dir[0] == 0
+            || !os_is_file_in_dir(fname, res_dir, TRUE, FALSE))
             return 0;
     }
 
@@ -274,24 +284,19 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
      *   'fname' that we need to look up.  
      */
 
-    /* get the path to the image file */
-    image_dir[0] = '\0';
-    if (ext_[0] != '\0')
-        os_get_path_name(image_dir, sizeof(image_dir), ext_[0]);
-
-    /* if we have a relative filename, build the full path */
+    /* check the path for relativity */
     if (os_is_file_absolute(fname))
     {
-        /* it's already a fully-qualified filename - use it as-is */
+        /* it's already an absolute, fully-qualified path - use it as-is */
         lib_strcpy(buf, sizeof(buf), fname);
     }
     else
     {
         /* 
-         *   It's a relative filename path.  The base for relative paths is
-         *   the image file folder, so make sure we have an image file name.
+         *   it's a relative path - make sure we have a resource directory
+         *   for it to be relative to 
          */
-        if (ext_[0] == 0)
+        if (res_dir[0] == 0)
             return 0;
 
         /* 
@@ -299,7 +304,7 @@ osfildef *CVmHostIfcText::find_resource(const char *resname,
          *   the relative path we got from the resource name URL, as
          *   converted local file system conventions 
          */
-        os_build_full_path(buf, sizeof(buf), image_dir, fname);
+        os_build_full_path(buf, sizeof(buf), res_dir, fname);
     }
 
     /* try opening the file */

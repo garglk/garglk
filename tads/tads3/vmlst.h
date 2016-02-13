@@ -212,6 +212,45 @@ public:
                            class CVmFile *fp, class CVmObjFixup *fixups);
 
     /* 
+     *   cast to string - returns a string consisting of the list elements
+     *   converted to strings and concatenated together with commas
+     *   separating elements; the result is the same as self.join(',')
+     */
+    const char *cast_to_string(VMG_ vm_obj_id_t self,
+                               vm_val_t *new_str) const
+    {
+        /* set up a 'self' value */
+        vm_val_t self_val;
+        self_val.set_obj(self);
+
+        /* join the list elements into a string, using commas as separators */
+        join(vmg_ new_str, &self_val, ",", 1);
+
+        /* return the string result */
+        return new_str->get_as_string(vmg0_);
+    }
+
+    /* explicitly convert to string using toString() semantics */
+    virtual const char *explicit_to_string(
+        VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix, int flags) const
+    {
+        /* set up a 'self' value */
+        vm_val_t self_val;
+        self_val.set_obj(self);
+
+        /* convert to string */
+        return list_to_string(vmg_ new_str, &self_val, radix, flags);
+    }
+
+    /* 
+     *   explicitly convert a list or list-like value to a string using
+     *   toString() semantics 
+     */
+    static const char *list_to_string(
+        VMG_ vm_val_t *result, const vm_val_t *self, int radix, int flags);
+    
+
+    /* 
      *   Add a value to the list.  If the value to add is a list (constant
      *   or object), we'll append each element of the list to this list;
      *   otherwise, we'll just append the value itself to the list.  In
@@ -516,6 +555,15 @@ public:
     static int getp_join(VMG_ vm_val_t *retval,
                          const vm_val_t *self_val,
                          const char *lst, uint *argc);
+
+    /* 
+     *   join the elements of a list into a string; this is equivalent to the
+     *   bytecode-level join() method, but can be called more conveniently
+     *   from C++ code 
+     */
+    static void join(VMG_ vm_val_t *retval,
+                     const vm_val_t *self_val,
+                     const char *sep, size_t sep_len);
 
     /* property evaluator - generate */
     static int getp_generate(VMG_ vm_val_t *retval,

@@ -708,7 +708,7 @@ void CVmBifT3::get_stack_trace(VMG_ uint argc)
             if (rc != 0)
             {
                 /* get the actual return address from the recursive context */
-                method_ofs = rc->return_addr - entry_addr;
+                method_ofs = rc->get_return_addr() - entry_addr;
 
                 /* 
                  *   we're now in the bytecode part of the frame, so forget

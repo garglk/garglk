@@ -163,7 +163,7 @@ void CVmObjHTTPRequest::restore_from_file(VMG_ vm_obj_id_t self,
 int OS_HttpClient::request(int, const char *, unsigned short,
                            const char *, const char *,
                            const char *, size_t,
-                           class OS_HttpPayload *, class CVmStream *,
+                           class OS_HttpPayload *, class CVmDataSource *,
                            char **, char **, const char *)
 {
     return 0;
@@ -178,7 +178,7 @@ OS_HttpPayload::OS_HttpPayload() { }
 OS_HttpPayload::~OS_HttpPayload() { }
 void OS_HttpPayload::add(const char *, const char *) { }
 void OS_HttpPayload::add(const char *, const char *,
-                         const char *, CVmStream *) { }
+                         const char *, CVmDataSource *) { }
 
 
 
@@ -260,5 +260,48 @@ int CVmNetFile::can_write(VMG_ const char *fname, int sfid)
         /* couldn't open the file */
         return FALSE;
     }
+}
+
+int CVmNetFile::get_file_mode(
+    VMG_ unsigned long *mode, unsigned long *attr, int follow_links)
+{
+    return osfmode(lclfname, follow_links, mode, attr);
+}
+
+int CVmNetFile::get_file_stat(VMG_ os_file_stat_t *stat, int follow_links)
+{
+    return os_file_stat(lclfname, follow_links, stat);
+}
+
+int CVmNetFile::resolve_symlink(VMG_ char *target, size_t target_size)
+{
+    return os_resolve_symlink(lclfname, target, target_size);
+}
+
+void CVmNetFile::rename_to(VMG_ CVmNetFile *newname)
+{
+    rename_to_local(vmg_ newname);
+}
+
+void CVmNetFile::mkdir(VMG_ int create_parents)
+{
+    mkdir_local(vmg_ create_parents);
+}
+
+void CVmNetFile::rmdir(VMG_ int remove_contents)
+{
+    rmdir_local(vmg_ remove_contents);
+}
+
+int CVmNetFile::readdir(VMG_ const char *nominal_path, vm_val_t *ret)
+{
+    ret->set_nil();
+    return FALSE;
+}
+
+int CVmNetFile::readdir_cb(VMG_ const char *nominal_path,
+                           const struct vm_rcdesc *, const vm_val_t *, int)
+{
+    return FALSE;
 }
 

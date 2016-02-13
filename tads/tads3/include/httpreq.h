@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright 2010 Michael J. Roberts.
@@ -16,8 +17,6 @@
  *   creates them when HTTP requests arrive, and returns them to the
  *   byte-code program via the netEvent() built-in function.  
  */
-#ifndef _HTTPREQ_H_
-#define _HTTPREQ_H_
 
 /*
  *   HTTP Request object.  This object represents an HTTP protocol request
@@ -27,7 +26,7 @@
  *   program uses the object to get information on the request and to send
  *   back the reply.  
  */
-intrinsic class HTTPRequest 'http-request/030000': Object
+intrinsic class HTTPRequest 'http-request/030001': Object
 {
     /*
      *   Get the HTTPServer object.  This is the server that received the
@@ -339,6 +338,40 @@ intrinsic class HTTPRequest 'http-request/030000': Object
      *   just like the 'headers' argument to sendReply().  
      */
     endChunkedReply(headers?);
+
+    /*
+     *   Send the reply to the request asynchronously.  This works like
+     *   sendReply(), except that this method starts a new background thread
+     *   to handle the data transfer and then immediately returns.  This
+     *   allows the caller to continue servicing other requests while the
+     *   data transfer proceeds, which is important when sending a large file
+     *   (such as a large image or audio file) as the reply body.  Most
+     *   browsers allow the user to continue interacting with the displayed
+     *   page while images and audio files are transfered in the background,
+     *   so it's likely that the browser will generate new requests during
+     *   the time it takes to send a single large reply body.  When you use
+     *   sendReply(), the server won't be able to service any of those new
+     *   requests until the reply is fully sent, so the browser will appear
+     *   unresponsive for the duration of the reply data transfer.  Using
+     *   sendReplyAsync() allows you to service new requests immediately,
+     *   without waiting for the data transfer to complete.
+     *   
+     *   The parameters are the same as for sendReply().  If 'body' is a
+     *   File, this function opens its own separate handle to the file, so
+     *   you're free to close the File object immediately, or to continue to
+     *   use it for other operations.  Note that if you continue writing to
+     *   the file after calling this method, it's unpredictable whether the
+     *   reply data will contain the original or updated data (or a mix of
+     *   new and old data), since the reply data transfer is handled in a
+     *   separate thread that runs in parallel with the main program.
+     *   
+     *   When the reply data transfer is completed, or if it fails, the
+     *   system posts a NetEvent of type NetEvReplyDone to the network
+     *   message queue.  The event contains the original HTTPRequest object,
+     *   to allow you to relate the event back to the request that generated
+     *   the reply, and status information indicating whether or not the
+     *   transfer was successful.
+     */
+    sendReplyAsync(body, contentType?, status?, headers?);
 }
 
-#endif /* _HTTPREQ_H_ */

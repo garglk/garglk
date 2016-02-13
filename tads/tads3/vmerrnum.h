@@ -53,6 +53,11 @@ Modified
 /* data packer argument count mismatch at format string index %d */
 #define VMERR_PACK_ARGC_MISMATCH  109
 
+/* operation not supported for network server files */
+#define VMERR_NET_FILE_NOIMPL     110
+
+/* error renaming file */
+#define VMERR_RENAME_FILE         111
 
 
 /* ------------------------------------------------------------------------ */
@@ -515,6 +520,9 @@ Modified
 
 /* interrupt - user interrupted current operation (Ctrl+Break, etc) */
 #define VMERR_DBG_INTERRUPT       2395
+
+/* debugger not available */
+#define VMERR_NO_DEBUGGER         2396
    
 
 /* ------------------------------------------------------------------------ */

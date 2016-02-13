@@ -795,7 +795,7 @@ public:
                        const char *verb, const char *resource,
                        const char *send_headers, size_t send_headers_len,
                        class OS_HttpPayload *payload,
-                       class CVmStream *reply, char **reply_headers,
+                       class CVmDataSource *reply, char **reply_headers,
                        char **location, const char *ua);
 
     /* option flags for request() */
@@ -837,11 +837,11 @@ public:
      */
     OS_HttpPayloadItem(const char *name,
                        const char *filename, const char *mime_type,
-                       class CVmStream *contents);
+                       class CVmDataSource *contents);
     OS_HttpPayloadItem(const char *name, size_t name_len,
                        const char *filename, size_t filename_len,
                        const char *mime_type, size_t mime_type_len,
-                       class CVmStream *contents);
+                       class CVmDataSource *contents);
 
     /* delete */
     ~OS_HttpPayloadItem();
@@ -857,8 +857,8 @@ public:
      */
     char *val;
 
-    /* file stream, for a PUT file or a POST form file upload */
-    class CVmStream *stream;
+    /* data stream for a PUT file or a POST form file upload */
+    class CVmDataSource *stream;
 
     /* MIME type, for a PUT file or a POST form file upload */
     char *mime_type;
@@ -885,11 +885,11 @@ public:
 
     /* add a simple file upload */
     void add(const char *name, const char *filename, const char *mime_type,
-             class CVmStream *contents);
+             class CVmDataSource *contents);
     void add(const char *name, size_t name_len,
              const char *filename, size_t filename_len,
              const char *mime_type, size_t mime_type_len,
-             class CVmStream *contents);
+             class CVmDataSource *contents);
 
     /* add an item */
     void add(OS_HttpPayloadItem *item);

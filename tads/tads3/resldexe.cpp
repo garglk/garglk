@@ -49,7 +49,7 @@ public:
     }
 
     /* add a resource */
-    void add_resource(uint32 seek_ofs, uint32 siz,
+    void add_resource(uint32_t seek_ofs, uint32_t siz,
                       const char *res_name, size_t res_name_len)
     {
         /* 
@@ -99,8 +99,8 @@ public:
     int found_resource() const { return found_; }
 
     /* get the seek location and size of the resource we found */
-    uint32 get_resource_seek() const { return res_seek_; }
-    uint32 get_resource_size() const { return res_size_; }
+    uint32_t get_resource_seek() const { return res_seek_; }
+    uint32_t get_resource_size() const { return res_size_; }
 
     /* get the local filename link, if it's given as a link */
     const char *get_link_fname() const { return link_; }
@@ -114,8 +114,8 @@ private:
     int found_;
 
     /* seek location and size of the resource we found */
-    uint32 res_seek_;
-    uint32 res_size_;
+    uint32_t res_seek_;
+    uint32_t res_size_;
 
     /* local filename link, if the resource is given as a link */
     char *link_;

@@ -49,6 +49,7 @@ Modified
 #include "vmhash.h"
 #include "vmdatasrc.h"
 #include "vmnetfil.h"
+#include "vmfilobj.h"
 #include "vmerr.h"
 #include "vmobj.h"
 
@@ -63,14 +64,14 @@ Modified
  */
 int CVmFormatterLog::open_log_file(VMG_ const char *fname)
 {
-    /* create the network file descriptor, catching errors */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(
             vmg_ fname, 0, NETF_NEW, OSFTLOG, "text/plain");
     }
-    err_catch(exc)
+    err_catch_disc
     {
         nf = 0;
     }
@@ -83,16 +84,24 @@ int CVmFormatterLog::open_log_file(VMG_ const char *fname)
 int CVmFormatterLog::open_log_file(VMG_ const vm_val_t *filespec,
                                    const struct vm_rcdesc *rc)
 {
-    /* create the network file descriptor, catching errors */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(vmg_ filespec, rc,
                               NETF_NEW, OSFTLOG, "text/plain");
+
+        /* validate file safety */
+        CVmObjFile::check_safety_for_open(vmg_ nf, VMOBJFILE_ACCESS_WRITE);
     }
-    err_catch(exc)
+    err_catch_disc
     {
-        nf = 0;
+        /* if we got a file, it must be a safety exception - rethrow it */
+        if (nf != 0)
+        {
+            nf->abandon(vmg0_);
+            err_rethrow();
+        }
     }
     err_end;
 
@@ -191,7 +200,7 @@ int CVmFormatterLog::close_log_file(VMG0_)
         {
             lognf_->close(vmg0_);
         }
-        err_catch(exc)
+        err_catch_disc
         {
             /* flag the error, but otherwise discard the exception */
             err = TRUE;
@@ -398,7 +407,8 @@ void CVmFormatter::write_text(VMG_ const wchar_t *txt, size_t cnt,
 
         case VM_NL_NEWLINE:
             /* write a newline */
-            print_to_os(html_target_ ? "<BR HEIGHT=0>\n" : "\n");
+            print_to_os(html_target_ && html_pre_level_ == 0 ?
+                        "<BR HEIGHT=0>\n" : "\n");
             break;
 
         case VM_NL_OSNEWLINE:
@@ -517,7 +527,7 @@ void CVmFormatter::flush(VMG_ vm_nl_type nl)
          *   this line, or we didn't already just write a newline, write
          *   out a newline now; otherwise, write nothing.  
          */
-        if (linecol_ != 0 || !just_did_nl_)
+        if (linecol_ != 0 || !just_did_nl_ || html_pre_level_ > 0)
         {
             /* add the newline */
             write_nl = VM_NL_NEWLINE;
@@ -552,7 +562,8 @@ void CVmFormatter::flush(VMG_ vm_nl_type nl)
      *   and we didn't just do a newline, since this must mean that we've
      *   flushed a partial line and are just now doing the newline 
      */
-    if (cnt != 0 || (linecol_ != 0 && !just_did_nl_))
+    if (cnt != 0 || (linecol_ != 0 && !just_did_nl_)
+        || html_pre_level_ > 0)
     {
         /* write it out */
         write_text(vmg_ linebuf_, cnt, colorbuf_, write_nl);
@@ -855,20 +866,14 @@ void CVmFormatter::buffer_char(VMG_ wchar_t c)
  */
 void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
 {
-    int i;
-    int cwid;
-    unsigned char cflags;
-    int shy;
-    int qspace;
-
     /* presume the character takes up only one column */
-    cwid = 1;
+    int cwid = 1;
 
     /* presume we'll use the current flags for the new character */
-    cflags = cur_flags_;
+    unsigned char cflags = cur_flags_;
 
     /* assume it's not a quoted space */
-    qspace = FALSE;
+    int qspace = FALSE;
 
     /* 
      *   Check for some special characters.
@@ -900,7 +905,10 @@ void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
             if (c == '&')
                 html_passthru_state_ = VMCON_HPS_ENTITY_1ST;
             else if (c == '<')
-                html_passthru_state_ = VMCON_HPS_TAG;
+            {
+                html_passthru_tagp_ = html_passthru_tag_;
+                html_passthru_state_ = VMCON_HPS_TAG_START;
+            }
             else
                 html_passthru_state_ = VMCON_HPS_NORMAL;
             break;
@@ -953,10 +961,83 @@ void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
                 html_passthru_state_ = VMCON_HPS_NORMAL;
             break;
 
+        case VMCON_HPS_TAG_START:
+            /* start of a tag, before the name - check for the name start */
+            if (c == '/' && html_passthru_tagp_ == html_passthru_tag_)
+            {
+                /* 
+                 *   note the initial '/', but stay in TAG_START state, so
+                 *   that we skip any spaces between the '/' and the tag name
+                 */
+                *html_passthru_tagp_++ = '/';
+            }
+            else if ((c >= 'a' && c <= 'z')
+                     || (c >= 'A' && c <= 'Z'))
+            {
+                /* start of the tag name */
+                html_passthru_state_ = VMCON_HPS_TAG_NAME;
+                *html_passthru_tagp_++ = (char)c;
+            }
+            else if (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+            {
+                /* 
+                 *   ignore whitespace between '<' and the tag name - simply
+                 *   stay in TAG_START mode 
+                 */
+            }
+            else
+            {
+                /* anything else is invalid - must not be a tag after all */
+                html_passthru_state_ = VMCON_HPS_NORMAL;
+            }
+            break;
+
+        case VMCON_HPS_TAG_NAME:
+            /* tag name - check for continuation */
+            if ((c >= 'a' && c <= 'z')
+                || (c >= 'A' && c <= 'Z'))
+            {
+                /* gather the tag name if it fits */
+                if (html_passthru_tagp_ - html_passthru_tag_ + 1
+                    < sizeof(html_passthru_tag_))
+                    *html_passthru_tagp_++ = (char)c;
+            }
+            else
+            {
+                /* end of the tag name */
+                *html_passthru_tagp_ = '\0';
+                html_passthru_state_ = VMCON_HPS_TAG;
+                goto do_tag;
+            }
+            break;
+
         case VMCON_HPS_TAG:
+            do_tag:
             /* see if we're done with the tag, or entering quoted material */
             if (c == '>')
+            {
+                /* switch to end of markup mode */
                 html_passthru_state_ = VMCON_HPS_MARKUP_END;
+
+                /* note if entering or exiting a PRE tag */
+                if (stricmp(html_passthru_tag_, "pre") == 0)
+                    ++html_pre_level_;
+                else if (stricmp(html_passthru_tag_, "/pre") == 0
+                         && html_pre_level_ != 0)
+                    --html_pre_level_;
+            }
+            else if (c == '/'
+                     && html_passthru_tagp_ != html_passthru_tag_
+                     && *(html_passthru_tagp_ - 1) != '/')
+            {
+                /* add the '/' to the end of the tag name */
+                if (html_passthru_tagp_ - html_passthru_tag_ + 1
+                    < sizeof(html_passthru_tag_))
+                {
+                    *html_passthru_tagp_++ = (char)c;
+                    *html_passthru_tagp_ = '\0';
+                }
+            }
             else if (c == '"')
                 html_passthru_state_ = VMCON_HPS_DQUOTE;
             else if (c == '\'')
@@ -1109,8 +1190,8 @@ void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
                 /* convert it to an ordinary space */
                 c = ' ';
                 
-                /* if we're in obey-whitespace mode, quote this space */
-                qspace = obey_whitespace_;
+                /* if we're in obey-whitespace mode, quote the space */
+                qspace = obey_whitespace_ || html_pre_level_ > 0;
             }
             break;
         }
@@ -1130,27 +1211,80 @@ void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
     {
         if ((capsflag_ || allcapsflag_) && t3_is_alpha(c))
         {
-            /* capsflag is set, so capitalize this character */
-            c = t3_to_upper(c);
-            
-            /* okay, we've capitalized something; clear flag */
+            /* 
+             *   capsflag or allcapsflag is set, so render this character in
+             *   title case or upper case, respectively.  For the ordinary
+             *   capsflag, use title case rather than upper case, since
+             *   capsflag conceptually only applies to a single letter, and
+             *   some Unicode characters represent ligatures of multiple
+             *   letters.  In such cases we only want to capitalize the first
+             *   letter in the ligature, which is exactly what we get when we
+             *   convert it to the title case.
+             *   
+             *   Start by consuming the capsflag. 
+             */
             capsflag_ = FALSE;
+
+            /* get the appropriate expansion */
+            const wchar_t *u = allcapsflag_ ? t3_to_upper(c) : t3_to_title(c);
+
+            /*
+             *   If there's no expansion, continue with the original
+             *   character.  If it's a single-character expansion, continue
+             *   with the replacement character.  If it's a 1:N expansion,
+             *   recursively buffer the expansion. 
+             */
+            if (u != 0 && u[0] != 0)
+            {
+                if (u[1] != 0)
+                {
+                    /* 1:N expansion - handle it recursively */
+                    buffer_wstring(vmg_ u);
+                    return;
+                }
+                else
+                {
+                    /* 1:1 expansion - continue with the new character */
+                    c = u[0];
+                }
+            }
         }
         else if (nocapsflag_ && t3_is_alpha(c))
         {
-            /* nocapsflag is set, so minisculize this character */
-            c = t3_to_lower(c);
-            
-            /* clear the flag now that we've done the job */
+            /* lower-casing the character - consume the flag */
             nocapsflag_ = FALSE;
+
+            /* get the expansion */
+            const wchar_t *l = t3_to_lower(c);
+
+            /* 
+             *   recursively handle 1:N expansions; otherwise continue with
+             *   the replacement character, if there is one 
+             */
+            if (l != 0 && l[0] != 0)
+            {
+                if (l[1] != 0)
+                {
+                    /* 1:N expansion - handle it recursively */
+                    buffer_wstring(vmg_ l);
+                    return;
+                }
+                else
+                {
+                    /* 1:1 expansion - continue with the new character */
+                    c = l[0];
+                }
+            }
         }
     }
 
     /*
      *   If this is a space of some kind, we might be able to consolidate it
-     *   with a preceding character. 
+     *   with a preceding character.  If the display layer is an HTML
+     *   renderer, pass spaces through intact, and let the HTML parser handle
+     *   whitespace compression.
      */
-    if (c == ' ')
+    if (c == ' ' && html_pre_level_ == 0)
     {
         /* ignore ordinary whitespace at the start of a line */
         if (linecol_ == 0 && !qspace)
@@ -1304,7 +1438,8 @@ void CVmFormatter::buffer_expchar(VMG_ wchar_t c)
      *   at which we could break the line.  Keep going until we find a
      *   breaking point or reach the left edge of the line.  
      */
-    for (shy = FALSE, i = linepos_ ; i >= 0 ; --i)
+    int shy, i;
+    for (i = linepos_, shy = FALSE ; i >= 0 ; --i)
     {
         unsigned char f;
         unsigned char prvf;
@@ -1558,7 +1693,7 @@ void CVmFormatter::buffer_string(VMG_ const char *txt)
 void CVmFormatter::buffer_wstring(VMG_ const wchar_t *txt)
 {
     /* write out each wide character */
-    for ( ; *txt != '\0' ; ++txt)
+    for ( ; *txt != L'\0' ; ++txt)
         buffer_char(vmg_ *txt);
 }
 
@@ -2066,14 +2201,14 @@ void CVmConsole::update_display(VMG0_)
 int CVmConsole::open_script_file(VMG_ const char *fname,
                                  int quiet, int script_more_mode)
 {
-    /* try opening the network file */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(
             vmg_ fname, 0, NETF_READ, OSFTCMD, "text/plain");
     }
-    err_catch(exc)
+    err_catch_disc
     {
         /* failed - no network file */
         nf = 0;
@@ -2088,17 +2223,24 @@ int CVmConsole::open_script_file(VMG_ const vm_val_t *filespec,
                                  const struct vm_rcdesc *rc,
                                  int quiet, int script_more_mode)
 {
-    /* try opening the network file */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(
             vmg_ filespec, rc, NETF_READ, OSFTCMD, "text/plain");
+
+        /* validate file safety */
+        CVmObjFile::check_safety_for_open(vmg_ nf, VMOBJFILE_ACCESS_READ);
     }
-    err_catch(exc)
+    err_catch_disc
     {
-        /* failed - no network file */
-        nf = 0;
+        /* if we got a file, it must be a safety exception - rethrow it */
+        if (nf != 0)
+        {
+            nf->abandon(vmg0_);
+            err_rethrow();
+        }
     }
     err_end;
 
@@ -2196,7 +2338,7 @@ int CVmConsole::close_script_file(VMG0_)
             /* close the network file */
             e->netfile->close(vmg0_);
         }
-        err_catch(exc)
+        err_catch_disc
         {
             /* 
              *   Ignore any error - since we're reading the file, the chances
@@ -2279,13 +2421,13 @@ void script_stack_entry::delobj(VMG0_)
  */
 int CVmConsole::open_command_log(VMG_ const char *fname, int event_script)
 {
-    /* create the network file descriptor */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(vmg_ fname, 0, NETF_NEW, OSFTCMD, "text/plain");
     }
-    err_catch(exc)
+    err_catch_disc
     {
         /* failed - no network file */
         nf = 0;
@@ -2300,17 +2442,24 @@ int CVmConsole::open_command_log(VMG_ const vm_val_t *filespec,
                                  const struct vm_rcdesc *rc,
                                  int event_script)
 {
-    /* create the network file descriptor */
     CVmNetFile *nf = 0;
     err_try
     {
+        /* create the network file descriptor */
         nf = CVmNetFile::open(vmg_ filespec, rc,
                               NETF_NEW, OSFTCMD, "text/plain");
+
+        /* validate file safety */
+        CVmObjFile::check_safety_for_open(vmg_ nf, VMOBJFILE_ACCESS_WRITE);
     }
-    err_catch(exc)
+    err_catch_disc
     {
-        /* failed - no network file */
-        nf = 0;
+        /* if we got a file, it must be a safety exception - rethrow it */
+        if (nf != 0)
+        {
+            nf->abandon(vmg0_);
+            err_rethrow();
+        }
     }
     err_end;
 
@@ -2385,7 +2534,7 @@ int CVmConsole::close_command_log(VMG0_)
         {
             command_nf_->close(vmg0_);
         }
-        err_catch(exc)
+        err_catch_disc
         {
             /* 
              *   ignore any errors - our interface doesn't give us any
@@ -2634,10 +2783,10 @@ int CVmConsole::read_line_timeout(VMG_ char *buf, size_t buflen,
                                   unsigned long timeout, int use_timeout,
                                   int bypass_script)
 {
-    int echo_text;
-    char *outp;
-    size_t outlen;
-    int evt;
+    /* no event yet */
+    int evt = OS_EVT_NONE;
+
+    /* we haven't received any script input yet */
     int got_script_input = FALSE;
 
     /* 
@@ -2645,7 +2794,7 @@ int CVmConsole::read_line_timeout(VMG_ char *buf, size_t buflen,
      *   will be echoed to the display in the course of reading it from
      *   the keyboard 
      */
-    echo_text = FALSE;
+    int echo_text = FALSE;
 
     /* remember the initial MORE mode */
     S_old_more_mode = is_more_mode();
@@ -2851,8 +3000,8 @@ int CVmConsole::read_line_timeout(VMG_ char *buf, size_t buflen,
      *   Convert the text from the local UI character set to UTF-8.  Reserve
      *   space in the output buffer for the null terminator.  
      */
-    outp = buf;
-    outlen = buflen - 1;
+    char *outp = buf;
+    size_t outlen = buflen - 1;
     G_cmap_from_ui->map(&outp, &outlen, S_read_buf, strlen(S_read_buf));
 
     /* add the null terminator */

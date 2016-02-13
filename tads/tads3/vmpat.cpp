@@ -221,16 +221,13 @@ void CVmObjPattern::load_from_image(VMG_ vm_obj_id_t self, const char *ptr,
  */
 void CVmObjPattern::post_load_init(VMG_ vm_obj_id_t self)
 {
-    const vm_val_t *origval;
-    const char *strval;
-
     /* make sure the original string object is initialized */
-    origval = get_orig_str();
+    const vm_val_t *origval = get_orig_str();
     if (origval->typ == VM_OBJ)
         G_obj_table->ensure_post_load_init(vmg_ origval->val.obj);
 
     /* get the string value */
-    strval = get_orig_str()->get_as_string(vmg0_);
+    const char *strval = get_orig_str()->get_as_string(vmg0_);
     if (strval != 0)
     {
         /* if we already have a compiled pattern, delete it */
@@ -249,9 +246,8 @@ void CVmObjPattern::post_load_init(VMG_ vm_obj_id_t self)
  */
 void CVmObjPattern::save_to_file(VMG_ class CVmFile *fp)
 {
-    char buf[VMB_DATAHOLDER];
-    
     /* write the source string reference */
+    char buf[VMB_DATAHOLDER];
     vmb_put_dh(buf, get_orig_str());
     fp->write_bytes(buf, VMB_DATAHOLDER);
 }
@@ -263,14 +259,13 @@ void CVmObjPattern::save_to_file(VMG_ class CVmFile *fp)
 void CVmObjPattern::restore_from_file(VMG_ vm_obj_id_t self,
                                       class CVmFile *fp, CVmObjFixup *fixups)
 {
-    char buf[VMB_DATAHOLDER];
-
     /* if we don't already have an extension, allocate one */
     if (ext_ == 0)
         ext_ = (char *)G_mem->get_var_heap()
                ->alloc_mem(sizeof(vmobj_pat_ext), this);
 
     /* read the source string reference */
+    char buf[VMB_DATAHOLDER];
     fp->read_bytes(buf, VMB_DATAHOLDER);
 
     /* fix it up */

@@ -151,13 +151,14 @@ public:
     virtual void set_net_safety(int client_level, int server_level) = 0;
 
     /*
-     *   Get the resource loader for character mapping tables.  This
-     *   resource loader should be set up to load resources out of the VM
-     *   executable or out of the directory containing the VM executable,
-     *   since these resources are associated with the VM itself, not the
-     *   T3 program executing under the VM.  
+     *   Get the resource loader for system resources (character mapping
+     *   tables, the timezone database, etc).  This resource loader should be
+     *   set up to load resources out of the VM executable or out of the
+     *   directory containing the VM executable, since these resources are
+     *   associated with the VM itself, not the T3 program executing under
+     *   the VM.  
      */
-    virtual class CResLoader *get_cmap_res_loader() = 0;
+    virtual class CResLoader *get_sys_res_loader() = 0;
 
     /*
      *   Set the image file name.  The VM calls this after it learns the

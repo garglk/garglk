@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright 2010 Michael J. Roberts.
@@ -25,8 +26,6 @@
  *   - Create a multi-user game, by running the game on a server and writing
  *   the game to accept connections from more than one player.  
  */
-#ifndef _HTTPSRV_H_
-#define _HTTPSRV_H_
 
 /*
  *   HTTP Server Object.  This implements a multi-threaded, background server
@@ -137,4 +136,3 @@ intrinsic class HTTPServer 'http-server/030000': Object
     getPortNum();
 }
 
-#endif /* _HTTPSRV_H_ */

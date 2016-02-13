@@ -53,21 +53,42 @@ Modified
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Convert a directory path parameter to an absolute path, and return an
+ *   allocated copy of the string.
+ */
+static char *path_param_to_abs(const char *param)
+{
+    /* make sure the path is expressed in absolute format */
+    char abuf[OSFNMAX];
+    os_get_abs_filename(abuf, sizeof(abuf), param);
+
+    /* return a copy of the path */
+    return lib_copy_str(abuf);
+}
+
+/*
+ *   Extract the path from a filename, convert it to an absolute path, and
+ *   return an allocated copy of the string. 
+ */
+static char *file_param_to_abs_path(const char *param)
+{
+    /* extract the path portion */
+    char path[OSFNMAX];
+    os_get_path_name(path, sizeof(path), param);
+
+    /* return it in absolute form */
+    return path_param_to_abs(path);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Execute an image file.  If an exception occurs, we'll display a
  *   message on the console, and we'll return the error code; we'll return
  *   zero on success.  If an error occurs, we'll fill in 'errbuf' with a
  *   message describing the problem.  
  */
-int vm_run_image(CVmMainClientIfc *clientifc,
-                 const char *image_file_name,
-                 class CVmHostIfc *hostifc,
-                 const char *const *prog_argv, int prog_argc,
-                 const char *script_file, int script_quiet,
-                 const char *log_file, const char *cmd_log_file,
-                 int load_from_exe, int show_banner, int seed_rand,
-                 const char *charset, const char *log_charset,
-                 const char *saved_state, const char *res_dir,
-                 TadsNetConfig *netconfig)
+int vm_run_image(const vm_run_image_params *params)
 {
     CVmFile *fp = 0;
     CVmImageLoader *volatile loader = 0;
@@ -76,37 +97,64 @@ int vm_run_image(CVmMainClientIfc *clientifc,
     int retval;
     vm_globals *vmg__;
 
+    /* 
+     *   get the full absolute path for the image file, to ensure that future
+     *   references are independent of working directory changes 
+     */
+    os_get_abs_filename(G_os_gamename, sizeof(G_os_gamename),
+                        params->image_file_name);
+
     /* presume we will return success */
     retval = 0;
+
+    /* make sure the local time zone settings are initialized */
+    os_tzset();
 
     /* create the file object */
     fp = new CVmFile();
 
     /* initialize the VM */
-    vm_init_options opts(hostifc, clientifc, charset, log_charset);
+    vm_init_options opts(params->hostifc, params->clientifc,
+                         params->charset, params->log_charset);
     vm_initialize(&vmg__, &opts);
-
-    /* tell the client system to initialize */
-    clientifc->client_init(VMGLOB_ADDR, script_file, script_quiet,
-                           log_file, cmd_log_file,
-                           show_banner ? T3VM_BANNER_STRING : 0);
-
-    /* set the networking configuration in the globals */
-    G_net_config = netconfig;
 
     /* catch any errors that occur during loading and running */
     err_try
     {
-        /* remember the name of the byte-code file */
-        strncpy(G_os_gamename, image_file_name, sizeof(G_os_gamename));
-        G_os_gamename[sizeof(G_os_gamename) - 1] = '\0';
-
-        if (load_from_exe)
+        /* if we have a resource root path, tell the host interface */
+        if (params->res_dir != 0)
+            params->hostifc->set_res_dir(params->res_dir);
+        
+        /* 
+         *   Save the default working directory for file operations, if
+         *   specified.  If it's not specified, use the image file directory
+         *   as the default. 
+         */
+        if (params->file_dir != 0)
+            G_file_path = path_param_to_abs(params->file_dir);
+        
+        /* set the sandbox directory (for file safety restrictions) */
+        if (params->sandbox_dir != 0)
+            G_sandbox_path = path_param_to_abs(params->sandbox_dir);
+        else
+            G_sandbox_path = file_param_to_abs_path(params->image_file_name);
+        
+        /* set the networking configuration in the globals */
+        G_net_config = params->netconfig;
+        
+        /* tell the client system to initialize */
+        params->clientifc->client_init(
+            VMGLOB_ADDR,
+            params->script_file, params->script_quiet,
+            params->log_file, params->cmd_log_file,
+            params->show_banner ? T3VM_BANNER_STRING : 0,
+            params->more_mode);
+        
+        /* open the byte-code file */
+        if (params->load_from_exe)
         {
-            osfildef *exe_fp;
-
             /* find the image within the executable */
-            exe_fp = os_exeseek(image_file_name, "TGAM");
+            osfildef *exe_fp = os_exeseek(G_os_gamename, "TGAM");
             if (exe_fp == 0)
                 err_throw(VMERR_NO_IMAGE_IN_EXE);
 
@@ -120,26 +168,21 @@ int vm_run_image(CVmMainClientIfc *clientifc,
         else
         {
             /* reading from a normal file - open the file */
-            fp->open_read(image_file_name, OSFTT3IMG);
+            fp->open_read(G_os_gamename, OSFTT3IMG);
         }
 
         /* create the loader */
         imagefp = new CVmImageFileExt(fp);
-        loader = new CVmImageLoader(imagefp, image_file_name,
-                                    image_file_base);
+        loader = new CVmImageLoader(imagefp, G_os_gamename, image_file_base);
 
         /* load the image */
         loader->load(vmg0_);
 
-        /* if we have a resource root path, tell the host interface */
-        if (res_dir != 0)
-            hostifc->set_res_dir(res_dir);
-
         /* let the client prepare for execution */
-        clientifc->pre_exec(VMGLOB_ADDR);
+        params->clientifc->pre_exec(VMGLOB_ADDR);
 
         /* if desired, seed the random number generator */
-        if (seed_rand)
+        if (params->seed_rand)
             CVmBifTADS::randomize(vmg_ 0);
 
 #ifdef TADSNET
@@ -147,22 +190,23 @@ int vm_run_image(CVmMainClientIfc *clientifc,
          *   if we have a network configuration, get the game's IFID - this
          *   is needed to identify the game to the storage server 
          */
-        if (netconfig != 0)
+        if (params->netconfig != 0)
         {
-            char *ifid = vm_get_ifid(hostifc);
+            char *ifid = vm_get_ifid(params->hostifc);
             if (ifid != 0)
             {
-                netconfig->set("ifid", ifid);
+                params->netconfig->set("ifid", ifid);
                 t3free(ifid);
             }
         }
 #endif /* TADSNET */
 
         /* run the program from the main entrypoint */
-        loader->run(vmg_ prog_argv, prog_argc, 0, 0, saved_state);
+        loader->run(vmg_ params->prog_argv, params->prog_argc,
+                    0, 0, params->saved_state);
 
         /* tell the client we're done with execution */
-        clientifc->post_exec(VMGLOB_ADDR);
+        params->clientifc->post_exec(VMGLOB_ADDR);
     }
     err_catch(exc)
     {
@@ -173,22 +217,25 @@ int vm_run_image(CVmMainClientIfc *clientifc,
          */
         if (exc->get_error_code() != VMERR_DBG_HALT)
         {
-            char errbuf[512];
-
             /* tell the client execution failed due to an error */
-            clientifc->post_exec_err(VMGLOB_ADDR);
+            params->clientifc->post_exec_err(VMGLOB_ADDR);
             
             /* note the error code for returning to the caller */
             retval = exc->get_error_code();
             
             /* get the message for the error */
+            char errbuf[512];
             CVmRun::get_exc_message(vmg_ exc, errbuf, sizeof(errbuf), TRUE);
             
             /* display the message */
-            clientifc->display_error(VMGLOB_ADDR, exc, errbuf, FALSE);
+            params->clientifc->display_error(VMGLOB_ADDR, exc, errbuf, FALSE);
         }
     }
     err_end;
+
+    /* done with the file base path and sandbox path */
+    lib_free_str(G_file_path);
+    lib_free_str(G_sandbox_path);
 
     /* unload the image */
     if (loader != 0)
@@ -201,7 +248,7 @@ int vm_run_image(CVmMainClientIfc *clientifc,
         delete imagefp;
 
     /* notify the client */
-    clientifc->client_terminate(VMGLOB_ADDR);
+    params->clientifc->client_terminate(VMGLOB_ADDR);
 
 #ifdef TADSNET
     /* 
@@ -214,7 +261,7 @@ int vm_run_image(CVmMainClientIfc *clientifc,
 #endif
 
     /* terminate the VM */
-    vm_terminate(vmg__, clientifc);
+    vm_terminate(vmg__, params->clientifc);
 
     /* delete the file */
     if (fp != 0)
@@ -315,78 +362,39 @@ static void create_netconfig(
  */
 int vm_run_image_main(CVmMainClientIfc *clientifc,
                       const char *executable_name,
-                      int argc, char **argv, int defext, int test_mode,
+                      int argc, char **argv, 
+                      int defext, int test_mode,
                       CVmHostIfc *hostifc)
 {
-    int curarg;
     char image_file_name[OSFNMAX];
+    vm_run_image_params params(clientifc, hostifc, image_file_name);
+    int curarg;
     int stat;
-    const char *script_file;
-    int script_quiet = TRUE;
-    const char *log_file;
-    const char *cmd_log_file;
-    const char *res_dir;
-    int load_from_exe;
-    int show_banner;
-    int found_image;
-    int hide_usage;
-    int usage_err;
-    const char *charset;
-    const char *log_charset;
-    char *saved_state;
-    int seed_rand;
-    class TadsNetConfig *netconfig = 0;
+    int found_image = FALSE;
+    int hide_usage = FALSE;
+    int usage_err = FALSE;
 #ifdef TADSNET
     char *storage_sid = 0;
 #endif
 
-    /* we haven't found an image file yet */
-    found_image = FALSE;
-
-    /* presume we'll show usage on error */
-    hide_usage = FALSE;
-
-    /* presume there will be no usage error */
-    usage_err = FALSE;
-
-    /* presume we won't have any console input/output files */
-    script_file = 0;
-    log_file = 0;
-    cmd_log_file = 0;
-
-    /* presume we'll use the default OS character sets */
-    charset = 0;
-    log_charset = 0;
-
-    /* presume we won't show the banner */
-    show_banner = FALSE;
-
-    /* presume we won't load from the .exe file */
-    load_from_exe = FALSE;
-
-    /* presume we'll seed the RNG */
-    seed_rand = TRUE;
-
     /* check to see if we can load from the .exe file */
     {
-        osfildef *fp;
-
         /* look for an image file attached to the executable */
-        fp = os_exeseek(argv[0], "TGAM");
+        osfildef *fp = os_exeseek(argv[0], "TGAM");
         if (fp != 0)
         {
             /* close the file */
             osfcls(fp);
             
             /* note that we want to load from the executable */
-            load_from_exe = TRUE;
+            params.load_from_exe = TRUE;
         }
 
         /* 
          *   if loading from the exe file, get the custom saved game suffix,
          *   if defined 
          */
-        if (load_from_exe
+        if (params.load_from_exe
             && (fp = os_exeseek(argv[0], "SAVX")) != 0)
         {
             ushort len;
@@ -409,12 +417,6 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
         }
     }
 
-    /* presume we won't restore a saved state file */
-    saved_state = 0;
-
-    /* presume we won't have a resource directory specified */
-    res_dir = 0;
-
     /* scan options */
     for (curarg = 1 ; curarg < argc && argv[curarg][0] == '-' ; ++curarg)
     {
@@ -433,7 +435,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             if (strcmp(argv[curarg], "-banner") == 0)
             {
                 /* make a note to show the banner */
-                show_banner = TRUE;
+                params.show_banner = TRUE;
             }
             else
                 goto opt_error;
@@ -442,17 +444,17 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
         case 'c':
             if (strcmp(argv[curarg], "-cs") == 0)
             {
-                ++curarg;
-                if (curarg < argc)
-                    charset = argv[curarg];
+                /* set the console character set name */
+                if (++curarg < argc)
+                    params.charset = argv[curarg];
                 else
                     goto opt_error;
             }
             else if (strcmp(argv[curarg], "-csl") == 0)
             {
-                ++curarg;
-                if (curarg < argc)
-                    log_charset = argv[curarg];
+                /* set the log file character set name */
+                if (++curarg < argc)
+                    params.log_charset = argv[curarg];
                 else
                     goto opt_error;
             }
@@ -482,22 +484,38 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             else if (strcmp(argv[curarg], "-nobanner") == 0)
             {
                 /* make a note not to show the banner */
-                show_banner = FALSE;
+                params.show_banner = FALSE;
             }
             else if (strcmp(argv[curarg], "-norand") == 0
                      || strcmp(argv[curarg], "-norandomize") == 0)
             {
                 /* make a note not to seed the RNG */
-                seed_rand = FALSE;
+                params.seed_rand = FALSE;
+            }
+            else if (strcmp(argv[curarg], "-nomore") == 0)
+            {
+                /* turn off MORE mode */
+                params.more_mode = FALSE;
             }
             else
                 goto opt_error;
             break;
             
         case 's':
-            /* file safety level */
+            if (argv[curarg][2] == 'd')
             {
-                /* get the read and write levels, if specified separately */
+                /* sandbox directory */
+                if (++curarg < argc)
+                    params.sandbox_dir = argv[curarg];
+                else
+                    goto opt_error;
+            }
+            else
+            {
+                /* 
+                 *   file safety level - get the read and write levels, if
+                 *   specified separately 
+                 */
                 const char *rd = &argv[curarg][2];
                 const char *wrt = &argv[curarg][3];
 
@@ -528,23 +546,23 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
              *   echoes the log as it goes) - the next argument, or the
              *   remainder of this argument, is the filename 
              */
-            script_quiet = (argv[curarg][1] == 'i');
-            script_file = get_opt_arg(argc, argv, &curarg, 2);
-            if (script_file == 0)
+            params.script_quiet = (argv[curarg][1] == 'i');
+            params.script_file = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.script_file == 0)
                 goto opt_error;
             break;
 
         case 'l':
             /* log output to file */
-            log_file = get_opt_arg(argc, argv, &curarg, 2);
-            if (log_file == 0)
+            params.log_file = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.log_file == 0)
                 goto opt_error;
             break;
 
         case 'o':
             /* log commands to file */
-            cmd_log_file = get_opt_arg(argc, argv, &curarg, 2);
-            if (cmd_log_file == 0)
+            params.cmd_log_file = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.cmd_log_file == 0)
                 goto opt_error;
             break;
 
@@ -562,15 +580,22 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
 
         case 'r':
             /* get the name of the saved state file to restore */
-            saved_state = get_opt_arg(argc, argv, &curarg, 2);
-            if (saved_state == 0)
+            params.saved_state = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.saved_state == 0)
                 goto opt_error;
             break;
 
         case 'R':
             /* note the resource root directory */
-            res_dir = get_opt_arg(argc, argv, &curarg, 2);
-            if (res_dir == 0)
+            params.res_dir = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.res_dir == 0)
+                goto opt_error;
+            break;
+
+        case 'd':
+            /* note the working directory for file operations */
+            params.file_dir = get_opt_arg(argc, argv, &curarg, 2);
+            if (params.file_dir == 0)
                 goto opt_error;
             break;
 
@@ -593,10 +618,10 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
             if (strcmp(argv[curarg], "-webhost") == 0 && curarg+1 < argc)
             {
                 /* if necessary, create the web hosting config object */
-                create_netconfig(clientifc, netconfig, argv);
+                create_netconfig(clientifc, params.netconfig, argv);
 
                 /* set the web host name */
-                netconfig->set("hostname", argv[++curarg]);
+                params.netconfig->set("hostname", argv[++curarg]);
             }
             else if (strcmp(argv[curarg], "-websid") == 0
                      && curarg+1 < argc)
@@ -611,8 +636,8 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                  *   Original URL of image file.  This is provided for
                  *   logging purposes only; 
                  */
-                create_netconfig(clientifc, netconfig, argv);
-                netconfig->set("image.url", argv[++curarg]);
+                create_netconfig(clientifc, params.netconfig, argv);
+                params.netconfig->set("image.url", argv[++curarg]);
             }
             else
             {
@@ -644,7 +669,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
     {
         /* there was a usage error - don't bother looking for an image file */
     }
-    else if (!load_from_exe
+    else if (!params.load_from_exe
              && curarg + 1 <= argc
              && strcmp(argv[curarg], "-") != 0)
     {
@@ -669,7 +694,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
          *   if we're loading from the executable, try using the executable
          *   filename as the image file 
          */
-        if (load_from_exe
+        if (params.load_from_exe
             && os_get_exe_filename(image_file_name, sizeof(image_file_name),
                                    argv[0]))
             found_image = TRUE;
@@ -681,12 +706,12 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
          *   we don't want to allow running a different image file in that
          *   case.  
          */
-        if (!load_from_exe && !found_image && saved_state != 0)
+        if (!params.load_from_exe && !found_image && params.saved_state != 0)
         {
             osfildef *save_fp;
 
             /* open the saved state file */
-            save_fp = osfoprb(saved_state, OSFTT3SAV);
+            save_fp = osfoprb(params.saved_state, OSFTT3SAV);
             if (save_fp != 0)
             {
                 /* get the name of the image file */
@@ -706,7 +731,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
          *   if we haven't found the image, and the host system provides a
          *   way of asking the user for a filename, try that 
          */
-        if (!load_from_exe && !found_image)
+        if (!params.load_from_exe && !found_image)
         {
             /* ask the host system for a game name */
             switch (hostifc->get_image_name(image_file_name,
@@ -749,7 +774,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
         char buf[OSFNMAX + 1024];
 
         /* show the usage message if allowed */
-        if (load_from_exe && !usage_err)
+        if (params.load_from_exe && !usage_err)
         {
             sprintf(buf, "An error occurred loading the T3 VM program from "
                     "the embedded data file.  This application executable "
@@ -769,6 +794,7 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                     "  -cs xxx - use character set 'xxx' for keyboard "
                     "and display\n"
                     "  -csl xxx - use character set 'xxx' for log files\n"
+                    "  -d path - set default directory for file operations\n"
                     "  -i file - read command input from file (quiet mode)\n"
                     "  -I file - read command input from file (echo mode)\n"
                     "  -l file - log all console input/output to file\n"
@@ -782,16 +808,18 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
                     "colors, etc.)\n"
                     "  -r file - restore saved state from file\n"
                     "  -R dir  - set directory for external resources\n"
-                    "  -s##    - set I/O safety level for Read and Write "
-                    " (each # is from 0 to 4 -\n"
-                    "            0 is the least restrictive, 4 allows no "
-                    "file access at all)\n"
+                    "  -s##    - set file safety level for read & write "
+                    "(each # is from 0 to 4;\n"
+                    "            0 is the least restrictive, 4 prohibits all "
+                    "file access)\n"
+                    "  -sd dir - set the sandbox directory for file "
+                    "safety restrictions\n"
                     "\n"
                     "If provided, the optional extra arguments are passed "
                     "to the program's\n"
                     "main entrypoint.\n",
                     T3VM_BANNER_STRING, executable_name,
-                    load_from_exe ? "[- " : "<image-file-name> [");
+                    params.load_from_exe ? "[- " : "<image-file-name> [");
             
             /* display the message */
             clientifc->display_error(0, 0, buf, FALSE);
@@ -814,20 +842,18 @@ int vm_run_image_main(CVmMainClientIfc *clientifc,
     /*
      *   if there's a storage server SID, add it to the net configuration
      */
-    if (netconfig != 0 && storage_sid != 0)
-        netconfig->set("storage.sessionid", storage_sid);
+    if (params.netconfig != 0 && storage_sid != 0)
+        params.netconfig->set("storage.sessionid", storage_sid);
 #endif /* TADSNET */
 
+    /* pass the arguments beyond the image file name to the .t3's main() */
+    params.prog_argv = argv + curarg;
+    params.prog_argc = argc - curarg;
+
     /* run the program */
-    stat = vm_run_image(clientifc, image_file_name, hostifc,
-                        argv + curarg, argc - curarg,
-                        script_file, script_quiet, log_file, cmd_log_file,
-                        load_from_exe, show_banner, seed_rand,
-                        charset, log_charset,
-                        saved_state, res_dir, netconfig);
+    stat = vm_run_image(&params);
 
 done:
-
     /* return the status code */
     return stat;
 }
@@ -867,28 +893,20 @@ static void strcpy_limit(char *dst, const char *src, size_t limit)
 static int vm_get_game_file_from_savefile(const char *savefile,
                                           char *fname, size_t fnamelen)
 {
-    osfildef *fp;
-    char buf[128];
-    int ret;
-    size_t len;
 
     /* open the saved game file */
-    fp = osfoprb(savefile, OSFTBIN);
+    osfildef *fp = osfoprb(savefile, OSFTBIN);
 
     /* if that failed, there's no way to read the game file name */
     if (fp == 0)
         return FALSE;
 
+    /* presume failure */
+    int ret = FALSE;
+
     /* read the first few bytes */
-    if (osfrb(fp, buf, 16))
-    {
-        /* 
-         *   we couldn't even read that much, so it must not really be a
-         *   saved game file 
-         */
-        ret = FALSE;
-    }
-    else
+    char buf[128];
+    if (!osfrb(fp, buf, 16))
     {
         /* check for a saved game signature we recognize */
         if (memcmp(buf, "TADS2 save/g\012\015\032\000", 16) == 0)
@@ -899,20 +917,25 @@ static int vm_get_game_file_from_savefile(const char *savefile,
              *   (the 15 bytes we just matched), with a two-byte length
              *   prefix.  Seek to the length prefix and read it.  
              */
-            osfseek(fp, 16, OSFSK_SET);
-            osfrb(fp, buf, 2);
-            len = osrp2(buf);
+            size_t len;
+            if (!osfseek(fp, 16, OSFSK_SET) && !osfrb(fp, buf, 2))
+                len = osrp2(buf);
+            else
+                len = 0;
 
             /* limit the read length to our caller's available buffer */
             if (len > fnamelen - 1)
                 len = fnamelen - 1;
-
-            /* read the filename and null-terminate it */
-            osfrb(fp, fname, len);
-            fname[len] = '\0';
-
-            /* success */
-            ret = TRUE;
+            
+            /* read the filename */
+            if (!osfrb(fp, fname, len))
+            {
+                /* null-terminate it */
+                fname[len] = '\0';
+                
+                /* success */
+                ret = TRUE;
+            }
         }
         else if (memcmp(buf, "T3-state-v", 10) == 0)
         {
@@ -934,7 +957,6 @@ static int vm_get_game_file_from_savefile(const char *savefile,
              *   it's not a signature we know, so it must not be a saved
              *   state file (at least not one we can deal with)
              */
-            ret = FALSE;
         }
     }
 
@@ -961,11 +983,8 @@ static int vm_get_game_file_from_savefile(const char *savefile,
 int vm_get_game_arg(int argc, const char *const *argv,
                     char *buf, size_t buflen, int *engine_type)
 {
-    int i;
-    const char *restore_file;
-
     /* presume we won't find a file to restore */
-    restore_file = 0;
+    const char *restore_file = 0;
 
     /* presume we won't identify the engine type based soley on arguments */
     *engine_type = VM_GGT_INVALID;
@@ -985,6 +1004,7 @@ int vm_get_game_arg(int argc, const char *const *argv,
      *   the meaning of each option well enough that we can tell whether or
      *   not the next argv element after the option is part of the option.  
      */
+    int i;
     for (i = 1 ; i < argc && argv[i][0] == '-' ; ++i)
     {
         /* 
@@ -1015,7 +1035,19 @@ int vm_get_game_arg(int argc, const char *const *argv,
             break;
 
         case 'd':
-            /* tads 2 "-double[+-]" (no arguments) */
+            /* tads 2 "-double[+-]" (no arguments), tads 3 -d <path> */
+            if (memcmp(argv[i], "-double", 7) == 0
+                && (argv[i][7] == '\0'
+                    || argv[i][7] == '+'
+                    || argv[i][7] == '-'))
+            {
+                /* tads 2 -double - no further arguments */
+            }
+            else if (argv[i][2] == '\0')
+            {
+                /* tads 3 -d <path> */
+                ++i;
+            }
             break;
 
         case 'm':
@@ -1089,13 +1121,20 @@ int vm_get_game_arg(int argc, const char *const *argv,
             break;
 
         case 's':
-            /* 
-             *   tads 2/3 "-s#" (#=0,1,2,3,4); in tads 2, the # can be
-             *   separated by a space from the -s, so we'll allow it this
-             *   way in general 
-             */
-            if (argv[i][2] == '\0')
+            if (argv[i][2] == 'd')
+            {
+                /* tads 3 -sd <dir> - skip the <dir> parameter */
                 ++i;
+            }
+            else if (argv[i][2] == '\0')
+            {
+                /* 
+                 *   tads 2/3 "-s#" (#=0,1,2,3,4); in tads 2, the # can be
+                 *   separated by a space from the -s, so we'll allow it this
+                 *   way in general 
+                 */
+                ++i;
+            }
             break;
 
         case 'i':

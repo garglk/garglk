@@ -181,6 +181,13 @@ public:
     virtual int is_dstring() const { return FALSE; }
 
     /*
+     *   Determine if this node contains a dstring expression.  This returns
+     *   true if the node is a dstring, a dstring embedding, or a comma node
+     *   containing a dstring and/or a dstring embedding.
+     */
+    virtual int is_dstring_expr() const { return FALSE; }
+
+    /*
      *   Determine if this is a simple assignment operator node.  Returns
      *   true if so, false if not.  By default, we return false. 
      */

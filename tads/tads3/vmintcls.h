@@ -24,20 +24,43 @@ Modified
 
 /*
  *   An IntrinsicClass object represents the class of an instance of an
- *   intrinsic class.  For example, if we create a BigNumber instance,
- *   then ask for its class, the result is the IntrinsicClass object
- *   associated with the BigNumber intrinsic class:
+ *   intrinsic class.  For example, if we create a BigNumber instance, then
+ *   ask for its class, the result is the IntrinsicClass object associated
+ *   with the BigNumber intrinsic class:
  *   
- *   Each metaclass in the metaclass dependency table will be associated
- *   with an IntrinsicClass object.
+ *   Each metaclass in the metaclass dependency table will be associated with
+ *   an IntrinsicClass object.
  *   
  *   The image file format for an IntrinsicClass object consists of the
  *   following:
  *   
- *   UINT2 byte_count (currently, this is always 8)
- *.  UINT2 metaclass_dependency_table_index
- *.  UINT4 modifier_object_id 
+ *     UINT2 byte_count (currently, this is always 8)
+ *.    UINT2 metaclass_dependency_table_index
+ *.    UINT4 modifier_object_id
+ *.    DATAHOLDER class_state
+ *   
+ *   The 'class_state' entry is a generic data holder value for use by the
+ *   intrinsic class for storing static class state.  We save and restore
+ *   this value automatically and can keep undo information for it.  This can
+ *   be used to implement static class-level setprop/getprop to store special
+ *   values associated with the class object.
  */
+
+/* intrinsic class extension */
+struct vm_intcls_ext
+{
+    /* metaclass dependency table index */
+    int meta_idx;
+
+    /* modifier object */
+    vm_obj_id_t mod_obj;
+
+    /* class state */
+    vm_val_t class_state;
+
+    /* has the class state value changed since load time? */
+    int changed;
+};
 
 /*
  *   intrinsic class object 
@@ -69,10 +92,38 @@ public:
      *   implementation to determine if this intrinsic class object is the
      *   intrinsic class object for a given C++ intrinsic class 
      */
-    uint get_meta_idx() const { return osrp2(ext_ + 2); }
+    uint get_meta_idx() const { return get_ext()->meta_idx; }
 
     /* get my metaclass table entry */
     struct vm_meta_entry_t *get_meta_entry(VMG0_) const;
+
+    /* 
+     *   Get the class state value.  This is for use by the class
+     *   implementation to store static (class) state.
+     */
+    const vm_val_t *get_class_state() { return &get_ext()->class_state; }
+
+    /* Set the class state value, without saving undo. */
+    void set_class_state(const vm_val_t *val)
+    {
+        get_ext()->class_state = *val;
+        get_ext()->changed = TRUE;
+    }
+
+    /*
+     *   Set the class state value with undo.  This is unimplemented for now,
+     *   since no one needs it.  In principle it could be useful to be able
+     *   to store a scalar value in the class state slot, in which case we'd
+     *   need to have special code here in order to undo changes.  So far,
+     *   though, we always store an object reference in class_state, such as
+     *   a Vector or TadsObject, since we need to be able to store more than
+     *   just a single scalar value.  Since all of the state data are then
+     *   stored within those container objects, and the container classes we
+     *   use all handle undo themselves, there's no need for any undo action
+     *   at the class_state level.
+     */
+    // Unimplemented!
+    void set_class_state_undo(VMG_ class CVmUndo *undo, const vm_val_t *val);
 
     /* create dynamically using stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
@@ -146,14 +197,18 @@ public:
     void mark_undo_ref(VMG_ struct CVmUndoRecord *) { }
     void remove_stale_undo_weak_ref(VMG_ struct CVmUndoRecord *) { }    
 
-    /* mark references - we have none */
-    void mark_refs(VMG_ uint) { }
+    /* mark references */
+    void mark_refs(VMG_ uint state);
 
     /* remove weak references - we have none */
     void remove_stale_weak_refs(VMG0_) { }
 
-    /* load from an image file */
+    /* have we changed since load time? */
+    int is_changed_since_load() const { return get_ext()->changed; }
+
+    /* load/reload from an image file */
     void load_from_image(VMG_ vm_obj_id_t self, const char *ptr, size_t siz);
+    void reload_from_image(VMG_ vm_obj_id_t self, const char *ptr, size_t siz);
 
     /* rebuild for image file */
     virtual ulong rebuild_image(VMG_ char *buf, ulong buflen);
@@ -165,15 +220,8 @@ public:
     void restore_from_file(VMG_ vm_obj_id_t self,
                            class CVmFile *fp, class CVmObjFixup *fixups);
 
-    /* reset to the initial load state */
-    void reset_to_image(VMG_ vm_obj_id_t self);
-
     /* get the user modifier object for the intrinsic class */
-    vm_obj_id_t get_mod_obj() const
-    {
-        /* return the modifier object ID from our extension */
-        return (vm_obj_id_t)t3rp4u(ext_ + 4);
-    }
+    vm_obj_id_t get_mod_obj() const { return get_ext()->mod_obj; }
 
     /* 
      *   find the intrinsic class for the given modifier object, searching
@@ -190,6 +238,16 @@ protected:
 
     /* create with a given dependency table index */
     CVmObjClass(VMG_ int in_root_set, uint meta_idx, vm_obj_id_t self);
+
+    /* allocate or reallocate my extension  */
+    vm_intcls_ext *alloc_ext(VMG0_);
+
+    /* get my extension */
+    vm_intcls_ext *get_ext() const { return (vm_intcls_ext *)ext_; }
+
+    /* load/reload the image data */
+    void load_image_data(VMG_ vm_obj_id_t self,
+                         const char *ptr, size_t siz);
 
     /* list our intrinsic class's properties */
     size_t list_class_props(VMG_ vm_obj_id_t self,
@@ -246,14 +304,14 @@ public:
     void create_for_image_load(VMG_ vm_obj_id_t id)
     {
         new (vmg_ id) CVmObjClass();
-        G_obj_table->set_obj_gc_characteristics(id, FALSE, FALSE);
+        G_obj_table->set_obj_gc_characteristics(id, TRUE, FALSE);
     }
 
     /* create from restoring from saved state */
     void create_for_restore(VMG_ vm_obj_id_t id)
     {
         new (vmg_ id) CVmObjClass();
-        G_obj_table->set_obj_gc_characteristics(id, FALSE, FALSE);
+        G_obj_table->set_obj_gc_characteristics(id, TRUE, FALSE);
     }
 
     /* create dynamically using stack arguments */

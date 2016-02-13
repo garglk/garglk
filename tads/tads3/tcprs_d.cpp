@@ -1,3 +1,8 @@
+// NOTE - this file is obsolete as of TADS 3.1.2
+#error This file is obsolete - it should be removed from the makefile.  \
+       The only dependency should have been test/test_tok.cpp, which now \
+       has the encessary dummy functions defined internally.
+
 #ifdef RCSID
 static char RCSid[] =
 "$Header$";
@@ -11,7 +16,7 @@ static char RCSid[] =
  */
 /*
 Name
-  tcprs_d.cpp - stubs for parser functions not needed in debugger
+  [OBSOLETE] tcprs_d.cpp - stubs for parser functions not needed in debugger
 Function
   
 Notes
@@ -41,7 +46,8 @@ void CTPNStmBase::add_debug_line_rec(CTcTokFileDesc *, long)
 /*
  *   Anonymous functions are illegal in the debugger 
  */
-CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int /*short_form*/)
+CTcPrsNode *CTcPrsOpUnary::parse_anon_func(
+    int /*short_form*/, int /*is_method*/)
 {
     /* 
      *   we can't parse these - generate an error, consume the token, and

@@ -16,6 +16,11 @@ main(args)
     test('# format: %#x, %#x, %#X, %#X, %#o, %#o',
          0, 0x123abc, 0, 0x345def, 0, 07654);
 
+    test('Roman numerals I: %r, %R, %r, %R, %r, %R',
+         0, -5, 100, 111, 3888, 4999);
+    test('Roman numerals II: %r, %R, %r, %R, %r, %R',
+         true, nil, 123.45, 678.90, ' 517!!', 9999);
+
     test('Integers with field widths: [%8d] [%_ 8d] [%_*8d] [%016d] [%_*8x]',
          100, 200, -1234, 4567, 0x400);
     test('Field widths too small: [%4d] [%4d] [%4d] [%4x]',

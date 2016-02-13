@@ -24,6 +24,7 @@ Modified
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <stdarg.h>
 
 #include "t3std.h"
 #include "vmmcreg.h"
@@ -54,6 +55,7 @@ Modified
 #include "vmpat.h"
 #include "vmregex.h"
 #include "vmbiftad.h"
+#include "vmfindrep.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -91,7 +93,14 @@ int (*CVmObjString::func_table_[])(VMG_ vm_val_t *retval,
     &CVmObjString::getp_sha256,                                       /* 18 */
     &CVmObjString::getp_md5,                                          /* 19 */
     &CVmObjString::getp_packBytes,                                    /* 20 */
-    &CVmObjString::getp_unpackBytes                                   /* 21 */
+    &CVmObjString::getp_unpackBytes,                                  /* 21 */
+    &CVmObjString::getp_toTitleCase,                                  /* 22 */
+    &CVmObjString::getp_toFoldedCase,                                 /* 23 */
+    &CVmObjString::getp_compareTo,                                    /* 24 */
+    &CVmObjString::getp_compareIgnoreCase,                            /* 25 */
+    &CVmObjString::getp_findLast,                                     /* 26 */
+    &CVmObjString::getp_findAll,                                      /* 27 */
+    &CVmObjString::getp_match                                         /* 28 */
 };
 
 /* static property indices */
@@ -160,6 +169,25 @@ vm_obj_id_t CVmObjString::create(VMG_ int in_root_set,
 
     /* return the new string object ID */
     return id;
+}
+
+/* create from the given character set */
+vm_obj_id_t CVmObjString::create(VMG_ int in_root_set,
+                                 const char *src, size_t srclen,
+                                 CCharmapToUni *cmap)
+{
+    /* figure the size needed for the conversion */
+    size_t ulen = cmap->map_str(0, 0, src, srclen);
+
+    /* create a string of the mapped length */
+    vm_obj_id_t ret = create(vmg_ in_root_set, ulen);
+    CVmObjString *retstr = (CVmObjString *)vm_objp(vmg_ ret);
+
+    /* map into the string buffer */
+    cmap->map_str(retstr->cons_get_buf(), ulen, src, srclen);
+
+    /* return the new string */
+    return ret;
 }
 
 /* create from a byte stream, interpreting the bytes as Latin-1 characters */
@@ -442,10 +470,8 @@ void CVmObjString::set_prop(VMG_ CVmUndo *, vm_obj_id_t,
  */
 void CVmObjString::save_to_file(VMG_ CVmFile *fp)
 {
-    size_t len;
-    
     /* get our length */
-    len = vmb_get_len(ext_);
+    size_t len = vmb_get_len(ext_);
 
     /* write the length prefix and the string */
     fp->write_bytes(ext_, len + VMB_LEN);
@@ -457,10 +483,8 @@ void CVmObjString::save_to_file(VMG_ CVmFile *fp)
 void CVmObjString::restore_from_file(VMG_ vm_obj_id_t,
                                      CVmFile *fp, CVmObjFixup *)
 {
-    size_t len;
-    
     /* read the length prefix */
-    len = fp->read_uint2();
+    size_t len = fp->read_uint2();
 
     /* free any existing extension */
     if (ext_ != 0)
@@ -802,6 +826,65 @@ char *CVmObjString::alloc_str_buf(VMG_ vm_val_t *new_obj,
     return ((CVmObjString *)vm_objp(vmg_ new_obj->val.obj))->ext_;
 }
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Try converting a value to a string via reflection services, imported
+ *   from the bytecode program.  Failing that, use a boilerplate format.
+ */
+const char *CVmObjString::reflect_to_str(
+    VMG_ vm_val_t *new_str, char *result_buf, size_t result_buf_size,
+    const vm_val_t *val, const char *fmt, ...)
+{
+    /* look for an exported reflectionServices object from the byteocde */
+    vm_val_t refl;
+    refl.set_obj(G_predef->reflection_services);
+    vm_prop_id_t valToSym = G_predef->reflection_valToSymbol;
+    if (refl.val.obj != VM_INVALID_OBJ && valToSym != VM_INVALID_PROP)
+    {
+        /* invoke reflectionServices.valToSymbol(val) */
+        G_stk->push(val);
+        G_interpreter->get_prop(vmg_ 0, &refl, valToSym, &refl, 1, 0);
+
+        /* if we got a string, return it */
+        const char *str = G_interpreter->get_r0()->get_as_string(vmg0_);
+        if (str != 0)
+        {
+            /* set the return value */
+            *new_str = *G_interpreter->get_r0();
+            
+            /* return the string buffer */
+            return str;
+        }
+    }
+
+    /* 
+     *   No reflection services - fall back on the boilerplate format.  Start
+     *   by calculating the amount of space we need for the formatted string,
+     *   adding a byte for the trailing null.
+     */
+    va_list args;
+    va_start(args, fmt);
+    size_t need = t3vsprintf(0, 0, fmt, args) + 1;
+    va_end(args);
+
+    /* allocate space, including room for the length prefix */
+    result_buf = alloc_str_buf(
+        vmg_ new_str, result_buf, result_buf_size, need + VMB_LEN);
+
+    /* do the formatting */
+    va_start(args, fmt);
+    t3vsprintf(result_buf + VMB_LEN, need, fmt, args);
+    va_end(args);
+
+    /* set the length prefix */
+    vmb_put_len(result_buf, need);
+
+    /* return the buffer */
+    return result_buf;
+}
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Convert a value to a string 
@@ -826,7 +909,6 @@ const char *CVmObjString::cvt_to_str(VMG_ vm_val_t *new_str,
         /* it's an object - ask it for its string representation */
         return vm_objp(vmg_ val->val.obj)->explicit_to_string(
             vmg_ val->val.obj, new_str, radix, flags);
-        break;
 
     case VM_INT:
         /* 
@@ -848,12 +930,31 @@ const char *CVmObjString::cvt_to_str(VMG_ vm_val_t *new_str,
     case VM_NIL:
         /* nil - use the literal string "nil" */
         return "\003\000nil";
-        break;
 
     case VM_TRUE:
         /* true - use the literal string "true" */
         return "\004\000true";
-        break;
+
+    case VM_LIST:
+        return CVmObjList::list_to_string(vmg_ new_str, val, radix, flags);
+
+    case VM_PROP:
+        return reflect_to_str(vmg_ new_str, result_buf, result_buf_size, val,
+                              "property#%d", (int)val->val.prop);
+
+    case VM_FUNCPTR:
+        return reflect_to_str(vmg_ new_str, result_buf, result_buf_size, val,
+                              "function#%lx", (long)val->val.ofs);
+
+    case VM_ENUM:
+        return reflect_to_str(vmg_ new_str, result_buf, result_buf_size, val,
+                              "enum#%ld", (long)val->val.enumval);
+
+    case VM_BIFPTR:
+        return reflect_to_str(vmg_ new_str, result_buf, result_buf_size, val,
+                              "builtin#%d.%d",
+                              (int)val->val.bifptr.set_idx,
+                              (int)val->val.bifptr.func_idx);
 
     default:
         /* other types cannot be added to a string */
@@ -880,10 +981,10 @@ const char *CVmObjString::cvt_to_str(VMG_ vm_val_t *new_str,
  *   at the beginning of the buffer.  
  */
 char *CVmObjString::cvt_int_to_str(char *buf, size_t buflen,
-                                   int32 inval, int radix, int flags)
+                                   int32_t inval, int radix, int flags)
 {
     int neg;
-    uint32 val;
+    uint32_t val;
     char *p;
     size_t len;
 
@@ -906,7 +1007,7 @@ char *CVmObjString::cvt_int_to_str(char *buf, size_t buflen,
         neg = FALSE;
 
         /* use the value as-is */
-        val = (uint32)inval;
+        val = (uint32_t)inval;
     }
     else
     {   
@@ -914,7 +1015,7 @@ char *CVmObjString::cvt_int_to_str(char *buf, size_t buflen,
         neg = TRUE;
 
         /* use the positive value for the conversion */
-        val = (uint32)(-inval);
+        val = (uint32_t)(-inval);
     }
 
     /* store numerals in reverse order */
@@ -1110,30 +1211,25 @@ int CVmObjString::const_compare(VMG_ const char *str1, const vm_val_t *val)
 /*
  *   Find a substring within a string 
  */
-const char *CVmObjString::find_substr(VMG_ const char *str, int start_idx,
+const char *CVmObjString::find_substr(VMG_ const char *str, int32_t start_idx,
                                       const char *substr, size_t *idxp)
 {
-    utf8_ptr p;
-    size_t rem;
-    size_t sublen;
-    size_t char_ofs;
-    int i;
-    
     /* get the lengths */
-    rem = vmb_get_len(str);
-    sublen = vmb_get_len(substr);
+    size_t rem = vmb_get_len(str);
+    size_t sublen = vmb_get_len(substr);
 
     /* set up utf8 pointer into the string */
-    p.set((char *)str + 2);
+    utf8_ptr p((char *)str + 2);
 
     /* if the index is negative, it's from the end of the string */
     start_idx += (start_idx < 0 ? (int)p.len(rem) : -1);
 
     /* skip to the starting index */
-    for (i = start_idx ; i > 0 && rem >= sublen ; --i, p.inc(&rem)) ;
+    for (int32_t i = start_idx ; i > 0 && rem >= sublen ; --i, p.inc(&rem)) ;
 
     /* scan for the substring */
-    for (char_ofs = 0 ; rem != 0 && rem >= sublen ; ++char_ofs, p.inc(&rem))
+    for (size_t char_ofs = 0 ; rem != 0 && rem >= sublen ;
+         ++char_ofs, p.inc(&rem))
     {
         /* check for a match */
         if (memcmp(p.getptr(), substr + VMB_LEN, sublen) == 0)
@@ -1152,12 +1248,20 @@ const char *CVmObjString::find_substr(VMG_ const char *str, int start_idx,
 }
 
 /*
- *   Find a substring or pattern 
+ *   Find a substring or pattern.  'basestr' is the entire string, and 'str'
+ *   is a pointer into the string giving the starting position for the
+ *   search; this can be the same as 'baseptr' to search from the very
+ *   beginning of the string, or to a character in the middle of the string.
+ *   
+ *   The returned 'match_idx' value is the character index relative to the
+ *   starting search position 'str'.  If the match starts at the beginning of
+ *   'str' then 'match_idx' is returned as 0.  Note that this is relative to
+ *   the starting point 'str' rather than the overall string 'basestr'.
  */
-const char *CVmObjString::find_substr(VMG_ const char *str, size_t len,
-                                      const char *substr,
-                                      CVmObjPattern *pat,
-                                      int *match_len)
+const char *CVmObjString::find_substr(
+    VMG_ const vm_val_t *strval,
+    const char *basestr, const char *str, size_t len,
+    const char *substr, CVmObjPattern *pat, int *match_idx, int *match_len)
 {
     /* search for the string or pattern */
     if (substr != 0)
@@ -1167,14 +1271,16 @@ const char *CVmObjString::find_substr(VMG_ const char *str, size_t len,
         substr += VMB_LEN;
 
         /* search for the substring */
-        for ( ; len >= sublen ; ++str, --len)
+        utf8_ptr p((char *)str);
+        for (int i = 0 ; len >= sublen ; p.inc(&len), ++i)
         {
             /* check for a match */
-            if (memcmp(str, substr, sublen) == 0)
+            if (memcmp(p.getptr(), substr, sublen) == 0)
             {
                 /* got it - the match length is simply the substring length */
+                *match_idx = i;
                 *match_len = sublen;
-                return str;
+                return p.getptr();
             }
         }
     }
@@ -1183,16 +1289,125 @@ const char *CVmObjString::find_substr(VMG_ const char *str, size_t len,
         /* get the compiled pattern */
         re_compiled_pattern *cpat = pat->get_pattern(vmg0_);
 
+        /* save the last search source string */
+        G_bif_tads_globals->last_rex_str->val = *strval;
+        G_bif_tads_globals->rex_searcher->clear_group_regs();
+
         /* search for the pattern */
-        CRegexSearcherSimple searcher(G_bif_tads_globals->rex_parser);
-        int idx = searcher.search_for_pattern(cpat, str, str, len, match_len);
+        int idx = G_bif_tads_globals->rex_searcher->search_for_pattern(
+            cpat, basestr, str, len, match_len);
 
         /* if we found the match, return it */
         if (idx >= 0)
+        {
+            /* set the match index and length */
+            *match_idx = utf8_ptr::s_len(str, idx);
             return str + idx;
+        }
     }
 
     /* no match */
+    *match_idx = -1;
+    *match_len = 0;
+    return 0;
+}
+
+/*
+ *   Find a substring, searching from the end of the string toward the
+ *   beginning.  This works like find_substr(), but searchs backwards.  The
+ *   match must end before the starting position 'str' - it can't overlap
+ *   this character.  To search the entire string from the end, set 'str' to
+ *   the byte just after the last character of the string.
+ *   
+ *   As with find_substr(), we return with 'match_idx' set to the character
+ *   index of the start of the match relative to 'str'.  This means that
+ *   'match_idx' will be zero or negative on a successful match.  (And the
+ *   only way it returns with zero is when the matched text is zero length,
+ *   because of the requirement that the match can't overlap the starting
+ *   character.)
+ */
+const char *CVmObjString::find_last_substr(
+    VMG_ const vm_val_t *strval,
+    const char *basestr, const char *str, size_t len,
+    const char *substr, CVmObjPattern *pat, int *match_idx, int *match_len)
+{
+    /* search for the string or pattern */
+    if (substr != 0)
+    {
+        /* get the substring length and buffer pointer */
+        size_t sublen = vmb_get_len(substr);
+        substr += VMB_LEN;
+
+        /* get the character length of the search string */
+        size_t subclen = utf8_ptr::s_len(substr, sublen);
+
+        /* set up at the starting position */
+        utf8_ptr p((char *)str);
+
+        /* 
+         *   back up by the number of characters 'c' in the search string -
+         *   the match can't include the from_idx position, so we can't match
+         *   anything later in the string than 'c' characters before from_idx
+         */
+        size_t c;
+        for (c = subclen ; c != 0 && p.getptr() != basestr ; --c, p.dec()) ;
+
+        /* if we couldn't back up far enough, there's no chance of a match */
+        if (c > 0)
+
+        {
+            *match_idx = -1;
+            *match_len = 0;
+            return 0;
+        }
+
+        /* search backwards for the string */
+        for (int i = -(int)subclen ; ; p.dec(), --i)
+        {
+            /* check for a match at the current position */
+            if (memcmp(p.getptr(), substr, sublen) == 0)
+            {
+                /* 
+                 *   got it - the match index is the negative of the
+                 *   character offset from the match position to the search
+                 *   starting position, and the match length is simply
+                 *   substring byte length 
+                 */
+                *match_idx = -(int)utf8_ptr::s_len(
+                    p.getptr(), str - p.getptr());
+                *match_len = sublen;
+                return p.getptr();
+            }
+
+            /* if we're at the start of the base string, we're done */
+            if (p.getptr() == basestr)
+                break;
+        }
+    }
+    else if (pat != 0)
+    {
+        /* get the compiled pattern */
+        re_compiled_pattern *cpat = pat->get_pattern(vmg0_);
+
+        /* save the last search source string */
+        G_bif_tads_globals->last_rex_str->val = *strval;
+        G_bif_tads_globals->rex_searcher->clear_group_regs();
+
+        /* search for the pattern */
+        int idx = G_bif_tads_globals->rex_searcher->search_back_for_pattern(
+            cpat, basestr, str, len, match_len);
+
+        /* if we found the match, return it */
+        if (idx >= 0)
+        {
+            /* set the match index and length */
+            *match_idx = -(int)utf8_ptr::s_len(str - idx, idx);
+            return str + idx;
+        }
+    }
+
+    /* no match */
+    *match_idx = -1;
     *match_len = 0;
     return 0;
 }
@@ -1229,13 +1444,11 @@ int CVmObjString::const_get_prop(VMG_ vm_val_t *retval,
                                  vm_prop_id_t prop, vm_obj_id_t *src_obj,
                                  uint *argc)
 {
-    uint func_idx;
-
     /* presume no source object */
     *src_obj = VM_INVALID_OBJ;
 
     /* translate the property index to an index into our function table */
-    func_idx = G_meta_table
+    uint func_idx = G_meta_table
                ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
 
     /* call the appropriate function */
@@ -1416,107 +1629,81 @@ int CVmObjString::getp_substr(VMG_ vm_val_t *retval, const vm_val_t *self_val,
 int CVmObjString::getp_upper(VMG_ vm_val_t *retval, const vm_val_t *self_val,
                              const char *str, uint *argc)
 {
-    size_t srclen;
-    size_t dstlen;
-    size_t rem;
-    utf8_ptr srcp;
-    utf8_ptr dstp;
-    vm_obj_id_t result_obj;
-
-    /* check arguments */
-    static CVmNativeCodeDesc desc(0);
-    if (get_prop_check_argc(retval, argc, &desc))
-        return TRUE;
-
-    /* get my length */
-    srclen = vmb_get_len(str);
-
-    /* leave the string on the stack as GC protection */
-    G_stk->push(self_val);
-
-    /* 
-     *   Scan the string to determine how long the result will be.  The
-     *   result won't necessarily be the same length as the original,
-     *   because a two-byte character in the original could turn into a
-     *   three-byte character in the result, and vice versa.  (We could
-     *   allocate a result buffer three times the length of the original,
-     *   but this seems more wasteful of space than scanning the string
-     *   twice is wasteful of time.  It's a trade-off, though.)  
-     */
-    for (dstlen = 0, srcp.set((char *)str + VMB_LEN), rem = srclen ;
-         rem != 0 ; srcp.inc(&rem))
-    {
-        /* get the size of the mapping for this character */
-        dstlen += utf8_ptr::s_wchar_size(t3_to_upper(srcp.getch()));
-    }
-
-    /* allocate the result string */
-    result_obj = CVmObjString::create(vmg_ FALSE, dstlen);
-
-    /* get a pointer to the result buffer */
-    dstp.set(((CVmObjString *)vm_objp(vmg_ result_obj))->cons_get_buf());
-
-    /* write the string */
-    for (srcp.set((char *)str + VMB_LEN), rem = srclen ;
-         rem != 0 ; srcp.inc(&rem))
-    {
-        /* write the next character */
-        dstp.setch(t3_to_upper(srcp.getch()));
-    }
-
-    /* return the value */
-    retval->set_obj(result_obj);
-
-    /* discard GC protection */
-    G_stk->discard();
-
-    /* handled */
-    return TRUE;
+    return gen_getp_case_conv(vmg_ retval, self_val, str, argc, &t3_to_upper);
 }
 
-/* ------------------------------------------------------------------------ */
 /*
  *   property evaluator - toLower
  */
 int CVmObjString::getp_lower(VMG_ vm_val_t *retval, const vm_val_t *self_val,
                              const char *str, uint *argc)
 {
-    size_t srclen;
-    size_t dstlen;
-    size_t rem;
-    utf8_ptr srcp;
-    utf8_ptr dstp;
-    vm_obj_id_t result_obj;
+    return gen_getp_case_conv(vmg_ retval, self_val, str, argc, &t3_to_lower);
+}
 
+/*
+ *   property evaluator - toTitleCase
+ */
+int CVmObjString::getp_toTitleCase(
+    VMG_ vm_val_t *retval, const vm_val_t *self_val,
+    const char *str, uint *argc)
+{
+    return gen_getp_case_conv(vmg_ retval, self_val, str, argc, &t3_to_title);
+}
+
+/*
+ *   property evaluator - toFoldedCase
+ */
+int CVmObjString::getp_toFoldedCase(
+    VMG_ vm_val_t *retval, const vm_val_t *self_val,
+    const char *str, uint *argc)
+{
+    return gen_getp_case_conv(vmg_ retval, self_val, str, argc, &t3_to_fold);
+}
+
+/*
+ *   General case converter for toUpper, toLower, toTitleCase, toFoldedCase 
+ */
+int CVmObjString::gen_getp_case_conv(
+    VMG_ vm_val_t *retval, const vm_val_t *self_val,
+    const char *str, uint *argc, const wchar_t *(*conv)(wchar_t))
+{
     /* check arguments */
     static CVmNativeCodeDesc desc(0);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
     /* get my length */
-    srclen = vmb_get_len(str);
+    size_t srclen = vmb_get_len(str);
 
     /* leave the string on the stack as GC protection */
     G_stk->push(self_val);
 
     /* 
      *   Scan the string to determine how long the result will be.  The
-     *   result won't necessarily be the same length as the original,
-     *   because a two-byte character in the original could turn into a
-     *   three-byte character in the result, and vice versa.  (We could
-     *   allocate a result buffer three times the length of the original,
-     *   but this seems more wasteful of space than scanning the string
-     *   twice is wasteful of time.  It's a trade-off, though.)  
+     *   result won't necessarily be the same length as the original: some
+     *   case conversions are 1:N characters, and even when they're 1:1, a
+     *   two-byte character in the original could turn into a three-byte
+     *   character in the result, and vice versa.
      */
+    size_t dstlen;
+    utf8_ptr srcp, dstp;
+    size_t rem;
     for (dstlen = 0, srcp.set((char *)str + VMB_LEN), rem = srclen ;
          rem != 0 ; srcp.inc(&rem))
     {
-        /* get the size of the mapping for this character */
-        dstlen += utf8_ptr::s_wchar_size(t3_to_lower(srcp.getch()));
+        /* get the mapping for this character */
+        wchar_t ch = srcp.getch();
+        const wchar_t *u = conv(ch);
+
+        /* add up the byte length of the mapping */
+        dstlen += (u != 0
+                   ? utf8_ptr::s_wstr_size(u)
+                   : utf8_ptr::s_wchar_size(ch));
     }
 
     /* allocate the result string */
-    result_obj = CVmObjString::create(vmg_ FALSE, dstlen);
+    vm_obj_id_t result_obj = CVmObjString::create(vmg_ FALSE, dstlen);
 
     /* get a pointer to the result buffer */
     dstp.set(((CVmObjString *)vm_objp(vmg_ result_obj))->cons_get_buf());
@@ -1525,8 +1712,15 @@ int CVmObjString::getp_lower(VMG_ vm_val_t *retval, const vm_val_t *self_val,
     for (srcp.set((char *)str + VMB_LEN), rem = srclen ;
          rem != 0 ; srcp.inc(&rem))
     {
-        /* write the next character */
-        dstp.setch(t3_to_lower(srcp.getch()));
+        /* get the mapping for this character */
+        wchar_t ch = srcp.getch();
+        const wchar_t *u = conv(ch);
+
+        /* put the character(s) */
+        if (u != 0)
+            dstlen -= dstp.setwcharsz(u, dstlen);
+        else
+            dstp.setch(ch, &dstlen);
     }
 
     /* return the value */
@@ -1541,32 +1735,111 @@ int CVmObjString::getp_lower(VMG_ vm_val_t *retval, const vm_val_t *self_val,
 
 /* ------------------------------------------------------------------------ */
 /*
- *   property evaluator - find
+ *   Common handler for find() and findLast() methods.  'dir' specifies the
+ *   search direction: 1 for forward (left to right), -1 for reverse (right
+ *   to left).
  */
-int CVmObjString::getp_find(VMG_ vm_val_t *retval, const vm_val_t *self_val,
-                            const char *str, uint *argc)
+template<int dir> inline int CVmObjString::find_common(
+    VMG_ vm_val_t *retval,
+    const vm_val_t *self_val, const char *str,
+    uint *argc)
 {
-    const char *str2;
-    size_t idx;
-    int start_idx;
-    
     /* check arguments */
     uint orig_argc = (argc != 0 ? *argc : 0);
     static CVmNativeCodeDesc desc(1, 1);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
-    /* retrieve the string to find */
-    str2 = CVmBif::pop_str_val(vmg0_);
+    /* get the string length and buffer pointer */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
 
-    /* if there's a starting index, retrieve it */
-    start_idx = (orig_argc >= 2 ? CVmBif::pop_int_val(vmg0_) : 1);
+    /* remember where the base string strings */
+    const char *basestr = str;
+
+    /* retrieve the string or regex pattern to find */
+    vm_val_t *val2 = G_stk->get(0);
+    const char *str2 = val2->get_as_string(vmg0_);
+    CVmObjPattern *pat2 = 0;
+    if (str2 != 0)
+    {
+        /* we have a simple string to find */
+    }
+    else if (val2->typ == VM_OBJ
+             && CVmObjPattern::is_pattern_obj(vmg_ val2->val.obj))
+    {
+        /* it's a pattern */
+        pat2 = (CVmObjPattern *)vm_objp(vmg_ val2->val.obj);
+    }
+    else
+    {
+        /* we need a string or a pattern; other values are invalid */
+        err_throw(VMERR_BAD_TYPE_BIF);
+    }
+
+    /* if there's a starting index, skip that many characters */
+    int32_t start_idx = 0;
+    if (orig_argc >= 2 && G_stk->get(1)->typ != VM_NIL)
+    {
+        /* get the starting index value */
+        start_idx = G_stk->get(1)->num_to_int(vmg0_);
+
+        /* set up a UTF-8 pointer for traversing the string */
+        utf8_ptr strp((char *)str);
+
+        /*
+         *   A positive index value is a 1-based index from the start of the
+         *   string.  A negative index is from the end of the string, with -1
+         *   pointing to the last character.  For reverse searches, 0 is the
+         *   position past the last character.  In any case, adjust to a
+         *   zero-based index.
+         */
+        start_idx += (start_idx == 0 && dir < 0 ? (int)strp.len(len) :
+                      start_idx < 0 ? (int)strp.len(len) :
+                      -1);
+
+        /* if there's a substring, we can limit the skip */
+        size_t min_len = (dir > 0 && str2 != 0 ? vmb_get_len(str2) : 0);
+
+        /* skip that many characters */
+        int32_t i;
+        for (i = 0 ; i < start_idx && len > min_len ; ++i, strp.inc(&len)) ;
+
+        /* 
+         *   if the start index was past the end of the string (or past the
+         *   point where the remaining subject string is too short for the
+         *   target string), we definitely can't match 
+         */
+        if (i < start_idx)
+        {
+            retval->set_nil();
+            goto done;
+        }
+
+        /* start the search here */
+        str = strp.getptr();
+    }
+    else if (dir < 0)
+    {
+        /* 
+         *   we're searching backwards, and there's no starting index, so the
+         *   starting point is the end of the string 
+         */
+        str = str + len;
+        start_idx = utf8_ptr::s_len(basestr, len);
+        len = 0;
+    }
 
     /* find the substring */
-    if (find_substr(vmg_ str, start_idx, str2, &idx) != 0)
+    int match_idx, match_len;
+    if (dir > 0
+        ? find_substr(vmg_ self_val, basestr, str, len, str2, pat2,
+                      &match_idx, &match_len) != 0
+        : find_last_substr(vmg_ self_val, basestr, str, len, str2, pat2,
+                           &match_idx, &match_len) != 0)
     {
-        /* we found it - adjust to a 1-based value for return */
-        retval->set_int(idx + 1);
+        /* found it - adjust to a 1-based value for return */
+        retval->set_int(start_idx + match_idx + 1);
     }
     else
     {
@@ -1574,773 +1847,370 @@ int CVmObjString::getp_find(VMG_ vm_val_t *retval, const vm_val_t *self_val,
         retval->set_nil();
     }
 
+done:
+    /* discard arguments */
+    G_stk->discard(orig_argc);
+
     /* handled */
     return TRUE;
 }
 
-
-/* ------------------------------------------------------------------------ */
 /*
- *   Utility routine: do a case-insensitive match of two UTF-8 strings.  Each
- *   string is at least 'len' bytes long.  'a' is the reference string: we
- *   compare characters in 'b' by converting them to the same case as the
- *   corresponding letters in 'a'.
- *   
- *   If 'bmatchlen' is null, it means that the two strings must have the same
- *   number of characters.  Otherwise, we'll return true as long as 'a' is a
- *   leading substring of 'b', and fill in '*bmatchlen' with the length in
- *   bytes of the 'b' string that we matched.  This might differ from the
- *   length of the 'a' string because 
+ *   property evaluator - find
  */
-int equals_ignore_case(const char *a, size_t alen,
-                       const char *b, size_t blen, size_t *bmatchlen)
+int CVmObjString::getp_find(VMG_ vm_val_t *retval,
+                            const vm_val_t *self_val, const char *str,
+                            uint *argc)
 {
-    /* set up pointers to the two buffers */
-    utf8_ptr ap((char *)a), bp((char *)b);
-    size_t orig_blen = blen;
+    return find_common<1>(vmg_ retval, self_val, str, argc);
+}
 
-    /* keep going until we find a mismatch or run out of one string */
-    for ( ; alen != 0 && blen != 0 ; ap.inc(&alen), bp.inc(&blen))
-    {
-        /* get the next character of each string */
-        wchar_t ach = ap.getch(), bch = bp.getch();
-
-        /* if they're identical, keep going */
-        if (ach == bch)
-            continue;
-
-        /* if they're both alphabetic, convert to matching case and compare */
-        if (t3_is_alpha(ach) && t3_is_alpha(bch))
-        {
-            /* compare according to the case of the first character */
-            if (t3_is_upper(ach))
-            {
-                if (ach == t3_to_upper(bch))
-                    continue;
-            }
-            else
-            {
-                if (ach == t3_to_lower(bch))
-                    continue;
-            }
-        }
-
-        /* no match */
-        return FALSE;
-    }
-
-    /* if 'b' ran out before 'a', it's no match */
-    if (alen != 0)
-        return FALSE;
-
-    /* 
-     *   if 'a' ran out before 'b', it's a match if we don't need an exact
-     *   length match 
-     */
-    if (blen != 0 && bmatchlen == 0)
-        return FALSE;
-
-    /* if desired, fill in the 'b' match length */
-    if (bmatchlen != 0)
-        *bmatchlen = orig_blen - blen;
-
-    /* we have a match */
-    return TRUE;
+/*
+ *   property evaluator - findLast 
+ */
+int CVmObjString::getp_findLast(VMG_ vm_val_t *retval,
+                                const vm_val_t *self_val, const char *str,
+                                uint *argc)
+{
+    return find_common<-1>(vmg_ retval, self_val, str, argc);
 }
 
 
 /* ------------------------------------------------------------------------ */
 /*
- *   findReplace method: string search and replace.  
+ *   property evaluator - findAll 
  */
-
-/*
- *   findReplace flags 
- */
-#define GETP_RPL_ALL     0x0001                  /* replace all occurrences */
-#define GETP_RPL_NOCASE  0x0002                  /* case-insensitive search */
-#define GETP_RPL_FOLLOW  0x0004   /* follow the matched upper/lower pattern */
-#define GETP_RPL_SERIAL  0x0008              /* replace list items serially */
-#define GETP_RPL_ONCE    0x0010        /* replace only the first occurrence */
-
-/*
- *   findReplace arguments.  We create one of these for each entry in the
- *   list of search strings.  
- */
-struct replace_arg
+int CVmObjString::getp_findAll(VMG_ vm_val_t *retval,
+                               const vm_val_t *self_val, const char *str,
+                               uint *argc)
 {
-    replace_arg()
+    /* check arguments */
+    uint orig_argc = (argc != 0 ? *argc : 0);
+    static CVmNativeCodeDesc desc(1, 1);
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* get the string length and buffer pointer */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /* remember the base string */
+    const char *basestr = str;
+
+    /* retrieve the string or regex pattern to find */
+    vm_val_t *targ = G_stk->get(0);
+    const char *targstr = 0;
+    CVmObjPattern *targpat = 0;
+    if ((targstr = targ->get_as_string(vmg0_)) != 0)
     {
-        srch_str = 0;
-        rpl_str = 0;
-        rpl_func.set_nil();
-        rpl_argc = 0;
-        match_valid = FALSE;
+        /* we have a simple string to find */
+    }
+    else if ((targpat = vm_val_cast(CVmObjPattern, targ)) != 0)
+    {
+        /* it's a pattern */
+    }
+    else
+    {
+        /* we need a string or a pattern; other values are invalid */
+        err_throw(VMERR_BAD_TYPE_BIF);
     }
 
-    ~replace_arg()
+    /* retrieve the filter callback function, if present */
+    vm_val_t *func = 0;
+    int func_argc_min = 0, func_argc_max = 0;
+    vm_rcdesc rc;
+    if (orig_argc >= 2 && (func = G_stk->get(1))->typ != VM_NIL)
     {
+        /* make sure it's a function */
+        if (!func->is_func_ptr(vmg0_))
+            err_throw(VMERR_BAD_TYPE_BIF);
+
+        /* note how many arguments the function accepts */
+        CVmFuncPtr fd(vmg_ func);
+        func_argc_min = fd.get_min_argc();
+        func_argc_max = fd.is_varargs() ? -1 : fd.get_max_argc();
     }
 
-    void set(VMG_ const vm_val_t *srchv, const vm_val_t *rplv)
+    /* 
+     *   create a tentative list for the results (we'll resize this as needed
+     *   as we add elements) 
+     */
+    retval->set_obj(CVmObjList::create(vmg_ FALSE, 10));
+    CVmObjList *lst = (CVmObjList *)vm_objp(vmg_ retval->val.obj);
+
+    /* clear it initially and push it for gc protection */
+    lst->cons_clear();
+    G_stk->push(retval);
+
+    /* repeatedly search for the pattern */
+    int cnt;
+    for (cnt = 0 ; len != 0 ; ++cnt)
     {
-        const char *s;
-        
-        /* get the search string */
-        if ((s = srchv->get_as_string(vmg0_)) != 0)
+        /* search for the next element */
+        int match_cofs, match_len, match_bofs;
+        const char *nxt = find_substr(
+            vmg_ self_val, basestr, str, len, targstr, targpat,
+            &match_cofs, &match_len);
+
+        /* if we didn't find a match, we're done */
+        if (nxt == 0)
+            break;
+
+        /* figure the byte offset of the match */
+        match_bofs = nxt - str;
+
+        /* call the callback, or just return the match text directly */
+        vm_val_t ele;
+        if (func == 0)
         {
-            /* got it - save it */
-            srch_len = vmb_get_len(s);
-            srch_str = s + VMB_LEN;
+            /* no callback - just use the match text, as a new string */
+            ele.set_obj(CVmObjString::create(vmg_ FALSE, nxt, match_len));
         }
         else
         {
-            /* invalid type */
-            err_throw(VMERR_BAD_TYPE_BIF);
+            /* we have a callback - push arguments */
+            int fargc = 0;
+
+            /*
+             *   Figure out how many groups are populated, and how many the
+             *   function expects.  If the function takes varargs, it expects
+             *   all of the groups.  If it takes fixed arguments, it expects
+             *   at most max_argc-2.  In addition, the function expects a
+             *   minimum of min_argc-2 groups, and expects us to add nil
+             *   arguments for any unpopulated groups to fill out that
+             *   minimum.
+             */
+            int gc_actual = G_bif_tads_globals->rex_searcher->get_group_cnt();
+            int gc_wanted = (func_argc_max == -1
+                             ? gc_actual : func_argc_max - 2);
+            if (gc_wanted < func_argc_min - 2)
+                gc_wanted = func_argc_min - 2;
+
+            /* push the groups, last to first */
+            for (int i = gc_wanted ; i > 0 ; )
+            {
+                /* get the group, if it exists */
+                const re_group_register *reg = 0;
+                if (--i < gc_actual)
+                {
+                    /* valid group - get the group information */
+                    reg = G_bif_tads_globals->rex_searcher->get_group_reg(i);
+                }
+
+                /* if the group is populated, push its text, otherwise nil */
+                if (reg != 0 && reg->start_ofs >= 0 && reg->end_ofs >= 0)
+                {
+                    /* push the group text as a new string */
+                    G_stk->push()->set_obj(CVmObjString::create(
+                        vmg_ FALSE, basestr + reg->start_ofs,
+                        reg->end_ofs - reg->start_ofs));
+                }
+                else
+                {
+                    /* unpopulated group - push nil */
+                    G_stk->push()->set_nil();
+                }
+
+                /* count it */
+                ++fargc;
+            }
+
+            /* if the index value is desired, push it */
+            if (func_argc_max == -1 || func_argc_max >= 2)
+            {
+                /* push the index of the match relative to basestr */
+                G_stk->push()->set_int(
+                    utf8_ptr::s_len(basestr, nxt - basestr) + 1);
+                ++fargc;
+            }
+
+            /* if the match string value is desired, push it */
+            if (func_argc_max == -1 || func_argc_max >= 1)
+            {
+                /* push the match text */
+                G_stk->push()->set_obj(
+                    CVmObjString::create(vmg_ FALSE, nxt, match_len));
+                ++fargc;
+            }
+
+            /* call the callback */
+            G_interpreter->call_func_ptr(vmg_ func, fargc, &rc, 0);
+
+            /* retrieve the return value */
+            ele = *G_interpreter->get_r0();
         }
 
-        /* get the replacement string or function */
-        if ((s = rplv->get_as_string(vmg0_)) != 0)
-        {
-            /* it's a string */
-            rpl_len = vmb_get_len(s);
-            rpl_str = s + VMB_LEN;
-        }
-        else if (rplv->typ == VM_NIL)
-        {
-            /* nil - use an empty string */
-            rpl_str = "\000\000";
-            rpl_len = 0;
-        }
-        else if (rplv->is_func_ptr(vmg0_))
-        {
-            /* it's a callback function */
-            rpl_func = *rplv;
+        /* add it to the list */
+        lst->cons_ensure_space(vmg_ cnt, 0);
+        lst->cons_set_element(cnt, &ele);
 
-            /* get the number of arguments it expects */
-            CVmFuncPtr f(vmg_ rplv);
-            rpl_argc = f.is_varargs() ? -1 : f.get_max_argc();
-        }
-        else
-        {
-            /* invalid type */
-            err_throw(VMERR_BAD_TYPE_BIF);
-        }
-    }
+        /* skip the matched text */
+        size_t skip = match_bofs + match_len;
+        str += skip;
+        len -= skip;
 
-    void search(const char *str, const char *curp, int flags)
-    {
         /* 
-         *   whether or not we find a match, the search will be valid when we
-         *   return 
+         *   if we matched zero characters, skip one character to prevent an
+         *   infinite loop 
          */
-        match_valid = TRUE;
-
-        /* set up a pointer to the current position */
-        utf8_ptr p((char *)curp);
-
-        /* figure the number of bytes left in the string */
-        size_t rem = vmb_get_len(str) - (curp - (str + VMB_LEN));
-
-        /* scan for a match */
-        for ( ; rem >= srch_len ; p.inc(&rem))
-        {
-            /* check for a match to the pattern string */
-            int match;
-            if ((flags & GETP_RPL_NOCASE) != 0)
-            {
-                /* case-insensitive - compare ignoring case */
-                match = equals_ignore_case(srch_str, srch_len,
-                                           p.getptr(), rem, &match_len);
-            }
-            else
-            {
-                /* case-sensitive - just do a byte-by-byte comparision */
-                match = (memcmp(p.getptr(), srch_str, srch_len) == 0);
-
-                /* 
-                 *   since this is an exact match, the match length equals
-                 *   the search string length 
-                 */
-                match_len = srch_len;
-            }
-
-            /* if we have a match, stop searching */
-            if (match)
-            {
-                /* remember the match position */
-                match_idx = p.getptr() - (str + VMB_LEN);
-
-                /* done */
-                return;
-            }
-        }
-
-        /* we didn't a match - set the match index to so indicate */
-        match_idx = -1;
+        if (match_len == 0 && len != 0)
+            str += utf8_ptr::s_bytelen(str, 1);
     }
 
-    /* search string */
-    const char *srch_str;
-    size_t srch_len;
+    /* finalize the list length */
+    lst->cons_set_len(cnt);
 
-    /* replacement string */
-    const char *rpl_str;
-    size_t rpl_len;
+    /* discard arguments and gc protection */
+    G_stk->discard(orig_argc + 1);
 
-    /* our replacement function, in lieu of a string */
-    vm_val_t rpl_func;
+    /* handled */
+    return TRUE;
+}
 
-    /* the number of arguments rpl_func expects, or -1 for varargs */
-    int rpl_argc;
-
-    /* the byte index in the source string of our last match */
-    int match_idx;
-
-    /* byte length of the match */
-    size_t match_len;
-
-    /* is this match valid? */
-    int match_valid;
-};
-
+/* ------------------------------------------------------------------------ */
 /*
- *   property evaluator - findReplace 
+ *   property evaluator - match
+ */
+int CVmObjString::getp_match(VMG_ vm_val_t *retval,
+                             const vm_val_t *self_val, const char *str,
+                             uint *argc)
+{
+    /* check arguments */
+    uint orig_argc = (argc != 0 ? *argc : 0);
+    static CVmNativeCodeDesc desc(1, 1);
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* get the string length and buffer pointer */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /* remember the base string */
+    const char *basestr = str;
+    
+    /* retrieve the string or regex pattern to match */
+    vm_val_t *targ = G_stk->get(0);
+    const char *targstr = 0;
+    CVmObjPattern *targpat = 0;
+    size_t targstrlen = 0;
+    if ((targstr = targ->get_as_string(vmg0_)) != 0)
+    {
+        /* it's a literal string - get its length and text pointer */
+        targstrlen = vmb_get_len(targstr);
+        targstr += VMB_LEN;
+    }
+    else if ((targpat = vm_val_cast(CVmObjPattern, targ)) != 0)
+    {
+        /* it's a pattern */
+    }
+    else
+    {
+        /* we need a string or a pattern; other values are invalid */
+        err_throw(VMERR_BAD_TYPE_BIF);
+    }
+
+    /* retrieve the starting index, if present */
+    int32_t start_idx = 0;
+    if (orig_argc >= 2 && G_stk->get(1)->typ != VM_NIL)
+    {
+        /* get the starting index value */
+        start_idx = G_stk->get(1)->num_to_int(vmg0_);
+
+        /* set up a UTF-8 pointer for traversing the string */
+        utf8_ptr strp((char *)str);
+
+        /*
+         *   A positive index value is a 1-based index from the start of the
+         *   string.  A negative index is from the end of the string, with -1
+         *   pointing to the last character. 
+         */
+        start_idx += (start_idx < 0 ? (int)strp.len(len) : -1);
+
+        /* skip that many characters */
+        int32_t i;
+        for (i = 0 ; i < start_idx && len > targstrlen ; ++i, strp.inc(&len)) ;
+
+        /* 
+         *   if the start index was past the end of the string (or past the
+         *   point where the remaining subject string is too short for the
+         *   target string), we definitely can't match 
+         */
+        if (i < start_idx)
+        {
+            retval->set_nil();
+            goto done;
+        }
+
+        /* start the search here */
+        str = strp.getptr();
+    }
+
+    /* match the string or pattern */
+    if (targstr != 0)
+    {
+        /* make sure it's long enough, then match the text literally */
+        if (len >= targstrlen && memcmp(targstr, str, targstrlen) == 0)
+        {
+            /* matched - return the match length */
+            retval->set_int(targstrlen);
+        }
+        else
+        {
+            /* no match */
+            retval->set_nil();
+        }
+    }
+    else
+    {
+        /* RexPattern - get the compiled pattern */
+        re_compiled_pattern *cpat = targpat->get_pattern(vmg0_);
+
+        /* save the last search source string */
+        G_bif_tads_globals->last_rex_str->val = *self_val;
+        G_bif_tads_globals->rex_searcher->clear_group_regs();
+
+        /* match the pattern */
+        int matchlen = G_bif_tads_globals->rex_searcher->match_pattern(
+            cpat, basestr, str, len);
+
+        /* if it matched (len >= 0), return the length, otherwise nil */
+        if (matchlen >= 0)
+            retval->set_int(matchlen);
+        else
+            retval->set_nil();
+    }
+
+done:
+    /* discard arguments */
+    G_stk->discard(orig_argc);
+
+    /* handled */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   findReplace() method - replace one or all occurrences of a given
+ *   substring or regular expression pattern within the subject string (self)
+ *   with a given replacement string.  This uses the common find/replace
+ *   handler defined in vmfindrep.h.
  */
 int CVmObjString::getp_replace(VMG_ vm_val_t *retval,
                                const vm_val_t *self_val,
                                const char *str, uint *argc)
 {
-    replace_arg *pats = 0;
-    vm_val_t patval;
-    vm_val_t rplval;
-    vm_val_t *argp = G_stk->get(0);
-    int flags;
-    const char *last_str;
-    size_t rem;
-    int start_idx;
-    int i;
-    CVmObjString *ret_str;
-    utf8_ptr dstp;
-    vm_rcdesc rc;
-
     /* check arguments */
     uint orig_argc = (argc != 0 ? *argc : 0);
-    static CVmNativeCodeDesc desc(2, 2);
+    static CVmNativeCodeDesc desc(2, 3);
     if (get_prop_check_argc(retval, argc, &desc))
         return TRUE;
 
-    /* 
-     *   make copies of the string references, so we can put them back on the
-     *   stack as gc protection while we're working 
-     */
-    patval = *G_stk->get(0);
-    rplval = *G_stk->get(1);
+    /* do the search-and-replace */
+    vm_find_replace<VMFINDREPLACE_StringFindReplace>(
+        vmg_ retval, orig_argc, self_val, str);
 
-    /* 
-     *   Start with a return of 'self', presuming that we won't find any
-     *   matches and won't perform any replacements.  When we find our first
-     *   match to replace, we'll create a new string for the result.  
-     */
-    *retval = *self_val;
-
-    /* determine if we have a single search string, or a list of them */
-    int pat_cnt, rpl_cnt;
-    int pat_is_list, rpl_is_list;
-    if (patval.is_listlike(vmg0_) && (pat_cnt = patval.ll_length(vmg0_)) >= 0)
-    {
-        /* it's a list - check first to see if it's empty */
-        if (pat_cnt == 0)
-        {
-            /* empty list, so just return the original subject string */
-            G_stk->discard(orig_argc);
-            return TRUE;
-        }
-
-        /* flag it as a list */
-        pat_is_list = TRUE;
-    }
-    else
-    {
-        /* it's a single value */
-        pat_cnt = 1;
-        pat_is_list = FALSE;
-    }
-
-    /* check for a replacement list */
-    if (rplval.is_listlike(vmg0_) && (rpl_cnt = rplval.ll_length(vmg0_)) >= 0)
-    {
-        /* flag it as a list */
-        rpl_is_list = TRUE;
-    }
-    else
-    {
-        /* we have a single replacement value */
-        rpl_cnt = 1;
-        rpl_is_list = FALSE;
-    }
-
-    /* get the flags; use ReplaceAll if not present */
-    flags = GETP_RPL_ALL;
-    if (orig_argc >= 3)
-    {
-        /* make sure it's an integer */
-        if (G_stk->get(2)->typ != VM_INT)
-            err_throw(VMERR_INT_VAL_REQD);
-
-        /* retrieve the value */
-        flags = G_stk->get(2)->val.intval;
-    }
-
-    /*
-     *   Check for old flags.  Before 3.1, there was only one flag bit
-     *   defined: ALL=1.  This means there were only two valid values for
-     *   'flags': 0 for ONCE mode, 1 for ALL mode.
-     *   
-     *   In 3.1, we added a bunch of new flags.  At the same time, we made
-     *   the default ALL mode, because this is the more common case.
-     *   Unfortunately, this creates a compatibility issue.  A new program
-     *   that specifies one of the new flags might leave out the ONCE or ALL
-     *   bits, since ALL is the default.  However, we can't just take the
-     *   absence of the ONCE bit as meaning ALL, because that would hose old
-     *   programs that explicitly specify ONCE as 0 (no bits set).
-     *   
-     *   Here's how we deal with this: we prohibit new programs from passing
-     *   0 for the flags, requiring them to specify at least one bit.  So if
-     *   the flags value is zero, we must have an old program that passed
-     *   ONCE.  In this case, explicitly set the ONCE bit.  If we have any
-     *   non-zero value, we must have either a new program OR an old program
-     *   that included the ALL bit.  In either case, ALL is the default, so
-     *   if the ONCE bit ISN'T set, explicitly set the ALL bit.  
-     */
-    if (flags == 0)
-    {
-        /* old program with the old ONCE flag - set the new ONCE flag */
-        flags = GETP_RPL_ONCE;
-    }
-    else if (!(flags & GETP_RPL_ONCE))
-    {
-        /* 
-         *   new program without the ONCE flag, OR an old program with the
-         *   ALL flag - explicitly set the ALL flag 
-         */
-        flags |= GETP_RPL_ALL;
-    }
-
-    /* if there's a starting index, retrieve it; start at 1 if not present */
-    start_idx = 1;
-    if (orig_argc >= 4)
-    {
-        /* check the type */
-        if (G_stk->get(3)->typ != VM_INT)
-            err_throw(VMERR_INT_VAL_REQD);
-
-        /* get the value */
-        start_idx = G_stk->get(3)->val.intval;
-    }
-
-    /* push self for gc protection */
-    G_stk->push(self_val);
-
-    /* push a placeholder for the return value, also for gc protection */
-    G_stk->push(retval);
-
-    /* allocate the argument array */
-    pats = new replace_arg[pat_cnt];
-
-    /* catch any errors so that we can free our array on the way out */
-    err_try
-    {
-        /* set up the argument array */
-        int need_rc = FALSE;
-        for (i = 0 ; i < pat_cnt ; ++i)
-        {
-            /* retrieve this pattern item */
-            vm_val_t pat_ele;
-            if (pat_is_list)
-                patval.ll_index(vmg_ &pat_ele, i + 1);
-            else
-                pat_ele = patval;
-
-            /* retrieve this replacement item */
-            vm_val_t rpl_ele;
-            if (rpl_is_list)
-            {
-                if (i < rpl_cnt)
-                    rplval.ll_index(vmg_ &rpl_ele, i + 1);
-                else
-                    rpl_ele.set_nil();
-            }
-            else
-                rpl_ele = rplval;
-
-            /* set up this argument */
-            pats[i].set(vmg_ &pat_ele, &rpl_ele);
-            need_rc |= (pats[i].rpl_str == 0);
-        }
-
-        /* initialize the recursive caller context if needed */
-        if (need_rc)
-            rc.init(vmg_ "String.findReplace", self_val, 11, argp, orig_argc);
-
-        /* start at the beginning of the string to search */
-        rem = vmb_get_len(str);
-        last_str = str + VMB_LEN;
-        utf8_ptr p((char *)last_str);
-
-        /* adjust the starting index */
-        start_idx += (start_idx < 0 ? (int)p.len(rem) : -1);
-
-        /* skip ahead to the starting index */
-        for (i = 0 ; i < start_idx && rem != 0 ; ++i, p.inc(&rem)) ;
-
-        /* remember the initial offset */
-        size_t skip_bytes = p.getptr() - (str + VMB_LEN);
-
-        /* we haven't done any replacements yet */
-        int did_rpl = FALSE;
-
-        /* we're on our first serial iteration, if applicable */
-        int serial_idx = 0;
-
-        /* repeat for serial iteration */
-        for (;;)
-        {
-            /* reset the string pointer (for additional iterations) */
-            rem = vmb_get_len(str);
-
-            /* set up a pointer to the base string */
-            utf8_ptr strp((char *)str + VMB_LEN);
-
-            /* move to the starting point */
-            last_str = strp.getptr() + skip_bytes;
-        
-            /* we don't have a return string for this round yet */
-            ret_str = 0;
-            dstp.set((char *)0);
-
-            /* perform one or more replacements */
-            for (;;)
-            {
-                int best_pat = -1;
-                    
-                /* get the next match */
-                if ((flags & GETP_RPL_SERIAL) != 0)
-                {
-                    /* 
-                     *   Serial mode: we're searching only for the current
-                     *   item at serial_idx.  Search for the next instance.  
-                     */
-                    pats[serial_idx].search(str, last_str, flags);
-
-                    /* if we didn't find it, we're done with this round */
-                    if (pats[serial_idx].match_idx < 0)
-                        break;
-
-                    /* this is the next match */
-                    best_pat = serial_idx;
-                }
-                else
-                {
-                    /* 
-                     *   Parallel mode: search for all of the items on each
-                     *   iteration, and keep the leftmost match.  
-                     */
-                    for (i = 0 ; i < pat_cnt ; ++i)
-                    {
-                        /* if this item isn't valid, search for it again */
-                        if (!pats[i].match_valid)
-                            pats[i].search(str, last_str, flags);
-
-                        /* if this is the best match so far, remember it*/
-                        if (pats[i].match_idx >= 0
-                            && (best_pat < 0
-                                || pats[i].match_idx
-                                   < pats[best_pat].match_idx))
-                            best_pat = i;
-                    }
-
-                    /* if we didn't find a match, we're done */
-                    if (best_pat < 0)
-                        break;
-                }
-
-                /* get the match location, relative to 'last_str' */
-                int match_idx = pats[best_pat].match_idx
-                                - (last_str - strp.getptr());
-                int match_len = pats[best_pat].match_len;
-
-                /* note that we're doing a replacement */
-                did_rpl = TRUE;
-
-                /* 
-                 *   if we have the 'follow case' flag, note the
-                 *   capitalization pattern of the match 
-                 */
-                int match_has_upper = FALSE, match_has_lower = FALSE;
-                if ((flags & GETP_RPL_FOLLOW) != 0)
-                {
-                    /* scan the match text */
-                    utf8_ptr p;
-                    size_t r;
-                    for (p.set((char *)last_str + match_idx), r = match_len ;
-                         r != 0 ; p.inc(&r))
-                    {
-                        /* get this character */
-                        wchar_t ch = p.getch();
-                        
-                        /* note whether it's upper or lower case */
-                        match_has_upper |= t3_is_upper(ch);
-                        match_has_lower |= t3_is_lower(ch);
-                    }
-                }
-
-                /*
-                 *   If we haven't done any replacements yet, allocate the
-                 *   result string. 
-                 */
-                if (ret_str == 0)
-                {
-                    /*
-                     *   We don't know how big the result string will be yet.
-                     *   As a guess, use three times the subject string
-                     *   length. 
-                     */
-                    retval->set_obj(create(vmg_ FALSE, vmb_get_len(str)*3));
-
-                    /* save it in our stack slot for gc protection */
-                    G_stk->get(0)->set_obj(retval->val.obj);
-
-                    /* get the string object */
-                    ret_str = (CVmObjString *)vm_objp(vmg_ retval->val.obj);
-
-                    /* set up our destination pointer */
-                    dstp.set(ret_str->cons_get_buf());
-
-                    /* copy the part up to the starting index */
-                    memcpy(dstp.getptr(), str + VMB_LEN, skip_bytes);
-                    dstp.set(dstp.getptr() + skip_bytes);
-                }
-
-                /* copy the part from the seek point to the match */
-                if (match_idx > 0)
-                {
-                    /* ensure space */
-                    dstp.set(ret_str->cons_ensure_space(
-                        vmg_ dstp.getptr(), match_idx, 512));
-
-                    /* copy the text */
-                    memcpy(dstp.getptr(), last_str, match_idx);
-
-                    /* advance the output pointer */
-                    dstp.set(dstp.getptr() + match_idx);
-                }
-
-                /* get the replacement text */
-                const char *rpl_str;
-                int rpl_len;
-                if (pats[best_pat].rpl_str != 0)
-                {
-                    /* the replacement is a simple string value */
-                    rpl_str = pats[best_pat].rpl_str;
-                    rpl_len = pats[best_pat].rpl_len;
-                }
-                else
-                {
-                    /* push the callback args - matchStr, matchIdx, origStr */
-                    const int pushed_argc = 3;
-                    G_stk->push(self_val);
-                    G_interpreter->push_int(
-                        vmg_ strp.len(last_str - strp.getptr() + match_idx)
-                        + 1);
-                    G_interpreter->push_obj(vmg_ CVmObjString::create(
-                        vmg_ FALSE, last_str + match_idx, match_len));
-
-                    /* adjust argc for what the callback actually wants */
-                    int fargc = pats[best_pat].rpl_argc;
-                    if (fargc < 0 || fargc > pushed_argc)
-                        fargc = pushed_argc;
-
-                    /* call the function */
-                    G_interpreter->call_func_ptr(
-                        vmg_ &pats[best_pat].rpl_func, fargc, &rc, 0);
-
-                    /* discard unused arguments */
-                    G_stk->discard(pushed_argc - fargc);
-
-                    /* if the return value isn't nil, copy it */
-                    if (G_interpreter->get_r0()->typ != VM_NIL)
-                    {
-                        /* get the string */
-                        rpl_str = G_interpreter->get_r0()
-                                  ->get_as_string(vmg0_);
-                        if (rpl_str == 0)
-                            err_throw(VMERR_STRING_VAL_REQD);
-
-                        /* get the length and string body */
-                        rpl_len = vmb_get_len(rpl_str);
-                        rpl_str += VMB_LEN;
-                    }
-                    else
-                    {
-                        /* nil - use an empty string */
-                        rpl_str = 0;
-                        rpl_len = 0;
-                    }
-                }
-
-                /* copy the replacement, adjusting case if necessary */
-                if ((flags & GETP_RPL_FOLLOW) != 0
-                    && pats[best_pat].rpl_func.typ == VM_NIL)
-                {
-                    /*
-                     *   follow case - copy character by character 
-                     */
-                    utf8_ptr rp((char *)rpl_str);
-                    int alpha_rpl_cnt = 0;
-                    for (size_t rrem = rpl_len ; rrem != 0 ; rp.inc(&rrem))
-                    {
-                        /* ensure space for another character */
-                        dstp.set(ret_str->cons_ensure_space(
-                            vmg_ dstp.getptr(), 3, 512));
-
-                        /* get this replacement character */
-                        wchar_t ch = rp.getch();
-
-                        /* convert lower-case letters only */
-                        if (t3_is_lower(ch))
-                        {
-                            if (match_has_upper && !match_has_lower)
-                            {
-                                /* all upper-case - convert to caps */
-                                ch = t3_to_upper(ch);
-                            }
-                            else if (match_has_lower && !match_has_upper)
-                            {
-                                /* all lower-case - leave as-is */
-                            }
-                            else
-                            {
-                                /* mixed case - capitalize the first letter */
-                                if (alpha_rpl_cnt++ == 0)
-                                    ch = t3_to_upper(ch);
-                            }
-                        }
-
-                        /* add it to the string */
-                        dstp.setch(ch);
-                    }
-                }
-                else
-                {
-                    /* 
-                     *   no case following - copy it exactly 
-                     */
-
-                    /* ensure space */
-                    dstp.set(ret_str->cons_ensure_space(
-                        vmg_ dstp.getptr(), rpl_len, 512));
-                    
-                    /* do the copy */
-                    memcpy(dstp.getptr(), rpl_str, rpl_len);
-
-                    /* advance the pointer */
-                    dstp.set(dstp.getptr() + rpl_len);
-                }
-
-                /* move past the match */
-                last_str += match_idx + match_len;
-                rem -= match_idx + match_len;
-
-                /* invalidate matches that start before the end of this one */
-                for (i = 0 ; i < pat_cnt ; ++i)
-                {
-                    if (pats[i].match_valid
-                        && pats[i].match_idx >= 0
-                        && pats[i].match_idx < (last_str - strp.getptr()))
-                        pats[i].match_valid = FALSE;
-                }
-
-                /* if we're doing only one replacement, stop */
-                if (!(flags & GETP_RPL_ALL))
-                    break;
-            }
-            
-            /*
-             *   We've completed one serial iteration.  If we started a
-             *   result string, copy the remainder of the string to the
-             *   result.  
-             */
-            if (dstp.getptr() != 0)
-            {
-                /* copy any remaining text from the current position */
-                if (rem != 0)
-                {
-                    /* ensure there's room */
-                    dstp.set(ret_str->cons_ensure_space(
-                        vmg_ dstp.getptr(), rem, 512));
-                    
-                    /* copy the text */
-                    memcpy(dstp.getptr(), last_str, rem);
-
-                    /* skip it */
-                    dstp.set(dstp.getptr() + rem);
-                }
-
-                /* close out the return string */
-                ret_str->cons_shrink_buffer(vmg_ dstp.getptr());
-            }
-            else
-            {
-                /* 
-                 *   we didn't do any replacements on this round, so use the
-                 *   original self value as the return value 
-                 */
-                *retval = *self_val;
-            }
-
-            /*
-             *   Determine if we're doing another serial iteration:
-             *   
-             *   - If we're in parallel iteration mode, we're done, since we
-             *   handle all of the patterns at once in this mode.
-             *   
-             *   - If we're in 'replace once' mode, and we've done our one
-             *   replacement, we're done.
-             *   
-             *   - If we've reached the last serial item, we're done.
-             *   
-             *   Otherwise, increment serial_idx and continue.  
-             */
-            if (!(flags & GETP_RPL_SERIAL))
-                break;
-
-            if (!(flags & GETP_RPL_ALL) && did_rpl)
-                break;
-
-            if (++serial_idx >= pat_cnt)
-                break;
-
-            /*
-             *   Since we're iterating, we're going to use the return string
-             *   as the new source string.  Replace the source string in the
-             *   stack and our internal variables. 
-             */
-            *G_stk->get(0) = *retval;
-            self_val = retval;
-            str = retval->get_as_string(vmg0_);
-        }
-    }
-    err_finally
-    {
-        /* delete our argument array */
-        if (pats != 0)
-            delete [] pats;
-    }
-    err_end;
-
-    /* discard the arguments and gc protection */
-    G_stk->discard(orig_argc + 2);
+    /* discard arguments */
+    G_stk->discard(orig_argc);
 
     /* handled */
     return TRUE;
@@ -2912,6 +2782,9 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
     size_t len = vmb_get_len(str);
     str += VMB_LEN;
 
+    /* remember the start of the base string */
+    const char *basestr = str;
+
     /* 
      *   Get the delimiter or split size, leaving it on the stack for gc
      *   protection.  This can be a string, a RexPattern, or an integer.  
@@ -2944,11 +2817,11 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
     }
 
     /* get the split count limit, if there is one */
-    int limit = -1;
+    int32_t limit = -1;
     if (argc >= 2 && G_stk->get(1)->typ != VM_NIL)
     {
         /* there's an explicit limit; fetch it and make sure it's at least 1 */
-        if ((limit = G_stk->get(1)->num_to_int()) < 1)
+        if ((limit = G_stk->get(1)->num_to_int(vmg0_)) < 1)
             err_throw(VMERR_BAD_VAL_BIF);
     }
 
@@ -2974,7 +2847,9 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
     {
         /* split length -> divide the string length by the split length */
         init_list_len = (len + split_len - 1)/split_len;
-        if (init_list_len < 1)
+
+        /* set the length to at least one, unless it's an empty string */
+        if (init_list_len < 1 && len != 0)
             init_list_len = 1;
     }
     else
@@ -2996,7 +2871,7 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
     /* repeatedly search for the delimiter and split the string */
     int cnt;
     vm_val_t ele;
-    for (cnt = 0 ; limit < 0 || cnt + 1 < limit ; ++cnt)
+    for (cnt = 0 ; (limit < 0 || cnt + 1 < limit) && len != 0 ; ++cnt)
     {
         /* search for the next delimiter or next 'split_len' characters */
         int match_ofs, match_len;
@@ -3016,13 +2891,14 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
         {
             /* search for the substring or pattern */
             const char *nxt = find_substr(
-                vmg_ str, len, delim_str, delim_pat, &match_len);
+                vmg_ self_val, basestr, str, len, delim_str, delim_pat,
+                &match_ofs, &match_len);
 
             /* if we didn't find it, we're done */
             if (nxt == 0)
                 break;
 
-            /* figure the offset to the match */
+            /* figure the byte offset to the match */
             match_ofs = nxt - str;
         }
 
@@ -3031,19 +2907,32 @@ int CVmObjString::getp_split(VMG_ vm_val_t *retval,
         ele.set_obj(CVmObjString::create(vmg_ FALSE, str, match_ofs));
         lst->cons_set_element(cnt, &ele);
 
-        /* skip to the next part after the match */
+        /* skip to the position after the match */
         size_t skip = match_ofs + match_len;
         str += skip;
         len -= skip;
+
+        /* 
+         *   if we matched zero characters, skip one character to prevent an
+         *   infinite loop 
+         */
+        if (split_len == 0 && match_len == 0 && len != 0)
+            str += utf8_ptr::s_bytelen(str, 1);
     }
 
     /* add a final element for the remainder of the string */
-    lst->cons_ensure_space(vmg_ cnt, 0);
-    ele.set_obj(CVmObjString::create(vmg_ FALSE, str, len));
-    lst->cons_set_element(cnt, &ele);
+    if (len != 0)
+    {
+        lst->cons_ensure_space(vmg_ cnt, 0);
+        ele.set_obj(CVmObjString::create(vmg_ FALSE, str, len));
+        lst->cons_set_element(cnt, &ele);
+
+        /* count it */
+        ++cnt;
+    }
 
     /* set the final size of the list */
-    lst->cons_set_len(cnt + 1);
+    lst->cons_set_len(cnt);
 
     /* discard arguments plus gc protection */
     G_stk->discard(argc + 2);
@@ -3282,7 +3171,7 @@ int CVmObjString::specialsTo(VMG_ vm_val_t *retval,
                 tag_prop = G_predef->string_sth_tag;
 
                 /* get the flags */
-                int32 flags = 0;
+                int32_t flags = 0;
                 if (flags_prop != VM_INVALID_OBJ)
                 {
                     /* get the property */
@@ -3760,25 +3649,35 @@ int CVmObjString::specialsTo(VMG_ vm_val_t *retval,
 
             default:
                 /* Ordinary character.  Check for caps/nocaps conversions. */
-                if (caps)
                 {
-                    ch = t3_to_upper(ch);
-                    caps = FALSE;
+                    const wchar_t *u = 0;
+                    if (caps)
+                    {
+                        u = t3_to_upper(ch);
+                        caps = FALSE;
+                    }
+                    else if (nocaps)
+                    {
+                        u = t3_to_lower(ch);
+                        nocaps = FALSE;
+                    }
+
+                    /* we're now within a line */
+                    in_line = TRUE;
+
+                    /* add this character or string to the output */
+                    if (u != 0)
+                    {
+                        for ( ; *u != 0 ; buf->append_utf8(*u++)) ;
+                    }
+                    else
+                    {
+                        buf->append_utf8(ch);
+                    }
+
+                    /* advance the tab-stop column */
+                    col++;
                 }
-                else if (nocaps)
-                {
-                    ch = t3_to_lower(ch);
-                    nocaps = FALSE;
-                }
-
-                /* we're now within a line */
-                in_line = TRUE;
-
-                /* add it to the output */
-                buf->append_utf8(ch);
-
-                /* advance the tab-stop column */
-                col++;
                 break;
             }
         }
@@ -4090,7 +3989,7 @@ int CVmObjString::static_getp_packBytes(VMG_ vm_val_t *retval, uint *pargc)
         return TRUE;
 
     /* set up an in-memory data stream to receive the packed data */
-    CVmMemorySource *dst = new CVmMemorySource(0);
+    CVmMemorySource *dst = new CVmMemorySource(0L);
 
     err_try
     {
@@ -4137,6 +4036,8 @@ public:
         this->charidx = 0;
         this->byteidx = 0;
     }
+
+    virtual CVmDataSource *clone(VMG_ const char * /*mode*/) { return 0; }
 
     /* read bytes - returns 0 on success, non-zero on EOF or error */
     virtual int read(void *buf, size_t len)
@@ -4284,6 +4185,94 @@ int CVmObjString::getp_unpackBytes(VMG_ vm_val_t *retval,
     /* unpack the string */
     CVmUTF8Source src(str, len);
     CVmPack::unpack(vmg_ retval, fmt, fmtlen, &src);
+
+    /* discard arguments */
+    G_stk->discard(1);
+
+    /* done */
+    return TRUE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   property evaluator - compareTo()
+ */
+int CVmObjString::getp_compareTo(VMG_ vm_val_t *retval,
+                                 const vm_val_t *self_val,
+                                 const char *str, uint *argc)
+{
+    /* check arguments */
+    static CVmNativeCodeDesc desc(1);
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* get the length and buffer pointer */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /* get the other string (leave it on the stack for gc protection) */
+    const char *other = G_stk->get(0)->get_as_string(vmg0_);
+    if (other == 0)
+        err_throw(VMERR_STRING_VAL_REQD);
+
+    /* get its buffer and length */
+    size_t olen = vmb_get_len(other);
+    other += VMB_LEN;
+
+    /* no result yet */
+    retval->set_nil();
+
+    /* compare character by character */
+    utf8_ptr a((char *)str);
+    utf8_ptr b((char *)other);
+    for ( ; len != 0 && olen != 0 ; a.inc(&len), b.inc(&olen))
+    {
+        int delta = (int)a.getch() - (int)b.getch();
+        if (delta != 0)
+        {
+            retval->set_int(delta);
+            break;
+        }
+    }
+
+    /* if we didn't find any differences, the shorter string sorts first */
+    if (retval->typ == VM_NIL)
+        retval->set_int(len - olen);
+
+    /* discard arguments */
+    G_stk->discard(1);
+
+    /* done */
+    return TRUE;
+}
+
+/*
+ *   property evaluator - compareIgnoreCase()
+ */
+int CVmObjString::getp_compareIgnoreCase(VMG_ vm_val_t *retval,
+                                         const vm_val_t *self_val,
+                                         const char *str, uint *argc)
+{
+    /* check arguments */
+    static CVmNativeCodeDesc desc(1);
+    if (get_prop_check_argc(retval, argc, &desc))
+        return TRUE;
+
+    /* get the length and buffer pointer */
+    size_t len = vmb_get_len(str);
+    str += VMB_LEN;
+
+    /* get the other string (leave it on the stack for gc protection) */
+    const char *other = G_stk->get(0)->get_as_string(vmg0_);
+    if (other == 0)
+        err_throw(VMERR_STRING_VAL_REQD);
+
+    /* get its buffer and length */
+    size_t olen = vmb_get_len(other);
+    other += VMB_LEN;
+
+    /* compare the strings */
+    retval->set_int(t3_compare_case_fold(str, len, other, olen, 0));
 
     /* discard arguments */
     G_stk->discard(1);

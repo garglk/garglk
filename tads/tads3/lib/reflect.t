@@ -223,16 +223,20 @@ reflectionServices: PreinitObject
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Export the reflection services interfaces used by the VM
+ */
+export reflectionServices 'reflection.reflectionServices';
+export valToSymbol 'reflection.valToSymbol';
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Modify the basic Object class to provide a to-symbol mapping
  */
 modify Object
     valToSymbol()
     {
-        local sym;
-        local found;
-        
         /* get my symbol from the global reflection table */
-        sym = reflectionServices.reverseSymtab_[self];
+        local sym = reflectionServices.reverseSymtab_[self];
 
         /* if we got a symbol, return it */
         if (sym != nil)
@@ -243,7 +247,7 @@ modify Object
          *   if we can find source-file names for the superclasses, though.
          */
         sym = '{obj:';
-        found = nil;
+        local found = nil;
         foreach (local sc in getSuperclassList())
         {
             local scSym;

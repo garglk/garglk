@@ -82,6 +82,11 @@ public:
     static vm_obj_id_t create_latin1(VMG_ int in_root_set,
                                      class CVmDataSource *src);
 
+    /* create from a string, mapping through the given character mapper */
+    static vm_obj_id_t create(VMG_ int in_root_set,
+                              const char *str, size_t bytelen,
+                              CCharmapToUni *cmap);
+
     /* 
      *   For construction: get a pointer to the string's underlying
      *   buffer.  Returns a pointer into which the caller can write.  The
@@ -207,6 +212,11 @@ public:
         return ext_;
     }
 
+    /* convert a value to string via reflection services in the bytecode */
+    static const char *reflect_to_str(
+        VMG_ vm_val_t *new_str, char *result_buf, size_t result_buf_size,
+        const vm_val_t *val, const char *fmt, ...);
+
     /* get the underlying string */
     const char *get_as_string(VMG0_) const { return ext_; }
 
@@ -291,7 +301,7 @@ public:
      *   'flags' is a combination of TOSTR_xxx flags (see vmobj.h).  
      */
     static char *cvt_int_to_str(char *buf, size_t buflen,
-                                int32 inval, int radix, int flags);
+                                int32_t inval, int radix, int flags);
 
     /*
      *   Allocate a string buffer large enough to hold a given value.
@@ -348,21 +358,46 @@ public:
      *   Both strings are in standard constant string format, with UINT2
      *   length prefixes.  
      */
-    static const char *find_substr(VMG_ const char *str, int start_idx,
-                                   const char *substr, size_t *idxp);
+    static const char *find_substr(
+        VMG_ const char *str, int32_t start_idx,
+        const char *substr, size_t *idxp);
 
     /*
-     *   Find a substring or RexPattern.  'str' is a pointer directly into a
-     *   string buffer (NOT the length prefix).  'substr' points to the
-     *   length prefix of the string to find; 'pat' is a RexPattern object to
-     *   find.  One or the other of 'substr' or 'pat' must be specified, the
-     *   other should be null.  Returns a pointer to the matching substring,
-     *   and sets '*match_len' to the length in bytes of the match.  
+     *   Find a substring or RexPattern.  Returns a pointer to the matching
+     *   substring, or null if no match is found.
+     *   
+     *   'basestr' is the base string we're searching, and 'str' and 'len'
+     *   give the starting point and remaining length of the substring of
+     *   'basestr' where the search actually begins.  'basestr' and 'str'
+     *   point directly to the bytes to search, not a VMB_LEN prefix (which
+     *   is why we have 'len' as a separate argument).  We won't actually
+     *   search the portion of the base string before 'str', but we need to
+     *   know where the overall string starts to properly handle certain
+     *   regex assertions (e.g., '^').
+     *   
+     *   'substr' is the tads-style (VMB_LEN-prefixed) substring we're
+     *   looking for; if 'substr' is null, 'pat' is the regular expression
+     *   object to match, otherwise 'pat' is ignored.
+     *   
+     *   'match_idx' returns with the CHARACTER index from 'str' (starting at
+     *   0 for the first byte of 'str') of the substring we found, if
+     *   successful; otherwise this is undefined.
+     *   
+     *   'match_len' returns with the BYTE length of the substring we
+     *   matched, if successful; otherwise this is undefined.
      */
-    static const char *find_substr(VMG_ const char *str, size_t len,
-                                   const char *substr,
-                                   class CVmObjPattern *pat,
-                                   int *match_len);
+    static const char *find_substr(
+        VMG_ const vm_val_t *strval,
+        const char *basestr, const char *str, size_t len,
+        const char *substr, class CVmObjPattern *pat,
+        int *match_idx, int *match_len);
+
+    /* find the last matching substring or pattern */
+    static const char *find_last_substr(
+        VMG_ const vm_val_t *strval,
+        const char *basestr, const char *str, size_t len,
+        const char *substr, class CVmObjPattern *pat,
+        int *match_idx, int *match_len);
                                    
 
     /*
@@ -400,9 +435,31 @@ public:
     static int getp_lower(VMG_ vm_val_t *retval, const vm_val_t *self_val,
                           const char *str, uint *argc);
 
+    /* property evaluator - toTitleCase */
+    static int getp_toTitleCase(
+        VMG_ vm_val_t *retval, const vm_val_t *self_val,
+        const char *str, uint *argc);
+
+    /* property evaluator - toFoldedCase */
+    static int getp_toFoldedCase(VMG_ vm_val_t *retval,
+                                 const vm_val_t *self_val,
+                                 const char *str, uint *argc);
+
+    /* common handler for case conversions (toUpper, toLower, etc) */
+    static int gen_getp_case_conv(VMG_ vm_val_t *retval,
+                                  const vm_val_t *self_val,
+                                  const char *str, uint *argc,
+                                  const wchar_t *(*conv)(wchar_t));
+    
     /* property evaluator - find substring */
     static int getp_find(VMG_ vm_val_t *retval, const vm_val_t *self_val,
                          const char *str, uint *argc);
+
+    /* common handler for find() and findLast() */
+    template<int dir> static inline int find_common(
+        VMG_ vm_val_t *retval,
+        const vm_val_t *self_val, const char *str,
+        uint *argc);
 
     /* property evaluator - convert to unicode */
     static int getp_to_uni(VMG_ vm_val_t *retval, const vm_val_t *self_val,
@@ -427,7 +484,7 @@ public:
                                   const vm_val_t *self_val,
                                   const char *str, uint *argc);
 
-    /* property evaluator - replace substring */
+    /* property evaluator - findReplace() - replace substring */
     static int getp_replace(VMG_ vm_val_t *retval, const vm_val_t *self_val,
                             const char *str, uint *argc);
 
@@ -482,6 +539,28 @@ public:
     static int getp_unpackBytes(VMG_ vm_val_t *retval,
                                 const vm_val_t *self_val,
                                 const char *str, uint *argc);
+
+    /* property evaluator - compareTo */
+    static int getp_compareTo(VMG_ vm_val_t *retval,
+                              const vm_val_t *self_val,
+                              const char *str, uint *argc);
+
+    /* property evaluator - compareIgnoreCase */
+    static int getp_compareIgnoreCase(VMG_ vm_val_t *retval,
+                                      const vm_val_t *self_val,
+                                      const char *str, uint *argc);
+
+    /* property evaluator - findLast */
+    static int getp_findLast(VMG_ vm_val_t *retval, const vm_val_t *self_val,
+                             const char *str, uint *argc);
+
+    /* property evaluator - findAll */
+    static int getp_findAll(VMG_ vm_val_t *retval, const vm_val_t *self_val,
+                            const char *str, uint *argc);
+
+    /* property evaluator - match */
+    static int getp_match(VMG_ vm_val_t *retval, const vm_val_t *self_val,
+                          const char *str, uint *argc);
 
 
 protected:
@@ -566,23 +645,13 @@ protected:
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Utility routines 
- */
-
-/* compare two strings, ignoring case */
-int equals_ignore_case(const char *a, size_t alen,
-                       const char *b, size_t blen, size_t *bmatchlen);
-
-
-/* ------------------------------------------------------------------------ */
-/*
  *   Registration table object 
  */
 class CVmMetaclassString: public CVmMetaclass
 {
 public:
     /* get the global name */
-    const char *get_meta_name() const { return "string/030006"; }
+    const char *get_meta_name() const { return "string/030008"; }
     
     /* create from image file */
     void create_for_image_load(VMG_ vm_obj_id_t id)

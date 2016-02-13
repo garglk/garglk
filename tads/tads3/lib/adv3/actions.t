@@ -1271,7 +1271,16 @@ DefineAction(Script, FileOpAction)
     performFileOp(fname, ack)
     {
         /* turn on logging */
-        if (aioSetLogFile(fname, LogTypeTranscript))
+        local ok = nil, exc = nil;
+        try
+        {
+            ok = aioSetLogFile(fname, LogTypeTranscript);
+        }
+        catch (Exception e)
+        {
+            exc = e;
+        }
+        if (ok)
         {
             /* remember that scripting is in effect */
             scriptStatus.scriptFile = fname;
@@ -1301,7 +1310,12 @@ DefineAction(Script, FileOpAction)
 
             /* show an error, if acknowledgment is desired */
             if (ack)
-                gLibMessages.scriptingFailed();
+            {
+                if (exc != nil)
+                    gLibMessages.scriptingFailedException(exc);
+                else
+                    gLibMessages.scriptingFailed;
+            }
         }
     }
 ;
@@ -1387,7 +1401,16 @@ DefineAction(Record, FileOpAction)
     performFileOp(fname, ack)
     {
         /* turn on command logging */
-        if (aioSetLogFile(fname, logFileType))
+        local ok = nil, exc = nil;
+        try
+        {
+            ok = aioSetLogFile(fname, logFileType);
+        }
+        catch (Exception e)
+        {
+            exc = e;
+        }
+        if (ok)
         {
             /* remember that recording is in effect */
             scriptStatus.recordFile = fname;
@@ -1403,7 +1426,12 @@ DefineAction(Record, FileOpAction)
 
             /* show an error if acknowledgment is desired */
             if (ack)
-                gLibMessages.recordingFailed();
+            {
+                if (exc != nil)
+                    gLibMessages.recordingFailedException(exc);
+                else
+                    gLibMessages.recordingFailed();
+            }
         }
     }
 
@@ -1494,8 +1522,22 @@ DefineAction(Replay, FileOpAction)
                 fname.ofKind(TemporaryFile) ? fname.getFilename() : fname);
 
         /* activate the script file */
-        if (!setScriptFile(fname, scriptOptionFlags))
-            gLibMessages.inputScriptFailed();
+        local ok = nil, exc = nil;
+        try
+        {
+            ok = setScriptFile(fname, scriptOptionFlags);
+        }
+        catch (Exception e)
+        {
+            exc = e;
+        }
+        if (!ok)
+        {
+            if (exc != nil)
+                gLibMessages.inputScriptFailed(exc);
+            else
+                gLibMessages.inputScriptFailed();
+        }
     }
 ;
 

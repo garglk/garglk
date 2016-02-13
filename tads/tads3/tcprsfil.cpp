@@ -293,7 +293,7 @@ CTcSymbol *CTcSymFuncBase::read_from_sym_file(CVmFile *fp)
     /* create and return the new symbol */
     return new CTcSymFunc(sym, strlen(sym), FALSE, argc, opt_argc,
                           varargs, has_retval,
-                          is_multimethod, is_multimethod_base, TRUE);
+                          is_multimethod, is_multimethod_base, TRUE, TRUE);
 }
 
 /*
@@ -583,10 +583,6 @@ int CTcSymObjBase::write_to_obj_file(CVmFile *fp)
  */
 int CTcSymObjBase::write_to_obj_file_main(CVmFile *fp)
 {
-    char buf[32];
-    uint cnt;
-    CTcObjPropDel *delprop;
-
     /* take the next object file index */
     set_obj_file_idx(G_prs->get_next_obj_file_sym_idx());
 
@@ -611,6 +607,7 @@ int CTcSymObjBase::write_to_obj_file_main(CVmFile *fp)
      *   numbering system in the object file to the new numbering system in
      *   the image file 
      */
+    char buf[32];
     oswp4(buf, obj_id_);
 
     /* write the flags */
@@ -653,6 +650,8 @@ int CTcSymObjBase::write_to_obj_file_main(CVmFile *fp)
          *   Write our list of properties to be deleted from base objects at
          *   link time.  First, count the properties in the list.  
          */
+        CTcObjPropDel *delprop;
+        int cnt;
         for (cnt = 0, delprop = first_del_prop_ ; delprop != 0 ;
              ++cnt, delprop = delprop->nxt_) ;
 

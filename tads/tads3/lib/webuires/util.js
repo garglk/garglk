@@ -6,16 +6,13 @@
  *   interface in HTML/Javascript.
  */
 
-// $$$here's how to show a stack trace in the debug log...
-//debugLog(getStackTrace().map(function(ele){return ele.desc.htmlify();}).join("<br>") + "<br><br>");
-
 
 /* ------------------------------------------------------------------------ */
 /* 
  *   Miscellaneous globals
  */
 
-// my page name, as I'm know to the server
+// my page name, as I'm known to the server
 var pageName = "";
 
 // the generic noun we use to refer to this program in error messages
@@ -30,6 +27,36 @@ var errorRecoveryAction =
     + "<a href=\"#\" onclick=\"javascript:$win().location.reload();"
     + "return false;\">reload this page</a>.";
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   Define a property on an object.  If the browser supports the
+ *   defineProperty method, we'll use that; otherwise we'll just set the
+ *   property directly.
+ *   
+ *   This differs from direct property setting in that we mark the property
+ *   as non-enumerable.  This is particularly useful for our Object.prototype
+ *   extensions when jQuery is also being used.  jQuery uses Object property
+ *   enumerations internally and incorrectly assumes that all results are
+ *   browser-defined properties, so our custom extensions can create problems
+ *   if jQuery is also used.  Explicitly hiding those from enumerations lets
+ *   us define our own custom Object.prototype extensions without confusing
+ *   jQuery.  (The webui library itself doesn't use jQuery, so this isn't an
+ *   issue out of the box, but it is an issue for individual game authors who
+ *   want to use jQuery with the webui code.)
+ */
+function defineProperty(target, name, method)
+{
+    if (Object.defineProperty && Object.defineProperties)
+        Object.defineProperty(target, name,
+        {
+            'value': method,
+            'configurable': true,
+            'enumerable': false,
+            'writable': true
+        });
+    else
+        target[name] = method;
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -45,7 +72,7 @@ function utilInit()
     BrowserInfo.init();
 
     // copy an object
-    Object.prototype.copy = function(deep) {
+    defineProperty(Object.prototype, "copy", function(deep) {
 
         // create a blank object with the same prototype as me
         var newObj = CopyProto.create(this);
@@ -70,10 +97,10 @@ function utilInit()
 
         // return the new object
         return newObj;
-    };
+    });
 
     // get the number of enumerable keys
-    Object.prototype.propCount = function() {
+    defineProperty(Object.prototype, "propCount", function() {
         var cnt = 0;
         for (var prop in this)
         {
@@ -81,30 +108,30 @@ function utilInit()
                 ++cnt;
         }
         return cnt;
-    };
+    });
 
     // enumerate keys set in an object, excluding prototype keys
-    Object.prototype.forEach = function(func) {
+    defineProperty(Object.prototype, "forEach", function(func) {
         for (var prop in this)
         {
             // call the callback only for props directly defined in 'this'
             if (this.hasOwnProperty(prop))
                 func(this[prop], prop);
         }
-    };
+    });
 
     // find the property for which a callback returns true
-    Object.prototype.propWhich = function(func) {
+    defineProperty(Object.prototype, "propWhich", function(func) {
         for (var prop in this)
         {
             if (this.hasOwnProperty(prop) && func(this[prop], prop))
                 return prop;
         }
         return null;
-    };
+    });
 
     // find the property value for which a callback returns true
-    Object.prototype.valWhich = function(func) {
+    defineProperty(Object.prototype, "valWhich", function(func) {
         for (var prop in this)
         {
             var val;
@@ -112,7 +139,7 @@ function utilInit()
                 return val;
         }
         return null;
-    };
+    });
 
     // htmlify a string - convert markup-significant characters to & entities
     String.prototype.htmlify = function() {
@@ -2329,7 +2356,19 @@ function getObjectRect(obj)
     // IE has a special way of doing this
     if (obj.getBoundingClientRect)
     {
-        var r = obj.getBoundingClientRect();
+        // we need to do this in a try-catch due to a somewhat mysterious
+        // problem that occurs with long-running Ajax requests; see
+        // http://bugdb.tads.org/view.php?id=134
+        var r = null;
+        try
+        {
+            r = obj.getBoundingClientRect();
+        }
+        catch (e)
+        {
+            r = { top: 0, left: 0,
+                  right: obj.offsetWidth, bottom: obj.offsetHeight };
+        }
         var de = document.documentElement;
         var dx = de.scrollLeft, dy = de.scrollTop;
         if (dx == 0 && dy == 0)
@@ -2625,7 +2664,7 @@ function ServerRequest(resource, typ, cbfunc, postData, postDataType)
     this.aborted = false;
 
     // it hasn't succeeded or failed yet
-    this.succeded = this.failed = false;
+    this.succeeded = this.failed = false;
 
     // we haven't tried the request yet
     this.tries = 0;
@@ -3158,6 +3197,20 @@ function debugLogLn(msg)
     debugLog(msg + "<br><hr>");
 }
 
+/*
+ *   It's sometimes helpful during development to see a stack trace in the
+ *   debug log, especially    This is pretty user-unfriendly information, though, so we
+ *   omit it by default.  If you do want to enable it during your development
+ *   and testing process, add this code to the functions above, or simply add
+ *   it directly wherever you'd like to see a stack trace.
+ *   
+ *.    debugLog(
+ *.      getStackTrace().map(
+ *.         function(ele) {return ele.desc.htmlify();}).join("<br>")
+ *.      + "<br><br>");
+ */
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Show a custom dialog.  See main.js for details on the parameters object.
@@ -3235,11 +3288,9 @@ function setAlpha(ele, pct)
                 ele.style.filter = f;
         }
     }
-    else
-    {
-        // everyone else just uses the 'opacity' style
-        ele.style.opacity = pct/100;
-    }
+
+    // everyone else (including IE9+) uses standard CSS 'opacity'
+    try { ele.style.opacity = "" + pct/100; } catch(exc) { }
 }
 
 // active fader threads
