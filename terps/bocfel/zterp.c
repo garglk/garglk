@@ -45,7 +45,7 @@
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.6.3"
+#define ZTERP_VERSION	"0.6.3.2"
 
 const char *game_file;
 struct options options = {
@@ -201,7 +201,7 @@ int is_journey(void)
 
 int is_sherlock(void)
 {
-  return is_story("97-871026") || is_story("21-871214") || is_story("22-880112") || is_story("22-88011") || is_story("22-88011");
+  return is_story("97-871026") || is_story("21-871214") || is_story("22-880112") || is_story("26-880127");
 }
 
 int is_infocom_v1234;

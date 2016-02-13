@@ -97,6 +97,8 @@ static int32_t unito32(const uint32_t *s, int base, int *valid)
     /* Detect overflow. */
     if((max / base < n) || (max - (n * base) < d))
     {
+      if(valid != NULL) *valid = 1;
+
       if(neg == -1) return INT32_MIN;
       else          return INT32_MAX;
     }
