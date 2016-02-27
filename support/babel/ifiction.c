@@ -164,7 +164,7 @@ The End
 #include <stdlib.h>
 #include <ctype.h>
 
-void *my_malloc(int, char *);
+void *my_malloc(unsigned int, char *);
 extern char *format_registry[];
 
 
