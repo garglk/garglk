@@ -78,7 +78,9 @@ extern "C" {
 #ifdef __x86_64__
 #define _M_IX86_64
 #else
+#ifndef _M_IX86
 #define _M_IX86
+#endif
 #endif
 #endif
 

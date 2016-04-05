@@ -272,7 +272,11 @@ typedef DIR* osdirhdl_t;
 #define OSFMODE_CHAR    S_IFCHR
 #define OSFMODE_BLK     S_IFBLK
 #define OSFMODE_PIPE    S_IFIFO
+#ifdef S_IFLNK
 #define OSFMODE_LINK    S_IFLNK
+#else
+#define OSFMODE_LINK    0
+#endif
 #ifdef S_IFSOCK
 #define OSFMODE_SOCKET  S_IFSOCK
 #else
