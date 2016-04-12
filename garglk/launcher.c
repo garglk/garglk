@@ -53,7 +53,7 @@ static char terp[MaxBuffer];
 static char exe[MaxBuffer];
 static char flags[MaxBuffer];
 
-int runblorb(char *path, char *game)
+static int runblorb(const char *path, const char *game)
 {
     char magic[4];
     strid_t file;
@@ -63,7 +63,7 @@ int runblorb(char *path, char *game)
 
     snprintf(tmp, sizeof tmp, "Could not load Blorb file:\n%s\n", game);
 
-    file = glkunix_stream_open_pathname(game, 0, 0);
+    file = glkunix_stream_open_pathname((char *)game, 0, 0);
     if (!file)
     {
         winmsg(tmp);
@@ -175,7 +175,7 @@ static int findterp(const char *file, const char *target)
 
 }
 
-static int configterp(char *path, char *game)
+static int configterp(const char *path, const char *game)
 {
     char config[MaxBuffer];
     char story[MaxBuffer];
@@ -258,7 +258,7 @@ static int configterp(char *path, char *game)
     return FALSE;
 }
 
-int rungame(char *path, char *game)
+int rungame(const char *path, const char *game)
 {
     /* initialize buffers */
     strcpy(exe, GARGLKPRE);

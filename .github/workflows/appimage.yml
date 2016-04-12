@@ -31,12 +31,13 @@ jobs:
         fuse
         git
         grep
-        libgtk-3-dev
         libjpeg-dev
         librsvg2-dev
         libsdl2-mixer-dev
         libspeechd-dev
         patchelf
+        qtbase5-dev
+        qtbase5-dev-tools
         wget
 
     - name: Install linuxdeploy
@@ -44,7 +45,7 @@ jobs:
       run: |
         wget -q 'https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.config.arch }}.AppImage'
         wget -q 'https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-${{ matrix.config.arch }}.AppImage'
-        wget -q 'https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh'
+        wget -q 'https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage'
         chmod +x linuxdeploy*
 
     # v2 doesn't work with older distros.
@@ -53,13 +54,13 @@ jobs:
     - name: Build
       run: |
         DESTDIR="$PWD/AppDir" _BINDIR=/usr/bin _APPDIR=/usr/bin _LIBDIR=/usr/lib \
-          jam -dx -sOS=LINUX -sUSETTS=yes -j`nproc` install
+          jam -dx -sOS=LINUX -sUSETTS=yes -j`nproc` -sCC=gcc-9 -sC++=g++-9 -sMOC=moc install
         strip AppDir/usr/bin/* AppDir/usr/lib/*
         mv AppDir/usr/lib/libgarglk.so /usr/lib/
         ldconfig
         OUTPUT=Gargoyle-${{ matrix.config.filearch }}.AppImage linuxdeploy-${{ matrix.config.arch }}.AppImage \
           --appdir=AppDir \
-          --plugin gtk \
+          --plugin qt \
           -i garglk/gargoyle-house.png \
           -i garglk/gargoyle-docu2.png \
           -d garglk/gargoyle.desktop \

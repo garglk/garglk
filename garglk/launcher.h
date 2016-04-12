@@ -34,9 +34,5 @@
 #define MaxBuffer 1024
 
 extern void winmsg(const char *msg);
-extern void winpath(char *buffer);
-extern int winargs(int argc, char **argv, char *buffer);
-extern int winexec(const char *cmd, char **args);
-extern int winterp(char *path, char *exe, char *flags, char *game);
-extern int runblorb(char *path, char *game);
-extern int rungame(char *path, char *game);
+extern int winterp(const char *path, const char *exe, const char *flags, const char *game);
+extern int rungame(const char *path, const char *game);

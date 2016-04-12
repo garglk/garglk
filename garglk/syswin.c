@@ -153,7 +153,7 @@ void winexit(void)
     exit(0);
 }
 
-void winopenfile(char *prompt, char *buf, int len, int filter)
+void winopenfile(const char *prompt, char *buf, int len, int filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));
@@ -172,7 +172,7 @@ void winopenfile(char *prompt, char *buf, int len, int filter)
         buf[0] = 0;
 }
 
-void winsavefile(char *prompt, char *buf, int len, int filter)
+void winsavefile(const char *prompt, char *buf, int len, int filter)
 {
     OPENFILENAME ofn;
     memset(&ofn, 0, sizeof(OPENFILENAME));

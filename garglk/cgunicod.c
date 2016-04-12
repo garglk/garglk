@@ -181,7 +181,7 @@ glui32 gli_getchar_utf8(FILE *fl)
     return '?';
 }
 
-glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen,
+glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen,
     glui32 *out, glui32 outlen)
 {
     glui32 pos = 0;

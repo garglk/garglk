@@ -10,8 +10,6 @@ MACOS_MIN_VER ?= 10.7 ;
 BUNDLEFONTS ?= yes ;
 USETTS ?= no ;
 
-GUILIB ?= gtk+ ;
-
 # jam -sGARGLKINI=/usr/local/etc/garglk.ini
 GARGLKINI ?= /etc/garglk.ini ;
 
@@ -20,6 +18,7 @@ GARGLKPRE ?= "" ;
 
 CC  ?= gcc ;
 CXX ?= g++ ;
+MOC ?= moc-qt5 ;
 
 if $(CROSS)
 {
@@ -77,7 +76,7 @@ switch $(PLATFORM)
             SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
          }
 
-        GARGLKCCFLAGS = -std=gnu99 ;
+        CSTANDARD = -std=gnu99 ;
 
         if $(BUILD) = RELEASE || $(BUILD) = TURBO
         {
@@ -106,8 +105,10 @@ switch $(PLATFORM)
 
 
     case UNIX :
-        Echo "OS is $(OS) ($(GUILIB))" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
+        Echo "OS is $(OS) (Qt)" ;
+        PKGCONFIG = "pkg-config freetype2 fontconfig Qt5Core Qt5Widgets" ;
+
+        CSTANDARD = -std=gnu99 ;
 
         if $(USETTS) = yes {
            PKGCONFIG = "$(PKGCONFIG) speech-dispatcher" ;
@@ -122,28 +123,11 @@ switch $(PLATFORM)
 
         # Setting C++ standard version to use for current g++ compilers.
         C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC -std=gnu99" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC" ;
 
         # Not all supported platforms include a pkg-config file for libjpeg.
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
         LINKLIBS = -lm "`$(PKGCONFIG) --libs`" ;
-
-        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
-        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
-
-
-    case SOLARIS :
-        Echo "OS is SOLARIS (gtk+)" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
-
-        if $(USESDL) = yes
-        {
-            GARGLKCCFLAGS += -I/usr/include/SDL2 ;
-            GARGLKLIBS += -lSDL2_mixer -lSDL2 -lvorbisfile ;
-        }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
         else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
