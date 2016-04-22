@@ -753,11 +753,15 @@ void os_get_charmap(char *mapname, int charmap_id)
 #ifndef vasprintf
 int vasprintf(char **sptr, const char *fmt, va_list argv)
 {
-    int wanted = vsnprintf(*sptr = NULL, 0, fmt, argv);
+    va_list argv_copy;
+    int wanted;
+
+    va_copy(argv_copy, argv);
+    wanted = vsnprintf(*sptr = NULL, 0, fmt, argv);
     if((wanted < 0) || ((*sptr = malloc( 1 + wanted )) == NULL))
         return -1;
 
-    return vsprintf(*sptr, fmt, argv);
+    return vsprintf(*sptr, fmt, argv_copy);
 }
 #endif
 
