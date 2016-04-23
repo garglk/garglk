@@ -57,18 +57,19 @@ static void fill_in_fonts(struct fonts *fonts, char **r, char **b, char **i, cha
 static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
 {
     char filepath[1024];
+    char *style = (char *)lpelfe->elfStyle;
 
     if (fonts->name[0] == 0)
         return 0;
 
-    if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
+    if (!find_font_file((char *)lpelfe->elfFullName, filepath, sizeof filepath))
         return 1;
 
     char *file = strdup(filepath);
 
     if (!fonts->rset &&
-            (strcmp(lpelfe->elfStyle, "Regular") == 0 ||
-             strcmp(lpelfe->elfStyle, "Roman") == 0))
+            (strcmp(style, "Regular") == 0 ||
+             strcmp(style, "Roman") == 0))
     {
         fonts->r = file;
         fonts->rset = true;
@@ -83,7 +84,7 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
             fonts->z = file;
     }
 
-    else if (!fonts->bset && strcmp(lpelfe->elfStyle, "Bold") == 0)
+    else if (!fonts->bset && strcmp(style, "Bold") == 0)
     {
         fonts->b = file;
         fonts->bset = true;
@@ -93,8 +94,8 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
     }
 
     else if (!fonts->iset &&
-            (strcmp(lpelfe->elfStyle, "Italic") == 0 ||
-             strcmp(lpelfe->elfStyle, "Oblique") == 0))
+            (strcmp(style, "Italic") == 0 ||
+             strcmp(style, "Oblique") == 0))
     {
         fonts->i = file;
         fonts->iset = true;
@@ -104,10 +105,10 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
     }
 
     else if (!fonts->zset &&
-            (strcmp(lpelfe->elfStyle, "Bold Italic") == 0 ||
-             strcmp(lpelfe->elfStyle, "Bold Oblique") == 0 ||
-             strcmp(lpelfe->elfStyle, "BoldOblique") == 0 ||
-             strcmp(lpelfe->elfStyle, "BoldItalic") == 0))
+            (strcmp(style, "Bold Italic") == 0 ||
+             strcmp(style, "Bold Oblique") == 0 ||
+             strcmp(style, "BoldOblique") == 0 ||
+             strcmp(style, "BoldItalic") == 0))
     {
         fonts->z = file;
         fonts->zset = true;

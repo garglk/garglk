@@ -475,7 +475,7 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 {
     int ix;
     void *inbuf;
-    int inoriglen, inmax, inunicode;
+    int inoriglen, inunicode;
     gidispatch_rock_t inarrayrock;
     window_textgrid_t *dwin = win->data;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
@@ -484,7 +484,6 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
         return;
 
     inbuf = dwin->inbuf;
-    inmax = dwin->inmax;
     inoriglen = dwin->inoriglen;
     inarrayrock = dwin->inarrayrock;
     inunicode = dwin->inunicode;
@@ -573,7 +572,7 @@ static void acceptline(window_t *win, glui32 keycode)
 {
     int ix;
     void *inbuf;
-    int inoriglen, inmax, inunicode;
+    int inoriglen, inunicode;
     gidispatch_rock_t inarrayrock;
     window_textgrid_t *dwin = win->data;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
@@ -582,7 +581,6 @@ static void acceptline(window_t *win, glui32 keycode)
         return;
 
     inbuf = dwin->inbuf;
-    inmax = dwin->inmax;
     inoriglen = dwin->inoriglen;
     inarrayrock = dwin->inarrayrock;
     inunicode = dwin->inunicode;

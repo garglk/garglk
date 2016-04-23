@@ -27,7 +27,7 @@ jobs:
     - name: Install deps
       run: DEBIAN_FRONTEND=noninteractive apt install -y
         build-essential
-        ftjam
+        cmake
         fuse
         git
         grep
@@ -49,13 +49,16 @@ jobs:
         chmod +x linuxdeploy*
 
     # v2 doesn't work with older distros.
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
 
     - name: Build
       run: |
-        DESTDIR="$PWD/AppDir" _BINDIR=/usr/bin _APPDIR=/usr/bin _LIBDIR=/usr/lib \
-          jam -dx -sOS=LINUX -sUSETTS=yes -j`nproc` -sCC=gcc-9 -sC++=g++-9 -sMOC=moc install
-        strip AppDir/usr/bin/* AppDir/usr/lib/*
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib
+        make -j`nproc`
+        make install DESTDIR="$PWD/../AppDir"
+        cd ..
         mv AppDir/usr/lib/libgarglk.so /usr/lib/
         ldconfig
         OUTPUT=Gargoyle-${{ matrix.config.filearch }}.AppImage linuxdeploy-${{ matrix.config.arch }}.AppImage \
@@ -69,8 +72,7 @@ jobs:
 
     - name: Upload artifact
       if: github.event_name != 'pull_request'
-      # v2 doesn't work with older distros.
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v2
       with:
         name: Gargoyle-${{ matrix.config.filearch }}.AppImage
         path: Gargoyle-${{ matrix.config.filearch }}.AppImage

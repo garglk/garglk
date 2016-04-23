@@ -503,7 +503,7 @@ void win_textbuffer_redraw(window_t *win)
                     {
                         tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, spw)/GLI_SUBPIX;
                         if (tsw + tx >= sx0 ||
-                                tsw + tx + GLI_SUBPIX >= sx0 && ln->chars[tsc] != ' ')
+                                (tsw + tx + GLI_SUBPIX >= sx0 && ln->chars[tsc] != ' '))
                         {
                             lsc = tsc;
                             selchar = TRUE;

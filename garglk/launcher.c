@@ -22,6 +22,13 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <strings.h>
+
 #include "glk.h"
 #include "glkstart.h"
 #include "gi_blorb.h"

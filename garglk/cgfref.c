@@ -36,10 +36,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _WIN32
+
 #include <unistd.h> /* for unlink() */
-#endif
 #include <sys/stat.h> /* for stat() */
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "glk.h"
 #include "garglk.h"
 #include "glkstart.h"
@@ -134,11 +138,32 @@ void glk_fileref_destroy(fileref_t *fref)
 
 frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
 {
-    char *filename;
     fileref_t *fref;
-    char *tempdir = getenv("TEMP");
-    if (tempdir == NULL) tempdir = ".";
-    filename = tempnam(tempdir, "gargtmp");
+#ifdef _WIN32
+    char tempdir[MAX_PATH];
+    char filename[MAX_PATH];
+    GetTempPath(MAX_PATH, tempdir);
+    if(GetTempPath(MAX_PATH, tempdir) == 0 ||
+       GetTempFileName(tempdir, "glk", 0, filename) == 0)
+    {
+        gli_strict_warning("fileref_create_temp: unable to create temporary file");
+        return NULL;
+    }
+#else
+    char filename[4096];
+    char *tempdir = getenv("TMPDIR");
+    int fd;
+    if (tempdir == NULL)
+        tempdir = "/tmp";
+    snprintf(filename, sizeof filename, "%s/garglkXXXXXX", tempdir);
+    fd = mkstemp(filename);
+    if (fd == -1)
+    {
+        gli_strict_warning("fileref_create_temp: unable to create temporary file");
+        return NULL;
+    }
+    close(fd);
+#endif
 
     fref = gli_new_fileref(filename, usage, rock);
     if (!fref)

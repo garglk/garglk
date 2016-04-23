@@ -16,10 +16,14 @@ makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis.exe"
 nproc=$(getconf _NPROCESSORS_ONLN)
 ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
-jamargs="-sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -sMINGW_USE_SYSTEM_LIBRARIES=yes -dx"
+mkdir build-mingw
 
-jam ${jamargs} -j${nproc}
-jam ${jamargs} -j${nproc} install
+(
+cd build-mingw
+PKG_CONFIG=${target}-pkg-config cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
+make -j${nproc}
+make install
+)
 
 cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
 cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_dw2-1.dll" "build/dist"
