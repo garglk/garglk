@@ -29,8 +29,6 @@ macro(c99 name)
   endif()
 endmacro()
 
-include_directories(garglk)
-
 add_subdirectory(garglk)
 add_subdirectory(terps)
 add_subdirectory(tads)

@@ -1,3 +1,5 @@
+include_directories(../garglk)
+
 add_subdirectory(advsys)
 add_subdirectory(agility)
 add_subdirectory(alan2)
