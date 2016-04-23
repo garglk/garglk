@@ -1,3 +1,5 @@
+include_directories(../garglk)
+
 set(MACROS "-DGARGOYLE -DVMGLOB_STRUCT -DGLK_UNICODE -DGLK_TIMERS -DTC_TARGET_T3")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MACROS}")
