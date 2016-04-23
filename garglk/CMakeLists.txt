@@ -44,8 +44,6 @@ if(WITH_BABEL)
   set(EXTRA_DEFINITIONS ${EXTRA_DEFINITIONS} PRIVATE BABEL_HANDLER)
 endif()
 
-set(LINK_TYPE SHARED)
-
 if("${GUI}" STREQUAL "GTK")
   find_package(GTK2)
   include_directories(${GTK2_INCLUDE_DIRS})
@@ -67,12 +65,11 @@ elseif("${GUI}" STREQUAL "MINGW32")
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/libpng/libpng14-14.dll)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/libjpeg/libjpeg-8.dll)
   set(srcs ${srcs} syswin.c fontwin.c)
-  set(LINK_TYPE STATIC)
 else()
   message(FATAL_ERROR "Invalid GUI: ${GUI}.")
 endif()
 
-add_library(garglk ${LINK_TYPE} ${srcs})
+add_library(garglk ${srcs})
 
 target_link_libraries(garglk ${EXTRA_LIBS} m)
 target_include_directories(garglk ${EXTRA_INCLUDES})
