@@ -2,4 +2,4 @@ set(srcs git.c memory.c compiler.c opcodes.c operands.c peephole.c terp.c glkop.
 
 interpreter(git "${srcs}")
 target_link_libraries(git m)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_INLINE -DUSE_OWN_POWF")
+target_compile_definitions(git PRIVATE USE_INLINE USE_OWN_POWF)

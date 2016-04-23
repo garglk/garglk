@@ -2,4 +2,4 @@ set(srcs jacl.c glk_startup.c findroute.c interpreter.c loader.c glk_saver.c log
 
 interpreter(jacl "${srcs}")
 target_link_libraries(jacl m)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGLK")
+target_compile_definitions(jacl PRIVATE GLK)

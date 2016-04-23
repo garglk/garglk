@@ -35,13 +35,13 @@ else()
 endif()
 
 if(WITH_BUNDLED_FONTS)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBUNDLED_FONTS")
+  set(EXTRA_DEFINITIONS ${EXTRA_DEFINITIONS} PRIVATE BUNDLED_FONTS)
 endif()
 
 if(WITH_BABEL)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBABEL_HANDLER")
-  include_directories(../support/babel)
   set(EXTRA_LIBS ${EXTRA_LIBS} babel)
+  set(EXTRA_INCLUDES ${EXTRA_INCLUDES} PRIVATE ../support/babel)
+  set(EXTRA_DEFINITIONS ${EXTRA_DEFINITIONS} PRIVATE BABEL_HANDLER)
 endif()
 
 set(LINK_TYPE SHARED)
@@ -51,9 +51,9 @@ if("${GUI}" STREQUAL "GTK")
   include_directories(${GTK2_INCLUDE_DIRS})
   set(EXTRA_LIBS ${EXTRA_LIBS} ${GTK2_LIBRARIES})
   set(srcs ${srcs} sysgtk.c fontfc.c)
-  add_executable(gargoyle launcher.c launchgtk.c)
+  set(GARGOYLE_SOURCES launchgtk.c)
 elseif("${GUI}" STREQUAL "MINGW32")
-  add_executable(gargoyle launcher.c launchwin.c)
+  set(GARGOYLE_SOURCES launchwin.c)
   include_directories(../support/freetype ../support/libpng ../support/zlib ../support/libjpeg)
   set(EXTRA_LIBS ${EXTRA_LIBS} winmm)
 
@@ -63,7 +63,6 @@ elseif("${GUI}" STREQUAL "MINGW32")
   # include_directories seems to be ignored. Linking the DLLs in
   # directly is a workaround.
   #link_directories(../support/libpng ../support/freetype ../support/libjpeg)
-  #set(EXTRA_LIBS ${EXTRA_LIBS} png14-14 freetype6 jpeg-8)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/freetype/freetype6.dll)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/libpng/libpng14-14.dll)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/libjpeg/libjpeg-8.dll)
@@ -74,8 +73,15 @@ else()
 endif()
 
 add_library(garglk ${LINK_TYPE} ${srcs})
+
 target_link_libraries(garglk ${EXTRA_LIBS} m)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGARGLKINI=\\\"${GARGLKINI}\\\" -DGARGLKPRE=\\\"${GARGLKPRE}\\\"")
+target_include_directories(garglk ${EXTRA_INCLUDES})
+target_compile_definitions(garglk ${EXTRA_DEFINITIONS})
+target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+
+add_executable(gargoyle launcher.c ${GARGOYLE_SOURCES})
+
+target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
 
 target_link_libraries(gargoyle garglk)
 

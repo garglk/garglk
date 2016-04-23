@@ -3,10 +3,10 @@ set(srcs blorb.c branch.c dict.c iff.c io.c math.c meta.c memory.c objects.c osd
 interpreter(bocfel "${srcs}")
 c99(bocfel)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DZTERP_GLK")
+target_compile_definitions(bocfel PRIVATE ZTERP_GLK)
 
 if(UNIX)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DZTERP_UNIX")
+  target_compile_definitions(bocfel PRIVATE ZTERP_UNIX)
 elseif(WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DZTERP_WIN32")
+  target_compile_definitions(bocfel PRIVATE ZTERP_WIN32)
 endif()
