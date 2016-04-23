@@ -13,7 +13,7 @@ option(WITH_BABEL "Use babel." ON)
 macro(interpreter name srcs)
   add_executable(${name} ${srcs})
   set_target_properties(${name} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${name}")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGARGLK")
+  target_compile_definitions(${name} PRIVATE GARGLK)
   target_link_libraries(${name} glkmain garglk)
   install(TARGETS ${name} DESTINATION libexec/gargoyle)
 endmacro()
@@ -25,7 +25,7 @@ macro(c99 name)
 
   # CMake doesn't know how to set C99 mode for icc.
   if("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
+    target_compile_options(${name} PUBLIC -std=c99)
   endif()
 endmacro()
 
