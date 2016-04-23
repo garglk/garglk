@@ -1715,7 +1715,7 @@ void os_dbg_vprintf(const char *fmt, va_list args);
  *   asprintf() and vasprintf(), respectively.  
  */
 /* int os_asprintf(char **bufptr, const char *fmt, ...); */
-/* int os_vasprintf(char **bufptr, const char *fmt, va_list ap); */
+int os_vasprintf(char **bufptr, const char *fmt, va_list ap);
 
 
 /* 

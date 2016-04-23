@@ -628,6 +628,7 @@ void 	os_finish_with_sample (int);
 int  	os_font_data (int, int *, int *);
 int 	os_from_true_colour (zword);
 void 	os_init_screen (void);
+void	os_init_setup (void);
 void 	os_menu(int, int, const zword *);
 void 	os_more_prompt (void);
 int  	os_peek_colour (void);
@@ -664,6 +665,7 @@ void call (zword, int, zword *, int);
 void split_window (zword);
 void script_open (void);
 void script_close (void);
+void init_buffer (void);
 
 //FILE *os_path_open (const char *, const char *, long *);
 

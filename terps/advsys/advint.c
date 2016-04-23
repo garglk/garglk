@@ -31,7 +31,7 @@ void glk_main()
     char *fname,*lname;
     int rows,cols;
 
-	frefid_t file;
+	strid_t file;
 
 	window = glk_window_open(0, 0, 0, wintype_TextBuffer, WINDOW);
 	screen = glk_window_get_stream(window);

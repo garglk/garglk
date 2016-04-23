@@ -8,6 +8,7 @@
 #include "advint.h"
 #include "advdbs.h"
 #include <setjmp.h>
+#include <string.h>
 
 #define RMODE	0x8001
 

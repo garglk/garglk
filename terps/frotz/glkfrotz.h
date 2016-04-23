@@ -54,6 +54,7 @@ bool is_terminator (zchar);
 
 /* from glkstuff */
 void gos_update_width(void);
+void gos_update_height(void);
 void gos_cancel_pending_line(void);
 void reset_status_ht(void);
 

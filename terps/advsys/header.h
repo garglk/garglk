@@ -99,6 +99,7 @@ extern int msg_byte();
 /* Exported by Advprs.c */
 extern int parse();
 extern int next();
+extern void show_noun(int n);
 
 /* exported by advtrm.c */
 void trm_init(int rows, int cols, char *name);
