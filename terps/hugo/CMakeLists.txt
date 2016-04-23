@@ -2,4 +2,4 @@ set(srcs heglk/heglk.c heglk/heglkunix.c source/he.c source/hemisc.c source/hepa
 
 interpreter(hugo "${srcs}")
 include_directories(source)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DGLK -DCOMPILE_V25 -DNO_KEYPRESS_CURSOR -DHUGO_INLINE=\"static inline\"")
+target_compile_definitions(hugo PRIVATE GLK COMPILE_V25 NO_KEYPRESS_CURSOR "HUGO_INLINE=static inline")
