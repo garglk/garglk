@@ -3,3 +3,4 @@ set(srcs vmcrc.cpp vmmain.cpp std.cpp charmap.cpp resload.cpp resldexe.cpp vmini
 set(srcs ${srcs} vmconnom.cpp)
 
 add_library(tads3 STATIC ${srcs})
+tadsdefs(tads3)
