@@ -1,7 +1,7 @@
 set(SRCS babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c cgstream.c cgstyle.c cgunicod.c config.c draw.c event.c fontdata.c gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c wingrid.c winmask.c winpair.c wintext.c)
 
 option(WITH_SDL "Use SDL for sound." ON)
-option(WITH_BUNDLED_FONTS "Bundle fonts." OFF)
+option(WITH_BUNDLED_FONTS "Bundle fonts." ON)
 
 set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini.")
 set(GARGLKPRE "" CACHE STRING "Binary prefix.")
