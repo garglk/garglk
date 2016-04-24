@@ -1,4 +1,4 @@
-set(srcs scott.c)
+set(SRCS scott.c)
 
-interpreter(scott "${srcs}")
+interpreter(scott "${SRCS}")
 c99(scott)
