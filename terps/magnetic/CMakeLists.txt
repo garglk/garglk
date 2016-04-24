@@ -1,4 +1,4 @@
-set(srcs Generic/emu.c Glk/glk.c)
+set(SRCS Generic/emu.c Glk/glk.c)
 
-interpreter(magnetic "${srcs}")
+interpreter(magnetic "${SRCS}")
 include_directories(Generic)
