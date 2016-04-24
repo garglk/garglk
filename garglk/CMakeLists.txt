@@ -50,6 +50,26 @@ if("${GUI}" STREQUAL "GTK")
   set(EXTRA_LIBS ${EXTRA_LIBS} ${GTK2_LIBRARIES})
   set(srcs ${srcs} sysgtk.c fontfc.c)
   set(GARGOYLE_SOURCES launchgtk.c)
+elseif("${GUI}" STREQUAL "EFL")
+  find_package(Elementary REQUIRED)
+  find_package(Evas REQUIRED)
+  find_package(Ecore REQUIRED)
+
+  # TODO Create modules to find these packages.
+  find_package(PkgConfig)
+  pkg_check_modules(ECORE_X REQUIRED ecore-x)
+  find_library(ECORE_X_LIBRARY
+               NAMES ${ECORE_X_LIBRARIES}
+               HINTS ${ECORE_X_LIBDIR} ${ECORE_X_LIBRARY_DIRS})
+  pkg_check_modules(ECORE_EVAS REQUIRED ecore-evas)
+  find_library(ECORE_EVAS_LIBRARY
+               NAMES ${ECORE_EVAS_LIBRARIES}
+               HINTS ${ECORE_EVAS_LIBDIR} ${ECORE_EVAS_LIBRARY_DIRS})
+
+  include_directories(${ELEMENTARY_INCLUDE_DIRS} ${EVAS_INCLUDE_DIRS} ${ECORE_INCLUDE_DIRS} ${ECORE_X_INCLUDE_DIRS} ${ECORE_EVAS_INCLUDE_DIRS})
+  set(EXTRA_LIBS ${EXTRA_LIBS} ${ELEMENTARY_LIBRARIES} ${EVAS_LIBRARIES} ${ECORE_LIBRARIES} ${ECORE_X_LIBRARY} ${ECORE_EVAS_LIBRARY})
+  set(srcs ${srcs} sysefl.c fontfc.c)
+  set(GARGOYLE_SOURCES launchefl.c)
 elseif("${GUI}" STREQUAL "MINGW32")
   set(GARGOYLE_SOURCES launchwin.c)
   include_directories(../support/freetype ../support/libpng ../support/zlib ../support/libjpeg)
