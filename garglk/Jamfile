@@ -46,8 +46,8 @@ GARGSRCS =
     fontdata.c babeldata.c
     ;
 
-if $(OS) = IPLINUX { ObjectCcFlags draw.c : -D__EFL_1BPP__ ; }
-else if $(GUILIB) = EFL { ObjectCcFlags draw.c : -D__EFL_4BPP__ ; }
+if $(OS) = IPLINUX { ObjectCcFlags draw.c : -DEFL_1BPP ; }
+else if $(GUILIB) = EFL { ObjectCcFlags draw.c : -DEFL_4BPP ; }
 
 if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
 else if $(USEFMOD) = yes { GARGSRCS += sndfmod.c ; }
