@@ -57,7 +57,7 @@ if(WITH_BABEL)
 endif()
 
 if("${GUILIB}" STREQUAL "GTK")
-  find_package(GTK2)
+  find_package(GTK2 REQUIRED)
   include_directories(${GTK2_INCLUDE_DIRS})
   set(EXTRA_LIBS ${EXTRA_LIBS} ${GTK2_LIBRARIES})
   set(SRCS ${SRCS} sysgtk.c fontfc.c)
@@ -68,7 +68,7 @@ elseif("${GUILIB}" STREQUAL "EFL")
   find_package(Ecore REQUIRED)
 
   # TODO Create modules to find these packages.
-  find_package(PkgConfig)
+  find_package(PkgConfig REQUIRED)
   pkg_check_modules(ECORE_X REQUIRED ecore-x)
   find_library(ECORE_X_LIBRARY
                NAMES ${ECORE_X_LIBRARIES}
