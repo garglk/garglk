@@ -105,7 +105,7 @@ void winmsg(const char * msg)
 
    lb = elm_label_add(win);
    newline_to_br(msg);
-   elm_label_label_set(lb, brmsg);
+   elm_object_text_set(lb, brmsg);
    evas_object_size_hint_weight_set(lb, 0.0, 0.0);
    evas_object_size_hint_align_set(lb, EVAS_HINT_FILL, EVAS_HINT_FILL);
    elm_box_pack_end(bx, lb);
