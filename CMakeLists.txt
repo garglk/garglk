@@ -2,12 +2,6 @@ cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
-set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini.")
-set(GARGLKPRE "" CACHE STRING "Binary prefix.")
-set(GUI "GTK" CACHE STRING "Select GUI. Options: GTK, EFL, MINGW32.")
-
-option(WITH_SDL "Use SDL for sound." ON)
-option(WITH_BUNDLED_FONTS "Bundle fonts." OFF)
 option(WITH_BABEL "Use babel." ON)
 
 macro(interpreter TARGET SRCS)
