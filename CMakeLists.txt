@@ -4,14 +4,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 option(WITH_BABEL "Use babel." ON)
 
-macro(interpreter TARGET SRCS)
-  add_executable(${TARGET} ${SRCS})
-  set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${TARGET}")
-  target_compile_definitions(${TARGET} PRIVATE GARGLK)
-  target_link_libraries(${TARGET} glkmain garglk)
-  install(TARGETS ${TARGET} DESTINATION libexec/gargoyle)
-endmacro()
-
 macro(c99 TARGET)
   set_property(TARGET ${TARGET} PROPERTY C_STANDARD 99)
   set_property(TARGET ${TARGET} PROPERTY C_STANDARD_REQUIRED ON)
