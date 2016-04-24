@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.5)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 option(WITH_BABEL "Use babel." ON)
+option(WITH_SDL "Use SDL for sound." ON)
 
 macro(c99 TARGET)
   set_property(TARGET ${TARGET} PROPERTY C_STANDARD 99)
@@ -21,4 +22,8 @@ add_subdirectory(tads)
 
 if(WITH_BABEL)
   add_subdirectory(support/babel)
+endif()
+
+if(WITH_SDL AND WIN32)
+  add_subdirectory(support/sdl_sound)
 endif()
