@@ -102,8 +102,8 @@ elseif("${GUILIB}" STREQUAL "MINGW32")
   # These libraries can be found with a combination of
   # include_directories and adding "png14-14", etc. to ${EXTRA_LIBS};
   # however, once winmm is also added, these can no longer be found, as
-  # include_directories seems to be ignored. Linking the DLLs in
-  # directly is a workaround.
+  # link_directories seems to be ignored. Linking the DLLs in directly
+  # is a workaround.
   #link_directories(../support/libpng ../support/freetype ../support/libjpeg)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/freetype/freetype6.dll)
   set(EXTRA_LIBS ${EXTRA_LIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../support/libpng/libpng14-14.dll)
