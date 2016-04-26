@@ -4,6 +4,6 @@ interpreter(glulxe "${SRCS}")
 target_link_libraries(glulxe m)
 target_compile_definitions(glulxe PRIVATE FLOAT_COMPILE_SAFER_POWF)
 
-if(NOT WIN32)
+if(UNIX)
   target_compile_definitions(glulxe PRIVATE OS_UNIX)
 endif()
