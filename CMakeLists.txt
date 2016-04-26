@@ -32,6 +32,6 @@ if(WITH_BABEL)
   add_subdirectory(support/babel)
 endif()
 
-if(WITH_SDL AND WIN32)
+if(WITH_SDL AND MINGW)
   add_subdirectory(support/sdl_sound)
 endif()
