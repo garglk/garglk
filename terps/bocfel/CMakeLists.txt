@@ -2,6 +2,7 @@ set(SRCS blorb.c branch.c dict.c iff.c io.c math.c meta.c memory.c objects.c osd
 
 interpreter(bocfel "${SRCS}")
 c99(bocfel)
+lto(bocfel)
 
 target_compile_definitions(bocfel PRIVATE ZTERP_GLK)
 
