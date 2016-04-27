@@ -3,9 +3,9 @@ set(SRCS sctafpar.c sctaffil.c scprops.c scvars.c scexpr.c scprintf.c scinterf.c
 interpreter(scare "${SRCS}")
 
 if(UNIX)
-  include_directories(${ZLIB_INCLUDE_DIRS})
+  target_include_directories(scare PRIVATE ${ZLIB_INCLUDE_DIRS})
   target_link_libraries(scare ${ZLIB_LIBRARIES})
 elseif(MINGW)
-  include_directories(../../support/zlib)
+  target_include_directories(scare PRIVATE ../../support/zlib)
   target_link_libraries(scare ${CMAKE_CURRENT_SOURCE_DIR}/../../support/zlib/zlib1.dll)
 endif()

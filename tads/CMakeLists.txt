@@ -1,13 +1,8 @@
-include_directories(../garglk)
-
 macro(tadsdefs target)
   target_compile_definitions(${target} PRIVATE GARGOYLE VMGLOB_STRUCT GLK_UNICODE GLK_TIMERS TC_TARGET_T3)
 endmacro()
 
-include_directories(.)
-include_directories(tads2)
-include_directories(tads3)
-
+include_directories(. tads2 tads3)
 add_subdirectory(tads2)
 add_subdirectory(tads3)
 
@@ -15,4 +10,5 @@ set(SRCS t23run.cpp osansi1.c osansi2.c osansi3.c osbuffer.c osparse.c osglk.c o
 interpreter(tadsr "${SRCS}")
 tadsdefs(tadsr)
 
+target_include_directories(tadsr PRIVATE ../garglk)
 target_link_libraries(tadsr tads2 tads3)
