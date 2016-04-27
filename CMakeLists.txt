@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+include(CheckCCompilerFlag)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 option(WITH_BABEL "Use babel." ON)
@@ -18,9 +20,18 @@ function(c99 TARGET)
     set_property(TARGET ${TARGET} PROPERTY C_EXTENSIONS OFF)
   endif()
 
-  # CMake doesn't know how to set C99 mode for icc.
+  # CMake doesn't know how to set C99 mode for Intel or Sun.
   if("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
-    target_compile_options(${TARGET} PUBLIC -std=c99)
+    set(flag -std=c99)
+  elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
+    set(flag -xc99=all)
+  endif()
+
+  if(DEFINED flag)
+    check_c_compiler_flag(${flag} HAS_C99)
+    if(HAS_C99)
+      target_compile_options(${TARGET} PUBLIC ${flag})
+    endif()
   endif()
 endfunction()
 
