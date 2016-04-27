@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 
 include(CheckCCompilerFlag)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 option(WITH_BABEL "Use babel." ON)
 option(WITH_SDL "Use SDL for sound." ON)
