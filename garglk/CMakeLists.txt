@@ -78,19 +78,11 @@ elseif("${GUILIB}" STREQUAL "EFL")
   find_package(Evas REQUIRED)
   find_package(Ecore REQUIRED)
 
-  # TODO Create modules to find these packages.
   find_package(PkgConfig REQUIRED)
-  pkg_check_modules(ECORE_X REQUIRED ecore-x)
-  find_library(ECORE_X_LIBRARY
-               NAMES ${ECORE_X_LIBRARIES}
-               HINTS ${ECORE_X_LIBDIR} ${ECORE_X_LIBRARY_DIRS})
-  pkg_check_modules(ECORE_EVAS REQUIRED ecore-evas)
-  find_library(ECORE_EVAS_LIBRARY
-               NAMES ${ECORE_EVAS_LIBRARIES}
-               HINTS ${ECORE_EVAS_LIBDIR} ${ECORE_EVAS_LIBRARY_DIRS})
+  pkg_check_modules(ECORE_EXTRAS REQUIRED ecore-x ecore-evas)
 
-  include_directories(${ELEMENTARY_INCLUDE_DIRS} ${EVAS_INCLUDE_DIRS} ${ECORE_INCLUDE_DIRS} ${ECORE_X_INCLUDE_DIRS} ${ECORE_EVAS_INCLUDE_DIRS})
-  set(EXTRA_LIBS ${EXTRA_LIBS} ${ELEMENTARY_LIBRARIES} ${EVAS_LIBRARIES} ${ECORE_LIBRARIES} ${ECORE_X_LIBRARY} ${ECORE_EVAS_LIBRARY})
+  include_directories(${ELEMENTARY_INCLUDE_DIRS} ${EVAS_INCLUDE_DIRS} ${ECORE_INCLUDE_DIRS} ${ECORE_EXTRAS_DIRS})
+  set(EXTRA_LIBS ${EXTRA_LIBS} ${ELEMENTARY_LIBRARIES} ${EVAS_LIBRARIES} ${ECORE_LIBRARIES} ${ECORE_EXTRAS_LIBRARIES})
   set(EXTRA_DEFINITIONS ${EXTRA_DEFINITIONS} PRIVATE EFL_4BPP)
   set(SRCS ${SRCS} sysefl.c fontfc.c)
   set(GARGOYLE_SOURCES launchefl.c)
