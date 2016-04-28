@@ -4,8 +4,8 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(Compilers)
 
-option(WITH_BABEL "Use babel." ON)
-option(WITH_SDL "Use SDL for sound." ON)
+option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
+option(WITH_SDL "Use SDL for sound support." ON)
 
 add_subdirectory(garglk)
 add_subdirectory(terps)
