@@ -299,8 +299,6 @@ if(WITH_SCARE)
     if(ZLIB_FOUND)
       set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
       set(SCARE_LIBS ${ZLIB_LIBRARIES})
-    else()
-      message(WARNING "Unable to find zlib: scare will not be built")
     endif()
   elseif(MINGW)
     set(ZLIB_FOUND TRUE)
@@ -318,6 +316,8 @@ if(WITH_SCARE)
          scare/sclocale.c scare/scmemos.c scare/os_glk.c
          INCLUDE_DIRS ${SCARE_INCLUDE_DIRS}
          LIBS ${SCARE_LIBS})
+  else()
+    message(WARNING "Unable to find zlib: scare will not be built")
   endif()
 endif()
 
