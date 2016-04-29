@@ -17,9 +17,9 @@ option(WITH_SCOTT "Enable the scott interpreter." ON)
 
 function(terp target)
   set(options C99 LTO)
-  set(oneValueArgs)
-  set(multiValueArgs SRCS INCLUDE_DIRS MACROS LIBS)
-  cmake_parse_arguments(TERP "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+  set(oneval)
+  set(multival SRCS INCLUDE_DIRS MACROS LIBS)
+  cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
   add_executable(${target} ${TERP_SRCS})
   set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
