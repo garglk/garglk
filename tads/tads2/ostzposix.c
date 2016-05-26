@@ -284,6 +284,7 @@ os_get_timezone_info( struct os_tzinfo_t *info )
     if (tz != 0 && oss_parse_posix_tz(info, tz, strlen(tz), TRUE))
         return TRUE;
 
+#ifndef _WIN32
     /* fall back on localtime() - that'll at least give us the current
      * timezone name and GMT offset in most cases
      */
@@ -305,6 +306,7 @@ os_get_timezone_info( struct os_tzinfo_t *info )
         }
         return TRUE;
     }
+#endif
 
     /* no information is available */
     return FALSE;

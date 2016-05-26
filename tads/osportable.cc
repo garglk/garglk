@@ -51,7 +51,9 @@
 #include <limits.h>
 
 #if defined(_WIN32)
-/* nothing */
+#include <windows.h>
+#define MKDIR_TAKES_ONE_ARG 1
+#define lstat stat
 #elif defined(__APPLE__)
 #define HAVE_GETTIMEOFDAY
 #include <sys/time.h>
@@ -600,6 +602,7 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
         s->attrs |= OSFATTR_HIDDEN;
     }
 
+#ifndef _WIN32
     // If we're the owner, check if we have read/write access.
     if (geteuid() == buf.st_uid) {
         if (buf.st_mode & S_IRUSR)
@@ -635,6 +638,7 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
             s->attrs |= OSFATTR_WRITE;
         return true;
     }
+#endif
 
     // We're neither the owner of the file nor do we belong to its
     // group.  Check whether the file is world readable/writable.
@@ -650,6 +654,9 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
 int
 os_resolve_symlink( const char *fname, char *target, size_t target_size )
 {
+#ifdef _WIN32
+    return false;
+#else
     // get the stat() information for the *undereferenced* link; if
     // it's not actually a link, there's nothing to resolve
     struct stat buf;
@@ -666,6 +673,7 @@ os_resolve_symlink( const char *fname, char *target, size_t target_size )
     // null-terminate the result and return success
     target[copylen] = '\0';
     return true;
+#endif
 }
 
 #if 0
@@ -1014,6 +1022,20 @@ canonicalize_path(char *path)
         if (*p == '\0')
             break;
     }
+}
+#endif
+
+#ifdef _WIN32
+/* This file only ever calls realpath() with resolved_name as NULL. */
+static char *realpath(const char *file_name, char *resolved_name)
+{
+    resolved_name = (char *)malloc(PATH_MAX + 1);
+    if (resolved_name == NULL)
+        return NULL;
+
+    GetFullPathName(file_name, PATH_MAX + 1, resolved_name, NULL);
+
+    return resolved_name;
 }
 #endif
 
