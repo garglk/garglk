@@ -602,6 +602,9 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
         s->attrs |= OSFATTR_HIDDEN;
     }
 
+    /* XXX
+     * This needs to be implemented for MinGW.
+     */
 #ifndef _WIN32
     // If we're the owner, check if we have read/write access.
     if (geteuid() == buf.st_uid) {
@@ -638,7 +641,6 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
             s->attrs |= OSFATTR_WRITE;
         return true;
     }
-#endif
 
     // We're neither the owner of the file nor do we belong to its
     // group.  Check whether the file is world readable/writable.
@@ -646,6 +648,7 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
         s->attrs |= OSFATTR_READ;
     if (buf.st_mode & S_IWOTH)
         s->attrs |= OSFATTR_WRITE;
+#endif
     return true;
 }
 
