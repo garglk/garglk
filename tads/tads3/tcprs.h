@@ -512,15 +512,16 @@ public:
      *   This imposes certain restrictions; in particular, we cannot modify
      *   a method defined in the native interface to the class.  
      */
-    class CTPNStmObject *parse_object_body(int *err, class CTcSymObj *obj_sym,
-                                           int is_class, int is_anon,
-                                           int is_grammar,
-                                           int is_nested, int modify,
-                                           class CTcSymObj *mod_orig_sym,
-                                           int plus_cnt,
-                                           class CTcSymMetaclass *meta_sym,
-                                           struct tcprs_term_info *term_info,
-                                           int is_transient);
+    class CTPNStmObject *parse_object_body(
+        int *err, class CTcSymObj *obj_sym,
+        int is_class, int is_anon, int is_grammar, int is_nested,
+        int modify, class CTcSymObj *mod_orig_sym,
+        int plus_cnt, class CTcSymMetaclass *meta_sym,
+        struct tcprs_term_info *term_info, int is_transient);
+
+    /* parse an object definition's superclass list */
+    void parse_superclass_list(
+        class CTcSymObj *obj_sym, class CTPNSuperclassList &sclist);
 
     /*
      *   Add a generated object.  This is used for objects created implicitly
@@ -542,7 +543,7 @@ public:
                           const CTcConstVal *val);
 
     /* parse an object template instance in an object body */
-    void parse_obj_template(int *err, class CTPNStmObject *obj_stm);
+    void parse_obj_template(int *err, class CTPNObjDef *objdef, int is_inline);
 
     /* search a superclass list for a template match */
     const class CTcObjTemplate
@@ -570,12 +571,19 @@ public:
     class CTcStrTemplate *get_str_template_head() const
         { return str_template_head_; }
 
+    /* parse an object's property list */
+    int parse_obj_prop_list(
+        int *err, class CTPNObjDef *objdef, class CTcSymMetaclass *meta_sym,
+        int modify, int is_nested, int braces, int is_inline,
+        struct tcprs_term_info *outer_term_info,
+        struct tcprs_term_info *term_info);
+
     /* parse property definition within an object */
-    void parse_obj_prop(int *err, class CTPNStmObject *obj_stm, int replace,
-                        class CTcSymMetaclass *meta_sym,
-                        struct tcprs_term_info *term_info,
-                        struct propset_def *propset_stack, int propset_depth,
-                        int enclosing_obj_is_nested);
+    void parse_obj_prop(
+        int *err, class CTPNObjDef *objdef, int replace,
+        class CTcSymMetaclass *meta_sym, struct tcprs_term_info *term_info,
+        struct propset_def *propset_stack, int propset_depth,
+        int enclosing_obj_is_nested, int is_inline);
 
     /* parse a class definition */
     class CTPNStmTop *parse_class(int *err);
@@ -937,8 +945,11 @@ public:
     /* get the local context variable number */
     int get_local_ctx_var() const { return local_ctx_var_num_; }
 
-    /* set up a local context */
+    /* set up a local context, in preparation for a nested code body */
     void init_local_ctx();
+
+    /* finish the local context, after parsing a nested code body */
+    void finish_local_ctx(CTPNCodeBody *cb, class CTcPrsSymtab *local_symtab);
 
     /* 
      *   allocate a context variable index - this assigns an array index
@@ -952,6 +963,10 @@ public:
 
     /* get the maximum number of locals required in the function */
     int get_max_local_cnt() const { return max_local_cnt_; }
+
+    /* get the lexicalParent property symbol */
+    class CTcSymProp *get_lexical_parent_sym() const
+        { return lexical_parent_sym_; }
 
     /* 
      *   find a grammar production symbol, adding a new one if needed,
@@ -1054,7 +1069,8 @@ private:
      *   begin a property expression, saving parser state for later
      *   restoration with finish_prop_expr 
      */
-    void begin_prop_expr(class CTcPrsPropExprSave *save_info);
+    void begin_prop_expr(
+        class CTcPrsPropExprSave *save_info, int is_static, int is_inline);
 
     /* 
      *   Finish a property expression, wrapping it in a code body if
@@ -1064,10 +1080,10 @@ private:
      *   wrapper if needed, in which case the original expression should be
      *   discarded in favor of the fully wrapped code body.  
      */
-    class CTPNCodeBody *finish_prop_expr(class CTcPrsPropExprSave *save_info,
-                                         class CTcPrsNode *expr,
-                                         int is_static,
-                                         class CTcSymProp *prop_sym);
+    void finish_prop_expr(
+        class CTcPrsPropExprSave *save_info, class CTcPrsNode* &expr,
+        class CTPNCodeBody* &code_body, class CTPNAnonFunc* &inline_method,
+        int is_static, int is_inline, class CTcSymProp *prop_sym);
     
     /* 
      *   callback for symbol table enumeration for writing a symbol export
@@ -1707,6 +1723,7 @@ public:
      */
     class CTcPrsNode *expr_;
     class CTPNCodeBody *code_body_;
+    class CTPNAnonFunc *inline_method_;
 
     /* 
      *   the introductory token of the parameter - if the parameter is
@@ -1726,6 +1743,95 @@ public:
      */
     class CTcSymProp *prop_;
 };
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   'propertyset' definition structure.  Each property set defines a
+ *   property pattern and an optional argument list for the properties within
+ *   the propertyset group.  
+ */
+struct propset_def
+{
+    /* the property name pattern */
+    const char *prop_pattern;
+    size_t prop_pattern_len;
+
+    /* head of list of tokens in the parameter list */
+    struct propset_tok *param_tok_head;
+};
+
+/*
+ *   propertyset token list entry 
+ */
+struct propset_tok
+{
+    propset_tok(const CTcToken *t)
+    {
+        /* copy the token */
+        this->tok = *t;
+
+        /* we're not in a list yet */
+        nxt = 0;
+    }
+
+    /* the token */
+    CTcToken tok;
+
+    /* next token in the list */
+    propset_tok *nxt;
+};
+
+/*
+ *   Token source for parsing formal parameters using property set formal
+ *   lists.  This retrieves tokens from a propertyset stack.  
+ */
+class propset_token_source: public CTcTokenSource
+{
+public:
+    propset_token_source()
+    {
+        /* nothing in our list yet */
+        nxt_tok = last_tok = 0;
+    }
+
+    /* get the next token */
+    virtual const CTcToken *get_next_token()
+    {
+        /* if we have another entry in our list, retrieve it */
+        if (nxt_tok != 0)
+        {
+            /* remember the token to return */
+            CTcToken *ret = &nxt_tok->tok;
+
+            /* advance our internal position to the next token */
+            nxt_tok = nxt_tok->nxt;
+
+            /* return the token */
+            return ret;
+        }
+        else
+        {
+            /* we have nothing more to return */
+            return 0;
+        }
+    }
+
+    /* insert a token */
+    void insert_token(const CTcToken *tok);
+
+    /* insert a token based on type */
+    void insert_token(tc_toktyp_t typ, const char *txt, size_t len);
+
+    /* the next token we're to retrieve */
+    propset_tok *nxt_tok;
+
+    /* tail of our list */
+    propset_tok *last_tok;
+};
+
+/* maximum propertyset nesting depth */
+const size_t MAX_PROPSET_DEPTH = 10;
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -1917,24 +2023,6 @@ public:
 protected:
     /* list of object/property associations with this word */
     struct CTcPrsDictItem *list_;
-};
-
-/* ------------------------------------------------------------------------ */
-/*
- *   State save structure for parsing property expressions 
- */
-class CTcPrsPropExprSave
-{
-public:
-    unsigned int has_local_ctx_ : 1;
-    int local_ctx_var_num_;
-    size_t ctx_var_props_used_;
-    int next_ctx_arr_idx_;
-    int self_referenced_;
-    int full_method_ctx_referenced_;
-    int local_ctx_needs_self_;
-    int local_ctx_needs_full_method_ctx_;
-    struct CTcCodeBodyRef *cur_code_body_;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -2825,12 +2913,25 @@ public:
     void set_int(long val) { typ_ = TC_CVT_INT; val_.intval_ = val; }
 
     /* set a floating-point value */
-    void set_float(const char *val, size_t len)
-    {
-        typ_ = TC_CVT_FLOAT;
-        val_.floatval_.txt_ = val;
-        val_.floatval_.len_ = len;
-    }
+    void set_float(const char *val, size_t len, int promoted);
+
+    /* set a floating-point value from a vbignum_t */
+    void set_float(const class vbignum_t *val, int promoted);
+
+    /* set a floating-point value promoted from an integer */
+    void set_float(ulong i);
+
+    /* 
+     *   Check to see if a promoted float value can be demoted back to int.
+     *   If the value is a float that was flagged as promoted from an int
+     *   constant, and the value fits in an int32, we'll demote the value
+     *   back to an int.  This has no effect if the value isn't a float,
+     *   wasn't promoted, or doesn't fit in an int.  This can be used after a
+     *   constant-folding operation is applied to a value that was at some
+     *   point promoted from int to see if the promotion is no longer
+     *   required.
+     */
+    void demote_float();
 
     /* set an enumerator value */
     void set_enum(ulong val) { typ_ = TC_CVT_ENUM; val_.enumval_ = val; }
@@ -2839,12 +2940,15 @@ public:
     void set_sstr(const char *val, size_t len);
     void set_sstr(const CTcToken *tok);
 
+    /* set a regex string value (R'...' or R"...") */
+    void set_restr(const CTcToken *tok);
+
     /* set a list value */
     void set_list(class CTPNList *lst);
 
     /* for the debugger only: set a pre-resolved constant pool value */
-    void set_sstr(uint32 ofs);
-    void set_list(uint32 ofs);
+    void set_sstr(uint32_t ofs);
+    void set_list(uint32_t ofs);
 
     /* set an object reference value */
     void set_obj(ulong obj, enum tc_metaclass_t meta)
@@ -2913,6 +3017,9 @@ public:
     const char *get_val_float() const { return val_.floatval_.txt_; }
     size_t get_val_float_len() const { return val_.floatval_.len_; }
 
+    /* was the value promoted to float from int due to overflow? */
+    int is_promoted() const { return promoted_; }
+
     /* get my enumerator value (no type checking) */
     ulong get_val_enum() const { return val_.enumval_; }
 
@@ -2927,8 +3034,8 @@ public:
      *   for debugger expressions only: the string/list as a pre-resolved
      *   constant pool address 
      */
-    uint32 get_val_str_ofs() const { return val_.strval_.pool_ofs_; }
-    uint32 get_val_list_ofs() const { return val_.listval_.pool_ofs_; }
+    uint32_t get_val_str_ofs() const { return val_.strval_.pool_ofs_; }
+    uint32_t get_val_list_ofs() const { return val_.listval_.pool_ofs_; }
 
     /* get my object reference value (no type checking) */
     ulong get_val_obj() const
@@ -2974,14 +3081,17 @@ public:
      */
     int get_val_bool() const
     {
-        return !(typ_ == TC_CVT_NIL
-                 || (typ_ == TC_CVT_INT && get_val_int() == 0));
+        return !(typ_ == TC_CVT_NIL || equals_zero());
     }
+
+    /* is this is a numeric value equal to zero? */
+    int equals_zero() const;
 
     /*
      *   Set/get the compile-time constant flag.  A compile-time constant is
      *   a value that's constant at compile-time, but which can vary from one
-     *   compilation to the next.  The defined() operator has this property.
+     *   compilation to the next.  The defined() and __objref() operators
+     *   have this property.
      */
     void set_ctc(int f) { ctc_ = f; }
     int is_ctc() const { return ctc_; }
@@ -3023,7 +3133,7 @@ private:
              *   data type to string or list, and setting the token value
              *   pointer for that type to null.  
              */
-            uint32 pool_ofs_;
+            uint32_t pool_ofs_;
         }
         strval_;
 
@@ -3033,7 +3143,7 @@ private:
             class CTPNList *l_;
 
             /* for debugger expressions only: the pre-resolved pool address */
-            uint32 pool_ofs_;
+            uint32_t pool_ofs_;
         }
         listval_;
 
@@ -3084,6 +3194,14 @@ private:
      *   automatically omit the referring code when module B is omitted.
      */
     uint ctc_ : 1;
+
+    /* 
+     *   Is this a promoted value?  This is set to true for promotions from
+     *   int to BigNumber that are due to overflows.  This isn't set for
+     *   values explicitly entered as floating point values or that were
+     *   constant-folded from expressions containing explicit floats.
+     */
+    uint promoted_ : 1;
 };
 
 
@@ -3597,8 +3715,12 @@ public:
                        class CTcPrsNode *right) const;
 
 protected:
-    /* calculate the result */
-    virtual long calc_result(long val1, long val2) const = 0;
+    /* calculate the result of the operand applied to constant int values */
+    virtual long calc_result(long val1, long val2, int &ov) const = 0;
+
+    /* calculate the result for constant float values */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const = 0;
 };
 
 /* bitwise OR */
@@ -3614,9 +3736,20 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    /* calculate the result */
-    virtual long calc_result(long val1, long val2) const
-        { return val1 | val2; }
+    /* calculate a constant integer result */
+    virtual long calc_result(long val1, long val2, int &ov) const
+    {
+        ov = FALSE;
+        return val1 | val2;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /* bitwise XOR */
@@ -3633,8 +3766,19 @@ public:
 
 protected:
     /* calculate the result */
-    virtual long calc_result(long val1, long val2) const
-        { return val1 ^ val2; }
+    virtual long calc_result(long val1, long val2, int &ov) const
+    {
+        ov = FALSE;
+        return val1 ^ val2;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /* bitwise AND */
@@ -3651,8 +3795,19 @@ public:
 
 protected:
     /* calculate the result */
-    virtual long calc_result(long val1, long val2) const
-        { return val1 & val2; }
+    virtual long calc_result(long val1, long val2, int &ov) const
+    {
+        ov = FALSE;
+        return val1 & val2;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /*
@@ -3669,7 +3824,19 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return a << b; }
+    long calc_result(long a, long b, int &ov) const
+    {
+        ov = FALSE;
+        return a << b;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /*
@@ -3686,7 +3853,19 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return t3_ashr(a, b); }
+    long calc_result(long a, long b, int &ov) const
+    {
+        ov = FALSE;
+        return t3_ashr(a, b);
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /*
@@ -3703,7 +3882,20 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return t3_lshr(a, b); }
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const
+    {
+        ov = FALSE;
+        return t3_lshr(a, b);
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const
+    {
+        G_tok->log_error(TCERR_BAD_OP_FOR_FLOAT);
+        return 0;
+    }
 };
 
 /*
@@ -3720,7 +3912,17 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return a * b; }
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const
+    {
+        int64_t prod = a * b;
+        ov = (prod > (int64_t)INT32MAXVAL || prod < (int64_t)INT32MINVAL);
+        return (long)prod;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const;
 };
 
 /*
@@ -3741,7 +3943,12 @@ public:
                     class CTcPrsNode *right) const;
     
 protected:
-    long calc_result(long a, long b) const;
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const;
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const;
 };
 
 
@@ -3759,7 +3966,12 @@ public:
                     class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const;
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const;
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const;
 };
 
 /*
@@ -3781,7 +3993,17 @@ public:
                        class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return a + b; }
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const
+    {
+        int32_t sum = (int32_t)(a + b);
+        ov = (a >= 0 ? b > 0 && sum < a : b < 0 && sum > a);
+        return sum;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const;
 };
 
 /*
@@ -3803,7 +4025,17 @@ public:
                        class CTcPrsNode *right) const;
 
 protected:
-    long calc_result(long a, long b) const { return a - b; }
+    /* calculate a constant integer result */
+    long calc_result(long a, long b, int &ov) const
+    {
+        int32_t diff = (int32_t)(a - b);
+        ov = (a >= 0 ? b < 0 && diff < a : b > 0 && diff > a);
+        return diff;
+    }
+
+    /* calculate a constant float result */
+    virtual class vbignum_t *calc_result(
+        const class vbignum_t &a, const class vbignum_t &b) const;
 };
 
 /*
@@ -3838,6 +4070,12 @@ public:
 
     /* parse a primary expression */
     static class CTcPrsNode *parse_primary();
+
+    /* parse an anonymous function */
+    static class CTPNAnonFunc *parse_anon_func(int short_form, int is_method);
+
+    /* parse an in-line object definition */
+    static class CTPNInlineObject *parse_inline_object(int has_colon);
 
 protected:
     /* embedded expression: parse an expression list */
@@ -3881,9 +4119,6 @@ protected:
     static int parse_embedded_end_tok(struct CTcEmbedBuilder *b,
                                       struct CTcEmbedLevel *parent,
                                       const char **open_kw);
-
-    /* parse an anonymous function */
-    static class CTcPrsNode *parse_anon_func(int short_form);
 
     /* parse a logical NOT operator */
     static class CTcPrsNode *parse_not(CTcPrsNode *sub);
@@ -3933,12 +4168,6 @@ protected:
 
     /* parse a "delegated" expression */
     static class CTcPrsNode *parse_delegated();
-
-    /* local symbol enumeration callback for anonymous function setup */
-    static void enum_for_anon(void *ctx, class CTcSymbol *sym);
-
-    /* local symbol enumeration for anon function - follow-up */
-    static void enum_for_anon2(void *ctx, class CTcSymbol *sym);
 };
 
 /*

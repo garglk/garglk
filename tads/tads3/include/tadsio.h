@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -16,9 +17,6 @@
  *   dividing up the character-mode screen into rectangular regions).  
  */
 
-
-#ifndef TADSIO_H
-#define TADSIO_H
 
 /*
  *   tads-io - the TADS Input/Output intrinsic function set 
@@ -747,5 +745,3 @@ intrinsic 'tads-io/030007'
 #define ColorNavy     ColorRGB(0x00, 0x00, 0x80)
 #define ColorTeal     ColorRGB(0x00, 0x80, 0x80)
 
-
-#endif /* TADSIO_H */

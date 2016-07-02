@@ -159,7 +159,7 @@ protected:
  *   storage server run-time error, so this won't return.  On success, we
  *   simply return.  
  */
-void vmnet_check_storagesrv_reply(VMG_ int htmlstat, CVmStream *reply,
+void vmnet_check_storagesrv_reply(VMG_ int htmlstat, CVmDataSource *reply,
                                   const char *headers);
 
 /*
@@ -176,7 +176,7 @@ void vmnet_check_storagesrv_reply(VMG_ int htmlstat, CVmStream *reply,
  *   
  *   The caller must delete the returned buffer with t3free().  
  */
-char *vmnet_get_storagesrv_stat(VMG_ int htmlstat, CVmStream *reply,
+char *vmnet_get_storagesrv_stat(VMG_ int htmlstat, CVmDataSource *reply,
                                 const char *headers);
 
 /*
@@ -502,7 +502,7 @@ class TadsListenerThread: public OS_Thread
     
 public:
     /* construction */
-    TadsListenerThread()
+    TadsListenerThread(OS_Event *quit_evt)
     {
         /* no port yet */
         port = 0;
@@ -510,8 +510,18 @@ public:
         /* no error message yet */
         errmsg = 0;
 
-        /* create our quit event - once set, it stays set */
-        quit_evt = new OS_Event(TRUE);
+        /* 
+         *   use the caller's quit event, if they supplied one, otherwise
+         *   create our own; if we create one, it's sticky - once signaled,
+         *   it stays signaled, no matter how many threads are waiting on it
+         */
+        if (quit_evt == 0)
+            this->quit_evt = new OS_Event(TRUE);
+        else
+            (this->quit_evt = quit_evt)->add_ref();
+
+        /* create our private shutdown event */
+        shutdown_evt = new OS_Event(TRUE);
 
         /* create our resource protection mutex */
         mutex = new OS_Mutex();
@@ -520,7 +530,7 @@ public:
         servers = 0;
 
         /* note the time we started running */
-        time(&start_time);
+        os_time(&start_time);
 
         /* start with thread #1 */
         next_thread_id = 1;
@@ -563,10 +573,13 @@ public:
 
     /* get the start time as an ASCII string */
     const char *asc_start_time() const
-        { return asctime(localtime(&start_time)); }
+        { return asctime(os_localtime(&start_time)); }
 
-    /* get the 'quit' event object */
+    /* get the application-wide 'quit' event object */
     OS_Event *get_quit_evt() const { return quit_evt; }
+
+    /* get the listener shutdown event */
+    OS_Event *get_shutdown_evt() const { return shutdown_evt; }
 
 protected:
     /* add a thread to our list */
@@ -576,7 +589,7 @@ protected:
     void remove_thread(class TadsServerThread *t);
 
     /* time the server started running */
-    time_t start_time;
+    os_time_t start_time;
 
     /* 
      *   Password: this is a random string generated at startup, to secure
@@ -594,10 +607,21 @@ protected:
     OS_Listener *port;
 
     /* 
-     *   quit event - the thread owner signals this event to tell us to shut
-     *   down 
+     *   Application-wide quit event.  This is the global event object that
+     *   signals application termination.  We'll abort any blocking operation
+     *   when this event is signaled so that we can promptly terminate the
+     *   listener thread when the application is being terminated.
      */
     OS_Event *quit_evt;
+
+    /*
+     *   Listener shutdown event.  This is the local event object that lets
+     *   our owner tell us to shut down the listener thread.  This only
+     *   applies to this thread, not to the rest of the application, so it
+     *   can be used to selectively terminate this single listener while
+     *   leaving other server threads running. 
+     */
+    OS_Event *shutdown_evt;
 
     /* 
      *   error message - if the server encounters an error that it can't
@@ -1068,20 +1092,6 @@ public:
             quit_evt->add_ref();
     }
 
-    /* set the 'quit' event */
-    void set_quit_evt(OS_Event *e)
-    {
-        OS_Event *olde = quit_evt;
-
-        /* add a ref to the new event */
-        if ((quit_evt = e) != 0)
-            e->add_ref();
-
-        /* and remove our ref from the old event */
-        if (olde != 0)
-            olde->release_ref();
-    }
-
     /* are we in the process of shutting down the server? */
     int is_quitting()
     {
@@ -1274,6 +1284,9 @@ public:
 
     /* get my message arrival event */
     OS_Event *get_event_obj() { return ev; }
+
+    /* get my quit event object */
+    OS_Event *get_quit_evt() { return quit_evt; }
 
 protected:
     /* mutex for access to our statics */

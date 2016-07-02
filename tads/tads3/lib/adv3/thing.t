@@ -3081,11 +3081,10 @@ class Thing: VocabObject
         local lst;
         local lister;
         local remoteLst;
-        local outer;
         local recurse;
 
         /* get our outermost enclosing room */
-        outer = getOutermostRoom();
+        local outer = getOutermostRoom();
 
         /* mark everything visible from the room as having been seen */
         setAllSeenBy(infoTab, actor);
@@ -3184,7 +3183,7 @@ class Thing: VocabObject
 
         /* show the contents */
         lister.showList(actor, self, lst, (recurse ? ListRecurse : 0),
-                        0, infoTab, nil);
+                        0, infoTab, nil, examinee: self);
 
         /* 
          *   if we can see anything in remote top-level rooms, show the
@@ -3220,7 +3219,8 @@ class Thing: VocabObject
                  *   lister for this remote room 
                  */
                 outer.remoteRoomContentsLister(cur).showList(
-                    actor, cur, cont, ListRecurse, 0, infoTab, nil);
+                    actor, cur, cont, ListRecurse, 0, infoTab, nil,
+                    examinee: self);
             }
         }
     }
@@ -3255,7 +3255,8 @@ class Thing: VocabObject
             actor.setKnowsAbout(cur);
 
         /* list the items */
-        lister.showList(pov, nil, presenceList, 0, 0, infoTab, nil);
+        lister.showList(pov, nil, presenceList, 0, 0, infoTab, nil,
+                        examinee: self);
     }
 
     /*
@@ -4605,10 +4606,8 @@ class Thing: VocabObject
      */
     getCommonDirectContainer(obj)
     {
-        local found;
-
         /* we haven't found one yet */
-        found = nil;
+        local found = nil;
         
         /* scan each of our containers for one in common with 'loc' */
         forEachContainer(function(loc) {
@@ -4630,10 +4629,8 @@ class Thing: VocabObject
      */
     getCommonContainer(obj)
     {
-        local found;
-
         /* we haven't found one yet */
-        found = nil;
+        local found = nil;
         
         /* scan each of our containers for one in common with 'loc' */
         forEachContainer(function(loc) {
@@ -4911,10 +4908,8 @@ class Thing: VocabObject
      */
     showObjectContents(pov, lister, options, indent, infoTab)
     {
-        local cont;
-
         /* get my listable contents */
-        cont = lister.getListedContents(self, infoTab);
+        local cont = lister.getListedContents(self, infoTab);
         
         /* if the surviving list isn't empty, show it */
         if (cont != [])
@@ -8089,12 +8084,9 @@ class Thing: VocabObject
      */
     basicExamine()
     {
-        local info;
-        local t;
-        
         /* check the transparency to viewing this object */
-        info = getVisualSenseInfo();
-        t = info.trans;
+        local info = getVisualSenseInfo();
+        local t = info.trans;
 
         /*
          *   If the viewing conditions are 'obscured' or 'distant', use
@@ -8194,11 +8186,8 @@ class Thing: VocabObject
     /* list my contents for an "examine", using the given lister */
     examineListContentsWith(lister)
     {
-        local tab;
-        local lst;
-
         /* get the actor's visual sense information */
-        tab = gActor.visibleInfoTable();
+        local tab = gActor.visibleInfoTable();
 
         /* mark my contents as having been seen */
         setContentsSeenBy(tab, gActor);
@@ -8208,10 +8197,11 @@ class Thing: VocabObject
             return;
 
         /* get my listed contents for 'examine' */
-        lst = getContentsForExamine(lister, tab);
+        local lst = getContentsForExamine(lister, tab);
         
         /* show my listable contents, if I have any */
-        lister.showList(gActor, self, lst, ListRecurse, 0, tab, nil);
+        lister.showList(gActor, self, lst, ListRecurse, 0, tab, nil,
+                        examinee: self);
     }
 
     /*
@@ -8224,12 +8214,8 @@ class Thing: VocabObject
      */
     basicExamineListen(explicit)
     {
-        local obj;
-        local info;
-        local t;
-
         /* get my associated Noise object, if we have one */
-        obj = getNoise();
+        local obj = getNoise();
 
         /* 
          *   If this is not an explicit LISTEN command, only add the sound
@@ -8240,8 +8226,8 @@ class Thing: VocabObject
             return;
 
         /* get our sensory information from the actor's point of view */
-        info = getPOVDefault(gActor).senseObj(sound, self);
-        t = info.trans;
+        local info = getPOVDefault(gActor).senseObj(sound, self);
+        local t = info.trans;
 
         /*
          *   If we have a transparent path to the object, or we have
@@ -8422,18 +8408,15 @@ class Thing: VocabObject
      */
     examineSpecialContents()
     {
-        local lst;
-        local infoTab;
-        
         /* get the actor's table of visible items */
-        infoTab = gActor.visibleInfoTable();
+        local infoTab = gActor.visibleInfoTable();
 
         /* 
          *   get the objects using special descriptions and contained
          *   within this object 
          */
-        lst = specialDescList(infoTab,
-                              {obj: obj.useSpecialDescInContents(self)});
+        local lst = specialDescList(
+            infoTab, {obj: obj.useSpecialDescInContents(self)});
 
         /* show the special descriptions */
         (new SpecialDescContentsLister(self)).showList(
@@ -9201,7 +9184,7 @@ class Thing: VocabObject
         verify()
         {
             if (gAction.getDirection() == downDirection)
-                illogicalAlready(&notCarryingMsg);
+                illogicalAlready(&shouldNotThrowAtFloorMsg);
         }
         action()
         {

@@ -114,7 +114,7 @@ struct vm_tadsobj_hdr
     }
 
     /* find a property entry */
-    inline struct vm_tadsobj_prop *find_prop_entry(uint prop);
+    struct vm_tadsobj_prop *find_prop_entry(uint prop);
 
     /* allocate a new hash entry */
     vm_tadsobj_prop *alloc_prop_entry(vm_prop_id_t prop,
@@ -132,21 +132,24 @@ struct vm_tadsobj_hdr
     int has_free_entries(size_t cnt) const
         { return cnt <= (size_t)(prop_entry_free - prop_entry_cnt); }
     
+    /* cache and return the inheritance search path for this object */
+    struct tadsobj_objid_and_ptr *get_inh_search_path(VMG0_);
+
+    /* 
+     *   Inheritance search table.  We build and save the search path for any
+     *   class with multiple superclasses, because the inheritance path for a
+     *   class with multiple base classes can be somewhat time-consuming to
+     *   determine.  For objects with only one base class, we don't bother
+     *   caching a path, since the path is trivial to calculate in these
+     *   cases.  
+     */
+    struct tadsobj_objid_and_ptr *inh_path;
+
     /* load image object flags (a combination of VMTOBJ_OBJF_xxx values) */
     unsigned short li_obj_flags;
 
     /* internal object flags (a combination of VMTO_OBJ_xxx values) */
     unsigned short intern_obj_flags;
-
-    /* 
-     *   Inheritance search table.  We build and save the search path for
-     *   any class with multiple superclasses, because the inheritance path
-     *   for a class with multiple base classes can be somewhat
-     *   time-consuming to determine.  For objects with only one base class,
-     *   we don't bother caching a path, since the path is trivial to
-     *   calculate in these cases.  
-     */
-    struct tadsobj_inh_path *inh_path;
 
     /* 
      *   Number of hash buckets, and a pointer to the bucket array.  (The
@@ -264,6 +267,7 @@ class CVmObjTads: public CVmObject
 {
     friend class CVmMetaclassTads;
     friend struct tadsobj_sc_search_ctx;
+    friend struct vm_tadsobj_hdr;
     
 public:
     /* metaclass registration object */
@@ -515,6 +519,12 @@ protected:
         { get_hdr()->li_obj_flags = flags; }
 
     /* 
+     *   mark the object as modified; sets the VMTO_OBJ_MOD flag, and adds an
+     *   undo record for the transition if the flag wasn't previously set 
+     */
+    void mark_modified(VMG_ class CVmUndo *undo, vm_obj_id_t self);
+
+    /* 
      *   Allocate memory - this replaces any existing extension, so the
      *   caller must take care to free the extension (if one has already
      *   been allocated) before calling this routine.
@@ -548,9 +558,6 @@ protected:
                                     vm_obj_id_t orig_target_obj,
                                     vm_obj_id_t *source_obj,
                                     vm_obj_id_t defining_obj);
-
-    /* cache and return the inheritance search path for this object */
-    tadsobj_inh_path *get_inh_search_path(VMG0_);
 
     /* load the image file properties and superclasses */
     void load_image_props_and_scs(VMG_ const char *ptr, size_t siz);
@@ -793,21 +800,6 @@ struct tadsobj_objid_and_ptr
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Cached superclass inheritance path.  This is a linear list, in
- *   inheritance search order, of the superclasses of a given object.  
- */
-struct tadsobj_inh_path
-{
-    /* number of path elements */
-    ushort cnt;
-
-    /* path elements (we overallocate the structure to the actual size) */
-    tadsobj_objid_and_ptr sc[1];
-};
-
-
-/* ------------------------------------------------------------------------ */
-/*
  *   Queue element for the inheritance path search queue 
  */
 struct pfq_ele
@@ -929,14 +921,11 @@ public:
     }
 
     /* allocate a path from the contents of the queue */
-    tadsobj_inh_path *create_path() const
+    tadsobj_objid_and_ptr *create_path() const
     {
-        ushort cnt;
-        pfq_ele *cur;
-        tadsobj_inh_path *path;
-        tadsobj_objid_and_ptr *dst;
-
         /* count the elements in the queue */
+        int cnt;
+        pfq_ele *cur;
         for (cnt = 0, cur = head_ ; cur != 0 ; cur = cur->nxt)
         {
             /* only non-nil elements count */
@@ -945,12 +934,12 @@ public:
         }
 
         /* allocate the path */
-        path = (tadsobj_inh_path *)t3malloc(
-            sizeof(tadsobj_inh_path) + (cnt-1)*sizeof(path->sc[0]));
+        tadsobj_objid_and_ptr *path = (tadsobj_objid_and_ptr *)t3malloc(
+            (cnt + 1) * sizeof(tadsobj_objid_and_ptr));
 
         /* initialize the path */
-        path->cnt = cnt;
-        for (dst = path->sc, cur = head_ ; cur != 0 ; cur = cur->nxt)
+        tadsobj_objid_and_ptr *dst;
+        for (dst = path, cur = head_ ; cur != 0 ; cur = cur->nxt)
         {
             /* only store non-nil elements */
             if (cur->obj != VM_INVALID_OBJ)
@@ -960,6 +949,10 @@ public:
                 ++dst;
             }
         }
+
+        /* set the null last entry */
+        dst->id = VM_INVALID_OBJ;
+        dst->objp = 0;
 
         /* return the new path */
         return path;

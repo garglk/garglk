@@ -848,7 +848,10 @@ public:
      *   Generate a BigNumber object, returning the object ID.  The input
      *   text gives the source representation of the number. 
      */
-    vm_obj_id_t gen_bignum_obj(const char *txt, size_t len);
+    vm_obj_id_t gen_bignum_obj(const char *txt, size_t len, int promoted);
+
+    /* generate a RexPattern object */
+    vm_obj_id_t gen_rexpat_obj(const char *txt, size_t len);
 
 private:
     /* eliminate jump-to-jump sequences */

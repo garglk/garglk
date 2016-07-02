@@ -1151,53 +1151,62 @@ static int get_file_restype(int restype, char *fname)
 static opdef *addopdir(opdef *cur, char *nam, opctxdef *opctx)
 {
     opdef *newop;
-    void  *ctx;
-    char   fname[OSFNMAX];
-    char   fullname[OSFNMAX];
-    int    isdir;
-    char   dir_prefix[OSFNMAX];
+    char dir_prefix[OSFNMAX];
+    osdirhdl_t dirhdl;
 
     /* HTML-ize the directory prefix */
-    os_cvt_dir_url(dir_prefix, sizeof(dir_prefix), nam, TRUE);
+    os_cvt_dir_url(dir_prefix, sizeof(dir_prefix) - 1, nam);
 
-    /* find the first matching file */
-    ctx = os_find_first_file(nam, 0, fname, sizeof(fname), &isdir,
-                             fullname, sizeof(fullname));
+    /* add a '/' if the name isn't empty */
+    if (dir_prefix[0] != '\0')
+        strcat(dir_prefix, "/");
 
-    /* keep going until we run out of matching files */
-    while (ctx != 0)
+    /* search the directory */
+    if (os_open_dir(nam, &dirhdl))
     {
-        /* 
-         *   If it's a file, process it; ignore subdirectories.  $$$ We
-         *   could easily recurse here to process subdirectories, but it's
-         *   unclear how we should name resources found in subdirectories,
-         *   so we'll just ignore them entirely for now.  
-         */
-        if (!isdir)
+        char fname[OSFNMAX];
+        while (os_read_dir(dirhdl, fname, sizeof(fname)))
         {
-            char fullurl[OSFNMAX];
+            char fullname[OSFNMAX];
+            unsigned long fmode;
+            unsigned long fattr;
 
-            /* build the full name of the resource, using the URL prefix */
-            sprintf(fullurl, "%s%s", dir_prefix, fname);
-            
-            /* build a new node and link it into the list */
-            newop = (opdef *)malloc(sizeof(opdef) + strlen(fullurl)
-                                    + strlen(fullname) + 2);
-            newop->opnxt = cur;
-            newop->opflag = opctx->flag;
-            newop->oprestype = get_file_restype(opctx->restype, fname);
-            newop->opres = (char *)(newop + 1);
-            strcpy(newop->opres, fullurl);
-            newop->opfile = newop->opres + strlen(newop->opres) + 1;
-            strcpy(newop->opfile, fullname);
+            /* build the full name */
+            os_build_full_path(fullname, sizeof(fullname), nam, fname);
 
-            /* it's the new head of the list */
-            cur = newop;
+            /* 
+             *   If it's a file, process it; ignore subdirectories.  Also
+             *   skip hidden and system files.  $$$ We could easily recurse
+             *   here to process subdirectories, but it's unclear how we
+             *   should name resources found in subdirectories, so we'll just
+             *   ignore them entirely for now.
+             */
+            if (osfmode(fullname, TRUE, &fmode, &fattr)
+                && (fmode & OSFMODE_DIR) == 0
+                && (fattr & (OSFATTR_HIDDEN | OSFATTR_SYSTEM)) == 0)
+            {
+                /* build the full name of the resource, using the URL prefix */
+                char fullurl[OSFNMAX];
+                sprintf(fullurl, "%s%s", dir_prefix, fname);
+                
+                /* build a new node and link it into the list */
+                newop = (opdef *)malloc(sizeof(opdef) + strlen(fullurl)
+                                        + strlen(fullname) + 2);
+                newop->opnxt = cur;
+                newop->opflag = opctx->flag;
+                newop->oprestype = get_file_restype(opctx->restype, fname);
+                newop->opres = (char *)(newop + 1);
+                strcpy(newop->opres, fullurl);
+                newop->opfile = newop->opres + strlen(newop->opres) + 1;
+                strcpy(newop->opfile, fullname);
+                
+                /* it's the new head of the list */
+                cur = newop;
+            }
         }
 
-        /* move on to the next file */
-        ctx = os_find_next_file(ctx, fname, sizeof(fname), &isdir,
-                                fullname, sizeof(fullname));
+        /* done with the directory scan */
+        os_close_dir(dirhdl);
     }
 
     /* done - return the most recent head node */
@@ -1228,10 +1237,9 @@ static opdef *addop(opdef *cur, char *nam, opctxdef *opctx)
 {
     char  *p;
     opdef *newop;
-    void  *search_ctx;
-    char   fname[OSFNMAX];
     char   resname[OSFNMAX];
-    int    isdir;
+    unsigned long fmode;
+    unsigned long fattr;
 
     /* see if we're parsing a -type argument */
     if (opctx->doing_type)
@@ -1318,11 +1326,11 @@ static opdef *addop(opdef *cur, char *nam, opctxdef *opctx)
     else
     {
         /* 
-         *   A resource name is not specified - synthesize a resource name
-         *   based on the filename by converting from the local file
-         *   system naming syntax to a relative URL 
+         *   A resource name wasn't specified - synthesize a resource name
+         *   based on the filename by converting from the local file system
+         *   name to a relative URL 
          */
-        os_cvt_dir_url(resname, sizeof(resname), nam, FALSE);
+        os_cvt_dir_url(resname, sizeof(resname), nam);
 
         /* point p to the synthesized resource name */
         p = resname;
@@ -1333,17 +1341,9 @@ static opdef *addop(opdef *cur, char *nam, opctxdef *opctx)
      *   for the directory, expand the directory into ops for for all of
      *   the files in the directory. 
      */
-    search_ctx = os_find_first_file("", nam, fname, sizeof(fname),
-                                    &isdir, 0, 0);
-    if (search_ctx != 0)
-    {
-        /* cancel the search; we only needed the one matching file */
-        os_find_close(search_ctx);
-        
-        /* we found the file; if it's a directory, process its contents */
-        if (isdir)
-            return addopdir(cur, nam, opctx);
-    }
+    if (osfmode(nam, TRUE, &fmode, &fattr)
+        && (fmode & OSFMODE_DIR) != 0)
+        return addopdir(cur, nam, opctx);
     
     /* allocate space and set up new op */
     newop = (opdef *)malloc(sizeof(opdef) + strlen(p) + strlen(nam) + 2);

@@ -637,7 +637,7 @@ int tddmain(int argc, char **argv, appctxdef *appctx, char *save_ext)
 
     /* copyright-date-string */
     tddptf("%s - A %s TADS %s Debugger.\n"
-           "%sopyright (c) 1993, 2007 Michael J. Roberts\n",
+           "%sopyright (c) 1993, 2012 Michael J. Roberts\n",
            G_tads_oem_dbg_name, G_tads_oem_display_mode, TADS_RUNTIME_VERSION,
            G_tads_oem_copyright_prefix ? "TADS c" : "C");
     tddptf("%s\n", G_tads_oem_author);

@@ -6,18 +6,25 @@ main(args)
 {
     local comp = new StringComparator(6, nil,
         [
-         ['\u00DF', 'ss', 0x0100, 0x0200],  // Eszett, DOS Alt+225
-         ['\u00E0', 'a',  0x1000, 0x2000],  // a-grave, DOS Alt+133
-         ['\u00E1', 'a',  0x4000, 0x8000]   // a-acute, DOS Alt+160
+         ['\u00E7', 'ss', 0x0100, 0x0200],  // c-cedilla, Windows Alt+0231
+         ['\u00E0', 'a',  0x1000, 0x2000],  // a-grave, Windows Alt+0224
+         ['\u00E1', 'a',  0x4000, 0x8000]   // a-acute, Windows Alt+0225
         ]);
 
     local tests = [
         ['daﬂ', 'da\u00DF', 0x0001],  // match
         ['daﬂ', 'das',      0x0000],  // (no match)
-        ['daﬂ', 'dass',     0x0201],  // lc eszett + match
-        ['daﬂ', 'DA\u00DF', 0x0003],  // uc + match
+        ['daﬂ', 'dass',     0x0003],  // uc + match (case folding ﬂ to ss)
+        ['daﬂ', 'DAﬂ',      0x0003],  // uc + match
         ['daﬂ', 'DAS',      0x0000],  // (no match)
-        ['daﬂ', 'DASS',     0x0103],  // uc eszett + uc + match
+        ['daﬂ', 'DASS',     0x0003],  // uc + match (folding SS *and* ﬂ to ss)
+
+        ['daÁ', 'daÁ',      0x0001],  // match
+        ['daÁ', 'das',      0x0000],  // (no match)
+        ['daÁ', 'dass',     0x0201],  // c-cedilla/ss + match
+        ['daÁ', 'DAÁ',      0x0003],  // uc + match
+        ['daÁ', 'DAS',      0x0000],  // (no match)
+        ['daÁ', 'DASS',     0x0103],  // uc + c-cedilla/ss + match
 
         ['h‡t', 'h\u00E0t', 0x0001],  // match
         ['h‡t', 'hat',      0x2001],  // lc a-grave + match

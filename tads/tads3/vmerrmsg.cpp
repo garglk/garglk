@@ -107,13 +107,26 @@ const err_msg_t vm_messages_english[] =
     "data packer argument type mismatch at format string index %d",
     VMsg("Data packer argument type mismatch. The type of the argument "
          "doesn't match the format code at character index %d in the "
-         "format string.") },
+    "format string.") },
 
     { VMERR_PACK_ARGC_MISMATCH,
     "wrong number of data packer arguments at format string index %d",
     VMsg("Wrong number of arguments to the data packer. The number of "
          "argument values doesn't match the number of elements in the "
          "format string.") },
+
+    { VMERR_NET_FILE_NOIMPL,
+    "this file operation isn't supported for storage server files",
+    VMsg("This file operation isn't supported for storage server files. "
+         "This operation can only be used with local disk files.") },
+
+    { VMERR_RENAME_FILE,
+    "error renaming file",
+    VMsg("An error occurred renaming the file. The new name might already "
+         "be used by an existing file, you might not have the necessary "
+         "permissions in the new or old directory locations, or the "
+         "new name might be in an incompatible location, such as on "
+         "a different device or volume." ) },
 
     { VMERR_OBJ_IN_USE,
     "object ID in use - the image/save file might be corrupted",
@@ -782,24 +795,30 @@ const err_msg_t vm_messages_english[] =
     "'abort' signal",
     VMsg("'abort' signal")
     VBook("This exception is used internally by the debugger to "
-    "signal program termination via the debugger UI.") },
+          "signal program termination via the debugger UI.") },
 
     { VMERR_DBG_RESTART,
     "'restart' signal",
     VMsg("'restart' signal")
     VBook("This exception is used internally by the debugger to "
-    "signal program restart via the debugger UI.") },
+          "signal program restart via the debugger UI.") },
 
     { VMERR_DBG_HALT,
     "debugger VM halt",
     VMsg("debugger VM halt")
     VBook("This exception is used internally by the debugger to "
-    "signal program termination via the debugger UI.") },
+          "signal program termination via the debugger UI.") },
 
     { VMERR_DBG_INTERRUPT,
     "interrupted by user",
     VMsg("The program was interrupted by a user interrupt key or "
-    "other action.") },
+         "other action.") },
+
+    { VMERR_NO_DEBUGGER,
+    "no debugger available",
+    VMsg("An instruction was encountered that requires the debugger, "
+         "but this interpreter version doesn't include debugging "
+         "capaabilities.") },
 
     { VMERR_BAD_FRAME,
     "invalid frame in debugger local/parameter evaluation",

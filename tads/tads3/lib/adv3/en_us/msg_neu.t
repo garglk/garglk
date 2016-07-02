@@ -910,6 +910,11 @@ libMessages: MessageHelper
     inputScriptFailed = "<.parser>Failed; the script input file could
         not be opened.<./parser> "
         
+    /* exception opening input script */
+    inputScriptFailedException(exc)
+    {
+        "<.parser>Failed; <<exc.displayException>><./parser> ";
+    }
 
     /* get the scripting inputFile prompt message */
     getScriptingPrompt = 'Please select a name for the new script file'
@@ -934,6 +939,12 @@ libMessages: MessageHelper
     scriptingFailed = "<.parser>Failed; an error occurred opening
         the script file.<./parser> "
 
+    /* scripting failed with an exception */
+    scriptingFailedException(exc)
+    {
+        "<.parser>Failed; <<exc.displayException>><./parser>";
+    }
+
     /* acknowledge cancellation of script file dialog */
     scriptingCanceled = "<.parser>Canceled.<./parser> "
 
@@ -956,6 +967,12 @@ libMessages: MessageHelper
     /* recording failed */
     recordingFailed = "<.parser>Failed; an error occurred opening
         the command recording file.<./parser> "
+
+    /* recording failed with exception */
+    recordingFailedException(exc)
+    {
+        "<.parser>Failed; <<exc.displayException()>><./parser> ";
+    }
 
     /* acknowledge cancellation */
     recordingCanceled = "<.parser>Canceled.<./parser> "
@@ -4740,20 +4757,6 @@ thingContentsLister: ContentsLister, BaseThingContentsLister
 ;
 
 /*
- *   Contents lister for openable things.
- */
-openableContentsLister: thingContentsLister
-    showListEmpty(pov, parent)
-    {
-        "\^<<parent.openStatus>>. ";
-    }
-    showListPrefixWide(itemCount, pov, parent)
-    {
-        "\^<<parent.openStatus>>, and contain<<parent.verbEndingSEd>> ";
-    }
-;
-
-/*
  *   Contents lister for descriptions of things - this is used to display
  *   the contents of a thing as part of the long description of the thing
  *   (in response to an "examine" command); it differs from a regular
@@ -4764,6 +4767,20 @@ openableContentsLister: thingContentsLister
 thingDescContentsLister: DescContentsLister, BaseThingContentsLister
     showListPrefixWide(itemCount, pov, parent)
         { "\^<<parent.itVerb('contain')>> "; }
+;
+
+/*
+ *   Contents lister for openable things.
+ */
+openableDescContentsLister: thingDescContentsLister
+    showListEmpty(pov, parent)
+    {
+        "\^<<parent.openStatus>>. ";
+    }
+    showListPrefixWide(itemCount, pov, parent)
+    {
+        "\^<<parent.openStatus>>, and contain<<parent.verbEndingSEd>> ";
+    }
 ;
 
 /*

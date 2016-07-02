@@ -53,7 +53,7 @@ if %tstmakerun%==NO goto :doSkipRun
 echo 'Make' test: %1
 
 if %tstscript%# == YES# set tstscript=-I %tstdat%\%1.in
-%tstbin%\capture >>%tstout%\%1.log %tstbin%\test_exec %tstscript% -cs %tstCodePage% -norand %tstout%\%1.t3
+%tstbin%\capture >>%tstout%\%1.log %tstbin%\test_exec -sd %tstroot% %tstscript% -cs %tstCodePage% -norand %tstout%\%1.t3
 
 
 :doSkipRun

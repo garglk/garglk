@@ -497,6 +497,15 @@ public:
     class CTcMakePath *add_sys_source_path(const textchar_t *dir);
 
     /*
+     *   Set the "create directories" flag.  This is false by default.  If
+     *   set, we'll create the directories named in the various output
+     *   file/path options if they don't already exist.  Specifically, we'll
+     *   create the directories named in set_symbol_dir(), set_object_dir(),
+     *   and set_image_file() options.
+     */
+    void set_create_dirs(int flag) { create_dirs_ = flag; }
+
+    /*
      *   Set the symbol file directory.  Any symbol file that doesn't have
      *   an absolute path will default to this directory. 
      */
@@ -652,6 +661,17 @@ public:
     void get_symfile(textchar_t *dst, CTcMakeModule *mod);
     void get_objfile(textchar_t *dst, CTcMakeModule *mod);
 
+    /*
+     *   Create a directory if it doesn't already exist.  If 'is_file' is
+     *   true, the path includes both a directory path and a filename, in
+     *   which case we'll create the directory containing the file as
+     *   specified in the path.  If 'is_file' is false, the path specifies a
+     *   directory name directly, with no filename attached.  If an error
+     *   occurs, we'll generate a message and count it in the error count.
+     */
+    void create_dir(class CTcHostIfc *hostifc,
+                    const char *path, int is_file, int *errcnt);
+
 private:
     /* scan all modules for name collisions with other modules */
     void check_all_module_collisions(class CTcHostIfc *hostifc,
@@ -723,6 +743,9 @@ private:
 
     /* default source file character set */
     char *source_charset_;
+
+    /* flag: create output directories if they don't exist */
+    int create_dirs_;
 
     /* symbol file directory */
     CTcMakeStr symdir_;

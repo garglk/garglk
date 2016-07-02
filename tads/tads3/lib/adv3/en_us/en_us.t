@@ -3974,7 +3974,7 @@ langMessageBuilder: MessageBuilder
              *   Check if this special sequence matches our tense-switching
              *   syntax.
              */
-            if (nil == rexMatch(patTenseSwitching, str, idx))
+            if (rexMatch(patTenseSwitching, str, idx) == nil)
             {
                 /*
                  *   It doesn't, so forget about it and continue searching
@@ -5413,7 +5413,11 @@ grammar singleNoun(normal): singleNounOnly->np_ : LayeredNounPhraseProd
  *   when we have no choice.
  */
 grammar singleNoun(empty): [badness 500] : EmptyNounPhraseProd
-    responseProd = singleNoun
+    /* use a nil responseProd, so that we get the phrasing from the action */
+    responseProd = nil
+
+    /* the fallback responseProd, if we can't get one from the action */
+    fallbackResponseProd = singleNoun
 ;
 
 /*
@@ -5460,6 +5464,15 @@ class PrepSingleNounProd: SingleNounProd
     resolveNouns(resolver, results)
     {
         return np_.resolveNouns(resolver, results);
+    }
+
+    /* 
+     *   If the response starts with a preposition, it's pretty clearly a
+     *   response to the special query rather than a new command. 
+     */
+    isSpecialResponseMatch()
+    {
+        return (np_ != nil && np_.firstTokenIndex > 1);
     }
 ;
 

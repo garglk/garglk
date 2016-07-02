@@ -81,7 +81,7 @@ vm_bif_entry_t G_bif_reg_table[] =
     MAKE_ENTRY("t3vmTEST/010000", CVmBifT3Test),
     
     /* TADS generic data manipulation functions */
-    MAKE_ENTRY("tads-gen/030005", CVmBifTADS),
+    MAKE_ENTRY("tads-gen/030008", CVmBifTADS),
 
     // Our sample function set for the t3core build
     MAKE_ENTRY("core-sample/010000", CVmBifSample),

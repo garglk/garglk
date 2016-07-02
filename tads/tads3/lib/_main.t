@@ -30,6 +30,9 @@ _main(args)
     _mainCommon(args, nil);
 }
 
+/* declare 'main' as a function, in case it's not otherwise defined */
+extern function main;
+
 /*
  *   Main program entrypoint for restoring a saved state.  The VM invokes
  *   this function at startup instead of _main() when the user explicitly
@@ -109,7 +112,7 @@ _mainCommon(args, restoreFile)
                     }
 
                     /* call the selected main entrypoint */
-                    main(args);
+                    flexcall(&main, args);
                 }
 
                 /* 
@@ -168,6 +171,41 @@ _mainCommon(args, restoreFile)
         /* before exiting, call registered exit handlers */
         mainAtExit.callHandlers();
     }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Flexible function call.  This calls the given function, passing as
+ *   many arguments from the given argument list as the function actually
+ *   wants.  If the list doesn't have enough arguments to satisfy the
+ *   function's minimum requirements, we add 'nil' arguments to pad out the
+ *   minimum.  If the list exceeds the function's maximum, we drop
+ *   arguments past the maximum.
+ */
+flexcall(func, [args])
+{
+    /* get the function's desired argument list */
+    local paramDesc = getFuncParams(func);
+
+    /* add or remove arguments as needed to fit the limits */
+    local n = args.length();
+    if (n < paramDesc[1])
+    {
+        /* we need more to satisfy the minimum - add nil values */
+        args += makeList(nil, paramDesc[1] - n);
+    }
+    else if (n > paramDesc[1] + paramDesc[2] && !paramDesc[3])
+    {
+        /* 
+         *   the function doesn't take infinite arguments, and we have more
+         *   than it allows in the fixed plus optional parts, so drop the
+         *   extra elements 
+         */
+        args = args.sublist(1, paramDesc[1] + paramDesc[2]);
+    }
+
+    /* call the function */
+    func(args...);
 }
 
 /* ------------------------------------------------------------------------ */

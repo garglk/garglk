@@ -167,7 +167,7 @@ static char *TranslateExec[] = { "ZCOD", "zcode",
                                  "TAD3", "tads3",
                                  NULL, NULL };
 
-void *my_malloc(int32, char *);
+void *my_malloc(unsigned int, char *);
 int32 ifiction_get_IFID(char *, char *, int32);
 
 static uint32 read_int(void *inp)

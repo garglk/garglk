@@ -32,7 +32,7 @@ Modified
 #include "os.h"
 #include <assert.h>
 
-#if defined(__DPMI16__) || defined(__WIN32__)
+#if defined(__DPMI16__) || defined(T_WIN32)
 # include <windows.h>
 #endif
 

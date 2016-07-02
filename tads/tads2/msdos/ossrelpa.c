@@ -1,3 +1,9 @@
+#if 0
+// THIS FILE IS DEPRECATED.  The MSDOS-specific oss_get_rel_path() has
+// been promoted (as of TADS 3.1.1, March 2012) to a general-purpose
+// osifc routine, os_get_rel_path(), so the implementation has been moved
+// to tads2/osnoui.c.
+
 #ifdef RCSID
 static char RCSid[] =
 "$Header$";
@@ -202,3 +208,5 @@ int main(int argc, char **argv)
 }
 
 #endif
+
+#endif // #if 0 - FILE DEPRECATED

@@ -10,38 +10,38 @@
 #include <stdio.h>
 #include "t3std.h"
 
-#define INT32_BIT (sizeof(int32) * CHAR_BIT)
+#define INT32_BIT (sizeof(int32_t) * CHAR_BIT)
 
-static void native_ashr(int32 a, int32 b, int32 target)
+static void native_ashr(int32_t a, int32_t b, int32_t target)
 {
-    int32 actual = a >> b;
+    int32_t actual = a >> b;
     printf("signed %ld >> %ld = %ld", a, b, actual);
     if (actual != target)
         printf(" *** Expected %ld ***", target);
     printf("\n");
 }
 
-static void native_lshr(int32 a, int32 b, int32 target)
+static void native_lshr(int32_t a, int32_t b, int32_t target)
 {
-    int32 actual = (int32)(((uint32)a) >> ((uint32)b));
+    int32_t actual = (int32_t)(((uint32_t)a) >> ((uint32_t)b));
     printf("unsigned %ld >> %ld = %ld", a, b, actual);
     if (actual != target)
         printf(" *** Expected %ld ***", target);
     printf("\n");
 }
 
-static void custom_ashr(int32 a, int32 b, int32 target)
+static void custom_ashr(int32_t a, int32_t b, int32_t target)
 {
-    int32 actual = t3_ashr(a, b);
+    int32_t actual = t3_ashr(a, b);
     printf("%ld ASHR %ld = %ld", a, b, actual);
     if (actual != target)
         printf(" *** Expected %ld ***", target);
     printf("\n");
 }
 
-static void custom_lshr(int32 a, int32 b, int32 target)
+static void custom_lshr(int32_t a, int32_t b, int32_t target)
 {
-    int32 actual = t3_lshr(a, b);
+    int32_t actual = t3_lshr(a, b);
     printf("%ld LSHR %ld = %ld", a, b, actual);
     if (actual != target)
         printf(" *** Expected %ld ***", target);

@@ -384,7 +384,7 @@ aioInputFile(prompt, dialogType, fileType, flags)
     aioLogInputEvent(
         ['<file>',
          f[1] != InFileSuccess ? '' :
-         dataType(f[2]) == TypeObject ? 't' :
+         dataType(f[2]) == TypeObject && !f[2].ofKind(FileName) ? 't' :
          f[2]]);
     
     /* return the file information */

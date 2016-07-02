@@ -242,7 +242,7 @@ int getnoun()
 	anums[aptr] = wptr - words - 1;
 	aptr++;
     }
-    adjs[aptr++] = NULL;
+    adjs[aptr++] = 0;
 
     /* get the noun itself */
     if (*wptr == NIL || wtype(*wptr) != WT_NOUN) {

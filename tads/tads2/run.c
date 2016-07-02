@@ -1236,19 +1236,22 @@ resume_from_error:
 
         case OPCMUL:
             val.runstyp = DAT_NUMBER;
-            val.runsv.runsvnum = runpopnum(ctx) * runpopnum(ctx);
+            val.runsv.runsvnum = runpopnum(ctx);
+            val.runsv.runsvnum *= runpopnum(ctx);
             runrepush(ctx, &val);
             break;
             
         case OPCBAND:
             val.runstyp = DAT_NUMBER;
-            val.runsv.runsvnum = runpopnum(ctx) & runpopnum(ctx);
+            val.runsv.runsvnum = runpopnum(ctx);
+            val.runsv.runsvnum &= runpopnum(ctx);
             runrepush(ctx, &val);
             break;
             
         case OPCBOR:
             val.runstyp = DAT_NUMBER;
-            val.runsv.runsvnum = runpopnum(ctx) | runpopnum(ctx);
+            val.runsv.runsvnum = runpopnum(ctx);
+            val.runsv.runsvnum |= runpopnum(ctx);
             runrepush(ctx, &val);
             break;
 
@@ -1281,7 +1284,8 @@ resume_from_error:
             {
                 /* numeric value - return binary xor */
                 val.runstyp = DAT_NUMBER;
-                val.runsv.runsvnum = runpopnum(ctx) ^ runpopnum(ctx);
+                val.runsv.runsvnum = runpopnum(ctx);
+                val.runsv.runsvnum ^= runpopnum(ctx);
             }
             runrepush(ctx, &val);
             break;
@@ -1771,6 +1775,7 @@ resume_from_error:
             
         case OPCCALLEXT:
             {
+#if 0 // external functions are now obsolete
                 static runufdef uf =
                 {
                     runuftyp,  runufnpo,  runufspo,  runufdsc,
@@ -1779,6 +1784,7 @@ resume_from_error:
                 };
                 int        fn;
                 runxdef   *ex;
+
                 runuxdef   ux;
                 
                 /* set up callback context */
@@ -1790,10 +1796,6 @@ resume_from_error:
                 p += 2;
                 ex = &ctx->runcxext[fn];
                 
-#if 0
-/*
- *   External functions are now obsolete - do not attempt to call 
- */
                 if (!ex->runxptr)
                 {
                     if ((ex->runxptr = os_exfil(ex->runxnam)) == 0)
@@ -1803,6 +1805,10 @@ resume_from_error:
                     runsig1(ctx, ERR_EXTRUN, ERRTSTR, ex->runxnam);
 #else
                 /* external functions are obsolete - throw an error */
+                runxdef *ex;
+                p += 1;
+                ex = &ctx->runcxext[osrp2(p)];
+                p += 2;
                 runsig1(ctx, ERR_EXTRUN, ERRTSTR, ex->runxnam);
 #endif
             }

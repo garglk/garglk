@@ -17,8 +17,6 @@
  * USA
  */
 
-#undef _WIN32   /* Gargoyle */
-
 /*
  * Module notes:
  *
@@ -38,6 +36,8 @@
 #include "glk.h"
 
 #include "scprotos.h" /* for SCARE_VERSION */
+
+#undef _WIN32   /* Gargoyle */
 
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need

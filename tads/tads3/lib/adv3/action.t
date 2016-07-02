@@ -2966,6 +2966,13 @@ class Action: BasicProd
      *   should be allowed to proceed and do nothing.  
      */
     verifiedOkay = []
+
+    /*
+     *   Get the missing object response production for a given resolver
+     *   role.  (The base action doesn't have any objects, so there's no
+     *   such thing as a missing object query.)
+     */
+    getObjResponseProd(resolver) { return nil; }
 ;
 
 /*
@@ -3025,6 +3032,18 @@ class IAction: Action
          */
         doActionOnce();
     }
+;
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   "All" and "Default" are a pseudo-actions used for dobjFor(All),
+ *   iobjFor(Default), and similar catch-all handlers.  These are never
+ *   executed as actual actions, but we define them so that dobjFor(All)
+ *   and the like won't generate any warnings for undefined actions.
+ */
+class AllAction: object
+;
+class DefaultAction: object
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -3162,10 +3181,8 @@ class TAction: Action, Resolver
      */
     createForMissingDobj(orig, asker)
     {
-        local action;
-
         /* create the action for a retry */
-        action = createForRetry(orig);
+        local action = createForRetry(orig);
 
         /* use an empty noun phrase for the new action's direct object */
         action.dobjMatch = new EmptyNounPhraseProd();
@@ -3202,6 +3219,17 @@ class TAction: Action, Resolver
      *   the appropriate preposition in the response.  
      */
     askDobjResponseProd = nounList
+
+    /* get the missing object response production for a given role */
+    getObjResponseProd(resolver)
+    {
+        /* if it's the direct object, return the dobj response prod */
+        if (resolver.whichObject == DirectObject)
+            return askDobjResponseProd;
+
+        /* otherwise use the default handling */
+        return inherited(resolver);
+    }
 
     /*
      *   Can the direct object potentially resolve to the given simulation
@@ -3937,14 +3965,11 @@ class TIAction: TAction
      */
     retryWithAmbiguousIobj(orig, objs, asker, objPhrase)
     {
-        local action;
-        local resolver;
-        
         /* create a missing-indirect-object replacement action */
-        action = createForMissingIobj(orig, asker);
+        local action = createForMissingIobj(orig, asker);
 
         /* reduce the object list to the objects in scope */
-        resolver = action.getIobjResolver(gIssuingActor, gActor, true);
+        local resolver = action.getIobjResolver(gIssuingActor, gActor, true);
         objs = objs.subset({x: resolver.objInScope(x)});
 
         /* plug in the ambiguous indirect object list */
@@ -3984,10 +4009,8 @@ class TIAction: TAction
      */
     createForMissingIobj(orig, asker)
     {
-        local action;
-        
         /* create the new action based on the original action */
-        action = createForRetry(orig);
+        local action = createForRetry(orig);
 
         /* use an empty noun phrase for the new action's indirect object */
         action.iobjMatch = new EmptyNounPhraseProd();
@@ -4062,6 +4085,17 @@ class TIAction: TAction
      *   the appropriate preposition in the response.  
      */
     askIobjResponseProd = singleNoun
+
+    /* get the missing object response production for a given role */
+    getObjResponseProd(resolver)
+    {
+        /* if it's the indirect object, return the iobj response prod */
+        if (resolver.whichObject == IndirectObject)
+            return askIobjResponseProd;
+
+        /* otherwise use the default handling */
+        return inherited(resolver);
+    }
 
     /*
      *   Resolution order - returns DirectObject or IndirectObject to

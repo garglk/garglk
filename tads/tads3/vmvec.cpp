@@ -49,9 +49,10 @@ Modified
  *   allocation size (OSMALMAX) divided by the element size (DATAHOLDER)
  *   divided minus overhead. 
  */
-const int32 VEC_MAX_BY_ALO = (int32)(OSMALMAX/(VMB_DATAHOLDER + 1.0/8)) - 4;
-const int32 VEC_MAX_ELEMENTS = (VEC_MAX_BY_ALO < 0xFFFF
-                                ? VEC_MAX_BY_ALO : 0xFFFF);
+const int32_t VEC_MAX_BY_ALO =
+    (int32_t)(OSMALMAX/(VMB_DATAHOLDER + 1.0/8)) - 4;
+const int32_t VEC_MAX_ELEMENTS =
+    (VEC_MAX_BY_ALO < 0xFFFF ? VEC_MAX_BY_ALO : 0xFFFF);
 
 
 /* ------------------------------------------------------------------------ */
@@ -561,15 +562,39 @@ int CVmObjVector::get_prop(VMG_ vm_prop_id_t prop, vm_val_t *retval,
  */
 void CVmObjVector::expand_by(VMG_ vm_obj_id_t self, size_t added_elements)
 {
-    size_t new_ele_cnt;
-
     /* calculate the element count */
-    new_ele_cnt = get_element_count() + added_elements;
+    size_t new_ele_cnt = get_element_count() + added_elements;
     
     /* remember the new size, saving undo */
     set_element_count_undo(vmg_ self, new_ele_cnt);
 }
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Append an element, with no undo 
+ */
+void CVmObjVector::append_element(VMG_ vm_obj_id_t self, const vm_val_t *val)
+{
+    /* expand the vector if necessary */
+    size_t cnt = get_element_count();
+    if (cnt >= get_allocated_count())
+    {
+        /* expand by 50% of the current size, or at least 5 new elements */
+        int inc = cnt/2;
+        if (inc < 5)
+            inc = 5;
+
+        /* do the expansion */
+        expand_by(vmg_ self, inc);
+    }
+
+    /* set the element */
+    set_element(cnt, val);
+
+    /* count it in the vector */
+    set_element_count(cnt+1);
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -729,14 +754,12 @@ void CVmObjVector::mark_undo_ref(VMG_ CVmUndoRecord *rec)
  */
 void CVmObjVector::mark_refs(VMG_ uint state)
 {
-    size_t cnt;
-    char *p;
-
     /* get my element count */
-    cnt = get_element_count();
+    size_t cnt = get_element_count();
 
     /* mark as referenced each object in the vector */
-    for (p = get_element_ptr(0) ; cnt != 0 ; --cnt, inc_element_ptr(&p))
+    for (char *p = get_element_ptr(0) ; cnt != 0 ;
+         --cnt, inc_element_ptr(&p))
     {
         /* 
          *   if this is an object, mark it as referenced, and mark its
@@ -839,13 +862,11 @@ void CVmObjVector::load_image_data(VMG_ const char *ptr, size_t siz)
 int CVmObjVector::index_val_q(VMG_ vm_val_t *result, vm_obj_id_t,
                               const vm_val_t *index_val)
 {
-    uint32 idx;
-
     /* get the index value as an integer */
-    idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* make sure it's in range - 1 to our element count, inclusive */
-    if (idx < 1 || idx > get_element_count())
+    if (idx < 1 || (uint32_t)idx > get_element_count())
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* 
@@ -867,10 +888,8 @@ int CVmObjVector::set_index_val_q(VMG_ vm_val_t *new_container,
                                   const vm_val_t *index_val,
                                   const vm_val_t *new_val)
 {
-    uint32 idx;
-
     /* get the index value as an integer */
-    idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* make sure it's at least 1 */
     if (idx < 1)
@@ -880,7 +899,7 @@ int CVmObjVector::set_index_val_q(VMG_ vm_val_t *new_container,
      *   if it's higher than the current length, extend the vector with nil
      *   entries to the requested size 
      */
-    if (idx > get_element_count())
+    if ((uint32_t)idx > get_element_count())
     {
         size_t i;
         vm_val_t nil_val;
@@ -2406,8 +2425,8 @@ int CVmObjVector::getp_set_length(VMG_ vm_obj_id_t self, vm_val_t *retval,
                                   uint *argc)
 {
     size_t old_len;
-    int32 new_len;
-    int32 idx;
+    int32_t new_len;
+    int32_t idx;
     vm_val_t nil_val;
     static CVmNativeCodeDesc desc(1);
     
@@ -2990,6 +3009,30 @@ int CVmObjVector::getp_join(VMG_ vm_obj_id_t self, vm_val_t *retval,
     return CVmObjList::getp_join(vmg_ retval, &vself, 0, argc);
 }
 
+/*
+ *   C++ interface to join() 
+ */
+void CVmObjVector::join(VMG_ vm_val_t *retval, vm_obj_id_t self,
+                        const char *sep, size_t sep_len) const
+{
+    vm_val_t vself;
+    vself.set_obj(self);
+    return CVmObjList::join(vmg_ retval, &vself, sep, sep_len);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Explicitly convert to a string 
+ */
+const char *CVmObjVector::explicit_to_string(
+    VMG_ vm_obj_id_t self, vm_val_t *new_str, int radix, int flags) const
+{
+    /* use the generic list converter */
+    vm_val_t vself;
+    vself.set_obj(self);
+    return CVmObjList::list_to_string(vmg_ new_str, &vself, radix, flags);
+}
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Property evaluator - generate a new vector
@@ -3011,7 +3054,7 @@ int CVmObjVector::static_getp_generate(VMG_ vm_val_t *retval, uint *in_argc)
         err_throw(VMERR_BAD_TYPE_BIF);
 
     /* get the count */
-    int cnt = G_stk->get(1)->num_to_int();
+    int32_t cnt = G_stk->get(1)->num_to_int(vmg0_);
 
     /* make sure it's not negative */
     if (cnt < 0)

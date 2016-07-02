@@ -57,14 +57,12 @@ char *lib_alloc_str(size_t len)
  */
 char *lib_copy_str(const char *str, size_t len)
 {
-    char *buf;
-
     /* if the source string is null, just return null as the result */
     if (str == 0)
         return 0;
 
     /* allocate space */
-    buf = lib_alloc_str(len);
+    char *buf = lib_alloc_str(len);
 
     /* if that succeeded, make a copy */
     if (buf != 0)
@@ -144,6 +142,268 @@ int lib_strequal_collapse_spaces(const char *a, size_t a_len,
      */
     return (ap.getptr() == a_end && bp.getptr() == b_end);
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Utility routine: do a case-insensitive comparison of two UTF-8 strings.
+ *   Returns strcmp-style results: negative if a < b, 0 if a == b, positive
+ *   if a > b.
+ *   
+ *   If 'bmatchlen' is null, it means that the two strings must have the same
+ *   number of characters.  Otherwise, we'll return 0 (equal) if 'a' is a
+ *   leading substring of 'b', and fill in '*bmatchlen' with the length in
+ *   bytes of the 'b' string that we matched.  This might differ from the
+ *   length of the 'a' string because of case folding.  To match as a leading
+ *   substring, we have to match to a character boundary.  E.g., we won't
+ *   match "weis" as a leading substring of "weiß": while "weis" is indeed a
+ *   leading substring of "weiss", which is the case-folded version of
+ *   "weiß", it doesn't end at a character boundary in the original.
+ */
+int t3_compare_case_fold(
+    const char *a, size_t alen,
+    const char *b, size_t blen, size_t *bmatchlen)
+{
+    /* set up folded-case string readers for the two strings */
+    Utf8FoldStr ap(a, alen), bp(b, blen);
+
+    /* scan until we find a mismatch or run out of one string */
+    while(ap.more() && bp.more())
+    {
+        /* get the next character of each string */
+        wchar_t ach = ap.getch(), bch = bp.getch();
+
+        /* if they're different, return the sign difference */
+        if (ach != bch)
+            return ach - bch;
+    }
+
+    /* 
+     *   if 'a' ran out first, and we have a 'bmatchlen' pointer, then we're
+     *   being asked if 'a' is a leading substring of 'b', which it is - fill
+     *   in '*bmatchlen' with the length of 'b' that we matched, and return
+     *   ture 
+     */
+    if (bmatchlen != 0 && !ap.more() && bp.at_boundary())
+    {
+        *bmatchlen = bp.getptr() - b;
+        return 0;
+    }
+
+    /* which ran out first was shorter, so sorts first */
+    return ap.more() ? 1 : bp.more() ? -1 : 0;
+}
+
+/*
+ *   compare a wchar_t string against a utf-8 string with case folding
+ */
+int t3_compare_case_fold(
+    const wchar_t *a, size_t alen,
+    const char *b, size_t blen, size_t *bmatchlen)
+{
+    /* set up folded-case string readers for the two strings */
+    CVmCaseFoldStr ap(a, alen);
+    Utf8FoldStr bp(b, blen);
+
+    /* scan until we find a mismatch or run out of one string */
+    while (ap.more() && bp.more())
+    {
+        /* get the next character of each string */
+        wchar_t ach = ap.getch(), bch = bp.getch();
+
+        /* if they're different, return the sign difference */
+        if (ach != bch)
+            return ach - bch;
+    }
+
+    /* 
+     *   if 'a' ran out first, and we have a 'bmatchlen' pointer, then we're
+     *   being asked if 'a' is a leading substring of 'b', which it is - fill
+     *   in '*bmatchlen' with the length of 'b' that we matched, and return
+     *   ture 
+     */
+    if (bmatchlen != 0 && !ap.more() && bp.at_boundary())
+    {
+        *bmatchlen = bp.getptr() - b;
+        return 0;
+    }
+
+    /* which ran out first was shorter, so sorts first */
+    return ap.more() ? 1 : bp.more() ? -1 : 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Compare the minimum number of characters in each string with case
+ *   folding. 
+ */
+int t3_compare_case_fold_min(
+    utf8_ptr &a, size_t &alen, utf8_ptr &b, size_t &blen)
+{
+    /* if either is empty, there can be no match (unless both are empty) */
+    if (alen == 0 || blen == 0)
+        return alen - blen;
+
+    /* set up folded-case string readers for the two strings */
+    Utf8FoldStr ap(a.getptr(), alen), bp(b.getptr(), blen);
+
+    /* 
+     *   Scan until we're at a boundary in both strings.  Note that we start
+     *   at a boundary, so always compare at least one character. 
+     */
+    do
+    {
+        /* get the next character of each string */
+        wchar_t ach = ap.getch(), bch = bp.getch();
+
+        /* if they're different, return the sign difference */
+        if (ach != bch)
+            return ach - bch;
+    }
+    while (!ap.at_boundary() || !bp.at_boundary());
+
+    /* 
+     *   If we made it to a boundary in each string without finding a
+     *   difference, we have a match.  Advance each string past the matched
+     *   text.
+     */
+    size_t ainc = ap.getptr() - a.getptr();
+    alen -= ainc;
+    a.inc_bytes(ainc);
+
+    size_t binc = bp.getptr() - b.getptr();
+    blen -= binc;
+    b.inc_bytes(binc);
+
+    /* return "equal" */
+    return 0;
+}
+
+int t3_compare_case_fold_min(
+    utf8_ptr &a, size_t &alen, const wchar_t *&b, size_t &blen)
+{
+    /* if either is empty, there can be no match (unless both are empty) */
+    if (alen == 0 || blen == 0)
+        return alen - blen;
+
+    /* set up folded-case string readers for the two strings */
+    Utf8FoldStr ap(a.getptr(), alen);
+    CVmCaseFoldStr bp(b, blen);
+
+    /* 
+     *   Scan until we're at a boundary in both strings.  Note that we start
+     *   at a boundary, so always compare at least one character. 
+     */
+    do
+    {
+        /* get the next character of each string */
+        wchar_t ach = ap.getch(), bch = bp.getch();
+
+        /* if they're different, return the sign difference */
+        if (ach != bch)
+            return ach - bch;
+    }
+    while (!ap.at_boundary() || !bp.at_boundary());
+
+    /* 
+     *   If we made it to a boundary in each string without finding a
+     *   difference, we have a match.  Advance each string past the matched
+     *   text.
+     */
+    size_t ainc = ap.getptr() - a.getptr();
+    alen -= ainc;
+    a.inc_bytes(ainc);
+
+    blen -= bp.getptr() - b;
+    b = bp.getptr();
+
+    /* return "equal" */
+    return 0;
+}
+
+int t3_compare_case_fold_min(
+    const wchar_t* &a, size_t &alen, const wchar_t* &b, size_t &blen)
+{
+    /* if either is empty, there can be no match (unless both are empty) */
+    if (alen == 0 || blen == 0)
+        return alen - blen;
+
+    /* set up folded-case string readers for the two strings */
+    CVmCaseFoldStr ap(a, alen), bp(b, blen);
+
+    /* 
+     *   Scan until we're at a boundary in both strings.  Note that we start
+     *   at a boundary, so always compare at least one character. 
+     */
+    do
+    {
+        /* get the next character of each string */
+        wchar_t ach = ap.getch(), bch = bp.getch();
+
+        /* if they're different, return the sign difference */
+        if (ach != bch)
+            return ach - bch;
+    }
+    while (!ap.at_boundary() || !bp.at_boundary());
+
+    /* 
+     *   If we got this far, we made it to a boundary in each string without
+     *   finding a difference, so we have a match.  Advance each string past
+     *   the matched text.
+     */
+    alen -= ap.getptr() - a;
+    a = ap.getptr();
+
+    blen -= bp.getptr() - b;
+    b = bp.getptr();
+
+    /* return "equal" */
+    return 0;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Limited-length atoi 
+ */
+int lib_atoi(const char *str, size_t len)
+{
+    /* parse the sign, if present */
+    int s = 1;
+    if (len >= 1 && *str == '-')
+        s = -1, ++str, --len;
+    else if (len >= 1 && *str == '+')
+        ++str, --len;
+
+    /* scan digits */
+    int acc;
+    for (acc = 0 ; len > 0 && is_digit(*str) ;
+         acc *= 10, acc += value_of_digit(*str), ++str, --len) ;
+
+    /* apply the sign and return the result */
+    return s * acc;
+}
+
+/*
+ *   Limited-length atoi, with auto-advance of the string
+ */
+int lib_atoi_adv(const char *&str, size_t &len)
+{
+    /* parse the sign, if present */
+    int s = 1;
+    if (len >= 1 && *str == '-')
+        s = -1, ++str, --len;
+    else if (len >= 1 && *str == '+')
+        ++str, --len;
+
+    /* scan digits */
+    int acc;
+    for (acc = 0 ; len > 0 && is_digit(*str) ;
+         acc *= 10, acc += value_of_digit(*str), ++str, --len) ;
+
+    /* apply the sign and return the result */
+    return s * acc;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -309,6 +569,7 @@ size_t t3vsprintf(char *buf, size_t buflen, const char *fmt, va_list args0)
             int fld_wid = -1;
             int fld_prec = -1;
             char lead_char = ' ';
+            int plus = FALSE;
             int approx = FALSE;
             int add_ellipsis = FALSE;
             int left_align = FALSE;
@@ -321,6 +582,13 @@ size_t t3vsprintf(char *buf, size_t buflen, const char *fmt, va_list args0)
             if (*fmt == '~')
             {
                 approx = TRUE;
+                ++fmt;
+            }
+
+            /* check for an explicit sign */
+            if (*fmt == '+')
+            {
+                plus = TRUE;
                 ++fmt;
             }
 
@@ -548,6 +816,18 @@ size_t t3vsprintf(char *buf, size_t buflen, const char *fmt, va_list args0)
                 if (fld_wid != -1 && !left_align && (size_t)fld_wid > txtlen)
                 {
                     /* 
+                     *   if we're showing an explicit sign, and we don't have
+                     *   a leading '-' in the results, add it 
+                     */
+                    if (plus && txt[0] != '-')
+                    {
+                        /* add the '+' at the start of the output */
+                        ++need;
+                        if (rem > 1)
+                            --rem, *dst++ = '+';
+                    }
+
+                    /* 
                      *   if we're showing leading zeros, and we have a
                      *   negative number, show the '-' first 
                      */
@@ -562,7 +842,7 @@ size_t t3vsprintf(char *buf, size_t buflen, const char *fmt, va_list args0)
                         ++txt;
                         --txtlen;
                     }
-                    
+
                     /* add the padding */
                     for ( ; (size_t)fld_wid > txtlen ; --fld_wid)
                     {
@@ -825,6 +1105,10 @@ void *t3malloc(size_t siz, int alloc_type)
     static int check = 0;
     mem_prefix_t *mem;
 
+    /* make sure the size doesn't overflow when we add the prefix */
+    if (siz + sizeof(mem_prefix_t) < siz)
+        return 0;
+
     /* allocate the memory, including its prefix */
     mem = (mem_prefix_t *)malloc(siz + sizeof(mem_prefix_t)
                                  + MEM_GUARD_POST_BYTES);
@@ -915,8 +1199,9 @@ void t3free(void *ptr, int alloc_type)
      */
     if (mem->alloc_type != alloc_type)
         fprintf(stderr, "\n--- memory block freed with wrong call type: "
-                "block=%lx, size=%d, id=%lu, alloc type=%d, free type=%d ---\n",
-                (unsigned long)ptr, mem->siz, mem->id,
+                "block=%lx, size=%lu, id=%lu, alloc type=%d, free type=%d "
+                "---\n",
+                (unsigned long)ptr, (unsigned long)mem->siz, mem->id,
                 mem->alloc_type, alloc_type);
 
     /* check for a pre-freed block */
@@ -1036,7 +1321,7 @@ void t3_list_memory_blocks(void (*cb)(const char *))
 }
 
 
-#ifdef __WIN32__
+#ifdef T_WIN32
 /*
  *   Windows-specific additions to the memory header.  We'll track the first
  *   couple of return addresses from the stack, to make it easier to track
@@ -1062,7 +1347,7 @@ void os_mem_prefix_set(mem_prefix_t *mem)
         mem->stk[i].return_addr = ((DWORD *)bp_)[1];
 }
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 
 
 #endif /* T3_DEBUG */

@@ -158,6 +158,33 @@ public:
         return new CVmNetFile(fname, sfid, 0, mode, typ, 0);
     }
 
+    /* rename a file */
+    void rename_to_local(VMG_ CVmNetFile *newname);
+    void rename_to(VMG_ CVmNetFile *newname)
+#ifdef TADSNET
+        ;
+#else
+        { rename_to_local(vmg_ newname); }
+#endif
+
+    /* create a directory as named in the file object */
+    void mkdir_local(VMG_ int create_parents);
+    void mkdir(VMG_ int create_parents)
+#ifdef TADSNET
+        ;
+#else
+        { mkdir_local(vmg_ create_parents); }
+#endif
+
+    /* remove the directory named in the file object */
+    void rmdir_local(VMG_ int remove_contents);
+    void rmdir(VMG_ int remove_contents)
+#ifdef TADSNET
+        ;
+#else
+        { rmdir_local(vmg_ remove_contents); }
+#endif
+
     /* 
      *   Is this a network file?  This returns true if the file is stored on
      *   the network, false if it's in the local file system. 
@@ -167,6 +194,93 @@ public:
         /* it's a network file if it has a server-side filename */
         return srvfname != 0;
     }
+
+    /*
+     *   Get the file mode, per osfmode().  For a network file, the only
+     *   possible mode is "file", since we don't support directories or other
+     *   non-file types.  On success, fills in *mode with a bitwise
+     *   combination of OSFMODE_xxx flags and returns true; returns false on
+     *   failure.  
+     */
+    int get_file_mode(VMG_ unsigned long *mode, unsigned long *attrs,
+                      int follow_links)
+#ifdef TADSNET
+        ;
+#else
+    {
+        return osfmode(lclfname, follow_links, mode, attrs);
+    }
+#endif
+
+    /*
+     *   Get the file stat() information, per os_file_stat().  This isn't
+     *   supported for network files.
+     */
+    int get_file_stat(VMG_ os_file_stat_t *stat, int follow_links)
+#ifdef TADSNET
+        ;
+#else
+    {
+        return os_file_stat(lclfname, follow_links, stat);
+    }
+#endif
+
+    /*
+     *   Resolve a symbolic link.  If this file is a symbolic link, this
+     *   fills in 'target' with the target path and returns true.  Otherwise
+     *   returns false.
+     */
+    int resolve_symlink(VMG_ char *target, size_t target_size)
+#ifdef TADSNET
+        ;
+#else
+    {
+        return os_resolve_symlink(lclfname, target, target_size);
+    }
+#endif
+    
+
+    /*
+     *   Get a listing of files in the directory.  Creates a list object, and
+     *   fills in the list of FileName (CVmObjFileName) objects giving the
+     *   names of the files in the directory.  Returns true on success, false
+     *   on failure.
+     *   
+     *   'nominal_path' is an optional string to use as the displayed
+     *   directory path name for the constructed FileName objects.  If this
+     *   is null, we'll use our actual internal local file path.  The nominal
+     *   path can be used to preserve the original relative path name, which
+     *   might be desirable when the netfile object is resolved to an
+     *   absolute path based on a working directory.
+     */
+    int readdir(VMG_ const char *nominal_path, vm_val_t *retval)
+#ifdef TADSNET
+        ;
+#else
+    {
+        return readdir_local(vmg_ nominal_path, retval, 0, 0, 0);
+    }
+#endif
+
+    /*
+     *   Enumerate files in the directory through a callback function. 
+     */
+    int readdir_cb(VMG_ const char *nominal_path,
+                   const struct vm_rcdesc *rc, const vm_val_t *cb,
+                   int recursive)
+#ifdef TADSNET
+        ;
+#else
+    {
+        return readdir_local(vmg_ nominal_path, 0, rc, cb, recursive);
+    }
+#endif
+
+    /* read a local directory */
+    int readdir_local(VMG_ const char *nominal_path,
+                      vm_val_t *retval,
+                      const struct vm_rcdesc *rc, const vm_val_t *cb,
+                      int recursive);
 
     /*
      *   Does the given file exist?  Returns true if so, nil if not.

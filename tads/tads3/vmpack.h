@@ -54,7 +54,8 @@ protected:
      */
     static void pack_group(VMG_ struct CVmPackPos *pos,
                            struct CVmPackArgs *args,
-                           struct CVmPackGroup *group);
+                           struct CVmPackGroup *group,
+                           int list_per_iter);
 
     /* pack a subgroup */
     static void pack_subgroup(VMG_ struct CVmPackPos *p,
@@ -76,14 +77,18 @@ protected:
 
     /* unpack a group */
     static void unpack_group(VMG_ struct CVmPackPos *p,
-                             class CVmObjList *retlst, int &retcnt,
-                             struct CVmPackGroup *group);
+                             class CVmObjList *retlst, int *retcnt,
+                             struct CVmPackGroup *group, int list_per_iter);
 
     /* unpack a subgroup */
     static void unpack_subgroup(VMG_ CVmPackPos *p,
                                 class CVmObjList *retlst, int &retcnt,
                                 struct CVmPackGroup *group,
                                 const int *prefix_count);
+
+    /* create a sublist for unpacking a "[ ]!" group */
+    static CVmObjList *create_group_sublist(
+        VMG_ CVmObjList *parent_list, int *parent_cnt);
 
     /* unpack an iterated item */
     static void unpack_iter_item(VMG_ struct CVmPackPos *p,

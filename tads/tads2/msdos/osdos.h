@@ -93,6 +93,12 @@ osfildef *osfoprwb(const char *fname, os_filetype_t typ);
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Duplicate a file handle
+ */
+osfildef *osfdup(osfildef *fp, const char *mode);
+
+/* ------------------------------------------------------------------------ */
+/*
  *   sprintf equivalents with buffer allocation 
  */
 int os_asprintf(char **bufptr, const char *fmt, ...);

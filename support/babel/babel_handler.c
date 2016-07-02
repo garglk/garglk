@@ -183,7 +183,7 @@ The End
 #include <ctype.h>
 #include "md5.h"
 
-void *my_malloc(int, char *);
+void *my_malloc(unsigned int, char *);
 
 struct babel_handler
 {

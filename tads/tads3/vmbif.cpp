@@ -36,6 +36,7 @@ Modified
 #include "vmobj.h"
 #include "vmrun.h"
 #include "vmcset.h"
+#include "vmfilnam.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -279,15 +280,12 @@ const vm_bif_entry_t *CVmBifTable::get_entry(const char *name)
  */
 int CVmBifTable::validate_entry(uint set_index, uint func_index)
 {
-    vm_bif_entry_t *entry;
-    vm_bif_desc *desc;
-    
     /* validate that the set index is in range */
     if (set_index >= count_)
         return FALSE;
 
     /* get the function set, and make sure it's valid */
-    entry = table_[set_index];
+    vm_bif_entry_t *entry = table_[set_index];
     if (entry == 0)
         return FALSE;
 
@@ -296,8 +294,8 @@ int CVmBifTable::validate_entry(uint set_index, uint func_index)
         return FALSE;
     
     /* make sure there's a function pointer in the descriptor */
-    desc = &entry->func[func_index];
-    if (entry->func[func_index].func == 0)
+    vm_bif_desc *desc = &entry->func[func_index];
+    if (desc->func == 0)
         return FALSE;
 
     /* it's a valid entry */
@@ -372,19 +370,14 @@ vm_obj_id_t CVmBif::str_from_ui_str(VMG_ const char *str)
 
 vm_obj_id_t CVmBif::str_from_ui_str(VMG_ const char *str, size_t len)
 {
-    char *outp;
-    size_t outlen;
-    vm_obj_id_t str_id;
-    CVmObjString *str_obj;
-
     /* figure out how much space we need */
-    outp = 0;
-    outlen = 0;
+    char *outp = 0;
+    size_t outlen = 0;
     outlen = G_cmap_from_ui->map(0, &outlen, str, len);
 
     /* allocate a string of that size */
-    str_id = CVmObjString::create(vmg_ FALSE, outlen);
-    str_obj = (CVmObjString *)vm_objp(vmg_ str_id);
+    vm_obj_id_t str_id = CVmObjString::create(vmg_ FALSE, outlen);
+    CVmObjString *str_obj = (CVmObjString *)vm_objp(vmg_ str_id);
 
     /* map the string into the new string buffer */
     outp = str_obj->cons_get_buf();
@@ -611,6 +604,36 @@ void CVmBif::get_str_val_buf(VMG_ char *buf, size_t buflen,
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Pop a filename value.  The source value can be string or FileName
+ *   object. 
+ */
+void CVmBif::pop_fname_val(VMG_ char *buf, size_t buflen)
+{
+    get_fname_val(vmg_ buf, buflen, G_stk->get(0));
+    G_stk->discard(1);
+}
+
+void CVmBif::get_fname_val(VMG_ char *buf, size_t buflen, const vm_val_t *val)
+{
+    CVmObjFileName *fn;
+    const char *str;
+    if ((fn = vm_val_cast(CVmObjFileName, val)) != 0)
+    {
+        /* get the FileName object's path as a local filename string */
+        get_str_val_fname(vmg_ buf, buflen, fn->get_path_string());
+    }
+    else if ((str = val->get_as_string(vmg0_)) != 0)
+    {
+        /* get the string value as a local filename string */
+        get_str_val_fname(vmg_ buf, buflen, str);
+    }
+    else
+    {
+        err_throw(VMERR_BAD_VAL_BIF);
+    }
+}
+
+/*
  *   Pop a string into a buffer, translating the string into the filename
  *   character set and null-terminating the result.  
  */
@@ -710,7 +733,7 @@ int CVmBif::pop_int_or_nil(VMG_ int defval)
 /*
  *   Pop a long integer value 
  */
-int32 CVmBif::pop_long_val(VMG0_)
+int32_t CVmBif::pop_long_val(VMG0_)
 {
     /* pop a number */
     vm_val_t val;

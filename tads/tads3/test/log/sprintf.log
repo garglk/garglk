@@ -31,6 +31,12 @@ Plus w/space: % d, % d, % d, % d
 # format: %#x, %#x, %#X, %#X, %#o, %#o
 -> # format: 0, 0x123abc, 0, 0X345DEF, 0, 07654
 
+Roman numerals I: %r, %R, %r, %R, %r, %R
+-> Roman numerals I: 0, -5, c, CXI, mmmdccclxxxviii, MMMMCMXCIX
+
+Roman numerals II: %r, %R, %r, %R, %r, %R
+-> Roman numerals II: i, 0, cxxiii, DCLXXIX, dxvii, 9999
+
 Integers with field widths: [%8d] [%_ 8d] [%_*8d] [%016d] [%_*8x]
 -> Integers with field widths: [     100] [     200] [***-1234]
 [0000000000004567] [*****400]

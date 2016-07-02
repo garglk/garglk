@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -9,13 +10,6 @@
  *   provide access to basic features of the Virtual Machine.  
  */
 
-/*
- *   T3 intrinsic function set definition
- */
-
-#ifndef T3_H
-#define T3_H
-
 /* 
  *   include the LookupTable intrinsic class, since t3GetGlobalSymbols()
  *   returns an instance of this class 
@@ -23,8 +17,8 @@
 #include "lookup.h"
 
 
-/* 
- *   define the T3 system interface 
+/*
+ *   T3 intrinsic function set definition
  */
 intrinsic 't3vm/010006'
 {
@@ -237,5 +231,3 @@ intrinsic 't3vm/010006'
 #define T3MacroHasArgs     0x0001
 #define T3MacroHasVarargs  0x0002
 
-
-#endif /* T3_H */

@@ -26,7 +26,7 @@ Modified
 /* compiler major/minor/revision version number */
 #define TC_VSN_MAJOR  3
 #define TC_VSN_MINOR  1
-#define TC_VSN_REV    0
+#define TC_VSN_REV    3
 
 /*
  *   Patch number.  This is an even finer release number that can be used for

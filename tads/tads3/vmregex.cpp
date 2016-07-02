@@ -1,5 +1,5 @@
 /* 
- *   Copyright (c) 1998, 2002 Michael J. Roberts.  All Rights Reserved.
+ *   Copyright (c) 1998, 2012 Michael J. Roberts.  All Rights Reserved.
  *   
  *   Please see the accompanying license file, LICENSE.TXT, for information
  *   on using and copying this software.  
@@ -120,6 +120,12 @@ Notes
      %W         matches any non-word character
      %b         matches at any word boundary (beginning or end of word)
      %B         matches except at a word boundary
+     %s         <space>
+     %S         <^space>
+     %v         <vspace>
+     %V         <^vspace>
+     %d         <digit>
+     %D         <^digit>
 
   For the word matching sequences, a word is any sequence of letters and
   numbers.
@@ -132,14 +138,14 @@ Notes
               case-sensitive or case-insensitive.
 
      <FE> or <FirstEnd> - select the substring that ends earliest, in
-                case of an ambiguous match.  <FirstBegin> is the default.
+              case of an ambiguous match.  <FirstBegin> is the default.
      <FB> or <FirstBegin> - select the substring that starts earliest, in
-                case of an ambiguous match.  This is the default.
+              case of an ambiguous match.  This is the default.
 
      <Min> - select the shortest matching substring, in case of an
-                ambiguous match.  <Max> is the default.
+              ambiguous match.  <Max> is the default.
      <Max> - select the longest matching substring, in case of an
-                ambiguous match.
+              ambiguous match.
 
 Modified
   09/06/98 MJRoberts  - Creation
@@ -186,18 +192,22 @@ CRegexParser::CRegexParser()
  */
 void CRegexParser::reset()
 {
+    /* delete any range tables we've allocated */
     int i;
     re_tuple *t;
-    
-    /* delete any range tables we've allocated */
     for (i = 0, t = tuple_arr_ ; i < next_state_ ; ++i, ++t)
     {
         /* if it's a range, delete the allocated range */
         if ((t->typ == RE_RANGE || t->typ == RE_RANGE_EXCL)
             && t->info.range.char_range != 0)
         {
-            t3free(t->info.range.char_range);
+            delete [] t->info.range.char_range;
             t->info.range.char_range = 0;
+        }
+        else if (t->typ == RE_LITSTR && t->info.str.str != 0)
+        {
+            delete [] t->info.str.str;
+            t->info.str.str = 0;
         }
 
         /* clear the tuple type */
@@ -382,8 +392,6 @@ re_state_id CRegexParser::alloc_state()
 void CRegexParser::set_trans(re_state_id id, re_state_id dest_id,
                              re_recog_type typ, wchar_t ch)
 {
-    re_tuple *tuple;
-
     /* ignore invalid states */
     if (id == RE_STATE_INVALID)
         return;
@@ -393,7 +401,7 @@ void CRegexParser::set_trans(re_state_id id, re_state_id dest_id,
      *   state ID is the index of the state's transition tuple in the
      *   array 
      */
-    tuple = &tuple_arr_[id];
+    re_tuple *tuple = &tuple_arr_[id];
 
     /*
      *   If the first state pointer hasn't been set yet, set it to the new
@@ -464,8 +472,6 @@ void CRegexParser::build_special(re_machine *machine, re_recog_type typ,
 void CRegexParser::build_char_range(re_machine *machine,
                                     int exclusion)
 {
-    wchar_t *range_copy;
-    
     /* initialize our new machine */
     init_machine(machine);
 
@@ -474,7 +480,7 @@ void CRegexParser::build_char_range(re_machine *machine,
               (exclusion ? RE_RANGE_EXCL : RE_RANGE), 0);
 
     /* allocate a copy of the range vector */
-    range_copy = (wchar_t *)t3malloc(range_buf_cnt_ * sizeof(wchar_t));
+    wchar_t *range_copy = new wchar_t[range_buf_cnt_];
 
     /* copy the caller's range */
     memcpy(range_copy, range_buf_, range_buf_cnt_ * sizeof(wchar_t));
@@ -861,6 +867,9 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
     /* we have no looping variables yet */
     pat->loop_var_cnt = 0;
 
+    /* get the length of the expression in characters */
+    size_t exprchars = utf8_ptr::s_len(expr_str, exprlen);
+
     /* 
      *   set the default match modes - maximum, first-beginning,
      *   case-sensitive 
@@ -878,7 +887,7 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
     group_stack_level = 0;
 
     /* loop until we run out of expression to parse */
-    for (expr.set((char *)expr_str) ; exprlen != 0 ; expr.inc(&exprlen))
+    for (expr.set((char *)expr_str) ; exprchars != 0 ; expr.inc(), --exprchars)
     {
         switch(expr.getch())
         {
@@ -908,7 +917,7 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
              *   the '$' other than a close parens or alternation
              *   specifier, treat it as a normal character 
              */
-            if (exprlen > 1
+            if (exprchars > 1
                 && (expr.getch_at(1) != ')' && expr.getch_at(1) != '|'))
                 goto normal_char;
 
@@ -963,13 +972,13 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                 group_stack[group_stack_level].group_id = pat->group_cnt;
                 
                 /* check for special group flags */
-                if (exprlen > 2 && expr.getch_at(1) == '?')
+                if (exprchars > 2 && expr.getch_at(1) == '?')
                 {
                     switch(expr.getch_at(2))
                     {
                     case '<':
                         /* look-back assertion */
-                        if (exprlen > 3
+                        if (exprchars > 3
                             && (expr.getch_at(3) == '='
                                 || expr.getch_at(3) == '!'))
                         {
@@ -986,9 +995,10 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                                 neg_assertion = TRUE;
 
                             /* skip the '?<=' or '?<!' part */
-                            expr.inc(&exprlen);
-                            expr.inc(&exprlen);
-                            expr.inc(&exprlen);
+                            expr.inc();
+                            expr.inc();
+                            expr.inc();
+                            exprchars -= 3;
                         }
                         break;
                         
@@ -997,8 +1007,9 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                         capturing = FALSE;
 
                         /* skip two extra characters for the '?:' part */
-                        expr.inc(&exprlen);
-                        expr.inc(&exprlen);
+                        expr.inc();
+                        expr.inc();
+                        exprchars -= 2;
                         break;
                         
                     case '=':
@@ -1009,8 +1020,9 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                         capturing = FALSE;
 
                         /* skip two extra characters for the '?=' part */
-                        expr.inc(&exprlen);
-                        expr.inc(&exprlen);
+                        expr.inc();
+                        expr.inc();
+                        exprchars -= 2;
                         break;
                         
                     case '!':
@@ -1021,8 +1033,9 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                         capturing = FALSE;
 
                         /* skip two extra characters for the '?!' part */
-                        expr.inc(&exprlen);
-                        expr.inc(&exprlen);
+                        expr.inc();
+                        expr.inc();
+                        exprchars -= 2;
                         break;
                         
                     default:
@@ -1148,37 +1161,38 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
 
         case '<':
             /* check for our various special directives */
-            if ((exprlen >= 4 && memicmp(expr.getptr(), "<FE>", 4) == 0)
-                || (exprlen >= 10
+            if ((exprchars >= 4 && memicmp(expr.getptr(), "<FE>", 4) == 0)
+                || (exprchars >= 10
                     && memicmp(expr.getptr(), "<FirstEnd>", 10) == 0))
             {
                 /* turn off first-begin mode */
                 pat->first_begin = FALSE;
             }
-            else if ((exprlen >= 4 && memicmp(expr.getptr(), "<FB>", 4) == 0)
-                     || (exprlen >= 12
+            else if ((exprchars >= 4 && memicmp(expr.getptr(), "<FB>", 4) == 0)
+                     || (exprchars >= 12
                          && memicmp(expr.getptr(), "<FirstBegin>", 12) == 0))
             {
                 /* turn on first-begin mode */
                 pat->first_begin = TRUE;
             }
-            else if (exprlen >= 5 && memicmp(expr.getptr(), "<Max>", 5) == 0)
+            else if (exprchars >= 5 && memicmp(expr.getptr(), "<Max>", 5) == 0)
             {
                 /* turn on longest-match mode */
                 pat->longest_match = TRUE;
             }
-            else if (exprlen >= 5 && memicmp(expr.getptr(), "<Min>", 5) == 0)
+            else if (exprchars >= 5 && memicmp(expr.getptr(), "<Min>", 5) == 0)
             {
                 /* turn off longest-match mode */
                 pat->longest_match = FALSE;
             }
-            else if (exprlen >= 6 && memicmp(expr.getptr(), "<Case>", 6) == 0)
+            else if (exprchars >= 6
+                     && memicmp(expr.getptr(), "<Case>", 6) == 0)
             {
                 /* turn on case sensitivity */
                 pat->case_sensitive = TRUE;
                 pat->case_sensitivity_specified = TRUE;
             }
-            else if (exprlen >= 8
+            else if (exprchars >= 8
                      && memicmp(expr.getptr(), "<NoCase>", 8) == 0)
             {
                 /* turn off case sensitivity */
@@ -1193,7 +1207,7 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                  *   consists of one or more classes, single characters, or
                  *   character ranges separated by '|' delimiters.  
                  */
-                if (compile_char_class_expr(&expr, &exprlen, &new_machine))
+                if (compile_char_class_expr(&expr, &exprchars, &new_machine))
                 {
                     /* success - look for postfix operators */
                     goto apply_postfix;
@@ -1209,7 +1223,8 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
             }
 
             /* skip everything up to the closing ">" */
-            for ( ; exprlen > 0 && expr.getch() != '>' ; expr.inc(&exprlen)) ;
+            while (exprchars > 0 && expr.getch() != '>')
+                expr.inc(), --exprchars ;
             break;
 
         case '%':
@@ -1217,17 +1232,19 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
              *   quoted character - skip the quote mark and see what we
              *   have 
              */
-            expr.inc(&exprlen);
+            expr.inc();
+            --exprchars;
 
             /* check to see if we're at the end of the expression */
-            if (exprlen == 0)
+            if (exprchars == 0)
             {
                 /* 
                  *   end of the string - ignore it, but undo the extra
                  *   increment of the expression index so that we exit the
                  *   enclosing loop properly 
                  */
-                expr.dec(&exprlen);
+                expr.dec();
+                ++exprchars;
                 break;
             }
 
@@ -1292,6 +1309,36 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                 concat_onto(&cur_machine, &new_machine);
                 break;
 
+            case 's':
+                /* %s -> same as <space> */
+                build_special(&new_machine, RE_SPACE, 0);
+                goto apply_postfix;
+
+            case 'S':
+                /* %S -> same as <^space> */
+                build_special(&new_machine, RE_NON_SPACE, 0);
+                goto apply_postfix;
+
+            case 'd':
+                /* %d -> same as <digit> */
+                build_special(&new_machine, RE_DIGIT, 0);
+                goto apply_postfix;
+
+            case 'D':
+                /* %D -> same as <^digit> */
+                build_special(&new_machine, RE_NON_DIGIT, 0);
+                goto apply_postfix;
+
+            case 'v':
+                /* %v -> same as <vspace> */
+                build_special(&new_machine, RE_VSPACE, 0);
+                goto apply_postfix;
+
+            case 'V':
+                /* %V -> same as <^vspace> */
+                build_special(&new_machine, RE_NON_VSPACE, 0);
+                goto apply_postfix;
+
             default:
                 /* build a new literal character recognizer */
                 build_char(&new_machine, expr.getch());
@@ -1320,13 +1367,15 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                 range_buf_cnt_ = 0;
 
                 /* first, skip the open bracket */
-                expr.inc(&exprlen);
+                expr.inc();
+                --exprchars;
 
                 /* check to see if starts with the exclusion character */
-                if (exprlen != 0 && expr.getch() == '^')
+                if (exprchars != 0 && expr.getch() == '^')
                 {
                     /* skip the exclusion specifier */
-                    expr.inc(&exprlen);
+                    expr.inc();
+                    --exprchars;
 
                     /* note it */
                     is_exclusive = TRUE;
@@ -1336,47 +1385,48 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                  *   if the first character is a ']', include it in the
                  *   range 
                  */
-                if (exprlen != 0 && expr.getch() == ']')
+                if (exprchars != 0 && expr.getch() == ']')
                 {
                     add_range_char(']');
-                    expr.inc(&exprlen);
+                    expr.inc();
+                    --exprchars;
                 }
 
                 /*
                  *   if the next character is a '-', include it in the
                  *   range 
                  */
-                if (exprlen != 0 && expr.getch() == '-')
+                if (exprchars != 0 && expr.getch() == '-')
                 {
                     add_range_char('-');
-                    expr.inc(&exprlen);
+                    expr.inc();
+                    --exprchars;
                 }
 
                 /* scan the character set */
-                while (exprlen != 0 && expr.getch() != ']')
+                while (exprchars != 0 && expr.getch() != ']')
                 {
-                    wchar_t ch;
-                    
                     /* note this character */
-                    ch = expr.getch();
+                    wchar_t ch = expr.getch();
 
                     /* skip this character of the expression */
-                    expr.inc(&exprlen);
+                    expr.inc();
+                    --exprchars;
 
                     /* check for a range */
-                    if (exprlen != 0 && expr.getch() == '-')
+                    if (exprchars != 0 && expr.getch() == '-')
                     {
-                        wchar_t ch2;
-                        
                         /* skip the '-' */
-                        expr.inc(&exprlen);
-                        if (exprlen != 0)
+                        expr.inc();
+                        --exprchars;
+                        if (exprchars != 0)
                         {
                             /* get the other end of the range */
-                            ch2 = expr.getch();
+                            wchar_t ch2 = expr.getch();
 
                             /* skip the second character */
-                            expr.inc(&exprlen);
+                            expr.inc();
+                            --exprchars;
 
                             /* if the range is reversed, swap it */
                             if (ch > ch2)
@@ -1421,7 +1471,7 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
              *   the 'new_machine' (modified by a postix operator or not)
              *   to the current machien.  
              */
-            if (exprlen > 1)
+            if (exprchars > 1)
             {
                 switch(expr.getch_at(1))
                 {
@@ -1433,57 +1483,58 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                      *   closure machine out of 'new_machine'.  
                      */
                     {
-                        re_machine closure_machine;
-                        int shortest;
-                        
                         /* move onto the closure operator */
-                        expr.inc(&exprlen);
+                        expr.inc();
+                        --exprchars;
 
                         /* 
                          *   if the next character is '?', it's a modifier
                          *   that indicates that we are to use the
                          *   shortest match - note it if so 
                          */
-                        shortest = (exprlen > 1 && expr.getch_at(1) == '?');
+                        int shortest =
+                            (exprchars > 1 && expr.getch_at(1) == '?');
 
                         /* build the closure machine */
+                        re_machine closure_machine;
                         build_closure(&closure_machine,
                                       &new_machine, expr.getch(), shortest);
                         
                         /* replace the original machine with the closure */
                         new_machine = closure_machine;
+                    }
                         
-                        /* 
-                         *   skip any redundant closure symbols, keeping
-                         *   only the first one we saw 
-                         */
-                    skip_closures:
-                        while (exprlen > 1)
+                    /* 
+                     *   skip any redundant closure symbols, keeping only the
+                     *   first one we saw 
+                     */
+                skip_closures:
+                    while (exprchars > 1)
+                    {
+                        /* check for a simple closure suffix */
+                        if (expr.getch_at(1) == '?'
+                            || expr.getch_at(1) == '+'
+                            || expr.getch_at(1) == '*')
                         {
-                            /* check for a simple closure suffix */
-                            if (expr.getch_at(1) == '?'
-                                || expr.getch_at(1) == '+'
-                                || expr.getch_at(1) == '*')
-                            {
-                                /* skip it and keep looping */
-                                expr.inc(&exprlen);
-                                continue;
-                            }
-
-                            /* check for an interval */
-                            if (expr.getch_at(1) == '{')
-                            {
-                                /* skip until we find the matching '}' */
-                                while (exprlen > 1 && expr.getch_at(1) != '}')
-                                    expr.inc(&exprlen);
-
-                                /* go back for anything that follows */
-                                continue;
-                            }
-
-                            /* if it's anything else, we're done discarding */
-                            break;
+                            /* skip it and keep looping */
+                            expr.inc();
+                            --exprchars;
+                            continue;
                         }
+                        
+                        /* check for an interval */
+                        if (expr.getch_at(1) == '{')
+                        {
+                            /* skip until we find the matching '}' */
+                            while (exprchars > 1 && expr.getch_at(1) != '}')
+                                expr.inc(), --exprchars;
+                            
+                            /* go back for anything that follows */
+                            continue;
+                        }
+                        
+                        /* if it's anything else, we're done discarding */
+                        break;
                     }
                     break;
 
@@ -1513,18 +1564,20 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                         max_val = -1;
                         
                         /* skip the current character and the '{' */
-                        expr.inc(&exprlen);
-                        expr.inc(&exprlen);
+                        expr.inc();
+                        expr.inc();
+                        exprchars -= 2;
                         
                         /* parse the minimum count, if provided */
-                        min_val = parse_int(&expr, &exprlen);
+                        min_val = parse_int(&expr, &exprchars);
 
                         /* if there's a comma, parse the maximum value */
-                        if (exprlen >= 1 && expr.getch() == ',')
+                        if (exprchars >= 1 && expr.getch() == ',')
                         {
                             /* skip the ',' and parse the number */
-                            expr.inc(&exprlen);
-                            max_val = parse_int(&expr, &exprlen);
+                            expr.inc();
+                            --exprchars;
+                            max_val = parse_int(&expr, &exprchars);
                         }
                         else
                         {
@@ -1540,21 +1593,22 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
                          *   if we're not looking at a '}', skip
                          *   characters until we are 
                          */
-                        while (exprlen != 0 && expr.getch() != '}')
-                            expr.inc(&exprlen);
+                        while (exprchars != 0 && expr.getch() != '}')
+                            expr.inc(&exprchars);
 
                         /* 
                          *   if there's a '?' following, it's a 'shortest'
                          *   modifier - note it 
                          */
                         shortest = FALSE;
-                        if (exprlen > 1 && expr.getch_at(1) == '?')
+                        if (exprchars > 1 && expr.getch_at(1) == '?')
                         {
                             /* note the modifier */
                             shortest = TRUE;
 
                             /* skip another character for the modifier */
-                            expr.inc(&exprlen);
+                            expr.inc();
+                            --exprchars;
                         }
 
                         /* set up an interval node */
@@ -1584,7 +1638,7 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
         }
 
         /* if we've run down the expression string, go no further */
-        if (exprlen == 0)
+        if (exprchars == 0)
             break;
     }
 
@@ -1600,6 +1654,9 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
 
     /* remove meaningless branch-to-branch transitions */
     remove_branch_to_branch(&alter_machine);
+
+    /* consolidate consecutive character transitions into strings */
+    consolidate_strings(&alter_machine);
 
     /* store the results in the caller's base pattern description */
     pat->machine = alter_machine;
@@ -1625,29 +1682,27 @@ re_status_t CRegexParser::compile(const char *expr_str, size_t exprlen,
  *   Returns false on syntax error or other failure, in which case expr and
  *   exprlen will be unchanged.  
  */
-int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
+int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprchars,
                                           re_machine *result_machine)
 {
-    utf8_ptr p;
-    size_t rem;
-    int is_exclusive;
-    
     /* start at the character after the '<' */
-    p = *expr;
-    rem = *exprlen;
-    p.inc(&rem);
+    utf8_ptr p = *expr;
+    size_t chrem = *exprchars;
+    p.inc();
+    --chrem;
 
     /* presume it won't be exclusive */
-    is_exclusive = FALSE;
+    int is_exclusive = FALSE;
 
     /* check for an exclusion flag */
-    if (rem != 0 && p.getch() == '^')
+    if (chrem != 0 && p.getch() == '^')
     {
         /* note the exclusion */
         is_exclusive = TRUE;
         
         /* skip the exclusion prefix */
-        p.inc(&rem);
+        p.inc();
+        --chrem;
     }
     
     /* clear out the range builder buffer */
@@ -1668,7 +1723,7 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
         start = p;
         
         /* scan for the '>' or '|' */
-        for (curcharlen = 0 ; rem != 0 ; p.inc(&rem), ++curcharlen)
+        for (curcharlen = 0 ; chrem != 0 ; p.inc(), --chrem, ++curcharlen)
         {
             /* get the next character */
             delim = p.getch();
@@ -1683,7 +1738,7 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
          *   closing delimiter, the expression is invalid - treat the whole
          *   thing (starting with the '<') as ordinary characters.  
          */
-        if (rem == 0)
+        if (chrem == 0)
             return FALSE;
         
         /* get the length of this part */
@@ -1815,7 +1870,7 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
                             
                             /* skip to the '>' */
                             *expr = p;
-                            *exprlen = rem;
+                            *exprchars = chrem;
                             
                             /* 
                              *   we're done with the expresion - tell the
@@ -1853,7 +1908,7 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
         if (delim == '|')
         {
             /* skip the delimiter, and back for another round */
-            p.inc(&rem);
+            p.inc(&chrem);
         }
         else
         {
@@ -1862,7 +1917,7 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
             
             /* skip up to the '>' */
             *expr = p;
-            *exprlen = rem;
+            *exprchars = chrem;
             
             /* tell the caller we were successful */
             return TRUE;
@@ -1874,16 +1929,15 @@ int CRegexParser::compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
 /*
  *   Parse an integer value.  Returns -1 if there's no number.  
  */
-int CRegexParser::parse_int(utf8_ptr *p, size_t *rem)
+int CRegexParser::parse_int(utf8_ptr *p, size_t *chrem)
 {
-    int acc;
-    
     /* if it's not a number to start with, simply return -1 */
-    if (*rem == 0 || !is_digit(p->getch()))
+    if (*chrem == 0 || !is_digit(p->getch()))
         return -1;
     
     /* keep going as long as we find digits */
-    for (acc = 0 ; *rem > 0 && is_digit(p->getch()) ; p->inc(rem))
+    int acc;
+    for (acc = 0 ; *chrem > 0 && is_digit(p->getch()) ; p->inc(), --*chrem)
     {
         /* add this digit into the accumulator */
         acc *= 10;
@@ -2101,13 +2155,12 @@ int CRegexParser::break_loops(re_state_id init, re_state_id final,
  */
 void CRegexParser::remove_branch_to_branch(re_machine *machine)
 {
-    re_state_id cur;
-    re_tuple *tuple;
-    
     /* make sure the initial state points to the first meaningful state */
     optimize_transition(machine, &machine->init);
 
     /* scan all active states */
+    re_state_id cur;
+    re_tuple *tuple;
     for (cur = 0, tuple = tuple_arr_ ; cur < next_state_ ; ++cur, ++tuple)
     {
         /* if this isn't the final state, check it */
@@ -2375,6 +2428,55 @@ void CRegexParser::get_match_length(re_state_id init, re_state_id final,
     }
 }
 
+/*
+ *   Consolidate consecutive character transitions into strings 
+ */
+void CRegexParser::consolidate_strings(re_machine *machine)
+{
+    /* run through the tuples looking for runs of characters */
+    re_state_id i;
+    re_tuple *t;
+    for (i = 0, t = tuple_arr_ ; i < next_state_ ; ++i, ++t)
+    {
+        /* if this is a literal, try consolidating it */
+        if (t->typ == RE_LITERAL)
+        {
+            /* count up the literals that follow */
+            int cnt = 1;
+            for (re_state_id j = t->next_state_1 ;
+                 j != RE_STATE_INVALID && tuple_arr_[j].typ == RE_LITERAL ;
+                 j = tuple_arr_[j].next_state_1, ++cnt) ;
+
+            /* if we found at least one more literal, consolidate it */
+            if (cnt > 1)
+            {
+                /* convert this node to a string node */
+                wchar_t ch = t->info.ch;
+                t->typ = RE_LITSTR;
+                t->info.str.str = new wchar_t[cnt+1];
+                t->info.str.str[0] = ch;
+                t->info.str.str[cnt] = 0;
+
+                /* copy the string characters */
+                int k = 1;
+                for (re_tuple *tj = &tuple_arr_[t->next_state_1] ;
+                     k < cnt ; tj = &tuple_arr_[tj->next_state_1], ++k)
+                {
+                    /* add this character to the string */
+                    t->info.str.str[k] = tj->info.ch;
+
+                    /* skip the state in the starting state */
+                    t->next_state_1 = tj->next_state_1;
+
+                    /* make this state an alias of the original */
+                    tj->typ = RE_LITSTRA;
+                    tj->info.str.str = &t->info.str.str[k];
+                    tj->info.str.src = i;
+                }
+            }
+        }
+    }
+}
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -2384,19 +2486,13 @@ re_status_t CRegexParser::compile_pattern(const char *expr_str,
                                           size_t exprlen,
                                           re_compiled_pattern **pattern)
 {
-    re_status_t stat;
-    re_state_id i;
-    re_tuple *t;
-    re_compiled_pattern *pat;
-    size_t siz;
-    wchar_t *rp;
-    re_compiled_pattern_base base_pat;
-
     /* presume we won't allocate a new pattern object */
     *pattern = 0;
 
     /* compile the pattern */
-    if ((stat = compile(expr_str, exprlen, &base_pat)) != RE_STATUS_SUCCESS)
+    re_compiled_pattern_base base_pat;
+    re_status_t stat = compile(expr_str, exprlen, &base_pat);
+    if (stat != RE_STATUS_SUCCESS)
         return stat;
 
     /* 
@@ -2405,14 +2501,17 @@ re_status_t CRegexParser::compile_pattern(const char *expr_str,
      *   number of allocated tuples minus one, since there's one built into
      *   the base structure).  
      */
-    siz = sizeof(re_compiled_pattern)
-          + (base_pat.tuple_cnt - 1)*sizeof(pat->tuples[0]);
+    re_compiled_pattern *pat = 0;
+    size_t siz = sizeof(re_compiled_pattern)
+                 + (base_pat.tuple_cnt - 1)*sizeof(pat->tuples[0]);
 
     /* 
      *   Run through the tuples in the result machine and add up the amount
      *   of extra space we'll need for extra allocations (specifically,
      *   character ranges).  
      */
+    re_state_id i;
+    re_tuple *t;
     for (i = 0, t = tuple_arr_ ; i < base_pat.tuple_cnt ; ++i, ++t)
     {
         /* check what kind of tuple this is */
@@ -2423,6 +2522,11 @@ re_status_t CRegexParser::compile_pattern(const char *expr_str,
             /* range - add in space for the character range data */
             siz += sizeof(t->info.range.char_range[0])
                    * t->info.range.char_range_cnt;
+            break;
+
+        case RE_LITSTR:
+            /* literal string - add in space for the string data */
+            siz += (wcslen(t->info.str.str)+1) * sizeof(t->info.str.str);
             break;
 
         default:
@@ -2447,7 +2551,7 @@ re_status_t CRegexParser::compile_pattern(const char *expr_str,
      *   need to find the location of the range data at the end of our tuple
      *   array.  
      */
-    rp = (wchar_t *)&pat->tuples[pat->tuple_cnt];
+    wchar_t *rp = (wchar_t *)&pat->tuples[pat->tuple_cnt];
 
     /* 
      *   run through the new tuple array and pack the range data into the new
@@ -2474,6 +2578,32 @@ re_status_t CRegexParser::compile_pattern(const char *expr_str,
 
             /* move past the space in our allocation unit */
             rp += t->info.range.char_range_cnt;
+            break;
+
+        case RE_LITSTR:
+            /* literal string - copy it into the allocation unit */
+            wcscpy(rp, t->info.str.str);
+
+            /* fix up the tuple to point to the packed copy */
+            t->info.str.str = (wchar_t *)rp;
+
+            /* move past the space in our allocation unit */
+            rp += wcslen(rp) + 1;
+            break;
+
+        case RE_LITSTRA:
+            /* literal string alias */
+            {
+                /* get the original base string from the source state */
+                re_state_id src = t->info.str.src;
+                wchar_t *str = tuple_arr_[src].info.str.str;
+
+                /* get the offset */
+                int ofs = t->info.str.str - str;
+                
+                /* point to the the copied string the new state copy */
+                t->info.str.str = pat->tuples[src].info.str.str + ofs;
+            }
             break;
 
         default:
@@ -2568,7 +2698,7 @@ CRegexSearcher::~CRegexSearcher()
  *   Match a string to a compiled expression.  Returns the length of the
  *   match if successful, or -1 if no match was found.  
  */
-int CRegexSearcher::match(const char *entire_str,
+int CRegexSearcher::match(const char *entire_str, size_t entire_str_len,
                           const char *str, const size_t origlen,
                           const re_compiled_pattern_base *pattern,
                           const re_tuple *tuple_arr,
@@ -2576,23 +2706,16 @@ int CRegexSearcher::match(const char *entire_str,
                           re_group_register *regs,
                           short *loop_vars)
 {
-    size_t entire_str_len;
-    re_state_id cur_state, final_state;
-    utf8_ptr p;
-    size_t curlen;
-    int start_ofs;
-    int _retval_;
-    int case_sensitive;
-
     /* 
      *   if the case sensitivity was specified, it overrides the current
      *   search defaults; otherwise apply the search defaults 
      */
-    case_sensitive = (pattern->case_sensitivity_specified
-                      ? pattern->case_sensitive
-                      : default_case_sensitive_);
+    int case_sensitive = (pattern->case_sensitivity_specified
+                          ? pattern->case_sensitive
+                          : default_case_sensitive_);
 
     /* macro to perform a "local return" */
+    int _retval_;
 #define local_return(retval) \
     _retval_ = (retval); \
     goto do_local_return;
@@ -2600,11 +2723,9 @@ int CRegexSearcher::match(const char *entire_str,
     /* reset the stack */
     stack_.reset();
 
-    /* start at the machine's initial state */
-    cur_state = machine->init;
-
-    /* note the final state */
-    final_state = machine->final;
+    /* start at the machine's initial and final states */
+    re_state_id cur_state = machine->init;
+    re_state_id final_state = machine->final;
 
     /* 
      *   if we're starting in the final state, this is a zero-length
@@ -2615,20 +2736,20 @@ int CRegexSearcher::match(const char *entire_str,
         return 0;
 
     /* start at the beginning of the string */
-    p.set((char *)str);
-    curlen = origlen;
+    utf8_ptr p((char *)str);
+    size_t curlen = origlen;
 
     /* note the offset from the start of the entire string */
-    start_ofs = str - entire_str;
-    entire_str_len = start_ofs + origlen;
+    int start_ofs = str - entire_str;
+
+    /* note where the overall string ends */
+    const char *entire_str_end = entire_str + entire_str_len;
 
     /* run the machine */
     for (;;)
     {
-        const re_tuple *tuple;
-
         /* get the tuple for this state */
-        tuple = &tuple_arr[cur_state];
+        const re_tuple *tuple = &tuple_arr[cur_state];
 
         /* check the type of state we're processing */
         switch(tuple->typ)
@@ -2785,7 +2906,7 @@ int CRegexSearcher::match(const char *entire_str,
              *   else, this isn't a match.  Don't skip any characters on
              *   success.  
              */
-            if (curlen != 0)
+            if (p.getptr() != entire_str_end)
             {
                 local_return(-1);
             }
@@ -2823,7 +2944,8 @@ int CRegexSearcher::match(const char *entire_str,
              *   isn't a word character, we're not at the beginning of a
              *   word 
              */
-            if (curlen == 0 || !is_word_char(p.getch()))
+            if (p.getptr() == entire_str_end
+                || !is_word_char(p.getch()))
             {
                 local_return(-1);
             }
@@ -2834,7 +2956,8 @@ int CRegexSearcher::match(const char *entire_str,
              *   if the current character is a word character, we're not at
              *   the end of a word 
              */
-            if (curlen != 0 && is_word_char(p.getch()))
+            if (p.getptr() != entire_str_end
+                && is_word_char(p.getch()))
             {
                 local_return(-1);
             }
@@ -2876,38 +2999,24 @@ int CRegexSearcher::match(const char *entire_str,
         case RE_WORD_BOUNDARY:
         case RE_NON_WORD_BOUNDARY:
             {
-                int prev_is_word;
-                int next_is_word;
-                int boundary;
-
                 /*
-                 *   Determine if the previous character is a word character
-                 *   -- if we're at the beginning of the string, it's
-                 *   obviously not, otherwise check its classification 
+                 *   Determine if the previous character is a word character.
+                 *   If we're at the beginning of the string, it's obviously
+                 *   not, otherwise check the classification of the previous
+                 *   character.
                  */
-                if (p.getptr() == entire_str)
-                {
-                    /* 
-                     *   at the start of the string, so there definitely
-                     *   isn't a preceding word character 
-                     */
-                    prev_is_word = FALSE;
-                }
-                else
-                {
-                    /* look at the previous character */
-                    prev_is_word = is_word_char(p.getch_before(1));
-                }
+                int prev_is_word = (p.getptr() != entire_str
+                                    && is_word_char(p.getch_before(1)));
 
                 /* make the same check for the current character */
-                next_is_word = (curlen != 0
-                                && is_word_char(p.getch()));
+                int next_is_word = (p.getptr() != entire_str_end
+                                    && is_word_char(p.getch()));
 
                 /*
                  *   Determine if this is a boundary - it is if the two
                  *   states are different 
                  */
-                boundary = ((prev_is_word != 0) ^ (next_is_word != 0));
+                int boundary = ((prev_is_word != 0) ^ (next_is_word != 0));
 
                 /* 
                  *   make sure it matches what was desired, and return
@@ -2935,11 +3044,6 @@ int CRegexSearcher::match(const char *entire_str,
         case RE_RANGE:
         case RE_RANGE_EXCL:
             {
-                int match;
-                wchar_t ch;
-                wchar_t *rp;
-                size_t i;
-
                 /* make sure we have a character to match */
                 if (curlen == 0)
                 {
@@ -2947,9 +3051,11 @@ int CRegexSearcher::match(const char *entire_str,
                 }
 
                 /* get this character */
-                ch = p.getch();
+                wchar_t ch = p.getch();
 
                 /* search for the character in the range */
+                size_t i;
+                wchar_t *rp;
                 for (i = tuple->info.range.char_range_cnt,
                      rp = tuple->info.range.char_range ;
                      i != 0 ; i -= 2, rp += 2)
@@ -2961,14 +3067,13 @@ int CRegexSearcher::match(const char *entire_str,
                      */
                     if (rp[0] == '\0')
                     {
-                        int match;
-
                         /*
                          *   The first character of the range pair is null,
                          *   which means that this isn't a literal range but
                          *   rather a class.  Check for a match to the
                          *   class.  
                          */
+                        int match;
                         switch(rp[1])
                         {
                         case RE_ALPHA:
@@ -3038,46 +3143,50 @@ int CRegexSearcher::match(const char *entire_str,
                         if (ch >= rp[0] && ch <= rp[1])
                             break;
                     }
-                    else if (t3_is_upper(rp[0]) && t3_is_upper(rp[1]))
+                    else if (rp[0] == rp[1])
                     {
-                        wchar_t uch;
-                        
                         /* 
-                         *   the range is all upper-case letters - convert
-                         *   the source character to upper-case for the
-                         *   comparison 
+                         *   single character, case-insensitive - try
+                         *   matching literally, and against the full case
+                         *   folding of this one character 
                          */
-                        uch = t3_to_upper(ch);
-                        if (uch >= rp[0] && uch <= rp[1])
+                        size_t matchlen;
+                        if (ch == rp[0])
+                        {
+                            /* exact match to the literal */
                             break;
-                    }
-                    else if (t3_is_lower(rp[0]) && t3_is_lower(rp[1]))
-                    {
-                        wchar_t lch;
+                        }
+                        if (t3_compare_case_fold(
+                            &rp[0], 1, p.getptr(), curlen, &matchlen) == 0)
+                        {
+                            /* 
+                             *   matched - skip the folded match, then back
+                             *   up one to make up for the common inc() we
+                             *   always do 
+                             */
+                            p.inc_bytes(matchlen);
+                            curlen -= matchlen;
+                            p.dec(&curlen);
 
-                        /* 
-                         *   the range is all lower-case letters - convert
-                         *   the source character to upper-case for the
-                         *   comparison 
-                         */
-                        lch = t3_to_lower(ch);
-                        if (lch >= rp[0] && lch <= rp[1])
+                            /* stop looking */
                             break;
+                        }
                     }
                     else
                     {
                         /* 
-                         *   The cases of the two ends of the range don't
-                         *   agree, so there's nothing we can do for case
-                         *   conversions.  Simply compare the range exactly.
+                         *   code point range, case-sensitive - use simple
+                         *   case folding for all three characters 
                          */
-                        if (ch >= rp[0] && ch <= rp[1])
+                        wchar_t fch = t3_simple_case_fold(ch);
+                        if (fch >= t3_simple_case_fold(rp[0])
+                            && fch <= t3_simple_case_fold(rp[1]))
                             break;
                     }
                 }
                 
                 /* we matched if we stopped before exhausting the list */
-                match = (i != 0);
+                int match = (i != 0);
                 
                 /* make sure we got what we wanted */
                 if ((tuple->typ == RE_RANGE && !match)
@@ -3105,6 +3214,17 @@ int CRegexSearcher::match(const char *entire_str,
         case RE_DIGIT:
             /* check for a digit character */
             if (curlen == 0 || !t3_is_digit(p.getch()))
+            {
+                local_return(-1);
+            }
+
+            /* skip this character of the input, and continue */
+            p.inc(&curlen);
+            break;
+
+        case RE_NON_DIGIT:
+            /* check for a non-digit character */
+            if (curlen == 0 || t3_is_digit(p.getch()))
             {
                 local_return(-1);
             }
@@ -3158,9 +3278,31 @@ int CRegexSearcher::match(const char *entire_str,
             p.inc(&curlen);
             break;
 
+        case RE_NON_SPACE:
+            /* check for a space of some kind */
+            if (curlen == 0 || t3_is_space(p.getch()))
+            {
+                local_return(-1);
+            }
+
+            /* skip this character of the input, and continue */
+            p.inc(&curlen);
+            break;
+
         case RE_VSPACE:
             /* check for a vertical space of some kind */
             if (curlen == 0 || !t3_is_vspace(p.getch()))
+            {
+                local_return(-1);
+            }
+
+            /* skip this character of the input, and continue */
+            p.inc(&curlen);
+            break;
+
+        case RE_NON_VSPACE:
+            /* check for a vertical space of some kind */
+            if (curlen == 0 || t3_is_vspace(p.getch()))
             {
                 local_return(-1);
             }
@@ -3214,7 +3356,8 @@ int CRegexSearcher::match(const char *entire_str,
              *   It's an assertion.  Run this as a sub-state: push the
              *   current state so that we can come back to it later. 
              */
-            stack_.push(ST_ASSERT, start_ofs, p.getptr() - entire_str,
+            stack_.push(ST_ASSERT, start_ofs,
+                        p.getptr() - entire_str, curlen,
                         cur_state, final_state, 0);
 
             /*
@@ -3226,6 +3369,14 @@ int CRegexSearcher::match(const char *entire_str,
 
             /* in the sub-state, the sub-string to match starts here */
             start_ofs = p.getptr() - entire_str;
+
+            /* 
+             *   in the sub-state, we can use the entire source string, since
+             *   it's only an assertion - any text the assertion matches
+             *   after the end of the search region won't be consumed in the
+             *   enclosing state, so it's fair game within the assertion
+             */
+            curlen = entire_str_len - start_ofs;
 
             /*
              *   If this is a back assertion, figure the range of match
@@ -3247,7 +3398,7 @@ int CRegexSearcher::match(const char *entire_str,
                  */
                 int l = tuple->info.sub.minlen;
                 for ( ; l > 0 && p.getptr() != entire_str ;
-                      p.dec(), --l, ++curlen) ;
+                      p.dec(&curlen), --l) ;
 
                 /* 
                  *   If we were unable to back up by the required minimum
@@ -3292,51 +3443,24 @@ int CRegexSearcher::match(const char *entire_str,
                  *   we have an exact match; there's no need to check for
                  *   any case conversions 
                  */
+                p.inc(&curlen);
             }
-            else if (!case_sensitive
-                     && t3_is_alpha(tuple->info.ch) && t3_is_alpha(p.getch()))
+            else if (!case_sensitive)
             {
                 /* 
-                 *   We're performing a case-insensitive search, and both
-                 *   characters are alphabetic.  Convert the string
-                 *   character to the same case as the pattern character,
-                 *   then compare them.  Note that we always use the case of
-                 *   the pattern character, because this gives the pattern
-                 *   control over the handling for languages where
-                 *   conversions are ambiguous.  
+                 *   case-insensitive - compare the single pattern character
+                 *   against the source string using full case folding 
                  */
-                if (t3_is_upper(tuple->info.ch))
+                size_t matchlen;
+                if (t3_compare_case_fold(
+                    &tuple->info.ch, 1, p.getptr(), curlen, &matchlen) != 0)
                 {
-                    /* 
-                     *   the pattern character is upper-case - convert the
-                     *   string character to upper-case and compare 
-                     */
-                    if (tuple->info.ch != t3_to_upper(p.getch()))
-                    {
-                        local_return(-1);
-                    }
-                }
-                else if (t3_is_lower(tuple->info.ch))
-                {
-                    /* 
-                     *   the pattern character is lower-case - compare to
-                     *   the lower-case string character 
-                     */
-                    if (tuple->info.ch != t3_to_lower(p.getch()))
-                    {
-                        local_return(-1);
-                    }
-                }
-                else
-                {
-                    /* 
-                     *   the pattern character is neither upper nor lower
-                     *   case, so we cannot perform a case conversion; we
-                     *   know the match isn't exact, so we don't have a
-                     *   match at all 
-                     */
                     local_return(-1);
                 }
+
+                /* matched - skip the matched string characters */
+                p.inc_bytes(matchlen);
+                curlen -= matchlen;
             }
             else
             {
@@ -3347,9 +3471,56 @@ int CRegexSearcher::match(const char *entire_str,
                  */
                 local_return(-1);
             }
-            
-            /* skip this character of the input */
-            p.inc(&curlen);
+            break;
+
+        case RE_LITSTR:
+        case RE_LITSTRA:
+            /* literal string - if we're out of characters, fail */
+            if (curlen == 0)
+            {
+                local_return(-1);
+            }
+
+            /* compare identically or with case folding, as appropriate */
+            if (case_sensitive)
+            {
+                /* do an exact character-by-character match */
+                utf8_ptr p2 = p;
+                size_t curlen2 = curlen;
+                wchar_t *cp = tuple->info.str.str;
+                for ( ; *cp != 0 && curlen2 != 0 ; ++cp, p2.inc(&curlen2))
+                {
+                    if (p2.getch() != *cp)
+                    {
+                        local_return(-1);
+                    }
+                }
+
+                /* if we didn't match the whole pattern literal, fail */
+                if (*cp != 0)
+                {
+                    local_return(-1);
+                }
+
+                /* matched - consume the matched source text */
+                p = p2;
+                curlen = curlen2;
+            }
+            else
+            {
+                /* match with case folding */
+                size_t matchlen;
+                if (t3_compare_case_fold(
+                    tuple->info.str.str, wcslen(tuple->info.str.str),
+                    p.getptr(), curlen, &matchlen) != 0)
+                {
+                    local_return(-1);
+                }
+
+                /* matched - skip the matched string characters */
+                p.inc_bytes(matchlen);
+                curlen -= matchlen;
+            }
             break;
 
         case RE_GROUP_ENTER:
@@ -3415,7 +3586,8 @@ int CRegexSearcher::match(const char *entire_str,
                  *   a two-branch epsilon so that we'll know to proceed to
                  *   the second branch when we finish with the first one.  
                  */
-                stack_.push(ST_EPS1, start_ofs, p.getptr() - entire_str,
+                stack_.push(ST_EPS1, start_ofs,
+                            p.getptr() - entire_str, curlen,
                             cur_state, final_state, 0);
 
                 /* the next state is the first branch of the epsilon */
@@ -3493,7 +3665,8 @@ int CRegexSearcher::match(const char *entire_str,
              *   and push a new state for the second branch.  
              */
             str_ofs = p.getptr() - entire_str;
-            stack_.swap_and_push(_retval_, ST_EPS2, &start_ofs, &str_ofs,
+            stack_.swap_and_push(_retval_, ST_EPS2,
+                                 &start_ofs, &str_ofs, &curlen,
                                  &cur_state, &final_state, regs, loop_vars);
 
             /* the next state is the second branch */
@@ -3501,7 +3674,6 @@ int CRegexSearcher::match(const char *entire_str,
 
             /* set up at the original string position */
             p.set((char *)entire_str + str_ofs);
-            curlen = entire_str_len - str_ofs;
 
             /* the second branch substring starts at the current character */
             start_ofs = p.getptr() - entire_str;
@@ -3538,13 +3710,12 @@ int CRegexSearcher::match(const char *entire_str,
                  *   will be restored from the enclosing frame that we're
                  *   returning to.
                  */
-                stack_.pop(&start_ofs, &str_ofs, &cur_state, &final_state,
-                           regs, loop_vars, &iter);
+                stack_.pop(&start_ofs, &str_ofs, &curlen,
+                           &cur_state, &final_state, regs, loop_vars, &iter);
                 stack_.discard();
 
                 /* set the string pointer */
                 p.set((char *)entire_str + str_ofs);
-                curlen = entire_str_len - str_ofs;
 
                 /* return failure */
                 local_return(-1);
@@ -3585,8 +3756,8 @@ int CRegexSearcher::match(const char *entire_str,
                  *   branch's initial state, since this is the baseline for
                  *   the first branch's final state. 
                  */
-                stack_.pop(&start_ofs, &str_ofs, &cur_state, &final_state,
-                           regs, loop_vars, &iter);
+                stack_.pop(&start_ofs, &str_ofs, &curlen,
+                           &cur_state, &final_state, regs, loop_vars, &iter);
 
                 /* add in the length up to the initial state at the epsilon */
                 ret1 += str_ofs - start_ofs;
@@ -3606,7 +3777,7 @@ int CRegexSearcher::match(const char *entire_str,
                  *   that we have the initial values of the group registers
                  *   back in the frame, for propagation to the parent frame.
                  */
-                stack_.swap_and_pop(&start_ofs, &str_ofs,
+                stack_.swap_and_pop(&start_ofs, &str_ofs, &curlen,
                                     &cur_state, &final_state,
                                     regs, loop_vars, &iter);
 
@@ -3615,7 +3786,6 @@ int CRegexSearcher::match(const char *entire_str,
 
                 /* set the string pointer */
                 p.set((char *)entire_str + str_ofs);
-                curlen = entire_str_len - str_ofs;
 
                 /* return the result */
                 local_return(ret1);
@@ -3657,8 +3827,8 @@ int CRegexSearcher::match(const char *entire_str,
              *   We're finishing an assertion sub-machine.  First, pop the
              *   machine state to get back to where we were.  
              */
-            stack_.pop(&start_ofs, &str_ofs, &cur_state, &final_state,
-                       regs, loop_vars, &iter);
+            stack_.pop(&start_ofs, &str_ofs, &curlen,
+                       &cur_state, &final_state, regs, loop_vars, &iter);
 
             /* we look at the type a lot, so get it into a local */
             typ = tuple_arr[cur_state].typ;
@@ -3676,7 +3846,6 @@ int CRegexSearcher::match(const char *entire_str,
              *   offset we popped from the state 
              */
             p.set((char *)entire_str + str_ofs);
-            curlen = entire_str_len - str_ofs;
 
             /*
              *   If this is a look-back assertion, and it's not a match,
@@ -3706,12 +3875,12 @@ int CRegexSearcher::match(const char *entire_str,
                 {
                     /* re-push our assertion sub-state */
                     stack_.push(ST_ASSERT, start_ofs,
-                                p.getptr() - entire_str,
+                                p.getptr() - entire_str, curlen,
                                 cur_state, final_state, iter);
                     
                     /* back up by lblen characters */
                     for ( ; lblen > 0 && p.getptr() != entire_str ;
-                          p.dec(), --lblen, ++curlen) ;
+                          p.dec(&curlen), --lblen) ;
 
                     /* recurse into the group */
                     final_state = tuple_arr[cur_state].info.sub.final;
@@ -3753,32 +3922,30 @@ int CRegexSearcher::search(const char *entirestr, const char *str, size_t len,
                            const re_machine *machine, re_group_register *regs,
                            int *result_len)
 {
-    utf8_ptr p;
     re_group_register best_match_regs[RE_GROUP_REG_CNT];
     short loop_vars[RE_LOOP_VARS_MAX];
-    int best_match_len;
-    int best_match_start;
-    const char *max_start_pos;
 
     /* we don't have a match yet */
-    best_match_len = -1;
-    best_match_start = -1;
+    int best_match_len = -1;
+    int best_match_start = -1;
 
     /* search the entire string */
-    max_start_pos = str + len;
+    const char *max_start_pos = str + len;
+
+    /* figure the length of the overall string */
+    size_t entirelen = len + (str - entirestr);
     
     /*
      *   Starting at the first character in the string, search for the
      *   pattern at each subsequent character until we either find the
      *   pattern or run out of string to test. 
      */
+    utf8_ptr p;
     for (p.set((char *)str) ; p.getptr() <= max_start_pos ; p.inc(&len))
     {
-        int matchlen;
-        
         /* check for a match */
-        matchlen = match(entirestr, p.getptr(), len,
-                         pattern, tuple_arr, machine, regs, loop_vars);
+        int matchlen = match(entirestr, entirelen, p.getptr(), len,
+                             pattern, tuple_arr, machine, regs, loop_vars);
         if (matchlen >= 0)
         {
             /* check our first-begin/first-end mode */
@@ -3817,10 +3984,8 @@ int CRegexSearcher::search(const char *entirestr, const char *str, size_t len,
                 }
                 else
                 {
-                    int end_idx;
-                    
                     /* calculate the ending index of this match */
-                    end_idx = (p.getptr() - str) + matchlen;
+                    int end_idx = (p.getptr() - str) + matchlen;
 
                     /* see what we have */
                     if (end_idx < best_match_start + best_match_len)
@@ -3910,6 +4075,152 @@ int CRegexSearcher::search(const char *entirestr, const char *str, size_t len,
     return -1;
 }
 
+/*
+ *   Search backwards.  In reverse searches, everything is mirrored.  The
+ *   starting position 'str' is actually the boundary for the right side of
+ *   the match, so the match must end before this character.  Likewise, the
+ *   endpoints and directions for <FirstBegin> and <FirstEnd> are mirrored.
+ *   The "beginning" endpoint is the right side of the match, and the
+ *   "ending" endpoint is the left side.  "First" means closest to the
+ *   starting position, so a higher index is firstier than a lower index.
+ */
+int CRegexSearcher::search_back(
+    const char *entirestr, const char *str, size_t len,
+    const re_compiled_pattern_base *pattern,
+    const re_tuple *tuple_arr,
+    const re_machine *machine, re_group_register *regs,
+    int *result_len)
+{
+    re_group_register best_match_regs[RE_GROUP_REG_CNT];
+    short loop_vars[RE_LOOP_VARS_MAX];
+
+    /* we don't have a match yet */
+    int best_match_len = -1;
+    int best_match_start = -1;
+
+    /* figure the overall string length */
+    size_t entirelen = len + (str - entirestr);
+
+    /* 
+     *   For a reverse search, we only want matches up to the starting
+     *   position, so the length of the matchable portion for the first
+     *   search at the starting position is zero.  Note that we still need
+     *   the entire string length, since patterns can have assertions that go
+     *   past the end of the matched text.
+     */
+    len = 0;
+
+    /*
+     *   Starting at the current position, search for the pattern at each
+     *   earlier character until we either find the pattern or run out of
+     *   string to test. 
+     */
+    utf8_ptr p;
+    for (p.set((char *)str) ; ; p.dec(&len))
+    {
+        /* check for a match */
+        int matchlen = match(entirestr, entirelen, p.getptr(), len,
+                             pattern, tuple_arr, machine, regs, loop_vars);
+        if (matchlen >= 0)
+        {
+            /* check our first-begin/first-end mode */
+            if (pattern->first_begin)
+            {
+                /*
+                 *   We're in first-beginning mode, which in a reverse search
+                 *   means that we want the *end* of the match to have the
+                 *   highest index.  The end of the match is the endpoint
+                 *   facing the starting point, so we want that endpoint to
+                 *   be as close to the starting point as possible, which
+                 *   means the one with the highest index.
+                 */
+                int keep;
+                int end_idx = (p.getptr() - str) + matchlen;
+                if (best_match_len == -1
+                    || end_idx > best_match_start + best_match_len)
+                {
+                    /* 
+                     *   this is the first match, or it's closer to the
+                     *   starting point than the previous match - keep it 
+                     */
+                    keep = TRUE;
+                }
+                else if (end_idx == best_match_start + best_match_len
+                         && pattern->longest_match)
+                {
+                    /* 
+                     *   this match has the same end index as the previous
+                     *   match; and we know it has an earlier start index
+                     *   (because our loop walks backwards through the
+                     *   string), which means it's longer than the previous
+                     *   match; and we're in longest match mode - so this is
+                     *   a longer match that's equally close, so it's a
+                     *   keeper
+                     */
+                    keep = TRUE;
+                }
+                else
+                {
+                    /* otherwise, we're not keeping this match */
+                    keep = FALSE;
+                }
+
+                /* if we're keeping this match, save it */
+                if (keep)
+                {
+                    /* save the start index, length, and register contents */
+                    best_match_start = p.getptr() - str;
+                    best_match_len = matchlen;
+                    memcpy(best_match_regs, regs, sizeof(best_match_regs));
+                }
+            }
+            else
+            {
+                /*
+                 *   We're in first-ending mode.  In a reverse search, this
+                 *   means that we want the *start* of the match (the end
+                 *   farther from the starting point) to have the *highest*
+                 *   index (so it's closer to the starting point).  This is
+                 *   the easy case for a reverse search, because the start
+                 *   point is the loop iteration variable: every future match
+                 *   will have a lower starting index (further away from the
+                 *   starting point) since that's how we walk through the
+                 *   string.  So we'll never find a match with a starting
+                 *   point as close as this one - meaning we can return this
+                 *   one without doing any more looking.
+                 */
+                *result_len = matchlen;
+                return str - p.getptr();
+            }
+        }
+
+        /* if we've reached the start of the string, there's nowhere to go */
+        if (p.getptr() == entirestr)
+            break;
+    }
+
+    /* if we found a previous match, return it */
+    if (best_match_len != -1)
+    {
+        /* set the caller's match length */
+        *result_len = best_match_len;
+
+        /* copy the saved match registers into the caller's registers */
+        memcpy(regs, best_match_regs, sizeof(best_match_regs));
+
+        /* 
+         *   Return the starting index of the match.  Note that the return
+         *   value is the number of bytes *before* the starting point,
+         *   whereas our internal counter is the index offset, which is
+         *   negative; so simply negate it for the return value. 
+         */
+        return -best_match_start;
+    }
+
+    /* we didn't find a match */
+    return -1;
+}
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Search for a previously-compiled pattern within the given string.
@@ -3929,6 +4240,23 @@ int CRegexSearcher::search_for_pattern(
                   &pattern->machine, regs, result_len);
 }
 
+/*
+ *   Search backwards for a pattern
+ */
+int CRegexSearcher::search_back_for_pattern(
+    const re_compiled_pattern *pattern,
+    const char *entirestr, const char *searchstr, size_t searchlen,
+    int *result_len, re_group_register *regs)
+{
+    /* 
+     *   search for the pattern in our copy of the string - use the copy so
+     *   that the group registers stay valid even if the caller deallocates
+     *   the original string after we return 
+     */
+    return search_back(entirestr, searchstr, searchlen, pattern,
+                       pattern->tuples, &pattern->machine, regs, result_len);
+}
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Check for a match to a previously compiled expression.  Returns the
@@ -3944,7 +4272,8 @@ int CRegexSearcher::match_pattern(
     short loop_vars[RE_LOOP_VARS_MAX];
 
     /* match the string */
-    return match(entirestr, searchstr, searchlen,
+    return match(entirestr, searchlen + (searchstr - entirestr),
+                 searchstr, searchlen,
                  pattern, pattern->tuples, &pattern->machine,
                  regs, loop_vars);
 }
@@ -3982,8 +4311,19 @@ int CRegexSearcherSimple::compile_and_match(
     group_cnt_ = pat.group_cnt;
 
     /* match the string */
-    return match(entirestr, searchstr, searchlen,
-                 &pat, parser_->tuple_arr_, &pat.machine, regs_, loop_vars);
+    int m = match(entirestr, searchlen + (searchstr - entirestr),
+                  searchstr, searchlen,
+                  &pat, parser_->tuple_arr_, &pat.machine, regs_, loop_vars);
+
+    /* save the match information on success */
+    if (m >= 0)
+    {
+        match_.start_ofs = searchstr - entirestr;
+        match_.end_ofs = match_.start_ofs + m;
+    }
+
+    /* return the result */
+    return m;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -4001,8 +4341,6 @@ int CRegexSearcherSimple::compile_and_search(
     const char *entirestr, const char *searchstr, size_t searchlen,
     int *result_len)
 {
-    re_compiled_pattern_base pat;
-
     /* no groups yet */
     group_cnt_ = 0;
 
@@ -4010,6 +4348,7 @@ int CRegexSearcherSimple::compile_and_search(
     clear_group_regs();
 
     /* compile the expression - return failure if we get an error */
+    re_compiled_pattern_base pat;
     if (parser_->compile(patstr, patlen, &pat) != RE_STATUS_SUCCESS)
         return -1;
 
@@ -4021,7 +4360,59 @@ int CRegexSearcherSimple::compile_and_search(
      *   that the group registers stay valid even if the caller deallocates
      *   the original string after we return 
      */
-    return search(entirestr, searchstr, searchlen,
-                  &pat, parser_->tuple_arr_, &pat.machine,
-                  regs_, result_len);
+    int m = search(entirestr, searchstr, searchlen,
+                   &pat, parser_->tuple_arr_, &pat.machine,
+                   regs_, result_len);
+
+    /* save the match information on success */
+    if (m >= 0)
+    {
+        match_.start_ofs = m;
+        match_.end_ofs = m + *result_len;
+    }
+
+    /* return the result */
+    return m;
+}
+
+/*
+ *   compile and search backwards 
+ */
+int CRegexSearcherSimple::compile_and_search_back(
+    const char *patstr, size_t patlen,
+    const char *entirestr, const char *searchstr, size_t searchlen,
+    int *result_len)
+{
+    /* no groups yet */
+    group_cnt_ = 0;
+
+    /* clear the group registers */
+    clear_group_regs();
+
+    /* compile the expression - return failure if we get an error */
+    re_compiled_pattern_base pat;
+    if (parser_->compile(patstr, patlen, &pat) != RE_STATUS_SUCCESS)
+        return -1;
+
+    /* remember the group count from the compiled pattern */
+    group_cnt_ = pat.group_cnt;
+
+    /* 
+     *   search for the pattern in our copy of the string - use the copy so
+     *   that the group registers stay valid even if the caller deallocates
+     *   the original string after we return 
+     */
+    int m = search_back(entirestr, searchstr, searchlen,
+                        &pat, parser_->tuple_arr_, &pat.machine,
+                        regs_, result_len);
+
+    /* save the match information on success */
+    if (m >= 0)
+    {
+        match_.start_ofs = searchstr - entirestr - m;
+        match_.end_ofs = match_.start_ofs + *result_len;
+    }
+
+    /* return the result */
+    return m;
 }

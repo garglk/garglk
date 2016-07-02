@@ -161,7 +161,7 @@ void CVmObjCharSet::alloc_ext(VMG_ const char *charset_name,
     extp->to_uni = 0;
 
     /* get the resource loader */
-    res_ldr = G_host_ifc->get_cmap_res_loader();
+    res_ldr = G_host_ifc->get_sys_res_loader();
 
     /* if we have a resource loader, load the mappings */
     if (res_ldr != 0)

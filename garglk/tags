@@ -429,7 +429,7 @@ filtercount	launchgtk.c	/^const int filtercount = 15;$/;"	v
 filterlist	launchefl.c	/^char *filterlist[] =$/;"	v
 filterlist	launchgtk.c	/^char *filterlist[] =$/;"	v
 filterlist	launchwin.c	/^char filterlist[] =$/;"	v
-findfont	fontgtk.c	/^static void findfont(char *fontname, char *fontpath)$/;"	f	file:
+findfont	fontfc.c	/^static void findfont(char *fontname, char *fontpath)$/;"	f	file:
 findhighglyph	draw.c	/^static int findhighglyph(glui32 cid, fentry_t *entries, int length)$/;"	f	file:
 findterp	launcher.c	/^int findterp(char *file, char *target)$/;"	f
 first	garglk.h	/^    eventlog_t *first;$/;"	m	struct:eventqueue_s
@@ -440,11 +440,11 @@ font	garglk.h	/^    int font;$/;"	m	struct:style_s
 font2idx	config.c	/^static int font2idx(char *font)$/;"	f	file:
 font_s	draw.c	/^struct font_s$/;"	s	file:
 font_t	draw.c	/^typedef struct font_s font_t;$/;"	t	typeref:struct:font_s	file:
-fontload	fontgtk.c	/^void fontload(void)$/;"	f
+fontload	fontfc.c	/^void fontload(void)$/;"	f
 fontload	fontwin.c	/^void fontload(void)$/;"	f
-fontreplace	fontgtk.c	/^void fontreplace(char *font, int type)$/;"	f
+fontreplace	fontfc.c	/^void fontreplace(char *font, int type)$/;"	f
 fontreplace	fontwin.c	/^void fontreplace(char *font, int type)$/;"	f
-fontunload	fontgtk.c	/^void fontunload(void)$/;"	f
+fontunload	fontfc.c	/^void fontunload(void)$/;"	f
 fontunload	fontwin.c	/^void fontunload(void)$/;"	f
 frame	sysefl.c	/^static Ecore_Evas *frame;$/;"	v	file:
 frame	syseoi.c	/^static Ecore_Evas *frame;$/;"	v	file:

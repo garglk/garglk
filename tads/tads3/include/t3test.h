@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -12,15 +13,8 @@
  *   subject to future incompatible changes.  
  */
 
-/*
- *   T3 intrinsic function set definition 
- */
-
-#ifndef T3TEST_H
-#define T3TEST_H
-
 /* 
- *   define the T3 Test system interface 
+ *   T3 Test system interface 
  */
 intrinsic 't3vmTEST/010000'
 {
@@ -29,4 +23,3 @@ intrinsic 't3vmTEST/010000'
     t3test_get_charcode(c);
 }
 
-#endif /* T3TEST_H */

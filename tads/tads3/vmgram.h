@@ -283,7 +283,7 @@ struct vmgram_tok_info
         } lit;
 
         /* VMGRAM_MATCH_TOKTYPE - token type enum */
-        uint32 toktyp_enum;
+        uint32_t toktyp_enum;
 
     } typinfo;
 };

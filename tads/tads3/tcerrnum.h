@@ -225,11 +225,17 @@ Modified
 /* '<>' operator is obsolete */
 #define TCERR_LTGT_OBSOLETE       10064
 
-/* integer constant exceeds maximum value */
+/* integer constant exceeds maximum value (promoting to BigNumber) */
 #define TCERR_INT_CONST_OV        10065
 
 /* unrecognized escape sequence \%c in string */
 #define TCERR_BACKSLASH_SEQ       10066
+
+/* non-ASCII character in symbol */
+#define TCERR_NON_ASCII_SYMBOL    10067
+
+/* embedded expressions in string nested too deeply */
+#define TCERR_EMBEDDING_TOO_DEEP  10068
 
 
 /* ------------------------------------------------------------------------ */
@@ -290,6 +296,9 @@ Modified
 
 /* "source-file-name (from library library-name)" */
 #define TCERR_SOURCE_FROM_LIB      10609
+
+/* cannot create directory "%s" */
+#define TCERR_CANNOT_CREATE_DIR    10610
 
 
 /* ------------------------------------------------------------------------ */
@@ -1002,6 +1011,15 @@ Modified
 /* invalid defined() syntax */
 #define TCERR_DEFINED_SYNTAX           11233
 
+/* invalid __objref() syntax */
+#define TCERR___OBJREF_SYNTAX          11234
+
+/* invalid constant value type for operator */
+#define TCERR_BAD_OP_FOR_FLOAT         11235
+
+/* expected inline object property list starting with '{', found '%.*s' */
+#define TCERR_INLINE_OBJ_REQ_LBRACE    11236
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1206,6 +1224,11 @@ Modified
 /* metaclass %.*s is not defined in this module */
 #define TCERR_EXT_METACLASS        11565
 
+/* cannot call extern function without an argument list prototype */
+#define TCERR_FUNC_CALL_NO_PROTO   11566
+
+/* %.*s is not defined or is not a metaclass */
+#define TCERR_UNDEF_METACLASS      11567
 
 
 /* ------------------------------------------------------------------------ */

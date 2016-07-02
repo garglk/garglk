@@ -158,7 +158,8 @@ void CVmImageLoader::load_gsym(VMG_ ulong siz)
                 dat[7] != 0,                                  /* has_retval */
                 FALSE,                                    /* is_multimethod */
                 FALSE,                               /* is_multimethod_base */
-                FALSE);                                        /* is_extern */
+                FALSE,                                         /* is_extern */
+                TRUE);                                         /* has_proto */
 
             /* add the reverse mapping entry */
             G_debugger->add_rev_sym(sym_name, sym_len, sym_type, t3rp4u(dat));

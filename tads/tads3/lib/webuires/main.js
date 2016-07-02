@@ -14,10 +14,40 @@ function mainInit()
     // the top window is always called "main"
     pageName = "main";
 
-    // if the Flash plug-in isn't available, notify our Flash event
-    // object to stop waiting for the load to complete
-    if (!getFlashPlayerVersion())
+    // check for the Flash plug-in
+    if (getFlashPlayerVersion())
+    {
+        // Flash is available, so load our SWF object.  We don't embed the
+        // object statically, because doing so provokes some browsers to
+        // display a UI prompt about installing Flash every single time the
+        // page is loaded, which is annoying to users who intentionally run
+        // sans Flash.  But now that we know Flash is present, we can safely
+        // load our SWF, so dynamically insert the <object> tag for it.
+        $("__TADS_swf_div.<DIV>").innerHTML =
+            "<object id='__TADS_swf' "
+            + "classid='clsid:d27cdb6e-ae6d-11cf-96b8-444553540000' "
+            + "codebase='http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0' "
+            + "width='0' height='0' align='middle' tabindex='-1'>"
+            + "<param name='movie' value='/webuires/TADS.swf'/>"
+            + "<param name='quality' value='high'/>"
+            + "<param name='bgcolor' value='#ffffff'/>"
+            + "<param name='allowScriptAccess' value='always'/>"
+            + "<param name='FlashVars' value='onload=TADS_swf.loaded.fire'/>"
+            + "<embed name='__TADS_swf' src='/webuires/TADS.swf' "
+            + "width='0' height='0' quality='high' bgcolor='#ffffff' "
+            + "allowScriptAccess='always' align='middle' "
+            + "type='application/x-shockwave-flash' "
+            + "pluginspage='http://www.macromedia.com/go/getflashplayer' "
+            + "FlashVars='onload=TADS_swf.loaded.fire'/>"
+            + "</object>";
+    }
+    else
+    {
+        // The Flash plug-in isn't available, so we won't be able to run
+        // our SWF object.  Fire our load-completion event to signal that
+        // there's nothing to wait for.
         TADS_swf.loaded.fire();
+    }
 
     // initialize the utilities and layout window packages
     utilInit();
@@ -158,8 +188,18 @@ function mainGameState(req, resp)
     // and "resumes" our processing when the request completes, by
     // invoking our event callback.
 
-    // ask for our first event
-    serverRequest("/webui/getEvent", ServerRequest.Subscription, cbGetEvent);
+    // Ask for our first event.  Do this in a timeout rather than directly,
+    // to allow the browser to process any outstanding events in its own
+    // queue; this avoids a problem that shows up in Mobile Safari and IE9
+    // that seems to be related to the timing of receiving the IFRAME
+    // contents on the initial page setup.  A zero timeout is fine; we
+    // don't need a delay per se, we just need to order things so that we
+    // don't generate this request until the browser has finished processing
+    // UI events already in its internal queue.
+    setTimeout(function() {
+        serverRequest(
+            "/webui/getEvent", ServerRequest.Subscription, cbGetEvent);
+    }, 0);
 }
 
 // getEvent request callback.  This handles a response from the server to
@@ -836,7 +876,7 @@ function showDialogMain(params)
     // create the canvas
     var canvas = dlgDesc.canvas = document.createElement("div");
     canvas.className = "dialogCanvas";
-    canvas.style.zIndex = z + 1;
+    canvas.style.zIndex = "" + (z + 1);
     document.body.appendChild(canvas);
 
     // create the new dialog division
@@ -844,7 +884,7 @@ function showDialogMain(params)
     dlg.id = dlgID;
     dlg.innerHTML = $("dialogTemplate").innerHTML;
     dlg.className = "dialogDiv";
-    dlg.style.zIndex = z + 1;
+    dlg.style.zIndex = "" + (z + 1);
     dlg.onkeydown = function(ev) { return $kd(ev, dlgKey, dlgDesc); };
     dlg.onkeypress = function(ev) { return $kp(ev, dlgKey, dlgDesc); };
     canvas.appendChild(dlg);
@@ -975,9 +1015,8 @@ function showDialogMain(params)
         // set the size again
         positionDialog(dlg, true);
 
-        // set it opaque for non-IE browsers
-        if (!BrowserInfo.ie)
-            canvas.style.opacity = "1";
+        // set it opaque
+        setAlpha(canvas, 100);
 
         // set the initial focus
         initDialogFocus();
@@ -1716,6 +1755,10 @@ function bufferKey(desc)
 
     // if the key has already been buffered, don't buffer it again
     if (desc.keyBufferedInMain)
+        return;
+
+    // discard CRs - IE9 sends CR LF for a newline, but we only want the LF
+    if (desc.keyCode == 13)
         return;
 
     // note that the key has been buffered
@@ -3051,8 +3094,10 @@ function showUploadDialog(desc)
             +   "enctype=\"multipart/form-data\" "
             +   "action=\"/webui/uploadFileDialog\" "
             +   "style=\"padding-top: 2em;\">"
-            + "Please select a file to upload:<br>"
+            + "Please select a file:"
+            + "<div style='margin: 1em;'>"
             + "<input type=\"file\" size=\"50\" name=\"file\">"
+            + "</div>"
             + "</form>"
             + "</div></div>"
             + "</body>"
@@ -3076,7 +3121,7 @@ function showUploadDialog(desc)
         title: prompt,
         contents: $("uploadDialog"),
         buttons: [
-            { name: "Upload", isDefault: true, onclick: submit },
+            { name: "OK", isDefault: true, onclick: submit },
             { name: "Cancel", isCancel: true }
         ],
         dismiss: function(dlg, btn) {

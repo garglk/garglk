@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -7,9 +8,6 @@
  *   
  *   This header defines the BigNumber intrinsic class.  
  */
-
-#ifndef _BIGNUM_H_
-#define _BIGNUM_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -334,6 +332,4 @@ intrinsic class BigNumber 'bignumber/030001': Object
 #define NumTypeNZero  0x0020
 #define NumTypeZero (NumTypePZero | NumTypeNZero)
 
-
-#endif /* _BIGNUM_H_ */
 

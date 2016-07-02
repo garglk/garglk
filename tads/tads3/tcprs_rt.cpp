@@ -53,16 +53,6 @@ void CTPNStmBase::add_debug_line_rec(CTcTokFileDesc *, long)
 {
 }
 
-/* we don't allow object definitions in this mode */
-void CTPNStmObjectBase::add_implicit_constructor()
-{
-}
-
-/* we don't allow property set expansion in this mode */
-void CTcParser::insert_propset_expansion(struct propset_def *, int)
-{
-}
-
 /*
  *   Add an entry to the global symbol table.  We can't define new global
  *   symbols in an interactive debug session, so this does nothing.  
@@ -70,6 +60,13 @@ void CTcParser::insert_propset_expansion(struct propset_def *, int)
 void CTcPrsSymtab::add_to_global_symtab(CTcPrsSymtab *, CTcSymbol *)
 {
 }
+
+int CTPNStmObjectBase::parse_nested_obj_prop(
+    CTPNObjProp* &, int *, tcprs_term_info *, const CTcToken *, int)
+{
+    return FALSE;
+}
+
 
 /*
  *   Set the sourceTextGroup mode.  This doesn't apply in the debugger, since

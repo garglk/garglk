@@ -99,9 +99,9 @@ int gli_image_w = 0;
 int gli_image_h = 0;
 unsigned char *gli_image_rgb = NULL;
 
-#if defined __APPLE__ || defined __EFL_4BPP__
+#if defined __APPLE__ || defined EFL_4BPP
 static const int gli_bpp = 4;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
 static const int gli_bpp = 1;
 #else
 static const int gli_bpp = 3;
@@ -436,12 +436,12 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
-#elif defined __APPLE__ || defined __EFL_4BPP__
+#elif defined __APPLE__ || defined EFL_4BPP
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
     p[3] = 0xFF;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
     p[0] = gray + mul255((short)p[0] - gray, invalf);
 #else
@@ -466,12 +466,12 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
-#elif defined __APPLE__ || defined __EFL_4BPP__
+#elif defined __APPLE__ || defined EFL_4BPP
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
     p[3] = 0xFF;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
     int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
     p[0] = gray + mul255((short)p[0] - gray, invalfgray);
@@ -513,7 +513,7 @@ void gli_draw_clear(unsigned char *rgb)
     unsigned char *p;
     int x, y;
     
-#ifdef __EFL_1BPP__
+#ifdef EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
 #endif
     for (y = 0; y < gli_image_h; y++)
@@ -525,12 +525,12 @@ void gli_draw_clear(unsigned char *rgb)
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
-#elif defined __APPLE__ || defined __EFL_4BPP__
+#elif defined __APPLE__ || defined EFL_4BPP
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
             *p++ = 0xFF;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
             *p++ = gray;
 #else
             *p++ = rgb[0];
@@ -560,7 +560,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
 
     p0 = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;
 
-#ifdef __EFL_1BPP__
+#ifdef EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
 #endif
     for (y = y0; y < y1; y++)
@@ -572,12 +572,12 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
-#elif defined __APPLE__ || defined __EFL_4BPP__
+#elif defined __APPLE__ || defined EFL_4BPP
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
             *p++ = 0xFF;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
             *p++ = gray;
 #else
             *p++ = rgb[0];
@@ -938,19 +938,19 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             unsigned char sr = mul255(sp[x*4+0], sa);
             unsigned char sg = mul255(sp[x*4+1], sa);
             unsigned char sb = mul255(sp[x*4+2], sa);
-#ifdef __EFL_1BPP__
+#ifdef EFL_1BPP
             unsigned char sgray = grayscale(sr, sg, sb);
 #endif
 #ifdef WIN32
             dp[x*3+0] = sb + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sr + mul255(dp[x*3+2], na);
-#elif defined __APPLE__ || defined __EFL_4BPP__
+#elif defined __APPLE__ || defined EFL_4BPP
             dp[x*4+0] = sb + mul255(dp[x*4+0], na);
             dp[x*4+1] = sg + mul255(dp[x*4+1], na);
             dp[x*4+2] = sr + mul255(dp[x*4+2], na);
             dp[x*4+3] = 0xFF;
-#elif defined __EFL_1BPP__
+#elif defined EFL_1BPP
             dp[x] = sgray + mul255(dp[x], na);
 #else
             dp[x*3+0] = sr + mul255(dp[x*3+0], na);

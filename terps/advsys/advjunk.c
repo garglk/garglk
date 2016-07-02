@@ -31,14 +31,14 @@ int getch()
 #endif
 }
 
-waitch()
+void waitch()
 {
 #ifndef UNIX
     bdos(7);
 #endif
 }
 
-putch(ch,fp)
+void putch(ch,fp)
   int ch; FILE *fp;
 {
 #ifdef UNIX

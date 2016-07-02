@@ -137,14 +137,12 @@ struct vm_lookup_ext
     /* allocate a value entry out of my free list */
     vm_lookup_val *alloc_val_entry()
     {
-        vm_lookup_val *entry;
-        
         /* if the free list is empty, return failure */
         if (first_free == 0)
             return 0;
 
         /* take the first item off the free list */
-        entry = first_free;
+        vm_lookup_val *entry = first_free;
 
         /* unlink it from the free list */
         first_free = first_free->nxt;
@@ -159,10 +157,8 @@ struct vm_lookup_ext
      */
     void add_val(uint hash, const vm_val_t *key, const vm_val_t *val)
     {
-        vm_lookup_val *entry;
-        
         /* allocate a new entry */
-        entry = alloc_val_entry();
+        vm_lookup_val *entry = alloc_val_entry();
 
         /* set it up with the new data */
         entry->key = *key;

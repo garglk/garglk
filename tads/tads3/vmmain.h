@@ -99,9 +99,190 @@ int vm_get_game_type(const char *filename,
 
 
 /*
+ *   Parameters structure for vm_run_image.  vm_run_image() essentially takes
+ *   the parsed version of the execution parameters, and loads and executes
+ *   the .t3 file accordingly.  The caller is responsible for parsing the
+ *   command-line arguments or equivalent.  You can use vm_run_image_main()
+ *   if you have a standard Unix-style argv/argc and want to do the standard
+ *   t3run parsing.  If you don't have a standard argv/argc (e.g., you get
+ *   your parameters from a GUI dialog, an external config file), you can
+ *   bypass the normal t3run argv parsing by setting up this structure from
+ *   your parameters and calling vm_run_image().  You can also use this
+ *   approach if you want override the standard t3run option syntax and do
+ *   your own argv parsing.
+ */
+struct vm_run_image_params
+{
+    vm_run_image_params(class CVmMainClientIfc *clientifc,
+                        class CVmHostIfc *hostifc,
+                        const char *image_file_name)
+    {
+        /* set the required parameters */
+        this->clientifc = clientifc;
+        this->hostifc = hostifc;
+        this->image_file_name = image_file_name;
+
+        /* assume no program arguments */
+        prog_argv = 0;
+        prog_argc = 0;
+
+        /* assume no script or log files */
+        script_file = 0;
+        log_file = 0;
+        cmd_log_file = 0;
+        script_quiet = FALSE;
+
+        /* assume we'll use [More] mode for interactive output */
+        more_mode = TRUE;
+
+        /* assume we're loading from a separate .t3 file */
+        load_from_exe = FALSE;
+
+        /* assume we won't show the VM banner */
+        show_banner = FALSE;
+
+        /* assume we will seed the RNG */
+        seed_rand = TRUE;
+
+        /* use the default character sets from the system */
+        charset = 0;
+        log_charset = 0;
+
+        /* assume we're not loading a saved state file */
+        saved_state = 0;
+
+        /* use default directories */
+        res_dir = 0;
+        file_dir = 0;
+        sandbox_dir = 0;
+
+        /* assume no network configuration */
+        netconfig = 0;
+    }
+    
+    /* 
+     *   the client interface - this lets the host application environment
+     *   provide a custom implementation of the main console interface for
+     *   the game 
+     */
+    class CVmMainClientIfc *clientifc;
+
+    /* 
+     *   the host interface - this lets the host application environment
+     *   customize certain preference settings and data sources 
+     */
+    class CVmHostIfc *hostifc;
+
+    /* the image file name */
+    const char *image_file_name;
+
+    /* 
+     *   The program command-line parameters - these are argv-style parameter
+     *   strings to pass to the .t3 program's main().  (Note that these
+     *   aren't the arguments to the interpreter - that's what this entire
+     *   structure is about, as it contains the pre-digested results of
+     *   parsing those parameters.  These are instead unparsed parameters
+     *   that we're to pass along to the .t3 program.)
+     */
+    const char *const *prog_argv;
+    int prog_argc;
+
+    /* 
+     *   The input script file.  If this is not null, the interpreter will
+     *   read console input from the given file and feed it to the .t3
+     *   program via inputLine(), etc.  If script_quiet is true, we'll read
+     *   this input silently, without echoing it or program output to the
+     *   console for the duration of the script input.
+     */
+    const char *script_file;
+    int script_quiet;
+
+    /*
+     *   The log file.  If this is not null, we'll log console output to the
+     *   given file. 
+     */
+    const char *log_file;
+
+    /*
+     *   Command log file.  If this is not null, we'll log input lines read
+     *   from the console to this file.
+     */
+    const char *cmd_log_file;
+
+    /* 
+     *   In [More] mode, we pause and await a keystroke after each screenful
+     *   of text to give the user a chance to read text before it scrolls off
+     *   the screen.  This is the default, but sometimes users will want to
+     *   run in batch/stdio mode, where there's no pausing.
+     */
+    int more_mode;
+
+    /*
+     *   Flag: load from the application executable file.  If this is true,
+     *   the given image filename is actually the name of the native
+     *   application executable file that we're running (i.e., the main
+     *   program's argv[0] or equivalent), and it contains an embedded or
+     *   attached copy of the .t3 file, embedded via some OS-specific
+     *   mechanism. 
+     */
+    int load_from_exe;
+
+    /* flag: show the VM version/copyright banner at startup */
+    int show_banner;
+
+    /* 
+     *   flag: seed the random number generator automatically at startup;
+     *   this uses some OS-specific source of true randomness to generate an
+     *   initial random state for the RNG 
+     */
+    int seed_rand;
+
+    /*
+     *   Character set name for the main console.  If this is not null, we'll
+     *   use this charater set for text displayed to and read from the
+     *   interactive console. 
+     */
+    const char *charset;
+
+    /* log file character set (if not null) */
+    const char *log_charset;
+
+    /* 
+     *   Saved state file to restore on startup.  If this is not null, we'll
+     *   restore this saved state file immediately after loading the .t3
+     *   file. 
+     */
+    const char *saved_state;
+
+    /* resource directory */
+    const char *res_dir;
+
+    /* 
+     *   Default working directory for File operations.  If this is not null,
+     *   the File class will use this as the working directory for file
+     *   operations when file names are given as relative paths.  If this is
+     *   null, the folder containing the .t3 file is the default.
+     */
+    const char *file_dir;
+
+    /*
+     *   Sandbox directory for file safety enforcement.  If this is not null,
+     *   the File class uses this as the sandbox directory for file safety
+     *   purposes.  If this is null, the default sandbox is the file_dir if
+     *   specified, otherwise the folder containing the .t3 file.
+     */
+    const char *sandbox_dir;
+
+    /*
+     *   Network configuration object.  If not null, we're running in web
+     *   host mode, with the network parameters specified in this object.
+     */
+    class TadsNetConfig *netconfig;
+};
+
+/*
  *   Execute an image file.  We'll return zero on success, or a VM error code
- *   on failure.  If an error occurs, we'll fill in 'errbuf' with the text of
- *   a message describing the problem.
+ *   on failure.
  *   
  *   If 'load_from_exe' is true, the image filename given is actually the
  *   name of the native executable file that we're running, and we should
@@ -118,16 +299,8 @@ int vm_get_game_type(const char *filename,
  *   current system character set as indicated by the osifc layer.  'charset'
  *   should usually be null unless explicitly specified by the user.  
  */
-int vm_run_image(class CVmMainClientIfc *clientifc,
-                 const char *image_file_name,
-                 class CVmHostIfc *hostifc,
-                 const char *const *prog_argv, int prog_argc,
-                 const char *script_file, int script_quiet,
-                 const char *log_file, const char *cmd_log_file,
-                 int load_from_exe, int show_banner, int seed_rand,
-                 const char *charset, const char *log_charset,
-                 const char *saved_state, const char *res_dir,
-                 class TadsNetConfig *netconfig);
+int vm_run_image(const vm_run_image_params *params);
+
 
 /*
  *   Execute an image file using argc/argv conventions.  We'll parse the
@@ -157,7 +330,8 @@ int vm_run_image(class CVmMainClientIfc *clientifc,
  */
 int vm_run_image_main(class CVmMainClientIfc *clientifc,
                       const char *executable_name,
-                      int argc, char **argv, int defext, int test_mode,
+                      int argc, char **argv,
+                      int defext, int test_mode,
                       class CVmHostIfc *hostifc);
 
 /*
@@ -196,6 +370,8 @@ char *vm_get_ifid(class CVmHostIfc *hostifc);
 class CVmMainClientIfc
 {
 public:
+    virtual ~CVmMainClientIfc() { }
+
     /* 
      *   Set "plain" mode.  This should set the console to plain ASCII output
      *   mode, if appropriate.  Note that this can be called before
@@ -262,7 +438,8 @@ public:
                              const char *script_file, int script_quiet,
                              const char *log_file,
                              const char *cmd_log_file,
-                             const char *banner_str) = 0;
+                             const char *banner_str,
+                             int more_mode) = 0;
 
     /*
      *   Termination - we'll invoke this immediately before terminating the
@@ -326,7 +503,7 @@ public:
         { return 0; }
     virtual void delete_console(struct vm_globals *, class CVmConsoleMain *) { }
     virtual void client_init(struct vm_globals *, const char *, int,
-                             const char *, const char *, const char *) { }
+                             const char *, const char *, const char *, int) { }
     virtual void client_terminate(struct vm_globals *) { }
     virtual void pre_exec(struct vm_globals *) { }
     virtual void post_exec(struct vm_globals *) { }

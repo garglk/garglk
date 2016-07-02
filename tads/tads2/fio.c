@@ -248,7 +248,9 @@ static void fiord1(mcmcxdef *mctx, voccxdef *vctx, tokcxdef *tctx,
     ulong       curpos;
     runxdef    *ex;
     ulong       eof_reset = 0;             /* reset here at EOF if non-zero */
-    int         xfcns_done = FALSE;                /* already loaded XFCN's */
+#if 0  // XFCNs are obsolete
+    int         xfcns_done = FALSE;                 /* already loaded XFCNs */
+#endif
     ulong       xfcn_pos = 0;          /* location of XFCN's if preloadable */
     uint        xor_seed = 17;                     /* seed value for fioxor */
     uint        xor_inc = 29;                 /* increment value for fioxor */
@@ -953,7 +955,9 @@ static void fiord1(mcmcxdef *mctx, voccxdef *vctx, tokcxdef *tctx,
             {
                 osfseek(fp, eof_reset, OSFSK_SET);     /* back after EXTCNT */
                 eof_reset = 0;                   /* really done at next EOF */
-                xfcns_done = TRUE;                 /* don't do XFCN's again */
+#if 0 // XFCNs are obsolete
+                xfcns_done = TRUE;                  /* don't do XFCNs again */
+#endif
             }
             else
                 break;

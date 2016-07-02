@@ -116,10 +116,47 @@ struct enum_locals_ctx
  */
 void CTcParser::enum_for_ctx_locals(void *ctx0, CTcSymbol *sym)
 {
+    /* cast the context */
     enum_locals_ctx *ctx = (enum_locals_ctx *)ctx0;
 
     /* tell this symbol to apply its local variable conversion */
     sym->apply_ctx_var_conv(ctx->symtab, ctx->code_body);
+}
+
+/*
+ *   Set up the local context for access to enclosing scope locals.  Call
+ *   this after parsing a code body to set up the hooks between the new code
+ *   body's proxy symbol table for enclosing scopes and the actual enclosing
+ *   local scopes. 
+ */
+void CTcParser::finish_local_ctx(CTPNCodeBody *cb, CTcPrsSymtab *local_symtab)
+{
+    /* if we have a local context, mark the code body accordingly */
+    if (has_local_ctx_)
+        cb->set_local_ctx(local_ctx_var_num_, next_ctx_arr_idx_ - 1);
+
+    /* 
+     *   If the caller passed in a local symbol table, check the table for
+     *   context variables from enclosing scopes, and assign the local holder
+     *   for each such variable. 
+     */
+    if (local_symtab != 0)
+    {
+        /* 
+         *   consider only the outermost local table, since that's where the
+         *   shared locals reside 
+         */
+        CTcPrsSymtab *tab, *par;
+        for (tab = local_symtab_, par = tab->get_parent() ;
+             par != 0 && par != global_symtab_ ;
+             tab = par, par = par->get_parent()) ;
+
+        /* enumerate the variables */
+        enum_locals_ctx ctx;
+        ctx.symtab = tab;
+        ctx.code_body = cb;
+        tab->enum_entries(&enum_for_ctx_locals, &ctx);
+    }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -141,17 +178,13 @@ void CTcParser::enum_for_ctx_locals(void *ctx0, CTcSymbol *sym)
  *   The caller must already have checked for an open paren and skipped
  *   it.  
  */
-void CTcParser::parse_formal_list(int count_only, int opt_allowed,
-                                  int *argc, int *opt_argc, int *varargs,
-                                  int *varargs_list,
-                                  CTcSymLocal **varargs_list_local,
-                                  int *err, int base_formal_num,
-                                  int for_short_anon_func,
-                                  CTcFormalTypeList **type_list)
+void CTcParser::parse_formal_list(
+    int count_only, int opt_allowed,
+    int *argc, int *opt_argc, int *varargs,
+    int *varargs_list, CTcSymLocal **varargs_list_local,
+    int *err, int base_formal_num, int for_short_anon_func,
+    CTcFormalTypeList **type_list)
 {
-    int done;
-    int missing_end_tok_err;
-    tc_toktyp_t end_tok;
     CTcSymLocal *lcl = 0;
     CTcToken varname;
     int named_param = FALSE, opt_param = FALSE;
@@ -163,8 +196,8 @@ void CTcParser::parse_formal_list(int count_only, int opt_allowed,
      *   ending token is a right parenthesis; for a short-form anonymous
      *   function, it's a colon 
      */
-    end_tok = (for_short_anon_func ? TOKT_COLON : TOKT_RPAR);
-    missing_end_tok_err = (for_short_anon_func
+    tc_toktyp_t end_tok = (for_short_anon_func ? TOKT_COLON : TOKT_RPAR);
+    int missing_end_tok_err = (for_short_anon_func
                            ? TCERR_MISSING_COLON_FORMAL
                            : TCERR_MISSING_RPAR_FORMAL);
     
@@ -179,7 +212,7 @@ void CTcParser::parse_formal_list(int count_only, int opt_allowed,
     *err = FALSE;
 
     /* we've only just begun */
-    done = FALSE;
+    int done = FALSE;
 
     /* check for an empty list */
     if (G_tok->cur() == end_tok)
@@ -821,58 +854,36 @@ void CTcParser::parse_formal_list(int count_only, int opt_allowed,
 /*
  *   Parse a nested code body (such as an anonymous function code body) 
  */
-CTPNCodeBody *CTcParser::
-   parse_nested_code_body(int eq_before_brace,
-                          int self_valid,
-                          int *p_argc, int *p_opt_argc, int *p_varargs,
-                          int *p_varargs_list,
-                          CTcSymLocal **p_varargs_list_local,
-                          int *p_has_retval,
-                          int *err, CTcPrsSymtab *local_symtab,
-                          tcprs_codebodytype cb_type)
+CTPNCodeBody *CTcParser::parse_nested_code_body(
+    int eq_before_brace, int self_valid,
+    int *p_argc, int *p_opt_argc, int *p_varargs,
+    int *p_varargs_list, CTcSymLocal **p_varargs_list_local,
+    int *p_has_retval, int *err, CTcPrsSymtab *local_symtab,
+    tcprs_codebodytype cb_type)
 {
-    CTcPrsSymtab *old_local_symtab;
-    CTcPrsSymtab *old_enclosing_local_symtab;
-    CTPNStmEnclosing *old_enclosing_stm;
-    CTcPrsSymtab *old_goto_symtab;
-    int old_local_cnt;
-    int old_max_local_cnt;
-    CTPNCodeBody *code_body;
-    int old_has_local_ctx;
-    int old_local_ctx_var_num;
-    size_t old_ctx_var_props_used;
-    int old_next_ctx_arr_idx;
-    int old_self_valid;
-    int old_self_referenced;
-    int old_full_method_ctx_referenced;
-    int old_local_ctx_needs_self;
-    int old_local_ctx_needs_full_method_ctx;
-    CTcCodeBodyRef *old_cur_code_body;
-
     /* remember the original parser state */
-    old_local_symtab = local_symtab_;
-    old_enclosing_local_symtab = enclosing_local_symtab_;
-    old_enclosing_stm = enclosing_stm_;
-    old_goto_symtab = goto_symtab_;
-    old_local_cnt = local_cnt_;
-    old_max_local_cnt = max_local_cnt_;
-    old_has_local_ctx = has_local_ctx_;
-    old_local_ctx_var_num = local_ctx_var_num_;
-    old_ctx_var_props_used = ctx_var_props_used_;
-    old_next_ctx_arr_idx = next_ctx_arr_idx_;
-    old_self_valid = self_valid_;
-    old_self_referenced = self_referenced_;
-    old_full_method_ctx_referenced = full_method_ctx_referenced_;
-    old_local_ctx_needs_self = local_ctx_needs_self_;
-    old_local_ctx_needs_full_method_ctx = local_ctx_needs_full_method_ctx_;
-    old_cur_code_body = cur_code_body_;
+    CTcPrsSymtab *old_local_symtab = local_symtab_;
+    CTcPrsSymtab *old_enclosing_local_symtab = enclosing_local_symtab_;
+    CTPNStmEnclosing *old_enclosing_stm = enclosing_stm_;
+    CTcPrsSymtab *old_goto_symtab = goto_symtab_;
+    int old_local_cnt = local_cnt_;
+    int old_max_local_cnt = max_local_cnt_;
+    int old_has_local_ctx = has_local_ctx_;
+    int old_local_ctx_var_num = local_ctx_var_num_;
+    int old_ctx_var_props_used = ctx_var_props_used_;
+    int old_next_ctx_arr_idx = next_ctx_arr_idx_;
+    int old_self_valid = self_valid_;
+    int old_self_referenced = self_referenced_;
+    int old_full_method_ctx_referenced = full_method_ctx_referenced_;
+    int old_local_ctx_needs_self = local_ctx_needs_self_;
+    int old_local_ctx_needs_full_method_ctx = local_ctx_needs_full_method_ctx_;
+    CTcCodeBodyRef *old_cur_code_body = cur_code_body_;
 
     /* parse the code body */
-    code_body = parse_code_body(eq_before_brace, FALSE, self_valid,
-                                p_argc, p_opt_argc, p_varargs,
-                                p_varargs_list, p_varargs_list_local,
-                                p_has_retval, err, local_symtab, cb_type,
-                                0, 0, cur_code_body_, 0);
+    CTPNCodeBody *code_body = parse_code_body(
+        eq_before_brace, FALSE, self_valid,
+        p_argc, p_opt_argc, p_varargs, p_varargs_list, p_varargs_list_local,
+        p_has_retval, err, local_symtab, cb_type, 0, 0, cur_code_body_, 0);
 
     /* restore the parser state */
     cur_code_body_ = old_cur_code_body;
@@ -911,31 +922,14 @@ CTPNCodeBody *CTcParser::
  *   unary, the left operand of a binary, or the leftmost operand of a
  *   trinary).  
  */
-CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
-                                         int self_valid,
-                                         int *p_argc, int *p_opt_argc,
-                                         int *p_varargs, int *p_varargs_list,
-                                         CTcSymLocal **p_varargs_list_local,
-                                         int *p_has_retval,
-                                         int *err, CTcPrsSymtab *local_symtab,
-                                         tcprs_codebodytype cb_type,
-                                         struct propset_def *propset_stack,
-                                         int propset_depth,
-                                         CTcCodeBodyRef *enclosing_code_body,
-                                         CTcFormalTypeList **type_list)
+CTPNCodeBody *CTcParser::parse_code_body(
+    int eq_before_brace, int is_obj_prop, int self_valid,
+    int *p_argc, int *p_opt_argc, int *p_varargs, int *p_varargs_list,
+    CTcSymLocal **p_varargs_list_local, int *p_has_retval,
+    int *err, CTcPrsSymtab *local_symtab, tcprs_codebodytype cb_type,
+    struct propset_def *propset_stack, int propset_depth,
+    CTcCodeBodyRef *enclosing_code_body, CTcFormalTypeList **type_list)
 {
-    int formal_num;
-    int opt_formal_num;
-    int varargs;
-    int varargs_list;
-    CTcSymLocal *varargs_list_local;
-    CTPNStmComp *stm;
-    unsigned long flow_flags;
-    CTPNCodeBody *body_stm;
-    int parsing_anon_fn;
-    long start_line = 0;
-    CTcTokFileDesc *start_desc = 0;
-
     /* 
      *   create a new code body reference - this will let nested code bodies
      *   refer back to the code body object we're about to parse, even though
@@ -945,8 +939,8 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
     cur_code_body_ = new (G_prsmem) CTcCodeBodyRef();
 
     /* note if we're parsing some kind of anonymous function */
-    parsing_anon_fn = (cb_type == TCPRS_CB_ANON_FN
-                       || cb_type == TCPRS_CB_SHORT_ANON_FN);
+    int parsing_anon_fn = (cb_type == TCPRS_CB_ANON_FN
+                           || cb_type == TCPRS_CB_SHORT_ANON_FN);
 
     /* remember the 'self' validity */
     self_valid_ = self_valid;
@@ -979,18 +973,20 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
     max_local_cnt_ = 0;
 
     /* no formals yet */
-    formal_num = 0;
-    opt_formal_num = 0;
-    varargs = FALSE;
-    varargs_list = FALSE;
-    varargs_list_local = 0;
+    int formal_num = 0;
+    int opt_formal_num = 0;
+    int varargs = FALSE;
+    int varargs_list = FALSE;
+    CTcSymLocal *varargs_list_local = 0;
+
+    /* we haven't built our statement yet */
+    CTPNStmComp *stm = 0;
+    long start_line = 0;
+    CTcTokFileDesc *start_desc = 0;
 
     /* check for a short anonymous function, which uses unusual syntax */
     if (cb_type == TCPRS_CB_SHORT_ANON_FN)
     {
-        CTcPrsNode *expr;
-        CTPNStm *ret_stm;
-
         /* we're at the opening brace now */
         G_tok->get_last_pos(&start_desc, &start_line);
         
@@ -1012,7 +1008,7 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
          *   Alternatively, it can start with a list of "local" clauses, to
          *   define local variables.  
          */
-        expr = 0;
+        CTcPrsNode *expr = 0;
         while (G_tok->cur() == TOKT_LOCAL)
         {
             /* we need a variable name symbol */
@@ -1095,6 +1091,7 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
          *   we're simply evaluating it for side-effects, so wrap it in a
          *   simple 'expression' statement.  
          */
+        CTPNStm *ret_stm;
         if (expr->has_return_value())
             ret_stm = new CTPNStmReturn(expr);
         else
@@ -1218,7 +1215,7 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
      *   determine how the statement exits, and generate any internal flow
      *   warnings within the body code
      */
-    flow_flags = stm->get_control_flow(TRUE);
+    unsigned long flow_flags = stm->get_control_flow(TRUE);
 
     /*
      *   Warn if the function has both explicit void and value returns.
@@ -1258,11 +1255,10 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
         *p_has_retval = ((flow_flags & TCPRS_FLOW_RET_VAL) != 0);
 
     /* create a code body node for the result */
-    body_stm = new CTPNCodeBody(local_symtab_, goto_symtab_, stm,
-                                formal_num, opt_formal_num, varargs,
-                                varargs_list, varargs_list_local,
-                                max_local_cnt_, self_valid,
-                                enclosing_code_body);
+    CTPNCodeBody *body_stm = new CTPNCodeBody(
+        local_symtab_, goto_symtab_, stm,
+        formal_num, opt_formal_num, varargs, varargs_list, varargs_list_local,
+        max_local_cnt_, self_valid, enclosing_code_body);
 
     /* store this new statement in the current code body reference object */
     cur_code_body_->ptr = body_stm;
@@ -1276,34 +1272,8 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
      */
     body_stm->set_end_location(stm->get_end_desc(), stm->get_end_linenum());
 
-    /* if we have a local context, mark the code body accordingly */
-    if (has_local_ctx_)
-        body_stm->set_local_ctx(local_ctx_var_num_, next_ctx_arr_idx_ - 1);
-
-    /* 
-     *   If the caller passed in a local symbol table, check the table for
-     *   context variables from enclosing scopes, and assign the local
-     *   holder for each such variable. 
-     */
-    if (local_symtab != 0)
-    {
-        enum_locals_ctx ctx;
-        CTcPrsSymtab *tab, *par;
-
-        /* 
-         *   consider only the outermost local table, since that's where
-         *   the shared locals reside 
-         */
-        for (tab = local_symtab ;
-             par = tab->get_parent(),
-             par != 0 && par != G_prs->get_global_symtab() ;
-             tab = par) ;
-
-        /* enumerate the variables */
-        ctx.symtab = tab;
-        ctx.code_body = body_stm;
-        tab->enum_entries(&enum_for_ctx_locals, &ctx);
-    }
+    /* set up the local context for access to enclosing scope locals */
+    finish_local_ctx(body_stm, local_symtab);
 
     /* 
      *   if 'self' is valid, and we're parsing an anonymous function, and we
@@ -1335,22 +1305,13 @@ CTPNCodeBody *CTcParser::parse_code_body(int eq_before_brace, int is_obj_prop,
 /*
  *   Parse a compound statement 
  */
-CTPNStmComp *CTcParser::parse_compound(int *err,
-                                       int skip_lbrace, int need_rbrace,
-                                       CTPNStmSwitch *enclosing_switch,
-                                       int use_enclosing_scope)
+CTPNStmComp *CTcParser::parse_compound(
+    int *err, int skip_lbrace, int need_rbrace,
+    CTPNStmSwitch *enclosing_switch, int use_enclosing_scope)
 {
-    CTPNStm *first_stm;
-    CTPNStm *last_stm;
-    CTPNStm *cur_stm;
-    CTPNStmComp *comp_stm;
-    int done;
-    tcprs_scope_t scope_data;
+    /* save the current line information for later */
     CTcTokFileDesc *file;
     long linenum;
-    int skip_rbrace;
-
-    /* save the current line information for later */
     G_tok->get_last_pos(&file, &linenum);
 
     /* skip the '{' if we're on one and the caller wants us to */
@@ -1358,17 +1319,20 @@ CTPNStmComp *CTcParser::parse_compound(int *err,
         G_tok->next();
 
     /* enter a scope */
+    tcprs_scope_t scope_data;
     if (!use_enclosing_scope)
         enter_scope(&scope_data);
 
     /* we don't have any statements in our sublist yet */
-    first_stm = last_stm = 0;
+    CTPNStm *first_stm = 0;
+    CTPNStm *last_stm = 0;
+    CTPNStm *cur_stm = 0;
 
     /* presume we won't find the closing brace */
-    skip_rbrace = FALSE;
+    int skip_rbrace = FALSE;
 
     /* keep going until we reach the closing '}' */
-    for (done = FALSE ; !done ; )
+    for (int done = FALSE ; !done ; )
     {
         /* check what we've found */
         switch (G_tok->cur())
@@ -1433,7 +1397,7 @@ CTPNStmComp *CTcParser::parse_compound(int *err,
         first_stm = new CTPNStmNull();
 
     /* build the compound statement node */
-    comp_stm = new CTPNStmComp(first_stm, local_symtab_);
+    CTPNStmComp *comp_stm = new CTPNStmComp(first_stm, local_symtab_);
 
     /* set some additional information if we created a statement */
     if (comp_stm != 0)
@@ -1649,14 +1613,12 @@ CTPNStm *CTcParser::parse_local(int *err)
  */
 CTcPrsNode *CTcParser::parse_local_initializer(CTcSymLocal *lcl, int *err)
 {
-    CTcPrsNode *expr;
-    
     /* 
      *   skip the assignment operator and parse the expression (which
      *   cannot use the comma operator) 
      */
     G_tok->next();
-    expr = parse_asi_expr();
+    CTcPrsNode *expr = parse_asi_expr();
 
     /* if that failed, return failure */
     if (expr == 0)
@@ -1938,10 +1900,8 @@ try_again:
     do_parse_expr:
         /* anything else must be the start of an expression */
         {
-            CTcPrsNode *expr;
-            
             /* parse the expression */
-            expr = parse_expr_or_dstr(TRUE);
+            CTcPrsNode *expr = parse_expr_or_dstr(TRUE);
 
             /* the statement must be terminated with a semicolon */
             if (parse_req_sem())
@@ -3517,9 +3477,12 @@ CTPNStm *CTcParser::parse_try(int *err)
         /* parse the 'finally' statement block */
         fin_body = parse_stm(err, 0, FALSE);
 
-        /* set the 'finally' block's closing position */
-        fin_stm->set_end_pos(fin_body->get_end_desc(),
-                             fin_body->get_end_linenum());
+        /* set the 'finally' block's closing position, if present */
+        if (fin_body != 0)
+        {
+            fin_stm->set_end_pos(
+                fin_body->get_end_desc(), fin_body->get_end_linenum());
+        }
 
         /* restore the enclosing statement */
         set_enclosing_stm(old_enclosing);
@@ -3579,143 +3542,170 @@ CTPNStm *CTcParser::parse_throw(int *err)
     return throw_stm;
 }
 
+
 /* ------------------------------------------------------------------------ */
 /*
  *   Unary operator parsing 
  */
 
-/* callback context for local symbol enumeration */
-struct enum_for_anon_ctx
-{
-    /* new local symbol table for anonymous function scope */
-    CTcPrsSymtab *symtab;
-
-    /* number of context locals */
-    int cnt;
-};
-
 /*
- *   local symbol table enumeration callback for anonymous function setup 
+ *   Anonymous function symbol table preparer.  This class creates the lcoal
+ *   symbol table for an anonymous function or method.
  */
-void CTcPrsOpUnary::enum_for_anon(void *ctx0, CTcSymbol *sym)
+class CAnonFuncSymtabPrep
 {
-    enum_for_anon_ctx *ctx = (enum_for_anon_ctx *)ctx0;
-    CTcSymbol *new_sym;
-
-    /* 
-     *   If this symbol is already in our table, another symbol from an
-     *   enclosed scope hides it, so ignore this one.  Note that we're only
-     *   interested in the symbols defined directly in our table - we hide
-     *   symbols defined in the enclosing global scope, so we don't care if
-     *   they're already defined there.  
+public:
+    /*
+     *   Create a local symbol table for an anonymous function or method. 
      */
-    if (ctx->symtab->find_direct(sym->get_sym(), sym->get_sym_len()) != 0)
-        return;
+    CTcPrsSymtab *create_symtab()
+    {
+        /* 
+         *   Create a new local symbol table to represent the enclosing scope
+         *   of the new nested scope.  Unlike most nested scopes, we can't
+         *   simply plug in the current scope's symbol table - instead, we
+         *   have to build a special representation of the enclosing scope to
+         *   handle the "closure" behavior.  The enclosing scope's local
+         *   variable set effectively becomes an object rather than a simple
+         *   stack frame.  The enclosing lexical scope and the anonymous
+         *   function then both reference the shared locals object.
+         *   
+         *   This synthesized enclosing scope will directly represent all of
+         *   the nested scopes up but not including to the root global scope.
+         *   The global scope doesn't need the special closure
+         *   representation, since it's already shared among all lexical
+         *   scopes anyway.  Since we're not linking in to the enclosing
+         *   scope list the way we normally would, we need to explicitly link
+         *   in the global scope.  To do this, we can simply make the global
+         *   scope the enclosing scope of our synthesized outer scope table.
+         *   
+         */
+        enc_symtab = new CTcPrsSymtab(G_prs->get_global_symtab());
 
-    /* create a context-variable copy */
-    new_sym = sym->new_ctx_var();
-
-    /* if we got a new symbol, add it to the new symbol table */
-    if (new_sym != 0)
-        ctx->symtab->add_entry(new_sym);
-}
-
-/*
- *   local symbol table enumeration callback for anonymous function -
- *   follow-up - mark the code body as having a context if needed 
- */
-void CTcPrsOpUnary::enum_for_anon2(void *ctx0, CTcSymbol *sym)
-{
-    enum_for_anon_ctx *ctx = (enum_for_anon_ctx *)ctx0;
+        /* 
+         *   fill the new local symbol table with the inherited local symbols
+         *   from the current local scope and any enclosing scopes - but stop
+         *   when we reach the global scope, since this is already shared by
+         *   all scopes and doesn't need any special closure representation 
+         */
+        for (CTcPrsSymtab *tab = G_prs->get_local_symtab() ;
+             tab != 0 && tab != G_prs->get_global_symtab() ;
+             tab = tab->get_parent())
+        {
+            /* enumerate entries in this table */
+            tab->enum_entries(&enum_for_anon, this);
+        }
+        
+        /* 
+         *   Create the local symbol table for *within* the new anonymous
+         *   fucntion scope.  This is another local symbol table, this time
+         *   nested within the table containing the locals shared from the
+         *   enclosing scope.  This one will contain any formals defined for
+         *   the anonymous function, which hide inherited locals from the
+         *   enclosing scope.
+         */
+        return new CTcPrsSymtab(enc_symtab);
+    }
 
     /*
-     *   If this symbol isn't in the anonymous function's local symbol table,
-     *   the anonymous function didn't end up using it.  The fact that it's
-     *   in the enclosing table in this case simply means that it's a context
-     *   variable in the enclosing context.  
+     *   Finish the symbol table.  Call this after parsing the code body, to
+     *   convert referenced locals in enclosing scopes to context locals.
      */
-    if (ctx->symtab->find_direct(sym->get_sym(), sym->get_sym_len()) == 0)
-        return;
+    void finish()
+    {
+        /*
+         *   Enumerate all of the entries in our scope once again - this
+         *   time, we want to determine if there are any variables that were
+         *   not previously referenced from anonymous functions but have been
+         *   now; we need to convert all such variables to context locals.  
+         */
+        for (CTcPrsSymtab *tab = G_prs->get_local_symtab() ;
+             tab != 0 && tab != G_prs->get_global_symtab() ;
+             tab = tab->get_parent())
+        {
+            /* enumerate entries in this table */
+            tab->enum_entries(&enum_for_anon2, this);
+        }
+    }
+
+private:
+    /* 
+     *   enumeration callback, phase 1: add a proxy context local to our
+     *   "enclosing" symbol table for each actual local defined in a parent
+     *   scope 
+     */
+    static void enum_for_anon(void *ctx, CTcSymbol *sym)
+    {
+        /* get 'this' from the context */
+        CAnonFuncSymtabPrep *self = (CAnonFuncSymtabPrep *)ctx;
+
+        /* 
+         *   If this symbol is already in our table, another symbol from an
+         *   enclosed scope hides it, so ignore this one.  Note that we're
+         *   only interested in the symbols defined directly in our table -
+         *   we hide symbols defined in the enclosing global scope, so we
+         *   don't care if they're already defined there.  
+         */
+        if (self->enc_symtab->find_direct(
+            sym->get_sym(), sym->get_sym_len()) != 0)
+            return;
+
+        /* create a context-variable copy */
+        CTcSymbol *new_sym = sym->new_ctx_var();
+
+        /* if we got a new symbol, add it to the new symbol table */
+        if (new_sym != 0)
+            self->enc_symtab->add_entry(new_sym);
+    }
     
-    /* ask the symbol to apply the necessary conversion */
-    sym->finish_ctx_var_conv();
-}
+    /* 
+     *   enumeration callback, phase 2: convert locals in enclosing scopes
+     *   that are actually referenced in the anonymous function to context
+     *   locals
+     */
+    static void enum_for_anon2(void *ctx, CTcSymbol *sym)
+    {
+        /* get 'this' from the context */
+        CAnonFuncSymtabPrep *self = (CAnonFuncSymtabPrep *)ctx;
+        
+        /*
+         *   If this symbol isn't in the anonymous function's local symbol
+         *   table, the anonymous function didn't end up using it.  The fact
+         *   that it's in the enclosing table in this case simply means that
+         *   it's a context variable in the enclosing context.  
+         */
+        if (self->enc_symtab->find_direct(
+            sym->get_sym(), sym->get_sym_len()) == 0)
+            return;
+        
+        /* ask the symbol to apply the necessary conversion */
+        sym->finish_ctx_var_conv();
+    }
+
+    /* enclosing symbol table */
+    CTcPrsSymtab *enc_symtab;
+};
 
 /*
  *   Parse an anonymous function 
  */
-CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int short_form)
+CTPNAnonFunc *CTcPrsOpUnary::parse_anon_func(int short_form, int is_method)
 {
-    CTPNCodeBody *code_body;
-    int err;
-    int has_retval;
-    CTcPrsSymtab *new_lcl_symtab;
-    CTcPrsSymtab *inner_lcl_symtab;
-    CTcPrsSymtab *tab;
-    enum_for_anon_ctx ctx;
-    tcprs_codebodytype cb_type;
-    int is_method;
-
     /* 
      *   our code body type can be an anonymous function, a short anonymous
      *   function, or an anonymous method 
      */
-    cb_type = (short_form ? TCPRS_CB_SHORT_ANON_FN :
-               G_tok->cur() == TOKT_METHOD ? TCPRS_CB_ANON_METHOD :
-               TCPRS_CB_ANON_FN);
-
-    /* note if it's a method */
-    is_method = (cb_type == TCPRS_CB_ANON_METHOD);
+    tcprs_codebodytype cb_type =
+        (short_form ? TCPRS_CB_SHORT_ANON_FN :
+         G_tok->cur() == TOKT_METHOD ? TCPRS_CB_ANON_METHOD :
+         TCPRS_CB_ANON_FN);
 
     /* skip the initial token */
     G_tok->next();
 
-    /* 
-     *   Create a new local symbol table to represent the enclosing scope of
-     *   the new nested scope.  Unlike most nested scopes, we can't simply
-     *   plug in the current scope's symbol table - instead, we have to build
-     *   a special representation of the enclosing scope to handle the
-     *   "closure" behavior.  The enclosing scope's local variable set
-     *   effectively becomes an object rather than a simple stack frame.  The
-     *   enclosing lexical scope and the anonymous function then both
-     *   reference the shared locals object.
-     *   
-     *   This synthesized enclosing scope will directly represent all of the
-     *   nested scopes up but not including to the root global scope.  The
-     *   global scope doesn't need the special closure representation, since
-     *   it's already shared among all lexical scopes anyway.  Since we're
-     *   not linking in to the enclosing scope list the way we normally
-     *   would, we need to explicitly link in the global scope.  To do this,
-     *   we can simply make the global scope the enclosing scope of our
-     *   synthesized outer scope table.  
-     */
-    new_lcl_symtab = new CTcPrsSymtab(G_prs->get_global_symtab());
-
-    /* set up the enumeration callback context */
-    ctx.symtab = new_lcl_symtab;
-    ctx.cnt = 0;
-
-    /* 
-     *   fill the new local symbol table with the inherited local symbols
-     *   from the current local scope and any enclosing scopes - but stop
-     *   when we reach the global scope, since this is already shared by all
-     *   scopes and doesn't need any special closure representation 
-     */
-    for (tab = G_prs->get_local_symtab() ;
-         tab != 0 && tab != G_prs->get_global_symtab() ;
-         tab = tab->get_parent())
-    {
-        /* enumerate entries in this table */
-        tab->enum_entries(&enum_for_anon, &ctx);
-    }
-
-    /* 
-     *   create another local symbol table, this time nested within the
-     *   table containing the locals shared from the enclosing scope -
-     *   this one will contain any formals defined for the anonymous
-     *   function, which hide inherited locals from the enclosing scope 
-     */
-    inner_lcl_symtab = new CTcPrsSymtab(new_lcl_symtab);
+    /* prepare the enclosing local symbol table for the new nested scope */
+    CAnonFuncSymtabPrep symprep;
+    CTcPrsSymtab *lcltab = symprep.create_symtab();
 
     /* 
      *   Parse the code body.
@@ -3726,10 +3716,11 @@ CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int short_form)
      *   If it's a method, it has access to the live method context, so the
      *   enclosing scope's status is irrelevant.  
      */
-    err = 0;
-    code_body = G_prs->parse_nested_code_body(
+    int err = 0;
+    int has_retval;
+    CTPNCodeBody *code_body = G_prs->parse_nested_code_body(
         FALSE, is_method ||  G_prs->is_self_valid(),
-        0, 0, 0, 0, 0, &has_retval, &err, inner_lcl_symtab, cb_type);
+        0, 0, 0, 0, 0, &has_retval, &err, lcltab, cb_type);
 
     /* if that failed, return failure */
     if (code_body == 0 || err != 0)
@@ -3766,25 +3757,15 @@ CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int short_form)
         code_body->set_anon_method(TRUE);
     }
 
-    /*
-     *   Enumerate all of the entries in our scope once again - this time,
-     *   we want to determine if there are any variables that were not
-     *   previously referenced from anonymous functions but have been now;
-     *   we need to convert all such variables to context locals.  
-     */
-    for (tab = G_prs->get_local_symtab() ;
-         tab != 0 && tab != G_prs->get_global_symtab() ;
-         tab = tab->get_parent())
-    {
-        /* enumerate entries in this table */
-        tab->enum_entries(&enum_for_anon2, &ctx);
-    }
+    /* finish the symbol table */
+    symprep.finish();
 
     /* 
-     *   if this is a method, and there's a 'self' object, and we referenced
-     *   'self' or the full method context in the nested code body, we'll
-     *   definitely need a local context, so make sure we have one
-     *   initialized even if we don't have any local variables shared 
+     *   if this is a function (not a method), and there's a 'self' object in
+     *   the enclosing context, and we referenced 'self' or the full method
+     *   context in the nested code body, we'll definitely need a local
+     *   context, so make sure we have one initialized even if we don't have
+     *   any local variables shared 
      */
     if (!is_method
         && G_prs->is_self_valid()
@@ -3803,6 +3784,2812 @@ CTcPrsNode *CTcPrsOpUnary::parse_anon_func(int short_form)
 
     /* return a new anonymous function node */
     return new CTPNAnonFunc(code_body, has_retval, is_method);
+}
+
+/*
+ *   Parse an in-line object definition.
+ */
+class CTPNInlineObject *CTcPrsOpUnary::parse_inline_object(int has_colon)
+{
+    /* create the inline object node */
+    CTPNInlineObject *obj = new CTPNInlineObject();
+
+    /* if the caller didn't already check for a colon, do so now */
+    if (!has_colon && G_tok->next() == TOKT_COLON)
+    {
+        /* note and skip the colon */
+        has_colon = TRUE;
+        G_tok->next();
+    }
+
+    /* if there's a colon, parse the superclass list */
+    if (has_colon)
+        G_prs->parse_superclass_list(0, obj->get_superclass_list());
+
+    /* next we need a left brace '{' */
+    if (G_tok->cur() != TOKT_LBRACE)
+    {
+        G_tok->log_error_curtok(TCERR_INLINE_OBJ_REQ_LBRACE);
+        return 0;
+    }
+
+    /* skip the brace */
+    G_tok->next();
+
+    /* parse the property list */
+    int err = FALSE;
+    tcprs_term_info outer_term;
+    if (!G_prs->parse_obj_prop_list(
+        &err, obj, 0, FALSE, FALSE, TRUE, TRUE, &outer_term, &outer_term))
+        return 0;
+
+    /* return the object node */
+    return obj;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   State save structure for parsing property expressions 
+ */
+class CTcPrsPropExprSave
+{
+public:
+    unsigned int has_local_ctx_ : 1;
+    int local_ctx_var_num_;
+    size_t ctx_var_props_used_;
+    int next_ctx_arr_idx_;
+    int local_cnt_;
+    int max_local_cnt_;
+    int self_referenced_;
+    int self_valid_;
+    int full_method_ctx_referenced_;
+    int local_ctx_needs_self_;
+    int local_ctx_needs_full_method_ctx_;
+    struct CTcCodeBodyRef *cur_code_body_;
+    CTPNStmEnclosing *enclosing_stm_;
+    class CTcPrsSymtab *local_symtab_;
+    class CTcPrsSymtab *enclosing_local_symtab_;
+    class CTcPrsSymtab *goto_symtab_;
+    CAnonFuncSymtabPrep inline_prep_;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parse an object superclass list 
+ */
+void CTcParser::parse_superclass_list(
+    CTcSymObj *obj_sym, CTPNSuperclassList &sclist)
+{
+    /* scan the list */
+    for (int done = FALSE ; !done ; )
+    {
+        /* we need a symbol */
+        switch(G_tok->cur())
+        {
+        case TOKT_SYM:
+            /* a symbol must be a superclass name - look it up */
+            {
+                const CTcToken *tok = G_tok->getcur();
+                CTcSymObj *sc_sym = (CTcSymObj *)get_global_symtab()->find(
+                    tok->get_text(), tok->get_text_len());
+
+                /* 
+                 *   If this symbol is defined, and it's an object, check to
+                 *   make sure this won't set up a circular class definition
+                 *   - so, make sure the base class isn't the same as the
+                 *   object being defined, and that it doesn't inherit from
+                 *   the object being defined.  
+                 */
+                if (sc_sym != 0
+                    && obj_sym != 0
+                    && sc_sym->get_type() == TC_SYM_OBJ
+                    && (sc_sym == obj_sym || sc_sym->has_superclass(obj_sym)))
+                {
+                    /* 
+                     *   this is a circular class definition - complain about
+                     *   it and don't add it to my superclass list 
+                     */
+                    G_tok->log_error(TCERR_CIRCULAR_CLASS_DEF,
+                                     (int)sc_sym->get_sym_len(),
+                                     sc_sym->get_sym(),
+                                     (int)obj_sym->get_sym_len(),
+                                     obj_sym->get_sym());
+                }
+                else
+                {
+                    /* it's good - add the new superclass to our list */
+                    sclist.append(new CTPNSuperclass(
+                        tok->get_text(), tok->get_text_len()));
+                    
+                    /* 
+                     *   add it to the symbol's superclass name list as well
+                     *   - we use this for keeping track of the hierarchy in
+                     *   the symbol file for compile-time access 
+                     */
+                    if (obj_sym != 0)
+                        obj_sym->add_sc_name_entry(
+                            tok->get_text(), tok->get_text_len());
+                }
+                
+                /* skip the symbol and see what follows */
+                switch (G_tok->next())
+                {
+                case TOKT_COMMA:
+                    /* we have another superclass following */
+                    G_tok->next();
+                    break;
+                    
+                default:
+                    /* no more superclasses */
+                    done = TRUE;
+                    break;
+                }
+            }
+            break;
+
+        case TOKT_OBJECT:
+            /* 
+             *   it's a basic object definition - make sure other
+             *   superclasses weren't specified 
+             */
+            if (sclist.head_ != 0)
+                G_tok->log_error(TCERR_OBJDEF_OBJ_NO_SC);
+            
+            /* 
+             *   mark the object as having an explicit superclass of the root
+             *   object class 
+             */
+            if (obj_sym != 0)
+                obj_sym->set_sc_is_root(TRUE);
+            
+            /* 
+             *   skip the 'object' keyword and we're done - there's no
+             *   superclass list 
+             */
+            G_tok->next();
+            done = TRUE;
+            break;
+            
+        default:
+            /* premature end of the object list */
+            G_tok->log_error_curtok(TCERR_OBJDEF_REQ_SC);
+            
+            /* stop here */
+            done = TRUE;
+            break;
+        }
+    }
+}
+
+/*
+ *   Parse an object template instance at the beginning of an object body 
+ */
+void CTcParser::parse_obj_template(int *err, CTPNObjDef *objdef, int is_inline)
+{
+    /* check the current token for a template use */
+    switch(G_tok->cur())
+    {
+    case TOKT_SSTR:
+    case TOKT_SSTR_START:
+    case TOKT_DSTR:
+    case TOKT_DSTR_START:
+    case TOKT_LBRACK:
+    case TOKT_AT:
+    case TOKT_PLUS:
+    case TOKT_MINUS:
+    case TOKT_TIMES:
+    case TOKT_DIV:
+    case TOKT_MOD:
+    case TOKT_ARROW:
+    case TOKT_AND:
+    case TOKT_NOT:
+    case TOKT_BNOT:
+    case TOKT_COMMA:
+        /* we have an object template */
+        break;
+
+    default:
+        /* it's not a template - simply return without parsing anything */
+        return;
+    }
+
+    /* parse the expressions until we reach the end of the template */
+    size_t cnt;
+    CTcObjTemplateInst *p;
+    int done;
+    CTcPrsPropExprSave save_info;
+    for (cnt = 0, p = template_expr_, done = FALSE ; !done ; ++cnt)
+    {
+        /* 
+         *   remember the statment start location, in case we have a
+         *   template element that generates code (such as a double-quoted
+         *   string with an embedded expression) 
+         */
+        cur_desc_ = G_tok->get_last_desc();
+        cur_linenum_ = G_tok->get_last_linenum();
+
+        /* 
+         *   note the token, so that we can figure out which template we
+         *   are using 
+         */
+        p->def_tok_ = G_tok->cur();
+
+        /* assume this will also be the first token of the value expression */
+        p->expr_tok_ = *G_tok->copycur();
+
+        /* we don't have any expression yet */
+        p->expr_ = 0;
+        p->code_body_ = 0;
+        p->inline_method_ = 0;
+
+        /* prepare to parse a property value expression */
+        begin_prop_expr(&save_info, FALSE, is_inline);
+
+        /* check to see if this is another template item */
+        switch(G_tok->cur())
+        {
+        case TOKT_SSTR:
+            /* single-quoted string - parse just the string */
+            p->expr_ = CTcPrsOpUnary::parse_primary();
+            break;
+
+        case TOKT_SSTR_START:
+            /* start of single-quoted embedded expression string - parse it */
+            p->expr_ = CTcPrsOpUnary::parse_primary();
+
+            /* treat it as a regular string for template matching */
+            p->def_tok_ = TOKT_SSTR;
+            break;
+
+        case TOKT_DSTR:
+            /* string - parse it */
+            p->expr_ = parse_expr_or_dstr(TRUE);
+            break;
+
+        case TOKT_DSTR_START:
+            /* start of a double-quoted embedded expression string */
+            p->expr_ = parse_expr_or_dstr(TRUE);
+
+            /* 
+             *   treat it as a regular double-quoted string for the
+             *   purposes of matching the template 
+             */
+            p->def_tok_ = TOKT_DSTR;
+            break;
+            
+        case TOKT_LBRACK:
+            /* it's a list */
+            p->expr_ = CTcPrsOpUnary::parse_list();
+            break;
+            
+        case TOKT_AT:
+        case TOKT_PLUS:
+        case TOKT_MINUS:
+        case TOKT_TIMES:
+        case TOKT_DIV:
+        case TOKT_MOD:
+        case TOKT_ARROW:
+        case TOKT_AND:
+        case TOKT_NOT:
+        case TOKT_BNOT:
+        case TOKT_COMMA:
+            /* skip the operator token */
+            G_tok->next();
+
+            /* the value expression starts with this token */
+            p->expr_tok_ = *G_tok->copycur();
+
+            /* a primary expression must follow */
+            p->expr_ = CTcPrsOpUnary::parse_primary();
+            break;
+
+        case TOKT_EOF:
+            /* end of file - return and let the caller deal with it */
+            return;
+
+        default:
+            /* anything else ends the template list */
+            done = TRUE;
+
+            /* don't count this item after all */
+            --cnt;
+            break;
+        }
+
+        /* 
+         *   check for embedded anonymous functions, and wrap the expression
+         *   in a code body if necessary 
+         */
+        finish_prop_expr(
+            &save_info, p->expr_, p->code_body_, p->inline_method_,
+            FALSE, is_inline, 0);
+
+        /* 
+         *   move on to the next expression slot if we have room (if we
+         *   don't, we won't match anything anyway; just keep writing over
+         *   the last slot so that we can at least keep parsing entries) 
+         */
+        if (cnt + 1 < template_expr_max_)
+            ++p;
+    }
+
+    /* we have no matching template yet */
+    const CTcObjTemplate *tpl = 0;
+    const CTPNSuperclass *def_sc = 0;
+
+    /* presume we don't have any undescribed classes in our hierarchy */
+    int undesc_class = FALSE;
+
+    /*
+     *   Search for the template, using the normal inheritance rules that we
+     *   use at run-time: start with the first superclass and look for a
+     *   match; if we find a match, look at subsequent superclasses to look
+     *   for one that overrides the match.  
+     */
+    if (objdef != 0)
+    {
+        /* search our superclasses for a match */
+        tpl = find_class_template(
+            objdef->get_first_sc(), template_expr_, cnt,
+            &def_sc, &undesc_class);
+
+        /* remember the 'undescribed class' status */
+        objdef->set_undesc_sc(undesc_class);
+    }
+
+    /* if we didn't find a match, look for a root object match */
+    if (tpl == 0 && !undesc_class)
+        tpl = find_template_match(template_head_, template_expr_, cnt);
+
+    /* if we didn't find a match, it's an error */
+    if (tpl == 0)
+    {
+        /*
+         *   Note the error, but don't report it yet.  It might be that we
+         *   failed to find a template match simply because one of our
+         *   superclass names was misspelled.  If that's the case, then the
+         *   missing template is the least of our problems, and it's not
+         *   worth reporting since it's probably just a side effect of the
+         *   missing superclass (that is, once the superclass misspelling is
+         *   corrected and the code is re-compiled, we might find that the
+         *   template is correct after all, since we'll know which class to
+         *   scan for the needed template.)  At code generation time, we'll
+         *   be able to resolve the superclasses and find out what's really
+         *   going on, so that we can flag the appropriate error.  
+         */
+        if (objdef != 0)
+            objdef->note_bad_template(TRUE);
+        
+        /* ignore the template instance */
+        return;
+    }
+
+    /* if there's no object statement, there's nothing left to do */
+    if (objdef == 0)
+        return;
+
+    /* 
+     *   we know we have a matching template, so populate our actual
+     *   parameter list with the property identifiers for the matching
+     *   template 
+     */
+    match_template(tpl->items_, template_expr_, cnt);
+
+    /* define the property values according to the template */
+    for (p = template_expr_ ; cnt != 0 ; ++p, --cnt)
+    {
+        /* add this property */
+        if (p->code_body_ != 0)
+            objdef->add_method(p->prop_, p->code_body_, p->expr_, FALSE);
+        else if (p->inline_method_ != 0)
+            objdef->add_inline_method(
+                p->prop_, p->inline_method_, p->expr_, FALSE);
+        else if (p->expr_ != 0)
+            objdef->add_prop(p->prop_, p->expr_, FALSE, FALSE);
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   search a class for a template match 
+ */
+const CTcObjTemplate *CTcParser::
+   find_class_template(const CTPNSuperclass *first_sc,
+                       CTcObjTemplateInst *src, size_t src_cnt,
+                       const CTPNSuperclass **def_sc,
+                       int *undesc_class)
+{
+    /* scan each superclass in the list for a match */
+    const CTPNSuperclass *sc;
+    const CTcObjTemplate *tpl;
+    for (tpl = 0, sc = first_sc ; sc != 0 ; sc = sc->nxt_)
+    {
+        /* find the symbol for this superclass */
+        CTcSymObj *sc_sym = (CTcSymObj *)get_global_symtab()->find(
+            sc->get_sym_txt(), sc->get_sym_len());
+
+        /* if there's no symbol, or it's not a tads-object, give up */
+        if (sc_sym == 0
+            || sc_sym->get_type() != TC_SYM_OBJ
+            || sc_sym->get_metaclass() != TC_META_TADSOBJ)
+        {
+            /* 
+             *   this class has an invalid superclass - just give up without
+             *   issuing any errors now, since we'll have plenty to say
+             *   about this when building the object file data 
+             */
+            return 0;
+        }
+
+        /* find a match in this superclass hierarchy */
+        const CTcObjTemplate *cur_tpl = find_template_match(
+            sc_sym->get_first_template(), src, src_cnt);
+
+        /* see what we found */
+        const CTPNSuperclass *cur_def_sc;
+        if (cur_tpl != 0)
+        {
+            /* we found it - note the current defining superclass */
+            cur_def_sc = sc;
+        }
+        else
+        {
+            /* 
+             *   If this one has no superclass list, and it's not explicitly
+             *   a subclass of the root class, then this is an undescribed
+             *   class and cannot be used with templates at all.  A class is
+             *   undescribed when it is explicitly declared as 'extern', and
+             *   does not have a definition in any imported symbol file in
+             *   the current compilation.  If this is the case, flag it so
+             *   the caller will know we have an undescribed class.
+             *   
+             *   Note that we only set this flag if we failed to find a
+             *   template.  A template can still be used if a matching
+             *   template is explicitly defined on the class in this
+             *   compilation unit, since in that case we don't need to look
+             *   up the inheritance hierarchy for the class.  That's why we
+             *   set the flag here, only after we have failed to find a
+             *   template for the object.  
+             */
+            if (sc_sym->get_sc_name_head() == 0 && !sc_sym->sc_is_root())
+            {
+                /* tell the caller we have an undescribed class */
+                *undesc_class = TRUE;
+
+                /* 
+                 *   there's no need to look any further, since any matches
+                 *   we might find among our other superclasses would be in
+                 *   doubt because of the lack of information about this
+                 *   earlier class, which might override later superclasses
+                 *   if we knew more about it 
+                 */
+                return 0;
+            }
+
+            /* we didn't find it - search superclasses of this class */
+            cur_tpl = find_class_template(sc_sym->get_sc_name_head(),
+                                          src, src_cnt, &cur_def_sc,
+                                          undesc_class);
+
+            /* 
+             *   if we have an undescribed class among our superclasses,
+             *   we're implicitly undescribed as well - if that's the case,
+             *   there's no need to look any further, so return failure 
+             */
+            if (*undesc_class)
+                return 0;
+        }
+
+        /* if we found a match, see if we want to keep it */
+        if (cur_tpl != 0)
+        {
+            /* 
+             *   if this is our first match, note it; if it's not, see if it
+             *   overrides the previous match 
+             */
+            if (tpl == 0)
+            {
+                /* this is the first match - definitely keep it */
+                tpl = cur_tpl;
+                *def_sc = cur_def_sc;
+            }
+            else
+            {
+                /* 
+                 *   if the current source object descends from the previous
+                 *   source object, this definition overrides the previous
+                 *   definition, so keep it rather than the last one 
+                 */
+                if (cur_def_sc->is_subclass_of(*def_sc))
+                {
+                    /* it overrides the previous one - keep the new one */
+                    tpl = cur_tpl;
+                    *def_sc = cur_def_sc;
+                }
+            }
+        }
+    }
+
+    /* return the best match we found */
+    return tpl;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Find a matching template in the given template list 
+ */
+const CTcObjTemplate *CTcParser::
+   find_template_match(const CTcObjTemplate *first_tpl,
+                       CTcObjTemplateInst *src, size_t src_cnt)
+{
+
+    /* find the matching template */
+    for (const CTcObjTemplate *tpl = first_tpl ; tpl != 0 ; tpl = tpl->nxt_)
+    {
+        /* check for a match */
+        if (match_template(tpl->items_, src, src_cnt))
+        {
+            /* it's a match - return this template */
+            return tpl;
+        }
+    }
+
+    /* we didn't find a match */
+    return 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Match a template to an actual template parameter list.  
+ */
+int CTcParser::match_template(const CTcObjTemplateItem *tpl_head,
+                              CTcObjTemplateInst *src, size_t src_cnt)
+{
+    /* check each element of the list */
+    CTcObjTemplateInst *p;
+    const CTcObjTemplateItem *item;
+    size_t rem;
+    for (p = src, rem = src_cnt, item = tpl_head ; item != 0 && rem != 0 ;
+         item = item->nxt_)
+    {
+        /* 
+         *   Note whether or not this item is optional.  Every element of an
+         *   alternative group must have the same optional status, so we need
+         *   only note the status of the first item if this is a group. 
+         */
+        int is_opt = item->is_opt_;
+
+        /* 
+         *   Scan each alternative in the current group.  Note that if we're
+         *   not in an alternative group, the logic is the same: we won't
+         *   have any 'alt' flags, so we'll just scan a single item. 
+         */
+        int match;
+        for (match = FALSE ; ; item = item->nxt_)
+        {
+            /* if this one matches, note the match */
+            if (item->tok_type_ == p->def_tok_)
+            {
+                /* note the match */
+                match = TRUE;
+                
+                /* this is the property to assign for the actual */
+                p->prop_ = item->prop_;
+            }
+
+            /* 
+             *   If this one is not marked as an alternative, we're done.
+             *   The last item of an alternative group is identified by
+             *   having its 'alt' flag cleared.  Also, if we somehow have an
+             *   ill-formed list, where we don't have a terminating
+             *   non-flagged item, we can stop now as well.  
+             */
+            if (!item->is_alt_ || item->nxt_ == 0)
+                break;
+        }
+
+        /* check to see if the current item is optional */
+        if (is_opt)
+        {
+            /* 
+             *   The item is optional.  If it matches, try it both ways:
+             *   first try matching the item, then try skipping it.  If we
+             *   can match this item and still match the rest of the string,
+             *   take that interpretation; otherwise, if we can skip this
+             *   item and match the rest of the string, take *that*
+             *   interpretation.  If we can't match it either way, we don't
+             *   have a match.  
+             *   
+             *   First, check to see if we can match the item and still match
+             *   the rest of the string.  
+             */
+            if (match && match_template(item->nxt_, p + 1, rem - 1))
+            {
+                /* we have a match */
+                return TRUE;
+            }
+
+            /* 
+             *   Matching this optional item doesn't let us match the rest of
+             *   the string, so try it with this optional item omitted - in
+             *   other words, just match the rest of the string, including
+             *   the current source item, to the rest of the template,
+             *   *excluding* the current optional item.
+             *   
+             *   There's no need to recurse to do this; simply continue
+             *   iterating, but do NOT skip the current source item.  
+             */
+        }
+        else
+        {
+            /* 
+             *   It's not optional, so if it doesn't match, the whole
+             *   template fails to match; if it does match, simply proceed
+             *   through the rest of the template.  
+             */
+            if (!match)
+                return FALSE;
+
+            /* we matched, so consume this source item */
+            ++p;
+            --rem;
+        }
+    }
+
+    /* skip any trailing optional items in the template list */
+    while (item != 0 && item->is_opt_)
+        item = item->nxt_;
+    
+    /* 
+     *   it's a match if and only if we reached the end of both lists at the
+     *   same time 
+     */
+    return (item == 0 && rem == 0);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Begin a property expression 
+ */
+void CTcParser::begin_prop_expr(
+    CTcPrsPropExprSave *save_info, int is_static, int is_inline)
+{
+    /* save the current parser state */
+    save_info->has_local_ctx_ = has_local_ctx_;
+    save_info->local_ctx_var_num_ = local_ctx_var_num_;
+    save_info->ctx_var_props_used_ = ctx_var_props_used_;
+    save_info->next_ctx_arr_idx_ = next_ctx_arr_idx_;
+    save_info->local_cnt_ = local_cnt_;
+    save_info->max_local_cnt_ = max_local_cnt_;
+    save_info->self_valid_ = self_valid_;
+    save_info->self_referenced_ = self_referenced_;
+    save_info->cur_code_body_ = cur_code_body_;
+    save_info->full_method_ctx_referenced_ = full_method_ctx_referenced_;
+    save_info->local_ctx_needs_self_ = local_ctx_needs_self_;
+    save_info->local_ctx_needs_full_method_ctx_ =
+        local_ctx_needs_full_method_ctx_;
+    save_info->enclosing_stm_ = enclosing_stm_;
+    save_info->enclosing_local_symtab_ = enclosing_local_symtab_;
+    save_info->local_symtab_ = local_symtab_;
+    save_info->goto_symtab_ = goto_symtab_;
+
+    /* 
+     *   we've saved the local context information, so clear it out for the
+     *   next parse job 
+     */
+    clear_local_ctx();
+
+    /* set up the local symbol table for the property expression */
+    if (is_inline)
+    {
+        /*
+         *   It's an inline object definition.  For a normal (non-static)
+         *   property, the expression is treated as though it were wrapped in
+         *   an anonymous method, so that it can access the enclosing scope's
+         *   locals.  We need to set up the usual anonymous function proxy
+         *   symbol table to allow access to the enclosing scope.  For a
+         *   static property, the property expression is evaluated
+         *   immediately when we evaluate the overall inline object
+         *   expression.  Static evaluation is also done in the context of
+         *   the enclosing scope, but since it happens during the enclosing
+         *   scope's lifetime, we don't have to worry about setting up a
+         *   proxy symbol table; we can simply access the locals directly
+         *   while they're still alive, so for the static case we just leave
+         *   the stack context exactly like it already is. 
+         */
+        if (!is_static)
+        {
+            /* 
+             *   ordinary non-static expression - we need an anonymous
+             *   function context so that the expression can access the
+             *   enclosing scope's locals even after the enclosing scope
+             *   returns to its caller
+             */
+            local_symtab_ = save_info->inline_prep_.create_symtab();
+            if ((enclosing_local_symtab_ = local_symtab_->get_parent()) == 0)
+                enclosing_local_symtab_ = global_symtab_;
+            self_valid_ = TRUE;
+        }
+    }
+    else
+    {
+        /* 
+         *   This is a regular top-level object definition, so there's no
+         *   enclosing scope.  Clear out the code body and the local symbol
+         *   table so that we parse in global context.
+         */
+        cur_code_body_ = 0;
+        local_symtab_ = global_symtab_;
+        enclosing_local_symtab_ = global_symtab_;
+    }
+
+    /* start a new parsing context */
+    enclosing_stm_ = 0;
+    goto_symtab_ = 0;
+
+    /* no locals yet */
+    local_cnt_ = 0;
+    max_local_cnt_ = 0;
+}
+
+/*
+ *   Finish a property expression, checking for anonymous functions and
+ *   wrapping the expression in a code body if necesssary.  If the expression
+ *   contains an anonymous function which needs to share context with its
+ *   enclosing scope, we need to build the code body wrapper immediately so
+ *   that we can capture the context information, which is stored in the
+ *   parser object itself (i.e,.  'this').  
+ */
+void CTcParser::finish_prop_expr(
+    CTcPrsPropExprSave *save_info,
+    CTcPrsNode* &expr, CTPNCodeBody* &cb, CTPNAnonFunc* &inline_method,
+    int is_static, int is_inline, CTcSymProp *prop_sym)
+{
+    /* presume we won't need to create a code body or inline method */
+    cb = 0;
+    inline_method = 0;
+
+    /* 
+     *   If we have a local context, we have to set up a code body in order
+     *   to initialize the local context at run-time.  If this is an inline
+     *   object definition, and it's not a static property, we need to turn
+     *   the expression into an anonymous method, so we also need to wrap it
+     *   in a code body.
+     */
+    if (expr != 0
+        && (has_local_ctx_
+            || (is_inline && !is_static)))
+    {
+        /*   
+         *   We need to wrap the expression in a code body to make the
+         *   property into a method.  First, wrap the expression in an
+         *   appropriate statement so that we can put it into a code body.
+         */
+        CTPNStm *stm;
+        if (is_static)
+        {
+            /* 
+             *   it's a static initializer - wrap it in a static initializer
+             *   statement node 
+             */
+            stm = new CTPNStmStaticPropInit(expr, prop_sym->get_prop());
+        }
+        else if (expr->has_return_value())
+        {
+            /* normal property value - wrap it in a 'return' */
+            stm = new CTPNStmReturn(expr);
+        }
+        else
+        {
+            /* 
+             *   it's an expression that yields no value, such as a
+             *   double-quoted string expression or a call to a void
+             *   function; just use the expression itself 
+             */
+            stm = new CTPNStmExpr(expr);
+        }
+        
+        /* wrap the expression statement in a code body */
+        cb = new CTPNCodeBody(
+            local_symtab_, goto_symtab_, stm, 0, 0, FALSE, FALSE, 0,
+            local_cnt_, self_valid_, save_info->cur_code_body_);
+        
+        /* set up the local context for access to enclosing scope locals */
+        finish_local_ctx(cb, local_symtab_);
+        
+        /* mark the code body for references to the method context */
+        cb->set_self_referenced(self_referenced_);
+        cb->set_full_method_ctx_referenced(full_method_ctx_referenced_);
+        
+        /* mark the code body for inclusion in any local context */
+        cb->set_local_ctx_needs_self(local_ctx_needs_self_);
+        cb->set_local_ctx_needs_full_method_ctx(
+            local_ctx_needs_full_method_ctx_);
+        
+        /* 
+         *   if this is a non-static property in an inline object
+         *   definition, turn the expression into an anonymous method
+         */
+        if (is_inline && !is_static)
+        {
+            /* mark it as an anonymous method */
+            cb->set_anon_method(TRUE);
+            
+            /* add the code body to the master list of nested functions */
+            add_nested_stm(cb);
+            
+            /* wrap the code body in an anonymous method */
+            inline_method = new CTPNAnonFunc(
+                cb, expr->has_return_value(), TRUE);
+            
+            /* the anonymous method supersedes the code body */
+            cb = 0;
+        }
+    }
+
+    /* restore the saved parser state */
+    has_local_ctx_ = save_info->has_local_ctx_;
+    local_ctx_var_num_ = save_info->local_ctx_var_num_;
+    ctx_var_props_used_ = save_info->ctx_var_props_used_;
+    next_ctx_arr_idx_ = save_info->next_ctx_arr_idx_;
+    local_cnt_ = save_info->local_cnt_;
+    max_local_cnt_ = save_info->max_local_cnt_;
+    cur_code_body_ = save_info->cur_code_body_;
+    self_valid_ = save_info->self_valid_;
+    self_referenced_ = save_info->self_referenced_;
+    full_method_ctx_referenced_ = save_info->full_method_ctx_referenced_;
+    local_ctx_needs_self_ = save_info->local_ctx_needs_self_;
+    local_ctx_needs_full_method_ctx_ =
+        save_info->local_ctx_needs_full_method_ctx_;
+    enclosing_stm_ = save_info->enclosing_stm_;
+    enclosing_local_symtab_ = save_info->enclosing_local_symtab_;
+    local_symtab_ = save_info->local_symtab_;
+    goto_symtab_ = save_info->goto_symtab_;
+
+    /* 
+     *   if this is a non-static property of an inline object, finish the
+     *   anonymous method proxy symbol table for enclosing scopes 
+     */
+    if (is_inline && !is_static)
+        save_info->inline_prep_.finish();
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   property set token source
+ */
+
+void propset_token_source::insert_token(const CTcToken *tok)
+{
+        /* create a new link entry and initialize it */
+    propset_tok *cur = new (G_prsmem) propset_tok(tok);
+
+        /* link it into our list */
+    if (last_tok != 0)
+        last_tok->nxt = cur;
+    else
+        nxt_tok = cur;
+    last_tok = cur;
+}
+
+void propset_token_source::insert_token(
+    tc_toktyp_t typ, const char *txt, size_t len)
+{
+    /* set up the token object */
+    CTcToken tok;
+    tok.settyp(typ);
+    tok.set_text(txt, len);
+
+    /* insert it */
+    insert_token(&tok);
+}
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Set up the inserted token stream for a propertyset invocation
+ */
+void CTcParser::insert_propset_expansion(struct propset_def *propset_stack,
+                                         int propset_depth)
+{
+    /* 
+     *   First, determine if we have any added formals from propertyset
+     *   definitions.  
+     */
+    int i;
+    int formals_found;
+    for (formals_found = FALSE, i = 0 ; i < propset_depth ; ++i)
+    {
+        /* if this one has formals, so note */
+        if (propset_stack[i].param_tok_head != 0)
+        {
+            /* note it, and we need not look further */
+            formals_found = TRUE;
+            break;
+        }
+    }
+    
+    /*
+     *   If we found formals from property sets, we must expand them into the
+     *   token stream.  
+     */
+    if (formals_found)
+    {
+        /* insert an open paren at the start of the expansion list */
+        propset_token_source tok_src;
+        tok_src.insert_token(TOKT_LPAR, "(", 1);
+        
+        /* we don't yet need a leading comma */
+        int need_comma = FALSE;
+        
+        /*
+         *   Add the tokens from each propertyset in the stack, from the
+         *   outside in, until we reach an asterisk in each stack.  
+         */
+        for (i = 0 ; i < propset_depth ; ++i)
+        {
+            propset_tok *cur;
+            
+            /* add the tokens from the stack element */
+            for (cur = propset_stack[i].param_tok_head ; cur != 0 ;
+                 cur = cur->nxt)
+            {
+                /*
+                 *   If we need a comma before the next real element, add it
+                 *   now.  
+                 */
+                if (need_comma)
+                {
+                    tok_src.insert_token(TOKT_COMMA, ",", 1);
+                    need_comma = FALSE;
+                }
+                
+                /*
+                 *   If this is a comma and the next item is the '*', omit
+                 *   the comma - if we have nothing more following, we want
+                 *   to suppress the comma.  
+                 */
+                if (cur->tok.gettyp() == TOKT_COMMA
+                    && cur->nxt != 0
+                    && cur->nxt->tok.gettyp() == TOKT_TIMES)
+                {
+                    /* 
+                     *   it's the comma before the star - simply stop here
+                     *   for this list, but note that we need a comma before
+                     *   any additional formals that we add in the future 
+                     */
+                    need_comma = TRUE;
+                    break;
+                }
+                
+                /* 
+                 *   if it's the '*' for this list, stop here, since we want
+                 *   to insert the next level in before we add these tokens 
+                 */
+                if (cur->tok.gettyp() == TOKT_TIMES)
+                    break;
+                
+                /* insert it into our expansion list */
+                tok_src.insert_token(&cur->tok);
+            }
+        }
+        
+        /*
+         *   If we have explicit formals in the true input stream, add them,
+         *   up to but not including the close paren.  
+         */
+        if (G_tok->cur() == TOKT_LPAR)
+        {
+            /* skip the open paren */
+            G_tok->next();
+            
+            /* check for a non-empty list */
+            if (G_tok->cur() != TOKT_RPAR)
+            {
+                /* 
+                 *   the list is non-empty - if we need a comma, add it now 
+                 */
+                if (need_comma)
+                    tok_src.insert_token(TOKT_COMMA, ",", 1);
+                
+                /* we will need a comma at the end of this list */
+                need_comma = TRUE;
+            }
+            
+            /* 
+             *   copy everything up to but not including the close paren to
+             *   the expansion list 
+             */
+            while (G_tok->cur() != TOKT_RPAR
+                   && G_tok->cur() != TOKT_EOF)
+            {
+                /* insert this token into our expansion list */
+                tok_src.insert_token(G_tok->getcur());
+                
+                /* skip it */
+                G_tok->next();
+            }
+            
+            /* skip the closing paren */
+            if (G_tok->cur() == TOKT_RPAR)
+                G_tok->next();
+        }
+        
+        /* 
+         *   Finish the expansion by adding the parts of each propertyset
+         *   list after the '*' to the expansion list.  Copy from the inside
+         *   out, since we want to unwind the nesting from outside in that we
+         *   did to start with.  
+         */
+        for (i = propset_depth ; i != 0 ; )
+        {
+            /* move down to the next level */
+            --i;
+            
+            /* find the '*' in this list */
+            propset_tok *cur;
+            for (cur = propset_stack[i].param_tok_head ;
+                 cur != 0 && cur->tok.gettyp() != TOKT_TIMES ;
+                 cur = cur->nxt) ;
+            
+            /* if we found the '*', skip it */
+            if (cur != 0)
+                cur = cur->nxt;
+            
+            /* 
+             *   also skip the comma following the '*', if present - we'll
+             *   explicitly insert the needed extra comma if we actually find
+             *   we need one 
+             */
+            if (cur != 0 && cur->tok.gettyp() == TOKT_COMMA)
+                cur = cur->nxt;
+            
+            /* insert the remainder of the list into the expansion list */
+            for ( ; cur != 0 ; cur = cur->nxt)
+            {
+                /* if we need a comma, add it now */
+                if (need_comma)
+                {
+                    tok_src.insert_token(TOKT_COMMA, ",", 1);
+                    need_comma = FALSE;
+                }
+                
+                /* insert this token */
+                tok_src.insert_token(&cur->tok);
+            }
+        }
+        
+        /* add the closing paren at the end of the expansion list */
+        tok_src.insert_token(TOKT_RPAR, ")", 1);
+        
+        /*
+         *   We've fully expanded the formal list.  Now all that remains is
+         *   to insert the expanded token list into the token input stream,
+         *   so that we read from the expanded list instead of from the
+         *   original token stream.  
+         */
+        G_tok->set_external_source(&tok_src);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parse an object definition's property list 
+ */
+int CTcParser::parse_obj_prop_list(
+    int *err, CTPNObjDef *objdef, CTcSymMetaclass *meta_sym,
+    int modify, int is_nested, int braces, int is_inline,
+    tcprs_term_info *outer_term_info, tcprs_term_info *term_info)
+{
+    /* we aren't in a propertyset definition yet */
+    propset_def propset_stack[MAX_PROPSET_DEPTH];
+    int propset_depth = 0;
+
+    /*
+     *   Parse the property list.  Keep going until we get to the closing
+     *   semicolon.  
+     */
+    for (int done = FALSE ; !done ; )
+    {
+        /* 
+         *   Remember the statement start location.  Some types of
+         *   property definitions result in implicit statements being
+         *   created, so we must record the statement start position for
+         *   those cases.  
+         */
+        cur_desc_ = G_tok->get_last_desc();
+        cur_linenum_ = G_tok->get_last_linenum();
+
+        /* presume no 'replace' on this property */
+        int replace = FALSE;
+
+        /* parse the property definition */
+        switch(G_tok->cur())
+        {
+        case TOKT_PROPERTYSET:
+            {
+                propset_def *cur_def;
+                propset_def dummy_def;
+                
+                /* 
+                 *   It's a property set definition.  These definitions
+                 *   nest; make sure we have space left in our stack.  
+                 */
+                if (propset_depth >= MAX_PROPSET_DEPTH)
+                {
+                    /* 
+                     *   nested too deeply - flag the error if this is the
+                     *   one that pushes us over the edge 
+                     */
+                    if (propset_depth == MAX_PROPSET_DEPTH)
+                        G_tok->log_error(TCERR_PROPSET_TOO_DEEP);
+                    
+                    /* 
+                     *   keep going with a syntactic parse despite the
+                     *   problems - increment the current depth, but use a
+                     *   dummy definition object, since we have no more
+                     *   stack entries to store the real data 
+                     */
+                    ++propset_depth;
+                    cur_def = &dummy_def;
+                }
+                else
+                {
+                    /* set up to use the next available stack entry */
+                    cur_def = &propset_stack[propset_depth];
+
+                    /* consume this stack entry */
+                    ++propset_depth;
+                }
+                
+                /* skip the keyword and get the property name pattern */
+                if (G_tok->next() == TOKT_SSTR)
+                {
+                    
+                    /* note the pattern string */
+                    cur_def->prop_pattern = G_tok->getcur()->get_text();
+                    cur_def->prop_pattern_len =
+                        G_tok->getcur()->get_text_len();
+
+                    /* 
+                     *   Validate the pattern.  It must consist of valid
+                     *   token characters, except for a single asterisk,
+                     *   which it must have.
+                     */
+                    int star_cnt = 0, inval_cnt = 0;
+                    utf8_ptr p((char *)cur_def->prop_pattern);
+                    size_t rem = cur_def->prop_pattern_len;
+                    for ( ; rem != 0 ; p.inc(&rem))
+                    {
+                        /* check this character */
+                        if (p.getch() == '*')
+                            ++star_cnt;
+                        else if (!is_sym(p.getch()))
+                            ++inval_cnt;
+                    }
+
+                    /* 
+                     *   if the first character isn't an asterisk, it must
+                     *   be a valid initial symbol character 
+                     */
+                    if (cur_def->prop_pattern_len != 0)
+                    {
+                        /* get the first character */
+                        wchar_t firstch = utf8_ptr::s_getch(
+                            cur_def->prop_pattern);
+
+                        /* 
+                         *   if it's not a '*', it must be a valid initial
+                         *   token character 
+                         */
+                        if (firstch != '*' && !is_syminit(firstch))
+                            ++inval_cnt;
+                    }
+
+                    /* 
+                     *   if it has no '*' or more than one '*', or it has
+                     *   invalid characters, flag it as invalid 
+                     */
+                    if (star_cnt != 1 || inval_cnt != 0)
+                        G_tok->log_error_curtok(TCERR_PROPSET_INVAL_PAT);
+                }
+                else
+                {
+                    /* not a string; flag an error, but try to keep going */
+                    G_tok->log_error_curtok(TCERR_PROPSET_REQ_STR);
+                    
+                    /* we have no pattern string */
+                    cur_def->prop_pattern = "";
+                    cur_def->prop_pattern_len = 0;
+                }
+
+                /* we have no parameter token list yet */
+                cur_def->param_tok_head = 0;
+
+                /* 
+                 *   skip the pattern string, and see if we have an argument
+                 *   list 
+                 */
+                if (G_tok->next() == TOKT_LPAR)
+                {
+                    /*
+                     *   Current parsing state: 0=start, 1=after symbol or
+                     *   '*', 2=after comma, 3=done 
+                     */
+                    int state = 0;
+
+                    /* number of '*' tokens */
+                    int star_cnt = 0;
+
+                    /* start with an empty token list */
+                    propset_tok *last = 0;
+                    
+                    /*
+                     *   We have a formal parameter list that is to be
+                     *   applied to each property in the set.  Parse tokens
+                     *   up to the closing paren, stashing them in our list.
+                     */
+                    for (G_tok->next() ; state != 3 ; )
+                    {
+                        /* check the token */
+                        switch (G_tok->cur())
+                        {
+                        case TOKT_LBRACE:
+                        case TOKT_RBRACE:
+                        case TOKT_SEM:
+                            /* 
+                             *   A brace or semicolon - assume that the right
+                             *   paren was accidentally omitted.  Flag the
+                             *   error and consider the list to be finished. 
+                             */
+                            G_tok->log_error_curtok(
+                                TCERR_MISSING_RPAR_FORMAL);
+
+                            /* switch to 'done' state */
+                            state = 3;
+                            break;
+
+                        case TOKT_RPAR:
+                            /* 
+                             *   Right paren.  This ends the list.  If we're
+                             *   in state 2 ('after comma'), the paren is out
+                             *   of place, so flag it as an error - but still
+                             *   count it as ending the list.  
+                             */
+                            if (state == 2)
+                                G_tok->log_error(TCERR_MISSING_LAST_FORMAL);
+
+                            /* skip the paren */
+                            G_tok->next();
+
+                            /* switch to state 'done' */
+                            state = 3;
+                            break;
+
+                        case TOKT_SYM:
+                        case TOKT_TIMES:
+                            /*
+                             *   Formal parameter name or '*'.  We can accept
+                             *   these in states 'start' and 'after comma' -
+                             *   in those states, just go add the token to
+                             *   the list we're gathering.  In state 'after
+                             *   formal', this is an error - a comma should
+                             *   have come between the two parameters.  
+                             */
+                            if (state == 1)
+                            {
+                                /* 
+                                 *   'after formal' - a comma must be
+                                 *   missing.  Flag the error, but then
+                                 *   proceed as though the comma had been
+                                 *   there. 
+                                 */
+                                G_tok->log_error_curtok(
+                                    TCERR_REQ_COMMA_FORMAL);
+                            }
+
+                            /* switch to state 'after formal' */
+                            state = 1;
+
+                        add_to_list:
+                            {
+                                /* create a list entry for the current token */
+                                propset_tok *cur = new (G_prsmem) propset_tok(
+                                    G_tok->getcur());
+
+                                /* add it to the token list */
+                                if (last != 0)
+                                    last->nxt = cur;
+                                else
+                                    cur_def->param_tok_head = cur;
+                                last = cur;
+
+                                /* if it's a '*', count it */
+                                if (G_tok->cur() == TOKT_TIMES)
+                                    ++star_cnt;
+                                
+                                /* skip it */
+                                G_tok->next();
+                            }
+                            break;
+
+                        case TOKT_COMMA:
+                            /*
+                             *   In state 'after formal', a comma just goes
+                             *   into our token list.  A comma is invalid in
+                             *   any other state.  
+                             */
+                            if (state == 1)
+                            {
+                                /* switch to state 'after comma' */
+                                state = 2;
+
+                                /* go add the token to our list */
+                                goto add_to_list;
+                            }
+                            else
+                            {
+                                /* otherwise, go handle as a bad token */
+                                goto bad_token;
+                            }
+
+                        default:
+                        bad_token:
+                            /* generate an error according to our state */
+                            switch (state)
+                            {
+                            case 0:
+                            case 2:
+                                /* 
+                                 *   'start' or 'after comma' - we expected a
+                                 *   formal name 
+                                 */
+                                G_tok->log_error_curtok(TCERR_REQ_SYM_FORMAL);
+                                break;
+
+                            case 1:
+                                /* 'after formal' - expected a comma */
+                                G_tok->log_error_curtok(
+                                    TCERR_REQ_COMMA_FORMAL);
+                                break;
+                            }
+
+                            /* skip the token and keep going */
+                            G_tok->next();
+                            break;
+                        }
+                    }
+
+                    /* make sure we have exactly one star */
+                    if (star_cnt != 1)
+                        G_tok->log_error(TCERR_PROPSET_INVAL_FORMALS);
+                }
+
+                /* require the open brace for the set */
+                if (G_tok->cur() == TOKT_LBRACE)
+                    G_tok->next();
+                else
+                    G_tok->log_error_curtok(TCERR_PROPSET_REQ_LBRACE);
+            }
+                
+            /* proceed to parse the properties within */
+            break;
+            
+        case TOKT_SEM:
+            /*
+             *   If we're using brace notation (i.e., the property list is
+             *   surrounded by braces), a semicolon inside the property list
+             *   is ignored.  If we're using regular notation, a semicolon
+             *   ends the property list.  
+             */
+            if (braces || propset_depth != 0)
+            {
+                /* 
+                 *   we're using brace notation, or we're inside the braces
+                 *   of a propertyset, so semicolons are ignored 
+                 */
+            }
+            else
+            {
+                /* 
+                 *   we're using regular notation, so this semicolon
+                 *   terminates the property list and the object body - note
+                 *   that we're done parsing the object body 
+                 */
+                done = TRUE;
+            }
+
+            /* in any case, skip the semicolon and carry on */
+            G_tok->next();
+            break;
+
+        case TOKT_CLASS:
+        case TOKT_EXTERN:
+        case TOKT_MODIFY:
+        case TOKT_DICTIONARY:
+        case TOKT_PROPERTY:
+        case TOKT_PLUS:
+        case TOKT_INC:
+        case TOKT_INTRINSIC:
+        case TOKT_OBJECT:
+        case TOKT_GRAMMAR:
+        case TOKT_ENUM:
+            /* 
+             *   All of these probably indicate the start of a new
+             *   statement - they probably just left off the closing
+             *   semicolon of the current object.  Flag the error and
+             *   return, on the assumption that we'll find a new statement
+             *   starting here. 
+             */
+            G_tok->log_error_curtok(braces || propset_depth != 0
+                                    ? TCERR_OBJ_DEF_REQ_RBRACE
+                                    : TCERR_OBJ_DEF_REQ_SEM);
+            done = TRUE;
+            break;
+
+        case TOKT_SYM:
+            /* 
+             *   Property definition.  For better recovery from certain
+             *   common errors, check a couple of scenarios.
+             *   
+             *   Look ahead one token.  If the next token is a colon, then
+             *   we have a nested object definition (the property is
+             *   assigned to a reference to an anonymous object about to be
+             *   defined in-line).  This could also indicate a missing
+             *   semicolon (or close brace) immediately before the symbol
+             *   we're taking as a property name - the symbol we just parsed
+             *   could actually be intended as the next object's name, and
+             *   the colon introduces its superclass list.  If the new
+             *   object's property list isn't enclosed in braces, this is
+             *   probably what happened.
+             *   
+             *   If the next token is '(', '{', or '=', it's almost
+             *   certainly a property definition, so proceed on that
+             *   assumption.
+             *   
+             *   If the next token is a symbol, we have one of two probable
+             *   errors.  Either we have a missing '=' in a property
+             *   definition, or this is a new anonymous object definition,
+             *   and the current object definition is missing its
+             *   terminating semicolon.  If the current symbol is a class
+             *   name, it's almost certainly a new object definition;
+             *   otherwise, assume it's really a property definition, and
+             *   we're just missing the '='.  
+             */
+
+            /* look ahead at the next token */
+            switch(G_tok->next())
+            {
+            case TOKT_LPAR:
+            case TOKT_LBRACE:
+            case TOKT_EQ:
+                /* 
+                 *   It's almost certainly a property definition, no
+                 *   matter what the current symbol looks like.  Put back
+                 *   the token and proceed.  
+                 */
+                G_tok->unget();
+                break;
+
+            case TOKT_COLON:
+                /* 
+                 *   "symbol: " - a nested object definition, or what's
+                 *   meant to be a new object definition, with the
+                 *   terminating semicolon or brace of the current object
+                 *   missing.  Assume for now it's correct, in which case
+                 *   it's a nested object definition; put back the token and
+                 *   proceed.  
+                 */
+                G_tok->unget();
+                break;
+
+            case TOKT_SYM:
+            case TOKT_AT:
+            case TOKT_PLUS:
+            case TOKT_MINUS:
+            case TOKT_TIMES:
+            case TOKT_DIV:
+            case TOKT_MOD:
+            case TOKT_ARROW:
+            case TOKT_AND:
+            case TOKT_NOT:
+            case TOKT_BNOT:
+            case TOKT_COMMA:
+                {
+                    /* 
+                     *   Two symbols in a row, or a symbol followed by
+                     *   what might be a template operator - either an
+                     *   equals sign was left out, or this is a new object
+                     *   definition.  Put back the token and check what
+                     *   kind of symbol we had in the first place.  
+                     */
+                    G_tok->unget();
+                    CTcSymbol *sym = global_symtab_->find(
+                        G_tok->getcur()->get_text(),
+                        G_tok->getcur()->get_text_len());
+
+                    /* 
+                     *   if it's an object symbol, we almost certainly
+                     *   have a new object definition 
+                     */
+                    if (sym != 0 && sym->get_type() == TC_SYM_OBJ)
+                    {
+                        /* log the error */
+                        G_tok->log_error_curtok(
+                            braces || propset_depth != 0
+                            ? TCERR_OBJ_DEF_REQ_RBRACE
+                            : TCERR_OBJ_DEF_REQ_SEM);
+
+                        /* assume the object is finished */
+                        done = TRUE;
+                    }
+                }
+                break;
+
+            default:
+                /* 
+                 *   anything else is probably an error, but it's hard to
+                 *   guess what the error is; proceed on the assumption
+                 *   that it's going to be a property definition, and let
+                 *   the property definition parser take care of analyzing
+                 *   the problem 
+                 */
+                G_tok->unget();
+                break;
+            }
+
+            /* 
+             *   if we decided that the object is finished, cancel the
+             *   property definition parsing 
+             */
+            if (done)
+                break;
+
+        parse_normal_prop:
+            /* 
+             *   initialize my termination information object with the
+             *   current location (note that we don't necessarily initialize
+             *   the current termination info, since only the outermost one
+             *   matters; if ours happens to be active, it's because it's
+             *   the outermost) 
+             */
+            outer_term_info->init(G_tok->get_last_desc(),
+                                  G_tok->get_last_linenum());
+
+            /* go parse the property definition */
+            parse_obj_prop(
+                err, objdef, replace, meta_sym, term_info,
+                propset_stack, propset_depth, is_nested, is_inline);
+
+            /* if we ran into an unrecoverable error, give up */
+            if (*err)
+                return FALSE;
+
+            /* 
+             *   if we encountered a termination error, assume the current
+             *   object was intended to be terminated, so stop here 
+             */
+            if (term_info->unterm_)
+            {
+                /* 
+                 *   we found what looks like the end of the object within
+                 *   the property parser - assume we're done with this
+                 *   object 
+                 */
+                done = TRUE;
+            }
+
+            /* done */
+            break;
+
+        case TOKT_OPERATOR:
+            /* 
+             *   Operator overload property - parse this as a normal property
+             *   (the property parser takes care of the 'operator' syntax
+             *   specialization).  
+             */
+            goto parse_normal_prop;
+
+        case TOKT_REPLACE:
+            /* 'replace' is only allowed with 'modify' objects */
+            if (!modify)
+                G_tok->log_error(TCERR_REPLACE_PROP_REQ_MOD_OBJ);
+            
+            /* skip the 'replace' keyword */
+            G_tok->next();
+
+            /* set the 'replace' flag for the property parser */
+            replace = TRUE;
+
+            /* go parse the normal property definition */
+            goto parse_normal_prop;
+            
+        case TOKT_RBRACE:
+            /*
+             *   If we're in a 'propertyset' definition, this ends the
+             *   current propertyset.  If the property list is enclosed in
+             *   braces, this brace terminates the property list and the
+             *   object body.  Otherwise, it's an error.  
+             */
+            if (propset_depth != 0)
+            {
+                /* pop a propertyset level */
+                --propset_depth;
+
+                /* 
+                 *   skip the brace, and proceed with parsing the rest of
+                 *   the object
+                 */
+                G_tok->next();
+            }
+            else if (braces)
+            {
+                /* we're done with the object body */
+                done = TRUE;
+
+                /* skip the brace */
+                G_tok->next();
+            }
+            else
+            {
+                /* 
+                 *   this property list isn't enclosed in braces, so this is
+                 *   completely unexpected - treat it the same as any other
+                 *   invalid token 
+                 */
+                goto inval_token;
+            }
+            break;
+
+        case TOKT_EOF:
+        default:
+        inval_token:
+            /* anything else is invalid */
+            G_tok->log_error(TCERR_OBJDEF_REQ_PROP,
+                             (int)G_tok->getcur()->get_text_len(),
+                             G_tok->getcur()->get_text());
+
+            /* skip the errant token and continue */
+            G_tok->next();
+
+            /* if we're at EOF, abort */
+            if (G_tok->cur() == TOKT_EOF)
+            {
+                *err = TRUE;
+                return FALSE;
+            }
+            break;
+        }
+    }
+
+    /* success */
+    return TRUE;
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Parse a property definition within an object definition.
+ *   
+ *   'obj_is_nested' indicates that the enclosing object is a nested object.
+ *   This tells us that we can't allow the lexicalParent property to be
+ *   manually defined, since we will automatically define it explicitly for
+ *   the enclosing object by virtue of its being nested.  
+*/
+void CTcParser::parse_obj_prop(
+    int *err, CTPNObjDef *objdef, int replace, CTcSymMetaclass *meta_sym,
+    tcprs_term_info *term_info, propset_def *propset_stack, int propset_depth,
+    int obj_is_nested, int is_inline)
+{
+    /* we haven't created the new property yet */
+    CTPNObjProp *new_prop = 0;
+
+    /* presume it's not a static property definition */
+    int is_static = FALSE;
+    
+    /* remember the property token */
+    CTcToken prop_tok = *G_tok->copycur();
+
+    /* 
+     *   if we're in a property set, apply the property set pattern to the
+     *   property name 
+     */
+    if (propset_depth != 0)
+    {
+        /* we can't define operator overloads here */
+        if (prop_tok.gettyp() == TOKT_OPERATOR)
+            G_tok->log_error(TCERR_OPER_IN_PROPSET);
+        
+        /*
+         *   Build the real property name based on all enclosing propertyset
+         *   pattern strings.  Start with the current (innermost) pattern,
+         *   then apply the next pattern out, and so on.
+         *   
+         *   Note that if the current nesting depth is greater than the
+         *   maximum nesting depth, ignore the illegally deep levels and
+         *   just start with the deepest legal level.  
+         */
+        int i = propset_depth;
+        if (i > MAX_PROPSET_DEPTH)
+            i = MAX_PROPSET_DEPTH;
+        
+        /* start with the current token */
+        size_t explen = G_tok->getcur()->get_text_len();
+        char expbuf[TOK_SYM_MAX_LEN];
+        memcpy(expbuf, G_tok->getcur()->get_text(), explen);
+        
+        /* iterate through the propertyset stack */
+        for (propset_def *cur = &propset_stack[i-1] ; i > 0 ; --i, --cur)
+        {
+            char tmpbuf[TOK_SYM_MAX_LEN];
+            utf8_ptr src;
+            utf8_ptr dst;
+            size_t rem;
+
+            /* if we'd exceed the maximum token length, stop here */
+            if (explen + cur->prop_pattern_len > TOK_SYM_MAX_LEN)
+            {
+                /* complain about it */
+                G_tok->log_error(TCERR_PROPSET_TOK_TOO_LONG);
+                
+                /* stop the expansion */
+                break;
+            }
+            
+            /* copy the pattern up to the '*' */
+            for (src.set((char *)cur->prop_pattern),
+                 dst.set(tmpbuf), rem = cur->prop_pattern_len ;
+                 rem != 0 && src.getch() != '*' ; src.inc(&rem))
+            {
+                /* copy this character */
+                dst.setch(src.getch());
+            }
+            
+            /* if we found a '*', skip it */
+            if (rem != 0 && src.getch() == '*')
+                src.inc(&rem);
+            
+            /* insert the expansion from the last round here */
+            memcpy(dst.getptr(), expbuf, explen);
+            
+            /* advance our output pointer */
+            dst.set(dst.getptr() + explen);
+            
+            /* copy the remainder of the pattern string */
+            if (rem != 0)
+            {
+                /* copy the remaining bytes */
+                memcpy(dst.getptr(), src.getptr(), rem);
+
+                /* advance the output pointer past the copied bytes */
+                dst.set(dst.getptr() + rem);
+            }
+            
+            /* copy the result back to the expansion buffer */
+            explen = dst.getptr() - tmpbuf;
+            memcpy(expbuf, tmpbuf, explen);
+        }
+
+        /* store the new token in tokenizer memory */
+        prop_tok.set_text(G_tok->store_source(expbuf, explen), explen);
+    }
+
+    /* presume we won't find a valid symbol for the property token */
+    CTcSymProp *prop_sym = 0;
+
+    /* presume it's not an operator overload property */
+    int op_args = 0;
+
+    /* if this is an 'operator' property, the syntax is special */
+    if (prop_tok.gettyp() == TOKT_OPERATOR)
+        parse_op_name(&prop_tok, &op_args);
+
+    /* 
+     *   look up the property token as a symbol, to see if it's already
+     *   defined - we don't want to presume it's a property quite yet, but
+     *   we can at least look to see if it's defined as something else 
+     */
+    CTcSymbol *sym = global_symtab_->find(
+        prop_tok.get_text(), prop_tok.get_text_len());
+
+    /* skip it and see what comes next */
+    switch (G_tok->next())
+    {
+    case TOKT_LPAR:
+    case TOKT_LBRACE:
+    parse_method:
+        /* look up the symbol */
+        prop_sym = look_up_prop(&prop_tok, TRUE);
+
+        /* vocabulary properties can't be code */
+        if (prop_sym != 0 && prop_sym->is_vocab())
+            G_tok->log_error_curtok(TCERR_VOCAB_REQ_SSTR);
+
+        /* 
+         *   A left paren starts a formal parameter list, a left brace starts
+         *   a code body - in either case, we have a method, so parse the
+         *   code body.  If we're parsing an inline object definition, parse
+         *   it as an anonymous method definition instead.
+         */
+        if (is_inline)
+        {
+            /* inline object - parse an anonymous method */
+            G_tok->unget();
+            CTPNAnonFunc *m = CTcPrsOpUnary::parse_anon_func(FALSE, TRUE);
+
+            /* add this as a property expression */
+            if (m != 0)
+                new_prop = objdef->add_inline_method(prop_sym, m, 0, replace);
+        }
+        else
+        {
+            /* top-level object - parse a code body */
+            int argc;
+            int opt_argc;
+            int varargs;
+            int varargs_list;
+            CTcSymLocal *varargs_list_local;
+            int has_retval;
+            CTPNCodeBody *code_body = parse_code_body(
+                FALSE, TRUE, TRUE, &argc, &opt_argc, &varargs,
+                &varargs_list, &varargs_list_local, &has_retval, err, 0,
+                TCPRS_CB_NORMAL, propset_stack, propset_depth, 0, 0);
+
+            /* check for errors in the code body */
+            if (*err)
+                return;
+
+            /* 
+             *   if this is an operator, check arguments, and pick the
+             *   correct operator for the number of operands for operators
+             *   with multiple operand numbers 
+             */
+            if (op_args != 0)
+            {
+                /* mark the code body as an operator overload method */
+                if (code_body != 0)
+                    code_body->set_operator_overload(TRUE);
+                
+                /* varargs aren't allowed */
+                if (varargs)
+                {
+                    G_tok->log_error(
+                        TCERR_OP_OVERLOAD_WRONG_FORMALS, op_args - 1);
+                }
+                else if (argc != op_args - 1)
+                {
+                    /* not a valid combination of operator and arguments */
+                    G_tok->log_error(
+                        TCERR_OP_OVERLOAD_WRONG_FORMALS, op_args - 1);
+                }
+            }
+            
+            /* add the method definition */
+            if (prop_sym != 0)
+                new_prop = objdef->add_method(prop_sym, code_body, 0, replace);
+        }
+        break;
+
+    case TOKT_SEM:
+    case TOKT_RBRACE:
+    case TOKT_RPAR:
+    case TOKT_RBRACK:
+    case TOKT_COMMA:
+        /* log the error */
+        G_tok->log_error(TCERR_OBJDEF_REQ_PROPVAL,
+                         (int)prop_tok.get_text_len(), prop_tok.get_text(),
+                         (int)G_tok->getcur()->get_text_len(),
+                         G_tok->getcur()->get_text());
+
+        /* if it's anything other than a semicolon, skip it */
+        if (G_tok->cur() != TOKT_SEM)
+            G_tok->next();
+        break;
+
+    case TOKT_COLON:
+        /*
+         *   It's a nested object definition.  The value of the property is a
+         *   reference to an anonymous object defined in-line after the
+         *   colon.  The in-line object definition uses the "braces" version
+         *   of the standard syntax: after the colon we have the class list,
+         *   an open brace, the property list, and a close brace.
+         *   
+         *   Note that we hold off defining the property symbol for as long
+         *   as possible, since we want to make sure that we don't have a
+         *   syntax error where this was intended to be a whole new top-level
+         *   object definition, but the terminator was accidentally left off
+         *   the previous object.  In this case, the new object definition
+         *   would look like a nested object rather than a new top-level
+         *   object.  This is probably the case if the symbol before the
+         *   colon is already known as an object name.
+         */
+        {
+            /* 
+             *   If the symbol before the colon is already known as an object
+             *   name, it must be intended as a new object rather than a
+             *   nested object, meaning that the terminator is missing from
+             *   the previous object definition.  If this is the case, flag
+             *   the termination error and proceed to parse the new object
+             *   definition.  
+             */
+            if (sym != 0 && sym->get_type() == TC_SYM_OBJ)
+            {
+                /* 
+                 *   flag the unterminated object error - note that the
+                 *   location where termination should have occurred is
+                 *   where the caller tells us 
+                 */
+                G_tcmain->log_error(term_info->desc_, term_info->linenum_,
+                                    TC_SEV_ERROR, TCERR_UNTERM_OBJ_DEF);
+
+                /* unget the colon so we can parse the new object def */
+                G_tok->unget();
+
+                /* flag the termination error for the caller */
+                term_info->unterm_ = TRUE;
+
+                /* we're done */
+                return;
+            }
+
+            /* skip the colon */
+            G_tok->next();
+
+            /* parse the nested object property */
+            if (!objdef->parse_nested_obj_prop(
+                new_prop, err, term_info, &prop_tok, replace))
+                return;
+        }
+        
+        /* done */
+        break;
+
+    case TOKT_EQ:
+        /* skip the '=' */
+        G_tok->next();
+
+        /* 
+         *   if a brace follows, this must be using the obsolete TADS 2
+         *   notation, in which an equals sign followed a property name even
+         *   if a method was being defined; if this is the case, generate an
+         *   error, but then proceed to treat what follows as a method 
+         */
+        if (G_tok->cur() == TOKT_LBRACE)
+        {
+            /* log the error... */
+            G_tok->log_error(TCERR_EQ_WITH_METHOD_OBSOLETE);
+
+            /* ...but then go ahead and parse it as a method anyway */
+            goto parse_method;
+        }
+
+        /* go parse the value */
+        goto parse_value;
+
+    default:
+        /* 
+         *   an '=' is required after a value property name; log the error
+         *   and proceed, assuming that the '=' was left out but that the
+         *   property value is otherwise well-formed 
+         */
+        G_tok->log_error_curtok(TCERR_PROP_REQ_EQ);
+
+    parse_value:
+        {
+            /* look up the property symbol */
+            prop_sym = look_up_prop(&prop_tok, TRUE);
+
+            /* note if it's a vocabulary property */
+            int is_vocab_prop = (prop_sym != 0 && prop_sym->is_vocab());
+
+            /* we don't know whether we have a constant or method yet */
+            CTPNCodeBody *code_body = 0;
+            CTcPrsNode *expr = 0;
+            CTPNAnonFunc *inline_method = 0;
+
+            /* 
+             *   if this is a vocabulary property, perform special vocabulary
+             *   list parsing - a vocabulary property can have one or more
+             *   single-quoted strings that we store in a list, but the list
+             *   does not have to be enclosed in brackets 
+             */
+            if (is_vocab_prop && G_tok->cur() == TOKT_SSTR)
+            {
+                /* 
+                 *   set the property to a vocab list placeholder for now in
+                 *   the object - we'll replace it during linking with the
+                 *   actual vocabulary list
+                 */
+                CTcConstVal cval;
+                cval.set_vocab_list();
+                expr = new CTPNConst(&cval);
+                
+                /* if I have no dictionary, it's an error */
+                if (dict_cur_ == 0)
+                    G_tok->log_error(TCERR_VOCAB_NO_DICT);
+                
+                /* get the object symbol */
+                CTcSymObj *obj_sym = (objdef != 0 ? objdef->get_obj_sym() : 0);
+                
+                /* parse the list entries */
+                for (;;)
+                {
+                    /* add the word to our vocabulary list */
+                    if (obj_sym != 0)
+                        obj_sym->add_vocab_word(
+                            G_tok->getcur()->get_text(),
+                            G_tok->getcur()->get_text_len(),
+                            prop_sym->get_prop());
+                    
+                    /* 
+                     *   skip the string; if another string doesn't
+                     *   immediately follow, we're done with the implied list
+                     *   
+                     */
+                    if (G_tok->next() != TOKT_SSTR)
+                        break;
+                }
+            }
+            else
+            {
+                /* if it's a vocabulary property, other types aren't allowed */
+                if (is_vocab_prop)
+                    G_tok->log_error_curtok(TCERR_VOCAB_REQ_SSTR);
+                
+                /* check for the 'static' keyword */
+                if (G_tok->cur() == TOKT_STATIC)
+                {
+                    /* note that it's static */
+                    is_static = TRUE;
+
+                    /* skip the 'static' keyword */
+                    G_tok->next();
+                }
+                
+                /* prepare to parse the property value expression */
+                CTcPrsPropExprSave save_info;
+                begin_prop_expr(&save_info, is_static, is_inline);
+                
+                /* 
+                 *   parse the expression (which can be a double-quoted
+                 *   string instead of a value expression) 
+                 */
+                expr = parse_expr_or_dstr(TRUE);
+                if (expr == 0)
+                {
+                    *err = TRUE;
+                    return;
+                }
+                
+                /* 
+                 *   finish the expression, and check to see if it needs
+                 *   dynamic evaluation (if so, it will yield a code body)
+                 */
+                finish_prop_expr(
+                    &save_info, expr, code_body, inline_method,
+                    is_static, is_inline, prop_sym);
+            }
+
+            /* if we have a valid property and expression, add it */
+            if (prop_sym != 0)
+            {
+                /* add the expression or code body, as appropriate */
+                if (code_body != 0)
+                {
+                    /* method */
+                    new_prop = objdef->add_method(
+                        prop_sym, code_body, expr, replace);
+                }
+                else if (inline_method != 0)
+                {
+                    /* inline method */
+                    new_prop = objdef->add_inline_method(
+                        prop_sym, inline_method, expr, replace);
+                }
+                else if (expr != 0)
+                {
+                    /* constant expression */
+                    new_prop = objdef->add_prop(
+                        prop_sym, expr, replace, is_static);
+                }
+            }
+        }
+        
+        /* done with the property */
+        break;
+    }
+
+    /* make sure that the object doesn't already define this propery */
+    if (sym != 0)
+    {
+        /* presume it's not a duplicate */
+        int is_dup = FALSE;
+
+        /* 
+         *   if the enclosing object is nested, and this is the lexicalParent
+         *   property, then it's defined automatically by the compiler and
+         *   thus can't be redefined explicitly 
+         */
+        if (obj_is_nested && sym == lexical_parent_sym_)
+            is_dup = TRUE;
+
+        /* if we didn't already find a duplicate, scan the existing list */
+        if (!is_dup)
+        {
+            /* scan the property list for this object */
+            for (CTPNObjProp *obj_prop = objdef->get_first_prop() ;
+                 obj_prop != 0 ; obj_prop = obj_prop->get_next_prop())
+            {
+                /* 
+                 *   if it matches (and it's not the one we just added), log
+                 *   an error 
+                 */
+                if (obj_prop != new_prop && obj_prop->get_prop_sym() == sym)
+                {
+                    /* 
+                     *   if this property is overwritable, we're allowed to
+                     *   replace it with a new value; otherwise, it's an
+                     *   illegal duplicate 
+                     */
+                    if (obj_prop->is_overwritable())
+                    {
+                        /* 
+                         *   we're allowed to overwrite it with an explicit
+                         *   redefinition; simply remove the old property
+                         *   from the list so we can add the new one 
+                         */
+                        objdef->delete_property(obj_prop->get_prop_sym());
+                    }
+                    else
+                    {
+                        /* note that we found a duplicate property */
+                        is_dup = TRUE;
+                    }
+
+                    /* no need to continue looking */
+                    break;
+                }
+            }
+        }
+
+        /* if we found a duplicate, log an error */
+        if (is_dup)
+            G_tok->log_error(TCERR_PROP_REDEF_IN_OBJ,
+                             (int)sym->get_sym_len(), sym->get_sym());
+    }
+
+    /* 
+     *   if we're modifying an intrinsic class, make sure the property isn't
+     *   defined in the class's native interface 
+     */
+    if (meta_sym != 0 && prop_sym != 0)
+    {
+        /* check this intrinsic class and all of its superclasses */
+        for (CTcSymMetaclass *cur_meta = meta_sym ; cur_meta != 0 ;
+             cur_meta = cur_meta->get_super_meta())
+        {
+            /* scan the list of native methods */
+            for (CTcSymMetaProp *mprop = cur_meta->get_prop_head() ;
+                 mprop != 0 ; mprop = mprop->nxt_)
+            {
+                /* if it matches, flag an error */
+                if (mprop->prop_ == prop_sym)
+                {
+                    /* log the error */
+                    G_tok->log_error(TCERR_CANNOT_MOD_META_PROP,
+                                     prop_sym->get_sym_len(),
+                                     prop_sym->get_sym());
+                    
+                    /* no need to look any further */
+                    break;
+                }
+            }
+        }
+    }
+
+    /* 
+     *   if this is a dictionary property, note that it's been defined for
+     *   this object 
+     */
+    if (prop_sym != 0 && prop_sym->is_vocab())
+    {
+        /* scan the list of dictionary properties for this one */
+        for (CTcDictPropEntry *entry = dict_prop_head_ ; entry != 0 ;
+             entry = entry->nxt_)
+        {
+            /* check this one for a match */
+            if (entry->prop_ == prop_sym)
+            {
+                /* mark this entry as defined for this object */
+                entry->defined_ = TRUE;
+
+                /* no need to look any further */
+                break;
+            }
+        }
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Look up a property symbol.  If the symbol isn't defined, add it.  If
+ *   it's defined as some other kind of symbol, we'll log an error and return
+ *   null.  
+ */
+CTcSymProp *CTcParser::look_up_prop(const CTcToken *tok, int show_err)
+{
+    /* look up the symbol */
+    CTcSymProp *prop = (CTcSymProp *)global_symtab_->find(
+        tok->get_text(), tok->get_text_len());
+
+    /* if it's already defined, make sure it's a property */
+    if (prop != 0)
+    {
+        /* make sure it's a property */
+        if (prop->get_type() != TC_SYM_PROP)
+        {
+            /* log an error if appropriate */
+            if (show_err)
+                G_tok->log_error(TCERR_REDEF_AS_PROP,
+                                 (int)tok->get_text_len(), tok->get_text());
+
+            /* we can't use the symbol, so forget it */
+            prop = 0;
+        }
+    }
+    else
+    {
+        /* create the new property symbol */
+        prop = new CTcSymProp(tok->get_text(), tok->get_text_len(),
+                              FALSE, G_cg->new_prop_id());
+
+        /* add it to the global symbol table */
+        global_symtab_->add_entry(prop);
+
+        /* mark it as referenced */
+        prop->mark_referenced();
+    }
+
+    /* return the property symbol */
+    return prop;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Mix-in base class for object definitions (statement type or in-line
+ *   expression type) 
+ */
+
+/*
+ *   Add a property value 
+ */
+CTPNObjProp *CTPNObjDef::add_prop(
+    CTcSymProp *prop_sym, CTcPrsNode *expr, int replace, int is_static)
+{
+    /* create the new property item */
+    CTPNObjProp *prop = new CTPNObjProp(this, prop_sym, expr, 0, 0, is_static);
+
+    /* link it into my list */
+    add_prop_entry(prop, replace);
+
+    /* return the new property to our caller */
+    return prop;
+}
+
+/*
+ *   Add a method 
+ */
+CTPNObjProp *CTPNObjDef::add_method(
+    CTcSymProp *prop, CTPNCodeBody *code_body, CTcPrsNode *expr, int replace)
+{
+    /* create a new property */
+    CTPNObjProp *objprop = new CTPNObjProp(this, prop, 0, code_body, 0, FALSE);
+
+    /* link it into my list */
+    add_prop_entry(objprop, replace);
+
+    /* return it */
+    return objprop;
+}
+
+/*
+ *   Add a method to an in-line object
+ */
+CTPNObjProp *CTPNObjDef::add_inline_method(
+    CTcSymProp *prop, CTPNAnonFunc *inline_method,
+    CTcPrsNode *expr, int replace)
+{
+    /* create a new property */
+    CTPNObjProp *objprop = new CTPNObjProp(
+        this, prop, expr, 0, inline_method, FALSE);
+
+    /* link it into my list */
+    add_prop_entry(objprop, replace);
+
+    /* return it */
+    return objprop;
+}
+
+/*
+ *   fold constants 
+ */
+void CTPNObjDef::fold_proplist(CTcPrsSymtab *symtab)
+{
+    /* fold constants in each of our property list entries */
+    for (CTPNObjProp *prop = proplist_.first_ ; prop != 0 ; prop = prop->nxt_)
+        prop->fold_constants(symtab);
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Object Definition Statement 
+ */
+
+/*
+ *   add a superclass given the name
+ */
+void CTPNStmObjectBase::add_superclass(const CTcToken *tok)
+{
+    /* add a new superclass list entry to my list */
+    sclist_.append(new CTPNSuperclass(tok->get_text(), tok->get_text_len()));
+}
+
+/*
+ *   add a superclass given the object symbol
+ */
+void CTPNStmObjectBase::add_superclass(CTcSymbol *sym)
+{
+    /* add a new superclass entry to my list */
+    sclist_.append(new CTPNSuperclass(sym));
+}
+
+/*
+ *   Add an implicit constructor, if one is required.  
+ */
+void CTPNStmObjectBase::add_implicit_constructor()
+{
+    /* count the superclasses */
+    int sc_cnt;
+    CTPNSuperclass *sc;
+    for (sc_cnt = 0, sc = get_first_sc() ; sc != 0 ; sc = sc->nxt_, ++sc_cnt) ;
+
+    /*
+     *   If the object has multiple superclasses and doesn't have an explicit
+     *   constructor, add an implicit constructor that simply invokes each
+     *   superclass constructor using the same argument list sent to our
+     *   constructor.  
+     */
+    if (sc_cnt > 1)
+    {
+        /* scan the property list for a constructor property */
+        CTPNObjProp *prop;
+        int has_constructor;
+        for (prop = proplist_.first_, has_constructor = FALSE ; prop != 0 ;
+             prop = prop->nxt_)
+        {
+            /* 
+             *   if this is a constructor, note that the object has an
+             *   explicit constructor 
+             */
+            if (prop->is_constructor())
+            {
+                /* we have a consructor */
+                has_constructor = TRUE;
+
+                /* that's all we needed to know - no need to keep looking */
+                break;
+            }
+        }
+
+        /* if we don't have a constructor, add one */
+        if (!has_constructor)
+        {
+            /* 
+             *   Create a placeholder symbol for the varargs list variable -
+             *   we don't really need a symbol for this, but we do need the
+             *   symbol object so we can generate code for it properly.  Note
+             *   that a varargs list variable is a local, not a formal.  
+             */
+            CTcSymLocal *varargs_local = new CTcSymLocal(
+                "*", 1, FALSE, FALSE, 0);
+
+            /* create the pseudo-statement for the implicit constructor */
+            CTPNStmImplicitCtor *stm = new CTPNStmImplicitCtor(
+                (CTPNStmObject *)this);
+
+            /* 
+             *   Create a code body to hold the statement.  The code body has
+             *   one local symbol (the vararg list formal parameter), and is
+             *   defined by the 'constructor' property.  
+             */
+            CTPNCodeBody *cb = new CTPNCodeBody(
+                G_prs->get_global_symtab(), G_prs->get_goto_symtab(),
+                stm, 0, 0, TRUE, TRUE, varargs_local, 1, TRUE, 0);
+
+            /* 
+             *   set the implicit constructor's source file location to the
+             *   source file location of the start of the object definition 
+             */
+            cb->set_source_pos(file_, linenum_);
+            
+            /* add it to the object's property list */
+            add_method(G_prs->get_constructor_sym(), cb, 0, FALSE);
+        }
+    }
+}
+
+/*
+ *   Add an entry to my property list
+ */
+void CTPNStmObjectBase::add_prop_entry(CTPNObjProp *prop, int replace)
+{
+    /* inherit the default handling */
+    CTPNObjDef::add_prop_entry(prop, replace);
+
+    /* check for replacement */
+    if (replace && !G_prs->get_syntax_only())
+    {
+        /* start at the current object */
+        CTPNStmObject *stm = (CTPNStmObject *)this;
+
+        /* iterate through all previous versions of the object */
+        for (;;)
+        {
+            /* 
+             *   Get this object's superclass - since this is a 'modify'
+             *   object, its only superclass is object it directly modifies.
+             *   If there's no superclass, the modified base object must have
+             *   been undefined, so we have errors to begin with - ignore the
+             *   replacement in this case.  
+             */
+            CTPNSuperclass *sc = stm->get_first_sc();
+            if (sc == 0)
+                break;
+
+            /* get the symbol for the superclass */
+            CTcSymObj *sym = (CTcSymObj *)sc->get_sym();
+
+            /* 
+             *   if this object is external, we must mark the property for
+             *   replacement so that we replace it at link time, after we've
+             *   loaded and resolved the external original object 
+             */
+            if (sym->is_extern())
+            {
+                /*
+                 *   Add an entry to my list of properties to delete in my
+                 *   base objects at link time.
+                 */
+                obj_sym_->add_del_prop_entry(prop->get_prop_sym());
+
+                /* 
+                 *   no need to look any further for modified originals -- we
+                 *   won't find any more of them in this translation unit,
+                 *   since they must all be external from here on up the
+                 *   chain 
+                 */
+                break;
+            }
+
+            /* 
+             *   Get this symbol's object parse tree - since the symbol isn't
+             *   external, and because we can only modify objects that we've
+             *   already seen, the parse tree must be present.  If the parse
+             *   tree isn't here, stop now; we might be parsing for syntax
+             *   only in this case.  
+             */
+            stm = sym->get_obj_stm();
+            if (stm == 0)
+                break;
+
+            /* if this object isn't modified, we're done */
+            if (!sym->get_modified())
+                break;
+
+            /* delete the property in the original object */
+            stm->delete_property(prop->get_prop_sym());
+        }
+    }
+}
+
+/*
+ *   Delete a property 
+ */
+void CTPNStmObjectBase::delete_property(CTcSymProp *prop_sym)
+{
+    /* delete the symbol from the property list */
+    if (proplist_.del(prop_sym))
+    {
+        /* found it - delete the property from our vocabulary list as well */
+        if (obj_sym_ != 0)
+            obj_sym_->delete_vocab_prop(prop_sym->get_prop());
+    }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Inline object 
+ */
+
+/*
+ *   Parse a property defining a nested object.  In an inline object, a
+ *   nested object is treated as an expression containing an inline object:
+ *   we evaluate the property expression at the time of instantiating the
+ *   enclosing inline object, so this has the effect of creating the nested
+ *   object at the same time we create the enclosing inline object.
+ */
+int CTPNInlineObjectBase::parse_nested_obj_prop(
+    class CTPNObjProp* &new_prop, int *err, tcprs_term_info *term_info,
+    const class CTcToken *prop_tok, int replace)
+{
+    /* 
+     *   Parse the inline object.  The caller has already parsed and skipped
+     *   a colon, so tell the inline object parser that we're already past
+     *   the colon.
+     */
+    CTPNInlineObject *objdef = CTcPrsOpUnary::parse_inline_object(TRUE);
+    if (objdef == 0)
+    {
+        *err = TRUE;
+        return FALSE;
+    }
+
+    /* look up the property symbol */
+    CTcSymProp *prop_sym = G_prs->look_up_prop(prop_tok, TRUE);
+    if (prop_sym != 0 && prop_sym->is_vocab())
+        G_tok->log_error(TCERR_VOCAB_REQ_SSTR, 1, ":");
+
+    /* if we have a valid property, add it */
+    if (prop_sym != 0)
+        new_prop = add_prop(prop_sym, objdef, replace, FALSE);
+
+    /*
+     *   Define the lexicalParent property in the nested object with a
+     *   reference back to the parent object. 
+     */
+    CTcConstVal cval;
+    cval.set_obj(get_obj_sym() != 0
+                 ? get_obj_sym()->get_obj_id() : TCTARG_INVALID_OBJ,
+                 get_obj_sym() != 0
+                 ? get_obj_sym()->get_metaclass() : TC_META_UNKNOWN);
+    CTcPrsNode *cexpr = new CTPNConst(&cval);
+    objdef->add_prop(G_prs->get_lexical_parent_sym(), cexpr, FALSE, FALSE);
+
+    /* success */
+    return TRUE;
+}
+
+/*
+ *   adjust for dynamic compilation 
+ */
+CTcPrsNode *CTPNInlineObjectBase::adjust_for_dyn(const tcpn_dyncomp_info *info)
+{
+    /* adjust each property expression */
+    for (CTPNObjProp *prop = proplist_.first_ ; prop != 0 ;
+         prop = prop->get_next_prop())
+        prop->adjust_for_dyn(info);
+
+    /* we did our updates in-place */
+    return this;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Object property list 
+ */
+
+/*
+ *   append a property 
+ */
+void CTPNPropList::append(CTPNObjProp *prop)
+{
+    *dst_ = prop;
+    *(dst_ = &prop->nxt_) = 0;
+    last_ = prop;
+    ++cnt_;
+}
+
+/*
+ *   delete a property
+ */
+int CTPNPropList::del(CTcSymProp *prop_sym)
+{
+    /* scan our and look for a property matching the given symbol */
+    for (CTPNObjProp **prvp = &first_, *cur = *prvp ; cur != 0 ;
+         prvp = &cur->nxt_, cur = *prvp)
+    {
+        /* check for a match */
+        if (cur->get_prop_sym() == prop_sym)
+        {
+            /* this is the one to delete - unlink it from the list */
+            *prvp = cur->nxt_;
+
+            /* if that left the list empty, clear the tail pointer */
+            if (first_ == 0)
+                last_ = 0;
+
+            /* make sure the append pointer points to the tail's nxt_ */
+            dst_ = (last_ != 0 ? &last_->nxt_ : &first_);
+
+            /* decrement the property count */
+            --cnt_;
+
+            /* indicate that we found it */
+            return TRUE;
+        }
+    }
+
+    /* didn't find it */
+    return FALSE;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Object Property node 
+ */
+
+/*
+ *   fold constants 
+ */
+CTcPrsNode *CTPNObjPropBase::fold_constants(CTcPrsSymtab *symtab)
+{
+    /* 
+     *   if we have a code body or inline method, check for an underlying
+     *   expression that the method wraps 
+     */
+    if ((code_body_ != 0 || inline_method_ != 0) && expr_ != 0)
+    {
+        /* fold the expression */
+        expr_ = expr_->fold_constants(symtab);
+        
+        /* if it's now a constant, drop the code body/method */
+        if (expr_->is_const() || expr_->is_dstring())
+        {
+            if (code_body_ != 0)
+            {
+                code_body_->set_replaced(TRUE);
+                code_body_ = 0;
+            }
+            if (inline_method_ != 0)
+            {
+                inline_method_->set_replaced(TRUE);
+                inline_method_ = 0;
+            }
+        }
+        else
+        {
+            /* 
+             *   the expression is non-constant, so we need to generate the
+             *   code body for run-time evaluation; we can now drop the
+             *   expression, since the code wrapper supersedes it
+             */
+            expr_ = 0;
+        }
+    }
+
+    /* if we have an inline method or regular method, fold its constants */
+    if (inline_method_ != 0)
+        inline_method_->fold_constants(symtab);
+    else if (code_body_ != 0)
+        code_body_->fold_constants(symtab);
+
+    /* if we have an expression, fold it */
+    if (expr_ != 0)
+    {
+        /* 
+         *   set this statement's source line location to be the current
+         *   location for error reporting 
+         */
+        G_tok->set_line_info(get_source_desc(), get_source_linenum());
+
+        /* fold constants in our expression */
+        expr_ = expr_->fold_constants(symtab);
+
+        /*
+         *   If the resulting expression isn't a constant value, we need to
+         *   convert the expression to a method, since we need to evaluate
+         *   the value at run-time with code.  Create an expression statement
+         *   to hold the expression, then create a code body to hold the
+         *   expression statement.  Don't do this for inline objects, though;
+         *   expression properties in inline objects are evaluated at the
+         *   time the object is created, so they don't get made into methods.
+         */
+        if (!objdef_->is_inline_object()
+            && !expr_->is_const() && !expr_->is_dstring())
+        {
+            /*
+             *   Generate an implicit 'return' for a regular expression, or
+             *   an implicit static initializer for a static property.  
+             */
+            CTPNStm *stm;
+            if (is_static_)
+            {
+                /* 
+                 *   it's a static initializer - generate a static
+                 *   initializer expression 
+                 */
+                stm = new CTPNStmStaticPropInit(expr_, prop_sym_->get_prop());
+            }
+            else if (expr_->has_return_value())
+            {
+                /* 
+                 *   create a 'return' statement to return the value of the
+                 *   expression 
+                 */
+                stm = new CTPNStmReturn(expr_);
+            }
+            else
+            {
+                /* 
+                 *   It has no return value, so it must be something like a
+                 *   double-quoted string or a call to a void function.  Wrap
+                 *   this in an 'expression statement' so that we evaluate
+                 *   the expression for its side effects but discard any
+                 *   return value.  
+                 */
+                stm = new CTPNStmExpr(expr_);
+            }
+
+            /* create the code body */
+            code_body_ = new CTPNCodeBody(
+                G_prs->get_global_symtab(), 0, stm, 0, 0,
+                FALSE, FALSE, 0, 0, TRUE, 0);
+
+            /* 
+             *   forget about our expression, since it's now incorporated
+             *   into the code body 
+             */
+            expr_ = 0;
+
+            /* 
+             *   set the source file location in both the code body and the
+             *   expression statement nodes to use our own source file
+             *   location 
+             */
+            stm->set_source_pos(file_, linenum_);
+            code_body_->set_source_pos(file_, linenum_);
+        }
+    }
+
+    /* we're not changed directly by this */
+    return this;
+}
+
+/*
+ *   adjust for dynamic execution 
+ */
+CTcPrsNode *CTPNObjPropBase::adjust_for_dyn(const tcpn_dyncomp_info *info)
+{
+    /* adjust my various elements */
+    if (code_body_ != 0)
+        code_body_->adjust_for_dyn(info);
+    if (inline_method_ != 0)
+        inline_method_->adjust_for_dyn(info);
+    if (expr_ != 0)
+        expr_ = expr_->adjust_for_dyn(info);
+
+    /* we did our adjustments in-place */
+    return this;
+}
+
+
+/*
+ *   Am I a constructor?  
+ */
+int CTPNObjPropBase::is_constructor() const
+{
+    /*
+     *   I'm a constructor if I have a code body, and my property is the
+     *   constructor property.  
+     */
+    return (code_body_ != 0
+            && prop_sym_ != 0
+            && prop_sym_->get_prop() == G_prs->get_constructor_prop());
 }
 
 
@@ -3841,10 +6628,8 @@ CTPNStmCompBase::CTPNStmCompBase(CTPNStm *first_stm, CTcPrsSymtab *symtab)
  */
 CTcPrsNode *CTPNStmCompBase::fold_constants(class CTcPrsSymtab *symtab)
 {
-    CTPNStm *cur;
-    
     /* iterate through our statements and fold constants in each one */
-    for (cur = first_stm_ ; cur != 0 ; cur = cur->get_next_stm())
+    for (CTPNStm *cur = first_stm_ ; cur != 0 ; cur = cur->get_next_stm())
     {
         /* 
          *   set this statement's source line location to be the current
@@ -3957,25 +6742,20 @@ void CTPNStmCompBase::gen_code(int, int)
  */
 unsigned long CTPNStmCompBase::get_control_flow(int warn) const
 {
-    CTPNStm *cur;
-    unsigned long flags;
-
     /* 
      *   presume we will not find a 'throw' or 'return', and that we'll be
      *   able to reach the next statement after the list 
      */
-    flags = TCPRS_FLOW_NEXT;
+    unsigned long flags = TCPRS_FLOW_NEXT;
 
     /* 
      *   iterate through the statements in our list, since they'll be
      *   executed in the same sequence at run-time 
      */
-    for (cur = first_stm_ ; cur != 0 ; cur = cur->get_next_stm())
+    for (CTPNStm *cur = first_stm_ ; cur != 0 ; cur = cur->get_next_stm())
     {
-        unsigned long flags1;
-        
         /* get this statement's control flow characteristics */
-        flags1 = cur->get_control_flow(warn);
+        unsigned long flags1 = cur->get_control_flow(warn);
 
         /* 
          *   OR each of 'throws', 'returns void', and 'returns value',
@@ -3998,8 +6778,6 @@ unsigned long CTPNStmCompBase::get_control_flow(int warn) const
          */
         if (!(flags1 & TCPRS_FLOW_NEXT))
         {
-            CTPNStm *nxt;
-
             /*
              *   we can't reach the next statement; unless we find a label
              *   at some point after this, we won't be able to reach any
@@ -4013,7 +6791,7 @@ unsigned long CTPNStmCompBase::get_control_flow(int warn) const
              *   reachable by label, because it's not reachable by any
              *   other means
              */
-            nxt = cur->get_next_stm();
+            CTPNStm *nxt = cur->get_next_stm();
             if (nxt != 0)
             {
                 /* 
@@ -4080,6 +6858,9 @@ CTcPrsNode *CTPNStmExprBase::fold_constants(class CTcPrsSymtab *symtab)
  */
 void CTPNStmExprBase::gen_code(int, int)
 {
+    /* set our location for any errors that occur */
+    G_tok->set_line_info(get_source_desc(), get_source_linenum());
+
     /* add a debug line record for the statement */
     add_debug_line_rec();
 
@@ -6069,6 +8850,7 @@ void CTcParser::parse_gram_alts(int *err, CTcSymObj *gram_obj,
                 }
                 else if (sym->get_type() == TC_SYM_OBJ)
                 {
+                    /* we know it's an object symbol - cast it */
                     CTcSymObj *objsym = (CTcSymObj *)sym;
                     
                     /* make sure it's a production */
