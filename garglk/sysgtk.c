@@ -105,6 +105,56 @@ void winexit(void)
     exit(0);
 }
 
+#ifdef _KINDLE
+void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
+{
+    char *curdir;
+
+    GdkScreen *screen = gdk_screen_get_default();
+    gint screen_height = gdk_screen_get_height(screen);
+    gint screen_width = gdk_screen_get_width(screen);
+
+    GtkWidget * filedlog = gtk_file_selection_new(KDIALOG);
+    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
+    gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
+    gtk_window_resize(GTK_WINDOW(filedlog), screen_width, (screen_height - screen_height/KBFACTOR));
+
+    if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
+    {
+        char savename[32];
+        sprintf(savename, "Untitled%s", winfilterpatterns[filter]+1);
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), savename);
+    }
+
+    if (strlen(buf))
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
+
+    if (fileselect)
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), filepath);
+    else if (getenv("SAVED_GAMES"))
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), getenv("SAVED_GAMES"));
+    else if (getenv("HOME"))
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), getenv("HOME"));
+
+    gint result = gtk_dialog_run(GTK_DIALOG(filedlog));
+
+    if (result == GTK_RESPONSE_OK)
+        strcpy(buf, gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedlog)));
+    else
+        strcpy(buf, "");
+
+    curdir = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedlog));
+    if (curdir != NULL && strlen(curdir) < sizeof(filepath))
+    {
+        strcpy(filepath, curdir);
+        fileselect = TRUE;
+    }
+
+    gtk_widget_destroy(filedlog);
+    filedlog = NULL;
+}
+
+#else /* Default implementation */
 void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
     GtkWidget *filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
@@ -163,6 +213,7 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserA
     gtk_widget_destroy(filedlog);
     filedlog = NULL;
 }
+#endif
 
 void winopenfile(char *prompt, char *buf, int len, int filter)
 {
@@ -515,6 +566,69 @@ void wininit(int *argc, char **argv)
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
 }
 
+#ifdef _KINDLE
+void winopen(void)
+{
+    GdkGeometry geom;
+    GdkScreen *screen = gdk_screen_get_default();
+    gint screen_height = gdk_screen_get_height(screen);
+    gint screen_width = gdk_screen_get_width(screen);
+
+    geom.min_width  = screen_width; //gli_wmarginx * 2 + gli_cellw * 0;
+    geom.min_height = (screen_height - screen_height/KBFACTOR); //gli_wmarginy * 2 + gli_cellh * 0;
+    geom.max_width  = screen_width; //gli_wmarginx * 2 + gli_cellw * 255;
+    geom.max_height = (screen_height - screen_height/KBFACTOR); //gli_wmarginy * 2 + gli_cellh * 250;
+    geom.width_inc = gli_cellw;
+    geom.height_inc = gli_cellh;
+
+    frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    GTK_WIDGET_SET_FLAGS(frame, GTK_CAN_FOCUS);
+    gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
+                               | GDK_BUTTON_RELEASE_MASK
+                               | GDK_POINTER_MOTION_MASK
+                               | GDK_POINTER_MOTION_HINT_MASK
+                               | GDK_SCROLL_MASK);
+    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event",
+                       GTK_SIGNAL_FUNC(onbuttondown), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event",
+                       GTK_SIGNAL_FUNC(onbuttonup), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event",
+                       GTK_SIGNAL_FUNC(onscroll), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event",
+                       GTK_SIGNAL_FUNC(onkeydown), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event",
+                       GTK_SIGNAL_FUNC(onkeyup), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "destroy",
+                       GTK_SIGNAL_FUNC(onquit), "WM destroy");
+    gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
+        GTK_SIGNAL_FUNC(onmotion), NULL);
+
+    canvas = gtk_drawing_area_new();
+    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate",
+                       GTK_SIGNAL_FUNC(onresize), NULL);
+    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event",
+                       GTK_SIGNAL_FUNC(onexpose), NULL);
+    gtk_container_add(GTK_CONTAINER(frame), canvas);
+
+    imcontext = gtk_im_multicontext_new();
+    g_signal_connect(imcontext, "commit",
+        G_CALLBACK(oninput), NULL);
+
+    wintitle();
+
+    gtk_window_set_geometry_hints(GTK_WINDOW(frame),
+        GTK_WIDGET(frame), &geom,
+        GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE
+        );
+    gtk_window_set_default_size(GTK_WINDOW(frame), screen_width, (screen_height - screen_height/KBFACTOR));
+
+    gtk_widget_show(canvas);
+    gtk_widget_show(frame);
+
+    gtk_widget_grab_focus(frame);
+}
+
+#else /* Default implementation */
 void winopen(void)
 {
     GdkGeometry geom;
@@ -538,25 +652,25 @@ void winopen(void)
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK
                                | GDK_SCROLL_MASK);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event",
                        GTK_SIGNAL_FUNC(onbuttondown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event",
                        GTK_SIGNAL_FUNC(onbuttonup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event",
                        GTK_SIGNAL_FUNC(onscroll), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event",
                        GTK_SIGNAL_FUNC(onkeydown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event",
                        GTK_SIGNAL_FUNC(onkeyup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
+    gtk_signal_connect(GTK_OBJECT(frame), "destroy",
                        GTK_SIGNAL_FUNC(onquit), "WM destroy");
     gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
         GTK_SIGNAL_FUNC(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
-    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", 
+    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate",
                        GTK_SIGNAL_FUNC(onresize), NULL);
-    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", 
+    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event",
                        GTK_SIGNAL_FUNC(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
@@ -577,7 +691,15 @@ void winopen(void)
 
     gtk_widget_grab_focus(frame);
 }
+#endif
 
+#ifdef _KINDLE
+void wintitle(void)
+{
+    gtk_window_set_title(GTK_WINDOW(frame), KDIALOG);
+}
+
+#else /* Default implementation */
 void wintitle(void)
 {
     char buf[256];
@@ -590,6 +712,7 @@ void wintitle(void)
         sprintf(buf, "%s", gli_program_name);
     gtk_window_set_title(GTK_WINDOW(frame), buf);
 }
+#endif
 
 void winrepaint(int x0, int y0, int x1, int y1)
 {

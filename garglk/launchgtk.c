@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar GarcÌa Perez-Schofield.                     *
+ * Copyright (C) 2009 by Baltasar Garcï¿½a Perez-Schofield.                     *
  * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
@@ -73,7 +73,11 @@ void winmsg(const char * msg)
                                          "%s", msg
     );
 
+#ifdef _KINDLE
+    gtk_window_set_title(GTK_WINDOW(msgDlg), KTITLE);
+#else
     gtk_window_set_title(GTK_WINDOW(msgDlg), AppName);
+#endif
     gtk_dialog_run(GTK_DIALOG(msgDlg ));
     gtk_widget_destroy(msgDlg);
 }
@@ -121,6 +125,46 @@ void winfilterfiles(GtkFileChooser *dialog)
     }
 }
 
+#ifdef _KINDLE
+void winbrowsefile(char *buffer)
+{
+    *buffer = 0;
+    
+    GString *filename;
+    GdkScreen *screen = gdk_screen_get_default();
+    gint screen_height = gdk_screen_get_height(screen);
+    gint screen_width = gdk_screen_get_width(screen);
+
+    GtkWidget * openDlg = gtk_file_selection_new(KDIALOG);
+    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(openDlg));
+    gtk_widget_hide(GTK_FILE_SELECTION(openDlg)->history_pulldown);
+    gtk_window_resize(GTK_WINDOW(openDlg), screen_width, (screen_height - screen_height/KBFACTOR));
+
+    if (getenv("GAMES"))
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(openDlg), getenv("GAMES"));
+    else if (getenv("HOME"))
+        gtk_file_selection_set_filename(GTK_FILE_SELECTION(openDlg), getenv("HOME"));
+
+    while (1) {
+        gint response = gtk_dialog_run(GTK_DIALOG(openDlg));
+        if (response != GTK_RESPONSE_OK) {
+                break;
+        }
+        filename = g_string_new(gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
+        if (g_file_test(filename->str, G_FILE_TEST_IS_DIR)) {
+                gtk_file_selection_complete(GTK_FILE_SELECTION(openDlg), filename->str);
+        }
+        else {
+                strcpy(buffer, gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
+                break;
+        }
+    }
+
+    gtk_widget_destroy(openDlg);
+    gdk_flush();
+}
+
+#else /* Default implementation */
 void winbrowsefile(char *buffer)
 {
     *buffer = 0;
@@ -146,6 +190,7 @@ void winbrowsefile(char *buffer)
     gtk_widget_destroy(openDlg);
     gdk_flush();
 }
+#endif
 
 void winpath(char *buffer)
 {

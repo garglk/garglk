@@ -3,7 +3,7 @@
 #
 
 BUILD ?= RELEASE ;
-USESDL ?= yes ;
+#USESDL ?= yes ;
 USEBABEL ?= yes ;
 BUNDLEFONTS ?= yes ;
 
@@ -22,13 +22,15 @@ CXX ?= g++ ;
 if $(CROSS)
 {
     CROSS   = "(cross-compiling)" ;
-    OS      = MINGW ;
-    SUFEXE  = .exe ;
-    CC      = i386-mingw32-gcc ;
-    CXX     = i386-mingw32-g++ ;
-    AR      = i386-mingw32-ar cru ;
-    RANLIB  = i386-mingw32-ranlib ;
-    LINK    = $(CC) ;
+    OS      = LINUX ;
+    SUFEXE  = ;
+    CC      = arm-unknown-linux-gnueabi-gcc ;
+    CXX     = arm-unknown-linux-gnueabi-g++ ;
+    C++     = arm-unknown-linux-gnueabi-g++ ;
+    #AR      = arm-unknown-linux-gnueabi-ar cru ;
+    AR      = arm-unknown-linux-gnueabi-gcc-ar cru ;
+    RANLIB  = arm-unknown-linux-gnueabi-ranlib ;
+    LINK    = arm-unknown-linux-gnueabi-gcc ;
 }
 
 #cross compiling for Open Inkpot
@@ -85,16 +87,17 @@ switch $(OS)
         if $(GUILIB) = EFL {
             PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
         } else {
-            PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+            PKGCONFIG = "pkg-config freetype2 libpng16 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
         }
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -D_KINDLE ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -L/home/schoen/dev/buildroot/buildroot-2015.11.1/output/target/usr/lib -ljpeg -lz -lstdc++ ;
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -L/home/schoen/dev/buildroot/buildroot-2015.11.1/output/target/usr/lib -ljpeg -lz -lm -lstdc++ ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -105,13 +108,13 @@ switch $(OS)
         Echo "OS is IPLINUX (EFL)" ;
         PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys libeoi eina-0 evas ecore ecore-x ecore-file ecore-evas edje" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm -lrt ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -163,11 +166,14 @@ switch $(BUILD)
 {
     case DEBUG :
         Echo "BUILD is DEBUG" ;
-        OPTIM = -g ;
+        OPTIM = -g -O0 -fno-inline ;
 
     case RELEASE :
         Echo "BUILD is RELEASE" ;
-        OPTIM = -O2 $(CFLAGS) ;
+        #OPTIM = -O2 $(CFLAGS) ;
+        OPTIM = -O3 -flto -fomit-frame-pointer ;
+        Echo "Optimizer settings: " ;
+        Echo $(OPTIM) ;
         LINKFLAGS = $(LDFLAGS) ;
         SHRLINKFLAGS = $(LDFLAGS) ;
 
@@ -260,4 +266,3 @@ rule FPrependRoot
     return $(_full:J=) ;
 
 }
-
