@@ -6,3 +6,5 @@
 /Jamrules.original
 *~
 *.patch
+buildAndCopy2Kindle.sh
+
