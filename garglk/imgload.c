@@ -96,11 +96,17 @@ void gli_piclist_decrement(void)
 
 void gli_picture_increment(picture_t *pic)
 {
+    if (!pic)
+        return;
+
     pic->refcount++;
 }
 
 void gli_picture_decrement(picture_t *pic)
 {
+    if (!pic)
+        return;
+
     piclist_t *picptr;
 
     if (pic->refcount > 0 && --pic->refcount == 0)
@@ -139,8 +145,7 @@ void gli_picture_store_scaled(picture_t *pic)
     if (!picptr)
         return;
 
-    if (picptr->scaled)
-        gli_picture_decrement(picptr->scaled);
+    gli_picture_decrement(picptr->scaled);
 
     picptr->scaled = pic;
 }

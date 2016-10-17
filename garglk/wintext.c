@@ -142,11 +142,8 @@ void win_textbuffer_destroy(window_textbuffer_t *dwin)
         free(dwin->line_terminators);
 
     for (i = 0; i < dwin->scrollback; i++) {
-        if (dwin->lines[i].lpic)
-            gli_picture_decrement(dwin->lines[i].lpic);
-
-        if (dwin->lines[i].rpic)
-            gli_picture_decrement(dwin->lines[i].rpic);
+        gli_picture_decrement(dwin->lines[i].lpic);
+        gli_picture_decrement(dwin->lines[i].rpic);
     }
 
     free(dwin->lines);
@@ -1150,11 +1147,9 @@ void win_textbuffer_clear(window_t *win)
     {
         dwin->lines[i].len = 0;
 
-        if (dwin->lines[i].lpic)
-            gli_picture_decrement(dwin->lines[i].lpic);
+        gli_picture_decrement(dwin->lines[i].lpic);
         dwin->lines[i].lpic = 0;
-        if (dwin->lines[i].rpic)
-            gli_picture_decrement(dwin->lines[i].rpic);
+        gli_picture_decrement(dwin->lines[i].rpic);
         dwin->lines[i].rpic = 0;
 
         dwin->lines[i].lhyper = 0;
