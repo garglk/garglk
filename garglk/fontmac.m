@@ -186,7 +186,7 @@ void fontreplace(char *font, int type)
     int style;    
     FSRef fileref;
     ATSFontRef fontref;
-    unsigned char * filebuf;
+    char * filebuf;
 
     while (sysfont = [sysfonts nextObject])
     {
