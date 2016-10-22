@@ -56,9 +56,11 @@ work with the current gargoyle_osx.sh build script.
 doing the build in a shell which can only see the MacPorts world: add
 /opt/local/bin to your PATH and *remove* /usr/local/bin.)
 
+- Building
+
 To set up your build environment on a fresh Mac, install MacPorts
 via https://www.macports.org/install.php. You want the "pkg" installer
-for Lion.
+for Lion (assuming that's your OS).
 
 Once that's set up, do:
 
@@ -77,4 +79,25 @@ You can then run the build:
 
 This should create Gargoyle.app, and also build a distributable .DMG file
 which contains the app.
+
+- Verifying the build
+
+It's useful to know how to check the app for portableness. If you type a
+command like
+
+  otool -L Gargoyle.app/Contents/MacOS/Gargoyle
+  otool -L Gargoyle.app/Contents/PlugIns/glulxe
+
+...you will see a list of the dynamic libraries linked into the interpreter.
+These may start with
+
+  @executable_path/../Frameworks/...: libs included in Gargoyle.app
+  /System/Library/Frameworks/...: MacOS standard libs
+  /usr/lib/...: more MacOS standard libs
+
+If you see any lines starting with /opt/local or /usr/local, you have a
+problem. That library is trying to load out of MacPorts or Homebrew, and
+the interpreter will fail on most other Macs (which do not have those repos
+installed).
+
 
