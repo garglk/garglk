@@ -102,8 +102,8 @@ extern void shutdownMemory ();
 // Utility functions -- these just pass an appropriate
 // string to fatalError().
 
-extern noreturn void memReadError (git_uint32 address);
-extern noreturn void memWriteError (git_uint32 address);
+extern git_noreturn void memReadError (git_uint32 address);
+extern git_noreturn void memWriteError (git_uint32 address);
 
 // Functions for reading and writing game memory.
 

@@ -192,6 +192,9 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 
 * Version History
 
+1.3.5 2016-11-19  Fixed a bug when the streamnum opcode is called with the
+                  smallest possible negative number.
+
 1.3.4 2015-06-13  Performance improvements from Peter De Wachter, which give
                   approximately a 15% speed increase.
 
