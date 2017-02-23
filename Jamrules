@@ -29,8 +29,9 @@ if $(CROSS)
     C++     = arm-unknown-linux-gnueabi-g++ ;
     #AR      = arm-unknown-linux-gnueabi-ar cru ;
     AR      = arm-unknown-linux-gnueabi-gcc-ar cru ;
-    RANLIB  = arm-unknown-linux-gnueabi-ranlib ;
+    RANLIB  = arm-unknown-linux-gnueabi-gcc-ranlib ;
     LINK    = arm-unknown-linux-gnueabi-gcc ;
+    LD      = arm-unknown-linux-gnueabi-ld ;
 }
 
 #cross compiling for Open Inkpot
@@ -90,9 +91,14 @@ switch $(OS)
             PKGCONFIG = "pkg-config freetype2 libpng16 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
         }
 
+        # Setting C++ standard version to use for current g++ compilers.
+        C++FLAGS = -std=c++11 ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -D_KINDLE ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -L/home/schoen/dev/buildroot/buildroot-2015.11.1/output/target/usr/lib -ljpeg -lz -lstdc++ ;
-        LINKLIBS = "`$(PKGCONFIG) --libs`" -L/home/schoen/dev/buildroot/buildroot-2015.11.1/output/target/usr/lib -ljpeg -lz -lm -lstdc++ ;
+        #GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
+        #LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -L~/dev/buildroot/buildroot-2016.11.1/output/target/usr/lib -ljpeg -lz -lstdc++ ;
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -L~/dev/buildroot/buildroot-2016.11.1/output/target/usr/lib -ljpeg -lz -lm -lstdc++ ;
 
         if $(USESDL) = yes
         {
