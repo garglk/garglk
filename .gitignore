@@ -7,4 +7,5 @@
 *~
 *.patch
 buildAndCopy2Kindle.sh
+/.vscode
 
