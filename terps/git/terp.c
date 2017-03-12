@@ -734,20 +734,21 @@ do_tailcall:
     resume_number_L7_digit_L6:
     {
         char buffer [16];
+        git_uint32 absn;
         
         // If the IO mode is 'null', do nothing.
         if (ioMode == IO_NULL)
             goto do_pop_call_stub;
 
         // Write the number into the buffer.
-        L1 = (L7 < 0) ? -L7 : L7; // Absolute value of number.
-        L2 = 0;                   // Current buffer position.
+        absn = (L7 < 0) ? -L7 : L7; // Absolute value of number.
+        L2 = 0;                     // Current buffer position.
         do
         {
-            buffer [L2++] = '0' + (L1 % 10);
-            L1 /= 10;
+            buffer [L2++] = '0' + (absn % 10);
+            absn /= 10;
         }
-        while (L1 > 0);
+        while (absn > 0);
 
         if (L7 < 0)
             buffer [L2++] = '-';
