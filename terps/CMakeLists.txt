@@ -22,6 +22,7 @@ function(terp target)
   cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
   add_executable(${target} ${TERP_SRCS})
+  set_property(TARGET ${target} PROPERTY CXX_STANDARD 98)
   set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
   target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
   target_include_directories(${target} PRIVATE ../garglk ${TERP_INCLUDE_DIRS})
