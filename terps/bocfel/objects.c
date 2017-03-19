@@ -1,5 +1,5 @@
 /*-
- * Copyright 2009-2012 Chris Spiegel.
+ * Copyright 2009-2015 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -217,7 +217,7 @@ static void check_attr(uint16_t attr)
 }
 
 /* Sherlock has a bug causing it to clear (and maybe set) attribute 48
- * (see the remarks in §12).  If this attribute seen and the story is
+ * (see the remarks in §12).  If this attribute is seen and the story is
  * Sherlock, treat it as a no-op.
  */
 #define sherlock_attr(attr) do { if(attr == 48 && is_sherlock()) return; } while(0)

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2016 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -43,31 +43,12 @@
  * need not be maintained.  If the size of the file is larger than
  * LONG_MAX, -1 should be returned.
  *
- * int zterp_os_have_unicode(void)
- *
- * The main purpose behind this function is to indicate whether
- * transcripts will be written in UTF-8 or Latin-1.  This is, of course,
- * not necessarily an OS matter, but I’ve run into some issues with
- * UTF-8 and Windows (at least through Wine), so I want to be as
- * sensible as I can with the defaults.  The user is able to override
- * this value if he so desires.
- * If a Glk build is not being used, this function also serves to
- * indicate whether all I/O, not just transcripts, should be UTF-8 or
- * not.  Glk libraries are able to be queried as to their support for
- * Unicode so there is no need to make assumptions in that case.
- *
  * void zterp_os_rcfile(char *s, size_t n)
  *
  * Different operating systems have different ideas about where
  * configuration data should be stored; this function will copy a
  * suitable value for the bocfel configuration file into the buffer s
  * which is n bytes long.
- *
- * void zterp_os_reopen_binary(FILE *fp)
- *
- * Writing UTF-8 requires that no mangling be done, such as might happen
- * when a stream is opened in text mode.  This function should, if
- * necessary, set the mode on the file pointer in fp to be binary.
  *
  * The following functions are useful for non-Glk builds only.  They
  * provide for some handling of screen functions that is normally taken
@@ -123,12 +104,6 @@ long zterp_os_filesize(FILE *fp)
   return buf.st_size;
 }
 #define zterp_os_filesize
-
-int zterp_os_have_unicode(void)
-{
-  return 1;
-}
-#define zterp_os_have_unicode
 
 void zterp_os_rcfile(char *s, size_t n)
 {
@@ -246,34 +221,10 @@ long zterp_os_filesize(FILE *fp)
 }
 #endif
 
-#ifndef zterp_os_have_unicode
-int zterp_os_have_unicode(void)
-{
-  return 0;
-}
-#endif
-
 #ifndef zterp_os_rcfile
 void zterp_os_rcfile(char *s, size_t n)
 {
   snprintf(s, n, "bocfelrc");
-}
-#endif
-
-/* When UTF-8 output is enabled, special translation of characters (e.g.
- * newline) should not be done.  Theoretically this function exists to
- * set stdin/stdout to binary mode, if necessary.  Unix makes no
- * text/binary distinction, but Windows does.  I’m under the impression
- * that there is a setmode() function that should be able to do this,
- * but my knowledge of Windows is so small that I do not want to do much
- * more than I have, lest I completely break Windows support—assuming it
- * even works.
- * freopen() should be able to do this, but with my testing under Wine,
- * no text gets output in such a case.
- */
-#ifndef zterp_os_reopen_binary
-void zterp_os_reopen_binary(FILE *fp)
-{
 }
 #endif
 

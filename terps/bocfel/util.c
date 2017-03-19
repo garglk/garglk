@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2016 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -22,6 +22,7 @@
 #include <stdarg.h>
 
 #include "util.h"
+#include "process.h"
 #include "screen.h"
 #include "unicode.h"
 #include "zterp.h"
@@ -31,8 +32,6 @@
 #endif
 
 #ifndef ZTERP_NO_SAFETY_CHECKS
-unsigned long zassert_pc;
-
 void assert_fail(const char *fmt, ...)
 {
   va_list ap;
@@ -42,7 +41,7 @@ void assert_fail(const char *fmt, ...)
   vsnprintf(str, sizeof str, fmt, ap);
   va_end(ap);
 
-  snprintf(str + strlen(str), sizeof str - strlen(str), " (pc = 0x%lx)", zassert_pc);
+  snprintf(str + strlen(str), sizeof str - strlen(str), " (pc = 0x%lx)", current_instruction);
 
   die("%s", str);
 }
@@ -93,6 +92,10 @@ void help(void)
   flags[] = {
 #include "help.h"
   };
+
+#ifdef ZTERP_GLK
+    glk_set_style(style_Preformatted);
+#endif
 
   screen_puts("Usage: bocfel [args] filename");
   for(size_t i = 0; i < sizeof flags / sizeof *flags; i++)
@@ -176,7 +179,7 @@ void process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhiklLmn:N:rR:sS:tT:u:UvxXyYz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikmn:N:rR:sS:tT:u:UvxXyYz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -224,12 +227,6 @@ void process_arguments(int argc, char **argv)
         break;
       case 'k':
         options.disable_term_keys = 1;
-        break;
-      case 'l':
-        options.disable_utf8 = 1;
-        break;
-      case 'L':
-        options.force_utf8 = 1;
         break;
       case 'm':
         options.disable_meta_commands = 1;

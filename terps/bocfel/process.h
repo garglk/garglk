@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+extern unsigned long pc;
+extern unsigned long current_instruction;
+
 extern uint16_t zargs[];
 extern int znargs;
 

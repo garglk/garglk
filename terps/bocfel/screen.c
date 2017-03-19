@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2013 Chris Spiegel.
+ * Copyright 2010-2017 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -451,6 +451,18 @@ void screen_print(const char *s)
   SWITCH_WINDOW_END();
 }
 
+void screen_printf(const char *fmt, ...)
+{
+  va_list ap;
+  char message[1024];
+
+  va_start(ap, fmt);
+  vsnprintf(message, sizeof message, fmt, ap);
+  va_end(ap);
+
+  screen_print(message);
+}
+
 void screen_puts(const char *s)
 {
   screen_print(s);
@@ -502,9 +514,7 @@ void show_message(const char *fmt, ...)
   else
 #endif
   {
-    screen_print("\n[");
-    screen_print(message);
-    screen_print("]\n");
+    screen_printf("\n[%s]\n", message);
   }
 }
 
@@ -528,7 +538,7 @@ int output_stream(int16_t number, uint16_t table)
     STORE_WORD(0x10, WORD(0x10) | FLAGS2_TRANSCRIPT);
     if(transio == NULL)
     {
-      transio = zterp_io_open(options.transcript_name, ZTERP_IO_TRANS | (options.overwrite_transcript ? ZTERP_IO_WRONLY : ZTERP_IO_APPEND));
+      transio = zterp_io_open(options.transcript_name, options.overwrite_transcript ? ZTERP_IO_WRONLY : ZTERP_IO_APPEND, ZTERP_IO_TRANS);
       if(transio == NULL)
       {
         STORE_WORD(0x10, WORD(0x10) & ~FLAGS2_TRANSCRIPT);
@@ -561,7 +571,7 @@ int output_stream(int16_t number, uint16_t table)
   {
     if(scriptio == NULL)
     {
-      scriptio = zterp_io_open(options.record_name, ZTERP_IO_WRONLY | ZTERP_IO_INPUT);
+      scriptio = zterp_io_open(options.record_name, ZTERP_IO_WRONLY, ZTERP_IO_INPUT);
       if(scriptio == NULL)
       {
         streams &= ~STREAM_SCRIPT;
@@ -598,7 +608,7 @@ int input_stream(int which)
   {
     if(istreamio == NULL)
     {
-      istreamio = zterp_io_open(options.replay_name, ZTERP_IO_INPUT | ZTERP_IO_RDONLY);
+      istreamio = zterp_io_open(options.replay_name, ZTERP_IO_RDONLY, ZTERP_IO_INPUT);
       if(istreamio == NULL)
       {
         warning("unable to open the command script");
@@ -723,11 +733,22 @@ static void resize_upper_window(long nlines)
 #ifdef ZTERP_GLK
   if(upperwin->id == NULL) return;
 
+  long previous_height = upper_window_height;
+
   /* To avoid code duplication, put all window resizing code in
    * update_delayed() and, if necessary, call it from here.
    */
   delayed_window_shrink = nlines;
   if(upper_window_height <= nlines || saw_input) update_delayed();
+
+  /* If the window is being created, or if it’s shrinking and the cursor
+   * is no longer inside the window, move the cursor to the origin.
+   */
+  if(previous_height == 0 || upperwin->y >= nlines)
+  {
+    upperwin->x = upperwin->y = 0;
+    if(nlines > 0) glk_window_move_cursor(upperwin->id, 0, 0);
+  }
 
   saw_input = 0;
 
@@ -830,30 +851,31 @@ void term_keys_add(uint8_t key)
 {
   switch(key)
   {
-    case 129: insert_key(keycode_Up); break;
-    case 130: insert_key(keycode_Down); break;
-    case 131: insert_key(keycode_Left); break;
-    case 132: insert_key(keycode_Right); break;
-    case 133: insert_key(keycode_Func1); break;
-    case 134: insert_key(keycode_Func2); break;
-    case 135: insert_key(keycode_Func3); break;
-    case 136: insert_key(keycode_Func4); break;
-    case 137: insert_key(keycode_Func5); break;
-    case 138: insert_key(keycode_Func6); break;
-    case 139: insert_key(keycode_Func7); break;
-    case 140: insert_key(keycode_Func8); break;
-    case 141: insert_key(keycode_Func9); break;
-    case 142: insert_key(keycode_Func10); break;
-    case 143: insert_key(keycode_Func11); break;
-    case 144: insert_key(keycode_Func12); break;
+    case ZSCII_UP:    insert_key(keycode_Up); break;
+    case ZSCII_DOWN:  insert_key(keycode_Down); break;
+    case ZSCII_LEFT:  insert_key(keycode_Left); break;
+    case ZSCII_RIGHT: insert_key(keycode_Right); break;
+    case ZSCII_F1:    insert_key(keycode_Func1); break;
+    case ZSCII_F2:    insert_key(keycode_Func2); break;
+    case ZSCII_F3:    insert_key(keycode_Func3); break;
+    case ZSCII_F4:    insert_key(keycode_Func4); break;
+    case ZSCII_F5:    insert_key(keycode_Func5); break;
+    case ZSCII_F6:    insert_key(keycode_Func6); break;
+    case ZSCII_F7:    insert_key(keycode_Func7); break;
+    case ZSCII_F8:    insert_key(keycode_Func8); break;
+    case ZSCII_F9:    insert_key(keycode_Func9); break;
+    case ZSCII_F10:   insert_key(keycode_Func10); break;
+    case ZSCII_F11:   insert_key(keycode_Func11); break;
+    case ZSCII_F12:   insert_key(keycode_Func12); break;
 
     /* Keypad 0–9 should be here, but Glk doesn’t support that. */
-    case 145: case 146: case 147: case 148: case 149:
-    case 150: case 151: case 152: case 153: case 154:
+    case ZSCII_KEY0: case ZSCII_KEY1: case ZSCII_KEY2: case ZSCII_KEY3:
+    case ZSCII_KEY4: case ZSCII_KEY5: case ZSCII_KEY6: case ZSCII_KEY7:
+    case ZSCII_KEY8: case ZSCII_KEY9:
       break;
 
     /* Mouse clicks would go here if I supported them. */
-    case 252: case 253: case 254:
+    case ZSCII_CLICK_MENU: case ZSCII_CLICK_DOUBLE: case ZSCII_CLICK_SINGLE:
       break;
 
     case 255:
@@ -1302,7 +1324,7 @@ void zprint_addr(void)
 
 void zprint_paddr(void)
 {
-  print_handler(unpack(zargs[0], 1), NULL);
+  print_handler(unpack_string(zargs[0]), NULL);
 }
 
 /* XXX This is more complex in V6 and needs to be updated when V6 windowing is implemented. */
@@ -1331,22 +1353,17 @@ static void window_change(void)
   /* If the new window is smaller, the cursor of the upper window might
    * be out of bounds.  Pull it back in if so.
    */
-  if(zversion >= 3 && upperwin->id != NULL && upper_window_height > 0)
+  if(zversion >= 3 && upperwin->id != NULL)
   {
-    long x = upperwin->x, y = upperwin->y;
     glui32 w, h;
 
     glk_window_get_size(upperwin->id, &w, &h);
 
     upper_window_width = w;
-    upper_window_height = h;
 
-    if(x > w) x = w;
-    if(y > h) y = h;
-
-    SWITCH_WINDOW_START(upperwin);
-    set_cursor(y + 1, x + 1);
-    SWITCH_WINDOW_END();
+    /* Force a redraw (do not wait for user input). */
+    saw_input = 1;
+    resize_upper_window(h);
   }
 
   /* §8.4
@@ -1430,7 +1447,15 @@ static int istream_read_from_file(struct input *input)
   {
     long c;
 
-    c = zterp_io_getc(istreamio);
+    /* If there are carriage returns in the input, this is almost
+     * certainly a command script from a Windows system being run on a
+     * non-Windows system, so ignore them.
+     */
+    do
+    {
+      c = zterp_io_getc(istreamio);
+    } while(c == UNICODE_CARRIAGE_RETURN);
+
     if(c == -1)
     {
       input_stream(ISTREAM_KEYBOARD);
@@ -1452,6 +1477,9 @@ static int istream_read_from_file(struct input *input)
       input_stream(ISTREAM_KEYBOARD);
       return 0;
     }
+
+    /* As above, ignore carriage returns. */
+    if(n > 0 && line[n - 1] == UNICODE_CARRIAGE_RETURN) n--;
 
     if(n > input->maxlen) n = input->maxlen;
 
@@ -1516,22 +1544,22 @@ static uint8_t zscii_from_glk(glui32 key)
   switch(key)
   {
     case 13:             return ZSCII_NEWLINE;
-    case keycode_Up:     return 129;
-    case keycode_Down:   return 130;
-    case keycode_Left:   return 131;
-    case keycode_Right:  return 131;
-    case keycode_Func1:  return 133;
-    case keycode_Func2:  return 134;
-    case keycode_Func3:  return 135;
-    case keycode_Func4:  return 136;
-    case keycode_Func5:  return 137;
-    case keycode_Func6:  return 138;
-    case keycode_Func7:  return 139;
-    case keycode_Func8:  return 140;
-    case keycode_Func9:  return 141;
-    case keycode_Func10: return 142;
-    case keycode_Func11: return 143;
-    case keycode_Func12: return 144;
+    case keycode_Up:     return ZSCII_UP;
+    case keycode_Down:   return ZSCII_DOWN;
+    case keycode_Left:   return ZSCII_LEFT;
+    case keycode_Right:  return ZSCII_RIGHT;
+    case keycode_Func1:  return ZSCII_F1;
+    case keycode_Func2:  return ZSCII_F2;
+    case keycode_Func3:  return ZSCII_F3;
+    case keycode_Func4:  return ZSCII_F4;
+    case keycode_Func5:  return ZSCII_F5;
+    case keycode_Func6:  return ZSCII_F6;
+    case keycode_Func7:  return ZSCII_F7;
+    case keycode_Func8:  return ZSCII_F8;
+    case keycode_Func9:  return ZSCII_F9;
+    case keycode_Func10: return ZSCII_F10;
+    case keycode_Func11: return ZSCII_F11;
+    case keycode_Func12: return ZSCII_F12;
   }
 
   return ZSCII_NEWLINE;
@@ -1677,25 +1705,25 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
 
         switch(ev.val1)
         {
-          case keycode_Delete: input->key =   8; break;
-          case keycode_Return: input->key =  13; break;
-          case keycode_Escape: input->key =  27; break;
-          case keycode_Up:     input->key = 129; break;
-          case keycode_Down:   input->key = 130; break;
-          case keycode_Left:   input->key = 131; break;
-          case keycode_Right:  input->key = 132; break;
-          case keycode_Func1:  input->key = 133; break;
-          case keycode_Func2:  input->key = 134; break;
-          case keycode_Func3:  input->key = 135; break;
-          case keycode_Func4:  input->key = 136; break;
-          case keycode_Func5:  input->key = 137; break;
-          case keycode_Func6:  input->key = 138; break;
-          case keycode_Func7:  input->key = 139; break;
-          case keycode_Func8:  input->key = 140; break;
-          case keycode_Func9:  input->key = 141; break;
-          case keycode_Func10: input->key = 142; break;
-          case keycode_Func11: input->key = 143; break;
-          case keycode_Func12: input->key = 144; break;
+          case keycode_Delete: input->key = ZSCII_DELETE; break;
+          case keycode_Return: input->key = ZSCII_NEWLINE; break;
+          case keycode_Escape: input->key = ZSCII_ESCAPE; break;
+          case keycode_Up:     input->key = ZSCII_UP; break;
+          case keycode_Down:   input->key = ZSCII_DOWN; break;
+          case keycode_Left:   input->key = ZSCII_LEFT; break;
+          case keycode_Right:  input->key = ZSCII_RIGHT; break;
+          case keycode_Func1:  input->key = ZSCII_F1; break;
+          case keycode_Func2:  input->key = ZSCII_F2; break;
+          case keycode_Func3:  input->key = ZSCII_F3; break;
+          case keycode_Func4:  input->key = ZSCII_F4; break;
+          case keycode_Func5:  input->key = ZSCII_F5; break;
+          case keycode_Func6:  input->key = ZSCII_F6; break;
+          case keycode_Func7:  input->key = ZSCII_F7; break;
+          case keycode_Func8:  input->key = ZSCII_F8; break;
+          case keycode_Func9:  input->key = ZSCII_F9; break;
+          case keycode_Func10: input->key = ZSCII_F10; break;
+          case keycode_Func11: input->key = ZSCII_F11; break;
+          case keycode_Func12: input->key = ZSCII_F12; break;
 
           default:
             input->key = ZSCII_QUESTIONMARK;
@@ -1778,10 +1806,24 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
 
     n = zterp_io_readline(zterp_io_stdin(), line, sizeof line / sizeof *line);
 
-    /* On error/eof, or if an invalid key was typed, pretend “Enter” was hit. */
-    if(n <= 0)
+    if(n == -1)
+    {
+      zquit();
+    }
+    else if(n == 0)
     {
       input->key = ZSCII_NEWLINE;
+    }
+    /* Delete and escape are defined for input, so if they're seen,
+     * handle them manually.
+     */
+    else if(line[0] == UNICODE_DELETE)
+    {
+      input->key = ZSCII_DELETE;
+    }
+    else if(line[0] == UNICODE_ESCAPE)
+    {
+      input->key = ZSCII_ESCAPE;
     }
     else
     {
@@ -1799,7 +1841,11 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
       uint16_t line[1024];
 
       n = zterp_io_readline(zterp_io_stdin(), line, sizeof line / sizeof *line);
-      if(n != -1)
+      if(n == -1)
+      {
+        zquit();
+      }
+      else
       {
         if(n > input->maxlen - input->preloaded) n = input->maxlen - input->preloaded;
         for(long i = 0; i < n; i++) input->line[i + input->preloaded] = line[i];
@@ -1970,7 +2016,7 @@ static int read_handler(void)
     {
       const uint32_t *ret;
 
-      ret = handle_meta_command(string + 1);
+      ret = handle_meta_command(string + 1, input.len - 1);
       if(ret == NULL)
       {
         return 1;
@@ -1978,7 +2024,7 @@ static int read_handler(void)
       else if(ret == string + 1)
       {
         /* The game still wants input, so try again. */
-        screen_print("\n\n>");
+        screen_print("\n>");
         return 0;
       }
       else
@@ -2003,9 +2049,10 @@ static int read_handler(void)
      * will never be true.  Thus there is no need to test zversion.
      *
      * pc is currently set to the next instruction, but the undo needs
-     * to come back to *this* instruction; so use read_pc instead of pc.
+     * to come back to *this* instruction; so use current_instruction
+     * instead of pc.
      */
-    if(!seen_save_undo) push_save(SAVE_GAME, read_pc, NULL);
+    if(!seen_save_undo) push_save(SAVE_GAME, current_instruction, NULL);
   }
 
   if(options.enable_escape && (streams & STREAM_TRANS))
@@ -2085,9 +2132,46 @@ void zcheck_unicode(void)
    */
   if(have_unicode || zargs[0] < 256)
   {
-    if(valid_unicode(zargs[0]))         res |= 0x01;
-    if(unicode_to_zscii[zargs[0]] != 0) res |= 0x02;
+    /* §3.8.5.4.5: “Unicode characters U+0000 to U+001F and U+007F to
+     * U+009F are control codes, and must not be used.”
+     *
+     * Even though control characters can be read (e.g. delete and
+     * linefeed), when they are looked at through a Unicode lens, they
+     * should be considered invalid.  I don’t know if this is the right
+     * approach, but nobody seems to use @check_unicode, so it’s not
+     * especially important.  One implication of this is that it’s
+     * impossible for this implementation of @check_unicode to return 2,
+     * since a character must be valid for output before it’s even
+     * checked for input, and all printable characters are also
+     * readable.
+     *
+     * For what it’s worth, interpreters seem to disagree on this pretty
+     * drastically:
+     *
+     * • Zoom 1.1.5 returns 1 for all control characters.
+     * • Fizmo 0.7.8 returns 3 for characters 8, 10, 13, and 27, 1 for
+     *   all other control characters.
+     * • Frotz 2.44 and Nitfol 0.5 return 0 for all control characters.
+     * • Filfre 1.1.1 returns 3 for all control characters.
+     * • Windows Frotz 1.19 returns 2 for characters 8, 13, and 27, 0
+     *   for other control characters in the range 00 to 1f.  It returns
+     *   a mixture of 2 and 3 for control characters in the range 7F to
+     *   9F based on whether the specified glyph is available.
+     */
+    if(valid_unicode(zargs[0]))
+    {
+      res |= 0x01;
+      if(unicode_to_zscii[zargs[0]] != 0)
+      {
+        res |= 0x02;
+      }
+    }
   }
+
+#ifdef ZTERP_GLK
+  if(glk_gestalt(gestalt_CharOutput, zargs[0]) == gestalt_CharOutput_CannotPrint) res &= ~(uint16_t)0x01;
+  if(!glk_gestalt(gestalt_CharInput, zargs[0])) res &= ~(uint16_t)0x02;
+#endif
 
   store(res);
 }

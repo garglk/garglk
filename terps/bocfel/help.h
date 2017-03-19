@@ -13,17 +13,6 @@
 { "-h", glkunix_arg_NoValue, "Display this help message then exit" },
 { "-i", glkunix_arg_NoValue, "Print the ID of the specified game then exit" },
 { "-k", glkunix_arg_NoValue, "Disable terminating keys" },
-#ifdef ZTERP_UNIX
-#define LATIN1 ""
-#define UTF8 " (default)"
-#else
-#define LATIN1 " (default)"
-#define UTF8 ""
-#endif
-{ "-l", glkunix_arg_NoValue, "Write transcripts in Latin-1" LATIN1 },
-{ "-L", glkunix_arg_NoValue, "Write transcripts in UTF-8" UTF8 },
-#undef LATIN1
-#undef UTF8
 { "-m", glkunix_arg_NoValue, "Disable meta commands" },
 { "-n", glkunix_arg_NumberValue, "Set the interpreter number (see 11.1.3 in The Z-machine Standards Document 1.0)" },
 { "-N", glkunix_arg_ValueFollows, "Set the interpreter version to the single-character version (see 11.1.3.1 in The Z-machine Standards Document 1.0)" },

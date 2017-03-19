@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2016 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -313,7 +313,7 @@ void call(int do_store)
     return;
   }
 
-  jmp_to = unpack(zargs[0], 0);
+  jmp_to = unpack_routine(zargs[0]);
   ZASSERT(jmp_to < memory_size - 1, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
   nlocals = BYTE(jmp_to++);
@@ -732,6 +732,20 @@ int pop_save(enum save_type type, long i)
   return 2;
 }
 
+/* Wrapper around trim_saves which reports failure if the specified save
+ * does not exist.
+ */
+int drop_save(enum save_type type, long i)
+{
+  struct save_stack *s = &save_stacks[type];
+
+  if(i > s->count) return 0;
+
+  trim_saves(type, i);
+
+  return 1;
+}
+
 void list_saves(enum save_type type, void (*printer)(const char *))
 {
   struct save_stack *s = &save_stacks[type];
@@ -764,7 +778,7 @@ void list_saves(enum save_type type, void (*printer)(const char *))
     if(p->desc != NULL) desc = p->desc;
     else                desc = formatted_time;
 
-    snprintf(buf, sizeof buf, "%ld. %s%s\n", nsaves--, desc, p->prev == NULL ? " *" : "");
+    snprintf(buf, sizeof buf, "%ld. %s%s", nsaves--, desc, p->prev == NULL ? " *" : "");
     printer(buf);
   }
 }
@@ -883,9 +897,9 @@ int save_quetzal(zterp_io *savefile, int is_meta)
   zterp_io_write(savefile, header.serial, 6);
   local_written += 6;
   WRITE16(header.checksum);
-  WRITE8(pc >> 16);
-  WRITE8(pc >> 8);
-  WRITE8(pc & 0xff);
+  WRITE8((pc >> 16) & 0xff);
+  WRITE8((pc >>  8) & 0xff);
+  WRITE8((pc >>  0) & 0xff);
   WRITE8(0); /* padding */
 
   /* Store the filename in an IntD chunk. */
@@ -1157,7 +1171,7 @@ int do_save(int is_meta)
   zterp_io *savefile;
   int success;
 
-  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
+  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     warning("unable to open save file");
@@ -1196,7 +1210,7 @@ int do_restore(int is_meta)
   uint16_t flags2;
   int success;
 
-  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY | ZTERP_IO_SAVE);
+  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     warning("unable to open save file");

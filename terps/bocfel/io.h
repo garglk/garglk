@@ -6,22 +6,22 @@
 
 typedef struct zterp_io zterp_io;
 
-#define ZTERP_IO_DATA		0x00
-#define ZTERP_IO_SAVE		0x01
-#define ZTERP_IO_TRANS		0x02
-#define ZTERP_IO_INPUT		0x04
-#define ZTERP_IO_RDONLY		0x08
-#define ZTERP_IO_WRONLY		0x10
-#define ZTERP_IO_APPEND		0x20
+enum zterp_io_mode
+{
+  ZTERP_IO_RDONLY,
+  ZTERP_IO_WRONLY,
+  ZTERP_IO_APPEND,
+};
 
-/* This variable controls whether the IO system writes UTF-8 or
- * Latin-1; it is distinct from Glk’s Unicode setting.
- * If this is set, transcripts will be written in UTF-8, and if
- * Glk is not being used, screen output will be written in UTF-8.
- */
-extern int use_utf8_io;
+enum zterp_io_purpose
+{
+  ZTERP_IO_DATA,
+  ZTERP_IO_SAVE,
+  ZTERP_IO_TRANS,
+  ZTERP_IO_INPUT,
+};
 
-zterp_io *zterp_io_open(const char *, int);
+zterp_io *zterp_io_open(const char *, enum zterp_io_mode, enum zterp_io_purpose);
 const zterp_io *zterp_io_stdin(void);
 const zterp_io *zterp_io_stdout(void);
 void zterp_io_close(zterp_io *);
