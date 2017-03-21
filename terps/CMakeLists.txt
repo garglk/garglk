@@ -296,30 +296,25 @@ endif()
 #
 if(WITH_SCARE)
   if(UNIX)
-    find_package(ZLIB)
-    if(ZLIB_FOUND)
-      set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
-      set(SCARE_LIBS ${ZLIB_LIBRARIES})
-    endif()
+    find_package(ZLIB REQUIRED)
+    set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
+    set(SCARE_LIBS ${ZLIB_LIBRARIES})
   elseif(MINGW)
-    set(ZLIB_FOUND TRUE)
     set(SCARE_INCLUDE_DIRS ../support/zlib)
     set(SCARE_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/../support/zlib/zlib1.dll)
+  else()
+    message(FATAL_ERROR "Unknown platform: cannot build scare because zlib is required")
   endif()
 
-  if(ZLIB_FOUND)
-    terp(scare
-         SRCS scare/sctafpar.c scare/sctaffil.c scare/scprops.c scare/scvars.c
-         scare/scexpr.c scare/scprintf.c scare/scinterf.c scare/scparser.c
-         scare/sclibrar.c scare/scrunner.c scare/scevents.c scare/scnpcs.c
-         scare/scobjcts.c scare/sctasks.c scare/screstrs.c scare/scgamest.c
-         scare/scserial.c scare/scresour.c scare/scutils.c scare/scdebug.c
-         scare/sclocale.c scare/scmemos.c scare/os_glk.c
-         INCLUDE_DIRS ${SCARE_INCLUDE_DIRS}
-         LIBS ${SCARE_LIBS})
-  else()
-    message(WARNING "Unable to find zlib: scare will not be built")
-  endif()
+  terp(scare
+       SRCS scare/sctafpar.c scare/sctaffil.c scare/scprops.c scare/scvars.c
+       scare/scexpr.c scare/scprintf.c scare/scinterf.c scare/scparser.c
+       scare/sclibrar.c scare/scrunner.c scare/scevents.c scare/scnpcs.c
+       scare/scobjcts.c scare/sctasks.c scare/screstrs.c scare/scgamest.c
+       scare/scserial.c scare/scresour.c scare/scutils.c scare/scdebug.c
+       scare/sclocale.c scare/scmemos.c scare/os_glk.c
+       INCLUDE_DIRS ${SCARE_INCLUDE_DIRS}
+       LIBS ${SCARE_LIBS})
 endif()
 
 # ------------------------------------------------------------------------------
