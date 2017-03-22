@@ -8,4 +8,7 @@
 *.patch
 buildAndCopy2Kindle.sh
 /.vscode
+/.cproject
+/.settings/
+.DS_Store
 

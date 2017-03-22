@@ -3,7 +3,7 @@
 #
 
 BUILD ?= RELEASE ;
-#USESDL ?= yes ;
+USESDL ?= yes ;
 USEBABEL ?= yes ;
 BUNDLEFONTS ?= yes ;
 
@@ -22,12 +22,28 @@ CXX ?= g++ ;
 if $(CROSS)
 {
     CROSS   = "(cross-compiling)" ;
+    OS      = MINGW ;
+    SUFEXE  = .exe ;
+    CC      = i386-mingw32-gcc ;
+    CXX     = i386-mingw32-g++ ;
+    AR      = i386-mingw32-ar cru ;
+    RANLIB  = i386-mingw32-ranlib ;
+    LINK    = $(CC) ;
+}
+
+# Cross compiling for Kindle Touch, Paperwhite, Voyage
+if $(KINDLE)
+{
+    Echo "Target platform: Kindle LINUX (gtk+)" ;
+    USESDL = no ;
+    GUILIB = gtk+ ;
+
     OS      = LINUX ;
     SUFEXE  = ;
     CC      = arm-unknown-linux-gnueabi-gcc ;
     CXX     = arm-unknown-linux-gnueabi-g++ ;
     C++     = arm-unknown-linux-gnueabi-g++ ;
-    #AR      = arm-unknown-linux-gnueabi-ar cru ;
+    #AR     = arm-unknown-linux-gnueabi-ar cru ;
     AR      = arm-unknown-linux-gnueabi-gcc-ar cru ;
     RANLIB  = arm-unknown-linux-gnueabi-gcc-ranlib ;
     LINK    = arm-unknown-linux-gnueabi-gcc ;
@@ -88,22 +104,26 @@ switch $(OS)
         if $(GUILIB) = EFL {
             PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
         } else {
-            PKGCONFIG = "pkg-config freetype2 libpng16 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+            PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
         }
 
         # Setting C++ standard version to use for current g++ compilers.
         C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -D_KINDLE ;
-        #GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
-        #LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
-
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -L~/dev/buildroot/buildroot-2016.11.1/output/target/usr/lib -ljpeg -lz -lstdc++ ;
-        LINKLIBS = "`$(PKGCONFIG) --libs`" -L~/dev/buildroot/buildroot-2016.11.1/output/target/usr/lib -ljpeg -lz -lm -lstdc++ ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
+        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
+        }
+
+        if $(KINDLE)
+        {
+            GARGLKCCFLAGS += -D_KINDLE ;
+            GARGLKLIBS += -lstdc++ ;
+            LINKLIBS += -lstdc++ ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -114,13 +134,13 @@ switch $(OS)
         Echo "OS is IPLINUX (EFL)" ;
         PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys libeoi eina-0 evas ecore ecore-x ecore-file ecore-evas edje" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm ;
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm -lrt ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -172,15 +192,14 @@ switch $(BUILD)
 {
     case DEBUG :
         Echo "BUILD is DEBUG" ;
-        OPTIM = -g -O0 -fno-inline ;
+        # OPTIM = -g -O0 -fno-inline ;
+        OPTIM = -g ;
 
     case RELEASE :
         Echo "BUILD is RELEASE" ;
-        #OPTIM = -O2 $(CFLAGS) ;
+        OPTIM = -O2 $(CFLAGS) ;
         # Tads 3.1.3 and gcc 5.3.1 require: -fpeephole -fno-peephole2 when using -O2
-        OPTIM = -O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -flto=8 -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block $(CFLAGS) ;
-        Echo "Optimizer settings: " ;
-        Echo $(OPTIM) ;
+        # OPTIM = -O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -flto=8 -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block $(CFLAGS) ;
         LINKFLAGS = $(LDFLAGS) ;
         SHRLINKFLAGS = $(LDFLAGS) ;
 

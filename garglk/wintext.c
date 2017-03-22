@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "glk.h"
 #include "garglk.h"
 
@@ -39,6 +40,9 @@ static void
 put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldlen);
 static glui32
 put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 linkval);
+
+time_t timer_prv;
+time_t timer_double;
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -1798,6 +1802,61 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     window_t *win = dwin->owner;
     int gh = FALSE;
     int gs = FALSE;
+   
+    //Double click/tap to insert patch - double click or tap on a word to append it to the input line:
+    //Compare time with prv event time to detect double click, and compare against time
+    //two events ago to prevent double inserts
+    time_t timer;
+    time(&timer);
+
+    if (difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
+    {
+        // Divide y of event (inverted) by height of single line to get the line that was clicked
+        tbline_t *ln = &dwin->lines[dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1];
+
+        int i, nl, nr;
+        int x = 0;
+        int adv;
+
+        int x0, tx, tsc, tsw;
+        x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
+        tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+        // Measure string widths until we find the clicked char
+        for (tsc = 0; tsc < ln->len; tsc++)
+        {
+            tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, -1)/GLI_SUBPIX;
+            if (tsw + tx >= sx || tsw + tx + GLI_SUBPIX >= sx && ln->chars[tsc] != ' ')
+            {
+                break;
+            }
+        }
+
+        // Step backward to find prv space
+        for (nl=tsc; nl>=0; nl--)
+        {
+            if (ln->chars[nl] == ' ')
+                break;
+        }
+
+        // Add a space at the current position of the cursor in the input line
+        gcmd_buffer_accept_readline(dwin->owner, ' ');
+
+        // Insert word onto input line
+        for (nr=++nl; nr<ln->len; nr++)
+        {
+    	    glui32 c = ln->chars[nr];
+
+            if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9')))
+                break;
+	        
+            gcmd_buffer_accept_readline(dwin->owner, c);
+        }
+        
+        gcmd_buffer_accept_readline(dwin->owner, ' ');
+    }
+
+    timer_prv = timer_double;
+    timer_double = timer;
 
     if (win->line_request || win->char_request
         || win->line_request_uni || win->char_request_uni
