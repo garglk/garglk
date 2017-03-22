@@ -19,6 +19,7 @@ SubDirCcFlags
     -DGLK_TIMERS
     -DTC_TARGET_T3
     -DRUNTIME
+    -DOSNOUI_OMIT_IS_FILE_ABSOLUTE
     ;
 
 # HTMLMODE ?= yes ;
@@ -92,6 +93,7 @@ Library libtads3 : $(TADS3SRCS) ;
 Main $(GARGLKPRE)tadsr :
     memicmp.c
     osbuffer.c
+    osextra.c
     osglk.c
     osglkban.c
     osmisc.c
