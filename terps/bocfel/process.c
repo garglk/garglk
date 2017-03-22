@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2015 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -39,6 +39,9 @@
 #include "util.h"
 #include "zoom.h"
 #include "zterp.h"
+
+unsigned long pc;
+unsigned long current_instruction;
 
 uint16_t zargs[8];
 int znargs;
@@ -140,11 +143,7 @@ static void zextended(void)
 znoreturn
 static void illegal_opcode(void)
 {
-#ifndef ZTERP_NO_SAFETY_CHECKS
-  die("illegal opcode (pc = 0x%lx)", zassert_pc);
-#else
-  die("illegal opcode");
-#endif
+  die("illegal opcode (pc = 0x%lx)", current_instruction);
 }
 
 static void setup_single_opcode(int minver, int maxver, enum opcount opcount, int opcode, void (*fn)(void))
@@ -346,8 +345,7 @@ void process_instructions(void)
     glk_tick();
 #endif
 
-    ZPC(pc);
-
+    current_instruction = pc;
     opcode = BYTE(pc++);
 
     /* long 2OP */
@@ -413,8 +411,6 @@ void process_instructions(void)
     else
     {
       znargs = 0;
-
-      read_pc = pc - 1;
 
       decode_var(BYTE(pc++));
     }

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2016 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -35,31 +35,31 @@
 #define MAX_PATH	4096
 #endif
 
-int use_utf8_io;
-
-/* Generally speaking, UNICODE_LINEFEED (10) is used as a newline.  Glk
- * requires this (Glk API 0.7.0 §2.2), and when Unicode is available, we
- * write characters out by hand even with stdio, so no translation can
- * be done.  However, when stdio is being used, Unicode is not
- * available, and the file usage will be for a transcript or
- * command-script, use '\n' as a newline so translation can be done;
- * this is the only case where streams are opened in text mode.
- *
- * zterp_io_stdout() is considered text-mode if Unicode is not
- * available, binary otherwise.
- */
-#define textmode(io)	(!use_utf8_io && ((io->mode) & (ZTERP_IO_TRANS | ZTERP_IO_INPUT)))
-
 struct zterp_io
 {
   enum type { IO_STDIO, IO_GLK } type;
 
   FILE *fp;
-  int mode;
+  enum zterp_io_mode mode;
+  enum zterp_io_purpose purpose;
 #ifdef ZTERP_GLK
   strid_t file;
 #endif
 };
+
+/* Certain streams are intended for use in text mode: stdin/stdout,
+ * transcripts, and command scripts.  It is reasonable for users to
+ * expect newline translation to be properly handled in these cases,
+ * even though UNICODE_LINEFEED (10), as required by Glk (Glk API 0.7.0
+ * §2.2), is used internally.
+ */
+static int textmode(const struct zterp_io *io)
+{
+  return io == zterp_io_stdin() ||
+         io == zterp_io_stdout() ||
+         io->purpose == ZTERP_IO_TRANS ||
+         io->purpose == ZTERP_IO_INPUT;
+}
 
 /* Glk does not like you to be able to pass a full filename to
  * glk_fileref_create_by_name(); this means that Glk cannot be used to
@@ -76,7 +76,7 @@ struct zterp_io
  *
  * Prompting is assumed to be necessary if “filename” is NULL.
  */
-zterp_io *zterp_io_open(const char *filename, int mode)
+zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zterp_io_purpose purpose)
 {
   zterp_io *io;
   char smode[] = "wb";
@@ -84,32 +84,34 @@ zterp_io *zterp_io_open(const char *filename, int mode)
   io = malloc(sizeof *io);
   if(io == NULL) goto err;
   io->mode = mode;
+  io->purpose = purpose;
 
-  if     (mode & ZTERP_IO_RDONLY) smode[0] = 'r';
-  else if(mode & ZTERP_IO_APPEND) smode[0] = 'a';
+  if     (mode == ZTERP_IO_RDONLY) smode[0] = 'r';
+  else if(mode == ZTERP_IO_APPEND) smode[0] = 'a';
 
   if(textmode(io)) smode[1] = 0;
 
 #ifdef ZTERP_GLK
   glui32 usage = fileusage_BinaryMode, filemode;
 
-  if     (mode & ZTERP_IO_SAVE)  usage |= fileusage_SavedGame;
-  else if(mode & ZTERP_IO_TRANS) usage |= fileusage_Transcript;
-  else if(mode & ZTERP_IO_INPUT) usage |= fileusage_InputRecord;
-  else                           usage |= fileusage_Data;
+  if     (purpose == ZTERP_IO_DATA)  usage |= fileusage_Data;
+  else if(purpose == ZTERP_IO_SAVE)  usage |= fileusage_SavedGame;
+  else if(purpose == ZTERP_IO_TRANS) usage |= fileusage_Transcript;
+  else if(purpose == ZTERP_IO_INPUT) usage |= fileusage_InputRecord;
+  else goto err;
 
-  if     (mode & ZTERP_IO_RDONLY) filemode = filemode_Read;
-  else if(mode & ZTERP_IO_WRONLY) filemode = filemode_Write;
-  else if(mode & ZTERP_IO_APPEND) filemode = filemode_WriteAppend;
-
+  if     (mode == ZTERP_IO_RDONLY) filemode = filemode_Read;
+  else if(mode == ZTERP_IO_WRONLY) filemode = filemode_Write;
+  else if(mode == ZTERP_IO_APPEND) filemode = filemode_WriteAppend;
   else goto err;
 #else
   const char *prompt;
 
-  if     (mode & ZTERP_IO_SAVE)  prompt = "Enter filename for save game: ";
-  else if(mode & ZTERP_IO_TRANS) prompt = "Enter filename for transcript: ";
-  else if(mode & ZTERP_IO_INPUT) prompt = "Enter filename for command record: ";
-  else                           prompt = "Enter filename for data: ";
+  if     (purpose == ZTERP_IO_DATA)  prompt = "Enter filename for data: ";
+  else if(purpose == ZTERP_IO_SAVE)  prompt = "Enter filename for save game: ";
+  else if(purpose == ZTERP_IO_TRANS) prompt = "Enter filename for transcript: ";
+  else if(purpose == ZTERP_IO_INPUT) prompt = "Enter filename for command record: ";
+  else goto err;
 #endif
 
   /* No need to prompt. */
@@ -155,11 +157,6 @@ err:
   return NULL;
 }
 
-/* The zterp_os_reopen_binary() calls attempt to reopen stdin/stdout as
- * binary streams so that reading/writing UTF-8 doesn’t cause unwanted
- * translations.  The mode of ZTERP_IO_TRANS is set when Unicode is
- * unavailable as a way to signal that these are text streams.
- */
 const zterp_io *zterp_io_stdin(void)
 {
   static zterp_io io;
@@ -168,8 +165,7 @@ const zterp_io *zterp_io_stdin(void)
   {
     io.type = IO_STDIO;
     io.mode = ZTERP_IO_RDONLY;
-    if(use_utf8_io) zterp_os_reopen_binary(stdin);
-    else            io.mode |= ZTERP_IO_TRANS;
+    io.purpose = ZTERP_IO_INPUT;
     io.fp = stdin;
   }
 
@@ -184,8 +180,7 @@ const zterp_io *zterp_io_stdout(void)
   {
     io.type = IO_STDIO;
     io.mode = ZTERP_IO_WRONLY;
-    if(use_utf8_io) zterp_os_reopen_binary(stdout);
-    else            io.mode |= ZTERP_IO_TRANS;
+    io.purpose = ZTERP_IO_TRANS;
     io.fp = stdout;
   }
 
@@ -213,7 +208,7 @@ int zterp_io_seek(const zterp_io *io, long offset, int whence)
   /* To smooth over differences between Glk and standard I/O, don’t
    * allow seeking in append-only streams.
    */
-  if(io->mode & ZTERP_IO_APPEND) return -1;
+  if(io->mode == ZTERP_IO_APPEND) return -1;
 
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
@@ -243,7 +238,7 @@ long zterp_io_tell(const zterp_io *io)
 }
 
 /* zterp_io_read() and zterp_io_write() always operate in terms of
- * bytes, whether or not Unicode is available.
+ * bytes, not characters.
  */
 size_t zterp_io_read(const zterp_io *io, void *buf, size_t n)
 {
@@ -317,141 +312,104 @@ static int read_byte(const zterp_io *io, uint8_t *c)
  * -1 is returned on EOF.
  *
  * If there is a problem reading the UTF-8 (either from an invalid
- * sequence or from a too-large value), a question mark is returned.
- *
- * If Unicode is not available, read a single byte (assumed to be
- * Latin-1).
- * If Unicode is not available, IO_STDIO is in use, and text mode is
- * set, do newline translation.  Text mode is likely to always be
- * set—this function really shouldn’t be used in binary mode.
+ * sequence or from a too-large value), the Unicode replacement
+ * character is returned.
  */
 long zterp_io_getc(const zterp_io *io)
 {
   long ret;
 
-  if(!use_utf8_io)
+  uint8_t c;
+
+  if(zterp_io_read(io, &c, sizeof c) != sizeof c)
   {
-#ifdef ZTERP_GLK
-    if(io->type == IO_GLK)
-    {
-      ret = glk_get_char_stream(io->file);
-    }
-    else
-#endif
-    {
-      int c;
-
-      c = getc(io->fp);
-      if(c == EOF) ret = -1;
-      else         ret = c;
-
-      if(textmode(io) && c == '\n') ret = UNICODE_LINEFEED;
-    }
+    ret = -1;
   }
-  else
+  else if((c & 0x80) == 0) /* One byte. */
   {
-    uint8_t c;
+    ret = c;
+  }
+  else if((c & 0xe0) == 0xc0) /* Two bytes. */
+  {
+    ret = (c & 0x1f) << 6;
 
-    if(zterp_io_read(io, &c, sizeof c) != sizeof c)
-    {
-      ret = -1;
-    }
-    else if((c & 0x80) == 0) /* One byte. */
-    {
-      ret = c;
-    }
-    else if((c & 0xe0) == 0xc0) /* Two bytes. */
-    {
-      ret = (c & 0x1f) << 6;
+    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
-      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    ret |= (c & 0x3f);
+  }
+  else if((c & 0xf0) == 0xe0) /* Three bytes. */
+  {
+    ret = (c & 0x0f) << 12;
 
-      ret |= (c & 0x3f);
-    }
-    else if((c & 0xf0) == 0xe0) /* Three bytes. */
-    {
-      ret = (c & 0x0f) << 12;
+    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
-      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    ret |= ((c & 0x3f) << 6);
 
-      ret |= ((c & 0x3f) << 6);
+    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
 
-      if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    ret |= (c & 0x3f);
+  }
+  else if((c & 0xf8) == 0xf0) /* Four bytes. */
+  {
+    /* The Z-machine doesn’t support Unicode this large, but at least
+     * try not to leave a partial character in the stream.
+     */
+    zterp_io_seek(io, 3, SEEK_CUR);
 
-      ret |= (c & 0x3f);
-    }
-    else if((c & 0xf8) == 0xf0) /* Four bytes. */
-    {
-      /* The Z-machine doesn’t support Unicode this large, but at
-       * least try not to leave a partial character in the stream.
-       */
-      zterp_io_seek(io, 3, SEEK_CUR);
-
-      ret = UNICODE_REPLACEMENT;
-    }
-    else /* Invalid value. */
-    {
-      ret = UNICODE_REPLACEMENT;
-    }
+    ret = UNICODE_REPLACEMENT;
+  }
+  else /* Invalid value. */
+  {
+    ret = UNICODE_REPLACEMENT;
   }
 
   if(ret > UINT16_MAX) ret = UNICODE_REPLACEMENT;
 
+  if(textmode(io) && ret == '\n') ret = UNICODE_LINEFEED;
+
   return ret;
 }
 
-/* Write a Unicode character as UTF-8.
- *
- * If Unicode is not available, write the value out as a single Latin-1
- * byte.  If it is too large for a byte, write out a question mark.
- *
- * If Unicode is not available, IO_STDIO is in use, and text mode is
- * set, do newline translation.
- *
- * Text mode is likely to always be set—this function really shouldn’t
- * be used in binary mode.
- */
+/* Write a Unicode character as UTF-8. */
 void zterp_io_putc(const zterp_io *io, uint16_t c)
 {
-  if(!use_utf8_io)
+  uint8_t hi = c >> 8, lo = c & 0xff;
+
+  if(textmode(io) && c == UNICODE_LINEFEED) c = '\n';
+
+#define WRITE(c)	zterp_io_write(io, &(uint8_t){ c }, sizeof (uint8_t))
+  if(c < 128)
   {
-    if(c > UINT8_MAX) c = LATIN1_QUESTIONMARK;
-#ifdef ZTERP_GLK
-    if(io->type == IO_GLK)
-    {
-      glk_put_char_stream(io->file, c);
-    }
-    else
-#endif
-    {
-      if(textmode(io) && c == UNICODE_LINEFEED) c = '\n';
-      putc(c, io->fp);
-    }
+    WRITE(c);
+  }
+  else if(c < 2048)
+  {
+    WRITE(0xc0 | (hi << 2) | (lo >> 6));
+    WRITE(0x80 | (lo & 0x3f));
   }
   else
   {
-    uint8_t hi = c >> 8, lo = c & 0xff;
-
-#define WRITE(c)	zterp_io_write(io, &(uint8_t){ c }, sizeof (uint8_t))
-    if(c < 128)
-    {
-      WRITE(c);
-    }
-    else if(c < 2048)
-    {
-      WRITE(0xc0 | (hi << 2) | (lo >> 6));
-      WRITE(0x80 | (lo & 0x3f));
-    }
-    else
-    {
-      WRITE(0xe0 | (hi >> 4));
-      WRITE(0x80 | ((hi << 2) & 0x3f) | (lo >> 6));
-      WRITE(0x80 | (lo & 0x3f));
-    }
-#undef WRITE
+    WRITE(0xe0 | (hi >> 4));
+    WRITE(0x80 | ((hi << 2) & 0x3f) | (lo >> 6));
+    WRITE(0x80 | (lo & 0x3f));
   }
+#undef WRITE
 }
 
+/* Read up to “len” characters, storing them in “buf”, and return the
+ * number of characters read in this way.  Processing stops when a
+ * newline is encountered (Unicode linefeed, i.e. 0x0a); the newline is
+ * consumed but is *not* stored in “buf”, nor is it included in the
+ * return count.
+ *
+ * If no newline is encountered before “len” characters are read, any
+ * remaining characters in the line will remain for the next I/O
+ * operation, much in the way that fgets() operates.  If EOF is
+ * encountered at any point (including after characters have been read,
+ * but before a newline), -1 is returned, which means that all lines,
+ * including the last one, must end in a newline.  Any characters read
+ * before the EOF can be considered lost and unrecoverable.
+ */
 long zterp_io_readline(const zterp_io *io, uint16_t *buf, size_t len)
 {
   long ret;
@@ -488,7 +446,7 @@ long zterp_io_filesize(const zterp_io *io)
 
 void zterp_io_flush(const zterp_io *io)
 {
-  if(io == NULL || io->type != IO_STDIO || !(io->mode & (ZTERP_IO_WRONLY | ZTERP_IO_APPEND))) return;
+  if(io == NULL || io->type != IO_STDIO || (io->mode != ZTERP_IO_WRONLY && io->mode != ZTERP_IO_APPEND)) return;
 
   fflush(io->fp);
 }

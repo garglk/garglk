@@ -19,8 +19,6 @@ struct options
   int enable_alt_graphics;
   int show_id;
   int disable_term_keys;
-  int disable_utf8;
-  int force_utf8;
   int disable_meta_commands;
   long int_number;
   int int_version;
@@ -90,7 +88,6 @@ struct header
   uint32_t S_O;
 };
 
-extern uint32_t pc;
 extern int zversion;
 extern struct header header;
 extern uint8_t atable[];
@@ -102,12 +99,9 @@ int is_sherlock(void);
 
 void write_header(void);
 
-uint32_t unpack(uint16_t, int);
+uint32_t unpack_routine(uint16_t);
+uint32_t unpack_string(uint16_t);
 void store(uint16_t);
-
-#ifndef ZTERP_NO_CHEAT
-int cheat_find_freezew(uint32_t, uint16_t *);
-#endif
 
 void znop(void);
 void zrestart(void);

@@ -15,12 +15,6 @@
 #define zprintflike(f, a)
 #endif
 
-#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 1))
-#define zexternally_visible	__attribute__((__externally_visible__))
-#else
-#define zexternally_visible
-#endif
-
 /* Values are usually stored in a uint16_t because most parts of the
  * Z-machine make use of 16-bit unsigned integers.  However, in a few
  * places the unsigned value must be treated as signed.  The “obvious”
@@ -39,15 +33,11 @@ static inline int16_t as_signed(uint16_t n) { return n; }
 #endif
 
 #ifndef ZTERP_NO_SAFETY_CHECKS
-extern unsigned long zassert_pc;
-#define ZPC(pc)		do { zassert_pc = pc; } while(0)
-
 zprintflike(1, 2)
 znoreturn
 void assert_fail(const char *, ...);
 #define ZASSERT(expr, ...) do { if(!(expr)) assert_fail(__VA_ARGS__); } while(0)
 #else
-#define ZPC(pc)			((void)0)
 #define ZASSERT(expr, ...)	((void)0)
 #endif
 
@@ -74,7 +64,6 @@ void process_arguments(int, char **);
 #ifdef ZTERP_GLK
 #ifndef GLK_MODULE_UNICODE
 #define glk_put_char_uni(...)		die("bug %s:%d: glk_put_char_uni() called with no unicode", __FILE__, __LINE__)
-#define glk_put_string_uni(...)		die("bug %s:%d: glk_put_string_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_char_event_uni(...)	die("bug %s:%d: glk_request_char_event_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_line_event_uni(...)	die("bug %s:%d: glk_request_line_event_uni() called with no unicode", __FILE__, __LINE__)
 #endif

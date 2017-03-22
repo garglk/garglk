@@ -27,6 +27,8 @@
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #import <OpenGL/glu.h>
+#include <mach-o/dyld.h>
+#import "sysmac.h"
 
 #ifdef __ppc__
 #define ByteOrderOGL GL_UNSIGNED_INT_8_8_8_8
@@ -196,6 +198,93 @@ char *winfilters[] =
     return self;
 }
 
+static BOOL isTextbufferEvent(NSEvent * evt)
+{
+    if ([evt type] != NSKeyDown)
+    {
+        return NO;
+    }
+
+    /*
+     * The following mirrors the checks in sysmac.m:winkey().
+     */
+
+    /* check for arrow keys */
+    if ([evt modifierFlags] & NSFunctionKeyMask)
+    {
+        /* modified keys for scrolling */
+        if ([evt modifierFlags] & NSCommandKeyMask ||
+            [evt modifierFlags] & NSAlternateKeyMask ||
+            [evt modifierFlags] & NSControlKeyMask)
+        {
+            switch ([evt keyCode])
+            {
+                case NSKEY_LEFT  : return NO;
+                case NSKEY_RIGHT : return NO;
+                case NSKEY_DOWN  : return NO;
+                case NSKEY_UP    : return NO;
+                default: break;
+            }
+        }
+
+        /* unmodified keys for line editing */
+        else
+        {
+            switch ([evt keyCode])
+            {
+                case NSKEY_LEFT  : return NO;
+                case NSKEY_RIGHT : return NO;
+                case NSKEY_DOWN  : return NO;
+                case NSKEY_UP    : return NO;
+                default: break;
+            }
+        }
+    }
+
+    /* check for menu commands */
+    if ([evt modifierFlags] & NSCommandKeyMask)
+    {
+        switch ([evt keyCode])
+        {
+            case NSKEY_X:
+            case NSKEY_C:
+                return NO;
+
+            case NSKEY_V:
+                return NO;
+
+            default: break;
+        }
+    }
+
+    /* check for command keys */
+    switch ([evt keyCode])
+    {
+        case NSKEY_PGUP : return NO;
+        case NSKEY_PGDN : return NO;
+        case NSKEY_HOME : return NO;
+        case NSKEY_END  : return NO;
+        case NSKEY_DEL  : return NO;
+        case NSKEY_BACK : return NO;
+        case NSKEY_ESC  : return NO;
+        case NSKEY_F1   : return NO;
+        case NSKEY_F2   : return NO;
+        case NSKEY_F3   : return NO;
+        case NSKEY_F4   : return NO;
+        case NSKEY_F5   : return NO;
+        case NSKEY_F6   : return NO;
+        case NSKEY_F7   : return NO;
+        case NSKEY_F8   : return NO;
+        case NSKEY_F9   : return NO;
+        case NSKEY_F10  : return NO;
+        case NSKEY_F11  : return NO;
+        case NSKEY_F12  : return NO;
+        default: break;
+    }
+
+    return YES;
+}
+
 - (void) sendEvent: (NSEvent *) event
 {
     int store = NO;
@@ -243,6 +332,10 @@ char *winfilters[] =
     if (store)
     {
         [eventlog insertObject: [event copy] atIndex:0];
+        if (isTextbufferEvent(event))
+        {
+            [textbuffer interpretKeyEvents: [NSArray arrayWithObject: event]];
+        }
         kill(processID, SIGUSR1);
     }
 
@@ -269,7 +362,8 @@ char *winfilters[] =
 
 - (void) sendChars: (NSEvent *) event
 {
-    [textbuffer interpretKeyEvents: [NSArray arrayWithObject:event]];
+    /* Does not work on macOS 10.12 (Sierra) */
+    //[textbuffer interpretKeyEvents: [NSArray arrayWithObject:event]];
 }
 
 - (NSString *) retrieveChars
@@ -293,7 +387,7 @@ char *winfilters[] =
                                     characters: @"X"
                    charactersIgnoringModifiers: @"X"
                                      isARepeat: NO
-                                       keyCode: 0x07]];
+                                       keyCode: NSKEY_X]];
 }
 
 - (IBAction) copy: (id) sender
@@ -307,7 +401,7 @@ char *winfilters[] =
                                     characters: @"C"
                    charactersIgnoringModifiers: @"C"
                                      isARepeat: NO
-                                       keyCode: 0x08]];
+                                       keyCode: NSKEY_C]];
 }
 
 - (IBAction) paste: (id) sender
@@ -321,7 +415,7 @@ char *winfilters[] =
                                     characters: @"V"
                    charactersIgnoringModifiers: @"V"
                                      isARepeat: NO
-                                       keyCode: 0x09]];
+                                       keyCode: NSKEY_V]];
 }
 
 - (IBAction) performZoom: (id) sender
@@ -424,7 +518,8 @@ char *winfilters[] =
 
 @end
 
-@interface GargoyleApp : NSWindowController //<NSWindowDelegate>
+@interface GargoyleApp : NSWindowController
+                         <GargoyleApp, NSApplicationDelegate, NSWindowDelegate>
 {
     BOOL openedFirstGame;
     NSMutableDictionary * windows;
@@ -653,7 +748,7 @@ char *winfilters[] =
 - (void) abortWindowDialog: (pid_t) processID
                     prompt: (NSString *) prompt
 {
-    NSRunAlertPanel(@"Fatal error", prompt, NULL, NULL, NULL);
+    NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, prompt);
 }
 
 #define kArrowCursor 1
@@ -755,7 +850,7 @@ char *winfilters[] =
     return [self launchFile:file];
 }
 
-- (BOOL) application: (NSApplication *) theApplication openFiles: (NSArray *) files
+- (void) application: (NSApplication *) theApplication openFiles: (NSArray *) files
 {
     openedFirstGame = YES;
 
@@ -766,8 +861,6 @@ char *winfilters[] =
     {
         result = result && [self launchFile:[files objectAtIndex: i]];
     }
-
-    return result;
 }
 
 - (void) openURL: (NSAppleEventDescriptor *) event withReplyEvent: (NSAppleEventDescriptor *) reply
@@ -782,7 +875,7 @@ char *winfilters[] =
         if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES)
             [self launchFile: game];
         else
-            NSRunAlertPanel(@"Could not open URL path:", game, NULL, NULL, NULL);
+            NSRunAlertPanel(@"Could not open URL path:", @"%@", nil, nil, nil, game);
     }
 
 }
@@ -838,7 +931,7 @@ char *winfilters[] =
 void winmsg(const char *msg)
 {
     NSString * nsMsg = [NSString stringWithCString: msg encoding: NSASCIIStringEncoding];
-    NSRunAlertPanel(@"Fatal error", nsMsg, NULL, NULL, NULL);
+    NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 
 void winpath(char *buffer)

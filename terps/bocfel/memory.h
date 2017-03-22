@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "util.h"
+#include "meta.h"
 #include "zterp.h"
 
 /* Story files do not have access to memory beyond 64K.  If they do
@@ -16,6 +17,11 @@
 
 extern uint8_t *memory, *dynamic_memory;
 extern uint32_t memory_size;
+
+int in_globals(uint16_t);
+int is_global(uint16_t);
+unsigned long addr_to_global(uint16_t);
+const char *addrstring(uint16_t);
 
 static inline uint8_t BYTE(uint32_t addr)
 {
@@ -31,13 +37,17 @@ static inline uint16_t WORD(uint32_t addr)
 {
 #ifndef ZTERP_NO_CHEAT
   uint16_t cheat_val;
-  if(cheat_find_freezew(addr, &cheat_val)) return cheat_val;
+  if(cheat_find_freeze(addr, &cheat_val)) return cheat_val;
 #endif
   return (memory[addr] << 8) | memory[addr + 1];
 }
 
 static inline void STORE_WORD(uint32_t addr, uint16_t val)
 {
+#ifndef ZTERP_NO_WATCHPOINTS
+  if(addr < header.static_start - 1) watch_check(addr, WORD(addr), val);
+#endif
+
   memory[addr + 0] = val >> 8;
   memory[addr + 1] = val & 0xff;
 }
