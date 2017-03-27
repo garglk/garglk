@@ -26,6 +26,8 @@
 #include <string.h>
 #include "glk.h"
 #include "garglk.h"
+// TODO debug build only
+#include "garglktst.h"
 
 #define LINES 24
 #define COLS 70
@@ -1003,7 +1005,29 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     }
 
 }
+// TODO debug build only
+static void garglktst_send_line(void){
+	static char cmd[256];
+	if(0==fgets(cmd, sizeof(cmd), garglktstctx.inpf)){
+		if(garglktstctx.eofexit){
+			if(garglktstctx.outf){
+				fprintf(garglktstctx.outf, "\n");
+				fflush(garglktstctx.outf);
+				}
+			exit(0);
+			}
+		return;
+		}
+	int len=strlen(cmd);
+	if(len>0 && '\n'==cmd[len-1]) cmd[len-1]='\0';
 
+	char *s=cmd;
+	for(;*s;s++){
+		gli_input_handle_key(*s);
+		}
+	gli_input_handle_key(keycode_Return);
+	sleep(garglktstctx.sleep);
+	}
 void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     glui32 initlen)
 {
@@ -1024,6 +1048,7 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
         case wintype_TextBuffer:
             win->line_request_uni = TRUE;
             win_textbuffer_init_line_uni(win, buf, maxlen, initlen);
+            if(garglktstctx.inpf) garglktst_send_line();
             break;
         case wintype_TextGrid:
             win->line_request_uni = TRUE;
@@ -1264,6 +1289,7 @@ void gli_window_put_char_uni(window_t *win, glui32 ch)
     switch (win->type)
     {
         case wintype_TextBuffer:
+            if(garglktstctx.outf){ fputc(ch, garglktstctx.outf); fflush(garglktstctx.outf); } // TODO debug build only
             win_textbuffer_putchar_uni(win, ch);
             break;
         case wintype_TextGrid:
