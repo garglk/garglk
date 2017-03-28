@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright (c) 2001, 2006 Michael J. Roberts
@@ -7,9 +8,6 @@
  *   
  *   This header defines the ByteArray intrinsic class.  
  */
-
-#ifndef _BYTEARR_H_
-#define _BYTEARR_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -245,4 +243,3 @@ intrinsic class ByteArray 'bytearray/030002': Object
 #define FmtInt32LE            (FmtSize32 | FmtLittleEndian | FmtSigned)
 #define FmtInt32BE            (FmtSize32 | FmtBigEndian | FmtSigned)
 
-#endif /* _BYTEARR_H_ */

@@ -76,6 +76,9 @@ const char TCGEN_STATIC_INIT_ID_STREAM = 10;
 /* local variable name stream - for local variable frame information */
 const char TCGEN_LCL_VAR_STREAM = 11;
 
+/* RexPattern data stream */
+const char TCGEN_REXPAT_STREAM = 12;
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -1166,8 +1169,8 @@ public:
     virtual int validate_bif(uint set_index, uint func_index) = 0;
 
     /* validate a constant pool address for a string/list */
-    virtual int validate_pool_str(uint32 pool_ofs) = 0;
-    virtual int validate_pool_list(uint32 pool_ofs) = 0;
+    virtual int validate_pool_str(uint32_t pool_ofs) = 0;
+    virtual int validate_pool_list(uint32_t pool_ofs) = 0;
 };
 
 #endif /* TCGEN_H */

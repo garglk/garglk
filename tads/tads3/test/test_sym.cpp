@@ -54,9 +54,6 @@ int main(int argc, char **argv)
     int curarg;
     int fatal_error_count = 0;
     osfildef *fpout = 0;
-    ulong next_obj_id = 1;
-    uint next_prop_id = 1;
-    int next_local = 0;
     CTPNStmProg *node;
     const char *sym_fname;
     CVmFile *sym_file = 0;
@@ -189,10 +186,11 @@ int main(int argc, char **argv)
     fprintf(stderr,
             "Warnings: %d\n"
             "Errors:   %d\n"
-            "Longest string: %d, longest list: %d\n",
+            "Longest string: %lu, longest list: %lu\n",
             G_tcmain->get_warning_count(),
             G_tcmain->get_error_count() + fatal_error_count,
-            G_cg->get_max_str_len(), G_cg->get_max_list_cnt());
+            (unsigned long)G_cg->get_max_str_len(),
+            (unsigned long)G_cg->get_max_list_cnt());
 
     /* 
      *   note whether or not the compilation was successful - it succeeded

@@ -19,6 +19,11 @@ Modified
 #define VMDATASRC_H
 
 #include <string.h>
+#include "t3std.h"
+#include "osifcnet.h"
+#include "vmerr.h"
+#include "vmfile.h"
+#include "vmerrnum.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -57,53 +62,125 @@ public:
 
     /* close the underlying system resource */
     virtual void close() = 0;
-};
 
-
-/* ------------------------------------------------------------------------ */
-/*
- *   Stream source.  This layers a CVmDataSource on top of a CVmStream
- *   object.  We take ownership of the stream, deleting it when we're
- *   deleted.
- */
-class CVmStreamSource: public CVmDataSource
-{
-public:
-    CVmStreamSource(class CVmStream *s)
+    /* 
+     *   Read a line of text (fgets() semantics).  This default
+     *   implementation reads a character at a time from the underlying
+     *   source; subclasses should override this if they can implement it
+     *   more efficiently. 
+     */
+    virtual char *read_line(char *buf, size_t len)
     {
-        stream = s;
+        /* if we have no bytes left, return null for EOF */
+        if (get_pos() >= get_size())
+            return 0;
+
+        /* read bytes until we encounter a CR, LF, or CR-LF */
+        char *dst = buf;
+        while (len > 0 && get_pos() < get_size())
+        {
+            /* read the next character */
+            char ch;
+            if (read(&ch, 1))
+                return 0;
+
+            /* check for a line terminator */
+            if (ch == 10 || ch == 13)
+            {
+                /* 
+                 *   add a newline to the result (it's always '\n' in the
+                 *   result buffer regardless of the type of newline in the
+                 *   source) 
+                 */
+                *dst++ = '\n';
+                --len;
+
+                /* 
+                 *   if this is a CR-LF sequence, skip both characters;
+                 *   otherwise just skip the single CR or LF
+                 */
+                char ch2;
+                if (ch == 13
+                    && get_pos() < get_size()
+                    && !read(&ch2, 1)
+                    && ch2 != 10)
+                {
+                    /* it's not a CR-LF - un-get the second character */
+                    seek(get_pos() - 1, OSFSK_SET);
+                }
+
+                /* we're done */
+                break;
+            }
+
+            /* copy this byte */
+            *dst++ = ch;
+            
+            /* count it against the remaining buffer length */
+            --len;
+        }
+
+        /* add a null terminator if possible */
+        if (len != 0)
+            *dst = '\0';
+
+        /* return the original buffer pointer */
+        return buf;
     }
-    
-    virtual ~CVmStreamSource();
 
-    /* read bytes - returns 0 on success, non-zero on EOF or error */
-    virtual int read(void *buf, size_t len);
+    /* read a line of text into an allocated buffer */
+    char *read_line_alo()
+    {
+        char *ret = 0;
+        size_t retlen = 0;
+        
+        /* keep going until we satisfy the request */
+        for (;;)
+        {
+            /* read a chunk; if at EOF, we're done */
+            char buf[1024];
+            if (read_line(buf, sizeof(buf)) == 0)
+                break;
+            
+            /* get the length of this chunk */
+            size_t len = strlen(buf);
+            
+            /* allocate or expand the buffer to accommodate the new text */
+            if (ret == 0)
+                ret = (char *)t3malloc(len + 1);
+            else
+                ret = (char *)t3realloc(ret, retlen + len + 1);
+            
+            /* fail if out of memory */
+            if (ret == 0)
+                return 0;
+            
+            /* add the new chunk to the result (including the null) */
+            memcpy(ret + retlen, buf, len + 1);
+            retlen += len;
+            
+            /* if the buffer ends with a newline, we're done */
+            if (retlen != 0 && ret[retlen-1] == '\n')
+                break;
+        }
+        
+        /* return our buffer */
+        return ret;
+    }
 
-    /* read bytes - returns the number of bytes read; 0 means EOF or error */
-    virtual int readc(void *buf, size_t len);
-
-    /* write bytes - returns 0 on success, non-zero on error */
-    virtual int write(const void *buf, size_t len);
-
-    /* get the length of the file in bytes */
-    virtual long get_size();
-
-    /* get the current seek location */
-    virtual long get_pos();
-
-    /* set the current seek location - 'mode' is an OSFSK_xxx mode */
-    virtual int seek(long ofs, int mode);
-
-    /* flush - returns 0 on success, non-zero on error */
-    virtual int flush();
-
-    /* close the underlying system resource */
-    virtual void close();
-
-protected:
-    /* our underlying stream object */
-    class CVmStream *stream;
+    /* 
+     *   Create a duplicate data source.
+     *   
+     *   'mode' is a simplified version of the stdio fopen() mode string.
+     *   The first letter is 'r' for read access, 'w' for write access.  This
+     *   can be followed by '+' for both read and write access; 'r+' and 'w+'
+     *   are identical, both indicating read/write access.  This can
+     *   optionally be followed by 't' for text mode or 'b' for binary mode;
+     *   text mode is assumed if not specified.
+     */
+    virtual CVmDataSource *clone(VMG_ const char *mode) = 0;
 };
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -124,6 +201,10 @@ public:
 
     /* read bytes - returns 0 on success, non-zero on EOF or error */
     virtual int readc(void *buf, size_t len) { return osfrbc(fp, buf, len); }
+
+    /* read a line of text (fgets() semantics) */
+    virtual char *read_line(char *buf, size_t len)
+        { return osfgets(buf, len, fp); }
 
     /* write bytes - returns 0 on success, non-zero on error*/
     virtual int write(const void *buf, size_t len)
@@ -164,6 +245,18 @@ public:
         fp = 0;
     }
 
+    /* clone the source */
+    virtual CVmDataSource *clone(VMG_ const char *mode)
+    {
+        /* duplicate our underlying file handle */
+        osfildef *fpdup = osfdup(fp, mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* return a new source wrapping the duplicated file handle */
+        return new CVmFileSource(fpdup);
+    }
+
 protected:
     /* the underlying file */
     osfildef *fp;
@@ -190,16 +283,64 @@ public:
             close();
     }
 
+    /* clone the source */
+    virtual CVmDataSource *clone(VMG_ const char *mode)
+    {
+        /* duplicate our underlying file handle */
+        osfildef *fpdup = osfdup(fp, mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* return a new source wrapping the duplicated file handle */
+        return new CVmResFileSource(fpdup, start, end);
+    }
+
     /* read bytes - returns 0 on success, non-zero on EOF or error */
     virtual int read(void *buf, size_t len)
     {
         /* if this would take us past the end, we can't fulfill the request */
-        long pos = osfpos(fp);
+        unsigned long pos = osfpos(fp);
         if (pos + len > end)
             return 1;
 
         /* do the read */
         return osfrb(fp, buf, len);
+    }
+
+    /* read a line of text (fgets() semantics) */
+    virtual char *read_line(char *buf, size_t len)
+    {
+        /* if we're already past the end, we can't fulfill the request */
+        unsigned long pos = osfpos(fp);
+        if (pos >= end)
+            return 0;
+
+        /* read a line */
+        char *ret = osfgets(buf, len, fp);
+        if (ret == 0)
+            return 0;
+
+        /* 
+         *   if that moved us past the end of our segment, go back and
+         *   re-read the exact number of bytes remaining 
+         */
+        if ((unsigned long)osfpos(fp) > end)
+        {
+            /* seek back to where we started */
+            osfseek(fp, pos, OSFSK_SET);
+
+            /* read the remaining bytes in the resource (up to buflen) */
+            size_t r = end - pos > len ? (long)len : (size_t)(end - pos);
+            if (osfrb(fp, buf, r))
+                return 0;
+
+            /* if that didn't fill the buffer, null-terminate it */
+            if (r < len)
+                buf[r] = '\0';
+        }
+
+        /* return the result */
+        return buf;
     }
 
     /* read bytes - returns 0 on success, non-zero on EOF or error */
@@ -236,7 +377,7 @@ public:
         case OSFSK_SET:
         do_set:
             /* check that 'ofs' is in range */
-            if (ofs < 0 || (unsigned long)ofs > end)
+            if (ofs < 0 || (unsigned long)ofs > end - start)
                 return 1;
 
             /* seek to the offset */
@@ -280,7 +421,7 @@ protected:
 /* ------------------------------------------------------------------------ */
 /*
  *   Read-only string data source.  This takes a buffer in memory and
- *   presents a read-only file interface to it.  
+ *   presents a read-only file interface to it. 
  */
 class CVmStringSource: public CVmDataSource
 {
@@ -291,7 +432,11 @@ public:
         this->memlen = len;
         this->pos = 0;
     }
+
     virtual ~CVmStringSource() { }
+
+    virtual CVmDataSource *clone(VMG_ const char * /*mode*/)
+        { return new CVmStringSource(mem, memlen); }
 
     /* read bytes - returns 0 on success, non-zero on EOF or error */
     virtual int read(void *buf, size_t len)
@@ -326,6 +471,55 @@ public:
         
         /* return the amount read */
         return (int)len;
+    }
+
+    /* read a line of text (fgets() semantics) */
+    virtual char *read_line(char *buf, size_t len)
+    {
+        /* if we have no bytes left, return null for EOF */
+        if (pos == memlen)
+            return 0;
+        
+        /* read bytes until we encounter a CR, LF, or CR-LF */
+        char *dst = buf;
+        while (pos < memlen && len > 0)
+        {
+            /* check for a line terminator */
+            if (mem[pos] == 10 || mem[pos] == 13)
+            {
+                /* 
+                 *   add a newline to the result (it's always '\n' in the
+                 *   result buffer regardless of the type of newline in the
+                 *   source) 
+                 */
+                *dst++ = '\n';
+                --len;
+
+                /* 
+                 *   if this is a CR-LF sequence, skip both characters;
+                 *   otherwise just skip the single CR or LF
+                 */
+                ++pos;
+                if (pos < memlen && mem[pos-1] == 13 && mem[pos] == 10)
+                    ++pos;
+
+                /* we're done */
+                break;
+            }
+
+            /* copy this byte */
+            *dst++ = mem[pos++];
+
+            /* count it against the remaining buffer length */
+            --len;
+        }
+
+        /* add a null terminator if possible */
+        if (len != 0)
+            *dst = '\0';
+
+        /* return the original buffer pointer */
+        return buf;
     }
 
     /* write bytes - we're read-only, so this is an error */
@@ -387,6 +581,40 @@ protected:
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Private string source - makes a private copy of a string buffer 
+ */
+
+class CVmPrivateStringSource: public CVmStringSource
+{
+public:
+    CVmPrivateStringSource(const char *mem, long len)
+        : CVmStringSource(0, len)
+    {
+        this->bufobj = new CVmRefCntBuf(mem, len);
+        this->mem = bufobj->buf_;
+    }
+
+    CVmPrivateStringSource(CVmRefCntBuf *bufobj, long len)
+        : CVmStringSource(bufobj->buf_, len)
+    {
+        this->bufobj = bufobj;
+    }
+
+    CVmDataSource *clone(VMG_ const char * /*mode*/)
+        { return new CVmPrivateStringSource(bufobj, memlen); }
+
+    ~CVmPrivateStringSource()
+    {
+        bufobj->release_ref();
+    }
+
+protected:
+    CVmRefCntBuf *bufobj;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Memory data source.  This automatically allocates additional buffer
  *   space as needed.  
  */
@@ -413,45 +641,35 @@ struct CVmMemorySourceBlock
     char buf[BlockLen];
 };
 
-class CVmMemorySource: public CVmDataSource
+/* page list for a memory source */
+class CVmMemorySourceList: public CVmRefCntObj
 {
 public:
     static const int BlockLen = CVmMemorySourceBlock::BlockLen;
-    
-    CVmMemorySource(long init_len)
+
+    CVmMemorySourceList(long init_len)
     {
         /* no blocks yet */
         first_block_ = last_block_ = 0;
-        
+
         /* always allocate at least the initial block */
         add_block();
         init_len -= BlockLen;
-        
+
         /* set the seek position to the start of the first block */
         cur_block_ = first_block_;
         cur_block_ofs_ = 0;
-        
+
         /* add more blocks until we've satisfied the length request */
         for ( ; init_len > 0 ; init_len -= BlockLen)
             add_block();
-        
+
         /* the file is currently empty */
         len_ = 0;
     }
-    
-    ~CVmMemorySource()
-    {
-        /* delete our block list */
-        CVmMemorySourceBlock *cur, *nxt;
-        for (cur = first_block_ ; cur != 0 ; cur = nxt)
-        {
-            nxt = cur->nxt;
-            delete cur;
-        }
-    }
-    
+
     /* read bytes */
-    virtual int read(void *buf, size_t len)
+    int read(void *buf, size_t len)
     {
         /* 
          *   if the request would take us past the current content length,
@@ -468,7 +686,7 @@ public:
     }
 
     /* read bytes */
-    virtual int readc(void *buf0, size_t len)
+    int readc(void *buf0, size_t len)
     {
         /* get the buffer pointer as a character pointer */
         char *buf = (char *)buf0;
@@ -505,6 +723,10 @@ public:
                 bytes_read += cur;
             }
 
+            /* if that satisfies the request, we're done */
+            if (len == 0)
+                break;
+
             /* if this is the last block, we're done */
             if (cur_block_->nxt == 0)
                 return bytes_read;
@@ -519,7 +741,7 @@ public:
     }
 
     /* write bytes */
-    virtual int write(const void *buf0, size_t len)
+    int write(const void *buf0, size_t len)
     {
         /* get the buffer pointer as a character pointer */
         const char *buf = (const char *)buf0;
@@ -549,12 +771,12 @@ public:
             {
                 /* add the block */
                 add_block();
-                
+
                 /* if that didn't work, fail */
                 if (cur_block_->nxt == 0)
                     return 1;
             }
-            
+
             /* advance to the start of the next block */
             cur_block_ = cur_block_->nxt;
             cur_block_ofs_ = 0;
@@ -573,10 +795,10 @@ public:
     }
 
     /* get the length of the stream's contents */
-    virtual long get_size() { return len_; }
+    long get_size() { return len_; }
 
     /* get the current seek offset */
-    virtual long get_pos()
+    long get_pos()
     {
         /* 
          *   figure the seek position as the current block's base offset plus
@@ -586,7 +808,7 @@ public:
     }
 
     /* set the seek offset */
-    virtual int seek(long pos, int mode)
+    int seek(long pos, int mode)
     {
         /* figure the absolute position based on the mode */
         switch (mode)
@@ -594,7 +816,7 @@ public:
         case OSFSK_SET:
             /* from the beginning - use pos as given */
             break;
-            
+
         case OSFSK_CUR:
             /* from the current position */
             pos += get_pos();
@@ -652,16 +874,18 @@ public:
         return 0;
     }
 
-    /* flush - we don't buffer, so this does nothing */
-    virtual int flush() { return 0; }
-
-    /* 
-     *   close - we don't have underlying system resources (other than
-     *   our memory buffers), so there's nothing to do here 
-     */
-    virtual void close() { }
-
 protected:
+    ~CVmMemorySourceList()
+    {
+        /* delete our block list */
+        CVmMemorySourceBlock *cur, *nxt;
+        for (cur = first_block_ ; cur != 0 ; cur = nxt)
+        {
+            nxt = cur->nxt;
+            delete cur;
+        }
+    }
+
     /* add a block to the end of the list */
     void add_block()
     {
@@ -685,6 +909,70 @@ protected:
     /* head/tail of block list */
     CVmMemorySourceBlock *first_block_;
     CVmMemorySourceBlock *last_block_;
+};
+
+/*
+ *   Paged memory source 
+ */
+class CVmMemorySource: public CVmDataSource
+{
+public:
+    CVmMemorySource(long init_len)
+    {
+        /* create our underlying page list */
+        pl = new CVmMemorySourceList(init_len);
+    }
+
+    /* clone the data source */
+    CVmDataSource *clone(VMG_ const char * /*mode*/)
+    {
+        /* return a new data source wrapper for our page list */
+        return new CVmMemorySource(pl);
+    }
+
+    ~CVmMemorySource()
+    {
+        /* release our underlying page list */
+        pl->release_ref();
+    }
+    
+    /* read bytes */
+    virtual int read(void *buf, size_t len) { return pl->read(buf, len); }
+
+    /* read bytes */
+    virtual int readc(void *buf, size_t len) { return pl->readc(buf, len); }
+
+    /* write bytes */
+    virtual int write(const void *buf, size_t len)
+        { return pl->write(buf, len); }
+
+    /* get the length of the stream's contents */
+    virtual long get_size() { return pl->get_size(); }
+
+    /* get the current seek offset */
+    virtual long get_pos() { return pl->get_pos(); }
+
+    /* set the seek offset */
+    virtual int seek(long pos, int mode) { return pl->seek(pos, mode); }
+
+    /* flush - we don't buffer, so this does nothing */
+    virtual int flush() { return 0; }
+
+    /* 
+     *   close - we don't have underlying system resources (other than
+     *   our memory buffers), so there's nothing to do here 
+     */
+    virtual void close() { }
+
+protected:
+    CVmMemorySource(CVmMemorySourceList *pl)
+    {
+        pl->add_ref();
+        this->pl = pl;
+    }
+
+    /* our underlying page list */
+    CVmMemorySourceList *pl;
 };
 
 

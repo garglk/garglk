@@ -78,7 +78,9 @@ extern "C" {
 #ifdef __x86_64__
 #define _M_IX86_64
 #else
+#ifndef _M_IX86
 #define _M_IX86
+#endif
 #endif
 #endif
 
@@ -135,14 +137,14 @@ extern "C" {
  */
 
 #ifdef GARGOYLE
-#include "osansi.h"
+#include "osgarglk.h"
 #else
 
 #ifdef _WIN32
 # include "oswin.h"
 #endif
 #ifdef __MSDOS__
-# ifdef __WIN32__
+# ifdef T_WIN32
 /* Windows-specific definitions are in oswin.h */
 #  include "oswin.h"
 # else
@@ -201,7 +203,7 @@ extern "C" {
 #include "osfrobtads.h"
 #endif
 
-#endif /* SPATTERLIGHT */
+#endif /* GARGOYLE */
 
 /* **************** add other systems here **************** */
 

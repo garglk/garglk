@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -10,8 +11,6 @@
  *   these classes.  
  */
 
-#ifndef _LOOKUP_H_
-#define _LOOKUP_H_
 
 /* include our base class definitions */
 #include "systype.h"
@@ -145,4 +144,3 @@ intrinsic class LookupTableIterator 'lookuptable-iterator/030000': Iterator
 {
 }
 
-#endif /* _LOOKUP_H_ */

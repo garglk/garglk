@@ -29,6 +29,7 @@ Modified
 #include "vmbif.h"
 #include "vmfile.h"
 #include "vmlst.h"
+#include "vmstr.h"
 #include "vmrun.h"
 
 
@@ -731,93 +732,140 @@ int CVmObjStrComp::getp_calc_hash(VMG_ vm_obj_id_t /*self*/,
 }
 
 /*
+ *   Hash adder 
+ */
+struct StrCompHashAdder
+{
+    StrCompHashAdder(size_t trunc_len)
+    {
+        this->trunc_len = trunc_len;
+        this->has_trunc = (trunc_len != 0);
+        hash = 0;
+    }
+
+    int add(wchar_t ch)
+    {
+        /* add the character to the hash */
+        hash += ch;
+        hash &= 0xFFFF;
+
+        /* if there's a truncation limit, count this against the limit */
+        if (has_trunc && --trunc_len == 0)
+        {
+            /* we've reached the limit */
+            return FALSE;
+        }
+        else
+        {
+            /* haven't reached the limit yet */
+            return TRUE;
+        }
+    }
+
+    int done() const { return has_trunc && trunc_len == 0; }
+
+    /* truncation limit */
+    size_t trunc_len;
+
+    /* is there a truncation limit? */
+    int has_trunc;
+
+    /* the hash code */
+    unsigned int hash;
+};
+
+/*
  *   Calculate a hash value 
  */
 unsigned int CVmObjStrComp::calc_str_hash(const char *strp, size_t len)
 {
+    /* get my extension */
     vmobj_strcmp_ext *ext = get_ext();
-    utf8_ptr p;
-    unsigned int hash;
-    size_t char_limit;
 
     /* set up to scan the string */
-    p.set((char *)strp);
+    utf8_ptr p((char *)strp);
 
-    /*
-     *   Limit the scan to our truncation length, because we can't
-     *   distinguish hash buckets beyond the truncation point (if we did, a
-     *   truncated string wouldn't hash into the same bucket as a longer
-     *   string it matches; but all matching strings are required to go into
-     *   the same bucket, so such a hash mismatch is not allowed).
+    /* 
+     *   Scan the string.  Limit the scan to our truncation length, counting
+     *   substitution expansions and case folding expansions, because we
+     *   don't want to distinguish hash buckets beyond the truncation point.
+     *   If we did, a truncated string wouldn't hash into the same bucket as
+     *   a longer string it matches; all matching strings are required to go
+     *   into the same bucket, so we can't have such a hash mismatch.
      */
-    char_limit = ext->trunc_len;
-
-    /* scan the string */
-    for (hash = 0 ; len != 0 ; p.inc(&len))
+    StrCompHashAdder hash(ext->trunc_len);
+    for ( ; len != 0 ; p.inc(&len))
     {
-        wchar_t ch;
-        vmobj_strcmp_equiv **t1;
-        vmobj_strcmp_equiv *eq;
-
         /* get the current character */
-        ch = p.getch();
-
+        wchar_t ch = p.getch();
+        
         /* check for a substitution mapping for this character */
+        vmobj_strcmp_equiv **t1, *eq;
         if ((t1 = ext->equiv[(ch >> 8) & 0xFF]) != 0
             && (eq = t1[ch & 0xFF]) != 0)
         {
-            wchar_t *vp;
-            size_t vlen;
-            
             /* 
              *   This character has a mapping, so add the contribution from
              *   the canonical form of the character, which is the value
              *   side of the mapping.  
              */
+            wchar_t *vp;
+            size_t vlen;
             for (vp = eq->val_ch, vlen = eq->val_ch_cnt ; vlen != 0 ;
                  ++vp, --vlen)
             {
                 /* get this character */
                 ch = *vp;
 
-                /* convert to lower case if we're insensitive to case */
-                if (!ext->case_sensitive)
-                    ch = t3_to_lower(ch);
-
-                /* add it to the hash code */
-                hash += ch;
-                hash &= 0xFFFF;
-
-                /* if we've reached the truncation limit, we're done */
-                if (char_limit == 1)
-                    return hash;
-                else if (char_limit != 0)
-                    --char_limit;
+                /* 
+                 *   use case folding if we're insensitive to case and the
+                 *   character has a case folding
+                 */
+                const wchar_t *f;
+                if (!ext->case_sensitive && (f = t3_to_fold(ch)) != 0)
+                {
+                    /* add the folded expansion to the hash */
+                    for (const wchar_t *f = t3_to_fold(ch) ; *f != 0 ; ++f)
+                    {
+                        if (!hash.add(*f))
+                            return hash.hash;
+                    }
+                }
+                else
+                {
+                    if (!hash.add(ch))
+                        return hash.hash;
+                }
             }
         }
         else
         {
             /* 
-             *   if we are not sensitive to case, always use the lower-case
-             *   representation of a character for its hash value 
+             *   if we're not sensitive to case, and there's a case folding
+             *   available, use the case-folded representation of a character
+             *   for its hash value 
              */
-            if (!ext->case_sensitive)
-                ch = t3_to_lower(ch);
-            
-            /* add the contribution from this character */
-            hash += ch;
-            hash &= 0xFFFF;
-
-            /* if we've reached the truncation limit, we're done */
-            if (char_limit == 1)
-                return hash;
-            else if (char_limit != 0)
-                --char_limit;
+            const wchar_t *f;
+            if (!ext->case_sensitive && (f = t3_to_fold(ch)) != 0)
+            {
+                /* add the folded expansion to the hash */
+                for (const wchar_t *f = t3_to_fold(ch) ; *f != 0 ; ++f)
+                {
+                    if (!hash.add(*f))
+                        return hash.hash;
+                }
+            }
+            else
+            {
+                /* exact case only - add the character as-is */
+                if (!hash.add(ch))
+                    return hash.hash;
+            }
         }
     }
 
     /* return the hash code */
-    return hash;
+    return hash.hash;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -874,7 +922,6 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
     utf8_ptr refp;
     unsigned long ret;
     int fold_case = !(ext->case_sensitive);
-    size_t valcharlen;
 
     /* set up to scan the strings */
     valp.set((char *)valstr);
@@ -884,33 +931,25 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
     ret = 0;
 
     /* scan the strings */
-    for (valcharlen = 0 ; vallen != 0 && reflen != 0 ; refp.inc(&reflen))
+    while (vallen != 0 && reflen != 0)
     {
-        wchar_t valch;
-        wchar_t refch;
-        vmobj_strcmp_equiv **t1;
-        vmobj_strcmp_equiv *eq;
-
         /* get each character */
-        valch = valp.getch();
-        refch = refp.getch();
+        wchar_t valch = valp.getch();
+        wchar_t refch = refp.getch();
 
         /* check for an exact match first */
         if (refch == valch)
         {
-            /* it's an exact match - skip this input character */
+            /* it's an exact match - skip this character in each string */
             valp.inc(&vallen);
-            ++valcharlen;
+            refp.inc(&reflen);
             continue;
         }
 
         /* check for a case-folded match if we're insensitive to case */
-        if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
+        if (fold_case
+            && t3_compare_case_fold_min(valp, vallen, refp, reflen) == 0)
         {
-            /* it's a case-folded match - skip this input character */
-            valp.inc(&vallen);
-            ++valcharlen;
-
             /* note in the flags that we have differing cases in the match */
             ret |= RF_CASEFOLD;
 
@@ -919,12 +958,11 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
         }
 
         /* check for a reference equivalence mapping */
+        vmobj_strcmp_equiv **t1;
+        vmobj_strcmp_equiv *eq;
         if ((t1 = ext->equiv[(refch >> 8) & 0xFF]) != 0
             && (eq = t1[refch & 0xFF]) != 0)
         {
-            wchar_t *vp;
-            size_t vlen;
-            
             /* 
              *   In case we match, apply the appropriate flags added for the
              *   equivalence mapping, based on the case of the first value
@@ -932,12 +970,15 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
              *   return failure, so it won't matter that we messed with the
              *   flags.)  
              */
-            ret |= (t3_is_upper(valch) ? eq->uc_result_flags
-                                              : eq->lc_result_flags);
+            ret |= (t3_is_upper(valch)
+                    ? eq->uc_result_flags
+                    : eq->lc_result_flags);
 
             /* match each character from the mapping string */
+            const wchar_t *vp;
+            size_t vlen;
             for (vp = eq->val_ch, vlen = eq->val_ch_cnt ;
-                 vallen != 0 && vlen != 0 ; ++vp, --vlen)
+                 vallen != 0 && vlen != 0 ; )
             {
                 /* get this character */
                 refch = *vp;
@@ -945,19 +986,18 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
                 /* if we have an exact match, keep going */
                 if (refch == valch)
                 {
-                    /* matched - skip this character and keep going */
+                    /* matched - skip this character in each string */
                     valp.inc(&vallen);
-                    ++valcharlen;
+                    ++vp, --vlen;
+
+                    /* keep going */
                     continue;
                 }
 
                 /* check for a case-folded match if appropriate */
-                if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
+                if (fold_case
+                    && t3_compare_case_fold_min(valp, vallen, vp, vlen) == 0)
                 {
-                    /* matched - skip this input character */
-                    valp.inc(&vallen);
-                    ++valcharlen;
-
                     /* note the case-folded match and keep going */
                     ret |= RF_CASEFOLD;
                     continue;
@@ -977,9 +1017,10 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
 
             /* 
              *   If we make it here, we matched the equivalence mapping.
-             *   We've already skipped the input we matched, so simply keep
-             *   going.  
+             *   We've already skipped the input we matched, so skip the
+             *   reference character and keep going.  
              */
+            refp.inc(&reflen);
             continue;
         }
 
@@ -1016,6 +1057,7 @@ unsigned long CVmObjStrComp::match_strings(const char *valstr, size_t vallen,
          *   truncation length, or we don't allow truncation, it's not a
          *   match. 
          */
+        size_t valcharlen = utf8_ptr::s_len(valstr, valp.getptr() - valstr);
         if (ext->trunc_len != 0 && valcharlen >= ext->trunc_len)
         {
             /* 
@@ -1055,19 +1097,27 @@ size_t CVmObjStrComp::match_chars(const wchar_t *valstr, size_t vallen,
         return 1;
             
     /* check for a case-folded match if we're insensitive to case */
-    if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
-        return 1;
+    if (fold_case)
+    {
+        /* try a minimum case-folded match to the one-character ref string */
+        size_t ovallen = vallen, reflen = 1;
+        const wchar_t *refstr = &refch;
+        if (t3_compare_case_fold_min(valstr, vallen, refstr, reflen) == 0)
+        {
+            /* got it - return the length we consumed from the value string */
+            return ovallen - vallen;
+        }
+    }
 
     /* check for a reference equivalence mapping */
     if ((t1 = ext->equiv[(refch >> 8) & 0xFF]) != 0
         && (eq = t1[refch & 0xFF]) != 0)
     {
-        wchar_t *vp;
-        size_t vlen;
-
         /* match each character from the mapping string */
+        const wchar_t *vp;
+        size_t vlen;
         for (vp = eq->val_ch, vlen = eq->val_ch_cnt ;
-             vallen != 0 && vlen != 0 ; ++vp, --vlen)
+             vallen != 0 && vlen != 0 ; )
         {
             /* get this mapping character */
             refch = *vp;
@@ -1075,18 +1125,17 @@ size_t CVmObjStrComp::match_chars(const wchar_t *valstr, size_t vallen,
             /* if we have an exact match, keep going */
             if (refch == valch)
             {
-                /* matched - skip this character and keep going */
-                ++valstr;
-                --vallen;
+                /* matched exactly - skip this character and keep going */
+                ++valstr, --vallen;
+                ++vp, --vlen;
                 continue;
             }
 
             /* check for a case-folded match if appropriate */
-            if (fold_case && t3_to_lower(valch) == t3_to_lower(refch))
+            if (fold_case
+                && t3_compare_case_fold_min(valstr, vallen, vp, vlen) == 0)
             {
-                /* matched - skip this input character */
-                ++valstr;
-                --vallen;
+                /* matched - keep going */
                 continue;
             }
 

@@ -447,13 +447,35 @@ const err_msg_t tc_messages_english[] =
     "reading source code." },
 
     { TCERR_INT_CONST_OV,
-    "integer constant exceeds maximum value",
-    "An integer constant value exceeds the maximum that can be stored. "
-    "Integers are limited to -2147483648 to 2147483647." },
+    "constant value exceeds integer range; promoted to BigNumber",
+    "The numeric value specified is outside of the range that can be "
+    "stored in the TADS integer type (-2147483648 to +2147483647), so it "
+    "has been automatically promoted to a BigNumber (floating point) "
+    "value. BigNumber values can represent much larger numbers than "
+    "TADS integers, but some functions that require numeric arguments "
+    "only accept integer values. If you're using this value in such a "
+    "context, it might cause an error at run-time." },
 
     { TCERR_BACKSLASH_SEQ,
     "invalid backslash escape sequence \\%c in string",
     "The backslash sequence \\%c is not valid." },
+
+    { TCERR_NON_ASCII_SYMBOL,
+    "symbol \"%~.*s\" contains non-ASCII character (U+%04x)",
+    "The symbol \"%~.*s\" contains one or more non-ASCII characters (the "
+    "first is [Unicode] character U+%04x). Only plain ASCII characters "
+    "can be used in symbols; accented letters and other non-ASCII "
+    "characters aren't allowed." },
+
+    { TCERR_EMBEDDING_TOO_DEEP,
+    "embedded expressions in strings are nested too deeply",
+    "The embedded \"<< >>\" expressions in this string are nested too "
+    "deeply.  A nested embedding is a \"<< >>\" expression within "
+    "a string that iself contains another string that has its own "
+    "\"<< >>\" embedding, which in turn has another string with its "
+    "own embedding, and so on.  This is allowed, but only to a limited "
+    "nesting depth.  You will need to simplify the strings to reduce "
+    "the depth." },
 
     { TCERR_INTERNAL_EXPLAN,
     "Please report this error to the compiler's maintainer.",
@@ -535,6 +557,13 @@ const err_msg_t tc_messages_english[] =
     { TCERR_SOURCE_FROM_LIB,
     "\"%s\" (from library \"%s\")",
     "\"%s\" (from library \"%s\")" },
+
+    { TCERR_CANNOT_CREATE_DIR,
+    "unable to create directory \"%s\"",
+    "An error occurred creating the directory/folder \"%s\". This might "
+    "mean that the name contains invalid characters, the disk is "
+    "full, or you don't have the necessary permissions or privileges "
+    "to create a new file in the parent folder." },
 
     { TCERR_CONST_DIV_ZERO,
     "divide by zero in constant expression",
@@ -2151,6 +2180,24 @@ const err_msg_t tc_messages_english[] =
     "The syntax for the defined() operator is invalid. This operator "
     "requires a single symbol name as the argument, in parentheses." },
 
+    { TCERR___OBJREF_SYNTAX,
+    "invalid syntax for __objref() operator",
+    "The syntax for the __objref() operator is invalid. This operator "
+    "requires syntax of the form __objref(symbol) or __objref(symbol, mode), "
+    "where the mode is 'warn' or 'error'." },
+
+    { TCERR_BAD_OP_FOR_FLOAT,
+    "floating point values can't be used with this operator",
+    "Floating point values can't be used with this operator. Only ordinary "
+    "integer values can be used." },
+
+    { TCERR_INLINE_OBJ_REQ_LBRACE,
+    "expected inline object property list starting with '{' (found '%.*s')",
+    "An inline property definition must contain a property list enclosed "
+    "in braces, '{ ... }'. The compiler found '%.*s' where it expected "
+    "to see the left brace '{' at the start of the property list. Check "
+    "the object definition syntax." },
+
     { TCERR_CODEGEN_NO_MEM,
     "out of memory for code generation",
     "Out of memory.  The compiler cannot allocate memory to generate "
@@ -2590,6 +2637,22 @@ const err_msg_t tc_messages_english[] =
     "The usual way to declare an intrinsic class is simply to #include "
     "the system header file that defines the class, near the beginning "
     "of your source file." },
+
+    { TCERR_FUNC_CALL_NO_PROTO,
+    "cannot call extern function %.*s without an argument list definition",
+    "The function %.*s was declared 'extern' without an argument list "
+    "definition. This function can't be called without declaring the "
+    "argument list. You can declare the argument list in the 'extern' "
+    "statement, but note that in most cases the problem is that the "
+    "function itself is never defined within the program." },
+
+    { TCERR_UNDEF_METACLASS,
+    "\"%.*s\" is not defined or is not an intrinsic class",
+    "The compiler requires \"%.*s\" to be defined as an intrinsic class; "
+    "the symbol is either undefined or is defined as a different type. "
+    "Check that the system header that defines this class is #included "
+    "in this source file, and that there are no conflicting definitions "
+    "of the class name." },
 
     { TCERR_SYMEXP_INV_TYPE,
     "invalid symbol type in symbol file",

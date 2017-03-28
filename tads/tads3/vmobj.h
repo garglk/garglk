@@ -201,7 +201,7 @@ public:
     const char *get_image_file_version(VMG0_) const;
 
     /*
-     *   Is the image file version of the metclass AT LEAST the given
+     *   Is the image file version of the metaclass AT LEAST the given
      *   version?  This returns true if the image file is dependent upon a
      *   version of the metaclass equal to or later than (higher than) the
      *   given version string.  The string should be given in the usual
@@ -500,18 +500,17 @@ public:
                                  const char *ptr, size_t siz) = 0;
 
     /*
-     *   Reload the object from an image file.  The object's data block is
-     *   at the given address and has the given size.  Discards any changes
-     *   made since the object was loaded and restores its state as it was
-     *   immediately after it was loaded from the image file.  By default,
-     *   we do nothing.
+     *   Reload the object from an image file.  The object's data block is at
+     *   the given address and has the given size.  Discards any changes made
+     *   since the object was loaded and restores its state as it was
+     *   immediately after it was loaded from the image file.  By default, we
+     *   do nothing.
      *   
-     *   NOTE 1: this routine can be implemented instead of
-     *   reset_to_image().  If an object doesn't have any other need to
-     *   store a pointer to its image file data in its own extension, but
-     *   the image file data is necessary to effect a reset, then this
-     *   routine should be used, so as to avoid having to enlarge the
-     *   object's extension for non-image instances.
+     *   NOTE 1: this routine can be implemented instead of reset_to_image().
+     *   If an object doesn't have any other need to store a pointer to its
+     *   image file data in its own extension, but the image file data is
+     *   necessary to effect a reset, then this routine should be used, to
+     *   reduce the size of the object's extension for non-image instances.
      *   
      *   NOTE 2: in order to use this routine, the object MUST call the
      *   object table's save_image_pointer() routine during the initial
@@ -535,14 +534,13 @@ public:
     /*
      *   Determine if the object has been changed since it was loaded from
      *   the image file.  This can only be called for objects that were
-     *   originally loaded from the image file.  Returns true if the
-     *   object's internal state has been changed since loading, false if
-     *   the object is in exactly the same state that's stored in the
-     *   image file.
+     *   originally loaded from the image file.  Returns true if the object's
+     *   internal state has been changed since loading, false if the object
+     *   is in exactly the same state that's stored in the image file.
      *   
-     *   If this returns false, then it is not necessary to save the
-     *   object to a saved state file, because the object's state can be
-     *   restored simply by resetting to the image file state.  
+     *   If this returns false, then it's not necessary to save the object to
+     *   a saved state file, because the object's state can be restored
+     *   simply by resetting to the image file state.  
      */
     virtual int is_changed_since_load() const { return FALSE; }
 
@@ -813,15 +811,8 @@ public:
      *   By default, we'll throw an error indicating that the object
      *   cannot be converted to a string.  
      */
-    virtual const char *cast_to_string(VMG_ vm_obj_id_t /*self*/,
-                                       vm_val_t * /*new_str*/) const
-    {
-        /* throw an error */
-        err_throw(VMERR_NO_STR_CONV);
-
-        /* we can't get here, but the compiler doesn't always know that */
-        AFTER_ERR_THROW(return 0;)
-    }
+    virtual const char *cast_to_string(VMG_ vm_obj_id_t self,
+                                       vm_val_t *new_str) const;
 
     /*
      *   Same as cast_to_string, but the conversion is explicitly due to a
@@ -840,6 +831,15 @@ public:
         { return cast_to_string(vmg_ self, new_str); }
 
     /*
+     *   Is this a numeric type?  Returns true if the value represents some
+     *   kind of number, false if not.  For example, the BigNumber type
+     *   returns true.  Types that are merely convertible to numbers don't
+     *   count as numeric types; for example, String isn't a numeric type
+     *   even though some string values can be parsed as numbers.
+     */
+    virtual int is_numeric() const { return FALSE; }
+
+    /*
      *   Get the integer value of the object, if it has one.  Returns true if
      *   there's an integer value, false if not.
      *   
@@ -851,6 +851,26 @@ public:
      *   value.
      */
     virtual int get_as_int(long *val) const { return FALSE; }
+
+    /*
+     *   Get the 'double' value of the object, if it has one.  Returns true
+     *   if there's a double value, false if not.
+     *   
+     *   This only converts values that are already scalar numbers.  We don't
+     *   parse strings, for example.
+     */
+    virtual int get_as_double(VMG_ double *val) const { return FALSE; }
+
+    /*
+     *   Promote an integer to the type of this object.  For example, if
+     *   'this' is a BigNumber, this creates a BigNumber representation of
+     *   the integer.  This allows us to perform arithmetic where the left
+     *   operand is an integer and the right operand is a different numeric
+     *   type.  '*val' contains the integer value on entry, and we replace it
+     *   with the promoted value.
+     */
+    virtual void promote_int(VMG_ vm_val_t * /*val*/) const
+        { err_throw(VMERR_NUM_VAL_REQD); }
 
     /*
      *   Get the list contained in the object, if possible, or null if
@@ -1171,6 +1191,8 @@ const int VMOBJ_IDX_IS_TRANSIENT = 9;
 class CVmMetaclass
 {
 public:
+    virtual ~CVmMetaclass() { }
+
     /*
      *   Get the metaclass registration table index.  This gives the index
      *   of the metaclass in the system registration table.  This value is
@@ -1220,6 +1242,37 @@ public:
     virtual int call_stat_prop(VMG_ vm_val_t *result,
                                const uchar **pc_ptr, uint *argc,
                                vm_prop_id_t prop) = 0;
+
+    /* 
+     *   Set a static property (for setprop ops on the class itself).
+     *   Returns true if the setprop succeeded, false if not.  This shouldn't
+     *   throw an error if the property isn't settable on the class; simply
+     *   return false instead.  (It's okay to throw errors for other reasons,
+     *   such as an invalid type for a property that can be set.  But if it's
+     *   not a supported property at all, we want to continue on to check for
+     *   setting a modifier property rather than throwing an error at this
+     *   phase.)
+     *   
+     *   'class_state' is the class state holder.  This is a direct pointer
+     *   to the state data in the CVmObjClass object.  The callee can modify
+     *   this directly, in which case the updated value will be stored (and
+     *   will be handled properly for save/restore), but doing so won't save
+     *   undo.  To save undo, use CVmObjClass::set_class_state_undo().  The
+     *   typical scenario for the state value is that it stores a reference
+     *   to a container object, such as a Vector or TadsObject, which is then
+     *   used to store the actual class state - we typically need a separate
+     *   container because we have more state than we could stuff into a
+     *   single vm_val_t.  When using a separate container, that container
+     *   will usually handle the undo, in which case there's no need to worry
+     *   about undo at the class_state level.
+     */
+    virtual int set_stat_prop(VMG_ class CVmUndo *, vm_obj_id_t /*self*/,
+                              vm_val_t * /* class_state */,
+                              vm_prop_id_t /*prop*/, const vm_val_t * /*val*/)
+    {
+        /* by default, class objects have no settable properties */
+        return FALSE;
+    }
 
     /*
      *   Get the number of superclasses of the metaclass, and get the
@@ -1282,7 +1335,10 @@ public:
     void create_for_restore(VMG_ vm_obj_id_t id)
         { err_throw(VMERR_BAD_STATIC_NEW); }
 
-    /* call a static property */
+    /* 
+     *   call a static property (for getprop on the class itself, e.g.
+     *   TadsObject.createInstanceOf()) 
+     */
     int call_stat_prop(VMG_ vm_val_t *result,
                        const uchar **pc_ptr, uint *argc,
                        vm_prop_id_t prop)
@@ -1707,6 +1763,12 @@ public:
     void init(VMG0_);
 
     /* 
+     *   Clear the object table.  This deletes the garbage collected objects,
+     *   but leaves the table itself intact. 
+     */
+    void clear_obj_table(VMG0_);
+
+    /* 
      *   Destroy the table - call this rather BEFORE using operator delete
      *   directly.  After this routine is called, the object table can be
      *   deleted.  
@@ -1835,10 +1897,8 @@ public:
     void mark_obj_undo_rec(VMG_ vm_obj_id_t obj,
                            struct CVmUndoRecord *undo_rec)
     {
-        CVmObjPageEntry *entry;
-
         /* get the object entry */
-        entry = get_entry(obj);
+        CVmObjPageEntry *entry = get_entry(obj);
 
         /* 
          *   if the object can have any references, mark any references the
@@ -1859,10 +1919,8 @@ public:
     void remove_obj_stale_undo_weak_ref(VMG_ vm_obj_id_t obj,
                                         struct CVmUndoRecord *undo_rec)
     {
-        CVmObjPageEntry *entry;
-        
         /* get the object entry */
-        entry = get_entry(obj);
+        CVmObjPageEntry *entry = get_entry(obj);
 
         /* 
          *   if the object can have weak references, notify it; if not,
@@ -2205,15 +2263,15 @@ private:
     void add_to_gc_queue(vm_obj_id_t id, CVmObjPageEntry *entry, uint state)
     {
         /* 
-         *   If it's not already referenced somehow, add it to the queue.
-         *   If it's marked as referenced, it's already in the queue (or
-         *   it's already been in the queue and it's been processed).
+         *   If it's not already referenced somehow, add it to the queue.  If
+         *   it's marked as referenced, it's already in the queue (or it's
+         *   already been in the queue and it's been processed).
          *   
-         *   If the object cannot have references to other objects, don't
-         *   add it to the queue - simply elevate its reachability state.
-         *   We put objects in the queue in order to trace into the objects
-         *   they reference, so an object that can't reference any other
-         *   objects doesn't need to be put in the queue.  
+         *   If the object can't have references to other objects, don't add
+         *   it to the queue - simply elevate its reachability state.  We put
+         *   objects in the queue in order to trace into the objects they
+         *   reference, so an object that can't reference any other objects
+         *   doesn't need to go in the queue.  
          */
         if (entry->can_have_refs_ && entry->reachable_ == VMOBJ_UNREACHABLE)
         {
@@ -2224,9 +2282,8 @@ private:
             /* 
              *   Since the entry is unreachable, and unreachable is the
              *   lowest reachability state, we know that 'state' is at least
-             *   as reachable, so we can without further condidtions elevate
-             *   the reachability state.  (We can thus avoid the extra
-             *   comparison we have to do below for other current states.) 
+             *   as reachable, so we can just set the new state without even
+             *   bothering with another comparison.
              */
             entry->reachable_ = state;
         }
@@ -2586,10 +2643,8 @@ public:
     /* allocate memory */
     void *alloc_mem(size_t siz, CVmObject *)
     {
-        CVmVarHeapMallocHdr *hdr;
-        
         /* allocate space for the block plus the header */
-        hdr = (CVmVarHeapMallocHdr *)
+        CVmVarHeapMallocHdr *hdr = (CVmVarHeapMallocHdr *)
               t3malloc(siz + sizeof(CVmVarHeapMallocHdr));
 
         /* set up the header */
@@ -2955,6 +3010,35 @@ inline CVmObject *vm_objp(VMG_ vm_obj_id_t id)
     /* ask the global object table to translate the ID */
     return G_obj_table->get_obj(id);
 }
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Dynamic cast of a vm_val_t to a given object type.  Returns null if the
+ *   vm_val_t isn't an object of the given type.
+ */
+#define vm_val_cast(cls, vv) \
+    (vm_val_cast_ok(cls, vv) ? (cls *)vm_objp(vmg_ (vv)->val.obj) : 0)
+
+/*
+ *   Will a dynamic cast of a vm_val_t to the given object type succeed? 
+ */
+#define vm_val_cast_ok(cls, vv) \
+    ((vv)->typ == VM_OBJ && \
+     vm_objp(vmg_ ((vv)->val.obj))->is_of_metaclass(cls::metaclass_reg_))
+
+/*
+ *   Cast a vm_obj_id_t to a given object type 
+ */
+#define vm_objid_cast(cls, id) \
+    (id != VM_INVALID_OBJ \
+     && vm_objp(vmg_ id)->is_of_metaclass(cls::metaclass_reg_) \
+     ? (cls *)vm_objp(vmg_ id) : 0)
+
+/*
+ *   Get the class object for a given metaclass
+ */
+#define vm_classobj_for(cls) \
+    vm_objid_cast(CVmObjClass, cls::metaclass_reg_->get_class_obj(vmg0_))
 
 #endif /* VMOBJ_H */
 

@@ -95,7 +95,8 @@ public:
                      const char * /*script_file*/, int /*script_quiet*/,
                      const char * /*log_file*/,
                      const char * /*cmd_log_file*/,
-                     const char * /*banner_str*/)
+                     const char * /*banner_str*/,
+                     int /*more_mode*/)
     {
         /* do nothing */
     }
@@ -311,9 +312,8 @@ int main(int argc, char **argv)
      *   recursive event loop notices this and returns to the intrinsic,
      *   which finds the keystroke it wanted stashed away, and returns.  
      */
-    stat = vm_run_image(&clientifc, image_file_name, hostifc, 0, 0,
-                        0, FALSE, 0, 0, load_from_exe, FALSE, TRUE,
-                        0, 0, 0, 0, 0);
+    vm_run_image_params params(&clientifc, hostifc, image_file_name);
+    stat = vm_run_image(&params);
 
     /* we're done with the host interface object, so delete it */
     delete hostifc;

@@ -22,6 +22,8 @@ Modified
 
 #include "t3std.h"
 #include "vmerr.h"
+#include "osifcnet.h"
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -46,6 +48,22 @@ public:
     {
         fp_ = fp;
         seek_base_ = seek_base;
+    }
+
+    /* 
+     *   Duplicate the file handle, a la stdio freopen().  'mode' is a
+     *   simplified fopen()-style mode string, with the same syntax as used
+     *   in osfdup(). 
+     */
+    CVmFile *dup(const char *mode)
+    {
+        /* duplicate our file handle */
+        osfildef *fpdup = osfdup(fp_, mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* create a new CVmFile wrapper for the new handle */
+        return new CVmFile(fpdup, seek_base_);
     }
 
     /* delete the file */
@@ -145,6 +163,55 @@ public:
     char *read_line(char *buf, size_t buflen)
         { return osfgets(buf, buflen, fp_); }
 
+    /* 
+     *   read a string with a one-byte length prefix, adding a null
+     *   terminator; returns the length 
+     */
+    size_t read_str_byte_prefix(char *buf, size_t buflen)
+    {
+        size_t len = read_byte();
+        if (len+1 > buflen)
+            err_throw(VMERR_READ_FILE);
+
+        read_bytes(buf, len);
+        buf[len] = '\0';
+        return len;
+    }
+
+    /* 
+     *   read a string with a two-byte length prefix, adding a null
+     *   terminator; returns the length 
+     */
+    size_t read_str_short_prefix(char *buf, size_t buflen)
+    {
+        size_t len = read_uint2();
+        if (len+1 > buflen)
+            err_throw(VMERR_READ_FILE);
+
+        read_bytes(buf, len);
+        buf[len] = '\0';
+        return len;
+    }
+
+    /* 
+     *   Read a string with a two-byte length prefix, allocating the buffer
+     *   with lib_alloc_str() (the caller frees it with lib_free_str()).
+     *   We'll null-terminate the result, and optionally return the length in
+     *   '*lenp'.  'lenp' call be null if the length isn't needed.
+     */
+    char *read_str_short_prefix(size_t *lenp)
+    {
+        size_t len = read_uint2();
+        char *buf = lib_alloc_str(len);
+        read_bytes(buf, len);
+        buf[len] = '\0';
+
+        if (lenp != 0)
+            *lenp = len;
+
+        return buf;
+    }
+
     /*
      *   Write various types to the file.  These routines throw an error
      *   if the data cannot be written. 
@@ -154,6 +221,37 @@ public:
     void write_uint2(uint v) { char b[2]; oswp2(b, v); write_bytes(b, 2); }
     void write_int4(int v) { char b[4]; oswp4s(b, v); write_bytes(b, 4); }
     void write_uint4(uint v) { char b[4]; oswp4(b, v); write_bytes(b, 4); }
+
+    /*
+     *   Write a string with a single-byte length prefix.  Throws an error if
+     *   the string is too long. 
+     */
+    void write_str_byte_prefix(const char *str, size_t len)
+    {
+        /* make sure it fits */
+        if (len > 255)
+            err_throw(VMERR_WRITE_FILE);
+
+        /* write the prefix and the string */
+        write_byte((char)len);
+        write_bytes(str, len);
+    }
+    void write_str_byte_prefix(const char *str)
+        { write_str_byte_prefix(str, strlen(str)); }
+
+    /* write a string with a two-byte length prefix */
+    void write_str_short_prefix(const char *str, size_t len)
+    {
+        /* make sure it fits */
+        if (len > 65535)
+            err_throw(VMERR_WRITE_FILE);
+
+        /* write the prefix and string */
+        write_uint2((int)len);
+        write_bytes(str, len);
+    }
+    void write_str_short_prefix(const char *str)
+        { write_str_short_prefix(str, strlen(str)); }
 
     /* write bytes - throws an error if the bytes cannot be written */
     void write_bytes(const char *buf, size_t buflen)
@@ -214,6 +312,9 @@ class CVmStream
 public:
     virtual ~CVmStream() { }
 
+    /* clone the stream - see CVmDataSource::clone() for details */
+    virtual CVmStream *clone(VMG_ const char *mode) = 0;
+
     /* read/write a byte */
     virtual uchar read_byte() { char b; read_bytes(&b, 1); return (uchar)b; }
     virtual void write_byte(uchar b) { write_bytes((char *)&b, 1); }
@@ -259,13 +360,6 @@ public:
     /* read a line - fgets semantics */
     virtual char *read_line(char *buf, size_t len) = 0;
 
-    /* 
-     *   read a line - fgets semantics, but reads a full line of unlimited
-     *   size into an allocated buffer; the caller must free the buffer with
-     *   t3free() when done 
-     */
-    char *read_line_alo();
-
     /* write bytes */
     virtual void write_bytes(const char *buf, size_t len) = 0;
 
@@ -290,6 +384,18 @@ class CVmFileStream: public CVmStream
 public:
     /* create based on the underlying file object */
     CVmFileStream(CVmFile *fp) { fp_ = fp; }
+
+    /* clone the stream */
+    virtual CVmStream *clone(VMG_ const char *mode)
+    {
+        /* duplicate the file handle */
+        CVmFile *fpdup = fp_->dup(mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* return a new file stream wrapper for the duplicate handle */
+        return new CVmFileStream(fpdup);
+    }
 
     /* read bytes */
     void read_bytes(char *buf, size_t len)
@@ -336,6 +442,17 @@ private:
 };
 
 /*
+ *   Reference-counted long int value (service class for CVmCountingStream) 
+ */
+class CVmRefCntLong: public CVmRefCntObj
+{
+public:
+    CVmRefCntLong() { val = 0; }
+
+    long val;
+};
+
+/*
  *   Counting stream; write-only.  This is a stream for measuring the size of
  *   data for writing.  We don't actually write anything; we just count the
  *   bytes written.  
@@ -343,7 +460,22 @@ private:
 class CVmCountingStream: public CVmStream
 {
 public:
-    CVmCountingStream() { pos_ = len_ = 0; }
+    CVmCountingStream()
+    {
+        pos_ = 0;
+        len_ = new CVmRefCntLong();
+    }
+    
+    CVmCountingStream(CVmRefCntLong *l)
+    {
+        l->add_ref();
+        len_ = l;
+    }
+
+    ~CVmCountingStream() { len_->release_ref(); }
+    
+    CVmStream *clone(VMG_ const char * /*mode*/)
+        { return new CVmCountingStream(len_); }
 
     void read_bytes(char *buf, size_t len) { err_throw(VMERR_READ_FILE); }
     size_t read_nbytes(char *buf, size_t len)
@@ -360,22 +492,22 @@ public:
     void write_bytes(const char *buf, size_t len)
     {
         pos_ += len;
-        if (pos_ > len_)
-            len_ = pos_;
+        if (pos_ > len_->val)
+            len_->val = pos_;
     }
 
     long get_seek_pos() const { return pos_; }
     void set_seek_pos(long pos)
-        { pos_ = (pos < 0 ? 0 : pos > len_ ? len_ : pos); }
+        { pos_ = (pos < 0 ? 0 : pos > len_->val ? len_->val : pos); }
 
-    long get_len() { return len_; }
+    long get_len() { return len_->val; }
 
 protected:
     /* current seek position */
     long pos_;
 
     /* number of bytes written */
-    long len_;
+    CVmRefCntLong *len_;
 };
 
 /*
@@ -398,6 +530,10 @@ public:
         /* start at the start of the buffer */
         p_ = buf;
     }
+
+    /* clone */
+    virtual CVmStream *clone(VMG_ const char * /*mode*/)
+        { return new CVmMemoryStream(buf_, buflen_); }
 
     /* read bytes */
     void read_bytes(char *buf, size_t len)
@@ -520,26 +656,57 @@ protected:
 };
 
 /*
+ *   reference-counted buffer 
+ */
+class CVmRefCntBuf: public CVmRefCntObj
+{
+public:
+    CVmRefCntBuf(size_t len)
+        { buf_ = lib_alloc_str(len); }
+
+    CVmRefCntBuf(const char *str, size_t len)
+        { buf_ = lib_copy_str(str, len); }
+
+    char *buf_;
+
+protected:
+    ~CVmRefCntBuf() { lib_free_str(buf_); }
+};
+
+/*
  *   Memory stream, using a private allocated buffer
  */
 class CVmPrivateMemoryStream: public CVmMemoryStream
 {
 public:
     CVmPrivateMemoryStream(size_t len)
-        : CVmMemoryStream(lib_alloc_str(len), len)
+        : CVmMemoryStream(0, len)
     {
+        bufobj_ = new CVmRefCntBuf(len);
+        buf_ = bufobj_->buf_;
     }
 
     CVmPrivateMemoryStream(const char *str, size_t len)
-        : CVmMemoryStream(lib_copy_str(str), len)
+        : CVmMemoryStream(0, len)
     {
+        bufobj_ = new CVmRefCntBuf(str, len);
+        buf_ = bufobj_->buf_;
     }
 
-    ~CVmPrivateMemoryStream()
+    CVmPrivateMemoryStream(CVmRefCntBuf *bufobj, size_t len)
+        : CVmMemoryStream(bufobj->buf_, len)
     {
-        /* free our private buffer */
-        lib_free_str(buf_);
+        bufobj->add_ref();
+        bufobj_ = bufobj;
     }
+
+    CVmStream *clone(VMG_ const char * /*mode*/)
+        { return new CVmPrivateMemoryStream(bufobj_, buflen_); }
+
+    ~CVmPrivateMemoryStream() { bufobj_->release_ref(); }
+
+protected:
+    CVmRefCntBuf *bufobj_;
 };
 
 /*
@@ -557,10 +724,7 @@ public:
     void write_bytes(const char *, size_t) { err_throw(VMERR_WRITE_FILE); }
 };
 
-/*
- *   Expandable memory stream.  This automatically allocates additional
- *   buffer space as needed.  
- */
+/* expandable memory stream block */
 struct CVmExpandableMemoryStreamBlock
 {
     CVmExpandableMemoryStreamBlock(long ofs)
@@ -582,12 +746,13 @@ struct CVmExpandableMemoryStreamBlock
     char buf[BlockLen];
 };
 
-class CVmExpandableMemoryStream: public CVmStream
+/* expandable memory stream block list */
+class CVmExpandableMemoryStreamList: public CVmRefCntObj
 {
 public:
     static const int BlockLen = CVmExpandableMemoryStreamBlock::BlockLen;
 
-    CVmExpandableMemoryStream(long init_len)
+    CVmExpandableMemoryStreamList(long init_len)
     {
         /* no blocks yet */
         first_block_ = last_block_ = 0;
@@ -608,19 +773,8 @@ public:
         len_ = 0;
     }
 
-    ~CVmExpandableMemoryStream()
-    {
-        /* delete our block list */
-        CVmExpandableMemoryStreamBlock *cur, *nxt;
-        for (cur = first_block_ ; cur != 0 ; cur = nxt)
-        {
-            nxt = cur->nxt;
-            delete cur;
-        }
-    }
-
     /* read bytes */
-    virtual void read_bytes(char *buf, size_t len)
+    void read_bytes(char *buf, size_t len)
     {
         /* 
          *   if the request would take us past the current content length,
@@ -660,7 +814,7 @@ public:
     }
 
     /* read bytes, partial read OK */
-    virtual size_t read_nbytes(char *buf, size_t len)
+    size_t read_nbytes(char *buf, size_t len)
     {
         /* figure the number of bytes available */
         long avail = (long)len_ - (cur_block_->ofs + cur_block_ofs_);
@@ -678,7 +832,7 @@ public:
     }
 
     /* read a line */
-    virtual char *read_line(char *buf, size_t len)
+    char *read_line(char *buf, size_t len)
     {
         /* if already at EOF, or there's no buffer, return null */
         if (get_seek_pos() >= len_)
@@ -724,7 +878,7 @@ public:
     }
 
     /* write bytes */
-    virtual void write_bytes(const char *buf, size_t len)
+    void write_bytes(const char *buf, size_t len)
     {
         /* keep going until we satisfy the request */
         while (len != 0)
@@ -732,7 +886,7 @@ public:
             /* figure how much we can write to the current block */
             size_t rem = BlockLen - cur_block_ofs_;
             size_t cur = (len < rem ? len : rem);
-            
+
             /* write that much */
             if (cur != 0)
             {
@@ -769,7 +923,7 @@ public:
     }
 
     /* get the current seek offset */
-    virtual long get_seek_pos() const
+    long get_seek_pos() const
     {
         /* 
          *   figure the seek position as the current block's base offset plus
@@ -779,7 +933,7 @@ public:
     }
 
     /* set the seek offset */
-    virtual void set_seek_pos(long pos)
+    void set_seek_pos(long pos)
     {
         /* limit the position to the file's bounds */
         if (pos < 0)
@@ -821,16 +975,27 @@ public:
     }
 
     /* get the length of the stream's contents */
-    virtual long get_len() { return len_; }
+    long get_len() { return len_; }
 
 protected:
+    ~CVmExpandableMemoryStreamList()
+    {
+        /* delete our block list */
+        CVmExpandableMemoryStreamBlock *cur, *nxt;
+        for (cur = first_block_ ; cur != 0 ; cur = nxt)
+        {
+            nxt = cur->nxt;
+            delete cur;
+        }
+    }
+
     /* add a block to the end of the list */
     void add_block()
     {
         long ofs = last_block_ == 0 ? 0 : last_block_->ofs + BlockLen;
         CVmExpandableMemoryStreamBlock *b =
             new CVmExpandableMemoryStreamBlock(ofs);
-                
+
         if (last_block_ != 0)
             last_block_->nxt = b;
         else
@@ -876,6 +1041,62 @@ protected:
     /* head/tail of block list */
     CVmExpandableMemoryStreamBlock *first_block_;
     CVmExpandableMemoryStreamBlock *last_block_;
+};
+
+/*
+ *   Expandable memory stream.  This automatically allocates additional
+ *   buffer space as needed.  
+ */
+
+class CVmExpandableMemoryStream: public CVmStream
+{
+public:
+    CVmExpandableMemoryStream(long init_len)
+    {
+        bl = new CVmExpandableMemoryStreamList(init_len);
+    }
+
+    virtual CVmStream *clone(VMG_ const char * /*mode*/)
+        { return new CVmExpandableMemoryStream(bl); }
+
+    ~CVmExpandableMemoryStream() { bl->release_ref(); }
+   
+    /* read bytes */
+    virtual void read_bytes(char *buf, size_t len)
+        { bl->read_bytes(buf, len); }
+
+    /* read bytes, partial read OK */
+    virtual size_t read_nbytes(char *buf, size_t len)
+        { return bl->read_nbytes(buf, len); }
+
+    /* read a line */
+    virtual char *read_line(char *buf, size_t len)
+        { return bl->read_line(buf, len); }
+
+    /* write bytes */
+    virtual void write_bytes(const char *buf, size_t len)
+        { bl->write_bytes(buf, len); }
+
+    /* get the current seek offset */
+    virtual long get_seek_pos() const
+        { return bl->get_seek_pos(); }
+
+    /* set the seek offset */
+    virtual void set_seek_pos(long pos)
+        { bl->set_seek_pos(pos); }
+
+    /* get the length of the stream's contents */
+    virtual long get_len()
+        { return bl->get_len(); }
+
+protected:
+    CVmExpandableMemoryStream(CVmExpandableMemoryStreamList *bl)
+    {
+        bl->add_ref();
+        this->bl = bl;
+    }
+
+    CVmExpandableMemoryStreamList *bl;
 };
 
 #endif /* VMFILE_H */

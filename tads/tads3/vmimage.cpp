@@ -49,6 +49,7 @@ Modified
 #include "vmhash.h"
 #include "vmsrcf.h"
 #include "vmvec.h"
+#include "charmap.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -85,7 +86,7 @@ public:
     }
 
     /* add a resource */
-    void add_resource(uint32 seek_ofs, uint32 siz,
+    void add_resource(uint32_t seek_ofs, uint32_t siz,
                       const char *res_name, size_t res_name_len)
     {
         /* call the host system interface to add the resource */
@@ -568,7 +569,7 @@ void CVmImageLoader::load_resources_from_fp(osfildef *fp,
         /* load the resources */
         load_resources_from_fp(fp, fname, &res_ifc);
     }
-    err_catch(exc)
+    err_catch_disc
     {
         /* ignore the error */
     }
@@ -729,6 +730,8 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
     CVmRuntimeSymbols *orig_runtime_symtab, *orig_runtime_macros;
     pool_ofs_t entry_code_ofs;
     int entry_code_argc;
+    CCharmapToUni *argmap = 0;
+    char *argstr = 0;
     
     /* make sure we found a code pool definition */
     if (pools_[0]->vmpbs_get_page_count() < 1)
@@ -768,12 +771,20 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
     orig_runtime_symtab = runtime_symtab_;
     orig_runtime_macros = runtime_macros_;
 
+    /* we haven't set the file path */
+    int file_path_set = FALSE;
+
     /* catch any errors so we restore globals on the way out */
     err_try
     {
         int i;
-        vm_obj_id_t lst_obj;
-        CVmObjList *lst;
+        
+        /* if there's no file path, use the image file folder by default */
+        if (G_file_path == 0)
+        {
+            G_file_path = lib_copy_str(get_path());
+            file_path_set = TRUE;
+        }
 
         /* 
          *   if the caller gave us a runtime symbol table, use it over any
@@ -822,6 +833,26 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
             ++entry_code_argc;
         }
 
+        /* get a character mapper for the command-line arguments */
+        if (argc > 0)
+        {
+            /* 
+             *   If we have a net configuration, assume that the arguments
+             *   are in UTF-8 format, since they're coming from a web server.
+             *   Otherwise, ask the OS which character set to use for
+             *   command-line parameters.
+             */
+            char argcs[40];
+            if (G_net_config != 0)
+                strcpy(argcs, "utf8");
+            else
+                os_get_charmap(argcs, OS_CHARMAP_CMDLINE);
+
+            /* load the character set */
+            argmap = CCharmapToUni::load(
+                G_host_ifc->get_sys_res_loader(), argcs);
+        }
+
         /* 
          *   push a string object for each argument - push them onto the
          *   stack to ensure that they're referenced in case garbage
@@ -829,14 +860,35 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
          */
         for (i = 0 ; i < argc ; ++i)
         {
-            /* create and push a string for the argument */
-            G_stk->push()->set_obj(
-                CVmObjString::create(vmg_ FALSE, argv[i], strlen(argv[i])));
+            /* if we have a character mapper, map the argument string */
+            size_t slen;
+            if (argmap != 0)
+            {
+                /* map the argument to UTF8 */
+                slen = argmap->map_str_alo(&argstr, argv[i]);
+            }
+            else
+            {
+                /* make a copy of the string */
+                slen = strlen(argv[i]);
+                argstr = (char *)t3malloc(slen + 1);
+                memcpy(argstr, argv[i], slen + 1);
+
+                /* make sure it's well-formed UTF-8 */
+                CCharmapToUni::validate(argstr, slen);
+            }
+
+            /* push the mapped/adjusted string argument */
+            G_interpreter->push_string(vmg_ argstr, slen);
+
+            /* done with the mapped/adjusted string */
+            t3free(argstr);
+            argstr = 0;
         }
 
         /* create a list to hold the strings */
-        lst_obj = CVmObjList::create(vmg_ FALSE, argc);
-        lst = (CVmObjList *)vm_objp(vmg_ lst_obj);
+        vm_obj_id_t lst_obj = CVmObjList::create(vmg_ FALSE, argc);
+        CVmObjList *lst = (CVmObjList *)vm_objp(vmg_ lst_obj);
 
         /* set the list elements to the strings */
         for (i = 0 ; i < argc ; ++i)
@@ -900,6 +952,24 @@ void CVmImageLoader::run(VMG_ const char *const *argv, int argc,
         /* restore the original runtime symbol tables */
         runtime_symtab_ = orig_runtime_symtab;
         runtime_macros_ = orig_runtime_macros;
+
+        /* release the command-line character mapper */
+        if (argmap != 0)
+            argmap->release_ref();
+
+        /* release any argument string we were working on */
+        if (argstr != 0)
+            t3free(argstr);
+
+        /* 
+         *   if we set the file path, un-set it, so that callers don't think
+         *   they have to do so 
+         */
+        if (file_path_set)
+        {
+            lib_free_str(G_file_path);
+            G_file_path = 0;
+        }
     }
     err_end;
 }
@@ -1397,8 +1467,8 @@ void CVmImageLoader::load_mres(ulong siz, CVmImageLoaderMres *res_ifc)
     /* read the entries */
     for (i = 0 ; i < entry_cnt ; ++i)
     {
-        uint32 entry_ofs;
-        uint32 entry_size;
+        uint32_t entry_ofs;
+        uint32_t entry_size;
         uint entry_name_len;
         char name_buf[256];
         char *p;

@@ -1684,7 +1684,7 @@ int CVmObjDict::getp_correct(VMG_ vm_obj_id_t self,
             if (s->dist < max_dist)
             {
                 /* try a replaced letter */
-                if (s->ipos < wcnt != 0 && matchlen == 0)
+                if (s->ipos < wcnt && matchlen == 0)
                     stk.push(s->str, s->strl + 1, s->dist + 1, s->repl + 1,
                              s->ipos + 1, chi, Replacement);
 

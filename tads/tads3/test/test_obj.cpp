@@ -85,8 +85,8 @@ int main(int argc, char **argv)
 
     /* initialize the VM */
     hostifc = new CVmHostIfcStdio(argv[0]);
-    vm_initialize(&vmg__, &vm_init_options(hostifc, &clientifc,
-                                           "us-ascii", "us_ascii"));
+    vm_init_options iniopts(hostifc, &clientifc, "us-ascii", "us_ascii");
+    vm_initialize(&vmg__, &iniopts);
 
     /* create a fake host file object */
     imagefp = new CImageFile();

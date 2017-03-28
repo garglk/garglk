@@ -34,6 +34,8 @@ Modified
 class CTcUnasSrc
 {
 public:
+    virtual ~CTcUnasSrc() { }
+    
     /* 
      *   read the next byte; returns zero on success, non-zero at the end
      *   of the byte stream 

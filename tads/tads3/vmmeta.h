@@ -268,10 +268,8 @@ public:
      */
     vm_meta_entry_t *get_entry_from_reg(int reg_idx)
     {
-        int dep_idx;
-
         /* translate the registration table index into a dependency index */
-        dep_idx = get_dependency_index(reg_idx);
+        int dep_idx = get_dependency_index(reg_idx);
 
         /* 
          *   if we have a valid dependency index, return it; otherwise,
@@ -298,10 +296,8 @@ public:
      */
     int prop_to_vector_idx(uint reg_table_idx, vm_prop_id_t prop)
     {
-        vm_meta_entry_t *entry;
-        
         /* get the entry for the registration table index */
-        entry = get_entry_from_reg(reg_table_idx);
+        vm_meta_entry_t *entry = get_entry_from_reg(reg_table_idx);
         
         /* 
          *   if there's no entry for this registration index, there's

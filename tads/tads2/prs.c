@@ -458,10 +458,6 @@ static prsndef *prsxun(prscxdef *ctx, prsbdef *binctx);
 /* parse a conditional expression */
 static prsndef *prsxcnd(prscxdef *ctx, prsbdef *binctx);
 
-/* parse an object definition (superclass list is already parsed) */
-static void prsobj(prscxdef *ctx, tokdef *objtok,
-                   int numsc, objnum *sclist, int classflg);
-
 /* factor */
 static int prsl_fact[] = { TOKTTIMES, TOKTDIV, TOKTMOD, 0 };
 static prsbdef prsb_fact = { prsl_fact, prsxun, prsxun, 0, TRUE };
@@ -897,7 +893,7 @@ static prsndef *prsfold(prscxdef *ctx, prsndef *node)
             prsndef  *retval;
             emtledef *ele;
             
-            lst = (emtlidef *)prsbalo(ctx, (uint)(sizeof(emtldef) +
+            lst = (emtlidef *)prsbalo(ctx, (uint)(sizeof(emtlidef) +
                                                  (i - 1) * sizeof(emtledef)));
             t.toktyp = TOKTLIST;
             t.tokofs = ((uchar *)lst) - &ctx->prscxpool[0];

@@ -25,7 +25,7 @@ Modified
 /*
  *   Allocate the resource.
  */
-CVmResource::CVmResource(long seek_pos, uint32 len, size_t name_len)
+CVmResource::CVmResource(long seek_pos, uint32_t len, size_t name_len)
 {
     /* store the seek and length information */
     seek_pos_ = seek_pos;

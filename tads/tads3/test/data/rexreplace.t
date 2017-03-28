@@ -92,6 +92,36 @@ main(args)
                     ['bb', 'cc', 'dd'],
          ReplaceAll, 5));
 
+    echo('serial a->bb, b->cc, c->dd limit=0',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'],
+         ReplaceAll | ReplaceSerial, nil, 0));
+    echo('serial a->bb, b->cc, c->dd limit=2',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'],
+         ReplaceAll | ReplaceSerial, nil, 1));
+    echo('serial a->bb, b->cc, c->dd limit=2',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'],
+         ReplaceAll | ReplaceSerial, nil, 2));
+    echo('serial a->bb, b->cc, c->dd limit=3',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'],
+         ReplaceAll | ReplaceSerial, nil, 3));
+
+    echo('parallel a->bb, b->cc, c->dd limit=0',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'], nil, nil, 0));
+    echo('parallel a->bb, b->cc, c->dd limit=2',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'], nil, nil, 1));
+    echo('parallel a->bb, b->cc, c->dd limit=2',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'], nil, nil, 2));
+    echo('parallel a->bb, b->cc, c->dd limit=3',
+         rexReplace(['a', 'b', 'c'], 'abc this is an abc test',
+                    ['bb', 'cc', 'dd'], nil, nil, 3));
+
     i = 1;
     echo('alpha->func(even \'s\' only)',
          rexReplace('<alpha>', 'this is a test of some special stuff',

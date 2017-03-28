@@ -74,9 +74,21 @@ Modified
  *   - otherwise, leave the symbol undefined.  
  */
 #ifdef COMPILER_DETECTS_THROW_NORETURN
+#define COMPILER_DETECTS_THROW_NORETURN_IN_VMERR
 #define AFTER_ERR_THROW(code)
 #else
 #define AFTER_ERR_THROW(code)   code
+#endif
+
+/* 
+ *   And the same idea as above, but for the special case where the compiler
+ *   detects this within the vmerr.cpp module (for static functions in the
+ *   same module), but not across modules.
+ */
+#ifdef COMPILER_DETECTS_THROW_NORETURN_IN_VMERR
+#define VMERR_AFTER_ERR_THROW(code)
+#else
+#define VMERR_AFTER_ERR_THROW(code)  code
 #endif
 
 /*
@@ -98,6 +110,26 @@ Modified
 #define AFTER_OS_TERM(code)
 #else
 #define AFTER_OS_TERM(code)   code
+#endif
+
+/*
+ *   Some compilers (notably gcc >= 4.7.1) require that overloads for the
+ *   basic 'new' and 'delete' operators be declared with 'throw' clauses to
+ *   match the standard C++ library (that is, 'new' must be declared to throw
+ *   std::bad_alloc, and 'delete' must be declared to throw nothing).
+ *   Naturally, some other compilers (notably MSVC 2003) don't want the
+ *   'throw' clauses.  If your compiler wants the 'throw' declarations,
+ *   define NEW_DELETE_NEED_THROW in your makefile, otherwise omit it.  Note
+ *   that some compilers (notably gcc < 4.7.1) don't care one way or the
+ *   other, so if your compiler doesn't complain, you probably don't need to
+ *   worry about this setting.
+ */
+#ifndef SYSTHROW
+#ifdef NEW_DELETE_NEED_THROW
+#define SYSTHROW(exc) exc
+#else
+#define SYSTHROW(exc)
+#endif
 #endif
 
 
@@ -138,7 +170,7 @@ void os_init_ui_after_load(class CVmBifTable *bif_table,
 #endif
 
 /* for Windows debug builds, add stack trace info to allocation blocks */
-#if defined(T3_DEBUG) && defined(__WIN32__)
+#if defined(T3_DEBUG) && defined(T_WIN32)
 # define OS_MEM_PREFIX \
     struct { \
         DWORD return_addr; \
@@ -185,48 +217,39 @@ typedef unsigned int   uint;
 typedef unsigned long  ulong;
 #endif
 
-/* maximum/minimum portable values for various types */
-#define ULONGMAXVAL   0xffffffffUL
-#define USHORTMAXVAL  0xffffU
-#define UCHARMAXVAL   0xffU
-#define SLONGMAXVAL   0x7fffffffL
-#define SSHORTMAXVAL  0x7fff
-#define SCHARMAXVAL   0x7f
-#define SLONGMINVAL   (-(0x7fffffff)-1)
-#define SSHORTMINVAL  (-(0x7fff)-1)
-#define SCHARMINVAL   (-(0x7f)-1)
-
 /* sizeof() extension macros */
 #ifndef countof
 #define countof(array) (sizeof(array)/sizeof((array)[0]))
 #endif
 #define sizeof_field(struct_name, field) sizeof(((struct_name *)0)->field)
 
+/*
+ *   The types int16_t, uint16_t, int32_t, and uint32_t are defined by ANSI
+ *   C99 as EXACTLY the specified number of bits (e.g., int16 is a signed
+ *   16-bit integer; uint32 is an unsigned 32-bit integer).
+ *   
+ *   Many modern compilers provide definitions for these types in <stdint.h>.
+ *   When <stdint.h> isn't available, ports must provide suitable typedefs in
+ *   the osxxx.h header - see tads2/osifc.h.
+ *   
+ *   Because these types have exact sizes, their limits are fixed, so we can
+ *   provide portable definitions here.
+ */
+#define INT16MAXVAL    32767
+#define INT16MINVAL    (-32768)
+#define UINT16MAXVAL   65535
+#define INT32MAXVAL    2147483647L
+#define INT32MINVAL    (-2147483647L-1)
+#define UINT32MAXVAL   4294967295U
+
 
 /*
- *   Text character 
+ *   Text character.  We use ASCII and UTF-8 for most character string
+ *   representations, so our basic character type is 'char', which is defined
+ *   univerally as one byte.  (UTF-8 uses varying numbers of bytes per
+ *   character, but its basic storage unit is bytes.)
  */
 typedef char textchar_t;
-
-/*
- *   16-bit signed/unsigned integer types 
- */
-#ifndef OS_INT16_DEFINED
-typedef short int16;
-#endif
-#ifndef OS_UINT16_DEFINED
-typedef unsigned short uint16;
-#endif
-
-/*
- *   32-bit signed/unsigned integer types 
- */
-#ifndef OS_INT32_DEFINED
-typedef long int32;
-#endif
-#ifndef OS_UINT32_DEFINED
-typedef unsigned long uint32;
-#endif
 
 
 /* ------------------------------------------------------------------------ */
@@ -269,24 +292,28 @@ typedef unsigned long uint32;
  */
 #if defined(OS_CUSTOM_ASHR) || ((-1 >> 1) != -1)
   /* signed a >> signed b != a ASHR b, so implement with bit masking */
-  inline int32 t3_ashr(int32 a, int32 b) {
-      int32 mask = (~0 << (sizeof(int32)*CHAR_BIT - b));
+  inline int32_t t3_ashr(int32_t a, int32_t b) {
+      int32_t mask = (~0 << (sizeof(int32_t)*CHAR_BIT - b));
       return ((a >> b) | ((a & mask) ? mask : 0));
   };
 #else
   /* signed a >> signed b == a ASHR b, so we can use >> */
-  inline int32 t3_ashr(int32 a, int32 b) { return a >> b; }
+  inline int32_t t3_ashr(int32_t a, int32_t b) { return a >> b; }
 #endif
 
 #if defined(OS_CUSTOM_LSHR) || ((ULONG_MAX >> 1UL) != ULONG_MAX/2)
   /* unsigned a >> unsigned b != a LSHR b, so implement with bit masking */
-  inline int32 t3_lshr(int32 a, int32 b) {
-      return ((a >> b) & ~(~0 << (sizeof(int32)*CHAR_BIT - b)));
+  inline int32_t t3_lshr(int32_t a, int32_t b) {
+      return ((a >> b) & ~(~0 << (sizeof(int32_t)*CHAR_BIT - b)));
   }
 #else
-  /* unsigned a >> unsigned b == a LSHR b, so we can use >> */
-  inline int32 t3_lshr(int32 a, int32 b) {
-      return (int32)((uint32)a >> (uint32)b);
+  /* 
+   *   unsigned a >> unsigned b == a LSHR b, so we can use >>; note that we
+   *   explicit mask the left operand to 32 bits in case we're on a 64-bit or
+   *   larger platform, as the T3 VM itself is defined as a 32-bit machine 
+   */
+  inline int32_t t3_lshr(int32_t a, int32_t b) {
+      return (int32_t)((uint32_t)a >> (uint32_t)b);
   }
 #endif
 
@@ -394,6 +421,47 @@ inline void lib_strcpy(char *dst, size_t dstsiz, const char *src)
     lib_strcpy(dst, dstsiz, src, strlen(src));
 }
 
+/*
+ *   Compare two counted-length strings, with or without case sensitivity.
+ */
+inline int lib_strcmp(const char *str1, size_t len1,
+                      const char *str2, size_t len2)
+{
+    int bylen = len1 - len2, bymem;
+    if (bylen == 0)
+        return memcmp(str1, str2, len1);
+    else if (bylen < 0)
+        bymem = memcmp(str1, str2, len1);
+    else
+        bymem = memcmp(str1, str2, len2);
+    return (bymem != 0 ? bymem : bylen);
+}
+inline int lib_stricmp(const char *str1, size_t len1,
+                       const char *str2, size_t len2)
+{
+    int bylen = len1 - len2, bymem;
+    if (bylen == 0)
+        return memicmp(str1, str2, len1);
+    else if (bylen < 0)
+        bymem = memicmp(str1, str2, len1);
+    else
+        bymem = memicmp(str1, str2, len2);
+    return (bymem != 0 ? bymem : bylen);
+}
+
+/*
+ *   Compare a counted-length string to a regular C string, with or without
+ *   case sensitivity.
+ */
+inline int lib_strcmp(const char *str1, size_t len1, const char *str2)
+{
+    return lib_strcmp(str1, len1, str2, strlen(str2));
+}
+inline int lib_stricmp(const char *str1, size_t len1, const char *str2)
+{
+    return lib_stricmp(str1, len1, str2, strlen(str2));
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -417,6 +485,17 @@ inline char *lib_strnchr(const char *src, size_t len, int ch)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Limited-length atoi 
+ */
+int lib_atoi(const char *str, size_t len);
+
+/*
+ *   Limited-length atoi, with auto-advance of the string
+ */
+int lib_atoi_adv(const char *&str, size_t &len);
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Compare two strings, ignoring differences in whitespace between the
  *   strings.  Returns true if the strings are equal (other than
  *   whitespace, false if not.
@@ -431,6 +510,52 @@ inline char *lib_strnchr(const char *src, size_t len, int ch)
  */
 int lib_strequal_collapse_spaces(const char *a, size_t a_len,
                                  const char *b, size_t b_len);
+
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   Utility routine - compare UTF-8 strings with full Unicode case folding.
+ *   Returns <0 if a<b, 0 if a==b, >0 if a>b.
+ *   
+ *   If 'bmatchlen' is non-null, string 'a' can match as a leading substring
+ *   of string 'b'.  If 'b' is identical to 'a' or contains 'a' as a leading
+ *   substring, we'll return 0 to indicate a match, and fill in '*bmatchlen'
+ *   with the number of bytes matched.
+ *   
+ *   If 'bmatchlen' is null, we'll do a straightforward string comparison, so
+ *   a 0 return means the two strings match exactly.
+ */
+int t3_compare_case_fold(
+    const char *a, size_t alen,
+    const char *b, size_t blen, size_t *bmatchlen);
+
+/* compare a UTF-8 string against a wchar_t* string */
+int t3_compare_case_fold(
+    const wchar_t *a, size_t alen,
+    const char *b, size_t blen, size_t *bmatchlen);
+
+/*
+ *   Compare the minimum portions of two UTF-8 strings with case folding.
+ *   This compares the folded version of the first character of each string
+ *   to the other.  If they match, we advance the pointers and lengths past
+ *   the matched text and return 0; otherwise we return < 0 if the first
+ *   string sorts before the second, > 0 if the first sorts after the second.
+ *   
+ *   In the simplest case, this matches one character from each string.
+ *   However, there are situations where the folded version of one character
+ *   can correspond to two characters of source text in the other string,
+ *   such as the German ess-zed: this will match "ss" in the source text in
+ *   the other string, consuming only one character (the ess-zed) in one
+ *   string but two ("ss") in the other.
+ */
+int t3_compare_case_fold_min(class utf8_ptr &a, size_t &alen,
+                             class utf8_ptr &b, size_t &blen);
+
+int t3_compare_case_fold_min(class utf8_ptr &a, size_t &alen,
+                             const wchar_t* &b, size_t &blen);
+
+int t3_compare_case_fold_min(const wchar_t* &a, size_t &alen,
+                             const wchar_t* &b, size_t &blen);
 
 
 /* ------------------------------------------------------------------------ */
@@ -622,10 +747,10 @@ inline void *t3mallocnew(size_t siz)
 inline void t3free(void *ptr)
     { t3free(ptr, T3MALLOC_TYPE_MALLOC); }
 
-void *operator new(size_t siz);
-void *operator new[](size_t siz);
-void operator delete(void *ptr);
-void operator delete[](void *ptr);
+void *operator new(size_t siz) SYSTHROW(throw (std::bad_alloc));
+void *operator new[](size_t siz) SYSTHROW(throw (std::bad_alloc));
+void operator delete(void *ptr) SYSTHROW(throw ());
+void operator delete[](void *ptr) SYSTHROW(throw ());
 
 /*
  *   List all allocated memory blocks - displays heap information on stdout.

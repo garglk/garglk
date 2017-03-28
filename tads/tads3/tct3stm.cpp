@@ -2014,9 +2014,6 @@ void CTPNStmEnclosing::gen_code_unwind_for_goto(CTPNStmGoto *goto_stm,
  */
 void CTPNAnonFunc::gen_code(int discard, int)
 {
-    CTcCodeBodyCtx *cur_ctx;
-    int argc;
-
     /* if we're discarding the value, don't bother generating the code */
     if (discard)
         return;
@@ -2028,16 +2025,16 @@ void CTPNAnonFunc::gen_code(int discard, int)
      *   reverse order of our list, since arguments are always pushed from
      *   last to first.  
      */
-    for (argc = 0, cur_ctx = code_body_->get_ctx_tail() ; cur_ctx != 0 ;
+    int argc = 0;
+    for (CTcCodeBodyCtx *cur_ctx = code_body_->get_ctx_tail() ; cur_ctx != 0 ;
          cur_ctx = cur_ctx->prv_, ++argc)
     {
-        int our_varnum;
-
         /* 
          *   find our context matching this context - the caller's
          *   contexts are all one level lower than the callee's contexts,
          *   because the caller is at the next recursion level out 
          */
+        int our_varnum;
         if (!G_cs->get_code_body()
             ->get_ctx_var_for_level(cur_ctx->level_ - 1, &our_varnum))
         {
@@ -2123,3 +2120,352 @@ void CTPNAnonFunc::gen_code(int discard, int)
     }
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   Implicit constructor 
+ */
+void CTPNStmImplicitCtor::gen_code(int /*discard*/, int /*for_condition*/)
+{
+    /* 
+     *   Generate a call to inherit each superclass constructor.  Pass the
+     *   same argument list we received by expanding the varargs list
+     *   parameter in local 0.  
+     */
+    for (CTPNSuperclass *sc = obj_stm_->get_first_sc() ; sc != 0 ;
+         sc = sc->nxt_)
+    {
+        /* 
+         *   if this one is valid, generate code to call its constructor -
+         *   it's valid if it has an object symbol 
+         */
+        CTcSymObj *sc_sym = (CTcSymObj *)sc->get_sym();
+        if (sc_sym != 0 && sc_sym->get_type() == TC_SYM_OBJ)
+        {
+            /* push the argument counter so far (no other arguments) */
+            G_cg->write_op(OPC_PUSH_0);
+            G_cg->note_push();
+
+            /* get the varargs list local */
+            CTcSymLocal::s_gen_code_getlcl(0, FALSE);
+
+            /* convert it to varargs */
+            G_cg->write_op(OPC_MAKELSTPAR);
+
+            /* note the extra push and pop for the argument count */
+            G_cg->note_push();
+            G_cg->note_pop();
+
+            /* it's a varargs call */
+            G_cg->write_op(OPC_VARARGC);
+
+            /* generate an EXPINHERIT to this superclass */
+            G_cg->write_op(OPC_EXPINHERIT);
+            G_cs->write(0);                      /* varargs -> argc ignored */
+            G_cs->write_prop_id(G_prs->get_constructor_prop());
+            G_cs->write_obj_id(sc_sym->get_obj_id());
+
+            /* 
+             *   this removes arguments (the varargs list variable and
+             *   argument count) 
+             */
+            G_cg->note_pop(2);
+        }
+    }
+}
+
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Object Property list entry - value node
+ */
+void CTPNObjProp::gen_code(int, int)
+{
+    vm_val_t val;
+    char buf[VMB_DATAHOLDER];
+
+    /* get the correct data stream */
+    CTcDataStream *str = objdef_->get_obj_sym()->get_stream();
+
+    /* set the current source location for error reporting */
+    G_tok->set_line_info(file_, linenum_);
+
+    /* generate code for our expression or our code body, as appropriate */
+    if (code_body_ != 0)
+    {
+        /* if this is a constructor, mark the code body accordingly */
+        if (prop_sym_->get_prop() == G_prs->get_constructor_prop())
+            code_body_->set_constructor(TRUE);
+
+        /* if it's static, do some extra work */
+        if (is_static_)
+        {
+            /* mark the code body as static */
+            code_body_->set_static();
+
+            /* 
+             *   add the obj.prop to the static ID stream, so the VM knows to
+             *   invoke this initializer at start-up 
+             */
+            G_static_init_id_stream
+                ->write_obj_id(objdef_->get_obj_sym()->get_obj_id());
+            G_static_init_id_stream
+                ->write_prop_id(prop_sym_->get_prop());
+        }
+
+        /* tell our code body to generate the code */
+        code_body_->gen_code(FALSE, FALSE);
+
+        /* 
+         *   Set up our code offset value.  Write a code offset of zero for
+         *   now, since we won't know the correct offset until link time.  
+         */
+        val.set_codeofs(0);
+
+        /* 
+         *   Add a fixup to the code body's fixup list for our dataholder, so
+         *   that we fix up the property value when we link.  Note that the
+         *   fixup is one byte into our object stream from the current
+         *   offset, because the first byte is the type.  
+         */
+        CTcAbsFixup::add_abs_fixup(code_body_->get_fixup_list_head(),
+                                   str, str->get_ofs() + 1);
+        
+        /* write out our value in DATAHOLDER format */
+        vmb_put_dh(buf, &val);
+        str->write(buf, VMB_DATAHOLDER);
+    }
+    else if (expr_ != 0)
+    {
+        /* 
+         *   if my value is constant, write out a dataholder for the constant
+         *   value to the stream; otherwise, write out our code and store a
+         *   pointer to the code 
+         */
+        if (expr_->is_const())
+        {
+            /* write the constant value to the object stream */
+            G_cg->write_const_as_dh(str, str->get_ofs(),
+                                    expr_->get_const_val());
+        }
+        else if (expr_->is_dstring())
+        {
+            /* it's a double-quoted string node */
+            CTPNDstr *dstr = (CTPNDstr *)expr_;
+
+            /* 
+             *   Add the string to the constant pool.  Note that the fixup
+             *   will be one byte from the current object stream offset,
+             *   since we need to write the type byte first.  
+             */
+            G_cg->add_const_str(dstr->get_str(), dstr->get_str_len(),
+                                str, str->get_ofs() + 1);
+
+            /* 
+             *   Set up the dstring value.  Use a zero placeholder for now;
+             *   add_const_str() already added a fixup for us that will
+             *   supply the correct value at link time.  
+             */
+            val.set_dstring(0);
+            vmb_put_dh(buf, &val);
+            str->write(buf, VMB_DATAHOLDER);
+        }
+        else
+        {
+            /* we should never get here */
+            G_tok->throw_internal_error(TCERR_INVAL_PROP_CODE_GEN);
+        }
+    }
+}
+
+/*
+ *   Generate code for an inline object instantiation 
+ */
+void CTPNObjProp::gen_code_inline_obj()
+{
+    /* set the current source location for error reporting */
+    G_tok->set_line_info(file_, linenum_);
+
+    /* generate code for our expression or our code body, as appropriate */
+    if (inline_method_ != 0)
+    {
+        /* 
+         *   Code as an in-line method.  This means that the code was
+         *   specified as an explicit method in braces; we compile it as an
+         *   anonymous method so that it can access locals in enclosing
+         *   scopes.  Generate the code to construct the closure object, then
+         *   call obj.setMethod(prop, anonMethod) to bind it as a method of
+         *   the object.  This will make it act like a regular method, in
+         *   that evaluating the property will call the method.
+         */
+        inline_method_->gen_code(FALSE, FALSE);
+
+        /* generate the setMethod */
+        gen_setMethod();
+    }
+    else if (expr_ != 0)
+    {
+        /* check the type of expression */
+        if (expr_->is_dstring())
+        {
+            /* 
+             *   Double-quoted string - generate obj.setMethod(prop, string)
+             */
+            
+            /* push the string contents as a regular sstring constant */
+            CTPNDstr *dstr = (CTPNDstr *)expr_;
+            CTPNConst::s_gen_code_str(dstr->get_str(), dstr->get_str_len());
+            
+            /* get the setMethod property */
+            gen_setMethod();
+        }
+        else
+        {
+            /*
+             *   Expression, constant or live.  Generate the code to evaluate
+             *   the expression; this runs at the moment of evaluating the
+             *   overall inline object expression, so we caputre the value of
+             *   the expression at the time we create the inline object
+             *   instance (and fix the value at that point - this isn't a
+             *   method that's invoked when the property is evaluated).
+             */
+            
+            /* push the new object referene */
+            G_cg->write_op(OPC_DUP);
+            G_cg->note_push();
+
+            /* it's a constant value - do a setprop; start with my value */
+            expr_->gen_code(FALSE, FALSE);
+
+            /* if it doesn't have a return value, set the property to nil */
+            if (!expr_->has_return_value())
+            {
+                G_cg->write_op(OPC_PUSHNIL);
+                G_cg->note_push();
+            }
+
+            /* get the object and value into the proper order */
+            G_cg->write_op(OPC_SWAP);
+
+            /* generate the setprop for <obj>.<prop> = <value> */
+            G_cg->write_op(OPC_SETPROP);
+            G_cs->write_prop_id(prop_sym_->get_prop());
+            G_cg->note_pop(2);
+        }
+    }
+}
+
+/*
+ *   Generate a setMethod call.  The caller must push the value for the
+ *   setMethod, and the object ID must be on the stack just above that.
+ */
+void CTPNObjProp::gen_setMethod()
+{
+    /* look up the setMethod property */
+    CTcSymProp *setm = (CTcSymProp *)G_prs->get_global_symtab()->find(
+        "setMethod", 9);
+    if (setm == 0 || setm->get_type() != TC_SYM_PROP)
+    {
+        G_tok->log_error(TCERR_SYM_NOT_PROP, 9, "setMethod");
+        return;
+    }
+    
+    /* push the property ID */
+    G_cg->write_op(OPC_PUSHPROPID);
+    G_cs->write_prop_id(prop_sym_->get_prop());
+    G_cg->note_push();
+
+    /* re-push the object reference (it's on the stack above the value) */
+    G_cg->write_op(OPC_GETSPN);
+    G_cs->write(2);
+    G_cg->note_push();
+
+    /* generate <obj>.setMethod(<prop>, string) */
+    G_cg->write_op(OPC_CALLPROP);
+    G_cs->write(2);
+    G_cs->write_prop_id(setm->get_prop());
+    G_cg->note_pop(3);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Inline object definition 
+ */
+
+/*
+ *   Generate code.  An inline object definition creates a new instance of
+ *   the object on each evaluation, and creates a new instance of each
+ *   anonymous method contained in the property list.  The result of the
+ *   expression is the new object reference.
+ */
+void CTPNInlineObject::gen_code(int discard, int for_condition)
+{
+    /*
+     *   First, create the object via TadsObject.createInstanceOf(), with the
+     *   list of superclasses as the arguments.  Use the no-constructor form
+     *   of the call, since we'll invoke the new object's construct() method
+     *   directly instead.
+     */
+
+    /* 
+     *   push the superclass references, from last to first (standard
+     *   right-to-left order for the method arguments)
+     */
+    int sccnt = 0;
+    for (CTPNSuperclass *sc = sclist_.tail_ ; sc != 0 ; sc = sc->prv_, ++sccnt)
+        sc->get_sym()->gen_code(FALSE);
+
+    /* look up TadsObject */
+    CTcPrsSymtab *tab = G_prs->get_global_symtab();
+    CTcSymMetaclass *tadsobj = (CTcSymMetaclass *)tab->find("TadsObject", 10);
+    if (tadsobj == 0 || tadsobj->get_type() != TC_SYM_METACLASS)
+    {
+        G_tok->log_error(TCERR_UNDEF_METACLASS, 10, "TadsObject");
+        return;
+    }
+
+    /* look up createInstanceOf */
+    const char *cioname = "createInstanceOf";
+    size_t ciolen = 16;
+    CTcSymProp *cio = (CTcSymProp *)tab->find(cioname, ciolen);
+    if (cio == 0 || cio->get_type() != TC_SYM_PROP)
+    {
+        G_tok->log_error(TCERR_SYM_NOT_PROP, (int)ciolen, cioname);
+        return;
+    }
+
+    /* call TadsObject.createInstanceOf() */
+    G_cg->write_op(OPC_OBJCALLPROP);
+    G_cs->write((char)sccnt);
+    G_cs->write_obj_id(tadsobj->get_class_obj());
+    G_cs->write_prop_id(cio->get_prop());
+    G_cg->note_pop(sccnt);
+
+    /* push the new object reference as the result of the overall expression */
+    G_cg->write_op(OPC_GETR0);
+    G_cg->note_push();
+
+    /* assume we won't find a constructor among the properties */
+    int has_ctor = FALSE;
+
+    /* install each property or method */
+    for (CTPNObjProp *prop = proplist_.first_ ; prop != 0 ;
+         prop = prop->get_next_prop())
+    {
+        /* generate the property/method setup */
+        prop->gen_code_inline_obj();
+
+        /* note if it's a constructor */
+        if (prop->get_prop_sym()->get_prop() == G_prs->get_constructor_prop())
+            has_ctor = TRUE;
+    }
+
+    /* if there's an explicit constructor defined, call it */
+    if (has_ctor)
+    {
+        G_cg->write_op(OPC_DUP);
+        G_cg->write_op(OPC_CALLPROP);
+        G_cs->write(0);
+        G_cs->write_prop_id(G_prs->get_constructor_prop());
+    }
+}

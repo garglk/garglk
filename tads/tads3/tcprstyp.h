@@ -37,6 +37,7 @@ enum tc_constval_type_t
     TC_CVT_TRUE,                                                    /* true */
     TC_CVT_INT,                                            /* integer value */
     TC_CVT_SSTR,                              /* single-quoted string value */
+    TC_CVT_RESTR,                  /* regex string value (R'...' or R"...") */
     TC_CVT_LIST,                                           /* list constant */
     TC_CVT_OBJ,                                         /* object reference */
     TC_CVT_PROP,                                        /* property pointer */

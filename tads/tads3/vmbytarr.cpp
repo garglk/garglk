@@ -78,6 +78,12 @@ public:
             end_idx = this->arr->get_element_count();
     }
 
+    CVmDataSource *clone(VMG_ const char * /*mode*/)
+    {
+        return new CVmByteArraySource(
+            vmg_ arr_id, start_idx, end_idx - start_idx);
+    }
+
     /* read bytes; returns 0 on success, non-zero on error */
     virtual int read(void *buf, size_t len)
     {
@@ -485,6 +491,24 @@ vm_obj_id_t CVmObjByteArray::create_from_string(
             len -= src_bytes_used;
         }
     }
+
+    /* return the new array's object ID */
+    return id;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Create from binary data 
+ */
+vm_obj_id_t CVmObjByteArray::create_from_bytes(
+    VMG_ int in_root_set, const char *buf, size_t len)
+{
+    /* allocate the array */
+    vm_obj_id_t id = create(vmg_ in_root_set, len);
+    CVmObjByteArray *arr = (CVmObjByteArray *)vm_objp(vmg_ id);
+
+    /* copy the bytes into the array */
+    arr->cons_copy_from_buf((const unsigned char *)buf, 1, len);
 
     /* return the new array's object ID */
     return id;
@@ -1096,19 +1120,16 @@ void CVmObjByteArray::restore_from_file(VMG_ vm_obj_id_t self,
 int CVmObjByteArray::index_val_q(VMG_ vm_val_t *result, vm_obj_id_t self,
                                  const vm_val_t *index_val)
 {
-    unsigned char *p;
-    size_t avail;
-    unsigned long idx;
-
     /* get the index */
-    idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* make sure it's in range */
-    if (idx < 1 || idx > get_element_count())
+    if (idx < 1 || (uint32_t)idx > get_element_count())
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
     
     /* get a pointer to the desired element */
-    p = get_ele_ptr(idx, &avail);
+    size_t avail;
+    unsigned char *p = get_ele_ptr(idx, &avail);
 
     /* return the value as an integer */
     result->set_int((int)(unsigned short)*p);
@@ -1126,30 +1147,26 @@ int CVmObjByteArray::set_index_val_q(VMG_ vm_val_t *new_container,
                                      const vm_val_t *index_val,
                                      const vm_val_t *new_val)
 {
-    unsigned char *p;
-    size_t avail;
-    unsigned long idx;
-    unsigned long new_byte;
-
     /* get the index value as an integer */
-    idx = index_val->num_to_int();
+    int32_t idx = index_val->num_to_int(vmg0_);
 
     /* make sure it's in range - 1 to our element count, inclusive */
-    if (idx < 1 || idx > get_element_count())
+    if (idx < 1 || (uint32_t)idx > get_element_count())
         err_throw(VMERR_INDEX_OUT_OF_RANGE);
 
     /* save undo for the change */
     save_undo(vmg_ self, idx, 1);
 
     /* get the new value as an integer */
-    new_byte = new_val->num_to_int();
+    int32_t new_byte = new_val->num_to_int(vmg0_);
 
     /* make sure it's in range */
-    if (new_byte > 255)
+    if (new_byte < 0 || new_byte > 255)
         err_throw(VMERR_OUT_OF_RANGE);
 
     /* get a pointer to the desired element */
-    p = get_ele_ptr(idx, &avail);
+    size_t avail;
+    unsigned char *p = get_ele_ptr(idx, &avail);
 
     /* set the value */
     *p = (unsigned char)new_byte;
@@ -2287,6 +2304,10 @@ unsigned long CVmObjByteArray::read_from_file(
     if (start_idx > get_element_count())
         return 0;
 
+    /* if the requested length is zero, consider it a success */
+    if (len == 0)
+        return 0;
+
     /* 
      *   limit the request to the number of bytes available after the
      *   starting index 
@@ -2448,7 +2469,7 @@ int CVmObjByteArray::static_packBytes(VMG_ vm_val_t *retval, uint *oargc)
         return TRUE;
 
     /* set up an in-memory data stream to receive the packed data */
-    CVmMemorySource *dst = new CVmMemorySource(0);
+    CVmMemorySource *dst = new CVmMemorySource(0L);
 
     err_try
     {

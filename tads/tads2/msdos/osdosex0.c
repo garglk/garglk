@@ -41,7 +41,7 @@ int os_excall(int (*extfn)(void *), void *arg)
  *   Real-mode and 16-bit protected mode external function interfaces 
  */
 
-#ifndef __WIN32__
+#ifndef T_WIN32
 
 static void *canon(void *ptr)
 {
@@ -170,14 +170,14 @@ int os_excall(int (*extfn)(void *), void *arg)
     return((*extfn)(arg));
 }
 
-#endif /* !__WIN32__ */
+#endif /* !T_WIN32 */
 
 /* ------------------------------------------------------------------------ */
 /*
  *   Win32 external function interfaces - not implemented at present 
  */
 
-#ifdef __WIN32__
+#ifdef T_WIN32
 
 int (*os_exfld(osfildef *fp, unsigned len))(void *)
 {
@@ -223,5 +223,5 @@ int os_excall(int (*extfn)(void *), void *arg)
     return((*extfn)(arg));
 }
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 

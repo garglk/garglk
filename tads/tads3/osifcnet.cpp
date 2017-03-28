@@ -18,7 +18,7 @@ Modified
 #include "t3std.h"
 #include "osifcnet.h"
 #include "vmtype.h"
-#include "vmfile.h"
+#include "vmdatasrc.h"
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -55,7 +55,7 @@ OS_HttpPayloadItem::OS_HttpPayloadItem(const char *name, size_t name_len,
 /* create a payload item for a PUT/POST file upload */
 OS_HttpPayloadItem::OS_HttpPayloadItem(
     const char *name, const char *filename,
-    const char *mime_type, CVmStream *contents)
+    const char *mime_type, CVmDataSource *contents)
 {
     init();
     this->name = lib_copy_str(name);
@@ -69,7 +69,7 @@ OS_HttpPayloadItem::OS_HttpPayloadItem(
     const char *name, size_t name_len,
     const char *filename, size_t filename_len,
     const char *mime_type, size_t mime_type_len,
-    CVmStream *contents)
+    CVmDataSource *contents)
 {
     init();
     this->name = lib_copy_str(name, name_len);
@@ -129,7 +129,7 @@ void OS_HttpPayload::add_tstr(const char *name, const char *val)
 
 /* add a form file upload */
 void OS_HttpPayload::add(const char *name, const char *filename,
-                         const char *mime_type, CVmStream *stream)
+                         const char *mime_type, CVmDataSource *stream)
 {
     add(new OS_HttpPayloadItem(name, filename, mime_type, stream));
 }
@@ -138,7 +138,7 @@ void OS_HttpPayload::add(const char *name, const char *filename,
 void OS_HttpPayload::add(const char *name, size_t name_len,
                          const char *filename, size_t filename_len,
                          const char *mime_type, size_t mime_type_len,
-                         CVmStream *stream)
+                         CVmDataSource *stream)
 {
     add(new OS_HttpPayloadItem(
         name, name_len, filename, filename_len,

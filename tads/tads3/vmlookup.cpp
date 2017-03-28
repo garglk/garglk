@@ -580,29 +580,32 @@ void CVmObjLookupTable::
  */
 void CVmObjLookupTable::mark_refs(VMG_ uint state)
 {
-    vm_lookup_val **bp;
-    uint i;
+    /* get my extension */
+    vm_lookup_ext *ext = get_ext();
 
     /* mark the default value */
-    if (get_ext()->default_value.typ == VM_OBJ)
-        G_obj_table->mark_all_refs(get_ext()->default_value.val.obj, state);
+    const vm_val_t *val = &ext->default_value;
+    if (val->typ == VM_OBJ)
+        G_obj_table->mark_all_refs(val->val.obj, state);
 
     /* run through my buckets */
-    for (i = get_ext()->bucket_cnt, bp = get_ext()->buckets ;
-         i != 0 ; --i, ++bp)
+    vm_lookup_val **bp = ext->buckets;
+    size_t i = ext->bucket_cnt;
+    for ( ; i != 0 ; ++bp, --i)
     {
-        const vm_lookup_val *entry;
-
         /* run through all entries attached to this bucket */
-        for (entry = *bp ; entry != 0 ; entry = entry->nxt)
+        for (const vm_lookup_val *entry = *bp ; entry != 0 ;
+             entry = entry->nxt)
         {
             /* if the key is an object, mark it as referenced */
-            if (entry->key.typ == VM_OBJ)
-                G_obj_table->mark_all_refs(entry->key.val.obj, state);
+            val = &entry->key;
+            if  (val->typ == VM_OBJ)
+                G_obj_table->mark_all_refs(val->val.obj, state);
 
             /* if the entry is an object, mark it as referenced */
-            if (entry->val.typ == VM_OBJ)
-                G_obj_table->mark_all_refs(entry->val.val.obj, state);
+            val = &entry->val;
+            if (val->typ == VM_OBJ)
+                G_obj_table->mark_all_refs(val->val.obj, state);
         }
     }
 }
@@ -1072,13 +1075,11 @@ uint CVmObjLookupTable::calc_key_hash(VMG_ const vm_val_t *key)
  */
 vm_lookup_val *CVmObjLookupTable::alloc_new_entry(VMG0_)
 {
-    vm_lookup_val *entry;
-    
     /* if necessary, add more entry slots to the table */
     expand_if_needed(vmg0_);
 
     /* get the first entry from the free list */
-    entry = get_first_free();
+    vm_lookup_val *entry = get_first_free();
 
     /* unlink this entry from the free list */
     set_first_free(entry->nxt);
@@ -1093,14 +1094,12 @@ vm_lookup_val *CVmObjLookupTable::alloc_new_entry(VMG0_)
  */
 void CVmObjLookupTable::expand_if_needed(VMG0_)
 {
-    uint new_entry_cnt;
-
     /* if we have any free entries left, we need do nothing */
     if (get_first_free() != 0)
         return;
 
     /* increase the entry count by 50%, or 16 slots, whichever is more */
-    new_entry_cnt = get_entry_count() + (get_entry_count() >> 1);
+    uint new_entry_cnt = get_entry_count() + (get_entry_count() >> 1);
     if (new_entry_cnt < get_entry_count() + 16)
         new_entry_cnt = get_entry_count() + 16;
 

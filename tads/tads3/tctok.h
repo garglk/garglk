@@ -226,6 +226,7 @@ enum tc_toktyp_t
     TOKT_DSTR_START,          /* start of a dstring with embedding - "...<< */
     TOKT_DSTR_MID,          /* middle of a dstring with embedding - >>...<< */
     TOKT_DSTR_END,              /* end of a dstring with embedding - >>..." */
+    TOKT_RESTR,             /* regular expression string - R'...' or R"..." */
     TOKT_LPAR,                                            /* left paren '(' */
     TOKT_RPAR,                                           /* right paren ')' */
     TOKT_COMMA,                                                /* comma ',' */
@@ -281,8 +282,10 @@ enum tc_toktyp_t
     TOKT_QQ,                                   /* double question mark '??' */
     TOKT_COLONCOLON,                                   /* double-colon '::' */
     TOKT_FLOAT,                                    /* floating-point number */
+    TOKT_BIGINT,          /* an integer promoted to a float due to overflow */
     TOKT_AT,                                                     /* at-sign */
     TOKT_DOTDOT,                                       /* range marker '..' */
+    TOKT_FMTSPEC,                  /* sprintf format spec for <<%fmt expr>> */
 
     /* keywords */
     TOKT_SELF,
@@ -674,37 +677,8 @@ public:
  *   String embedding context.  This keeps track of the token structure for
  *   embedded expressions within strings using << >>. 
  */
-struct tok_embed_ctx
+struct tok_embed_level
 {
-    tok_embed_ctx() { reset(); }
-
-    void reset()
-    {
-        in_expr = FALSE;
-        parens = 0;
-        endtok = TOKT_INVALID;
-        triple = FALSE;
-    }
-
-    void start_expr(wchar_t qu, int triple)
-    {
-        in_expr = TRUE;
-        parens = 0;
-        endtok = (qu == '"' ? TOKT_DSTR_END : TOKT_SSTR_END);
-        this->qu = qu;
-        this->triple = triple;
-    }
-
-    void end_expr()
-    {
-        in_expr = FALSE;
-        parens = 0;
-        this->endtok = TOKT_INVALID;
-    }
-
-    /* are we in an embedded expression? */
-    int in_expr;
-
     /* parenthesis depth within the expression */
     int parens;
 
@@ -716,6 +690,70 @@ struct tok_embed_ctx
 
     /* true -> the enclosing string is a triple-quoted string */
     int triple;
+
+    void enter(wchar_t qu, int triple)
+    {
+        this->parens = 0;
+        this->endtok = (qu == '"' ? TOKT_DSTR_END : TOKT_SSTR_END);
+        this->qu = qu;
+        this->triple = triple;
+    }
+};
+struct tok_embed_ctx
+{
+    tok_embed_ctx() { reset(); }
+
+    void reset()
+    {
+        level = 0;
+        s = 0;
+    }
+    
+    void start_expr(wchar_t qu, int triple, int report);
+
+    void end_expr()
+    {
+        if (level > 0)
+            --level;
+        if (level == 0)
+            s = 0;
+        else if (level < countof(stk))
+            s = stk + level - 1;
+    }
+
+    /* are we in an embedded expression? */
+    int in_expr() const { return level != 0; }
+
+    /* paren nesting at current level */
+    int parens() const { return in_expr() ? s->parens : 0; }
+
+    /* inc/dec paren nesting level */
+    void parens(int inc)
+    {
+        if (in_expr())
+        {
+            if ((s->parens += inc) < 0)
+                s->parens = 0;
+        }
+    }
+
+    /* ending token type at current level */
+    tc_toktyp_t endtok() const { return in_expr() ? s->endtok : TOKT_INVALID; }
+
+    /* ending quote at current level */
+    wchar_t qu() const { return in_expr() ? s->qu : 0; }
+
+    /* ending quote is triple quote at current level */
+    int triple() const { return in_expr() ? s->triple : FALSE; }
+
+    /* nesting level */
+    int level;
+
+    /* stack pointer */
+    tok_embed_level *s;
+
+    /* stack */
+    tok_embed_level stk[10];
 };
 
 /* ------------------------------------------------------------------------ */
@@ -725,6 +763,9 @@ struct tok_embed_ctx
 class CTcToken
 {
 public:
+    CTcToken() { }
+    CTcToken(tc_toktyp_t typ) : typ_(typ) { }
+    
     /* get/set the token type */
     tc_toktyp_t gettyp() const { return typ_; }
     void settyp(tc_toktyp_t typ) { typ_ = typ; }
@@ -743,14 +784,12 @@ public:
     }
 
     /* get/set the integer value */
-    long get_int_val() const { return int_val_; }
-    void set_int_val(long val, int overflow)
+    ulong get_int_val() const { return int_val_; }
+    void set_int_val(ulong val)
     {
         typ_ = TOKT_INT;
         int_val_ = val;
-        int_overflow_ = overflow;
     }
-    int get_int_overflow() const { return int_overflow_; }
 
     /* 
      *   compare the text to the given string - returns true if the text
@@ -772,7 +811,6 @@ public:
         text_ = tok.text_;
         text_len_ = tok.text_len_;
         int_val_ = tok.int_val_;
-        int_overflow_ = tok.int_overflow_;
         fully_expanded_ = tok.fully_expanded_;
     }
 
@@ -790,10 +828,7 @@ private:
     size_t text_len_;
 
     /* integer value - valid when the token type is TOKT_INT */
-    long int_val_;
-
-    /* flag: for an integer token, the constant overflowed a 32-bit int */
-    uint int_overflow_ : 1;
+    ulong int_val_;
 
     /* 
      *   flag: the token has been fully expanded, and should not be
@@ -910,6 +945,31 @@ protected:
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Newline spacing modes.  The newline spacing mode controls how line
+ *   breaks are handled within strings.
+ */
+
+enum newline_spacing_mode_t
+{
+    /* delete: a newline and immediately following whitespace are deleted */
+    NEWLINE_SPACING_DELETE = 0,
+
+    /* 
+     *   collapse: a newline and immediately following whitespace are
+     *   replaced with a single space character 
+     */
+    NEWLINE_SPACING_COLLAPSE = 1,
+
+    /* 
+     *   preserve: newlines and subsequent whitespace are preserved exactly
+     *   as written in the source code 
+     */
+    NEWLINE_SPACING_PRESERVE = 2
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Tokenizer.  This object reads a file and constructs a representation
  *   of the file as a token list in memory.  The tokenizer interprets
  *   preprocessor directives and expands macros.  
@@ -1015,6 +1075,12 @@ public:
      */
     void unget();
     void unget(const CTcToken *prv);
+
+    /* 
+     *   Push a token into the token stream.  The given token becomes the
+     *   next token to be retrieved.  This doesn't affect the current token.
+     */
+    void push(const CTcToken *tok);
 
     /* get the current token */
     const class CTcToken *getcur() const { return &curtok_; }
@@ -1441,14 +1507,27 @@ private:
     void commit_source(size_t len);
 
     /* parse a string */
-    static tc_toktyp_t tokenize_string(utf8_ptr *p, CTcToken *tok,
-                                       tok_embed_ctx *ec);
+    static tc_toktyp_t tokenize_string(
+        utf8_ptr *p, CTcToken *tok, tok_embed_ctx *ec, int expanding_macros);
 
     /* process comments */
     void process_comments(size_t start_ofs);
 
     /* splice lines for a string that runs across multiple lines */
     void splice_string();
+
+    /* scan a sprintf format spec */
+    void scan_sprintf_spec(utf8_ptr *p);
+
+    /* translate a \ escape sequence */
+    void xlat_escape(utf8_ptr *dst, utf8_ptr *p, wchar_t qu, int triple);
+
+    /* skip an ordinary character or \ escape sequence */
+    void skip_escape(utf8_ptr *p);
+
+    /* translate escape sequences in a string segment */
+    void xlat_escapes(utf8_ptr *dstp, const utf8_ptr *srcp,
+                      const utf8_ptr *endp);
 
     /* expand macros in the current line */
     int expand_macros_curline(int read_more, int allow_defined,
@@ -1695,23 +1774,14 @@ private:
      */
     unsigned int list_includes_mode_ : 1;
 
-    /*
-     *   Flag: treat newlines in strings as whitespace.  When this is true,
-     *   whenever we find a newline character in a string, we'll convert the
-     *   newline and all leading whitespace on the next line to a single
-     *   space character.  When this is false, we'll entirely strip out each
-     *   newline in a string and all whitespace that immediately follows;
-     *   this mode is desirable for some languages, such as Chinese, where
-     *   whitespace is not conventionally used as a token separator in
-     *   ordinary text.  
-     */
-    unsigned int string_newline_spacing_ : 1;
-
     /* 
      *   flag: we're parsing a preprocessor constant expression (for a
      *   #if, for example; this doesn't apply to simple macro expansion) 
      */
     unsigned int in_pp_expr_ : 1;
+
+    /* mode for handling newlines in strings */
+    newline_spacing_mode_t string_newline_spacing_;
 
     /* resource loader */
     class CResLoader *res_loader_;
@@ -1799,13 +1869,13 @@ private:
     /* flag: the in_quote_ string we're in is triple quoted */
     int in_triple_;
 
-    /* flag: in an embedded expression during line processing */
+    /* embedded expression context in comment */
     tok_embed_ctx comment_in_embedding_;
 
-    /* flag: macro processing token stream is in an embedded expression */
+    /* embedded expression context within a macro expansion */
     tok_embed_ctx macro_in_embedding_;
 
-    /* flag: main token stream is in an embedded expression */
+    /* embedded expression context for the main token stream */
     tok_embed_ctx main_in_embedding_;
 
     /* 
@@ -2082,8 +2152,10 @@ public:
     void set_init_if_level(int level) { init_if_level_ = level; }
 
     /* get/set the newline spacing mode */
-    int get_newline_spacing() const { return newline_spacing_; }
-    void set_newline_spacing(int f) { newline_spacing_ = f; }
+    newline_spacing_mode_t get_newline_spacing() const
+        { return newline_spacing_; }
+    void set_newline_spacing(newline_spacing_mode_t f)
+        { newline_spacing_ = f; }
 
 private:
     /* file descriptor associated with this file */
@@ -2104,14 +2176,14 @@ private:
     /* #if nesting level at the start of the file */
     int init_if_level_;
 
+    /* newline_spacing mode when the stream was stacked */
+    newline_spacing_mode_t newline_spacing_;
+
     /* flag: we were unable to load the map in the #charset directive */
     uint charset_error_ : 1;
 
     /* the stream is in a multi-line comment */
     uint in_comment_ : 1;
-
-    /* newline_spacing mode when the stream was stacked */
-    uint newline_spacing_ : 1;
 
     /* flag: we're in #pragma C+ mode */
     // uint pragma_c_ : 1; - #pragma C is not currently used

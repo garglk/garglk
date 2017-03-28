@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -8,8 +9,6 @@
  *   This header defines the Vector intrinsic class.  
  */
 
-#ifndef _VECTOR_H_
-#define _VECTOR_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -319,6 +318,4 @@ intrinsic class Vector 'vector/030005': Collection
      */
     maxVal(func?);
 }
-
-#endif /* _VECTOR_H_ */
 

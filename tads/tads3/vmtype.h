@@ -33,7 +33,7 @@ Modified
  *   Constant pool/code offset.  This is an address of an object in the
  *   pool.  Pool offsets are 32-bit values.  
  */
-typedef uint32 pool_ofs_t;
+typedef uint32_t pool_ofs_t;
 
 /*
  *   Savepoint ID's are stored in a single byte; since we store many
@@ -51,7 +51,7 @@ const vm_savept_t VM_SAVEPT_MAX = 255;
  *   as an invalid object ID (a null pointer, effectively); no object can
  *   ever have this ID.  
  */
-typedef uint32 vm_obj_id_t;
+typedef uint32_t vm_obj_id_t;
 const vm_obj_id_t VM_INVALID_OBJ = 0;
 
 /*
@@ -59,7 +59,7 @@ const vm_obj_id_t VM_INVALID_OBJ = 0;
  *   distinguished value that serves as an invalid property ID, which can
  *   be used to indicate the absence of a property value.  
  */
-typedef uint16 vm_prop_id_t;
+typedef uint16_t vm_prop_id_t;
 const vm_prop_id_t VM_INVALID_PROP = 0;
 
 /*
@@ -229,10 +229,10 @@ struct vm_val_t
         vm_prop_id_t prop;
 
         /* 32-bit integer */
-        int32 intval;
+        int32_t intval;
 
         /* enumerated constant */
-        uint32 enumval;
+        uint32_t enumval;
 
         /* sstring/dstring/list constant pool offset/pcode pool offset */
         pool_ofs_t ofs;
@@ -256,8 +256,8 @@ struct vm_val_t
     void set_codeptr(const void *ptr) { typ = VM_CODEPTR; val.ptr = ptr; }
     void set_obj(vm_obj_id_t obj) { typ = VM_OBJ; val.obj = obj; }
     void set_propid(vm_prop_id_t prop) { typ = VM_PROP; val.prop = prop; }
-    void set_int(int32 intval) { typ = VM_INT; val.intval = intval; }
-    void set_enum(uint32 enumval) { typ = VM_ENUM; val.enumval = enumval; }
+    void set_int(int32_t intval) { typ = VM_INT; val.intval = intval; }
+    void set_enum(uint32_t enumval) { typ = VM_ENUM; val.enumval = enumval; }
     void set_sstring(pool_ofs_t ofs) { typ = VM_SSTRING; val.ofs = ofs; }
     void set_dstring(pool_ofs_t ofs) { typ = VM_DSTRING; val.ofs = ofs; }
     void set_list(pool_ofs_t ofs) { typ = VM_LIST; val.ofs = ofs; }
@@ -312,11 +312,25 @@ struct vm_val_t
     int is_logical() const { return (typ == VM_NIL || typ == VM_TRUE); }
 
     /* 
-     *   Get a logical as numeric TRUE or FALSE.  This does not perform
+     *   Get a logical as numeric TRUE or FALSE.  This doesn't perform
      *   any type checking; the caller must ensure that the value is
      *   either true or nil, or this may return meaningless results.  
      */
     int get_logical() const { return (typ == VM_TRUE); }
+
+    /* get as logical, checking type */
+    int get_logical_only() const
+    {
+        if (typ == VM_TRUE)
+            return TRUE;
+        else if (typ == VM_NIL)
+            return FALSE;
+        else
+        {
+            err_throw(VMERR_BAD_TYPE_BIF);
+            AFTER_ERR_THROW(return FALSE;)
+        }
+    }
 
     /*
      *   Get the underlying string constant value.  If the value does not
@@ -393,14 +407,11 @@ struct vm_val_t
         }
     }
 
-    /* determine if the value is some kind of number */
-    int is_numeric() const { return (typ == VM_INT); }
+    /* determine if the value is an integer */
+    int is_int() const { return (typ == VM_INT); }
 
-    /*
-     *   Convert a numeric value to an integer.  If the value is not
-     *   numeric, we'll throw an error. 
-     */
-    int32 num_to_int() const
+    /* get the value as an integer, throwing an error if it's any other type */
+    int32_t get_as_int() const
     {
         /* check the type */
         if (typ == VM_INT)
@@ -410,21 +421,53 @@ struct vm_val_t
         }
         else
         {
-            /* 
-             *   other types are not numeric and can't be directly
-             *   converted to integer by arithmetic conversion
-             */
+            /* not an integer - throw an error */
             err_throw(VMERR_NUM_VAL_REQD);
-
-            /* the compiler might not know we'll never get here */
             AFTER_ERR_THROW(return 0;)
         }
     }
 
     /* 
-     *   Cast to an integer value.  
+     *   determine if the type is numeric - this returns true for integer and
+     *   BigNumber values, and could match future types that are numeric
      */
-    int32 cast_to_int(VMG0_) const;
+    int is_numeric(VMG0_) const
+        { return typ == VM_INT || nonint_is_numeric(vmg0_); }
+
+    /*
+     *   Promote an integer to this numeric type.  For example, if 'this' is
+     *   a BigNumber, this creates a BigNumber representation of val.  This
+     *   converts the value in place, replacing '*val' with the promoted
+     *   value.
+     */
+    void promote_int(VMG_ vm_val_t *val) const;
+
+    /* 
+     *   Convert a numeric value to an integer.  This converts any type for
+     *   which is_numeric() returns true, but doesn't convert non-numeric
+     *   types.
+     */
+    int32_t num_to_int(VMG0_) const
+        { return typ == VM_INT ? val.intval : nonint_num_to_int(vmg0_); }
+
+    /*
+     *   Convert a numeric value to a double.  This converts any type for
+     *   which is_numeric() returns true, but doesn't convert non-numeric
+     *   types.
+     */
+    double num_to_double(VMG0_) const
+    {
+        return typ == VM_INT
+            ? (double)val.intval
+            : nonint_num_to_double(vmg0_);
+    }
+
+    /* 
+     *   Cast to an integer.  This is more aggressive than num_to_int(), in
+     *   that we actively try to convert non-numeric types.
+     */
+    int32_t cast_to_int(VMG0_) const
+        { return typ == VM_INT ? val.intval : nonint_cast_to_int(vmg0_); }
 
     /*
      *   Cast to a numeric type - integer or BigNumber.  If the value is
@@ -547,6 +590,16 @@ struct vm_val_t
 private:
     /* out-of-line comparison, used when we don't have two integers */
     int gen_compare_to(VMG_ const vm_val_t *val) const;
+
+    /* 
+     *   internal int conversion and casting - we separate these from
+     *   num_to_int and cast_to_int so that cast_to_int can be inlined for
+     *   the common case where the value is already an int 
+     */
+    int nonint_is_numeric(VMG0_) const;
+    int32_t nonint_num_to_int(VMG0_) const;
+    double nonint_num_to_double(VMG0_) const;
+    int32_t nonint_cast_to_int(VMG0_) const;
 };
 
 /* ------------------------------------------------------------------------ */
@@ -661,22 +714,22 @@ inline size_t vmb_get_len(const char *buf) { return osrp2(buf); }
  *   Portable binary unsigned 2-byte integer 
  */
 const size_t VMB_UINT2 = 2;
-inline void vmb_put_uint2(char *buf, uint16 i) { oswp2(buf, i); }
-inline uint16 vmb_get_uint2(const char *buf) { return osrp2(buf); }
+inline void vmb_put_uint2(char *buf, uint16_t i) { oswp2(buf, i); }
+inline uint16_t vmb_get_uint2(const char *buf) { return osrp2(buf); }
 
 /*
  *   Portable binary unsigned 4-byte integer 
  */
 const size_t VMB_UINT4 = 4;
-inline void vmb_put_uint4(char *buf, uint32 i) { oswp4(buf, i); }
-inline uint32 vmb_get_uint4(const char *buf) { return osrp4(buf); }
+inline void vmb_put_uint4(char *buf, uint32_t i) { oswp4(buf, i); }
+inline uint32_t vmb_get_uint4(const char *buf) { return osrp4(buf); }
 
 /*
  *   Portable binary signed 4-byte integer 
  */
 const size_t VMB_INT4 = 4;
-inline void vmb_put_int4(char *buf, int32 i) { oswp4s(buf, i); }
-inline int32 vmb_get_int4(const char *buf) { return osrp4s(buf); }
+inline void vmb_put_int4(char *buf, int32_t i) { oswp4s(buf, i); }
+inline int32_t vmb_get_int4(const char *buf) { return osrp4s(buf); }
 
 /*
  *   Portable binary object ID. 
@@ -735,8 +788,8 @@ inline vm_obj_id_t vmb_get_dh_obj(const char *buf)
     { return (vm_obj_id_t)t3rp4u(buf+1); }
 
 /* get an integer value from a portable dataholder */
-inline int32 vmb_get_dh_int(const char *buf)
-    { return (int32)osrp4s(buf+1); }
+inline int32_t vmb_get_dh_int(const char *buf)
+    { return (int32_t)osrp4s(buf+1); }
 
 /* get a property ID value from a portable dataholder */
 inline vm_prop_id_t vmb_get_dh_prop(const char *buf)

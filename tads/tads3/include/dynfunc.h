@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -14,8 +15,6 @@
  *   additional definitions that are useful with this class.  
  */
 
-#ifndef _DYNFUNC_H_
-#define _DYNFUNC_H_
 
 /* include our base class definitions */
 #include "systype.h"
@@ -82,4 +81,3 @@ intrinsic class DynamicFunc 'dynamic-func/030000'
     getSource();
 }
 
-#endif /* _DYNFUNC_H_ */

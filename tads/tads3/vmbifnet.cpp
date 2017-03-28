@@ -41,7 +41,7 @@ Modified
 #include "vmimport.h"
 #include "vmpredef.h"
 #include "vmhttpsrv.h"
-#include "vmfile.h"
+#include "vmdatasrc.h"
 #include "vmbytarr.h"
 #include "vmfilobj.h"
 #include "vmcset.h"
@@ -485,7 +485,7 @@ class TadsHttpReqResult: public TadsEventMessage
 {
 public:
     TadsHttpReqResult(VMG_  vm_globalvar_t *idg, int status,
-                      CVmStream *reply, char *hdrs, char *loc)
+                      CVmDataSource *reply, char *hdrs, char *loc)
         : TadsEventMessage(0)
     {
         /* save the VM globals */
@@ -524,6 +524,7 @@ public:
             lib_free_str(loc);
     }
 
+    /* prepare a bytecode event object when we're read from the queue */
     virtual vm_obj_id_t prep_event_obj(VMG_ int *argc, int *evt_type)
     {
         /* push the location string (or nil) */
@@ -584,15 +585,13 @@ public:
                 csobj = CVmObjCharSet::create(vmg_ FALSE, charset, cslen);
 
             /* seek to the beginning of the reply stream */
-            reply->set_seek_pos(0);
-
-            /* create a Data Source layered on top of our stream */
-            CVmDataSource *ds = new CVmStreamSource(reply);
+            reply->seek(0, OSFSK_SET);
 
             /* create a File object from the Data Source */
             vm_obj_id_t fileobj = CVmObjFile::create(
-                vmg_ FALSE, 0, csobj, ds, mode, VMOBJFILE_ACCESS_READ, TRUE);
-
+                vmg_ FALSE, 0, csobj, reply, mode,
+                VMOBJFILE_ACCESS_READ, TRUE);
+            
             /* push the file object */
             G_interpreter->push_obj(vmg_ fileobj);
 
@@ -672,7 +671,7 @@ protected:
                 for (p += 2 ; *p != '\0' && is_space(*p) ; ++p) ;
 
                 /* if this was a blank line, we're out of headers */
-                if (*p == '\0' || *p == '\r' && *(p+1) == '\n')
+                if (*p == '\0' || (*p == '\r' && *(p+1) == '\n'))
                     return 0;
 
                 /* this is the next header */
@@ -700,7 +699,7 @@ protected:
     int status;
 
     /* the reply content body */
-    CVmStream *reply;
+    CVmDataSource *reply;
 
     /* reply headers */
     char *hdrs;
@@ -737,7 +736,7 @@ public:
      *   string format, with VMB_LEN length prefixes.  
      */
     HttpReqThread(VMG_ const vm_val_t *id, const char *url,
-                  const char *verb, int32 options,
+                  const char *verb, int32_t options,
                   const char *hdrs, vm_val_t *body, const char *body_type,
                   const vm_rcdesc *rc)
     {
@@ -841,7 +840,7 @@ public:
                  *   as a string or ByteArray.
                  */
                 const char *def_mime_type = 0;
-                CVmStream *stream = val_to_stream(vmg_ body, &def_mime_type);
+                CVmDataSource *s = val_to_ds(vmg_ body, &def_mime_type);
                 
                 /* presume we're going to use the default mime type */
                 const char *mime_type = def_mime_type;
@@ -857,7 +856,7 @@ public:
                 
                 /* add the stream */
                 this->body->add(
-                    "", 0, "", 0, mime_type, mime_type_len, stream);
+                    "", 0, "", 0, mime_type, mime_type_len, s);
             }
         }
     }
@@ -895,7 +894,7 @@ public:
         char **locp = ((options & NetReqNoRedirect) != 0 ? &loc : 0);
 
         /* set up a memory stream object to hold the reply */
-        CVmExpandableMemoryStream *reply = new CVmExpandableMemoryStream(0);
+        CVmMemorySource *reply = new CVmMemorySource(128);
 
         /* no reply headers yet */
         char *reply_hdrs = 0;
@@ -908,20 +907,10 @@ public:
         /* get the length of the custom headers, if we have any */
         size_t hdrs_len = (hdrs != 0 ? strlen(hdrs) : 0);
 
-        /* presume failure */
-        int status = OS_HttpClient::ErrOther;
-
-        /* send the request, catching any errors */
-        err_try
-        {
-            /* send the request */
-            status = OS_HttpClient::request(
-                rflags, host, port, verb, resource, hdrs, hdrs_len, body,
-                reply, &reply_hdrs, locp, 0);
-        }
-        err_catch (exc)
-        {
-        }
+        /* send the request */
+        int status = OS_HttpClient::request(
+            rflags, host, port, verb, resource, hdrs, hdrs_len, body,
+            reply, &reply_hdrs, locp, 0);
         
         /* 
          *   if the status is negative, a system-level error occurred, so
@@ -932,7 +921,6 @@ public:
             delete reply;
             reply = 0;
         }
-        err_end;
         
         /* 
          *   Always post a result event, even on failure, since the event is
@@ -945,7 +933,7 @@ public:
     }
 
     /* post the result */
-    void post_result(int status, CVmStream *reply, char *hdrs, char *loc)
+    void post_result(int status, CVmDataSource *reply, char *hdrs, char *loc)
     {
         /* establish the global context */
         VMGLOB_PTR(vmg);
@@ -965,7 +953,7 @@ protected:
     /*
      *   Convert a string or ByteArray object to a data stream 
      */
-    static CVmStream *val_to_stream(VMG_ const vm_val_t *val,
+    static CVmDataSource *val_to_ds(VMG_ const vm_val_t *val,
                                     const char **def_mime_type)
     {
         /* try it as a string */
@@ -976,7 +964,7 @@ protected:
             *def_mime_type = "text/plain; charset=utf-8";
 
             /* create a stream with a private copy of the string */
-            return new CVmPrivateMemoryStream(
+            return new CVmPrivateStringSource(
                 bstr + VMB_LEN, vmb_get_len(bstr));
         }
         else if (val->typ == VM_OBJ
@@ -991,7 +979,7 @@ protected:
             
             /* create a stream copy of the byte array's contents */
             unsigned long arrlen = barr->get_element_count();
-            CVmStream *stream = new CVmExpandableMemoryStream(arrlen);
+            CVmDataSource *s = new CVmMemorySource(arrlen);
             
             /* copy the array's contents to the stream */
             const size_t BLOCKLEN = 1024;
@@ -1004,17 +992,17 @@ protected:
                 
                 /* copy the data */
                 barr->copy_to_buf((unsigned char *)block, idx, cur);
-                stream->write_bytes(block, cur);
+                s->write(block, cur);
             }
 
             /* 
              *   rewind the stream to the start, so that the network code
              *   reads the entire contents from the beginning 
              */
-            stream->set_seek_pos(0);
-
+            s->seek(0, OSFSK_SET);
+            
             /* return the stream */
-            return stream;
+            return s;
         }
         else
         {
@@ -1065,9 +1053,9 @@ protected:
                 vmg_ &fname_val, val, G_predef->file_upload_filename, 0,
                 ctx->rc);
 
-            /* convert the 'file' value to a stream */
+            /* wrap the 'file' value in a datasource */
             const char *def_ctype = 0;
-            CVmStream *stream = val_to_stream(vmg_ &file_val, &def_ctype);
+            CVmDataSource *src = val_to_ds(vmg_ &file_val, &def_ctype);
 
             /* if we have a contentType string, override the default */
             const char *ctype = ctype_val.get_as_string(vmg0_);
@@ -1093,7 +1081,7 @@ protected:
             /* add the field */
             ctx->self->body->add(
                 field_name + VMB_LEN, vmb_get_len(field_name),
-                fname, fname_len, ctype, ctype_len, stream);
+                fname, fname_len, ctype, ctype_len, src);
         }
         else
         {
@@ -1115,7 +1103,7 @@ protected:
     TadsMessageQueue *queue;
 
     /* option flags */
-    int32 options;
+    int32_t options;
 
     /* parsed URL information */
     int https;
@@ -1250,9 +1238,9 @@ void CVmBifNet::send_net_request(VMG_ uint argc)
         const char *verb = get_str_val(vmg_ G_stk->get(2));
 
         /* get the option flags, if present */
-        int32 options = 0;
+        int32_t options = 0;
         if (argc >= 4 && G_stk->get(3)->typ != VM_NIL)
-            options = G_stk->get(3)->num_to_int();
+            options = G_stk->get(3)->num_to_int(vmg0_);
 
         /* get the headers, if present */
         const char *hdrs = 0;
@@ -1262,24 +1250,27 @@ void CVmBifNet::send_net_request(VMG_ uint argc)
         /* get the content body, if present */
         vm_val_t *body = 0;
         if (argc >= 6 && G_stk->get(5)->typ != VM_NIL)
+        {
+            /* get the body value */
             body = G_stk->get(5);
 
-        /* 
-         *   verify the body type - this must be a string, byte array, or
-         *   lookup table 
-         */
-        if (body->get_as_string(vmg0_) != 0
-            || (body->typ == VM_OBJ
-                && (CVmObjByteArray::is_byte_array(vmg_ body->val.obj)
-                    || CVmObjLookupTable::is_lookup_table_obj(
-                        vmg_ body->val.obj))))
-        {
-            /* acceptable body type */
-        }
-        else
-        {
-            /* invalid body type */
-            err_throw(VMERR_BAD_TYPE_BIF);
+            /* 
+             *   verify the body type - this must be a string, byte array, or
+             *   lookup table 
+             */
+            if (body->get_as_string(vmg0_) != 0
+                || (body->typ == VM_OBJ
+                    && (CVmObjByteArray::is_byte_array(vmg_ body->val.obj)
+                        || CVmObjLookupTable::is_lookup_table_obj(
+                            vmg_ body->val.obj))))
+            {
+                /* acceptable body type */
+            }
+            else
+            {
+                /* invalid body type */
+                err_throw(VMERR_BAD_TYPE_BIF);
+            }
         }
 
         /* get the body's MIME type, if present */
