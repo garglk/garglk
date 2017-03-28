@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2015 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -58,7 +58,7 @@ void parse_unicode_table(uint16_t utable)
   unicode_entries = BYTE(utable++);
 
   if(unicode_entries > UNICODE_TABLE_SIZE) die("corrupted story: too many entries in the unicode table");
-  if(utable + (2 * unicode_entries) >= memory_size) die("corrupted story: unicode table out of range");
+  if(utable + (2 * unicode_entries) > memory_size) die("corrupted story: unicode table out of range");
 
   for(int i = 0; i < unicode_entries; i++)
   {
@@ -74,7 +74,8 @@ uint16_t zscii_to_unicode[UINT8_MAX + 1];
 
 /* These tables translate a Unicode or (Latin-1) character into its
  * ZSCII equivalent.  Only valid Unicode characters are translated (that
- * is, those in the range 32–126, or 160 and above).
+ * is, those in the range 32–126, or 160 and above).  These are meant
+ * for output, so do not translate delete and escape.
  *
  * The first table will translate invalid Unicode characters to zero;
  * the second, to a question mark.
@@ -293,6 +294,7 @@ void setup_tables(void)
   }
 
   /* Properly translate a newline. */
+  unicode_to_zscii  [UNICODE_LINEFEED] = ZSCII_NEWLINE;
   unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
 
   /*** Unicode to Latin1 table. ***/

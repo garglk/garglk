@@ -1,5 +1,5 @@
 /*-
- * Copyright 2009-2012 Chris Spiegel.
+ * Copyright 2009-2016 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -45,7 +45,7 @@
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.6.3.2"
+#define ZTERP_VERSION	"0.9"
 
 const char *game_file;
 struct options options = {
@@ -63,8 +63,6 @@ struct options options = {
   .enable_alt_graphics = 0,
   .show_id = 0,
   .disable_term_keys = 0,
-  .disable_utf8 = 0,
-  .force_utf8 = 0,
   .disable_meta_commands = 0,
   .int_number = 1, /* DEC */
   .int_version = 'C',
@@ -86,8 +84,6 @@ struct options options = {
 };
 
 static char story_id[64];
-
-uint32_t pc;
 
 /* zversion stores the Z-machine version of the story: 1–6.
  *
@@ -130,21 +126,16 @@ uint8_t atable[26 * 3] =
   ',', '!', '?', '_', '#', '\'','"', '/', '\\','-', ':', '(', ')',
 };
 
-uint32_t unpack(uint16_t addr, int string)
+static unsigned long unpack_multiplier;
+
+uint32_t unpack_routine(uint16_t addr)
 {
-  switch(zwhich)
-  {
-    case 1: case 2: case 3:
-      return addr * 2UL;
-    case 4: case 5:
-      return addr * 4UL;
-    case 6: case 7:
-      return (addr * 4UL) + (string ? header.S_O : header.R_O);
-    case 8:
-      return addr * 8UL;
-    default:
-      die("unhandled z-machine version: %d", zwhich);
-  }
+  return (addr * unpack_multiplier) + header.R_O;
+}
+
+uint32_t unpack_string(uint16_t addr)
+{
+  return (addr * unpack_multiplier) + header.S_O;
 }
 
 void store(uint16_t v)
@@ -248,58 +239,6 @@ static void check_infocom(void)
   }
 }
 
-#ifndef ZTERP_NO_CHEAT
-/* The index into these arrays is the address to freeze.
- * The first array tracks whether the address is frozen, while the
- * second holds the frozen value.
- */
-static char     freezew_cheat[UINT16_MAX + 1];
-static uint16_t freezew_val  [UINT16_MAX + 1];
-
-static void cheat(char *how)
-{
-  char *p;
-
-  p = strtok(how, ":");
-  if(p == NULL) return;
-
-  if(strcmp(p, "freezew") == 0)
-  {
-    uint16_t addr;
-
-    p = strtok(NULL, ":");
-    if(p == NULL) return;
-
-    if(*p == 'G')
-    {
-      addr = strtoul(p + 1, NULL, 16);
-      if(addr > 239) return;
-
-      addr = header.globals + (addr * 2);
-    }
-    else
-    {
-      addr = strtoul(p, NULL, 16);
-    }
-
-    p = strtok(NULL, ":");
-    if(p == NULL) return;
-
-    freezew_cheat[addr] = 1;
-    freezew_val  [addr] = strtoul(p, NULL, 0);
-  }
-}
-
-int cheat_find_freezew(uint32_t addr, uint16_t *val)
-{
-  if(addr > UINT16_MAX || !freezew_cheat[addr]) return 0;
-
-  *val = freezew_val[addr];
-
-  return 1;
-}
-#endif
-
 static void read_config(void)
 {
   FILE *fp;
@@ -375,8 +314,6 @@ static void read_config(void)
     BOOL  (disable_graphics_font);
     BOOL  (enable_alt_graphics);
     BOOL  (disable_term_keys);
-    BOOL  (disable_utf8);
-    BOOL  (force_utf8);
     BOOL  (disable_meta_commands);
     NUMBER(max_saves);
     BOOL  (disable_undo_compression);
@@ -405,7 +342,7 @@ static void read_config(void)
     COLOR(white,   9);
 
 #ifndef ZTERP_NO_CHEAT
-    else if(strcmp(key, "cheat") == 0) cheat(val);
+    else if(strcmp(key, "cheat") == 0) cheat_add(val, 0);
 #endif
 
 #undef BOOL
@@ -542,6 +479,21 @@ static void process_story(void)
   zwhich = zversion;
   if(zversion == 7 || zversion == 8) zversion = 5;
 
+  switch(zwhich)
+  {
+    case 1: case 2: case 3:
+      unpack_multiplier = 2;
+      break;
+    case 4: case 5: case 6: case 7:
+      unpack_multiplier = 4;
+      break;
+    case 8:
+      unpack_multiplier = 8;
+      break;
+    default:
+      die("unhandled z-machine version: %d", zwhich);
+  }
+
   pc =			WORD(0x06);
   if(pc >= memory_size) die("corrupted story: initial pc out of range");
 
@@ -621,7 +573,7 @@ static void process_story(void)
   }
   else if(zversion >= 5 && WORD(0x34) != 0)
   {
-    if(WORD(0x34) + 26 * 3 >= memory_size) die("corrupted story: alphabet table out of range");
+    if(WORD(0x34) + 26 * 3 > memory_size) die("corrupted story: alphabet table out of range");
 
     memcpy(atable, &memory[WORD(0x34)], 26 * 3);
 
@@ -641,7 +593,7 @@ static void process_story(void)
     {
       uint16_t nentries = user_word(etable);
 
-      if(etable + (2 * nentries) >= memory_size) die("corrupted story: header extension table out of range");
+      if(etable + (2 * nentries) > memory_size) die("corrupted story: header extension table out of range");
 
       /* Unicode table. */
       if(nentries >= 3 && WORD(etable + (2 * 3)) != 0)
@@ -676,24 +628,6 @@ static void process_story(void)
    * require intervention.  Delay that intervention until here so that
    * the configuration file is taken into account.
    */
-  if(options.disable_utf8)
-  {
-#ifndef ZTERP_GLK
-    /* If Glk is not being used, the ZSCII to Unicode table needs to be
-     * aligned with the IO character set.
-     */
-    have_unicode = 0;
-#endif
-    use_utf8_io = 0;
-  }
-  if(options.force_utf8)
-  {
-#ifndef ZTERP_GLK
-    /* See above. */
-    have_unicode = 1;
-#endif
-    use_utf8_io = 1;
-  }
   if(options.escape_string == NULL) options.escape_string = xstrdup("1m");
 
   /* If the offset is not zero, then this must be a Blorb file. */
@@ -819,7 +753,7 @@ void zsave5(void)
   }
 
   /* This should be able to suggest a filename, but Glk doesn’t support that. */
-  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY | ZTERP_IO_SAVE);
+  savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     store(0);
@@ -846,7 +780,7 @@ void zrestore5(void)
     return;
   }
 
-  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY | ZTERP_IO_SAVE);
+  savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     store(0);
@@ -876,7 +810,6 @@ void zpiracy(void)
 }
 
 #ifdef ZTERP_GLK
-zexternally_visible
 void glk_main(void)
 #else
 int main(int argc, char **argv)
@@ -890,10 +823,8 @@ int main(int argc, char **argv)
   have_unicode = glk_gestalt(gestalt_Unicode, 0);
 #endif
 #else
-  have_unicode = zterp_os_have_unicode();
+  have_unicode = 1;
 #endif
-
-  use_utf8_io = zterp_os_have_unicode();
 
 #ifndef ZTERP_GLK
   process_arguments(argc, argv);
@@ -972,7 +903,7 @@ int main(int argc, char **argv)
     die("no story provided");
   }
 
-  story.io = zterp_io_open(game_file, ZTERP_IO_RDONLY);
+  story.io = zterp_io_open(game_file, ZTERP_IO_RDONLY, ZTERP_IO_DATA);
   if(story.io == NULL) die("cannot open file %s", game_file);
 
   blorb = zterp_blorb_parse(story.io);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2014 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -27,7 +27,6 @@
 #include "util.h"
 #include "zterp.h"
 
-zexternally_visible
 glkunix_argumentlist_t glkunix_arguments[] =
 {
 #include "help.h"
@@ -35,7 +34,6 @@ glkunix_argumentlist_t glkunix_arguments[] =
   { NULL, glkunix_arg_End, NULL }
 };
 
-zexternally_visible
 int glkunix_startup_code(glkunix_startup_t *data)
 {
   process_arguments(data->argc, data->argv);
@@ -60,7 +58,6 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 int InitGlk(unsigned int);
 
-zexternally_visible
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previnstance, LPSTR cmdline, int cmdshow)
 {
   /* This works (with a linker message) under MinGW, but I don’t

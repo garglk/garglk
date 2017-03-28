@@ -28,6 +28,7 @@ void cancel_all_events(void);
 
 void show_message(const char *, ...);
 void screen_print(const char *);
+void screen_printf(const char *, ...);
 void screen_puts(const char *);
 
 #ifdef GLK_MODULE_LINE_TERMINATORS

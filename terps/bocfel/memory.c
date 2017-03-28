@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010-2012 Chris Spiegel.
+ * Copyright 2010-2015 Chris Spiegel.
  *
  * This file is part of Bocfel.
  *
@@ -17,6 +17,8 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdint.h>
 
 #include "memory.h"
@@ -28,6 +30,37 @@
 
 uint8_t *memory, *dynamic_memory;
 uint32_t memory_size;
+
+/* The Z-machine does not require aligned memory access, so
+ * both even and odd addresses must be checked.  However,
+ * global variables are word-sized, so if an address inside
+ * the global variables has changed, report only if the
+ * address is the base of globals plus a multiple of two.
+ */
+int in_globals(uint16_t addr)
+{
+  return addr >= header.globals && addr < header.globals + 480;
+}
+
+int is_global(uint16_t addr)
+{
+  return in_globals(addr) && (addr - header.globals) % 2 == 0;
+}
+
+unsigned long addr_to_global(uint16_t addr)
+{
+  return (addr - header.globals) / 2;
+}
+
+const char *addrstring(uint16_t addr)
+{
+  static char str[8];
+
+  if(is_global(addr)) snprintf(str, sizeof str, "G%02lx", addr_to_global(addr));
+  else                snprintf(str, sizeof str, "0x%lx", (unsigned long)addr);
+
+  return str;
+}
 
 void user_store_byte(uint16_t addr, uint8_t v)
 {
@@ -74,6 +107,10 @@ void user_store_byte(uint16_t addr, uint8_t v)
 
 void user_store_word(uint16_t addr, uint16_t v)
 {
+#ifndef ZTERP_NO_WATCHPOINTS
+  watch_check(addr, user_word(addr), v);
+#endif
+
   user_store_byte(addr + 0, v >> 8);
   user_store_byte(addr + 1, v & 0xff);
 }

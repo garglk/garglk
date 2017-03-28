@@ -31,6 +31,7 @@ int do_restore(int);
 enum save_type { SAVE_GAME, SAVE_USER };
 int push_save(enum save_type, uint32_t, const char *);
 int pop_save(enum save_type, long);
+int drop_save(enum save_type, long);
 void list_saves(enum save_type, void (*)(const char *));
 
 void zpush(void);
