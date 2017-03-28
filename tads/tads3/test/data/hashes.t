@@ -21,7 +21,8 @@ main(args)
     "md5 = <<arr.digestMD5(34, 26)>>\n";
     "sha256 = <<arr.sha256(34, 26)>>\n";
 
-    local fp = File.openRawFile('../data/hashes.src', FileAccessRead);
+    local fp = File.openRawFile(
+        FileName.fromUniversal('../data/hashes.src'), FileAccessRead);
 
     "\bFile 'hashes.t'\n";
     "md5 = <<fp.digestMD5()>>\n";

@@ -29,15 +29,12 @@ Modified
 size_t utf8_ptr::setwchars(const wchar_t *src, size_t src_count,
                            size_t bufsiz)
 {
-    size_t outbytes;
-
     /* loop through the source and store the characters */
+    size_t outbytes;
     for (outbytes = 0 ; src_count > 0 ; --src_count, ++src)
     {
-        size_t curbytes;
-
         /* figure out how many bytes we need for this character */
-        curbytes = s_wchar_size(*src);
+        size_t curbytes = s_wchar_size(*src);
 
         /* add it to the total output size */
         outbytes += curbytes;
@@ -73,15 +70,12 @@ size_t utf8_ptr::setwchars(const wchar_t *src, size_t src_count,
  */
 size_t utf8_ptr::setwcharsz(const wchar_t *src, size_t bufsiz)
 {
-    size_t outbytes;
-
     /* loop through the source and store the characters */
+    size_t outbytes;
     for (outbytes = 0 ; *src != 0 ; ++src)
     {
-        size_t curbytes;
-
         /* figure out how many bytes we need for this character */
-        curbytes = s_wchar_size(*src);
+        size_t curbytes = s_wchar_size(*src);
 
         /* add it to the total output size */
         outbytes += curbytes;
@@ -106,16 +100,6 @@ size_t utf8_ptr::setwcharsz(const wchar_t *src, size_t bufsiz)
             bufsiz = 0;
         }
     }
-
-    /* 
-     *   Add the null terminator, if there's room, but do not increment
-     *   our pointer - we want to leave our pointer pointing at the null
-     *   terminator.  Include the null terminator's size (one byte) in the
-     *   result length (even if we don't have room to store it).  
-     */
-    ++outbytes;
-    if (bufsiz > 0)
-        *p_ = '\0';
 
     /* return the total output size used (or needed) */
     return outbytes;

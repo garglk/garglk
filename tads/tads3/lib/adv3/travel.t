@@ -3131,13 +3131,11 @@ class Enterable: TravelConnectorLink, Fixture
  *   location as an enclosure (a jail cell), or an exit door. 
  */
 class Exitable: TravelConnectorLink, Fixture
-    /* 
-     *   "Exit" action - this simply maps to travel via the connector.  
-     */
+    /* Get Out Of/Exit action - this simply maps to travel via the connector */
     dobjFor(GetOutOf) remapTo(TravelVia, self)
 
     /* explicitly define the push-travel indirect object mapping */
-    mapPushTravelIobj(PushTravelExit, TravelVia)
+    mapPushTravelIobj(PushTravelGetOutOf, TravelVia)
 ;
 
 /*
@@ -4407,7 +4405,11 @@ class Room: Fixture, BasicLocation, RoomAutoConnector
          *   message 
          */
         if (atmosphereList != nil)
+        {
+            /* show visual separation, then the current atmosphere message */
+            "<.commandsep>";
             atmosphereList.doScript();
+        }
     }
 
     /* 
@@ -4995,14 +4997,12 @@ class RoomPart: Fixture
     /* show our contents */
     examinePartContents(listerProp)
     {
-        local loc;
-        
         /* 
          *   Get my location, as perceived by the actor - this is the room
          *   that contains this part.  If I don't have a location as
          *   perceived by the actor, then we can't show any contents.  
          */
-        loc = gActor.location.getRoomPartLocation(self);
+        local loc = gActor.location.getRoomPartLocation(self);
         if (loc == nil)
             return;
 
@@ -6246,7 +6246,7 @@ class NestedRoom: BasicLocation
     }
 
     /* explicitly define the push-travel indirect object mappings */
-    mapPushTravelIobj(PushTravelOutOf, TravelVia)
+    mapPushTravelIobj(PushTravelGetOutOf, TravelVia)
 ;
 
 

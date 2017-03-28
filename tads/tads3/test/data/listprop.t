@@ -25,6 +25,19 @@ main(argc)
     "sublist(7) = <<sayList(lst.sublist(7))>>\n";
     "sublist(-4, 2) = <<sayList(lst.sublist(-4, 2))>>\n";
     "sublist(-3) = <<sayList(lst.sublist(-3))>>\n";
+    "sublist(1, -1) = <<sayList(lst.sublist(1, -1))>>\n";
+    "sublist(2, -2) = <<sayList(lst.sublist(2, -2))>>\n";
+    "sublist(2, -1) = <<sayList(lst.sublist(2, -1))>>\n";
+    "sublist(2, -2) = <<sayList(lst.sublist(2, -2))>>\n";
+    "sublist(2, -5) = <<sayList(lst.sublist(2, -5))>>\n";
+    "sublist(5, -5) = <<sayList(lst.sublist(5, -5))>>\n";
+    "sublist(6, -6) = <<sayList(lst.sublist(6, -6))>>\n";
+    "sublist(12, -2) = <<sayList(lst.sublist(12, -2))>>\n";
+    "sublist(2, -12) = <<sayList(lst.sublist(2, -12))>>\n";
+    "sublist(1, -9) = <<sayList(lst.sublist(1, -9))>>\n";
+    "sublist(1, -8) = <<sayList(lst.sublist(1, -8))>>\n";
+    "sublist(1, -7) = <<sayList(lst.sublist(1, -7))>>\n";
+    "sublist(1, -6) = <<sayList(lst.sublist(1, -6))>>\n";
 
     "\b";
     "[1, 2, 3, 4, 5, 6], keep>3 =

@@ -30,15 +30,19 @@ Modified
 #include "vmfile.h"
 #include "vmobj.h"
 #include "vmstr.h"
+#include "vmlst.h"
+#include "vmdate.h"
 #include "vmfilobj.h"
 #include "vmpredef.h"
 #include "vmundo.h"
 #include "vmbytarr.h"
 #include "vmbignum.h"
+#include "vmbiftad.h"
 #include "vmhost.h"
 #include "vmimage.h"
 #include "vmnetfil.h"
 #include "vmnet.h"
+#include "vmfilnam.h"
 #include "vmhash.h"
 #include "vmpack.h"
 #include "sha2.h"
@@ -99,7 +103,7 @@ enum vmobjfil_meta_fnset
     VMOBJFILE_OPEN_RES_TEXT = 14,
     VMOBJFILE_OPEN_RES_RAW = 15,
     VMOBJFILE_GET_ROOT_NAME = 18,
-    VMOBJFILE_DELETE_FILE = 19
+    VMOBJFILE_DELETE_FILE = 19,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -242,7 +246,7 @@ void CVmObjFile::notify_delete(VMG_ int /*in_root_set*/)
             if (get_ext()->netfile != 0)
                 get_ext()->netfile->close(vmg0_);
         }
-        err_catch(exc)
+        err_catch_disc
         {
             /* 
              *   Since we're being deleted by the garbage collector, there's
@@ -256,6 +260,28 @@ void CVmObjFile::notify_delete(VMG_ int /*in_root_set*/)
         /* free our extension */
         G_mem->get_var_heap()->free_mem(ext_);
     }
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get the data source 
+ */
+CVmDataSource *CVmObjFile::get_datasource() const
+{
+    return get_ext()->fp;
+}
+
+/*
+ *   Get the file spec from the netfile 
+ */
+void CVmObjFile::get_filespec(vm_val_t *val) const
+{
+    /* presume we won't find a value */
+    val->set_nil();
+
+    /* if we have a net file object, get its filespec */
+    if (get_ext()->netfile != 0)
+        val->set_obj(get_ext()->netfile->filespec);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -301,12 +327,14 @@ int CVmObjFile::call_stat_prop(VMG_ vm_val_t *result,
                                const uchar **pc_ptr, uint *argc,
                                vm_prop_id_t prop)
 {
+    /* look up the function */
+    uint midx = G_meta_table
+                ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
+
     /* 
      *   set up a blank recursive call descriptor, to be filled in when we
      *   know which function we're calling 
      */
-    uint midx = G_meta_table
-                ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
     vm_rcdesc rc(vmg_ "",
                  CVmObjFile::metaclass_reg_->get_class_obj(vmg0_),
                  (ushort)midx, G_stk->get(0), argc != 0 ? *argc : 0);
@@ -596,16 +624,43 @@ CVmNetFile *CVmObjFile::get_filename_and_access(
     else if (*access == 0)
     {
         /* get the access mode from the stack */
-        *access = G_stk->get(1)->num_to_int();
+        *access = G_stk->get(1)->num_to_int(vmg0_);
 
-        /* delete access isn't allowed in byte code */
-        if (*access == VMOBJFILE_ACCESS_DELETE)
+        /* make sure it's within the valid range for bytecode access codes */
+        if (*access > VMOBJFILE_ACCESS_USERMAX)
             err_throw(VMERR_BAD_VAL_BIF);
     }
 
+    /* get the filename from the first argument */
+    return get_filename_arg(
+        vmg_ G_stk->get(0), rc, *access, is_resource_file,
+        file_type, mime_type);
+}
+
+/*
+ *   Get the filename for a given argument value and access mode
+ */
+CVmNetFile *CVmObjFile::get_filename_from_obj(
+    VMG_ vm_obj_id_t obj, const vm_rcdesc *rc, int access,
+    os_filetype_t file_type, const char *mime_type)
+{
+    vm_val_t arg;
+    arg.set_obj(obj);
+    return get_filename_arg(vmg_ &arg, rc, access,
+                            FALSE, file_type, mime_type);
+}
+
+/*
+ *   Get the filename for a given argument value and access mode
+ */
+CVmNetFile *CVmObjFile::get_filename_arg(
+    VMG_ const vm_val_t *arg, const vm_rcdesc *rc,
+    int access, int is_resource_file,
+    os_filetype_t file_type, const char *mime_type)
+{
     /* figure the network file access mode */
     int nmode;
-    switch (*access)
+    switch (access)
     {
     case VMOBJFILE_ACCESS_READ:
         /* read access; file must exist */
@@ -632,6 +687,19 @@ CVmNetFile *CVmObjFile::get_filename_and_access(
         nmode = NETF_DELETE;
         break;
 
+    case VMOBJFILE_ACCESS_GETINFO:
+    case VMOBJFILE_ACCESS_MKDIR:
+    case VMOBJFILE_ACCESS_RMDIR:
+    case VMOBJFILE_ACCESS_READDIR:
+    case VMOBJFILE_ACCESS_RENAME_TO:
+    case VMOBJFILE_ACCESS_RENAME_FROM:
+        /* 
+         *   getFileType/getFileInfo/rename/directory manipulation - we don't
+         *   need to open the file at all for these operations
+         */
+        nmode = 0;
+        break;
+
     default:
         /* invalid mode */
         err_throw(VMERR_BAD_VAL_BIF);
@@ -646,54 +714,16 @@ CVmNetFile *CVmObjFile::get_filename_and_access(
     {
         /* a resource file must be given as a string name - retrieve it */
         CVmBif::get_str_val_fname(vmg_ fname, sizeof(fname),
-                                  CVmBif::get_str_val(vmg_ G_stk->get(0)));
+                                  CVmBif::get_str_val(vmg_ arg));
 
         /* resources are always local, so create a local file descriptor */
         netfile = CVmNetFile::open_local(vmg_ fname, 0, nmode, file_type);
-    }
-    else if (G_stk->get(0)->typ == VM_INT)
-    {
-        /* an integer value is a special file ID */
-        int sfid = G_stk->get(0)->num_to_int();
-
-        /* resolve the file system path for the given special file ID */
-        char path[OSFNMAX] = { '\0' };
-        const char *base = 0;
-        switch (sfid)
-        {
-        case SFID_LIB_DEFAULTS:
-            /* library defaults file - T3_APP_DATA/settings.txt */
-            base = "settings.txt";
-            goto app_data_file;
-            
-        case SFID_WEBUI_PREFS:
-            /* Web UI preferences - T3_APP_DATA/webprefs.txt */
-            base = "webprefs.txt";
-            goto app_data_file;
-            
-        app_data_file:
-            /* get the system application data path */
-            G_host_ifc->get_special_file_path(
-                path, sizeof(path), OS_GSP_T3_APP_DATA);
-
-            /* add the filename */
-            os_build_full_path(fname, sizeof(fname), path, base);
-            break;
-
-        default:
-            /* invalid filename value */
-            err_throw(VMERR_BAD_VAL_BIF);
-        }
-
-        /* create the special file desriptor */
-        netfile = CVmNetFile::open(
-            vmg_ fname, sfid, nmode, file_type, mime_type);
     }
     else
     {
         /* regular file - create the network file descriptor */
         netfile = CVmNetFile::open(
-            vmg_ G_stk->get(0), rc, nmode, file_type, mime_type);
+            vmg_ arg, rc, nmode, file_type, mime_type);
     }
     
     /* 
@@ -706,9 +736,9 @@ CVmNetFile *CVmObjFile::get_filename_and_access(
     {
         err_try
         {
-            check_safety_for_open(vmg_ netfile, *access);
+            check_safety_for_open(vmg_ netfile, access);
         }
-        err_catch(exc)
+        err_catch_disc
         {
             /* abandon the net file descriptor and bubble up the error */
             netfile->abandon(vmg0_);
@@ -719,6 +749,43 @@ CVmNetFile *CVmObjFile::get_filename_and_access(
 
     /* return the network file descriptor */
     return netfile;
+}
+
+/*
+ *   Resolve a special file ID to a local filename path 
+ */
+int CVmObjFile::sfid_to_path(VMG_ char *buf, size_t buflen, int32_t sfid)
+{
+    const char *fname = 0;
+    char path[OSFNMAX];
+    switch (sfid)
+    {
+    case SFID_LIB_DEFAULTS:
+        /* library defaults file - T3_APP_DATA/settings.txt */
+        fname = "settings.txt";
+        goto app_data_file;
+        
+    case SFID_WEBUI_PREFS:
+        /* Web UI preferences - T3_APP_DATA/webprefs.txt */
+        fname = "webprefs.txt";
+        goto app_data_file;
+        
+    app_data_file:
+        /* get the system application data path */
+        G_host_ifc->get_special_file_path(
+            path, sizeof(path), OS_GSP_T3_APP_DATA);
+        
+        /* add the filename */
+        os_build_full_path(buf, buflen, path, fname);
+        
+        /* success */
+        return TRUE;
+        
+    default:
+        /* invalid ID value */
+        buf[0] = '\0';
+        return FALSE;
+    }
 }
 
 
@@ -1117,65 +1184,215 @@ int CVmObjFile::open_binary(VMG_ vm_val_t *retval, uint *in_argc, int mode,
 void CVmObjFile::check_safety_for_open(VMG_ CVmNetFile *nf, int access)
 {
     /* 
-     *   If it's a special file, a temporary file, or it's on the network
-     *   storage server, allow it.  The safety level doesn't apply to special
-     *   files, since they're inherently sandboxed.  It doesn't apply to temp
-     *   files, since these names can only be obtained from the VM and are
-     *   inherently safe.  The network server has its own security rules, so
-     *   we don't need (or want) to apply local sandboxing there.  
+     *   Special files are inherently sandboxed, since the system determines
+     *   their paths.  These are always allowed for ordinary read/write.
      */
-    if (nf->sfid != 0 || nf->is_temp || nf->is_net_file())
+    if (nf->sfid != 0
+        && (access == VMOBJFILE_ACCESS_READ
+            || access == VMOBJFILE_ACCESS_WRITE
+            || access == VMOBJFILE_ACCESS_RW_KEEP
+            || access == VMOBJFILE_ACCESS_RW_TRUNC
+            || access == VMOBJFILE_ACCESS_GETINFO
+            || access == VMOBJFILE_ACCESS_READDIR))
+        return;
+
+    /*
+     *   Temporary file paths can only be obtained from the VM.  Ordinary
+     *   read/write operations are allowed, as is delete. 
+     */
+    if (nf->is_temp
+        && (access == VMOBJFILE_ACCESS_READ
+            || access == VMOBJFILE_ACCESS_WRITE
+            || access == VMOBJFILE_ACCESS_RW_KEEP
+            || access == VMOBJFILE_ACCESS_RW_TRUNC
+            || access == VMOBJFILE_ACCESS_DELETE
+            || access == VMOBJFILE_ACCESS_GETINFO
+            || access == VMOBJFILE_ACCESS_READDIR))
+        return;
+
+    /*
+     *   Network files are subject to separate permission rules enforced by
+     *   the storage server.  Local file safety settings don't apply. 
+     */
+    if (nf->is_net_file())
         return;
     
+    /*   
+     *   If the file was specifically selected by the user via a file dialog,
+     *   allow access of the type proposed by the dialog, even if it's
+     *   outside the sandbox.  The user has implicitly granted us permission
+     *   on this individual file by manually selecting it via a UI
+     *   interaction.
+     */
+    CVmObjFileName *ofn;
+    if ((ofn = vm_objid_cast(CVmObjFileName, nf->filespec)) != 0
+        && ofn->get_from_ui() != 0)
+    {
+        /* grant permission based on the dialog mode */
+        switch (ofn->get_from_ui())
+        {
+        case OS_AFP_OPEN:
+            /* allow reading for a file selected with an Open dialog */
+            if (access == VMOBJFILE_ACCESS_READ)
+                return;
+            break;
+
+        case OS_AFP_SAVE:
+            /* allow writing for a file selected with a Save dialog */
+            if (access == VMOBJFILE_ACCESS_WRITE)
+                return;
+            break;
+        }
+
+        /* 
+         *   For anything we didn't override above based on the dialog mode,
+         *   don't give up - the file safety permissions might still allow
+         *   it.  All we've determined at this point is that the dialog
+         *   selection doesn't grant extraordinary permission for the
+         *   attempted access mode.
+         */
+    }
+
+    /*
+     *   The file wasn't specified by a type that confers any special
+     *   privileges, so determine if it's accessible according to the local
+     *   file name's handling under the file safety and sandbox rules.
+     */
+    return check_safety_for_open(vmg_ nf->lclfname, access);
+}
+
+/*
+ *   Check file safety for opening the given local file path. 
+ */
+void CVmObjFile::check_safety_for_open(VMG_ const char *lclfname, int access)
+{
+    /* check the safety settings */
+    if (!query_safety_for_open(vmg_ lclfname, access))
+    {
+        /* this operation is not allowed - throw an error */
+        G_interpreter->throw_new_class(vmg_ G_predef->file_safety_exc,
+                                       0, "prohibited file access");
+    }
+}
+
+/*
+ *   Query the safety settings.  Returns true if the access is allowed, false
+ *   if it's prohibited. 
+ */
+int CVmObjFile::query_safety_for_open(VMG_ const char *lclfname, int access)
+{
     /* get the current file safety level from the host application */
     int read_level = G_host_ifc->get_io_safety_read();
     int write_level = G_host_ifc->get_io_safety_write();
-    
-    /* 
-     *   Check to see if the file is in the same directory as the game file
-     *   (or any subdirectory).  If not, we may have to disallow the
-     *   operation based on safety level settings.  
-     */
-    int in_same_dir = os_is_file_in_dir(
-        nf->lclfname, G_image_loader->get_path(), TRUE);
 
-    /* check for conformance with the safety level setting */
+    /* 
+     *   First check to see if the safety level allows or disallows the
+     *   requested access without regard to location.  If so, we can save a
+     *   little work by skipping the sandbox resolution.
+     */
     switch (access)
     {
     case VMOBJFILE_ACCESS_READ:
-        /*
-         *   we want only read access - we can't read at all if the safety
-         *   level isn't READ_CUR or below, and we must be at level
-         *   READ_ANY_WRITE_CUR or lower to read from a file not in the
-         *   current directory 
+    case VMOBJFILE_ACCESS_GETINFO:
+    case VMOBJFILE_ACCESS_READDIR:
+        /* 
+         *   Read a file or its metadata.  If the safety level is READ_ANY or
+         *   below, we can read any file regardless of location.  If it's
+         *   MAXIMUM, we can't read anything.
          */
-        if (read_level > VM_IO_SAFETY_READ_CUR
-            || (!in_same_dir && read_level > VM_IO_SAFETY_READ_ANY_WRITE_CUR))
-        {
-            /* this operation is not allowed - throw an error */
-            G_interpreter->throw_new_class(vmg_ G_predef->file_safety_exc,
-                                           0, "prohibited file access");
-        }
+        if (read_level <= VM_IO_SAFETY_READ_ANY_WRITE_CUR)
+            return TRUE;
+        if (read_level >= VM_IO_SAFETY_MAXIMUM)
+            return FALSE;
         break;
-        
+
+    case VMOBJFILE_ACCESS_RMDIR:
     case VMOBJFILE_ACCESS_WRITE:
     case VMOBJFILE_ACCESS_RW_KEEP:
     case VMOBJFILE_ACCESS_RW_TRUNC:
     case VMOBJFILE_ACCESS_DELETE:
+    case VMOBJFILE_ACCESS_MKDIR:
+    case VMOBJFILE_ACCESS_RENAME_FROM:
+    case VMOBJFILE_ACCESS_RENAME_TO:
         /* 
-         *   writing or deleting - we must be safety level of at least
-         *   READWRITE_CUR to write at all, and we must be at level MINIMUM
-         *   to write a file that's not in the current directory 
+         *   Writing, deleting, renaming, creating/removing a directory.  If
+         *   the safety level is MINIMUM, we're allowed to write anywhere.
+         *   If it's READ_CUR or higher, writing isn't allowed anywhere.
          */
-        if (write_level > VM_IO_SAFETY_READWRITE_CUR
-            || (!in_same_dir && write_level > VM_IO_SAFETY_MINIMUM))
-        {
-            /* this operation is not allowed - throw an error */
-            G_interpreter->throw_new_class(vmg_ G_predef->file_safety_exc,
-                                           0, "prohibited file access");
-        }
+        if (write_level <= VM_IO_SAFETY_MINIMUM)
+            return TRUE;
+        if (write_level >= VM_IO_SAFETY_READ_CUR)
+            return FALSE;
         break;
     }
+
+    /* 
+     *   If we get this far, it means we're in sandbox mode, so the access is
+     *   conditional on the file's location relative to the sandbox folder.
+     *   Get the sandbox path, defaulting to the file base path.
+     */
+    const char *sandbox = (G_sandbox_path != 0 ? G_sandbox_path : G_file_path);
+
+    /* assume the file isn't in the sandbox */
+    int in_sandbox = FALSE;
+
+    /* 
+     *   Most operations in sandbox mode don't consider the sandbox directory
+     *   itself to be part of the sandbox - e.g., you can't delete the
+     *   sandbox folder. 
+     */
+    int match_self = FALSE;
+
+    /*
+     *   The effective sandbox extends beyond the actual contents the sandbox
+     *   directory for a couple of modes:
+     *   
+     *   - For READDIR mode (reading the contents of a directory), the
+     *   sandbox directory itself is considered part of the sandbox, since
+     *   the information we're accessing in creating a directory listing is
+     *   really the directory's contents.
+     *   
+     *   - For GETINFO mode (read file metadata), extend the sandbox to
+     *   include the sandbox directory itself, its parent, its parent's
+     *   parent, etc.  It's pretty obvious that we should have metadata read
+     *   access to the sandbox directory itself, given that we can list and
+     *   access its contents.  The rationale for also including parents of
+     *   the sandbox folder is that they're effectively part of its metadata,
+     *   since they're visible in its full path name.
+     */
+    switch (access)
+    {
+    case VMOBJFILE_ACCESS_GETINFO:
+        /*
+         *   read metadata - the sandbox directory is part of the sandbox for
+         *   this operation, as is its parent, its parent's parent, etc
+         *   (which is to say, any folder that contains the sandbox)
+         */
+        in_sandbox |= os_is_file_in_dir(sandbox, lclfname, TRUE, TRUE);
+        break;
+
+    case VMOBJFILE_ACCESS_READDIR:
+        /* 
+         *   read directory contents - the sandbox directory itself is part
+         *   of the sandbox for this mode 
+         */
+        match_self = TRUE;
+        break;
+    }
+
+    /* 
+     *   Check to see if the file is in the sandbox folder (or any subfolder
+     *   thereof).  If not, we may have to disallow the operation based on
+     *   safety level settings, but for now just note the location status.
+     */
+    in_sandbox |= os_is_file_in_dir(lclfname, sandbox, TRUE, match_self);
+
+    /* if the file isn't in the sandbox, access isn't allowed */
+    if (!in_sandbox)
+        return FALSE;
+
+    /* didn't find any problems - allow the access */
+    return TRUE;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1332,7 +1549,7 @@ int CVmObjFile::getp_close_file(VMG_ vm_obj_id_t self, vm_val_t *retval,
         /* flush buffers */
         get_ext()->fp->flush();
     }
-    err_catch(exc)
+    err_catch_disc
     {
         /* 
          *   The flush failed, so the close effectively failed.  Close the
@@ -1617,7 +1834,7 @@ io_error:
 /*
  *   Internal read routine 
  */
-int CVmObjFile::read_file(VMG_ char *buf, int32 &len)
+int CVmObjFile::read_file(VMG_ char *buf, int32_t &len)
 {
     /* get the data source */
     CVmDataSource *fp = get_ext()->fp;
@@ -1641,7 +1858,7 @@ int CVmObjFile::read_file(VMG_ char *buf, int32 &len)
                 ->get_to_uni(vmg0_);
 
             /* loop until we satisfy the request */
-            int32 actual;
+            int32_t actual;
             for (actual = 0 ; ; )
             {
                 /* peek at the next character */
@@ -1652,7 +1869,7 @@ int CVmObjFile::read_file(VMG_ char *buf, int32 &len)
 
                 /* make sure it'll fit */
                 size_t csiz = utf8_ptr::s_wchar_size(ch);
-                if (actual + (int32)csiz > len)
+                if (actual + (int32_t)csiz > len)
                     break;
 
                 /* store this character */
@@ -2149,7 +2366,7 @@ int CVmObjFile::getp_write_bytes(VMG_ vm_obj_id_t self, vm_val_t *retval,
         {
             /* read the next chunk of bytes */
             char buf[1024];
-            int32 cur = (len < (int32)sizeof(buf) ? len : sizeof(buf));
+            int32_t cur = (len < (int32_t)sizeof(buf) ? len : sizeof(buf));
             if (!file->read_file(vmg_ buf, cur))
                 G_interpreter->throw_new_class(vmg_ G_predef->file_io_exc,
                                                0, "file I/O error");
@@ -2474,7 +2691,7 @@ int CVmObjFile::s_getp_getRootName(VMG_ vm_val_t *retval, uint *argc)
         return TRUE;
 
     /* get the string argument into our buffer */
-    CVmBif::pop_str_val_fname(vmg_ buf, sizeof(buf));
+    CVmBif::pop_fname_val(vmg_ buf, sizeof(buf));
 
     /* set up a no-access file descriptor to determine where the file is */
     CVmNetFile *nf = CVmNetFile::open(vmg_ buf, 0, 0, OSFTUNK, 0);
@@ -2536,6 +2753,9 @@ int CVmObjFile::s_getp_deleteFile(VMG_ vm_val_t *retval, uint *in_argc)
 
     /* discard arguments */
     G_stk->discard(1);
+
+    /* no return */
+    retval->set_nil();
 
     /* handled */
     return TRUE;
@@ -2632,7 +2852,7 @@ int CVmObjFile::getp_sha256(VMG_ vm_obj_id_t self,
 
     /* retrieve the length value, if present; if not, use the file size */
     long len = (argc >= 1 && G_stk->get(0)->typ != VM_NIL
-                ? G_stk->get(0)->num_to_int()
+                ? G_stk->get(0)->num_to_int(vmg0_)
                 : get_file_size(vmg0_));
 
     /* save 'self' for gc protection */
@@ -2670,7 +2890,7 @@ int CVmObjFile::getp_digestMD5(VMG_ vm_obj_id_t self,
 
     /* retrieve the length value, if present; if not, use the file size */
     long len = (argc >= 1 && G_stk->get(0)->typ != VM_NIL
-                ? G_stk->get(0)->num_to_int()
+                ? G_stk->get(0)->num_to_int(vmg0_)
                 : get_file_size(vmg0_));
 
     /* save 'self' for gc protection */
@@ -2689,11 +2909,6 @@ int CVmObjFile::getp_digestMD5(VMG_ vm_obj_id_t self,
     /* handled */
     return TRUE;
 }
-
-
-
-
-
 
 /* ------------------------------------------------------------------------ */
 /*

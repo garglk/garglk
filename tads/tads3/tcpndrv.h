@@ -673,6 +673,7 @@ public:
 
     /* I'm a double-quoted string node */
     virtual int is_dstring() const { return TRUE; }
+    virtual int is_dstring_expr() const { return TRUE; }
 
     /* fold constants - there's nothing extra to do here */
     class CTcPrsNode *fold_constants(class CTcPrsSymtab *symtab)
@@ -706,6 +707,9 @@ class CTPNDstrEmbedBase: public CTPNUnary
 public:
     CTPNDstrEmbedBase(CTcPrsNode *sub)
         : CTPNUnary(sub) { }
+
+    /* this is part of a dstring expression */
+    virtual int is_dstring_expr() const { return TRUE; }
 
     /* we have no return value */
     virtual int has_return_value() const { return FALSE; }
@@ -741,6 +745,9 @@ public:
         lst_ = lst;
         state_obj_ = state_obj;
     }
+
+    /* this is part of a dstring expression */
+    virtual int is_dstring_expr() const { return TRUE; }
 
     /* adjust for dynamic compilation */
     class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info);
@@ -1067,6 +1074,10 @@ public:
      */
     virtual int has_return_value() const
         { return right_->has_return_value(); }
+
+    /* this is part of a dstring expression if either side is */
+    virtual int is_dstring_expr() const
+        { return left_->is_dstring_expr() || right_->is_dstring_expr(); }
 };
 
 /* ------------------------------------------------------------------------ */
@@ -1373,7 +1384,7 @@ public:
     CTcSymFuncBase(const char *str, size_t len, int copy,
                    int argc, int opt_argc, int varargs, int has_retval,
                    int is_multimethod, int is_multimethod_base,
-                   int is_extern)
+                   int is_extern, int has_proto)
         : CTcSymbol(str, len, copy, TC_SYM_FUNC)
     {
         /* remember the interface information */
@@ -1386,6 +1397,9 @@ public:
 
         /* note whether it's external */
         is_extern_ = is_extern;
+
+        /* note whether it has a prototype */
+        has_proto_ = has_proto;
 
         /* no code stream anchor yet */
         anchor_ = 0;
@@ -1453,6 +1467,10 @@ public:
     /* get/set the 'extern' flag */
     int is_extern() const { return is_extern_; }
     void set_extern(int f) { is_extern_ = f; }
+
+    /* get/set the 'has prototype' flag */
+    int has_proto() const { return has_proto_; }
+    void set_has_proto(int f) { has_proto_ = f; }
 
     /* get/set the multi-method flag */
     int is_multimethod() const { return is_multimethod_; }
@@ -1546,7 +1564,7 @@ public:
      *   Set the absolute address.  For debugger expressions, this sets the
      *   code pool address specified in the debugger source expression. 
      */
-    virtual void set_abs_addr(uint32 addr) = 0;
+    virtual void set_abs_addr(uint32_t addr) = 0;
 
 protected:
     /* head of the fixup list for our function's code */
@@ -1596,6 +1614,13 @@ protected:
 
     /* flag: this multi-method is defined in this file */
     unsigned int mm_def_ : 1;
+
+    /* 
+     *   Flag: this function has a known prototype.  An 'extern' function
+     *   declaration is allowed without a prototype, in which case the
+     *   function can be defined elsewhere with any prototype. 
+     */
+    unsigned int has_proto_ : 1;
 };
 
 /*
@@ -3031,6 +3056,9 @@ public:
     class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *)
         { return this; }
 
+    /* mark as replaced/obsolete */
+    void set_replaced(int flag);
+
 protected:
     /* code body of the function */
     class CTPNCodeBody *code_body_;
@@ -3557,8 +3585,10 @@ public:
     /* adjust for dynamic (run-time) compilation */
     class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info)
     {
-        then_part_ = (CTPNStm *)then_part_->adjust_for_dyn(info);
-        else_part_ = (CTPNStm *)then_part_->adjust_for_dyn(info);
+        if (then_part_ != 0)
+            then_part_ = (CTPNStm *)then_part_->adjust_for_dyn(info);
+        if (else_part_ != 0)
+            else_part_ = (CTPNStm *)else_part_->adjust_for_dyn(info);
         return this;
     }
 
@@ -4566,165 +4596,8 @@ protected:
     class CTcDictEntry *dict_;
 };
 
+
 /* ------------------------------------------------------------------------ */
-/*
- *   object definition statement base class
- */
-class CTPNStmObjectBase: public CTPNStmTop
-{
-public:
-    CTPNStmObjectBase(class CTcSymObj *obj_sym, int is_class)
-    {
-        /* remember our defining global symbol */
-        obj_sym_ = obj_sym;
-
-        /* we're not yet replaced by another object */
-        replaced_ = FALSE;
-
-        /* we're not yet modified */
-        modified_ = FALSE;
-
-        /* note whether I'm a class or an ordinary object instance */
-        is_class_ = is_class;
-
-        /* no superclasses yet */
-        first_sc_ = last_sc_ = 0;
-
-        /* no properties yet */
-        first_prop_ = last_prop_ = 0;
-        prop_cnt_ = 0;
-
-        /* presume it's not transient */
-        transient_ = FALSE;
-
-        /* presume we won't have a template usage error */
-        bad_template_ = FALSE;
-
-        /* presume we won't have an undescribed superclass */
-        undesc_sc_ = FALSE;
-    }
-
-    /* 
-     *   mark the object as replaced - this indicates that another object
-     *   in the same translation unit has replaced this object, hence we
-     *   should not generate any code for this object 
-     */
-    void set_replaced(int f) { replaced_ = f; }
-
-    /*
-     *   Mark the object as modified - this indicates that another object
-     *   in the same translation unit has modified this object.  We'll
-     *   store this information in the object stream header data for use
-     *   at link time.  
-     */
-    void set_modified(int f) { modified_ = f; }
-
-    /* 
-     *   set my object symbol - when an object is modified (via the
-     *   'modify' statement), the object tree can be moved to a new symbol 
-     */
-    void set_obj_sym(class CTcSymObj *obj_sym) { obj_sym_ = obj_sym; }
-
-    /* add a superclass with the given name or symbol */
-    void add_superclass(const class CTcToken *tok);
-    void add_superclass(class CTcSymbol *sym);
-
-    /* get the object symbol */
-    class CTcSymObj *get_obj_sym() const { return obj_sym_; }
-
-    /* get my first superclass */
-    class CTPNSuperclass *get_first_sc() const { return first_sc_; }
-
-    /* get my first property */
-    class CTPNObjProp *get_first_prop() const { return first_prop_; }
-
-    /* add a property value */
-    class CTPNObjProp *add_prop(class CTcSymProp *prop_sym,
-                                class CTcPrsNode *expr,
-                                int replace, int is_static);
-
-    /*
-     *   Delete a property value.  This is used when a 'modify' object
-     *   defines a property with 'replace', so that the property defined
-     *   in the modified original object is removed entirely rather than
-     *   left in as an inherited property.  
-     */
-    void delete_property(class CTcSymProp *prop_sym);
-
-    /* add a method */
-    class CTPNObjProp *add_method(class CTcSymProp *prop_sym,
-                                  class CTPNCodeBody *code_body, int replace);
-
-    /* fold constants */
-    class CTcPrsNode *fold_constants(class CTcPrsSymtab *symtab);
-
-    /* determine if I'm a class object */
-    int is_class() const { return (is_class_ != 0); }
-
-    /*
-     *   Add an implicit constructor.  This should be called just before
-     *   code generation; we'll check to see if the object requires an
-     *   implicit constructor, and add one to the object if so.  An object
-     *   provides an implicit constructor if it has multiple superclasses
-     *   and no explicit constructor.  
-     */
-    void add_implicit_constructor();
-
-    /* get/set the 'transient' status */
-    int is_transient() const { return transient_; }
-    void set_transient() { transient_ = TRUE; }
-
-    /* get/set the 'bad template' flag */
-    int has_bad_template() const { return bad_template_; }
-    void note_bad_template(int f) { bad_template_ = f; }
-
-    /* set the 'undescribed class' flag */
-    int has_undesc_sc() const { return undesc_sc_; }
-    void set_undesc_sc(int f) { undesc_sc_ = f; }
-
-protected:
-    /* add an entry to my property list */
-    void add_prop_entry(class CTPNObjProp *prop, int replace);
-
-    /* object name symbol */
-    class CTcSymObj *obj_sym_;
-
-    /* head and tail of our superclass list */
-    class CTPNSuperclass *first_sc_;
-    class CTPNSuperclass *last_sc_;
-
-    /* head and tail of our property list */
-    class CTPNObjProp *first_prop_;
-    class CTPNObjProp *last_prop_;
-
-    /* number of properties in my list */
-    int prop_cnt_;
-
-    /* flag: I'm a class */
-    unsigned int is_class_ : 1;
-
-    /* flag: I've been replaced by another object */
-    unsigned int replaced_ : 1;
-
-    /* flag: I've been modified by another object */
-    unsigned int modified_ : 1;
-
-    /* flag: the object is transient */
-    unsigned int transient_ : 1;
-
-    /* flag: this object definition used a template that wasn't matched */
-    unsigned int bad_template_ : 1;
-
-    /* 
-     *   Flag: this object definition includes an undescribed superclass.
-     *   This indicates that we're based on a class that was explicitly
-     *   defined as 'extern', in which case it can't be used as the source of
-     *   a template, since we know nothing about the class other than that it
-     *   is indeed a class.  
-     */
-    unsigned int undesc_sc_ : 1;
-};
-
 /*
  *   Parse node for object superclass list entries 
  */
@@ -4741,7 +4614,7 @@ public:
         sym_ = 0;
 
         /* I'm not in a list yet */
-        nxt_ = 0;
+        nxt_ = prv_ = 0;
     }
 
     CTPNSuperclass(class CTcSymbol *sym)
@@ -4774,18 +4647,328 @@ public:
     /* am I a subclass of the given class? */
     int is_subclass_of(const CTPNSuperclass *sc) const;
 
-    /* next entry in my list */
-    CTPNSuperclass *nxt_;
+    /* next/previous entry in my list */
+    CTPNSuperclass *nxt_, *prv_;
 
 protected:
     /* my symbol - if this isn't set, we'll use sym_txt_ instead */
     class CTcSymbol *sym_;
-    
+
     /* my name - we use this if sym_ is not set  */
     const textchar_t *sym_txt_;
     size_t sym_len_;
 };
 
+/*
+ *   Superclass list 
+ */
+class CTPNSuperclassList
+{
+public:
+    CTPNSuperclassList() { head_ = tail_ = 0; dst_ = &head_; }
+
+    void append(class CTPNSuperclass *sc)
+    {
+        /* set the 'next' pointer for the current tail */
+        *dst_ = sc;
+        *(dst_ = &sc->nxt_) = 0;
+
+        /* set the 'previous' pointer for the new entry */
+        sc->prv_ = tail_;
+        tail_ = sc;
+    }
+
+    /* head and tail of our list */
+    class CTPNSuperclass *head_;
+    class CTPNSuperclass *tail_;
+
+private:
+    class CTPNSuperclass **dst_;
+};
+
+
+/*
+ *   Property list 
+ */
+class CTPNPropList
+{
+public:
+    CTPNPropList() { first_ = last_ = 0; dst_ = &first_; cnt_ = 0; }
+
+    /* append a property to our list */
+    void append(class CTPNObjProp *prop);
+
+    /* delete a property from our list; returns true if found, false if not */
+    int del(class CTcSymProp *sym);
+
+    /* head/tail of our property list */
+    class CTPNObjProp *first_;
+    class CTPNObjProp *last_;
+
+    /* number of properties in the list */
+    int cnt_;
+
+private:
+    /* next destination for append() */
+    class CTPNObjProp **dst_;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Mix-in base for an object definer node.  This is instantiated in the
+ *   top-level object statement class (CTPNStmObject) and the in-line object
+ *   definition expression node (CTPNInlineObject). 
+ */
+class CTPNObjDef
+{
+public:
+    CTPNObjDef()
+    { 
+        /* presume there's no object symbol */
+        obj_sym_ = 0;
+
+        /* presume we won't have an undescribed superclass */
+        undesc_sc_ = FALSE;
+
+        /* presume we won't have a template usage error */
+        bad_template_ = FALSE;
+    }
+
+    /* is this a regular object or an inline object? */
+    virtual int is_inline_object() const = 0;
+
+    /* set the 'undescribed class' flag */
+    int has_undesc_sc() const { return undesc_sc_; }
+    void set_undesc_sc(int f) { undesc_sc_ = f; }
+
+    /* get/set the 'bad template' flag */
+    int has_bad_template() const { return bad_template_; }
+    void note_bad_template(int f) { bad_template_ = f; }
+
+    /* add a property value */
+    class CTPNObjProp *add_prop(
+        class CTcSymProp *prop_sym, class CTcPrsNode *expr,
+        int replace, int is_static);
+
+    /* 
+     *   Add a method.  'expr' is the original expression for cases where the
+     *   code body is derived from a simple expression in the source code
+     *   rather than an explicit code block.  Keeping the original expression
+     *   allows us to use a simple constant value if the expression ends up
+     *   folding to a constant. 
+     */
+    class CTPNObjProp *add_method(
+        class CTcSymProp *prop_sym, class CTPNCodeBody *code_body,
+        class CTcPrsNode *expr, int replace);
+
+    /* 
+     *   Add a method to an inline object.  The method in this case is
+     *   represented as an anonymous method object.  'expr' is the original
+     *   expression for cases where the anonymous function is derived from a
+     *   simple expression in the source code rather than an explicit code
+     *   block. 
+     */
+    class CTPNObjProp *add_inline_method(
+        class CTcSymProp *prop_sym, class CTPNAnonFunc *inline_method,
+        class CTcPrsNode *expr, int replace);
+
+    /* add a property as a nested object value */
+    virtual int parse_nested_obj_prop(
+        class CTPNObjProp* &new_prop, int *err,
+        struct tcprs_term_info *term_info,
+        const class CTcToken *prop_tok, int replace) = 0;
+
+    /* delete a property */
+    virtual void delete_property(class CTcSymProp *prop_sym)
+        { proplist_.del(prop_sym); }
+
+    /* get my superclass list */
+    CTPNSuperclassList &get_superclass_list() { return sclist_; }
+
+    /* get my first superclass */
+    class CTPNSuperclass *get_first_sc() const { return sclist_.head_; }
+
+    /* get my first property */
+    class CTPNObjProp *get_first_prop() const { return proplist_.first_; }
+
+    /* get the object symbol */
+    class CTcSymObj *get_obj_sym() const { return obj_sym_; }
+
+    /* 
+     *   set my object symbol - when an object is modified (via the 'modify'
+     *   statement), the object tree can be moved to a new symbol 
+     */
+    void set_obj_sym(class CTcSymObj *obj_sym) { obj_sym_ = obj_sym; }
+
+    /* fold constants in the property list */
+    void fold_proplist(class CTcPrsSymtab *symtab);
+
+protected:
+    /* add an entry to my property list */
+    virtual void add_prop_entry(class CTPNObjProp *prop, int /*replace*/)
+        { proplist_.append(prop); }
+
+    /* object name symbol */
+    class CTcSymObj *obj_sym_;
+
+    /* property list */
+    CTPNPropList proplist_;
+
+    /* superclass list */
+    CTPNSuperclassList sclist_;
+
+    /* 
+     *   Flag: this object definition includes an undescribed superclass.
+     *   This indicates that we're based on a class that was explicitly
+     *   defined as 'extern', in which case it can't be used as the source of
+     *   a template, since we know nothing about the class other than that it
+     *   is indeed a class.  
+     */
+    unsigned int undesc_sc_ : 1;
+
+    /* flag: this object definition used a template that wasn't matched */
+    unsigned int bad_template_ : 1;
+};
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   object definition statement base class
+ */
+class CTPNStmObjectBase: public CTPNStmTop, public CTPNObjDef
+{
+public:
+    CTPNStmObjectBase(class CTcSymObj *obj_sym, int is_class)
+    {
+        /* remember our defining global symbol */
+        obj_sym_ = obj_sym;
+
+        /* we're not yet replaced by another object */
+        replaced_ = FALSE;
+
+        /* we're not yet modified */
+        modified_ = FALSE;
+
+        /* note whether I'm a class or an ordinary object instance */
+        is_class_ = is_class;
+
+        /* presume it's not transient */
+        transient_ = FALSE;
+    }
+
+    /* this is a regular top-level object definition */
+    virtual int is_inline_object() const { return FALSE; }
+
+    /* 
+     *   mark the object as replaced - this indicates that another object
+     *   in the same translation unit has replaced this object, hence we
+     *   should not generate any code for this object 
+     */
+    void set_replaced(int f) { replaced_ = f; }
+
+    /*
+     *   Mark the object as modified - this indicates that another object
+     *   in the same translation unit has modified this object.  We'll
+     *   store this information in the object stream header data for use
+     *   at link time.  
+     */
+    void set_modified(int f) { modified_ = f; }
+
+    /* add a superclass with the given name or symbol */
+    void add_superclass(const class CTcToken *tok);
+    void add_superclass(class CTcSymbol *sym);
+
+    /* determine if I'm a class object */
+    int is_class() const { return (is_class_ != 0); }
+
+    /*
+     *   Delete a property value.  This is used when a 'modify' object
+     *   defines a property with 'replace', so that the property defined in
+     *   the modified original object is removed entirely rather than left in
+     *   as an inherited property.  
+     */
+    virtual void delete_property(class CTcSymProp *prop_sym);
+
+    /*
+     *   Add an implicit constructor.  This should be called just before
+     *   code generation; we'll check to see if the object requires an
+     *   implicit constructor, and add one to the object if so.  An object
+     *   provides an implicit constructor if it has multiple superclasses
+     *   and no explicit constructor.  
+     */
+    void add_implicit_constructor();
+
+    /* get/set the 'transient' status */
+    int is_transient() const { return transient_; }
+    void set_transient() { transient_ = TRUE; }
+
+    /* add a property as a nested object value */
+    virtual int parse_nested_obj_prop(
+        class CTPNObjProp* &new_prop, int *err,
+        struct tcprs_term_info *term_info,
+        const class CTcToken *prop_tok, int replace);
+
+    /* fold constants */
+    class CTcPrsNode *fold_constants(class CTcPrsSymtab *symtab)
+    {
+        CTPNObjDef::fold_proplist(symtab);
+        return this;
+    }
+    
+protected:
+    /* add an entry to my property list */
+    virtual void add_prop_entry(class CTPNObjProp *prop, int replace);
+
+    /* flag: I'm a class */
+    unsigned int is_class_ : 1;
+
+    /* flag: I've been replaced by another object */
+    unsigned int replaced_ : 1;
+
+    /* flag: I've been modified by another object */
+    unsigned int modified_ : 1;
+
+    /* flag: the object is transient */
+    unsigned int transient_ : 1;
+};
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   In-line object definition.  This represents an object defined in-line as
+ *   part of an expression.  This type of object definition creates a new
+ *   instance of the specified object when the expression is evaluated, using
+ *   anonymous methods for code properties.  (Anonymous methods are the same
+ *   as anonymous functions, aka closures, except that they bind only to the
+ *   local variables in the lexically enclosing frame but not to the 'self'
+ *   context.)  Using anonymous methods allows methods defined in the object
+ *   to read and write the lexically enclosing frame's local variables, so
+ *   that the entire object acts like a closure.
+ */
+class CTPNInlineObjectBase: public CTcPrsNode, public CTPNObjDef
+{
+public:
+    /* fold constants */
+    class CTcPrsNode *fold_constants(class CTcPrsSymtab *symtab)
+    {
+        CTPNObjDef::fold_proplist(symtab);
+        return this;
+    }
+
+    /* this is an inline object definition */
+    virtual int is_inline_object() const { return TRUE; }
+
+    /* parse a nested object property */
+    virtual int parse_nested_obj_prop(
+        class CTPNObjProp* &new_prop, int *err,
+        struct tcprs_term_info *term_info,
+        const class CTcToken *prop_tok, int replace);
+
+    /* adjust for dynamic execution */
+    class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info);
+};
+
+/* ------------------------------------------------------------------------ */
 /*
  *   Parse node entry for a property value or method entry in an object
  *   definition statement's property list.  We can have either an
@@ -4797,16 +4980,18 @@ protected:
  */
 class CTPNObjPropBase: public CTPNStm
 {
+    friend class CTPNObjDef;
     friend class CTPNStmObjectBase;
     friend class CTPNStmObject;
+    friend class CTPNPropList;
     
 public:
-    CTPNObjPropBase(class CTPNStmObject *obj_stm, class CTcSymProp *prop_sym,
+    CTPNObjPropBase(class CTPNObjDef *objdef, class CTcSymProp *prop_sym,
                     class CTcPrsNode *expr, class CTPNCodeBody *code_body,
-                    int is_static)
+                    class CTPNAnonFunc *inline_method, int is_static)
     {
         /* remember the object and property information */
-        obj_stm_ = obj_stm;
+        objdef_ = objdef;
         prop_sym_ = prop_sym;
 
         /* not in a property list yet */
@@ -4815,6 +5000,7 @@ public:
         /* remember our expression and code body values */
         expr_ = expr;
         code_body_ = code_body;
+        inline_method_ = inline_method;
 
         /* remember if it's static */
         is_static_ = is_static;
@@ -4828,6 +5014,9 @@ public:
 
     /* fold constants */
     class CTcPrsNode *fold_constants(class CTcPrsSymtab *symtab);
+
+    /* adjust for dynamic execution */
+    class CTcPrsNode *adjust_for_dyn(const tcpn_dyncomp_info *info);
 
     /* get the next property of this object */
     class CTPNObjProp *get_next_prop() const { return nxt_; }
@@ -4851,7 +5040,7 @@ public:
 
 protected:
     /* my object statement */
-    class CTPNStmObject *obj_stm_;
+    class CTPNObjDef *objdef_;
 
     /* my property symbol */
     class CTcSymProp *prop_sym_;
@@ -4862,8 +5051,14 @@ protected:
     /* my value expression */
     class CTcPrsNode *expr_;
 
+    /* symbol table in effect for this expression */
+    class CTcPrsSymtab *symtab_;
+
     /* my code body node */
     class CTPNCodeBody *code_body_;
+
+    /* for in-line objects, code is represented as an anonymous method */
+    class CTPNAnonFunc *inline_method_;
 
     /* am I static? */
     unsigned int is_static_ : 1;

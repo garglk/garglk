@@ -20,7 +20,7 @@ Modified
   04/21/92 MJRoberts     - creation (from tads 1.2 osgen.c)
 */
 
-#ifdef __WIN32__
+#ifdef T_WIN32
 #include <windows.h>
 #include <wincon.h>
 #endif
@@ -35,7 +35,7 @@ Modified
 #include "std.h"
 #include "osdbg.h"
 
-#ifdef __WIN32__
+#ifdef T_WIN32
 
 /*
  *   For Win32, use the console API to access the screen.  Keep track of
@@ -48,7 +48,7 @@ HANDLE G_screen_bufhdl[2];
 /* global with current output handle - see ossdos32.c */
 extern HANDLE G_out_bufhdl;
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 
 #ifdef MSOS2
 # define INCL_VIO
@@ -98,7 +98,7 @@ int osdbgini(int rows, int cols)
     return(0);
 }
 #else /* MSOS2 */
-#ifdef __WIN32__
+#ifdef T_WIN32
 
 int osdbgini(int rows, int cols)
 {
@@ -116,14 +116,14 @@ int osdbgini(int rows, int cols)
     return 0;
 }
 
-#else /* __WIN32__ */
+#else /* T_WIN32 */
 
 int osdbgini(int rows, int cols)
 {
     return(0);
 }
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 #endif /* MSOS2 */
 
 #ifndef DJGPP
@@ -151,13 +151,13 @@ int ossvpg(char pg)
     ret = prvpg;
     prvpg = pg;
     
-#ifdef __WIN32__
+#ifdef T_WIN32
     /* set ossdos32.c's output handle to the selected page's handle */
     G_out_bufhdl = G_screen_bufhdl[pg];
 
     /* show the selected page */
     SetConsoleActiveScreenBuffer(G_out_bufhdl);
-#else /* __WIN32__ */
+#else /* T_WIN32 */
 #ifndef MSOS2
     asm {
         push    bp
@@ -176,7 +176,7 @@ ossvpg_1:
         pop     bp
     }
 #endif /* !MSOS2 */
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
     return(ret);
 }
 
@@ -301,7 +301,7 @@ void osdbgwop(oswdef *win, int x1, int y1, int x2, int y2, int color)
 /* locate the cursor */
 void ossdbgloc(char y, char x)
 {
-#if defined(MSOS2) || defined(__WIN32__)
+#if defined(MSOS2) || defined(T_WIN32)
     ossloc(y, x);
 #else /* !MSOS2 */
 # ifdef DJGPP

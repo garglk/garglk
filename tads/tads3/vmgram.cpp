@@ -670,7 +670,7 @@ CVmObjGramProd::CVmObjGramProd(VMG0_)
 /* 
  *   notify of deletion 
  */
-void CVmObjGramProd::notify_delete(VMG_ int in_root_set)
+void CVmObjGramProd::notify_delete(VMG_ int /*in_root_set*/)
 {
     /* free our additional data */
     if (ext_ != 0)

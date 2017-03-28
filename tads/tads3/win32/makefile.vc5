@@ -51,7 +51,16 @@ CFLAGS_CRT_DEPRECATIONS =
 
 #-----------------------------------------------------------------------------
 #
-# debug settings
+# Root directory for T3 system files.  By default, this is the build folder.
+#
+!ifndef T3SYSROOT
+T3SYSROOT = $(T3EXEDIR)
+!endif
+
+
+#-----------------------------------------------------------------------------
+#
+# compiler/linker/build tool configuration, and debug/release variations
 #
 
 !ifndef TARGET_VM
@@ -72,16 +81,18 @@ CFLAGS_DEBUG = -Zi -Od $(CFLAGS_RTCHECKS) -DT3_DEBUG
 CFLAGS_OPT = 
 OUTDIR = $(TARGET_OUT)win32
 TADS2OBJSUBDIR = dbg
+T3MAKE_FLAGS_DBG = -d
 !else
 CFLAGS_DEBUG = -Zi
 LDFLAGS_DEBUG = /debug
+T3MAKE_FLAGS_DBG =
 !if $(MSVCPP_VER) >= 9
-CFLAGS_OPT = -Ox -GL -DNDEBUG=1 -GR- -EHs-c- -Gm- -GF \
+CFLAGS_OPT = -O2 -GL -GA -DNDEBUG=1 -GR- -EHs-c- -Gm- -GF \
     -DCOMPILER_DETECTS_OS_TERM_NORETURN
 LDFLAGS_OPT = /LTCG /OPT:REF /OPT:ICF
 ARFLAGS_OPT = /LTCG
 !elseif $(MSVCPP_VER) >= 7
-CFLAGS_OPT = -Ox -GL -DNDEBUG=1 -GR- -GX- -Gm- -GF \
+CFLAGS_OPT = -O2 -GL -DNDEBUG=1 -GR- -GX- -Gm- -GF -Gy \
     -DCOMPILER_DETECTS_OS_TERM_NORETURN
 LDFLAGS_OPT = /LTCG /OPT:REF /OPT:ICF
 ARFLAGS_OPT = /LTCG
@@ -96,9 +107,14 @@ TADS2OBJSUBDIR = rls
 
 !if $(MSVCPP_VER) >= 9
 CFLAGS_THROW_RETURN = -DCOMPILER_DETECTS_THROW_NORETURN
+!elseif $(MSVCPP_VER) >= 7
+! ifndef COMPILE_FOR_DEBUG
+CFLAGS_THROW_RETURN = -DCOMPILER_DETECTS_THROW_NORETURN_IN_VMERR
+! endif
 !endif
+
 !ifndef CFLAGS_THROW_RETURN
-CFLAGS_THROW_RETURN =
+CFLAGS_THROW_RETURN = 
 !endif
 
 !if $(MSVCPP_VER) >= 7
@@ -137,6 +153,12 @@ CFLAGS_WARN = -W3 -WX
 LDFLAGS_PROFILE = /profile
 !endif
 
+# t3make configuration
+T3MAKE_FLAGS = \
+    $(T3MAKE_FLAGS_DBG) \
+    -FI $(T3SYSROOT)\include \
+    -FL $(T3SYSROOT)\lib
+
 
 #-----------------------------------------------------------------------------
 #
@@ -150,10 +172,6 @@ LDFLAGS_PROFILE = /profile
 #
 # build environment configuration
 #
-
-# T3 header and library files
-T3INCDIR = t3inc
-T3LIBDIR = t3lib
 
 # Define the executable directory, if not defined from the environment.
 # If T3EXEDIR is defined from the environment, use it as the executable
@@ -197,6 +215,10 @@ TADS2DIR = ..\tads2
 MSDOSDIR = $(TADS2DIR)\msdos
 WINDIR = win32
 OBJDIR = $(OUTDIR)\obj
+UNIDIR = unidata
+TZDIR = tz
+TZDBDIR = db
+TZOUTDIR = $(EXEDIR)
 TADS2OBJDIR = $(TADS2DIR)\winobjs32\$(TADS2OBJSUBDIR)
 TADS2LIBDIR = $(TADS2DIR)\lib
 LIBDIR = $(OUTDIR)\lib
@@ -211,7 +233,7 @@ CC = cl
 CFLAGS = -c -MT \
     $(CFLAGS_NET) \
     -I. -I$(TADS2DIR) -I$(MSDOSDIR) -I$(TESTDIR) -I$(WINDIR) \
-    -c $(DBGFLG) -nologo -DMICROSOFT -DMSDOS -D__WIN32__ \
+    -c $(DBGFLG) -nologo -DMICROSOFT -DMSDOS -DT_WIN32 \
     $(CFLAGS_DEBUG) $(CFLAGS_OPT) $(CFLAGS_THROW_RETURN) $(CFLAGS_WARN) \
     -D$(T3_GLOBAL_CONFIG) -D$(TARGET_DEF) \
     $(CFLAGS_CRT_DEPRECATIONS)
@@ -245,7 +267,6 @@ OBJS = \
     $(OBJDIR)\tcsrc.obj \
     $(OBJDIR)\tctok.obj \
     $(OBJDIR)\tcprs.obj \
-    $(OBJDIR)\tcprs_d.obj \
     $(OBJDIR)\tcprsnl.obj \
     $(OBJDIR)\tcprsfil.obj \
     $(OBJDIR)\tcprsstm.obj \
@@ -314,6 +335,7 @@ RTOBJS = \
     $(OBJDIR)\vmfref.obj \
     $(OBJDIR)\vmlst.obj \
     $(OBJDIR)\vmbignum.obj \
+    $(OBJDIR)\vmbignumlib.obj \
     $(OBJDIR)\vmvec.obj \
     $(OBJDIR)\vmintcls.obj \
     $(OBJDIR)\vmanonfn.obj \
@@ -321,9 +343,13 @@ RTOBJS = \
     $(OBJDIR)\vmstrbuf.obj \
     $(OBJDIR)\vmdynfunc.obj \
     $(OBJDIR)\vmbytarr.obj \
+    $(OBJDIR)\vmdate.obj \
+    $(OBJDIR)\vmtzobj.obj \
+    $(OBJDIR)\vmtz.obj \
     $(OBJDIR)\vmcset.obj \
     $(OBJDIR)\vmfilobj.obj \
     $(OBJDIR)\vmtmpfil.obj \
+    $(OBJDIR)\vmfilnam.obj \
     $(OBJDIR)\vmpack.obj \
     $(OBJDIR)\vmundo.obj \
     $(OBJDIR)\vmtobj.obj \
@@ -332,6 +358,7 @@ RTOBJS = \
     $(OBJDIR)\vmdict.obj \
     $(OBJDIR)\vmgram.obj \
     $(OBJDIR)\vmrun.obj \
+    $(OBJDIR)\vmop.obj \
     $(OBJDIR)\vmrun_d.obj \
     $(OBJDIR)\vmfunc.obj \
     $(OBJDIR)\vmdbg.obj \
@@ -445,14 +472,8 @@ DYN_COMP_OBJS = \
 # machines are third party systems, so we obviously don't build them.
 #
 !if "$(TARGET_VM)" == "t3"
-RUNTIME_EXES = \
-    $(EXEDIR)\t3run.exe \
-    $(EXEDIR)\tr32.exe \
-    $(LIBDIR)\t3htm.lib \
-    $(LIBDIR)\t3htm_d.lib \
-    $(EXEDIR)\t3core.exe
-RUNTIME_TESTS = \
-    $(EXEDIR)\t3pre.exe
+RUNTIME_EXES = t3run tr32 libs t3core
+RUNTIME_TESTS = t3pre
 !else
 RUNTIME_EXES =
 RUNTIME_TESTS =
@@ -508,6 +529,17 @@ tests: \
     $(EXEDIR)\test_shr.exe \
     $(RUNTIME_TESTS)
 
+
+# shorthand names for the main targets
+t3run: $(EXEDIR)\t3run.exe
+tr32: $(EXEDIR)\tr32.exe
+t3core: $(EXEDIR)\t3core.exe
+t3make: $(EXEDIR)\t3make.exe
+t3pre: $(EXEDIR)\t3pre.exe
+lib: libs
+libs: $(LIBDIR)\t3htm.lib $(LIBDIR)\t3htm_d.lib
+
+
 # ----------------------------------------------------------------------------
 #
 # clean up derived files
@@ -533,7 +565,8 @@ clean:
 # character mapper
 #
 $(EXEDIR)\mkchrtab.exe: $(OBJDIR)\mkchrtab.obj $(OBJDIR)\std.obj \
-        $(OBJDIR)\std_dbg.obj
+        $(OBJDIR)\std_dbg.obj \
+        $(OBJDIR)\vmuni_cs.obj
     $(LD) $(LDFLAGS) @<<
 $**
 $(TADS2OBJDIR)\osdosnui.obj
@@ -545,15 +578,17 @@ AdvApi32.lib
 
 # ----------------------------------------------------------------------------
 #
-# unicode case mapping table
+# Unicode case/attribute mapping table.  We derive this information from
+# the Unicode character database file unicode.txt, available from the
+# Unicode site.  See unicode.txt for more information.
 #
 
-# mapping table object file
+# character mapping table object file
 $(OBJDIR)\vmuni_cs.obj: $(DERIVED_SRC_DIR)\vmuni_cs.cpp
 
 # mapping table file - build it using the mapping table builder utility
 $(DERIVED_SRC_DIR)\vmuni_cs.cpp: $(EXEDIR)\uni_case.exe
-    $(EXEDIR)\uni_case.exe <unicode.txt >$@
+    $(EXEDIR)\uni_case.exe $(UNIDIR)\ >$@
 
 # mapping table builder utility - reads the unicode character list,
 # and produces the source code for the case conversion functions
@@ -564,6 +599,7 @@ $**
 <<
 
 uni_case.obj: uni_case.cpp vmuni.h
+
 
 # ----------------------------------------------------------------------------
 #
@@ -631,6 +667,53 @@ $(CHARMAPOUTDIR)\cmaplib.t3r: \
 
 # ----------------------------------------------------------------------------
 #
+# Timezone database.  This compiles the IANA zoneinfo database into our
+# custom binary file format.
+#
+# THIS IS A MANUAL STEP - if you wish to rebuild the zoneinfo database, run:
+#
+#   make zoneinfo
+#
+# This isn't an automatic part of the makefile because the zoneinfo
+# source files aren't included with the TADS distribution, and normally 
+# don't need to be rebuilt anyway.  The TADS source code includes the
+# compiled version of the database used in the current release (the file
+# is tads3/tz/timezones.t3tz).  Ports that don't want to go to the trouble
+# of downloading the zoneinfo sources from the IANA site can simply copy
+# the compiled timezones.t3tz into their binary distributions.  The
+# zoneinfo sources are updated on their own schedule, which obviously
+# doesn't coincide with TADS releases; we will generally try to pick up
+# the latest zoneinfo data when building a TADS base release, but ports
+# can update to more recent zoneinfo data if desired, and users can 
+# update their individual installations by rebuilding from the TADS 
+# source code.
+#
+
+# manual target to rebuild the zoneinfo file
+zoneinfo: t3run $(TZDIR)\tz.t3 $(TZDIR)\*
+    $(EXEDIR)\t3run -s0 -plain -nomore -l $(TZDIR)\timezones-build-log.txt \
+        -d . $(TZDIR)\tz \
+        $(TZDIR)\$(TZDBDIR) $(TZOUTDIR)\timezones.t3tz
+
+$(TZDIR)\tz.t3: t3make $(TZDIR)\tz.t $(TZDIR)\tz.t3m
+    $(EXEDIR)\t3make $(T3MAKE_FLAGS) -f $(TZDIR)\tz
+
+
+#
+# windowsZones.xml - the zoneinfo database also lets us generate a list
+# of local time zone abbreviations for Windows, based on the Unicode
+# CLDR file windowsZones.xml (which has a mapping from Windows zone names
+# to zoneinfo keys).
+#
+
+# manual target to rebuild ../tads2/msdos/windowsZones.h
+windowsZones: t3run $(TZDIR)\tz.t3 $(TZDIR)\windowsZones.h
+    $(EXEDIR)\t3run -plain $(TZDIR)\tz --nodb --winzones $(TZDBDIR)
+    copy /y $(TZDIR)\windowsZones.h $(MSDOSDIR)\*.*
+
+
+# ----------------------------------------------------------------------------
+#
 # T3 "Make" utility
 #
 $(EXEDIR)\t3make.exe: \
@@ -685,6 +768,7 @@ $(EXEDIR)\t3make.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -692,8 +776,12 @@ $(EXEDIR)\t3make.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\vmnetfillcl.obj \
@@ -703,6 +791,7 @@ $(EXEDIR)\t3make.exe: \
         $(OBJDIR)\vmtype.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmpreini.obj \
@@ -737,8 +826,10 @@ $(EXEDIR)\t3make.exe: \
         $(OBJDIR)\vmuni_cs.obj \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osdos.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\oswinmem.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osnogen.obj \
@@ -759,6 +850,7 @@ $(EXEDIR)\t3res.exe: \
         $(OBJDIR)\rcmaincl.obj \
         $(OBJDIR)\rcmain.obj \
         $(OBJDIR)\std.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(TADS2OBJDIR)\osnoui.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osdos.obj \
@@ -831,6 +923,7 @@ $(EXEDIR)\t3pre.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -838,8 +931,12 @@ $(EXEDIR)\t3pre.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\vmnetfillcl.obj \
@@ -853,6 +950,7 @@ $(EXEDIR)\t3pre.exe: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmpreini.obj \
@@ -889,8 +987,10 @@ $(EXEDIR)\t3pre.exe: \
         $(OBJDIR)\vmuni_cs.obj \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osdos.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osnogen.obj \
         $(TADS2OBJDIR)\osrestad.obj \
@@ -935,6 +1035,7 @@ $(EXEDIR)\t3run.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -942,8 +1043,12 @@ $(EXEDIR)\t3run.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\sha2.obj \
@@ -958,6 +1063,7 @@ $(EXEDIR)\t3run.exe: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmsa.obj \
@@ -989,9 +1095,11 @@ $(EXEDIR)\t3run.exe: \
         \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osrestad.obj \
         $(TADS2OBJDIR)\osr.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\osgen3r.obj \
         $(TADS2OBJDIR)\osscolor.obj \
         $(TADS2OBJDIR)\ossdos32.obj \
@@ -1043,6 +1151,7 @@ $(EXEDIR)\tr32.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -1050,8 +1159,12 @@ $(EXEDIR)\tr32.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\sha2.obj \
@@ -1066,6 +1179,7 @@ $(EXEDIR)\tr32.exe: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmsa.obj \
@@ -1097,9 +1211,11 @@ $(EXEDIR)\tr32.exe: \
         \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osrestad.obj \
         $(TADS2OBJDIR)\osr.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\osgen3r.obj \
         $(TADS2OBJDIR)\osscolor.obj \
         $(TADS2OBJDIR)\ossdos32.obj \
@@ -1141,7 +1257,9 @@ $(EXEDIR)\t3core.exe: \
         \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\osrestad.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osdos.obj \
@@ -1191,6 +1309,7 @@ $(LIBDIR)\t3core.lib: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -1198,8 +1317,12 @@ $(LIBDIR)\t3core.lib: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\sha2.obj \
@@ -1214,6 +1337,7 @@ $(LIBDIR)\t3core.lib: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmsa.obj \
@@ -1277,6 +1401,7 @@ HTML_LIB_BASE_OBJS = \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -1284,8 +1409,12 @@ HTML_LIB_BASE_OBJS = \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\vmstack.obj \
@@ -1300,6 +1429,7 @@ HTML_LIB_BASE_OBJS = \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmsa.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmbif.obj \
         $(OBJDIR)\vmbifl.obj \
         $(OBJDIR)\vmimage.obj \
@@ -1371,6 +1501,7 @@ $(EXEDIR)\test_chr.exe: \
         $(OBJDIR)\std_dbg.obj \
         $(OBJDIR)\test_chr.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1390,6 +1521,7 @@ $(EXEDIR)\test_gets.exe: \
         $(OBJDIR)\std_dbg.obj \
         $(OBJDIR)\test_gets.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1410,6 +1542,7 @@ $(EXEDIR)\test_pool.exe: \
         $(OBJDIR)\std_dbg.obj \
         $(OBJDIR)\test_pool.obj \
         $(OBJDIR)\vmpool.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\vmpoolim.obj \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
@@ -1422,6 +1555,7 @@ $**
 $(EXEDIR)\test_err.exe: \
         $(OBJDIR)\std.obj \
         $(OBJDIR)\std_dbg.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\test_err.obj \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj
@@ -1464,6 +1598,7 @@ $(EXEDIR)\test_obj.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmsave.obj \
         $(OBJDIR)\vmcrc.obj \
         $(OBJDIR)\vmvec.obj \
@@ -1473,8 +1608,12 @@ $(EXEDIR)\test_obj.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\vmstack.obj \
@@ -1491,6 +1630,7 @@ $(EXEDIR)\test_obj.exe: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmsrcf.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
@@ -1541,9 +1681,11 @@ $(EXEDIR)\test_obj.exe: \
         $(OBJDIR)\tct3prg.obj \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osdos.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\oswinmem.obj \
         $(TADS2OBJDIR)\osrestad.obj \
         $(TADS2OBJDIR)\osnogen.obj \
@@ -1565,6 +1707,7 @@ $**
 $(EXEDIR)\test_write.exe: \
         $(OBJDIR)\std.obj \
         $(OBJDIR)\std_dbg.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\test_write.obj \
         $(OBJDIR)\vmwrtimg.obj \
         $(OBJDIR)\vmfile.obj \
@@ -1609,6 +1752,7 @@ $(EXEDIR)\test_exec.exe: \
         $(OBJDIR)\vmsort.obj \
         $(OBJDIR)\vmsortv.obj \
         $(OBJDIR)\vmbignum.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(OBJDIR)\vmvec.obj \
         $(OBJDIR)\vmintcls.obj \
         $(OBJDIR)\vmanonfn.obj \
@@ -1618,8 +1762,12 @@ $(EXEDIR)\test_exec.exe: \
         $(OBJDIR)\vmstrbuf.obj \
         $(OBJDIR)\vmdynfunc.obj \
         $(OBJDIR)\vmbytarr.obj \
+        $(OBJDIR)\vmdate.obj \
+        $(OBJDIR)\vmtzobj.obj \
+        $(OBJDIR)\vmtz.obj \
         $(OBJDIR)\vmcset.obj \
         $(OBJDIR)\vmfilobj.obj \
+        $(OBJDIR)\vmfilnam.obj \
         $(OBJDIR)\vmtmpfil.obj \
         $(OBJDIR)\vmpack.obj \
         $(OBJDIR)\sha2.obj \
@@ -1634,6 +1782,7 @@ $(EXEDIR)\test_exec.exe: \
         $(OBJDIR)\utf8.obj \
         $(OBJDIR)\vmglob.obj \
         $(OBJDIR)\vmrun.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\vmfunc.obj \
         $(OBJDIR)\vmmeta.obj \
         $(OBJDIR)\vmsa.obj \
@@ -1664,8 +1813,10 @@ $(EXEDIR)\test_exec.exe: \
         $(NET_OBJS) \
         $(TADS2OBJDIR)\osifc.obj \
         $(TADS2OBJDIR)\osnoui.obj \
+        $(TADS2OBJDIR)\osstzprs.obj \
         $(TADS2OBJDIR)\osdos.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
+        $(TADS2OBJDIR)\ostzw32.obj \
         $(TADS2OBJDIR)\osrestad.obj \
         $(TADS2OBJDIR)\osdosex.obj \
         $(TADS2OBJDIR)\osnogen.obj \
@@ -1680,6 +1831,7 @@ user32.lib ws2_32.lib WinINet.lib advapi32.lib shell32.lib
 $(EXEDIR)\test_tok.exe: \
         $(OBJDIR)\std.obj \
         $(OBJDIR)\std_dbg.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\test_tok.obj \
         $(OBJDIR)\tcglob.obj \
         $(OBJDIR)\vmerr.obj \
@@ -1695,16 +1847,17 @@ $(EXEDIR)\test_tok.exe: \
         $(OBJDIR)\tcsrc.obj \
         $(OBJDIR)\tctok.obj \
         $(OBJDIR)\tcprs.obj \
-        $(OBJDIR)\tcprs_d.obj \
         $(OBJDIR)\tcprsnl.obj \
         $(OBJDIR)\tcprsnf.obj \
         $(OBJDIR)\tcgen.obj \
         $(OBJDIR)\tct3.obj \
+        $(OBJDIR)\vmop.obj \
         $(OBJDIR)\tct3unas.obj \
         $(OBJDIR)\tct3nl.obj \
         $(OBJDIR)\tct3_d.obj \
         $(OBJDIR)\vmhash.obj \
         $(OBJDIR)\vmtypedh.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TADS2OBJDIR)\osdos.obj \
         $(TADS2OBJDIR)\osdosnui.obj \
         $(TADS2OBJDIR)\osdosex.obj \
@@ -1715,10 +1868,6 @@ $**
 user32.lib AdvApi32.lib
 /OUT:$@
 <<
-# before vmhash.obj:        $(TARGET_OBJS_NO_RT) \
-# remove tcgenfil.obj
-# remove vmwrtimg.obj
-# remove vmglob.obj
 
 $(EXEDIR)\test_prs.exe: \
         $(OBJDIR)\test_prs.obj \
@@ -1728,6 +1877,7 @@ $(EXEDIR)\test_prs.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1744,6 +1894,8 @@ $(EXEDIR)\test_prs.exe: \
         $(OBJDIR)\tcprsimg.obj \
         $(OBJDIR)\tcgen.obj \
         $(OBJDIR)\tcgenfil.obj \
+        $(OBJDIR)\vmop.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TARGET_OBJS) \
         $(OBJDIR)\vmhash.obj \
         $(OBJDIR)\vmwrtimg.obj \
@@ -1769,6 +1921,7 @@ $(EXEDIR)\test_sym.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1781,6 +1934,8 @@ $(EXEDIR)\test_sym.exe: \
         $(OBJDIR)\tcprs.obj \
         $(OBJDIR)\tcprsfil.obj \
         $(OBJDIR)\tcprsnl.obj \
+        $(OBJDIR)\vmop.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TARGET_OBJS_SYM) \
         $(OBJDIR)\tcprsstm.obj \
         $(OBJDIR)\tcprsprg.obj \
@@ -1809,6 +1964,7 @@ $(EXEDIR)\test_prs_top.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1825,6 +1981,8 @@ $(EXEDIR)\test_prs_top.exe: \
         $(OBJDIR)\tcprsimg.obj \
         $(OBJDIR)\tcgen.obj \
         $(OBJDIR)\tcgenfil.obj \
+        $(OBJDIR)\vmop.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TARGET_OBJS) \
         $(OBJDIR)\vmhash.obj \
         $(OBJDIR)\vmwrtimg.obj \
@@ -1850,6 +2008,7 @@ $(EXEDIR)\test_comp_obj.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1866,6 +2025,8 @@ $(EXEDIR)\test_comp_obj.exe: \
         $(OBJDIR)\tcprsimg.obj \
         $(OBJDIR)\tcgen.obj \
         $(OBJDIR)\tcgenfil.obj \
+        $(OBJDIR)\vmop.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TARGET_OBJS) \
         $(OBJDIR)\vmhash.obj \
         $(OBJDIR)\vmwrtimg.obj \
@@ -1891,6 +2052,7 @@ $(EXEDIR)\test_link.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\utf8.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\charmap.obj \
         $(OBJDIR)\resload.obj \
         $(OBJDIR)\resnoexe.obj \
@@ -1907,6 +2069,8 @@ $(EXEDIR)\test_link.exe: \
         $(OBJDIR)\tcprsimg.obj \
         $(OBJDIR)\tcgen.obj \
         $(OBJDIR)\tcgenfil.obj \
+        $(OBJDIR)\vmop.obj \
+        $(OBJDIR)\vmbignumlib.obj \
         $(TARGET_OBJS) \
         $(OBJDIR)\vmhash.obj \
         $(OBJDIR)\vmwrtimg.obj \
@@ -1936,6 +2100,7 @@ $(EXEDIR)\test_osnet_1.exe: \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\vmfile.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\sha2.obj \
         $(OBJDIR)\md5.obj \
         $(OBJDIR)\std.obj \
@@ -1964,6 +2129,7 @@ $(EXEDIR)\test_osnet_2.exe: \
         $(OBJDIR)\osifcnet.obj \
         $(OBJDIR)\vmrefcnt.obj \
         $(OBJDIR)\vmisaac.obj \
+        $(OBJDIR)\vmuni_cs.obj \
         $(OBJDIR)\vmerr.obj \
         $(OBJDIR)\vmerrmsg.obj \
         $(OBJDIR)\vmfile.obj \
@@ -2023,16 +2189,18 @@ $(OBJDIR)\vmstr.obj: vmstr.cpp vmstr.h vmobj.h vmtype.h vmfile.h \
     vmerrnum.h vmerr.h vmpool.h vmstack.h vmmeta.h vmrun.h vmbif.h \
     vmpredef.h vmlst.h vmuni.h vmcset.h vmbytarr.h charmap.h vmstrbuf.h \
     vmnet.h osifcnet.h win32\osnetwin.h vmstrref.h sha2.h md5.h vmpack.h \
-    vmdatasrc.h vmpat.h vmregex.h vmbiftad.h
+    vmdatasrc.h vmpat.h vmregex.h vmbiftad.h vmfindrep.h
 $(OBJDIR)\vmlst.obj: vmlst.cpp vmlst.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmpool.h vmstack.h vmmeta.h vmrun.h vmbif.h \
-    vmpredef.h vmcoll.h vmiter.h vmsort.h vmstr.h
+    vmpredef.h vmcoll.h vmiter.h vmsort.h vmstr.h vmbiftad.h
 $(OBJDIR)\vmsort.obj: vmsort.cpp vmsort.h vmglob.h vmpoolsl.h t3std.h
 $(OBJDIR)\vmsortv.obj: vmsortv.cpp vmsort.h vmglob.h vmpoolsl.h t3std.h \
     vmrun.h vmstack.h vmerr.h vmerrnum.h
 $(OBJDIR)\vmbignum.obj: vmbignum.cpp vmbignum.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmstack.h utf8.h vmstr.h vmbif.h vmmeta.h vmlst.h \
     vmdatasrc.h
+$(OBJDIR)\vmbignumlib.obj: vmbignumlib.cpp vmbignum.h vmtype.h vmerr.h \
+    vmerrnum.h utf8.h
 $(OBJDIR)\vmvec.obj: vmvec.cpp vmvec.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmlst.h vmglob.h vmundo.h \
     vmcoll.h vmiter.h vmsort.h vmpoolsl.h vmrun.h
@@ -2044,7 +2212,8 @@ $(OBJDIR)\vmstrbuf.obj: vmstrbuf.cpp vmstrbuf.h vmobj.h vmtype.h vmerr.h \
     vmrun.h
 $(OBJDIR)\vmdynfunc.obj: vmdynfunc.cpp vmdynfunc.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmstr.h vmglob.h vmundo.h \
-    vmrun.h vmfref.h tcprs.h vmgram.h vmtobj.h vmdict.h vmimage.h vmpool.h
+    vmrun.h vmfref.h tcprs.h vmgram.h vmtobj.h vmdict.h vmimage.h vmpool.h \
+    tctok.h tcprs.h
 $(OBJDIR)\vmbytarr.obj: vmbytarr.cpp vmbytarr.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmglob.h vmundo.h \
     vmrun.h charmap.h vmstr.h vmcset.h vmpoolsl.h vmdatasrc.h vmpack.h utf8.h
@@ -2055,10 +2224,13 @@ $(OBJDIR)\vmfilobj.obj: vmfilobj.cpp vmfilobj.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmglob.h vmundo.h \
     vmrun.h charmap.h vmstr.h vmimport.h vmpredef.h vmbytarr.h vmbignum.h \
     vmhost.h vmpoolsl.h vmdatasrc.h vmimage.h vmnetfil.h vmnet.h vmhash.h \
-    vmpack.h sha2.h md5.h
+    vmpack.h sha2.h md5.h vmbiftad.h vmlst.h vmdate.h vmfilnam.h
 $(OBJDIR)\vmtmpfil.obj: vmtmpfil.cpp vmtmpfil.h vmobj.h vmtype.h \
     vmerr.h vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmstr.h \
     vmglob.h vmundo.h vmrun.h
+$(OBJDIR)\vmfilnam.obj: vmfilnam.cpp vmfilnam.h vmobj.h vmtype.h \
+    vmerr.h vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmstr.h \
+    vmglob.h vmundo.h vmrun.h vmfilobj.h vmnetfil.h vmpredef.h charmap.h
 $(OBJDIR)\vmcoll.obj: vmcoll.cpp vmcoll.h vmobj.h vmtype.h vmerr.h \
     vmerrnum.h vmglob.h vmiter.h vmmeta.h vmstack.h vmpoolsl.h
 $(OBJDIR)\vmiter.obj: vmiter.cpp vmiter.h vmobj.h vmtype.h vmerr.h \
@@ -2084,26 +2256,38 @@ $(OBJDIR)\vmgram.obj: vmgram.cpp vmgram.h vmobj.h t3std.h vmtype.h vmglob.h \
 $(OBJDIR)\vmpat.obj: vmpat.cpp vmpat.h vmregex.h vmtype.h t3std.h \
     vmstack.h vmbif.h vmbiftad.h vmglob.h vmmeta.h vmfile.h
 $(OBJDIR)\vmstrcmp.obj: vmstrcmp.cpp vmstrcmp.h vmtype.h t3std.h \
-    vmstack.h vmbif.h vmbiftad.h vmglob.h vmmeta.h vmfile.h vmuni.h utf8.h
+    vmstack.h vmbif.h vmbiftad.h vmglob.h vmmeta.h vmfile.h vmuni.h utf8.h \
+    vmstr.h
 $(OBJDIR)\vmfunc.obj: vmfunc.cpp vmfunc.h vmtype.h t3std.h vmglob.h vmpool.h \
     vmobj.h vmbif.h vmdynfunc.h vmstr.h
+$(OBJDIR)\vmdate.obj: vmdate.cpp vmdate.h vmobj.h vmtype.h \
+    vmerr.h vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmstr.h \
+    vmglob.h vmundo.h vmrun.h vmtz.h vmtzobj.h vmvec.h utf8.h vmlookup.h \
+    vmbignum.h vmlst.h vmstr.h vmuni.h
+$(OBJDIR)\vmtzobj.obj: vmtzobj.cpp vmtzobj.h vmobj.h vmtype.h \
+    vmerr.h vmerrnum.h vmfile.h vmstack.h vmbif.h vmmeta.h vmstr.h \
+    vmglob.h vmundo.h vmrun.h vmtz.h vmdate.h vmlst.h
+$(OBJDIR)\vmtz.obj: vmtz.cpp vmtz.h t3std.h vmhash.h vmglob.h resload.h \
+    vmhost.h vmobj.h vmdate.h vmtzobj.h vmlst.h vmstr.h
 $(OBJDIR)\vmdbg.obj: vmdbg.cpp vmdbg.h vmhash.h vmrun.h vmglob.h vmtype.h \
     vmfunc.h t3std.h vmsrcf.h tcprstyp.h tcpnbase.h tcpnint.h tcpndrv.h \
     tcglob.h tcprs.h tcmain.h tctok.h resload.h tcgen.h vmop.h tct3.h \
     tct3base.h tct3int.h tct3drv.h vmpool.h vmlst.h vmimage.h charmap.h \
     vmhost.h vmbignum.h vmvec.h vmpoolsl.h vmobj.h vmanonfn.h vmstack.h \
-    vmlookup.h vmstr.h vmdynfunc.h vmmeta.h osifcnet.h win32\osnetwin.h
+    vmlookup.h vmstr.h vmdynfunc.h vmmeta.h osifcnet.h win32\osnetwin.h \
+    vmdate.h vmtzobj.h vmtz.h vmfilnam.h
 $(OBJDIR)\vmimgrb.obj: vmimgrb.cpp t3std.h vmfile.h vmimage.h vmpool.h \
     vmglob.h vmwrtimg.h vmobj.h vmtobj.h vmmeta.h vmimgrb.h vmlst.h \
     vmstr.h vmdict.h vmhash.h vmgram.h vmbignum.h vmintcls.h vmiter.h \
     vmvec.h vmlookup.h vmstack.h vmbytarr.h vmcset.h vmfilobj.h \
-    vmpoolsl.h vmpat.h vmstrcmp.h vmstrbuf.h vmdynfunc.h vmfref.h
+    vmpoolsl.h vmpat.h vmstrcmp.h vmstrbuf.h vmdynfunc.h vmfref.h vmdate.h \
+    vmtzobj.h vmtz.h vmfilnam.h
 $(OBJDIR)\vmpreini.obj: vmpreini.cpp t3std.h vminit.h vmerr.h vmfile.h \
     vmimage.h vmrun.h vmimgrb.h vmpreini.h vmconsol.h
 $(OBJDIR)\vmsa.obj: vmsa.cpp t3std.h vmtobj.h vmobj.h vmlst.h vmstr.h \
     vmdict.h vmmeta.h vmgram.h vmbignum.h vmintcls.h vmiter.h vmvec.h \
     vmlookup.h vmbytarr.h vmcset.h vmfilobj.h vmpat.h vmstrcmp.h vmstrbuf.h \
-    vmdynfunc.h vmfref.h
+    vmdynfunc.h vmfref.h vmdate.h vmfilnam.h
 $(OBJDIR)\vmtype.obj: vmtype.cpp vmtype.h vmobj.h vmstr.h vmlst.h vmpool.h
 $(OBJDIR)\vmtypedh.obj: vmtypedh.cpp vmtype.h vmglob.h vmstack.h
 $(OBJDIR)\vmglob.obj: vmglob.cpp vmglob.h vmimport.h vmpoolsl.h \
@@ -2114,15 +2298,15 @@ $(OBJDIR)\vmmeta.obj: vmmeta.cpp vmmeta.h vmfile.h vmtype.h vmerr.h \
 $(OBJDIR)\vmmcreg.obj: vmmcreg.cpp vmmcreg.h vmmccore.h vmdict.h \
     vmstr.h vmlst.h vmtobj.h vmgram.h vmbignum.h vmintcls.h \
     vmanonfn.h vmiter.h vmcoll.h vmvec.h vmlookup.h vmbytarr.h vmcset.h \
-    vmfilobj.h vmpat.h vmstrcmp.h vmstrbuf.h vmfref.h
+    vmfilobj.h vmpat.h vmstrcmp.h vmstrbuf.h vmfref.h vmdate.h vmfilnam.h
 $(OBJDIR)\vmbif.obj: vmbif.cpp vmbif.h vmtype.h vmerr.h vmerrnum.h \
     vmglob.h vmbifreg.h vmstr.h vmobj.h vmrun.h utf8.h charmap.h vmpoolsl.h \
-    vmcset.h
+    vmcset.h vmfilnam.h
 $(OBJDIR)\vminit.obj: vminit.cpp vminit.h vmerr.h vmfile.h vmimage.h \
     vmpool.h vmobj.h vmstack.h vmundo.h vmmeta.h vmbif.h vmrun.h \
     vmpredef.h vmmcreg.h vmbiftad.h resload.h charmap.h vmhost.h \
     vmconsol.h vmbignum.h vmimport.h vmsrcf.h vmparam.h vmmain.h \
-    vmtobj.h osifcnet.h win32\osnetwin.h vmhash.h
+    vmtobj.h osifcnet.h win32\osnetwin.h vmhash.h vmtz.h
 $(OBJDIR)\vmini_d.obj: vmini_d.cpp vminit.h vmdbg.h vmparam.h t3std.h
 $(OBJDIR)\vmini_nd.obj: vmini_nd.cpp vminit.h vmparam.h t3std.h
 $(OBJDIR)\vminitim.obj: vminitim.cpp vminit.h vmpool.h
@@ -2138,7 +2322,7 @@ $(OBJDIR)\vmimage.obj: vmimage.cpp vmimage.h vmtype.h vmfile.h vmerr.h \
     vmerrnum.h vmmeta.h vmbif.h vmpredef.h vmrun.h vmtobj.h \
     vminit.h vmhost.h vmstr.h vmlst.h vmobj.h vmsave.h vmrunsym.h \
     vmlookup.h vmcoll.h vmstack.h tcprstyp.h vmhash.h vmimport.h \
-    vmbytarr.h vmcset.h vmfilobj.h vmsrcf.h vmvec.h
+    vmbytarr.h vmcset.h vmfilobj.h vmsrcf.h vmvec.h charmap.h
 $(OBJDIR)\vmimg_d.obj: vmimg_d.cpp vmimage.h vmtype.h vmfile.h vmerr.h \
     vmerrnum.h tcprs.h tctarg.h vmdbg.h vmglob.h vmfunc.h \
     vmhash.h tcglob.h tcpnbase.h tcpnint.h tcpndrv.h tct3base.h tct3int.h \
@@ -2164,20 +2348,21 @@ $(OBJDIR)\vmbifreg_core.obj: vmbifreg_core.cpp vmbifreg.h \
 $(OBJDIR)\vmbiftad.obj: vmbiftad.cpp vmbiftad.h vmbif.h vmstack.h vmerr.h \
     vmerrnum.h vmglob.h vmpool.h vmobj.h vmrun.h utf8.h vmlst.h vmstr.h \
     vmregex.h vmundo.h vmsave.h vmuni.h vmbignum.h vmfunc.h vmpoolsl.h \
-    vmpat.h vmtobj.h vmlookup.h
+    vmpat.h vmtobj.h vmlookup.h vmbytarr.h vmmersenne.h vmfilobj.h \
+    vmfindrep.h
 $(OBJDIR)\vmisaac.obj: vmisaac.cpp vmisaac.h
 $(OBJDIR)\vmbiftio.obj: vmbiftio.cpp vmbiftio.h vmbif.h vmstack.h vmerr.h \
     vmerrnum.h vmglob.h vmpool.h vmobj.h vmrun.h utf8.h vmlst.h vmstr.h \
     charmap.h vmfile.h vmconsol.h vmstrres.h vmvsn.h vmhost.h vmpoolsl.h \
-    vmpredef.h vmcset.h vmfilobj.h vmnetfil.h vmnet.h
+    vmpredef.h vmcset.h vmfilobj.h vmnetfil.h vmnet.h vmfilnam.h
 $(OBJDIR)\vmbiftix.obj: vmbiftix.cpp vmbiftix.h vmbif.h vmstack.h vmerr.h \
     vmerrnum.h vmglob.h vmpool.h vmobj.h vmrun.h utf8.h vmlst.h vmstr.h \
     charmap.h vmhost.h vmpoolsl.h vmpredef.h vmvec.h
 $(OBJDIR)\vmbifnet.obj: vmbifnet.cpp vmbifnet.h vmbif.h vmstack.h vmerr.h \
     vmerrnum.h vmglob.h vmpool.h vmobj.h vmrun.h utf8.h vmlst.h vmstr.h \
     charmap.h vmhost.h vmpoolsl.h vmpredef.h vmvec.h vmnet.h vmhttpsrv.h \
-    vmfile.h vmbytarr.h vmfilobj.h vmcset.h vmlookup.h vmtobj.h vmtype.h \
-    vmlog.h
+    vmdatasrc.h vmfile.h vmbytarr.h vmfilobj.h vmcset.h vmlookup.h \
+    vmtobj.h vmtype.h vmlog.h
 $(OBJDIR)\vmbift3.obj: vmbift3.cpp vmbift3.h vmstack.h vmvsn.h vmerr.h \
     vmerrnum.h vmglob.h vmpool.h vmobj.h vmrun.h utf8.h vmimage.h \
     vmlst.h vmtobj.h vmfunc.h vmimport.h vmpredef.h vmsrcf.h charmap.h \
@@ -2192,7 +2377,7 @@ $(OBJDIR)\vmhosttx.obj: vmhosttx.cpp vmhosttx.h vmhost.h t3std.h \
     vmhash.h
 $(OBJDIR)\vmconsol.obj: vmconsol.cpp vmconsol.h vmhash.h \
     t3std.h utf8.h charmap.h vmuni.h vmglob.h vmpoolsl.h vmdatasrc.h \
-    vmnetfil.h vmerr.h vmobj.h
+    vmnetfil.h vmerr.h vmobj.h vmfilobj.h
 $(OBJDIR)\vmconmor.obj: vmconmor.cpp vmconsol.h
 $(OBJDIR)\vmconnom.obj: vmconnom.cpp vmconsol.h
 $(OBJDIR)\vmconhmp.obj: vmconhmp.cpp vmconsol.h t3std.h utf8.h vmglob.h \
@@ -2220,7 +2405,7 @@ $(OBJDIR)\indlg_os3.obj: indlg_os3.cpp t3std.h vmglob.h vmconsol.h charmap.h \
     vmpoolsl.h
 
 $(OBJDIR)\vmregex.obj: vmregex.cpp vmregex.h t3std.h utf8.h vmerr.h \
-    vmerrnum.h vmuni.h vmfile.h
+    vmerrnum.h vmuni.h vmfile.h 
 
 $(OBJDIR)\tcglob.obj: tcglob.cpp tcglob.h
 $(OBJDIR)\tcerr.obj: tcerr.cpp tcerr.h tcerrnum.h vmerr.h
@@ -2235,10 +2420,8 @@ $(OBJDIR)\tctok.obj: tctok.cpp tctok.h vmhash.h t3std.h utf8.h \
     vmfile.h vmdatasrc.h
 $(OBJDIR)\tcprs.obj: tcprs.cpp tcprs.h tctok.h vmhash.h t3std.h utf8.h \
     tcerrnum.h vmerr.h tcmain.h tcglob.h tcpnbase.h tcpnint.h tcpndrv.h \
-    tct3.h tct3base.h tct3int.h tct3drv.h tcgen.h vmfile.h tctok.h tcprstyp.h
-$(OBJDIR)\tcprs_d.obj: tcprs_d.cpp tcprs.h tcprstyp.h t3std.h \
-    tcerrnum.h vmerr.h tcmain.h tcglob.h tcpnbase.h tcpnint.h tcpndrv.h \
-    tct3.h tct3base.h tct3int.h tct3drv.h tcgen.h vmfile.h tctok.h
+    tct3.h tct3base.h tct3int.h tct3drv.h tcgen.h vmfile.h tctok.h \
+    tcprstyp.h vmbignum.h
 $(OBJDIR)\tcprs_rt.obj: tcprs_rt.cpp tcprs.h tcprstyp.h t3std.h \
     tcerrnum.h vmerr.h tcmain.h tcglob.h tcpnbase.h tcpnint.h tcpndrv.h \
     tct3.h tct3base.h tct3int.h tct3drv.h tcgen.h vmfile.h tctok.h
@@ -2272,7 +2455,7 @@ $(OBJDIR)\tct3unas.obj: tct3unas.cpp tct3unas.h tcunas.h vmtype.h vmop.h
 $(OBJDIR)\tct3.obj: tct3.cpp tct3.h tcgen.h tcprs.h \
     tcpnbase.h tcpnint.h tcpndrv.h tcmain.h tcerr.h \
     tct3base.h tct3int.h tct3drv.h vmfile.h vmwrtimg.h vmbignum.h \
-    tcprstyp.h vmrunsym.h tct3unas.h tcunas.h vmhash.h vmmeta.h
+    tcprstyp.h vmrunsym.h tct3unas.h tcunas.h vmhash.h vmmeta.h vmop.h
 $(OBJDIR)\tct3_d.obj: tct3_d.cpp tct3.h tcpnbase.h tcpnint.h tcpndrv.h \
     tct3base.h tct3int.h tct3drv.h tcprs.h tcprstyp.h
 $(OBJDIR)\tct3stm.obj: tct3stm.cpp tct3.h tcgen.h tcprs.h tcprstyp.h \
@@ -2292,7 +2475,7 @@ $(OBJDIR)\tcmake.obj: tcmake.cpp tcmake.h tcsrc.h tctok.h resload.h t3std.h \
     tcmain.h tchost.h tcprs.h tcprstyp.h tcpnbase.h tcpnint.h tcpndrv.h \
     tct3.h tct3base.h tct3int.h tct3drv.h vmpreini.h vmhostsi.h vmhost.h \
     tcvsn.h vmrunsym.h vmmaincn.h vmhosttx.h tcunas.h vmcrc.h rcmain.h \
-    vmconsol.h
+    vmconsol.h vmbignum.h
 $(OBJDIR)\tcmakecl.obj: tcmakecl.cpp tcmake.h t3std.h tchost.h tchostsi.h \
     vmerr.h tcvsn.h resload.h tcmain.h tclibprs.h tccmdutl.h t3_os.h \
     rcmain.h
@@ -2305,10 +2488,11 @@ $(OBJDIR)\msgcomp.obj: msgcomp.cpp t3std.h vmerr.h charmap.h resload.h \
 $(OBJDIR)\vmrun.obj: vmrun.cpp vmrun.h vmstack.h vmop.h vmerr.h \
     vmerrnum.h vmobj.h vmlst.h vmstr.h vmtobj.h vmfunc.h vmmeta.h \
     vmbif.h vmpredef.h vmfile.h vmdbg.h vmhash.h vmsave.h \
-    vmprof.h vmprofty.h vmlookup.h vmfref.h
+    vmprof.h vmprofty.h vmlookup.h vmfref.h vmbignum.h
+$(OBJDIR)\vmop.obj: vmop.cpp vmop.h t3std.h vmtype.h
 $(OBJDIR)\vmtobj.obj: vmtobj.cpp vmtobj.h vmobj.h vmerr.h vmerrnum.h \
     vmglob.h vmundo.h vmtype.h vmfile.h vmstack.h vmrun.h vmpredef.h \
-    vmmeta.h vmlst.h vmpoolsl.h vmintcls.h vmstr.h
+    vmmeta.h vmlst.h vmpoolsl.h vmintcls.h vmstr.h vmhash.h
 
 #
 # network version
@@ -2326,19 +2510,20 @@ $(OBJDIR)\vmnetui.obj: vmnetui.cpp vmnet.h osifcnet.h win32\osnetwin.h \
 $(OBJDIR)\vmnetcfg.obj: vmnetcfg.cpp vmnet.h osifcnet.h win32\osnetwin.h \
     t3std.h vmglob.h vmerr.h vmtype.h vmobj.h vmstr.h vmlst.h vmisaac.h \
     vmpredef.h vmhttpreq.h vmrefcnt.h vmdbg.h vmglob.h vmglobv.h vmdbg.h \
-    vmstrref.h vmpredef.h vmerrnum.h vmrun.h vmfile.h
+    vmstrref.h vmpredef.h vmerrnum.h vmrun.h vmfile.h vmdatasrc.h
 $(OBJDIR)\vmnetfil.obj: vmnetfil.cpp vmnetfil.h t3std.h osifcnet.h \
     win32\osnetwin.h vmnet.h vmfile.h vmerr.h vmerrnum.h vmglob.h sha2.h \
     vmhash.h vmrun.h vmimport.h vmpredef.h vmbif.h vmtype.h vmtmpfil.h \
-    vmtobj.h vmobj.h
+    vmtobj.h vmobj.h vmdatasrc.h
 $(OBJDIR)\vmnetfillcl.obj: vmnetfillcl.cpp vmnetfil.h t3std.h osifcnet.h \
     win32\osnetwin.h vmnet.h vmfile.h vmerr.h vmerrnum.h vmglob.h sha2.h \
     vmhash.h vmrun.h vmimport.h vmpredef.h vmbif.h vmtype.h vmtmpfil.h \
-    vmtobj.h vmobj.h vmimage.h
+    vmtobj.h vmobj.h vmimage.h vmstack.h charmap.h vmlst.h vmstr.h \
+    vmfilnam.h vmfilobj.h
 $(OBJDIR)\osnetwin.obj: win32\osnetwin.cpp win32\osnetwin.h osifcnet.h \
     vmrefcnt.h vmnet.h vmfile.h
 $(OBJDIR)\osnetcli.obj: win32\osnetcli.cpp win32\osnetwin.h osifcnet.h \
-    vmrefcnt.h vmnet.h vmfile.h
+    vmrefcnt.h vmnet.h vmfile.h vmdatasrc.h
 $(OBJDIR)\osnetdos.obj: win32\osnetdos.cpp win32\osnetwin.h osifcnet.h \
     vmrefcnt.h vmnet.h
 $(OBJDIR)\osifcnet.obj: osifcnet.cpp osifcnet.h vmtype.h win32\osnetwin.h

@@ -677,7 +677,7 @@ class TopicDatabase: object
             foreach (local t in best)
             {
                 /* ask this topic what it thinks the winner should be */
-                winner = t.breakTopicTie(t, topic, fromActor, toks);
+                winner = t.breakTopicTie(best, topic, fromActor, toks);
 
                 /* if the topic had an opinion, we can stop searching */
                 if (winner != nil)

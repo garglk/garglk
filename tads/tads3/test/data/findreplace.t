@@ -70,7 +70,7 @@ main(args)
                          ReplaceOnce | ReplaceIgnoreCase | ReplaceFollowCase,
                          17));
 
-    // parallel pattern tests
+    // serial vs parallel pattern tests
     echo('a->XX, b->YY, all',
          str.findReplace(['a', 'b'], ['XX', 'YY']));
     echo('a,b,c->XX, all',
@@ -92,6 +92,48 @@ main(args)
          str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
                          ReplaceOnce | ReplaceSerial
                          | ReplaceIgnoreCase | ReplaceFollowCase));
+
+    // limit tests
+    echo('a->bb, b->cc, c->dd, parallel,nocase,follow, limit=0',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 0));
+    echo('a->bb, b->cc, c->dd, parallel,nocase,follow, limit=1',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 1));
+    echo('a->bb, b->cc, c->dd, parallel,nocase,follow, limit=2',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 2));
+    echo('a->bb, b->cc, c->dd, parallel,nocase,follow, limit=3',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 3));
+    echo('a->bb, b->cc, c->dd, parallel,nocase,follow, limit=4',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 4));
+    echo('a->bb, b->cc, c->dd, serial,nocase,follow, limit=0',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceSerial | ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 0));
+    echo('a->bb, b->cc, c->dd, serial,nocase,follow, limit=1',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceSerial | ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 1));
+    echo('a->bb, b->cc, c->dd, serial,nocase,follow, limit=2',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceSerial | ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 2));
+    echo('a->bb, b->cc, c->dd, serial,nocase,follow, limit=3',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceSerial | ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 3));
+    echo('a->bb, b->cc, c->dd, serial,nocase,follow, limit=4',
+         str.findReplace(['a', 'b', 'c'], ['bb', 'cc', 'dd'],
+                         ReplaceSerial | ReplaceIgnoreCase | ReplaceFollowCase,
+                         nil, 4));
 
     // callback tests
     echo('a->func(match, index, orig), all',
@@ -124,4 +166,20 @@ main(args)
          str.findReplace(['a', 'b'],
                          [{ m: '[<<m>>]'}, { m, i: '[<<m>>:<<i>>]'}],
                          ReplaceIgnoreCase));
+
+    // '%1' (etc) in replacement is ignored when the pattern is literal text
+    echo('a->%1, b->%2, c->%*, d->%%',
+         str.findReplace(['a', 'b', 'c', 'd'],
+                         ['%1', '%2', '%*', '%%'],
+                         ReplaceIgnoreCase));
+    
+    // regular expression source
+    local r1 = new RexPattern('<alpha>+');
+    echo('<alpha>+ -> word(orig)',
+         str.findReplace(r1, 'word(%*)',
+                         ReplaceIgnoreCase | ReplaceFollowCase));
+
+    // concatenation with result
+    echo('concat',
+         '[[[<<str.findReplace(R't<alpha>+', { m: m.toUpper() })>>]]]');
 }

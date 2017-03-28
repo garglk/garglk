@@ -60,15 +60,45 @@ Modified
 #include "vmcset.h"
 #include "vmfilobj.h"
 #include "vmtmpfil.h"
+#include "vmfilnam.h"
 #include "vmpat.h"
 #include "vmstrcmp.h"
 #include "vmstrbuf.h"
 #include "vmdynfunc.h"
 #include "vmfref.h"
+#include "vmdate.h"
+#include "vmtzobj.h"
+#include "vmtz.h"
 
 #ifdef TADSNET
 #include "vmhttpsrv.h"
 #include "vmhttpreq.h"
+#endif
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Write a string to a buffer with a one-byte prefix 
+ */
+static char *write_str_byte_prefix(char *ptr, const char *str, size_t len)
+{
+    /* make sure it fits the byte prefix */
+    if (len > 255)
+        err_throw(VMERR_STR_TOO_LONG);
+
+    /* write the prefix and the string */
+    oswp1(ptr, (char)len);
+    memcpy(ptr + 1, str, len);
+
+    /* return the pointer to the next byte after the copied data */
+    return ptr + len + 1;
+}
+
+#if 0 // not currently needed
+static char *write_str_byte_prefix(char *ptr, const char *str)
+{
+    return write_str_byte_prefix(ptr, str, strlen(str));
+}
 #endif
 
 
@@ -839,14 +869,6 @@ extern "C"
  */
 ulong CVmObjTads::rebuild_image(VMG_ char *buf, ulong buflen)
 {
-    size_t max_size;
-    char *p;
-    char *props;
-    char *props_end;
-    size_t prop_cnt;
-    size_t i;
-    vm_tadsobj_prop *entry;
-    
     /* 
      *   Make sure the buffer is big enough.  Start out with worst-case
      *   assumption that we'll need every allocated property slot; we might
@@ -855,9 +877,9 @@ ulong CVmObjTads::rebuild_image(VMG_ char *buf, ulong buflen)
      *   (UINT2 superclass count, UINT2 property count, UINT2 flags), plus a
      *   UINT4 per superclass, plus a (UINT2 + DATAHOLDER) per property.  
      */
-    max_size = (2 + 2 + 2)
-               + get_sc_count() * 4
-               + (get_hdr()->prop_entry_free * 7);
+    size_t max_size = (2 + 2 + 2)
+                      + get_sc_count() * 4
+                      + (get_hdr()->prop_entry_free * 7);
 
     /* if it's more than we have available, ask for more space */
     if (max_size > buflen)
@@ -870,20 +892,19 @@ ulong CVmObjTads::rebuild_image(VMG_ char *buf, ulong buflen)
     oswp2(buf, get_sc_count());
     oswp2(buf+2, 0);
     oswp2(buf+4, get_li_obj_flags());
-    p = buf + 6;
+    char *p = buf + 6;
 
     /* copy the superclass list */
-    for (i = 0 ; i < get_sc_count() ; ++i, p += 4)
+    for (size_t i = 0 ; i < get_sc_count() ; ++i, p += 4)
         oswp4(p, get_sc(i));
 
     /* remember where the properties start */
-    props = p;
+    char *props = p;
 
     /* copy the non-empty property slots */
-    for (i = get_hdr()->prop_entry_free, entry = get_hdr()->prop_entry_arr,
-         prop_cnt = 0 ;
-         i != 0 ;
-         --i, ++entry)
+    vm_tadsobj_prop *entry = get_hdr()->prop_entry_arr;
+    size_t prop_cnt = 0;
+    for (size_t i = get_hdr()->prop_entry_free ; i != 0 ; --i, ++entry)
     {
         /* if this slot is non-empty, store it */
         if (entry->val.typ != VM_EMPTY)
@@ -899,9 +920,6 @@ ulong CVmObjTads::rebuild_image(VMG_ char *buf, ulong buflen)
             p += 7;
         }
     }
-
-    /* remember where the properties end */
-    props_end = p;
 
     /* fill in actual the property count now that we know it */
     oswp2(buf+2, prop_cnt);
@@ -1634,17 +1652,19 @@ ulong CVmObjStringBuffer::rebuild_image(VMG_ char *buf, ulong buflen)
  */
 ulong CVmObjClass::rebuild_image(VMG_ char *buf, ulong buflen)
 {
-    size_t copy_size;
-
-    /* get our size */
-    copy_size = osrp2(ext_);
+    /* figure our size requirement: meta idx, mod id, state value */
+    size_t copy_size = 2 + 2 + 4 + VMB_DATAHOLDER;
 
     /* make sure we have room for our data */
     if (copy_size > buflen)
         return copy_size;
 
     /* copy the data */
-    memcpy(buf, ext_, copy_size);
+    vm_intcls_ext *ext = get_ext();
+    oswp2(buf, (short)copy_size);
+    oswp2(buf + 2, ext->meta_idx);
+    oswp4(buf + 4, ext->mod_obj);
+    vmb_put_dh(buf + 8, &ext->class_state);
 
     /* return the size */
     return copy_size;
@@ -1660,10 +1680,8 @@ ulong CVmObjClass::rebuild_image(VMG_ char *buf, ulong buflen)
  */
 ulong CVmObjIterIdx::rebuild_image(VMG_ char *buf, ulong buflen)
 {
-    size_t copy_size;
-
     /* calculate our data size - just store our entire extension */
-    copy_size = VMOBJITERIDX_EXT_SIZE;
+    size_t copy_size = VMOBJITERIDX_EXT_SIZE;
 
     /* make sure we have room for our data */
     if (copy_size > buflen)
@@ -1925,6 +1943,61 @@ ulong CVmObjTemporaryFile::rebuild_image(VMG_ char *buf, ulong buflen)
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   CVmObjFileName intrinsic object 
+ */
+ulong CVmObjFileName::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    /* get my extension */
+    vm_filnam_ext *ext = get_ext();
+
+    /* 
+     *   if we're going to store the filename, we'll store it in universal
+     *   notation; do the conversion first so we can figure the length
+     */
+    char *uni = 0;
+    ulong needlen;
+    size_t unilen = 0;
+    err_try
+    {
+        if (ext->sfid == 0)
+        {
+            uni = to_universal(vmg0_);
+            unilen = strlen(uni);
+        }
+        
+        /* 
+         *   figure the required size: special file ID, plus the universal
+         *   name with length prefix if the sfid is zero 
+         */
+        needlen = 4 + (ext->sfid != 0 ? 0 : VMB_LEN + unilen);
+
+        /* if we have room, store the data */
+        if (buflen >= needlen)
+        {
+            /* write the special file ID first */
+            oswp4s(buf, ext->sfid);
+            buf += 4;
+
+            /* if it's not a special file, store the universal name */
+            if (ext->sfid == 0)
+            {
+                vmb_put_len(buf, unilen);
+                memcpy(buf + VMB_LEN, uni, unilen);
+            }
+        }
+    }
+    err_finally
+    {
+        lib_free_str(uni);
+    }
+    err_end;
+
+    /* return the length */
+    return needlen;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Pattern metaclass 
  */
 
@@ -2111,6 +2184,71 @@ ulong CVmObjFrameRef::rebuild_image(VMG_ char *buf, ulong buflen)
     return needlen;
 }
 
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   CVmObjDate intrinsic object 
+ */
+ulong CVmObjDate::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    /* get my extension */
+    vm_date_ext *ext = get_ext();
+
+    /* figure the required size */
+    ulong needlen = 8;
+
+    /* make sure there's room */
+    if (needlen > buflen)
+        return needlen;
+
+    /* write our data */
+    oswp4s(buf, ext->dayno);
+    oswp4(buf+4, ext->daytime);
+
+    /* return the length */
+    return needlen;
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   CVmObjTimeZone intrinsic object 
+ */
+ulong CVmObjTimeZone::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    /* get my timezone object and query its default settings */
+    CVmTimeZone *tz = get_ext()->tz;
+    vmtzquery q;
+    tz->query(&q);
+
+    /* get the zone name */
+    size_t namelen;
+    const char *name = tz->get_name(namelen);
+
+    /* if this is the special local zone object, use ":local" instead */
+    if (G_tzcache->is_local_zone(tz))
+        name = ":local", namelen = 6;
+
+    /* 
+     *   figure the required size - int32 gmt offset, int32 dst offset,
+     *   abbreviation (with one-byte prefix), name (with one-byte prefix)
+     */
+    size_t abbrlen = strlen(q.abbr);
+    ulong needlen = 4 + 4 + 1 + namelen + 1 + abbrlen;
+
+    /* make sure there's room */
+    if (needlen > buflen)
+        return needlen;
+
+    /* copy the data */
+    oswp4s(buf, q.gmtofs);
+    oswp4s(buf+4, q.save);
+    char *p = write_str_byte_prefix(buf+8, name, namelen);
+    write_str_byte_prefix(p, q.abbr, abbrlen);
+
+    /* return the length */
+    return needlen;
+}
+
 #ifdef TADSNET
 /* ------------------------------------------------------------------------ */
 /*
@@ -2147,3 +2285,4 @@ ulong CVmObjHTTPRequest::rebuild_image(VMG_ char *buf, ulong buflen)
 }
 
 #endif /* TADSNET */
+

@@ -295,7 +295,7 @@ vm_obj_id_t TadsHttpRequest::prep_event_obj(VMG_ int *, int *)
 /* dummy entrypoints for exception throwing from vmnet.cpp */
 void CVmRun::push_string(VMG_ const char *, size_t) { }
 void CVmRun::push_stringf(VMG_ const char *, ...) { }
-void CVmRun::throw_new_rtesub(VMG_ unsigned long, unsigned int, int) { }
+void CVmRun::throw_new_rtesub(VMG_ vm_obj_id_t, uint, int) { }
 
 /* main program entrypoint */
 int main(int argc, char **argv)

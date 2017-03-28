@@ -1,5 +1,5 @@
 /* 
- *   Copyright (c) 1998, 2002 Michael J. Roberts.  All Rights Reserved.
+ *   Copyright (c) 1998, 2012 Michael J. Roberts.  All Rights Reserved.
  *   
  *   Please see the accompanying license file, LICENSE.TXT, for information
  *   on using and copying this software.  
@@ -82,8 +82,14 @@ enum re_recog_type
     /* invalid/uninitialized */
     RE_INVALID,
 
-    /* literal character recognizer */
+    /* literal (single) character recognizer */
     RE_LITERAL,
+
+    /* literal string recognizer */
+    RE_LITSTR,
+
+    /* aliased literal string (points to string allocated in another state) */
+    RE_LITSTRA,
 
     /* "epsilon" recognizer - match without consuming anything */
     RE_EPSILON,
@@ -133,6 +139,7 @@ enum re_recog_type
 
     /* any digit */
     RE_DIGIT,
+    RE_NON_DIGIT,
 
     /* any upper-case alphabetic */
     RE_UPPER,
@@ -145,6 +152,7 @@ enum re_recog_type
 
     /* space character */
     RE_SPACE,
+    RE_NON_SPACE,
 
     /* punctuation character */
     RE_PUNCT,
@@ -174,7 +182,8 @@ enum re_recog_type
     RE_LOOP_BRANCH,
 
     /* vertical whitespace */
-    RE_VSPACE
+    RE_VSPACE,
+    RE_NON_VSPACE
 };
 
 
@@ -201,6 +210,18 @@ struct re_tuple
          *   RE_GROUP_MATCH and in RE_EPSILON nodes with the group flag set) 
          */
         wchar_t ch;
+
+        /* 
+         *   If this is a character string transition, this is the string;
+         *   it's stored as a null-terminated string of wchar_t's, allocated
+         *   with new wchar_t[].  'src' is the original state number for an
+         *   aliased string that points to another state's original.
+         */
+        struct
+        {
+            wchar_t *str;
+            re_state_id src;
+        } str;
 
         /* 
          *   if this has a sub-machine, this is the start and end info (used
@@ -478,11 +499,11 @@ protected:
                         re_compiled_pattern_base *pat);
 
     /* compile a character class or class range expression */
-    int compile_char_class_expr(utf8_ptr *expr, size_t *exprlen,
+    int compile_char_class_expr(utf8_ptr *expr, size_t *exprchars,
                                 re_machine *result_machine);
 
     /* parse an integer value */
-    int parse_int(utf8_ptr *p, size_t *rem);
+    int parse_int(utf8_ptr *p, size_t *chars_rem);
 
     /* add a character to our range buffer */
     void add_range_char(wchar_t ch) { add_range_char(ch, ch); }
@@ -509,6 +530,9 @@ protected:
     /* optimize away meaningless branch-to-branch transitions */
     void remove_branch_to_branch(re_machine *machine);
     void optimize_transition(const re_machine *machine, re_state_id *trans);
+
+    /* consolidate runs of characters into strings */
+    void consolidate_strings(re_machine *machine);
 
     /* next available state ID */
     re_state_id next_state_;
@@ -573,6 +597,9 @@ struct regex_stack_entry
 
     /* the current offset in the string */
     int str_ofs;
+
+    /* the length of the search portion of the string */
+    int curlen;
 
     /* the pattern state */
     re_state_id state;
@@ -650,11 +677,9 @@ public:
     }
 
     /* push a new state */
-    void push(regex_frame_type typ, int start_ofs, int str_ofs,
+    void push(regex_frame_type typ, int start_ofs, int str_ofs, int curlen,
               re_state_id state, re_state_id final, int iter)
     {
-        regex_stack_entry *fp;
-
         /* 
          *   Ensure we have enough space for the base state structure plus a
          *   full complement of group registers, loop variables, and return
@@ -669,12 +694,14 @@ public:
                         *sizeof(regex_stack_var)));
 
         /* allocate the base stack frame */
-        fp = (regex_stack_entry *)alloc_space(sizeof(regex_stack_entry));
+        regex_stack_entry *fp =
+            (regex_stack_entry *)alloc_space(sizeof(regex_stack_entry));
 
         /* set it up */
         fp->typ = typ;
         fp->start_ofs = start_ofs;
         fp->str_ofs = str_ofs;
+        fp->curlen = curlen;
         fp->state = state;
         fp->final = final;
         fp->iter = iter;
@@ -687,9 +714,8 @@ public:
     /* save a group register */
     void save_group_reg(int id, const re_group_register *regs)
     {
-        regex_stack_var *var;
-
         /* allocate a new slot if needed and save the value */
+        regex_stack_var *var;
         if (sp_ != -1 && (var = new_reg_or_var(id)) != 0)
             var->val.group = regs[id];
     }
@@ -697,13 +723,12 @@ public:
     /* save a loop variable */
     void save_loop_var(int id, const short *loop_vars)
     {
-        regex_stack_var *var;
-
         /* 
          *   allocate a new slot if needed and save the value; note that
          *   loop variables are identified by the loop variable ID plus the
          *   base index RE_GROUP_REG_CNT 
          */
+        regex_stack_var *var;
         if (sp_ != -1 && (var = new_reg_or_var(id + RE_GROUP_REG_CNT)) != 0)
             var->val.loopvar = loop_vars[id];
     }
@@ -735,9 +760,8 @@ public:
     /* get the stack frame at the given depth (0 is top of stack) */
     regex_stack_entry *get_frame(int depth)
     {
-        regex_stack_entry *fp;
-
         /* traverse the given number of frames from the top of the stack */
+        regex_stack_entry *fp;
         for (fp = (regex_stack_entry *)(buf_ + sp_) ;
              depth != 0 && fp != 0 ; --depth, fp = get_parent_frame(fp)) ;
 
@@ -775,7 +799,7 @@ public:
     }
 
     /* pop a state */
-    void pop(int *start_ofs, int *str_ofs,
+    void pop(int *start_ofs, int *str_ofs, size_t *curlen,
              re_state_id *state, re_state_id *final,
              re_group_register *regs, short *loop_vars, int *iter)
     {
@@ -785,6 +809,7 @@ public:
         /* restore the string offset and state ID */
         *start_ofs = fp->start_ofs;
         *str_ofs = fp->str_ofs;
+        *curlen = fp->curlen;
         *state = fp->state;
         *final = fp->final;
         *iter = fp->iter;
@@ -813,10 +838,8 @@ public:
     /* discard the top stack state */
     void discard()
     {
-        regex_stack_entry *fp;
-
         /* get the stack pointer */
-        fp = (regex_stack_entry *)(buf_ + sp_);
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
 
         /* unwind the stack */
         used_ = (size_t)sp_;
@@ -847,31 +870,31 @@ public:
      *   state.  
      */
     void swap_and_push(int retval, regex_frame_type typ,
-                       int *start_ofs, int *str_ofs,
+                       int *start_ofs, int *str_ofs, size_t *curlen,
                        re_state_id *state, re_state_id *final,
                        re_group_register *regs, short *loop_vars)
     {
         /* swap the current state wtih the top of stack */
-        swap(start_ofs, str_ofs, state, final, regs, loop_vars);
+        swap(start_ofs, str_ofs, curlen, state, final, regs, loop_vars);
 
         /* save the return value from the outgoing state */
         regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
         fp->retval = retval;
 
         /* push a copy of the restored state */
-        push(typ, *start_ofs, *str_ofs, *state, *final, 0);
+        push(typ, *start_ofs, *str_ofs, *curlen, *state, *final, 0);
     }
 
     /*
      *   Swap the current active state with the top of stack, then pop the
      *   frame. 
      */
-    void swap_and_pop(int *start_ofs, int *str_ofs,
+    void swap_and_pop(int *start_ofs, int *str_ofs, size_t *curlen,
                       re_state_id *state, re_state_id *final,
                       re_group_register *regs, short *loop_vars, int *iter)
     {
         /* swap the current state wtih the top of stack */
-        swap(start_ofs, str_ofs, state, final, regs, loop_vars);
+        swap(start_ofs, str_ofs, curlen, state, final, regs, loop_vars);
 
         /* save the return value from the outgoing state */
         regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
@@ -884,7 +907,7 @@ public:
     /*
      *   Swap the current state with the top stack frame 
      */
-    void swap(int *start_ofs, int *str_ofs,
+    void swap(int *start_ofs, int *str_ofs, size_t *curlen,
               re_state_id *state, re_state_id *final,
               re_group_register *regs, short *loop_vars)
     {
@@ -900,6 +923,11 @@ public:
         tmp_ofs = *start_ofs;
         *start_ofs = fp->start_ofs;
         fp->start_ofs = tmp_ofs;
+
+        /* swap the search length */
+        size_t tmp_len = *curlen;
+        *curlen = fp->curlen;
+        fp->curlen = tmp_len;
 
         /* swap the current machine state */
         re_state_id tmp_id = *state;
@@ -945,13 +973,11 @@ protected:
      */
     regex_stack_var *new_reg_or_var(int id)
     {
-        regex_stack_entry *fp;
-        regex_stack_var *var;
-
         /* get the stack pointer */
-        fp = (regex_stack_entry *)(buf_ + sp_);
+        regex_stack_entry *fp = (regex_stack_entry *)(buf_ + sp_);
 
         /* scan the frame for a register/variable with this ID */
+        regex_stack_var *var;
         for (var = (regex_stack_var *)(fp + 1) ;
              var < (regex_stack_var *)(buf_ + used_) ; ++var)
         {
@@ -994,10 +1020,8 @@ protected:
      */
     char *alloc_space(size_t siz)
     {
-        char *ret;
-
         /* figure out where the new object goes */
-        ret = buf_ + used_;
+        char *ret = buf_ + used_;
 
         /* consume the space */
         used_ += siz;
@@ -1046,6 +1070,22 @@ public:
                            int *result_len, re_group_register *regs);
 
     /*
+     *   Search backwards for a compiled pattern.  This is similar to
+     *   search_for_pattern(), but searches backwards from the starting
+     *   position.  The match must end BEFORE the character at the starting
+     *   position; the match can't overlap or include that character.
+     *   
+     *   On success, the return value is non-negative, and gives the number
+     *   of bytes before the starting position where the match begins.  To
+     *   get the starting byte pointer, subtract the return value from the
+     *   'searchstr' pointer.  On failure, returns -1.
+     */
+    int search_back_for_pattern(const re_compiled_pattern *pattern,
+                                const char *entirestr,
+                                const char *searchstr, size_t searchlen,
+                                int *result_len, re_group_register *regs);
+
+    /*
      *   Check for a match to a previously compiled expression.  Returns the
      *   length of the match if we found a match, -1 if we found no match.
      *   This is not a search function; we merely match the leading
@@ -1073,7 +1113,7 @@ public:
 
 protected:
     /* match a string to a compiled expression */
-    int match(const char *entire_str,
+    int match(const char *entire_str, size_t entire_len,
               const char *str, size_t origlen,
               const re_compiled_pattern_base *pattern,
               const re_tuple *tuple_arr,
@@ -1088,13 +1128,20 @@ protected:
                const struct re_machine *machine,
                re_group_register *regs, int *result_len);
 
+    /* search backwards for a regular expression within a string */
+    int search_back(const char *entire_str,
+                    const char *str, size_t len,
+                    const re_compiled_pattern_base *pattern,
+                    const re_tuple *tuple_arr,
+                    const struct re_machine *machine,
+                    re_group_register *regs, int *result_len);
+
     /* clear a set of group registers */
     void clear_group_regs(re_group_register *regs)
     {
+        /* set the start and end offsets for all registers to -1 */
         int i;
         re_group_register *r;
-
-        /* set the start and end offsets for all registers to -1 */
         for (r = regs, i = 0 ; i < RE_GROUP_REG_CNT ; ++i, ++r)
             r->start_ofs = r->end_ofs = -1;
     }
@@ -1134,7 +1181,14 @@ public:
     }
 
     /* clear out our group registers */
-    void clear_group_regs() { CRegexSearcher::clear_group_regs(regs_); }
+    void clear_group_regs()
+    {
+        /* clear the last match register */
+        match_.start_ofs = match_.end_ofs = -1;
+
+        /* clear the actual group registers */
+        CRegexSearcher::clear_group_regs(regs_);
+    }
 
     /* search for a pattern, using our internal group registers */
     int search_for_pattern(const re_compiled_pattern *pattern,
@@ -1149,8 +1203,45 @@ public:
         clear_group_regs();
 
         /* search for the compiled pattern using our group register */
-        return CRegexSearcher::search_for_pattern(
+        int m = CRegexSearcher::search_for_pattern(
             pattern, entirestr, searchstr, searchlen, result_len, regs_);
+
+        /* save the match information on success */
+        if (m >= 0)
+        {
+            match_.start_ofs = m;
+            match_.end_ofs = m + *result_len;
+        }
+
+        /* return the result */
+        return m;
+    }
+
+    /* search backwards for a pattern, using internal group registers */
+    int search_back_for_pattern(const re_compiled_pattern *pattern,
+                                const char *entirestr,
+                                const char *searchstr, size_t searchlen,
+                                int *result_len)
+    {
+        /* remember the group count from the compiled pattern */
+        group_cnt_ = pattern->group_cnt;
+
+        /* clear the group registers */
+        clear_group_regs();
+
+        /* search for the compiled pattern using our group register */
+        int m = CRegexSearcher::search_back_for_pattern(
+            pattern, entirestr, searchstr, searchlen, result_len, regs_);
+
+        /* save the match information on success */
+        if (m >= 0)
+        {
+            match_.start_ofs = searchstr - entirestr - m;
+            match_.end_ofs = match_.start_ofs + *result_len;
+        }
+
+        /* return the result */
+        return m;
     }
 
     /* match a pattern, using our internal group registers */
@@ -1165,8 +1256,18 @@ public:
         clear_group_regs();
 
         /* search for the compiled pattern using our group register */
-        return CRegexSearcher::match_pattern(
+        int m = CRegexSearcher::match_pattern(
             pattern, entirestr, searchstr, searchlen, regs_);
+
+        /* save the match information on success */
+        if (m >= 0)
+        {
+            match_.start_ofs = searchstr - entirestr;
+            match_.end_ofs = match_.start_ofs + m;
+        }
+
+        /* return the result */
+        return m;
     }
 
     /*
@@ -1180,6 +1281,12 @@ public:
                            const char *entirestr,
                            const char *searchstr, size_t searchlen,
                            int *result_len);
+
+    /* compile and search backwards */
+    int compile_and_search_back(const char *pattern, size_t patlen,
+                                const char *entirestr,
+                                const char *searchstr, size_t searchlen,
+                                int *result_len);
 
     /*
      *   Compile an expression and check for a match.  Returns the byte
@@ -1198,6 +1305,9 @@ public:
      */
     const re_group_register *get_group_reg(int i) const { return &regs_[i]; }
 
+    /* get the last match */
+    const re_group_register *get_last_match() const { return &match_; }
+
     /* get the number of groups in the last pattern we searched */
     int get_group_cnt() const { return group_cnt_; }
 
@@ -1211,6 +1321,9 @@ public:
 protected:
     /* group registers */
     re_group_register regs_[RE_GROUP_REG_CNT];
+
+    /* last match location */
+    re_group_register match_;
 
     /* number of groups in last pattern we searched */
     int group_cnt_;

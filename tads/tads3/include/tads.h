@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -9,8 +10,6 @@
  *   separate headers individually.  
  */
 
-#ifndef TADS_H
-#define TADS_H
 
 /*
  *   To allow the standard library and header files to be used with
@@ -81,6 +80,4 @@
  */
 #define perInstance(expr) (self.(targetprop) = (expr))
 
- 
-#endif /* TADS_H */
 

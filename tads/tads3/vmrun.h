@@ -66,7 +66,7 @@ struct vm_rcdesc
         method_idx = 0;
         argc = 0;
         argp = 0;
-        return_addr = 0;
+        caller_addr = 0;
     }
 
     /* initialize for a system caller, including a return address */
@@ -127,6 +127,17 @@ struct vm_rcdesc
         init(vmg_ name, self, method_idx, argp, argc != 0 ? *argc : 0);
     }
 
+    /* is there a return address available in the calling frame? */
+    int has_return_addr() const { return caller_addr != 0; }
+
+    /* 
+     *   Compute the return address in the calling frame.  This requires
+     *   figuring the size of the instruction at caller_addr (which is
+     *   relatively quick, but not quick enough that we want to precompute it
+     *   on every call).
+     */
+    const uchar *get_return_addr() const;
+
     /* pointer to first argument in stack */
     vm_val_t *argp;
 
@@ -145,8 +156,12 @@ struct vm_rcdesc
     /* for an intrinsic class caller, the method index of the caller */
     unsigned short method_idx;
 
-    /* byte-code return address in calling frame */
-    const uchar *return_addr;
+    /* 
+     *   Byte-code address of the instruction in the calling frame that
+     *   triggered the call.  The return address can be computed by adding
+     *   the length of that instruction to this address. 
+     */
+    const uchar *caller_addr;
 };
 
 
@@ -290,6 +305,17 @@ const int VMRUN_FPOFS_ENC_FP = 0;
 
 /* offset from FP of first local variable */
 const int VMRUN_FPOFS_LCL1 = 1;
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Define certain of the VM CPU registers in global variables, if
+ *   applicable. 
+ */
+VM_IF_REGS_IN_GLOBALS(extern vm_val_t r0_;)
+VM_IF_REGS_IN_GLOBALS(extern const uchar *entry_ptr_native_;)
+VM_IF_REGS_IN_GLOBALS(extern vm_val_t *frame_ptr_;)
+VM_IF_REGS_IN_GLOBALS(extern const uchar **pc_ptr_;)
 
 
 /* ------------------------------------------------------------------------ */
@@ -443,7 +469,7 @@ public:
                   const vm_val_t *new_val);
 
     /* get data register 0 (R0) */
-    vm_val_t *get_r0() { return &r0_; }
+    VM_REG_ACCESS vm_val_t *get_r0() { return &r0_; }
 
     /* set the default "say" function */
     void set_say_func(VMG_ const vm_val_t *val);
@@ -467,20 +493,6 @@ public:
         pop(val);
         if (val->typ != VM_INT)
             err_throw(VMERR_INT_VAL_REQD);
-    }
-
-    /* 
-     *   Pop a numeric value; throws an error if the value is not numeric.
-     *   (At the moment, this is equivalent to pop_int, since int is the
-     *   only numeric type; however, we distinguish between numbers in
-     *   general and integers in particular, in case additional numeric
-     *   types [such as floating-point numbers] are added in the future.) 
-     */
-    void pop_num(VMG_ vm_val_t *val)
-    {
-        pop(val);
-        if (!val->is_numeric())
-            err_throw(VMERR_NUM_VAL_REQD);
     }
 
     /* pop an object value */
@@ -529,14 +541,9 @@ public:
      */
     void pop_left_op(VMG_ vm_val_t *left)
     {
-        vm_val_t right;
-
-        /* pop the values - the right comes off first, then the left */
-        pop(&right);
-        pop(left);
-
-        /* put the right value back on the stack */
-        push(&right);
+        *left = *get(1);
+        *get(1) = *get(0);
+        discard();
     }
 
     /* 
@@ -552,23 +559,11 @@ public:
             err_throw(VMERR_INT_VAL_REQD);
     }
 
-    /*
-     *   Pop two numbers, throwing an error if either value is not
-     *   numeric. 
-     */
-    void pop_num_2(VMG_ vm_val_t *val1, vm_val_t *val2)
-    {
-        popval(vmg_ val2);
-        popval(vmg_ val1);
-        if (!val1->is_numeric() || !val2->is_numeric())
-            err_throw(VMERR_NUM_VAL_REQD);
-    }
-
     /* 
      *   get the active function's argument count - we read the value from
      *   the first item below the frame pointer in the current frame 
      */
-    int get_cur_argc(VMG0_) const
+    VM_REG_ACCESS int get_cur_argc(VMG0_) VM_REG_CONST
     {
         return get_from_frame(frame_ptr_, VMRUN_FPOFS_ARGC)->val.intval;
     }
@@ -577,15 +572,17 @@ public:
      *   Get a parameter value; 0 is the first parameter, 1 is the second,
      *   and so on.  
      */
-    vm_val_t *get_param(VMG_ int idx) const
+    VM_REG_ACCESS vm_val_t *get_param(VMG_ int idx) VM_REG_CONST
         { return get_param_from_frame(vmg_ frame_ptr_, idx); }
 
     /* get a parameter from a given frame */
-    vm_val_t *get_param_from_frame(VMG_ vm_val_t *fp, int idx) const
+    VM_REG_ACCESS vm_val_t *get_param_from_frame(
+        VMG_ vm_val_t *fp, int idx) VM_REG_CONST
         { return get_from_frame(fp, VMRUN_FPOFS_ARG1 - idx); }
 
     /* get a parameter at the given stack level */
-    vm_val_t *get_param_at_level(VMG_ int idx, int level) const
+    VM_REG_ACCESS vm_val_t *get_param_at_level(
+        VMG_ int idx, int level) VM_REG_CONST
     {
         return get_param_from_frame(vmg_ get_fp_at_level(vmg_ level), idx);
     }
@@ -598,39 +595,42 @@ public:
      *   get a local variable's value; 0 is the first local variable, 1 is
      *   the second, and so on 
      */
-    vm_val_t *get_local(VMG_ int idx) const
+    VM_REG_ACCESS vm_val_t *get_local(VMG_ int idx) VM_REG_CONST
         { return get_local_from_frame(vmg_ frame_ptr_, idx); }
 
     /* get a local from a given frame */
-    vm_val_t *get_local_from_frame(VMG_ vm_val_t *fp, int idx) const
+    VM_REG_ACCESS vm_val_t *get_local_from_frame(
+        VMG_ vm_val_t *fp, int idx) VM_REG_CONST
         { return get_from_frame(fp, VMRUN_FPOFS_LCL1 + idx); }
 
     /* get a local at the given stack level */
-    vm_val_t *get_local_at_level(VMG_ int idx, int level) const
+    VM_REG_ACCESS vm_val_t *get_local_at_level(
+        VMG_ int idx, int level) VM_REG_CONST
     {
         return get_local_from_frame(vmg_ get_fp_at_level(vmg_ level), idx);
     }
 
     /* get a local, parameter, or context local at a given stack level */
-    void get_local_from_frame(VMG_ vm_val_t *val, vm_val_t *fp,
-                              const class CVmDbgFrameSymPtr *symp);
-    void get_local_from_frame(VMG_ vm_val_t *val, vm_val_t *fp,
-                              int varnum, int is_param,
-                              int is_ctx_local, int ctx_arr_idx);
+    VM_REG_ACCESS void get_local_from_frame(
+        VMG_ vm_val_t *val, vm_val_t *fp, const class CVmDbgFrameSymPtr *symp);
+    VM_REG_ACCESS void get_local_from_frame(
+        VMG_ vm_val_t *val, vm_val_t *fp, int varnum, int is_param,
+        int is_ctx_local, int ctx_arr_idx);
 
     /* set a local, parameter, or context local at a given stack level */
-    void set_local_in_frame(VMG_ const vm_val_t *val, vm_val_t *fp,
-                            const class CVmDbgFrameSymPtr *symp);
-    void set_local_in_frame(VMG_ const vm_val_t *val, vm_val_t *fp,
-                            int varnum, int is_param,
-                            int is_ctx_local, int ctx_arr_idx);
+    VM_REG_ACCESS void set_local_in_frame(
+        VMG_ const vm_val_t *val, vm_val_t *fp,
+        const class CVmDbgFrameSymPtr *symp);
+    VM_REG_ACCESS void set_local_in_frame(
+        VMG_ const vm_val_t *val, vm_val_t *fp,
+        int varnum, int is_param, int is_ctx_local, int ctx_arr_idx);
 
     /*
      *   Get the frame pointer at the given stack level.  Level 0 is the
      *   currently active frame, 1 is the first enclosing level, and so
      *   on.  Throws an error if the enclosing frame is invalid. 
      */
-    vm_val_t *get_fp_at_level(VMG_ int level) const;
+    VM_REG_ACCESS vm_val_t *get_fp_at_level(VMG_ int level) VM_REG_CONST;
 
     /*
      *   Get the current frame depth.  This is the stack depth of the
@@ -642,7 +642,7 @@ public:
         { return ptr_to_index(frame_ptr_); }
 
     /* get the current frame pointer */
-    vm_val_t *get_frame_ptr() const { return frame_ptr_; }
+    VM_REG_ACCESS vm_val_t *get_frame_ptr() VM_REG_CONST { return frame_ptr_; }
 
     /* given a frame pointer, get the enclosing frame pointer */
     static vm_val_t *get_enclosing_frame_ptr(VMG_ vm_val_t *fp)
@@ -651,27 +651,25 @@ public:
     }
 
     /* get the number of arguments from a given frame */
-    int get_argc_from_frame(VMG_ vm_val_t *fp) const
+    VM_REG_ACCESS int get_argc_from_frame(VMG_ vm_val_t *fp) VM_REG_CONST
         { return get_from_frame(fp, VMRUN_FPOFS_ARGC)->val.intval; }
 
     /* get the argument counter from a given stack level */
-    int get_argc_at_level(VMG_ int level) const
+    VM_REG_ACCESS int get_argc_at_level(VMG_ int level) VM_REG_CONST
         { return get_argc_from_frame(vmg_ get_fp_at_level(vmg_ level)); }
 
     /* given a frame pointer, get the 'self' object for the frame */
     static vm_obj_id_t get_self_from_frame(VMG_ vm_val_t *fp)
     {
-        vm_val_t *self_val;
-
         /* get the 'self' slot on the stack */
-        self_val = get_from_frame(fp, VMRUN_FPOFS_SELF);
+        vm_val_t *self_val = get_from_frame(fp, VMRUN_FPOFS_SELF);
 
         /* return the appropriate value */
         return (self_val->typ == VM_NIL ? VM_INVALID_OBJ : self_val->val.obj);
     }
 
     /* get the 'self' object at a given stack level */
-    vm_obj_id_t get_self_at_level(VMG_ int level) const
+    VM_REG_ACCESS vm_obj_id_t get_self_at_level(VMG_ int level) VM_REG_CONST
         { return get_self_from_frame(vmg_ get_fp_at_level(vmg_ level)); }
 
     /* given a frame pointer, get the target property for the frame */
@@ -687,13 +685,15 @@ public:
     }
 
     /* get the target property at a given stack level */
-    vm_prop_id_t get_target_prop_at_level(VMG_ int level) const
+    VM_REG_ACCESS vm_prop_id_t get_target_prop_at_level(
+        VMG_ int level) VM_REG_CONST
     {
         return get_target_prop_from_frame(vmg_ get_fp_at_level(vmg_ level));
     }
 
     /* given a frame pointer, get the defining object from the frame */
-    vm_obj_id_t get_defining_obj_from_frame(VMG_ vm_val_t *fp) const
+    VM_REG_ACCESS vm_obj_id_t get_defining_obj_from_frame(VMG_ vm_val_t *fp)
+        VM_REG_CONST
     {
         /* get the defining object slot on the stack */
         vm_val_t *val = get_from_frame(fp, VMRUN_FPOFS_DEFOBJ);
@@ -703,25 +703,26 @@ public:
     }
 
     /* get the defining object at a given stack level */
-    vm_obj_id_t get_defining_obj_at_level(VMG_ int level) const
+    VM_REG_ACCESS vm_obj_id_t get_defining_obj_at_level(VMG_ int level)
+        VM_REG_CONST
     {
         return get_defining_obj_from_frame(vmg_ get_fp_at_level(vmg_ level));
     }
 
     /* given a frame pointer, get the original target object */
-    vm_obj_id_t get_orig_target_obj_from_frame(VMG_ vm_val_t *fp) const
+    VM_REG_ACCESS vm_obj_id_t get_orig_target_obj_from_frame(
+        VMG_ vm_val_t *fp) VM_REG_CONST
     {
-        vm_val_t *val;
-
         /* get the original target object slot on the stack */
-        val = get_from_frame(fp, VMRUN_FPOFS_ORIGTARG);
+        vm_val_t *val = get_from_frame(fp, VMRUN_FPOFS_ORIGTARG);
 
         /* return the appropriate value */
         return (val->typ == VM_NIL ? VM_INVALID_OBJ : val->val.obj);
     }
 
     /* get the current original target object at a given stack level */
-    vm_obj_id_t get_orig_target_obj_at_level(VMG_ int level) const
+    VM_REG_ACCESS vm_obj_id_t get_orig_target_obj_at_level(VMG_ int level)
+        VM_REG_CONST
     {
         return get_orig_target_obj_from_frame(
             vmg_ get_fp_at_level(vmg_ level));
@@ -748,7 +749,7 @@ public:
         { return get_from_frame(fp, VMRUN_FPOFS_INVOKEE); }
 
     /* get the invokee of the current function */
-    vm_val_t *get_invokee(VMG0_)
+    VM_REG_ACCESS vm_val_t *get_invokee(VMG0_)
         { return get_invokee_from_frame(vmg_ frame_ptr_); }
 
     /*
@@ -830,18 +831,18 @@ public:
      *   knows for sure that there's a valid "self", so dispenses with any
      *   checks to save time.  
      */
-    vm_obj_id_t get_self(VMG0_) const
+    VM_REG_ACCESS vm_obj_id_t get_self(VMG0_) VM_REG_CONST
     {
         /* get the object value of the 'self' slot in the current frame */
         return get_from_frame(frame_ptr_, VMRUN_FPOFS_SELF)->val.obj;
     }
 
     /* get the pointer to the current "self" value */
-    vm_val_t *get_self_val(VMG0_) const
+    VM_REG_ACCESS vm_val_t *get_self_val(VMG0_) VM_REG_CONST
         { return get_from_frame(frame_ptr_, VMRUN_FPOFS_SELF); }
 
     /* get the self value from a frame */
-    vm_val_t *get_self_val_from_frame(VMG_ vm_val_t *fp)
+    VM_REG_ACCESS vm_val_t *get_self_val_from_frame(VMG_ vm_val_t *fp)
         { return get_from_frame(fp, VMRUN_FPOFS_SELF); }
 
     /*
@@ -850,7 +851,7 @@ public:
      *   be used whenever it's not certain from context that there's a valid
      *   "self".  
      */
-    vm_obj_id_t get_self_check(VMG0_) const
+    VM_REG_ACCESS vm_obj_id_t get_self_check(VMG0_) VM_REG_CONST
     {
         /* get the 'self' slot from the stack frame */
         vm_val_t *valp = get_from_frame(frame_ptr_, VMRUN_FPOFS_SELF);
@@ -860,7 +861,7 @@ public:
     }
 
     /* set the current 'self' object */
-    void set_self(VMG_ const vm_val_t *val)
+    VM_REG_ACCESS void set_self(VMG_ const vm_val_t *val)
     {
         /* store the given value in the 'self' slot in the current frame */
         *get_from_frame(frame_ptr_, VMRUN_FPOFS_SELF) = *val;
@@ -877,10 +878,9 @@ public:
      *   Set the current execution context: the 'self' value, the target
      *   property, the original target object, and the defining object.  
      */
-    void set_method_ctx(VMG_ vm_obj_id_t new_self,
-                        vm_prop_id_t new_target_prop,
-                        vm_obj_id_t new_target_obj,
-                        vm_obj_id_t new_defining_obj)
+    VM_REG_ACCESS void set_method_ctx(
+        VMG_ vm_obj_id_t new_self, vm_prop_id_t new_target_prop,
+        vm_obj_id_t new_target_obj, vm_obj_id_t new_defining_obj)
     {
         /* set the "self" slot in the current stack frame */
         get_from_frame(frame_ptr_, VMRUN_FPOFS_SELF)->set_obj(new_self);
@@ -899,19 +899,19 @@ public:
     }
 
     /* get the current target property value */
-    vm_prop_id_t get_target_prop(VMG0_) const
+    VM_REG_ACCESS vm_prop_id_t get_target_prop(VMG0_) VM_REG_CONST
     {
         return get_from_frame(frame_ptr_, VMRUN_FPOFS_PROP)->val.prop;
     }
 
     /* get the current defining object */
-    vm_obj_id_t get_defining_obj(VMG0_) const
+    VM_REG_ACCESS vm_obj_id_t get_defining_obj(VMG0_) VM_REG_CONST
     {
         return get_from_frame(frame_ptr_, VMRUN_FPOFS_DEFOBJ)->get_as_obj();
     }
 
     /* get the current original target object */
-    vm_obj_id_t get_orig_target_obj(VMG0_) const
+    VM_REG_ACCESS vm_obj_id_t get_orig_target_obj(VMG0_) VM_REG_CONST
     {
         return get_from_frame(frame_ptr_, VMRUN_FPOFS_ORIGTARG)->val.obj;
     }
@@ -963,11 +963,11 @@ public:
         { push()->set_stack((void *)stack_ptr); }
 
     /* push an integer value */
-    void push_int(VMG_ int32 intval)
+    void push_int(VMG_ int32_t intval)
         { push()->set_int(intval); }
 
     /* push an enumerator value */
-    void push_enum(VMG_ uint32 intval)
+    void push_enum(VMG_ uint32_t intval)
         { push()->set_enum(intval); }
 
     /* push a C string value */
@@ -980,10 +980,11 @@ public:
     void push_stringvf(VMG_ const char *fmt, va_list va);
 
     /* get the function entrypoint address */
-    const uchar *get_entry_ptr() const { return entry_ptr_native_; }
+    VM_REG_ACCESS const uchar *get_entry_ptr() VM_REG_CONST
+        { return entry_ptr_native_; }
 
     /* get the current program counter offset from the entry pointer */
-    uint get_method_ofs() const
+    VM_REG_ACCESS uint get_method_ofs() VM_REG_CONST
     {
         /* 
          *   Return the current program counter minus the current entry
@@ -1000,7 +1001,7 @@ public:
      *   Convert a pointer to the currently executing method into an offset
      *   from the start of the current method.  
      */
-    ulong pc_to_method_ofs(const uchar *p)
+    VM_REG_ACCESS ulong pc_to_method_ofs(const uchar *p)
     {
         /* 
          *   get the memory address of the current entry pointer, and
@@ -1093,7 +1094,8 @@ public:
                             void *cb_ctx);
 
     /* get the last program counter address */
-    const uchar *get_last_pc() const { return pc_ptr_ != 0 ? *pc_ptr_ : 0; }
+    VM_REG_ACCESS const uchar *get_last_pc() VM_REG_CONST
+        { return pc_ptr_ != 0 ? *pc_ptr_ : 0; }
 
 protected:
     /* 
@@ -1238,10 +1240,21 @@ protected:
     void popval(VMG_ vm_val_t *val) { pop(val); }
   
     /* add two values, leaving the result in *val1 */
-    int compute_sum(VMG_ vm_val_t *val1, vm_val_t *val2);
+    int compute_sum(VMG_ vm_val_t *val1, const vm_val_t *val2);
+
+    /* compute a sum, specialized for individual opcodes */
+    const uchar *compute_sum_inc(VMG_ const uchar *p);
+    const uchar *compute_sum_add(VMG_ const uchar *p);
+    const uchar *compute_sum_lcl_imm(VMG_ vm_val_t *lclp,
+                                     const vm_val_t *ival,
+                                     int lclidx, const uchar *p);
 
     /* subtract one value from another, leaving the result in *val1 */
     int compute_diff(VMG_ vm_val_t *val1, vm_val_t *val2);
+
+    /* compute a difference, specialized for individual opcodes */
+    const uchar *compute_diff_dec(VMG_ const uchar *p);
+    const uchar *compute_diff_sub(VMG_ const uchar *p);
 
     /* compute the product, leaving the result in *val1 */
     int compute_product(VMG_ vm_val_t *val1, vm_val_t *val2);
@@ -1255,13 +1268,16 @@ protected:
     /* XOR two values and push the result */
     int xor_and_push(VMG_ vm_val_t *val1, vm_val_t *val2);
 
+    /* process a MAKELSTPAR instruction */
+    void makelstpar(VMG0_);
+
     /* 
      *   index container_val by index_val (i.e., compute
      *   container_val[index_val]), storing the result at *result 
      */
-    int apply_index(VMG_ vm_val_t *result,
-                    const vm_val_t *container_val,
-                    const vm_val_t *index_val);
+    VM_REG_ACCESS int apply_index(VMG_ vm_val_t *result,
+                                  const vm_val_t *container_val,
+                                  const vm_val_t *index_val);
 
     /* 
      *   Set the element at index index_val in container_val to new_val,
@@ -1270,9 +1286,9 @@ protected:
      *   values changed but instead create new objects when an indexed
      *   element is modified.  
      */
-    int set_index(VMG_ vm_val_t *container_val,
-                  const vm_val_t *index_val,
-                  const vm_val_t *new_val);
+    VM_REG_ACCESS int set_index(VMG_ vm_val_t *container_val,
+                                const vm_val_t *index_val,
+                                const vm_val_t *new_val);
 
     /* 
      *   create a new object of the given index into the metaclass
@@ -1372,40 +1388,40 @@ protected:
     }
 
     /* given a constant pool offset, get a pointer to the constant data */
-    const char *get_const_ptr(VMG_ pool_ofs_t ofs) const
+    static const char *get_const_ptr(VMG_ pool_ofs_t ofs)
         { return G_const_pool->get_ptr(ofs); }
 
     /* 
      *   get a signed 16-bit byte-code operand, incrementing the
      *   instruction pointer past the operand 
      */
-    int16 get_op_int16(const uchar **p)
+    int16_t get_op_int16(const uchar **p)
     {
-        int16 ret = (int16)osrp2s(*p);
+        int16_t ret = (int16_t)osrp2s(*p);
         *p += 2;
         return ret;
     }
 
     /* get an unsigned 16-bit byte-code operand */
-    uint16 get_op_uint16(const uchar **p)
+    uint16_t get_op_uint16(const uchar **p)
     {
-        uint16 ret = (uint16)osrp2(*p);
+        uint16_t ret = (uint16_t)osrp2(*p);
         *p += 2;
         return ret;
     }
 
     /* get a signed 32-bit byte-code operand */
-    int32 get_op_int32(const uchar **p)
+    int32_t get_op_int32(const uchar **p)
     {
-        int32 ret = (int32)osrp4s(*p);
+        int32_t ret = (int32_t)osrp4s(*p);
         *p += 4;
         return ret;
     }
 
     /* get an unsigned 32-bit byte-code operand */
-    uint32 get_op_uint32(const uchar **p)
+    uint32_t get_op_uint32(const uchar **p)
     {
-        uint32 ret = (uint32)t3rp4u(*p);
+        uint32_t ret = (uint32_t)t3rp4u(*p);
         *p += 4;
         return ret;
     }
@@ -1473,27 +1489,28 @@ protected:
      *   R0 - data register 0.  This register stores function return
      *   values. 
      */
-    vm_val_t r0_;
+    VM_IF_REGS_IN_STRUCT(vm_val_t r0_;)
+
 
     /* 
      *   native entry pointer value - this is simply the translated value of
      *   the entry pointer (i.e., G_code_pool->get_ptr(entry_ptr_)) 
      */
-    const uchar *entry_ptr_native_;
+    VM_IF_REGS_IN_STRUCT(const uchar *entry_ptr_native_;)
 
     /*
      *   FP - frame pointer register.  This points to the base of the
      *   current stack activation frame.  Local variables and parameters
      *   are reachable relative to this register. 
      */
-    vm_val_t *frame_ptr_;
+    VM_IF_REGS_IN_STRUCT(vm_val_t *frame_ptr_;)
 
     /* 
      *   Pointer to program counter - we use this in the debugger to create
      *   pseudo-stack frames for system code when we recursively invoke the
      *   VM, and for finding the current PC from intrinsic function code.  
      */
-    const uchar **pc_ptr_;
+    VM_IF_REGS_IN_STRUCT(const uchar **pc_ptr_;)
 
     /* 
      *   Flag: VM is halting.  This is used by the debugger to force the

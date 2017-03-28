@@ -1,4 +1,4 @@
-#charset <win1251>
+#charset "win1251"
 #include <tads.h>
 #include <strcomp.h>
 
@@ -8,11 +8,9 @@ main(args)
         [
          ['\u00DF', 'ss', 0x0100, 0x0200],  // Eszett, DOS Alt+225
          ['\u00E0', 'a',  0x1000, 0x2000],  // a-grave, DOS Alt+133
-         ['\u00E1', 'a',  0x4000, 0x8000]   // a-acute, DOS Alt+160
+         ['\u00E1', 'a',  0x4000, 0x8000],  // a-acute, DOS Alt+160
+         ['\u00FC', 'ue', 0x4000, 0x8000]   // u-umlaut, DOS Alt+129
         ]);
-
-    local tests = [
-        ['daﬂ', '
 
     "Type QUIT to quit.\n";
     for (;;)

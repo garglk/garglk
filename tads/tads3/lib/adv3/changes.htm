@@ -63,6 +63,16 @@ div.entry {
    border-top: 1px solid #c0c0c0;
 }
 
+#versionIndex {
+   height: 0px;
+   overflow: hidden;
+   transition: height .5s;
+   -webkit-transition: height .5s;
+}
+#versionIndexBtn {
+   margin-top: 1em;
+}
+
 //-->
 </style>
 
@@ -70,11 +80,31 @@ div.entry {
 
 <h1>Recent Changes to the TADS 3 Library</h1>
 
-<p>This is a list of changes to adv3, the TADS 3 library.
-Changes are listed in reverse chronological order (the most recent
-changes are first).
+<p>This is a history of changes to Adv3, the TADS 3 adventure game
+library.  Changes are listed in reverse chronological order (the most
+recent changes are first).
 
+<div id="versionIndexBtn">
+<a href="#" onclick="javascript:return toggleVersionIndex(this);">Show version index</a>
+</div>
+<script type="text/javascript">
+function toggleVersionIndex(a)
+{
+    var i = document.getElementById("versionIndex");
+    if (i.clientHeight > 0) {
+        i.style.height = "0px";
+        a.innerHTML = "Show version index";
+    } else {
+        i.style.height = i.querySelector("ul").clientHeight + "px";
+        a.innerHTML = "Hide version index";
+    }
+}
+</script>
+<div id="versionIndex">
 <ul class=toc>
+<li><a href='#313'>3.1.3</a>
+<li><a href='#312'>3.1.2</a>
+<li><a href='#311'>3.1.1</a>
 <li><a href='#310'>3.1.0</a>
 <li><a href='#3018a'>3.0.18.1</a>
 <li><a href='#3018'>3.0.18</a>
@@ -109,6 +139,309 @@ changes are first).
 <li><a href='#305'>3.0.5</a>
 <li><a href='#304'>3.0.4 and earlier</a>
 </ul>
+</div>
+
+<!------------------------------- 3.1.3 --------------------------------->
+<div class="sepbar"><a name='313'></a>3.1.3</div>
+<p><b><i>Released May 16, 2013</i></b>
+<p>
+
+<!------------------->
+<div class=firstentry>
+
+A bug in the parser caused a run-time error when a player attempted to
+traverse an AskConnector.  This is now fixed.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000169">bugdb.tads.org #0000169</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+For conversational commands such as HELLO, GOODBYE, YES, and NO, the
+parser now sets the sense context to the issuing actor (that is, the
+actor who issued a command, which is usually the player character)
+rather than the target actor (the target in BOB, GOODBYE is Bob).  For
+most commands, the target actor is the one who's meant to carry out
+the command - BOB, GO NORTH asks Bob to go north - so it's appropriate
+to execute most actions in the sense context of the target actor.  In
+the past, the parser did just this, unconditionally for all types of
+actions.  However, this isn't appropriate for conversational commands,
+because the meaning of the target actor is different in these
+commands; the target specifies the person being addressed in the
+conversation rather than the actor carrying out the command.  BOB,
+HELLO doesn't tell Bob to say hello, but rather tells the player
+character to say hello to Bob.  In these types of commands, then, the
+actor actually carrying out the command is the issuer, not the target,
+so the sense context should remain with the issuer.  The parser now
+makes this distinction when setting the sense context.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000190">bugdb.tads.org #0000190</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+A parser bug caused the same object to be matched multiple times in a
+disambiguation query under certain circumstances.  If an object
+defined multiple 'noun' words that all had a common prefix up to the
+truncation limit, and there were two or more objects with the same
+list of similar nouns, and the player entered a noun phrase that
+matched the common leading substring, a normal disambiguation question
+would be triggered.  If the player then answered this question with
+ALL, the parser matched each object multiple times, equal to the
+number of matching (truncated) nouns per object.
+
+<p>The key element to triggering the bug is multiple noun synonyms
+that share a common prefix that's longer than the truncation limit.
+It's rare to find examples of this in English games, but it's common
+in inflected languages where nouns have multiple forms with different
+endings (the bug was discovered in a Czech translation).  Here's a
+somewhat contrived English example.  The kind of compass you use to
+inscribe circles can be called a COMPASS or COMPASSES - it's one of
+those odd English words like "scissors" or "pants" where the plural
+noun form can be used for the singular object, but (unlike scissors or pants)
+the singular form can be used interchangeably.  If you set the TADS
+truncation limit to 6 characters, and then create a red compass and a
+blue compass with COMPASS and COMPASSES as noun synonyms, the bug
+would have caused the following odd interaction:
+
+<pre>
+&gt;x compas
+Which compas do you mean, the red compass or the blue compass?
+
+&gt;all
+red compass: It's an ordinary red compass.
+blue compass: It's an ordinary blue compass.
+blue compass: It's an ordinary blue compass.
+red compass: It's an ordinary red compass.
+</pre>
+
+<p>This is now fixed.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000188">bugdb.tads.org #0000188</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The library showed the wrong default message for the THROW DOWN
+command (that is, the ThrowDir action, when the direction is Down).
+The message used to be the rather non sequitur "You're not carrying
+that"; the message now says "You should just put it down instead."
+
+</div>
+
+
+
+<!------------------------------- 3.1.2 --------------------------------->
+<div class="sepbar"><a name='312'></a>3.1.2</div>
+<p><b><i>Released August 20, 2012</i></b>
+<p>
+
+<!------------------->
+<div class=firstentry>
+
+In the past, atmosphere messages (via the Room atmosphereList
+property) didn't display a paragraph separator before the message, so
+if whatever item happened to be displayed just before an atmosphere
+message didn't add a paragraph separator at the end, the atmosphere
+message was shown as a continuation of the preceding paragraph.
+Room.roomDaemon() now explicitly adds a &lt;.commandsep&gt; before
+each atmosphere message to ensure that a paragraph break is displayed.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000161">bugdb.tads.org #0000161</a>)
+
+
+</div>
+
+
+<!------------------------------- 3.1.1 --------------------------------->
+<div class="sepbar"><a name='311'></a>3.1.1</div>
+<p><b><i>Released July 14, 2012</i></b>
+<p>
+
+<!------------------->
+<div class=firstentry>
+
+The "inventory tall" lister incorrectly listed the contents of
+contentsListedSeparately containers both in-line and separately.
+This has been fixed, so that only the separate contents list is shown.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000116">bugdb.tads.org #0000116</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The Thing methods for LOOK and EXAMINE that generate listings of contents
+now pass an additional named parameter, "examinee:", to the list methods.
+This is occasionally useful when one of the listing-related methods on
+one of the contents objects needs to know exactly what the context of
+the listing is.
+
+<p>The specific situation that motivated this change was a problem
+involving MultiLoc items with special descriptions, as described in
+the next item.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+In the past, a MultiLoc with a special description was incorrectly
+included in the miscellaneous object list portion of a LOOK
+description for its room, or an EXAMINE description of its container.
+A special description is supposed to supersede inclusion in the
+ordinary list, since it provides the same information.  This
+now works correctly.
+
+<p>The reason for the double listing was that the method that decides
+whether or not to include an object in the ordinary list,
+isListedInContents, didn't deal properly with MultiLoc objects.  In
+fact, it couldn't deal with them properly, because it didn't have
+enough information, namely the identity of the object being
+examined.
+
+<p>For an ordinary Thing, the examinee is implicit in the call to
+isListedInContents, because this method is called only on direct
+children of the examinee; a Thing has only one direct container, so
+the examinee is implicitly the Thing's location.  This logic doesn't
+work for a MultiLoc, though, because a MultiLoc can have multiple
+direct containers.  So, to work properly, this method needed to know
+the examinee.  This information is now available to the method via
+the new "examinee:" named parameter that the various Thing methods
+for LOOK and EXAMINE now supply.  A new BaseMultiLoc.isListedInContents
+method uses the "examinee:" parameter to get the correct listing
+information.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000119">bugdb.tads.org #0000119</a>)
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+openableContentsLister has been renamed to openableDescContentsLister,
+because the original name was inconsistent with the corresponding
+listers for other classes.  xxxContentsLister is supposed to be the
+lister assigned to the 'contentsLister' property for class xxx, and
+xxxDescContentsLister is the one for 'descContentsLister'.
+('contentsLister' is the lister used for descriptions of objects
+<i>containing</i> the xxx, such as the enclosing room description;
+'descContentsLister' is for EXAMINE descriptions of the xxx itself.)
+There isn't (and never was) a separate 'contentsLister' for Openable;
+the former openableContentsLister was always its 'descContentsLister',
+but unfortunately wasn't named accordingly.
+
+<p>To minimize the impact on existing code, adv3.h provides a #define
+that maps the old name to the new name.  In the case of Openable,
+there's no need for a specialized 'contentsLister' at all, so there's
+no practical need to distinguish the two names, allowing us to create
+the mapping for the sake of compatibility.  Existing code shouldn't
+notice the difference unless it defined an openableDescContentsLister
+object of its own, which seems unlikely given that
+openableContentsLister already filled the role implied by that name.
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The dobjFor() and iobjFor() macros in adv3.h now have some special
+code that catches handler definitions for non-existent Actions.  If
+the Action named in the dobjFor() or iobjFor() doesn't exist, the
+compiler will report an "undefined symbol" error naming the Action
+object.  This only happens in debug builds (e.g., using the "-d"
+option for the command-line compiler), since it generates some extra
+code to create a reference to the action object.  The warning can be
+helpful for catching typos (misspelled action names) or references to
+actions you intended to define but never got around to.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000135">bugdb.tads.org #0000135</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+The English parser is a little more nuanced about the way it handles
+queries for missing direct objects for verbs with prepositional phrasing
+for the direct object.  For example:
+
+<p>
+<pre>&gt;DIG
+What do you want to dig in?
+
+&gt;IN THE DIRT
+</pre>
+
+<p>In the past, the parser treated the reply "IN THE DIRT" as a new
+command meaning ENTER DIRT.  The assumption was that if the reply
+matched the phrasing of a new command, it must in fact be a new
+command rather than a reply to the missing object query.  In many
+cases where there's this kind of ambiguity, the parser would have to
+be able to read the user's mind to know what was intended, but in this
+particular case the parallel phrasing of the query ("...dig in?") and
+the reply ("in <i>noun</i>") suggests pretty strongly that the user
+did indeed intend the input as a reply to the query rather than as a
+new command.
+
+<p>To address this, the parser has a new method for production
+matches, isSpecialResponseMatch.  This new method returns true if the
+production matches special phrasing that makes it more likely to be a
+query response than a new command, otherwise nil.  The English parser
+uses this for the various prepositional response phrasings, such as
+inSingleNoun and forSingleNoun; these are all subclasses of
+PrepSingleNounProd.  When one of these productions matches input that
+starts with its preposition, it will return true from
+isSpecialResponseMatch, causing the missing object query processor to
+treat the match as a reply to the query rather than as a new command,
+even when the phrasing could also be interpreted as a new command.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000147">bugdb.tads.org #0000147</a>)
+
+
+</div>
+
+<!------------------->
+<div class=entry>
+
+A bug in the parser caused the wrong message to be displayed when a
+command was directed to an actor, and the predicate portion of the
+command contained an unknown word, and the noun phrase wording for the
+actor portion matched at least one grammatical structure phrasing that
+could only refer to an out-of-scope object.  In such a case, the
+parser reported "You see no <i>actor</i> here" rather than "The word
+<i>word</i> is not necessary in this story".  This was obviously the
+wrong message when an actor matching the noun phrase actually was in
+scope, but was also inconsistent with the "unknown word" message shown
+in other similar cases that didn't meet all of the bug conditions.
+This has now been fixed so that the "unknown word" message is used.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000149">bugdb.tads.org #0000149</a>)
+
+</div>
+
+
+
+<!------------------->
+<div class=entry>
+
+In the past, the library incorrectly called breakTopicTie() on each
+matching topic with the topic object as the first argument, instead of
+passing the whole list of matching topics as advertised.  This has
+been corrected.
+
+(<a href="http://bugdb.tads.org/view.php?id=0000138">bugdb.tads.org #0000138</a>)
+
+</div>
 
 <!------------------------------- 3.1.0 --------------------------------->
 <div class="sepbar"><a name='310'></a>3.1.0</div>

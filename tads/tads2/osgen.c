@@ -1992,6 +1992,9 @@ static osfar_t char *S_hist_sav = S_hist_sav_internal;
 static osfar_t size_t S_hist_sav_siz = sizeof(S_hist_sav_internal);
 # endif /* USE_HISTORY */
 
+/* strcpy with destination buffer size limit */
+extern void safe_strcpy(char *dst, size_t dstlen, const char *src);
+
 /*
  *   Flag: input is already in progress.  When os_gets_timeout() returns
  *   with OS_EVT_TIMEOUT, it sets this flag to true.  os_gets_cancel() sets
@@ -2709,7 +2712,7 @@ int os_gets_timeout(unsigned char *buf, size_t bufl,
                 if (c == CMD_UP && !ossnxtcmd(S_gets_curhist))
                 {
                     /* first Up arrow - save current buffer */
-                    strcpy(S_hist_sav, (char *)buf);
+                    safe_strcpy(S_hist_sav, S_hist_sav_siz, (char *)buf);
                 }
 # endif /* USE_HISTORY */
                 while(p > buf)
@@ -2762,7 +2765,7 @@ int os_gets_timeout(unsigned char *buf, size_t bufl,
                     else
                     {
                         /* no more history - restore original line */
-                        strcpy((char *)buf, S_hist_sav);
+                        safe_strcpy((char *)buf, bufl, S_hist_sav);
                     }
                 }
                 if ((c == CMD_UP || c == CMD_DOWN)

@@ -25,6 +25,90 @@ format = A10 X5 A3, args = ['aaaaaaaaaa', 'BBBBB']
 .. pack hex = 61616161614242426161
 .. unpack = ['aaaaaBBBaa', 'BBB']
 
+format = c4*, args = []
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = c4*, args = [1 (0x1), 2 (0x2)]
+.. pack = '\x01\x02'
+.. pack hex = 0102
+.. unpack = [1 (0x1), 2 (0x2)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3)]
+.. pack = '\x01\x02\x03'
+.. pack hex = 010203
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5), 6 (0x6)]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [[]]
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3)]]
+.. pack = '\x01\x02\x03'
+.. pack hex = 010203
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3)]
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = c4*, args = [[1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4), 5 (0x5)]]
+.. pack = '\x01\x02\x03\x04'
+.. pack hex = 01020304
+.. unpack = [1 (0x1), 2 (0x2), 3 (0x3), 4 (0x4)]
+
+format = [cc]4*!, args = []
+.. pack = ''
+.. pack hex =
+.. unpack = []
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)]]
+.. pack = '\x01\x02\x03\x00\x04\x05'
+.. pack hex = 010203000405
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)]]
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+.. pack = '\x01\x02\x03\x00\x04\x05\x06\x07'
+.. pack hex = 0102030004050607
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+
+format = [cc]4*!, args = [[1 (0x1), 2 (0x2)], [3 (0x3)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)], [8 (0x8)]]
+.. pack = '\x01\x02\x03\x00\x04\x05\x06\x07'
+.. pack hex = 0102030004050607
+.. unpack = [[1 (0x1), 2 (0x2)], [3 (0x3), 0 (0x0)], [4 (0x4), 5 (0x5)], [6
+(0x6), 7 (0x7)]]
+
+format = a10*, args = ['short']
+.. pack = 'short'
+.. pack hex = 73686F7274
+.. unpack = ['short']
+
+format = a10*, args = ['10 exactly']
+.. pack = '10 exactly'
+.. pack hex = 31302065786163746C79
+.. unpack = ['10 exactly']
+
+format = a10*, args = ['a bit too long']
+.. pack = 'a bit too '
+.. pack hex = 612062697420746F6F20
+.. unpack = ['a bit too ']
+
 pack OK: pack('c', 127) = 7F
 .. unpack = [127 (0x7F)]
 pack OK: pack('c%', 127) = 7F

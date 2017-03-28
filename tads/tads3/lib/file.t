@@ -16,6 +16,75 @@
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   File status information.  This is returned from file.getFileInfo().
+ */
+class FileInfo: object
+    construct(typ, siz, ctime, mtime, atime, target, attrs, ...)
+    {
+        fileType = typ;
+        fileSize = siz;
+        fileCreateTime = ctime;
+        fileModifyTime = mtime;
+        fileAccessTime = atime;
+        fileLinkTarget = target;
+        fileAttrs = attrs;
+
+        /* for convenience, note if it's a directory and/or special link */
+        isDir = (typ & FileTypeDir) != 0;
+        specialLink = (typ & (FileTypeSelfLink | FileTypeParentLink));
+    }
+
+    /* is this file a directory? */
+    isDir = nil
+
+    /* 
+     *   Is this a special link directory?  This is FileTypeSelfLink for a
+     *   directory link to itself; it's FileTypeParentLink for a directory
+     *   link to the parent; it's zero for all other files.  On Windows and
+     *   Unix, these flags will be set for the special "." and ".."
+     *   directories, respectively.  These flags only apply to the
+     *   *system-defined* special links; they aren't set for user-created
+     *   links that happen to point to self or parent.  This is zero for
+     *   all other files.
+     */
+    specialLink = 0
+
+    /*
+     *   Link target.  If the file is a symbolic link, this contains a
+     *   string giving the target file's path.  This is the direct target
+     *   of this link, which might itself be another link.
+     */
+    fileLinkTarget = nil
+
+    /* 
+     *   type of the file, as a combination of FileTypeXxx bit flags (see
+     *   filename.h) 
+     */
+    fileType = 0
+
+    /*
+     *   file attributes, as a combination of FileAttrXxx bit flags (see
+     *   filename.h) 
+     */
+    fileAttrs = 0
+
+    /* size of the file in bytes */
+    fileSize = 0
+
+    /* 
+     *   The file's time of creation, last modification, and last access,
+     *   as Date objects.  On some systems, these timestamps might not all
+     *   be available; an item that's not available is set to nil.
+     */
+    fileCreateTime = nil
+    fileModifyTime = nil
+    fileAccessTime = nil
+;
+
+export FileInfo 'File.FileInfo';
+
+/* ------------------------------------------------------------------------ */
+/*
  *   File Exception classes.  All File exceptions derive from FileException,
  *   to allow for generic 'catch' clauses which catch any file-related
  *   error.  
@@ -105,7 +174,7 @@ class FileModeException: FileException
 class FileSafetyException: FileException
     displayException()
     {
-        "file operation prohibited by user-specified file safety level";
+        "access to file blocked by user-specified file safety level";
     }
 ;
 

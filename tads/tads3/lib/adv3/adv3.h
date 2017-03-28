@@ -294,7 +294,18 @@ enum rmcDisambig;
  *   Property set definitions 
  */
 
-#define objFor(which, action) propertyset '*' ## #@which ## #@action
+/* in debug mode, flag objFor definitions for non-existent actions */
+#ifdef __DEBUG
+# define objForCheck(which, action) \
+    sentinel##which##action = __objref(action##Action, warn)
+#else
+# define objForCheck(which, action)
+#endif
+
+#define objFor(which, action) \
+    objForCheck(which, action) \
+    propertyset '*' ## #@which ## #@action
+
 #define dobjFor(action) objFor(Dobj, action)
 #define iobjFor(action) objFor(Iobj, action)
 
@@ -1763,5 +1774,23 @@ enum blockEndConv;
 /* mark a Topic/Thing as known/seen by the player character */
 #define gSetKnown(obj) (gPlayerChar.setKnowsAbout(obj))
 #define gSetSeen(obj) (gPlayerChar.setHasSeen(obj))
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   For compatibility with versions before 3.1.1, define
+ *   openableContentsLister as a synonym for openableDescContentsLister.  The
+ *   former was renamed to the latter in 3.1.1 because the original name was
+ *   inconsistent with the corresponding listers for other classes.  In
+ *   principle, openableContentsLister is meant to be the 'contentsLister'
+ *   (for displaying the openable's contents in room descriptions, etc) for
+ *   an Openable, while openableDescContentsLister is its
+ *   'descContentsLister' (for displaying the openable's contents in its own
+ *   EXAMINE description).  Fortunately we don't have a need for a special
+ *   contentsLister for Openable, so we can avoid breaking existing code by
+ *   mapping the old name to the new name.
+ */
+#define openableContentsLister openableDescContentsLister
+
 
 #endif /* ADV3_H */

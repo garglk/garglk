@@ -37,11 +37,19 @@ dddddddddddddd test
 [22: serial a->bb, b->cc, c->dd from 5] abc this is ddddddddn dddddddddddddd
 test
 [23: parallel a->bb, b->cc, c->dd from 5] abc this is bbn bbccdd test
-[24: alpha->func(even 's' only)] this iS a test of Some special Stuff
-[25: t,s->func(even only)] thiS is a TesT of some Special sTuff
-[26: s->func(even only), t->func(odd only)] This iS a tesT of Some special
+[24: serial a->bb, b->cc, c->dd limit=0] abc this is an abc test
+[25: serial a->bb, b->cc, c->dd limit=2] bbbc this is an abc test
+[26: serial a->bb, b->cc, c->dd limit=2] bbbc this is bbn abc test
+[27: serial a->bb, b->cc, c->dd limit=3] bbbc this is bbn bbbc test
+[28: parallel a->bb, b->cc, c->dd limit=0] abc this is an abc test
+[29: parallel a->bb, b->cc, c->dd limit=2] bbbc this is an abc test
+[30: parallel a->bb, b->cc, c->dd limit=2] bbccc this is an abc test
+[31: parallel a->bb, b->cc, c->dd limit=3] bbccdd this is an abc test
+[32: alpha->func(even 's' only)] this iS a test of Some special Stuff
+[33: t,s->func(even only)] thiS is a TesT of some Special sTuff
+[34: s->func(even only), t->func(odd only)] This iS a tesT of Some special
 Stuff
-[27: s,t->func(m), func(m,i)] [t:1]hi[s] i[s] a [t:11]e[s][t:14] of [s]ome
+[35: s,t->func(m), func(m,i)] [t:1]hi[s] i[s] a [t:11]e[s][t:14] of [s]ome
 [s]pecial [s][t:33]uff
 
 (T3VM) Memory blocks still in use:

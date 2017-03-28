@@ -78,10 +78,9 @@ osfildef *CResLoader::open_res_file(const char *respath,
      */
     if (root_dir_ != 0)
     {
-        char fname[OSFNMAX];
-        
         /* get the resource name as a file path */
-        os_cvt_url_dir(fname, sizeof(fname), respath, FALSE);
+        char fname[OSFNMAX];
+        os_cvt_url_dir(fname, sizeof(fname), respath);
 
         /* build a full path from the root directory and the resource path */
         os_build_full_path(filepath, sizeof(filepath), root_dir_, fname);
@@ -89,7 +88,7 @@ osfildef *CResLoader::open_res_file(const char *respath,
     else
     {
         /* get the resource name as a file path */
-        os_cvt_url_dir(filepath, sizeof(filepath), respath, FALSE);
+        os_cvt_url_dir(filepath, sizeof(filepath), respath);
     }
 
     /* try opening the file */
@@ -101,7 +100,7 @@ osfildef *CResLoader::open_res_file(const char *respath,
         char fname[OSFNMAX];
 
         /* convert from URL notation to local path conventions */
-        os_cvt_url_dir(fname, sizeof(fname), deflib, FALSE);
+        os_cvt_url_dir(fname, sizeof(fname), deflib);
 
         /* build the full path, starting in the root resource directory */
         os_build_full_path(filepath, sizeof(filepath), root_dir_, fname);

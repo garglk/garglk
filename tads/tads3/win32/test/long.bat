@@ -3,7 +3,7 @@
 
 call win32\test\test_env
 
-rem Delete old log, object, symbol, and image files
+rem Delete old log, object, symbol, image files, and test directories
 echo Cleaning up old test output files...
 del %tstout%\*.dif
 del %tstout%\*.suc
@@ -11,6 +11,7 @@ del %tstout%\*.log
 del %tstout%\*.t3s
 del %tstout%\*.t3o
 del %tstout%\*.t3
+rmdir /s /q %tstout%\dirtest
 echo.
 
 rem object test - doesn't produce any output; mostly check for no crashiness
@@ -35,7 +36,7 @@ call %tstbat%\testexec basic
 call %tstbat%\testexec finally
 call %tstbat%\testexec dstr
 call %tstbat%\testexec fnredef
-call %tstbat%\testexec builtin
+call %tstbat%\testexec -cp latin1 builtin
 call %tstbat%\testexec undo
 call %tstbat%\testexec gotofin
 
@@ -47,6 +48,7 @@ call %tstbat%\testmake -nodef objmod objmod1 objmod2 objmod3
 call %tstbat%\testmake -nodef objrep objrep1 objrep2
 call %tstbat%\testmake -nodef funcrep funcrep1 funcrep2
 call %tstbat%\testmake -nodef catch catch
+call %tstbat%\testmake except except
 call %tstbat%\testmake -nodef save save
 call %tstbat%\testmake objloop objloop
 call %tstbat%\testmake -nodef html html
@@ -94,11 +96,14 @@ call %tstbat%\testmake multidyn multidyn
 call %tstbat%\testmake opoverload opoverload
 call %tstbat%\testmake -script -nodef inkey inkey
 call %tstbat%\testmake -nodef rand rand
+call %tstbat%\testmake rand3 rand3
 call %tstbat%\testmake strcomp2 strcomp2
-call %tstbat%\testmake strcomp3 strcomp3
+call %tstbat%\testmake -cp latin1 strcomp3 strcomp3
 call %tstbat%\testmake findreplace findreplace
+call %tstbat%\testmake findall findall
 call %tstbat%\testmake rexreplace rexreplace
 call %tstbat%\testmake rexassert rexassert
+call %tstbat%\testmake constregex constregex
 call %tstbat%\testmake hashes hashes
 call %tstbat%\testmake join join
 call %tstbat%\testmake -norun -pre dyncomp dyncomp dynfunc
@@ -125,6 +130,27 @@ call %tstbat%\testmake listminmax listminmax
 call %tstbat%\testmake defined_test1 defined
 call %tstbat%\testmake defined_test2 defined defined2
 call %tstbat%\testmake datatypexlat datatypexlat
+call %tstbat%\testmake embedfmt embedfmt
+call %tstbat%\testmake dirtest dirtest file
+call %tstbat%\testmake date date
+call %tstbat%\testmake datefmt datefmt
+call %tstbat%\testmake dateprs dateprs
+call %tstbat%\testmake -cp latin1 datelocale datelocale
+call %tstbat%\testmake -norun -pre datesave datesave
+call %tstbat%\testrun datesave_s datesave save
+call %tstbat%\testrun datesave_r datesave restore
+call %tstbat%\testmake testov testov
+call %tstbat%\testmake vecmod vecmod
+call %tstbat%\testmake listmod listmod
+call %tstbat%\testmake idxov idxov
+call %tstbat%\testmake -norun floatfolderr floatfolderr
+call %tstbat%\testmake -pre floatfold floatfold reflect
+call %tstbat%\testmake -pre tostring tostring reflect
+call %tstbat%\testmake -pre match match
+call %tstbat%\testmake -pre inlineobj inlineobj dynfunc
+call %tstbat%\testmake newline_spacing newline_spacing
+call %tstbat%\testmake nested_embed nested_embed
+call %tstbat%\testmake nested_embed_err nested_embed_err
 
 rem  These tests require running preinit (testmake normally suppresses it)
 call %tstbat%\testmake -pre vec_pre vec_pre
@@ -165,8 +191,8 @@ rem  Resource file tests
 call %tstbat%\testres resfile -res -add "test\data\resfile.dat=testres.txt"
 
 rem  Starter game tests
-call %tstbat%\testsample startI3
-call %tstbat%\testsample startA3
+call %tstbat%\testsample /Adv3 startI3
+call %tstbat%\testsample /Adv3 startA3
 call %tstbat%\testsample sample
 
 rem  Return to Ditch Day tests

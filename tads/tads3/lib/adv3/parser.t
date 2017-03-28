@@ -565,6 +565,43 @@ class BasicProd: object
                 && match.length() > 0
                 && match[1].obj_.canMatchObject(obj));
     }
+
+    /*
+     *   Is this match a match to the special syntax for a custom missing
+     *   object query?  This returns true if the match has a wording that
+     *   strongly distinguishes it from an ordinary new command.  In the
+     *   English parser, for example, this returns true for the
+     *   PrepSingleTopicProd matches (e.g., inSingleNoun) if the phrase
+     *   starts with the preposition for the match.
+     *   
+     *   This property is used when we ask a missing object question:
+     *   
+     *.    >dig
+     *.    What do you want to dig in?
+     *.  
+     *.    >in the dirt
+     *   
+     *   In English, the DIG command sets up to receive a response phrased
+     *   as "in <noun phrase>" - that's done by setting the response
+     *   production to inSingleNoun.  In this case, "in the dirt" would
+     *   return true, since that's pretty clearly a match to the expected
+     *   inSingleNoun syntax.  In contrast, "the dirt" would return false,
+     *   since that's just a noun phrase without the special wording for
+     *   this particular verb.
+     */
+    isSpecialResponseMatch = nil
+
+    /*
+     *   Grammar match objects that come from a GrammarProd.parseTokens()
+     *   call will always have a set of properties indicating which tokens
+     *   from the input matched the grammar rule.  However, we sometimes
+     *   synthesize match trees internally rather than getting them from
+     *   parser input; for synthesized trees, the parser obviously won't
+     *   supply those properties for us, so we need to define suitable
+     *   defaults that synthesized match tree nodes can inherit.
+     */
+    firstTokenIndex = 0
+    lastTokenIndex = 0
 ;
 
 
@@ -1272,13 +1309,11 @@ class LayeredNounPhraseProd: NounPhraseProd
 class SingleNounProd: NounPhraseProd
     resolveNouns(resolver, results)
     {
-        local lst;
-        
         /* tell the results object we're resolving a single-object slot */
         results.beginSingleObjSlot();
 
         /* resolve the underlying noun phrase */
-        lst = np_.resolveNouns(resolver, results);
+        local lst = np_.resolveNouns(resolver, results);
 
         /* tell the results object we're done with the single-object slot */
         results.endSingleObjSlot();
@@ -3686,16 +3721,18 @@ class NounPhraseWithVocab: NounPhraseProd
             /* if it's not an exact match, check for a stronger match */
             if (!dictMatchIsExact(curFlags))
             {
-                /* scan for a stronger match for this same object */
-                for (local j = 1 ; j < len ; j += 2)
+                /* scan for an equal or stronger match later in the list */
+                for (local j = i + 2 ; j < len ; j += 2)
                 {
                     /* 
-                     *   if entry j is different from entry i, and it's
-                     *   stronger, omit entry i 
+                     *   if entry j is stronger than or identical to the
+                     *   current entry, omit the current entry in favor of
+                     *   entry j
                      */
-                    if (j != i
-                        && lst[j] == curObj
-                        && dictMatchIsStronger(lst[j+1], curFlags))
+                    local jObj = lst[j], jFlags = lst[j+1];
+                    if (jObj == curObj
+                        && (jFlags == curFlags
+                            || dictMatchIsStronger(jFlags, curFlags)))
                     {
                         /* there's a better entry; omit the current one */
                         continue truncScan;
@@ -4000,8 +4037,6 @@ class EmptyNounPhraseProd: NounPhraseProd
     /* resolve the empty phrase */
     resolveNouns(resolver, results)
     {
-        local match;
-
         /* 
          *   if we've filled in our missing phrase already, return the
          *   resolution of that list 
@@ -4013,11 +4048,24 @@ class EmptyNounPhraseProd: NounPhraseProd
          *   The noun phrase was left out entirely, so try to get an
          *   implied object.
          */
-        match = getImpliedObject(resolver, results);
+        local match = getImpliedObject(resolver, results);
 
         /* if that succeeded, return the result */
         if (match != nil)
             return match;
+
+        /* 
+         *   Parse the next input with our own (subclassed) responseProd if
+         *   we have one.  If we don't (i.e., it's nil), get one from the
+         *   action. 
+         */
+        local rp = responseProd;
+        if (rp == nil && resolver.getAction() != nil)
+            rp = resolver.getAction().getObjResponseProd(resolver);
+
+        /* as a last resort, use the fallback response */
+        if (rp == nil)
+            rp = fallbackResponseProd;
 
         /* 
          *   There is no implied object, so try to get a result
@@ -4025,7 +4073,7 @@ class EmptyNounPhraseProd: NounPhraseProd
          *   specifies via the responseProd property to parse the
          *   interactive response.  
          */
-        match = results.askMissingObject(asker_, resolver, responseProd);
+        match = results.askMissingObject(asker_, resolver, rp);
         
         /* if we didn't get a match, we have nothing to return */
         if (match == nil)
@@ -4082,10 +4130,19 @@ class EmptyNounPhraseProd: NounPhraseProd
     newMatch = nil
 
     /* 
-     *   our "response" production - this is the production we use to
-     *   parse the player's input in response to our disambiguation prompt 
+     *   Our "response" production - this is the production we use to parse
+     *   the player's input in response to our disambiguation prompt.  A
+     *   subclass can leave this as nil, in which case we'll attempt to get
+     *   the appropriate response production from the action.
      */
     responseProd = nil
+
+    /* 
+     *   Our fallback response production - if responseProd is nil, this
+     *   must be supplied for cases where we can't get the production from
+     *   the action.  This is ignored if responseProd is non-nil.
+     */
+    fallbackResponseProd = nil
 
     /* 
      *   The ResolveAsker we use to generate our prompt.  Use the base
@@ -4512,14 +4569,6 @@ spliceList(lst, idx, newItems)
 tryAskingForObject(issuingActor, targetActor,
                    resolver, results, responseProd)
 {
-    local str;
-    local toks;
-    local matchList;
-    local rankings;
-    local match;
-    local objList;
-    local ires;
-
     /* 
      *   Prompt for a new command.  We'll use the main command prompt,
      *   because we want to pretend that we're asking for a brand new
@@ -4527,7 +4576,7 @@ tryAskingForObject(issuingActor, targetActor,
      *   something that looks like a response to the missing-object query,
      *   we'll handle it as an answer rather than as a new command.  
      */
-    str = readMainCommandTokens(rmcAskObject);
+    local str = readMainCommandTokens(rmcAskObject);
 
     /* re-enable the transcript, if we have one */
     if (gTranscript)
@@ -4542,36 +4591,14 @@ tryAskingForObject(issuingActor, targetActor,
         throw new ReplacementCommandStringException(nil, nil, nil);
     
     /* extract the input line and tokens */
-    toks = str[2];
+    local toks = str[2];
     str = str[1];
-
-    /* 
-     *   If it looks like a valid new command, treat it as such.  We give
-     *   the new command interpretation priority over the noun phrase
-     *   interpretation, because anything that looks like both a noun
-     *   phrase and a new command probably only looks like a noun phrase
-     *   because it's extremely abbreviated; for example, "e" looks like
-     *   the noun phrase "east wall," in that "e" is a synonym for the
-     *   adjective "east".  It's very easy and intuitive for the user to
-     *   make a noun phrase reply unambiguous: they merely need to add a
-     *   "the" at the front of the phrase ("the east wall") or spell out
-     *   the noun phrase more fully.  
-     */
-    matchList = firstCommandPhrase.parseTokens(toks, cmdDict);
-    if (matchList.length() != 0)
-    {
-        /* 
-         *   it looks like a syntactically valid new command, so treat it
-         *   as a new command 
-         */
-        throw new ReplacementCommandStringException(str, nil, nil);
-    }
 
     /* keep going as long as we get replacement token lists */
     for (;;)
     {    
         /* try parsing it as an object list */
-        matchList = responseProd.parseTokens(toks, cmdDict);
+        local matchList = responseProd.parseTokens(toks, cmdDict);
         
         /* 
          *   if we didn't find any match at all, it's probably a brand new
@@ -4593,13 +4620,13 @@ tryAskingForObject(issuingActor, targetActor,
         dbgShowGrammarList(matchList);
         
         /* create an interactive sub-resolver for resolving the response */
-        ires = new InteractiveResolver(resolver);
+        local ires = new InteractiveResolver(resolver);
 
         /* 
          *   rank them using our response ranker - use the original
          *   resolver to resolve the object list 
          */
-        rankings = MissingObjectRanking.sortByRanking(matchList, ires);
+        local rankings = MissingObjectRanking.sortByRanking(matchList, ires);
 
         /*
          *   If the best item has unknown words, try letting the user
@@ -4647,7 +4674,45 @@ tryAskingForObject(issuingActor, targetActor,
         }
 
         /* the highest ranked object is the winner */
-        match = rankings[1].match;
+        local match = rankings[1].match;
+
+        /* 
+         *   Check to see if this looks like an ordinary new command as
+         *   well as a noun phrase.  For example, "e" looks like the noun
+         *   phrase "east wall," in that "e" is a synonym for the adjective
+         *   "east".  But "e" also looks like an ordinary new command.
+         *   
+         *   We'd have to be able to read the user's mind to know which
+         *   they mean in such cases, so we have to make some assumptions
+         *   to deal with the ambiguity.  In particular, if the phrasing
+         *   has special syntax that makes it look like a particularly
+         *   close match to the query phrase, assume it's a query response;
+         *   otherwise, assume it's a new command.  For example:
+         *   
+         *.    >dig
+         *.    What do you want to dig in?  [sets up for "in <noun>" reply]
+         *   
+         *   If the user answers "IN THE DIRT", we have a match to the
+         *   special syntax of the reply (the "in <noun>" phrasing), so we
+         *   will assume this is a reply to the query, even though it also
+         *   matches a valid new command phrasing for ENTER DIRT.  If the
+         *   user answers "E" or "EAST", we *don't* have a match to the
+         *   special syntax, but merely an ordinary noun phrase match, so
+         *   we'll assume this is an ordinary GO EAST command.
+         */
+        local cmdMatchList = firstCommandPhrase.parseTokens(toks, cmdDict);
+        if (cmdMatchList != [])
+        {
+            /* 
+             *   The phrasing looks like it's a valid new command as well
+             *   as a noun phrase reply.  Check the query reply match for
+             *   special syntax that would distinguish it from a new
+             *   command; if it doesn't match any special syntax, assume
+             *   that it is indeed a new command instead of a query reply.
+             */
+            if (!match.isSpecialResponseMatch)
+                throw new ReplacementCommandStringException(str, nil, nil);
+        }
 
         /* show our winning interpretation */
         dbgShowGrammarWithCaption('Missing Object Winner', match);
@@ -4656,7 +4721,7 @@ tryAskingForObject(issuingActor, targetActor,
          *   actually resolve the response to objects, using the original
          *   results and resolver objects 
          */
-        objList = match.resolveNouns(ires, results);
+        local objList = match.resolveNouns(ires, results);
 
         /* stash the resolved object list in a property of the match tree */
         match.resolvedObjects = objList;
@@ -5674,6 +5739,63 @@ class ActorResolveResults: BasicResolveResults
     /* don't allow action remapping while resolving the actor */
     allowActionRemapping = nil
 ;
+
+/*
+ *   A results object for resolving an actor in a command with an unknown
+ *   word or invalid phrasing in the predicate.  For this type of
+ *   resolution, we're trying to interpret the actor portion of the command
+ *   as a noun phrase referring to an actor, but it could also just be
+ *   another command.  E.g., we could have "bob, asdf" or "east, asdf".
+ *   Since we're only tentatively interpreting the phrase as a noun phrase,
+ *   to see if that interpretation goes anywhere, we don't want to throw
+ *   any errors on failures; instead we simply allow empty match lists.
+ */
+class TryAsActorResolveResults: ResolveResults
+    noVocabMatch(action, txt) { }
+    noMatch(action, txt) { }
+    noMatchPossessive(action, txt) { }
+    noMatchForAll() { }
+    noMatchForAllBut() { }
+    noMatchForListBut() { }
+    noteEmptyBut() { }
+    noMatchForPronoun() { }
+    allNotAllowed() { }
+    reflexiveNotAllowed() { }
+    wrongReflexive(typ, txt) { }
+    noMatchForPossessive(owner, txt) { }
+    noMatchForLocation(loc, txt) { }
+    noteBadPrep() { }
+    nothingInLocation(loc) { }
+    ambiguousNounPhrase(keeper, askwer, txt, matchLst, fullMatchLst,
+                        scopeList, requiredNum, resolver) { }
+    unknownNounPhrase(match, resolver) { }
+    getImpliedObject(np, resolver) { return []; }
+    askMissingObject(asker, resolver, responseProd) { return []; }
+    noteLiteral(txt) { }
+    askMissingLiteral(action, which) { return nil; }
+    emptyNounPhrase(resolver) { }
+    zeroQuantity(txt) { }
+    insufficientQuantity(txt, matchList, requiredNum) { }
+    uniqueObjectRequired(txt, matchList) { }
+    singleObjectRequired(txt) { }
+    noteAdjEnding() { }
+    noteIndefinite() { }
+    noteMatches(matchList) { }
+    noteMiscWord(txt) { }
+    notePronoun() { }
+    notePlural() { }
+    beginSingleObjSlot() { }
+    endSingleObjSlot() { }
+    beginTopicSlot() { }
+    endTopicSlot() { }
+    incCommandCount() { }
+    noteActorSpecified() { }
+    noteNounSlots(cnt) { }
+    noteWeakPhrasing() { }
+    allowActionRemapping = true
+    allowEquivalentFiltering = true
+;
+
 
 /* ------------------------------------------------------------------------ */
 /*

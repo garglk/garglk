@@ -124,6 +124,13 @@ Call: localtest3_part2()
 Result: first i value [modified by dynfunc] [modified by anon fn]
 
 
+localtest4:
+. test(1): before cnt=0, after cnt=0
+. test(2): before cnt=0, after cnt=0
+. test(3): before cnt=0, after cnt=0
+. test(4): before cnt=0, after cnt=1
+. test(5): before cnt=1, after cnt=2
+
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0

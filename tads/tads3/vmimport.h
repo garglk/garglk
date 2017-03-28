@@ -154,6 +154,7 @@ VM_IMPORT_OBJ("File.FileModeException", file_mode_exc)
 VM_IMPORT_OBJ("File.FileSafetyException", file_safety_exc)
 VM_IMPORT_PROP("FileSpec.getFilename", filespec_getFilename)
 VM_IMPORT_PROP("FileSpec.closeFile", filespec_closeFile)
+VM_IMPORT_OBJ("File.FileInfo", file_info)
 
 /* exceptions for the DynamicFunc intrinsic class */
 VM_IMPORT_OBJ("DynamicFunc.CompilerException", compiler_exc)
@@ -187,10 +188,18 @@ VM_IMPORT_OBJ("TadsNet.NetEvent", net_event)
 VM_IMPORT_OBJ("TadsNet.NetRequestEvent", net_request_event)
 VM_IMPORT_OBJ("TadsNet.NetTimeoutEvent", net_timeout_event)
 VM_IMPORT_OBJ("TadsNet.NetReplyEvent", net_reply_event)
+VM_IMPORT_OBJ("TadsNet.NetReplyDoneEvent", net_reply_done_event)
 VM_IMPORT_OBJ("TadsNet.FileUpload", file_upload_cl)
 VM_IMPORT_PROP("TadsNet.FileUpload.file", file_upload_fileObj)
 VM_IMPORT_PROP("TadsNet.FileUpload.contentType", file_upload_contentType)
 VM_IMPORT_PROP("TadsNet.FileUpload.filename", file_upload_filename)
+
+/* reflection services */
+VM_IMPORT_OBJ("reflection.reflectionServices", reflection_services)
+VM_IMPORT_PROP("reflection.valToSymbol", reflection_valToSymbol)
+
+/* general-purpose object-to-string formatting */
+VM_IMPORT_PROP("objToString", objToString)
 
 
 /*

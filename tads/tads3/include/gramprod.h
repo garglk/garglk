@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -9,8 +10,6 @@
  *   properties and constants.  
  */
 
-#ifndef _GRAMPROD_H_
-#define _GRAMPROD_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -164,5 +163,3 @@ export tokenMatchList  'GrammarProd.tokenMatchList';
 property grammarAltProps;
 export grammarAltProps 'GrammarProd.altProps';
 
-
-#endif /* _GRAMPROD_H_ */

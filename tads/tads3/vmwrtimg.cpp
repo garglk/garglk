@@ -64,10 +64,6 @@ long CVmImageWriter::get_pos() const
  */
 void CVmImageWriter::prepare(uint vsn, const char tool_data[4])
 {
-    char buf[32];
-    time_t timer;
-    struct tm *tblock;
-    
     /* write the signature */
     fp_->write_bytes(VMIMAGE_SIG, sizeof(VMIMAGE_SIG)-1);
 
@@ -75,6 +71,7 @@ void CVmImageWriter::prepare(uint vsn, const char tool_data[4])
     fp_->write_uint2(vsn);
 
     /* write the 28 reserved bytes, setting all to zero */
+    char buf[32];
     memset(buf, 0, 28);
     fp_->write_bytes(buf, 28);
 
@@ -82,8 +79,8 @@ void CVmImageWriter::prepare(uint vsn, const char tool_data[4])
     fp_->write_bytes(tool_data, 4);
 
     /* write the compilation timestamp */
-    timer = time(NULL);
-    tblock = localtime(&timer);
+    os_time_t timer = os_time(NULL);
+    struct tm *tblock = os_localtime(&timer);
     fp_->write_bytes(asctime(tblock), 24);
 }
 
@@ -127,7 +124,7 @@ void CVmImageWriter::begin_block(const char *block_id, int mandatory)
 void CVmImageWriter::end_block()
 {
     long end_pos;
-    uint32 siz;
+    uint32_t siz;
     
     /* if there's no block open, there's nothing we need to do */
     if (block_start_ == 0)
@@ -148,7 +145,7 @@ void CVmImageWriter::end_block()
      *   to store the size of the block's data, excluding the header,
      *   which is (end_pos - block_header_pos - 10).  
      */
-    siz = (uint32)(end_pos - block_start_ - 10);
+    siz = (uint32_t)(end_pos - block_start_ - 10);
 
     /* 
      *   Seek back to the location of the size field in the block header;
@@ -172,7 +169,7 @@ void CVmImageWriter::end_block()
 /*
  *   Write raw bytes to the file 
  */
-void CVmImageWriter::write_bytes(const char *ptr, uint32 siz)
+void CVmImageWriter::write_bytes(const char *ptr, uint32_t siz)
 {
     /* write in 64k chunks, to accommodate 16-bit platforms */
     while (siz != 0)
@@ -215,7 +212,7 @@ void CVmImageWriter::finish()
 /*
  *   Write an entrypoint (ENTP) block
  */
-void CVmImageWriter::write_entrypt(uint32 entry_ofs, size_t method_hdr_size,
+void CVmImageWriter::write_entrypt(uint32_t entry_ofs, size_t method_hdr_size,
                                    size_t exc_entry_size,
                                    size_t line_entry_size,
                                    size_t dbg_hdr_size,
@@ -418,8 +415,8 @@ void CVmImageWriter::write_dep_block(const char *block_id,
 /*
  *   Write a constant pool definition block 
  */
-void CVmImageWriter::write_pool_def(uint pool_id, uint32 page_count,
-                                    uint32 page_size, int mandatory)
+void CVmImageWriter::write_pool_def(uint pool_id, uint32_t page_count,
+                                    uint32_t page_size, int mandatory)
 {
     char buf[16];
     
@@ -437,7 +434,7 @@ void CVmImageWriter::write_pool_def(uint pool_id, uint32 page_count,
 /*
  *   Fix up a pool definition block with the actual page count 
  */
-void CVmImageWriter::fix_pool_def(long def_seek_ofs, uint32 page_count)
+void CVmImageWriter::fix_pool_def(long def_seek_ofs, uint32_t page_count)
 {
     long old_pos;
     char buf[4];
@@ -465,9 +462,9 @@ void CVmImageWriter::fix_pool_def(long def_seek_ofs, uint32 page_count)
 /*
  *   Write a constant pool page 
  */
-void CVmImageWriter::write_pool_page(uint pool_id, uint32 page_index,
+void CVmImageWriter::write_pool_page(uint pool_id, uint32_t page_index,
                                      const char *page_data,
-                                     uint32 page_data_size, int mandatory,
+                                     uint32_t page_data_size, int mandatory,
                                      uchar xor_mask)
 {
     char buf[16];
@@ -495,7 +492,7 @@ void CVmImageWriter::write_pool_page(uint pool_id, uint32 page_index,
  *   Begin writing a constant pool page.  This constructs the header and
  *   prepares for writing the bytes making up the page. 
  */
-void CVmImageWriter::begin_pool_page(uint pool_id, uint32 page_index,
+void CVmImageWriter::begin_pool_page(uint pool_id, uint32_t page_index,
                                      int mandatory, uchar xor_mask)
 {
     char buf[16];
@@ -515,7 +512,7 @@ void CVmImageWriter::begin_pool_page(uint pool_id, uint32 page_index,
 /*
  *   write bytes to a pool page under construction 
  */
-void CVmImageWriter::write_pool_page_bytes(const char *buf, uint32 siz,
+void CVmImageWriter::write_pool_page_bytes(const char *buf, uint32_t siz,
                                            uchar xor_mask)
 {
     /* write the page data, XOR'ing the data with the mask byte */
@@ -526,7 +523,7 @@ void CVmImageWriter::write_pool_page_bytes(const char *buf, uint32 siz,
  *   XOR and write a block of data - we will XOR each byte of the data
  *   with the given mask byte before writing it to the file 
  */
-void CVmImageWriter::xor_and_write_bytes(const char *mem, uint32 siz,
+void CVmImageWriter::xor_and_write_bytes(const char *mem, uint32_t siz,
                                          uchar xor_mask)
 {
     /* 
@@ -743,7 +740,7 @@ void CVmImageWriter::begin_objs_block(uint metaclass_idx, int large_objects,
 /*
  *   Write bytes to an OBJS (object static data) block 
  */
-void CVmImageWriter::write_objs_bytes(const char *buf, uint32 siz)
+void CVmImageWriter::write_objs_bytes(const char *buf, uint32_t siz)
 {
     /* write the buffer */
     fp_->write_bytes(buf, siz);

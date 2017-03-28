@@ -31,14 +31,14 @@ class CVmResource
     friend class CVmImageLoader;
     
 public:
-    CVmResource(long seek_pos, uint32 len, size_t name_len);
+    CVmResource(long seek_pos, uint32_t len, size_t name_len);
     ~CVmResource();
 
     /* get the seek position */
     long get_seek_pos() const { return seek_pos_; }
 
     /* get the length of the byte stream */
-    uint32 get_len() const { return len_; }
+    uint32_t get_len() const { return len_; }
 
     /* get my name */
     const char *get_name() const { return name_; }
@@ -55,7 +55,7 @@ private:
     long seek_pos_;
 
     /* length in bytes of my binary data stream */
-    uint32 len_;
+    uint32_t len_;
 
     /* name string */
     char *name_;

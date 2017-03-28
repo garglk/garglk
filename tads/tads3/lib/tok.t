@@ -123,27 +123,24 @@ class Tokenizer: object
     rules_ = static
     [
         /* skip whitespace */
-        ['whitespace', new RexPattern('<Space>+'), nil, &tokCvtSkip, nil],
+        ['whitespace', R'<Space>+', nil, &tokCvtSkip, nil],
 
         /* certain punctuation marks */
-        ['punctuation', new RexPattern('[.,;:?!]'), tokPunct, nil, nil],
+        ['punctuation', R'[.,;:?!]', tokPunct, nil, nil],
 
         /* 
          *   Words - note that we convert everything to lower-case.  A
          *   word must start with an alphabetic character, but can contain
          *   alphabetics, digits, hyphens, and apostrophes after that. 
          */
-        ['word', new RexPattern('<Alpha>(<AlphaNum>|[-\'])*'),
-         tokWord, &tokCvtLower, nil],
+        ['word', R'<Alpha>(<AlphaNum>|[-\'])*', tokWord, &tokCvtLower, nil],
 
         /* strings */
-        ['string single-quote',
-         new RexPattern('\'(.*)\''), tokString, nil, nil],
-        ['string double-quote',
-         new RexPattern('"(.*)"'), tokString, nil, nil],
+        ['string single-quote', R'\'(.*)\'', tokString, nil, nil],
+        ['string double-quote', R'"(.*)"', tokString, nil, nil],
 
         /* integer numbers */
-        ['integer', new RexPattern('[0-9]+'), tokInt, nil, nil]
+        ['integer', R'[0-9]+', tokInt, nil, nil]
     ]
 
     /*

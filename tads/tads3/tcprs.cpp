@@ -36,6 +36,7 @@ Modified
 #include "tcmain.h"
 #include "vmfile.h"
 #include "tctok.h"
+#include "vmbignum.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -178,6 +179,32 @@ public:
 
     /* get the number of tokens remaining */
     int getcnt() const { return cnt; }
+
+    /* get the head elemenet */
+    const CTcToken *get_head() const { return head; }
+
+    /* remove the head element */
+    void unlink_head(CTcToken *tok)
+    {
+        if (head != 0)
+        {
+            /* copy the token to the caller's buffer */
+            G_tok->copytok(tok, head);
+
+            /* unlink it */
+            CTcTokenEle *h = head;
+            head = head->getnxt();
+            --cnt;
+
+            /* delete it */
+            delete h;
+        }
+        else
+        {
+            /* no token available - return EOF */
+            tok->settyp(TOKT_EOF);
+        }
+    }
 
     /* add a token to the list */
     void add_tok(const CTcToken *tok)
@@ -1016,16 +1043,14 @@ int CTcParser::parse_op_name(CTcToken *tok, int *op_argp)
  */
 CTcPrsNode *CTcParser::create_sym_node(const textchar_t *sym, size_t sym_len)
 {
-    CTcSymbol *entry;
-    CTcPrsSymtab *symtab;
-    
     /* 
      *   First, look up the symbol in local scope.  Local scope symbols
      *   can always be resolved during parsing, because the language
      *   requires that local scope items be declared before their first
      *   use. 
      */
-    entry = local_symtab_->find(sym, sym_len, &symtab);
+    CTcPrsSymtab *symtab;
+    CTcSymbol *entry = local_symtab_->find(sym, sym_len, &symtab);
 
     /* if we found it in local scope, return a resolved symbol node */
     if (entry != 0 && symtab != global_symtab_)
@@ -1034,9 +1059,8 @@ CTcPrsNode *CTcParser::create_sym_node(const textchar_t *sym, size_t sym_len)
     /* if there's a debugger local scope, look it up there */
     if (debug_symtab_ != 0)
     {
-        tcprsdbg_sym_info info;
-
         /* look it up in the debug symbol table */
+        tcprsdbg_sym_info info;
         if (debug_symtab_->find_symbol(sym, sym_len, &info))
         {
             /* found it - return a debugger local variable */
@@ -1313,13 +1337,98 @@ void CTcConstVal::set_sstr(const CTcToken *tok)
         set_sstr("", 0);
 }
 
-void CTcConstVal::set_sstr(uint32 ofs)
+void CTcConstVal::set_sstr(uint32_t ofs)
 {
     typ_ = TC_CVT_SSTR;
     val_.strval_.strval_ = 0;
     val_.strval_.strval_len_ = 0;
     val_.strval_.pool_ofs_ = ofs;
 }
+
+/*
+ *   Set a regex string value 
+ */
+void CTcConstVal::set_restr(const CTcToken *tok)
+{
+    typ_ = TC_CVT_RESTR;
+    val_.strval_.strval_ = tok->get_text();
+    val_.strval_.strval_len_ = tok->get_text_len();
+    val_.strval_.pool_ofs_ = 0;
+}
+
+/* 
+ *   BigNumber string formatter buffer allocator.  Allocates a buffer of the
+ *   required size from the parser memory pool. 
+ */
+class CBigNumStringBufPrsAlo: public IBigNumStringBuf
+{
+public:
+    virtual char *get_buf(size_t need)
+        { return new (G_prsmem) char[need]; }
+};
+
+/* set a floating point value from a token string */
+void CTcConstVal::set_float(const char *str, size_t len, int promoted)
+{
+    /* set the float */
+    typ_ = TC_CVT_FLOAT;
+    val_.floatval_.txt_ = str;
+    val_.floatval_.len_ = len;
+    promoted_ = promoted;
+}
+
+/* set a floating point value from a vbignum_t */
+void CTcConstVal::set_float(const vbignum_t *val, int promoted)
+{
+    /* format the value */
+    CBigNumStringBufPrsAlo alo;
+    const char *buf = val->format(&alo);
+
+    /* 
+     *   read the length from the buffer - vbignum_t::format() fills in the
+     *   buffer using the TADS String format, with a two-byte little-endian
+     *   (VMB_LEN) length prefix 
+     */
+    size_t len = vmb_get_len(buf);
+    buf += VMB_LEN;
+
+    /* store it */
+    set_float(buf, len, promoted);
+}
+
+/* set a floating point value from a promoted integer value */
+void CTcConstVal::set_float(ulong i)
+{
+    /* set up the bignum value */
+    vbignum_t b(i);
+
+    /* store it as a promoted integer value */
+    set_float(&b, TRUE);
+}
+
+/* 
+ *   Try demoting a float back to an int.  This can be used after a
+ *   constant-folding operation to turn a previously promoted float back to
+ *   an int if the result of the calculation now fits the int type. 
+ */
+void CTcConstVal::demote_float()
+{
+    /* if this is a promoted integer, see if we can demote it back to int */
+    if (typ_ == TC_CVT_FLOAT && promoted_)
+    {
+        /* get the BigNumber value */
+        vbignum_t b(val_.floatval_.txt_, val_.floatval_.len_, 0);
+
+        /* convert it to an integer */
+        int ov;
+        int32_t i = b.to_int(ov);
+
+        /* if it didn't overflow, demote the constant back to an int */
+        if (!ov)
+            set_int(i);
+    }
+}
+
 
 /*
  *   set a list value 
@@ -1336,7 +1445,7 @@ void CTcConstVal::set_list(CTPNList *lst)
     G_cg->note_list(lst->get_count());
 }
 
-void CTcConstVal::set_list(uint32 ofs)
+void CTcConstVal::set_list(uint32_t ofs)
 {
     typ_ = TC_CVT_LIST;
     val_.listval_.l_ = 0;
@@ -1395,6 +1504,24 @@ const char *CTcConstVal::cvt_to_str(char *buf, size_t bufl,
     }
 }
 
+/* is this a numeric value equal to zero? */
+int CTcConstVal::equals_zero() const
+{
+    /* check for integer zero */
+    if (typ_ == TC_CVT_INT && get_val_int() == 0)
+        return TRUE;
+
+    /* check for a float zero */
+    if (typ_ == TC_CVT_FLOAT)
+    {
+        vbignum_t v(get_val_float(), get_val_float_len(), 0);
+        return v.is_zero();
+    }
+
+    /* not zero */
+    return FALSE;
+}
+
 /*
  *   Compare for equality to another constant value 
  */
@@ -1402,9 +1529,23 @@ int CTcConstVal::is_equal_to(const CTcConstVal *val) const
 {
     CTPNListEle *ele1;
     CTPNListEle *ele2;
+
+    /* check for float-int comparisons */
+    if (typ_ == TC_CVT_INT && val->get_type() == TC_CVT_FLOAT)
+    {
+        vbignum_t a(get_val_int());
+        vbignum_t b(val->get_val_float(), val->get_val_float_len(), 0);
+        return a.compare(b) == 0;
+    }
+    if (typ_ == TC_CVT_FLOAT && val->get_type() == TC_CVT_INT)
+    {
+        vbignum_t a(get_val_float(), get_val_float_len(), 0);
+        vbignum_t b(val->get_val_int());
+        return a.compare(b) == 0;
+    }
     
     /* 
-     *   if the types are not equal, the values are not equal; otherwise,
+     *   if the types aren't equal, the values are not equal; otherwise,
      *   check the various types 
      */
     if (typ_ != val->get_type())
@@ -1431,6 +1572,13 @@ int CTcConstVal::is_equal_to(const CTcConstVal *val) const
     case TC_CVT_INT:
         /* compare the integers */
         return (get_val_int() == val->get_val_int());
+
+    case TC_CVT_FLOAT:
+        {
+            vbignum_t a(get_val_float(), get_val_float_len(), 0);
+            vbignum_t b(val->get_val_float(), val->get_val_float_len(), 0);
+            return a.compare(b) == 0;
+        }
 
     case TC_CVT_SSTR:
         /* compare the strings */
@@ -1497,11 +1645,9 @@ int CTcConstVal::is_equal_to(const CTcConstVal *val) const
  */
 CTcPrsNode *CTcPrsOpBin::parse() const
 {
-    CTcPrsNode *lhs;
-    CTcPrsNode *rhs;
-    
     /* parse our left side - if that fails, return failure */
-    if ((lhs = left_->parse()) == 0)
+    CTcPrsNode *lhs = left_->parse();
+    if (lhs == 0)
         return 0;
 
     /* keep going as long as we find our operator */
@@ -1510,17 +1656,16 @@ CTcPrsNode *CTcPrsOpBin::parse() const
         /* check my operator */
         if (G_tok->cur() == get_op_tok())
         {
-            CTcPrsNode *const_tree;
-
             /* skip the matching token */
             G_tok->next();
             
             /* parse the right-hand side */
-            if ((rhs = right_->parse()) == 0)
+            CTcPrsNode *rhs = right_->parse();
+            if (rhs == 0)
                 return 0;
 
             /* try folding our subnodes into a constant value, if possible */
-            const_tree = eval_constant(lhs, rhs);
+            CTcPrsNode *const_tree = eval_constant(lhs, rhs);
 
             /* 
              *   if we couldn't calculate a constant value, build the tree
@@ -1560,10 +1705,9 @@ CTcPrsNode *CTcPrsOpBin::parse() const
  */
 CTcPrsNode *CTcPrsOpBinGroup::parse() const
 {
-    CTcPrsNode *lhs;
-
     /* parse our left side - if that fails, return failure */
-    if ((lhs = left_->parse()) == 0)
+    CTcPrsNode *lhs = left_->parse();
+    if (lhs == 0)
         return 0;
 
     /* keep going as long as we find one of our operators */
@@ -1579,22 +1723,18 @@ CTcPrsNode *CTcPrsOpBinGroup::parse() const
  */
 int CTcPrsOpBinGroup::find_and_apply_op(CTcPrsNode **lhs) const
 {
-    const CTcPrsOpBin *const *op;
-    CTcPrsNode *rhs;
-
     /* check each operator at this precedence level */
-    for (op = ops_ ; *op != 0 ; ++op)
+    for (const CTcPrsOpBin *const *op = ops_ ; *op != 0 ; ++op)
     {
         /* check this operator's token */
         if (G_tok->cur() == (*op)->get_op_tok())
         {
-            CTcPrsNode *const_tree;
-
             /* skip the operator token */
             G_tok->next();
 
             /* parse the right-hand side */
-            if ((rhs = right_->parse()) == 0)
+            CTcPrsNode *rhs = right_->parse();
+            if (rhs == 0)
             {
                 /* error - cancel the entire expression */
                 *lhs = 0;
@@ -1602,7 +1742,7 @@ int CTcPrsOpBinGroup::find_and_apply_op(CTcPrsNode **lhs) const
             }
 
             /* try folding our subnodes into a constant value */
-            const_tree = (*op)->eval_constant(*lhs, rhs);
+            CTcPrsNode *const_tree = (*op)->eval_constant(*lhs, rhs);
 
             /* 
              *   if we couldn't calculate a constant value, build the tree
@@ -1646,17 +1786,14 @@ int CTcPrsOpBinGroup::find_and_apply_op(CTcPrsNode **lhs) const
  */
 CTcPrsNode *CTcPrsOpBinGroupCompare::parse() const
 {
-    CTcPrsNode *lhs;
-
     /* parse our left side - if that fails, return failure */
-    if ((lhs = left_->parse()) == 0)
+    CTcPrsNode *lhs = left_->parse();
+    if (lhs == 0)
         return 0;
 
     /* keep going as long as we find one of our operators */
     for (;;)
     {
-        CTPNArglist *rhs;
-        
         /* 
          *   try one of our regular operators - if we find it, go back for
          *   another round to see if there's another operator following
@@ -1678,7 +1815,7 @@ CTcPrsNode *CTcPrsOpBinGroupCompare::parse() const
                 && G_tok->getcur()->text_matches("in", 2))
             {
                 /* scan the expression list */
-                rhs = parse_inlist();
+                CTPNArglist *rhs = parse_inlist();
                 if (rhs == 0)
                     return 0;
 
@@ -1709,7 +1846,7 @@ CTcPrsNode *CTcPrsOpBinGroupCompare::parse() const
                 && G_tok->getcur()->text_matches("in", 2))
             {
                 /* scan the expression list */
-                rhs = parse_inlist();
+                CTPNArglist *rhs = parse_inlist();
                 if (rhs == 0)
                     return 0;
 
@@ -2065,21 +2202,19 @@ CTcPrsNode *CTcPrsOpRel::eval_constant(CTcPrsNode *left,
     /* check for constants */
     if (left->is_const() && right->is_const())
     {
-        tc_constval_type_t typ1, typ2;
-        int sense;
-
         /* get the types */
-        typ1 = left->get_const_val()->get_type();
-        typ2 = right->get_const_val()->get_type();
+        CTcConstVal *c1 = left->get_const_val();
+        CTcConstVal *c2 = right->get_const_val();
+        tc_constval_type_t typ1 = c1->get_type();
+        tc_constval_type_t typ2 = c2->get_type();
 
         /* determine what we're comparing */
+        int sense;
         if (typ1 == TC_CVT_INT && typ2 == TC_CVT_INT)
         {
-            long val1, val2;
-
             /* get the values */
-            val1 = left->get_const_val()->get_val_int();
-            val2 = right->get_const_val()->get_val_int();
+            long val1 = c1->get_val_int();
+            long val2 = c2->get_val_int();
 
             /* calculate the sense of the integer comparison */
             sense = (val1 < val2 ? -1 : val1 == val2 ? 0 : 1);
@@ -2087,13 +2222,27 @@ CTcPrsNode *CTcPrsOpRel::eval_constant(CTcPrsNode *left,
         else if (typ1 == TC_CVT_SSTR && typ2 == TC_CVT_SSTR)
         {
             /* compare the string values */
-            sense = strcmp(left->get_const_val()->get_val_str(),
-                           right->get_const_val()->get_val_str());
+            sense = strcmp(c1->get_val_str(), c2->get_val_str());
         }
-        else if (typ1 == TC_CVT_FLOAT || typ2 == TC_CVT_FLOAT)
+        else if (typ1 == TC_CVT_FLOAT && typ2 == TC_CVT_FLOAT)
         {
-            /* we can't compare floats at compile time, but it's legal */
-            return 0;
+            /* both are floats - get as BigNumber values */
+            vbignum_t a(c1->get_val_float(), c1->get_val_float_len(), 0);
+            vbignum_t b(c2->get_val_float(), c2->get_val_float_len(), 0);
+            sense = a.compare(b);
+        }
+        else if (typ1 == TC_CVT_FLOAT && typ2 == TC_CVT_INT)
+        {
+            /* float vs int */
+            vbignum_t a(c1->get_val_float(), c1->get_val_float_len(), 0);
+            vbignum_t b(c2->get_val_int());
+            sense = a.compare(b);
+        }
+        else if (typ1 == TC_CVT_INT && typ2 == TC_CVT_FLOAT)
+        {
+            vbignum_t a(c1->get_val_int());
+            vbignum_t b(c2->get_val_float(), c2->get_val_float_len(), 0);
+            sense = a.compare(b);
         }
         else
         {
@@ -2104,7 +2253,7 @@ CTcPrsNode *CTcPrsOpRel::eval_constant(CTcPrsNode *left,
         }
 
         /* set the result in the left value */
-        left->get_const_val()->set_bool(get_bool_val(sense));
+        c1->set_bool(get_bool_val(sense));
 
         /* return the updated left value */
         return left;
@@ -2470,31 +2619,99 @@ CTcPrsNode *CTcPrsOpArith::eval_constant(CTcPrsNode *left,
     /* check for constants */
     if (left->is_const() && right->is_const())
     {
-        /* require that both values are integers or floats */
-        if (left->get_const_val()->get_type() == TC_CVT_FLOAT
-            || right->get_const_val()->get_type() == TC_CVT_FLOAT)
+        CTcConstVal *c1 = left->get_const_val();
+        CTcConstVal *c2 = right->get_const_val();
+        tc_constval_type_t typ1 = c1->get_type();
+        tc_constval_type_t typ2 = c2->get_type();
+
+        /* check for ints, floats, or a combination */
+        if (typ1 == TC_CVT_INT && typ2 == TC_CVT_INT)
         {
-            /* can't do it at compile time, but it's legal */
-            return 0;
+            /* calculate the int result */
+            int ov;
+            long r = calc_result(c1->get_val_int(), c2->get_val_int(), ov);
+
+            /* on overflow, recalculate using BigNumbers */
+            if (ov)
+            {
+                /* calculate the BigNumber result */
+                vbignum_t a(c1->get_val_int());
+                vbignum_t b(c2->get_val_int());
+                vbignum_t *c = calc_result(a, b);
+
+                /* if successful, assign it back to the left operand */
+                if (c != 0)
+                {
+                    c1->set_float(c, TRUE);
+                    delete c;
+                }
+            }
+            else
+            {
+                /* success - assign the folded int to the left operand */
+                c1->set_int(r);
+            }
         }
-        else if (left->get_const_val()->get_type() != TC_CVT_INT
-            || right->get_const_val()->get_type() != TC_CVT_INT)
+        else if (typ1 == TC_CVT_FLOAT && typ2 == TC_CVT_FLOAT)
+        {
+            /* calculate the BigNumber result */
+            vbignum_t a(c1->get_val_float(), c1->get_val_float_len(), 0);
+            vbignum_t b(c2->get_val_float(), c2->get_val_float_len(), 0);
+            vbignum_t *c = calc_result(a, b);
+
+            /* assign it back to the left operand */
+            if (c != 0)
+            {
+                /* save the value and delete the calculation result */
+                c1->set_float(c, c1->is_promoted() && c2->is_promoted());
+                delete c;
+
+                /* check for possible demotion back to int */
+                c1->demote_float();
+            }
+        }
+        else if (typ1 == TC_CVT_FLOAT && typ2 == TC_CVT_INT)
+        {
+            /* calculate the BigNumber result */
+            vbignum_t a(c1->get_val_float(), c1->get_val_float_len(), 0);
+            vbignum_t b(c2->get_val_int());
+            vbignum_t *c = calc_result(a, b);
+
+            /* assign it back to the left operand */
+            if (c != 0)
+            {
+                /* save the value and delete the calculation result */
+                c1->set_float(c, c1->is_promoted());
+                delete c;
+
+                /* check for possible demotion back to int */
+                c1->demote_float();
+            }
+        }
+        else if (typ1 == TC_CVT_INT && typ2 == TC_CVT_FLOAT)
+        {
+            /* calculate the BigNumber result */
+            vbignum_t a(c1->get_val_int());
+            vbignum_t b(c2->get_val_float(), c2->get_val_float_len(), 0);
+            vbignum_t *c = calc_result(a, b);
+
+            /* assign it back to the left operand */
+            if (c != 0)
+            {
+                /* save the value and delete the calculation result */
+                c1->set_float(c, c2->is_promoted());
+                delete c;
+
+                /* check for possible demotion back to int */
+                c1->demote_float();
+            }
+        }
+        else
         {
             /* incompatible types - log an error */
             G_tok->log_error(TCERR_CONST_BINARY_REQ_NUM,
                              G_tok->get_op_text(get_op_tok()));
             return 0;
-        }
-        else
-        {
-            long result;
-            
-            /* calculate the result */
-            result = calc_result(left->get_const_val()->get_val_int(),
-                                 right->get_const_val()->get_val_int());
-
-            /* assign the result back to the left operand */
-            left->get_const_val()->set_int(result);
         }
 
         /* return the updated left value */
@@ -2609,6 +2826,15 @@ CTcPrsNode *CTcPrsOpMul::build_tree(CTcPrsNode *left,
     return new CTPNMul(left, right);
 }
 
+/*
+ *   calculate a constant float result 
+ */
+vbignum_t *CTcPrsOpMul::calc_result(
+    const vbignum_t &a, const vbignum_t &b) const
+{
+    return a * b;
+}
+
 /* ------------------------------------------------------------------------ */
 /*
  *   division operator 
@@ -2624,9 +2850,9 @@ CTcPrsNode *CTcPrsOpDiv::build_tree(CTcPrsNode *left,
 }
 
 /*
- *   evaluate constant result 
+ *   evaluate constant integer result 
  */
-long CTcPrsOpDiv::calc_result(long a, long b) const
+long CTcPrsOpDiv::calc_result(long a, long b, int &ov) const
 {
     /* check for divide-by-zero */
     if (b == 0)
@@ -2637,12 +2863,37 @@ long CTcPrsOpDiv::calc_result(long a, long b) const
         /* the result isn't really meaningful, but return something anyway */
         return 1;
     }
+
+    /* 
+     *   check for overflow - there's only one way that integer division can
+     *   overflow, which is to divide INT32MINVAL by -1 
+     */
+    ov = (a == INT32MINVAL && b == 1);
+
+    /* return the result */
+    return a / b;
+}
+
+/*
+ *   calculate a constant float result 
+ */
+vbignum_t *CTcPrsOpDiv::calc_result(
+    const vbignum_t &a, const vbignum_t &b) const
+{
+    /* check for division by zero */
+    if (b.is_zero())
+    {
+        /* log an error, and just return the left operand */
+        G_tok->log_error(TCERR_CONST_DIV_ZERO);
+        return new vbignum_t(1L);
+    }
     else
     {
-        /* return the result */
+        /* calculate the result */
         return a / b;
     }
 }
+
 /* ------------------------------------------------------------------------ */
 /*
  *   modulo operator 
@@ -2660,8 +2911,11 @@ CTcPrsNode *CTcPrsOpMod::build_tree(CTcPrsNode *left,
 /*
  *   evaluate constant result 
  */
-long CTcPrsOpMod::calc_result(long a, long b) const
+long CTcPrsOpMod::calc_result(long a, long b, int &ov) const
 {
+    /* there's no way for integer modulo to overflow */
+    ov = FALSE;
+    
     /* check for divide-by-zero */
     if (b == 0)
     {
@@ -2677,6 +2931,27 @@ long CTcPrsOpMod::calc_result(long a, long b) const
         return a % b;
     }
 }
+
+/*
+ *   calculate a constant float result 
+ */
+vbignum_t *CTcPrsOpMod::calc_result(
+    const vbignum_t &a, const vbignum_t &b) const
+{
+    /* check for division by zero */
+    if (b.is_zero())
+    {
+        /* log an error, and just return the left operand */
+        G_tok->log_error(TCERR_CONST_DIV_ZERO);
+        return new vbignum_t(1L);
+    }
+    else
+    {
+        /* calculate the result */
+        return a % b;
+    }
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -2707,24 +2982,16 @@ CTcPrsNode *CTcPrsOpSub::eval_constant(CTcPrsNode *left,
         typ2 = right->get_const_val()->get_type();
 
         /* check our types */
-        if (typ1 == TC_CVT_INT && typ2 == TC_CVT_INT)
+        if ((typ1 == TC_CVT_INT || typ1 == TC_CVT_FLOAT)
+            && (typ2 == TC_CVT_INT || typ2 == TC_CVT_FLOAT))
         {
-            /* calculate the integer sum */
-            left->get_const_val()
-                ->set_int(left->get_const_val()->get_val_int()
-                          - right->get_const_val()->get_val_int());
-        }
-        else if (typ1 == TC_CVT_FLOAT || typ2 == TC_CVT_FLOAT)
-        {
-            /* can't fold float constants at compile time */
-            return 0;
+            /* int/float minus int/float - use the inherited handling */
+            return CTcPrsOpArith::eval_constant(left, right);
         }
         else if (typ1 == TC_CVT_LIST)
         {
-            CTPNList *lst;
-
             /* get the original list */
-            lst = left->get_const_val()->get_val_list();
+            CTPNList *lst = left->get_const_val()->get_val_list();
 
             /* 
              *   if the right side is a list, remove each element of that
@@ -2777,6 +3044,15 @@ CTcPrsNode *CTcPrsOpSub::eval_constant(CTcPrsNode *left,
     }
 }
 
+/*
+ *   calculate a constant float result 
+ */
+vbignum_t *CTcPrsOpSub::calc_result(
+    const vbignum_t &a, const vbignum_t &b) const
+{
+    return a - b;
+}
+
 /* ------------------------------------------------------------------------ */
 /*
  *   addition operator 
@@ -2798,24 +3074,16 @@ CTcPrsNode *CTcPrsOpAdd::eval_constant(CTcPrsNode *left,
         typ2 = right->get_const_val()->get_type();
         
         /* check our types */
-        if (typ1 == TC_CVT_INT && typ2 == TC_CVT_INT)
+        if ((typ1 == TC_CVT_INT || typ1 == TC_CVT_FLOAT)
+            && (typ2 == TC_CVT_INT || typ2 == TC_CVT_FLOAT))
         {
-            /* calculate the integer sum */
-            left->get_const_val()
-                ->set_int(left->get_const_val()->get_val_int()
-                          + right->get_const_val()->get_val_int());
-        }
-        else if (typ1 == TC_CVT_FLOAT || typ2 == TC_CVT_FLOAT)
-        {
-            /* can't fold float constants at compile time */
-            return 0;
+            /* int/float plus int/float - use the inherited handling */
+            return CTcPrsOpArith::eval_constant(left, right);
         }
         else if (typ1 == TC_CVT_LIST)
         {
-            CTPNList *lst;
-
             /* get the original list */
-            lst = left->get_const_val()->get_val_list();
+            CTPNList *lst = left->get_const_val()->get_val_list();
 
             /* 
              *   if the right side is also a list, concatenate it onto the
@@ -2919,6 +3187,14 @@ CTcPrsNode *CTcPrsOpAdd::eval_constant(CTcPrsNode *left,
     }
 }
 
+/*
+ *   calculate a constant float result 
+ */
+vbignum_t *CTcPrsOpAdd::calc_result(
+    const vbignum_t &a, const vbignum_t &b) const
+{
+    return a + b;
+}
 
 /*
  *   build the subtree 
@@ -2939,17 +3215,13 @@ CTcPrsNode *CTcPrsOpAdd::build_tree(CTcPrsNode *left,
  */
 CTcPrsNode *CTcPrsOpAsi::parse() const
 {
-    CTcPrsNode *lhs;
-    CTcPrsNode *rhs;
-    tc_toktyp_t curtyp;
-    
     /* start by parsing a conditional subexpression */
-    lhs = S_op_if.parse();
+    CTcPrsNode *lhs = S_op_if.parse();
     if (lhs == 0)
         return 0;
 
     /* get the next operator */
-    curtyp = G_tok->cur();
+    tc_toktyp_t curtyp = G_tok->cur();
 
     /* check to see if it's an assignment operator of some kind */
     switch(curtyp)
@@ -3003,7 +3275,7 @@ CTcPrsNode *CTcPrsOpAsi::parse() const
      *   right-hand side will contain all remaining assignment expressions
      *   incorporated into it.  
      */
-    rhs = parse();
+    CTcPrsNode *rhs = parse();
     if (rhs == 0)
         return 0;
 
@@ -3112,12 +3384,8 @@ CTcPrsNode *CTcPrsOpIfnil::parse() const
 
 CTcPrsNode *CTcPrsOpIf::parse() const
 {
-    CTcPrsNode *first;
-    CTcPrsNode *second;
-    CTcPrsNode *third;
-
     /* parse the conditional part */
-    first = S_op_ifnil.parse();
+    CTcPrsNode *first = S_op_ifnil.parse();
     if (first == 0)
         return 0;
 
@@ -3135,7 +3403,7 @@ CTcPrsNode *CTcPrsOpIf::parse() const
      *   steal away operands from a ',' before our ':' because that would
      *   leave the ':' with nothing to go with) 
      */
-    second = G_prs->parse_expr_or_dstr(TRUE);
+    CTcPrsNode *second = G_prs->parse_expr_or_dstr(TRUE);
     if (second == 0)
         return 0;
     
@@ -3162,7 +3430,7 @@ CTcPrsNode *CTcPrsOpIf::parse() const
      *   double-quoted string expression - but not a comma expression, since
      *   we have higher precedence than ',' 
      */
-    third = G_prs->parse_expr_or_dstr(FALSE);
+    CTcPrsNode *third = G_prs->parse_expr_or_dstr(FALSE);
     if (third == 0)
         return 0;
         
@@ -3303,7 +3571,7 @@ struct CTcEmbedBuilderDbl: CTcEmbedBuilder
     {
         /* wrap the expresion in a "say()" embedding node */
         sub = new CTPNDstrEmbed(sub);
-            
+        
         /*
          *   Build a node representing everything so far: do this by
          *   combining the sub-expression with everything preceding, using a
@@ -3325,12 +3593,13 @@ struct CTcEmbedBuilderDbl: CTcEmbedBuilder
          *   comma operator.  If the next string segment is empty, there's no
          *   need to add anything for it.  
          */
-        if (G_tok->getcur()->get_text_len() != 0)
+        size_t len = G_tok->getcur()->get_text_len();
+        if (len != 0)
         {
             /* create a node for the new string segment */
             CTcPrsNode *newstr = new CTPNDstr(
-                G_tok->getcur()->get_text(), G_tok->getcur()->get_text_len());
-
+                G_tok->getcur()->get_text(), len);
+            
             /* combine it into the part so far with a comma operator */
             cur = new CTPNComma(cur, newstr);
         }
@@ -3577,13 +3846,41 @@ CTcPrsNode *CTcPrsOpUnary::parse_embedding_list(
         }
         else
         {
-            /* no special syntax, so treat it as an expression */
+            /* 
+             *   No special syntax, so treat it as an expression.  First,
+             *   check for a sprintf format spec - e.g., <<%2d x>>
+             */
+            CTcToken fmttok(TOKT_INVALID);
+            if (tl->get_head()->gettyp() == TOKT_FMTSPEC)
+                tl->unlink_head(&fmttok);
+
+            /* parse the embedded expression */
             sub = parse_embedded_expr(b, tl);
             if (sub == 0)
                 return 0;
             
             /* we can't have an end token immediately after an expression */
             check_end = FALSE;
+
+            /* 
+             *   if we have a format spec, wrap the expression in a
+             *   sprintf node as sprintf(fmtspec, sub) 
+             */
+            if (fmttok.gettyp() == TOKT_FMTSPEC)
+            {
+                /* 
+                 *   set up the argument list - fmtspec string, sub (note
+                 *   that arg lists are built in reverse order) 
+                 */
+                CTcConstVal fmtcv;
+                fmtcv.set_sstr(&fmttok);
+                CTPNArg *args = new CTPNArg(sub);
+                args->set_next_arg(new CTPNArg(new CTPNConst(&fmtcv)));
+
+                /* set up the sprintf call */
+                sub = new CTPNCall(new CTPNSym("sprintf", 7),
+                                   new CTPNArglist(2, args));
+            }
         }
 
         /* if we have an embedding, add it */
@@ -4234,11 +4531,8 @@ CTcPrsNode *CTPNStrOneOfBase::fold_constants(CTcPrsSymtab *symtab)
 
 CTcPrsNode *CTcPrsOpUnary::parse() const
 {
-    CTcPrsNode *sub;
-    tc_toktyp_t op;
-    
     /* get the current token, which may be a prefix operator */
-    op = G_tok->cur();
+    tc_toktyp_t op = G_tok->cur();
 
     /* check for prefix operators */
     switch(op)
@@ -4257,50 +4551,57 @@ CTcPrsNode *CTcPrsOpUnary::parse() const
     case TOKT_INC:
     case TOKT_DEC:
     case TOKT_DELETE:
-        /* skip the operator */
-        G_tok->next();
-
-        /* 
-         *   recursively parse the unary expression to which to apply the
-         *   operator 
-         */
-        sub = parse();
-        if (sub == 0)
-            return 0;
-
-        /* apply the operator */
-        switch(op)
         {
-        case TOKT_NOT:
-            /* apply the NOT operator */
-            return parse_not(sub);
-
-        case TOKT_BNOT:
-            /* apply the bitwise NOT operator */
-            return parse_bnot(sub);
-
-        case TOKT_PLUS:
-            /* apply the unary positive operator */
-            return parse_pos(sub);
-
-        case TOKT_MINUS:
-            /* apply the unary negation operator */
-            return parse_neg(sub);
-
-        case TOKT_INC:
-            /* apply the pre-increment operator */
-            return parse_inc(TRUE, sub);
-
-        case TOKT_DEC:
-            /* apply the pre-decrement operator */
-            return parse_dec(TRUE, sub);
-
-        case TOKT_DELETE:
-            /* apply the deletion operator */
-            return parse_delete(sub);
-
-        default:
-            break;
+            /* skip the operator */
+            G_tok->next();
+            
+            /* 
+             *   recursively parse the unary expression to which to apply the
+             *   operator 
+             */
+            CTcPrsNode *sub = parse();
+            if (sub == 0)
+                return 0;
+            
+            /* apply the operator */
+            switch(op)
+            {
+            case TOKT_NOT:
+                /* apply the NOT operator */
+                return parse_not(sub);
+                
+            case TOKT_BNOT:
+                /* apply the bitwise NOT operator */
+                return parse_bnot(sub);
+                
+            case TOKT_PLUS:
+                /* apply the unary positive operator */
+                return parse_pos(sub);
+                
+            case TOKT_MINUS:
+                /* apply the unary negation operator */
+                return parse_neg(sub);
+                
+            case TOKT_INC:
+                /* apply the pre-increment operator */
+                return parse_inc(TRUE, sub);
+                
+            case TOKT_DEC:
+                /* apply the pre-decrement operator */
+                return parse_dec(TRUE, sub);
+                
+            case TOKT_DELETE:
+                /* apply the deletion operator */
+                return parse_delete(sub);
+                
+            default:
+                /* 
+                 *   we shouldn't ever get here, since this switch should
+                 *   contain every case that brought us into it in the first
+                 *   place
+                 */
+                return 0;
+            }
         }
 
     default:
@@ -4314,10 +4615,8 @@ CTcPrsNode *CTcPrsOpUnary::parse() const
  */
 CTcPrsNode *CTcPrsOpUnary::parse_not(CTcPrsNode *subexpr)
 {
-    CTcPrsNode *ret;
-
     /* try folding a constant value */
-    ret = eval_const_not(subexpr);
+    CTcPrsNode *ret = eval_const_not(subexpr);
 
     /* 
      *   if we got a constant result, return it; otherwise, create a NOT
@@ -4495,29 +4794,56 @@ CTcPrsNode *CTcPrsOpUnary::parse_neg(CTcPrsNode *subexpr)
     if (subexpr->is_const())
     {
         /* we need an integer or float */
-        if (subexpr->get_const_val()->get_type() == TC_CVT_INT)
+        CTcConstVal *cval = subexpr->get_const_val();
+        if (cval->get_type() == TC_CVT_INT)
         {
-            /* set the value negative in the subexpression */
-            subexpr->get_const_val()
-                ->set_int(-(subexpr->get_const_val()->get_val_int()));
+            /* 
+             *   Negating an integer.  There's a special overflow case to
+             *   check for: if we're negating INT32MINVAL, the result doesn't
+             *   fit in a signed integer, so we need to promote it to float. 
+             */
+            long l = cval->get_val_int();
+            if (l <= INT32MINVAL)
+            {
+                /* overflow - promote to BigNumber */
+                vbignum_t b((ulong)2147483648U);
+                cval->set_float(&b, TRUE);
+            }
+            else
+            {
+                /* set the value negative in the subexpression */
+                cval->set_int(-l);
+            }
         }
         else if (subexpr->get_const_val()->get_type() == TC_CVT_FLOAT)
         {
-            CTcConstVal *cval = subexpr->get_const_val();
-            char *new_txt;
-            
-            /* allocate a buffer for a copy of the float text plus a '-' */
-            new_txt = (char *)G_prsmem->alloc(cval->get_val_float_len() + 1);
+            /* get the original value */
+            const char *ctxt = cval->get_val_float();
+            size_t clen = cval->get_val_float_len();
 
-            /* insert the minus sign */
-            new_txt[0] = '-';
+            /* if the old value is negative, simply remove the sign */
+            if (clen > 0 && ctxt[0] == '-')
+            {
+                /* keep the old value, removing the sign */
+                cval->set_float(ctxt + 1, clen - 1, cval->is_promoted());
+            }
+            else
+            {
+                /* allocate new buffer for the float text plus a '-' */
+                char *new_txt = (char *)G_prsmem->alloc(clen + 1);
 
-            /* add the original string */
-            memcpy(new_txt + 1, cval->get_val_float(),
-                   cval->get_val_float_len());
+                /* insert the minus sign */
+                new_txt[0] = '-';
 
-            /* update the subexpression's constant value to the new text */
-            cval->set_float(new_txt, cval->get_val_float_len() + 1);
+                /* add the original string */
+                memcpy(new_txt + 1, ctxt, clen);
+
+                /* update the subexpression's constant value to the new text */
+                cval->set_float(new_txt, clen + 1, cval->is_promoted());
+            }
+
+            /* check for possible demotion back to int */
+            cval->demote_float();
         }
         else
         {
@@ -4565,7 +4891,7 @@ CTcPrsNode *CTcPrsOpUnary::parse_dec(int pre, CTcPrsNode *subexpr)
     {
         /* log an error, but continue parsing */
         G_tok->log_error(TCERR_INVALID_UNARY_LVALUE,
-                         G_tok->get_op_text(TOKT_INC));
+                         G_tok->get_op_text(TOKT_DEC));
     }
 
     /* apply the pre-increment operator */
@@ -4874,6 +5200,97 @@ CTcPrsNode *CTcPrsOpUnary::parse_call(CTcPrsNode *lhs)
         }
     }
 
+    /* check for the special "__objref" syntax */
+    if (lhs != 0 && lhs->sym_text_matches("__objref", 8))
+    {
+        /* assume we won't generate an error or warning if it's undefined */
+        int errhandling = 0;
+
+        /* get the rightmost argument */
+        CTPNArg *curarg = arglist->get_arg_list_head();
+
+        /* if we have other than two arguments, it's an error */
+        if (arglist->get_argc() > 2)
+        {
+            G_tok->log_error(TCERR___OBJREF_SYNTAX);
+            return lhs;
+        }
+
+        /* if we have two arguments, get the warning/error mode */
+        if (arglist->get_argc() == 2)
+        {
+            /* get the argument, and skip to the next to the left */
+            CTcPrsNode *arg = curarg->get_arg_expr();
+            curarg = curarg->get_next_arg();
+
+            /* it has to be "warn" or "error" */
+            if (arg->sym_text_matches("warn", 4))
+            {
+                errhandling = 1;
+            }
+            else if (arg->sym_text_matches("error", 5))
+            {
+                errhandling = 2;
+            }
+            else
+            {
+                G_tok->log_error(TCERR___OBJREF_SYNTAX);
+                return lhs;
+            }
+        }
+
+        /* the first argument must be a symbol */
+        CTcPrsNode *arg = curarg->get_arg_expr();
+        if (arg->get_sym_text() != 0)
+        {
+            /* look up the symbol */
+            CTcSymbol *sym = G_prs->get_global_symtab()->find(
+                arg->get_sym_text(), arg->get_sym_text_len());
+            
+            /* 
+             *   The result is the object reference value if the symbol is
+             *   defined as an object, or nil if it's undefined or something
+             *   other than an object.
+             */
+            CTcConstVal cval;
+            if (sym != 0 && sym->get_type() == TC_SYM_OBJ)
+            {
+                /* it's an object - the result is the object symbol */
+                return arg;
+            }
+            else
+            {
+                /* log a warning or error, if applicable */
+                if (errhandling != 0 && !G_prs->get_syntax_only())
+                {
+                    /* note whether it's undefined or otherwise defined */
+                    int errcode =
+                        (sym == 0 ? TCERR_UNDEF_SYM : TCERR_SYM_NOT_OBJ);
+
+                    /* log an error or warning, as desired */
+                    if (errhandling == 1)
+                        G_tok->log_warning(
+                            errcode, (int)arg->get_sym_text_len(),
+                            arg->get_sym_text());
+                    else
+                        G_tok->log_error(
+                            errcode, (int)arg->get_sym_text_len(),
+                            arg->get_sym_text());
+                }
+                
+                /* not defined or non-object - the result is nil */
+                cval.set_bool(FALSE);
+                cval.set_ctc(TRUE);
+                return new CTPNConst(&cval);
+            }
+        }
+        else
+        {
+            /* invalid syntax */
+            G_tok->log_error(TCERR___OBJREF_SYNTAX);
+        }
+    }
+
     /* build and return the function call node */
     return new CTPNCall(lhs, arglist);
 }
@@ -4919,49 +5336,66 @@ CTcPrsNode *CTcPrsOpUnary::parse_subscript(CTcPrsNode *lhs)
 /*
  *   Evaluate a constant subscript value 
  */
-CTcPrsNode *CTcPrsOpUnary::eval_const_subscript(CTcPrsNode *lhs,
-                                                CTcPrsNode *subscript)
+CTcPrsNode *CTcPrsOpUnary::eval_const_subscript(
+    CTcPrsNode *lhs, CTcPrsNode *subscript)
 {
+    /* assume we won't be able to evaluate this as a constant */
+    CTcPrsNode *c = 0;
+
     /* 
      *   if we're subscripting a constant list by a constant index value,
      *   we can evaluate a constant result 
      */
     if (lhs->is_const() && subscript->is_const())
     {
-        long idx;
-        CTcPrsNode *ele;
+        /* check the type of value we're indexing */
+        switch (lhs->get_const_val()->get_type())
+        {
+        case TC_CVT_LIST:
+            /* 
+             *   It's a constant list.  Lists can only be indexed by integer
+             *   values. 
+             */
+            if (subscript->get_const_val()->get_type() == TC_CVT_INT)
+            {
+                /* 
+                 *   it's an integer - index the constant list by the
+                 *   constant subscript to get the element value, which
+                 *   replaces the entire list-and-index expression
+                 */
+                c = lhs->get_const_val()->get_val_list()->get_const_ele(
+                    subscript->get_const_val()->get_val_int());
+            }
+            else
+            {
+                /* a list index must be an integer */
+                G_tok->log_error(TCERR_CONST_IDX_NOT_INT);
+            }
+            break;
 
-        /* 
-         *   make sure the index value is an integer and the value being
-         *   indexed is a list; if either type is wrong, the indexing
-         *   expression is invalid 
-         */
-        if (subscript->get_const_val()->get_type() != TC_CVT_INT)
-        {
-            /* we can't use a non-integer expression as a list index */
-            G_tok->log_error(TCERR_CONST_IDX_NOT_INT);
-        }
-        else if (lhs->get_const_val()->get_type() != TC_CVT_LIST)
-        {
-            /* we can't index any constant type other than list */
+        case TC_CVT_SSTR:
+        case TC_CVT_OBJ:
+        case TC_CVT_FUNCPTR:
+        case TC_CVT_ANONFUNCPTR:
+        case TC_CVT_FLOAT:
+            /* 
+             *   these types don't define indexing as a native operator, but
+             *   it's possible for this to be meaningful at run-time via
+             *   operator overloading; simply leave the constant expression
+             *   unevaluated so that we generate code to perform the index
+             *   operation at run-time 
+             */
+            break;
+            
+        default:
+            /* other types definitely cannot be indexed */
             G_tok->log_error(TCERR_CONST_IDX_INV_TYPE);
-        }
-        else
-        {
-            /* get the index value */
-            idx = subscript->get_const_val()->get_val_int();
-
-            /* ask the list to look up the item by index */
-            ele = lhs->get_const_val()->get_val_list()->get_const_ele(idx);
-
-            /* if we got a valid result, return it */
-            if (ele != 0)
-                return ele;
+            break;
         }
     }
-
-    /* we couldn't fold it to a constant expression */
-    return 0;
+    
+    /* return the constant result, if any */
+    return c;
 }
 
 /*
@@ -5135,34 +5569,36 @@ CTcPrsNode *CTcPrsOpUnary::parse_primary()
         {
         case TOKT_LBRACE:
             /* short form of anonymous function */
-            return parse_anon_func(TRUE);
+            return parse_anon_func(TRUE, FALSE);
 
-        case TOKT_FUNCTION:
         case TOKT_METHOD:
-            /* anonymous function formerly required 'new', but no longer */
-            // G_tok->log_error(TCERR_ANON_FUNC_REQ_NEW);
+            /* parse an anonymous method */
+            return parse_anon_func(FALSE, TRUE);
             
-            /* 
-             *   parse it as an anonymous function anyway, even though the
-             *   syntax isn't quite correct - the rest of it might still
-             *   be okay, so we can at least continue parsing from here to
-             *   find out 
-             */
-            return parse_anon_func(FALSE);
+        case TOKT_FUNCTION:
+            /* parse an anonymous function */
+            return parse_anon_func(FALSE, FALSE);
+
+        case TOKT_OBJECT:
+            /* in-line object definition */
+            return parse_inline_object(FALSE);
 
         case TOKT_NEW:
             /* skip the operator and check for 'function' or 'method' */
-            if ((t = G_tok->next()) == TOKT_FUNCTION || t == TOKT_METHOD)
+            if ((t = G_tok->next()) == TOKT_FUNCTION)
             {
                 /* it's an anonymous function definition - go parse it */
-                sub = parse_anon_func(FALSE);
+                sub = parse_anon_func(FALSE, FALSE);
+            }
+            else if (t == TOKT_METHOD)
+            {
+                /* anonymous method */
+                sub = parse_anon_func(FALSE, TRUE);
             }
             else
             {
-                int trans;
-                
                 /* check for the 'transient' keyword */
-                trans = (G_tok->cur() == TOKT_TRANSIENT);
+                int trans = (G_tok->cur() == TOKT_TRANSIENT);
                 if (trans)
                     G_tok->next();
                 
@@ -5225,21 +5661,22 @@ CTcPrsNode *CTcPrsOpUnary::parse_primary()
             goto return_constant;
             
         case TOKT_INT:
-            /* integer - the result is a constant integer value */
+            /* integer constant value */
             cval.set_int(G_tok->getcur()->get_int_val());
-
-            /* warn on overflow */
-            if (G_tok->getcur()->get_int_overflow()
-                && !G_prs->get_syntax_only())
-                G_tok->log_warning(TCERR_INT_CONST_OV);
-
-            /* return the constant */
             goto return_constant;
 
         case TOKT_FLOAT:
-            /* floating point number */
+            /* floating point constant value */
             cval.set_float(G_tok->getcur()->get_text(),
-                           G_tok->getcur()->get_text_len());
+                           G_tok->getcur()->get_text_len(),
+                           FALSE);
+            goto return_constant;
+
+        case TOKT_BIGINT:
+            /* an integer constant promoted to float due to overflow */
+            cval.set_float(G_tok->getcur()->get_text(),
+                           G_tok->getcur()->get_text_len(),
+                           TRUE);
             goto return_constant;
             
         case TOKT_SSTR:
@@ -5272,6 +5709,11 @@ CTcPrsNode *CTcPrsOpUnary::parse_primary()
             /* return the new node */
             return sub;
             
+        case TOKT_RESTR:
+            /* regular expression string */
+            cval.set_restr(G_tok->getcur());
+            goto return_constant;
+
         case TOKT_DSTR_START:
             /* a string implicitly references 'self' */
             G_prs->set_self_referenced(TRUE);
@@ -5460,7 +5902,7 @@ CTcPrsNode *CTcPrsOpUnary::parse_primary()
                         /* generate a fake symbol for the function */
                         CTcSymFunc *sym = new CTcSymFunc(
                             ".anon", 5, FALSE, 0, 0, FALSE, FALSE,
-                            FALSE, FALSE, FALSE);
+                            FALSE, FALSE, FALSE, TRUE);
 
                         /* set the absolute address */
                         sym->set_abs_addr(i);
@@ -5701,9 +6143,6 @@ CTcPrsNode *CTcPrsOpUnary::parse_inherited()
  */
 CTcPrsNode *CTcPrsOpUnary::parse_delegated()
 {
-    CTcPrsNode *lhs;
-    CTcPrsNode *target;
-
     /* 'delegated' always references 'self' */
     G_prs->set_self_referenced(TRUE);
 
@@ -5719,10 +6158,10 @@ CTcPrsNode *CTcPrsOpUnary::parse_delegated()
      *   expression, not to a subexpression involving a function/method
      *   call.  
      */
-    target = parse_postfix(FALSE, FALSE);
+    CTcPrsNode *target = parse_postfix(FALSE, FALSE);
 
     /* set up the "delegated" node */
-    lhs = new CTPNDelegated(target);
+    CTcPrsNode *lhs = new CTPNDelegated(target);
 
     /* return the rest as a normal member expression */
     return parse_member(lhs);
@@ -5733,9 +6172,10 @@ CTcPrsNode *CTcPrsOpUnary::parse_delegated()
  */
 CTcPrsNode *CTcPrsOpUnary::parse_list()
 {
-    CTPNList *lst;
-    CTcPrsNode *ele;
+    /* assume this isn't a lookup table (with "key->val" pairs) */
     int is_lookup_table = FALSE;
+
+    /* we're not at the default value for a lookup table ("*->val") */
     int at_def_val = FALSE;
 
     /* set up a nil value for adding placeholders (for error recovery) */
@@ -5749,7 +6189,7 @@ CTcPrsNode *CTcPrsOpUnary::parse_list()
      *   create the list expression -- we'll add elements to the list as
      *   we parse the elements
      */
-    lst = new CTPNList();
+    CTPNList *lst = new CTPNList();
 
     /* scan all list elements */
     for (;;)
@@ -5831,7 +6271,7 @@ CTcPrsNode *CTcPrsOpUnary::parse_list()
          *   below a comma expression, because commas can be used to
          *   separate list elements.  
          */
-        ele = S_op_asi.parse();
+        CTcPrsNode *ele = S_op_asi.parse();
         if (ele == 0)
             return 0;
         
@@ -7723,10 +8163,9 @@ void CTcSymLocalBase::check_local_references()
  */
 CTcSymbol *CTcSymLocalBase::new_ctx_var() const
 {
-    CTcSymLocal *lcl;
-    
     /* create a new local with the same name */
-    lcl = new CTcSymLocal(get_sym(), get_sym_len(), FALSE, FALSE, 0);
+    CTcSymLocal *lcl = new CTcSymLocal(
+        get_sym(), get_sym_len(), FALSE, FALSE, 0);
 
     /* refer the copy back to the original (i.e., me) */
     lcl->set_ctx_orig((CTcSymLocal *)this);
@@ -7759,8 +8198,8 @@ CTcSymbol *CTcSymLocalBase::new_ctx_var() const
 /*
  *   Apply context variable conversion 
  */
-int CTcSymLocalBase::apply_ctx_var_conv(CTcPrsSymtab *symtab,
-                                        CTPNCodeBody *code_body)
+int CTcSymLocalBase::apply_ctx_var_conv(
+    CTcPrsSymtab *symtab, CTPNCodeBody *code_body)
 {
     /* 
      *   if this symbol isn't referenced, simply delete it from the table,
@@ -7914,10 +8353,8 @@ CTcPrsNode *CTcSymObjBase::fold_constant()
  */
 void CTcSymObjBase::add_sc_name_entry(const char *txt, size_t len)
 {
-    CTPNSuperclass *entry;
-
     /* create the entry object */
-    entry = new CTPNSuperclass(txt, len);
+    CTPNSuperclass *entry = new CTPNSuperclass(txt, len);
 
     /* link it into our list */
     if (sc_name_tail_ != 0)
@@ -7932,19 +8369,16 @@ void CTcSymObjBase::add_sc_name_entry(const char *txt, size_t len)
  */
 int CTcSymObjBase::has_superclass(class CTcSymObj *sc_sym) const
 {
-    CTPNSuperclass *entry;
-
     /* 
      *   Scan my direct superclasses.  For each one, check to see if my
      *   superclass matches the given superclass, or if my superclass
      *   inherits from the given superclass.  
      */
-    for (entry = sc_name_head_ ; entry != 0 ; entry = entry->nxt_)
+    for (CTPNSuperclass *entry = sc_name_head_ ; entry != 0 ;
+         entry = entry->nxt_)
     {
-        CTcSymObj *entry_sym;
-
         /* look up this symbol */
-        entry_sym = (CTcSymObj *)G_prs->get_global_symtab()->find(
+        CTcSymObj *entry_sym = (CTcSymObj *)G_prs->get_global_symtab()->find(
             entry->get_sym_txt(), entry->get_sym_len());
 
         /* 
@@ -7984,10 +8418,8 @@ int CTcSymObjBase::has_superclass(class CTcSymObj *sc_sym) const
 void CTcSymObjBase::add_del_prop_to_list(CTcObjPropDel **list_head,
                                          CTcSymProp *prop_sym)
 {
-    CTcObjPropDel *entry;
-
     /* create the new entry */
-    entry = new CTcObjPropDel(prop_sym);
+    CTcObjPropDel *entry = new CTcObjPropDel(prop_sym);
 
     /* link it into my list */
     entry->nxt_ = *list_head;
@@ -8009,10 +8441,8 @@ void CTcSymObjBase::add_self_ref_fixup(CTcDataStream *stream, ulong ofs)
 void CTcSymObjBase::add_vocab_word(const char *txt, size_t len,
                                    tctarg_prop_id_t prop)
 {
-    CTcVocabEntry *entry;
-    
     /* create a new vocabulary entry */
-    entry = new (G_prsmem) CTcVocabEntry(txt, len, prop);
+    CTcVocabEntry *entry = new (G_prsmem) CTcVocabEntry(txt, len, prop);
 
     /* link it into my list */
     entry->nxt_ = vocab_;
@@ -8024,12 +8454,9 @@ void CTcSymObjBase::add_vocab_word(const char *txt, size_t len,
  */
 void CTcSymObjBase::delete_vocab_prop(tctarg_prop_id_t prop)
 {
-    CTcVocabEntry *entry;
-    CTcVocabEntry *prv;
-    CTcVocabEntry *nxt;
-    
     /* scan my list and delete each word defined for the given property */
-    for (prv = 0, entry = vocab_ ; entry != 0 ; entry = nxt)
+    for (CTcVocabEntry *prv = 0, *entry = vocab_, *nxt = 0 ;
+         entry != 0 ; entry = nxt)
     {
         /* remember the next entry */
         nxt = entry->nxt_;
@@ -8075,8 +8502,6 @@ void CTcSymObjBase::delete_vocab_prop(tctarg_prop_id_t prop)
  */
 void CTcSymObjBase::inherit_vocab()
 {
-    CTcObjScEntry *sc;
-
     /* 
      *   if I've already inherited my superclass vocabulary, there's
      *   nothing more we need to do 
@@ -8088,7 +8513,7 @@ void CTcSymObjBase::inherit_vocab()
     vocab_inherited_ = TRUE;
 
     /* inherit words from each superclass */
-    for (sc = sc_ ; sc != 0 ; sc = sc->nxt_)
+    for (CTcObjScEntry *sc = sc_ ; sc != 0 ; sc = sc->nxt_)
     {
         /* make sure this superclass has built its inherited list */
         sc->sym_->inherit_vocab();
@@ -8103,10 +8528,8 @@ void CTcSymObjBase::inherit_vocab()
  */
 void CTcSymObjBase::add_vocab_to_subclass(CTcSymObj *sub)
 {
-    CTcVocabEntry *entry;
-
     /* add each of my words to the subclass */
-    for (entry = vocab_ ; entry != 0 ; entry = entry->nxt_)
+    for (CTcVocabEntry *entry = vocab_ ; entry != 0 ; entry = entry->nxt_)
     {
         /* add this word to my dictionary */
         sub->add_vocab_word(entry->txt_, entry->len_, entry->prop_);
@@ -8172,13 +8595,12 @@ void CTcSymObjBase::add_template(CTcObjTemplate *tpl)
 /*
  *   add a property 
  */
-void CTcSymMetaclassBase::add_prop(const char *txt, size_t len,
-                                   const char *obj_fname, int is_static)
+void CTcSymMetaclassBase::add_prop(
+    const char *txt, size_t len, const char *obj_fname, int is_static)
 {
-    CTcSymProp *prop_sym;
-
     /* see if this property is already defined */
-    prop_sym = (CTcSymProp *)G_prs->get_global_symtab()->find(txt, len);
+    CTcSymProp *prop_sym =
+        (CTcSymProp *)G_prs->get_global_symtab()->find(txt, len);
     if (prop_sym != 0)
     {
         /* it's already defined - make sure it's a property */
@@ -8235,10 +8657,8 @@ void CTcSymMetaclassBase::add_prop(const char *txt, size_t len,
  */
 void CTcSymMetaclassBase::add_prop(class CTcSymProp *prop, int is_static)
 {
-    CTcSymMetaProp *entry;
-
     /* create a new list entry for the property */
-    entry = new (G_prsmem) CTcSymMetaProp(prop, is_static);
+    CTcSymMetaProp *entry = new (G_prsmem) CTcSymMetaProp(prop, is_static);
     
     /* link it at the end of our list */
     if (prop_tail_ != 0)
@@ -8256,9 +8676,8 @@ void CTcSymMetaclassBase::add_prop(class CTcSymProp *prop, int is_static)
  */
 CTcSymMetaProp *CTcSymMetaclassBase::get_nth_prop(int n) const
 {
-    CTcSymMetaProp *prop;
-    
     /* traverse the list to the desired index */
+    CTcSymMetaProp *prop;
     for (prop = prop_head_ ; prop != 0 && n != 0 ; prop = prop->nxt_, --n) ;
 
     /* return the property */
@@ -8294,9 +8713,8 @@ CTcPrsNode *CTcSymPropBase::fold_addr_const()
  */
 CTcPrsNode *CTcSymEnumBase::fold_constant()
 {
-    CTcConstVal cval;
-
     /* set up the enumerator constant */
+    CTcConstVal cval;
     cval.set_enum(get_enum_id());
 
     /* return a constant node */
@@ -8314,9 +8732,8 @@ CTcPrsNode *CTcSymEnumBase::fold_constant()
  */
 void CVmHashEntryPrsDict::add_item(tc_obj_id obj, tc_prop_id prop)
 {
-    CTcPrsDictItem *item;
-
     /* search my list for an existing association to the same obj/prop */
+    CTcPrsDictItem *item;
     for (item = list_ ; item != 0 ; item = item->nxt_)
     {
         /* if it matches, we don't need to add this one again */
@@ -8341,13 +8758,11 @@ void CVmHashEntryPrsDict::add_item(tc_obj_id obj, tc_prop_id prop)
 /*
  *   instantiate 
  */
-CTPNCodeBodyBase::CTPNCodeBodyBase(CTcPrsSymtab *lcltab,
-                                   CTcPrsSymtab *gototab, CTPNStm *stm,
-                                   int argc, int opt_argc, int varargs,
-                                   int varargs_list,
-                                   CTcSymLocal *varargs_list_local,
-                                   int local_cnt, int self_valid,
-                                   CTcCodeBodyRef *enclosing_code_body)
+CTPNCodeBodyBase::CTPNCodeBodyBase(
+    CTcPrsSymtab *lcltab, CTcPrsSymtab *gototab, CTPNStm *stm,
+    int argc, int opt_argc, int varargs,
+    int varargs_list, CTcSymLocal *varargs_list_local, int local_cnt,
+    int self_valid, CTcCodeBodyRef *enclosing_code_body)
 {
     /* remember the data in the code body */
     lcltab_ = lcltab;
@@ -8490,9 +8905,8 @@ void CTPNCodeBodyBase::add_abs_fixup(CTcDataStream *ds)
  */
 int CTPNCodeBodyBase::get_or_add_ctx_var_for_level(int level)
 {
-    CTcCodeBodyCtx *ctx;
-    
     /* scan our list to see if the level is already assigned */
+    CTcCodeBodyCtx *ctx;
     for (ctx = ctx_head_ ; ctx != 0 ; ctx = ctx->nxt_)
     {
         /* if we've already set up this level, return its variable */
@@ -8502,7 +8916,7 @@ int CTPNCodeBodyBase::get_or_add_ctx_var_for_level(int level)
 
     /* we didn't find it - allocate a new level structure */
     ctx = new (G_prsmem) CTcCodeBodyCtx();
-
+    
     /* set up its level and allocate a new variable and property for it */
     ctx->level_ = level;
     ctx->var_num_ = G_prs->alloc_ctx_holder_var();
@@ -8531,8 +8945,6 @@ int CTPNCodeBodyBase::get_or_add_ctx_var_for_level(int level)
  */
 int CTPNCodeBodyBase::get_ctx_var_for_level(int level, int *varnum)
 {
-    CTcCodeBodyCtx *ctx;
-
     /* if they want level zero, it's our local context */
     if (level == 0)
     {
@@ -8544,7 +8956,7 @@ int CTPNCodeBodyBase::get_ctx_var_for_level(int level, int *varnum)
     }
 
     /* scan our list to see if the level is already assigned */
-    for (ctx = ctx_head_ ; ctx != 0 ; ctx = ctx->nxt_)
+    for (CTcCodeBodyCtx *ctx = ctx_head_ ; ctx != 0 ; ctx = ctx->nxt_)
     {
         /* if we've already set up this level, return its variable */
         if (ctx->level_ == level)
@@ -8624,6 +9036,20 @@ class CTcSymFunc *CTPNCodeBodyBase::get_replaced_func() const
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Anonymous function 
+ */
+
+/*
+ *   mark as replaced/obsolete 
+ */
+void CTPNAnonFuncBase::set_replaced(int flag)
+{
+    if (code_body_ != 0)
+        code_body_->set_replaced(flag);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Generic statement node 
  */
 
@@ -8680,26 +9106,6 @@ void CTPNStmBase::gen_code_substm(CTPNStm *substm)
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Object Definition Statement 
- */
-
-/*
- *   fold constants 
- */
-CTcPrsNode *CTPNStmObjectBase::fold_constants(CTcPrsSymtab *symtab)
-{
-    CTPNObjProp *prop;
-
-    /* fold constants in each of our property list entries */
-    for (prop = first_prop_ ; prop != 0 ; prop = prop->nxt_)
-        prop->fold_constants(symtab);
-
-    /* we're not changed directly by this */
-    return this;
-}
-
-/* ------------------------------------------------------------------------ */
-/*
  *   superclass record
  */
 
@@ -8721,9 +9127,6 @@ CTcSymbol *CTPNSuperclass::get_sym() const
  */
 int CTPNSuperclass::is_subclass_of(const CTPNSuperclass *other) const
 {
-    CTcSymObj *sym;
-    CTPNSuperclass *sc;
-
     /* 
      *   if my name matches, we're a subclass (we are a subclass of
      *   ourselves) 
@@ -8738,14 +9141,15 @@ int CTPNSuperclass::is_subclass_of(const CTPNSuperclass *other) const
      *   tads-object - if it's not, we're definitely not a subclass of
      *   anything.  
      */
-    sym = (CTcSymObj *)get_sym();
+    CTcSymObj *sym = (CTcSymObj *)get_sym();
     if (sym == 0
         || sym->get_type() != TC_SYM_OBJ
         || sym->get_metaclass() != TC_META_TADSOBJ)
         return FALSE;
 
     /* scan our symbol's superclass list for a match */
-    for (sc = sym->get_sc_name_head() ; sc != 0 ; sc = sc->nxt_)
+    for (CTPNSuperclass *sc = sym->get_sc_name_head() ;
+         sc != 0 ; sc = sc->nxt_)
     {
         /* 
          *   if this one's a subclass of the given class, we're a subclass

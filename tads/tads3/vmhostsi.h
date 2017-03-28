@@ -60,8 +60,8 @@ public:
         net_server_safety_ = server_level;
     }
 
-    /* get the resource loader */
-    virtual class CResLoader *get_cmap_res_loader() { return cmap_loader_; }
+    /* get the system resource loader */
+    virtual class CResLoader *get_sys_res_loader() { return sys_res_loader_; }
 
     /* get the resource path */
     virtual const char *get_res_path() { return 0; }
@@ -82,8 +82,8 @@ protected:
      */
     char *argv0_;
 
-    /* character mapping file resource loader */
-    class CResLoader *cmap_loader_;
+    /* system resource loader (character maps, etc) */
+    class CResLoader *sys_res_loader_;
 
     /* current I/O safety levels */
     int io_safety_read_;

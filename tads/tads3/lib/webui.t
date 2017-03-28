@@ -23,7 +23,7 @@
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Session timeout settings.  All times are in milliseconds.
+ *   Session timeout settings.  Times are in milliseconds.
  */
 
 /* 
@@ -951,7 +951,7 @@ class WebResource: object
  *   You can expose *all* bundled resources in the entire game simply by
  *   creating an object like this:
  *   
- *.     WebResourceFile
+ *.     WebResourceResFile
  *.         vpath = static new RexPattern('/')
  *.     ;
  *   
@@ -969,7 +969,7 @@ class WebResource: object
  *   You can also expose resources on a directory-by-directory basis,
  *   simply by specifying a longer path prefix:
  *   
- *.     WebResourceFile
+ *.     WebResourceResFile
  *.         vpath = static new RexPattern('/graphics/')
  *.     ;
  *   
@@ -1024,8 +1024,16 @@ class WebResourceResFile: WebResource
          */
         local mimeType = browserExtToMime[ext];
 
-        /* send the file's contents */
-        req.sendReply(fp, mimeType);
+        /* 
+         *   Send the file's contents.  Since resource files can be large
+         *   (e.g., images or audio files), send the reply asynchronously
+         *   so that we don't block other requests while the file is being
+         *   downloaded.  Browsers typically download multimedia resources
+         *   in background threads so that the UI remains responsive during
+         *   large downloads, so we have to be prepared to handle these
+         *   overlapped requests while a download proceeds.
+         */
+        req.sendReplyAsync(fp, mimeType);
 
         /* done with the file */
         fp.closeFile();
@@ -1806,6 +1814,9 @@ class WebLayoutWindow: WebWindow
      *   Create a new window within the layout.  This creates an IFRAME in
      *   the browser, laid out according to the 'pos' argument, and
      *   displays the given window object within the frame.
+     *   
+     *   If the window already exists, this updates the window with the new
+     *   layout settings.
      *   
      *   'win' is a WebWindow object that will be displayed within the
      *   IFRAME.  This method automatically loads the HTML resource from

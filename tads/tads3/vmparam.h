@@ -27,15 +27,15 @@ Modified
 #define VMPARAM_H
 
 /*
- *   Error stack size.  This is the number of bytes allocated for the
- *   internal exception mechanism; this space is consumed to hold C++
- *   exception objects and their parameter data each time err_throw() is
- *   used to throw an exception.
+ *   Error stack size.  This is the number of bytes allocated per thread for
+ *   our custom exception mechanism (see vmerr.h).  err_throw() uses this
+ *   space to store our custom exception structures and their parameters 
  *   
- *   This limit does not affect exception handling for VM byte code, which
- *   uses the VM stack and VM objects.  This parameter is related only to
- *   our internal exception handling mechanism.  It is unlikely that this
- *   parameter will need to be modified on any platform. 
+ *   This limit doesn't affect exception handling for VM byte code, which
+ *   uses the VM stack and VM objects.  This parameter only affects our
+ *   internal exception handling mechanism at the C++ level (err_try,
+ *   err_catch, etc).  It's unlikely that this will need to be modified for
+ *   porting.
  */
 #ifndef VM_ERR_STACK_SIZE
 # define VM_ERR_STACK_BYTES  1024

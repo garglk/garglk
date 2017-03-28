@@ -475,3 +475,9 @@ div.menuShadow {
     opacity: 0.60;
     filter: alpha(opacity=60);
 }
+
+div#__TADS_swf_div {
+    position: absolute;
+    left: -10000px;
+    top: -10000px;
+}

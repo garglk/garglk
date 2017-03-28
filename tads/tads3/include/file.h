@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright (c) 2001, 2006 Michael J. Roberts
@@ -8,8 +9,6 @@
  *   This header defines the File intrinsic class.  
  */
 
-#ifndef _FILE_H_
-#define _FILE_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -22,6 +21,8 @@
 #include "charset.h"
 #include "bytearr.h"
 
+/* if we're using File objects, we probably want FileName objects as well */
+#include "filename.h"
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -459,11 +460,17 @@ intrinsic class File 'file/030003': Object
     /*
      *   Extract the file's "root name" from the given filename string.  This
      *   returns a new string giving the portion of the filename excluding
-     *   any directory path.  For example, given the filename 'a/b/c.txt', if
-     *   you're running on a Unix or Linux machine, the function returns
-     *   'c.txt'.  Different operating systems have different conventions;
-     *   this function applies the local naming rules at run time for the OS
-     *   that the program is actually running on.  
+     *   any directory path.  This parses the filename according to the local
+     *   file system's syntax rules.  For example, given the filename
+     *   'a/b/c.txt', if you're running on a Unix or Linux machine, the
+     *   function returns 'c.txt'.
+     *   
+     *   Note that this function doesn't attempt to open the file or check
+     *   for its existence or validity; it simply parses the name according
+     *   to the local syntax conventions.
+     *   
+     *   (It's recommended that you use the newer FileName.getBaseName() in
+     *   place of this function.)
      */
     static getRootName(filename);
 
@@ -474,6 +481,9 @@ intrinsic class File 'file/030003': Object
      *   
      *   The file can only be deleted if the file safety level would allow
      *   you to write to the file; if not, a file safety exception is thrown.
+     *   
+     *   (It's recommended that you use the newer FileName.deleteFile() in
+     *   place of this function.)
      */
     static deleteFile(filename);
 
@@ -641,5 +651,3 @@ intrinsic class TemporaryFile 'tempfile/030000': Object
 export getFilename 'FileSpec.getFilename';
 export closeFile 'FileSpec.closeFile';
 
-
-#endif /* _FILE_H_ */

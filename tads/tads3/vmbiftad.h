@@ -25,20 +25,11 @@ Modified
 
 /* ------------------------------------------------------------------------ */
 /*
- *   Random number generator configuration.  Define one of the following
- *   configuration variables to select a random number generation
- *   algorithm:
- *   
- *   VMBIFTADS_RNG_LCG - linear congruential generator
- *.  VMBIFTADS_RNG_ISAAC - ISAAC (cryptographic hash generator) 
+ *   Include headers for our selectable Random Number Generator algorithms.
  */
-
-/* use ISAAC */
-#define VMBIFTADS_RNG_ISAAC
-
-#ifdef VMBIFTADS_RNG_ISAAC
 #include "vmisaac.h"
-#endif
+#include "vmmersenne.h"
+
 
 
 /* ------------------------------------------------------------------------ */
@@ -78,14 +69,39 @@ public:
     static void make_string(VMG_ uint argc);
     static void get_func_params(VMG_ uint argc);
     static void sprintf(VMG_ uint argc);
+    static void make_list(VMG_ uint argc);
+    static void get_abs(VMG_ uint argc);
+    static void get_sgn(VMG_ uint argc);
+    static void concat(VMG_ uint argc);
+    static void re_search_back(VMG_ uint argc);
+
+    /* internal toString interface */
+    static void toString(VMG_ vm_val_t *retval, const vm_val_t *srcval,
+                         int radix, int flags);
+
+    /* format a date-and-time list per getTime(GetDateAndTime) */
+    static vm_obj_id_t format_datetime_list(VMG_ os_time_t timer);
 
 protected:
+    /* common handler for re_search() and re_search_back() */
+    template<int dir> inline static void re_search_common(VMG_ uint argc);
+
     /* enumerate objects (common handler for firstobj and nextobj) */
     static void enum_objects(VMG_ uint argc, vm_obj_id_t start_obj);
 
     /* common handler for toInteger and toNumber */
     static void toIntOrNum(VMG_ uint argc, int int_only);
 };
+
+
+/* ------------------------------------------------------------------------ */
+/* 
+ *   Random Number Generator ID values for randomize(id, ...) 
+ */
+#define VMBT_RNGID_ISAAC     1
+#define VMBT_RNGID_LCG       2
+#define VMBT_RNGID_MT19937   3
+#define VMBT_RNGID_BITSHIFT  4
 
 
 /* ------------------------------------------------------------------------ */
@@ -114,27 +130,39 @@ public:
      */
     struct vm_globalvar_t *last_rex_str;
 
+    /* the currently active RNG ID (VMBT_RNGID_xxx) */
+    int rng_id;
+
     /* -------------------------------------------------------------------- */
     /*
-     *   Linear Congruential Random Number Generator state 
+     *   Linear Congruential Random Number Generator state - this is just a
+     *   32-bit seed value.
      */
-#ifdef VMBIFTADS_RNG_LCG
+    int32_t lcg_rand_seed;
 
-    /* linear congruential generator seed value */
-    long rand_seed;
+    /* -------------------------------------------------------------------- */
+    /*
+     *   Bit-Shift Random Number Generator state 
+     */
+#ifdef VMBIFTADS_RNG_BITSHIFT
 
-#endif /* VMBIFTADS_RNG_LCG */
+    /* bit-shift generator seed value */
+    int32_t bits_rand_seed;
+
+#endif /* VMBIFTADS_RNG_BITSHIFT */
 
     /* -------------------------------------------------------------------- */
     /*
      *   ISAAC Random Number Generator state
      */
-#ifdef VMBIFTADS_RNG_ISAAC
-
-    /* ISAAC state structure */
     struct isaacctx *isaac_ctx;
     
-#endif /* VMBIFTADS_RNG_ISAAC */
+
+    /* -------------------------------------------------------------------- */
+    /*
+     *   Mersenne Twister MT19937 Random Number Generator state 
+     */
+    class CVmMT19937 *mt_ctx;
 };
 
 /* end of section protected against multiple inclusion */
@@ -160,8 +188,8 @@ vm_bif_desc CVmBifTADS::bif_table[] =
     { &CVmBifTADS::firstobj, 0, 2, FALSE },                            /* 2 */
     { &CVmBifTADS::nextobj, 1, 2, FALSE },                             /* 3 */
     { &CVmBifTADS::randomize, 0, 0, FALSE },                           /* 4 */
-    { &CVmBifTADS::rand, 1, 0, TRUE },                                 /* 5 */
-    { &CVmBifTADS::toString, 1, 1, FALSE },                            /* 6 */
+    { &CVmBifTADS::rand, 0, 0, TRUE },                                 /* 5 */
+    { &CVmBifTADS::toString, 1, 2, FALSE },                            /* 6 */
     { &CVmBifTADS::toInteger, 1, 1, FALSE },                           /* 7 */
     { &CVmBifTADS::gettime, 0, 1, FALSE },                             /* 8 */
     { &CVmBifTADS::re_match, 2, 1, FALSE },                            /* 9 */
@@ -178,7 +206,12 @@ vm_bif_desc CVmBifTADS::bif_table[] =
     { &CVmBifTADS::make_string, 1, 1, FALSE },                        /* 20 */
     { &CVmBifTADS::get_func_params, 1, 0, FALSE },                    /* 21 */
     { &CVmBifTADS::toNumber, 1, 1, FALSE },                           /* 23 */
-    { &CVmBifTADS::sprintf, 1, 0, TRUE }                              /* 24 */
+    { &CVmBifTADS::sprintf, 1, 0, TRUE },                             /* 24 */
+    { &CVmBifTADS::make_list, 1, 1, FALSE },                          /* 25 */
+    { &CVmBifTADS::get_abs, 1, 0, FALSE },                            /* 26 */
+    { &CVmBifTADS::get_sgn, 1, 0, FALSE },                            /* 27 */
+    { &CVmBifTADS::concat, 0, 0, TRUE },                              /* 28 */
+    { &CVmBifTADS::re_search_back, 2, 1, FALSE }                      /* 29 */
 };
 
 #endif /* VMBIF_DEFINE_VECTOR */

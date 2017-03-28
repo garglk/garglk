@@ -375,6 +375,9 @@ struct out_stream_info
     /* quoting level */
     int html_quote_level;
 
+    /* PRE nesting level */
+    int html_pre_level;
+
     /*
      *   Parsing mode flag for ALT attributes.  If we're parsing a tag
      *   that allows ALT, such as IMG or SOUND, we'll set this flag, then
@@ -495,6 +498,9 @@ static void out_state_init(out_stream_info *stream)
 
     /* not yet in quotes */
     stream->html_quote_level = 0;
+
+    /* not yet in a PRE block */
+    stream->html_pre_level = 0;
 
     /* not in an ALT tag yet */
     stream->html_allow_alt = FALSE;
@@ -1114,9 +1120,10 @@ static void outflushn_stream(out_stream_info *stream, int nl)
             /* 
              *   Add a newline.  If there's nothing in the current line,
              *   or we just wrote out a newline, do not add an extra
-             *   newline. 
+             *   newline.  Keep all newlines in PRE mode.
              */
-            if (stream->linecol != 0 || !stream->just_did_nl)
+            if (stream->linecol != 0 || !stream->just_did_nl
+                || stream->html_pre_level != 0)
             {
                 /* add a newline after the text */
                 suffix = "\n";
@@ -1150,7 +1157,8 @@ static void outflushn_stream(out_stream_info *stream, int nl)
          *   the newline 
          */
         if (stream->linebuf[stream->preview] != '\0'
-            || (stream->linecol != 0 && !stream->just_did_nl))
+            || (stream->linecol != 0 && !stream->just_did_nl)
+            || stream->html_pre_level > 0)
         {
             /* write it out */
             t_outline(stream, countnl, &stream->linebuf[stream->preview],
@@ -1301,7 +1309,7 @@ static void outtab_stream(out_stream_info *stream)
             stream->linebuf[stream->linepos++] = ' ';
             ++(stream->linecol);
         } while (((stream->linecol + 1) & 3) != 0
-                 && stream->linecol < MAXWIDTH);
+                 && stream->linecol < maxcol);
     }
 }
 
@@ -1446,12 +1454,14 @@ static void outchar_noxlat_stream(out_stream_info *stream, char c)
          *   there's room for this character, so add it to the buffer 
          */
         
-        /* ignore non-quoted space at start of line */
-        if (outissp(c) && c != '\t' && stream->linecol == 0 && !qspace)
+        /* ignore non-quoted space at start of line outside of PRE */
+        if (outissp(c) && c != '\t' && stream->linecol == 0 && !qspace
+            && stream->html_pre_level == 0)
             return;
 
         /* is this a non-quoted space not at the start of the line? */
-        if (outissp(c) && c != '\t' && stream->linecol != 0 && !qspace)
+        if (outissp(c) && c != '\t' && stream->linecol != 0 && !qspace
+            && stream->html_pre_level == 0)
         {
             int  pos1 = stream->linepos - 1;
             char p = stream->linebuf[pos1];     /* check previous character */
@@ -1569,14 +1579,12 @@ static void outchar_noxlat_stream(out_stream_info *stream, char c)
     else
     {
         char brkchar;
-        int brkattr;
         char tmpbuf[MAXWIDTH];
         int tmpattr[MAXWIDTH];
         size_t tmpcnt;
 
-        /* remember word-break character */        
+        /* remember the word-break character */        
         brkchar = stream->linebuf[i];
-        brkattr = stream->attrbuf[i];
 
         /* null-terminate the line buffer */        
         stream->linebuf[stream->linepos] = '\0';
@@ -1598,7 +1606,7 @@ static void outchar_noxlat_stream(out_stream_info *stream, char c)
         /* write out everything up to the word break */
         out_flushline(stream, TRUE);
 
-        /* move next line into line buffer */
+        /* copy the next line into line buffer */
         memcpy(stream->linebuf, tmpbuf, tmpcnt + 1);
         memcpy(stream->attrbuf, tmpattr, tmpcnt * sizeof(tmpattr[0]));
         stream->linepos = tmpcnt;
@@ -1749,6 +1757,78 @@ static void out_pop_stream()
  */
 /* static char nextout(char **s, uint *len); */
 #define nextout(s, len) ((char)(*(len) == 0 ? 0 : (--(*(len)), *((*(s))++))))
+
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Get the next character, writing the previous character to the given
+ *   output stream if it's not null. 
+ */
+static char nextout_copy(char **s, size_t *slen,
+                         char prv, out_stream_info *stream)
+{
+    /* if there's a stream, write the previous character to the stream */
+    if (stream != 0)
+        outchar_stream(stream, prv);
+
+    /* return the next character */
+    return nextout(s, slen);
+}
+
+/* ------------------------------------------------------------------------ */
+/*
+ *   Read an HTML tag, for our primitive mini-parser.  If 'stream' is not
+ *   null, we'll copy each character we read to the output stream.  Returns
+ *   the next character after the tag name.
+ */
+static char read_tag(char *dst, size_t dstlen, int *is_end_tag,
+                     char **s, size_t *slen, out_stream_info *stream)
+{
+    char c;
+    
+    /* skip the opening '<' */
+    c = nextout_copy(s, slen, '<', stream);
+
+    /* skip spaces */
+    while (outissp(c))
+        c = nextout_copy(s, slen, c, stream);
+
+    /* note if this is a closing tag */
+    if (c == '/' || c == '\\')
+    {
+        /* it's an end tag - note it and skip the slash */
+        *is_end_tag = TRUE;
+        c = nextout_copy(s, slen, c, stream);
+
+        /* skip yet more spaces */
+        while (outissp(c))
+            c = nextout_copy(s, slen, c, stream);
+    }
+    else
+        *is_end_tag = FALSE;
+    
+    /* 
+     *   find the end of the tag name - the tag continues to the next space,
+     *   '>', or end of line 
+     */
+    for ( ; c != '\0' && !outissp(c) && c != '>' ;
+         c = nextout_copy(s, slen, c, stream))
+    {
+        /* add this to the tag buffer if it fits */
+        if (dstlen > 1)
+        {
+            *dst++ = c;
+            --dstlen;
+        }
+    }
+    
+    /* null-terminate the tag name */
+    if (dstlen > 0)
+        *dst = '\0';
+
+    /* return the next character */
+    return c;
+}
 
 
 /* ------------------------------------------------------------------------ */
@@ -2362,37 +2442,11 @@ static int outformatlen_stream(out_stream_info *stream,
              */
             if (c == '<')
             {
+                /* read the tag */
                 char tagbuf[50];
-                char *dst;
                 int is_end_tag;
-                
-                /* skip the opening '<' */
-                c = nextout(&s, &slen);
-
-                /* note if this is a closing tag */
-                if (c == '/' || c == '\\')
-                {
-                    /* it's an end tag - note it and skip the slash */
-                    is_end_tag = TRUE;
-                    c = nextout(&s, &slen);
-                }
-                else
-                    is_end_tag = FALSE;
-                
-                /* 
-                 *   find the end of the tag name - the tag continues to
-                 *   the next space, '>', or end of line 
-                 */
-                for (dst = tagbuf ; c != '\0' && c != ' ' && c != '>' ;
-                     c = nextout(&s, &slen))
-                {
-                    /* add this to the tag buffer if it fits */
-                    if (dst < tagbuf + sizeof(tagbuf) - 1)
-                        *dst++ = c;
-                }
-
-                /* null-terminate the tag name */
-                *dst = '\0';
+                c = read_tag(tagbuf, sizeof(tagbuf), &is_end_tag,
+                             &s, &slen, 0);
 
                 /*
                  *   Check to see if we recognize the tag.  We only
@@ -2594,6 +2648,19 @@ static int outformatlen_stream(out_stream_info *stream,
                     else
                         ++(stream->html_in_ignore);
                 }
+                else if (!stricmp(tagbuf, "pre"))
+                {
+                    /* count the nesting level if starting PRE mode */
+                    if (!is_end_tag)
+                        stream->html_pre_level += 1;
+
+                    /* surround the PRE block with line breaks */
+                    outblank_stream(stream);
+
+                    /* count the nesting level if ending PRE mode */
+                    if (is_end_tag && stream->html_pre_level != 0)
+                        stream->html_pre_level -= 1;
+                }
 
                 /* suppress everything up to the next '>' */
                 stream->html_mode_flag = HTML_MODE_TAG;
@@ -2617,6 +2684,34 @@ static int outformatlen_stream(out_stream_info *stream,
                 /* proceed with the next character */
                 continue;
             }
+        }
+        else if (stream->html_target && stream->html_mode && c == '<')
+        {
+            /*
+             *   We're in HTML mode, and we have an underlying HTML target.
+             *   We don't need to do much HTML interpretation at this level.
+             *   However, we do need to keep track of when we're in a PRE
+             *   block, so that we can pass whitespaces and newlines through
+             *   to the underlying HTML engine without filtering when we're
+             *   in preformatted text. 
+             */
+            char tagbuf[50];
+            int is_end_tag;
+            c = read_tag(tagbuf, sizeof(tagbuf), &is_end_tag,
+                         &s, &slen, stream);
+
+            /* check for special tags */
+            if (!stricmp(tagbuf, "pre"))
+            {
+                /* count the nesting level */
+                if (!is_end_tag)
+                    stream->html_pre_level += 1;
+                else if (is_end_tag && stream->html_pre_level != 0)
+                    stream->html_pre_level -= 1;
+            }
+
+            /* copy the last character after the tag to the stream */
+            outchar_stream(stream, c);
         }
         else
         {
@@ -3386,7 +3481,7 @@ void outflushn(int nl)
     if (logfp != 0)
     {
         outflushn_stream(&G_log_disp, nl);
-        fflush(logfp);
+        osfflush(logfp);
     }
 }
 

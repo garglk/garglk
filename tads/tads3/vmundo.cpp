@@ -133,33 +133,21 @@ void CVmUndo::create_savept(VMG0_)
  */
 void CVmUndo::drop_oldest_savept(VMG0_)
 {
-    vm_savept_t oldest;
-
     /* if there are no savepoints, there's nothing to do */
     if (savept_cnt_ == 0)
         return;
 
-    /* 
-     *   The oldest savepoint number is (cur - cnt), adjusted for wrapping
-     *   if we go below zero.  
-     */
-    if (cur_savept_ >= savept_cnt_)
-        oldest = cur_savept_ - savept_cnt_;
-    else
-        oldest = VM_SAVEPT_MAX - (savept_cnt_ - cur_savept_) + 1;
-    
     /* decrement the savepoint count, now that this one is gone */
     --savept_cnt_;
 
     /* forget the oldest lead pointer */
     if (oldest_first_ != 0)
     {
-        CVmUndoMeta *meta;
-        
         /* 
          *   discard records from the oldest lead pointer to the next
          *   oldest lead pointer 
          */
+        CVmUndoMeta *meta;
         for (meta = oldest_first_, inc_rec_ptr(&meta) ;
              meta != oldest_first_->link.next_first && meta != next_free_ ; )
         {
@@ -295,7 +283,7 @@ void CVmUndo::add_new_record_prop_key(VMG_ vm_obj_id_t obj, vm_prop_id_t key,
 /*
  *   Add a new record with an integer key 
  */
-void CVmUndo::add_new_record_int_key(VMG_ vm_obj_id_t obj, uint32 key,
+void CVmUndo::add_new_record_int_key(VMG_ vm_obj_id_t obj, uint32_t key,
                                      const vm_val_t *val)
 {
     CVmUndoRecord *rec;

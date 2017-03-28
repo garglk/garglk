@@ -279,6 +279,24 @@ public:
      */
     size_t map_str(char *outbuf, size_t outbuflen, const char *input_str);
 
+    /* 
+     *   Map a counted-length string into a buffer; returns the number of
+     *   bytes actually needed to store the string.  If the entire string
+     *   couldn't be mapped, returns the number of bytes actually needed, but
+     *   will only map up to the available size limit.  Does not
+     *   null-terminate the result.
+     */
+    size_t map_str(char *outbuf, size_t outbuflen,
+                   const char *input_str, size_t input_len);
+
+    /*
+     *   Map a string, allocating space
+     *   
+     *   The caller is responsible for freeing the returned string with
+     *   t3free() when done with it. 
+     */
+    size_t map_str_alo(char **outbuf, const char *input_str);
+
     /*
      *   Read characters from a file into a buffer, translating the
      *   characters to UTF-8.  Returns the number of bytes copied into the
@@ -417,22 +435,22 @@ public:
                             size_t *src_bytes_used) const;
 
     /* 
-     *   map to utf8 - alternative interface using character buffers
-     *   (rather than UTF8 pointers) 
+     *   map to local - alternative interface using character buffers (rather
+     *   than UTF8 pointers) 
      */
     size_t map_utf8(char *dest, size_t dest_len,
                     const char *src, size_t src_byte_len,
                     size_t *src_bytes_used) const;
 
     /*
-     *   Map to utf8, allocating a new buffer.  Fills in 'buf' with a pointer
-     *   to the new buffer, which we allocate via t3malloc() with enough
-     *   space for the mapped string plus a null terminator.  Maps the string
-     *   into the buffer and adds a null byte.  Returns the byte length of
-     *   the mapped string (not including the null byte).
+     *   Map to local, allocating a new buffer.  Fills in 'buf' with a
+     *   pointer to the new buffer, which we allocate via t3malloc() with
+     *   enough space for the mapped string plus a null terminator.  Maps the
+     *   string into the buffer and adds a null byte.  Returns the byte
+     *   length of the mapped string (not including the null byte).
      *   
-     *   The caller is responsible for freeing the new buffer with t3free()
-     *   when done with it.
+     *   The caller is responsible for freeing the returned string with
+     *   t3free() when done with it.
      */
     size_t map_utf8_alo(char **buf, const char *src, size_t srclen) const;
     

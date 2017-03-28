@@ -122,7 +122,7 @@ Modified
 #endif
 
 #ifdef MICROSOFT
-# ifdef __WIN32__
+# ifdef T_WIN32
 #  include <conio.h>
 #  include <sys/stat.h>
 #  include <io.h>
@@ -464,7 +464,7 @@ void os_term(int rc)
 #ifdef MICROSOFT
 # ifdef MSDOS
 #  ifndef MSOS2
-#   ifndef __WIN32__
+#   ifndef T_WIN32
 
 /* ------------------------------------------------------------------------ */
 /* 
@@ -489,13 +489,13 @@ char os_getch(void)
     return retval;
 }
 
-#   endif /* __WIN32__ */
+#   endif /* T_WIN32 */
 #  endif /* MSOS2 */
 # endif /* MSDOS */
 #endif /* MICROSOFT */
 
 
-#ifndef __WIN32__
+#ifndef T_WIN32
 /* ------------------------------------------------------------------------ */
 /*
  *   Sleep for the given interval.  We'll simply loop until the system
@@ -669,7 +669,7 @@ int oss_getc_timeout(unsigned char *ch, unsigned long timeout)
     return oss_getc_internal(ch, timeout, TRUE);
 }
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 
 
 /* ------------------------------------------------------------------------ */
@@ -680,7 +680,7 @@ int oss_getc_timeout(unsigned char *ch, unsigned long timeout)
  *   Alt+numeric keypad entries.  So, we'll simply implement our own
  *   console reader that takes care of all of those operations.  
  */
-#ifdef __WIN32__
+#ifdef T_WIN32
 
 /*
  *   Translate a virtual key code for a numeric keypad key into the
@@ -1329,7 +1329,7 @@ void os_sleep_ms(long delay_in_milliseconds)
 }
 
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 
 /* ------------------------------------------------------------------------ */
 #ifndef USE_DOOR
@@ -1363,7 +1363,7 @@ int os_kbhit(void)
     int ret = 0;
     
 #ifndef __DPMI32__
-#ifndef __WIN32__
+#ifndef T_WIN32
     asm {
         push bp
         push di
@@ -1384,7 +1384,7 @@ no_key_ready:
         pop di
         pop bp
     }
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 #endif /* __DPMI32__ */
     return(ret);
 #   endif /* MSOS2 */
@@ -1886,6 +1886,7 @@ int os_getc_raw(void)
 # endif /* !WINDOWS */
 #endif /* !USE_DOOR */
 
+extern unsigned long ossgetdisks(void);
 # ifdef RUNTIME
 #  if (!defined(WINDOWS) && !defined(_Windows)) || defined(__DPMI16__)
 #   if defined(TURBO) || defined(DJGPP)
@@ -1910,87 +1911,6 @@ int os_getc_raw(void)
 
 /* get disk:  0 = A:, 1 = B:, 2 = C:, etc */
 #   define ossgetdisk() getdisk()
-
-/* get bitmap of valid drives */
-unsigned long ossgetdisks()
-{
-    unsigned long mask;
-    unsigned long ret;
-    int drive;
-
-    /* iterate over drives A: to Z: and test each one for validity */
-    for (drive = 'A', mask = 1, ret = 0 ; drive <= 'Z' ; ++drive, mask <<= 1)
-    {
-        char dname[3];
-
-        /* build a filename string for the drive, like "X:" */
-        dname[0] = drive;
-        dname[1] = ':';
-        dname[2] = '\0';
-        {
-#ifdef DJGPP
-            int max_file_len;
-            int max_path_len;
-            char fstype[64];
-
-            /* 
-             *   check the file system type on the drive to see if the drive
-             *   is valid 
-             */
-            if ((_get_volume_info(dname, &max_file_len, &max_path_len,
-                                  fstype) & _FILESYS_UNKNOWN) == 0)
-            {
-                /* 
-                 *   it's not unknown, so it must be valid - include it in
-                 *   the result vector 
-                 */
-                ret |= mask;
-            }
-
-#else /* DJGPP */
-            char fcb[44];
-
-            /*          
-             *   Ask DOS to parse the drive letter filename (via int 0x21,
-             *   function 0x290E).  DOS will give us an error indication if
-             *   the drive is invalid.  
-             */
-            asm {
-                push ds
-                push es
-                push bp
-                push si
-                push di
-
-                mov  si, ss
-                mov  ds, si
-                push ds
-                pop  es
-                lea  si, dname
-                lea  di, fcb
-                mov  ax, 0x290E  // parse filename
-                int  0x21
-                cmp  al, 0xFF
-                je   bad_drive
-            }
-
-            /* if we got this far, the drive is good */
-            ret |= mask;
-            
-        bad_drive:
-            asm {
-                pop  di
-                pop  si
-                pop  bp
-                pop  es
-                pop  ds
-            }
-#endif
-        }
-    }
-
-    return ret;
-}
 
 /* size of a file entry, in bytes */
 #   define OSSFNAMELEN 14
@@ -2051,20 +1971,13 @@ static int ossgetdisk(void)
     return( DosQCurDisk(&drv, &map) ? -1 : (int)(drv-1) );
 }
 
-/* get bitmap of valid drives */
-static unsigned long ossgetdisks()
-{
-    /* return zero to indicate this isn't implemented */
-    return 0;
-}
-
 /* size of a file entry, in bytes */
 #   define OSSFNAMELEN 14
 
 #  else /* MSOS2 */
 #   ifdef MICROSOFT
 
-#    ifdef __WIN32__
+#    ifdef T_WIN32
 
 #include <io.h>
 #include <direct.h>
@@ -2076,9 +1989,8 @@ static unsigned long ossgetdisks()
 #define ossgetdisk() (_getdrive() - 1)
 #define osssetdisk(disk) _chdrive((disk) + 1)
 #define osscd(path) _chdir(path)
-#define ossgetdisks() (_getdrives())
 
-#    else /* __WIN32__ */
+#    else /* T_WIN32 */
 
 /* definitions for Microsoft C on DOS */
 #   define OSS_MAXPATH 128
@@ -2088,12 +2000,6 @@ static unsigned long ossgetdisks()
 
 /* change directory */
 #   define osscd(path) ((void)chdir(path))
-
-/* get disk:  0 = A:, 1 = B:, 2 = C:, etc */
-static unsigned long ossgetdisks(void)
-{
-    return _dos_getdrives();
-}
 
 static int ossgetdisk(void)
 {
@@ -2111,7 +2017,7 @@ static void osssetdisk(int drivenum)
 /* size of a file entry, in bytes */
 #  define OSSFNAMELEN 14
 
-#    endif /* __WIN32__ */
+#    endif /* T_WIN32 */
 #   endif /* MICROSOFT */
 #  endif /* MSOS2 */
 
@@ -2215,10 +2121,11 @@ int os_askfile(const char *prompt, char *reply, int replen,
     static osfar_t char  filebuf[256];
     char         runpwd[OSS_MAXPATH];
     char         rundisk;
-    void        *search_ctx;
-    int          isdir;
+    osdirhdl_t   dirhdl;
+    unsigned long fmode;
+    unsigned long fattr;
     char        *ext;
-    char         pat[10];
+    size_t       extlen;
     unsigned long drives;
     static osfar_t char *ext_list[] =
     {
@@ -2288,19 +2195,17 @@ int os_askfile(const char *prompt, char *reply, int replen,
     }
 
     /* choose our extension filter based on the file type */
-    if ((int)file_type >= 0
+    if (file_type != OSFTUNK
+        && (int)file_type >= 0
         && (int)file_type < sizeof(ext_list)/sizeof(ext_list[0]))
+    {
         ext = ext_list[(int)file_type];
-    else
-        ext = "";
-
-    /* build the filter pattern based on the extension we chose */
-    if (file_type == OSFTUNK)
-        strcpy(pat, "*.*");
+        extlen = strlen(ext);
+    }
     else
     {
-        pat[0] = '*';
-        strcpy(pat + 1, ext);
+        ext = 0;
+        extlen = 0;
     }
 
     /* remember the drive upon entry */
@@ -2427,60 +2332,55 @@ reread_directory:
     osspwd(runpwd, sizeof(runpwd));
     osscd(curdir);
     
-    /* 
-     *   read files in current directory: files matching the filter
-     *   pattern, and all subdirectories 
-     */
+    /* read the files in the directory matching the desired extension */
     p = namebuf;
     rem = namebufl - 2;             /* minus 2 to make room for extra nulls */
     filecnt = 0;
     lastofs = -1;             /* assume the last file is not found anywhere */
-    search_ctx = os_find_first_file(curdir, pat, p, rem, &isdir, 0, 0);
-    while (search_ctx != 0 && rem >= OSSFNAMELEN + 2)
+    if (os_open_dir(curdir, &dirhdl))
     {
-        /* consider only regular files (not directories) on this pass */
-        if (!isdir)
+        while (rem >= OSSFNAMELEN + 2 && os_read_dir(dirhdl, p, rem))
         {
-            ++filecnt;
-            rem -= /*l*/ OSSFNAMELEN;
-            p += /*l*/ OSSFNAMELEN;
+            /* only include non-hidden files with the target extension */
+            size_t len = strlen(p);
+            if (osfmode(p, TRUE, &fmode, &fattr)
+                && (fmode & OSFMODE_FILE) != 0
+                && (fattr & (OSFATTR_HIDDEN | OSFATTR_SYSTEM)) == 0
+                && (ext == 0
+                    || (len >= extlen
+                        && memicmp(p + len - extlen, ext, extlen) == 0)))
+            {
+                ++filecnt;
+                rem -= /*l*/ OSSFNAMELEN;
+                p += /*l*/ OSSFNAMELEN;
+            }
         }
-
-        /* find the next file */
-        search_ctx = os_find_next_file(search_ctx, p, rem, &isdir, 0, 0);
+        os_close_dir(dirhdl);
     }
 
-    /* cancel the search if we stopped before exhausting all matches */
-    if (search_ctx != 0)
-        os_find_close(search_ctx);
-
-    /* now do the same for subdirectories */
-    search_ctx = os_find_first_file(curdir, "*.*", p, rem, &isdir, 0, 0);
-    while (search_ctx != 0 && rem >= OSSFNAMELEN + 2)
+    /* now do another pass for just the subdirectories */
+    if (os_open_dir(curdir, &dirhdl))
     {
-        /* 
-         *   consider only directories on this pass, and skip the special
-         *   directory '.', since it's not especially useful in our list 
-         */
-        if (isdir && (p[0] != '.' || p[1] != '\0'))
+        while (rem >= OSSFNAMELEN + 2 && os_read_dir(dirhdl, p, rem))
         {
-            char *pend;
+            /* only include non-hidden directories, but omit '.' */
+            if (osfmode(p, TRUE, &fmode, &fattr)
+                && (fmode & OSFMODE_DIR) != 0
+                && (fattr & (OSFATTR_HIDDEN | OSFATTR_SYSTEM)) == 0
+                && strcmp(p, ".") != 0)
+            {
+                char *pend;
             
-            ++filecnt;
-            pend = p + strlen(p);
-            *pend++ = '\\';
-            *pend++ = '\0';
-            rem -= /*l*/ OSSFNAMELEN;
-            p += /*l*/ OSSFNAMELEN;
+                ++filecnt;
+                pend = p + strlen(p);
+                *pend++ = '\\';
+                *pend++ = '\0';
+                rem -= /*l*/ OSSFNAMELEN;
+                p += /*l*/ OSSFNAMELEN;
+            }
         }
-
-        /* on to the next file */
-        search_ctx = os_find_next_file(search_ctx, p, rem, &isdir, 0, 0);
+        os_close_dir(dirhdl);
     }
-
-    /* cancel the search if we stopped before exhausting all matches */
-    if (search_ctx != 0)
-        os_find_close(search_ctx);
 
     /* add drive letters if possible */
     if ((drives = ossgetdisks()) != 0)
@@ -2894,7 +2794,7 @@ int os_paramfile(char *buf)
 
 #ifndef __DPMI32__
 #ifndef WINDOWS
-#ifndef __WIN32__
+#ifndef T_WIN32
 # ifdef MSOS2                            /* ### Look at this later. [Eras] */
 int os_break() { return(0); }
 void os_instbrk(int install) {}
@@ -2951,7 +2851,7 @@ void os_instbrk(int install)
 }
 #  endif /* DJGPP */
 # endif /* MSOS2 */
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 #endif /* !WINDOWS */
 #endif /* __DPMI32__ */
 
@@ -3212,7 +3112,7 @@ char *os_strlwr(char *s)
  *   Character mapping functions 
  */
 
-#ifdef __WIN32__
+#ifdef T_WIN32
 /* ------------------------------------------------------------------------ */
 /*
  *   Get the DOS codepage.  For the 32-bit console app version, call the
@@ -3252,14 +3152,11 @@ void os_get_charmap(char *mapname, int charmap_id)
          *   assume we're running in a graphical shell, so we'll use the ANSI
          *   code page.  
          */
-        h = CreateFile("CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE,
-                       0, OPEN_EXISTING, 0, 0);
-        if (h != INVALID_HANDLE_VALUE)
+        if ((h = CreateFile("CONOUT$", GENERIC_WRITE, FILE_SHARE_WRITE,
+                            0, OPEN_EXISTING, 0, 0)) != INVALID_HANDLE_VALUE)
         {
             /* we have a console (aka DOS box) - use the OEM code page */
             cp = GetOEMCP();
-
-            /* close the console handle */
             CloseHandle(h);
         }
         else
@@ -3270,6 +3167,15 @@ void os_get_charmap(char *mapname, int charmap_id)
              */
             cp = GetACP();
         }
+        break;
+
+    case OS_CHARMAP_CMDLINE:
+        /* 
+         *   even though CMD.EXE uses the OEM code page for display, it seems
+         *   to pass argv strings in the ANSI code page (or this could be an
+         *   MSVC feature, but it's what we get in any case)
+         */
+        cp = GetACP();
         break;
 
     case OS_CHARMAP_FILENAME:
@@ -3288,7 +3194,7 @@ void os_get_charmap(char *mapname, int charmap_id)
     sprintf(mapname, "CP%d", cp);
 }
 
-#else /* __WIN32__ */
+#else /* T_WIN32 */
 
 /*
  *   Get the current DOS codepage.  This is the plain 16-bit DOS version - we
@@ -3330,7 +3236,7 @@ void os_get_charmap(char *mapname, int charmap_id)
     sprintf(mapname, "CP%d", codepage);
 }
 
-#endif /* __WIN32__ */
+#endif /* T_WIN32 */
 
 
 /* ------------------------------------------------------------------------ */
@@ -3516,3 +3422,4 @@ int os_vasprintf(char **bufptr, const char *fmt, va_list argp)
     return vsprintf(*bufptr, fmt, argp);
 }
 #endif /* TURBO */
+

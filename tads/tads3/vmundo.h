@@ -52,7 +52,7 @@ struct CVmUndoRecord
         vm_prop_id_t prop;
 
         /* integer value key */
-        uint32 intval;
+        uint32_t intval;
 
         /* pointer value key */
         void *ptrval;
@@ -136,7 +136,7 @@ public:
      */
     void add_new_record_prop_key(VMG_ vm_obj_id_t obj, vm_prop_id_t key,
                                  const vm_val_t *val);
-    void add_new_record_int_key(VMG_ vm_obj_id_t obj, uint32 key,
+    void add_new_record_int_key(VMG_ vm_obj_id_t obj, uint32_t key,
                                 const vm_val_t *val);
 
     /* 

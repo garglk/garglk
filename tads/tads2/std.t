@@ -2,7 +2,7 @@
 /*
 Name
   std.t   - standard default adventure definitions
-  Version 2.5.15
+  Version 2.5.17
   
   This file is part of TADS:  The Text Adventure Development System.
   Please see the file LICENSE.TAD (which should be part of the TADS

@@ -234,6 +234,48 @@ class NetReplyEvent: NetEvent
     redirectLoc = nil
 ;
 
+/*
+ *   Network Reply Done event.  This type of event occurs when an
+ *   asynchronous network reply (such as HTTPRequest.sendReplyAsync())
+ *   completes.
+ */
+class NetReplyDoneEvent: NetEvent
+    /* construction */
+    construct(t, req, err, msg)
+    {
+        inherited(t, req, err, msg);
+        requestObj = req;
+        socketErr = err;
+        errMsg = msg;
+    }
+
+    /* our default event type is NetEvReplyDone */
+    evType = NetEvReplyDone
+
+    /* 
+     *   The object representing the request we replied to.  For HTTP
+     *   requests, this is an HTTPRequest object.
+     */
+    requestObj = nil
+
+    /* was the reply successfully sent? */
+    isSuccessful() { return errMsg == nil; }
+
+    /*
+     *   The socket error, if any.  If the reply failed due to a network
+     *   error, this contains the error number.  If no network error
+     *   occurred, this is zero.
+     */
+    socketErr = 0
+
+    /*
+     *   Error message, if any.  If the reply failed, this contains a
+     *   string with a description of the error that occurred.  If the
+     *   reply was sent successfully, this is nil.
+     */
+    errMsg = nil
+;
+
 /* ------------------------------------------------------------------------ */
 /*
  *   A FileUpload represents a file uploaded by a network client via a
@@ -357,6 +399,7 @@ export NetEvent 'TadsNet.NetEvent';
 export NetRequestEvent 'TadsNet.NetRequestEvent';
 export NetTimeoutEvent 'TadsNet.NetTimeoutEvent';
 export NetReplyEvent 'TadsNet.NetReplyEvent';
+export NetReplyDoneEvent 'TadsNet.NetReplyDoneEvent';
 export NetException 'TadsNet.NetException';
 export SocketDisconnectException 'TadsNet.SocketDisconnectException';
 export NetSafetyException 'TadsNet.NetSafetyException';

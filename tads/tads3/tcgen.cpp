@@ -633,6 +633,9 @@ CTcDataStream *CTcDataStream::
     case TCGEN_BIGNUM_STREAM:
         return G_bignum_stream;
 
+    case TCGEN_REXPAT_STREAM:
+        return G_rexpat_stream;
+
     case TCGEN_STATIC_INIT_ID_STREAM:
         return G_static_init_id_stream;
 

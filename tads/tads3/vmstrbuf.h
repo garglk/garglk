@@ -59,21 +59,21 @@ struct vm_strbuf_ext
 {
     /* allocate the structure */
     static vm_strbuf_ext *alloc_ext(VMG_ class CVmObjStringBuffer *self,
-                                    int32 alo, int32 inc);
+                                    int32_t alo, int32_t inc);
 
     /* expand an existing extension */
     static vm_strbuf_ext *expand_ext(VMG_ class CVmObjStringBuffer *self,
                                      vm_strbuf_ext *old_ext,
-                                     int32 new_len);
+                                     int32_t new_len);
 
     /* the length of the string data (the part of the buffer in use) */
-    int32 len;
+    int32_t len;
 
     /* the allocated buffer size */
-    int32 alo;
+    int32_t alo;
 
     /* the incremental allocation size */
-    int32 inc;
+    int32_t inc;
 
     /* 
      *   The string data, as 16-bit unicode character values.  We
@@ -128,7 +128,7 @@ public:
         { return vm_objp(vmg_ obj)->is_of_metaclass(metaclass_reg_); }
 
     /* create */
-    static vm_obj_id_t create(VMG_ int in_root_set, int32 alo, int32 inc);
+    static vm_obj_id_t create(VMG_ int in_root_set, int32_t alo, int32_t inc);
 
     /* create dynamically using stack arguments */
     static vm_obj_id_t create_from_stack(VMG_ const uchar **pc_ptr,
@@ -254,7 +254,7 @@ public:
     virtual uint calc_hash(VMG_ vm_obj_id_t self, int /*depth*/) const;
 
     /* calculate the length in bytes of the contents in UTF-8 format */
-    int32 utf8_length() const;
+    int32_t utf8_length() const;
 
     /*
      *   Copy a portion of the string to a buffer as UTF-8 bytes.
@@ -274,13 +274,13 @@ public:
      *   omit that fractional character and stop at the previous whole
      *   character.  
      */
-    void to_utf8(char *buf, int32 &idx, int32 &bytelen);
+    void to_utf8(char *buf, int32_t &idx, int32_t &bytelen);
 
     /* ensure there's enough space for the given buffer length */
-    void ensure_space(VMG_ int32 len);
+    void ensure_space(VMG_ int32_t len);
 
     /* ensure there's enough space for the given ADDED buffer length */
-    void ensure_added_space(VMG_ int32 len)
+    void ensure_added_space(VMG_ int32_t len)
         { ensure_space(vmg_ get_ext()->len + len); }
 
     /* 
@@ -298,13 +298,13 @@ protected:
 
     /* create a string object from a substring of the buffer */
     const char *substr_to_string(
-        VMG_ vm_val_t *new_str, int32 idx, int32 len) const;
+        VMG_ vm_val_t *new_str, int32_t idx, int32_t len) const;
 
     /* adjust arguments to make sure they're within the buffer */
-    void adjust_args(int32 *idx, int32 *len, int32 *ins) const;
+    void adjust_args(int32_t *idx, int32_t *len, int32_t *ins) const;
 
     /* move the tail of the buffer for a splice operation */
-    void splice_move(VMG_ int32 idx, int32 del, int32 ins);
+    void splice_move(VMG_ int32_t idx, int32_t del, int32_t ins);
 
     /* load or reload image data */
     void load_image_data(VMG_ const char *ptr, size_t siz);
@@ -313,35 +313,35 @@ protected:
     CVmObjStringBuffer() { ext_ = 0; }
 
     /* create a string buffer with the given buffer size */
-    CVmObjStringBuffer(VMG_ int32 alo, int32 inc);
+    CVmObjStringBuffer(VMG_ int32_t alo, int32_t inc);
 
     /* insert text into the buffer */
     void insert_text(VMG_ vm_obj_id_t self,
-                     int32 idx, const wchar_t *src, int32 chars, int undo)
+                     int32_t idx, const wchar_t *src, int32_t chars, int undo)
         { splice_text(vmg_ self, idx, 0, src, chars, undo); }
 
     /* insert a character */
     void insert_char(VMG_ vm_obj_id_t self,
-                     int32 idx, wchar_t ch, int undo)
+                     int32_t idx, wchar_t ch, int undo)
         { splice_text(vmg_ self, idx, 0, &ch, 1, undo); }
 
     /* insert UTF-8 text into the buffer */
     void insert_text(VMG_ vm_obj_id_t self,
-                     int32 idx, const char *src, int32 bytes, int undo)
+                     int32_t idx, const char *src, int32_t bytes, int undo)
         { splice_text(vmg_ self, idx, 0, src, bytes, undo); }
 
     /* delete text from the buffer */
     void delete_text(VMG_ vm_obj_id_t self,
-                     int32 idx, int32 chars, int undo)
+                     int32_t idx, int32_t chars, int undo)
         { splice_text(vmg_ self, idx, chars, (wchar_t *)0, 0, undo); }
 
     /* splice text into the buffer */
     void splice_text(VMG_ vm_obj_id_t self,
-                     int32 idx, int32 del_chars,
-                     const wchar_t *src, int32 ins_chars, int undo);
+                     int32_t idx, int32_t del_chars,
+                     const wchar_t *src, int32_t ins_chars, int undo);
     void splice_text(VMG_ vm_obj_id_t self,
-                     int32 idx, int32 del_chars,
-                     const char *src, int32 ins_bytes, int undo);
+                     int32_t idx, int32_t del_chars,
+                     const char *src, int32_t ins_bytes, int undo);
 
     /* property evaluator - undefined function */
     int getp_undef(VMG_ vm_obj_id_t, vm_val_t *, uint *) { return FALSE; }
@@ -373,7 +373,7 @@ protected:
     /* add a record to the global undo stream */
     void add_undo_rec(VMG_ vm_obj_id_t self,
                       enum strbuf_undo_action action,
-                      int32 idx, int32 old_len, int32 new_len);
+                      int32_t idx, int32_t old_len, int32_t new_len);
 
     /* property evaluation function table */
     static int (CVmObjStringBuffer::*func_table_[])(VMG_ vm_obj_id_t self,
