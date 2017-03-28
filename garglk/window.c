@@ -947,6 +947,8 @@ void glk_request_char_event(window_t *win)
 
 }
 
+// TODO debug build only
+#include "garglktst_events.c"
 void glk_request_char_event_uni(window_t *win)
 {
     if (!win)
@@ -966,6 +968,7 @@ void glk_request_char_event_uni(window_t *win)
         case wintype_TextBuffer:
         case wintype_TextGrid:
             win->char_request_uni = TRUE;
+            if(garglktstctx.inpf) garglktst_send_cmd(1);
             break;
         default:
             gli_strict_warning("request_char_event_uni: window does not support keyboard input");
@@ -1005,29 +1008,6 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     }
 
 }
-// TODO debug build only
-static void garglktst_send_line(void){
-	static char cmd[256];
-	if(0==fgets(cmd, sizeof(cmd), garglktstctx.inpf)){
-		if(garglktstctx.eofexit){
-			if(garglktstctx.outf){
-				fprintf(garglktstctx.outf, "\n");
-				fflush(garglktstctx.outf);
-				}
-			exit(0);
-			}
-		return;
-		}
-	int len=strlen(cmd);
-	if(len>0 && '\n'==cmd[len-1]) cmd[len-1]='\0';
-
-	char *s=cmd;
-	for(;*s;s++){
-		gli_input_handle_key(*s);
-		}
-	gli_input_handle_key(keycode_Return);
-	sleep(garglktstctx.sleep);
-	}
 void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     glui32 initlen)
 {
@@ -1048,7 +1028,7 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
         case wintype_TextBuffer:
             win->line_request_uni = TRUE;
             win_textbuffer_init_line_uni(win, buf, maxlen, initlen);
-            if(garglktstctx.inpf) garglktst_send_line();
+            if(garglktstctx.inpf) garglktst_send_cmd(0);
             break;
         case wintype_TextGrid:
             win->line_request_uni = TRUE;
