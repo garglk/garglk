@@ -1,3 +1,12 @@
 /build
 /*.zip
 /*.exe
+bldgarglk
+runzork
+runtrinity
+test.cmd
+test.out
+test.exp
+*.o
+findexe
+findobj
