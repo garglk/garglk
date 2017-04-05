@@ -32,12 +32,6 @@
 #import "Cocoa/Cocoa.h"
 #import "sysmac.h"
 
-#ifdef __ppc__
-#define ByteOrderUCS4 kCFStringEncodingUTF32
-#else
-#define ByteOrderUCS4 kCFStringEncodingUTF32LE
-#endif
-
 static volatile int gli_event_waiting = FALSE;
 static volatile int gli_mach_allowed = FALSE;
 static volatile int gli_window_alive = TRUE;
@@ -160,7 +154,7 @@ void winabort(const char *fmt, ...)
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [gargoyle abortWindowDialog: processID
-                         prompt: [NSString stringWithCString: buf encoding: NSASCIIStringEncoding]];
+                         prompt: [NSString stringWithCString: buf encoding: NSUTF8StringEncoding]];
     [pool drain];
 
     exit(1);
@@ -177,21 +171,14 @@ void winopenfile(char *prompt, char *buf, int len, int filter)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];    
 
     NSString * fileref = [gargoyle openWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]
+                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                              filter: filter];
 
     strcpy(buf, "");
 
     if (fileref)
     {
-        int size = [fileref length];
-
-        CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
-                         kCFStringEncodingASCII, 0, FALSE,
-                         buf, len, NULL);
-
-        int bounds = size < len ? size : len;
-        buf[bounds] = '\0';
+        [fileref getCString: buf maxLength: len encoding: NSUTF8StringEncoding];
     }
 
     [pool drain];
@@ -202,21 +189,14 @@ void winsavefile(char *prompt, char *buf, int len, int filter)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     NSString * fileref = [gargoyle saveWindowDialog: processID
-                                             prompt: [NSString stringWithCString: prompt encoding: NSASCIIStringEncoding]
+                                             prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                              filter: filter];
 
     strcpy(buf, "");
 
     if (fileref)
     {
-        int size = [fileref length];
-
-        CFStringGetBytes((CFStringRef) fileref, CFRangeMake(0, size),
-                         kCFStringEncodingASCII, 0, FALSE,
-                         buf, len, NULL);
-
-        int bounds = size < len ? size : len;
-        buf[bounds] = '\0';
+        [fileref getCString: buf maxLength: len encoding: NSUTF8StringEncoding];
     }
 
     [pool drain];
@@ -229,12 +209,12 @@ void winclipstore(glui32 *text, int len)
 
     if (cliptext) {
         [cliptext release];
-        cliptext = NULL;
+        cliptext = nil;
     }
 
-    cliptext = (NSString *) CFStringCreateWithBytes(kCFAllocatorDefault,
-                                                    (char *) text, (len * 4),
-                                                    ByteOrderUCS4, FALSE);
+    cliptext = [[NSString string] initWithBytes: text
+                                         length: (len * sizeof(glui32))
+                                       encoding: NSUTF32StringEncoding];
 }
 
 void winclipsend(void)
@@ -262,9 +242,11 @@ void winclipreceive(void)
             len = [input length];
             for (i=0; i < len; i++)
             {
-                if (CFStringGetBytes((CFStringRef) input, CFRangeMake(i, 1),
-                                     kCFStringEncodingUTF32, 0, FALSE,
-                                     (char *) &ch, 4, NULL))
+                if ([input getBytes: &ch maxLength: sizeof ch usedLength: NULL
+                           encoding: NSUTF32StringEncoding
+                            options: 0
+                              range: NSMakeRange(i, 1)
+                     remainingRange: NULL])
                 {
                     switch (ch)
                     {
@@ -290,16 +272,17 @@ void wintitle(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    char buf[256];
+    NSString * story_title = [NSString stringWithCString: gli_story_title encoding: NSUTF8StringEncoding];
+    NSString * story_name = [NSString stringWithCString: gli_story_name encoding: NSUTF8StringEncoding];
+    NSString * program_name = [NSString stringWithCString: gli_program_name encoding: NSUTF8StringEncoding];
 
-    if (strlen(gli_story_title))
-        sprintf(buf, "%s", gli_story_title);
-    else if (strlen(gli_story_name))
-        sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
+    NSString * title = nil;
+    if ([story_title length])
+        title = story_title;
+    else if ([story_name length])
+        title = [NSString stringWithFormat: @"%@ - %@", story_name, program_name];
     else
-        sprintf(buf, "%s", gli_program_name);
-
-    NSString * title = [NSString stringWithCString: buf encoding: NSASCIIStringEncoding];
+        title = program_name;
 
     [gargoyle setWindow: processID
                   title: title];
@@ -531,10 +514,12 @@ void winkey(NSEvent *evt)
 
     /* convert character to UTF-32 value */
     glui32 ch;
-    if (CFStringGetBytes((CFStringRef) evt_char,
-                         CFRangeMake(0, [evt_char length]),
-                         kCFStringEncodingUTF32, 0, FALSE,
-                         (char *)&ch, 4, NULL)) {
+    if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: NULL
+                  encoding: NSUTF32StringEncoding
+                   options: 0
+                     range: NSMakeRange(0, [evt_char length])
+            remainingRange: NULL])
+    {
         switch (ch)
         {
             case '\n': gli_input_handle_key(keycode_Return); break;
