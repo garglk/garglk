@@ -6,16 +6,11 @@ TARGET=heglk
 # things live on your system.  It assumes the layout:
 #	hugo/source - portable Hugo sources (SOURCE_DIR)
 #	hugo/heglk  - this directory (NONPORTABLE_DIR)
-#	hugo/$(GLK) - XGlk, Glkterm, etc. directory (with glk.h and libxglk.a)
+#	hugo/xglk   - XGlk library directory (with glk.h and libxglk.a)
 SOURCE_DIR=../source
 NONPORTABLE_DIR=.
-GLK=xglk
-#GLK=glkterm
-GLK_DIR=../$(GLK)
+GLK_DIR=../xglk
 XLIB_DIR=/usr/X11R6/lib
-
-# Import Glk LINKLIBS and GLKLIB
-include ../$(GLK)/Make.$(GLK)
 
 # PORT_NAME is for file-naming:
 PORT_NAME=glk
@@ -25,7 +20,7 @@ LINK=gcc
 DEFINES=-DCOMPILE_V25 -DGLK -DNO_KEYPRESS_CURSOR -DHUGO_INLINE=static\ inline
 WFLAGS=-Wall
 OFLAGS=-O3
-#DFLAGS=-g
+#DFLAGS=-g2
 CFLAGS=-I$(SOURCE_DIR) -I$(GLK_DIR) $(WFLAGS) $(OFLAGS) $(DFLAGS) $(DEFINES) -c
 
 OBJ_EXT=o
@@ -34,7 +29,7 @@ NONPORTABLE_OBJS=he$(PORT_NAME).$(OBJ_EXT) heglkunix.o
 OBJS=he.$(OBJ_EXT) heexpr.$(OBJ_EXT) hemisc.$(OBJ_EXT) heobject.$(OBJ_EXT) heparse.$(OBJ_EXT) heres.$(OBJ_EXT) herun.$(OBJ_EXT) heset.$(OBJ_EXT) stringfn.$(OBJ_EXT) $(NONPORTABLE_OBJS)
 
 heglk: $(OBJS)
-	$(LINK) $(DFLAGS) -o $(TARGET) $(OBJS) -L$(GLK_DIR) $(GLKLIB) -L$(XLIB_DIR) $(LINKLIBS)
+	$(LINK) -o $(TARGET) $(OBJS) -L$(GLK_DIR) -lxglk -L$(XLIB_DIR) -lX11 -lpng
 
 clean:
 	rm -f $(OBJS)

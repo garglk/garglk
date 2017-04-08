@@ -217,3 +217,12 @@ char *strupr(char *s)
 }
 
 #endif
+
+/* Sean Barrett wrote this routine to fix some strcpy problems 
+we saw when strcpy was used on overlapping strings. */
+char *hugo_strcpy(char *s, const char *t) 
+{ 
+	char *r = s; 
+	while ((*s++ = *t++) != 0) ; 
+	return r; 
+}
