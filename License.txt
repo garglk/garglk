@@ -18,7 +18,7 @@ Git is copyright (c) Iain Merrick. It is released under the terms of the MIT Lic
 
 Glulxe is copyright (c) Andrew Plotkin.
 
-Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the HUGO license.
+Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the Simplified 2-Clause BSD license.
 
 JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
 

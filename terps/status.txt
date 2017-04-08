@@ -12,7 +12,7 @@ Build status as of 10/11/2010:
 | geas          | 0.4           |
 | git           | 1.3.5         |
 | glulxe        | 0.5.4         |
-| hugo          | 3.1.03        |
+| hugo          | 3.3.0         |
 | jacl          | 2.9.0         |
 | level9        | 5.1           |
 | magnetic      | 2.3           |

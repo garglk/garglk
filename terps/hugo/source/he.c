@@ -136,11 +136,23 @@ void Banner(void)
 #if defined (PORT_NAME)
 	printf("%s port by %s\n", PORT_NAME, PORTER_NAME);
 #endif
+#if defined(GCC_UNIX) && defined(DO_COLOR)
+	printf("SYNTAX:  %s [switches] filename[%s]\n", my_argv?my_argv[0]:PROGRAM_NAME,
+#else
 	printf("SYNTAX:  %s filename[%s]\n", my_argv?my_argv[0]:PROGRAM_NAME,
+#endif
 #if defined (DEBUGGER)
 	".HDX");
 #else
 	".HEX");
+#if defined(GCC_UNIX) && defined(DO_COLOR)
+	printf("SWITCHES:\n");
+	printf("  Hugo colour values [0-15]:\n");
+	printf("\t-f n  foreground colour\n");
+	printf("\t-b n  background colour\n");
+	printf("\t-F n  status foreground colour\n");
+	printf("\t-B n  status background colour\n");
+#endif
 #endif
 }
 

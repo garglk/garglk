@@ -89,9 +89,9 @@ glkunix_startup_code (glkunix_startup_t *data)
   char *base_name;
 
 #ifdef GARGLK
-  garglk_set_program_name("Hugo 3.1");
+  garglk_set_program_name("Hugo 3.3.0");
   garglk_set_program_info(
-	"Hugo 3.1 by Kent Tessman\n"
+	"Hugo 3.3.0 by Kent Tessman\n"
 	"Graphics support by Simon Baldwin\n"
 	"Sound support by Tor Andersson\n");
 #endif
