@@ -539,9 +539,12 @@ void win_textbuffer_redraw(window_t *win)
                     dwin->copypos++;
                 }
             }
-            /* add newline to copy buffer */
-            dwin->copybuf[dwin->copypos] = '\n';
-            dwin->copypos++;
+            /* add newline if we reach the end of the line */
+            if(0==ln->len || (rsc+1)==ln->len)
+            {
+                dwin->copybuf[dwin->copypos] = '\n';
+                dwin->copypos++;
+            }
         }
 
         /* clear any stored hyperlink coordinates */

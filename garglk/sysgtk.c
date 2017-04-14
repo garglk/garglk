@@ -229,7 +229,7 @@ void winclipstore(glui32 *text, int len)
 
     /* null-terminated string */
     cliptext[k] = '\0';
-    cliplen = k + 1;
+    cliplen = k;
 }
 
 void winclipsend(int source)
