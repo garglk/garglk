@@ -460,7 +460,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (filter != FILTER_ALL)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
-                                                                             encoding: NSASCIIStringEncoding]];        
+                                                                             encoding: NSUTF8StringEncoding]];        
         [openDlg setAllowedFileTypes: filterTypes];
         [openDlg setAllowsOtherFileTypes: NO];
         result = [openDlg runModalForDirectory: NULL file: NULL types: filterTypes];
@@ -489,7 +489,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (filter != FILTER_ALL)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
-                                                                             encoding: NSASCIIStringEncoding]];        
+                                                                             encoding: NSUTF8StringEncoding]];        
         [saveDlg setAllowedFileTypes: filterTypes];
         [saveDlg setAllowsOtherFileTypes: NO];
     }
@@ -550,12 +550,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     /* set environment variable */
     NSString * nsResources = [[NSBundle mainBundle] resourcePath];
 
-    int size = [nsResources length];
-    CFStringGetBytes((CFStringRef) nsResources, CFRangeMake(0, size),
-                     kCFStringEncodingASCII, 0, FALSE,
-                     etc, MaxBuffer, NULL);
-    int bounds = size < MaxBuffer ? size : MaxBuffer;
-    etc[bounds] = '\0';
+    [nsResources getCString: etc maxLength: sizeof etc encoding: NSUTF8StringEncoding];
 
     setenv("GARGLK_INI", etc, TRUE);
 
@@ -785,7 +780,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [openDlg setCanChooseFiles: YES];
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
-    [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSASCIIStringEncoding]];
+    [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSUTF8StringEncoding]];
     
     NSMutableArray *filterTypes = [NSMutableArray arrayWithCapacity:100];
     
@@ -817,12 +812,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     winpath(dir);
 
     /* get story file */
-    int size = [file length];
-    CFStringGetBytes((CFStringRef) file, CFRangeMake(0, size),
-                     kCFStringEncodingASCII, 0, FALSE,
-                     buf, MaxBuffer, NULL);
-    int bounds = size < MaxBuffer ? size : MaxBuffer;
-    buf[bounds] = '\0';
+    if (![file getCString: buf maxLength: sizeof buf encoding: NSUTF8StringEncoding])
+        return NO;
 
     /* run story file */
     int ran = rungame(dir, buf);
@@ -870,7 +861,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (urlParts && [urlParts count] == 2)
     {
         openedFirstGame = YES;
-        NSString * game = [[urlParts objectAtIndex: 1] stringByReplacingPercentEscapesUsingEncoding: NSASCIIStringEncoding];
+        NSString * game = [[urlParts objectAtIndex: 1] stringByRemovingPercentEncoding];
 
         if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES)
             [self launchFile: game];
@@ -930,7 +921,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 void winmsg(const char *msg)
 {
-    NSString * nsMsg = [NSString stringWithCString: msg encoding: NSASCIIStringEncoding];
+    NSString * nsMsg = [NSString stringWithCString: msg encoding: NSUTF8StringEncoding];
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 
@@ -960,7 +951,7 @@ int winexec(const char *cmd, char **args)
     NSTask * proc = [[NSTask alloc] init];
 
     /* prepare interpreter path */
-    NSArray * nsArray = [[NSString stringWithCString: cmd encoding: NSASCIIStringEncoding] componentsSeparatedByString: @"/"];
+    NSArray * nsArray = [[NSString stringWithCString: cmd encoding: NSUTF8StringEncoding] componentsSeparatedByString: @"/"];
     NSString * nsTerp = [nsArray objectAtIndex: [nsArray count] - 1];
     NSString * nsCmd = [NSString stringWithFormat: @"%@/%@", [[NSBundle mainBundle] builtInPlugInsPath], nsTerp];
 
@@ -972,10 +963,10 @@ int winexec(const char *cmd, char **args)
     [nsEnv setObject: [NSString stringWithFormat: @"com.googlecode.garglk-%04x", getpid()] forKey: @"GargoyleApp"];
 
     if (args[1])
-        [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSASCIIStringEncoding]];
+        [nsArgs addObject: [[NSString alloc] initWithCString: args[1] encoding: NSUTF8StringEncoding]];
 
     if (args[2])
-        [nsArgs addObject: [[NSString alloc] initWithCString: args[2] encoding: NSASCIIStringEncoding]];
+        [nsArgs addObject: [[NSString alloc] initWithCString: args[2] encoding: NSUTF8StringEncoding]];
 
     if ([nsCmd length] && [nsArgs count])
     {
