@@ -49,6 +49,10 @@ Modified
 #include "vmhost.h"
 #include "vmvec.h"
 #include "vmbignum.h"
+#include "vmdate.h"
+#include "vmtzobj.h"
+#include "vmtz.h"
+#include "vmfilnam.h"
 #include "vmstr.h"
 #include "vmstrbuf.h"
 #include "vmpat.h"
@@ -1206,13 +1210,13 @@ void CVmDebug::build_stack_listing(VMG_
         (*cbfunc)(cbctx, buf, strlen(buf));
 
         /* move on to the enclosing frame */
-        if (rc != 0 && rc->return_addr != 0)
+        if (rc != 0 && rc->has_return_addr())
         {
             /* 
              *   recursive context - stay in the same frame, but move to the
              *   bytecode caller
              */
-            methodp = rc->return_addr;
+            methodp = rc->get_return_addr();
             rc = 0;
         }
         else
@@ -1719,7 +1723,7 @@ size_t CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
 
                 /* try formatting it as a numeric value */
                 if (bn->cvt_to_string_buf(
-                    vmg_ buf, sizeof(buf), -1, -1, -1, -1,
+                    buf, sizeof(buf), -1, -1, -1, -1,
                     VMBN_FORMAT_POINT | VMBN_FORMAT_COMPACT) != 0)
                 {
                     /*
@@ -1744,6 +1748,56 @@ size_t CVmDebug::format_val(VMG_ char *dst, size_t dstlen, const vm_val_t *val)
                 p = buf;
 
                 /* handled */
+                break;
+            }
+
+            /* try it as a Date object */
+            if (CVmObjDate::is_date_obj(vmg_ val->val.obj))
+            {
+                /* cast it to a Date */
+                CVmObjDate *date = (CVmObjDate *)vm_objp(vmg_ val->val.obj);
+
+                /* get the formatted date */
+                char buf2[64];
+                date->format_string_buf(vmg_ buf2, sizeof(buf2));
+
+                /* store it as "Date(m/d/y...)" */
+                t3sprintf(buf, sizeof(buf), "Date(%s)", buf2);
+
+                /* use the formatted text */
+                p = buf;
+                break;
+            }
+
+            /* try it as a TimeZone object */
+            if (CVmObjTimeZone::is_CVmObjTimeZone_obj(vmg_ val->val.obj))
+            {
+                /* cast it to a TimeZone */
+                CVmObjTimeZone *tz =
+                    (CVmObjTimeZone *)vm_objp(vmg_ val->val.obj);
+
+                /* store it as "TimeZone(name)" */
+                size_t len;
+                const char *name = tz->get_tz()->get_name(len);
+                t3sprintf(buf, sizeof(buf), "TimeZone(%.*s)", (int)len, name);
+
+                /* use the formatted text */
+                p = buf;
+                break;
+            }
+
+            /* try it as a FileName object */
+            if (CVmObjFileName::is_vmfilnam_obj(vmg_ val->val.obj))
+            {
+                /* cast it */
+                CVmObjFileName *fn = vm_val_cast(CVmObjFileName, val);
+
+                /* store it as "FileName(name)" */
+                const char *name = fn->get_path_string() + VMB_LEN;
+                t3sprintf(buf, sizeof(buf), "FileName(%s)", name);
+
+                /* use the formatted text */
+                p = buf;
                 break;
             }
 
@@ -3402,7 +3456,7 @@ int CVmDebug::get_stack_level_info(VMG_ int level, CVmFuncPtr *func_ptr,
             if (rc != 0)
             {
                 /* move to the recursive caller's return address */
-                retp = rc->return_addr;
+                retp = rc->get_return_addr();
 
                 /* move up to the bytecode caller by clearing 'rc' */
                 rc = 0;

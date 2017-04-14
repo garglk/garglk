@@ -46,6 +46,7 @@ Modified
 #include "vmpredef.h"
 #include "vmcset.h"
 #include "vmfilobj.h"
+#include "vmfilnam.h"
 #include "vmnetfil.h"
 #include "vmnet.h"
 
@@ -111,6 +112,11 @@ void CVmBifTIO::say_to_console(VMG_ CVmConsole *console, uint argc)
             /* go display it */
             goto disp_str;
 
+        case VM_LIST:
+            /* convert to a string */
+            str = val.cast_to_string(vmg_ &new_str);
+            goto disp_str;
+
         case VM_INT:
             /* convert it to a string */
             sprintf(buf + 2, "%ld", (long)val.val.intval);
@@ -153,7 +159,7 @@ void CVmBifTIO::logging(VMG_ uint argc)
 
     /* get the arguments: filename, log type */
     const vm_val_t *filespec = G_stk->get(0);
-    int log_type = (argc >= 2 ? G_stk->get(1)->num_to_int() : LOG_SCRIPT);
+    int log_type = (argc >= 2 ? G_stk->get(1)->num_to_int(vmg0_) : LOG_SCRIPT);
 
     /* 
      *   if they passed us nil, turn off logging; otherwise, start logging
@@ -1000,7 +1006,6 @@ void CVmBifTIO::askfile(VMG_ uint argc)
     char prompt[256];
     int dialog_type;
     os_filetype_t file_type;
-    long flags;
     int result;
     char fname[OSFNMAX*3 + 1];
     vm_obj_id_t lst_obj;
@@ -1008,6 +1013,7 @@ void CVmBifTIO::askfile(VMG_ uint argc)
     vm_val_t val;
     int from_script = FALSE;
     char warning[OSFNMAX + 255] = "";
+    int from_ui = FALSE;
     
     /* check arguments */
     check_argc(vmg_ argc, 4);
@@ -1019,8 +1025,13 @@ void CVmBifTIO::askfile(VMG_ uint argc)
     dialog_type = pop_int_val(vmg0_);
     file_type = (os_filetype_t)pop_int_val(vmg0_);
 
-    /* pop the flags */
-    flags = pop_long_val(vmg0_);
+    /* 
+     *   Pop and discard the flags.  (This argument isn't used currently;
+     *   it's just there in case we need some option flags in the future.
+     *   Pop it as an integer to ensure the caller specified the correct
+     *   type, but discard the value.)
+     */
+    (void)pop_long_val(vmg0_);
 
     /* check for a script response */
     static int filter[] = { VMCON_EVT_FILE };
@@ -1202,6 +1213,9 @@ void CVmBifTIO::askfile(VMG_ uint argc)
         result = G_console->askfile(
             vmg_ prompt, strlen(prompt),
             fname, sizeof(fname), dialog_type, file_type);
+
+        /* this file came from the console UI */
+        from_ui = TRUE;
     }
 
     /* 
@@ -1226,15 +1240,38 @@ void CVmBifTIO::askfile(VMG_ uint argc)
     /* add the extra elements for the success case */
     if (result == OS_AFE_SUCCESS)
     {
-        /* 
-         *   Create a string for the filename.  If it's coming from a script,
-         *   we need to translate it to the local character set; otherwise
-         *   it's already in UTF-8. 
-         */
-        val.set_obj(
-            from_script
-            ? str_from_ui_str(vmg_ fname)
-            : CVmObjString::create(vmg_ FALSE, fname, strlen(fname)));
+        char *fnamep = fname, *fname2 = 0;
+        err_try
+        {
+            /* if the name came from a script, map from the local char set */
+            if (from_script)
+            {
+                G_cmap_from_ui->map_str_alo(&fname2, fname);
+                fnamep = fname2;
+            }
+
+            /* create a FileName object to represent the filename */
+            val.set_obj(CVmObjFileName::create_from_local(
+                vmg_ fnamep, strlen(fnamep)));
+
+            /* 
+             *   if the name came from the console UI, flag the FileName as
+             *   being user-selected, which allows it to override the file
+             *   safety settings; since the user manually selected the name,
+             *   they implicitly granted permission to use the file for the
+             *   type of operation proposed by the dialog
+             */
+            if (from_ui)
+            {
+                vm_objid_cast(CVmObjFileName, val.val.obj)->set_from_ui(
+                    dialog_type);
+            }
+        }
+        err_finally
+        {
+            lib_free_str(fname2);
+        }
+        err_end;
 
         /* store the string as the second list element */
         lst->cons_set_element(1, &val);
@@ -1571,7 +1608,7 @@ void CVmBifTIO::set_script_file(VMG_ uint argc)
         const vm_val_t *filespec = G_stk->get(0);
     
         /* if they provided flags, get the flags */
-        int flags = (argc >= 2 ? G_stk->get(1)->num_to_int() : 0);
+        int flags = (argc >= 2 ? G_stk->get(1)->num_to_int(vmg0_) : 0);
 
         /* set up our recursive call descriptor */
         vm_rcdesc rc(vmg_ "setScriptFile", bif_table, 15,
@@ -2255,7 +2292,7 @@ void CVmBifTIO::log_console_create(VMG_ uint argc)
     /* get the arguments: log file name, character set, and width */
     const vm_val_t *filespec = G_stk->get(0);
     const vm_val_t *charset = G_stk->get(1);
-    int width = G_stk->get(2)->num_to_int();
+    int width = G_stk->get(2)->num_to_int(vmg0_);
 
     /* 
      *   Retrieve the character mapper, which can be given as either a
@@ -2297,7 +2334,7 @@ void CVmBifTIO::log_console_create(VMG_ uint argc)
          *   will automatically add a reference to the mapper on our behalf,
          *   so we don't have to add our own extra reference. 
          */
-        cmap = CCharmapToLocal::load(G_host_ifc->get_cmap_res_loader(), nm);
+        cmap = CCharmapToLocal::load(G_host_ifc->get_sys_res_loader(), nm);
 
         /* done with the null-terminated version of the name string */
         lib_free_str(nm);
@@ -2305,7 +2342,7 @@ void CVmBifTIO::log_console_create(VMG_ uint argc)
 
     /* if we didn't get a character map, use us-ascii by default */
     if (cmap == 0)
-        cmap = CCharmapToLocal::load(G_host_ifc->get_cmap_res_loader(),
+        cmap = CCharmapToLocal::load(G_host_ifc->get_sys_res_loader(),
                                      "us-ascii");
 
     /* open the file and start logging */
@@ -2482,8 +2519,18 @@ void CVmBifTIO::log_input_event(VMG_ uint argc)
         vm_val_t ele2;
         lst->ll_index(vmg_ &ele2, 2);
 
-        /* get its string value */
-        if ((param = ele2.get_as_string(vmg0_)) == 0)
+        /* 
+         *   Get its string value.  If it's a filename object, use the
+         *   filename path string. 
+         */
+        CVmObjFileName *fname_param = vm_val_cast(CVmObjFileName, &ele2);
+        if (fname_param != 0)
+            param = fname_param->get_path_string();
+        else
+            param = ele2.get_as_string(vmg0_);
+
+        /* if we didn't get a parameter string value, it's an error */
+        if (param == 0)
             err_throw(VMERR_BAD_VAL_BIF);
 
         /* get the parameter length and buffer pointer */
@@ -2492,10 +2539,11 @@ void CVmBifTIO::log_input_event(VMG_ uint argc)
     }
 
     /* log the event, according to the type of the event code */
-    if (ele1.is_numeric())
+    if (ele1.is_numeric(vmg0_))
     {
         /* it's an integer event type code - log it */
-        G_console->log_event(vmg_ ele1.num_to_int(), param, paramlen, TRUE);
+        G_console->log_event(
+            vmg_ ele1.num_to_int(vmg0_), param, paramlen, TRUE);
     }
     else if (ele1.get_as_string(vmg0_) != 0)
     {

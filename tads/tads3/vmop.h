@@ -20,6 +20,27 @@ Modified
 #ifndef VMOP_H
 #define VMOP_H
 
+/*
+ *   T3 VM opcode definitions 
+ */
+class CVmOpcodes
+{
+public:
+    /*
+     *   Opcode size table.  Index by opcode; each entry gives the size in
+     *   bytes of the instruction.  A value of 0 is special - it means that
+     *   the instruction is varying-length.
+     */
+    static const uchar op_siz[];
+
+    /* 
+     *   Get the size in bytes of an opcode.  This computes the actual size
+     *   of varying-length instructions. 
+     */
+    static size_t get_op_size(const uchar *op);
+};
+
+
 #define OPC_PUSH_0       0x01                    /* push constant integer 0 */
 #define OPC_PUSH_1       0x02                    /* push constant integer 1 */
 #define OPC_PUSHINT8     0x03              /* push SBYTE operand as integer */

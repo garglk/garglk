@@ -45,11 +45,15 @@ Modified
 #include "vmcset.h"
 #include "vmfilobj.h"
 #include "vmtmpfil.h"
+#include "vmfilnam.h"
 #include "vmpat.h"
 #include "vmstrcmp.h"
 #include "vmstrbuf.h"
 #include "vmdynfunc.h"
 #include "vmfref.h"
+#include "vmdate.h"
+#include "vmtzobj.h"
+
 
 #ifdef TADSNET
 #include "vmhttpsrv.h"
@@ -233,6 +237,12 @@ ulong CVmObjTemporaryFile::rebuild_image(VMG_ char *buf, ulong buflen)
     return 0;
 }
 
+ulong CVmObjFileName::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    assert(FALSE);
+    return 0;
+}
+
 ulong CVmObjPattern::rebuild_image(VMG_ char *, ulong)
 {
     assert(FALSE);
@@ -267,6 +277,19 @@ ulong CVmObjFrameRef::rebuild_image(VMG_ char *, ulong)
     assert(FALSE);
     return 0;
 }
+
+ulong CVmObjDate::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    assert(FALSE);
+    return 0;
+}
+
+ulong CVmObjTimeZone::rebuild_image(VMG_ char *buf, ulong buflen)
+{
+    assert(FALSE);
+    return 0;
+}
+
 
 /* ------------------------------------------------------------------------ */
 /*

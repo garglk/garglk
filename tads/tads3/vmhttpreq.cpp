@@ -106,7 +106,8 @@ int (CVmObjHTTPRequest::*CVmObjHTTPRequest::func_table_[])(
     &CVmObjHTTPRequest::getp_sendReply,
     &CVmObjHTTPRequest::getp_startChunkedReply,
     &CVmObjHTTPRequest::getp_sendReplyChunk,
-    &CVmObjHTTPRequest::getp_endChunkedReply
+    &CVmObjHTTPRequest::getp_endChunkedReply,
+    &CVmObjHTTPRequest::getp_sendReplyAsync
 };
 
 /* ------------------------------------------------------------------------ */
@@ -217,11 +218,10 @@ int CVmObjHTTPRequest::get_prop(VMG_ vm_prop_id_t prop, vm_val_t *retval,
                                 vm_obj_id_t self, vm_obj_id_t *source_obj,
                                 uint *argc)
 {
-    uint func_idx;
     
     /* translate the property into a function vector index */
-    func_idx = G_meta_table
-               ->prop_to_vector_idx(metaclass_reg_->get_reg_idx(), prop);
+    uint func_idx = G_meta_table->prop_to_vector_idx(
+        metaclass_reg_->get_reg_idx(), prop);
     
     /* call the appropriate function */
     if ((this->*func_table_[func_idx])(vmg_ self, retval, argc))
@@ -956,6 +956,19 @@ static int match_attrs(const char *a, size_t alen,
 }
 
 /*
+ *   send a cookie header
+ */
+int vm_httpreq_cookie::send(TadsServerThread *t)
+{
+    /* send the Set-Cookie header */
+    return (t->send("Set-Cookie: ")
+            && t->send(name)
+            && t->send("=")
+            && t->send(val)
+            && t->send("\r\n"));
+}
+
+/*
  *   set a cookie in the reply
  */
 int CVmObjHTTPRequest::getp_setCookie(VMG_ vm_obj_id_t self,
@@ -1112,6 +1125,9 @@ public:
         this->s = s;
         s->add_ref();
     }
+
+    virtual CVmDataSource *clone(VMG_ const char * /*mode*/)
+        { return new CVmStringRefSource(s, mem - s->get(), memlen); }
 
     ~CVmStringRefSource()
     {
@@ -1696,6 +1712,27 @@ static void send_custom_headers(VMG_ TadsServerThread *t,
     }
 }
 
+/* error info for HTTPReplySender::send() */
+struct http_reply_err
+{
+    /* OS_Exxx error number (see osifcnet.h) */
+    int sock_err;
+
+    /* descriptive message (as a static const string - not allocated) */
+    const char *msg;
+
+    /* set the error - returns FALSE status code for caller to return */
+    int set(int err, const char *msg)
+    {
+        this->sock_err = err;
+        this->msg = msg;
+        return FALSE;
+    }
+
+    int set(TadsServerThread *t, const char *msg)
+        { return set(t->last_error(), msg); }
+};
+
 /*
  *   Body argument descriptor.  This handles the various different source
  *   types we handle for body values - strings, ByteArrays, StringBuffers. 
@@ -1714,49 +1751,63 @@ struct bodyArg
         len = 0;
         status_code = 0;
         init_err = 0;
+        datasource = 0;
+        gv = 0;
 
         /* get the argument value pointer out of the stack */
-        const vm_val_t *v = G_stk->get(argn);
+        srcval = *G_stk->get(argn);
 
         /* try the various types */
-        if ((str = v->get_as_string(vmg0_)) != 0)
+        if ((str = srcval.get_as_string(vmg0_)) != 0)
         {
             /* it's a string - get the length and buffer pointer */
             len = vmb_get_len(str);
             str += VMB_LEN;
         }
-        else if (v->typ == VM_OBJ
-                 && CVmObjByteArray::is_byte_array(vmg_ v->val.obj))
+        else if (srcval.typ == VM_OBJ
+                 && CVmObjByteArray::is_byte_array(vmg_ srcval.val.obj))
         {
             /* it's a byte array */
-            bytarr = (CVmObjByteArray *)vm_objp(vmg_ v->val.obj);
+            bytarr = (CVmObjByteArray *)vm_objp(vmg_ srcval.val.obj);
             len = bytarr->get_element_count();
         }
-        else if (v->typ == VM_OBJ
-                 && CVmObjStringBuffer::is_string_buffer_obj(vmg_ v->val.obj))
+        else if (srcval.typ == VM_OBJ
+                 && CVmObjStringBuffer::is_string_buffer_obj(
+                     vmg_ srcval.val.obj))
         {
             /* it's a string buffer object */
-            strbuf = (CVmObjStringBuffer *)vm_objp(vmg_ v->val.obj);
+            strbuf = (CVmObjStringBuffer *)vm_objp(vmg_ srcval.val.obj);
             len = strbuf->utf8_length();
         }
-        else if (v->typ == VM_OBJ
-                 && CVmObjFile::is_file_obj(vmg_ v->val.obj))
+        else if (srcval.typ == VM_OBJ
+                 && CVmObjFile::is_file_obj(vmg_ srcval.val.obj))
         {
-            /* it's a file object */
-            file = (CVmObjFile *)vm_objp(vmg_ v->val.obj);
+            /* it's a file object - cast it */
+            file = (CVmObjFile *)vm_objp(vmg_ srcval.val.obj);
+
+            /* note the size */
             len = file->get_file_size(vmg0_);
+
+            /* 
+             *   Get the data source and file spec.  Use the file spec as the
+             *   source object, not the File itself; it's the spec that we
+             *   want to keep around, since we're directly accessing a data
+             *   source based on the spec rather than the File.
+             */
+            datasource = file->get_datasource();
+            file->get_filespec(&srcval);
 
             /* it's an error if the file isn't open or valid */
             if (len < 0)
                 init_err = VMERR_READ_FILE;
         }
-        else if (v->typ == VM_INT)
+        else if (srcval.typ == VM_INT)
         {
             /* 
              *   Integer value - treat this as an HTTP status code.  The
              *   content body is a generated HTML page for the status code. 
              */
-            status_code = (int)v->val.intval;
+            status_code = (int)srcval.val.intval;
 
             /* generate the HTML page */
             size_t len;
@@ -1772,7 +1823,7 @@ struct bodyArg
                                   msg, strchr(msg, ' ') + 1);
             stralo = TRUE;
         }
-        else if (v->typ == VM_NIL)
+        else if (srcval.typ == VM_NIL)
         {
             /* no content body */
             none = TRUE;
@@ -1818,28 +1869,85 @@ struct bodyArg
     }
 
     /*
+     *   prepare for async use 
+     */
+    void init_async(VMG0_)
+    {
+        /* if we have a data source, clone it */
+        if (datasource != 0)
+            datasource = datasource->clone(vmg_ "rb");
+
+        /* 
+         *   If we have a string buffer or byte array, make a private copy.
+         *   These objects aren't designed to be thread-safe, so we can't
+         *   access them from the background thread.
+         */
+        if (strbuf != 0 || bytarr != 0)
+        {
+            /* allocate the string buffer */
+            char *buf = lib_alloc_str(len);
+
+            /* extract the contents into the buffer */
+            int32_t ofs = 0;
+            extract(buf, ofs, len);
+            
+            /* use this as the string buffer */
+            str = buf;
+            stralo = TRUE;
+
+            /* forget the original object */
+            strbuf = 0;
+            bytarr = 0;
+
+            /* we don't even need gc protection for the original any more */
+            srcval.set_nil();
+        }
+
+        /* 
+         *   if the source value is an object, create a VM global for gc
+         *   protection as long as the background thread is running 
+         */
+        if (srcval.typ == VM_OBJ)
+        {
+            gv = G_obj_table->create_global_var();
+            gv->val = srcval;
+        }
+    }
+
+    /* clean up from async use */
+    void term_async(VMG0_)
+    {
+        /* delete our data source */
+        if (datasource != 0)
+            delete datasource;
+
+        /* delete our VM global */
+        if (gv != 0)
+            G_obj_table->delete_global_var(gv);
+    }
+
+    /*
      *   Send the body data
      */
-    void send(VMG_ TadsServerThread *t)
+    int send(TadsServerThread *t, http_reply_err *err)
     {
         /* send the data according to the source type */
         if (str != 0)
         {
             /* send the string's contents */
             if (!t->send(str, (size_t)len))
-                throw_net_err(
-                    vmg_ "HTTPRequest: error sending data", t->last_error());
+                return err->set(t, "error sending content body");
         }
         else if (bytarr != 0 || strbuf != 0)
         {
             /* send the byte array or string buffer contents */
             char buf[1024];
-            int32 ofs = 0;
+            int32_t ofs = 0;
             for (;;)
             {
                 /* get the next chunk */
-                int32 len = sizeof(buf);
-                const char *p = extract(vmg_ buf, ofs, len);
+                int32_t len = sizeof(buf);
+                const char *p = extract(buf, ofs, len);
 
                 /* if we're out of material, we're done */
                 if (len == 0)
@@ -1847,25 +1955,21 @@ struct bodyArg
 
                 /* send this chunk */
                 if (!t->send(p, (size_t)len))
-                    throw_net_err(
-                        vmg_ "HTTPRequest: error sending data",
-                        t->last_error());
+                    return err->set(t, "error sending content body");
             }
         }
-        else if (file != 0)
+        else if (datasource != 0)
         {
             /* seek to the start of the file */
-            file->set_pos(vmg_ 0);
+            datasource->seek(0, OSFSK_SET);
 
             /* copy the file to the socket */
             for (;;)
             {
                 /* get the next chunk */
                 char buf[1024];
-                int32 len = sizeof(buf);
-                if (!file->read_file(vmg_ buf, len))
-                    throw_net_err(
-                        vmg_ "HTTPRequest: error reading file", 0);
+                int32_t len = sizeof(buf);
+                len = datasource->readc(buf, len);
 
                 /* if we're out of material, we're done */
                 if (len == 0)
@@ -1873,11 +1977,12 @@ struct bodyArg
 
                 /* send this chunk */
                 if (!t->send(buf, (size_t)len))
-                    throw_net_err(
-                        vmg_ "HTTPRequest: error sending data",
-                        t->last_error());
+                    return err->set(t, "error sending content body");
             }
         }
+
+        /* success */
+        return TRUE;
     }
 
     /* 
@@ -1902,7 +2007,7 @@ struct bodyArg
      *   no guarantee that a fractional character won't be copied: some data
      *   sources won't do this, but others will.  
      */
-    const char *extract(VMG_ char *buf, int32 &ofs, int32 &len)
+    const char *extract(char *buf, int32_t &ofs, int32_t &len)
     {
         /* assume we'll have to copy into the caller's buffer */
         const char *ret = buf;
@@ -1946,8 +2051,8 @@ struct bodyArg
              *   It's a File object - read bytes from the file into the
              *   caller's buffer. 
              */
-            file->set_pos(vmg_ ofs);
-            file->read_file(vmg_ buf, len);
+            datasource->seek(ofs, OSFSK_SET);
+            len = datasource->readc(buf, len);
 
             /* adjust the offset for the actual copied size */
             ofs += len;
@@ -1980,14 +2085,21 @@ struct bodyArg
     /* if it's a byte array, the byte array */
     CVmObjByteArray *bytarr;
 
-    /* if it's a File object, the object */
+    /* if it's a File object, the File object and data source */
     CVmObjFile *file;
+    CVmDataSource *datasource;
+
+    /* source value */
+    vm_val_t srcval;
 
     /* if it's an HTTP status code, the status code; otherwise 0 */
     int status_code;
 
     /* length in bytes of the underlying data source */
-    int32 len;
+    int32_t len;
+
+    /* VM global, for async use */
+    vm_globalvar_t *gv;
 };
 
 /*
@@ -1995,6 +2107,10 @@ struct bodyArg
  */
 static int eq_skip_sp(const char *src, size_t len, const char *ref)
 {
+    /* skip leading spaces */
+    utf8_ptr srcp((char *)src);
+    for ( ; len != 0 && is_space(srcp.getch()) ; srcp.inc(&len)) ;
+
     /* keep going until we run out of one string or the other */
     for (utf8_ptr srcp((char *)src) ; len != 0 && *ref != '\0' ; ++ref)
     {
@@ -2040,12 +2156,7 @@ static void send_cookies(VMG_ TadsServerThread *t, vm_httpreq_cookie *c)
     /* send each cookie in the list */
     for ( ; c != 0 ; c = c->nxt)
     {
-        /* send the Set-Cookie header */
-        if (!t->send("Set-Cookie: ")
-            || !t->send(c->name)
-            || !t->send("=")
-            || !t->send(c->val)
-            || !t->send("\r\n"))
+        if (!c->send(t))
         {
             /* failed - throw an error */
             throw_net_err(vmg_ "error sending cookies", t->last_error());
@@ -2056,8 +2167,501 @@ static void send_cookies(VMG_ TadsServerThread *t, vm_httpreq_cookie *c)
 /*
  *   send a reply 
  */
-int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
-                                      vm_val_t *retval, uint *oargc)
+int CVmObjHTTPRequest::getp_sendReply(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    return common_sendReply(vmg_ self, retval, oargc, TRUE);
+}
+
+/*
+ *   send a reply asynchronously
+ */
+int CVmObjHTTPRequest::getp_sendReplyAsync(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
+{
+    return common_sendReply(vmg_ self, retval, oargc, FALSE);
+}
+
+/* reply sender thread */
+class HTTPReplySenderThread: public OS_Thread
+{
+public:
+    HTTPReplySenderThread(class HTTPReplySender *sender);
+    ~HTTPReplySenderThread();
+
+    virtual void thread_main();
+
+    class HTTPReplySender *sender;
+};
+
+/* custom header list */
+struct http_header
+{
+    static http_header *create(VMG_ const vm_val_t *lstval)
+    {
+        /* start with an empty list */
+        http_header *head = 0, **tailp = &head;
+        
+        /* parse the value list */
+        int cnt = lstval->ll_length(vmg0_);
+        for (int i = 1 ; i <= cnt ; ++i)
+        {
+            /* get this list element */
+            vm_val_t ele;
+            lstval->ll_index(vmg_ &ele, i);
+            
+            /* it has to be a string */
+            const char *h = ele.get_as_string(vmg0_);
+            if (h == 0)
+                err_throw(VMERR_STRING_VAL_REQD);
+
+            /* add a new header */
+            *tailp = new http_header(h + VMB_LEN, vmb_get_len(h));
+            tailp = &(*tailp)->nxt;
+        }
+
+        /* return the list head */
+        return head;
+    }
+
+    http_header(const char *str, size_t len)
+    {
+        /* allocate the string, with two extra bytes for the CR-LF */
+        this->len = len + 2;
+        this->str = lib_alloc_str(this->len);
+
+        /* copy the string */
+        memcpy(this->str, str, len);
+
+        /* add the CR-LF */
+        this->str[len] = '\r';
+        this->str[len+1] = '\n';
+
+        /* we're not in a list yet */
+        nxt = 0;
+    }
+
+    ~http_header()
+    {
+        lib_free_str(str);
+        if (nxt != 0)
+            delete nxt;
+    }
+
+    /* string and length */
+    char *str;
+    size_t len;
+
+    /* next in list */
+    http_header *nxt;
+};
+
+/*
+ *   Asynchronous HTTP reply result event 
+ */
+class TadsHttpReplyResult: public TadsEventMessage
+{
+public:
+    TadsHttpReplyResult(VMG_ TadsHttpRequest *req, vm_globalvar_t *reqvar,
+                        bodyArg *body, int sock_err, const char *msg)
+        : TadsEventMessage(0)
+    {
+        /* save the VM globals for use in the main thread */
+        this->vmg = VMGLOB_ADDR;
+
+        /* remember our parameters */
+        this->req = req;
+        this->reqvar = reqvar;
+        this->body = body;
+        this->sock_err = sock_err;
+        this->msg = lib_copy_str(msg);
+    }
+
+    ~TadsHttpReplyResult()
+    {
+        /* establish global variable access */
+        VMGLOB_PTR(vmg);
+
+        /* done with the request object */
+        if (req != 0)
+            req->release_ref();
+
+        /* done with the request object ID global */
+        if (reqvar != 0)
+            G_obj_table->delete_global_var(reqvar);
+
+        /* done with 'body' - clean up from async mode and delete it */
+        if (body != 0)
+        {
+            body->term_async(vmg0_);
+            delete body;
+        }
+
+        /* free the message text */
+        lib_free_str(msg);
+    }
+
+    /* prepare a bytecode event object when we're read from the queue */
+    virtual vm_obj_id_t prep_event_obj(VMG_ int *argc, int *evt_type)
+    {
+        /* push the socket error */
+        G_stk->push()->set_int(sock_err);
+
+        /* push the result message */
+        G_stk->push_string(vmg_ msg, msg != 0 ? strlen(msg) : 0);
+
+        /* push the request object ID */
+        if (reqvar != 0)
+            G_stk->push(&reqvar->val);
+        else
+            G_stk->push()->set_nil();
+
+        /* relay our added argument count to the caller */
+        *argc = 3;
+
+        /* set the event type to NetEvReplyDone (6 - see include/tadsnet.h) */
+        *evt_type = 6;
+
+        /* the event subclass is NetReplyDoneEvent */
+        return G_predef->net_reply_done_event;
+    }
+
+    /* VM globals, for use in main thread only */
+    vm_globals *vmg;
+
+    /* the request object for the request we replied to */
+    TadsHttpRequest *req;
+
+    /* VM global for the request object value */
+    vm_globalvar_t *reqvar;
+
+    /* the content body of the reply */
+    bodyArg *body;
+
+    /* socket error from reply data transfer */
+    int sock_err;
+
+    /* result message text */
+    char *msg;
+};
+
+
+/*
+ *   Reply sender object.  This encapsulates a reply's data and the code to
+ *   send the reply.  This can be used to send a reply synchronously or
+ *   asynchronously.
+ */
+class HTTPReplySender: public CVmRefCntObj
+{
+    friend class HTTPReplySenderThread;
+    
+public:
+    HTTPReplySender()
+    {
+        vmg = 0;
+        queue = 0;
+        reqid = VM_INVALID_OBJ;
+        req = 0;
+        reqvar = 0;
+        status = 0;
+        status_len = 0;
+        headers = 0;
+        body = 0;
+        cont_type = 0;
+        cont_type_len = 0;
+        cookies = 0;
+        async = FALSE;
+    }
+
+    void set_params(VMG_ vm_obj_id_t reqid, TadsHttpRequest *req,
+                    const char *status, size_t status_len,
+                    const vm_val_t *headers, bodyArg *body,
+                    const char *cont_type, size_t cont_type_len,
+                    vm_httpreq_cookie *cookies)
+    {
+        /* 
+         *   Save the values.  For reference types (string buffers, etc),
+         *   just keep pointers to the originals; for synchronous replies,
+         *   the caller will block on the send, so these will stay around for
+         *   the send.  For asynchronous (threaded) replies, we'll make
+         *   private copies when we start the new thread. 
+         */
+        this->reqid = reqid;
+        this->req = req;
+        this->status = status;
+        this->status_len = status_len;
+        this->headers = 0;
+        this->body = body;
+        this->cont_type = cont_type;
+        this->cont_type_len = cont_type_len;
+        this->cookies = cookies;
+
+        /* parse the headers list */
+        if (headers != 0)
+            this->headers = http_header::create(vmg_ headers);
+
+        /* add a reference on the request object */
+        req->add_ref();
+    }
+
+    ~HTTPReplySender()
+    {
+        /* if we're in async mode, delete our private parameter data */
+        if (async)
+        {
+            lib_free_str((char *)status);
+            lib_free_str((char *)cont_type);
+            if (cookies != 0)
+                delete cookies;
+        }
+
+        /* delete the headers (we always copy these) */
+        if (headers != 0)
+            delete headers;
+
+        /* release the net event queue */
+        if (queue != 0)
+            queue->release_ref();
+
+        /* done with the request object and VM global */
+        if (req != 0)
+            req->release_ref();
+        if (reqvar != 0)
+        {
+            VMGLOB_PTR(vmg);
+            G_obj_table->delete_global_var(reqvar);
+        }
+
+        /* done with the body object */
+        if (body != 0)
+            delete body;
+    }
+
+    /* 
+     *   send the reply; returns true on success, false on failure (and fills
+     *   in '*err' with error information on failure) 
+     */
+    int send(http_reply_err *err)
+    {
+        /* presume success */
+        int ok = TRUE;
+        
+        /*
+         *   We've gathered all of the information, so send the reply.  Start
+         *   with the status code.  
+         */
+        TadsServerThread *t = req->thread;
+        if (!t->send("HTTP/1.1 ")
+            || !t->send(status, status_len)
+            || !t->send("\r\n"))
+            ok = err->set(t, "error sending status");
+
+        /* send the custom headers, if any */
+        if (ok && headers != 0)
+        {
+            for (http_header *h = headers ; ok && h != 0 ; h = h->nxt)
+            {
+                if (!t->send(h->str, h->len))
+                    ok = err->set(t, "error sending headers");
+            }
+        }
+
+        /* if there's a body, send Content-Type and Content-Length headers */
+        if (ok && !body->none)
+        {
+            /* if it's a "text/" type, add a utf-8 "charset" parameter */
+            const char *charset = "";
+            if (cont_type_len > 5 && memicmp(cont_type, "text/", 5) == 0)
+                charset = "; charset=utf-8";
+
+            /* send the standard headers: Content-Type, Content-Length */
+            char hbuf[256];
+            t3sprintf(hbuf, sizeof(hbuf),
+                      "Content-Type: %.*s%s\r\n"
+                      "Content-Length: %lu\r\n",
+                      (int)cont_type_len, cont_type, charset,
+                      (ulong)body->len);
+            if (!t->send(hbuf))
+                ok = err->set(t, "error sending headers");
+        }
+
+        /* send the cookies */
+        for (vm_httpreq_cookie *c = cookies ; ok && c != 0 ; c = c->nxt)
+        {
+            if (!c->send(t))
+                ok = err->set(t, "error sending cookies");
+        }
+
+        /* send the blank line at the end of the headers */
+        if (ok && !t->send("\r\n"))
+            ok = err->set(t, "error sending headers");
+
+        /* send the reply body */
+        if (ok && !body->send(t, err))
+            ok = FALSE;
+        
+        /* mark the request as completed */
+        req->complete();
+
+        /* return the status indication */
+        return ok;
+    }
+
+    /* reply error codes */
+    static const int ErrThread = -8;                /* thread launch failed */
+
+    /* start a thread to send the reply asynchronously */
+    void start_thread(VMG0_)
+    {
+        /* save the globals for use in the 'done' event */
+        vmg = VMGLOB_ADDR;
+
+        /* remember the net event queue, and record our reference on it */
+        if ((queue = G_net_queue) != 0)
+            queue->add_ref();
+
+        /* 
+         *   remove the original parametres from our member variables before
+         *   we set async mode, in case we throw an error in the course of
+         *   making copies - we wouldn't want to delete the originals, as
+         *   those are owned by the main thread
+         */
+        const char *ostatus = status; status = 0;
+        const char *ocont_type = cont_type; cont_type = 0;
+        vm_httpreq_cookie *ocookies = cookies; cookies = 0;
+
+        /* note that we're now in async mode */
+        async = TRUE;
+        
+        /* install copies in our member variables */
+        status = lib_copy_str(ostatus, status_len);
+        cont_type = lib_copy_str(ocont_type, cont_type_len);
+        if (ocookies != 0)
+            cookies = ocookies->clone();
+
+        /* initialize async mode in the body object */
+        body->init_async(vmg0_);
+
+        /* 
+         *   create a global variable for the request object ID, to keep it
+         *   around until the request is completed 
+         */
+        reqvar = G_obj_table->create_global_var();
+        reqvar->val.set_obj(reqid);
+
+        /* create and launch a thread to handle the data transfer */
+        HTTPReplySenderThread *t = new HTTPReplySenderThread(this);
+        if (!t->launch())
+        {
+            /* 
+             *   the thread failed - post a 'finished' event with an error,
+             *   since the thread can't do this on its own if it never runs
+             */
+            post_done_event(0, "unable to launch thread");
+        }
+
+        /* we're done with the thread */
+        t->release_ref();
+    }
+
+protected:
+    /* handle the main thread action */
+    void thread_main()
+    {
+        /* send the reply */
+        http_reply_err err;
+        if (send(&err))
+        {
+            /* post the successful 'finished' event */
+            post_done_event(0, 0);
+        }
+        else
+        {
+            /* post the error */
+            post_done_event(err.sock_err, err.msg);
+        }
+    }
+
+    /* post the "finished" event for an asynchronous reply */
+    void post_done_event(int sock_err, const char *msg)
+    {
+        /* establish the global context */
+        VMGLOB_PTR(vmg);
+
+        /* create the result event */
+        TadsHttpReplyResult *evt = new TadsHttpReplyResult(
+            vmg_ req, reqvar, body, sock_err, msg);
+        
+        /* queue the event (this transfers ownership to the queue) */
+        queue->post(evt);
+
+        /* forget the items that the event object took ownership of */
+        req = 0;
+        body = 0;
+        reqvar = 0;
+    }
+
+    /* 
+     *   VM globals (we need these for the "finished" event object) - note
+     *   that the background thread isn't allowed to access VM globals since
+     *   they're not thread safe and thus are restricted to the main thread
+     */
+    vm_globals *vmg;
+
+    /* network event queue */
+    TadsMessageQueue *queue;
+
+    /* request object ID (an HTTPRequest object) */
+    vm_obj_id_t reqid;
+    vm_globalvar_t *reqvar;
+
+    /* the underlying network request object */
+    TadsHttpRequest *req;
+
+    /* status string */
+    const char *status;
+    size_t status_len;
+
+    /* headers */
+    http_header *headers;
+
+    /* content body */
+    bodyArg *body;
+
+    /* content type string */
+    const char *cont_type;
+    size_t cont_type_len;
+
+    /* cookie list head */
+    vm_httpreq_cookie *cookies;
+    
+    /* 
+     *   Are we sending the reply asynchronously?  If this is true, the
+     *   parameters that point to memory buffers are private copies. 
+     */
+    int async;
+};
+
+HTTPReplySenderThread::HTTPReplySenderThread(class HTTPReplySender *sender)
+{
+    (this->sender = sender)->add_ref();
+}
+
+HTTPReplySenderThread::~HTTPReplySenderThread()
+{
+    sender->release_ref();
+}
+
+void HTTPReplySenderThread::thread_main()
+{
+    sender->thread_main();
+}
+
+/* 
+ *   Common handler for sendReply and sendReplyAsync.
+ */
+int CVmObjHTTPRequest::common_sendReply(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc, int wait)
 {
     uint argc = (oargc != 0 ? *oargc : 0);
     static CVmNativeCodeDesc desc(1, 3);
@@ -2069,11 +2673,13 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
 
     /* if the request is already completed, this is an error */
     if (req->completed)
-        throw_net_err(
-            vmg_ "request already completed", 0);
+        throw_net_err(vmg_ "request already completed", 0);
 
     /* get the 'body' argument (leave it on the stack for gc protection) */
     bodyArg *body = new bodyArg(vmg_ 0);
+
+    /* no reply sender yet */
+    HTTPReplySender *sender = 0;
 
     err_try
     {
@@ -2102,7 +2708,7 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
             cont_type = G_stk->get(1)->get_as_string(vmg0_);
             if (cont_type == 0)
                 err_throw(VMERR_STRING_VAL_REQD);
-            
+
             /* get the length and buffer pointer */
             cont_type_len = vmb_get_len(cont_type);
             cont_type += VMB_LEN;
@@ -2115,9 +2721,9 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
              *   section of the content to check for common signatures.  
              */
             char buf[512];
-            int32 ofs = 0, len = sizeof(buf);
-            const char *bufp = body->extract(vmg_ buf, ofs, len);
-            
+            int32_t ofs = 0, len = sizeof(buf);
+            const char *bufp = body->extract(buf, ofs, len);
+
             /* check to see if the body is text or binary */
             if (body->is_text(vmg0_))
             {
@@ -2145,22 +2751,22 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
                                 break;
                             }
                         }
-                        
+
                         /* continue scanning */
                         continue;
                     }
-                    
+
                     /* if we're at any whitespace character, just skip it */
                     if (t3_is_whitespace(p.getch()))
                     {
                         p.inc(&rem);
                         continue;
                     }
-                    
+
                     /* otherwise stop scanning */
                     break;
                 }
-                
+
                 /* check for <HTML or <?XML prefixes */
                 if ((rem > 5 && memicmp(p.getptr(), "<html", 5) == 0)
                     || eq_skip_sp(p.getptr(), rem, "<!doctype html "))
@@ -2193,6 +2799,13 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
                     /* it's a JPEG image */
                     cont_type = "image/jpeg";
                 }
+                else if (len > 6
+                         && (memcmp(bufp, "GIF87a", 6) == 0
+                             || memcmp(bufp, "GIF89a", 6) == 0))
+                {
+                    /* it's a GIF image */
+                    cont_type = "image/gif";
+                }
                 else if (len > 6 && memcmp(bufp, "\211PNG\r\n\032\n", 6) == 0)
                 {
                     /* it's a PNG image */
@@ -2205,7 +2818,7 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
                 }
                 else if (len > 14 && memcmp(
                     bufp, "OggS\000\002\000\000\000\000\000\000\000\000", 14)
-                    == 0)
+                         == 0)
                 {
                     /* Ogg Vorbis audio */
                     cont_type = "application/ogg";
@@ -2228,78 +2841,60 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
                     cont_type = "application/octet-stream";
                 }
             }
-            
+
             /* get the length of the content type string we selected */
             cont_type_len = strlen(cont_type);
         }
-        
+
         /* get the result code, if present */
         size_t status_len;
         const char *status = get_status_arg(vmg_ body->status_code,
                                             2, argc, status_len);
-        
+
         /* get the headers argument */
-        const vm_val_t *headers = 0;
+        vm_val_t *headers = 0;
         if (argc >= 4 && G_stk->get(3)->typ != VM_NIL)
         {
             /* get the headers value */
             headers = G_stk->get(3);
-            
+
             /* make sure it's a list */
             if (!headers->is_listlike(vmg0_))
                 err_throw(VMERR_LIST_VAL_REQD);
         }
-        
-        /*
-         *   We've gathered all of the information, so send the reply.  Start
-         *   with the status code.  
-         */
-        TadsServerThread *t = req->thread;
-        if (!t->send("HTTP/1.1 ")
-            || !t->send(status, status_len)
-            || !t->send("\r\n"))
-            throw_net_err(vmg_ "error sending status", t->last_error());
-        
-        /* send the custom headers, if any */
-        if (headers != 0)
-            send_custom_headers(vmg_ t, headers);
-        
-        /* if there's a body, send Content-Type and Content-Length headers */
-        if (!body->none)
-        {
-            /* if it's a "text/" type, add a utf-8 "charset" parameter */
-            const char *charset = "";
-            if (cont_type_len > 5 && memicmp(cont_type, "text/", 5) == 0)
-                charset = "; charset=utf-8";
-            
-            /* send the standard headers: Content-Type, Content-Length */
-            char hbuf[256];
-            t3sprintf(hbuf, sizeof(hbuf),
-                      "Content-Type: %.*s%s\r\n"
-                      "Content-Length: %lu\r\n",
-                      (int)cont_type_len, cont_type, charset,
-                      (ulong)body->len);
-            if (!t->send(hbuf))
-                throw_net_err(vmg_ "error sending headers", t->last_error());
-        }
-        
-        /* send the cookies */
-        send_cookies(vmg_ t, get_ext()->cookies);
-        
-        /* send the blank line at the end of the headers */
-        if (!t->send("\r\n"))
-            throw_net_err(vmg_ "error sending headers", t->last_error());
-        
-        /* send the reply body */
-        body->send(vmg_ t);
 
-        /* mark the request as completed */
-        req->complete();
+        /* set up a reply sender object */
+        sender = new HTTPReplySender();
+        sender->set_params(
+            vmg_ self, req, status, status_len, headers, body,
+            cont_type, cont_type_len, get_ext()->cookies);
+
+        /* the sender now owns our 'body' object */
+        body = 0;
+
+        /* send the reply, either directly or in a new thread */
+        if (wait)
+        {
+            /* waiting for completion - send in the current thread */
+            http_reply_err err;
+            if (!sender->send(&err))
+                throw_net_err(vmg_ err.msg, err.sock_err);
+        }
+        else
+        {
+            /* sending asynchronously - send in a new thread */
+            sender->start_thread(vmg0_);
+        }
     }
     err_finally
     {
         /* done with the body */
-        delete body;
+        if (body != 0)
+            delete body;
+
+        /* done with the reply sender */
+        if (sender != 0)
+            sender->release_ref();
     }
     err_end;
 
@@ -2316,8 +2911,8 @@ int CVmObjHTTPRequest::getp_sendReply(VMG_ vm_obj_id_t self,
 /*
  *   start a chunked reply
  */
-int CVmObjHTTPRequest::getp_startChunkedReply(VMG_ vm_obj_id_t self,
-                                              vm_val_t *retval, uint *oargc)
+int CVmObjHTTPRequest::getp_startChunkedReply(
+    VMG_ vm_obj_id_t self, vm_val_t *retval, uint *oargc)
 {
     uint argc = (oargc != 0 ? *oargc : 0);
     static CVmNativeCodeDesc desc(1, 3);
@@ -2427,7 +3022,9 @@ int CVmObjHTTPRequest::getp_sendReplyChunk(VMG_ vm_obj_id_t self,
             throw_net_err(vmg_ "error sending length prefix", t->last_error());
 
         /* send the body */
-        body->send(vmg_ t);
+        http_reply_err err;
+        if (!body->send(t, &err))
+            throw_net_err(vmg_ err.msg, err.sock_err);
 
         /* send the CR-LF suffix */
         if (!t->send("\r\n"))

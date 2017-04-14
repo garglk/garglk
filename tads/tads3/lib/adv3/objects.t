@@ -2470,8 +2470,6 @@ class BaseMultiLoc: object
      */
     buildLocationList()
     {
-        local lst;
-
         /*
          *   If the object doesn't define any of the standard rules, which
          *   it would do by overriding initialLocationClass and/or
@@ -2483,8 +2481,8 @@ class BaseMultiLoc: object
             && !overrides(self, BaseMultiLoc, &isInitiallyIn))
             return [];
 
-        /* we have nothing in our list yet */
-        lst = new Vector(16);
+        /* start with an empty list */
+        local lst = new Vector(16);
 
         /*
          *   if initialLocationClass is defined, loop over all objects of
@@ -2539,6 +2537,22 @@ class BaseMultiLoc: object
          *   my list of immediate locations
          */
         return (locationList.indexOf(obj) != nil);
+    }
+
+    /* 
+     *   Determine if I'm to be listed within my immediate container.  As a
+     *   multi-location object, we have multiple immediate containers, so
+     *   we need to know which direct container we're talking about.
+     *   Thing.examineListContents() passes this down via "cont:", a named
+     *   parameter.  Other callers might not always provide this argument,
+     *   though, so if it's not present simply base this on whether we have
+     *   a special description in any context.
+     */
+    isListedInContents(examinee:?)
+    {
+        return (examinee != nil
+                ? !useSpecialDescInContents(examinee)
+                : !useSpecialDesc());
     }
 
     /* Am I either inside 'obj', or equal to 'obj'?  */
@@ -3475,7 +3489,7 @@ class Openable: BasicOpenable
      *   want to change is the "it's open" status message, you can just
      *   override openStatus rather than providing a whole new lister.  
      */
-    descContentsLister = openableContentsLister
+    descContentsLister = openableDescContentsLister
 
     /*
      *   Contents lister to use when we're opening the object.  This

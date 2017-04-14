@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -15,8 +16,6 @@
  *   program from running on some systems.  
  */
 
-#ifndef TADSIOX_H
-#define TADSIOX_H
 
 /*
  *   The TADS input/output extensions function set.
@@ -163,4 +162,3 @@ intrinsic 'tads-io-ext/030000'
 #define MenuStatEventDisable (0x0001 | 0x0000)
 
 
-#endif /* TADSIOX_H */

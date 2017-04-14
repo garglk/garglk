@@ -129,6 +129,10 @@ public:
     static vm_obj_id_t create_from_string(
         VMG_ const vm_val_t *strval, const char *str, const vm_val_t *mapval);
 
+    /* create from binary data */
+    static vm_obj_id_t create_from_bytes(
+        VMG_ int in_root_set, const char *buf, size_t len);
+
     /* 
      *   determine if an object is a byte array - it is if the object's
      *   virtual metaclass registration index matches the class's static
@@ -254,18 +258,19 @@ public:
                                    class CVmDataSource *fp);
 
     /* 
-     *   Copy bytes into a buffer.  Returns the number of bytes actually
-     *   copied (this might be less than the requested size, because the
-     *   ByteArray might not have enough contents to fill the request). 
+     *   Copy bytes into a buffer, starting at the given 1-based index.
+     *   Returns the number of bytes actually copied (this might be less than
+     *   the requested size, because the ByteArray might not have enough
+     *   contents to fill the request). 
      */
     size_t copy_to_buf(unsigned char *buf, unsigned long idx, size_t cnt)
         const;
 
     /* 
-     *   Copy bytes from a buffer into the array, saving undo.  Returns the
-     *   actual number of bytes copied, which might be less than the
-     *   requested size, since the ByteArray might not be big enough to
-     *   accommodate the write. 
+     *   Copy bytes from a buffer into the array at the given 1-based index,
+     *   saving undo.  Returns the actual number of bytes copied, which might
+     *   be less than the requested size, since the ByteArray might not be
+     *   big enough to accommodate the write. 
      */
     size_t copy_from_buf_undo(VMG_ vm_obj_id_t self, const unsigned char *buf,
                               unsigned long idx, size_t cnt);

@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright 2009 Michael J. Roberts.

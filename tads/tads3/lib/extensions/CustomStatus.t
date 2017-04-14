@@ -96,17 +96,18 @@ CustomStatus : Thing
     }   
 
     /*
-     *   The openable class is a major thorn in my side for the purposes of 
-     *   this opt-in strategy.  The problem is that the openable class 
-     *   incorporates the open status as part of its container lister.  It 
-     *   does this by setting the descContentsLister to 
-     *   openableContentsLister. We really don't want the status to be 
-     *   displayed unless we specify, so we have to set the descContentsLister 
-     *   back to the basic thingDescContentsLister in the case that this is an 
-     *   openable object.  The flaw with this approach is that if you have a 
-     *   class between CustomStatus and Openable in your class list which 
-     *   defines a different descContentsLister, this will break it.
-     *   Unfortunately, I can't think of a better strategy right now.
+     *   The openable class is a major thorn in my side for the purposes of
+     *   this opt-in strategy.  The problem is that the openable class
+     *   incorporates the open status as part of its container lister.  It
+     *   does this by setting the descContentsLister to
+     *   openableDescContentsLister. We really don't want the status to be
+     *   displayed unless we specify, so we have to set the
+     *   descContentsLister back to the basic thingDescContentsLister in
+     *   the case that this is an openable object.  The flaw with this
+     *   approach is that if you have a class between CustomStatus and
+     *   Openable in your class list which defines a different
+     *   descContentsLister, this will break it.  Unfortunately, I can't
+     *   think of a better strategy right now.
      */
              
     descContentsLister {
@@ -119,7 +120,7 @@ CustomStatus : Thing
     // Often, in containers, it is useful to report a container's open status and
     // its contents in the same sentence.
     reportOpenStatusAndContents {
-        examineListContentsWith(openableContentsLister);
+        examineListContentsWith(openableDescContentsLister);
     }
         
     // Reporters for actors

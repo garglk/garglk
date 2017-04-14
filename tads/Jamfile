@@ -18,6 +18,8 @@ SubDirCcFlags
     -DGLK_UNICODE
     -DGLK_TIMERS
     -DTC_TARGET_T3
+    -DRUNTIME
+    -DOSNOUI_OMIT_IS_FILE_ABSOLUTE
     ;
 
 # HTMLMODE ?= yes ;
@@ -44,35 +46,33 @@ SEARCH_SOURCE =
         ;
 
 TADS2SRCS =
-    osifc.c osrestad.c oem.c
-    argize.c bif.c bifgdum.c cmap.c cmd.c dat.c dbgtr.c errmsg.c
-    execmd.c fio.c fioxor.c getstr.c ler.c linfdum.c lst.c mch.c
-    mcm.c mcs.c obj.c oserr.c os0.c out.c output.c ply.c
-    qas.c regex.c run.c runstat.c suprun.c trd.c voc.c vocab.c
+    argize.c bif.c bifgdum.c cmap.c cmd.c dat.c dbgtr.c errmsg.c execmd.c
+    fio.c fioxor.c getstr.c ler.c linfdum.c lst.c mch.c mcm.c mcs.c obj.c
+    oem.c os0.c oserr.c osifc.c osnoui.c osrestad.c osstzprs.c ostzposix.c
+    out.c output.c ply.c qas.c regex.c run.c runstat.c suprun.c trd.c
+    voc.c vocab.c
     ;
 
 
 TADS3SRCS =
-    vmglk.cpp vmcrc.cpp vmmain.cpp std.cpp charmap.cpp
-    resload.cpp resldexe.cpp vminit.cpp vmini_nd.cpp
-    vmconsol.cpp vmconhmp.cpp vminitim.cpp
-    vmcfgmem.cpp vmobj.cpp vmundo.cpp vmtobj.cpp vmpat.cpp
-    vmstrcmp.cpp vmdict.cpp vmgram.cpp vmstr.cpp vmcoll.cpp
-    vmiter.cpp vmlst.cpp vmsort.cpp vmsortv.cpp vmbignum.cpp
-    vmvec.cpp vmintcls.cpp vmanonfn.cpp vmlookup.cpp
-    vmbytarr.cpp vmcset.cpp vmfilobj.cpp vmstack.cpp vmerr.cpp
-    vmerrmsg.cpp vmpool.cpp vmpoolim.cpp vmtype.cpp vmtypedh.cpp
-    utf8.cpp vmglob.cpp vmrun.cpp vmfunc.cpp vmmeta.cpp vmsa.cpp
-    vmbiftio.cpp vmbif.cpp vmbifl.cpp vmimage.cpp vmimg_nd.cpp vmrunsym.cpp
-    vmsrcf.cpp vmfile.cpp vmbiftad.cpp vmsave.cpp
-    vmbift3.cpp vmbt3_nd.cpp vmregex.cpp vmhosttx.cpp
-    vmhostsi.cpp vmhash.cpp vmmcreg.cpp vmbifreg.cpp
-    vmtmpfil.cpp vmnetfillcl.cpp vmdynfunc.cpp vmstrbuf.cpp vmpack.cpp
-    vmfref.cpp vmlog.cpp vmisaac.cpp md5.cpp sha2.cpp
-    tcmain.cpp tcgen.cpp tcsrc.cpp tctok.cpp tcglob.cpp
-    tcprs.cpp tcprsstm.cpp tcprs_rt.cpp tcprsnf.cpp tcprsnl.cpp
-    tct3.cpp tct3unas.cpp tct3stm.cpp tct3nl.cpp tct3_d.cpp
-    tcerr.cpp tcerrmsg.cpp
+    charmap.cpp md5.cpp resldexe.cpp resload.cpp sha2.cpp std.cpp
+    tcerr.cpp tcerrmsg.cpp tcgen.cpp tcglob.cpp tcmain.cpp tcprs.cpp
+    tcprs_rt.cpp tcprsnf.cpp tcprsnl.cpp tcprsstm.cpp tcsrc.cpp tct3.cpp
+    tct3_d.cpp tct3nl.cpp tct3stm.cpp tct3unas.cpp tctok.cpp utf8.cpp
+    vmanonfn.cpp vmbif.cpp vmbifl.cpp vmbifreg.cpp vmbift3.cpp
+    vmbiftad.cpp vmbiftio.cpp vmbignum.cpp vmbignumlib.cpp vmbt3_nd.cpp
+    vmbytarr.cpp vmcfgmem.cpp vmcoll.cpp vmconhmp.cpp vmconsol.cpp
+    vmcrc.cpp vmcset.cpp vmdate.cpp vmdict.cpp vmdynfunc.cpp vmerr.cpp
+    vmerrmsg.cpp vmfile.cpp vmfilnam.cpp vmfilobj.cpp vmfref.cpp
+    vmfunc.cpp vmglob.cpp vmgram.cpp vmhash.cpp vmhostsi.cpp vmhosttx.cpp
+    vmimage.cpp vmimg_nd.cpp vmini_nd.cpp vminit.cpp vminitim.cpp
+    vmintcls.cpp vmisaac.cpp vmiter.cpp vmlog.cpp vmlookup.cpp vmlst.cpp
+    vmmain.cpp vmmcreg.cpp vmmeta.cpp vmnetfillcl.cpp vmobj.cpp vmop.cpp
+    vmpack.cpp vmpat.cpp vmpool.cpp vmpoolim.cpp vmregex.cpp vmrun.cpp
+    vmrunsym.cpp vmsa.cpp vmsave.cpp vmsort.cpp vmsortv.cpp vmsrcf.cpp
+    vmstack.cpp vmstr.cpp vmstrbuf.cpp vmstrcmp.cpp vmtmpfil.cpp
+    vmtobj.cpp vmtype.cpp vmtypedh.cpp vmtz.cpp vmtzobj.cpp vmundo.cpp
+    vmvec.cpp
     ;
 
 if $(HTMLMODE) = yes
@@ -91,20 +91,23 @@ Library libtads2 : $(TADS2SRCS) ;
 Library libtads3 : $(TADS3SRCS) ;
 
 Main $(GARGLKPRE)tadsr :
-    t23run.cpp
-    osansi1.c osansi2.c osansi3.c
-    osbuffer.c osparse.c
+    memicmp.c
+    osbuffer.c
+    osextra.c
     osglk.c
     osglkban.c
+    osmisc.c
+    osparse.c
+    osportable.cc
+    t23run.cpp
     t2askf.c
     t2indlg.c
     t3askf.cpp
     t3indlg.cpp
-    memicmp.c
     vmuni_cs.cpp
     ;
 
-LinkLibraries $(GARGLKPRE)tadsr : libtads2 libtads3 ;
+LinkLibraries $(GARGLKPRE)tadsr : libtads3 libtads2 ;
 
 LINK on $(GARGLKPRE)tadsr$(SUFEXE) = $(CXX) ;
 

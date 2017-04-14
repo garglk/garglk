@@ -34,7 +34,7 @@ struct runcxdef;
 /*
  *   Run-time version number 
  */
-#define  TADS_RUNTIME_VERSION   "2.5.15"
+#define  TADS_RUNTIME_VERSION   "2.5.17"
 
 /*
  *   Main run-time subsystem entrypoint.  Runs the game specified in the

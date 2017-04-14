@@ -93,7 +93,7 @@ int CResCompMain::add_resources(const char *image_fname,
     /* if we're creating a new file, write the header */
     if (create_new)
     {
-        time_t timer;
+        os_time_t timer;
         struct tm *tblock;
             
         /* create a new image file */
@@ -112,8 +112,8 @@ int CResCompMain::add_resources(const char *image_fname,
         memset(buf + 2, 0, 32);
 
         /* set the timestamp in the header */
-        timer = time(NULL);
-        tblock = localtime(&timer);
+        timer = os_time(NULL);
+        tblock = os_localtime(&timer);
         memcpy(buf + 2 + 32, asctime(tblock), 24);
 
         /* set up an EOF block */
@@ -468,106 +468,99 @@ void CResCompMain::disp_error(class CRcHostIfc *hostifc,
 void CRcResList::add_file(const char *fname, const char *alias,
                           int recurse)
 {
-    char url[OSFNMAX];
-    char search_file[OSFNMAX];
-    int is_dir;
-    void *search_ctx;
-    
     /* 
      *   if no alias was specified, convert the filename to a URL and use
      *   that as the resource name; otherwise, use the alias without
      *   changes 
      */
+    char url[OSFNMAX];
     if (alias == 0)
     {
-        os_cvt_dir_url(url, sizeof(url), fname, FALSE);
+        os_cvt_dir_url(url, sizeof(url), fname);
         alias = url;
     }
-
-    /* 
-     *   if this is a directory, add one entry for each item in the
-     *   directory 
-     */
-    search_ctx = os_find_first_file("", fname,
-                                    search_file, sizeof(search_file),
-                                    &is_dir, 0, 0);
-    if (search_ctx != 0 && is_dir)
+    
+    /* check to see if this is a regular file or a directory */
+    unsigned long fmode;
+    unsigned long fattr;
+    if (osfmode(fname, TRUE, &fmode, &fattr) && (fmode & OSFMODE_DIR) != 0)
     {
-        char fullname[OSFNMAX];
-        
-        /* cancel the search - we only needed the one matching file */
-        os_find_close(search_ctx);
-
         /* 
-         *   search through the contents of the directory, and add each
-         *   entry 
+         *   It's a directory, so add an entry for each file within the
+         *   directory.  Start by getting the first file in the directory.
          */
-        search_ctx = os_find_first_file(fname, 0,
-                                        search_file, sizeof(search_file),
-                                        &is_dir, fullname, sizeof(fullname));
-        while (search_ctx != 0)
+        osdirhdl_t dirhdl;
+        if (os_open_dir(fname, &dirhdl))
         {
-            char full_url[OSFNMAX];
-            size_t len;
-            
-            /* 
-             *   build the full alias for this file path -- start with the
-             *   the alias for the directory itself 
-             */
-            len = strlen(alias);
-            memcpy(full_url, alias, len);
-
-            /* 
-             *   add a slash to separate the filename from the directory
-             *   prefix, if the directory path alias doesn't already end
-             *   in a slash 
-             */
-            if (len != 0 && full_url[len - 1] != '/')
-                full_url[len++] = '/';
-
-            /* add this file name */
-            strcpy(full_url + len, search_file);
-
-            /* check whether we found a file or directory */
-            if (is_dir)
+            char search_file[OSFNMAX];
+            while (os_read_dir(dirhdl, search_file, sizeof(search_file)))
             {
-                os_specfile_t spec_type;
-                
-                /* check for a special file */
-                spec_type = os_is_special_file(search_file);
+                /* build the full filename */
+                char fullname[OSFNMAX];
+                os_build_full_path(
+                    fullname, sizeof(fullname), fname, search_file);
+
+                /* 
+                 *   build the full alias for this file path -- start with
+                 *   the the alias for the directory itself 
+                 */
+                size_t len = strlen(alias);
+                char full_url[OSFNMAX];
+                memcpy(full_url, alias, len);
                 
                 /* 
-                 *   It's a directory - if we're allowed to recurse, add
-                 *   all of the directory's contents; otherwise simply
-                 *   ignore it.
+                 *   add a slash to separate the filename from the directory
+                 *   prefix, if the directory path alias doesn't already end
+                 *   in a slash 
                  */
-                if (recurse
-                    && spec_type != OS_SPECFILE_SELF
-                    && spec_type != OS_SPECFILE_PARENT)
+                if (len != 0 && full_url[len - 1] != '/')
+                    full_url[len++] = '/';
+
+                /* add this file name */
+                strcpy(full_url + len, search_file);
+
+                /* get the file mode */
+                if (!osfmode(fullname, TRUE, &fmode, &fattr))
+                    continue;
+
+                /* skip hidden/system files */
+                if ((fattr & (OSFATTR_HIDDEN | OSFATTR_SYSTEM)) != 0)
+                    continue;
+
+                /* check whether we found a file or directory */
+                if ((fmode & OSFMODE_DIR) != 0)
                 {
-                    /* add the subdirectory with a recursive call */
-                    add_file(fullname, full_url, TRUE);
+                    /* it's a directory - check for special link files */
+                    os_specfile_t spec_type = os_is_special_file(search_file);
+                    
+                    /* 
+                     *   It's a directory - if we're meant to recurse, add
+                     *   all of the directory's contents; otherwise simply
+                     *   ignore it.  Ignore the special self and parent links
+                     *   (Unix/Windows "." and ".."), since those would cause
+                     *   infinite recursion.
+                     */
+                    if (recurse
+                        && spec_type != OS_SPECFILE_SELF
+                        && spec_type != OS_SPECFILE_PARENT)
+                    {
+                        /* add the subdirectory with a recursive call */
+                        add_file(fullname, full_url, TRUE);
+                    }
+                }
+                else
+                {
+                    /* add a new entry for this file */
+                    add_element(new CRcResEntry(fullname, full_url));
                 }
             }
-            else
-            {
-                /* add a new entry for this file */
-                add_element(new CRcResEntry(fullname, full_url));
-            }
 
-            /* get the next file */
-            search_ctx = os_find_next_file(search_ctx,
-                                           search_file, sizeof(search_file),
-                                           &is_dir,
-                                           fullname, sizeof(fullname));
+            /* done with the directory scan */
+            os_close_dir(dirhdl);
         }
     }
     else
     {
-        /* if the search succeeded, close it */
-        if (search_ctx != 0)
-            os_find_close(search_ctx);
-        
         /* it's not a directory - simply add an entry for the file */
         add_element(new CRcResEntry(fname, alias));
     }

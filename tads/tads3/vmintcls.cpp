@@ -61,7 +61,7 @@ vm_obj_id_t CVmObjClass::create_from_stack(VMG_ const uchar **pc_ptr,
  */
 vm_obj_id_t CVmObjClass::create(VMG_ int in_root_set)
 {
-    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, FALSE, FALSE);
+    vm_obj_id_t id = vm_new_id(vmg_ in_root_set, TRUE, FALSE);
     new (vmg_ id) CVmObjClass();
     return id;
 }
@@ -71,9 +71,27 @@ vm_obj_id_t CVmObjClass::create(VMG_ int in_root_set)
  */
 vm_obj_id_t CVmObjClass::create_dyn(VMG_ uint meta_idx)
 {
-    vm_obj_id_t id = vm_new_id(vmg_ FALSE, FALSE, FALSE);
+    vm_obj_id_t id = vm_new_id(vmg_ FALSE, TRUE, FALSE);
     new (vmg_ id) CVmObjClass(vmg_ FALSE, meta_idx, id);
     return id;
+}
+
+/* allocate our extension */
+vm_intcls_ext *CVmObjClass::alloc_ext(VMG0_)
+{
+    /* if I already have an extension, return it */
+    if (ext_ != 0)
+        return (vm_intcls_ext *)ext_;
+
+    /* allocate the new extension */
+    vm_intcls_ext *ext = (vm_intcls_ext *)G_mem->get_var_heap()->alloc_mem(
+        sizeof(vm_intcls_ext), this);
+
+    /* save it */
+    ext_ = (char *)ext;
+
+    /* return it */
+    return ext;
 }
 
 /*
@@ -86,12 +104,14 @@ CVmObjClass::CVmObjClass(VMG_ int in_root_set, uint meta_idx,
     assert(!in_root_set);
 
     /* allocate the extension */
-    ext_ = (char *)G_mem->get_var_heap()->alloc_mem(8, this);
+    ext_ = 0;
+    vm_intcls_ext *ext = alloc_ext(vmg0_);
 
-    /* set up the extension - write the length and dependency index */
-    oswp2(ext_, 8);
-    oswp2(ext_ + 2, meta_idx);
-    oswp4(ext_ + 4, VM_INVALID_OBJ);
+    /* set up the extension */
+    ext->meta_idx = meta_idx;
+    ext->mod_obj = VM_INVALID_OBJ;
+    ext->class_state.set_nil();
+    ext->changed = FALSE;
 
     /* register myself with the metaclass table */
     register_meta(vmg_ self);
@@ -112,12 +132,18 @@ void CVmObjClass::set_prop(VMG_ CVmUndo *undo,
                            vm_obj_id_t self, vm_prop_id_t prop,
                            const vm_val_t *val)
 {
-    vm_obj_id_t mod_obj;
-    
-    /* if I have a modifier object, pass the setprop to the modifier */
-    if ((mod_obj = get_mod_obj()) != VM_INVALID_OBJ)
+    /* try treating the request as a static property of the metaclass */
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
+    if (entry != 0
+        && entry->meta_->set_stat_prop(
+            vmg_ undo, self, &get_ext()->class_state, prop, val))
+        return;
+
+    /* the class doesn't handle it, so check for a modifier object */
+    vm_obj_id_t mod_obj = get_mod_obj();
+    if (mod_obj != VM_INVALID_OBJ)
     {
-        /* set the property in the modifier object */
+        /* we have a modifier - set the property in the modifier */
         vm_objp(vmg_ mod_obj)->set_prop(vmg_ undo, mod_obj, prop, val);
     }
     else
@@ -214,6 +240,18 @@ void CVmObjClass::build_prop_list(VMG_ vm_obj_id_t self, vm_val_t *retval)
     /* done with the gc protection */
     G_stk->discard(2);
 }
+
+/*
+ *   mark references for garbage collection
+ */
+void CVmObjClass::mark_refs(VMG_ uint state)
+{
+    /* if we have an object in our class state value, mark it */
+    vm_intcls_ext *ext = get_ext();
+    if (ext->class_state.typ == VM_OBJ)
+        G_obj_table->mark_all_refs(ext->class_state.val.obj, state);
+}
+
 
 /*
  *   List my metaclass's properties.  Returns the number of properties we
@@ -332,13 +370,11 @@ int CVmObjClass::get_prop(VMG_ vm_prop_id_t prop, vm_val_t *val,
                           vm_obj_id_t self, vm_obj_id_t *source_obj,
                           uint *argc)
 {
-    vm_meta_entry_t *entry;
-
     /* 
      *   pass the property request as a static property of the metaclass
      *   with which we're associated 
      */
-    entry = get_meta_entry(vmg0_);
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
     if (entry != 0 && entry->meta_->call_stat_prop(vmg_ val, 0, argc, prop))
     {
         /* the metaclass object handled it, so we are the definer */
@@ -443,10 +479,8 @@ vm_obj_id_t CVmObjClass::find_mod_src_obj(VMG_ vm_obj_id_t self,
  */
 vm_meta_entry_t *CVmObjClass::get_meta_entry(VMG0_) const
 {
-    uint meta_idx;
-
     /* get my metaclass table index */
-    meta_idx = get_meta_idx();
+    uint meta_idx = get_meta_idx();
     
     /* look up my metaclass table entry, if we have one */
     if (meta_idx < G_meta_table->get_count())
@@ -460,42 +494,51 @@ vm_meta_entry_t *CVmObjClass::get_meta_entry(VMG0_) const
  */
 void CVmObjClass::save_to_file(VMG_ class CVmFile *fp)
 {
-    size_t len;
-    
-    /* write our data */
-    len = osrp2(ext_);
-    fp->write_bytes(ext_, len);
+    /* write our data: data size, meta table index, mod ID, class state */
+    vm_intcls_ext *ext = get_ext();
+    fp->write_uint2(2 + 2 + 4 + VMB_DATAHOLDER);
+    fp->write_uint2(ext->meta_idx);
+    fp->write_uint4(ext->mod_obj);
+
+    char buf[VMB_DATAHOLDER];
+    vmb_put_dh(buf, &ext->class_state);
+    fp->write_bytes(buf, VMB_DATAHOLDER);
 }
 
 /* 
  *   restore from a file 
  */
 void CVmObjClass::restore_from_file(VMG_ vm_obj_id_t self,
-                                    CVmFile *fp, CVmObjFixup *)
+                                    CVmFile *fp, CVmObjFixup *fixups)
 {
-    size_t len;
+    /* allocate/reallocate the extension */
+    vm_intcls_ext *ext = alloc_ext(vmg0_);
 
     /* read the length */
-    len = fp->read_uint2();
-
-    /* free any existing extension */
-    if (ext_ != 0)
-    {
-        G_mem->get_var_heap()->free_mem(ext_);
-        ext_ = 0;
-    }
-
-    /* allocate the space */
-    ext_ = (char *)G_mem->get_var_heap()->alloc_mem(len, this);
-
-    /* store our length */
-    vmb_put_len(ext_, len);
+    size_t len = fp->read_uint2();
+    const size_t expected_len = 2+2+4+VMB_DATAHOLDER;
 
     /* 
-     *   read the contents (note that we've already read the length prefix,
-     *   so subtract it out of the total remaining to be read) 
+     *   read the metaclass index and modifier object ID; note that modifier
+     *   objects are always root set objects, so there's no need to worry
+     *   about fixups 
      */
-    fp->read_bytes(ext_ + VMB_LEN, len - VMB_LEN);
+    ext->meta_idx = fp->read_uint2();
+    ext->mod_obj = (vm_obj_id_t)fp->read_uint4();
+
+    /* if we have a class state value, read it */
+    ext->class_state.set_nil();
+    if (len >= 2+2+4+VMB_DATAHOLDER)
+    {
+        char buf[VMB_DATAHOLDER];
+        fp->read_bytes(buf, VMB_DATAHOLDER);
+        fixups->fix_dh(vmg_ buf);
+        vmb_get_dh(buf, &ext->class_state);
+    }
+
+    /* skip any extra data we don't recognize */
+    if (len > expected_len)
+        fp->set_pos_from_cur(len - expected_len);
 
     /* register myself with the metaclass table */
     register_meta(vmg_ self);
@@ -505,23 +548,46 @@ void CVmObjClass::restore_from_file(VMG_ vm_obj_id_t self,
 void CVmObjClass::load_from_image(VMG_ vm_obj_id_t self,
                                   const char *ptr, size_t siz)
 {
-    /* save a pointer to the image file data as our extension */
-    ext_ = (char *)ptr;
+    /* load the image data */
+    load_image_data(vmg_ self, ptr, siz);
 
+    /* we need the image pointer saved for re-loading on RESTART */
+    G_obj_table->save_image_pointer(self, ptr, siz);
+}
+
+/* reload from an image file */
+void CVmObjClass::reload_from_image(VMG_ vm_obj_id_t self,
+                                    const char *ptr, size_t siz)
+{
+    /* load the image data */
+    load_image_data(vmg_ self, ptr, siz);
+}
+
+/* load image data */
+void CVmObjClass::load_image_data(VMG_ vm_obj_id_t self,
+                                  const char *ptr, size_t siz)
+{
     /* make sure the length is valid */
     if (siz < 8)
         err_throw(VMERR_INVAL_METACLASS_DATA);
 
-    /* register myself */
-    register_meta(vmg_ self);
-}
+    /* allocate or reallocate the extension */
+    vm_intcls_ext *ext = alloc_ext(vmg0_);
 
-/* 
- *   reset to the initial load state 
- */
-void CVmObjClass::reset_to_image(VMG_ vm_obj_id_t self)
-{
-    /* re-register myself for the re-load */
+    /* 
+     *   read the metaclass index and modifier object ID; note that modifier
+     *   objects are always root set objects, so there's no need to worry
+     *   about fixups 
+     */
+    ext->meta_idx = osrp2(ptr+2);
+    ext->mod_obj = (vm_obj_id_t)t3rp4u(ptr+4);
+
+    /* if we have a class state value, read it */
+    ext->class_state.set_nil();
+    if (siz >= 2+4+VMB_DATAHOLDER)
+        vmb_get_dh(ptr+8, &ext->class_state);
+        
+    /* register myself */
     register_meta(vmg_ self);
 }
 
@@ -533,10 +599,8 @@ void CVmObjClass::reset_to_image(VMG_ vm_obj_id_t self)
  */
 void CVmObjClass::register_meta(VMG_ vm_obj_id_t self)
 {
-    vm_meta_entry_t *entry;
-
     /* get my metaclass table entry */
-    entry = get_meta_entry(vmg0_);
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
 
     /* 
      *   if we have a valid entry, store a reference to myself in the
@@ -552,10 +616,8 @@ void CVmObjClass::register_meta(VMG_ vm_obj_id_t self)
  */
 int CVmObjClass::get_superclass_count(VMG_ vm_obj_id_t) const
 {
-    vm_meta_entry_t *entry;
-
     /* get my metaclass table entry */
-    entry = get_meta_entry(vmg0_);
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
 
     /* 
      *   if we have a valid entry, ask the metaclass object to tell us the
@@ -572,10 +634,8 @@ int CVmObjClass::get_superclass_count(VMG_ vm_obj_id_t) const
  */
 vm_obj_id_t CVmObjClass::get_superclass(VMG_ vm_obj_id_t, int sc_idx) const
 {
-    vm_meta_entry_t *entry;
-
     /* get my metaclass table entry */
-    entry = get_meta_entry(vmg0_);
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
 
     /* 
      *   if we have a valid entry, ask the metaclass object to retrieve the
@@ -592,10 +652,8 @@ vm_obj_id_t CVmObjClass::get_superclass(VMG_ vm_obj_id_t, int sc_idx) const
  */
 int CVmObjClass::is_instance_of(VMG_ vm_obj_id_t obj)
 {
-    vm_meta_entry_t *entry;
-
     /* get my metaclass table entry */
-    entry = get_meta_entry(vmg0_);
+    vm_meta_entry_t *entry = get_meta_entry(vmg0_);
 
     /* if we have a valid entry, ask the metaclass object */
     if (entry != 0)

@@ -89,7 +89,7 @@ int main(int argc, char **argv)
     /* check how much space we need */
     up.set(buf);
     len = map->map_utf8z(0, 0, up);
-    printf("space needed for mapping to cp437: %d\n", len);
+    printf("space needed for mapping to cp437: %lu\n", (unsigned long)len);
 
     /* map it for real this time */
     map->map_utf8z(mapbuf, sizeof(mapbuf), up);

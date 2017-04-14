@@ -1442,18 +1442,18 @@ class MessageBuilder: OutputFilter, PreinitObject
     processResult(txt) { return txt; }
 
     /*
-     *   "Quote" a message - double each open brace, so that braces in the
-     *   message will be taken literally when run through the substitution
-     *   replacer.  This can be used when a message is expanded prior to
-     *   being displayed to ensure that braces in the result won't be
-     *   mistaken as substitution parameters requiring further expansion.
-     *   
-     *   Note that only open braces need to be quoted, since lone close
-     *   braces are ignored in the substitution process.  
+     *   "Quote" a message - double each open or close brace, so that braces in
+     *   the message will be taken literally when run through the substitution
+     *   replacer.  This can be used when a message is expanded prior to being
+     *   displayed to ensure that braces in the result won't be mistaken as
+     *   substitution parameters requiring further expansion.
+     *
+     *   Note that only open braces need to be quoted, since lone close braces
+     *   are ignored in the substitution process.
      */
     quoteMessage(str)
     {
-        return str.findReplace('{', '{{', ReplaceAll);
+        return str.findReplace(['{', '}'], ['{{', '}}'], ReplaceAll);
     }
 
     /*

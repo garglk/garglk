@@ -61,10 +61,8 @@ void vm_run_preinit(CVmFile *origfp, const char *image_fname,
 
     err_try
     {
-        long start_pos;
-
         /* note where the image file starts */
-        start_pos = origfp->get_pos();
+        long start_pos = origfp->get_pos();
         
         /* create the loader */
         imagefp = new CVmImageFileExt(origfp);

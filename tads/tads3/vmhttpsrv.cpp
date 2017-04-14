@@ -139,7 +139,7 @@ vm_obj_id_t CVmObjHTTPServer::create_from_stack(
     }
 
     /* check for an upload size limit */
-    int32 ulim;
+    int32_t ulim;
     if (argc >= 3)
     {
         if (G_stk->get(0)->typ == VM_NIL)

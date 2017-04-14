@@ -288,7 +288,7 @@ int main(int argc, char **argv)
     stat = OSEXFAIL;
 
     /* show the banner */
-    printf("T3 Message Compiler v1.0.0  Copyright 2000, 2007 "
+    printf("T3 Message Compiler v1.0.0  Copyright 2000, 2012 "
            "Michael J. Roberts\n");                /* copyright-date-string */
 
     /* check options */

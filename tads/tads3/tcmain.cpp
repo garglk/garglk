@@ -285,6 +285,9 @@ CTcMain::CTcMain(CResLoader *res_loader, const char *default_charset)
     /* create the BigNumber object data stream */
     G_bignum_stream = new CTcDataStream(TCGEN_BIGNUM_STREAM);
 
+    /* create the RexPattern object data stream */
+    G_rexpat_stream = new CTcDataStream(TCGEN_REXPAT_STREAM);
+
     /* create the IntrinsicClass object data stream */
     G_int_class_stream = new CTcDataStream(TCGEN_INTCLASS_STREAM);
 
@@ -333,6 +336,7 @@ CTcMain::~CTcMain()
     delete G_dict_stream;
     delete G_gramprod_stream;
     delete G_bignum_stream;
+    delete G_rexpat_stream;
     delete G_int_class_stream;
     delete G_static_init_id_stream;
     delete G_lcl_stream;

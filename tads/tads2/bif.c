@@ -2608,8 +2608,8 @@ void biffopen(bifcxdef *ctx, int argc)
      *   not, we may have to disallow the operation based on safety level
      *   settings.
      */
-    in_same_dir = os_is_file_in_dir(fname, ctx->bifcxrun->runcxgamepath,
-                                    TRUE);
+    in_same_dir = os_is_file_in_dir(
+        fname, ctx->bifcxrun->runcxgamepath, TRUE, FALSE);
 
     /* check file safety settings */
     switch(main_mode)

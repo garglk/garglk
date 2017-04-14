@@ -78,13 +78,13 @@ public:
      *   all games, where we can store global cross-game preference settings.
      *   This is generally stored in the interpreter install directory.  
      */
-    static const int SFID_LIB_DEFAULTS = 1;
+    static const int32_t SFID_LIB_DEFAULTS = 1;
 
     /*
      *   Web UI preferences file.  This is a system file common to all games
      *   that stores the UI settings for the Web UI client.  
      */
-    static const int SFID_WEBUI_PREFS = 2;
+    static const int32_t SFID_WEBUI_PREFS = 2;
 
 
     /* metaclass registration object */
@@ -133,6 +133,12 @@ public:
                               vm_obj_id_t charset, CVmDataSource *fp,
                               int mode, int access, int create_readbuf);
 
+    /* get the data source for the file */
+    class CVmDataSource *get_datasource() const;
+
+    /* get the filespec used to create the file */
+    void get_filespec(vm_val_t *val) const;
+
     /* notify of deletion */
     void notify_delete(VMG_ int in_root_set);
 
@@ -178,12 +184,36 @@ public:
                          vm_obj_id_t self, vm_obj_id_t *source_obj,
                          uint *argc);
 
+    /*
+     *   Translate a filename argument to a netfile object.  Checks file
+     *   safety against the given access mode.
+     */
+    static CVmNetFile *get_filename_arg(
+        VMG_ const vm_val_t *arg, const vm_rcdesc *rc,
+        int access, int is_resource_file,
+        os_filetype_t file_type, const char *mime_type);
+
+    /* 
+     *   get the filename from an object argument; this can only be used for
+     *   regular files (not resources) 
+     */
+    static CVmNetFile *get_filename_from_obj(
+        VMG_ vm_obj_id_t obj, const vm_rcdesc *rc, int access,
+        os_filetype_t file_type, const char *mime_type);
+
+    /* resolve a special file ID to a local path */
+    static int sfid_to_path(VMG_ char *buf, size_t buflen, int32_t sfid);
+
     /* 
      *   Check the safety settings to determine if an open is allowed on the
      *   given file with the given access mode.  If the access is not
      *   allowed, we'll throw an error.  
      */
     static void check_safety_for_open(VMG_ class CVmNetFile *f, int access);
+
+    /* check the safety settings for opening the given local file path */
+    static void check_safety_for_open(VMG_ const char *lclfname, int access);
+    static int query_safety_for_open(VMG_ const char *lclfname, int access);
 
     /* get the file's size; returns -1 if the file isn't open or valid */
     long get_file_size(VMG0_);
@@ -201,7 +231,7 @@ public:
      *   more) due to reaching the end of the file or due to character
      *   conversions.  Returns true on success, false on failure.
      */
-    int read_file(VMG_ char *buf, int32 &len);
+    int read_file(VMG_ char *buf, int32_t &len);
 
 protected:
     /* create with no initial contents */
@@ -288,14 +318,14 @@ protected:
                                const struct vm_rcdesc *rc);
 
     /* property evaluator - getRootName */
-    int getp_getRootName(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
+    int getp_getRootName(VMG_ vm_obj_id_t, vm_val_t *retval, uint *argc)
         { return s_getp_getRootName(vmg_ retval, argc); }
 
     /* static property evaluator for getRootName */
     static int s_getp_getRootName(VMG_ vm_val_t *retval, uint *argc);
 
     /* property evaluator - deleteFile */
-    int getp_deleteFile(VMG_ vm_obj_id_t self, vm_val_t *retval, uint *argc)
+    int getp_deleteFile(VMG_ vm_obj_id_t, vm_val_t *retval, uint *argc)
         { return s_getp_deleteFile(vmg_ retval, argc); }
 
     /* static property evaluator for deleteFile */
@@ -482,11 +512,21 @@ struct vmobjfile_readbuf_t
 /*
  *   access types
  */
-#define VMOBJFILE_ACCESS_READ     0x01
-#define VMOBJFILE_ACCESS_WRITE    0x02
-#define VMOBJFILE_ACCESS_RW_KEEP  0x03
-#define VMOBJFILE_ACCESS_RW_TRUNC 0x04
-#define VMOBJFILE_ACCESS_DELETE   0xF000               /* internal use only */
+#define VMOBJFILE_ACCESS_READ     0x0001
+#define VMOBJFILE_ACCESS_WRITE    0x0002
+#define VMOBJFILE_ACCESS_RW_KEEP  0x0003
+#define VMOBJFILE_ACCESS_RW_TRUNC 0x0004
+#define VMOBJFILE_ACCESS_USERMAX  0x0004
+
+/* internal access types - not allowed as user arguments */
+#define VMOBJFILE_ACCESS_INTERNAL 0x1000
+#define VMOBJFILE_ACCESS_DELETE   0x1000                     /* delete file */
+#define VMOBJFILE_ACCESS_GETINFO  0x1001              /* get file type/info */
+#define VMOBJFILE_ACCESS_MKDIR    0x1002                           /* mkdir */
+#define VMOBJFILE_ACCESS_RMDIR    0x1003                           /* rmdir */
+#define VMOBJFILE_ACCESS_READDIR  0x1004   /* read a directory (list files) */
+#define VMOBJFILE_ACCESS_RENAME_FROM 0x1005        /* rename FROM this name */
+#define VMOBJFILE_ACCESS_RENAME_TO   0x1006          /* rename TO this name */
 
 
 /* ------------------------------------------------------------------------ */

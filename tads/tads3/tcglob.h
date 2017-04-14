@@ -79,6 +79,9 @@ TC_GLOB_DECLARE class CTcDataStream *G_gramprod_stream;
 /* BigNumber metaclass data stream */
 TC_GLOB_DECLARE class CTcDataStream *G_bignum_stream;
 
+/* RexPattern metaclass data stream */
+TC_GLOB_DECLARE class CTcDataStream *G_rexpat_stream;
+
 /* IntrinsicClass metaclass data stream */
 TC_GLOB_DECLARE class CTcDataStream *G_int_class_stream;
 

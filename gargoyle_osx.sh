@@ -12,7 +12,7 @@ mkdir -p $BUNDLE/Resources
 mkdir -p $BUNDLE/PlugIns
 
 rm -rf $GARGDIST
-jam -sUNIVERSAL=yes install
+jam install
 
 for file in `ls $GARGDIST`
 do

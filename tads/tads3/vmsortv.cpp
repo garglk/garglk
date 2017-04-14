@@ -59,12 +59,8 @@ int CVmQSortVal::compare(VMG_ size_t a, size_t b)
         /* get the result */
         val = *G_interpreter->get_r0();
 
-        /* if it's not an integer, it's a problem */
-        if (val.typ != VM_INT)
-            err_throw(VMERR_INT_VAL_REQD);
-
         /* get the result value */
-        result = val.val.intval;
+        result = val.num_to_int(vmg0_);
     }
     else
     {

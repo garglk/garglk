@@ -223,7 +223,7 @@ void f10()
     {
         tryItOut();
     }
-    err_catch(exc)
+    err_catch_disc
     {
         printf("(catch handler - calling f2)\n");
         f2();
@@ -343,7 +343,7 @@ int main()
     }
     err_end;
 
-    printf("main - done; stack depth = %d\n", err_stack_depth());
+    printf("main - done; stack depth = %d\n", 0 /*err_stack_depth()*/);
     err_terminate();
 
     return 0;

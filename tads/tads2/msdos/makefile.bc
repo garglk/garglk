@@ -539,7 +539,7 @@ adv_new.t:  adv.t procadv.exe
 	$(EXEDIR)\procadv adv.t adv_doc.tex adv_new.t
 
 procadv.exe:  procadv.c
-        $(CC) -ml -L$(BCDIR)\lib -I$(BCDIR)\include -I. -Imsdos -DMSDOS -nexe procadv.c
+        $(CC) -ml -L$(BCDIR)\lib -I$(BCDIR)\include -I. -Imsdos -DMSDOS -DTURBO -nexe procadv.c
 
 # build "spawn" user exit
 uxsys.bin: uxsys.obj

@@ -21,6 +21,17 @@ otherobj: MyClass
     foo = 7
 ;
 
+class PropDesc: object
+    construct(p)
+    {
+        prop = p;
+        name = reflectionServices.valToSymbol(p);
+    }
+
+    prop = nil
+    name = nil
+;
+
 main(args)
 {
     local obj;
@@ -31,12 +42,12 @@ main(args)
 
     obj = myobj.createClone();
 
-    foreach (local prop in obj.getPropList())
-    {
-        "<<reflectionServices.valToSymbol(prop)>>: type code =
-         <<obj.propType(prop)>>";
+    foreach (local desc in obj.getPropList().mapAll({p: new PropDesc(p)}).
+             sort(SortAsc, {a, b: a.name.compareIgnoreCase(b.name)}))
+     {
+        "<<desc.name>>: type code = <<obj.propType(desc.prop)>>";
 
-        switch(obj.propType(prop))
+        switch(obj.propType(desc.prop))
         {
         case TypeCode:
             " &lt;method>";
@@ -47,7 +58,7 @@ main(args)
             break;
 
         default:
-            ", val = <<reflectionServices.valToSymbol(obj.(prop))>>";
+            ", val = <<reflectionServices.valToSymbol(obj.(desc.prop))>>";
             break;
         }
 

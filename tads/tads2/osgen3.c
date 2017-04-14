@@ -668,6 +668,9 @@ static osfar_t char *S_hist_sav = S_hist_sav_internal;
 static osfar_t size_t S_hist_sav_siz = sizeof(S_hist_sav_internal);
 # endif /* USE_HISTORY */
 
+/* strcpy with destination buffer size limit */
+extern void safe_strcpy(char *dst, size_t dstlen, const char *src);
+
 /*
  *   Flag: input is already in progress.  When os_gets_timeout() returns
  *   with OS_EVT_TIMEOUT, it sets this flag to true.  os_gets_cancel() sets
@@ -2379,7 +2382,6 @@ static void osgen_gridwin_resize(osgen_gridwin_t *win,
     if (new_wid > win->grid_wid || new_ht > win->grid_ht)
     {
         char *new_txt;
-        size_t ofs;
         osgen_charcolor_t *new_color;
         char *tsrc, *tdst;
         osgen_charcolor_t *csrc, *cdst;
@@ -2405,7 +2407,7 @@ static void osgen_gridwin_resize(osgen_gridwin_t *win,
         csrc = win->grid_color;
         tdst = new_txt;
         cdst = new_color;
-        for (y = 0, ofs = 0 ; y < win->grid_ht ; ++y)
+        for (y = 0 ; y < win->grid_ht ; ++y)
         {
             /* copy the old text and color data */
             memcpy(tdst, tsrc, win->grid_wid);
@@ -2985,15 +2987,6 @@ void osssb_on_resize_screen()
 }
 
 # else /* USE_SCROLLBACK */
-/* 
- *   for the non-scrollback version, add-to-scrollback is just a dummy
- *   function: if we're not saving scrollback, we obviously have no need to
- *   save any information added to the buffer 
- */
-static void ossaddsb(struct osgen_win_t *win, char *p, size_t len, int draw)
-{
-    /* do nothing */
-}
 
 /* 
  *   for the non-scrollback version, there's nothing we need to do on
@@ -3979,6 +3972,7 @@ int os_gets_process(int event_type, os_event_info_t *event_info)
     char *p;
     char *eol;
     char *buf;
+    size_t bufsiz;
     int x;
     int y;
     osgen_txtwin_t *win;
@@ -4023,6 +4017,7 @@ int os_gets_process(int event_type, os_event_info_t *event_info)
     /* set up our buffer pointers */
     p = S_gets_buf + S_gets_ofs;
     buf = S_gets_buf;
+    bufsiz = S_gets_buf_siz;
     eol = p + strlen(p);
 
     /* get the current color in the window */
@@ -4062,7 +4057,7 @@ int os_gets_process(int event_type, os_event_info_t *event_info)
             int advtail;
             int saveflag = 1;                /* assume we will be saving it */
             
-            if (q = ossprvcmd(histhead))
+            if ((q = ossprvcmd(histhead)) != 0)
             {
                 char *p = buf;
                 
@@ -4261,7 +4256,7 @@ int os_gets_process(int event_type, os_event_info_t *event_info)
              *   history-scrolling back down to it) 
              */
                 if (c == CMD_UP && !ossnxtcmd(S_gets_curhist))
-                    strcpy(S_hist_sav, buf);
+                    safe_strcpy(S_hist_sav, S_hist_sav_siz, buf);
 
 # endif /* USE_HISTORY */
 
@@ -4309,7 +4304,7 @@ int os_gets_process(int event_type, os_event_info_t *event_info)
                 else
                 {
                     /* no more history - restore original line */
-                    strcpy(buf, S_hist_sav);
+                    safe_strcpy(buf, bufsiz, S_hist_sav);
                 }
             }
             if ((c == CMD_UP || c == CMD_DOWN)

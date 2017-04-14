@@ -27,6 +27,12 @@ Modified
 #include "t3std.h"
 #include "vmglob.h"
 
+/* and some other headers that have special global definitions */
+#include "vmerr.h"
+#include "vmstack.h"
+#include "vmrun.h"
+
+
 /* ------------------------------------------------------------------------ */
 /*
  *   In the VARS configuration, we need to provide storage for all of the
@@ -62,5 +68,3 @@ Modified
 
 
 #endif /* VMGLOB_VARS */
-
-

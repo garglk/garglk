@@ -33,7 +33,7 @@ Modified
 #include "vmpredef.h"
 #include "vmerrnum.h"
 #include "vmrun.h"
-#include "vmfile.h"
+#include "vmdatasrc.h"
 
 
 /* ------------------------------------------------------------------------ */
@@ -122,7 +122,8 @@ void TadsNetConfig::read(osfildef *fp, CVmMainClientIfc *clientifc)
             "serverid",
             "storage.domain",
             "storage.rootpath",
-            "storage.apikey"
+            "storage.apikey",
+            "watchdog"
         };
 
         int found = FALSE;
@@ -205,7 +206,7 @@ TadsNetConfigVar *TadsNetConfig::getvar(const char *name) const
 /*
  *   Check a storage server API reply 
  */
-void vmnet_check_storagesrv_reply(VMG_ int htmlstat, CVmStream *reply,
+void vmnet_check_storagesrv_reply(VMG_ int htmlstat, CVmDataSource *reply,
                                   const char *headers)
 {
     /* retrieve and check the status code */
@@ -251,7 +252,7 @@ void vmnet_check_storagesrv_stat(VMG_ char *stat)
  *   is simply the numeric error code (positive for HTTP status codes,
  *   negative for internal network errors), with no message text.  
  */
-char *vmnet_get_storagesrv_stat(VMG_ int htmlstat, CVmStream *reply,
+char *vmnet_get_storagesrv_stat(VMG_ int htmlstat, CVmDataSource *reply,
                                 const char *headers)
 {
     /* check the HTML status */
@@ -292,7 +293,7 @@ char *vmnet_get_storagesrv_stat(VMG_ int htmlstat, CVmStream *reply,
          *   We didn't find the header, so check the reply body.  Read the
          *   first line of the reply, since this contains the result code.  
          */
-        reply->set_seek_pos(0);
+        reply->seek(0, OSFSK_SET);
         char *txt = reply->read_line_alo();
 
         /* remove the trailing newline */
