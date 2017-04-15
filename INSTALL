@@ -29,10 +29,11 @@ sudo cp garglk/garglk.ini /etc/garglk.ini
 
 * Building on MacOS: (notes by Andrew Plotkin, April 2017)
 
-The build script can be run on any MacOS 10.7 or higher. It requires a
-set of Unix packages (see below), which can be installed with either
-MacPorts or Homebrew. If you're building for your own use, that's all
-you need to know. Install the packages and then type
+The new build script (contributed by Brad Town) can be run on any
+MacOS 10.7 or higher. It requires a set of Unix packages (see below),
+which can be installed with either MacPorts or Homebrew. If you're
+building Gargoyle for your own use, that's all you need to know.
+Install the packages and then type
 
   sh gargoyle_osx.sh
 
@@ -40,20 +41,20 @@ This should create Gargoyle.app, and also build a .DMG file which
 contains the app.
 
 However, to create a *release build* of Gargoyle.app -- one that can
-be distributed to other people -- requires more care. After struggling
-with it, this is what I have learned:
+be distributed to other people -- requires more care. After some
+struggle, this is what I have learned:
 
 - You need an Intel Mac with the developer tools (Xcode) installed.
 No surprise there.
 
 - You should compile on the oldest MacOS available. You can build on an 
-old Mac and get the result to run on new Macs. The reverse is harder; at
-least, I failed to make it work.
+old Mac and get the result to run on new Macs. The reverse does not work
+reliably.
 
-I did the current build on MacOS 10.7 "Lion". (The Jamfile and other support
-files in this package are now set up for 10.7, and the resulting app
-runs on 10.7 and up. Unlike previous Gargoyle releases, it does not support 
-the PPC architecture.)
+Therefore, I did the current build on MacOS 10.7 "Lion". (The Jamfile
+and other support files in this package are now set up for 10.7, and
+the resulting app runs on 10.7 and up. Unlike previous Gargoyle
+releases, it does not support the PPC architecture.)
 
 - You need to install Unix packages with MacPorts.
 
