@@ -133,7 +133,7 @@ switch $(OS)
     case MACOSX :
         Echo "OS is MACOSX (cocoa)" ;
         SUFDLL = .dylib ;
-        MAINARCH = -arch x86_64 -mmacosx-version-min=10.8 ;
+        MAINARCH = -arch x86_64 -mmacosx-version-min=10.7 ;
         AR = "libtool -static -o" ;
         RM = "touch -c" ;
         CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
