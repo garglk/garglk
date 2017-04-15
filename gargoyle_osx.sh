@@ -13,7 +13,7 @@ GARGDIST=build/dist
 DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
 
-GARVERSION=$(cat garglk/garversion.h | /usr/bin/grep -E '^\s*#\s*define\s*VERSION\s*' | /usr/bin/sed -E -e 's/^[^"]*"([^"]+)"/\1/')
+GARVERSION=$(cat garglk/garversion.h | /usr/bin/grep -E '^\s*#\s*define[[:space:]]*VERSION\s*' | /usr/bin/sed -E -e 's/^[^"]*"([^"]+)"/\1/')
 
 rm -rf Gargoyle.app
 mkdir -p "$BUNDLE/MacOS"
