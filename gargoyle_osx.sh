@@ -2,7 +2,10 @@
 
 # Use Homebrew if available. Alternately, you could just set the variable to
 # either yes or no.
-brew --prefix > /dev/null 2>&1 && MAC_USEHOMEBREW=yes
+if [ "${MAC_USEHOMEBREW}" == "" ]; then
+  MAC_USEHOMEBREW=no
+  brew --prefix > /dev/null 2>&1 && MAC_USEHOMEBREW=yes
+fi
 
 if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
   HOMEBREW_OR_MACPORTS_LOCATION="$(brew --prefix)"
