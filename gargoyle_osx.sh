@@ -36,14 +36,14 @@ for dylib in $(find "${GARGDIST}" -type f -name '*.dylib'); do
 done
 
 echo "Copying all required dylibs..."
-PREVIOUS_UNIQUE_DYLIB_PATHS="$(mktemp)"
+PREVIOUS_UNIQUE_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
 copy_new_dylibs() {
   # Get the dylibs needed.
-  ALL_DYLIB_PATHS="$(mktemp)"
+  ALL_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
   for file in $(find "${BUNDLE}" -type f); do
     otool -L "${file}" | fgrep "${HOMEBREW_OR_MACPORTS_LOCATION}" | sed -E -e 's/^[[:space:]]+(.*)[[:space:]]+\([^)]*\)$/\1/' >> "${ALL_DYLIB_PATHS}"
   done
-  UNIQUE_DYLIB_PATHS="$(mktemp)"
+  UNIQUE_DYLIB_PATHS="$(mktemp -t gargoylebuild)"
   cat "${ALL_DYLIB_PATHS}" | sort | uniq > "${UNIQUE_DYLIB_PATHS}"
   rm "${ALL_DYLIB_PATHS}"
 
