@@ -25,3 +25,94 @@ sudo ln -s -f /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
 sudo ln -s -f /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
 sudo cp garglk/garglk.ini /etc/garglk.ini
 
+-------------------------------
+
+* Building on MacOS: (notes by Andrew Plotkin, April 2017)
+
+The build script can be run on any MacOS 10.7 or higher. It requires a
+set of Unix packages (see below), which can be installed with either
+MacPorts or Homebrew. If you're building for your own use, that's all
+you need to know. Install the packages and then type
+
+  sh gargoyle_osx.sh
+
+This should create Gargoyle.app, and also build a .DMG file which
+contains the app.
+
+However, to create a *release build* of Gargoyle.app -- one that can
+be distributed to other people -- requires more care. After struggling
+with it, this is what I have learned:
+
+- You need an Intel Mac with the developer tools (Xcode) installed.
+No surprise there.
+
+- You should compile on the oldest MacOS available. You can build on an 
+old Mac and get the result to run on new Macs. The reverse is harder; at
+least, I failed to make it work.
+
+I did the current build on MacOS 10.7 "Lion". (The Jamfile and other support
+files in this package are now set up for 10.7, and the resulting app
+runs on 10.7 and up. Unlike previous Gargoyle releases, it does not support 
+the PPC architecture.)
+
+- You need to install Unix packages with MacPorts.
+
+Homebrew, sadly, does not support 10.7 any more. (I tried to install the
+necessary packages via Homebrew but ran into hopeless package dependency
+loops.)
+
+(Happily, Homebrew and MacPorts can coexist on the same box. I recommend
+doing the build in a shell which can only see the MacPorts world: add
+/opt/local/bin to your PATH and *remove* /usr/local/bin.)
+
+- Building
+
+To set up your build environment on a fresh Mac, install MacPorts
+via https://www.macports.org/install.php. You want the "pkg" installer
+for Lion (assuming that's your OS).
+
+Once that's set up, do:
+
+  sudo port install libsdl -x11
+  sudo port install libsdl_mixer libsdl_sound
+  sudo port install libpng
+  sudo port install jpeg
+  sudo port install smpeg
+  sudo port install freetype
+  sudo port install pkgconfig
+  sudo port install jam
+
+You can then run the build:
+
+  sh gargoyle_osx.sh
+
+If you have both Homebrew and MacPorts installed, the build will default
+to Homebrew, which is not what you want. You must set the MAC_USEHOMEBREW
+env variable to "no", for example like this:
+
+  sh -c 'MAC_USEHOMEBREW=no; . gargoyle_osx.sh'
+
+You now have build Gargoyle.app, and also the distributable .DMG file
+which contains the app.
+
+- Verifying the build
+
+It's useful to know how to check the app for portableness. If you type a
+command like
+
+  otool -L Gargoyle.app/Contents/MacOS/Gargoyle
+  otool -L Gargoyle.app/Contents/PlugIns/glulxe
+
+...you will see a list of the dynamic libraries linked into the interpreter.
+These may start with
+
+  @executable_path/../Frameworks/...: libs included in Gargoyle.app
+  /System/Library/Frameworks/...: MacOS standard libs
+  /usr/lib/...: more MacOS standard libs
+
+If you see any lines starting with /opt/local or /usr/local, you have a
+problem. That library is trying to load out of MacPorts or Homebrew, and
+the interpreter will fail on most other Macs (which do not have those repos
+installed).
+
+
