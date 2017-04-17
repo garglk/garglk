@@ -90,8 +90,18 @@ int main(int argc, char **argv)
     /* install the OS break handler while we're running */
     os_instbrk(1);
 
+    /* 
+     *   If possible, get the full path to the executable.  This makes any
+     *   future references to the exe file or its location independent of the
+     *   working directory context.
+     */
+    char exe[OSFNMAX];
+    if (os_get_exe_filename(exe, sizeof(exe), argv[0])
+        || os_get_abs_filename(exe, sizeof(exe), argv[0]))
+        argv[0] = exe;
+
     /* create the host interface */
-    hostifc = new CVmHostIfcStdio(argv[0]);
+    hostifc = new CVmHostIfcStdio(exe);
 
     /* invoke the basic entrypoint */
     stat = vm_run_image_main(&clientifc, "t3run", argc, argv,

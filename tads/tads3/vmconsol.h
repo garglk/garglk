@@ -941,6 +941,8 @@ protected:
 enum vmconsole_html_state
 {
     VMCON_HPS_NORMAL,                          /* normal text, not in a tag */
+    VMCON_HPS_TAG_START,                      /* parsing the start of a tag */
+    VMCON_HPS_TAG_NAME,                               /* parsing a tag name */
     VMCON_HPS_TAG,                                  /* parsing inside a tag */
     VMCON_HPS_ATTR_NAME,                       /* parsing an attribute name */
     VMCON_HPS_ATTR_VAL,                       /* parsing an attribute value */
@@ -1185,6 +1187,9 @@ public:
 
         /* not yet in quotes (-> nesting depth is zero) */
         html_quote_level_ = 0;
+
+        /* not in a PRE section */
+        html_pre_level_ = 0;
 
         /* we're not parsing inside any tags yet */
         html_allow_alt_ = FALSE;
@@ -1670,6 +1675,10 @@ protected:
      */
     vmconsole_html_state html_passthru_state_;
 
+    /* last tag name */
+    char html_passthru_tag_[32];
+    char *html_passthru_tagp_;
+
     /* <BR> defer mode */
     vmconsole_html_br_mode html_defer_br_;
 
@@ -1702,6 +1711,9 @@ protected:
      *   depth of <Q> tags 
      */
     int html_quote_level_;
+
+    /* PRE nesting depth */
+    int html_pre_level_;
 
     /*
      *   Parsing mode flag for ALT attributes.  If we're parsing a tag

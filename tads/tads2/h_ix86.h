@@ -10,9 +10,10 @@
 Name
   h_ix86.h - hardware definitions for Intel x86.
 Function
-  These definitions are for 16-bit and 32-bit Intel CPUs.  Note that these
-  probably will NOT work on 64-bit Intel hardware, because we assume that
-  the largest type is 32 bits.
+  These definitions are for 16-bit and 32-bit Intel CPUs.  (Note: for
+  64-bit Intel hardware, use h_ix86_64.h instead.  Don't use this file
+  for non-Intel platforms, as it assumes Intel byte order and type
+  sizes.)
 Notes
 
 Modified
@@ -57,7 +58,6 @@ double osrpdouble(const void *p);
 
 /* read double from portable 8-byte buffer (IEEE 754-2008 format) */
 void oswpdouble(void *p, double d);
-
 
 #endif /* H_IX86_H */
 

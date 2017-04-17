@@ -78,7 +78,7 @@ vm_bif_entry_t G_bif_reg_table[] =
     MAKE_ENTRY("t3vmTEST/010000", CVmBifT3Test),
     
     /* TADS generic data manipulation functions */
-    MAKE_ENTRY("tads-gen/030007", CVmBifTADS),
+    MAKE_ENTRY("tads-gen/030008", CVmBifTADS),
 
     /* TADS input/output functions */
     MAKE_ENTRY("tads-io/030007", CVmBifTIO),

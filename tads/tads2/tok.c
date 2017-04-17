@@ -584,8 +584,9 @@ static void tokpragma(tokcxdef *ctx, char *p, int len)
     }
 
     /* see what we have */
-    if (len > 1 && (*p == 'c' || *p == 'C')
-        && (*(p+1) == '+' || *(p+1) == '-') || t_isspace(*(p+1)))
+    if (len > 1
+        && (*p == 'c' || *p == 'C')
+        && (*(p+1) == '+' || *(p+1) == '-' || t_isspace(*(p+1))))
     {
         /* skip spaces after the 'C', if any */
         for (++p, --len ; len && t_isspace(*p) ; ++p, --len) ;

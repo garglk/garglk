@@ -11,12 +11,12 @@
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0
-sourceTextOrder: type code = 7, val = 1
-sayName: type code = 11 <method>
-name: type code = 8, val = 'my obj'
 bulk: type code = 7, val = 20
-weight: type code = 7, val = 10
 foo: type code = 7, val = 30
+name: type code = 8, val = 'my obj'
+sayName: type code = 11 <method>
+sourceTextOrder: type code = 7, val = 1
+weight: type code = 7, val = 10
 
 obj.sayName: my obj
 

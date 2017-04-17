@@ -93,7 +93,9 @@ COMMONOBJS= \
     $(OBJDIR)/oserr.o \
     $(OBJDIR)/cmap.o \
     $(OBJDIR)/osifc.o \
-    $(OBJDIR)/osdosnui.o
+    $(OBJDIR)/osdosnui.o \
+    $(OBJDIR)/ostzdjgpp.o \
+    $(OBJDIR)/osstzprs.o
 
 # common objects for all executables incorporating a run-time
 CMNRUNOBJS= \

@@ -5,6 +5,7 @@
 BUILD ?= RELEASE ;
 USESDL ?= yes ;
 USEBABEL ?= yes ;
+MAC_USEHOMEBREW ?= no ;
 BUNDLEFONTS ?= yes ;
 
 # jam -sGUILIB=EFL
@@ -44,15 +45,6 @@ if $(IPLINUXARCH)
     AR      = $(IPLINUXARCH)-ar cru ;
     RANLIB  = $(IPLINUXARCH)-ranlib ;
     LINK    = $(CC) ;
-}
-
-if $(UNIVERSAL) = yes
-{
-    AR = libtool -static -o ;
-    RM = touch -c ;
-    ALTARCH = -arch ppc ;
-    ALTARCH += -isysroot /Developer/SDKs/MacOSX10.4u.sdk ;
-    ALTARCH += -mmacosx-version-min=10.4 ;
 }
 
 switch $(OS)
@@ -141,21 +133,33 @@ switch $(OS)
     case MACOSX :
         Echo "OS is MACOSX (cocoa)" ;
         SUFDLL = .dylib ;
-        MAINARCH = -arch i386 ;
-        CCFLAGS = -Wno-pointer-sign $(MAINARCH) $(ALTARCH) ;
-        PKGCONFIG = "pkg-config freetype2" ;
+        MAINARCH = -arch x86_64 -mmacosx-version-min=10.7 ;
+        AR = "libtool -static -o" ;
+        RM = "touch -c" ;
+        CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
+        PKGCONFIG = "pkg-config freetype2 libpng" ;
+
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
-        SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
-        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz -lm ;
+        SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lz ;
+        # Homebrew's JPEG library package is missing some configuration files.
+        if $(MAC_USEHOMEBREW) = yes
+        {
+            GARGLKCCFLAGS += "-I`brew --prefix jpeg`/include" ;
+            SHRLINKLIBS += "-L`brew --prefix jpeg`/lib" ;
+        }
+        SHRLINKLIBS += -ljpeg ;
+
+        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
         FRAMEWORKS = -framework Cocoa -framework OpenGL ;
 
         if $(USESDL) = yes
         {
-            GARGLKCCFLAGS += -I/opt/local/include/SDL ;
-            SHRLINKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+            PKGCONFIG = "pkg-config SDL_mixer sdl vorbisfile" ;
+            GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags`" ;
+            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lsmpeg ;
         }
 
-        LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) $(ALTARCH) ;
+        LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
 
 
     case * :

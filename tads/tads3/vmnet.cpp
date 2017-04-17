@@ -22,7 +22,6 @@ Modified
 #include "osifcnet.h"
 #include "vmnet.h"
 #include "vmglob.h"
-#include "vmerr.h"
 #include "vmtype.h"
 #include "vmobj.h"
 #include "vmstr.h"
@@ -95,8 +94,8 @@ char *TadsServerManager::gen_rand_id(void *obj)
     sha256_begin(&s);
 
     /* add the current date/time to the hash */
-    time_t timer = time(0);
-    struct tm *tblock = localtime(&timer);
+    os_time_t timer = os_time(0);
+    struct tm *tblock = os_localtime(&timer);
     sha256_hash((unsigned char *)tblock, sizeof(*tblock), &s);
 
     /* add the system timer to the hash */
@@ -521,7 +520,7 @@ TadsListener *TadsListener::launch(const char *hostname, ushort portno,
 void TadsListener::shutdown()
 {
     /* set the 'quit' event in our thread */
-    thread->quit_evt->signal();
+    thread->shutdown_evt->signal();
 }
 
 
@@ -539,8 +538,9 @@ TadsListenerThread::~TadsListenerThread()
     if (port != 0)
         port->release_ref();
     
-    /* release our quit event */
+    /* release our quit event and shutdown event */
     quit_evt->release_ref();
+    shutdown_evt->release_ref();
     
     /* release our mutex */
     mutex->release_ref();
@@ -571,15 +571,18 @@ TadsListenerThread::~TadsListenerThread()
  */
 void TadsListenerThread::thread_main()
 {
-    /* keep going until we get the 'quit' signal */
-    while (!quit_evt->test())
+    /* 
+     *   keep going until we get the general application-wide 'quit' signal
+     *   or our own private listener shutdown event 
+     */
+    while (!quit_evt->test() && !shutdown_evt->test())
     {
         /* 
          *   wait for a new connection request OR the quit signal, whichever
          *   comes first 
          */
-        OS_Waitable *w[] = { port, quit_evt };
-        switch (OS_Waitable::multi_wait(2, w))
+        OS_Waitable *w[] = { port, quit_evt, shutdown_evt };
+        switch (OS_Waitable::multi_wait(3, w))
         {
         case OSWAIT_EVENT + 0:
             /* the port is ready - reset the event */
@@ -602,7 +605,7 @@ void TadsListenerThread::thread_main()
                     errmsg = t3sprintf_alloc(
                         "Listener thread failed: error %d from accept()",
                         port->last_error());
-                    quit_evt->signal();
+                    shutdown_evt->signal();
                     break;
                 }
 
@@ -619,7 +622,7 @@ void TadsListenerThread::thread_main()
                     /* failed - flag the error and shut down */
                     errmsg = lib_copy_str("Listener thread failed: "
                                           "couldn't launch server thread");
-                    quit_evt->signal();
+                    shutdown_evt->signal();
 
                     /* release our reference on the thread */
                     st->release_ref();
@@ -634,7 +637,15 @@ void TadsListenerThread::thread_main()
             break;
 
         case OSWAIT_EVENT + 1:
-            /* the quit signal fired - we're done */
+            /* 
+             *   The quit signal fired - the whole app is terminating.
+             *   Signal our internal shutdown event and abort. 
+             */
+            shutdown_evt->signal();
+            break;
+
+        case OSWAIT_EVENT + 2:
+            /* shutdown signal fired - the listener is terminating; abort */
             break;
         }
     }
@@ -750,7 +761,9 @@ void TadsServerThread::thread_main()
     listener->add_thread(this);
 
     /* process requests until we encounter an error or Quit signal */
-    while (!listener->quit_evt->test() && process_request()) ;
+    while (!listener->quit_evt->test()
+           && !listener->shutdown_evt->test()
+           && process_request()) ;
 
     /* terminating - close the socket */
     set_run_state("Closing");
@@ -766,7 +779,8 @@ void TadsServerThread::thread_main()
 /*
  *   Read bytes from the other side.  Blocks until there's at least one byte
  *   to read, then reads as many bytes into the buffer as we can without
- *   blocking further.  
+ *   blocking further.  Aborts if either the listener's "quit" or "shutdown"
+ *   event is triggered.
  */
 long TadsServerThread::read(char *buf, size_t buflen, long minlen,
                             unsigned long timeout)
@@ -841,8 +855,10 @@ long TadsServerThread::read(char *buf, size_t buflen, long minlen,
 
                 /* wait */
                 set_run_state("Waiting(receive)");
-                OS_Waitable *w[] = { socket, listener->quit_evt };
-                if (OS_Waitable::multi_wait(2, w, timeout) == OSWAIT_EVENT + 0)
+                OS_Waitable *w[] = {
+                    socket, listener->quit_evt, listener->shutdown_evt
+                };
+                if (OS_Waitable::multi_wait(3, w, timeout) == OSWAIT_EVENT + 0)
                 {
                     /* the socket is now ready - reset it and keep going */
                     socket->reset_event();
@@ -889,11 +905,9 @@ int TadsServerThread::send(const char *buf, size_t len)
     /* keep going until we satisfy the write request or run into trouble */
     while (len != 0)
     {
-        size_t cur;
-
         /* try sending */
         set_run_state("Sending");
-        cur = socket->send(buf, len);
+        size_t cur = socket->send(buf, len);
 
         /* check what happened */
         if (cur == OS_SOCKET_ERROR)
@@ -906,8 +920,10 @@ int TadsServerThread::send(const char *buf, size_t len)
             {
                 /* wait for the socket to unblock, or for the Quit event */
                 set_run_state("Waiting(send)");
-                OS_Waitable *w[] = { socket, listener->quit_evt };
-                if (OS_Waitable::multi_wait(2, w) == OSWAIT_EVENT + 0)
+                OS_Waitable *w[] = {
+                    socket, listener->quit_evt, listener->shutdown_evt
+                };
+                if (OS_Waitable::multi_wait(3, w) == OSWAIT_EVENT + 0)
                 {
                     /* socket is ready - reset it and carry on */
                     socket->reset_event();
@@ -968,6 +984,7 @@ struct url_param_alo: url_param
     }
 };
 
+#if 0 // not currently used
 /* get the value of an argument */
 static const char *get_arg_val(const char *name, const char *dflt,
                                const url_param *args, int argc)
@@ -984,6 +1001,7 @@ static const char *get_arg_val(const char *name, const char *dflt,
     /* didn't find it */
     return dflt;
 }
+#endif
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -993,8 +1011,9 @@ static const char *get_arg_val(const char *name, const char *dflt,
 /*
  *   construction 
  */
-TadsHttpListenerThread::TadsHttpListenerThread(vm_obj_id_t srv_obj,
-                                               TadsMessageQueue *q, long ulim)
+TadsHttpListenerThread::TadsHttpListenerThread(
+    vm_obj_id_t srv_obj, TadsMessageQueue *q, long ulim)
+    : TadsListenerThread(q->get_quit_evt())
 {
     /* remember the HTTPServer object that created the listener */
     this->srv_obj = srv_obj;
@@ -1004,9 +1023,6 @@ TadsHttpListenerThread::TadsHttpListenerThread(vm_obj_id_t srv_obj,
 
     /* save the upload limit */
     upload_limit = ulim;
-        
-    /* set our quit event in the queue */
-    q->set_quit_evt(quit_evt);
 }
 
 /*
@@ -1511,7 +1527,7 @@ int TadsHttpServerThread::process_request()
     req = new TadsHttpRequest(
         this, verb, verb_len, hdrs, hdr_list, body, overflow,
         resource_name, res_name_len,
-        listener->get_quit_evt());
+        listener->get_shutdown_evt());
 
     /* we've handed over the header list to the request */
     hdr_list = 0;

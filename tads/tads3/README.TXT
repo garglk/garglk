@@ -56,17 +56,15 @@ source code distribution for information on how to do this.
 ------------------------------------------------------------------------------
 CONTACTING THE AUTHOR
 
-Please contact the author by email at mjr_@hotmail.com if you have
-any questions or comments about TADS or the license information below.
+For contact information, please visit www.tads.org.
 
-In addition, if you port this software to a new platform, the author
-would be grateful to hear about any changes you had to make to the
-portable code to make TADS work on your computer.  It is the author's
-goal that the portable part of the code will compile and run without
-any changes at all on every system to which TADS is ported.  When
-problems do occur, the author will try to incorporate any necessary
-corrections into the main code base in an effort to ensure that the
-same portability exceptions don't recur in future versions.
+If you port this software to a new platform, I'd appreciate hearing
+about any changes you had to make to the portable code to make TADS
+work on your system.  My goal is for the portable part of the code to
+compile and run everywhere without any changes; all of the
+port-specific code should be isolated to the "osifc" layer.  Any time
+the portable part of the code proves to be less than portable, I
+consider it a bug and will try to fix it.
 
 
 ------------------------------------------------------------------------------

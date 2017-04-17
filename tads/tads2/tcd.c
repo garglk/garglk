@@ -360,7 +360,7 @@ typedef struct tcderrdef tcderrdef;
  */
 static char vsn_major[] = "2";
 static char vsn_minor[] = "5";
-static char vsn_maint[] = "15";
+static char vsn_maint[] = "17";
 
 
 /*
@@ -403,7 +403,9 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     char       swapbuf[OSFNMAX];
     char     **argp;
     char      *arg;
-    char      *outfile = (char *)0;
+    char      *outfile = (char *)0;                            /* .gam file */
+    char       outfile_abs[OSFNMAX];      /* fully-qualified .gam file name */
+    char       outfile_path[OSFNMAX];         /* absolute path to .gam file */
     char      *infile;
     ulong      swapsize = 0xffffffffL;        /* allow unlimited swap space */
     int        swapena = OS_DEFAULT_SWAP_ENABLED;      /* swapping enabled? */
@@ -1176,6 +1178,10 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     /* add code generator context to parser context */
     pctx->prscxemt = ectx;
     
+    /* get the absolute path for the .gam file */
+    os_get_abs_filename(outfile_abs, sizeof(outfile_abs), outfile);
+    os_get_path_name(outfile_path, sizeof(outfile_path), outfile_abs);
+
     /* set up execution context */
     runctx.runcxerr = ec;
     runctx.runcxmem = pctx->prscxmem;
@@ -1194,6 +1200,8 @@ static void tcdmain1(errcxdef *ec, int argc, char *argv[], tcderrdef *errcbcx,
     runctx.runcxvoc = &vocctx;
     runctx.runcxdmd = (void (*)(void *, objnum, prpnum))supcont;
     runctx.runcxdmc = &supctx;
+    runctx.runcxgamename = outfile;
+    runctx.runcxgamepath = outfile_path;
     
     /* set up setup context */
     supctx.supcxerr = ec;
@@ -1749,7 +1757,7 @@ int tcdmain(int argc, char **argv, char *save_ext)
     /* copyright-date-string */
     sprintf(vsnbuf, "%s v%s.%s.%s  %s\n", tcgname,
             vsn_major, vsn_minor, vsn_maint,
-            "Copyright (c) 1993, 2007 Michael J. Roberts");
+            "Copyright (c) 1993, 2012 Michael J. Roberts");
     tcdptf(vsnbuf);
     sprintf(vsnbuf, "TADS for %s [%s] patchlevel %s.%s\n",
             OS_SYSTEM_LDESC, OS_SYSTEM_NAME,

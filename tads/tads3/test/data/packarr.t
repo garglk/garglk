@@ -15,6 +15,7 @@ main(args)
     local idx = 1;
     idx += arr.packBytes(idx, 'C/l', 1, 2, 3, 4, 5);
     idx += arr.packBytes(idx, 'C/(a0)', 'one', 'two', 'three', 'four', 'five');
+    idx += arr.packBytes(idx, '[A5 C]3!', ['abc', 1], ['def', 2], ['ghijkl']);
     "pack in place\n";
     ".. pack hex (full array) = <<arr.unpackBytes(1, 'H*')[1]>>\n";
     ".. pack hex (up to idx = <<idx-1>>) = <<
@@ -27,6 +28,10 @@ main(args)
     idx += lst[lst.length()];
     lst = arr.unpackBytes(idx, 'C/(a0) @?');
     ".. unpack 2 = <<sayList(lst)>>\n";
+
+    idx += lst[lst.length()];
+    lst = arr.unpackBytes(idx, '[A5 C]3!');
+    ".. unpack 3 = <<sayList(lst)>>\n";
 }
 
 testNew(fmt, [args])

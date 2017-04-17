@@ -25,6 +25,7 @@ Stack trace:
 j(a:A 9, b:B 9, c:C 9)
 main()
 {anonymous}()
+{anonymous}()
 _main()
 This is anonymous! a=A 10 (all named arguments: c=C from k(), a=A 10, b=B 10)
 Stack trace:
@@ -32,6 +33,7 @@ Stack trace:
 j(c:C from k())
 k(a:A 10, b:B 10, c:C 10)
 main()
+{anonymous}()
 {anonymous}()
 _main()
 This is mm(Thing): a=thing

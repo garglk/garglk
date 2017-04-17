@@ -30,8 +30,6 @@ Modified
  */
 void vm_init_in_mem(vm_globals **vmg, const vm_init_options *opts)
 {
-    vm_globals *vmg__;
-
     /* initialize the base VM structures */
     vm_init_base(vmg, opts);
 
@@ -39,7 +37,13 @@ void vm_init_in_mem(vm_globals **vmg, const vm_init_options *opts)
      *   assign the global pointer to the special vmg__ local for
      *   globals-on-stack configuration 
      */
-    vmg__ = *vmg;
+    vm_globals *vmg__ = *vmg;
+
+    /* 
+     *   explicitly mark vmg__ as reference, in case we don't happen to use
+     *   it in this build configuration 
+     */
+    (void)vmg__;
 
     /* create the in-memory pools */
     VM_IF_ALLOC_PRE_GLOBAL(G_code_pool = new CVmPoolInMem());

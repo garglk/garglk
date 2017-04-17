@@ -6,7 +6,6 @@
 #
 #    nmake -f msdos\makevc5
 
-
 #COMPILE_FOR_DEBUG = 1
 !ifdef COMPILE_FOR_DEBUG
 OBJSUBDIR = dbg
@@ -81,7 +80,7 @@ all: trwin32.exe
 #
 
 CFLAGS= -c -MT -I. -Imsdos -DMSDOS \
-   -D__WIN32__ $(DBGFLG) -nologo -DMICROSOFT $(CFLAGS_WARN) \
+   -DT_WIN32 $(DBGFLG) -nologo -DMICROSOFT $(CFLAGS_WARN) \
    $(CFLAGS_CRT_DEPRECATIONS) \
    $(CFLAGS_DEBUG) $(CFLAGS_OPT)
 LDFLAGS= $(LDFLAGS_DEBUG) $(LDFLAGS_OPT)
@@ -103,6 +102,7 @@ all: $(LIBDIR)\tr32.lib $(LIBDIR)\tr32h.lib $(LIBDIR)\tdb32h.lib \
      tadsrsc32 maketrx32 mkchrtab32 tadsmdoc32 charmaps \
      $(OBJDIR)\osgen3r.obj \
      $(OBJDIR)\osnogen.obj \
+     $(OBJDIR)\osstzprs.obj \
      adv_new.t
 
 clean:
@@ -180,7 +180,7 @@ RUNOBJS_HTML= $(CMNRUNOBJS_HTML) $(RUNOBJS_EXTRA) $(OBJDIR)\run_nd.obj \
 CHAROBJS= \
      $(OBJDIR)\osr.obj $(OBJDIR)\osdosnui.obj $(OBJDIR)\osgenr.obj \
      $(OBJDIR)\osnoui.obj $(OBJDIR)\os0tr.obj $(OBJDIR)\bifgdum.obj \
-     $(OBJDIR)\osrestad.obj $(OBJDIR)\indlg_tx.obj $(OBJDIR)\osscolor.obj
+     $(OBJDIR)\osrestad.obj $(OBJDIR)\indlg_tx.obj $(OBJDIR)\osscolor.obj 
 
 # extra objects for windows run-time
 WINOBJS= \
@@ -232,7 +232,7 @@ DBGOBJS_HTML = $(CMNRUNOBJS_HTML) $(DBG_EXTRA)
 # extra objects for Win32 HTML libraries
 WIN32_HTML_LIB_EXTRA = \
         $(OBJDIR)\bifgdum.obj $(OBJDIR)\osnoui.obj $(OBJDIR)\oswin.obj \
-        $(OBJDIR)\osdosnui.obj $(OBJDIR)\ossrelpa.obj
+        $(OBJDIR)\osdosnui.obj $(OBJDIR)\osstzprs.obj $(OBJDIR)\ostzw32.obj
 
 
 # files to lint
@@ -358,6 +358,19 @@ $(EXEDIR)\437la1.tcp: 437la1.tcs
 $(EXEDIR)\win_la1.tcp: win_la1.tcs
 
 
+# 
+# Windows timezone mapping file.  We derive this information from the
+# Unicode CLDR file windowsZones.xml.  See cldr.unicode.org for details
+# and downloads.
+#
+# "msxsl" is thie Microsoft XSL transform tool, available as a free
+# download from the Microsoft Web site.
+#
+msdos\windowsZones.h: msdos\windowsZones.xml msdos\windowsZonesToCPP.xsl
+    msxsl -xe msdos\windowsZones.xml msdos\windowsZonesToCPP.xsl -o $@
+
+
+
 #
 # ordinary object file associations
 #
@@ -400,9 +413,9 @@ $(OBJDIR)\osdbg.obj:  msdos\osdbg.c
 $(OBJDIR)\oserr.obj:  oserr.c
 $(OBJDIR)\osdos.obj:  msdos\osdos.c
 $(OBJDIR)\osnogen.obj: msdos\osnogen.c
-$(OBDJIR)\osdosnui.obj: msdos\osdosnui.c
+$(OBJDIR)\osdosnui.obj: msdos\osdosnui.c
+$(OBJDIR)\ostzw32.obj: msdos\ostzw32.c msdos\windowsZones.h
 $(OBJDIR)\ossdos32.obj: msdos\ossdos32.c
-$(OBJDIR)\ossrelpa.obj: msdos\ossrelpa.c
 $(OBJDIR)\osdoscon.obj: msdos\osdoscon.c
 $(OBJDIR)\oswin.obj:  msdos\oswin.c
 $(OBJDIR)\oswinmem.obj: msdos\oswinmem.c
@@ -411,6 +424,7 @@ $(OBJDIR)\osgen.obj:  osgen.c
 $(OBJDIR)\osgen3.obj:  osgen3.c
 $(OBJDIR)\osrestad.obj: osrestad.c
 $(OBJDIR)\osnoui.obj: osnoui.c
+$(OBJDIR)\osstzprs.obj: osstzprs.c osstzprs.h
 $(OBJDIR)\osterm.obj: osterm.c
 $(OBJDIR)\ossdos.obj:  msdos\ossdos.asm
 $(OBJDIR)\tcgdum.obj: tcgdum.c

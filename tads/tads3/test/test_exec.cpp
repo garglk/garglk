@@ -51,7 +51,8 @@ public:
                      const char *script_file, int script_quiet,
                      const char *,
                      const char *,
-                     const char *)
+                     const char *,
+                     int)
     {
         /* set up for global access */
         VMGLOB_PTR(vmg);

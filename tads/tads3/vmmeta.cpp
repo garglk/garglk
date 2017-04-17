@@ -590,10 +590,8 @@ int CVmMetaTable::read_from_file(CVmFile *fp)
  */
 int CVmMetaTable::prop_to_vector_idx(uint reg_table_idx, vm_prop_id_t prop)
 {
-    vm_meta_entry_t *entry;
-
     /* get the entry for the registration table index */
-    entry = get_entry_from_reg(reg_table_idx);
+    vm_meta_entry_t *entry = get_entry_from_reg(reg_table_idx);
 
     /* 
      *   if there's no entry for this registration index, there's
@@ -633,10 +631,9 @@ void CVmMetaTable::create_intrinsic_class_instances(VMG0_)
          *   Add this object to the machine globals, if it's not a root
          *   object.  Any dynamically-created intrinsic class instance must
          *   be made a machine global because it will always be reachable as
-         *   the class object for the metaclass, but the metclass will not
-         *   trace the object during garbage collection; the only way to
-         *   keep these objects from being incorrectly collected is to make
-         *   them machine globals.  
+         *   the class object for the metaclass, but the metclass won't trace
+         *   the object during garbage collection, so we have to set up a
+         *   global to make sure the gc knows it's always reachable.
          */
         G_obj_table->add_to_globals(entry->class_obj_);
     }
@@ -652,7 +649,7 @@ void CVmMetaTable::forget_intrinsic_class_instances(VMG0_)
     size_t idx;
     vm_meta_entry_t *entry;
 
-    /* go through our table and clear out our IntrinsicClass references */
+    /* go through our table and do class-level initializations */
     for (idx = 0, entry = table_ ; idx < count_ ; ++idx, ++entry)
         entry->class_obj_ = VM_INVALID_OBJ;
 }

@@ -136,6 +136,7 @@ main(args)
     localtest('function() { return i; }', 'another \'i\' value!');
     localtest2();
     localtest3();
+    localtest4();
 
     saveGame(args[3]);
 }
@@ -189,6 +190,27 @@ localtest3()
           'localtest3_part2()', {f: f()});
 
     return i;
+}
+
+localtest4()
+{
+    local cnt = 0;
+    local frame = t3GetStackTrace(1, T3GetStackDesc).frameDesc_;
+    local f = new DynamicFunc('function(val) { if (val > 3) ++cnt; }',
+                              nil, frame);
+
+    "\blocaltest4:\n";
+    local tf = function(n) {
+        ". test(<<n>>): before cnt=<<cnt>>, ";
+        f(n);
+        "after cnt=<<cnt>>\n";
+    };
+
+    tf(1);
+    tf(2);
+    tf(3);
+    tf(4);
+    tf(5);
 }
 
 nameTest(a:, b:)

@@ -594,7 +594,7 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
          */
         sym = new CTcSymFunc(txt, len, FALSE, argc, opt_argc, varargs,
                              has_retval, is_multimethod, is_multimethod_base,
-                             is_extern);
+                             is_extern, TRUE);
         G_prs->get_global_symtab()->add_entry(sym);
 
         /* it's an error if we're replacing a previously undefined function */
@@ -623,7 +623,7 @@ int CTcSymFuncBase::load_from_obj_file(CVmFile *fp,
          */
         sym = new CTcSymFunc(txt, len, FALSE, argc, opt_argc, varargs,
                              has_retval, is_multimethod, is_multimethod_base,
-                             is_extern);
+                             is_extern, TRUE);
     }
     else if (sym->get_argc() != argc
              || sym->is_varargs() != varargs
@@ -827,35 +827,15 @@ CTcSymObj *CTcSymObjBase::
                            const textchar_t *mod_name, size_t mod_name_len,
                            int anon)
 {
-    const char *txt;
-    size_t len;
-    char buf[32];
-    ulong id;
-    int is_extern;
-    int stream_ofs_valid;
-    ulong stream_ofs;
-    CTcSymObj *sym;
-    CTcSymObj *mod_base_sym;
-    int modify_flag;
-    int ext_modify_flag;
-    int ext_replace_flag;
-    int modified_flag;
-    int class_flag;
-    CTcIdFixup *fixups;
-    CTcObjPropDel *del_prop_head;
-    tc_metaclass_t meta;
-    uint dict_idx;
-    int use_fake_sym;
-    uint obj_file_idx;
-    int trans_flag;
-
     /* presume we won't have to use a fake symbol */
-    use_fake_sym = FALSE;
+    int use_fake_sym = FALSE;
 
     /* presume we won't be able to read a stream offset */
-    stream_ofs_valid = FALSE;
+    int stream_ofs_valid = FALSE;
+    ulong stream_ofs = 0;
     
     /* read the symbol name information if it's not anonymous */
+    const char *txt;
     if (!anon)
     {
         /* read the symbol name */
@@ -869,21 +849,22 @@ CTcSymObj *CTcSymObjBase::
     }
 
     /* get the symbol len */
-    len = strlen(txt);
+    size_t len = strlen(txt);
 
     /* read our extra data */
+    char buf[32];
     fp->read_bytes(buf, 17);
-    id = t3rp4u(buf);
-    is_extern = buf[4];
-    ext_replace_flag = buf[5];
-    modified_flag = buf[6];
-    modify_flag = buf[7];
-    ext_modify_flag = buf[8];
-    class_flag = buf[9];
-    trans_flag = buf[10];
-    meta = (tc_metaclass_t)osrp2(buf + 11);
-    dict_idx = osrp2(buf + 13);
-    obj_file_idx = osrp2(buf + 15);
+    ulong id = t3rp4u(buf);
+    int is_extern = buf[4];
+    int ext_replace_flag = buf[5];
+    int modified_flag = buf[6];
+    int modify_flag = buf[7];
+    int ext_modify_flag = buf[8];
+    int class_flag = buf[9];
+    int trans_flag = buf[10];
+    tc_metaclass_t meta = (tc_metaclass_t)osrp2(buf + 11);
+    uint dict_idx = osrp2(buf + 13);
+    uint obj_file_idx = osrp2(buf + 15);
 
     /* 
      *   if we're not external, read our stream offset, and adjust for the
@@ -891,10 +872,8 @@ CTcSymObj *CTcSymObjBase::
      */
     if (!is_extern)
     {
-        CTcDataStream *stream;
-        
         /* get the appropriate stream */
-        stream = get_stream_from_meta(meta);
+        CTcDataStream *stream = get_stream_from_meta(meta);
 
         /* read the relative stream offset */
         stream_ofs = fp->read_uint4();
@@ -925,7 +904,7 @@ CTcSymObj *CTcSymObjBase::
     }
 
     /* we have no deleted properties yet */
-    del_prop_head = 0;
+    CTcObjPropDel *del_prop_head = 0;
 
     /* if this is a 'modify' object, read some additional data */
     if (modify_flag)
@@ -966,7 +945,7 @@ CTcSymObj *CTcSymObjBase::
     }
 
     /* read the self-reference fixup list */
-    fixups = 0;
+    CTcIdFixup *fixups = 0;
     CTcIdFixup::load_object_file(fp, 0, 0, TCGEN_XLAT_OBJ,
                                  4, fname, &fixups);
 
@@ -974,6 +953,7 @@ CTcSymObj *CTcSymObjBase::
      *   if this is a 'modify' object, load the base object - this is the
      *   original version of the object, which this object modifies 
      */
+    CTcSymObj *mod_base_sym = 0;
     if (modify_flag)
     {
         /* 
@@ -997,21 +977,15 @@ CTcSymObj *CTcSymObjBase::
         if (mod_base_sym == 0)
             return 0;
     }
-    else
-    {
-        /* we have no 'modify' base symbol */
-        mod_base_sym = 0;
-    }
 
     /* 
      *   If this is a 'modifed extern' symbol, it's just a placeholder to
      *   connect the bottom object in the stack of modified objects in
      *   this file with the top object in another object file. 
      */
+    CTcSymObj *sym = 0;
     if (is_extern && modified_flag)
     {
-        CTcSymObj *mod_sym;
-
         /*
          *   We're modifying an external object.  This must be the bottom
          *   object in the stack for this object file, and serves as a
@@ -1045,7 +1019,7 @@ CTcSymObj *CTcSymObjBase::
         }
         
         /* create a synthesized object to hold the original definition */
-        mod_sym = synthesize_modified_obj_sym(FALSE);
+        CTcSymObj *mod_sym = synthesize_modified_obj_sym(FALSE);
 
         /* transfer data to the new fake symbol */
         if (sym != 0)
@@ -1369,6 +1343,9 @@ CTcSymObj *CTcSymObjBase::
     if (meta == TC_META_DICT)
         G_prs->add_dict_from_obj_file(sym);
 
+    /* set the transient flag */
+    if (trans_flag)
+        sym->set_transient();
 
     /*
      *   Set the translation table entry for the symbol.  We know the
@@ -1386,12 +1363,8 @@ CTcSymObj *CTcSymObjBase::
  */
 void CTcSymObjBase::apply_internal_fixups()
 {
-    CTcIdFixup *fixup;
-    CTcObjPropDel *entry;
-    CTcSymObj *mod_base;
-    
     /* run through our list and apply each fixup */
-    for (fixup = fixups_ ; fixup != 0 ; fixup = fixup->nxt_)
+    for (CTcIdFixup *fixup = fixups_ ; fixup != 0 ; fixup = fixup->nxt_)
         fixup->apply_fixup(obj_id_, 4);
     
     /*
@@ -1403,11 +1376,12 @@ void CTcSymObjBase::apply_internal_fixups()
      *   classes.  Don't delete the properties in our own object,
      *   obviously - just in our modified base classes.  
      */
-    for (mod_base = mod_base_sym_ ; mod_base != 0 ;
+    for (CTcSymObj *mod_base = mod_base_sym_ ; mod_base != 0 ;
          mod_base = mod_base->get_mod_base_sym())
     {
         /* delete each property in our deletion list in this base class */
-        for (entry = first_del_prop_ ; entry != 0 ; entry = entry->nxt_)
+        for (CTcObjPropDel *entry = first_del_prop_ ; entry != 0 ;
+             entry = entry->nxt_)
         {
             /* delete this property from the base object */
             mod_base->delete_prop_from_mod_base(entry->prop_sym_->get_prop());
@@ -1424,18 +1398,15 @@ void CTcSymObjBase::apply_internal_fixups()
  */
 void CTcSymObjBase::merge_grammar_entry()
 {
-    CTcSymObj *prod_sym;
-    CTcGramProdEntry *master_entry;
-
     /* if I don't have a grammar list, there's nothing to do */
     if (grammar_entry_ == 0)
         return;
 
     /* get the grammar production object my rules are associated with */
-    prod_sym = grammar_entry_->get_prod_sym();
+    CTcSymObj *prod_sym = grammar_entry_->get_prod_sym();
 
     /* get the master list for the production */
-    master_entry = G_prs->get_gramprod_entry(prod_sym);
+    CTcGramProdEntry *master_entry = G_prs->get_gramprod_entry(prod_sym);
 
     /* move the alternatives from my private list to the master list */
     grammar_entry_->move_alts_to(master_entry);

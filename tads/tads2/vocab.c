@@ -4316,7 +4316,7 @@ void voc_parse_disambig(voccxdef *ctx)
                     }
 
                     /* add the open quote */
-                    *p++ = '"';
+                    *p++ = qu;
 
                     /* 
                      *   add the text, leaving out the first and last
@@ -4329,7 +4329,7 @@ void voc_parse_disambig(voccxdef *ctx)
                     }
 
                     /* add the closing quote */
-                    *p++ = '"';
+                    *p++ = qu;
 
                     /* null-terminate here so we don't skip any further */
                     *p = '\0';

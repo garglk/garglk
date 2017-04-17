@@ -37,15 +37,15 @@ CVmHostIfcStdio::CVmHostIfcStdio(const char *argv0)
     argv0_ = lib_copy_str(argv0);
 
     /* 
-     *   Create the resource loader for character mapping files in the
-     *   same directory as the executable. 
+     *   Create the resource loader for system resources (character mapping
+     *   files, etc) in the same directory as the executable. 
      */
     os_get_special_path(buf, sizeof(buf), argv0, OS_GSP_T3_RES);
-    cmap_loader_ = new CResLoader(buf);
+    sys_res_loader_ = new CResLoader(buf);
 
     /* set the executable filename in the loader, if available */
     if (os_get_exe_filename(buf, sizeof(buf), argv0))
-        cmap_loader_->set_exe_filename(buf);
+        sys_res_loader_->set_exe_filename(buf);
 
     /* 
      *   the default safety level allows reading and writing to the current
@@ -62,8 +62,8 @@ CVmHostIfcStdio::CVmHostIfcStdio(const char *argv0)
  */
 CVmHostIfcStdio::~CVmHostIfcStdio()
 {
-    /* delete our character map resource loader */
-    delete cmap_loader_;
+    /* delete our system resource loader */
+    delete sys_res_loader_;
 
     /* delete our saved argv[0] */
     lib_free_str(argv0_);

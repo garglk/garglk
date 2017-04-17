@@ -919,7 +919,7 @@ private:
                     sym, len, FALSE,
                     fp.get_min_argc(), fp.get_opt_argc(),
                     fp.is_varargs(), TRUE,
-                    FALSE, FALSE, FALSE);
+                    FALSE, FALSE, FALSE, TRUE);
 
                 /* we know the absolute code address - set it */
                 ((CTcSymFunc *)ret)->set_abs_addr(symval.val.ofs);
@@ -1077,9 +1077,9 @@ public:
 
             /* the third element is the flags */
             CVmObjList::index_list(vmg_ &ele, lst, 3);
-            if (!ele.is_numeric())
+            if (!ele.is_numeric(vmg0_))
                 goto done;
-            flags = ele.num_to_int();
+            flags = ele.num_to_int(vmg0_);
 
             /* create the entry */
             entry = new CTcHashEntryPpDefine(
@@ -1333,7 +1333,7 @@ public:
     }
 
     /* validate a constant pool list address */
-    virtual int validate_pool_str(uint32 ofs)
+    virtual int validate_pool_str(uint32_t ofs)
     {
         /* establish globals */
         VMGLOB_PTR(vmg);
@@ -1355,7 +1355,7 @@ public:
     }
 
     /* validate a constant pool string address */
-    virtual int validate_pool_list(uint32 ofs)
+    virtual int validate_pool_list(uint32_t ofs)
     {
         /* establish globals */
         VMGLOB_PTR(vmg);
@@ -1447,7 +1447,7 @@ CVmDynamicCompiler::CVmDynamicCompiler(VMG0_)
     hostifc_ = new CTcHostIfcDynComp();
 
     /* initialize the compiler */
-    CTcMain::init(hostifc_, G_host_ifc->get_cmap_res_loader(), "utf8");
+    CTcMain::init(hostifc_, G_host_ifc->get_sys_res_loader(), "utf8");
 
     /* 
      *   set up the compiler size globals from the corresponding load image

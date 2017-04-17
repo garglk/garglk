@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 2000, 2006 Michael J. Roberts
@@ -8,8 +9,6 @@
  *   This header defines the Dictionary intrinsic class.  
  */
 
-#ifndef _DICT_H_
-#define _DICT_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -233,4 +232,3 @@ property calcHash, matchValues;
 export calcHash 'IfcComparator.calcHash';
 export matchValues 'IfcComparator.matchValues';
 
-#endif /* _DICT_H_ */

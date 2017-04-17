@@ -21,6 +21,7 @@ Modified
 #define UTF8_H
 
 #include <stdlib.h>
+#include "vmuni.h"
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -97,6 +98,17 @@ public:
         p_ += s_putch(p_, ch);
     }
 
+    /* 
+     *   encode a character into the buffer, incrementing the pointer and
+     *   decrementing a remaining length count 
+     */
+    void setch(wchar_t ch, size_t *rem)
+    {
+        size_t len = s_putch(p_, ch);
+        p_ += len;
+        *rem -= len;
+    }
+
     /* call setch() for each character in a null-terminated string */
     void setch_str(const char *str)
     {
@@ -120,16 +132,16 @@ public:
     size_t setwchars(const wchar_t *src, size_t src_count, size_t bufsiz);
 
     /*
-     *   Encode a null-terminated string of wide-characters into our
-     *   buffer.  Works like setwchars(), but stops at the null terminator
-     *   in the source rather than taking a character count.
+     *   Encode a null-terminated string of wide-characters into our buffer.
+     *   Works like setwchars(), but stops at the null terminator in the
+     *   source rather than taking a character count.
      *   
-     *   This routine includes the null terminator in the resulting UTF-8
-     *   string, and includes the space it takes in the result length, BUT
-     *   we leave our pointer pointing to the null terminator.  
+     *   This routine doesn't store a trailing null in the result string.  My
+     *   string pointer is left at the next character after the last copied
+     *   character.
      */
     size_t setwcharsz(const wchar_t *src, size_t bufsiz);
-    
+
     /* increment the pointer by one character */
     void inc() { p_ = s_inc(p_); }
 
@@ -139,10 +151,8 @@ public:
      */
     void inc(size_t *rem)
     {
-        char *p;
-        
         /* calculate the increment amount */
-        p = s_inc(p_);
+        char *p = s_inc(p_);
 
         /* decrement the length counter by the change */
         *rem -= (p - p_);
@@ -161,10 +171,8 @@ public:
     /* decrement poniter and increment the remaining size to compensate */
     void dec(size_t *rem)
     {
-        char *p;
-
         /* calculate the decrement amount */
-        p = s_dec(p_);
+        char *p = s_dec(p_);
 
         /* decrement the length counter by the change */
         *rem += (p_ - p);
@@ -172,6 +180,10 @@ public:
         /* save the new pointer value */
         p_ = p;
     }
+
+    /* increment/decrement by a byte count */
+    void inc_bytes(size_t cnt) { p_ += cnt; }
+    void dec_bytes(size_t cnt) { p_ -= cnt; }
 
     /* 
      *   Determine if the current character is a continuation character.
@@ -429,6 +441,20 @@ public:
         return (ch < 0x80 ? 1 : (ch < 0x800 ? 2 : 3));
     }
 
+    /* 
+     *   get the number of bytes needed for the utf-8 mapping of a
+     *   null-terminated wchar_t string 
+     */
+    static size_t s_wstr_size(const wchar_t *str)
+    {
+        /* add up the byte lengths of the characters in 'str' */
+        size_t bytes = 0;
+        for ( ; *str != 0 ; bytes += s_wchar_size(*str++)) ;
+
+        /* return the total */
+        return bytes;
+    }
+
     /* decrement a pointer by one character, returning the result */
     static char *s_dec(char *p)
     {
@@ -459,8 +485,6 @@ public:
      */
     static int s_is_continuation(const char *p)
     {
-        unsigned int ch;
-
         /*   
          *   Continuation bytes have the pattern 10xxxxxx.  Initial bytes
          *   never have this pattern.  So, if a byte ANDed with 0xC0 is
@@ -480,7 +504,7 @@ public:
          *   this with the previous calculation, which will give us 1 for
          *   10xxxxxx and 0 for anything else.  
          */
-        ch = (unsigned int)(unsigned char)*p;
+        unsigned int ch = (unsigned int)(unsigned char)*p;
         return (((ch & 0x80) >> 7)
                 & (((~(ch & 0x40)) & 0x40) >> 6));
     }
@@ -497,9 +521,6 @@ public:
      */
     static size_t s_trunc(const char *p, size_t len)
     {
-        const char *last_ch;
-        size_t last_ch_len;
-
         /* 
          *   if the length is zero, no adjustment is needed - you
          *   obviously can't divide zero bytes 
@@ -513,7 +534,7 @@ public:
          *   the buffer is at index (len-1), since the byte at index (len)
          *   is the next byte after the truncated region.  
          */
-        last_ch = p + len - 1;
+        const char *last_ch = p + len - 1;
 
         /* 
          *   Decrement this byte pointer until we get to the start of the
@@ -529,7 +550,7 @@ public:
          *   actually in the truncated region - this is simply the number
          *   of bytes from where we are now to the end of the region 
          */
-        last_ch_len = len - (last_ch - p);
+        size_t last_ch_len = len - (last_ch - p);
 
         /*
          *   Now compute the actual size of this last character.  If the
@@ -593,11 +614,9 @@ public:
     static size_t to_wchar(wchar_t *buf, size_t bufcnt, const char *str,
                            size_t len)
     {
-        utf8_ptr p;
-        int cnt;
-
         /* scan the string */
-        for (cnt = 0, p.set((char *)str) ; len != 0 ; p.inc(&len), ++cnt)
+        int cnt = 0;
+        for (utf8_ptr p((char *)str) ; len != 0 ; p.inc(&len), ++cnt)
         {
             /* if there's room, add this character to the output buffer */
             if (bufcnt > 0)
@@ -616,6 +635,77 @@ private:
     char *p_;
 };
 
-#endif /* UTF8_H */
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   Case folding utf8 string reader 
+ */
+class Utf8FoldStr
+{
+public:
+    Utf8FoldStr(const char *p, size_t bytelen)
+    {
+        /* set up at the start of the string */
+        this->p.set((char *)p);
+        this->rem = bytelen;
+
+        /* null-terminate our special one-byte identity conversion buffer */
+        ie[1] = 0;
+
+        /* start without anything loaded */
+        fpbase = ie;
+        fp = &ie[1];
+    }
+
+    /* get the current byte offset */
+    const char *getptr() const { return p.getptr(); }
+
+    /* is a character available? */
+    int more() const { return rem != 0 || *fp != 0 || fp == ie; }
+
+    /* are we at a character boundary in the original string? */
+    int at_boundary() const { return fp != fpbase && *fp == 0; }
+
+    /* get the next character */
+    wchar_t getch()
+    {
+        /* if the expansion is exhausted, expand the next source character */
+        if (fp != ie && *fp == 0)
+        {
+            /* if there's nothing left in the source string, we're done */
+            if (rem == 0)
+                return 0;
+
+            /* get the next source character */
+            wchar_t ch = p.getch();
+            p.inc(&rem);
+
+            /* get its case-folded expansion */
+            if ((fp = t3_to_fold(ch)) == 0)
+            {
+                ie[0] = ch;
+                fpbase = fp = ie;
+            }
+        }
+        
+        /* return the next expansion character */
+        return *fp++;
+    }
+
+private:
+    /* current position in case folding expansion of current 's' character */
+    const wchar_t *fp;
+
+    /* start of current expansion */
+    const wchar_t *fpbase;
+
+    /* buffer for identity expansions */
+    wchar_t ie[2];
+
+    /* pointer into original string source, and remaining length in bytes */
+    utf8_ptr p;
+    size_t rem;
+};
+
+#endif /* UTF8_H */
 

@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /*
  *   Copyright 2000, 2006 Michael J. Roberts.
@@ -8,8 +9,6 @@
  *   This header defines the StringComparator intrinsic class.  
  */
 
-#ifndef _STRCOMP_H_
-#define _STRCOMP_H_
 
 /* include our base class definition */
 #include "systype.h"
@@ -140,4 +139,3 @@ intrinsic class StringComparator 'string-comparator/030000': Object
  */
 #define StrCompTrunc     0x0004
 
-#endif /* _STRCOMP_H_ */

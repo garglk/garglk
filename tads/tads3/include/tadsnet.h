@@ -1,4 +1,5 @@
 #charset "us-ascii"
+#pragma once
 
 /* 
  *   Copyright (c) 1999, 2006 Michael J. Roberts
@@ -32,9 +33,6 @@
  *   QUIT into the UI.  
  */
 
-
-#ifndef TADSNET_H
-#define TADSNET_H
 
 /*
  *   tads-net - the TADS Network function set
@@ -299,5 +297,16 @@ intrinsic 'tads-net/030001'
  */
 #define NetEvReply   5
 
+/*
+ *   Reply data transfer finished.  This type of event occurs when an
+ *   asynchronous reply to a request is completed.  An asynchronous HTTP
+ *   request reply can be sent with HTTPRequest.sendReplyAsync().  The event
+ *   object contains information on whether or not the reply was successfully
+ *   sent to the client.  For HTTP transactions, this is largely advisory,
+ *   since there's no recovery action the server can take when an error
+ *   occurs sending a reply; there's no provision in HTTP for a server to
+ *   initiate contact with a client, so it's up to the client to handle it,
+ *   such as by retrying the request.
+ */
+#define NetEvReplyDone    6
 
-#endif /* TADSNET_H */

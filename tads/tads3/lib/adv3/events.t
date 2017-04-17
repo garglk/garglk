@@ -31,20 +31,15 @@ runScheduler()
         /* catch the exceptions that terminate the game */
         try
         {
-            local minTime;
-            local vec;
-
             /* start with an empty list of schedulable items */
-            vec = new Vector(10);
+            local vec = new Vector(10);
 
             /* find the lowest time at which something is ready to run */
-            minTime = nil;
+            local minTime = nil;
             foreach (local cur in Schedulable.allSchedulables)
             {
-                local curTime;
-
                 /* get this item's next eligible run time */
-                curTime = cur.getNextRunTime();
+                local curTime = cur.getNextRunTime();
 
                 /* 
                  *   if it's not nil, and it's equal to or below the

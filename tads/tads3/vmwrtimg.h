@@ -58,14 +58,14 @@ public:
     void end_block();
 
     /* write raw bytes to the image file */
-    void write_bytes(const char *ptr, uint32 siz);
+    void write_bytes(const char *ptr, uint32_t siz);
 
     /* 
      *   Write a complete entrypoint block, given the code offset of the
      *   entrypoint and the various table entry sizes.  If a block is in
      *   progress, this will terminate it.  
      */
-    void write_entrypt(uint32 entry_ofs, size_t method_header_size,
+    void write_entrypt(uint32_t entry_ofs, size_t method_header_size,
                        size_t exc_entry_size, size_t line_entry_size,
                        size_t dbg_hdr_size, size_t dbg_lclsym_hdr_size,
                        size_t dbg_frame_hdr_size,
@@ -110,7 +110,7 @@ public:
     /*
      *   Write a constant pool definition block.
      */
-    void write_pool_def(uint pool_id, uint32 page_count, uint32 page_size,
+    void write_pool_def(uint pool_id, uint32_t page_count, uint32_t page_size,
                         int mandatory);
 
     /*
@@ -132,7 +132,7 @@ public:
      *   of pages in the pool when writing the original pool definition
      *   block.  
      */
-    void fix_pool_def(long def_seek_ofs, uint32 page_count);
+    void fix_pool_def(long def_seek_ofs, uint32_t page_count);
 
     /*
      *   Write a constant/code pool page.  This writes the entire page
@@ -140,8 +140,8 @@ public:
      *   easiest way to write a page when the page has been fully
      *   constructed in a single memory block in advance.  
      */
-    void write_pool_page(uint pool_id, uint32 page_index,
-                         const char *page_data, uint32 page_data_size,
+    void write_pool_page(uint pool_id, uint32_t page_index,
+                         const char *page_data, uint32_t page_data_size,
                          int mandatory, uchar xor_mask);
 
     /*
@@ -152,9 +152,9 @@ public:
      *   written contiguously to the page.  Finish by calling
      *   end_pool_page().  
      */
-    void begin_pool_page(uint pool_id, uint32 page_index, int mandatory,
+    void begin_pool_page(uint pool_id, uint32_t page_index, int mandatory,
                          uchar xor_mask);
-    void write_pool_page_bytes(const char *buf, uint32 siz, uchar xor_mask);
+    void write_pool_page_bytes(const char *buf, uint32_t siz, uchar xor_mask);
     void end_pool_page();
 
     /*
@@ -192,7 +192,7 @@ public:
      *   otherwise, the objects are non-transient (i.e., persistent).  
      */
     void begin_objs_block(uint metaclass_idx, int large_objects, int trans);
-    void write_objs_bytes(const char *buf, uint32 siz);
+    void write_objs_bytes(const char *buf, uint32_t siz);
     void end_objs_block(uint object_count);
 
     /*
@@ -261,7 +261,7 @@ private:
     void end_dep_block();
 
     /* XOR a block of bytes with a mask and write the results to the file */
-    void xor_and_write_bytes(const char *p, uint32 len, uchar xor_mask);
+    void xor_and_write_bytes(const char *p, uint32_t len, uchar xor_mask);
   
     /* underlying file */
     class CVmFile *fp_;

@@ -108,6 +108,15 @@ public:
     int get_prop(VMG_ vm_prop_id_t prop, vm_val_t *val,
                  vm_obj_id_t self, vm_obj_id_t *source_obj, uint *argc);
 
+    /* cast to string - return the original pattern string */
+    const char *cast_to_string(VMG_ vm_obj_id_t self,
+                               vm_val_t *new_str) const
+    {
+        /* return the original string value */
+        *new_str = *get_orig_str();
+        return new_str->get_as_string(vmg0_);
+    }
+
     /* undo operations - we are immutable and hence keep no undo */
     void notify_new_savept() { }
     void apply_undo(VMG_ struct CVmUndoRecord *) { }

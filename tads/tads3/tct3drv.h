@@ -338,7 +338,7 @@ public:
 class CTPNComma: public CTPNCommaBase
 {
 public:
-    CTPNComma(class CTcPrsNode *lhs, CTcPrsNode *rhs)
+    CTPNComma(class CTcPrsNode *lhs, class CTcPrsNode *rhs)
         : CTPNCommaBase(lhs, rhs) { }
 
     /* generate code */
@@ -1016,9 +1016,10 @@ class CTcSymFunc: public CTcSymFuncBase
 public:
     CTcSymFunc(const char *str, size_t len, int copy,
                int argc, int opt_argc, int varargs, int has_retval,
-               int is_multimethod, int is_mm_base, int is_extern)
+               int is_multimethod, int is_mm_base,
+               int is_extern, int has_proto)
         : CTcSymFuncBase(str, len, copy, argc, opt_argc, varargs, has_retval,
-                         is_multimethod, is_mm_base, is_extern)
+                         is_multimethod, is_mm_base, is_extern, has_proto)
     {
         /* 
          *   we don't have a valid absolute address - by default, we use
@@ -1060,7 +1061,7 @@ public:
      *   will be kept with its associated anchor to allow for relocation
      *   of the function during the linking process.  
      */
-    void set_abs_addr(uint32 addr)
+    void set_abs_addr(uint32_t addr)
     {
         /* remember the address */
         abs_addr_ = addr;
@@ -2283,23 +2284,42 @@ public:
 };
 
 /*
+ *   Inline object definition (defined within an expression)
+ */
+class CTPNInlineObject: public CTPNInlineObjectBase
+{
+public:
+    /* generate code */
+    virtual void gen_code(int discard, int for_condition);
+};
+
+
+/*
  *   Property Value list entry 
  */
 class CTPNObjProp: public CTPNObjPropBase
 {
 public:
-    CTPNObjProp(class CTPNStmObject *obj_stm, class CTcSymProp *prop_sym,
+    CTPNObjProp(class CTPNObjDef *objdef, class CTcSymProp *prop_sym,
                 class CTcPrsNode *expr, class CTPNCodeBody *code_body,
-                int is_static)
-        : CTPNObjPropBase(obj_stm, prop_sym, expr, code_body, is_static)
+                class CTPNAnonFunc *inline_method, int is_static)
+        : CTPNObjPropBase(
+            objdef, prop_sym, expr, code_body, inline_method, is_static)
     {
     }
     
     /* generate code */
     virtual void gen_code(int discard, int for_condition);
 
+    /* generate code for an inline object instantiation */
+    void gen_code_inline_obj();
+
     /* check locals */
     void check_locals();
+
+protected:
+    /* generate a setMethod() call for inline object creation */
+    void gen_setMethod();
 };
 
 /*

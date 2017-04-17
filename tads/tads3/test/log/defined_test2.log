@@ -19,6 +19,9 @@ bar is defined
 bar is a C
 bar is a foo
 
+foo is defined
+bar is defined
+
 (T3VM) Memory blocks still in use:
 
 Total blocks in use: 0

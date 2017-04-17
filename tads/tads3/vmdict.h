@@ -83,18 +83,9 @@ enum dict_undo_action
  *   contents.  
  */
 /*   
- *   Separately, we maintain a hash table and entries in the hash table.
- *   We don't attempt to keep any of the other data in the object in a
- *   portable internal format, but rather serialize data to a saved state
- *   file and rebuild the internal format on demand.  We also do not keep
- *   the hash table in the variable heap mechanism, but simply use the
- *   standard system heap.  The internal structure of our hash table would
- *   be too complicated to keep in the variable heap in portable format,
- *   and furthermore we do not expect dictionary instances to be numerous
- *   (hence the cost of serializing should be small, since it won't be
- *   repeated over many objects) or frequently changed (hence keeping
- *   these in the standard system heap should not cause excessive heap
- *   fragmentation).
+ *   Separately, we maintain a hash table and entries in the hash table.  We
+ *   don't attempt to keep the hash table in a portable format, which means
+ *   that we have to rebuild the hash table on restoring a saved state file.
  */
 
 /* comparator object types */

@@ -34,6 +34,58 @@ Modified
 
 
 /* ------------------------------------------------------------------------ */
+/*
+ *   Type code classifiers 
+ */
+
+/*
+ *   Is the type code valid? 
+ */
+static inline int is_valid_type(wchar_t c)
+{
+    return c <= 127 && strchr("aAbuUwWhHcCsSlLqQkfdxX@\"{", (char)c) != 0;
+}
+
+
+/* 
+ *   Is the type repeatable?  A repeatable type is a fixed-length type like L
+ *   or C.  String types are not repeatable; they instead treat a count as a
+ *   length for the string. 
+ */
+static inline int is_repeatable(wchar_t c)
+{
+    /* it's repeatable if it's not one of the string types */
+    return strchr("aAbuUwWhHxX@", (char)c) == 0;
+}
+
+/*
+ *   Is this a varying-length item? 
+ */
+static inline int is_varying_length(wchar_t c)
+{
+    return strchr("aAbuUwWhH", (char)c) != 0;
+}
+
+/*
+ *   Get the character padding for a type.  A, U, and W use space padding;
+ *   everything else uses Nul padding.
+ */
+static inline char get_padding_char(wchar_t c)
+{
+    return strchr("AUW", (char)c) != 0 ? ' ' : 0;
+}
+
+/*
+ *   Is this a type that consumes an argument?
+ */
+static inline int type_consumes_arg(wchar_t c)
+{
+    return strchr("xX@\"{", (char)c) == 0;
+}
+
+
+
+/* ------------------------------------------------------------------------ */
 /* 
  *   string parser position 
  */
@@ -445,7 +497,9 @@ struct StackArgs: CVmPackArgs
  */
 struct ListArgs: CVmPackArgs
 {
-    ListArgs(VMG_ vm_val_t *lst)
+    ListArgs(VMG_ vm_val_t *lst) { set(vmg_ lst); }
+
+    void set(VMG_ vm_val_t *lst)
     {
         this->vmg = VMGLOB_ADDR;
         this->lst = *lst;
@@ -550,7 +604,7 @@ void CVmPack::pack(VMG_ int arg_index, int argc, CVmDataSource *dst)
     CVmPackPos p(fmt, fmtlen);
     CVmPackGroup root(&p, dst);
     StackArgs args(vmg_ arg_index + 1, argc - 1);
-    pack_group(vmg_ &p, &args, &root);
+    pack_group(vmg_ &p, &args, &root, FALSE);
 
     /* make sure we exhausted the string */
     if (p.more())
@@ -568,9 +622,41 @@ void CVmPack::pack(VMG_ int arg_index, int argc, CVmDataSource *dst)
 /*
  *   Pack a group 
  */
-void CVmPack::pack_group(VMG_ CVmPackPos *p, CVmPackArgs *args,
-                         CVmPackGroup *group)
+void CVmPack::pack_group(VMG_ CVmPackPos *p, CVmPackArgs *args_main,
+                         CVmPackGroup *group, int list_per_iter)
 {
+    /* assume we're unpacking from the main argument list */
+    CVmPackArgs *args = args_main;
+    
+    /* 
+     *   if there's a list per group iteration, the next argument should be a
+     *   list from which we'll take arguments for this single iteration 
+     */
+    vm_val_t listval;
+    ListArgs listargs(vmg_ args->get(&listval));
+    int more = args->more();
+    if (list_per_iter)
+    {
+        /* pull out and switch to the sublist for the first iteration */
+        more = args_main->more();
+        args = &listargs;
+        args_main->next();
+    }
+
+    /* 
+     *   if this is an up-to count, and the source list is empty, packing
+     *   zero iterations is valid 
+     */
+    if ((group->num_iters == ITER_STAR || group->up_to_iters) && !more)
+    {
+        /* skip the group in the source */
+        p->set(&group->start);
+        skip_group(p, group->close_paren);
+
+        /* we're done */
+        return;
+    }
+
     /* run through the format list */
     while (p->more())
     {
@@ -584,14 +670,45 @@ void CVmPack::pack_group(VMG_ CVmPackPos *p, CVmPackArgs *args,
         else if (c == group->close_paren)
         {
             /* 
-             *   Determine if we're done.  If the group has a '*' repeat
-             *   count, we're done when we're out of arguments.  Otherwise,
-             *   we're done when we've iterated the number of times given by
-             *   the repeat count.  
+             *   if we're reading arguments from a separate sublist per
+             *   iteration of the group, move on to the next sublist 
              */
-            if (group->num_iters == ITER_STAR ? !args->more() :
-                group->cur_iter >= group->num_iters)
+            int more = args->more();
+            if (list_per_iter)
+            {
+                /* switch to the next sublist from the main arguments */
+                more = args_main->more();
+                listargs.set(vmg_ args_main->get(&listval));
+                args_main->next();
+            }
+
+            /* 
+             *   Determine if we're done.  If the group has a '*' repeat
+             *   count, we're done when we're out of arguments.  If it has an
+             *   up-to count, we're done if we're either out of arguments or
+             *   at the iteration count limit.  Otherwise, we're done when
+             *   we've reached the iteration count limit.
+             */
+            if ((group->num_iters == ITER_STAR
+                 ? !more
+                 : group->cur_iter >= group->num_iters)
+                || (group->up_to_iters && !more))
+            {
+                /* 
+                 *   if this is an up-to count, make sure we consumed all
+                 *   arguments 
+                 */
+                if (group->up_to_iters)
+                {
+                    if (list_per_iter)
+                        for ( ; args_main->more() ; args_main->next()) ;
+                    else
+                        for ( ; args->more() ; args->next()) ;
+                }
+                
+                /* done */
                 return;
+            }
 
             /* 
              *   We're going back for another iteration of the group.
@@ -674,17 +791,22 @@ void CVmPack::pack_subgroup(VMG_ CVmPackPos *p, CVmPackArgs *args,
      *   the template is '[', the arguments come from a list; otherwise they
      *   come from the main argument list. 
      */
-    CVmPackArgs *child_args;
+    CVmPackArgs *child_args = args;
+    int list_per_iter = FALSE;
     if (paren == '[')
     {
-        /* "[ ]" group - use the list arguments */
-        child_args = &la;
-        args->next();
-    }
-    else
-    {
-        /* "( )" group - read from the main list */
-        child_args = args;
+        /* [] group - pack from a list or a set of lists */
+        if (gt.bang)
+        {
+            /* ! modifier - each iteration is a separate sublist */
+            list_per_iter = TRUE;
+        }
+        else
+        {
+            /* "[ ]" group - the whole group comes from a single sublist */
+            child_args = &la;
+            args->next();
+        }
     }
 
     /* check for a prefix count */
@@ -703,7 +825,7 @@ void CVmPack::pack_subgroup(VMG_ CVmPackPos *p, CVmPackArgs *args,
     }
 
     /* recursively pack the child group */
-    pack_group(vmg_ p, child_args, &child);
+    pack_group(vmg_ p, child_args, &child, list_per_iter);
 
     /* make sure we stopped at the close paren */
     if (p->nextch() != child.close_paren)
@@ -721,7 +843,7 @@ void CVmPack::pack_subgroup(VMG_ CVmPackPos *p, CVmPackArgs *args,
 
         /* it's an error if the prefix count is a variable-length item */
         if (prefix_count->type_code == 'k'
-            || (strchr("aAbuUwWhH", (char)prefix_count->type_code) != 0
+            || (is_varying_length(prefix_count->type_code)
                 && prefix_count->count == ITER_STAR))
             err_throw_a(VMERR_PACK_ARG_MISMATCH, 1, ERR_TYPE_INT,
                         prefix_count->fmtidx);
@@ -1108,17 +1230,19 @@ public:
     }
 
     /* 
-     *   Get the field width in bytes for the given descriptor.  By default,
-     *   this returns the repeat count.  Some formats treat the repeat count
-     *   as a character count rather than a byte count - they should
-     *   override this as needed.  
+     *   Get the field width in bytes for the given descriptor.  If the
+     *   descriptor's repeat count is explicitly stated in bytes, this simply
+     *   returns the repeat count.  Otherwise, we translate the repeat count
+     *   to a byte count according to the underlying character encoding.
      */
     int get_byte_count(const CVmPackType *t)
-        { return t->count_in_bytes ? t->get_count() : get_byte_countv(t); }
-    
-    virtual int get_byte_countv(const CVmPackType *t)
+        { return t->count_in_bytes ? t->get_count() : count_to_bytes(t); }
+
+    /* translate a repeat count to a byte length; assume 1-to-1 by default */
+    virtual int count_to_bytes(const CVmPackType *t)
         { return t->get_count(); }
 
+    /* translate a byte length to a repeat count; assume 1-to-1 by default */
     virtual long bytes_to_count(long bytes)
         { return bytes; }
 
@@ -1133,6 +1257,13 @@ public:
     virtual void unpack(VMG_ vm_val_t *val, CVmDataSource *src, int cnt,
                         char pad)
     {
+        /* if the requested length is zero, return an empty string */
+        if (cnt == 0)
+        {
+            val->set_obj(CVmObjString::create(vmg_ FALSE, 0));
+            return;
+        }
+            
         /*
          *   By default, we return a string.  Set up a wide character buffer
          *   to hold the input. 
@@ -1332,31 +1463,35 @@ public:
         CVmObjString *str = (CVmObjString *)vm_objp(vmg_ val->val.obj);
         G_stk->push(val);
 
-        /* read the data directly into the string buffer */
-        if (src->read(str->cons_get_buf(), cnt))
-            err_throw(VMERR_READ_FILE);
-
-        /* validate the UTF-8 */
-        CCharmapToUni::validate(str->cons_get_buf(), cnt);
-
-        /* remove trailing padding */
-        utf8_ptr p(str->cons_get_buf() + cnt);
-        for (size_t rem = 0 ; (int)rem < cnt ; )
+        /* if the read count is non-zero, read the data */
+        if (cnt != 0)
         {
-            /* 
-             *   move to the previous character; if it's not the padding
-             *   character, we're done 
-             */
-            p.dec(&rem);
-            if (p.getch() != pad)
-            {
-                p.inc(&rem);
-                break;
-            }
-        }
+            /* read the data directly into the string buffer */
+            if (src->read(str->cons_get_buf(), cnt))
+                err_throw(VMERR_READ_FILE);
 
-        /* set the string length to the length without the padding */
-        str->cons_shrink_buffer(vmg_ p.getptr());
+            /* validate the UTF-8 */
+            CCharmapToUni::validate(str->cons_get_buf(), cnt);
+
+            /* remove trailing padding */
+            utf8_ptr p(str->cons_get_buf() + cnt);
+            for (size_t rem = 0 ; (int)rem < cnt ; )
+            {
+                /* 
+                 *   move to the previous character; if it's not the padding
+                 *   character, we're done 
+                 */
+                p.dec(&rem);
+                if (p.getch() != pad)
+                {
+                    p.inc(&rem);
+                    break;
+                }
+            }
+
+            /* set the string length to the length without the padding */
+            str->cons_shrink_buffer(vmg_ p.getptr());
+        }
 
         /* done with the gc protection */
         G_stk->discard();
@@ -1416,7 +1551,7 @@ public:
      *   the wide-char formats treat the repeat count as a character count,
      *   so the byte count is double the repeat count 
      */
-    virtual int get_byte_countv(const CVmPackType *t)
+    virtual int count_to_bytes(const CVmPackType *t)
         { return t->get_count() * 2; }
 
     virtual long bytes_to_count(long bytes)
@@ -1535,7 +1670,7 @@ public:
      *   string, which corresponds to half-bytes in the packed stream.  Round
      *   up if it's odd.  
      */
-    virtual int get_byte_countv(const CVmPackType *t)
+    virtual int count_to_bytes(const CVmPackType *t)
         { return (t->get_count() + 1)/2; }
 
     virtual long bytes_to_count(long bytes)
@@ -1647,7 +1782,7 @@ static void write_num_bytes(class CVmDataSource *dst,
  *   (0x80) set, to indicate that more bytes follow.  We can store integers
  *   or BigNumber values in this format.  
  */
-static void encode_ber(char *buf, size_t &blen, uint32 l)
+static void encode_ber(char *buf, size_t &blen, uint32_t l)
 {
     /* nothing in the buffer yet */
     blen = 0;
@@ -1679,12 +1814,12 @@ static void encode_ber(char *buf, size_t &blen, uint32 l)
 /*
  *   Decode a BER-encoded integer. 
  */
-static int32 decode_ber(const char *buf, size_t len)
+static int32_t decode_ber(const char *buf, size_t len)
 {
     /* decode the bytes, starting from the least significant */
     size_t i = len;
     int shift = 0;
-    int32 val = 0;
+    int32_t val = 0;
     do
     {
         val += buf[--i] << shift;
@@ -1716,7 +1851,7 @@ void CVmPack::pack_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
      *   number of times to repeat the field type with subsequent arguments,
      *   except for the string types and xX@. 
      */
-    int repeatable = (strchr("aAbuUwWhHxX@", (char)t->type_code) == 0);
+    int repeatable = is_repeatable(t->type_code);
 
     /* if we have a count prefix, the item count is implicitly '*' */
     int count = t->count;
@@ -1729,8 +1864,9 @@ void CVmPack::pack_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
         /* it's a list - set up a list argument reader */
         ListArgs lst(vmg_ &val);
 
-        /* consume this argument from the main list */
-        args->next();
+        /* if we have a type that consumes arguments, consume the list */
+        if (type_consumes_arg((char)t->type_code))
+            args->next();
 
         /* if there's a prefix count, pack it based on the list length */
         if (prefix_count != 0)
@@ -1749,6 +1885,10 @@ void CVmPack::pack_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
         int iters = (count == ITER_STAR ? lst.len :
                      count < 1 ? 1 :
                      count);
+
+        /* if this is an up-to count, limit it to the list length */
+        if (t->up_to_count && iters > lst.len)
+            iters = lst.len;
 
         /* iterate over the list */
         for (int i = 0 ; i < iters ; ++i)
@@ -1770,7 +1910,18 @@ void CVmPack::pack_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
         /* pack items until we're out of arguments or reach the repeat count */
         int n;
         for (n = 0 ; count == ITER_STAR ? args->more() : n < count ; ++n)
+        {
+            /* if this is an up-to count and we're out of arguments, stop */
+            if (t->up_to_count && !args->more())
+                break;
+
+            /* pack the item */
             pack_one_item(vmg_ group, args, t, 0);
+        }
+
+        /* if it's an up-to count, consume the rest of the arguments */
+        if (t->up_to_count)
+            for ( ; args->more() ; args->next()) ;
     }
     else
     {
@@ -1961,13 +2112,22 @@ void CVmPack::pack_one_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
              *   the repeat count and the byte length varies by format, so
              *   ask the format handler.  If we have a prefix count or a '*'
              *   repeat count, though, we simply write the exact length of
-             *   the string.  
+             *   the string.
              */
-            int nbytes = (prefix_count != 0 || t->count == ITER_STAR
-                          || (t->count == ITER_NONE && t->null_term)
-                          ? ITER_STAR
-                          : cvtchar->get_byte_count(t));
-            
+            int nbytes;
+            if (prefix_count != 0
+                || t->count == ITER_STAR
+                || (t->count == ITER_NONE && t->null_term))
+            {
+                /* prefix count, *, or null-term - use the actual length */
+                nbytes = ITER_STAR;
+            }
+            else
+            {
+                /* specific count - translate characters to bytes */
+                nbytes = cvtchar->get_byte_count(t);
+            }
+
             /* convert the string to the specified representation */
             long tot;
             char *p;
@@ -2020,15 +2180,17 @@ void CVmPack::pack_one_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
             
             /* 
              *   If we have a repeat count, and we didn't reach the maximum
-             *   length, add the padding.  
+             *   length, add the padding.  Skip this if it's an up-to count,
+             *   since an up-to count only packs up to the actual length if
+             *   that's less than the count limit.
              */
-            if (tot < nbytes)
+            if (tot < nbytes && !t->up_to_count)
             {
                 /* 
                  *   figure the padding - use space padding for A, U, and W,
                  *   and nul padding for everything else 
                  */
-                char pad = strchr("AUW", (char)t->type_code) != 0 ? ' ' : 0;
+                char pad = get_padding_char(t->type_code);
                 
                 /* write it out */
                 cvtchar->pad(dst, pad, tot, t);
@@ -2232,7 +2394,7 @@ void CVmPack::pack_one_item(VMG_ CVmPackGroup *group, CVmPackArgs *args,
                 /* encode the BigNumber in BER format */
                 int ov;
                 ((CVmObjBigNum *)vm_objp(vmg_ cval.val.obj))->encode_ber(
-                    vmg_ buf, sizeof(buf), blen, ov);
+                    buf, sizeof(buf), blen, ov);
 
                 /* check for overflow */
                 if (ov && !t->pct)
@@ -2317,7 +2479,7 @@ void CVmPack::unpack(VMG_ vm_val_t *retval, const char *fmt, size_t fmtlen,
     /* unpack the root group */
     CVmPackPos p(fmt, fmtlen);
     CVmPackGroup root(&p, src);
-    unpack_group(vmg_ &p, retlst, retcnt, &root);
+    unpack_group(vmg_ &p, retlst, &retcnt, &root, FALSE);
 
     /* make sure we made it all the way through the format string */
     if (p.more())
@@ -2334,8 +2496,8 @@ void CVmPack::unpack(VMG_ vm_val_t *retval, const char *fmt, size_t fmtlen,
  *   Unpack a group
  */
 void CVmPack::unpack_group(VMG_ CVmPackPos *p,
-                           CVmObjList *retlst, int &retcnt,
-                           CVmPackGroup *group)
+                           CVmObjList *retlst_par, int *retcnt_par,
+                           CVmPackGroup *group, int list_per_iter)
 {
     /* get the data source */
     CVmDataSource *src = group->ds;
@@ -2356,6 +2518,22 @@ void CVmPack::unpack_group(VMG_ CVmPackPos *p,
         return;
     }
 
+    /* assume we'll unpack directly into the parent list */
+    CVmObjList *retlst = retlst_par;
+    int *retcnt = retcnt_par;
+
+    /* 
+     *   if we're unpacking into a per-instance sublist, create the sublist
+     *   for the first iteration, and set this as the output list instead of
+     *   unpacking directly into the parent list
+     */
+    int grpcnt = 0;
+    if (list_per_iter)
+    {
+        retlst = create_group_sublist(vmg_ retlst_par, retcnt_par);
+        retcnt = &grpcnt;
+    }
+
     /* run through the format list */
     while (p->more())
     {
@@ -2364,12 +2542,19 @@ void CVmPack::unpack_group(VMG_ CVmPackPos *p,
         if (c == '(' || c == '[')
         {
             /* start of a group - unpack the sub-group */
-            unpack_subgroup(vmg_ p, retlst, retcnt, group, 0);
+            unpack_subgroup(vmg_ p, retlst, *retcnt, group, 0);
         }
         else if (c == group->close_paren)
         {
             /* end of group - count the completed iteration */
             group->cur_iter++;
+
+            /* 
+             *   if we're unpacking into a per-iteration sublist, note the
+             *   final group count in the sublist 
+             */
+            if (list_per_iter)
+                retlst->cons_set_len(*retcnt);
 
             /* 
              *   We're done with the group if (a) we have a '*' iteration
@@ -2392,6 +2577,16 @@ void CVmPack::unpack_group(VMG_ CVmPackPos *p,
             /* return to the start of the group template for the next round */
             p->set(&group->start);
             group->stream_ofs = group->ds->get_pos();
+
+            /* 
+             *   If we're unpacking into a sublist per iteration, create the
+             *   new sublist for the new iteration. 
+             */
+            if (list_per_iter)
+            {
+                retlst = create_group_sublist(vmg_ retlst_par, retcnt_par);
+                grpcnt = 0;
+            }
         }
         else if (c == '/')
         {
@@ -2405,7 +2600,7 @@ void CVmPack::unpack_group(VMG_ CVmPackPos *p,
             
             /* remove the item and cast it to integer */
             vm_val_t cntval;
-            retlst->get_element(--retcnt, &cntval);
+            retlst->get_element(--(*retcnt), &cntval);
             int cnt = (int)cntval.cast_to_int(vmg0_);
 
             /* skip the '/' and check what follows */
@@ -2413,18 +2608,18 @@ void CVmPack::unpack_group(VMG_ CVmPackPos *p,
             if ((c = p->getch()) == '(' || c == '[')
             {
                 /* it's a group - unpack the group with the count */
-                unpack_subgroup(vmg_ p, retlst, retcnt, group, &cnt);
+                unpack_subgroup(vmg_ p, retlst, *retcnt, group, &cnt);
             }
             else
             {
                 /* it's a single item - unpack the repeated items */
-                unpack_iter_item(vmg_ p, retlst, retcnt, group, &cnt);
+                unpack_iter_item(vmg_ p, retlst, *retcnt, group, &cnt);
             }
         }
         else
         {
             /* it's a regular item, possibly iterated - unpack it */
-            unpack_iter_item(vmg_ p, retlst, retcnt, group, 0);
+            unpack_iter_item(vmg_ p, retlst, *retcnt, group, 0);
         }
     }
 }
@@ -2458,32 +2653,36 @@ void CVmPack::unpack_subgroup(VMG_ CVmPackPos *p,
      */
     if (paren == '[')
     {
-        /* create the list */
-        vm_val_t ele;
-        ele.set_obj(CVmObjList::create(vmg_ FALSE, 10));
-        CVmObjList *grplst = (CVmObjList *)vm_objp(vmg_ ele.val.obj);
-        int grpcnt = 0;
-
-        /* clear it, since we're constructing it iteratively */
-        grplst->cons_clear();
-
         /* 
-         *   Add it to the main list.  The main list is on the stack, so this
-         *   will protect our new list from garbage collection.  
+         *   if there's a '!' modifier, we unpack each iteration into a
+         *   separate list; otherwise we unpack the whole group into a single
+         *   list 
          */
-        retlst->cons_ensure_space(vmg_ retcnt, 10);
-        retlst->cons_set_element(retcnt++, &ele);
-
-        /* unpack into the sublist */
-        unpack_group(vmg_ p, grplst, grpcnt, &child);
-
-        /* set the final number of elements in the list */
-        grplst->cons_set_len(grpcnt);
+        if (gt.bang)
+        {
+            /* 
+             *   unpack into individual per-iteration sublists, each of which
+             *   goes into the main list 
+             */
+            unpack_group(vmg_ p, retlst, &retcnt, &child, TRUE);
+        }
+        else
+        {
+            /* create the result list for the whole group */
+            CVmObjList *grplst = create_group_sublist(vmg_ retlst, &retcnt);
+            int grpcnt = 0;
+            
+            /* unpack into the sublist */
+            unpack_group(vmg_ p, grplst, &grpcnt, &child, FALSE);
+            
+            /* set the final number of elements in the list */
+            grplst->cons_set_len(grpcnt);
+        }
     }
     else
     {
         /* no sublist - unpack into the main list */
-        unpack_group(vmg_ p, retlst, retcnt, &child);
+        unpack_group(vmg_ p, retlst, &retcnt, &child, FALSE);
     }
     
     /* make sure we stopped at the close paren */
@@ -2494,7 +2693,35 @@ void CVmPack::unpack_subgroup(VMG_ CVmPackPos *p,
     parse_mods(p, &gt);
 }
 
+/*
+ *   Create a sublist for unpacking a "[ ]" group
+ */
+CVmObjList *CVmPack::create_group_sublist(
+    VMG_ CVmObjList *parent_list, int *parent_cnt)
+{
+    /* create the new sublist */
+    vm_val_t ele;
+    ele.set_obj(CVmObjList::create(vmg_ FALSE, 10));
+    CVmObjList *sublst = (CVmObjList *)vm_objp(vmg_ ele.val.obj);
 
+    /* clear it, since we'll be filling it in iteratively */
+    sublst->cons_clear();
+
+    /* 
+     *   Add it to the parent list.  The parent list is on the stack (or in a
+     *   list that's on the stack, or in a list that's in a list on the
+     *   stack, etc) - that will protect the new list from premature garbage
+     *   collection.
+     */
+    parent_list->cons_ensure_space(vmg_ *parent_cnt, 10);
+    parent_list->cons_set_element((*parent_cnt)++, &ele);
+
+    /* return the sublist */
+    return sublst;
+}
+
+
+/* ------------------------------------------------------------------------ */
 /*
  *   Unpack an iterated item 
  */
@@ -2744,7 +2971,7 @@ void CVmPack::unpack_item(VMG_ vm_val_t *val,
         }
 
         /* figure the padding type */
-        char pad = strchr("AUW", (char)t->type_code) != 0 ? ' ' : 0;
+        char pad = get_padding_char(t->type_code);
 
         /* unpack the string */
         cvtchar->unpack(vmg_ val, src, count, pad);
@@ -2964,7 +3191,7 @@ void CVmPack::parse_type(CVmPackPos *p, CVmPackType *info,
 {
     /* get the type code */
     wchar_t c = p->nextch();
-    if (c > 127 || strchr("aAbuUwWhHcCsSlLqQkfdxX@\"{", (char)c) == 0)
+    if (!is_valid_type(c))
         err_throw_a(VMERR_PACK_PARSE, 1, ERR_TYPE_INT, p->index() - 1);
 
     /* set the format string index */
@@ -3279,7 +3506,7 @@ void CVmPack::parse_mods(CVmPackPos *p, CVmPackType *t)
              *   ! means "count in bytes" for string types wWhH; for other
              *   types just record the !
              */
-            if (strchr("wWhH", (char)t->type_code) != 0)
+            if (t->type_code != 0 && strchr("wWhH", (char)t->type_code) != 0)
                 t->count_in_bytes = TRUE;
             else
                 t->bang = TRUE;

@@ -1,5 +1,5 @@
 TADS 3 Test Suite
-Copyright (c) 1999, 2000 by Michael J. Roberts.  All Rights Reserved.
+Copyright (c) 1999, 2012 by Michael J. Roberts.  All Rights Reserved.
 
 The author hereby grants permission to anyone to use the files
 contained in this test suite in conjunction with testing TADS on any
@@ -37,6 +37,4 @@ textually compare two files to determine if they have any
 differences.  Tools of this nature are available on most systems with
 C compilers, since these are essential programmer's tools.
 
-If you have any questions, please contact the author by email at
-mjr_@hotmail.com.
-
+For contact information, please visit www.tads.org.

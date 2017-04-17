@@ -104,10 +104,8 @@ void CTadsGameInfo::free_value_list()
 {
     while (first_val_ != 0)
     {
-        tads_valinfo *nxt;
-
         /* remember the next one */
-        nxt = first_val_->nxt;
+        tads_valinfo *nxt = first_val_->nxt;
 
         /* 
          *   delete this one - delete its value string and then the
@@ -127,9 +125,8 @@ void CTadsGameInfo::free_value_list()
  */
 int CTadsGameInfo::read_from_fp(osfildef *fp)
 {
-    tads_resinfo resinfo;
-
     /* find the GameInfo.txt resource */
+    tads_resinfo resinfo;
     if (!tads_find_resource_fp(fp, "GameInfo.txt", &resinfo))
     {
         /* no GameInfo.txt resource - there's no game information */
@@ -145,10 +142,8 @@ int CTadsGameInfo::read_from_fp(osfildef *fp)
  */
 int CTadsGameInfo::read_from_file(const char *fname)
 {
-    int ret;
-    osfildef *fp;
-    
     /* open the file */
+    osfildef *fp;
     if ((fp = osfoprb(fname, OSFTGAME)) == 0
         && (fp = osfoprb(fname, OSFTT3IMG)) == 0)
     {
@@ -160,7 +155,7 @@ int CTadsGameInfo::read_from_file(const char *fname)
     }
 
     /* parse the file and find the game information */
-    ret = read_from_fp(fp);
+    int ret = read_from_fp(fp);
 
     /* we're done with the file - close it */
     osfcls(fp);
@@ -252,10 +247,8 @@ static void skip_to_next_line(utf8_ptr *p, size_t *rem)
     /* find the next line-ending sequence */
     for ( ; *rem != 0 ; p->inc(rem))
     {
-        wchar_t ch;
-        
         /* get the current character */
-        ch = p->getch();
+        wchar_t ch = p->getch();
 
         /* check to see if we've reached a newline yet */
         if (is_vspace(ch))
@@ -276,11 +269,8 @@ static void skip_to_next_line(utf8_ptr *p, size_t *rem)
 int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
                               unsigned long res_size)
 {
-    utf8_ptr p;
-    size_t rem;
-    tads_valinfo *last_val;
-
     /* find the tail of the existing list */
+    tads_valinfo *last_val;
     for (last_val = first_val_ ; last_val != 0 && last_val->nxt != 0 ;
          last_val = last_val->nxt) ;
     
@@ -313,20 +303,15 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
     buf_[res_size++] = '\n';
 
     /* parse the data */
-    for (p.set(buf_), rem = res_size ; rem != 0 ; )
+    utf8_ptr p(buf_);
+    for (size_t rem = res_size ; rem != 0 ; )
     {
-        utf8_ptr name_start;
-        size_t name_len;
-        utf8_ptr val_start;
-        utf8_ptr dst;
-        tads_valinfo *val_info;
-        
         /* skip any leading whitespace */
         while (rem != 0 && is_space(p.getch()))
             p.inc(&rem);
 
         /* if the line starts with '#', it's a comment, so skip it */
-        if (p.getch() == '#')
+        if (rem != 0 && p.getch() == '#')
         {
             /* skip the entire line, and go back for the next one */
             skip_to_next_line(&p, &rem);
@@ -334,14 +319,14 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
         }
 
         /* we must have the start of a name - note it */
-        name_start = p;
+        utf8_ptr name_start = p;
 
         /* skip ahead to a space or colon */
         while (rem != 0 && p.getch() != ':' && !is_hspace(p.getch()))
             p.inc(&rem);
 
         /* note the length of the name */
-        name_len = p.getptr() - name_start.getptr();
+        size_t name_len = p.getptr() - name_start.getptr();
 
         /* skip any whitespace before the presumed colon */
         while (rem != 0 && is_hspace(p.getch()))
@@ -369,10 +354,10 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
         *(name_start.getptr() + name_len) = '\0';
 
         /* note where the value starts */
-        val_start = p;
+        utf8_ptr val_start = p;
 
         /* set up to write to the buffer at the current point */
-        dst = p;
+        utf8_ptr dst = p;
 
         /*
          *   Now find the end of the value.  The value can span multiple
@@ -388,10 +373,8 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
          */
         while (rem != 0)
         {
-            wchar_t ch;
-
             /* get this character */
-            ch = p.getch();
+            wchar_t ch = p.getch();
             
             /* check for a newline */
             if (is_vspace(ch))
@@ -459,7 +442,8 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
          *   our buffer, since we're keeping the buffer around as long as
          *   the value list is around. 
          */
-        val_info = (tads_valinfo *)osmalloc(sizeof(tads_valinfo));
+        tads_valinfo *val_info =
+            (tads_valinfo *)osmalloc(sizeof(tads_valinfo));
         val_info->name = name_start.getptr();
         val_info->name_len = name_len;
         val_info->val = store_value(val_start.getptr(),
@@ -484,14 +468,11 @@ int CTadsGameInfo::parse_file(osfildef *fp, unsigned long res_seek_pos,
  */
 const char *CTadsGameInfo::get_val(const char *name) const
 {
-    size_t name_len;
-    tads_valinfo *cur;
-
     /* for efficiency, note the length of the name up front */
-    name_len = strlen(name);
+    size_t name_len = strlen(name);
 
     /* scan our list of value entries for the given name */
-    for (cur = first_val_ ; cur != 0 ; cur = cur->nxt)
+    for (tads_valinfo *cur = first_val_ ; cur != 0 ; cur = cur->nxt)
     {
         /* 
          *   If the name matches, return the value for this entry.  Note
@@ -511,19 +492,14 @@ const char *CTadsGameInfo::get_val(const char *name) const
     return 0;
 }
 
-/*
-Look up a value 
-
 /* ------------------------------------------------------------------------ */
 /*
  *   Enumerate all name/value pairs 
  */
 void CTadsGameInfo::enum_values(CTadsGameInfo_enum *cb)
 {
-    tads_valinfo *cur;
-
     /* invoke the callback for each value in our list */
-    for (cur = first_val_ ; cur != 0 ; cur = cur->nxt)
+    for (tads_valinfo *cur = first_val_ ; cur != 0 ; cur = cur->nxt)
         cb->tads_enum_game_info(cur->name, cur->val);
 }
 
@@ -563,9 +539,6 @@ public:
  */
 int main(int argc, char **argv)
 {
-    const char *fname;
-    CTadsGameInfo *info;
-    
     /* check usage */
     if (argc != 2)
     {
@@ -574,13 +547,13 @@ int main(int argc, char **argv)
     }
 
     /* get the arguments */
-    fname = argv[1];
+    const char *fname = argv[1];
 
     /* 
      *   set up a game information reader that translates to the default
      *   local display character set 
      */
-    info = new CTadsGameInfoLocal(argv[0]);
+    CTadsGameInfo *info = new CTadsGameInfoLocal(argv[0]);
 
     /* load the game information object, if possible */
     if (!info->read_from_file(fname))

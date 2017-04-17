@@ -366,7 +366,7 @@ public:
     ulong get_static_cs_ofs() const { return static_cs_ofs_; }
 
     /* get the entrypoint function's code pool offset */
-    uint32 get_entrypt() const { return entrypt_; }
+    uint32_t get_entrypt() const { return entrypt_; }
 
 private:
     /* load external resource files associated with an image file */
@@ -489,7 +489,7 @@ private:
     char timestamp_[24];
 
     /* code pool offset of entrypoint function */
-    uint32 entrypt_;
+    uint32_t entrypt_;
 
     /* pool tracking objects */
     class CVmImagePool *pools_[2];
@@ -621,7 +621,7 @@ public:
     virtual ~CVmImageLoaderMres() { }
 
     /* load a resource */
-    virtual void add_resource(uint32 seek_ofs, uint32 siz,
+    virtual void add_resource(uint32_t seek_ofs, uint32_t siz,
                               const char *res_name, size_t res_name_len) = 0;
 
     /* load a resource link */
@@ -641,6 +641,9 @@ class CVmImageFile
 public:
     /* delete the loader */
     virtual ~CVmImageFile() { }
+
+    /* duplicate the image file interface, a la stdio freopen() */
+    virtual CVmImageFile *dup(const char *mode) = 0;
     
     /* 
      *   Copy data from the image file to the caller's buffer.  Reads from
@@ -701,6 +704,17 @@ public:
         len_ = len;
     }
 
+    CVmStream *clone(VMG_ const char *mode)
+    {
+        /* duplicate our file handle */
+        CVmImageFile *fpdup = fp_->dup(mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* create a new image file stream wrapper for the duplicate handle */
+        return new CVmImageFileStream(fpdup, len_);
+    }
+
     /* read bytes into a buffer */
     virtual void read_bytes(char *buf, size_t len);
     virtual size_t read_nbytes(char *buf, size_t len);
@@ -745,7 +759,19 @@ public:
         /* we don't have any suballocation blocks yet */
         mem_head_ = mem_tail_ = 0;
     }
-    
+
+    /* duplicate the file interface */
+    virtual CVmImageFile *dup(const char *mode)
+    {
+        /* duplicate our file handle */
+        CVmFile *fpdup = fp_->dup(mode);
+        if (fpdup == 0)
+            return 0;
+
+        /* return a new wrapper object for the duplicate handle */
+        return new CVmImageFileExt(fpdup);
+    }
+
     /* 
      *   CVmImageFile interface implementation 
      */
@@ -860,6 +886,12 @@ public:
 
         /* start at the beginning of the data */
         pos_ = 0;
+    }
+
+    /* duplicate the file interface */
+    CVmImageFile *dup(const char *mode)
+    {
+        return new CVmImageFileMem(mem_, len_);
     }
 
     /* 

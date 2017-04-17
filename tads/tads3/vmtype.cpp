@@ -196,13 +196,6 @@ uint vm_val_t::calc_hash(VMG_ int depth) const
  */
 int vm_val_t::gen_compare_to(VMG_ const vm_val_t *v) const
 {
-    /* 
-     *   if the other value is of type object and I'm not, let the object
-     *   perform the comparison, and invert the sense of the result 
-     */
-    if (typ != VM_OBJ && v->typ == VM_OBJ)
-        return -(v->compare_to(vmg_ this));
-
     /* the comparison depends on my type */
     switch(typ)
     {
@@ -217,40 +210,103 @@ int vm_val_t::gen_compare_to(VMG_ const vm_val_t *v) const
             const_compare(vmg_ G_const_pool->get_ptr(this->val.ofs), v);
 
     case VM_INT:
+        if (v->typ == VM_INT)
         {
-            int32 a, b;
-            
-            /* the comparison is legal only for another number */
-            if (!v->is_numeric())
-                err_throw(VMERR_INVALID_COMPARISON);
-            
-            /* get the integers */
-            a = this->val.intval;
-            b = v->val.intval;
-
-            /* compare them and return the results */
-            if (a > b)
-                return 1;
-            else if (a < b)
-                return -1;
-            else
-                return 0;
+            /* comparing two integers */
+            int32_t a = this->val.intval, b = v->val.intval;
+            return a - b;
+        }
+        else if (v->typ == VM_OBJ)
+        {
+            /* the other value is an object, so let it do the comparison */
+            return -(vm_objp(vmg_ v->val.obj)->
+                     compare_to(vmg_ v->val.obj, this));
+        }
+        else
+        {
+            /* other types can't be compared to integer */
+            err_throw(VMERR_INVALID_COMPARISON);
+            AFTER_ERR_THROW(return 0;)
         }
 
     default:
-        /* other types cannot be compared for magnitude */
-        err_throw(VMERR_INVALID_COMPARISON);
-
-        /* this code is never reached, but the compiler doesn't know that */
-        AFTER_ERR_THROW(return 0;)
+        /* if the other value is an object, let it do the comparison */
+        if (v->typ == VM_OBJ)
+        {
+            return -(vm_objp(vmg_ v->val.obj)->
+                     compare_to(vmg_ v->val.obj, this));
+        }
+        else
+        {
+            /* other types cannot be compared for magnitude */
+            err_throw(VMERR_INVALID_COMPARISON);
+            AFTER_ERR_THROW(return 0;)
+        }
     }
 }
 
 /* ------------------------------------------------------------------------ */
 /*
+ *   Is this a numeric value?  Returns true for integers and BigNumber
+ *   values.
+ */
+int vm_val_t::nonint_is_numeric(VMG0_) const
+{
+    /* some objects represent numeric types (e.g., BigNumber) */
+    if (typ == VM_OBJ)
+        return vm_objp(vmg_ val.obj)->is_numeric();
+
+    /* we shouldn't be called with an int, but just in case */
+    if (typ == VM_INT)
+        return TRUE;
+
+    /* other types are non-numeric */
+    return FALSE;
+}
+
+
+/*
+ *   Convert a numeric type to integer 
+ */
+int32_t vm_val_t::nonint_num_to_int(VMG0_) const
+{
+    /* if it's an object, ask the object for its integer value */
+    long l;
+    if (typ == VM_OBJ && vm_objp(vmg_ val.obj)->get_as_int(&l))
+        return l;
+
+    /* we shouldn't be called with an int type, but just in case */
+    if (typ == VM_INT)
+        return val.intval;
+
+    /* other types are not convertible */
+    err_throw(VMERR_NUM_VAL_REQD);
+    AFTER_ERR_THROW(return 0);
+}
+
+/*
+ *   Convert a numeric type to doule
+ */
+double vm_val_t::nonint_num_to_double(VMG0_) const
+{
+    /* if it's an object, ask the object for its integer value */
+    double d;
+    if (typ == VM_OBJ && vm_objp(vmg_ val.obj)->get_as_double(vmg_ &d))
+        return d;
+
+    /* we shouldn't be called with an int type, but just in case */
+    if (typ == VM_INT)
+        return (double)val.intval;
+
+    /* other types are not convertible */
+    err_throw(VMERR_NUM_VAL_REQD);
+    AFTER_ERR_THROW(return 0.);
+}
+
+/*
  *   Cast to integer 
  */
-int32 vm_val_t::cast_to_int(VMG0_) const
+int32_t vm_val_t::nonint_cast_to_int(VMG0_) const
 {
     /* check the type */
     switch (typ)
@@ -262,7 +318,7 @@ int32 vm_val_t::cast_to_int(VMG0_) const
         return 0;
 
     case VM_INT:
-        /* it's already an integer - just return it as it is */
+        /* we shouldn't ever be called with an int value, but just in case */
         return val.intval;
 
     case VM_SSTRING:
@@ -334,6 +390,29 @@ void vm_val_t::cast_to_num(VMG_ vm_val_t *retval) const
 }
 
 /*
+ *   Promote an integer to match my type 
+ */
+void vm_val_t::promote_int(VMG_ vm_val_t *val) const
+{
+    if (typ == VM_OBJ)
+    {
+        /* ask the object to perform the promotion */
+        vm_objp(vmg_ this->val.obj)->promote_int(vmg_ val);
+    }
+    else
+    {
+        /* 
+         *   we can't promote integers to other types; this is a "numeric
+         *   value required" error, since we only try to promote integers
+         *   when performing arithmetic involving an int and another type
+         */
+        err_throw(VMERR_NUM_VAL_REQD);
+    }
+}
+
+
+/* ------------------------------------------------------------------------ */
+/*
  *   Cast to string 
  */
 const char *vm_val_t::cast_to_string(VMG_ vm_val_t *new_str) const
@@ -370,6 +449,16 @@ const char *vm_val_t::cast_to_string(VMG_ vm_val_t *new_str) const
         /* return an empty string */
         new_str->set_obj(CVmObjString::create(vmg_ FALSE, 0));
         return new_str->get_as_string(vmg0_);
+
+    case VM_TRUE:
+        /* return 'true' */
+        new_str->set_obj(CVmObjString::create(vmg_ FALSE, "true", 4));
+        return new_str->get_as_string(vmg0_);
+
+    case VM_LIST:
+        /* join the list into a string, separating items with commas */
+        CVmObjList::join(vmg_ new_str, this, ",", 1);
+        return new_str->get_as_string(vmg0_);
         
     default:
         err_throw(VMERR_NO_STR_CONV);
@@ -377,7 +466,6 @@ const char *vm_val_t::cast_to_string(VMG_ vm_val_t *new_str) const
     }
 }
 
-/* ------------------------------------------------------------------------ */
 /*
  *   Get the underlying string constant value. 
  */
