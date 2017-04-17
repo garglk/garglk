@@ -668,7 +668,7 @@ MatchVerb:
 	objstart = 0;
 	object_is_number = false;
 
-	for (i=1; i<=MAXWORDS; i++)
+	for (i=1; i<MAXWORDS; i++)
 		objword_cache[i] = 0;
 
 	var[object] = 0;
@@ -1014,7 +1014,7 @@ int MatchObject(int *wordnum)
 	int i, j, k, m, flag;
 	int mobjs; unsigned int mobj[MAX_MOBJ];
 	int allmatch, roomloc;
-	int nextobj = 0, bestobj = 0;
+	int bestobj = 0;
 	char bestavail = 0;
 
 	/* If this is a recursive call, we're not adding new objects */
@@ -1697,7 +1697,6 @@ RestoreTempArrays:
 				}
 			}
 
-			nextobj = objlist[0];
 			for (i=0; i<=tempobjcount; i++)
 				objlist[i] = tempobjlist[i];
 			objcount = (char)tempobjcount;

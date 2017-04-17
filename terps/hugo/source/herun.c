@@ -2738,7 +2738,7 @@ void RunWindow(void)
 {
 	int top, bottom, left, right;
 	struct SAVED_WINDOW_DATA restorewindow;
-	int temp_current_text_y, temp_current_text_x;
+	int temp_current_text_y;
 	char restore_default_bgcolor;
 	int tempfull;
 	int temp_stack_depth = stack_depth;
@@ -2759,7 +2759,6 @@ void RunWindow(void)
 	override_full = false;
 
 	temp_current_text_y = current_text_y;
-	temp_current_text_x = current_text_x;
 
 	tempscript = script;
 	script = false;
