@@ -82,7 +82,7 @@ switch $(OS)
 
         # Setting C++ standard version to use for current g++ compilers.
         C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -std=gnu99 ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
 

@@ -26,6 +26,9 @@
 #include "garversion.h"
 #include "launcher.h"
 
+#include <ctype.h>
+#include <stdio.h>
+
 #include <gtk/gtk.h>
 #include <unistd.h>
 
@@ -37,27 +40,33 @@ char dir[MaxBuffer];
 char buf[MaxBuffer];
 char tmp[MaxBuffer];
 
-char *filterlist[] =
+struct filter
 {
-"All Games|*.taf;*.agx;*.d[0-9][0-9];*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.saga;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb",
-"Adrift Games (*.taf)|*.taf",
-"AdvSys Games (*.dat)|*.dat",
-"AGT Games (*.agx)|*.agx;*.d[0-9][0-9]",
-"Alan Games (*.acd,*.a3c)|*.acd;*.a3c",
-"Glulx Games (*.ulx)|*.ulx;*.blb;*.blorb;*.glb;*.gblorb",
-"Hugo Games (*.hex)|*.hex",
-"JACL Games (*.jacl,*.j2)|*.jacl;*.j2",
-"Level 9 (*.l9)|*.l9;*.sna",
-"Magnetic Scrolls (*.mag)|*.mag",
-"Quest Games (*.asl,*.cas)|*.asl;*.cas",
-"Scott Adams Grand Adventures (*.saga)|*saga",
-"TADS 2 Games (*.gam)|*.gam;*.t3",
-"TADS 3 Games (*.t3)|*.gam;*.t3",
-"Z-code Games (*.z?)|*.z[0-9];*.zlb;*.zblorb",
-"All Files|*",
+    const char *name;
+    const char **exts;
 };
 
-const int filtercount = 15;
+#define FILTER(name, ...) {(name), (const char *[]){__VA_ARGS__, NULL}}
+
+static struct filter filters[] =
+{
+    FILTER("Adrift Games (*.taf)", "taf"),
+    FILTER("AdvSys Games (*.dat)", "dat"),
+    FILTER("AGT Games (*.agx)", "agx", "d[0-9][0-9]"),
+    FILTER("Alan Games (*.acd,*.a3c)", "acd", "a3c"),
+    FILTER("Glulx Games (*.ulx)", "ulx", "blb", "blorb", "glb", "gblorb"),
+    FILTER("Hugo Games (*.hex)", "hex"),
+    FILTER("JACL Games (*.jacl,*.j2)", "jacl", "j2"),
+    FILTER("Level 9 Games (*.l9)", "l9", "sna"),
+    FILTER("Magnetic Scrolls Games (*.mag)", "mag"),
+    FILTER("Quest Games (*.asl,*.cas)", "asl", "cas"),
+    FILTER("TADS Games (*.gam,*.t3)", "gam", "t3"),
+    FILTER("Z-code Games (*.z?)", "z[1-8]", "zlb", "zblorb"),
+};
+
+#undef FILTER
+
+#define NFILTERS ((sizeof filters) / (sizeof *filters))
 
 void winstart(void)
 {
@@ -91,34 +100,56 @@ int winargs(int argc, char **argv, char *buffer)
     return (argc == 2);
 }
 
-void winfilteradd(GtkFileChooser *dialog, const char *name, const char *pattern)
+static void add_extension_to_filter(GtkFileFilter *filter, const char *ext)
 {
-    gchar **patterns;
-    gint i;
+    char pattern[64] = "*.", *end = &pattern[2];
 
-    GtkFileFilter *filter = gtk_file_filter_new();
-    gtk_file_filter_set_name(filter, name);
+    if (strlen(ext) * 4 + 2 >= sizeof pattern)
+    {
+        fprintf(stderr, "extension is too long: %s\n", ext);
+        return;
+    }
 
-    patterns = g_strsplit(pattern, ";", -1);
-    for(i = 0; patterns[i] != NULL; i++)
-        gtk_file_filter_add_pattern(filter, patterns[i]);
-    g_strfreev(patterns);
+    /* Match any case by converting an extension like z3 to [Zz]3. */
+    for (const char *p = ext; *p != '\0'; p++)
+    {
+        if (isalpha((unsigned char)*p))
+            end += sprintf(end, "[%c%c]", toupper((unsigned char)*p), tolower((unsigned char)*p));
+        else
+            *end++ = *p;
+    }
 
-    gtk_file_chooser_add_filter(dialog, filter);
+    gtk_file_filter_add_pattern(filter, pattern);
 }
 
 void winfilterfiles(GtkFileChooser *dialog)
 {
-    gchar **format;
-    gint i;
+    GtkFileFilter *filter;
 
-    for (i = 0; i < filtercount; i++)
+    filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter, "All Games");
+
+    for (size_t i = 0; i < NFILTERS; i++)
+        for (size_t j = 0; filters[i].exts[j] != NULL; j++)
+            add_extension_to_filter(filter, filters[i].exts[j]);
+
+    gtk_file_chooser_add_filter(dialog, filter);
+
+    for (size_t i = 0; i < NFILTERS; i++)
     {
-        format = g_strsplit(filterlist[i], "|", -1);
-        if (format[0] != NULL && format[1] != NULL)
-            winfilteradd(dialog, format[0], format[1]);
-        g_strfreev(format);
+        filter = gtk_file_filter_new();
+        gtk_file_filter_set_name(filter, filters[i].name);
+
+        for (size_t j = 0; filters[i].exts[j] != NULL; j++)
+            add_extension_to_filter(filter, filters[i].exts[j]);
+
+        gtk_file_chooser_add_filter(dialog, filter);
     }
+
+    filter = gtk_file_filter_new();
+    gtk_file_filter_set_name(filter, "All Files");
+    gtk_file_filter_add_pattern(filter, "*");
+    gtk_file_chooser_add_filter(dialog, filter);
 }
 
 void winbrowsefile(char *buffer)
