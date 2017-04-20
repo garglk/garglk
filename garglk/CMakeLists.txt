@@ -120,6 +120,7 @@ target_compile_definitions(garglk ${GARGLK_DEFINITIONS})
 target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 
 add_executable(gargoyle launcher.c ${GARGOYLE_SOURCES})
+set_property(TARGET gargoyle PROPERTY C_STANDARD 99)
 target_include_directories(gargoyle PRIVATE ${GARGOYLE_INCLUDES})
 target_link_libraries(gargoyle garglk)
 target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
