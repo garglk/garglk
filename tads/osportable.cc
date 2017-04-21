@@ -45,6 +45,7 @@
 #endif
 
 #ifdef GARGOYLE
+#include "osextra.h"
 #include "charmap.h"
 #include <time.h>
 #include <dirent.h>
@@ -577,124 +578,6 @@ osfmode( const char *fname, int follow_links, unsigned long *mode,
     return ok;
 }
 
-#ifdef _WIN32
-/*
- *   Copied and adapted from tads2/osnoui.c
- *   Get the DOS attributes for a file
- */
-unsigned long oss_get_file_attrs(const char *fname)
-{
-    unsigned long attrs = 0;
-    
-    /* get the DOS attribute flags */
-    DWORD dos_attrib = GetFileAttributes(fname);
-
-    /* translate the HIDDEN and SYSTEM bits */
-    if ((dos_attrib & _A_HIDDEN) != 0)
-        attrs |= OSFATTR_HIDDEN;
-    if ((dos_attrib & _A_SYSTEM) != 0)
-        attrs |= OSFATTR_SYSTEM;
-
-    /* if the RDONLY bit is set, it's readable, otherwise read/write */
-    attrs |= OSFATTR_READ;
-    if ((dos_attrib & _A_RDONLY) == 0)
-        attrs |= OSFATTR_WRITE;
-
-    /*
-     *   On Windows, attempt to do a full security manager check to determine
-     *   our actual access rights to the file.  If we fail to get the
-     *   security info, we'll give up and return the simple RDONLY
-     *   determination we just made above.  In most cases, failure to check
-     *   the security information will simply be because the file has no ACL,
-     *   which means that anyone can access it, hence our tentative result
-     *   from the RDONLY attribute is correct after all.
-     */
-    {
-        /* 
-         *   get the file's DACL and owner/group security info; first, ask
-         *   how much space we need to allocate for the returned information 
-         */
-        DWORD len = 0;
-        SECURITY_INFORMATION info = (SECURITY_INFORMATION)(
-            OWNER_SECURITY_INFORMATION
-            | GROUP_SECURITY_INFORMATION
-            | DACL_SECURITY_INFORMATION);
-        GetFileSecurity(fname, info, 0, 0, &len);
-        if (len != 0)
-        {
-            /* allocate a buffer for the security info */
-            SECURITY_DESCRIPTOR *sd = (SECURITY_DESCRIPTOR *)malloc(len);
-            if (sd != 0)
-            {
-                /* now actually retrieve the security info into our buffer */
-                if (GetFileSecurity(fname, info, sd, len, &len))
-                {
-                    HANDLE ttok;
-
-                    /* impersonate myself for security purposes */
-                    ImpersonateSelf(SecurityImpersonation);
-
-                    /* 
-                     *   get the security token for the current thread, which
-                     *   is the context in which the caller will presumably
-                     *   eventually attempt to access the file 
-                     */
-                    if (OpenThreadToken(
-                        GetCurrentThread(), TOKEN_ALL_ACCESS, TRUE, &ttok))
-                    {
-                        GENERIC_MAPPING genmap = {
-                            FILE_GENERIC_READ,
-                            FILE_GENERIC_WRITE,
-                            FILE_GENERIC_EXECUTE,
-                            FILE_ALL_ACCESS
-                        };
-                        PRIVILEGE_SET privs;
-                        DWORD privlen = sizeof(privs);
-                        BOOL granted = FALSE;
-                        DWORD desired;
-                        DWORD allowed;
-
-                        /* test read access */
-                        desired = GENERIC_READ;
-                        MapGenericMask(&desired, &genmap);
-                        if (AccessCheck(sd, ttok, desired, &genmap,
-                                        &privs, &privlen, &allowed, &granted))
-                        {
-                            /* clear the read bit if reading isn't allowed */
-                            if (allowed == 0)
-                                attrs &= ~OSFATTR_READ;
-                        }
-
-                        /* test write access */
-                        desired = GENERIC_WRITE;
-                        MapGenericMask(&desired, &genmap);
-                        if (AccessCheck(sd, ttok, desired, &genmap,
-                                        &privs, &privlen, &allowed, &granted))
-                        {
-                            /* clear the read bit if reading isn't allowed */
-                            if (allowed == 0)
-                                attrs &= ~OSFATTR_WRITE;
-                        }
-
-                        /* done with the thread token */
-                        CloseHandle(ttok);
-                    }
-
-                    /* terminate our security self-impersonation */
-                    RevertToSelf();
-                }
-
-                /* free the allocated security info buffer */
-                free(sd);
-            }
-        }
-    }
-
-    /* return the attributes */
-    return attrs;
-}
-#endif _WIN32
-
 /* Get full stat() information on a file.
  */
 int
@@ -716,7 +599,7 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
 
 #ifdef _WIN32
     s->attrs = oss_get_file_attrs(fname);
-#else ifndef _WIN32
+#else
     if (os_get_root_name(fname)[0] == '.') {
         s->attrs |= OSFATTR_HIDDEN;
     }
