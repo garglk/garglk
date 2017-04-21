@@ -21,6 +21,9 @@
  *                                                                            *
  *****************************************************************************/
 
- #ifdef _WIN32
+#ifdef _WIN32
+#ifdef __cplusplus
+extern "C"
+#endif
 unsigned long oss_get_file_attrs(const char *fname);
 #endif

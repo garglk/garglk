@@ -24,7 +24,12 @@
 #include <stddef.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "os.h"
+#include "osextra.h"
 
 /*
  * This file contains extra OS-specific functionality which is required
@@ -183,4 +188,4 @@ unsigned long oss_get_file_attrs(const char *fname)
     /* return the attributes */
     return attrs;
 }
-#endif _WIN32
+#endif /* _WIN32 */
