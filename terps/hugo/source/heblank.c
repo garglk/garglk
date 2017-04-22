@@ -276,7 +276,9 @@ void hugo_closefiles()
 
 int hugo_getkey(void)
 {
-	/* int b = fgetc(stdin); */
+	int b;
+
+	/* b = fgetc(stdin); */
 	fgets(buffer, MAXBUFFER, stdin);
 /*
 	if (...b is a function key...)
@@ -318,17 +320,6 @@ void hugo_getline(char *p)
 }
 
 
-/* hugo_sendtoscrollback
-
-   Stores a given line in the scrollback buffer (optional).
-*/
-
-void hugo_sendtoscrollback(char *a)
-{
-	/* not implemented here */
-}
-
-
 /* hugo_waitforkey
 
     Provided to be replaced by multitasking systems where cycling while
@@ -353,7 +344,7 @@ int hugo_waitforkey(void)
 
 int hugo_iskeywaiting(void)
 {
-	var[system_status] = -1;	/* STAT_UNAVAILABLE */
+	var[system_status] = STAT_UNAVAILABLE;
 	return false;	
 }
 
@@ -573,13 +564,6 @@ void hugo_settextpos(int x, int y)
 	/* Must be set: */
 	currentline = y;
 	currentpos = (x-1)*charwidth;   /* Note:  zero-based */
-}
-
-void PrintFatalError(char *a)
-{
-	/* PRINTFATALERROR may be #defined in heheader.h */
-
-	hugo_print(a);
 }
 
 void hugo_print(char *a)

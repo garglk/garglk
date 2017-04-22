@@ -331,7 +331,7 @@ long FindResource(char *filename, char *resname)
 {
 	char resource_in_file[MAX_RES_PATH];
 	int i, len;
-	int resfileversion, rescount;
+	int rescount;
 	unsigned int startofdata;
 	long resposition, reslength;
 #if defined (GLK)
@@ -391,7 +391,8 @@ long FindResource(char *filename, char *resname)
 		res_32bits = false;
 	else
 		goto ResfileError;
-	resfileversion = fgetc(resource_file);
+	/* Read and ignore the resource file version. */
+	fgetc(resource_file);
 	rescount = fgetc(resource_file);
 	rescount += fgetc(resource_file)*256;
 	startofdata = fgetc(resource_file);

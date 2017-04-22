@@ -42,7 +42,7 @@ if $(USESDL) = yes
 
     if $(OS) = MINGW   { SubDirCcFlags -DSDL_SOUND_DLL_EXPORTS ; }
     if $(OS) = SOLARIS { SubDirCcFlags -I/usr/include/SDL -fPIC ; }
-    if $(OS) = MACOSX  { SubDirCcFlags -I/opt/local/include/SDL -fPIC ; }
+    if $(OS) = MACOSX  { SubDirCcFlags `$(PKGCONFIG) --cflags sdl libpng` -fPIC ; }
 
     SEARCH_SOURCE =
         [ FDirName $(TOP) support sdl_sound ]

@@ -9,7 +9,7 @@
 	<key>CFBundleName</key>
 	<string>Gargoyle</string>
 	<key>CFBundleGetInfoString</key>
-	<string>2011.1</string>
+	<string>INSERT_VERSION_HERE</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleIconFile</key>
@@ -21,9 +21,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleVersion</key>
-	<string>2011.1</string>
+	<string>INSERT_VERSION_HERE</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>© 2006-2011 GNU General Public License</string>
+	<string>© 2006-2017 GNU General Public License</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>10.4</string>
 	<key>NSMainNibFile</key>
