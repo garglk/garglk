@@ -8,5 +8,5 @@ export PKG_CONFIG_LIBDIR=${SYSROOT}/usr/lib/pkgconfig:${SYSROOT}/usr/share/pkgco
 export PKG_CONFIG_SYSROOT_DIR=${SYSROOT}
 
 #-sBUILD=DEBUG 
-jam -dx -q -j3 -sKINDLE=true -sUSESDL=no -sGARGLKINI=/mnt/us/extensions/gargoyle/garglk.ini 
-jam -dx -q -sUSESDL=no install
+#jam -dx -q -j3 -sKINDLE=true -sUSESDL=no -sGARGLKINI=/mnt/us/extensions/gargoyle/garglk.ini 
+jam -dx -sUSESDL=no install
