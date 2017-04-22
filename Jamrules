@@ -192,8 +192,8 @@ switch $(BUILD)
 {
     case DEBUG :
         Echo "BUILD is DEBUG" ;
-        # OPTIM = -g -O0 -fno-inline ;
-        OPTIM = -g ;
+        OPTIM = -g -O0 -fno-inline ;
+        # OPTIM = -g ;
 
     case RELEASE :
         Echo "BUILD is RELEASE" ;

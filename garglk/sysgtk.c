@@ -418,6 +418,15 @@ static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
     }
 }
 
+#ifdef _KINDLE
+static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
+{
+    if (event->direction == GDK_SCROLL_UP)
+        gli_input_handle_key(keycode_PageUp);
+    else if (event->direction == GDK_SCROLL_DOWN)
+        gli_input_handle_key(keycode_PageDown);
+}
+#else
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
 {
     if (event->direction == GDK_SCROLL_UP)
@@ -425,6 +434,7 @@ static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
     else if (event->direction == GDK_SCROLL_DOWN)
         gli_input_handle_key(keycode_MouseWheelDown);
 }
+#endif
 
 static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
 {

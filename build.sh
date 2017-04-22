@@ -9,5 +9,5 @@ export PKG_CONFIG_SYSROOT_DIR=${SYSROOT}
 
 #jam -sBUILD=DEBUG 
 #jam -sBUILD=DEBUG install
-jam -dx -q -j3 -sKINDLE=true -sUSESDL=no -sGARGLKINI=/mnt/us/extensions/gargoyle/garglk.ini
+jam -dx -q -j3 -sKINDLE=true -sUSESDL=no -sGARGLKINI=/mnt/us/extensions/gargoyle/garglk.ini 
 #jam  install
