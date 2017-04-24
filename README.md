@@ -21,7 +21,7 @@ Gargoyle cares about typography! In this computer age of typographical poverty, 
 * Ligatures for “fi” and “fl”.
 * Plenty o' margins.
 * Plenty o' line spacing.
-* Integrated scrollback. 
+* Integrated scrollback.
 
 The default fonts for Gargoyle are Bitstream Charter and Luxi Mono. They are included, so there is no need to install anything on your system.
 
