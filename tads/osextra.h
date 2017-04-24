@@ -21,9 +21,18 @@
  *                                                                            *
  *****************************************************************************/
 
-#ifdef _WIN32
+/*
+ *   For C++ files, define externals with C linkage 
+ */
 #ifdef __cplusplus
-extern "C"
+extern "C" {
 #endif
+
 unsigned long oss_get_file_attrs(const char *fname);
+
+/*
+ *   Done with C linkage section
+ */
+#ifdef __cplusplus
+}
 #endif
