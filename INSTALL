@@ -33,7 +33,31 @@ The new build script (contributed by Brad Town) can be run on any
 MacOS 10.7 or higher. It requires a set of Unix packages (see below),
 which can be installed with either MacPorts or Homebrew. If you're
 building Gargoyle for your own use, that's all you need to know.
-Install the packages and then type
+
+For the MacPorts packages you'll need, type:
+
+  sudo port install libsdl -x11
+  sudo port install libsdl_mixer libsdl_sound
+  sudo port install libpng
+  sudo port install jpeg
+  sudo port install smpeg
+  sudo port install freetype
+  sudo port install pkgconfig
+  sudo port install jam
+
+If you're using Homebrew, instead type:
+
+  brew install sdl
+  brew install sdl_mixer sdl_sound
+  brew install libpng
+  brew install jpeg
+  brew install smpeg
+  brew install libvorbis
+  brew install freetype
+  brew install pkg-config
+  brew install jam
+
+Once the packages are installed, type:
 
   sh gargoyle_osx.sh
 
@@ -72,16 +96,8 @@ To set up your build environment on a fresh Mac, install MacPorts
 via https://www.macports.org/install.php. You want the "pkg" installer
 for Lion (assuming that's your OS).
 
-Once that's set up, do:
-
-  sudo port install libsdl -x11
-  sudo port install libsdl_mixer libsdl_sound
-  sudo port install libpng
-  sudo port install jpeg
-  sudo port install smpeg
-  sudo port install freetype
-  sudo port install pkgconfig
-  sudo port install jam
+Once that's set up, run the MacPorts package install commands listed
+above (the "sudo port" ones).
 
 You can then run the build:
 
