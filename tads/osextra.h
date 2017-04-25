@@ -28,7 +28,9 @@
 extern "C" {
 #endif
 
+#ifdef _WIN32
 unsigned long oss_get_file_attrs(const char *fname);
+#endif
 
 /*
  *   Done with C linkage section
