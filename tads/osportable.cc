@@ -45,6 +45,7 @@
 #endif
 
 #ifdef GARGOYLE
+#include "osextra.h"
 #include "charmap.h"
 #include <time.h>
 #include <dirent.h>
@@ -578,8 +579,6 @@ osfmode( const char *fname, int follow_links, unsigned long *mode,
 }
 
 /* Get full stat() information on a file.
- *
- * TODO: Windows implementation for mingw.
  */
 int
 os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
@@ -598,14 +597,13 @@ os_file_stat( const char *fname, int follow_links, os_file_stat_t *s )
     s->mode = buf.st_mode;
     s->attrs = 0;
 
+#ifdef _WIN32
+    s->attrs = oss_get_file_attrs(fname);
+#else
     if (os_get_root_name(fname)[0] == '.') {
         s->attrs |= OSFATTR_HIDDEN;
     }
 
-    /* XXX
-     * This needs to be implemented for MinGW.
-     */
-#ifndef _WIN32
     // If we're the owner, check if we have read/write access.
     if (geteuid() == buf.st_uid) {
         if (buf.st_mode & S_IRUSR)
