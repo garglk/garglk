@@ -449,12 +449,12 @@ os_gen_temp_filename( char* buf, size_t buflen )
 }
 #endif
 
-/* Get the temporary file path.
- *
- * tads2/osnoui.c defines a DOS version of this routine when MSDOS is
- * defined.
+/* tads2/osnoui.c defines DOS versions of those routine when MSDOS is defined.
  */
 #ifndef MSDOS
+
+/* Get the temporary file path.
+ */
 void
 os_get_tmp_path( char* buf )
 {
@@ -497,8 +497,6 @@ os_get_tmp_path( char* buf )
     }
 #endif
 }
-#endif // not MSDOS
-
 
 /* Create a directory.
  */
@@ -558,6 +556,8 @@ os_rmdir( const char *dir )
 {
     return rmdir(dir) == 0;
 }
+
+#endif // not MSDOS
 
 /* Get a file's mode/type.  This returns the same information as
  * the 'mode' member of os_file_stat_t from os_file_stat(), so we
@@ -1034,7 +1034,9 @@ static char *realpath(const char *file_name, char *resolved_name)
     if (resolved_name == NULL)
         return NULL;
 
-    GetFullPathName(file_name, PATH_MAX + 1, resolved_name, NULL);
+    DWORD len = GetFullPathName(file_name, PATH_MAX + 1, resolved_name, NULL);
+	if (!len || len > PATH_MAX)
+		return NULL;
 
     return resolved_name;
 }
@@ -1168,7 +1170,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     plen = strlen(path);
 
     // If the path ends in a separator character, ignore that.
-    if (plen > 0 and path[plen-1] == '/')
+    if (plen > 0 and path[plen-1] == OSPATHCHAR)
         --plen;
 
     // if the names match, return true if and only if we're matching the
@@ -1190,7 +1192,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // as matching "c:\abc\d.txt" - if we only matched the "c:\a" prefix,
     // we'd miss the fact that the file is actually in directory "c:\abc",
     // not "c:\a".)
-    if (filename[plen] != '/')
+    if (filename[plen] != OSPATHCHAR)
         return false;
 
     // We're good on the path prefix - we definitely have a file that's
@@ -1214,7 +1216,7 @@ os_is_file_in_dir( const char* filename, const char* path,
     // itself, so it's not a match.  If we don't find any separators,
     // we have a file directly in 'path', so it's a match.
     const char* p;
-    for (p = filename; *p != '\0' and *p != '/' ; ++p)
+    for (p = filename; *p != '\0' and *p != OSPATHCHAR ; ++p)
         ;
 
     // If we reached the end of the string without finding a path
