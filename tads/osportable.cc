@@ -1035,8 +1035,8 @@ static char *realpath(const char *file_name, char *resolved_name)
         return NULL;
 
     DWORD len = GetFullPathName(file_name, PATH_MAX + 1, resolved_name, NULL);
-	if (!len || len > PATH_MAX)
-		return NULL;
+    if (!len || len > PATH_MAX)
+        return NULL;
 
     return resolved_name;
 }
