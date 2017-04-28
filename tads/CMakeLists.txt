@@ -46,7 +46,12 @@ if(WITH_TADS)
 
   list(APPEND srcs tads3/vmconnom.cpp)
 
+  set(macros GARGOYLE VMGLOB_STRUCT GLK_UNICODE GLK_TIMERS TC_TARGET_T3 RUNTIME)
+  if(MINGW32)
+    list(APPEND macros DMSDOS DT_WIN32)
+  endif()
+
   terp(tadsr
        SRCS ${srcs}
-       MACROS GARGOYLE VMGLOB_STRUCT GLK_UNICODE GLK_TIMERS TC_TARGET_T3 RUNTIME OSNOUI_OMIT_IS_FILE_ABSOLUTE)
+       MACROS ${macros})
 endif()
