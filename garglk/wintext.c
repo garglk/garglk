@@ -540,7 +540,7 @@ void win_textbuffer_redraw(window_t *win)
                 }
             }
             /* add newline if we reach the end of the line */
-            if(0==ln->len || (rsc+1)==ln->len)
+            if (ln->len == 0 || ln->len == (rsc+1))
             {
                 dwin->copybuf[dwin->copypos] = '\n';
                 dwin->copypos++;
