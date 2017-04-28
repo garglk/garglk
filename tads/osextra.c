@@ -36,37 +36,6 @@
  * but is not part of osportable.cc.
  */
 
-/*
- *   Determine if a path is absolute or relative.  If the path starts with
- *   a path separator character, we consider it absolute, otherwise we
- *   consider it relative.
- *   
- *   Note that, on Windows, an absolute path can also follow a drive letter.
- *   So, if the path contains a letter followed by a colon, we'll consider
- *   the path to be absolute. 
- *
- *   This is provided because the noui version only knows about DOS, not
- *   Windows, so will not handle drive letters properly, assuming
- *   something like C:/foo is not absoolute. The macro
- *   OSNOUI_OMIT_IS_FILE_ABSOLUTE must be defined so that the noui version
- *   is not built.
- */
-int os_is_file_absolute(const char *fname)
-{
-    /* If the name starts with a path separator, it's absolute. */
-    if (fname[0] == OSPATHCHAR || strchr(OSPATHALT, fname[0]) != NULL)
-        return TRUE;
-
-#ifdef _WIN32
-    /* On Windows, a file is absolute if it starts with a drive letter. */
-    if (isalpha((unsigned char)fname[0]) && fname[1] == ':')
-        return TRUE;
-#endif /* _WIN32 */
-
-    /* The path is relative. */
-    return FALSE;
-}
-
 #ifdef _WIN32
 /*
  *   Copied and adapted from tads2/osnoui.c.
