@@ -1507,7 +1507,7 @@ static unsigned char zcolor_Bright[3] = { 0, 0, 0 };
 static unsigned int zcolor_fg = 0;
 static unsigned int zcolor_bg = 0;
 
-unsigned char *rgbshift (unsigned char *rgb)
+static unsigned char *rgbshift (unsigned char *rgb)
 {
     zcolor_Bright[0] = (rgb[0] + 0x30) < 0xff ? (rgb[0] + 0x30) : 0xff;
     zcolor_Bright[1] = (rgb[1] + 0x30) < 0xff ? (rgb[1] + 0x30) : 0xff;

@@ -68,7 +68,7 @@ static struct filter filters[] =
 
 #define NFILTERS ((sizeof filters) / (sizeof *filters))
 
-void winstart(void)
+static void winstart(void)
 {
     gtk_init(NULL, NULL);
 }
@@ -122,7 +122,7 @@ static void add_extension_to_filter(GtkFileFilter *filter, const char *ext)
     gtk_file_filter_add_pattern(filter, pattern);
 }
 
-void winfilterfiles(GtkFileChooser *dialog)
+static void winfilterfiles(GtkFileChooser *dialog)
 {
     GtkFileFilter *filter;
 
@@ -152,7 +152,7 @@ void winfilterfiles(GtkFileChooser *dialog)
     gtk_file_chooser_add_filter(dialog, filter);
 }
 
-void winbrowsefile(char *buffer)
+static void winbrowsefile(char *buffer)
 {
     *buffer = 0;
 

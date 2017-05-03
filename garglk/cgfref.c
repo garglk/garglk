@@ -42,6 +42,7 @@
 #include <sys/stat.h> /* for stat() */
 #include "glk.h"
 #include "garglk.h"
+#include "glkstart.h"
 
 char gli_workdir[1024] = ".";
 char gli_workfile[1024] = "";

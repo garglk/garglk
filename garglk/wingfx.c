@@ -33,7 +33,7 @@ static void
 drawpicture(picture_t *src, window_graphics_t *dst, 
     int x0, int y0, int width, int height, glui32 linkval);
 
-void win_graphics_touch(window_graphics_t *dest)
+static void win_graphics_touch(window_graphics_t *dest)
 {
     dest->dirty = 1;
     winrepaint(
