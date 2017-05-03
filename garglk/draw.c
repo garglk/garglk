@@ -284,18 +284,18 @@ static void loadfont(font_t *f, char *name, float size, float aspect, int style)
 {
     static char *map[8] =
     {
-        "LuxiMonoRegular",
-        "LuxiMonoBold",
-        "LuxiMonoOblique",
-        "LuxiMonoBoldOblique",
-        "CharterBT-Roman",
-        "CharterBT-Bold",
-        "CharterBT-Italic",
-        "CharterBT-BoldItalic"
+        "GoMono-Regular",
+        "GoMono-Bold",
+        "GoMono-Italic",
+        "GoMono-BoldItalic",
+        "NotoSerif-Regular",
+        "NotoSerif-Bold",
+        "NotoSerif-Italic",
+        "NotoSerif-BoldItalic"
     };
 
     char afmbuf[1024];
-    unsigned char *mem;
+    const unsigned char *mem;
     unsigned int len;
     int err = 0;
     int i;
