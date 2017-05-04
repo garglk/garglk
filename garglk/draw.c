@@ -28,8 +28,6 @@
 #include "glk.h"
 #include "garglk.h"
 
-void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
-
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H

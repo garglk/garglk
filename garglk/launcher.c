@@ -115,7 +115,7 @@ int runblorb(char *path, char *game)
     return FALSE;
 }
 
-int findterp(char *file, char *target)
+static int findterp(char *file, char *target)
 {
     FILE *f;
     char buf[MaxBuffer];
@@ -176,7 +176,7 @@ int findterp(char *file, char *target)
 
 }
 
-int configterp(char *path, char *game)
+static int configterp(char *path, char *game)
 {
     char config[MaxBuffer];
     char story[MaxBuffer];

@@ -625,9 +625,11 @@ extern void gli_window_redraw(window_t *win);
 extern void gli_window_put_char_uni(window_t *win, glui32 ch);
 extern int gli_window_unput_char_uni(window_t *win, glui32 ch);
 extern int gli_window_check_terminator(glui32 ch);
+extern void gli_window_refocus(window_t *win);
 
 extern void gli_windows_redraw(void);
 extern void gli_windows_size_change(void);
+extern void gli_windows_unechostream(stream_t *str);
 
 extern void gli_window_click(window_t *win, int x, int y);
 
@@ -639,6 +641,10 @@ void gli_input_next_focus();
 void gli_input_scroll_focus();
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
+void gli_input_guess_focus(void);
+void gli_input_more_focus(void);
+void gli_input_next_focus(void);
+void gli_input_scroll_focus(void);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
 extern stream_t *gli_new_stream(glui32 type, int readable, int writable,
@@ -652,13 +658,19 @@ extern void gli_stream_fill_result(stream_t *str,
     stream_result_t *result);
 extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
 extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
+extern void gli_streams_close_all(void);
 
 extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
     glui32 rock);
 extern void gli_delete_fileref(fileref_t *fref);
 
+#ifdef BUNDLED_FONTS
+void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
+#endif
+
 void gli_initialize_fonts(void);
 void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb);
+void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb);
 void gli_draw_clear(unsigned char *rgb);
 void gli_draw_rect(int x, int y, int w, int h, unsigned char *rgb);
 int gli_draw_string(int x, int y, int f, unsigned char *rgb, unsigned char *text, int len, int spacewidth);
@@ -702,8 +714,12 @@ picture_t *gli_picture_retrieve(unsigned long id, int scaled);
 picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
 void gli_picture_increment(picture_t *pic);
 void gli_picture_decrement(picture_t *pic);
+piclist_t *gli_piclist_search(unsigned long id);
+void gli_piclist_clear(void);
 void gli_piclist_increment(void);
 void gli_piclist_decrement(void);
+void gli_picture_store_original(picture_t *pic);
+void gli_picture_store_scaled(picture_t *pic);
 
 window_graphics_t *win_graphics_create(window_t *win);
 void win_graphics_destroy(window_graphics_t *cutwin);

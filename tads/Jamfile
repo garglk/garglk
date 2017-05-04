@@ -19,7 +19,6 @@ SubDirCcFlags
     -DGLK_TIMERS
     -DTC_TARGET_T3
     -DRUNTIME
-    -DOSNOUI_OMIT_IS_FILE_ABSOLUTE
     ;
 
 # HTMLMODE ?= yes ;
@@ -37,6 +36,11 @@ if $(OS) = MACOSX
 {
     SubDirCcFlags -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
     LINKFLAGS = -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
+}
+
+if $(OS) = MINGW
+{
+    SubDirCcFlags -DMSDOS -DT_WIN32 ;
 }
 
 SEARCH_SOURCE =

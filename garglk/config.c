@@ -193,7 +193,7 @@ static void parsecolor(char *str, unsigned char *rgb)
     rgb[2] = strtol(b, NULL, 16);
 }
 
-char* trim(char* src)
+static char* trim(char* src)
 {
     while(src[strlen(src)-1] == ' ' || src[strlen(src)-1] == '\t')
         src[strlen(src)-1] = 0;

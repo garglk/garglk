@@ -84,5 +84,6 @@ extern giblorb_err_t giblorb_count_resources(giblorb_map_t *map,
 */
 extern giblorb_err_t giblorb_set_resource_map(strid_t file);
 extern giblorb_map_t *giblorb_get_resource_map(void);
+extern int giblorb_is_resource_map(void);
 
 #endif /* _GI_BLORB_H */

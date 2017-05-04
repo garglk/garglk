@@ -22,6 +22,11 @@
  *****************************************************************************/
 #ifdef BUNDLED_FONTS
 
+#include <stdio.h>
+
+#include "glk.h"
+#include "garglk.h"
+
 /* include hex-dumped font files */
 #include "lmr.hex"
 #include "lmb.hex"

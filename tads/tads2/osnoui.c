@@ -1033,7 +1033,7 @@ int os_locate(const char *fname, int flen, const char *arg0,
 # define fname_memcmp memcmp
 #endif
 
-#ifdef GARGOYLE
+#if defined(GARGOYLE) && !defined(fname_memcmp)
 #  define fname_memcmp memcmp
 #endif
 

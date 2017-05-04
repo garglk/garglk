@@ -106,7 +106,7 @@ void winexit(void)
 }
 
 #ifdef _KINDLE
-void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
+static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
     char *curdir;
 
@@ -155,7 +155,7 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserA
 }
 
 #else /* Default implementation */
-void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
+static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
     GtkWidget *filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
                                                       GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -280,10 +280,10 @@ void winclipstore(glui32 *text, int len)
 
     /* null-terminated string */
     cliptext[k] = '\0';
-    cliplen = k + 1;
+    cliplen = k;
 }
 
-void winclipsend(int source)
+static void winclipsend(int source)
 {
     if (!cliplen)
         return;
@@ -305,7 +305,7 @@ void winclipsend(int source)
     }
 }
 
-void winclipreceive(int source)
+static void winclipreceive(int source)
 {
     gchar *gptr;
     int glen, i;
