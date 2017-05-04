@@ -20,6 +20,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
  *                                                                            *
  *****************************************************************************/
+#include <wchar.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1808,12 +1809,19 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     //two events ago to prevent double inserts
     time_t timer;
     time(&timer);
+    
+    // dev: fprintf(stderr, "Scrollpos: %d\n", dwin->scrollpos);
+    // Divide y of event (inverted) by height of single line to get the line that was clicked
+    int clickedLine = 
+        dwin->scrollpos + dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1;
 
-    if (difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
+    if (clickedLine == 0) {
+        // wprintf(L"Clicked on edit line\n");
+    }
+    else if (difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
     {
-        // Divide y of event (inverted) by height of single line to get the line that was clicked
-        tbline_t *ln = &dwin->lines[dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1];
-
+        tbline_t *ln = &dwin->lines[clickedLine];
+        
         int i, nl, nr;
         int x = 0;
         int adv;
@@ -1831,15 +1839,26 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             }
         }
 
-        // Step backward to find prv space
+        // Step backward until first non alphanum char
         for (nl=tsc; nl>=0; nl--)
         {
-            if (ln->chars[nl] == ' ')
+            //if (ln->chars[nl] == ' ')
+            glui32 c = ln->chars[nl];
+            if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9'))) {
                 break;
+            }
         }
+        
+        /* fwprintf(stderr, L"Char before cursor: %c\n", dwin->chars[dwin->incurs-1]); */
 
+        if (dwin->scrollpos != 0) {
+            gcmd_buffer_accept_readline(dwin->owner, keycode_End);
+        }
+        
         // Add a space at the current position of the cursor in the input line
-        gcmd_buffer_accept_readline(dwin->owner, ' ');
+        if (dwin->chars[dwin->incurs-1] != ' ') {
+            gcmd_buffer_accept_readline(dwin->owner, ' ');
+        }
 
         // Insert word onto input line
         for (nr=++nl; nr<ln->len; nr++)
