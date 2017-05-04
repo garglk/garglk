@@ -26,12 +26,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
-#ifndef _WIN32
 #include <unistd.h>
-#else
-#define R_OK	4
-#define W_OK	2
-#endif
 
 #include "glk.h"
 #include "garglk.h"
