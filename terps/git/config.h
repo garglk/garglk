@@ -84,14 +84,6 @@ typedef unsigned long git_uint32;
 typedef float git_float;
 
 
-/* XXX In mingw32, setjmp.h does:
- * __declspec(noreturn)
- * which means that defining noreturn here fails.
- */
-#ifdef _WIN32
-#  define maybe_unused  __attribute__((__unused__))
-#  define noreturn
-#else
 #if defined(__GNUC__)
 // GCC and compatible compilers such as clang
 #  define maybe_unused  __attribute__((__unused__))
@@ -103,7 +95,6 @@ typedef float git_float;
 #else
 #  define maybe_unused
 #  define git_noreturn
-#endif
 #endif
 
 #endif // GIT_CONFIG_H
