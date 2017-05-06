@@ -1,0 +1,12 @@
+script: jam -sC++=g++-4.8 -sCC=gcc-4.8 -j4
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - jam
+      - gcc-4.8
+      - g++-4.8
+      - libsdl1.2-dev
+      - libsdl-mixer1.2-dev
+      - libsdl-sound1.2-dev
