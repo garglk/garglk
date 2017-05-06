@@ -6,7 +6,7 @@ Kindle Port incorporates TADS 3.1.3 branch from: https://github.com/cspiegel/gar
 Kindle Port incorporates "double click/double tap on word to insert" patch from: https://github.com/RedHatter/granite <br/>
 Kindle Port maps swipe up / down on touchscreen to page up / page down in the text window.
 
-# Gargoyle
+# Gargoyle [![Build Status](https://travis-ci.org/garglk/garglk.svg?branch=master)](https://travis-ci.org/garglk/garglk)
 
 ## An interactive fiction player
 

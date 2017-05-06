@@ -1,0 +1,12 @@
+script: jam -sC++=g++-6 -sCC=gcc-6 -j4
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - jam
+      - gcc-6
+      - g++-6
+      - libsdl1.2-dev
+      - libsdl-mixer1.2-dev
+      - libsdl-sound1.2-dev

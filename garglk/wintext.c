@@ -976,9 +976,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     int linelen;
     unsigned char *color;
 
-#ifdef USETTS
-    { char b[1]; b[0] = ch; gli_speak_tts(b, 1, 0); }
-#endif
+    gli_tts_speak(&ch, 1);
 
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
@@ -1190,9 +1188,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     window_textbuffer_t *dwin = win->data;
     int pw;
 
-#ifdef USETTS
-    gli_speak_tts("\n", 1, 0);
-#endif
+    gli_tts_flush();
 
     /* because '>' prompt is ugly without extra space */
     if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
@@ -1245,9 +1241,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     window_textbuffer_t *dwin = win->data;
     int pw;
 
-#ifdef USETTS
-    gli_speak_tts("\n", 1, 0);
-#endif
+    gli_tts_flush();
 
     /* because '>' prompt is ugly without extra space */
     if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
@@ -1447,9 +1441,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
             key = arg;
     }
 
-#ifdef USETTS
-    gli_speak_tts("", 0, 1);
-#endif
+    gli_tts_purge();
 
     if (key > 0xff && key < (0xffffffff - keycode_MAXVAL + 1))
     {
@@ -1485,9 +1477,12 @@ static void acceptline(window_t *win, glui32 keycode)
     if (win->echostr) 
         gli_stream_echo_line_uni(win->echostr, dwin->chars+dwin->infence, len);
 
-#ifdef USETTS
-    gli_speak_tts(dwin->chars+dwin->infence, len, 1);
-#endif
+    gli_tts_purge();
+    if (gli_conf_speak_input)
+    {
+        gli_tts_speak(dwin->chars + dwin->infence, len);
+        gli_tts_speak((glui32[]){'\n'}, 1);
+    }
 
     /*
      * Store in history.
