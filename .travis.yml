@@ -1,10 +1,16 @@
-script: jam -sC++=g++-6 -sCC=gcc-6 -j4
+script:
+  - mkdir build
+  - cd build
+  - CC=gcc-6 CXX=g++-6 cmake .. -DCMAKE_BUILD_TYPE=Release
+  - make -j4
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - george-edison55-precise-backports
     packages:
-      - jam
+      - cmake
+      - cmake-data
       - gcc-6
       - g++-6
       - libsdl1.2-dev
