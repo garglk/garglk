@@ -2,8 +2,10 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - george-edison55-precise-backports
     packages:
-      - jam
+      - cmake
+      - cmake-data
       - gcc-4.8
       - g++-4.8
       - gcc-6
@@ -18,4 +20,7 @@ env:
     - GCC=6
 
 script:
-  - jam -sC++=g++-$GCC -sCC=gcc-$GCC -j4
+  - mkdir build
+  - cd build
+  - CC=gcc-$GCC CXX=g++-$GCC cmake .. -DCMAKE_BUILD_TYPE=Release
+  - make -j4
