@@ -32,7 +32,7 @@ elseif(MINGW)
   # pretend that there are choices available.
   set(GUILIB "MINGW32")
 else()
-  message(FATAL_ERROR "Unsupported platform.")
+  message(FATAL_ERROR "Unsupported platform (${CMAKE_SYSTEM_NAME}).")
 endif()
 
 set(SOUND_SOURCE sndnull.c)
