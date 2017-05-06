@@ -1,4 +1,4 @@
-# Gargoyle
+# Gargoyle [![Build Status](https://travis-ci.org/garglk/garglk.svg?branch=master)](https://travis-ci.org/garglk/garglk)
 
 ## An interactive fiction player
 
