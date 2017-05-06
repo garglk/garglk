@@ -7,8 +7,10 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
+      - george-edison55-precise-backports
     packages:
-      - jam
+      - cmake
+      - cmake-data
       - binutils-mingw-w64-i686
       - gcc-mingw-w64-i686
       - g++-mingw-w64-i686
@@ -23,10 +25,13 @@ addons:
 
 env:
   matrix:
-    - CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
+    - CMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
     - CC=gcc-4.8 CXX=g++-4.8
     - CC=gcc-6 CXX=g++-6
     - CC=clang CXX=clang++
 
 script:
-  - jam -sC++=$CXX -sCC=$CC -j4
+  - mkdir build
+  - cd build
+  - CC=$CC CXX=$CXX cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE
+  - make -j4
