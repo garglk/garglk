@@ -171,6 +171,8 @@ int gli_conf_caps = 0;
 int gli_conf_graphics = 1;
 int gli_conf_sound = 1;
 int gli_conf_speak = 0;
+int gli_conf_speak_input = 0;
+const char *gli_conf_speak_language = NULL;
 
 int gli_conf_stylehint = 0;
 int gli_conf_safeclicks = 0;
@@ -428,8 +430,13 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_graphics = atoi(arg);
         if (!strcmp(cmd, "sound"))
             gli_conf_sound = atoi(arg);
+
         if (!strcmp(cmd, "speak"))
             gli_conf_speak = atoi(arg);
+        if (!strcmp(cmd, "speak_input"))
+            gli_conf_speak_input = atoi(arg);
+        if (!strcmp(cmd, "speak_language"))
+            gli_conf_speak_language = strdup(arg);
 
         if (!strcmp(cmd, "stylehint"))
             gli_conf_stylehint = atoi(arg);
@@ -595,11 +602,9 @@ void gli_startup(int argc, char *argv[])
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
 
-#ifdef USETTS
     gli_initialize_tts();
     if (gli_conf_speak)
         gli_conf_quotes = 0;
-#endif
 
     gli_initialize_misc();
     gli_initialize_fonts();

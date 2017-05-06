@@ -28,6 +28,8 @@
  * http://www.eblong.com/zarf/glk/index.html
  */
 
+#include <stddef.h>
+
 #include "gi_dispa.h"
 
 /* First, we define our own TRUE and FALSE and NULL, because ANSI
@@ -222,7 +224,10 @@ extern int gli_conf_lcd;
 
 extern int gli_conf_graphics;
 extern int gli_conf_sound;
+
 extern int gli_conf_speak;
+extern int gli_conf_speak_input;
+extern const char *gli_conf_speak_language;
 
 extern int gli_conf_stylehint;
 extern int gli_conf_safeclicks;
@@ -562,7 +567,9 @@ struct glk_schannel_struct
 
 extern void gli_initialize_sound(void);
 extern void gli_initialize_tts(void);
-extern void gli_speak_tts(char *buf, int len, int interrupt);
+extern void gli_tts_speak(const glui32 *buf, size_t len);
+extern void gli_tts_flush(void);
+extern void gli_tts_purge(void);
 
 /* ---------------------------------------------------------------------- */
 /*
