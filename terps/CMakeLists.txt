@@ -323,6 +323,6 @@ endif()
 #
 if(WITH_SCOTT)
   terp(scott
-       SRCS scott/scott.c
+       SRCS scott/scott.c scott/bsd.c
        C99)
 endif()
