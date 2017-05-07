@@ -212,9 +212,9 @@ void winclipstore(glui32 *text, int len)
         cliptext = nil;
     }
 
-    cliptext = [[NSString string] initWithBytes: text
-                                         length: (len * sizeof(glui32))
-                                       encoding: NSUTF32StringEncoding];
+    cliptext = [[NSString alloc] initWithBytes: text
+                                        length: (len * sizeof(glui32))
+                                      encoding: NSUTF32StringEncoding];
 }
 
 void winclipsend(void)
