@@ -448,7 +448,7 @@ if $(MAKE_SCOTT) = yes
     SubDir TOP terps scott ;
     ObjDir scott ;
 
-    Main $(GARGLKPRE)scott : scott.c ;
+    Main $(GARGLKPRE)scott : scott.c bsd.c ;
 
     APPS += $(GARGLKPRE)scott ;
 }
