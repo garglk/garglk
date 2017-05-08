@@ -212,9 +212,9 @@ void winclipstore(glui32 *text, int len)
         cliptext = nil;
     }
 
-    cliptext = [[NSString string] initWithBytes: text
-                                         length: (len * sizeof(glui32))
-                                       encoding: NSUTF32StringEncoding];
+    cliptext = [[NSString alloc] initWithBytes: text
+                                        length: (len * sizeof(glui32))
+                                      encoding: UTF32StringEncoding];
 }
 
 void winclipsend(void)
@@ -243,7 +243,7 @@ void winclipreceive(void)
             for (i=0; i < len; i++)
             {
                 if ([input getBytes: &ch maxLength: sizeof ch usedLength: NULL
-                           encoding: NSUTF32StringEncoding
+                           encoding: UTF32StringEncoding
                             options: 0
                               range: NSMakeRange(i, 1)
                      remainingRange: NULL])
@@ -515,7 +515,7 @@ void winkey(NSEvent *evt)
     /* convert character to UTF-32 value */
     glui32 ch;
     if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: NULL
-                  encoding: NSUTF32StringEncoding
+                  encoding: UTF32StringEncoding
                    options: 0
                      range: NSMakeRange(0, [evt_char length])
             remainingRange: NULL])

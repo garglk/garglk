@@ -21,6 +21,12 @@
  *                                                                            *
  *****************************************************************************/
 
+#ifdef __ppc__
+#define UTF32StringEncoding NSUTF32BigEndianStringEncoding
+#else
+#define UTF32StringEncoding NSUTF32LittleEndianStringEncoding
+#endif
+
 #define NSKEY_LEFT      0x7b
 #define NSKEY_RIGHT     0x7c
 #define NSKEY_DOWN      0x7d
