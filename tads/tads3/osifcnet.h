@@ -562,7 +562,7 @@ public:
      *   This doesn't necessarily fulfill the complete read request.  If
      *   there are fewer bytes immediately available than 'len', this reads
      *   all of the bytes immediately available and returns, indicating the
-     *   number of bytes actually transfered.  This is the case regardless of
+     *   number of bytes actually transferred.  This is the case regardless of
      *   the blocking mode of the socket.
      *   
      *   When the socket is in non-blocking mode, and there are no bytes

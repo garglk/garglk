@@ -206,13 +206,13 @@ static void check_ascii_mode(void)
   if(!has8bit)
     n_show_error(E_CORRUPT, "All bytes are 7 bit; top bits were likely stripped in transfer", 0);
   else if(!hascr)
-    n_show_error(E_CORRUPT, "No CR bytes; likely transfered in ASCII mode", 0);
+    n_show_error(E_CORRUPT, "No CR bytes; likely transferred in ASCII mode", 0);
   else if(!haslf)
-    n_show_error(E_CORRUPT, "No LF bytes; likely transfered in ASCII mode", 0);
+    n_show_error(E_CORRUPT, "No LF bytes; likely transferred in ASCII mode", 0);
   else if(!hascrnolf)
-    n_show_error(E_CORRUPT, "All CR are followed by LFs; likely transfered in ASCII mode", 0);
+    n_show_error(E_CORRUPT, "All CR are followed by LFs; likely transferred in ASCII mode", 0);
   else if(!haslfnocr)
-    n_show_error(E_CORRUPT, "All LFs are preceded by CRs; likely transfered in ASCII mode", 0);
+    n_show_error(E_CORRUPT, "All LFs are preceded by CRs; likely transferred in ASCII mode", 0);
 }
 
 

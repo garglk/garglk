@@ -827,7 +827,7 @@ public:
         if (len != 0)
             read_bytes(buf, len);
 
-        /* return the number of bytes transfered */
+        /* return the number of bytes transferred */
         return len;
     }
 
