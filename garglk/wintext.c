@@ -1815,6 +1815,29 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
 
     if (clickedLine == 0) {
         // wprintf(L"Clicked on edit line\n");
+        tbline_t *ln = &dwin->lines[clickedLine];
+        
+        int i, nl, nr;
+        int x = 0;
+        int adv;
+
+        int x0, tx, tsc, tsw;
+        x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
+        tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+        // Measure string widths until we find the clicked char
+        for (tsc = 0; tsc < ln->len; tsc++)
+        {
+            tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, -1)/GLI_SUBPIX;
+            if (tsw + tx >= sx || tsw + tx + GLI_SUBPIX >= sx)
+            {
+                break;
+            }
+        }
+        
+        dwin->incurs = tsc + 1;
+        if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
+        if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
+        touch(dwin, 0);
     }
     else if (difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
     {
