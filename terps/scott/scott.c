@@ -12,22 +12,26 @@
  */
 
 /*
- * Part of this source file (mainly the GLK parts) are copyright 2011
+ * Parts of this source file (mainly the Glk parts) are copyright 2011
  * Chris Spiegel.
  *
- * Some notes about the GLK version:
+ * Some notes about the Glk version:
  *
  * o Room descriptions, exits, and visible items can, as in the
  *   original, be placed in a window at the top of the screen, or can be
  *   inline with user input in the main window.  The former is default,
  *   and the latter can be selected with the -w flag.
  *
- * o Game saving and loading uses GLK, which means that providing a
+ * o Game saving and loading uses Glk, which means that providing a
  *   save game file on the command-line will no longer work.  Instead,
  *   the verb "restore" has been special-cased to call GameLoad(), which
- *   now prompts for a filename via GLK.
+ *   now prompts for a filename via Glk.
+ *
+ * o The local character set is expected to be compatible with ASCII, at
+ *   least in the printable character range.  Newlines are specially
+ *   handled, however, and converted to Glk's expected newline
+ *   character.
  */
-static int split_screen = 1;
 
 #include <stdio.h>
 #include <string.h>
@@ -39,12 +43,13 @@ static int split_screen = 1;
 #include "glk.h"
 #include "glkstart.h"
 
+#include "bsd.h"
 #include "scott.h"
 
 #ifdef __GNUC__
 __attribute__((__format__(__printf__, 2, 3)))
 #endif
-static void wprintw(winid_t w, const char *fmt, ...)
+static void wprintf(winid_t w, const char *fmt, ...)
 {
 	va_list ap;
 	char msg[2048];
@@ -53,76 +58,17 @@ static void wprintw(winid_t w, const char *fmt, ...)
 	vsnprintf(msg, sizeof msg, fmt, ap);
 	va_end(ap);
 
-	glk_put_string_stream(glk_window_get_stream(w), msg);
-}
-
-/*
- *	Configuration Twiddles
- */
-
-/*
- * The following applies to xstrcasecmp() and xstrncasecmp(), both taken
- * from FreeBSD.
- *
- * Copyright (c) 1987, 1993
- *      The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-static int xstrcasecmp(const char *s1, const char *s2)
-{
-	const unsigned char
-		*us1 = (const unsigned char *)s1,
-		*us2 = (const unsigned char *)s2;
-
-	while (tolower(*us1) == tolower(*us2++))
-		if (*us1++ == '\0')
-			return (0);
-	return (tolower(*us1) - tolower(*--us2));
-}
-
-static int xstrncasecmp(const char *s1, const char *s2, size_t n)
-{
-	if (n != 0) {
-		const unsigned char
-			*us1 = (const unsigned char *)s1,
-			*us2 = (const unsigned char *)s2;
-
-		do {
-			if (tolower(*us1) != tolower(*us2++))
-				return (tolower(*us1) - tolower(*--us2));
-			if (*us1++ == '\0')
-				break;
-		} while (--n != 0);
+	/* Map newline to a Glk-compatible newline. */
+	for(size_t i = 0; msg[i] != 0; i++)
+	{
+		if(msg[i] == '\n') msg[i] = 10;
 	}
-	return (0);
+
+	glk_put_string_stream(glk_window_get_stream(w), msg);
 }
 
 static void delay(int seconds)
 {
-	int done = 0;
 	event_t ev;
 
 	if(!glk_gestalt(gestalt_Timer, 0))
@@ -130,13 +76,10 @@ static void delay(int seconds)
 
 	glk_request_timer_events(1000 * seconds);
 
-	while(!done)
+	do
 	{
 		glk_select(&ev);
-
-		if(ev.type == evtype_Timer)
-			done = 1;
-	}
+	} while(ev.type != evtype_Timer);
 
 	glk_request_timer_events(0);
 }
@@ -144,9 +87,9 @@ static void delay(int seconds)
 static Header GameHeader;
 static Item *Items;
 static Room *Rooms;
-static char **Verbs;
-static char **Nouns;
-static char **Messages;
+static const char **Verbs;
+static const char **Nouns;
+static const char **Messages;
 static Action *Actions;
 static int LightRefill;
 static char NounText[16];
@@ -158,6 +101,7 @@ static int Options;		/* Option flags set */
 static int Width;		/* Terminal width */
 static int TopHeight;		/* Height of top window */
 
+static int split_screen = 1;
 static winid_t Bottom, Top;
 
 #define TRS80_LINE	"\n<------------------------------------------------------------>\n"
@@ -166,9 +110,9 @@ static winid_t Bottom, Top;
 
 static long BitFlags=0;	/* Might be >32 flags - I haven't seen >32 yet */
 
-static void Fatal(char *x)
+static void Fatal(const char *x)
 {
-	wprintw(Bottom, "%s", x);
+	wprintf(Bottom, "%s\n", x);
 	glk_exit();
 }
 
@@ -207,10 +151,10 @@ static int CountCarried(void)
 	return(n);
 }
 
-static char *MapSynonym(char *word)
+static const char *MapSynonym(const char *word)
 {
 	int n=1;
-	char *tp;
+	const char *tp;
 	static char lastword[16];	/* Last non synonym */
 	while(n<=GameHeader.NumWords)
 	{
@@ -226,9 +170,9 @@ static char *MapSynonym(char *word)
 	return(NULL);
 }
 
-static int MatchUpItem(char *text, int loc)
+static int MatchUpItem(const char *text, int loc)
 {
-	char *word=MapSynonym(text);
+	const char *word=MapSynonym(text);
 	int ct=0;
 
 	if(word==NULL)
@@ -273,9 +217,25 @@ static char *ReadString(FILE *f)
 				break;
 			}
 		}
-		if(c==0x60)
+		if(c=='`')
 			c='"'; /* pdd */
-		tmp[ct++]=c;
+
+		/* Ensure a valid Glk newline is sent. */
+		if(c=='\n')
+			tmp[ct++]=10;
+		/* Special case: assume CR is part of CRLF in a
+		 * DOS-formatted file, and ignore it.
+		 */
+		else if(c==13)
+			;
+		/* Pass only ASCII to Glk; the other reasonable option
+		 * would be to pass Latin-1, but it's probably safe to
+		 * assume that Scott Adams games are ASCII only.
+		 */
+		else if((c >= 32 && c <= 126))
+			tmp[ct++]=c;
+		else
+			tmp[ct++]='?';
 	}
 	while(1);
 	tmp[ct]=0;
@@ -294,16 +254,6 @@ static void LoadDatabase(FILE *f, int loud)
 	Item *ip;
 /* Load the header */
 
-	/* As this was written, there were too many arguments for the
-	 * format string.  The ct that would be read from here, if there
-	 * were a conversion specifier for it, is never used; so
-	 * presumably just removing &ct is fine.
-	 * --Chris
-	 */
-#if 0
-	if(fscanf(f,"%*d %d %d %d %d %d %d %d %d %d %d %d",
-		&ni,&na,&nw,&nr,&mc,&pr,&tr,&wl,&lt,&mn,&trm,&ct)<10)
-#endif
 	if(fscanf(f,"%*d %d %d %d %d %d %d %d %d %d %d %d",
 		&ni,&na,&nw,&nr,&mc,&pr,&tr,&wl,&lt,&mn,&trm)<10)
 		Fatal("Invalid database(bad header)");
@@ -313,8 +263,8 @@ static void LoadDatabase(FILE *f, int loud)
 	Actions=(Action *)MemAlloc(sizeof(Action)*(na+1));
 	GameHeader.NumWords=nw;
 	GameHeader.WordLength=wl;
-	Verbs=(char **)MemAlloc(sizeof(char *)*(nw+1));
-	Nouns=(char **)MemAlloc(sizeof(char *)*(nw+1));
+	Verbs=MemAlloc(sizeof(char *)*(nw+1));
+	Nouns=MemAlloc(sizeof(char *)*(nw+1));
 	GameHeader.NumRooms=nr;
 	Rooms=(Room *)MemAlloc(sizeof(Room)*(nr+1));
 	GameHeader.MaxCarry=mc;
@@ -323,7 +273,7 @@ static void LoadDatabase(FILE *f, int loud)
 	GameHeader.LightTime=lt;
 	LightRefill=lt;
 	GameHeader.NumMessages=mn;
-	Messages=(char **)MemAlloc(sizeof(char *)*(mn+1));
+	Messages=MemAlloc(sizeof(char *)*(mn+1));
 	GameHeader.TreasureRoom=trm;
 
 /* Load the actions */
@@ -365,9 +315,13 @@ static void LoadDatabase(FILE *f, int loud)
 		printf("Reading %d rooms.\n",nr);
 	while(ct<nr+1)
 	{
-		fscanf(f,"%hd %hd %hd %hd %hd %hd",
+		if(fscanf(f,"%hd %hd %hd %hd %hd %hd",
 			&rp->Exits[0],&rp->Exits[1],&rp->Exits[2],
-			&rp->Exits[3],&rp->Exits[4],&rp->Exits[5]);
+			&rp->Exits[3],&rp->Exits[4],&rp->Exits[5])!=6)
+		{
+			printf("Bad room line (%d)\n",ct);
+			exit(1);
+		}
 		rp->Text=ReadString(f);
 		ct++;
 		rp++;
@@ -397,7 +351,11 @@ static void LoadDatabase(FILE *f, int loud)
 			if(t!=NULL)
 				*t=0;
 		}
-		fscanf(f,"%hd",&lo);
+		if(fscanf(f,"%hd",&lo)!=1)
+		{
+			printf("Bad item line (%d)\n",ct);
+			exit(1);
+		}
 		ip->Location=(unsigned char)lo;
 		ip->InitialLoc=ip->Location;
 		ip++;
@@ -410,32 +368,31 @@ static void LoadDatabase(FILE *f, int loud)
 		free(ReadString(f));
 		ct++;
 	}
-	fscanf(f,"%d",&ct);
+	if(fscanf(f,"%d",&ct)!=1)
+	{
+		puts("Cannot read version");
+		exit(1);
+	}
 	if(loud)
 		printf("Version %d.%02d of Adventure ",
 		ct/100,ct%100);
-	fscanf(f,"%d",&ct);
+	if(fscanf(f,"%d",&ct)!=1)
+	{
+		puts("Cannot read adventure number");
+		exit(1);
+	}
 	if(loud)
 		printf("%d.\nLoad Complete.\n\n",ct);
 }
 
-static void OutBuf(char *buffer)
+static void Output(const char *a)
 {
-	wprintw(Bottom, "%s", buffer);
-}
-
-static void Output(char *a)
-{
-	char block[512];
-	strcpy(block,a);
-	OutBuf(block);
+	wprintf(Bottom, "%s", a);
 }
 
 static void OutputNumber(int a)
 {
-	char buf[16];
-	sprintf(buf,"%d ",a);
-	OutBuf(buf);
+	wprintf(Bottom, "%d", a);
 }
 
 static void Look(void)
@@ -455,26 +412,26 @@ static void Look(void)
 	            && Items[LIGHT_SOURCE].Location!= MyLoc)
 	{
 		if(Options&YOUARE)
-			wprintw(Top,"You can't see. It is too dark!\n");
+			wprintf(Top,"You can't see. It is too dark!\n");
 		else
-			wprintw(Top,"I can't see. It is too dark!\n");
+			wprintf(Top,"I can't see. It is too dark!\n");
 		if (Options & TRS80_STYLE)
-			wprintw(Top,TRS80_LINE);
+			wprintf(Top,TRS80_LINE);
 		return;
 	}
 	r=&Rooms[MyLoc];
 	if(*r->Text=='*')
-		wprintw(Top,"%s\n",r->Text+1);
+		wprintf(Top,"%s\n",r->Text+1);
 	else
 	{
 		if(Options&YOUARE)
-			wprintw(Top,"You are in a %s\n",r->Text);
+			wprintf(Top,"You are in a %s\n",r->Text);
 		else
-			wprintw(Top,"I'm in a %s\n",r->Text);
+			wprintf(Top,"I'm in a %s\n",r->Text);
 	}
 	ct=0;
 	f=0;
-	wprintw(Top,"\nObvious exits: ");
+	wprintf(Top,"\nObvious exits: ");
 	while(ct<6)
 	{
 		if(r->Exits[ct]!=0)
@@ -482,14 +439,14 @@ static void Look(void)
 			if(f==0)
 				f=1;
 			else
-				wprintw(Top,", ");
-			wprintw(Top,"%s",ExitNames[ct]);
+				wprintf(Top,", ");
+			wprintf(Top,"%s",ExitNames[ct]);
 		}
 		ct++;
 	}
 	if(f==0)
-		wprintw(Top,"none");
-	wprintw(Top,".\n");
+		wprintf(Top,"none");
+	wprintf(Top,".\n");
 	ct=0;
 	f=0;
 	pos=0;
@@ -500,42 +457,47 @@ static void Look(void)
 			if(f==0)
 			{
 				if(Options&YOUARE)
-					wprintw(Top,"\nYou can also see: ");
+				{
+					wprintf(Top,"\nYou can also see: ");
+					pos=18;
+				}
 				else
-					wprintw(Top,"\nI can also see: ");
-				pos=16;
+				{
+					wprintf(Top,"\nI can also see: ");
+					pos=16;
+				}
 				f++;
 			}
 			else if (!(Options & TRS80_STYLE))
 			{
-				wprintw(Top," - ");
+				wprintf(Top," - ");
 				pos+=3;
 			}
 			if(pos+strlen(Items[ct].Text)>(Width-10))
 			{
 				pos=0;
-				wprintw(Top,"\n");
+				wprintf(Top,"\n");
 			}
-			wprintw(Top,"%s",Items[ct].Text);
+			wprintf(Top,"%s",Items[ct].Text);
 			pos += strlen(Items[ct].Text);
 			if (Options & TRS80_STYLE)
 			{
-				wprintw(Top,". ");
+				wprintf(Top,". ");
 				pos+=2;
 			}
 		}
 		ct++;
 	}
-	wprintw(Top,"\n");
+	wprintf(Top,"\n");
 	if (Options & TRS80_STYLE)
-		wprintw(Top,TRS80_LINE);
+		wprintf(Top,TRS80_LINE);
 }
 
-static int WhichWord(char *word, char **list)
+static int WhichWord(const char *word, const char **list)
 {
 	int n=1;
 	int ne=1;
-	char *tp;
+	const char *tp;
 	while(ne<=GameHeader.NumWords)
 	{
 		tp=list[ne];
@@ -553,16 +515,15 @@ static int WhichWord(char *word, char **list)
 static void LineInput(char *buf, size_t n)
 {
 	event_t ev;
-	int done = 0;
 
 	glk_request_line_event(Bottom, buf, n - 1, 0);
 
-	while(!done)
+	while(1)
 	{
 		glk_select(&ev);
 
 		if(ev.type == evtype_LineInput)
-			done = 1;
+			break;
 		else if(ev.type == evtype_Arrange && split_screen)
 			Look();
 	}
@@ -663,7 +624,7 @@ static int GetInput(int *vb, int *no)
 			*noun=0;
 		if(*noun==0 && strlen(verb)==1)
 		{
-			switch(isupper(*verb)?tolower(*verb):*verb)
+			switch(isupper((unsigned char)*verb)?tolower((unsigned char)*verb):*verb)
 			{
 				case 'n':strcpy(verb,"NORTH");break;
 				case 'e':strcpy(verb,"EAST");break;
@@ -878,14 +839,14 @@ doneit:				Output("The game is now over.\n");
 				break;
 			case 65:
 			{
-				int ct=0;
+				int i=0;
 				int n=0;
-				while(ct<=GameHeader.NumItems)
+				while(i<=GameHeader.NumItems)
 				{
-					if(Items[ct].Location==GameHeader.TreasureRoom &&
-					  *Items[ct].Text=='*')
+					if(Items[i].Location==GameHeader.TreasureRoom &&
+					  *Items[i].Text=='*')
 					  	n++;
-					ct++;
+					i++;
 				}
 				if(Options&YOUARE)
 					Output("You have stored ");
@@ -904,15 +865,15 @@ doneit:				Output("The game is now over.\n");
 			}
 			case 66:
 			{
-				int ct=0;
+				int i=0;
 				int f=0;
 				if(Options&YOUARE)
 					Output("You are carrying:\n");
 				else
 					Output("I'm carrying:\n");
-				while(ct<=GameHeader.NumItems)
+				while(i<=GameHeader.NumItems)
 				{
-					if(Items[ct].Location==CARRIED)
+					if(Items[i].Location==CARRIED)
 					{
 						if(f==1)
 						{
@@ -922,9 +883,9 @@ doneit:				Output("The game is now over.\n");
 								Output(" - ");
 						}
 						f=1;
-						Output(Items[ct].Text);
+						Output(Items[i].Text);
 					}
-					ct++;
+					i++;
 				}
 				if(f==0)
 					Output("Nothing");
@@ -1140,7 +1101,7 @@ static int PerformActions(int vb,int no)
 	}
 	if(fl!=0 && disable_sysfunc==0)
 	{
-		int i;
+		int item;
 		if(Items[LIGHT_SOURCE].Location==MyLoc ||
 		   Items[LIGHT_SOURCE].Location==CARRIED)
 		   	d=0;
@@ -1151,7 +1112,7 @@ static int PerformActions(int vb,int no)
 			{
 				if(xstrcasecmp(NounText,"ALL")==0)
 				{
-					int ct=0;
+					int i=0;
 					int f=0;
 
 					if(d)
@@ -1159,11 +1120,11 @@ static int PerformActions(int vb,int no)
 						Output("It is dark.\n");
 						return 0;
 					}
-					while(ct<=GameHeader.NumItems)
+					while(i<=GameHeader.NumItems)
 					{
-						if(Items[ct].Location==MyLoc && Items[ct].AutoGet!=NULL && Items[ct].AutoGet[0]!='*')
+						if(Items[i].Location==MyLoc && Items[i].AutoGet!=NULL && Items[i].AutoGet[0]!='*')
 						{
-							no=WhichWord(Items[ct].AutoGet,Nouns);
+							no=WhichWord(Items[i].AutoGet,Nouns);
 							disable_sysfunc=1;	/* Don't recurse into auto get ! */
 							PerformActions(vb,no);	/* Recursively check each items table code */
 							disable_sysfunc=0;
@@ -1175,12 +1136,12 @@ static int PerformActions(int vb,int no)
 									Output("I've too much to carry. ");
 								return(0);
 							}
-						 	Items[ct].Location= CARRIED;
-						 	OutBuf(Items[ct].Text);
-						 	Output(": O.K.\n");
-						 	f=1;
-						 }
-						 ct++;
+							Items[i].Location= CARRIED;
+							Output(Items[i].Text);
+							Output(": O.K.\n");
+							f=1;
+						}
+						i++;
 					}
 					if(f==0)
 						Output("Nothing taken.");
@@ -1199,8 +1160,8 @@ static int PerformActions(int vb,int no)
 						Output("I've too much to carry. ");
 					return(0);
 				}
-				i=MatchUpItem(NounText,MyLoc);
-				if(i==-1)
+				item=MatchUpItem(NounText,MyLoc);
+				if(item==-1)
 				{
 					if(Options&YOUARE)
 						Output("It is beyond your power to do that. ");
@@ -1208,7 +1169,7 @@ static int PerformActions(int vb,int no)
 						Output("It's beyond my power to do that. ");
 					return(0);
 				}
-				Items[i].Location= CARRIED;
+				Items[item].Location= CARRIED;
 				Output("O.K. ");
 				return(0);
 			}
@@ -1216,22 +1177,22 @@ static int PerformActions(int vb,int no)
 			{
 				if(xstrcasecmp(NounText,"ALL")==0)
 				{
-					int ct=0;
+					int i=0;
 					int f=0;
-					while(ct<=GameHeader.NumItems)
+					while(i<=GameHeader.NumItems)
 					{
-						if(Items[ct].Location==CARRIED && Items[ct].AutoGet && Items[ct].AutoGet[0]!='*')
+						if(Items[i].Location==CARRIED && Items[i].AutoGet && Items[i].AutoGet[0]!='*')
 						{
-							no=WhichWord(Items[ct].AutoGet,Nouns);
+							no=WhichWord(Items[i].AutoGet,Nouns);
 							disable_sysfunc=1;
 							PerformActions(vb,no);
 							disable_sysfunc=0;
-							Items[ct].Location=MyLoc;
-							OutBuf(Items[ct].Text);
+							Items[i].Location=MyLoc;
+							Output(Items[i].Text);
 							Output(": O.K.\n");
 							f=1;
 						}
-						ct++;
+						i++;
 					}
 					if(f==0)
 						Output("Nothing dropped.\n");
@@ -1242,8 +1203,8 @@ static int PerformActions(int vb,int no)
 					Output("What ? ");
 					return(0);
 				}
-				i=MatchUpItem(NounText,CARRIED);
-				if(i==-1)
+				item=MatchUpItem(NounText,CARRIED);
+				if(item==-1)
 				{
 					if(Options&YOUARE)
 						Output("It's beyond your power to do that.\n");
@@ -1251,7 +1212,7 @@ static int PerformActions(int vb,int no)
 						Output("It's beyond my power to do that.\n");
 					return(0);
 				}
-				Items[i].Location=MyLoc;
+				Items[item].Location=MyLoc;
 				Output("O.K. ");
 				return(0);
 			}
@@ -1274,7 +1235,7 @@ glkunix_argumentlist_t glkunix_arguments[] =
 	{ NULL, glkunix_arg_End, NULL }
 };
 
-static char *game_file;
+static const char *game_file;
 
 int glkunix_startup_code(glkunix_startup_t *data)
 {
@@ -1327,11 +1288,15 @@ int glkunix_startup_code(glkunix_startup_t *data)
 	{
 		game_file = argv[1];
 #ifdef GARGLK
-		char *s;
-		s = strrchr(game_file, '\\');
-		if (s) garglk_set_story_name(s+1);
-		s = strrchr(game_file, '/');
-		if (s) garglk_set_story_name(s+1);
+		const char *s;
+		if((s = strrchr(game_file, '/')) != NULL || (s = strrchr(game_file, '\\')) != NULL)
+		{
+			garglk_set_story_name(s + 1);
+		}
+		else
+		{
+			garglk_set_story_name(game_file);
+		}
 #endif
 	}
 
@@ -1380,7 +1345,7 @@ void glk_main(void)
 		Top = Bottom;
 	}
 
-	OutBuf("\
+	Output("\
 Scott Free, A Scott Adams game driver in C.\n\
 Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.\n\
 Distributed under the GNU software license\n\n");
