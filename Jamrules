@@ -23,13 +23,15 @@ CXX ?= g++ ;
 
 if $(CROSS)
 {
+    MINGWARCH ?= i386-mingw32 ;
     CROSS   = "(cross-compiling)" ;
     OS      = MINGW ;
     SUFEXE  = .exe ;
-    CC      = i386-mingw32-gcc ;
-    CXX     = i386-mingw32-g++ ;
-    AR      = i386-mingw32-ar cru ;
-    RANLIB  = i386-mingw32-ranlib ;
+    CC      = $(MINGWARCH)-gcc ;
+    C++     = $(MINGWARCH)-g++ -std=c++11 ;
+    CXX     = $(C++) ;
+    AR      = $(MINGWARCH)-ar cru ;
+    RANLIB  = $(MINGWARCH)-ranlib ;
     LINK    = $(CC) ;
 }
 
@@ -212,7 +214,7 @@ rule WindRes
     Clean clean : $(<) ;
 }
 
-actions WindRes { windres -i $(>) -o $(<) --include-dir=$(>:D) }
+actions WindRes { $(MINGWARCH)-windres -i $(>) -o $(<) --include-dir=$(>:D) }
 
 #
 # You shouldn't need to touch anything from here on.
