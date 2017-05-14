@@ -1,0 +1,99 @@
+<?xml version="1.0"?>
+<mime-info xmlns='http://www.freedesktop.org/standards/shared-mime-info'>
+  <mime-type type="application/x-adrift">
+    <comment>Adrift game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="\x3C\x42\x3F\xC9\x6A\x87\xC2\xCF"/>
+    </magic>
+    <glob pattern="*.taf"/>
+  </mime-type>
+
+  <mime-type type="application/x-advsys">
+    <comment>AdvSys game data</comment>
+    <magic priority="50">
+      <match type="string" offset="2" value="\xA0\x9D\x8B\x8E\x88\x8E"/>
+    </magic>
+  </mime-type>
+
+  <mime-type type="application/x-agt">
+    <comment>AGT game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="\x58\xC7\xC1\x51"/>
+    </magic>
+    <glob pattern="*.agx"/>
+    <glob pattern="*.d$$"/>
+  </mime-type>
+
+  <mime-type type="application/x-alan">
+    <comment>Alan game data</comment>
+    <glob pattern="*.a3c"/>
+    <glob pattern="*.acd"/>
+    <magic priority="50">
+      <match type="string" offset="0" value="ALAN\x03"/>
+    </magic>
+  </mime-type>
+
+  <mime-type type="application/x-blorb">
+    <comment>Blorb interactive fiction data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="FORM">
+        <match type="string" offset="8" value="IFRS"/>
+      </match>
+    </magic>
+    <glob pattern="*.blb"/>
+    <glob pattern="*.blorb"/>
+    <glob pattern="*.gblorb"/>
+    <glob pattern="*.glb"/>
+    <glob pattern="*.zblorb"/>
+    <glob pattern="*.zlb"/>
+  </mime-type>
+
+  <mime-type type="application/x-glulx">
+    <comment>Glulx game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="Glul"/>
+    </magic>
+    <glob pattern="*.ulx"/>
+  </mime-type>
+
+  <mime-type type="application/x-hugo">
+    <comment>Hugo game data</comment>
+    <glob pattern="*.hex"/>
+  </mime-type>
+
+  <mime-type type="application/x-level9">
+    <comment>Level 9 game data</comment>
+    <glob pattern="*.l9"/>
+    <glob pattern="*.sna"/>
+  </mime-type>
+
+  <mime-type type="application/x-magscroll">
+    <comment>Magnetic Scrolls game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="MaSc"/>
+    </magic>
+    <glob pattern="*.mag"/>
+  </mime-type>
+
+  <mime-type type="application/x-tads">
+    <comment>TADS game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="TADS2 bin\x0A\x0D\x1A"/>
+    </magic>
+    <glob pattern="*.gam"/>
+  </mime-type>
+
+  <mime-type type="application/x-t3vm-image">
+    <comment>TADS 3 game data</comment>
+    <magic priority="50">
+      <match type="string" offset="0" value="T3-image\x0D\x0A\x1A"/>
+    </magic>
+    <glob pattern="*.t3"/>
+    <glob pattern="*.t3x"/>
+  </mime-type>
+
+  <mime-type type="application/x-zmachine">
+    <comment>Z-machine game data</comment>
+    <glob pattern="*.z[1-8]"/>
+  </mime-type>
+</mime-info>
