@@ -23,6 +23,9 @@
 
 /* TODO: add mouse down event */
 
+//Debug
+#include <wchar.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -400,6 +403,41 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
         gli_image_s);
 }
 
+
+#ifdef _ALT_MOUSE_HANDLING
+static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
+{
+    if (event->button == 1) {
+        fwprintf(stderr, L"Button 1\n");
+        gli_input_handle_click(event->x, event->y);
+    }
+    else if (event->button == 2 || event->button == 3) {
+        fwprintf(stderr, L"Button 2\n");
+        doSkipDoubleClickHandlingOnce = 1;
+        int y0 = gli_rootwin->bbox.y0;
+        int y1 = gli_rootwin->bbox.y1;
+        int y_center = (y0 + y1) / 2;
+        
+        int x0 = gli_rootwin->bbox.x0;
+        int x1 = gli_rootwin->bbox.x1;
+        int xOneThirdOfWinWidth = (x1 - x0) / 3.0;
+        
+        if ((event->x - x0) <= xOneThirdOfWinWidth) {
+            gli_input_handle_key(keycode_Left);
+        }
+        else if ((event->x - x0) >= (x1 - xOneThirdOfWinWidth)) {
+            gli_input_handle_key(keycode_Right);
+        }
+        else if ((event->y - y0) <= y_center) {
+            gli_input_handle_key(keycode_Up);
+        }
+        else 
+        {
+            gli_input_handle_key(keycode_Down);
+        }
+    }
+}
+#else
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
     if (event->button == 1)
@@ -407,24 +445,37 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
     else if (event->button == 2)
         winclipreceive(PRIMARY);
 }
+#endif
 
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 {
     if (event->button == 1)
     {
+#ifndef _ALT_MOUSE_HANDLING
         gli_copyselect = FALSE;
         gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
         winclipsend(PRIMARY);
+#endif
     }
 }
 
-#ifdef _KINDLE
+#ifdef _ALT_MOUSE_HANDLING
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
 {
+    doSkipDoubleClickHandlingOnce = 1;
     if (event->direction == GDK_SCROLL_UP)
         gli_input_handle_key(keycode_PageUp);
     else if (event->direction == GDK_SCROLL_DOWN)
         gli_input_handle_key(keycode_PageDown);
+    else if (event->direction == GDK_SCROLL_LEFT) 
+    {
+        fwprintf(stderr, L"Scroll left\n");
+        gli_input_handle_key(keycode_Right);
+    }
+    else if (event->direction == GDK_SCROLL_RIGHT)
+    {
+        gli_input_handle_key(keycode_Left);    
+    }
 }
 #else
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)

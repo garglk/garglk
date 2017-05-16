@@ -22,6 +22,8 @@
  *****************************************************************************/
 #include <wchar.h>
 
+#include <wchar.h>
+#include <wctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,8 +44,10 @@ put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldle
 static glui32
 put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 linkval);
 
-time_t timer_prv;
-time_t timer_double;
+// Double click handling
+int doSkipDoubleClickHandlingOnce = 0;
+static time_t timer_prv;
+static time_t timer_double;
 
 static void touch(window_textbuffer_t *dwin, int line)
 {
@@ -1834,12 +1838,34 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             }
         }
         
-        dwin->incurs = tsc + 1;
-        if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
-        if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
-        touch(dwin, 0);
+        // On double click / double tap, place cursor behind the word clicked
+        if (!doSkipDoubleClickHandlingOnce && difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0) {
+            //wprintf(L"Handling double click...\n");
+            // Find first non alphanum char after character clicked
+            while (tsc < ln->len  && iswalnum(ln->chars[tsc])) 
+            {
+                tsc++;
+            }
+            dwin->incurs = tsc;
+            
+            if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
+            if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
+            touch(dwin, 0);
+        }
+        
+        else if (difftime(timer, timer_prv) != 0) {
+            // On single click, place cursor after char clicked.
+            //wprintf(L"Handling single click...\n");
+            dwin->incurs = tsc + 1;
+            if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
+            if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
+            touch(dwin, 0);
+        }
+        else {
+            //wprintf(L"Ignoring shadow click...\n");
+        }
     }
-    else if (difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
+    else if (!doSkipDoubleClickHandlingOnce && difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
     {
         tbline_t *ln = &dwin->lines[clickedLine];
         
@@ -1864,8 +1890,9 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
         for (nl=tsc; nl>=0; nl--)
         {
             //if (ln->chars[nl] == ' ')
-            glui32 c = ln->chars[nl];
-            if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9'))) {
+            //glui32 c = ln->chars[nl];
+           if (!iswalnum(ln->chars[nl])) { 
+            //if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9'))) {
                 break;
             }
         }
@@ -1882,19 +1909,27 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
         }
 
         // Insert word onto input line
+        int charCopiedToInputLine = 0;
         for (nr=++nl; nr<ln->len; nr++)
         {
     	    glui32 c = ln->chars[nr];
-
-            if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9')))
+            if (!iswalnum(c)) { 
+            //if (!((c  >= 'a' && c <= 'z') || (c  >= 'A' && c <= 'Z') || (c  >= '0' && c <= '9')))
                 break;
+            }
 	        
-            gcmd_buffer_accept_readline(dwin->owner, c);
+            gcmd_buffer_accept_readline(dwin->owner, towlower(c));
+            charCopiedToInputLine = 1;
         }
         
-        gcmd_buffer_accept_readline(dwin->owner, ' ');
+        if (charCopiedToInputLine > 0) {
+            gcmd_buffer_accept_readline(dwin->owner, ' ');
+        }
     }
-
+    
+    if (doSkipDoubleClickHandlingOnce != 0) {
+        doSkipDoubleClickHandlingOnce = 0;
+    }
     timer_prv = timer_double;
     timer_double = timer;
 
@@ -1929,9 +1964,11 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
         gs = TRUE;
     }
 
+#ifndef _ALT_MOUSE_HANDLING
     if (!gh && !gs)
     {
         gli_copyselect = TRUE;
         gli_start_selection(sx, sy);
     }
+#endif
 }

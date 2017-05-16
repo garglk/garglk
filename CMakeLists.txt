@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+add_definitions(-D_ALT_MOUSE_HANDLING)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(Compilers)

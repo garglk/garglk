@@ -130,7 +130,7 @@ else()
   message(FATAL_ERROR "Invalid GUILIB: ${GUILIB}.")
 endif()
 
-add_library(garglk ${SRCS})
+add_library(garglk SHARED ${SRCS})
 target_link_libraries(garglk ${GARGLK_LIBS} m)
 target_include_directories(garglk PRIVATE ${GARGLK_INCLUDES})
 target_compile_definitions(garglk ${GARGLK_DEFINITIONS})

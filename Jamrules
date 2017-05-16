@@ -118,7 +118,7 @@ switch $(OS)
 
         if $(KINDLE)
         {
-            GARGLKCCFLAGS += -D_KINDLE ;
+            GARGLKCCFLAGS += -D_KINDLE -D_ALT_MOUSE_HANDLING ;
             GARGLKLIBS += -lstdc++ ;
             LINKLIBS += -lstdc++ ;
         }
@@ -206,9 +206,9 @@ switch $(BUILD)
 
     case RELEASE :
         Echo "BUILD is RELEASE" ;
-        OPTIM = -O2 $(CFLAGS) ;
+        #OPTIM = -O2 $(CFLAGS) ;
         # Tads 3.1.3 and gcc 5.3.1 require: -fpeephole -fno-peephole2 when using -O2
-        # OPTIM = -O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -flto=8 -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block $(CFLAGS) ;
+        OPTIM = -O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -flto=8 -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block $(CFLAGS) ;
         LINKFLAGS = $(LDFLAGS) ;
         SHRLINKFLAGS = $(LDFLAGS) ;
 
