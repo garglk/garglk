@@ -20,7 +20,7 @@
  *                                                                            *
  *****************************************************************************/
 
-#import "Cocoa/Cocoa.h"
+#import <Cocoa/Cocoa.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,9 +28,6 @@
 
 #include "glk.h"
 #include "garglk.h"
-
-static ATSFontContainerRef gli_font_container = 0;
-static NSDistributedLock * gli_font_lock = NULL;
 
 static int gli_sys_monor = FALSE;
 static int gli_sys_monob = FALSE;
@@ -170,28 +167,27 @@ static void propfont(char *file, int style)
     }
 }
 
+static NSMutableArray<NSURL *> * gli_registered_fonts = nil;
+static NSDistributedLock * gli_font_lock = nil;
+
 void fontreplace(char *font, int type)
 {
-    if (!strlen(font))
+    if (!font || !strlen(font))
         return;
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    NSEnumerator * sysfonts = [[[[NSFontDescriptor fontDescriptorWithFontAttributes:nil] 
-                                 fontDescriptorWithFamily: [NSString stringWithCString: font 
-                                                                              encoding: NSASCIIStringEncoding]]
-                                matchingFontDescriptorsWithMandatoryKeys: nil]
-                               objectEnumerator];
-    id sysfont;
-    int style;    
-    FSRef fileref;
-    ATSFontRef fontref;
-    unsigned char * filebuf;
+    NSString * fontFamily = [NSString stringWithUTF8String: font];
+    NSFontDescriptor * fontFamilyDescriptor =
+        [[NSFontDescriptor fontDescriptorWithFontAttributes: nil] fontDescriptorWithFamily: fontFamily];
 
-    while (sysfont = [sysfonts nextObject])
+    NSArray<NSFontDescriptor *> * fontMatches =
+        [fontFamilyDescriptor matchingFontDescriptorsWithMandatoryKeys: nil];
+
+    for (NSFontDescriptor * sysfont in fontMatches)
     {
         /* find style for font */
-        style = FONTR;
+        int style = FONTR;
 
         if (([sysfont symbolicTraits] & NSFontBoldTrait) && ([sysfont symbolicTraits] & NSFontItalicTrait))
             style = FONTZ;
@@ -202,27 +198,23 @@ void fontreplace(char *font, int type)
         else if ([sysfont symbolicTraits] & NSFontItalicTrait)
             style = FONTI;
         
-        memset(&fileref, 0, sizeof(FSRef));
-        memset(&fontref, 0, sizeof(ATSFontRef));
-
         /* find path for font */
-        fontref = ATSFontFindFromPostScriptName((CFStringRef) [sysfont objectForKey: NSFontNameAttribute], kATSOptionFlagsDefault);
+        CFURLRef urlRef = CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute);
+        if (!urlRef)
+            continue;
 
-#ifdef __x86_64__
-        ATSFontGetFileReference(fontref, &fileref);
-#else
-        FSSpec filespec;
-        ATSFontGetFileSpecification(fontref, &filespec);
-        FSpMakeFSRef(&filespec, &fileref);
-#endif
+        CFStringRef fontPathRef = CFURLCopyFileSystemPath(urlRef, kCFURLPOSIXPathStyle);
 
-        filebuf = malloc(4 * PATH_MAX);
-        filebuf[0] = '\0';
-
-        FSRefMakePath(&fileref, filebuf, 4 * PATH_MAX - 1);
-
-        if (strlen(filebuf))
+        if (fontPathRef && CFStringGetLength(fontPathRef) > 0)
         {
+            NSString * fontPath = (__bridge NSString *)fontPathRef;
+            NSLog(@"fontPath: %@", fontPath);
+
+            size_t pathLen = strlen([fontPath UTF8String]);
+            char *filebuf = malloc(pathLen + 1);
+
+            strcpy(filebuf, [fontPath UTF8String]);
+
             switch (type)
             {
                 case MONOF:
@@ -233,7 +225,11 @@ void fontreplace(char *font, int type)
                     propfont(filebuf, style);
                     break;
             }
+
+            CFRelease(fontPathRef);
         }
+
+        CFRelease(urlRef);
     }
 
     [pool drain];
@@ -241,18 +237,15 @@ void fontreplace(char *font, int type)
 
 void fontload(void)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    
-    char * env;
-    FSRef fsRef;
-    FSSpec fsSpec;
-
-    env = getenv("GARGLK_INI");
+    // 'GARGLK_INI' should be the path to the Bundle's Resources directory
+    const char * env = getenv("GARGLK_INI");
     if (!env)
         return;
-    
+
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+
     gli_font_lock = [[NSDistributedLock alloc] initWithPath: [NSString stringWithFormat: @"%@/com.googlecode.garglk.fontlock", NSTemporaryDirectory()]];
-    
+
     if (gli_font_lock)
     {
         while (![gli_font_lock tryLock])
@@ -264,18 +257,31 @@ void fontload(void)
         }
     }
 
-    NSString * fontFolder = [[NSString stringWithCString: env encoding: NSASCIIStringEncoding] 
-                             stringByAppendingPathComponent: @"Fonts"];
+    // obtain a list of all files in the Fonts directory
+    NSString * fontFolder = [[NSString stringWithUTF8String: env] stringByAppendingPathComponent: @"Fonts"];
+    NSArray<NSString *> * fontFiles = [[NSFileManager defaultManager] contentsOfDirectoryAtPath: fontFolder error: nil];
 
-    NSURL * fontURL = [NSURL fileURLWithPath: fontFolder];
-    CFURLGetFSRef((CFURLRef) fontURL, &fsRef);
-    FSGetCatalogInfo(&fsRef, kFSCatInfoNone, NULL, NULL, &fsSpec, NULL);
+    // create a collection to hold the registered font URLs
+    gli_registered_fonts = [NSMutableArray new];
 
-#ifdef __x86_64__
-    ATSFontActivateFromFileReference(&fsRef, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, &gli_font_container);
-#else
-    ATSFontActivateFromFileSpecification(&fsSpec, kATSFontContextLocal, kATSFontFormatUnspecified, NULL, kATSOptionFlagsDefault, &gli_font_container);
-#endif
+    for (NSString * fontFile in fontFiles)
+    {
+        // convert font file name into a file URL
+        NSString * fontPath = [fontFolder stringByAppendingPathComponent: fontFile];
+        NSURL * fontURL = [NSURL fileURLWithPath: fontPath];
+
+        // register font with system
+        CFErrorRef error = NULL;
+        if (!CTFontManagerRegisterFontsForURL((__bridge CFURLRef)fontURL, kCTFontManagerScopeProcess, &error))
+        {
+            CFStringRef msg = CFErrorCopyFailureReason(error);
+            NSLog(@"fontload: %@", msg);
+            CFRelease(msg);
+            continue;
+        }
+
+        [gli_registered_fonts addObject: fontURL];
+    }
 
     [pool drain];
 }
@@ -284,13 +290,33 @@ void fontunload(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    if (gli_font_container)
-        ATSFontDeactivate(gli_font_container, NULL, kATSOptionFlagsDefault);
-    
+    if (gli_registered_fonts)
+    {
+        // uregister fonts
+        for (NSURL * url in gli_registered_fonts)
+        {
+            CFURLRef urlRef = (__bridge CFURLRef)url;
+
+            CFErrorRef error = NULL;
+            if (!CTFontManagerUnregisterFontsForURL(urlRef, kCTFontManagerScopeProcess, &error))
+            {
+                CFStringRef msg = CFErrorCopyFailureReason(error);
+                NSLog(@"fontunload: %@", msg);
+                CFRelease(msg);
+            }
+        }
+
+        // remove all objects
+        [gli_registered_fonts removeAllObjects];
+        [gli_registered_fonts release];
+        gli_registered_fonts = nil;
+    }
+
     if (gli_font_lock)
     {
         [gli_font_lock unlock];
         [gli_font_lock release];
+        gli_font_lock = nil;
     }
 
     [pool drain];
