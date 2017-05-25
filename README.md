@@ -1,5 +1,8 @@
 # Gargoyle for Kindle Touch Devices (Touch, Paperwhite 3, etc.)
 
+Binaries are available here:
+https://www.mobileread.com/forums/showpost.php?p=3526963&postcount=1
+
 Changes to upstream gargoyle (https://github.com/garglk/garglk):
 * Kindle port based on patches from: http://www.fabiszewski.net/kindle-gargoyle/
 * Supported in-game touch screen gestures:
