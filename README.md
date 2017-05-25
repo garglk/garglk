@@ -10,10 +10,10 @@ Changes to upstream gargoyle (https://github.com/garglk/garglk):
   * One finger swipe down: page down 
   * One finger swipe left: move cursor left
   * One finger swipe right: move cursor right
-  * Two finger single tap on left side of the screen: delete character right of cursor (= DEL key)
-  * Two finger single tap on right side of the screen: clear input line
-  * Two finger single tap on middle-top of the screen: command history: previous (= key "cursor up")
-  * Two finger single tap on middle-bottom of the screen: command history: next (= key "cursor down")
+  * Two finger single tap on left side of the game screen: delete character right of cursor (= DEL key)
+  * Two finger single tap on right side of the game screen: clear input line
+  * Two finger single tap on middle-top of the game screen: command history: previous (= key "cursor up")
+  * Two finger single tap on middle-bottom of the game screen: command history: next (= key "cursor down")
 
 Kindle specific fullscreen layout & save/restore dialogs can be activated by defining: _KINDLE at compile time.<br/>
 Touch features/gestures can be activated by defining: _ALT_MOUSE_HANDLING at compile time.
