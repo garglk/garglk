@@ -1,10 +1,22 @@
-# Gargoyle for Kindle Paperwhite 3
+# Gargoyle for Kindle Touch Devices (Touch, Paperwhite 3, etc.)
 
-Changes to upstream gargoyle (https://github.com/garglk/garglk): <br/>
-Kindle Port based on patches from: http://www.fabiszewski.net/kindle-gargoyle/ <br/>
-Kindle Port incorporates TADS 3.1.3 branch from: https://github.com/cspiegel/garglk/tree/203-tads-upgrade <br/>
-Kindle Port incorporates "double click/double tap on word to insert" patch from: https://github.com/RedHatter/granite <br/>
-Kindle Port maps swipe up / down on touchscreen to page up / page down in the text window.
+* Changes to upstream gargoyle (https://github.com/garglk/garglk): <br/>
+* Kindle port based on patches from: http://www.fabiszewski.net/kindle-gargoyle/ <br/>
+* Supported in-game touch screen gestures:
+  * Double tap on word to insert it into input line at cursor position (based on patch from: https://github.com/RedHatter/granite) <br/>
+  * One finger single tap on input line: place cursor
+  * One finger double tap on word in input line: place cursor _after_ tapped word
+  * One finger swipe up: page up
+  * One finger swipe down: page down 
+  * One finger swipe left: move cursor left
+  * One finger swipe right: move cursor right
+  * Two finger single tap on left side of the screen: delete character right of cursor (= DEL key)
+  * Two finger single tap on right side of the screen: clear input line
+  * Two finger single tap on middle-top of the screen: command history backwards
+  * Two finger single tap on middle-bottom of the screen: command history forward
+
+Kindle specific fullscreen layout & save/restore dialogs can be activated by defining: _KINDLE at compile time.
+Touch features/gestures can be activated by defining: _ALT_MOUSE_HANDLING at compile time.
 
 # Gargoyle [![Build Status](https://travis-ci.org/garglk/garglk.svg?branch=master)](https://travis-ci.org/garglk/garglk)
 
