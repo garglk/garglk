@@ -54,6 +54,8 @@ if $(USETTS) = yes
             GARGSRCS += ttswin.c ;
         case *LINUX* :
             GARGSRCS += ttsspeechd.c ;
+        case MACOSX :
+            GARGSRCS += ttsmac.m ;
         case * :
             Exit "TTS requested but no implementation is available on this platform ($(OS))." ;
     }

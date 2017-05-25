@@ -35,7 +35,7 @@ Modified
 #include <sys/stat.h>
 
 #ifdef T_WIN32
-#include <Windows.h>
+#include <windows.h>
 #include <direct.h>
 #endif
 
