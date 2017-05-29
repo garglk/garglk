@@ -463,17 +463,13 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                                                              encoding: NSUTF8StringEncoding]];        
         [openDlg setAllowedFileTypes: filterTypes];
         [openDlg setAllowsOtherFileTypes: NO];
-        result = [openDlg runModalForDirectory: NULL file: NULL types: filterTypes];
     }
-    else
-    {
-        result = [openDlg runModal];
-    }
+    result = [openDlg runModal];
 
     if (result == NSFileHandlingPanelOKButton)
-        return [openDlg filename];
+        return [[openDlg URL] path];
 
-    return NULL;
+    return nil;
 }
 
 - (NSString *) saveFileDialog: (NSString *) prompt
@@ -497,9 +493,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     result = [saveDlg runModal];
 
     if (result == NSFileHandlingPanelOKButton)
-        return [saveDlg filename];
+        return [[saveDlg URL] path];
 
-    return NULL;
+    return nil;
 }
 
 - (pid_t) retrieveID
@@ -522,7 +518,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                          <GargoyleApp, NSApplicationDelegate, NSWindowDelegate>
 {
     BOOL openedFirstGame;
-    NSMutableDictionary * windows;
+    NSMutableDictionary<NSNumber *, GargoyleWindow *> * windows;
     NSConnection * link;
 }
 - (BOOL) launchFile: (NSString *) file;
@@ -588,31 +584,30 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [window center];
     [window setReleasedWhenClosed: YES];
     [window setDelegate: self];
-    [windows setObject: window forKey: [NSString stringWithFormat: @"%04x", processID]];
+
+    [windows setObject: window forKey: [NSNumber numberWithInt: processID]];
 
     return ([window isVisible]);
 }
 
 - (NSEvent *) getWindowEvent: (pid_t) processID
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         return [window retrieveEvent];
     }
 
-    return NULL;
+    return nil;
 }
 
 - (NSRect) getWindowSize: (pid_t) processID
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         return [[window contentView] bounds];
     }
 
@@ -621,24 +616,22 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSString *) getWindowCharString: (pid_t) processID
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         return [window retrieveChars];
     }
 
-    return NULL;
+    return nil;
 }
 
 - (BOOL) clearWindowCharString: (pid_t) processID
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         [window clearChars];
         return YES;
     }
@@ -649,11 +642,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) setWindow: (pid_t) processID
         charString: (NSEvent *) event;
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         [window sendChars: event];
         return YES;
     }
@@ -664,11 +656,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) setWindow: (pid_t) processID
              title: (NSString *) title;
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         [window setTitle: title];
         return YES;
     }
@@ -681,12 +672,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
              width: (unsigned int) width
             height: (unsigned int) height;
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
-
         [[window contentView] addFrame: frame
                                  width: width
                                 height: height];
@@ -700,11 +689,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) closeWindow: (pid_t) processID
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         [window performClose:self];
     }
 
@@ -714,30 +702,28 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                          prompt: (NSString *) prompt
                          filter: (unsigned int) filter
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         return [window openFileDialog: prompt fileFilter: filter];
     }
 
-    return NULL;
+    return nil;
 }
 
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
                          filter: (unsigned int) filter
 {
-    id storedWindow = [windows objectForKey: [NSString stringWithFormat: @"%04x", processID]];
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
-    if (storedWindow)
+    if (window)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         return [window saveFileDialog: prompt fileFilter: filter];
     }
 
-    return NULL;
+    return nil;
 }
 
 - (void) abortWindowDialog: (pid_t) processID
@@ -795,10 +781,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     [openDlg setAllowedFileTypes: filterTypes];
     [openDlg setAllowsOtherFileTypes: NO];
-    result = [openDlg runModalForDirectory: NULL file: NULL types: filterTypes];
+    result = [openDlg runModal];
 
     if (result == NSFileHandlingPanelOKButton)
-        return [self launchFile:[openDlg filename]];
+        return [self launchFile: [[openDlg URL] path]];
 
     return NO;
 }
@@ -874,20 +860,15 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) windowShouldClose: (id) sender
 {
     GargoyleWindow * window = sender;
-    [windows removeObjectForKey: [NSString stringWithFormat: @"%04x", [window retrieveID]]];
+    [windows removeObjectForKey: [NSNumber numberWithInt: [window retrieveID]]];
     [window quit];
     return YES;
 }
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
-    NSEnumerator * windowList = [windows objectEnumerator];
-
-    id storedWindow;
-
-    while (storedWindow = [windowList nextObject])
+    for (GargoyleWindow * window in windows)
     {
-        GargoyleWindow * window = (GargoyleWindow *) storedWindow;
         [window quit];
     }
 
