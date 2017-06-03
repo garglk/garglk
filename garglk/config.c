@@ -174,6 +174,8 @@ int gli_conf_speak = 0;
 int gli_conf_speak_input = 0;
 const char *gli_conf_speak_language = NULL;
 
+int gli_conf_fullscreen = 0;
+
 int gli_conf_stylehint = 0;
 int gli_conf_safeclicks = 0;
 
@@ -430,6 +432,9 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_graphics = atoi(arg);
         if (!strcmp(cmd, "sound"))
             gli_conf_sound = atoi(arg);
+
+        if (!strcmp(cmd, "fullscreen"))
+            gli_conf_fullscreen = atoi(arg);
 
         if (!strcmp(cmd, "speak"))
             gli_conf_speak = atoi(arg);

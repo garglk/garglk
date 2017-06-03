@@ -225,6 +225,8 @@ extern int gli_conf_lcd;
 extern int gli_conf_graphics;
 extern int gli_conf_sound;
 
+extern int gli_conf_fullscreen;
+
 extern int gli_conf_speak;
 extern int gli_conf_speak_input;
 extern const char *gli_conf_speak_language;

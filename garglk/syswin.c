@@ -315,18 +315,32 @@ void winopen()
 {
     HMENU menu;
 
-    int sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    int sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    int sizew = 0;
+    int sizeh = 0;
+	DWORD dwStyle = 0;
 
-    sizew += GetSystemMetrics(SM_CXFRAME) * 2;
-    sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
-    sizeh += GetSystemMetrics(SM_CYCAPTION);
+	if (gli_conf_fullscreen)
+	{
+		sizew = GetSystemMetrics(SM_CXFULLSCREEN);
+		sizeh = GetSystemMetrics(SM_CYFULLSCREEN);
+		dwStyle = WS_POPUP | WS_VISIBLE;
+	}
+	else
+	{
+		sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
+		sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+
+		sizew += GetSystemMetrics(SM_CXFRAME) * 2;
+		sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
+		sizeh += GetSystemMetrics(SM_CYCAPTION);
+		dwStyle = WS_CAPTION|WS_THICKFRAME|
+			WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
+			WS_CLIPCHILDREN;
+	}
 
     hwndframe = CreateWindow("XxFrame",
         NULL, // window caption
-        WS_CAPTION|WS_THICKFRAME|
-        WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
-        WS_CLIPCHILDREN,
+        dwStyle, // window style
         CW_USEDEFAULT, // initial x position
         CW_USEDEFAULT, // initial y position
         sizew, // initial x size
@@ -346,15 +360,33 @@ void winopen()
 
     hdc = NULL;
 
-    menu = GetSystemMenu(hwndframe, 0);
-    AppendMenu(menu, MF_SEPARATOR, 0, NULL);
-    AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
-    AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
-    // AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
-
+	// Fullscreen window has no need for a menu
+	if (!gli_conf_fullscreen)
+	{
+		menu = GetSystemMenu(hwndframe, 0);
+		AppendMenu(menu, MF_SEPARATOR, 0, NULL);
+		AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
+		AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
+		// AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
+	}
     wintitle();
 
-    ShowWindow(hwndframe, SW_SHOW);
+	if (gli_conf_fullscreen)
+	{
+		// See https://blogs.msdn.microsoft.com/oldnewthing/20050505-04/?p=35703
+		HMONITOR hmon = MonitorFromWindow(hwndframe, MONITOR_DEFAULTTONEAREST);
+		MONITORINFO mi = { sizeof(mi) };
+		GetMonitorInfo(hmon, &mi);
+		SetWindowPos(hwndframe, 
+			NULL,
+			mi.rcMonitor.left,
+			mi.rcMonitor.top,
+			mi.rcMonitor.right - mi.rcMonitor.left,
+			mi.rcMonitor.bottom - mi.rcMonitor.top,
+			SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+	}
+	else
+		ShowWindow(hwndframe, SW_SHOW);
 }
 
 void wintitle(void)
