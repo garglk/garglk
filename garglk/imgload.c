@@ -74,8 +74,10 @@ void gli_piclist_clear(void)
         tmpptr = picptr;
         picptr = picptr->next;
 
-        gli_picture_decrement(tmpptr->picture);
-        gli_picture_decrement(tmpptr->scaled);
+        if (tmpptr->picture)
+            gli_picture_decrement(tmpptr->picture);
+        if (tmpptr->scaled)
+            gli_picture_decrement(tmpptr->scaled);
 
         free(tmpptr);
     }
