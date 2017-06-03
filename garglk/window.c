@@ -26,6 +26,8 @@
 #include <string.h>
 #include "glk.h"
 #include "garglk.h"
+// TODO debug build only
+#include "garglktst.h"
 
 #define LINES 24
 #define COLS 70
@@ -945,6 +947,8 @@ void glk_request_char_event(window_t *win)
 
 }
 
+// TODO debug build only
+#include "garglktst_events.c"
 void glk_request_char_event_uni(window_t *win)
 {
     if (!win)
@@ -964,6 +968,7 @@ void glk_request_char_event_uni(window_t *win)
         case wintype_TextBuffer:
         case wintype_TextGrid:
             win->char_request_uni = TRUE;
+            if(garglktstctx.inpf) garglktst_send_cmd(1);
             break;
         default:
             gli_strict_warning("request_char_event_uni: window does not support keyboard input");
@@ -1003,7 +1008,6 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     }
 
 }
-
 void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     glui32 initlen)
 {
@@ -1024,6 +1028,7 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
         case wintype_TextBuffer:
             win->line_request_uni = TRUE;
             win_textbuffer_init_line_uni(win, buf, maxlen, initlen);
+            if(garglktstctx.inpf) garglktst_send_cmd(0);
             break;
         case wintype_TextGrid:
             win->line_request_uni = TRUE;
@@ -1264,6 +1269,7 @@ void gli_window_put_char_uni(window_t *win, glui32 ch)
     switch (win->type)
     {
         case wintype_TextBuffer:
+            if(garglktstctx.outf){ fputc(ch, garglktstctx.outf); fflush(garglktstctx.outf); } // TODO debug build only
             win_textbuffer_putchar_uni(win, ch);
             break;
         case wintype_TextGrid:

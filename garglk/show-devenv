@@ -1,0 +1,4 @@
+#!/bin/sh
+\date -u "+%F %T [%Z]"
+gcc --version | head -n1
+uname -smov

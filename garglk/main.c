@@ -29,8 +29,11 @@
 #include "glkstart.h"
 #include "garglk.h"
 
+// TODO only if DEBUG build
+#include "garglktst.c"
 int main(int argc, char *argv[])
 {
+    argc=garglktst_init_and_stripargv(argc, &argv); // TODO only if DEBUG build
     glkunix_startup_t startdata;
     startdata.argc = argc;
     startdata.argv = malloc(argc * sizeof(char*));
