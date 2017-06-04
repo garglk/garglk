@@ -70,19 +70,19 @@ static char *winfilters[] =
 
 void glk_request_timer_events(glui32 millisecs)
 {
-	if (timerid != -1)
-	{
-		timeKillEvent(timer);
-		timeEndPeriod(1);
-		timerid = -1;
-	}
+    if (timerid != -1)
+    {
+        timeKillEvent(timer);
+        timeEndPeriod(1);
+        timerid = -1;
+    }
 
-	if (millisecs)
-	{
-		timeBeginPeriod(1);
-		timer = timeSetEvent(millisecs, 0, timeproc, 0, TIME_PERIODIC);
-		timerid = 1;
-	}
+    if (millisecs)
+    {
+        timeBeginPeriod(1);
+        timer = timeSetEvent(millisecs, 0, timeproc, 0, TIME_PERIODIC);
+        timerid = 1;
+    }
 }
 
 void onabout(void)
@@ -317,26 +317,26 @@ void winopen()
 
     int sizew = 0;
     int sizeh = 0;
-	DWORD dwStyle = 0;
+    DWORD dwStyle = 0;
 
-	if (gli_conf_fullscreen)
-	{
-		sizew = GetSystemMetrics(SM_CXFULLSCREEN);
-		sizeh = GetSystemMetrics(SM_CYFULLSCREEN);
-		dwStyle = WS_POPUP | WS_VISIBLE;
-	}
-	else
-	{
-		sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
-		sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    if (gli_conf_fullscreen)
+    {
+        sizew = GetSystemMetrics(SM_CXFULLSCREEN);
+        sizeh = GetSystemMetrics(SM_CYFULLSCREEN);
+        dwStyle = WS_POPUP | WS_VISIBLE;
+    }
+    else
+    {
+        sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
+        sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
 
-		sizew += GetSystemMetrics(SM_CXFRAME) * 2;
-		sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
-		sizeh += GetSystemMetrics(SM_CYCAPTION);
-		dwStyle = WS_CAPTION|WS_THICKFRAME|
-			WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
-			WS_CLIPCHILDREN;
-	}
+        sizew += GetSystemMetrics(SM_CXFRAME) * 2;
+        sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
+        sizeh += GetSystemMetrics(SM_CYCAPTION);
+        dwStyle = WS_CAPTION|WS_THICKFRAME|
+            WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
+            WS_CLIPCHILDREN;
+    }
 
     hwndframe = CreateWindow("XxFrame",
         NULL, // window caption
@@ -360,33 +360,33 @@ void winopen()
 
     hdc = NULL;
 
-	// Fullscreen window has no need for a menu
-	if (!gli_conf_fullscreen)
-	{
-		menu = GetSystemMenu(hwndframe, 0);
-		AppendMenu(menu, MF_SEPARATOR, 0, NULL);
-		AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
-		AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
-		// AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
-	}
+    // Fullscreen window has no need for a menu
+    if (!gli_conf_fullscreen)
+    {
+        menu = GetSystemMenu(hwndframe, 0);
+        AppendMenu(menu, MF_SEPARATOR, 0, NULL);
+        AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
+        AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
+        // AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
+    }
     wintitle();
 
-	if (gli_conf_fullscreen)
-	{
-		// See https://blogs.msdn.microsoft.com/oldnewthing/20050505-04/?p=35703
-		HMONITOR hmon = MonitorFromWindow(hwndframe, MONITOR_DEFAULTTONEAREST);
-		MONITORINFO mi = { sizeof(mi) };
-		GetMonitorInfo(hmon, &mi);
-		SetWindowPos(hwndframe, 
-			NULL,
-			mi.rcMonitor.left,
-			mi.rcMonitor.top,
-			mi.rcMonitor.right - mi.rcMonitor.left,
-			mi.rcMonitor.bottom - mi.rcMonitor.top,
-			SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-	}
-	else
-		ShowWindow(hwndframe, SW_SHOW);
+    if (gli_conf_fullscreen)
+    {
+        // See https://blogs.msdn.microsoft.com/oldnewthing/20050505-04/?p=35703
+        HMONITOR hmon = MonitorFromWindow(hwndframe, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi = { sizeof(mi) };
+        GetMonitorInfo(hmon, &mi);
+        SetWindowPos(hwndframe, 
+            NULL,
+            mi.rcMonitor.left,
+            mi.rcMonitor.top,
+            mi.rcMonitor.right - mi.rcMonitor.left,
+            mi.rcMonitor.bottom - mi.rcMonitor.top,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+    else
+        ShowWindow(hwndframe, SW_SHOW);
 }
 
 void wintitle(void)
