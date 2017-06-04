@@ -40,9 +40,10 @@
 
 static char *argv0;
 
-#define ID_ABOUT	0x1000
-#define ID_CONFIG	0x1001
-#define ID_TOGSCR	0x1002
+#define ID_ABOUT       0x1000
+#define ID_CONFIG      0x1001
+#define ID_TOGSCR      0x1002
+#define ID_FULLSCREEN  0x1003
 
 static HWND hwndview, hwndframe;
 static HDC hdc;
@@ -51,6 +52,7 @@ static void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWOR
 static LRESULT CALLBACK frameproc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK viewproc(HWND, UINT, WPARAM, LPARAM);
 static HCURSOR idc_arrow, idc_hand, idc_ibeam;
+static int switchingfullscreen = 0;
 
 static MMRESULT timer = 0;
 static int timerid = -1;
@@ -360,15 +362,13 @@ void winopen()
 
     hdc = NULL;
 
-    // Fullscreen window has no need for a menu
-    if (!gli_conf_fullscreen)
-    {
-        menu = GetSystemMenu(hwndframe, 0);
-        AppendMenu(menu, MF_SEPARATOR, 0, NULL);
-        AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
-        AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
-        // AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
-    }
+    menu = GetSystemMenu(hwndframe, 0);
+    AppendMenu(menu, MF_SEPARATOR, 0, NULL);
+    AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
+    AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
+    AppendMenu(menu, MF_STRING, ID_FULLSCREEN, "Fullscreen");
+    // AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
+
     wintitle();
 
     if (gli_conf_fullscreen)
@@ -388,6 +388,17 @@ void winopen()
     else
         ShowWindow(hwndframe, SW_SHOW);
 }
+
+void onfullscreen()
+{
+    gli_conf_fullscreen = gli_conf_fullscreen ? 0 : 1;
+    switchingfullscreen = 1;
+    DestroyWindow(hwndframe);
+    switchingfullscreen = 0;
+    winopen();
+    
+}
+
 
 void wintitle(void)
 {
@@ -512,6 +523,9 @@ void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
 LRESULT CALLBACK
 frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (switchingfullscreen)
+        return 0;
+
     switch(message)
     {
     case WM_SETFOCUS:
@@ -602,6 +616,11 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         gli_scroll_width = 8;
         gli_force_redraw = 1;
         gli_windows_size_change();
+        return 0;
+    }
+    if (wParam == ID_FULLSCREEN)
+    {
+        onfullscreen();
         return 0;
     }
     break;
@@ -770,6 +789,16 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetFocus(hwndview);
         winclipreceive();
         return 0;
+    }
+    
+    case WM_SYSKEYDOWN:
+    {
+        if (wParam == VK_RETURN && (HIWORD(lParam) & KF_ALTDOWN))
+        {
+            onfullscreen();
+            return 0;
+        }
+        break;
     }
 
     case WM_KEYDOWN:
