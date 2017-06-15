@@ -8,6 +8,8 @@ Most interactive fiction is distributed as portable game files. These portable g
 
 Gargoyle is based on the standard interpreters for the formats it supports. Gargoyle is free software released under the terms of the GNU General Public License.
 
+Gargoyle can be downloaded from the [releases page](https://github.com/garglk/garglk/releases).
+
 ## Typography in interactive fiction
 
 Gargoyle cares about typography! In this computer age of typographical poverty, where horrible fonts, dazzling colors, and inadequate white space is God, Gargoyle dares to rebel!
