@@ -315,7 +315,11 @@ void CTPNVarIn::gen_iter_init(CTcPrsNode *coll_expr, int iter_local_id,
     CTcPrsNode *create_iter = G_cg->get_metaclass_prop("collection", 0);
 
     /* if we didn't find the property, it's an error */
+#if 0 /* Gargoyle: Modified from upstream. */
     if (create_iter != VM_INVALID_PROP)
+#else
+    if (create_iter != 0)
+#endif
     {
         /* 
          *   generate a call to the createIterator() property on the
