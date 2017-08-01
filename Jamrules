@@ -52,6 +52,21 @@ if $(IPLINUXARCH)
 
 switch $(OS)
 {
+    case LINUX :
+        PLATFORM = UNIX ;
+    case NETBSD :
+        PLATFORM = UNIX ;
+    case FREEBSD :
+        PLATFORM = UNIX ;
+        CC = clang ;
+        C++ = clang++ ;
+        CXX = clang++ ;
+    case * :
+        PLATFORM = $(OS) ;
+}
+
+switch $(PLATFORM)
+{
     case MINGW :
         Echo "OS is MINGW (win32) $(CROSS)" ;
         SUFDLL  = .dll ;
@@ -75,8 +90,8 @@ switch $(OS)
         }
 
 
-    case LINUX :
-        Echo "OS is LINUX ($(GUILIB))" ;
+    case UNIX :
+        Echo "OS is $(OS) ($(GUILIB))" ;
         if $(GUILIB) = EFL {
             PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
         } else {
@@ -87,16 +102,26 @@ switch $(OS)
            PKGCONFIG = "$(PKGCONFIG) speech-dispatcher" ;
         }
 
-        # Setting C++ standard version to use for current g++ compilers.
-        C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -std=gnu99 ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz -lrt ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
+        PKGCONFIG = "$(PKGCONFIG) libpng zlib" ;
 
         if $(USESDL) = yes
         {
-            GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
+            PKGCONFIG = "$(PKGCONFIG) sdl SDL_mixer" ;
+        }
+
+        # Setting C++ standard version to use for current g++ compilers.
+        C++FLAGS = -std=c++11 ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -std=gnu99 ;
+
+        # Not all supported platforms include a pkg-config file for libjpeg.
+        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
+        LINKLIBS = -lm "`$(PKGCONFIG) --libs`" ;
+
+        # SDL_sound does not include a pkg-config file.
+        if $(USESDL) = yes
+        {
+            GARGLKLIBS += -lSDL_sound ;
+            LINKLIBS += -lSDL_sound ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
