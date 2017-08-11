@@ -61,6 +61,11 @@ switch $(OS)
         CC = clang ;
         C++ = clang++ ;
         CXX = clang++ ;
+    case OPENBSD :
+        PLATFORM = UNIX ;
+        CC = clang ;
+        C++ = clang++ ;
+        CXX = clang++ ;
     case * :
         PLATFORM = $(OS) ;
 }
