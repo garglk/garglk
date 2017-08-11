@@ -16,7 +16,7 @@ option(WITH_SCARE "Enable the scare interpreter." ON)
 option(WITH_SCOTT "Enable the scott interpreter." ON)
 
 function(terp target)
-  set(options C99 LTO)
+  set(options C99 LTO MATH)
   set(oneval)
   set(multival SRCS INCLUDE_DIRS MACROS LIBS)
   cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
@@ -32,6 +32,9 @@ function(terp target)
   endif()
   if(TERP_LTO)
     lto(${target})
+  endif()
+  if(TERP_MATH)
+    target_link_libraries(${target} m)
   endif()
   install(TARGETS ${target} DESTINATION libexec/gargoyle)
 endfunction()
@@ -162,7 +165,7 @@ terp(git
      git/peephole.c git/terp.c git/glkop.c git/search.c git/git_unix.c
      git/savefile.c git/saveundo.c git/gestalt.c git/heap.c git/accel.c
      MACROS USE_INLINE USE_OWN_POWF
-     LIBS m)
+     MATH)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -182,7 +185,7 @@ if(WITH_GLULXE)
        glulxe/osdepend.c glulxe/unixstrt.c glulxe/accel.c glulxe/profile.c
        glulxe/float.c
        MACROS ${GLULXE_MACROS}
-       LIBS m)
+       MATH)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -213,7 +216,7 @@ if(WITH_JACL)
        jacl/display.c jacl/utils.c jacl/jpp.c jacl/resolvers.c jacl/errors.c
        jacl/encapsulate.c jacl/libcsv.c
        MACROS GLK
-       LIBS m)
+       MATH)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -229,7 +232,7 @@ if(WITH_LEVEL9)
        INCLUDE_DIRS level9
        MACROS PRIVATE BITMAP_DECODER NEED_STRICMP_PROTOTYPE
        stricmp=gln_strcasecmp strnicmp=gln_strncasecmp
-       LIBS m)
+       MATH)
 endif()
 
 # ------------------------------------------------------------------------------
