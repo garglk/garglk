@@ -14,8 +14,9 @@ addons:
 
 env:
   matrix:
-    - GCC=4.8
-    - GCC=6
+    - CC=gcc-4.8 CXX=g++-4.8
+    - CC=gcc-6 CXX=g++-6
+    - CC=clang CXX=clang++
 
 script:
-  - jam -sC++=g++-$GCC -sCC=gcc-$GCC -j4
+  - jam -sC++=$CXX -sCC=$CC -j4
