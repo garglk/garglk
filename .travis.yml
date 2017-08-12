@@ -28,7 +28,15 @@ env:
     - CMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
     - CC=gcc-4.8 CXX=g++-4.8
     - CC=gcc-6 CXX=g++-6
-    - CC=clang CXX=clang++
+
+    # XXX
+    # Clang is broken in Travis:
+    # /usr/bin/ld: /usr/local/clang-3.4/bin/../lib/LLVMgold.so: error loading plugin
+    # /usr/bin/ld: /usr/local/clang-3.4/bin/../lib/LLVMgold.so: error in plugin cleanup (ignored)
+    # clang: error: linker command failed with exit code 1 (use -v to see invocation)
+    #
+    # This also happens with clang 3.9.
+    #- CC=clang CXX=clang++
 
 script:
   - mkdir build
