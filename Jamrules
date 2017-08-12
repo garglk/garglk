@@ -28,7 +28,7 @@ if $(CROSS)
     OS      = MINGW ;
     SUFEXE  = .exe ;
     CC      = $(MINGWARCH)-gcc ;
-    C++     = $(MINGWARCH)-g++ -std=c++11 ;
+    C++     = $(MINGWARCH)-g++ -std=c++0x ;
     CXX     = $(C++) ;
     AR      = $(MINGWARCH)-ar cru ;
     RANLIB  = $(MINGWARCH)-ranlib ;

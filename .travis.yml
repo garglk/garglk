@@ -4,6 +4,9 @@ addons:
       - ubuntu-toolchain-r-test
     packages:
       - jam
+      - binutils-mingw-w64-i686
+      - gcc-mingw-w64-i686
+      - g++-mingw-w64-i686
       - gcc-4.8
       - g++-4.8
       - gcc-6
@@ -14,6 +17,7 @@ addons:
 
 env:
   matrix:
+    - CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
     - CC=gcc-4.8 CXX=g++-4.8
     - CC=gcc-6 CXX=g++-6
     - CC=clang CXX=clang++
