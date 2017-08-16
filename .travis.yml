@@ -9,8 +9,6 @@ addons:
       - ubuntu-toolchain-r-test
       - george-edison55-precise-backports
     packages:
-      - cmake
-      - cmake-data
       - binutils-mingw-w64-i686
       - gcc-mingw-w64-i686
       - g++-mingw-w64-i686
