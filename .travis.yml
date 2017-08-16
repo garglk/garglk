@@ -1,3 +1,6 @@
+dist: trusty
+sudo: required
+
 addons:
   apt:
     sources:
@@ -14,6 +17,7 @@ addons:
       - libsdl1.2-dev
       - libsdl-mixer1.2-dev
       - libsdl-sound1.2-dev
+      - libgtk2.0-dev
 
 env:
   matrix:
