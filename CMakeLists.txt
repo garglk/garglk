@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 
+OPTION(COMPILE_FOR_KINDLE "Option description" OFF)
+
 add_definitions(-D_ALT_MOUSE_HANDLING)
+
+IF(COMPILE_FOR_KINDLE)
+    add_definitions(-D_KINDLE)
+ENDIF(COMPILE_FOR_KINDLE)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
