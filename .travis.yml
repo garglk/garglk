@@ -1,3 +1,8 @@
+dist: trusty
+sudo: required
+
+language: generic
+
 addons:
   apt:
     sources:
@@ -13,14 +18,21 @@ addons:
       - libsdl1.2-dev
       - libsdl-mixer1.2-dev
       - libsdl-sound1.2-dev
+      - libgtk2.0-dev
 
 env:
   matrix:
-    - GCC=4.8
-    - GCC=6
+    - CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
+    - CC=gcc-4.8 CXX=g++-4.8
+    - CC=gcc-6 CXX=g++-6
+    - CC=clang CXX=clang++
 
 script:
+<<<<<<< HEAD
   - mkdir build
   - cd build
   - CC=gcc-$GCC CXX=g++-$GCC cmake .. -DCMAKE_BUILD_TYPE=Release
   - make -j4
+=======
+  - jam -sC++=$CXX -sCC=$CC -j4
+>>>>>>> bf6d2786db889f59137969546341008fa14cfb4b

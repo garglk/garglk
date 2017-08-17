@@ -40,9 +40,10 @@
 
 static char *argv0;
 
-#define ID_ABOUT	0x1000
-#define ID_CONFIG	0x1001
-#define ID_TOGSCR	0x1002
+#define ID_ABOUT       0x1000
+#define ID_CONFIG      0x1001
+#define ID_TOGSCR      0x1002
+#define ID_FULLSCREEN  0x1003
 
 static HWND hwndview, hwndframe;
 static HDC hdc;
@@ -51,6 +52,7 @@ static void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWOR
 static LRESULT CALLBACK frameproc(HWND, UINT, WPARAM, LPARAM);
 static LRESULT CALLBACK viewproc(HWND, UINT, WPARAM, LPARAM);
 static HCURSOR idc_arrow, idc_hand, idc_ibeam;
+static int switchingfullscreen = 0;
 
 static MMRESULT timer = 0;
 static int timerid = -1;
@@ -70,19 +72,19 @@ static char *winfilters[] =
 
 void glk_request_timer_events(glui32 millisecs)
 {
-	if (timerid != -1)
-	{
-		timeKillEvent(timer);
-		timeEndPeriod(1);
-		timerid = -1;
-	}
+    if (timerid != -1)
+    {
+        timeKillEvent(timer);
+        timeEndPeriod(1);
+        timerid = -1;
+    }
 
-	if (millisecs)
-	{
-		timeBeginPeriod(1);
-		timer = timeSetEvent(millisecs, 0, timeproc, 0, TIME_PERIODIC);
-		timerid = 1;
-	}
+    if (millisecs)
+    {
+        timeBeginPeriod(1);
+        timer = timeSetEvent(millisecs, 0, timeproc, 0, TIME_PERIODIC);
+        timerid = 1;
+    }
 }
 
 void onabout(void)
@@ -315,18 +317,32 @@ void winopen()
 {
     HMENU menu;
 
-    int sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    int sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    int sizew = 0;
+    int sizeh = 0;
+    DWORD dwStyle = 0;
 
-    sizew += GetSystemMetrics(SM_CXFRAME) * 2;
-    sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
-    sizeh += GetSystemMetrics(SM_CYCAPTION);
+    if (gli_conf_fullscreen)
+    {
+        sizew = GetSystemMetrics(SM_CXFULLSCREEN);
+        sizeh = GetSystemMetrics(SM_CYFULLSCREEN);
+        dwStyle = WS_POPUP | WS_VISIBLE;
+    }
+    else
+    {
+        sizew = gli_wmarginx * 2 + gli_cellw * gli_cols;
+        sizeh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+
+        sizew += GetSystemMetrics(SM_CXFRAME) * 2;
+        sizeh += GetSystemMetrics(SM_CYFRAME) * 2;
+        sizeh += GetSystemMetrics(SM_CYCAPTION);
+        dwStyle = WS_CAPTION|WS_THICKFRAME|
+            WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
+            WS_CLIPCHILDREN;
+    }
 
     hwndframe = CreateWindow("XxFrame",
         NULL, // window caption
-        WS_CAPTION|WS_THICKFRAME|
-        WS_SYSMENU|WS_MAXIMIZEBOX|WS_MINIMIZEBOX|
-        WS_CLIPCHILDREN,
+        dwStyle, // window style
         CW_USEDEFAULT, // initial x position
         CW_USEDEFAULT, // initial y position
         sizew, // initial x size
@@ -350,12 +366,39 @@ void winopen()
     AppendMenu(menu, MF_SEPARATOR, 0, NULL);
     AppendMenu(menu, MF_STRING, ID_ABOUT, "About Gargoyle...");
     AppendMenu(menu, MF_STRING, ID_CONFIG, "Options...");
+    AppendMenu(menu, MF_STRING, ID_FULLSCREEN, "Fullscreen");
     // AppendMenu(menu, MF_STRING, ID_TOGSCR, "Toggle scrollbar");
 
     wintitle();
 
-    ShowWindow(hwndframe, SW_SHOW);
+    if (gli_conf_fullscreen)
+    {
+        // See https://blogs.msdn.microsoft.com/oldnewthing/20050505-04/?p=35703
+        HMONITOR hmon = MonitorFromWindow(hwndframe, MONITOR_DEFAULTTONEAREST);
+        MONITORINFO mi = { sizeof(mi) };
+        GetMonitorInfo(hmon, &mi);
+        SetWindowPos(hwndframe, 
+            NULL,
+            mi.rcMonitor.left,
+            mi.rcMonitor.top,
+            mi.rcMonitor.right - mi.rcMonitor.left,
+            mi.rcMonitor.bottom - mi.rcMonitor.top,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+    else
+        ShowWindow(hwndframe, SW_SHOW);
 }
+
+void onfullscreen()
+{
+    gli_conf_fullscreen = gli_conf_fullscreen ? 0 : 1;
+    switchingfullscreen = 1;
+    DestroyWindow(hwndframe);
+    switchingfullscreen = 0;
+    winopen();
+    
+}
+
 
 void wintitle(void)
 {
@@ -480,6 +523,9 @@ void CALLBACK timeproc(UINT uID, UINT uMsg, DWORD dwUser, DWORD dw1, DWORD dw2)
 LRESULT CALLBACK
 frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    if (switchingfullscreen)
+        return 0;
+
     switch(message)
     {
     case WM_SETFOCUS:
@@ -570,6 +616,11 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         gli_scroll_width = 8;
         gli_force_redraw = 1;
         gli_windows_size_change();
+        return 0;
+    }
+    if (wParam == ID_FULLSCREEN)
+    {
+        onfullscreen();
         return 0;
     }
     break;
@@ -738,6 +789,16 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         SetFocus(hwndview);
         winclipreceive();
         return 0;
+    }
+    
+    case WM_SYSKEYDOWN:
+    {
+        if (wParam == VK_RETURN && (HIWORD(lParam) & KF_ALTDOWN))
+        {
+            onfullscreen();
+            return 0;
+        }
+        break;
     }
 
     case WM_KEYDOWN:
