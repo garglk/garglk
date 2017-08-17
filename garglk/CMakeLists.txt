@@ -131,6 +131,7 @@ else()
 endif()
 
 add_library(garglk SHARED ${SRCS})
+set_property(TARGET garglk PROPERTY C_STANDARD 99)
 target_link_libraries(garglk ${GARGLK_LIBS} m)
 target_include_directories(garglk PRIVATE ${GARGLK_INCLUDES})
 target_compile_definitions(garglk ${GARGLK_DEFINITIONS})
