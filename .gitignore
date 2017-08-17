@@ -16,3 +16,5 @@ buildAndCopy2Kindle.sh
 /.settings/
 .DS_Store
 
+/cbuildKindle
+/cbuildLinux
