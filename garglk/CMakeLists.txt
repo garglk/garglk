@@ -3,6 +3,10 @@ set(SRCS babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c cgstream.c
     gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c wingrid.c
     winmask.c winpair.c wintext.c)
 
+if(UNIX)
+  find_package(PkgConfig REQUIRED)
+endif()
+
 option(WITH_BUNDLED_FONTS "Embed default fonts into Gargoyle." ON)
 option(WITH_TTS "Enable text-to-speech support." OFF)
 
@@ -12,8 +16,8 @@ set(GARGLKPRE "" CACHE STRING "Binary prefix.")
 if(UNIX)
   set(GUILIB "GTK" CACHE STRING "Select GUILIB. Options: GTK, EFL.")
 
-  find_package(Fontconfig REQUIRED)
-  list(APPEND GARGLK_INCLUDES ${FONTCONFIG_INCLUDE_DIR})
+  pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
+  list(APPEND GARGLK_INCLUDES ${FONTCONFIG_INCLUDE_DIRS})
   list(APPEND GARGLK_LIBS ${FONTCONFIG_LIBRARIES})
 
   find_package(Freetype REQUIRED)
@@ -73,7 +77,6 @@ endif()
 
 if(WITH_TTS)
   if(UNIX)
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(SPEECH_DISPATCHER REQUIRED speech-dispatcher)
     list(APPEND GARGLK_INCLUDES ${SPEECH_DISPATCHER_INCLUDE_DIRS})
     list(APPEND GARGLK_LIBS ${SPEECH_DISPATCHER_LIBRARIES})
