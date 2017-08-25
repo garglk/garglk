@@ -3,10 +3,6 @@ set(SRCS babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c cgstream.c
     gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c wingrid.c
     winmask.c winpair.c wintext.c)
 
-if(UNIX)
-  find_package(PkgConfig REQUIRED)
-endif()
-
 option(WITH_BUNDLED_FONTS "Embed default fonts into Gargoyle." ON)
 option(WITH_TTS "Enable text-to-speech support." OFF)
 
@@ -16,21 +12,14 @@ set(GARGLKPRE "" CACHE STRING "Binary prefix.")
 if(UNIX)
   set(GUILIB "GTK" CACHE STRING "Select GUILIB. Options: GTK, EFL.")
 
+  find_package(PkgConfig REQUIRED)
+
   pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
-  list(APPEND GARGLK_INCLUDES ${FONTCONFIG_INCLUDE_DIRS})
-  list(APPEND GARGLK_LIBS ${FONTCONFIG_LIBRARIES})
-
   find_package(Freetype REQUIRED)
-  list(APPEND GARGLK_INCLUDES ${FREETYPE_INCLUDE_DIRS})
-  list(APPEND GARGLK_LIBS ${FREETYPE_LIBRARIES})
-
   find_package(JPEG REQUIRED)
-  list(APPEND GARGLK_INCLUDES ${JPEG_INCLUDE_DIR})
-  list(APPEND GARGLK_LIBS ${JPEG_LIBRARIES})
-
   find_package(PNG REQUIRED)
-  list(APPEND GARGLK_INCLUDES ${PNG_INCLUDE_DIRS})
-  list(APPEND GARGLK_LIBS ${PNG_LIBRARIES})
+  list(APPEND GARGLK_INCLUDES ${FONTCONFIG_INCLUDE_DIRS} ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIRS})
+  list(APPEND GARGLK_LIBS ${FONTCONFIG_LIBRARIES} ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES})
 elseif(MINGW)
   # On Windows, the only GUILIB currently supported is MinGW, so don't
   # pretend that there are choices available.
@@ -42,17 +31,13 @@ endif()
 set(SOUND_SOURCE sndnull.c)
 if(WITH_SDL)
   if(UNIX)
-    find_package(SDL)
-    find_package(SDL_mixer)
-    find_package(SDL_sound)
-    if(SDL_FOUND AND SDL_MIXER_FOUND AND SDL_SOUND_FOUND)
-      list(APPEND GARGLK_INCLUDES ${SDL_INCLUDE_DIR} ${SDL_MIXER_INCLUDE_DIRS} ${SDL_SOUND_INCLUDE_DIRS})
-      # NOTE: This should be ${SDL_SOUND_LIBRARIES} but that gets clobbered in FindSDL_sound
-      list(APPEND GARGLK_LIBS ${SDL_LIBRARY} ${SDL_MIXER_LIBRARIES} ${SDL_SOUND_LIBRARY})
-      set(SOUND_SOURCE sndsdl.c)
-    else()
-      message(FATAL_ERROR "SDL support requested but SDL libraries could not be found.")
-    endif()
+    find_package(SDL REQUIRED)
+    find_package(SDL_mixer REQUIRED)
+    find_package(SDL_sound REQUIRED)
+    list(APPEND GARGLK_INCLUDES ${SDL_INCLUDE_DIR} ${SDL_MIXER_INCLUDE_DIRS} ${SDL_SOUND_INCLUDE_DIRS})
+    # NOTE: This should be ${SDL_SOUND_LIBRARIES} but that gets clobbered in FindSDL_sound
+    list(APPEND GARGLK_LIBS ${SDL_LIBRARY} ${SDL_MIXER_LIBRARIES} ${SDL_SOUND_LIBRARY})
+    set(SOUND_SOURCE sndsdl.c)
   elseif(MINGW)
     list(APPEND GARGLK_INCLUDES ../support/sdl ../support/sdl_sound)
     list(APPEND GARGLK_LIBS sdl_sound)
