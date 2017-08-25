@@ -145,5 +145,8 @@ target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLK
 
 add_library(glkmain STATIC main.c)
 
-install(TARGETS gargoyle DESTINATION bin)
-install(TARGETS garglk DESTINATION lib)
+install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
+install(TARGETS garglk DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(FILES gi_blorb.h glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
+configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 
+project(garglk VERSION 2017)
+
+include(GNUInstallDirs)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(Compilers)
