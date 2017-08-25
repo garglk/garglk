@@ -133,7 +133,13 @@ else()
   message(FATAL_ERROR "Invalid GUILIB: ${GUILIB}.")
 endif()
 
-add_library(garglk SHARED ${SRCS})
+# Shared fails on MinGW, and since the DLL isn't really useful installed
+# the way it is on Unix, don't worry about it.
+if(UNIX)
+  add_library(garglk SHARED ${SRCS})
+else()
+  add_library(garglk STATIC ${SRCS})
+endif()
 set_property(TARGET garglk PROPERTY SOVERSION 1)
 set_property(TARGET garglk PROPERTY C_STANDARD 99)
 target_link_libraries(garglk ${GARGLK_LIBS} m)
