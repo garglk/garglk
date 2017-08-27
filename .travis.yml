@@ -21,10 +21,6 @@ addons:
       - libsdl-sound1.2-dev
       - libgtk2.0-dev
 
-before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install sdl sdl_mixer sdl_sound libpng jpeg smpeg libvorbis freetype pkg-config jam; fi
-
 script:
   - jam -sC++=$CXX -sCC=$CC -j4
 
@@ -39,4 +35,8 @@ matrix:
     - env: CC=clang CXX=clang++
     # OS X
     - os: osx
+      before_install:
+        - brew update
+        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis freetype jam
+        - brew upgrade libpng jpeg pkg-config
       script: sh gargoyle_osx.sh
