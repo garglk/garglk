@@ -21,12 +21,22 @@ addons:
       - libsdl-sound1.2-dev
       - libgtk2.0-dev
 
-env:
-  matrix:
-    - CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
-    - CC=gcc-4.8 CXX=g++-4.8
-    - CC=gcc-6 CXX=g++-6
-    - CC=clang CXX=clang++
-
 script:
   - jam -sC++=$CXX -sCC=$CC -j4
+
+matrix:
+  include:
+    # Mingw
+    - env: CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
+    # GCC
+    - env: CC=gcc-4.8 CXX=g++-4.8
+    - env: CC=gcc-6 CXX=g++-6
+    # Clang
+    - env: CC=clang CXX=clang++
+    # OS X
+    - os: osx
+      before_install:
+        - brew update
+        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis freetype jam
+        - brew upgrade libpng jpeg pkg-config
+      script: sh gargoyle_osx.sh
