@@ -7,8 +7,8 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - george-edison55-precise-backports
     packages:
+      - jam
       - binutils-mingw-w64-i686
       - gcc-mingw-w64-i686
       - g++-mingw-w64-i686
@@ -21,34 +21,22 @@ addons:
       - libsdl-sound1.2-dev
       - libgtk2.0-dev
 
-env:
-  matrix:
-    - CMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
-    - CC=gcc-4.8 CXX=g++-4.8
-    - CC=gcc-6 CXX=g++-6
-
-    # XXX
-    # Clang is broken in Travis:
-    # /usr/bin/ld: /usr/local/clang-3.4/bin/../lib/LLVMgold.so: error loading plugin
-    # /usr/bin/ld: /usr/local/clang-3.4/bin/../lib/LLVMgold.so: error in plugin cleanup (ignored)
-    # clang: error: linker command failed with exit code 1 (use -v to see invocation)
-    #
-    # This also happens with clang 3.9.
-    #- CC=clang CXX=clang++
-
 script:
-<<<<<<< HEAD
-<<<<<<< HEAD
-  - mkdir build
-  - cd build
-  - CC=gcc-$GCC CXX=g++-$GCC cmake .. -DCMAKE_BUILD_TYPE=Release
-  - make -j4
-=======
   - jam -sC++=$CXX -sCC=$CC -j4
->>>>>>> bf6d2786db889f59137969546341008fa14cfb4b
-=======
-  - mkdir build
-  - cd build
-  - cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE
-  - make -j4
->>>>>>> 1656b1b8bf85839a9ef07c07cc7edaad4f7ee784
+
+matrix:
+  include:
+    # Mingw
+    - env: CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
+    # GCC
+    - env: CC=gcc-4.8 CXX=g++-4.8
+    - env: CC=gcc-6 CXX=g++-6
+    # Clang
+    - env: CC=clang CXX=clang++
+    # OS X
+    - os: osx
+      before_install:
+        - brew update
+        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis freetype jam
+        - brew upgrade libpng jpeg pkg-config
+      script: sh gargoyle_osx.sh
