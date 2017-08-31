@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.0)
 
-OPTION(COMPILE_FOR_KINDLE "Option description" OFF)
+option(COMPILE_FOR_KINDLE "Compile for target platform Kindle" OFF)
 
 add_definitions(-D_ALT_MOUSE_HANDLING)
 
-IF(COMPILE_FOR_KINDLE)
+if(COMPILE_FOR_KINDLE)
     add_definitions(-D_KINDLE)
-ENDIF(COMPILE_FOR_KINDLE)
+endif(COMPILE_FOR_KINDLE)
+
+project(garglk VERSION 2017)
+
+include(GNUInstallDirs)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
