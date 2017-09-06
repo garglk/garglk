@@ -35,4 +35,6 @@ cmake -G "Ninja"  -DWITH_SDL=off  \
     -DCMAKE_CXX_FLAGS_RELEASE="${CMAKE_CXX_FLAGS_RELEASE}" \
     -DCMAKE_TOOLCHAIN_FILE="${CMAKE_TOOLCHAIN_FILE}" \
     ..
-cd ..
+
+ninja install
+

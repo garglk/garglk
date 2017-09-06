@@ -1,0 +1,9 @@
+# Application specific gtkrc, to tailor double click
+# settings to touch-friendly values.
+
+# Include the default Kindle Gtk theme & settings
+include "/etc/gtk-2.0/gtkrc"
+
+# Setting touch fiendly values for double click distance & speed
+gtk-double-click-time=750
+gtk-double-click-distance=200

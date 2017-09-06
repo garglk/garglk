@@ -6,6 +6,8 @@ include(CheckIPOSupported)
 
 option(COMPILE_FOR_KINDLE "Compile for target platform Kindle" OFF)
 option(ENABLE_ALT_MOUSE_HANDLING "Enable alternative gtk mouse handling optimized for touch devices like Kindle." OFF)
+option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
+option(WITH_SDL "Use SDL for sound support." ON)
 
 if(ENABLE_ALT_MOUSE_HANDLING)
   message(STATUS "Alternative gtk mouse handling enabled.")
@@ -32,9 +34,6 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(Compilers)
-
-option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
-option(WITH_SDL "Use SDL for sound support." ON)
 
 add_subdirectory(garglk)
 add_subdirectory(terps)

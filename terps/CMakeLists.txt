@@ -36,7 +36,8 @@ function(terp target)
   if(TERP_MATH)
     target_link_libraries(${target} m)
   endif()
-  install(TARGETS ${target} DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/gargoyle")
+  install(TARGETS ${target} DESTINATION "${CMAKE_INSTALL_BINDIR}")
+  #install(TARGETS ${target} DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}/gargoyle")
 endfunction()
 
 # ------------------------------------------------------------------------------
