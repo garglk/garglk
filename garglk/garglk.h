@@ -588,6 +588,7 @@ extern void win_pair_destroy(window_pair_t *dwin);
 extern void win_pair_rearrange(window_t *win, rect_t *box);
 extern void win_pair_redraw(window_t *win);
 extern void win_pair_click(window_pair_t *dwin, int x, int y);
+extern void win_pair_double_click(window_pair_t *dwin, int x, int y);
 
 extern window_textgrid_t *win_textgrid_create(window_t *win);
 extern void win_textgrid_destroy(window_textgrid_t *dwin);
@@ -615,6 +616,7 @@ extern void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int i
 extern void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
 extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
+extern void win_textbuffer_double_click(window_textbuffer_t *dwin, int x, int y);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
 extern int gcmd_accept_scroll(window_t *win, glui32 arg);
@@ -641,6 +643,7 @@ extern void gli_windows_size_change(void);
 extern void gli_windows_unechostream(stream_t *str);
 
 extern void gli_window_click(window_t *win, int x, int y);
+extern void gli_window_double_click(window_t *win, int x, int y);
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1);
 
@@ -650,6 +653,7 @@ void gli_input_next_focus();
 void gli_input_scroll_focus();
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
+void gli_input_handle_double_click(int x, int y);
 void gli_input_guess_focus(void);
 void gli_input_more_focus(void);
 void gli_input_next_focus(void);

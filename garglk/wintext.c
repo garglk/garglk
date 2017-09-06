@@ -44,11 +44,6 @@ put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int pos, int oldle
 static glui32
 put_picture(window_textbuffer_t *dwin, picture_t *pic, glui32 align, glui32 linkval);
 
-// Double click handling
-int doSkipDoubleClickHandlingOnce = 0;
-static time_t timer_prv;
-static time_t timer_double;
-
 static void touch(window_textbuffer_t *dwin, int line)
 {
     window_t *win = dwin->owner;
@@ -1806,12 +1801,6 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
     int gh = FALSE;
     int gs = FALSE;
    
-    //Double click/tap to insert patch - double click or tap on a word to append it to the input line:
-    //Compare time with prv event time to detect double click, and compare against time
-    //two events ago to prevent double inserts
-    time_t timer;
-    time(&timer);
-    
     // dev: fprintf(stderr, "Scrollpos: %d\n", dwin->scrollpos);
     // Divide y of event (inverted) by height of single line to get the line that was clicked
     int clickedLine = 
@@ -1838,35 +1827,101 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             }
         }
         
-        // On double click / double tap, place cursor behind the word clicked
-        if (!doSkipDoubleClickHandlingOnce && difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0) {
-            //wprintf(L"Handling double click...\n");
-            // Find first non alphanum char after character clicked
-            while (tsc < ln->len  && iswalnum(ln->chars[tsc])) 
-            {
-                tsc++;
-            }
-            dwin->incurs = tsc;
-            
-            if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
-            if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
-            touch(dwin, 0);
-        }
+        // On single click, place cursor after char clicked.
+        //wprintf(L"Handling single click...\n");
+        dwin->incurs = tsc + 1;
+        if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
+        if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
+        touch(dwin, 0);
         
-        else if (difftime(timer, timer_prv) != 0) {
-            // On single click, place cursor after char clicked.
-            //wprintf(L"Handling single click...\n");
-            dwin->incurs = tsc + 1;
-            if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
-            if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
-            touch(dwin, 0);
-        }
-        else {
-            //wprintf(L"Ignoring shadow click...\n");
+    }
+
+    if (win->line_request || win->char_request
+        || win->line_request_uni || win->char_request_uni
+        || win->more_request || win->scroll_request)
+        gli_focuswin = win;
+
+    if (win->hyper_request)
+    {
+        glui32 linkval = gli_get_hyperlink(sx, sy);
+        if (linkval)
+        {
+            gli_event_store(evtype_Hyperlink, win, linkval, 0);
+            win->hyper_request = FALSE;
+            if (gli_conf_safeclicks)
+                gli_forceclick = 1;
+            gh = TRUE;
         }
     }
-    else if (!doSkipDoubleClickHandlingOnce && difftime(timer, timer_double) == 0.0 && difftime(timer, timer_prv) != 0.0)
+
+    if (sx > win->bbox.x1 - gli_scroll_width)
     {
+        if (sy < win->bbox.y0 + gli_tmarginy + gli_scroll_width)
+            gcmd_accept_scroll(win, keycode_Up);
+        else if (sy > win->bbox.y1 - gli_tmarginy - gli_scroll_width)
+            gcmd_accept_scroll(win, keycode_Down);
+        else if (sy < (win->bbox.y0 + win->bbox.y1) / 2)
+            gcmd_accept_scroll(win, keycode_PageUp);
+        else
+            gcmd_accept_scroll(win, keycode_PageDown);
+        gs = TRUE;
+    }
+
+#ifndef _ALT_MOUSE_HANDLING
+    if (!gh && !gs)
+    {
+        gli_copyselect = TRUE;
+        gli_start_selection(sx, sy);
+    }
+#endif
+}
+
+void win_textbuffer_double_click(window_textbuffer_t *dwin, int sx, int sy)
+{
+    fwprintf(stderr, L"win_textbuffer_double_click\n");
+    window_t *win = dwin->owner;
+    int gh = FALSE;
+    int gs = FALSE;
+   
+    // dev: fprintf(stderr, "Scrollpos: %d\n", dwin->scrollpos);
+    // Divide y of event (inverted) by height of single line to get the line that was clicked
+    int clickedLine = 
+        dwin->scrollpos + dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1;
+    
+    if (clickedLine == 0) {
+        wprintf(L"win_textbuffer_double_click:input line...\n");
+        
+        tbline_t *ln = &dwin->lines[clickedLine];
+        
+        int i, nl, nr;
+        int x = 0;
+        int adv;
+
+        int x0, tx, tsc, tsw;
+        x0 = (win->bbox.x0 + gli_tmarginx) * GLI_SUBPIX;
+        tx = (x0 + SLOP + ln->lm)/GLI_SUBPIX;
+        // Measure string widths until we find the clicked char
+        for (tsc = 0; tsc < ln->len; tsc++)
+        {
+            tsw = calcwidth(dwin, ln->chars, ln->attrs, 0, tsc, -1)/GLI_SUBPIX;
+            if (tsw + tx >= sx || tsw + tx + GLI_SUBPIX >= sx)
+            {
+                break;
+            }
+        }
+        
+        // Find first non alphanum char after character clicked
+        while (tsc < ln->len  && iswalnum(ln->chars[tsc])) 
+        {
+            tsc++;
+        }
+        dwin->incurs = tsc;
+
+        if (dwin->incurs <= dwin->infence) dwin->incurs = dwin->infence;
+        if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
+        touch(dwin, 0);
+    }
+    else {
         tbline_t *ln = &dwin->lines[clickedLine];
         
         int i, nl, nr;
@@ -1926,49 +1981,4 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             gcmd_buffer_accept_readline(dwin->owner, ' ');
         }
     }
-    
-    if (doSkipDoubleClickHandlingOnce != 0) {
-        doSkipDoubleClickHandlingOnce = 0;
-    }
-    timer_prv = timer_double;
-    timer_double = timer;
-
-    if (win->line_request || win->char_request
-        || win->line_request_uni || win->char_request_uni
-        || win->more_request || win->scroll_request)
-        gli_focuswin = win;
-
-    if (win->hyper_request)
-    {
-        glui32 linkval = gli_get_hyperlink(sx, sy);
-        if (linkval)
-        {
-            gli_event_store(evtype_Hyperlink, win, linkval, 0);
-            win->hyper_request = FALSE;
-            if (gli_conf_safeclicks)
-                gli_forceclick = 1;
-            gh = TRUE;
-        }
-    }
-
-    if (sx > win->bbox.x1 - gli_scroll_width)
-    {
-        if (sy < win->bbox.y0 + gli_tmarginy + gli_scroll_width)
-            gcmd_accept_scroll(win, keycode_Up);
-        else if (sy > win->bbox.y1 - gli_tmarginy - gli_scroll_width)
-            gcmd_accept_scroll(win, keycode_Down);
-        else if (sy < (win->bbox.y0 + win->bbox.y1) / 2)
-            gcmd_accept_scroll(win, keycode_PageUp);
-        else
-            gcmd_accept_scroll(win, keycode_PageDown);
-        gs = TRUE;
-    }
-
-#ifndef _ALT_MOUSE_HANDLING
-    if (!gh && !gs)
-    {
-        gli_copyselect = TRUE;
-        gli_start_selection(sx, sy);
-    }
-#endif
 }

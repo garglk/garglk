@@ -1255,6 +1255,20 @@ void gli_window_click(window_t *win, int x, int y)
     }
 }
 
+void gli_window_double_click(window_t *win, int x, int y)
+{
+    fwprintf(stderr, L"Entering: gli_window_double_click\n");
+    switch (win->type)
+    {
+        case wintype_Pair:
+            win_pair_double_click(win->data, x, y);
+            break;
+        case wintype_TextBuffer:
+            win_textbuffer_double_click(win->data, x, y);
+            break;
+    }
+}
+
 /*
  * Text output and cursor positioning
  */

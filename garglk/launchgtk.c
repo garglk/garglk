@@ -28,6 +28,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <wchar.h>
 
 #include <gtk/gtk.h>
 #include <unistd.h>
@@ -287,8 +288,20 @@ int main(int argc, char **argv)
     winpath(dir);
 
     /* get story file */
-    if (!winargs(argc, argv, buf))
+    if (!winargs(argc, argv, buf)) {
+        
+        /* For testting GTK settings... */
+        gint doubleClickTime = 4000;
+        g_object_get(gtk_settings_get_default(), "gtk-double-click-time", &doubleClickTime, NULL);
+        
+        gint doubleClickDistance = 50;
+        g_object_get(gtk_settings_get_default(), "gtk-double-click-distance", &doubleClickDistance, NULL);
+        
+        fwprintf(stderr, L"launchgtk.c: Double click time: %d\n", doubleClickTime);
+        fwprintf(stderr, L"launchgtk.c: Double click distance: %d\n", doubleClickDistance);
+        
         winbrowsefile(buf);
+    }
 
     if (!strlen(buf))
         return TRUE;

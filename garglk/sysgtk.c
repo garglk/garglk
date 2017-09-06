@@ -407,8 +407,12 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
 #ifdef _ALT_MOUSE_HANDLING
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    if (event->button == 1) {
-        //fwprintf(stderr, L"Button 1\n");
+    if (event->type == GDK_2BUTTON_PRESS) {
+        fwprintf(stderr, L"Double click\n");
+        gli_input_handle_double_click(event->x, event->y);
+    }
+    else if (event->button == 1) {
+        fwprintf(stderr, L"Button 1\n");
         gli_input_handle_click(event->x, event->y);
     }
     else if (event->button == 2 || event->button == 3) {
@@ -629,6 +633,16 @@ void wininit(int *argc, char **argv)
     gtk_widget_set_default_visual(gdk_rgb_get_visual());
     gdk_hand = gdk_cursor_new(GDK_HAND2);
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
+    
+    /* For testting GTK settings... */
+    gint doubleClickTime = 4000;
+    g_object_get(gtk_settings_get_default(), "gtk-double-click-time", &doubleClickTime, NULL);
+
+    gint doubleClickDistance = 50;
+    g_object_get(gtk_settings_get_default(), "gtk-double-click-distance", &doubleClickDistance, NULL);
+
+    fwprintf(stderr, L"sysgtk.c: Double click time: %d\n", doubleClickTime);
+    fwprintf(stderr, L"sysgtk.c: Double click distance: %d\n", doubleClickDistance);
 }
 
 #ifdef _KINDLE

@@ -229,6 +229,12 @@ void gli_input_handle_click(int x, int y)
         gli_window_click(gli_rootwin, x, y);
 }
 
+void gli_input_handle_double_click(int x, int y)
+{
+    if (gli_rootwin)
+        gli_window_double_click(gli_rootwin, x, y);
+}
+
 /* Pick first window which might want input.
  * This is called after every keystroke.
  */
