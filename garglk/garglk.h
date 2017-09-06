@@ -789,7 +789,3 @@ int attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
-
-#ifdef _ALT_MOUSE_HANDLING
-extern int doSkipDoubleClickHandlingOnce;
-#endif

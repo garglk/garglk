@@ -417,7 +417,6 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
     }
     else if (event->button == 2 || event->button == 3) {
         //fwprintf(stderr, L"Button 2\n");
-        doSkipDoubleClickHandlingOnce = 1;
         int y0 = gli_rootwin->bbox.y0;
         int y1 = gli_rootwin->bbox.y1;
         int y_center = (y0 + y1) / 2;
@@ -470,7 +469,6 @@ static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 #ifdef _ALT_MOUSE_HANDLING
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
 {
-    doSkipDoubleClickHandlingOnce = 1;
     if (event->direction == GDK_SCROLL_UP)
         gli_input_handle_key(keycode_PageUp);
     else if (event->direction == GDK_SCROLL_DOWN)
