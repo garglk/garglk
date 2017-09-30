@@ -1257,7 +1257,6 @@ void gli_window_click(window_t *win, int x, int y)
 
 void gli_window_double_click(window_t *win, int x, int y)
 {
-    fwprintf(stderr, L"Entering: gli_window_double_click\n");
     switch (win->type)
     {
         case wintype_Pair:

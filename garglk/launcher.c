@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar García Perez-Schofield.                     *
+ * Copyright (C) 2009 by Baltasar Garca Perez-Schofield.                     *
  * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
@@ -48,7 +48,6 @@
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
-#define MaxBuffer 1024
 char tmp[MaxBuffer];
 char terp[MaxBuffer];
 char exe[MaxBuffer];

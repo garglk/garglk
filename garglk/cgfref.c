@@ -225,7 +225,7 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
 frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
 {
     fileref_t *fref;
-    char buf[256];
+    char buf[MAX_FULLY_QUALIFIED_FILENAME_LEN];
     int val, filter;
     char *prompt;
 

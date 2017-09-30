@@ -8,7 +8,7 @@ then
   echo "Enabling debug build."
 fi
 
-CMAKE_TOOLCHAIN_FILE=/home/vagrant/dev/buildroot/buildroot-2016.11.1/output/host/usr/share/buildroot/toolchainfile.cmake
+CMAKE_TOOLCHAIN_FILE=/home/vagrant/dev/buildroot/buildroot-2017.08/output/host/usr/share/buildroot/toolchainfile.cmake
 CMAKE_INSTALL_PREFIX=dist
 
 # Debug compile options
@@ -17,8 +17,10 @@ CMAKE_C_FLAGS_DEBUG="-ggdb"
 CMAKE_CXX_FLAGS_DEBUG="-ggdb"
 
 # Kindle release build options
-CMAKE_C_FLAGS_RELEASE="-O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block"
-CMAKE_CXX_FLAGS_RELEASE="-O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block"
+CMAKE_C_FLAGS_RELEASE="-O3 -fomit-frame-pointer -ffast-math -funsafe-math-optimizations -fweb -frename-registers -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block"
+
+#-fpeephole2 leads to crash on armv7-a
+CMAKE_CXX_FLAGS_RELEASE="-O3 -fno-peephole2 -fomit-frame-pointer -ffast-math -funsafe-math-optimizations -fweb -frename-registers -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block"
 
 mkdir -p cbuildKindle
 cd cbuildKindle

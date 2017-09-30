@@ -79,7 +79,7 @@ if("${GUILIB}" STREQUAL "GTK")
   find_package(GTK2 REQUIRED)
   list(APPEND GARGLK_INCLUDES ${GTK2_INCLUDE_DIRS})
   list(APPEND GARGLK_LIBS ${GTK2_LIBRARIES})
-  list(APPEND SRCS sysgtk.c fontfc.c)
+  list(APPEND SRCS sysgtk.c fontfc.c gtk_utils.c)
 
   set(GARGOYLE_SOURCES launchgtk.c)
   set(GARGOYLE_INCLUDES ${GTK2_INCLUDE_DIRS})

@@ -45,6 +45,11 @@
 #define NULL 0
 #endif
 
+/*
+ * Max. chars for filename buffers.
+ */
+#define MAX_FULLY_QUALIFIED_FILENAME_LEN 4096
+
 /* This macro is called whenever the library code catches an error
  * or illegal operation from the game program.
  */

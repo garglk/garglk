@@ -26,12 +26,9 @@
 #include "garversion.h"
 #include "launcher.h"
 
-#include <ctype.h>
-#include <stdio.h>
-#include <wchar.h>
-
+#include <assert.h>
 #include <gtk/gtk.h>
-#include <unistd.h>
+#include "gtk_utils.h"
 
 static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
@@ -158,46 +155,103 @@ static void winfilterfiles(GtkFileChooser *dialog)
 }
 
 #ifdef _KINDLE
-static void winbrowsefile(char *buffer)
-{
-    *buffer = 0;
+static void winbrowsefile(char *buffer, int bufferSize)
+{   
+    assert(buffer != NULL && bufferSize > 1);
+    buffer[0] = '\0';
     
-    GString *filename;
     GdkScreen *screen = gdk_screen_get_default();
     gint screen_height = gdk_screen_get_height(screen);
     gint screen_width = gdk_screen_get_width(screen);
 
-    GtkWidget * openDlg = gtk_file_selection_new(KDIALOG);
-    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(openDlg));
-    gtk_widget_hide(GTK_FILE_SELECTION(openDlg)->history_pulldown);
-    gtk_window_resize(GTK_WINDOW(openDlg), screen_width, (screen_height - screen_height/KBFACTOR));
-
-    if (getenv("GAMES"))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(openDlg), getenv("GAMES"));
-    else if (getenv("HOME"))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(openDlg), getenv("HOME"));
-
-    while (1) {
-        gint response = gtk_dialog_run(GTK_DIALOG(openDlg));
-        if (response != GTK_RESPONSE_OK) {
-                break;
-        }
-        filename = g_string_new(gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
-        if (g_file_test(filename->str, G_FILE_TEST_IS_DIR)) {
-                gtk_file_selection_complete(GTK_FILE_SELECTION(openDlg), filename->str);
-        }
-        else {
-                strcpy(buffer, gtk_file_selection_get_filename(GTK_FILE_SELECTION(openDlg)));
-                break;
-        }
+    GtkWidget * fileDialog = gtk_file_selection_new(KDIALOG);
+    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(fileDialog));
+    gtk_widget_set_size_request (GTK_WIDGET(fileDialog), screen_width, (screen_height - screen_height/KBFACTOR));
+    gtk_window_set_resizable(GTK_WINDOW(fileDialog), FALSE);
+    
+    // Make the filename list sortable and sort it in descending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 
+            GTK_SORT_ASCENDING);
+    
+    // Make the directory-name list sortable and sort it in ascending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 
+            GTK_SORT_ASCENDING);
+    
+    GString * fileRequestorInitFilename = NULL; 
+    if (getenv("GAMES")) 
+    {
+        fileRequestorInitFilename = g_string_new(getenv("GAMES"));
     }
+    else if (getenv("HOME"))
+    {
+        fileRequestorInitFilename = g_string_new(getenv("HOME"));
+    }
+    else {
+        fileRequestorInitFilename = g_string_new(NULL);
+    }
+    normalizeFilename(fileRequestorInitFilename);
+    
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), fileRequestorInitFilename->str);
+    g_string_free(fileRequestorInitFilename, TRUE);
 
-    gtk_widget_destroy(openDlg);
-    gdk_flush();
+    bool isFileSelected = false;
+    bool isDialogCanceled = false;
+    do {
+        gint response = gtk_dialog_run(GTK_DIALOG(fileDialog));
+        
+        if (response == GTK_RESPONSE_OK) 
+        {
+            const gchar * selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileDialog));
+            
+            if (g_file_test(selectedFilename, G_FILE_TEST_IS_DIR)) 
+            {
+                GString * normalizedDirectoryname = NULL;
+                
+                char * canonicalDirectoryname = realpath(selectedFilename, NULL);
+                if (canonicalDirectoryname != NULL) {
+                    normalizedDirectoryname = g_string_new(canonicalDirectoryname);
+                    free(canonicalDirectoryname);
+                }
+                else {
+                    normalizedDirectoryname = g_string_new(selectedFilename);
+                }
+                normalizeFilename(normalizedDirectoryname);
+                
+                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), normalizedDirectoryname->str);
+                g_string_free(normalizedDirectoryname, TRUE);
+            }
+            else if (!g_file_test(selectedFilename, G_FILE_TEST_EXISTS ))  
+            {
+                gchar * filenamePattern = g_path_get_basename(selectedFilename);
+                
+                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), selectedFilename);
+                
+                if (filenamePattern != NULL) 
+                {
+                    gtk_file_selection_complete(GTK_FILE_SELECTION(fileDialog), filenamePattern);
+                    free(filenamePattern);
+                }
+            }
+            else 
+            {
+                g_strlcpy(buffer, selectedFilename, bufferSize);
+                isFileSelected = true;
+            }
+        }
+        else 
+        {
+            isDialogCanceled = true;
+        }
+    } 
+    while (!isFileSelected && !isDialogCanceled);
+
+    gtk_widget_destroy(fileDialog);
 }
 
 #else /* Default implementation */
-static void winbrowsefile(char *buffer)
+static void winbrowsefile(char *buffer, int bufferSize)
 {
     *buffer = 0;
 
@@ -290,17 +344,19 @@ int main(int argc, char **argv)
     /* get story file */
     if (!winargs(argc, argv, buf)) {
         
-        /* For testting GTK settings... */
-        gint doubleClickTime = 4000;
+        /* For testing GTK settings... */
+        /*
+        gint doubleClickTime = 0;
         g_object_get(gtk_settings_get_default(), "gtk-double-click-time", &doubleClickTime, NULL);
         
-        gint doubleClickDistance = 50;
+        gint doubleClickDistance = 0;
         g_object_get(gtk_settings_get_default(), "gtk-double-click-distance", &doubleClickDistance, NULL);
         
         fwprintf(stderr, L"launchgtk.c: Double click time: %d\n", doubleClickTime);
         fwprintf(stderr, L"launchgtk.c: Double click distance: %d\n", doubleClickDistance);
+        */
         
-        winbrowsefile(buf);
+        winbrowsefile(buf, sizeof(buf));
     }
 
     if (!strlen(buf))

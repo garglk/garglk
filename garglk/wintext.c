@@ -1374,14 +1374,17 @@ int gcmd_accept_scroll(window_t *win, glui32 arg)
         case keycode_PageUp:
             dwin->scrollpos += pageht;
             break;
+        /* Jump/scroll to input line when entering text, pressing Space,
+           or pressing the End key. */
+        case ' ':
         case keycode_End:
+        default:
             dwin->scrollpos = 0;
             break;
         case keycode_Up:
             dwin->scrollpos ++;
             break;
         case keycode_Down:
-        case keycode_Return:
             dwin->scrollpos --;
             break;
         case keycode_MouseWheelUp:
@@ -1392,9 +1395,8 @@ int gcmd_accept_scroll(window_t *win, glui32 arg)
             dwin->scrollpos -= 3;
             startpos = TRUE;
             break;
-        case ' ':
+        case keycode_Return:
         case keycode_PageDown:
-        //default:
             if (pageht)
                 dwin->scrollpos -= pageht;
             else
@@ -1592,7 +1594,11 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         || arg == keycode_MouseWheelUp)
     {
         gcmd_accept_scroll(win, arg);
-        return;
+        if (!(dwin->scrollpos == 0 && 
+             (iswalnum(arg) || (arg == ' ' && dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] != ' '))))
+        {
+            return;
+        }
     }
 
     if (!dwin->inbuf)

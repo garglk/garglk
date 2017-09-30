@@ -1,9 +1,5 @@
 /******************************************************************************
  *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar GarcÌa Perez-Schofield.                     *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
  * Gargoyle is free software; you can redistribute it and/or modify           *
@@ -22,21 +18,41 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <errno.h>
-#include <unistd.h>
+/* 
+ * File:   gtk_utils.h
+ */
 
-#define MaxBuffer 4096
+#ifndef GTK_UTILS_H
+#define GTK_UTILS_H
 
-extern void winmsg(const char *msg);
-extern void winpath(char *buffer);
-extern int winargs(int argc, char **argv, char *buffer);
-extern int winexec(const char *cmd, char **args);
-extern int winterp(char *path, char *exe, char *flags, char *game);
-extern int runblorb(char *path, char *game);
-extern int rungame(char *path, char *game);
+#include <gtk/gtk.h>
+
+/*
+ * If the given filename string represents a directory, append a slash ('/') if the 
+ * filename string isn't already terminated by a slash.
+ * 
+ * Note: GtkFileSelection requires filename strings that actually represent directories
+ * to end with a slash, in order to initialize its widgets properly.
+ */
+GString * normalizeFilename(GString * filename);
+
+/*
+ * GtkTreeSortable sort func for sorting filename (and directory) lists case-insensitively.
+ * 
+ * GtkListStore usually sets such a sort func automatically for string lists, however this 
+ * default sort func is not provided on some platforms (like Kindle).
+ */
+gint filenameListSortFunc(GtkTreeModel * model,
+        GtkTreeIter * a, GtkTreeIter * b, gpointer user_data);
+
+/*
+ * Activates sorting for the filename lists of a GtkFileSelection dialog and similar 
+ * GtkListStore backed single column tree views (i.e. this includes the directory-name 
+ * list of GtkFileSelection).
+ * 
+ * Note: The sort order can be reversed at runtime by clicking on the respective column 
+ * header.
+ */
+void makeFilenameListTreeViewSortable(GtkTreeView * filenameListTreeView, GtkSortType initialSortOrder);
+
+#endif /* GTK_UTILS_H */

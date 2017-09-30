@@ -1,4 +1,4 @@
-/******************************************************************************
+ /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
  * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
@@ -36,6 +36,14 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <glib-2.0/glib/gstring.h>
+
+#include "gtk_utils.h"
+
+/* Sort order of the entries in the directory and filename lists in the file 
+   selection dialog. */
+static GtkSortType directoryListSortOrder = GTK_SORT_ASCENDING;
+static GtkSortType filenameListSortOrder = GTK_SORT_DESCENDING;
 
 static GtkWidget *frame;
 static GtkWidget *canvas;
@@ -43,9 +51,8 @@ static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
 
-#define MaxBuffer 1024
 static int fileselect = 0;
-static char filepath[MaxBuffer];
+static char filepath[MAX_FULLY_QUALIFIED_FILENAME_LEN];
 
 static int timerid = -1;
 static volatile int timeouts = 0;
@@ -111,50 +118,81 @@ void winexit(void)
 #ifdef _KINDLE
 static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
-    char *curdir;
+    const gchar *selectedFilename;
 
     GdkScreen *screen = gdk_screen_get_default();
     gint screen_height = gdk_screen_get_height(screen);
     gint screen_width = gdk_screen_get_width(screen);
 
-    GtkWidget * filedlog = gtk_file_selection_new(KDIALOG);
-    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
-    gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
-    gtk_window_resize(GTK_WINDOW(filedlog), screen_width, (screen_height - screen_height/KBFACTOR));
-
-    if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
-    {
-        char savename[32];
-        sprintf(savename, "Untitled%s", winfilterpatterns[filter]+1);
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), savename);
-    }
-
-    if (strlen(buf))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), buf);
-
+    GtkWidget * fileDialog = gtk_file_selection_new(KDIALOG);
+    //gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
+    //gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
+    
+    //gtk_window_resize(GTK_WINDOW(filedlog), screen_width, (screen_height - screen_height/KBFACTOR));
+    gtk_widget_set_size_request (GTK_WIDGET(fileDialog), screen_width, (screen_height - screen_height/KBFACTOR));
+    gtk_window_set_resizable(GTK_WINDOW(fileDialog), FALSE);
+    
+    // Make the filename list sortable and sort it in descending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 
+            filenameListSortOrder);
+    
+    // Make the directory-name list sortable and sort it in ascending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 
+            directoryListSortOrder);
+    
+    GString * fileRequestorInitFilename = g_string_sized_new(MAX_FULLY_QUALIFIED_FILENAME_LEN);
+    
     if (fileselect)
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), filepath);
-    else if (getenv("SAVED_GAMES"))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), getenv("SAVED_GAMES"));
-    else if (getenv("HOME"))
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(filedlog), getenv("HOME"));
-
-    gint result = gtk_dialog_run(GTK_DIALOG(filedlog));
-
-    if (result == GTK_RESPONSE_OK)
-        strcpy(buf, gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedlog)));
-    else
-        strcpy(buf, "");
-
-    curdir = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedlog));
-    if (curdir != NULL && strlen(curdir) < sizeof(filepath))
     {
-        strcpy(filepath, curdir);
+        g_string_append(fileRequestorInitFilename, filepath);
+        normalizeFilename(fileRequestorInitFilename);
+    }
+    else 
+    {
+        if (getenv("SAVED_GAMES"))
+        {
+            g_string_append(fileRequestorInitFilename, getenv("SAVED_GAMES"));
+        }
+        else if (getenv("HOME")) 
+        {
+            g_string_append(fileRequestorInitFilename, getenv("HOME"));
+        }
+        normalizeFilename(fileRequestorInitFilename);
+            
+        if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
+        {
+            g_string_append_printf(fileRequestorInitFilename, "01_Untitled%s", winfilterpatterns[filter]+1);         
+        }
+    }
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), fileRequestorInitFilename->str);
+    g_string_free(fileRequestorInitFilename, TRUE);
+    gint result = gtk_dialog_run(GTK_DIALOG(fileDialog));
+    
+    selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileDialog));
+    
+    if (result == GTK_RESPONSE_OK) 
+    {
+        g_strlcpy(buf, selectedFilename, len);
+    }
+    else
+    {
+        g_strlcpy(buf, "", len);
+    }
+    
+    // Preserve file dialog state.
+    if (selectedFilename != NULL && strlen(selectedFilename) < sizeof(filepath))
+    {
+        g_strlcpy(filepath, selectedFilename, sizeof(filepath));
         fileselect = TRUE;
     }
-
-    gtk_widget_destroy(filedlog);
-    filedlog = NULL;
+    filenameListSortOrder = gtk_tree_view_column_get_sort_order(
+            gtk_tree_view_get_column(GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 0));
+    directoryListSortOrder = gtk_tree_view_column_get_sort_order(
+            gtk_tree_view_get_column(GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 0));
+    
+    gtk_widget_destroy(fileDialog);
 }
 
 #else /* Default implementation */
@@ -632,15 +670,17 @@ void wininit(int *argc, char **argv)
     gdk_hand = gdk_cursor_new(GDK_HAND2);
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
     
-    /* For testting GTK settings... */
-    gint doubleClickTime = 4000;
+    /* For testing GTK settings... */
+    /*
+    gint doubleClickTime = 0;
     g_object_get(gtk_settings_get_default(), "gtk-double-click-time", &doubleClickTime, NULL);
 
-    gint doubleClickDistance = 50;
+    gint doubleClickDistance = 0;
     g_object_get(gtk_settings_get_default(), "gtk-double-click-distance", &doubleClickDistance, NULL);
 
     fwprintf(stderr, L"sysgtk.c: Double click time: %d\n", doubleClickTime);
     fwprintf(stderr, L"sysgtk.c: Double click distance: %d\n", doubleClickDistance);
+    */
 }
 
 #ifdef _KINDLE
