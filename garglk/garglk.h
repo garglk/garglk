@@ -29,6 +29,7 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #include "gi_dispa.h"
 
@@ -794,3 +795,10 @@ int attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
+
+/* Kindle */
+#ifdef _KINDLE
+#define KTITLE "L:A_N:application_ID:net.fabiszewski.gargoyle_PC:N_O:URL"
+#define KDIALOG "L:D_N:application_ID:net.fabiszewski.gargoyle_O:URL"
+#define KBFACTOR 2.909090909090909
+#endif /* _KINDLE */

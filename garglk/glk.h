@@ -483,11 +483,4 @@ extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 #define keycode_MouseWheelUp        (0xffffeffe)
 #define keycode_MouseWheelDown      (0xffffefff)
 
-/* Kindle */
-#ifdef _KINDLE
-#define KTITLE "L:A_N:application_ID:net.fabiszewski.gargoyle_PC:N_O:URL"
-#define KDIALOG "L:D_N:application_ID:net.fabiszewski.gargoyle_O:URL"
-#define KBFACTOR 2.909090909090909
-#endif /* _KINDLE */
-
 #endif /* GLK_H */

@@ -23,6 +23,7 @@
  *****************************************************************************/
 
 #include "glk.h"
+#include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
 
@@ -160,50 +161,23 @@ static void winbrowsefile(char *buffer, int bufferSize)
     assert(buffer != NULL && bufferSize > 1);
     buffer[0] = '\0';
     
-    GdkScreen *screen = gdk_screen_get_default();
-    gint screen_height = gdk_screen_get_height(screen);
-    gint screen_width = gdk_screen_get_width(screen);
-
-    GtkWidget * fileDialog = gtk_file_selection_new(KDIALOG);
-    gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(fileDialog));
-    gtk_widget_set_size_request (GTK_WIDGET(fileDialog), screen_width, (screen_height - screen_height/KBFACTOR));
-    gtk_window_set_resizable(GTK_WINDOW(fileDialog), FALSE);
+    GString * fileRequestorInitFilename = 
+            createAndInitFilenameFromOsEnvironmentVariable("GAMES", "HOME");
     
-    // Make the filename list sortable and sort it in descending order by default.
-    makeFilenameListTreeViewSortable(
-            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 
-            GTK_SORT_ASCENDING);
-    
-    // Make the directory-name list sortable and sort it in ascending order by default.
-    makeFilenameListTreeViewSortable(
-            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 
-            GTK_SORT_ASCENDING);
-    
-    GString * fileRequestorInitFilename = NULL; 
-    if (getenv("GAMES")) 
-    {
-        fileRequestorInitFilename = g_string_new(getenv("GAMES"));
-    }
-    else if (getenv("HOME"))
-    {
-        fileRequestorInitFilename = g_string_new(getenv("HOME"));
-    }
-    else {
-        fileRequestorInitFilename = g_string_new(NULL);
-    }
-    normalizeFilename(fileRequestorInitFilename);
-    
-    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), fileRequestorInitFilename->str);
+    GtkWidget * fileRequestorDialog = createAndInitKindleFileRequestor(
+                fileRequestorInitFilename,
+                GTK_SORT_ASCENDING,
+                GTK_SORT_ASCENDING);
     g_string_free(fileRequestorInitFilename, TRUE);
 
     bool isFileSelected = false;
     bool isDialogCanceled = false;
     do {
-        gint response = gtk_dialog_run(GTK_DIALOG(fileDialog));
+        gint response = gtk_dialog_run(GTK_DIALOG(fileRequestorDialog));
         
         if (response == GTK_RESPONSE_OK) 
         {
-            const gchar * selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileDialog));
+            const gchar * selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileRequestorDialog));
             
             if (g_file_test(selectedFilename, G_FILE_TEST_IS_DIR)) 
             {
@@ -219,18 +193,18 @@ static void winbrowsefile(char *buffer, int bufferSize)
                 }
                 normalizeFilename(normalizedDirectoryname);
                 
-                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), normalizedDirectoryname->str);
+                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileRequestorDialog), normalizedDirectoryname->str);
                 g_string_free(normalizedDirectoryname, TRUE);
             }
             else if (!g_file_test(selectedFilename, G_FILE_TEST_EXISTS ))  
             {
                 gchar * filenamePattern = g_path_get_basename(selectedFilename);
                 
-                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), selectedFilename);
+                gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileRequestorDialog), selectedFilename);
                 
                 if (filenamePattern != NULL) 
                 {
-                    gtk_file_selection_complete(GTK_FILE_SELECTION(fileDialog), filenamePattern);
+                    gtk_file_selection_complete(GTK_FILE_SELECTION(fileRequestorDialog), filenamePattern);
                     free(filenamePattern);
                 }
             }
@@ -247,7 +221,7 @@ static void winbrowsefile(char *buffer, int bufferSize)
     } 
     while (!isFileSelected && !isDialogCanceled);
 
-    gtk_widget_destroy(fileDialog);
+    gtk_widget_destroy(fileRequestorDialog);
 }
 
 #else /* Default implementation */

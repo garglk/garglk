@@ -25,8 +25,14 @@
  * Created on September 17, 2017, 8:34 PM
  */
 
+#include "glk.h"
+#include "garglk.h"
 #include "gtk_utils.h"
+#include <assert.h>
 #include <strings.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 GString * normalizeFilename(GString * filename) 
 {
@@ -67,3 +73,59 @@ void makeFilenameListTreeViewSortable(GtkTreeView * filenameListTreeView, GtkSor
     
     gtk_tree_view_column_set_sort_column_id(fileNameColumn, 0);
 }
+
+#ifdef _KINDLE
+GString * createAndInitFilenameFromOsEnvironmentVariable(
+        const char * environmentVariableName1, 
+        const char * environmentVariableName2)
+{
+    GString * createdString = NULL;
+    
+    if (getenv(environmentVariableName1)) 
+    {
+        createdString = g_string_new(getenv(environmentVariableName1));
+    }
+    else if (getenv(environmentVariableName2))
+    {
+        createdString = g_string_new(getenv(environmentVariableName2));
+    }
+    else {
+        createdString = g_string_new(NULL);
+    }
+    normalizeFilename(createdString);
+    
+    return createdString;
+}
+
+GtkWidget * createAndInitKindleFileRequestor(
+        const GString * initFilename,
+        const GtkSortType directoryListSortOrder,
+        const GtkSortType filenameListSortOrder)
+{
+    GdkScreen * screen = gdk_screen_get_default();
+    gint screen_height = gdk_screen_get_height(screen);
+    gint screen_width = gdk_screen_get_width(screen);
+
+    GtkFileSelection * fileRequestor = GTK_FILE_SELECTION(gtk_file_selection_new(KDIALOG));
+    
+    //gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
+    // K*ndle GTK port does not properly support/fully implement fileop buttons in GtkFileSelection.
+    gtk_file_selection_hide_fileop_buttons(fileRequestor);
+    gtk_widget_set_size_request(GTK_WIDGET(fileRequestor), screen_width, (screen_height - screen_height/KBFACTOR));
+    gtk_window_set_resizable(GTK_WINDOW(fileRequestor), FALSE);
+
+    // Make the filename list sortable and sort it in descending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(fileRequestor->file_list), 
+            filenameListSortOrder);
+
+    // Make the directory-name list sortable and sort it in ascending order by default.
+    makeFilenameListTreeViewSortable(
+            GTK_TREE_VIEW(fileRequestor->dir_list), 
+            directoryListSortOrder);
+
+    gtk_file_selection_set_filename(fileRequestor, initFilename->str);
+    
+    return GTK_WIDGET(fileRequestor);
+}
+#endif /* _KINDLE */

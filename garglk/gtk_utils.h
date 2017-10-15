@@ -25,6 +25,7 @@
 #ifndef GTK_UTILS_H
 #define GTK_UTILS_H
 
+#include <stdbool.h>
 #include <gtk/gtk.h>
 
 /*
@@ -54,5 +55,25 @@ gint filenameListSortFunc(GtkTreeModel * model,
  * header.
  */
 void makeFilenameListTreeViewSortable(GtkTreeView * filenameListTreeView, GtkSortType initialSortOrder);
+
+#ifdef _KINDLE
+/*
+ * Returns the value of the first environment variable set or an empty string
+ * otherwise. The caller is responsible to free the returned GString object.
+ */
+GString * createAndInitFilenameFromOsEnvironmentVariable(
+        const char * environmentVariableName1, 
+        const char * environmentVariableName2);
+
+/*
+ * Creates a GtkFileSelection and sizes it for semi-fullscreen mode on K*ndle,
+ * leaving approx. the bottom 1/3 of the screen for the native onscreen K*ndle 
+ * keyboard.
+ */
+GtkWidget * createAndInitKindleFileRequestor(
+        const GString * initFilename,               // Initial path and/or filename for the file requestor
+        const GtkSortType directoryListSortOrder,   // Initial sort order for the directory list
+        const GtkSortType filenameListSortOrder);   // Initial sort order for the file list
+#endif /* _KINDLE */
 
 #endif /* GTK_UTILS_H */

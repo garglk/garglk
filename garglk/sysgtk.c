@@ -26,10 +26,12 @@
 //Debug
 #include <wchar.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -40,19 +42,12 @@
 
 #include "gtk_utils.h"
 
-/* Sort order of the entries in the directory and filename lists in the file 
-   selection dialog. */
-static GtkSortType directoryListSortOrder = GTK_SORT_ASCENDING;
-static GtkSortType filenameListSortOrder = GTK_SORT_DESCENDING;
-
 static GtkWidget *frame;
 static GtkWidget *canvas;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
-
-static int fileselect = 0;
-static char filepath[MAX_FULLY_QUALIFIED_FILENAME_LEN];
+static GtkWidget * fileRequestorDialog = NULL;
 
 static int timerid = -1;
 static volatile int timeouts = 0;
@@ -99,6 +94,11 @@ void glk_request_timer_events(glui32 millisecs)
 
 void winabort(const char *fmt, ...)
 {
+    if (fileRequestorDialog != NULL) 
+    {
+        gtk_widget_destroy(fileRequestorDialog);
+    }
+    
     va_list ap;
     char buf[256];
     va_start(ap, fmt);
@@ -112,87 +112,95 @@ void winabort(const char *fmt, ...)
 
 void winexit(void)
 {
+    if (fileRequestorDialog != NULL) 
+    {
+        gtk_widget_destroy(fileRequestorDialog);
+    }
     exit(0);
 }
 
 #ifdef _KINDLE
-static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
+static void winchoosefile(char *prompt, char *buffer, int bufferSize, int filter, GtkFileChooserAction action, const char *button)
 {
-    const gchar *selectedFilename;
-
-    GdkScreen *screen = gdk_screen_get_default();
-    gint screen_height = gdk_screen_get_height(screen);
-    gint screen_width = gdk_screen_get_width(screen);
-
-    GtkWidget * fileDialog = gtk_file_selection_new(KDIALOG);
-    //gtk_file_selection_hide_fileop_buttons(GTK_FILE_SELECTION(filedlog));
-    //gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
+    assert(buffer != NULL && bufferSize > 1);
+    buffer[0] = '\0';
     
-    //gtk_window_resize(GTK_WINDOW(filedlog), screen_width, (screen_height - screen_height/KBFACTOR));
-    gtk_widget_set_size_request (GTK_WIDGET(fileDialog), screen_width, (screen_height - screen_height/KBFACTOR));
-    gtk_window_set_resizable(GTK_WINDOW(fileDialog), FALSE);
-    
-    // Make the filename list sortable and sort it in descending order by default.
-    makeFilenameListTreeViewSortable(
-            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 
-            filenameListSortOrder);
-    
-    // Make the directory-name list sortable and sort it in ascending order by default.
-    makeFilenameListTreeViewSortable(
-            GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 
-            directoryListSortOrder);
-    
-    GString * fileRequestorInitFilename = g_string_sized_new(MAX_FULLY_QUALIFIED_FILENAME_LEN);
-    
-    if (fileselect)
+    if (fileRequestorDialog == NULL) 
     {
-        g_string_append(fileRequestorInitFilename, filepath);
-        normalizeFilename(fileRequestorInitFilename);
-    }
-    else 
-    {
-        if (getenv("SAVED_GAMES"))
-        {
-            g_string_append(fileRequestorInitFilename, getenv("SAVED_GAMES"));
-        }
-        else if (getenv("HOME")) 
-        {
-            g_string_append(fileRequestorInitFilename, getenv("HOME"));
-        }
-        normalizeFilename(fileRequestorInitFilename);
-            
+        GString * fileRequestorInitFilename = 
+            createAndInitFilenameFromOsEnvironmentVariable("SAVED_GAMES", "HOME");
         if (action == GTK_FILE_CHOOSER_ACTION_SAVE)
         {
             g_string_append_printf(fileRequestorInitFilename, "01_Untitled%s", winfilterpatterns[filter]+1);         
         }
-    }
-    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileDialog), fileRequestorInitFilename->str);
-    g_string_free(fileRequestorInitFilename, TRUE);
-    gint result = gtk_dialog_run(GTK_DIALOG(fileDialog));
-    
-    selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileDialog));
-    
-    if (result == GTK_RESPONSE_OK) 
-    {
-        g_strlcpy(buf, selectedFilename, len);
-    }
-    else
-    {
-        g_strlcpy(buf, "", len);
+        
+        fileRequestorDialog = createAndInitKindleFileRequestor(
+                fileRequestorInitFilename,
+                GTK_SORT_ASCENDING,
+                GTK_SORT_DESCENDING);
+        g_string_free(fileRequestorInitFilename, TRUE);
     }
     
-    // Preserve file dialog state.
-    if (selectedFilename != NULL && strlen(selectedFilename) < sizeof(filepath))
-    {
-        g_strlcpy(filepath, selectedFilename, sizeof(filepath));
-        fileselect = TRUE;
-    }
-    filenameListSortOrder = gtk_tree_view_column_get_sort_order(
-            gtk_tree_view_get_column(GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->file_list), 0));
-    directoryListSortOrder = gtk_tree_view_column_get_sort_order(
-            gtk_tree_view_get_column(GTK_TREE_VIEW(GTK_FILE_SELECTION(fileDialog)->dir_list), 0));
-    
-    gtk_widget_destroy(fileDialog);
+    const gchar * selectedFilename = NULL;
+    bool isFileSelected = false;
+    bool isDialogCanceled = false;
+    do {
+        gint response = gtk_dialog_run(GTK_DIALOG(fileRequestorDialog));
+        selectedFilename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(fileRequestorDialog));
+        
+        if (response == GTK_RESPONSE_OK) 
+        {
+            if (action == GTK_FILE_CHOOSER_ACTION_OPEN) {
+
+                if (g_file_test(selectedFilename, G_FILE_TEST_IS_DIR)) 
+                {
+                    GString * normalizedDirectoryname = NULL;
+
+                    char * canonicalDirectoryname = realpath(selectedFilename, NULL);
+                    if (canonicalDirectoryname != NULL) {
+                        normalizedDirectoryname = g_string_new(canonicalDirectoryname);
+                        free(canonicalDirectoryname);
+                    }
+                    else {
+                        normalizedDirectoryname = g_string_new(selectedFilename);
+                    }
+                    normalizeFilename(normalizedDirectoryname);
+
+                    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileRequestorDialog), normalizedDirectoryname->str);
+                    g_string_free(normalizedDirectoryname, TRUE);
+                }
+                else if (!g_file_test(selectedFilename, G_FILE_TEST_EXISTS ))  
+                {
+                    gchar * filenamePattern = g_path_get_basename(selectedFilename);
+
+                    gtk_file_selection_set_filename(GTK_FILE_SELECTION(fileRequestorDialog), selectedFilename);
+
+                    if (filenamePattern != NULL) 
+                    {
+                        gtk_file_selection_complete(GTK_FILE_SELECTION(fileRequestorDialog), filenamePattern);
+                        free(filenamePattern);
+                    }
+                }
+                else 
+                {
+                    g_strlcpy(buffer, selectedFilename, bufferSize);
+                    isFileSelected = true;
+                }
+            }
+            else /* if (action == GTK_FILE_CHOOSER_ACTION_SAVE) */
+            {   
+                g_strlcpy(buffer, selectedFilename, bufferSize);
+                isFileSelected = true;
+            }
+        }
+        else 
+        {
+            isDialogCanceled = true;
+        }
+    } 
+    while (!isFileSelected && !isDialogCanceled);
+ 
+    gtk_widget_hide(fileRequestorDialog);
 }
 
 #else /* Default implementation */
@@ -521,6 +529,7 @@ static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
         gli_input_handle_key(keycode_Left);    
     }
 }
+
 #else
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
 {
@@ -659,6 +668,10 @@ static void onkeyup(GtkWidget *widget, GdkEventKey *event, void *data)
 static void onquit(GtkWidget *widget, void *data)
 {
     /* forced exit by wm */
+    if (fileRequestorDialog != NULL) 
+    {
+        gtk_widget_destroy(fileRequestorDialog);
+    }
     exit(0);
 }
 
