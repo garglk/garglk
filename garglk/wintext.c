@@ -1676,6 +1676,20 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             dwin->incurs = dwin->numchars;
             break;
 
+        case keycode_SkipWordLeft:
+            while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] == ' ')
+                dwin->incurs--;
+            while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] != ' ')
+                dwin->incurs--;
+            break;
+
+        case keycode_SkipWordRight:
+            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] != ' ')
+                dwin->incurs++;
+            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ')
+                dwin->incurs++;
+            break;
+
             /* Delete keys, during line input. */
 
         case keycode_Delete:

@@ -449,6 +449,8 @@ static void onkeydown(void *data, Evas *e, Evas_Object *obj, void *event_info)
         else if ( !strcmp( eekd->keyname, "u" ) ) gli_input_handle_key(keycode_Escape);
         else if ( !strcmp( eekd->keyname, "v" ) ) winclipreceive(CLIPBOARD);
         else if ( !strcmp( eekd->keyname, "x" ) ) winclipsend(CLIPBOARD);
+        else if ( !strcmp( eekd->key, "Left" ) ) gli_input_handle_key(keycode_SkipWordLeft);
+        else if ( !strcmp( eekd->key, "Right" ) ) gli_input_handle_key(keycode_SkipWordRight);
 
         return;
     }
