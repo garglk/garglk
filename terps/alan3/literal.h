@@ -38,5 +38,4 @@ extern int literalFromInstance(int instance);
 extern int instanceFromLiteral(int literal);
 
 
-
 #endif /* LITERAL_H_ */

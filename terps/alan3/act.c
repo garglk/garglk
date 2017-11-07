@@ -13,16 +13,22 @@
 #include "AltInfo.h"
 #include "output.h"
 #include "msg.h"
-
+#include "exe.h"
+#include "lists.h"
 
 
 /*----------------------------------------------------------------------*/
 static void executeCommand(int verb, Parameter parameters[])
 {
-    AltInfo *altInfos;
+    static AltInfo *altInfos = NULL; /* Need to survive lots of different exits...*/
     int altIndex;
 
+    /* Did we leave anything behind last time... */
+    if (altInfos != NULL)
+        free(altInfos);
+
     altInfos = findAllAlternatives(verb, parameters);
+
     if (anyCheckFailed(altInfos, EXECUTE_CHECK_BODY_ON_FAIL))
         return;
 
@@ -74,16 +80,24 @@ void action(int verb, Parameter parameters[], Parameter multipleMatches[])
         
     multiplePosition = findMultiplePosition(parameters);
     if (multiplePosition != -1) {
+        jmp_buf savedReturnLabel;
+        memcpy(savedReturnLabel, returnLabel, sizeof(returnLabel));
         sprintf(marker, "($%d)", multiplePosition+1); /* Prepare a printout with $1/2/3 */
-        for (i = 0; multipleMatches[i].instance != EOF; i++) {
-            parameters[multiplePosition] = multipleMatches[i];
+        for (i = 0; !isEndOfArray(&multipleMatches[i]); i++) {
+            copyParameter(&parameters[multiplePosition], &multipleMatches[i]);
+            setGlobalParameters(parameters); /* Need to do this here since the marker use them */
             output(marker);
-			// TODO: if execution for one parameter aborts we should return here, not to top level
-            executeCommand(verb, parameters);
+            // TODO: if execution for one parameter aborts we should return here, not to top level
+            if (setjmp(returnLabel) == NO_JUMP_RETURN)
+                executeCommand(verb, parameters);
             if (multipleMatches[i+1].instance != EOF)
                 para();
         }
+        memcpy(returnLabel, savedReturnLabel, sizeof(returnLabel));
         parameters[multiplePosition].instance = 0;
-    } else
+    } else {
+        setGlobalParameters(parameters);
         executeCommand(verb, parameters);
+    }
+
 }

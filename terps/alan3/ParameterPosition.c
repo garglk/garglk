@@ -8,8 +8,17 @@
 /* Public Data */
 
 
-/* Methods */
-
+/*======================================================================*/
+void deallocateParameterPositions(ParameterPosition *parameterPositions) {
+    int i;
+    for (i = 0; !parameterPositions[i].endOfList; i++) {
+        ParameterPosition *position = &parameterPositions[i];
+            freeParameterArray(position->parameters);
+        if (position->exceptions)
+            freeParameterArray(position->exceptions);
+    }
+    deallocate(parameterPositions);
+}
 
 /*======================================================================*/
 void uncheckAllParameterPositions(ParameterPosition parameterPositions[]) {
@@ -62,8 +71,11 @@ void markExplicitMultiple(ParameterPosition parameterPositions[], Parameter para
 
 /*======================================================================*/
 void convertPositionsToParameters(ParameterPosition parameterPositions[], Parameter parameters[]) {
-    int parameterCount;
-    for (parameterCount = 0; !parameterPositions[parameterCount].endOfList; parameterCount++)
-	parameters[parameterCount] = parameterPositions[parameterCount].parameters[0];
-    setEndOfArray(&parameters[parameterCount]);
+    ParameterPosition *position = parameterPositions;
+
+    clearParameterArray(parameters);
+    while (!position->endOfList) {
+        addParameterToParameterArray(parameters, &position->parameters[0]);
+        position++;
+    }
 }

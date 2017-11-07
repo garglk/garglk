@@ -137,7 +137,7 @@ void save(void)
   FILE *saveFile;
   char str[256];
 
-  current.location = where(HERO, TRUE);
+  current.location = where(HERO, DIRECT);
   /* First save ? */
   if (saveFileName[0] == '\0') {
     strcpy(saveFileName, adventureName);
@@ -155,12 +155,15 @@ void save(void)
     strcpy(str, saveFileName);
   col = 1;
   if ((saveFile = fopen(str, READ_MODE)) != NULL)
-    /* It already existed */
-    if (!confirm(M_SAVEOVERWRITE))
-      abortPlayerCommand();            /* Return to player without saying anything */
-  if ((saveFile = fopen(str, WRITE_MODE)) == NULL)
-    error(M_SAVEFAILED);
+      /* It already existed */
+      if (!regressionTestOption) {
+          /* Ask for overwrite confirmation */
+          if (!confirm(M_SAVEOVERWRITE))
+              abortPlayerCommand();            /* Return to player without saying anything */
+      }
   strcpy(saveFileName, str);
+  if ((saveFile = fopen(saveFileName, WRITE_MODE)) == NULL)
+      error(M_SAVEFAILED);
 #endif
 
   saveGame(saveFile);
@@ -181,7 +184,7 @@ static void restoreStrings(AFILE saveFile) {
       fread((void *)&length, sizeof(Aint), 1, saveFile);
       string = allocate(length+1);
       fread((void *)string, 1, length, saveFile);
-      setInstanceAttribute(initEntry->instanceCode, initEntry->attributeCode, (Aptr)string);
+      setInstanceAttribute(initEntry->instanceCode, initEntry->attributeCode, toAptr(string));
     }
 }
 
@@ -204,7 +207,7 @@ static void restoreSets(AFILE saveFile) {
 	fread((void *)&member, sizeof(member), 1, saveFile);
 	addToSet(set, member);
       }
-      setInstanceAttribute(initEntry->instanceCode, initEntry->attributeCode, (Aptr)set);
+      setInstanceAttribute(initEntry->instanceCode, initEntry->attributeCode, toAptr(set));
     }
 }
 
@@ -219,7 +222,7 @@ static void restoreScores(AFILE saveFile) {
 static void restoreEventQueue(AFILE saveFile) {
   fread((void *)&eventQueueTop, sizeof(eventQueueTop), 1, saveFile);
   if (eventQueueTop > eventQueueSize) {
-    free(eventQueue);
+    deallocate(eventQueue);
     eventQueue = allocate(eventQueueTop*sizeof(eventQueue[0]));
   }
   fread((void *)&eventQueue[0], sizeof(eventQueue[0]), eventQueueTop, saveFile);
@@ -333,7 +336,7 @@ void restore(void)
   char str[1000];
   FILE *saveFile;
 
-  current.location = where(HERO, TRUE);
+  current.location = where(HERO, DIRECT);
   /* First save ? */
   if (saveFileName[0] == '\0') {
     strcpy(saveFileName, adventureName);

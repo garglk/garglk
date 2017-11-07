@@ -19,5 +19,6 @@
 extern void terminate(int code);
 extern void usage(char *programName);
 extern void printVersion(int buildNumber);
+extern bool match(char *pattern, char *input);
 
 #endif /* UTILS_H_ */

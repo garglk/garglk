@@ -3,8 +3,8 @@
   debug.c
 
   Debugger unit in Alan interpreter ARUN
-  
-  \*----------------------------------------------------------------------*/
+
+\*----------------------------------------------------------------------*/
 
 #include "debug.h"
 
@@ -22,6 +22,7 @@
 #include "readline.h"
 #endif
 
+#include "compatibility.h"
 #include "lists.h"
 #include "inter.h"
 #include "current.h"
@@ -80,7 +81,7 @@ static void showContents(int cnt)
 
     output("$iContains:");
     for (i = 1; i <= header->instanceMax; i++) {
-        if (in(i, cnt, TRUE)) { /* Yes, it's directly in this container */
+        if (isIn(i, cnt, DIRECT)) { /* Yes, it's directly in this container */
             if (!found)
                 found = TRUE;
             output("$i$t");
@@ -95,49 +96,73 @@ static void showContents(int cnt)
 
 
 /*----------------------------------------------------------------------*/
-static void showInstanceLocation(int ins, char *prefix) {
-    char buffer[1000];
+static char *idOfInstance(int instance) {
+    int base = header->instanceTableAddress+
+        header->instanceMax*sizeof(InstanceEntry)/sizeof(Aword)+1;
+    return (char *)&memory[memory[base+instance-1]];
+}
 
+
+/*----------------------------------------------------------------------*/
+static void sayInstanceNumberAndName(int ins) {
+    char buf[1000];
+
+    sprintf(buf, "[%d] %s (\"$$", ins, idOfInstance(ins));
+    output(buf);
+    say(ins);
+    output("$$\")");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void sayLocationOfInstance(int ins, char *prefix) {
     if (admin[ins].location == 0)
         return;
     else {
         output(prefix);
         if (isALocation(admin[ins].location)) {
             output("at");
-            say(admin[ins].location);
-            sprintf(buffer, "[%d]", admin[ins].location);
-            output(buffer);
-        } else if (isContainer(admin[ins].location)) {
-		  
-            if (isObject(admin[ins].location))
+            sayInstanceNumberAndName(admin[ins].location);
+            sayLocationOfInstance(admin[ins].location, prefix);
+        } else if (isAContainer(admin[ins].location)) {
+            if (isAObject(admin[ins].location))
                 output("in");
-            else if (isActor(admin[ins].location))
+            else if (isAActor(admin[ins].location))
                 output("carried by");
-            say(admin[ins].location);
-            sprintf(buffer, "[%d]", admin[ins].location);
-            output(buffer);
-
+            sayInstanceNumberAndName(admin[ins].location);
+            sayLocationOfInstance(admin[ins].location, prefix);
         } else
             output("Illegal location!");
     }
 }
 
+/*----------------------------------------------------------------------*/
+static void listInstance(int ins) {
+    output("$i");
+    sayInstanceNumberAndName(ins);
+    if (instances[ins].container)
+        output("(container)");
+    sayLocationOfInstance(ins, ", ");
+}
+
 
 /*----------------------------------------------------------------------*/
-static void showInstances(void)
+static void listInstances(char *pattern)
 {
-    char str[80];
     int ins;
+    bool found = FALSE;
 
-    output("Instances:");
     for (ins = 1; ins <= header->instanceMax; ins++) {
-        sprintf(str, "$i%3d: ", ins);
-        output(str);
-        say(ins);
-        if (instances[ins].container)
-            output("(container)");
-        showInstanceLocation(ins, ", ");
+        if (pattern == NULL || (pattern != NULL && match(pattern, idOfInstance(ins)))) {
+            if (!found) {
+                output("Instances:");
+                found = TRUE;
+            }
+            listInstance(ins);
+        }
     }
+    if (pattern != NULL && !found)
+        output("No instances matched the pattern.");
 }
 
 /*----------------------------------------------------------------------*/
@@ -145,25 +170,24 @@ static void showInstance(int ins)
 {
     char str[80];
 
-    if (ins > header->instanceMax) {
-        sprintf(str, "Instance code %d is out of range", ins);
+    if (ins > header->instanceMax || ins < 1) {
+        sprintf(str, "Instance index %d is out of range.", ins);
         output(str);
         return;
     }
 
     output("The");
-    say(ins);
-    sprintf(str, "[%d]", ins);
-    output(str);
+    sayInstanceNumberAndName(ins);
     if (instances[ins].parent) {
         sprintf(str, "Isa %s[%d]", idOfClass(instances[ins].parent), instances[ins].parent);
         output(str);
     }
 
     if (!isA(ins, header->locationClassId) || (isA(ins, header->locationClassId) && admin[ins].location != 0)) {
-        sprintf(str, "$iLocation: ");
+        sprintf(str, "$iLocation:");
         output(str);
-        showInstanceLocation(ins, " ");
+        needSpace = TRUE;
+        sayLocationOfInstance(ins, "");
     }
 
     output("$iAttributes:");
@@ -184,19 +208,14 @@ static void showInstance(int ins)
 
 
 /*----------------------------------------------------------------------*/
-static void showObjects(void)
+static void listObjects(void)
 {
-    char str[80];
     int obj;
 
     output("Objects:");
-    for (obj = 1; obj <= header->instanceMax; obj++) {
-        if (isObject(obj)) {
-            sprintf(str, "$i%3d: ", obj);
-            output(str);
-            say(obj);
-        }
-    }
+    for (obj = 1; obj <= header->instanceMax; obj++)
+        if (isAObject(obj))
+            listInstance(obj);
 }
 
 
@@ -206,7 +225,7 @@ static void showObject(int obj)
     char str[80];
 
 
-    if (!isObject(obj)) {
+    if (!isAObject(obj)) {
         sprintf(str, "Instance %d is not an object", obj);
         output(str);
         return;
@@ -294,15 +313,21 @@ static void showClassInheritance(int c) {
 
 
 /*----------------------------------------------------------------------*/
-static void showClass(int c)
+static void showClass(int cla)
 {
     char str[80];
 
+    if (cla < 1) {
+        sprintf(str, "Class index %d is out of range.", cla);
+        output(str);
+        return;
+    }
+
     output("$t");
-    printClassName(c);
-    sprintf(str, "[%d]", c);
+    printClassName(cla);
+    sprintf(str, "[%d]", cla);
     output(str);
-    showClassInheritance(c);
+    showClassInheritance(cla);
 }
 
 
@@ -337,19 +362,14 @@ static void showClassHierarchy(int this, int depth)
 
 
 /*----------------------------------------------------------------------*/
-static void showLocations(void)
+static void listLocations(void)
 {
-    char str[80];
     int loc;
 
     output("Locations:");
-    for (loc = 1; loc <= header->instanceMax; loc++) {
-        if (isALocation(loc)) {
-            sprintf(str, "$i%3d: ", loc);
-            output(str);
-            say(loc);
-        }
-    }
+    for (loc = 1; loc <= header->instanceMax; loc++)
+        if (isALocation(loc))
+            listInstance(loc);
 }
 
 
@@ -376,21 +396,14 @@ static void showLocation(int loc)
 
 
 /*----------------------------------------------------------------------*/
-static void showActors(void)
+static void listActors(void)
 {
-    char str[80];
     int act;
 
     output("Actors:");
-    for (act = 1; act <= header->instanceMax; act++) {
-        if (isActor(act)) {
-            sprintf(str, "$i%3d: ", act);
-            output(str);
-            say(act);
-            if (instances[act].container)
-                output("(container)");
-        }
-    }
+    for (act = 1; act <= header->instanceMax; act++)
+        if (isAActor(act))
+            listInstance(act);
 }
 
 
@@ -399,7 +412,7 @@ static void showActor(int act)
 {
     char str[80];
 
-    if (!isActor(act)) {
+    if (!isAActor(act)) {
         sprintf(str, "Instance %d is not an actor.", act);
         output(str);
         return;
@@ -501,7 +514,7 @@ static void listFiles() {
 
 
 /*----------------------------------------------------------------------*/
-void listLines() {
+static void listLines() {
     SourceLineEntry *entry;
     for (entry = pointerTo(header->sourceLineTable); *((Aword*)entry) != EOF; entry++)
         printf("  %s:%d\n", sourceFileName(entry->file), entry->line);
@@ -607,19 +620,20 @@ static void deleteBreakpoint(int line, int file) {
 
 
 
-static bool trc, stp, cap, psh, stk;
+static bool saved_traceSection, saved_traceInstruction, saved_capitilize, saved_tracePush, saved_traceStack, saved_traceSource;
 static int loc;
 
 /*======================================================================*/
 void saveInfo(void)
 {
     /* Save some important things */
-    cap = capitalize; capitalize = FALSE;
-    trc = sectionTraceOption; sectionTraceOption = FALSE;
-    stp = singleStepOption; singleStepOption = FALSE;
-    psh = tracePushOption; tracePushOption = FALSE;
-    stk = traceStackOption; traceStackOption = FALSE;
-    loc = current.location; current.location = where(HERO, TRUE);
+    saved_capitilize = capitalize; capitalize = FALSE;
+    saved_traceSection = traceSectionOption; traceSectionOption = FALSE;
+    saved_traceSource = traceSourceOption; traceSourceOption = FALSE;
+    saved_traceInstruction = traceInstructionOption; traceInstructionOption = FALSE;
+    saved_tracePush = tracePushOption; tracePushOption = FALSE;
+    saved_traceStack = traceStackOption; traceStackOption = FALSE;
+    loc = current.location; current.location = where(HERO, DIRECT);
 }
 
 
@@ -627,11 +641,12 @@ void saveInfo(void)
 void restoreInfo(void)
 {
     /* Restore! */
-    capitalize = cap;
-    sectionTraceOption = trc;
-    singleStepOption = stp;
-    tracePushOption = psh;
-    traceStackOption = stk;
+    capitalize = saved_capitilize;
+    traceSectionOption = saved_traceSection;
+    traceInstructionOption = saved_traceInstruction;
+    traceSourceOption = saved_traceSource;
+    tracePushOption = saved_tracePush;
+    traceStackOption = saved_traceStack;
     current.location = loc;
 }
 
@@ -648,74 +663,92 @@ void restoreInfo(void)
 #define EVENTS_COMMAND 'E'
 #define BREAK_COMMAND 'B'
 #define DELETE_COMMAND 'D'
+#define TRACE_COMMAND 'R'
 #define SECTION_TRACE_COMMAND 'T'
 #define INSTRUCTION_TRACE_COMMAND 'S'
 #define NEXT_COMMAND 'N'
 #define UNKNOWN_COMMAND '?'
 #define AMBIGUOUS_COMMAND '-'
+#define TRACE_SOURCE_COMMAND 's'
+#define TRACE_SECTION_COMMAND 'e'
+#define TRACE_INSTRUCTION_COMMAND 'i'
+#define TRACE_PUSH_COMMAND 'p'
+#define TRACE_STACK_COMMAND 't'
 
 typedef struct DebugParseEntry {
     char *command;
-	char *parameter;
+    char *parameter;
     char code;
-	char *helpText;
+    char *helpText;
 } DebugParseEntry;
 
 static DebugParseEntry commandEntries[] = {
     {"help", "", HELP_COMMAND, "this help"},
     {"?", "", HELP_COMMAND, "d:o"},
-    {"break", "[file:[n]]", BREAK_COMMAND, "set breakpoint at source line [n] in [file]"},
-    {"delete", "[file:[n]]", DELETE_COMMAND, "delete breakpoint at source line [n] in [file]"},
+    {"break", "[[file:]n]", BREAK_COMMAND, "set breakpoint at source line [n] (optionally in [file])"},
+    {"delete", "[[file:]n]", DELETE_COMMAND, "delete breakpoint at source line [n] (optionally in [file])"},
     {"files", "", FILES_COMMAND, "list source files"},
-    {"events", "", EVENTS_COMMAND, "show events"},
-    {"classes", "", CLASSES_COMMAND, "show class hierarchy"},
-    {"instances", "[n]", INSTANCES_COMMAND, "show instance(s)"},
-    {"objects", "[n]", OBJECTS_COMMAND, "show instance(s) that are objects"},
-    {"actors", "[n]", ACTORS_COMMAND, "show instance(s) that are actors"},
-    {"locations", "[n]", LOCATIONS_COMMAND, "show instances that are locations"},
-    {"section", "", SECTION_TRACE_COMMAND, "toggle section trace"},
-    {"single", "", INSTRUCTION_TRACE_COMMAND, "toggle single instruction trace"},
-    {"next", "", NEXT_COMMAND, "execute to next source line"},
+    {"events", "", EVENTS_COMMAND, "list events"},
+    {"classes", "", CLASSES_COMMAND, "list class hierarchy"},
+    {"instances", "[n]", INSTANCES_COMMAND, "list instance(s), all, wildcard, number or name"},
+    {"objects", "[n]", OBJECTS_COMMAND, "list instance(s) that are objects"},
+    {"actors", "[n]", ACTORS_COMMAND, "list instance(s) that are actors"},
+    {"locations", "[n]", LOCATIONS_COMMAND, "list instances that are locations"},
+    {"trace", "('source'|'section'|'instruction'|'push'|'stack')", TRACE_COMMAND, "toggle various traces"},
+    {"next", "", NEXT_COMMAND, "run game and stop at next source line"},
     {"go", "", GO_COMMAND, "go another player turn"},
-    {"exit", "", EXIT_COMMAND, "exit debug mode and return to game, get back with 'debug' as player input"},
+    {"exit", "", EXIT_COMMAND, "exit to game, enter 'debug' to get back"},
     {"x", "", EXIT_COMMAND, "d:o"},
     {"quit", "", QUIT_COMMAND, "quit game"},
     {NULL, NULL}
 };
 
+static DebugParseEntry traceSubcommand[] = {
+    {"source", "", TRACE_SOURCE_COMMAND, ""},
+    {"section", "", TRACE_SECTION_COMMAND, ""},
+    {"instructions", "", TRACE_INSTRUCTION_COMMAND, ""},
+    {"pushs", "", TRACE_PUSH_COMMAND, ""},
+    {"stacks", "", TRACE_STACK_COMMAND, ""},
+    {NULL, NULL}
+};
+
 
 static char *spaces(int length) {
-	static char buf[200];
-	int i;
+    static char buf[200];
+    int i;
 
-	for (i = 0; i<length; i++)
-		buf[i] = ' ';
-	buf[i] = '\0';
-	return buf;
+    for (i = 0; i<length; i++)
+        buf[i] = ' ';
+    buf[i] = '\0';
+    return buf;
 }
 
 
+/*----------------------------------------------------------------------*/
 static char *padding(DebugParseEntry *entry, int maxLength) {
-	return spaces(maxLength-strlen(entry->command)-strlen(entry->parameter));
+    return spaces(maxLength-strlen(entry->command)-strlen(entry->parameter));
 }
 
 
+/*----------------------------------------------------------------------*/
 static void handleHelpCommand() {
-	output(alan.longHeader);
-	DebugParseEntry *entry = commandEntries;
+    if (!regressionTestOption)
+        output(alan.longHeader);
 
-	int maxLength = 0;
-	for (entry = commandEntries; entry->command != NULL; entry++) {
-		if (strlen(entry->command)+strlen(entry->parameter) > maxLength)
-			maxLength = strlen(entry->command)+strlen(entry->parameter);
-	}
+    DebugParseEntry *entry = commandEntries;
 
-	output("$nADBG Commands (can be abbreviated):");
-	for (entry = commandEntries; entry->command != NULL; entry++) {
-		char buf[200];
-		sprintf(buf, "$i%s %s %s -- %s", entry->command, entry->parameter, padding(entry, maxLength), entry->helpText);
-		output(buf);
-	}
+    int maxLength = 0;
+    for (entry = commandEntries; entry->command != NULL; entry++) {
+        if (strlen(entry->command)+strlen(entry->parameter) > maxLength)
+            maxLength = strlen(entry->command)+strlen(entry->parameter);
+    }
+
+    output("$nADBG Commands (can be abbreviated):");
+    for (entry = commandEntries; entry->command != NULL; entry++) {
+        char buf[200];
+        sprintf(buf, "$i%s %s %s$n$t$t-- %s", entry->command, entry->parameter, padding(entry, maxLength), entry->helpText);
+        output(buf);
+    }
 }
 
 
@@ -735,7 +768,9 @@ static char parseDebugCommand(char *command) {
     DebugParseEntry *entry = findEntry(command, commandEntries);
     if (entry != NULL) {
         if (strlen(command) < strlen(entry->command)) {
+            /* See if there are any more partial matches */
             if (findEntry(command, entry+1) != NULL)
+                /* TODO: we should list the possible matches somehow */
                 return AMBIGUOUS_COMMAND;
         }
         return entry->code;
@@ -746,153 +781,258 @@ static char parseDebugCommand(char *command) {
 
 /*----------------------------------------------------------------------*/
 static void readCommand(char buf[]) {
-	char c;
+    char c;
 
-	capitalize = FALSE;
-	if (anyOutput) newline();
-	do {
-		output("adbg> ");
+    capitalize = FALSE;
+    if (anyOutput) newline();
+    do {
+        output("adbg> ");
 
 #ifdef USE_READLINE
-		(void) readline(buf);
+        if (!readline(buf)) {
 #else
-		fgets(buf, 255, stdin);
+        if (fgets(buf, 255, stdin) == NULL) {
 #endif
-		lin = 1;
-		c = buf[0];
-	} while (c == '\0');
+            newline();
+            quitGame();
+        }
+        lin = 1;
+        c = buf[0];
+    } while (c == '\0');
 }
 
 
 /*----------------------------------------------------------------------*/
 static void displaySourceLocation(int line, int fileNumber) {
-	char *cause;
-	if (anyOutput) newline();
-	if (breakpointIndex(fileNumber, line) != -1)
-		cause = "Breakpoint hit at";
-	else
-		cause = "Stepping to";
-	printf("%s %s %s:%d\n", debugPrefix, cause, sourceFileName(fileNumber), line);
-	showSourceLine(fileNumber, line);
-	printf("\n");
-	anyOutput = FALSE;
+    char *cause;
+    if (anyOutput) newline();
+    if (breakpointIndex(fileNumber, line) != -1)
+        cause = "Breakpoint hit at";
+    else
+        cause = "Stepping to";
+    printf("%s %s %s:%d\n", debugPrefix, cause, sourceFileName(fileNumber), line);
+    showSourceLine(fileNumber, line);
+    printf("\n");
+    anyOutput = FALSE;
 }
 
 
 /*----------------------------------------------------------------------*/
 static void toggleSectionTrace() {
-	if ((trc = !trc))
-		printf("Section trace on.");
-	else
-		printf("Section trace off.");
+    if ((saved_traceSection = !saved_traceSection))
+        printf("Section trace on.");
+    else
+        printf("Section trace off.");
+}
+
+/*----------------------------------------------------------------------*/
+static void toggleInstructionTrace() {
+    if ((saved_traceInstruction = !saved_traceInstruction))
+        printf("Single instruction trace on.");
+    else
+        printf("Single instruction trace off.");
+}
+
+/*----------------------------------------------------------------------*/
+static void toggleSourceTrace() {
+    if ((saved_traceSource = !saved_traceSource))
+        printf("Source code trace on.");
+    else
+        printf("Source code trace off.");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void togglePushTrace() {
+    if ((saved_tracePush = !saved_tracePush))
+        printf("Stack Push trace on.");
+    else
+        printf("Stack Push trace off.");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void toggleStackTrace() {
+    if ((saved_traceStack = !saved_traceStack))
+        printf("Full stack trace on.");
+    else
+        printf("Full stack trace off.");
+}
+
+
+/*----------------------------------------------------------------------*/
+static int parseTraceCommand() {
+    char *subcommand = strtok(NULL, "");
+    DebugParseEntry *entry;
+    if (subcommand == 0)
+        return UNKNOWN_COMMAND;
+    else {
+        entry = findEntry(subcommand, traceSubcommand);
+        if (entry != NULL) {
+            if (strlen(subcommand) < strlen(entry->command)) {
+                if (findEntry(subcommand, entry+1) != NULL)
+                    return AMBIGUOUS_COMMAND;
+            }
+            return entry->code;
+        } else
+            return UNKNOWN_COMMAND;
+    }
+}
+
+
+/*----------------------------------------------------------------------*/
+static char *printTraceState(bool state) {
+    if (state)
+        return "on  - Traces";
+    else
+        return "off - Doesn't trace";
+}
+
+/*----------------------------------------------------------------------*/
+static void printTrace(void) {
+    printf("Trace section     : %s entry to every section (check, description, event, actor, ...)\n", printTraceState(saved_traceSection));
+    printf("Trace source      : %s every source line executed\n", printTraceState(saved_traceSource));
+    printf("Trace instruction : %s every Amachine instruction executed\n", printTraceState(saved_traceInstruction));
+    printf("Trace push        : %s every push onto the Amachine stack\n", printTraceState(saved_tracePush));
+    printf("Trace stack       : %s the complete stack every time\n", printTraceState(saved_traceStack));
+}
+
+
+/*----------------------------------------------------------------------*/
+static void handleTraceCommand() {
+    char subcommand = parseTraceCommand();
+
+    switch (subcommand) {
+    case TRACE_SECTION_COMMAND: toggleSectionTrace(); break;
+    case TRACE_SOURCE_COMMAND: toggleSourceTrace(); break;
+    case TRACE_INSTRUCTION_COMMAND: toggleInstructionTrace(); break;
+    case TRACE_PUSH_COMMAND: togglePushTrace(); break;
+    case TRACE_STACK_COMMAND: toggleStackTrace(); break;
+    case AMBIGUOUS_COMMAND: output("Ambiguous Trace subcommand abbreviation. ? for help."); break;
+    default: printTrace();
+    }
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleBreakCommand(int fileNumber) {
-	char *parameter = strtok(NULL, ":");
-	if (parameter != NULL && isalpha((int)parameter[0])) {
-		fileNumber = sourceFileNumber(parameter);
-		if (fileNumber == -1) {
-			printf("No such file: '%s'\n", parameter);
-			return;
-		}
-		parameter = strtok(NULL, "");
-	}
-	if (parameter == NULL)
-		listBreakpoints();
-	else
-		setBreakpoint(fileNumber, atoi(parameter));
+    char *parameter = strtok(NULL, ":");
+    if (parameter != NULL && isalpha((int)parameter[0])) {
+        fileNumber = sourceFileNumber(parameter);
+        if (fileNumber == -1) {
+            printf("No such file: '%s'\n", parameter);
+            return;
+        }
+        parameter = strtok(NULL, "");
+    }
+    if (parameter == NULL)
+        listBreakpoints();
+    else
+        setBreakpoint(fileNumber, atoi(parameter));
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleDeleteCommand(bool calledFromBreakpoint, int line, int fileNumber) {
-	char *parameter = strtok(NULL, "");
-	if (parameter == NULL) {
-		if (calledFromBreakpoint)
-			deleteBreakpoint(line, fileNumber);
-		else
-			printf("No current breakpoint to delete\n");
-	} else
-		deleteBreakpoint(atoi(parameter), fileNumber);
+    char *parameter = strtok(NULL, "");
+    if (parameter == NULL) {
+        if (calledFromBreakpoint)
+            deleteBreakpoint(line, fileNumber);
+        else
+            printf("No current breakpoint to delete\n");
+    } else
+        deleteBreakpoint(atoi(parameter), fileNumber);
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleNextCommand(bool calledFromBreakpoint) {
-	stopAtNextLine = TRUE;
-	debugOption = FALSE;
-	if (!calledFromBreakpoint)
-		current.sourceLine = 0;
-	restoreInfo();
-}
-
-
-/*----------------------------------------------------------------------*/
-static void toggleInstructionTrace() {
-	if ((stp = !stp))
-		printf("Single instruction trace on.");
-	else
-		printf("Single instruction trace off.");
+    stopAtNextLine = TRUE;
+    debugOption = FALSE;
+    if (!calledFromBreakpoint)
+        current.sourceLine = 0;
+    restoreInfo();
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleLocationsCommand() {
-	char *parameter = strtok(NULL, "");
-	if (parameter == 0)
-		showLocations();
-	else
-		showLocation(atoi(parameter));
+    char *parameter = strtok(NULL, "");
+    if (parameter == 0)
+        listLocations();
+    else
+        showLocation(atoi(parameter));
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleActorsCommand() {
-	char *parameter = strtok(NULL, "");
-	if (parameter == NULL)
-		showActors();
-	else
-		showActor(atoi(parameter));
+    char *parameter = strtok(NULL, "");
+    if (parameter == NULL)
+        listActors();
+    else
+        showActor(atoi(parameter));
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleClassesCommand() {
-	char *parameter = strtok(NULL, "");
-	if (parameter == NULL) {
-		output("Classes:");
-		showClassHierarchy(1, 0);
-	} else
-		showClass(atoi(parameter));
+    char *parameter = strtok(NULL, "");
+    if (parameter == NULL || strchr(parameter, '*') != 0) {
+        output("Classes:");
+        showClassHierarchy(1, 0);
+        listInstances(parameter);
+    } else if (isdigit((int)parameter[0]))
+        showClass(atoi(parameter));
+    else {
+        printf("You have to give a class index to display. You can't use names (yet).");
+    }
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleObjectsCommand() {
-	char *parameter = strtok(NULL, "");
-	if (parameter == NULL)
-		showObjects();
-	else
-		showObject(atoi(parameter));
+    char *parameter = strtok(NULL, "");
+    if (parameter == NULL)
+        listObjects();
+    else
+        showObject(atoi(parameter));
 }
 
 
 /*----------------------------------------------------------------------*/
 static void handleInstancesCommand() {
-	char *parameter = strtok(NULL, "");
+    char *parameter = strtok(NULL, "");
+    int i;
 
-	if (parameter == NULL)
-		showInstances();
-	else
-		showInstance(atoi(parameter));
+    if (parameter == NULL || strchr(parameter, '*') != 0)
+        listInstances(parameter);
+    else if (isdigit((int)parameter[0]))
+        showInstance(atoi(parameter));
+    else {
+        for (i = 1; i<header->instanceMax; i++)
+            if (strcmp(parameter, idOfInstance(i)) == 0) {
+                showInstance(i);
+                return;
+            }
+        printf("No instance named '%s'.", parameter);
+    }
+}
+
+/*----------------------------------------------------------------------*/
+static bool exactSameVersion() {
+    return header->version[3] == alan.version.version
+        && header->version[2] == alan.version.revision
+        && header->version[1] == alan.version.correction
+        && header->version[0] == alan.version.state[0];
 }
 
 
 /*======================================================================*/
 void debug(bool calledFromBreakpoint, int line, int fileNumber)
 {
+    static bool warned = FALSE;
+
     saveInfo();
 
 #ifdef HAVE_GLK
@@ -901,6 +1041,15 @@ void debug(bool calledFromBreakpoint, int line, int fileNumber)
 
     if (calledFromBreakpoint)
         displaySourceLocation(line, fileNumber);
+    else {
+        if (!exactSameVersion() && !warned && !regressionTestOption) {
+            printf("<WARNING: You are debugging a game which has version %s.>\n",
+                   decodedGameVersion(header->version));
+            printf("<That is not exactly the same as this interpreter (%s).>\n", alan.version.string);
+            printf("<This might cause a lot of trouble. Cross your fingers...>\n");
+            warned = TRUE;
+        }
+    }
 
     while (TRUE) {
 
@@ -910,7 +1059,7 @@ void debug(bool calledFromBreakpoint, int line, int fileNumber)
         char commandCode = parseDebugCommand(command);
 
         switch (commandCode) {
-		case AMBIGUOUS_COMMAND: output("Ambiguous ADBG command abbreviation. ? for help."); break;
+        case AMBIGUOUS_COMMAND: output("Ambiguous ADBG command abbreviation. ? for help."); break;
         case ACTORS_COMMAND: handleActorsCommand(); break;
         case BREAK_COMMAND: handleBreakCommand(fileNumber); break;
         case CLASSES_COMMAND: handleClassesCommand(); break;
@@ -921,6 +1070,7 @@ void debug(bool calledFromBreakpoint, int line, int fileNumber)
         case GO_COMMAND: restoreInfo(); goto exit_debug;
         case HELP_COMMAND: handleHelpCommand(); break;
         case INSTANCES_COMMAND: handleInstancesCommand(); break;
+        case TRACE_COMMAND: handleTraceCommand(); break;
         case INSTRUCTION_TRACE_COMMAND: toggleInstructionTrace(); break;
         case LOCATIONS_COMMAND: handleLocationsCommand(); break;
         case NEXT_COMMAND: handleNextCommand(calledFromBreakpoint); goto exit_debug;

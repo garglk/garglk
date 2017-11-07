@@ -6,11 +6,11 @@
 extern bool verboseOption;
 extern bool ignoreErrorOption;
 extern bool debugOption;
-extern bool sectionTraceOption;
+extern bool traceSectionOption;
 extern bool tracePushOption;
 extern bool traceStackOption;
 extern bool traceSourceOption;
-extern bool singleStepOption;
+extern bool traceInstructionOption;
 extern bool transcriptOption;
 extern bool logOption;
 extern bool statusLineOption;

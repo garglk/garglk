@@ -1,6 +1,6 @@
 /* glkstart.c: Unix-specific startup code
    Adapted for Alan by Joe Mason <jcmason@uwaterloo.ca>
-   And tweaked by Thomas Nilsson <thomas@alanif.se>
+   And tweaked by Thomas Nilefalk <thomas@alanif.se>
 
    Based on the sample file designed by
    Andrew Plotkin <erkyrath@netcom.com>
@@ -101,6 +101,7 @@ static void openResourceFile() {
     if (glk_fileref_does_file_exist(resourceFileRef)) {
         resourceFile = glk_stream_open_file(resourceFileRef, filemode_Read, 0);
         ecode = giblorb_set_resource_map(resourceFile);
+        (void)ecode;
     }
     free(originalFileName);
 }
@@ -117,8 +118,18 @@ int glkunix_startup_code(glkunix_startup_t *data)
     openGlkWindows();
 
 #ifdef HAVE_GARGLK
+#if (BUILD+0) != 0
+    {
+        char name[100];
+        sprintf(name, "%s-%d", alan.shortHeader, BUILD);
+        garglk_set_program_name(name);
+    }
+#else
 	garglk_set_program_name(alan.shortHeader);
-	garglk_set_program_info("Alan Interpreter 3.0 beta 2 by Thomas Nilsson\n");
+#endif
+	char info[80];
+	sprintf(info, "%s Interpreter by Thomas Nilefalk\n", alan.shortHeader);
+	garglk_set_program_info(info);
 #endif
 
     /* now process the command line arguments */
@@ -127,7 +138,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
     if (adventureFileName == NULL || strcmp(adventureFileName, "") == 0) {
         printf("You should supply a game file to play.\n");
         usage("arun"); // TODO Find real programname from arguments
-        terminate(0);
+        terminate(1);
     }
 
     /* Open any possible blorb resource file */
@@ -138,17 +149,18 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 
 
+#ifdef HAVE_WINGLK
 static int argCount;
 static char *argumentVector[10];
 
 /*----------------------------------------------------------------------*/
 static void splitArgs(char *commandLine) {
-    unsigned char *cp = commandLine;
+    unsigned char *cp = (unsigned char *)commandLine;
 
     while (*cp) {
         while (*cp && isspace(*cp)) cp++;
         if (*cp) {
-            argumentVector[argCount++] = cp;
+            argumentVector[argCount++] = (char *)cp;
             if (*cp == '"') {
                 do {
                     cp++;
@@ -166,7 +178,6 @@ static void splitArgs(char *commandLine) {
 }
 
 
-#ifdef HAVE_WINGLK
 /*======================================================================*/
 int winglk_startup_code(const char* cmdline)
 {

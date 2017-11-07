@@ -17,6 +17,7 @@
 #include "literal.h"
 #include "dictionary.h"
 #include "Location.h"
+#include "compatibility.h"
 
 
 /* PUBLIC DATA */
@@ -46,17 +47,17 @@ bool isA(int instance, int ancestor)
 }
 
 
-bool isObject(int instance)
+bool isAObject(int instance)
 {
   return isA(instance, OBJECT);
 }
 
-bool isContainer(int instance)
+bool isAContainer(int instance)
 {
-  return instance != 0 && instances[instance].container != 0;
+    return instance != 0 && !isLiteral(instance) && instances[instance].container != 0;
 }
 
-bool isActor(int instance)
+bool isAActor(int instance)
 {
   return isA(instance, ACTOR);
 }
@@ -72,14 +73,20 @@ bool isLiteral(int instance)
   return instance > header->instanceMax;
 }
 
-bool isNumeric(int instance)
+bool isANumeric(int instance)
 {
   return isLiteral(instance) && literals[literalFromInstance(instance)].type == NUMERIC_LITERAL;
 }
 
-bool isString(int instance)
+bool isAString(int instance)
 {
   return isLiteral(instance) && literals[literalFromInstance(instance)].type == STRING_LITERAL;
+}
+
+
+/*======================================================================*/
+bool isOpaque(int container) {
+    return getInstanceAttribute(container, OPAQUEATTRIBUTE);
 }
 
 
@@ -90,7 +97,9 @@ void setInstanceAttribute(int instance, int attribute, Aptr value)
 
     if (instance > 0 && instance <= header->instanceMax) {
         setAttribute(admin[instance].attributes, attribute, value);
-        if (isALocation(instance))   /* May have changed so describe next time */
+        if (isALocation(instance) && attribute != VISITSATTRIBUTE)
+            /* If it wasn't the VISITSATTRIBUTE the location may have
+               changed so describe next time */
             admin[instance].visitsCount = 0;
     } else {
         sprintf(str, "Can't SET/MAKE instance (%d).", instance);
@@ -102,29 +111,32 @@ void setInstanceAttribute(int instance, int attribute, Aptr value)
 /*======================================================================*/
 void setInstanceStringAttribute(int instance, int attribute, char *string)
 {
-    free((char *)getInstanceAttribute(instance, attribute));
-    setInstanceAttribute(instance, attribute, (Aptr)string);
+    deallocate(fromAptr(getInstanceAttribute(instance, attribute)));
+    setInstanceAttribute(instance, attribute, toAptr(string));
 }
 
 
 /*======================================================================*/
 void setInstanceSetAttribute(int instance, int attribute, Aptr set)
 {
-    freeSet((Set *)getInstanceAttribute(instance, attribute));
-    setInstanceAttribute(instance, attribute, (Aptr)set);
+    freeSet((Set *)fromAptr(getInstanceAttribute(instance, attribute)));
+    setInstanceAttribute(instance, attribute, set);
 }
 
 
 /*----------------------------------------------------------------------*/
 static Aptr literalAttribute(int literal, int attribute)
 {
-    char str[80];
-
-    if (attribute == 1)
-        return literals[literalFromInstance(literal)].value;
-    else {
-        sprintf(str, "Unknown attribute for literal (%d).", attribute);
-        syserr(str);
+    if (isPreBeta3(header->version)) {
+        if (attribute == 1)
+            return literals[literalFromInstance(literal)].value;
+        else
+            return 0;
+    } else {
+        if (attribute == 0)
+            return literals[literalFromInstance(literal)].value;
+        else
+            return getAttribute(admin[header->instanceMax].attributes, attribute);
     }
     return(EOF);
 }
@@ -139,11 +151,11 @@ Aptr getInstanceAttribute(int instance, int attribute)
         return literalAttribute(instance, attribute);
     else {
         if (instance > 0 && instance <= header->instanceMax) {
-			if (attribute == -1)
-				return locationOf(instance);
-			else
-				return getAttribute(admin[instance].attributes, attribute);
-		} else {
+            if (attribute == -1)
+                return locationOf(instance);
+            else
+                return getAttribute(admin[instance].attributes, attribute);
+        } else {
             sprintf(str, "Can't ATTRIBUTE item (%d).", instance);
             syserr(str);
         }
@@ -155,14 +167,14 @@ Aptr getInstanceAttribute(int instance, int attribute)
 /*======================================================================*/
 char *getInstanceStringAttribute(int instance, int attribute)
 {
-    return strdup((char *)getInstanceAttribute(instance, attribute));
+    return strdup((char *)fromAptr(getInstanceAttribute(instance, attribute)));
 }
 
 
 /*======================================================================*/
 Set *getInstanceSetAttribute(int instance, int attribute)
 {
-    return copySet((Set *)getInstanceAttribute(instance, attribute));
+    return copySet((Set *)fromAptr(getInstanceAttribute(instance, attribute)));
 }
 
 
@@ -181,31 +193,28 @@ static void verifyInstance(int instance, char *action) {
 
 
 /*======================================================================*/
-bool isHere(int id, bool directly)
+bool isHere(int id, ATrans transitivity)
 {
     verifyInstance(id, "HERE");
 
-    if (directly)
-        return(admin[id].location == current.location);
-    else
-        return at(id, current.location, directly);
+    return isAt(id, current.location, transitivity);
 }
 
 
 /*======================================================================*/
-bool isNearby(int instance, bool directly)
+bool isNearby(int instance, ATrans transitivity)
 {
     verifyInstance(instance, "NEARBY");
 
     if (isALocation(instance))
         return exitto(current.location, instance);
     else
-        return exitto(current.location, where(instance, directly));
+        return exitto(current.location, where(instance, transitivity));
 }
 
 
 /*======================================================================*/
-bool isNear(int instance, int other, bool directly)
+bool isNear(int instance, int other, ATrans trans)
 {
     Aint l1, l2;
 
@@ -214,29 +223,31 @@ bool isNear(int instance, int other, bool directly)
     if (isALocation(instance))
         l1 = instance;
     else
-        l1 = where(instance, directly);
+        l1 = where(instance, trans);
     if (isALocation(other))
         l2 = other;
     else
-        l2 = where(other, directly);
+        l2 = where(other, trans);
     return exitto(l2, l1);
 }
 
 
 /*======================================================================*/
 /* Look in a container to see if the instance is in it. */
-bool in(int instance, int container, bool directly)
+bool isIn(int instance, int container, ATrans trans)
 {
     int loc;
 
-    if (!isContainer(container))
+    if (!isAContainer(container))
         syserr("IN in a non-container.");
 
-    if (directly)
+    if (trans == DIRECT)
         return admin[instance].location == container;
     else {
         loc = admin[instance].location;
-        while (loc != 0)
+        if (trans == INDIRECT && loc != 0 && !isA(loc, LOCATION))
+            loc = admin[loc].location;
+        while (loc != 0 && !isA(loc, LOCATION))
             if (loc == container)
                 return TRUE;
             else
@@ -249,48 +260,121 @@ bool in(int instance, int container, bool directly)
 
 /*======================================================================*/
 /* Look see if an instance is AT another. */
-bool at(int instance, int other, bool directly)
+bool isAt(int instance, int other, ATrans trans)
 {
     if (instance == 0 || other == 0) return FALSE;
 
-    if (directly) {
-        if (isALocation(other))
+    if (isALocation(instance)) {
+        /* Nested locations */
+        /* TODO - What if the other is not a location? */
+        int current = admin[instance].location;
+        switch (trans) {
+        case DIRECT:
             return admin[instance].location == other;
-        else
-            return admin[instance].location == admin[other].location;
-    } else {
-        if (!isALocation(other))
-            /* If the other is not a location, compare their locations */
-            return locationOf(instance) == locationOf(other);
-        else if (locationOf(instance) == other)
-            return TRUE;
-        else if (locationOf(other) != 0)
-            return at(instance, locationOf(other), FALSE);
-        else
+        case INDIRECT:
+            if (current == other)
+                return FALSE;
+            current = admin[current].location;
+        case TRANSITIVE:
+            while (current != 0) {
+                if (current == other)
+                    return TRUE;
+                else
+                    current = admin[current].location;
+            }
             return FALSE;
+        }
+        syserr("Unexpected value in switch in isAt() for location");
+        return FALSE;
+    } else if (isALocation(other)) {
+        /* Instance is not a location but other is */
+        switch (trans) {
+        case DIRECT:
+            return admin[instance].location == other;
+        case INDIRECT: {
+            if (admin[instance].location == other)
+                return FALSE;   /* Directly, so not Indirectly */
+            /* Fall through to transitive handling of the location */
+        }
+        case TRANSITIVE: {
+            int location = locationOf(instance);
+            int current = other;
+            while (current != 0) {
+                if (current == location)
+                    return TRUE;
+                else
+                    current = admin[current].location;
+            }
+            return FALSE;
+        }
+        }
+        syserr("Unexpected value in switch in isAt() for non-location");
+        return FALSE;
+    } else {
+        /* Other is also not a location */
+        switch (trans) {
+        case DIRECT:
+            return positionOf(instance) == admin[other].location;
+        case INDIRECT: {
+            int location = locationOf(instance);
+            int current = other;
+            if (location == current)
+                return FALSE;
+            else
+                current = admin[current].location;
+            while (current != 0) {
+                if (current == location)
+                    return TRUE;
+                else
+                    current = admin[current].location;
+            }
+            return FALSE;
+        }
+        case TRANSITIVE: {
+            int location = locationOf(other);
+            int current = locationOf(instance);
+            bool ok = FALSE;
+            while (current != 0 && !ok) {
+                if (current == location)
+                    ok = TRUE;
+                else
+                    current = admin[current].location;
+            }
+            return ok;
+        }
+        }
+        syserr("Unexpected value in switch in isAt() for non-location");
+        return FALSE;
     }
 }
 
 
 /*======================================================================*/
-/* Return the *location* of an instance, transitively, i.e. not directly */
+/* Return the *location* of an instance, transitively, i.e. the first
+   location instance found when traversing the containment/position
+   links. If that didn't turn up a location see if it was in a
+   container that is somewhere, or a THING that is nowhere. It might
+   also be an ENTITY which is always everywhere so take that to mean
+   where the hero is. */
 int locationOf(int instance)
 {
-    int location;
+    int position;
     int container = 0;
 
-    verifyInstance(instance, "LOCATION");
+    verifyInstance(instance, "get LOCATION of");
 
-    location = admin[instance].location;
-    while (location != 0 && !isALocation(location)) {
-        container = location;
-        location = admin[location].location;
+    position = admin[instance].location;
+    while (position != 0 && !isALocation(position)) {
+        container = position;   /* Remember innermost container */
+        position = admin[position].location;
     }
-    if (location > NOWHERE) /* Not at #nowhere so return the location */
-        return location;
+    if (position > NOWHERE) /* It was a location so return that */
+        return position;
     else {
+        /* If we did not find a location then it might be in a container */
         if (container != 0)
             instance = container;
+        /* If the instance or the container it was in is a THING then its nowhere. */
         if (isA(instance, THING))
             return NOWHERE;     /* #nowhere */
         else if (isALocation(instance))
@@ -303,13 +387,22 @@ int locationOf(int instance)
 
 /*======================================================================*/
 /* Return the current position of an instance, directly or not */
-int where(int instance, bool directly)
+/* TODO: this will be a possible duplicate of where() */
+int positionOf(int instance)
+{
+    return admin[instance].location;
+}
+
+
+/*======================================================================*/
+/* Return the current position of an instance, directly or not */
+int where(int instance, ATrans trans)
 {
     verifyInstance(instance, "WHERE");
 
     if (isALocation(instance))
         return 0;
-    else if (directly)
+    else if (trans == DIRECT)
         return admin[instance].location;
     else
         return locationOf(instance);
@@ -361,7 +454,7 @@ void sayInstance(int instance)
                         capitalized = strdup((char *)pointerTo(dict[wrds[params[p].lastWord]].wrd));
                         capitalized[0] = IsoToUpperCase(capitalized[0]);
                         output(capitalized);
-                        free(capitalized);
+                        deallocate(capitalized);
                     } else
                         output((char *)pointerTo(dict[wrds[params[p].lastWord]].wrd));
                 }
@@ -390,7 +483,7 @@ void sayString(char *string)
 {
     if (isHere(HERO, FALSE))
         output(string);
-    free(string);
+    deallocate(string);
 }
 
 
@@ -399,10 +492,10 @@ static void sayLiteral(int literal)
 {
     char *str;
 
-    if (isNumeric(literal))
+    if (isANumeric(literal))
         sayInteger(literals[literal-header->instanceMax].value);
     else {
-        str = (char *)strdup((char *)literals[literal-header->instanceMax].value);
+        str = (char *)strdup((char *)fromAptr(literals[literal-header->instanceMax].value));
         sayString(str);
     }
 }
@@ -585,7 +678,7 @@ void sayForm(int instance, SayForm form)
 
 /*======================================================================*/
 bool isDescribable(int instance) {
-    return isObject(instance) || isActor(instance);
+    return isAObject(instance) || isAActor(instance);
 }
 
 
@@ -657,6 +750,34 @@ static void describeObject(int object)
 }
 
 
+/*----------------------------------------------------------------------*/
+static bool inheritedDescriptionCheck(int class)
+{
+    if (class == 0) return TRUE;
+    if (!inheritedDescriptionCheck(classes[class].parent)) return FALSE;
+    if (classes[class].descriptionChecks == 0) return TRUE;
+    return !checksFailed(classes[class].descriptionChecks, TRUE);
+}
+
+/*----------------------------------------------------------------------*/
+static bool descriptionCheck(int instance)
+{
+    int previousInstance = current.instance;
+    bool r;
+
+    current.instance = instance;
+    if (inheritedDescriptionCheck(instances[instance].parent)) {
+        if (instances[instance].checks == 0)
+            r = TRUE;
+        else
+            r = !checksFailed(instances[instance].checks, TRUE);
+    } else
+        r = FALSE;
+    current.instance = previousInstance;
+    return r;
+}
+
+
 /*======================================================================*/
 void describeInstances(void)
 {
@@ -666,7 +787,7 @@ void describeInstances(void)
 
     /* First describe every object here with its own description */
     for (i = 1; i <= header->instanceMax; i++)
-        if (admin[i].location == current.location && isObject(i) &&
+        if (admin[i].location == current.location && isAObject(i) &&
                 !admin[i].alreadyDescribed && hasDescription(i))
             describe(i);
 
@@ -674,14 +795,16 @@ void describeInstances(void)
     for (i = 1; i <= header->instanceMax; i++)
         if (admin[i].location == current.location
                 && !admin[i].alreadyDescribed
-                && isObject(i)) {
+                && isAObject(i)
+                && descriptionCheck(i)) {
             if (found == 0)
                 printMessageWithInstanceParameter(M_SEE_START, i);
             else if (found > 1)
                 printMessageWithInstanceParameter(M_SEE_COMMA, lastInstanceFound);
             admin[i].alreadyDescribed = TRUE;
 
-            if (instances[i].container && containerSize(i, TRUE) > 0 && !getInstanceAttribute(i, OPAQUEATTRIBUTE)) {
+            // TODO : isOpaque()
+            if (instances[i].container && containerSize(i, DIRECT) > 0 && !getInstanceAttribute(i, OPAQUEATTRIBUTE)) {
                 if (found > 0)
                     printMessageWithInstanceParameter(M_SEE_AND, i);
                 printMessage(M_SEE_END);
@@ -702,33 +825,13 @@ void describeInstances(void)
 
     /* Finally all actors with a separate description */
     for (i = 1; i <= header->instanceMax; i++)
-        if (admin[i].location == current.location && i != HERO && isActor(i)
+        if (admin[i].location == current.location && i != HERO && isAActor(i)
         && !admin[i].alreadyDescribed)
             describe(i);
 
     /* Clear the describe flag for all instances */
     for (i = 1; i <= header->instanceMax; i++)
         admin[i].alreadyDescribed = FALSE;
-}
-
-
-/*----------------------------------------------------------------------*/
-static bool inheritedDescriptionCheck(int class)
-{
-    if (class == 0) return TRUE;
-    if (!inheritedDescriptionCheck(classes[class].parent)) return FALSE;
-    if (classes[class].descriptionChecks == 0) return TRUE;
-    return !checksFailed(classes[class].descriptionChecks, TRUE);
-}
-
-/*----------------------------------------------------------------------*/
-static bool descriptionCheck(int instance)
-{
-    if (inheritedDescriptionCheck(instances[instance].parent)) {
-        if (instances[instance].checks == 0) return TRUE;
-        return !checksFailed(instances[instance].checks, TRUE);
-    } else
-        return FALSE;
 }
 
 
@@ -742,9 +845,9 @@ bool describe(int instance)
     verifyInstance(instance, "DESCRIBE");
     if (descriptionCheck(instance)) {
         descriptionOk = TRUE;
-        if (isObject(instance)) {
+        if (isAObject(instance)) {
             describeObject(instance);
-        } else if (isActor(instance)) {
+        } else if (isAActor(instance)) {
             describeActor(instance);
         } else
             describeAnything(instance);
@@ -785,7 +888,7 @@ static void locateLocation(Aword loc, Aword whr)
 /*----------------------------------------------------------------------*/
 static void locateObject(Aword obj, Aword whr)
 {
-    if (isContainer(whr)) { /* Into a container */
+    if (isAContainer(whr)) { /* Into a container */
         locateIntoContainer(obj, whr);
     } else {
         admin[obj].location = whr;
@@ -815,7 +918,7 @@ static void traceEnteredInstance(Aint instance, bool empty) {
 static void executeInheritedEntered(Aint theClass) {
     if (theClass == 0) return;
     executeInheritedEntered(classes[theClass].parent);
-    if (sectionTraceOption)
+    if (traceSectionOption)
         traceEnteredClass(theClass, classes[theClass].entered == 0);
     if (classes[theClass].entered) {
         interpret(classes[theClass].entered);
@@ -830,13 +933,50 @@ static void executeEntered(Aint instance) {
     if (admin[instance].location != 0)
         executeEntered(admin[instance].location);
     executeInheritedEntered(instances[instance].parent);
-    if (sectionTraceOption)
+    if (traceSectionOption)
         traceEnteredInstance(instance, instances[instance].entered == 0);
     if (instances[instance].entered != 0) {
         interpret(instances[instance].entered);
     }
     current.instance = currentInstance;
 }
+
+
+/*----------------------------------------------------------------------*/
+static int getVisits(int location) {
+    return getInstanceAttribute(location, VISITSATTRIBUTE);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void incrementVisits(int location) {
+    setInstanceAttribute(location, VISITSATTRIBUTE, getVisits(location)+1);
+    if (admin[location].location != 0)
+        /* Nested location, so increment that too */
+        incrementVisits(admin[location].location);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void revisited(void) {
+    if (anyOutput)
+        para();
+    say(where(HERO, DIRECT));
+    printMessage(M_AGAIN);
+    newline();
+    describeInstances();
+}
+
+
+/*----------------------------------------------------------------------*/
+static bool shouldBeDescribed(void) {
+    if (!isPreBeta5(header->version))
+        return getVisits(admin[HERO].location) % (current.visits+1) == 0
+            || admin[admin[HERO].location].visitsCount == 0;
+    else
+        return admin[admin[HERO].location].visitsCount % (current.visits+1) == 0;
+}
+
 
 /*----------------------------------------------------------------------*/
 static void locateActor(Aint movingActor, Aint whr)
@@ -846,10 +986,15 @@ static void locateActor(Aint movingActor, Aint whr)
     Aint previousActor = current.actor;
     Aint previousInstance = current.instance;
 
+    /* Before leaving, remember that we visited the location */
+    if (!isPreBeta5(header->version))
+        if (movingActor == HERO)
+            incrementVisits(where(HERO, DIRECT));
+
     /* TODO Actors locating into containers is dubious, anyway as it
        is now it allows the hero to be located into a container. And what
        happens with current location if so... */
-    if (isContainer(whr))
+    if (isAContainer(whr))
         locateIntoContainer(movingActor, whr);
     else {
         current.location = whr;
@@ -862,25 +1007,19 @@ static void locateActor(Aint movingActor, Aint whr)
     /* Execute possible entered */
     current.actor = movingActor;
     if (previousActorLocation != current.location) {
-	executeEntered(current.location);
+        executeEntered(current.location);
     }
     current.instance = previousInstance;
     current.actor = previousActor;
 
     if (movingActor == HERO) {
-        if (admin[admin[movingActor].location].visitsCount % (current.visits+1) == 0)
+        if (shouldBeDescribed())
             look();
-        else {
-            if (anyOutput)
-                para();
-            say(where(HERO, TRUE));
-            printMessage(M_AGAIN);
-            newline();
-            describeInstances();
-        }
-        admin[where(HERO, TRUE)].visitsCount++;
-        admin[where(HERO, TRUE)].visitsCount %= (current.visits+1);
+        else
+            revisited();
+        admin[where(HERO, DIRECT)].visitsCount++;
     } else
+        /* Ensure that the location will be described to the hero next time */
         admin[whr].visitsCount = 0;
 
     if (current.actor != movingActor)
@@ -892,9 +1031,55 @@ static void locateActor(Aint movingActor, Aint whr)
 
 /*----------------------------------------------------------------------*/
 static void traceExtract(int instance, int containerId, char *what) {
-    printf("\n<EXTRACT from ");
-    traceSay(instance);
-    printf("[%d, container %d], %s:>\n", instance, containerId, what);
+    if (traceSectionOption) {
+        printf("\n<EXTRACT from ");
+        traceSay(instance);
+        printf("[%d, container %d], %s:>\n", instance, containerId, what);
+    }
+}
+
+
+/*----------------------------------------------------------------------*/
+static void containmentLoopError(int instance, int whr) {
+    ParameterArray parameters = newParameterArray();
+    if (isPreBeta4(header->version))
+        output("That would be to put something inside itself.");
+    else if (whr == instance) {
+        addParameterForInstance(parameters, instance);
+        printMessageWithParameters(M_CONTAINMENT_LOOP, parameters);
+    } else {
+        addParameterForInstance(parameters, instance);
+        addParameterForInstance(parameters, whr);
+        printMessageWithParameters(M_CONTAINMENT_LOOP2, parameters);
+    }
+    free(parameters);
+    error(NO_MSG);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void runExtractStatements(int instance, int containerId) {
+    ContainerEntry *theContainer = &containers[containerId];
+
+    if (theContainer->extractStatements != 0) {
+        traceExtract(instance, containerId, "Executing");
+        interpret(theContainer->extractStatements);
+    }
+}
+
+
+/*----------------------------------------------------------------------*/
+static bool runExtractChecks(int instance, int containerId) {
+    ContainerEntry *theContainer = &containers[containerId];
+
+    if (theContainer->extractChecks != 0) {
+        traceExtract(instance, containerId, "Checking");
+        if (checksFailed(theContainer->extractChecks, EXECUTE_CHECK_BODY_ON_FAIL)) {
+            fail = TRUE;
+            return FALSE;       /* Failed! */
+        }
+    }
+    return TRUE;                /* Passed! */
 }
 
 
@@ -902,37 +1087,35 @@ static void traceExtract(int instance, int containerId, char *what) {
 void locate(int instance, int whr)
 {
     int containerId;
-    ContainerEntry *theContainer;
     int previousInstance = current.instance;
 
     verifyInstance(instance, "LOCATE");
     verifyInstance(whr, "LOCATE AT");
 
-    /* First check if the instance is in a container, if so run extract checks */
-    if (isContainer(admin[instance].location)) {    /* In something? */
-        current.instance = admin[instance].location;
-        containerId = instances[admin[instance].location].container;
-        theContainer = &containers[containerId];
+    /* Will this create a containment loop? */
+    if (whr == instance || (isAContainer(instance) && isIn(whr, instance, TRANSITIVE)))
+        containmentLoopError(instance, whr);
 
-        if (theContainer->extractChecks != 0) {
-            if (sectionTraceOption)
-                traceExtract(instance, containerId, "Checking");
-            if (checksFailed(theContainer->extractChecks, EXECUTE_CHECK_BODY_ON_FAIL)) {
-                fail = TRUE;
-                // TODO: this should be done for the above return as well as before exiting the extract checks :
-                // current.instance = previousInstance;
+    /* First check if the instance is in a container, if so run extract checks */
+    if (isAContainer(admin[instance].location)) {    /* In something? */
+        int loc = admin[instance].location;
+
+        /* Run all nested extraction checks */
+        while (isAContainer(loc)) {
+            current.instance = loc;
+            containerId = instances[loc].container;
+
+            if (!runExtractChecks(instance, containerId)) {
+                current.instance = previousInstance;
                 return;
             }
+            runExtractStatements(instance, containerId);
+            loc = admin[loc].location;
         }
-        if (theContainer->extractStatements != 0) {
-            if (sectionTraceOption)
-                traceExtract(instance, containerId, "Executing");
-            interpret(theContainer->extractStatements);
-        }
-	current.instance = previousInstance;
+        current.instance = previousInstance;
     }
 
-    if (isActor(instance))
+    if (isAActor(instance))
         locateActor(instance, whr);
     else if (isALocation(instance))
         locateLocation(instance, whr);
@@ -941,4 +1124,3 @@ void locate(int instance, int whr)
 
     gameStateChanged = TRUE;
 }
-

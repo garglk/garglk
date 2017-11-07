@@ -18,21 +18,24 @@ ACodeHeader *header = &dummyHeader;
 int memTop = 0;         /* Top of load memory */
 
 
-/*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-
-
-#ifndef SMARTALLOC
 /*======================================================================*/
 void *allocate(unsigned long lengthInBytes)
 {
-  void *p = (void *)calloc((size_t)lengthInBytes, 1);
+    void *p = (void *)calloc((size_t)lengthInBytes, 1);
 
-  if (p == NULL)
-    syserr("Out of memory.");
+    if (p == NULL)
+        syserr("Out of memory.");
 
-  return p;
+    return p;
 }
-#endif
+
+
+/*======================================================================*/
+void deallocate(void *memory)
+{
+    free(memory);
+}
+
 
 /*======================================================================*/
 void *duplicate(void *original, unsigned long len)
@@ -41,4 +44,56 @@ void *duplicate(void *original, unsigned long len)
 
   memcpy(p, original, len);
   return p;
+}
+
+
+typedef struct {
+    Aptr aptr;
+    void *voidp;
+} PointerMapEntry;
+
+static PointerMapEntry *pointerMap = NULL;
+static int pointerMapSize = 0;
+static int nextAptr = 1;
+
+/*======================================================================*/
+void resetPointerMap(void) {
+    if (pointerMap != NULL) free(pointerMap);
+    pointerMap = NULL;
+    pointerMapSize = 0;
+}
+
+/*======================================================================*/
+void *fromAptr(Aptr aptr) {
+    int index;
+
+    for (index=0; index < pointerMapSize && pointerMap[index].aptr != aptr; index++)
+        ;
+
+    if (index == pointerMapSize)
+        syserr("No pointerMap entry for Aptr");
+
+    return pointerMap[index].voidp;
+}
+
+
+/*======================================================================*/
+Aptr toAptr(void *ptr) {
+    int index;
+
+    if (pointerMap == NULL) {
+        pointerMap = (PointerMapEntry *)allocate(sizeof(PointerMapEntry));
+        pointerMapSize = 1;
+    }
+
+    for (index=0; index < pointerMapSize && pointerMap[index].voidp != NULL; index++)
+        ;
+    if (index == pointerMapSize) {
+        pointerMap = realloc(pointerMap, (index+1)*sizeof(PointerMapEntry));
+        pointerMapSize++;
+    }
+
+    pointerMap[index].voidp = ptr;
+    pointerMap[index].aptr = nextAptr++;
+    return pointerMap[index].aptr;
 }

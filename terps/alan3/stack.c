@@ -11,14 +11,18 @@
 #include "types.h"
 #include "syserr.h"
 #include "memory.h"
-
+#include "options.h"
 
 /* ABSTRACT TYPE */
+
+/* TODO: Maybe convert this to interpreter stack and keep this as a
+   generic auto-growing stack... */
+
 typedef struct StackStructure {
-  Aint *stack;
-  int stackSize;
-  int stackp;
-  int framePointer;
+    Aword *stack;               /* Array that can take Awords */
+    int stackSize;
+    int stackp;
+    int framePointer;
 } StackStructure;
 
 
@@ -45,8 +49,8 @@ void deleteStack(Stack theStack)
   if (theStack == NULL)
     syserr("deleting a NULL stack");
 
-  free(theStack->stack);
-  free(theStack);
+  deallocate(theStack->stack);
+  deallocate(theStack);
 }
 
 
@@ -68,6 +72,8 @@ void dumpStack(Stack theStack)
   for (i = 0; i < theStack->stackp; i++)
     printf("%ld ", (unsigned long) theStack->stack[i]);
   printf("]");
+  if (!traceInstructionOption && !tracePushOption)
+	  printf("\n");
 }
 
 
@@ -101,7 +107,7 @@ Aptr top(Stack theStack)
   if (theStack == NULL)
     syserr("NULL stack not supported anymore");
 
-  return(theStack->stack[theStack->stackp-1]);
+  return theStack->stack[theStack->stackp-1];
 }
 
 
@@ -174,5 +180,3 @@ void endFrame(Stack theStack)
   theStack->stackp = theStack->framePointer;
   theStack->framePointer = pop(theStack);
 }
-
-
