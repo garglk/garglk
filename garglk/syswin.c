@@ -802,33 +802,45 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
 
     case WM_KEYDOWN:
-
-    switch (wParam)
     {
-    case VK_PRIOR: gli_input_handle_key(keycode_PageUp); break;
-    case VK_NEXT: gli_input_handle_key(keycode_PageDown); break;
-    case VK_HOME: gli_input_handle_key(keycode_Home); break;
-    case VK_END: gli_input_handle_key(keycode_End); break;
-    case VK_LEFT: gli_input_handle_key(keycode_Left); break;
-    case VK_RIGHT: gli_input_handle_key(keycode_Right); break;
-    case VK_UP: gli_input_handle_key(keycode_Up); break;
-    case VK_DOWN: gli_input_handle_key(keycode_Down); break;
-    case VK_ESCAPE: gli_input_handle_key(keycode_Escape); break;
-    case VK_DELETE: gli_input_handle_key(keycode_Erase); break;
-    case VK_F1: gli_input_handle_key(keycode_Func1); break;
-    case VK_F2: gli_input_handle_key(keycode_Func2); break;
-    case VK_F3: gli_input_handle_key(keycode_Func3); break;
-    case VK_F4: gli_input_handle_key(keycode_Func4); break;
-    case VK_F5: gli_input_handle_key(keycode_Func5); break;
-    case VK_F6: gli_input_handle_key(keycode_Func6); break;
-    case VK_F7: gli_input_handle_key(keycode_Func7); break;
-    case VK_F8: gli_input_handle_key(keycode_Func8); break;
-    case VK_F9: gli_input_handle_key(keycode_Func9); break;
-    case VK_F10: gli_input_handle_key(keycode_Func10); break;
-    case VK_F11: gli_input_handle_key(keycode_Func11); break;
-    case VK_F12: gli_input_handle_key(keycode_Func12); break;
+        if (GetKeyState(VK_CONTROL) < 0)
+        {
+            switch (wParam)
+            {
+            case VK_LEFT: gli_input_handle_key(keycode_SkipWordLeft); break;
+            case VK_RIGHT: gli_input_handle_key(keycode_SkipWordRight); break;
+            }
+        }
+        else
+        {
+            switch (wParam)
+            {
+            case VK_PRIOR: gli_input_handle_key(keycode_PageUp); break;
+            case VK_NEXT: gli_input_handle_key(keycode_PageDown); break;
+            case VK_HOME: gli_input_handle_key(keycode_Home); break;
+            case VK_END: gli_input_handle_key(keycode_End); break;
+            case VK_LEFT: gli_input_handle_key(keycode_Left); break;
+            case VK_RIGHT: gli_input_handle_key(keycode_Right); break;
+            case VK_UP: gli_input_handle_key(keycode_Up); break;
+            case VK_DOWN: gli_input_handle_key(keycode_Down); break;
+            case VK_ESCAPE: gli_input_handle_key(keycode_Escape); break;
+            case VK_DELETE: gli_input_handle_key(keycode_Erase); break;
+            case VK_F1: gli_input_handle_key(keycode_Func1); break;
+            case VK_F2: gli_input_handle_key(keycode_Func2); break;
+            case VK_F3: gli_input_handle_key(keycode_Func3); break;
+            case VK_F4: gli_input_handle_key(keycode_Func4); break;
+            case VK_F5: gli_input_handle_key(keycode_Func5); break;
+            case VK_F6: gli_input_handle_key(keycode_Func6); break;
+            case VK_F7: gli_input_handle_key(keycode_Func7); break;
+            case VK_F8: gli_input_handle_key(keycode_Func8); break;
+            case VK_F9: gli_input_handle_key(keycode_Func9); break;
+            case VK_F10: gli_input_handle_key(keycode_Func10); break;
+            case VK_F11: gli_input_handle_key(keycode_Func11); break;
+            case VK_F12: gli_input_handle_key(keycode_Func12); break;
+            }
+        }
+        return 0;
     }
-    return 0;
 
     /* unicode encoded chars, including escape, backspace etc... */
     case WM_UNICHAR:
