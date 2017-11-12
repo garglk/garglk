@@ -35,13 +35,13 @@ extern AttributeEntry *attributes; /* Dynamic attribute values */
 
 /* Functions: */
 extern bool isA(int instance, int class);
-extern bool isObject(int instance);
-extern bool isContainer(int instance);
-extern bool isActor(int instance);
+extern bool isAObject(int instance);
+extern bool isAContainer(int instance);
+extern bool isAActor(int instance);
 extern bool isALocation(int instance);
 extern bool isLiteral(int instance);
-extern bool isNumeric(int instance);
-extern bool isString(int instance);
+extern bool isANumeric(int instance);
+extern bool isAString(int instance);
 
 extern Aptr getInstanceAttribute(int instance, int attribute);
 extern char *getInstanceStringAttribute(int instane, int attribute);
@@ -61,14 +61,17 @@ extern void describeAnything(int instance);
 extern void describeInstances(void);
 extern bool describe(int instance);
 
-extern int where(int instance, bool directly);
+extern int where(int instance, ATrans trans);
+extern int positionOf(int instance);
 extern int locationOf(int instance);
 
-extern bool at(int instance, int other,bool directly);
-extern bool in(int instance, int theContainer, bool directly);
-extern bool isHere(int instance, bool directly);
-extern bool isNearby(int instance, bool directly);
-extern bool isNear(int instance, int other, bool directly);
+extern bool isAt(int instance, int other, ATrans trans);
+extern bool isIn(int instance, int theContainer, ATrans trans);
+extern bool isHere(int instance, ATrans trans);
+extern bool isNearby(int instance, ATrans trans);
+extern bool isNear(int instance, int other, ATrans trans);
+
+extern bool isOpaque(int container);
 
 extern void locate(int instance, int whr);
 

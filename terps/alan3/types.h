@@ -14,26 +14,12 @@
 #include "memory.h"
 
 
-/* MEMORY DEBUGGING? */
-#include "smartall.h"
-
-
 /* PREPROCESSOR */
 #define FORWARD
 #define NEW(type) ((type *)allocate(sizeof(type)))
 
 
 /* CONSTANTS */
-
-#ifndef TRUE
-#define TRUE (0==0)
-#endif
-#ifndef FALSE
-#define FALSE (!TRUE)
-#endif
-
-#define LITMIN (header->locmax+1)
-#define LITMAX (header->locmax+1+litCount)
 
 #define HERO (header->theHero)
 #define ENTITY (header->entityClassId)
@@ -43,11 +29,13 @@
 #define ACTOR (header->actorClassId)
 
 #define MAXPARAMS (header->maxParameters)
-#define MAXENTITY (header->instanceMax)
+#define MAXINSTANCE (header->instanceMax)
 
 #define pointerTo(x) ((void *)&memory[x])
 #define addressOf(x) ((((long)x)-((long)memory))/sizeof(Aword))
 #define stringAt(x) ((char *)pointerTo(x))
+
+#define ASIZE(x) (sizeof(x)/sizeof(Aword))
 
 /* TYPES */
 
@@ -55,7 +43,7 @@
 
 /* The various tables */
 typedef struct VerbEntry {	/* VERB TABLE */
-  Aword code;			/* Code for the verb */
+  Aint code;			/* Code for the verb */
   Aaddr alts;			/* Address to alternatives */
 } VerbEntry;
 
@@ -64,5 +52,9 @@ typedef struct LimEntry {	/* LIMIT Type */
   Aword val;			/* And the limiting value */
   Aaddr stms;			/* Statements if fail */
 } LimitEntry;
+
+
+/* Functions: */
+extern Aaddr addressAfterTable(Aaddr adr, int size);
 
 #endif

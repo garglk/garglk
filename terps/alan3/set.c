@@ -45,7 +45,7 @@ void initSets(SetInitEntry *initTable)
     Aword *member = pointerTo(init->setAddress);
     for (i = 0; i < init->size; i++, member++)
       addToSet(set, *member);
-    setInstanceAttribute(init->instanceCode, init->attributeCode, (Aptr)set);
+    setInstanceAttribute(init->instanceCode, init->attributeCode, toAptr(set));
   }
 }
 
@@ -155,7 +155,9 @@ bool equalSets(Set *set1, Set *set2)
 
 /*======================================================================*/
 void freeSet(Set *theSet) {
-  if (theSet->members != NULL)
-    free(theSet->members);
-  free(theSet);
+    if (theSet != NULL) {
+        if (theSet->members != NULL)
+            deallocate(theSet->members);
+        deallocate(theSet);
+    }
 }

@@ -27,15 +27,11 @@
 #endif
 
 
-#ifdef DMALLOC
-#include "dmalloc.h"
-#endif
-
 /*======================================================================
 
-main()
+  main()
 
-Main program of main unit in Alan interpreter module, ARUN
+  Main program of main unit in Alan interpreter module, ARUN
 
 */
 
@@ -45,14 +41,6 @@ void glk_main(void)
 int main(int argc, char *argv[])
 #endif
 {
-#ifdef DMALLOC
-    /*
-     * Get environ variable DMALLOC_OPTIONS and pass the settings string
-     * on to dmalloc_debug_setup to setup the dmalloc debugging flags.
-     */
-    //dmalloc_debug_setup(getenv("DMALLOC_OPTIONS"));
-#endif
-
     /* Pick up any locale settings */
     setlocale(LC_ALL, "");
 
@@ -64,23 +52,28 @@ int main(int argc, char *argv[])
     getPageSize();
 
 #ifdef HAVE_GLK
-    /* args() is called from glkstart.c */
+    /* args() is then called from glkstart.c */
 #else
     args(argc, argv);
 
     if (adventureFileName == NULL || strcmp(adventureFileName, "") == 0) {
-	printf("You should supply a game file to play.\n");
-	usage(PROGNAME);
-	terminate(0);
+        printf("You should supply a game file to play.\n");
+        usage(PROGNAME);
+        free(adventureFileName);
+        terminate(1);
     }
 #endif
 
     if ((debugOption && !regressionTestOption) || verboseOption) {
-	if (debugOption) printf("<");
-	printVersion(BUILD);
-	if (debugOption) printf(">");
-	newline();
-	newline();
+        if (debugOption) printf("<");
+#if (BUILD+0) != 0
+        printVersion(BUILD);
+#else
+        printVersion(0);
+#endif
+        if (debugOption) printf(">");
+        newline();
+        newline();
     }
 
 #ifdef HAVE_GARGLK

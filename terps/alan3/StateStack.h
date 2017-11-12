@@ -8,19 +8,19 @@
 
 
 /* TYPES */
-typedef struct StateStackStructure *StateStack;
+typedef struct StateStackStructure *StateStackP;
 
 
 /* DATA */
 
 
 /* FUNCTIONS */
-extern StateStack createStateStack(int elementSize);
-extern bool stateStackIsEmpty(StateStack stateStack);
-extern void pushGameState(StateStack stateStack, void *state);
-extern void popGameState(StateStack stateStack, void *state, char **playerCommandPointer);
-extern void attachPlayerCommandsToLastState(StateStack stateStack, char *playerCommand);
-extern void deleteStateStack(StateStack stateStack);
+extern StateStackP createStateStack(int elementSize);
+extern bool stateStackIsEmpty(StateStackP stateStack);
+extern void pushGameState(StateStackP stateStack, void *state);
+extern void popGameState(StateStackP stateStack, void *state, char **playerCommandPointer);
+extern void attachPlayerCommandsToLastState(StateStackP stateStack, char *playerCommand);
+extern void deleteStateStack(StateStackP stateStack);
 
 
 #endif /* STATESTACK_H_ */

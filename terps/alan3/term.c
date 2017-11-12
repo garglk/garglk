@@ -165,7 +165,7 @@ void statusline(void)
   sayInstance(where(HERO, FALSE));
 
   if (header->maximumScore > 0)
-    sprintf(line, "Score %d(%ld)/%d moves", current.score, header->maximumScore, current.tick);
+    sprintf(line, "Score %d(%d)/%d moves", current.score, header->maximumScore, current.tick);
   else
     sprintf(line, "%ld moves", (long)current.tick);
   for (i=0; i < pageWidth - col - strlen(line); i++) putchar(' ');

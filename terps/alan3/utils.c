@@ -7,7 +7,10 @@
 #include "memory.h"
 #include "output.h"
 #include "exe.h"
+#include "state.h"
+#include "lists.h"
 
+#include "fnmatch.h"
 
 /*======================================================================
 
@@ -20,14 +23,13 @@
 void terminate(int code)
 {
     newline();
-    if (memory)
-        free(memory);
+
+    terminateStateStack();
 
     stopTranscript();
 
-#ifdef SMARTALLOC
-    sm_dump(1);
-#endif
+    if (memory)
+        deallocate(memory);
 
 #ifdef HAVE_GLK
     glk_exit();
@@ -42,8 +44,8 @@ void terminate(int code)
 
 /*======================================================================*/
 void printVersion(int buildNumber) {
-    printf("Arun, Adventure Interpreter version %s", alan.version.string);
-    if (buildNumber != 0) printf(" - build %d", buildNumber);
+    printf("Arun - Adventure Language Interpreter version %s", alan.version.string);
+    if (buildNumber != 0) printf("-%d", buildNumber);
     printf(" (%s %s)", alan.date, alan.time);
 }
 
@@ -51,7 +53,11 @@ void printVersion(int buildNumber) {
 /*======================================================================*/
 void usage(char *programName)
 {
+#if (BUILD+0) != 0
     printVersion(BUILD);
+#else
+    printVersion(0);
+#endif
     printf("\n\nUsage:\n\n");
     printf("    %s [<switches>] <adventure>\n\n", programName);
     printf("where the possible optional switches are:\n");
@@ -65,10 +71,17 @@ void usage(char *programName)
     printf("    -d       enter debug mode\n");
     printf("    -t[<n>]  trace game execution, higher <n> gives more trace\n");
     printf("    -i       ignore version and checksum errors\n");
-    printf("    -r       refrain from printing timestamps and paging (making regression testing easier)\n");
+    printf("    -r       make regression test easier (don't timestamp, page break, randomize...)\n");
 #ifdef HAVE_GLK
     glk_set_style(style_Normal);
 #endif
 }
 
 
+#ifndef FNM_CASEFOLD
+#define FNM_CASEFOLD 0
+#endif
+/*======================================================================*/
+bool match(char *pattern, char *input) {
+    return fnmatch(pattern, input, FNM_CASEFOLD) == 0;
+}

@@ -86,15 +86,15 @@ void print(Aword fpos, Aword len)
     int outlen = 0;               /* Current output length */
     int ch = 0;
     int i;
-    long savfp = 0;		/* Temporary saved text file position */
+    long savfp = 0;     /* Temporary saved text file position */
     static bool printFlag = FALSE; /* Printing already? */
     bool savedPrintFlag = printFlag;
-    void *info = NULL;		/* Saved decoding info */
+    void *info = NULL;      /* Saved decoding info */
 
 
     if (len == 0) return;
 
-    if (isHere(HERO, TRUE)) {	/* Check if the player will see it */
+    if (isHere(HERO, TRUE)) {   /* Check if the player will see it */
         if (printFlag) {            /* Already printing? */
             /* Save current text file position and/or decoding info */
             if (header->pack)
@@ -148,7 +148,7 @@ void sys(Aword fpos, Aword len)
 
     command = getStringFromFile(fpos, len);
     system(command);
-    free(command);
+    deallocate(command);
 }
 
 
@@ -181,11 +181,12 @@ char *getStringFromFile(Aword fpos, Aword len)
 void score(Aword sc)
 {
     if (sc == 0) {
-        Parameter *messageParameters = allocateParameterArray(MAXENTITY);
+        ParameterArray messageParameters = newParameterArray();
         addParameterForInteger(messageParameters, current.score);
         addParameterForInteger(messageParameters, header->maximumScore);
+        addParameterForInteger(messageParameters, current.tick);
         printMessageWithParameters(M_SCORE, messageParameters);
-        free(messageParameters);
+        freeParameterArray(messageParameters);
     } else {
         current.score += scores[sc-1];
         scores[sc-1] = 0;
@@ -206,7 +207,7 @@ static void sayUndoneCommand(char *words) {
     static Parameter *messageParameters = NULL;
     messageParameters = ensureParameterArrayAllocated(messageParameters);
 
-    current.location = where(HERO, TRUE);
+    current.location = where(HERO, DIRECT);
     clearParameterArray(messageParameters);
     addParameterForString(&messageParameters[0], words);
     setEndOfArray(&messageParameters[1]);
@@ -232,7 +233,7 @@ void quitGame(void)
 {
     char buf[80];
 
-    current.location = where(HERO, TRUE);
+    current.location = where(HERO, DIRECT);
     para();
     while (TRUE) {
         col = 1;
@@ -243,14 +244,14 @@ void quitGame(void)
 #else
         if (gets(buf) == NULL) terminate(0);
 #endif
-        if (strcmp(buf, "restart") == 0)
+        if (strcasecmp(buf, "restart") == 0)
             longjmp(restartLabel, TRUE);
-        else if (strcmp(buf, "restore") == 0) {
+        else if (strcasecmp(buf, "restore") == 0) {
             restore();
             return;
-        } else if (strcmp(buf, "quit") == 0) {
+        } else if (strcasecmp(buf, "quit") == 0) {
             terminate(0);
-        } else if (strcmp(buf, "undo") == 0) {
+        } else if (strcasecmp(buf, "undo") == 0) {
             if (gameStateChanged) {
                 rememberCommands();
                 rememberGameState();
@@ -275,7 +276,7 @@ void restartGame(void)
 {
     Aint previousLocation = current.location;
 
-    current.location = where(HERO, TRUE);
+    current.location = where(HERO, DIRECT);
     para();
     if (confirm(M_REALLY)) {
         longjmp(restartLabel, TRUE);
@@ -314,6 +315,14 @@ static void increaseEventQueue(void)
 }
 
 
+/*----------------------------------------------------------------------*/
+static void moveEvent(int to, int from) {
+    eventQueue[to].event = eventQueue[from].event;
+    eventQueue[to].after = eventQueue[from].after;
+    eventQueue[to].where = eventQueue[from].where;
+}
+
+
 /*======================================================================*/
 void schedule(Aword event, Aword where, Aword after)
 {
@@ -328,9 +337,7 @@ void schedule(Aword event, Aword where, Aword after)
 
     /* Bubble this event down */
     for (i = eventQueueTop; i >= 1 && eventQueue[i-1].after <= after; i--) {
-        eventQueue[i].event = eventQueue[i-1].event;
-        eventQueue[i].after = eventQueue[i-1].after;
-        eventQueue[i].where = eventQueue[i-1].where;
+        moveEvent(i, i-1);
     }
 
     eventQueue[i].after = after;
@@ -342,14 +349,14 @@ void schedule(Aword event, Aword where, Aword after)
 
 // TODO Move to string.c?
 /*======================================================================*/
-Aptr concat(Aptr s1, Aptr s2)
+Aptr concat(Aptr as1, Aptr as2)
 {
+    char *s1 = fromAptr(as1);
+    char *s2 = fromAptr(as2);
     char *result = allocate(strlen((char*)s1)+strlen((char*)s2)+1);
-    strcpy(result, (char*)s1);
-    strcat(result, (char*)s2);
-    free((char*)s1);
-    free((char*)s2);
-    return (Aptr)result;
+    strcpy(result, s1);
+    strcat(result, s2);
+    return toAptr(result);
 }
 
 
@@ -496,7 +503,7 @@ static char *stripWordsFromStringBackwards(Aint count, char *initialString, char
 /*======================================================================*/
 Aptr strip(bool stripFromBeginningNotEnd, int count, bool stripWordsNotChars, int id, int atr)
 {
-    char *initialString = (char *)getInstanceAttribute(id, atr);
+    char *initialString = (char *)fromAptr(getInstanceAttribute(id, atr));
     char *theStripped;
     char *theRest;
 
@@ -512,7 +519,7 @@ Aptr strip(bool stripFromBeginningNotEnd, int count, bool stripWordsNotChars, in
             theStripped = stripCharsFromStringBackwards(count, initialString, &theRest);
     }
     setInstanceStringAttribute(id, atr, theRest);
-    return (Aptr)theStripped;
+    return toAptr(theStripped);
 }
 
 
@@ -522,7 +529,7 @@ int getContainerMember(int container, int index, bool directly) {
     Aint count = 0;
 
     for (i = 1; i <= header->instanceMax; i++) {
-        if (in(i, container, directly)) {
+        if (isIn(i, container, DIRECT)) {
             count++;
             if (count == index)
                 return i;
@@ -551,6 +558,7 @@ void showImage(int image, int align)
         glk_window_flow_break(glkMainWin);
         printf("\n");
         ecode = glk_image_draw(glkMainWin, image, imagealign_MarginLeft, 0);
+        (void)ecode;
     }
 #endif
 }
@@ -570,6 +578,7 @@ void playSound(int sound)
         if (soundChannel != NULL) {
             glk_schannel_stop(soundChannel);
             ecode = glk_schannel_play(soundChannel, sound);
+            (void)ecode;
         }
     }
 #endif
@@ -584,7 +593,7 @@ void empty(int cnt, int whr)
     int i;
 
     for (i = 1; i <= header->instanceMax; i++)
-        if (in(i, cnt, TRUE))
+        if (isIn(i, cnt, DIRECT))
             locate(i, whr);
 }
 
@@ -596,7 +605,7 @@ void use(int actor, int script)
     char str[80];
     StepEntry *step;
 
-    if (!isActor(actor)) {
+    if (!isAActor(actor)) {
         sprintf(str, "Instance is not an Actor (%d).", actor);
         syserr(str);
     }
@@ -616,7 +625,7 @@ void stop(int act)
 {
     char str[80];
 
-    if (!isActor(act)) {
+    if (!isAActor(act)) {
         sprintf(str, "Instance is not an Actor (%d).", act);
         syserr(str);
     }
@@ -629,22 +638,35 @@ void stop(int act)
 
 
 
-
+static int randomValue = 0;
 /*----------------------------------------------------------------------*/
 int randomInteger(int from, int to)
 {
-    if (to == from)
-        return to;
-    else if (to > from)
-        return (rand()/10)%(to-from+1)+from;
-    else
-        return (rand()/10)%(from-to+1)+to;
+    if (regressionTestOption) {
+        int ret = from + randomValue;
+        /* Generate them in sequence */
+        if (ret > to) {
+            ret = from;
+            randomValue = 1;
+        } else if (ret == to)
+            randomValue = 0;
+        else
+            randomValue++;
+        return ret;
+    } else {
+        if (to == from)
+            return to;
+        else if (to > from)
+            return (rand()/10)%(to-from+1)+from;
+        else
+            return (rand()/10)%(from-to+1)+to;
+    }
 }
 
 
 
 /*----------------------------------------------------------------------*/
-bool btw(int val, int low, int high)
+bool between(int val, int low, int high)
 {
     if (high > low)
         return low <= val && val <= high;
@@ -659,15 +681,12 @@ bool contains(Aptr string, Aptr substring)
 {
     bool found;
 
-    strlow((char *)string);
-    strlow((char *)substring);
+    strlow((char *)fromAptr(string));
+    strlow((char *)fromAptr(substring));
 
-    found = (strstr((char *)string, (char *)substring) != 0);
+    found = (strstr((char *)fromAptr(string), (char *)fromAptr(substring)) != 0);
 
-    free((char *)string);
-    free((char *)substring);
-
-    return(found);
+    return found;
 }
 
 
@@ -681,17 +700,14 @@ bool streq(char a[], char b[])
 
     eq = (strcmp(a, b) == 0);
 
-    free(a);
-    free(b);
-
-    return(eq);
+    return eq;
 }
 
 
 
 /*======================================================================*/
 #include <sys/time.h>
-void startTranscript() {
+void startTranscript(void) {
     time_t tick;
 
     if (logFile != NULL)
@@ -705,9 +721,9 @@ void startTranscript() {
     tm = localtime(&tv.tv_sec);
 
     sprintf(logFileName, "%s%d%02d%02d%02d%02d%02d%04d.log",
-			adventureName, tm->tm_year+1900, tm->tm_mon+1,
-			tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
-			(int)tv.tv_usec);
+            adventureName, tm->tm_year+1900, tm->tm_mon+1,
+            tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec,
+            (int)tv.tv_usec);
 #ifdef HAVE_GLK
     glui32 fileUsage = transcriptOption?fileusage_Transcript:fileusage_InputRecord;
     frefid_t logFileRef = glk_fileref_create_by_name(fileUsage, logFileName, 0);
@@ -724,19 +740,17 @@ void startTranscript() {
 
 
 /*======================================================================*/
-void stopTranscript() {
+void stopTranscript(void) {
     if (logFile == NULL)
         return;
 
-	if (transcriptOption|| logOption)
+    if (transcriptOption|| logOption)
 #ifdef HAVE_GLK
-		glk_stream_close(logFile, NULL);
+        glk_stream_close(logFile, NULL);
 #else
     fclose(logFile);
 #endif
     logFile = NULL;
-	transcriptOption = FALSE;
-	logOption = FALSE;
+    transcriptOption = FALSE;
+    logOption = FALSE;
 }
-
-

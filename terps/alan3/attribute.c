@@ -5,8 +5,8 @@
 #include "lists.h"
 
 
-/*======================================================================*/
-AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode)
+/*----------------------------------------------------------------------*/
+static AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode)
 {
   AttributeEntry *attribute = attributeTable;
   while (attribute->code != attributeCode) {

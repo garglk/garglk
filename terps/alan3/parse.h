@@ -21,7 +21,7 @@
 
 /* FUNCTIONS */
 
-extern void parse(Parameter parameters[]);
+extern void parse(void);
 extern void initParsing(void);
 
 #endif

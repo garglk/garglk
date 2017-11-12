@@ -15,7 +15,7 @@
 
 
 /* PUBLIC DATA */
-int litCount;
+int litCount = 0;
 static LiteralEntry literalTable[100];
 LiteralEntry *literals = literalTable;
 
@@ -43,18 +43,19 @@ void createStringLiteral(char *unquotedString) {
     litCount++;
     literals[litCount].class = header->stringClassId;
     literals[litCount].type = STRING_LITERAL;
-    literals[litCount].value = (Aptr) strdup(unquotedString);
+    literals[litCount].value = toAptr(strdup(unquotedString));
 }
 
 /*----------------------------------------------------------------------*/
 void freeLiterals() {
     int i;
 
-    for (i = 0; i < litCount; i++)
-        if (literals[i].type == STRING_LITERAL && literals[i].value != 0)
-            free((char*) literals[i].value);
-    litCount = 0;
-}
+    for (i = 0; i <= litCount; i++)
+        if (literals[i].type == STRING_LITERAL && literals[i].value != 0) {
+            deallocate((void *)fromAptr(literals[i].value));
+        }
+    litCount = 0;}
+
 
 
 /*======================================================================*/

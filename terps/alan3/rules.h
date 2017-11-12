@@ -11,21 +11,19 @@
 /* IMPORTS */
 #include "acode.h"
 
-/* TYPES */
 
-typedef struct RuleEntry {   /* RULE TABLE */
-  Abool run;            /* Is rule already run? */
-  Aaddr exp;            /* Address to expression code */
-  Aaddr stms;           /* Address to run */
-} RuleEntry;
+/* TYPES */
 
 
 /* DATA */
 extern RuleEntry *rules;      /* Rule table pointer */
+extern bool anyRuleRun;		  /* Did any rule run? */
 
 
 /* FUNCTIONS */
-extern void initRules(void);
-extern void evaluateRules(void);
+extern void initRules(Aaddr rulesTableAddress);
+extern void resetAndEvaluateRules(RuleEntry rules[], char *version);
+extern void resetRules(void);
+extern void evaluateRules(RuleEntry rules[]);
 
 #endif

@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------*\
 
-	syntax
+	Syntax
 
 \*----------------------------------------------------------------------*/
 #include "syntax.h"
@@ -43,14 +43,14 @@ static SyntaxEntry *findSyntaxEntryForPreBeta2(int verbCode, SyntaxEntry *foundS
 
 
 /*----------------------------------------------------------------------*/
-static SyntaxEntry *findSyntaxEntry(int verbCode, SyntaxEntry *foundStx) {
+static SyntaxEntry *findSyntaxEntry(int verbCode) {
     SyntaxEntry *stx;
     for (stx = stxs; !isEndOfArray(stx); stx++)
         if (stx->code == verbCode) {
-            foundStx = stx;
+            return stx;
             break;
         }
-    return(foundStx);
+    return NULL;
 }
 
 
@@ -58,9 +58,9 @@ static SyntaxEntry *findSyntaxEntry(int verbCode, SyntaxEntry *foundStx) {
 SyntaxEntry *findSyntaxTreeForVerb(int verbCode) {
     SyntaxEntry *foundStx = NULL;
     if (isPreBeta2(header->version)) {
-	foundStx = findSyntaxEntryForPreBeta2(verbCode, foundStx);
+        foundStx = findSyntaxEntryForPreBeta2(verbCode, foundStx);
     } else {
-	foundStx = findSyntaxEntry(verbCode, foundStx);
+        foundStx = findSyntaxEntry(verbCode);
     }
     if (foundStx == NULL)
         /* No matching syntax */
@@ -70,11 +70,12 @@ SyntaxEntry *findSyntaxTreeForVerb(int verbCode) {
 
 
 /*======================================================================*/
-char *parameterNameInSyntax(int parameterNumber) {
-    SyntaxEntry *syntax = findSyntaxTreeForVerb(verbWordCode);
-    Aaddr *parameterNameTable = (Aaddr *)pointerTo(syntax->parameterNameTable);
-    if (isPreBeta2(header->version) || syntax->parameterNameTable != 0) {
-        return stringAt(parameterNameTable[parameterNumber-1]);
-	} else
-        return NULL;
+char *parameterNameInSyntax(int syntaxNumber, int parameterNumber) {
+    Aaddr adr = addressAfterTable(header->parameterMapAddress, sizeof(ParameterMapEntry));
+    Aaddr *syntaxParameterNameTable = pointerTo(memory[adr]);
+    Aaddr *parameterNameTable = (Aaddr *)pointerTo(syntaxParameterNameTable[syntaxNumber-1]);
+    return stringAt(parameterNameTable[parameterNumber-1]);
 }
+
+
+
