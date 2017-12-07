@@ -38,5 +38,4 @@ matrix:
       before_install:
         - brew update
         - brew install sdl sdl_mixer sdl_sound smpeg libvorbis freetype jam
-        - brew upgrade libpng jpeg pkg-config
       script: sh gargoyle_osx.sh
