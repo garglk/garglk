@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "dict.h"
@@ -31,11 +32,11 @@
 static uint16_t separators;
 static uint8_t num_separators;
 
-static uint16_t GET_WORD(uint8_t *base)
+static uint16_t get_word(const uint8_t *base)
 {
   return (base[0] << 8) | base[1];
 }
-static void MAKE_WORD(uint8_t *base, uint16_t val)
+static void make_word(uint8_t *base, uint16_t val)
 {
   base[0] = val >> 8;
   base[1] = val & 0xff;
@@ -47,7 +48,7 @@ static void MAKE_WORD(uint8_t *base, uint16_t val)
  */
 static void add_zchar(int c, int n, uint8_t *encoded)
 {
-  uint16_t w = GET_WORD(&encoded[2 * (n / 3)]);
+  uint16_t w = get_word(&encoded[2 * (n / 3)]);
 
   /* From §3.2:
    * --first byte-------   --second byte---
@@ -63,7 +64,7 @@ static void add_zchar(int c, int n, uint8_t *encoded)
    */
   w |= (c & 0x1f) << (5 * (2 - (n % 3)));
 
-  MAKE_WORD(&encoded[2 * (n / 3)], w);
+  make_word(&encoded[2 * (n / 3)], w);
 }
 
 /* Encode the text at “s”, of length “len” (there is not necessarily a
@@ -93,7 +94,7 @@ static void add_zchar(int c, int n, uint8_t *encoded)
  * (which has the value 32) as a 10-bit ZSCII code, which is the
  * Z-characters 5, 6, 1, 0.  Assume this is correct.
  */
-static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[8])
+static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8])
 {
   int n = 0;
   const int res = zversion <= 3 ? 6 : 9;
@@ -177,13 +178,13 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   return base + (ret - &memory[base]);
 }
 
-static int is_sep(uint8_t c)
+static bool is_sep(uint8_t c)
 {
-  if(c == ZSCII_SPACE) return 1;
+  if(c == ZSCII_SPACE) return true;
 
-  for(uint16_t i = 0; i < num_separators; i++) if(user_byte(separators + i) == c) return 1;
+  for(uint16_t i = 0; i < num_separators; i++) if(user_byte(separators + i) == c) return true;
 
-  return 0;
+  return false;
 }
 
 static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement, size_t replen, uint16_t dictionary)
@@ -197,7 +198,7 @@ static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement
   return d;
 }
 
-static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, uint16_t dictionary, int found, int flag, int start_of_sentence)
+static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, uint16_t dictionary, int found, bool flag, bool start_of_sentence)
 {
   uint16_t d;
 
@@ -252,15 +253,15 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
  * • The next byte is the length of the token.
  * • The final byte is the offset in the string of the token.
  */
-void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
+void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
 {
   const uint8_t *p, *lastp;
   uint8_t *string;
   uint32_t text_len = 0;
   const int maxwords = user_byte(parse);
-  int in_word = 0;
+  bool in_word = false;
   int found = 0;
-  int start_of_sentence = 1;
+  bool start_of_sentence = true;
 
   if(dictionary == 0) dictionary = header.dictionary;
 
@@ -285,7 +286,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
   {
     if(!in_word && text_len != 0 && !is_sep(*p))
     {
-      in_word = 1;
+      in_word = true;
       lastp = p;
     }
 
@@ -294,7 +295,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
       if(in_word)
       {
         handle_token(string, lastp, p - lastp, parse, dictionary, found++, flag, start_of_sentence);
-        start_of_sentence = 0;
+        start_of_sentence = false;
       }
 
       /* §13.6.1: Separators (apart from a space) are tokens too. */
@@ -302,13 +303,12 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, int flag)
       {
         handle_token(string, p, 1, parse, dictionary, found++, flag, start_of_sentence);
 
-        if(*p == '.') start_of_sentence = 1;
-        else          start_of_sentence = 0;
+        start_of_sentence = *p == '.';
       }
 
       if(found == maxwords) break;
 
-      in_word = 0;
+      in_word = false;
     }
 
     p++;

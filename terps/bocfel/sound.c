@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "sound.h"
@@ -20,7 +21,7 @@ static schanid_t sound_channel = NULL;
  * game.  Otherwise, try to find a Blorb file that goes with the
  * selected story.
  */
-void init_sound(int story_is_blorb)
+void init_sound(bool story_is_blorb)
 {
 #ifdef GARGLK
   strid_t file = NULL;
@@ -62,12 +63,12 @@ void init_sound(int story_is_blorb)
 #endif
 }
 
-int sound_loaded(void)
+bool sound_loaded(void)
 {
 #ifdef GARGLK
   return sound_channel != NULL;
 #else
-  return 0;
+  return false;
 #endif
 }
 

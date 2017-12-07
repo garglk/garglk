@@ -1,7 +1,9 @@
 #ifndef ZTERP_BRANCH_H
 #define ZTERP_BRANCH_H
 
-void branch_if(int);
+#include <stdbool.h>
+
+void branch_if(bool);
 
 void zjump(void);
 void zjz(void);

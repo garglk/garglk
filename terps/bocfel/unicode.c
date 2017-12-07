@@ -24,8 +24,6 @@
 #include "util.h"
 #include "zterp.h"
 
-int have_unicode;
-
 /*
  * The index is the ZSCII value, minus 155 (so entry 0 refers to ZSCII
  * value 155); and the value at the index is the Unicode character that
@@ -55,14 +53,14 @@ void parse_unicode_table(uint16_t utable)
 {
   if(utable >= memory_size) die("corrupted story: unicode table out of range");
 
-  unicode_entries = BYTE(utable++);
+  unicode_entries = byte(utable++);
 
   if(unicode_entries > UNICODE_TABLE_SIZE) die("corrupted story: too many entries in the unicode table");
   if(utable + (2 * unicode_entries) > memory_size) die("corrupted story: unicode table out of range");
 
   for(int i = 0; i < unicode_entries; i++)
   {
-    unicode_table[i] = WORD(utable + (2 * i));
+    unicode_table[i] = word(utable + (2 * i));
   }
 }
 

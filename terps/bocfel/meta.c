@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <limits.h>
 
 #include "meta.h"
@@ -34,14 +35,13 @@
 #define ISDIGIT(c)	((c) >= '0' && (c) <= '9')
 #define ISXDIGIT(c)	(ISDIGIT(c) || ((c) >= 'a' && (c) <= 'f'))
 
-static long parseint(const char *s, int base, int *valid)
+static long parseint(const char *s, int base, bool *valid)
 {
   long ret;
   char *endptr;
 
-  *valid = 1;
   ret = strtol(s, &endptr, base);
-  if(endptr == s || *endptr != 0) *valid = 0;
+  *valid = endptr != s && *endptr == 0;
 
   return ret;
 }
@@ -85,7 +85,7 @@ static void meta_status_putc(uint8_t c)
 }
 
 static uint8_t *debug_change_memory;
-static char debug_change_valid[UINT16_MAX + 1];
+static bool debug_change_valid[UINT16_MAX + 1];
 
 static void meta_debug_change_start(void)
 {
@@ -98,7 +98,7 @@ static void meta_debug_change_start(void)
   else
   {
     memcpy(debug_change_memory, memory, header.static_start);
-    memset(debug_change_valid, 1, sizeof debug_change_valid);
+    for(size_t addr = 0; addr < sizeof debug_change_valid / sizeof *debug_change_valid; addr++) debug_change_valid[addr] = true;
     screen_puts("[debug change reset]");
   }
 }
@@ -111,26 +111,29 @@ static void meta_debug_change_inc_dec(const char *string)
   }
   else
   {
-    int saw_change = 0;
+    bool saw_change = false;
 
     for(uint16_t addr = 0; addr < header.static_start - 2; addr++)
     {
-      int16_t new = as_signed(WORD(addr));
-      int16_t old = as_signed((debug_change_memory[addr] << 8) | debug_change_memory[addr + 1]);
+      if(debug_change_valid[addr])
+      {
+        int16_t new = as_signed(word(addr));
+        int16_t old = as_signed((debug_change_memory[addr] << 8) | debug_change_memory[addr + 1]);
 
 #define CMP(a, b) (strcmp(string, "inc") == 0 ? a > b : a < b)
-      if(CMP(new, old) && debug_change_valid[addr])
+        if(CMP(new, old))
 #undef CMP
-      {
-        if(is_global(addr) || !in_globals(addr))
         {
-          screen_printf("%s: %ld -> %ld\n", addrstring(addr), (long)old, (long)new);
-          saw_change = 1;
+          if(is_global(addr) || !in_globals(addr))
+          {
+            screen_printf("%s: %ld -> %ld\n", addrstring(addr), (long)old, (long)new);
+            saw_change = true;
+          }
         }
-      }
-      else
-      {
-        debug_change_valid[addr] = 0;
+        else
+        {
+          debug_change_valid[addr] = false;
+        }
       }
     }
 
@@ -140,7 +143,7 @@ static void meta_debug_change_inc_dec(const char *string)
   }
 }
 
-static int meta_debug_change(const char *string)
+static bool meta_debug_change(const char *string)
 {
   while(*string == ' ') string++;
 
@@ -154,28 +157,28 @@ static int meta_debug_change(const char *string)
   }
   else
   {
-    return -1;
+    return false;
   }
 
-  return 0;
+  return true;
 }
 
-static int meta_debug_scan(const char *string)
+static bool meta_debug_scan(const char *string)
 {
-  static char debug_scan_locations[UINT16_MAX + 1];
+  static bool debug_scan_invalid_addr[UINT16_MAX + 1];
 
   while(*string == ' ') string++;
 
   if(strcmp(string, "start") == 0)
   {
-    memset(debug_scan_locations, 0, sizeof debug_scan_locations);
+    for(size_t addr = 0; addr < sizeof debug_scan_invalid_addr / sizeof *debug_scan_invalid_addr; addr++) debug_scan_invalid_addr[addr] = false;
     screen_puts("[debug scan reset]");
   }
   else if(strcmp(string, "show") == 0)
   {
     for(size_t addr = 0; addr < header.static_start - 2; addr++)
     {
-      if(debug_scan_locations[addr] == 0)
+      if(!debug_scan_invalid_addr[addr])
       {
         if(is_global(addr) || !in_globals(addr))
         {
@@ -187,10 +190,10 @@ static int meta_debug_scan(const char *string)
   else if(ISDIGIT(string[0]) || (string[0] == '-' && ISDIGIT(string[1])))
   {
     long value;
-    int valid;
+    bool valid;
 
     value = parseint(string, 0, &valid);
-    if(!valid) return -1;
+    if(!valid) return false;
 
     if(value < -0x8000 || value > 0xffff)
     {
@@ -198,28 +201,28 @@ static int meta_debug_scan(const char *string)
     }
     else
     {
-      uint16_t count = 0;
+      size_t count = 0;
 
       if(value < 0) value += 0x10000;
 
-      for(uint16_t i = 0; i < header.static_start - 2; i++)
+      for(size_t addr = 0; addr < header.static_start - 2; addr++)
       {
-        if(WORD(i) != value) debug_scan_locations[i] = 1;
-        if(debug_scan_locations[i] == 0) count++;
+        if(word(addr) != value) debug_scan_invalid_addr[addr] = true;
+        if(!debug_scan_invalid_addr[addr]) count++;
       }
 
-      screen_printf("[%lu location%s]\n", (unsigned long)count, count == 1 ? "" : "s");
+      screen_printf("[%zu location%s]\n", count, count == 1 ? "" : "s");
     }
   }
   else
   {
-    return -1;
+    return false;
   }
 
-  return 0;
+  return true;
 }
 
-static long parse_address(const char *string, int *valid)
+static long parse_address(const char *string, bool *valid)
 {
   long addr;
 
@@ -237,32 +240,32 @@ static long parse_address(const char *string, int *valid)
   return addr;
 }
 
-static int validate_address(long addr, int print)
+static bool validate_address(long addr, bool print)
 {
   if(addr < 0 || addr > memory_size - 2)
   {
     if(print) screen_printf("[address out of range: must be [0, 0x%lx]]\n", (unsigned long)memory_size - 2);
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
-static int meta_debug_print(const char *string)
+static bool meta_debug_print(const char *string)
 {
   long addr;
-  int valid;
+  bool valid;
 
   while(*string == ' ') string++;
 
   addr = parse_address(string, &valid);
 
-  if(!valid) return -1;
-  if(!validate_address(addr, 1)) return 0;
+  if(!valid) return false;
+  if(!validate_address(addr, true)) return true;
 
-  screen_printf("%ld (0x%lx)\n", (long)as_signed(WORD(addr)), (unsigned long)WORD(addr));
+  screen_printf("%ld (0x%lx)\n", (long)as_signed(word(addr)), (unsigned long)word(addr));
 
-  return 0;
+  return true;
 }
 
 #ifndef ZTERP_NO_CHEAT
@@ -270,10 +273,10 @@ static int meta_debug_print(const char *string)
  * The first array tracks whether the address is frozen, while the
  * second holds the frozen value.
  */
-static char     freeze_cheat[UINT16_MAX + 1];
+static bool     freeze_cheat[UINT16_MAX + 1];
 static uint16_t freeze_val  [UINT16_MAX + 1];
 
-int cheat_add(char *how, int print)
+bool cheat_add(char *how, bool print)
 {
   char *type, *addrstr, *valstr;
 
@@ -281,137 +284,137 @@ int cheat_add(char *how, int print)
   addrstr = strtok(NULL, ":");
   valstr = strtok(NULL, "");
 
-  if(type == NULL || addrstr == NULL || valstr == NULL) return -1;
+  if(type == NULL || addrstr == NULL || valstr == NULL) return false;
 
   if(strcmp(type, "freeze") == 0 || strcmp(type, "freezew") == 0)
   {
     long addr;
     long value;
-    int valid;
+    bool valid;
 
     addr = parse_address(addrstr, &valid);
-    if(!valid) return -1;
-    if(!validate_address(addr, print)) return 0;
+    if(!valid) return false;
+    if(!validate_address(addr, print)) return true;
 
     value = parseint(valstr, 0, &valid);
-    if(!valid) return -1;
+    if(!valid) return false;
 
     if(value < 0 || value > UINT16_MAX)
     {
       if(print) screen_puts("[values must be in the range [0, 65535]]");
-      return 0;
+      return true;
     }
 
-    freeze_cheat[addr] = 1;
+    freeze_cheat[addr] = true;
     freeze_val  [addr] = value;
   }
   else
   {
-    return -1;
+    return false;
   }
 
   if(print) screen_puts("[frozen]");
 
-  return 0;
+  return true;
 }
 
-static int cheat_remove(uint16_t addr)
+static bool cheat_remove(uint16_t addr)
 {
-  if(!freeze_cheat[addr]) return 0;
+  if(!freeze_cheat[addr]) return false;
 
-  freeze_cheat[addr] = 0;
-  return 1;
+  freeze_cheat[addr] = false;
+  return true;
 }
 
-int cheat_find_freeze(uint32_t addr, uint16_t *val)
+bool cheat_find_freeze(uint32_t addr, uint16_t *val)
 {
-  if(addr > UINT16_MAX || !freeze_cheat[addr]) return 0;
+  if(addr > UINT16_MAX || !freeze_cheat[addr]) return false;
 
   *val = freeze_val[addr];
 
-  return 1;
+  return true;
 }
 
-static int meta_debug_freeze(char *string)
+static bool meta_debug_freeze(char *string)
 {
   char *addrstr, *valstr;
   char cheat[64];
 
   addrstr = strtok(string, " ");
-  if(addrstr == NULL) return -1;
+  if(addrstr == NULL) return false;
   valstr = strtok(NULL, "");
-  if(valstr == NULL) return -1;
+  if(valstr == NULL) return false;
 
   snprintf(cheat, sizeof cheat, "freeze:%s:%s", addrstr, valstr);
 
-  return cheat_add(cheat, 1);
+  return cheat_add(cheat, true);
 }
 
-static int meta_debug_unfreeze(const char *string)
+static bool meta_debug_unfreeze(const char *string)
 {
   long addr;
-  int valid;
+  bool valid;
 
   while(*string == ' ') string++;
 
   addr = parse_address(string, &valid);
-  if(!valid) return -1;
-  if(!validate_address(addr, 1)) return 0;
+  if(!valid) return false;
+  if(!validate_address(addr, true)) return true;
 
   if(cheat_remove(addr)) screen_puts("[unfrozen]");
   else                   screen_puts("[address not frozen]");
 
-  return 0;
+  return true;
 }
 
-static int meta_debug_show_freeze(void)
+static bool meta_debug_show_freeze(void)
 {
-  int any_frozen = 0;
+  bool any_frozen = false;
 
-  for(uint32_t addr = 0; addr < sizeof freeze_cheat / sizeof *freeze_cheat; addr++)
+  for(size_t addr = 0; addr < sizeof freeze_cheat / sizeof *freeze_cheat; addr++)
   {
     if(freeze_cheat[addr])
     {
-      any_frozen = 1;
+      any_frozen = true;
       screen_printf("%s: %lu\n", addrstring(addr), (unsigned long)freeze_val[addr]);
     }
   }
 
   if(!any_frozen) screen_puts("[no frozen values]");
 
-  return 0;
+  return true;
 }
 #endif
 
 #ifndef ZTERP_NO_WATCHPOINTS
-static char watch_addresses[UINT16_MAX + 1];
+static bool watch_addresses[UINT16_MAX + 1];
 
 static void watch_add(uint16_t addr)
 {
-  watch_addresses[addr] = 1;
+  watch_addresses[addr] = true;
 }
 
 static void watch_all(void)
 {
-  memset(watch_addresses, 1, sizeof watch_addresses);
+  for(size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++) watch_addresses[addr] = true;
 }
 
-static int watch_remove(uint16_t addr)
+static bool watch_remove(uint16_t addr)
 {
   if(watch_addresses[addr])
   {
-    watch_addresses[addr] = 0;
-    return 1;
+    watch_addresses[addr] = false;
+    return true;
   }
   else
   {
-    return 0;
+    return false;
   }
 }
 
 static void watch_none(void)
 {
-  memset(watch_addresses, 0, sizeof watch_addresses);
+  for(size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++) watch_addresses[addr] = false;
 }
 
 void watch_check(uint16_t addr, unsigned long oldval, unsigned long newval)
@@ -422,7 +425,7 @@ void watch_check(uint16_t addr, unsigned long oldval, unsigned long newval)
   }
 }
 
-static int meta_debug_watch_helper(const char *string, int do_watch)
+static bool meta_debug_watch_helper(const char *string, bool do_watch)
 {
   while(*string == ' ') string++;
 
@@ -442,12 +445,12 @@ static int meta_debug_watch_helper(const char *string, int do_watch)
   else
   {
     long addr;
-    int valid;
+    bool valid;
 
     addr = parse_address(string, &valid);
 
-    if(!valid) return -1;
-    if(!validate_address(addr, 1)) return 0;
+    if(!valid) return false;
+    if(!validate_address(addr, true)) return true;
 
     if(do_watch)
     {
@@ -461,51 +464,51 @@ static int meta_debug_watch_helper(const char *string, int do_watch)
     }
   }
 
-  return 0;
+  return true;
 }
 
-static int meta_debug_watch(const char *string)
+static bool meta_debug_watch(const char *string)
 {
-  return meta_debug_watch_helper(string, 1);
+  return meta_debug_watch_helper(string, true);
 }
 
-static int meta_debug_unwatch(const char *string)
+static bool meta_debug_unwatch(const char *string)
 {
-  return meta_debug_watch_helper(string, 0);
+  return meta_debug_watch_helper(string, false);
 }
 
-static int meta_debug_show_watch(void)
+static bool meta_debug_show_watch(void)
 {
-  int any_watched = 0;
+  bool any_watched = false;
 
-  for(uint32_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++)
+  for(size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++)
   {
     if(watch_addresses[addr])
     {
-      any_watched = 1;
+      any_watched = true;
       screen_puts(addrstring(addr));
     }
   }
 
   if(!any_watched) screen_puts("[no watched values]");
 
-  return 0;
+  return true;
 }
 #endif
 
-static int meta_debug_help(void)
+static void meta_debug_help(void)
 {
   screen_print(
-      "Debug commands are accessed as \"/debug [command]\".  Commands are:\n\n"
+      "Debug commands are accessed as \"/debug [command]\". Commands are:\n\n"
       "change start: restart change tracking\n"
       "change dec: display all words which have been decremented since the last check\n"
       "change inc: display all words which have been incremented since the last check\n"
       "scan start: restart scan tracking\n"
       "scan [n]: update scan list with all words equal to [n]; if [n] starts with 0x it is hexadecimal, 0 it is octal, decimal otherwise\n"
       "scan show: print all locations matching scan criteria\n"
-      "print [address]: print the word at address [address]; [address] is hexadecimal\n"
+      "print [address]: print the word at address [address]\n"
 #ifndef ZTERP_NO_CHEAT
-      "freeze [address] [value]: freeze the 16-bit [value] at [address]\n"
+      "freeze [address] [value]: freeze the 16-bit [value] at [address]; [value] can be decimal, hexadecimal, or octal, with a leading 0x signifying hexadecimal and a leading 0 signifying octal\n"
       "unfreeze [address]: unfreeze the value currently frozen at [address]\n"
       "show_freeze: show all frozen values\n"
 #endif
@@ -516,57 +519,56 @@ static int meta_debug_help(void)
       "unwatch all: stop watching all adddresses\n"
       "show_watch: show all watched-for addresses\n"
 #endif
+      "\nAddresses are either absolute, specified in hexadecimal with an optional leading 0x, or global variables. Global variables have the syntax Gxx, where xx is a hexadecimal value in the range [00, ef], corresponding to global variables 0 to 239.\n"
       );
-
-  return 0;
 }
 
 static void meta_debug(char *string)
 {
-  int result = -1;
+  bool ok = false;
 
   if(strncmp(string, "change ", 7) == 0)
   {
-    result = meta_debug_change(string + 7);
+    ok = meta_debug_change(string + 7);
   }
   else if(strncmp(string, "scan ", 5) == 0)
   {
-    result = meta_debug_scan(string + 5);
+    ok = meta_debug_scan(string + 5);
   }
   else if(strncmp(string, "print ", 6) == 0)
   {
-    result = meta_debug_print(string + 6);
+    ok = meta_debug_print(string + 6);
   }
 #ifndef ZTERP_NO_CHEAT
   else if(strncmp(string, "freeze ", 7) == 0)
   {
-    result = meta_debug_freeze(string + 7);
+    ok = meta_debug_freeze(string + 7);
   }
   else if(strncmp(string, "unfreeze ", 9) == 0)
   {
-    result = meta_debug_unfreeze(string + 9);
+    ok = meta_debug_unfreeze(string + 9);
   }
   else if(strcmp(string, "show_freeze") == 0)
   {
-    result = meta_debug_show_freeze();
+    ok = meta_debug_show_freeze();
   }
 #endif
 #ifndef ZTERP_NO_WATCHPOINTS
   else if(strncmp(string, "watch ", 6) == 0)
   {
-    result = meta_debug_watch(string + 6);
+    ok = meta_debug_watch(string + 6);
   }
   else if(strncmp(string, "unwatch ", 8) == 0)
   {
-    result = meta_debug_unwatch(string + 8);
+    ok = meta_debug_unwatch(string + 8);
   }
   else if(strcmp(string, "show_watch") == 0)
   {
-    result = meta_debug_show_watch();
+    ok = meta_debug_show_watch();
   }
 #endif
 
-  if(result == -1) meta_debug_help();
+  if(!ok) meta_debug_help();
 }
 
 /* Try to parse a meta command.  If input should be re-requested, return
@@ -582,7 +584,8 @@ static void meta_debug(char *string)
  */
 const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
 {
-  char converted[len + 1], *command, *rest;
+  const char *command;
+  char converted[len + 1], *rest;
 
   for(size_t i = 0; i < len + 1; i++)
   {
@@ -603,11 +606,9 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
 
   if ZEROARG("undo")
   {
-    int success = pop_save(SAVE_GAME, 0);
-
-    if(success != 0)
+    if(pop_save(SAVE_GAME, 0))
     {
-      if(seen_save_undo) store(success);
+      if(seen_save_undo) store(2);
       else               screen_print("[undone]\n\n>");
 
       interrupt_reset();
@@ -658,14 +659,14 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
        * pc back before saving.
        */
       pc = current_instruction;
-      if(do_save(1)) screen_puts("[saved]");
-      else           screen_puts("[save failed]");
+      if(do_save(true)) screen_puts("[saved]");
+      else              screen_puts("[save failed]");
       pc = tmp;
     }
   }
   else if ZEROARG("restore")
   {
-    if(do_restore(1))
+    if(do_restore(true))
     {
       screen_print("[restored]\n\n>");
       interrupt_reset();
@@ -716,7 +717,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
     else
     {
       long saveno;
-      int valid;
+      bool valid;
 
       saveno = parseint(rest, 10, &valid);
       if(!valid || saveno < 1)
@@ -758,7 +759,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
   }
   else if ZEROARG("disable")
   {
-    options.disable_meta_commands = 1;
+    options.disable_meta_commands = true;
     screen_puts("[meta commands disabled]");
   }
   else if(strcmp(command, "say") == 0)
@@ -771,6 +772,8 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
   }
   else
   {
+    if(strcmp(command, "help") != 0) screen_printf("Unknown command: /%s\n\n", command);
+
     screen_print(
         "The following commands are provided by the interpreter, not the game:\n\n"
         "/undo: undo a turn\n"
