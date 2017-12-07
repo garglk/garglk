@@ -3,8 +3,8 @@ being used.  If your native make is not GNU, substitute gmake for make.
 
 A C99 compiler is required to build Bocfel; or at least a compiler that supports
 the C99 features that are used.  These include, but are probably not limited to,
-VLAs, snprintf(), mixed declarations and code, fixed-width integers, and
-compound literals.
+VLAs, snprintf(), mixed declarations and code, fixed-width integers, stdbool.h,
+and compound literals.
 
 Officially supported compilers are handled in compiler.mk.  If you get Bocfel
 working with another compiler, I would be happy to add it to compiler.mk.  Note

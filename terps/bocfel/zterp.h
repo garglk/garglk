@@ -2,39 +2,42 @@
 #define ZTERP_ZTERP_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct options
 {
   long eval_stack_size;
   long call_stack_size;
-  int disable_color;
-  int disable_config;
-  int disable_timed;
-  int disable_sound;
-  int enable_escape;
+  bool disable_color;
+  bool disable_config;
+  bool disable_timed;
+  bool disable_sound;
+  bool enable_escape;
   char *escape_string;
-  int disable_fixed;
-  int assume_fixed;
-  int disable_graphics_font;
-  int enable_alt_graphics;
-  int show_id;
-  int disable_term_keys;
-  int disable_meta_commands;
+  bool disable_fixed;
+  bool assume_fixed;
+  bool disable_graphics_font;
+  bool enable_alt_graphics;
+  bool show_id;
+  bool disable_term_keys;
+  char *username;
+  bool disable_meta_commands;
   long int_number;
+  bool disable_patches;
   int int_version;
-  int replay_on;
+  bool replay_on;
   char *replay_name;
-  int record_on;
+  bool record_on;
   char *record_name;
-  int transcript_on;
+  bool transcript_on;
   char *transcript_name;
   long max_saves;
-  int disable_undo_compression;
-  int show_version;
-  int disable_abbreviations;
-  int enable_censorship;
-  int overwrite_transcript;
-  int override_undo;
+  bool disable_undo_compression;
+  bool show_version;
+  bool disable_abbreviations;
+  bool enable_censorship;
+  bool overwrite_transcript;
+  bool override_undo;
   long random_seed;
   char *random_device;
 };
@@ -69,8 +72,8 @@ extern struct options options;
 #define FLAGS2_SOUND		(1U << 7)
 #define FLAGS2_MENUS		(1U << 8)
 
-#define status_is_time()	(zversion == 3 && (BYTE(0x01) & FLAGS1_STATUSTYPE))
-#define timer_available()	(zversion >= 4 && (BYTE(0x01) & FLAGS1_TIMED))
+#define status_is_time()	(zversion == 3 && (byte(0x01) & FLAGS1_STATUSTYPE))
+#define timer_available()	(zversion >= 4 && (byte(0x01) & FLAGS1_TIMED))
 
 struct header
 {
@@ -91,11 +94,10 @@ struct header
 extern int zversion;
 extern struct header header;
 extern uint8_t atable[];
-extern int is_infocom_v1234;
+extern bool is_infocom_v1234;
 
-int is_beyond_zork(void);
-int is_journey(void);
-int is_sherlock(void);
+bool is_beyond_zork(void);
+bool is_journey(void);
 
 void write_header(void);
 

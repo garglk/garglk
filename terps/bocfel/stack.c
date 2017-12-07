@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <setjmp.h>
 #include <time.h>
 
@@ -88,7 +89,7 @@ static struct save_stack
   long count;
 } save_stacks[2];
 
-int seen_save_undo = 0;
+bool seen_save_undo = false;
 
 static void add_frame(uint32_t pc_, uint16_t *sp_, uint8_t nlocals, uint8_t nargs, uint16_t where)
 {
@@ -180,7 +181,7 @@ void init_stack(void)
   /* Free all @save_undo save states. */
   clear_save_stack(&save_stacks[SAVE_GAME]);
   save_stacks[SAVE_GAME].max = options.max_saves;
-  seen_save_undo = 0;
+  seen_save_undo = false;
 
   /* Free all /ps save states. */
   clear_save_stack(&save_stacks[SAVE_USER]);
@@ -208,7 +209,7 @@ uint16_t variable(uint16_t var)
   else if(var <= 0xff)
   {
     var -= 0x10;
-    return WORD(header.globals + (var * 2));
+    return word(header.globals + (var * 2));
   }
 
   /* This is an “impossible” situation (ie, the game did something wrong).
@@ -239,7 +240,7 @@ void store_variable(uint16_t var, uint16_t n)
   else if(var <= 0xff)
   {
     var -= 0x10;
-    STORE_WORD(header.globals + (var * 2), n);
+    store_word(header.globals + (var * 2), n);
   }
 }
 
@@ -316,14 +317,14 @@ void call(int do_store)
   jmp_to = unpack_routine(zargs[0]);
   ZASSERT(jmp_to < memory_size - 1, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
-  nlocals = BYTE(jmp_to++);
+  nlocals = byte(jmp_to++);
   ZASSERT(nlocals <= 15, "too many (%d) locals at 0x%lx", nlocals, (unsigned long)jmp_to - 1);
 
   if(zversion <= 4) ZASSERT(jmp_to + (nlocals * 2) < memory_size, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
   switch(do_store)
   {
-    case 1:  where = BYTE(pc++); break; /* Where to store return value */
+    case 1:  where = byte(pc++); break; /* Where to store return value */
     case 0:  where = 0xff + 1;   break; /* Or a tag meaning no return value */
     default: where = 0xff + 2;   break; /* Or a tag meaning push the return value */
   }
@@ -338,7 +339,7 @@ void call(int do_store)
     }
     else
     {
-      if(zversion <= 4) CURRENT_FRAME->locals[i] = WORD(jmp_to + (2 * i));
+      if(zversion <= 4) CURRENT_FRAME->locals[i] = word(jmp_to + (2 * i));
       else              CURRENT_FRAME->locals[i] = 0;
     }
   }
@@ -473,14 +474,14 @@ void zpush_stack(void)
 
   if(slots == 0)
   {
-    branch_if(0);
+    branch_if(false);
     return;
   }
 
   user_store_word(zargs[1] + (2 * slots), zargs[0]);
   user_store_word(zargs[1], slots - 1);
 
-  branch_if(1);
+  branch_if(true);
 }
 
 /* Compress dynamic memory according to Quetzal.  Memory is allocated
@@ -513,7 +514,7 @@ static uint32_t compress_memory(uint8_t **compressed)
      * • The end of dynamic memory is reached, or
      * • A non-zero value is found
      */
-    while(i < header.static_start && (BYTE(i) ^ dynamic_memory[i]) == 0)
+    while(i < header.static_start && (byte(i) ^ dynamic_memory[i]) == 0)
     {
       i++;
     }
@@ -534,7 +535,7 @@ static uint32_t compress_memory(uint8_t **compressed)
     }
 
     /* The current byte differs from the story, so write it. */
-    tmp[ret++] = BYTE(i) ^ dynamic_memory[i];
+    tmp[ret++] = byte(i) ^ dynamic_memory[i];
 
     i++;
   }
@@ -546,7 +547,7 @@ static uint32_t compress_memory(uint8_t **compressed)
 }
 
 /* Reverse of the above function. */
-static int uncompress_memory(const uint8_t *compressed, uint32_t size)
+static bool uncompress_memory(const uint8_t *compressed, uint32_t size)
 {
   uint32_t memory_index = 0;
 
@@ -556,32 +557,32 @@ static int uncompress_memory(const uint8_t *compressed, uint32_t size)
   {
     if(compressed[i] != 0)
     {
-      if(memory_index == header.static_start) return -1;
-      STORE_BYTE(memory_index, BYTE(memory_index) ^ compressed[i]);
+      if(memory_index == header.static_start) return false;
+      store_byte(memory_index, byte(memory_index) ^ compressed[i]);
       memory_index++;
     }
     else
     {
-      if(++i == size) return -1;
+      if(++i == size) return false;
 
-      if(memory_index + (compressed[i] + 1) > header.static_start) return -1;
+      if(memory_index + (compressed[i] + 1) > header.static_start) return false;
       memory_index += (compressed[i] + 1);
     }
   }
 
-  return 0;
+  return true;
 }
 
 /* Push the current state onto the specified save stack. */
-int push_save(enum save_type type, uint32_t whichpc, const char *desc)
+bool push_save(enum save_type type, uint32_t whichpc, const char *desc)
 {
   struct save_stack *s = &save_stacks[type];
   struct save_state *new;
 
-  if(options.max_saves == 0) return 0;
+  if(options.max_saves == 0) return false;
 
   new = new_save_state();
-  if(new == NULL) return 0;
+  if(new == NULL) return false;
 
   if(desc != NULL)
   {
@@ -647,12 +648,12 @@ int push_save(enum save_type type, uint32_t whichpc, const char *desc)
 
   s->count++;
 
-  return 1;
+  return true;
 
 err:
   free_save_state(new);
 
-  return 0;
+  return false;
 }
 
 /* Remove the first “n” saves from the specified stack.  If there are
@@ -677,7 +678,7 @@ static void trim_saves(enum save_type type, long n)
 /* Pop the specified state from the specified stack and jump to it.
  * Indices start at 0, with 0 being the most recent save.
  */
-int pop_save(enum save_type type, long i)
+bool pop_save(enum save_type type, long i)
 {
   struct save_stack *s = &save_stacks[type];
   struct save_state *p;
@@ -687,9 +688,9 @@ int pop_save(enum save_type type, long i)
    * trim_saves() will remove all saves, so make sure that does not
    * happen.
    */
-  if(i >= s->count) return 0;
+  if(i >= s->count) return false;
 
-  flags2 = WORD(0x10);
+  flags2 = word(0x10);
 
   trim_saves(type, i);
 
@@ -707,7 +708,7 @@ int pop_save(enum save_type type, long i)
      * p->memory are known to be good, because the compression was done
      * by us with no chance for corruption (apart, again, from bugs).
      */
-    if(uncompress_memory(p->memory, p->memsize) == -1) die("error uncompressing memory: unable to continue");
+    if(!uncompress_memory(p->memory, p->memsize)) die("error uncompressing memory: unable to continue");
   }
 
   sp = BASE_OF_STACK + p->stack_size;
@@ -727,23 +728,23 @@ int pop_save(enum save_type type, long i)
   write_header();
 
   /* §6.1.2: Flags 2 should be preserved. */
-  STORE_WORD(0x10, flags2);
+  store_word(0x10, flags2);
 
-  return 2;
+  return true;
 }
 
 /* Wrapper around trim_saves which reports failure if the specified save
  * does not exist.
  */
-int drop_save(enum save_type type, long i)
+bool drop_save(enum save_type type, long i)
 {
   struct save_stack *s = &save_stacks[type];
 
-  if(i > s->count) return 0;
+  if(i > s->count) return false;
 
   trim_saves(type, i);
 
-  return 1;
+  return true;
 }
 
 void list_saves(enum save_type type, void (*printer)(const char *))
@@ -804,7 +805,7 @@ void zsave_undo(void)
     if(!seen_save_undo)
     {
       clear_save_stack(&save_stacks[SAVE_GAME]);
-      seen_save_undo = 1;
+      seen_save_undo = true;
     }
 
     store(push_save(SAVE_GAME, pc, NULL));
@@ -822,11 +823,11 @@ void zrestore_undo(void)
   }
   else
   {
-    int success = pop_save(SAVE_GAME, 0);
+    bool success = pop_save(SAVE_GAME, 0);
 
-    store(success);
+    store(success ? 2 : 0);
 
-    if(success != 0) interrupt_reset();
+    if(success) interrupt_reset();
   }
 }
 
@@ -875,9 +876,9 @@ static size_t quetzal_write_stack(zterp_io *savefile)
   return local_written;
 }
 
-int save_quetzal(zterp_io *savefile, int is_meta)
+static bool save_quetzal(zterp_io *savefile, bool is_meta)
 {
-  if(setjmp(exception) != 0) return 0;
+  if(setjmp(exception) != 0) return false;
 
   size_t local_written = 0;
   size_t game_len;
@@ -949,7 +950,7 @@ int save_quetzal(zterp_io *savefile, int is_meta)
   zterp_io_seek(savefile, stks_pos, SEEK_SET);
   WRITE32(stack_size); /* size of the stacks chunk */
 
-  return 1;
+  return true;
 }
 
 /* Restoring can put the system in an inconsistent state by restoring
@@ -1004,17 +1005,15 @@ static void memory_snapshot(void)
 
 err:
   memory_snapshot_free();
-
-  return;
 }
 
-static int memory_restore(void)
+static bool memory_restore(void)
 {
   /* stack_backup and frames_backup will be NULL if the stacks were
    * empty, so use memory_backup to determine if a snapshot has been
    * taken.
    */
-  if(memory_backup == NULL) return 0;
+  if(memory_backup == NULL) return false;
 
   memcpy(memory, memory_backup, header.static_start);
   if(stack_backup != NULL) memcpy(stack, stack_backup, stack_backup_size * sizeof *stack);
@@ -1024,13 +1023,13 @@ static int memory_restore(void)
 
   memory_snapshot_free();
 
-  return 1;
+  return true;
 }
 
 #define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(0)
 #define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(0)
 
-int restore_quetzal(zterp_io *savefile, int is_meta)
+static bool restore_quetzal(zterp_io *savefile, bool is_meta)
 {
   zterp_iff *iff;
   uint32_t size;
@@ -1073,7 +1072,7 @@ int restore_quetzal(zterp_io *savefile, int is_meta)
       goto_err("unexpected eof reading compressed memory");
     }
 
-    if(uncompress_memory(buf, size) == -1)
+    if(!uncompress_memory(buf, size))
     {
       free(buf);
       goto_death("memory cannot be uncompressed");
@@ -1141,7 +1140,7 @@ int restore_quetzal(zterp_io *savefile, int is_meta)
 
   pc = (ifhd[10] << 16) | (ifhd[11] << 8) | ifhd[12];
 
-  return 1;
+  return true;
 
 death:
   /* At this point, something vital (memory and/or the stacks) has been
@@ -1156,7 +1155,7 @@ err:
    */
   memory_snapshot_free();
   zterp_iff_free(iff);
-  return 0;
+  return false;
 }
 
 #undef goto_err
@@ -1166,16 +1165,16 @@ err:
  * Returns true if the save was success, false if not.
  * “is_meta” is true if this save file is from a meta-save.
  */
-int do_save(int is_meta)
+bool do_save(bool is_meta)
 {
   zterp_io *savefile;
-  int success;
+  bool success;
 
   savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     warning("unable to open save file");
-    return 0;
+    return false;
   }
 
   success = save_quetzal(savefile, is_meta);
@@ -1193,10 +1192,10 @@ void zsave(void)
 {
   if(in_interrupt()) die("@save called inside of an interrupt");
 
-  int success = do_save(0);
+  bool success = do_save(false);
 
   if(zversion <= 3) branch_if(success);
-  else              store(success);
+  else              store(success ? 1 : 0);
 }
 
 /* Perform all aspects of a restore, apart from storing/branching.
@@ -1204,20 +1203,20 @@ void zsave(void)
  * “is_meta” is true if this save file is expected to be from a
  * meta-save.
  */
-int do_restore(int is_meta)
+bool do_restore(bool is_meta)
 {
   zterp_io *savefile;
   uint16_t flags2;
-  int success;
+  bool success;
 
   savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY, ZTERP_IO_SAVE);
   if(savefile == NULL)
   {
     warning("unable to open save file");
-    return 0;
+    return false;
   }
 
-  flags2 = WORD(0x10);
+  flags2 = word(0x10);
 
   success = restore_quetzal(savefile, is_meta);
 
@@ -1238,7 +1237,7 @@ int do_restore(int is_meta)
     write_header();
 
     /* ...except that flags2 should be preserved (§6.1.2). */
-    STORE_WORD(0x10, flags2);
+    store_word(0x10, flags2);
 
     /* Redraw the status line in games that use one. */
     if(zversion <= 3) zshow_status();
@@ -1249,7 +1248,7 @@ int do_restore(int is_meta)
 
 void zrestore(void)
 {
-  int success = do_restore(0);
+  bool success = do_restore(false);
 
   if(zversion <= 3) branch_if(success);
   else              store(success ? 2 : 0);

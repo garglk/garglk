@@ -18,6 +18,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "objects.h"
 #include "branch.h"
@@ -65,12 +66,12 @@ static uint16_t find_object(uint16_t n)
 
 static uint16_t property_address(uint16_t n)
 {
-  return WORD(find_object(n) + OFFSET_PROP);
+  return word(find_object(n) + OFFSET_PROP);
 }
 
 static uint16_t relation(uint16_t object, int offset)
 {
-  return zversion <= 3 ? BYTE(find_object(object) + offset) : WORD(find_object(object) + offset);
+  return zversion <= 3 ? byte(find_object(object) + offset) : word(find_object(object) + offset);
 }
 
 /*
@@ -82,8 +83,8 @@ static uint16_t relation(uint16_t object, int offset)
  */
 static void set_relation(uint16_t obj1, uint16_t obj2, int offset)
 {
-  if(zversion <= 3) STORE_BYTE(find_object(obj1) + offset, obj2);
-  else              STORE_WORD(find_object(obj1) + offset, obj2);
+  if(zversion <= 3) store_byte(find_object(obj1) + offset, obj2);
+  else              store_word(find_object(obj1) + offset, obj2);
 }
 
 static void remove_object(uint16_t object)
@@ -196,7 +197,7 @@ static uint16_t next_property(uint16_t propaddr)
 
 #define FOR_EACH_PROPERTY(object, addr) for(uint16_t addr = first_property(object); addr != 0; addr = next_property(addr))
 
-static int find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr, uint16_t *proplen)
+static bool find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr, uint16_t *proplen)
 {
   FOR_EACH_PROPERTY(object, addr)
   {
@@ -204,11 +205,11 @@ static int find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr, 
     {
       *propaddr = addr;
       *proplen = property_length(addr);
-      return 1;
+      return true;
     }
   }
 
-  return 0;
+  return false;
 }
 
 static void check_attr(uint16_t attr)
@@ -216,23 +217,17 @@ static void check_attr(uint16_t attr)
   ZASSERT(attr <= (zversion <= 3 ? 31 : 47), "invalid attribute: %u", (unsigned)attr);
 }
 
-/* Sherlock has a bug causing it to clear (and maybe set) attribute 48
- * (see the remarks in §12).  If this attribute is seen and the story is
- * Sherlock, treat it as a no-op.
- */
-#define sherlock_attr(attr) do { if(attr == 48 && is_sherlock()) return; } while(0)
-
-static int is_zero(int is_store, int is_jump)
+static bool is_zero(bool is_store, bool is_jump)
 {
   if(zargs[0] == 0)
   {
     if(is_store) store(0);
-    if(is_jump)  branch_if(0);
+    if(is_jump)  branch_if(false);
 
-    return 1;
+    return true;
   }
 
-  return 0;
+  return false;
 }
 
 #define check_zero(store, jump)	do { if(is_zero(store, jump)) return; } while(0)
@@ -255,47 +250,45 @@ static void check_propnum(uint16_t propnum)
 #define ATTR_BIT(num)		(0x80U >> ((num) % 8))
 void ztest_attr(void)
 {
-  check_zero(0, 1);
+  check_zero(false, true);
   check_attr(zargs[1]);
 
   uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
-  branch_if(BYTE(addr) & ATTR_BIT(zargs[1]));
+  branch_if(byte(addr) & ATTR_BIT(zargs[1]));
 }
 
 void zset_attr(void)
 {
-  check_zero(0, 0);
-  sherlock_attr(zargs[1]);
+  check_zero(false, false);
   check_attr(zargs[1]);
 
   uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
-  STORE_BYTE(addr, BYTE(addr) | ATTR_BIT(zargs[1]));
+  store_byte(addr, byte(addr) | ATTR_BIT(zargs[1]));
 }
 
 void zclear_attr(void)
 {
-  check_zero(0, 0);
-  sherlock_attr(zargs[1]);
+  check_zero(false, false);
   check_attr(zargs[1]);
 
   uint16_t addr = find_object(zargs[0]) + (zargs[1] / 8);
 
-  STORE_BYTE(addr, BYTE(addr) & ~ATTR_BIT(zargs[1]));
+  store_byte(addr, byte(addr) & ~ATTR_BIT(zargs[1]));
 }
 #undef ATTR_BIT
 
 void zremove_obj(void)
 {
-  check_zero(0, 0);
+  check_zero(false, false);
 
   remove_object(zargs[0]);
 }
 
 void zinsert_obj(void)
 {
-  check_zero(0, 0);
+  check_zero(false, false);
 
   remove_object(zargs[0]);
 
@@ -306,7 +299,7 @@ void zinsert_obj(void)
 
 void zget_sibling(void)
 {
-  check_zero(1, 1);
+  check_zero(true, true);
 
   uint16_t sibling = sibling_of(zargs[0]);
 
@@ -316,7 +309,7 @@ void zget_sibling(void)
 
 void zget_child(void)
 {
-  check_zero(1, 1);
+  check_zero(true, true);
 
   uint16_t child = child_of(zargs[0]);
 
@@ -326,18 +319,18 @@ void zget_child(void)
 
 void zget_parent(void)
 {
-  check_zero(1, 0);
+  check_zero(true, false);
 
   store(parent_of(zargs[0]));
 }
 
 void zput_prop(void)
 {
-  check_zero(0, 0);
+  check_zero(false, false);
   check_propnum(zargs[1]);
 
   uint16_t propaddr, proplen;
-  int found;
+  bool found;
 
   found = find_property(zargs[0], zargs[1], &propaddr, &proplen);
 
@@ -350,7 +343,7 @@ void zput_prop(void)
 
 void zget_prop(void)
 {
-  check_zero(1, 0);
+  check_zero(true, false);
   check_propnum(zargs[1]);
 
   uint16_t propaddr, proplen;
@@ -371,7 +364,7 @@ void zget_prop(void)
     uint16_t i;
 
     i = header.objects + (2 * (zargs[1] - 1));
-    store(WORD(i));
+    store(word(i));
   }
 }
 
@@ -384,7 +377,7 @@ void zget_prop_len(void)
 
 void zget_prop_addr(void)
 {
-  check_zero(1, 0);
+  check_zero(true, false);
   /* Theoretically this should check whether the requested property is
    * valid (i.e. is within the proper range for the current story type).
    * However, at least one game (Mingsheng) attempts to get the address
@@ -401,10 +394,10 @@ void zget_prop_addr(void)
 
 void zget_next_prop(void)
 {
-  check_zero(1, 0);
+  check_zero(true, false);
 
   uint16_t object = zargs[0], propnum = zargs[1], found_propnum = 0;
-  int next = 0;
+  bool next = false;
 
   FOR_EACH_PROPERTY(object, propaddr)
   {
@@ -416,7 +409,7 @@ void zget_next_prop(void)
       break;
     }
 
-    if(current_propnum == propnum) next = 1;
+    if(current_propnum == propnum) next = true;
   }
 
   store(found_propnum);
@@ -431,11 +424,11 @@ void zjin(void)
    */
   if(zargs[0] == 0 && zargs[1] == 0)
   {
-    branch_if(1);
+    branch_if(true);
     return;
   }
 
-  check_zero(0, 1);
+  check_zero(false, true);
 
   branch_if(parent_of(zargs[0]) == zargs[1]);
 }
@@ -449,7 +442,7 @@ void print_object(uint16_t obj, void (*outc)(uint8_t))
 
 void zprint_obj(void)
 {
-  check_zero(0, 0);
+  check_zero(false, false);
 
   print_object(zargs[0], NULL);
 }

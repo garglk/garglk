@@ -2,13 +2,14 @@
 #define ZTERP_STACK_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "io.h"
 
 #define DEFAULT_STACK_SIZE	0x4000
 #define DEFAULT_CALL_DEPTH	0x400
 
-extern int seen_save_undo;
+extern bool seen_save_undo;
 
 void init_stack(void);
 
@@ -22,16 +23,13 @@ uint16_t direct_call(uint16_t);
 #endif
 void do_return(uint16_t);
 
-int save_quetzal(zterp_io *, int);
-int restore_quetzal(zterp_io *, int);
-
-int do_save(int);
-int do_restore(int);
+bool do_save(bool);
+bool do_restore(bool);
 
 enum save_type { SAVE_GAME, SAVE_USER };
-int push_save(enum save_type, uint32_t, const char *);
-int pop_save(enum save_type, long);
-int drop_save(enum save_type, long);
+bool push_save(enum save_type, uint32_t, const char *);
+bool pop_save(enum save_type, long);
+bool drop_save(enum save_type, long);
 void list_saves(enum save_type, void (*)(const char *));
 
 void zpush(void);

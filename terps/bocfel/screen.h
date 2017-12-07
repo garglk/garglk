@@ -2,19 +2,22 @@
 #define ZTERP_SCREEN_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef ZTERP_GLK
 #include <glk.h>
 #endif
 
+#include "util.h"
+
 /* Boolean flag describing whether the header bit meaning “fixed font” is set. */
-extern int header_fixed_font;
+extern bool header_fixed_font;
 
 void init_screen(void);
 
-int create_mainwin(void);
-int create_statuswin(void);
-int create_upperwin(void);
+bool create_mainwin(void);
+bool create_statuswin(void);
+bool create_upperwin(void);
 void get_screen_size(unsigned int *, unsigned int *);
 void close_upper_window(void);
 void cancel_all_events(void);
@@ -26,8 +29,10 @@ void cancel_all_events(void);
 #define STYLE_ITALIC	(1U << 2)
 #define STYLE_FIXED	(1U << 3)
 
+zprintflike(1, 2)
 void show_message(const char *, ...);
 void screen_print(const char *);
+zprintflike(1, 2)
 void screen_printf(const char *, ...);
 void screen_puts(const char *);
 
@@ -50,8 +55,8 @@ void update_color(int, unsigned long);
 #define ISTREAM_KEYBOARD	0
 #define ISTREAM_FILE		1
 
-int output_stream(int16_t, uint16_t);
-int input_stream(int);
+bool output_stream(int16_t, uint16_t);
+bool input_stream(int);
 
 void set_current_style(void);
 

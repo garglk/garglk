@@ -2,6 +2,7 @@
 #define ZTERP_PROCESS_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 extern unsigned long pc;
 extern unsigned long current_instruction;
@@ -9,7 +10,7 @@ extern unsigned long current_instruction;
 extern uint16_t zargs[];
 extern int znargs;
 
-int in_interrupt(void);
+bool in_interrupt(void);
 void interrupt_return(void);
 void interrupt_reset(void);
 void interrupt_quit(void);

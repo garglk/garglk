@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "iff.h"
@@ -43,17 +44,17 @@ void zterp_iff_free(zterp_iff *iff)
   }
 }
 
-zterp_iff *zterp_iff_parse(zterp_io *io, const char type[4])
+zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
 {
   uint32_t tag;
 
   zterp_iff *iff = NULL, *tail = NULL;
 
-  if(zterp_io_seek(io, 0, SEEK_SET) == -1) goto err;
+  if(!zterp_io_seek(io, 0, SEEK_SET)) goto err;
 
   if(!zterp_io_read32(io, &tag) || tag != STRID("FORM")) goto err;
 
-  if(zterp_io_seek(io, 4, SEEK_CUR) == -1) goto err;
+  if(!zterp_io_seek(io, 4, SEEK_CUR)) goto err;
 
   if(!zterp_io_read32(io, &tag) || tag != STRID(type)) goto err;
 
@@ -82,7 +83,7 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[4])
 
     if(size & 1) size++;
 
-    if(zterp_io_seek(io, size, SEEK_CUR) == -1) goto err;
+    if(!zterp_io_seek(io, size, SEEK_CUR)) goto err;
   }
 
   return iff;
@@ -93,20 +94,20 @@ err:
   return NULL;
 }
 
-int zterp_iff_find(zterp_iff *iff, const char tag[4], uint32_t *size)
+bool zterp_iff_find(zterp_iff *iff, const char tag[static 4], uint32_t *size)
 {
   while(iff != NULL)
   {
     if(iff->tag == STRID(tag))
     {
-      if(zterp_io_seek(iff->io, iff->offset, SEEK_SET) == -1) return 0;
+      if(!zterp_io_seek(iff->io, iff->offset, SEEK_SET)) return false;
       *size = iff->size;
 
-      return 1;
+      return true;
     }
 
     iff = iff->next;
   }
 
-  return 0;
+  return false;
 }

@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <limits.h>
 
 #include "osdep.h"
@@ -65,14 +66,14 @@
  * output, it should be done here.  This function is called once at
  * program startup.
  *
- * int zterp_os_have_style(int style)
+ * bool zterp_os_have_style(int style)
  *
  * This should return true if the provided style (see style.h for valid
  * STYLE_ values) is available.  It is safe to assume that styles will
  * not be combined; e.g. this will not be called as:
  * zterp_os_have_style(STYLE_BOLD | STYLE_ITALIC);
  *
- * int zterp_os_have_colors(void)
+ * bool zterp_os_have_colors(void)
  *
  * Returns true if the terminal supports colors.
  *
@@ -132,7 +133,7 @@ void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 
 static const char *ital = NULL, *rev = NULL, *bold = NULL, *none = NULL;
 static char *fg_string = NULL, *bg_string = NULL;
-static int have_colors = 0;
+static bool have_colors = false;
 void zterp_os_init_term(void)
 {
   if(setupterm(NULL, STDOUT_FILENO, NULL) != OK) return;
@@ -151,20 +152,20 @@ void zterp_os_init_term(void)
 }
 #define zterp_os_init_term
 
-int zterp_os_have_style(int style)
+bool zterp_os_have_style(int style)
 {
-  if(none == NULL) return 0;
+  if(none == NULL) return false;
 
   if     (style == STYLE_ITALIC)  return ital != NULL;
   else if(style == STYLE_REVERSE) return rev  != NULL;
   else if(style == STYLE_BOLD)    return bold != NULL;
   else if(style == STYLE_NONE)    return none != NULL;
 
-  return 0;
+  return false;
 }
 #define zterp_os_have_style
 
-int zterp_os_have_colors(void)
+bool zterp_os_have_colors(void)
 {
   return have_colors;
 }
@@ -242,16 +243,16 @@ void zterp_os_init_term(void)
 #endif
 
 #ifndef zterp_os_have_style
-int zterp_os_have_style(int style)
+bool zterp_os_have_style(int style)
 {
-  return 0;
+  return false;
 }
 #endif
 
 #ifndef zterp_os_have_colors
-int zterp_os_have_colors(void)
+bool zterp_os_have_colors(void)
 {
-  return 0;
+  return false;
 }
 #endif
 

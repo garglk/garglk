@@ -69,11 +69,11 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
     saved = zterp_io_tell(io);
     if(saved == -1) goto err;
 
-    if(zterp_io_seek(io, start, SEEK_SET) == -1) goto err;
+    if(!zterp_io_seek(io, start, SEEK_SET)) goto err;
 
     if(!zterp_io_read32(io, &type) || !zterp_io_read32(io, &size)) goto err;
 
-    if(zterp_io_seek(io, saved, SEEK_SET) == -1) goto err;
+    if(!zterp_io_seek(io, saved, SEEK_SET)) goto err;
 
     if(type == STRID("FORM"))
     {
