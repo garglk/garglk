@@ -94,6 +94,8 @@ GString * createAndInitFilenameFromOsEnvironmentVariable(
     }
     normalizeFilename(createdString);
     
+    //g_file_test(selectedFilename, G_FILE_TEST_IS_DIR);
+    
     return createdString;
 }
 
