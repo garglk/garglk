@@ -65,8 +65,9 @@ static bool isQuoted(char *argument) {
 
 /*----------------------------------------------------------------------*/
 static char *addAcodeExtension(char *adventureFileName) {
-    if (compareStrings(&adventureFileName[strlen(adventureFileName)-4], ACODEEXTENSION) != 0) {
-        adventureFileName = realloc(adventureFileName, strlen(adventureFileName)+5);
+    if (strlen(adventureFileName) < strlen(ACODEEXTENSION)
+        || compareStrings(&adventureFileName[strlen(adventureFileName)-4], ACODEEXTENSION) != 0) {
+        adventureFileName = realloc(adventureFileName, strlen(adventureFileName)+strlen(ACODEEXTENSION)+1);
         strcat(adventureFileName, ACODEEXTENSION);
     }
     return adventureFileName;
@@ -89,7 +90,7 @@ static void switches(int argc, char *argv[])
                     ignoreErrorOption = TRUE;
                     break;
                 case 't':
-                    sectionTraceOption = TRUE;
+                    traceSectionOption = TRUE;
                     switch (argument[2]) {
                     case '9':
                     case '8':
@@ -97,10 +98,10 @@ static void switches(int argc, char *argv[])
                     case '6':
                     case '5' : traceStackOption = TRUE;
                     case '4' : tracePushOption = TRUE;
-                    case '3' : singleStepOption = TRUE;
+                    case '3' : traceInstructionOption = TRUE;
                     case '2' : traceSourceOption = TRUE;
                     case '\0':
-                    case '1': sectionTraceOption = TRUE;
+                    case '1': traceSectionOption = TRUE;
                     }
                     break;
                 case 'd':
@@ -145,7 +146,7 @@ static void switches(int argc, char *argv[])
 
 
 /*----------------------------------------------------------------------*/
-static bool differentInterpreterName(char *string) {
+bool differentInterpreterName(char *string) {
     return strcasecmp(string, PROGNAME) != 0;
 }
 

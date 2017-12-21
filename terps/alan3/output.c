@@ -74,12 +74,13 @@ void newline(void)
     if (!regressionTestOption && lin == pageLength - 1) {
 		printAndLog("\n");
         needSpace = FALSE;
+        col = 0;
+        lin = 0;
         printMessage(M_MORE);
         statusline();
         fflush(stdout);
         fgets(buf, 256, stdin);
         getPageSize();
-        lin = 0;
     } else
         printAndLog("\n");
 
@@ -141,8 +142,8 @@ void printAndLog(char string[])
 {
 #ifdef HAVE_GLK
     static int column = 0;
-    unsigned char *stringCopy;
-    unsigned char *stringPart;
+    char *stringCopy;
+    char *stringPart;
 #endif
 
     printf("%s", string);
@@ -154,7 +155,7 @@ void printAndLog(char string[])
             stringPart = stringCopy;
             while (strlen(stringPart) > 70-column) {
                 int p;
-                for (p = 70-column; p>0 && !isspace(stringPart[p]); p--);
+                for (p = 70-column; p>0 && !isspace((int)stringPart[p]); p--);
                 stringPart[p] = '\0';
                 glk_put_string_stream(logFile, stringPart);
                 glk_put_char_stream(logFile, '\n');
@@ -250,7 +251,7 @@ static void sayParameter(int p, int form)
 
     for (i = 0; i <= p; i++)
         if (isEndOfArray(&globalParameters[i]))
-            syserr("Nonexistent parameter referenced.");
+            apperr("Nonexistent parameter referenced.");
 
 #ifdef ALWAYS_SAY_PARAMETERS_USING_PLAYER_WORDS
     if (params[p].firstWord != EOF) /* Any words he used? */
@@ -285,6 +286,7 @@ static void sayParameter(int p, int form)
   A = current actor
   T = tabulation
   $ = no space needed after this, and don't capitalize
+  _ = interpret this as a single dollar, if in doubt or conflict with other symbols
 */
 static char *printSymbol(char str[]) /* IN - The string starting with '$' */
 {
@@ -371,6 +373,10 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
             skipSpace = TRUE;
             capitalize = FALSE;
             break;
+        case '_':
+            advance = 2;
+            printAndLog("$");
+            break;
         default:
             advance = 1;
             printAndLog("$");
@@ -383,7 +389,7 @@ static char *printSymbol(char str[]) /* IN - The string starting with '$' */
 
 /*----------------------------------------------------------------------*/
 static bool inhibitSpace(char *str) {
-    return str[0] == '$' && str[1] == '$';
+    return str[0] != '\0' && str[0] == '$' && str[1] == '$';
 }
 
 
@@ -480,5 +486,3 @@ bool confirm(MsgKind msgno)
 
     return (buf[0] == '\0');
 }
-
-

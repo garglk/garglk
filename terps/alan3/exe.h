@@ -61,7 +61,7 @@ extern void schedule(Aword evt, Aword whr, Aword aft);
 extern void cancelEvent(Aword evt);
 
 extern int randomInteger(int from, int to);
-extern bool btw(int val, int from, int to);
+extern bool between(int val, int from, int to);
 extern bool contains(Aptr string, Aptr substring);
 extern bool streq(char a[], char b[]);
 
@@ -70,7 +70,7 @@ extern void exclude(int instance, int atr, Aword member);
 extern void increase(int instance, int atr, Aword step);
 extern void decrease(int instance, int atr, Aword step);
 
-extern void startTranscript();
-extern void stopTranscript();
+extern void startTranscript(void);
+extern void stopTranscript(void);
 
 #endif

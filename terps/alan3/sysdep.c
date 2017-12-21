@@ -142,9 +142,9 @@ static char upperCaseCharacters[] =
 static unsigned char spaceCharacters[] = " \t\n";
 
 /* Use native characters */
-static unsigned char lowerCaseCharacters[] = "abcdefghijklmnopqrstuvwxyzàáâãäåæçéêëìíîïğñòóôõöøùúûüışÿ";
+static const char lowerCaseCharacters[] = "abcdefghijklmnopqrstuvwxyzàáâãäåæçéêëìíîïğñòóôõöøùúûüışÿ";
 
-static unsigned char upperCaseCharacters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÉÊËÌÍÎÏĞÑÒÓÔÕÖØÙÚÛÛİŞß";
+static const char upperCaseCharacters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZÀÁÂÃÄÅÆÇÉÊËÌÍÎÏĞÑÒÓÔÕÖØÙÚÛÛİŞß";
 
 #endif
 

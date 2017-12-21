@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <limits.h>
 #include <inttypes.h>
 
@@ -41,6 +42,16 @@
 #include "util.h"
 #include "zterp.h"
 
+bool header_fixed_font;
+
+/* This variable stores whether Unicode is supported by the current Glk
+ * implementation, which determines whether Unicode or Latin-1 Glk
+ * functions are used. In addition, for both Glk and non-Glk versions,
+ * this affects the behavior of @check_unicode. In non-Glk versions,
+ * this is always true.
+ */
+static bool have_unicode;
+
 static struct window
 {
   unsigned style;
@@ -51,13 +62,13 @@ static struct window
 #ifdef ZTERP_GLK
   winid_t id;
   long x, y; /* Only meaningful for window 1 */
-  int pending_read;
+  bool pending_read;
   union line
   {
     char latin1[256];
     glui32 unicode[256];
   } *line;
-  int has_echo;
+  bool has_echo;
 #endif
 } windows[8], *mainwin = &windows[0], *curwin = &windows[0];
 #ifdef ZTERP_GLK
@@ -316,7 +327,7 @@ static void cancel_read_events(struct window *window)
       cleanup_screen(&input);
     }
 
-    window->pending_read = 0;
+    window->pending_read = false;
     window->line = NULL;
   }
 }
@@ -325,7 +336,7 @@ static void cancel_read_events(struct window *window)
 /* Print out a character.  The character is in “c” and is either Unicode
  * or ZSCII; if the former, “unicode” is true.
  */
-static void put_char_base(uint16_t c, int unicode)
+static void put_char_base(uint16_t c, bool unicode)
 {
   if(c == 0) return;
 
@@ -428,12 +439,12 @@ static void put_char_base(uint16_t c, int unicode)
 
 void put_char_u(uint16_t c)
 {
-  put_char_base(c, 1);
+  put_char_base(c, true);
 }
 
 void put_char(uint8_t c)
 {
-  put_char_base(c, 0);
+  put_char_base(c, false);
 }
 
 /* Print a C string to the screen, using put_char_u(). */
@@ -522,7 +533,7 @@ void show_message(const char *fmt, ...)
  * This returns true if the stream was successfully selected.
  * Deselecting a stream is always successful.
  */
-int output_stream(int16_t number, uint16_t table)
+bool output_stream(int16_t number, uint16_t table)
 {
   if(number > 0)
   {
@@ -535,13 +546,13 @@ int output_stream(int16_t number, uint16_t table)
 
   if(number == 2)
   {
-    STORE_WORD(0x10, WORD(0x10) | FLAGS2_TRANSCRIPT);
+    store_word(0x10, word(0x10) | FLAGS2_TRANSCRIPT);
     if(transio == NULL)
     {
       transio = zterp_io_open(options.transcript_name, options.overwrite_transcript ? ZTERP_IO_WRONLY : ZTERP_IO_APPEND, ZTERP_IO_TRANS);
       if(transio == NULL)
       {
-        STORE_WORD(0x10, WORD(0x10) & ~FLAGS2_TRANSCRIPT);
+        store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
         streams &= ~STREAM_TRANS;
         warning("unable to open the transcript");
       }
@@ -549,7 +560,7 @@ int output_stream(int16_t number, uint16_t table)
   }
   else if(number == -2)
   {
-    STORE_WORD(0x10, WORD(0x10) & ~FLAGS2_TRANSCRIPT);
+    store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
   }
 
   if(number == 3)
@@ -592,7 +603,7 @@ void zoutput_stream(void)
 /* See §10.
  * This returns true if the stream was successfully selected.
  */
-int input_stream(int which)
+bool input_stream(int which)
 {
   istream = which;
 
@@ -677,7 +688,7 @@ static struct window *find_window(uint16_t window)
  * until after the next user input is read.
  */
 static long delayed_window_shrink = -1;
-static int saw_input;
+static bool saw_input;
 
 static void update_delayed(void)
 {
@@ -750,7 +761,7 @@ static void resize_upper_window(long nlines)
     if(nlines > 0) glk_window_move_cursor(upperwin->id, 0, 0);
   }
 
-  saw_input = 0;
+  saw_input = false;
 
   /* §8.6.1.1.2 */
   if(zversion == 3) clear_window(upperwin);
@@ -771,7 +782,7 @@ void close_upper_window(void)
 
 #ifdef ZTERP_GLK
   delayed_window_shrink = -1;
-  saw_input = 0;
+  saw_input = false;
 #endif
 
   set_current_window(mainwin);
@@ -895,10 +906,10 @@ void term_keys_add(uint8_t key)
  * Each time a character is decoded, it is passed to the function
  * “outc”.
  */
-static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
+static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
 {
   int abbrev = 0, shift = 0, special = 0;
-  int c, lastc = 0; /* Initialize lastc to shut gcc up */
+  int c, lastc;
   uint16_t w;
   uint32_t counter = addr;
   int current_alphabet = 0;
@@ -907,13 +918,13 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
   {
     ZASSERT(counter < memory_size - 1, "string runs beyond the end of memory");
 
-    w = WORD(counter);
+    w = word(counter);
 
     for(int i = 10; i >= 0; i -= 5)
     {
       c = (w >> i) & 0x1f;
 
-      if(special)
+      if(special != 0)
       {
         if(special == 2) lastc = c;
         else             outc((lastc << 5) | c);
@@ -921,14 +932,14 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
         special--;
       }
 
-      else if(abbrev)
+      else if(abbrev != 0)
       {
         uint32_t new_addr;
 
         new_addr = user_word(header.abbr + 64 * (abbrev - 1) + 2 * c);
 
         /* new_addr is a word address, so multiply by 2 */
-        print_zcode(new_addr * 2, 1, outc);
+        print_zcode(new_addr * 2, true, outc);
 
         abbrev = 0;
       }
@@ -1003,7 +1014,7 @@ static int print_zcode(uint32_t addr, int in_abbr, void (*outc)(uint8_t))
  */
 int print_handler(uint32_t addr, void (*outc)(uint8_t))
 {
-  return print_zcode(addr, 0, outc != NULL ? outc : put_char);
+  return print_zcode(addr, false, outc != NULL ? outc : put_char);
 }
 
 void zprint(void)
@@ -1179,8 +1190,6 @@ void zset_true_colour(void)
   set_current_style();
 #endif
 }
-
-int header_fixed_font;
 
 /* V6 has per-window styles, but all others have a global style; in this
  * case, track styles via the main window.
@@ -1362,7 +1371,7 @@ static void window_change(void)
     upper_window_width = w;
 
     /* Force a redraw (do not wait for user input). */
-    saw_input = 1;
+    saw_input = true;
     resize_upper_window(h);
   }
 
@@ -1379,13 +1388,13 @@ static void window_change(void)
 
     get_screen_size(&width, &height);
 
-    STORE_BYTE(0x20, height > 254 ? 254 : height);
-    STORE_BYTE(0x21, width > 255 ? 255 : width);
+    store_byte(0x20, height > 254 ? 254 : height);
+    store_byte(0x21, width > 255 ? 255 : width);
 
     if(zversion >= 5)
     {
-      STORE_WORD(0x22, width > UINT16_MAX ? UINT16_MAX : width);
-      STORE_WORD(0x24, height > UINT16_MAX ? UINT16_MAX : height);
+      store_word(0x22, width > UINT16_MAX ? UINT16_MAX : width);
+      store_word(0x24, height > UINT16_MAX ? UINT16_MAX : height);
     }
   }
   else
@@ -1396,7 +1405,7 @@ static void window_change(void)
 #endif
 
 #ifdef ZTERP_GLK
-static int timer_running;
+static bool timer_running;
 
 static void start_timer(uint16_t n)
 {
@@ -1404,7 +1413,7 @@ static void start_timer(uint16_t n)
 
   if(timer_running) die("nested timers unsupported");
   glk_request_timer_events(n * 100);
-  timer_running = 1;
+  timer_running = true;
 }
 
 static void stop_timer(void)
@@ -1412,7 +1421,7 @@ static void stop_timer(void)
   if(!timer_available()) return;
 
   glk_request_timer_events(0);
-  timer_running = 0;
+  timer_running = false;
 }
 
 static void request_char(void)
@@ -1420,7 +1429,7 @@ static void request_char(void)
   if(have_unicode) glk_request_char_event_uni(curwin->id);
   else             glk_request_char_event(curwin->id);
 
-  curwin->pending_read = 1;
+  curwin->pending_read = true;
 }
 
 static void request_line(union line *line, glui32 maxlen, glui32 initlen)
@@ -1428,7 +1437,7 @@ static void request_line(union line *line, glui32 maxlen, glui32 initlen)
   if(have_unicode) glk_request_line_event_uni(curwin->id, line->unicode, maxlen, initlen);
   else             glk_request_line_event(curwin->id, line->latin1, maxlen, initlen);
 
-  curwin->pending_read = 1;
+  curwin->pending_read = true;
   curwin->line = line;
 }
 #endif
@@ -1441,7 +1450,7 @@ static void request_line(union line *line, glui32 maxlen, glui32 initlen)
  * If it fails to read (likely due to EOF) then it sets the input stream
  * back to the keyboard and returns false.
  */
-static int istream_read_from_file(struct input *input)
+static bool istream_read_from_file(struct input *input)
 {
   if(input->type == INPUT_CHAR)
   {
@@ -1459,7 +1468,7 @@ static int istream_read_from_file(struct input *input)
     if(c == -1)
     {
       input_stream(ISTREAM_KEYBOARD);
-      return 0;
+      return false;
     }
 
     /* Don’t translate special ZSCII characters (cursor keys, function keys, keypad). */
@@ -1475,7 +1484,7 @@ static int istream_read_from_file(struct input *input)
     if(n == -1)
     {
       input_stream(ISTREAM_KEYBOARD);
-      return 0;
+      return false;
     }
 
     /* As above, ignore carriage returns. */
@@ -1526,10 +1535,10 @@ static int istream_read_from_file(struct input *input)
       break;
   }
 
-  saw_input = 1;
+  saw_input = true;
 #endif
 
-  return 1;
+  return true;
 }
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
@@ -1592,10 +1601,10 @@ static size_t line_len(const union line *line)
  * times out the routine at address “routine” is called.  If the routine
  * returns true, the input is canceled.
  *
- * The function returns 1 if input was stored, 0 if there was a
+ * The function returns true if input was stored, false if there was a
  * cancellation as described above.
  */
-static int get_input(uint16_t timer, uint16_t routine, struct input *input)
+static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 {
   /* If either of these is zero, no timeout should happen. */
   if(timer   == 0) routine = 0;
@@ -1614,7 +1623,7 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
    */
   input->term = ZSCII_NEWLINE;
 
-  if(istream == ISTREAM_FILE && istream_read_from_file(input)) return 1;
+  if(istream == ISTREAM_FILE && istream_read_from_file(input)) return true;
 #ifdef ZTERP_GLK
   int status = 0;
   union line line;
@@ -1780,10 +1789,10 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
     }
   }
 
-  curwin->pending_read = 0;
+  curwin->pending_read = false;
   curwin->line = NULL;
 
-  if(status == 1) saw_input = 1;
+  if(status == 1) saw_input = true;
 
   if(errorwin != NULL)
   {
@@ -1854,7 +1863,7 @@ static int get_input(uint16_t timer, uint16_t routine, struct input *input)
     }
   }
 
-  return 1;
+  return true;
 #endif
 }
 
@@ -1949,10 +1958,11 @@ void zshow_status(void)
 #endif
 }
 
-/* Attempt to read and parse a line of input.  On success, return 1.
- * Otherwise, return 0 to indicate that input should be requested again.
+/* Attempt to read and parse a line of input.  On success, return true.
+ * Otherwise, return false to indicate that input should be requested
+ * again.
  */
-static int read_handler(void)
+static bool read_handler(void)
 {
   uint16_t text = zargs[0], parse = zargs[1];
   uint8_t maxchars = zversion >= 5 ? user_byte(text) : user_byte(text) - 1;
@@ -1997,7 +2007,7 @@ static int read_handler(void)
     cleanup_screen(&input);
 #endif
     if(zversion >= 5) store(0);
-    return 1;
+    return true;
   }
 
 #ifdef ZTERP_GLK
@@ -2019,13 +2029,13 @@ static int read_handler(void)
       ret = handle_meta_command(string + 1, input.len - 1);
       if(ret == NULL)
       {
-        return 1;
+        return true;
       }
       else if(ret == string + 1)
       {
         /* The game still wants input, so try again. */
         screen_print("\n>");
-        return 0;
+        return false;
       }
       else
       {
@@ -2089,7 +2099,7 @@ static int read_handler(void)
       user_store_byte(text + i + 2, zscii_string[i]);
     }
 
-    if(parse != 0) tokenize(text, parse, 0, 0);
+    if(parse != 0) tokenize(text, parse, 0, false);
 
     store(input.term);
   }
@@ -2102,15 +2112,15 @@ static int read_handler(void)
 
     user_store_byte(text + input.len + 1, 0);
 
-    tokenize(text, parse, 0, 0);
+    tokenize(text, parse, 0, false);
   }
 
-  return 1;
+  return true;
 }
 
 void zread(void)
 {
-  while(read_handler() == 0)
+  while(!read_handler())
   {
   }
 }
@@ -2186,7 +2196,7 @@ void zpicture_data(void)
   }
 
   /* No pictures means no valid pictures, so never branch. */
-  branch_if(0);
+  branch_if(false);
 }
 
 void zget_wind_prop(void)
@@ -2285,7 +2295,7 @@ void zprint_form(void)
 
 void zmake_menu(void)
 {
-  branch_if(0);
+  branch_if(false);
 }
 
 void zbuffer_screen(void)
@@ -2321,9 +2331,13 @@ static void set_default_styles(void)
 }
 #endif
 
-int create_mainwin(void)
+bool create_mainwin(void)
 {
 #ifdef ZTERP_GLK
+
+#ifdef GLK_MODULE_UNICODE
+  have_unicode = glk_gestalt(gestalt_Unicode, 0);
+#endif
 
 #ifdef GARGLK
   set_default_styles();
@@ -2356,7 +2370,7 @@ int create_mainwin(void)
 #endif
 
   mainwin->id = glk_window_open(0, 0, 0, wintype_TextBuffer, 1);
-  if(mainwin->id == NULL) return 0;
+  if(mainwin->id == NULL) return false;
   glk_set_window(mainwin->id);
 
 #ifdef GLK_MODULE_LINE_ECHO
@@ -2364,23 +2378,23 @@ int create_mainwin(void)
   if(mainwin->has_echo) glk_set_echo_line_event(mainwin->id, 0);
 #endif
 
-  return 1;
+  return true;
 #else
-  return 1;
+  return true;
 #endif
 }
 
-int create_statuswin(void)
+bool create_statuswin(void)
 {
 #ifdef ZTERP_GLK
   if(statuswin.id == NULL) statuswin.id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 1, wintype_TextGrid, 0);
   return statuswin.id != NULL;
 #else
-  return 0;
+  return false;
 #endif
 }
 
-int create_upperwin(void)
+bool create_upperwin(void)
 {
 #ifdef ZTERP_GLK
   /* On a restart, this function will get called again.  It would be
@@ -2413,7 +2427,7 @@ int create_upperwin(void)
 
   return upperwin->id != NULL;
 #else
-  return 0;
+  return false;
 #endif
 }
 
@@ -2452,6 +2466,7 @@ void init_screen(void)
 #endif
 
 #else
+  have_unicode = true;
   fg_color = 1;
   bg_color = 1;
 #endif

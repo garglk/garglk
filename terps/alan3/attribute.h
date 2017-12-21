@@ -10,7 +10,6 @@
 /* DATA */
 
 /* FUNCTIONS */
-extern AttributeEntry *findAttribute(AttributeEntry *attributeTable, int attributeCode);
 extern Aptr getAttribute(AttributeEntry *attributeTable, int attributeCode);
 extern void setAttribute(AttributeEntry *attributeTable, int attributeCode, Aptr newValue);
 

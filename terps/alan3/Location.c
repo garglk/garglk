@@ -37,33 +37,33 @@ void go(int location, int dir)
 
     theExit = (ExitEntry *) pointerTo(instances[location].exits);
     if (instances[location].exits != 0)
-	while (!isEndOfArray(theExit)) {
-	    if (theExit->code == dir) {
-		ok = TRUE;
-		if (theExit->checks != 0) {
-		    if (sectionTraceOption)
+        while (!isEndOfArray(theExit)) {
+            if (theExit->code == dir) {
+                ok = TRUE;
+                if (theExit->checks != 0) {
+                    if (traceSectionOption)
                         traceExit(location, dir, "Checking");
-		    ok = !checksFailed(theExit->checks, EXECUTE_CHECK_BODY_ON_FAIL);
-		}
-		if (ok) {
-		    oldloc = location;
-		    if (theExit->action != 0) {
-			if (sectionTraceOption)
+                    ok = !checksFailed(theExit->checks, EXECUTE_CHECK_BODY_ON_FAIL);
+                }
+                if (ok) {
+                    oldloc = location;
+                    if (theExit->action != 0) {
+                        if (traceSectionOption)
                             traceExit(location, dir, "Executing");
-			interpret(theExit->action);
-		    }
-		    /* Still at the same place? */
-		    if (where(HERO, FALSE) == oldloc) {
-			if (sectionTraceOption)
+                        interpret(theExit->action);
+                    }
+                    /* Still at the same place? */
+                    if (where(HERO, TRANSITIVE) == oldloc) {
+                        if (traceSectionOption)
                             traceExit(location, dir, "Moving");
-			locate(HERO, theExit->target);
-		    }
+                        locate(HERO, theExit->target);
+                    }
                     return;
-		} else
+                } else
                     error(NO_MSG);
-	    }
-	    theExit++;
-	}
+            }
+            theExit++;
+        }
     error(M_NO_WAY);
 }
 
@@ -74,12 +74,12 @@ bool exitto(int to, int from)
     ExitEntry *theExit;
 
     if (instances[from].exits == 0)
-	return FALSE; /* No exits */
-
+        return FALSE; /* No exits */
+    
     for (theExit = (ExitEntry *) pointerTo(instances[from].exits); !isEndOfArray(theExit); theExit++)
-	if (theExit->target == to)
-	    return TRUE;
-
+        if (theExit->target == to)
+            return TRUE;
+    
     return FALSE;
 }
 

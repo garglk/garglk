@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "util.h"
 #include "process.h"
@@ -179,7 +180,7 @@ void process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikmn:N:rR:sS:tT:u:UvxXyYz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikl:mn:N:prR:sS:tT:u:UvxXyYz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -190,46 +191,49 @@ void process_arguments(int argc, char **argv)
         options.call_stack_size = strtol(zoptarg, NULL, 10);
         break;
       case 'c':
-        options.disable_color = 1;
+        options.disable_color = true;
         break;
       case 'C':
-        options.disable_config = 1;
+        options.disable_config = true;
         break;
       case 'd':
-        options.disable_timed = 1;
+        options.disable_timed = true;
         break;
       case 'D':
-        options.disable_sound = 1;
+        options.disable_sound = true;
         break;
       case 'e':
-        options.enable_escape = 1;
+        options.enable_escape = true;
         break;
       case 'E':
         options.escape_string = xstrdup(zoptarg);
         break;
       case 'f':
-        options.disable_fixed = 1;
+        options.disable_fixed = true;
         break;
       case 'F':
-        options.assume_fixed = 1;
+        options.assume_fixed = true;
         break;
       case 'g':
-        options.disable_graphics_font = 1;
+        options.disable_graphics_font = true;
         break;
       case 'G':
-        options.enable_alt_graphics = 1;
+        options.enable_alt_graphics = true;
         break;
       case 'h':
         arg_status = ARG_HELP;
         return;
       case 'i':
-        options.show_id = 1;
+        options.show_id = true;
         break;
       case 'k':
-        options.disable_term_keys = 1;
+        options.disable_term_keys = true;
+        break;
+      case 'l':
+        options.username = xstrdup(zoptarg);
         break;
       case 'm':
-        options.disable_meta_commands = 1;
+        options.disable_meta_commands = true;
         break;
       case 'n':
         options.int_number = strtol(zoptarg, NULL, 10);
@@ -237,20 +241,23 @@ void process_arguments(int argc, char **argv)
       case 'N':
         options.int_version = zoptarg[0];
         break;
+      case 'p':
+        options.disable_patches = true;
+        break;
       case 'r':
-        options.replay_on = 1;
+        options.replay_on = true;
         break;
       case 'R':
         options.replay_name = xstrdup(zoptarg);
         break;
       case 's':
-        options.record_on = 1;
+        options.record_on = true;
         break;
       case 'S':
         options.record_name = xstrdup(zoptarg);
         break;
       case 't':
-        options.transcript_on = 1;
+        options.transcript_on = true;
         break;
       case 'T':
         options.transcript_name = xstrdup(zoptarg);
@@ -259,22 +266,22 @@ void process_arguments(int argc, char **argv)
         options.max_saves = strtol(zoptarg, NULL, 10);
         break;
       case 'U':
-        options.disable_undo_compression = 1;
+        options.disable_undo_compression = true;
         break;
       case 'v':
-        options.show_version = 1;
+        options.show_version = true;
         break;
       case 'x':
-        options.disable_abbreviations = 1;
+        options.disable_abbreviations = true;
         break;
       case 'X':
-        options.enable_censorship = 1;
+        options.enable_censorship = true;
         break;
       case 'y':
-        options.overwrite_transcript = 1;
+        options.overwrite_transcript = true;
         break;
       case 'Y':
-        options.override_undo = 1;
+        options.override_undo = true;
         break;
       case 'z':
         options.random_seed = strtol(zoptarg, NULL, 10);

@@ -20,7 +20,7 @@ static int countInContainer(int containerIndex)	/* IN - the container to count i
     int instanceIndex, j = 0;
 
     for (instanceIndex = 1; instanceIndex <= header->instanceMax; instanceIndex++)
-        if (in(instanceIndex, containerIndex, TRUE))
+        if (isIn(instanceIndex, containerIndex, DIRECT))
             /* Then it's in this container also */
             j++;
     return(j);
@@ -36,7 +36,7 @@ static int sumAttributeInContainer(
     int sum = 0;
 
     for (instanceIndex = 1; instanceIndex <= header->instanceMax; instanceIndex++)
-        if (in(instanceIndex, containerIndex, TRUE)) {	/* Then it's directly in this cont */
+        if (isIn(instanceIndex, containerIndex, DIRECT)) {	/* Then it's directly in this cont */
             if (instances[instanceIndex].container != 0)	/* This is also a container! */
                 sum = sum + sumAttributeInContainer(instanceIndex, attributeIndex);
             sum = sum + getInstanceAttribute(instanceIndex, attributeIndex);
@@ -51,7 +51,7 @@ static bool containerIsEmpty(int container)
     int i;
 
     for (i = 1; i <= header->instanceMax; i++)
-        if (isDescribable(i) && in(i, container, FALSE))
+        if (isDescribable(i) && isIn(i, container, TRANSITIVE))
             return FALSE;
     return TRUE;
 }
@@ -60,7 +60,7 @@ static bool containerIsEmpty(int container)
 /*======================================================================*/
 void describeContainer(int container)
 {
-    if (!containerIsEmpty(container) && !getInstanceAttribute(container, OPAQUEATTRIBUTE))
+    if (!containerIsEmpty(container) && !isOpaque(container))
         list(container);
 }
 
@@ -70,7 +70,7 @@ bool passesContainerLimits(Aint theContainer, Aint theAddedInstance) {
     LimitEntry *limit;
     Aword props;
 
-    if (!isContainer(theContainer))
+    if (!isAContainer(theContainer))
         syserr("Checking limits for a non-container.");
 
     /* Find the container properties */
@@ -95,12 +95,12 @@ bool passesContainerLimits(Aint theContainer, Aint theAddedInstance) {
 
 
 /*======================================================================*/
-int containerSize(int container, bool directly) {
+int containerSize(int container, ATrans trans) {
     Aint i;
     Aint count = 0;
 
     for (i = 1; i <= header->instanceMax; i++) {
-        if (in(i, container, directly))
+        if (isIn(i, container, trans))
             count++;
     }
     return(count);
@@ -129,7 +129,7 @@ void list(int container)
                     if (containers[props].header != 0)
                         interpret(containers[props].header);
                     else {
-                        if (isActor(containers[props].owner))
+                        if (isAActor(containers[props].owner))
                             printMessageWithInstanceParameter(M_CARRIES, containers[props].owner);
                         else
                             printMessageWithInstanceParameter(M_CONTAINS, containers[props].owner);
@@ -153,7 +153,7 @@ void list(int container)
         if (containers[props].empty != 0)
             interpret(containers[props].empty);
         else {
-            if (isActor(containers[props].owner))
+            if (isAActor(containers[props].owner))
                 printMessageWithInstanceParameter(M_EMPTYHANDED, containers[props].owner);
             else
                 printMessageWithInstanceParameter(M_EMPTY, containers[props].owner);

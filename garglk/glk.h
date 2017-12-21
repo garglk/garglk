@@ -482,5 +482,7 @@ extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 #define keycode_Erase               (0xffffef7f)
 #define keycode_MouseWheelUp        (0xffffeffe)
 #define keycode_MouseWheelDown      (0xffffefff)
+#define keycode_SkipWordLeft        (0xfffff000)
+#define keycode_SkipWordRight       (0xfffff001)
 
 #endif /* GLK_H */

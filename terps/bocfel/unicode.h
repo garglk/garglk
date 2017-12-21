@@ -2,6 +2,7 @@
 #define ZTERP_TABLES_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef ZTERP_GLK
 #include <glk.h>
@@ -51,15 +52,6 @@
 #define ZSCII_CLICK_DOUBLE	253
 #define ZSCII_CLICK_SINGLE	254
 
-/* This variable controls whether Unicode is used for screen
- * output.  This affects @check_unicode as well as the ZSCII to
- * Unicode table.  With Glk it is set based on whether the Glk
- * implementation supports Unicode (checked with the Unicode
- * gestalt), and determines whether Unicode IO functions should
- * be used; otherwise, it is kept in parallel with use_utf8_io.
- */
-extern int have_unicode;
-
 extern uint16_t zscii_to_unicode[];
 extern uint8_t unicode_to_zscii[];
 extern uint8_t unicode_to_zscii_q[];
@@ -76,6 +68,6 @@ uint16_t char_to_unicode(char);
 /* Standard 1.1 notes that Unicode characters 0–31 and 127–159
  * are invalid due to the fact that they’re control codes.
  */
-static inline int valid_unicode(uint16_t c) { return (c >= 32 && c <= 126) || c >= 160; }
+static inline bool valid_unicode(uint16_t c) { return (c >= 32 && c <= 126) || c >= 160; }
 
 #endif

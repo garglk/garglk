@@ -19,7 +19,7 @@
 
 /* List of parsed words, index into dictionary */
 Word *playerWords = NULL;
-int currentWordIndex; /* An index into it the list of playerWords */
+int currentWordIndex; /* An index into the list of playerWords */
 int firstWord, lastWord;  /* Index for the first and last words for this command */
 
 /* Some variable for dynamically allocating the playerWords, which will happen in scan() */

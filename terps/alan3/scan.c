@@ -53,14 +53,14 @@ void forceNewPlayerInput() {
 /*----------------------------------------------------------------------*/
 static void unknown(char token[]) {
     char *str = strdup(token);
-    Parameter *messageParameters = allocateParameterArray(MAXENTITY);
+    Parameter *messageParameters = newParameterArray();
 	
 #if ISO == 0
     fromIso(str, str);
 #endif
     addParameterForString(messageParameters, str);
     printMessageWithParameters(M_UNKNOWN_WORD, messageParameters);
-	free(messageParameters);
+	deallocate(messageParameters);
     free(str);
     abortPlayerCommand();
 }
@@ -141,18 +141,17 @@ static void getLine(void) {
             needSpace = FALSE;
         } else
             printAndLog("> ");
+
 #ifdef USE_READLINE
         if (!readline(buf)) {
-            newline();
-            quitGame();
-        }
 #else
         fflush(stdout);
         if (fgets(buf, LISTLEN, stdin) == NULL) {
+#endif
             newline();
             quitGame();
         }
-#endif
+
         getPageSize();
         anyOutput = FALSE;
         if (transcriptOption || logOption) {

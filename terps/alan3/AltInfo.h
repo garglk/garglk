@@ -18,9 +18,9 @@
 #define LOCATION_LEVEL (1)
 #define PARAMETER_LEVEL (2)
 
-#define NO_PARAMETER (-1)
-#define NO_INSTANCE (-1)
-#define NO_CLASS (-1)
+#define NO_PARAMETER ((Aword)-1)
+#define NO_INSTANCE ((Aword)-1)
+#define NO_CLASS ((Aword)-1)
 
 /* tryCheck() flags */
 #define EXECUTE_CHECK_BODY_ON_FAIL TRUE
@@ -33,11 +33,11 @@ typedef struct AltInfo {
 	bool end;		/* Indicator of end in AltInfoArray, first empty has TRUE here */
 	AltEntry *alt;
 	bool done;
-	int level;		/* 0 - Global, 1 - location, 2 - parameter */
+	Aint level;		/* 0 - Global, 1 - location, 2 - parameter */
 	Aid class;		/* In which class, only used for tracing */
-	int instance;	/* In which instance the Alternative was found,
+	Aid instance;	/* In which instance the Alternative was found,
 					   used to set current.instance and tracing */
-	int parameter;	   /* In which parameter, only used for tracing */
+	Aid parameter;	   /* In which parameter, only used for tracing */
 } AltInfo;
 
 typedef AltEntry *(*AltEntryFinder)(int verb, int parameterNumber, int theInstance, int theClass);

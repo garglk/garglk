@@ -15,6 +15,7 @@ SetCompressor lzma
 !define MULTIUSER_EXECUTIONLEVEL Admin
 !include MultiUser.nsh
 !include MUI.nsh
+!include Unix2DOS.nsh
 !include FontReg.nsh
 !include FontName.nsh
 
@@ -65,7 +66,11 @@ Section "DoInstall"
     File "build\dist\*.exe"
     File "build\dist\*.dll"
     File "licenses\*.txt"
-    File "garglk\garglk.ini"
+    File "/oname=garglk.ini.tmp" "garglk\garglk.ini"
+    Push "garglk.ini.tmp"
+    Push "garglk.ini"
+    Call unix2dos
+
 
     WriteUninstaller "uninstall.exe"
 

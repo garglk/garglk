@@ -39,12 +39,12 @@ void primeAltInfo(AltInfo *altInfo, int level, int parameter, int instance, int 
 
 
 /*----------------------------------------------------------------------*/
-static void traceInstanceAndItsClass(AltInfo *alt)
+static void traceInstanceAndItsClass(Aid instance, Aid class)
 {
-    traceSay(globalParameters[alt->parameter-1].instance);
-    printf("[%d]", globalParameters[alt->parameter-1].instance);
-    if (alt->class != NO_CLASS)
-        printf(", inherited from %s[%d]", idOfClass(alt->class), alt->class);
+    traceSay(instance);
+    printf("[%d]", instance);
+    if (class != NO_CLASS)
+        printf(", inherited from %s[%d]", idOfClass(class), class);
 }
 
 
@@ -56,15 +56,15 @@ static void traceAltInfo(AltInfo *alt) {
         break;
     case LOCATION_LEVEL:
         printf("in (location) ");
-        traceInstanceAndItsClass(alt);
+        traceInstanceAndItsClass(current.location, alt->class);
         break;
     case PARAMETER_LEVEL: {
-		char *parameterName = parameterNameInSyntax(alt->parameter);
+		char *parameterName = parameterNameInSyntax(current.verb, alt->parameter);
 		if (parameterName != NULL)
 			printf("in parameter %s(#%d)=", parameterName, alt->parameter);
 		else
 			printf("in parameter #%d=", alt->parameter);
-        traceInstanceAndItsClass(alt);
+        traceInstanceAndItsClass(globalParameters[alt->parameter-1].instance, alt->class);
         break;
 	}
     }
@@ -74,7 +74,7 @@ static void traceAltInfo(AltInfo *alt) {
 /*----------------------------------------------------------------------*/
 static void traceVerbCheck(AltInfo *alt, bool execute)
 {
-    if (sectionTraceOption && execute) {
+    if (traceSectionOption && execute) {
         printf("\n<VERB %d, ", current.verb);
         traceAltInfo(alt);
         printf(", CHECK:>\n");
@@ -89,6 +89,7 @@ bool checkFailed(AltInfo *altInfo, bool execute)
         traceVerbCheck(altInfo, execute);
         // TODO Why does this not generate a regression error with !
         // Need a new regression case?
+        fail = FALSE;
         if (checksFailed(altInfo->alt->checks, execute)) return TRUE;
         if (fail) return TRUE;
     }
@@ -99,7 +100,7 @@ bool checkFailed(AltInfo *altInfo, bool execute)
 /*----------------------------------------------------------------------*/
 static void traceVerbExecution(AltInfo *alt)
 {
-    if (sectionTraceOption) {
+    if (traceSectionOption) {
         printf("\n<VERB %d, ", current.verb);
         traceAltInfo(alt);
         printf(", DOES");
@@ -160,7 +161,7 @@ int lastAltInfoIndex(AltInfo altInfo[])
     /* Loop to last alternative */
     for (altIndex = -1; !altInfo[altIndex+1].end; altIndex++)
         ;
-    return(altIndex);
+    return altIndex;
 }
 
 
@@ -263,20 +264,37 @@ bool anythingToExecute(AltInfo altInfo[])
 
 
 /*----------------------------------------------------------------------*/
+static VerbEntry *findVerbEntry(int verbCode, VerbEntry *entries) {
+    VerbEntry *verbEntry;
+    for (verbEntry = entries; !isEndOfArray(verbEntry); verbEntry++) {
+        if (verbEntry->code < 0) {
+            /* Verb codes are negative for Meta verbs, if so they are also 1 off to avoid EOF */
+            if (abs(verbEntry->code)-1 == verbCode)
+                return verbEntry;
+        } else {
+            if (verbEntry->code == verbCode)
+                return verbEntry;
+        }
+    }
+    return NULL;
+}
+
+
+/*----------------------------------------------------------------------*/
 static AltEntry *findAlternative(Aaddr verbTableAddress, int verbCode, int parameterNumber)
 {
     AltEntry *alt;
     VerbEntry *verbEntry;
 	
     if (verbTableAddress == 0) return NULL;
-	
-    for (verbEntry = (VerbEntry *) pointerTo(verbTableAddress); !isEndOfArray(verbEntry); verbEntry++)
-        if (verbEntry->code == verbCode) {
-            for (alt = (AltEntry *) pointerTo(verbEntry->alts); !isEndOfArray(alt); alt++) {
-                if (alt->param == parameterNumber || alt->param == 0)
-                    return alt;
+
+    verbEntry = findVerbEntry(verbCode, (VerbEntry *) pointerTo(verbTableAddress));
+    if (verbEntry != NULL)
+        for (alt = (AltEntry *) pointerTo(verbEntry->alts); !isEndOfArray(alt); alt++) {
+            if (alt->param == parameterNumber || alt->param == 0) {
+                if (verbEntry->code < 0) current.meta = TRUE;
+                return alt;
             }
-            return NULL;
         }
     return NULL;
 }
@@ -319,14 +337,14 @@ static bool possibleWithFinder(int verb, Parameter parameters[], AltInfoFinder *
     allAlternatives = finder(verb, parameters);
 
     // TODO Need to do this since anyCheckFailed() call execute() which assumes the global parameters
-    setParameters(parameters);
+    setGlobalParameters(parameters);
     if (anyCheckFailed(allAlternatives, DONT_EXECUTE_CHECK_BODY_ON_FAIL))
         anything = FALSE;
     else
 	anything = anythingToExecute(allAlternatives);
 
     if (allAlternatives != NULL)
-      free(allAlternatives);
+      deallocate(allAlternatives);
 
     return(anything);
 }

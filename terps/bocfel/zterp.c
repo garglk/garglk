@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <signal.h>
 #include <limits.h>
@@ -30,6 +31,7 @@
 #include "io.h"
 #include "memory.h"
 #include "osdep.h"
+#include "patches.h"
 #include "process.h"
 #include "random.h"
 #include "screen.h"
@@ -45,40 +47,42 @@
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"0.9"
+#define ZTERP_VERSION	"1.0"
 
 const char *game_file;
 struct options options = {
   .eval_stack_size = DEFAULT_STACK_SIZE,
   .call_stack_size = DEFAULT_CALL_DEPTH,
-  .disable_color = 0,
-  .disable_config = 0,
-  .disable_sound = 0,
-  .disable_timed = 0,
-  .enable_escape = 0,
+  .disable_color = false,
+  .disable_config = false,
+  .disable_timed = false,
+  .disable_sound = false,
+  .enable_escape = false,
   .escape_string = NULL,
-  .disable_fixed = 0,
-  .assume_fixed = 0,
-  .disable_graphics_font = 0,
-  .enable_alt_graphics = 0,
-  .show_id = 0,
-  .disable_term_keys = 0,
-  .disable_meta_commands = 0,
+  .disable_fixed = false,
+  .assume_fixed = false,
+  .disable_graphics_font = false,
+  .enable_alt_graphics = false,
+  .show_id = false,
+  .disable_term_keys = false,
+  .username = NULL,
+  .disable_meta_commands = false,
   .int_number = 1, /* DEC */
   .int_version = 'C',
-  .replay_on = 0,
+  .disable_patches = false,
+  .replay_on = false,
   .replay_name = NULL,
-  .record_on = 0,
+  .record_on = false,
   .record_name = NULL,
-  .transcript_on = 0,
+  .transcript_on = false,
   .transcript_name = NULL,
   .max_saves = 100,
-  .disable_undo_compression = 0,
-  .show_version = 0,
-  .disable_abbreviations = 0,
-  .enable_censorship = 0,
-  .overwrite_transcript = 0,
-  .override_undo = 0,
+  .disable_undo_compression = false,
+  .show_version = false,
+  .disable_abbreviations = false,
+  .enable_censorship = false,
+  .overwrite_transcript = false,
+  .override_undo = false,
   .random_seed = -1,
   .random_device = NULL,
 };
@@ -140,7 +144,7 @@ uint32_t unpack_string(uint16_t addr)
 
 void store(uint16_t v)
 {
-  store_variable(BYTE(pc++), v);
+  store_variable(byte(pc++), v);
 }
 
 /* Find a story ID roughly in the form of an IFID according to §2.2.2.1
@@ -175,27 +179,22 @@ static void find_id(void)
   }
 }
 
-static int is_story(const char *id)
+static bool is_story(const char *id)
 {
   return strcmp(story_id, id) == 0;
 }
 
-int is_beyond_zork(void)
+bool is_beyond_zork(void)
 {
   return is_story("47-870915") || is_story("49-870917") || is_story("51-870923") || is_story("57-871221");
 }
 
-int is_journey(void)
+bool is_journey(void)
 {
   return is_story("83-890706");
 }
 
-int is_sherlock(void)
-{
-  return is_story("97-871026") || is_story("21-871214") || is_story("22-880112") || is_story("26-880127");
-}
-
-int is_infocom_v1234;
+bool is_infocom_v1234;
 static void check_infocom(void)
 {
   /* All V1234 games from the Infocom fact sheet for which both a
@@ -233,7 +232,7 @@ static void check_infocom(void)
   {
     if(is_story(v1234[i]))
     {
-      is_infocom_v1234 = 1;
+      is_infocom_v1234 = true;
       return;
     }
   }
@@ -246,7 +245,7 @@ static void read_config(void)
   char line[MAX_LINE];
   char *key, *val, *p;
   long n;
-  int story_matches = 1;
+  bool story_matches = true;
 
   zterp_os_rcfile(file, sizeof file);
 
@@ -265,10 +264,10 @@ static void read_config(void)
       {
         *p = 0;
 
-        story_matches = 0;
+        story_matches = false;
         for(p = strtok(line + 1, " ,"); p != NULL; p = strtok(NULL, " ,"))
         {
-          if(is_story(p)) story_matches = 1;
+          if(is_story(p)) story_matches = true;
         }
       }
 
@@ -314,11 +313,13 @@ static void read_config(void)
     BOOL  (disable_graphics_font);
     BOOL  (enable_alt_graphics);
     BOOL  (disable_term_keys);
+    STRING(username);
     BOOL  (disable_meta_commands);
     NUMBER(max_saves);
     BOOL  (disable_undo_compression);
     NUMBER(int_number);
     CHAR  (int_version);
+    BOOL  (disable_patches);
     BOOL  (replay_on);
     STRING(replay_name);
     BOOL  (record_on);
@@ -342,7 +343,7 @@ static void read_config(void)
     COLOR(white,   9);
 
 #ifndef ZTERP_NO_CHEAT
-    else if(strcmp(key, "cheat") == 0) cheat_add(val, 0);
+    else if(strcmp(key, "cheat") == 0) cheat_add(val, false);
 #endif
 
 #undef BOOL
@@ -355,8 +356,8 @@ static void read_config(void)
   fclose(fp);
 }
 
-static int have_statuswin = 0;
-static int have_upperwin  = 0;
+static bool have_statuswin = false;
+static bool have_upperwin  = false;
 
 /* Various parts of the header (those marked “Rst” in §11) should be
  * updated by the interpreter.  This function does that.  This is also
@@ -367,7 +368,7 @@ void write_header(void)
 {
   uint8_t flags1;
 
-  flags1 = BYTE(0x01);
+  flags1 = byte(0x01);
 
   if(zversion == 3)
   {
@@ -412,11 +413,11 @@ void write_header(void)
     if(options.disable_fixed) flags1 &= ~FLAGS1_FIXED;
   }
 
-  STORE_BYTE(0x01, flags1);
+  store_byte(0x01, flags1);
 
   if(zversion >= 5)
   {
-    uint16_t flags2 = WORD(0x10);
+    uint16_t flags2 = word(0x10);
 
     flags2 &= ~FLAGS2_MOUSE;
     if(!sound_loaded()) flags2 &= ~FLAGS2_SOUND;
@@ -426,7 +427,7 @@ void write_header(void)
 
     if(options.max_saves == 0) flags2 &= ~FLAGS2_UNDO;
 
-    STORE_WORD(0x10, flags2);
+    store_word(0x10, flags2);
   }
 
   if(zversion >= 4)
@@ -435,45 +436,53 @@ void write_header(void)
 
     /* Interpreter number & version. */
     if(options.int_number < 1 || options.int_number > 11) options.int_number = 1; /* DEC */
-    STORE_BYTE(0x1e, options.int_number);
-    STORE_BYTE(0x1f, options.int_version);
+    store_byte(0x1e, options.int_number);
+    store_byte(0x1f, options.int_version);
 
     get_screen_size(&width, &height);
 
     /* Screen height and width.
      * A height of 255 means infinite, so cap at 254.
      */
-    STORE_BYTE(0x20, height > 254 ? 254 : height);
-    STORE_BYTE(0x21, width > 255 ? 255 : width);
+    store_byte(0x20, height > 254 ? 254 : height);
+    store_byte(0x21, width > 255 ? 255 : width);
 
     if(zversion >= 5)
     {
       /* Screen width and height in units. */
-      STORE_WORD(0x22, width > UINT16_MAX ? UINT16_MAX : width);
-      STORE_WORD(0x24, height > UINT16_MAX ? UINT16_MAX : height);
+      store_word(0x22, width > UINT16_MAX ? UINT16_MAX : width);
+      store_word(0x24, height > UINT16_MAX ? UINT16_MAX : height);
 
       /* Font width and height in units. */
-      STORE_BYTE(0x26, 1);
-      STORE_BYTE(0x27, 1);
+      store_byte(0x26, 1);
+      store_byte(0x27, 1);
 
       /* Default background and foreground colors. */
-      STORE_BYTE(0x2c, 1);
-      STORE_BYTE(0x2d, 1);
+      store_byte(0x2c, 1);
+      store_byte(0x2d, 1);
     }
   }
 
   /* Standard revision # */
-  STORE_BYTE(0x32, 1);
-  STORE_BYTE(0x33, 1);
+  store_byte(0x32, 1);
+  store_byte(0x33, 1);
+
+  if(options.username != NULL)
+  {
+    for(size_t i = 0; i < 8 && options.username[i] != 0; i++)
+    {
+      store_byte(0x38 + i, options.username[i]);
+    }
+  }
 }
 
 static void process_story(void)
 {
-  if(zterp_io_seek(story.io, story.offset, SEEK_SET) == -1) die("unable to rewind story");
+  if(!zterp_io_seek(story.io, story.offset, SEEK_SET)) die("unable to rewind story");
 
   if(zterp_io_read(story.io, memory, memory_size) != memory_size) die("unable to read from story file");
 
-  zversion =		BYTE(0x00);
+  zversion =		byte(0x00);
   if(zversion < 1 || zversion > 8) die("only z-code versions 1-8 are supported");
 
   zwhich = zversion;
@@ -494,15 +503,15 @@ static void process_story(void)
       die("unhandled z-machine version: %d", zwhich);
   }
 
-  pc =			WORD(0x06);
+  pc =			word(0x06);
   if(pc >= memory_size) die("corrupted story: initial pc out of range");
 
-  header.release =	WORD(0x02);
-  header.dictionary =	WORD(0x08);
-  header.objects =	WORD(0x0a);
-  header.globals =	WORD(0x0c);
-  header.static_start =	WORD(0x0e);
-  header.abbr =		WORD(0x18);
+  header.release =	word(0x02);
+  header.dictionary =	word(0x08);
+  header.objects =	word(0x0a);
+  header.globals =	word(0x0c);
+  header.static_start =	word(0x0e);
+  header.abbr =		word(0x18);
 
   memcpy(header.serial, &memory[0x12], sizeof header.serial);
 
@@ -534,15 +543,15 @@ static void process_story(void)
 
   if(header.abbr >= memory_size)                    die("corrupted story: abbreviation table out of range");
 
-  header.file_length = WORD(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
+  header.file_length = word(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
   if(header.file_length > memory_size)              die("story's reported size (%lu) greater than file size (%lu)", (unsigned long)header.file_length, (unsigned long)memory_size);
 
-  header.checksum = WORD(0x1c);
+  header.checksum = word(0x1c);
 
   if(zwhich == 6 || zwhich == 7)
   {
-    header.R_O = WORD(0x28) * 8UL;
-    header.S_O = WORD(0x2a) * 8UL;
+    header.R_O = word(0x28) * 8UL;
+    header.S_O = word(0x2a) * 8UL;
   }
 
   if(dynamic_memory == NULL)
@@ -555,11 +564,11 @@ static void process_story(void)
 #ifdef GLK_MODULE_LINE_TERMINATORS
   if(!options.disable_term_keys)
   {
-    if(zversion >= 5 && WORD(0x2e) != 0)
+    if(zversion >= 5 && word(0x2e) != 0)
     {
       term_keys_reset();
 
-      for(uint32_t i = WORD(0x2e); i < memory_size && memory[i] != 0; i++)
+      for(uint32_t i = word(0x2e); i < memory_size && memory[i] != 0; i++)
       {
         term_keys_add(memory[i]);
       }
@@ -571,11 +580,11 @@ static void process_story(void)
   {
     memcpy(&atable[26 * 2], " 0123456789.,!?_#'\"/\\<-:()", 26);
   }
-  else if(zversion >= 5 && WORD(0x34) != 0)
+  else if(zversion >= 5 && word(0x34) != 0)
   {
-    if(WORD(0x34) + 26 * 3 > memory_size) die("corrupted story: alphabet table out of range");
+    if(word(0x34) + 26 * 3 > memory_size) die("corrupted story: alphabet table out of range");
 
-    memcpy(atable, &memory[WORD(0x34)], 26 * 3);
+    memcpy(atable, &memory[word(0x34)], 26 * 3);
 
     /* Even with a new alphabet table, characters 6 and 7 from A2 must
      * remain the same (§3.5.5.1).
@@ -587,7 +596,7 @@ static void process_story(void)
   /* Check for a header extension table. */
   if(zversion >= 5)
   {
-    uint16_t etable = WORD(0x36);
+    uint16_t etable = word(0x36);
 
     if(etable != 0)
     {
@@ -596,19 +605,19 @@ static void process_story(void)
       if(etable + (2 * nentries) > memory_size) die("corrupted story: header extension table out of range");
 
       /* Unicode table. */
-      if(nentries >= 3 && WORD(etable + (2 * 3)) != 0)
+      if(nentries >= 3 && word(etable + (2 * 3)) != 0)
       {
-        uint16_t utable = WORD(etable + (2 * 3));
+        uint16_t utable = word(etable + (2 * 3));
 
         parse_unicode_table(utable);
       }
 
       /* Flags3. */
-      if(nentries >= 4) STORE_WORD(etable + (2 * 4), 0);
+      if(nentries >= 4) store_word(etable + (2 * 4), 0);
       /* True default foreground color. */
-      if(nentries >= 5) STORE_WORD(etable + (2 * 5), 0x0000);
+      if(nentries >= 5) store_word(etable + (2 * 5), 0x0000);
       /* True default background color. */
-      if(nentries >= 6) STORE_WORD(etable + (2 * 6), 0x7fff);
+      if(nentries >= 6) store_word(etable + (2 * 6), 0x7fff);
     }
   }
 
@@ -622,7 +631,7 @@ static void process_story(void)
   /* Prevent the configuration file from unexpectedly being reread after
    * @restart or @restore.
    */
-  options.disable_config = 1;
+  options.disable_config = true;
 
   /* Most options directly set their respective variables, but a few
    * require intervention.  Delay that intervention until here so that
@@ -638,6 +647,8 @@ static void process_story(void)
    * tables.
    */
   setup_tables();
+
+  if(!options.disable_patches) apply_patches();
 
   if(zversion <= 3) have_statuswin = create_statuswin();
   if(zversion >= 3) have_upperwin  = create_upperwin();
@@ -660,25 +671,25 @@ static void process_story(void)
    */
   if(options.int_number == 6 && is_beyond_zork())
   {
-    STORE_WORD(0x10, WORD(0x10) | FLAGS2_PICTURES);
+    store_word(0x10, word(0x10) | FLAGS2_PICTURES);
   }
 
   if(options.transcript_on)
   {
-    STORE_WORD(0x10, WORD(0x10) | FLAGS2_TRANSCRIPT);
-    options.transcript_on = 0;
+    store_word(0x10, word(0x10) | FLAGS2_TRANSCRIPT);
+    options.transcript_on = false;
   }
 
   if(options.record_on)
   {
     output_stream(OSTREAM_RECORD, 0);
-    options.record_on = 0;
+    options.record_on = false;
   }
 
   if(options.replay_on)
   {
     input_stream(ISTREAM_FILE);
-    options.replay_on = 0;
+    options.replay_on = false;
   }
 
   check_infocom();
@@ -697,11 +708,11 @@ void znop(void)
 void zrestart(void)
 {
   /* §6.1.3: Flags2 is preserved on a restart. */
-  uint16_t flags2 = WORD(0x10);
+  uint16_t flags2 = word(0x10);
 
   process_story();
 
-  STORE_WORD(0x10, flags2);
+  store_word(0x10, flags2);
 
   interrupt_reset();
 }
@@ -716,9 +727,9 @@ void zverify(void)
   uint16_t checksum = 0;
   uint32_t remaining = header.file_length - 0x40;
 
-  if(zterp_io_seek(story.io, story.offset + 0x40, SEEK_SET) == -1)
+  if(!zterp_io_seek(story.io, story.offset + 0x40, SEEK_SET))
   {
-    branch_if(0);
+    branch_if(false);
     return;
   }
 
@@ -729,7 +740,7 @@ void zverify(void)
 
     if(zterp_io_read(story.io, buf, to_read) != to_read)
     {
-      branch_if(0);
+      branch_if(false);
       return;
     }
 
@@ -790,6 +801,7 @@ void zrestore5(void)
   buf = malloc(zargs[1]);
   if(buf == NULL)
   {
+    zterp_io_close(savefile);
     store(0);
     return;
   }
@@ -806,7 +818,7 @@ void zrestore5(void)
 
 void zpiracy(void)
 {
-  branch_if(1);
+  branch_if(true);
 }
 
 #ifdef ZTERP_GLK
@@ -819,11 +831,6 @@ int main(int argc, char **argv)
 
 #ifdef ZTERP_GLK
   if(!create_mainwin()) return;
-#ifdef GLK_MODULE_UNICODE
-  have_unicode = glk_gestalt(gestalt_Unicode, 0);
-#endif
-#else
-  have_unicode = 1;
 #endif
 
 #ifndef ZTERP_GLK
@@ -854,7 +861,7 @@ int main(int argc, char **argv)
 
   if(options.show_version)
   {
-    char config[MAX_PATH] = "Configuration file: ";
+    char config[MAX_PATH];
 
     screen_puts("Bocfel " ZTERP_VERSION);
 #ifdef ZTERP_NO_SAFETY_CHECKS
@@ -873,8 +880,8 @@ int main(int argc, char **argv)
     screen_puts("The Tandy bit cannot be set");
 #endif
 
-    zterp_os_rcfile(config + strlen(config), sizeof config - strlen(config));
-    screen_puts(config);
+    zterp_os_rcfile(config, sizeof config);
+    screen_printf("Configuration file: %s", config);
 
 #ifdef ZTERP_GLK
     glk_exit();
@@ -973,7 +980,7 @@ int main(int argc, char **argv)
     /* If header transcript/fixed bits have been set, either by the
      * story or by the user, this will activate them.
      */
-    user_store_word(0x10, WORD(0x10));
+    user_store_word(0x10, word(0x10));
 
     setup_opcodes();
     process_instructions();

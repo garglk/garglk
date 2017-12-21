@@ -2,6 +2,7 @@
 #define ZTERP_IFF_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "io.h"
 
@@ -25,7 +26,7 @@ typedef struct zterp_iff zterp_iff;
 
 
 void zterp_iff_free(zterp_iff *);
-zterp_iff *zterp_iff_parse(zterp_io *, const char [4]);
-int zterp_iff_find(zterp_iff *, const char [4], uint32_t *);
+zterp_iff* zterp_iff_parse(zterp_io* io, const char [static 4]);
+bool zterp_iff_find(zterp_iff *, const char [static 4], uint32_t *);
 
 #endif

@@ -147,6 +147,8 @@ char *winfilters[] =
 - (IBAction) cut: (id) sender;
 - (IBAction) copy: (id) sender;
 - (IBAction) paste: (id) sender;
+- (void) moveWordBackward: (id) sender;
+- (void) moveWordForward: (id) sender;
 - (IBAction) performZoom: (id) sender;
 - (void) performRefresh: (NSNotification *) notice;
 - (NSString *) openFileDialog: (NSString *) prompt
@@ -212,10 +214,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     /* check for arrow keys */
     if ([evt modifierFlags] & NSFunctionKeyMask)
     {
-        /* modified keys for scrolling */
-        if ([evt modifierFlags] & NSCommandKeyMask ||
-            [evt modifierFlags] & NSAlternateKeyMask ||
-            [evt modifierFlags] & NSControlKeyMask)
+        /* alt/option modified key */
+        if ([evt modifierFlags] & NSAlternateKeyMask)
         {
             switch ([evt keyCode])
             {
@@ -227,8 +227,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
             }
         }
 
-        /* unmodified keys for line editing */
-        else
+        /* command modified key */
+        if ([evt modifierFlags] & NSCommandKeyMask)
         {
             switch ([evt keyCode])
             {
@@ -238,6 +238,16 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                 case NSKEY_UP    : return NO;
                 default: break;
             }
+        }
+
+        /* unmodified key for line editing */
+        switch ([evt keyCode])
+        {
+            case NSKEY_LEFT  : return NO;
+            case NSKEY_RIGHT : return NO;
+            case NSKEY_DOWN  : return NO;
+            case NSKEY_UP    : return NO;
+            default: break;
         }
     }
 
@@ -416,6 +426,34 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                    charactersIgnoringModifiers: @"V"
                                      isARepeat: NO
                                        keyCode: NSKEY_V]];
+}
+
+- (void) moveWordBackward: (id) sender
+{
+    [self sendEvent: [NSEvent keyEventWithType: NSKeyDown
+                                      location: NSZeroPoint
+                                 modifierFlags: NSAlternateKeyMask
+                                     timestamp: NSTimeIntervalSince1970
+                                  windowNumber: [self windowNumber]
+                                       context: [self graphicsContext]
+                                    characters: @""
+                   charactersIgnoringModifiers: @""
+                                     isARepeat: NO
+                                       keyCode: NSKEY_LEFT]];
+}
+
+- (void) moveWordForward: (id) sender
+{
+    [self sendEvent: [NSEvent keyEventWithType: NSKeyDown
+                                      location: NSZeroPoint
+                                 modifierFlags: NSAlternateKeyMask
+                                     timestamp: NSTimeIntervalSince1970
+                                  windowNumber: [self windowNumber]
+                                       context: [self graphicsContext]
+                                    characters: @""
+                   charactersIgnoringModifiers: @""
+                                     isARepeat: NO
+                                       keyCode: NSKEY_RIGHT]];
 }
 
 - (IBAction) performZoom: (id) sender

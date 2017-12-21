@@ -430,10 +430,21 @@ void winkey(NSEvent *evt)
     /* check for arrow keys */
     if ([evt modifierFlags] & NSFunctionKeyMask)
     {
-        /* modified keys for scrolling */
-        if ([evt modifierFlags] & NSCommandKeyMask
-            || [evt modifierFlags] & NSAlternateKeyMask
-            || [evt modifierFlags] & NSControlKeyMask)
+        /* alt/option modified key */
+        if ([evt modifierFlags] & NSAlternateKeyMask)
+        {
+            switch ([evt keyCode])
+            {
+                case NSKEY_LEFT  : gli_input_handle_key(keycode_SkipWordLeft);  return;
+                case NSKEY_RIGHT : gli_input_handle_key(keycode_SkipWordRight); return;
+                case NSKEY_DOWN  : gli_input_handle_key(keycode_PageDown);      return;
+                case NSKEY_UP    : gli_input_handle_key(keycode_PageUp);        return;
+                default: break;
+            }
+        }
+
+        /* command modified key */
+        if ([evt modifierFlags] & NSCommandKeyMask)
         {
             switch ([evt keyCode])
             {
@@ -445,17 +456,14 @@ void winkey(NSEvent *evt)
             }
         }
 
-        /* unmodified keys for line editing */
-        else
+        /* unmodified key for line editing */
+        switch ([evt keyCode])
         {
-            switch ([evt keyCode])
-            {
-                case NSKEY_LEFT  : gli_input_handle_key(keycode_Left);  return;
-                case NSKEY_RIGHT : gli_input_handle_key(keycode_Right); return;
-                case NSKEY_DOWN  : gli_input_handle_key(keycode_Down);  return;
-                case NSKEY_UP    : gli_input_handle_key(keycode_Up);    return;
-                default: break;
-            }
+            case NSKEY_LEFT  : gli_input_handle_key(keycode_Left);  return;
+            case NSKEY_RIGHT : gli_input_handle_key(keycode_Right); return;
+            case NSKEY_DOWN  : gli_input_handle_key(keycode_Down);  return;
+            case NSKEY_UP    : gli_input_handle_key(keycode_Up);    return;
+            default: break;
         }
     }
 

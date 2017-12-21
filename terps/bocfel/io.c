@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -53,7 +54,7 @@ struct zterp_io
  * even though UNICODE_LINEFEED (10), as required by Glk (Glk API 0.7.0
  * §2.2), is used internally.
  */
-static int textmode(const struct zterp_io *io)
+static bool textmode(const struct zterp_io *io)
 {
   return io == zterp_io_stdin() ||
          io == zterp_io_stdout() ||
@@ -203,23 +204,23 @@ void zterp_io_close(zterp_io *io)
   free(io);
 }
 
-int zterp_io_seek(const zterp_io *io, long offset, int whence)
+bool zterp_io_seek(const zterp_io *io, long offset, int whence)
 {
   /* To smooth over differences between Glk and standard I/O, don’t
    * allow seeking in append-only streams.
    */
-  if(io->mode == ZTERP_IO_APPEND) return -1;
+  if(io->mode == ZTERP_IO_APPEND) return false;
 
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
   {
     glk_stream_set_position(io->file, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
-    return 0; /* dammit */
+    return true; /* dammit */
   }
   else
 #endif
   {
-    return fseek(io->fp, offset, whence);
+    return fseek(io->fp, offset, whence) == 0;
   }
 }
 
@@ -272,35 +273,35 @@ size_t zterp_io_write(const zterp_io *io, const void *buf, size_t n)
   }
 }
 
-int zterp_io_read16(const zterp_io *io, uint16_t *v)
+bool zterp_io_read16(const zterp_io *io, uint16_t *v)
 {
   uint8_t buf[2];
 
-  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return 0;
+  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return false;
 
   *v = (buf[0] << 8) | buf[1];
 
-  return 1;
+  return true;
 }
 
-int zterp_io_read32(const zterp_io *io, uint32_t *v)
+bool zterp_io_read32(const zterp_io *io, uint32_t *v)
 {
   uint8_t buf[4];
 
-  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return 0;
+  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return false;
 
   *v = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 
-  return 1;
+  return true;
 }
 
 /* Read a byte and make sure it’s part of a valid UTF-8 sequence. */
-static int read_byte(const zterp_io *io, uint8_t *c)
+static bool read_byte(const zterp_io *io, uint8_t *c)
 {
-  if(zterp_io_read(io, c, sizeof *c) != sizeof *c) return 0;
-  if((*c & 0x80) != 0x80) return 0;
+  if(zterp_io_read(io, c, sizeof *c) != sizeof *c) return false;
+  if((*c & 0x80) != 0x80) return false;
 
-  return 1;
+  return true;
 }
 
 /* zterp_io_getc() and zterp_io_putc() are meant to operate in terms of

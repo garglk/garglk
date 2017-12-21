@@ -17,6 +17,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "branch.h"
 #include "memory.h"
@@ -25,12 +26,12 @@
 #include "util.h"
 #include "zterp.h"
 
-void branch_if(int do_branch)
+void branch_if(bool do_branch)
 {
   uint8_t branch;
   uint16_t offset;
 
-  branch = BYTE(pc++);
+  branch = byte(pc++);
 
   if(!do_branch) branch ^= 0x80;
 
@@ -38,7 +39,7 @@ void branch_if(int do_branch)
 
   if((branch & 0x40) == 0)
   {
-    offset = (offset << 8) | BYTE(pc++);
+    offset = (offset << 8) | byte(pc++);
 
     /* Get the sign right. */
     if(offset & 0x2000) offset |= 0xc000;
@@ -74,7 +75,7 @@ void zjz(void)
 
 void zje(void)
 {
-  if     (znargs == 1) branch_if(0);
+  if     (znargs == 1) branch_if(false);
   else if(znargs == 2) branch_if(zargs[0] == zargs[1]);
   else if(znargs == 3) branch_if(zargs[0] == zargs[1] || zargs[0] == zargs[2]);
   else                 branch_if(zargs[0] == zargs[1] || zargs[0] == zargs[2] || zargs[0] == zargs[3]);

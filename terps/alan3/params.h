@@ -14,16 +14,18 @@
 
 
 /* TYPES */
-typedef struct ParamEntry {     /* PARAMETER */
-    Aid instance;				/* Instance code for the parameter (0=multiple) */
+typedef struct Parameter {        /* PARAMETER */
+    Aid instance;                  /* Instance code for the parameter (0=multiple) */
     bool isLiteral;
     bool isPronoun;
     bool isThem;
-    bool useWords;              /* Indicate to use words instead of instance code when saying */
-    int firstWord;              /* Index to first word used by player */
-    int lastWord;               /* d:o to last */
-    struct ParamEntry *candidates; /* Array of instances possibly matching this parameter depending on player input */
+    bool useWords;                 /* Indicate to use words instead of instance code when saying */
+    int firstWord;                 /* Index to first word used by player */
+    int lastWord;                  /* d:o to last */
+    struct Parameter *candidates; /* Array of instances possibly matching this parameter depending on player input */
 } Parameter;
+
+typedef Parameter *ParameterArray;
 
 
 /* DATA */
@@ -31,29 +33,39 @@ extern Parameter *globalParameters;
 
 
 /* FUNCTIONS */
-extern bool exists(Parameter *parameters);
-extern void clearParameter(Parameter *parameter, Parameter *candidates);
-extern void setParameters(Parameter parameters[]);
-extern Parameter *getParameters(void);
-extern Parameter *getParameter(int parameterIndex);
-extern Parameter *ensureParameterArrayAllocated(Parameter *currentList);
-extern Parameter *allocateParameterArray(int n);
-extern Parameter *findEndOfParameterArray(Parameter *parameters);
-extern int findMultiplePosition(Parameter parameters[]);
-extern void compressParameterArray(Parameter *a);
-extern int lengthOfParameterArray(Parameter *a);
-extern bool equalParameterArrays(Parameter parameters1[], Parameter parameters2[]);
-extern bool inParameterArray(Parameter *l, Aword e);
+/* Single Parameter: */
+extern Parameter *newParameter(int instanceId);
+extern void clearParameter(Parameter *parameter);
 extern void copyParameter(Parameter *theCopy, Parameter *theOriginal);
-extern void addParameter(Parameter theParameterArray[], Parameter *theParameter);
-extern void copyParameterArray(Parameter *to, Parameter *from);
-extern void clearParameterArray(Parameter *list);
-extern void subtractParameterArrays(Parameter *a, Parameter *b);
-extern void mergeParameterArrays(Parameter *a, Parameter *b);
-extern void intersectParameterArrays(Parameter *a, Parameter *b);
-extern void copyReferencesToParameterArray(Aint *references, Parameter *parameters);
-extern void addParameterForInstance(Parameter *parameter, int instance);
-extern void addParameterForInteger(Parameter *parameters, int value);
-extern void addParameterForString(Parameter *parameters, char *value);
-extern void printParameterArray(Parameter parameters[]);
+
+/* ParameterArray: */
+extern ParameterArray newParameterArray(void);
+extern ParameterArray ensureParameterArrayAllocated(ParameterArray currentArray);
+extern void freeParameterArray(Parameter *array);
+
+extern bool parameterArrayIsEmpty(ParameterArray parameters);
+extern void addParameterToParameterArray(ParameterArray theArray, Parameter *theParameter);
+extern void addParameterForInstance(ParameterArray parameters, int instance);
+extern void addParameterForInteger(ParameterArray parameters, int value);
+extern void addParameterForString(ParameterArray parameters, char *value);
+extern Parameter *findEndOfParameterArray(ParameterArray parameters);
+extern void compressParameterArray(ParameterArray a);
+extern int lengthOfParameterArray(ParameterArray a);
+extern bool equalParameterArrays(ParameterArray parameters1, ParameterArray parameters2);
+extern bool inParameterArray(ParameterArray l, Aword e);
+extern void copyParameterArray(ParameterArray to, ParameterArray from);
+extern void clearParameterArray(ParameterArray list);
+extern void subtractParameterArrays(ParameterArray a, ParameterArray b);
+extern void mergeParameterArrays(ParameterArray a, ParameterArray b);
+extern void intersectParameterArrays(ParameterArray a, ParameterArray b);
+extern void copyReferencesToParameterArray(Aint *references, ParameterArray parameters);
+extern void printParameterArray(ParameterArray parameters);
+
+extern int findMultiplePosition(ParameterArray parameters);
+
+/* Global Parameters: */
+extern void setGlobalParameters(ParameterArray parameters);
+extern ParameterArray getGlobalParameters(void);
+extern ParameterArray getGlobalParameter(int parameterIndex);
+
 #endif

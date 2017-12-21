@@ -36,7 +36,7 @@ static void (*errorHandler)(MsgKind msg) = NULL;
 /*======================================================================*/
 void setErrorHandler(void (*handler)(MsgKind msg))   /* IN - The error message number */
 {
-    // The error handler must not return because the standard handler does not...
+    // N.B. The error handler must not return because the standard handler does not...
     errorHandler = handler;
 }
 
@@ -63,29 +63,28 @@ void abortPlayerCommand(void)
 
 
 /*======================================================================*/
-void printMessageWithInstanceParameter(MsgKind message, int i) {
-    Parameter *parameters = allocateParameterArray(MAXENTITY);
-    addParameterForInstance(parameters, i);
+void printMessageWithInstanceParameter(MsgKind message, int instanceId) {
+    ParameterArray parameters = newParameterArray();
+    addParameterForInstance(parameters, instanceId);
     printMessageWithParameters(message, parameters);
-    free(parameters);
+    freeParameterArray(parameters);
 }
 
 
 /*======================================================================*/
 void printMessageUsing2InstanceParameters(MsgKind message, int instance1, int instance2) {
-    Parameter *parameters = allocateParameterArray(MAXENTITY);
+    ParameterArray parameters = newParameterArray();
     addParameterForInstance(parameters, instance1);
     addParameterForInstance(parameters, instance2);
     printMessageWithParameters(message, parameters);
-    free(parameters);
+    freeParameterArray(parameters);
 }
 
 
 /*======================================================================*/
 void printMessageWithParameters(MsgKind msg, Parameter *messageParameters)
 {
-    static Parameter *savedParameters = NULL;
-    savedParameters = ensureParameterArrayAllocated(savedParameters);
+    Parameter *savedParameters = newParameterArray();
 
     copyParameterArray(savedParameters, globalParameters);
     copyParameterArray(globalParameters, messageParameters);
@@ -93,4 +92,5 @@ void printMessageWithParameters(MsgKind msg, Parameter *messageParameters)
     interpret(msgs[msg].stms);
 
     copyParameterArray(globalParameters, savedParameters);
+    freeParameterArray(savedParameters);
 }

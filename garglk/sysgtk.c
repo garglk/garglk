@@ -603,6 +603,8 @@ static void onkeydown(GtkWidget *widget, GdkEventKey *event, void *data)
             case GDK_u: case GDK_U: gli_input_handle_key(keycode_Escape); break;
             case GDK_v: case GDK_V: winclipreceive(CLIPBOARD); break;
             case GDK_x: case GDK_X: winclipsend(CLIPBOARD); break;
+            case GDK_Left: gli_input_handle_key(keycode_SkipWordLeft); break;
+            case GDK_Right: gli_input_handle_key(keycode_SkipWordRight); break;
         }
 
         return;

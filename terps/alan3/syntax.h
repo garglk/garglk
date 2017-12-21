@@ -23,7 +23,7 @@ extern SyntaxEntry *stxs;   /* Syntax table pointer */
 
 /* FUNCTIONS */
 extern ElementEntry *elementTreeOf(SyntaxEntry *stx);
-extern char *parameterNameInSyntax(int parameterNumber);
+extern char *parameterNameInSyntax(int syntaxNumber, int parameterNumber);
 extern SyntaxEntry *findSyntaxTreeForVerb(int verbCode);
 
 #endif /* SYNTAX_H_ */

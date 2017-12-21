@@ -25,7 +25,7 @@ of an Adventure that never was.$n$n");
   newline();
   output(blurb);
 
-  terminate(0);
+  terminate(2);
 }
 
 
@@ -40,10 +40,11 @@ void setSyserrHandler(void (*f)(char *))
 // TODO Make syserr() use ... as printf()
 void syserr(char *description)
 {
+    lin = 0;
     if (handler == NULL) {
         char *blurb = "<If you are the creator of this piece of Interactive Fiction, \
 please help debug this Alan system error. Collect *all* the sources, and, if possible, an \
-exact transcript of the commands that let to this error, in a zip-file and send \
+exact transcript of the commands that led to this error, in a zip-file and send \
 it to support@alanif.se. Thank you!>";
         runtimeError("SYSTEM ERROR: ", description, blurb);
     } else
@@ -55,10 +56,10 @@ it to support@alanif.se. Thank you!>";
 void apperr(char *description)
 {
     if (handler == NULL) {
-        char *blurb = "<If you are just playing this piece of Interactive Fiction, \
+        char *blurb = "<If you are playing this piece of Interactive Fiction, \
 please help the author to debug this programming error. Send an exact \
 transcript of the commands that led to this error to the author. Thank you! \
-If you are the author, then you have to figure this out before releasing the game.>";
+If you *are* the author, then you have to figure this out before releasing the game.>";
         runtimeError("APPLICATION ERROR: ", description, blurb);
     } else
         handler(description);
