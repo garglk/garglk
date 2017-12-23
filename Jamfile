@@ -69,7 +69,7 @@ if $(OS) = MINGW
         ;
     InstallLib $(LIBDIR) : freetype6.dll ;
     InstallLib $(LIBDIR) : libjpeg-8.dll ;
-    InstallLib $(LIBDIR) : libpng14-14.dll ;
+    InstallLib $(LIBDIR) : libpng16-16.dll ;
     InstallLib $(LIBDIR) : zlib1.dll ;
 }
 
