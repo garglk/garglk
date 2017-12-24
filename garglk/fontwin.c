@@ -21,9 +21,8 @@
  *****************************************************************************/
 
 #include <windows.h>
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -197,10 +196,12 @@ static void make_font_filepath(const char *filename, char *filepath, size_t leng
     filepath[0] = '\0';
     if (!strstr(filename, ":") && getenv("SYSTEMROOT"))
     {
-        strncpy(filepath, getenv("SYSTEMROOT"), length);
-        strcat(filepath, "\\Fonts\\");
+        snprintf(filepath, length, "%s\\Fonts\\%s", getenv("SYSTEMROOT"), filename);
     }
-    strcat(filepath, filename);
+    else
+    {
+        snprintf(filepath, length, "%s", filename);
+    }
 }
 
 static int find_font_file(const char *facename, char *filepath, size_t length)
@@ -215,8 +216,7 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
         return FALSE;
 
     // check for a TrueType font
-    strncpy(face, facename, sizeof face);
-    strcat(face, " (TrueType)");
+    snprintf(face, sizeof face, "%s (TrueType)", facename);
 
     size = sizeof(filename);
 
@@ -228,8 +228,7 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
     }
 
     // check for an OpenType font
-    strncpy(face, facename, sizeof face);
-    strcat(face, " (OpenType)");
+    snprintf(face, sizeof face, "%s (OpenType)", facename);
 
     size = sizeof(filename);
 
