@@ -28,6 +28,9 @@
 #include "glk.h"
 #include "garglk.h"
 
+// forward declaration
+static int find_font_file(const char *facename, char *filepath, size_t length);
+
 static HDC hdc;
 
 static int gli_sys_monor = FALSE;
@@ -42,33 +45,13 @@ int CALLBACK monofont(
     LPARAM           lParam     /* a combo box HWND */
     )
 {
-    HKEY hkey;
-    DWORD size;
-    char face[256];
-    char filename[256];
     char filepath[1024];
 
     if (!(strlen(gli_conf_monofont)))
         return 0;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
+    if (!find_font_file(lpelfe->elfLogFont.lfFaceName, filepath, sizeof filepath))
         return 1;
-
-    strcpy(face,lpelfe->elfFullName);
-    strcat(face," (TrueType)");
-
-    size = sizeof(filename);
-
-    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE) filename, &size) != ERROR_SUCCESS)
-        return 1;
-
-    filepath[0] = '\0';
-    if (!strstr(filename,":") && getenv("SYSTEMROOT"))
-    {
-        strcpy(filepath, getenv("SYSTEMROOT"));
-        strcat(filepath, "\\Fonts\\");
-    }
-    strcat(filepath, filename);
 
     char * file = malloc(strlen(filepath)+1);
     strcpy(file, filepath);
@@ -141,33 +124,13 @@ int CALLBACK propfont(
     LPARAM           lParam     /* a combo box HWND */
     )
 {
-    HKEY hkey;
-    DWORD size;
-    char face[256];
-    char filename[256];
     char filepath[1024];
 
     if (!(strlen(gli_conf_propfont)))
         return 0;
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,"Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
+    if (!find_font_file(lpelfe->elfLogFont.lfFaceName, filepath, sizeof filepath))
         return 1;
-
-    strcpy(face,lpelfe->elfFullName);
-    strcat(face," (TrueType)");
-
-    size = sizeof(filename);
-
-    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE) filename, &size) != ERROR_SUCCESS)
-        return 1;
-
-    filepath[0] = '\0';
-    if (!strstr(filename,":") && getenv("SYSTEMROOT"))
-    {
-        strcpy(filepath, getenv("SYSTEMROOT"));
-        strcat(filepath, "\\Fonts\\");
-    }
-    strcat(filepath, filename);
 
     char * file = malloc(strlen(filepath)+1);
     strcpy(file, filepath);
@@ -226,6 +189,62 @@ int CALLBACK propfont(
     }
 
     return 1;
+}
+
+static void make_font_filepath(const char *filename, char *filepath, size_t length)
+{
+    // create the absolute path to the font file
+    filepath[0] = '\0';
+    if (!strstr(filename, ":") && getenv("SYSTEMROOT"))
+    {
+        strncpy(filepath, getenv("SYSTEMROOT"), length);
+        strcat(filepath, "\\Fonts\\");
+    }
+    strcat(filepath, filename);
+}
+
+static int find_font_file(const char *facename, char *filepath, size_t length)
+{
+    HKEY hkey;
+    DWORD size;
+    char face[256];
+    char filename[256];
+
+    // open the Fonts registry key
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
+        return FALSE;
+
+    // check for a TrueType font
+    strncpy(face, facename, sizeof face);
+    strcat(face, " (TrueType)");
+
+    size = sizeof(filename);
+
+    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
+    {
+        make_font_filepath(filename, filepath, length);
+        RegCloseKey(hkey);
+        return TRUE;
+    }
+
+    // check for an OpenType font
+    strncpy(face, facename, sizeof face);
+    strcat(face, " (OpenType)");
+
+    size = sizeof(filename);
+
+    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
+    {
+        make_font_filepath(filename, filepath, length);
+        RegCloseKey(hkey);
+        return TRUE;
+    }
+
+    // TODO: support TrueType/OpenType collections (TTC/OTC)
+
+    RegCloseKey(hkey);
+
+    return FALSE;
 }
 
 void fontreplace(char *font, int type)
