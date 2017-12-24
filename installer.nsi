@@ -16,8 +16,6 @@ SetCompressor lzma
 !include MultiUser.nsh
 !include MUI.nsh
 !include Unix2DOS.nsh
-!include FontReg.nsh
-!include FontName.nsh
 
 ;
 ; The installer theme
@@ -128,28 +126,6 @@ Section "DoInstall"
     WriteRegStr HKCR "garglk" "" "URL:Gargoyle File Protocol"
     WriteRegStr HKCR "garglk" "URL Protocol" ""
     WriteRegStr HKCR "garglk\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""
-
-SectionEnd
-
-Section "Fonts"
-    StrCpy $FONT_DIR $FONTS
-    !insertmacro InstallFONFont "fonts\LuxiMono-Regular.ttf" "Luxi Mono Regular (TrueType)"
-    !insertmacro InstallFONFont "fonts\LuxiMono-Bold.ttf" "Luxi Mono Bold (TrueType)"
-    !insertmacro InstallFONFont "fonts\LuxiMono-Oblique.ttf" "Luxi Mono Oblique (TrueType)"
-    !insertmacro InstallFONFont "fonts\LuxiMono-BoldOblique.ttf" "Luxi Mono Bold Oblique (TrueType)"
-    !insertmacro InstallFONFont "fonts\CharterBT-Roman.ttf" "Bitstream Charter (TrueType)"
-    !insertmacro InstallFONFont "fonts\CharterBT-Bold.ttf" "Bitstream Charter Bold (TrueType)"
-    !insertmacro InstallFONFont "fonts\CharterBT-Italic.ttf" "Bitstream Charter Italic (TrueType)"
-    !insertmacro InstallFONFont "fonts\CharterBT-BoldItalic.ttf" "Bitstream Charter Bold Italic (TrueType)"
-    !insertmacro InstallFONFont "fonts\LiberationMono-Regular.ttf" "Liberation Mono (TrueType)"
-    !insertmacro InstallFONFont "fonts\LiberationMono-Bold.ttf" "Liberation Mono Bold (TrueType)"
-    !insertmacro InstallFONFont "fonts\LiberationMono-Italic.ttf" "Liberation Mono Italic (TrueType)"
-    !insertmacro InstallFONFont "fonts\LiberationMono-BoldItalic.ttf" "Liberation Mono Bold Italic (TrueType)"
-    !insertmacro InstallFONFont "fonts\LinLibertine_Re-4.7.5.otf" "LinLibertineO (TrueType)"
-    !insertmacro InstallFONFont "fonts\LinLibertine_Bd-4.1.5.otf" "LinLibertineOB (TrueType)"
-    !insertmacro InstallFONFont "fonts\LinLibertine_It-4.2.6.otf" "LinLibertineOI (TrueType)"
-    !insertmacro InstallFONFont "fonts\LinLibertine_BI-4.1.0.otf" "LinLibertineOBI (TrueType)"
-    SendMessage ${HWND_BROADCAST} ${WM_FONTCHANGE} 0 0 /TIMEOUT=5000
 
 SectionEnd
 
