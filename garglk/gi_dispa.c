@@ -71,6 +71,7 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_CharOutput_ExactPrint", (2) },
     { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
+    { "gestalt_GarglkText", (0x1100) },
     { "gestalt_Graphics", (6) },
     { "gestalt_GraphicsTransparency", (14) },
     { "gestalt_HyperlinkInput", (12) },
@@ -316,6 +317,10 @@ static gidispatch_function_t function_table[] = {
     { 0x016E, glk_date_to_simple_time_utc, "date_to_simple_time_utc" },
     { 0x016F, glk_date_to_simple_time_local, "date_to_simple_time_local" },
 #endif /* GLK_MODULE_DATETIME */
+    { 0x1100, garglk_set_zcolors, "garglk_set_zcolors" },
+    { 0x1101, garglk_set_zcolors_stream, "garglk_set_zcolors_stream" },
+    { 0x1102, garglk_set_reversevideo, "garglk_set_reversevideo" },
+    { 0x1103, garglk_set_reversevideo_stream, "garglk_set_reversevideo_stream" },
 };
 
 glui32 gidispatch_count_classes()
@@ -653,6 +658,15 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x016F: /* date_to_simple_time_local */
             return "3>+[8IsIsIsIsIsIsIsIs]Iu:Is";
 #endif /* GLK_MODULE_DATETIME */
+
+        case 0x1100: /* garglk_set_zcolors */
+            return "2IuIu:";
+        case 0x1101: /* garglk_set_zcolors_stream */
+            return "3QbIuIu:";
+        case 0x1102: /* garglk_set_reversevideo */
+            return "1Iu:";
+        case 0x1103: /* garglk_set_reversevideo_stream */
+            return "2QbIu:";
 
         default:
             return NULL;
@@ -1471,6 +1485,19 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             }
             break;
 #endif /* GLK_MODULE_DATETIME */
+
+        case 0x1100: /* garglk_set_zcolors */
+            garglk_set_zcolors( arglist[0].uint, arglist[1].uint );
+            break;
+        case 0x1101: /* garglk_set_zcolors_stream */
+            garglk_set_zcolors_stream( arglist[0].opaqueref, arglist[1].uint, arglist[2].uint );
+            break;
+        case 0x1102: /* garglk_set_reversevideo */
+            garglk_set_reversevideo( arglist[0].uint );
+            break;
+        case 0x1103: /* garglk_set_reversevideo_stream */
+            garglk_set_reversevideo_stream( arglist[0].opaqueref, arglist[1].uint );
+            break;
 
         default:
             /* do nothing */
