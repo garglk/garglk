@@ -11,9 +11,10 @@ set -e
 
 dlls="libstdc++-6.dll libgcc_s_sjlj-1.dll libwinpthread-1.dll"
 makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis"
+nproc=$(getconf _NPROCESSORS_ONLN)
 
-jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -dx
-jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -dx install
+jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -sUSETTS=yes -dx -j${nproc}
+jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -sUSETTS=yes -dx install
 
 for dll in ${dlls}
 do
