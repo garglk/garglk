@@ -26,7 +26,9 @@ script:
 
 matrix:
   include:
-    # Mingw
+    # MinGW
+    # Ideally this would build with TTS support, but the available MinGW
+    # version on Travis is too old to support SAPI.
     - env: CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
     # GCC
     - env: CC=gcc-4.8 CXX=g++-4.8
