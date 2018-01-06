@@ -1,4 +1,4 @@
- /******************************************************************************
+/******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
  * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
@@ -472,14 +472,22 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
         int xOneThirdOfWinWidth = (x1 - x0) / 3.0;
         
         if ((event->x - x0) <= xOneThirdOfWinWidth) {
-            //gli_input_handle_key(keycode_Left);
-            //gli_input_handle_key(keycode_Escape);
-            gli_input_handle_key(keycode_Erase);
+            if ((event->y - y0) <= y_center) {
+                gli_input_handle_key(keycode_Erase);
+            }
+            else 
+            {
+                gli_input_handle_key(keycode_SkipWordLeft);
+            }
         }
         else if ((event->x - x0) >= (x1 - xOneThirdOfWinWidth)) {
-            //gli_input_handle_key(keycode_Right);
-            //gli_input_handle_key(keycode_End);
-            gli_input_handle_key(keycode_Escape);
+            if ((event->y - y0) <= y_center) {
+                gli_input_handle_key(keycode_Escape);
+            }
+            else 
+            {
+                gli_input_handle_key(keycode_SkipWordRight);
+            }
         }
         else if ((event->y - y0) <= y_center) {
             gli_input_handle_key(keycode_Up);
