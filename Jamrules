@@ -113,6 +113,12 @@ switch $(PLATFORM)
             SHRLINKLIBS += $(TOP)/support/sdl/SDL.dll ;
         }
 
+        if $(USETTS) = yes
+        {
+            SHRLINKLIBS += -lsapi -lole32 ;
+            LINKLIBS += -lsapi -lole32 ;
+        }
+
 
     case UNIX :
         Echo "OS is $(OS) ($(GUILIB))" ;

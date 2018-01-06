@@ -89,6 +89,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_LineTerminatorKey (19)
 #define gestalt_DateTime (20)
 #define gestalt_Sound2 (21)
+#define gestalt_GarglkText (0x1100)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
