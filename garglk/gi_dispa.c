@@ -317,10 +317,12 @@ static gidispatch_function_t function_table[] = {
     { 0x016E, glk_date_to_simple_time_utc, "date_to_simple_time_utc" },
     { 0x016F, glk_date_to_simple_time_local, "date_to_simple_time_local" },
 #endif /* GLK_MODULE_DATETIME */
+#ifdef GLK_MODULE_GARGLKTEXT
     { 0x1100, garglk_set_zcolors, "garglk_set_zcolors" },
     { 0x1101, garglk_set_zcolors_stream, "garglk_set_zcolors_stream" },
     { 0x1102, garglk_set_reversevideo, "garglk_set_reversevideo" },
     { 0x1103, garglk_set_reversevideo_stream, "garglk_set_reversevideo_stream" },
+#endif /* GLK_MODULE_GARGLKTEXT */
 };
 
 glui32 gidispatch_count_classes()
@@ -659,6 +661,7 @@ char *gidispatch_prototype(glui32 funcnum)
             return "3>+[8IsIsIsIsIsIsIsIs]Iu:Is";
 #endif /* GLK_MODULE_DATETIME */
 
+#ifdef GLK_MODULE_GARGLKTEXT
         case 0x1100: /* garglk_set_zcolors */
             return "2IuIu:";
         case 0x1101: /* garglk_set_zcolors_stream */
@@ -667,6 +670,7 @@ char *gidispatch_prototype(glui32 funcnum)
             return "1Iu:";
         case 0x1103: /* garglk_set_reversevideo_stream */
             return "2QbIu:";
+#endif /* GLK_MODULE_GARGLKTEXT */
 
         default:
             return NULL;
@@ -1486,6 +1490,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             break;
 #endif /* GLK_MODULE_DATETIME */
 
+#ifdef GLK_MODULE_GARGLKTEXT
         case 0x1100: /* garglk_set_zcolors */
             garglk_set_zcolors( arglist[0].uint, arglist[1].uint );
             break;
@@ -1498,6 +1503,7 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
         case 0x1103: /* garglk_set_reversevideo_stream */
             garglk_set_reversevideo_stream( arglist[0].opaqueref, arglist[1].uint );
             break;
+#endif /* GLK_MODULE_GARGLKTEXT */
 
         default:
             /* do nothing */
