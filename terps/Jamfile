@@ -204,7 +204,7 @@ if $(MAKE_GEAS) = yes
 
 # -----------------------------------------------------------------------
 #
-# Git 1.3.3
+# Git 1.3.5
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
@@ -227,7 +227,7 @@ if $(MAKE_GIT) = yes
 
 # -----------------------------------------------------------------------
 #
-# Glulxe 0.5.2
+# Glulxe 0.5.4
 #
 
 if $(MAKE_GLULXE) = yes
@@ -250,7 +250,7 @@ if $(MAKE_GLULXE) = yes
 
 # -----------------------------------------------------------------------
 #
-# Hugo 3.1.03
+# Hugo 3.3.0
 #
 # Include hemedia.c from heglk.c for sound/graphics support.
 # Added set_base_file so it can find resource files.
@@ -306,7 +306,7 @@ if $(MAKE_JACL) = yes
 
 # -----------------------------------------------------------------------
 #
-# Level9 4.1
+# Level9 5.1
 #
 # Disabled the status bar that just contained a static version string.
 # Added graphics support.
