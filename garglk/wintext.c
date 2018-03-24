@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "glk.h"
 #include "garglk.h"
 
@@ -959,6 +960,29 @@ static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int po
     touch(dwin, 0);
 }
 
+/* Return true if a following quotation mark should be an opening mark,
+ * false if it should be a closing mark. Opening quotation marks will
+ * appear following an open parenthesis, open square bracket, or
+ * whitespace.
+ */
+static bool leftquote(uint32_t c)
+{
+    switch(c)
+    {
+        case '(': case '[':
+
+        /* The following are Unicode characters in the "Separator, Space" category. */
+        case 0x0020: case 0x00a0: case 0x1680: case 0x2000:
+        case 0x2001: case 0x2002: case 0x2003: case 0x2004:
+        case 0x2005: case 0x2006: case 0x2007: case 0x2008:
+        case 0x2009: case 0x200a: case 0x202f: case 0x205f:
+        case 0x3000:
+            return true;
+        default:
+            return false;
+    }
+}
+
 void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 {
     window_textbuffer_t *dwin = win->data;
@@ -990,11 +1014,10 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     if (gli_conf_quotes)
     {
-#define LEFTQUOTE(c)	((c) == ' ' || (c) == '(' || (c) == '[')
         /* fails for 'tis a wonderful day in the '80s */
         if (gli_conf_quotes > 1 && ch == '\'')
         {
-            if (dwin->numchars == 0 || LEFTQUOTE(dwin->chars[dwin->numchars-1]))
+            if (dwin->numchars == 0 || leftquote(dwin->chars[dwin->numchars-1]))
                 ch = UNI_LSQUO;
         }
 
@@ -1006,12 +1029,11 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
         if (ch == '"')
         {
-            if (dwin->numchars == 0 || LEFTQUOTE(dwin->chars[dwin->numchars-1]))
+            if (dwin->numchars == 0 || leftquote(dwin->chars[dwin->numchars-1]))
                 ch = UNI_LDQUO;
             else
                 ch = UNI_RDQUO;
         }
-#undef LEFTQUOTE
     }
 
     if (gli_conf_dashes && win->attr.style != style_Preformatted)
