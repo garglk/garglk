@@ -613,7 +613,7 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (gli_scroll_width)
         gli_scroll_width = 0;
         else
-        gli_scroll_width = 8;
+        gli_scroll_width = gli_scroll_width_save;
         gli_force_redraw = 1;
         gli_windows_size_change();
         return 0;

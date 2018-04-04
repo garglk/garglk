@@ -542,7 +542,7 @@ void winkey(NSEvent *evt)
 
 void winmouse(NSEvent *evt)
 {
-    NSPoint coords = [evt locationInWindow];
+    NSPoint coords = [gargoyle getWindowPoint: processID forEvent: evt];
 
     int x = coords.x;
     int y = gli_image_h - coords.y;

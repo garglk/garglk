@@ -122,6 +122,9 @@ char *winfilters[] =
 {
     [[self openGLContext] makeCurrentContext];
     NSRect rect = [self bounds];
+#ifdef MAC_RETINA
+    rect = [self convertRectToBacking: rect];
+#endif
     glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
 }
 
@@ -173,6 +176,9 @@ char *winfilters[] =
                                 defer: deferCreation];
 
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
+#ifdef MAC_RETINA
+    [view setWantsBestResolutionOpenGLSurface:YES];
+#endif
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -612,7 +618,13 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
-    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: NSMakeRect(0,0, width, height)
+    NSRect rect = NSMakeRect(0, 0, width, height);
+#ifdef MAC_RETINA
+    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
+    rect = [tmpview convertRectFromBacking: rect];
+    [tmpview release];
+#endif
+    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
                                                                 styleMask: style
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
@@ -646,10 +658,32 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     if (window)
     {
-        return [[window contentView] bounds];
+        id view = [window contentView];
+        NSRect rect = [view bounds];
+#ifdef MAC_RETINA
+        rect = [view convertRectToBacking: rect];
+#endif
+        return rect;
     }
 
     return NSZeroRect;
+}
+
+- (NSPoint) getWindowPoint: (pid_t) processID
+                  forEvent: (NSEvent *) event;
+{
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+
+    if (window)
+    {
+        NSPoint point = [event locationInWindow];
+#ifdef MAC_RETINA
+        point = [[window contentView] convertPointToBacking: point];
+#endif
+        return point;
+    }
+
+    return NSZeroPoint;
 }
 
 - (NSString *) getWindowCharString: (pid_t) processID

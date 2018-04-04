@@ -12,6 +12,11 @@ if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
 else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
+
+if [ "${MAC_RETINA}" == "" ]; then
+  MAC_RETINA=no
+fi
+
 GARGDIST=build/dist
 DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
@@ -25,7 +30,7 @@ mkdir -p "$BUNDLE/Resources"
 mkdir -p "$BUNDLE/PlugIns"
 
 rm -rf $GARGDIST
-jam "-sMAC_USEHOMEBREW=${MAC_USEHOMEBREW}" install
+jam "-sMAC_USEHOMEBREW=${MAC_USEHOMEBREW}" "-sMAC_RETINA=${MAC_RETINA}" install
 
 # Copy the main executable to the MacOS directory;
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"

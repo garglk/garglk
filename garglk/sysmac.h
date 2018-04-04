@@ -67,6 +67,9 @@
 
 - (NSRect) getWindowSize: (pid_t) processID;
 
+- (NSPoint) getWindowPoint: (pid_t) processID
+                  forEvent: (NSEvent *) event;
+
 - (NSString *) getWindowCharString: (pid_t) processID;
 
 - (BOOL) clearWindowCharString: (pid_t) processID;
