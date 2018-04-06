@@ -12,7 +12,6 @@ if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
 else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
-
 GARGDIST=build/dist
 DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
