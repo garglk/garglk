@@ -478,7 +478,6 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
     if (size)
     {
         *size = dwin->size;
-        // TODO: Test this.
         if (dwin->key && (dwin->key->type == wintype_Graphics) && (dwin->dir == winmethod_Fixed))
             *size = *size / gli_zoom + 0.5;
     }
@@ -570,7 +569,6 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
     dwin->size = size;
-    // TODO: Test this.
     if (key && (key->type == wintype_Graphics) && (newdir == winmethod_Fixed))
         dwin->size = dwin->size * gli_zoom + 0.5;
     dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
