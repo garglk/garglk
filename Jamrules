@@ -6,7 +6,6 @@ BUILD ?= RELEASE ;
 USESDL ?= yes ;
 USEBABEL ?= yes ;
 MAC_USEHOMEBREW ?= no ;
-MAC_RETINA ?= no ;
 BUNDLEFONTS ?= yes ;
 USETTS ?= no ;
 
