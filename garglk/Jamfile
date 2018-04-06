@@ -30,11 +30,6 @@ if $(USEBABEL) = yes
     SubDirCcFlags -DBABEL_HANDLER -Isupport/babel ;
 }
 
-if $(MAC_RETINA) = yes
-{
-    SubDirCcFlags -DMAC_RETINA ;
-}
-
 if $(BUNDLEFONTS) = yes
 {
     SubDirCcFlags -DBUNDLED_FONTS ;

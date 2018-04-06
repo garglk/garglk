@@ -47,23 +47,20 @@ char *gli_conf_monob = "LuxiMonoBold";
 char *gli_conf_monoi = "LuxiMonoOblique";
 char *gli_conf_monoz = "LuxiMonoBoldOblique";
 
-#ifdef MAC_RETINA
-#define DEFAULT_ZOOM 2.0f
-#else
-#define DEFAULT_ZOOM 1.0f
-#endif
-float gli_zoom = DEFAULT_ZOOM;
+int gli_hires = 1;
+float gli_backingscalefactor = 1.0f;
+float gli_zoom = 1.0f;
 
 #ifdef BUNDLED_FONTS
 char *gli_conf_monofont = "";
 char *gli_conf_propfont = "";
-float gli_conf_monosize = 12.6 * DEFAULT_ZOOM;	/* good size for LuxiMono */
-float gli_conf_propsize = 14.7 * DEFAULT_ZOOM;	/* good size for CharterBT */
+float gli_conf_monosize = 12.6;	/* good size for LuxiMono */
+float gli_conf_propsize = 14.7;	/* good size for CharterBT */
 #else
 char *gli_conf_monofont = "Liberation Mono";
 char *gli_conf_propfont = "Linux Libertine O";
-float gli_conf_monosize = 12.5 * DEFAULT_ZOOM;	/* good size for LiberationMono */
-float gli_conf_propsize = 15.5 * DEFAULT_ZOOM;	/* good size for Libertine */
+float gli_conf_monosize = 12.5;	/* good size for LiberationMono */
+float gli_conf_propsize = 15.5;	/* good size for Libertine */
 #endif
 
 style_t gli_tstyles[style_NUMSTYLES] =
@@ -139,24 +136,24 @@ int gli_more_font = PROPB;
 unsigned char gli_scroll_bg[3] = { 0xb0, 0xb0, 0xb0 };
 unsigned char gli_scroll_fg[3] = { 0x80, 0x80, 0x80 };
 int gli_scroll_width = 0;
-int gli_scroll_width_save = 8 * DEFAULT_ZOOM + 0.5;
+int gli_scroll_width_save = 8;
 
 int gli_caret_shape = 2;
 int gli_link_style = 1;
 
 int gli_conf_lcd = 1;
 
-int gli_wmarginx = 15 * DEFAULT_ZOOM + 0.5;
-int gli_wmarginy = 15 * DEFAULT_ZOOM + 0.5;
+int gli_wmarginx = 15;
+int gli_wmarginy = 15;
 int gli_wpaddingx = 0;
 int gli_wpaddingy = 0;
-int gli_wborderx = 1 * DEFAULT_ZOOM + 0.5;
-int gli_wbordery = 1 * DEFAULT_ZOOM + 0.5;
-int gli_tmarginx = 7 * DEFAULT_ZOOM + 0.5;
-int gli_tmarginy = 7 * DEFAULT_ZOOM + 0.5;
+int gli_wborderx = 1;
+int gli_wbordery = 1;
+int gli_tmarginx = 7;
+int gli_tmarginy = 7;
 
-int gli_wmarginx_save = 15 * DEFAULT_ZOOM + 0.5;
-int gli_wmarginy_save = 15 * DEFAULT_ZOOM + 0.5;
+int gli_wmarginx_save = 15;
+int gli_wmarginy_save = 15;
 
 int gli_cols = 60;
 int gli_rows = 25;
@@ -167,8 +164,8 @@ int gli_conf_lockrows = FALSE;
 float gli_conf_propaspect = 1.0;
 float gli_conf_monoaspect = 1.0;
 
-int gli_baseline = 15 * DEFAULT_ZOOM + 0.5;
-int gli_leading = 20 * DEFAULT_ZOOM + 0.5;
+int gli_baseline = 15;
+int gli_leading = 20;
 
 int gli_conf_justify = 0;
 int gli_conf_quotes = 1;
@@ -275,12 +272,11 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
         if (!arg)
             continue;
 
+        if (!strcmp(cmd, "hires"))
+            gli_hires = atoi(arg);
+
         if (!strcmp(cmd, "zoom"))
-        {
-            float f = atof(arg);
-            if (f > 0.0f)
-                gli_zoom = f;
-        }
+            gli_zoom = atof(arg);
 
         if (!strcmp(cmd, "moreprompt"))
             gli_more_prompt = strdup(arg);
@@ -302,7 +298,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_propaspect = atof(arg);
 
         if (!strcmp(cmd, "monosize"))
-            gli_conf_monosize = atof(arg) * gli_zoom;
+            gli_conf_monosize = atof(arg);
         if (!strcmp(cmd, "monor"))
             gli_conf_monor = trim(strdup(arg));
         if (!strcmp(cmd, "monob"))
@@ -315,7 +311,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_monofont = trim(strdup(arg));
 
         if (!strcmp(cmd, "propsize"))
-            gli_conf_propsize = atof(arg) * gli_zoom;
+            gli_conf_propsize = atof(arg);
         if (!strcmp(cmd, "propr"))
             gli_conf_propr = trim(strdup(arg));
         if (!strcmp(cmd, "propb"))
@@ -328,9 +324,9 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_propfont = trim(strdup(arg));
 
         if (!strcmp(cmd, "leading"))
-            gli_leading = atof(arg) * gli_zoom + 0.5;
+            gli_leading = atof(arg) + 0.5;
         if (!strcmp(cmd, "baseline"))
-            gli_baseline = atof(arg) * gli_zoom + 0.5;
+            gli_baseline = atof(arg) + 0.5;
 
         if (!strcmp(cmd, "rows"))
             gli_rows = atoi(arg);
@@ -372,22 +368,22 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 
         if (!strcmp(cmd, "wmarginx"))
         {
-            gli_wmarginx = atoi(arg) * gli_zoom + 0.5;
+            gli_wmarginx = atoi(arg);
             gli_wmarginx_save = gli_wmarginx;
         }
 
         if (!strcmp(cmd, "wmarginy"))
         {
-            gli_wmarginy = atoi(arg) * gli_zoom + 0.5;
+            gli_wmarginy = atoi(arg);
             gli_wmarginy_save = gli_wmarginy;
         }
 
-        if (!strcmp(cmd, "wpaddingx")) gli_wpaddingx = atoi(arg) * gli_zoom + 0.5;
-        if (!strcmp(cmd, "wpaddingy")) gli_wpaddingy = atoi(arg) * gli_zoom + 0.5;
-        if (!strcmp(cmd, "wborderx")) gli_wborderx = atoi(arg) * gli_zoom + 0.5;
-        if (!strcmp(cmd, "wbordery")) gli_wbordery = atoi(arg) * gli_zoom + 0.5;
-        if (!strcmp(cmd, "tmarginx")) gli_tmarginx = atoi(arg) * gli_zoom + 0.5;
-        if (!strcmp(cmd, "tmarginy")) gli_tmarginy = atoi(arg) * gli_zoom + 0.5;
+        if (!strcmp(cmd, "wpaddingx")) gli_wpaddingx = atoi(arg);
+        if (!strcmp(cmd, "wpaddingy")) gli_wpaddingy = atoi(arg);
+        if (!strcmp(cmd, "wborderx")) gli_wborderx = atoi(arg);
+        if (!strcmp(cmd, "wbordery")) gli_wbordery = atoi(arg);
+        if (!strcmp(cmd, "tmarginx")) gli_tmarginx = atoi(arg);
+        if (!strcmp(cmd, "tmarginy")) gli_tmarginy = atoi(arg);
 
         if (!strcmp(cmd, "gamma"))
             gli_conf_gamma = atof(arg);
@@ -427,7 +423,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 
         if (!strcmp(cmd, "scrollwidth"))
         {
-            gli_scroll_width = atoi(arg) * gli_zoom + 0.5;
+            gli_scroll_width = atoi(arg);
             gli_scroll_width_save = gli_scroll_width;
         }
         if (!strcmp(cmd, "scrollbg"))
@@ -624,6 +620,24 @@ void gli_startup(int argc, char *argv[])
 
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
+
+    if (gli_hires)
+        gli_zoom *= gli_backingscalefactor;
+    gli_baseline = gli_baseline * gli_zoom + 0.5;
+    gli_conf_monosize = gli_conf_monosize * gli_zoom;
+    gli_conf_propsize = gli_conf_propsize * gli_zoom;
+    gli_leading = gli_leading * gli_zoom + 0.5;
+    gli_scroll_width_save = gli_scroll_width_save * gli_zoom + 0.5;
+    gli_tmarginx = gli_tmarginx * gli_zoom + 0.5;
+    gli_tmarginy = gli_tmarginy * gli_zoom + 0.5;
+    gli_wborderx = gli_wborderx * gli_zoom + 0.5;
+    gli_wbordery = gli_wbordery * gli_zoom + 0.5;
+    gli_wmarginx = gli_wmarginx * gli_zoom + 0.5;
+    gli_wmarginx_save = gli_wmarginx_save * gli_zoom + 0.5;
+    gli_wmarginy = gli_wmarginy * gli_zoom + 0.5;
+    gli_wmarginy_save = gli_wmarginy_save * gli_zoom + 0.5;
+    gli_wpaddingx = gli_wpaddingx * gli_zoom + 0.5;
+    gli_wpaddingy = gli_wpaddingy * gli_zoom + 0.5;
 
     gli_initialize_tts();
     if (gli_conf_speak)

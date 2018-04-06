@@ -122,9 +122,8 @@ char *winfilters[] =
 {
     [[self openGLContext] makeCurrentContext];
     NSRect rect = [self bounds];
-#ifdef MAC_RETINA
-    rect = [self convertRectToBacking: rect];
-#endif
+    if ([self wantsBestResolutionOpenGLSurface])
+        rect = [self convertRectToBacking: rect];
     glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
 }
 
@@ -141,7 +140,8 @@ char *winfilters[] =
                  styleMask: (unsigned int) windowStyle
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
-                   process: (pid_t) pid;
+                   process: (pid_t) pid
+                    retina: (int) retina;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
 - (void) sendChars: (NSEvent *) event;
@@ -169,6 +169,7 @@ char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
+                    retina: (int) retina
 {
     self = [super initWithContentRect: contentRect
                             styleMask: windowStyle
@@ -176,9 +177,8 @@ char *winfilters[] =
                                 defer: deferCreation];
 
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
-#ifdef MAC_RETINA
-    [view setWantsBestResolutionOpenGLSurface:YES];
-#endif
+    if (retina)
+        [view setWantsBestResolutionOpenGLSurface:YES];
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -611,6 +611,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
+             retina: (int) retina
 {
     if (!(processID > 0))
         return NO;
@@ -619,16 +620,18 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     /* set up the window */
     NSRect rect = NSMakeRect(0, 0, width, height);
-#ifdef MAC_RETINA
-    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
-    rect = [tmpview convertRectFromBacking: rect];
-    [tmpview release];
-#endif
+    if (retina)
+    {
+        NSView * tmpview = [[NSView alloc] initWithFrame: rect];
+        rect = [tmpview convertRectFromBacking: rect];
+        [tmpview release];
+    }
     GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
                                                                 styleMask: style
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
-                                                                  process: processID];
+                                                                  process: processID
+                                                                   retina: retina];
 
     [window makeKeyAndOrderFront: window];
     [window center];
@@ -660,9 +663,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     {
         id view = [window contentView];
         NSRect rect = [view bounds];
-#ifdef MAC_RETINA
-        rect = [view convertRectToBacking: rect];
-#endif
+        if ([view wantsBestResolutionOpenGLSurface])
+            rect = [view convertRectToBacking: rect];
         return rect;
     }
 
@@ -676,10 +678,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     if (window)
     {
+        id view = [window contentView];
         NSPoint point = [event locationInWindow];
-#ifdef MAC_RETINA
-        point = [[window contentView] convertPointToBacking: point];
-#endif
+        if ([view wantsBestResolutionOpenGLSurface])
+            point = [view convertPointToBacking: point];
         return point;
     }
 

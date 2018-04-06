@@ -220,6 +220,8 @@ extern int gli_wpaddingy;
 extern int gli_tmarginx;
 extern int gli_tmarginy;
 
+extern int gli_hires;
+extern float gli_backingscalefactor;
 extern float gli_zoom;
 
 extern int gli_conf_lcd;
