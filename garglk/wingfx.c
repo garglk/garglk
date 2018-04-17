@@ -202,6 +202,8 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 {
     picture_t *pic = gli_picture_load(image);
     glui32 hyperlink = dwin->owner->attr.hyper;
+    xpos = xpos * gli_zoom + 0.5;
+    ypos = ypos * gli_zoom + 0.5;
 
     if (!pic)
         return FALSE;
@@ -217,6 +219,8 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
         imagewidth = pic->w;
         imageheight = pic->h;
     }
+    imagewidth = imagewidth * gli_zoom + 0.5;
+    imageheight = imageheight * gli_zoom + 0.5;
 
     drawpicture(pic, dwin, xpos, ypos, imagewidth, imageheight, hyperlink);
 
@@ -232,6 +236,10 @@ void win_graphics_erase_rect(window_graphics_t *dwin, int whole,
     int y1 = y0 + height;
     int x, y;
     int hx0, hx1, hy0, hy1;
+    x0 = x0 * gli_zoom + 0.5;
+    y0 = y0 * gli_zoom + 0.5;
+    x1 = x1 * gli_zoom + 0.5;
+    y1 = y1 * gli_zoom + 0.5;
 
     if (whole)
     {
@@ -278,6 +286,10 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     unsigned char col[3];
     int x1 = x0 + width;
     int y1 = y0 + height;
+    x0 = x0 * gli_zoom + 0.5;
+    y0 = y0 * gli_zoom + 0.5;
+    x1 = x1 * gli_zoom + 0.5;
+    y1 = y1 * gli_zoom + 0.5;
     int x, y;
     int hx0, hx1, hy0, hy1;
 
