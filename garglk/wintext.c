@@ -1579,6 +1579,19 @@ static void acceptline(window_t *win, glui32 keycode)
         (*gli_unregister_arr)(inbuf, inmax, unicode ? "&+#!Iu" : "&+#!Cn", inarrayrock);
 }
 
+long skipWordLeft(const glui32 *textbuffer, long minCursorPosition, long currentInputCursorPosition)
+{
+    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
+    {
+        currentInputCursorPosition--;
+    }
+    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] != ' ')
+    {
+        currentInputCursorPosition--;
+    }
+    return currentInputCursorPosition;
+}
+
 /* Any key, during line input. */
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
@@ -1687,10 +1700,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             break;
 
         case keycode_SkipWordLeft:
-            while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] == ' ')
-                dwin->incurs--;
-            while (dwin->incurs > dwin->infence && dwin->chars[dwin->incurs - 1] != ' ')
-                dwin->incurs--;
+            dwin->incurs = skipWordLeft(dwin->chars, dwin->infence, dwin->incurs);            
             break;
 
         case keycode_SkipWordRight:
