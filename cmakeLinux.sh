@@ -11,8 +11,8 @@ fi
 CMAKE_INSTALL_PREFIX=dist
 
 # Debug compile options
-CMAKE_C_FLAGS_DEBUG="-ggdb"
-CMAKE_CXX_FLAGS_DEBUG="-ggdb"
+CMAKE_C_FLAGS_DEBUG="-ggdb -Werror=implicit-function-declaration"
+CMAKE_CXX_FLAGS_DEBUG="-ggdb -Werror=implicit-function-declaration"
 
 # Kindle release build options
 CMAKE_C_FLAGS_RELEASE="-O3 -fomit-frame-pointer -ffast-math -fweb -frename-registers -fuse-linker-plugin -ftree-vectorize -floop-interchange -ftree-loop-distribution -floop-strip-mine -floop-block"
