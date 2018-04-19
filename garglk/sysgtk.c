@@ -818,6 +818,21 @@ void winopen(void)
     g_signal_connect(imcontext, "commit",
         G_CALLBACK(oninput), NULL);
 
+    if (gli_conf_fullscreen)
+    {
+        GdkScreen *screen = gdk_screen_get_default();
+        GdkRectangle monitor;
+        int root_monitor = 0;
+
+        gdk_screen_get_monitor_geometry(screen, root_monitor, &monitor);
+
+        defw = monitor.width;
+        defh = monitor.height;
+        gtk_window_set_decorated(GTK_WINDOW(frame), FALSE);
+        gtk_window_set_position(GTK_WINDOW(frame), GTK_WIN_POS_CENTER);
+        gtk_window_fullscreen(GTK_WINDOW(frame));       
+    }
+
     wintitle();
 
     gtk_window_set_geometry_hints(GTK_WINDOW(frame),
