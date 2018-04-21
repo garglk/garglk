@@ -280,20 +280,25 @@ void wininit(int *argc, char **argv)
     argv0 = argv[0];
 
     /* enable DPI awareness for better looking fonts */
-    HMODULE shcore = LoadLibraryA("Shcore.dll");
-    if (shcore)
+    if (gli_hires)
     {
-        SETPROCESSDPIAWARENESS_T SetProcessDpiAwareness = (SETPROCESSDPIAWARENESS_T) GetProcAddress(shcore, "SetProcessDpiAwareness");
-        if (SetProcessDpiAwareness)
-            SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+        HMODULE shcore = LoadLibraryA("Shcore.dll");
+        if (shcore)
+        {
+            SETPROCESSDPIAWARENESS_T SetProcessDpiAwareness =
+                (SETPROCESSDPIAWARENESS_T) GetProcAddress(shcore, "SetProcessDpiAwareness");
+            if (SetProcessDpiAwareness)
+                SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+        }
+
+        /* Scale settings, assuming they are chosen to match a 96 DPI display */
+        HDC screen = GetDC(0);
+        pixX = GetDeviceCaps(screen, LOGPIXELSX);
+        ReleaseDC(0, screen);
+        if (pixX >= 72)
+            gli_backingscalefactor = (float) pixX / 96.0;
     }
 
-    // Scale settings, assuming they are chosen to match a 96 DPI display
-    HDC screen = GetDC(0);
-    pixX = GetDeviceCaps(screen, LOGPIXELSX);
-    ReleaseDC(0, screen);
-    if (pixX >= 72)
-        gli_zoom = (float) pixX / 96.0;
 
     /* Create and register frame window class */
     wc.style = 0;
