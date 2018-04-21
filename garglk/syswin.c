@@ -275,6 +275,7 @@ void winclipreceive(void)
 void wininit(int *argc, char **argv)
 {
     WNDCLASS wc;
+    int pixX = 0;
 
     argv0 = argv[0];
 
@@ -288,11 +289,11 @@ void wininit(int *argc, char **argv)
     }
 
     // Scale settings, assuming they are chosen to match a 96 DPI display
-    int pixX;
     HDC screen = GetDC(0);
     pixX = GetDeviceCaps(screen, LOGPIXELSX);
     ReleaseDC(0, screen);
-    gli_zoom = (float) pixX / 96.0;
+    if (pixX >= 72)
+        gli_zoom = (float) pixX / 96.0;
 
     /* Create and register frame window class */
     wc.style = 0;
