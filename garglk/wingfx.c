@@ -176,7 +176,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 
     if (win->mouse_request)
     {
-        gli_event_store(evtype_MouseInput, win, x, y);
+        gli_event_store(evtype_MouseInput, win, GLI_UNZOOM(x), GLI_UNZOOM(y));
         win->mouse_request = FALSE;
         if (gli_conf_safeclicks)
             gli_forceclick = 1;
@@ -184,7 +184,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 
     if (win->hyper_request)
     {
-        glui32 linkval = gli_get_hyperlink(sx, sy);
+        glui32 linkval = gli_get_hyperlink(GLI_UNZOOM(sx), GLI_UNZOOM(sy));
         if (linkval)
         {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
