@@ -89,8 +89,8 @@ typedef struct window_graphics_s window_graphics_t;
 #define HISTORYLEN 100
 
 #define GLI_SUBPIX 8
-#define GLI_ZOOM(x) ((x) * gli_zoom + 0.5)
-#define GLI_UNZOOM(x) ((x) / gli_zoom + 0.5)
+#define gli_zoom_int(x) ((x) * gli_zoom + 0.5)
+#define gli_unzoom_int(x) ((x) / gli_zoom + 0.5)
 
 extern char gli_program_name[256];
 extern char gli_program_info[256];

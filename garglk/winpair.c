@@ -114,7 +114,7 @@ void win_pair_rearrange(window_t *win, rect_t *box)
                             split = dwin->size * gli_cellh;
                         break;
                     case wintype_Graphics:
-                        split = dwin->size;
+                        split = gli_zoom_int(dwin->size);
                         break;
                     default:
                         split = 0;
