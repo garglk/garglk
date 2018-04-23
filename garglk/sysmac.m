@@ -354,6 +354,13 @@ void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
+    /* get the backing scale factor */
+    NSRect rect = NSMakeRect(0, 0, 1000, 1);
+    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
+    rect = [tmpview convertRectToBacking: rect];
+    [tmpview release];
+    gli_backingscalefactor = NSWidth(rect)/1000.;
+
     /* establish link to launcher */
     NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
     NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: NULL];
@@ -394,6 +401,7 @@ void winopen(void)
     [gargoyle initWindow: processID
                    width: defw
                   height: defh
+                  retina: gli_hires
               fullscreen: gli_conf_fullscreen];
 
     wintitle();
@@ -543,7 +551,7 @@ void winkey(NSEvent *evt)
 
 void winmouse(NSEvent *evt)
 {
-    NSPoint coords = [evt locationInWindow];
+    NSPoint coords = [gargoyle getWindowPoint: processID forEvent: evt];
 
     int x = coords.x;
     int y = gli_image_h - coords.y;
