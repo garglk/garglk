@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 
 #include "glk.h"
 #include "glkstart.h"
@@ -31,6 +32,12 @@
 
 int main(int argc, char *argv[])
 {
+    char fullpath[PATH_MAX];
+
+    if (argc > 1) {
+        realpath(argv[argc-1], fullpath);
+        argv[argc-1] = fullpath;
+    }
     glkunix_startup_t startdata;
     startdata.argc = argc;
     startdata.argv = malloc(argc * sizeof(char*));
