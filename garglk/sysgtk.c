@@ -47,7 +47,16 @@ static GtkWidget *canvas;
 static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
+
+#ifdef _ALT_MOUSE_HANDLING
+static bool currentButtonEventWasScrollEvent = false;
+static bool previousButtonEventWasScrollEvent = false;
+#endif
+
+#define MaxBuffer 1024
 static GtkWidget * fileRequestorDialog = NULL;
+static int fileselect = 0;
+static char filepath[MaxBuffer];
 
 static int timerid = -1;
 static volatile int timeouts = 0;
@@ -453,8 +462,9 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
 #ifdef _ALT_MOUSE_HANDLING
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
-    if (event->type == GDK_2BUTTON_PRESS) {
-        fwprintf(stderr, L"Double click\n");
+    //fwprintf(stderr, L"onbuttondown()\n");
+    if (previousButtonEventWasScrollEvent == false && event->button == 1 && event->type == GDK_2BUTTON_PRESS) {
+        //fwprintf(stderr, L"Double click\n");
         gli_input_handle_double_click(event->x, event->y);
     }
     else if (event->button == 1) {
@@ -465,28 +475,35 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
         //fwprintf(stderr, L"Button 2\n");
         int y0 = gli_rootwin->bbox.y0;
         int y1 = gli_rootwin->bbox.y1;
-        int y_center = (y0 + y1) / 2;
+        int y_center = (y1 - y0) / 2.0;
+        int yOneThirdOfWinHeight = (y1 - y0) / 3.0;
         
         int x0 = gli_rootwin->bbox.x0;
         int x1 = gli_rootwin->bbox.x1;
         int xOneThirdOfWinWidth = (x1 - x0) / 3.0;
         
         if ((event->x - x0) <= xOneThirdOfWinWidth) {
-            if ((event->y - y0) <= y_center) {
+            if ((event->y - y0) <= yOneThirdOfWinHeight) {
                 gli_input_handle_key(keycode_Erase);
+            }
+            else if ((event->y - y0) >= y1 - yOneThirdOfWinHeight) {
+                gli_input_handle_key(keycode_SkipWordLeft);
             }
             else 
             {
-                gli_input_handle_key(keycode_SkipWordLeft);
+                gli_input_handle_key(keycode_DeleteWordLeft);
             }
         }
         else if ((event->x - x0) >= (x1 - xOneThirdOfWinWidth)) {
-            if ((event->y - y0) <= y_center) {
+            if ((event->y - y0) <= yOneThirdOfWinHeight) {
                 gli_input_handle_key(keycode_Escape);
+            }
+            else if ((event->y - y0) >= y1 - yOneThirdOfWinHeight) {
+                gli_input_handle_key(keycode_SkipWordRight);
             }
             else 
             {
-                gli_input_handle_key(keycode_SkipWordRight);
+                gli_input_handle_key(keycode_DeleteWordRight);
             }
         }
         else if ((event->y - y0) <= y_center) {
@@ -510,12 +527,16 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 
 static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 {
+    fwprintf(stderr, L"onbuttonup()\n");
     if (event->button == 1)
     {
 #ifndef _ALT_MOUSE_HANDLING
         gli_copyselect = FALSE;
         gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
         winclipsend(PRIMARY);
+#else 
+        previousButtonEventWasScrollEvent = currentButtonEventWasScrollEvent;
+        currentButtonEventWasScrollEvent = false;
 #endif
     }
 }
@@ -523,6 +544,9 @@ static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
 #ifdef _ALT_MOUSE_HANDLING
 static void onscroll(GtkWidget *widget, GdkEventScroll *event, void *data)
 {
+    //fwprintf(stderr, L"onscroll()\n");
+    currentButtonEventWasScrollEvent = true;
+    
     if (event->direction == GDK_SCROLL_UP)
         gli_input_handle_key(keycode_PageUp);
     else if (event->direction == GDK_SCROLL_DOWN)

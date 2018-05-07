@@ -1610,6 +1610,25 @@ long skipWordLeft(const glui32 *textbuffer, long minCursorPosition, long current
     return currentInputCursorPosition;
 }
 
+void deleteWordLeft(window_textbuffer_t * dwin)
+{
+    const glui32 * textbuffer = dwin->chars;
+    long minCursorPosition = dwin->infence;
+    long currentInputCursorPosition = dwin->incurs;
+    
+    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
+    {
+        currentInputCursorPosition--;
+        put_text_uni(dwin, NULL, 0, currentInputCursorPosition, 1);
+    }
+    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] != ' ')
+    {
+        currentInputCursorPosition--;
+        put_text_uni(dwin, NULL, 0, currentInputCursorPosition, 1);
+    }
+    dwin->incurs = currentInputCursorPosition;
+}
+
 /* Any key, during line input. */
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
@@ -1727,9 +1746,19 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ')
                 dwin->incurs++;
             break;
+            
+        case keycode_DeleteWordLeft:
+            deleteWordLeft(dwin);   
+            break;
 
-            /* Delete keys, during line input. */
+        case keycode_DeleteWordRight:
+            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] != ' ')
+                dwin->incurs++;
+            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ')
+                dwin->incurs++;
+            break;
 
+        /* Delete keys, during line input. */
         case keycode_Delete:
             if (dwin->incurs <= dwin->infence)
                 return;
@@ -1932,7 +1961,7 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
 
 void win_textbuffer_double_click(window_textbuffer_t *dwin, int sx, int sy)
 {
-    fwprintf(stderr, L"win_textbuffer_double_click\n");
+    //fwprintf(stderr, L"win_textbuffer_double_click\n");
     window_t *win = dwin->owner;
     int gh = FALSE;
     int gs = FALSE;
@@ -1943,7 +1972,7 @@ void win_textbuffer_double_click(window_textbuffer_t *dwin, int sx, int sy)
         dwin->scrollpos + dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1;
     
     if (clickedLine == 0) {
-        wprintf(L"win_textbuffer_double_click:input line...\n");
+        //wprintf(L"win_textbuffer_double_click:input line...\n");
         
         tbline_t *ln = &dwin->lines[clickedLine];
         
