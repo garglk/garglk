@@ -608,12 +608,12 @@ void gli_startup(int argc, char *argv[])
 {
     gli_baseline = 0;
 
-    wininit(&argc, argv);
-
     if (argc > 1)
         glkunix_set_base_file(argv[argc-1]);
 
     gli_read_config(argc, argv);
+
+    wininit(&argc, argv);
 
     memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));
     memcpy(gli_gstyles_def, gli_gstyles, sizeof(gli_gstyles_def));
