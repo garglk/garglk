@@ -401,7 +401,8 @@ void winopen(void)
     [gargoyle initWindow: processID
                    width: defw
                   height: defh
-                  retina: gli_hires];
+                  retina: gli_hires
+              fullscreen: gli_conf_fullscreen];
 
     wintitle();
     winresize();
