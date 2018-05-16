@@ -623,21 +623,21 @@ void gli_startup(int argc, char *argv[])
 
     if (gli_hires)
         gli_zoom *= gli_backingscalefactor;
-    gli_baseline = gli_baseline * gli_zoom + 0.5;
+    gli_baseline = gli_zoom_int(gli_baseline);
     gli_conf_monosize = gli_conf_monosize * gli_zoom;
     gli_conf_propsize = gli_conf_propsize * gli_zoom;
-    gli_leading = gli_leading * gli_zoom + 0.5;
-    gli_scroll_width_save = gli_scroll_width_save * gli_zoom + 0.5;
-    gli_tmarginx = gli_tmarginx * gli_zoom + 0.5;
-    gli_tmarginy = gli_tmarginy * gli_zoom + 0.5;
-    gli_wborderx = gli_wborderx * gli_zoom + 0.5;
-    gli_wbordery = gli_wbordery * gli_zoom + 0.5;
-    gli_wmarginx = gli_wmarginx * gli_zoom + 0.5;
-    gli_wmarginx_save = gli_wmarginx_save * gli_zoom + 0.5;
-    gli_wmarginy = gli_wmarginy * gli_zoom + 0.5;
-    gli_wmarginy_save = gli_wmarginy_save * gli_zoom + 0.5;
-    gli_wpaddingx = gli_wpaddingx * gli_zoom + 0.5;
-    gli_wpaddingy = gli_wpaddingy * gli_zoom + 0.5;
+    gli_leading = gli_zoom_int(gli_leading);
+    gli_scroll_width_save = gli_zoom_int(gli_scroll_width_save);
+    gli_tmarginx = gli_zoom_int(gli_tmarginx);
+    gli_tmarginy = gli_zoom_int(gli_tmarginy);
+    gli_wborderx = gli_zoom_int(gli_wborderx);
+    gli_wbordery = gli_zoom_int(gli_wbordery);
+    gli_wmarginx = gli_zoom_int(gli_wmarginx);
+    gli_wmarginx_save = gli_zoom_int(gli_wmarginx_save);
+    gli_wmarginy = gli_zoom_int(gli_wmarginy);
+    gli_wmarginy_save = gli_zoom_int(gli_wmarginy_save);
+    gli_wpaddingx = gli_zoom_int(gli_wpaddingx);
+    gli_wpaddingy = gli_zoom_int(gli_wpaddingy);
 
     gli_initialize_tts();
     if (gli_conf_speak)
