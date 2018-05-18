@@ -56,6 +56,8 @@ char *winfilters[] =
 @interface GargoyleView : NSOpenGLView
 {
     GLuint output;
+	unsigned int textureWidth;
+	unsigned int textureHeight;
 }
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
@@ -90,27 +92,56 @@ char *winfilters[] =
                  0, GL_RGBA, width, height, 0, GL_BGRA,
                  ByteOrderOGL,
                  [frame bytes]);
+    textureWidth = width;
+    textureHeight = height;
 }
 
 - (void) drawRect: (NSRect) bounds
 {
+    if (textureHeight == 0)
+        return;
+
     [[self openGLContext] makeCurrentContext];
 
-    float width = bounds.size.width;
-    float height = bounds.size.height;
+    NSRect box = [self bounds];
+    if ([self wantsBestResolutionOpenGLSurface])
+        box = [self convertRectToBacking: box];
+
+    /* The texture does not match the bounds during resize */
+    float textureAspect = (float) textureWidth / (float) textureHeight;
+    float width = NSWidth(box);
+    float height = NSHeight(box);
+    float aspectWidth = height * textureAspect;
+    float aspectHeight = width / textureAspect;
+    float y = 0;
+    if (aspectWidth > width)
+    {
+        y = height - aspectHeight;
+        height = aspectHeight;
+    }
+    else if (aspectHeight > height)
+    {
+        width = aspectWidth;
+    }
+
+    glViewport(0.0, y, width, height);
+
+    /* the configured window background is unfortunatly not accessable here */
+	glClearColor(1, 1, 1, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBegin(GL_QUADS);
     {
-        glTexCoord2f(0.0f, height);
+        glTexCoord2f(0.0f, textureHeight);
         glVertex2f(-1.0f, -1.0f);
 
-        glTexCoord2f(width, height);
+        glTexCoord2f(textureWidth, textureHeight);
         glVertex2f(1.0f, -1.0f);
 
-        glTexCoord2f(width, 0.0f);
+        glTexCoord2f(textureWidth, 0);
         glVertex2f(1.0f, 1.0f);
 
-        glTexCoord2f(0.0f, 0.0f);
+        glTexCoord2f(0.0f, 0);
         glVertex2f(-1.0f, 1.0f);
     }
     glEnd();
@@ -666,8 +697,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     {
         id view = [window contentView];
         NSRect rect = [view bounds];
-        if ([view wantsBestResolutionOpenGLSurface])
-            rect = [view convertRectToBacking: rect];
         return rect;
     }
 
@@ -683,8 +712,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     {
         id view = [window contentView];
         NSPoint point = [event locationInWindow];
-        if ([view wantsBestResolutionOpenGLSurface])
-            point = [view convertPointToBacking: point];
         return point;
     }
 
@@ -757,7 +784,11 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                  width: width
                                 height: height];
 
-        [[window contentView] drawRect: NSMakeRect(0, 0, width, height)];
+
+		NSRect rect = NSMakeRect(0, 0, width, height);
+		if ([[window contentView] wantsBestResolutionOpenGLSurface])
+            rect = [[window contentView] convertRectFromBacking: rect];
+        [[window contentView] drawRect: rect];
         return YES;
     }
 

@@ -294,12 +294,14 @@ void winresize(void)
 {
     NSRect viewRect = [gargoyle getWindowSize: processID];
 
-    if (gli_image_w == (unsigned int) viewRect.size.width
-            && gli_image_h == (unsigned int) viewRect.size.height)
+    unsigned int vw = (unsigned int) (NSWidth(viewRect) * gli_backingscalefactor);
+    unsigned int vh = (unsigned int) (NSHeight(viewRect) * gli_backingscalefactor);
+
+    if (gli_image_w == vw && gli_image_h == vh)
         return;
 
-    gli_image_w = (unsigned int) viewRect.size.width;
-    gli_image_h = (unsigned int) viewRect.size.height;
+    gli_image_w = vw;
+    gli_image_h = vh;
     gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
 
     /* initialize offline bitmap store */
@@ -553,8 +555,8 @@ void winmouse(NSEvent *evt)
 {
     NSPoint coords = [gargoyle getWindowPoint: processID forEvent: evt];
 
-    int x = coords.x;
-    int y = gli_image_h - coords.y;
+    int x = coords.x * gli_backingscalefactor;
+    int y = gli_image_h - (coords.y * gli_backingscalefactor);
 
     /* disregard most events outside of content window */
     if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
