@@ -56,8 +56,8 @@ char *winfilters[] =
 @interface GargoyleView : NSOpenGLView
 {
     GLuint output;
-	unsigned int textureWidth;
-	unsigned int textureHeight;
+    unsigned int textureWidth;
+    unsigned int textureHeight;
 }
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
@@ -127,7 +127,7 @@ char *winfilters[] =
     glViewport(0.0, y, width, height);
 
     /* the configured window background is unfortunatly not accessable here */
-	glClearColor(1, 1, 1, 0);
+    glClearColor(1, 1, 1, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glBegin(GL_QUADS);
@@ -785,8 +785,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                 height: height];
 
 
-		NSRect rect = NSMakeRect(0, 0, width, height);
-		if ([[window contentView] wantsBestResolutionOpenGLSurface])
+        NSRect rect = NSMakeRect(0, 0, width, height);
+        if ([[window contentView] wantsBestResolutionOpenGLSurface])
             rect = [[window contentView] convertRectFromBacking: rect];
         [[window contentView] drawRect: rect];
         return YES;
