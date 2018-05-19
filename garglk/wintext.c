@@ -1859,7 +1859,7 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
     else
     {
         picture_t *tmp;
-        tmp = gli_picture_scale(pic, pic->w * gli_zoom, pic->h * gli_zoom);
+        tmp = gli_picture_scale(pic, gli_zoom_int(pic->w), gli_zoom_int(pic->h));
         pic = tmp;
     }
 
