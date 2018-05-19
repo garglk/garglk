@@ -399,12 +399,17 @@ void winopen(void)
 
     unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    NSColor * windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
+                                                      green: (float) gli_window_color[1] / 255.0f
+                                                       blue: (float) gli_window_color[2] / 255.0f
+                                                      alpha: 1.0f];
 
     [gargoyle initWindow: processID
                    width: defw
                   height: defh
                   retina: gli_hires
-              fullscreen: gli_conf_fullscreen];
+              fullscreen: gli_conf_fullscreen
+         backgroundColor: windowColor];
 
     wintitle();
     winresize();

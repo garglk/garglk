@@ -59,6 +59,9 @@ char *winfilters[] =
     unsigned int textureWidth;
     unsigned int textureHeight;
 }
+
+@property (retain) NSColor * backgroundColor;
+
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
            height: (unsigned int) height;
@@ -96,6 +99,16 @@ char *winfilters[] =
     textureHeight = height;
 }
 
+- (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format
+{
+    self = [super initWithFrame: frameRect pixelFormat: format];
+    if (self)
+    {
+        self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
+    }
+    return self;
+}
+
 - (void) drawRect: (NSRect) bounds
 {
     if (textureHeight == 0)
@@ -125,9 +138,8 @@ char *winfilters[] =
     }
 
     glViewport(0.0, y, width, height);
-
-    /* the configured window background is unfortunatly not accessable here */
-    glClearColor(1, 1, 1, 0);
+    NSColor * clearColor = self.backgroundColor;
+    glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
     glClear(GL_COLOR_BUFFER_BIT);
 
     glBegin(GL_QUADS);
@@ -172,7 +184,8 @@ char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
-                    retina: (int) retina;
+                    retina: (int) retina
+           backgroundColor: (NSColor *) backgroundColor;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
 - (void) sendChars: (NSEvent *) event;
@@ -201,6 +214,7 @@ char *winfilters[] =
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
                     retina: (int) retina
+           backgroundColor: (NSColor *) backgroundColor
 {
     self = [super initWithContentRect: contentRect
                             styleMask: windowStyle
@@ -210,6 +224,7 @@ char *winfilters[] =
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
     if (retina)
         [view setWantsBestResolutionOpenGLSurface:YES];
+    view.backgroundColor = backgroundColor;
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -644,6 +659,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
              height: (unsigned int) height
              retina: (int) retina
          fullscreen: (BOOL) fullscreen
+    backgroundColor: (NSColor *) backgroundColor
 {
     if (!(processID > 0))
         return NO;
@@ -663,7 +679,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
                                                                   process: processID
-                                                                   retina: retina];
+                                                                   retina: retina
+                                                          backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];
     [window center];

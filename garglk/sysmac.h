@@ -63,7 +63,8 @@
               width: (unsigned int) width
              height: (unsigned int) height
              retina: (int) retina
-         fullscreen: (BOOL) fullscreen;
+         fullscreen: (BOOL) fullscreen
+    backgroundColor: (NSColor *) backgroundColor;
 
 - (NSEvent *) getWindowEvent: (pid_t) processID;
 
