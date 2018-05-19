@@ -595,6 +595,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) quit
 {
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
     [eventlog release];
     [textbuffer release];
 
