@@ -246,7 +246,7 @@ char *winfilters[] =
 
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
-                                                 name: NSWindowDidResizeNotification
+                                                 name: NSWindowDidEndLiveResizeNotification
                                                object: self];
 
     return self;
