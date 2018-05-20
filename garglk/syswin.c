@@ -468,17 +468,25 @@ void wintitle(void)
     DrawMenuBar(hwndframe);
 }
 
+static void windrawrect(HDC hdc, HBRUSH brush, int x0, int y0, int x1, int y1)
+{
+    if ((x1 >= x0) && (y1 >= y0))
+    {
+        RECT r;
+        r.left = x0;
+        r.top = y0;
+        r.right = x1;
+        r.bottom = y1;
+        FillRect(hdc, &r, brush);
+    }
+}
+
 static void winblit(RECT r)
 {
     int x0 = r.left;
     int y0 = r.top;
     int w = r.right - x0;
     int h = r.bottom - y0;
-
-    HBRUSH brush = CreateSolidBrush(
-            RGB(gli_window_color[0], gli_window_color[1], gli_window_color[2]));
-    FillRect(hdc, &r, brush);
-    DeleteObject(brush);
 
     x0 -= win_offset_x;
     y0 -= win_offset_y;
@@ -491,11 +499,23 @@ static void winblit(RECT r)
     if (y0 + h > gli_image_h)
         h = gli_image_h - y0;
 
+    /* paint area outside game view */
+    if (win_offset_x > 0 || win_offset_y > 0)
+    {
+        HBRUSH brush = CreateSolidBrush(
+                RGB(gli_window_color[0], gli_window_color[1],
+                        gli_window_color[2]));
+        windrawrect(hdc, brush, 0, 0, win_offset_x, r.bottom); /* Left */
+        windrawrect(hdc, brush, gli_image_w + win_offset_x, 0, r.right, r.bottom); /* Right */
+        windrawrect(hdc, brush, 0, 0, r.right, win_offset_y); /* Top */
+        windrawrect(hdc, brush, 0, gli_image_h + win_offset_y, r.right, r.bottom); /* Bottom */
+        DeleteObject(brush);
+    }
+
     if (w < 0)
         return;
     if (h < 0)
         return;
-
 
     dibinf->bmiHeader.biWidth = gli_image_w;
     dibinf->bmiHeader.biHeight = -gli_image_h;
@@ -725,8 +745,8 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK
 viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    int x = (signed short) LOWORD(lParam) - win_offset_x;
-    int y = (signed short) HIWORD(lParam) - win_offset_y;
+    int x = (signed short) LOWORD(lParam);
+    int y = (signed short) HIWORD(lParam);
     glui32 key;
 
     switch (message)
@@ -802,6 +822,8 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONDOWN:
     {
         SetFocus(hwndview);
+        x -= win_offset_x;
+        y -= win_offset_y;
         if (isvisible(x,y))
             gli_input_handle_click(x, y);
         return 0;
@@ -839,31 +861,43 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         /* catch and release */
         RECT rect;
-        int cx, cy;
-        clippoint(x, y, &cx, &cy);
-        POINT pt = { cx, cy };
+        POINT pt = { x, y };
         GetClientRect(hwnd, &rect);
-        int hover = PtInRect(&rect, pt);
 
-        if (!hover) {
+        int hover = PtInRect(&rect, pt);
+        if (!hover)
+        {
             if (GetCapture() == hwnd)
                 ReleaseCapture();
-        } else {
-            if (GetCapture() != hwnd ) {
+        }
+        else
+        {
+            int gx = x - win_offset_x;
+            int gy = y - win_offset_y;
+
+            if (GetCapture() != hwnd)
+            {
                 SetCapture(hwnd);
             }
-            if (gli_copyselect) {
+            if (gli_copyselect)
+            {
                 SetCursor(idc_ibeam);
-                gli_move_selection(cx, cy);
-            } else {
-                if (gli_get_hyperlink(cx, cy)) {
+                if (isvisible(gx, gy))
+                    gli_move_selection(gx, gy);
+            }
+            else
+            {
+                if (isvisible(gx, gy) && gli_get_hyperlink(gx, gy))
+                {
                     SetCursor(idc_hand);
-                } else {
+                }
+                else
+                {
                     SetCursor(idc_arrow);
                 }
             }
-        }
 
+        }
         return 0;
     }
 
