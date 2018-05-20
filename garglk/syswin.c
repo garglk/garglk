@@ -88,12 +88,6 @@ int isvisible(int x, int y)
     return x >= 0 && x < gli_image_w && y >= 0 && y < gli_image_h;
 }
 
-void clippoint(int x, int y, int *cx, int *cy)
-{
-    *cx = x < 0 ? 0 : (x >= gli_image_w ? gli_image_w : x);
-    *cy = y < 0 ? 0 : (y >= gli_image_h ? gli_image_h : y);
-}
-
 void glk_request_timer_events(glui32 millisecs)
 {
     if (timerid != -1)
