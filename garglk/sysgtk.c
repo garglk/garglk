@@ -52,6 +52,10 @@ static char *cliptext = NULL;
 static int cliplen = 0;
 enum clipsource { PRIMARY , CLIPBOARD };
 
+/* display offset */
+int win_offset_x = 0;
+int win_offset_y = 0;
+
 /* filters for file dialogs */
 static char *winfilternames[] =
 {
@@ -71,6 +75,11 @@ static int timeout(void *data)
 {
     timeouts = 1;
     return TRUE;
+}
+
+int isvisible(int x, int y)
+{
+    return x >= 0 && x < gli_image_w && y >= 0 && y < gli_image_h;
 }
 
 void glk_request_timer_events(glui32 millisecs)
@@ -305,6 +314,24 @@ static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
     int newwid = event->width;
     int newhgt = event->height;
 
+    /* limit number of columns/rows */
+    int maxw  = gli_wmarginx * 2 + gli_cellw * MAXCOLS;
+    if (newwid > maxw)
+    {
+        win_offset_x = (newwid - maxw) / 2;
+        newwid = maxw;
+    }
+    else
+        win_offset_x = 0;
+    int maxh = gli_wmarginy * 2 + gli_cellh * MAXROWS;
+    if (newhgt > maxh)
+    {
+        win_offset_y = (newhgt - maxh) / 2;
+        newhgt = maxh;
+    }
+    else
+        win_offset_y = 0;
+
     if (newwid == gli_image_w && newhgt == gli_image_h)
         return;
 
@@ -330,29 +357,51 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
     int w = event->area.width;
     int h = event->area.height;
 
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x0 + w > gli_image_w) w = gli_image_w - x0;
-    if (y0 + h > gli_image_h) h = gli_image_h - y0;
-    if (w < 0) return;
-    if (h < 0) return;
+    GdkGC * gc = gdk_gc_new(canvas->window);
+    GdkColor bgColor = { 0, gli_window_color[0] * 256,
+            gli_window_color[1] * 256,
+            gli_window_color[2] * 256 };
+    gdk_gc_set_rgb_fg_color(gc, &bgColor);
+    gdk_draw_rectangle(canvas->window, gc, TRUE, x0, y0, w, h);
+
+    x0 -= win_offset_x;
+    y0 -= win_offset_y;
+    if (x0 < 0)
+        x0 = 0;
+    if (y0 < 0)
+        y0 = 0;
+    if (x0 + w > gli_image_w)
+        w = gli_image_w - x0;
+    if (y0 + h > gli_image_h)
+        h = gli_image_h - y0;
+    if (w < 0)
+        return;
+    if (h < 0)
+        return;
 
     if (!gli_drawselect)
         gli_windows_redraw();
     else
         gli_drawselect = FALSE;
 
-    gdk_draw_rgb_image(canvas->window, canvas->style->black_gc,
-        x0, y0, w, h,
+    gdk_draw_rgb_image(canvas->window, gc,
+        x0 + win_offset_x, y0 + win_offset_y, w, h,
         GDK_RGB_DITHER_NONE,
         gli_image_rgb + y0 * gli_image_s + x0 * 3,
         gli_image_s);
+    gdk_gc_destroy(gc);
 }
 
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
 {
     if (event->button == 1)
-        gli_input_handle_click(event->x, event->y);
+    {
+        /* ignore events outside the content area */
+        int ex = event->x - win_offset_x;
+        int ey = event->y - win_offset_y;
+        if (isvisible(ex, ey))
+            gli_input_handle_click(ex, ey);
+    }
     else if (event->button == 2)
         winclipreceive(PRIMARY);
 }
@@ -388,19 +437,24 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
         x = event->x;
         y = event->y;
     }
-
-    /* hyperlinks and selection */
-    if (gli_copyselect)
+    x -= win_offset_x;
+    y -= win_offset_y;
+    /* ignore events outside the content area */
+    if (isvisible(x,y))
     {
-        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_ibeam);
-        gli_move_selection(x, y);
-    }
-    else
-    {
-        if (gli_get_hyperlink(x, y))
-            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
+        /* hyperlinks and selection */
+        if (gli_copyselect)
+        {
+            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_ibeam);
+            gli_move_selection(x, y);
+        }
         else
-            gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
+        {
+            if (gli_get_hyperlink(x, y))
+                gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
+            else
+                gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
+        }
     }
 }
 
@@ -525,8 +579,6 @@ void winopen(void)
 
     geom.min_width  = gli_wmarginx * 2 + gli_cellw * 0;
     geom.min_height = gli_wmarginy * 2 + gli_cellh * 0;
-    geom.max_width  = gli_wmarginx * 2 + gli_cellw * 255;
-    geom.max_height = gli_wmarginy * 2 + gli_cellh * 250;
     geom.width_inc = gli_cellw;
     geom.height_inc = gli_cellh;
 
@@ -585,7 +637,7 @@ void winopen(void)
 
     gtk_window_set_geometry_hints(GTK_WINDOW(frame),
         GTK_WIDGET(frame), &geom,
-        GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE
+        GDK_HINT_MIN_SIZE
         );
     gtk_window_set_default_size(GTK_WINDOW(frame), defw, defh);
 
@@ -611,7 +663,7 @@ void wintitle(void)
 void winrepaint(int x0, int y0, int x1, int y1)
 {
     /* and pray that gtk+ is smart enough to coalesce... */
-    gtk_widget_queue_draw_area(canvas, x0, y0, x1-x0, y1-y0);
+    gtk_widget_queue_draw_area(canvas, x0 + win_offset_x, y0 + win_offset_y, x1-x0, y1-y0);
 }
 
 void gli_select(event_t *event, int polled)

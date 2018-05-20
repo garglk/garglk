@@ -62,6 +62,10 @@ static volatile int timeouts = 0;
 static wchar_t *cliptext = NULL;
 static int cliplen = 0;
 
+/* display offset */
+int win_offset_x = 0;
+int win_offset_y = 0;
+
 /* filters for file dialogs */
 static char *winfilters[] =
 {
@@ -78,6 +82,17 @@ typedef enum PROCESS_DPI_AWARENESS
     PROCESS_PER_MONITOR_DPI_AWARE = 2
 } PROCESS_DPI_AWARENESS;
 typedef HRESULT (WINAPI * SETPROCESSDPIAWARENESS_T)(PROCESS_DPI_AWARENESS);
+
+int isvisible(int x, int y)
+{
+    return x >= 0 && x < gli_image_w && y >= 0 && y < gli_image_h;
+}
+
+void clippoint(int x, int y, int *cx, int *cy)
+{
+    *cx = x < 0 ? 0 : (x >= gli_image_w ? gli_image_w : x);
+    *cy = y < 0 ? 0 : (y >= gli_image_h ? gli_image_h : y);
+}
 
 void glk_request_timer_events(glui32 millisecs)
 {
@@ -457,20 +472,42 @@ static void winblit(RECT r)
 {
     int x0 = r.left;
     int y0 = r.top;
-    int x1 = r.right;
-    int y1 = r.bottom;
+    int w = r.right - x0;
+    int h = r.bottom - y0;
+
+    HBRUSH brush = CreateSolidBrush(
+            RGB(gli_window_color[0], gli_window_color[1], gli_window_color[2]));
+    FillRect(hdc, &r, brush);
+    DeleteObject(brush);
+
+    x0 -= win_offset_x;
+    y0 -= win_offset_y;
+    if (x0 < 0)
+        x0 = 0;
+    if (y0 < 0)
+        y0 = 0;
+    if (x0 + w > gli_image_w)
+        w = gli_image_w - x0;
+    if (y0 + h > gli_image_h)
+        h = gli_image_h - y0;
+
+    if (w < 0)
+        return;
+    if (h < 0)
+        return;
+
 
     dibinf->bmiHeader.biWidth = gli_image_w;
     dibinf->bmiHeader.biHeight = -gli_image_h;
     dibinf->bmiHeader.biSizeImage = gli_image_h * gli_image_s;
 
     SetDIBitsToDevice(hdc,
-        x0, /* destx */
-        y0, /* desty */
-        x1 - x0, /* destw */
-        y1 - y0, /* desth */
+        x0 + win_offset_x, /* destx */
+        y0 + win_offset_y, /* desty */
+        w, /* destw */
+        h, /* desth */
         x0, /* srcx */
-        gli_image_h - y1, /* srcy */
+        gli_image_h - (y0 + h), /* srcy */
         0, /* startscan */
         gli_image_h, /* numscans */
         gli_image_rgb, /* pBits */
@@ -482,8 +519,10 @@ static void winblit(RECT r)
 void winrepaint(int x0, int y0, int x1, int y1)
 {
     RECT wr;
-    wr.left = x0; wr.right = x1;
-    wr.top = y0; wr.bottom = y1;
+    wr.left = x0 + win_offset_x;
+    wr.right = x1 + win_offset_x;
+    wr.top = y0 + win_offset_y;
+    wr.bottom = y1 + win_offset_y;
     InvalidateRect(hwndview, &wr, 1); // 0);
 }
 
@@ -686,8 +725,8 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK
 viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    int x = (signed short) LOWORD(lParam);
-    int y = (signed short) HIWORD(lParam);
+    int x = (signed short) LOWORD(lParam) - win_offset_x;
+    int y = (signed short) HIWORD(lParam) - win_offset_y;
     glui32 key;
 
     switch (message)
@@ -719,11 +758,29 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         int newwid = LOWORD(lParam);
         int newhgt = HIWORD(lParam);
 
+        /* limit number of columns/rows */
+        int maxw  = gli_wmarginx * 2 + gli_cellw * MAXCOLS;
+        if (newwid > maxw)
+        {
+            win_offset_x = (newwid - maxw) / 2;
+            newwid = maxw;
+        }
+        else
+            win_offset_x = 0;
+        int maxh = gli_wmarginy * 2 + gli_cellh * MAXROWS;
+        if (newhgt > maxh)
+        {
+            win_offset_y = (newhgt - maxh) / 2;
+            newhgt = maxh;
+        }
+        else
+            win_offset_y = 0;
+
         if (newwid == 0 || newhgt == 0)
-        break;
+            break;
 
         if (newwid == gli_image_w && newhgt == gli_image_h)
-        break;
+            break;
 
         gli_image_w = newwid;
         gli_image_h = newhgt;
@@ -745,7 +802,8 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_LBUTTONDOWN:
     {
         SetFocus(hwndview);
-        gli_input_handle_click(x, y);
+        if (isvisible(x,y))
+            gli_input_handle_click(x, y);
         return 0;
     }
 
@@ -781,7 +839,9 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         /* catch and release */
         RECT rect;
-        POINT pt = { x, y };
+        int cx, cy;
+        clippoint(x, y, &cx, &cy);
+        POINT pt = { cx, cy };
         GetClientRect(hwnd, &rect);
         int hover = PtInRect(&rect, pt);
 
@@ -794,9 +854,9 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             if (gli_copyselect) {
                 SetCursor(idc_ibeam);
-                gli_move_selection(x, y);
+                gli_move_selection(cx, cy);
             } else {
-                if (gli_get_hyperlink(x, y)) {
+                if (gli_get_hyperlink(cx, cy)) {
                     SetCursor(idc_hand);
                 } else {
                     SetCursor(idc_arrow);
