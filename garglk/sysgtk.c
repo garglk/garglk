@@ -525,8 +525,6 @@ void winopen(void)
 
     geom.min_width  = gli_wmarginx * 2 + gli_cellw * 0;
     geom.min_height = gli_wmarginy * 2 + gli_cellh * 0;
-    geom.max_width  = gli_wmarginx * 2 + gli_cellw * 255;
-    geom.max_height = gli_wmarginy * 2 + gli_cellh * 250;
     geom.width_inc = gli_cellw;
     geom.height_inc = gli_cellh;
 
@@ -585,7 +583,7 @@ void winopen(void)
 
     gtk_window_set_geometry_hints(GTK_WINDOW(frame),
         GTK_WIDGET(frame), &geom,
-        GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE
+        GDK_HINT_MIN_SIZE
         );
     gtk_window_set_default_size(GTK_WINDOW(frame), defw, defh);
 
