@@ -23,6 +23,7 @@
 #include "glk.h"
 #include "garversion.h"
 #include "launcher.h"
+#include "garglk.h"
 
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
@@ -45,7 +46,6 @@ char buf[MaxBuffer];
 char tmp[MaxBuffer];
 char etc[MaxBuffer];
 
-enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
 char *winfilters[] =
 {
     "sav",
@@ -61,6 +61,7 @@ char *winfilters[] =
 }
 
 @property (retain) NSColor * backgroundColor;
+@property float backingScaleFactor;
 
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
@@ -115,27 +116,16 @@ char *winfilters[] =
         return;
 
     [[self openGLContext] makeCurrentContext];
-
-    NSRect box = [self bounds];
-    if ([self wantsBestResolutionOpenGLSurface])
-        box = [self convertRectToBacking: box];
-
-    /* The texture does not match the bounds during resize */
-    float textureAspect = (float) textureWidth / (float) textureHeight;
-    float width = NSWidth(box);
-    float height = NSHeight(box);
-    float aspectWidth = height * textureAspect;
-    float aspectHeight = width / textureAspect;
-    float y = 0;
-    if (aspectWidth > width)
-    {
-        y = height - aspectHeight;
-        height = aspectHeight;
-    }
-    else if (aspectHeight > height)
-    {
-        width = aspectWidth;
-    }
+    /*
+     * Gargoyle is initialized with a fixed scale factor at startup
+     * Adapt to window DPI
+     */
+    NSRect box = [self convertRectToBacking: [self bounds]];
+    float scaleFactor = self.backingScaleFactor;
+    float currentScaleFactor = NSWidth([self convertRectToBacking: box]) / NSWidth(box);
+    float width = textureWidth * currentScaleFactor / scaleFactor;
+    float height = textureHeight * currentScaleFactor / scaleFactor;
+    float y = NSHeight(box) - height;
 
     glViewport(0.0, y, width, height);
     NSColor * clearColor = self.backgroundColor;
@@ -163,11 +153,7 @@ char *winfilters[] =
 
 - (void)reshape
 {
-    [[self openGLContext] makeCurrentContext];
-    NSRect rect = [self bounds];
-    if ([self wantsBestResolutionOpenGLSurface])
-        rect = [self convertRectToBacking: rect];
-    glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
+
 }
 
 @end
@@ -225,6 +211,7 @@ char *winfilters[] =
     if (retina)
         [view setWantsBestResolutionOpenGLSurface:YES];
     view.backgroundColor = backgroundColor;
+    view.backingScaleFactor = [self backingScaleFactor];
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
