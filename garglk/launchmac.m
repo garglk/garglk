@@ -23,7 +23,6 @@
 #include "glk.h"
 #include "garversion.h"
 #include "launcher.h"
-#include "garglk.h"
 
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
@@ -46,6 +45,7 @@ char buf[MaxBuffer];
 char tmp[MaxBuffer];
 char etc[MaxBuffer];
 
+enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
 char *winfilters[] =
 {
     "sav",
