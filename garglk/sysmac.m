@@ -134,16 +134,6 @@ static pid_t processID = 0;
 static int gli_refresh_needed = TRUE;
 static int gli_window_hidden = FALSE;
 
-void update_backingscalefactor(void)
-{
-    /* get the backing scale factor */
-    NSRect rect = NSMakeRect(0, 0, 1000, 1);
-    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
-    rect = [tmpview convertRectToBacking: rect];
-    [tmpview release];
-    gli_backingscalefactor = NSWidth(rect)/1000.;
-}
-
 void glk_request_timer_events(glui32 millisecs)
 {
     [monitor track: ((double) millisecs) / 1000];
@@ -304,8 +294,6 @@ void winresize(void)
 {
     NSRect viewRect = [gargoyle getWindowSize: processID];
 
-    update_backingscalefactor();
-
     unsigned int vw = (unsigned int) (NSWidth(viewRect) * gli_backingscalefactor);
     unsigned int vh = (unsigned int) (NSHeight(viewRect) * gli_backingscalefactor);
 
@@ -368,7 +356,12 @@ void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    update_backingscalefactor();
+    /* get the backing scale factor */
+    NSRect rect = NSMakeRect(0, 0, 1000, 1);
+    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
+    rect = [tmpview convertRectToBacking: rect];
+    [tmpview release];
+    gli_backingscalefactor = NSWidth(rect)/1000.;
 
     /* establish link to launcher */
     NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
