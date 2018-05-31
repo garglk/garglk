@@ -106,6 +106,7 @@ char *winfilters[] =
     if (self)
     {
         self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
+        self.backingScaleFactor = 1;
     }
     return self;
 }
@@ -116,18 +117,15 @@ char *winfilters[] =
         return;
 
     [[self openGLContext] makeCurrentContext];
-    /*
-     * Gargoyle is initialized with a fixed scale factor at startup
-     * Adapt to window DPI
-     */
-    NSRect box = [self convertRectToBacking: [self bounds]];
-    float scaleFactor = self.backingScaleFactor;
-    float currentScaleFactor = NSWidth([self convertRectToBacking: box]) / NSWidth(box);
-    float width = textureWidth * currentScaleFactor / scaleFactor;
-    float height = textureHeight * currentScaleFactor / scaleFactor;
-    float y = NSHeight(box) - height;
 
-    glViewport(0.0, y, width, height);
+    /* Adapt to the current window backing scale factor */
+    NSRect box = [self convertRectToBacking: [self bounds]];
+    float viewportScaleFactor = [self.window backingScaleFactor] / self.backingScaleFactor;
+    float viewportWidth = textureWidth * viewportScaleFactor;
+    float viewportHeight = textureHeight * viewportScaleFactor;
+    float y = NSHeight(box) - viewportHeight;
+    glViewport(0.0, y, viewportWidth, viewportHeight);
+
     NSColor * clearColor = self.backgroundColor;
     glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
     glClear(GL_COLOR_BUFFER_BIT);
