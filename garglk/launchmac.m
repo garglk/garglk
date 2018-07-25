@@ -122,8 +122,6 @@ char *winfilters[] =
 {
     [[self openGLContext] makeCurrentContext];
     NSRect rect = [self bounds];
-    if ([self wantsBestResolutionOpenGLSurface])
-        rect = [self convertRectToBacking: rect];
     glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
 }
 
@@ -140,8 +138,7 @@ char *winfilters[] =
                  styleMask: (unsigned int) windowStyle
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
-                   process: (pid_t) pid
-                    retina: (int) retina;
+                   process: (pid_t) pid;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
 - (void) sendChars: (NSEvent *) event;
@@ -169,7 +166,6 @@ char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
-                    retina: (int) retina
 {
     self = [super initWithContentRect: contentRect
                             styleMask: windowStyle
@@ -177,8 +173,6 @@ char *winfilters[] =
                                 defer: deferCreation];
 
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
-    if (retina)
-        [view setWantsBestResolutionOpenGLSurface:YES];
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -611,8 +605,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
-             retina: (int) retina
-         fullscreen: (BOOL) fullscreen
 {
     if (!(processID > 0))
         return NO;
@@ -620,26 +612,16 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
-    NSRect rect = NSMakeRect(0, 0, width, height);
-    if (retina)
-    {
-        NSView * tmpview = [[NSView alloc] initWithFrame: rect];
-        rect = [tmpview convertRectFromBacking: rect];
-        [tmpview release];
-    }
-    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
+    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: NSMakeRect(0,0, width, height)
                                                                 styleMask: style
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
-                                                                  process: processID
-                                                                   retina: retina];
+                                                                  process: processID];
 
     [window makeKeyAndOrderFront: window];
     [window center];
     [window setReleasedWhenClosed: YES];
     [window setDelegate: self];
-    if (fullscreen)
-        [window toggleFullScreen: self];
 
     [windows setObject: window forKey: [NSNumber numberWithInt: processID]];
 
@@ -664,31 +646,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     if (window)
     {
-        id view = [window contentView];
-        NSRect rect = [view bounds];
-        if ([view wantsBestResolutionOpenGLSurface])
-            rect = [view convertRectToBacking: rect];
-        return rect;
+        return [[window contentView] bounds];
     }
 
     return NSZeroRect;
-}
-
-- (NSPoint) getWindowPoint: (pid_t) processID
-                  forEvent: (NSEvent *) event;
-{
-    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
-
-    if (window)
-    {
-        id view = [window contentView];
-        NSPoint point = [event locationInWindow];
-        if ([view wantsBestResolutionOpenGLSurface])
-            point = [view convertPointToBacking: point];
-        return point;
-    }
-
-    return NSZeroPoint;
 }
 
 - (NSString *) getWindowCharString: (pid_t) processID
