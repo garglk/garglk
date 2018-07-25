@@ -686,14 +686,17 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
     else
     {
       char desc[len + 1];
+      size_t i;
 
-      for(size_t i = 0; rest[i] != 0; i++)
+      for(i = 0; rest[i] != 0; i++)
       {
         char c = rest[i];
 
         if(c == 0 || (c >= 32 && c <= 126)) desc[i] = c;
         else                                desc[i] = '?';
       }
+
+      desc[i] = 0;
 
       try_user_save(desc);
     }

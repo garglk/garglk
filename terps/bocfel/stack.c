@@ -540,7 +540,13 @@ static uint32_t compress_memory(uint8_t **compressed)
     i++;
   }
 
-  *compressed = realloc(tmp, ret);
+  /* There is a small chance that ret will be 0 (if everything in
+   * dynamic memory is identical to what was initially loaded from the
+   * story).  If that's the case, this realloc() will instead behave as
+   * free(), so just allocate one more than is necessary to avoid a
+   * potential double free.
+   */
+  *compressed = realloc(tmp, ret + 1);
   if(*compressed == NULL) *compressed = tmp;
 
   return ret;
@@ -752,7 +758,7 @@ void list_saves(enum save_type type, void (*printer)(const char *))
   struct save_stack *s = &save_stacks[type];
   long nsaves = s->count;
 
-  if(s->count == 0)
+  if(nsaves == 0)
   {
     printer("[no saves available]");
     return;
@@ -768,7 +774,7 @@ void list_saves(enum save_type type, void (*printer)(const char *))
      */
     char buf[300];
     struct tm *tm;
-    char *desc;
+    const char *desc;
 
     tm = localtime(&p->when);
     if(tm == NULL || strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0)

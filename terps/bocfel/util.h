@@ -27,7 +27,7 @@
  * alternative direct conversion method is included here for reference.
  */
 #if 1
-static inline int16_t as_signed(uint16_t n) { return n & 0x8000 ? (long)n - 0x10000L : n; }
+static inline int16_t as_signed(uint16_t n) { return (n & 0x8000) ? (long)n - 0x10000L : n; }
 #else
 static inline int16_t as_signed(uint16_t n) { return n; }
 #endif
