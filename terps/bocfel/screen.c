@@ -1148,7 +1148,6 @@ void zset_colour(void)
 #ifdef GARGLK
   if(fg >= 1 && fg <= (zversion >= 5 ? 12 : 9)) fg_color = zcolor_map[fg - 1];
   if(bg >= 1 && bg <= (zversion >= 5 ? 12 : 9)) bg_color = zcolor_map[bg - 1];
-
 #else
   if(fg >= 1 && fg <= 9) fg_color = fg;
   if(bg >= 1 && bg <= 9) bg_color = bg;

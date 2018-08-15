@@ -143,7 +143,7 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   uint8_t elength;
   uint16_t base;
   long nentries;
-  uint8_t *ret = NULL;
+  const uint8_t *ret = NULL;
   uint8_t encoded[8];
 
   encode_string(token, len, encoded);
@@ -163,7 +163,7 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
   {
     for(long i = 0; i < -nentries; i++)
     {
-      uint8_t *entry = &memory[base + (i * elength)];
+      const uint8_t *entry = &memory[base + (i * elength)];
 
       if(dict_compar(encoded, entry) == 0)
       {
@@ -256,7 +256,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
 {
   const uint8_t *p, *lastp;
-  uint8_t *string;
+  const uint8_t *string;
   uint32_t text_len = 0;
   const int maxwords = user_byte(parse);
   bool in_word = false;

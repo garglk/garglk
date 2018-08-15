@@ -82,7 +82,7 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
     }
 
     /* Not really efficient, but does it matter? */
-    new = realloc(blorb->chunks, sizeof *new * ++blorb->nchunks);
+    new = realloc(blorb->chunks, (sizeof *new) * ++blorb->nchunks);
     if(new == NULL) goto err;
     blorb->chunks = new;
 
