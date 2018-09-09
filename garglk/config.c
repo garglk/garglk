@@ -176,7 +176,7 @@ const char *gli_conf_speak_language = NULL;
 
 int gli_conf_fullscreen = 0;
 
-int gli_conf_stylehint = 0;
+int gli_conf_stylehint = 1;
 int gli_conf_safeclicks = 0;
 
 static void parsecolor(char *str, unsigned char *rgb)
