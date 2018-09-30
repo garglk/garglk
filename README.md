@@ -48,7 +48,7 @@ Gargoyle cares about typography! In this computer age of typographical poverty, 
 * Plenty o' line spacing.
 * Integrated scrollback.
 
-The default fonts for Gargoyle are Bitstream Charter and Luxi Mono. They are included, so there is no need to install anything on your system.
+The default fonts for Gargoyle are Noto Serif and Go Mono. They are included, so there is no need to install anything on your system.
 
 Gargoyle does not use any operating system functions for drawing text, so it can use any TrueType, OpenType or Postscript font file you specify in the configuration file.
 

@@ -37,21 +37,21 @@
 int gli_utf8input = FALSE ;
 int gli_utf8output = FALSE ;
 
-char *gli_conf_propr = "CharterBT-Roman";
-char *gli_conf_propb = "CharterBT-Bold";
-char *gli_conf_propi = "CharterBT-Italic";
-char *gli_conf_propz = "CharterBT-BoldItalic";
+char *gli_conf_propr = "NotoSerif-Regular";
+char *gli_conf_propb = "NotoSerif-Bold";
+char *gli_conf_propi = "NotoSerif-Italic";
+char *gli_conf_propz = "NotoSerif-BoldItalic";
 
-char *gli_conf_monor = "LuxiMonoRegular";
-char *gli_conf_monob = "LuxiMonoBold";
-char *gli_conf_monoi = "LuxiMonoOblique";
-char *gli_conf_monoz = "LuxiMonoBoldOblique";
+char *gli_conf_monor = "GoMono-Regular";
+char *gli_conf_monob = "GoMono-Bold";
+char *gli_conf_monoi = "GoMono-Italic";
+char *gli_conf_monoz = "GoMono-BoldItalic";
 
 #ifdef BUNDLED_FONTS
 char *gli_conf_monofont = "";
 char *gli_conf_propfont = "";
-float gli_conf_monosize = 12.6;	/* good size for LuxiMono */
-float gli_conf_propsize = 14.7;	/* good size for CharterBT */
+float gli_conf_monosize = 12.5;	/* good size for GoMono */
+float gli_conf_propsize = 13.4;	/* good size for NotoSerif */
 #else
 char *gli_conf_monofont = "Liberation Mono";
 char *gli_conf_propfont = "Linux Libertine O";
@@ -176,7 +176,7 @@ const char *gli_conf_speak_language = NULL;
 
 int gli_conf_fullscreen = 0;
 
-int gli_conf_stylehint = 0;
+int gli_conf_stylehint = 1;
 int gli_conf_safeclicks = 0;
 
 static void parsecolor(char *str, unsigned char *rgb)

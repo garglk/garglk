@@ -684,7 +684,7 @@ extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
 extern void gli_delete_fileref(fileref_t *fref);
 
 #ifdef BUNDLED_FONTS
-void gli_get_builtin_font(int idx, unsigned char **ptr, unsigned int *len);
+void gli_get_builtin_font(int idx, const unsigned char **ptr, unsigned int *len);
 #endif
 
 void gli_initialize_fonts(void);
