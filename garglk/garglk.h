@@ -459,8 +459,9 @@ struct window_textgrid_s
 
     /* for line input */
     void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
+    int inunicode;
     int inorgx, inorgy;
-    int inmax;
+    int inoriglen, inmax;
     int incurs, inlen;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
@@ -513,6 +514,7 @@ struct window_textbuffer_s
 
     /* for line input */
     void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
+    int inunicode;
     int inmax;
     long infence;
     long incurs;
