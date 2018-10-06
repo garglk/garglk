@@ -185,7 +185,7 @@ if $(MAKE_GEAS) = yes
 
     if $(OS) = MACOSX
     {
-        SubDirCcFlags -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
+        SubDirCcFlags $(MAINARCH) $(ALTARCH) ;
         LINKFLAGS = -headerpad_max_install_names $(MAINARCH) $(ALTARCH) ;
     }
 

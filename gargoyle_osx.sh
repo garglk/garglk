@@ -12,6 +12,22 @@ if [ "${MAC_USEHOMEBREW}" == "yes" ]; then
 else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
+
+# XCode 10+ min target SDK is 10.9 (Mavericks) due to removal of libstdc++
+SDK_VERSION=$(xcrun --show-sdk-version)
+
+case $SDK_VERSION in
+  *10.14* )
+    MACOS_MIN_VER=10.9
+    ;;
+  * )
+    MACOS_MIN_VER=10.7
+    ;;
+esac
+
+# Use as many CPU cores as possible
+NUMJOBS=$(sysctl -n hw.ncpu)
+
 GARGDIST=build/dist
 DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
@@ -21,11 +37,11 @@ GARVERSION=$(cat garglk/garversion.h | /usr/bin/grep -E '^\s*#\s*define[[:space:
 rm -rf Gargoyle.app
 mkdir -p "$BUNDLE/MacOS"
 mkdir -p "$BUNDLE/Frameworks"
-mkdir -p "$BUNDLE/Resources"
+mkdir -p "$BUNDLE/Resources/Fonts"
 mkdir -p "$BUNDLE/PlugIns"
 
 rm -rf $GARGDIST
-jam "-sMAC_USEHOMEBREW=${MAC_USEHOMEBREW}" install
+jam "-sUSETTS=yes" "-sBUNDLEFONTS=no" "-sMAC_USEHOMEBREW=${MAC_USEHOMEBREW}" "-j${NUMJOBS}" "-sMACOS_MIN_VER=${MACOS_MIN_VER}" install
 
 # Copy the main executable to the MacOS directory;
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
@@ -99,9 +115,10 @@ cp garglk/garglk.ini "$BUNDLE/Resources"
 cp garglk/*.icns "$BUNDLE/Resources"
 cp licenses/* "$BUNDLE/Resources"
 
-mkdir $BUNDLE/Resources/Fonts
+cp fonts/Go-Mono*.ttf $BUNDLE/Resources/Fonts
 cp fonts/LiberationMono*.ttf $BUNDLE/Resources/Fonts
 cp fonts/LinLibertine*.otf $BUNDLE/Resources/Fonts
+cp fonts/NotoSerif*.ttf $BUNDLE/Resources/Fonts
 
 echo "Creating DMG..."
 hdiutil create -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
