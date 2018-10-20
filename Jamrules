@@ -6,6 +6,7 @@ BUILD ?= RELEASE ;
 USESDL ?= yes ;
 USEBABEL ?= yes ;
 MAC_USEHOMEBREW ?= no ;
+MACOS_MIN_VER ?= 10.7 ;
 BUNDLEFONTS ?= yes ;
 USETTS ?= no ;
 
@@ -202,7 +203,7 @@ switch $(PLATFORM)
     case MACOSX :
         Echo "OS is MACOSX (cocoa)" ;
         SUFDLL = .dylib ;
-        MAINARCH = -arch x86_64 -mmacosx-version-min=10.7 ;
+        MAINARCH = -arch x86_64 -mmacosx-version-min=$(MACOS_MIN_VER) ;
         AR = "libtool -static -o" ;
         RM = "touch -c" ;
         CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
