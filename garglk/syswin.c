@@ -87,6 +87,11 @@ void glk_request_timer_events(glui32 millisecs)
     }
 }
 
+void gli_notification_waiting(void)
+{
+    PostMessage(hwndframe, WM_NOTIFY, 0, 0);
+}
+
 void onabout(void)
 {
     char txt[512];

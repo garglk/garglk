@@ -144,6 +144,11 @@ void glk_request_timer_events(glui32 millisecs)
     }
 }
 
+void gli_notification_waiting(void)
+{
+    /* stub */
+}
+
 void winabort(const char *fmt, ...)
 {
     va_list ap;
