@@ -47,6 +47,10 @@ char *gli_conf_monob = "GoMono-Bold";
 char *gli_conf_monoi = "GoMono-Italic";
 char *gli_conf_monoz = "GoMono-BoldItalic";
 
+int gli_hires = 1;
+float gli_backingscalefactor = 1.0f;
+float gli_zoom = 1.0f;
+
 #ifdef BUNDLED_FONTS
 char *gli_conf_monofont = "";
 char *gli_conf_propfont = "";
@@ -132,6 +136,7 @@ int gli_more_font = PROPB;
 unsigned char gli_scroll_bg[3] = { 0xb0, 0xb0, 0xb0 };
 unsigned char gli_scroll_fg[3] = { 0x80, 0x80, 0x80 };
 int gli_scroll_width = 0;
+int gli_scroll_width_save = 8;
 
 int gli_caret_shape = 2;
 int gli_link_style = 1;
@@ -266,6 +271,12 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             arg = strtok(NULL, "\r\n\t #");
         if (!arg)
             continue;
+
+        if (!strcmp(cmd, "hires"))
+            gli_hires = atoi(arg);
+
+        if (!strcmp(cmd, "zoom"))
+            gli_zoom = atof(arg);
 
         if (!strcmp(cmd, "moreprompt"))
             gli_more_prompt = strdup(arg);
@@ -411,7 +422,10 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_link_style = atoi(arg) ? 1 : 0;
 
         if (!strcmp(cmd, "scrollwidth"))
+        {
             gli_scroll_width = atoi(arg);
+            gli_scroll_width_save = gli_scroll_width;
+        }
         if (!strcmp(cmd, "scrollbg"))
             parsecolor(arg, gli_scroll_bg);
         if (!strcmp(cmd, "scrollfg"))
@@ -590,18 +604,36 @@ void gli_startup(int argc, char *argv[])
 {
     gli_baseline = 0;
 
-    wininit(&argc, argv);
-
     if (argc > 1)
         glkunix_set_base_file(argv[argc-1]);
 
     gli_read_config(argc, argv);
+
+    wininit(&argc, argv);
 
     memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));
     memcpy(gli_gstyles_def, gli_gstyles, sizeof(gli_gstyles_def));
 
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
+
+    if (gli_hires)
+        gli_zoom *= gli_backingscalefactor;
+    gli_baseline = gli_zoom_int(gli_baseline);
+    gli_conf_monosize = gli_conf_monosize * gli_zoom;
+    gli_conf_propsize = gli_conf_propsize * gli_zoom;
+    gli_leading = gli_zoom_int(gli_leading);
+    gli_scroll_width_save = gli_zoom_int(gli_scroll_width_save);
+    gli_tmarginx = gli_zoom_int(gli_tmarginx);
+    gli_tmarginy = gli_zoom_int(gli_tmarginy);
+    gli_wborderx = gli_zoom_int(gli_wborderx);
+    gli_wbordery = gli_zoom_int(gli_wbordery);
+    gli_wmarginx = gli_zoom_int(gli_wmarginx);
+    gli_wmarginx_save = gli_zoom_int(gli_wmarginx_save);
+    gli_wmarginy = gli_zoom_int(gli_wmarginy);
+    gli_wmarginy_save = gli_zoom_int(gli_wmarginy_save);
+    gli_wpaddingx = gli_zoom_int(gli_wpaddingx);
+    gli_wpaddingy = gli_zoom_int(gli_wpaddingy);
 
     gli_initialize_tts();
     if (gli_conf_speak)
