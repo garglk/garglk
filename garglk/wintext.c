@@ -1788,6 +1788,12 @@ glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin,
         tmp = gli_picture_scale(pic, width, height);
         pic = tmp;
     }
+    else
+    {
+        picture_t *tmp;
+        tmp = gli_picture_scale(pic, gli_zoom_int(pic->w), gli_zoom_int(pic->h));
+        pic = tmp;
+    }
 
     hyperlink = dwin->owner->attr.hyper;
 

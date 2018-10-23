@@ -38,6 +38,10 @@
 bool gli_utf8input = true;
 bool gli_utf8output = true;
 
+int gli_hires = 1;
+float gli_backingscalefactor = 1.0f;
+float gli_zoom = 1.0f;
+
 struct gli_font_files gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
 
 std::string gli_conf_monofont = "Gargoyle Mono";
@@ -120,6 +124,7 @@ int gli_more_font = PROPB;
 unsigned char gli_scroll_bg[3] = { 0xb0, 0xb0, 0xb0 };
 unsigned char gli_scroll_fg[3] = { 0x80, 0x80, 0x80 };
 int gli_scroll_width = 0;
+int gli_scroll_width_save = 8;
 
 int gli_caret_shape = 2;
 int gli_link_style = 1;
@@ -468,6 +473,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             gli_link_style = !!std::stoi(arg);
         } else if (cmd == "scrollwidth") {
             gli_scroll_width = std::stoi(arg);
+            gli_scroll_width_save = gli_scroll_width;
         } else if (cmd == "scrollbg") {
             parsecolor(arg, gli_scroll_bg);
         } else if (cmd == "scrollfg") {
@@ -603,6 +609,24 @@ void gli_startup(int argc, char *argv[])
 
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
+
+   if (gli_hires)
+        gli_zoom *= gli_backingscalefactor;
+    gli_baseline = gli_zoom_int(gli_baseline);
+    gli_conf_monosize = gli_conf_monosize * gli_zoom;
+    gli_conf_propsize = gli_conf_propsize * gli_zoom;
+    gli_leading = gli_zoom_int(gli_leading);
+    gli_scroll_width_save = gli_zoom_int(gli_scroll_width_save);
+    gli_tmarginx = gli_zoom_int(gli_tmarginx);
+    gli_tmarginy = gli_zoom_int(gli_tmarginy);
+    gli_wborderx = gli_zoom_int(gli_wborderx);
+    gli_wbordery = gli_zoom_int(gli_wbordery);
+    gli_wmarginx = gli_zoom_int(gli_wmarginx);
+    gli_wmarginx_save = gli_zoom_int(gli_wmarginx_save);
+    gli_wmarginy = gli_zoom_int(gli_wmarginy);
+    gli_wmarginy_save = gli_zoom_int(gli_wmarginy_save);
+    gli_wpaddingx = gli_zoom_int(gli_wpaddingx);
+    gli_wpaddingy = gli_zoom_int(gli_wpaddingy);
 
     gli_initialize_tts();
     if (gli_conf_speak)

@@ -177,7 +177,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 
     if (win->mouse_request)
     {
-        gli_event_store(evtype_MouseInput, win, x, y);
+        gli_event_store(evtype_MouseInput, win, gli_unzoom_int(x), gli_unzoom_int(y));
         win->mouse_request = false;
         if (gli_conf_safeclicks)
             gli_forceclick = true;
@@ -185,7 +185,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 
     if (win->hyper_request)
     {
-        glui32 linkval = gli_get_hyperlink(sx, sy);
+        glui32 linkval = gli_get_hyperlink(gli_unzoom_int(sx), gli_unzoom_int(sy));
         if (linkval)
         {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
@@ -203,6 +203,8 @@ bool win_graphics_draw_picture(window_graphics_t *dwin,
 {
     picture_t *pic = gli_picture_load(image);
     glui32 hyperlink = dwin->owner->attr.hyper;
+    xpos = gli_zoom_int(xpos);
+    ypos = gli_zoom_int(ypos);
 
     if (!pic)
         return false;
@@ -218,6 +220,8 @@ bool win_graphics_draw_picture(window_graphics_t *dwin,
         imagewidth = pic->w;
         imageheight = pic->h;
     }
+    imagewidth = gli_zoom_int(imagewidth);
+    imageheight = gli_zoom_int(imageheight);
 
     drawpicture(pic, dwin, xpos, ypos, imagewidth, imageheight, hyperlink);
 
@@ -233,6 +237,10 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
     int y1 = y0 + height;
     int x, y;
     int hx0, hx1, hy0, hy1;
+    x0 = gli_zoom_int(x0);
+    y0 = gli_zoom_int(y0);
+    x1 = gli_zoom_int(x1);
+    y1 = gli_zoom_int(y1);
 
     if (whole)
     {
@@ -279,6 +287,10 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     unsigned char col[3];
     int x1 = x0 + width;
     int y1 = y0 + height;
+    x0 = gli_zoom_int(x0);
+    y0 = gli_zoom_int(y0);
+    x1 = gli_zoom_int(x1);
+    y1 = gli_zoom_int(y1);
     int x, y;
     int hx0, hx1, hy0, hy1;
 
