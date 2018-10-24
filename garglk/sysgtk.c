@@ -525,8 +525,6 @@ void winopen(void)
 
     geom.min_width  = gli_wmarginx * 2 + gli_cellw * 0;
     geom.min_height = gli_wmarginy * 2 + gli_cellh * 0;
-    geom.max_width  = gli_wmarginx * 2 + gli_cellw * 255;
-    geom.max_height = gli_wmarginy * 2 + gli_cellh * 250;
     geom.width_inc = gli_cellw;
     geom.height_inc = gli_cellh;
 
@@ -540,25 +538,25 @@ void winopen(void)
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK
                                | GDK_SCROLL_MASK);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event",
                        GTK_SIGNAL_FUNC(onbuttondown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event",
                        GTK_SIGNAL_FUNC(onbuttonup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event",
                        GTK_SIGNAL_FUNC(onscroll), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event",
                        GTK_SIGNAL_FUNC(onkeydown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event", 
+    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event",
                        GTK_SIGNAL_FUNC(onkeyup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "destroy", 
+    gtk_signal_connect(GTK_OBJECT(frame), "destroy",
                        GTK_SIGNAL_FUNC(onquit), "WM destroy");
     gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
         GTK_SIGNAL_FUNC(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
-    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate", 
+    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate",
                        GTK_SIGNAL_FUNC(onresize), NULL);
-    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event", 
+    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event",
                        GTK_SIGNAL_FUNC(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
@@ -578,14 +576,14 @@ void winopen(void)
         defh = monitor.height;
         gtk_window_set_decorated(GTK_WINDOW(frame), FALSE);
         gtk_window_set_position(GTK_WINDOW(frame), GTK_WIN_POS_CENTER);
-        gtk_window_fullscreen(GTK_WINDOW(frame));       
+        gtk_window_fullscreen(GTK_WINDOW(frame));
     }
 
     wintitle();
 
     gtk_window_set_geometry_hints(GTK_WINDOW(frame),
         GTK_WIDGET(frame), &geom,
-        GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE
+        GDK_HINT_MIN_SIZE
         );
     gtk_window_set_default_size(GTK_WINDOW(frame), defw, defh);
 

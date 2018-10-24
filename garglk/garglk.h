@@ -95,6 +95,10 @@ typedef struct window_graphics_s window_graphics_t;
 #define SCROLLBACK 512
 #define HISTORYLEN 100
 
+/* limit number of text rows/columns */
+#define MAX_TEXT_COLUMNS 255
+#define MAX_TEXT_ROWS 255
+
 #define GLI_SUBPIX 8
 #define gli_zoom_int(x) ((x) * gli_zoom + 0.5)
 #define gli_unzoom_int(x) ((x) / gli_zoom + 0.5)
