@@ -168,7 +168,7 @@ void winexit(void)
 
 void winopenfile(char *prompt, char *buf, int len, int filter)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];    
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     NSString * fileref = [gargoyle openWindowDialog: processID
                                              prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
@@ -294,12 +294,14 @@ void winresize(void)
 {
     NSRect viewRect = [gargoyle getWindowSize: processID];
 
-    if (gli_image_w == (unsigned int) viewRect.size.width
-            && gli_image_h == (unsigned int) viewRect.size.height)
+    unsigned int vw = (unsigned int) (NSWidth(viewRect) * gli_backingscalefactor);
+    unsigned int vh = (unsigned int) (NSHeight(viewRect) * gli_backingscalefactor);
+
+    if (gli_image_w == vw && gli_image_h == vh)
         return;
 
-    gli_image_w = (unsigned int) viewRect.size.width;
-    gli_image_h = (unsigned int) viewRect.size.height;
+    gli_image_w = vw;
+    gli_image_h = vh;
     gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
 
     /* initialize offline bitmap store */
@@ -377,7 +379,7 @@ void wininit(int *argc, char **argv)
     gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
     [gargoyle retain];
 
-    /* listen for mach messages */ 
+    /* listen for mach messages */
     CFMachPortRef sigPort = CFMachPortCreate(NULL, winmach, NULL, NULL);
     gli_signal_port = CFMachPortGetPort(sigPort);
     [[NSRunLoop currentRunLoop] addPort: [NSMachPort portWithMachPort: gli_signal_port] forMode: NSDefaultRunLoopMode];
@@ -397,12 +399,17 @@ void winopen(void)
 
     unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    NSColor * windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
+                                                      green: (float) gli_window_color[1] / 255.0f
+                                                       blue: (float) gli_window_color[2] / 255.0f
+                                                      alpha: 1.0f];
 
     [gargoyle initWindow: processID
                    width: defw
                   height: defh
                   retina: gli_hires
-              fullscreen: gli_conf_fullscreen];
+              fullscreen: gli_conf_fullscreen
+         backgroundColor: windowColor];
 
     wintitle();
     winresize();
@@ -553,8 +560,8 @@ void winmouse(NSEvent *evt)
 {
     NSPoint coords = [gargoyle getWindowPoint: processID forEvent: evt];
 
-    int x = coords.x;
-    int y = gli_image_h - coords.y;
+    int x = coords.x * gli_backingscalefactor;
+    int y = gli_image_h - (coords.y * gli_backingscalefactor);
 
     /* disregard most events outside of content window */
     if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
@@ -585,7 +592,7 @@ void winmouse(NSEvent *evt)
             if (gli_get_hyperlink(x, y))
                 [gargoyle setCursor: kPointingHandCursor];
             else
-                [gargoyle setCursor: kArrowCursor]; 
+                [gargoyle setCursor: kArrowCursor];
             break;
         }
 
@@ -680,7 +687,7 @@ void winpoll(void)
 }
 
 void gli_select(event_t *event, int polled)
-{ 
+{
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     gli_curevent = event;
