@@ -58,22 +58,42 @@ static void gli_windows_rearrange(void)
     {
         rect_t box;
 
-        if (gli_conf_lockcols)
+        if (gli_conf_lockcols && gli_cols <= MAX_TEXT_COLUMNS )
         {
+            /* Lock the number of columns */
             int desired_width = gli_wmarginx_save * 2 + gli_cellw * gli_cols;
             if (desired_width > gli_image_w)
                 gli_wmarginx = gli_wmarginx_save;
             else
-                gli_wmarginx = (gli_image_w - gli_cellw * gli_cols)/2;
+                gli_wmarginx = (gli_image_w - gli_cellw * gli_cols) / 2;
+        }
+        else
+        {
+            /* Limit the maximum number of columns */
+            int max_width = gli_wmarginx_save * 2 + gli_cellw * MAX_TEXT_COLUMNS;
+            if (max_width < gli_image_w)
+                gli_wmarginx = (gli_image_w - gli_cellw * MAX_TEXT_COLUMNS) / 2;
+            else
+                gli_wmarginx = gli_wmarginx_save;
         }
 
-        if (gli_conf_lockrows)
+        if (gli_conf_lockrows && gli_rows <= MAX_TEXT_ROWS)
         {
+            /* Lock the number of rows */
             int desired_height = gli_wmarginy_save * 2 + gli_cellh * gli_rows;
             if (desired_height > gli_image_h)
                 gli_wmarginy = gli_wmarginy_save;
             else
-                gli_wmarginy = (gli_image_h - gli_cellh * gli_rows)/2;
+                gli_wmarginy = (gli_image_h - gli_cellh * gli_rows) / 2;
+        }
+        else
+        {
+            /* Limit the maximum number of rows */
+            int max_height = gli_wmarginy_save * 2 + gli_cellh * MAX_TEXT_ROWS;
+            if (max_height < gli_image_h)
+                gli_wmarginy = (gli_image_h - gli_cellh * MAX_TEXT_ROWS) / 2;
+            else
+                gli_wmarginy = gli_wmarginy_save;
         }
 
         box.x0 = gli_wmarginx;
