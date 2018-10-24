@@ -61,7 +61,13 @@ static const char *winfilters[] =
 @interface GargoyleView : NSOpenGLView
 {
     GLuint output;
+    unsigned int textureWidth;
+    unsigned int textureHeight;
 }
+
+@property (retain) NSColor * backgroundColor;
+@property float backingScaleFactor;
+
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
            height: (unsigned int) height;
@@ -95,27 +101,52 @@ static const char *winfilters[] =
                  0, GL_RGBA, width, height, 0, GL_BGRA,
                  ByteOrderOGL,
                  [frame bytes]);
+    textureWidth = width;
+    textureHeight = height;
+}
+
+- (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format
+{
+    self = [super initWithFrame: frameRect pixelFormat: format];
+    if (self)
+    {
+        self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
+        self.backingScaleFactor = 1;
+    }
+    return self;
 }
 
 - (void) drawRect: (NSRect) bounds
 {
+    if (textureHeight == 0)
+        return;
+
     [[self openGLContext] makeCurrentContext];
 
-    float width = bounds.size.width;
-    float height = bounds.size.height;
+    /* Adapt to the current window backing scale factor */
+    NSRect box = [self convertRectToBacking: [self bounds]];
+    float viewportScaleFactor = [self.window backingScaleFactor] / self.backingScaleFactor;
+    float viewportWidth = textureWidth * viewportScaleFactor;
+    float viewportHeight = textureHeight * viewportScaleFactor;
+    float y = NSHeight(box) - viewportHeight;
+    glViewport(0.0, y, viewportWidth, viewportHeight);
+
+    NSColor * clearColor = self.backgroundColor;
+    glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBegin(GL_QUADS);
     {
-        glTexCoord2f(0.0f, height);
+        glTexCoord2f(0.0f, textureHeight);
         glVertex2f(-1.0f, -1.0f);
 
-        glTexCoord2f(width, height);
+        glTexCoord2f(textureWidth, textureHeight);
         glVertex2f(1.0f, -1.0f);
 
-        glTexCoord2f(width, 0.0f);
+        glTexCoord2f(textureWidth, 0);
         glVertex2f(1.0f, 1.0f);
 
-        glTexCoord2f(0.0f, 0.0f);
+        glTexCoord2f(0.0f, 0);
         glVertex2f(-1.0f, 1.0f);
     }
     glEnd();
@@ -125,11 +156,7 @@ static const char *winfilters[] =
 
 - (void)reshape
 {
-    [[self openGLContext] makeCurrentContext];
-    NSRect rect = [self bounds];
-    if ([self wantsBestResolutionOpenGLSurface])
-        rect = [self convertRectToBacking: rect];
-    glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
+
 }
 
 @end
@@ -146,7 +173,8 @@ static const char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
-                    retina: (int) retina;
+                    retina: (int) retina
+           backgroundColor: (NSColor *) backgroundColor;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
 - (void) sendChars: (NSEvent *) event;
@@ -175,6 +203,7 @@ static const char *winfilters[] =
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
                     retina: (int) retina
+           backgroundColor: (NSColor *) backgroundColor
 {
     self = [super initWithContentRect: contentRect
                             styleMask: windowStyle
@@ -184,6 +213,8 @@ static const char *winfilters[] =
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
     if (retina)
         [view setWantsBestResolutionOpenGLSurface:YES];
+    view.backgroundColor = backgroundColor;
+    view.backingScaleFactor = [self backingScaleFactor];
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -205,7 +236,7 @@ static const char *winfilters[] =
 
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
-                                                 name: NSWindowDidResizeNotification
+                                                 name: NSWindowDidEndLiveResizeNotification
                                                object: self];
 
     return self;
@@ -554,6 +585,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) quit
 {
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
     [eventlog release];
     [textbuffer release];
 
@@ -618,6 +650,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
              height: (unsigned int) height
              retina: (int) retina
          fullscreen: (BOOL) fullscreen
+    backgroundColor: (NSColor *) backgroundColor
 {
     if (!(processID > 0))
         return NO;
@@ -637,7 +670,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
                                                                   process: processID
-                                                                   retina: retina];
+                                                                   retina: retina
+                                                          backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];
     [window center];
@@ -671,8 +705,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     {
         id view = [window contentView];
         NSRect rect = [view bounds];
-        if ([view wantsBestResolutionOpenGLSurface])
-            rect = [view convertRectToBacking: rect];
         return rect;
     }
 
@@ -688,8 +720,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     {
         id view = [window contentView];
         NSPoint point = [event locationInWindow];
-        if ([view wantsBestResolutionOpenGLSurface])
-            point = [view convertPointToBacking: point];
         return point;
     }
 
@@ -762,7 +792,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                  width: width
                                 height: height];
 
-        [[window contentView] drawRect: NSMakeRect(0, 0, width, height)];
+        NSRect rect = NSMakeRect(0, 0, width, height);
+        if ([[window contentView] wantsBestResolutionOpenGLSurface])
+            rect = [[window contentView] convertRectFromBacking: rect];
+        [[window contentView] drawRect: rect];
         return YES;
     }
 
