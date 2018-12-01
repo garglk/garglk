@@ -1600,11 +1600,12 @@ static void acceptline(window_t *win, glui32 keycode)
 long getCursorPositionOfPreviousWordBeginning(
         long currentInputCursorPosition, const glui32 *textbuffer, long minCursorPosition)
 {
-    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
+    //while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
+    while (currentInputCursorPosition > minCursorPosition && iswspace(textbuffer[currentInputCursorPosition - 1]))
     {
         currentInputCursorPosition--;
     }
-    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] != ' ')
+    while (currentInputCursorPosition > minCursorPosition && !iswspace(textbuffer[currentInputCursorPosition - 1]))
     {
         currentInputCursorPosition--;
     }
@@ -1631,11 +1632,11 @@ void deleteUntilPreviousWordBeginning(window_textbuffer_t * dwin)
 long getCursorPositionOfNextWordBeginning(
         long currentInputCursorPosition, const glui32 *textbuffer, long maxCursorPosition)
 {   
-    while (currentInputCursorPosition < maxCursorPosition && textbuffer[currentInputCursorPosition] != ' ')
+    while (currentInputCursorPosition < maxCursorPosition && !iswspace(textbuffer[currentInputCursorPosition]))
     {
         currentInputCursorPosition++;
     }
-    while (currentInputCursorPosition < maxCursorPosition && textbuffer[currentInputCursorPosition] == ' ')
+    while (currentInputCursorPosition < maxCursorPosition && iswspace(textbuffer[currentInputCursorPosition]))
     {
         currentInputCursorPosition++;
     }
