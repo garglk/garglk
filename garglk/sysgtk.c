@@ -468,7 +468,7 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
         gli_input_handle_double_click(event->x, event->y);
     }
     else if (event->button == 1) {
-        fwprintf(stderr, L"Button 1\n");
+        //fwprintf(stderr, L"Button 1\n");
         gli_input_handle_click(event->x, event->y);
     }
     else if (event->button == 2 || event->button == 3) {
@@ -484,26 +484,26 @@ static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
         
         if ((event->x - x0) <= xOneThirdOfWinWidth) {
             if ((event->y - y0) <= yOneThirdOfWinHeight) {
-                gli_input_handle_key(keycode_Erase);
+                gli_input_handle_key(keycode_Escape);
             }
             else if ((event->y - y0) >= y1 - yOneThirdOfWinHeight) {
                 gli_input_handle_key(keycode_SkipWordLeft);
             }
             else 
             {
-                gli_input_handle_key(keycode_DeleteWordLeft);
+                gli_input_handle_key(keycode_DeleteUntilPreviousWordBeginning);
             }
         }
         else if ((event->x - x0) >= (x1 - xOneThirdOfWinWidth)) {
             if ((event->y - y0) <= yOneThirdOfWinHeight) {
-                gli_input_handle_key(keycode_Escape);
+                gli_input_handle_key(keycode_Erase);
             }
             else if ((event->y - y0) >= y1 - yOneThirdOfWinHeight) {
                 gli_input_handle_key(keycode_SkipWordRight);
             }
             else 
             {
-                gli_input_handle_key(keycode_DeleteWordRight);
+                gli_input_handle_key(keycode_DeleteUntilNextWordBeginning);
             }
         }
         else if ((event->y - y0) <= y_center) {

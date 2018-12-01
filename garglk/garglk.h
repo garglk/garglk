@@ -797,8 +797,8 @@ unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
 
 /* non standard keycodes */
-#define keycode_DeleteWordLeft      (0xfffff002)
-#define keycode_DeleteWordRight     (0xfffff003)
+#define keycode_DeleteUntilPreviousWordBeginning      (0xfffff002)
+#define keycode_DeleteUntilNextWordBeginning     (0xfffff003)
 
 /* Kindle */
 #ifdef _KINDLE

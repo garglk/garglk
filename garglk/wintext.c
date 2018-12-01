@@ -1597,7 +1597,8 @@ static void acceptline(window_t *win, glui32 keycode)
         (*gli_unregister_arr)(inbuf, inmax, unicode ? "&+#!Iu" : "&+#!Cn", inarrayrock);
 }
 
-long skipWordLeft(const glui32 *textbuffer, long minCursorPosition, long currentInputCursorPosition)
+long getCursorPositionOfPreviousWordBeginning(
+        long currentInputCursorPosition, const glui32 *textbuffer, long minCursorPosition)
 {
     while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
     {
@@ -1610,23 +1611,53 @@ long skipWordLeft(const glui32 *textbuffer, long minCursorPosition, long current
     return currentInputCursorPosition;
 }
 
-void deleteWordLeft(window_textbuffer_t * dwin)
+void skipToPreviousWordBeginning(window_textbuffer_t * dwin)
 {
-    const glui32 * textbuffer = dwin->chars;
-    long minCursorPosition = dwin->infence;
+    dwin->incurs = getCursorPositionOfPreviousWordBeginning(
+            dwin->incurs, dwin->chars, dwin->infence);
+}
+
+void deleteUntilPreviousWordBeginning(window_textbuffer_t * dwin)
+{
     long currentInputCursorPosition = dwin->incurs;
     
-    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] == ' ')
+    long cursorPosOfPreviousWordBeginning = getCursorPositionOfPreviousWordBeginning(
+            dwin->incurs, dwin->chars, dwin->infence);
+   
+    put_text_uni(dwin, NULL, 0, cursorPosOfPreviousWordBeginning, 
+            currentInputCursorPosition - cursorPosOfPreviousWordBeginning);
+}
+
+long getCursorPositionOfNextWordBeginning(
+        long currentInputCursorPosition, const glui32 *textbuffer, long maxCursorPosition)
+{   
+    while (currentInputCursorPosition < maxCursorPosition && textbuffer[currentInputCursorPosition] != ' ')
     {
-        currentInputCursorPosition--;
-        put_text_uni(dwin, NULL, 0, currentInputCursorPosition, 1);
+        currentInputCursorPosition++;
     }
-    while (currentInputCursorPosition > minCursorPosition && textbuffer[currentInputCursorPosition - 1] != ' ')
+    while (currentInputCursorPosition < maxCursorPosition && textbuffer[currentInputCursorPosition] == ' ')
     {
-        currentInputCursorPosition--;
-        put_text_uni(dwin, NULL, 0, currentInputCursorPosition, 1);
+        currentInputCursorPosition++;
     }
-    dwin->incurs = currentInputCursorPosition;
+
+    return currentInputCursorPosition;
+}
+
+void skipToNextWordBeginning(window_textbuffer_t * dwin) 
+{
+    dwin->incurs = getCursorPositionOfNextWordBeginning(
+            dwin->incurs, dwin->chars, dwin->numchars);            
+}
+
+void deleteUntilNextWordBeginning(window_textbuffer_t * dwin)
+{
+    long currentInputCursorPosition = dwin->incurs;
+    
+    long cursorPosOfNextWordBeginning = getCursorPositionOfNextWordBeginning(
+            dwin->incurs, dwin->chars, dwin->numchars);
+   
+    put_text_uni(dwin, NULL, 0, currentInputCursorPosition, 
+            cursorPosOfNextWordBeginning - currentInputCursorPosition);
 }
 
 /* Any key, during line input. */
@@ -1737,25 +1768,19 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             break;
 
         case keycode_SkipWordLeft:
-            dwin->incurs = skipWordLeft(dwin->chars, dwin->infence, dwin->incurs);            
+            skipToPreviousWordBeginning(dwin);
             break;
 
         case keycode_SkipWordRight:
-            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] != ' ')
-                dwin->incurs++;
-            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ')
-                dwin->incurs++;
+            skipToNextWordBeginning(dwin);
             break;
             
-        case keycode_DeleteWordLeft:
-            deleteWordLeft(dwin);   
+        case keycode_DeleteUntilPreviousWordBeginning:
+            deleteUntilPreviousWordBeginning(dwin);   
             break;
 
-        case keycode_DeleteWordRight:
-            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] != ' ')
-                dwin->incurs++;
-            while (dwin->incurs < dwin->numchars && dwin->chars[dwin->incurs] == ' ')
-                dwin->incurs++;
+        case keycode_DeleteUntilNextWordBeginning:
+            deleteUntilNextWordBeginning(dwin);
             break;
 
         /* Delete keys, during line input. */
