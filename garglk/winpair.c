@@ -256,13 +256,19 @@ void win_pair_double_click(window_pair_t *dwin, int x, int y)
     y0 = dwin->child1->bbox.y0;
     x1 = dwin->child1->bbox.x1;
     y1 = dwin->child1->bbox.y1;
-    if (x >= x0 && x <= x1 && y >= y0 && y <= y1)
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) 
+    {
+        //wprintf(L"win_pair_double_click:child 1...\n");
         gli_window_double_click(dwin->child1, x, y);
+    }
 
     x0 = dwin->child2->bbox.x0;
     y0 = dwin->child2->bbox.y0;
     x1 = dwin->child2->bbox.x1;
     y1 = dwin->child2->bbox.y1;
-    if (x >= x0 && x <= x1 && y >= y0 && y <= y1)
+    if (x >= x0 && x <= x1 && y >= y0 && y <= y1) 
+    {
+        //wprintf(L"win_pair_double_click:child 2...\n");
         gli_window_double_click(dwin->child2, x, y);
+    }    
 }

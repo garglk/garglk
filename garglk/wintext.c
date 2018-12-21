@@ -1992,7 +1992,7 @@ void win_textbuffer_double_click(window_textbuffer_t *dwin, int sx, int sy)
         dwin->scrollpos + dwin->height-(sy-dwin->owner->bbox.y0 - gli_tmarginy)/gli_leading-1;
     
     if (clickedLine == 0) {
-        //wprintf(L"win_textbuffer_double_click:input line...\n");
+        //wprintf(L"win_textbuffer_double_click:input line (%d)...\n", clickedLine);
         
         tbline_t *ln = &dwin->lines[clickedLine];
         
@@ -2024,7 +2024,8 @@ void win_textbuffer_double_click(window_textbuffer_t *dwin, int sx, int sy)
         if (dwin->incurs >= dwin->numchars) dwin->incurs = dwin->numchars;
         touch(dwin, 0);
     }
-    else {
+    else if (clickedLine > 0) {
+        //wprintf(L"win_textbuffer_double_click:text area (line %d)...\n", clickedLine);
         tbline_t *ln = &dwin->lines[clickedLine];
         
         int i, nl, nr;

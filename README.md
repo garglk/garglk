@@ -6,17 +6,21 @@ https://www.mobileread.com/forums/showpost.php?p=3526963&postcount=1
 Changes to upstream gargoyle (https://github.com/garglk/garglk):
 * Kindle port based on patches from: http://www.fabiszewski.net/kindle-gargoyle/
 * Supported in-game touch screen gestures:
-  * One finger single tap on input line: place cursor
-  * One finger double tap on word in input line: place cursor _after_ tapped word
-  * One finger double tap on word in game text to insert it into input line at cursor position (based on patch from: https://github.com/RedHatter/granite) <br/>
-  * One finger swipe up: page up
-  * One finger swipe down: page down 
-  * One finger swipe left: move cursor left
-  * One finger swipe right: move cursor right
-  * Two finger single tap on left side of the game screen: delete character right of cursor (= DEL key)
-  * Two finger single tap on right side of the game screen: clear input line
-  * Two finger single tap on middle-top of the game screen: command history: previous (= key "cursor up")
-  * Two finger single tap on middle-bottom of the game screen: command history: next (= key "cursor down")
+ * One finger single tap on input line: place cursor
+ * One finger double tap on word in input line: place cursor after tapped word
+ * One finger double tap on word in game text to insert it into input line at cursor position (based on patch from: [url]https://github.com/RedHatter/granite[/url]) 
+ * One finger swipe up: page up
+ * One finger swipe down: page down
+ * One finger swipe left: move cursor left
+ * One finger swipe right: move cursor right
+ * Two finger single tap on top-left side of the game screen: clear input line
+ * Two finger single tap on middle-left side of the game screen: delete characters left of cursor until first whitespace
+ * Two finger single tap on bottom-left side of the game screen: move cursor to the beginning of the word to the left
+ * Two finger single tap on top-right side of the game screen: delete character right of cursor (= DEL key)
+ * Two finger single tap on middle-right side of the game screen: delete characters right of cursor until first whitespace
+ * Two finger single tap on bottom-right side of the game screen: move cursor to the beginning of the next word
+ * Two finger single tap on top-center of the game screen: command history: previous (= key "cursor up")
+ * Two finger single tap on bottom-center of the game screen: command history: next (= key "cursor down")
 
 Kindle specific fullscreen layout & save/restore dialogs can be activated by defining: _KINDLE at compile time.<br/>
 Touch features/gestures can be activated by defining: _ALT_MOUSE_HANDLING at compile time.

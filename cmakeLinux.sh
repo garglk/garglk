@@ -11,8 +11,8 @@ fi
 CMAKE_INSTALL_PREFIX=dist
 
 # Debug compile options
-CMAKE_C_FLAGS_DEBUG="-ggdb -Werror=implicit-function-declaration"
-CMAKE_CXX_FLAGS_DEBUG="-ggdb -Werror=implicit-function-declaration"
+CMAKE_C_FLAGS_DEBUG="-ggdb -rdynamic -Werror=implicit-function-declaration"
+CMAKE_CXX_FLAGS_DEBUG="-ggdb -rdynamic -Werror=implicit-function-declaration"
 #CMAKE_C_FLAGS_DEBUG="-ggdb"
 #CMAKE_CXX_FLAGS_DEBUG="-ggdb"
 
