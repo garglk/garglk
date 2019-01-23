@@ -1,4 +1,4 @@
-#!/bin/ash
+#!/bin/sh
 # This is a shell wrapper that finds an appropriate nitfol in your path
 # and runs it.  Requires 'which' and sh.  (only tested with bash, so YMMV)
 
