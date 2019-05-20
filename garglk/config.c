@@ -617,5 +617,7 @@ void gli_startup(int argc, char *argv[])
     gli_initialize_sound();
 
     winopen();
+#ifdef BABEL_HANDLER
     gli_initialize_babel();
+#endif
 }
