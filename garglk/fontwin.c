@@ -252,9 +252,7 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
 {
     // First, try the per-user key
     if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath, length))
-    {
         return TRUE;
-    }
 
     // Nope. Try the system-wide key.
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath, length);
