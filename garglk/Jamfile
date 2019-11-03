@@ -94,7 +94,7 @@ else
 {
     SharedLibrary libgarglk : $(GARGSRCS) ;
 
-    if $(USEBABEL)
+    if $(USEBABEL) = yes
     {
         LinkLibrariesOnSharedLibrary libgarglk : babel_static ;
     }
