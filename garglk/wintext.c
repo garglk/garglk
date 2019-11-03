@@ -86,6 +86,7 @@ window_textbuffer_t *win_textbuffer_create(window_t *win)
     dwin->height = -1;
 
     dwin->inbuf = NULL;
+    dwin->inunicode = FALSE;
     dwin->line_terminators = NULL;
     dwin->echo_line_input = TRUE;
 
@@ -130,7 +131,10 @@ void win_textbuffer_destroy(window_textbuffer_t *dwin)
     if (dwin->inbuf)
     {
         if (gli_unregister_arr)
-            (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, "&+#!Cn", dwin->inarrayrock);
+        {
+            char *typedesc = (dwin->inunicode ? "&+#!Iu" : "&+#!Cn");
+            (*gli_unregister_arr)(dwin->inbuf, dwin->inmax, typedesc, dwin->inarrayrock);
+        }
         dwin->inbuf = NULL;
     }
 
@@ -1222,6 +1226,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
+    dwin->inunicode = FALSE;
     dwin->inmax = maxlen;
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
@@ -1250,7 +1255,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     }
 
     if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(buf, maxlen, "&+#!Cn");
+        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, "&+#!Cn");
 }
 
 void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen)
@@ -1275,6 +1280,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
+    dwin->inunicode = TRUE;
     dwin->inmax = maxlen;
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
@@ -1303,7 +1309,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     }
 
     if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(buf, maxlen, "&+#!Iu");
+        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, "&+#!Iu");
 }
 
 /* Abort line input, storing whatever's been typed so far. */
@@ -1314,8 +1320,7 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     int ix;
     int len;
     void *inbuf;
-    int inmax;
-    int unicode = win->line_request_uni;
+    int inmax, inunicode;
 
     if (!dwin->inbuf)
         return;
@@ -1323,15 +1328,16 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     inbuf = dwin->inbuf;
     inmax = dwin->inmax;
     inarrayrock = dwin->inarrayrock;
+    inunicode = dwin->inunicode;
 
     len = dwin->numchars - dwin->infence;
-    if (win->echostr) 
+    if (win->echostr)
         gli_stream_echo_line_uni(win->echostr, dwin->chars + dwin->infence, len);
 
     if (len > inmax)
         len = inmax;
 
-    if (!unicode)
+    if (!inunicode)
     {
         for (ix=0; ix<len; ix++)
         {
@@ -1375,7 +1381,10 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     }
 
     if (gli_unregister_arr)
-        (*gli_unregister_arr)(inbuf, inmax, unicode ? "&+#!Iu" : "&+#!Cn", inarrayrock);
+    {
+        char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+        (*gli_unregister_arr)(inbuf, inmax, typedesc, inarrayrock);
+    }
 }
 
 /* Keybinding functions. */
@@ -1478,10 +1487,9 @@ static void acceptline(window_t *win, glui32 keycode)
     int len, olen;
     void *inbuf;
     glui32 *s, *o;
-    int inmax;
+    int inmax, inunicode;
     gidispatch_rock_t inarrayrock;
     window_textbuffer_t *dwin = win->data;
-    int unicode = win->line_request_uni;
 
     if (!dwin->inbuf)
         return;
@@ -1489,9 +1497,10 @@ static void acceptline(window_t *win, glui32 keycode)
     inbuf = dwin->inbuf;
     inmax = dwin->inmax;
     inarrayrock = dwin->inarrayrock;
+    inunicode = dwin->inunicode;
 
     len = dwin->numchars - dwin->infence;
-    if (win->echostr) 
+    if (win->echostr)
         gli_stream_echo_line_uni(win->echostr, dwin->chars+dwin->infence, len);
 
     gli_tts_purge();
@@ -1545,7 +1554,7 @@ static void acceptline(window_t *win, glui32 keycode)
     if (len > inmax)
         len = inmax;
 
-    if (!unicode)
+    if (!inunicode)
     {
         for (ix=0; ix<len; ix++)
         {
@@ -1592,7 +1601,10 @@ static void acceptline(window_t *win, glui32 keycode)
     }
 
     if (gli_unregister_arr)
-        (*gli_unregister_arr)(inbuf, inmax, unicode ? "&+#!Iu" : "&+#!Cn", inarrayrock);
+    {
+        char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+        (*gli_unregister_arr)(inbuf, inmax, typedesc, inarrayrock);
+    }
 }
 
 /* Any key, during line input. */
