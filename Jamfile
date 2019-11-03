@@ -41,7 +41,7 @@ for APP in $(APPS)
 
     if $(STATIC)
     {
-        if $(USEBABEL)
+        if $(USEBABEL) = yes
         {
             LinkLibraries $(APP) : libgarglk babel_static ;
         }
@@ -89,7 +89,7 @@ if $(OS) = MINGW && $(USESDL) = yes
 
 if $(STATIC)
 {
-    if $(USEBABEL)
+    if $(USEBABEL) = yes
     {
         LinkLibraries gargoyle : libgarglk babel_static ;
     }
