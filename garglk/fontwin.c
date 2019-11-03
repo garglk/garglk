@@ -27,6 +27,8 @@
 #include "glk.h"
 #include "garglk.h"
 
+#define FONT_SUBKEY ("Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")
+
 // forward declaration
 static int find_font_file(const char *facename, char *filepath, size_t length);
 
@@ -204,7 +206,7 @@ static void make_font_filepath(const char *filename, char *filepath, size_t leng
     }
 }
 
-static int find_font_file(const char *facename, char *filepath, size_t length)
+static int find_font_file_with_key(HKEY key, const char * subkey, const char *facename, char *filepath, size_t length)
 {
     HKEY hkey;
     DWORD size;
@@ -212,7 +214,7 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
     char filename[256];
 
     // open the Fonts registry key
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
+    if (RegOpenKeyEx(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
         return FALSE;
 
     // check for a TrueType font
@@ -244,6 +246,16 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
     RegCloseKey(hkey);
 
     return FALSE;
+}
+
+static int find_font_file(const char *facename, char *filepath, size_t length)
+{
+    // First, try the per-user key
+    if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath, length))
+        return TRUE;
+
+    // Nope. Try the system-wide key.
+    return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath, length);
 }
 
 void fontreplace(char *font, int type)
