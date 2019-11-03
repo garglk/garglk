@@ -167,7 +167,7 @@ static void propfont(char *file, int style)
     }
 }
 
-static NSMutableArray<NSURL *> * gli_registered_fonts = nil;
+static NSMutableArray * gli_registered_fonts = nil;
 static NSDistributedLock * gli_font_lock = nil;
 
 void fontreplace(char *font, int type)
@@ -181,7 +181,7 @@ void fontreplace(char *font, int type)
     NSFontDescriptor * fontFamilyDescriptor =
         [[NSFontDescriptor fontDescriptorWithFontAttributes: nil] fontDescriptorWithFamily: fontFamily];
 
-    NSArray<NSFontDescriptor *> * fontMatches =
+    NSArray * fontMatches =
         [fontFamilyDescriptor matchingFontDescriptorsWithMandatoryKeys: nil];
 
     for (NSFontDescriptor * sysfont in fontMatches)
@@ -259,7 +259,7 @@ void fontload(void)
 
     // obtain a list of all files in the Fonts directory
     NSString * fontFolder = [[NSString stringWithUTF8String: env] stringByAppendingPathComponent: @"Fonts"];
-    NSArray<NSString *> * fontFiles = [[NSFileManager defaultManager] contentsOfDirectoryAtPath: fontFolder error: nil];
+    NSArray * fontFiles = [[NSFileManager defaultManager] contentsOfDirectoryAtPath: fontFolder error: nil];
 
     // create a collection to hold the registered font URLs
     gli_registered_fonts = [NSMutableArray new];

@@ -30,7 +30,7 @@
 #import "sysmac.h"
 
 // a queue of phrases to feed to the speech synthesizer
-static NSMutableArray<NSString *> * phraseQueue = nil;
+static NSMutableArray * phraseQueue = nil;
 static NSRange purgeRange;
 
 @interface SpeechDelegate : NSObject <NSSpeechSynthesizerDelegate>
@@ -63,7 +63,7 @@ static NSRange purgeRange;
     // speak the next phrase
     if (phraseQueue.count > 0)
     {
-        [sender startSpeakingString: phraseQueue[0]];
+        [sender startSpeakingString: [phraseQueue objectAtIndex:0]];
     }
 }
 @end
@@ -96,10 +96,10 @@ void gli_initialize_tts(void)
             NSString * lang = [NSString stringWithCString: gli_conf_speak_language
                                                  encoding: NSUTF8StringEncoding];
 
-            NSArray<NSString *> * voices = [NSSpeechSynthesizer availableVoices];
+            NSArray * voices = [NSSpeechSynthesizer availableVoices];
             for (NSString * voice in voices)
             {
-                NSDictionary<NSString *, id> * attr = [NSSpeechSynthesizer attributesForVoice: voice];
+                NSDictionary * attr = [NSSpeechSynthesizer attributesForVoice: voice];
                 if ([lang isEqualToString: [attr objectForKey: NSVoiceLocaleIdentifier]])
                 {
                     [synth setVoice: voice];
@@ -121,7 +121,7 @@ static void ttsmac_add_phrase(NSString * phrase)
     // if the queue was empty we need to explicitly start speaking
     if (phraseQueue.count == 1)
     {
-        [synth startSpeakingString: phraseQueue[0]];
+        [synth startSpeakingString: [phraseQueue objectAtIndex:0]];
     }
 }
 
