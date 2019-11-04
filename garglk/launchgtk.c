@@ -32,6 +32,11 @@
 #include <gtk/gtk.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
+
 static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
 static const char * DirSeparator = "/";
@@ -180,6 +185,18 @@ static void winbrowsefile(char *buffer)
 
 void winpath(char *buffer)
 {
+#ifdef __FreeBSD__
+    int mib[4];
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_PATHNAME;
+    mib[3] = -1;
+    if (sysctl(mib, 4, buffer, &(size_t){MaxBuffer}, NULL, 0) == -1)
+    {
+        winmsg("Unable to locate executable path");
+        exit(EXIT_FAILURE);
+    }
+#else
     char exepath[MaxBuffer] = {0};
     ssize_t exelen;
 
@@ -192,12 +209,11 @@ void winpath(char *buffer)
     }
 
     strcpy(buffer, exepath);
+#endif
 
     char *dirpos = strrchr(buffer, *DirSeparator);
     if ( dirpos != NULL )
         *dirpos = '\0';
-
-    return;
 }
 
 int winexec(const char *cmd, char **args)
