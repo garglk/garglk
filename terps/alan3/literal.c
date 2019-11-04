@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------*\
 
-	literal
+    literal
 
 \*----------------------------------------------------------------------*/
 #include "literal.h"
@@ -39,11 +39,29 @@ void createIntegerLiteral(int integerValue) {
 }
 
 /*----------------------------------------------------------------------*/
+static char *copyAndQuoteDollarSigns(char *unquotedString) {
+    char *quotedString = (char *)allocate(strlen(unquotedString)*2+1);
+    char *source = unquotedString;
+    char *destination = quotedString;
+    while (*source != '\0') {
+        if (*source == '$') {
+            *destination++ = '$';
+            *destination = '_';
+        } else
+            *destination = *source;
+        source++;
+        destination++;
+    }
+    return quotedString;
+}
+
+
+/*----------------------------------------------------------------------*/
 void createStringLiteral(char *unquotedString) {
     litCount++;
     literals[litCount].class = header->stringClassId;
     literals[litCount].type = STRING_LITERAL;
-    literals[litCount].value = toAptr(strdup(unquotedString));
+    literals[litCount].value = toAptr(copyAndQuoteDollarSigns(unquotedString));
 }
 
 /*----------------------------------------------------------------------*/

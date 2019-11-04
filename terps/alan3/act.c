@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------*\
- 
+
   act.c
- 
+
   Action routines
- 
+
 \*----------------------------------------------------------------------*/
 
 #include "act.h"
@@ -47,7 +47,7 @@ static void executeCommand(int verb, Parameter parameters[])
                     return;
             }
     }
-        
+
     /* Then execute any not declared as AFTER, i.e. the default */
     for (altIndex = 0; !altInfos[altIndex].end; altIndex++) {
         if (altInfos[altIndex].alt != 0)
@@ -55,7 +55,7 @@ static void executeCommand(int verb, Parameter parameters[])
                 if (!executedOk(&altInfos[altIndex]))
                     abortPlayerCommand();
     }
-        
+
     /* Finally, the ones declared as AFTER */
     for (altIndex = lastAltInfoIndex(altInfos); altIndex >= 0; altIndex--) {
         if (altInfos[altIndex].alt != 0)
@@ -66,18 +66,18 @@ static void executeCommand(int verb, Parameter parameters[])
 
 
 /*======================================================================
- 
+
   action()
- 
+
   Execute the command. Handles acting on multiple items
   such as ALL, THEM or lists of objects.
- 
+
 */
 void action(int verb, Parameter parameters[], Parameter multipleMatches[])
 {
     int i, multiplePosition;
-    char marker[10];
-        
+    char marker[20];
+
     multiplePosition = findMultiplePosition(parameters);
     if (multiplePosition != -1) {
         jmp_buf savedReturnLabel;

@@ -111,7 +111,7 @@ static char *eventName(int event) {
 
 
 /*----------------------------------------------------------------------*/
-static void runPendingEvents(void)
+static void runPendingEvents(Stack theStack)
 {
     int i;
 
@@ -129,6 +129,8 @@ static void runPendingEvents(void)
             printf(" [%d]):>\n", current.location);
         }
         interpret(events[eventQueue[eventQueueTop].event].code);
+        if (stackDepth(theStack) != 0)
+            syserr("Stack is not empty after event execution");
         evaluateRules(rules);
     }
 
@@ -171,7 +173,8 @@ static int crcStart(char version[4]) {
 /*----------------------------------------------------------------------*/
 static void readTemporaryHeader(ACodeHeader *tmphdr) {
     rewind(codfil);
-    fread(tmphdr, sizeof(*tmphdr), 1, codfil);
+    if (fread(tmphdr, sizeof(*tmphdr), 1, codfil) != 1)
+        /* Ignore error */;
     rewind(codfil);
     if (strncmp((char *)tmphdr, "ALAN", 4) != 0)
         playererr("Not an Alan game file, does not start with \"ALAN\"");
@@ -269,7 +272,7 @@ char *decodedGameVersion(char version[]) {
 
 /*----------------------------------------------------------------------*/
 static void incompatibleDevelopmentVersion(ACodeHeader *header) {
-    char str[80];
+    char str[500];
     sprintf(str, "Incompatible version of ACODE program. Development versions always require exact match. Game is %ld.%ld%s%ld, interpreter %ld.%ld%s%ld!",
             (long)(header->version[0]),
             (long)(header->version[1]),
@@ -285,7 +288,7 @@ static void incompatibleDevelopmentVersion(ACodeHeader *header) {
 
 /*----------------------------------------------------------------------*/
 static void incompatibleVersion(ACodeHeader *header) {
-    char str[80];
+    char str[500];
     sprintf(str, "Incompatible version of ACODE program. Game is %ld.%ld, interpreter %ld.%ld.",
             (long)(header->version[0]),
             (long)(header->version[1]),
@@ -327,9 +330,9 @@ void checkVersion(ACodeHeader *header)
        2) Alpha, Beta and Release interpreters will not run development games
        3) Alpha interpreters must warn if they run beta or release games
        4) Beta interpreters may introduce changes which are not alpha compatible,
-       if the change is a strict addition (i.e. if not used will not affect
-       alpha interpreters, example is introduction of a new opcode if it is
-       done at the end of the list)
+          if the change is a strict addition (i.e. if not used will not affect
+          alpha interpreters, example is introduction of a new opcode if it is
+          done at the end of the list)
        5) Release interpreters should run alpha and beta games without problems
 
        NOTE that we are working with a non-reversed version string/word here.
@@ -348,13 +351,15 @@ void checkVersion(ACodeHeader *header)
     interpreterVersion[3] = alan.version.state[0];
 
     /* Check version of .ACD file */
-    if (debugOption && !regressionTestOption) {
-        printf("<Version of '%s' is %d.%d%s%d!>\n",
+    if ((debugOption && !regressionTestOption) || verboseOption) {
+        if (debugOption) printf("<");
+        printf("Version of '%s' is %d.%d%s%d!",
                adventureFileName,
                (int)header->version[0],
                (int)header->version[1],
                decodeState(header->version[3]),
                (int)header->version[2]);
+        if (debugOption) printf(">");
         newline();
     }
 
@@ -422,17 +427,16 @@ static void checkDebug(void)
             printf("<Sorry, '%s' is not compiled for debug! Exiting.>\n", adventureFileName);
             terminate(0);
         }
-        para();
         debugOption = FALSE;
         traceSectionOption = FALSE;
         traceInstructionOption = FALSE;
         tracePushOption = FALSE;
     }
 
-    if (debugOption || regressionTestOption) /* If debugging... */
-        srand(1);			/* ... use no randomization */
+    if (debugOption || regressionTestOption) /* If debugging or regression testing... */
+        srand(1);               /* ... use no randomization */
     else
-        srand(time(0));		/* Else seed random generator */
+        srand(time(0));         /* Else seed random generator */
 }
 
 
@@ -444,13 +448,11 @@ static void initStaticData(void)
     /* Find out number of entries in dictionary */
     for (dictionarySize = 0; !isEndOfArray(&dictionary[dictionarySize]); dictionarySize++);
 
-    /* Scores */
-
-
-    /* All addresses to tables indexed by ids are converted to pointers,
-       then adjusted to point to the (imaginary) element before the
-       actual table so that [0] does not exist. Instead indices goes
-       from 1 and we can use [1]. */
+    /* All addresses to tables indexed by ids are converted to
+       pointers, then adjusted to point to the (imaginary) element
+       before the actual table so that [0] does not exist. Instead
+       indices goes from 1 and we can directly use [id] instead of
+       [id-1] everywhere. */
 
     if (header->instanceTableAddress == 0)
         syserr("Instance table pointer == 0");
@@ -601,7 +603,7 @@ static void initializeInstances() {
 
 
 /*----------------------------------------------------------------------*/
-static void start(void)
+static void start(Stack theStack)
 {
     int startloc;
 
@@ -610,6 +612,9 @@ static void start(void)
     current.actor = HERO;
     current.score = 0;
 
+    para();
+    if (traceSectionOption)
+        printf("\n<INITIALIZE:>\n");
     initializeInstances();
 
     if (traceSectionOption)
@@ -622,7 +627,7 @@ static void start(void)
             printf("<CURRENT LOCATION:>");
         look();
     }
-    resetAndEvaluateRules(rules, header->version);
+    resetAndEvaluateRules(rules, header->version, theStack);
 }
 
 
@@ -657,7 +662,7 @@ static void openFiles(void)
 
 
 /*----------------------------------------------------------------------*/
-static void init(void)
+static void init(Stack theStack)
 {
     int i;
 
@@ -683,7 +688,7 @@ static void init(void)
     else
         clear();
 
-    start();
+    start(theStack);
 }
 
 
@@ -804,6 +809,15 @@ void run(void)
     openFiles();
     load();			/* Load program */
 
+    if ((debugOption && !regressionTestOption) || verboseOption) {
+        if (!isPreBeta7(header->version)) {
+            if (debugOption) printf("<");
+            printIFIDs(adventureName);
+            if (debugOption) printf(">");
+            newline();
+        }
+    }
+
     if (RESTARTED) {
         deleteStack(theStack);
     }
@@ -814,7 +828,7 @@ void run(void)
     initStateStack();
 
     if (!ERROR_RETURNED)      /* Can happen in start section too... */
-        init();               /* Initialise and start the adventure */
+        init(theStack);               /* Initialise and start the adventure */
 
     while (TRUE) {
         if (debugOption)
@@ -824,7 +838,7 @@ void run(void)
             syserr("Stack is not empty in main loop");
 
         if (!current.meta)
-            runPendingEvents();
+            runPendingEvents(theStack);
 
         /* Return here if error during execution */
         switch (setjmp(returnLabel)) {
@@ -856,14 +870,14 @@ void run(void)
         if (!current.meta) {
             current.tick++;
 
-            /* Remove this call? Since Eval is done up there after each event... */
-            resetAndEvaluateRules(rules, header->version);
+            /* If hero has performed a non-meta command rules need to be run after that */
+            resetAndEvaluateRules(rules, header->version, theStack);
 
             /* Then all the other actors... */
             for (i = 1; i <= header->instanceMax; i++)
                 if (i != header->theHero && isAActor(i)) {
                     moveActor(i);
-                    resetAndEvaluateRules(rules, header->version);
+                    resetAndEvaluateRules(rules, header->version, theStack);
                 }
         }
     }

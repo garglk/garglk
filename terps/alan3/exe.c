@@ -147,7 +147,8 @@ void sys(Aword fpos, Aword len)
     char *command;
 
     command = getStringFromFile(fpos, len);
-    system(command);
+    if (system(command) == -1)
+        /* Ignore errors */;
     deallocate(command);
 }
 
@@ -734,8 +735,7 @@ void startTranscript(void) {
     if (logFile == NULL) {
         transcriptOption = FALSE;
         logOption = FALSE;
-    } else
-        transcriptOption = TRUE;
+    }
 }
 
 

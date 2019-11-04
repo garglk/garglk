@@ -6,7 +6,7 @@
 
   N.B. The test for symbols used here should really be of three types
   - processor name (like PC, x86, ...)
-  - os name (DOS, WIN32, Solaris2, ...)
+  - os name (WIN32, Cygwin, MSYS2...)
   - compiler name and version (DJGPP, CYGWIN, GCC271, THINK-C, ...)
 
   The set symbols should indicate if a feature is on or off like the GNU
@@ -20,42 +20,16 @@
 
 
 /* Place definitions of OS and compiler here if necessary */
-#ifndef __sun__
-#ifdef sun
-#define __sun__
-#endif
-#endif
-
-#ifdef _INCLUDE_HPUX_SOURCE
-#define __hp__
-#endif
-
 #ifndef __unix__
 #ifdef unix
 #define __unix__
 #endif
 #endif
 
-#ifdef vax
-#define __vms__
-#endif
-
-#ifdef THINK_C
-#define __mac__
-#endif
-
 #ifdef __APPLE__
 // At least GCC 3.x does define this for Darwin
 #define __macosx__
 #define __unix__
-#endif
-
-#ifdef DOS
-#define __dos__
-#endif
-
-#ifdef __BORLANDC__
-#define __dos__
 #endif
 
 #ifdef __MINGW32__
@@ -65,12 +39,6 @@
 #ifdef __CYGWIN32__
 #define __cygwin__
 #endif
-
-#ifdef __PACIFIC__
-#define  __dos__
-#define HAVE_SHORT_FILENAMES
-#endif
-
 
 #ifdef HAVE_WINGLK
 #define HAVE_GLK
@@ -125,13 +93,6 @@
 #undef NATIVECHARSET
 #define NATIVECHARSET 0
 #else	/* Glk is ISO, no matter what the OS */
-
-#ifdef __dos__
-#undef ISO
-#define ISO 0
-#undef NATIVECHARSET
-#define NATIVECHARSET 2
-#endif
 
 #ifdef __win__
 #undef ISO
@@ -215,15 +176,6 @@
 #endif
 
 
-#ifdef __dos__
-
-/* Return codes */
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE  1
-
-#endif
-
-
 /* Native character functions */
 extern int isSpace(unsigned int c);      /* IN - Native character to test */
 extern int isLower(unsigned int c);      /* IN - Native character to test */
@@ -244,19 +196,18 @@ extern int compareStrings(char str1[], char str2[]); /* Case-insensitive compare
 
 /* ISO string conversion functions */
 extern void toIso(char copy[],  /* OUT - Mapped string */
-		  char original[], /* IN - string to convert */
-		  int charset);	/* IN - The current character set */
+          char original[], /* IN - string to convert */
+          int charset);	/* IN - The current character set */
 
 extern void fromIso(char copy[], /* OUT - Mapped string */
-		    char original[]); /* IN - string to convert */
+            char original[]); /* IN - string to convert */
 
 extern void toNative(char copy[], /* OUT - Mapped string */
-		     char original[], /* IN - string to convert */
-		     int charset); /* IN - current character set */
+             char original[], /* IN - string to convert */
+             int charset); /* IN - current character set */
 
 extern int littleEndian(void);
 
 extern char *baseNameStart(char *fullPathName);
 
 #endif                          /* -- sysdep.h -- */
-

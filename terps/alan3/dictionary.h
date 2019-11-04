@@ -41,4 +41,6 @@ extern bool isAll(int wordCode);
 extern bool isNoise(int wordCode);
 extern bool isPronoun(int wordCode);
 
+extern void *generatePronounList(void);
+
 #endif /* DICTIONARY_H_ */

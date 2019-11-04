@@ -39,7 +39,7 @@ static void saveStrings(AFILE saveFile) {
 
   if (header->stringInitTable != 0)
     for (initEntry = (StringInitEntry *)pointerTo(header->stringInitTable);
-	 !isEndOfArray(initEntry); initEntry++) {
+     !isEndOfArray(initEntry); initEntry++) {
       char *attr = (char *)getInstanceStringAttribute(initEntry->instanceCode, initEntry->attributeCode);
       Aint length = strlen(attr) + 1;
       fwrite((void *)&length, sizeof(length), 1, saveFile);
@@ -54,7 +54,7 @@ static void saveSets(AFILE saveFile) {
 
   if (header->setInitTable != 0)
     for (initEntry = (SetInitEntry *)pointerTo(header->setInitTable);
-	 !isEndOfArray(initEntry); initEntry++) {
+     !isEndOfArray(initEntry); initEntry++) {
       Set *attr = (Set *)getInstanceSetAttribute(initEntry->instanceCode, initEntry->attributeCode);
       fwrite((void *)&attr->size, sizeof(attr->size), 1, saveFile);
       fwrite((void *)attr->members, sizeof(attr->members[0]), attr->size, saveFile);
@@ -135,7 +135,7 @@ void save(void)
 
 #else
   FILE *saveFile;
-  char str[256];
+  char str[1000];
 
   current.location = where(HERO, DIRECT);
   /* First save ? */
@@ -178,7 +178,7 @@ static void restoreStrings(AFILE saveFile) {
 
   if (header->stringInitTable != 0)
     for (initEntry = (StringInitEntry *)pointerTo(header->stringInitTable);
-	 !isEndOfArray(initEntry); initEntry++) {
+     !isEndOfArray(initEntry); initEntry++) {
       Aint length;
       char *string;
       fread((void *)&length, sizeof(Aint), 1, saveFile);
@@ -195,7 +195,7 @@ static void restoreSets(AFILE saveFile) {
 
   if (header->setInitTable != 0)
     for (initEntry = (SetInitEntry *)pointerTo(header->setInitTable);
-	 !isEndOfArray(initEntry); initEntry++) {
+     !isEndOfArray(initEntry); initEntry++) {
       Aint setSize;
       Set *set;
       int i;
@@ -203,9 +203,9 @@ static void restoreSets(AFILE saveFile) {
       fread((void *)&setSize, sizeof(setSize), 1, saveFile);
       set = newSet(setSize);
       for (i = 0; i < setSize; i++) {
-	Aword member;
-	fread((void *)&member, sizeof(member), 1, saveFile);
-	addToSet(set, member);
+    Aword member;
+    fread((void *)&member, sizeof(member), 1, saveFile);
+    addToSet(set, member);
       }
       setInstanceAttribute(initEntry->instanceCode, initEntry->attributeCode, toAptr(set));
     }
