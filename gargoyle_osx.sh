@@ -123,6 +123,6 @@ cp fonts/LinLibertine*.otf $BUNDLE/Resources/Fonts
 cp fonts/NotoSerif*.ttf $BUNDLE/Resources/Fonts
 
 echo "Creating DMG..."
-hdiutil create -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
+hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
 
 echo "Done."
