@@ -119,7 +119,7 @@ static void sayLocationOfInstance(int ins, char *prefix) {
     if (admin[ins].location == 0)
         return;
     else {
-        output(prefix);
+        if (prefix) output(prefix);
         if (isALocation(admin[ins].location)) {
             output("at");
             sayInstanceNumberAndName(admin[ins].location);
@@ -187,7 +187,7 @@ static void showInstance(int ins)
         sprintf(str, "$iLocation:");
         output(str);
         needSpace = TRUE;
-        sayLocationOfInstance(ins, "");
+        sayLocationOfInstance(ins, NULL);
     }
 
     output("$iAttributes:");

@@ -400,7 +400,7 @@ static bool skipStackDump = FALSE; /* Need to be able to skip it for LINE */
 
 /*----------------------------------------------------------------------*/
 static bool stillOnSameLine(Aint line, Aint file) {
-	return line != current.sourceLine || file != current.sourceFile;
+    return line != current.sourceLine || file != current.sourceFile;
 }
 
 
@@ -534,7 +534,7 @@ void interpret(Aaddr adr)
                 Aint fpos = pop(stack);
                 Aint len = pop(stack);
                 if (traceInstructionOption) {
-	                printf("PRINT \t%7ld, %7ld\t\"", (long)fpos, (long)len);
+                    printf("PRINT \t%7ld, %7ld\t\"", (long)fpos, (long)len);
                     col = 41;		/* To break lines better! */
                 }
                 print(fpos, len);
@@ -1033,7 +1033,7 @@ void interpret(Aaddr adr)
                 push(stack, streq((char *)fromAptr(lh), (char *)fromAptr(rh)));
                 tracebooleanTopValue();
                 if (traceInstructionOption)
-	                printf("\t");
+                    printf("\t");
                 deallocate(fromAptr(lh));
                 deallocate(fromAptr(rh));
                 break;
