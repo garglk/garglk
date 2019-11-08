@@ -249,8 +249,13 @@ void evaluateRules(RuleEntry rules[]) {
                 rulesAdmin[rule-1].alreadyRun = TRUE;
                 anyRuleRun = TRUE;
             } else {
-                if (traceSectionOption && !(traceInstructionOption || traceSourceOption))
+                if (traceSectionOption && !(traceInstructionOption || traceSourceOption)) {
+                    if (rulesAdmin[rule-1].alreadyRun)
+                        printf(": Already run now");
+                    if (rulesAdmin[rule-1].lastEval == true)
+                        printf(": Already true at last run");
                     printf(":>\n");
+                }
             }
             rulesAdmin[rule-1].lastEval = evaluated_value;
         }

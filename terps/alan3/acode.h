@@ -8,22 +8,24 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef uint32_t Aptr;		 /* Type for an ACODE memory address used in the structures */
+typedef uint32_t Aptr;       /* Type for an ACODE pointer used in the structures */
 /* TODO: Here's the major 32->64bit problem: Aptrs are 32 bit to fit
    into the 32-bit structure of the Amachine, but sometimes this is
    used to store a *real* pointer value, which on 64-bit machines are
-   64bits. */
+   64bits. So for now we'll compile for 32bits to achieve complete
+   cross-platform compatibility of game files.
+ */
 
-typedef uint32_t Aword;		 /* Type for an ACODE word */
-typedef uint32_t Aaddr;		 /* Type for an ACODE address */
-typedef uint32_t Aid;		 /* Type for an ACODE Instance Id value */
-typedef int32_t Abool;		 /* Type for an ACODE Boolean value */
-typedef int32_t Aint;		 /* Type for an ACODE Integer value */
-typedef int32_t Aset;		 /* Type for an ACODE Set value */
+typedef uint32_t Aword;      /* Type for an ACODE word */
+typedef uint32_t Aaddr;      /* Type for an ACODE address in Amemory */
+typedef uint32_t Aid;        /* Type for an ACODE Instance Id value */
+typedef int32_t Abool;       /* Type for an ACODE Boolean value */
+typedef int32_t Aint;        /* Type for an ACODE Integer value */
+typedef int32_t Aset;        /* Type for an ACODE Set value */
 
 // TODO: Make this an int32_t too?
 #if INT_MAX==0x7fffffff
-typedef int CodeValue;		 /* Definition for the packing process */
+typedef int CodeValue;       /* Definition for the packing process */
 #elif LONG_MAX==0x7fffffff
 typedef signed long CodeValue;   /* Definition for the packing process */
 #else
@@ -189,8 +191,8 @@ typedef enum InstClass {
                                    on top of stack */
     I_INCR,                     /* Increase an attribute */
     I_DECR,                     /* Decrease a numeric attribute */
-    I_INCLUDE,			        /* Include a value in the set on stack top */
-    I_EXCLUDE,			        /* Remove a value from the set on stack top */
+    I_INCLUDE,                  /* Include a value in the set on stack top */
+    I_EXCLUDE,                  /* Remove a value from the set on stack top */
     I_SETSIZE,                  /* Push number of members in a set */
     I_SETMEMB,                  /* Push the member with index <top>-1
                                    from set <top> */
@@ -259,7 +261,7 @@ typedef enum InstClass {
     I_CONCAT,
     I_STRIP,
     I_POP,
-	I_TRANSCRIPT,
+    I_TRANSCRIPT,
     I_DUPSTR              /* Duplicate the string on the top of the stack */
 } InstClass;
 
@@ -334,15 +336,15 @@ typedef struct InstanceEntry {	/* INSTANCE TABLE */
     Aaddr initialize;           /* Address to initialization statements */
     Aint container;             /* Code for a possible container property */
     Aaddr initialAttributes;	/* Address of attribute list */
-    Aaddr checks;		        /* Address of description checks */
+    Aaddr checks;               /* Address of description checks */
     Aaddr description;          /* Address of description code */
-    ArticleEntry definite;	    /* Definite article entry */
+    ArticleEntry definite;      /* Definite article entry */
     ArticleEntry indefinite;    /* Indefinite article entry */
-    ArticleEntry negative;	    /* Negative article entry */
-    Aaddr mentioned;		    /* Address to short description code */
+    ArticleEntry negative;      /* Negative article entry */
+    Aaddr mentioned;            /* Address to short description code */
     Aaddr verbs;                /* Address of local verb list */
     Aaddr entered;              /* Address of entered code (location only) */
-    Aaddr exits;		        /* Address of exit list */
+    Aaddr exits;                /* Address of exit list */
 } InstanceEntry;
 
 typedef struct AttributeEntry {	/* ATTRIBUTE LIST */
@@ -696,7 +698,7 @@ typedef enum MsgKind {
     M_NO_UNDO,
     M_WHICH_PRONOUN_START,
     M_WHICH_PRONOUN_FIRST,
-	M_IMPOSSIBLE_WITH,
+    M_IMPOSSIBLE_WITH,
     M_CONTAINMENT_LOOP,
     M_CONTAINMENT_LOOP2,
     MSGMAX
