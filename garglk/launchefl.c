@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar GarcÃa Perez-Schofield.                     *
+ * Copyright (C) 2009 by Baltasar Garc√≠a Perez-Schofield.                     *
  * Copyright (C) 2010 by Ben Cressey.                                         *
  * Copyright (C) 2011 by Vaagn Khachatryan.                                   *
  *                                                                            *

@@ -1,7 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel, Jörg Walter.             *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel, JÃ¶rg Walter.             *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
