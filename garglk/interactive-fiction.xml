@@ -56,7 +56,7 @@
     <glob pattern="*.ulx"/>
   </mime-type>
 
-  <mime-type type="application/x-hugo">
+  <mime-type type="application/x-hugo-image">
     <comment>Hugo game data</comment>
     <glob pattern="*.hex"/>
   </mime-type>
