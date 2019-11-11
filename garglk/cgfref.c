@@ -210,7 +210,7 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
             *cx = '-';
     }
 
-    sprintf(buf2, "%s/%s", gli_workdir, buf);
+    snprintf(buf2, sizeof buf2, "%s/%s", gli_workdir, buf);
 
     fref = gli_new_fileref(buf2, usage, rock);
     if (!fref)

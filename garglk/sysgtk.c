@@ -92,7 +92,7 @@ void winabort(const char *fmt, ...)
     va_list ap;
     char buf[256];
     va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    vsnprintf(buf, sizeof buf, fmt, ap);
     va_end(ap);
     // XXX MessageBoxA(NULL, buf, "Fatal error", MB_ICONERROR);
     fprintf(stderr, "fatal: %s\n", buf);
@@ -132,7 +132,7 @@ static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileC
     {
         gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(filedlog), TRUE);
         char savename[32];
-        sprintf(savename, "Untitled%s", winfilterpatterns[filter]+1);
+        snprintf(savename, sizeof savename, "Untitled%s", winfilterpatterns[filter]+1);
         gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(filedlog), savename);
     }
 
@@ -149,14 +149,14 @@ static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileC
     gint result = gtk_dialog_run(GTK_DIALOG(filedlog));
 
     if (result == GTK_RESPONSE_ACCEPT)
-        strcpy(buf, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(filedlog)));
+        snprintf(buf, len, "%s", gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(filedlog)));
     else
-        strcpy(buf, "");
+        buf[0] = '\0';
 
     curdir = gtk_file_chooser_get_current_folder(GTK_FILE_CHOOSER(filedlog));
     if (curdir != NULL && strlen(curdir) < sizeof(filepath))
     {
-        strcpy(filepath, curdir);
+        snprintf(filepath, sizeof filepath, "%s", curdir);
         fileselect = TRUE;
     }
 
@@ -167,14 +167,14 @@ static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileC
 void winopenfile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
-    sprintf(realprompt, "Open: %s", prompt);
+    snprintf(realprompt, sizeof realprompt, "Open: %s", prompt);
     winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_OPEN);
 }
 
 void winsavefile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
-    sprintf(realprompt, "Save: %s", prompt);
+    snprintf(realprompt, sizeof realprompt, "Save: %s", prompt);
     winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_SAVE);
 }
 
@@ -600,11 +600,11 @@ void wintitle(void)
     char buf[256];
 
     if (strlen(gli_story_title))
-        sprintf(buf, "%s", gli_story_title);
+        snprintf(buf, sizeof buf, "%s", gli_story_title);
     else if (strlen(gli_story_name))
-        sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
+        snprintf(buf, sizeof buf, "%s - %s", gli_story_name, gli_program_name);
     else
-        sprintf(buf, "%s", gli_program_name);
+        snprintf(buf, sizeof buf, "%s", gli_program_name);
     gtk_window_set_title(GTK_WINDOW(frame), buf);
 }
 

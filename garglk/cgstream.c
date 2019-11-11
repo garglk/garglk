@@ -160,7 +160,6 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     glui32 rock, int unicode)
 {
   char modestr[16];
-  char msg[256];
   stream_t *str;
   FILE *fl;
 
@@ -186,8 +185,7 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     fl = fopen(fref->filename, "ab");
     if (!fl)
     {
-      sprintf(msg, "stream_open_file: unable to open file (ab): %s", fref->filename);
-      gli_strict_warning(msg);
+      gli_strict_warning("stream_open_file: unable to open file (ab): %s", fref->filename);
       return 0;
     }
     fclose(fl);
@@ -217,8 +215,7 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
   fl = fopen(fref->filename, modestr);
   if (!fl)
   {
-    sprintf(msg, "stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
-    gli_strict_warning(msg);
+    gli_strict_warning("stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
     return 0;
   }
 

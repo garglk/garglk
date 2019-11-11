@@ -115,7 +115,7 @@ int runblorb(char *path, char *game)
     return FALSE;
 }
 
-static int findterp(char *file, char *target)
+static int findterp(const char *file, const char *target)
 {
     FILE *f;
     char buf[MaxBuffer];
@@ -164,11 +164,11 @@ static int findterp(char *file, char *target)
         if (strcmp(cmd, "terp"))
             continue;
 
-        strcpy(terp,arg);
+        snprintf(terp, sizeof terp, "%s", arg);
 
         opt = strtok(NULL, "\r\n\t #");
         if (opt && opt[0] == '-')
-            strcpy(flags, opt);
+            snprintf(flags, sizeof flags, "%s", opt);
     }
 
     fclose(f);
@@ -187,20 +187,19 @@ static int configterp(char *path, char *game)
     /* set up story */
     s = strrchr(game,'\\');
     if (!s) s = strrchr(game, '/');
-    if (s) strcpy(story, s+1);
-    else strcpy(story, game);
+    if (s) snprintf(story, sizeof story, "%s", s+1);
+    else snprintf(story, sizeof story, "%s", game);
 
     if (!strlen(story))
         return FALSE;
 
     for (i=0; i < strlen(story); i++)
-        story[i] = tolower(story[i]);
+        story[i] = tolower((unsigned char)story[i]);
 
     /* set up extension */
-    strcpy(ext, "*");
     s = strrchr(story, '.');
-    if (s) strcat(ext, s);
-    else strcat(ext, ".*");
+    if (s) snprintf(ext, sizeof ext, "*%s", s);
+    else snprintf(ext, sizeof ext, "*.*");
 
     /* game file .ini */
     strcpy(config, game);
@@ -231,53 +230,28 @@ static int configterp(char *path, char *game)
     }
 
     /* various environment directories */
-    if (getenv("XDG_CONFIG_HOME"))
+    const char *env_vars[] = {"XDG_CONFIG_HOME", "HOME", "GARGLK_INI"};
+    for(size_t i = 0; i < (sizeof env_vars) / (sizeof *env_vars); i++)
     {
-        strcpy(config, getenv("XDG_CONFIG_HOME"));
-        strcat(config, "/.garglkrc");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
+        const char *dir = getenv(env_vars[i]);
+        if (dir != NULL)
+        {
+            snprintf(config, sizeof config, "%s/.garglkrc", dir);
+            if (findterp(config, story) || findterp(config, ext))
+                return TRUE;
 
-        strcpy(config, getenv("XDG_CONFIG_HOME"));
-        strcat(config, "/garglk.ini");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
-    }
-
-    if (getenv("HOME"))
-    {
-        strcpy(config, getenv("HOME"));
-        strcat(config, "/.garglkrc");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
-
-        strcpy(config, getenv("HOME"));
-        strcat(config, "/garglk.ini");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
-    }
-
-    if (getenv("GARGLK_INI"))
-    {
-        strcpy(config, getenv("GARGLK_INI"));
-        strcat(config, "/.garglkrc");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
-
-        strcpy(config, getenv("GARGLK_INI"));
-        strcat(config, "/garglk.ini");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
+            snprintf(config, sizeof config, "%s/garglk.ini", dir);
+            if (findterp(config, story) || findterp(config, ext))
+                return TRUE;
+        }
     }
 
     /* system directory */
-    strcpy(config, GARGLKINI);
-    if (findterp(config, story) || findterp(config, ext))
+    if (findterp(GARGLKINI, story) || findterp(GARGLKINI, ext))
         return TRUE;
 
     /* install directory */
-    strcpy(config, path);
-    strcat(config, "/garglk.ini");
+    snprintf(config, sizeof config, "%s/garglk.ini", path);
     if (findterp(config, story) || findterp(config, ext))
         return TRUE;
 

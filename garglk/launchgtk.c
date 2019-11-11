@@ -157,7 +157,7 @@ static void winfilterfiles(GtkFileChooser *dialog)
     gtk_file_chooser_add_filter(dialog, filter);
 }
 
-static void winbrowsefile(char *buffer)
+static void winbrowsefile(char *buffer, size_t n)
 {
     *buffer = 0;
 
@@ -177,7 +177,11 @@ static void winbrowsefile(char *buffer)
     gint result = gtk_dialog_run(GTK_DIALOG(openDlg));
 
     if (result == GTK_RESPONSE_ACCEPT)
-        strcpy(buffer, gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDlg)));
+    {
+        const char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(openDlg));
+        if (filename != NULL)
+            snprintf(buffer, n, "%s", filename);
+    }
 
     gtk_widget_destroy(openDlg);
     gdk_flush();
@@ -223,7 +227,7 @@ int winexec(const char *cmd, char **args)
 
 int winterp(char *path, char *exe, char *flags, char *game)
 {
-    sprintf(tmp, LaunchingTemplate, path, exe);
+    snprintf(tmp, sizeof tmp, LaunchingTemplate, path, exe);
 
     setenv("GARGLK_INI", path, FALSE);
 
@@ -259,7 +263,7 @@ int main(int argc, char **argv)
 
     /* get story file */
     if (!winargs(argc, argv, buf))
-        winbrowsefile(buf);
+        winbrowsefile(buf, sizeof buf);
 
     if (!strlen(buf))
         return TRUE;

@@ -489,7 +489,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         FILE *file;
         char name[1024];
 
-        sprintf(name, "%s/SND%ld", gli_workdir, (long) snd);
+        snprintf(name, sizeof name, "%s/SND%ld", gli_workdir, (long) snd);
 
         file = fopen(name, "rb");
         if (!file)

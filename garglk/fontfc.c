@@ -21,6 +21,8 @@
  *****************************************************************************/
 
 #include <fontconfig/fontconfig.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,255 +30,130 @@
 #include "glk.h"
 #include "garglk.h"
 
-static void findfont(char *fontname, char *fontpath)
+static bool findfont(const char *fontname, char *fontpath, size_t n)
 {
     FcPattern *p = NULL;
     FcChar8 *strval = NULL;
     FcObjectSet *attr = NULL;
+    FcFontSet *fs = NULL;
+    bool success = false;
 
     if (!FcInit())
-        return;
-
-    attr = FcObjectSetBuild (FC_FILE, (char *) 0);
+        return false;
 
     p = FcNameParse((FcChar8*)fontname);
     if (p == NULL)
-        return;
+        goto out;
 
-    FcFontSet *fs = FcFontList (0, p, attr);
+    attr = FcObjectSetBuild (FC_FILE, (char *)NULL);
+    fs = FcFontList (NULL, p, attr);
     if (fs->nfont == 0)
-        return;
+        goto out;
 
     if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch
                 || strval == NULL)
-        return;
+        goto out;
 
-    strcpy(fontpath, strval);
+    success = true;
+    snprintf(fontpath, n, "%s", strval);
 
-    FcFontSetDestroy(fs);
-    FcObjectSetDestroy(attr);
-    FcPatternDestroy(p);
+out:
+    if (fs != NULL)
+        FcFontSetDestroy(fs);
+
+    if (attr != NULL)
+        FcObjectSetDestroy(attr);
+
+    if (p != NULL)
+        FcPatternDestroy(p);
+
     FcFini();
 
-    return;
+    return success;
+}
+
+#ifdef __GNUC__
+__attribute__((__sentinel__))
+#endif
+static char *find_font_by_styles(const char *basefont, ...)
+{
+    va_list ap;
+    char *font = NULL;
+
+    va_start(ap, basefont);
+
+    for (const char *style = va_arg(ap, const char *); style != NULL; style = va_arg(ap, const char *))
+    {
+        char fontname[1024];
+        char fontpath[1024];
+
+        snprintf(fontname, sizeof fontname, "%s:style=%s", basefont, style);
+        if (findfont(fontname, fontpath, sizeof fontpath))
+        {
+            font = strdup(fontpath);
+            break;
+        }
+    }
+
+    va_end(ap);
+
+    return font;
 }
 
 void fontreplace(char *font, int type)
 {
-    if (!strlen(font))
+    if (strlen(font) == 0)
         return;
 
-    char fontname[256];
-    char fontpath[1024];
     char *sysfont;
+    char **r, **b, **i, **z;
 
-    switch (type)
+    if (type == MONOF)
     {
-        case MONOF:
-            /* regular or roman */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Regular");
-            findfont(fontname, fontpath);
+        r = &gli_conf_monor;
+        b = &gli_conf_monob;
+        i = &gli_conf_monoi;
+        z = &gli_conf_monoz;
+    }
+    else
+    {
+        r = &gli_conf_propr;
+        b = &gli_conf_propb;
+        i = &gli_conf_propi;
+        z = &gli_conf_propz;
+    }
 
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Roman");
-                findfont(fontname, fontpath);
-            }
+    /* regular or roman */
+    sysfont = find_font_by_styles(font, "Regular", "Roman", "Book", (char *)NULL);
+    if (sysfont != NULL)
+    {
+        *r = sysfont;
+        *b = sysfont;
+        *i = sysfont;
+        *z = sysfont;
+    }
 
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Book");
-                findfont(fontname, fontpath);
-            }
+    /* bold */
+    sysfont = find_font_by_styles(font, "Bold", (char *)NULL);
+    if (sysfont != NULL)
+    {
+        *b = sysfont;
+        *z = sysfont;
+    }
 
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_monor = sysfont;
-                gli_conf_monob = sysfont;
-                gli_conf_monoi = sysfont;
-                gli_conf_monoz = sysfont;
-            }
+    /* italic or oblique */
+    sysfont = find_font_by_styles(font, "Italic", "Oblique", (char *)NULL);
+    if (sysfont != NULL)
+    {
+        *i = sysfont;
+        *z = sysfont;
+    }
 
-            /* bold */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Bold");
-            findfont(fontname, fontpath);
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_monob = sysfont;
-                gli_conf_monoz = sysfont;
-
-            }
-
-            /* italic or oblique */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Italic");
-            findfont(fontname, fontpath);
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Oblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_monoi = sysfont;
-                gli_conf_monoz = sysfont;
-            }
-
-            /* bold italic or bold oblique */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=BoldItalic");
-            findfont(fontname, fontpath);
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Bold Italic");
-                findfont(fontname, fontpath);
-            }
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=BoldOblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Bold Oblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_monoz = sysfont;
-            }
-
-            return;
-
-        case PROPF:
-            /* regular or roman */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Regular");
-            findfont(fontname, fontpath);
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Roman");
-                findfont(fontname, fontpath);
-            }
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Book");
-                findfont(fontname, fontpath);
-            }
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_propr = sysfont;
-                gli_conf_propb = sysfont;
-                gli_conf_propi = sysfont;
-                gli_conf_propz = sysfont;
-            }
-
-            /* bold */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Bold");
-            findfont(fontname, fontpath);
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_propb = sysfont;
-                gli_conf_propz = sysfont;
-
-            }
-
-            /* italic or oblique */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=Italic");
-            findfont(fontname, fontpath);
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Oblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_propi = sysfont;
-                gli_conf_propz = sysfont;
-            }
-
-            /* bold italic or bold oblique */
-            fontpath[0] = '\0';
-            strcpy(fontname, font);
-            strcat(fontname, ":style=BoldItalic");
-            findfont(fontname, fontpath);
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Bold Italic");
-                findfont(fontname, fontpath);
-            }
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=BoldOblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (!strlen(fontpath))
-            {
-                strcpy(fontname, font);
-                strcat(fontname, ":style=Bold Oblique");
-                findfont(fontname, fontpath);
-            }
-
-            if (strlen(fontpath))
-            {
-                sysfont = malloc(strlen(fontpath)+1);
-                strcpy(sysfont, fontpath);
-                gli_conf_propz = sysfont;
-            }
-
-            return;
+    /* bold italic or bold oblique */
+    sysfont = find_font_by_styles(font, "BoldItalic", "Bold Italic", "BoldOblique", "Bold Oblique", (char *)NULL);
+    if (sysfont != NULL)
+    {
+        *z = sysfont;
     }
 }
 

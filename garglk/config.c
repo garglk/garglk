@@ -497,27 +497,28 @@ void gli_read_config(int argc, char **argv)
 
     /* load argv0 with name of executable without suffix */
     if (strrchr(argv[0], '\\'))
-        strcpy(argv0, strrchr(argv[0], '\\') + 1);
+        snprintf(argv0, sizeof argv0, "%s", strrchr(argv[0], '\\') + 1);
     else if (strrchr(argv[0], '/'))
-        strcpy(argv0, strrchr(argv[0], '/') + 1);
+        snprintf(argv0, sizeof argv0, "%s", strrchr(argv[0], '/') + 1);
     else
-        strcpy(argv0, argv[0]);
+        snprintf(argv0, sizeof argv0, "%s", argv[0]);
+
     if (strrchr(argv0, '.'))
         strrchr(argv0, '.')[0] = 0;
 
     for (i = 0; i < strlen(argv0); i++)
-        argv0[i] = tolower(argv0[i]);
+        argv0[i] = tolower((unsigned char)argv0[i]);
 
     /* load gamefile with basename of last argument */
     if (strrchr(argv[argc-1], '\\'))
-        strcpy(gamefile, strrchr(argv[argc-1], '\\') + 1);
+        snprintf(gamefile, sizeof gamefile, "%s", strrchr(argv[argc-1], '\\') + 1);
     else if (strrchr(argv[argc-1], '/'))
-        strcpy(gamefile, strrchr(argv[argc-1], '/') + 1);
+        snprintf(gamefile, sizeof gamefile, "%s", strrchr(argv[argc-1], '/') + 1);
     else
-        strcpy(gamefile, argv[argc-1]);
+        snprintf(gamefile, sizeof gamefile, "%s", argv[argc-1]);
 
     for (i = 0; i < strlen(gamefile); i++)
-        gamefile[i] = tolower(gamefile[i]);
+        gamefile[i] = tolower((unsigned char)gamefile[i]);
 
     /* try all the usual config places */
 
@@ -531,34 +532,29 @@ void gli_read_config(int argc, char **argv)
         readoneconfig(buf, argv0, gamefile);
     }
 #else
-    strcpy(buf, GARGLKINI);
+    snprintf(buf, sizeof buf, "%s", GARGLKINI);
     readoneconfig(buf, argv0, gamefile);
 #endif
 
     if (getenv("GARGLK_INI"))
     {
-        strcpy(buf, getenv("GARGLK_INI"));
-        strcat(buf, "/garglk.ini");
+        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("GARGLK_INI"));
         readoneconfig(buf, argv0, gamefile);
     }
 
     if (getenv("HOME"))
     {
-        strcpy(buf, getenv("HOME"));
-        strcat(buf, "/.garglkrc");
+        snprintf(buf, sizeof buf, "%s/.garglkrc", getenv("HOME"));
         readoneconfig(buf, argv0, gamefile);
-        strcpy(buf, getenv("HOME"));
-        strcat(buf, "/garglk.ini");
+        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("HOME"));
         readoneconfig(buf, argv0, gamefile);
     }
 
     if (getenv("XDG_CONFIG_HOME"))
     {
-        strcpy(buf, getenv("XDG_CONFIG_HOME"));
-        strcat(buf, "/.garglkrc");
+        snprintf(buf, sizeof buf, "%s/.garglkrc", getenv("XDG_CONFIG_HOME"));
         readoneconfig(buf, argv0, gamefile);
-        strcpy(buf, getenv("XDG_CONFIG_HOME"));
-        strcat(buf, "/garglk.ini");
+        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("XDG_CONFIG_HOME"));
         readoneconfig(buf, argv0, gamefile);
     }
 

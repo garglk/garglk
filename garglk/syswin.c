@@ -93,7 +93,8 @@ void onabout(void)
 
     if (gli_program_info[0])
     {
-    sprintf(txt,
+    snprintf(txt,
+        sizeof txt,
         "Gargoyle by Tor Andersson   \n"
         "Build %s\n"
         "\n"
@@ -101,7 +102,8 @@ void onabout(void)
     }
     else
     {
-    sprintf(txt,
+    snprintf(txt,
+        sizeof txt,
         "Gargoyle by Tor Andersson   \n"
         "Build %s\n"
         "\n"
@@ -122,7 +124,7 @@ void onconfig(void)
     if (access(buf, R_OK))
     {
     char msg[1024];
-    sprintf(msg, "There was no configuration file:    \n\n    %s    \n", buf);
+    snprintf(msg, sizeof msg, "There was no configuration file:    \n\n    %s    \n", buf);
     MessageBoxA(hwndframe, msg, " Configure", MB_ICONERROR);
     }
     else
@@ -134,7 +136,7 @@ void winabort(const char *fmt, ...)
     va_list ap;
     char buf[256];
     va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    vsnprintf(buf, sizeof buf, fmt, ap);
     va_end(ap);
     MessageBoxA(NULL, buf, " Fatal error", MB_ICONERROR);
     abort();
@@ -405,18 +407,18 @@ void wintitle(void)
     char buf[256];
 
     if (strlen(gli_story_title))
-        sprintf(buf, "%s", gli_story_title);
+        snprintf(buf, sizeof buf, "%s", gli_story_title);
     else if (strlen(gli_story_name))
-        sprintf(buf, "%s - %s", gli_story_name, gli_program_name);
+        snprintf(buf, sizeof buf, "%s - %s", gli_story_name, gli_program_name);
     else
-        sprintf(buf, "%s", gli_program_name);
+        snprintf(buf, sizeof buf, "%s", gli_program_name);
 
     SetWindowTextA(hwndframe, buf);
 
     if (strcmp(gli_program_name, "Unknown"))
-        sprintf(buf, "About Gargoyle / %s...", gli_program_name);
+        snprintf(buf, sizeof buf, "About Gargoyle / %s...", gli_program_name);
     else
-        strcpy(buf, "About Gargoyle...");
+        snprintf(buf, sizeof buf, "About Gargoyle...");
 
     ModifyMenu(GetSystemMenu(hwndframe, 0), ID_ABOUT, MF_BYCOMMAND | MF_STRING, ID_ABOUT, buf);
     DrawMenuBar(hwndframe);
