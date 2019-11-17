@@ -110,7 +110,7 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             return gli_conf_sound;
 
         case gestalt_Sound2:
-            return FALSE;
+            return gli_conf_sound;
 
         case gestalt_Unicode:
             return TRUE;

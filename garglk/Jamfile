@@ -20,6 +20,8 @@ if $(OS) = MINGW
 
 if $(USESDL) = yes
 {
+    SubDirCcFlags
+        -DGARGLK_USESDL ;
     SubDirHdrs $(TOP) support sdl ;
     SubDirHdrs $(TOP) support sdl_sound ;
 }
