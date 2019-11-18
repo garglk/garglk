@@ -51,7 +51,7 @@ int CALLBACK monofont(
     if (!(strlen(gli_conf_monofont)))
         return 0;
 
-    if (!find_font_file(lpelfe->elfLogFont.lfFaceName, filepath, sizeof filepath))
+    if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
         return 1;
 
     char * file = malloc(strlen(filepath)+1);
@@ -130,7 +130,7 @@ int CALLBACK propfont(
     if (!(strlen(gli_conf_propfont)))
         return 0;
 
-    if (!find_font_file(lpelfe->elfLogFont.lfFaceName, filepath, sizeof filepath))
+    if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
         return 1;
 
     char * file = malloc(strlen(filepath)+1);
