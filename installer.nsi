@@ -3,7 +3,7 @@
 ;
 
 Name "Gargoyle"
-OutFile "gargoyle-2019.1-windows.exe"
+OutFile "gargoyle-2019.1.1-windows.exe"
 InstallDir $PROGRAMFILES\Gargoyle
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
 SetCompressor lzma
