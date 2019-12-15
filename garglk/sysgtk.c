@@ -45,7 +45,10 @@ static int fileselect = 0;
 static char filepath[MaxBuffer];
 
 static int timerid = -1;
+static int notifyid = -1;
+
 static volatile int timeouts = 0;
+static volatile int notify = 0;
 
 /* buffer for clipboard text */
 static char *cliptext = NULL;
@@ -87,9 +90,21 @@ void glk_request_timer_events(glui32 millisecs)
     }
 }
 
+static int do_nothing(void *data)
+{
+    return TRUE;
+}
+
 void gli_notification_waiting(void)
 {
-    /* stub */
+    if (notifyid != -1)
+    {
+        g_source_remove(notifyid);
+        notifyid = -1;
+    }
+
+    notifyid = g_timeout_add(1, do_nothing, NULL);
+    notify = 1;
 }
 
 void winabort(const char *fmt, ...)
@@ -630,18 +645,26 @@ void gli_select(event_t *event, int polled)
 
     if (!polled)
     {
-        while (gli_curevent->type == evtype_None && !timeouts)
+        while (gli_curevent->type == evtype_None && !timeouts && !notify)
         {
             gtk_main_iteration();
             gli_dispatch_event(gli_curevent, polled);
         }
     }
 
-    if (gli_curevent->type == evtype_None && timeouts)
+    if (gli_curevent->type == evtype_None)
     {
-        gli_event_store(evtype_Timer, NULL, 0, 0);
-        gli_dispatch_event(gli_curevent, polled);
-        timeouts = 0;
+        if  (notify)
+        {
+                notify = 0;
+        }
+
+        if (timeouts)
+        {
+            gli_event_store(evtype_Timer, NULL, 0, 0);
+            gli_dispatch_event(gli_curevent, polled);
+            timeouts = 0;
+        }
     }
 
     gli_curevent = NULL;
