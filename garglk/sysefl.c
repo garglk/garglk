@@ -113,7 +113,7 @@ void gli_notification_waiting(void)
         notifyid = NULL;
     }
 
-    notifyid = ecore_timer_add( 1, do_nothing, NULL );
+    notifyid = ecore_timer_add( 0.001, do_nothing, NULL );
     notify = 1;
 }
 
