@@ -1,5 +1,5 @@
-#!/bin/sh
-# This scripts creates and build a simple RPM package
+#!/bin/bash
+# This scripts creates and builds a simple Gargoyle RPM package
 #
 # Prerequisites:
 #  - rpm-build, make and gcc (as it's a c file) packages must be installed
@@ -12,9 +12,7 @@ PKG_NAME=gargoyle-free
 PKG_TAR=/tmp/${PKG_NAME}.tar.gz
 PKG_DIR=/tmp/${PKG_NAME}
 
-mv ./Jamrules ./JamrulesFULL
-mv ./JamrulesRPM ./Jamrules
-
+#Clean up any pre-existing build directories so we have a fresh build.
 if [ -d "./build/dist" ]
 then
     rm -rfv ./build/dist
@@ -23,26 +21,28 @@ if [ -d "./build/linux.release" ]
 then
     rm -rfv ./build/linux.release
 fi
-#rm -rfv ./build/dist
-#rm -rfv ./build/linux.release
-jam
-jam install
 
+#Build Gargoyle without SDL (currently causing issue building on Fedora)
+jam -sUSESDL=no
+jam -sUSESDL=no install
+
+#Create a directory to contain all elements of the distribution and copy them into it.
 mkdir -p ${PKG_DIR}
 cp -v ./build/dist/* ${PKG_DIR}
 cp -v ./garglk/garglk.ini ${PKG_DIR}
 cp -v ./garglk/gargoyle-house.png ${PKG_DIR}
 
+#Compress the package directory with all distribution elements in it as an input to RPM build process.
 pushd ${PKG_DIR}/..
 tar czvf ${PKG_NAME}.tar.gz ${PKG_NAME}
 popd
 
-# Recreate the root directory and its structure if necessary
+# Recreate the root directory and its structure if necessary.  Note: You can find the final RPM in ~/rpm_factory/RPMS.
 mkdir -p ${RPM_ROOT_DIR}/{SOURCES,BUILD,RPMS,SPECS,SRPMS,tmp}
 pushd  $RPM_ROOT_DIR
 cp ${PKG_TAR} ${RPM_ROOT_DIR}/SOURCES/
 
-# Creating a basic spec file
+# Creating a basic spec file for Gargoyle
 cat << __EOF__ > ${RPM_ROOT_DIR}/SPECS/${PKG_NAME}.spec
 Summary: This package contains a build of the gargoyle interactive fiction interpreter.  This build is based on sources available at https://github.com/garglk/garglk
 Name: $PKG_NAME
@@ -73,7 +73,7 @@ Name=gargoyle-free
 Comment=Interactive fiction interpreter / player supporting many formats.
 Exec=gargoyle-free
 Icon=/usr/share/icons/gargoyle/gargoyle-house.png
-Categories=Application;Graphics;X-Red-Hat-Base;
+Categories=Game;Emulator;
 Type=Application
 Terminal=0
 X-Desktop-File-Install-Version=0.3
@@ -145,6 +145,3 @@ __EOF__
 
 rpmbuild -v -bb --define "_topdir ${RPM_ROOT_DIR}" SPECS/${PKG_NAME}.spec
 popd
-
-mv ./Jamrules ./JamrulesRPM
-mv ./JamrulesFULL ./Jamrules
