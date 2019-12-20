@@ -126,7 +126,7 @@ EOF
 
 #Write out a simple change log, dpkg-gencontrol refuses to run without one.
 cat > changelog << EOF
-gargoyle-free ($MAJORVER.$MINORVER.$PACKAGEREV) sid; urgency=low, binary-only=yes
+gargoyle-free ($MAJORVER.$MINORVER.$PACKAGEREV) sid; urgency=low
 
   * Binary-only non-maintainer package for amd64; no source changes.
   * Building for most recent version of gargoyle.
