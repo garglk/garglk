@@ -186,7 +186,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     {
 	char name[1024];
 
-	sprintf(name, "%s/SND%ld", gli_workdir, snd); 
+	snprintf(name, sizeof name, "%s/SND%ld", gli_workdir, snd); 
 
 	file = fopen(name, "rb");
 	if (!file)

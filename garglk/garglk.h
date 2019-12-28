@@ -53,8 +53,11 @@
  * or illegal operation from the game program.
  */
 
-#define gli_strict_warning(msg)   \
-    (fprintf(stderr, "Glk library error: %s\n", msg))
+#define gli_strict_warning(...) do { \
+    fputs("Glk library error: ", stderr); \
+    fprintf(stderr, __VA_ARGS__); \
+    putc('\n', stderr); \
+} while(0)
 
 extern int gli_utf8output, gli_utf8input;
 
