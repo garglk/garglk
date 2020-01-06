@@ -67,14 +67,14 @@ void gli_initialize_sound(void)
         if (SDL_Init(SDL_INIT_AUDIO|SDL_INIT_TIMER) == -1)
         {
             gli_strict_warning("SDL init failed\n");
-            gli_strict_warning(SDL_GetError());
+            gli_strict_warning("%s", SDL_GetError());
             gli_conf_sound = 0;
             return;
         }
         if (Sound_Init() == -1)
         {
             gli_strict_warning("SDL Sound init failed\n");
-            gli_strict_warning(Sound_GetError());
+            gli_strict_warning("%s", Sound_GetError());
             gli_conf_sound = 0;
             return;
         }
@@ -87,7 +87,7 @@ void gli_initialize_sound(void)
         if (Mix_OpenAudio(output->rate, output->format, output->channels, 4096) == -1)
         {
             gli_strict_warning("SDL Mixer init failed\n");
-            gli_strict_warning(Mix_GetError());
+            gli_strict_warning("%s", Mix_GetError());
             gli_conf_sound = 0;
             return;
         }
