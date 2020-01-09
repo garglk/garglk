@@ -1,3 +1,5 @@
+# GENERAL INSTRUCTIONS
+
 To compile Gargoyle you will need jam 2.5.
 
 For sound support, you will need SDL_mixer.
@@ -26,8 +28,22 @@ sudo ln -s -f /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
 sudo cp garglk/garglk.ini /etc/garglk.ini
 
 -------------------------------
+# SYSTEM SPECIFIC INSTRUCTIONS
 
-* Building on MacOS: (notes by Andrew Plotkin, April 2017)
+## Building on Fedora GNU/Linux (29,30): (notes by Andreas Davour, December 2019)
+
+To build cleanly with jam, you first need to install the pre-requisite packages:
+
+`sudo dnf install jam freetype-devel gcc-c++ gtk2-devel libjpeg-turbo-devel`
+
+If you want to compile with SDL support, you also need to install the development packages for that:
+
+`sudo dnf SDL SDL-devel SDL_mixer SDL_sound-devel SDL_mixer-devel`
+
+After that, just follow the general instructions above.
+
+
+## Building on MacOS: (notes by Andrew Plotkin, April 2017)
 
 The new build script (contributed by Brad Town) can be run on any
 MacOS 10.7 or higher. It requires a set of Unix packages (see below),
@@ -210,3 +226,5 @@ looks up all necessary info online.)
 Finally, re-run the command to create the DMG file:
 
     hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2019.1-mac.dmg
+
+-------------------------------
