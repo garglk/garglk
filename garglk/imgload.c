@@ -212,7 +212,7 @@ picture_t *gli_picture_load(unsigned long id)
         char filename[1024];
         unsigned char buf[8];
 
-        snprintf(filename, sizeof filename, "%s/PIC%lu", gli_workdir, id); 
+        snprintf(filename, sizeof filename, "%s/PIC%lu", gli_workdir, id);
 
         closeafter = TRUE;
         fl = fopen(filename, "rb");
@@ -390,7 +390,7 @@ static void load_image_png(FILE *fl, picture_t *pic)
     for (ix=0; ix<pic->h; ix++)
         rowarray[ix] = srcdata + (ix * pic->w * 4);
 
-    png_read_image(png_ptr, rowarray); 
+    png_read_image(png_ptr, rowarray);
     png_read_end(png_ptr, info_ptr);
 
     png_destroy_read_struct(&png_ptr, &info_ptr, NULL);

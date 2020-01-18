@@ -58,7 +58,7 @@ char *garglk_fileref_get_name(fileref_t *fref)
 */
 
 /* Linked list of all filerefs */
-static fileref_t *gli_filereflist = NULL; 
+static fileref_t *gli_filereflist = NULL;
 
 fileref_t *gli_new_fileref(char *filename, glui32 usage, glui32 rock)
 {
@@ -153,7 +153,7 @@ frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
 frefid_t glk_fileref_create_from_fileref(glui32 usage, frefid_t oldfref,
     glui32 rock)
 {
-    fileref_t *fref; 
+    fileref_t *fref;
 
     if (!oldfref)
     {
@@ -184,15 +184,15 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
     if (len > 255)
         len = 255;
 
-    /* Take out all dangerous characters, and make sure the length is greater 
-        than zero.  The overall goal is to make a legal 
-        platform-native filename, without any extra directory 
+    /* Take out all dangerous characters, and make sure the length is greater
+        than zero.  The overall goal is to make a legal
+        platform-native filename, without any extra directory
         components.
-       Suffixes are another sore point. Really, the game program 
+       Suffixes are another sore point. Really, the game program
         shouldn't have a suffix on the name passed to this function. So
         in DOS/Windows, this function should chop off dot-and-suffix,
         if there is one, and then add a dot and a three-letter suffix
-        appropriate to the file type (as gleaned from the usage 
+        appropriate to the file type (as gleaned from the usage
         argument.)
     */
 

@@ -72,14 +72,14 @@ char *winfilters[] =
            height: (unsigned int) height
 {
     [[self openGLContext] makeCurrentContext];
-    
+
     /* allocate new texture */
     glDeleteTextures(1, &output);
     glGenTextures(1, &output);
 
     /* bind target to texture */
-    glEnable(GL_TEXTURE_RECTANGLE_ARB);    
-    glBindTexture(GL_TEXTURE_RECTANGLE_ARB, output);  
+    glEnable(GL_TEXTURE_RECTANGLE_ARB);
+    glBindTexture(GL_TEXTURE_RECTANGLE_ARB, output);
 
     /* set target parameters */
     glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_STORAGE_HINT_APPLE, GL_STORAGE_CACHED_APPLE);
@@ -498,7 +498,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (filter != FILTER_ALL)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
-                                                                             encoding: NSUTF8StringEncoding]];        
+                                                                             encoding: NSUTF8StringEncoding]];
         [openDlg setAllowedFileTypes: filterTypes];
         [openDlg setAllowsOtherFileTypes: NO];
     }
@@ -523,7 +523,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (filter != FILTER_ALL)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
-                                                                             encoding: NSUTF8StringEncoding]];        
+                                                                             encoding: NSUTF8StringEncoding]];
         [saveDlg setAllowedFileTypes: filterTypes];
         [saveDlg setAllowsOtherFileTypes: NO];
     }
@@ -798,20 +798,20 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) launchFileDialog
 {
     int result;
-    
+
     NSOpenPanel * openDlg = [NSOpenPanel openPanel];
 
     [openDlg setCanChooseFiles: YES];
     [openDlg setCanChooseDirectories: NO];
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: [NSString stringWithCString: AppName encoding: NSUTF8StringEncoding]];
-    
+
     NSMutableArray *filterTypes = [NSMutableArray arrayWithCapacity:100];
-    
-    NSEnumerator *docTypeEnum = [[[[NSBundle mainBundle] infoDictionary] 
+
+    NSEnumerator *docTypeEnum = [[[[NSBundle mainBundle] infoDictionary]
                                   objectForKey:@"CFBundleDocumentTypes"] objectEnumerator];
     NSDictionary *docType;
-    
+
     while (docType = [docTypeEnum nextObject])
     {
         [filterTypes addObjectsFromArray:[docType objectForKey: @"CFBundleTypeExtensions"]];

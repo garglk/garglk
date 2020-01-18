@@ -225,11 +225,11 @@ void winchoosefile(char *prompt, char *buf, int len, int filter, Eina_Bool is_sa
         file_name = gli_story_title;
     else
         file_name = gli_program_name;
-    
+
     /*create $(HOME)/.gargoyle folder in case it doesn't exist */
     sprintf(buf, "%s/.gargoyle", getenv("HOME"));
     ecore_file_mkpath(buf);
-    
+
     /*return the full path to the file*/
     sprintf(buf, "%s/.gargoyle/%s.sav", getenv("HOME"), file_name);
 }
@@ -299,18 +299,18 @@ load_layouts_from_path(Eina_List *layout_list, const char *path1,
 
         if (!s || strcmp(s, ".ini"))
             continue;
-		
+
         *s = '\0';
-		
+
         snprintf(file, MaxBuffer, "%s/%s", path2, f);
-		
+
         free(f);
-		
+
         keys_t *keys = keys_alloc(file);
-		
+
         if (!keys)
 			continue;
-		
+
 		vk_layout_t *layout = malloc(sizeof(vk_layout_t));
 
 		const char *str;
@@ -354,18 +354,18 @@ send_key(vk_info_t *info)
 {
     if (!info->last_key)
         return;
-    
+
     unsigned char *str = (unsigned char *) get_action(info, info->last_key);
     if ( !strcmp(str, "space") ) str = " ";
-    
+
     if ( str != NULL && str[0] >= 32 ){
         glui32 keybuf[1] = {'?'};
         glui32 inlen = strlen( str );
-        
+
         gli_parse_utf8( str, inlen, keybuf, 1 );
         gli_input_handle_key( keybuf[0] );
     }
-    
+
     free(info->last_key);
     info->last_key = NULL;
     info->i = 0;
@@ -483,12 +483,12 @@ void winclipreceive(int source)
 static Eina_Bool selection_notify_handler(void *data, int ev_type, void *ev)
 {
     Ecore_X_Event_Selection_Notify *esn = ev;
-    
+
     if ( esn->selection != ECORE_X_SELECTION_CLIPBOARD && esn->selection != ECORE_X_SELECTION_PRIMARY )
         return ECORE_CALLBACK_RENEW;
     if ( strcmp( esn->target, ECORE_X_SELECTION_TARGET_UTF8_STRING ) != 0 )
         return ECORE_CALLBACK_RENEW;
-        
+
     Ecore_X_Selection_Data_Text *data_text = esn->data;
     char *utf8text = data_text->text;
     if ( utf8text == NULL )
@@ -514,7 +514,7 @@ static Eina_Bool selection_notify_handler(void *data, int ev_type, void *ev)
             gli_input_handle_key(rptr[i]);
     }
     free(rptr);
-    
+
     return ECORE_CALLBACK_RENEW;
 }
 
@@ -522,24 +522,24 @@ void onresize(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
     int newwid, newhgt;
     evas_object_geometry_get( obj, NULL, NULL, &newwid, &newhgt );
-    
+
     if (newwid == gli_image_w && newhgt == gli_image_h)
         return;
-    
+
     gli_image_w = newwid;
     gli_image_h = newhgt;
 
     gli_resize_mask(gli_image_w, gli_image_h);
 
     gli_image_s = gli_image_w; // 1bpp grayscale
-    
+
     //resize the canvas and get its pixels
     evas_object_image_size_set( canvas, gli_image_w, gli_image_h );
     evas_object_image_fill_set( canvas, 0, 0, gli_image_w, gli_image_h );
     gli_image_rgb = evas_object_image_data_get( canvas, EINA_TRUE );
-    
+
     gli_force_redraw = 1;
-    
+
     gli_windows_size_change();
 }
 
@@ -554,7 +554,7 @@ static void onexpose(void *data, Evas_Object *o )
 static void onbuttondown(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
     Evas_Event_Mouse_Down *eemd = (Evas_Event_Mouse_Down *) event_info;
-    
+
     if (eemd->button == 1)
         gli_input_handle_click( eemd->canvas.x, eemd->canvas.y );
     else if (eemd->button == 2)
@@ -564,7 +564,7 @@ static void onbuttondown(void *data, Evas *e, Evas_Object *obj, void *event_info
 static void onbuttonup(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
     Evas_Event_Mouse_Up *eemu = (Evas_Event_Mouse_Up *) event_info;
-    
+
     if (eemu->button == 1)
     {
         gli_copyselect = FALSE;
@@ -577,7 +577,7 @@ static void onscroll(void *data, Evas *e, Evas_Object *obj, void *event_info)
 {
     Evas_Event_Mouse_Wheel *eemw = (Evas_Event_Mouse_Wheel *) event_info;
     if ( eemw->direction != 0 ) return; // only up/down scrolling is supported
-    
+
     if ( eemw->z > 0 )
         gli_input_handle_key(keycode_MouseWheelUp);
     else
@@ -620,7 +620,7 @@ static void onkeyup(void *data, Evas *e, Evas_Object *obj, void *event_info)
             send_key(info);
         else /* otherwise cycle to the next letter associated with it*/
             info->i++; /*TODO: make this cycle through options*/
-    
+
     const char* action = keys_lookup_by_event(info->keys, "main", eeku);
     if ( strlen(action) == 0 ){
         /* handle 1-9 keys*/
@@ -668,7 +668,7 @@ void wininit(int *argc, char **argv)
         exit( EXIT_FAILURE );
     }
     ecore_app_args_set( *argc, (const char **)argv );
-    
+
     if ( ecore_evas_init() == 0 ){
         printf("ERROR: cannot init Evas_Ecore.\n");
         exit( EXIT_FAILURE );
@@ -677,7 +677,7 @@ void wininit(int *argc, char **argv)
         printf("ERROR: cannot init Edje.\n");
         exit( EXIT_FAILURE );
     }
-    
+
     enable_idlers();
     ecore_event_handler_add( ECORE_EVENT_SIGNAL_EXIT, sig_exit_cb, NULL );
 }
@@ -689,7 +689,7 @@ void winopen(void)
 
     defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
-    
+
     frame = ecore_evas_software_x11_8_new( NULL, 0, 0, 0, defw, defh );
             if ( frame == NULL ){
                 fprintf( stderr, "Error creating the main window.\n" );
@@ -711,14 +711,14 @@ void winopen(void)
     ecore_evas_show( frame );
     ecore_evas_callback_delete_request_set( frame, onquit );
     ecore_evas_callback_resize_set( frame, onframeresize );
-    
+
     xwin = ecore_evas_software_x11_window_get( frame );
     ecore_event_handler_add( ECORE_X_EVENT_SELECTION_NOTIFY, selection_notify_handler, NULL );
-    
+
     Evas *evas = ecore_evas_get( frame );
     canvas = evas_object_image_add( evas );
     vk_info_t *info = vkbd_init();
-    
+
     evas_object_image_pixels_get_callback_set( canvas, onexpose, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_DOWN, onbuttondown, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_UP, onbuttonup, NULL );
@@ -726,7 +726,7 @@ void winopen(void)
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_WHEEL, onscroll, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_MOUSE_MOVE, onmotion, NULL );
     evas_object_event_callback_add( canvas, EVAS_CALLBACK_RESIZE, onresize, NULL );
-    
+
     evas_object_resize( canvas, defw, defh );
     evas_object_show( canvas );
     evas_object_focus_set( canvas, EINA_TRUE );
@@ -756,11 +756,11 @@ void gli_select(event_t *event, int polled)
 {
     gli_curevent = event;
     gli_event_clearevent(event);
-    
+
     poll_event_queue = EINA_TRUE;
     ecore_main_loop_begin(); /*will immediately return from idle state*/
     gli_dispatch_event(gli_curevent, polled);
-    
+
     if (!polled)
     {
         poll_event_queue = EINA_FALSE;

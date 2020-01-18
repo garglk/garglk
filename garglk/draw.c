@@ -510,7 +510,7 @@ void gli_draw_clear(unsigned char *rgb)
 {
     unsigned char *p;
     int x, y;
-    
+
 #ifdef EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
 #endif

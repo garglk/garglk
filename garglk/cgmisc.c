@@ -77,23 +77,23 @@ void garglk_set_story_title(const char *title)
 }
 
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;
-void (*gli_unregister_obj)(void *obj, glui32 objclass, 
+void (*gli_unregister_obj)(void *obj, glui32 objclass,
     gidispatch_rock_t objrock) = NULL;
-gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len, 
+gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len,
     char *typecode) = NULL;
-void (*gli_unregister_arr)(void *array, glui32 len, char *typecode, 
+void (*gli_unregister_arr)(void *array, glui32 len, char *typecode,
     gidispatch_rock_t objrock) = NULL;
 
 void gli_initialize_misc()
 {
     int ix;
     int res;
-    
+
     /* Initialize the to-uppercase and to-lowercase tables. These should
         *not* be localized to a platform-native character set! They are
         intended to work on Latin-1 data, and the code below correctly
         sets up the tables for that character set. */
-    
+
     for (ix=0; ix<256; ix++)
     {
         char_toupper_table[ix] = ix;
@@ -146,33 +146,33 @@ unsigned char glk_char_to_upper(unsigned char ch)
 }
 
 void gidispatch_set_object_registry(
-    gidispatch_rock_t (*regi)(void *obj, glui32 objclass), 
+    gidispatch_rock_t (*regi)(void *obj, glui32 objclass),
     void (*unregi)(void *obj, glui32 objclass, gidispatch_rock_t objrock))
 {
     window_t *win;
     stream_t *str;
     fileref_t *fref;
-    
+
     gli_register_obj = regi;
     gli_unregister_obj = unregi;
-    
+
     if (gli_register_obj)
     {
         /* It's now necessary to go through all existing objects, and register
             them. */
-        for (win = glk_window_iterate(NULL, NULL); 
+        for (win = glk_window_iterate(NULL, NULL);
             win;
             win = glk_window_iterate(win, NULL))
         {
             win->disprock = (*gli_register_obj)(win, gidisp_Class_Window);
         }
-        for (str = glk_stream_iterate(NULL, NULL); 
+        for (str = glk_stream_iterate(NULL, NULL);
             str;
             str = glk_stream_iterate(str, NULL))
         {
             str->disprock = (*gli_register_obj)(str, gidisp_Class_Stream);
         }
-        for (fref = glk_fileref_iterate(NULL, NULL); 
+        for (fref = glk_fileref_iterate(NULL, NULL);
             fref;
             fref = glk_fileref_iterate(fref, NULL))
         {
@@ -182,8 +182,8 @@ void gidispatch_set_object_registry(
 }
 
 void gidispatch_set_retained_registry(
-    gidispatch_rock_t (*regi)(void *array, glui32 len, char *typecode), 
-    void (*unregi)(void *array, glui32 len, char *typecode, 
+    gidispatch_rock_t (*regi)(void *array, glui32 len, char *typecode),
+    void (*unregi)(void *array, glui32 len, char *typecode,
         gidispatch_rock_t objrock))
 {
     gli_register_arr = regi;

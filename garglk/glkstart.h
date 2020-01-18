@@ -16,7 +16,7 @@
     with the various Unix Glk libraries -- at least, the three I wrote.
     (I encourage anyone writing a Unix Glk library to use this interface,
     but it's not part of the Glk spec.)
-    
+
     Because Glk is *almost* perfectly portable, this interface *almost*
     doesn't have to exist. In practice, it's small.
 */
@@ -58,7 +58,7 @@ extern glkunix_argumentlist_t glkunix_arguments[];
 extern int glkunix_startup_code(glkunix_startup_t *data);
 
 extern void glkunix_set_base_file(char *filename);
-extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, 
+extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode,
     glui32 rock);
 
 #endif /* GT_START_H */

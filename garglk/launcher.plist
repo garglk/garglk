@@ -63,7 +63,7 @@
 			<array>
 				<string>public.agt</string>
 			</array>
-		</dict>		
+		</dict>
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
@@ -283,7 +283,7 @@
 			<array>
 				<string>public.blorb.zcode</string>
 			</array>
-		</dict>		
+		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
@@ -598,7 +598,7 @@
 					<string>zblorb</string>
 				</array>
 			</dict>
-		</dict>		
+		</dict>
 	</array>
 	<key>CFBundleURLTypes</key>
 	<array>

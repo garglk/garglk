@@ -175,7 +175,7 @@ void winexit(void)
 
 void winopenfile(char *prompt, char *buf, int len, int filter)
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];    
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     NSString * fileref = [gargoyle openWindowDialog: processID
                                              prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
@@ -377,7 +377,7 @@ void wininit(int *argc, char **argv)
     gargoyle = (NSObject<GargoyleApp> *)[link rootProxy];
     [gargoyle retain];
 
-    /* listen for mach messages */ 
+    /* listen for mach messages */
     CFMachPortRef sigPort = CFMachPortCreate(NULL, winmach, NULL, NULL);
     gli_signal_port = CFMachPortGetPort(sigPort);
     [[NSRunLoop currentRunLoop] addPort: [NSMachPort portWithMachPort: gli_signal_port] forMode: NSDefaultRunLoopMode];
@@ -583,7 +583,7 @@ void winmouse(NSEvent *evt)
             if (gli_get_hyperlink(x, y))
                 [gargoyle setCursor: kPointingHandCursor];
             else
-                [gargoyle setCursor: kArrowCursor]; 
+                [gargoyle setCursor: kArrowCursor];
             break;
         }
 
@@ -678,7 +678,7 @@ void winpoll(void)
 }
 
 void gli_select(event_t *event, int polled)
-{ 
+{
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     gli_curevent = event;

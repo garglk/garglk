@@ -240,7 +240,7 @@ void winclipsend(void)
     if(OpenClipboard(NULL)) {
         if (!SetClipboardData(CF_UNICODETEXT, wmem))
             GlobalFree(wmem);
-        CloseClipboard(); 
+        CloseClipboard();
     }
 }
 
@@ -266,7 +266,7 @@ void winclipreceive(void)
             }
             GlobalUnlock(rmem);
         }
-        CloseClipboard(); 
+        CloseClipboard();
     }
 }
 
@@ -281,7 +281,7 @@ void wininit(int *argc, char **argv)
     wc.lpfnWndProc = frameproc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
-    wc.hInstance = GetModuleHandle(NULL); 
+    wc.hInstance = GetModuleHandle(NULL);
     wc.hIcon = LoadIcon(wc.hInstance, "IDI_GAPP");
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = 0;
@@ -384,7 +384,7 @@ void winopen()
         HMONITOR hmon = MonitorFromWindow(hwndframe, MONITOR_DEFAULTTONEAREST);
         MONITORINFO mi = { sizeof(mi) };
         GetMonitorInfo(hmon, &mi);
-        SetWindowPos(hwndframe, 
+        SetWindowPos(hwndframe,
             NULL,
             mi.rcMonitor.left,
             mi.rcMonitor.top,
@@ -403,7 +403,7 @@ void onfullscreen()
     DestroyWindow(hwndframe);
     switchingfullscreen = 0;
     winopen();
-    
+
 }
 
 
@@ -797,7 +797,7 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         winclipreceive();
         return 0;
     }
-    
+
     case WM_SYSKEYDOWN:
     {
         if (wParam == VK_RETURN && (HIWORD(lParam) & KF_ALTDOWN))

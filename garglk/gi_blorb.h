@@ -42,45 +42,45 @@ typedef glui32 giblorb_err_t;
 #define giblorb_ID_AUTH      (giblorb_make_id('A', 'U', 'T', 'H'))
 #define giblorb_ID_ANNO      (giblorb_make_id('A', 'N', 'N', 'O'))
 
-/* giblorb_map_t: Holds the complete description of an open Blorb 
+/* giblorb_map_t: Holds the complete description of an open Blorb
     file. This type is opaque for normal interpreter use. */
 typedef struct giblorb_map_struct giblorb_map_t;
 
 /* giblorb_result_t: Result when you try to load a chunk. */
 typedef struct giblorb_result_struct {
-    glui32 chunknum; /* The chunk number (for use in 
+    glui32 chunknum; /* The chunk number (for use in
         giblorb_unload_chunk(), etc.) */
     union {
-        void *ptr; /* A pointer to the data (if you used 
+        void *ptr; /* A pointer to the data (if you used
             giblorb_method_Memory) */
-        glui32 startpos; /* The position in the file (if you 
+        glui32 startpos; /* The position in the file (if you
             used giblorb_method_FilePos) */
     } data;
     glui32 length; /* The length of the data */
     glui32 chunktype; /* The type of the chunk. */
 } giblorb_result_t;
 
-extern giblorb_err_t giblorb_create_map(strid_t file, 
+extern giblorb_err_t giblorb_create_map(strid_t file,
     giblorb_map_t **newmap);
 extern giblorb_err_t giblorb_destroy_map(giblorb_map_t *map);
 
-extern giblorb_err_t giblorb_load_chunk_by_type(giblorb_map_t *map, 
-    glui32 method, giblorb_result_t *res, glui32 chunktype, 
+extern giblorb_err_t giblorb_load_chunk_by_type(giblorb_map_t *map,
+    glui32 method, giblorb_result_t *res, glui32 chunktype,
     glui32 count);
-extern giblorb_err_t giblorb_load_chunk_by_number(giblorb_map_t *map, 
+extern giblorb_err_t giblorb_load_chunk_by_number(giblorb_map_t *map,
     glui32 method, giblorb_result_t *res, glui32 chunknum);
-extern giblorb_err_t giblorb_unload_chunk(giblorb_map_t *map, 
+extern giblorb_err_t giblorb_unload_chunk(giblorb_map_t *map,
     glui32 chunknum);
 
-extern giblorb_err_t giblorb_load_resource(giblorb_map_t *map, 
-    glui32 method, giblorb_result_t *res, glui32 usage, 
+extern giblorb_err_t giblorb_load_resource(giblorb_map_t *map,
+    glui32 method, giblorb_result_t *res, glui32 usage,
     glui32 resnum);
-extern giblorb_err_t giblorb_count_resources(giblorb_map_t *map, 
+extern giblorb_err_t giblorb_count_resources(giblorb_map_t *map,
     glui32 usage, glui32 *num, glui32 *min, glui32 *max);
 
-/* The following functions are part of the Glk library itself, not 
-    the Blorb layer (whose code is in gi_blorb.c). These functions 
-    are necessarily implemented in platform-dependent code. 
+/* The following functions are part of the Glk library itself, not
+    the Blorb layer (whose code is in gi_blorb.c). These functions
+    are necessarily implemented in platform-dependent code.
 */
 extern giblorb_err_t giblorb_set_resource_map(strid_t file);
 extern giblorb_map_t *giblorb_get_resource_map(void);

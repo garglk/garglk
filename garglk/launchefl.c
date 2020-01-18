@@ -68,7 +68,7 @@ static void
 newline_to_br(const char *str)
 {
     brmsg[0] = '\0';
-    
+
     char *p = strchr(str, '\n');
     while (p != NULL){
         strncat(brmsg, str, p - str);
@@ -113,7 +113,7 @@ void winmsg(const char * msg)
 
    elm_win_resize_object_add(win, bx);
    evas_object_show(bx);
-   
+
    evas_object_resize(win, 320, 100);
 
    evas_object_show(win);
@@ -192,7 +192,7 @@ int winterp(char *path, char *exe, char *flags, char *game)
 int main(int argc, char **argv)
 {
     elm_init( argc, argv );
-    
+
     /* get dir of executable */
     winpath(dir);
 

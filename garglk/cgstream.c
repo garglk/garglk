@@ -40,13 +40,13 @@
 #include "glk.h"
 #include "garglk.h"
 
-/* This implements pretty much what any Glk implementation needs for 
-    stream stuff. Memory streams, file streams (using stdio functions), 
+/* This implements pretty much what any Glk implementation needs for
+    stream stuff. Memory streams, file streams (using stdio functions),
     and window streams (which print through window functions in other
     files.) A different implementation would change the window stream
-    stuff, but not file or memory streams. (Unless you're on a 
-    wacky platform like the Mac and want to change stdio to native file 
-    functions.) 
+    stuff, but not file or memory streams. (Unless you're on a
+    wacky platform like the Mac and want to change stdio to native file
+    functions.)
 */
 
 static stream_t *gli_streamlist = NULL;
@@ -172,7 +172,7 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
   /* The spec says that Write, ReadWrite, and WriteAppend create the
   file if necessary. However, fopen(filename, "r+") doesn't create
   a file. So we have to pre-create it in the ReadWrite and
-  WriteAppend cases. (We use "a" so as not to truncate, and "b" 
+  WriteAppend cases. (We use "a" so as not to truncate, and "b"
   because we're going to close it immediately, so it doesn't matter.) */
 
   /* Another Unix quirk: in r+ mode, you're not supposed to flip from
@@ -222,9 +222,9 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
   if (fmode == filemode_WriteAppend)
     fseek(fl, 0, 2); /* ...to the end. */
 
-  str = gli_new_stream(strtype_File, 
-    (fmode == filemode_Read || fmode == filemode_ReadWrite), 
-    !(fmode == filemode_Read), 
+  str = gli_new_stream(strtype_File,
+    (fmode == filemode_Read || fmode == filemode_ReadWrite),
+    !(fmode == filemode_Read),
     rock,
     unicode);
   if (!str)
@@ -265,7 +265,7 @@ stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
   if (!fl)
     return 0;
 
-  str = gli_new_stream(strtype_File, 
+  str = gli_new_stream(strtype_File,
     TRUE, FALSE, rock, FALSE);
   if (!str)
   {
@@ -280,21 +280,21 @@ stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
   return str;
 }
 
-stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode, 
+stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode,
     glui32 rock)
 {
   stream_t *str;
 
-  if (fmode != filemode_Read && fmode != filemode_Write 
+  if (fmode != filemode_Read && fmode != filemode_Write
    && fmode != filemode_ReadWrite)
   {
     gli_strict_warning("stream_open_memory: illegal filemode");
     return 0;
   }
 
-  str = gli_new_stream(strtype_Memory, 
-    (fmode != filemode_Write), 
-    (fmode != filemode_Read), 
+  str = gli_new_stream(strtype_Memory,
+    (fmode != filemode_Write),
+    (fmode != filemode_Read),
     rock,
     FALSE);
   if (!str)
@@ -317,21 +317,21 @@ stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode,
   return str;
 }
 
-stream_t *glk_stream_open_memory_uni(glui32 *buf, glui32 buflen, glui32 fmode, 
+stream_t *glk_stream_open_memory_uni(glui32 *buf, glui32 buflen, glui32 fmode,
     glui32 rock)
 {
   stream_t *str;
 
-  if (fmode != filemode_Read && fmode != filemode_Write 
+  if (fmode != filemode_Read && fmode != filemode_Write
    && fmode != filemode_ReadWrite)
   {
     gli_strict_warning("stream_open_memory: illegal filemode");
     return 0;
   }
 
-  str = gli_new_stream(strtype_Memory, 
-    (fmode != filemode_Write), 
-    (fmode != filemode_Read), 
+  str = gli_new_stream(strtype_Memory,
+    (fmode != filemode_Write),
+    (fmode != filemode_Read),
     rock,
     TRUE);
   if (!str)
@@ -402,8 +402,8 @@ void gli_stream_close(stream_t *str)
   if (str == gli_currentstr)
     gli_currentstr = NULL;
 
-  for (win = gli_window_iterate_treeorder(NULL); 
-       win != NULL; 
+  for (win = gli_window_iterate_treeorder(NULL);
+       win != NULL;
        win = gli_window_iterate_treeorder(win))
   {
     if (win->echostr == str)
@@ -415,7 +415,7 @@ void gli_stream_close(stream_t *str)
       case strtype_Window:
           /* nothing necessary; the window is already being closed */
           break;
-      case strtype_Memory: 
+      case strtype_Memory:
           if (gli_unregister_arr)
           {
               /* This could be a char array or a glui32 array. */
@@ -460,7 +460,7 @@ void glk_stream_set_position(stream_t *str, glsi32 pos, glui32 seekmode)
 
   switch (str->type)
   {
-      case strtype_Memory: 
+      case strtype_Memory:
           if (!str->unicode)
           {
               if (seekmode == seekmode_Current)
@@ -498,7 +498,7 @@ void glk_stream_set_position(stream_t *str, glsi32 pos, glui32 seekmode)
           str->lastop = 0;
           if (str->unicode)
               pos *= 4;
-          fseek(str->file, pos, 
+          fseek(str->file, pos,
               ((seekmode == seekmode_Current) ? 1 :
               ((seekmode == seekmode_End) ? 2 : 0)));
           break;
@@ -515,7 +515,7 @@ glui32 glk_stream_get_position(stream_t *str)
 
   switch (str->type)
   {
-      case strtype_Memory: 
+      case strtype_Memory:
           if (str->unicode)
               return ((glui32 *)str->bufptr - (glui32 *)str->buf);
           else
@@ -1502,7 +1502,7 @@ static glui32 gli_get_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                     buf[lx] = ch;
                 }
                 return lx;
-            } 
+            }
             else if (str->textfile)
             {
                 glui32 lx;
@@ -1516,7 +1516,7 @@ static glui32 gli_get_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                     buf[lx] = ch;
                 }
                 return lx;
-            } 
+            }
             else
             {
                 glui32 lx;
@@ -1623,7 +1623,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
             }
             str->readcount += lx;
             return lx;
-        case strtype_File: 
+        case strtype_File:
             if (len == 0)
                 return 0;
             gli_stream_ensure_op(str, filemode_Read);
@@ -1770,7 +1770,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
             }
             str->readcount += lx;
             return lx;
-        case strtype_File: 
+        case strtype_File:
             if (len == 0)
                 return 0;
             gli_stream_ensure_op(str, filemode_Read);

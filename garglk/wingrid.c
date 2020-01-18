@@ -315,7 +315,7 @@ void win_textgrid_move_cursor(window_t *win, int xpos, int ypos)
 {
     window_textgrid_t *dwin = win->data;
 
-    /* If the values are negative, they're really huge positive numbers -- 
+    /* If the values are negative, they're really huge positive numbers --
        remember that they were cast from glui32. So set them huge and
        let canonicalization take its course. */
     if (xpos < 0)
@@ -598,7 +598,7 @@ static void acceptline(window_t *win, glui32 keycode)
     {
         for (ix=0; ix<dwin->inlen; ix++)
             ((glui32 *)inbuf)[ix] = ln->chars[dwin->inorgx+ix];
-        if (win->echostr) 
+        if (win->echostr)
             gli_stream_echo_line_uni(win->echostr, (glui32 *)inbuf, dwin->inlen);
     }
 
@@ -667,7 +667,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
                 return;
             if (dwin->incurs <= 0)
                 return;
-            for (ix=dwin->incurs; ix<dwin->inlen; ix++) 
+            for (ix=dwin->incurs; ix<dwin->inlen; ix++)
                 ln->chars[dwin->inorgx+ix-1] = ln->chars[dwin->inorgx+ix];
             ln->chars[dwin->inorgx+dwin->inlen-1] = ' ';
             dwin->incurs--;
@@ -679,7 +679,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
                 return;
             if (dwin->incurs >= dwin->inlen)
                 return;
-            for (ix=dwin->incurs; ix<dwin->inlen-1; ix++) 
+            for (ix=dwin->incurs; ix<dwin->inlen-1; ix++)
                 ln->chars[dwin->inorgx+ix] = ln->chars[dwin->inorgx+ix+1];
             ln->chars[dwin->inorgx+dwin->inlen-1] = ' ';
             dwin->inlen--;
@@ -688,7 +688,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         case keycode_Escape:
             if (dwin->inlen <= 0)
                 return;
-            for (ix=0; ix<dwin->inlen; ix++) 
+            for (ix=0; ix<dwin->inlen; ix++)
                 ln->chars[dwin->inorgx+ix] = ' ';
             dwin->inlen = 0;
             dwin->incurs = 0;
@@ -734,7 +734,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
             if (gli_conf_caps && (arg > 0x60 && arg < 0x7b))
                 arg -= 0x20;
 
-            for (ix=dwin->inlen; ix>dwin->incurs; ix--) 
+            for (ix=dwin->inlen; ix>dwin->incurs; ix--)
                 ln->chars[dwin->inorgx+ix] = ln->chars[dwin->inorgx+ix-1];
             attrset(&ln->attrs[dwin->inorgx+dwin->inlen], style_Input);
             ln->chars[dwin->inorgx+dwin->incurs] = arg;

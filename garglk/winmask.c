@@ -328,7 +328,7 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
                 found_left = TRUE;
                 found_right = TRUE;
             }
-            else 
+            else
             {
                 *rx0 = cx1;
                 *rx1 = x1;

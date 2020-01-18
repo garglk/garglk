@@ -197,7 +197,7 @@ void fontreplace(char *font, int type)
 
         else if ([sysfont symbolicTraits] & NSFontItalicTrait)
             style = FONTI;
-        
+
         /* find path for font */
         CFURLRef urlRef = CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute);
         if (!urlRef)

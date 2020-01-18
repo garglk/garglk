@@ -77,7 +77,7 @@ schanid_t glk_schannel_create(glui32 rock)
     else
 	chan->disprock.ptr = NULL;
 
-    return chan;	
+    return chan;
 }
 
 void glk_schannel_destroy(schanid_t chan)
@@ -186,7 +186,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     {
 	char name[1024];
 
-	snprintf(name, sizeof name, "%s/SND%ld", gli_workdir, snd); 
+	snprintf(name, sizeof name, "%s/SND%ld", gli_workdir, snd);
 
 	file = fopen(name, "rb");
 	if (!file)
@@ -210,7 +210,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 	type = 0;	/* unidentified */
 
 	/* AIFF */
-	if (len > 4 && !memcmp(buf, "FORM", 4))		
+	if (len > 4 && !memcmp(buf, "FORM", 4))
 	    type = giblorb_ID_FORM;
 
 	/* WAVE */

@@ -30,7 +30,7 @@
 #define mul255(a,b) (((a) * ((b) + 1)) >> 8)
 
 static void
-drawpicture(picture_t *src, window_graphics_t *dst, 
+drawpicture(picture_t *src, window_graphics_t *dst,
     int x0, int y0, int width, int height, glui32 linkval);
 
 static void win_graphics_touch(window_graphics_t *dest)
@@ -196,7 +196,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
 }
 
 glui32 win_graphics_draw_picture(window_graphics_t *dwin,
-    glui32 image, 
+    glui32 image,
     glsi32 xpos, glsi32 ypos,
     int scale, glui32 imagewidth, glui32 imageheight)
 {
@@ -323,7 +323,7 @@ void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color)
     dwin->bgnd[2] = (color >> 0) & 0xff;
 }
 
-static void drawpicture(picture_t *src, window_graphics_t *dst, 
+static void drawpicture(picture_t *src, window_graphics_t *dst,
     int x0, int y0, int width, int height, glui32 linkval)
 {
     unsigned char *sp, *dp;

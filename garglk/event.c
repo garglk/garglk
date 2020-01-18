@@ -238,7 +238,7 @@ void gli_input_guess_focus()
 
     do
     {
-        if (altwin 
+        if (altwin
             && (altwin->line_request || altwin->char_request ||
                 altwin->line_request_uni || altwin->char_request_uni))
             break;
@@ -263,7 +263,7 @@ void gli_input_more_focus()
 
     do
     {
-        if (altwin 
+        if (altwin
             && (altwin->more_request))
             break;
         altwin = gli_window_iterate_treeorder(altwin);
@@ -283,7 +283,7 @@ void gli_input_next_focus()
     do
     {
         altwin = gli_window_iterate_treeorder(altwin);
-        if (altwin 
+        if (altwin
             && (altwin->line_request || altwin->char_request ||
                 altwin->line_request_uni || altwin->char_request_uni))
             break;
@@ -307,7 +307,7 @@ void gli_input_scroll_focus()
 
     do
     {
-        if (altwin 
+        if (altwin
             && (altwin->scroll_request))
             break;
         altwin = gli_window_iterate_treeorder(altwin);

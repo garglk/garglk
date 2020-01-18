@@ -111,7 +111,7 @@ int runblorb(char *path, char *game)
             sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", game);
             winmsg(tmp);
     }
-    
+
     return FALSE;
 }
 
@@ -365,6 +365,6 @@ int rungame(char *path, char *game)
 
     sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     winmsg(tmp);
-    
+
     return FALSE;
 }

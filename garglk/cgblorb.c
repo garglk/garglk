@@ -73,7 +73,7 @@ int giblorb_is_resource_map()
     return (blorbmap != NULL);
 }
 
-void giblorb_get_resource(glui32 usage, glui32 resnum, 
+void giblorb_get_resource(glui32 usage, glui32 resnum,
     FILE **file, long *pos, long *len, glui32 *type)
 {
     giblorb_err_t err;
@@ -85,16 +85,16 @@ void giblorb_get_resource(glui32 usage, glui32 resnum,
     if (!blorbmap)
         return;
 
-    err = giblorb_load_resource(blorbmap, giblorb_method_FilePos, 
+    err = giblorb_load_resource(blorbmap, giblorb_method_FilePos,
             &blorbres, usage, resnum);
     if (err)
         return;
 
     *file = blorbfile->file;
     if (pos)
-        *pos = blorbres.data.startpos;  
+        *pos = blorbres.data.startpos;
     if (len)
-        *len = blorbres.length; 
+        *len = blorbres.length;
     if (type)
         *type = blorbres.chunktype;
 }

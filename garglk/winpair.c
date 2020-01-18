@@ -30,7 +30,7 @@ window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui
     window_pair_t *dwin = (window_pair_t *)malloc(sizeof(window_pair_t));
     dwin->owner = win;
 
-    dwin->dir = method & winmethod_DirMask; 
+    dwin->dir = method & winmethod_DirMask;
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
     dwin->keydamage = FALSE;
