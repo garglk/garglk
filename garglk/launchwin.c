@@ -193,7 +193,7 @@ int winexec(const char *cmd, char **args)
 
     si.cb = sizeof si;
 
-    sprintf(tmp,"%s",cmd);
+    snprintf(tmp, sizeof tmp, "%s", cmd);
 
     res = CreateProcess(
         NULL,	/* no module name (use cmd line)    */
@@ -213,7 +213,7 @@ int winexec(const char *cmd, char **args)
 
 int winterp(char *path, char *exe, char *flags, char *game)
 {
-    sprintf(tmp, LaunchingTemplate, path, exe, flags, game);
+    snprintf(tmp, sizeof tmp, LaunchingTemplate, path, exe, flags, game);
 
     if (!winexec(tmp, NULL)) {
         winmsg("Could not start 'terp.\nSorry.");

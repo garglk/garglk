@@ -62,7 +62,7 @@ int runblorb(char *path, char *game)
     giblorb_err_t err;
     giblorb_map_t *map;
 
-    sprintf(tmp, "Could not load Blorb file:\n%s\n", game);
+    snprintf(tmp, sizeof tmp, "Could not load Blorb file:\n%s\n", game);
 
     file = glkunix_stream_open_pathname(game, 0, 0);
     if (!file)
@@ -108,7 +108,7 @@ int runblorb(char *path, char *game)
             break;
 
         default:
-            sprintf(tmp, "Unknown game type in Blorb file:\n%s\n", game);
+            snprintf(tmp, sizeof tmp, "Unknown game type in Blorb file:\n%s\n", game);
             winmsg(tmp);
     }
 
@@ -363,7 +363,7 @@ int rungame(char *path, char *game)
     if (!strcasecmp(ext, "saga"))
         return winterp(path, strcat(exe,T_SCOTT), "", game);
 
-    sprintf(tmp, "Unknown file type: \"%s\"\nSorry.", ext);
+    snprintf(tmp, sizeof tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     winmsg(tmp);
 
     return FALSE;
