@@ -41,6 +41,8 @@ static volatile int gli_window_alive = TRUE;
 #define kPointingHandCursor 3
 
 void wintick(CFRunLoopTimerRef timer, void *info);
+void winhandler(int signal);
+
 
 @interface GargoyleMonitor : NSObject
 {
@@ -142,6 +144,11 @@ void glk_request_timer_events(glui32 millisecs)
 void wintick(CFRunLoopTimerRef timer, void *info)
 {
     [monitor tick];
+}
+
+void gli_notification_waiting()
+{
+    winhandler(SIGUSR1);
 }
 
 void winabort(const char *fmt, ...)

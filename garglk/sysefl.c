@@ -57,6 +57,8 @@ static char filepath[MaxBuffer];
 
 static Ecore_Timer *timerid = NULL;
 static volatile int timeouts = 0;
+static Ecore_Timer *notifyid = NULL;
+static volatile int notify = 0;
 
 /* buffer for clipboard text */
 static char *cliptext = NULL;
@@ -96,6 +98,23 @@ void glk_request_timer_events(glui32 millisecs)
     {
         timerid = ecore_timer_add( millisecs / 1000.0, timeout, NULL );
     }
+}
+
+static Eina_Bool do_nothing(void *data)
+{
+    return ECORE_CALLBACK_CANCEL;
+}
+
+void gli_notification_waiting(void)
+{
+    /* if (notifyid != NULL)
+    {
+        ecore_timer_del( notifyid );
+        notifyid = NULL;
+    }
+
+    notifyid = ecore_timer_add( 0.001, do_nothing, NULL );
+    notify = 1; */
 }
 
 void winabort(const char *fmt, ...)
@@ -626,18 +645,24 @@ void gli_select(event_t *event, int polled)
     if (!polled)
     {
         poll_event_queue = EINA_FALSE;
-        while (gli_curevent->type == evtype_None && !timeouts)
+        while (gli_curevent->type == evtype_None && !timeouts && !notify)
         {
             ecore_main_loop_begin();
             gli_dispatch_event(gli_curevent, polled);
         }
     }
 
-    if (gli_curevent->type == evtype_None && timeouts)
+    if (gli_curevent->type == evtype_None)
     {
-        gli_event_store(evtype_Timer, NULL, 0, 0);
-        gli_dispatch_event(gli_curevent, polled);
-        timeouts = 0;
+        if (notify)
+            notify = 0;
+
+        if (timeouts)
+        {
+            gli_event_store(evtype_Timer, NULL, 0, 0);
+            gli_dispatch_event(gli_curevent, polled);
+            timeouts = 0;
+        }
     }
 
     gli_curevent = NULL;

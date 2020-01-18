@@ -799,6 +799,7 @@ void gli_clipboard_copy(glui32 *buf, int len);
 void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);
 void gli_move_selection(int x, int y);
+void gli_notification_waiting(void);
 
 void attrset(attr_t *attr, glui32 style);
 void attrclear(attr_t *attr);
