@@ -54,11 +54,11 @@ void gli_initialize_babel(void)
                     if (storyTitle && storyAuthor)
                     {
                         char title[256];
-                        snprintf(title, 255, "%s - %s", storyTitle, storyAuthor);
+                        snprintf(title, sizeof title, "%s - %s", storyTitle, storyAuthor);
                         garglk_set_story_title(title);
-                        free(storyTitle);
-                        free(storyAuthor);
                     }
+                    free(storyTitle);
+                    free(storyAuthor);
                 }
                 free(metaData);
             }
