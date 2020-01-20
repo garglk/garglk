@@ -83,6 +83,8 @@ switch $(PLATFORM)
         SHRLINKLIBS += $(TOP)/support/libpng/libpng16-16.dll ;
         SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
 
+        GARGLKCCFLAGS = -std=gnu99 ;
+
         if $(BUILD) = RELEASE || $(BUILD) = TURBO
         {
             SHRLINKLIBS += -mwindows ;
