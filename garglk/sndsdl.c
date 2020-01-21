@@ -481,7 +481,7 @@ static void sound_completion_callback(int chan)
         return;
     }
     gli_strict_warning("buffer sound failed");
-    gli_strict_warning(Mix_GetError());
+    gli_strict_warning("%s", Mix_GetError());
     cleanup_channel(sound_channel);
     return;
 }
@@ -605,7 +605,7 @@ static glui32 play_sound(schanid_t chan)
             return 1;
     }
     gli_strict_warning("play sound failed");
-    gli_strict_warning(Mix_GetError());
+    gli_strict_warning("%s", Mix_GetError());
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
@@ -638,7 +638,7 @@ static glui32 play_compressed(schanid_t chan, char *ext)
             return 1;
     }
     gli_strict_warning("play sound failed");
-    gli_strict_warning(Mix_GetError());
+    gli_strict_warning("%s", Mix_GetError());
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
@@ -695,7 +695,7 @@ static glui32 play_mod(schanid_t chan, long len)
             return 1;
     }
     gli_strict_warning("play mod failed");
-    gli_strict_warning(Mix_GetError());
+    gli_strict_warning("%s", Mix_GetError());
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
