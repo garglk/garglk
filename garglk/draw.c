@@ -191,7 +191,7 @@ static void loadglyph(font_t *f, glui32 cid)
     int adv;
 
     gid = FT_Get_Char_Index(f->face, cid);
-    if (gid == 0)
+    if (gid <= 0)
         gid = FT_Get_Char_Index(f->face, '?');
 
     for (x = 0; x < GLI_SUBPIX; x++)
@@ -788,6 +788,9 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
           s++;
           n--;
         }
+
+        if (c >= 0xFFFFFF00)
+            c = c & 0x000000FF;
 
         getglyph(f, c, &adv, &glyphs);
 
