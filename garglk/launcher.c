@@ -41,7 +41,6 @@
 #define T_SCOTT     "scott"
 #define T_TADS2     "tadsr"
 #define T_TADS3     "tadsr"
-#define T_ZOLD      "frotz"
 #define T_ZCODE     "bocfel"
 #define T_ZSIX      "bocfel"
 
@@ -330,10 +329,9 @@ int rungame(char *path, char *game)
         return winterp(path, strcat(exe,T_TADS3), "", game);
 
     if (!strcasecmp(ext, "z1"))
-        return winterp(path, strcat(exe,T_ZOLD), "", game);
+        return winterp(path, strcat(exe,T_ZCODE), "", game);
     if (!strcasecmp(ext, "z2"))
-        return winterp(path, strcat(exe,T_ZOLD), "", game);
-
+        return winterp(path, strcat(exe,T_ZCODE), "", game);
     if (!strcasecmp(ext, "z3"))
         return winterp(path, strcat(exe,T_ZCODE), "", game);
     if (!strcasecmp(ext, "z4"))

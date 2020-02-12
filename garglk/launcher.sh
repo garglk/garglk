@@ -66,15 +66,15 @@ case "$lowpath" in
     *.mag ) $dirpath/magnetic "$1" ;;
     *.gam ) $dirpath/tadsr "$1" ;;
     *.t3  ) $dirpath/tadsr "$1" ;;
-    *.z6  ) $dirpath/nitfol "$1" ;;
-    *.z?  ) $dirpath/frotz "$1" ;;
+    *.z6  ) $dirpath/bocfel "$1" ;;
+    *.z?  ) $dirpath/bocfel "$1" ;;
 
     *.blb    ) $dirpath/git "$1" ;;
     *.blorb  ) $dirpath/git "$1" ;;
     *.glb    ) $dirpath/git "$1" ;;
     *.gblorb ) $dirpath/git "$1" ;;
-    *.zlb    ) $dirpath/frotz "$1" ;;
-    *.zblorb ) $dirpath/frotz "$1" ;;
+    *.zlb    ) $dirpath/bocfel "$1" ;;
+    *.zblorb ) $dirpath/bocfel "$1" ;;
 
     * ) echo "gargoyle: Unknown file type: $1" ;;
 esac
