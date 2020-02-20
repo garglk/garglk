@@ -11,7 +11,6 @@ MAKE_AGILITY    ?= yes ;
 MAKE_ALAN2      ?= yes ;
 MAKE_ALAN3      ?= yes ;
 MAKE_BOCFEL     ?= yes ;
-MAKE_FROTZ      ?= yes ;
 MAKE_GEAS       ?= yes ;
 MAKE_GIT        ?= yes ;
 MAKE_GLULXE     ?= yes ;
@@ -19,7 +18,6 @@ MAKE_HUGO       ?= yes ;
 MAKE_JACL       ?= yes ;
 MAKE_LEVEL9     ?= yes ;
 MAKE_MAGNETIC   ?= yes ;
-MAKE_NITFOL     ?= yes ;
 MAKE_SCARE      ?= yes ;
 MAKE_SCOTT      ?= yes ;
 
@@ -149,26 +147,6 @@ if $(MAKE_BOCFEL) = yes
         ;
 
     APPS += $(GARGLKPRE)bocfel ;
-}
-
-# -----------------------------------------------------------------------
-#
-# Frotz 2.50 / glk port
-#
-
-if $(MAKE_FROTZ) = yes
-{
-    SubDir TOP terps frotz ;
-    ObjDir frotz ;
-
-    Main $(GARGLKPRE)frotz :
-        buffer.c err.c fastmem.c files.c
-        input.c main.c math.c object.c process.c quetzal.c random.c
-        redirect.c sound.c stream.c table.c text.c variable.c
-        glkscreen.c glkmisc.c
-        ;
-
-    APPS += $(GARGLKPRE)frotz ;
 }
 
 # -----------------------------------------------------------------------
@@ -361,51 +339,6 @@ if $(MAKE_MAGNETIC) = yes
     Main $(GARGLKPRE)magnetic : emu.c glk.c ;
 
     APPS += $(GARGLKPRE)magnetic ;
-}
-
-# -----------------------------------------------------------------------
-#
-# Nitfol 0.5 + lots of patches
-#
-# Define the stuff you want:
-#
-# DEBUGGING   Compile in the debugger.  See DEBUG for details
-# SMART_TOKENISER Tries to correct typos.
-# TWOS16SHORT Try to speed up some operations if 'short' is a 16 bit two's
-#             complement number on your system.  Note that this might slow down
-#             Pentium IIs.
-# FAST_SIGNED If you're on something which does signed math much faster than
-#             unsigned, define this
-# FAST        Normally, nitfol does lots of tests to make sure values are in
-#             range, both to alert games of unportable actions and to prevent
-#             nitfol from crashing.  Defining this removes those tests, so will
-#             speed up the game a bit.  Completely legal games should run
-#             exactly the same with or without this flag, so if you have a
-#             slow computer and you know all the games you will be running are
-#             completely legal, define this.
-# USE_INLINE  If your C compiler uses the keyword 'inline' to inline functions
-# NO_LIBC     Cause nitfol to use its own functions rather than your libc
-# NO_TICK     If you don't need glk_tick, define this (minor speed improvement)
-# _GNU_SOURCE Use GNU functions (currently just canonicalize_file_name)
-# _BSD_SOURCE Use BSD functions (just realpath)
-# _XOPEN_SOURCE (also lets nitfol use realpath)
-
-if $(MAKE_NITFOL) = yes
-{
-    SubDir TOP terps nitfol ;
-    ObjDir nitfol ;
-
-    SubDirCcFlags -DSMART_TOKENISER -DDEBUGGING -DFAST -DUSE_INLINE -DNO_TICK ;
-
-    Main $(GARGLKPRE)nitfol : 
-        automap.c solve.c infix.c copying.c debug.c inform.c quetzal.c
-        undo.c op_call.c decode.c errmesg.c globals.c iff.c init.c 
-        io.c z_io.c op_jmp.c op_math.c op_save.c op_table.c op_v6.c oplist.c
-        stack.c zscii.c tokenise.c struct.c objects.c portfunc.c hash.c
-        sound.c graphics.c blorb.c main.c startunix.c 
-        ;
-
-    APPS += $(GARGLKPRE)nitfol ;
 }
 
 # -----------------------------------------------------------------------

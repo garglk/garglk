@@ -8,7 +8,6 @@ Build status as of 10/11/2010:
 | alan          | 2.8.6         |
 | alan3         | 3.0beta6      |
 | bocfel        | 1.0.1         |
-| frotz         | 2.5.0         |
 | geas          | 0.4           |
 | git           | 1.3.5         |
 | glulxe        | 0.5.4         |
@@ -16,7 +15,6 @@ Build status as of 10/11/2010:
 | jacl          | 2.9.0         |
 | level9        | 5.1           |
 | magnetic      | 2.3           |
-| nitfol        | 0.5           |
 | scare         | 1.3.10        |
 | scottfree     | 1.14          |
 | tads2         | 2.5.17        |

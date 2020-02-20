@@ -37,7 +37,6 @@ There are many interpreters that have been Glk-enabled. All of the following int
 * Agility
 * Alan 2 and 3
 * Bocfel
-* Frotz
 * Geas
 * Git
 * Glulxe
@@ -45,7 +44,6 @@ There are many interpreters that have been Glk-enabled. All of the following int
 * JACL
 * Level 9
 * Magnetic
-* Nitfol
 * Scare
 * Scottfree
 * TADS 2 and 3
