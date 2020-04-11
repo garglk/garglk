@@ -348,13 +348,14 @@ void glk_fileref_delete_file(fileref_t *fref)
 /* This should only be called from startup code. */
 void glkunix_set_base_file(char *filename)
 {
-    strcpy(gli_workdir, filename);
+    snprintf(gli_workdir, sizeof gli_workdir, "%s", filename);
     if (strrchr(gli_workdir, '/'))
         strrchr(gli_workdir, '/')[0] = 0;
     else if (strrchr(gli_workdir, '\\'))
         strrchr(gli_workdir, '\\')[0] = 0;
     else
-        strcpy(gli_workdir, ".");
-    strcpy(gli_workfile, filename);
+        snprintf(gli_workdir, sizeof gli_workdir, ".");
+
+    snprintf(gli_workfile, sizeof gli_workfile, "%s", filename);
     chdir(gli_workdir);
 }
