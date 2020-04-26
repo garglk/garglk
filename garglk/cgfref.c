@@ -357,5 +357,4 @@ void glkunix_set_base_file(char *filename)
         snprintf(gli_workdir, sizeof gli_workdir, ".");
 
     snprintf(gli_workfile, sizeof gli_workfile, "%s", filename);
-    chdir(gli_workdir);
 }
