@@ -1,0 +1,73 @@
+name: AppImage
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build_appimage:
+    strategy:
+      matrix:
+        config:
+          - {debarch: amd64, arch: x86_64, filearch: x86_64}
+          - {debarch: i386, arch: i386, filearch: x86}
+
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.config.debarch }}/ubuntu:16.04
+      # So that fuse works inside the container (needed to run AppImages.)
+      options: --privileged
+
+    env:
+      CC: gcc-5
+      CXX: g++-5
+
+    steps:
+    - run: apt-get update
+
+    - name: Install deps
+      run: apt-get install -y
+        build-essential
+        ftjam
+        fuse
+        git
+        grep
+        libgtk2.0-dev
+        libjpeg-dev
+        libsdl-mixer1.2-dev
+        libsdl-sound1.2-dev
+        libspeechd-dev
+        wget
+
+    - name: Install linuxdeploy
+      working-directory: /usr/bin
+      run: |
+        wget -q 'https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.config.arch }}.AppImage'
+        wget -q 'https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-${{ matrix.config.arch }}.AppImage'
+        chmod +x linuxdeploy*
+
+    # v2 doesn't work with older distros.
+    - uses: actions/checkout@v1
+
+    - name: Build
+      run: |
+        DESTDIR="$PWD/AppDir" _BINDIR=/usr/bin _APPDIR=/usr/bin _LIBDIR=/usr/lib \
+          jam -dx -sOS=LINUX -sUSETTS=yes -j`nproc` install
+        strip AppDir/usr/bin/* AppDir/usr/lib/*
+        mv AppDir/usr/lib/libgarglk.so /usr/lib/
+        ldconfig
+        OUTPUT=Gargoyle-${{ matrix.config.filearch }}.AppImage linuxdeploy-${{ matrix.config.arch }}.AppImage \
+          --appdir=AppDir \
+          -i garglk/gargoyle-house.png \
+          -i garglk/gargoyle-docu2.png \
+          -d garglk/gargoyle.desktop \
+          -l /usr/lib/${{ matrix.config.arch }}-linux-gnu/libjack.so.0 \
+          --output=appimage
+
+    - name: Upload artifact
+      if: github.event_name != 'pull_request'
+      # v2 doesn't work with older distros.
+      uses: actions/upload-artifact@v1
+      with:
+        name: Gargoyle-${{ matrix.config.filearch }}.AppImage
+        path: Gargoyle-${{ matrix.config.filearch }}.AppImage
