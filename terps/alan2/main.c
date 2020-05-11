@@ -43,6 +43,9 @@
 
 /* PUBLIC DATA */
 
+winid_t glkMainWin;
+winid_t glkStatusWin;
+
 /* The Amachine memory */
 Aword *memory;
 static AcdHdr dummyHeader;	/* Dummy to use until memory allocated */
