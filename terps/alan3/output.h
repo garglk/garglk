@@ -22,9 +22,9 @@ extern bool capitalize;
 /* Log file */
 #ifdef HAVE_GLK
 #include "glk.h"
-strid_t logFile;
+extern strid_t logFile;
 #else
-FILE *logFile;
+extern FILE *logFile;
 #endif
 
 

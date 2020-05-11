@@ -62,7 +62,7 @@ char							*from_word;
 
 int								object_expected = FALSE;
 
-char							default_function[84];
+extern char							default_function[84];
 char							object_name[84];
 
 char				            base_function[84];

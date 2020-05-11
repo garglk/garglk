@@ -11,8 +11,8 @@
 
 #include "glk.h"
 
-winid_t glkMainWin;
-winid_t glkStatusWin;
+extern winid_t glkMainWin;
+extern winid_t glkStatusWin;
 
 /* NB: this header must be included in any file which calls printf() */
 

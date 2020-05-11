@@ -48,10 +48,10 @@
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
 #define MaxBuffer 1024
-char tmp[MaxBuffer];
-char terp[MaxBuffer];
-char exe[MaxBuffer];
-char flags[MaxBuffer];
+static char tmp[MaxBuffer];
+static char terp[MaxBuffer];
+static char exe[MaxBuffer];
+static char flags[MaxBuffer];
 
 int runblorb(char *path, char *game)
 {
