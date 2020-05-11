@@ -40,13 +40,13 @@ static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
 static const char * DirSeparator = "/";
 
-char dir[MaxBuffer];
-char buf[MaxBuffer];
-char tmp[MaxBuffer];
-char etc[MaxBuffer];
+static char dir[MaxBuffer];
+static char buf[MaxBuffer];
+static char tmp[MaxBuffer];
+static char etc[MaxBuffer];
 
 enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
-char *winfilters[] =
+static char *winfilters[] =
 {
     "sav",
     "txt",

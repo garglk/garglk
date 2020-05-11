@@ -33,11 +33,11 @@ static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "\"%s\\%s.exe\" %s \"%s\"";
 static const char * DirSeparator = "\\";
 
-char dir[MaxBuffer];
-char buf[MaxBuffer];
-char tmp[MaxBuffer];
+static char dir[MaxBuffer];
+static char buf[MaxBuffer];
+static char tmp[MaxBuffer];
 
-char filterlist[] =
+static char filterlist[] =
 "All Games\0*.taf;*.agx;*.d$$;*.acd;*.a3c;*.asl;*.cas;*.ulx;*.hex;*.jacl;*.j2;*.gam;*.t3;*.z?;*.l9;*.sna;*.mag;*.dat;*.saga;*.blb;*.glb;*.zlb;*.blorb;*.gblorb;*.zblorb\0"
 "Adrift Games (*.taf)\0*.taf\0"
 "AdvSys Games (*.dat)\0*.dat\0"
@@ -65,7 +65,7 @@ void winmsg(const char *msg)
     MessageBox(NULL, msg, AppName, MB_ICONERROR);
 }
 
-int urldecode(char *decoded, unsigned int maxlen, const char *encoded)
+static int urldecode(char *decoded, unsigned int maxlen, const char *encoded)
 {
     unsigned int i;
     int convert, ascii;
