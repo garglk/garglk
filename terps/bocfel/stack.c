@@ -34,6 +34,12 @@
 #include "util.h"
 #include "zterp.h"
 
+typedef enum {
+  StoreWhere_Variable,
+  StoreWhere_None,
+  StoreWhere_Push,
+} StoreWhere;
+
 struct call_frame
 {
   uint32_t pc;
@@ -223,20 +229,20 @@ void store_variable(uint16_t var, uint16_t n)
 {
   ZASSERT(var < 0x100, "unable to decode variable %u", (unsigned)var);
 
-  /* Stack. */
+  /* Stack */
   if(var == 0)
   {
     PUSH_STACK(n);
   }
 
-  /* Local variables. */
+  /* Locals */
   else if(var <= 0x0f)
   {
     ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to store to nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
     CURRENT_FRAME->locals[var - 1] = n;
   }
 
-  /* Global variables. */
+  /* Globals */
   else if(var <= 0xff)
   {
     var -= 0x10;
@@ -301,7 +307,7 @@ void zstore(void)
   else              store_variable(zargs[0], zargs[1]);
 }
 
-void call(int do_store)
+static void call(StoreWhere store_where)
 {
   uint32_t jmp_to;
   uint8_t nlocals;
@@ -309,8 +315,8 @@ void call(int do_store)
 
   if(zargs[0] == 0)
   {
-    /* call(2) should never happen if zargs[0] is 0. */
-    if(do_store) store(0);
+    /* call(StoreWhere_Push) should never happen if zargs[0] is 0. */
+    if(store_where == StoreWhere_Variable) store(0);
     return;
   }
 
@@ -322,11 +328,12 @@ void call(int do_store)
 
   if(zversion <= 4) ZASSERT(jmp_to + (nlocals * 2) < memory_size, "call to invalid address 0x%lx", (unsigned long)jmp_to);
 
-  switch(do_store)
+  switch(store_where)
   {
-    case 1:  where = byte(pc++); break; /* Where to store return value */
-    case 0:  where = 0xff + 1;   break; /* Or a tag meaning no return value */
-    default: where = 0xff + 2;   break; /* Or a tag meaning push the return value */
+    case StoreWhere_Variable: where = byte(pc++); break; /* Where to store return value */
+    case StoreWhere_None:     where = 0xff + 1;   break; /* Or a tag meaning no return value */
+    case StoreWhere_Push:     where = 0xff + 2;   break; /* Or a tag meaning push the return value */
+    default:                  die("internal error: invalid store_where value (%d)", (int)store_where);
   }
 
   add_frame(pc, sp, nlocals, znargs - 1, where);
@@ -350,6 +357,11 @@ void call(int do_store)
   pc = jmp_to;
 }
 
+void start_v6(void)
+{
+  call(StoreWhere_None);
+}
+
 #ifdef ZTERP_GLK
 uint16_t direct_call(uint16_t routine)
 {
@@ -361,7 +373,7 @@ uint16_t direct_call(uint16_t routine)
 
   znargs = 1;
   zargs[0] = routine;
-  call(2);
+  call(StoreWhere_Push);
 
   process_instructions();
 
@@ -374,11 +386,11 @@ uint16_t direct_call(uint16_t routine)
 
 void zcall_store(void)
 {
-  call(1);
+  call(StoreWhere_Variable);
 }
 void zcall_nostore(void)
 {
-  call(0);
+  call(StoreWhere_None);
 }
 
 void do_return(uint16_t retval)
@@ -451,8 +463,6 @@ void zrfalse(void)
 
 void zcheck_arg_count(void)
 {
-  ZASSERT(zversion == 6 || NFRAMES > 1, "@check_arg_count called outside of a function");
-
   branch_if(zargs[0] <= CURRENT_FRAME->nargs);
 }
 
@@ -506,7 +516,7 @@ static uint32_t compress_memory(uint8_t **compressed)
   tmp = malloc((3 * header.static_start) / 2);
   if(tmp == NULL) return 0;
 
-  while(1)
+  while(true)
   {
     long run = i;
 
@@ -612,17 +622,8 @@ bool push_save(enum save_type type, uint32_t whichpc, const char *desc)
   if(new->frames == NULL) goto err;
   memcpy(new->frames, BASE_OF_FRAMES, new->nframes * sizeof *new->frames);
 
-  if(options.disable_undo_compression)
-  {
-    new->memory = malloc(header.static_start);
-    if(new->memory == NULL) goto err;
-    memcpy(new->memory, memory, header.static_start);
-  }
-  else
-  {
-    new->memsize = compress_memory(&new->memory);
-    if(new->memsize == 0) goto err;
-  }
+  new->memsize = compress_memory(&new->memory);
+  if(new->memsize == 0) goto err;
 
   /* If the maximum number has been reached, drop the last element.
    * A negative value for max_saves means there is no maximum.
@@ -704,18 +705,11 @@ bool pop_save(enum save_type type, long i)
 
   pc = p->pc;
 
-  if(options.disable_undo_compression)
-  {
-    memcpy(memory, p->memory, header.static_start);
-  }
-  else
-  {
-    /* If this fails it’s a bug: unlike Quetzal files, the contents of
-     * p->memory are known to be good, because the compression was done
-     * by us with no chance for corruption (apart, again, from bugs).
-     */
-    if(!uncompress_memory(p->memory, p->memsize)) die("error uncompressing memory: unable to continue");
-  }
+  /* If this fails it’s a bug: unlike Quetzal files, the contents of
+   * p->memory are known to be good, because the compression was done by
+   * us with no chance for corruption (apart, again, from bugs).
+   */
+  if(!uncompress_memory(p->memory, p->memsize)) die("error uncompressing memory: unable to continue");
 
   sp = BASE_OF_STACK + p->stack_size;
   memcpy(BASE_OF_STACK, p->stack, sizeof *sp * p->stack_size);
@@ -839,9 +833,9 @@ void zrestore_undo(void)
 
 /* Quetzal save/restore functions. */
 static jmp_buf exception;
-#define WRITE8(v)  do { uint8_t  v_ = (v); if(zterp_io_write(savefile, &v_, sizeof v_) != sizeof v_) longjmp(exception, 1); local_written += 1; } while(0)
-#define WRITE16(v) do { uint16_t w_ = (v); WRITE8(w_ >>  8); WRITE8(w_ & 0xff); } while(0)
-#define WRITE32(v) do { uint32_t x_ = (v); WRITE8(x_ >> 24); WRITE8((x_ >> 16) & 0xff); WRITE8((x_ >> 8) & 0xff); WRITE8(x_ & 0xff); } while(0)
+#define WRITE8(v)  do { uint8_t  v_ = (v); if(zterp_io_write(savefile, &v_, sizeof v_) != sizeof v_) longjmp(exception, 1); local_written += 1; } while(false)
+#define WRITE16(v) do { uint16_t w_ = (v); WRITE8(w_ >>  8); WRITE8(w_ & 0xff); } while(false)
+#define WRITE32(v) do { uint32_t x_ = (v); WRITE8(x_ >> 24); WRITE8((x_ >> 16) & 0xff); WRITE8((x_ >> 8) & 0xff); WRITE8(x_ & 0xff); } while(false)
 #define WRITEID(v) WRITE32(STRID(v))
 
 static size_t quetzal_write_stack(zterp_io *savefile)
@@ -969,7 +963,7 @@ static uint8_t *memory_backup;
 static uint16_t *stack_backup;
 static int stack_backup_size;
 static struct call_frame *frames_backup;
-static int frames_backup_size;
+static long frames_backup_size;
 
 static void memory_snapshot_free(void)
 {
@@ -999,7 +993,7 @@ static void memory_snapshot(void)
     memcpy(stack_backup, stack, stack_backup_size * sizeof *stack);
   }
 
-  frames_backup_size = fp - frames;
+  frames_backup_size = NFRAMES;
   if(frames_backup_size != 0)
   {
     frames_backup = malloc(frames_backup_size * sizeof *frames);
@@ -1032,8 +1026,8 @@ static bool memory_restore(void)
   return true;
 }
 
-#define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(0)
-#define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(0)
+#define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(false)
+#define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(false)
 
 static bool restore_quetzal(zterp_io *savefile, bool is_meta)
 {
@@ -1114,7 +1108,7 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
     nlocals = frame[3] & 0xf;
     nstack = (frame[6] << 8) | frame[7];
     frame[5]++;
-    while(frame[5] >>= 1) nargs++;
+    while((frame[5] >>= 1) != 0) nargs++;
 
     add_frame((frame[0] << 16) | (frame[1] << 8) | frame[2], sp, nlocals, nargs, (frame[3] & 0x10) ? 0xff + 1 : frame[4]);
 

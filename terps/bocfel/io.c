@@ -38,14 +38,23 @@
 
 struct zterp_io
 {
-  enum type { IO_STDIO, IO_GLK } type;
+  enum type
+  {
+    IO_STDIO,
+#ifdef ZTERP_GLK
+    IO_GLK,
+#endif
+  } type;
 
-  FILE *fp;
+  union
+  {
+    FILE *stdio;
+#ifdef ZTERP_GLK
+    strid_t glk;
+#endif
+  } file;
   enum zterp_io_mode mode;
   enum zterp_io_purpose purpose;
-#ifdef ZTERP_GLK
-  strid_t file;
-#endif
 };
 
 /* Certain streams are intended for use in text mode: stdin/stdout,
@@ -119,8 +128,8 @@ zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zter
   if(filename != NULL)
   {
     io->type = IO_STDIO;
-    io->fp = fopen(filename, smode);
-    if(io->fp == NULL) goto err;
+    io->file.stdio = fopen(filename, smode);
+    if(io->file.stdio == NULL) goto err;
   }
   /* Prompt. */
   else
@@ -132,9 +141,9 @@ zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zter
     if(ref == NULL) goto err;
 
     io->type = IO_GLK;
-    io->file = glk_stream_open_file(ref, filemode, 0);
+    io->file.glk = glk_stream_open_file(ref, filemode, 0);
     glk_fileref_destroy(ref);
-    if(io->file == NULL) goto err;
+    if(io->file.glk == NULL) goto err;
 #else
     char fn[MAX_PATH], *p;
 
@@ -145,8 +154,8 @@ zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zter
     if(p != NULL) *p = 0;
 
     io->type = IO_STDIO;
-    io->fp = fopen(fn, smode);
-    if(io->fp == NULL) goto err;
+    io->file.stdio = fopen(fn, smode);
+    if(io->file.stdio == NULL) goto err;
 #endif
   }
 
@@ -162,12 +171,12 @@ const zterp_io *zterp_io_stdin(void)
 {
   static zterp_io io;
 
-  if(io.fp == NULL)
+  if(io.file.stdio == NULL)
   {
     io.type = IO_STDIO;
     io.mode = ZTERP_IO_RDONLY;
     io.purpose = ZTERP_IO_INPUT;
-    io.fp = stdin;
+    io.file.stdio = stdin;
   }
 
   return &io;
@@ -177,12 +186,12 @@ const zterp_io *zterp_io_stdout(void)
 {
   static zterp_io io;
 
-  if(io.fp == NULL)
+  if(io.file.stdio == NULL)
   {
     io.type = IO_STDIO;
     io.mode = ZTERP_IO_WRONLY;
     io.purpose = ZTERP_IO_TRANS;
-    io.fp = stdout;
+    io.file.stdio = stdout;
   }
 
   return &io;
@@ -193,12 +202,12 @@ void zterp_io_close(zterp_io *io)
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
   {
-    glk_stream_close(io->file, NULL);
+    glk_stream_close(io->file.glk, NULL);
   }
   else
 #endif
   {
-    fclose(io->fp);
+    fclose(io->file.stdio);
   }
 
   free(io);
@@ -214,13 +223,13 @@ bool zterp_io_seek(const zterp_io *io, long offset, int whence)
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
   {
-    glk_stream_set_position(io->file, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
-    return true; /* dammit */
+    glk_stream_set_position(io->file.glk, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
+    return true; /* glk_stream_set_position can’t signal failure */
   }
   else
 #endif
   {
-    return fseek(io->fp, offset, whence) == 0;
+    return fseek(io->file.stdio, offset, whence) == 0;
   }
 }
 
@@ -229,12 +238,12 @@ long zterp_io_tell(const zterp_io *io)
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
   {
-    return glk_stream_get_position(io->file);
+    return glk_stream_get_position(io->file.glk);
   }
   else
 #endif
   {
-    return ftell(io->fp);
+    return ftell(io->file.stdio);
   }
 }
 
@@ -243,19 +252,31 @@ long zterp_io_tell(const zterp_io *io)
  */
 size_t zterp_io_read(const zterp_io *io, void *buf, size_t n)
 {
+  size_t total = 0;
+
+  while(total < n)
+  {
+    size_t s;
 #ifdef ZTERP_GLK
-  if(io->type == IO_GLK)
-  {
-    glui32 s = glk_get_buffer_stream(io->file, buf, n);
-    /* This should only happen if io->file is invalid. */
-    if(s == (glui32)-1) s = 0;
-    return s;
-  }
-  else
+    if(io->type == IO_GLK)
+    {
+      glui32 s32 = glk_get_buffer_stream(io->file.glk, buf, n - total);
+      /* This should only happen if io->file.glk is invalid. */
+      if(s32 == (glui32)-1) break;
+      s = s32;
+    }
+    else
 #endif
-  {
-    return fread(buf, 1, n, io->fp);
+    {
+      s = fread(buf, 1, n - total, io->file.stdio);
+    }
+
+    if(s == 0) break;
+    total += s;
+    buf = ((char *)buf) + s;
   }
+
+  return total;
 }
 
 size_t zterp_io_write(const zterp_io *io, const void *buf, size_t n)
@@ -263,13 +284,21 @@ size_t zterp_io_write(const zterp_io *io, const void *buf, size_t n)
 #ifdef ZTERP_GLK
   if(io->type == IO_GLK)
   {
-    glk_put_buffer_stream(io->file, (char *)buf, n);
-    return n; /* dammit */
+    glk_put_buffer_stream(io->file.glk, (char *)buf, n);
+    return n; /* glk_put_buffer_stream() can’t signal a short write */
   }
   else
 #endif
   {
-    return fwrite(buf, 1, n, io->fp);
+    size_t s, total = 0;
+
+    while(total < n && (s = fwrite(buf, 1, n - total, io->file.stdio)) > 0)
+    {
+      total += s;
+      buf = ((const char *)buf) + s;
+    }
+
+    return total;
   }
 }
 
@@ -298,10 +327,8 @@ bool zterp_io_read32(const zterp_io *io, uint32_t *v)
 /* Read a byte and make sure it’s part of a valid UTF-8 sequence. */
 static bool read_byte(const zterp_io *io, uint8_t *c)
 {
-  if(zterp_io_read(io, c, sizeof *c) != sizeof *c) return false;
-  if((*c & 0x80) != 0x80) return false;
-
-  return true;
+  return (zterp_io_read(io, c, sizeof *c) == sizeof *c) &&
+         ((*c & 0x80) == 0x80);
 }
 
 /* zterp_io_getc() and zterp_io_putc() are meant to operate in terms of
@@ -437,7 +464,7 @@ long zterp_io_filesize(const zterp_io *io)
 {
   if(io->type == IO_STDIO && !textmode(io))
   {
-    return zterp_os_filesize(io->fp);
+    return zterp_os_filesize(io->file.stdio);
   }
   else
   {
@@ -449,5 +476,5 @@ void zterp_io_flush(const zterp_io *io)
 {
   if(io == NULL || io->type != IO_STDIO || (io->mode != ZTERP_IO_WRONLY && io->mode != ZTERP_IO_APPEND)) return;
 
-  fflush(io->fp);
+  fflush(io->file.stdio);
 }

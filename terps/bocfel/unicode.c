@@ -36,14 +36,14 @@
 #define UNICODE_TABLE_SIZE	97
 static int unicode_entries = 69;
 static uint16_t unicode_table[UNICODE_TABLE_SIZE] = {
-0x00e4, 0x00f6, 0x00fc, 0x00c4, 0x00d6, 0x00dc, 0x00df, 0x00bb, 0x00ab,
-0x00eb, 0x00ef, 0x00ff, 0x00cb, 0x00cf, 0x00e1, 0x00e9, 0x00ed, 0x00f3,
-0x00fa, 0x00fd, 0x00c1, 0x00c9, 0x00cd, 0x00d3, 0x00da, 0x00dd, 0x00e0,
-0x00e8, 0x00ec, 0x00f2, 0x00f9, 0x00c0, 0x00c8, 0x00cc, 0x00d2, 0x00d9,
-0x00e2, 0x00ea, 0x00ee, 0x00f4, 0x00fb, 0x00c2, 0x00ca, 0x00ce, 0x00d4,
-0x00db, 0x00e5, 0x00c5, 0x00f8, 0x00d8, 0x00e3, 0x00f1, 0x00f5, 0x00c3,
-0x00d1, 0x00d5, 0x00e6, 0x00c6, 0x00e7, 0x00c7, 0x00fe, 0x00f0, 0x00de,
-0x00d0, 0x00a3, 0x0153, 0x0152, 0x00a1, 0x00bf,
+  0x00e4, 0x00f6, 0x00fc, 0x00c4, 0x00d6, 0x00dc, 0x00df, 0x00bb, 0x00ab,
+  0x00eb, 0x00ef, 0x00ff, 0x00cb, 0x00cf, 0x00e1, 0x00e9, 0x00ed, 0x00f3,
+  0x00fa, 0x00fd, 0x00c1, 0x00c9, 0x00cd, 0x00d3, 0x00da, 0x00dd, 0x00e0,
+  0x00e8, 0x00ec, 0x00f2, 0x00f9, 0x00c0, 0x00c8, 0x00cc, 0x00d2, 0x00d9,
+  0x00e2, 0x00ea, 0x00ee, 0x00f4, 0x00fb, 0x00c2, 0x00ca, 0x00ce, 0x00d4,
+  0x00db, 0x00e5, 0x00c5, 0x00f8, 0x00d8, 0x00e3, 0x00f1, 0x00f5, 0x00c3,
+  0x00d1, 0x00d5, 0x00e6, 0x00c6, 0x00e7, 0x00c7, 0x00fe, 0x00f0, 0x00de,
+  0x00d0, 0x00a3, 0x0153, 0x0152, 0x00a1, 0x00bf,
 };
 
 /* If a non-default Unicode table is found, this function is called with
@@ -70,10 +70,10 @@ void parse_unicode_table(uint16_t utable)
  */
 uint16_t zscii_to_unicode[UINT8_MAX + 1];
 
-/* These tables translate a Unicode or (Latin-1) character into its
- * ZSCII equivalent.  Only valid Unicode characters are translated (that
- * is, those in the range 32–126, or 160 and above).  These are meant
- * for output, so do not translate delete and escape.
+/* These tables translate a Unicode or Latin-1 character into its ZSCII
+ * equivalent.  Only valid Unicode characters are translated (that is,
+ * those in the range 32–126, or 160 and above).  These are meant for
+ * output, so do not translate delete and escape.
  *
  * The first table will translate invalid Unicode characters to zero;
  * the second, to a question mark.
@@ -142,8 +142,8 @@ static void build_font3_table(void)
   zscii_to_font3[ 53] = options.enable_alt_graphics ? 0x2572 : 0x2518; /* ╲ or ┘ */
 
   zscii_to_font3[ 54] = 0x2588; /* █ */
-  zscii_to_font3[ 56] = 0x2584; /* ▄ */
   zscii_to_font3[ 55] = 0x2580; /* ▀ */
+  zscii_to_font3[ 56] = 0x2584; /* ▄ */
   zscii_to_font3[ 57] = 0x258c; /* ▌ */
   zscii_to_font3[ 58] = 0x2590; /* ▐ */
 
@@ -184,7 +184,7 @@ static void build_font3_table(void)
   zscii_to_font3[ 92] = 0x2191; /* ↑ */
   zscii_to_font3[ 93] = 0x2193; /* ↓ */
   zscii_to_font3[ 94] = 0x2195; /* ↕ */
-  zscii_to_font3[ 95] = 0x2b1c; /* ⬜ */
+  zscii_to_font3[ 95] = 0x2395; /* ⎕ */
   zscii_to_font3[ 96] = 0x003f; /* ? */
   zscii_to_font3[ 97] = 0x16aa; /* ᚪ */
   zscii_to_font3[ 98] = 0x16d2; /* ᛒ */
@@ -195,14 +195,14 @@ static void build_font3_table(void)
   zscii_to_font3[103] = 0x16b7; /* ᚷ */
   zscii_to_font3[104] = 0x16bb; /* ᚻ */
   zscii_to_font3[105] = 0x16c1; /* ᛁ */
-  zscii_to_font3[106] = 0x16e8; /* ᛨ */
+  zscii_to_font3[106] = 0x16c4; /* ᛄ */
   zscii_to_font3[107] = 0x16e6; /* ᛦ */
   zscii_to_font3[108] = 0x16da; /* ᛚ */
   zscii_to_font3[109] = 0x16d7; /* ᛗ */
   zscii_to_font3[110] = 0x16be; /* ᚾ */
   zscii_to_font3[111] = 0x16a9; /* ᚩ */
   zscii_to_font3[112] = 0x15be; /* ᖾ */
-  zscii_to_font3[113] = 0x0068; /* Unicode 'h'; close to the rune. */
+  zscii_to_font3[113] = 0x16b3; /* ᚳ */
   zscii_to_font3[114] = 0x16b1; /* ᚱ */
   zscii_to_font3[115] = 0x16cb; /* ᛋ */
   zscii_to_font3[116] = 0x16cf; /* ᛏ */
@@ -253,8 +253,11 @@ void setup_tables(void)
   zscii_to_unicode[0] = 0;
   zscii_to_unicode[ZSCII_NEWLINE] = UNICODE_LINEFEED;
 
-  if(zversion == 6) zscii_to_unicode[ 9] = UNICODE_SPACE; /* Tab. */
-  if(zversion == 6) zscii_to_unicode[11] = UNICODE_SPACE; /* Sentence space. */
+  if(zversion == 6)
+  {
+    zscii_to_unicode[ 9] = UNICODE_SPACE; /* Tab. */
+    zscii_to_unicode[11] = UNICODE_SPACE; /* Sentence space. */
+  }
 
   for(int i = 32; i < 127; i++) zscii_to_unicode[i] = i;
   for(int i = 0; i < unicode_entries; i++)

@@ -32,12 +32,6 @@
 uint8_t *memory, *dynamic_memory;
 uint32_t memory_size;
 
-/* The Z-machine does not require aligned memory access, so
- * both even and odd addresses must be checked.  However,
- * global variables are word-sized, so if an address inside
- * the global variables has changed, report only if the
- * address is the base of globals plus a multiple of two.
- */
 bool in_globals(uint16_t addr)
 {
   return addr >= header.globals && addr < header.globals + 480;
@@ -66,7 +60,8 @@ const char *addrstring(uint16_t addr)
 void user_store_byte(uint16_t addr, uint8_t v)
 {
   /* If safety checks are off, there’s no point in checking these
-   * special cases. */
+   * special cases.
+   */
 #ifndef ZTERP_NO_SAFETY_CHECKS
 #ifdef ZTERP_TANDY
   if(addr == 0x01)

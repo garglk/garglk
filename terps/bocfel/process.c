@@ -337,11 +337,11 @@ void process_instructions(void)
       break;
   }
 
-  while(1)
+  while(true)
   {
     uint8_t opcode;
 
-#if defined(ZTERP_GLK) && defined(ZTERP_GLK_TICK)
+#ifdef ZTERP_GLK_TICK
     glk_tick();
 #endif
 
@@ -386,14 +386,6 @@ void process_instructions(void)
       znargs = 0;
     }
 
-    /* variable 2OP */
-    else if(opcode < 0xe0)
-    {
-      znargs = 0;
-
-      decode_var(byte(pc++));
-    }
-
     /* Double variable VAR */
     else if(opcode == 0xec || opcode == 0xfa)
     {
@@ -407,7 +399,7 @@ void process_instructions(void)
       decode_var(types2);
     }
 
-    /* variable VAR */
+    /* variable 2OP and VAR */
     else
     {
       znargs = 0;

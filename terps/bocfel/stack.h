@@ -17,7 +17,7 @@ uint16_t variable(uint16_t);
 void store_variable(uint16_t, uint16_t);
 uint16_t *stack_top_element(void);
 
-void call(int);
+void start_v6(void);
 #ifdef ZTERP_GLK
 uint16_t direct_call(uint16_t);
 #endif

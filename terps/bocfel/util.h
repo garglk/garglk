@@ -36,7 +36,7 @@ static inline int16_t as_signed(uint16_t n) { return n; }
 zprintflike(1, 2)
 znoreturn
 void assert_fail(const char *, ...);
-#define ZASSERT(expr, ...)	do { if(!(expr)) assert_fail(__VA_ARGS__); } while(0)
+#define ZASSERT(expr, ...)	do { if(!(expr)) assert_fail(__VA_ARGS__); } while(false)
 #else
 #define ZASSERT(expr, ...)	((void)0)
 #endif

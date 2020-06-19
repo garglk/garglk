@@ -32,7 +32,6 @@ struct options
   bool transcript_on;
   char *transcript_name;
   long max_saves;
-  bool disable_undo_compression;
   bool show_version;
   bool disable_abbreviations;
   bool enable_censorship;
@@ -44,6 +43,8 @@ struct options
 
 extern const char *game_file;
 extern struct options options;
+
+#define ZTERP_VERSION	"1.1"
 
 /* v3 */
 #define FLAGS1_STATUSTYPE	(1U << 1)
