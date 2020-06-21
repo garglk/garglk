@@ -29,8 +29,34 @@
 #include "util.h"
 #include "zterp.h"
 
-static uint16_t separators;
-static uint8_t num_separators;
+struct dictionary
+{
+  uint16_t addr;
+  uint8_t num_separators;
+  uint16_t separators;
+  uint8_t entry_length;
+  long num_entries;
+  uint16_t base;
+};
+
+static struct dictionary new_dictionary(uint16_t addr)
+{
+  uint8_t num_separators = user_byte(addr);
+
+  struct dictionary dictionary = (struct dictionary) {
+    .addr = addr,
+    .num_separators = num_separators,
+    .separators = addr + 1,
+    .entry_length = user_byte(addr + num_separators + 1),
+    .num_entries = as_signed(user_word(addr + num_separators + 2)),
+    .base = addr + 1 + num_separators + 1 + 2,
+  };
+
+  ZASSERT(dictionary.entry_length >= (zversion <= 3 ? 4 : 6), "dictionary entry length (%d) too small", dictionary.entry_length);
+  ZASSERT(dictionary.base + (labs(dictionary.num_entries) * dictionary.entry_length) < memory_size, "reported dictionary length extends beyond memory size");
+
+  return dictionary;
+}
 
 static uint16_t get_word(const uint8_t *base)
 {
@@ -112,7 +138,7 @@ static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8
       int shift = pos / 26;
       int c = pos % 26;
 
-      if(shift) add_zchar(shiftbase + shift, n++, encoded);
+      if(shift > 0) add_zchar(shiftbase + shift, n++, encoded);
       add_zchar(c + 6, n++, encoded);
     }
     else
@@ -138,32 +164,22 @@ static int dict_compar(const void *a, const void *b)
 {
   return memcmp(a, b, zversion <= 3 ? 4 : 6);
 }
-static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
+static uint16_t dict_find(const uint8_t *token, size_t len, const struct dictionary *dictionary)
 {
-  uint8_t elength;
-  uint16_t base;
-  long nentries;
   const uint8_t *ret = NULL;
   uint8_t encoded[8];
 
   encode_string(token, len, encoded);
 
-  elength = user_byte(dictionary + num_separators + 1);
-  nentries = as_signed(user_word(dictionary + num_separators + 2));
-  base = dictionary + num_separators + 2 + 2;
-
-  ZASSERT(elength >= (zversion <= 3 ? 4 : 6), "dictionary entry length (%d) too small", elength);
-  ZASSERT(base + (labs(nentries) * elength) < memory_size, "reported dictionary length extends beyond memory size");
-
-  if(nentries > 0)
+  if(dictionary->num_entries > 0)
   {
-    ret = bsearch(encoded, &memory[base], nentries, elength, dict_compar);
+    ret = bsearch(encoded, &memory[dictionary->base], dictionary->num_entries, dictionary->entry_length, dict_compar);
   }
   else
   {
-    for(long i = 0; i < -nentries; i++)
+    for(long i = 0; i < -dictionary->num_entries; i++)
     {
-      const uint8_t *entry = &memory[base + (i * elength)];
+      const uint8_t *entry = &memory[dictionary->base + (i * dictionary->entry_length)];
 
       if(dict_compar(encoded, entry) == 0)
       {
@@ -175,19 +191,19 @@ static uint16_t dict_find(const uint8_t *token, size_t len, uint16_t dictionary)
 
   if(ret == NULL) return 0;
 
-  return base + (ret - &memory[base]);
+  return dictionary->base + (ret - &memory[dictionary->base]);
 }
 
-static bool is_sep(uint8_t c)
+static bool is_sep(uint8_t c, const struct dictionary *dictionary)
 {
   if(c == ZSCII_SPACE) return true;
 
-  for(uint16_t i = 0; i < num_separators; i++) if(user_byte(separators + i) == c) return true;
+  for(uint16_t i = 0; i < dictionary->num_separators; i++) if(byte(dictionary->separators + i) == c) return true;
 
   return false;
 }
 
-static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement, size_t replen, uint16_t dictionary)
+static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement, size_t replen, const struct dictionary *dictionary)
 {
   uint16_t d;
 
@@ -198,18 +214,17 @@ static uint16_t lookup_replacement(uint16_t original, const uint8_t *replacement
   return d;
 }
 
-static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, uint16_t dictionary, int found, bool flag, bool start_of_sentence)
+static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, uint16_t parse, const struct dictionary *dictionary, int found, bool flag, bool start_of_sentence)
 {
   uint16_t d;
 
   d = dict_find(token, len, dictionary);
 
   if(
-      zversion < 5 &&
+      len == 1 &&
       is_infocom_v1234 &&
       start_of_sentence &&
-      !options.disable_abbreviations &&
-      len == 1)
+      !options.disable_abbreviations)
   {
     const uint8_t examine[] = { 'e', 'x', 'a', 'm', 'i', 'n', 'e' };
     const uint8_t again[] = { 'a', 'g', 'a', 'i', 'n' };
@@ -253,7 +268,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
  * • The next byte is the length of the token.
  * • The final byte is the offset in the string of the token.
  */
-void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
+void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
 {
   const uint8_t *p, *lastp;
   const uint8_t *string;
@@ -262,13 +277,13 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
   bool in_word = false;
   int found = 0;
   bool start_of_sentence = true;
+  struct dictionary dictionary;
 
-  if(dictionary == 0) dictionary = header.dictionary;
+  if(dictaddr == 0) dictaddr = header.dictionary;
 
-  ZASSERT(dictionary != 0, "attempt to tokenize without a valid dictionary");
+  ZASSERT(dictaddr != 0, "attempt to tokenize without a valid dictionary");
 
-  num_separators = user_byte(dictionary);
-  separators = dictionary + 1;
+  dictionary = new_dictionary(dictaddr);
 
   if(zversion >= 5) text_len = user_byte(text + 1);
   else              while(user_byte(text + 1 + text_len) != 0) text_len++;
@@ -277,31 +292,33 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
 
   string = &memory[text + 1 + (zversion >= 5)];
 
-  for(p = string; p - string < text_len && *p == ZSCII_SPACE; p++);
+  for(p = string; p - string < text_len && *p == ZSCII_SPACE; p++)
+  {
+  }
   lastp = p;
 
   text_len -= (p - string);
 
   do
   {
-    if(!in_word && text_len != 0 && !is_sep(*p))
+    if(!in_word && text_len != 0 && !is_sep(*p, &dictionary))
     {
       in_word = true;
       lastp = p;
     }
 
-    if(text_len == 0 || is_sep(*p))
+    if(text_len == 0 || is_sep(*p, &dictionary))
     {
       if(in_word)
       {
-        handle_token(string, lastp, p - lastp, parse, dictionary, found++, flag, start_of_sentence);
+        handle_token(string, lastp, p - lastp, parse, &dictionary, found++, flag, start_of_sentence);
         start_of_sentence = false;
       }
 
       /* §13.6.1: Separators (apart from a space) are tokens too. */
       if(text_len != 0 && *p != ZSCII_SPACE)
       {
-        handle_token(string, p, 1, parse, dictionary, found++, flag, start_of_sentence);
+        handle_token(string, p, 1, parse, &dictionary, found++, flag, start_of_sentence);
 
         start_of_sentence = *p == '.';
       }
@@ -313,7 +330,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictionary, bool flag)
 
     p++;
 
-  } while(text_len--);
+  } while(text_len-- > 0);
 
   user_store_byte(parse + 1, found);
 }
@@ -334,7 +351,7 @@ void ztokenise(void)
   if(znargs < 3) zargs[2] = 0;
   if(znargs < 4) zargs[3] = 0;
 
-  tokenize(zargs[0], zargs[1], zargs[2], zargs[3]);
+  tokenize(zargs[0], zargs[1], zargs[2], zargs[3] != 0);
 }
 
 void zencode_text(void)

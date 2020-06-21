@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-void init_sound(bool);
+void init_sound(void);
 bool sound_loaded(void);
 
 void zsound_effect(void);

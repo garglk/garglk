@@ -94,8 +94,16 @@ void help(void)
 #include "help.h"
   };
 
+  /* It’s too early to properly set up all tables (neither the alphabet
+   * nor Unicode table has been read from the story file), but since
+   * help() prints to the screen, it needs to at least have the basic
+   * tables created so that non-Unicode platforms have proper
+   * translations available.
+   */
+  setup_tables();
+
 #ifdef ZTERP_GLK
-    glk_set_style(style_Preformatted);
+  glk_set_style(style_Preformatted);
 #endif
 
   screen_puts("Usage: bocfel [args] filename");
@@ -180,7 +188,7 @@ void process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikl:mn:N:prR:sS:tT:u:UvxXyYz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -264,9 +272,6 @@ void process_arguments(int argc, char **argv)
         break;
       case 'u':
         options.max_saves = strtol(zoptarg, NULL, 10);
-        break;
-      case 'U':
-        options.disable_undo_compression = true;
         break;
       case 'v':
         options.show_version = true;

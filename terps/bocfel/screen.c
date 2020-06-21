@@ -16,6 +16,7 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
@@ -26,6 +27,20 @@
 
 #ifdef ZTERP_GLK
 #include <glk.h>
+
+#if defined(ZTERP_WIN32) && !defined(GARGLK)
+/* rpcndr.h, eventually included via WinGlk.h, defines a type “byte”
+ * which conflicts with the “byte” from memory.h. Temporarily redefine
+ * it to avoid a compile error.
+ */
+#define byte rpc_byte
+/* Windows Glk puts non-standard declarations (specifically for this
+ * file, those guarded by GLK_MODULE_GARGLKTEXT) in WinGlk.h, so include
+ * it to get color/style extensions.
+ */
+#include <WinGlk.h>
+#undef byte
+#endif
 #endif
 
 #include "screen.h"
@@ -52,9 +67,14 @@ bool header_fixed_font;
  */
 static bool have_unicode;
 
+#define ANSI_COLOR(c)	((struct color) { .mode = ColorModeANSI, .value = c })
+#define TRUE_COLOR(c)	((struct color) { .mode = ColorModeTrue, .value = c })
+#define DEFAULT_COLOR()	((struct color) { .mode = ColorModeDefault })
+
 static struct window
 {
   unsigned style;
+  struct color fg_color, bg_color;
 
   enum font { FONT_NONE = -1, FONT_PREVIOUS, FONT_NORMAL, FONT_PICTURE, FONT_CHARACTER, FONT_FIXED } font;
   enum font prev_font;
@@ -79,10 +99,10 @@ static long upper_window_width = 0;
 static winid_t errorwin;
 #endif
 
-/* In all versions but 6, styles are global and stored in mainwin.  For
- * V6, styles are tracked per window and thus stored in each individual
- * window.  For convenience, this macro expands to the “style window”
- * for any version.
+/* In all versions but 6, styles and colors are global and stored in
+ * mainwin. For V6, they’re tracked per window and thus stored in each
+ * individual window. For convenience, this macro expands to the “style
+ * window” for any version.
  */
 #define style_window	(zversion == 6 ? curwin : mainwin)
 
@@ -108,12 +128,13 @@ static winid_t errorwin;
 static unsigned int streams = STREAM_SCREEN;
 static zterp_io *transio, *scriptio;
 
+#define MAX_STREAM_TABLES	16
 static struct
 {
   uint16_t table;
   uint16_t i;
-} stables[16];
-static int stablei = -1;
+} stream_tables[MAX_STREAM_TABLES];
+static int stream_tables_index = -1;
 
 static int istream = ISTREAM_KEYBOARD;
 static zterp_io *istreamio;
@@ -139,11 +160,26 @@ struct input
   uint8_t term;
 };
 
-#ifndef ZTERP_GLK
-static int16_t fg_color = 1, bg_color = 1;
-#elif defined(GARGLK)
+/* Convert a 15-bit color to a 24-bit color. */
+uint32_t screen_convert_color(uint16_t color)
+{
+  /* Map 5-bit color values to 8-bit. */
+  const uint8_t table[] = {
+    0x00, 0x08, 0x10, 0x19, 0x21, 0x29, 0x31, 0x3a,
+    0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
+    0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
+    0xc5, 0xce, 0xd6, 0xde, 0xe6, 0xef, 0xf7, 0xff
+  };
+
+  return table[(color >>  0) & 0x1f] << 16 |
+         table[(color >>  5) & 0x1f] <<  8 |
+         table[(color >> 10) & 0x1f] <<  0;
+}
+
+#ifdef GLK_MODULE_GARGLKTEXT
 static glui32 zcolor_map[] = {
-  zcolor_Default,
+  0,
+  0,
 
   0x000000,	/* Black */
   0xef0000,	/* Red */
@@ -157,17 +193,14 @@ static glui32 zcolor_map[] = {
   0x8c8c8c,	/* Medium grey */
   0x5a5a5a,	/* Dark grey */
 };
-static glui32 fg_color = zcolor_Default, bg_color = zcolor_Default;
 
 void update_color(int which, unsigned long color)
 {
   if(which < 2 || which > 12) return;
 
-  zcolor_map[which - 1] = color;
+  zcolor_map[which] = color;
 }
-#endif
 
-#ifdef GARGLK
 /* Idea from Nitfol. */
 static const int style_map[] =
 {
@@ -189,24 +222,36 @@ static const int style_map[] =
   style_Note,		/* Bold Italic Fixed */
   style_Note,		/* Bold Italic Fixed */
 };
+
+static glui32 gargoyle_color(const struct color *color)
+{
+  switch(color->mode)
+  {
+    case ColorModeANSI:
+      return zcolor_map[color->value];
+    case ColorModeTrue:
+      return screen_convert_color(color->value);
+    case ColorModeDefault:
+      return zcolor_Default;
+  }
+
+  return zcolor_Current;
+}
 #endif
 
 #ifdef ZTERP_GLK
 /* This macro makes it so that code elsewhere needn’t check have_unicode before printing. */
-#define GLK_PUT_CHAR(c)		do { if(!have_unicode) glk_put_char(unicode_to_latin1[c]); else glk_put_char_uni(c); } while(0)
-
-/* Yes, there are three ways to indicate that a fixed-width font should be used. */
-#define use_fixed_font() (header_fixed_font || curwin->font == FONT_FIXED || (style & STYLE_FIXED))
+#define GLK_PUT_CHAR(c)		do { if(!have_unicode) glk_put_char(unicode_to_latin1[c]); else glk_put_char_uni(c); } while(false)
 #endif
 
 void set_current_style(void)
 {
-  unsigned style = style_window->style;
 #ifdef ZTERP_GLK
+  unsigned style = style_window->style;
   if(curwin->id == NULL) return;
 
-#ifdef GARGLK
-  if(use_fixed_font()) style |= STYLE_FIXED;
+#ifdef GLK_MODULE_GARGLKTEXT
+  if(curwin->font == FONT_FIXED || header_fixed_font) style |= STYLE_FIXED;
 
   if(options.disable_fixed) style &= ~STYLE_FIXED;
 
@@ -216,8 +261,11 @@ void set_current_style(void)
 
   garglk_set_reversevideo(style & STYLE_REVERSE);
 
-  garglk_set_zcolors(fg_color, bg_color);
+  garglk_set_zcolors(gargoyle_color(&style_window->fg_color), gargoyle_color(&style_window->bg_color));
 #else
+  /* Yes, there are three ways to indicate that a fixed-width font should be used. */
+  bool use_fixed_font = (style & STYLE_FIXED) || curwin->font == FONT_FIXED || header_fixed_font;
+
   /* Glk can’t mix other styles with fixed-width, but the upper window
    * is always fixed, so if it is selected, there is no need to
    * explicitly request it here.  In addition, the user can disable
@@ -226,7 +274,7 @@ void set_current_style(void)
    * to request a fixed font.
    * This means that another style can also be applied if applicable.
    */
-  if(use_fixed_font() &&
+  if(use_fixed_font &&
      !options.disable_fixed &&
      !options.assume_fixed &&
      curwin != upperwin)
@@ -244,11 +292,9 @@ void set_current_style(void)
   else                           glk_set_style(style_Normal);
 #endif
 #else
-  zterp_os_set_style(style, fg_color, bg_color);
+  zterp_os_set_style(style_window->style, &style_window->fg_color, &style_window->bg_color);
 #endif
 }
-
-#undef use_fixed_font
 
 #ifdef ZTERP_GLK
 /* Both the upper and lower windows have their own issues to deal with
@@ -321,7 +367,7 @@ static void cancel_read_events(struct window *window)
       for(int i = 0; i < input.len; i++)
       {
         if(have_unicode) line[i] = window->line->unicode[i];
-        else             line[i] = window->line->latin1 [i];
+        else             line[i] = (unsigned char)window->line->latin1 [i];
       }
 
       cleanup_screen(&input);
@@ -342,12 +388,12 @@ static void put_char_base(uint16_t c, bool unicode)
 
   if(streams & STREAM_MEMORY)
   {
-    ZASSERT(stablei != -1, "invalid stream table");
+    ZASSERT(stream_tables_index != -1, "invalid stream table");
 
     /* When writing to memory, ZSCII should always be used (§7.5.3). */
     if(unicode) c = unicode_to_zscii_q[c];
 
-    user_store_byte(stables[stablei].table + stables[stablei].i++, c);
+    user_store_byte(stream_tables[stream_tables_index].table + stream_tables[stream_tables_index].i++, c);
   }
   else
   {
@@ -535,13 +581,19 @@ void show_message(const char *fmt, ...)
  */
 bool output_stream(int16_t number, uint16_t table)
 {
-  if(number > 0)
+  ZASSERT(labs(number) <= (zversion >= 3 ? 4 : 2), "invalid output stream selected: %ld", (long)number);
+
+  if(number == 0)
+  {
+    return true;
+  }
+  else if(number > 0)
   {
     streams |= 1U << number;
   }
   else if(number < 0)
   {
-    if(number != -3 || stablei == 0) streams &= ~(1U << -number);
+    if(number != -3 || stream_tables_index == 0) streams &= ~(1U << -number);
   }
 
   if(number == 2)
@@ -565,17 +617,18 @@ bool output_stream(int16_t number, uint16_t table)
 
   if(number == 3)
   {
-    stablei++;
-    ZASSERT(stablei < 16, "too many stream tables");
+    stream_tables_index++;
+    ZASSERT(stream_tables_index < MAX_STREAM_TABLES, "too many stream tables");
 
-    stables[stablei].table = table;
-    user_store_word(stables[stablei].table, 0);
-    stables[stablei].i = 2;
+    stream_tables[stream_tables_index].table = table;
+    user_store_word(stream_tables[stream_tables_index].table, 0);
+    stream_tables[stream_tables_index].i = 2;
   }
-  else if(number == -3 && stablei >= 0)
+  else if(number == -3 && stream_tables_index >= 0)
   {
-    user_store_word(stables[stablei].table, stables[stablei].i - 2);
-    stablei--;
+    user_store_word(stream_tables[stream_tables_index].table, stream_tables[stream_tables_index].i - 2);
+    if(zversion == 6) store_word(0x30, stream_tables[stream_tables_index].i - 2);
+    stream_tables_index--;
   }
 
   if(number == 4)
@@ -1058,7 +1111,6 @@ void zerase_window(void)
       clear_window(upperwin);
       break;
     default:
-      show_message("@erase_window: unhandled window: %d", as_signed(zargs[0]));
       break;
   }
 
@@ -1129,65 +1181,52 @@ void zget_cursor(void)
 #endif
 }
 
-/* A window argument may be supplied in V6, and this needs to be implemented. */
-void zset_colour(void)
+static bool prepare_color_opcode(int16_t *fg, int16_t *bg, struct window **win)
 {
   /* Glk (apart from Gargoyle) has no color support. */
-#if !defined(ZTERP_GLK) || defined(GARGLK)
-  int16_t fg = as_signed(zargs[0]), bg = as_signed(zargs[1]);
+#if !defined(ZTERP_GLK) || defined(GLK_MODULE_GARGLKTEXT)
+  if(options.disable_color) return false;
 
-  /* In V6, each window has its own color settings.  Since multiple
-   * windows are not supported, simply ignore all color requests except
-   * those in the main window.
-   */
-  if(zversion == 6 && curwin != mainwin) return;
+  *fg = as_signed(zargs[0]);
+  *bg = as_signed(zargs[1]);
+  *win = znargs == 3 ? find_window(zargs[2]) : style_window;
 
-  if(options.disable_color) return;
-
-  /* XXX -1 is a valid color in V6. */
-#ifdef GARGLK
-  if(fg >= 1 && fg <= (zversion >= 5 ? 12 : 9)) fg_color = zcolor_map[fg - 1];
-  if(bg >= 1 && bg <= (zversion >= 5 ? 12 : 9)) bg_color = zcolor_map[bg - 1];
+  return true;
 #else
-  if(fg >= 1 && fg <= 9) fg_color = fg;
-  if(bg >= 1 && bg <= 9) bg_color = bg;
-#endif
-
-  set_current_style();
+  return false;
 #endif
 }
 
-#ifdef GARGLK
-/* Convert a 15-bit color to a 24-bit color. */
-static glui32 convert_color(unsigned long color)
+void zset_colour(void)
 {
-  /* Map 5-bit color values to 8-bit. */
-  const uint8_t table[] = {
-    0x00, 0x08, 0x10, 0x19, 0x21, 0x29, 0x31, 0x3a,
-    0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
-    0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
-    0xc5, 0xce, 0xd6, 0xde, 0xe6, 0xef, 0xf7, 0xff
-  };
+  int16_t fg, bg;
+  struct window *win;
 
-  return table[(color >>  0) & 0x1f] << 16 |
-         table[(color >>  5) & 0x1f] <<  8 |
-         table[(color >> 10) & 0x1f] <<  0;
+  if(prepare_color_opcode(&fg, &bg, &win))
+  {
+    /* XXX -1 is a valid color in V6. */
+    if(fg >= 1 && fg <= 12) win->fg_color = fg == 1 ? DEFAULT_COLOR() : ANSI_COLOR(fg);
+    if(bg >= 1 && bg <= 12) win->bg_color = bg == 1 ? DEFAULT_COLOR() : ANSI_COLOR(bg);
+
+    set_current_style();
+  }
 }
-#endif
 
 void zset_true_colour(void)
 {
-#ifdef GARGLK
-  long fg = as_signed(zargs[0]), bg = as_signed(zargs[1]);
+  int16_t fg, bg;
+  struct window *win;
 
-  if     (fg >=  0) fg_color = convert_color(fg);
-  else if(fg == -1) fg_color = zcolor_Default;
+  if(prepare_color_opcode(&fg, &bg, &win))
+  {
+    if     (fg >=  0) win->fg_color = TRUE_COLOR(fg);
+    else if(fg == -1) win->fg_color = DEFAULT_COLOR();
 
-  if     (bg >=  0) bg_color = convert_color(bg);
-  else if(bg == -1) bg_color = zcolor_Default;
+    if     (bg >=  0) win->bg_color = TRUE_COLOR(bg);
+    else if(bg == -1) win->bg_color = DEFAULT_COLOR();
 
-  set_current_style();
-#endif
+    set_current_style();
+  }
 }
 
 /* V6 has per-window styles, but all others have a global style; in this
@@ -1624,7 +1663,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 
   if(istream == ISTREAM_FILE && istream_read_from_file(input)) return true;
 #ifdef ZTERP_GLK
-  int status = 0;
+  enum { InputWaiting, InputReceived, InputCanceled } status = InputWaiting;
   union line line;
   struct window *saved = NULL;
 
@@ -1655,7 +1694,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 
   if(timer != 0) start_timer(timer);
 
-  while(status == 0)
+  while(status == InputWaiting)
   {
     event_t ev;
 
@@ -1684,13 +1723,13 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
            */
           if(curwin != saved2) set_current_window(saved2);
 
-          if(ret)
+          if(ret != 0)
           {
-            status = 2;
+            status = InputCanceled;
           }
           else
           {
-            /* If this got reset to 0, that means an interrupt had to
+            /* If this got reset to false, that means an interrupt had to
              * cancel the read event in order to either read or write.
              */
             if(!curwin->pending_read)
@@ -1709,7 +1748,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
         ZASSERT(input->type == INPUT_CHAR, "got unexpected evtype_CharInput");
         ZASSERT(ev.win == curwin->id, "got evtype_CharInput on unexpected window");
 
-        status = 1;
+        status = InputReceived;
 
         switch(ev.val1)
         {
@@ -1755,7 +1794,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 #ifdef GLK_MODULE_LINE_TERMINATORS
         if(zversion >= 5) input->term = zscii_from_glk(ev.val2);
 #endif
-        status = 1;
+        status = InputReceived;
         break;
     }
   }
@@ -1772,7 +1811,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
      * it’s possible that line input echoing has been turned off and the
      * contents will need to be written out.
      */
-    if(status == 2)
+    if(status == InputCanceled)
     {
       event_t ev;
 
@@ -1791,7 +1830,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
   curwin->pending_read = false;
   curwin->line = NULL;
 
-  if(status == 1) saw_input = true;
+  if(status == InputReceived) saw_input = true;
 
   if(errorwin != NULL)
   {
@@ -1805,7 +1844,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
     glk_set_window(curwin->id);
   }
 
-  return status != 2;
+  return status != InputCanceled;
 #else
   if(input->type == INPUT_CHAR)
   {
@@ -1924,7 +1963,7 @@ void zshow_status(void)
 
   glk_window_get_size(statuswin.id, &width, &height);
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
   garglk_set_reversevideo(1);
 #else
   glk_set_style(style_Alert);
@@ -1981,22 +2020,40 @@ static bool read_handler(void)
 
   if(zversion >= 5)
   {
-    int i;
-
     input.preloaded = user_byte(text + 1);
     ZASSERT(input.preloaded <= maxchars, "too many preloaded characters: %d when max is %d", input.preloaded, maxchars);
 
-    for(i = 0; i < input.preloaded; i++) string[i] = zscii_to_unicode[user_byte(text + i + 2)];
-    string[i] = 0;
+#ifdef GARGLK
+    for(int i = 0; i < input.preloaded; i++)
+    {
+      uint16_t c = zscii_to_unicode[user_byte(text + i + 2)];
 
+      /* When using preloaded input (e.g. when the user hits F4), Beyond
+       * Zork displays the faked input text in uppercase, but preloads
+       * in lowercase. garglk_unput_string_uni() does a case-sensitive
+       * comparison, so fails to erase the printed text, resulting in
+       * something like “EXAMINEexamine” displayed to the user, with the
+       * lowercase “examine” being editable.
+       *
+       * When the game is Beyond Zork, convert preloaded input to
+       * uppercase, “knowing” that any preloaded characters will be
+       * valid to pass to toupper(): Bocfel requires ASCII (or a
+       * compatible character set), so this assumption is fine.
+       */
+      if(is_beyond_zork() && c < 256) string[i] = toupper(c);
+      else                            string[i] = c;
+    }
+
+    string[input.preloaded] = 0;
+    if(curwin->id != NULL) garglk_unput_string_uni(string);
+#else
     /* Under garglk, preloaded input works as it’s supposed to.
      * Under Glk, it can fail one of two ways:
      * 1. The preloaded text is printed out once, but is not editable.
      * 2. The preloaded text is printed out twice, the second being editable.
      * I have chosen option #2.  For non-Glk, option #1 is done by necessity.
      */
-#ifdef GARGLK
-    if(curwin->id != NULL) garglk_unput_string_uni(string);
+    for(int i = 0; i < input.preloaded; i++) string[i] = zscii_to_unicode[user_byte(text + i + 2)];
 #endif
   }
 
@@ -2302,7 +2359,7 @@ void zbuffer_screen(void)
   store(0);
 }
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
 /* Glk does not guarantee great control over how various styles are
  * going to look, but Gargoyle does.  Abusing the Glk “style hints”
  * functions allows for quite fine-grained control over style
@@ -2338,7 +2395,7 @@ bool create_mainwin(void)
   have_unicode = glk_gestalt(gestalt_Unicode, 0);
 #endif
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
   set_default_styles();
 
   /* Bold */
@@ -2435,6 +2492,7 @@ void init_screen(void)
   for(int i = 0; i < 8; i++)
   {
     windows[i].style = STYLE_NONE;
+    windows[i].fg_color = windows[i].bg_color = DEFAULT_COLOR();
     windows[i].font = FONT_NORMAL;
     windows[i].prev_font = FONT_NONE;
 
@@ -2459,15 +2517,8 @@ void init_screen(void)
 
   stop_timer();
 
-#ifdef GARGLK
-  fg_color = zcolor_Default;
-  bg_color = zcolor_Default;
-#endif
-
 #else
   have_unicode = true;
-  fg_color = 1;
-  bg_color = 1;
 #endif
 
   if(scriptio != NULL) zterp_io_close(scriptio);
@@ -2476,6 +2527,6 @@ void init_screen(void)
   input_stream(ISTREAM_KEYBOARD);
 
   streams = STREAM_SCREEN;
-  stablei = -1;
+  stream_tables_index = -1;
   set_current_window(mainwin);
 }

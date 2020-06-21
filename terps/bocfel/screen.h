@@ -10,6 +10,23 @@
 
 #include "util.h"
 
+/* Represents a Z-machine color.
+ *
+ * If mode is ColorModeANSI, value is a color in the range [1, 12],
+ * representing the colors as described in §8.3.1.
+ *
+ * If mode is ColorModeTrue, value is a 15-bit color as described in
+ * §8.3.7 and §15.
+ *
+ * If mode is ColorModeDefault, value is undefined, and the color
+ * represents a request for the default color.
+ */
+struct color
+{
+  enum { ColorModeANSI, ColorModeTrue, ColorModeDefault } mode;
+  uint16_t value;
+};
+
 /* Boolean flag describing whether the header bit meaning “fixed font” is set. */
 extern bool header_fixed_font;
 
@@ -21,6 +38,8 @@ bool create_upperwin(void);
 void get_screen_size(unsigned int *, unsigned int *);
 void close_upper_window(void);
 void cancel_all_events(void);
+
+uint32_t screen_convert_color(uint16_t);
 
 /* Text styles. */
 #define STYLE_NONE	(0U     )
@@ -41,7 +60,7 @@ void term_keys_reset(void);
 void term_keys_add(uint8_t);
 #endif
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
 void update_color(int, unsigned long);
 #endif
 

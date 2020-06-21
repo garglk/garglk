@@ -50,11 +50,23 @@ static const struct patch patches[] =
     .addr = 0x223ac, .n = 1, .expected = B(0x30), .replacement = B(0x2f),
   },
   {
+    .title = "Sherlock", .serial = "880112", .release = 22, .checksum = 0xcb96,
+    .addr = 0x225a4, .n = 1, .expected = B(0x30), .replacement = B(0x2f),
+  },
+  {
     .title = "Sherlock", .serial = "880127", .release = 26, .checksum = 0x26ba,
     .addr = 0x22818, .n = 1, .expected = B(0x30), .replacement = B(0x2f),
   },
+  {
+    .title = "Sherlock", .serial = "880324", .release = 4, .checksum = 0x7086,
+    .addr = 0x22498, .n = 1, .expected = B(0x30), .replacement = B(0x2f),
+  },
 
   /* The operands to @get_prop here are swapped, so swap them back. */
+  {
+    .title = "Stationfall", .serial = "870326", .release = 87, .checksum = 0x71ae,
+    .addr = 0xd3d4, .n = 3, .expected = B(0x31, 0x0c, 0x73), .replacement = B(0x51, 0x73, 0x0c),
+  },
   {
     .title = "Stationfall", .serial = "870430", .release = 107, .checksum = 0x2871,
     .addr = 0xe3fe, .n = 3, .expected = B(0x31, 0x0c, 0x77), .replacement = B(0x51, 0x77, 0x0c),

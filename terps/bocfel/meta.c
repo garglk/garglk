@@ -120,10 +120,16 @@ static void meta_debug_change_inc_dec(const char *string)
         int16_t new = as_signed(word(addr));
         int16_t old = as_signed((debug_change_memory[addr] << 8) | debug_change_memory[addr + 1]);
 
-#define CMP(a, b) (strcmp(string, "inc") == 0 ? a > b : a < b)
+#define CMP(a, b) (strcmp(string, "inc") == 0 ? (a) > (b) : (a) < (b))
         if(CMP(new, old))
 #undef CMP
         {
+          /* The Z-machine does not require aligned memory access, so
+           * both even and odd addresses must be checked.  However,
+           * global variables are word-sized, so if an address inside
+           * the global variables has changed, report only if the
+           * address is the base of globals plus a multiple of two.
+           */
           if(is_global(addr) || !in_globals(addr))
           {
             screen_printf("%s: %ld -> %ld\n", addrstring(addr), (long)old, (long)new);
@@ -229,7 +235,7 @@ static long parse_address(const char *string, bool *valid)
   if(string[0] == 'G' && ISXDIGIT(string[1]) && ISXDIGIT(string[2]) && string[3] == 0)
   {
     addr = parseint(string + 1, 16, valid);
-    if(addr < 0 || addr > 239) *valid = 0;
+    if(addr < 0 || addr > 239) *valid = false;
     addr = header.globals + (2 * addr);
   }
   else

@@ -47,8 +47,6 @@
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
-#define ZTERP_VERSION	"1.0.1"
-
 const char *game_file;
 struct options options = {
   .eval_stack_size = DEFAULT_STACK_SIZE,
@@ -77,7 +75,6 @@ struct options options = {
   .transcript_on = false,
   .transcript_name = NULL,
   .max_saves = 100,
-  .disable_undo_compression = false,
   .show_version = false,
   .disable_abbreviations = false,
   .enable_censorship = false,
@@ -291,15 +288,15 @@ static void read_config(void)
 
 #define BOOL(name)	else if(strcmp(key, #name) == 0) options.name = (n != 0)
 #define NUMBER(name)	else if(strcmp(key, #name) == 0) options.name = n
-#define STRING(name)	else if(strcmp(key, #name) == 0) do { free(options.name); options.name = xstrdup(val); } while(0)
+#define STRING(name)	else if(strcmp(key, #name) == 0) do { free(options.name); options.name = xstrdup(val); } while(false)
 #define CHAR(name)	else if(strcmp(key, #name) == 0) options.name = val[0]
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
 #define COLOR(name, num)else if(strcmp(key, "color_" #name) == 0) update_color(num, strtol(val, NULL, 16))
 #else
-#define COLOR(name, num)else if(0)
+#define COLOR(name, num)else if(false)
 #endif
 
-    if(0);
+    if(false);
 
     NUMBER(eval_stack_size);
     NUMBER(call_stack_size);
@@ -316,7 +313,6 @@ static void read_config(void)
     STRING(username);
     BOOL  (disable_meta_commands);
     NUMBER(max_saves);
-    BOOL  (disable_undo_compression);
     NUMBER(int_number);
     CHAR  (int_version);
     BOOL  (disable_patches);
@@ -399,7 +395,7 @@ void write_header(void)
 
 #ifdef ZTERP_GLK
     if(glk_gestalt(gestalt_Timer, 0)) flags1 |= FLAGS1_TIMED;
-#ifdef GARGLK
+#ifdef GLK_MODULE_GARGLKTEXT
     if(zversion >= 5) flags1 |= FLAGS1_COLORS;
 #endif
 #else
@@ -639,8 +635,7 @@ static void process_story(void)
    */
   if(options.escape_string == NULL) options.escape_string = xstrdup("1m");
 
-  /* If the offset is not zero, then this must be a Blorb file. */
-  if(!options.disable_sound) init_sound(story.offset > 0);
+  if(!options.disable_sound) init_sound();
 
   /* Now that we have a Unicode table and the user’s Unicode
    * preferences, build the ZSCII to Unicode and Unicode to ZSCII
@@ -696,8 +691,9 @@ static void process_story(void)
 
   if(zversion == 6)
   {
+    if(pc == 0) die("corrupted story: packed address 0 is invalid for initial pc");
     zargs[0] = pc;
-    call(0);
+    start_v6();
   }
 }
 
@@ -839,13 +835,6 @@ int main(int argc, char **argv)
 
   if(arg_status != ARG_OK)
   {
-    /* It’s too early to properly set up all tables (neither the
-     * alphabet nor Unicode table has been read from the story file),
-     * but since help() prints to the screen, it needs to at least have
-     * the basic tables created so that non-Unicode platforms have
-     * proper translations available.
-     */
-    setup_tables();
     help();
 #ifdef ZTERP_GLK
     glk_exit();
@@ -881,7 +870,7 @@ int main(int argc, char **argv)
 #endif
 
     zterp_os_rcfile(config, sizeof config);
-    screen_printf("Configuration file: %s", config);
+    screen_printf("Configuration file: %s\n", config);
 
 #ifdef ZTERP_GLK
     glk_exit();
@@ -889,20 +878,6 @@ int main(int argc, char **argv)
     exit(0);
 #endif
   }
-
-#ifdef GARGLK
-  if(game_file == NULL)
-  {
-    frefid_t ref;
-
-    ref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_BinaryMode, filemode_Read, 0);
-    if(ref != NULL)
-    {
-      game_file = xstrdup(garglk_fileref_get_name(ref));
-      glk_fileref_destroy(ref);
-    }
-  }
-#endif
 
   if(game_file == NULL)
   {

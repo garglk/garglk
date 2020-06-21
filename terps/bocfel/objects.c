@@ -94,6 +94,7 @@ static void remove_object(uint16_t object)
   if(parent != 0)
   {
     uint16_t child = child_of(parent);
+    ZASSERT(child != 0, "malformed object table: parent has no children");
 
     /* Direct child */
     if(child == object)
@@ -107,6 +108,7 @@ static void remove_object(uint16_t object)
       {
         /* child = child->sibling */
         child = sibling_of(child);
+        ZASSERT(child != 0, "malformed object table: object to remove is not a child of its parent");
       }
 
       /* Now the sibling of child is the object to remove. */
@@ -127,22 +129,22 @@ static uint16_t property_length(uint16_t propaddr)
 {
   uint16_t length;
   /* The address is to the data; the size byte is right before. */
-  uint8_t byte = user_byte(propaddr - 1);
+  uint8_t b = user_byte(propaddr - 1);
 
   if(zversion <= 3)
   {
-    length = (byte >> 5) + 1;
+    length = (b >> 5) + 1;
   }
   else
   {
-    if(byte & 0x80)
+    if(b & 0x80)
     {
-      length = byte & 0x3f;
+      length = b & 0x3f;
       if(length == 0) length = 64;
     }
     else
     {
-      length = (byte & 0x40) ? 2 : 1;
+      length = (b & 0x40) ? 2 : 1;
     }
   }
 
@@ -230,7 +232,7 @@ static bool is_zero(bool is_store, bool is_jump)
   return false;
 }
 
-#define check_zero(store, jump)	do { if(is_zero(store, jump)) return; } while(0)
+#define check_zero(store, jump)	do { if(is_zero(store, jump)) return; } while(false)
 
 static void check_propnum(uint16_t propnum)
 {
