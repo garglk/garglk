@@ -191,6 +191,11 @@ bool is_journey(void)
   return is_story("83-890706");
 }
 
+bool is_lurking_horror(void)
+{
+    return is_story("203-870506") || is_story("219-870912") || is_story("221-870918");
+}
+
 bool is_infocom_v1234;
 static void check_infocom(void)
 {

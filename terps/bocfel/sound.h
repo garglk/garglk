@@ -8,4 +8,6 @@ bool sound_loaded(void);
 
 void zsound_effect(void);
 
+void end_of_sound(void);
+
 #endif

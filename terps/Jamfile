@@ -129,7 +129,7 @@ if $(MAKE_BOCFEL) = yes
     SubDir TOP terps bocfel ;
     ObjDir bocfel ;
 
-    SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
+    SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK -DZTERP_GLK_BLORB ;
 
     if $(OS) = MINGW
     {
