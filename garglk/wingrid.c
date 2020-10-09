@@ -273,7 +273,7 @@ int win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     }
 
     ln = &(dwin->lines[dwin->cury]);
-    if (ln->chars[dwin->curx] == ch)
+    if (glk_char_to_upper(ln->chars[dwin->curx]) == glk_char_to_upper(ch))
     {
         ln->chars[dwin->curx] = ' ';
         attrclear(&ln->attrs[dwin->curx]);

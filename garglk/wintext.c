@@ -1142,7 +1142,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 int win_textbuffer_unputchar_uni(window_t *win, glui32 ch)
 {
     window_textbuffer_t *dwin = win->data;
-    if (dwin->numchars > 0 && dwin->chars[dwin->numchars - 1] == ch)
+    if (dwin->numchars > 0 && glk_char_to_upper(dwin->chars[dwin->numchars - 1]) == glk_char_to_upper(ch))
     {
         dwin->numchars--;
         touch(dwin, 0);
