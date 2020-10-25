@@ -1526,7 +1526,16 @@ void save()
   char str[256];
   AtrElem *atr;
 
-#ifndef GARGLK
+#ifdef GLK_MODULE_FILEREF_GET_NAME
+
+  frefid_t fref;
+  fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Write, 0);
+  if (fref == NULL)
+    error(M_SAVEFAILED);
+  strcpy(str, garglk_fileref_get_name(fref));
+  glk_fileref_destroy(fref);
+
+#else
 
   /* First save ? */
   if (savfnm[0] == '\0') {
@@ -1542,15 +1551,6 @@ void save()
 #else
   gets(str);
 #endif
-
-#else
-
-frefid_t fref;
-fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Write, 0);
-if (fref == NULL)
-	error(M_SAVEFAILED);
-strcpy(str, garglk_fileref_get_name(fref));
-glk_fileref_destroy(fref);
 
 #endif
 
@@ -1628,7 +1628,16 @@ void restore()
   char savedVersion[4];
   char savedName[256];
 
-#ifndef GARGLK
+#ifdef GLK_MODULE_FILEREF_GET_NAME
+
+  frefid_t fref;
+  fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Read, 0);
+  if (fref == NULL)
+    error(M_SAVEFAILED);
+  strcpy(str, garglk_fileref_get_name(fref));
+  glk_fileref_destroy(fref);
+
+#else
 
   /* First save ? */
   if (savfnm[0] == '\0') {
@@ -1643,15 +1652,6 @@ void restore()
 #else
   gets(str);
 #endif
-
-#else
-
-frefid_t fref;
-fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Read, 0);
-if (fref == NULL)
-	error(M_SAVEFAILED);
-strcpy(str, garglk_fileref_get_name(fref));
-glk_fileref_destroy(fref);
 
 #endif
 

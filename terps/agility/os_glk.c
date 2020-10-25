@@ -5922,7 +5922,7 @@ gagt_get_user_file (glui32 usage, glui32 fmode, const char *fdtype)
    * underlying file descriptor or FILE* from a Glk stream either. :-(
    */
 
-#ifdef GARGLK
+#ifdef GLK_MODULE_FILEREF_GET_NAME
   retfile = fopen(garglk_fileref_get_name(fileref), fdtype);
 #else
 

@@ -520,6 +520,10 @@ int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
     frefid_t fileref;
     glui32 gprompt, gusage;
 
+#ifndef GLK_MODULE_FILEREF_GET_NAME
+    return OS_AFE_FAILURE;
+#endif
+
     if (prompt_type == OS_AFP_OPEN)
         gprompt = filemode_Read;
     else
