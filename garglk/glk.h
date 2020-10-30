@@ -57,6 +57,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_HYPERLINKS
 #define GLK_MODULE_DATETIME
 #define GLK_MODULE_GARGLKTEXT
+#define GLK_MODULE_FILEREF_GET_NAME
 
 /* These types are opaque object identifiers. They're pointers to opaque
     C structures, which are defined differently by each library. */
