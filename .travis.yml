@@ -34,5 +34,5 @@ matrix:
     - os: osx
       before_install:
         - brew update
-        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis freetype jam
+        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis jam
       script: sh gargoyle_osx.sh
