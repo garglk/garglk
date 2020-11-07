@@ -21,7 +21,6 @@
  *****************************************************************************/
 
 #include <fontconfig/fontconfig.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +29,8 @@
 #include "glk.h"
 #include "garglk.h"
 
+static bool initialized = false;
+
 static bool findfont(const char *fontname, char *fontpath, size_t n)
 {
     FcPattern *p = NULL;
@@ -37,9 +38,6 @@ static bool findfont(const char *fontname, char *fontpath, size_t n)
     FcObjectSet *attr = NULL;
     FcFontSet *fs = NULL;
     bool success = false;
-
-    if (!FcInit())
-        return false;
 
     p = FcNameParse((FcChar8*)fontname);
     if (p == NULL)
@@ -67,42 +65,41 @@ out:
     if (p != NULL)
         FcPatternDestroy(p);
 
-    FcFini();
-
     return success;
 }
 
-#ifdef __GNUC__
-__attribute__((__sentinel__))
-#endif
-static char *find_font_by_styles(const char *basefont, ...)
+static char *find_font_by_styles(const char *basefont, const char **styles, const char **weights, const char **slants)
 {
-    va_list ap;
-    char *font = NULL;
+    // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
+    const char *widths[] = {":normal", "", NULL};
 
-    va_start(ap, basefont);
-
-    for (const char *style = va_arg(ap, const char *); style != NULL; style = va_arg(ap, const char *))
+    for (const char **width = widths; *width != NULL; width++)
     {
-        char fontname[1024];
-        char fontpath[1024];
-
-        snprintf(fontname, sizeof fontname, "%s:style=%s", basefont, style);
-        if (findfont(fontname, fontpath, sizeof fontpath))
+        for (const char **style = styles; *style != NULL; style++)
         {
-            font = strdup(fontpath);
-            break;
+            for (const char **weight = weights; *weight != NULL; weight++)
+            {
+                for (const char **slant = slants; *slant != NULL; slant++)
+                {
+                    char fontname[1024];
+                    char fontpath[1024];
+
+                    snprintf(fontname, sizeof fontname, "%s:style=%s:%s:%s%s", basefont, *style, *weight, *slant, *width);
+                    if (findfont(fontname, fontpath, sizeof fontpath))
+                    {
+                        return strdup(fontpath);
+                    }
+                }
+            }
         }
     }
 
-    va_end(ap);
-
-    return font;
+    return NULL;
 }
 
 void fontreplace(char *font, int type)
 {
-    if (strlen(font) == 0)
+    if (!initialized || strlen(font) == 0)
         return;
 
     char *sysfont;
@@ -123,8 +120,42 @@ void fontreplace(char *font, int type)
         z = &gli_conf_propz;
     }
 
+    /* Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
+     * Italic), there are actually a whole lot more possibilities, and,
+     * unfortunately, some fonts are inconsistent in what they report about
+     * their attributes.
+     *
+     * It's possible to ask fontconfig for a particular style (e.g. "Regular"),
+     * but that's not enough. The font Noto Serif, for example, has a font that
+     * lists its style as both "Condensed ExtraLight" and "Regular". If
+     * "style=Regular" were used to find regular fonts, this font would show up,
+     * which is not desirable. So in addition to the style, the weight (an
+     * integer) must also be requested.
+     *
+     * Going the other direction, Adobe Garamond has a font with the style
+     * "Regular Expert", the expert character set being totally unusable in
+     * Gargoyle. However, its integral weight is still regular. So asking just
+     * for a regular weight isn't sufficient: the style needs to be taken into
+     * account as well.
+     *
+     * In short, for each style, try various combinations of style name, weight,
+     * and slant in hopes of getting the desired font. These are ordered from
+     * highest to lowest priority, so "Italic regular italic" will be preferred
+     * over "Medium Oblique book oblique", for example.
+     */
+    const char *regular_styles[] = {"Regular", "Book", "Medium", "Roman", NULL};
+    const char *italic_styles[] = {"Italic", "Regular Italic", "Medium Italic", "Book Italic", "Oblique", "Regular Oblique", "Medium Oblique", "Book Oblique", NULL};
+    const char *bold_styles[] = {"Bold", "Extrabold", "Semibold", "Black", NULL};
+    const char *bold_italic_styles[] = {"Bold Italic", "Extrabold Italic", "Semibold Italic", "Black Italic", "Bold Oblique", "Extrabold Oblique", "Semibold Oblique", "Black Oblique", NULL};
+
+    const char *regular_weights[] = {"regular", "book", "medium", NULL};
+    const char *bold_weights[] = {"bold", "extrabold", "semibold", "black", "medium", NULL};
+
+    const char *roman_slants[] = {"roman", NULL};
+    const char *italic_slants[] = {"italic", "oblique", NULL};
+
     /* regular or roman */
-    sysfont = find_font_by_styles(font, "Regular", "Roman", "Book", (char *)NULL);
+    sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
     if (sysfont != NULL)
     {
         *r = sysfont;
@@ -134,7 +165,7 @@ void fontreplace(char *font, int type)
     }
 
     /* bold */
-    sysfont = find_font_by_styles(font, "Bold", (char *)NULL);
+    sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
     if (sysfont != NULL)
     {
         *b = sysfont;
@@ -142,7 +173,7 @@ void fontreplace(char *font, int type)
     }
 
     /* italic or oblique */
-    sysfont = find_font_by_styles(font, "Italic", "Oblique", (char *)NULL);
+    sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
     if (sysfont != NULL)
     {
         *i = sysfont;
@@ -150,7 +181,7 @@ void fontreplace(char *font, int type)
     }
 
     /* bold italic or bold oblique */
-    sysfont = find_font_by_styles(font, "BoldItalic", "Bold Italic", "BoldOblique", "Bold Oblique", (char *)NULL);
+    sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
     if (sysfont != NULL)
     {
         *z = sysfont;
@@ -159,8 +190,11 @@ void fontreplace(char *font, int type)
 
 void fontload(void)
 {
+    initialized = FcInit();
 }
 
 void fontunload(void)
 {
+    if (initialized)
+        FcFini();
 }
