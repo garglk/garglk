@@ -662,11 +662,10 @@ static glui32 play_compressed(schanid_t chan, char *ext)
 }
 
 /** Start a mod music channel */
-static glui32 play_mod(schanid_t chan, long len, char *ext)
+static glui32 play_mod(schanid_t chan, long len)
 {
     FILE *file;
-    char *tn;
-    char *tempdir;
+    char *tn, *tempdir;
     int music_busy, loop;
 
     if (chan == NULL)
@@ -689,16 +688,31 @@ static glui32 play_mod(schanid_t chan, long len, char *ext)
     chan->status = CHANNEL_MUSIC;
     /* The fscking mikmod lib want to read the mod only from disk! */
     tempdir = getenv("TMPDIR");
-    /* malloc size of string tempdir + "XXXXXX.' + 3 letter extension + terminator */
-    tn = malloc(strlen(tempdir) + strlen("XXXXXX.mod") + 1);
+    if (tempdir == NULL)
+    {
+        tempdir = getenv("TEMP");
+        if (tempdir == NULL)
+        {
+            tempdir = getenv("TMP");
+            if (tempdir == NULL)
+            {
+                tempdir = ".";
+            }
+        }
+    }
+
+    /* malloc size of string tempdir + "XXXXXX' + terminator */
+    tn = malloc(strlen(tempdir + 7));
     sprintf(tn, "%sXXXXXX", tempdir);
-#if defined(WIN32) || defined(_WIN32) || defined(WINDOWS)
-    _mktemp_s(tn, strlen(tn));
-#else
-    mkstemp(tn);
-#endif
-    sprintf(tn, "%s.%s", tn, ext);
-    file = fopen(tn, "wb");
+    int fd;
+    fd = mkstemp(tn);
+    if (fd == -1)
+    {
+        free(tn);
+        gli_strict_warning("play mod failed: could not create temp file");
+        return 0;
+    }
+    file = fdopen(fd, "wb");
     fwrite(chan->sdl_memory, 1, len, file);
     fclose(file);
     chan->music = Mix_LoadMUS(tn);
@@ -774,11 +788,8 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
             break;
 
         case giblorb_ID_MOD:
-            result = play_mod(chan, len, "mod");
-            break;
-
         case giblorb_ID_MIDI:
-            result = play_mod(chan, len, "mid");
+            result = play_mod(chan, len);
             break;
 
         default:
