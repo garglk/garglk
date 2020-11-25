@@ -46,6 +46,7 @@
 /* non-standard types */
 #define giblorb_ID_MP3  (giblorb_make_id('M', 'P', '3', ' '))
 #define giblorb_ID_WAVE (giblorb_make_id('W', 'A', 'V', 'E'))
+#define giblorb_ID_MIDI (giblorb_make_id('M', 'I', 'D', 'I'))
 
 #define SDL_CHANNELS 64
 #define GLK_MAXVOLUME 0x10000
@@ -525,12 +526,27 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         if (*len > 4 && !memcmp(*buf, "WAVE", 4))
             return giblorb_ID_WAVE;
 
+        if (*len > 4 && !memcmp(*buf, "RIFF", 4))
+            return giblorb_ID_WAVE;
+
+        /* midi */
+        if (*len > 4 && !memcmp(*buf, "MThd", 4))
+            return giblorb_ID_MIDI;
+
         /* s3m */
         if (*len > 0x30 && !memcmp(*buf + 0x2c, "SCRM", 4))
             return giblorb_ID_MOD;
 
         /* XM */
         if (*len > 20 && !memcmp(*buf, "Extended Module: ", 17))
+            return giblorb_ID_MOD;
+
+        /* Whatever MOD format Dragon Hunt uses */
+        if (*len > 11 && !memcmp(*buf, "introfronty", 11))
+            return giblorb_ID_MOD;
+
+        /* Whatever MOD format Enceladus uses */
+        if (*len > 11 && !memcmp(*buf, "elysium", 7))
             return giblorb_ID_MOD;
 
         /* MOD */
@@ -649,8 +665,7 @@ static glui32 play_compressed(schanid_t chan, char *ext)
 static glui32 play_mod(schanid_t chan, long len)
 {
     FILE *file;
-    char *tn;
-    char *tempdir;
+    char *tn, *tempdir;
     int music_busy, loop;
 
     if (chan == NULL)
@@ -672,10 +687,32 @@ static glui32 play_mod(schanid_t chan, long len)
 
     chan->status = CHANNEL_MUSIC;
     /* The fscking mikmod lib want to read the mod only from disk! */
-    tempdir = getenv("TEMP");
-    if (tempdir == NULL) tempdir = ".";
-    tn = tempnam(tempdir, "gargtmp");
-    file = fopen(tn, "wb");
+    tempdir = getenv("TMPDIR");
+    if (tempdir == NULL)
+    {
+        tempdir = getenv("TEMP");
+        if (tempdir == NULL)
+        {
+            tempdir = getenv("TMP");
+            if (tempdir == NULL)
+            {
+                tempdir = ".";
+            }
+        }
+    }
+
+    /* malloc size of string tempdir + "XXXXXX' + terminator */
+    tn = malloc(strlen(tempdir + 7));
+    sprintf(tn, "%sXXXXXX", tempdir);
+    int fd;
+    fd = mkstemp(tn);
+    if (fd == -1)
+    {
+        free(tn);
+        gli_strict_warning("play mod failed: could not create temp file");
+        return 0;
+    }
+    file = fdopen(fd, "wb");
     fwrite(chan->sdl_memory, 1, len, file);
     fclose(file);
     chan->music = Mix_LoadMUS(tn);
@@ -751,6 +788,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
             break;
 
         case giblorb_ID_MOD:
+        case giblorb_ID_MIDI:
             result = play_mod(chan, len);
             break;
 
