@@ -1953,7 +1953,7 @@ void zshow_status(void)
 #ifdef ZTERP_GLK
   glui32 width, height;
   char rhs[64];
-  int first = variable(0x11), second = variable(0x12);
+  int16_t first = variable(0x11), second = variable(0x12);
 
   if(statuswin.id == NULL) return;
 
