@@ -1977,8 +1977,18 @@ void zshow_status(void)
 
   if(status_is_time())
   {
-    snprintf(rhs, sizeof rhs, "Time: %d:%02d%s ", (first + 11) % 12 + 1, second, first < 12 ? "am" : "pm");
-    if(strlen(rhs) > width) snprintf(rhs, sizeof rhs, "%02d:%02d", first, second);
+    unsigned int hour = first;
+    unsigned int min = second;
+    if (hour == 0)
+    {
+      hour = 12;
+    }
+    else if (hour > 12)
+    {
+      hour -= 12;
+    }
+    snprintf(rhs, sizeof rhs, "Time: %d:%02d%s ", hour, min, hour < 12 ? "am" : "pm");
+    if(strlen(rhs) > width) snprintf(rhs, sizeof rhs, "%02d:%02d", hour, min);
   }
   else
   {
