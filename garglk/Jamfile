@@ -100,9 +100,4 @@ else
     {
         LinkLibrariesOnSharedLibrary libgarglk : babel_static ;
     }
-
-    if ( $(OS) = SOLARIS || $(OS) = MACOSX ) && $(USESDL) = yes
-    {
-        LinkLibrariesOnSharedLibrary libgarglk : SDL_sound_static ;
-    }
 }

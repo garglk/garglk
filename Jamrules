@@ -34,6 +34,7 @@ if $(CROSS)
     AR      = $(MINGWARCH)-ar cru ;
     RANLIB  = $(MINGWARCH)-ranlib ;
     LINK    = $(CC) ;
+    PKGCONF = $(MINGWARCH)-pkg-config ;
 }
 
 #cross compiling for Open Inkpot
@@ -93,8 +94,11 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            SHRLINKLIBS += $(TOP)/support/sdl/SDL_mixer.dll ;
-            SHRLINKLIBS += $(TOP)/support/sdl/SDL.dll ;
+            PKGCONFIG = "$(PKGCONF) sdl2 SDL2_mixer" ;
+            # the 'only-I' bit is important to avoid SDL messing with main()
+            GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags-only-I`" ;
+            LINKLIBS += "`$(PKGCONFIG) --libs`" ;
+            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
         }
 
         if $(USETTS) = yes
@@ -120,7 +124,7 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            PKGCONFIG = "$(PKGCONFIG) sdl SDL_mixer" ;
+            PKGCONFIG = "$(PKGCONFIG) sdl2 SDL2_mixer" ;
         }
 
         # Setting C++ standard version to use for current g++ compilers.
@@ -130,13 +134,6 @@ switch $(PLATFORM)
         # Not all supported platforms include a pkg-config file for libjpeg.
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
         LINKLIBS = -lm "`$(PKGCONFIG) --libs`" ;
-
-        # SDL_sound does not include a pkg-config file.
-        if $(USESDL) = yes
-        {
-            GARGLKLIBS += -lSDL_sound ;
-            LINKLIBS += -lSDL_sound ;
-        }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
         else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
@@ -151,8 +148,8 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL_sound -lSDL ;
+            GARGLKCCFLAGS += -I/usr/include/SDL2 ;
+            GARGLKLIBS += -lSDL2_mixer -lSDL2 ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -168,8 +165,8 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            GARGLKCCFLAGS += -I/usr/include/SDL ;
-            GARGLKLIBS += -lSDL_mixer -lSDL -lsmpeg -lvorbisfile ;
+            GARGLKCCFLAGS += -I/usr/include/SDL2 ;
+            GARGLKLIBS += -lSDL2_mixer -lSDL2 -lsmpeg -lvorbisfile ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -200,7 +197,7 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            PKGCONFIG = "pkg-config SDL_mixer sdl vorbisfile" ;
+            PKGCONFIG = "pkg-config SDL2_mixer sdl2 vorbisfile" ;
             GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags`" ;
             SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lsmpeg ;
         }
