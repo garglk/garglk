@@ -125,7 +125,7 @@ switch $(PLATFORM)
 
         # Setting C++ standard version to use for current g++ compilers.
         C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC -std=gnu99 ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC -std=gnu99 -DGTK_DISABLE_SINGLE_INCLUDES -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED -DGSEAL_ENABLE" ;
 
         # Not all supported platforms include a pkg-config file for libjpeg.
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;

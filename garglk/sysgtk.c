@@ -362,7 +362,7 @@ static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
     else
         gli_drawselect = FALSE;
 
-    gdk_draw_rgb_image(canvas->window, canvas->style->black_gc,
+    gdk_draw_rgb_image(gtk_widget_get_window(canvas), gtk_widget_get_style(canvas)->black_gc,
         x0, y0, w, h,
         GDK_RGB_DITHER_NONE,
         gli_image_rgb + y0 * gli_image_s + x0 * 3,
@@ -382,7 +382,7 @@ static void onbuttonup(GtkWidget *widget, GdkEventButton *event, void *data)
     if (event->button == 1)
     {
         gli_copyselect = FALSE;
-        gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
+        gdk_window_set_cursor(gtk_widget_get_window(widget), NULL);
         winclipsend(PRIMARY);
     }
 }
@@ -412,15 +412,15 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
     /* hyperlinks and selection */
     if (gli_copyselect)
     {
-        gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_ibeam);
+        gdk_window_set_cursor(gtk_widget_get_window(widget), gdk_ibeam);
         gli_move_selection(x, y);
     }
     else
     {
         if (gli_get_hyperlink(x, y))
-            gdk_window_set_cursor((GTK_WIDGET(widget)->window), gdk_hand);
+            gdk_window_set_cursor(gtk_widget_get_window(widget), gdk_hand);
         else
-            gdk_window_set_cursor((GTK_WIDGET(widget)->window), NULL);
+            gdk_window_set_cursor(gtk_widget_get_window(widget), NULL);
     }
 }
 
@@ -531,8 +531,9 @@ static void onquit(GtkWidget *widget, void *data)
 void wininit(int *argc, char **argv)
 {
     gtk_init(argc, &argv);
-    gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
-    gtk_widget_set_default_visual(gdk_rgb_get_visual());
+    // TODO: figure out gtk3 equivalent
+    //    gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
+    //    gtk_widget_set_default_visual(gdk_rgb_get_visual());
     gdk_hand = gdk_cursor_new(GDK_HAND2);
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
 }
@@ -554,32 +555,32 @@ void winopen(void)
     defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
 
     frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    GTK_WIDGET_SET_FLAGS(frame, GTK_CAN_FOCUS);
+    gtk_widget_set_can_focus(frame, TRUE);
     gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
                                | GDK_BUTTON_RELEASE_MASK
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK
                                | GDK_SCROLL_MASK);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_press_event",
-                       GTK_SIGNAL_FUNC(onbuttondown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "button_release_event",
-                       GTK_SIGNAL_FUNC(onbuttonup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "scroll_event",
-                       GTK_SIGNAL_FUNC(onscroll), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_press_event",
-                       GTK_SIGNAL_FUNC(onkeydown), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "key_release_event",
-                       GTK_SIGNAL_FUNC(onkeyup), NULL);
-    gtk_signal_connect(GTK_OBJECT(frame), "destroy",
-                       GTK_SIGNAL_FUNC(onquit), "WM destroy");
-    gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
-        GTK_SIGNAL_FUNC(onmotion), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "button_press_event",
+                       G_CALLBACK(onbuttondown), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "button_release_event",
+                       G_CALLBACK(onbuttonup), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "scroll_event",
+                       G_CALLBACK(onscroll), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "key_press_event",
+                       G_CALLBACK(onkeydown), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "key_release_event",
+                       G_CALLBACK(onkeyup), NULL);
+    g_signal_connect(GTK_OBJECT(frame), "destroy",
+                       G_CALLBACK(onquit), "WM destroy");
+    g_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
+        G_CALLBACK(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
-    gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate",
-                       GTK_SIGNAL_FUNC(onresize), NULL);
-    gtk_signal_connect(GTK_OBJECT(canvas), "expose_event",
-                       GTK_SIGNAL_FUNC(onexpose), NULL);
+    g_signal_connect(GTK_OBJECT(canvas), "size_allocate",
+                       G_CALLBACK(onresize), NULL);
+    g_signal_connect(GTK_OBJECT(canvas), "expose_event",
+                       G_CALLBACK(onexpose), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
     imcontext = gtk_im_multicontext_new();
