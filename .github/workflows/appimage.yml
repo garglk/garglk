@@ -32,7 +32,7 @@ jobs:
         fuse
         git
         grep
-        libgtk2.0-dev
+        libgtk-3-dev
         libjpeg-dev
         libsdl-mixer1.2-dev
         libsdl-sound1.2-dev

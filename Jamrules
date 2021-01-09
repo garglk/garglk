@@ -109,7 +109,7 @@ switch $(PLATFORM)
         if $(GUILIB) = EFL {
             PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
         } else {
-            PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+            PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
         }
 
         if $(USETTS) = yes {
@@ -125,7 +125,7 @@ switch $(PLATFORM)
 
         # Setting C++ standard version to use for current g++ compilers.
         C++FLAGS = -std=c++11 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC -std=gnu99 -DGTK_DISABLE_SINGLE_INCLUDES -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED -DGSEAL_ENABLE" ;
+        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC -std=gnu99" ;
 
         # Not all supported platforms include a pkg-config file for libjpeg.
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
@@ -161,7 +161,7 @@ switch $(PLATFORM)
 
     case SOLARIS :
         Echo "OS is SOLARIS (gtk+)" ;
-        PKGCONFIG = "pkg-config freetype2 gtk+-x11-2.0 gdk-x11-2.0 gobject-2.0 glib-2.0 fontconfig" ;
+        PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lz ;
         LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;

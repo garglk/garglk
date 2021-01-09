@@ -27,12 +27,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "glk.h"
 #include "garglk.h"
 
 #include <gtk/gtk.h>
-#include <gdk/gdkkeysyms.h>
+#include <gdk/gdkkeysyms-compat.h>
 
 static GtkWidget *frame;
 static GtkWidget *canvas;
@@ -333,7 +334,7 @@ static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
 
     gli_resize_mask(gli_image_w, gli_image_h);
 
-    gli_image_s = ((gli_image_w * 3 + 3) / 4) * 4;
+    gli_image_s = gli_image_w * 4;
     if (gli_image_rgb)
         free(gli_image_rgb);
     gli_image_rgb = malloc(gli_image_s * gli_image_h);
@@ -343,30 +344,21 @@ static void onresize(GtkWidget *widget, GtkAllocation *event, void *data)
     gli_windows_size_change();
 }
 
-static void onexpose(GtkWidget *widget, GdkEventExpose *event, void *data)
+static void ondraw(GtkWidget *widget, cairo_t *cr, void *data)
 {
-    int x0 = event->area.x;
-    int y0 = event->area.y;
-    int w = event->area.width;
-    int h = event->area.height;
-
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x0 + w > gli_image_w) w = gli_image_w - x0;
-    if (y0 + h > gli_image_h) h = gli_image_h - y0;
-    if (w < 0) return;
-    if (h < 0) return;
-
     if (!gli_drawselect)
         gli_windows_redraw();
     else
         gli_drawselect = FALSE;
 
-    gdk_draw_rgb_image(gtk_widget_get_window(canvas), gtk_widget_get_style(canvas)->black_gc,
-        x0, y0, w, h,
-        GDK_RGB_DITHER_NONE,
-        gli_image_rgb + y0 * gli_image_s + x0 * 3,
-        gli_image_s);
+    cairo_surface_t *surf = cairo_image_surface_create_for_data(gli_image_rgb,
+                    CAIRO_FORMAT_RGB24, gli_image_w, gli_image_h, gli_image_s);
+
+    cairo_set_source_rgb(cr, 1., 1., 1.);
+    cairo_set_source_surface(cr, surf, 0., 0.);
+    cairo_paint(cr);
+
+    cairo_surface_destroy(surf);
 }
 
 static void onbuttondown(GtkWidget *widget, GdkEventButton *event, void *data)
@@ -531,9 +523,6 @@ static void onquit(GtkWidget *widget, void *data)
 void wininit(int *argc, char **argv)
 {
     gtk_init(argc, &argv);
-    // TODO: figure out gtk3 equivalent
-    //    gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
-    //    gtk_widget_set_default_visual(gdk_rgb_get_visual());
     gdk_hand = gdk_cursor_new(GDK_HAND2);
     gdk_ibeam = gdk_cursor_new(GDK_XTERM);
 }
@@ -561,26 +550,26 @@ void winopen(void)
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK
                                | GDK_SCROLL_MASK);
-    g_signal_connect(GTK_OBJECT(frame), "button_press_event",
+    g_signal_connect(frame, "button_press_event",
                        G_CALLBACK(onbuttondown), NULL);
-    g_signal_connect(GTK_OBJECT(frame), "button_release_event",
+    g_signal_connect(frame, "button_release_event",
                        G_CALLBACK(onbuttonup), NULL);
-    g_signal_connect(GTK_OBJECT(frame), "scroll_event",
+    g_signal_connect(frame, "scroll_event",
                        G_CALLBACK(onscroll), NULL);
-    g_signal_connect(GTK_OBJECT(frame), "key_press_event",
+    g_signal_connect(frame, "key_press_event",
                        G_CALLBACK(onkeydown), NULL);
-    g_signal_connect(GTK_OBJECT(frame), "key_release_event",
+    g_signal_connect(frame, "key_release_event",
                        G_CALLBACK(onkeyup), NULL);
-    g_signal_connect(GTK_OBJECT(frame), "destroy",
+    g_signal_connect(frame, "destroy",
                        G_CALLBACK(onquit), "WM destroy");
-    g_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
+    g_signal_connect(frame, "motion_notify_event",
         G_CALLBACK(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
-    g_signal_connect(GTK_OBJECT(canvas), "size_allocate",
+    g_signal_connect(frame, "size_allocate",
                        G_CALLBACK(onresize), NULL);
-    g_signal_connect(GTK_OBJECT(canvas), "expose_event",
-                       G_CALLBACK(onexpose), NULL);
+    g_signal_connect(frame, "draw",
+                       G_CALLBACK(ondraw), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
     imcontext = gtk_im_multicontext_new();
