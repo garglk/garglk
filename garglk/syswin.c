@@ -70,6 +70,15 @@ static char *winfilters[] =
     "All files (*.*)\0*.*\0\0",
 };
 
+// MingW does not include SetProcessDpiAwareness, so declare it here
+typedef enum PROCESS_DPI_AWARENESS
+{
+    PROCESS_DPI_UNAWARE = 0,
+    PROCESS_SYSTEM_DPI_AWARE = 1,
+    PROCESS_PER_MONITOR_DPI_AWARE = 2
+} PROCESS_DPI_AWARENESS;
+typedef HRESULT (WINAPI * SETPROCESSDPIAWARENESS_T)(PROCESS_DPI_AWARENESS);
+
 void glk_request_timer_events(glui32 millisecs)
 {
     if (timerid != -1)
@@ -273,8 +282,30 @@ void winclipreceive(void)
 void wininit(int *argc, char **argv)
 {
     WNDCLASS wc;
+    int pixX = 0;
 
     argv0 = argv[0];
+
+    /* enable DPI awareness for better looking fonts */
+    if (gli_hires)
+    {
+        HMODULE shcore = LoadLibraryA("Shcore.dll");
+        if (shcore)
+        {
+            SETPROCESSDPIAWARENESS_T SetProcessDpiAwareness =
+                (SETPROCESSDPIAWARENESS_T) GetProcAddress(shcore, "SetProcessDpiAwareness");
+            if (SetProcessDpiAwareness)
+                SetProcessDpiAwareness(PROCESS_SYSTEM_DPI_AWARE);
+        }
+
+        /* Scale settings, assuming they are chosen to match a 96 DPI display */
+        HDC screen = GetDC(0);
+        pixX = GetDeviceCaps(screen, LOGPIXELSX);
+        ReleaseDC(0, screen);
+        if (pixX >= 72)
+            gli_backingscalefactor = (float) pixX / 96.0;
+    }
+
 
     /* Create and register frame window class */
     wc.style = 0;
@@ -620,7 +651,7 @@ frameproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
         if (gli_scroll_width)
         gli_scroll_width = 0;
         else
-        gli_scroll_width = 8;
+        gli_scroll_width = gli_scroll_width_save;
         gli_force_redraw = 1;
         gli_windows_size_change();
         return 0;
