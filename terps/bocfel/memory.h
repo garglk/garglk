@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_MEMORY_H
 #define ZTERP_MEMORY_H
 

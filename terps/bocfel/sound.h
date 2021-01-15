@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_SOUND_H
 #define ZTERP_SOUND_H
 

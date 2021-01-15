@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_META_H
 #define ZTERP_META_H
 

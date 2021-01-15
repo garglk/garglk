@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_UTIL_H
 #define ZTERP_UTIL_H
 
@@ -64,6 +66,7 @@ void process_arguments(int, char **);
 #ifdef ZTERP_GLK
 #ifndef GLK_MODULE_UNICODE
 #define glk_put_char_uni(...)		die("bug %s:%d: glk_put_char_uni() called with no unicode", __FILE__, __LINE__)
+#define glk_put_char_stream_uni(...)	die("bug %s:%d: glk_put_char_stream_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_char_event_uni(...)	die("bug %s:%d: glk_request_char_event_uni() called with no unicode", __FILE__, __LINE__)
 #define glk_request_line_event_uni(...)	die("bug %s:%d: glk_request_line_event_uni() called with no unicode", __FILE__, __LINE__)
 #endif

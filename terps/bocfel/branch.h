@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_BRANCH_H
 #define ZTERP_BRANCH_H
 

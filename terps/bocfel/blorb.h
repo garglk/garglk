@@ -1,8 +1,9 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_BLORB_H
 #define ZTERP_BLORB_H
 
 #include <stdint.h>
-#include <stddef.h>
 
 #include "io.h"
 

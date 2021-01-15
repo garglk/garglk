@@ -16,12 +16,12 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <setjmp.h>
 #include <time.h>
 
 #include "stack.h"
@@ -69,16 +69,9 @@ static uint16_t POP_STACK(void) { ZASSERT(sp > CURRENT_FRAME->sp, "stack underfl
 
 struct save_state
 {
-  uint32_t pc;
-
-  uint32_t memsize;
-  uint8_t *memory;
-
-  uint32_t stack_size;
-  uint16_t *stack;
-
-  long nframes;
-  struct call_frame *frames;
+  bool is_meta;
+  uint8_t *quetzal;
+  long quetzal_size;
 
   time_t when;
   char *desc;
@@ -117,9 +110,7 @@ static struct save_state *new_save_state(void)
   new = malloc(sizeof *new);
   if(new != NULL)
   {
-    new->memory = NULL;
-    new->stack = NULL;
-    new->frames = NULL;
+    new->quetzal = NULL;
     new->desc = NULL;
     new->when = time(NULL);
   }
@@ -131,10 +122,7 @@ static void free_save_state(struct save_state *s)
 {
   if(s != NULL)
   {
-    free(s->memory);
-    free(s->stack);
-    free(s->frames);
-    free(s->desc);
+    free(s->quetzal);
     free(s);
   }
 }
@@ -589,259 +577,60 @@ static bool uncompress_memory(const uint8_t *compressed, uint32_t size)
   return true;
 }
 
-/* Push the current state onto the specified save stack. */
-bool push_save(enum save_type type, uint32_t whichpc, const char *desc)
+static char (*write_ifhd(zterp_io *savefile))[5]
 {
-  struct save_stack *s = &save_stacks[type];
-  struct save_state *new;
+  zterp_io_write16(savefile, header.release);
+  zterp_io_write_exact(savefile, header.serial, 6);
+  zterp_io_write16(savefile, header.checksum);
+  zterp_io_write8(savefile, (pc >> 16) & 0xff);
+  zterp_io_write8(savefile, (pc >>  8) & 0xff);
+  zterp_io_write8(savefile, (pc >>  0) & 0xff);
 
-  if(options.max_saves == 0) return false;
+  return &"IFhd";
+}
 
-  new = new_save_state();
-  if(new == NULL) return false;
+/* Store the filename in an IntD chunk. */
+static char (*write_intd(zterp_io *savefile))[5]
+{
+  zterp_io_write_exact(savefile, "UNIX", 4);
+  zterp_io_write8(savefile, 0x02);
+  zterp_io_write8(savefile, 0);
+  zterp_io_write16(savefile, 0);
+  zterp_io_write_exact(savefile, "    ", 4);
+  zterp_io_write_exact(savefile, game_file, strlen(game_file));
 
-  if(desc != NULL)
+  return &"IntD";
+}
+
+static char (*write_mem(zterp_io *savefile))[5]
+{
+  uint8_t *compressed = NULL;
+  uint32_t memsize = compress_memory(&compressed);
+  const uint8_t *mem = memory;
+  char (*type)[5];
+
+  /* It is possible for the compressed memory size to be larger than
+   * uncompressed; in this case, just store the uncompressed memory.
+   */
+  if(memsize > 0 && memsize < header.static_start)
   {
-    new->desc = malloc(strlen(desc) + 1);
-    if(new->desc != NULL) strcpy(new->desc, desc);
+    mem = compressed;
+    type = &"CMem";
   }
   else
   {
-    new->desc = NULL;
+    memsize = header.static_start;
+    type = &"UMem";
   }
+  zterp_io_write_exact(savefile, mem, memsize);
+  free(compressed);
 
-  new->pc = whichpc;
-
-  new->stack_size = sp - BASE_OF_STACK;
-  new->stack = malloc(new->stack_size * sizeof *new->stack);
-  if(new->stack == NULL) goto err;
-  memcpy(new->stack, BASE_OF_STACK, new->stack_size * sizeof *new->stack);
-
-  new->nframes = NFRAMES;
-  new->frames = malloc(new->nframes * sizeof *new->frames);
-  if(new->frames == NULL) goto err;
-  memcpy(new->frames, BASE_OF_FRAMES, new->nframes * sizeof *new->frames);
-
-  new->memsize = compress_memory(&new->memory);
-  if(new->memsize == 0) goto err;
-
-  /* If the maximum number has been reached, drop the last element.
-   * A negative value for max_saves means there is no maximum.
-   *
-   * Small note: calling @restore_undo twice should succeed both times
-   * if @save_undo was called twice (or three, four, etc. times).  If
-   * there aren’t enough slots, however, @restore_undo calls that should
-   * work will fail because the earlier save states will have been
-   * dropped.  This can easily be seen by running TerpEtude’s undo test
-   * with the slot count set to 1.  By default, the number of save slots
-   * is 100, so this will not be an issue unless a game goes out of its
-   * way to cause problems.
-   */
-  if(s->max > 0 && s->count == s->max)
-  {
-    struct save_state *tmp = s->tail;
-    s->tail = s->tail->prev;
-    if(s->tail == NULL) s->head = NULL;
-    else                s->tail->next = NULL;
-    free_save_state(tmp);
-    s->count--;
-  }
-
-  new->next = s->head;
-  new->prev = NULL;
-  if(new->next != NULL) new->next->prev = new;
-  s->head = new;
-  if(s->tail == NULL) s->tail = new;
-
-  s->count++;
-
-  return true;
-
-err:
-  free_save_state(new);
-
-  return false;
-}
-
-/* Remove the first “n” saves from the specified stack.  If there are
- * not enough saves available, remove all saves.
- */
-static void trim_saves(enum save_type type, long n)
-{
-  struct save_stack *s = &save_stacks[type];
-
-  while(n-- > 0 && s->count > 0)
-  {
-    struct save_state *tmp = s->head;
-
-    s->head = s->head->next;
-    s->count--;
-    free_save_state(tmp);
-    if(s->head != NULL) s->head->prev = NULL;
-    if(s->count == 0) s->tail = NULL;
-  }
-}
-
-/* Pop the specified state from the specified stack and jump to it.
- * Indices start at 0, with 0 being the most recent save.
- */
-bool pop_save(enum save_type type, long i)
-{
-  struct save_stack *s = &save_stacks[type];
-  struct save_state *p;
-  uint16_t flags2;
-
-  /* If the user requests an index one beyond the size of the stack,
-   * trim_saves() will remove all saves, so make sure that does not
-   * happen.
-   */
-  if(i >= s->count) return false;
-
-  flags2 = word(0x10);
-
-  trim_saves(type, i);
-
-  p = s->head;
-
-  pc = p->pc;
-
-  /* If this fails it’s a bug: unlike Quetzal files, the contents of
-   * p->memory are known to be good, because the compression was done by
-   * us with no chance for corruption (apart, again, from bugs).
-   */
-  if(!uncompress_memory(p->memory, p->memsize)) die("error uncompressing memory: unable to continue");
-
-  sp = BASE_OF_STACK + p->stack_size;
-  memcpy(BASE_OF_STACK, p->stack, sizeof *sp * p->stack_size);
-
-  fp = BASE_OF_FRAMES + p->nframes;
-  memcpy(BASE_OF_FRAMES, p->frames, sizeof *p->frames * p->nframes);
-
-  trim_saves(type, 1);
-
-  /* §6.1.2.2: As with @restore, header values marked with Rst (in
-   * §11) should be reset.  Unlike with @restore, it can be assumed
-   * that the game was saved by the same interpreter, but it cannot be
-   * assumed that the screen size is the same as it was at the time
-   * @save_undo was called.
-   */
-  write_header();
-
-  /* §6.1.2: Flags 2 should be preserved. */
-  store_word(0x10, flags2);
-
-  return true;
-}
-
-/* Wrapper around trim_saves which reports failure if the specified save
- * does not exist.
- */
-bool drop_save(enum save_type type, long i)
-{
-  struct save_stack *s = &save_stacks[type];
-
-  if(i > s->count) return false;
-
-  trim_saves(type, i);
-
-  return true;
-}
-
-void list_saves(enum save_type type, void (*printer)(const char *))
-{
-  struct save_stack *s = &save_stacks[type];
-  long nsaves = s->count;
-
-  if(nsaves == 0)
-  {
-    printer("[no saves available]");
-    return;
-  }
-
-  for(struct save_state *p = s->tail; p != NULL; p = p->prev)
-  {
-    char formatted_time[128];
-    /* “buf” will store either the formatted time or the user-provided
-     * description; the description comes from @read, which will never
-     * read more than 256 characters.  Pad to accommodate the index,
-     * newline, and potential asterisk.
-     */
-    char buf[300];
-    struct tm *tm;
-    const char *desc;
-
-    tm = localtime(&p->when);
-    if(tm == NULL || strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0)
-    {
-      snprintf(formatted_time, sizeof formatted_time, "<no time information>");
-    }
-
-    if(p->desc != NULL) desc = p->desc;
-    else                desc = formatted_time;
-
-    snprintf(buf, sizeof buf, "%ld. %s%s", nsaves--, desc, p->prev == NULL ? " *" : "");
-    printer(buf);
-  }
-}
-
-void zsave_undo(void)
-{
-  if(in_interrupt()) die("@save_undo called inside of an interrupt");
-
-  /* If override undo is set, all calls to @save_undo are reported as
-   * failure; the interpreter still reports that @save_undo is
-   * available, however.  These values will be tuned if it becomes
-   * necessary (i.e. if some games behave badly).
-   */
-  if(options.override_undo)
-  {
-    store(0);
-  }
-  else
-  {
-    /* On the first call to @save_undo, switch over to game-based save
-     * states instead of interpreter-generated save states.
-     */
-    if(!seen_save_undo)
-    {
-      clear_save_stack(&save_stacks[SAVE_GAME]);
-      seen_save_undo = true;
-    }
-
-    store(push_save(SAVE_GAME, pc, NULL));
-  }
-}
-
-void zrestore_undo(void)
-{
-  /* If @save_undo has not been called, @restore_undo should fail, even
-   * if there are interpreter-generated save states available.
-   */
-  if(!seen_save_undo)
-  {
-    store(0);
-  }
-  else
-  {
-    bool success = pop_save(SAVE_GAME, 0);
-
-    store(success ? 2 : 0);
-
-    if(success) interrupt_reset();
-  }
+  return type;
 }
 
 /* Quetzal save/restore functions. */
-static jmp_buf exception;
-#define WRITE8(v)  do { uint8_t  v_ = (v); if(zterp_io_write(savefile, &v_, sizeof v_) != sizeof v_) longjmp(exception, 1); local_written += 1; } while(false)
-#define WRITE16(v) do { uint16_t w_ = (v); WRITE8(w_ >>  8); WRITE8(w_ & 0xff); } while(false)
-#define WRITE32(v) do { uint32_t x_ = (v); WRITE8(x_ >> 24); WRITE8((x_ >> 16) & 0xff); WRITE8((x_ >> 8) & 0xff); WRITE8(x_ & 0xff); } while(false)
-#define WRITEID(v) WRITE32(STRID(v))
-
-static size_t quetzal_write_stack(zterp_io *savefile)
+static char (*write_stks(zterp_io *savefile))[5]
 {
-  size_t local_written = 0;
-
   /* Add one more “fake” call frame with just enough information to
    * calculate the evaluation stack used by the current routine.
    */
@@ -850,105 +639,145 @@ static size_t quetzal_write_stack(zterp_io *savefile)
   {
     uint8_t temp;
 
-    WRITE8((p->pc >> 16) & 0xff);
-    WRITE8((p->pc >>  8) & 0xff);
-    WRITE8((p->pc >>  0) & 0xff);
+    zterp_io_write8(savefile, (p->pc >> 16) & 0xff);
+    zterp_io_write8(savefile, (p->pc >>  8) & 0xff);
+    zterp_io_write8(savefile, (p->pc >>  0) & 0xff);
 
     temp = p->nlocals;
     if(p->where > 0xff) temp |= 0x10;
-    WRITE8(temp);
+    zterp_io_write8(savefile, temp);
 
-    if(p->where > 0xff) WRITE8(0);
-    else                WRITE8(p->where);
+    if(p->where > 0xff) zterp_io_write8(savefile, 0);
+    else                zterp_io_write8(savefile, p->where);
 
-    WRITE8((1U << p->nargs) - 1);
+    zterp_io_write8(savefile, (1U << p->nargs) - 1);
 
     /* number of words of evaluation stack used */
-    WRITE16((p + 1)->sp - p->sp);
+    zterp_io_write16(savefile, (p + 1)->sp - p->sp);
 
     /* local variables */
-    for(int i = 0; i < p->nlocals; i++) WRITE16(p->locals[i]);
+    for(int i = 0; i < p->nlocals; i++) zterp_io_write16(savefile, p->locals[i]);
 
     /* evaluation stack */
-    for(ptrdiff_t i = 0; i < (p + 1)->sp - p->sp; i++) WRITE16(p->sp[i]);
+    for(ptrdiff_t i = 0; i < (p + 1)->sp - p->sp; i++) zterp_io_write16(savefile, p->sp[i]);
   }
 
-  return local_written;
+  return &"Stks";
 }
 
-static bool save_quetzal(zterp_io *savefile, bool is_meta)
+static char (*write_args(zterp_io *savefile))[5]
 {
-  if(setjmp(exception) != 0) return false;
+  for(int i = 0; i < znargs; i++) zterp_io_write16(savefile, zargs[i]);
 
-  size_t local_written = 0;
-  size_t game_len;
-  uint32_t memsize;
-  uint8_t *compressed = NULL;
-  uint8_t *mem = memory;
-  long stks_pos;
-  size_t stack_size;
+  return &"Args";
+}
 
-  WRITEID("FORM");
-  WRITEID("    "); /* to be filled in */
-  WRITEID(is_meta ? "BFMS" : "IFZS");
+static void write_chunk(zterp_io *io, char (*(*writefunc)(zterp_io *))[5])
+{
+  long chunk_pos, end_pos, size;
+  char (*type)[5];
 
-  WRITEID("IFhd");
-  WRITE32(13);
-  WRITE16(header.release);
-  zterp_io_write(savefile, header.serial, 6);
-  local_written += 6;
-  WRITE16(header.checksum);
-  WRITE8((pc >> 16) & 0xff);
-  WRITE8((pc >>  8) & 0xff);
-  WRITE8((pc >>  0) & 0xff);
-  WRITE8(0); /* padding */
+  chunk_pos = zterp_io_tell(io);
+  zterp_io_write32(io, 0); /* type */
+  zterp_io_write32(io, 0); /* size */
+  type = writefunc(io);
+  end_pos = zterp_io_tell(io);
+  size = end_pos - chunk_pos - 8;
+  zterp_io_seek(io, chunk_pos, SEEK_SET);
+  zterp_io_write_exact(io, *type, 4);
+  zterp_io_write32(io, size);
+  zterp_io_seek(io, end_pos, SEEK_SET);
+  if(size & 1) zterp_io_write8(io, 0); /* padding */
+}
 
-  /* Store the filename in an IntD chunk. */
-  game_len = 12 + strlen(game_file);
-  WRITEID("IntD");
-  WRITE32(game_len);
-  WRITEID("UNIX");
-  WRITE8(0x02);
-  WRITE8(0);
-  WRITE16(0);
-  WRITEID("    ");
-  zterp_io_write(savefile, game_file, game_len - 12);
-  local_written += (game_len - 12);
-  if(game_len & 1) WRITE8(0);
+/* Meta saves (generated by the interpreter) are based on Quetzal. The
+ * format of the save state is the same (that is, the IFhd, IntD, and
+ * CMem/UMem chunks are identical). The type of the save file itself is
+ * BFZS instead of IFZS to prevent the files from being used by a normal
+ * @restore (as they are not compatible).
+ *
+ * BFZS has the following changes/extensions to Quetzal:
+ *
+ * The save file is from the middle of a read instruction instead of at
+ * a save. PC points to either the store byte of the @sread
+ * instruction, or if @aread, the next instruction. Instead of
+ * continuing at @restore, the read needs to be restarted.
+ *
+ * There are two new chunks associated with BFZS:
+ *
+ * Args:
+ * This represents the arguments to the current @read opcode. The size
+ * of the chunk is the number of arguments multiplied by two, followed
+ * by the arguments (as 16-bit unsigned integers).
+ *
+ * Scrn:
+ * This is a versioned chunk that represents the screen state.  It
+ * consists of the following:
+ *
+ * • Version (uint32_t)
+ * • The currently-selected window (uint8_t)
+ * • The height of the upper window (uint16_t)
+ * • The x coordinate of the upper window cursor (uint16_t)
+ * • The y coordinate of the upper window cursor (uint16_t)
+ *
+ * Coordinates are stored as Z-machine coordinates, meaning (1, 1) is
+ * the origin. If no coordinates are available (e.g. if there is no
+ * upper window), they will be (0, 0).
+ *
+ * This is followed by 2 or 8 identical sections representing the
+ * windows. V6 has 8 windows, all others have 2. Windows consist of the
+ * following:
+ *
+ * • Style (uint8_t)
+ * • Font (uint8_t)
+ * • Previous font (uint8_t)
+ * • Foreground color
+ * • Background color
+ *
+ * Colors are three bytes:
+ *
+ * • Mode (uint8_t): 0 = ANSI, 1 = True
+ * • Color (uint16_t): 1-12 for ANSI, 0-32767 for True
+ *
+ * The Scrn chunk is optional. If it is not present, the current screen
+ * state will be maintained. More importantly, unsupported Scrn versions
+ * are not fatal. This allows older versions of Bocfel to load newer
+ * meta saves that include updated versions of the Scrn chunk.
+ */
+static bool save_quetzal(zterp_io *savefile, bool is_meta, bool store_history)
+{
+  long file_size;
 
-  memsize = compress_memory(&compressed);
+  if(!zterp_io_try(savefile)) return false;
 
-  /* It is possible for the compressed memory size to be larger than
-   * uncompressed; in this case, just store the uncompressed memory.
+  zterp_io_write_exact(savefile, "FORM", 4);
+  zterp_io_write32(savefile, 0); /* to be filled in */
+  zterp_io_write_exact(savefile, is_meta ? "BFZS" : "IFZS", 4);
+
+  write_chunk(savefile, write_ifhd);
+  write_chunk(savefile, write_intd);
+  write_chunk(savefile, write_mem);
+  write_chunk(savefile, write_stks);
+
+  if(store_history) write_chunk(savefile, screen_write_bfhs);
+
+  /* When restoring a meta save, @read will be called to bring the user
+   * back to the same place as the save occurred. While memory and the
+   * stack will be restored properly, the arguments to @read will not
+   * (as the normal Z-machine save/restore mechanism doesn’t need them:
+   * all restoring does is store or branch, using the location of the
+   * program counter after restore). If this is a meta save, store zargs
+   * so it can be restored before re-entering @read.
    */
-  if(memsize > 0 && memsize < header.static_start)
+  if(is_meta)
   {
-    mem = compressed;
-    WRITEID("CMem");
+    write_chunk(savefile, write_args);
+    write_chunk(savefile, screen_write_scrn);
   }
-  else
-  {
-    memsize = header.static_start;
-    WRITEID("UMem");
-  }
-  WRITE32(memsize);
-  zterp_io_write(savefile, mem, memsize);
-  local_written += memsize;
-  if(memsize & 1) WRITE8(0); /* padding */
-  free(compressed);
 
-  WRITEID("Stks");
-  stks_pos = zterp_io_tell(savefile);
-  WRITEID("    "); /* to be filled in */
-  stack_size = quetzal_write_stack(savefile);
-  local_written += stack_size;
-  if(stack_size & 1) WRITE8(0); /* padding */
-
+  file_size = zterp_io_tell(savefile);
   zterp_io_seek(savefile, 4, SEEK_SET);
-  WRITE32(local_written - 8); /* entire file size minus 8 (FORM + size) */
-
-  zterp_io_seek(savefile, stks_pos, SEEK_SET);
-  WRITE32(stack_size); /* size of the stacks chunk */
+  zterp_io_write32(savefile, file_size - 8); /* entire file size minus 8 (FORM + size) */
 
   return true;
 }
@@ -1026,22 +855,76 @@ static bool memory_restore(void)
   return true;
 }
 
-#define goto_err(...)	do { show_message("save file error: " __VA_ARGS__); goto err; } while(false)
-#define goto_death(...)	do { show_message("save file error: " __VA_ARGS__); goto death; } while(false)
+#define goto_err(...)	do { show_message("Save file error: " __VA_ARGS__); goto err; } while(false)
+#define goto_death(...)	do { show_message("Save file error: " __VA_ARGS__); goto death; } while(false)
 
-static bool restore_quetzal(zterp_io *savefile, bool is_meta)
+/* Earlier versions of Bocfel’s meta-saves neglected to take into
+ * account the fact that the call to @read may have included arguments
+ * pulled from the stack. Any such arguments are lost in an old-style
+ * save, meaning the save file is not usable. However, most calls to
+ * @read do not use the stack, so most old-style saves should work just
+ * fine. This function is used to determine whether the @read
+ * instruction used for the meta-save pulled from the stack. If so, the
+ * restore will fail, but otherwise, it will proceed.
+ */
+static bool instruction_has_stack_argument(uint32_t addr)
+{
+  uint32_t types = user_byte(addr++);
+
+  for(int i = 6; i >= 0; i -= 2)
+  {
+    switch((types >> i) & 0x03)
+    {
+      case 0:
+        addr += 2;
+        break;
+      case 1:
+        addr++;
+        break;
+      case 2:
+        if(user_byte(addr++) == 0) return true;
+        break;
+      default:
+        return false;
+    }
+  }
+
+  return false;
+}
+
+static bool restore_quetzal(zterp_io *savefile, bool is_meta, bool *is_bfms)
 {
   zterp_iff *iff;
   uint32_t size;
   uint32_t n = 0;
   uint8_t ifhd[13];
+  uint32_t newpc;
+  uint16_t saved_args[znargs];
+  int saved_nargs = znargs;
+  int frameno = 0;
 
-  iff = zterp_iff_parse(savefile, is_meta ? "BFMS" : "IFZS");
+  *is_bfms = false;
+
+  memcpy(saved_args, zargs, sizeof saved_args);
+
+  if(is_meta)
+  {
+    iff = zterp_iff_parse(savefile, "BFZS");
+    if(iff == NULL)
+    {
+      iff = zterp_iff_parse(savefile, "BFMS");
+      if(iff != NULL) *is_bfms = true;
+    }
+  }
+  else
+  {
+    iff = zterp_iff_parse(savefile, "IFZS");
+  }
 
   if(iff == NULL ||
      !zterp_iff_find(iff, "IFhd", &size) ||
      size != 13 ||
-     zterp_io_read(savefile, ifhd, sizeof ifhd) != sizeof ifhd)
+     !zterp_io_read_exact(savefile, ifhd, sizeof ifhd))
   {
     goto_err("corrupted save file or not a save file at all");
   }
@@ -1051,6 +934,14 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
      ((ifhd[8] << 8) | ifhd[9]) != header.checksum)
   {
     goto_err("wrong game or version");
+  }
+
+  newpc = (ifhd[10] << 16) | (ifhd[11] << 8) | ifhd[12];
+  if(newpc >= memory_size) goto_err("pc out of range (0x%lx)", (unsigned long)newpc);
+
+  if(*is_bfms && instruction_has_stack_argument(newpc + 1))
+  {
+    goto_err("detected incompatible meta save: please file a bug report at https://bocfel.org/issues");
   }
 
   memory_snapshot();
@@ -1064,9 +955,11 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
      * potential edge-case problems.
      */
     if(size > 131072) goto_err("reported CMem size too large (%lu bytes)", (unsigned long)size);
-    buf = malloc(size * sizeof *buf);
 
-    if(zterp_io_read(savefile, buf, size) != size)
+    buf = malloc(size * sizeof *buf);
+    if(buf == NULL) goto_err("unable to allocate memory for decompression");
+
+    if(!zterp_io_read_exact(savefile, buf, size))
     {
       free(buf);
       goto_err("unexpected eof reading compressed memory");
@@ -1083,7 +976,7 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
   else if(zterp_iff_find(iff, "UMem", &size))
   {
     if(size != header.static_start) goto_err("memory size mismatch");
-    if(zterp_io_read(savefile, memory, header.static_start) != header.static_start) goto_death("unexpected eof reading memory");
+    if(!zterp_io_read_exact(savefile, memory, header.static_start)) goto_death("unexpected eof reading memory");
   }
   else
   {
@@ -1091,6 +984,7 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
   }
 
   if(!zterp_iff_find(iff, "Stks", &size)) goto_death("no stacks chunk found");
+  if(size == 0) goto_death("empty stacks chunk");
 
   sp = BASE_OF_STACK;
   fp = BASE_OF_FRAMES;
@@ -1101,8 +995,9 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
     uint8_t nlocals;
     uint16_t nstack;
     uint8_t nargs = 0;
+    uint32_t frame_pc;
 
-    if(zterp_io_read(savefile, frame, sizeof frame) != sizeof frame) goto_death("unexpected eof reading stack frame");
+    if(!zterp_io_read_exact(savefile, frame, sizeof frame)) goto_death("unexpected eof reading stack frame");
     n += sizeof frame;
 
     nlocals = frame[3] & 0xf;
@@ -1110,7 +1005,10 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
     frame[5]++;
     while((frame[5] >>= 1) != 0) nargs++;
 
-    add_frame((frame[0] << 16) | (frame[1] << 8) | frame[2], sp, nlocals, nargs, (frame[3] & 0x10) ? 0xff + 1 : frame[4]);
+    frame_pc = (frame[0] << 16) | (frame[1] << 8) | frame[2];
+    if(frame_pc >= memory_size) goto_err("frame #%d pc out of range (0x%lx)", frameno, (unsigned long)frame_pc);
+
+    add_frame(frame_pc, sp, nlocals, nargs, (frame[3] & 0x10) ? 0xff + 1 : frame[4]);
 
     for(int i = 0; i < nlocals; i++)
     {
@@ -1131,14 +1029,50 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta)
 
       n += sizeof s;
     }
+
+    frameno++;
   }
 
   if(n != size) goto_death("stack size mismatch");
 
+  if(is_meta && !*is_bfms)
+  {
+    if(!zterp_iff_find(iff, "Args", &size)) goto_death("no meta save Args chunk found");
+
+    if(size % 2 != 0) goto_death("invalid Args size: %lu", (unsigned long)size);
+    if(size / 2 != znargs) goto_death("invalid Args value: reported number of arguments (%lu) at odds with actual number of arguments (%d)", (unsigned long)(size / 2), znargs);
+    znargs = size / 2;
+
+    for(int i = 0; i < znargs; i++)
+    {
+      if(!zterp_io_read16(savefile, &zargs[i])) goto_death("short read in Args");
+    }
+
+    if(zterp_iff_find(iff, "Scrn", &size))
+    {
+      char err[64];
+
+      if(!screen_read_scrn(savefile, size, err, sizeof err)) goto_death("unable to parse screen state: %s", err);
+    }
+    else
+    {
+      warning("no Scrn chunk in meta save");
+    }
+  }
+
+  if(!options.disable_history_plaback && zterp_iff_find(iff, "Bfhs", &size))
+  {
+    long start = zterp_io_tell(savefile);
+
+    screen_read_bfhs(savefile);
+
+    if(zterp_io_tell(savefile) - start != size) goto_death("history size mismatch");
+  }
+
   zterp_iff_free(iff);
   memory_snapshot_free();
 
-  pc = (ifhd[10] << 16) | (ifhd[11] << 8) | ifhd[12];
+  pc = newpc;
 
   return true;
 
@@ -1151,10 +1085,13 @@ death:
 
 err:
   /* A snapshot may have been taken, but neither memory nor the stacks
-   * have been overwritten, so just free the snapshot.
+   * have been overwritten, so just free the snapshot. Restore zargs in
+   * case this was a meta save that updated it before failure.
    */
   memory_snapshot_free();
   zterp_iff_free(iff);
+  memcpy(zargs, saved_args, sizeof saved_args);
+  znargs = saved_nargs;
   return false;
 }
 
@@ -1177,7 +1114,7 @@ bool do_save(bool is_meta)
     return false;
   }
 
-  success = save_quetzal(savefile, is_meta);
+  success = save_quetzal(savefile, is_meta, true);
 
   zterp_io_close(savefile);
 
@@ -1201,9 +1138,10 @@ void zsave(void)
 /* Perform all aspects of a restore, apart from storing/branching.
  * Returns true if the restore was success, false if not.
  * “is_meta” is true if this save file is expected to be from a
- * meta-save.
+ * meta-save. *is_bfms will be set to true if this is an old-style BFMS
+ * meta-save, otherwise false.
  */
-bool do_restore(bool is_meta)
+bool do_restore(bool is_meta, bool *is_bfms)
 {
   zterp_io *savefile;
   uint16_t flags2;
@@ -1218,7 +1156,7 @@ bool do_restore(bool is_meta)
 
   flags2 = word(0x10);
 
-  success = restore_quetzal(savefile, is_meta);
+  success = restore_quetzal(savefile, is_meta, is_bfms);
 
   zterp_io_close(savefile);
 
@@ -1248,7 +1186,7 @@ bool do_restore(bool is_meta)
 
 void zrestore(void)
 {
-  bool success = do_restore(false);
+  bool success = do_restore(false, &(bool){false});
 
   if(zversion <= 3) branch_if(success);
   else              store(success ? 2 : 0);
@@ -1257,5 +1195,237 @@ void zrestore(void)
    * @save cannot be called inside an interrupt), so reset the level
    * back to zero.
    */
-  if(success) interrupt_reset();
+  if(success) interrupt_reset(false);
+}
+
+/* Push the current state onto the specified save stack. */
+bool push_save(enum save_type type, bool is_meta, const char *desc)
+{
+  struct save_stack *s = &save_stacks[type];
+  struct save_state *new;
+  zterp_io *savefile = NULL;
+
+  if(options.max_saves == 0) return false;
+
+  new = new_save_state();
+  if(new == NULL) return false;
+
+  if(desc != NULL)
+  {
+    new->desc = malloc(strlen(desc) + 1);
+    if(new->desc != NULL) strcpy(new->desc, desc);
+  }
+  else
+  {
+    new->desc = NULL;
+  }
+
+  new->is_meta = is_meta;
+  savefile = zterp_io_open_memory(NULL, 0);
+  if(savefile == NULL) goto err;
+
+  if(!save_quetzal(savefile, new->is_meta, false)) goto err;
+
+  if(!zterp_io_close_memory(savefile, &new->quetzal, &new->quetzal_size)) goto err;
+
+  /* If the maximum number has been reached, drop the last element.
+   * A negative value for max_saves means there is no maximum.
+   *
+   * Small note: calling @restore_undo twice should succeed both times
+   * if @save_undo was called twice (or three, four, etc. times).  If
+   * there aren’t enough slots, however, @restore_undo calls that should
+   * work will fail because the earlier save states will have been
+   * dropped.  This can easily be seen by running TerpEtude’s undo test
+   * with the slot count set to 1.  By default, the number of save slots
+   * is 100, so this will not be an issue unless a game goes out of its
+   * way to cause problems.
+   */
+  if(s->max > 0 && s->count == s->max)
+  {
+    struct save_state *tmp = s->tail;
+    s->tail = s->tail->prev;
+    if(s->tail == NULL) s->head = NULL;
+    else                s->tail->next = NULL;
+    free_save_state(tmp);
+    s->count--;
+  }
+
+  new->next = s->head;
+  new->prev = NULL;
+  if(new->next != NULL) new->next->prev = new;
+  s->head = new;
+  if(s->tail == NULL) s->tail = new;
+
+  s->count++;
+
+  return true;
+
+err:
+  if(savefile != NULL) zterp_io_close(savefile);
+  free_save_state(new);
+
+  return false;
+}
+
+/* Remove the first “n” saves from the specified stack.  If there are
+ * not enough saves available, remove all saves.
+ */
+static void trim_saves(enum save_type type, long n)
+{
+  struct save_stack *s = &save_stacks[type];
+
+  while(n-- > 0 && s->count > 0)
+  {
+    struct save_state *tmp = s->head;
+
+    s->head = s->head->next;
+    s->count--;
+    free_save_state(tmp);
+    if(s->head != NULL) s->head->prev = NULL;
+    if(s->count == 0) s->tail = NULL;
+  }
+}
+
+/* Pop the specified state from the specified stack and jump to it.
+ * Indices start at 0, with 0 being the most recent save.
+ */
+bool pop_save(enum save_type type, long saveno, bool *call_zread)
+{
+  struct save_stack *s = &save_stacks[type];
+  struct save_state *p = s->head;
+  uint16_t flags2;
+  zterp_io *savefile;
+
+  if(saveno >= s->count) return false;
+
+  flags2 = word(0x10);
+
+  for(long i = 0; i < saveno; i++) p = p->next;
+
+  *call_zread = p->is_meta;
+
+  savefile = zterp_io_open_memory(p->quetzal, p->quetzal_size);
+  if(savefile == NULL) return false;
+
+  if(!restore_quetzal(savefile, p->is_meta, &(bool){false}))
+  {
+    zterp_io_close(savefile);
+    return false;
+  }
+
+  zterp_io_close(savefile);
+
+  trim_saves(type, saveno + 1);
+
+  /* §6.1.2.2: As with @restore, header values marked with Rst (in
+   * §11) should be reset.  Unlike with @restore, it can be assumed
+   * that the game was saved by the same interpreter, but it cannot be
+   * assumed that the screen size is the same as it was at the time
+   * @save_undo was called.
+   */
+  write_header();
+
+  /* §6.1.2: Flags 2 should be preserved. */
+  store_word(0x10, flags2);
+
+  return true;
+}
+
+/* Wrapper around trim_saves which reports failure if the specified save
+ * does not exist.
+ */
+bool drop_save(enum save_type type, long i)
+{
+  struct save_stack *s = &save_stacks[type];
+
+  if(i > s->count) return false;
+
+  trim_saves(type, i);
+
+  return true;
+}
+
+void list_saves(enum save_type type, void (*printer)(const char *))
+{
+  struct save_stack *s = &save_stacks[type];
+  long nsaves = s->count;
+
+  if(nsaves == 0)
+  {
+    printer("[No saves available]");
+    return;
+  }
+
+  for(struct save_state *p = s->tail; p != NULL; p = p->prev)
+  {
+    char formatted_time[128];
+    /* “buf” will store either the formatted time or the user-provided
+     * description; the description comes from @read, which will never
+     * read more than 256 characters.  Pad to accommodate the index,
+     * newline, and potential asterisk.
+     */
+    char buf[300];
+    struct tm *tm;
+    const char *desc;
+
+    tm = localtime(&p->when);
+    if(tm == NULL || strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0)
+    {
+      snprintf(formatted_time, sizeof formatted_time, "<no time information>");
+    }
+
+    if(p->desc != NULL) desc = p->desc;
+    else                desc = formatted_time;
+
+    snprintf(buf, sizeof buf, "%ld. %s%s", nsaves--, desc, p->prev == NULL ? " *" : "");
+    printer(buf);
+  }
+}
+
+void zsave_undo(void)
+{
+  if(in_interrupt()) die("@save_undo called inside of an interrupt");
+
+  /* If override undo is set, all calls to @save_undo are reported as
+   * failure; the interpreter still reports that @save_undo is
+   * available, however.  These values will be tuned if it becomes
+   * necessary (i.e. if some games behave badly).
+   */
+  if(options.override_undo)
+  {
+    store(0);
+  }
+  else
+  {
+    /* On the first call to @save_undo, switch over to game-based save
+     * states instead of interpreter-generated save states.
+     */
+    if(!seen_save_undo)
+    {
+      clear_save_stack(&save_stacks[SAVE_GAME]);
+      seen_save_undo = true;
+    }
+
+    store(push_save(SAVE_GAME, false, NULL));
+  }
+}
+
+void zrestore_undo(void)
+{
+  /* If @save_undo has not been called, @restore_undo should fail, even
+   * if there are interpreter-generated save states available.
+   */
+  if(!seen_save_undo)
+  {
+    store(0);
+  }
+  else
+  {
+    bool call_zread;
+    bool success = pop_save(SAVE_GAME, 0, &call_zread);
+
+    store(success ? 2 : 0);
+
+    if(success) interrupt_reset(call_zread);
+  }
 }

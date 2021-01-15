@@ -1,12 +1,10 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_TABLES_H
 #define ZTERP_TABLES_H
 
 #include <stdint.h>
 #include <stdbool.h>
-
-#ifdef ZTERP_GLK
-#include <glk.h>
-#endif
 
 #define UNICODE_DELETE		8
 #define UNICODE_LINEFEED	10
@@ -15,6 +13,7 @@
 #define UNICODE_SPACE		32
 #define UNICODE_REPLACEMENT	65533
 
+#define LATIN1_LINEFEED		10
 #define LATIN1_QUESTIONMARK	63
 
 #define ZSCII_DELETE		8
@@ -63,7 +62,9 @@ void parse_unicode_table(uint16_t);
 void setup_tables(void);
 
 uint16_t unicode_tolower(uint16_t);
+#ifdef ZTERP_GLK
 uint16_t char_to_unicode(char);
+#endif
 
 /* Standard 1.1 notes that Unicode characters 0–31 and 127–159
  * are invalid due to the fact that they’re control codes.

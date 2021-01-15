@@ -379,6 +379,7 @@ uint16_t unicode_tolower(uint16_t c)
   return c;
 }
 
+#ifdef ZTERP_GLK
 /* Convert a char (assumed to be ASCII) to Unicode.  Printable values,
  * plus newline, are converted to their corresponding Unicode values;
  * the rest are converted to the Unicode replacement character (�).
@@ -391,3 +392,4 @@ uint16_t char_to_unicode(char c)
   else if(c < 32 || c > 126) return UNICODE_REPLACEMENT;
   else                       return c;
 }
+#endif

@@ -24,7 +24,6 @@
 #include "process.h"
 #include "stack.h"
 #include "util.h"
-#include "zterp.h"
 
 void branch_if(bool do_branch)
 {

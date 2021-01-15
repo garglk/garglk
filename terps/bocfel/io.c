@@ -16,12 +16,12 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <setjmp.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdarg.h>
 #include <limits.h>
 
 #ifdef ZTERP_GLK
@@ -36,11 +36,20 @@
 #define MAX_PATH	4096
 #endif
 
+struct backing
+{
+  uint8_t *memory;
+  long allocated;
+  long size;
+  long offset;
+};
+
 struct zterp_io
 {
   enum type
   {
     IO_STDIO,
+    IO_MEMORY,
 #ifdef ZTERP_GLK
     IO_GLK,
 #endif
@@ -49,13 +58,28 @@ struct zterp_io
   union
   {
     FILE *stdio;
+    struct backing backing;
 #ifdef ZTERP_GLK
     strid_t glk;
 #endif
   } file;
   enum zterp_io_mode mode;
   enum zterp_io_purpose purpose;
+
+  bool exception_mode;
+  jmp_buf exception;
 };
+
+/* Due to C’s less-than-ideal type system, there’s no way to guarantee
+ * that an enum actually contains a valid value. When checking the value
+ * of the I/O object’s type, this function is used as a sort-of run-time
+ * type checker.
+ */
+znoreturn
+static void bad_type(enum type type)
+{
+  die("internal error: unknown IO type %d", type);
+}
 
 /* Certain streams are intended for use in text mode: stdin/stdout,
  * transcripts, and command scripts.  It is reasonable for users to
@@ -95,6 +119,7 @@ zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zter
   if(io == NULL) goto err;
   io->mode = mode;
   io->purpose = purpose;
+  io->exception_mode = false;
 
   if     (mode == ZTERP_IO_RDONLY) smode[0] = 'r';
   else if(mode == ZTERP_IO_APPEND) smode[0] = 'a';
@@ -167,7 +192,63 @@ err:
   return NULL;
 }
 
-const zterp_io *zterp_io_stdin(void)
+/* Instead of being file-backed, indicate that this I/O object is
+ * memory-backed. This allows internal save states (for @save_undo as
+ * well as meta-saves created by /ps) to use Quetzal as their save
+ * format. This is helpful because meta-saves have to track extra
+ * information, and reusing the Quetzal code (plus extensions)
+ * eliminates the need for code duplication.
+ *
+ * If “buf” is null, this is a write-only memory object that will
+ * allocate space as it is required. Otherwise, this is a read-only
+ * object backed by the passed-in buffer. A copy is made so the caller
+ * is free to do what it likes with the memory afterward.
+ */
+zterp_io *zterp_io_open_memory(const void *buf, size_t n)
+{
+  struct zterp_io *io;
+
+  io = malloc(sizeof *io);
+  if(io == NULL) return NULL;
+
+  io->type = IO_MEMORY;
+  io->purpose = ZTERP_IO_DATA;
+  io->exception_mode = false;
+
+  if(buf != NULL)
+  {
+    io->mode = ZTERP_IO_RDONLY;
+    io->file.backing.memory = malloc(n);
+    if(io->file.backing.memory == NULL)
+    {
+      free(io);
+      return NULL;
+    }
+
+    memcpy(io->file.backing.memory, buf, n);
+
+    io->file.backing.allocated = 0;
+    io->file.backing.size = n;
+    io->file.backing.offset = 0;
+  }
+  else
+  {
+    io->mode = ZTERP_IO_WRONLY;
+    io->file.backing.allocated = 32768;
+    io->file.backing.memory = malloc(io->file.backing.allocated);
+    if(io->file.backing.memory == NULL)
+    {
+      free(io);
+      return NULL;
+    }
+    io->file.backing.size = 0;
+    io->file.backing.offset = 0;
+  }
+
+  return io;
+}
+
+zterp_io *zterp_io_stdin(void)
 {
   static zterp_io io;
 
@@ -182,7 +263,7 @@ const zterp_io *zterp_io_stdin(void)
   return &io;
 }
 
-const zterp_io *zterp_io_stdout(void)
+zterp_io *zterp_io_stdout(void)
 {
   static zterp_io io;
 
@@ -199,76 +280,172 @@ const zterp_io *zterp_io_stdout(void)
 
 void zterp_io_close(zterp_io *io)
 {
+  switch(io->type)
+  {
+    case IO_STDIO:
+      fclose(io->file.stdio);
+      break;
+    case IO_MEMORY:
+      free(io->file.backing.memory);
+      break;
 #ifdef ZTERP_GLK
-  if(io->type == IO_GLK)
-  {
-    glk_stream_close(io->file.glk, NULL);
-  }
-  else
+    case IO_GLK:
+      glk_stream_close(io->file.glk, NULL);
+      break;
 #endif
-  {
-    fclose(io->file.stdio);
   }
 
   free(io);
 }
 
-bool zterp_io_seek(const zterp_io *io, long offset, int whence)
+/* Close a memory-backed I/O object (this returns false for any other
+ * type of I/O object). Store the buffer and size in “buf” and “n”. The
+ * caller is responsible for the memory and must free it using free().
+ */
+bool zterp_io_close_memory(zterp_io *io, uint8_t **buf, long *n)
+{
+  uint8_t *tmp;
+
+  if(io->type != IO_MEMORY) return false;
+
+  tmp = realloc(io->file.backing.memory, io->file.backing.size);
+  if(tmp == NULL) *buf = io->file.backing.memory;
+  else            *buf = tmp;
+
+  *n = io->file.backing.size;
+
+  free(io);
+
+  return true;
+}
+
+/* Turn on “exception handling” for this I/O object. After calling this
+ * function, all future I/O calls which return a bool will now instead
+ * cause this function to return false in case of error. Simple usage:
+ *
+ * if(!zterp_io_try(io)) return ERROR;
+ * // call I/O functions here
+ *
+ * This *only* affects boolean functions. Those which return non-boolean
+ * values, such as zterp_io_write() and zterp_io_getc() are unaffected.
+ * This may be inconsistent, at least for zterp_io_getc(), which can
+ * return a failure condition, but non-boolean functions are not
+ * currently used with exception handling, so it’s not relevant.
+ */
+bool zterp_io_try(zterp_io *io)
+{
+  io->exception_mode = true;
+
+  if(setjmp(io->exception) != 0) return false;
+
+  return true;
+}
+
+static bool wrap(zterp_io *io, bool b)
+{
+  if(io->exception_mode && !b) longjmp(io->exception, 1);
+
+  return b;
+}
+
+bool zterp_io_seek(zterp_io *io, long offset, int whence)
 {
   /* To smooth over differences between Glk and standard I/O, don’t
    * allow seeking in append-only streams.
    */
-  if(io->mode == ZTERP_IO_APPEND) return false;
+  if(io->mode == ZTERP_IO_APPEND) return wrap(io, false);
 
+  switch(io->type)
+  {
+    case IO_STDIO:
+      return wrap(io, fseek(io->file.stdio, offset, whence) == 0);
+    case IO_MEMORY:
+      /* Negative offsets are unsupported because they aren’t used. */
+      if(offset < 0) return wrap(io, false);
+
+      switch(whence)
+      {
+        case SEEK_CUR:
+          /* Overflow. */
+          if(LONG_MAX - offset < io->file.backing.offset) return wrap(io, false);
+
+          offset = io->file.backing.offset + offset;
+        case SEEK_SET:
+          /* Don’t allow seeking beyond the end. */
+          if(offset > io->file.backing.size) return wrap(io, false);
+
+          io->file.backing.offset = offset;
+
+          return wrap(io, true);
+        default:
+          /* No support for SEEK_END because it’s not used. */
+          return wrap(io, false);
+      }
 #ifdef ZTERP_GLK
-  if(io->type == IO_GLK)
-  {
-    glk_stream_set_position(io->file.glk, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
-    return true; /* glk_stream_set_position can’t signal failure */
-  }
-  else
+    case IO_GLK:
+      glk_stream_set_position(io->file.glk, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
+      return wrap(io, true); /* glk_stream_set_position can’t signal failure */
 #endif
-  {
-    return fseek(io->file.stdio, offset, whence) == 0;
+    default:
+      bad_type(io->type);
   }
 }
 
-long zterp_io_tell(const zterp_io *io)
+long zterp_io_tell(zterp_io *io)
 {
+  switch(io->type)
+  {
+    case IO_STDIO:
+      return ftell(io->file.stdio);
+    case IO_MEMORY:
+      return io->file.backing.offset;
 #ifdef ZTERP_GLK
-  if(io->type == IO_GLK)
-  {
-    return glk_stream_get_position(io->file.glk);
-  }
-  else
+    case IO_GLK:
+      return glk_stream_get_position(io->file.glk);
 #endif
-  {
-    return ftell(io->file.stdio);
+    default:
+      bad_type(io->type);
   }
 }
 
 /* zterp_io_read() and zterp_io_write() always operate in terms of
  * bytes, not characters.
  */
-size_t zterp_io_read(const zterp_io *io, void *buf, size_t n)
+size_t zterp_io_read(zterp_io *io, void *buf, size_t n)
 {
   size_t total = 0;
 
   while(total < n)
   {
     size_t s;
+    if(io->type == IO_STDIO)
+    {
+      s = fread(buf, 1, n - total, io->file.stdio);
+    }
+    else if(io->type == IO_MEMORY)
+    {
+      struct backing *b = &io->file.backing;
+      long remaining = b->size - b->offset;
+
+      if(io->mode != ZTERP_IO_RDONLY) return 0;
+
+      s = remaining < n ? remaining : n;
+      memcpy(buf, &b->memory[b->offset], s);
+
+      b->offset += s;
+    }
 #ifdef ZTERP_GLK
-    if(io->type == IO_GLK)
+    else if(io->type == IO_GLK)
     {
       glui32 s32 = glk_get_buffer_stream(io->file.glk, buf, n - total);
       /* This should only happen if io->file.glk is invalid. */
       if(s32 == (glui32)-1) break;
       s = s32;
     }
-    else
 #endif
+    else
     {
-      s = fread(buf, 1, n - total, io->file.stdio);
+      bad_type(io->type);
     }
 
     if(s == 0) break;
@@ -279,57 +456,135 @@ size_t zterp_io_read(const zterp_io *io, void *buf, size_t n)
   return total;
 }
 
-size_t zterp_io_write(const zterp_io *io, const void *buf, size_t n)
+bool zterp_io_read_exact(zterp_io *io, void *buf, size_t n)
 {
+  return wrap(io, zterp_io_read(io, buf, n) == n);
+}
+
+size_t zterp_io_write(zterp_io *io, const void *buf, size_t n)
+{
+  switch(io->type)
+  {
+    case IO_STDIO:
+      {
+        size_t s, total = 0;
+
+        while(total < n && (s = fwrite(buf, 1, n - total, io->file.stdio)) > 0)
+        {
+          total += s;
+          buf = ((const char *)buf) + s;
+        }
+
+        return total;
+      }
+    case IO_MEMORY:
+      {
+        struct backing *b = &io->file.backing;
+        long remaining = b->size - b->offset;
+
+        if(io->mode != ZTERP_IO_WRONLY) return 0;
+
+        if(n > remaining)
+        {
+          b->size += n - remaining;
+          if(b->size > b->allocated)
+          {
+            long grow = b->size - b->allocated;
+            uint8_t *tmp;
+
+            if(grow < 32768) grow = 32768;
+            b->allocated += grow;
+            tmp = realloc(b->memory, b->allocated);
+            if(tmp == NULL)
+            {
+              b->size -= n - remaining;
+              b->allocated -= grow;
+              return 0;
+            }
+            b->memory = tmp;
+          }
+        }
+
+        memcpy(&b->memory[b->offset], buf, n);
+
+        b->offset += n;
+
+        return n;
+      }
 #ifdef ZTERP_GLK
-  if(io->type == IO_GLK)
-  {
-    glk_put_buffer_stream(io->file.glk, (char *)buf, n);
-    return n; /* glk_put_buffer_stream() can’t signal a short write */
-  }
-  else
+    case IO_GLK:
+      glk_put_buffer_stream(io->file.glk, (char *)buf, n);
+      return n; /* glk_put_buffer_stream() can’t signal a short write */
 #endif
-  {
-    size_t s, total = 0;
-
-    while(total < n && (s = fwrite(buf, 1, n - total, io->file.stdio)) > 0)
-    {
-      total += s;
-      buf = ((const char *)buf) + s;
-    }
-
-    return total;
+    default:
+      bad_type(io->type);
   }
 }
 
-bool zterp_io_read16(const zterp_io *io, uint16_t *v)
+bool zterp_io_write_exact(zterp_io *io, const void *buf, size_t n)
+{
+  return wrap(io, zterp_io_write(io, buf, n) == n);
+}
+
+bool zterp_io_read8(zterp_io *io, uint8_t *v)
+{
+  return zterp_io_read_exact(io, v, sizeof *v);
+}
+
+bool zterp_io_read16(zterp_io *io, uint16_t *v)
 {
   uint8_t buf[2];
 
-  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return false;
+  if(!zterp_io_read_exact(io, buf, sizeof buf)) return wrap(io, false);
 
   *v = (buf[0] << 8) | buf[1];
 
-  return true;
+  return wrap(io, true);
 }
 
-bool zterp_io_read32(const zterp_io *io, uint32_t *v)
+bool zterp_io_read32(zterp_io *io, uint32_t *v)
 {
   uint8_t buf[4];
 
-  if(zterp_io_read(io, buf, sizeof buf) != sizeof buf) return false;
+  if(!zterp_io_read_exact(io, buf, sizeof buf)) return wrap(io, false);
 
   *v = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
 
-  return true;
+  return wrap(io, true);
+}
+
+bool zterp_io_write8(zterp_io *io, uint8_t v)
+{
+  return zterp_io_write_exact(io, &v, sizeof v);
+}
+
+bool zterp_io_write16(zterp_io *io, uint16_t v)
+{
+  uint8_t buf[2];
+
+  buf[0] = v >> 8;
+  buf[1] = v & 0xff;
+
+  return zterp_io_write_exact(io, buf, sizeof buf);
+}
+
+bool zterp_io_write32(zterp_io *io, uint32_t v)
+{
+  uint8_t buf[4];
+
+  buf[0] = (v >> 24) & 0xff;
+  buf[1] = (v >> 16) & 0xff;
+  buf[2] = (v >>  8) & 0xff;
+  buf[3] = (v >>  0) & 0xff;
+
+  return zterp_io_write_exact(io, buf, sizeof buf);
 }
 
 /* Read a byte and make sure it’s part of a valid UTF-8 sequence. */
-static bool read_byte(const zterp_io *io, uint8_t *c)
-{
-  return (zterp_io_read(io, c, sizeof *c) == sizeof *c) &&
-         ((*c & 0x80) == 0x80);
-}
+#define READ_BYTE(c)	do { \
+  if(zterp_io_read(io, (c), sizeof *(c)) != sizeof *(c)) return -1; \
+  if((*(c) & 0x80) != 0x80) return UNICODE_REPLACEMENT; \
+} while(false)
 
 /* zterp_io_getc() and zterp_io_putc() are meant to operate in terms of
  * characters, not bytes.  That is, unlike C, bytes and characters are
@@ -343,17 +598,14 @@ static bool read_byte(const zterp_io *io, uint8_t *c)
  * sequence or from a too-large value), the Unicode replacement
  * character is returned.
  */
-long zterp_io_getc(const zterp_io *io)
+long zterp_io_getc(zterp_io *io)
 {
   long ret;
-
   uint8_t c;
 
-  if(zterp_io_read(io, &c, sizeof c) != sizeof c)
-  {
-    ret = -1;
-  }
-  else if((c & 0x80) == 0) /* One byte. */
+  if(!zterp_io_read_exact(io, &c, sizeof c)) return -1;
+
+  if((c & 0x80) == 0) /* One byte. */
   {
     ret = c;
   }
@@ -361,7 +613,7 @@ long zterp_io_getc(const zterp_io *io)
   {
     ret = (c & 0x1f) << 6;
 
-    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    READ_BYTE(&c);
 
     ret |= (c & 0x3f);
   }
@@ -369,11 +621,11 @@ long zterp_io_getc(const zterp_io *io)
   {
     ret = (c & 0x0f) << 12;
 
-    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    READ_BYTE(&c);
 
     ret |= ((c & 0x3f) << 6);
 
-    if(!read_byte(io, &c)) return UNICODE_REPLACEMENT;
+    READ_BYTE(&c);
 
     ret |= (c & 0x3f);
   }
@@ -382,7 +634,10 @@ long zterp_io_getc(const zterp_io *io)
     /* The Z-machine doesn’t support Unicode this large, but at least
      * try not to leave a partial character in the stream.
      */
-    zterp_io_seek(io, 3, SEEK_CUR);
+    for(int i = 0; i < 3; i++)
+    {
+      READ_BYTE(&c);
+    }
 
     ret = UNICODE_REPLACEMENT;
   }
@@ -399,7 +654,7 @@ long zterp_io_getc(const zterp_io *io)
 }
 
 /* Write a Unicode character as UTF-8. */
-void zterp_io_putc(const zterp_io *io, uint16_t c)
+void zterp_io_putc(zterp_io *io, uint16_t c)
 {
   uint8_t hi = c >> 8, lo = c & 0xff;
 
@@ -438,7 +693,7 @@ void zterp_io_putc(const zterp_io *io, uint16_t c)
  * including the last one, must end in a newline.  Any characters read
  * before the EOF can be considered lost and unrecoverable.
  */
-long zterp_io_readline(const zterp_io *io, uint16_t *buf, size_t len)
+long zterp_io_readline(zterp_io *io, uint16_t *buf, size_t len)
 {
   long ret;
 
@@ -460,21 +715,28 @@ long zterp_io_readline(const zterp_io *io, uint16_t *buf, size_t len)
   return ret;
 }
 
-long zterp_io_filesize(const zterp_io *io)
+long zterp_io_filesize(zterp_io *io)
 {
-  if(io->type == IO_STDIO && !textmode(io))
+  switch(io->type)
   {
-    return zterp_os_filesize(io->file.stdio);
+    case IO_STDIO:
+      if(!textmode(io)) return zterp_os_filesize(io->file.stdio);
+      break;
+    case IO_MEMORY:
+      return io->file.backing.size;
+#ifdef ZTERP_GLK
+    case IO_GLK:
+      break;
+#endif
   }
-  else
-  {
-    return -1;
-  }
+
+  return -1;
 }
 
-void zterp_io_flush(const zterp_io *io)
+void zterp_io_flush(zterp_io *io)
 {
-  if(io == NULL || io->type != IO_STDIO || (io->mode != ZTERP_IO_WRONLY && io->mode != ZTERP_IO_APPEND)) return;
-
-  fflush(io->file.stdio);
+  if(io != NULL && io->type == IO_STDIO && (io->mode == ZTERP_IO_WRONLY || io->mode == ZTERP_IO_APPEND))
+  {
+    fflush(io->file.stdio);
+  }
 }

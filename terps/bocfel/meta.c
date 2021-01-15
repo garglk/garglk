@@ -17,11 +17,11 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <limits.h>
 
 #include "meta.h"
 #include "memory.h"
@@ -30,6 +30,7 @@
 #include "screen.h"
 #include "stack.h"
 #include "unicode.h"
+#include "util.h"
 #include "zterp.h"
 
 #define ISDIGIT(c)	((c) >= '0' && (c) <= '9')
@@ -50,33 +51,35 @@ static void try_user_save(const char *desc)
 {
   if(in_interrupt())
   {
-    screen_puts("[cannot save while in an interrupt]");
+    screen_puts("[Cannot save while in an interrupt]");
   }
   else
   {
-    if(push_save(SAVE_USER, current_instruction, desc)) screen_puts("[save pushed]");
-    else                                                screen_puts("[save failed]");
+    if(push_save(SAVE_USER, true, desc)) screen_puts("[Save pushed]");
+    else                                 screen_puts("[Save failed]");
   }
 }
 
 /* On success, this does not return. */
 static void try_user_restore(long i)
 {
-  if(pop_save(SAVE_USER, i))
+  bool call_zread;
+
+  if(pop_save(SAVE_USER, i, &call_zread))
   {
-    screen_print("[restored]\n\n>");
-    interrupt_reset();
+    screen_print("[Restored]\n\n>");
+    interrupt_reset(call_zread);
   }
   else
   {
-    screen_puts("[restore failed]");
+    screen_puts("[Restore failed]");
   }
 }
 
 static void try_user_drop(long i)
 {
-  if(drop_save(SAVE_USER, i + 1)) screen_puts("[dropped]");
-  else                            screen_puts("[drop failed]");
+  if(drop_save(SAVE_USER, i + 1)) screen_puts("[Dropped]");
+  else                            screen_puts("[Drop failed]");
 }
 
 static void meta_status_putc(uint8_t c)
@@ -93,13 +96,13 @@ static void meta_debug_change_start(void)
   debug_change_memory = malloc(header.static_start);
   if(debug_change_memory == NULL)
   {
-    screen_puts("[cannot allocate memory]");
+    screen_puts("[Cannot allocate memory]");
   }
   else
   {
     memcpy(debug_change_memory, memory, header.static_start);
     for(size_t addr = 0; addr < sizeof debug_change_valid / sizeof *debug_change_valid; addr++) debug_change_valid[addr] = true;
-    screen_puts("[debug change reset]");
+    screen_puts("[Debug change reset]");
   }
 }
 
@@ -107,7 +110,7 @@ static void meta_debug_change_inc_dec(const char *string)
 {
   if(debug_change_memory == NULL)
   {
-    screen_puts("[debug change not started]");
+    screen_puts("[Debug change not started]");
   }
   else
   {
@@ -143,7 +146,7 @@ static void meta_debug_change_inc_dec(const char *string)
       }
     }
 
-    if(!saw_change) screen_puts("[no changes]");
+    if(!saw_change) screen_puts("[No changes]");
 
     memcpy(debug_change_memory, memory, header.static_start);
   }
@@ -178,7 +181,7 @@ static bool meta_debug_scan(const char *string)
   if(strcmp(string, "start") == 0)
   {
     for(size_t addr = 0; addr < sizeof debug_scan_invalid_addr / sizeof *debug_scan_invalid_addr; addr++) debug_scan_invalid_addr[addr] = false;
-    screen_puts("[debug scan reset]");
+    screen_puts("[Debug scan reset]");
   }
   else if(strcmp(string, "show") == 0)
   {
@@ -203,7 +206,7 @@ static bool meta_debug_scan(const char *string)
 
     if(value < -0x8000 || value > 0xffff)
     {
-      screen_puts("[value is outside the range of a 16-bit integer and will never be found]");
+      screen_puts("[Value is outside the range of a 16-bit integer and will never be found]");
     }
     else
     {
@@ -250,7 +253,7 @@ static bool validate_address(long addr, bool print)
 {
   if(addr < 0 || addr > memory_size - 2)
   {
-    if(print) screen_printf("[address out of range: must be [0, 0x%lx]]\n", (unsigned long)memory_size - 2);
+    if(print) screen_printf("[Address out of range: must be [0, 0x%lx]]\n", (unsigned long)memory_size - 2);
     return false;
   }
 
@@ -307,7 +310,7 @@ bool cheat_add(char *how, bool print)
 
     if(value < 0 || value > UINT16_MAX)
     {
-      if(print) screen_puts("[values must be in the range [0, 65535]]");
+      if(print) screen_puts("[Values must be in the range [0, 65535]]");
       return true;
     }
 
@@ -319,7 +322,7 @@ bool cheat_add(char *how, bool print)
     return false;
   }
 
-  if(print) screen_puts("[frozen]");
+  if(print) screen_puts("[Frozen]");
 
   return true;
 }
@@ -367,8 +370,8 @@ static bool meta_debug_unfreeze(const char *string)
   if(!valid) return false;
   if(!validate_address(addr, true)) return true;
 
-  if(cheat_remove(addr)) screen_puts("[unfrozen]");
-  else                   screen_puts("[address not frozen]");
+  if(cheat_remove(addr)) screen_puts("[Unfrozen]");
+  else                   screen_puts("[Address not frozen]");
 
   return true;
 }
@@ -386,7 +389,7 @@ static bool meta_debug_show_freeze(void)
     }
   }
 
-  if(!any_frozen) screen_puts("[no frozen values]");
+  if(!any_frozen) screen_puts("[No frozen values]");
 
   return true;
 }
@@ -440,12 +443,12 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
     if(do_watch)
     {
       watch_all();
-      screen_puts("[watching all addresses for changes]");
+      screen_puts("[Watching all addresses for changes]");
     }
     else
     {
       watch_none();
-      screen_puts("[not watching any addresses for changes]");
+      screen_puts("[Not watching any addresses for changes]");
     }
   }
   else
@@ -461,11 +464,11 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
     if(do_watch)
     {
       watch_add(addr);
-      screen_printf("[watching %s for changes]\n", addrstring(addr));
+      screen_printf("[Watching %s for changes]\n", addrstring(addr));
     }
     else
     {
-      if(watch_remove(addr)) screen_printf("[no longer watching %lx for changes]\n", addr);
+      if(watch_remove(addr)) screen_printf("[No longer watching %lx for changes]\n", addr);
       else                   screen_printf("[%lx is not currently being watched]\n", addr);
     }
   }
@@ -496,7 +499,7 @@ static bool meta_debug_show_watch(void)
     }
   }
 
-  if(!any_watched) screen_puts("[no watched values]");
+  if(!any_watched) screen_puts("[No watched values]");
 
   return true;
 }
@@ -612,75 +615,70 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
 
   if ZEROARG("undo")
   {
-    if(pop_save(SAVE_GAME, 0))
+    bool call_zread;
+    if(pop_save(SAVE_GAME, 0, &call_zread))
     {
       if(seen_save_undo) store(2);
-      else               screen_print("[undone]\n\n>");
+      else               screen_print("[Undone]\n\n>");
 
-      interrupt_reset();
+      interrupt_reset(call_zread);
       return NULL;
     }
     else
     {
-      screen_puts("[no save found, unable to undo]");
+      screen_puts("[No save found, unable to undo]");
     }
   }
   else if ZEROARG("scripton")
   {
-    if(output_stream(OSTREAM_SCRIPT, 0)) screen_puts("[transcripting on]");
-    else                                 screen_puts("[transcripting failed]");
+    if(output_stream(OSTREAM_SCRIPT, 0)) screen_puts("[Transcripting on]");
+    else                                 screen_puts("[Transcripting failed]");
   }
   else if ZEROARG("scriptoff")
   {
     output_stream(-OSTREAM_SCRIPT, 0);
-    screen_puts("[transcripting off]");
+    screen_puts("[Transcripting off]");
   }
   else if ZEROARG("recon")
   {
-    if(output_stream(OSTREAM_RECORD, 0)) screen_puts("[command recording on]");
-    else                                 screen_puts("[command recording failed]");
+    if(output_stream(OSTREAM_RECORD, 0)) screen_puts("[Command recording on]");
+    else                                 screen_puts("[Command recording failed]");
   }
   else if ZEROARG("recoff")
   {
     output_stream(-OSTREAM_RECORD, 0);
-    screen_puts("[command recording off]");
+    screen_puts("[Command recording off]");
   }
   else if ZEROARG("replay")
   {
-    if(input_stream(ISTREAM_FILE)) screen_puts("[replaying commands]");
-    else                           screen_puts("[replaying commands failed]");
+    if(input_stream(ISTREAM_FILE)) screen_puts("[Replaying commands]");
+    else                           screen_puts("[Replaying commands failed]");
   }
   else if ZEROARG("save")
   {
     if(in_interrupt())
     {
-      screen_puts("[cannot call /save while in an interrupt]");
+      screen_puts("[Cannot call /save while in an interrupt]");
     }
     else
     {
-      uint32_t tmp = pc;
-
-      /* pc is currently set to the next instruction, but the restore
-       * needs to come back to *this* instruction; so temporarily set
-       * pc back before saving.
-       */
-      pc = current_instruction;
-      if(do_save(true)) screen_puts("[saved]");
-      else              screen_puts("[save failed]");
-      pc = tmp;
+      if(do_save(true)) screen_puts("[Saved]");
+      else              screen_puts("[Save failed]");
     }
   }
   else if ZEROARG("restore")
   {
-    if(do_restore(true))
+    bool is_bfms;
+
+    if(do_restore(true, &is_bfms))
     {
-      screen_print("[restored]\n\n>");
-      interrupt_reset();
+      screen_print("[Restored]\n\n>");
+      interrupt_reset(!is_bfms);
       return NULL;
     }
     else
     {
-      screen_puts("[restore failed]");
+      screen_puts("[Restore failed]");
     }
   }
   else if(strcmp(command, "ps") == 0)
@@ -717,7 +715,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
       {
       }
 
-      screen_puts("[all saves dropped]");
+      screen_puts("[All saves dropped]");
     }
     else if(rest[0] == 0)
     {
@@ -731,7 +729,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
       saveno = parseint(rest, 10, &valid);
       if(!valid || saveno < 1)
       {
-        screen_puts("[invalid index]");
+        screen_puts("[Invalid index]");
         return string;
       }
 
@@ -750,7 +748,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
     }
     else
     {
-      int first = variable(0x11), second = variable(0x12);
+      long first = as_signed(variable(0x11)), second = as_signed(variable(0x12));
 
       print_object(variable(0x10), meta_status_putc);
 
@@ -758,18 +756,20 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
 
       if(status_is_time())
       {
-        screen_printf("Time: %d:%02d%s\n", (first + 11) % 12 + 1, second, first < 12 ? "am" : "pm");
+        char fmt[64];
+        screen_format_time(&fmt, first, second);
+        screen_puts(fmt);
       }
       else
       {
-        screen_printf("Score: %d\nMoves: %d\n", first, second);
+        screen_printf("Score: %ld\nMoves: %ld\n", first, second);
       }
     }
   }
   else if ZEROARG("disable")
   {
     options.disable_meta_commands = true;
-    screen_puts("[meta commands disabled]");
+    screen_puts("[Meta commands disabled]");
   }
   else if(strcmp(command, "say") == 0)
   {

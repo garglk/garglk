@@ -43,7 +43,7 @@ static struct dictionary new_dictionary(uint16_t addr)
 {
   uint8_t num_separators = user_byte(addr);
 
-  struct dictionary dictionary = (struct dictionary) {
+  struct dictionary dictionary = {
     .addr = addr,
     .num_separators = num_separators,
     .separators = addr + 1,

@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_IO_H
 #define ZTERP_IO_H
 
@@ -23,19 +25,28 @@ enum zterp_io_purpose
 };
 
 zterp_io *zterp_io_open(const char *, enum zterp_io_mode, enum zterp_io_purpose);
-const zterp_io *zterp_io_stdin(void);
-const zterp_io *zterp_io_stdout(void);
+zterp_io *zterp_io_open_memory(const void *, size_t);
+zterp_io *zterp_io_stdin(void);
+zterp_io *zterp_io_stdout(void);
 void zterp_io_close(zterp_io *);
-bool zterp_io_seek(const zterp_io *, long, int);
-long zterp_io_tell(const zterp_io *);
-size_t zterp_io_read(const zterp_io *, void *, size_t);
-size_t zterp_io_write(const zterp_io *, const void *, size_t);
-bool zterp_io_read16(const zterp_io *, uint16_t *);
-bool zterp_io_read32(const zterp_io *, uint32_t *);
-long zterp_io_getc(const zterp_io *);
-void zterp_io_putc(const zterp_io *, uint16_t);
-long zterp_io_readline(const zterp_io *, uint16_t *, size_t);
-long zterp_io_filesize(const zterp_io *);
-void zterp_io_flush(const zterp_io *);
+bool zterp_io_close_memory(zterp_io *, uint8_t **, long *);
+bool zterp_io_try(zterp_io *);
+bool zterp_io_seek(zterp_io *, long, int);
+long zterp_io_tell(zterp_io *);
+size_t zterp_io_read(zterp_io *, void *, size_t);
+bool zterp_io_read_exact(zterp_io *, void *, size_t);
+size_t zterp_io_write(zterp_io *, const void *, size_t);
+bool zterp_io_write_exact(zterp_io *, const void *, size_t);
+bool zterp_io_read8(zterp_io *, uint8_t *);
+bool zterp_io_read16(zterp_io *, uint16_t *);
+bool zterp_io_read32(zterp_io *, uint32_t *);
+bool zterp_io_write8(zterp_io *, uint8_t);
+bool zterp_io_write16(zterp_io *, uint16_t);
+bool zterp_io_write32(zterp_io *, uint32_t);
+long zterp_io_getc(zterp_io *);
+void zterp_io_putc(zterp_io *, uint16_t);
+long zterp_io_readline(zterp_io *, uint16_t *, size_t);
+long zterp_io_filesize(zterp_io *);
+void zterp_io_flush(zterp_io *);
 
 #endif
