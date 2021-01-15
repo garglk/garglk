@@ -16,7 +16,6 @@
  * along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <limits.h>

@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <setjmp.h>
 
-#ifdef ZTERP_GLK
+#ifdef ZTERP_GLK_TICK
 #include <glk.h>
 #endif
 
@@ -31,7 +31,6 @@
 #include "dict.h"
 #include "math.h"
 #include "memory.h"
-#include "meta.h"
 #include "objects.h"
 #include "random.h"
 #include "screen.h"
@@ -76,10 +75,10 @@ void interrupt_return(void)
  * restoring and restarting in case these happen while in an interrupt.
  */
 znoreturn
-void interrupt_reset(void)
+void interrupt_reset(bool call_zread)
 {
   ilevel = 0;
-  longjmp(jumps[0], 2);
+  longjmp(jumps[0], call_zread ? 2 : 3);
 }
 
 /* Jump back to the first round of processing, but tell it to
@@ -331,9 +330,17 @@ void process_instructions(void)
 
   switch(setjmp(jumps[ilevel]))
   {
-    case 1: /* Normal break from interrupt. */
+    /* Normal break from interrupt. */
+    case 1:
       return;
-    case 2: /* Special break: interrupt_reset() called, so keep interpreting. */
+    /* Special break: interrupt_reset(true) called, so keep interpreting
+     * after re-executing a @read due to an interpreter restore.
+     */
+    case 2:
+      zread();
+      break;
+    /* Special break: interrupt_reset(false) called, so keep interpreting. */
+    case 3:
       break;
   }
 

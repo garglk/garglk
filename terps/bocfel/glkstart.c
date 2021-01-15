@@ -127,36 +127,32 @@ static void startup(void)
   if(game_file != NULL)
   {
     char *game_dir = xstrdup(game_file);
+    char *p = strrchr(game_dir, '/');
+    char *basename = NULL;
 
-    if(game_dir != NULL)
+    if(p == NULL) p = strrchr(game_dir, '\\');
+
+    if(p == NULL)
     {
-      char *p = strrchr(game_dir, '/');
-      char *basename = NULL;
-
-      if(p == NULL) p = strrchr(game_dir, '\\');
-
-      if(p == NULL)
-      {
-        basename = game_dir;
-        winglk_set_resource_directory(".");
-      }
-      else
-      {
-        *p = 0;
-        winglk_set_resource_directory(game_dir);
-
-        if(*++p != 0) basename = p;
-      }
-
-      if(basename != NULL)
-      {
-        p = strrchr(basename, '.');
-        if(p != NULL) *p = 0;
-        sglk_set_basename(basename);
-      }
-
-      free(game_dir);
+      basename = game_dir;
+      winglk_set_resource_directory(".");
     }
+    else
+    {
+      *p = 0;
+      winglk_set_resource_directory(game_dir);
+
+      if(*++p != 0) basename = p;
+    }
+
+    if(basename != NULL)
+    {
+      p = strrchr(basename, '.');
+      if(p != NULL) *p = 0;
+      sglk_set_basename(basename);
+    }
+
+    free(game_dir);
 
     load_resources();
   }

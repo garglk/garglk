@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_ZTERP_H
 #define ZTERP_ZTERP_H
 
@@ -18,13 +20,14 @@ struct options
   bool assume_fixed;
   bool disable_graphics_font;
   bool enable_alt_graphics;
+  bool disable_history_plaback;
   bool show_id;
   bool disable_term_keys;
   char *username;
   bool disable_meta_commands;
   long int_number;
   bool disable_patches;
-  int int_version;
+  unsigned char int_version;
   bool replay_on;
   char *replay_name;
   bool record_on;
@@ -44,7 +47,7 @@ struct options
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.1"
+#define ZTERP_VERSION	"1.2"
 
 /* v3 */
 #define FLAGS1_STATUSTYPE	(1U << 1)

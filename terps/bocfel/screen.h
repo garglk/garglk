@@ -1,3 +1,5 @@
+// vim: set ft=c:
+
 #ifndef ZTERP_SCREEN_H
 #define ZTERP_SCREEN_H
 
@@ -8,6 +10,7 @@
 #include <glk.h>
 #endif
 
+#include "io.h"
 #include "util.h"
 
 /* Represents a Z-machine color.
@@ -17,18 +20,12 @@
  *
  * If mode is ColorModeTrue, value is a 15-bit color as described in
  * §8.3.7 and §15.
- *
- * If mode is ColorModeDefault, value is undefined, and the color
- * represents a request for the default color.
  */
 struct color
 {
-  enum { ColorModeANSI, ColorModeTrue, ColorModeDefault } mode;
+  enum ColorMode { ColorModeANSI, ColorModeTrue } mode;
   uint16_t value;
 };
-
-/* Boolean flag describing whether the header bit meaning “fixed font” is set. */
-extern bool header_fixed_font;
 
 void init_screen(void);
 
@@ -74,14 +71,19 @@ void update_color(int, unsigned long);
 #define ISTREAM_KEYBOARD	0
 #define ISTREAM_FILE		1
 
+void screen_set_header_bit(bool);
+
 bool output_stream(int16_t, uint16_t);
 bool input_stream(int);
 
-void set_current_style(void);
-
 int print_handler(uint32_t, void (*)(uint8_t));
-void put_char_u(uint16_t);
 void put_char(uint8_t);
+
+void screen_format_time(char (*)[64], long, long);
+bool screen_read_scrn(zterp_io *, uint32_t, char *, size_t);
+char (*screen_write_scrn(zterp_io *))[5];
+void screen_read_bfhs(zterp_io *);
+char (*screen_write_bfhs(zterp_io *))[5];
 
 void zoutput_stream(void);
 void zinput_stream(void);

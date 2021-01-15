@@ -57,7 +57,7 @@ void warning(const char *fmt, ...)
   vsnprintf(str, sizeof str, fmt, ap);
   va_end(ap);
 
-  show_message("WARNING: %s", str);
+  show_message("Warning: %s", str);
 }
 
 void die(const char *fmt, ...)
@@ -69,11 +69,11 @@ void die(const char *fmt, ...)
   vsnprintf(str, sizeof str, fmt, ap);
   va_end(ap);
 
-  show_message("fatal error: %s", str);
+  show_message("Fatal error: %s", str);
 
 #ifdef ZTERP_GLK
 #ifdef GARGLK
-  fprintf(stderr, "%s\n", str);
+  fprintf(stderr, "Fatal error: %s\n", str);
 #endif
   glk_exit();
 #endif
@@ -93,14 +93,6 @@ void help(void)
   flags[] = {
 #include "help.h"
   };
-
-  /* It’s too early to properly set up all tables (neither the alphabet
-   * nor Unicode table has been read from the story file), but since
-   * help() prints to the screen, it needs to at least have the basic
-   * tables created so that non-Unicode platforms have proper
-   * translations available.
-   */
-  setup_tables();
 
 #ifdef ZTERP_GLK
   glk_set_style(style_Preformatted);
@@ -178,7 +170,9 @@ char *xstrdup(const char *s)
   n = strlen(s) + 1;
 
   r = malloc(n);
-  if(r != NULL) memcpy(r, s, n);
+  if(r == NULL) die("unable to allocate memory");
+
+  memcpy(r, s, n);
 
   return r;
 }
@@ -188,7 +182,7 @@ void process_arguments(int argc, char **argv)
 {
   int c;
 
-  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1 )
+  while( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhHikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1 )
   {
     switch(c)
     {
@@ -231,6 +225,9 @@ void process_arguments(int argc, char **argv)
       case 'h':
         arg_status = ARG_HELP;
         return;
+      case 'H':
+        options.disable_history_plaback = true;
+        break;
       case 'i':
         options.show_id = true;
         break;

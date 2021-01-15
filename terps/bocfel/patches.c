@@ -40,6 +40,106 @@ struct patch
 
 static const struct patch patches[] =
 {
+  /* Beyond Zork tries to treat a dictionary word as an object in four
+   * places. This affects all releases and so needs to be patched in
+   * four places each release, resulting in several patch entries.
+   *
+   * The code looks something like:
+   *
+   * [ KillFilm;
+   *   @clear_attr circlet 3
+   *   @call_vn ReplaceSyn "circlet" "film" "zzzp"
+   *   @call_vn ReplaceAdj "circlet" "swirling" "zzzp"
+   *   @rfalse;
+   * ];
+   *
+   * For the calls, "circlet" is the dictionary word, not the object.
+   * Given that the object number of the circlet object is easily
+   * discoverable, these calls can be rewritten to use the object number
+   * instead of the incorrect dictionary entry. The following set of
+   * patches does this.
+   */
+  {
+    .title = "Beyond Zork", .serial = "870915", .release = 47, .checksum = 0x3ff4,
+    .addr = 0x2f8e6, .n = 2, .expected = B(0xa3, 0x9a), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870915", .release = 47, .checksum = 0x3ff4,
+    .addr = 0x2f8f0, .n = 2, .expected = B(0xa3, 0x9a), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870915", .release = 47, .checksum = 0x3ff4,
+    .addr = 0x2f902, .n = 2, .expected = B(0xa3, 0x9a), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870915", .release = 47, .checksum = 0x3ff4,
+    .addr = 0x2f90c, .n = 2, .expected = B(0xa3, 0x9a), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870917", .release = 49, .checksum = 0x24d6,
+    .addr = 0x2f8b6, .n = 2, .expected = B(0xa3, 0x9c), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870917", .release = 49, .checksum = 0x24d6,
+    .addr = 0x2f8c0, .n = 2, .expected = B(0xa3, 0x9c), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870917", .release = 49, .checksum = 0x24d6,
+    .addr = 0x2f8d2, .n = 2, .expected = B(0xa3, 0x9c), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870917", .release = 49, .checksum = 0x24d6,
+    .addr = 0x2f8dc, .n = 2, .expected = B(0xa3, 0x9c), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870923", .release = 51, .checksum = 0x0cbe,
+    .addr = 0x2f762, .n = 2, .expected = B(0xa3, 0x8d), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870923", .release = 51, .checksum = 0x0cbe,
+    .addr = 0x2f76c, .n = 2, .expected = B(0xa3, 0x8d), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870923", .release = 51, .checksum = 0x0cbe,
+    .addr = 0x2f77e, .n = 2, .expected = B(0xa3, 0x8d), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "870923", .release = 51, .checksum = 0x0cbe,
+    .addr = 0x2f788, .n = 2, .expected = B(0xa3, 0x8d), .replacement = B(0x01, 0x86),
+  },
+  {
+    .title = "Beyond Zork", .serial = "871221", .release = 57, .checksum = 0xc5ad,
+    .addr = 0x2fc72, .n = 2, .expected = B(0xa3, 0xba), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "871221", .release = 57, .checksum = 0xc5ad,
+    .addr = 0x2fc7c, .n = 2, .expected = B(0xa3, 0xba), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "871221", .release = 57, .checksum = 0xc5ad,
+    .addr = 0x2fc8e, .n = 2, .expected = B(0xa3, 0xba), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "871221", .release = 57, .checksum = 0xc5ad,
+    .addr = 0x2fc98, .n = 2, .expected = B(0xa3, 0xba), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "880610", .release = 60, .checksum = 0xa49d,
+    .addr = 0x2fbfe, .n = 2, .expected = B(0xa3, 0xc0), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "880610", .release = 60, .checksum = 0xa49d,
+    .addr = 0x2fc08, .n = 2, .expected = B(0xa3, 0xc0), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "880610", .release = 60, .checksum = 0xa49d,
+    .addr = 0x2fc1a, .n = 2, .expected = B(0xa3, 0xc0), .replacement = B(0x01, 0x87),
+  },
+  {
+    .title = "Beyond Zork", .serial = "880610", .release = 60, .checksum = 0xa49d,
+    .addr = 0x2fc24, .n = 2, .expected = B(0xa3, 0xc0), .replacement = B(0x01, 0x87),
+  },
+
   /* This is in a routine which iterates over all attributes of an
    * object, but due to an off-by-one error, attribute 48 (0x30) is
    * included, which is not valid, as the last attribute is 47 (0x2f);
@@ -78,6 +178,27 @@ static const struct patch patches[] =
   {
     .title = "Wishbringer", .serial = "880706", .release = 23, .checksum = 0x4222,
     .addr = 0x1f910, .n = 1, .expected = B(0xbc), .replacement = B(0xb4),
+  },
+
+  /* Robot Finds Kitten attempts to sleep with the following:
+   *
+   * [ Func junk;
+   *   @aread junk 0 10 PauseFunc -> junk;
+   * ];
+   *
+   * However, since “junk” is a local variable with value 0 instead of a
+   * text buffer, this is asking to read from/write to address 0. This
+   * works in some interpreters, but Bocfel is more strict, and aborts
+   * the program. Rewrite this instead to:
+   *
+   * @read_char 1 10 PauseFunc -> junk;
+   * @nop; ! This is for padding.
+   */
+  {
+    .title = "Robot Finds Kitten", .serial = "130320", .release = 7, .checksum = 0x4a18,
+    .addr = 0x4912, .n = 8,
+    .expected = B(0xe4, 0x94, 0x05, 0x00, 0x0a, 0x12, 0x5a, 0x05),
+    .replacement = B(0xf6, 0x53, 0x01, 0x0a, 0x12, 0x5a, 0x05, 0xb4),
   },
 
   { .replacement = NULL },

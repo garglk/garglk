@@ -18,7 +18,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -85,12 +84,17 @@ void user_store_byte(uint16_t addr, uint8_t v)
 
   if(addr == 0x11)
   {
-    ZASSERT((byte(addr) ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
+    uint8_t existing = byte(addr);
+
+    ZASSERT((existing ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
 
     if(!output_stream((v & FLAGS2_TRANSCRIPT) ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) v &= ~FLAGS2_TRANSCRIPT;
 
-    header_fixed_font = v & FLAGS2_FIXED;
-    set_current_style();
+    /* If the fixed flag is being flipped... */
+    if((existing ^ v) & FLAGS2_FIXED)
+    {
+      screen_set_header_bit(v & FLAGS2_FIXED);
+    }
   }
 
   else

@@ -181,7 +181,7 @@ static void set_color(const char *string, const struct color *color)
   switch(color->mode)
   {
     case ColorModeANSI:
-      if(color->value <= 9) putp(tparm(string, color->value - 2));
+      if(color->value >= 2 && color->value <= 9) putp(tparm(string, color->value - 2));
       break;
     case ColorModeTrue:
       if(have_24bit_rgb)
@@ -198,8 +198,6 @@ static void set_color(const char *string, const struct color *color)
                                color->value;
         putp(tparm(string, screen_convert_color(transformed)));
       }
-      break;
-    case ColorModeDefault:
       break;
   }
 }
