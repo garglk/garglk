@@ -226,7 +226,7 @@ void process_arguments(int argc, char **argv)
         arg_status = ARG_HELP;
         return;
       case 'H':
-        options.disable_history_plaback = true;
+        options.disable_history_playback = true;
         break;
       case 'i':
         options.show_id = true;

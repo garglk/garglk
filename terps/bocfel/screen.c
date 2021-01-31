@@ -699,6 +699,12 @@ void show_message(const char *fmt, ...)
   }
 }
 
+void screen_message_prompt(const char *message)
+{
+  screen_puts(message);
+  if(curwin == mainwin) screen_print("\n>");
+}
+
 /* See §7.
  * This returns true if the stream was successfully selected.
  * Deselecting a stream is always successful.
@@ -2210,6 +2216,27 @@ static bool read_handler(void)
     {
       const uint32_t *ret;
 
+#ifdef ZTERP_GLK
+      /* If the game is currently in the upper window, blank out
+       * everything the user typed so that a re-request of input has a
+       * clean slate to work with. Replace the cursor where it was at
+       * the start of input.
+       */
+      if(curwin == upperwin)
+      {
+        /* Account for any preloaded text: the starting cursor position
+         * was at the end of preloaded text, but now the cursor needs to
+         * be placed at the beginning of where input *should* be, i.e.
+         * where the preloaded text started. In addition, overwrite the
+         * original string with spaces to clear whatever was previously
+         * typed.
+         */
+        set_cursor(starting_y, starting_x - input.preloaded);
+        for(int i = 0; i < input.len; i++) put_char_u(UNICODE_SPACE);
+        set_cursor(starting_y, starting_x - input.preloaded);
+      }
+#endif
+
       ret = handle_meta_command(string + 1, input.len - 1);
       if(ret == NULL)
       {
@@ -2217,23 +2244,13 @@ static bool read_handler(void)
       }
       else if(ret == string + 1)
       {
-        /* The game still wants input, so try again. If this is the
-         * upper window just replace the cursor without printing
-         * anything, but if it’s the main window, print a newline and a
-         * “>”. There’s no way to be certain what the prompt should look
-         * like but this is reasonable enough.
+        /* The game still wants input, so try again. If this is the main
+         * window, print a prompt that hopefully meshes well with the
+         * game. If it’s the upper window, don't print anything, because
+         * that will almost certainly do more harm than good.
          */
 #ifdef ZTERP_GLK
-        if(curwin == upperwin)
-        {
-          /* Account for any preloaded text: the starting cursor
-           * position was at the end of preloaded text, but now the
-           * cursor needs to be placed at the beginning of where input
-           * *should* be, i.e. where the preloaded text started.
-           */
-          set_cursor(starting_y, starting_x - input.preloaded);
-        }
-        else
+        if (curwin != upperwin)
 #endif
         {
           screen_print("\n>");
@@ -2417,7 +2434,7 @@ void zpicture_data(void)
 
 void zget_wind_prop(void)
 {
-  uint8_t font_width = 10, font_height = 10;
+  uint8_t font_width = 1, font_height = 1;
   uint16_t val;
   struct window *win;
 

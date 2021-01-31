@@ -56,6 +56,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 #ifdef GARGLK
   garglk_set_program_name("Bocfel");
+  if(options.show_version) return 1;
+
   if(game_file != NULL)
   {
     const char *p = strrchr(game_file, '/');
@@ -116,7 +118,7 @@ static void startup(void)
 
   if(game_file == NULL)
   {
-    const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z7;*.zblorb;*.zlb;*.blorb;*.blb";
+    const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
     char filter[512];
 
     snprintf(filter, sizeof filter, "Z-Code Files (%s)|%s|All Files (*.*)|*.*||", patterns, patterns);

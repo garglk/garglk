@@ -1039,8 +1039,8 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta, bool *is_bfms)
   {
     if(!zterp_iff_find(iff, "Args", &size)) goto_death("no meta save Args chunk found");
 
-    if(size % 2 != 0) goto_death("invalid Args size: %lu", (unsigned long)size);
-    if(size / 2 != znargs) goto_death("invalid Args value: reported number of arguments (%lu) at odds with actual number of arguments (%d)", (unsigned long)(size / 2), znargs);
+    /* @read takes between 1 and 4 operands. */
+    if (size != 2 && size != 4 && size != 6 && size != 8) goto_death("invalid Args size: %lu", (unsigned long)size);
     znargs = size / 2;
 
     for(int i = 0; i < znargs; i++)
@@ -1060,7 +1060,7 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta, bool *is_bfms)
     }
   }
 
-  if(!options.disable_history_plaback && zterp_iff_find(iff, "Bfhs", &size))
+  if(!options.disable_history_playback && zterp_iff_find(iff, "Bfhs", &size))
   {
     long start = zterp_io_tell(savefile);
 

@@ -67,7 +67,7 @@ static void try_user_restore(long i)
 
   if(pop_save(SAVE_USER, i, &call_zread))
   {
-    screen_print("[Restored]\n\n>");
+    screen_message_prompt("[Restored]");
     interrupt_reset(call_zread);
   }
   else
@@ -619,7 +619,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
     if(pop_save(SAVE_GAME, 0, &call_zread))
     {
       if(seen_save_undo) store(2);
-      else               screen_print("[Undone]\n\n>");
+      else               screen_message_prompt("[Undone]");
 
       interrupt_reset(call_zread);
       return NULL;
@@ -672,7 +672,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, const uint8_t len)
 
     if(do_restore(true, &is_bfms))
     {
-      screen_print("[Restored]\n\n>");
+      screen_message_prompt("[Restored]");
       interrupt_reset(!is_bfms);
       return NULL;
     }
