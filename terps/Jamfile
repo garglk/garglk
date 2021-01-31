@@ -121,7 +121,7 @@ if $(MAKE_ALAN3) = yes
 
 # -----------------------------------------------------------------------
 #
-# Bocfel 1.2
+# Bocfel 1.2.1
 #
 
 if $(MAKE_BOCFEL) = yes
@@ -129,7 +129,7 @@ if $(MAKE_BOCFEL) = yes
     SubDir TOP terps bocfel ;
     ObjDir bocfel ;
 
-    SubDirCcFlags -std=c99 -DZTERP_GLK -DGARGLK ;
+    SubDirCcFlags -std=c99 -DZTERP_GLK -DZTERP_GLK_BLORB -DGARGLK ;
 
     if $(OS) = MINGW
     {

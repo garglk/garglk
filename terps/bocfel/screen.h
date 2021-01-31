@@ -51,6 +51,7 @@ void screen_print(const char *);
 zprintflike(1, 2)
 void screen_printf(const char *, ...);
 void screen_puts(const char *);
+void screen_message_prompt(const char *);
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
 void term_keys_reset(void);

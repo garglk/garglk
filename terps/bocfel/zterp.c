@@ -61,7 +61,7 @@ struct options options = {
   .assume_fixed = false,
   .disable_graphics_font = false,
   .enable_alt_graphics = false,
-  .disable_history_plaback = false,
+  .disable_history_playback = false,
   .show_id = false,
   .disable_term_keys = false,
   .username = NULL,
@@ -310,7 +310,7 @@ static void read_config(void)
     BOOL  (assume_fixed);
     BOOL  (disable_graphics_font);
     BOOL  (enable_alt_graphics);
-    BOOL  (disable_history_plaback);
+    BOOL  (disable_history_playback);
     BOOL  (disable_term_keys);
     STRING(username);
     BOOL  (disable_meta_commands);

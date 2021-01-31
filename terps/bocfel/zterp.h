@@ -20,7 +20,7 @@ struct options
   bool assume_fixed;
   bool disable_graphics_font;
   bool enable_alt_graphics;
-  bool disable_history_plaback;
+  bool disable_history_playback;
   bool show_id;
   bool disable_term_keys;
   char *username;
@@ -47,7 +47,7 @@ struct options
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.2"
+#define ZTERP_VERSION	"1.2.1"
 
 /* v3 */
 #define FLAGS1_STATUSTYPE	(1U << 1)
