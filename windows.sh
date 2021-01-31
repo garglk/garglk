@@ -9,15 +9,25 @@ set -e
 
 [[ -e build/dist ]] && exit 1
 
+sdl_location=/opt/local
+target=i686-w64-mingw32
+
+export PKG_CONFIG_PATH=${sdl_location}/${target}/lib/pkgconfig
+
 makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis"
 nproc=$(getconf _NPROCESSORS_ONLN)
-ver=$(i686-w64-mingw32-gcc --version | head -1 | awk '{print $3}')
+ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
-jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -sUSETTS=yes -dx -j${nproc}
-jam -sC++=i686-w64-mingw32-g++ -sCC=i686-w64-mingw32-gcc -sOS=MINGW -sMINGWARCH=i686-w64-mingw32 -sCROSS=1 -sUSETTS=yes -dx install
+jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -dx -j${nproc}
+jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -dx install
 
-cp "/usr/lib/gcc/i686-w64-mingw32/${ver}/libstdc++-6.dll" "build/dist"
-cp "/usr/lib/gcc/i686-w64-mingw32/${ver}/libgcc_s_sjlj-1.dll" "build/dist"
-cp "/usr/i686-w64-mingw32/lib/libwinpthread-1.dll" "build/dist"
+cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
+cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_sjlj-1.dll" "build/dist"
+cp "/usr/${target}/lib/libwinpthread-1.dll" "build/dist"
+
+for dll in SDL2 SDL2_mixer
+do
+    cp "${sdl_location}/${target}/bin/${dll}.dll" "build/dist"
+done
 
 wine "${makensis}" installer.nsi
