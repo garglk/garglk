@@ -31,7 +31,6 @@
 
 #include <SDL.h>
 #include <SDL_mixer.h>
-#include <SDL_sound.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -57,7 +56,6 @@ static channel_t *gli_channellist = NULL;
 static channel_t *sound_channels[SDL_CHANNELS];
 static channel_t *music_channel;
 
-static Sound_AudioInfo *output = NULL;
 static const int FREE = 1;
 static const int BUSY = 2;
 
@@ -65,6 +63,7 @@ void gli_initialize_sound(void)
 {
     if (gli_conf_sound == 1)
     {
+        SDL_SetMainReady();
         if (SDL_Init(SDL_INIT_AUDIO|SDL_INIT_TIMER) == -1)
         {
             gli_strict_warning("SDL init failed\n");
@@ -72,26 +71,16 @@ void gli_initialize_sound(void)
             gli_conf_sound = 0;
             return;
         }
-        if (Sound_Init() == -1)
-        {
-            gli_strict_warning("SDL Sound init failed\n");
-            gli_strict_warning("%s", Sound_GetError());
-            gli_conf_sound = 0;
-            return;
-        }
-        Sound_AudioInfo *audio;
-        audio = malloc(sizeof(Sound_AudioInfo));
-        audio->format = MIX_DEFAULT_FORMAT;
-        audio->channels = 2;
-        audio->rate = 44100;
-        output = audio;
-        if (Mix_OpenAudio(output->rate, output->format, output->channels, 4096) == -1)
+        // MixInit?
+
+        if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) == -1)
         {
             gli_strict_warning("SDL Mixer init failed\n");
             gli_strict_warning("%s", Mix_GetError());
             gli_conf_sound = 0;
             return;
         }
+
         int channels = Mix_AllocateChannels(SDL_CHANNELS);
         Mix_GroupChannels(0, channels - 1 , FREE);
         Mix_ChannelFinished(NULL);
@@ -123,8 +112,6 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     chan->sdl_memory = 0;
     chan->sdl_rwops = 0;
     chan->sample = 0;
-    chan->decode = 0;
-    chan->buffered = 0;
     chan->paused = 0;
     chan->sdl_channel = -1;
     chan->music = 0;
@@ -154,13 +141,8 @@ static void cleanup_channel(schanid_t chan)
 {
     if (chan->sdl_rwops)
     {
-        if (!chan->decode)
-            SDL_FreeRW(chan->sdl_rwops);
-        else
-            Sound_FreeSample(chan->decode);
+        SDL_FreeRW(chan->sdl_rwops);
         chan->sdl_rwops = 0;
-        chan->decode = 0;
-        chan->buffered = 0;
     }
     if (chan->sdl_memory)
     {
@@ -438,52 +420,14 @@ static void sound_completion_callback(int chan)
         return;
     }
 
-    if (!sound_channel->buffered || !sound_channel->decode)
+    if (sound_channel->notify)
     {
-        if (sound_channel->notify)
-        {
-            gli_event_store(evtype_SoundNotify, 0,
-                sound_channel->resid, sound_channel->notify);
-            gli_notification_waiting();
-        }
-        cleanup_channel(sound_channel);
-        sound_channels[chan] = 0;
-        return;
+        gli_event_store(evtype_SoundNotify, 0,
+            sound_channel->resid, sound_channel->notify);
+        gli_notification_waiting();
     }
-    Uint32 soundbytes = Sound_Decode(sound_channel->decode);
-    if (!soundbytes)
-    {
-        sound_channel->loop--;
-        if (!sound_channel->loop)
-        {
-            if (sound_channel->notify)
-            {
-                gli_event_store(evtype_SoundNotify, 0,
-                    sound_channel->resid, sound_channel->notify);
-                gli_notification_waiting();
-            }
-            cleanup_channel(sound_channel);
-            sound_channels[chan] = 0;
-            return;
-        }
-        else
-        {
-            Sound_Rewind(sound_channel->decode);
-            soundbytes = Sound_Decode(sound_channel->decode);
-        }
-    }
-    Sound_Sample *sample = sound_channel->decode;
-    sound_channel->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
-    Mix_ChannelFinished(&sound_completion_callback);
-    if (Mix_PlayChannel(sound_channel->sdl_channel,
-                        sound_channel->sample,
-                        FALSE) >= 0)
-    {
-        return;
-    }
-    gli_strict_warning("buffer sound failed");
-    gli_strict_warning("%s", Mix_GetError());
     cleanup_channel(sound_channel);
+    sound_channels[chan] = 0;
     return;
 }
 
@@ -598,7 +542,6 @@ static glui32 play_sound(schanid_t chan)
     int loop;
     SDL_LockAudio();
     chan->status = CHANNEL_SOUND;
-    chan->buffered = 0;
     chan->sdl_channel = Mix_GroupAvailable(FREE);
     Mix_GroupChannel(chan->sdl_channel, BUSY);
     SDL_UnlockAudio();
@@ -618,39 +561,6 @@ static glui32 play_sound(schanid_t chan)
         if (loop < -1)
             loop = -1;
         if (Mix_PlayChannel(chan->sdl_channel, chan->sample, loop) >= 0)
-            return 1;
-    }
-    gli_strict_warning("play sound failed");
-    gli_strict_warning("%s", Mix_GetError());
-    SDL_LockAudio();
-    cleanup_channel(chan);
-    SDL_UnlockAudio();
-    return 0;
-}
-
-/** Start a compressed sound channel */
-static glui32 play_compressed(schanid_t chan, char *ext)
-{
-    SDL_LockAudio();
-    chan->status = CHANNEL_SOUND;
-    chan->buffered = 1;
-    chan->sdl_channel = Mix_GroupAvailable(FREE);
-    Mix_GroupChannel(chan->sdl_channel, BUSY);
-    SDL_UnlockAudio();
-    chan->decode = Sound_NewSample(chan->sdl_rwops, ext, output, 65536);
-    Uint32 soundbytes = Sound_Decode(chan->decode);
-    Sound_Sample *sample = chan->decode;
-    chan->sample = Mix_QuickLoad_RAW(sample->buffer, soundbytes);
-    if (chan->sdl_channel < 0)
-        gli_strict_warning("No available sound channels");
-    if (chan->sdl_channel >= 0 && chan->sample)
-    {
-        SDL_LockAudio();
-        sound_channels[chan->sdl_channel] = chan;
-        SDL_UnlockAudio();
-        Mix_Volume(chan->sdl_channel, chan->volume);
-        Mix_ChannelFinished(&sound_completion_callback);
-        if (Mix_PlayChannel(chan->sdl_channel, chan->sample, 0) >= 0)
             return 1;
     }
     gli_strict_warning("play sound failed");
@@ -776,15 +686,9 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
         case giblorb_ID_FORM:
         case giblorb_ID_AIFF:
         case giblorb_ID_WAVE:
-            result = play_sound(chan);
-            break;
-
         case giblorb_ID_OGG:
-            result = play_compressed(chan, "OGG");
-            break;
-
         case giblorb_ID_MP3:
-            result = play_compressed(chan, "MP3");
+            result = play_sound(chan);
             break;
 
         case giblorb_ID_MOD:
@@ -854,7 +758,6 @@ void glk_schannel_stop(schanid_t chan)
         return;
     }
     SDL_LockAudio();
-    chan->buffered = 0;
     chan->paused = 0;
     glk_schannel_unpause(chan);
     SDL_UnlockAudio();

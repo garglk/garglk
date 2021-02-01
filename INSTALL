@@ -2,7 +2,7 @@
 
 To compile Gargoyle you will need jam 2.5.
 
-For sound support, you will need SDL_mixer.
+For sound support, you will need SDL2_mixer.
 The FMOD sound support is slightly broken, but can be re-enabled
 with a little bit of hacking.
 
@@ -38,7 +38,7 @@ To build cleanly with jam, you first need to install the pre-requisite packages:
 
 If you want to compile with SDL support, you also need to install the development packages for that:
 
-`sudo dnf SDL SDL-devel SDL_mixer SDL_sound-devel SDL_mixer-devel`
+`sudo dnf SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel`
 
 After that, just follow the general instructions above.
 
@@ -52,8 +52,8 @@ building Gargoyle for your own use, that's all you need to know.
 
 For the MacPorts packages you'll need, type:
 
-  sudo port install libsdl -x11
-  sudo port install libsdl_mixer libsdl_sound
+  sudo port install libsdl2
+  sudo port install libsdl2_mixer
   sudo port install libpng
   sudo port install jpeg
   sudo port install smpeg
@@ -63,8 +63,8 @@ For the MacPorts packages you'll need, type:
 
 If you're using Homebrew, instead type:
 
-  brew install sdl
-  brew install sdl_mixer sdl_sound
+  brew install sdl2
+  brew install sdl2_mixer
   brew install libpng
   brew install jpeg
   brew install smpeg

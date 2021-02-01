@@ -73,20 +73,6 @@ if $(OS) = MINGW
     InstallLib $(LIBDIR) : zlib1.dll ;
 }
 
-if $(OS) = MINGW && $(USESDL) = yes
-{
-    SharedLinkLibrariesOnSharedLibrary libgarglk : SDL_sound ;
-    SEARCH_SOURCE += [ FDirName $(TOP) support sdl ] ;
-    InstallLib $(LIBDIR) : SDL_sound.dll ;
-    InstallLib $(LIBDIR) : SDL_mixer.dll ;
-    InstallLib $(LIBDIR) : SDL.dll ;
-    InstallLib $(LIBDIR) : smpeg.dll ;
-    InstallLib $(LIBDIR) : libogg-0.dll ;
-    InstallLib $(LIBDIR) : libvorbis-0.dll ;
-    InstallLib $(LIBDIR) : libvorbisfile-3.dll ;
-    InstallLib $(LIBDIR) : mikmod.dll ;
-}
-
 if $(STATIC)
 {
     if $(USEBABEL) = yes
