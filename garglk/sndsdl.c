@@ -395,7 +395,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
 /* Notify the music channel completion */
 static void music_completion_callback()
 {
-    if (!music_channel || !music_channel->resid)
+    if (!music_channel)
     {
         gli_strict_warning("music callback failed");
         return;
