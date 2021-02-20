@@ -635,7 +635,7 @@ static glui32 play_mod(schanid_t chan, long len)
         SDL_UnlockAudio();
         Mix_VolumeMusic(chan->volume);
         Mix_HookMusicFinished(&music_completion_callback);
-        loop = chan->loop - 1;
+        loop = chan->loop;
         if (loop < -1)
             loop = -1;
         if (Mix_PlayMusic(chan->music, loop) >= 0)
