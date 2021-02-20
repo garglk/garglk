@@ -485,14 +485,6 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         if (*len > 20 && !memcmp(*buf, "Extended Module: ", 17))
             return giblorb_ID_MOD;
 
-        /* Whatever MOD format Dragon Hunt uses */
-        if (*len > 11 && !memcmp(*buf, "introfronty", 11))
-            return giblorb_ID_MOD;
-
-        /* Whatever MOD format Enceladus uses */
-        if (*len > 11 && !memcmp(*buf, "elysium", 7))
-            return giblorb_ID_MOD;
-
         /* MOD */
         if (*len > 1084)
         {
