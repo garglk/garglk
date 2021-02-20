@@ -786,7 +786,7 @@ void gli_putchar_utf8(glui32 val, FILE *fl);
 glui32 gli_getchar_utf8(FILE *fl);
 glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
-glui32 strlen_uni(glui32 *s);
+glui32 strlen_uni(const glui32 *s);
 
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y);

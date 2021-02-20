@@ -471,6 +471,10 @@ extern void garglk_set_config(const char *name);
 extern void garglk_unput_string(char *str);
 extern void garglk_unput_string_uni(glui32 *str);
 
+/* These variants are the same as above but return the number of characters that were unput. */
+extern glui32 garglk_unput_string_count(const char *str);
+extern glui32 garglk_unput_string_count_uni(const glui32 *str);
+
 #define zcolor_Transparent   (-4)
 #define zcolor_Cursor        (-3)
 #define zcolor_Current       (-2)
