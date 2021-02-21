@@ -51,6 +51,7 @@
 #define GLK_MAXVOLUME 0x10000
 #define FADE_GRANULARITY 100
 
+#define GLK_VOLUME_TO_SDL_VOLUME(x) ((x) < GLK_MAXVOLUME ? (round(pow(((double)x) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME)) : (MIX_MAX_VOLUME))
 
 static channel_t *gli_channellist = NULL;
 static channel_t *sound_channels[SDL_CHANNELS];
@@ -105,7 +106,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
     chan->rock = rock;
     chan->status = CHANNEL_IDLE;
-    chan->volume = volume >= GLK_MAXVOLUME ? MIX_MAX_VOLUME : round(pow(((double)volume) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME);
+    chan->volume = GLK_VOLUME_TO_SDL_VOLUME(volume);
     chan->resid = 0;
     chan->loop = 0;
     chan->notify = 0;
@@ -323,7 +324,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 }
 
 /** Start a fade timer */
-void init_fade(schanid_t chan, int volume, int duration, int notify)
+void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 {
     if (!chan)
     {
@@ -333,8 +334,7 @@ void init_fade(schanid_t chan, int volume, int duration, int notify)
 
     chan->volume_notify = notify;
 
-    /* Convert requested Glk Volume to SDL Volume */
-    chan->target_volume = volume >= GLK_MAXVOLUME ? MIX_MAX_VOLUME : round(pow(((double)volume) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME);
+    chan->target_volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
 
     chan->float_volume = (double)chan->volume;
     chan->volume_delta = (double)(chan->target_volume - chan->volume) / FADE_GRANULARITY;
@@ -358,7 +358,7 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
     glk_schannel_set_volume_ext(chan, vol, 0, 0);
 }
 
-void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
+void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
         glui32 duration, glui32 notify)
 {
     if (!chan)
@@ -369,10 +369,8 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
 
     if (!duration)
     {
-        chan->volume = MIX_MAX_VOLUME;
 
-        if (vol < GLK_MAXVOLUME)
-            chan->volume = round(pow(((double)vol) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME);
+        chan->volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
 
         switch (chan->status)
         {
@@ -388,7 +386,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 vol,
     }
     else
     {
-        init_fade(chan, vol, duration, notify);
+        init_fade(chan, glk_volume, duration, notify);
     }
 }
 
