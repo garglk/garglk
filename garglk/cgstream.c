@@ -923,13 +923,13 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
     }
 }
 
-static void gli_unput_buffer(stream_t *str, char *buf, glui32 len)
+static glui32 gli_unput_buffer(stream_t *str, const char *buf, glui32 len)
 {
     glui32 lx;
-    unsigned char *cx;
+    const unsigned char *cx;
 
     if (!str || !str->writable)
-        return;
+        return 0;
 
     if (str->type == strtype_Window)
     {
@@ -943,7 +943,7 @@ static void gli_unput_buffer(stream_t *str, char *buf, glui32 len)
             else
             {
                 gli_strict_warning("unput_buffer: window has pending line request");
-                return;
+                return 0;
             }
         }
         for (lx=0, cx=buf+len-1; lx<len; lx++, cx--)
@@ -954,16 +954,20 @@ static void gli_unput_buffer(stream_t *str, char *buf, glui32 len)
         }
         if (str->win->echostr)
             gli_unput_buffer(str->win->echostr, buf, len);
+
+        return lx;
     }
+
+    return 0;
 }
 
-static void gli_unput_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
+static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
 {
     glui32 lx;
-    glui32 *cx;
+    const glui32 *cx;
 
     if (!str || !str->writable)
-        return;
+        return 0;
 
     if (str->type == strtype_Window)
     {
@@ -977,7 +981,7 @@ static void gli_unput_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
             else
             {
                 gli_strict_warning("unput_buffer: window has pending line request");
-                return;
+                return 0;
             }
         }
         for (lx=0, cx=buf+len-1; lx<len; lx++, cx--)
@@ -988,7 +992,11 @@ static void gli_unput_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
         }
         if (str->win->echostr)
             gli_unput_buffer_uni(str->win->echostr, buf, len);
+
+        return lx;
     }
+
+    return 0;
 }
 
 static void gli_set_style(stream_t *str, glui32 val)
@@ -1882,7 +1890,7 @@ void glk_put_string(char *s)
     gli_put_buffer(gli_currentstr, s, strlen(s));
 }
 
-glui32 strlen_uni(glui32 *s)
+glui32 strlen_uni(const glui32 *s)
 {
     glui32 length = 0;
     while (*s++) length++;
@@ -1952,6 +1960,16 @@ void garglk_unput_string(char *s)
 void garglk_unput_string_uni(glui32 *s)
 {
     gli_unput_buffer_uni(gli_currentstr, s, strlen_uni(s));
+}
+
+glui32 garglk_unput_string_count(const char *s)
+{
+    return gli_unput_buffer(gli_currentstr, s, strlen(s));
+}
+
+glui32 garglk_unput_string_count_uni(const glui32 *s)
+{
+    return gli_unput_buffer_uni(gli_currentstr, s, strlen_uni(s));
 }
 
 void glk_set_style(glui32 val)
