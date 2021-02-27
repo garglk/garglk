@@ -475,10 +475,10 @@ extern void garglk_unput_string_uni(glui32 *str);
 extern glui32 garglk_unput_string_count(const char *str);
 extern glui32 garglk_unput_string_count_uni(const glui32 *str);
 
-#define zcolor_Transparent   (-4)
-#define zcolor_Cursor        (-3)
-#define zcolor_Current       (-2)
-#define zcolor_Default       (-1)
+#define zcolor_Transparent   ((glui32)0xfffffffc)
+#define zcolor_Cursor        ((glui32)0xfffffffd)
+#define zcolor_Current       ((glui32)0xfffffffe)
+#define zcolor_Default       ((glui32)0xffffffff)
 
 extern void garglk_set_zcolors(glui32 fg, glui32 bg);
 extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
