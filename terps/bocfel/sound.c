@@ -1,3 +1,19 @@
+// Copyright 2011-2021 Chris Spiegel.
+//
+// This file is part of Bocfel.
+//
+// Bocfel is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version
+// 2 or 3, as published by the Free Software Foundation.
+//
+// Bocfel is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -11,6 +27,7 @@
 
 #ifdef GLK_MODULE_SOUND
 static schanid_t sound_channel = NULL;
+uint16_t sound_routine;
 #endif
 
 void init_sound(void)
@@ -44,6 +61,8 @@ void zsound_effect(void)
         0x0a000, 0x0c000, 0x0e000, 0x10000
     };
 
+    sound_routine = 0;
+
     if (sound_channel == NULL || zargs[0] < 3) {
         return;
     }
@@ -59,8 +78,7 @@ void zsound_effect(void)
 
     if (volume == 0) {
         volume = 1;
-    }
-    if (volume  > 8) {
+    } else if (volume > 8) {
         volume = 8;
     }
 
@@ -71,10 +89,14 @@ void zsound_effect(void)
         glk_sound_load_hint(zargs[0], 1);
         break;
     case 2: // start
-        glk_schannel_play_ext(sound_channel, zargs[0], repeats == 255 ? -1 : repeats, 0);
+        sound_routine = zargs[3];
+        if (!glk_schannel_play_ext(sound_channel, zargs[0], repeats == 255 ? -1 : repeats, sound_routine != 0)) {
+            sound_routine = 0;
+        }
         break;
     case 3: // stop
         glk_schannel_stop(sound_channel);
+        sound_routine = 0;
         break;
     case 4: // finish with
         glk_sound_load_hint(zargs[0], 0);

@@ -1,4 +1,4 @@
-// Copyright 2010-2016 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -96,7 +96,7 @@ void help(void)
 #endif
 
     screen_puts("Usage: bocfel [args] filename");
-    for (size_t i = 0; i < sizeof flags / sizeof *flags; i++) {
+    for (size_t i = 0; i < ASIZE(flags); i++) {
         char line[1024];
         const char *arg;
 
@@ -228,7 +228,7 @@ void process_arguments(int argc, char **argv)
             arg_status = ARG_HELP;
             return;
         case 'H':
-            options.disable_history_plaback = true;
+            options.disable_history_playback = true;
             break;
         case 'i':
             options.show_id = true;

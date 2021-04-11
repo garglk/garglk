@@ -1,4 +1,4 @@
-// Copyright 2010-2013 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //

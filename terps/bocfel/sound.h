@@ -4,6 +4,15 @@
 #define ZTERP_SOUND_H
 
 #include <stdbool.h>
+#include <stdint.h>
+
+#ifdef ZTERP_GLK
+#include <glk.h>
+#endif
+
+#ifdef GLK_MODULE_SOUND
+extern uint16_t sound_routine;
+#endif
 
 void init_sound(void);
 bool sound_loaded(void);

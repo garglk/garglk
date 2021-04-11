@@ -1,4 +1,4 @@
-// Copyright 2013-2015 Chris Spiegel.
+// Copyright 2013-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -50,7 +50,7 @@ static void try_user_save(const char *desc)
     if (in_interrupt()) {
         screen_puts("[Cannot save while in an interrupt]");
     } else {
-        if (push_save(SAVE_USER, true, desc)) {
+        if (push_save(SaveStackUser, SaveTypeMeta, SaveOpcodeRead, desc)) {
             screen_puts("[Save pushed]");
         } else {
             screen_puts("[Save failed]");
@@ -61,11 +61,11 @@ static void try_user_save(const char *desc)
 // On success, this does not return.
 static void try_user_restore(long i)
 {
-    bool call_zread;
+    enum SaveOpcode saveopcode;
 
-    if (pop_save(SAVE_USER, i, &call_zread)) {
-        screen_print("[Restored]\n\n>");
-        interrupt_reset(call_zread);
+    if (pop_save(SaveStackUser, i, &saveopcode)) {
+        screen_message_prompt("[Restored]");
+        interrupt_restore(saveopcode);
     } else {
         screen_puts("[Restore failed]");
     }
@@ -73,7 +73,7 @@ static void try_user_restore(long i)
 
 static void try_user_drop(long i)
 {
-    if (drop_save(SAVE_USER, i + 1)) {
+    if (drop_save(SaveStackUser, i + 1)) {
         screen_puts("[Dropped]");
     } else {
         screen_puts("[Drop failed]");
@@ -96,7 +96,7 @@ static void meta_debug_change_start(void)
         screen_puts("[Cannot allocate memory]");
     } else {
         memcpy(debug_change_memory, memory, header.static_start);
-        for (size_t addr = 0; addr < sizeof debug_change_valid / sizeof *debug_change_valid; addr++) {
+        for (size_t addr = 0; addr < ASIZE(debug_change_valid); addr++) {
             debug_change_valid[addr] = true;
         }
         screen_puts("[Debug change reset]");
@@ -143,10 +143,6 @@ static void meta_debug_change_inc_dec(const char *string)
 
 static bool meta_debug_change(const char *string)
 {
-    while (*string == ' ') {
-        string++;
-    }
-
     if (strcmp(string, "start") == 0) {
         meta_debug_change_start();
     } else if (strcmp(string, "inc") == 0 || strcmp(string, "dec") == 0) {
@@ -162,12 +158,8 @@ static bool meta_debug_scan(const char *string)
 {
     static bool debug_scan_invalid_addr[UINT16_MAX + 1];
 
-    while (*string == ' ') {
-        string++;
-    }
-
     if (strcmp(string, "start") == 0) {
-        for (size_t addr = 0; addr < sizeof debug_scan_invalid_addr / sizeof *debug_scan_invalid_addr; addr++) {
+        for (size_t addr = 0; addr < ASIZE(debug_scan_invalid_addr); addr++) {
             debug_scan_invalid_addr[addr] = false;
         }
         screen_puts("[Debug scan reset]");
@@ -248,10 +240,6 @@ static bool meta_debug_print(const char *string)
 {
     long addr;
     bool valid;
-
-    while (*string == ' ') {
-        string++;
-    }
 
     addr = parse_address(string, &valid);
 
@@ -369,10 +357,6 @@ static bool meta_debug_unfreeze(const char *string)
     long addr;
     bool valid;
 
-    while (*string == ' ') {
-        string++;
-    }
-
     addr = parse_address(string, &valid);
     if (!valid) {
         return false;
@@ -394,7 +378,7 @@ static bool meta_debug_show_freeze(void)
 {
     bool any_frozen = false;
 
-    for (size_t addr = 0; addr < sizeof freeze_cheat / sizeof *freeze_cheat; addr++) {
+    for (size_t addr = 0; addr < ASIZE(freeze_cheat); addr++) {
         if (freeze_cheat[addr]) {
             any_frozen = true;
             screen_printf("%s: %lu\n", addrstring(addr), (unsigned long)freeze_val[addr]);
@@ -419,7 +403,7 @@ static void watch_add(uint16_t addr)
 
 static void watch_all(void)
 {
-    for (size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++) {
+    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
         watch_addresses[addr] = true;
     }
 }
@@ -436,7 +420,7 @@ static bool watch_remove(uint16_t addr)
 
 static void watch_none(void)
 {
-    for (size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++) {
+    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
         watch_addresses[addr] = false;
     }
 }
@@ -450,10 +434,6 @@ void watch_check(uint16_t addr, unsigned long oldval, unsigned long newval)
 
 static bool meta_debug_watch_helper(const char *string, bool do_watch)
 {
-    while (*string == ' ') {
-        string++;
-    }
-
     if (strcmp(string, "all") == 0) {
         if (do_watch) {
             watch_all();
@@ -480,9 +460,9 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
             screen_printf("[Watching %s for changes]\n", addrstring(addr));
         } else {
             if (watch_remove(addr)) {
-                screen_printf("[No longer watching %lx for changes]\n", addr);
+                screen_printf("[No longer watching 0x%lx for changes]\n", addr);
             } else {
-                screen_printf("[%lx is not currently being watched]\n", addr);
+                screen_printf("[0x%lx is not currently being watched]\n", addr);
             }
         }
     }
@@ -504,7 +484,7 @@ static bool meta_debug_show_watch(void)
 {
     bool any_watched = false;
 
-    for (size_t addr = 0; addr < sizeof watch_addresses / sizeof *watch_addresses; addr++) {
+    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
         if (watch_addresses[addr]) {
             any_watched = true;
             screen_puts(addrstring(addr));
@@ -546,31 +526,40 @@ static void meta_debug_help(void)
             );
 }
 
+static char *trim(char *string)
+{
+    while (*string == ' ') {
+        string++;
+    }
+
+    return string;
+}
+
 static void meta_debug(char *string)
 {
     bool ok = false;
 
     if (strncmp(string, "change ", 7) == 0) {
-        ok = meta_debug_change(string + 7);
+        ok = meta_debug_change(trim(string + 7));
     } else if (strncmp(string, "scan ", 5) == 0) {
-        ok = meta_debug_scan(string + 5);
+        ok = meta_debug_scan(trim(string + 5));
     } else if (strncmp(string, "print ", 6) == 0) {
-        ok = meta_debug_print(string + 6);
+        ok = meta_debug_print(trim(string + 6));
     }
 #ifndef ZTERP_NO_CHEAT
     else if (strncmp(string, "freeze ", 7) == 0) {
-        ok = meta_debug_freeze(string + 7);
+        ok = meta_debug_freeze(trim(string + 7));
     } else if (strncmp(string, "unfreeze ", 9) == 0) {
-        ok = meta_debug_unfreeze(string + 9);
+        ok = meta_debug_unfreeze(trim(string + 9));
     } else if (strcmp(string, "show_freeze") == 0) {
         ok = meta_debug_show_freeze();
     }
 #endif
 #ifndef ZTERP_NO_WATCHPOINTS
     else if (strncmp(string, "watch ", 6) == 0) {
-        ok = meta_debug_watch(string + 6);
+        ok = meta_debug_watch(trim(string + 6));
     } else if (strncmp(string, "unwatch ", 8) == 0) {
-        ok = meta_debug_unwatch(string + 8);
+        ok = meta_debug_unwatch((string + 8));
     } else if (strcmp(string, "show_watch") == 0) {
         ok = meta_debug_show_watch();
     }
@@ -618,18 +607,20 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         rest = &converted[len];
     }
 
+    rest = trim(rest);
+
 #define ZEROARG(name) (strcmp(command, name) == 0) if (rest[0] != 0) { screen_printf("[/%s takes no arguments]\n", name); } else
 
     if ZEROARG("undo") {
-        bool call_zread;
-        if (pop_save(SAVE_GAME, 0, &call_zread)) {
+        enum SaveOpcode saveopcode;
+        if (pop_save(SaveStackGame, 0, &saveopcode)) {
             if (seen_save_undo) {
                 store(2);
             } else {
-                screen_print("[Undone]\n\n>");
+                screen_message_prompt("[Undone]");
             }
 
-            interrupt_reset(call_zread);
+            interrupt_restore(saveopcode);
             return NULL;
         } else {
             screen_puts("[No save found, unable to undo]");
@@ -662,18 +653,18 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         if (in_interrupt()) {
             screen_puts("[Cannot call /save while in an interrupt]");
         } else {
-            if (do_save(true)) {
+            if (do_save(SaveTypeMeta, SaveOpcodeRead)) {
                 screen_puts("[Saved]");
             } else {
                 screen_puts("[Save failed]");
             }
         }
     } else if ZEROARG("restore") {
-        bool is_bfms;
+        enum SaveOpcode saveopcode;
 
-        if (do_restore(true, &is_bfms)) {
-            screen_print("[Restored]\n\n>");
-            interrupt_reset(!is_bfms);
+        if (do_restore(SaveTypeMeta, &saveopcode)) {
+            screen_message_prompt("[Restored]");
+            interrupt_restore(saveopcode);
             return NULL;
         } else {
             screen_puts("[Restore failed]");
@@ -703,7 +694,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         void (*restore_or_drop)(long) = strcmp(command, "pop") == 0 ? try_user_restore : try_user_drop;
 
         if (restore_or_drop == try_user_drop && strcmp(rest, "all") == 0) {
-            while (drop_save(SAVE_USER, 1)) {
+            while (drop_save(SaveStackUser, 1)) {
             }
 
             screen_puts("[All saves dropped]");
@@ -722,7 +713,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
             restore_or_drop(saveno - 1);
         }
     } else if ZEROARG("ls") {
-        list_saves(SAVE_USER, screen_puts);
+        list_saves(SaveStackUser, screen_puts);
     } else if ZEROARG("status") {
         if (zversion > 3) {
             screen_puts("[/status is only available in V1, V2, and V3]");

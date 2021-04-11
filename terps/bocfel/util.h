@@ -17,6 +17,8 @@
 #define zprintflike(f, a)
 #endif
 
+#define ASIZE(array)	(sizeof (array) / sizeof *(array))
+
 // Values are usually stored in a uint16_t because most parts of the
 // Z-machine make use of 16-bit unsigned integers.  However, in a few
 // places the unsigned value must be treated as signed.  The “obvious”

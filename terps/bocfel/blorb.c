@@ -1,4 +1,4 @@
-// Copyright 2010-2014 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -37,8 +37,12 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
     zterp_iff *iff;
     struct zterp_blorb *blorb = NULL;
 
-    iff = zterp_iff_parse(io, "IFRS");
-    if (!zterp_iff_find(iff, "RIdx", &size)) {
+    iff = zterp_iff_parse(io, &"IFRS");
+    if (iff == NULL) {
+        goto err;
+    }
+
+    if (!zterp_iff_find(iff, &"RIdx", &size)) {
         goto err;
     }
     zterp_iff_free(iff);
@@ -57,20 +61,21 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
     }
 
     blorb->io = io;
-    blorb->nchunks = 0;
-    blorb->chunks = NULL;
+    blorb->nchunks = nresources;
+    blorb->chunks = malloc(nresources * sizeof *blorb->chunks);
+    if (blorb->chunks == NULL) {
+        goto err;
+    }
 
     for (uint32_t i = 0; i < nresources; i++) {
         uint32_t usage, number, start, type;
-        zterp_blorb_chunk *new;
         long saved;
-        size_t idx;
 
         if (!zterp_io_read32(io, &usage) || !zterp_io_read32(io, &number) || !zterp_io_read32(io, &start)) {
             goto err;
         }
 
-        if (usage != BLORB_PICT && usage != BLORB_SND && usage != BLORB_EXEC) {
+        if (usage != BLORB_PICT && usage != BLORB_SND && usage != BLORB_EXEC && usage != BLORB_DATA) {
             goto err;
         }
 
@@ -91,26 +96,22 @@ struct zterp_blorb *zterp_blorb_parse(zterp_io *io)
             goto err;
         }
 
-        if (type == STRID("FORM")) {
+        if (type == STRID(&"FORM")) {
             start -= 8;
             size += 8;
         }
 
-        // Not really efficient, but does it matter?
-        new = realloc(blorb->chunks, (sizeof *new) * ++blorb->nchunks);
-        if (new == NULL) {
-            goto err;
-        }
-        blorb->chunks = new;
+        blorb->chunks[i].usage = usage;
+        blorb->chunks[i].number = number;
+        blorb->chunks[i].type = type;
+        blorb->chunks[i].offset = start + 8;
+        blorb->chunks[i].size = size;
 
-        idx = blorb->nchunks - 1;
-
-        new[idx].usage = usage;
-        new[idx].number = number;
-        new[idx].type = type;
-        memcpy(new[idx].name, IDSTR(type), 5);
-        new[idx].offset = start + 8;
-        new[idx].size = size;
+        blorb->chunks[i].name[0] = (type >> 24) & 0xff;
+        blorb->chunks[i].name[1] = (type >> 16) & 0xff;
+        blorb->chunks[i].name[2] = (type >>  8) & 0xff;
+        blorb->chunks[i].name[3] = (type >>  0) & 0xff;
+        blorb->chunks[i].name[4] = 0;
     }
 
     return blorb;
