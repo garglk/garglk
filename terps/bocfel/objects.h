@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-void print_object(uint16_t, void (*)(uint8_t));
+void print_object(uint16_t obj, void (*outc)(uint8_t));
 
 void zget_sibling(void);
 void zget_child(void);

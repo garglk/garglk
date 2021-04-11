@@ -10,7 +10,7 @@
 
 typedef struct zterp_iff zterp_iff;
 
-/* Translate an IFF tag into the corresponding 32-bit integer. */
+// Translate an IFF tag into the corresponding 32-bit integer.
 #define STRID(s) ( \
     (((uint32_t)(s)[0]) << 24) | \
     (((uint32_t)(s)[1]) << 16) | \
@@ -18,7 +18,7 @@ typedef struct zterp_iff zterp_iff;
     (((uint32_t)(s)[3]) <<  0)   \
     )
 
-/* Reverse of above. */
+// Reverse of above.
 #define IDSTR(n) ((unsigned char[5]){ \
     ((uint32_t)(n) >> 24) & 0xff, \
     ((uint32_t)(n) >> 16) & 0xff, \
@@ -27,8 +27,8 @@ typedef struct zterp_iff zterp_iff;
     })
 
 
-void zterp_iff_free(zterp_iff *);
-zterp_iff* zterp_iff_parse(zterp_io* io, const char [static 4]);
-bool zterp_iff_find(zterp_iff *, const char [static 4], uint32_t *);
+void zterp_iff_free(zterp_iff *iff);
+zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4]);
+bool zterp_iff_find(zterp_iff *iff, const char tag[static 4], uint32_t *size);
 
 #endif
