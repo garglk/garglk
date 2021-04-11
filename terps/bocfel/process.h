@@ -14,7 +14,7 @@ extern int znargs;
 
 bool in_interrupt(void);
 void interrupt_return(void);
-void interrupt_reset(bool);
+void interrupt_reset(bool call_zread);
 void interrupt_quit(void);
 
 void setup_opcodes(void);

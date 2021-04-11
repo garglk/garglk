@@ -13,24 +13,24 @@ extern bool seen_save_undo;
 
 void init_stack(void);
 
-uint16_t variable(uint16_t);
-void store_variable(uint16_t, uint16_t);
+uint16_t variable(uint16_t var);
+void store_variable(uint16_t var, uint16_t n);
 uint16_t *stack_top_element(void);
 
 void start_v6(void);
 #ifdef ZTERP_GLK
-uint16_t direct_call(uint16_t);
+uint16_t direct_call(uint16_t routine);
 #endif
-void do_return(uint16_t);
+void do_return(uint16_t retval);
 
-bool do_save(bool);
-bool do_restore(bool, bool *);
+bool do_save(bool is_meta);
+bool do_restore(bool is_meta, bool *is_bfms);
 
 enum save_type { SAVE_GAME, SAVE_USER };
-bool push_save(enum save_type, bool, const char *);
-bool pop_save(enum save_type, long, bool *);
-bool drop_save(enum save_type, long);
-void list_saves(enum save_type, void (*)(const char *));
+bool push_save(enum save_type type, bool is_meta, const char *desc);
+bool pop_save(enum save_type type, long saveno, bool *call_zread);
+bool drop_save(enum save_type type, long i);
+void list_saves(enum save_type type, void (*printer)(const char *));
 
 void zpush(void);
 void zpull(void);
