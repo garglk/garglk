@@ -1704,8 +1704,9 @@ static bool istream_read_from_file(struct input *input)
 #ifdef GLK_MODULE_SOUND
     case evtype_SoundNotify:
         if (sound_routine != 0) {
-            handle_interrupt(sound_routine, NULL);
+            uint16_t current_routine = sound_routine;
             sound_routine = 0;
+            handle_interrupt(current_routine, NULL);
         }
         break;
 #endif
@@ -1990,8 +1991,9 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 #ifdef GLK_MODULE_SOUND
         case evtype_SoundNotify:
             if (sound_routine != 0) {
-                handle_interrupt(sound_routine, &line);
+                uint16_t current_routine = sound_routine;
                 sound_routine = 0;
+                handle_interrupt(current_routine, &line);
                 restart_read_events(&line, input, enable_mouse);
             }
             break;
