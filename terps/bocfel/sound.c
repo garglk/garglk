@@ -89,7 +89,7 @@ void zsound_effect(void)
         glk_sound_load_hint(zargs[0], 1);
         break;
     case 2: // start
-        sound_routine = zargs[3];
+        sound_routine = znargs >= 4 ? zargs[3] : 0;
         if (!glk_schannel_play_ext(sound_channel, zargs[0], repeats == 255 ? -1 : repeats, sound_routine != 0)) {
             sound_routine = 0;
         }
