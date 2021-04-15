@@ -1,4 +1,4 @@
-// Copyright 2010-2014 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -28,8 +28,8 @@
 
 static void load_resources(void);
 
-// Even on Win32, Gargoyle provides a glkunix startup.
-#if defined(ZTERP_UNIX) || defined(GARGLK)
+// Both Gargoyle (regardless of platform) and DOSGlk provide a Unix startup.
+#if defined(ZTERP_UNIX) || defined(GARGLK) || defined(ZTERP_DOS)
 #include <glkstart.h>
 
 glkunix_argumentlist_t glkunix_arguments[] =
@@ -56,6 +56,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
 #ifdef GARGLK
     garglk_set_program_name("Bocfel");
+    if (options.show_version) {
+        return 1;
+    }
     if (game_file != NULL) {
         const char *p = strrchr(game_file, '/');
         garglk_set_story_name(p == NULL ? game_file : p + 1);
@@ -71,7 +74,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
 #endif
 
     if (game_file != NULL) {
+#ifndef ZTERP_DOS
         glkunix_set_base_file((char *)game_file);
+#endif
         load_resources();
     }
 
@@ -114,7 +119,7 @@ static void startup(void)
     }
 
     if (game_file == NULL) {
-        const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z7;*.zblorb;*.zlb;*.blorb;*.blb";
+        const char *patterns = "*.z1;*.z2;*.z3;*.z4;*.z5;*.z6;*.z7.*.z8;*.zblorb;*.zlb;*.blorb;*.blb";
         char filter[512];
 
         snprintf(filter, sizeof filter, "Z-Code Files (%s)|%s|All Files (*.*)|*.*||", patterns, patterns);
@@ -198,7 +203,7 @@ static void load_resources(void)
         const char *exts[] = { ".blb", ".blorb" };
 
         strcpy(blorb_file, game_file);
-        for (size_t i = 0; file == NULL && i < (sizeof exts) / (sizeof *exts); i++) {
+        for (size_t i = 0; file == NULL && i < ASIZE(exts); i++) {
             char *p = strrchr(blorb_file, '.');
             if (p != NULL) {
                 *p = 0;

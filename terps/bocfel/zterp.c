@@ -1,4 +1,4 @@
-// Copyright 2009-2016 Chris Spiegel.
+// Copyright 2009-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -45,6 +45,8 @@
 #define MAX_LINE	2048
 #define MAX_PATH	4096
 
+#define DEFAULT_INT_NUMBER	1 // DEC
+
 const char *game_file;
 struct options options = {
     .eval_stack_size = DEFAULT_STACK_SIZE,
@@ -59,12 +61,12 @@ struct options options = {
     .assume_fixed = false,
     .disable_graphics_font = false,
     .enable_alt_graphics = false,
-    .disable_history_plaback = false,
+    .disable_history_playback = false,
     .show_id = false,
     .disable_term_keys = false,
     .username = NULL,
     .disable_meta_commands = false,
-    .int_number = 1, // DEC
+    .int_number = DEFAULT_INT_NUMBER,
     .int_version = 'C',
     .disable_patches = false,
     .replay_on = false,
@@ -81,9 +83,16 @@ struct options options = {
     .override_undo = false,
     .random_seed = -1,
     .random_device = NULL,
+
+    .autosave = false,
 };
 
 static char story_id[64];
+
+const char *get_story_id(void)
+{
+    return story_id;
+}
 
 // zversion stores the Z-machine version of the story: 1–6.
 //
@@ -97,10 +106,7 @@ static int zwhich;
 
 struct header header;
 
-static struct {
-    zterp_io *io;
-    long offset;
-} story;
+static bool checksum_verified;
 
 // The null character in the alphabet table does not actually signify a
 // null character: character 6 from A2 is special in that it specifies
@@ -139,42 +145,16 @@ void store(uint16_t v)
     store_variable(byte(pc++), v);
 }
 
-// Find a story ID roughly in the form of an IFID according to §2.2.2.1
-// of draft 7 of the Treaty of Babel.
-//
-// This does not add a ZCODE- prefix, and will not search for a manually
-// created IFID.
-static void find_id(void)
-{
-    char serial[] = "------";
-
-    for (int i = 0; i < 6; i++) {
-        // isalnum() cannot be used because it is locale-aware, and this
-        // must only check for A–Z, a–z, and 0–9.  Because ASCII (or a
-        // compatible charset) is required, testing against 'a', 'z', etc.
-        // is OK.
-#define ALNUM(c) ( ((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z') || ((c) >= '0' && (c) <= '9') )
-        if (ALNUM(header.serial[i])) {
-            serial[i] = header.serial[i];
-        }
-#undef ALNUM
-    }
-
-    if (strchr("012345679", serial[0]) != NULL && strcmp(serial, "000000") != 0) {
-        snprintf(story_id, sizeof story_id, "%d-%s-%04x", header.release, serial, (unsigned)header.checksum);
-    } else {
-        snprintf(story_id, sizeof story_id, "%d-%s", header.release, serial);
-    }
-}
-
 static bool is_story(const char *id)
 {
     return strcmp(story_id, id) == 0;
 }
 
-bool is_beyond_zork(void)
+bool is_lurking_horror(void)
 {
-    return is_story("47-870915") || is_story("49-870917") || is_story("51-870923") || is_story("57-871221");
+    return is_story("203-870506") ||
+           is_story("219-870912") ||
+           is_story("221-870918");
 }
 
 bool is_journey(void)
@@ -215,12 +195,42 @@ static void check_infocom(void)
         "25-860811",
     };
 
-    for (size_t i = 0; i < sizeof v1234 / sizeof *v1234; i++) {
+    for (size_t i = 0; i < ASIZE(v1234); i++) {
         if (is_story(v1234[i])) {
             is_infocom_v1234 = true;
             return;
         }
     }
+}
+
+// Find a story ID roughly in the form of an IFID according to §2.2.2.1
+// of draft 7 of the Treaty of Babel.
+//
+// This does not add a ZCODE- prefix, and will not search for a manually
+// created IFID.
+static void find_id(void)
+{
+    char serial[] = "------";
+
+    for (int i = 0; i < 6; i++) {
+        // isalnum() cannot be used because it is locale-aware, and this
+        // must only check for A–Z, a–z, and 0–9. Because ASCII (or a
+        // compatible charset) is required, testing against 'a', 'z', etc.
+        // is OK.
+#define ALNUM(c) ( ((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z') || ((c) >= '0' && (c) <= '9') )
+        if (ALNUM(header.serial[i])) {
+            serial[i] = header.serial[i];
+        }
+#undef ALNUM
+    }
+
+    if (strchr("012345679", serial[0]) != NULL && strcmp(serial, "000000") != 0) {
+        snprintf(story_id, sizeof story_id, "%d-%s-%04x", header.release, serial, (unsigned)header.checksum);
+    } else {
+        snprintf(story_id, sizeof story_id, "%d-%s", header.release, serial);
+    }
+
+    check_infocom();
 }
 
 static void read_config(void)
@@ -232,7 +242,9 @@ static void read_config(void)
     long n;
     bool story_matches = true;
 
-    zterp_os_rcfile(file, sizeof file);
+    if (!zterp_os_rcfile(file, sizeof file)) {
+        return;
+    }
 
     fp = fopen(file, "r");
     if (fp == NULL) {
@@ -254,6 +266,7 @@ static void read_config(void)
                 for (p = strtok(line + 1, " ,"); p != NULL; p = strtok(NULL, " ,")) {
                     if (is_story(p)) {
                         story_matches = true;
+                        break;
                     }
                 }
             }
@@ -288,6 +301,7 @@ static void read_config(void)
 
         n = strtol(val, NULL, 10);
 
+#define START()		if (false) do { } while (false)
 #define BOOL(name)	else if (strcmp(key, #name) == 0) do { options.name = (n != 0); } while (false)
 #define NUMBER(name)	else if (strcmp(key, #name) == 0) do { options.name = n; } while (false)
 #define STRING(name)	else if (strcmp(key, #name) == 0) do { free(options.name); options.name = xstrdup(val); } while (false)
@@ -298,7 +312,7 @@ static void read_config(void)
 #define COLOR(name, num)else if (false) do { } while (false)
 #endif
 
-        if (false) { }
+        START();
 
         NUMBER(eval_stack_size);
         NUMBER(call_stack_size);
@@ -311,7 +325,7 @@ static void read_config(void)
         BOOL  (assume_fixed);
         BOOL  (disable_graphics_font);
         BOOL  (enable_alt_graphics);
-        BOOL  (disable_history_plaback);
+        BOOL  (disable_history_playback);
         BOOL  (disable_term_keys);
         STRING(username);
         BOOL  (disable_meta_commands);
@@ -332,6 +346,8 @@ static void read_config(void)
         NUMBER(random_seed);
         STRING(random_device);
 
+        BOOL(autosave);
+
         COLOR(black,   2);
         COLOR(red,     3);
         COLOR(green,   4);
@@ -347,6 +363,7 @@ static void read_config(void)
         }
 #endif
 
+#undef START
 #undef BOOL
 #undef NUMBER
 #undef STRING
@@ -360,11 +377,7 @@ static void read_config(void)
 static bool have_statuswin = false;
 static bool have_upperwin  = false;
 
-// Various parts of the header (those marked “Rst” in §11) should be
-// updated by the interpreter.  This function does that.  This is also
-// used when restoring, because the save file might have come from an
-// interpreter with vastly different settings.
-void write_header(void)
+static void write_flags1(void)
 {
     uint8_t flags1;
 
@@ -436,11 +449,20 @@ void write_header(void)
     }
 
     store_byte(0x01, flags1);
+}
 
+static void write_flags2(void)
+{
     if (zversion >= 5) {
         uint16_t flags2 = word(0x10);
 
+#ifdef ZTERP_GLK
+        if (!glk_gestalt(gestalt_MouseInput, wintype_TextGrid)) {
+            flags2 &= ~FLAGS2_MOUSE;
+        }
+#else
         flags2 &= ~FLAGS2_MOUSE;
+#endif
         if (!sound_loaded()) {
             flags2 &= ~FLAGS2_SOUND;
         }
@@ -458,13 +480,46 @@ void write_header(void)
 
         store_word(0x10, flags2);
     }
+}
+
+static void write_header_extension_table(void)
+{
+    if (header.extension_table == 0) {
+        return;
+    }
+
+    // Flags3.
+    if (header.extension_entries >= 4) {
+        store_word(header.extension_table + (2 * 4), 0);
+    }
+
+    // True default foreground color.
+    if (header.extension_entries >= 5) {
+        store_word(header.extension_table + (2 * 5), 0x0000);
+    }
+
+    // True default background color.
+    if (header.extension_entries >= 6) {
+        store_word(header.extension_table + (2 * 6), 0x7fff);
+    }
+}
+
+// Various parts of the header (those marked “Rst” in §11) should be
+// updated by the interpreter. This function does that. This is also
+// used when restoring, because the save file might have come from an
+// interpreter with vastly different settings.
+void write_header(void)
+{
+    write_flags1();
+    write_flags2();
+    write_header_extension_table();
 
     if (zversion >= 4) {
         unsigned int width, height;
 
         // Interpreter number & version.
         if (options.int_number < 1 || options.int_number > 11) {
-            options.int_number = 1; // DEC
+            options.int_number = DEFAULT_INT_NUMBER;
         }
         store_byte(0x1e, options.int_number);
         store_byte(0x1f, options.int_version);
@@ -502,13 +557,85 @@ void write_header(void)
     }
 }
 
-static void process_story(void)
+static void process_alphabet_table(void)
 {
-    if (!zterp_io_seek(story.io, story.offset, SEEK_SET)) {
+    if (zversion == 1) {
+        memcpy(&atable[26 * 2], " 0123456789.,!?_#'\"/\\<-:()", 26);
+    } else if (zversion >= 5 && word(0x34) != 0) {
+        if (word(0x34) + 26 * 3 > memory_size) {
+            die("corrupted story: alphabet table out of range");
+        }
+
+        memcpy(atable, &memory[word(0x34)], 26 * 3);
+
+        // Even with a new alphabet table, characters 6 and 7 from A2 must
+        // remain the same (§3.5.5.1).
+        atable[52] = 0x00;
+        atable[53] = 0x0d;
+    }
+}
+
+static uint16_t mouse_click_addr;
+
+static void read_header_extension_table(void)
+{
+    if (header.extension_table == 0) {
+        return;
+    }
+
+    if (header.extension_entries >= 2) {
+        mouse_click_addr = header.extension_table + 2;
+    }
+
+    // Unicode table.
+    if (header.extension_entries >= 3 && word(header.extension_table + (2 * 3)) != 0) {
+        uint16_t utable = word(header.extension_table + (2 * 3));
+
+        parse_unicode_table(utable);
+    }
+}
+
+void zterp_mouse_click(uint16_t x, uint16_t y) {
+    if (mouse_click_addr != 0) {
+        store_word(mouse_click_addr, x);
+        store_word(mouse_click_addr + 2, y);
+    }
+}
+
+static void calculate_checksum(zterp_io *io, long offset)
+{
+    uint32_t remaining = header.file_length - 0x40;
+    uint16_t checksum = 0;
+
+    if (!zterp_io_seek(io, offset + 0x40, SEEK_SET)) {
+        return;
+    }
+
+    while (remaining != 0) {
+        uint8_t buf[8192];
+        uint32_t to_read = remaining < sizeof buf ? remaining : sizeof buf;
+
+        if (!zterp_io_read_exact(io, buf, to_read)) {
+            return;
+        }
+
+        for (uint32_t i = 0; i < to_read; i++) {
+            checksum += buf[i];
+        }
+
+        remaining -= to_read;
+    }
+
+    checksum_verified = checksum == header.checksum;
+}
+
+static void process_story(zterp_io *io, long offset)
+{
+    if (!zterp_io_seek(io, offset, SEEK_SET)) {
         die("unable to rewind story");
     }
 
-    if (!zterp_io_read_exact(story.io, memory, memory_size)) {
+    if (!zterp_io_read_exact(io, memory, memory_size)) {
         die("unable to read from story file");
     }
 
@@ -536,23 +663,36 @@ static void process_story(void)
         die("unhandled z-machine version: %d", zwhich);
     }
 
-    pc = word(0x06);
-    if (pc >= memory_size) {
+    header.pc = word(0x06);
+    if (header.pc >= memory_size) {
         die("corrupted story: initial pc out of range");
+    }
+
+    if (zversion == 6 && header.pc == 0) {
+        die("corrupted story: packed address 0 is invalid for initial pc");
     }
 
     header.release = word(0x02);
     header.dictionary = word(0x08);
     header.objects = word(0x0a);
     header.globals = word(0x0c);
-    header.static_start = word(0x0e);
     header.abbr = word(0x18);
-
-    memcpy(header.serial, &memory[0x12], sizeof header.serial);
 
     // There is no explicit “end of static” tag; but it must end by 0xffff
     // or the end of the story file, whichever is smaller.
+    header.static_start = word(0x0e);
     header.static_end = memory_size < 0xffff ? memory_size : 0xffff;
+
+    if (zversion >= 5) {
+        header.extension_table = word(0x36);
+        header.extension_entries = user_word(header.extension_table);
+
+        if (header.extension_table + (2 * header.extension_entries) > memory_size) {
+            die("corrupted story: header extension table out of range");
+        }
+    }
+
+    memcpy(header.serial, &memory[0x12], sizeof header.serial);
 
 #define PROPSIZE	(zversion <= 3 ? 62UL : 126UL)
 
@@ -592,9 +732,15 @@ static void process_story(void)
 
     header.checksum = word(0x1c);
 
+    calculate_checksum(io, offset);
+
     if (zwhich == 6 || zwhich == 7) {
         header.R_O = word(0x28) * 8UL;
         header.S_O = word(0x2a) * 8UL;
+    }
+
+    if (zversion >= 5 && !options.disable_term_keys) {
+        header.terminating_characters_table = word(0x2e);
     }
 
     if (dynamic_memory == NULL) {
@@ -605,65 +751,11 @@ static void process_story(void)
         memcpy(dynamic_memory, memory, header.static_start);
     }
 
-#ifdef GLK_MODULE_LINE_TERMINATORS
-    if (!options.disable_term_keys) {
-        if (zversion >= 5 && word(0x2e) != 0) {
-            term_keys_reset();
-
-            for (uint32_t i = word(0x2e); i < memory_size && memory[i] != 0; i++) {
-                term_keys_add(memory[i]);
-            }
-        }
-    }
+#ifdef ZTERP_GLK
 #endif
 
-    if (zversion == 1) {
-        memcpy(&atable[26 * 2], " 0123456789.,!?_#'\"/\\<-:()", 26);
-    } else if (zversion >= 5 && word(0x34) != 0) {
-        if (word(0x34) + 26 * 3 > memory_size) {
-            die("corrupted story: alphabet table out of range");
-        }
-
-        memcpy(atable, &memory[word(0x34)], 26 * 3);
-
-        // Even with a new alphabet table, characters 6 and 7 from A2 must
-        // remain the same (§3.5.5.1).
-        atable[52] = 0x00;
-        atable[53] = 0x0d;
-    }
-
-    // Check for a header extension table.
-    if (zversion >= 5) {
-        uint16_t etable = word(0x36);
-
-        if (etable != 0) {
-            uint16_t nentries = user_word(etable);
-
-            if (etable + (2 * nentries) > memory_size) {
-                die("corrupted story: header extension table out of range");
-            }
-
-            // Unicode table.
-            if (nentries >= 3 && word(etable + (2 * 3)) != 0) {
-                uint16_t utable = word(etable + (2 * 3));
-
-                parse_unicode_table(utable);
-            }
-
-            // Flags3.
-            if (nentries >= 4) {
-                store_word(etable + (2 * 4), 0);
-            }
-            // True default foreground color.
-            if (nentries >= 5) {
-                store_word(etable + (2 * 5), 0x0000);
-            }
-            // True default background color.
-            if (nentries >= 6) {
-                store_word(etable + (2 * 6), 0x7fff);
-            }
-        }
-    }
+    process_alphabet_table();
+    read_header_extension_table();
 
     // The configuration file cannot be read until the ID of the current
     // story is known, and the ID of the current story is not known until
@@ -672,10 +764,6 @@ static void process_story(void)
     if (!options.disable_config) {
         read_config();
     }
-
-    // Prevent the configuration file from unexpectedly being reread after
-    // @restart or @restore.
-    options.disable_config = true;
 
     // Most options directly set their respective variables, but a few
     // require intervention.  Delay that intervention until here so that
@@ -700,50 +788,48 @@ static void process_story(void)
     if (zversion <= 3) {
         have_statuswin = create_statuswin();
     }
+
     if (zversion >= 3) {
         have_upperwin  = create_upperwin();
     }
 
-    write_header();
-    // Put everything in a clean state.
-    seed_random(0);
-    init_stack();
-    init_screen();
-
-    // Unfortunately, Beyond Zork behaves badly when the interpreter
-    // number is set to DOS: it assumes that it can print out IBM PC
-    // character codes and get useful results (e.g. it writes out 0x18
-    // expecting an up arrow); however, if the pictures bit is set, it
-    // uses the character graphics font like a good citizen.  Thus turn
-    // that bit on when Beyond Zork is being used and the interpreter is
-    // set to DOS.  It might make sense to do this generally, not just for
-    // Beyond Zork; but this is such a minor corner of the Z-machine that
-    // it probably doesn’t matter.  For now, peg this to Beyond Zork.
-    if (options.int_number == 6 && is_beyond_zork()) {
-        store_word(0x10, word(0x10) | FLAGS2_PICTURES);
-    }
-
     if (options.transcript_on) {
         store_word(0x10, word(0x10) | FLAGS2_TRANSCRIPT);
-        options.transcript_on = false;
     }
 
     if (options.record_on) {
         output_stream(OSTREAM_RECORD, 0);
-        options.record_on = false;
     }
 
     if (options.replay_on) {
         input_stream(ISTREAM_FILE);
-        options.replay_on = false;
     }
+}
 
-    check_infocom();
+static void start_story(void)
+{
+    uint16_t flags2;
+
+    pc = header.pc;
+
+    // Reset dynamic memory.
+    // §6.1.3: Flags2 is preserved on a restart. This function is also
+    // used at the initial program start, but Flags2 should be preserved
+    // there, as well: the pictures bit and the transcript bit might
+    // have been set during story processing, and those should persist.
+    flags2 = word(0x10);
+    memcpy(memory, dynamic_memory, header.static_start);
+    store_word(0x10, flags2);
+
+    write_header();
+
+    // Put everything in a clean state.
+    init_stack();
+    init_screen();
+    init_random();
 
     if (zversion == 6) {
-        if (pc == 0) {
-            die("corrupted story: packed address 0 is invalid for initial pc");
-        }
+        znargs = 1;
         zargs[0] = pc;
         start_v6();
     }
@@ -755,73 +841,48 @@ void znop(void)
 
 void zrestart(void)
 {
-    // §6.1.3: Flags2 is preserved on a restart.
-    uint16_t flags2 = word(0x10);
-
-    process_story();
-
-    store_word(0x10, flags2);
-
-    interrupt_reset(false);
+    start_story();
+    interrupt_restart();
 }
 
 void zquit(void)
 {
+    char autosave_name[1024];
+
+    // On @quit, remove the autosave (if any exists).
+    if (options.autosave && zterp_os_autosave_name(autosave_name, sizeof autosave_name)) {
+        remove(autosave_name);
+    }
+
     interrupt_quit();
 }
 
 void zverify(void)
 {
-    uint16_t checksum = 0;
-    uint32_t remaining = header.file_length - 0x40;
-
-    if (!zterp_io_seek(story.io, story.offset + 0x40, SEEK_SET)) {
-        branch_if(false);
-        return;
-    }
-
-    while (remaining != 0) {
-        uint8_t buf[8192];
-        uint32_t to_read = remaining < sizeof buf ? remaining : sizeof buf;
-
-        if (!zterp_io_read_exact(story.io, buf, to_read)) {
-            branch_if(false);
-            return;
-        }
-
-        for (uint32_t i = 0; i < to_read; i++) {
-            checksum += buf[i];
-        }
-
-        remaining -= to_read;
-    }
-
-    branch_if(checksum == header.checksum);
+    branch_if(checksum_verified);
 }
 
 void zsave5(void)
 {
     zterp_io *savefile;
-    size_t n;
 
     if (znargs == 0) {
         zsave();
         return;
     }
 
+    ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
+
     // This should be able to suggest a filename, but Glk doesn’t support that.
-    savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY, ZTERP_IO_SAVE);
+    savefile = zterp_io_open(NULL, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_SAVE);
     if (savefile == NULL) {
         store(0);
         return;
     }
 
-    ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
-    n = zterp_io_write(savefile, &memory[zargs[0]], zargs[1]);
+    store(zterp_io_write_exact(savefile, &memory[zargs[0]], zargs[1]));
 
     zterp_io_close(savefile);
-
-    store(n == zargs[1]);
 }
 
 void zrestore5(void)
@@ -835,7 +896,7 @@ void zrestore5(void)
         return;
     }
 
-    savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY, ZTERP_IO_SAVE);
+    savefile = zterp_io_open(NULL, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_SAVE);
     if (savefile == NULL) {
         store(0);
         return;
@@ -871,6 +932,8 @@ void glk_main(void)
 int main(int argc, char **argv)
 #endif
 {
+    zterp_io *story_io;
+    long story_offset;
     zterp_blorb *blorb;
 
     // It’s too early to properly set up all tables (neither the alphabet
@@ -927,8 +990,11 @@ int main(int argc, char **argv)
         screen_puts("The Tandy bit cannot be set");
 #endif
 
-        zterp_os_rcfile(config, sizeof config);
-        screen_printf("Configuration file: %s\n", config);
+        if (zterp_os_rcfile(config, sizeof config)) {
+            screen_printf("Configuration file: %s\n", config);
+        } else {
+            screen_printf("Cannot determine configuration file location\n");
+        }
 
 #ifdef ZTERP_GLK
         glk_exit();
@@ -942,12 +1008,12 @@ int main(int argc, char **argv)
         die("no story provided");
     }
 
-    story.io = zterp_io_open(game_file, ZTERP_IO_RDONLY, ZTERP_IO_DATA);
-    if (story.io == NULL) {
+    story_io = zterp_io_open(game_file, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_DATA);
+    if (story_io == NULL) {
         die("cannot open file %s", game_file);
     }
 
-    blorb = zterp_blorb_parse(story.io);
+    blorb = zterp_blorb_parse(story_io);
     if (blorb != NULL) {
         const zterp_blorb_chunk *chunk;
 
@@ -955,12 +1021,12 @@ int main(int argc, char **argv)
         if (chunk == NULL) {
             die("no EXEC resource found");
         }
-        if (strcmp(chunk->name, "ZCOD") != 0) {
-            if (strcmp(chunk->name, "GLUL") == 0) {
+        if (chunk->type != STRID(&"ZCOD")) {
+            if (chunk->type == STRID(&"GLUL")) {
                 die("Glulx stories are not supported (try git or glulxe)");
             }
 
-            die("unknown story type: %s", chunk->name);
+            die("unknown story type: %s (0x%08lx)", chunk->name, (unsigned long)chunk->type);
         }
 
         if (chunk->offset > LONG_MAX) {
@@ -968,11 +1034,11 @@ int main(int argc, char **argv)
         }
 
         memory_size = chunk->size;
-        story.offset = chunk->offset;
+        story_offset = chunk->offset;
 
         zterp_blorb_free(blorb);
     } else {
-        long size = zterp_io_filesize(story.io);
+        long size = zterp_io_filesize(story_io);
 
         if (size == -1) {
             die("unable to determine file size");
@@ -982,7 +1048,7 @@ int main(int argc, char **argv)
         }
 
         memory_size = size;
-        story.offset = 0;
+        story_offset = 0;
     }
 
     if (memory_size < 64) {
@@ -1014,11 +1080,15 @@ int main(int argc, char **argv)
     }
     memset(memory + memory_size, 0, 22);
 
-    process_story();
+    process_story(story_io, story_offset);
+
+    zterp_io_close(story_io);
 
     if (options.show_id) {
         screen_puts(story_id);
     } else {
+        start_story();
+
         // If header transcript/fixed bits have been set, either by the
         // story or by the user, this will activate them.
         user_store_word(0x10, word(0x10));

@@ -10,6 +10,7 @@
 #define BLORB_PICT	0x50696374UL
 #define BLORB_SND	0x536e6420UL
 #define BLORB_EXEC	0x45786563UL
+#define BLORB_DATA	0x44617461UL
 
 typedef struct zterp_blorb zterp_blorb;
 

@@ -19,14 +19,14 @@ struct options {
     bool assume_fixed;
     bool disable_graphics_font;
     bool enable_alt_graphics;
-    bool disable_history_plaback;
+    bool disable_history_playback;
     bool show_id;
     bool disable_term_keys;
     char *username;
     bool disable_meta_commands;
     long int_number;
-    bool disable_patches;
     unsigned char int_version;
+    bool disable_patches;
     bool replay_on;
     char *replay_name;
     bool record_on;
@@ -41,12 +41,14 @@ struct options {
     bool override_undo;
     long random_seed;
     char *random_device;
+
+    bool autosave;
 };
 
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.2"
+#define ZTERP_VERSION	"1.3.2"
 
 // v3
 #define FLAGS1_STATUSTYPE	(1U << 1)
@@ -77,8 +79,10 @@ extern struct options options;
 
 #define status_is_time()	(zversion == 3 && (byte(0x01) & FLAGS1_STATUSTYPE))
 #define timer_available()	(zversion >= 4 && (byte(0x01) & FLAGS1_TIMED))
+#define mouse_available()	(zversion == 5 && (word(0x10) & FLAGS2_MOUSE))
 
 struct header {
+    uint16_t pc;
     uint16_t release;
     uint16_t dictionary;
     uint16_t objects;
@@ -91,6 +95,9 @@ struct header {
     uint16_t checksum;
     uint32_t R_O;
     uint32_t S_O;
+    uint16_t terminating_characters_table;
+    uint16_t extension_table;
+    uint16_t extension_entries;
 };
 
 extern int zversion;
@@ -98,7 +105,9 @@ extern struct header header;
 extern uint8_t atable[];
 extern bool is_infocom_v1234;
 
-bool is_beyond_zork(void);
+const char *get_story_id(void);
+
+bool is_lurking_horror(void);
 bool is_journey(void);
 
 void write_header(void);
@@ -106,6 +115,8 @@ void write_header(void);
 uint32_t unpack_routine(uint16_t addr);
 uint32_t unpack_string(uint16_t addr);
 void store(uint16_t v);
+
+void zterp_mouse_click(uint16_t x, uint16_t y);
 
 void znop(void);
 void zrestart(void);

@@ -19,18 +19,34 @@ uint16_t *stack_top_element(void);
 
 void start_v6(void);
 #ifdef ZTERP_GLK
-uint16_t direct_call(uint16_t routine);
+uint16_t internal_call(uint16_t routine);
 #endif
 void do_return(uint16_t retval);
 
-bool do_save(bool is_meta);
-bool do_restore(bool is_meta, bool *is_bfms);
+enum SaveType {
+    SaveTypeNormal,
+    SaveTypeMeta,
+    SaveTypeAutosave,
+};
 
-enum save_type { SAVE_GAME, SAVE_USER };
-bool push_save(enum save_type type, bool is_meta, const char *desc);
-bool pop_save(enum save_type type, long saveno, bool *call_zread);
-bool drop_save(enum save_type type, long i);
-void list_saves(enum save_type type, void (*printer)(const char *));
+enum SaveOpcode {
+    SaveOpcodeNone = -1,
+    SaveOpcodeRead = 0,
+    SaveOpcodeReadChar = 1,
+};
+
+bool do_save(enum SaveType savetype, enum SaveOpcode saveopcode);
+bool do_restore(enum SaveType savetype, enum SaveOpcode *saveopcode);
+
+enum SaveStackType {
+    SaveStackGame,
+    SaveStackUser
+};
+
+bool push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc);
+bool pop_save(enum SaveStackType type, long saveno, enum SaveOpcode *saveopcode);
+bool drop_save(enum SaveStackType type, long i);
+void list_saves(enum SaveStackType type, void (*printer)(const char *));
 
 void zpush(void);
 void zpull(void);

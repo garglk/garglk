@@ -1,4 +1,4 @@
-// Copyright 2010-2015 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -45,14 +45,14 @@ uint16_t zargs[8];
 int znargs;
 
 static jmp_buf *jumps;
-static size_t njumps;
+static long njumps;
 
 // Each time an interrupt happens, process_instructions() is called
 // (effectively starting a whole new round of interpreting).  This
 // variable holds the current level of interpreting: 0 for no
 // interrupts, 1 if one interrupt has been called, 2 if an interrupt was
 // called inside of an interrupt, and so on.
-static size_t ilevel = -1;
+static long ilevel = -1;
 
 bool in_interrupt(void)
 {
@@ -64,16 +64,39 @@ bool in_interrupt(void)
 znoreturn
 void interrupt_return(void)
 {
-    longjmp(jumps[ilevel--], 1);
+    longjmp(jumps[ilevel--], IntTypeReturn);
 }
 
-// Jump back to the first round of processing.  This is used when
-// restoring and restarting in case these happen while in an interrupt.
+// Jump back to the first round of processing, optionally calling
+// zread() or zread_char(). This is used after a successful restore.
 znoreturn
-void interrupt_reset(bool call_zread)
+void interrupt_restore(enum SaveOpcode saveopcode)
 {
+    enum IntType type;
+
+    switch (saveopcode) {
+    case SaveOpcodeRead:
+        type = IntTypeContinueRead;
+        break;
+    case SaveOpcodeReadChar:
+        type = IntTypeContinueReadChar;
+        break;
+    default:
+        type = IntTypeContinue;
+        break;
+    }
+
     ilevel = 0;
-    longjmp(jumps[0], call_zread ? 2 : 3);
+    longjmp(jumps[0], type);
+}
+
+// Jump back to the first round of processing and continue; this is used
+// for @restart, which is assumed to have put everything back in a clean
+// state.
+znoreturn
+void interrupt_restart(void)
+{
+    longjmp(jumps[0], IntTypeContinue);
 }
 
 // Jump back to the first round of processing, but tell it to
@@ -81,7 +104,7 @@ void interrupt_reset(bool call_zread)
 znoreturn
 void interrupt_quit(void)
 {
-    longjmp(jumps[0], 1);
+    longjmp(jumps[0], IntTypeReturn);
 }
 
 // Returns true if decoded, false otherwise (omitted)
@@ -316,6 +339,8 @@ void setup_opcodes(void)
 
 void process_instructions(void)
 {
+    static bool handled_autosave = false;
+
     if (njumps <= ++ilevel) {
         jumps = realloc(jumps, ++njumps * sizeof *jumps);
         if (jumps == NULL) {
@@ -324,17 +349,26 @@ void process_instructions(void)
     }
 
     switch (setjmp(jumps[ilevel])) {
-    // Normal break from interrupt.
-    case 1:
+    case IntTypeReturn:
         return;
-    // Special break: interrupt_reset(true) called, so keep interpreting
-    // after re-executing a @read due to an interpreter restore.
-    case 2:
+    case IntTypeContinue:
+        break;
+    case IntTypeContinueRead:
         zread();
         break;
-    // Special break: interrupt_reset(false) called, so keep interpreting.
-    case 3:
+    case IntTypeContinueReadChar:
+        zread_char();
         break;
+    }
+
+    if (options.autosave && !handled_autosave) {
+        enum SaveOpcode saveopcode;
+
+        handled_autosave = true;
+
+        if (do_restore(SaveTypeAutosave, &saveopcode)) {
+            interrupt_restore(saveopcode);
+        }
     }
 
     while (true) {

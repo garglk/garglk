@@ -10,7 +10,8 @@
 #include "screen.h"
 
 long zterp_os_filesize(FILE *fp);
-void zterp_os_rcfile(char *s, size_t n);
+bool zterp_os_rcfile(char *s, size_t n);
+bool zterp_os_autosave_name(char *s, size_t n);
 
 #ifndef ZTERP_GLK
 void zterp_os_get_screen_size(unsigned *w, unsigned *h);

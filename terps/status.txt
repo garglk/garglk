@@ -7,7 +7,7 @@ Build status as of 10/11/2010:
 | agility       | 1.1.1.1       |
 | alan          | 2.8.6         |
 | alan3         | 3.0beta6      |
-| bocfel        | 1.2.1         |
+| bocfel        | 1.3.2         |
 | geas          | 0.4           |
 | git           | 1.3.5         |
 | glulxe        | 0.5.4         |

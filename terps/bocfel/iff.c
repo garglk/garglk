@@ -1,4 +1,4 @@
-// Copyright 2010-2012 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -21,9 +21,18 @@
 #include "iff.h"
 #include "io.h"
 
+// Translate an IFF Type ID into the corresponding 32-bit integer.
+uint32_t STRID(TypeID type)
+{
+    return (((uint32_t)(*type)[0]) << 24) |
+           (((uint32_t)(*type)[1]) << 16) |
+           (((uint32_t)(*type)[2]) <<  8) |
+           (((uint32_t)(*type)[3]) <<  0);
+}
+
 struct zterp_iff {
     zterp_io *io;
-    uint32_t tag;
+    uint32_t type;
     long offset;
     uint32_t size;
 
@@ -39,9 +48,9 @@ void zterp_iff_free(zterp_iff *iff)
     }
 }
 
-zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
+zterp_iff *zterp_iff_parse(zterp_io *io, TypeID form_type)
 {
-    uint32_t tag;
+    uint32_t type;
 
     zterp_iff *iff = NULL, *tail = NULL;
 
@@ -49,7 +58,7 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
         goto err;
     }
 
-    if (!zterp_io_read32(io, &tag) || tag != STRID("FORM")) {
+    if (!zterp_io_read32(io, &type) || type != STRID(&"FORM")) {
         goto err;
     }
 
@@ -57,11 +66,11 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
         goto err;
     }
 
-    if (!zterp_io_read32(io, &tag) || tag != STRID(type)) {
+    if (!zterp_io_read32(io, &type) || type != STRID(form_type)) {
         goto err;
     }
 
-    while (zterp_io_read32(io, &tag)) {
+    while (zterp_io_read32(io, &type)) {
         uint32_t size;
         zterp_iff *new;
 
@@ -74,7 +83,7 @@ zterp_iff *zterp_iff_parse(zterp_io *io, const char type[static 4])
             goto err;
         }
 
-        new->tag = tag;
+        new->type = type;
         new->io = io;
         new->offset = zterp_io_tell(io);
         new->size = size;
@@ -109,10 +118,10 @@ err:
     return NULL;
 }
 
-bool zterp_iff_find(zterp_iff *iff, const char tag[static 4], uint32_t *size)
+bool zterp_iff_find(zterp_iff *iff, TypeID tag, uint32_t *size)
 {
     while (iff != NULL) {
-        if (iff->tag == STRID(tag)) {
+        if (iff->type == STRID(tag)) {
             if (!zterp_io_seek(iff->io, iff->offset, SEEK_SET)) {
                 return false;
             }

@@ -1,4 +1,4 @@
-// Copyright 2010-2017 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -42,12 +42,14 @@
 #include "screen.h"
 #include "branch.h"
 #include "dict.h"
+#include "iff.h"
 #include "io.h"
 #include "meta.h"
 #include "memory.h"
 #include "objects.h"
 #include "osdep.h"
 #include "process.h"
+#include "sound.h"
 #include "stack.h"
 #include "unicode.h"
 #include "util.h"
@@ -76,15 +78,21 @@ static struct window {
 #ifdef ZTERP_GLK
     winid_t id;
     long x, y; // Only meaningful for window 1
-    bool pending_read;
-    union line {
-        char latin1[256];
-        glui32 unicode[256];
-    } *line;
     bool has_echo;
 #endif
 } windows[8], *mainwin = &windows[0], *curwin = &windows[0];
 #ifdef ZTERP_GLK
+// This represents a line of input from Glk; if the global variable
+// “have_unicode” is true, then the “unicode” member is used; otherwise,
+// “latin1”.
+struct line {
+    union {
+        char latin1[256];
+        glui32 unicode[256];
+    };
+    glui32 len;
+};
+
 static struct window *upperwin = &windows[1];
 static struct window statuswin;
 static long upper_window_height = 0;
@@ -124,7 +132,7 @@ struct input {
     uint8_t key;
 
     // Unicode line of chars read for @read.
-    uint32_t *line;
+    uint32_t line[256];
     uint8_t maxlen;
     uint8_t len;
     uint8_t preloaded;
@@ -140,7 +148,7 @@ struct input {
 uint32_t screen_convert_color(uint16_t color)
 {
     // Map 5-bit color values to 8-bit.
-    const uint8_t table[] = {
+    const uint32_t table[] = {
         0x00, 0x08, 0x10, 0x19, 0x21, 0x29, 0x31, 0x3a,
         0x42, 0x4a, 0x52, 0x5a, 0x63, 0x6b, 0x73, 0x7b,
         0x84, 0x8c, 0x94, 0x9c, 0xa5, 0xad, 0xb5, 0xbd,
@@ -216,8 +224,8 @@ static glui32 gargoyle_color(const struct color *color)
 
 #ifdef ZTERP_GLK
 // These macros make it so that code elsewhere needn’t check have_unicode before printing.
-#define GLK_PUT_CHAR(c)		do { if (!have_unicode) { glk_put_char(unicode_to_latin1[c]); } else { glk_put_char_uni(c); } } while (false)
-#define GLK_PUT_CHAR_STREAM(s, c) do { if (!have_unicode) { glk_put_char_stream((s), unicode_to_latin1[c]); } else { glk_put_char_stream_uni((s), (c)); } } while (false)
+#define GLK_PUT_CHAR(c)			do { if (!have_unicode) { glk_put_char(unicode_to_latin1[c]); } else { glk_put_char_uni(c); } } while (false)
+#define GLK_PUT_CHAR_STREAM(s, c)	do { if (!have_unicode) { glk_put_char_stream((s), unicode_to_latin1[c]); } else { glk_put_char_stream_uni((s), (c)); } } while (false)
 #endif
 
 static void set_window_style(struct window *win)
@@ -260,7 +268,7 @@ static void set_window_style(struct window *win)
         return;
     }
 
-    // According to standard 1.1, if mixed styles aren't available, the
+    // According to standard 1.1, if mixed styles aren’t available, the
     // priority is Fixed, Italic, Bold, Reverse.
     if (style & STYLE_ITALIC) {
         glk_set_style(style_Emphasized);
@@ -281,99 +289,6 @@ static void set_current_style(void)
 {
     set_window_style(style_window);
 }
-
-#ifdef ZTERP_GLK
-// Both the upper and lower windows have their own issues to deal with
-// when there is line input.  This function ensures that the cursor
-// position is properly tracked in the upper window, and if possible,
-// aids in the suppression of newline printing on input cancellation in
-// the lower window.
-static void cleanup_screen(struct input *input)
-{
-    if (input->type != INPUT_LINE) {
-        return;
-    }
-
-    // If the current window is the upper window, the position of the
-    // cursor needs to be tracked, so after a line has successfully been
-    // read, advance the cursor to the initial position of the next line,
-    // or if a terminating key was used or input was canceled, to the end
-    // of the input.
-    if (curwin == upperwin) {
-        if (input->term != ZSCII_NEWLINE) {
-            upperwin->x += input->len - input->preloaded;
-        }
-
-        if (input->term == ZSCII_NEWLINE || upperwin->x >= upper_window_width) {
-            upperwin->x = 0;
-            if (upperwin->y < upper_window_height) {
-                upperwin->y++;
-            }
-        }
-
-        glk_window_move_cursor(upperwin->id, upperwin->x, upperwin->y);
-    }
-
-    // If line input echoing is turned off, newlines will not be printed
-    // when input is canceled, but neither will the input line.  Fix that.
-    if (curwin->has_echo) {
-        glk_set_style(style_Input);
-        for (int i = 0; i < input->len; i++) {
-            GLK_PUT_CHAR(input->line[i]);
-        }
-        if (input->term == ZSCII_NEWLINE) {
-            GLK_PUT_CHAR(UNICODE_LINEFEED);
-        }
-        set_current_style();
-    }
-}
-
-// In an interrupt, if the story tries to read or write, the previous
-// read event (which triggered the interrupt) needs to be canceled.
-// This function does the cancellation.
-static void cancel_read_events(struct window *window)
-{
-    if (window->pending_read) {
-        event_t ev;
-
-        glk_cancel_char_event(window->id);
-        glk_cancel_line_event(window->id, &ev);
-
-        // If the pending read was a line input, zero terminate the string
-        // so when it’s re-requested the length of the already-loaded
-        // portion can be discovered.  Also deal with cursor positioning in
-        // the upper window, and line echoing in the lower window.
-        if (ev.type == evtype_LineInput && window->line != NULL) {
-            uint32_t line[ev.val1];
-            struct input input = {
-                .type = INPUT_LINE,
-                .line = line,
-                .term = 0,
-                .len = ev.val1
-            };
-
-            if (have_unicode) {
-                window->line->unicode[ev.val1] = 0;
-            } else {
-                window->line->latin1 [ev.val1] = 0;
-            }
-
-            for (int i = 0; i < input.len; i++) {
-                if (have_unicode) {
-                    line[i] = window->line->unicode[i];
-                } else {
-                    line[i] = (unsigned char)window->line->latin1[i];
-                }
-            }
-
-            cleanup_screen(&input);
-        }
-
-        window->pending_read = false;
-        window->line = NULL;
-    }
-}
-#endif
 
 // The following implements a circular buffer to track the state of the
 // screen so that recent history can be stored in save files for
@@ -446,25 +361,44 @@ static void history_add_color(enum HistType color_type, struct color *color)
     history_add(&entry);
 }
 
-static void history_add_input(const uint32_t *string, size_t len)
+static void history_add_input_start(void)
 {
     struct history_entry entry = {
         .type = HistTypeInputStart,
     };
+
     history_add(&entry);
+}
+
+static void history_add_input_end(void)
+{
+    struct history_entry entry = {
+        .type = HistTypeInputEnd,
+    };
+
+    history_add(&entry);
+}
+
+static void history_add_input_char(uint16_t c)
+{
+    struct history_entry entry = {
+        .type = HistTypeChar,
+        .contents.c = c,
+    };
+
+    history_add(&entry);
+}
+
+static void history_add_input(const uint32_t *string, size_t len)
+{
+    history_add_input_start();
 
     for (size_t i = 0; i < len; i++) {
-        entry.type = HistTypeChar;
-        entry.contents.c = string[i] > 65535 ? UNICODE_REPLACEMENT : string[i];
-        history_add(&entry);
+        history_add_input_char(string[i] > 65535 ? UNICODE_REPLACEMENT : string[i]);
     }
 
-    entry.type = HistTypeChar;
-    entry.contents.c = UNICODE_LINEFEED;
-    history_add(&entry);
-
-    entry.type = HistTypeInputEnd;
-    history_add(&entry);
+    history_add_input_char(UNICODE_LINEFEED);
+    history_add_input_end();
 }
 
 static void history_add_char(uint16_t c)
@@ -479,9 +413,11 @@ static void history_add_char(uint16_t c)
 
 void screen_set_header_bit(bool set)
 {
-    header_fixed_font = set;
-    history_add_style();
-    set_current_style();
+    if (set != header_fixed_font) {
+        header_fixed_font = set;
+        history_add_style();
+        set_current_style();
+    }
 }
 
 // Print out a character.  The character is in “c” and is either Unicode
@@ -532,8 +468,6 @@ static void put_char_base(uint16_t c, bool unicode)
             }
 #ifdef ZTERP_GLK
             if ((streams & STREAM_SCREEN) && curwin->id != NULL) {
-                cancel_read_events(curwin);
-
                 if (curwin == upperwin) {
                     // Interpreters seem to have differing ideas about what
                     // happens when the cursor reaches the end of a line in the
@@ -568,7 +502,14 @@ static void put_char_base(uint16_t c, bool unicode)
             }
 #else
             if ((streams & STREAM_SCREEN) && curwin == mainwin) {
+#ifdef ZTERP_DOS
+                // DOS doesn’t support Unicode, but instead uses code
+                // page 437. Special-case non-Glk DOS here, by writing
+                // bytes (not UTF-8 characters) from code page 437.
+                zterp_io_write8(zterp_io_stdout(), unicode_to_437(c));
+#else
                 zterp_io_putc(zterp_io_stdout(), c);
+#endif
             }
 #endif
 
@@ -689,6 +630,14 @@ void show_message(const char *fmt, ...)
     }
 }
 
+void screen_message_prompt(const char *message)
+{
+    screen_puts(message);
+    if (curwin == mainwin) {
+        screen_print("\n>");
+    }
+}
+
 // See §7.
 // This returns true if the stream was successfully selected.
 // Deselecting a stream is always successful.
@@ -709,7 +658,7 @@ bool output_stream(int16_t number, uint16_t table)
     if (number == 2) {
         store_word(0x10, word(0x10) | FLAGS2_TRANSCRIPT);
         if (transio == NULL) {
-            transio = zterp_io_open(options.transcript_name, options.overwrite_transcript ? ZTERP_IO_WRONLY : ZTERP_IO_APPEND, ZTERP_IO_TRANS);
+            transio = zterp_io_open(options.transcript_name, options.overwrite_transcript ? ZTERP_IO_MODE_WRONLY : ZTERP_IO_MODE_APPEND, ZTERP_IO_PURPOSE_TRANS);
             if (transio == NULL) {
                 store_word(0x10, word(0x10) & ~FLAGS2_TRANSCRIPT);
                 streams &= ~STREAM_TRANS;
@@ -737,7 +686,7 @@ bool output_stream(int16_t number, uint16_t table)
 
     if (number == 4) {
         if (scriptio == NULL) {
-            scriptio = zterp_io_open(options.record_name, ZTERP_IO_WRONLY, ZTERP_IO_INPUT);
+            scriptio = zterp_io_open(options.record_name, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_INPUT);
             if (scriptio == NULL) {
                 streams &= ~STREAM_SCRIPT;
                 warning("unable to open the script");
@@ -767,7 +716,7 @@ bool input_stream(int which)
         }
     } else if (istream == ISTREAM_FILE) {
         if (istreamio == NULL) {
-            istreamio = zterp_io_open(options.replay_name, ZTERP_IO_RDONLY, ZTERP_IO_INPUT);
+            istreamio = zterp_io_open(options.replay_name, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_INPUT);
             if (istreamio == NULL) {
                 warning("unable to open the command script");
                 istream = ISTREAM_KEYBOARD;
@@ -866,26 +815,11 @@ static void clear_window(struct window *window)
         return;
     }
 
-    // glk_window_clear() cannot be used while there are pending read requests.
-    cancel_read_events(window);
-
     glk_window_clear(window->id);
 
     window->x = window->y = 0;
 }
 #endif
-
-// If restoring from an interrupt (which is a bad idea to begin with),
-// it’s entirely possible that there will be pending read events that
-// need to be canceled, so allow that.
-void cancel_all_events(void)
-{
-#ifdef ZTERP_GLK
-    for (int i = 0; i < 8; i++) {
-        cancel_read_events(&windows[i]);
-    }
-#endif
-}
 
 static void resize_upper_window(long nlines, bool from_game)
 {
@@ -988,19 +922,23 @@ void get_screen_size(unsigned int *width, unsigned int *height)
     }
 }
 
+#ifdef ZTERP_GLK
 #ifdef GLK_MODULE_LINE_TERMINATORS
 static uint32_t *term_keys, term_size, term_nkeys;
+#endif
+static bool term_mouse = false;
 
 void term_keys_reset(void)
 {
-    free(term_keys);
-    term_keys = NULL;
-    term_size = 0;
+#ifdef GLK_MODULE_LINE_TERMINATORS
     term_nkeys = 0;
+#endif
+    term_mouse = false;
 }
 
 static void insert_key(uint32_t key)
 {
+#ifdef GLK_MODULE_LINE_TERMINATORS
     if (term_nkeys == term_size) {
         term_size += 32;
 
@@ -1011,6 +949,7 @@ static void insert_key(uint32_t key)
     }
 
     term_keys[term_nkeys++] = key;
+#endif
 }
 
 void term_keys_add(uint8_t key)
@@ -1039,8 +978,11 @@ void term_keys_add(uint8_t key)
     case ZSCII_KEY8: case ZSCII_KEY9:
         break;
 
-    // Mouse clicks would go here if I supported them.
-    case ZSCII_CLICK_MENU: case ZSCII_CLICK_DOUBLE: case ZSCII_CLICK_SINGLE:
+    case ZSCII_CLICK_SINGLE:
+        term_mouse = true;
+        break;
+
+    case ZSCII_CLICK_MENU: case ZSCII_CLICK_DOUBLE:
         break;
 
     case 255:
@@ -1053,21 +995,47 @@ void term_keys_add(uint8_t key)
         break;
 
     default:
-        ZASSERT(0, "invalid terminating key: %u", (unsigned)key);
         break;
+    }
+}
+
+// Look in the terminating characters table (if any) and reset the
+// current state of terminating characters appropriately. Then enable
+// terminating characters for Glk line input on the specified window. If
+// there are no terminating characters, disable the use of terminating
+// characters for Glk input.
+static void check_terminators(struct window *window)
+{
+    if (header.terminating_characters_table != 0) {
+        term_keys_reset();
+
+        for (uint32_t addr = header.terminating_characters_table; user_byte(addr) != 0; addr++) {
+            term_keys_add(user_byte(addr));
+        }
+
+#ifdef GLK_MODULE_LINE_TERMINATORS
+        if (glk_gestalt(gestalt_LineTerminators, 0)) {
+            glk_set_terminators_line_event(window->id, term_keys, term_nkeys);
+        }
+    } else {
+        if (glk_gestalt(gestalt_LineTerminators, 0)) {
+            glk_set_terminators_line_event(window->id, NULL, 0);
+        }
+#endif
     }
 }
 #endif
 
 // Decode and print a zcode string at address “addr”.  This can be
 // called recursively thanks to abbreviations; the initial call should
-// have “in_abbr” set to 0.
+// have “in_abbr” set to false.
 // Each time a character is decoded, it is passed to the function
 // “outc”.
 static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
 {
-    int abbrev = 0, shift = 0, special = 0;
-    int c, lastc;
+    enum { TenBitNone, TenBitStart, TenBitHalf } tenbit = TenBitNone;
+    int abbrev = 0, shift = 0;
+    int c, lastc = 0; // initialize to appease gcc
     uint16_t w;
     uint32_t counter = addr;
     int current_alphabet = 0;
@@ -1080,14 +1048,12 @@ static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
         for (int i = 10; i >= 0; i -= 5) {
             c = (w >> i) & 0x1f;
 
-            if (special != 0) {
-                if (special == 2) {
-                    lastc = c;
-                } else {
-                    outc((lastc << 5) | c);
-                }
-
-                special--;
+            if (tenbit == TenBitStart) {
+                lastc = c;
+                tenbit = TenBitHalf;
+            } else if (tenbit == TenBitHalf) {
+                outc((lastc << 5) | c);
+                tenbit = TenBitNone;
             } else if (abbrev != 0) {
                 uint32_t new_addr;
 
@@ -1134,7 +1100,7 @@ static int print_zcode(uint32_t addr, bool in_abbr, void (*outc)(uint8_t))
 
                     if (shift == 2) {
                         shift = 0;
-                        special = 2;
+                        tenbit = TenBitStart;
                         break;
                     }
                     // fallthrough
@@ -1366,7 +1332,9 @@ void zset_text_style(void)
         style_window->style |= zargs[0];
     }
 
-    history_add_style();
+    if (style_window == mainwin) {
+        history_add_style();
+    }
 
     set_current_style();
 }
@@ -1566,20 +1534,84 @@ static void request_char(void)
     } else {
         glk_request_char_event(curwin->id);
     }
-
-    curwin->pending_read = true;
 }
 
-static void request_line(union line *line, glui32 maxlen, glui32 initlen)
+static void request_line(struct line *line, glui32 maxlen)
 {
+    check_terminators(curwin);
+
     if (have_unicode) {
-        glk_request_line_event_uni(curwin->id, line->unicode, maxlen, initlen);
+        glk_request_line_event_uni(curwin->id, line->unicode, maxlen, line->len);
     } else {
-        glk_request_line_event(curwin->id, line->latin1, maxlen, initlen);
+        glk_request_line_event(curwin->id, line->latin1, maxlen, line->len);
+    }
+}
+
+// If an interrupt is called, cancel any pending read events. They will
+// be restarted after the interrupt returns. If this was a line input
+// event, “line” will be updated with the length of the input that had
+// been entered at the time of cancellation.
+static void cancel_read_events(struct window *window, struct line *line)
+{
+    event_t ev;
+
+    glk_cancel_char_event(window->id);
+    glk_cancel_line_event(window->id, &ev);
+    if (upperwin->id != NULL) {
+        glk_cancel_mouse_event(upperwin->id);
     }
 
-    curwin->pending_read = true;
-    curwin->line = line;
+    // If the pending read was a line input, set the line length to the
+    // amount read before cancellation (this will already have been
+    // stored in the line struct by Glk).
+    if (ev.type == evtype_LineInput) {
+        line->len = ev.val1;
+    }
+}
+
+// This is a wrapper around internal_call() which handles screen-related
+// issues: input events are canceled (in case the interrupt routine
+// calls input functions) and the window is restored if the interrupt
+// changes it. The value from the internal call is returned. This does
+// not restart the canceled read events.
+static uint16_t handle_interrupt(uint16_t addr, struct line *line)
+{
+    struct window *saved = curwin;
+    uint16_t ret;
+
+    if (line != NULL) {
+        cancel_read_events(curwin, line);
+    }
+
+    ret = internal_call(addr);
+
+    // It’s possible for an interrupt to switch windows; if it does,
+    // simply switch back. This is the easiest way to deal with an
+    // undefined bit of the Z-machine.
+    if (curwin != saved) {
+        set_current_window(saved);
+    }
+
+    return ret;
+}
+
+// All read events are canceled during an interrupt, but after an
+// interrupt returns, it’s possible that the read should be restarted,
+// so this function does that.
+static void restart_read_events(struct line *line, const struct input *input, bool enable_mouse)
+{
+    switch (input->type) {
+    case INPUT_CHAR:
+        request_char();
+        break;
+    case INPUT_LINE:
+        request_line(line, input->maxlen);
+        break;
+    }
+
+    if (enable_mouse) {
+        glk_request_mouse_event(upperwin->id);
+    }
 }
 #endif
 
@@ -1617,7 +1649,7 @@ static bool istream_read_from_file(struct input *input)
         long n;
         uint16_t line[1024];
 
-        n = zterp_io_readline(istreamio, line, sizeof line / sizeof *line);
+        n = zterp_io_readline(istreamio, line, ASIZE(line));
         if (n == -1) {
             input_stream(ISTREAM_KEYBOARD);
             return false;
@@ -1669,6 +1701,16 @@ static bool istream_read_from_file(struct input *input)
     case evtype_Arrange:
         window_change();
         break;
+#ifdef GLK_MODULE_SOUND
+    case evtype_SoundNotify:
+        if (sound_routine != 0) {
+            uint16_t current_routine = sound_routine;
+            sound_routine = 0;
+            handle_interrupt(current_routine, NULL);
+        }
+        sound_stopped();
+        break;
+#endif
     default:
         // No other events should arrive.  Timers are only started in
         // get_input() and are stopped before that function returns.
@@ -1715,25 +1757,6 @@ static uint8_t zscii_from_glk(glui32 key)
 }
 #endif
 
-#ifdef ZTERP_GLK
-// This is like strlen() but in addition to C strings it can find the
-// length of a Unicode string (which is assumed to be zero terminated)
-// if Unicode is being used.
-static size_t line_len(const union line *line)
-{
-    size_t i;
-
-    if (!have_unicode) {
-        return strlen(line->latin1);
-    }
-
-    for (i = 0; line->unicode[i] != 0; i++) {
-    }
-
-    return i;
-}
-#endif
-
 // Attempt to read input from the user.  The input type can be either a
 // single character or a full line.  If “timer” is not zero, a timer is
 // started that fires off every “timer” tenths of a second (if the value
@@ -1773,8 +1796,16 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
     }
 #ifdef ZTERP_GLK
     enum { InputWaiting, InputReceived, InputCanceled } status = InputWaiting;
-    union line line;
+    struct line line;
     struct window *saved = NULL;
+    // Mouse support is turned on if the game requests it via Flags2
+    // and, for @read, if it adds single click to the list of
+    // terminating keys; in addition, an upper window must be available
+    // since that’s the only window we use to handle mouse events.
+    bool enable_mouse = mouse_available() &&
+                        ((input->type == INPUT_CHAR) ||
+                         (input->type == INPUT_LINE && term_mouse)) &&
+                        upperwin->id != NULL;
 
     // In V6, input might be requested on an unsupported window.  If so,
     // switch to the main window temporarily.
@@ -1784,9 +1815,16 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
         glk_set_window(curwin->id);
     }
 
-    if (input->type == INPUT_CHAR) {
+    if (enable_mouse) {
+        glk_request_mouse_event(upperwin->id);
+    }
+
+    switch (input->type) {
+    case INPUT_CHAR:
         request_char();
-    } else {
+        break;
+    case INPUT_LINE:
+        line.len = input->preloaded;
         for (int i = 0; i < input->preloaded; i++) {
             if (have_unicode) {
                 line.unicode[i] = input->line[i];
@@ -1795,7 +1833,8 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
             }
         }
 
-        request_line(&line, input->maxlen, input->preloaded);
+        request_line(&line, input->maxlen);
+        break;
     }
 
     if (timer != 0) {
@@ -1812,41 +1851,20 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
             window_change();
             break;
 
-        case evtype_Timer: {
+        case evtype_Timer:
             ZASSERT(timer != 0, "got unexpected evtype_Timer");
-
-            struct window *saved2 = curwin;
-            int ret;
 
             stop_timer();
 
-            ret = direct_call(routine);
-
-            // It’s possible for an interrupt to switch windows; if it
-            // does, simply switch back.  This is the easiest way to deal
-            // with an undefined bit of the Z-machine.
-            if (curwin != saved2) {
-                set_current_window(saved2);
-            }
-
-            if (ret != 0) {
+            if (handle_interrupt(routine, &line) != 0) {
                 status = InputCanceled;
+                input->term = 0;
             } else {
-                // If this got reset to false, that means an interrupt had to
-                // cancel the read event in order to either read or write.
-                if (!curwin->pending_read) {
-                    if (input->type == INPUT_CHAR) {
-                        request_char();
-                    } else {
-                        request_line(&line, input->maxlen, line_len(&line));
-                    }
-                }
-
+                restart_read_events(&line, input, enable_mouse);
                 start_timer(timer);
             }
 
             break;
-        }
 
         case evtype_CharInput:
             ZASSERT(input->type == INPUT_CHAR, "got unexpected evtype_CharInput");
@@ -1854,39 +1872,92 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 
             status = InputReceived;
 
-            switch (ev.val1) {
-            case keycode_Delete: input->key = ZSCII_DELETE; break;
-            case keycode_Return: input->key = ZSCII_NEWLINE; break;
-            case keycode_Escape: input->key = ZSCII_ESCAPE; break;
-            case keycode_Up:     input->key = ZSCII_UP; break;
-            case keycode_Down:   input->key = ZSCII_DOWN; break;
-            case keycode_Left:   input->key = ZSCII_LEFT; break;
-            case keycode_Right:  input->key = ZSCII_RIGHT; break;
-            case keycode_Func1:  input->key = ZSCII_F1; break;
-            case keycode_Func2:  input->key = ZSCII_F2; break;
-            case keycode_Func3:  input->key = ZSCII_F3; break;
-            case keycode_Func4:  input->key = ZSCII_F4; break;
-            case keycode_Func5:  input->key = ZSCII_F5; break;
-            case keycode_Func6:  input->key = ZSCII_F6; break;
-            case keycode_Func7:  input->key = ZSCII_F7; break;
-            case keycode_Func8:  input->key = ZSCII_F8; break;
-            case keycode_Func9:  input->key = ZSCII_F9; break;
-            case keycode_Func10: input->key = ZSCII_F10; break;
-            case keycode_Func11: input->key = ZSCII_F11; break;
-            case keycode_Func12: input->key = ZSCII_F12; break;
+            // As far as the Standard is concerned, there is no difference in
+            // behavior for @read_char between versions 4 and 5, as §10.7.1 claims
+            // that all characters defined for input can be returned by @read_char.
+            // However, according to Infocom’s EZIP documentation, “keys which do
+            // not have a single ASCII value are ignored,” with the exception that
+            // up, down, left, and right map to 14, 13, 11, and 7, respectively.
+            // From looking at V4 games’ source code, it seems like only Bureaucracy
+            // makes use of these codes, and then only partially. Since the down
+            // arrow maps to 13, it is indistinguishable from ENTER. Bureaucracy
+            // treats 14 like ^, meaning “back up a field”. The other arrows aren’t
+            // handled specifically, but what Bureaucracy does with all characters
+            // it doesn’t handle specifically is print them out. In the DOS version
+            // of Bureaucracy, hitting the left arrow inserts a mars symbol (which
+            // is what code page 437 uses to represent value 11). Hitting the right
+            // arrow results in a beep since 7 is the bell in ASCII. Up and down
+            // work as expected, but left and right appear to have just been ignored
+            // and untested. On the Apple II, up and down work, but left and right
+            // cause nothing to be printed. However, Bureaucracy does advance its
+            // cursor location when the arrows are hit (as it does with every
+            // character), which causes interesting behavior: hit the right arrow a
+            // couple of times and then hit backspace: the cursor will jump to the
+            // right first due to the fact that the cursor position was advanced
+            // without anything actually being printed. This can’t be anything but a
+            // bug.
+            //
+            // At any rate, given how haphazard the arrow keys act under V4, they
+            // (and all other non-ASCII input) are just completely ignored here.
+            // This does no harm for Bureaucracy, since ENTER and ^ can be used. All
+            // values which are outside the range [32, 126] are ignored save for
+            // ENTER and BACKSPACE. As a result, Bureaucracy will not accidentally
+            // print out invalid values (since only valid values will be read).
+            // This, again, is in violation of the Standard, but is in fact the
+            // behavior expected by Infocom according to their EZIP documentation.
+            //
+            // Note that if function keys are supported in V4, Bureaucracy will pass
+            // them along to @print_char, even though they’re not valid for output,
+            // so ignoring things provides better results than following the
+            // Standard.
+            if (zversion == 4) {
+                switch (ev.val1) {
+                case keycode_Delete: input->key = ZSCII_DELETE; break;
+                case keycode_Return: input->key = ZSCII_NEWLINE; break;
 
-            default:
-                input->key = ZSCII_QUESTIONMARK;
-
-                if (ev.val1 <= UINT16_MAX) {
-                    uint8_t c = unicode_to_zscii[ev.val1];
-
-                    if (c != 0) {
-                        input->key = c;
+                default:
+                    if (ev.val1 >= 32 && ev.val1 <= 126) {
+                        input->key = ev.val1;
+                    } else {
+                        status = InputWaiting;
+                        request_char();
                     }
                 }
+            } else {
+                switch (ev.val1) {
+                case keycode_Delete: input->key = ZSCII_DELETE; break;
+                case keycode_Return: input->key = ZSCII_NEWLINE; break;
+                case keycode_Escape: input->key = ZSCII_ESCAPE; break;
+                case keycode_Up:     input->key = ZSCII_UP; break;
+                case keycode_Down:   input->key = ZSCII_DOWN; break;
+                case keycode_Left:   input->key = ZSCII_LEFT; break;
+                case keycode_Right:  input->key = ZSCII_RIGHT; break;
+                case keycode_Func1:  input->key = ZSCII_F1; break;
+                case keycode_Func2:  input->key = ZSCII_F2; break;
+                case keycode_Func3:  input->key = ZSCII_F3; break;
+                case keycode_Func4:  input->key = ZSCII_F4; break;
+                case keycode_Func5:  input->key = ZSCII_F5; break;
+                case keycode_Func6:  input->key = ZSCII_F6; break;
+                case keycode_Func7:  input->key = ZSCII_F7; break;
+                case keycode_Func8:  input->key = ZSCII_F8; break;
+                case keycode_Func9:  input->key = ZSCII_F9; break;
+                case keycode_Func10: input->key = ZSCII_F10; break;
+                case keycode_Func11: input->key = ZSCII_F11; break;
+                case keycode_Func12: input->key = ZSCII_F12; break;
 
-                break;
+                default:
+                    input->key = ZSCII_QUESTIONMARK;
+
+                    if (ev.val1 <= UINT16_MAX) {
+                        uint8_t c = unicode_to_zscii[ev.val1];
+
+                        if (c != 0) {
+                            input->key = c;
+                        }
+                    }
+
+                    break;
+                }
             }
 
             break;
@@ -1894,7 +1965,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
         case evtype_LineInput:
             ZASSERT(input->type == INPUT_LINE, "got unexpected evtype_LineInput");
             ZASSERT(ev.win == curwin->id, "got evtype_LineInput on unexpected window");
-            input->len = ev.val1;
+            line.len = ev.val1;
 #ifdef GLK_MODULE_LINE_TERMINATORS
             if (zversion >= 5) {
                 input->term = zscii_from_glk(ev.val2);
@@ -1902,36 +1973,93 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 #endif
             status = InputReceived;
             break;
+        case evtype_MouseInput:
+            zterp_mouse_click(ev.val1 + 1, ev.val2 + 1);
+            status = InputReceived;
+
+            switch (input->type) {
+            case INPUT_CHAR:
+                input->key = ZSCII_CLICK_SINGLE;
+                break;
+            case INPUT_LINE:
+                glk_cancel_line_event(curwin->id, &ev);
+                input->len = ev.val1;
+                input->term = ZSCII_CLICK_SINGLE;
+                break;
+            }
+
+            break;
+#ifdef GLK_MODULE_SOUND
+        case evtype_SoundNotify:
+            if (sound_routine != 0) {
+                uint16_t current_routine = sound_routine;
+                sound_routine = 0;
+                handle_interrupt(current_routine, &line);
+                restart_read_events(&line, input, enable_mouse);
+            }
+            sound_stopped();
+            break;
+#endif
         }
     }
 
     stop_timer();
 
-    if (input->type == INPUT_CHAR) {
+    if (enable_mouse) {
+        glk_cancel_mouse_event(upperwin->id);
+    }
+
+    switch (input->type) {
+    case INPUT_CHAR:
         glk_cancel_char_event(curwin->id);
-    } else {
-        // On cancellation, the buffer still needs to be filled, because
-        // it’s possible that line input echoing has been turned off and the
-        // contents will need to be written out.
-        if (status == InputCanceled) {
-            event_t ev;
-
-            glk_cancel_line_event(curwin->id, &ev);
-            input->len = ev.val1;
-            input->term = 0;
-        }
-
-        for (glui32 i = 0; i < input->len; i++) {
+        break;
+    case INPUT_LINE:
+        // Copy the Glk line into the internal input structure.
+        input->len = line.len;
+        for (glui32 i = 0; i < line.len; i++) {
             if (have_unicode) {
                 input->line[i] = line.unicode[i] > UINT16_MAX ? UNICODE_REPLACEMENT : line.unicode[i];
             } else {
-                input->line[i] = (uint8_t)line.latin1[i];
+                input->line[i] = (unsigned char)line.latin1[i];
             }
         }
-    }
 
-    curwin->pending_read = false;
-    curwin->line = NULL;
+        // When line input echoing is turned off (which is the case on
+        // Glk implementations that support it), input won’t be echoed
+        // to the screen after it’s been entered. This will echo it
+        // where appropriate, for both canceled and completed input.
+        if (curwin->has_echo) {
+            glk_set_style(style_Input);
+            for (glui32 i = 0; i < input->len; i++) {
+                GLK_PUT_CHAR(input->line[i]);
+            }
+
+            if (input->term == ZSCII_NEWLINE) {
+                GLK_PUT_CHAR(UNICODE_LINEFEED);
+            }
+            set_current_style();
+        }
+
+        // If the current window is the upper window, the position of
+        // the cursor needs to be tracked, so after a line has
+        // successfully been read, advance the cursor to the initial
+        // position of the next line, or if a terminating key was used
+        // or input was canceled, to the end of the input.
+        if (curwin == upperwin) {
+            if (input->term != ZSCII_NEWLINE) {
+                upperwin->x += input->len;
+            }
+
+            if (input->term == ZSCII_NEWLINE || upperwin->x >= upper_window_width) {
+                upperwin->x = 0;
+                if (upperwin->y < upper_window_height) {
+                    upperwin->y++;
+                }
+            }
+
+            glk_window_move_cursor(upperwin->id, upperwin->x, upperwin->y);
+        }
+    }
 
     saw_input = true;
 
@@ -1947,11 +2075,12 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 
     return status != InputCanceled;
 #else
-    if (input->type == INPUT_CHAR) {
+    switch (input->type) {
+    case INPUT_CHAR: {
         long n;
         uint16_t line[64];
 
-        n = zterp_io_readline(zterp_io_stdin(), line, sizeof line / sizeof *line);
+        n = zterp_io_readline(zterp_io_stdin(), line, ASIZE(line));
 
         // Delete and escape are defined for input, so if they’re seen,
         // handle them manually.
@@ -1969,14 +2098,16 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
                 input->key = ZSCII_NEWLINE;
             }
         }
-    } else {
+        break;
+    }
+    case INPUT_LINE:
         input->len = input->preloaded;
 
         if (input->maxlen > input->preloaded) {
             long n;
             uint16_t line[1024];
 
-            n = zterp_io_readline(zterp_io_stdin(), line, sizeof line / sizeof *line);
+            n = zterp_io_readline(zterp_io_stdin(), line, ASIZE(line));
             if (n == -1) {
                 zquit();
             } else {
@@ -1989,6 +2120,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
                 input->len += n;
             }
         }
+        break;
     }
 
     return true;
@@ -2001,9 +2133,9 @@ void zread_char(void)
     uint16_t routine = zargs[2];
     struct input input = { .type = INPUT_CHAR };
 
-#ifdef ZTERP_GLK
-    cancel_read_events(curwin);
-#endif
+    if (options.autosave && !in_interrupt()) {
+        do_save(SaveTypeAutosave, SaveOpcodeReadChar);
+    }
 
     if (zversion >= 4 && znargs > 1) {
         timer = zargs[1];
@@ -2124,14 +2256,11 @@ static bool read_handler(void)
     // This only needs to store “maxchars” bytes but since that can be 0,
     // add one to avoid creating a 0-sized VLA (which is not legal).
     uint8_t zscii_string[maxchars + 1];
-    uint32_t string[maxchars + 1];
-    struct input input = { .type = INPUT_LINE, .line = string, .maxlen = maxchars };
+    struct input input = { .type = INPUT_LINE, .maxlen = maxchars };
     uint16_t timer = 0;
     uint16_t routine = zargs[3];
 
 #ifdef ZTERP_GLK
-    cancel_read_events(curwin);
-
     starting_x = upperwin->x + 1;
     starting_y = upperwin->y + 1;
 #endif
@@ -2151,25 +2280,68 @@ static bool read_handler(void)
         ZASSERT(input.preloaded <= maxchars, "too many preloaded characters: %d when max is %d", input.preloaded, maxchars);
 
         for (i = 0; i < input.preloaded; i++) {
-            string[i] = zscii_to_unicode[user_byte(text + i + 2)];
+            input.line[i] = zscii_to_unicode[user_byte(text + i + 2)];
         }
-        // Under garglk, preloaded input works as it’s supposed to.
+        // Under Gargoyle, preloaded input generally works as it’s supposed to.
         // Under Glk, it can fail one of two ways:
         // 1. The preloaded text is printed out once, but is not editable.
         // 2. The preloaded text is printed out twice, the second being editable.
-        // I have chosen option #2.  For non-Glk, option #1 is done by necessity.
+        // I have chosen option #2. For non-Glk, option #1 is done by necessity.
+        //
+        // The “normal” mode of operation for preloaded text seems to be that a
+        // particular string is printed, and then that string is preloaded,
+        // allowing the already-printed text to be edited. However, there is no
+        // requirement that the preloaded text already be on-screen. For
+        // example, what should happen if the text “ZZZ” is printed out, but the
+        // text “AAA” is preloaded? The interpreter for Hitchiker’s Guide that
+        // comes with the Lost Treasures of Infocom displays “ZZZ” (and not
+        // “AAA”), and allows the user to edit it; but any characters not edited
+        // by the user (that is, not backspaced over) are actually stored as “A”
+        // characters. The on-screen “Z” characters are not stored.
+        //
+        // This isn’t possible under Glk, and as it stands, isn’t possible under
+        // Gargoyle either (although it could be extended to support it). For
+        // now I am not extending Gargoyle: the usual case (preloaded text
+        // matching on-screen text) does work with Gargoyle’s unput extensions,
+        // and the unusual/unexpected case (preloaded text not matching) at
+        // least is usable: the whole preloaded string is displayed and can be
+        // edited. I suspect nobody but Infocom ever uses preloaded text, and
+        // Infocom uses it in the normal way, so things work just fine.
 #ifdef GARGLK
-        string[i] = 0;
+        input.line[i] = 0;
         if (curwin->id != NULL) {
-            garglk_unput_string_uni(string);
+            // If the preloaded text would wrap backward in the upper window
+            // (to the previous line), limit it to just the current line. For
+            // example:
+            //
+            // |This text bre|
+            // |aks          |
+            //
+            // If the string “breaks” is preloaded, only try to unput the “aks”
+            // part. Backing all the way up to “bre” works (as in, is
+            // successfully unput) in Gargoyle, but input won’t work: the cursor
+            // will be placed at line 1, right after the “e”, and no input will
+            // be allowed. At least by keeping the cursor on the second line,
+            // proper user input will occur.
+            if (curwin == upperwin) {
+                long max = input.preloaded > upperwin->x ? upperwin->x : input.preloaded;
+                long start = input.preloaded - max;
+                glui32 unput = garglk_unput_string_count_uni(input.line + start);
+
+                // Since the preloaded text might not have been on the screen
+                // (or only partially so), reduce the current and starting X
+                // coordinates by the number of unput characters, since that is
+                // where Gargoyle will logically be starting input.
+                curwin->x -= unput;
+                starting_x -= unput;
+            } else {
+                garglk_unput_string_uni(input.line);
+            }
         }
 #endif
     }
 
     if (!get_input(timer, routine, &input)) {
-#ifdef ZTERP_GLK
-        cleanup_screen(&input);
-#endif
         if (zversion >= 5) {
             store(0);
         }
@@ -2177,33 +2349,39 @@ static bool read_handler(void)
     }
 
 #ifdef ZTERP_GLK
-    cleanup_screen(&input);
     update_delayed();
 #endif
 
     if (!options.disable_meta_commands) {
-        string[input.len] = 0;
+        input.line[input.len] = 0;
 
-        if (string[0] == '/') {
+        if (input.line[0] == '/') {
             const uint32_t *ret;
 
-            ret = handle_meta_command(string + 1, input.len - 1);
+#ifdef ZTERP_GLK
+            // If the game is currently in the upper window, blank out
+            // everything the user typed so that a re-request of input has a
+            // clean slate to work with. Replace the cursor where it was at the
+            // start of input.
+            if (curwin == upperwin) {
+                set_cursor(starting_y, starting_x);
+                for (int i = 0; i < input.len; i++) {
+                    put_char_u(UNICODE_SPACE);
+                }
+                set_cursor(starting_y, starting_x);
+            }
+#endif
+
+            ret = handle_meta_command(input.line + 1, input.len - 1);
             if (ret == NULL) {
                 return true;
-            } else if (ret == string + 1) {
-                // The game still wants input, so try again. If this is the
-                // upper window just replace the cursor without printing
-                // anything, but if it’s the main window, print a newline and a
-                // “>”. There’s no way to be certain what the prompt should look
-                // like but this is reasonable enough.
+            } else if (ret == input.line + 1) {
+                // The game still wants input, so try again. If this is the main
+                // window, print a prompt that hopefully meshes well with the
+                // game. If it’s the upper window, don’t print anything, because
+                // that will almost certainly do more harm than good.
 #ifdef ZTERP_GLK
-                if (curwin == upperwin) {
-                    // Account for any preloaded text: the starting cursor
-                    // position was at the end of preloaded text, but now the
-                    // cursor needs to be placed at the beginning of where input
-                    // *should* be, i.e. where the preloaded text started.
-                    set_cursor(starting_y, starting_x - input.preloaded);
-                } else
+                if (curwin != upperwin)
 #endif
                 {
                     screen_print("\n>");
@@ -2215,18 +2393,22 @@ static bool read_handler(void)
                 // not be on the screen anymore. Print it again so that it can
                 // be unput.
                 //
-                // If this implemntation is not Gargoyle, the text will just be
-                // printed twice as is normal with preloaded input.
+                // If this implementation is not Gargoyle, don’t print
+                // anything. The original text (if there in fact was
+                // any) will still be on the screen, and the preloaded
+                // text will be displayed (and editable) by Glk.
+#ifdef GARGLK
                 for (int i = 0; i < input.preloaded; i++) {
                     put_char(zscii_to_unicode[user_byte(text + i + 2)]);
                 }
+#endif
 
                 return false;
             } else {
-                ptrdiff_t offset = ret - string;
+                ptrdiff_t offset = ret - input.line;
 
                 input.len -= offset;
-                memmove(string, ret, (sizeof string[0]) * (input.len + 1));
+                memmove(input.line, ret, (sizeof input.line[0]) * (input.len + 1));
             }
         }
 
@@ -2242,7 +2424,7 @@ static bool read_handler(void)
         // Because V1–4 games will never call @save_undo, seen_save_undo
         // will never be true.  Thus there is no need to test zversion.
         if (!seen_save_undo) {
-            push_save(SAVE_GAME, true, NULL);
+            push_save(SaveStackGame, SaveTypeMeta, SaveOpcodeRead, NULL);
         }
     }
 
@@ -2255,16 +2437,16 @@ static bool read_handler(void)
     }
 
     if (curwin == mainwin) {
-        history_add_input(string, input.len);
+        history_add_input(input.line, input.len);
     }
 
     for (int i = 0; i < input.len; i++) {
-        zscii_string[i] = unicode_to_zscii_q[unicode_tolower(string[i])];
+        zscii_string[i] = unicode_to_zscii_q[unicode_tolower(input.line[i])];
         if (streams & STREAM_TRANS) {
-            zterp_io_putc(transio, string[i]);
+            zterp_io_putc(transio, input.line[i]);
         }
         if (streams & STREAM_SCRIPT) {
-            zterp_io_putc(scriptio, string[i]);
+            zterp_io_putc(scriptio, input.line[i]);
         }
     }
 
@@ -2309,6 +2491,10 @@ static bool read_handler(void)
 
 void zread(void)
 {
+    if (options.autosave && !in_interrupt()) {
+        do_save(SaveTypeAutosave, SaveOpcodeRead);
+    }
+
     while (!read_handler()) {
     }
 }
@@ -2390,7 +2576,7 @@ void zpicture_data(void)
 
 void zget_wind_prop(void)
 {
-    uint8_t font_width = 10, font_height = 10;
+    uint8_t font_width = 1, font_height = 1;
     uint16_t val;
     struct window *win;
 
@@ -2595,15 +2781,15 @@ bool create_statuswin(void)
 bool create_upperwin(void)
 {
 #ifdef ZTERP_GLK
-    // On a restart, this function will get called again.  It would be
-    // possible to try to resize the upper window to 0 if it already
-    // exists, but it’s easier to just destroy and recreate it.
-    if (upperwin->id != NULL) {
-        glk_window_close(upperwin->id, NULL);
-    }
-
-    // The upper window appeared in V3.
+    // The upper window appeared in V3. */
     if (zversion >= 3) {
+        // On a restart, this function will get called again. It would be
+        // possible to try to resize the upper window to 0 if it already
+        // exists, but it’s easier to just destroy and recreate it.
+        if (upperwin->id != NULL) {
+            glk_window_close(upperwin->id, NULL);
+        }
+
         upperwin->id = glk_window_open(mainwin->id, winmethod_Above | winmethod_Fixed, 0, wintype_TextGrid, 0);
         upperwin->x = upperwin->y = 0;
         upper_window_height = 0;
@@ -2636,11 +2822,6 @@ void init_screen(void)
 
 #ifdef ZTERP_GLK
         clear_window(&windows[i]);
-#ifdef GLK_MODULE_LINE_TERMINATORS
-        if (windows[i].id != NULL && term_nkeys != 0 && glk_gestalt(gestalt_LineTerminators, 0)) {
-            glk_set_terminators_line_event(windows[i].id, term_keys, term_nkeys);
-        }
-#endif
 #endif
     }
 
@@ -2662,22 +2843,20 @@ void init_screen(void)
     have_unicode = true;
 #endif
 
-    if (scriptio != NULL) {
-        zterp_io_close(scriptio);
-    }
-    scriptio = NULL;
-
-    input_stream(ISTREAM_KEYBOARD);
-
-    streams = STREAM_SCREEN;
+    // On restart, deselect stream 3 and select stream 1. This allows
+    // the command script and transcript to persist across restarts,
+    // while resetting memory output and ensuring screen output.
+    streams &= ~STREAM_MEMORY;
+    streams |= STREAM_SCREEN;
     stream_tables_index = -1;
+
     set_current_window(mainwin);
 }
 
 // Write out the screen state for a Scrn chunk.
 //
 // This implements version 0 as described in stack.c.
-char (*screen_write_scrn(zterp_io *io))[5]
+TypeID screen_write_scrn(zterp_io *io, void *data)
 {
     zterp_io_write32(io, 0);
 
@@ -2813,7 +2992,7 @@ bool screen_read_scrn(zterp_io *io, uint32_t size, char *err, size_t errsize)
     return true;
 }
 
-char (*screen_write_bfhs(zterp_io *io))[5]
+TypeID screen_write_bfhs(zterp_io *io, void *data)
 {
     struct history_entry *p = history.start;
 
@@ -2850,10 +3029,11 @@ char (*screen_write_bfhs(zterp_io *io))[5]
     return &"Bfhs";
 }
 
-void screen_read_bfhs(zterp_io *io)
+void screen_read_bfhs(zterp_io *io, bool autosave)
 {
     uint32_t version;
-    struct window saved = *mainwin, before_input;
+    struct window saved = *mainwin;
+    uint8_t original_style = mainwin->style;
     uint32_t size;
 #ifdef ZTERP_GLK
     strid_t stream = glk_window_get_stream(mainwin->id);
@@ -2874,9 +3054,17 @@ void screen_read_bfhs(zterp_io *io)
     mainwin->style = STYLE_NONE;
     set_window_style(mainwin);
 
-    screen_puts("[Starting history playback]");
+    if (!autosave) {
+        screen_puts("[Starting history playback]");
+    }
 
     if (!zterp_io_read32(io, &size)) {
+        goto end;
+    }
+
+    if (size == 0 && autosave) {
+        warning("empty history record");
+        screen_print(">");
         goto end;
     }
 
@@ -2888,12 +3076,18 @@ void screen_read_bfhs(zterp_io *io)
             goto end;
         }
 
+        // Each history entry is added to the history buffer. This is so
+        // that new saves, after a restore, continue to include the
+        // older save file’s history.
         switch (type) {
         case HistTypeStyle:
             if (!zterp_io_read8(io, &mainwin->style)) {
                 goto end;
             }
             set_window_style(mainwin);
+
+            history_add_style();
+
             break;
         case HistTypeFGColor: case HistTypeBGColor: {
             uint8_t mode;
@@ -2906,22 +3100,28 @@ void screen_read_bfhs(zterp_io *io)
                 goto end;
             }
 
-            try_load_color(mode, value, type == HistTypeFGColor ? &mainwin->fg_color : &mainwin->bg_color);
+            struct color *color = type == HistTypeFGColor ? &mainwin->fg_color : &mainwin->bg_color;
+
+            try_load_color(mode, value, color);
             set_window_style(mainwin);
+
+            history_add_color(type, color);
 
             break;
         }
         case HistTypeInputStart:
-            before_input = *mainwin;
+            original_style = mainwin->style;
             mainwin->style = STYLE_NONE;
             set_window_style(mainwin);
 #ifdef ZTERP_GLK
             glk_set_style_stream(stream, style_Input);
 #endif
+            history_add_input_start();
             break;
         case HistTypeInputEnd:
-            *mainwin = before_input;
+            mainwin->style = original_style;
             set_window_style(mainwin);
+            history_add_input_end();
             break;
         case HistTypeChar:
             c = zterp_io_getc(io);
@@ -2933,14 +3133,17 @@ void screen_read_bfhs(zterp_io *io)
 #else
             zterp_io_putc(zterp_io_stdout(), c);
 #endif
+            history_add_input_char(c);
             break;
+        default:
+            goto end;
         }
     }
 
-    screen_puts("[End of history playback]");
-
 end:
-    screen_puts("");
+    if (!autosave) {
+        screen_puts("[End of history playback]\n");
+    }
     *mainwin = saved;
     set_window_style(mainwin);
 }
