@@ -121,7 +121,7 @@ if $(MAKE_ALAN3) = yes
 
 # -----------------------------------------------------------------------
 #
-# Bocfel 1.2.1
+# Bocfel 1.3.1
 #
 
 if $(MAKE_BOCFEL) = yes
@@ -143,7 +143,7 @@ if $(MAKE_BOCFEL) = yes
     Main $(GARGLKPRE)bocfel :
         blorb.c branch.c dict.c glkstart.c iff.c io.c math.c memory.c
         meta.c objects.c osdep.c patches.c process.c random.c screen.c
-        sound.c stack.c unicode.c util.c zoom.c zterp.c
+        sound.c stack.c stash.c unicode.c util.c zoom.c zterp.c
         ;
 
     APPS += $(GARGLKPRE)bocfel ;

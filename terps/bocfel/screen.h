@@ -10,6 +10,7 @@
 #include <glk.h>
 #endif
 
+#include "iff.h"
 #include "io.h"
 #include "util.h"
 
@@ -32,7 +33,6 @@ bool create_statuswin(void);
 bool create_upperwin(void);
 void get_screen_size(unsigned int *width, unsigned int *height);
 void close_upper_window(void);
-void cancel_all_events(void);
 
 uint32_t screen_convert_color(uint16_t color);
 
@@ -49,8 +49,9 @@ void screen_print(const char *s);
 zprintflike(1, 2)
 void screen_printf(const char *fmt, ...);
 void screen_puts(const char *s);
+void screen_message_prompt(const char *message);
 
-#ifdef GLK_MODULE_LINE_TERMINATORS
+#ifdef ZTERP_GLK
 void term_keys_reset(void);
 void term_keys_add(uint8_t key);
 #endif
@@ -79,9 +80,9 @@ void put_char(uint8_t c);
 
 void screen_format_time(char (*formatted)[64], long hours, long minutes);
 bool screen_read_scrn(zterp_io *io, uint32_t size, char *err, size_t errsize);
-char (*screen_write_scrn(zterp_io *io))[5];
-void screen_read_bfhs(zterp_io *io);
-char (*screen_write_bfhs(zterp_io *io))[5];
+TypeID screen_write_scrn(zterp_io *io, void *data);
+void screen_read_bfhs(zterp_io *io, bool autosave);
+TypeID screen_write_bfhs(zterp_io *io, void *data);
 
 void zoutput_stream(void);
 void zinput_stream(void);

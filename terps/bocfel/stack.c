@@ -1,4 +1,4 @@
-// Copyright 2010-2016 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -27,8 +27,11 @@
 #include "iff.h"
 #include "io.h"
 #include "memory.h"
+#include "osdep.h"
 #include "process.h"
+#include "random.h"
 #include "screen.h"
+#include "stash.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -61,20 +64,20 @@ static uint16_t *sp;
 #define BASE_OF_STACK	stack
 static uint16_t *TOP_OF_STACK;
 
-static void PUSH_STACK(uint16_t n)
+static void push_stack(uint16_t n)
 {
     ZASSERT(sp != TOP_OF_STACK, "stack overflow");
     *sp++ = n;
 }
 
-static uint16_t POP_STACK(void)
+static uint16_t pop_stack(void)
 {
     ZASSERT(sp > CURRENT_FRAME->sp, "stack underflow");
     return *--sp;
 }
 
 struct save_state {
-    bool is_meta;
+    enum SaveType savetype;
     uint8_t *quetzal;
     long quetzal_size;
 
@@ -108,14 +111,25 @@ static void add_frame(uint32_t pc_, uint16_t *sp_, uint8_t nlocals, uint8_t narg
     fp++;
 }
 
-static struct save_state *new_save_state(void)
+static struct save_state *new_save_state(enum SaveType savetype, const char *desc)
 {
     struct save_state *new;
 
     new = malloc(sizeof *new);
     if (new != NULL) {
+        new->savetype = savetype;
         new->quetzal = NULL;
-        new->desc = NULL;
+        new->quetzal_size = 0;
+
+        if (desc != NULL) {
+            new->desc = malloc(strlen(desc) + 1);
+            if (new->desc != NULL) {
+                strcpy(new->desc, desc);
+            }
+        } else {
+            new->desc = NULL;
+        }
+
         new->when = time(NULL);
     }
 
@@ -141,59 +155,12 @@ static void clear_save_stack(struct save_stack *s)
     s->count = 0;
 }
 
-void init_stack(void)
-{
-    // Allocate space for the evaluation and call stacks.
-    // Clamp the size between 1 and the largest value that will not
-    // produce an overflow of size_t when multiplied by the size of the
-    // type.
-    // Also, the call stack can be no larger than 0xffff so that the
-    // result of a @catch will fit into a 16-bit integer.
-    if (stack == NULL) {
-#define MIN(a, b)	((a) < (b) ? (a) : (b))
-#define CLAMP(n, a, b)	((n) < (a) ? (a) : (n) > (b) ? (b): (n))
-        options.eval_stack_size = CLAMP(options.eval_stack_size, 1, SIZE_MAX / sizeof *stack);
-        stack = malloc(options.eval_stack_size * sizeof *stack);
-        if (stack == NULL) {
-            die("unable to allocate %lu bytes for the evaluation stack", options.eval_stack_size * (unsigned long)sizeof *stack);
-        }
-        TOP_OF_STACK = &stack[options.eval_stack_size];
-
-        options.call_stack_size = CLAMP(options.call_stack_size, 1, MIN(0xffff, (SIZE_MAX / sizeof *frames) - sizeof *frames));
-        // One extra to help with saving (thus the subtraction of sizeof *frames above).
-        frames = malloc((options.call_stack_size + 1) * sizeof *frames);
-        if (frames == NULL) {
-            die("unable to allocate %lu bytes for the call stack", (options.call_stack_size + 1) * (unsigned long)sizeof *frames);
-        }
-        TOP_OF_FRAMES = &frames[options.call_stack_size];
-#undef MIN
-#undef CLAMP
-    }
-
-    sp = BASE_OF_STACK;
-    fp = BASE_OF_FRAMES;
-
-    // Quetzal requires a dummy frame in non-V6 games, so do that here.
-    if (zversion != 6) {
-        add_frame(0, sp, 0, 0, 0);
-    }
-
-    // Free all @save_undo save states.
-    clear_save_stack(&save_stacks[SAVE_GAME]);
-    save_stacks[SAVE_GAME].max = options.max_saves;
-    seen_save_undo = false;
-
-    // Free all /ps save states.
-    clear_save_stack(&save_stacks[SAVE_USER]);
-    save_stacks[SAVE_USER].max = 25;
-}
-
 uint16_t variable(uint16_t var)
 {
     ZASSERT(var < 0x100, "unable to decode variable %u", (unsigned)var);
 
     if (var == 0) { // Stack
-        return POP_STACK();
+        return pop_stack();
     } else if (var <= 0x0f) { // Locals
         ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to read from nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
         return CURRENT_FRAME->locals[var - 1];
@@ -213,8 +180,8 @@ void store_variable(uint16_t var, uint16_t n)
     ZASSERT(var < 0x100, "unable to decode variable %u", (unsigned)var);
 
     if (var == 0) { // Stack
-        PUSH_STACK(n);
-    } else if (var <= 0x0f) { // Locals 
+        push_stack(n);
+    } else if (var <= 0x0f) { // Locals
         ZASSERT(var <= CURRENT_FRAME->nlocals, "attempting to store to nonexistent local variable %d: routine has %d", (int)var, CURRENT_FRAME->nlocals);
         CURRENT_FRAME->locals[var - 1] = n;
     } else if (var <= 0xff) { // Globals
@@ -232,7 +199,7 @@ uint16_t *stack_top_element(void)
 
 void zpush(void)
 {
-    PUSH_STACK(zargs[0]);
+    push_stack(zargs[0]);
 }
 
 void zpull(void)
@@ -240,7 +207,7 @@ void zpull(void)
     uint16_t v;
 
     if (zversion != 6) {
-        v = POP_STACK();
+        v = pop_stack();
 
         // The z-spec 1.1 requires indirect variable references to the stack not to push/pop
         if (zargs[0] == 0) {
@@ -250,7 +217,7 @@ void zpull(void)
         }
     } else {
         if (znargs == 0) {
-            v = POP_STACK();
+            v = pop_stack();
         } else {
             uint16_t slots = user_word(zargs[0]) + 1;
 
@@ -342,7 +309,7 @@ void start_v6(void)
 }
 
 #ifdef ZTERP_GLK
-uint16_t direct_call(uint16_t routine)
+uint16_t internal_call(uint16_t routine)
 {
     uint16_t saved_args[znargs];
     uint16_t saved_nargs;
@@ -359,7 +326,7 @@ uint16_t direct_call(uint16_t routine)
     memcpy(zargs, saved_args, sizeof saved_args);
     znargs = saved_nargs;
 
-    return POP_STACK();
+    return pop_stack();
 }
 #endif
 
@@ -386,19 +353,19 @@ void do_return(uint16_t retval)
     if (where <= 0xff) {
         store_variable(where, retval);
     } else if (where == 0xff + 2) {
-        PUSH_STACK(retval);
+        push_stack(retval);
         interrupt_return();
     }
 }
 
 void zret_popped(void)
 {
-    do_return(POP_STACK());
+    do_return(pop_stack());
 }
 
 void zpop(void)
 {
-    POP_STACK();
+    pop_stack();
 }
 
 void zcatch(void)
@@ -448,7 +415,7 @@ void zpop_stack(void)
 {
     if (znargs == 1) {
         for (uint16_t i = 0; i < zargs[0]; i++) {
-            POP_STACK();
+            pop_stack();
         }
     } else {
         user_store_word(zargs[1], user_word(zargs[1]) + zargs[0]);
@@ -525,7 +492,7 @@ static uint32_t compress_memory(uint8_t **compressed)
 
     // There is a small chance that ret will be 0 (if everything in
     // dynamic memory is identical to what was initially loaded from the
-    // story).  If that's the case, this realloc() will instead behave as
+    // story). If that’s the case, this realloc() will instead behave as
     // free(), so just allocate one more than is necessary to avoid a
     // potential double free.
     *compressed = realloc(tmp, ret + 1);
@@ -565,7 +532,7 @@ static bool uncompress_memory(const uint8_t *compressed, uint32_t size)
     return true;
 }
 
-static char (*write_ifhd(zterp_io *savefile))[5]
+static TypeID write_ifhd(zterp_io *savefile, void *data)
 {
     zterp_io_write16(savefile, header.release);
     zterp_io_write_exact(savefile, header.serial, 6);
@@ -578,7 +545,7 @@ static char (*write_ifhd(zterp_io *savefile))[5]
 }
 
 // Store the filename in an IntD chunk.
-static char (*write_intd(zterp_io *savefile))[5]
+static TypeID write_intd(zterp_io *savefile, void *data)
 {
     zterp_io_write_exact(savefile, "UNIX", 4);
     zterp_io_write8(savefile, 0x02);
@@ -590,12 +557,12 @@ static char (*write_intd(zterp_io *savefile))[5]
     return &"IntD";
 }
 
-static char (*write_mem(zterp_io *savefile))[5]
+static TypeID write_mem(zterp_io *savefile, void *data)
 {
     uint8_t *compressed = NULL;
     uint32_t memsize = compress_memory(&compressed);
     const uint8_t *mem = memory;
-    char (*type)[5];
+    TypeID type;
 
     // It is possible for the compressed memory size to be larger than
     // uncompressed; in this case, just store the uncompressed memory.
@@ -613,7 +580,7 @@ static char (*write_mem(zterp_io *savefile))[5]
 }
 
 // Quetzal save/restore functions.
-static char (*write_stks(zterp_io *savefile))[5]
+static TypeID write_stks(zterp_io *savefile, void *data)
 {
     // Add one more “fake” call frame with just enough information to
     // calculate the evaluation stack used by the current routine.
@@ -656,8 +623,22 @@ static char (*write_stks(zterp_io *savefile))[5]
     return &"Stks";
 }
 
-static char (*write_args(zterp_io *savefile))[5]
+static TypeID write_anno(zterp_io *savefile, void *data)
 {
+    char anno[32];
+
+    snprintf(anno, sizeof anno, "Interpreter: Bocfel %s", ZTERP_VERSION);
+    zterp_io_write_exact(savefile, anno, strlen(anno));
+
+    return &"ANNO";
+}
+
+static TypeID write_args(zterp_io *savefile, void *data)
+{
+    enum SaveOpcode *saveopcode = data;
+
+    zterp_io_write8(savefile, *saveopcode);
+
     for (int i = 0; i < znargs; i++) {
         zterp_io_write16(savefile, zargs[i]);
     }
@@ -665,15 +646,34 @@ static char (*write_args(zterp_io *savefile))[5]
     return &"Args";
 }
 
-static void write_chunk(zterp_io *io, char (*(*writefunc)(zterp_io *))[5])
+static TypeID write_undo(zterp_io *savefile, void *data)
+{
+    struct save_stack *s = &save_stacks[SaveStackGame];
+
+    zterp_io_write32(savefile, 0); // Version
+    zterp_io_write32(savefile, s->count);
+
+    for (const struct save_state *state = s->tail; state != NULL; state = state->prev) {
+        zterp_io_write8(savefile, state->savetype);
+        zterp_io_write32(savefile, state->quetzal_size);
+        zterp_io_write_exact(savefile, state->quetzal, state->quetzal_size);
+    }
+
+    return &"Undo";
+}
+
+static void write_chunk(zterp_io *io, TypeID (*writefunc)(zterp_io *savefile, void *data), void *data)
 {
     long chunk_pos, end_pos, size;
-    char (*type)[5];
+    TypeID type;
 
     chunk_pos = zterp_io_tell(io);
-    zterp_io_write32(io, 0); // type
-    zterp_io_write32(io, 0); // size
-    type = writefunc(io);
+    zterp_io_seek(io, 8, SEEK_CUR); // skip past type and size
+    type = writefunc(io, data);
+    if (type == NULL) {
+        zterp_io_seek(io, chunk_pos, SEEK_SET);
+        return;
+    }
     end_pos = zterp_io_tell(io);
     size = end_pos - chunk_pos - 8;
     zterp_io_seek(io, chunk_pos, SEEK_SET);
@@ -689,74 +689,31 @@ static void write_chunk(zterp_io *io, char (*(*writefunc)(zterp_io *))[5])
 // format of the save state is the same (that is, the IFhd, IntD, and
 // CMem/UMem chunks are identical). The type of the save file itself is
 // BFZS instead of IFZS to prevent the files from being used by a normal
-// @restore (as they are not compatible).
-//
-// BFZS has the following changes/extensions to Quetzal:
-//
-// The save file is from the middle of a read instruction instead of at
-// a save. PC points to either the store byte of the @sread
-// instruction, or if @aread, the next instruction. Instead of
-// continuing at @restore, the read needs to be restarted.
-//
-// There are two new chunks associated with BFZS:
-//
-// Args:
-// This represents the arguments to the current @read opcode. The size
-// of the chunk is the number of arguments multiplied by two, followed
-// by the arguments (as 16-bit unsigned integers).
-//
-// Scrn:
-// This is a versioned chunk that represents the screen state.  It
-// consists of the following:
-//
-// • Version (uint32_t)
-// • The currently-selected window (uint8_t)
-// • The height of the upper window (uint16_t)
-// • The x coordinate of the upper window cursor (uint16_t)
-// • The y coordinate of the upper window cursor (uint16_t)
-//
-// Coordinates are stored as Z-machine coordinates, meaning (1, 1) is
-// the origin. If no coordinates are available (e.g. if there is no
-// upper window), they will be (0, 0).
-//
-// This is followed by 2 or 8 identical sections representing the
-// windows. V6 has 8 windows, all others have 2. Windows consist of the
-// following:
-//
-// • Style (uint8_t)
-// • Font (uint8_t)
-// • Previous font (uint8_t)
-// • Foreground color
-// • Background color
-//
-// Colors are three bytes:
-//
-// • Mode (uint8_t): 0 = ANSI, 1 = True
-// • Color (uint16_t): 1-12 for ANSI, 0-32767 for True
-//
-// The Scrn chunk is optional. If it is not present, the current screen
-// state will be maintained. More importantly, unsupported Scrn versions
-// are not fatal. This allows older versions of Bocfel to load newer
-// meta saves that include updated versions of the Scrn chunk.
-static bool save_quetzal(zterp_io *savefile, bool is_meta, bool store_history)
+// @restore (as they are not compatible). See `Quetzal.md` for a
+// description of how BFZS differs from IFZS.
+static bool save_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOpcode saveopcode, bool store_history)
 {
     long file_size;
+    bool is_bfzs = savetype == SaveTypeMeta || savetype == SaveTypeAutosave;
+    bool ok;
 
-    if (!zterp_io_try(savefile)) {
+    zterp_io_try(savefile, ok);
+    if (!ok) {
         return false;
     }
 
     zterp_io_write_exact(savefile, "FORM", 4);
     zterp_io_write32(savefile, 0); // to be filled in
-    zterp_io_write_exact(savefile, is_meta ? "BFZS" : "IFZS", 4);
+    zterp_io_write_exact(savefile, is_bfzs ? "BFZS" : "IFZS", 4);
 
-    write_chunk(savefile, write_ifhd);
-    write_chunk(savefile, write_intd);
-    write_chunk(savefile, write_mem);
-    write_chunk(savefile, write_stks);
+    write_chunk(savefile, write_ifhd, NULL);
+    write_chunk(savefile, write_intd, NULL);
+    write_chunk(savefile, write_mem, NULL);
+    write_chunk(savefile, write_stks, NULL);
+    write_chunk(savefile, write_anno, NULL);
 
     if (store_history) {
-        write_chunk(savefile, screen_write_bfhs);
+        write_chunk(savefile, screen_write_bfhs, NULL);
     }
 
     // When restoring a meta save, @read will be called to bring the user
@@ -766,9 +723,14 @@ static bool save_quetzal(zterp_io *savefile, bool is_meta, bool store_history)
     // all restoring does is store or branch, using the location of the
     // program counter after restore). If this is a meta save, store zargs
     // so it can be restored before re-entering @read.
-    if (is_meta) {
-        write_chunk(savefile, write_args);
-        write_chunk(savefile, screen_write_scrn);
+    if (is_bfzs) {
+        write_chunk(savefile, write_args, &saveopcode);
+        write_chunk(savefile, screen_write_scrn, NULL);
+    }
+
+    if (savetype == SaveTypeAutosave) {
+        write_chunk(savefile, write_undo, NULL);
+        write_chunk(savefile, random_write_rand, NULL);
     }
 
     file_size = zterp_io_tell(savefile);
@@ -778,89 +740,304 @@ static bool save_quetzal(zterp_io *savefile, bool is_meta, bool store_history)
     return true;
 }
 
-// Restoring can put the system in an inconsistent state by restoring
-// only part of memory: the save file may be corrupt and cause failure
-// part way through updating memory, for example.  This set of functions
-// takes a snapshot of the current state of dynamic memory and the
-// stacks so they can be restored on failure.
-static uint8_t *memory_backup;
-static uint16_t *stack_backup;
-static int stack_backup_size;
-static struct call_frame *frames_backup;
-static long frames_backup_size;
-
-static void memory_snapshot_free(void)
+static void push_save_state(struct save_stack *save_stack, struct save_state *state)
 {
-    free(memory_backup);
-    free(stack_backup);
-    free(frames_backup);
-
-    memory_backup = NULL;
-    stack_backup = NULL;
-    frames_backup = NULL;
-}
-
-static void memory_snapshot(void)
-{
-    memory_snapshot_free();
-
-    memory_backup = malloc(header.static_start);
-    if (memory_backup == NULL) {
-        goto err;
-    }
-
-    memcpy(memory_backup, memory, header.static_start);
-
-    stack_backup_size = sp - stack;
-    if (stack_backup_size != 0) {
-        stack_backup = malloc(stack_backup_size * sizeof *stack);
-        if (stack_backup == NULL) {
-            goto err;
+    // If the maximum number has been reached, drop the last element.
+    // A negative value for max_saves means there is no maximum.
+    //
+    // Small note: calling @restore_undo twice should succeed both times
+    // if @save_undo was called twice (or three, four, etc. times). If
+    // there aren’t enough slots, however, @restore_undo calls that should
+    // work will fail because the earlier save states will have been
+    // dropped. This can easily be seen by running TerpEtude’s undo test
+    // with the slot count set to 1. By default, the number of save slots
+    // is 100, so this will not be an issue unless a game goes out of its
+    // way to cause problems.
+    if (save_stack->max > 0 && save_stack->count == save_stack->max) {
+        struct save_state *tmp = save_stack->tail;
+        save_stack->tail = save_stack->tail->prev;
+        if (save_stack->tail == NULL) {
+            save_stack->head = NULL;
+        } else {
+            save_stack->tail->next = NULL;
         }
-        memcpy(stack_backup, stack, stack_backup_size * sizeof *stack);
+        free_save_state(tmp);
+        save_stack->count--;
     }
 
-    frames_backup_size = NFRAMES;
-    if (frames_backup_size != 0) {
-        frames_backup = malloc(frames_backup_size * sizeof *frames);
-        if (frames_backup == NULL) {
-            goto err;
-        }
-        memcpy(frames_backup, frames, frames_backup_size * sizeof *frames);
+    state->next = save_stack->head;
+    state->prev = NULL;
+    if (state->next != NULL) {
+        state->next->prev = state;
+    }
+    save_stack->head = state;
+    if (save_stack->tail == NULL) {
+        save_stack->tail = state;
     }
 
-    return;
-
-err:
-    memory_snapshot_free();
-}
-
-static bool memory_restore(void)
-{
-    // stack_backup and frames_backup will be NULL if the stacks were
-    // empty, so use memory_backup to determine if a snapshot has been
-    // taken.
-    if (memory_backup == NULL) {
-        return false;
-    }
-
-    memcpy(memory, memory_backup, header.static_start);
-    if (stack_backup != NULL) {
-        memcpy(stack, stack_backup, stack_backup_size * sizeof *stack);
-    }
-    sp = stack + stack_backup_size;
-    if (frames_backup != NULL) {
-        memcpy(frames, frames_backup, frames_backup_size * sizeof *frames);
-    }
-    fp = frames + frames_backup_size;
-
-    memory_snapshot_free();
-
-    return true;
+    save_stack->count++;
 }
 
 #define goto_err(...)	do { show_message("Save file error: " __VA_ARGS__); goto err; } while (false)
-#define goto_death(...)	do { show_message("Save file error: " __VA_ARGS__); goto death; } while (false)
+
+static bool read_mem(zterp_iff *iff, zterp_io *savefile)
+{
+    uint32_t size;
+
+    if (zterp_iff_find(iff, &"CMem", &size)) {
+        uint8_t *buf;
+
+        // Dynamic memory is 64KB, and a worst-case save should take up
+        // 1.5× that value, or 96KB.  Simply double the 64KB to avoid
+        // potential edge-case problems.
+        if (size > 131072) {
+            goto_err("reported CMem size too large (%lu bytes)", (unsigned long)size);
+        }
+
+        buf = malloc(size * sizeof *buf);
+        if (buf == NULL) {
+            goto_err("unable to allocate memory for decompression");
+        }
+
+        if (!zterp_io_read_exact(savefile, buf, size)) {
+            free(buf);
+            goto_err("unexpected eof reading compressed memory");
+        }
+
+        if (!uncompress_memory(buf, size)) {
+            free(buf);
+            goto_err("memory cannot be uncompressed");
+        }
+
+        free(buf);
+    } else if (zterp_iff_find(iff, &"UMem", &size)) {
+        if (size != header.static_start) {
+            goto_err("memory size mismatch");
+        }
+        if (!zterp_io_read_exact(savefile, memory, header.static_start)) {
+            goto_err("unexpected eof reading memory");
+        }
+    } else {
+        goto_err("no memory chunk found");
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+static bool read_stks(zterp_iff *iff, zterp_io *savefile)
+{
+    uint32_t size, n = 0, frameno = 0;
+
+    if (!zterp_iff_find(iff, &"Stks", &size)) {
+        goto_err("no stacks chunk found");
+    }
+    if (size == 0) {
+        goto_err("empty stacks chunk");
+    }
+
+    sp = BASE_OF_STACK;
+    fp = BASE_OF_FRAMES;
+
+    while (n < size) {
+        uint8_t frame[8];
+        uint8_t nlocals;
+        uint16_t nstack;
+        uint8_t nargs = 0;
+        uint32_t frame_pc;
+
+        if (!zterp_io_read_exact(savefile, frame, sizeof frame)) {
+            goto_err("unexpected eof reading stack frame");
+        }
+        n += sizeof frame;
+
+        nlocals = frame[3] & 0xf;
+        nstack = (frame[6] << 8) | frame[7];
+        frame[5]++;
+        while ((frame[5] >>= 1) != 0) {
+            nargs++;
+        }
+
+        frame_pc = (((uint32_t)frame[0]) << 16) | (((uint32_t)frame[1]) << 8) | ((uint32_t)frame[2]);
+        if (frame_pc >= memory_size) {
+            goto_err("frame #%lu pc out of range (0x%lx)", (unsigned long)frameno, (unsigned long)frame_pc);
+        }
+
+        add_frame(frame_pc, sp, nlocals, nargs, (frame[3] & 0x10) ? 0xff + 1 : frame[4]);
+
+        for (int i = 0; i < nlocals; i++) {
+            uint16_t l;
+
+            if (!zterp_io_read16(savefile, &l)) {
+                goto_err("unexpected eof reading local variable");
+            }
+            CURRENT_FRAME->locals[i] = l;
+
+            n += sizeof l;
+        }
+
+        for (uint16_t i = 0; i < nstack; i++) {
+            uint16_t s;
+
+            if (!zterp_io_read16(savefile, &s)) {
+                goto_err("unexpected eof reading stack entry");
+            }
+            push_stack(s);
+
+            n += sizeof s;
+        }
+
+        frameno++;
+    }
+
+    if (n != size) {
+        goto_err("stack size mismatch");
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+static bool read_args(zterp_iff *iff, zterp_io *savefile, enum SaveOpcode *saveopcode)
+{
+    uint32_t size;
+    uint8_t saveopcode_temp;
+
+    if (!zterp_iff_find(iff, &"Args", &size)) {
+        goto_err("no meta save Args chunk found");
+    }
+
+    if (!zterp_io_read8(savefile, &saveopcode_temp)) {
+        goto_err("short read in Args");
+    }
+
+    *saveopcode = saveopcode_temp;
+
+    size--;
+
+    // @read takes between 1 and 4 operands, @read_char takes
+    // between 1 and 3.
+    switch (*saveopcode) {
+    case SaveOpcodeRead:
+        if (size != 2 && size != 4 && size != 6 && size != 8) {
+            goto_err("invalid Args size: %lu", (unsigned long)size);
+        }
+        break;
+    case SaveOpcodeReadChar:
+        if (size != 2 && size != 4 && size != 6) {
+            goto_err("invalid Args size: %lu", (unsigned long)size);
+        }
+        break;
+    default:
+        goto_err("invalid save opcode: %d\n", (int)*saveopcode);
+    }
+
+    znargs = size / 2;
+
+    for (int i = 0; i < znargs; i++) {
+        if (!zterp_io_read16(savefile, &zargs[i])) {
+            goto_err("short read in Args");
+        }
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+static bool read_bfzs_specific(zterp_iff *iff, zterp_io *savefile, enum SaveType savetype, enum SaveOpcode *saveopcode)
+{
+    uint32_t size;
+
+    if (!read_args(iff, savefile, saveopcode)) {
+        goto err;
+    }
+
+    if (savetype == SaveTypeAutosave && zterp_iff_find(iff, &"Rand", &size)) {
+        random_read_rand(savefile);
+    }
+
+    if (zterp_iff_find(iff, &"Scrn", &size)) {
+        char err[64];
+
+        // Restoring cannot fail after this, because this function
+        // actively touches the screen (changing window
+        // configuration, etc). It would be possible to stash the
+        // screen state, but it would (potentially) be lossy: if the
+        // upper window is reduced, for example, there will be
+        // missing text once it is enlarged again.
+        if (!screen_read_scrn(savefile, size, err, sizeof err)) {
+            goto_err("unable to parse screen state: %s", err);
+        }
+    } else {
+        warning("no Scrn chunk in meta save");
+    }
+
+    return true;
+
+err:
+    return false;
+}
+
+// Any errors reading the Undo chunk are ignored. It’s better to have a
+// valid autorestore with no undo than no autorestore at all.
+static void read_undo(zterp_io *savefile, uint32_t size)
+{
+    uint32_t version;
+    uint32_t count;
+    struct save_stack *save_stack = &save_stacks[SaveStackGame];
+    size_t actual_size = 0;
+
+    if (!zterp_io_read32(savefile, &version) ||
+        version != 0 ||
+        !zterp_io_read32(savefile, &count)) {
+
+        return;
+    }
+
+    actual_size += 4 + 4;
+
+    clear_save_stack(save_stack);
+
+    for (uint32_t i = 0; i < count && i < save_stack->max; i++) {
+        uint8_t savetype;
+        uint32_t quetzal_size;
+        uint8_t *quetzal = NULL;
+        struct save_state *new;
+
+        if (!zterp_io_read8(savefile, &savetype) ||
+            (savetype != SaveTypeNormal && savetype != SaveTypeMeta) ||
+            !zterp_io_read32(savefile, &quetzal_size) ||
+            (quetzal = malloc(quetzal_size)) == NULL ||
+            !zterp_io_read_exact(savefile, quetzal, quetzal_size) ||
+            (new = new_save_state(savetype, NULL)) == NULL) {
+
+            free(quetzal);
+            clear_save_stack(save_stack);
+            return;
+        }
+
+        actual_size += 1 + 4 + quetzal_size;
+
+        if (new->savetype == SaveTypeNormal) {
+            seen_save_undo = true;
+        }
+
+        new->quetzal = quetzal;
+        new->quetzal_size = quetzal_size;
+
+        push_save_state(save_stack, new);
+    }
+
+    if (actual_size != size) {
+        clear_save_stack(save_stack);
+    }
+}
 
 // Earlier versions of Bocfel’s meta-saves neglected to take into
 // account the fact that the call to @read may have included arguments
@@ -895,35 +1072,31 @@ static bool instruction_has_stack_argument(uint32_t addr)
     return false;
 }
 
-static bool restore_quetzal(zterp_io *savefile, bool is_meta, bool *is_bfms)
+static bool restore_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOpcode *saveopcode)
 {
     zterp_iff *iff;
     uint32_t size;
-    uint32_t n = 0;
     uint8_t ifhd[13];
     uint32_t newpc;
-    uint16_t saved_args[znargs];
-    int saved_nargs = znargs;
-    int frameno = 0;
+    bool is_bfzs = savetype == SaveTypeMeta || savetype == SaveTypeAutosave;
+    bool is_bfms = false;
 
-    *is_bfms = false;
+    *saveopcode = SaveOpcodeNone;
 
-    memcpy(saved_args, zargs, sizeof saved_args);
-
-    if (is_meta) {
-        iff = zterp_iff_parse(savefile, "BFZS");
+    if (is_bfzs) {
+        iff = zterp_iff_parse(savefile, &"BFZS");
         if (iff == NULL) {
-            iff = zterp_iff_parse(savefile, "BFMS");
+            iff = zterp_iff_parse(savefile, &"BFMS");
             if (iff != NULL) {
-                *is_bfms = true;
+                is_bfms = true;
             }
         }
     } else {
-        iff = zterp_iff_parse(savefile, "IFZS");
+        iff = zterp_iff_parse(savefile, &"IFZS");
     }
 
     if (iff == NULL ||
-        !zterp_iff_find(iff, "IFhd", &size) ||
+        !zterp_iff_find(iff, &"IFhd", &size) ||
         size != 13 ||
         !zterp_io_read_exact(savefile, ifhd, sizeof ifhd)) {
 
@@ -937,203 +1110,110 @@ static bool restore_quetzal(zterp_io *savefile, bool is_meta, bool *is_bfms)
         goto_err("wrong game or version");
     }
 
-    newpc = (ifhd[10] << 16) | (ifhd[11] << 8) | ifhd[12];
+    newpc = (((uint32_t)ifhd[10]) << 16) | (((uint32_t)ifhd[11]) << 8) | ((uint32_t)ifhd[12]);
     if (newpc >= memory_size) {
         goto_err("pc out of range (0x%lx)", (unsigned long)newpc);
     }
 
-    if (*is_bfms && instruction_has_stack_argument(newpc + 1)) {
+    if (is_bfms && instruction_has_stack_argument(newpc + 1)) {
         goto_err("detected incompatible meta save: please file a bug report at https://bocfel.org/issues");
     }
 
-    memory_snapshot();
-
-    if (zterp_iff_find(iff, "CMem", &size)) {
-        uint8_t *buf;
-
-        // Dynamic memory is 64KB, and a worst-case save should take up
-        // 1.5× that value, or 96KB.  Simply double the 64KB to avoid
-        // potential edge-case problems.
-        if (size > 131072) {
-            goto_err("reported CMem size too large (%lu bytes)", (unsigned long)size);
-        }
-
-        buf = malloc(size * sizeof *buf);
-        if (buf == NULL) {
-            goto_err("unable to allocate memory for decompression");
-        }
-
-        if (!zterp_io_read_exact(savefile, buf, size)) {
-            free(buf);
-            goto_err("unexpected eof reading compressed memory");
-        }
-
-        if (!uncompress_memory(buf, size)) {
-            free(buf);
-            goto_death("memory cannot be uncompressed");
-        }
-
-        free(buf);
-    } else if (zterp_iff_find(iff, "UMem", &size)) {
-        if (size != header.static_start) {
-            goto_err("memory size mismatch");
-        }
-        if (!zterp_io_read_exact(savefile, memory, header.static_start)) {
-            goto_death("unexpected eof reading memory");
-        }
-    } else {
-        goto_err("no memory chunk found");
+    if (is_bfzs && savetype == SaveTypeAutosave && zterp_iff_find(iff, &"Undo", &size)) {
+        read_undo(savefile, size);
     }
 
-    if (!zterp_iff_find(iff, "Stks", &size)) {
-        goto_death("no stacks chunk found");
-    }
-    if (size == 0) {
-        goto_death("empty stacks chunk");
-    }
+    stash_backup();
 
-    sp = BASE_OF_STACK;
-    fp = BASE_OF_FRAMES;
-
-    while (n < size) {
-        uint8_t frame[8];
-        uint8_t nlocals;
-        uint16_t nstack;
-        uint8_t nargs = 0;
-        uint32_t frame_pc;
-
-        if (!zterp_io_read_exact(savefile, frame, sizeof frame)) {
-            goto_death("unexpected eof reading stack frame");
-        }
-        n += sizeof frame;
-
-        nlocals = frame[3] & 0xf;
-        nstack = (frame[6] << 8) | frame[7];
-        frame[5]++;
-        while ((frame[5] >>= 1) != 0) {
-            nargs++;
-        }
-
-        frame_pc = (frame[0] << 16) | (frame[1] << 8) | frame[2];
-        if (frame_pc >= memory_size) {
-            goto_err("frame #%d pc out of range (0x%lx)", frameno, (unsigned long)frame_pc);
-        }
-
-        add_frame(frame_pc, sp, nlocals, nargs, (frame[3] & 0x10) ? 0xff + 1 : frame[4]);
-
-        for (int i = 0; i < nlocals; i++) {
-            uint16_t l;
-
-            if (!zterp_io_read16(savefile, &l)) {
-                goto_death("unexpected eof reading local variable");
-            }
-            CURRENT_FRAME->locals[i] = l;
-
-            n += sizeof l;
-        }
-
-        for (uint16_t i = 0; i < nstack; i++) {
-            uint16_t s;
-
-            if (!zterp_io_read16(savefile, &s)) {
-                goto_death("unexpected eof reading stack entry");
-            }
-            PUSH_STACK(s);
-
-            n += sizeof s;
-        }
-
-        frameno++;
+    if (!read_mem(iff, savefile) || !read_stks(iff, savefile)) {
+        goto err;
     }
 
-    if (n != size) {
-        goto_death("stack size mismatch");
-    }
+    if (zterp_iff_find(iff, &"Bfhs", &size)) {
+        if (savetype == SaveTypeAutosave || !options.disable_history_playback) {
+            long start = zterp_io_tell(savefile);
 
-    if (is_meta && !*is_bfms) {
-        if (!zterp_iff_find(iff, "Args", &size)) {
-            goto_death("no meta save Args chunk found");
-        }
+            screen_read_bfhs(savefile, savetype == SaveTypeAutosave);
 
-        if (size % 2 != 0) {
-            goto_death("invalid Args size: %lu", (unsigned long)size);
-        }
-        if (size / 2 != znargs) {
-            goto_death("invalid Args value: reported number of arguments (%lu) at odds with actual number of arguments (%d)", (unsigned long)(size / 2), znargs);
-        }
-        znargs = size / 2;
-
-        for (int i = 0; i < znargs; i++) {
-            if (!zterp_io_read16(savefile, &zargs[i])) {
-                goto_death("short read in Args");
+            if (zterp_io_tell(savefile) - start != size) {
+                goto_err("history size mismatch");
             }
         }
-
-        if (zterp_iff_find(iff, "Scrn", &size)) {
-            char err[64];
-
-            if (!screen_read_scrn(savefile, size, err, sizeof err)) {
-                goto_death("unable to parse screen state: %s", err);
-            }
-        } else {
-            warning("no Scrn chunk in meta save");
-        }
+    } else if (savetype == SaveTypeAutosave) {
+        warning("unable to find history record");
+        screen_printf(">");
     }
 
-    if (!options.disable_history_plaback && zterp_iff_find(iff, "Bfhs", &size)) {
-        long start = zterp_io_tell(savefile);
-
-        screen_read_bfhs(savefile);
-
-        if (zterp_io_tell(savefile) - start != size) {
-            goto_death("history size mismatch");
+    if (is_bfzs && !is_bfms) {
+        // This must be the last restore call, since it can ultimately
+        // wind up modifying the screen state in an irreversible way.
+        if (!read_bfzs_specific(iff, savefile, savetype, saveopcode)) {
+            goto err;
         }
     }
 
     zterp_iff_free(iff);
-    memory_snapshot_free();
+    stash_free();
 
     pc = newpc;
 
     return true;
 
-death:
-    // At this point, something vital (memory and/or the stacks) has been
-    // scribbed upon; if there was a successful backup, restore it.
-    // Otherwise the only course of action is to exit.
-    if (!memory_restore()) {
+err:
+    // If a stash exists, then something vital has been scribbled upon.
+    // Try to restore the stash, but if it can’t be restored, the only
+    // course of action is to exit.
+    if (stash_exists() && !stash_restore()) {
         die("the system is likely in an inconsistent state");
     }
 
-err:
     // A snapshot may have been taken, but neither memory nor the stacks
     // have been overwritten, so just free the snapshot. Restore zargs in
     // case this was a meta save that updated it before failure.
-    memory_snapshot_free();
+    stash_free();
     zterp_iff_free(iff);
-    memcpy(zargs, saved_args, sizeof saved_args);
-    znargs = saved_nargs;
     return false;
 }
 
 #undef goto_err
-#undef goto_death
+
+static bool open_savefile(enum SaveType savetype, enum zterp_io_mode mode, zterp_io **savefile)
+{
+    char autosave_name[1024];
+    const char *filename = NULL;
+
+    if (savetype == SaveTypeAutosave) {
+        if (!zterp_os_autosave_name(autosave_name, sizeof autosave_name)) {
+            return false;
+        } else {
+            filename = autosave_name;
+        }
+    }
+
+    *savefile = zterp_io_open(filename, mode, ZTERP_IO_PURPOSE_SAVE);
+    if (*savefile == NULL) {
+        if (savetype != SaveTypeAutosave) {
+            warning("unable to open save file");
+        }
+
+        return false;
+    }
+
+    return true;
+}
 
 // Perform all aspects of a save, apart from storing/branching.
 // Returns true if the save was success, false if not.
-// “is_meta” is true if this save file is from a meta-save.
-bool do_save(bool is_meta)
+bool do_save(enum SaveType savetype, enum SaveOpcode saveopcode)
 {
     zterp_io *savefile;
     bool success;
 
-    savefile = zterp_io_open(NULL, ZTERP_IO_WRONLY, ZTERP_IO_SAVE);
-    if (savefile == NULL) {
-        warning("unable to open save file");
+    if (!open_savefile(savetype, ZTERP_IO_MODE_WRONLY, &savefile)) {
         return false;
     }
 
-    success = save_quetzal(savefile, is_meta, true);
+    success = save_quetzal(savefile, savetype, saveopcode, true);
 
     zterp_io_close(savefile);
 
@@ -1149,7 +1229,7 @@ void zsave(void)
         die("@save called inside of an interrupt");
     }
 
-    bool success = do_save(false);
+    bool success = do_save(SaveTypeNormal, SaveOpcodeNone);
 
     if (zversion <= 3) {
         branch_if(success);
@@ -1160,31 +1240,25 @@ void zsave(void)
 
 // Perform all aspects of a restore, apart from storing/branching.
 // Returns true if the restore was success, false if not.
-// “is_meta” is true if this save file is expected to be from a
-// meta-save. *is_bfms will be set to true if this is an old-style BFMS
-// meta-save, otherwise false.
-bool do_restore(bool is_meta, bool *is_bfms)
+// *saveopcode will be set appropriately based on the type of save file
+// this is.
+bool do_restore(enum SaveType savetype, enum SaveOpcode *saveopcode)
 {
     zterp_io *savefile;
     uint16_t flags2;
     bool success;
 
-    savefile = zterp_io_open(NULL, ZTERP_IO_RDONLY, ZTERP_IO_SAVE);
-    if (savefile == NULL) {
-        warning("unable to open save file");
+    if (!open_savefile(savetype, ZTERP_IO_MODE_RDONLY, &savefile)) {
         return false;
     }
 
     flags2 = word(0x10);
 
-    success = restore_quetzal(savefile, is_meta, is_bfms);
+    success = restore_quetzal(savefile, savetype, saveopcode);
 
     zterp_io_close(savefile);
 
     if (success) {
-        // If there are any pending read events, cancel on successful restore.
-        cancel_all_events();
-
         // §8.6.1.3
         if (zversion == 3) {
             close_upper_window();
@@ -1209,7 +1283,8 @@ bool do_restore(bool is_meta, bool *is_bfms)
 
 void zrestore(void)
 {
-    bool success = do_restore(false, &(bool){false});
+    enum SaveOpcode saveopcode;
+    bool success = do_restore(SaveTypeNormal, &saveopcode);
 
     if (zversion <= 3) {
         branch_if(success);
@@ -1221,12 +1296,12 @@ void zrestore(void)
     // @save cannot be called inside an interrupt), so reset the level
     // back to zero.
     if (success) {
-        interrupt_reset(false);
+        interrupt_restore(saveopcode);
     }
 }
 
 // Push the current state onto the specified save stack.
-bool push_save(enum save_type type, bool is_meta, const char *desc)
+bool push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc)
 {
     struct save_stack *s = &save_stacks[type];
     struct save_state *new;
@@ -1236,27 +1311,17 @@ bool push_save(enum save_type type, bool is_meta, const char *desc)
         return false;
     }
 
-    new = new_save_state();
+    new = new_save_state(savetype, desc);
     if (new == NULL) {
         return false;
     }
 
-    if (desc != NULL) {
-        new->desc = malloc(strlen(desc) + 1);
-        if (new->desc != NULL) {
-            strcpy(new->desc, desc);
-        }
-    } else {
-        new->desc = NULL;
-    }
-
-    new->is_meta = is_meta;
     savefile = zterp_io_open_memory(NULL, 0);
     if (savefile == NULL) {
         goto err;
     }
 
-    if (!save_quetzal(savefile, new->is_meta, false)) {
+    if (!save_quetzal(savefile, savetype, saveopcode, false)) {
         goto err;
     }
 
@@ -1264,40 +1329,7 @@ bool push_save(enum save_type type, bool is_meta, const char *desc)
         goto err;
     }
 
-    // If the maximum number has been reached, drop the last element.
-    // A negative value for max_saves means there is no maximum.
-    //
-    // Small note: calling @restore_undo twice should succeed both times
-    // if @save_undo was called twice (or three, four, etc. times).  If
-    // there aren’t enough slots, however, @restore_undo calls that should
-    // work will fail because the earlier save states will have been
-    // dropped.  This can easily be seen by running TerpEtude’s undo test
-    // with the slot count set to 1.  By default, the number of save slots
-    // is 100, so this will not be an issue unless a game goes out of its
-    // way to cause problems.
-    if (s->max > 0 && s->count == s->max) {
-        struct save_state *tmp = s->tail;
-        s->tail = s->tail->prev;
-        if (s->tail == NULL) {
-            s->head = NULL;
-        } else {
-            s->tail->next = NULL;
-        }
-        free_save_state(tmp);
-        s->count--;
-    }
-
-    new->next = s->head;
-    new->prev = NULL;
-    if (new->next != NULL) {
-        new->next->prev = new;
-    }
-    s->head = new;
-    if (s->tail == NULL) {
-        s->tail = new;
-    }
-
-    s->count++;
+    push_save_state(s, new);
 
     return true;
 
@@ -1312,7 +1344,7 @@ err:
 
 // Remove the first “n” saves from the specified stack.  If there are
 // not enough saves available, remove all saves.
-static void trim_saves(enum save_type type, long n)
+static void trim_saves(enum SaveStackType type, long n)
 {
     struct save_stack *s = &save_stacks[type];
 
@@ -1333,7 +1365,7 @@ static void trim_saves(enum save_type type, long n)
 
 // Pop the specified state from the specified stack and jump to it.
 // Indices start at 0, with 0 being the most recent save.
-bool pop_save(enum save_type type, long saveno, bool *call_zread)
+bool pop_save(enum SaveStackType type, long saveno, enum SaveOpcode *saveopcode)
 {
     struct save_stack *s = &save_stacks[type];
     struct save_state *p = s->head;
@@ -1350,14 +1382,12 @@ bool pop_save(enum save_type type, long saveno, bool *call_zread)
         p = p->next;
     }
 
-    *call_zread = p->is_meta;
-
     savefile = zterp_io_open_memory(p->quetzal, p->quetzal_size);
     if (savefile == NULL) {
         return false;
     }
 
-    if (!restore_quetzal(savefile, p->is_meta, &(bool){false})) {
+    if (!restore_quetzal(savefile, p->savetype, saveopcode)) {
         zterp_io_close(savefile);
         return false;
     }
@@ -1381,7 +1411,7 @@ bool pop_save(enum save_type type, long saveno, bool *call_zread)
 
 // Wrapper around trim_saves which reports failure if the specified save
 // does not exist.
-bool drop_save(enum save_type type, long i)
+bool drop_save(enum SaveStackType type, long i)
 {
     struct save_stack *s = &save_stacks[type];
 
@@ -1394,7 +1424,7 @@ bool drop_save(enum save_type type, long i)
     return true;
 }
 
-void list_saves(enum save_type type, void (*printer)(const char *))
+void list_saves(enum SaveStackType type, void (*printer)(const char *))
 {
     struct save_stack *s = &save_stacks[type];
     long nsaves = s->count;
@@ -1446,11 +1476,11 @@ void zsave_undo(void)
         // On the first call to @save_undo, switch over to game-based save
         // states instead of interpreter-generated save states.
         if (!seen_save_undo) {
-            clear_save_stack(&save_stacks[SAVE_GAME]);
+            clear_save_stack(&save_stacks[SaveStackGame]);
             seen_save_undo = true;
         }
 
-        store(push_save(SAVE_GAME, false, NULL));
+        store(push_save(SaveStackGame, SaveTypeNormal, SaveOpcodeNone, NULL));
     }
 }
 
@@ -1461,13 +1491,184 @@ void zrestore_undo(void)
     if (!seen_save_undo) {
         store(0);
     } else {
-        bool call_zread;
-        bool success = pop_save(SAVE_GAME, 0, &call_zread);
+        enum SaveOpcode saveopcode;
+        bool success = pop_save(SaveStackGame, 0, &saveopcode);
 
         store(success ? 2 : 0);
 
         if (success) {
-            interrupt_reset(call_zread);
+            interrupt_restore(saveopcode);
         }
     }
+}
+
+static uint16_t zargs_stash[8];
+static int znargs_stash;
+
+static void args_stash_backup(void)
+{
+    memcpy(zargs_stash, zargs, znargs);
+    znargs_stash = znargs;
+}
+
+static bool args_stash_restore(void)
+{
+    memcpy(zargs, zargs_stash, znargs_stash);
+    znargs = znargs_stash;
+
+    return true;
+}
+
+static void args_stash_free(void)
+{
+}
+
+static uint8_t *memory_backup;
+
+static void memory_stash_backup(void)
+{
+    memory_backup = malloc(header.static_start);
+    if (memory_backup != NULL) {
+        memcpy(memory_backup, memory, header.static_start);
+    }
+}
+
+static bool memory_stash_restore(void)
+{
+    if (memory_backup == NULL) {
+        return false;
+    }
+
+    memcpy(memory, memory_backup, header.static_start);
+
+    return true;
+}
+
+static void memory_stash_free(void)
+{
+    free(memory_backup);
+    memory_backup = NULL;
+}
+
+static uint16_t *stack_backup;
+static long stack_backup_size;
+
+static void stack_stash_backup(void)
+{
+    stack_backup_size = sp - stack;
+    if (stack_backup_size != 0) {
+        stack_backup = malloc(stack_backup_size * sizeof *stack);
+        if (stack_backup != NULL) {
+            memcpy(stack_backup, stack, stack_backup_size * sizeof *stack);
+        }
+    }
+}
+
+static bool stack_stash_restore(void)
+{
+    if (stack_backup == NULL && stack_backup_size != 0) {
+        return false;
+    }
+
+    sp = BASE_OF_STACK + stack_backup_size;
+    if (stack_backup_size != 0) {
+        memcpy(stack, stack_backup, stack_backup_size * sizeof *stack);
+    }
+
+    return true;
+}
+
+static void stack_stash_free(void)
+{
+    free(stack_backup);
+    stack_backup = NULL;
+}
+
+static struct call_frame *frames_backup;
+static long frames_backup_size;
+
+static void frames_stash_backup(void)
+{
+    frames_backup_size = NFRAMES;
+    if (frames_backup_size != 0) {
+        frames_backup = malloc(frames_backup_size * sizeof *frames);
+        if (frames_backup != NULL) {
+            memcpy(frames_backup, frames, frames_backup_size * sizeof *frames);
+        }
+    }
+}
+
+static bool frames_stash_restore(void)
+{
+    if (frames_backup == NULL && frames_backup_size != 0) {
+        return false;
+    }
+
+    fp = BASE_OF_FRAMES + frames_backup_size;
+    if (frames_backup_size != 0) {
+        memcpy(frames, frames_backup, frames_backup_size * sizeof *frames);
+    }
+
+    return true;
+}
+
+static void frames_stash_free(void)
+{
+    free(frames_backup);
+    frames_backup = NULL;
+}
+void init_stack(void)
+{
+    static bool first_run = true;
+
+    // Allocate space for the evaluation and call stacks.
+    // Clamp the size between 1 and the largest value that will not
+    // produce an overflow of size_t when multiplied by the size of the
+    // type.
+    // Also, the call stack can be no larger than 0xffff so that the
+    // result of a @catch will fit into a 16-bit integer.
+    if (first_run) {
+#define MIN(a, b)	((a) < (b) ? (a) : (b))
+#define CLAMP(n, a, b)	((n) < (a) ? (a) : (n) > (b) ? (b): (n))
+        options.eval_stack_size = CLAMP(options.eval_stack_size, 1, SIZE_MAX / sizeof *stack);
+        stack = malloc(options.eval_stack_size * sizeof *stack);
+        if (stack == NULL) {
+            die("unable to allocate %lu bytes for the evaluation stack", options.eval_stack_size * (unsigned long)sizeof *stack);
+        }
+        TOP_OF_STACK = &stack[options.eval_stack_size];
+
+        options.call_stack_size = CLAMP(options.call_stack_size, 1, MIN(0xffff, (SIZE_MAX / sizeof *frames) - sizeof *frames));
+        // One extra to help with saving (thus the subtraction of sizeof *frames above).
+        frames = malloc((options.call_stack_size + 1) * sizeof *frames);
+        if (frames == NULL) {
+            die("unable to allocate %lu bytes for the call stack", (options.call_stack_size + 1) * (unsigned long)sizeof *frames);
+        }
+        TOP_OF_FRAMES = &frames[options.call_stack_size];
+#undef MIN
+#undef CLAMP
+
+        stash_register(args_stash_backup, args_stash_restore, args_stash_free);
+        stash_register(memory_stash_backup, memory_stash_restore, memory_stash_free);
+        stash_register(stack_stash_backup, stack_stash_restore, stack_stash_free);
+        stash_register(frames_stash_backup, frames_stash_restore, frames_stash_free);
+
+        first_run = false;
+    }
+
+    sp = BASE_OF_STACK;
+    fp = BASE_OF_FRAMES;
+
+    // Quetzal requires a dummy frame in non-V6 games, so do that here.
+    if (zversion != 6) {
+        add_frame(0, sp, 0, 0, 0);
+    }
+
+    // Free all @save_undo save states.
+    clear_save_stack(&save_stacks[SaveStackGame]);
+    save_stacks[SaveStackGame].max = options.max_saves;
+    seen_save_undo = false;
+
+    // Free all /ps save states.
+    clear_save_stack(&save_stacks[SaveStackUser]);
+    save_stacks[SaveStackUser].max = 25;
 }

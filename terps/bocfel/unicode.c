@@ -1,4 +1,4 @@
-// Copyright 2010-2015 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -90,9 +90,71 @@ uint16_t zscii_to_font3[UINT8_MAX + 1];
 // the character, value is the index in the alphabet table, or -1.
 int atable_pos[UINT8_MAX + 1];
 
+static void build_zscii_to_unicode_table(void)
+{
+    for (int i = 0; i < UINT8_MAX + 1; i++) {
+        zscii_to_unicode[i] = UNICODE_REPLACEMENT;
+    }
+    zscii_to_unicode[0] = 0;
+    zscii_to_unicode[ZSCII_NEWLINE] = UNICODE_LINEFEED;
+
+    if (zversion == 6) {
+        zscii_to_unicode[ 9] = UNICODE_SPACE; // Tab.
+        zscii_to_unicode[11] = UNICODE_SPACE; // Sentence space.
+    }
+
+    for (int i = 32; i < 127; i++) {
+        zscii_to_unicode[i] = i;
+    }
+    for (int i = 0; i < unicode_entries; i++) {
+        uint16_t c = unicode_table[i];
+
+        if (!valid_unicode(c)) {
+            c = UNICODE_REPLACEMENT;
+        }
+
+        zscii_to_unicode[i + 155] = c;
+    }
+}
+
+static void build_unicode_to_zscii_tables(void)
+{
+    // Default values.
+    memset(unicode_to_zscii, 0, sizeof unicode_to_zscii);
+    memset(unicode_to_zscii_q, ZSCII_QUESTIONMARK, sizeof unicode_to_zscii_q);
+
+    // First fill up the entries found in the Unicode table.
+    for (int i = 0; i < unicode_entries; i++) {
+        uint16_t c = unicode_table[i];
+
+        if (valid_unicode(c)) {
+            unicode_to_zscii  [c] = i + 155;
+            unicode_to_zscii_q[c] = i + 155;
+        }
+    }
+
+    // Now the values that are equivalent in ZSCII and Unicode.
+    for (int i = 32; i < 127; i++) {
+        unicode_to_zscii  [i] = i;
+        unicode_to_zscii_q[i] = i;
+    }
+
+    // Properly translate a newline.
+    unicode_to_zscii  [UNICODE_LINEFEED] = ZSCII_NEWLINE;
+    unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
+}
+
+static void build_unicode_to_latin1_table(void)
+{
+    memset(unicode_to_latin1, LATIN1_QUESTIONMARK, sizeof unicode_to_latin1);
+    for (int i = 0; i < 256; i++) {
+        unicode_to_latin1[i] = i;
+    }
+}
+
 // Not all fonts provide all characters, so there
 // may well be a lot of question marks.
-static void build_font3_table(void)
+static void build_zscii_to_character_graphics_table(void)
 {
     for (int i = 0; i < UINT8_MAX; i++) {
         zscii_to_font3[i] = UNICODE_REPLACEMENT;
@@ -216,105 +278,10 @@ static void build_font3_table(void)
     zscii_to_font3[124] = 0x2193; // ↓
     zscii_to_font3[125] = 0x2195; // ↕
     zscii_to_font3[126] = 0x003f; // ?
-
-    // If the interpreter number is 9 (Apple IIc), Beyond Zork uses (at
-    // least some) MouseText characters instead of the characters
-    // specified in the standard for font 3.  The following were obtained
-    // by looking at a disassembly of Beyond Zork; the list will be
-    // revised if more non-standard character uses are discovered.
-    //
-    // As with the quirky behavior in the DOS version of Beyond Zork (see
-    // process_story() in zterp.c), this is only active when the story
-    // file is Beyond Zork, because as far as the standard is concerned,
-    // this behavior is wrong, and font 3 should be identical for all
-    // interpreter types.
-    if (options.int_number == 9 && is_beyond_zork()) {
-        zscii_to_font3[ 72] = 0x2190; // ←
-        zscii_to_font3[ 74] = 0x2193; // ↓
-        zscii_to_font3[ 75] = 0x2191; // ↑
-        zscii_to_font3[ 76] = 0x2594; // ▔
-        zscii_to_font3[ 85] = 0x2192; // →
-        zscii_to_font3[ 90] = 0x2595; // ▕
-        zscii_to_font3[ 95] = 0x258f; // ▏
-    }
 }
 
-void setup_tables(void)
+static void build_alphabet_table(void)
 {
-    // ╔══════════════════════════════════════════════════════════════════════════════╗
-    // ║ ZSCII to Unicode table                                                       ║
-    // ╚══════════════════════════════════════════════════════════════════════════════╝
-    for (int i = 0; i < UINT8_MAX + 1; i++) {
-        zscii_to_unicode[i] = UNICODE_REPLACEMENT;
-    }
-    zscii_to_unicode[0] = 0;
-    zscii_to_unicode[ZSCII_NEWLINE] = UNICODE_LINEFEED;
-
-    if (zversion == 6) {
-        zscii_to_unicode[ 9] = UNICODE_SPACE; // Tab.
-        zscii_to_unicode[11] = UNICODE_SPACE; // Sentence space.
-    }
-
-    for (int i = 32; i < 127; i++) {
-        zscii_to_unicode[i] = i;
-    }
-    for (int i = 0; i < unicode_entries; i++) {
-        uint16_t c = unicode_table[i];
-
-        if (!valid_unicode(c)) {
-            c = UNICODE_REPLACEMENT;
-        }
-
-        zscii_to_unicode[i + 155] = c;
-    }
-
-    // ╔══════════════════════════════════════════════════════════════════════════════╗
-    // ║ Unicode to ZSCII tables                                                      ║
-    // ╚══════════════════════════════════════════════════════════════════════════════╝
-
-    // Default values.
-    memset(unicode_to_zscii, 0, sizeof unicode_to_zscii);
-    memset(unicode_to_zscii_q, ZSCII_QUESTIONMARK, sizeof unicode_to_zscii_q);
-
-    // First fill up the entries found in the Unicode table.
-    for (int i = 0; i < unicode_entries; i++) {
-        uint16_t c = unicode_table[i];
-
-        if (valid_unicode(c)) {
-            unicode_to_zscii  [c] = i + 155;
-            unicode_to_zscii_q[c] = i + 155;
-        }
-    }
-
-    // Now the values that are equivalent in ZSCII and Unicode.
-    for (int i = 32; i < 127; i++) {
-        unicode_to_zscii  [i] = i;
-        unicode_to_zscii_q[i] = i;
-    }
-
-    // Properly translate a newline.
-    unicode_to_zscii  [UNICODE_LINEFEED] = ZSCII_NEWLINE;
-    unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
-
-    // ╔══════════════════════════════════════════════════════════════════════════════╗
-    // ║ Unicode to Latin1 table                                                      ║
-    // ╚══════════════════════════════════════════════════════════════════════════════╝
-
-    memset(unicode_to_latin1, LATIN1_QUESTIONMARK, sizeof unicode_to_latin1);
-    for (int i = 0; i < 256; i++) {
-        unicode_to_latin1[i] = i;
-    }
-
-    // ╔══════════════════════════════════════════════════════════════════════════════╗
-    // ║ ZSCII to character graphics table                                            ║
-    // ╚══════════════════════════════════════════════════════════════════════════════╝
-
-    build_font3_table();
-
-    // ╔══════════════════════════════════════════════════════════════════════════════╗
-    // ║ Alphabet table                                                               ║
-    // ╚══════════════════════════════════════════════════════════════════════════════╝
-
     for (int i = 0; i < 256; i++) {
         atable_pos[i] = -1;
     }
@@ -327,6 +294,15 @@ void setup_tables(void)
     for (int i = 53; i < 26 * 3; i++) {
         atable_pos[atable[i]] = i;
     }
+}
+
+void setup_tables(void)
+{
+    build_zscii_to_unicode_table();
+    build_unicode_to_zscii_tables();
+    build_unicode_to_latin1_table();
+    build_zscii_to_character_graphics_table();
+    build_alphabet_table();
 }
 
 // This is adapted from Zip2000 (Copyright 2001 Kevin Bracey).
@@ -407,6 +383,78 @@ uint16_t char_to_unicode(char c)
         return UNICODE_REPLACEMENT;
     } else {
         return c;
+    }
+}
+#endif
+
+#ifdef ZTERP_DOS
+// Convert from Unicode to code page 437, used by DOS.
+uint8_t unicode_to_437(uint16_t c)
+{
+    switch (c) {
+    case 0x0020: return  32; case 0x0021: return  33; case 0x0022: return  34; case 0x0023: return  35;
+    case 0x0024: return  36; case 0x0025: return  37; case 0x0026: return  38; case 0x0027: return  39;
+    case 0x0028: return  40; case 0x0029: return  41; case 0x002A: return  42; case 0x002B: return  43;
+    case 0x002C: return  44; case 0x002D: return  45; case 0x002E: return  46; case 0x002F: return  47;
+    case 0x0030: return  48; case 0x0031: return  49; case 0x0032: return  50; case 0x0033: return  51;
+    case 0x0034: return  52; case 0x0035: return  53; case 0x0036: return  54; case 0x0037: return  55;
+    case 0x0038: return  56; case 0x0039: return  57; case 0x003A: return  58; case 0x003B: return  59;
+    case 0x003C: return  60; case 0x003D: return  61; case 0x003E: return  62; case 0x003F: return  63;
+    case 0x0040: return  64; case 0x0041: return  65; case 0x0042: return  66; case 0x0043: return  67;
+    case 0x0044: return  68; case 0x0045: return  69; case 0x0046: return  70; case 0x0047: return  71;
+    case 0x0048: return  72; case 0x0049: return  73; case 0x004A: return  74; case 0x004B: return  75;
+    case 0x004C: return  76; case 0x004D: return  77; case 0x004E: return  78; case 0x004F: return  79;
+    case 0x0050: return  80; case 0x0051: return  81; case 0x0052: return  82; case 0x0053: return  83;
+    case 0x0054: return  84; case 0x0055: return  85; case 0x0056: return  86; case 0x0057: return  87;
+    case 0x0058: return  88; case 0x0059: return  89; case 0x005A: return  90; case 0x005B: return  91;
+    case 0x005C: return  92; case 0x005D: return  93; case 0x005E: return  94; case 0x005F: return  95;
+    case 0x0060: return  96; case 0x0061: return  97; case 0x0062: return  98; case 0x0063: return  99;
+    case 0x0064: return 100; case 0x0065: return 101; case 0x0066: return 102; case 0x0067: return 103;
+    case 0x0068: return 104; case 0x0069: return 105; case 0x006A: return 106; case 0x006B: return 107;
+    case 0x006C: return 108; case 0x006D: return 109; case 0x006E: return 110; case 0x006F: return 111;
+    case 0x0070: return 112; case 0x0071: return 113; case 0x0072: return 114; case 0x0073: return 115;
+    case 0x0074: return 116; case 0x0075: return 117; case 0x0076: return 118; case 0x0077: return 119;
+    case 0x0078: return 120; case 0x0079: return 121; case 0x007A: return 122; case 0x007B: return 123;
+    case 0x007C: return 124; case 0x007D: return 125; case 0x007E: return 126; case 0x00A1: return 173;
+    case 0x00A2: return 155; case 0x00A3: return 156; case 0x00A5: return 157; case 0x00AA: return 166;
+    case 0x00AB: return 174; case 0x00AC: return 170; case 0x00B0: return 248; case 0x00B1: return 241;
+    case 0x00B2: return 253; case 0x00B5: return 230; case 0x00B7: return 250; case 0x00BA: return 167;
+    case 0x00BB: return 175; case 0x00BC: return 172; case 0x00BD: return 171; case 0x00BF: return 168;
+    case 0x00C4: return 142; case 0x00C5: return 143; case 0x00C6: return 146; case 0x00C7: return 128;
+    case 0x00C9: return 144; case 0x00D1: return 165; case 0x00D6: return 153; case 0x00DC: return 154;
+    case 0x00DF: return 225; case 0x00E0: return 133; case 0x00E1: return 160; case 0x00E2: return 131;
+    case 0x00E4: return 132; case 0x00E5: return 134; case 0x00E6: return 145; case 0x00E7: return 135;
+    case 0x00E8: return 138; case 0x00E9: return 130; case 0x00EA: return 136; case 0x00EB: return 137;
+    case 0x00EC: return 141; case 0x00ED: return 161; case 0x00EE: return 140; case 0x00EF: return 139;
+    case 0x00F1: return 164; case 0x00F2: return 149; case 0x00F3: return 162; case 0x00F4: return 147;
+    case 0x00F6: return 148; case 0x00F7: return 246; case 0x00F9: return 151; case 0x00FA: return 163;
+    case 0x00FB: return 150; case 0x00FC: return 129; case 0x00FF: return 152; case 0x0192: return 159;
+    case 0x0393: return 226; case 0x0398: return 233; case 0x03A3: return 228; case 0x03A6: return 232;
+    case 0x03A9: return 234; case 0x03B1: return 224; case 0x03B4: return 235; case 0x03B5: return 238;
+    case 0x03C0: return 227; case 0x03C3: return 229; case 0x03C4: return 231; case 0x03C6: return 237;
+    case 0x207F: return 252; case 0x20A7: return 158; case 0x2219: return 249; case 0x221A: return 251;
+    case 0x221E: return 236; case 0x2229: return 239; case 0x2248: return 247; case 0x2261: return 240;
+    case 0x2264: return 243; case 0x2265: return 242; case 0x2302: return 127; case 0x2310: return 169;
+    case 0x2320: return 244; case 0x2321: return 245; case 0x2500: return 196; case 0x2502: return 179;
+    case 0x250C: return 218; case 0x2510: return 191; case 0x2514: return 192; case 0x2518: return 217;
+    case 0x251C: return 195; case 0x2524: return 180; case 0x252C: return 194; case 0x2534: return 193;
+    case 0x253C: return 197; case 0x2550: return 205; case 0x2551: return 186; case 0x2552: return 213;
+    case 0x2553: return 214; case 0x2554: return 201; case 0x2555: return 184; case 0x2556: return 183;
+    case 0x2557: return 187; case 0x2558: return 212; case 0x2559: return 211; case 0x255A: return 200;
+    case 0x255B: return 190; case 0x255C: return 189; case 0x255D: return 188; case 0x255E: return 198;
+    case 0x255F: return 199; case 0x2560: return 204; case 0x2561: return 181; case 0x2562: return 182;
+    case 0x2563: return 185; case 0x2564: return 209; case 0x2565: return 210; case 0x2566: return 203;
+    case 0x2567: return 207; case 0x2568: return 208; case 0x2569: return 202; case 0x256A: return 216;
+    case 0x256B: return 215; case 0x256C: return 206; case 0x2580: return 223; case 0x2584: return 220;
+    case 0x2588: return 219; case 0x258C: return 221; case 0x2590: return 222; case 0x2591: return 176;
+    case 0x2592: return 177; case 0x2593: return 178; case 0x25A0: return 254;
+
+    case UNICODE_LINEFEED:
+        return 10;
+
+    // Question mark.
+    default:
+        return 63;
     }
 }
 #endif

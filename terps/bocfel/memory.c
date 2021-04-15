@@ -1,4 +1,4 @@
-// Copyright 2010-2015 Chris Spiegel.
+// Copyright 2010-2021 Chris Spiegel.
 //
 // This file is part of Bocfel.
 //
@@ -77,18 +77,13 @@ void user_store_byte(uint16_t addr, uint8_t v)
     } else
 #endif
     if (addr == 0x11) {
-        uint8_t existing = byte(addr);
-
-        ZASSERT((existing ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
+        ZASSERT((byte(addr) ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
 
         if (!output_stream((v & FLAGS2_TRANSCRIPT) ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) {
             v &= ~FLAGS2_TRANSCRIPT;
         }
 
-        // If the fixed flag is being flipped...
-        if ((existing ^ v) & FLAGS2_FIXED) {
-            screen_set_header_bit(v & FLAGS2_FIXED);
-        }
+        screen_set_header_bit(v & FLAGS2_FIXED);
     } else {
         ZASSERT(addr >= 0x40 && addr < header.static_start, "attempt to write to read-only address 0x%lx", (unsigned long)addr);
     }
