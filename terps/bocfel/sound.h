@@ -16,6 +16,7 @@ extern uint16_t sound_routine;
 
 void init_sound(void);
 bool sound_loaded(void);
+void sound_ended(void);
 
 void zsound_effect(void);
 

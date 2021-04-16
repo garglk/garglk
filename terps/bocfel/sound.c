@@ -29,6 +29,7 @@
 #ifdef GLK_MODULE_SOUND
 static schanid_t sound_channel = NULL;
 uint16_t sound_routine;
+static uint16_t queued_sound = 0;
 #endif
 
 void init_sound(void)
@@ -61,7 +62,7 @@ void zsound_effect(void)
 #define SOUND_EFFECT_STOP	3
 #define SOUND_EFFECT_FINISH	4
 
-    uint16_t number, effect;
+    uint16_t number, effect, notify;
 
     if (sound_channel == NULL || znargs == 0) {
         return;
@@ -93,19 +94,6 @@ void zsound_effect(void)
             0x0a000, 0x0c000, 0x0e000, 0x10000
         };
 
-        // V3 doesn’t support repeats, but in The Lurking Horror,
-        // repeating sounds are achieved by encoding repeats into the
-        // sound files themselves. According to sounds.txt from The
-        // Lurking Horror’s source code, the following sounds are
-        // “looping sounds”, so force that here.
-        if (is_lurking_horror()) {
-            switch (number) {
-            case 4: case 10: case 13: case 15: case 16: case 17: case 18:
-                repeats = 255;
-                break;
-            }
-        }
-
         // Illegal, but expected to work by “The Spy Who Came In From The
         // Garden” and recommended by standard 1.1.
         if (repeats == 0) {
@@ -118,16 +106,49 @@ void zsound_effect(void)
             volume = 8;
         }
 
+        notify = sound_routine != 0;
+
+        // V3 doesn’t support repeats, but in The Lurking Horror,
+        // repeating sounds are achieved by encoding repeats into the
+        // sound files themselves. According to sounds.txt from The
+        // Lurking Horror’s source code, the following sounds are
+        // “looping sounds”, so force that here.
+        if (is_lurking_horror()) {
+            switch (number) {
+            case 4: case 10: case 13: case 15: case 16: case 17: case 18:
+                repeats = 255;
+                break;
+            }
+        // The Lurking Horror expects sounds to be queued if sound_effect
+        // commands are issued while another sound effect is already playing.
+        // Fortunately, only two effects (the last two in the game) are queued
+        // in this way, so we can cheat and just look for these two when
+        // setting the queued_sound variable.
+            if (number == 9 || number == 16) {
+                queued_sound = number;
+                return;
+        // We also must make sure that a sound completion notification
+        // is issued when the two preceding sound effects are finished.
+            } else if (number == 8 || number == 11) {
+                notify = 1;
+            }
+
+        }
+
         glk_schannel_set_volume(sound_channel, vols[volume - 1]);
 
         sound_routine = znargs >= 4 ? zargs[3] : 0;
-        if (!glk_schannel_play_ext(sound_channel, number, repeats == 255 ? -1 : repeats, sound_routine != 0)) {
+
+        if (!glk_schannel_play_ext(sound_channel, number, repeats == 255 ? -1 : repeats, notify)) {
             sound_routine = 0;
         }
 
         break;
     }
     case SOUND_EFFECT_STOP:
+        if (queued_sound) {
+            return;
+        }
         glk_schannel_stop(sound_channel);
         sound_routine = 0;
         break;
@@ -136,4 +157,14 @@ void zsound_effect(void)
         break;
     }
 #endif
+}
+
+// This is called when we receive a sound completion notification.
+void sound_ended(void)
+{
+    if (queued_sound) {
+        glk_schannel_set_volume(sound_channel, 0x10000);
+        glk_schannel_play_ext(sound_channel, queued_sound, 1, 0);
+        queued_sound = 0;
+    }
 }
