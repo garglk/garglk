@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-void branch_if(bool);
+void branch_if(bool do_branch);
 
 void zjump(void);
 void zjz(void);

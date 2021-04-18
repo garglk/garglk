@@ -10,25 +10,12 @@
 
 typedef struct zterp_iff zterp_iff;
 
-/* Translate an IFF tag into the corresponding 32-bit integer. */
-#define STRID(s) ( \
-    (((uint32_t)(s)[0]) << 24) | \
-    (((uint32_t)(s)[1]) << 16) | \
-    (((uint32_t)(s)[2]) <<  8) | \
-    (((uint32_t)(s)[3]) <<  0)   \
-    )
+typedef char (*TypeID)[5];
 
-/* Reverse of above. */
-#define IDSTR(n) ((unsigned char[5]){ \
-    ((uint32_t)(n) >> 24) & 0xff, \
-    ((uint32_t)(n) >> 16) & 0xff, \
-    ((uint32_t)(n) >>  8) & 0xff, \
-    ((uint32_t)(n) >>  0) & 0xff, \
-    })
+uint32_t STRID(TypeID type);
 
-
-void zterp_iff_free(zterp_iff *);
-zterp_iff* zterp_iff_parse(zterp_io* io, const char [static 4]);
-bool zterp_iff_find(zterp_iff *, const char [static 4], uint32_t *);
+void zterp_iff_free(zterp_iff *iff);
+zterp_iff *zterp_iff_parse(zterp_io *io, TypeID form_type);
+bool zterp_iff_find(zterp_iff *iff, TypeID tag, uint32_t *size);
 
 #endif

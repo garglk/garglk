@@ -10,21 +10,20 @@
 #include <glk.h>
 #endif
 
+#include "iff.h"
 #include "io.h"
 #include "util.h"
 
-/* Represents a Z-machine color.
- *
- * If mode is ColorModeANSI, value is a color in the range [1, 12],
- * representing the colors as described in §8.3.1.
- *
- * If mode is ColorModeTrue, value is a 15-bit color as described in
- * §8.3.7 and §15.
- */
-struct color
-{
-  enum ColorMode { ColorModeANSI, ColorModeTrue } mode;
-  uint16_t value;
+// Represents a Z-machine color.
+//
+// If mode is ColorModeANSI, value is a color in the range [1, 12],
+// representing the colors as described in §8.3.1.
+//
+// If mode is ColorModeTrue, value is a 15-bit color as described in
+// §8.3.7 and §15.
+struct color {
+    enum ColorMode { ColorModeANSI, ColorModeTrue } mode;
+    uint16_t value;
 };
 
 void init_screen(void);
@@ -32,13 +31,12 @@ void init_screen(void);
 bool create_mainwin(void);
 bool create_statuswin(void);
 bool create_upperwin(void);
-void get_screen_size(unsigned int *, unsigned int *);
+void get_screen_size(unsigned int *width, unsigned int *height);
 void close_upper_window(void);
-void cancel_all_events(void);
 
-uint32_t screen_convert_color(uint16_t);
+uint32_t screen_convert_color(uint16_t color);
 
-/* Text styles. */
+// Text styles.
 #define STYLE_NONE	(0U     )
 #define STYLE_REVERSE	(1U << 0)
 #define STYLE_BOLD	(1U << 1)
@@ -46,45 +44,45 @@ uint32_t screen_convert_color(uint16_t);
 #define STYLE_FIXED	(1U << 3)
 
 zprintflike(1, 2)
-void show_message(const char *, ...);
-void screen_print(const char *);
+void show_message(const char *fmt, ...);
+void screen_print(const char *s);
 zprintflike(1, 2)
-void screen_printf(const char *, ...);
-void screen_puts(const char *);
-void screen_message_prompt(const char *);
+void screen_printf(const char *fmt, ...);
+void screen_puts(const char *s);
+void screen_message_prompt(const char *message);
 
-#ifdef GLK_MODULE_LINE_TERMINATORS
+#ifdef ZTERP_GLK
 void term_keys_reset(void);
-void term_keys_add(uint8_t);
+void term_keys_add(uint8_t key);
 #endif
 
 #ifdef GLK_MODULE_GARGLKTEXT
-void update_color(int, unsigned long);
+void update_color(int which, unsigned long color);
 #endif
 
-/* Output streams. */
+// Output streams.
 #define OSTREAM_SCREEN		1
 #define OSTREAM_SCRIPT		2
 #define OSTREAM_MEMORY		3
 #define OSTREAM_RECORD		4
 
-/* Input streams. */
+// Input streams.
 #define ISTREAM_KEYBOARD	0
 #define ISTREAM_FILE		1
 
-void screen_set_header_bit(bool);
+void screen_set_header_bit(bool set);
 
-bool output_stream(int16_t, uint16_t);
-bool input_stream(int);
+bool output_stream(int16_t number, uint16_t table);
+bool input_stream(int which);
 
-int print_handler(uint32_t, void (*)(uint8_t));
-void put_char(uint8_t);
+int print_handler(uint32_t addr, void (*outc)(uint8_t));
+void put_char(uint8_t c);
 
-void screen_format_time(char (*)[64], long, long);
-bool screen_read_scrn(zterp_io *, uint32_t, char *, size_t);
-char (*screen_write_scrn(zterp_io *))[5];
-void screen_read_bfhs(zterp_io *);
-char (*screen_write_bfhs(zterp_io *))[5];
+void screen_format_time(char (*formatted)[64], long hours, long minutes);
+bool screen_read_scrn(zterp_io *io, uint32_t size, char *err, size_t errsize);
+TypeID screen_write_scrn(zterp_io *io, void *data);
+void screen_read_bfhs(zterp_io *io, bool autosave);
+TypeID screen_write_bfhs(zterp_io *io, void *data);
 
 void zoutput_stream(void);
 void zinput_stream(void);

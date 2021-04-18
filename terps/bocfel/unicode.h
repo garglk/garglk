@@ -58,17 +58,23 @@ extern uint8_t unicode_to_latin1[];
 extern uint16_t zscii_to_font3[];
 extern int atable_pos[];
 
-void parse_unicode_table(uint16_t);
+void parse_unicode_table(uint16_t utable);
 void setup_tables(void);
 
-uint16_t unicode_tolower(uint16_t);
+uint16_t unicode_tolower(uint16_t c);
 #ifdef ZTERP_GLK
-uint16_t char_to_unicode(char);
+uint16_t char_to_unicode(char c);
 #endif
 
-/* Standard 1.1 notes that Unicode characters 0–31 and 127–159
- * are invalid due to the fact that they’re control codes.
- */
-static inline bool valid_unicode(uint16_t c) { return (c >= 32 && c <= 126) || c >= 160; }
+#ifdef ZTERP_DOS
+uint8_t unicode_to_437(uint16_t c);
+#endif
+
+// Standard 1.1 notes that Unicode characters 0–31 and 127–159
+// are invalid due to the fact that they’re control codes.
+static inline bool valid_unicode(uint16_t c)
+{
+    return (c >= 32 && c <= 126) || c >= 160;
+}
 
 #endif
