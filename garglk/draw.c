@@ -97,10 +97,10 @@ int gli_image_w = 0;
 int gli_image_h = 0;
 unsigned char *gli_image_rgb = NULL;
 
-#if defined(WIN32)
-static const int gli_bpp = 3;
-#elif defined EFL_1BPP
+#ifdef EFL_1BPP
 static const int gli_bpp = 1;
+#elifdef WIN32
+static const int gli_bpp = 3;
 #else
 static const int gli_bpp = 4;
 #endif
@@ -430,18 +430,17 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-#ifdef WIN32
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
-#elif defined EFL_1BPP
+
+#ifdef EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
     p[0] = gray + mul255((short)p[0] - gray, invalf);
 #else
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
+#ifndef WIN32
     p[3] = 0xFF;
+#endif
 #endif
 }
 
@@ -456,11 +455,8 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-#ifdef WIN32
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
-#elif defined EFL_1BPP
+
+#ifdef EFL_1BPP
     int gray = grayscale( rgb[0], rgb[1], rgb[2] );
     int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
     p[0] = gray + mul255((short)p[0] - gray, invalfgray);
@@ -468,7 +464,9 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
+#ifndef WIN32
     p[3] = 0xFF;
+#endif
 #endif
 }
 
@@ -511,17 +509,15 @@ void gli_draw_clear(unsigned char *rgb)
         p = gli_image_rgb + y * gli_image_s;
         for (x = 0; x < gli_image_w; x++)
         {
-#ifdef WIN32
-            *p++ = rgb[2];
-            *p++ = rgb[1];
-            *p++ = rgb[0];
-#elif defined EFL_1BPP
+#ifdef EFL_1BPP
             *p++ = gray;
 #else
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
+#ifndef WIN32
             *p++ = 0xFF;
+#endif
 #endif
         }
     }
@@ -554,17 +550,15 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
         unsigned char *p = p0;
         for (x = x0; x < x1; x++)
         {
-#ifdef WIN32
-            *p++ = rgb[2];
-            *p++ = rgb[1];
-            *p++ = rgb[0];
-#elif defined EFL_1BPP
+#ifdef EFL_1BPP
             *p++ = gray;
 #else
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
+#ifndef WIN32
             *p++ = 0xFF;
+#endif
 #endif
         }
         p0 += gli_image_s;
@@ -923,17 +917,15 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
 #ifdef EFL_1BPP
             unsigned char sgray = grayscale(sr, sg, sb);
 #endif
-#ifdef WIN32
-            dp[x*3+0] = sb + mul255(dp[x*3+0], na);
-            dp[x*3+1] = sg + mul255(dp[x*3+1], na);
-            dp[x*3+2] = sr + mul255(dp[x*3+2], na);
-#elif defined EFL_1BPP
+#ifdef EFL_1BPP
             dp[x] = sgray + mul255(dp[x], na);
 #else
             dp[x*4+0] = sb + mul255(dp[x*4+0], na);
             dp[x*4+1] = sg + mul255(dp[x*4+1], na);
             dp[x*4+2] = sr + mul255(dp[x*4+2], na);
+#ifndef WIN32
             dp[x*4+3] = 0xFF;
+#endif
 #endif
         }
         sp += src->w * 4;
