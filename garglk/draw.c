@@ -31,11 +31,12 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
+#include FT_LCD_FILTER_H
 
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */
 
-#define mul255(a,b) (((a) * ((b) + 1)) >> 8)
+#define mul255(a,b) (((a) * (b)) >> 8)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 #ifdef _WIN32
@@ -86,6 +87,8 @@ struct font_s
  */
 
 static unsigned char gammamap[256];
+static unsigned char gammainv[256];
+const unsigned char filterweights[5] = {28, 56, 85, 56, 28};
 
 static font_t gfont_table[8];
 
@@ -128,19 +131,18 @@ static int touni(int enc)
     return enc;
 }
 
-static void gammacopy(unsigned char *dst, unsigned char *src, int n)
+static void copy(unsigned char *dst, unsigned char *src, int n)
 {
     while (n--)
-        *dst++ = gammamap[*src++];
+        *dst++ = *src++;
 }
 
 #define m28(x) ((x * 28) / 255)
 #define m56(x) ((x * 56) / 255)
 #define m85(x) ((x * 85) / 255)
 
-static void gammacopy_lcd(unsigned char *dst, unsigned char *src, int w, int h, int pitch)
+static void copy_lcd(unsigned char *dst, unsigned char *src, int w, int h, int pitch)
 {
-    const unsigned char zero[3] = { 0, 0, 0 };
     unsigned char *dp, *sp;
     int x, y;
 
@@ -150,15 +152,9 @@ static void gammacopy_lcd(unsigned char *dst, unsigned char *src, int w, int h, 
         dp = &dst[y * pitch];
         for (x = 0; x < w; x += 3)
         {
-            const unsigned char *lf = x > 0 ? sp - 3 : zero;
-            const unsigned char *rt = x < w - 3 ? sp + 3 : zero;
-            unsigned char ct[3];
-            ct[0] = gammamap[sp[0]];
-            ct[1] = gammamap[sp[1]];
-            ct[2] = gammamap[sp[2]];
-            dp[0] = m28(lf[1]) + m56(lf[2]) + m85(ct[0]) + m56(ct[1]) + m28(ct[2]);
-            dp[1] = m28(lf[2]) + m56(ct[0]) + m85(ct[1]) + m56(ct[2]) + m28(rt[0]);
-            dp[2] = m28(ct[0]) + m56(ct[1]) + m85(ct[2]) + m56(rt[0]) + m28(rt[1]);
+            dp[0] = sp[0];
+            dp[1] = sp[1];
+            dp[2] = sp[2];
             sp += 3;
             dp += 3;
         }
@@ -212,10 +208,18 @@ static void loadglyph(font_t *f, glui32 cid)
         if (f->make_oblique)
             FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
 
-        if (gli_conf_lcd)
+        if (gli_conf_lcd) {
+            if (gli_conf_gamma == 1.0) {
+                FT_Library_SetLcdFilterWeights(ftlib, filterweights);
+            } else {
+                FT_Library_SetLcdFilter(ftlib, FT_LCD_FILTER_LIGHT);
+            }
+
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
-        else
+        } else {
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
+        }
+
         if (err)
             winabort("FT_Render_Glyph");
 
@@ -229,13 +233,13 @@ static void loadglyph(font_t *f, glui32 cid)
         glyphs[x].data =
             malloc(glyphs[x].pitch * glyphs[x].h);
                 if (gli_conf_lcd)
-                    gammacopy_lcd(glyphs[x].data,
-                            f->face->glyph->bitmap.buffer,
-                            glyphs[x].w, glyphs[x].h, glyphs[x].pitch);
+                    copy_lcd(glyphs[x].data,
+                       f->face->glyph->bitmap.buffer,
+                       glyphs[x].w, glyphs[x].h, glyphs[x].pitch);
                 else
-                    gammacopy(glyphs[x].data,
-                            f->face->glyph->bitmap.buffer,
-                            glyphs[x].pitch * glyphs[x].h);
+                    copy(glyphs[x].data,
+                       f->face->glyph->bitmap.buffer,
+                       glyphs[x].pitch * glyphs[x].h);
     }
 
     if (cid < 256)
@@ -384,7 +388,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * 255.0;
+        gammamap[i] = (unsigned char)(pow(i / 255.0, gli_conf_gamma) * 255.0 + 0.5);
+
+    for (i = 0; i < 256; i++)
+        gammainv[i] = (unsigned char)(pow(i / 255.0, 1.0 / gli_conf_gamma) * 255.0 + 0.5);
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -426,18 +433,29 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned char invalf = 255 - alpha;
+    unsigned char bg[3] = {
+        gammamap[p[0]],
+        gammamap[p[1]],
+        gammamap[p[2]]
+    };
+    unsigned char fg[3] = {
+        gammamap[rgb[0]],
+        gammamap[rgb[1]],
+        gammamap[rgb[2]]
+    };
+
     if (x < 0 || x >= gli_image_w)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
 
 #ifdef EFL_1BPP
-    int gray = grayscale( rgb[0], rgb[1], rgb[2] );
-    p[0] = gray + mul255((short)p[0] - gray, invalf);
+    int gray = grayscale( fg[0], fg[1], fg[2] );
+    p[0] = gammainv[gray + mul255((short)bg[0] - gray, invalf)];
 #else
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
+    p[0] = gammainv[fg[2] + mul255((short)bg[0] - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mul255((short)bg[1] - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mul255((short)bg[2] - fg[0], invalf)];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
@@ -451,19 +469,30 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
         invalf[0] = 255 - alpha[0];
         invalf[1] = 255 - alpha[1];
         invalf[2] = 255 - alpha[2];
+    unsigned char bg[3] = {
+        gammamap[p[0]],
+        gammamap[p[1]],
+        gammamap[p[2]]
+    };
+    unsigned char fg[3] = {
+        gammamap[rgb[0]],
+        gammamap[rgb[1]],
+        gammamap[rgb[2]]
+    };
+
     if (x < 0 || x >= gli_image_w)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
 
 #ifdef EFL_1BPP
-    int gray = grayscale( rgb[0], rgb[1], rgb[2] );
+    int gray = grayscale( fg[0], fg[1], fg[2] );
     int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
-    p[0] = gray + mul255((short)p[0] - gray, invalfgray);
+    p[0] = gammainv[gray + mul255((short)bg[0] - gray, invalfgray)];
 #else
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
+    p[0] = gammainv[fg[2] + mul255((short)bg[0] - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mul255((short)bg[1] - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mul255((short)bg[2] - fg[0], invalf[0])];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
