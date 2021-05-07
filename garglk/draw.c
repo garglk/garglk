@@ -36,7 +36,10 @@
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */
 
+#define GAMMA_SHIFT 2
+
 #define mul255(a,b) (((a) * (b)) >> 8)
+#define mul1023(a,b) (((a) * (b)) >> 10)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 #ifdef _WIN32
@@ -86,8 +89,8 @@ struct font_s
  * Globals
  */
 
-static unsigned char gammamap[256];
-static unsigned char gammainv[256];
+static unsigned short gammamap[256];
+static unsigned char gammainv[256 << GAMMA_SHIFT];
 const unsigned char filterweights[5] = {28, 56, 85, 56, 28};
 
 static font_t gfont_table[8];
@@ -380,6 +383,7 @@ static void loadfont(font_t *f, char *name, float size, float aspect, int style)
 
 void gli_initialize_fonts(void)
 {
+    const int gammamax = (256 << GAMMA_SHIFT) - 1;
     float monoaspect = gli_conf_monoaspect;
     float propaspect = gli_conf_propaspect;
     float monosize = gli_conf_monosize;
@@ -388,10 +392,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = (unsigned char)(pow(i / 255.0, gli_conf_gamma) * 255.0 + 0.5);
+        gammamap[i] = (unsigned short)(pow(i / 255.0, gli_conf_gamma) * gammamax);
 
-    for (i = 0; i < 256; i++)
-        gammainv[i] = (unsigned char)(pow(i / 255.0, 1.0 / gli_conf_gamma) * 255.0 + 0.5);
+    for (i = 0; i <= gammamax; i++)
+        gammainv[i] = (unsigned char)(pow(i / (float)gammamax, 1.0 / gli_conf_gamma) * 255.0);
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -431,14 +435,15 @@ void gli_initialize_fonts(void)
 
 void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
+    const int gammamax = (256 << GAMMA_SHIFT) - 1;
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned char invalf = 255 - alpha;
-    unsigned char bg[3] = {
+    unsigned short invalf = gammamax - (alpha << GAMMA_SHIFT);
+    unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
         gammamap[p[2]]
     };
-    unsigned char fg[3] = {
+    unsigned short fg[3] = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]
@@ -451,11 +456,11 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 
 #ifdef EFL_1BPP
     int gray = grayscale( fg[0], fg[1], fg[2] );
-    p[0] = gammainv[gray + mul255((short)bg[0] - gray, invalf)];
+    p[0] = gammainv[gray + mul1023(bg[0] - gray, invalf)];
 #else
-    p[0] = gammainv[fg[2] + mul255((short)bg[0] - fg[2], invalf)];
-    p[1] = gammainv[fg[1] + mul255((short)bg[1] - fg[1], invalf)];
-    p[2] = gammainv[fg[0] + mul255((short)bg[2] - fg[0], invalf)];
+    p[0] = gammainv[fg[2] + mul1023(bg[0] - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mul1023(bg[1] - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mul1023(bg[2] - fg[0], invalf)];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
@@ -464,17 +469,18 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 
 void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
 {
+    const int gammamax = (256 << GAMMA_SHIFT) - 1;
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned char invalf[3];
-        invalf[0] = 255 - alpha[0];
-        invalf[1] = 255 - alpha[1];
-        invalf[2] = 255 - alpha[2];
-    unsigned char bg[3] = {
+    unsigned short invalf[3];
+        invalf[0] = gammamax - (alpha[0] << GAMMA_SHIFT);
+        invalf[1] = gammamax - (alpha[1] << GAMMA_SHIFT);
+        invalf[2] = gammamax - (alpha[2] << GAMMA_SHIFT);
+    unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
         gammamap[p[2]]
     };
-    unsigned char fg[3] = {
+    unsigned short fg[3] = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]
@@ -488,11 +494,11 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
 #ifdef EFL_1BPP
     int gray = grayscale( fg[0], fg[1], fg[2] );
     int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
-    p[0] = gammainv[gray + mul255((short)bg[0] - gray, invalfgray)];
+    p[0] = gammainv[gray + mul1023(bg[0] - gray, invalfgray)];
 #else
-    p[0] = gammainv[fg[2] + mul255((short)bg[0] - fg[2], invalf[2])];
-    p[1] = gammainv[fg[1] + mul255((short)bg[1] - fg[1], invalf[1])];
-    p[2] = gammainv[fg[0] + mul255((short)bg[2] - fg[0], invalf[0])];
+    p[0] = gammainv[fg[2] + mul1023(bg[0] - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mul1023(bg[1] - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mul1023(bg[2] - fg[0], invalf[0])];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
