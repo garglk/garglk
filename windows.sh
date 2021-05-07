@@ -14,7 +14,7 @@ target=i686-w64-mingw32
 
 export PKG_CONFIG_PATH=${sdl_location}/${target}/lib/pkgconfig
 
-makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis"
+makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis.exe"
 nproc=$(getconf _NPROCESSORS_ONLN)
 ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
@@ -22,7 +22,7 @@ jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCR
 jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -dx install
 
 cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
-cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_sjlj-1.dll" "build/dist"
+cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_dw2-1.dll" "build/dist"
 cp "/usr/${target}/lib/libwinpthread-1.dll" "build/dist"
 
 for dll in SDL2 SDL2_mixer
