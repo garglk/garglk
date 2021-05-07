@@ -36,10 +36,10 @@
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */
 
-#define GAMMA_SHIFT 2
+#define GAMMA_SHIFT 3
 
-#define mul255(a,b) (((a) * (b)) >> 8)
-#define mul1023(a,b) (((a) * (b)) >> 10)
+#define mul255(a,b) (((a) * (b)) / 255)
+#define mul2047(a,b) (((a) * (b)) / 2047)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 #ifdef _WIN32
@@ -91,7 +91,7 @@ struct font_s
 
 static unsigned short gammamap[256];
 static unsigned char gammainv[256 << GAMMA_SHIFT];
-const unsigned char filterweights[5] = {28, 56, 85, 56, 28};
+const FT_LcdFiveTapFilter filterweights = {28, 56, 85, 56, 28};
 
 static font_t gfont_table[8];
 
@@ -392,10 +392,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = (unsigned short)(pow(i / 255.0, gli_conf_gamma) * gammamax);
+        gammamap[i] = (unsigned short)(pow(i / 255.0, gli_conf_gamma) * gammamax + 0.5);
 
     for (i = 0; i <= gammamax; i++)
-        gammainv[i] = (unsigned char)(pow(i / (float)gammamax, 1.0 / gli_conf_gamma) * 255.0);
+        gammainv[i] = (unsigned char)(pow(i / (float)gammamax, 1.0 / gli_conf_gamma) * 255.0 + 0.5);
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -437,7 +437,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
     const int gammamax = (256 << GAMMA_SHIFT) - 1;
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned short invalf = gammamax - (alpha << GAMMA_SHIFT);
+    unsigned short invalf = gammamax - (alpha*gammamax/255);
     unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
@@ -456,11 +456,11 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 
 #ifdef EFL_1BPP
     int gray = grayscale( fg[0], fg[1], fg[2] );
-    p[0] = gammainv[gray + mul1023(bg[0] - gray, invalf)];
+    p[0] = gammainv[gray + mul2047(bg[0] - gray, invalf)];
 #else
-    p[0] = gammainv[fg[2] + mul1023(bg[0] - fg[2], invalf)];
-    p[1] = gammainv[fg[1] + mul1023(bg[1] - fg[1], invalf)];
-    p[2] = gammainv[fg[0] + mul1023(bg[2] - fg[0], invalf)];
+    p[0] = gammainv[fg[2] + mul2047(bg[0] - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mul2047(bg[1] - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mul2047(bg[2] - fg[0], invalf)];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
@@ -472,9 +472,9 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
     const int gammamax = (256 << GAMMA_SHIFT) - 1;
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3];
-        invalf[0] = gammamax - (alpha[0] << GAMMA_SHIFT);
-        invalf[1] = gammamax - (alpha[1] << GAMMA_SHIFT);
-        invalf[2] = gammamax - (alpha[2] << GAMMA_SHIFT);
+        invalf[0] = gammamax - (alpha[0]*gammamax/255);
+        invalf[1] = gammamax - (alpha[1]*gammamax/255);
+        invalf[2] = gammamax - (alpha[2]*gammamax/255);
     unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
@@ -494,11 +494,11 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
 #ifdef EFL_1BPP
     int gray = grayscale( fg[0], fg[1], fg[2] );
     int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
-    p[0] = gammainv[gray + mul1023(bg[0] - gray, invalfgray)];
+    p[0] = gammainv[gray + mul2047(bg[0] - gray, invalfgray)];
 #else
-    p[0] = gammainv[fg[2] + mul1023(bg[0] - fg[2], invalf[2])];
-    p[1] = gammainv[fg[1] + mul1023(bg[1] - fg[1], invalf[1])];
-    p[2] = gammainv[fg[0] + mul1023(bg[2] - fg[0], invalf[0])];
+    p[0] = gammainv[fg[2] + mul2047(bg[0] - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mul2047(bg[1] - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mul2047(bg[2] - fg[0], invalf[0])];
 #ifndef WIN32
     p[3] = 0xFF;
 #endif
