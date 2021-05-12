@@ -951,16 +951,17 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             unsigned char sb = mul255(sp[x*4+2], sa);
 #ifdef EFL_1BPP
             unsigned char sgray = grayscale(sr, sg, sb);
-#endif
-#ifdef EFL_1BPP
+
             dp[x] = sgray + mul255(dp[x], na);
+#elifdef WIN32
+            dp[x*3+0] = sb + mul255(dp[x*3+0], na);
+            dp[x*3+1] = sg + mul255(dp[x*3+1], na);
+            dp[x*3+2] = sr + mul255(dp[x*3+2], na);
 #else
             dp[x*4+0] = sb + mul255(dp[x*4+0], na);
             dp[x*4+1] = sg + mul255(dp[x*4+1], na);
             dp[x*4+2] = sr + mul255(dp[x*4+2], na);
-#ifndef WIN32
             dp[x*4+3] = 0xFF;
-#endif
 #endif
         }
         sp += src->w * 4;
