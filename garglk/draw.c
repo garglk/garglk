@@ -91,7 +91,7 @@ struct font_s
 
 static unsigned short gammamap[256];
 static unsigned char gammainv[256 << GAMMA_SHIFT];
-static unsigned char filterweights = {28, 56, 85, 56, 28};
+static unsigned char filterweights[5] = {28, 56, 85, 56, 28};
 
 static font_t gfont_table[8];
 
