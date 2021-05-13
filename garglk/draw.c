@@ -105,7 +105,7 @@ unsigned char *gli_image_rgb = NULL;
 
 #ifdef EFL_1BPP
 static const int gli_bpp = 1;
-#elifdef WIN32
+#elif defined WIN32
 static const int gli_bpp = 3;
 #else
 static const int gli_bpp = 4;
@@ -949,7 +949,7 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             unsigned char sgray = grayscale(sr, sg, sb);
 
             dp[x] = sgray + mul255(dp[x], na);
-#elifdef WIN32
+#elif defined WIN32
             dp[x*3+0] = sb + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sr + mul255(dp[x*3+2], na);
