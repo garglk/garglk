@@ -91,7 +91,7 @@ struct font_s
 
 static unsigned short gammamap[256];
 static unsigned char gammainv[256 << GAMMA_SHIFT];
-const FT_LcdFiveTapFilter filterweights = {28, 56, 85, 56, 28};
+static unsigned char filterweights = {28, 56, 85, 56, 28};
 
 static font_t gfont_table[8];
 
@@ -139,10 +139,6 @@ static void copy(unsigned char *dst, unsigned char *src, int n)
     while (n--)
         *dst++ = *src++;
 }
-
-#define m28(x) ((x * 28) / 255)
-#define m56(x) ((x * 56) / 255)
-#define m85(x) ((x * 85) / 255)
 
 static void copy_lcd(unsigned char *dst, unsigned char *src, int w, int h, int pitch)
 {
