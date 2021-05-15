@@ -35,17 +35,19 @@ static bool findfont(const char *fontname, char *fontpath, size_t n)
 {
     FcPattern *p = NULL;
     FcChar8 *strval = NULL;
-    FcObjectSet *attr = NULL;
     FcFontSet *fs = NULL;
+    FcResult result;
     bool success = false;
 
     p = FcNameParse((FcChar8*)fontname);
     if (p == NULL)
         goto out;
 
-    attr = FcObjectSetBuild (FC_FILE, (char *)NULL);
-    fs = FcFontList (NULL, p, attr);
-    if (fs->nfont == 0)
+    FcConfigSubstitute(NULL, p, FcMatchPattern);
+    FcDefaultSubstitute(p);
+
+    fs = FcFontSort(NULL, p, FcFalse, NULL, &result);
+    if (fs == NULL || result != FcResultMatch || fs->nfont == 0)
         goto out;
 
     if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch
@@ -58,9 +60,6 @@ static bool findfont(const char *fontname, char *fontpath, size_t n)
 out:
     if (fs != NULL)
         FcFontSetDestroy(fs);
-
-    if (attr != NULL)
-        FcObjectSetDestroy(attr);
 
     if (p != NULL)
         FcPatternDestroy(p);
