@@ -1,46 +1,33 @@
-/* jconfig.h.  Generated from jconfig.cfg by configure.  */
-/* jconfig.cfg --- source file edited by configure script */
-/* see jconfig.txt for explanations */
+#define JPEG_LIB_VERSION  80
+#define LIBJPEG_TURBO_VERSION  2.1.0
+#define LIBJPEG_TURBO_VERSION_NUMBER  2001000
 
-#define HAVE_PROTOTYPES 1
-#define HAVE_UNSIGNED_CHAR 1
-#define HAVE_UNSIGNED_SHORT 1
-/* #undef void */
-/* #undef const */
-/* #undef CHAR_IS_UNSIGNED */
-#define HAVE_STDDEF_H 1
-#define HAVE_STDLIB_H 1
-#define HAVE_LOCALE_H 1
-/* #undef NEED_BSD_STRINGS */
-/* #undef NEED_SYS_TYPES_H */
-/* #undef NEED_FAR_POINTERS */
-/* #undef NEED_SHORT_EXTERNAL_NAMES */
-/* Define this if you get warnings about undefined structures. */
-/* #undef INCOMPLETE_TYPES_BROKEN */
+#define C_ARITH_CODING_SUPPORTED
+#define D_ARITH_CODING_SUPPORTED
+/* #undef MEM_SRCDST_SUPPORTED */
+#define WITH_SIMD
 
-#ifdef JPEG_INTERNALS
+#define BITS_IN_JSAMPLE  8      /* use 8 or 12 */
 
-/* #undef RIGHT_SHIFT_IS_UNSIGNED */
-#define INLINE __inline__
-/* These are for configuring the JPEG memory manager. */
-/* #undef DEFAULT_MAX_MEM */
-/* #undef NO_MKTEMP */
+#define HAVE_STDDEF_H
+#define HAVE_STDLIB_H
+#undef NEED_SYS_TYPES_H
+#undef NEED_BSD_STRINGS
 
-#endif /* JPEG_INTERNALS */
+#define HAVE_UNSIGNED_CHAR
+#define HAVE_UNSIGNED_SHORT
+#undef INCOMPLETE_TYPES_BROKEN
+#undef RIGHT_SHIFT_IS_UNSIGNED
 
-#ifdef JPEG_CJPEG_DJPEG
+/* Define "boolean" as unsigned char, not int, per Windows custom */
+#ifndef __RPCNDR_H__            /* don't conflict if rpcndr.h already read */
+typedef unsigned char boolean;
+#endif
+#define HAVE_BOOLEAN            /* prevent jmorecfg.h from redefining it */
 
-#define BMP_SUPPORTED		/* BMP image file format */
-#define GIF_SUPPORTED		/* GIF image file format */
-#define PPM_SUPPORTED		/* PBMPLUS PPM/PGM image file format */
-/* #undef RLE_SUPPORTED */
-#define TARGA_SUPPORTED		/* Targa image file format */
-
-/* #undef TWO_FILE_COMMANDLINE */
-/* #undef NEED_SIGNAL_CATCHER */
-/* #undef DONT_USE_B_MODE */
-
-/* Define this if you want percent-done progress reports from cjpeg/djpeg. */
-/* #undef PROGRESS_REPORT */
-
-#endif /* JPEG_CJPEG_DJPEG */
+/* Define "INT32" as int, not long, per Windows custom */
+#if !(defined(_BASETSD_H_) || defined(_BASETSD_H))   /* don't conflict if basetsd.h already read */
+typedef short INT16;
+typedef signed int INT32;
+#endif
+#define XMD_H                   /* prevent jmorecfg.h from redefining it */
