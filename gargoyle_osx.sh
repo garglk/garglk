@@ -13,16 +13,20 @@ else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
 
-# XCode 10+ min target SDK is 10.9 (Mavericks) due to removal of libstdc++
+# If building with XCode 10+ (SDK 10.14+ Mojave), the minimum target SDK is
+# 10.9 (Mavericks), due to removal of libstdc++.
 SDK_VERSION=$(xcrun --show-sdk-version)
 echo "SDK_VERSION $SDK_VERSION"
 
 case $SDK_VERSION in
-  *10.1[4-9]* )
-    MACOS_MIN_VER=10.9
+  *10.[7-9]* )
+    MACOS_MIN_VER=10.7
+    ;;
+  *10.1[0-3]* )
+    MACOS_MIN_VER=10.7
     ;;
   * )
-    MACOS_MIN_VER=10.7
+    MACOS_MIN_VER=10.9
     ;;
 esac
 echo "MACOS_MIN_VER $MACOS_MIN_VER"
