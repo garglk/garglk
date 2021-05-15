@@ -602,7 +602,7 @@ static glui32 play_mod(schanid_t chan, long len)
     }
 
     /* malloc size of string tempdir + "XXXXXX' + terminator */
-    tn = malloc(strlen(tempdir + 7));
+    tn = malloc(strlen(tempdir) + 7);
     sprintf(tn, "%sXXXXXX", tempdir);
     int fd;
     fd = mkstemp(tn);
