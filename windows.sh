@@ -9,25 +9,25 @@ set -e
 
 [[ -e build/dist ]] && exit 1
 
-sdl_location=/opt/local
+mingw_location=/usr
 target=i686-w64-mingw32
-
-export PKG_CONFIG_PATH=${sdl_location}/${target}/lib/pkgconfig
 
 makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis.exe"
 nproc=$(getconf _NPROCESSORS_ONLN)
 ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
-jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -dx -j${nproc}
-jam -sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -dx install
+jamargs="-sC++=${target}-g++ -sCC=${target}-gcc -sOS=MINGW -sMINGWARCH=${target} -sCROSS=1 -sUSETTS=yes -sMINGW_USE_SYSTEM_LIBRARIES=yes -dx"
+
+jam ${jamargs} -j${nproc}
+jam ${jamargs} install
 
 cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
 cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_dw2-1.dll" "build/dist"
 cp "/usr/${target}/lib/libwinpthread-1.dll" "build/dist"
 
-for dll in SDL2 SDL2_mixer
+for dll in SDL2 SDL2_mixer libFLAC-8 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libvorbis-0 libvorbisfile-3
 do
-    cp "${sdl_location}/${target}/bin/${dll}.dll" "build/dist"
+    cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
 done
 
 wine "${makensis}" installer.nsi
