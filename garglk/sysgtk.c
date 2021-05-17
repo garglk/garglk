@@ -41,6 +41,8 @@ static GdkCursor *gdk_hand;
 static GdkCursor *gdk_ibeam;
 static GtkIMContext *imcontext;
 
+static GdkDisplay *display;
+
 #define MaxBuffer 1024
 static int fileselect = 0;
 static char filepath[MaxBuffer];
@@ -129,9 +131,9 @@ void winexit(void)
 static void winchoosefile(char *prompt, char *buf, int len, int filter, GtkFileChooserAction action, const char *button)
 {
     GtkWidget *filedlog = gtk_file_chooser_dialog_new(prompt, NULL, action,
-                                                      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                      "_Cancel", GTK_RESPONSE_CANCEL,
                                                       button, GTK_RESPONSE_ACCEPT,
-                                                      NULL);
+                                                      (gchar *)NULL);
     char *curdir;
 
     if (filter != FILTER_ALL)
@@ -189,14 +191,14 @@ void winopenfile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
     snprintf(realprompt, sizeof realprompt, "Open: %s", prompt);
-    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN, GTK_STOCK_OPEN);
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_OPEN, "_Open");
 }
 
 void winsavefile(char *prompt, char *buf, int len, int filter)
 {
     char realprompt[256];
     snprintf(realprompt, sizeof realprompt, "Save: %s", prompt);
-    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE, GTK_STOCK_SAVE);
+    winchoosefile(realprompt, buf, len, filter, GTK_FILE_CHOOSER_ACTION_SAVE, "_Save");
 }
 
 void winclipstore(glui32 *text, int len)
@@ -393,7 +395,9 @@ static void onmotion(GtkWidget *widget, GdkEventMotion *event, void *data)
 
     if (event->is_hint)
     {
-        gtk_widget_get_pointer(widget, &x, &y);
+        GdkSeat *seat = gdk_display_get_default_seat(display);
+        GdkDevice *pointer = gdk_seat_get_pointer(seat);
+        gdk_window_get_device_position(gtk_widget_get_window(widget), pointer, &x, &y, NULL);
     }
     else
     {
@@ -523,8 +527,15 @@ static void onquit(GtkWidget *widget, void *data)
 void wininit(int *argc, char **argv)
 {
     gtk_init(argc, &argv);
-    gdk_hand = gdk_cursor_new(GDK_HAND2);
-    gdk_ibeam = gdk_cursor_new(GDK_XTERM);
+
+    display = gdk_display_get_default();
+    if (display == NULL)
+    {
+        winabort("Can't open display");
+    }
+
+    gdk_hand = gdk_cursor_new_for_display(display, GDK_HAND2);
+    gdk_ibeam = gdk_cursor_new_for_display(display, GDK_XTERM);
 }
 
 void winopen(void)
@@ -578,17 +589,21 @@ void winopen(void)
 
     if (gli_conf_fullscreen)
     {
-        GdkScreen *screen = gdk_screen_get_default();
-        GdkRectangle monitor;
+        GdkMonitor *monitor;
+        GdkRectangle geometry;
         int root_monitor = 0;
 
-        gdk_screen_get_monitor_geometry(screen, root_monitor, &monitor);
+        monitor = gdk_display_get_monitor(display, root_monitor);
+        if (monitor != NULL)
+        {
+            gdk_monitor_get_geometry(monitor, &geometry);
 
-        defw = monitor.width;
-        defh = monitor.height;
-        gtk_window_set_decorated(GTK_WINDOW(frame), FALSE);
-        gtk_window_set_position(GTK_WINDOW(frame), GTK_WIN_POS_CENTER);
-        gtk_window_fullscreen(GTK_WINDOW(frame));
+            defw = geometry.width;
+            defh = geometry.height;
+            gtk_window_set_decorated(GTK_WINDOW(frame), FALSE);
+            gtk_window_set_position(GTK_WINDOW(frame), GTK_WIN_POS_CENTER);
+            gtk_window_fullscreen(GTK_WINDOW(frame));
+        }
     }
 
     wintitle();
