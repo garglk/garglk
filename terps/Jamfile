@@ -353,7 +353,10 @@ if $(MAKE_SCARE) = yes
 
     if $(OS) = MINGW
     {
-        SubDirHdrs $(TOP) support zlib ;
+        if $(MINGW_USE_SYSTEM_LIBRARIES) != yes
+        {
+            SubDirHdrs $(TOP) support zlib ;
+        }
     }
 
     Main $(GARGLKPRE)scare :
@@ -365,7 +368,10 @@ if $(MAKE_SCARE) = yes
 
     if $(OS) = MINGW
     {
-        SharedLinkLibraries $(GARGLKPRE)scare : zlib1.dll ;
+        if $(MINGW_USE_SYSTEM_LIBRARIES) != yes
+        {
+            SharedLinkLibraries $(GARGLKPRE)scare : zlib1.dll ;
+        }
     }
 
     APPS += $(GARGLKPRE)scare ;

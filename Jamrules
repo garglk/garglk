@@ -79,10 +79,19 @@ switch $(PLATFORM)
         SUFDLL  = .dll ;
         LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
         SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
-        SHRLINKLIBS += $(TOP)/support/freetype/libfreetype-6.dll ;
-        SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-8.dll ;
-        SHRLINKLIBS += $(TOP)/support/libpng/libpng16-16.dll ;
-        SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
+        PACKAGES = "" ;
+
+         if $(MINGW_USE_SYSTEM_LIBRARIES) = yes
+         {
+             PACKAGES = "$(PACKAGES) freetype2 libjpeg libpng zlib" ;
+         }
+         else
+         {
+            SHRLINKLIBS += $(TOP)/support/freetype/libfreetype-6.dll ;
+            SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-8.dll ;
+            SHRLINKLIBS += $(TOP)/support/libpng/libpng16-16.dll ;
+            SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
+         }
 
         GARGLKCCFLAGS = -std=gnu99 ;
 
@@ -94,11 +103,15 @@ switch $(PLATFORM)
 
         if $(USESDL) = yes
         {
-            PKGCONFIG = "$(PKGCONF) sdl2 SDL2_mixer" ;
+            PACKAGES = "$(PACKAGES) sdl2 SDL2_mixer" ;
+        }
+
+        if $(PACKAGES)
+        {
             # the 'only-I' bit is important to avoid SDL messing with main()
-            GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags-only-I`" ;
-            LINKLIBS += "`$(PKGCONFIG) --libs`" ;
-            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
+            GARGLKCCFLAGS += "`$(PKGCONF) $(PACKAGES) --cflags-only-I`" ;
+            LINKLIBS += "`$(PKGCONF) $(PACKAGES) --libs`" ;
+            SHRLINKLIBS += "`$(PKGCONF) $(PACKAGES) --libs`" ;
         }
 
         if $(USETTS) = yes

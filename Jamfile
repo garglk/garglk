@@ -67,10 +67,14 @@ if $(OS) = MINGW
         [ FDirName $(TOP) support libpng ]
         [ FDirName $(TOP) support zlib ]
         ;
-    InstallLib $(LIBDIR) : libfreetype-6.dll ;
-    InstallLib $(LIBDIR) : libjpeg-8.dll ;
-    InstallLib $(LIBDIR) : libpng16-16.dll ;
-    InstallLib $(LIBDIR) : zlib1.dll ;
+
+    if $(MINGW_USE_SYSTEM_LIBRARIES) != yes
+    {
+        InstallLib $(LIBDIR) : libfreetype-6.dll ;
+        InstallLib $(LIBDIR) : libjpeg-8.dll ;
+        InstallLib $(LIBDIR) : libpng16-16.dll ;
+        InstallLib $(LIBDIR) : zlib1.dll ;
+    }
 }
 
 if $(STATIC)
