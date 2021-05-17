@@ -305,7 +305,7 @@ static void winclipreceive(int source)
         return;
 
     rptr = malloc(sizeof(glui32)*(glen+1));
-    rlen = gli_parse_utf8(gptr, glen, rptr, glen);
+    rlen = gli_parse_utf8((unsigned char *)gptr, glen, rptr, glen);
 
     for (i = 0; i < rlen; i++)
     {
@@ -429,7 +429,7 @@ static void oninput(GtkIMContext *context, gchar *input, void *data)
 
     inlen = strlen(input);
     if(inlen)
-        gli_parse_utf8(input, inlen, keybuf, 1);
+        gli_parse_utf8((unsigned char *)input, inlen, keybuf, 1);
 
     gli_input_handle_key(keybuf[0]);
 }
