@@ -1,0 +1,20 @@
+name: macOS build
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update brew
+        run: brew update
+
+      - name: Install packages
+        run: brew install sdl2 sdl2_mixer libvorbis jam
+
+      - name: Build
+        run: sh gargoyle_osx.sh

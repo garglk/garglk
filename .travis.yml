@@ -30,9 +30,3 @@ matrix:
     - env: CC=gcc-7 CXX=g++-7
     # Clang
     - env: CC=clang CXX=clang++
-    # OS X
-    - os: osx
-      before_install:
-        - brew update
-        - brew install sdl sdl_mixer sdl_sound smpeg libvorbis jam
-      script: sh gargoyle_osx.sh
