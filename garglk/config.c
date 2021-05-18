@@ -525,10 +525,13 @@ void gli_read_config(int argc, char **argv)
 #ifdef WIN32
     {
         char *s;
-        strcpy(buf, argv[0]);
-        s = strrchr(buf, '\\');
-        if (s) *s = 0;
-        strcat(buf, "/garglk.ini");
+        char tmp[sizeof buf];
+
+        snprintf(tmp, sizeof tmp, "%s", argv[0]);
+        s = strrchr(tmp, '\\');
+        if (s != NULL)
+            *s = 0;
+        snprintf(buf, sizeof buf, "%s\\garglk.ini", tmp);
         readoneconfig(buf, argv0, gamefile);
     }
 #else
@@ -560,23 +563,28 @@ void gli_read_config(int argc, char **argv)
 
     if (argc > 1)
     {
-        strcpy(buf, argv[argc-1]);
-        if (strrchr(buf, '\\'))
+        char tmp[sizeof buf], *p;
+
+        snprintf(tmp, sizeof tmp, "%s", argv[argc - 1]);
+        if ((p = strrchr(tmp, '\\')) != NULL)
         {
-            strcpy(strrchr(buf, '\\'), "\\garglk.ini");
+            *p = 0;
+            snprintf(buf, sizeof buf, "%s\\garglk.ini", tmp);
             readoneconfig(buf, argv0, gamefile);
         }
-        else if (strrchr(buf, '/'))
+        else if ((p = strrchr(tmp, '/')) != NULL)
         {
-            strcpy(strrchr(buf, '/'), "/garglk.ini");
+            *p = 0;
+            snprintf(buf, sizeof buf, "%s/garglk.ini", tmp);
             readoneconfig(buf, argv0, gamefile);
         }
 
-        strcpy(buf, argv[argc-1]);
-        if (strrchr(buf, '.'))
-            strcpy(strrchr(buf, '.'), ".ini");
-        else
-            strcat(buf, ".ini");
+        snprintf(tmp, sizeof tmp, "%s", argv[argc - 1]);
+        if ((p = strrchr(tmp, '.')) != NULL)
+        {
+            *p = 0;
+        }
+        snprintf(buf, sizeof buf, "%s.ini", tmp);
         readoneconfig(buf, argv0, gamefile);
     }
 }
