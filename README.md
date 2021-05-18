@@ -1,4 +1,8 @@
-# Gargoyle [![Build Status](https://travis-ci.org/garglk/garglk.svg?branch=master)](https://travis-ci.org/garglk/garglk)
+# Gargoyle
+
+[![Build Status](https://travis-ci.org/garglk/garglk.svg?branch=master)](https://travis-ci.org/garglk/garglk)
+[![AppImage](https://github.com/garglk/garglk/actions/workflows/appimage.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/appimage.yml) 
+[![macOS](https://github.com/garglk/garglk/actions/workflows/macos.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/macos.yml)
 
 ## An interactive fiction player
 
