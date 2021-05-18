@@ -216,6 +216,9 @@ typedef struct stream_result_struct {
     calls it. */
 extern void glk_main(void);
 
+#ifdef __GNUC__
+__attribute__((__noreturn__))
+#endif
 extern void glk_exit(void);
 extern void glk_set_interrupt_handler(void (*func)(void));
 extern void glk_tick(void);
