@@ -5,6 +5,7 @@ language: generic
 
 addons:
   apt:
+    update: true
     packages:
       - jam
       - binutils-mingw-w64-i686
@@ -12,10 +13,9 @@ addons:
       - g++-mingw-w64-i686
       - gcc-6
       - g++-6
-      - libsdl1.2-dev
-      - libsdl-mixer1.2-dev
-      - libsdl-sound1.2-dev
-      - libgtk2.0-dev
+      - libsdl2-dev
+      - libsdl2-mixer-dev
+      - libgtk-3-dev
       - libspeechd-dev
 
 script:
@@ -23,8 +23,8 @@ script:
 
 matrix:
   include:
-    # MinGW
-    - env: CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1
+    # MinGW - No SDL for now because sdl2_mixer isn't available
+    - env: CC=i686-w64-mingw32-gcc CXX=i686-w64-mingw32-g++ OS=MINGW MINGWARCH=i686-w64-mingw32 CROSS=1 USESDL=no
     # GCC
     - env: CC=gcc-6 CXX=g++-6
     - env: CC=gcc-7 CXX=g++-7
