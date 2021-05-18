@@ -212,10 +212,12 @@ static void loadglyph(font_t *f, glui32 cid)
         if (f->make_oblique)
             FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
 
-        if (gli_conf_lcd)
+        if (gli_conf_lcd) {
+            FT_Library_SetLcdFilter(ftlib, FT_LCD_FILTER_NONE);
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
-        else
+        } else
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
+
         if (err)
             winabort("FT_Render_Glyph");
 
