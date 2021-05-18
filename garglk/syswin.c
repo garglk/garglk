@@ -120,11 +120,12 @@ void onabout(void)
 
 void onconfig(void)
 {
-    char buf[256];
-    strcpy(buf, argv0);
-    if (strrchr(buf, '\\')) strrchr(buf, '\\')[1] = 0;
-    if (strrchr(buf, '/')) strrchr(buf, '/')[1] = 0;
-    strcat(buf, "garglk.ini");
+    char tmp[256], buf[256];
+
+    snprintf(tmp, sizeof tmp, "%s", argv0);
+    if (strrchr(tmp, '\\')) strrchr(tmp, '\\')[1] = 0;
+    if (strrchr(tmp, '/')) strrchr(tmp, '/')[1] = 0;
+    snprintf(buf, sizeof buf, "%s/garglk.ini", tmp);
 
     if (access(buf, R_OK))
     {
@@ -168,7 +169,7 @@ void winopenfile(char *prompt, char *buf, int len, int filter)
     ofn.Flags = OFN_FILEMUSTEXIST|OFN_HIDEREADONLY;
 
     if (!GetOpenFileName(&ofn))
-    strcpy(buf, "");
+        buf[0] = 0;
 }
 
 void winsavefile(char *prompt, char *buf, int len, int filter)
@@ -187,7 +188,7 @@ void winsavefile(char *prompt, char *buf, int len, int filter)
     ofn.Flags = OFN_OVERWRITEPROMPT;
 
     if (!GetSaveFileName(&ofn))
-    strcpy(buf, "");
+        buf[0] = 0;
 }
 
 void winclipstore(glui32 *text, int len)

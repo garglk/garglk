@@ -280,7 +280,7 @@ static void loadglyph(font_t *f, glui32 cid)
     }
 }
 
-static void loadfont(font_t *f, char *name, float size, float aspect, int style)
+static void loadfont(font_t *f, const char *name, float size, float aspect, int style)
 {
     static char *map[8] =
     {
@@ -294,7 +294,6 @@ static void loadfont(font_t *f, char *name, float size, float aspect, int style)
         "NotoSerif-BoldItalic"
     };
 
-    char afmbuf[1024];
     const unsigned char *mem;
     unsigned int len;
     int err = 0;
@@ -323,15 +322,25 @@ static void loadfont(font_t *f, char *name, float size, float aspect, int style)
         err = FT_New_Face(ftlib, name, 0, &f->face);
         if (err)
             winabort("FT_New_Face: %s: 0x%x", name, err);
-        if (strstr(name, ".PFB") || strstr(name, ".PFA") ||
-                strstr(name, ".pfb") || strstr(name, ".pfa"))
+        if (strlen(name) >= 4)
         {
-            strcpy(afmbuf, name);
-            strcpy(strrchr(afmbuf, '.'), ".afm");
-            FT_Attach_File(f->face, afmbuf);
-            strcpy(afmbuf, name);
-            strcpy(strrchr(afmbuf, '.'), ".AFM");
-            FT_Attach_File(f->face, afmbuf);
+            char afmbuf[1024], *ext;
+
+            snprintf(afmbuf, sizeof afmbuf, "%s", name);
+            ext = &afmbuf[strlen(afmbuf) - 4];
+
+            if (strcmp(ext, ".PFA") == 0 ||
+                strcmp(ext, ".pfa") == 0 ||
+                strcmp(ext, ".PFB") == 0 ||
+                strcmp(ext, ".pfb") == 0)
+            {
+                // These strcpy() calls are safe because it's guaranteed
+                // that ext points to at least 5 bytes.
+                strcpy(ext, ".afm");
+                FT_Attach_File(f->face, afmbuf);
+                strcpy(ext, ".AFM");
+                FT_Attach_File(f->face, afmbuf);
+            }
         }
     }
 

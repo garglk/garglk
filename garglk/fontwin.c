@@ -23,6 +23,7 @@
 #include <windows.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -54,8 +55,7 @@ int CALLBACK monofont(
     if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
         return 1;
 
-    char * file = malloc(strlen(filepath)+1);
-    strcpy(file, filepath);
+    char *file = strdup(filepath);
 
     if (!gli_sys_monor && (!(strcmp(lpelfe->elfStyle,"Regular"))
                 || !(strcmp(lpelfe->elfStyle,"Roman"))))
@@ -133,8 +133,7 @@ int CALLBACK propfont(
     if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
         return 1;
 
-    char * file = malloc(strlen(filepath)+1);
-    strcpy(file, filepath);
+    char *file = strdup(filepath);
 
     if (!gli_sys_propr && (!(strcmp(lpelfe->elfStyle,"Regular"))
                 || !(strcmp(lpelfe->elfStyle,"Roman"))))
@@ -260,6 +259,7 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
 
 void fontreplace(char *font, int type)
 {
+    /* printf("REPLACE %s\n", strlen(font)); */
     if (!strlen(font))
         return;
 
@@ -274,12 +274,12 @@ void fontreplace(char *font, int type)
     switch (type)
     {
     case MONOF:
-        lstrcpy(logfont.lfFaceName, gli_conf_monofont);
+        snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_monofont);
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont, 0, 0);
         break;
 
     case PROPF:
-        lstrcpy(logfont.lfFaceName, gli_conf_propfont);
+        snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_propfont);
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont, 0, 0);
         break;
     }
