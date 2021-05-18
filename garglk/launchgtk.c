@@ -45,6 +45,8 @@ static char dir[MaxBuffer];
 static char buf[MaxBuffer];
 static char tmp[MaxBuffer];
 
+static GdkDisplay *display;
+
 struct filter
 {
     const char *name;
@@ -76,6 +78,13 @@ static struct filter filters[] =
 static void winstart(void)
 {
     gtk_init(NULL, NULL);
+
+    display = gdk_display_get_default();
+    if (display == NULL)
+    {
+        fprintf(stderr, "Can't open display\n");
+        exit(1);
+    }
 }
 
 void winmsg(const char * msg)
@@ -163,8 +172,8 @@ static void winbrowsefile(char *buffer, size_t n)
 
     GtkWidget * openDlg = gtk_file_chooser_dialog_new(AppName, NULL,
                                                       GTK_FILE_CHOOSER_ACTION_OPEN,
-                                                      GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                      GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                      "_Cancel", GTK_RESPONSE_CANCEL,
+                                                      "_Open", GTK_RESPONSE_ACCEPT,
                                                       NULL);
 
     if (getenv("GAMES"))
@@ -184,7 +193,7 @@ static void winbrowsefile(char *buffer, size_t n)
     }
 
     gtk_widget_destroy(openDlg);
-    gdk_flush();
+    gdk_display_flush(display);
 }
 
 void winpath(char *buffer)
