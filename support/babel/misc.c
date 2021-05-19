@@ -1,8 +1,5 @@
 /* misc.h : miscellany for babel
- * This file has been released into the public domain by its author.
-* The author waives all of his rights to the work
-* worldwide under copyright law to the maximum extent allowed by law
-* 
+ * This file is public domain
  * 2006 by L. Ross Raszewski
  */
 
