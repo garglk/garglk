@@ -3,10 +3,7 @@
  *
  * This file depends on treaty_builder.h
  *
- * This file has been released into the public domain by its author.
-* The author waives all of his rights to the work
-* worldwide under copyright law to the maximum extent allowed by law
-* , but note that any changes to this file
+ * This file is public domain, but note that any changes to this file
  * may render it noncompliant with the Treaty of Babel
  */
 

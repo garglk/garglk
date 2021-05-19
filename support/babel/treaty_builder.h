@@ -2,10 +2,7 @@
  *
  * 2006 By L. Ross Raszewski
  *
- * This file has been released into the public domain by its author.
-* The author waives all of his rights to the work
-* worldwide under copyright law to the maximum extent allowed by law
-* , but be aware that any changes to it may
+ * This file is public domain, but be aware that any changes to it may
  * cause it to cease to be compliant with the Treaty of Babel.
  *
  * This file depends on treaty.h

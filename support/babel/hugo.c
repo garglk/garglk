@@ -3,10 +3,7 @@
  *
  * This file depends on treaty_builder.h
  *
- * This file has been released into the public domain by its author.
-* The author waives all of his rights to the work
-* worldwide under copyright law to the maximum extent allowed by law
-* , but note that any changes to this file
+ * This file is public domain, but note that any changes to this file
  * may render it noncompliant with the Treaty of Babel
  */
 
@@ -73,6 +70,11 @@ static int32 claim_story_file(void *story_file, int32 exten)
 
  if (!story_file || extent < 0x28) return  INVALID_STORY_FILE_RV;
 
+ /* 39 is the largest version currently accepted by the Hugo interpreter:
+    https://github.com/garglk/garglk/blob/master/terps/hugo/source/hemisc.c#L1310-L1362
+ */
+ if (sf[0] > 39) return INVALID_STORY_FILE_RV;
+ 
  if (sf[0]<34) scale=4;
  else scale=16;
  for(i=3;i<0x0B;i++) if (sf[i]<0x20 || sf[i]>0x7e) return INVALID_STORY_FILE_RV;

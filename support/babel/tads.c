@@ -3,10 +3,7 @@
  *   
  *   This file depends on treaty_builder.h
  *   
- * This file has been released into the public domain by its author.
-* The author waives all of his rights to the work
-* worldwide under copyright law to the maximum extent allowed by law
-* , but note that any changes to this file may
+ *   This file is public domain, but note that any changes to this file may
  *   render it noncompliant with the Treaty of Babel
  *   
  *   Modified
@@ -818,6 +815,10 @@ static int32 synth_ifiction(valinfo *vals, int tads_version,
         /* use this as the IFID */
         ifid_val = default_ifid;
         ifid_len = strlen(default_ifid);
+    }
+    else
+    {
+        return NO_REPLY_RV;
     }
 
     /* write the header, and start the <identification> section */
@@ -1933,5 +1934,4 @@ void main(int argc, char **argv)
 }
 
 
-#endif //TADS_TEST
-
+#endif /* TADS_TEST */
