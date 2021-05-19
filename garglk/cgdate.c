@@ -45,6 +45,25 @@
 
 #ifdef GLK_MODULE_DATETIME
 
+/* timegm() is non-standard (neither C nor POSIX), so unconditionally
+   use a replacement.
+*/
+static time_t gli_timegm(struct tm *tm)
+{
+    time_t answer;
+    char *tz;
+    char tzstr[512];
+
+    tz = getenv("TZ");
+    snprintf(tzstr, sizeof tzstr, "TZ=%s", tz == NULL ? "" : tz);
+    putenv("TZ=UTC");
+    tzset();
+    answer=mktime(tm);
+    putenv(tzstr);
+    tzset();
+    return answer;
+}
+
 #ifdef WIN32
 /* Windows needs wrappers for time functions to handle pre-epoch dates */
 
@@ -78,17 +97,6 @@ time_t gli_mktime (struct tm * timeptr)
 }
 
 #define mktime gli_mktime
-
-time_t timegm(struct tm *tm)
-{
-    time_t answer;
-    putenv("TZ=UTC");
-    tzset();
-    answer=mktime(tm);
-    putenv("TZ=");
-    tzset();
-    return answer;
-}
 
 #define UTC_1901 (-2145916801)      /* Dec 31, 1901 at 23:59:59 UTC */
 #define UTC_1951 (-568080001)       /* Dec 31, 1951 at 23:59:59 UTC */
@@ -346,7 +354,7 @@ void glk_date_to_time_utc(glkdate_t *date, glktimeval_t *time)
 
     microsec = gli_date_to_tm(date, &tm);
     tm.tm_isdst = 0;
-    timestamp = timegm(&tm);
+    timestamp = gli_timegm(&tm);
 
     gli_timestamp_to_time(timestamp, microsec, time);
 }
@@ -376,7 +384,7 @@ glsi32 glk_date_to_simple_time_utc(glkdate_t *date, glui32 factor)
 
     gli_date_to_tm(date, &tm);
     tm.tm_isdst = 0;
-    timestamp = timegm(&tm);
+    timestamp = gli_timegm(&tm);
 
     return gli_simplify_time(timestamp, factor);
 }
