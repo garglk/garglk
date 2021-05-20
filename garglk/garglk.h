@@ -228,6 +228,8 @@ extern int gli_tmarginx;
 extern int gli_tmarginy;
 
 extern int gli_conf_lcd;
+extern int gli_conf_lcd_filter;
+extern unsigned char gli_conf_lcd_weights[5];
 
 extern int gli_conf_graphics;
 extern int gli_conf_sound;

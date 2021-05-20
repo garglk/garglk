@@ -135,37 +135,6 @@ static void gammacopy(unsigned char *dst, unsigned char *src, int n)
         *dst++ = gammamap[*src++];
 }
 
-#define m28(x) ((x * 28) / 255)
-#define m56(x) ((x * 56) / 255)
-#define m85(x) ((x * 85) / 255)
-
-static void gammacopy_lcd(unsigned char *dst, unsigned char *src, int w, int h, int pitch)
-{
-    const unsigned char zero[3] = { 0, 0, 0 };
-    unsigned char *dp, *sp;
-    int x, y;
-
-    for (y = 0; y < h; y++)
-    {
-        sp = &src[y * pitch];
-        dp = &dst[y * pitch];
-        for (x = 0; x < w; x += 3)
-        {
-            const unsigned char *lf = x > 0 ? sp - 3 : zero;
-            const unsigned char *rt = x < w - 3 ? sp + 3 : zero;
-            unsigned char ct[3];
-            ct[0] = gammamap[sp[0]];
-            ct[1] = gammamap[sp[1]];
-            ct[2] = gammamap[sp[2]];
-            dp[0] = m28(lf[1]) + m56(lf[2]) + m85(ct[0]) + m56(ct[1]) + m28(ct[2]);
-            dp[1] = m28(lf[2]) + m56(ct[0]) + m85(ct[1]) + m56(ct[2]) + m28(rt[0]);
-            dp[2] = m28(ct[0]) + m56(ct[1]) + m85(ct[2]) + m56(rt[0]) + m28(rt[1]);
-            sp += 3;
-            dp += 3;
-        }
-    }
-}
-
 static int findhighglyph(glui32 cid, fentry_t *entries, int length)
 {
     int start = 0, end = length, mid = 0;
@@ -190,6 +159,7 @@ static void loadglyph(font_t *f, glui32 cid)
     int x;
     bitmap_t glyphs[GLI_SUBPIX];
     int adv;
+    size_t datasize;
 
     gid = FT_Get_Char_Index(f->face, cid);
     if (gid == 0)
@@ -214,7 +184,11 @@ static void loadglyph(font_t *f, glui32 cid)
             FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
 
         if (gli_conf_lcd) {
-            FT_Library_SetLcdFilter(ftlib, FT_LCD_FILTER_NONE);
+            if (((gli_conf_lcd_filter >= 0) && (gli_conf_lcd_filter < 4)) || (gli_conf_lcd_filter == 16))
+                FT_Library_SetLcdFilter(ftlib, (FT_LcdFilter)gli_conf_lcd_filter);
+            else
+                FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
+
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
         } else
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
@@ -222,6 +196,7 @@ static void loadglyph(font_t *f, glui32 cid)
         if (err)
             winabort("FT_Render_Glyph");
 
+        datasize = f->face->glyph->bitmap.pitch * f->face->glyph->bitmap.rows;
         adv = (f->face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
 
         glyphs[x].lsb = f->face->glyph->bitmap_left;
@@ -229,16 +204,8 @@ static void loadglyph(font_t *f, glui32 cid)
         glyphs[x].w = f->face->glyph->bitmap.width;
         glyphs[x].h = f->face->glyph->bitmap.rows;
         glyphs[x].pitch = f->face->glyph->bitmap.pitch;
-        glyphs[x].data =
-            malloc(glyphs[x].pitch * glyphs[x].h);
-                if (gli_conf_lcd)
-                    gammacopy_lcd(glyphs[x].data,
-                            f->face->glyph->bitmap.buffer,
-                            glyphs[x].w, glyphs[x].h, glyphs[x].pitch);
-                else
-                    gammacopy(glyphs[x].data,
-                            f->face->glyph->bitmap.buffer,
-                            glyphs[x].pitch * glyphs[x].h);
+        glyphs[x].data = malloc(datasize);
+        gammacopy(glyphs[x].data, f->face->glyph->bitmap.buffer, datasize);
     }
 
     if (cid < 256)
