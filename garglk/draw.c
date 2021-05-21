@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,6 +110,26 @@ static const int gli_bpp = 4;
 static FT_Library ftlib;
 static FT_Matrix ftmat;
 
+static bool use_freetype_preset_filter = false;
+static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
+
+void gli_set_lcdfilter(const char *filter)
+{
+    use_freetype_preset_filter = true;
+
+    if (strcasecmp(filter, "none") == 0) {
+        freetype_preset_filter = FT_LCD_FILTER_NONE;
+    } else if (strcasecmp(filter, "default") == 0) {
+        freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
+    } else if (strcasecmp(filter, "light") == 0) {
+        freetype_preset_filter = FT_LCD_FILTER_LIGHT;
+    } else if (strcasecmp(filter, "legacy") == 0) {
+        freetype_preset_filter = FT_LCD_FILTER_LEGACY;
+    } else {
+        use_freetype_preset_filter = false;
+    }
+}
+
 /*
  * Font loading
  */
@@ -184,8 +205,8 @@ static void loadglyph(font_t *f, glui32 cid)
             FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
 
         if (gli_conf_lcd) {
-            if (((gli_conf_lcd_filter >= 0) && (gli_conf_lcd_filter < 4)) || (gli_conf_lcd_filter == 16))
-                FT_Library_SetLcdFilter(ftlib, (FT_LcdFilter)gli_conf_lcd_filter);
+            if (use_freetype_preset_filter)
+                FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
             else
                 FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
 

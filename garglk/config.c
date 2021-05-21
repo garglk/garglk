@@ -137,7 +137,6 @@ int gli_caret_shape = 2;
 int gli_link_style = 1;
 
 int gli_conf_lcd = 1;
-int gli_conf_lcd_filter = -1;
 unsigned char gli_conf_lcd_weights[5] = {28, 56, 85, 56, 28};
 
 int gli_wmarginx = 15;
@@ -409,7 +408,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_conf_lcd = atoi(arg);
 
         if (!strcmp(cmd, "lcdfilter"))
-            gli_conf_lcd_filter = atoi(arg);
+            gli_set_lcdfilter(arg);
 
         if (!strcmp(cmd, "lcdweights")) {
             char *start = arg;
