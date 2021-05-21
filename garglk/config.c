@@ -411,17 +411,23 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             gli_set_lcdfilter(arg);
 
         if (!strcmp(cmd, "lcdweights")) {
+            int i;
             char *start = arg;
             char *end;
+            unsigned char weights[5];
 
-            for (int i = 0; i < 5; ++i) {
-                gli_conf_lcd_weights[i] = strtoul(start, &end, 10);
+            for (i = 0; i < 5; ++i) {
+                weights[i] = strtoul(start, &end, 10);
 
                 if (start == end) {
                     break;
                 }
 
                 start = end;
+            }
+
+            if (i == 5) {
+                memcpy(gli_conf_lcd_weights, weights, sizeof weights);
             }
         }
 
