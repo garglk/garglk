@@ -117,13 +117,13 @@ void gli_set_lcdfilter(const char *filter)
 {
     use_freetype_preset_filter = true;
 
-    if (strcasecmp(filter, "none") == 0) {
+    if (strcmp(filter, "none") == 0) {
         freetype_preset_filter = FT_LCD_FILTER_NONE;
-    } else if (strcasecmp(filter, "default") == 0) {
+    } else if (strcmp(filter, "default") == 0) {
         freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
-    } else if (strcasecmp(filter, "light") == 0) {
+    } else if (strcmp(filter, "light") == 0) {
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
-    } else if (strcasecmp(filter, "legacy") == 0) {
+    } else if (strcmp(filter, "legacy") == 0) {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
     } else {
         use_freetype_preset_filter = false;
