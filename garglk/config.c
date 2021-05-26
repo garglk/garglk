@@ -137,6 +137,7 @@ int gli_caret_shape = 2;
 int gli_link_style = 1;
 
 int gli_conf_lcd = 1;
+unsigned char gli_conf_lcd_weights[5] = {28, 56, 85, 56, 28};
 
 int gli_wmarginx = 15;
 int gli_wmarginy = 15;
@@ -259,6 +260,8 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
         else if ((!strcmp(cmd, "monofont") || !strcmp(cmd, "propfont")))
             arg = strtok(NULL, "\r\n#");
         else if ((!strncmp(cmd, "mono", 4) || !strncmp(cmd, "prop", 4)) && strlen(cmd) == 5)
+            arg = strtok(NULL, "\r\n#");
+        else if (!strcmp(cmd, "lcdweights"))
             arg = strtok(NULL, "\r\n#");
         else if (!strcmp(cmd, "moreprompt"))
             arg = strtok(NULL, "\r\n");
@@ -403,6 +406,30 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 
         if (!strcmp(cmd, "lcd"))
             gli_conf_lcd = atoi(arg);
+
+        if (!strcmp(cmd, "lcdfilter"))
+            gli_set_lcdfilter(arg);
+
+        if (!strcmp(cmd, "lcdweights")) {
+            int i;
+            char *start = arg;
+            char *end;
+            unsigned char weights[5];
+
+            for (i = 0; i < 5; ++i) {
+                weights[i] = strtoul(start, &end, 10);
+
+                if (start == end) {
+                    break;
+                }
+
+                start = end;
+            }
+
+            if (i == 5) {
+                memcpy(gli_conf_lcd_weights, weights, sizeof weights);
+            }
+        }
 
         if (!strcmp(cmd, "caretshape"))
             gli_caret_shape = atoi(arg);

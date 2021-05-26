@@ -228,6 +228,8 @@ extern int gli_tmarginx;
 extern int gli_tmarginy;
 
 extern int gli_conf_lcd;
+extern int gli_conf_lcd_filter;
+extern unsigned char gli_conf_lcd_weights[5];
 
 extern int gli_conf_graphics;
 extern int gli_conf_sound;
@@ -707,6 +709,7 @@ int gli_draw_string_uni(int x, int y, int f, unsigned char *rgb, glui32 *text, i
 int gli_string_width_uni(int f, glui32 *text, int len, int spw);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
+void gli_set_lcdfilter(const char *filter);
 
 void gli_startup(int argc, char *argv[]);
 void gli_read_config(int argc, char **argv);
