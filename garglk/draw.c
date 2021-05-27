@@ -91,7 +91,7 @@ struct font_s
  */
 
 static unsigned short gammamap[256];
-static unsigned short gammainv[256 << GAMMA_SHIFT];
+static unsigned char gammainv[256 << GAMMA_SHIFT];
 
 static const int gammamax = (256 << GAMMA_SHIFT) - 1;
 
