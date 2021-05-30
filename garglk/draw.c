@@ -37,7 +37,10 @@
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */
 
+#define GAMMA_SHIFT 3
+
 #define mul255(a,b) (((a) * ((b) + 1)) >> 8)
+#define mulhigh(a,b) (((a) * ((b) + 1)) >> (8 + GAMMA_SHIFT))
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 #ifdef _WIN32
@@ -87,7 +90,10 @@ struct font_s
  * Globals
  */
 
-static unsigned char gammamap[256];
+static unsigned short gammamap[256];
+static unsigned char gammainv[256 << GAMMA_SHIFT];
+
+static const int gammamax = (256 << GAMMA_SHIFT) - 1;
 
 static font_t gfont_table[8];
 
@@ -148,12 +154,6 @@ static int touni(int enc)
         case ENC_MDASH: return UNI_MDASH;
     }
     return enc;
-}
-
-static void gammacopy(unsigned char *dst, unsigned char *src, int n)
-{
-    while (n--)
-        *dst++ = gammamap[*src++];
 }
 
 static int findhighglyph(glui32 cid, fentry_t *entries, int length)
@@ -226,7 +226,7 @@ static void loadglyph(font_t *f, glui32 cid)
         glyphs[x].h = f->face->glyph->bitmap.rows;
         glyphs[x].pitch = f->face->glyph->bitmap.pitch;
         glyphs[x].data = malloc(datasize);
-        gammacopy(glyphs[x].data, f->face->glyph->bitmap.buffer, datasize);
+        memcpy(glyphs[x].data, f->face->glyph->bitmap.buffer, datasize);
     }
 
     if (cid < 256)
@@ -384,7 +384,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * 255.0;
+        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * gammamax + 0.5;
+
+    for (i = 0; i <= gammamax; i++)
+        gammainv[i] = pow(i / (float)gammamax, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -472,6 +475,79 @@ void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
 #endif
 }
 
+static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
+{
+    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
+    unsigned short invalf = gammamax - (alpha * gammamax / 255);
+    unsigned short bg[3] = {
+        gammamap[p[0]],
+        gammamap[p[1]],
+        gammamap[p[2]]
+    };
+    unsigned short fg[3] = {
+        gammamap[rgb[0]],
+        gammamap[rgb[1]],
+        gammamap[rgb[2]]
+    };
+
+    if (x < 0 || x >= gli_image_w)
+        return;
+    if (y < 0 || y >= gli_image_h)
+        return;
+#ifdef WIN32
+    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf)];
+#elif defined EFL_1BPP
+    int gray = grayscale( fg[0], fg[1], fg[2] );
+    p[0] = gammainv[gray + mulhigh((int)bg[0] - gray, invalf)];
+#else
+    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf)];
+    p[3] = 0xFF;
+#endif
+}
+
+static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned char *rgb)
+{
+    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
+    unsigned short invalf[3] = {
+        gammamax - (alpha[0] * gammamax / 255),
+        gammamax - (alpha[1] * gammamax / 255),
+        gammamax - (alpha[2] * gammamax / 255)
+    };
+    unsigned short bg[3] = {
+        gammamap[p[0]],
+        gammamap[p[1]],
+        gammamap[p[2]]
+    };
+    unsigned short fg[3] = {
+        gammamap[rgb[0]],
+        gammamap[rgb[1]],
+        gammamap[rgb[2]]
+    };
+
+    if (x < 0 || x >= gli_image_w)
+        return;
+    if (y < 0 || y >= gli_image_h)
+        return;
+#ifdef WIN32
+    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf[0])];
+#elif defined EFL_1BPP
+    int gray = grayscale( fg[0], fg[1], fg[2] );
+    int invalfgray = grayscale( invalf[0], invalf[1], invalf[2] );
+    p[0] = gammainv[gray + mulhigh((int)bg[0] - gray, invalfgray)];
+#else
+    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf[0])];
+    p[3] = 0xFF;
+#endif
+}
+
 
 static inline void draw_bitmap(bitmap_t *b, int x, int y, unsigned char *rgb)
 {
@@ -494,6 +570,31 @@ static inline void draw_bitmap_lcd(bitmap_t *b, int x, int y, unsigned char *rgb
         for (i = 0, j = 0; i < b->w; i += 3, j ++)
         {
             gli_draw_pixel_lcd(x + b->lsb + j, y - b->top + k, b->data + k * b->pitch + i, rgb);
+        }
+    }
+}
+
+static inline void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+{
+    int i, k, c;
+    for (k = 0; k < b->h; k++)
+    {
+        for (i = 0; i < b->w; i ++)
+        {
+            c = b->data[k * b->pitch + i];
+            draw_pixel_gamma(x + b->lsb + i, y - b->top + k, c, rgb);
+        }
+    }
+}
+
+static inline void draw_bitmap_lcd_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+{
+    int i, j, k;
+    for (k = 0; k < b->h; k++)
+    {
+        for (i = 0, j = 0; i < b->w; i += 3, j ++)
+        {
+            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data + k * b->pitch + i, rgb);
         }
     }
 }
@@ -724,9 +825,9 @@ int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,
         sx = x % GLI_SUBPIX;
 
                 if (gli_conf_lcd)
-                    draw_bitmap_lcd(&glyphs[sx], px, y, rgb);
+                    draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
                 else
-                    draw_bitmap(&glyphs[sx], px, y, rgb);
+                    draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
 
         if (spw >= 0 && c == ' ')
             x += spw;
@@ -782,9 +883,9 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
         sx = x % GLI_SUBPIX;
 
                 if (gli_conf_lcd)
-                    draw_bitmap_lcd(&glyphs[sx], px, y, rgb);
+                    draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
                 else
-                    draw_bitmap(&glyphs[sx], px, y, rgb);
+                    draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
 
         if (spw >= 0 && c == ' ')
             x += spw;
