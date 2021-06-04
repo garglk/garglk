@@ -967,7 +967,7 @@ static void winpath(char *buffer)
         *dirpos = '\0';
 }
 
-static int winexec(const char *cmd, char **args)
+static int winexec(const char *cmd, const char **args)
 {
     NSTask * proc = [[NSTask alloc] init];
 
@@ -1004,7 +1004,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 {
     sprintf(tmp, LaunchingTemplate, dir, exe);
 
-    char *args[] = {NULL, NULL, NULL};
+    const char *args[] = {NULL, NULL, NULL};
 
     if (strstr(flags, "-"))
     {
