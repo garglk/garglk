@@ -125,7 +125,9 @@ int gli_override_fg_val = 0;
 int gli_override_bg_val = 0;
 int gli_override_reverse = 0;
 
-char *gli_more_prompt = "\207 more \207";
+static const char *base_more_prompt = "— more —";
+glui32 *gli_more_prompt;
+glui32 gli_more_prompt_len;
 int gli_more_align = 0;
 int gli_more_font = PROPB;
 
@@ -271,7 +273,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             continue;
 
         if (!strcmp(cmd, "moreprompt"))
-            gli_more_prompt = strdup(arg);
+            base_more_prompt = strdup(arg);
 
         if (!strcmp(cmd, "morecolor"))
         {
@@ -631,6 +633,11 @@ void gli_startup(int argc, char *argv[])
         glkunix_set_base_file(argv[argc-1]);
 
     gli_read_config(argc, argv);
+
+    gli_more_prompt = malloc((1 + strlen(base_more_prompt)) * sizeof *gli_more_prompt);
+    if (gli_more_prompt == NULL)
+        winabort("Unable to allocate memory for more prompt");
+    gli_more_prompt_len = gli_parse_utf8((unsigned char *)base_more_prompt, strlen(base_more_prompt), gli_more_prompt, strlen(base_more_prompt));
 
     memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));
     memcpy(gli_gstyles_def, gli_gstyles, sizeof(gli_gstyles_def));

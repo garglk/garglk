@@ -140,22 +140,6 @@ void gli_set_lcdfilter(const char *filter)
  * Font loading
  */
 
-static int touni(int enc)
-{
-    switch (enc)
-    {
-        case ENC_LIG_FI: return UNI_LIG_FI;
-        case ENC_LIG_FL: return UNI_LIG_FL;
-        case ENC_LSQUO: return UNI_LSQUO;
-        case ENC_RSQUO: return UNI_RSQUO;
-        case ENC_LDQUO: return UNI_LDQUO;
-        case ENC_RDQUO: return UNI_RDQUO;
-        case ENC_NDASH: return UNI_NDASH;
-        case ENC_MDASH: return UNI_MDASH;
-    }
-    return enc;
-}
-
 static int findhighglyph(glui32 cid, fentry_t *entries, int length)
 {
     int start = 0, end = length, mid = 0;
@@ -695,8 +679,8 @@ static int charkern(font_t *f, int c0, int c1)
         return match->value;
     }
 
-    g0 = FT_Get_Char_Index(f->face, touni(c0));
-    g1 = FT_Get_Char_Index(f->face, touni(c1));
+    g0 = FT_Get_Char_Index(f->face, c0);
+    g1 = FT_Get_Char_Index(f->face, c1);
 
     if (g0 == 0 || g1 == 0) {
         free(item);
@@ -733,111 +717,6 @@ static void getglyph(font_t *f, glui32 cid, int *adv, bitmap_t **glyphs)
         *adv = f->highentries[idx].adv;
         *glyphs = f->highentries[idx].glyph;
     }
-}
-
-int gli_string_width(int fidx, unsigned char *s, int n, int spw)
-{
-    font_t *f = &gfont_table[fidx];
-    int dolig = ! FT_IS_FIXED_WIDTH(f->face);
-    int prev = -1;
-    int w = 0;
-
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
-        dolig = 0;
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FL) == 0 )
-        dolig = 0;
-
-    while (n--)
-    {
-        bitmap_t *glyphs;
-        int adv;
-        int c = touni(*s++);
-
-        if (dolig && n && c == 'f' && *s == 'i')
-        {
-          c = UNI_LIG_FI;
-          s++;
-          n--;
-        }
-        if (dolig && n && c == 'f' && *s == 'l')
-        {
-          c = UNI_LIG_FL;
-          s++;
-          n--;
-        }
-
-        getglyph(f, c, &adv, &glyphs);
-
-        if (prev != -1)
-            w += charkern(f, prev, c);
-
-        if (spw >= 0 && c == ' ')
-            w += spw;
-        else
-            w += adv;
-
-        prev = c;
-    }
-
-    return w;
-}
-
-int gli_draw_string(int x, int y, int fidx, unsigned char *rgb,
-        unsigned char *s, int n, int spw)
-{
-    font_t *f = &gfont_table[fidx];
-    int dolig = ! FT_IS_FIXED_WIDTH(f->face);
-    int prev = -1;
-    glui32 c;
-    int px, sx;
-
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
-        dolig = 0;
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FL) == 0 )
-        dolig = 0;
-
-    while (n--)
-    {
-        bitmap_t *glyphs;
-        int adv;
-
-        c = touni(*s++);
-
-        if (dolig && n && c == 'f' && *s == 'i')
-        {
-          c = UNI_LIG_FI;
-          s++;
-          n--;
-        }
-        if (dolig && n && c == 'f' && *s == 'l')
-        {
-          c = UNI_LIG_FL;
-          s++;
-          n--;
-        }
-
-        getglyph(f, c, &adv, &glyphs);
-
-        if (prev != -1)
-            x += charkern(f, prev, c);
-
-        px = x / GLI_SUBPIX;
-        sx = x % GLI_SUBPIX;
-
-                if (gli_conf_lcd)
-                    draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
-                else
-                    draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
-
-        if (spw >= 0 && c == ' ')
-            x += spw;
-        else
-            x += adv;
-
-        prev = c;
-    }
-
-    return x;
 }
 
 int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
