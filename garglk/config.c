@@ -482,10 +482,8 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             char *fg = strtok(NULL, "\r\n\t ");
             char *bg = strtok(NULL, "\r\n\t ");
             int i = atoi(style);
-            if (i < 0 || i >= style_NUMSTYLES)
+            if (i < 0 || i >= style_NUMSTYLES || fg == NULL || bg == NULL)
                 continue;
-            if (!bg)
-                bg = gli_window_color;
             if (cmd[0] == 't')
             {
                 parsecolor(fg, gli_tstyles[i].fg);
@@ -503,7 +501,7 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             char *style = strtok(arg, "\r\n\t ");
             char *font = strtok(NULL, "\r\n\t ");
             int i = atoi(style);
-            if (i < 0 || i >= style_NUMSTYLES)
+            if (i < 0 || i >= style_NUMSTYLES || font == NULL)
                 continue;
             if (cmd[0] == 't')
                 gli_tstyles[i].font = font2idx(font);
