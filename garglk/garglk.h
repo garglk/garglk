@@ -112,18 +112,7 @@ extern int gli_more_focus;
 extern int gli_cellw;
 extern int gli_cellh;
 
-/* Usurp C1 space for ligatures and smart typography glyphs */
-#define ENC_LIG_FI 128
-#define ENC_LIG_FL 129
-#define ENC_LSQUO 130
-#define ENC_RSQUO 131
-#define ENC_LDQUO 132
-#define ENC_RDQUO 133
-#define ENC_NDASH 134
-#define ENC_MDASH 135
-#define ENC_FLOWBREAK 136
-
-/* These are the Unicode versions */
+/* Unicode ligatures and smart typography glyphs */
 #define UNI_LIG_FI	0xFB01
 #define UNI_LIG_FL	0xFB02
 #define UNI_LSQUO	0x2018
@@ -283,7 +272,8 @@ extern float gli_conf_monosize;
 extern float gli_conf_propaspect;
 extern float gli_conf_monoaspect;
 
-extern char *gli_more_prompt;
+extern glui32 *gli_more_prompt;
+extern glui32 gli_more_prompt_len;
 extern int gli_more_align;
 extern int gli_more_font;
 
@@ -702,8 +692,6 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb);
 void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb);
 void gli_draw_clear(unsigned char *rgb);
 void gli_draw_rect(int x, int y, int w, int h, unsigned char *rgb);
-int gli_draw_string(int x, int y, int f, unsigned char *rgb, unsigned char *text, int len, int spacewidth);
-int gli_string_width(int f, unsigned char *text, int len, int spw);
 int gli_draw_string_uni(int x, int y, int f, unsigned char *rgb, glui32 *text, int len, int spacewidth);
 int gli_string_width_uni(int f, glui32 *text, int len, int spw);
 void gli_draw_caret(int x, int y);

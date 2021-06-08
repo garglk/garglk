@@ -664,8 +664,8 @@ void win_textbuffer_redraw(window_t *win)
                 x1/GLI_SUBPIX - x/GLI_SUBPIX, gli_leading,
                 color);
 
-        w = gli_string_width(gli_more_font,
-                gli_more_prompt, strlen(gli_more_prompt), -1);
+        w = gli_string_width_uni(gli_more_font,
+                gli_more_prompt, gli_more_prompt_len, -1);
 
         if (gli_more_align == 1)    /* center */
             x = x0 + SLOP + (x1 - x0 - w - SLOP * 2) / 2;
@@ -673,9 +673,9 @@ void win_textbuffer_redraw(window_t *win)
             x = x1 - SLOP - w;
 
         color = gli_override_fg_set ? gli_more_color : win->fgcolor;
-        gli_draw_string(x, y + gli_baseline,
+        gli_draw_string_uni(x, y + gli_baseline,
                 gli_more_font, color,
-                gli_more_prompt, strlen(gli_more_prompt), -1);
+                gli_more_prompt, gli_more_prompt_len, -1);
         y1 = y; /* don't want pictures overdrawing "[more]" */
 
         /* try to claim the focus */
