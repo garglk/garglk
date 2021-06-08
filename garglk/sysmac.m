@@ -677,6 +677,14 @@ void winpoll(void)
     while (evt);
 }
 
+bool winfontpath(const char *filename, char *outpath, size_t n)
+{
+    // There's no need to look up fonts in any special way on macOS: the
+    // bundle sets fonts up in such a way that they're found without
+    // needing a fallback.
+    return false;
+}
+
 void gli_select(event_t *event, int polled)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];

@@ -436,6 +436,13 @@ void winrepaint(int x0, int y0, int x1, int y1)
     window->update(x0, y0, x1 - x0, y1 - y0);
 }
 
+bool winfontpath(const char *filename, char *outpath, size_t n)
+{
+    snprintf(outpath, n, "%s/%s", QCoreApplication::applicationDirPath().toStdString().c_str(), filename);
+
+    return true;
+}
+
 void gli_tick()
 {
     if (last_tick.elapsed() > TICK_PERIOD_MILLIS)

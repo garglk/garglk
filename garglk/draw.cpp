@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <algorithm>
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
@@ -31,6 +32,7 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "glk.h"
 #include "garglk.h"
@@ -39,6 +41,11 @@
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
 #include FT_LCD_FILTER_H
+
+#ifdef _WIN32
+#include <windows.h>
+#include <shlwapi.h>
+#endif
 
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
@@ -59,6 +66,13 @@ struct fentry_t
     bitmap_t glyph[GLI_SUBPIX];
 };
 
+struct font {
+    const char *path;
+    const char *fallback;
+    enum TYPES type;
+    enum STYLES style;
+};
+
 struct font_t
 {
     FT_Face face = nullptr;
@@ -68,7 +82,7 @@ struct font_t
     bool kerned = false;
     std::map<std::pair<int, int>, int> kerncache;
 
-    font_t(const char *name, float size, float aspect, int style);
+    font_t(const struct font &font);
     ~font_t();
 
     void getglyph(glui32 cid, int *adv, const bitmap_t **glyphs);
@@ -216,79 +230,152 @@ const fentry_t &font_t::loadglyph(glui32 cid)
     return it->second;
 }
 
-font_t::font_t(const char *name, float size, float aspect, int style)
+// Look for a user-specified font. This will be either based on a font
+// family (propfont or monofont), or specific font files (e.g. propr,
+// monor, etc).
+static bool font_path_user(const struct font &font, char *outpath, size_t n)
 {
-    static std::string map[8] =
+    if (font.path != nullptr)
     {
-        "GoMono-Regular",
-        "GoMono-Bold",
-        "GoMono-Italic",
-        "GoMono-BoldItalic",
-        "NotoSerif-Regular",
-        "NotoSerif-Bold",
-        "NotoSerif-Italic",
-        "NotoSerif-BoldItalic"
+        std::snprintf(outpath, n, "%s", font.path);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+// Look in a system-wide location for the fallback Gargoyle fonts; on
+// Unix this is generally somewhere like /usr/share/fonts/gargoyle
+// (although this can be changed at build time), and on Windows it's the
+// install directory (e.g. "C:\Program Files (x86)\Gargoyle").
+static bool font_path_fallback_system(const struct font &font, char *outpath, size_t n)
+{
+#ifdef _WIN32
+    char directory[256];
+    DWORD dsize = n;
+    if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS)
+        return false;
+
+    std::snprintf(outpath, n, "%s\\%s", directory, font.fallback);
+    return true;
+#elif defined(GARGLK_FONT_PATH)
+    std::snprintf(outpath, n, "%s/%s", GARGLK_FONT_PATH, font.fallback);
+    return true;
+#else
+    return false;
+#endif
+}
+
+// Look in a platform-specific location for the fonts. This is typically
+// the same directory that the executable is in, but can be anything the
+// platform code deems appropriate.
+static bool font_path_fallback_platform(const struct font &font, char *outpath, size_t n)
+{
+    return winfontpath(font.fallback, outpath, n);
+}
+
+// As a last-ditch effort, look in the current directory for the fonts.
+static bool font_path_fallback_local(const struct font &font, char *outpath, size_t n)
+{
+    std::snprintf(outpath, n, "%s", font.fallback);
+    return true;
+}
+
+static const char *type_to_name(enum TYPES type)
+{
+    if (type == MONOF)
+        return "Mono";
+    else
+        return "Proportional";
+}
+
+static const char *style_to_name(enum STYLES style)
+{
+    switch (style)
+    {
+        case FONTR:
+            return "Regular";
+        case FONTB:
+            return "Bold";
+        case FONTI:
+            return "Italic";
+        case FONTZ:
+            return "Bold Italic";;
+    }
+
+    return "";
+}
+
+font_t::font_t(const struct font &font)
+{
+    int err = 0;
+    char fontpath[1024];
+    float aspect, size;
+    const char *family;
+    std::vector<std::function<bool(const struct font &, char *, size_t)>> font_paths = {
+        font_path_user,
+        font_path_fallback_system,
+        font_path_fallback_platform,
+        font_path_fallback_local,
     };
 
-    const unsigned char *mem;
-    unsigned int len;
-    int err = 0;
-    int i;
-
-#ifdef BUNDLED_FONTS
-    for (i = 0; i < 8; i++)
+    if (font.type == MONOF)
     {
-        if (map[i] == name)
-        {
-            gli_get_builtin_font(i, &mem, &len);
-            err = FT_New_Memory_Face(ftlib, mem, len, 0, &face);
-            if (err)
-                freetype_error(err, "Unable to create font from %s", name);
-            break;
-        }
+        aspect = gli_conf_monoaspect;
+        size = gli_conf_monosize;
+        family = gli_conf_monofont;
     }
-#else
-    i = 8;
-#endif /* BUNDLED_FONTS */
-
-    if (i == 8)
+    else
     {
-        err = FT_New_Face(ftlib, name, 0, &face);
-        if (err)
-            freetype_error(err, "Unable to create font from %s", name);
-        if (strlen(name) >= 4)
+        aspect = gli_conf_propaspect;
+        size = gli_conf_propsize;
+        family = gli_conf_propfont;
+    }
+
+    if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
+        return get_font_path(font, fontpath, sizeof fontpath) && FT_New_Face(ftlib, fontpath, 0, &face) == 0;
+    }))
+    {
+        if (family == nullptr || family[0] == 0)
+            winabort("No font family specified for %s %s, and fallback %s not found", type_to_name(font.type), style_to_name(font.style), font.fallback);
+        else
+            winabort("Unable to find font %s for %s %s, and fallback %s not found", family, type_to_name(font.type), style_to_name(font.style), font.fallback);
+    }
+
+    if (strlen(fontpath) >= 4)
+    {
+        char afmbuf[1024], *ext;
+
+        std::snprintf(afmbuf, sizeof afmbuf, "%s", fontpath);
+        ext = &afmbuf[strlen(afmbuf) - 4];
+
+        if (std::strcmp(ext, ".PFA") == 0 ||
+            std::strcmp(ext, ".pfa") == 0 ||
+            std::strcmp(ext, ".PFB") == 0 ||
+            std::strcmp(ext, ".pfb") == 0)
         {
-            char afmbuf[1024], *ext;
-
-            std::snprintf(afmbuf, sizeof afmbuf, "%s", name);
-            ext = &afmbuf[strlen(afmbuf) - 4];
-
-            if (std::strcmp(ext, ".PFA") == 0 ||
-                std::strcmp(ext, ".pfa") == 0 ||
-                std::strcmp(ext, ".PFB") == 0 ||
-                std::strcmp(ext, ".pfb") == 0)
-            {
-                // These strcpy() calls are safe because it's guaranteed
-                // that ext points to at least 5 bytes.
-                std::strcpy(ext, ".afm");
-                FT_Attach_File(face, afmbuf);
-                std::strcpy(ext, ".AFM");
-                FT_Attach_File(face, afmbuf);
-            }
+            // These strcpy() calls are safe because it's guaranteed
+            // that ext points to at least 5 bytes.
+            std::strcpy(ext, ".afm");
+            FT_Attach_File(face, afmbuf);
+            std::strcpy(ext, ".AFM");
+            FT_Attach_File(face, afmbuf);
         }
     }
 
     err = FT_Set_Char_Size(face, size * aspect * 64, size * 64, 72, 72);
     if (err)
-        freetype_error(err, "Error in FT_Set_Char_Size for %s", name);
+        freetype_error(err, "Error in FT_Set_Char_Size for %s", fontpath);
 
     err = FT_Select_Charmap(face, ft_encoding_unicode);
     if (err)
-        freetype_error(err, "Error in FT_Select_CharMap for %s", name);
+        freetype_error(err, "Error in FT_Select_CharMap for %s", fontpath);
 
     kerned = FT_HAS_KERNING(face);
 
-    switch (style)
+    switch (font.style)
     {
         case FONTR:
             make_bold = false;
@@ -321,10 +408,6 @@ font_t::~font_t()
 
 void gli_initialize_fonts(void)
 {
-    float monoaspect = gli_conf_monoaspect;
-    float propaspect = gli_conf_propaspect;
-    float monosize = gli_conf_monosize;
-    float propsize = gli_conf_propsize;
     int err;
     int i;
 
@@ -338,7 +421,6 @@ void gli_initialize_fonts(void)
     if (err)
         freetype_error(err, "Unable to initialize FreeType");
 
-    /* replace built-in fonts with configured system font */
     fontload();
     fontreplace(gli_conf_monofont, MONOF);
     fontreplace(gli_conf_propfont, PROPF);
@@ -350,15 +432,19 @@ void gli_initialize_fonts(void)
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    gfont_table[0] = std::make_shared<font_t>(gli_conf_monor, monosize, monoaspect, FONTR);
-    gfont_table[1] = std::make_shared<font_t>(gli_conf_monob, monosize, monoaspect, FONTB);
-    gfont_table[2] = std::make_shared<font_t>(gli_conf_monoi, monosize, monoaspect, FONTI);
-    gfont_table[3] = std::make_shared<font_t>(gli_conf_monoz, monosize, monoaspect, FONTZ);
+    struct font fonts[8] = {
+        { gli_conf_monor, "Gargoyle-Mono.ttf", MONOF, FONTR },
+        { gli_conf_monob, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB },
+        { gli_conf_monoi, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI },
+        { gli_conf_monoz, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ },
+        { gli_conf_propr, "Gargoyle-Serif.ttf", PROPF, FONTR },
+        { gli_conf_propb, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB },
+        { gli_conf_propi, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI },
+        { gli_conf_propz, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ },
+    };
 
-    gfont_table[4] = std::make_shared<font_t>(gli_conf_propr, propsize, propaspect, FONTR);
-    gfont_table[5] = std::make_shared<font_t>(gli_conf_propb, propsize, propaspect, FONTB);
-    gfont_table[6] = std::make_shared<font_t>(gli_conf_propi, propsize, propaspect, FONTI);
-    gfont_table[7] = std::make_shared<font_t>(gli_conf_propz, propsize, propaspect, FONTZ);
+    for (int i = 0; i < 8; i++)
+        gfont_table[i] = std::make_shared<font_t>(fonts[i]);
 
     const auto &entry = gfont_table[0]->loadglyph('0');
 

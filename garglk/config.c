@@ -34,27 +34,20 @@
 int gli_utf8input = FALSE ;
 int gli_utf8output = FALSE ;
 
-char *gli_conf_propr = "NotoSerif-Regular";
-char *gli_conf_propb = "NotoSerif-Bold";
-char *gli_conf_propi = "NotoSerif-Italic";
-char *gli_conf_propz = "NotoSerif-BoldItalic";
+char *gli_conf_propr = NULL;
+char *gli_conf_propb = NULL;
+char *gli_conf_propi = NULL;
+char *gli_conf_propz = NULL;
 
-char *gli_conf_monor = "GoMono-Regular";
-char *gli_conf_monob = "GoMono-Bold";
-char *gli_conf_monoi = "GoMono-Italic";
-char *gli_conf_monoz = "GoMono-BoldItalic";
+char *gli_conf_monor = NULL;
+char *gli_conf_monob = NULL;
+char *gli_conf_monoi = NULL;
+char *gli_conf_monoz = NULL;
 
-#ifdef BUNDLED_FONTS
-char *gli_conf_monofont = "";
-char *gli_conf_propfont = "";
-float gli_conf_monosize = 12.5;	/* good size for GoMono */
-float gli_conf_propsize = 13.4;	/* good size for NotoSerif */
-#else
-char *gli_conf_monofont = "Liberation Mono";
-char *gli_conf_propfont = "Linux Libertine O";
-float gli_conf_monosize = 12.5;	/* good size for LiberationMono */
-float gli_conf_propsize = 15.5;	/* good size for Libertine */
-#endif
+char *gli_conf_monofont = "Gargoyle Mono";
+char *gli_conf_propfont = "Gargoyle Serif";
+float gli_conf_monosize = 12.6;	/* good size for Gargoyle Mono */
+float gli_conf_propsize = 14.7;	/* good size for Gargoyle Serif */
 
 style_t gli_tstyles[style_NUMSTYLES] =
 {

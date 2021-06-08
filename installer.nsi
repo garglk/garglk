@@ -24,6 +24,11 @@ SetCompressor lzma
 !include MultiUser.nsh
 !include MUI.nsh
 !include Unix2DOS.nsh
+!include WinMessages.nsh
+
+; From https://nsis.sourceforge.io/FontName_plug-in
+!include FontReg.nsh
+!include FontName.nsh
 
 ;
 ; The installer theme
@@ -76,6 +81,7 @@ Section "DoInstall"
     File "build\dist\*.exe"
     File "build\dist\*.dll"
     File "licenses\*.txt"
+    File "fonts\*.ttf"
     File "/oname=garglk.ini.tmp" "garglk\garglk.ini"
     Push "garglk.ini.tmp"
     Push "garglk.ini"
@@ -159,6 +165,7 @@ Section "Uninstall"
     Delete $INSTDIR\*.exe
     Delete $INSTDIR\*.dll
     Delete $INSTDIR\*.txt
+    Delete $INSTDIR\*.ttf
     Delete $INSTDIR\plugins\platforms\*.*
     RMDir $INSTDIR\plugins\platforms
     RMDir $INSTDIR\plugins
@@ -170,5 +177,27 @@ Section "Uninstall"
     RMDir "$SMPROGRAMS\Gargoyle"
     RMDir "$INSTDIR"
 
+    Delete "$FONTS\Gargoyle-Mono-Bold-Italic.ttf"
+    Delete "$FONTS\Gargoyle-Mono-Bold.ttf"
+    Delete "$FONTS\Gargoyle-Mono-Italic.ttf"
+    Delete "$FONTS\Gargoyle-Mono.ttf"
+    Delete "$FONTS\Gargoyle-Serif-Bold-Italic.ttf"
+    Delete "$FONTS\Gargoyle-Serif-Bold.ttf"
+    Delete "$FONTS\Gargoyle-Serif-Italic.ttf"
+    Delete "$FONTS\Gargoyle-Serif.ttf"
 SectionEnd
 
+Section "Fonts"
+    StrCpy $FONT_DIR $FONTS
+
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Mono-Bold-Italic.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Mono-Bold.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Mono-Italic.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Mono.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Serif-Bold-Italic.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Serif-Bold.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Serif-Italic.ttf"
+    !insertmacro InstallTTFFont "fonts\Gargoyle-Serif.ttf"
+
+    SendMessage ${HWND_BROADCAST} ${WM_FONTCHANGE} 0 0 /TIMEOUT=5000
+SectionEnd

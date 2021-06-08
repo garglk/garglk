@@ -35,6 +35,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -645,10 +646,6 @@ extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
     glui32 rock);
 extern void gli_delete_fileref(fileref_t *fref);
 
-#ifdef BUNDLED_FONTS
-void gli_get_builtin_font(int idx, const unsigned char **ptr, unsigned int *len);
-#endif
-
 void gli_initialize_fonts(void);
 void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb);
 void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb);
@@ -684,6 +681,7 @@ void winopenfile(const char *prompt, char *buf, int buflen, enum FILEFILTERS fil
 void winsavefile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
+bool winfontpath(const char *filename, char *outpath, size_t n);
 
 void fontreplace(char *font, int type);
 void fontload(void);
