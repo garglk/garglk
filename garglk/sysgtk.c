@@ -587,8 +587,6 @@ void winopen(void)
     g_signal_connect(imcontext, "commit",
         G_CALLBACK(oninput), NULL);
 
-    gtk_window_set_decorated(GTK_WINDOW(frame), FALSE);
-
     if (gli_conf_fullscreen)
     {
         GdkMonitor *monitor;
