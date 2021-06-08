@@ -777,7 +777,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                     break;
                 }
             }
-            for (lx=0, cx=buf; lx<len; lx++, cx++)
+            for (lx = 0, cx = (unsigned char *)buf; lx < len; lx++, cx++)
                 gli_window_put_char_uni(str->win, *cx);
             if (str->win->echostr)
                 gli_put_buffer(str->win->echostr, buf, len);
@@ -946,7 +946,7 @@ static glui32 gli_unput_buffer(stream_t *str, const char *buf, glui32 len)
                 return 0;
             }
         }
-        for (lx=0, cx=buf+len-1; lx<len; lx++, cx--)
+        for (lx = 0, cx = (unsigned char *)buf + len - 1; lx < len; lx++, cx--)
         {
             if (!gli_window_unput_char_uni(str->win, *cx))
                 break;

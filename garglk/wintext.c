@@ -404,9 +404,12 @@ void win_textbuffer_redraw(window_t *win)
         /* check if part of line is selected */
         if (selbuf)
         {
+            unsigned int ux, uy;
             selrow = gli_get_selection(x0/GLI_SUBPIX, y,
                     x1/GLI_SUBPIX, y + gli_leading,
-                    &sx0, &sx1);
+                    &ux, &uy);
+            sx0 = ux;
+            sx1 = uy;
             selleft = (sx0 == x0/GLI_SUBPIX);
             selright = (sx1 == x1/GLI_SUBPIX);
         }
