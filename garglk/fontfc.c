@@ -34,20 +34,18 @@ static bool initialized = false;
 static bool findfont(const char *fontname, char *fontpath, size_t n)
 {
     FcPattern *p = NULL;
-    FcChar8 *strval = NULL;
     FcFontSet *fs = NULL;
-    FcResult result;
+    FcObjectSet *os = NULL;
+    FcChar8 *strval = NULL;
     bool success = false;
 
     p = FcNameParse((FcChar8*)fontname);
     if (p == NULL)
         goto out;
 
-    FcConfigSubstitute(NULL, p, FcMatchPattern);
-    FcDefaultSubstitute(p);
-
-    fs = FcFontSort(NULL, p, FcFalse, NULL, &result);
-    if (fs == NULL || result != FcResultMatch || fs->nfont == 0)
+    os = FcObjectSetBuild(FC_FILE, (char *)NULL);
+    fs = FcFontList(NULL, p, os);
+    if (fs->nfont == 0)
         goto out;
 
     if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch
@@ -60,6 +58,9 @@ static bool findfont(const char *fontname, char *fontpath, size_t n)
 out:
     if (fs != NULL)
         FcFontSetDestroy(fs);
+
+    if (os != NULL)
+        FcObjectSetDestroy(os);
 
     if (p != NULL)
         FcPatternDestroy(p);
@@ -83,7 +84,7 @@ static char *find_font_by_styles(const char *basefont, const char **styles, cons
                     char fontname[1024];
                     char fontpath[1024];
 
-                    snprintf(fontname, sizeof fontname, "%s:style=%s:%s:%s%s", basefont, *style, *weight, *slant, *width);
+                    snprintf(fontname, sizeof fontname, "%s:style=%s:weight=%s:%s%s", basefont, *style, *weight, *slant, *width);
                     if (findfont(fontname, fontpath, sizeof fontpath))
                     {
                         return strdup(fontpath);
@@ -147,8 +148,15 @@ void fontreplace(char *font, int type)
     const char *bold_styles[] = {"Bold", "Extrabold", "Semibold", "Black", NULL};
     const char *bold_italic_styles[] = {"Bold Italic", "Extrabold Italic", "Semibold Italic", "Black Italic", "Bold Oblique", "Extrabold Oblique", "Semibold Oblique", "Black Oblique", NULL};
 
-    const char *regular_weights[] = {"regular", "book", "medium", NULL};
-    const char *bold_weights[] = {"bold", "extrabold", "semibold", "black", "medium", NULL};
+    // Fontconfig could/should accept "medium" (for example), and this
+    // generally works, except that in some rare cases I've seen it
+    // return weights that are not medium (100); explicitly listing the
+    // weight value doesn't have this problem.
+
+    // Book, Regular, Medium
+    const char *regular_weights[] = {"75", "80", "100", NULL};
+    // Demibold/Semibold, Bold, Extrabold, Black
+    const char *bold_weights[] = {"180", "200", "205", "210", NULL};
 
     const char *roman_slants[] = {"roman", NULL};
     const char *italic_slants[] = {"italic", "oblique", NULL};
