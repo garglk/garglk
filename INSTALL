@@ -56,7 +56,6 @@ For the MacPorts packages you'll need, type:
   sudo port install libsdl2_mixer
   sudo port install libpng
   sudo port install jpeg
-  sudo port install smpeg
   sudo port install freetype
   sudo port install pkgconfig
   sudo port install jam
@@ -67,7 +66,6 @@ If you're using Homebrew, instead type:
   brew install sdl2_mixer
   brew install libpng
   brew install jpeg
-  brew install smpeg
   brew install libvorbis
   brew install freetype
   brew install pkg-config
