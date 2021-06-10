@@ -1,9 +1,0 @@
-[Desktop Entry]
-Name=Gargoyle
-TryExec=gargoyle
-Exec=gargoyle %F >> /tmp/gargoyle.log 2>&1
-StartupNotify=true
-Terminal=false
-Type=Application
-Categories=Literature
-MimeType=application/x-ifiction

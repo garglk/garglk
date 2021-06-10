@@ -1,9 +1,0 @@
-#!/bin/sh
-set -e
-
-if [ "$1" = "remove" ]; then
-	sed -i -e'/x-ifiction/d' /usr/share/applications/defaults.list
-	sed -i -e'/x-ifiction/d' /usr/share/mime/globs
-	sed -i -e'/x-ifiction/d' /usr/share/mime/globs2
-fi
-
