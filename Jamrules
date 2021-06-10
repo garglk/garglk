@@ -10,7 +10,6 @@ MACOS_MIN_VER ?= 10.7 ;
 BUNDLEFONTS ?= yes ;
 USETTS ?= no ;
 
-# jam -sGUILIB=EFL
 GUILIB ?= gtk+ ;
 
 # jam -sGARGLKINI=/usr/local/etc/garglk.ini
@@ -35,21 +34,6 @@ if $(CROSS)
     RANLIB  = $(MINGWARCH)-ranlib ;
     LINK    = $(CC) ;
     PKGCONF = $(MINGWARCH)-pkg-config ;
-}
-
-#cross compiling for Open Inkpot
-#jam -sIPLINUXARCH=mipsel-ip-linux-gnu
-if $(IPLINUXARCH)
-{
-    OS      = IPLINUX ;
-    GUILIB  = EFL ;
-    USESDL  = no ;
-    CC      = $(IPLINUXARCH)-gcc ;
-    C++     = $(IPLINUXARCH)-g++ ;
-    CXX     = $(IPLINUXARCH)-g++ ;
-    AR      = $(IPLINUXARCH)-ar cru ;
-    RANLIB  = $(IPLINUXARCH)-ranlib ;
-    LINK    = $(CC) ;
 }
 
 switch $(OS)
@@ -123,11 +107,7 @@ switch $(PLATFORM)
 
     case UNIX :
         Echo "OS is $(OS) ($(GUILIB))" ;
-        if $(GUILIB) = EFL {
-            PKGCONFIG = "pkg-config freetype2 evas ecore ecore-evas elementary fontconfig" ;
-        } else {
-            PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
-        }
+        PKGCONFIG = "pkg-config freetype2 gtk+-3.0 gdk-3.0 gobject-2.0 glib-2.0 fontconfig" ;
 
         if $(USETTS) = yes {
            PKGCONFIG = "$(PKGCONFIG) speech-dispatcher" ;
@@ -147,23 +127,6 @@ switch $(PLATFORM)
         # Not all supported platforms include a pkg-config file for libjpeg.
         GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
         LINKLIBS = -lm "`$(PKGCONFIG) --libs`" ;
-
-        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
-        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
-
-
-    case IPLINUX :
-        Echo "OS is IPLINUX (EFL)" ;
-        PKGCONFIG = "PKG_CONFIG_PATH=/usr/$(IPLINUXARCH)/lib/pkgconfig pkg-config freetype2 fontconfig libkeys libeoi eina-0 evas ecore ecore-x ecore-file ecore-evas edje" ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" -fPIC ;
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg -lpng -lm -lrt ;
-        LINKLIBS = -lz -lm "`$(PKGCONFIG) --libs`" ;
-
-        if $(USESDL) = yes
-        {
-            GARGLKCCFLAGS += -I/usr/include/SDL2 ;
-            GARGLKLIBS += -lSDL2_mixer -lSDL2 ;
-        }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
         else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
