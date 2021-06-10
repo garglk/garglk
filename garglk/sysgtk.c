@@ -579,7 +579,7 @@ void winopen(void)
     canvas = gtk_drawing_area_new();
     g_signal_connect(frame, "size_allocate",
                        G_CALLBACK(onresize), NULL);
-    g_signal_connect(frame, "draw",
+    g_signal_connect(canvas, "draw",
                        G_CALLBACK(ondraw), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
 
