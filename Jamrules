@@ -179,7 +179,7 @@ switch $(PLATFORM)
         if $(USESDL) = yes
         {
             GARGLKCCFLAGS += -I/usr/include/SDL2 ;
-            GARGLKLIBS += -lSDL2_mixer -lSDL2 -lsmpeg -lvorbisfile ;
+            GARGLKLIBS += -lSDL2_mixer -lSDL2 -lvorbisfile ;
         }
 
         if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
@@ -212,7 +212,7 @@ switch $(PLATFORM)
         {
             PKGCONFIG = "pkg-config SDL2_mixer sdl2 vorbisfile" ;
             GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags`" ;
-            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lsmpeg ;
+            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
         }
 
         LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
