@@ -577,11 +577,15 @@ void winopen(void)
         G_CALLBACK(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
-    g_signal_connect(frame, "size_allocate",
+    g_signal_connect(canvas, "size_allocate",
+                       G_CALLBACK(onresize), NULL);
+    g_signal_connect(canvas, "size_request",
                        G_CALLBACK(onresize), NULL);
     g_signal_connect(canvas, "draw",
                        G_CALLBACK(ondraw), NULL);
     gtk_container_add(GTK_CONTAINER(frame), canvas);
+
+    gtk_widget_set_size_request(canvas, defw, defh);
 
     imcontext = gtk_im_multicontext_new();
     g_signal_connect(imcontext, "commit",
@@ -607,12 +611,6 @@ void winopen(void)
     }
 
     wintitle();
-
-    gtk_window_set_geometry_hints(GTK_WINDOW(frame),
-        GTK_WIDGET(frame), &geom,
-        GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE
-        );
-    gtk_window_set_default_size(GTK_WINDOW(frame), defw, defh);
 
     gtk_widget_show(canvas);
     gtk_widget_show(frame);
