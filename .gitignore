@@ -4,3 +4,8 @@
 /*.dmg
 /*.zip
 /*.exe
+*.o
+.cache/
+.ccls-cache/
+.clangd/
+compile_commands.json
