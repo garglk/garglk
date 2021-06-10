@@ -556,30 +556,29 @@ void winopen(void)
 
     frame = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_widget_set_can_focus(frame, TRUE);
-    gtk_widget_set_events(frame, GDK_BUTTON_PRESS_MASK
-                               | GDK_BUTTON_RELEASE_MASK
-                               | GDK_POINTER_MOTION_MASK
-                               | GDK_POINTER_MOTION_HINT_MASK
-                               | GDK_SCROLL_MASK);
-    g_signal_connect(frame, "button_press_event",
-                       G_CALLBACK(onbuttondown), NULL);
-    g_signal_connect(frame, "button_release_event",
-                       G_CALLBACK(onbuttonup), NULL);
-    g_signal_connect(frame, "scroll_event",
-                       G_CALLBACK(onscroll), NULL);
     g_signal_connect(frame, "key_press_event",
                        G_CALLBACK(onkeydown), NULL);
     g_signal_connect(frame, "key_release_event",
                        G_CALLBACK(onkeyup), NULL);
     g_signal_connect(frame, "destroy",
                        G_CALLBACK(onquit), "WM destroy");
-    g_signal_connect(frame, "motion_notify_event",
-        G_CALLBACK(onmotion), NULL);
 
     canvas = gtk_drawing_area_new();
+    gtk_widget_set_events(canvas, GDK_BUTTON_PRESS_MASK
+                               | GDK_BUTTON_RELEASE_MASK
+                               | GDK_POINTER_MOTION_MASK
+                               | GDK_POINTER_MOTION_HINT_MASK
+                               | GDK_SCROLL_MASK);
+    g_signal_connect(canvas, "button_press_event",
+                       G_CALLBACK(onbuttondown), NULL);
+    g_signal_connect(canvas, "button_release_event",
+                       G_CALLBACK(onbuttonup), NULL);
+    g_signal_connect(canvas, "scroll_event",
+                       G_CALLBACK(onscroll), NULL);
+    g_signal_connect(canvas, "motion_notify_event",
+        G_CALLBACK(onmotion), NULL);
+
     g_signal_connect(canvas, "size_allocate",
-                       G_CALLBACK(onresize), NULL);
-    g_signal_connect(canvas, "size_request",
                        G_CALLBACK(onresize), NULL);
     g_signal_connect(canvas, "draw",
                        G_CALLBACK(ondraw), NULL);
