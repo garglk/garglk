@@ -427,29 +427,6 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 #endif
 }
 
-void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb)
-{
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned char invalf[3];
-        invalf[0] = 255 - alpha[0];
-        invalf[1] = 255 - alpha[1];
-        invalf[2] = 255 - alpha[2];
-    if (x < 0 || x >= gli_image_w)
-        return;
-    if (y < 0 || y >= gli_image_h)
-        return;
-#ifdef WIN32
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
-#else
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf[2]);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf[1]);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf[0]);
-    p[3] = 0xFF;
-#endif
-}
-
 static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
@@ -514,32 +491,6 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
     p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf[0])];
     p[3] = 0xFF;
 #endif
-}
-
-
-static inline void draw_bitmap(bitmap_t *b, int x, int y, unsigned char *rgb)
-{
-    int i, k, c;
-    for (k = 0; k < b->h; k++)
-    {
-        for (i = 0; i < b->w; i ++)
-        {
-            c = b->data[k * b->pitch + i];
-            gli_draw_pixel(x + b->lsb + i, y - b->top + k, c, rgb);
-        }
-    }
-}
-
-static inline void draw_bitmap_lcd(bitmap_t *b, int x, int y, unsigned char *rgb)
-{
-    int i, j, k;
-    for (k = 0; k < b->h; k++)
-    {
-        for (i = 0, j = 0; i < b->w; i += 3, j ++)
-        {
-            gli_draw_pixel_lcd(x + b->lsb + j, y - b->top + k, b->data + k * b->pitch + i, rgb);
-        }
-    }
 }
 
 static inline void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
