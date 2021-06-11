@@ -905,25 +905,3 @@ viewproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
     /* Pass on unhandled events to Windows */
     return DefWindowProc(hwnd, message, wParam, lParam);
 }
-
-/* monotonic clock time for profiling */
-void wincounter(glktimeval_t *time)
-{
-    static double gli_second_res = 0;
-    if (!gli_second_res)
-    {
-        LARGE_INTEGER res;
-        QueryPerformanceFrequency(&res);
-        gli_second_res = (double) res.QuadPart;
-    }
-
-    LARGE_INTEGER tick;
-    QueryPerformanceCounter(&tick);
-
-    double sec = (double) tick.QuadPart / gli_second_res;
-    double mic = (double) tick.QuadPart / (gli_second_res / 1000000);
-
-    time->high_sec = 0;
-    time->low_sec  = (unsigned int) sec;
-    time->microsec = (unsigned int) fmod(mic, 1000000);
-}

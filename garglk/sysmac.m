@@ -712,20 +712,3 @@ void gli_select(event_t *event, int polled)
 
     [pool drain];
 }
-
-/* monotonic clock time for profiling */
-void wincounter(glktimeval_t *time)
-{
-    static mach_timebase_info_data_t info = {0,0};
-    if (!info.denom)
-        mach_timebase_info(&info);
-
-    uint64_t tick = mach_absolute_time();
-    tick *= info.numer;
-    tick /= info.denom;
-    uint64_t micro = tick / 1000;
-
-    time->high_sec = 0;
-    time->low_sec  = (unsigned int) ((micro / 1000000) & 0xFFFFFFFF);
-    time->microsec = (unsigned int) ((micro % 1000000) & 0xFFFFFFFF);
-}
