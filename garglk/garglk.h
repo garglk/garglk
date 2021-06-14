@@ -712,6 +712,9 @@ void winopen(void);
 void wintitle(void);
 void winmore(void);
 void winrepaint(int x0, int y0, int x1, int y1);
+#ifdef __GNUC__
+__attribute__((__format__(__printf__, 1, 2)))
+#endif
 void winabort(const char *fmt, ...);
 void winopenfile(char *prompt, char *buf, int buflen, int filter);
 void winsavefile(char *prompt, char *buf, int buflen, int filter);
