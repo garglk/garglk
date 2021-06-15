@@ -126,7 +126,7 @@ static int urldecode(char *decoded, unsigned int maxlen, const char *encoded)
     return 1;
 }
 
-int winargs(int argc, char **argv, char *buffer)
+static int winargs(int argc, char **argv, char *buffer)
 {
     if (argc == 2)
     {
@@ -161,7 +161,7 @@ void winbrowsefile(char *buffer)
     GetOpenFileName(&ofn);
 }
 
-void winpath(char *buffer)
+static void winpath(char *buffer)
 {
     char exepath[MaxBuffer] = {0};
     unsigned int exelen;
@@ -182,7 +182,7 @@ void winpath(char *buffer)
    return;
 }
 
-int winexec(const char *cmd, char **args)
+static int winexec(const char *cmd, char **args)
 {
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
@@ -211,7 +211,7 @@ int winexec(const char *cmd, char **args)
     return (res != 0);
 }
 
-int winterp(char *path, char *exe, char *flags, char *game)
+int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
     snprintf(tmp, sizeof tmp, LaunchingTemplate, path, exe, flags, game);
 

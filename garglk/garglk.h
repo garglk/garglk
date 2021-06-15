@@ -716,8 +716,8 @@ void winrepaint(int x0, int y0, int x1, int y1);
 __attribute__((__format__(__printf__, 1, 2)))
 #endif
 void winabort(const char *fmt, ...);
-void winopenfile(char *prompt, char *buf, int buflen, int filter);
-void winsavefile(char *prompt, char *buf, int buflen, int filter);
+void winopenfile(const char *prompt, char *buf, int buflen, int filter);
+void winsavefile(const char *prompt, char *buf, int buflen, int filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
 
@@ -776,7 +776,7 @@ typedef glui32 gli_decomp_block_t[2]; /* count, position */
 
 void gli_putchar_utf8(glui32 val, FILE *fl);
 glui32 gli_getchar_utf8(FILE *fl);
-glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
+glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
 glui32 strlen_uni(const glui32 *s);
 

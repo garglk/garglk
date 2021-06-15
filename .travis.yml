@@ -15,11 +15,12 @@ addons:
       - g++-6
       - libsdl2-dev
       - libsdl2-mixer-dev
-      - libgtk-3-dev
       - libspeechd-dev
+      - qtbase5-dev
+      - qtbase5-dev-tools
 
 script:
-  - jam -dx -sC++=$CXX -sCC=$CC -sUSETTS=yes -j4
+  - jam -dx -sC++=$CXX -sCC=$CC -sMOC=/usr/lib/qt5/bin/moc -sUSETTS=yes -j4
 
 matrix:
   include:

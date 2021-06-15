@@ -45,6 +45,8 @@ static char buf[MaxBuffer];
 static char tmp[MaxBuffer];
 static char etc[MaxBuffer];
 
+static void winpath(char *buffer);
+
 enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
 static char *winfilters[] =
 {
@@ -944,7 +946,7 @@ void winmsg(const char *msg)
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 
-void winpath(char *buffer)
+static void winpath(char *buffer)
 {
     char exepath[MaxBuffer] = {0};
     unsigned int exelen;
@@ -965,7 +967,7 @@ void winpath(char *buffer)
         *dirpos = '\0';
 }
 
-int winexec(const char *cmd, char **args)
+static int winexec(const char *cmd, char **args)
 {
     NSTask * proc = [[NSTask alloc] init];
 
@@ -998,7 +1000,7 @@ int winexec(const char *cmd, char **args)
     return [proc isRunning];
 }
 
-int winterp(char *path, char *exe, char *flags, char *game)
+int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
     sprintf(tmp, LaunchingTemplate, dir, exe);
 
@@ -1006,13 +1008,13 @@ int winterp(char *path, char *exe, char *flags, char *game)
 
     if (strstr(flags, "-"))
     {
-        args[0] = exe;
-        args[1] = flags;
+        args[0] = (char *)exe;
+        args[1] = (char *)flags;
         args[2] = buf;
     }
     else
     {
-        args[0] = exe;
+        args[0] = (char *)exe;
         args[1] = buf;
     }
 

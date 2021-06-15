@@ -23,7 +23,7 @@ SubDirCcFlags
 
 # HTMLMODE ?= yes ;
 
-if $(OS) = LINUX || $(OS) = SOLARIS
+if $(OS) = LINUX
 {
     SubDirCcFlags
         -DOS_USHORT_DEFINED

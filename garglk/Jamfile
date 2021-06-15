@@ -3,7 +3,8 @@
 SubDir TOP garglk ;
 ObjDir garglk ;
 
-SubDirCcFlags $(GARGLKCCFLAGS) ;
+SubDirCcFlags $(CSTANDARD) $(GARGLKCCFLAGS) ;
+SUBDIRC++FLAGS = $(CXXSTANDARD) $(GARGLKCCFLAGS) ;
 
 SubDirCcFlags -DGARGLKINI=\\\"$(GARGLKINI)\\\" ;
 SubDirCcFlags -DGARGLKPRE=\\\"$(GARGLKPRE)\\\" ;
@@ -14,6 +15,11 @@ if $(OS) = MINGW
     SubDirHdrs $(TOP) support libjpeg ;
     SubDirHdrs $(TOP) support libpng ;
     SubDirHdrs $(TOP) support zlib ;
+}
+
+if $(PLATFORM) = UNIX
+{
+    LINK = $(C++) ;
 }
 
 if $(USESDL) = yes
@@ -71,11 +77,26 @@ else { GARGSRCS += sndnull.c ; }
 
 if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
 else if $(OS) = MACOSX { GARGSRCS += sysmac.m fontmac.m ; }
-else { GARGSRCS += sysgtk.c fontfc.c ; }
+else
+{
+    rule BuildMoc
+    {
+        Depends garglk/$(1) : $(2) ;
+        Clean clean : garglk/$(1) ;
+    }
+
+    actions BuildMoc
+    {
+        $(MOC) $(2) -o garglk/$(1)
+    }
+
+    BuildMoc moc_sysqt.h : sysqt.h ;
+    GARGSRCS += sysqt.cpp fontfc.c ;
+}
 
 if $(OS) = MINGW { Main gargoyle : launchwin.c launcher.c ; }
 else if $(OS) = MACOSX { Main gargoyle : launchmac.m launcher.c ; }
-else { Main gargoyle : launchgtk.c launcher.c ; }
+else { Main gargoyle : launchqt.cpp launcher.c ; }
 
 Library libgarglkmain : main.c ;
 
