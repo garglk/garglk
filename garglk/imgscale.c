@@ -61,9 +61,9 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
     unsigned char *xelrow;
     unsigned char *tempxelrow;
     unsigned char *newxelrow;
-    register unsigned char *xP;
-    register unsigned char *nxP;
-    register int row, col;
+    unsigned char *xP;
+    unsigned char *nxP;
+    int row, col;
 
     int rowsread, needtoreadrow;
 
@@ -73,7 +73,7 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
     float xscale, yscale;
     long sxscale, syscale;
 
-    register long fracrowtofill, fracrowleft;
+    long fracrowtofill, fracrowleft;
     long *rs;
     long *gs;
     long *bs;
@@ -152,7 +152,7 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
             for ( col = 0, xP = xelrow, nxP = tempxelrow;
                     col < cols; ++col, xP += 4, nxP += 4)
             {
-                register long r, g, b, a;
+                long r, g, b, a;
                 r = rs[col] + fracrowtofill * xP[0] * xP[3];
                 g = gs[col] + fracrowtofill * xP[1] * xP[3];
                 b = bs[col] + fracrowtofill * xP[2] * xP[3];
@@ -192,9 +192,9 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
         /* Now scale X from tempxelrow into newxelrow and write it out. */
         {
-            register long r, g, b, a;
-            register long fraccoltofill, fraccolleft;
-            register int needcol;
+            long r, g, b, a;
+            long fraccoltofill, fraccolleft;
+            int needcol;
 
             nxP = newxelrow;
             fraccoltofill = SCALE;

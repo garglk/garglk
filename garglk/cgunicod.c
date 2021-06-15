@@ -71,7 +71,7 @@ void gli_putchar_utf8(glui32 val, FILE *fl)
     }
 }
 
-static inline glui32 read_byte(FILE *fl)
+static glui32 read_byte(FILE *fl)
 {
     int c;
 

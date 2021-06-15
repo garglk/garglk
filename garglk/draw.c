@@ -43,10 +43,6 @@
 #define mulhigh(a,b) (((a) * ((b) + 1)) >> (8 + GAMMA_SHIFT))
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
-#ifdef _WIN32
-#define inline	__inline
-#endif
-
 typedef struct font_s font_t;
 typedef struct bitmap_s bitmap_t;
 typedef struct fentry_s fentry_t;
@@ -493,7 +489,7 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
 #endif
 }
 
-static inline void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -506,7 +502,7 @@ static inline void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *r
     }
 }
 
-static inline void draw_bitmap_lcd_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
