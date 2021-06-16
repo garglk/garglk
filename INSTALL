@@ -34,11 +34,11 @@ sudo cp garglk/garglk.ini /etc/garglk.ini
 
 To build cleanly with jam, you first need to install the pre-requisite packages:
 
-`sudo dnf install jam freetype-devel gcc-c++ libjpeg-turbo-devel qt5-devel qt5-qtbase`
+`sudo dnf install jam fontconfig-devel freetype-devel gcc-c++ libjpeg-turbo-devel qt5-qtbase-devel qt5-qtbase`
 
 If you want to compile with SDL support, you also need to install the development packages for that:
 
-`sudo dnf SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel`
+`sudo dnf install SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel`
 
 After that, just follow the general instructions above.
 
