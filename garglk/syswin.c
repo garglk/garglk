@@ -145,7 +145,7 @@ void winabort(const char *fmt, ...)
     vsnprintf(buf, sizeof buf, fmt, ap);
     va_end(ap);
     MessageBoxA(NULL, buf, " Fatal error", MB_ICONERROR);
-    abort();
+    exit(EXIT_FAILURE);
 }
 
 void winexit(void)

@@ -28,6 +28,7 @@
 #include <QFileDialog>
 #include <QGraphicsView>
 #include <QMainWindow>
+#include <QMessageBox>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QString>
@@ -90,13 +91,14 @@ void gli_notification_waiting()
 void winabort(const char *fmt, ...)
 {
     std::va_list ap;
+    char msg[4096];
 
-    std::fprintf(stderr, "fatal: ");
     va_start(ap, fmt);
-    std::vfprintf(stderr, fmt, ap);
+    std::vsnprintf(msg, sizeof msg, fmt, ap);
     va_end(ap);
-    std::fflush(stderr);
-    std::abort();
+    fprintf(stderr, "fatal: %s\n", msg);
+    QMessageBox::critical(nullptr, "Error", msg);
+    std::exit(EXIT_FAILURE);
 }
 
 void winexit()
