@@ -134,6 +134,29 @@ void gli_set_lcdfilter(const char *filter)
  * Font loading
  */
 
+#ifdef __GNUC__
+__attribute__((__format__(__printf__, 2, 3)))
+#endif
+static void freetype_error(int err, const char *fmt, ...)
+{
+    char msg1[4096], msg2[4096];
+    // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
+    // this will always be NULL.
+    const char *errstr = FT_Error_String(err);
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(msg1, sizeof msg1, fmt, ap);
+    va_end(ap);
+
+    if (errstr == NULL)
+        snprintf(msg2, sizeof msg2, "%s (error code %d)", msg1, err);
+    else
+        snprintf(msg2, sizeof msg2, "%s: %s", msg1, errstr);
+
+    winabort("%s", msg2);
+}
+
 static int findhighglyph(glui32 cid, fentry_t *entries, int length)
 {
     int start = 0, end = length, mid = 0;
@@ -174,7 +197,7 @@ static void loadglyph(font_t *f, glui32 cid)
         err = FT_Load_Glyph(f->face, gid,
                 FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
         if (err)
-            winabort("FT_Load_Glyph");
+            freetype_error(err, "Error in FT_Load_Glyph");
 
         if (f->make_bold)
             FT_Outline_Embolden(&f->face->glyph->outline, FT_MulFix(f->face->units_per_EM, f->face->size->metrics.y_scale) / 24);
@@ -193,7 +216,7 @@ static void loadglyph(font_t *f, glui32 cid)
             err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
 
         if (err)
-            winabort("FT_Render_Glyph");
+            freetype_error(err, "Error in FT_Render_Glyph");
 
         datasize = f->face->glyph->bitmap.pitch * f->face->glyph->bitmap.rows;
         adv = (f->face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
@@ -278,7 +301,7 @@ static void loadfont(font_t *f, const char *name, float size, float aspect, int 
             gli_get_builtin_font(i, &mem, &len);
             err = FT_New_Memory_Face(ftlib, mem, len, 0, &f->face);
             if (err)
-                winabort("FT_New_Face: %s: 0x%x", name, err);
+                freetype_error(err, "Unable to create font from %s", name);
             break;
         }
     }
@@ -290,7 +313,7 @@ static void loadfont(font_t *f, const char *name, float size, float aspect, int 
     {
         err = FT_New_Face(ftlib, name, 0, &f->face);
         if (err)
-            winabort("FT_New_Face: %s: 0x%x", name, err);
+            freetype_error(err, "Unable to create font from %s", name);
         if (strlen(name) >= 4)
         {
             char afmbuf[1024], *ext;
@@ -315,11 +338,11 @@ static void loadfont(font_t *f, const char *name, float size, float aspect, int 
 
     err = FT_Set_Char_Size(f->face, size * aspect * 64, size * 64, 72, 72);
     if (err)
-        winabort("FT_Set_Char_Size: %s", name);
+        freetype_error(err, "Error in FT_Set_Char_Size for %s", name);
 
     err = FT_Select_Charmap(f->face, ft_encoding_unicode);
     if (err)
-        winabort("FT_Select_CharMap: %s", name);
+        freetype_error(err, "Error in FT_Select_CharMap for %s", name);
 
     memset(f->lowloaded, 0, sizeof f->lowloaded);
     f->alloced_highentries = 0;
@@ -369,7 +392,7 @@ void gli_initialize_fonts(void)
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
-        winabort("FT_Init_FreeType");
+        freetype_error(err, "Unable to initialize FreeType");
 
     /* replace built-in fonts with configured system font */
     fontload();
@@ -610,7 +633,7 @@ static int charkern(font_t *f, int c0, int c1)
 
     err = FT_Get_Kerning(f->face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err)
-        winabort("FT_Get_Kerning");
+        freetype_error(err, "Error in FT_Get_Kerning");
 
     item->value = (v.x * GLI_SUBPIX) / 64.0;
     HASH_ADD_KEYPTR(hh, f->kerncache, item->pair, 2 * sizeof(glui32), item);
