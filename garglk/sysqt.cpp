@@ -163,7 +163,6 @@ Window::Window() :
     m_view(new View(this)),
     m_timer(new QTimer(this))
 {
-    m_timer->setSingleShot(true);
     connect(m_timer, &QTimer::timeout, [&]() { m_timed_out = true; });
 }
 
