@@ -69,10 +69,6 @@ public:
         return mapped_extensions;
     }
 
-    QStringList extensions() const {
-        return m_extensions;
-    }
-
 private:
     QString m_name;
     QStringList m_extensions;
@@ -108,10 +104,7 @@ static QString winbrowsefile()
     QStringList all_extensions;
     for (const auto &filter : filters)
     {
-        for (const auto &ext : filter.extensions())
-        {
-            all_extensions << filter.format_extensions();
-        }
+        all_extensions << filter.format_extensions();
     }
 
     QString filter_string = QString("All Games (%1);;All Files (*);;%2")
