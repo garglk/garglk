@@ -361,9 +361,20 @@ void View::wheelEvent(QWheelEvent *event)
     event->accept();
 }
 
-void wininit(int *argc, char **argv)
+void wininit(int *, char **)
 {
-    app = new QApplication(*argc, argv);
+    // QApplication takes argc by reference (because it might modify
+    // it), and thus requires it to live at least as long as the
+    // QApplication instance. However, the caller to this function is
+    // passing argc as the address of a function parameter which will no
+    // longer exist as soon as that function exits. This isn't really a
+    // Qt program in the normal sense, so doesn't need to provide Qt
+    // command-line arguments (such as -style). Create static dummy
+    // argument data here so it will live the entire life of the
+    // program and thus fulfull QApplication's requirements.
+    static int argc = 1;
+    static char *argv[] = { const_cast<char *>("gargoyle"), nullptr };
+    app = new QApplication(argc, argv);
 }
 
 void winopen()
