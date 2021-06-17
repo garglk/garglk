@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2010 by Ben Cressey.                                         *
+ * Copyright (C) 2021 by Chris Spiegel                                        *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -22,6 +23,7 @@
 
 #include <windows.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -31,103 +33,32 @@
 #define FONT_SUBKEY ("Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")
 
 // forward declaration
-static int find_font_file(const char *facename, char *filepath, size_t length);
+static bool find_font_file(const char *facename, char *filepath, size_t length);
 
 static HDC hdc;
 
-static int gli_sys_monor = FALSE;
-static int gli_sys_monob = FALSE;
-static int gli_sys_monoi = FALSE;
-static int gli_sys_monoz = FALSE;
-
-int CALLBACK monofont(
-    ENUMLOGFONTEX    *lpelfe,   /* pointer to logical-font data */
-    NEWTEXTMETRICEX  *lpntme,   /* pointer to physical-font data */
-    int              FontType,  /* type of font */
-    LPARAM           lParam     /* a combo box HWND */
-    )
+struct fonts
 {
-    char filepath[1024];
+    const char *name;
+    bool rset, bset, iset, zset;
+    char *r, *b, *i, *z;
+} monofonts, propfonts;
 
-    if (!(strlen(gli_conf_monofont)))
-        return 0;
-
-    if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
-        return 1;
-
-    char *file = strdup(filepath);
-
-    if (!gli_sys_monor && (!(strcmp(lpelfe->elfStyle,"Regular"))
-                || !(strcmp(lpelfe->elfStyle,"Roman"))))
-    {
-        gli_conf_monor = file;
-
-        if (!gli_sys_monob)
-            gli_conf_monob = file;
-
-        if (!gli_sys_monoi)
-            gli_conf_monoi = file;
-
-        if (!gli_sys_monoz && !gli_sys_monoi && !gli_sys_monob)
-            gli_conf_monoz = file;
-
-        gli_sys_monor = TRUE;
-    }
-
-    else if (!gli_sys_monob && (!(strcmp(lpelfe->elfStyle,"Bold"))))
-    {
-        gli_conf_monob = file;
-
-        if (!gli_sys_monoz && !gli_sys_monoi)
-            gli_conf_monoz = file;
-
-        gli_sys_monob = TRUE;
-    }
-
-    else if (!gli_sys_monoi && (!(strcmp(lpelfe->elfStyle,"Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Oblique"))))
-    {
-        gli_conf_monoi = file;
-
-        if (!gli_sys_monoz)
-            gli_conf_monoz = file;
-
-        gli_sys_monoi = TRUE;
-    }
-
-    else if (!gli_sys_monoz && (!(strcmp(lpelfe->elfStyle,"Bold Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))
-                || !(strcmp(lpelfe->elfStyle,"BoldOblique"))
-                || !(strcmp(lpelfe->elfStyle,"BoldItalic"))
-                ))
-    {
-        gli_conf_monoz = file;
-        gli_sys_monoz = TRUE;
-    }
-
-    else
-    {
-        free(file);
-    }
-
-    return 1;
+static void fill_in_fonts(struct fonts *fonts, char **r, char **b, char **i, char **z)
+{
+#define FILL(font) do { if (fonts->font != NULL) *(font) = fonts->font; } while(0);
+    FILL(r);
+    FILL(b);
+    FILL(i);
+    FILL(z);
+#undef FILL
 }
 
-static int gli_sys_propr = FALSE;
-static int gli_sys_propb = FALSE;
-static int gli_sys_propi = FALSE;
-static int gli_sys_propz = FALSE;
-
-int CALLBACK propfont(
-    ENUMLOGFONTEX    *lpelfe,   /* pointer to logical-font data */
-    NEWTEXTMETRICEX  *lpntme,   /* pointer to physical-font data */
-    int              FontType,  /* type of font */
-    LPARAM           lParam     /* a combo box HWND */
-    )
+static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
 {
     char filepath[1024];
 
-    if (!(strlen(gli_conf_propfont)))
+    if (fonts->name[0] == 0)
         return 0;
 
     if (!find_font_file(lpelfe->elfFullName, filepath, sizeof filepath))
@@ -135,52 +66,51 @@ int CALLBACK propfont(
 
     char *file = strdup(filepath);
 
-    if (!gli_sys_propr && (!(strcmp(lpelfe->elfStyle,"Regular"))
-                || !(strcmp(lpelfe->elfStyle,"Roman"))))
+    if (!fonts->rset &&
+            (strcmp(lpelfe->elfStyle, "Regular") == 0 ||
+             strcmp(lpelfe->elfStyle, "Roman") == 0))
     {
-        gli_conf_propr = file;
+        fonts->r = file;
+        fonts->rset = true;
 
-        if (!gli_sys_propb)
-            gli_conf_propb = file;
+        if (!fonts->bset)
+            fonts->b = file;
 
-        if (!gli_sys_propi)
-            gli_conf_propi = file;
+        if (!fonts->iset)
+            fonts->i = file;
 
-        if (!gli_sys_propz && !gli_sys_propi && !gli_sys_propb)
-            gli_conf_propz = file;
-
-        gli_sys_propr = TRUE;
+        if (!fonts->zset && !fonts->iset && !fonts->bset)
+            fonts->z = file;
     }
 
-    else if (!gli_sys_propb && (!(strcmp(lpelfe->elfStyle,"Bold"))))
+    else if (!fonts->bset && strcmp(lpelfe->elfStyle, "Bold") == 0)
     {
-        gli_conf_propb = file;
+        fonts->b = file;
+        fonts->bset = true;
 
-        if (!gli_sys_propz && !gli_sys_propi)
-            gli_conf_propz = file;
-
-        gli_sys_propb = TRUE;
+        if (!fonts->zset && !fonts->iset)
+            fonts->z = file;
     }
 
-    else if (!gli_sys_propi && (!(strcmp(lpelfe->elfStyle,"Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Oblique"))))
+    else if (!fonts->iset &&
+            (strcmp(lpelfe->elfStyle, "Italic") == 0 ||
+             strcmp(lpelfe->elfStyle, "Oblique") == 0))
     {
-        gli_conf_propi = file;
+        fonts->i = file;
+        fonts->iset = true;
 
-        if (!gli_sys_propz)
-            gli_conf_propz = file;
-
-        gli_sys_propi = TRUE;
+        if (!fonts->zset)
+            fonts->z = file;
     }
 
-    else if (!gli_sys_propz && (!(strcmp(lpelfe->elfStyle,"Bold Italic"))
-                || !(strcmp(lpelfe->elfStyle,"Bold Oblique"))
-                || !(strcmp(lpelfe->elfStyle,"BoldOblique"))
-                || !(strcmp(lpelfe->elfStyle,"BoldItalic"))
-                ))
+    else if (!fonts->zset &&
+            (strcmp(lpelfe->elfStyle, "Bold Italic") == 0 ||
+             strcmp(lpelfe->elfStyle, "Bold Oblique") == 0 ||
+             strcmp(lpelfe->elfStyle, "BoldOblique") == 0 ||
+             strcmp(lpelfe->elfStyle, "BoldItalic") == 0))
     {
-        gli_conf_propz = file;
-        gli_sys_propz = TRUE;
+        fonts->z = file;
+        fonts->zset = true;
     }
 
     else
@@ -188,7 +118,19 @@ int CALLBACK propfont(
         free(file);
     }
 
-    return 1;
+    return 0;
+}
+
+static int CALLBACK monofont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
+{
+    monofonts = (struct fonts){ .name = gli_conf_monofont };
+    return cb_handler(lpelfe, &monofonts);
+}
+
+static int CALLBACK propfont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
+{
+    propfonts = (struct fonts){ .name = gli_conf_propfont };
+    return cb_handler(lpelfe, &propfonts);
 }
 
 static void make_font_filepath(const char *filename, char *filepath, size_t length)
@@ -205,7 +147,7 @@ static void make_font_filepath(const char *filename, char *filepath, size_t leng
     }
 }
 
-static int find_font_file_with_key(HKEY key, const char * subkey, const char *facename, char *filepath, size_t length)
+static bool find_font_file_with_key(HKEY key, const char *subkey, const char *facename, char *filepath, size_t length)
 {
     HKEY hkey;
     DWORD size;
@@ -214,7 +156,7 @@ static int find_font_file_with_key(HKEY key, const char * subkey, const char *fa
 
     // open the Fonts registry key
     if (RegOpenKeyEx(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
-        return FALSE;
+        return false;
 
     // check for a TrueType font
     snprintf(face, sizeof face, "%s (TrueType)", facename);
@@ -225,7 +167,7 @@ static int find_font_file_with_key(HKEY key, const char * subkey, const char *fa
     {
         make_font_filepath(filename, filepath, length);
         RegCloseKey(hkey);
-        return TRUE;
+        return true;
     }
 
     // check for an OpenType font
@@ -237,21 +179,21 @@ static int find_font_file_with_key(HKEY key, const char * subkey, const char *fa
     {
         make_font_filepath(filename, filepath, length);
         RegCloseKey(hkey);
-        return TRUE;
+        return true;
     }
 
     // TODO: support TrueType/OpenType collections (TTC/OTC)
 
     RegCloseKey(hkey);
 
-    return FALSE;
+    return false;
 }
 
-static int find_font_file(const char *facename, char *filepath, size_t length)
+static bool find_font_file(const char *facename, char *filepath, size_t length)
 {
     // First, try the per-user key
     if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath, length))
-        return TRUE;
+        return true;
 
     // Nope. Try the system-wide key.
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath, length);
@@ -259,7 +201,6 @@ static int find_font_file(const char *facename, char *filepath, size_t length)
 
 void fontreplace(char *font, int type)
 {
-    /* printf("REPLACE %s\n", strlen(font)); */
     if (!strlen(font))
         return;
 
@@ -275,12 +216,13 @@ void fontreplace(char *font, int type)
     {
     case MONOF:
         snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_monofont);
-        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont, 0, 0);
+        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);
+        fill_in_fonts(&monofonts, &gli_conf_monor, &gli_conf_monob, &gli_conf_monoi, &gli_conf_monoz);
         break;
-
     case PROPF:
         snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_propfont);
-        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont, 0, 0);
+        EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont_cb, 0, 0);
+        fill_in_fonts(&propfonts, &gli_conf_propr, &gli_conf_propb, &gli_conf_propi, &gli_conf_propz);
         break;
     }
 
