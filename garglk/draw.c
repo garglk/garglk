@@ -710,10 +710,10 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
         px = x / GLI_SUBPIX;
         sx = x % GLI_SUBPIX;
 
-                if (gli_conf_lcd)
-                    draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
-                else
-                    draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
+        if (gli_conf_lcd)
+            draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
+        else
+            draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
 
         if (spw >= 0 && c == ' ')
             x += spw;
@@ -864,4 +864,3 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
         dp += gli_image_s;
     }
 }
-

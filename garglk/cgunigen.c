@@ -12203,4 +12203,3 @@ switch (ch) {  \
     default:  \
         *countptr = 0;  \
 }
-

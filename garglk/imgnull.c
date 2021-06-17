@@ -63,4 +63,3 @@ void glk_window_set_background_color(winid_t win, glui32 color)
 }
 
 #endif
-

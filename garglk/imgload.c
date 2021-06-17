@@ -414,4 +414,3 @@ static void load_image_png(FILE *fl, picture_t *pic)
         }
     }
 }
-

@@ -401,5 +401,4 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
         sp += src->w * 4;
         dp += dst->w * 3;
     }
-
 }

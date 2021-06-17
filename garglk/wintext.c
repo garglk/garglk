@@ -45,8 +45,6 @@ static void touch(window_textbuffer_t *dwin, int line)
 {
     window_t *win = dwin->owner;
     int y = win->bbox.y0 + gli_tmarginy + (dwin->height - line - 1) * gli_leading;
-//    if (dwin->scrollmax && dwin->scrollmax < dwin->height)
-//        y -= (dwin->height - dwin->scrollmax) * gli_leading;
     dwin->lines[line].dirty = 1;
     gli_clear_selection();
     winrepaint(win->bbox.x0, y - 2, win->bbox.x1, y + gli_leading + 2);
@@ -389,9 +387,6 @@ void win_textbuffer_redraw(window_t *win)
     y1 = win->bbox.y1 - gli_tmarginy;
 
     pw = x1 - x0 - 2 * GLI_SUBPIX;
-
-//    if (dwin->scrollmax && dwin->scrollmax < dwin->height)
-//        y0 -= (dwin->height - dwin->scrollmax) * gli_leading;
 
     /* check if any part of buffer is selected */
     selbuf = gli_check_selection(x0/GLI_SUBPIX,y0,x1/GLI_SUBPIX,y1);
@@ -1197,13 +1192,6 @@ void win_textbuffer_clear(window_t *win)
 
     for (i = 0; i < dwin->height; i++)
         touch(dwin, i);
-
-    /* only need this because redraw won't touch lines below line 0,
-     * and we scroll text up to top of window if it's too short. */
-//    gli_draw_rect(win->bbox.x0, win->bbox.y0,
-//            win->bbox.x1 - win->bbox.x0,
-//            win->bbox.y1 - win->bbox.y0,
-//            gli_window_color);
 }
 
 /* Prepare the window for line input. */
@@ -1225,8 +1213,6 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
-
-    //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
     dwin->inunicode = FALSE;
@@ -1279,8 +1265,6 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
         win_textbuffer_putchar_uni(win, '\n');
-
-    //dwin->lastseen = 0;
 
     dwin->inbuf = buf;
     dwin->inunicode = TRUE;
@@ -1424,7 +1408,6 @@ int gcmd_accept_scroll(window_t *win, glui32 arg)
             break;
         case ' ':
         case keycode_PageDown:
-        //default:
             if (pageht)
                 dwin->scrollpos -= pageht;
             else

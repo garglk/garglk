@@ -31,4 +31,3 @@ int glkunix_startup_code(glkunix_startup_t *data)
 {
     return TRUE;
 }
-

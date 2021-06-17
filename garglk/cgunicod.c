@@ -728,4 +728,3 @@ glui32 glk_buffer_canon_normalize_uni(glui32 *buf, glui32 len,
 }
 
 #endif /* GLK_MODULE_UNICODE_NORM */
-

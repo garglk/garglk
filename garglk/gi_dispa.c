@@ -1510,4 +1510,3 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             break;
     }
 }
-

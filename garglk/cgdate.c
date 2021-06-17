@@ -402,5 +402,4 @@ glsi32 glk_date_to_simple_time_local(glkdate_t *date, glui32 factor)
     return gli_simplify_time(timestamp, factor);
 }
 
-
 #endif /* GLK_MODULE_DATETIME */
