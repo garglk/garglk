@@ -134,6 +134,11 @@ void gli_set_lcdfilter(const char *filter)
  * Font loading
  */
 
+// FT_Error_String() was introduced in FreeType 2.10.0.
+#if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
+#define FT_Error_String(err) NULL
+#endif
+
 #ifdef __GNUC__
 __attribute__((__format__(__printf__, 2, 3)))
 #endif
