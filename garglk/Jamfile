@@ -72,7 +72,6 @@ else
 }
 
 if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
-else if $(USEFMOD) = yes { GARGSRCS += sndfmod.c ; }
 else { GARGSRCS += sndnull.c ; }
 
 if $(OS) = MINGW { GARGSRCS += syswin.c fontwin.c icons.rc ; }
