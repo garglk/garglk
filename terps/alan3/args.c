@@ -155,7 +155,7 @@ bool differentInterpreterName(char *string) {
 #if defined(__dos__) || defined(__windows__) || defined(__cygwin__)
 #include "winargs.c"
 #else
-#if defined(__unix__) || defined(__macos__)
+#if defined(__unix__) || defined(__macos__) || defined(__HAIKU__)
 #include "unixargs.c"
 #else
 #ifdef __mac__
