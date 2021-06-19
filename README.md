@@ -1,6 +1,7 @@
 # Gargoyle
 
-[![AppImage](https://github.com/garglk/garglk/actions/workflows/appimage.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/appimage.yml) 
+[![AppImage](https://github.com/garglk/garglk/actions/workflows/appimage.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/appimage.yml)
+[![MinGW](https://github.com/garglk/garglk/actions/workflows/mingw.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/mingw.yml)
 [![macOS](https://github.com/garglk/garglk/actions/workflows/macos.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/macos.yml)
 
 ## An interactive fiction player
