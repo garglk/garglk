@@ -1,15 +1,26 @@
 # GENERAL INSTRUCTIONS
 
-To compile Gargoyle for Unix or Windows you will need CMake 3.1 or
-newer. For macOS, you will need jam 2.5.
+To compile Gargoyle for Unix or Windows you will need CMake 3.1 or newer. For
+macOS, you will need jam 2.5.
 
-For sound support, you will need SDL2 and SDL2_mixer.
+These instructions are for CMake. Jam support is deprecated and used only for
+macOS. See below for macOS build information.
 
-The following instructions are for CMake. Jam support is deprecated and
-used only for macOS. See below for macOS build information.
+The following are required to build Gargoyle on Unix, in addition to a standard
+development environment (compiler, linker, etc.):
 
-On Unix, Gargoyle builds like any standard CMake project. Something
-like:
+CMake
+pkg-config (or compatible, such as pkgconf)
+Qt (5 or 6)
+Fontconfig
+FreeType
+libjpeg (or compatible, such as libjpeg-turbo)
+libpng
+
+In addition, if you want sound support, you will need SDL2 and SDL2_mixer. If
+you want text-to-speech support, you will need speech-dispatcher.
+
+On Unix, Gargoyle builds like any standard CMake project. Something like:
 
 $ mkdir build
 $ cd build
@@ -33,31 +44,34 @@ WITH_BUNDLED_FONTS: If true (the default), fonts will be bundled into the
 Gargoyle executable and used as fallback fonts.
 Note: This feature will likely be removed in a future release.
 
-WITH_TTS: If true (the default) enable text-to-speech support.
+WITH_TTS: If true (the default), enable text-to-speech support.
 
-BUILD_SHARED_LIBS: If true (the default) a shared libgarglk will be built.
+BUILD_SHARED_LIBS: If true (the default), a shared libgarglk will be built.
 Otherwise, it will be static.
+
+WITH_INTERPRETERS: If true (the default), interpreters will be built.
+
+WITH_LAUNCHER: If true (the default), the launcher (gargoyle binary) will be
+built.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:
 
 $ make install DESTDIR=$PWD/Staging
 
-Gargoyle will install headers to
-${CMAKE_INSTALL_PREFIX}/include/gargoyle and libgarglk to
-${CMAKE_INSTALL_PREFIX}/lib. This allows Glk programs to easily build
-against libgarglk without needing to be integrated with Gargoyle.
-However, note that the shared library makes no promises of API or ABI
-stability, and as such, is not currently versioned. The exception is the
-Glk API, which will remain stable, but any Gargoyle-specific extensions
-are subject to change without notice, as is the ABI. In short, if
-libgarglk is updated, any programs linked against libgarglk.so should be
-rebuilt.
+Gargoyle will install headers to ${CMAKE_INSTALL_PREFIX}/include/gargoyle and
+libgarglk to ${CMAKE_INSTALL_PREFIX}/lib. This allows Glk programs to easily
+build against libgarglk without needing to be integrated with Gargoyle.
+However, note that the shared library makes no promises of API or ABI stability,
+and as such, is not currently versioned. The exception is the Glk API, which
+will remain stable, but any Gargoyle-specific extensions are subject to change
+without notice, as is the ABI. In short, if libgarglk is updated, any programs
+linked against libgarglk.so should be rebuilt.
 
-For Windows, the only supported build method is MinGW on Linux cross
-compiling for Windows. The "install" target will install all binaries to
-"build/dist". See "windows.sh" at the top level for a script which is
-used to build the Windows installer.
+For Windows, the only supported build method is MinGW on Linux cross compiling
+for Windows. The "install" target will install all binaries to "build/dist". See
+"windows.sh" at the top level for a script which is used to build the Windows
+installer.
 
 -------------------------------
 # SYSTEM SPECIFIC INSTRUCTIONS
