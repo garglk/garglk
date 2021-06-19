@@ -1,0 +1,50 @@
+name: Feature matrix
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        feature: ["SDL=OFF", "TTS=OFF", "BABEL=OFF"]
+
+    runs-on: ubuntu-latest
+    container:
+      image: amd64/ubuntu:20.04
+      options: --privileged
+
+    env:
+      CC: gcc-9
+      CXX: g++-9
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update packages
+        run: apt update
+
+      - name: Install packages
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          git
+          libjpeg-dev
+          librsvg2-dev
+          libsdl2-mixer-dev
+          libspeechd-dev
+          qtbase5-dev
+          qtbase5-dev-tools
+
+      - name: Configure
+        run: |
+            mkdir build
+            cd build
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DWITH_${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF
+
+      - name: Build
+        run: |
+          cd build
+          make -j`nproc`
