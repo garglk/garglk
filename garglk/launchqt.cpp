@@ -117,6 +117,7 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, QFileDialog::HideNameFilterDetails);
 }
 
+#ifndef GARGLK_INTERPRETER_DIR
 static QString winpath()
 {
     char buf[4096];
@@ -134,7 +135,7 @@ static QString winpath()
     }
 #else
     ssize_t n = readlink("/proc/self/exe", buf, sizeof buf);
-    if (n == -1 || n >= sizeof buf)
+    if (n == -1 || n >= static_cast<ssize_t>(sizeof buf))
     {
         winmsg("Unable to locate executable path");
         std::exit(EXIT_FAILURE);
@@ -148,6 +149,7 @@ static QString winpath()
 
     return buf;
 }
+#endif
 
 int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
@@ -186,8 +188,14 @@ int main(int argc, char **argv)
     QApplication app(argc, argv);
     QString story;
 
-    /* get dir of executable */
+    // Find the directory that contains the interpreters. By default
+    // this is GARGLK_INTERPRETER_DIR but if that is not set, it is the
+    // containing directory of the gargoyle executable.
+#ifdef GARGLK_INTERPRETER_DIR
+    QString dir = GARGLK_INTERPRETER_DIR;
+#else
     QString dir = winpath();
+#endif
 
     /* get story file */
     if (argc >= 2)

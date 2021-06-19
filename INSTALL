@@ -1,40 +1,72 @@
 # GENERAL INSTRUCTIONS
 
-To compile Gargoyle you will need jam 2.5.
+To compile Gargoyle for Unix or Windows you will need CMake 3.1 or
+newer. For macOS, you will need jam 2.5.
 
-For sound support, you will need SDL2_mixer.
-The FMOD sound support is slightly broken, but can be re-enabled
-with a little bit of hacking.
+For sound support, you will need SDL2 and SDL2_mixer.
 
-Edit the Jamrules file to suit your system configuration.
-Comment out the "USESDL = yes" line if you don't care about
-sound support.
+The following instructions are for CMake. Jam support is deprecated and
+used only for macOS. See below for macOS build information.
 
-Compile with "jam". The default is to build a RELEASE build.
+On Unix, Gargoyle builds like any standard CMake project. Something
+like:
 
-Compile with "jam -sBUILD=DEBUG" for a debuggable build.
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make -j`nproc`
+$ make install
 
-The command "jam install" will copy the compiled executables
-and shared libraries into "build/dist/".
+By default Gargoyle installs to /usr/local. This can be changed by setting
+CMAKE_INSTALL_PREFIX:
 
-For a system-wide install, the following four steps should place
-the binaries, shared library, and configuration file in appropriate
-locations. However, please check the Jamrules file and verify that
-the referenced paths actually exist before you proceed.
+$ cmake .. -DCMAKE_INSTALL_PREFIX=/usr
 
-sudo env SYSTEM=1 jam install
-sudo ln -s -f /usr/local/libexec/gargoyle/gargoyle /usr/local/bin/gargoyle
-sudo ln -s -f /usr/local/lib/gargoyle/libgarglk.so /usr/lib/libgarglk.so
-sudo cp garglk/garglk.ini /etc/garglk.ini
+In addition, Gargoyle supports the following options:
+
+WITH_BABEL: If true (the default), use the Treaty of Babel to extract author and
+title information and display in the window's titlebar
+
+WITH_SDL: If true (the default), use SDL2 for sound support.
+
+WITH_BUNDLED_FONTS: If true (the default), fonts will be bundled into the
+Gargoyle executable and used as fallback fonts.
+Note: This feature will likely be removed in a future release.
+
+WITH_TTS: If true (the default) enable text-to-speech support.
+
+BUILD_SHARED_LIBS: If true (the default) a shared libgarglk will be built.
+Otherwise, it will be static.
+
+As with any standard CMake-based project, DESTDIR can be used to install to a
+staging area:
+
+$ make install DESTDIR=$PWD/Staging
+
+Gargoyle will install headers to
+${CMAKE_INSTALL_PREFIX}/include/gargoyle and libgarglk to
+${CMAKE_INSTALL_PREFIX}/lib. This allows Glk programs to easily build
+against libgarglk without needing to be integrated with Gargoyle.
+However, note that the shared library makes no promises of API or ABI
+stability, and as such, is not currently versioned. The exception is the
+Glk API, which will remain stable, but any Gargoyle-specific extensions
+are subject to change without notice, as is the ABI. In short, if
+libgarglk is updated, any programs linked against libgarglk.so should be
+rebuilt.
+
+For Windows, the only supported build method is MinGW on Linux cross
+compiling for Windows. The "install" target will install all binaries to
+"build/dist". See "windows.sh" at the top level for a script which is
+used to build the Windows installer.
 
 -------------------------------
 # SYSTEM SPECIFIC INSTRUCTIONS
 
 ## Building on Fedora GNU/Linux (29,30): (notes by Andreas Davour, December 2019)
 
-To build cleanly with jam, you first need to install the pre-requisite packages:
+To build cleanly with CMake, you first need to install the pre-requisite packages:
 
-`sudo dnf install jam fontconfig-devel freetype-devel gcc-c++ libjpeg-turbo-devel qt5-qtbase-devel qt5-qtbase`
+`sudo dnf install cmake fontconfig-devel freetype-devel gcc-c++ libjpeg-turbo-devel qt5-qtbase-devel qt5-qtbase`
 
 If you want to compile with SDL support, you also need to install the development packages for that:
 

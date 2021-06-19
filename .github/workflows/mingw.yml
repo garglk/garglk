@@ -1,0 +1,38 @@
+name: MinGW
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    container:
+      image: amd64/ubuntu:20.04
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update packages
+        run: apt update
+
+      - name: Install packages
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          g++-mingw-w64
+          gcc-mingw-w64
+          git
+          mingw-w64-tools
+
+      - name: Configure
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake -DWITH_SDL=OFF -DMINGW_USE_SYSTEM_LIBRARIES=OFF
+
+      - name: Build
+        run: |
+          cd build
+          make -j`nproc`

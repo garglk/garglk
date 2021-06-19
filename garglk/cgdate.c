@@ -40,10 +40,28 @@
 #include <time.h>
 #include <sys/time.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "glk.h"
 #include "garglk.h"
 
 #ifdef GLK_MODULE_DATETIME
+
+#ifdef _WIN32
+/* These functions are POSIX but aren't supplied by MinGW. */
+static int setenv(const char *name, const char *value, int overwrite)
+{
+    SetEnvironmentVariable(name, value);
+    return 0;
+}
+static int unsetenv(const char *name)
+{
+    SetEnvironmentVariable(name, NULL);
+    return 0;
+}
+#endif
 
 /* timegm() is non-standard (neither C nor POSIX), so unconditionally
    use a replacement.
@@ -51,15 +69,16 @@
 static time_t gli_timegm(struct tm *tm)
 {
     time_t answer;
-    char *tz;
-    char tzstr[512];
+    const char *tz;
 
     tz = getenv("TZ");
-    snprintf(tzstr, sizeof tzstr, "TZ=%s", tz == NULL ? "" : tz);
-    putenv("TZ=UTC");
+    setenv("TZ", "UTC", 1);
     tzset();
-    answer=mktime(tm);
-    putenv(tzstr);
+    answer = mktime(tm);
+    if (tz == NULL)
+        unsetenv("TZ");
+    else
+        setenv("TZ", tz, 1);
     tzset();
     return answer;
 }

@@ -43,7 +43,7 @@
 #include <iostream>
 
 #include "sysqt.h"
-#include "moc_sysqt.h"
+#include "moc_sysqt.cpp"
 
 extern "C" {
 #include "glk.h"

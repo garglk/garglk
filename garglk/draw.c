@@ -101,7 +101,7 @@ int gli_image_w = 0;
 int gli_image_h = 0;
 unsigned char *gli_image_rgb = NULL;
 
-#if defined(WIN32)
+#if defined(_WIN32)
 static const int gli_bpp = 3;
 #else
 static const int gli_bpp = 4;
@@ -439,7 +439,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-#ifdef WIN32
+#ifdef _WIN32
     p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
     p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
     p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
@@ -470,7 +470,7 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *r
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-#ifdef WIN32
+#ifdef _WIN32
     p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf)];
     p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf)];
     p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf)];
@@ -505,7 +505,7 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-#ifdef WIN32
+#ifdef _WIN32
     p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf[2])];
     p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf[1])];
     p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf[0])];
@@ -552,7 +552,7 @@ void gli_draw_clear(unsigned char *rgb)
         p = gli_image_rgb + y * gli_image_s;
         for (x = 0; x < gli_image_w; x++)
         {
-#ifdef WIN32
+#ifdef _WIN32
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
@@ -590,7 +590,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
         unsigned char *p = p0;
         for (x = x0; x < x1; x++)
         {
-#ifdef WIN32
+#ifdef _WIN32
             *p++ = rgb[2];
             *p++ = rgb[1];
             *p++ = rgb[0];
@@ -849,7 +849,7 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
             unsigned char sr = mul255(sp[x*4+0], sa);
             unsigned char sg = mul255(sp[x*4+1], sa);
             unsigned char sb = mul255(sp[x*4+2], sa);
-#ifdef WIN32
+#ifdef _WIN32
             dp[x*3+0] = sb + mul255(dp[x*3+0], na);
             dp[x*3+1] = sg + mul255(dp[x*3+1], na);
             dp[x*3+2] = sr + mul255(dp[x*3+2], na);

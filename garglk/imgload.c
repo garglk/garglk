@@ -107,8 +107,6 @@ void gli_picture_decrement(picture_t *pic)
     if (!pic)
         return;
 
-    piclist_t *picptr;
-
     if (pic->refcount > 0 && --pic->refcount == 0)
         gli_picture_discard(pic);
 }
