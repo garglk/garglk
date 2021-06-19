@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 #include <unistd.h>
 
@@ -153,6 +154,14 @@ static QString winpath()
 
 int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
+    // Haiku provides execv(), but if Qt is running, it fails with
+    // "Operation not allowed" (errno 0x8000000f). The same execve()
+    // call works fine outside of Qt, so maybe this is a BeOS GUI thing.
+    // At any rate, QProcess still works, so use that on Haiku.
+    //
+    // Otherwise, just use execve(), since QProcess swallows stdout and
+    // stderr, and it's cumbersome to redirect them back to the terminal.
+#ifdef __HAIKU__
     QString argv0 = QString("%1/%2")
         .arg(path)
         .arg(exe);
@@ -181,6 +190,28 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
         return 1;
     else
         return proc.exitCode();
+#else
+    std::string argv0 = QString("%1/%2")
+        .arg(path)
+        .arg(exe).toStdString();
+    char *argv[4] = { const_cast<char *>(argv0.c_str()) };
+
+    setenv("GARGLK_INI", path, 0);
+
+    if (std::strstr(flags, "-") != nullptr)
+    {
+        argv[1] = const_cast<char *>(flags);
+        argv[2] = const_cast<char *>(game);
+    }
+    else
+    {
+        argv[1] = const_cast<char *>(game);
+    }
+
+    execv(argv[0], argv);
+    winmsg("Could not start 'terp.\nSorry.");
+    return 1;
+#endif
 }
 
 int main(int argc, char **argv)
