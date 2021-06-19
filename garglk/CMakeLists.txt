@@ -5,6 +5,7 @@ set(SRCS babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c cgstream.c
 
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(WITH_BUNDLED_FONTS "Embed default fonts into Gargoyle" ON)
+option(WITH_SDL "Use SDL for sound support" ON)
 option(WITH_TTS "Enable text-to-speech support" ON)
 option(MINGW_USE_SYSTEM_LIBRARIES "Use system libraries instead of bundled when building with MinGW" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)

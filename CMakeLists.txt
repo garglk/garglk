@@ -19,7 +19,6 @@ include(Compilers)
 
 option(WITH_INTERPRETERS "Build the included interpreters" ON)
 option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
-option(WITH_SDL "Use SDL for sound support" ON)
 
 add_subdirectory(garglk)
 
