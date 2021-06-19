@@ -1,9 +1,9 @@
 /*----------------------------------------------------------------------
 
   scan.c
- 
+
   Player command line scanne unit for Alan interpreter ARUN
- 
+
   ----------------------------------------------------------------------*/
 
 #include "scan.h"
@@ -54,13 +54,13 @@ void forceNewPlayerInput() {
 static void unknown(char token[]) {
     char *str = strdup(token);
     Parameter *messageParameters = newParameterArray();
-	
+
 #if ISO == 0
     fromIso(str, str);
 #endif
     addParameterForString(messageParameters, str);
     printMessageWithParameters(M_UNKNOWN_WORD, messageParameters);
-	deallocate(messageParameters);
+    deallocate(messageParameters);
     free(str);
     abortPlayerCommand();
 }
@@ -69,7 +69,7 @@ static void unknown(char token[]) {
 /*----------------------------------------------------------------------*/
 static int number(char token[]) {
     int i;
-	
+
     sscanf(token, "%d", &i);
     return i;
 }
@@ -78,14 +78,14 @@ static int number(char token[]) {
 /*----------------------------------------------------------------------*/
 static int lookup(char wrd[]) {
     int i;
-	
+
+    // TODO: Why do we start at 0, is there a word code == 0?
     for (i = 0; !isEndOfArray(&dictionary[i]); i++) {
         if (compareStrings(wrd, (char *) pointerTo(dictionary[i].string)) == 0) {
-            return (i);
+            return i;
         }
     }
-    unknown(wrd);
-    return (EOF);
+    return EOF;
 }
 
 
@@ -95,10 +95,31 @@ static bool isWordCharacter(int ch) {
 }
 
 /*----------------------------------------------------------------------*/
+static void readWord(char **markerp) {
+    while (**markerp && isWordCharacter(**markerp))
+        (*markerp)++;
+}
+
+/*----------------------------------------------------------------------*/
+static void readNumber(char **markerp) {
+    while (isdigit((int)**markerp))
+        (*markerp)++;
+}
+
+/*----------------------------------------------------------------------*/
+static void readString(char **markerp) {
+    (*markerp)++;
+    while (**markerp != '\"')
+        (*markerp)++;
+    (*markerp)++;
+}
+
+
+/*----------------------------------------------------------------------*/
 static char *gettoken(char *buf) {
     static char *marker;
     static char oldch;
-	
+
     if (buf == NULL)
         *marker = oldch;
     else
@@ -107,17 +128,13 @@ static char *gettoken(char *buf) {
         marker++;
     buf = marker;
     if (isISOLetter(*marker))
-        while (*marker && isWordCharacter(*marker))
-            marker++;
+        readWord(&marker);
     else if (isdigit((int)*marker))
-        while (isdigit((int)*marker))
-            marker++;
+        readNumber(&marker);
     else if (*marker == '\"') {
-        marker++;
-        while (*marker != '\"')
-            marker++;
-        marker++;
+        readString(&marker);
     } else if (*marker == '\0' || *marker == '\n' || *marker == ';')
+        // End of input, either actually or by a comment start
         return NULL;
     else
         marker++;
@@ -143,11 +160,12 @@ static void getLine(void) {
             printAndLog("> ");
 
 #ifdef USE_READLINE
-        if (!readline(buf)) {
+        if (!readline(buf))
 #else
         fflush(stdout);
-        if (fgets(buf, LISTLEN, stdin) == NULL) {
+        if (fgets(buf, LISTLEN, stdin) == NULL)
 #endif
+        {
             newline();
             quitGame();
         }
@@ -155,7 +173,7 @@ static void getLine(void) {
         getPageSize();
         anyOutput = FALSE;
         if (transcriptOption || logOption) {
-             // TODO Refactor out the logging to log.c?
+            // TODO Refactor out the logging to log.c?
 #ifdef HAVE_GLK
             glk_put_string_stream(logFile, buf);
             glk_put_char_stream(logFile, '\n');
@@ -168,7 +186,7 @@ static void getLine(void) {
             clearWordList(playerWords);
             longjmp(forfeitLabel, 0);
         }
-		
+
 #if ISO == 0
         toIso(isobuf, buf, NATIVECHARSET);
 #else
@@ -192,22 +210,92 @@ static void getLine(void) {
 }
 
 
+/*----------------------------------------------------------------------*/
+static int try_elision(char *apostrophe, int *_i) {
+    int i = *_i, w;
+    // Handle elisions (contractions) with apostrophe,
+    // e.g. Italian "l'acqua", and split that into two
+    // words
+
+    // First cut after the apostrophe
+    int previous_char = apostrophe[1];
+    apostrophe[1] = '\0';
+
+    // Now try that word
+    w = lookup(token);
+    apostrophe[1] = previous_char;
+    if (w == EOF) {
+        // No cigar, so give up
+        unknown(token);
+    }
+
+    // We found a word, save it
+    if (!isNoise(w))
+        playerWords[i++].code = w;
+    // Then restore and point to next part
+    token = &apostrophe[1];
+    w = lookup(token);
+    if (w == EOF) {
+        // No cigar, so give up
+        unknown(token);
+    }
+
+    // Prepare to store this word
+    ensureSpaceForPlayerWords(i+1);
+    playerWords[i].start = token;
+    playerWords[i].end = strchr(token, '\0');
+
+    *_i = i;
+    return w;
+}
+
+
+/*----------------------------------------------------------------------*/
+static int handle_literal(int i) {
+    if (isdigit((int)token[0])) {
+        createIntegerLiteral(number(token));
+    } else {
+        char *unquotedString = strdup(token);
+        unquotedString[strlen(token) - 1] = '\0';
+        createStringLiteral(&unquotedString[1]);
+        free(unquotedString);
+    }
+    playerWords[i++].code = dictionarySize + litCount; /* Word outside dictionary = literal */
+    return i;
+}
+
+
+/*----------------------------------------------------------------------*/
+static int handle_word(int i) {
+    int w = lookup(token);
+    if (w == EOF) {
+        char *apostrophe = strchr(token, '\'');
+        if (apostrophe == NULL) {
+            unknown(token);
+        } else {
+            w = try_elision(apostrophe, &i);
+        }
+    }
+    if (!isNoise(w))
+        playerWords[i++].code = w;
+    return(i);
+}
+
 
 /*======================================================================*/
 void scan(void) {
     int i;
-    int w;
-	
+
     if (continued) {
         /* Player used '.' to separate commands. Read next */
         para();
-        token = gettoken(NULL); /* Or did he just finish the command with a full stop? */
-        if (token == NULL)
+        token = gettoken(NULL);
+        if (token == NULL) /* Or did he just finish the command with a full stop? */
             getLine();
         continued = FALSE;
     } else
         getLine();
-	
+
     freeLiterals();
     playerWords[0].code = 0; // TODO This means what?
     i = 0;
@@ -215,20 +303,11 @@ void scan(void) {
         ensureSpaceForPlayerWords(i+1);
         playerWords[i].start = token;
         playerWords[i].end = strchr(token, '\0');
+
         if (isISOLetter(token[0])) {
-            w = lookup(token);
-            if (!isNoise(w))
-                playerWords[i++].code = w;
+            i = handle_word(i);
         } else if (isdigit((int)token[0]) || token[0] == '\"') {
-            if (isdigit((int)token[0])) {
-                createIntegerLiteral(number(token));
-            } else {
-                char *unquotedString = strdup(token);
-                unquotedString[strlen(token) - 1] = '\0';
-                createStringLiteral(&unquotedString[1]);
-                free(unquotedString);
-            }
-            playerWords[i++].code = dictionarySize + litCount; /* Word outside dictionary = literal */
+            i = handle_literal(i);
         } else if (token[0] == ',') {
             playerWords[i++].code = conjWord;
         } else if (token[0] == '.') {

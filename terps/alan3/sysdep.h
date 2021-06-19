@@ -6,7 +6,7 @@
 
   N.B. The test for symbols used here should really be of three types
   - processor name (like PC, x86, ...)
-  - os name (DOS, WIN32, Solaris2, ...)
+  - os name (WIN32, Cygwin, MSYS2...)
   - compiler name and version (DJGPP, CYGWIN, GCC271, THINK-C, ...)
 
   The set symbols should indicate if a feature is on or off like the GNU
@@ -94,13 +94,6 @@
 #define NATIVECHARSET 0
 #else	/* Glk is ISO, no matter what the OS */
 
-#ifdef __dos__
-#undef ISO
-#define ISO 0
-#undef NATIVECHARSET
-#define NATIVECHARSET 2
-#endif
-
 #ifdef __win__
 #undef ISO
 #define ISO 1
@@ -180,15 +173,6 @@
 /* Special cases and definition overrides */
 #ifdef __unix__
 #define MULTI
-#endif
-
-
-#ifdef __dos__
-
-/* Return codes */
-#define EXIT_SUCCESS 0
-#define EXIT_FAILURE  1
-
 #endif
 
 

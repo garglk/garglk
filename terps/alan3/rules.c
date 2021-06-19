@@ -106,7 +106,7 @@ static void traceRuleEvaluation(int rule) {
 static void traceRuleResult(int rule, bool result) {
     if (traceSectionOption) {
         if (detailedTraceOn())
-            printf("<RULE %d %s%s", rule, "Evaluated to ", result?": true>\n":": false>\n");
+            printf("\n<RULE %d %s%s", rule, "Evaluated to ", result?": true>\n":": false>\n");
         else
             printf(result?"true":"false");
     }
@@ -149,33 +149,6 @@ static void evaluateRulesPreBeta2(void)
                 } else if (traceSectionOption && !traceInstructionOption)
                     printf(":>\n");
             }
-    }
-}
-
-
-/*----------------------------------------------------------------------*/
-static void evaluateRulesBeta2New(void) {
-    int i;
-
-    for (i = 1; !isEndOfArray(&rules[i-1]); i++)
-        rules[i-1].alreadyRun = FALSE;
-
-    current.location = NOWHERE;
-    current.actor = 0;
-
-    anyRuleRun = FALSE;
-
-    for (i = 1; !isEndOfArray(&rules[i-1]); i++) {
-        bool evaluated_value = evaluate(rules[i-1].exp);
-        traceRuleEvaluation(i);
-        rules[i-1].alreadyRun = evaluated_value;
-    }
-    for (i = 1; !isEndOfArray(&rules[i-1]); i++) {
-        if (rules[i-1].alreadyRun) {
-            traceRuleExecution(i);
-            interpret(rules[i-1].stms);
-            anyRuleRun = TRUE;
-        }
     }
 }
 
@@ -264,7 +237,7 @@ void evaluateRules(RuleEntry rules[]) {
 
 
 /*=======================================================================*/
-void resetAndEvaluateRules(RuleEntry rules[], char *version) {
+void resetAndEvaluateRules(RuleEntry rules[], char *version, Stack theStack) {
     if (isPreBeta2(version))
         evaluateRulesPreBeta2();
     else if (isPreBeta3(version))

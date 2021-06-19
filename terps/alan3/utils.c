@@ -49,6 +49,17 @@ void printVersion(int buildNumber) {
     printf(" (%s %s)", alan.date, alan.time);
 }
 
+/*======================================================================*/
+void printIFIDs(char *adventureName) {
+    IfidEntry *ifidEntry;
+
+    printf("'%s' contains the following IFIDs:\n", adventureName);
+    for (ifidEntry = pointerTo(header->ifids); !isEndOfArray(ifidEntry); ifidEntry++) {
+        printf("  %s:\t%s\n", (unsigned char *)pointerTo(ifidEntry->nameAddress),
+               (unsigned char *)pointerTo(ifidEntry->valueAddress));
+    }
+}
+
 
 /*======================================================================*/
 void usage(char *programName)
@@ -64,14 +75,16 @@ void usage(char *programName)
 #ifdef HAVE_GLK
     glk_set_style(style_Preformatted);
 #endif
-    printf("    -v       verbose mode\n");
-    printf("    -l       log transcript to a file\n");
-    printf("    -c       log player commands to a file\n");
-    printf("    -n       no Status Line\n");
-    printf("    -d       enter debug mode\n");
-    printf("    -t[<n>]  trace game execution, higher <n> gives more trace\n");
-    printf("    -i       ignore version and checksum errors\n");
-    printf("    -r       make regression test easier (don't timestamp, page break, randomize...)\n");
+    printf("    -h        this help\n");
+    printf("    -v        verbose mode\n");
+    printf("    -l        log transcript to a file\n");
+    printf("    -c        log player commands to a file\n");
+    printf("    -n        no Status Line\n");
+    printf("    -d        enter debug mode\n");
+    printf("    -t[<n>]   trace game execution, higher <n> gives more trace\n");
+    printf("    -i        ignore version and checksum errors (dangerous)\n");
+    printf("    -r        make regression test easier (don't timestamp, page break, randomize...)\n");
+    printf("    --version print version and exit\n");
 #ifdef HAVE_GLK
     glk_set_style(style_Normal);
 #endif

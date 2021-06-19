@@ -53,7 +53,6 @@ typedef struct LimEntry {	/* LIMIT Type */
   Aaddr stms;			/* Statements if fail */
 } LimitEntry;
 
-
 /* Functions: */
 extern Aaddr addressAfterTable(Aaddr adr, int size);
 

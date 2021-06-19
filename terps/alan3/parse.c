@@ -48,6 +48,7 @@ typedef struct PronounEntry { /* To remember parameter/pronoun relations */
     int instance;
 } Pronoun;
 
+
 /*----------------------------------------------------------------------*/
 static void clearPronounList(Pronoun list[]) {
     implementationOfSetEndOfArray((Aword *)list);
@@ -70,7 +71,7 @@ static Parameter *previousMultipleParameters; /* Previous multiple list */
 /* For parameters that are literals we need to trick message handling to
  * output the word and create a string literal instance if anyone wants to
  * refer to an attribute of it (literals inherit from entity so application
- * can have added an attribute) */
+ * may have added an attribute) */
 
 /*----------------------------------------------------------------------*/
 static void addParameterForWord(Parameter *parameters, int wordIndex) {
@@ -529,15 +530,32 @@ static void simpleParameterParser(Parameter parameters[]) {
         if(!parseOneParameter(parameters, parameterIndex))
             return;
 
-        if (!endOfWords(currentWordIndex)
-            && (isConjunctionWord(currentWordIndex) && (isAdjectiveWord(currentWordIndex+1)
-                                                        || isNounWord(currentWordIndex+1)))) {
-            /* Since this is a conjunction and the next seems to be another instance reference,
-               let's continue with that by eating the conjunction */
-            currentWordIndex++;
-        } else {
+        if (endOfWords(currentWordIndex))
             return;
-        }
+
+        int index = currentWordIndex;
+        if (isConjunctionWord(index))
+            index ++;
+        else
+            return;
+
+        if (endOfWords(index))
+            return;
+
+        if (isConjunctionWord(index))
+            index ++;
+
+        if (endOfWords(index))
+            return;
+
+        if (isAdjectiveWord(index) || isNounWord(index)) {
+            /* Since there was one or two conjunctions and the next
+               seems to be another instance reference, let's continue
+               with that by eating the conjunction(s) */
+            currentWordIndex = index;
+        } else
+            /* Otherwise it was not a conjuction of parameters... */
+            return;
     }
 }
 
@@ -612,7 +630,7 @@ static char *classNameAndId(int classId) {
 static char *parameterNumberAndName(int parameterNumber) {
     static char buffer[1000] = "";
     /* HERE SHOULD BE current.syntax */
-	char *parameterName = parameterNameInSyntax(current.syntax, parameterNumber);
+    char *parameterName = parameterNameInSyntax(current.syntax, parameterNumber);
 
     if (parameterName != NULL)
         sprintf(buffer, "%s(#%d)", parameterName, parameterNumber);
@@ -893,12 +911,12 @@ static void checkRestrictedParameters(ParameterPosition parameterPositions[], El
 
 /*----------------------------------------------------------------------*/
 static void impossibleWith(ParameterPosition parameterPositions[], int positionIndex) {
-	if (isPreBeta2(header->version)) {
-		error(M_CANT0);
-	} else {
-		printMessageWithInstanceParameter(M_IMPOSSIBLE_WITH, parameterPositions[positionIndex].parameters[0].instance);
-		error(NO_MSG);
-	}
+    if (isPreBeta2(header->version)) {
+        error(M_CANT0);
+    } else {
+        printMessageWithInstanceParameter(M_IMPOSSIBLE_WITH, parameterPositions[positionIndex].parameters[0].instance);
+        error(NO_MSG);
+    }
 }
 
 
@@ -916,7 +934,7 @@ static void checkNonRestrictedParameters(ParameterPosition parameterPositions[])
                         if (!isAObject(parameterPositions[positionIndex].parameters[i].instance))
                             parameterPositions[positionIndex].parameters[i].instance = 0;
             } else if (!isAObject(parameterPositions[positionIndex].parameters[0].instance))
-				impossibleWith(parameterPositions, positionIndex);
+                impossibleWith(parameterPositions, positionIndex);
         }
 }
 
@@ -983,7 +1001,7 @@ static void instanceMatcher(Parameter *parameter) {
 
 
 /*----------------------------------------------------------------------*/
-static void findCandidates(Parameter parameters[], void (*instanceMatcher)(Parameter *parameter)) 
+static void findCandidates(Parameter parameters[], void (*instanceMatcher)(Parameter *parameter))
 {
     int i;
 
@@ -1040,7 +1058,7 @@ static void findCandidatesForPlayerWords(ParameterPosition *parameterPosition) {
             parameterPosition->them = TRUE;
             getPreviousMultipleParameters(parameters);
             if (lengthOfParameterArray(parameters) == 0)
-            	errorWhat(parameters[0].firstWord);
+                errorWhat(parameters[0].firstWord);
             if (lengthOfParameterArray(parameters) > 1)
                 parameterPosition->explicitMultiple = TRUE;
         } else if (parameterPosition->all) {
@@ -1186,7 +1204,7 @@ static Parameter *disambiguateMMY(Parameter allCandidates[], Parameter presentCa
 }
 
 static DisambiguationHandlerTable disambiguationHandlerTable =
-    {   
+    {
         {   // Present == 0
             {   // Distant == 0
                 disambiguate00N, disambiguate00Y},
@@ -1313,11 +1331,15 @@ static void parseOneCommand(Parameter parameters[], Parameter multipleParameters
 {
     try(parameters, multipleParameters); /* ... to understand what he said */
 
-    /* More on this line? */
+    /* More on this line? Must be conjunctions... */
     if (!endOfWords(currentWordIndex)) {
         if (isConjunctionWord(currentWordIndex))
             currentWordIndex++; /* If so skip the conjunction */
-        else
+        if (endOfWords(currentWordIndex))
+            error(M_WHAT);
+        if (isConjunctionWord(currentWordIndex))
+            currentWordIndex++; /* Could be another "and then", if so, skip that too */
+        if (endOfWords(currentWordIndex))
             error(M_WHAT);
     }
 }
@@ -1332,24 +1354,6 @@ void initParsing(void) {
     pronouns = allocatePronounArray(pronouns);
     globalParameters = ensureParameterArrayAllocated(globalParameters);
     previousMultipleParameters = ensureParameterArrayAllocated(previousMultipleParameters);
-}
-
-/*----------------------------------------------------------------------*/
-static int pronounWordForInstance(int instance) {
-    /* Scan through the dictionary to find any pronouns that can be used
-       for this instance */
-    int w;
-
-    for (w = 0; w < dictionarySize; w++)
-        if (isPronoun(w)) {
-            Aword *reference = pointerTo(dictionary[w].pronounRefs);
-            while (*reference != EOF) {
-                if (*reference == instance)
-                    return dictionary[w].code;
-                reference++;
-            }
-        }
-    return 0;
 }
 
 /*----------------------------------------------------------------------*/
@@ -1372,9 +1376,17 @@ static void notePronounsForParameters(Parameter parameters[]) {
 
     clearPronounList(pronouns);
     for (p = parameters; !isEndOfArray(p); p++) {
-        int pronoun = pronounWordForInstance(p->instance);
-        if (pronoun > 0)
-            addPronounForInstance(pronoun, p->instance);
+        int w;
+
+        for (w = 0; w < dictionarySize; w++)
+            if (isPronoun(w)) {
+                Aword *reference = pointerTo(dictionary[w].pronounRefs);
+                while (*reference != EOF) {
+                    if (*reference == p->instance)
+                        addPronounForInstance(dictionary[w].code, p->instance);
+                    reference++;
+                }
+            }
     }
 }
 

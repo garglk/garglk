@@ -264,6 +264,7 @@ static void execute(KeyMap map[], unsigned char ch);
 #ifdef __unix__
 /* Only used on unix */
 static void escapeBracket3Hook(char ch);
+static void ignoreCh(char ch) {}
 
 static KeyMap keymap[] = {
     {0x00, 0x03, NULL},
@@ -272,14 +273,15 @@ static KeyMap keymap[] = {
     {0x08, 0x08, delBwd},
     {0x09, 0x09, NULL},
     {0x0a, 0x0a, newLine},
+    {0x0d, 0x0d, ignoreCh},
     {0x1b, 0x1b, escHook},
     {0x1c, 0x7e, insertCh},
 #ifdef __macos__
-    {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
+    {0x7f, 0x7f, delBwd},
 #elif __linux__
-    {0x7f, 0x7f, delBwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
+    {0x7f, 0x7f, delBwd},
 #else
-    {0x7f, 0x7f, delFwd},		/* Standard UNIX : delFwd, MACOSX : delBwd */
+    {0x7f, 0x7f, delFwd},
 #endif
     {0x80, 0xff, insertCh},
     {0x00, 0x00, NULL}
