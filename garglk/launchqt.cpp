@@ -77,7 +77,7 @@ private:
 static const QList<Filter> filters = {
     Filter("Adrift", {"taf"}),
     Filter("AdvSys", {"dat"}),
-    Filter("AGT", {"agx", "d[0-9][0-9]"}),
+    Filter("AGT", {"agx", "d$$"}),
     Filter("Alan", {"acd", "a3c"}),
     Filter("Glulx", {"ulx", "blb", "blorb", "glb", "gblorb"}),
     Filter("Hugo", {"hex"}),

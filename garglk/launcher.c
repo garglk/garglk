@@ -265,108 +265,83 @@ static int configterp(const char *path, const char *game)
     return FALSE;
 }
 
+struct interpreter {
+    const char *ext;
+    const char *interpreter;
+    const char *flags;
+};
+
+#define ASIZE(array) ((sizeof (array)) / (sizeof *(array)))
+
 int rungame(const char *path, const char *game)
 {
+    const char *blorbs[] = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
+    const struct interpreter interpreters[] = {
+        { .ext = "dat", .interpreter = T_ADVSYS },
+        { .ext = "d$$", .interpreter = T_AGT, .flags = "-gl" },
+        { .ext = "agx", .interpreter = T_AGT, .flags = "-gl" },
+        { .ext = "acd", .interpreter = T_ALAN2 },
+        { .ext = "a3c", .interpreter = T_ALAN3 },
+        { .ext = "taf", .interpreter = T_ADRIFT },
+        { .ext = "ulx", .interpreter = T_GLULX },
+        { .ext = "hex", .interpreter = T_HUGO },
+        { .ext = "jacl", .interpreter = T_JACL },
+        { .ext = "j2", .interpreter = T_JACL },
+        { .ext = "gam", .interpreter = T_TADS2 },
+        { .ext = "t3", .interpreter = T_TADS3 },
+        { .ext = "z1", .interpreter = T_ZCODE },
+        { .ext = "z2", .interpreter = T_ZCODE },
+        { .ext = "z3", .interpreter = T_ZCODE },
+        { .ext = "z4", .interpreter = T_ZCODE },
+        { .ext = "z5", .interpreter = T_ZCODE },
+        { .ext = "z7", .interpreter = T_ZCODE },
+        { .ext = "z8", .interpreter = T_ZCODE },
+        { .ext = "z6", .interpreter = T_ZSIX },
+        { .ext = "l9", .interpreter = T_LEV9 },
+        { .ext = "sna", .interpreter = T_LEV9 },
+        { .ext = "mag", .interpreter = T_MGSR },
+        { .ext = "asl", .interpreter = T_QUEST },
+        { .ext = "cas", .interpreter = T_QUEST },
+        { .ext = "saga", .interpreter = T_SCOTT },
+    };
+
     /* initialize buffers */
-    strcpy(exe, GARGLKPRE);
-    strcpy(terp, "");
-    strcpy(flags, "");
+    terp[0] = 0;
+    flags[0] = 0;
 
     configterp(path, game);
 
     char *ext = strrchr(game, '.');
-
     if (ext)
         ext++;
     else
         ext = "";
 
-    if (!strcasecmp(ext, "blb"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "blorb"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "glb"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "gbl"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "gblorb"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "zlb"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "zbl"))
-        return runblorb(path, game);
-    if (!strcasecmp(ext, "zblorb"))
-        return runblorb(path, game);
+    for (int i = 0; i < ASIZE(blorbs); i++)
+    {
+        if (strcasecmp(ext, blorbs[i]) == 0)
+        {
+            return runblorb(path, game);
+        }
+    }
 
-    if (strlen(terp))
-        return winterp(path, strcat(exe,terp), flags, game);
+    if (strlen(terp) > 0)
+    {
+        snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, terp);
+        return winterp(path, exe, flags, game);
+    }
 
-    if (!strcasecmp(ext, "dat"))
-        return winterp(path, strcat(exe,T_ADVSYS), "", game);
+    for (int i = 0; i < ASIZE(interpreters); i++)
+    {
+        const struct interpreter *interpreter = &interpreters[i];
 
-    if (!strcasecmp(ext, "d$$"))
-        return winterp(path, strcat(exe,T_AGT), "-gl", game);
-    if (!strcasecmp(ext, "agx"))
-        return winterp(path, strcat(exe,T_AGT), "-gl", game);
-
-    if (!strcasecmp(ext, "acd"))
-        return winterp(path, strcat(exe,T_ALAN2), "", game);
-
-    if (!strcasecmp(ext, "a3c"))
-        return winterp(path, strcat(exe,T_ALAN3), "", game);
-
-    if (!strcasecmp(ext, "taf"))
-        return winterp(path, strcat(exe,T_ADRIFT), "", game);
-
-    if (!strcasecmp(ext, "ulx"))
-        return winterp(path, strcat(exe,T_GLULX), "", game);
-
-    if (!strcasecmp(ext, "hex"))
-        return winterp(path, strcat(exe,T_HUGO), "", game);
-
-    if (!strcasecmp(ext, "jacl"))
-        return winterp(path, strcat(exe,T_JACL), "", game);
-    if (!strcasecmp(ext, "j2"))
-        return winterp(path, strcat(exe,T_JACL), "", game);
-
-    if (!strcasecmp(ext, "gam"))
-        return winterp(path, strcat(exe,T_TADS2), "", game);
-
-    if (!strcasecmp(ext, "t3"))
-        return winterp(path, strcat(exe,T_TADS3), "", game);
-
-    if (!strcasecmp(ext, "z1"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z2"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z3"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z4"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z5"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z7"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-    if (!strcasecmp(ext, "z8"))
-        return winterp(path, strcat(exe,T_ZCODE), "", game);
-
-    if (!strcasecmp(ext, "z6"))
-        return winterp(path, strcat(exe,T_ZSIX), "", game);
-
-    if (!strcasecmp(ext, "l9"))
-        return winterp(path, strcat(exe,T_LEV9), "", game);
-    if (!strcasecmp(ext, "sna"))
-        return winterp(path, strcat(exe,T_LEV9), "", game);
-    if (!strcasecmp(ext, "mag"))
-        return winterp(path, strcat(exe,T_MGSR), "", game);
-
-    if (!strcasecmp(ext, "asl"))
-        return winterp(path, strcat(exe,T_QUEST), "", game);
-    if (!strcasecmp(ext, "cas"))
-        return winterp(path, strcat(exe,T_QUEST), "", game);
-
-    if (!strcasecmp(ext, "saga"))
-        return winterp(path, strcat(exe,T_SCOTT), "", game);
+        if (strcasecmp(ext, interpreter->ext) == 0)
+        {
+            snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, interpreter->interpreter);
+            const char *flags = interpreter->flags == NULL ? "" : interpreter->flags;
+            return winterp(path, exe, flags, game);
+        }
+    }
 
     snprintf(tmp, sizeof tmp, "Unknown file type: \"%s\"\nSorry.", ext);
     winmsg(tmp);
