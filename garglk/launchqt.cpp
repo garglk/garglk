@@ -35,6 +35,8 @@
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 
 #include <QApplication>
@@ -89,7 +91,7 @@ static const QList<Filter> filters = {
     Filter("Magnetic Scrolls", {"mag"}),
     Filter("Quest", {"asl", "cas"}),
     Filter("TADS", {"gam", "t3"}),
-    Filter("Z-code", {"z[1-8]", "zlb", "zblorb"}),
+    Filter("Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}),
 };
 
 void winmsg(const char *msg)
@@ -124,6 +126,7 @@ static QString winbrowsefile()
 static QString winpath()
 {
     char buf[4096];
+    char pathsep = '/';
 #ifdef __FreeBSD__
     int mib[4];
     size_t len = sizeof buf;
@@ -136,6 +139,16 @@ static QString winpath()
         winmsg("Unable to locate executable path");
         exit(EXIT_FAILURE);
     }
+#elif defined(_WIN32)
+    DWORD n = GetModuleFileName(NULL, buf, sizeof buf);
+
+    if (n == 0 || n >= sizeof buf)
+    {
+        winmsg("Unable to locate executable path");
+        exit(EXIT_FAILURE);
+    }
+
+    pathsep = '\\';
 #else
     ssize_t n = readlink("/proc/self/exe", buf, sizeof buf);
     if (n == -1 || n >= static_cast<ssize_t>(sizeof buf))
@@ -146,7 +159,7 @@ static QString winpath()
     buf[n] = 0;
 #endif
 
-    char *p = std::strrchr(buf, '/');
+    char *p = std::strrchr(buf, pathsep);
     if (p != nullptr)
         *p = '\0';
 
@@ -156,6 +169,9 @@ static QString winpath()
 
 int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
+    // execv() on MinGW seems to split the pathname on spaces, which
+    // completely ruins the ability to use it. So use QProcess on MinGW.
+    //
     // Haiku provides execv(), but if Qt is running, it fails with
     // "Operation not allowed" (errno 0x8000000f). The same execve()
     // call works fine outside of Qt, so maybe this is a BeOS GUI thing.
@@ -163,10 +179,12 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
     //
     // Otherwise, just use execve(), since QProcess swallows stdout and
     // stderr, and it's cumbersome to redirect them back to the terminal.
-#ifdef __HAIKU__
+#if defined(_WIN32) || defined(__HAIKU__)
     QString argv0 = QDir(path).absoluteFilePath(exe);
 
+#ifndef _WIN32
     setenv("GARGLK_INI", path, 0);
+#endif
 
     QStringList args;
 

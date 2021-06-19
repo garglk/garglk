@@ -1,4 +1,0 @@
-freetype - 2.10.4
-libjpeg-turbo - 2.1.0
-libpng - 1.6.37
-zlib - 1.2.11

@@ -69,6 +69,9 @@ Section "DoInstall"
     Push "garglk.ini"
     Call unix2dos
 
+    CreateDirectory $INSTDIR\plugins\platforms
+    SetOutPath $INSTDIR\plugins\platforms
+    File "build\dist\plugins\platforms\*"
 
     WriteUninstaller "uninstall.exe"
 
