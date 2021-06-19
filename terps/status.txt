@@ -6,7 +6,7 @@ Build status as of 10/11/2010:
 | advsys        | 1.2           |
 | agility       | 1.1.1.1       |
 | alan          | 2.8.6         |
-| alan3         | 3.0beta6      |
+| alan3         | 3.0beta7      |
 | bocfel        | 1.3.2         |
 | geas          | 0.4           |
 | git           | 1.3.5         |

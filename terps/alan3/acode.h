@@ -22,15 +22,8 @@ typedef uint32_t Aid;        /* Type for an ACODE Instance Id value */
 typedef int32_t Abool;       /* Type for an ACODE Boolean value */
 typedef int32_t Aint;        /* Type for an ACODE Integer value */
 typedef int32_t Aset;        /* Type for an ACODE Set value */
+typedef int32_t CodeValue;   /* Definition for the packing process */
 
-// TODO: Make this an int32_t too?
-#if INT_MAX==0x7fffffff
-typedef int CodeValue;       /* Definition for the packing process */
-#elif LONG_MAX==0x7fffffff
-typedef signed long CodeValue;   /* Definition for the packing process */
-#else
-#error "Can't find a 32-bit integer type"
-#endif
 
 #ifndef TRUE
 #define TRUE (0==0)
@@ -480,6 +473,11 @@ typedef struct DictionaryEntry { /* Dictionary */
     Aaddr nounRefs;             /* Address to reference list */
     Aaddr pronounRefs;          /* Address to reference list */
 } DictionaryEntry;
+
+typedef struct IfidEntry {      /* IFIDs are (name, value) pairs */
+    Aaddr nameAddress;
+    Aaddr valueAddress;
+} IfidEntry;
 
 
 

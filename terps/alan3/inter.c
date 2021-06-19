@@ -56,27 +56,212 @@ void setInterpreterStack(Stack theStack)
     stack = theStack;
 }
 
+/* Indicates if the result "field" has been printed, so that we know
+ * if we need to advance over it */
+static bool resultTraced = false;
+
+/* Format for all trace lines:
+   - address
+   - instruction name
+   - 3 parameters
+   - result field
+   - stack dump
+
+   All traceInstruction-functions are responsible to move to beginning
+   of result field. The single traceResult() function will print there,
+   and outputs (like print and system) will move over it if necessary, as
+   will the stack dump function.
+ */
+static char *format = "%-11s %7s %7s %7s %7s";
+/*----------------------------------------------------------------------*/
+static void traceInstruction0(char *name) {
+    if (!traceInstructionOption)
+        return;
+
+    printf(format, name, "", "", "", "");
+
+}
 
 /*----------------------------------------------------------------------*/
-static void traceInstruction(char *str, ...) {
-    va_list args;
+static void traceInstruction1(char *name, Aword p1) {
+    char buf1[100];
 
-    if (traceInstructionOption) {
-        va_start(args, str);
+    if (!traceInstructionOption)
+        return;
 
-        fflush(NULL);
-        vprintf(str, args);
-        fflush(NULL);
-        va_end(args);
+    sprintf(buf1, "%6d ", p1);
+
+    printf(format, name, buf1, "", "", "");
+}
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction1s(char *name, char *p1) {
+    if (!traceInstructionOption)
+        return;
+
+    printf(format, name, p1, "", "", "");
+}
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction1R(char *name, Aword p1, Aword result) {
+    char buf1[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d ", p1);
+
+    printf(format, name, buf1, "", "", "");
+    printf("=%-7d ", result);
+    resultTraced = true;
+}
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction2(char *name, Aword p1, Aword p2) {
+    char buf1[100];
+    char buf2[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d,", p1);
+    sprintf(buf2, "%6d ", p2);
+
+    printf(format, name, buf1, buf2, "", "");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction2s(char *name, char *p1, char *p2) {
+    if (!traceInstructionOption)
+        return;
+    printf(format, name, p1, p2, "", "");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction2ds(char *name, Aword p1, char *p2) {
+    char buf1[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d ", p1);
+    printf(format, name, buf1, p2, "", "");
+}
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction2sd(char *name, char *p1, Aword p2) {
+    char buf2[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf2, "%6d ", p2);
+    printf(format, name, p1, buf2, "", "");
+}
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction3(char *name, Aword p1, Aword p2, Aword p3) {
+    char buf1[100];
+    char buf2[100];
+    char buf3[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d,", p1);
+    sprintf(buf2, "%6d,", p2);
+    sprintf(buf3, "%6d ", p3);
+
+    printf(format, name, buf1, buf2, buf3, "");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction3dds(char *name, Aword p1, Aword p2, char *p3) {
+    char buf1[100];
+    char buf2[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d,", p1);
+    sprintf(buf2, "%6d,", p2);
+
+    printf(format, name, buf1, buf2, p3, "");
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceInstruction5(char *name, Aword p1, Aword p2, Aword p3, Aword p4, Aword p5) {
+    char buf1[100];
+    char buf2[100];
+    char buf3[100];
+    char buf4[100];
+    char buf5[100];
+
+    if (!traceInstructionOption)
+        return;
+
+    sprintf(buf1, "%6d,", p1);
+    sprintf(buf2, "%6d,", p2);
+    sprintf(buf3, "%6d,", p3);
+    sprintf(buf4, "%6d,", p4);
+    sprintf(buf5, "%6d ", p5);
+
+    printf(format, name, buf1, buf2, buf3, buf4, buf5);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void moveToStackTraceField() {
+    if (!resultTraced) {
+        printf("%11s", "");       /* Move past result field */
+        resultTraced = true;
     }
 }
 
+/*----------------------------------------------------------------------*/
+static void traceStack(Stack theStack) {
+    moveToStackTraceField();
+    dumpStack(theStack);
+}
+
+
+/*----------------------------------------------------------------------*/
+static void traceOutput(char *leading) {
+    moveToStackTraceField();
+    printf("%s", leading);
+}
+
+/*----------------------------------------------------------------------*/
+static void traceEndOfOutput(char *terminator) {
+    printf("%s", terminator);
+    if (traceStackOption) {
+        printf("\n      ");
+        printf(format, "", "", "", "", "");
+        resultTraced = false;
+        moveToStackTraceField();
+    }
+}
+
+/*----------------------------------------------------------------------*/
+static void tracePC(int pc) {
+    if (traceInstructionOption)
+        printf("\n%4x: ", pc);
+    resultTraced = false;
+}
+
+static bool skipStackDump = FALSE; /* Need to be able to skip it for some outputs */
 
 /*----------------------------------------------------------------------*/
 static void traceSkip() {
-    printf("\n    : \t\t\t\t\t\t\t");
+    if (traceInstructionOption) {
+        printf("\n    :");
+        skipStackDump = true;
+    }
 }
-
 
 /*----------------------------------------------------------------------*/
 static void interpretIf(Aword v)
@@ -86,15 +271,15 @@ static void interpretIf(Aword v)
 
     if (!v) {
         /* Skip to next ELSE or ENDIF on same level */
-        if (traceInstructionOption) traceSkip();
+        traceSkip();
         while (TRUE) {
             i = memory[pc++];
             if (I_CLASS(i) == (Aword)C_STMOP)
                 switch (I_OP(i)) {
                 case I_ELSE:
                     if (lev == 1) {
-                        if (traceInstructionOption)
-                            printf("\n%4x: ELSE\t\t\t\t\t\t", pc);
+                        tracePC(pc);
+                        traceInstruction0("ELSE");
                         return;
                     }
                     break;
@@ -104,8 +289,8 @@ static void interpretIf(Aword v)
                 case I_ENDIF:
                     lev--;
                     if (lev == 0) {
-                        if (traceInstructionOption)
-                            printf("\n%4x: ENDIF\t\t\t\t\t\t", pc);
+                        tracePC(pc);
+                        traceInstruction0("ENDIF");
                         return;
                     }
                     break;
@@ -121,7 +306,7 @@ static void interpretElse(void)
     int lev = 1;
     Aword i;
 
-    if (traceInstructionOption) traceSkip();
+    traceSkip();
     while (TRUE) {
         /* Skip to ENDIF on the same level */
         i = memory[pc++];
@@ -144,7 +329,7 @@ static void goToLOOPEND(void) {
     int level = 1;
     int i;
 
-    if (traceInstructionOption) traceSkip();
+    traceSkip();
     while (TRUE) {
         /* Skip past LOOPEND on the same level */
         i = memory[pc];
@@ -169,7 +354,7 @@ static void jumpBackToStartOfMatchingLOOP(void) {
     int level = 1;
     int i;
 
-    if (traceInstructionOption) traceSkip();
+    traceSkip();
     pc--;				/* Ignore the instruction we're on */
     while (TRUE) {
         /* Skip back past LOOP on the same level */
@@ -205,8 +390,8 @@ static void endLoop(Aint index, Aint limit)
         push(stack, limit);
         push(stack, index);
         jumpBackToStartOfMatchingLOOP();
-        if (traceInstructionOption)
-            printf("\n%4x: LOOP\t\t\t\t\t\t", pc);
+        tracePC(pc);
+        traceInstruction0("LOOP");
         pc++;
     }
 }
@@ -295,8 +480,8 @@ static void depcase(void)
 
 /*----------------------------------------------------------------------*/
 static char *booleanValue(Abool value) {
-    if (value) return "   TRUE";
-    else return "  FALSE";
+    if (value) return "TRUE";
+    else return "FALSE";
 }
 
 /*----------------------------------------------------------------------*/
@@ -311,56 +496,68 @@ static char *stringValue(Aptr address) {
 static char *pointerValue(Aptr address) {
     static char string[100];
 
-    sprintf(string, "@%6lx",(unsigned long) address);
+    sprintf(string, "@%lx ",(unsigned long) address);
     return string;
 }
 
 /*----------------------------------------------------------------------*/
 static void traceStringTopValue() {
-    if (traceInstructionOption)
-        printf("\t=%s", stringValue(top(stack)));
+    if (traceInstructionOption) {
+        printf("=%10s", stringValue(top(stack)));
+        resultTraced = true;
+    }
 }
 
 /*----------------------------------------------------------------------*/
-static void tracebooleanTopValue() {
+static void traceBooleanTopValue() {
     if (traceInstructionOption) {
-        if (top(stack)) printf("\t=TRUE\t");
-        else printf("\t=FALSE\t");
+        printf("=%-10s", top(stack)?"TRUE":"FALSE");
+        resultTraced = true;
     }
 }
 
 /*----------------------------------------------------------------------*/
 static void traceIntegerTopValue() {
-    if (traceInstructionOption)
-        printf("\t=%ld\t", (long)top(stack));
+    if (traceInstructionOption) {
+        printf("=%-10d", top(stack));
+        resultTraced = true;
+    }
 }
 
 /*----------------------------------------------------------------------*/
 static void tracePointerTopValue() {
-    if (traceInstructionOption)
-        printf("\t=%s\t", pointerValue(top(stack)));
+    if (traceInstructionOption) {
+        printf("=%-10s", pointerValue(top(stack)));
+        resultTraced = true;
+    }
 }
 
 /*----------------------------------------------------------------------*/
 static void traceInstanceTopValue() {
     if (traceInstructionOption) {
-        printf("\t=%ld ('", (long)top(stack));
+        printf("=%ld ('", (long)top(stack));
         traceSay(top(stack));
         printf("')");
-        if (traceStackOption)
-            printf("\n\t\t\t\t\t\t\t");
+        resultTraced = true;
+        if (traceStackOption) {
+            /* TODO Move to stack field on next line */
+            printf("\n      ");
+            printf(format, "", "", "", "");
+            printf("%10s", "");
+        }
     }
 }
+
 
 /*----------------------------------------------------------------------*/
 static char *transitivityFlag(ATrans value) {
     switch (value) {
     case TRANSITIVE:
-        return "Transitive";
+        return "Trans.";
     case DIRECT:
         return "Direct";
     case INDIRECT:
-        return "Indirect";
+        return "Indir.";
     }
     syserr("Unexpected transitivity");
     return "ERROR";
@@ -395,14 +592,10 @@ static void checkForRecursion(Aaddr adr) {
 }
 
 
-static bool skipStackDump = FALSE; /* Need to be able to skip it for LINE */
-
-
 /*----------------------------------------------------------------------*/
 static bool stillOnSameLine(Aint line, Aint file) {
     return line != current.sourceLine || file != current.sourceFile;
 }
-
 
 /*======================================================================*/
 void interpret(Aaddr adr)
@@ -433,43 +626,52 @@ void interpret(Aaddr adr)
 
         switch (I_CLASS(i)) {
         case C_CONST:
-            if (tracePushOption) printf("\n%4x: PUSH  \t%7ld\t\t\t\t\t", pc-1, (long)I_OP(i));
+            if (tracePushOption) {
+                tracePC(pc-1);
+                traceInstruction1("PUSH", I_OP(i));
+            }
             push(stack, I_OP(i));
             if (tracePushOption && traceStackOption)
-                dumpStack(stack);
+                traceStack(stack);
             break;
         case C_CURVAR:
-            if (traceInstructionOption) printf("\n%4x: ", pc-1);
+            tracePC(pc-1);
             switch (I_OP(i)) {
             case V_PARAM:
-                if (traceInstructionOption) printf("PARAM \t%7ld\t\t\t\t=%ld\t", (long)top(stack),
-                                             (long)globalParameters[top(stack)-1].instance);
+                traceInstruction1("PARAM", top(stack));
                 push(stack, globalParameters[pop(stack)-1].instance);
+                traceIntegerTopValue();
                 break;
             case V_CURLOC:
-                if (traceInstructionOption) printf("CURLOC \t\t\t\t\t=%d\t", current.location);
+                traceInstruction0("CURLOC");
                 push(stack, current.location);
+                traceIntegerTopValue();
                 break;
             case V_CURACT:
-                if (traceInstructionOption) printf("CURACT \t\t\t\t\t=%d\t", current.actor);
+                traceInstruction0("CURACT");
                 push(stack, current.actor);
+                traceIntegerTopValue();
                 break;
             case V_CURVRB:
-                if (traceInstructionOption) printf("CURVRB \t\t\t\t\t=%d\t", current.verb);
+                traceInstruction0("CURVRB");
                 push(stack, current.verb);
+                traceIntegerTopValue();
                 break;
             case V_CURRENT_INSTANCE:
-                if (traceInstructionOption) printf("CURINS \t\t\t\t\t=%d\t", current.instance);
+                traceInstruction0("CURINS");
                 push(stack, current.instance);
+                traceIntegerTopValue();
                 break;
             case V_SCORE:
-                if (traceInstructionOption) printf("CURSCORE \t\t\t\t\t=%d\t", current.score);
+                traceInstruction0("CURSCORE");
                 push(stack, current.score);
+                traceIntegerTopValue();
                 break;
             case V_MAX_INSTANCE: {
                 int instanceMax = isPreBeta3(header->version)?header->instanceMax:header->instanceMax-1;
-                if (traceInstructionOption) printf("MAXINSTANCE \t\t\t\t=%d\t", instanceMax);
+                traceInstruction0("MAXINSTANCE");
                 push(stack, instanceMax);
+                traceIntegerTopValue();
                 break;
             }
             default:
@@ -477,38 +679,35 @@ void interpret(Aaddr adr)
                 break;
             }
             if (traceStackOption)
-                dumpStack(stack);
+                traceStack(stack);
             break;
 
         case C_STMOP:
-            if (traceInstructionOption) printf("\n%4x: ", pc-1);
+            tracePC(pc-1);
             switch (I_OP(i)) {
 
             case I_DUP:
-                if (traceInstructionOption)
-                    printf("DUP\t\t\t\t\t\t");
+                traceInstruction0("DUP");
                 stackDup();
                 break;
 
             case I_DUPSTR:
-                if (traceInstructionOption)
-                    printf("DUPSTR\t\t\t\t\t\t");
+                traceInstruction0("DUPSTR");
                 push(stack, toAptr(strdup((char*)fromAptr(top(stack)))));
                 break;
 
             case I_POP: {
                 Aptr top = pop(stack);
-                if (traceInstructionOption)
-                    printf("POP\t%7ld", (long)top);
+                traceInstruction1("POP", top);
                 break;
             }
 
             case I_LINE: {
                 Aint line = pop(stack);
                 Aint file = pop(stack);
-                traceInstruction("LINE\t%7ld, %7ld\t\t\t", (long)file, (long)line);
+                traceInstruction2("LINE", file, line);
                 if (traceStackOption)
-                    dumpStack(stack);
+                    traceStack(stack);
                 skipStackDump = TRUE;
                 if (line != 0) {
                     bool atNext = stopAtNextLine && line != current.sourceLine;
@@ -534,23 +733,20 @@ void interpret(Aaddr adr)
                 Aint fpos = pop(stack);
                 Aint len = pop(stack);
                 if (traceInstructionOption) {
-                    printf("PRINT \t%7ld, %7ld\t\"", (long)fpos, (long)len);
+                    traceInstruction2("PRINT", fpos, len);
                     col = 41;		/* To break lines better! */
+                    traceOutput("\"");
                 }
                 print(fpos, len);
                 if (traceInstructionOption) {
-                    printf("\"");
-                    if (traceStackOption)
-                        printf("\n\t\t\t\t\t\t\t");
+                    traceEndOfOutput("\"");
                 }
                 break;
             }
 
             case I_STYLE: {
                 Aint style = pop(stack);
-                if (traceInstructionOption) {
-                    printf("STYLE \t%7ld\t\t\"", (long)style);
-                }
+                traceInstruction1("STYLE", style);
                 setStyle(style);
                 break;
             }
@@ -559,8 +755,9 @@ void interpret(Aaddr adr)
                 Aint fpos = pop(stack);
                 Aint len = pop(stack);
                 if (traceInstructionOption) {
-                    printf("SYSTEM \t%7ld, %7ld\t\"", (long)fpos, (long)len);
-                    col = 34;		/* To format it better! */
+                    traceInstruction2("SYSTEM", fpos, len);
+                    col = 34;		/* To format possible output better! */
+                    traceOutput("\"");
                 }
                 sys(fpos, len);
                 if (traceInstructionOption)
@@ -571,71 +768,61 @@ void interpret(Aaddr adr)
             case I_GETSTR: {
                 Aint fpos = pop(stack);
                 Aint len = pop(stack);
-                if (traceInstructionOption)
-                    printf("GETSTR\t%7ld, %7ld", (long)fpos, (long)len);
+                traceInstruction2("GETSTR", fpos, len);
                 push(stack, toAptr(getStringFromFile(fpos, len)));
                 traceStringTopValue();
                 break;
             }
 
             case I_QUIT: {
-                if (traceInstructionOption)
-                    printf("QUIT\t\t\t\t\t\t");
+                traceInstruction0("QUIT");
                 quitGame();
                 break;
             }
             case I_LOOK: {
-                if (traceInstructionOption)
-                    printf("LOOK\t\t\t\t\t\t");
+                traceInstruction0("LOOK");
                 look();
                 break;
             }
             case I_SAVE: {
-                if (traceInstructionOption)
-                    printf("SAVE\t\t\t\t\t\t");
+                traceInstruction0("SAVE");
                 save();
                 break;
             }
             case I_RESTORE: {
-                if (traceInstructionOption)
-                    printf("RESTORE\t\t\t\t\t\t");
+                traceInstruction0("RESTORE");
                 restore();
                 break;
             }
             case I_RESTART: {
-                if (traceInstructionOption)
-                    printf("RESTART\t\t\t\t\t\t");
+                traceInstruction0("RESTART");
                 restartGame();
                 break;
             }
 
             case I_SCORE: {
                 Aint sc = pop(stack);
-                if (traceInstructionOption)
-                    printf("SCORE \t%7ld\t\t=%ld\t\t\t", (long)sc, (long)scores[sc-1]);
+                traceInstruction1R("SCORE", sc, scores[sc-1]);
                 score(sc);
                 break;
             }
             case I_VISITS: {
                 Aint v = pop(stack);
-                if (traceInstructionOption)
-                    printf("VISITS \t%7ld\t\t\t\t\t", (long)v);
+                traceInstruction1("VISITS", v);
                 visits(v);
                 break;
             }
 
             case I_LIST: {
                 Aint cnt = pop(stack);
-                if (traceInstructionOption)
-                    printf("LIST \t%7ld\t\t\t\t\t", (long)cnt);
+                traceInstruction1("LIST", cnt);
                 list(cnt);
                 break;
             }
             case I_EMPTY: {
                 Aint cnt = pop(stack);
                 Aint whr = pop(stack);
-                if (traceInstructionOption)
-                    printf("EMPTY \t%7ld, %7ld\t\t\t\t", (long)cnt, (long)whr);
+                traceInstruction2("EMPTY", cnt, whr);
                 empty(cnt, whr);
                 break;
             }
@@ -643,15 +830,13 @@ void interpret(Aaddr adr)
                 Aint event = pop(stack);
                 Aint where = pop(stack);
                 Aint after = pop(stack);
-                if (traceInstructionOption)
-                    printf("SCHEDULE \t%7ld, %7ld, %7ld\t\t\t\t", (long)event, (long)where, (long)after);
+                traceInstruction3("SCHEDULE", event, where, after);
                 schedule(event, where, after);
                 break;
             }
             case I_CANCEL: {
                 Aint event = pop(stack);
-                if (traceInstructionOption)
-                    printf("CANCEL \t%7ld\t\t\t\t", (long)event);
+                traceInstruction1("CANCEL", event);
                 cancelEvent(event);
                 break;
             }
@@ -659,8 +844,7 @@ void interpret(Aaddr adr)
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
                 Abool val = pop(stack);
-                if (traceInstructionOption)
-                    printf("MAKE \t%7ld, %7ld, %s\t\t\t", (long)id, (long)atr, booleanValue(val));
+                traceInstruction3dds("MAKE", id, atr, booleanValue(val));
                 setInstanceAttribute(id, atr, val);
                 break;
             }
@@ -668,9 +852,7 @@ void interpret(Aaddr adr)
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
                 Aptr val = pop(stack);
-                if (traceInstructionOption) {
-                    printf("SET \t%7ld, %7ld, %7ld\t\t\t\t", (long)id, (long)atr, (long)val);
-                }
+                traceInstruction3("SET", id, atr, val);
                 setInstanceAttribute(id, atr, val);
                 break;
             }
@@ -678,9 +860,7 @@ void interpret(Aaddr adr)
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
                 Aptr str = pop(stack);
-                if (traceInstructionOption) {
-                    printf("SETSTR\t%7ld, %7ld, %s\t\t\t\t", (long)id, (long)atr, stringValue(str));
-                }
+                traceInstruction3dds("SETSTR", id, atr, stringValue(str));
                 setInstanceStringAttribute(id, atr, fromAptr(str));
                 break;
             }
@@ -688,17 +868,13 @@ void interpret(Aaddr adr)
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
                 Aptr set = pop(stack);
-                if (traceInstructionOption) {
-                    printf("SETSET\t%7ld, %7ld, %7s\t\t", (long)id, (long)atr, pointerValue(set));
-                }
+                traceInstruction3dds("SETSET", id, atr, pointerValue(set));
                 setInstanceSetAttribute(id, atr, set);
                 break;
             }
             case I_NEWSET: {
                 Set *set = newSet(0);
-                if (traceInstructionOption) {
-                    printf("NEWSET\t\t\t");
-                }
+                traceInstruction0("NEWSET");
                 push(stack, toAptr(set));
                 tracePointerTopValue();
                 break;
@@ -706,9 +882,7 @@ void interpret(Aaddr adr)
             case I_UNION: {
                 Aptr set2 = pop(stack);
                 Aptr set1 = pop(stack);
-                if (traceInstructionOption) {
-                    printf("UNION\t%7ld, %7ld\t\t\t\t", (long)set1, (long)set2);
-                }
+                traceInstruction2("UNION", set1, set2);
                 push(stack, toAptr(setUnion((Set *)fromAptr(set1), (Set *)fromAptr(set2))));
                 tracePointerTopValue();
                 freeSet((Set *)fromAptr(set1));
@@ -717,62 +891,51 @@ void interpret(Aaddr adr)
             }
             case I_INCR: {
                 Aint step = pop(stack);
-                if (traceInstructionOption) {
-                    printf("INCR\t%7ld", (long)step);
-                }
+                traceInstruction1("INCR", step);
                 push(stack, pop(stack) + step);
                 traceIntegerTopValue();
                 break;
             }
             case I_DECR: {
                 Aint step = pop(stack);
-                if (traceInstructionOption) {
-                    printf("DECR\t%7ld\t\t\t\t\t", (long)step);
-                }
+                traceInstruction1("DECR", step);
                 push(stack, pop(stack) - step);
                 traceIntegerTopValue();
                 break;
             }
             case I_INCLUDE: {
                 Aint member = pop(stack);
-                if (traceInstructionOption) {
-                    printf("INCLUDE\t%7ld\t\t\t\t\t", (long)member);
-                }
+                traceInstruction1("INCLUDE", member);
                 addToSet((Set *)fromAptr(top(stack)), member);
                 break;
             }
             case I_EXCLUDE: {
                 Aint member = pop(stack);
-                if (traceInstructionOption) {
-                    printf("EXCLUDE\t%7ld", (long)member);
-                }
+                traceInstruction1("EXCLUDE", member);
                 removeFromSet((Set *)fromAptr(top(stack)), member);
                 break;
             }
             case I_SETSIZE: {
-                Set *set = (Set *)fromAptr(pop(stack));
-                if (traceInstructionOption)
-                    printf("SETSIZE\t%7ld\t\t", (long)set);
+                Aptr ptr = pop(stack);
+                Set *set = (Set *)fromAptr(ptr);
+                traceInstruction1s("SETSIZE", pointerValue(ptr));
                 push(stack, setSize(set));
-                if (traceInstructionOption)
-                    traceIntegerTopValue();
+                traceIntegerTopValue();
                 break;
             }
             case I_SETMEMB: {
-                Set *set = (Set *)fromAptr(pop(stack));
+                Aptr ptr = pop(stack);
+                Set *set = (Set *)fromAptr(ptr);
                 Aint index = pop(stack);
-                if (traceInstructionOption)
-                    printf("SETMEMB\t%7ld, %7ld", (long)set, (long)index);
+                traceInstruction2sd("SETMEMB", pointerValue(ptr), index);
                 push(stack, getSetMember(set, index));
-                if (traceInstructionOption)
-                    traceIntegerTopValue();
+                traceIntegerTopValue();
                 break;
             }
             case I_CONTSIZE: {
                 Abool transitivity = pop(stack);
                 Aint container = pop(stack);
-                if (traceInstructionOption)
-                    printf("CONTSIZE\t%7ld, %7s\t", (long)container, transitivityFlag(transitivity));
+                traceInstruction2ds("CONTSIZE", container, transitivityFlag(transitivity));
                 push(stack, containerSize(container, transitivity));
                 if (traceInstructionOption)
                     traceIntegerTopValue();
@@ -782,18 +945,15 @@ void interpret(Aaddr adr)
                 Abool transitivity = pop(stack);
                 Aint container = pop(stack);
                 Aint index = pop(stack);
-                if (traceInstructionOption)
-                    printf("CONTMEMB\t%7ld, %7ld, %7s", (long)container, (long)index, transitivityFlag(transitivity));
+                traceInstruction3dds("CONTMEMB", container, index, transitivityFlag(transitivity));
                 push(stack, getContainerMember(container, index, transitivity));
-                if (traceInstructionOption)
-                    traceIntegerTopValue();
+                traceIntegerTopValue();
                 break;
             }
             case I_ATTRIBUTE: {
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("ATTRIBUTE %7ld, %7ld\t", (long)id, (long)atr);
+                traceInstruction2("ATTRIBUTE", id, atr);
                 push(stack, getInstanceAttribute(id, atr));
                 traceIntegerTopValue();
                 break;
@@ -801,8 +961,7 @@ void interpret(Aaddr adr)
             case I_ATTRSTR: {
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("ATTRSTR \t%7ld, %7ld", (long)id, (long)atr);
+                traceInstruction2("ATTRSTR", id, atr);
                 push(stack, toAptr(getInstanceStringAttribute(id, atr)));
                 traceStringTopValue();
                 break;
@@ -810,8 +969,7 @@ void interpret(Aaddr adr)
             case I_ATTRSET: {
                 Aint atr = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("ATTRSET \t%7ld, %7ld", (long)id, (long)atr);
+                traceInstruction2("ATTRSET", id, atr);
                 push(stack, toAptr(getInstanceSetAttribute(id, atr)));
                 tracePointerTopValue();
                 break;
@@ -819,39 +977,34 @@ void interpret(Aaddr adr)
             case I_SHOW: {
                 Aint image = pop(stack);
                 Aint align = pop(stack);
-                if (traceInstructionOption)
-                    printf("SHOW \t%7ld, %7ld\t\t\t\t", (long)image, (long)align);
+                traceInstruction2("SHOW", image, align);
                 showImage(image, align);
                 break;
             }
             case I_PLAY: {
                 Aint sound = pop(stack);
-                if (traceInstructionOption)
-                    printf("PLAY \t%7ld\t\t\t\t", (long)sound);
+                traceInstruction1("PLAY", sound);
                 playSound(sound);
                 break;
             }
             case I_LOCATE: {
                 Aid id = pop(stack);
                 Aint whr = pop(stack);
-                if (traceInstructionOption)
-                    printf("LOCATE \t%7ld, %7ld\t\t\t", (long)id, (long)whr);
+                traceInstruction2("LOCATE", id, whr);
                 locate(id, whr);
                 break;
             }
             case I_WHERE: {
                 Abool transitivity = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("WHERE \t%7ld, %7s", (long)id, transitivityFlag(transitivity));
+                traceInstruction2ds("WHERE", id, transitivityFlag(transitivity));
                 push(stack, where(id, transitivity));
                 traceInstanceTopValue();
                 break;
             }
             case I_LOCATION: {
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("LOCATION \t%7ld\t\t", (long)id);
+                traceInstruction1("LOCATION", id);
                 push(stack, locationOf(id));
                 traceInstanceTopValue();
                 break;
@@ -859,181 +1012,158 @@ void interpret(Aaddr adr)
             case I_HERE: {
                 Abool transitivity = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("HERE \t%7ld, %s\t\t\t", (long)id, transitivityFlag(transitivity));
+                traceInstruction2ds("HERE", id, transitivityFlag(transitivity));
                 push(stack, isHere(id, transitivity));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_NEARBY: {
                 Abool transitivity = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("NEARBY \t%7ld, %s\t\t\t", (long)id, transitivityFlag(transitivity));
+                traceInstruction2ds("NEARBY", id, transitivityFlag(transitivity));
                 push(stack, isNearby(id, transitivity));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_NEAR: {
                 Abool transitivity = pop(stack);
                 Aint other = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("NEAR \t%7ld, %7ld, %s\t\t\t", (long)id, (long)other, transitivityFlag(transitivity));
+                traceInstruction3dds("NEAR", id, other, transitivityFlag(transitivity));
                 push(stack, isNear(id, other, transitivity));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_AT: {
                 Abool transitivity = pop(stack);
                 Aint other = pop(stack);
                 Aint instance = pop(stack);
-                if (traceInstructionOption)
-                    printf("AT \t%7ld, %7ld, %s", (long)instance, (long)other, transitivityFlag(transitivity));
+                traceInstruction3dds("AT", instance, other, transitivityFlag(transitivity));
                 push(stack, isAt(instance, other, transitivity));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_IN: {
                 Abool transitivity = pop(stack);
                 Aint cnt = pop(stack);
                 Aint obj = pop(stack);
-                if (traceInstructionOption)
-                    printf("IN \t%7ld, %7ld, %s", (long)obj, (long)cnt, transitivityFlag(transitivity));
+                traceInstruction3dds("IN", obj, cnt, transitivityFlag(transitivity));
                 push(stack, isIn(obj, cnt, transitivity));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_INSET: {
                 Aptr set = pop(stack);
                 Aword element = pop(stack);
-                if (traceInstructionOption)
-                    printf("INSET \t%7ld, %7ld", (long)element, (long)set);
+                traceInstruction2("INSET", element, set);
                 push(stack, inSet((Set*)fromAptr(set), element));
                 freeSet((Set *)fromAptr(set));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_USE: {
                 Aid act = pop(stack);
                 Aint scr = pop(stack);
-                if (traceInstructionOption)
-                    printf("USE \t%7ld, %7ld\t\t\t\t", (long)act, (long)scr);
+                traceInstruction2("USE", act, scr);
                 use(act, scr);
                 break;
             }
             case I_STOP: {
                 Aid actor = pop(stack);
-                if (traceInstructionOption)
-                    printf("STOP \t%7ld\t\t\t\t\t", (long)actor);
+                traceInstruction1("STOP", actor);
                 stop(actor);
                 break;
             }
             case I_DESCRIBE: {
                 Aid id = pop(stack);
                 if (traceInstructionOption) {
-                    printf("DESCRIBE \t%7ld\t\t\t", (long)id);
-                    col = 41;		/* To format it better! */
+                    traceInstruction1("DESCRIBE", id);
+                    col = 41;		/* To format output better! */
                 }
                 describe(id);
-                if (traceInstructionOption)
-                    printf("\n\t\t\t\t\t\t");
                 break;
             }
             case I_SAY: {
                 Aint form = pop(stack);
                 Aid id = pop(stack);
-                if (traceInstructionOption)
-                    printf("SAY\t%7s, %7ld\t\t\t", printForm(form), (long)id);
+                traceInstruction2sd("SAY", printForm(form), id);
                 if (form == SAY_SIMPLE)
                     say(id);
                 else
                     sayForm(id, form);
                 if (traceInstructionOption)
-                    printf("\t\t\t\t\t\t\t");
+                    traceEndOfOutput("\"");
                 break;
             }
             case I_SAYINT: {
                 Aword val = pop(stack);
-                if (traceInstructionOption)
-                    printf("SAYINT\t%7ld\t\t\t\"", (long)val);
+                traceInstruction1("SAYINT", val);
                 sayInteger(val);
                 if (traceInstructionOption)
-                    printf("\"\n\t\t\t\t\t\t\t");
+                    traceEndOfOutput("\"");
                 break;
             }
             case I_SAYSTR: {
                 Aptr adr = pop(stack);
-                if (traceInstructionOption)
-                    printf("SAYSTR\t%7ld\t\ty\t", (long)adr);
+                traceInstruction1("SAYSTR", adr);
                 sayString((char *)fromAptr(adr));
                 if (traceInstructionOption)
-                    printf("\n\t\t\t\t\t\t");
+                    traceEndOfOutput("\"");
                 break;
             }
             case I_IF: {
                 Aword v = pop(stack);
-                if (traceInstructionOption)
-                    printf("IF \t%s\t\t\t\t\t", booleanValue(v));
+                traceInstruction1s("IF", booleanValue(v));
                 interpretIf(v);
                 break;
             }
             case I_ELSE: {
-                if (traceInstructionOption)
-                    printf("ELSE\t\t\t\t\t\t");
+                traceInstruction0("ELSE");
                 interpretElse();
                 break;
             }
             case I_ENDIF: {
-                if (traceInstructionOption)
-                    printf("ENDIF\t\t\t\t\t\t");
+                traceInstruction0("ENDIF");
                 break;
             }
             case I_AND: {
                 Aword rh = pop(stack);
                 Aword lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("AND \t%s, %s", booleanValue(lh), booleanValue(rh));
+                traceInstruction2s("AND", booleanValue(lh), booleanValue(rh));
                 push(stack, lh && rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_OR: {
                 Aword rh = pop(stack);
                 Aword lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("OR \t%s, %s", booleanValue(lh), booleanValue(rh));
+                traceInstruction2s("OR", booleanValue(lh), booleanValue(rh));
                 push(stack, lh || rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_NE: {
                 Aword rh = pop(stack);
                 Aword lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("NE \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("NE", lh, rh);
                 push(stack, lh != rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_EQ: {
                 Aword rh = pop(stack);
                 Aword lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("EQ \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("EQ", lh, rh);
                 push(stack, lh == rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_STREQ: {
                 Aptr rh = pop(stack);
                 Aptr lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("STREQ \t0x%lx, 0x%lx", (long)lh, (long)rh);
+                traceInstruction2("STREQ", lh, rh);
                 push(stack, streq((char *)fromAptr(lh), (char *)fromAptr(rh)));
-                tracebooleanTopValue();
-                if (traceInstructionOption)
-                    printf("\t");
+                traceBooleanTopValue();
                 deallocate(fromAptr(lh));
                 deallocate(fromAptr(rh));
                 break;
@@ -1041,10 +1171,9 @@ void interpret(Aaddr adr)
             case I_STREXACT: {
                 Aptr rh = pop(stack);
                 Aptr lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("STREXACT \t0x%lx, 0x%lx", (long)lh, (long)rh);
+                traceInstruction2("STREXACT", lh, rh);
                 push(stack, strcmp((char *)fromAptr(lh), (char *)fromAptr(rh)) == 0);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 deallocate(fromAptr(lh));
                 deallocate(fromAptr(rh));
                 break;
@@ -1052,44 +1181,39 @@ void interpret(Aaddr adr)
             case I_LE: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("LE \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("LE", lh, rh);
                 push(stack, lh <= rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_GE: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("GE \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("GE", lh, rh);
                 push(stack, lh >= rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_LT: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("LT \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("LT", lh, rh);
                 push(stack, lh < rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_GT: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("GT \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("GT", lh, rh);
                 push(stack, lh > rh);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_PLUS: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("PLUS \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("PLUS", lh, rh);
                 push(stack, lh + rh);
                 traceIntegerTopValue();
                 break;
@@ -1097,8 +1221,7 @@ void interpret(Aaddr adr)
             case I_MINUS: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("MINUS \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("MINUS", lh, rh);
                 push(stack, lh - rh);
                 traceIntegerTopValue();
                 break;
@@ -1106,8 +1229,7 @@ void interpret(Aaddr adr)
             case I_MULT: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("MULT \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("MULT", lh, rh);
                 push(stack, lh * rh);
                 traceIntegerTopValue();
                 break;
@@ -1115,25 +1237,24 @@ void interpret(Aaddr adr)
             case I_DIV: {
                 Aint rh = pop(stack);
                 Aint lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("DIV \t%7ld, %7ld", (long)lh, (long)rh);
+                traceInstruction2("DIV", lh, rh);
+                if (rh == 0)
+                    apperr("Division by zero");
                 push(stack, lh / rh);
                 traceIntegerTopValue();
                 break;
             }
             case I_NOT: {
                 Aword val = pop(stack);
-                if (traceInstructionOption)
-                    printf("NOT \t%s\t\t\t", booleanValue(val));
+                traceInstruction1s("NOT", booleanValue(val));
                 push(stack, !val);
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
             case I_RND: {
                 Aint from = pop(stack);
                 Aint to = pop(stack);
-                if (traceInstructionOption)
-                    printf("RANDOM \t%7ld, %7ld", (long)from, (long)to);
+                traceInstruction2("RANDOM", from, to);
                 push(stack, randomInteger(from, to));
                 traceIntegerTopValue();
                 break;
@@ -1142,8 +1263,7 @@ void interpret(Aaddr adr)
                 Aint high = pop(stack);
                 Aint low = pop(stack);
                 Aint val = pop(stack);
-                if (traceInstructionOption)
-                    printf("BETWEEN \t%7ld, %7ld, %7ld", (long)val, (long)low, (long)high);
+                traceInstruction3("BETWEEN", val, low, high);
                 push(stack, between(val, low, high));
                 traceIntegerTopValue();
                 break;
@@ -1155,8 +1275,7 @@ void interpret(Aaddr adr)
             case I_CONCAT: {
                 Aptr s2 = pop(stack);
                 Aptr s1 = pop(stack);
-                if (traceInstructionOption)
-                    printf("CONCAT \t%s, %s", pointerValue(s1), pointerValue(s2));
+                traceInstruction2s("CONCAT", pointerValue(s1), pointerValue(s2));
                 push(stack, concat(s1, s2));
                 traceStringTopValue();
                 deallocate(fromAptr(s1));
@@ -1167,8 +1286,7 @@ void interpret(Aaddr adr)
             case I_CONTAINS: {
                 Aptr substring = pop(stack);
                 Aptr string = pop(stack);
-                if (traceInstructionOption)
-                    printf("CONTAINS \t%s, %s", pointerValue(string), pointerValue(substring));
+                traceInstruction2s("CONTAINS", pointerValue(string), pointerValue(substring));
                 push(stack, contains(string, substring));
                 traceIntegerTopValue();
                 deallocate(fromAptr(string));
@@ -1182,8 +1300,7 @@ void interpret(Aaddr adr)
                 Aint words = pop(stack);
                 Aint count = pop(stack);
                 Aint first = pop(stack);
-                if (traceInstructionOption)
-                    printf("STRIP \t%7ld, %7ld, %7ld, %7ld, %7ld", (long)first, (long)count, (long)words, (long)id, (long)atr);
+                traceInstruction5("STRIP", first, count, words, id, atr);
                 push(stack, strip(first, count, words, id, atr));
                 traceStringTopValue();
                 break;
@@ -1201,24 +1318,21 @@ void interpret(Aaddr adr)
                 Aint aggregate = pop(stack);
                 switch (I_OP(i)) {
                 case I_MAX:
-                    if (traceInstructionOption)
-                        printf("MAX \t%7ld\t\t\t", (long)attribute);
+                    traceInstruction1("MAX", attribute);
                     if (aggregate < attribute)
                         push(stack, attribute);
                     else
                         push(stack, aggregate);
                     break;
                 case I_MIN:
-                    if (traceInstructionOption)
-                        printf("MIN \t%7ld\t\t\t", (long)attribute);
+                    traceInstruction1("MIN", attribute);
                     if (aggregate > attribute)
                         push(stack, attribute);
                     else
                         push(stack, aggregate);
                     break;
                 case I_SUM:
-                    if (traceInstructionOption)
-                        printf("SUM \t%7ld\t\t\t", (long)attribute);
+                    traceInstruction1("SUM", attribute);
                     push(stack, aggregate + attribute);
                     break;
                 }
@@ -1230,8 +1344,7 @@ void interpret(Aaddr adr)
             case I_COUNT: {
                 Aint loopIndex = pop(stack);
                 Aint limit = pop(stack);
-                if (traceInstructionOption)
-                    printf("COUNT\t\t\t");
+                traceInstruction0("COUNT");
                 push(stack, pop(stack) + 1);
                 traceIntegerTopValue();
                 push(stack, limit);
@@ -1240,8 +1353,7 @@ void interpret(Aaddr adr)
             }
             case I_TRANSCRIPT: {
                 Aint on_or_off = pop(stack);
-                if (traceInstructionOption)
-                    printf("TRANSCRIPT\t\t\t");
+                traceInstruction0("TRANSCRIPT");
                 if (on_or_off)
                     startTranscript();
                 else
@@ -1249,57 +1361,47 @@ void interpret(Aaddr adr)
                 break;
             }
 
-                /*------------------------------------------------------------
-                  Depending On
-                  ------------------------------------------------------------*/
+            /*------------------------------------------------------------
+                 Depending On
+              ------------------------------------------------------------*/
             case I_DEPEND:
-                if (traceInstructionOption)
-                    printf("DEPEND\t\t\t\t\t\t");
+                traceInstruction0("DEPEND");
                 break;
 
             case I_DEPCASE:
-                if (traceInstructionOption)
-                    printf("DEPCASE\t\t\t\t\t\t");
+                traceInstruction0("DEPCASE");
                 depcase();
                 break;
 
             case I_DEPEXEC: {
-                Aword v = pop(stack);
-                if (traceInstructionOption) {
-                    printf("DEPEXEC \t\t\t");
-                    if (v) printf(" TRUE"); else printf("FALSE");
-                    printf("\t\t\t\t\t");
-                }
-                depexec(v);
+                traceInstruction0("DEPEXEC");
+                traceBooleanTopValue();
+                depexec(pop(stack));
                 break;
             }
 
             case I_DEPELSE:
-                if (traceInstructionOption)
-                    printf("DEPELSE\t\t\t\t\t\t");
+                traceInstruction0("DEPELSE");
                 depcase();
                 break;
 
             case I_ENDDEP:
-                if (traceInstructionOption)
-                    printf("ENDDEP\t\t\t\t\t\t");
+                traceInstruction0("ENDDEP");
                 pop(stack);
                 break;
 
             case I_ISA: {
                 Aid rh = pop(stack);
                 Aid lh = pop(stack);
-                if (traceInstructionOption)
-                    printf("ISA \t%7ld, %7ld\t", (long)lh, (long)rh);
+                traceInstruction2("ISA", lh, rh);
                 push(stack, isA(lh, rh));
-                tracebooleanTopValue();
+                traceBooleanTopValue();
                 break;
             }
 
             case I_FRAME: {
                 Aint size = pop(stack);
-                if (traceInstructionOption)
-                    printf("FRAME \t%7ld\t\t\t\t\t", (long)size);
+                traceInstruction1("FRAME", size);
                 newFrame(stack, size);
                 break;
             }
@@ -1307,8 +1409,7 @@ void interpret(Aaddr adr)
             case I_GETLOCAL: {
                 Aint framesBelow = pop(stack);
                 Aint variableNumber = pop(stack);
-                if (traceInstructionOption)
-                    printf("GETLOCAL \t%7ld, %7ld\t", (long)framesBelow, (long)variableNumber);
+                traceInstruction2("GETLOCAL", framesBelow, variableNumber);
                 push(stack, getLocal(stack, framesBelow, variableNumber));
                 traceIntegerTopValue();
                 break;
@@ -1318,15 +1419,13 @@ void interpret(Aaddr adr)
                 Aint framesBelow = pop(stack);
                 Aint variableNumber = pop(stack);
                 Aint value = pop(stack);
-                if (traceInstructionOption)
-                    printf("SETLOCAL \t%7ld, %7ld, %7ld\t\t", (long)framesBelow, (long)variableNumber, (long)value);
+                traceInstruction3("SETLOCAL", framesBelow, variableNumber, value);
                 setLocal(stack, framesBelow, variableNumber, value);
                 break;
             }
 
             case I_ENDFRAME: {
-                if (traceInstructionOption)
-                    printf("ENDFRAME\t\t\t\t\t\t");
+                traceInstruction0("ENDFRAME");
                 endFrame(stack);
                 break;
             }
@@ -1334,8 +1433,7 @@ void interpret(Aaddr adr)
             case I_LOOP: {
                 Aint index = pop(stack);
                 Aint limit = pop(stack);
-                if (traceInstructionOption)
-                    printf("LOOP \t\t\t\t\t\t");
+                traceInstruction0("LOOP");
                 push(stack, limit);
                 push(stack, index);
                 if (index > limit)
@@ -1344,8 +1442,7 @@ void interpret(Aaddr adr)
             }
 
             case I_LOOPNEXT: {
-                if (traceInstructionOption)
-                    printf("LOOPNEXT\t\t\t\t\t\t");
+                traceInstruction0("LOOPNEXT");
                 nextLoop();
                 break;
             }
@@ -1353,15 +1450,15 @@ void interpret(Aaddr adr)
             case I_LOOPEND: {
                 Aint index = pop(stack);
                 Aint limit = pop(stack);
-                if (traceInstructionOption)
-                    printf("LOOPEND\t\t\t\t\t\t");
+                traceInstruction0("LOOPEND");
                 endLoop(index, limit);
                 break;
             }
 
             case I_RETURN:
+                traceInstruction0("RETURN");
                 if (traceInstructionOption)
-                    printf("RETURN\n--------------------------------------------------\n");
+                    printf("\n--------------------------------------------------\n");
                 pc = oldpc;
                 goto exitInterpreter;
 
@@ -1375,7 +1472,7 @@ void interpret(Aaddr adr)
             }
             if (traceStackOption) {
                 if (!skipStackDump)
-                    dumpStack(stack);
+                    traceStack(stack);
                 skipStackDump = FALSE;
             }
             break;

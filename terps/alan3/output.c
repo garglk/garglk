@@ -72,14 +72,15 @@ void newline(void)
     char buf[256];
 
     if (!regressionTestOption && lin == pageLength - 1) {
-		printAndLog("\n");
+        printAndLog("\n");
         needSpace = FALSE;
         col = 0;
         lin = 0;
         printMessage(M_MORE);
         statusline();
         fflush(stdout);
-        fgets(buf, 256, stdin);
+        if (fgets(buf, 256, stdin) == 0)
+            /* ignore error */;
         getPageSize();
     } else
         printAndLog("\n");

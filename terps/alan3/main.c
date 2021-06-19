@@ -111,7 +111,7 @@ static char *eventName(int event) {
 
 
 /*----------------------------------------------------------------------*/
-static void runPendingEvents(void)
+static void runPendingEvents(Stack theStack)
 {
     int i;
 
@@ -129,6 +129,8 @@ static void runPendingEvents(void)
             printf(" [%d]):>\n", current.location);
         }
         interpret(events[eventQueue[eventQueueTop].event].code);
+        if (stackDepth(theStack) != 0)
+            syserr("Stack is not empty after event execution");
         evaluateRules(rules);
     }
 
@@ -171,7 +173,8 @@ static int crcStart(char version[4]) {
 /*----------------------------------------------------------------------*/
 static void readTemporaryHeader(ACodeHeader *tmphdr) {
     rewind(codfil);
-    fread(tmphdr, sizeof(*tmphdr), 1, codfil);
+    if (fread(tmphdr, sizeof(*tmphdr), 1, codfil) != 1)
+        /* Ignore error */;
     rewind(codfil);
     if (strncmp((char *)tmphdr, "ALAN", 4) != 0)
         playererr("Not an Alan game file, does not start with \"ALAN\"");
@@ -348,13 +351,15 @@ void checkVersion(ACodeHeader *header)
     interpreterVersion[3] = alan.version.state[0];
 
     /* Check version of .ACD file */
-    if (debugOption && !regressionTestOption) {
-        printf("<Version of '%s' is %d.%d%s%d!>\n",
+    if ((debugOption && !regressionTestOption) || verboseOption) {
+        if (debugOption) printf("<");
+        printf("Version of '%s' is %d.%d%s%d!",
                adventureFileName,
                (int)header->version[0],
                (int)header->version[1],
                decodeState(header->version[3]),
                (int)header->version[2]);
+        if (debugOption) printf(">");
         newline();
     }
 
@@ -443,13 +448,11 @@ static void initStaticData(void)
     /* Find out number of entries in dictionary */
     for (dictionarySize = 0; !isEndOfArray(&dictionary[dictionarySize]); dictionarySize++);
 
-    /* Scores */
-
-
-    /* All addresses to tables indexed by ids are converted to pointers,
-       then adjusted to point to the (imaginary) element before the
-       actual table so that [0] does not exist. Instead indices goes
-       from 1 and we can use [1]. */
+    /* All addresses to tables indexed by ids are converted to
+       pointers, then adjusted to point to the (imaginary) element
+       before the actual table so that [0] does not exist. Instead
+       indices goes from 1 and we can directly use [id] instead of
+       [id-1] everywhere. */
 
     if (header->instanceTableAddress == 0)
         syserr("Instance table pointer == 0");
@@ -600,7 +603,7 @@ static void initializeInstances() {
 
 
 /*----------------------------------------------------------------------*/
-static void start(void)
+static void start(Stack theStack)
 {
     int startloc;
 
@@ -624,7 +627,7 @@ static void start(void)
             printf("<CURRENT LOCATION:>");
         look();
     }
-    resetAndEvaluateRules(rules, header->version);
+    resetAndEvaluateRules(rules, header->version, theStack);
 }
 
 
@@ -659,7 +662,7 @@ static void openFiles(void)
 
 
 /*----------------------------------------------------------------------*/
-static void init(void)
+static void init(Stack theStack)
 {
     int i;
 
@@ -685,7 +688,7 @@ static void init(void)
     else
         clear();
 
-    start();
+    start(theStack);
 }
 
 
@@ -806,6 +809,15 @@ void run(void)
     openFiles();
     load();			/* Load program */
 
+    if ((debugOption && !regressionTestOption) || verboseOption) {
+        if (!isPreBeta7(header->version)) {
+            if (debugOption) printf("<");
+            printIFIDs(adventureName);
+            if (debugOption) printf(">");
+            newline();
+        }
+    }
+
     if (RESTARTED) {
         deleteStack(theStack);
     }
@@ -816,7 +828,7 @@ void run(void)
     initStateStack();
 
     if (!ERROR_RETURNED)      /* Can happen in start section too... */
-        init();               /* Initialise and start the adventure */
+        init(theStack);               /* Initialise and start the adventure */
 
     while (TRUE) {
         if (debugOption)
@@ -826,7 +838,7 @@ void run(void)
             syserr("Stack is not empty in main loop");
 
         if (!current.meta)
-            runPendingEvents();
+            runPendingEvents(theStack);
 
         /* Return here if error during execution */
         switch (setjmp(returnLabel)) {
@@ -859,13 +871,13 @@ void run(void)
             current.tick++;
 
             /* If hero has performed a non-meta command rules need to be run after that */
-            resetAndEvaluateRules(rules, header->version);
+            resetAndEvaluateRules(rules, header->version, theStack);
 
             /* Then all the other actors... */
             for (i = 1; i <= header->instanceMax; i++)
                 if (i != header->theHero && isAActor(i)) {
                     moveActor(i);
-                    resetAndEvaluateRules(rules, header->version);
+                    resetAndEvaluateRules(rules, header->version, theStack);
                 }
         }
     }

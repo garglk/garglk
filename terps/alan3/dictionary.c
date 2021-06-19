@@ -7,7 +7,7 @@
 
 /* IMPORTS */
 #include "word.h"
-
+#include "lists.h"
 
 /* PUBLIC DATA */
 DictionaryEntry *dictionary;    /* Dictionary pointer */

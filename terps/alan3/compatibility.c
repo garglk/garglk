@@ -39,3 +39,8 @@ bool isPreBeta4(char version[4]) {
 bool isPreBeta5(char version[4]) {
     return is3_0Alpha(version) || (is3_0Beta(version) && correction(version) <= 4);
 }
+
+/*======================================================================*/
+bool isPreBeta7(char version[4]) {
+    return is3_0Alpha(version) || (is3_0Beta(version) && correction(version) <= 6);
+}

@@ -10,6 +10,7 @@
 
 /* IMPORTS */
 #include "acode.h"
+#include "stack.h"
 
 
 /* TYPES */
@@ -22,7 +23,7 @@ extern bool anyRuleRun;		  /* Did any rule run? */
 
 /* FUNCTIONS */
 extern void initRules(Aaddr rulesTableAddress);
-extern void resetAndEvaluateRules(RuleEntry rules[], char *version);
+extern void resetAndEvaluateRules(RuleEntry rules[], char *version, Stack theStack);
 extern void resetRules(void);
 extern void evaluateRules(RuleEntry rules[]);
 

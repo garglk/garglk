@@ -655,6 +655,7 @@ void restoreInfo(void)
 #define EXIT_COMMAND 'X'
 #define GO_COMMAND 'G'
 #define FILES_COMMAND 'F'
+#define LINES_COMMAND 'l'
 #define INSTANCES_COMMAND 'I'
 #define CLASSES_COMMAND 'C'
 #define OBJECTS_COMMAND 'O'
@@ -1067,6 +1068,7 @@ void debug(bool calledFromBreakpoint, int line, int fileNumber)
         case EVENTS_COMMAND: showEvents(); break;
         case EXIT_COMMAND: debugOption = FALSE; restoreInfo(); goto exit_debug;
         case FILES_COMMAND: listFiles(); break;
+        case LINES_COMMAND: listLines(); break;
         case GO_COMMAND: restoreInfo(); goto exit_debug;
         case HELP_COMMAND: handleHelpCommand(); break;
         case INSTANCES_COMMAND: handleInstancesCommand(); break;
