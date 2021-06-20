@@ -23,6 +23,10 @@
 
 /* SDL support donated by Lorenzo Marcantonio */
 
+#ifdef _WIN32
+#define SDL_MAIN_HANDLED
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
