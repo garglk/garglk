@@ -25,12 +25,23 @@ jobs:
           gcc-mingw-w64
           git
           mingw-w64-tools
+          wget
+
+      - name: Set up MinGW environment
+        run: |
+          update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
+          update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
+          wget https://github.com/garglk/assets/raw/master/mingw.tar.xz
+          tar xfv mingw.tar.xz -C /
 
       - name: Configure
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake -DWITH_SDL=OFF -DMINGW_USE_SYSTEM_LIBRARIES=OFF
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/i686-w64-mingw32 -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
+        env:
+          PKG_CONFIG: i686-w64-mingw32-pkg-config
+          PKG_CONFIG_LIBDIR: /usr/i686-w64-mingw32/lib/pkgconfig
 
       - name: Build
         run: |

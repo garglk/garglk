@@ -29,9 +29,12 @@ cp "/usr/lib/gcc/${target}/${ver}/libstdc++-6.dll" "build/dist"
 cp "/usr/lib/gcc/${target}/${ver}/libgcc_s_dw2-1.dll" "build/dist"
 cp "/usr/${target}/lib/libwinpthread-1.dll" "build/dist"
 
-for dll in SDL2 SDL2_mixer libFLAC-8 libfreetype-6 libjpeg-8 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libpng16-16 libvorbis-0 libvorbisfile-3 zlib1
+for dll in Qt5Core Qt5Gui Qt5Widgets SDL2 SDL2_mixer libFLAC-8 libfreetype-6 libjpeg-8 libmodplug-1 libmpg123-0 libogg-0 libopenmpt-0 libpng16-16 libvorbis-0 libvorbisfile-3 zlib1
 do
     cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
 done
+
+mkdir -p "build/dist/plugins/platforms"
+cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
 
 wine "${makensis}" installer.nsi

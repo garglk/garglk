@@ -255,7 +255,7 @@ endif()
 # SCARE 1.3.10 for Adrift games
 #
 if(WITH_SCARE)
-    if(UNIX OR (MINGW AND MINGW_USE_SYSTEM_LIBRARIES))
+    if(UNIX OR MINGW)
         find_package(ZLIB REQUIRED)
         set(SCARE_INCLUDE_DIRS ${ZLIB_INCLUDE_DIRS})
         set(SCARE_LIBS ${ZLIB_LIBRARIES})
