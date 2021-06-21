@@ -1,4 +1,6 @@
-set(CMAKE_AUTOMOC ON)
+if(NOT APPLE)
+    set(CMAKE_AUTOMOC ON)
+endif()
 
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(WITH_BUNDLED_FONTS "Embed default fonts into Gargoyle" ON)
@@ -11,11 +13,17 @@ set(GARGLKPRE "" CACHE STRING "Binary prefix")
 
 add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c
     cgstream.c cgstyle.c cgunicod.c config.c draw.c event.c fontdata.c
-    gi_blorb.c gi_dispa.c imgload.c imgscale.c sysqt.cpp winblank.c window.c
-    wingfx.c wingrid.c winmask.c winpair.c wintext.c)
+    gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c
+    wingrid.c winmask.c winpair.c wintext.c)
 standards(garglk)
 warnings(garglk)
 target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+
+if(APPLE)
+    target_sources(garglk PRIVATE sysmac.m)
+else()
+    target_sources(garglk PRIVATE sysqt.cpp)
+endif()
 
 # This is somewhat ugly.
 #
@@ -38,14 +46,31 @@ target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 # officially support XSI (in which case it will build fine).
 target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=2001112L")
 
+# macOS headers apparently don't define NSIG if _POSIX_C_SOURCE is
+# defined unless _DARWIN_C_SOURCE is also defined, which makes sense
+# since NSIG isn't POSIX; but then NSIG is _used_ by signal.h regardless
+# of those same macros (i.e. it uses NSIG even if _POSIX_C_SOURCE is
+# defined). The proper fix would be for signal.h to use the internal
+# name for NSIG (__DARWIN_NSIG), but that's on Apple to fix, so work
+# around it here.
+if(APPLE)
+    target_compile_definitions(garglk PRIVATE "_DARWIN_C_SOURCE")
+endif()
+
 if(WITH_LAUNCHER)
-    add_executable(gargoyle launcher.c launchqt.cpp)
+    add_executable(gargoyle launcher.c)
     target_link_libraries(gargoyle PRIVATE garglk)
     standards(gargoyle)
     warnings(gargoyle)
+
     target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
-    if(UNIX)
-        target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
+    if(APPLE)
+        target_sources(gargoyle PRIVATE launchmac.m)
+    else()
+        target_sources(gargoyle PRIVATE launchqt.cpp)
+        if(UNIX)
+            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
+        endif()
     endif()
 endif()
 
@@ -55,7 +80,17 @@ if(WITH_INTERPRETERS)
     warnings(garglkmain)
 endif()
 
-if(UNIX OR MINGW)
+find_package(Freetype REQUIRED)
+find_package(JPEG REQUIRED)
+find_package(PNG REQUIRED)
+target_include_directories(garglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
+target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES})
+
+if(APPLE)
+    find_library(COCOA_LIBRARY Cocoa REQUIRED)
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(garglk PUBLIC ${COCOA_LIBRARY} ${OPENGL_LIBRARIES})
+elseif(UNIX OR MINGW)
     option(WITH_QT6 "Build against Qt6 instead of Qt5" OFF)
     if(WITH_QT6)
         set(QT_VERSION "6")
@@ -70,13 +105,12 @@ if(UNIX OR MINGW)
         pkg_check_modules(FONTCONFIG REQUIRED IMPORTED_TARGET fontconfig)
         target_link_libraries(garglk PRIVATE PkgConfig::FONTCONFIG)
     endif()
-    find_package(Freetype REQUIRED)
-    find_package(JPEG REQUIRED)
-    find_package(PNG REQUIRED)
-    target_include_directories(garglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
-    target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES} Qt${QT_VERSION}::Widgets)
+    target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::Widgets)
+
     if(WITH_LAUNCHER)
-        target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
+        if(NOT APPLE)
+            target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
+        endif()
     endif()
 else()
     message(FATAL_ERROR "Unsupported platform (${CMAKE_SYSTEM_NAME}).")
@@ -104,7 +138,9 @@ if(WITH_BABEL)
 endif()
 
 if(WITH_TTS)
-    if(UNIX)
+    if(APPLE)
+        target_sources(garglk PRIVATE ttsmac.m)
+    elseif(UNIX)
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(SPEECH_DISPATCHER REQUIRED IMPORTED_TARGET speech-dispatcher)
         target_sources(garglk PRIVATE ttsspeechd.c)
@@ -119,7 +155,9 @@ else()
     target_sources(garglk PRIVATE ttsnull.c)
 endif()
 
-if(UNIX)
+if(APPLE)
+    target_sources(garglk PRIVATE fontmac.m)
+elseif(UNIX)
     target_sources(garglk PRIVATE fontfc.c)
 elseif(MINGW)
     target_sources(garglk PRIVATE fontwin.c)
@@ -133,7 +171,12 @@ if(WITH_SDL)
     target_compile_definitions(garglk PRIVATE GARGLK_USESDL)
 endif()
 
-if(UNIX)
+if(MINGW OR APPLE)
+    install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    if(BUILD_SHARED_LIBS)
+        install(TARGETS garglk DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
+    endif()
+elseif(UNIX)
     install(TARGETS garglk DESTINATION "${CMAKE_INSTALL_LIBDIR}")
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
@@ -144,9 +187,4 @@ if(UNIX)
     install(FILES gi_blorb.h glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-elseif(MINGW)
-    install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
-    if(BUILD_SHARED_LIBS)
-        install(TARGETS garglk DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
-    endif()
 endif()
