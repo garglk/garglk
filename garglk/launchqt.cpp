@@ -24,6 +24,7 @@
  *****************************************************************************/
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -37,6 +38,7 @@
 #endif
 
 #include <QApplication>
+#include <QDir>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QProcess>
@@ -162,9 +164,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
     // Otherwise, just use execve(), since QProcess swallows stdout and
     // stderr, and it's cumbersome to redirect them back to the terminal.
 #ifdef __HAIKU__
-    QString argv0 = QString("%1/%2")
-        .arg(path)
-        .arg(exe);
+    QString argv0 = QDir(path).absoluteFilePath(exe);
 
     setenv("GARGLK_INI", path, 0);
 
@@ -180,7 +180,10 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 
     if (!proc.waitForStarted(5000))
     {
-        winmsg("Could not start 'terp.\nSorry.");
+        char msg[1024];
+
+        snprintf(msg, sizeof msg, "Could not start interpreter %s", argv0.toStdString().c_str());
+        winmsg(msg);
         return 1;
     }
 
@@ -191,10 +194,9 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
     else
         return proc.exitCode();
 #else
-    std::string argv0 = QString("%1/%2")
-        .arg(path)
-        .arg(exe).toStdString();
+    std::string argv0 = QDir(path).absoluteFilePath(exe).toStdString();
     char *argv[4] = { const_cast<char *>(argv0.c_str()) };
+    char msg[1024];
 
     setenv("GARGLK_INI", path, 0);
 
@@ -209,7 +211,9 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
     }
 
     execv(argv[0], argv);
-    winmsg("Could not start 'terp.\nSorry.");
+
+    snprintf(msg, sizeof msg, "Could not start interpreter %s: %s\n", argv[0], strerror(errno));
+    winmsg(msg);
     return 1;
 #endif
 }
