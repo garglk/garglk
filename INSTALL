@@ -68,6 +68,16 @@ will remain stable, but any Gargoyle-specific extensions are subject to change
 without notice, as is the ABI. In short, if libgarglk is updated, any programs
 linked against libgarglk.so should be rebuilt.
 
+For development purposes, the environment variable $GARGLK_INTERPRETER_DIR can
+be set to the interpreter build directory to allow the gargoyle binary to load
+the newly-built interpreters instead of the system-wide interpreters (or instead
+of failing if there are no interpreters installed). If this is set, the standard
+directory will *not* be used at all, even if no interpreter is found. Example:
+
+$ cd build
+$ export GARGLK_INTERPRETER_DIR=$PWD/terps
+$ ./garglk/gargoyle
+
 For Windows, the only supported build method is MinGW on Linux cross compiling
 for Windows. The "install" target will install all binaries to "build/dist". See
 "windows.sh" at the top level for a script which is used to build the Windows
