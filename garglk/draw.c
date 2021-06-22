@@ -443,7 +443,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned short invalf = gammamax - (alpha * gammamax / 255);
+    unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
     unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
@@ -469,9 +469,9 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3] = {
-        gammamax - (alpha[0] * gammamax / 255),
-        gammamax - (alpha[1] * gammamax / 255),
-        gammamax - (alpha[2] * gammamax / 255)
+        GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255),
+        GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255),
+        GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)
     };
     unsigned short bg[3] = {
         gammamap[p[0]],
