@@ -14,23 +14,24 @@ option(WITH_SCARE "Enable the scare interpreter" ON)
 option(WITH_SCOTT "Enable the scott interpreter" ON)
 
 function(terp target)
-    set(options C99 C11 LTO MATH WARNINGS)
+    set(options POSIX LTO MATH WARNINGS)
     set(oneval)
     set(multival SRCS INCLUDE_DIRS MACROS LIBS)
     cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
     add_executable(${target} ${TERP_SRCS})
-    set_property(TARGET ${target} PROPERTY CXX_STANDARD 98)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
     target_include_directories(${target} PRIVATE ../garglk ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
-    if(TERP_C99)
-        c_standard(${target} 99)
-    elseif(TERP_C11)
-        c_standard(${target} 11)
-    endif()
 
+    c_standard(${target} 11)
+    cxx_standard(${target} 98)
+
+    if(TERP_POSIX)
+        target_compile_definitions(${target} PRIVATE "_XOPEN_SOURCE=600")
+        target_compile_definitions(${target} PRIVATE "_POSIX_C_SOURCE=200112L")
+    endif()
     if(TERP_LTO)
         lto(${target})
     endif()
@@ -91,7 +92,8 @@ if(WITH_ALAN2)
         alan2/inter.c alan2/parse.c alan2/rules.c alan2/stack.c alan2/decode.c
         alan2/term.c alan2/reverse.c alan2/readline.c alan2/params.c
         alan2/sysdep.c alan2/glkstart.c alan2/glkio.c alan2/alan.version.c
-        MACROS GLK RESERVED)
+        MACROS GLK RESERVED
+        POSIX)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -112,7 +114,8 @@ if(WITH_ALAN3)
         alan3/utils.c alan3/word.c alan3/compatibility.c alan3/AltInfo.c
         alan3/Container.c alan3/Location.c alan3/ParameterPosition.c
         alan3/StateStack.c
-        MACROS GLK HAVE_GARGLK BUILD=0)
+        MACROS GLK HAVE_GARGLK BUILD=0
+        POSIX)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -135,7 +138,7 @@ if(WITH_BOCFEL)
         bocfel/unicode.c bocfel/util.c bocfel/zoom.c bocfel/zterp.c
         bocfel/glkstart.c
         MACROS ${BOCFEL_MACROS}
-        C11 LTO WARNINGS)
+        LTO WARNINGS)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -172,6 +175,8 @@ endif()
 set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
 if(UNIX)
     list(APPEND GLULXE_MACROS OS_UNIX)
+elseif(MINGW)
+    list(APPEND GLULXE_MACROS WIN32)
 endif()
 
 if(WITH_GLULXE)
@@ -182,7 +187,8 @@ if(WITH_GLULXE)
         glulxe/osdepend.c glulxe/unixstrt.c glulxe/accel.c glulxe/profile.c
         glulxe/float.c
         MACROS ${GLULXE_MACROS}
-        MATH)
+        MATH
+        POSIX)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -213,7 +219,8 @@ if(WITH_JACL)
         jacl/display.c jacl/utils.c jacl/jpp.c jacl/resolvers.c jacl/errors.c
         jacl/encapsulate.c jacl/libcsv.c
         MACROS GLK
-        MATH)
+        MATH
+        POSIX)
 endif()
 
 # ------------------------------------------------------------------------------
@@ -283,6 +290,5 @@ endif()
 #
 if(WITH_SCOTT)
     terp(scott
-        SRCS scott/scott.c scott/bsd.c
-        C99)
+        SRCS scott/scott.c scott/bsd.c)
 endif()

@@ -27,6 +27,8 @@
 #include <windows.h>
 #endif
 
+/* For strcasecmp() */
+#include <strings.h>
 
 /* PUBLIC DATA */
 /* The files and filenames */

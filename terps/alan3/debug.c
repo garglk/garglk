@@ -16,6 +16,9 @@
 #include <ctype.h>
 #include <stdarg.h>
 
+/* For strncasecmp() */
+#include <strings.h>
+
 #include "alan.version.h"
 
 #ifdef USE_READLINE
