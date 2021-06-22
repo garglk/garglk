@@ -11,6 +11,9 @@
 /* IMPORTS */
 #include <time.h>
 
+/* For strcasecmp() */
+#include <strings.h>
+
 #include "types.h"
 #include "sysdep.h"
 

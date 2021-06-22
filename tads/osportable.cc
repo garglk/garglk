@@ -800,15 +800,23 @@ os_get_sys_clock_ms( void )
     // gettimeofday() needs the timezone as a second argument.  This
     // is obsolete today, but we don't care anyway; we just pass
     // something.
+#if 0
     struct timezone bogus = {0, 0};
+#endif
     struct timeval currTime;
 
     if (not initialized) {
+#if 0
         gettimeofday(&zeroPoint, &bogus);
+#endif
+        gettimeofday(&zeroPoint, NULL);
         initialized = true;
     }
 
+#if 0
     gettimeofday(&currTime, &bogus);
+#endif
+    gettimeofday(&currTime, NULL);
 
     // 'tv_usec' contains *micro*seconds, not milliseconds.  A
     // millisec is 1.000 microsecs.
@@ -821,9 +829,14 @@ void
 os_time_ns( os_time_t *seconds, long *nanoseconds )
 {
     // get the time
+#if 0
     struct timezone bogus = {0, 0};
+#endif
     struct timeval currTime;
+#if 0
     gettimeofday(&currTime, &bogus);
+#endif
+    gettimeofday(&currTime, NULL);
 
     // return the data, converting milliseconds to nanoseconds
     *seconds = currTime.tv_sec;

@@ -15,7 +15,8 @@ add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c
     cgstream.c cgstyle.c cgunicod.c config.c draw.c event.c fontdata.c
     gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c
     wingrid.c winmask.c winpair.c wintext.c)
-standards(garglk)
+c_standard(garglk 11)
+cxx_standard(garglk 14)
 warnings(garglk)
 target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 
@@ -44,7 +45,7 @@ endif()
 # in, either the MinGW build will fail (and that's easy to detect) or it
 # will be a function that MinGW does include, even if it doesn't
 # officially support XSI (in which case it will build fine).
-target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=2001112L")
+target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=200112L")
 
 # macOS headers apparently don't define NSIG if _POSIX_C_SOURCE is
 # defined unless _DARWIN_C_SOURCE is also defined, which makes sense
@@ -60,7 +61,8 @@ endif()
 if(WITH_LAUNCHER)
     add_executable(gargoyle launcher.c)
     target_link_libraries(gargoyle PRIVATE garglk)
-    standards(gargoyle)
+    c_standard(garglk 11)
+    cxx_standard(garglk 14)
     warnings(gargoyle)
 
     target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
@@ -76,7 +78,8 @@ endif()
 
 if(WITH_INTERPRETERS)
     add_library(garglkmain STATIC main.c)
-    standards(garglkmain)
+    c_standard(garglk 11)
+    cxx_standard(garglk 14)
     warnings(garglkmain)
 endif()
 

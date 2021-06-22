@@ -13,7 +13,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef WIN32
+/* For strcasecemp() */
+#include <strings.h>
+
+#ifdef _WIN32
 struct flock {
 	short l_type;
 	short l_whence;

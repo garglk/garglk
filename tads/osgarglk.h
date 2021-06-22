@@ -32,6 +32,9 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+/* For strcasecmp() */
+#include <strings.h>
+
 #define TRUE 1
 #define FALSE 0
 

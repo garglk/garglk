@@ -313,10 +313,12 @@
 #define fnamecmp	strcasecmp	/* Case insensitive filename compare. */
 #undef PLAIN
 
+#if 0
 #ifdef __APPLE__
 #undef NEED_STR_CMP
 #undef NEED_STRN_CMP
 #endif /* __APPLE__ */
+#endif
 
 #endif
 
@@ -359,10 +361,12 @@
 #include <unistd.h>
 #endif
 
+#if 0
 #ifdef __STRICT_ANSI__
 #define NEED_STR_CMP
 #define NEED_STRN_CMP
 #undef HAVE_STRDUP
+#endif
 #endif
 
 #ifndef fix_ascii

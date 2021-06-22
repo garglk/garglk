@@ -53,5 +53,6 @@ if(WITH_TADS)
 
     terp(tadsr
         SRCS ${srcs}
-        MACROS ${macros})
+        MACROS ${macros}
+        POSIX)
 endif()
