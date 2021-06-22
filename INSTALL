@@ -17,8 +17,13 @@ FreeType
 libjpeg (or compatible, such as libjpeg-turbo)
 libpng
 
-In addition, if you want sound support, you will need SDL2 and SDL2_mixer. If
-you want text-to-speech support, you will need speech-dispatcher.
+In addition, if you want sound support, there are two backends: SDL and
+Qt. For SDL, you will need SDL2 and SDL2_mixer. For Qt, you will need
+QtMultimedia, libsndfile, mpg123, and libopenmpt. As of the time this
+was written, QtMultimedia has not been ported to Qt6, so the Qt backend
+requires Qt5.
+
+If you want text-to-speech support, you will need speech-dispatcher.
 
 On Unix, Gargoyle builds like any standard CMake project. Something like:
 
@@ -38,8 +43,6 @@ In addition, Gargoyle supports the following options:
 WITH_BABEL: If true (the default), use the Treaty of Babel to extract author and
 title information and display in the window's titlebar
 
-WITH_SDL: If true (the default), use SDL2 for sound support.
-
 WITH_BUNDLED_FONTS: If true (the default), fonts will be bundled into the
 Gargoyle executable and used as fallback fonts.
 Note: This feature will likely be removed in a future release.
@@ -53,6 +56,10 @@ WITH_INTERPRETERS: If true (the default), interpreters will be built.
 
 WITH_LAUNCHER: If true (the default), the launcher (gargoyle binary) will be
 built.
+
+SOUND: Takes one of three values: "SDL", for SDL sound support, "QT",
+for Qt sound support, and "none" (or any other value), for no sound
+support.
 
 As with any standard CMake-based project, DESTDIR can be used to install to a
 staging area:

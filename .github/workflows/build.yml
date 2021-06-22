@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        feature: ["SDL=OFF", "TTS=OFF", "BABEL=OFF"]
+        feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT"]
 
     runs-on: ubuntu-latest
     container:
@@ -32,17 +32,21 @@ jobs:
           cmake
           git
           libjpeg-dev
+          libmpg123-dev
+          libopenmpt-dev
           librsvg2-dev
           libsdl2-mixer-dev
+          libsndfile-dev
           libspeechd-dev
           qtbase5-dev
           qtbase5-dev-tools
+          qtmultimedia5-dev
 
       - name: Configure
         run: |
             mkdir build
             cd build
-            cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DWITH_${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF
+            cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF
 
       - name: Build
         run: |

@@ -547,47 +547,12 @@ struct window_graphics_s
 
 /* ---------------------------------------------------------------------- */
 
-enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };
-
-struct glk_schannel_struct
-{
-    glui32 rock;
-
-    void *sample; /* Mix_Chunk (or FMOD Sound) */
-    void *music; /* Mix_Music (or FMOD Music) */
-
-    void *sdl_rwops; /* SDL_RWops */
-    unsigned char *sdl_memory;
-    int sdl_channel;
-
-    int resid; /* for notifies */
-    int status;
-    int channel;
-    int volume;
-    glui32 loop;
-    int notify;
-
-#ifdef GARGLK_USESDL
-    int paused;
-
-    /* for volume fades */
-    int volume_notify;
-    int volume_timeout;
-    int target_volume;
-    double float_volume;
-    double volume_delta;
-    SDL_TimerID timer;
-#endif
-
-    gidispatch_rock_t disprock;
-    channel_t *chain_next, *chain_prev;
-};
-
 extern void gli_initialize_sound(void);
 extern void gli_initialize_tts(void);
 extern void gli_tts_speak(const glui32 *buf, size_t len);
 extern void gli_tts_flush(void);
 extern void gli_tts_purge(void);
+extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -702,6 +667,9 @@ void gli_read_config(int argc, char **argv);
 rect_t gli_compute_content_box();
 
 extern void gli_select(event_t *event, int polled);
+#ifdef GARGLK_TICK
+extern void gli_tick(void);
+#endif
 
 // The order here is significant: for the time being, at least, the
 // macOS code directly indexes an array using these values.

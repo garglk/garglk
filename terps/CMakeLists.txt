@@ -129,6 +129,10 @@ elseif(MINGW)
     list(APPEND BOCFEL_MACROS ZTERP_WIN32)
 endif()
 
+if(GARGLK_NEEDS_TICK)
+    list(APPEND BOCFEL_MACROS ZTERP_GLK_TICK)
+endif()
+
 if(WITH_BOCFEL)
     terp(bocfel
         SRCS bocfel/blorb.c bocfel/branch.c bocfel/dict.c bocfel/iff.c
@@ -166,12 +170,17 @@ endif()
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
+set(GIT_MACROS USE_INLINE USE_OWN_POWF)
+
+if(GARGLK_NEEDS_TICK)
+    list(APPEND GIT_MACROS GIT_NEED_TICK)
+endif()
 if(WITH_GIT)
     terp(git
         SRCS git/git.c git/memory.c git/compiler.c git/opcodes.c git/operands.c
         git/peephole.c git/terp.c git/glkop.c git/search.c git/git_unix.c
         git/savefile.c git/saveundo.c git/gestalt.c git/heap.c git/accel.c
-        MACROS USE_INLINE USE_OWN_POWF
+        MACROS ${GIT_MACROS}
         MATH)
 endif()
 

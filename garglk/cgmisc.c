@@ -201,7 +201,7 @@ gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
         case gidisp_Class_Fileref:
             return ((fileref_t *)obj)->disprock;
         case gidisp_Class_Schannel:
-            return ((channel_t *)obj)->disprock;
+            return gli_sound_get_channel_disprock(obj);
         default:
         {
             gidispatch_rock_t dummy;

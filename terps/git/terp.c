@@ -149,6 +149,10 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
 #define NEXT goto next
 //#define NEXT do { CHECK_USED(0); CHECK_FREE(0); goto next; } while (0)
 next:
+#ifdef GIT_NEED_TICK
+    glk_tick();
+#endif
+
     switch (*pc++)
     {
 #define LABEL(foo) case label_ ## foo: goto do_ ## foo;

@@ -34,6 +34,11 @@ void gli_initialize_sound(void)
 
 #ifdef GLK_MODULE_SOUND
 
+gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
+{
+    return (gidispatch_rock_t) { .num = 0 };
+}
+
 schanid_t glk_schannel_create(glui32 rock)
 {
     return NULL;
