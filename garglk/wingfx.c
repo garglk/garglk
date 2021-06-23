@@ -27,7 +27,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-#define mul255(a,b) (((a) * ((b) + 1)) >> 8)
+#define mul255(a,b) (((short)(a) * (b) + 127) / 255)
 
 static void
 drawpicture(picture_t *src, window_graphics_t *dst,

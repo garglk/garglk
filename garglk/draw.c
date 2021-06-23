@@ -37,10 +37,11 @@
 #include <math.h> /* for pow() */
 #include "uthash.h" /* for kerning cache */
 
-#define GAMMA_SHIFT 3
+#define GAMMA_BITS 11
+#define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
 
-#define mul255(a,b) (((a) * ((b) + 1)) >> 8)
-#define mulhigh(a,b) (((a) * ((b) + 1)) >> (8 + GAMMA_SHIFT))
+#define mul255(a,b) (((short)(a) * (b) + 127) / 255)
+#define mulhigh(a,b) (((int)(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 typedef struct font_s font_t;
@@ -87,9 +88,7 @@ struct font_s
  */
 
 static unsigned short gammamap[256];
-static unsigned char gammainv[256 << GAMMA_SHIFT];
-
-static const int gammamax = (256 << GAMMA_SHIFT) - 1;
+static unsigned char gammainv[1 << GAMMA_BITS];
 
 static font_t gfont_table[8];
 
@@ -386,10 +385,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * gammamax + 0.5;
+        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
 
-    for (i = 0; i <= gammamax; i++)
-        gammainv[i] = pow(i / (float)gammamax, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
+    for (i = 0; i <= GAMMA_MAX; i++)
+        gammainv[i] = pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -444,7 +443,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
 static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned short invalf = gammamax - (alpha * gammamax / 255);
+    unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
     unsigned short bg[3] = {
         gammamap[p[0]],
         gammamap[p[1]],
@@ -470,9 +469,9 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3] = {
-        gammamax - (alpha[0] * gammamax / 255),
-        gammamax - (alpha[1] * gammamax / 255),
-        gammamax - (alpha[2] * gammamax / 255)
+        GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255),
+        GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255),
+        GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)
     };
     unsigned short bg[3] = {
         gammamap[p[0]],
