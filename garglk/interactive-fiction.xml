@@ -6,6 +6,7 @@
       <match type="string" offset="0" value="\x3C\x42\x3F\xC9\x6A\x87\xC2\xCF"/>
     </magic>
     <glob pattern="*.taf"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-advsys">
@@ -13,6 +14,7 @@
     <magic priority="50">
       <match type="string" offset="2" value="\xA0\x9D\x8B\x8E\x88\x8E"/>
     </magic>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-agt">
@@ -22,6 +24,7 @@
     </magic>
     <glob pattern="*.agx"/>
     <glob pattern="*.d$$"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-alan">
@@ -31,6 +34,7 @@
     <magic priority="50">
       <match type="string" offset="0" value="ALAN\x03"/>
     </magic>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-blorb">
@@ -46,6 +50,7 @@
     <glob pattern="*.glb"/>
     <glob pattern="*.zblorb"/>
     <glob pattern="*.zlb"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-glulx">
@@ -54,17 +59,20 @@
       <match type="string" offset="0" value="Glul"/>
     </magic>
     <glob pattern="*.ulx"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-hugo-image">
     <comment>Hugo game data</comment>
     <glob pattern="*.hex"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-level9">
     <comment>Level 9 game data</comment>
     <glob pattern="*.l9"/>
     <glob pattern="*.sna"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-magscroll">
@@ -73,6 +81,7 @@
       <match type="string" offset="0" value="MaSc"/>
     </magic>
     <glob pattern="*.mag"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-tads">
@@ -81,6 +90,7 @@
       <match type="string" offset="0" value="TADS2 bin\x0A\x0D\x1A"/>
     </magic>
     <glob pattern="*.gam"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-t3vm-image">
@@ -90,10 +100,12 @@
     </magic>
     <glob pattern="*.t3"/>
     <glob pattern="*.t3x"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 
   <mime-type type="application/x-zmachine">
     <comment>Z-machine game data</comment>
     <glob pattern="*.z[1-8]"/>
+    <icon name="application-x-gargoyle">
   </mime-type>
 </mime-info>
