@@ -490,7 +490,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         /* MOD */
         if (*len > 1084)
         {
-            char resname[4];
+            char resname[5] = { 0 };
             memcpy(resname, (*buf) + 1080, 4);
             if (!strcmp(resname+1, "CHN") ||        /* 4CHN, 6CHN, 8CHN */
                     !strcmp(resname+2, "CN") ||         /* 16CN, 32CN */
