@@ -310,8 +310,6 @@ struct eventqueue_s
 };
 
 eventqueue_t *gli_initialize_queue (void);
-void gli_queue_event(eventqueue_t *queue, event_t *event);
-event_t *gli_retrieve_event(eventqueue_t *queue);
 void gli_dispatch_event(event_t *event, int polled);
 
 #define MAGIC_WINDOW_NUM (9876)

@@ -46,14 +46,17 @@ eventqueue_t *gli_initialize_queue (void)
     return queue;
 }
 
-void gli_queue_event(eventqueue_t *queue, event_t *msg)
+static void gli_queue_event(eventqueue_t *queue, event_t *msg)
 {
     if (queue)
     {
         eventlog_t *log = malloc(sizeof(eventlog_t));
 
         if (!log)
+        {
+            free(msg);
             return;
+        }
 
         log->event = msg;
         log->next = NULL;
@@ -65,9 +68,13 @@ void gli_queue_event(eventqueue_t *queue, event_t *msg)
         if (!queue->first)
             queue->first = log;
     }
+    else
+    {
+        free(msg);
+    }
 }
 
-event_t *gli_retrieve_event(eventqueue_t *queue)
+static event_t *gli_retrieve_event(eventqueue_t *queue)
 {
     if (!queue)
         return 0;
