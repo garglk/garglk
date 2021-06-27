@@ -105,7 +105,6 @@ extern int gli_terminated;
 
 extern window_t *gli_rootwin;
 extern window_t *gli_focuswin;
-extern event_t *gli_curevent;
 
 extern int gli_force_redraw;
 extern int gli_more_focus;

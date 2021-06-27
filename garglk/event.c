@@ -27,9 +27,6 @@
 #include "glk.h"
 #include "garglk.h"
 
-/* A pointer to the place where the pending glk_select() will store its
-   event. When not inside a glk_select() call, this will be NULL. */
-event_t *gli_curevent = NULL;
 static eventqueue_t *gli_events_logged = NULL;
 static eventqueue_t *gli_events_polled = NULL;
 static int gli_first_event = FALSE;
