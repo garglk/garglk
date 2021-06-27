@@ -163,7 +163,7 @@ Window::Window() :
     m_view(new View(this)),
     m_timer(new QTimer(this))
 {
-    connect(m_timer, &QTimer::timeout, [&]() { m_timed_out = true; });
+    connect(m_timer, &QTimer::timeout, this, [&]() { m_timed_out = true; });
 }
 
 Window::~Window()
