@@ -681,34 +681,31 @@ void gli_select(event_t *event, int polled)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    gli_curevent = event;
     gli_event_clearevent(event);
 
     winpoll();
-    gli_dispatch_event(gli_curevent, polled);
+    gli_dispatch_event(event, polled);
 
-    if (gli_curevent->type == evtype_None && !polled)
+    if (event->type == evtype_None && !polled)
     {
         while (![monitor timeout])
         {
             winloop();
-            gli_dispatch_event(gli_curevent, polled);
+            gli_dispatch_event(event, polled);
 
-            if (gli_curevent->type == evtype_None)
+            if (event->type == evtype_None)
                 [monitor sleep];
             else
                 break;
         }
     }
 
-    if (gli_curevent->type == evtype_None && [monitor timeout])
+    if (event->type == evtype_None && [monitor timeout])
     {
         gli_event_store(evtype_Timer, NULL, 0, 0);
-        gli_dispatch_event(gli_curevent, polled);
+        gli_dispatch_event(event, polled);
         [monitor reset];
     }
-
-    gli_curevent = NULL;
 
     [pool drain];
 }

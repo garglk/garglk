@@ -416,28 +416,25 @@ void winrepaint(int x0, int y0, int x1, int y1)
 
 void gli_select(event_t *event, int polled)
 {
-    gli_curevent = event;
     gli_event_clearevent(event);
 
     app->processEvents();
 
-    gli_dispatch_event(gli_curevent, polled);
+    gli_dispatch_event(event, polled);
 
     if (!polled)
     {
-        while (gli_curevent->type == evtype_None && !window->timed_out())
+        while (event->type == evtype_None && !window->timed_out())
         {
             app->processEvents(QEventLoop::WaitForMoreEvents);
-            gli_dispatch_event(gli_curevent, polled);
+            gli_dispatch_event(event, polled);
         }
     }
 
-    if (gli_curevent->type == evtype_None && window->timed_out())
+    if (event->type == evtype_None && window->timed_out())
     {
         gli_event_store(evtype_Timer, nullptr, 0, 0);
-        gli_dispatch_event(gli_curevent, polled);
+        gli_dispatch_event(event, polled);
         window->reset_timeout();
     }
-
-    gli_curevent = nullptr;
 }
