@@ -199,7 +199,12 @@ void gli_input_handle_key(glui32 key)
     window_t *win = gli_focuswin;
 
     if (!win)
+    {
+        if (gli_terminated)
+            winexit();
+
         return;
+    }
 
     int defer_exit = 0;
 
