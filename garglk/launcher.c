@@ -57,8 +57,16 @@
 #define MaxBuffer 1024
 static char tmp[MaxBuffer];
 static char terp[MaxBuffer];
-static char exe[MaxBuffer];
 static char flags[MaxBuffer];
+
+static int call_winterp(const char *path, const char *interpreter, const char *flags, const char *game)
+{
+    char exe[MaxBuffer];
+
+    snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, interpreter);
+
+    return winterp(path, exe, flags, game);
+}
 
 static int runblorb(const char *path, const char *game)
 {
@@ -67,6 +75,7 @@ static int runblorb(const char *path, const char *game)
     giblorb_result_t res;
     giblorb_err_t err;
     giblorb_map_t *map;
+    const char *found_interpreter;
 
     snprintf(tmp, sizeof tmp, "Could not load Blorb file:\n%s\n", game);
 
@@ -99,26 +108,27 @@ static int runblorb(const char *path, const char *game)
     {
         case ID_ZCOD:
             if (strlen(terp))
-                return winterp(path, strcat(exe,terp), flags, game);
+                found_interpreter = terp;
             else if (magic[0] == 6)
-                return winterp(path, strcat(exe,T_ZSIX), flags, game);
+                found_interpreter = T_ZSIX;
             else
-                return winterp(path, strcat(exe,T_ZCODE), flags, game);
+                found_interpreter = T_ZCODE;
             break;
 
         case ID_GLUL:
             if (strlen(terp))
-                return winterp(path, strcat(exe,terp), flags, game);
+                found_interpreter = terp;
             else
-                return winterp(path, strcat(exe,T_GLULX), flags, game);
+                found_interpreter = T_GLULX;
             break;
 
         default:
             snprintf(tmp, sizeof tmp, "Unknown game type in Blorb file:\n%s\n", game);
             winmsg(tmp);
+            return FALSE;
     }
 
-    return FALSE;
+    return call_winterp(path, found_interpreter, flags, game);
 }
 
 static int findterp(const char *file, const char *target)
@@ -326,10 +336,7 @@ int rungame(const char *path, const char *game)
     }
 
     if (strlen(terp) > 0)
-    {
-        snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, terp);
-        return winterp(path, exe, flags, game);
-    }
+        return call_winterp(path, terp, flags, game);
 
     for (int i = 0; i < ASIZE(interpreters); i++)
     {
@@ -337,9 +344,8 @@ int rungame(const char *path, const char *game)
 
         if (strcasecmp(ext, interpreter->ext) == 0)
         {
-            snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, interpreter->interpreter);
             const char *flags = interpreter->flags == NULL ? "" : interpreter->flags;
-            return winterp(path, exe, flags, game);
+            return winterp(path, interpreter->interpreter, flags, game);
         }
     }
 
