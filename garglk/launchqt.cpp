@@ -42,11 +42,13 @@
 #include <QApplication>
 #include <QDir>
 #include <QFileDialog>
+#include <QList>
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 
 extern "C" {
 #include "glk.h"
@@ -79,21 +81,6 @@ private:
     QStringList m_extensions;
 };
 
-static const QList<Filter> filters = {
-    Filter("Adrift", {"taf"}),
-    Filter("AdvSys", {"dat"}),
-    Filter("AGT", {"agx", "d$$"}),
-    Filter("Alan", {"acd", "a3c"}),
-    Filter("Glulx", {"ulx", "blb", "blorb", "glb", "gblorb"}),
-    Filter("Hugo", {"hex"}),
-    Filter("JACL", {"jacl", "j2"}),
-    Filter("Level 9", {"l9", "sna"}),
-    Filter("Magnetic Scrolls", {"mag"}),
-    Filter("Quest", {"asl", "cas"}),
-    Filter("TADS", {"gam", "t3"}),
-    Filter("Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}),
-};
-
 void winmsg(const char *msg)
 {
     QMessageBox::critical(nullptr, "Error", msg);
@@ -101,6 +88,20 @@ void winmsg(const char *msg)
 
 static QString winbrowsefile()
 {
+    const QVector<Filter> filters = {
+        Filter("Adrift", {"taf"}),
+        Filter("AdvSys", {"dat"}),
+        Filter("AGT", {"agx", "d$$"}),
+        Filter("Alan", {"acd", "a3c"}),
+        Filter("Glulx", {"ulx", "blb", "blorb", "glb", "gblorb"}),
+        Filter("Hugo", {"hex"}),
+        Filter("JACL", {"jacl", "j2"}),
+        Filter("Level 9", {"l9", "sna"}),
+        Filter("Magnetic Scrolls", {"mag"}),
+        Filter("Quest", {"asl", "cas"}),
+        Filter("TADS", {"gam", "t3"}),
+        Filter("Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}),
+    };
     QList<QString> mapped_filters;
     std::transform(filters.begin(), filters.end(),
             std::back_inserter(mapped_filters),
