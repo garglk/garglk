@@ -246,7 +246,6 @@ int main(int argc, char **argv)
     // this is GARGLK_INTERPRETER_DIR but if that is not set, it is the
     // containing directory of the gargoyle executable.
 #ifdef GARGLK_INTERPRETER_DIR
-    QString dir;
     // For development purposes, the environment variable
     // $GARGLK_INTERPRETER_DIR can be set to the interpreter build
     // directory to allow the gargoyle binary to load the newly-built
@@ -254,7 +253,7 @@ int main(int argc, char **argv)
     // of failing if there are no interpreters installed). If this is
     // set, the standard directory will *not* be used at all, even if no
     // interpreter is found.
-    dir = getenv("GARGLK_INTERPRETER_DIR");
+    QString dir = getenv("GARGLK_INTERPRETER_DIR");
     if (dir.isNull())
         dir = GARGLK_INTERPRETER_DIR;
 #else
