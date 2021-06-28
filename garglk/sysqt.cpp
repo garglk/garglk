@@ -96,7 +96,7 @@ void winabort(const char *fmt, ...)
     va_start(ap, fmt);
     std::vsnprintf(msg, sizeof msg, fmt, ap);
     va_end(ap);
-    fprintf(stderr, "fatal: %s\n", msg);
+    std::fprintf(stderr, "fatal: %s\n", msg);
     QMessageBox::critical(nullptr, "Error", msg);
     std::exit(EXIT_FAILURE);
 }
@@ -121,7 +121,7 @@ static void winchoosefile(const QString &prompt, char *buf, int len, int filter,
     else
         filename = QFileDialog::getSaveFileName(window, prompt, dir, filternames[filter]);
 
-    snprintf(buf, len, "%s", filename.toStdString().c_str());
+    std::snprintf(buf, len, "%s", filename.toStdString().c_str());
 }
 
 void winopenfile(const char *prompt, char *buf, int len, int filter)

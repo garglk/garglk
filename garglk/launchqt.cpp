@@ -130,7 +130,7 @@ static QString winpath()
     char pathsep = '/';
 #ifdef __FreeBSD__
     int mib[4];
-    size_t len = sizeof buf;
+    std::size_t len = sizeof buf;
     mib[0] = CTL_KERN;
     mib[1] = KERN_PROC;
     mib[2] = KERN_PROC_PATHNAME;
@@ -138,7 +138,7 @@ static QString winpath()
     if (sysctl(mib, 4, buf, &len, nullptr, 0) == -1)
     {
         winmsg("Unable to locate executable path");
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 #elif defined(_WIN32)
     DWORD n = GetModuleFileName(NULL, buf, sizeof buf);
@@ -146,7 +146,7 @@ static QString winpath()
     if (n == 0 || n >= sizeof buf)
     {
         winmsg("Unable to locate executable path");
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 
     pathsep = '\\';
@@ -201,7 +201,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
     {
         char msg[1024];
 
-        snprintf(msg, sizeof msg, "Could not start interpreter %s", argv0.toStdString().c_str());
+        std::snprintf(msg, sizeof msg, "Could not start interpreter %s", argv0.toStdString().c_str());
         winmsg(msg);
         return 1;
     }
@@ -231,7 +231,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 
     execv(argv[0], argv);
 
-    snprintf(msg, sizeof msg, "Could not start interpreter %s: %s\n", argv[0], strerror(errno));
+    std::snprintf(msg, sizeof msg, "Could not start interpreter %s: %s\n", argv[0], strerror(errno));
     winmsg(msg);
     return 1;
 #endif
