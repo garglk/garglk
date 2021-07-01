@@ -54,10 +54,12 @@
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
+struct launch {
+    char terp[MaxBuffer];
+    char flags[MaxBuffer];
+};
+
 #define MaxBuffer 1024
-static char tmp[MaxBuffer];
-static char terp[MaxBuffer];
-static char flags[MaxBuffer];
 
 static int call_winterp(const char *path, const char *interpreter, const char *flags, const char *game)
 {
@@ -68,8 +70,9 @@ static int call_winterp(const char *path, const char *interpreter, const char *f
     return winterp(path, exe, flags, game);
 }
 
-static int runblorb(const char *path, const char *game)
+static int runblorb(const char *path, const char *game, const struct launch *launch)
 {
+    char tmp[MaxBuffer];
     char magic[4];
     strid_t file;
     giblorb_result_t res;
@@ -107,8 +110,8 @@ static int runblorb(const char *path, const char *game)
     switch (res.chunktype)
     {
         case ID_ZCOD:
-            if (strlen(terp))
-                found_interpreter = terp;
+            if (strlen(launch->terp) > 0)
+                found_interpreter = launch->terp;
             else if (magic[0] == 6)
                 found_interpreter = T_ZSIX;
             else
@@ -116,8 +119,8 @@ static int runblorb(const char *path, const char *game)
             break;
 
         case ID_GLUL:
-            if (strlen(terp))
-                found_interpreter = terp;
+            if (strlen(launch->terp) > 0)
+                found_interpreter = launch->terp;
             else
                 found_interpreter = T_GLULX;
             break;
@@ -128,10 +131,10 @@ static int runblorb(const char *path, const char *game)
             return FALSE;
     }
 
-    return call_winterp(path, found_interpreter, flags, game);
+    return call_winterp(path, found_interpreter, launch->flags, game);
 }
 
-static int findterp(const char *file, const char *target)
+static int findterp_impl(const char *file, const char *target, struct launch *launch)
 {
     FILE *f;
     char buf[MaxBuffer];
@@ -180,19 +183,32 @@ static int findterp(const char *file, const char *target)
         if (strcmp(cmd, "terp"))
             continue;
 
-        snprintf(terp, sizeof terp, "%s", arg);
+        snprintf(launch->terp, sizeof launch->terp, "%s", arg);
 
         opt = strtok(NULL, "\r\n\t #");
         if (opt && opt[0] == '-')
-            snprintf(flags, sizeof flags, "%s", opt);
+            snprintf(launch->flags, sizeof launch->flags, "%s", opt);
     }
 
     fclose(f);
-    return strlen(terp);
-
+    return strlen(launch->terp) > 0;
 }
 
-static int configterp(const char *path, const char *game)
+static int findterp(const char *config, const char *story, struct launch *launch)
+{
+    const char *s;
+    char ext[MaxBuffer];
+
+    s = strrchr(story, '.');
+    if (s != NULL)
+        snprintf(ext, sizeof ext, "*%s", s);
+    else
+        snprintf(ext, sizeof ext, "*.*");
+
+    return findterp_impl(config, story, launch) || findterp_impl(config, ext, launch);
+}
+
+static void configterp(const char *path, const char *game, struct launch *launch)
 {
     char config[MaxBuffer];
     char story[MaxBuffer];
@@ -207,7 +223,7 @@ static int configterp(const char *path, const char *game)
     else snprintf(story, sizeof story, "%s", game);
 
     if (!strlen(story))
-        return FALSE;
+        return;
 
     for (i=0; i < strlen(story); i++)
         story[i] = tolower((unsigned char)story[i]);
@@ -223,8 +239,8 @@ static int configterp(const char *path, const char *game)
     if (s) strcpy(s, ".ini");
     else strcat(config, ".ini");
 
-    if (findterp(config, story) || findterp(config, ext))
-        return TRUE;
+    if (findterp(config, story, launch))
+        return;
 
     /* game directory .ini */
     strcpy(config, game);
@@ -233,16 +249,16 @@ static int configterp(const char *path, const char *game)
     if (s) strcpy(s+1, "garglk.ini");
     else strcpy(config, "garglk.ini");
 
-    if (findterp(config, story) || findterp(config, ext))
-        return TRUE;
+    if (findterp(config, story, launch))
+        return;
 
     /* current directory .ini */
     s = getcwd(config, sizeof(config));
     if (s)
     {
         strcat(config, "/garglk.ini");
-        if (findterp(config, story) || findterp(config, ext))
-            return TRUE;
+        if (findterp(config, story, launch))
+            return;
     }
 
     /* various environment directories */
@@ -253,26 +269,23 @@ static int configterp(const char *path, const char *game)
         if (dir != NULL)
         {
             snprintf(config, sizeof config, "%s/.garglkrc", dir);
-            if (findterp(config, story) || findterp(config, ext))
-                return TRUE;
+            if (findterp(config, story, launch))
+                return;
 
             snprintf(config, sizeof config, "%s/garglk.ini", dir);
-            if (findterp(config, story) || findterp(config, ext))
-                return TRUE;
+            if (findterp(config, story, launch))
+                return;
         }
     }
 
     /* system directory */
-    if (findterp(GARGLKINI, story) || findterp(GARGLKINI, ext))
-        return TRUE;
+    if (findterp(GARGLKINI, story, launch))
+        return;
 
     /* install directory */
     snprintf(config, sizeof config, "%s/garglk.ini", path);
-    if (findterp(config, story) || findterp(config, ext))
-        return TRUE;
-
-    /* give up */
-    return FALSE;
+    if (findterp(config, story, launch))
+        return;
 }
 
 struct interpreter {
@@ -314,12 +327,10 @@ int rungame(const char *path, const char *game)
         { .ext = "cas", .interpreter = T_QUEST },
         { .ext = "saga", .interpreter = T_SCOTT },
     };
+    struct launch launch = { 0 };
+    char tmp[MaxBuffer];
 
-    /* initialize buffers */
-    terp[0] = 0;
-    flags[0] = 0;
-
-    configterp(path, game);
+    configterp(path, game, &launch);
 
     char *ext = strrchr(game, '.');
     if (ext)
@@ -331,12 +342,12 @@ int rungame(const char *path, const char *game)
     {
         if (strcasecmp(ext, blorbs[i]) == 0)
         {
-            return runblorb(path, game);
+            return runblorb(path, game, &launch);
         }
     }
 
-    if (strlen(terp) > 0)
-        return call_winterp(path, terp, flags, game);
+    if (strlen(launch.terp) > 0)
+        return call_winterp(path, launch.terp, launch.flags, game);
 
     for (int i = 0; i < ASIZE(interpreters); i++)
     {
