@@ -345,7 +345,7 @@ int rungame(const char *path, const char *game)
         if (strcasecmp(ext, interpreter->ext) == 0)
         {
             const char *flags = interpreter->flags == NULL ? "" : interpreter->flags;
-            return winterp(path, interpreter->interpreter, flags, game);
+            return call_winterp(path, interpreter->interpreter, flags, game);
         }
     }
 
