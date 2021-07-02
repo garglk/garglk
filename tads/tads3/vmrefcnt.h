@@ -59,13 +59,13 @@ public:
     void add_ref(void *from, const char *msg)
     {
         add_ref();
-        printf("add_ref(this=%lx, cnt=%ld, from=%lx, %s)\n",
-               (long)this, cnt.get(), (long)from, msg);
+        printf("add_ref(this=%llx, cnt=%ld, from=%llx, %s)\n",
+               (unsigned long long)this, cnt.get(), (unsigned long long)from, msg);
     }
     void release_ref(void *from, const char *msg)
     {
-        printf("release_ref(this=%lx, cnt=%ld, from=%lx, %s)\n",
-               (long)this, cnt.get()-1, (long)from, msg);
+        printf("release_ref(this=%llx, cnt=%ld, from=%llx, %s)\n",
+               (unsigned long long)this, cnt.get()-1, (unsigned long long)from, msg);
         release_ref();
     }
     
@@ -164,8 +164,8 @@ public:
     /* debugging version */
     void release_ref(void *from, const char *msg)
     {
-        printf("release_ref(this=%lx, cnt=%ld, from=%lx, %s)\n",
-               (long)this, cnt.get()-1, (long)from, msg);
+        printf("release_ref(this=%llx, cnt=%ld, from=%llx, %s)\n",
+               (unsigned long long)this, cnt.get()-1, (unsigned long long)from, msg);
         release_ref();
     }
 

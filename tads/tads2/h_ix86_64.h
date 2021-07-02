@@ -79,7 +79,7 @@ typedef unsigned short hix_uint16;
 #define osrndsz(s) (((s)+3) & ~3)
 
 /* round a pointer to worst-case alignment boundary */
-#define osrndpt(p) ((uchar *)((((ulong)(p)) + 3) & ~3))
+#define osrndpt(p) ((uchar *)((((unsigned long long)(p)) + 7) & ~7))
 
 /* read unaligned portable unsigned 2-byte value, returning int */
 #define osrp2(p) ((int)*(hix_uint16 *)(p))
