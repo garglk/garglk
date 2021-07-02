@@ -24,6 +24,8 @@
 #include "garversion.h"
 #include "launcher.h"
 
+#include <stdarg.h>
+
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #import <OpenGL/glu.h>
@@ -940,9 +942,16 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 @end
 
-void winmsg(const char *msg)
+void winmsg(const char *fmt, ...)
 {
-    NSString * nsMsg = [NSString stringWithCString: msg encoding: NSUTF8StringEncoding];
+    char msg[MaxBuffer];
+    NSString * nsMsg;
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof msg, fmt, ap);
+    va_end(ap);
+    nsMsg = [NSString stringWithCString: msg encoding: NSUTF8StringEncoding];
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 

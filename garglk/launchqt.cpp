@@ -81,8 +81,14 @@ private:
     QStringList m_extensions;
 };
 
-void winmsg(const char *msg)
+void winmsg(const char *fmt, ...)
 {
+    char msg[MaxBuffer];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof msg, fmt, ap);
+    va_end(ap);
     QMessageBox::critical(nullptr, "Error", msg);
 }
 
@@ -199,10 +205,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 
     if (!proc.waitForStarted(5000))
     {
-        char msg[1024];
-
-        std::snprintf(msg, sizeof msg, "Could not start interpreter %s", argv0.toStdString().c_str());
-        winmsg(msg);
+        winmsg("Could not start interpreter %s", argv0.toStdString().c_str());
         return 1;
     }
 
@@ -215,7 +218,6 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 #else
     std::string argv0 = QDir(path).absoluteFilePath(exe).toStdString();
     char *argv[4] = { const_cast<char *>(argv0.c_str()) };
-    char msg[1024];
 
     setenv("GARGLK_INI", path, 0);
 
@@ -231,8 +233,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 
     execv(argv[0], argv);
 
-    std::snprintf(msg, sizeof msg, "Could not start interpreter %s: %s\n", argv[0], strerror(errno));
-    winmsg(msg);
+    winmsg("Could not start interpreter %s: %s\n", argv[0], strerror(errno));
     return 1;
 #endif
 }

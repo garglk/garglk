@@ -33,6 +33,9 @@
 
 #define MaxBuffer 1024
 
-extern void winmsg(const char *msg);
+#ifdef __GNUC__
+__attribute__((__format__(__printf__, 1, 2)))
+#endif
+extern void winmsg(const char *fmt, ...);
 extern int winterp(const char *path, const char *exe, const char *flags, const char *game);
 extern int rungame(const char *path, const char *game);

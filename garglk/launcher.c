@@ -72,40 +72,27 @@ static int call_winterp(const char *path, const char *interpreter, const char *f
 
 static int runblorb(const char *path, const char *game, const struct launch *launch)
 {
-    char tmp[MaxBuffer];
     char magic[4];
-    strid_t file;
+    strid_t file = NULL;
     giblorb_result_t res;
-    giblorb_err_t err;
-    giblorb_map_t *map;
+    giblorb_map_t *map = NULL;
     const char *found_interpreter;
 
-    snprintf(tmp, sizeof tmp, "Could not load Blorb file:\n%s\n", game);
+#define goto_err(reason) do { winmsg("Could not load Blorb file %s:\n%s", game, (reason)); goto err; } while(0);
 
     file = glkunix_stream_open_pathname((char *)game, 0, 0);
     if (!file)
-    {
-        winmsg(tmp);
-        return FALSE;
-    }
+        goto_err("Unable to open file");
 
-    err = giblorb_create_map(file, &map);
-    if (err)
-    {
-        winmsg(tmp);
-        return FALSE;
-    }
+    if (giblorb_create_map(file, &map) != giblorb_err_None)
+        goto_err("Does not appear to be a Blorb file");
 
-    err = giblorb_load_resource(map, giblorb_method_FilePos,
-            &res, giblorb_ID_Exec, 0);
-    if (err)
-    {
-        winmsg(tmp);
-        return FALSE;
-    }
+    if (giblorb_load_resource(map, giblorb_method_FilePos, &res, giblorb_ID_Exec, 0) != giblorb_err_None)
+        goto_err("Does not contain a story file (look for a corresponding game file to load instead)");
 
     glk_stream_set_position(file, res.data.startpos, 0);
-    glk_get_buffer_stream(file, magic, 4);
+    if (glk_get_buffer_stream(file, magic, 4) != 4)
+        goto_err("Unable to read story file (possibly corrupted Blorb file)");
 
     switch (res.chunktype)
     {
@@ -125,13 +112,27 @@ static int runblorb(const char *path, const char *game, const struct launch *lau
                 found_interpreter = T_GLULX;
             break;
 
-        default:
-            snprintf(tmp, sizeof tmp, "Unknown game type in Blorb file:\n%s\n", game);
-            winmsg(tmp);
-            return FALSE;
+        default: {
+            char msg[MaxBuffer];
+            snprintf(msg, sizeof msg, "Unknown game type: 0x%08lx", (unsigned long)res.chunktype);
+            goto_err(msg);
+        }
     }
 
+#undef goto_err
+
+    giblorb_destroy_map(map);
+    glk_stream_close(file, NULL);
+
     return call_winterp(path, found_interpreter, launch->flags, game);
+
+err:
+    if (map != NULL)
+        giblorb_destroy_map(map);
+    if (file != NULL)
+        glk_stream_close(file, NULL);
+
+    return FALSE;
 }
 
 static int findterp_impl(const char *file, const char *target, struct launch *launch)
@@ -328,7 +329,6 @@ int rungame(const char *path, const char *game)
         { .ext = "saga", .interpreter = T_SCOTT },
     };
     struct launch launch = { 0 };
-    char tmp[MaxBuffer];
 
     configterp(path, game, &launch);
 
@@ -360,8 +360,7 @@ int rungame(const char *path, const char *game)
         }
     }
 
-    snprintf(tmp, sizeof tmp, "Unknown file type: \"%s\"\nSorry.", ext);
-    winmsg(tmp);
+    winmsg("Unknown file type: \"%s\"\nSorry.", ext);
 
     return FALSE;
 }
