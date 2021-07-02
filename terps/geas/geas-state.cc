@@ -49,6 +49,7 @@ public:
   GeasOutputStream &put (int i) { o << i; o.put (char (0)); return *this; }
   GeasOutputStream &put (uint i) { o << i; o.put (char (0)); return *this; }
   GeasOutputStream &put (unsigned long i) { o << i; o.put (char (0)); return *this; } // for Mac OS X ...
+  GeasOutputStream &put (unsigned long long i) { o << i; o.put (char (0)); return *this; }
   
 
   void write_out (string gamename, string savename)
