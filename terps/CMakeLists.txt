@@ -139,6 +139,13 @@ if(WITH_BOCFEL)
         bocfel/glkstart.c
         MACROS ${BOCFEL_MACROS}
         LTO WARNINGS)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # The constants this complains about vary in value depending on
+        # platform, so although the warning is correct when it occurs,
+        # the checks are valid, and the warning unnecessary.
+        target_compile_options(bocfel PRIVATE -Wno-tautological-constant-out-of-range-compare)
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
