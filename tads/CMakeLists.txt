@@ -1,8 +1,6 @@
 option(WITH_TADS "Enable the tads interpreter" ON)
 
 if(WITH_TADS)
-    include_directories(. tads2 tads3)
-
     set(srcs memicmp.c osbuffer.c osextra.c osglk.c osglkban.c osmisc.c osparse.c
         osportable.cc t23run.cpp t2askf.c t2indlg.c t3askf.cpp t3indlg.cpp
         vmuni_cs.cpp)
@@ -55,4 +53,6 @@ if(WITH_TADS)
         SRCS ${srcs}
         MACROS ${macros}
         POSIX)
+
+    target_include_directories(tadsr PRIVATE . tads2 tads3)
 endif()
