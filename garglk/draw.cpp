@@ -21,21 +21,24 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cmath>
+#include <cstring>
+#include <functional>
+#include <map>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <utility>
+
+extern "C" {
 #include "glk.h"
 #include "garglk.h"
+}
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_OUTLINE_H
 #include FT_LCD_FILTER_H
-
-#include <math.h> /* for pow() */
-#include "uthash.h" /* for kerning cache */
 
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
@@ -44,43 +47,33 @@
 #define mulhigh(a,b) (((int)(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
-typedef struct font_s font_t;
-typedef struct bitmap_s bitmap_t;
-typedef struct fentry_s fentry_t;
-typedef struct kcache_s kcache_t;
-
-struct bitmap_s
+struct bitmap_t
 {
     int w, h, lsb, top, pitch;
     unsigned char *data;
 };
 
-struct fentry_s
+struct fentry_t
 {
-    glui32 cid;
     int adv;
     bitmap_t glyph[GLI_SUBPIX];
 };
 
-struct kcache_s
+struct font_t
 {
-    glui32 pair[2];
-    int value;
-    UT_hash_handle hh;
-};
+    FT_Face face = nullptr;
+    std::map<glui32, fentry_t> entries;
+    bool make_bold = false;
+    bool make_oblique = false;
+    bool kerned = false;
+    std::map<std::pair<int, int>, int> kerncache;
 
-struct font_s
-{
-    FT_Face face;
-    bitmap_t lowglyphs[256][GLI_SUBPIX];
-    int lowadvs[256];
-    unsigned char lowloaded[256/8];
-    fentry_t *highentries;
-    int num_highentries, alloced_highentries;
-    int make_bold;
-    int make_oblique;
-    int kerned;
-    kcache_t *kerncache;
+    font_t(const char *name, float size, float aspect, int style);
+    ~font_t();
+
+    void getglyph(glui32 cid, int *adv, const bitmap_t **glyphs);
+    const fentry_t &loadglyph(glui32 cid);
+    int charkern(int c0, int c1);
 };
 
 /*
@@ -90,7 +83,7 @@ struct font_s
 static unsigned short gammamap[256];
 static unsigned char gammainv[1 << GAMMA_BITS];
 
-static font_t gfont_table[8];
+static std::shared_ptr<font_t> gfont_table[8];
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -98,7 +91,7 @@ int gli_cellh = 8;
 int gli_image_s = 0;
 int gli_image_w = 0;
 int gli_image_h = 0;
-unsigned char *gli_image_rgb = NULL;
+unsigned char *gli_image_rgb = nullptr;
 
 static const int gli_bpp = 4;
 
@@ -108,17 +101,18 @@ static FT_Matrix ftmat;
 static bool use_freetype_preset_filter = false;
 static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
 
-void gli_set_lcdfilter(const char *filter)
+void gli_set_lcdfilter(const char *filter_)
 {
+    std::string filter = filter_;
     use_freetype_preset_filter = true;
 
-    if (strcmp(filter, "none") == 0) {
+    if (filter == "none") {
         freetype_preset_filter = FT_LCD_FILTER_NONE;
-    } else if (strcmp(filter, "default") == 0) {
+    } else if (filter == "default") {
         freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
-    } else if (strcmp(filter, "light") == 0) {
+    } else if (filter == "light") {
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
-    } else if (strcmp(filter, "legacy") == 0) {
+    } else if (filter == "legacy") {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
     } else {
         use_freetype_preset_filter = false;
@@ -131,7 +125,7 @@ void gli_set_lcdfilter(const char *filter)
 
 // FT_Error_String() was introduced in FreeType 2.10.0.
 #if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
-#define FT_Error_String(err) NULL
+#define FT_Error_String(err) nullptr
 #endif
 
 #ifdef __GNUC__
@@ -141,140 +135,90 @@ static void freetype_error(int err, const char *fmt, ...)
 {
     char msg1[4096], msg2[4096];
     // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
-    // this will always be NULL.
+    // this will always be nullptr.
     const char *errstr = FT_Error_String(err);
     va_list ap;
 
     va_start(ap, fmt);
-    vsnprintf(msg1, sizeof msg1, fmt, ap);
+    std::vsnprintf(msg1, sizeof msg1, fmt, ap);
     va_end(ap);
 
-    if (errstr == NULL)
-        snprintf(msg2, sizeof msg2, "%s (error code %d)", msg1, err);
+    if (errstr == nullptr)
+        std::snprintf(msg2, sizeof msg2, "%s (error code %d)", msg1, err);
     else
-        snprintf(msg2, sizeof msg2, "%s: %s", msg1, errstr);
+        std::snprintf(msg2, sizeof msg2, "%s: %s", msg1, errstr);
 
     winabort("%s", msg2);
 }
 
-static int findhighglyph(glui32 cid, fentry_t *entries, int length)
+const fentry_t &font_t::loadglyph(glui32 cid)
 {
-    int start = 0, end = length, mid = 0;
-    while (start < end)
+    auto it = entries.find(cid);
+    if (it == entries.end())
     {
-        mid = (start + end) / 2;
-        if (entries[mid].cid == cid)
-            return mid;
-        else if (entries[mid].cid < cid)
-            start = mid + 1;
-        else
-            end = mid;
-    }
-    return ~mid;
-}
+        FT_Vector v;
+        int err;
+        glui32 gid;
+        int x;
+        fentry_t entry;
+        size_t datasize;
 
-static void loadglyph(font_t *f, glui32 cid)
-{
-    FT_Vector v;
-    int err;
-    glui32 gid;
-    int x;
-    bitmap_t glyphs[GLI_SUBPIX];
-    int adv;
-    size_t datasize;
+        gid = FT_Get_Char_Index(face, cid);
+        if (gid == 0)
+            gid = FT_Get_Char_Index(face, '?');
 
-    gid = FT_Get_Char_Index(f->face, cid);
-    if (gid == 0)
-        gid = FT_Get_Char_Index(f->face, '?');
-
-    for (x = 0; x < GLI_SUBPIX; x++)
-    {
-        v.x = (x * 64) / GLI_SUBPIX;
-        v.y = 0;
-
-        FT_Set_Transform(f->face, 0, &v);
-
-        err = FT_Load_Glyph(f->face, gid,
-                FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
-        if (err)
-            freetype_error(err, "Error in FT_Load_Glyph");
-
-        if (f->make_bold)
-            FT_Outline_Embolden(&f->face->glyph->outline, FT_MulFix(f->face->units_per_EM, f->face->size->metrics.y_scale) / 24);
-
-        if (f->make_oblique)
-            FT_Outline_Transform(&f->face->glyph->outline, &ftmat);
-
-        if (gli_conf_lcd) {
-            if (use_freetype_preset_filter)
-                FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
-            else
-                FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
-
-            err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LCD);
-        } else
-            err = FT_Render_Glyph(f->face->glyph, FT_RENDER_MODE_LIGHT);
-
-        if (err)
-            freetype_error(err, "Error in FT_Render_Glyph");
-
-        datasize = f->face->glyph->bitmap.pitch * f->face->glyph->bitmap.rows;
-        adv = (f->face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
-
-        glyphs[x].lsb = f->face->glyph->bitmap_left;
-        glyphs[x].top = f->face->glyph->bitmap_top;
-        glyphs[x].w = f->face->glyph->bitmap.width;
-        glyphs[x].h = f->face->glyph->bitmap.rows;
-        glyphs[x].pitch = f->face->glyph->bitmap.pitch;
-        glyphs[x].data = malloc(datasize);
-        memcpy(glyphs[x].data, f->face->glyph->bitmap.buffer, datasize);
-    }
-
-    if (cid < 256)
-    {
-        f->lowloaded[cid/8] |= (1 << (cid%8));
-        f->lowadvs[cid] = adv;
-        memcpy(f->lowglyphs[cid], glyphs, sizeof glyphs);
-    }
-    else
-    {
-        int idx = findhighglyph(cid, f->highentries, f->num_highentries);
-        if (idx < 0)
+        for (x = 0; x < GLI_SUBPIX; x++)
         {
-            idx = ~idx;
+            v.x = (x * 64) / GLI_SUBPIX;
+            v.y = 0;
 
-            /* make room if needed */
-            if (f->alloced_highentries == f->num_highentries)
-            {
-                fentry_t *newentries;
-                int newsize = f->alloced_highentries * 2;
-                if (!newsize)
-                    newsize = 2;
-                newentries = malloc(newsize * sizeof(fentry_t));
-                if (!newentries)
-                    return;
-                if (f->highentries)
-                {
-                    memcpy(newentries, f->highentries, f->num_highentries * sizeof(fentry_t));
-                    free(f->highentries);
-                }
-                f->highentries = newentries;
-                f->alloced_highentries = newsize;
-            }
+            FT_Set_Transform(face, 0, &v);
 
-            /* insert new glyph */
-            memmove(&f->highentries[idx+1], &f->highentries[idx], (f->num_highentries - idx) * sizeof(fentry_t));
-            f->highentries[idx].cid = cid;
-            f->highentries[idx].adv = adv;
-            memcpy(f->highentries[idx].glyph, glyphs, sizeof glyphs);
-            f->num_highentries++;
+            err = FT_Load_Glyph(face, gid,
+                    FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
+            if (err)
+                freetype_error(err, "Error in FT_Load_Glyph");
+
+            if (make_bold)
+                FT_Outline_Embolden(&face->glyph->outline, FT_MulFix(face->units_per_EM, face->size->metrics.y_scale) / 24);
+
+            if (make_oblique)
+                FT_Outline_Transform(&face->glyph->outline, &ftmat);
+
+            if (gli_conf_lcd) {
+                if (use_freetype_preset_filter)
+                    FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
+                else
+                    FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
+
+                err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LCD);
+            } else
+                err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LIGHT);
+
+            if (err)
+                freetype_error(err, "Error in FT_Render_Glyph");
+
+            datasize = face->glyph->bitmap.pitch * face->glyph->bitmap.rows;
+            entry.adv = (face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
+
+            entry.glyph[x].lsb = face->glyph->bitmap_left;
+            entry.glyph[x].top = face->glyph->bitmap_top;
+            entry.glyph[x].w = face->glyph->bitmap.width;
+            entry.glyph[x].h = face->glyph->bitmap.rows;
+            entry.glyph[x].pitch = face->glyph->bitmap.pitch;
+            entry.glyph[x].data = new unsigned char[datasize];
+            std::memcpy(entry.glyph[x].data, face->glyph->bitmap.buffer, datasize);
         }
+
+        it = entries.insert({cid, entry}).first;
     }
+
+    return it->second;
 }
 
-static void loadfont(font_t *f, const char *name, float size, float aspect, int style)
+font_t::font_t(const char *name, float size, float aspect, int style)
 {
-    static char *map[8] =
+    static std::string map[8] =
     {
         "GoMono-Regular",
         "GoMono-Bold",
@@ -291,15 +235,13 @@ static void loadfont(font_t *f, const char *name, float size, float aspect, int 
     int err = 0;
     int i;
 
-    memset(f, 0, sizeof (font_t));
-
 #ifdef BUNDLED_FONTS
     for (i = 0; i < 8; i++)
     {
-        if (!strcmp(name, map[i]))
+        if (map[i] == name)
         {
             gli_get_builtin_font(i, &mem, &len);
-            err = FT_New_Memory_Face(ftlib, mem, len, 0, &f->face);
+            err = FT_New_Memory_Face(ftlib, mem, len, 0, &face);
             if (err)
                 freetype_error(err, "Unable to create font from %s", name);
             break;
@@ -311,68 +253,70 @@ static void loadfont(font_t *f, const char *name, float size, float aspect, int 
 
     if (i == 8)
     {
-        err = FT_New_Face(ftlib, name, 0, &f->face);
+        err = FT_New_Face(ftlib, name, 0, &face);
         if (err)
             freetype_error(err, "Unable to create font from %s", name);
         if (strlen(name) >= 4)
         {
             char afmbuf[1024], *ext;
 
-            snprintf(afmbuf, sizeof afmbuf, "%s", name);
+            std::snprintf(afmbuf, sizeof afmbuf, "%s", name);
             ext = &afmbuf[strlen(afmbuf) - 4];
 
-            if (strcmp(ext, ".PFA") == 0 ||
-                strcmp(ext, ".pfa") == 0 ||
-                strcmp(ext, ".PFB") == 0 ||
-                strcmp(ext, ".pfb") == 0)
+            if (std::strcmp(ext, ".PFA") == 0 ||
+                std::strcmp(ext, ".pfa") == 0 ||
+                std::strcmp(ext, ".PFB") == 0 ||
+                std::strcmp(ext, ".pfb") == 0)
             {
                 // These strcpy() calls are safe because it's guaranteed
                 // that ext points to at least 5 bytes.
-                strcpy(ext, ".afm");
-                FT_Attach_File(f->face, afmbuf);
-                strcpy(ext, ".AFM");
-                FT_Attach_File(f->face, afmbuf);
+                std::strcpy(ext, ".afm");
+                FT_Attach_File(face, afmbuf);
+                std::strcpy(ext, ".AFM");
+                FT_Attach_File(face, afmbuf);
             }
         }
     }
 
-    err = FT_Set_Char_Size(f->face, size * aspect * 64, size * 64, 72, 72);
+    err = FT_Set_Char_Size(face, size * aspect * 64, size * 64, 72, 72);
     if (err)
         freetype_error(err, "Error in FT_Set_Char_Size for %s", name);
 
-    err = FT_Select_Charmap(f->face, ft_encoding_unicode);
+    err = FT_Select_Charmap(face, ft_encoding_unicode);
     if (err)
         freetype_error(err, "Error in FT_Select_CharMap for %s", name);
 
-    memset(f->lowloaded, 0, sizeof f->lowloaded);
-    f->alloced_highentries = 0;
-    f->num_highentries = 0;
-    f->highentries = NULL;
-    f->kerned = FT_HAS_KERNING(f->face);
-    f->kerncache = NULL;
+    kerned = FT_HAS_KERNING(face);
 
     switch (style)
     {
         case FONTR:
-            f->make_bold = FALSE;
-            f->make_oblique = FALSE;
+            make_bold = false;
+            make_oblique = false;
             break;
 
         case FONTB:
-            f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
-            f->make_oblique = FALSE;
+            make_bold = !(face->style_flags & FT_STYLE_FLAG_BOLD);
+            make_oblique = false;
             break;
 
         case FONTI:
-            f->make_bold = FALSE;
-            f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+            make_bold = false;
+            make_oblique = !(face->style_flags & FT_STYLE_FLAG_ITALIC);
             break;
 
         case FONTZ:
-            f->make_bold = !(f->face->style_flags & FT_STYLE_FLAG_BOLD);
-            f->make_oblique = !(f->face->style_flags & FT_STYLE_FLAG_ITALIC);
+            make_bold = !(face->style_flags & FT_STYLE_FLAG_BOLD);
+            make_oblique = !(face->style_flags & FT_STYLE_FLAG_ITALIC);
             break;
     }
+}
+
+font_t::~font_t()
+{
+    for (const auto &pair : entries)
+        for (int i = 0; i < GLI_SUBPIX; i++)
+            delete [] pair.second.glyph[i].data;
 }
 
 void gli_initialize_fonts(void)
@@ -385,10 +329,10 @@ void gli_initialize_fonts(void)
     int i;
 
     for (i = 0; i < 256; i++)
-        gammamap[i] = pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
+        gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
 
     for (i = 0; i <= GAMMA_MAX; i++)
-        gammainv[i] = pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
+        gammainv[i] = std::pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
@@ -406,20 +350,20 @@ void gli_initialize_fonts(void)
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    loadfont(&gfont_table[0], gli_conf_monor, monosize, monoaspect, FONTR);
-    loadfont(&gfont_table[1], gli_conf_monob, monosize, monoaspect, FONTB);
-    loadfont(&gfont_table[2], gli_conf_monoi, monosize, monoaspect, FONTI);
-    loadfont(&gfont_table[3], gli_conf_monoz, monosize, monoaspect, FONTZ);
+    gfont_table[0] = std::make_shared<font_t>(gli_conf_monor, monosize, monoaspect, FONTR);
+    gfont_table[1] = std::make_shared<font_t>(gli_conf_monob, monosize, monoaspect, FONTB);
+    gfont_table[2] = std::make_shared<font_t>(gli_conf_monoi, monosize, monoaspect, FONTI);
+    gfont_table[3] = std::make_shared<font_t>(gli_conf_monoz, monosize, monoaspect, FONTZ);
 
-    loadfont(&gfont_table[4], gli_conf_propr, propsize, propaspect, FONTR);
-    loadfont(&gfont_table[5], gli_conf_propb, propsize, propaspect, FONTB);
-    loadfont(&gfont_table[6], gli_conf_propi, propsize, propaspect, FONTI);
-    loadfont(&gfont_table[7], gli_conf_propz, propsize, propaspect, FONTZ);
+    gfont_table[4] = std::make_shared<font_t>(gli_conf_propr, propsize, propaspect, FONTR);
+    gfont_table[5] = std::make_shared<font_t>(gli_conf_propb, propsize, propaspect, FONTB);
+    gfont_table[6] = std::make_shared<font_t>(gli_conf_propi, propsize, propaspect, FONTI);
+    gfont_table[7] = std::make_shared<font_t>(gli_conf_propz, propsize, propaspect, FONTZ);
 
-    loadglyph(&gfont_table[0], '0');
+    const auto &entry = gfont_table[0]->loadglyph('0');
 
     gli_cellh = gli_leading;
-    gli_cellw = (gfont_table[0].lowadvs['0'] + GLI_SUBPIX - 1) / GLI_SUBPIX;
+    gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
 }
 
 /*
@@ -469,9 +413,9 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3] = {
-        GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255),
-        GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255),
-        GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)
+        static_cast<unsigned short>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
+        static_cast<unsigned short>(GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255)),
+        static_cast<unsigned short>(GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)),
     };
     unsigned short bg[3] = {
         gammamap[p[0]],
@@ -494,7 +438,7 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
     p[3] = 0xFF;
 }
 
-static void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -507,7 +451,7 @@ static void draw_bitmap_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
     }
 }
 
-static void draw_bitmap_lcd_gamma(bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
@@ -570,77 +514,60 @@ void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
     }
 }
 
-static int charkern(font_t *f, int c0, int c1)
+int font_t::charkern(int c0, int c1)
 {
     FT_Vector v;
     int err;
     int g0, g1;
 
-    if (!f->kerned)
+    if (!kerned)
         return 0;
 
-    kcache_t *item = malloc(sizeof(kcache_t));
-    memset(item, 0, sizeof(kcache_t));
-    item->pair[0] = c0;
-    item->pair[1] = c1;
-
-    kcache_t *match = NULL;
-    HASH_FIND(hh, f->kerncache, item->pair, 2 * sizeof(glui32), match);
-
-    if (match)
+    auto key = std::make_pair(c0, c1);
+    try
     {
-        free(item);
-        return match->value;
+        return kerncache.at(key);
+    }
+    catch (const std::out_of_range &)
+    {
     }
 
-    g0 = FT_Get_Char_Index(f->face, c0);
-    g1 = FT_Get_Char_Index(f->face, c1);
+    g0 = FT_Get_Char_Index(face, c0);
+    g1 = FT_Get_Char_Index(face, c1);
 
     if (g0 == 0 || g1 == 0) {
-        free(item);
         return 0;
     }
 
-    err = FT_Get_Kerning(f->face, g0, g1, FT_KERNING_UNFITTED, &v);
+    err = FT_Get_Kerning(face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err)
         freetype_error(err, "Error in FT_Get_Kerning");
 
-    item->value = (v.x * GLI_SUBPIX) / 64.0;
-    HASH_ADD_KEYPTR(hh, f->kerncache, item->pair, 2 * sizeof(glui32), item);
+    int value = (v.x * GLI_SUBPIX) / 64.0;
+    kerncache.insert({key, value});
 
-    return item->value;
+    return value;
 }
 
-static void getglyph(font_t *f, glui32 cid, int *adv, bitmap_t **glyphs)
+void font_t::getglyph(glui32 cid, int *adv, const bitmap_t **glyphs)
 {
-    if (cid < 256)
-    {
-        if ((f->lowloaded[cid/8] & (1 << (cid%8))) == 0)
-            loadglyph(f, cid);
-        *adv = f->lowadvs[cid];
-        *glyphs = f->lowglyphs[cid];
-    }
-    else
-    {
-        int idx = findhighglyph(cid, f->highentries, f->num_highentries);
-        if (idx < 0)
-        {
-            loadglyph(f, cid);
-            idx = ~idx;
-        }
-        *adv = f->highentries[idx].adv;
-        *glyphs = f->highentries[idx].glyph;
-    }
+    // This must be a reference because "entry.glyph" is an array, so
+    // this stores a pointer to the first element of that array; if this
+    // were a copy instead of a reference, the array would be destroyed
+    // as soon as this function returned and so the pointer to it would
+    // be invalid.
+    const auto &entry = loadglyph(cid);
+
+    *adv = entry.adv;
+    *glyphs = entry.glyph;
 }
 
-int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
-        glui32 *s, int n, int spw)
+int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<void(int, const bitmap_t *)> callback)
 {
-    font_t *f = &gfont_table[fidx];
+    auto f = gfont_table[fidx];
     int dolig = ! FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
     glui32 c;
-    int px, sx;
 
     if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
         dolig = 0;
@@ -649,7 +576,7 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
 
     while (n--)
     {
-        bitmap_t *glyphs;
+        const bitmap_t *glyphs;
         int adv;
 
         c = *s++;
@@ -667,18 +594,12 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
           n--;
         }
 
-        getglyph(f, c, &adv, &glyphs);
+        f->getglyph(c, &adv, &glyphs);
 
         if (prev != -1)
-            x += charkern(f, prev, c);
+            x += f->charkern(prev, c);
 
-        px = x / GLI_SUBPIX;
-        sx = x % GLI_SUBPIX;
-
-        if (gli_conf_lcd)
-            draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
-        else
-            draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
+        callback(x, glyphs);
 
         if (spw >= 0 && c == ' ')
             x += spw;
@@ -691,51 +612,23 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
     return x;
 }
 
+int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
+        glui32 *s, int n, int spw)
+{
+    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const bitmap_t *glyphs) {
+        int px = x / GLI_SUBPIX;
+        int sx = x % GLI_SUBPIX;
+
+        if (gli_conf_lcd)
+            draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
+        else
+            draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
+    });
+}
+
 int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
 {
-    font_t *f = &gfont_table[fidx];
-    int dolig = ! FT_IS_FIXED_WIDTH(f->face);
-    int prev = -1;
-    int w = 0;
-
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
-        dolig = 0;
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FL) == 0 )
-        dolig = 0;
-
-    while (n--)
-    {
-        bitmap_t *glyphs;
-        int adv;
-        int c = *s++;
-
-        if (dolig && n && c == 'f' && *s == 'i')
-        {
-          c = UNI_LIG_FI;
-          s++;
-          n--;
-        }
-        if (dolig && n && c == 'f' && *s == 'l')
-        {
-          c = UNI_LIG_FL;
-          s++;
-          n--;
-        }
-
-        getglyph(f, c, &adv, &glyphs);
-
-        if (prev != -1)
-            w += charkern(f, prev, c);
-
-        if (spw >= 0 && c == ' ')
-            w += spw;
-        else
-            w += adv;
-
-        prev = c;
-    }
-
-    return w;
+    return gli_string_impl(0, fidx, s, n, spw, [](int x, const bitmap_t *glyphs) {});
 }
 
 void gli_draw_caret(int x, int y)

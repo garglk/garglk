@@ -122,7 +122,7 @@ switch $(PLATFORM)
         }
 
         # Setting C++ standard version to use for current g++ compilers.
-        C++FLAGS = -std=c++11 ;
+        C++FLAGS = -std=c++14 ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC" ;
 
         # Not all supported platforms include a pkg-config file for libjpeg.
@@ -142,6 +142,7 @@ switch $(PLATFORM)
         CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
         PKGCONFIG = "pkg-config freetype2 libpng" ;
 
+        C++FLAGS = -std=c++14 ;
         GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
         SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lz ;
         # Homebrew's JPEG library package is missing some configuration files.
@@ -162,7 +163,7 @@ switch $(PLATFORM)
             SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
         }
 
-        LINK = $(CC) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
+        LINK = $(CXX) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
 
 
     case * :
