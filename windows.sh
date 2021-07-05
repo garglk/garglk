@@ -19,7 +19,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-PKG_CONFIG=${target}-pkg-config cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
+cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
 make -j${nproc}
 make install
 )

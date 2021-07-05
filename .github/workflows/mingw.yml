@@ -39,9 +39,6 @@ jobs:
           mkdir build
           cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=/usr/i686-w64-mingw32 -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
-        env:
-          PKG_CONFIG: i686-w64-mingw32-pkg-config
-          PKG_CONFIG_LIBDIR: /usr/i686-w64-mingw32/lib/pkgconfig
 
       - name: Build
         run: |
