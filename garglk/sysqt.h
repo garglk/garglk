@@ -19,9 +19,13 @@ public:
     View(QWidget *parent) : QWidget(parent) {
         setFocusPolicy(Qt::StrongFocus);
         setMouseTracking(true);
+        setAttribute(Qt::WA_InputMethodEnabled, true);
     }
 
+    QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
+
 protected:
+    void inputMethodEvent(QInputMethodEvent *event) override;
     void paintEvent(QPaintEvent *) override;
     void keyPressEvent(QKeyEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
