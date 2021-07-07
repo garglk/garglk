@@ -205,6 +205,27 @@ void Window::resizeEvent(QResizeEvent *event)
     event->accept();
 }
 
+QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const {
+    switch (query)
+    {
+    case Qt::ImEnabled:
+        return QVariant(true);
+    default:
+        return QVariant();
+    }
+}
+
+// Handle compose key events (probably other input method events too).
+// See https://stackoverflow.com/questions/28793356/qt-and-dead-keys-in-a-custom-widget
+void View::inputMethodEvent(QInputMethodEvent *event) {
+    if (!event->commitString().isEmpty())
+    {
+        QKeyEvent key_event(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
+        keyPressEvent(&key_event);
+    }
+    event->accept();
+}
+
 void View::paintEvent(QPaintEvent *event)
 {
     if (!gli_drawselect)
