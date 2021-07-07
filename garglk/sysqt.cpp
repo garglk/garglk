@@ -258,6 +258,7 @@ void View::keyPressEvent(QKeyEvent *event)
             case Qt::Key_Escape: gli_input_handle_key(keycode_Escape); break;
             case Qt::Key_Tab: gli_input_handle_key(keycode_Tab); break;
             case Qt::Key_Backspace: gli_input_handle_key(keycode_Delete); break;
+            case Qt::Key_Delete: gli_input_handle_key(keycode_Erase); break;
             case Qt::Key_Return: gli_input_handle_key(keycode_Return); break;
             case Qt::Key_Enter: gli_input_handle_key(keycode_Return); break;
             case Qt::Key_Home: gli_input_handle_key(keycode_Home); break;
