@@ -37,4 +37,7 @@ done
 mkdir -p "build/dist/plugins/platforms"
 cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
 
-wine "${makensis}" installer.nsi
+if [[ -z "${NO_INSTALLER}" ]]
+then
+    wine "${makensis}" installer.nsi
+fi
