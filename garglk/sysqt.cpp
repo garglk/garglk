@@ -23,6 +23,7 @@
  *****************************************************************************/
 
 #include <QApplication>
+#include <QChar>
 #include <QClipboard>
 #include <QCursor>
 #include <QFileDialog>
@@ -66,16 +67,8 @@ static Window *window;
 static void handle_input(const QString &input)
 {
     for (const uint &c : input.toUcs4())
-    {
-        switch (c)
-        {
-            case '\r': case '\n': case '\b': case '\t': case 27:
-                break;
-            default:
-                gli_input_handle_key(c);
-                break;
-        }
-    }
+        if (QChar::isPrint(c))
+            gli_input_handle_key(c);
 }
 
 void glk_request_timer_events(glui32 ms)
