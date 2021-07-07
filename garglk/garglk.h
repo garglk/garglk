@@ -29,12 +29,14 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
 
 #ifdef GARGLK_USESDL
 #include <SDL_timer.h>
 #endif
 
 #include "gi_dispa.h"
+#include "glk.h"
 
 /* First, we define our own TRUE and FALSE and NULL, because ANSI
  * is a strange world.
@@ -713,8 +715,8 @@ void winrepaint(int x0, int y0, int x1, int y1);
 __attribute__((__format__(__printf__, 1, 2)))
 #endif
 void winabort(const char *fmt, ...);
-void winopenfile(const char *prompt, char *buf, int buflen, int filter);
-void winsavefile(const char *prompt, char *buf, int buflen, int filter);
+void winopenfile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
+void winsavefile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
 
