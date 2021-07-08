@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # This script will cross compile Gargoyle for Windows using MinGW, and
-# build an installer for it using NSIS through Wine. This script makes
-# assumptions about the locations of MinGW and Wine, so may need to be
-# tweaked to get it to properly work.
+# build an installer for it using NSIS. This script makes assumptions
+# about the location of MinGW, so may need to be tweaked to get it to
+# properly work.
 
 set -e
 
@@ -12,7 +12,6 @@ set -e
 mingw_location=/usr
 target=i686-w64-mingw32
 
-makensis="${HOME}/.wine/drive_c/Program Files (x86)/NSIS/makensis.exe"
 nproc=$(getconf _NPROCESSORS_ONLN)
 ver=$(${target}-gcc --version | head -1 | awk '{print $3}')
 
@@ -39,5 +38,5 @@ cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plug
 
 if [[ -z "${NO_INSTALLER}" ]]
 then
-    wine "${makensis}" installer.nsi
+    makensis -V4 installer.nsi
 fi
