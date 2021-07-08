@@ -147,6 +147,9 @@ Section "Uninstall"
     Delete $INSTDIR\*.exe
     Delete $INSTDIR\*.dll
     Delete $INSTDIR\*.txt
+    Delete $INSTDIR\plugins\platforms\*.*
+    RMDir $INSTDIR\plugins\platforms
+    RMDir $INSTDIR\plugins
 
     ; Remove shortcuts, if any
     !insertmacro MUI_STARTMENU_GETFOLDER Application $R0
