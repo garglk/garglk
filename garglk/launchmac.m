@@ -52,9 +52,9 @@ static void winpath(char *buffer);
 
 static char *winfilters[] =
 {
-    "sav",
+    "glksave",
     "txt",
-    "*",
+    "glkdata",
 };
 
 @interface GargoyleView : NSOpenGLView
@@ -499,7 +499,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [openDlg setAllowsMultipleSelection: NO];
     [openDlg setTitle: prompt];
 
-    if (filter != FILTER_ALL)
+    if (filter != FILTER_DATA)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
                                                                              encoding: NSUTF8StringEncoding]];
@@ -524,7 +524,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     [saveDlg setCanCreateDirectories: YES];
     [saveDlg setTitle: prompt];
 
-    if (filter != FILTER_ALL)
+    if (filter != FILTER_DATA)
     {
         NSArray * filterTypes = [NSArray arrayWithObject: [NSString stringWithCString: winfilters[filter]
                                                                              encoding: NSUTF8StringEncoding]];

@@ -58,9 +58,9 @@ static QString cliptext;
 
 /* filters and extensions for file dialogs */
 static const std::map<FILEFILTERS, std::pair<QString, QString>> filters = {
-    { FILTER_SAVE, std::make_pair("Saved game files (*.sav);;All files (*)", ".sav") },
-    { FILTER_TEXT, std::make_pair("Text files (*.txt);;All files (*)", ".txt") },
-    { FILTER_ALL, std::make_pair("All files (*)", "") },
+    { FILTER_SAVE, std::make_pair("Saved game files (*.glksave *.sav)", "glksave") },
+    { FILTER_TEXT, std::make_pair("Text files (*.txt)", "txt") },
+    { FILTER_DATA, std::make_pair("Data files (*.glkdata)", "glkdata") },
 };
 
 static QApplication *app;
@@ -109,7 +109,8 @@ static void winchoosefile(const QString &prompt, char *buf, int len, FILEFILTERS
 
     if (action == Action::Open)
     {
-        filename = QFileDialog::getOpenFileName(window, prompt, "", filters.at(filter).first);
+        QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
+        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring);
     }
     else
     {

@@ -707,7 +707,9 @@ rect_t gli_compute_content_box();
 
 extern void gli_select(event_t *event, int polled);
 
-enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
+// The order here is significant: for the time being, at least, the
+// macOS code directly indexes an array using these values.
+enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
 
 void wininit(int *argc, char **argv);
 void winopen(void);

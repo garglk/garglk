@@ -273,7 +273,7 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
         case fileusage_Data:
         default:
             prompt = "Data file";
-            filter = FILTER_ALL;
+            filter = FILTER_DATA;
             break;
     }
 
