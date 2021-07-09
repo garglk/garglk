@@ -173,7 +173,7 @@ void winexit(void)
     exit(0);
 }
 
-void winopenfile(const char *prompt, char *buf, int len, int filter)
+void winopenfile(const char *prompt, char *buf, int len, enum FILEFILTERS filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -191,7 +191,7 @@ void winopenfile(const char *prompt, char *buf, int len, int filter)
     [pool drain];
 }
 
-void winsavefile(const char *prompt, char *buf, int len, int filter)
+void winsavefile(const char *prompt, char *buf, int len, enum FILEFILTERS filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 

@@ -42,6 +42,8 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
+#include <map>
+#include <utility>
 
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
@@ -54,11 +56,11 @@ extern "C" {
 /* buffer for clipboard text */
 static QString cliptext;
 
-/* filters for file dialogs */
-static const char *filternames[] = {
-    "Saved game files (*.sav)",
-    "Text files (*.txt)",
-    "All files (*)",
+/* filters and extensions for file dialogs */
+static const std::map<FILEFILTERS, std::pair<QString, QString>> filters = {
+    { FILTER_SAVE, std::make_pair("Saved game files (*.sav);;All files (*)", ".sav") },
+    { FILTER_TEXT, std::make_pair("Text files (*.txt);;All files (*)", ".txt") },
+    { FILTER_ALL, std::make_pair("All files (*)", "") },
 };
 
 static QApplication *app;
@@ -101,29 +103,30 @@ void winexit()
 
 enum class Action { Open, Save };
 
-static void winchoosefile(const QString &prompt, char *buf, int len, int filter, Action action)
+static void winchoosefile(const QString &prompt, char *buf, int len, FILEFILTERS filter, Action action)
 {
     QString filename;
-    QString dir = "";
-
-    if (buf[0] != 0)
-        dir = QString("./") + buf;
 
     if (action == Action::Open)
-        filename = QFileDialog::getOpenFileName(window, prompt, dir, filternames[filter]);
+    {
+        filename = QFileDialog::getOpenFileName(window, prompt, "", filters.at(filter).first);
+    }
     else
-        filename = QFileDialog::getSaveFileName(window, prompt, dir, filternames[filter]);
+    {
+        QString dir = QString("./Untitled.%1").arg(filters.at(filter).second);
+        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first);
+    }
 
     std::snprintf(buf, len, "%s", filename.toStdString().c_str());
 }
 
-void winopenfile(const char *prompt, char *buf, int len, int filter)
+void winopenfile(const char *prompt, char *buf, int len, FILEFILTERS filter)
 {
     QString realprompt = QString("Open: %1").arg(prompt);
     winchoosefile(realprompt, buf, len, filter, Action::Open);
 }
 
-void winsavefile(const char *prompt, char *buf, int len, int filter)
+void winsavefile(const char *prompt, char *buf, int len, FILEFILTERS filter)
 {
     QString realprompt = QString("Save: %1").arg(prompt);
     winchoosefile(realprompt, buf, len, filter, Action::Save);

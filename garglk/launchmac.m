@@ -21,6 +21,7 @@
  *****************************************************************************/
 
 #include "glk.h"
+#include "garglk.h"
 #include "garversion.h"
 #include "launcher.h"
 
@@ -49,7 +50,6 @@ static char etc[MaxBuffer];
 
 static void winpath(char *buffer);
 
-enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_ALL };
 static char *winfilters[] =
 {
     "sav",
@@ -156,9 +156,9 @@ static char *winfilters[] =
 - (IBAction) performZoom: (id) sender;
 - (void) performRefresh: (NSNotification *) notice;
 - (NSString *) openFileDialog: (NSString *) prompt
-                   fileFilter: (unsigned int) filter;
+                   fileFilter: (enum FILEFILTERS) filter;
 - (NSString *) saveFileDialog: (NSString *) prompt
-                   fileFilter: (unsigned int) filter;
+                   fileFilter: (enum FILEFILTERS) filter;
 - (pid_t) retrieveID;
 - (void) quit;
 @end
@@ -488,7 +488,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 }
 
 - (NSString *) openFileDialog: (NSString *) prompt
-                   fileFilter: (unsigned int) filter
+                   fileFilter: (enum FILEFILTERS) filter
 {
     int result;
 
@@ -515,7 +515,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 }
 
 - (NSString *) saveFileDialog: (NSString *) prompt
-                   fileFilter: (unsigned int) filter
+                   fileFilter: (enum FILEFILTERS) filter
 {
     int result;
 
@@ -742,7 +742,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (unsigned int) filter
+                         filter: (enum FILEFILTERS) filter
 {
     GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
@@ -756,7 +756,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (unsigned int) filter
+                         filter: (enum FILEFILTERS) filter
 {
     GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
