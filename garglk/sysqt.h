@@ -16,7 +16,7 @@ class View : public QWidget
     Q_OBJECT
 
 public:
-    View(QWidget *parent) : QWidget(parent) {
+    explicit View(QWidget *parent) : QWidget(parent) {
         setFocusPolicy(Qt::StrongFocus);
         setMouseTracking(true);
         setAttribute(Qt::WA_InputMethodEnabled, true);
