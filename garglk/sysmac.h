@@ -21,6 +21,9 @@
  *                                                                            *
  *****************************************************************************/
 
+#ifndef GARGLK_SYSMAC_M
+#define GARGLK_SYSMAC_M
+
 #ifdef __ppc__
 #define UTF32StringEncoding NSUTF32BigEndianStringEncoding
 #else
@@ -98,3 +101,5 @@
 - (void) setCursor: (unsigned int) cursor;
 
 @end
+
+#endif

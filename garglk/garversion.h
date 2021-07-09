@@ -20,4 +20,9 @@
  *                                                                            *
  *****************************************************************************/
 
+#ifndef GARGLK_VERSION_H
+#define GARGLK_VERSION_H
+
 #define VERSION "2019.1"
+
+#endif

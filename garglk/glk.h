@@ -20,8 +20,8 @@
  *                                                                            *
  *****************************************************************************/
 
-#ifndef GLK_H
-#define GLK_H
+#ifndef GARGLK_GLK_H
+#define GARGLK_GLK_H
 
 /* glk.h: Header file for Glk API, version 0.7.3.
     Designed by Andrew Plotkin <erkyrath@eblong.com>

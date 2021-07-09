@@ -28,6 +28,9 @@
  * http://www.eblong.com/zarf/glk/index.html
  */
 
+#ifndef GARGLK_GARGLK_H
+#define GARGLK_GARGLK_H
+
 #include <stddef.h>
 #include <stdio.h>
 
@@ -796,3 +799,5 @@ int attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
+
+#endif
