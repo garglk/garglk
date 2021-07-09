@@ -1,5 +1,5 @@
-#ifndef _GI_BLORB_H
-#define _GI_BLORB_H
+#ifndef GARGLK_GI_BLORB_H
+#define GARGLK_GI_BLORB_H
 
 /* gi_blorb.h: Blorb library layer for Glk API.
     gi_blorb version 1.4.

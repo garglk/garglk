@@ -21,8 +21,8 @@
     doesn't have to exist. In practice, it's small.
 */
 
-#ifndef GT_START_H
-#define GT_START_H
+#ifndef GARGLK_GT_START_H
+#define GARGLK_GT_START_H
 
 /* We define our own TRUE and FALSE and NULL, because ANSI
     is a strange world. */

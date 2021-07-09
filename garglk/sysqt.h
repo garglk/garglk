@@ -1,5 +1,5 @@
-#ifndef SYS_QT_H
-#define SYS_QT_H
+#ifndef GARGLK_SYSQT_H
+#define GARGLK_SYSQT_H
 
 #include <QCloseEvent>
 #include <QKeyEvent>
