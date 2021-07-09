@@ -2,11 +2,19 @@
 ; Gargoyle NSIS 2 installer script
 ;
 
+!include x64.nsh
+
 Name "Gargoyle"
-OutFile "gargoyle-2019.1-windows.exe"
-InstallDir $PROGRAMFILES\Gargoyle
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
 SetCompressor lzma
+
+!if "$%GARGOYLE64%" == "${U+24}%GARGOYLE64%"
+    InstallDir $PROGRAMFILES\Gargoyle
+    OutFile "gargoyle-2019.1-windows.exe"
+!else
+    InstallDir $PROGRAMFILES64\Gargoyle
+    OutFile "gargoyle-2019.1-windows-64.exe"
+!endif
 
 ;
 ; The required plugins
@@ -58,6 +66,10 @@ Var SMFOLDER
 Section "DoInstall"
 	; Elevate rights
     !insertmacro MULTIUSER_INIT
+
+    !if "$%GARGOYLE64%" != "${U+24}%GARGOYLE64%"
+        SetRegView 64
+    !endif
 
     SetOutPath $INSTDIR
 
