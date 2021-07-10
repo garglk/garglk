@@ -27,7 +27,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake -DMINGW_TRIPLE="${target}"
+cmake .. -DCMAKE_TOOLCHAIN_FILE="../Toolchain-${target}.cmake" -DMINGW_TRIPLE="${target}"
 make -j${nproc}
 make install
 )

@@ -42,7 +42,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake -DMINGW_TRIPLE=${{ matrix.target }}
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=../Toolchain-${{ matrix.target }}.cmake -DMINGW_TRIPLE=${{ matrix.target }}
 
       - name: Build
         run: |
