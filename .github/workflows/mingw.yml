@@ -6,6 +6,10 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        target: ["i686-w64-mingw32", "x86_64-w64-mingw32"]
+
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
@@ -29,8 +33,8 @@ jobs:
 
       - name: Set up MinGW environment
         run: |
-          update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
-          update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
+          update-alternatives --set ${{ matrix.target }}-gcc /usr/bin/${{ matrix.target }}-gcc-posix
+          update-alternatives --set ${{ matrix.target }}-g++ /usr/bin/${{ matrix.target }}-g++-posix
           wget https://github.com/garglk/assets/raw/master/mingw.tar.xz
           tar xfv mingw.tar.xz -C /
 
@@ -38,7 +42,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/i686-w64-mingw32 -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=../Toolchain-mingw32.cmake -DMINGW_TRIPLE=${{ matrix.target }}
 
       - name: Build
         run: |
