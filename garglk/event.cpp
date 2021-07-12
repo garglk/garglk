@@ -21,147 +21,79 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <algorithm>
+#include <list>
+
 #include "glk.h"
 #include "garglk.h"
 
-static eventqueue_t *gli_events_logged = NULL;
-static eventqueue_t *gli_events_polled = NULL;
-static int gli_first_event = FALSE;
+static std::list<event_t> gli_events;
 
-eventqueue_t *gli_initialize_queue (void)
-{
-    eventqueue_t *queue = malloc(sizeof(eventqueue_t));
-
-    if (!queue)
-        return 0;
-
-    queue->first = NULL;
-    queue->last = NULL;
-    return queue;
-}
-
-static void gli_queue_event(eventqueue_t *queue, event_t *msg)
-{
-    if (queue)
-    {
-        eventlog_t *log = malloc(sizeof(eventlog_t));
-
-        if (!log)
-        {
-            free(msg);
-            return;
-        }
-
-        log->event = msg;
-        log->next = NULL;
-
-        if (queue->last)
-            queue->last->next = log;
-        queue->last = log;
-
-        if (!queue->first)
-            queue->first = log;
-    }
-    else
-    {
-        free(msg);
-    }
-}
-
-static event_t *gli_retrieve_event(eventqueue_t *queue)
-{
-    if (!queue)
-        return 0;
-
-    eventlog_t *first = queue->first;
-    if (!first)
-        return 0;
-
-    event_t *msg = first->event;
-    eventlog_t *next = first->next;
-
-    queue->first = next;
-    if (!queue->first)
-        queue->last = NULL;
-
-    free(first);
-
-    return msg;
-}
+static void gli_input_guess_focus();
+static void gli_input_more_focus();
+static void gli_input_next_focus();
+static void gli_input_scroll_focus();
 
 void gli_dispatch_event(event_t *event, int polled)
 {
-    event_t *dispatch;
+    std::list<event_t>::iterator it;
 
     if (!polled)
     {
-        dispatch = gli_retrieve_event(gli_events_logged);
-        if (!dispatch)
-            dispatch = gli_retrieve_event(gli_events_polled);
+        it = gli_events.begin();
     }
     else
     {
-        dispatch = gli_retrieve_event(gli_events_polled);
+        // §4: glk_select_poll() returns internally-spawned events only,
+        // so find the first such event in the list.
+        it = std::find_if(gli_events.begin(), gli_events.end(), [](const auto &msg) {
+            return msg.type == evtype_Arrange ||
+                   msg.type == evtype_Redraw ||
+                   msg.type == evtype_SoundNotify ||
+                   msg.type == evtype_Timer;
+        });
     }
 
-    if (dispatch)
+    if (it != gli_events.end())
     {
-        memcpy(event,dispatch,sizeof(event_t));
-        free(dispatch);
+        *event = *it;
+        gli_events.erase(it);
     }
 }
 
 /* Various modules can call this to indicate that an event has occurred.*/
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 {
-    event_t *store = malloc(sizeof(event_t));
-    if (!store)
-        return;
-    store->type = type;
-    store->win = win;
-    store->val1 = val1;
-    store->val2 = val2;
+    event_t store = {
+        .type = type,
+        .win = win,
+        .val1 = val1,
+        .val2 = val2,
+    };
 
-    switch (type)
+    gli_events.push_back(store);
+}
+
+static void gli_select_or_poll(event_t *event, bool polled)
+{
+    static bool first_event = false;
+    if (!first_event)
     {
-        case evtype_Arrange:
-        case evtype_Redraw:
-        case evtype_SoundNotify:
-        case evtype_Timer:
-            if (!gli_events_polled)
-                gli_events_polled = gli_initialize_queue();
-            gli_queue_event(gli_events_polled, store);
-            break;
-
-        default:
-            if (!gli_events_logged)
-                gli_events_logged = gli_initialize_queue();
-            gli_queue_event(gli_events_logged, store);
-            break;
+        gli_input_guess_focus();
+        first_event = true;
     }
+
+    gli_select(event, polled);
 }
 
 void glk_select(event_t *event)
 {
-    if (!gli_first_event)
-    {
-        gli_input_guess_focus();
-        gli_first_event = TRUE;
-    }
-    gli_select(event, 0);
+    gli_select_or_poll(event, false);
 }
 
 void glk_select_poll(event_t *event)
 {
-    if (!gli_first_event)
-    {
-        gli_input_guess_focus();
-        gli_first_event = TRUE;
-    }
-    gli_select(event, 1);
+    gli_select_or_poll(event, true);
 }
 
 void glk_tick()
@@ -206,7 +138,7 @@ void gli_input_handle_key(glui32 key)
         return;
     }
 
-    int defer_exit = 0;
+    bool defer_exit = false;
 
     switch (win->type)
     {
@@ -241,7 +173,7 @@ void gli_input_handle_click(int x, int y)
 /* Pick first window which might want input.
  * This is called after every keystroke.
  */
-void gli_input_guess_focus()
+static void gli_input_guess_focus()
 {
     window_t *altwin = gli_focuswin;
 
@@ -266,7 +198,7 @@ void gli_input_guess_focus()
 /* Pick first window with buffered output.
  * This is called after printing 'more' prompts.
  */
-void gli_input_more_focus()
+static void gli_input_more_focus()
 {
     window_t *altwin = gli_focuswin;
 
@@ -285,7 +217,7 @@ void gli_input_more_focus()
 /* Pick next window which might want input.
  * This is called after pressing 'tab'.
  */
-void gli_input_next_focus()
+static void gli_input_next_focus()
 {
     window_t *altwin = gli_focuswin;
 
@@ -310,7 +242,7 @@ void gli_input_next_focus()
 /* Pick first window which might want scrolling.
  * This is called after pressing page keys.
  */
-void gli_input_scroll_focus()
+static void gli_input_scroll_focus()
 {
     window_t *altwin = gli_focuswin;
 

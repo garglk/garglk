@@ -12,7 +12,7 @@ set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
 
 add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c
-    cgstream.c cgstyle.c cgunicod.c config.c draw.cpp event.c fontdata.c
+    cgstream.c cgstyle.c cgunicod.c config.c draw.cpp event.cpp fontdata.c
     gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c
     wingrid.c winmask.c winpair.c wintext.c)
 c_standard(garglk 11)

@@ -660,16 +660,8 @@ extern void gli_window_click(window_t *win, int x, int y);
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1);
 
-void gli_input_guess_focus();
-void gli_input_more_focus();
-void gli_input_next_focus();
-void gli_input_scroll_focus();
 void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
-void gli_input_guess_focus(void);
-void gli_input_more_focus(void);
-void gli_input_next_focus(void);
-void gli_input_scroll_focus(void);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
 extern stream_t *gli_new_stream(glui32 type, int readable, int writable,
