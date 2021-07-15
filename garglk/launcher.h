@@ -25,6 +25,10 @@
 #ifndef GARGLK_LAUNCHER_H
 #define GARGLK_LAUNCHER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -42,5 +46,9 @@ __attribute__((__format__(__printf__, 1, 2)))
 extern void winmsg(const char *fmt, ...);
 extern int winterp(const char *path, const char *exe, const char *flags, const char *game);
 extern int rungame(const char *path, const char *game);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

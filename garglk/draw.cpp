@@ -30,10 +30,8 @@
 #include <string>
 #include <utility>
 
-extern "C" {
 #include "glk.h"
 #include "garglk.h"
-}
 
 #include <ft2build.h>
 #include FT_FREETYPE_H

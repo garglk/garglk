@@ -48,10 +48,8 @@
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
 
-extern "C" {
 #include "glk.h"
 #include "garglk.h"
-}
 
 /* buffer for clipboard text */
 static QString cliptext;

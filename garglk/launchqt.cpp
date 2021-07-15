@@ -50,11 +50,9 @@
 #include <QStringList>
 #include <QVector>
 
-extern "C" {
 #include "glk.h"
 #include "garversion.h"
 #include "launcher.h"
-}
 
 static const char *AppName = "Gargoyle " VERSION;
 

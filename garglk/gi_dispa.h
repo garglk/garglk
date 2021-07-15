@@ -1,6 +1,10 @@
 #ifndef GARGLK_GI_DISPA_H
 #define GARGLK_GI_DISPA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.7.2.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
@@ -87,5 +91,9 @@ extern gidispatch_intconst_t *gidispatch_get_intconst(glui32 index);
 extern glui32 gidispatch_count_functions(void);
 extern gidispatch_function_t *gidispatch_get_function(glui32 index);
 extern gidispatch_function_t *gidispatch_get_function_by_id(glui32 id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _GI_DISPA_H */
