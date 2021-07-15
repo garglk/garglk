@@ -23,6 +23,10 @@
 #ifndef GARGLK_GLK_H
 #define GARGLK_GLK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* glk.h: Header file for Glk API, version 0.7.3.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
@@ -494,5 +498,9 @@ extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
 #define keycode_MouseWheelDown      (0xffffefff)
 #define keycode_SkipWordLeft        (0xfffff000)
 #define keycode_SkipWordRight       (0xfffff001)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GLK_H */

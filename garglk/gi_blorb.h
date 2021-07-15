@@ -1,6 +1,10 @@
 #ifndef GARGLK_GI_BLORB_H
 #define GARGLK_GI_BLORB_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* gi_blorb.h: Blorb library layer for Glk API.
     gi_blorb version 1.4.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
@@ -85,5 +89,9 @@ extern giblorb_err_t giblorb_count_resources(giblorb_map_t *map,
 extern giblorb_err_t giblorb_set_resource_map(strid_t file);
 extern giblorb_map_t *giblorb_get_resource_map(void);
 extern int giblorb_is_resource_map(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _GI_BLORB_H */

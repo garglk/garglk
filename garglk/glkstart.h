@@ -24,6 +24,10 @@
 #ifndef GARGLK_GT_START_H
 #define GARGLK_GT_START_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* We define our own TRUE and FALSE and NULL, because ANSI
     is a strange world. */
 #ifndef TRUE
@@ -60,6 +64,10 @@ extern int glkunix_startup_code(glkunix_startup_t *data);
 extern void glkunix_set_base_file(char *filename);
 extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode,
     glui32 rock);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GT_START_H */
 
