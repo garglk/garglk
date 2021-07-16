@@ -57,12 +57,52 @@
 
 #define GLK_VOLUME_TO_SDL_VOLUME(x) ((x) < GLK_MAXVOLUME ? (round(pow(((double)x) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME)) : (MIX_MAX_VOLUME))
 
+enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };
+
+struct glk_schannel_struct
+{
+    glui32 rock;
+
+    void *sample; /* Mix_Chunk (or FMOD Sound) */
+    void *music; /* Mix_Music (or FMOD Music) */
+
+    void *sdl_rwops; /* SDL_RWops */
+    unsigned char *sdl_memory;
+    int sdl_channel;
+
+    int resid; /* for notifies */
+    int status;
+    int channel;
+    int volume;
+    glui32 loop;
+    int notify;
+
+    int paused;
+
+    /* for volume fades */
+    int volume_notify;
+    int volume_timeout;
+    int target_volume;
+    double float_volume;
+    double volume_delta;
+    SDL_TimerID timer;
+
+    gidispatch_rock_t disprock;
+    channel_t *chain_next, *chain_prev;
+};
+
+
 static channel_t *gli_channellist = NULL;
 static channel_t *sound_channels[SDL_CHANNELS];
 static channel_t *music_channel;
 
 static const int FREE = 1;
 static const int BUSY = 2;
+
+gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
+{
+    return chan->disprock;
+}
 
 void gli_initialize_sound(void)
 {

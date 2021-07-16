@@ -98,7 +98,9 @@ void glk_select_poll(event_t *event)
 
 void glk_tick()
 {
-    /* Do nothing. */
+#ifdef GARGLK_TICK
+    gli_tick();
+#endif
 }
 
 /* Handle a keystroke. */
