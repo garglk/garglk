@@ -639,7 +639,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 {
     if (!giblorb_is_resource_map())
     {
-        QString name = QString("%1/SND%2").arg(gli_workdir).arg(snd);
+        QString name = QString("%1/SND%2").arg(gli_workdir, snd);
 
         QFile file(name);
         if (!file.open(QIODevice::ReadOnly))

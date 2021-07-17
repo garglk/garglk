@@ -62,8 +62,7 @@ public:
 
     QString format() const {
         return QString("%1 Games (%2)")
-            .arg(m_name)
-            .arg(format_extensions().join(" "));
+            .arg(m_name, format_extensions().join(" "));
     }
 
     QStringList format_extensions() const {
@@ -118,8 +117,7 @@ static QString winbrowsefile()
     }
 
     QString filter_string = QString("All Games (%1);;All Files (*);;%2")
-        .arg(all_extensions.join(" "))
-        .arg(mapped_filters.join(";;"));
+        .arg(all_extensions.join(" "), mapped_filters.join(";;"));
 
     // Hide filter details because the sheer number in "All Games" makes
     // the dialog ridiculously wide (Qt probably should cut it off, but
