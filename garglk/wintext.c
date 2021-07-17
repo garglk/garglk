@@ -1195,7 +1195,7 @@ void win_textbuffer_clear(window_t *win)
 }
 
 /* Prepare the window for line input. */
-void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
+static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
     window_textbuffer_t *dwin = win->data;
     int pw;
@@ -1215,7 +1215,7 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
         win_textbuffer_putchar_uni(win, '\n');
 
     dwin->inbuf = buf;
-    dwin->inunicode = FALSE;
+    dwin->inunicode = unicode;
     dwin->inmax = maxlen;
     dwin->infence = dwin->numchars;
     dwin->incurs = dwin->numchars;
@@ -1227,7 +1227,10 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     if (initlen)
     {
         touch(dwin, 0);
-        put_text(dwin, buf, initlen, dwin->incurs, 0);
+        if (unicode)
+            put_text_uni(dwin, buf, initlen, dwin->incurs, 0);
+        else
+            put_text(dwin, buf, initlen, dwin->incurs, 0);
     }
 
     dwin->echo_line_input = win->echo_line_input;
@@ -1244,59 +1247,17 @@ void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
     }
 
     if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, "&+#!Cn");
+        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, unicode ? "&+#!Iu" : "&+#!Cn");
+}
+
+void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen)
+{
+    win_textbuffer_init_impl(win, buf, maxlen, initlen, false);
 }
 
 void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen)
 {
-    window_textbuffer_t *dwin = win->data;
-    int pw;
-
-    gli_tts_flush();
-
-    /* because '>' prompt is ugly without extra space */
-    if (dwin->numchars && dwin->chars[dwin->numchars-1] == '>')
-        win_textbuffer_putchar_uni(win, ' ');
-    if (dwin->numchars && dwin->chars[dwin->numchars-1] == '?')
-        win_textbuffer_putchar_uni(win, ' ');
-
-    /* make sure we have some space left for typing... */
-    pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
-    pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
-    if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4)
-        win_textbuffer_putchar_uni(win, '\n');
-
-    dwin->inbuf = buf;
-    dwin->inunicode = TRUE;
-    dwin->inmax = maxlen;
-    dwin->infence = dwin->numchars;
-    dwin->incurs = dwin->numchars;
-    dwin->origattr = win->attr;
-    attrset(&win->attr, style_Input);
-
-    dwin->historypos = dwin->historypresent;
-
-    if (initlen)
-    {
-        touch(dwin, 0);
-        put_text_uni(dwin, buf, initlen, dwin->incurs, 0);
-    }
-
-    dwin->echo_line_input = win->echo_line_input;
-
-    if (win->line_terminators && win->termct)
-    {
-        dwin->line_terminators = malloc((win->termct + 1) * sizeof(glui32));
-
-        if (dwin->line_terminators)
-        {
-            memcpy(dwin->line_terminators, win->line_terminators, win->termct * sizeof(glui32));
-            dwin->line_terminators[win->termct] = 0;
-        }
-    }
-
-    if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, maxlen, "&+#!Iu");
+    win_textbuffer_init_impl(win, buf, maxlen, initlen, true);
 }
 
 /* Abort line input, storing whatever's been typed so far. */

@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -360,11 +361,11 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
 }
 
 /* Prepare the window for line input. */
-void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
+static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
     window_textgrid_t *dwin = win->data;
 
-    dwin->inunicode = FALSE;
+    dwin->inunicode = unicode;
     dwin->inoriglen = maxlen;
     if (maxlen > (dwin->width - dwin->curx))
         maxlen = (dwin->width - dwin->curx);
@@ -389,7 +390,10 @@ void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
         for (ix=0; ix<initlen; ix++)
         {
             attrset(&ln->attrs[dwin->inorgx+ix], style_Input);
-            ln->chars[dwin->inorgx+ix] = buf[ix];
+            if (unicode)
+                ln->chars[dwin->inorgx+ix] = ((glui32 *)buf)[ix];
+            else
+                ln->chars[dwin->inorgx+ix] = ((char *)buf)[ix];
         }
 
         dwin->incurs += initlen;
@@ -412,62 +416,17 @@ void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
     }
 
     if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, "&+#!Cn");
+        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, unicode ? "&+#!Iu" : "&+#!Cn");
+}
+
+void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
+{
+    win_textgrid_init_impl(win, buf, maxlen, initlen, false);
 }
 
 void win_textgrid_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen)
 {
-    window_textgrid_t *dwin = win->data;
-
-    dwin->inunicode = TRUE;
-    dwin->inoriglen = maxlen;
-    if (maxlen > (dwin->width - dwin->curx))
-        maxlen = (dwin->width - dwin->curx);
-
-    dwin->inbuf = buf;
-    dwin->inmax = maxlen;
-    dwin->inlen = 0;
-    dwin->incurs = 0;
-    dwin->inorgx = dwin->curx;
-    dwin->inorgy = dwin->cury;
-    dwin->origattr = win->attr;
-    attrset(&win->attr, style_Input);
-
-    if (initlen > maxlen)
-        initlen = maxlen;
-
-    if (initlen)
-    {
-        int ix;
-        tgline_t *ln = &(dwin->lines[dwin->inorgy]);
-
-        for (ix=0; ix<initlen; ix++)
-        {
-            attrset(&ln->attrs[dwin->inorgx+ix], style_Input);
-            ln->chars[dwin->inorgx+ix] = buf[ix];
-        }
-
-        dwin->incurs += initlen;
-        dwin->inlen += initlen;
-        dwin->curx = dwin->inorgx+dwin->incurs;
-        dwin->cury = dwin->inorgy;
-
-        touch(dwin, dwin->inorgy);
-    }
-
-    if (win->line_terminators && win->termct)
-    {
-        dwin->line_terminators = malloc((win->termct + 1) * sizeof(glui32));
-
-        if (dwin->line_terminators)
-        {
-            memcpy(dwin->line_terminators, win->line_terminators, win->termct * sizeof(glui32));
-            dwin->line_terminators[win->termct] = 0;
-        }
-    }
-
-    if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, "&+#!Iu");
+    win_textgrid_init_impl(win, buf, maxlen, initlen, true);
 }
 
 /* Abort line input, storing whatever's been typed so far. */
