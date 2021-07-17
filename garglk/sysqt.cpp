@@ -31,6 +31,7 @@
 #include <QGraphicsView>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QObject>
 #include <QPainter>
 #include <QResizeEvent>
 #include <QString>
