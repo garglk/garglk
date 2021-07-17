@@ -317,7 +317,6 @@ struct eventqueue_s
     eventlog_t *last;
 };
 
-eventqueue_t *gli_initialize_queue (void);
 void gli_dispatch_event(event_t *event, int polled);
 
 #define MAGIC_WINDOW_NUM (9876)
@@ -662,9 +661,6 @@ void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int 
 void gli_set_lcdfilter(const char *filter);
 
 void gli_startup(int argc, char *argv[]);
-void gli_read_config(int argc, char **argv);
-
-rect_t gli_compute_content_box();
 
 extern void gli_select(event_t *event, int polled);
 #ifdef GARGLK_TICK
