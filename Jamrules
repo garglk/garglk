@@ -2,6 +2,11 @@
 # You may want to review the SharedLink action in Jamshared as well.
 #
 
+if $(OS) != MACOSX
+{
+    Exit "Jam is only supported on macOS" ;
+}
+
 BUILD ?= RELEASE ;
 USESDL ?= yes ;
 USEBABEL ?= yes ;
@@ -18,157 +23,37 @@ GARGLKPRE ?= "" ;
 
 CC  ?= gcc ;
 CXX ?= g++ ;
-MOC ?= moc-qt5 ;
 
-if $(CROSS)
+Echo "OS is MACOSX (cocoa)" ;
+SUFDLL = .dylib ;
+MAINARCH = -arch x86_64 -mmacosx-version-min=$(MACOS_MIN_VER) ;
+AR = "libtool -static -o" ;
+RM = "touch -c" ;
+CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
+PKGCONFIG = "pkg-config freetype2 libpng" ;
+
+C++FLAGS = -std=c++14 ;
+GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
+SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lz ;
+# Homebrew's JPEG library package is missing some configuration files.
+if $(MAC_USEHOMEBREW) = yes
 {
-    MINGWARCH ?= i386-mingw32 ;
-    CROSS   = "(cross-compiling)" ;
-    OS      = MINGW ;
-    SUFEXE  = .exe ;
-    CC      = $(MINGWARCH)-gcc ;
-    C++     = $(MINGWARCH)-g++ -std=c++0x ;
-    CXX     = $(C++) ;
-    AR      = $(MINGWARCH)-ar cru ;
-    RANLIB  = $(MINGWARCH)-ranlib ;
-    LINK    = $(CC) ;
-    PKGCONF = $(MINGWARCH)-pkg-config ;
+    GARGLKCCFLAGS += "-I`brew --prefix jpeg`/include" ;
+    SHRLINKLIBS += "-L`brew --prefix jpeg`/lib" ;
+}
+SHRLINKLIBS += -ljpeg ;
+
+LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
+FRAMEWORKS = -framework Cocoa -framework OpenGL ;
+
+if $(USESDL) = yes
+{
+    PKGCONFIG = "pkg-config SDL2_mixer sdl2 vorbisfile" ;
+    GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags`" ;
+    SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
 }
 
-switch $(OS)
-{
-    case LINUX :
-        PLATFORM = UNIX ;
-    case NETBSD :
-        PLATFORM = UNIX ;
-    case FREEBSD :
-        PLATFORM = UNIX ;
-        CC = clang ;
-        C++ = clang++ ;
-        CXX = clang++ ;
-    case OPENBSD :
-        PLATFORM = UNIX ;
-        CC = clang ;
-        C++ = clang++ ;
-        CXX = clang++ ;
-    case * :
-        PLATFORM = $(OS) ;
-}
-
-switch $(PLATFORM)
-{
-    case MINGW :
-        Echo "OS is MINGW (win32) $(CROSS)" ;
-        SUFDLL  = .dll ;
-        LINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
-        SHRLINKLIBS = -lcomdlg32 -lgdi32 -lwinmm -lm ;
-        PACKAGES = "" ;
-
-         if $(MINGW_USE_SYSTEM_LIBRARIES) = yes
-         {
-             PACKAGES = "$(PACKAGES) freetype2 libjpeg libpng zlib" ;
-         }
-         else
-         {
-            SHRLINKLIBS += $(TOP)/support/freetype/libfreetype-6.dll ;
-            SHRLINKLIBS += $(TOP)/support/libjpeg/libjpeg-8.dll ;
-            SHRLINKLIBS += $(TOP)/support/libpng/libpng16-16.dll ;
-            SHRLINKLIBS += $(TOP)/support/zlib/zlib1.dll ;
-         }
-
-        CSTANDARD = -std=gnu99 ;
-
-        if $(BUILD) = RELEASE || $(BUILD) = TURBO
-        {
-            SHRLINKLIBS += -mwindows ;
-            LINKLIBS += -mwindows ;
-        }
-
-        if $(USESDL) = yes
-        {
-            PACKAGES = "$(PACKAGES) sdl2 SDL2_mixer" ;
-        }
-
-        if $(PACKAGES)
-        {
-            # the 'only-I' bit is important to avoid SDL messing with main()
-            GARGLKCCFLAGS += "`$(PKGCONF) $(PACKAGES) --cflags-only-I`" ;
-            LINKLIBS += "`$(PKGCONF) $(PACKAGES) --libs`" ;
-            SHRLINKLIBS += "`$(PKGCONF) $(PACKAGES) --libs`" ;
-        }
-
-        if $(USETTS) = yes
-        {
-            SHRLINKLIBS += -lsapi -lole32 ;
-            LINKLIBS += -lsapi -lole32 ;
-        }
-
-
-    case UNIX :
-        Echo "OS is $(OS) (Qt)" ;
-        PKGCONFIG = "pkg-config freetype2 fontconfig Qt5Core Qt5Widgets" ;
-
-        CSTANDARD = -std=gnu99 ;
-
-        if $(USETTS) = yes {
-           PKGCONFIG = "$(PKGCONFIG) speech-dispatcher" ;
-        }
-
-        PKGCONFIG = "$(PKGCONFIG) libpng zlib" ;
-
-        if $(USESDL) = yes
-        {
-            PKGCONFIG = "$(PKGCONFIG) sdl2 SDL2_mixer" ;
-        }
-
-        # Setting C++ standard version to use for current g++ compilers.
-        C++FLAGS = -std=c++14 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags` -fPIC" ;
-
-        # Not all supported platforms include a pkg-config file for libjpeg.
-        GARGLKLIBS = "`$(PKGCONFIG) --libs`" -ljpeg ;
-        LINKLIBS = -lm "`$(PKGCONFIG) --libs`" ;
-
-        if $(STATIC) { LINKLIBS += $(GARGLKLIBS) ; }
-        else      { SHRLINKLIBS += $(GARGLKLIBS) ; }
-
-
-    case MACOSX :
-        Echo "OS is MACOSX (cocoa)" ;
-        SUFDLL = .dylib ;
-        MAINARCH = -arch x86_64 -mmacosx-version-min=$(MACOS_MIN_VER) ;
-        AR = "libtool -static -o" ;
-        RM = "touch -c" ;
-        CCFLAGS = -Wno-pointer-sign $(MAINARCH) ;
-        PKGCONFIG = "pkg-config freetype2 libpng" ;
-
-        C++FLAGS = -std=c++14 ;
-        GARGLKCCFLAGS = "`$(PKGCONFIG) --cflags`" ;
-        SHRLINKLIBS += "`$(PKGCONFIG) --libs`" -lz ;
-        # Homebrew's JPEG library package is missing some configuration files.
-        if $(MAC_USEHOMEBREW) = yes
-        {
-            GARGLKCCFLAGS += "-I`brew --prefix jpeg`/include" ;
-            SHRLINKLIBS += "-L`brew --prefix jpeg`/lib" ;
-        }
-        SHRLINKLIBS += -ljpeg ;
-
-        LINKLIBS = "`$(PKGCONFIG) --libs`" -lz ;
-        FRAMEWORKS = -framework Cocoa -framework OpenGL ;
-
-        if $(USESDL) = yes
-        {
-            PKGCONFIG = "pkg-config SDL2_mixer sdl2 vorbisfile" ;
-            GARGLKCCFLAGS += "`$(PKGCONFIG) --cflags`" ;
-            SHRLINKLIBS += "`$(PKGCONFIG) --libs`" ;
-        }
-
-        LINK = $(CXX) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
-
-
-    case * :
-        Exit "Unknown target. Please edit 'Jamrules'." ;
-}
+LINK = $(CXX) -headerpad_max_install_names $(FRAMEWORKS) $(MAINARCH) ;
 
 switch $(BUILD)
 {
@@ -192,26 +77,17 @@ switch $(BUILD)
 }
 
 #
-# To compile windows resource files
+# To compile Objective-C files
 #
 
 rule UserObject
 {
     switch $(>)
     {
-    case *.rc : WindRes $(<) : $(>) ;
     case *.m : Cc $(<) : $(>) ;
     case * : Echo "unknown suffix on" $(>) ;
     }
 }
-
-rule WindRes
-{
-    Depends $(<) : $(>) ;
-    Clean clean : $(<) ;
-}
-
-actions WindRes { $(MINGWARCH)-windres -i $(>) -o $(<) --include-dir=$(>:D) }
 
 #
 # You shouldn't need to touch anything from here on.
@@ -226,11 +102,6 @@ rule ObjDir
 }
 
 include [ FDirName $(TOP) Jamshared ] ;
-
-if $(OS) = MINGW
-{
-    LINKLIBS += $(BTOP)/garglk/icons.o ;
-}
 
 rule FPrependRoot
 {
