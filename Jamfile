@@ -10,30 +10,10 @@ SubInclude TOP terps ;
 SubInclude TOP tads ;
 SubInclude TOP support ;
 
-# If SYSTEM is set, use values for a system wide install
-if $(SYSTEM)
-{
-    BINDIR = /usr/local/libexec/gargoyle ;
-    APPDIR = /usr/local/libexec/gargoyle ;
-    LIBDIR = /usr/local/lib/gargoyle ;
-    DESTDIR = / ;
-    EXEMODE = 755 ;
-    FILEMODE = 755 ;
-}
-# Otherwise use _BINDIR, _APPDIR, and _LIBDIR
-# to populate BINDIR, APPDIR, and LIBDIR with
-# values supplied on the command line (if any)
-else
-{
-    if $(DESTDIR)
-    { ITOP = [ FDirName $(DESTDIR) ] ; }
-    else
-    { ITOP = [ FDirName $(TOP) build dist ] ; }
-
-    BINDIR = [ FPrependRoot $(ITOP) : $(_BINDIR) ] ;
-    APPDIR = [ FPrependRoot $(ITOP) : $(_APPDIR) ] ;
-    LIBDIR = [ FPrependRoot $(ITOP) : $(_LIBDIR) ] ;
-}
+ITOP = [ FDirName $(TOP) build dist ] ;
+BINDIR = [ FPrependRoot $(ITOP) : $(_BINDIR) ] ;
+APPDIR = [ FPrependRoot $(ITOP) : $(_APPDIR) ] ;
+LIBDIR = [ FPrependRoot $(ITOP) : $(_LIBDIR) ] ;
 
 for APP in $(APPS)
 {
@@ -56,25 +36,6 @@ for APP in $(APPS)
     }
 
     InstallBin $(APPDIR) : $(APP)$(SUFEXE) ;
-}
-
-if $(OS) = MINGW
-{
-    # support binaries
-    SEARCH_SOURCE +=
-        [ FDirName $(TOP) support freetype ]
-        [ FDirName $(TOP) support libjpeg ]
-        [ FDirName $(TOP) support libpng ]
-        [ FDirName $(TOP) support zlib ]
-        ;
-
-    if $(MINGW_USE_SYSTEM_LIBRARIES) != yes
-    {
-        InstallLib $(LIBDIR) : libfreetype-6.dll ;
-        InstallLib $(LIBDIR) : libjpeg-8.dll ;
-        InstallLib $(LIBDIR) : libpng16-16.dll ;
-        InstallLib $(LIBDIR) : zlib1.dll ;
-    }
 }
 
 if $(STATIC)
