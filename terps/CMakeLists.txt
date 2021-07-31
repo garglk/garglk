@@ -76,7 +76,7 @@ if(WITH_AGILITY)
         agility/exec.c agility/runverb.c agility/metacommand.c agility/savegame.c
         agility/debugcmd.c agility/agil.c agility/token.c agility/disassemble.c
         agility/object.c agility/interface.c agility/os_glk.c
-        MACROS GLK GLK_ANSI_ONLY)
+        MACROS GLK GLK_ANSI_ONLY POSIX)
 endif()
 
 # ------------------------------------------------------------------------------
