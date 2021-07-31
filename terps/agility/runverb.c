@@ -969,7 +969,9 @@ static void v_quit(void)
   }
 }
 
-const char dirname[12][10]={"north","south","east","west",
+// Gargoyle: this was originally called "dirname", but that conflicts
+// with the POSIX function of the same name.
+const char directions[12][10]={"north","south","east","west",
 			      "northeast","northwest","southeast","southwest",
 			      "up","down","in","out"};
 
@@ -992,7 +994,7 @@ void v_listexit(void)
 	if (j>1) writestr(", ");
 	if (j>1 && j==k) writestr("or ");
 	if (i<8) writestr("the ");
-	writestr(dirname[i]);
+	writestr(directions[i]);
       }
     writeln(".");
   }
