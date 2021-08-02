@@ -139,7 +139,6 @@ static int findterp_impl(const char *file, const char *target, struct launch *la
 {
     FILE *f;
     char buf[MaxBuffer];
-    char *s;
     char *cmd, *arg, *opt;
     int accept = 0;
     int i;
@@ -148,12 +147,8 @@ static int findterp_impl(const char *file, const char *target, struct launch *la
     if (!f)
         return FALSE;
 
-    while (1)
+    while (fgets(buf, sizeof buf, f) != NULL)
     {
-        s = fgets(buf, sizeof buf, f);
-        if (!s)
-            break;
-
         buf[strlen(buf)-1] = 0; /* kill newline */
 
         if (buf[0] == '#')

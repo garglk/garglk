@@ -212,7 +212,6 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 {
     FILE *f;
     char buf[1024];
-    char *s;
     char *cmd, *arg;
     int accept = 1;
     int i;
@@ -221,12 +220,8 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
     if (!f)
         return;
 
-    while (1)
+    while (fgets(buf, sizeof buf, f) != NULL)
     {
-        s = fgets(buf, sizeof buf, f);
-        if (!s)
-            break;
-
         /* kill newline */
         if (strlen(buf) && buf[strlen(buf)-1] == '\n')
             buf[strlen(buf)-1] = 0;
