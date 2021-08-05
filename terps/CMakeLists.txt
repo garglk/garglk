@@ -22,7 +22,7 @@ function(terp target)
     add_executable(${target} ${TERP_SRCS})
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
-    target_include_directories(${target} PRIVATE ../garglk ${TERP_INCLUDE_DIRS})
+    target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk" ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
 
     c_standard(${target} 11)
@@ -47,6 +47,8 @@ function(terp target)
         install(TARGETS ${target} DESTINATION "${INTERPRETER_INSTALL_DIR}")
     endif()
 endfunction()
+
+add_subdirectory(tads)
 
 # ------------------------------------------------------------------------------
 #

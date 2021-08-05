@@ -24,7 +24,6 @@ add_subdirectory(garglk)
 
 if(WITH_INTERPRETERS)
     add_subdirectory(terps)
-    add_subdirectory(tads)
 endif()
 
 if(WITH_BABEL)
