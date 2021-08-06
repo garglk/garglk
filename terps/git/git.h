@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <glk.h>
 
@@ -103,7 +104,10 @@ extern void emitCode (Label);
 
 // terp.c
 
-#ifdef USE_DIRECT_THREADING
+#if defined(USE_DIRECT_THREADING) && (UINTPTR_MAX > 0xffffffffULL)
+    extern Opcode* gOpcodeTable;
+#   define labelToOpcode(label) ((uintptr_t)gOpcodeTable[label] & 0xffffffffULL)
+#elif defined(USE_DIRECT_THREADING)
     extern Opcode* gOpcodeTable;
 #   define labelToOpcode(label) (gOpcodeTable[label])
 #else

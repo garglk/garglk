@@ -172,7 +172,7 @@ endif()
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
-set(GIT_MACROS USE_INLINE USE_OWN_POWF)
+set(GIT_MACROS USE_INLINE)
 
 if(GARGLK_NEEDS_TICK)
     list(APPEND GIT_MACROS GIT_NEED_TICK)
