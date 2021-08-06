@@ -49,9 +49,8 @@ git_mac.c and git_windows.c contain startup code for MacGlk and WinGlk
 respectively, but I can't guarantee that they're fully up-to-date.
 
 It should be possible to build Git with any C compiler, but it works best with
-GCC, because that has a non-standard extension that Git can use for a big speed
-boost. GCC 2.95 actually generates faster code than later versions, so if you
-have a choice, use the former. (On OS X, this means compiling with 'gcc2'.)
+GCC or Clang, because they have a non-standard extension that Git can use for a
+big speed boost.
 
 --------------------------------------------------------------------------------
 
@@ -63,7 +62,7 @@ Makefile includes settings to configure Git for maximum speed on Mac OS X; the
 best settings for other Unix platforms should be similar.
 
 The most important setting is USE_DIRECT_THREADING, which makes the interpreter
-engine use GCC's labels-as-values extension, but this only works with GCC 2.95.
+engine use GCC's labels-as-values extension.
 
 --------------------------------------------------------------------------------
 
@@ -117,12 +116,6 @@ KB. 256KB is usually enough to store dozens of moves.
 --------------------------------------------------------------------------------
 
 * Known problems
-
-GCC 3 has bigger problems than I thought. On PowerPC, the direct threading
-option results in much slower code; and on x86, terp.c crashes GCC itself if
-direct threading is used. GCC 4 seems to work, given some very limited testing,
-but still results in slow code. Therefore, I recommend that you use GCC 2.95 if
-possible. If you only have GCC 3, don't define USE_DIRECT_THREADING.
 
 Some Glk libraries, such as xglk, can't deal with memory-mapped files. You can
 tell that this is happening if Git can open .ulx files, but complains that .blb
@@ -191,6 +184,9 @@ also to Eliuk Blau for tracking down bugs in the memory management opcodes.
 --------------------------------------------------------------------------------
 
 * Version History
+
+1.3.6 2021-05-25  Direct threading now works for 64 bit builds.
+                  Fixed an issue with compiling with Visual C++.
 
 1.3.5 2016-11-19  Fixed a bug when the streamnum opcode is called with the
                   smallest possible negative number.

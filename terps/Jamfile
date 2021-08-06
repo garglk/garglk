@@ -192,7 +192,7 @@ if $(MAKE_GIT) = yes
     SubDir TOP terps git ;
     ObjDir git ;
 
-    SubDirCcFlags -DUSE_INLINE -DUSE_OWN_POWF ;
+    SubDirCcFlags -DUSE_INLINE ;
 
     Main $(GARGLKPRE)git :
         git.c memory.c compiler.c opcodes.c operands.c

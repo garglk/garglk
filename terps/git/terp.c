@@ -62,20 +62,6 @@ int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
 
 #ifdef USE_OWN_POWF
 float git_powf(float x, float y);
-
-#ifdef GARGLK
-float git_powf(float x, float y)
-{
-  if (x == 1.0f)
-    return 1.0f;
-  else if ((y == 0.0f) || (y == -0.0f))
-    return 1.0f;
-  else if ((x == -1.0f) && isinf(y))
-    return 1.0f;
-  return powf(x,y);
-}
-#endif
-
 #endif
 
 // -------------------------------------------------------------
@@ -121,6 +107,11 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
 #include "labels.inc"
     NULL};
     gOpcodeTable = opcodeTable;
+# if (UINTPTR_MAX > 0xffffffffULL)
+    const uintptr_t opcodeHi = (uintptr_t)opcodeTable[0] & ~0xffffffffULL;
+    for (L1 = 1; opcodeTable[L1] != NULL; ++L1)
+      assert (opcodeHi == ((uintptr_t)opcodeTable[L1] & ~0xffffffffULL));
+# endif
 #endif    
 
     initCompiler (cacheSize);
@@ -143,7 +134,9 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
     L2 = 0; // No arguments.
     goto do_enter_function_L1;
 
-#ifdef USE_DIRECT_THREADING
+#if defined(USE_DIRECT_THREADING) && (UINTPTR_MAX > 0xffffffffULL)
+#define NEXT do { goto *(Opcode)(*(pc++) | opcodeHi); } while(0)
+#elif defined(USE_DIRECT_THREADING)
 #define NEXT do { goto **(pc++); } while(0)
 #else
 #define NEXT goto next
@@ -218,7 +211,7 @@ do_S1_addr8:  memWrite8 (READ_PC, S1); NEXT;
 #define UL7 ((git_uint32)L7)
 
 do_recompile:
-    pc = compile (READ_PC);
+    pc = compile (*pc);
 	NEXT;
 	
 do_jump_abs_L7:

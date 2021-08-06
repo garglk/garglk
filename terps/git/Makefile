@@ -20,19 +20,13 @@ GLKMAKEFILE = Make.$(GLK)
 CC = cc -O2
 OPTIONS = 
 
-# Best settings for GCC 2.95. This generates faster code than
-# GCC 3, so you should use this setup if possible.
+# Settings for GCC
 #CC = gcc -Wall -O3
 #OPTIONS = -DUSE_DIRECT_THREADING -DUSE_MMAP -DUSE_INLINE
 
-# Best settings for GCC 3. The optimiser in this version of GCC
-# is somewhat broken, so we can't use USE_DIRECT_THREADING.
-#CC = gcc -Wall -O3
-#OPTIONS = -DUSE_MMAP -DUSE_INLINE
-
-# Mac OS X (PowerPC) settings.
-#CC = gcc2 -Wall -O3 -no-cpp-precomp
-#OPTIONS = -DUSE_DIRECT_THREADING -DUSE_BIG_ENDIAN_UNALIGNED -DUSE_MMAP -DUSE_INLINE
+# Settings for Clang
+#CC = clang -Wall -O3
+#OPTIONS = -DUSE_DIRECT_THREADING -DUSE_MMAP -DUSE_INLINE
 
 # -----------------------------------------------------------------
 # Step 3: decide where you want to install the compiled executable.
@@ -44,13 +38,13 @@ INSTALLDIR = /usr/local/bin
 
 MAJOR = 1
 MINOR = 3
-PATCH = 4
+PATCH = 6
 
 include $(GLKINCLUDEDIR)/$(GLKMAKEFILE)
 
 CFLAGS = $(OPTIONS) -I$(GLKINCLUDEDIR)
 
-LIBS = -L$(GLKLIBDIR) $(GLKLIB) $(LINKLIBS) 
+LIBS = -L$(GLKLIBDIR) $(GLKLIB) $(LINKLIBS) -lm
 
 HEADERS = version.h git.h config.h compiler.h \
 	memory.h opcodes.h labels.inc
@@ -64,9 +58,6 @@ OBJS = git.o memory.o compiler.o opcodes.o operands.o \
 	peephole.o terp.o glkop.o search.o git_unix.o \
 	savefile.o saveundo.o gestalt.o heap.o accel.o
 
-TESTS = test/test.sh \
-	test/Alabaster.gblorb test/Alabaster.walk test/Alabaster.golden
-
 all: git
 
 git: $(OBJS)
@@ -76,7 +67,7 @@ install: git
 	cp git $(INSTALLDIR)/git
 
 clean:
-	rm -f *~ *.o git test/*.tmp
+	rm -f *~ *.o git
 
 $(OBJS): $(HEADERS)
 
@@ -90,17 +81,19 @@ DISTZIP = git-$(MAJOR)$(MINOR)$(PATCH).zip
 
 DISTDIR = git-$(MAJOR).$(MINOR).$(PATCH)
 
-DISTFILES = README.txt Makefile Makefile.win win $(HEADERS) $(SOURCE)
+DISTFILES = README.txt Makefile $(HEADERS) $(SOURCE)
 
 dist: $(DISTFILES)
 	rm -rf $(DISTDIR)
 	mkdir $(DISTDIR)
 	cp -r $(DISTFILES) $(DISTDIR)
-	mkdir $(DISTDIR)/test
-	cp $(TESTS) $(DISTDIR)/test
+	mkdir $(DISTDIR)/win
+	cp win/*.rc win/*.sln win/*.vcxproj win/*.vcxproj.filters $(DISTDIR)/win
+	mkdir $(DISTDIR)/win/help
+	cp win/help/*.htm win/help/*.css win/help/*.hh* $(DISTDIR)/win/help
+	mkdir $(DISTDIR)/win/res
+	cp win/res/*.ico win/res/*.manifest $(DISTDIR)/win/res
 	find $(DISTDIR) -name "CVS" | xargs rm -rf
 	rm -f $(DISTZIP)
 	zip -r $(DISTZIP) $(DISTDIR)
 
-test: git
-	sh test/test.sh
