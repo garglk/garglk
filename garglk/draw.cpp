@@ -22,6 +22,8 @@
  *****************************************************************************/
 
 #include <cmath>
+#include <cstdarg>
+#include <cstdio>
 #include <cstring>
 #include <functional>
 #include <map>
@@ -135,7 +137,7 @@ static void freetype_error(int err, const char *fmt, ...)
     // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
     // this will always be nullptr.
     const char *errstr = FT_Error_String(err);
-    va_list ap;
+    std::va_list ap;
 
     va_start(ap, fmt);
     std::vsnprintf(msg1, sizeof msg1, fmt, ap);
