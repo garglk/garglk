@@ -8,17 +8,22 @@ if(POLICY CMP0069)
     check_ipo_supported(RESULT HAS_LTO)
 endif()
 
-if(UNIX)
-    include(GNUInstallDirs)
-    set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_LIBEXECDIR}/gargoyle")
-endif()
-
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 include(Compilers)
 
 option(WITH_INTERPRETERS "Build the included interpreters" ON)
 option(WITH_BABEL "Display Treaty of Babel-derived author and title if possible" ON)
+option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
+
+if(UNIX)
+    include(GNUInstallDirs)
+    if (APPIMAGE)
+        set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_BINDIR}")
+    else()
+        set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_LIBEXECDIR}/gargoyle")
+    endif()
+endif()
 
 add_subdirectory(garglk)
 
