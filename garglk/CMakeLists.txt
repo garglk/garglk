@@ -59,7 +59,7 @@ if(APPLE)
 endif()
 
 if(WITH_LAUNCHER)
-    add_executable(gargoyle launcher.c)
+    add_executable(gargoyle launcher.cpp)
     target_link_libraries(gargoyle PRIVATE garglk)
     target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=200112L")
     c_standard(gargoyle 11)
