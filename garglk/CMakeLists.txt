@@ -71,7 +71,11 @@ if(WITH_LAUNCHER)
         target_sources(gargoyle PRIVATE launchmac.m)
     else()
         target_sources(gargoyle PRIVATE launchqt.cpp)
-        if(UNIX)
+
+        # For AppImage, interpreters are installed in the same directory as the
+        # launcher, so don't provide GARGLK_INTERPRETER_DIR: in its absence, the
+        # directory of the "gargoyle" binary is searched.
+        if(UNIX AND NOT APPIMAGE)
             target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
