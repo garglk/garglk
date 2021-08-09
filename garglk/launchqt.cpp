@@ -32,13 +32,6 @@
 
 #include <unistd.h>
 
-#ifdef __FreeBSD__
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#elif defined(_WIN32)
-#include <windows.h>
-#endif
-
 #include <QApplication>
 #include <QDir>
 #include <QFileDialog>
@@ -125,51 +118,6 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, QFileDialog::HideNameFilterDetails);
 }
 
-#ifndef GARGLK_INTERPRETER_DIR
-static QString winpath()
-{
-    char buf[4096];
-    char pathsep = '/';
-#ifdef __FreeBSD__
-    int mib[4];
-    std::size_t len = sizeof buf;
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_PROC;
-    mib[2] = KERN_PROC_PATHNAME;
-    mib[3] = -1;
-    if (sysctl(mib, 4, buf, &len, nullptr, 0) == -1)
-    {
-        winmsg("Unable to locate executable path");
-        std::exit(EXIT_FAILURE);
-    }
-#elif defined(_WIN32)
-    DWORD n = GetModuleFileName(NULL, buf, sizeof buf);
-
-    if (n == 0 || n >= sizeof buf)
-    {
-        winmsg("Unable to locate executable path");
-        std::exit(EXIT_FAILURE);
-    }
-
-    pathsep = '\\';
-#else
-    ssize_t n = readlink("/proc/self/exe", buf, sizeof buf);
-    if (n == -1 || n >= static_cast<ssize_t>(sizeof buf))
-    {
-        winmsg("Unable to locate executable path");
-        std::exit(EXIT_FAILURE);
-    }
-    buf[n] = 0;
-#endif
-
-    char *p = std::strrchr(buf, pathsep);
-    if (p != nullptr)
-        *p = '\0';
-
-    return buf;
-}
-#endif
-
 int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
     // execv() on MinGW seems to split the pathname on spaces, which
@@ -254,7 +202,7 @@ int main(int argc, char **argv)
     if (dir.isNull())
         dir = GARGLK_INTERPRETER_DIR;
 #else
-    QString dir = winpath();
+    QString dir = QCoreApplication::applicationDirPath();
 #endif
 
     /* get story file */
