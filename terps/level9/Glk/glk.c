@@ -5886,7 +5886,7 @@ os_save_file (gln_byte * ptr, int bytes)
     }
 
   /* Write game state. */
-  glk_put_buffer_stream (stream, ptr, bytes);
+  glk_put_buffer_stream (stream, (char *)ptr, bytes);
 
   glk_stream_close (stream, NULL);
   glk_fileref_destroy (fileref);
@@ -5933,7 +5933,7 @@ os_load_file (gln_byte * ptr, int *bytes, int max)
     }
 
   /* Restore saved game data. */
-  *bytes = glk_get_buffer_stream (stream, ptr, max);
+  *bytes = glk_get_buffer_stream (stream, (char *)ptr, max);
 
   glk_stream_close (stream, NULL);
   glk_fileref_destroy (fileref);

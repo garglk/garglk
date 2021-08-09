@@ -74,7 +74,7 @@ void os_put_buffer (unsigned char *buf, size_t len)
     if (outlen)
         glk_put_buffer_uni(out, outlen);
     else
-        glk_put_buffer(buf, len);
+        glk_put_buffer((char *)buf, len);
 
     free(out);
 }
