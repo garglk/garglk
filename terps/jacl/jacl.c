@@ -1570,7 +1570,7 @@ convert_to_utf32 (unsigned char *text)
 	    return 0;
 	}
 
-	text_len = strlen(text);
+	text_len = strlen((char *)text);
 
 	if (!text_len) {
 	    return 0;

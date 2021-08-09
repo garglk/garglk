@@ -375,7 +375,7 @@ static void os_status_redraw(void)
     glk_window_clear(statuswin);
     glk_set_window(statuswin);
     glk_set_style(style_User1);
-    os_put_buffer(buf, strlen(buf));
+    os_put_buffer((unsigned char *)buf, strlen(buf));
     glk_set_window(mainwin);
 }
 
@@ -687,7 +687,7 @@ int os_gets_timeout(unsigned char *buf, size_t bufl,
     }
     while (event.type != evtype_LineInput);
 
-    char *res = os_fill_buffer(buf, event.val1);
+    unsigned char *res = os_fill_buffer(buf, event.val1);
 
     /* stop timer and turn on line echo */
     if (timer)
@@ -701,14 +701,14 @@ int os_gets_timeout(unsigned char *buf, size_t bufl,
     {
         if (timeout)
         {
-            timelen = strlen(buf) + 1;
+            timelen = strlen((char *)buf) + 1;
             timebuf = malloc(timelen);
             memcpy(timebuf, buf, timelen);
         }
         else
         {
             glk_set_style(style_Input);
-            os_print(buf, strlen(buf));
+            os_print((char *)buf, strlen((char *)buf));
             os_print("\n", 1);
             glk_set_style(style_Normal);
         }

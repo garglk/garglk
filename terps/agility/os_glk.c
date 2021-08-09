@@ -812,7 +812,7 @@ agt_statline (const char *cp_string)
 
   free (gagt_status_buffer);
   gagt_status_buffer = gagt_malloc (strlen (cp_string) + 1);
-  gagt_cp_to_iso (cp_string, gagt_status_buffer);
+  gagt_cp_to_iso ((const unsigned char *)cp_string, (unsigned char *)gagt_status_buffer);
 
   gagt_debug ("agt_statline", "string='%s'", cp_string);
 }
@@ -1821,7 +1821,7 @@ agt_puts (const char *cp_string)
        * add string and packed text attributes to the current line buffer.
        */
       iso_string = gagt_malloc (length + 1);
-      gagt_cp_to_iso (cp_string, iso_string);
+      gagt_cp_to_iso ((const unsigned char *)cp_string, (unsigned char *)iso_string);
       packed = gagt_pack_current_attributes ();
       gagt_string_append (&gagt_current_buffer, iso_string, packed);
 
@@ -3002,7 +3002,7 @@ gagt_compare_special_line (const char *compare, const gagt_lineref_t line)
    */
   return strlen (compare) == line->real_length
          && gagt_strncasecmp (compare,
-                              line->buffer.data + line->indent,
+                              (char *)line->buffer.data + line->indent,
                               line->real_length) == 0;
 }
 
@@ -3338,7 +3338,7 @@ gagt_display_line (const gagt_lineref_t line, glui32 current_style,
     }
 
   /* Display this line segment. */
-  set_style = gagt_display_text_element (line->buffer.data + start,
+  set_style = gagt_display_text_element ((const char *)line->buffer.data + start,
                                          line->buffer.attributes + start,
                                          length, current_style, fixed_width);
 
@@ -3487,7 +3487,7 @@ gagt_display_auto (void)
 
   /* Output any help hint and unterminated line from the line buffer. */
   style = gagt_display_provide_help_hint (style);
-  style = gagt_display_text_element (gagt_current_buffer.data,
+  style = gagt_display_text_element ((char *)gagt_current_buffer.data,
                                      gagt_current_buffer.attributes,
                                      gagt_current_buffer.length, style, FALSE);
 }
@@ -3536,7 +3536,7 @@ gagt_display_manual (int fixed_width)
 
   /* Output any help hint and unterminated line from the line buffer. */
   style = gagt_display_provide_help_hint (style);
-  style = gagt_display_text_element (gagt_current_buffer.data,
+  style = gagt_display_text_element ((char *)gagt_current_buffer.data,
                                      gagt_current_buffer.attributes,
                                      gagt_current_buffer.length,
                                      style, fixed_width);
@@ -3579,7 +3579,7 @@ gagt_display_debug (void)
                  line->font_hint == HINT_FIXED_WIDTH ? 'F' : '_');
       glk_put_string (buffer);
 
-      glk_put_buffer (line->buffer.data, line->buffer.length);
+      glk_put_buffer ((char *)line->buffer.data, line->buffer.length);
       glk_put_char ('\n');
     }
 
@@ -3591,7 +3591,7 @@ gagt_display_debug (void)
                gagt_help_requested ? "HR" : "__");
       glk_put_string (buffer);
 
-      glk_put_buffer (gagt_current_buffer.data, gagt_current_buffer.length);
+      glk_put_buffer ((char *)gagt_current_buffer.data, gagt_current_buffer.length);
     }
 
   gagt_help_requested = FALSE;
@@ -5280,7 +5280,7 @@ agt_input (int in_type)
            * Convert the string from Glk's ISO 8859 Latin-1 to IBM cp 437,
            * add to any script, and return it.
            */
-          gagt_iso_to_cp (buffer, buffer);
+          gagt_iso_to_cp ((unsigned char *)buffer, (unsigned char *)buffer);
           if (script_on)
             textputs (scriptfile, buffer);
           return buffer;
@@ -5369,7 +5369,7 @@ agt_input (int in_type)
   /*
    * Convert from Glk's ISO 8859 Latin-1 to IBM cp 437, and add to any script.
    */
-  gagt_iso_to_cp (buffer, buffer);
+  gagt_iso_to_cp ((unsigned char *)buffer, (unsigned char *)buffer);
   if (script_on)
     textputs (scriptfile, buffer);
 
@@ -5437,7 +5437,7 @@ agt_getkey (rbool echo_char)
            * Convert from Glk's ISO 8859 Latin-1 to IBM cp 437, add to any
            * script, and return the character.
            */
-          gagt_iso_to_cp (buffer, buffer);
+          gagt_iso_to_cp ((unsigned char *)buffer, (unsigned char *)buffer);
           if (script_on)
             textputs (scriptfile, buffer);
           return buffer[0];
@@ -5489,7 +5489,7 @@ agt_getkey (rbool echo_char)
    * Convert from Glk's ISO 8859 Latin-1 to IBM cp 437, and add to any
    * script.
    */
-  gagt_iso_to_cp (buffer, buffer);
+  gagt_iso_to_cp ((unsigned char *)buffer, (unsigned char *)buffer);
   if (script_on)
     textputs (scriptfile, buffer);
 
