@@ -94,7 +94,7 @@ if(WITH_ALAN2)
         alan2/inter.c alan2/parse.c alan2/rules.c alan2/stack.c alan2/decode.c
         alan2/term.c alan2/reverse.c alan2/readline.c alan2/params.c
         alan2/sysdep.c alan2/glkstart.c alan2/glkio.c alan2/alan.version.c
-        MACROS GLK RESERVED
+        MACROS GLK REVERSED
         POSIX)
 endif()
 
