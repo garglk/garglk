@@ -391,7 +391,7 @@ void debug()
       c = buf[0];
       i = 0;
       sscanf(&buf[1], "%d", &i);
-    } while (buf && c == '\0');
+    } while (c == '\0');
 
     switch (toUpper(c)) {
     case 'H':

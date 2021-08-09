@@ -54,5 +54,10 @@ if(WITH_TADS)
         MACROS ${macros}
         POSIX)
 
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(tadsr PRIVATE "-Wno-logical-not-parentheses")
+    endif()
+
     target_include_directories(tadsr PRIVATE . tads2 tads3)
 endif()
