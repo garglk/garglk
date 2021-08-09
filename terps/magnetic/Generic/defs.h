@@ -36,9 +36,9 @@
 \*****************************************************************************/
 
 #include <limits.h>
+#include <stdint.h>
 
-#if UCHAR_MAX==0xff
-typedef unsigned char type8;
+typedef uint8_t type8;
 // The name implies a signed type, but this appears to generally be used
 // where "char" normally would (i.e. for C strings); that is, the fact
 // that it is signed does not appear to matter, and making it signed
@@ -48,29 +48,12 @@ typedef unsigned char type8;
 // whether it's signed or plain char, the "solution" will be casting,
 // and this requires fewer casts.
 typedef char type8s;
-#else
-#error "Can't find an 8-bit integer type"
-#endif
 
-#if SHRT_MAX==0x7fff
-typedef unsigned short type16;
-typedef signed   short type16s;
-#elif INT_MAX==0x7fff
-typedef unsigned int type16;
-typedef signed   int type16s;
-#else
-#error "Can't find a 16-bit integer type"
-#endif
+typedef uint16_t type16;
+typedef int16_t type16s;
 
-#if INT_MAX==0x7fffffff
-typedef unsigned int type32;
-typedef signed   int type32s;
-#elif LONG_MAX==0x7fffffff
-typedef unsigned long type32;
-typedef signed   long type32s;
-#else
-#error "Can't find a 32-bit integer type"
-#endif
+typedef uint32_t type32;
+typedef int32_t type32s;
 
 /****************************************************************************\
 * Compile time switches 

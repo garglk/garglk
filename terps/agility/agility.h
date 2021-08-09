@@ -38,6 +38,7 @@
 
 /* Headers used by by all of the modules or by this header file */
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
@@ -71,34 +72,16 @@
 
 /* General data types */
 
-#if UCHAR_MAX==0xff
-typedef unsigned char uchar;
-typedef signed char schar;
-#else
-#error "Can't find an 8-bit integer type"
-#endif
+typedef uint8_t uchar;
+typedef int8_t schar;
 
 /* Should be a 16+-bit signed numeric type */
 /* For technical reasons, it must be big enough to
    hold a value of type word (see below) */
-#if SHRT_MAX==0x7fff
-typedef short integer;
-#elif INT_MAX==0x7fff
-typedef int integer;
-#else
-#error "Can't find a 16-bit integer type"
-#endif
+typedef int16_t integer;
 
-/* Should be a 32+-bit unsigned numeric type */
-#if INT_MAX==0x7fffffff
-typedef unsigned int int32;
-typedef unsigned int uint32;
-#elif LONG_MAX==0x7fffffff
-typedef unsigned long int32;
-typedef unsigned long uint32;
-#else
-#error "Can't find a 32-bit integer type"
-#endif
+typedef int32_t int32;
+typedef uint32_t uint32;
 
 typedef uchar rbool;
 
@@ -107,8 +90,8 @@ typedef uchar rbool;
 /* Game-specific data type */
 typedef char tline[81]; /* Both of these must include terminating null */
 typedef char words[WORD_LENG]; /* ...23 in classic, 16 in master's */
-typedef short word;     /* A pointer into the dictionary */
-typedef short slist; /* Index into synlist marking beginning of this 
+typedef integer word;     /* A pointer into the dictionary */
+typedef integer slist; /* Index into synlist marking beginning of this 
 			synonym list.  [SYNCNT] 
 			list of word pointers -- eg synonyms */
 typedef char *descr_line; /* This is the type used to return descriptions.
