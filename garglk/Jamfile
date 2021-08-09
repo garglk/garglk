@@ -4,10 +4,9 @@ SubDir TOP garglk ;
 ObjDir garglk ;
 
 SubDirCcFlags $(CSTANDARD) $(GARGLKCCFLAGS) ;
-SUBDIRC++FLAGS = $(CXXSTANDARD) $(GARGLKCCFLAGS) ;
+SUBDIRC++FLAGS = $(CXXSTANDARD) $(GARGLKCCFLAGS) -DGARGLKINI=\\\"$(GARGLKINI)\\\" -DGARGLKPRE=\\\"$(GARGLKPRE)\\\" ;
 
 SubDirCcFlags -DGARGLKINI=\\\"$(GARGLKINI)\\\" ;
-SubDirCcFlags -DGARGLKPRE=\\\"$(GARGLKPRE)\\\" ;
 
 if $(USESDL) = yes
 {
@@ -53,7 +52,7 @@ else { GARGSRCS += sndnull.c ; }
 
 GARGSRCS += sysmac.m fontmac.m ;
 
-Main gargoyle : launchmac.m launcher.c ;
+Main gargoyle : launchmac.m launcher.cpp ;
 
 Library libgarglkmain : main.c ;
 
