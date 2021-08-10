@@ -2310,8 +2310,8 @@ void geas_implementation::run_script (string s, string &rv)
 	  gi->debug_print ("Expected param after 'destroy exit' in " + s);
 	  return;
 	}
-      string tok = eval_param (tok);
-      vector<string> args = split_param (tok);
+      string tok2 = eval_param (tok);
+      vector<string> args = split_param (tok2);
       if (args.size() != 2)
 	{
 	  gi->debug_print ("Expected two arguments in " + s);

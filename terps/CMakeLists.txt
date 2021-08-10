@@ -59,6 +59,11 @@ if(WITH_ADVSYS)
         SRCS advsys/advmsg.c advsys/advtrm.c advsys/advprs.c
         advsys/advdbs.c advsys/advint.c advsys/advjunk.c advsys/advexe.c
         advsys/glkstart.c)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(advsys PRIVATE "-Wno-parentheses")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -96,6 +101,11 @@ if(WITH_ALAN2)
         alan2/sysdep.c alan2/glkstart.c alan2/glkio.c alan2/alan.version.c
         MACROS GLK REVERSED
         POSIX)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(alan2 PRIVATE "-Wno-dangling-else")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -150,7 +160,7 @@ if(WITH_BOCFEL)
         # The constants this complains about vary in value depending on
         # platform, so although the warning is correct when it occurs,
         # the checks are valid, and the warning unnecessary.
-        target_compile_options(bocfel PRIVATE -Wno-tautological-constant-out-of-range-compare)
+        target_compile_options(bocfel PRIVATE "-Wno-tautological-constant-out-of-range-compare")
     endif()
 endif()
 
@@ -164,6 +174,11 @@ if(WITH_GEAS)
         geas/geas-util.cc geas/geasglk.cc geas/geasglkterm.c geas/istring.cc
         geas/readfile.cc
         MACROS USE_INLINE)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(geas PRIVATE "-Wno-parentheses")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -239,6 +254,11 @@ if(WITH_JACL)
         MACROS GLK
         MATH
         POSIX)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(jacl PRIVATE "-Wno-parentheses-equality")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
@@ -255,6 +275,11 @@ if(WITH_LEVEL9)
         MACROS PRIVATE BITMAP_DECODER NEED_STRICMP_PROTOTYPE
         stricmp=gln_strcasecmp strnicmp=gln_strncasecmp
         MATH)
+
+    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        # This is a style choice in the code.
+        target_compile_options(level9 PRIVATE "-Wno-switch")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------
