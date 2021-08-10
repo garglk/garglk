@@ -218,7 +218,8 @@ void GeasFile::read_into (const vector<string> &in_data,
   uint t1, t2;
   string line = in_data[cur_line];
   // SENSITIVE?
-  assert (first_token (line, t1, t2) == "define");
+  string token = first_token (line, t1, t2);
+  assert (token == "define");
   string blocktype = out_block.blocktype = next_token (line, t1, t2); // "object", or the like
   //cerr << "r_i: Pushing back block of type " << blocktype << "\n";
   type_indecies[blocktype].push_back (blocknum);
