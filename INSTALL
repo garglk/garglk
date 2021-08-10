@@ -1,10 +1,6 @@
 # GENERAL INSTRUCTIONS
 
-To compile Gargoyle for Unix or Windows you will need CMake 3.1 or newer. For
-macOS, you will need jam 2.5.
-
-These instructions are for CMake. Jam support is deprecated and used only for
-macOS. See below for macOS build information.
+To compile Gargoyle you will need CMake 3.1 or newer.
 
 The following are required to build Gargoyle on Unix, in addition to a standard
 development environment (compiler, linker, etc.):
@@ -121,7 +117,6 @@ For the MacPorts packages you'll need, type:
   sudo port install jpeg
   sudo port install freetype
   sudo port install pkgconfig
-  sudo port install jam
 
 If you're using Homebrew, instead type:
 
@@ -132,7 +127,6 @@ If you're using Homebrew, instead type:
   brew install libvorbis
   brew install freetype
   brew install pkg-config
-  brew install jam
 
 Once the packages are installed, type:
 
@@ -152,10 +146,10 @@ No surprise there.
 old Mac and get the result to run on new Macs. The reverse does not work
 reliably.
 
-Therefore, I did the current build on MacOS 10.7 "Lion". (The Jamfile
-and other support files in this package are now set up for 10.7, and
-the resulting app runs on 10.7 and up. Unlike previous Gargoyle
-releases, it does not support the PPC architecture.)
+Therefore, I did the current build on MacOS 10.7 "Lion". (Support files
+in this package are now set up for 10.7, and the resulting app runs on
+10.7 and up. Unlike previous Gargoyle releases, it does not support the
+PPC architecture.)
 
 - You need to install Unix packages with MacPorts.
 

@@ -17,13 +17,8 @@ jobs:
       - name: Install packages
         run: brew install sdl2 sdl2_mixer libvorbis jam
 
-      - name: Build (CMake)
-        run: |
-          mkdir build
-          cd build
-          cmake ..
-          make -j`sysctl -n hw.logicalcpu`
-          make install
+      - name: Build
+        run: sh gargoyle_osx.sh
 
       - name: Build (legacy Jam)
-        run: sh gargoyle_osx.sh
+        run: jam -sUSETTS=yes -sBUNDLEFONTS=no -sMAC_USEHOMEBREW=yes -sMACOS_MIN_VER=10.9 -j`sysctl -n hw.ncpu`
