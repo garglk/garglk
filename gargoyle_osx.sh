@@ -53,7 +53,12 @@ mkdir -p "$BUNDLE/Resources/Fonts"
 mkdir -p "$BUNDLE/PlugIns"
 
 rm -rf $GARGDIST
-jam "-sUSETTS=yes" "-sBUNDLEFONTS=no" "-sMAC_USEHOMEBREW=${MAC_USEHOMEBREW}" "-j${NUMJOBS}" "-sMACOS_MIN_VER=${MACOS_MIN_VER}" install
+mkdir -p build-osx
+cd build-osx
+cmake .. -DWITH_BUNDLED_FONTS=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_MIN_VER}
+make -j${NUMJOBS}
+make install
+cd -
 
 # Copy the main executable to the MacOS directory;
 cp "$GARGDIST/gargoyle" "$BUNDLE/MacOS/Gargoyle"
