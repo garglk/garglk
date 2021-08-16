@@ -26,26 +26,7 @@ else()
     target_sources(garglk PRIVATE sysqt.cpp)
 endif()
 
-# This is somewhat ugly.
-#
-# • _XOPEN_SOURCE requests POSIX + the XSI extension
-# • _POSIX_C_SOURCE is just POSIX
-# • Setting _XOPEN_SOURCE (usually) sets the corresponding
-#   _POSIX_C_SOURCE automatically
-# • But MinGW doesn't support XSI, so _XOPEN_SOURCE does not set
-#   _POSIX_C_SOURCE on MinGW
-# • Setting _POSIX_C_SOURCE, in theory, is sufficient (as long as
-#   Gargoyle doesn't make use of any XSI extensions)
-# • But libc++ on FreeBSD ultimately causes calls to isascii() to occur,
-#   and isascii() is an XSI extension
-#
-# The use of isascii() by libc++ has to be a bug, but it's there, so
-# must be worked around. Setting both _XOPEN_SOURCE and _POSIX_C_SOURCE
-# is, while ugly, at least a workable solution. If any XSI code creeps
-# in, either the MinGW build will fail (and that's easy to detect) or it
-# will be a function that MinGW does include, even if it doesn't
-# officially support XSI (in which case it will build fine).
-target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=200112L")
+target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600")
 
 # macOS headers apparently don't define NSIG if _POSIX_C_SOURCE is
 # defined unless _DARWIN_C_SOURCE is also defined, which makes sense
@@ -61,7 +42,7 @@ endif()
 if(WITH_LAUNCHER)
     add_executable(gargoyle launcher.cpp)
     target_link_libraries(gargoyle PRIVATE garglk)
-    target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600" "_POSIX_C_SOURCE=200112L")
+    target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600")
     c_standard(gargoyle 11)
     cxx_standard(gargoyle 14)
     warnings(gargoyle)
