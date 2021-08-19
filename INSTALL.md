@@ -48,8 +48,6 @@ In addition, Gargoyle supports the following options:
   into the Gargoyle executable and used as fallback fonts.  Note: This
   feature will likely be removed in a future release.
 
-- `WITH_TTS`: If true (the default), enable text-to-speech support.
-
 - `BUILD_SHARED_LIBS`: If true (the default), a shared libgarglk will be
   built.  Otherwise, it will be static.
 
@@ -57,6 +55,14 @@ In addition, Gargoyle supports the following options:
 
 - `WITH_LAUNCHER`: If true (the default), the launcher (gargoyle binary)
   will be built.
+
+- `WITH_TTS`: Takes one of three values: "ON", "OFF", or "AUTO". If
+  "AUTO" (the default), text-to-speech support is enabled if the
+  platform supports it. Windows and macOS always support TTS, but Unix
+  requires speech-dispatcher to be installed. If the platform does not
+  support TTS, then it is disabled. If "ON" (or any true value), TTS
+  support is enabled if the platform supports it; otherwise, CMake will
+  abort. If "OFF" (or any false value), TTS support is disabled.
 
 - `SOUND`: Takes one of three values: "SDL", for SDL sound support,
   "QT", for Qt sound support, and "none" (or any other value), for no
