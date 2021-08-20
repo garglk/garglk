@@ -28,13 +28,26 @@ endif()
 
 target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600")
 
-# macOS headers apparently don't define NSIG if _POSIX_C_SOURCE is
-# defined unless _DARWIN_C_SOURCE is also defined, which makes sense
-# since NSIG isn't POSIX; but then NSIG is _used_ by signal.h regardless
-# of those same macros (i.e. it uses NSIG even if _POSIX_C_SOURCE is
-# defined). The proper fix would be for signal.h to use the internal
-# name for NSIG (__DARWIN_NSIG), but that's on Apple to fix, so work
-# around it here.
+# SDL2 defines _DARWIN_C_SOURCE to get access to a macOS-specific
+# function. This is problematic, because if the SDL2 headers are
+# sandwiched between standard headers, the headers included first will
+# NOT see _DARWIN_C_SOURCE, while the headers after WILL see it. The
+# headers after then (reasonably) assume they are in a Darwin
+# environment, and can assume specific functionality exists which may
+# have been masked by the earlier include. A concrete example:
+#
+#    #include <sys/signal.h>
+#    #include <SDL_stdinc.h> // Defines _DARWIN_C_SOURCE
+#    #include <signal.h>
+#
+# The result:
+#
+#    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/signal.h:69:42: error: use of undeclared identifier 'NSIG'
+#    extern __const char *__const sys_signame[NSIG];
+#
+# signal.h assumes NSIG is defined if _DARWIN_C_SOURCE is defined; but
+# since the header that would normally define it (sys/signal.h) was
+# included when _DARWIN_C_SOURCE was NOT set, NSIG was never defined.
 if(APPLE)
     target_compile_definitions(garglk PRIVATE "_DARWIN_C_SOURCE")
 endif()
