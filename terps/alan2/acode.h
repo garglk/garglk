@@ -1,27 +1,15 @@
 #ifndef _ACODE_H_
 #define _ACODE_H_
 
-/* Basic types */
-#include <limits.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef size_t Aptr;            /* Type for an ACODE memory address */
 
-#if INT_MAX==0x7fffffff
-typedef unsigned int Aword;     /* Type for an ACODE word */
-typedef unsigned int Aaddr;     /* Type for an ACODE address */
-typedef unsigned int Abool;     /* Type for an ACODE Boolean value */
-typedef signed   int Aint;      /* Type for an ACODE Integer value */
-typedef int CodeValue;          /* Definition for the packing process */
-#elif LONG_MAX==0x7fffffff
-typedef unsigned long Aword;    /* Type for an ACODE word */
-typedef unsigned long Aaddr;    /* Type for an ACODE address */
-typedef unsigned long Abool;    /* Type for an ACODE Boolean value */
-typedef signed   long Aint;     /* Type for an ACODE Integer value */
-typedef long CodeValue;         /* Definition for the packing process */
-#else
-#error "Can't find a 32-bit integer type"
-#endif
+typedef uint32_t Aword;         /* Type for an ACODE word */
+typedef uint32_t Aaddr;         /* Type for an ACODE address */
+typedef uint32_t Abool;         /* Type for an ACODE Boolean value */
+typedef int32_t  Aint;          /* Type for an ACODE Integer value */
 
 /* Constants for the Acode file, words/block & bytes/block */
 #define BLOCKLEN 256L
@@ -29,6 +17,7 @@ typedef long CodeValue;         /* Definition for the packing process */
 
 
 /* Definitions for the packing process */
+typedef int32_t CodeValue;
 #define VALUEBITS 16
 
 #define EOFChar 256
