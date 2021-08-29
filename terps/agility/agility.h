@@ -41,7 +41,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
 
 /* For strcasecmp() and strncasecemp(). */
 #include <strings.h>

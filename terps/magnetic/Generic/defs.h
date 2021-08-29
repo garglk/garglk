@@ -35,7 +35,6 @@
 *       correct number of bits on your system !!!
 \*****************************************************************************/
 
-#include <limits.h>
 #include <stdint.h>
 
 typedef uint8_t type8;

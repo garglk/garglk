@@ -23,30 +23,11 @@
 *
 \***********************************************************************/
 
-#include <limits.h>
+#include <stdint.h>
 
-#if UCHAR_MAX==0xff
-typedef unsigned char L9BYTE;
-#else
-#error "Can't find an 8-bit integer type"
-#endif
-
-#if SHRT_MAX==0x7fff
-typedef unsigned short L9UINT16;
-#elif INT_MAX==0x7fff
-typedef unsigned int   L9UINT16;
-#else
-#error "Can't find a 16-bit integer type"
-#endif
-
-#if INT_MAX==0x7fffffff
-typedef unsigned int L9UINT32;
-#elif LONG_MAX==0x7fffffff
-typedef unsigned long L9UINT32;
-#else
-#error "Can't find a 32-bit integer type"
-#endif
-
+typedef uint8_t L9BYTE;
+typedef uint16_t L9UINT16;
+typedef uint32_t L9UINT32;
 typedef int L9BOOL;
 
 #ifndef FALSE
