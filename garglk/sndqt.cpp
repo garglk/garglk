@@ -34,12 +34,25 @@
 
 #include <unistd.h>
 
-#include <QAudioOutput>
+#include <QtGlobal>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#define HAS_QT6
+#endif
+
+#include <QAudioFormat>
 #include <QByteArray>
 #include <QFile>
 #include <QIODevice>
-#include <QSysInfo>
 #include <QTimer>
+
+#ifdef HAS_QT6
+#include <QAudioSink>
+#include <QMediaDevices>
+#else
+#include <QAudioOutput>
+#include <QSysInfo>
+#endif
 
 #include <libopenmpt/libopenmpt.h>
 #include <mpg123.h>
@@ -163,10 +176,14 @@ public:
 
         m_format.setSampleRate(48000);
         m_format.setChannelCount(2);
+#ifdef HAS_QT6
+        m_format.setSampleFormat(QAudioFormat::Float);
+#else
         m_format.setSampleSize(32);
         m_format.setCodec("audio/pcm");
         m_format.setByteOrder(static_cast<QAudioFormat::Endian>(QSysInfo::Endian::ByteOrder));
         m_format.setSampleType(QAudioFormat::Float);
+#endif
     }
 
 protected:
@@ -200,10 +217,14 @@ public:
 
         m_format.setSampleRate(m_soundfile.samplerate());
         m_format.setChannelCount(m_soundfile.channels());
+#ifdef HAS_QT6
+        m_format.setSampleFormat(QAudioFormat::Float);
+#else
         m_format.setSampleSize(32);
         m_format.setCodec("audio/pcm");
         m_format.setByteOrder(static_cast<QAudioFormat::Endian>(QSysInfo::Endian::ByteOrder));
         m_format.setSampleType(QAudioFormat::Float);
+#endif
     }
 
     qint64 source_read(void *data, qint64 max) override {
@@ -333,10 +354,14 @@ public:
 
         m_format.setSampleRate(m_rate);
         m_format.setChannelCount(m_channels);
+#ifdef HAS_QT6
+        m_format.setSampleFormat(QAudioFormat::Float);
+#else
         m_format.setSampleSize(32);
         m_format.setCodec("audio/pcm");
         m_format.setByteOrder(static_cast<QAudioFormat::Endian>(QSysInfo::Endian::ByteOrder));
         m_format.setSampleType(QAudioFormat::Float);
+#endif
     }
 
     qint64 source_read(void *data, qint64 max) override {
@@ -450,7 +475,11 @@ struct glk_schannel_struct
     // of a smart pointer here is automatic deletion of the allocated
     // pointer on deletion of the sound channel.
     std::shared_ptr<SoundSource> source;
+#ifdef HAS_QT6
+    std::unique_ptr<QAudioSink> audio;
+#else
     std::unique_ptr<QAudioOutput> audio;
+#endif
 
     QTimer timer;
     double duration = 0;
@@ -777,11 +806,19 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
             throw SoundError("unable to open source");
 
         QAudioFormat format = source->format();
+#ifdef HAS_QT6
+        auto device = QMediaDevices::defaultAudioOutput();
+        if (!device.isFormatSupported(format))
+            throw SoundError("unsupported source format");
+
+        chan->audio = std::make_unique<QAudioSink>(device, format);
+#else
         QAudioDeviceInfo info(QAudioDeviceInfo::defaultOutputDevice());
         if (!info.isFormatSupported(format))
             throw SoundError("unsupported source format");
 
         chan->audio = std::make_unique<QAudioOutput>(format, nullptr);
+#endif
         chan->source = std::move(source);
 
         auto on_change = [=](QAudio::State state) {
@@ -792,7 +829,11 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
             }
         };
 
+#ifdef HAS_QT6
+        QObject::connect(chan->audio.get(), &QAudioSink::stateChanged, on_change);
+#else
         QObject::connect(chan->audio.get(), &QAudioOutput::stateChanged, on_change);
+#endif
 
         chan->set_current_volume();
 
