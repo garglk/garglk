@@ -734,8 +734,7 @@ void startTranscript(void) {
     if (logFile == NULL) {
         transcriptOption = FALSE;
         logOption = FALSE;
-    } else
-        transcriptOption = TRUE;
+    }
 }
 
 

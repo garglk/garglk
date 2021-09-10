@@ -31,6 +31,10 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#ifdef GARGLK_USESDL
+#include <SDL_timer.h>
+#endif
+
 #include "gi_dispa.h"
 
 /* First, we define our own TRUE and FALSE and NULL, because ANSI
@@ -465,8 +469,9 @@ struct window_textgrid_s
 
     /* for line input */
     void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
+    int inunicode;
     int inorgx, inorgy;
-    int inmax;
+    int inoriglen, inmax;
     int incurs, inlen;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
@@ -519,6 +524,7 @@ struct window_textbuffer_s
 
     /* for line input */
     void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
+    int inunicode;
     int inmax;
     long infence;
     long incurs;
@@ -568,6 +574,18 @@ struct glk_schannel_struct
     glui32 loop;
     int notify;
     int buffered;
+
+#ifdef GARGLK_USESDL
+    int paused;
+
+    /* for volume fades */
+    int volume_notify;
+    int volume_timeout;
+    int target_volume;
+    double float_volume;
+    double volume_delta;
+    SDL_TimerID timer;
+#endif
 
     gidispatch_rock_t disprock;
     channel_t *chain_next, *chain_prev;

@@ -4,7 +4,7 @@
 
   System dependent terminal oriented functions for ALAN interpreter ARUN
 
-\*----------------------------------------------------------------------*/
+  \*----------------------------------------------------------------------*/
 
 #include "sysdep.h"
 
@@ -44,18 +44,18 @@ bool onStatusLine = FALSE; /* To know if where printing the status line or not *
 #include <windows.h>
 
 HWND getConsoleHandle(void) {
-  char oldTitle[1000];
-  char newTitle[1000];
-  HWND handle;
+    char oldTitle[1000];
+    char newTitle[1000];
+    HWND handle;
 
-  GetConsoleTitle(oldTitle, 1000);
+    GetConsoleTitle(oldTitle, 1000);
 
-  wsprintf(newTitle, "Arun console%d-%d", GetTickCount(), GetCurrentProcessId());
-  SetConsoleTitle(newTitle);
-  Sleep(50);
-  handle = FindWindow(NULL, newTitle);
-  SetConsoleTitle(oldTitle);
-  return handle;
+    wsprintf(newTitle, "Arun console%d-%d", GetTickCount(), GetCurrentProcessId());
+    SetConsoleTitle(newTitle);
+    Sleep(50);
+    handle = FindWindow(NULL, newTitle);
+    SetConsoleTitle(oldTitle);
+    return handle;
 }
 #endif
 
@@ -67,12 +67,12 @@ HWND getConsoleHandle(void) {
   Try to get the current page size from the system, else use the ones
   from the header.
 
- */
+*/
 void getPageSize(void)
 {
 #ifdef HAVE_GLK
-  pageLength = 0;
-  pageWidth = 0;
+    pageLength = 0;
+    pageWidth = 0;
 
 #else
 #ifdef HAVE_TERMIO
@@ -80,29 +80,29 @@ void getPageSize(void)
 #include <sys/termios.h>
 
 #ifdef __linux__
-extern int ioctl (int __fd, unsigned long int __request, ...) __THROW;
+    extern int ioctl (int __fd, unsigned long int __request, ...) __THROW;
 #else
-extern int ioctl();
+    extern int ioctl();
 #endif
-  struct winsize win;
-  int ecode;
+    struct winsize win;
+    int ecode;
 
-  ecode = ioctl(1, TIOCGWINSZ, &win);
+    ecode = ioctl(1, TIOCGWINSZ, &win);
 
-  if (ecode != 0 || win.ws_row == 0)
-    pageLength = header->pageLength;
-  else
-    pageLength = win.ws_row;
+    if (ecode != 0 || win.ws_row == 0)
+        pageLength = header->pageLength;
+    else
+        pageLength = win.ws_row;
 
-  if (ecode != 0 || win.ws_col == 0)
-    pageWidth = header->pageWidth;
-  else
-    pageWidth = win.ws_col;
+    if (ecode != 0 || win.ws_col == 0)
+        pageWidth = header->pageWidth;
+    else
+        pageWidth = win.ws_col;
 
 #else
 
-  pageLength = header->pageLength;
-  pageWidth = header->pageWidth;
+    pageLength = header->pageLength;
+    pageWidth = header->pageWidth;
 
 #endif
 #endif
@@ -112,74 +112,72 @@ extern int ioctl();
 void statusline(void)
 {
 #ifdef HAVE_GLK
-  glui32 glkWidth;
-  char line[100];
-  int pcol = col;
+    glui32 glkWidth;
+    char line[100];
+    int pcol = col;
 
-  if (!statusLineOption) return;
-  if (glkStatusWin == NULL)
-    return;
+    if (!statusLineOption) return;
+    if (glkStatusWin == NULL)
+        return;
 
-  glk_set_window(glkStatusWin);
-  glk_window_clear(glkStatusWin);
-  glk_window_get_size(glkStatusWin, &glkWidth, NULL);
+    glk_set_window(glkStatusWin);
+    glk_window_clear(glkStatusWin);
+    glk_window_get_size(glkStatusWin, &glkWidth, NULL);
 
 #ifdef HAVE_GARGLK
-  int i;
-  glk_set_style(style_User1);
-  for (i = 0; i < glkWidth; i++)
-    glk_put_char(' ');
+    int i;
+    glk_set_style(style_User1);
+    for (i = 0; i < glkWidth; i++)
+        glk_put_char(' ');
 #endif
 
-  onStatusLine = TRUE;
-  col = 1;
-  glk_window_move_cursor(glkStatusWin, 1, 0);
-  sayInstance(where(HERO, TRUE));
+    onStatusLine = TRUE;
+    col = 1;
+    glk_window_move_cursor(glkStatusWin, 1, 0);
+    sayInstance(where(HERO, TRUE));
 
-  // TODO Add status message1  & 2 as author customizable messages
-  if (header->maximumScore > 0)
-    sprintf(line, "Score %d(%d)/%d moves", current.score, (int)header->maximumScore, current.tick);
-  else
-    sprintf(line, "%d moves", current.tick);
-  glk_window_move_cursor(glkStatusWin, glkWidth-strlen(line)-1, 0);
-  glk_put_string(line);
-  needSpace = FALSE;
+    // TODO Add status message1  & 2 as author customizable messages
+    if (header->maximumScore > 0)
+        sprintf(line, "Score %d(%d)/%d moves", current.score, (int)header->maximumScore, current.tick);
+    else
+        sprintf(line, "%d moves", current.tick);
+    glk_window_move_cursor(glkStatusWin, glkWidth-strlen(line)-1, 0);
+    glk_put_string(line);
+    needSpace = FALSE;
 
-  col = pcol;
-  onStatusLine = FALSE;
+    col = pcol;
+    onStatusLine = FALSE;
 
-  glk_set_window(glkMainWin);
+    glk_set_window(glkMainWin);
 #else
 #ifdef HAVE_ANSI
-  char line[100];
-  int i;
-  int pcol = col;
+    char line[100];
+    int i;
+    int pcol = col;
 
-  if (!statusLineOption) return;
-  /* ansi_position(1,1); ansi_bold_on(); */
-  printf("\x1b[1;1H");
-  printf("\x1b[7m");
+    if (!statusLineOption) return;
+    /* ansi_position(1,1); ansi_bold_on(); */
+    printf("\x1b[1;1H");
+    printf("\x1b[7m");
 
-  onStatusLine = TRUE;
-  col = 1;
-  sayInstance(where(HERO, FALSE));
+    onStatusLine = TRUE;
+    col = 1;
+    sayInstance(where(HERO, FALSE));
 
-  if (header->maximumScore > 0)
-    sprintf(line, "Score %d(%d)/%d moves", current.score, header->maximumScore, current.tick);
-  else
-    sprintf(line, "%ld moves", (long)current.tick);
-  for (i=0; i < pageWidth - col - strlen(line); i++) putchar(' ');
-  printf(line);
-  printf("\x1b[m");
-  printf("\x1b[%d;1H", pageLength);
+    if (header->maximumScore > 0)
+        sprintf(line, "Score %d(%d)/%d moves", current.score, header->maximumScore, current.tick);
+    else
+        sprintf(line, "%ld moves", (long)current.tick);
+    for (i=0; i < pageWidth - col - strlen(line); i++) putchar(' ');
+    printf(line);
+    printf("\x1b[m");
+    printf("\x1b[%d;1H", pageLength);
 
-  needSpace = FALSE;
-  capitalize = TRUE;
+    needSpace = FALSE;
+    capitalize = TRUE;
 
-  onStatusLine = FALSE;
-  col = pcol;
+    onStatusLine = FALSE;
+    col = pcol;
 #endif
 #endif
 }
-
-

@@ -556,7 +556,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                          <GargoyleApp, NSApplicationDelegate, NSWindowDelegate>
 {
     BOOL openedFirstGame;
-    NSMutableDictionary<NSNumber *, GargoyleWindow *> * windows;
+    NSMutableDictionary * windows;
     NSConnection * link;
 }
 - (BOOL) launchFile: (NSString *) file;
@@ -885,7 +885,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     if (urlParts && [urlParts count] == 2)
     {
         openedFirstGame = YES;
-        NSString * game = [[urlParts objectAtIndex: 1] stringByRemovingPercentEncoding];
+        NSString * game = [[urlParts objectAtIndex: 1] stringByReplacingPercentEscapesUsingEncoding:NSUTF8StringEncoding];
 
         if ([[NSFileManager defaultManager] fileExistsAtPath: game] == YES)
             [self launchFile: game];

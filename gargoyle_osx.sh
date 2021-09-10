@@ -15,15 +15,17 @@ fi
 
 # XCode 10+ min target SDK is 10.9 (Mavericks) due to removal of libstdc++
 SDK_VERSION=$(xcrun --show-sdk-version)
+echo "SDK_VERSION $SDK_VERSION"
 
 case $SDK_VERSION in
-  *10.14* )
+  *10.1[4-9]* )
     MACOS_MIN_VER=10.9
     ;;
   * )
     MACOS_MIN_VER=10.7
     ;;
 esac
+echo "MACOS_MIN_VER $MACOS_MIN_VER"
 
 # Use as many CPU cores as possible
 NUMJOBS=$(sysctl -n hw.ncpu)
@@ -121,6 +123,6 @@ cp fonts/LinLibertine*.otf $BUNDLE/Resources/Fonts
 cp fonts/NotoSerif*.ttf $BUNDLE/Resources/Fonts
 
 echo "Creating DMG..."
-hdiutil create -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
+hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
 
 echo "Done."

@@ -1,7 +1,11 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+<<<<<<< HEAD
  * Copyright (C) 2009 by Baltasar Garc�a Perez-Schofield.                     *
+=======
+ * Copyright (C) 2009 by Baltasar García Perez-Schofield.                     *
+>>>>>>> ed98753e703ba151dcd57e45dd4ab6ed87f36149
  * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
@@ -30,6 +34,11 @@
 #include <assert.h>
 #include <gtk/gtk.h>
 #include "gtk_utils.h"
+
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 
 static const char * AppName = "Gargoyle " VERSION;
 static const char * LaunchingTemplate = "%s/%s";
@@ -254,6 +263,18 @@ static void winbrowsefile(char *buffer, int bufferSize)
 
 void winpath(char *buffer)
 {
+#ifdef __FreeBSD__
+    int mib[4];
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_PATHNAME;
+    mib[3] = -1;
+    if (sysctl(mib, 4, buffer, &(size_t){MaxBuffer}, NULL, 0) == -1)
+    {
+        winmsg("Unable to locate executable path");
+        exit(EXIT_FAILURE);
+    }
+#else
     char exepath[MaxBuffer] = {0};
     ssize_t exelen;
 
@@ -266,12 +287,11 @@ void winpath(char *buffer)
     }
 
     strcpy(buffer, exepath);
+#endif
 
     char *dirpos = strrchr(buffer, *DirSeparator);
     if ( dirpos != NULL )
         *dirpos = '\0';
-
-    return;
 }
 
 int winexec(const char *cmd, char **args)

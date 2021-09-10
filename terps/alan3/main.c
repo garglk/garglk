@@ -269,7 +269,7 @@ char *decodedGameVersion(char version[]) {
 
 /*----------------------------------------------------------------------*/
 static void incompatibleDevelopmentVersion(ACodeHeader *header) {
-    char str[80];
+    char str[500];
     sprintf(str, "Incompatible version of ACODE program. Development versions always require exact match. Game is %ld.%ld%s%ld, interpreter %ld.%ld%s%ld!",
             (long)(header->version[0]),
             (long)(header->version[1]),
@@ -285,7 +285,7 @@ static void incompatibleDevelopmentVersion(ACodeHeader *header) {
 
 /*----------------------------------------------------------------------*/
 static void incompatibleVersion(ACodeHeader *header) {
-    char str[80];
+    char str[500];
     sprintf(str, "Incompatible version of ACODE program. Game is %ld.%ld, interpreter %ld.%ld.",
             (long)(header->version[0]),
             (long)(header->version[1]),
@@ -327,9 +327,9 @@ void checkVersion(ACodeHeader *header)
        2) Alpha, Beta and Release interpreters will not run development games
        3) Alpha interpreters must warn if they run beta or release games
        4) Beta interpreters may introduce changes which are not alpha compatible,
-       if the change is a strict addition (i.e. if not used will not affect
-       alpha interpreters, example is introduction of a new opcode if it is
-       done at the end of the list)
+          if the change is a strict addition (i.e. if not used will not affect
+          alpha interpreters, example is introduction of a new opcode if it is
+          done at the end of the list)
        5) Release interpreters should run alpha and beta games without problems
 
        NOTE that we are working with a non-reversed version string/word here.
@@ -422,17 +422,16 @@ static void checkDebug(void)
             printf("<Sorry, '%s' is not compiled for debug! Exiting.>\n", adventureFileName);
             terminate(0);
         }
-        para();
         debugOption = FALSE;
         traceSectionOption = FALSE;
         traceInstructionOption = FALSE;
         tracePushOption = FALSE;
     }
 
-    if (debugOption || regressionTestOption) /* If debugging... */
-        srand(1);			/* ... use no randomization */
+    if (debugOption || regressionTestOption) /* If debugging or regression testing... */
+        srand(1);               /* ... use no randomization */
     else
-        srand(time(0));		/* Else seed random generator */
+        srand(time(0));         /* Else seed random generator */
 }
 
 
@@ -610,6 +609,9 @@ static void start(void)
     current.actor = HERO;
     current.score = 0;
 
+    para();
+    if (traceSectionOption)
+        printf("\n<INITIALIZE:>\n");
     initializeInstances();
 
     if (traceSectionOption)
@@ -856,7 +858,7 @@ void run(void)
         if (!current.meta) {
             current.tick++;
 
-            /* Remove this call? Since Eval is done up there after each event... */
+            /* If hero has performed a non-meta command rules need to be run after that */
             resetAndEvaluateRules(rules, header->version);
 
             /* Then all the other actors... */

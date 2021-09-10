@@ -97,7 +97,7 @@ if $(MAKE_ALAN2) = yes
 
 # -----------------------------------------------------------------------
 #
-# Alan interpreter 3 beta 6-git
+# Alan interpreter 3.0beta6
 #
 
 if $(MAKE_ALAN3) = yes
