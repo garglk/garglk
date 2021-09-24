@@ -3,7 +3,6 @@ if(NOT APPLE)
 endif()
 
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
-option(WITH_BUNDLED_FONTS "Embed default fonts into Gargoyle" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
 
 set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO)")
@@ -11,10 +10,10 @@ set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
 set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or none)")
 
-add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c cgmisc.c
-    cgstream.c cgstyle.c cgunicod.c config.c draw.cpp event.cpp fontdata.c
-    gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c wingfx.c
-    wingrid.c winmask.c winpair.c wintext.c)
+add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c
+    cgmisc.c cgstream.c cgstyle.c cgunicod.c config.c draw.cpp event.cpp
+    gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c
+    wingfx.c wingrid.c winmask.c winpair.c wintext.c)
 c_standard(garglk 11)
 cxx_standard(garglk 14)
 warnings(garglk)
@@ -137,10 +136,6 @@ else()
     target_sources(garglk PRIVATE sndnull.c)
 endif()
 
-if(WITH_BUNDLED_FONTS)
-    target_compile_definitions(garglk PRIVATE BUNDLED_FONTS)
-endif()
-
 if(WITH_BABEL)
     target_link_libraries(garglk PRIVATE babel)
     target_include_directories(garglk PRIVATE ../support/babel)
@@ -181,7 +176,7 @@ elseif(UNIX)
     target_sources(garglk PRIVATE fontfc.c)
 elseif(MINGW)
     target_sources(garglk PRIVATE fontwin.c)
-    target_link_libraries(garglk PRIVATE winmm)
+    target_link_libraries(garglk PRIVATE winmm shlwapi)
     target_sources(gargoyle PRIVATE icons.rc)
 else()
     message(FATAL_ERROR "Unsupported platform")
@@ -200,4 +195,22 @@ elseif(UNIX)
     install(FILES gi_blorb.h glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+    if(APPIMAGE)
+        set(FONT_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
+    else()
+        set(FONT_DIRECTORY "${CMAKE_INSTALL_DATADIR}/fonts/gargoyle")
+        target_compile_definitions(garglk PRIVATE "GARGLK_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
+    endif()
+
+    install(FILES
+        ../fonts/Gargoyle-Mono-Bold-Italic.ttf
+        ../fonts/Gargoyle-Mono-Bold.ttf
+        ../fonts/Gargoyle-Mono-Italic.ttf
+        ../fonts/Gargoyle-Mono.ttf
+        ../fonts/Gargoyle-Serif-Bold-Italic.ttf
+        ../fonts/Gargoyle-Serif-Bold.ttf
+        ../fonts/Gargoyle-Serif-Italic.ttf
+        ../fonts/Gargoyle-Serif.ttf
+        DESTINATION "${FONT_DIRECTORY}")
 endif()

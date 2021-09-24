@@ -12,7 +12,6 @@ USESDL ?= yes ;
 USEBABEL ?= yes ;
 MAC_USEHOMEBREW ?= no ;
 MACOS_MIN_VER ?= 10.7 ;
-BUNDLEFONTS ?= yes ;
 USETTS ?= no ;
 
 # jam -sGARGLKINI=/usr/local/etc/garglk.ini

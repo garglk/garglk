@@ -44,10 +44,6 @@ In addition, Gargoyle supports the following options:
   extract author and title information and display in the window's
   titlebar
 
-- `WITH_BUNDLED_FONTS`: If true (the default), fonts will be bundled
-  into the Gargoyle executable and used as fallback fonts.  Note: This
-  feature will likely be removed in a future release.
-
 - `BUILD_SHARED_LIBS`: If true (the default), a shared libgarglk will be
   built.  Otherwise, it will be static.
 

@@ -1,0 +1,24 @@
+These are Gargoyle's "custom" fonts.
+
+Gargoyle Serif is a renamed Charis SIL, and Gargoyle Mono is a renamed Go Mono.
+By giving them Gargoyle-specific names, they can be installed system-wide
+without clashing with any other fonts, allowing Gargoyle to use them as its
+defaults.
+
+Earlier versions of Gargoyle could be built with fonts embedded so that it could
+be run without the user having to install fonts. However, many fonts are
+licensed under the SIL Open Font License, which is not compatible with the GPL,
+which is what Gargoyle is licensed under. As a result, the number of possible
+bundled (and therefore "default") fonts was vastly reduced. Specifically, Charis
+SIL, which would have been the ideal successor to Bitstream Charter, is licensed
+under the OFL, so for several years it was replaced with Noto Serif.
+
+While there is nothing wrong with Noto Serif, it makes Gargoyle look different
+than its original incarnation, so to allow Charis SIL to be set as the default,
+font bundling was removed. To compensate for this, if the user does not specify
+fonts, or if the specified fonts cannot be found, Gargoyle will try to load the
+font files directly from two locations: a system-specific data directory (e.g.
+/usr/lib/gargoyle/fonts), and, failing that, the current directory (Unix) or the
+directory containing the Gargoyle executable (Windows).
+
+The licenses for these fonts are available in the top-level "licenses" directory.

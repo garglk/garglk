@@ -30,12 +30,8 @@ ScottFree is copyright (c) Alan Cox. It is released under the terms of the GNU G
 
 TADS is copyright (c) Michael J. Roberts. It is released under the terms of the GNU General Public License.
 
-The Linux Libertine fonts are copyright (c) Philipp H. Poll. They are released under the terms of the SIL Open Font License.
+The Go Mono fonts (Gargoyle Mono) are copyright (c) 2016 Bigelow & Holmes Inc. They are released under the terms of the 3-clause BSD license.
 
-The Liberation fonts are copyright (c) Red Hat, Inc. They are released under the terms of the Liberation License.
-
-The Noto Serif fonts are copyright (c) 2012, Google Inc. They are released under the terms of the SIL Open Font License (OFL), version 1.1.
-
-The Go Mono fonts are copyright (c) 2016 Bigelow & Holmes Inc. They are released under the terms of the 3-clause BSD license.
+The Charis SIL fonts (Gargoyle Serif) are copyright (c) 1997-2014 SIL International. They are released under the terms of the SIL Open Font License version 1.1.
 
 The authors assume no liability for damages or loss of revenue resulting from the use of any of the software herein. The software is supplied "as is" and carries no warranty, actual or implied. 
