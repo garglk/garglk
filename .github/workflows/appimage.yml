@@ -11,7 +11,7 @@ jobs:
         config:
           - {debarch: amd64, arch: x86_64, filearch: x86_64}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: ${{ matrix.config.debarch }}/ubuntu:20.04
       # So that fuse works inside the container (needed to run AppImages.)
