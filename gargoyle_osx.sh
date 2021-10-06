@@ -15,10 +15,6 @@ else
   HOMEBREW_OR_MACPORTS_LOCATION="$(pushd "$(dirname $(which port))/.." > /dev/null ; pwd -P ; popd > /dev/null)"
 fi
 
-if [ "${GITHUB_ACTIONS}" != "" ]; then
-    sudo xcode-select -s /Applications/Xcode_12.app/Contents/Developer
-fi
-
 # If building with XCode 10+ (SDK 10.14+ Mojave), the minimum target SDK is
 # 10.9 (Mavericks), due to removal of libstdc++.
 SDK_VERSION=$(xcrun --show-sdk-version)

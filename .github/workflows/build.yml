@@ -10,7 +10,7 @@ jobs:
       matrix:
         feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT"]
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
       options: --privileged
