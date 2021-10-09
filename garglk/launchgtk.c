@@ -178,7 +178,8 @@ static void winbrowsefile(char *buffer, int bufferSize)
                 GTK_SORT_ASCENDING,
                 GTK_SORT_ASCENDING);
     g_string_free(fileRequestorInitFilename, TRUE);
-
+	gtk_widget_set_events(GTK_WIDGET(fileRequestorDialog), GDK_FOCUS_CHANGE_MASK);
+	
     bool isFileSelected = false;
     bool isDialogCanceled = false;
     do {
@@ -231,6 +232,9 @@ static void winbrowsefile(char *buffer, int bufferSize)
     while (!isFileSelected && !isDialogCanceled);
 
     gtk_widget_destroy(fileRequestorDialog);
+#ifdef _KINDLE
+    closeLipcInstance();
+#endif
 }
 
 #else /* Default implementation */
@@ -243,7 +247,7 @@ static void winbrowsefile(char *buffer, int bufferSize)
                                                       GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                                                       GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
                                                       NULL);
-
+    
     if (getenv("GAMES"))
         gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(openDlg), getenv("GAMES"));
     else if (getenv("HOME"))

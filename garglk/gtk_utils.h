@@ -65,6 +65,9 @@ GString * createAndInitFilenameFromOsEnvironmentVariable(
         const char * environmentVariableName1, 
         const char * environmentVariableName2);
 
+void closeLipcInstance();
+void openVirtualKeyboard(GtkWidget * widget, gpointer * callback_data);
+
 /*
  * Creates a GtkFileSelection and sizes it for semi-fullscreen mode on K*ndle,
  * leaving approx. the bottom 1/3 of the screen for the native onscreen K*ndle 

@@ -32,7 +32,13 @@
 #include <strings.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <wchar.h>
 #include <stdio.h>
+#include <unistd.h>
+
+#ifdef _KINDLE
+#include <openlipc.h>
+#endif /* _KINDLE */
 
 GString * normalizeFilename(GString * filename) 
 {
@@ -99,6 +105,59 @@ GString * createAndInitFilenameFromOsEnvironmentVariable(
     return createdString;
 }
 
+static LIPC * lipcInstance = 0;
+
+void openLipcInstance() {
+	if (lipcInstance == 0) {
+		fwprintf(stderr, L"---->openLipcInstance()\n");
+		lipcInstance = LipcOpen("net.fabiszewski.gargoyle");
+	}
+}
+
+void closeLipcInstance() {
+	if (lipcInstance != 0) {
+		fwprintf(stderr, L"---->closeLipcInstance()\n");
+		LipcClose(lipcInstance);
+	}
+}
+
+void openVirtualKeyboard(GtkWidget * widget, gpointer * callback_data) {
+    /* lipc-set-prop -s com.lab126.keyboard open net.fabiszewski.gargoyle:abc:0 */
+    if (lipcInstance == 0) {
+		openLipcInstance();
+	}
+	
+	int isKeboardVisible = 0;
+	LipcGetIntProperty(
+                lipcInstance,
+                "com.lab126.keyboard",
+                "show", &isKeboardVisible);
+	
+	if (isKeboardVisible == 0) {
+		fwprintf(stderr, L"---->openVirtualKeyboard\n");
+    	LipcSetStringProperty(lipcInstance,
+                          "com.lab126.keyboard",
+                          "open",
+                          "net.fabiszewski.gargoyle:abc:0");
+    } 
+    else {
+    	fwprintf(stderr, L"---->openVirtualKeyboard - Keyboard already opened, doing noting.\n");
+    }
+    /* int pid = fork();
+	if (pid == 0) {
+		char *args[] = { "/usr/bin/lipc-set-prop",
+                    "-s",
+                    "com.lab126.keyboard",
+                    "open",
+                    "net.fabiszewski.gargoyle:abc:0",
+                    NULL };
+        fwprintf(stderr, L"---->openVirtualKeyboard-execv()\n");
+		execv(args[0], args); 
+		exit(EXIT_SUCCESS);
+	}
+	*/
+}
+
 GtkWidget * createAndInitKindleFileRequestor(
         const GString * initFilename,
         const GtkSortType directoryListSortOrder,
@@ -109,6 +168,9 @@ GtkWidget * createAndInitKindleFileRequestor(
     gint screen_width = gdk_screen_get_width(screen);
 
     GtkFileSelection * fileRequestor = GTK_FILE_SELECTION(gtk_file_selection_new(KDIALOG));
+    gtk_signal_connect(GTK_OBJECT(fileRequestor), "focus_in_event",
+                       GTK_SIGNAL_FUNC(openVirtualKeyboard), NULL);
+    //fwprintf(stderr, L"---->Signal connected\n");
     
     //gtk_widget_hide(GTK_FILE_SELECTION(filedlog)->history_pulldown);
     // K*ndle GTK port does not properly support/fully implement fileop buttons in GtkFileSelection.

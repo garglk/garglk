@@ -28,6 +28,13 @@ else()
   message(FATAL_ERROR "Unsupported platform (${CMAKE_SYSTEM_NAME}).")
 endif()
 
+if(COMPILE_FOR_KINDLE)
+  message(STATUS "Setting include and lib dirs for Kindle lipc integration.")
+  list(APPEND GARGLK_INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../support/kindle/lipc/include)
+  list(APPEND GARGLK_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/../support/kindle/lipc/lib/liblipc.so)
+  add_link_options("LINKER:-unresolved-symbols=ignore-in-shared-libs")
+endif(COMPILE_FOR_KINDLE)
+
 set(SOUND_SOURCE sndnull.c)
 if(WITH_SDL)
   if(UNIX)

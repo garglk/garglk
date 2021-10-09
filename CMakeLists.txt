@@ -19,6 +19,7 @@ if(COMPILE_FOR_KINDLE)
   add_definitions(-D_GNU_SOURCE)
   add_definitions(-D_KINDLE)
   add_definitions(-D_ALT_MOUSE_HANDLING)
+  add_link_options("LINKER:-unresolved-symbols=ignore-in-shared-libs")
 endif(COMPILE_FOR_KINDLE)
 
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")

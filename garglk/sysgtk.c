@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
+#include <unistd.h>
 
 /* For debuging segfaults */
 #include <execinfo.h>
@@ -110,7 +111,10 @@ void winabort(const char *fmt, ...)
     {
         gtk_widget_destroy(fileRequestorDialog);
     }
-    
+#ifdef _KINDLE
+    closeLipcInstance();
+#endif
+
     va_list ap;
     char buf[256];
     va_start(ap, fmt);
@@ -128,6 +132,9 @@ void winexit(void)
     {
         gtk_widget_destroy(fileRequestorDialog);
     }
+#ifdef _KINDLE
+    closeLipcInstance();
+#endif
     exit(0);
 }
 
@@ -709,6 +716,10 @@ static void onquit(GtkWidget *widget, void *data)
     {
         gtk_widget_destroy(fileRequestorDialog);
     }
+#ifdef _KINDLE
+    closeLipcInstance();
+#endif
+
     exit(0);
 }
 
@@ -768,7 +779,8 @@ void winopen(void)
                                | GDK_BUTTON_RELEASE_MASK
                                | GDK_POINTER_MOTION_MASK
                                | GDK_POINTER_MOTION_HINT_MASK
-                               | GDK_SCROLL_MASK);
+                               | GDK_SCROLL_MASK
+                               | GDK_FOCUS_CHANGE_MASK);
     gtk_signal_connect(GTK_OBJECT(frame), "button_press_event",
                        GTK_SIGNAL_FUNC(onbuttondown), NULL);
     gtk_signal_connect(GTK_OBJECT(frame), "button_release_event",
@@ -783,6 +795,8 @@ void winopen(void)
                        GTK_SIGNAL_FUNC(onquit), "WM destroy");
     gtk_signal_connect(GTK_OBJECT(frame), "motion_notify_event",
         GTK_SIGNAL_FUNC(onmotion), NULL);
+    gtk_signal_connect(GTK_OBJECT(frame), "focus_in_event",
+                       GTK_SIGNAL_FUNC(openVirtualKeyboard), NULL);
 
     canvas = gtk_drawing_area_new();
     gtk_signal_connect(GTK_OBJECT(canvas), "size_allocate",
