@@ -1,0 +1,27 @@
+2022.1:
+• Gargoyle now implements Glk version 0.7.5.
+• Various interpreter updates.
+• The UI on Unix and Windows is now handled by Qt.
+• A new sound backend based on Qt is available.
+• Experimental support for the Haiku operating system.
+• SDL2 is now used instead of SDL1 (thanks to Manuel Stoeckl).
+• Built-in fonts are no longer supported due to licensing issues.
+• The default proportional font has been changed to Charis SIL (renamed to
+  “Gargoyle Serif”); the default monospace font is still Go Mono, renamed to
+  “Gargoyle Mono”.
+• Improved font rendering, including fine-grained control over FreeType's
+  renderer (thanks to Tynach).
+• Improved font lookup on Fontconfig-based systems to avoid cases where the
+  wrong font styles were being used.
+• HiDPI is supported on macOS.
+
+2019.1.1:
+• Fix font selection on Windows.
+• Fix interpreter locating on FreeBSD.
+
+2019.1:
+• Many interpreters have been updated.
+• Text-to-speech support.
+• The built-in fonts support a much wider range of Unicode.
+• Full screen support.
+• Various accumulated small fixes and updates.
