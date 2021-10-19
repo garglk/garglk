@@ -9,9 +9,12 @@
 
 #include "screen.h"
 
+#define ZTERP_OS_PATH_SIZE	4096
+
 long zterp_os_filesize(FILE *fp);
-bool zterp_os_rcfile(char *s, size_t n);
-bool zterp_os_autosave_name(char *s, size_t n);
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE]);
+bool zterp_os_autosave_name(char (*s)[ZTERP_OS_PATH_SIZE]);
+bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize);
 
 #ifndef ZTERP_GLK
 void zterp_os_get_screen_size(unsigned *w, unsigned *h);

@@ -301,7 +301,7 @@ static const struct patch patches[] =
     // Robot Finds Kitten attempts to sleep with the following:
     //
     // [ Func junk;
-    //   @aread junk 0 10 PauseFunc -> junk;
+    //     @aread junk 0 10 PauseFunc -> junk;
     // ];
     //
     // However, since “junk” is a local variable with value 0 instead of a

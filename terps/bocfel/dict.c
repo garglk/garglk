@@ -219,7 +219,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 
     d = dict_find(token, len, dictionary);
 
-    if (len == 1 && is_infocom_v1234 && start_of_sentence && !options.disable_abbreviations) {
+    if (len == 1 && is_game(GameInfocom1234) && start_of_sentence && !options.disable_abbreviations) {
         const uint8_t examine[] = { 'e', 'x', 'a', 'm', 'i', 'n', 'e' };
         const uint8_t again[] = { 'a', 'g', 'a', 'i', 'n' };
         const uint8_t wait[] = { 'w', 'a', 'i', 't' };
@@ -324,7 +324,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
             if (text_len != 0 && *p != ZSCII_SPACE) {
                 handle_token(string, p, 1, parse, &dictionary, found++, flag, start_of_sentence);
 
-                start_of_sentence = *p == '.';
+                start_of_sentence = *p == ZSCII_PERIOD;
             }
 
             if (found == maxwords) {

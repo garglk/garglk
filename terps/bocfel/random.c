@@ -183,10 +183,9 @@ static void random_stash_free(void)
 {
 }
 
-void init_random(void)
+void init_random(bool first_run)
 {
     static bool tried_device = false;
-    static bool first_run = true;
 
     seed_random(0);
 
@@ -200,8 +199,6 @@ void init_random(void)
 
     if (first_run) {
         stash_register(random_stash_backup, random_stash_restore, random_stash_free);
-
-        first_run = false;
     }
 }
 

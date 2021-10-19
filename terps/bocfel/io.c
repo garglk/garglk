@@ -238,45 +238,42 @@ err:
 // information, and reusing the Quetzal code (plus extensions)
 // eliminates the need for code duplication.
 //
-// If “buf” is null, this is a write-only memory object that will
-// allocate space as it is required. Otherwise, this is a read-only
-// object backed by the passed-in buffer. A copy is made so the caller
-// is free to do what it likes with the memory afterward.
-zterp_io *zterp_io_open_memory(const void *buf, size_t n)
+// If “buf” is null, the I/O object starts out empty. Otherwise, it
+// starts out with the contents of the passed-in buffer. A copy is made
+// so the caller is free to do what it likes with the memory afterward.
+// In both cases the offset starts at 0.
+zterp_io *zterp_io_open_memory(const void *buf, size_t n, enum zterp_io_mode mode)
 {
-    struct zterp_io *io;
+    struct zterp_io *io = NULL;
+
+    // Append isn’t used with memory-backed I/O, so it’s not supported.
+    if (mode != ZTERP_IO_MODE_RDONLY && mode != ZTERP_IO_MODE_WRONLY) {
+        goto err;
+    }
 
     io = malloc(sizeof *io);
     if (io == NULL) {
         goto err;
     }
 
+    if (buf == NULL) {
+        buf = "";
+        n = 0;
+    }
+
     io->type = IO_MEMORY;
+    io->mode = mode;
     io->purpose = ZTERP_IO_PURPOSE_DATA;
     io->exception_mode = false;
 
-    if (buf != NULL) {
-        io->mode = ZTERP_IO_MODE_RDONLY;
-        io->file.backing.memory = malloc(n);
-        if (io->file.backing.memory == NULL) {
-            goto err;
-        }
-
-        memcpy(io->file.backing.memory, buf, n);
-
-        io->file.backing.allocated = 0;
-        io->file.backing.size = n;
-        io->file.backing.offset = 0;
-    } else {
-        io->mode = ZTERP_IO_MODE_WRONLY;
-        io->file.backing.allocated = BACKING_CHUNK_SIZE;
-        io->file.backing.memory = malloc(io->file.backing.allocated);
-        if (io->file.backing.memory == NULL) {
-            goto err;
-        }
-        io->file.backing.size = 0;
-        io->file.backing.offset = 0;
+    io->file.backing.allocated = n < BACKING_CHUNK_SIZE ? BACKING_CHUNK_SIZE : n;
+    io->file.backing.memory = malloc(io->file.backing.allocated);
+    if (io->file.backing.memory == NULL) {
+        goto err;
     }
+    memcpy(io->file.backing.memory, buf, n);
+    io->file.backing.size = n;
+    io->file.backing.offset = 0;
 
     return io;
 
@@ -358,6 +355,22 @@ bool zterp_io_close_memory(zterp_io *io, uint8_t **buf, long *n)
     return true;
 }
 
+// Return a pointer to the I/O instance’s internal buffer. This
+// represents the state of the “file” at the time the function is
+// called. The pointer is only valid until the next call to an I/O
+// function on this same I/O instance.
+bool zterp_io_get_memory(zterp_io *io, const uint8_t **buf, long *n)
+{
+    if (io->type != IO_MEMORY) {
+        return false;
+    }
+
+    *buf = io->file.backing.memory;
+    *n = io->file.backing.size;
+
+    return true;
+}
+
 void zterp_io_set_exception_mode(zterp_io *io, bool mode)
 {
     io->exception_mode = mode;
@@ -394,28 +407,32 @@ bool zterp_io_seek(zterp_io *io, long offset, int whence)
             return wrap(io, false);
         }
 
-        switch (whence) {
-        case SEEK_CUR:
+        if (whence == SEEK_CUR) {
             // Overflow.
             if (LONG_MAX - offset < io->file.backing.offset) {
                 return wrap(io, false);
             }
 
             offset = io->file.backing.offset + offset;
-            // fallthrough
-        case SEEK_SET:
-            // If seeking beyond the end, write zeros.
-            while (offset > io->file.backing.size) {
-                zterp_io_write8(io, 0);
+        } else if (whence == SEEK_END) {
+            // SEEK_END is only used to seek directly to the end.
+            if (offset != 0) {
+                return wrap(io, false);
             }
 
-            io->file.backing.offset = offset;
-
-            return wrap(io, true);
-        default:
-            // No support for SEEK_END because it’s not used.
-            return wrap(io, false);
+            offset = io->file.backing.size;
+        } else if (whence == SEEK_SET) {
+            // Do nothing; offset is where it should be.
         }
+
+        // If seeking beyond the end, write zeros.
+        while (offset > io->file.backing.size) {
+            zterp_io_write8(io, 0);
+        }
+
+        io->file.backing.offset = offset;
+
+        return wrap(io, true);
 #ifdef ZTERP_GLK
     case IO_GLK:
         glk_stream_set_position(io->file.glk, offset, whence == SEEK_SET ? seekmode_Start : whence == SEEK_CUR ? seekmode_Current : seekmode_End);
@@ -639,13 +656,14 @@ bool zterp_io_write32(zterp_io *io, uint32_t v)
 // characters, not bytes. That is, unlike C, bytes and characters are
 // not equivalent as far as Zterp’s I/O system is concerned.
 
-// Read a UTF-8 character, returning it.
+// Read a UTF-8 character, returning it. If limit16 is true, any Unicode
+// values which are greater than UINT16_MAX will be converted to the
+// Unicode replacement character. Otherwise, values are returned as-is.
 // -1 is returned on EOF.
 //
-// If there is a problem reading the UTF-8 (either from an invalid
-// sequence or from a too-large value), the Unicode replacement
+// If an invalid UTF-8 sequence is found, the Unicode replacement
 // character is returned.
-long zterp_io_getc(zterp_io *io)
+long zterp_io_getc(zterp_io *io, bool limit16)
 {
     long ret;
     uint8_t c;
@@ -660,31 +678,31 @@ long zterp_io_getc(zterp_io *io)
         ret = (c & 0x1f) << 6;
 
         READ_BYTE(&c);
-
         ret |= (c & 0x3f);
     } else if ((c & 0xf0) == 0xe0) { // Three bytes.
         ret = (c & 0x0f) << 12;
 
         READ_BYTE(&c);
-
         ret |= ((c & 0x3f) << 6);
 
         READ_BYTE(&c);
-
         ret |= (c & 0x3f);
     } else if ((c & 0xf8) == 0xf0) { // Four bytes.
-        // The Z-machine doesn’t support Unicode this large, but at least
-        // try not to leave a partial character in the stream.
-        for (int i = 0; i < 3; i++) {
-            READ_BYTE(&c);
-        }
+        ret = ((long)c & 0x07) << 18;
 
-        ret = UNICODE_REPLACEMENT;
+        READ_BYTE(&c);
+        ret |= (c & 0x3f) << 12;
+
+        READ_BYTE(&c);
+        ret |= (c & 0x3f) << 6;
+
+        READ_BYTE(&c);
+        ret |= (c & 0x3f);
     } else { // Invalid value.
         ret = UNICODE_REPLACEMENT;
     }
 
-    if (ret > UINT16_MAX) {
+    if (limit16 && ret > UINT16_MAX) {
         ret = UNICODE_REPLACEMENT;
     }
 
@@ -697,24 +715,31 @@ long zterp_io_getc(zterp_io *io)
 
 // Write a Unicode character as UTF-8. If this fails it may write a
 // partial character.
-bool zterp_io_putc(zterp_io *io, uint16_t c)
+bool zterp_io_putc(zterp_io *io, uint32_t c)
 {
-    uint8_t hi = c >> 8, lo = c & 0xff;
-
     if (textmode(io) && c == UNICODE_LINEFEED) {
         c = '\n';
     }
 
+    if (c >= 0x110000) {
+        c = UNICODE_REPLACEMENT;
+    }
+
 #define WRITE(c)	do { if (!zterp_io_write8(io, (c))) { return false; } } while (false)
-    if (c < 128) {
+    if (c < 0x80) {
         WRITE(c);
-    } else if (c < 2048) {
-        WRITE(0xc0 | (hi << 2) | (lo >> 6));
-        WRITE(0x80 | (lo & 0x3f));
-    } else {
-        WRITE(0xe0 | (hi >> 4));
-        WRITE(0x80 | ((hi << 2) & 0x3f) | (lo >> 6));
-        WRITE(0x80 | (lo & 0x3f));
+    } else if (c < 0x800) {
+        WRITE(0xc0 | ((c >> 6) & 0x1f));
+        WRITE(0x80 | ((c     ) & 0x3f));
+    } else if (c < 0x10000) {
+        WRITE(0xe0 | ((c >> 12) & 0x0f));
+        WRITE(0x80 | ((c >>  6) & 0x3f));
+        WRITE(0x80 | ((c      ) & 0x3f));
+    } else if (c < 0x110000) {
+        WRITE(0xf0 | ((c >> 18) & 0x07));
+        WRITE(0x80 | ((c >> 12) & 0x3f));
+        WRITE(0x80 | ((c >>  6) & 0x3f));
+        WRITE(0x80 | ((c      ) & 0x3f));
     }
 #undef WRITE
 
@@ -743,7 +768,7 @@ long zterp_io_readline(zterp_io *io, uint16_t *buf, size_t len)
     }
 
     for (ret = 0; ret < len; ret++) {
-        long c = zterp_io_getc(io);
+        long c = zterp_io_getc(io, true);
 
         // EOF before newline means there was a problem.
         if (c == -1) {

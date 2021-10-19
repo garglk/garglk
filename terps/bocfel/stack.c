@@ -81,7 +81,6 @@ struct save_state {
     uint8_t *quetzal;
     long quetzal_size;
 
-    time_t when;
     char *desc;
 
     struct save_state *prev, *next;
@@ -117,20 +116,27 @@ static struct save_state *new_save_state(enum SaveType savetype, const char *des
 
     new = malloc(sizeof *new);
     if (new != NULL) {
+        char formatted_time[128];
+
         new->savetype = savetype;
         new->quetzal = NULL;
         new->quetzal_size = 0;
+        new->desc = NULL;
+
+        if (desc == NULL) {
+            struct tm *tm = localtime(&(time_t){ time(NULL) });
+
+            if (tm != NULL && strftime(formatted_time, sizeof formatted_time, "%c", tm) != 0) {
+                desc = formatted_time;
+            }
+        }
 
         if (desc != NULL) {
             new->desc = malloc(strlen(desc) + 1);
             if (new->desc != NULL) {
                 strcpy(new->desc, desc);
             }
-        } else {
-            new->desc = NULL;
         }
-
-        new->when = time(NULL);
     }
 
     return new;
@@ -140,6 +146,7 @@ static void free_save_state(struct save_state *s)
 {
     if (s != NULL) {
         free(s->quetzal);
+        free(s->desc);
         free(s);
     }
 }
@@ -646,20 +653,42 @@ static TypeID write_args(zterp_io *savefile, void *data)
     return &"Args";
 }
 
-static TypeID write_undo(zterp_io *savefile, void *data)
+static void write_undo_msav(zterp_io *savefile, enum SaveStackType type)
 {
-    struct save_stack *s = &save_stacks[SaveStackGame];
+    struct save_stack *s = &save_stacks[type];
 
     zterp_io_write32(savefile, 0); // Version
     zterp_io_write32(savefile, s->count);
 
     for (const struct save_state *state = s->tail; state != NULL; state = state->prev) {
-        zterp_io_write8(savefile, state->savetype);
+        if (type == SaveStackGame) {
+            zterp_io_write8(savefile, state->savetype);
+        } else if (type == SaveStackUser) {
+            if (state->desc == NULL) {
+                zterp_io_write32(savefile, 0);
+            } else {
+                zterp_io_write32(savefile, strlen(state->desc));
+                zterp_io_write_exact(savefile, state->desc, strlen(state->desc));
+            }
+        }
+
         zterp_io_write32(savefile, state->quetzal_size);
         zterp_io_write_exact(savefile, state->quetzal, state->quetzal_size);
     }
+}
+
+static TypeID write_undo(zterp_io *savefile, void *data)
+{
+    write_undo_msav(savefile, SaveStackGame);
 
     return &"Undo";
+}
+
+static TypeID write_msav(zterp_io *savefile, void *data)
+{
+    write_undo_msav(savefile, SaveStackUser);
+
+    return &"MSav";
 }
 
 static void write_chunk(zterp_io *io, TypeID (*writefunc)(zterp_io *savefile, void *data), void *data)
@@ -691,7 +720,7 @@ static void write_chunk(zterp_io *io, TypeID (*writefunc)(zterp_io *savefile, vo
 // BFZS instead of IFZS to prevent the files from being used by a normal
 // @restore (as they are not compatible). See `Quetzal.md` for a
 // description of how BFZS differs from IFZS.
-static bool save_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOpcode saveopcode, bool store_history)
+static bool save_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOpcode saveopcode, bool on_save_stack)
 {
     long file_size;
     bool is_bfzs = savetype == SaveTypeMeta || savetype == SaveTypeAutosave;
@@ -711,9 +740,17 @@ static bool save_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOp
     write_chunk(savefile, write_mem, NULL);
     write_chunk(savefile, write_stks, NULL);
     write_chunk(savefile, write_anno, NULL);
+    write_chunk(savefile, meta_write_bfnt, NULL);
 
-    if (store_history) {
+    // When saving to a stack (either for undo or for in-memory saves),
+    // don’t store history or persistent transcripts. History is
+    // pointless, since the user can see this history already, and
+    // persistent transcripts want to track what actually happened. If
+    // the user types UNDO, for example, that should be reflected in the
+    // transcript.
+    if (on_save_stack) {
         write_chunk(savefile, screen_write_bfhs, NULL);
+        write_chunk(savefile, screen_write_bfts, NULL);
     }
 
     // When restoring a meta save, @read will be called to bring the user
@@ -730,6 +767,7 @@ static bool save_quetzal(zterp_io *savefile, enum SaveType savetype, enum SaveOp
 
     if (savetype == SaveTypeAutosave) {
         write_chunk(savefile, write_undo, NULL);
+        write_chunk(savefile, write_msav, NULL);
         write_chunk(savefile, random_write_rand, NULL);
     }
 
@@ -984,14 +1022,16 @@ err:
     return false;
 }
 
-// Any errors reading the Undo chunk are ignored. It’s better to have a
-// valid autorestore with no undo than no autorestore at all.
-static void read_undo(zterp_io *savefile, uint32_t size)
+// Any errors reading the Undo and MSav chunks are ignored. It’s better
+// to have a valid autorestore with no undo/user saves than no
+// autorestore at all.
+static void read_undo_msav(zterp_io *savefile, uint32_t size, enum SaveStackType type)
 {
     uint32_t version;
     uint32_t count;
-    struct save_stack *save_stack = &save_stacks[SaveStackGame];
+    struct save_stack *save_stack = &save_stacks[type];
     size_t actual_size = 0;
+    bool updated_seen_save_undo = seen_save_undo;
 
     if (!zterp_io_read32(savefile, &version) ||
         version != 0 ||
@@ -1004,39 +1044,82 @@ static void read_undo(zterp_io *savefile, uint32_t size)
 
     clear_save_stack(save_stack);
 
-    for (uint32_t i = 0; i < count && i < save_stack->max; i++) {
-        uint8_t savetype;
+    for (uint32_t i = 0; i < count; i++) {
+        uint8_t savetype = SaveTypeMeta;
+        char *desc = NULL;
         uint32_t quetzal_size;
         uint8_t *quetzal = NULL;
         struct save_state *new;
 
-        if (!zterp_io_read8(savefile, &savetype) ||
-            (savetype != SaveTypeNormal && savetype != SaveTypeMeta) ||
-            !zterp_io_read32(savefile, &quetzal_size) ||
+        if (type == SaveStackGame) {
+            if (!zterp_io_read8(savefile, &savetype) ||
+                (savetype != SaveTypeNormal && savetype != SaveTypeMeta)) {
+
+                clear_save_stack(save_stack);
+                return;
+            }
+
+            if (savetype == SaveTypeNormal) {
+                updated_seen_save_undo = true;
+            }
+
+            actual_size += 1;
+        } else if (type == SaveStackUser) {
+            uint32_t desc_size;
+
+            if (!zterp_io_read32(savefile, &desc_size) ||
+                (desc = malloc(desc_size + 1)) == NULL ||
+                !zterp_io_read_exact(savefile, desc, desc_size)) {
+
+                clear_save_stack(save_stack);
+                return;
+            }
+
+            desc[desc_size] = 0;
+
+            actual_size += 4 + desc_size;
+        }
+
+        if (!zterp_io_read32(savefile, &quetzal_size) ||
             (quetzal = malloc(quetzal_size)) == NULL ||
             !zterp_io_read_exact(savefile, quetzal, quetzal_size) ||
-            (new = new_save_state(savetype, NULL)) == NULL) {
+            (new = new_save_state(savetype, desc)) == NULL) {
 
+            free(desc);
             free(quetzal);
             clear_save_stack(save_stack);
             return;
         }
 
-        actual_size += 1 + 4 + quetzal_size;
-
-        if (new->savetype == SaveTypeNormal) {
-            seen_save_undo = true;
-        }
+        free(desc);
 
         new->quetzal = quetzal;
         new->quetzal_size = quetzal_size;
+        actual_size += 4 + quetzal_size;
 
-        push_save_state(save_stack, new);
+        if (count - i > save_stack->max) {
+            free_save_state(new);
+        } else {
+            push_save_state(save_stack, new);
+        }
     }
 
     if (actual_size != size) {
         clear_save_stack(save_stack);
+        return;
     }
+
+    seen_save_undo = updated_seen_save_undo;
+}
+
+static void read_undo(zterp_io *savefile, uint32_t size)
+{
+    read_undo_msav(savefile, size, SaveStackGame);
+}
+
+static void read_msav(zterp_io *savefile, uint32_t size)
+{
+    read_undo_msav(savefile, size, SaveStackUser);
 }
 
 // Earlier versions of Bocfel’s meta-saves neglected to take into
@@ -1119,14 +1202,24 @@ static bool restore_quetzal(zterp_io *savefile, enum SaveType savetype, enum Sav
         goto_err("detected incompatible meta save: please file a bug report at https://bocfel.org/issues");
     }
 
-    if (is_bfzs && savetype == SaveTypeAutosave && zterp_iff_find(iff, &"Undo", &size)) {
-        read_undo(savefile, size);
+    if (is_bfzs && savetype == SaveTypeAutosave) {
+        if (zterp_iff_find(iff, &"Undo", &size)) {
+            read_undo(savefile, size);
+        }
+
+        if (zterp_iff_find(iff, &"MSav", &size)) {
+            read_msav(savefile, size);
+        }
     }
 
     stash_backup();
 
     if (!read_mem(iff, savefile) || !read_stks(iff, savefile)) {
         goto err;
+    }
+
+    if (zterp_iff_find(iff, &"Bfnt", &size)) {
+        meta_read_bfnt(savefile, size);
     }
 
     if (zterp_iff_find(iff, &"Bfhs", &size)) {
@@ -1144,6 +1237,10 @@ static bool restore_quetzal(zterp_io *savefile, enum SaveType savetype, enum Sav
         screen_printf(">");
     }
 
+    if (zterp_iff_find(iff, &"Bfts", &size)) {
+        screen_read_bfts(savefile, size);
+    }
+
     if (is_bfzs && !is_bfms) {
         // This must be the last restore call, since it can ultimately
         // wind up modifying the screen state in an irreversible way.
@@ -1152,8 +1249,8 @@ static bool restore_quetzal(zterp_io *savefile, enum SaveType savetype, enum Sav
         }
     }
 
-    zterp_iff_free(iff);
     stash_free();
+    zterp_iff_free(iff);
 
     pc = newpc;
 
@@ -1167,11 +1264,20 @@ err:
         die("the system is likely in an inconsistent state");
     }
 
-    // A snapshot may have been taken, but neither memory nor the stacks
-    // have been overwritten, so just free the snapshot. Restore zargs in
-    // case this was a meta save that updated it before failure.
+    // If an autosave fails, clear the save stacks: autosaves can
+    // contain save data that might have been loaded already. These
+    // could use the stash mechanism, but since autosaves are loaded
+    // before anything happens, it is guaranteed that the stacks were
+    // empty before the restore process started. This is faster and
+    // simpler than stashing.
+    if (is_bfzs && savetype == SaveTypeAutosave) {
+        clear_save_stack(&save_stacks[SaveStackGame]);
+        clear_save_stack(&save_stacks[SaveStackUser]);
+    }
+
     stash_free();
     zterp_iff_free(iff);
+
     return false;
 }
 
@@ -1179,15 +1285,15 @@ err:
 
 static bool open_savefile(enum SaveType savetype, enum zterp_io_mode mode, zterp_io **savefile)
 {
-    char autosave_name[1024];
+    char autosave_name[ZTERP_OS_PATH_SIZE];
     const char *filename = NULL;
 
     if (savetype == SaveTypeAutosave) {
-        if (!zterp_os_autosave_name(autosave_name, sizeof autosave_name)) {
+        if (!zterp_os_autosave_name(&autosave_name)) {
             return false;
-        } else {
-            filename = autosave_name;
         }
+
+        filename = autosave_name;
     }
 
     *savefile = zterp_io_open(filename, mode, ZTERP_IO_PURPOSE_SAVE);
@@ -1301,22 +1407,22 @@ void zrestore(void)
 }
 
 // Push the current state onto the specified save stack.
-bool push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc)
+enum SaveResult push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc)
 {
     struct save_stack *s = &save_stacks[type];
     struct save_state *new;
     zterp_io *savefile = NULL;
 
-    if (options.max_saves == 0) {
-        return false;
+    if (s->max == 0) {
+        return SaveResultUnavailable;
     }
 
     new = new_save_state(savetype, desc);
     if (new == NULL) {
-        return false;
+        return SaveResultFailure;
     }
 
-    savefile = zterp_io_open_memory(NULL, 0);
+    savefile = zterp_io_open_memory(NULL, 0, ZTERP_IO_MODE_WRONLY);
     if (savefile == NULL) {
         goto err;
     }
@@ -1331,7 +1437,7 @@ bool push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode 
 
     push_save_state(s, new);
 
-    return true;
+    return SaveResultSuccess;
 
 err:
     if (savefile != NULL) {
@@ -1339,7 +1445,7 @@ err:
     }
     free_save_state(new);
 
-    return false;
+    return SaveResultFailure;
 }
 
 // Remove the first “n” saves from the specified stack. If there are
@@ -1382,7 +1488,7 @@ bool pop_save(enum SaveStackType type, long saveno, enum SaveOpcode *saveopcode)
         p = p->next;
     }
 
-    savefile = zterp_io_open_memory(p->quetzal, p->quetzal_size);
+    savefile = zterp_io_open_memory(p->quetzal, p->quetzal_size, ZTERP_IO_MODE_RDONLY);
     if (savefile == NULL) {
         return false;
     }
@@ -1435,27 +1541,13 @@ void list_saves(enum SaveStackType type, void (*printer)(const char *))
     }
 
     for (struct save_state *p = s->tail; p != NULL; p = p->prev) {
-        char formatted_time[128];
-        // “buf” will store either the formatted time or the user-provided
-        // description; the description comes from @read, which will never
-        // read more than 256 characters. Pad to accommodate the index,
-        // newline, and potential asterisk.
-        char buf[300];
-        struct tm *tm;
-        const char *desc;
-
-        tm = localtime(&p->when);
-        if (tm == NULL || strftime(formatted_time, sizeof formatted_time, "%c", tm) == 0) {
-            snprintf(formatted_time, sizeof formatted_time, "<no time information>");
-        }
+        char buf[4096];
 
         if (p->desc != NULL) {
-            desc = p->desc;
+            snprintf(buf, sizeof buf, "%ld. %s%s", nsaves--, p->desc, p->prev == NULL ? " *" : "");
         } else {
-            desc = formatted_time;
+            snprintf(buf, sizeof buf, "<no description>");
         }
-
-        snprintf(buf, sizeof buf, "%ld. %s%s", nsaves--, desc, p->prev == NULL ? " *" : "");
         printer(buf);
     }
 }
@@ -1480,7 +1572,22 @@ void zsave_undo(void)
             seen_save_undo = true;
         }
 
-        store(push_save(SaveStackGame, SaveTypeNormal, SaveOpcodeNone, NULL));
+        switch (push_save(SaveStackGame, SaveTypeNormal, SaveOpcodeNone, NULL)) {
+        case SaveResultSuccess:
+            store(1);
+            break;
+        case SaveResultFailure:
+            store(0);
+            break;
+        // @save_undo must return -1 if undo is not available. The only
+        // time that’s the case with Bocfel is if the user has requested
+        // 0 save slots. Otherwise, @save_undo might still fail as a
+        // result of low memory, but that’s a transient failure for
+        // which 0 will be returned.
+        case SaveResultUnavailable:
+            store(0xffff);
+            break;
+        }
     }
 }
 
@@ -1617,10 +1724,9 @@ static void frames_stash_free(void)
     free(frames_backup);
     frames_backup = NULL;
 }
-void init_stack(void)
-{
-    static bool first_run = true;
 
+void init_stack(bool first_run)
+{
     // Allocate space for the evaluation and call stacks.
     // Clamp the size between 1 and the largest value that will not
     // produce an overflow of size_t when multiplied by the size of the
@@ -1651,8 +1757,6 @@ void init_stack(void)
         stash_register(memory_stash_backup, memory_stash_restore, memory_stash_free);
         stash_register(stack_stash_backup, stack_stash_restore, stack_stash_free);
         stash_register(frames_stash_backup, frames_stash_restore, frames_stash_free);
-
-        first_run = false;
     }
 
     sp = BASE_OF_STACK;

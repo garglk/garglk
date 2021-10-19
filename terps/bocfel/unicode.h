@@ -20,6 +20,7 @@
 #define ZSCII_NEWLINE		13
 #define ZSCII_ESCAPE		27
 #define ZSCII_SPACE		32
+#define ZSCII_PERIOD		46
 #define ZSCII_QUESTIONMARK	63
 #define ZSCII_UP		129
 #define ZSCII_DOWN		130

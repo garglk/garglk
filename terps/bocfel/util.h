@@ -11,7 +11,14 @@
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
 #define znoreturn		__attribute__((__noreturn__))
+#ifdef __MINGW32__
+// Gcc appears to default to ms_printf on MinGW, even when it is
+// providing standards-conforming printf() functionality (i.e. if
+// __USE_MINGW_ANSI_STDIO is defined), so force gnu_printf there.
+#define zprintflike(f, a)	__attribute__((__format__(__gnu_printf__, f, a)))
+#else
 #define zprintflike(f, a)	__attribute__((__format__(__printf__, f, a)))
+#endif
 #else
 #define znoreturn
 #define zprintflike(f, a)

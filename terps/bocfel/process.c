@@ -367,6 +367,7 @@ void process_instructions(void)
         handled_autosave = true;
 
         if (do_restore(SaveTypeAutosave, &saveopcode)) {
+            show_message("Continuing last session from autosave");
             interrupt_restore(saveopcode);
         }
     }

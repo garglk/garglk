@@ -51,6 +51,7 @@
 #include "process.h"
 #include "sound.h"
 #include "stack.h"
+#include "stash.h"
 #include "unicode.h"
 #include "util.h"
 #include "zterp.h"
@@ -113,7 +114,7 @@ static winid_t errorwin;
 #define STREAM_SCRIPT		(1U << 4)
 
 static unsigned int streams = STREAM_SCREEN;
-static zterp_io *transio, *scriptio;
+static zterp_io *scriptio, *transio, *perstransio;
 
 #define MAX_STREAM_TABLES	16
 static struct {
@@ -420,6 +421,17 @@ void screen_set_header_bit(bool set)
     }
 }
 
+static void transcribe(uint32_t c)
+{
+    if (streams & STREAM_TRANS) {
+        zterp_io_putc(transio, c);
+    }
+
+    if (perstransio != NULL) {
+        zterp_io_putc(perstransio, c);
+    }
+}
+
 // Print out a character. The character is in “c” and is either Unicode
 // or ZSCII; if the former, “unicode” is true. This is meant for any
 // output produced by the game, as opposed to output produced by the
@@ -513,26 +525,24 @@ static void put_char_base(uint16_t c, bool unicode)
             }
 #endif
 
-            // Don’t check streams here: for quote boxes (which are in the
-            // upper window, and thus not transcribed), both Infocom and
-            // Inform games turn off the screen stream and write a duplicate
-            // copy of the quote, so it appears in a transcript (if any is
-            // occurring). In short, assume that if a game is writing text
-            // with the screen stream turned off, it’s doing so with the
-            // expectation that it appear in a transcript, which means it also
-            // ought to appear in the history.
             if (curwin == mainwin) {
+                // Don’t check streams here: for quote boxes (which are in the
+                // upper window, and thus not transcribed), both Infocom and
+                // Inform games turn off the screen stream and write a duplicate
+                // copy of the quote, so it appears in a transcript (if any is
+                // occurring). In short, assume that if a game is writing text
+                // with the screen stream turned off, it’s doing so with the
+                // expectation that it appear in a transcript, which means it also
+                // ought to appear in the history.
                 history_add_char(c);
+
+                transcribe(c);
             }
 
             // If the reverse video bit was flipped (for the character font), flip it back.
             if (zscii >= 123 && zscii <= 126) {
                 style_window->style ^= STYLE_REVERSE;
                 set_current_style();
-            }
-
-            if ((streams & STREAM_TRANS) && curwin == mainwin) {
-                zterp_io_putc(transio, c);
             }
         }
     }
@@ -548,31 +558,62 @@ void put_char(uint8_t c)
     put_char_base(c, false);
 }
 
-// Print a C string to the main window. This bypasses the “normal”
-// printing code mainly to avoid writing to another output stream. This
-// function is intended for writing text that is outside of the game.
+// Print a C string (UTF-8) to the main window. This bypasses the
+// “normal” printing code mainly to avoid writing to another output
+// stream. This function is intended for writing text that is outside of
+// the game.
 void screen_print(const char *s)
 {
 #ifdef ZTERP_GLK
+    zterp_io *io = zterp_io_open_memory(s, strlen(s), ZTERP_IO_MODE_RDONLY);
     strid_t stream = glk_window_get_stream(mainwin->id);
-    for (size_t i = 0; s[i] != 0; i++) {
-        GLK_PUT_CHAR_STREAM(stream, char_to_unicode(s[i]));
+    for (long c = zterp_io_getc(io, false); c != -1; c = zterp_io_getc(io, false)) {
+        GLK_PUT_CHAR_STREAM(stream, c);
     }
+    zterp_io_close(io);
 #else
     printf("%s", s);
 #endif
 }
 
+static char *get_message(const char *fmt, va_list ap)
+{
+    va_list ap_copy;
+    char *message;
+    size_t n;
+
+    va_copy(ap_copy, ap);
+
+    n = vsnprintf(NULL, 0, fmt, ap);
+
+    message = malloc(n + 1);
+    if (message == NULL) {
+        screen_puts("[unable to allocate memory to print string]\n");
+    } else {
+        vsnprintf(message, n + 1, fmt, ap_copy);
+    }
+
+    va_end(ap_copy);
+
+    return message;
+}
+
 void screen_printf(const char *fmt, ...)
 {
     va_list ap;
-    char message[1024];
+    char *message;
 
     va_start(ap, fmt);
-    vsnprintf(message, sizeof message, fmt, ap);
+    message = get_message(fmt, ap);
     va_end(ap);
 
+    if (message == NULL) {
+        return;
+    }
+
     screen_print(message);
+
+    free(message);
 }
 
 void screen_puts(const char *s)
@@ -584,11 +625,15 @@ void screen_puts(const char *s)
 void show_message(const char *fmt, ...)
 {
     va_list ap;
-    char message[1024];
+    char *message;
 
     va_start(ap, fmt);
-    vsnprintf(message, sizeof message, fmt, ap);
+    message = get_message(fmt, ap);
     va_end(ap);
+
+    if (message == NULL) {
+        return;
+    }
 
 #ifdef ZTERP_GLK
     static glui32 error_lines = 0;
@@ -628,6 +673,8 @@ void show_message(const char *fmt, ...)
     {
         screen_printf("\n[%s]\n", message);
     }
+
+    free(message);
 }
 
 void screen_message_prompt(const char *message)
@@ -917,7 +964,7 @@ void get_screen_size(unsigned int *width, unsigned int *height)
     // actually useful, even though the game expands it to cover the whole
     // screen. By pretending that the screen height is only 6, the main
     // window, where text is actually sent, becomes visible.
-    if (is_journey() && *height > 6) {
+    if (is_game(GameJourney) && *height > 6) {
         *height = 6;
     }
 }
@@ -1631,7 +1678,7 @@ static bool istream_read_from_file(struct input *input)
         // certainly a command script from a Windows system being run on a
         // non-Windows system, so ignore them.
         do {
-            c = zterp_io_getc(istreamio);
+            c = zterp_io_getc(istreamio, true);
         } while (c == UNICODE_CARRIAGE_RETURN);
 
         if (c == -1) {
@@ -1782,6 +1829,7 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
 #endif
     zterp_io_flush(scriptio);
     zterp_io_flush(transio);
+    zterp_io_flush(perstransio);
 
     // Generally speaking, newline will be the reason the line input
     // stopped, so set it by default. It will be overridden where
@@ -1898,13 +1946,16 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
             // bug.
             //
             // At any rate, given how haphazard the arrow keys act under V4, they
-            // (and all other non-ASCII input) are just completely ignored here.
-            // This does no harm for Bureaucracy, since ENTER and ^ can be used. All
-            // values which are outside the range [32, 126] are ignored save for
-            // ENTER and BACKSPACE. As a result, Bureaucracy will not accidentally
-            // print out invalid values (since only valid values will be read).
-            // This, again, is in violation of the Standard, but is in fact the
-            // behavior expected by Infocom according to their EZIP documentation.
+            // are just completely ignored here. This does no harm for Bureaucracy,
+            // since ENTER and ^ can be used. In fact, all input which is not also
+            // defined for output (save for BACKSPACE, given that Bureaucracy
+            // properly handles it) is ignored. As a result, Bureaucracy will not
+            // accidentally print out invalid values (since only valid values will
+            // be read). This violates both the Standard (since that allows all
+            // values defined for input) and the EZIP documentation (since that
+            // mandates ASCII only), but hopefully provides the best experience
+            // overall: Unicode values are allowed, but Bureaucracy no longer tries
+            // to print out invalid characters.
             //
             // Note that if function keys are supported in V4, Bureaucracy will pass
             // them along to @print_char, even though they’re not valid for output,
@@ -1918,6 +1969,12 @@ static bool get_input(uint16_t timer, uint16_t routine, struct input *input)
                 default:
                     if (ev.val1 >= 32 && ev.val1 <= 126) {
                         input->key = ev.val1;
+                    } else if (ev.val1 < UINT16_MAX) {
+                        uint8_t c = unicode_to_zscii[ev.val1];
+
+                        if (c != 0) {
+                            input->key = c;
+                        }
                     } else {
                         status = InputWaiting;
                         request_char();
@@ -2223,7 +2280,23 @@ void zshow_status(void)
             snprintf(rhs, sizeof rhs, "%02ld:%02ld", first, second);
         }
     } else {
-        snprintf(rhs, sizeof rhs, "Score: %ld  Moves: %ld ", first, second);
+        // Planetfall and Stationfall are score games, except the value
+        // in the second global variable is the current Galactic
+        // Standard Time, not the number of moves. Most of Infocom’s
+        // interpreters displayed the score and moves as “score/moves”
+        // so it didn’t look flat-out wrong to have a value that wasn’t
+        // actually the number of moves. When it’s spelled out as
+        // “Moves”, though, then the display is obviously wrong. For
+        // these two games, rewrite “Moves” as “Time”. Note that this is
+        // how it looks in the Solid Gold version, which is V5, meaning
+        // Infocom had full control over the status line, implying it is
+        // the most correct display.
+        if (is_game(GamePlanetfall) || is_game(GameStationfall)) {
+            snprintf(rhs, sizeof rhs, "Score: %ld  Time: %ld ", first, second);
+        } else {
+            snprintf(rhs, sizeof rhs, "Score: %ld  Moves: %ld ", first, second);
+        }
+
         if (strlen(rhs) > width) {
             snprintf(rhs, sizeof rhs, "%ld/%ld", first, second);
         }
@@ -2259,6 +2332,10 @@ static bool read_handler(void)
     struct input input = { .type = INPUT_LINE, .maxlen = maxchars };
     uint16_t timer = 0;
     uint16_t routine = zargs[3];
+
+    if (options.autosave && !in_interrupt()) {
+        do_save(SaveTypeAutosave, SaveOpcodeRead);
+    }
 
 #ifdef ZTERP_GLK
     starting_x = upperwin->x + 1;
@@ -2428,38 +2505,34 @@ static bool read_handler(void)
         }
     }
 
-    if (options.enable_escape && (streams & STREAM_TRANS)) {
-        zterp_io_putc(transio, 033);
-        zterp_io_putc(transio, '[');
-        for (int i = 0; options.escape_string[i] != 0; i++) {
-            zterp_io_putc(transio, options.escape_string[i]);
-        }
-    }
-
     if (curwin == mainwin) {
         history_add_input(input.line, input.len);
     }
 
+    if (options.enable_escape) {
+        transcribe(033);
+        transcribe('[');
+        for (int i = 0; options.escape_string[i] != 0; i++) {
+            transcribe(options.escape_string[i]);
+        }
+    }
+
     for (int i = 0; i < input.len; i++) {
         zscii_string[i] = unicode_to_zscii_q[unicode_tolower(input.line[i])];
-        if (streams & STREAM_TRANS) {
-            zterp_io_putc(transio, input.line[i]);
-        }
+        transcribe(input.line[i]);
         if (streams & STREAM_SCRIPT) {
             zterp_io_putc(scriptio, input.line[i]);
         }
     }
 
-    if (options.enable_escape && (streams & STREAM_TRANS)) {
-        zterp_io_putc(transio, 033);
-        zterp_io_putc(transio, '[');
-        zterp_io_putc(transio, '0');
-        zterp_io_putc(transio, 'm');
+    if (options.enable_escape) {
+        transcribe(033);
+        transcribe('[');
+        transcribe('0');
+        transcribe('m');
     }
 
-    if (streams & STREAM_TRANS) {
-        zterp_io_putc(transio, UNICODE_LINEFEED);
-    }
+    transcribe(UNICODE_LINEFEED);
     if (streams & STREAM_SCRIPT) {
         zterp_io_putc(scriptio, UNICODE_LINEFEED);
     }
@@ -2491,10 +2564,6 @@ static bool read_handler(void)
 
 void zread(void)
 {
-    if (options.autosave && !in_interrupt()) {
-        do_save(SaveTypeAutosave, SaveOpcodeRead);
-    }
-
     while (!read_handler()) {
     }
 }
@@ -2747,7 +2816,7 @@ bool create_mainwin(void)
     glk_stylehint_set(wintype_AllTypes, style_Note, stylehint_Proportional, 0);
 #endif
 
-    mainwin->id = glk_window_open(0, 0, 0, wintype_TextBuffer, 1);
+    mainwin->id = glk_window_open(NULL, 0, 0, wintype_TextBuffer, 1);
     if (mainwin->id == NULL) {
         return false;
     }
@@ -2811,46 +2880,6 @@ bool create_upperwin(void)
 #else
     return false;
 #endif
-}
-
-void init_screen(void)
-{
-    for (int i = 0; i < 8; i++) {
-        windows[i].style = STYLE_NONE;
-        windows[i].fg_color = windows[i].bg_color = DEFAULT_COLOR();
-        windows[i].font = FONT_NORMAL;
-
-#ifdef ZTERP_GLK
-        clear_window(&windows[i]);
-#endif
-    }
-
-    close_upper_window();
-
-#ifdef ZTERP_GLK
-    if (statuswin.id != NULL) {
-        glk_window_clear(statuswin.id);
-    }
-
-    if (errorwin != NULL) {
-        glk_window_close(errorwin, NULL);
-        errorwin = NULL;
-    }
-
-    stop_timer();
-
-#else
-    have_unicode = true;
-#endif
-
-    // On restart, deselect stream 3 and select stream 1. This allows
-    // the command script and transcript to persist across restarts,
-    // while resetting memory output and ensuring screen output.
-    streams &= ~STREAM_MEMORY;
-    streams |= STREAM_SCREEN;
-    stream_tables_index = -1;
-
-    set_current_window(mainwin);
 }
 
 // Write out the screen state for a Scrn chunk.
@@ -3124,7 +3153,7 @@ void screen_read_bfhs(zterp_io *io, bool autosave)
             history_add_input_end();
             break;
         case HistTypeChar:
-            c = zterp_io_getc(io);
+            c = zterp_io_getc(io, true);
             if (c == -1) {
                 goto end;
             }
@@ -3146,4 +3175,204 @@ end:
     }
     *mainwin = saved;
     set_window_style(mainwin);
+}
+
+TypeID screen_write_bfts(zterp_io *io, void *data)
+{
+    const uint8_t *buf;
+    long n;
+
+    if (!options.persistent_transcript ||
+        perstransio == NULL ||
+        !zterp_io_get_memory(perstransio, &buf, &n)) {
+
+        return NULL;
+    }
+
+    zterp_io_write32(io, 0); // Version
+    zterp_io_write_exact(io, buf, n);
+
+    return &"Bfts";
+}
+
+void screen_read_bfts(zterp_io *io, uint32_t size)
+{
+    uint32_t version;
+    uint8_t *buf = NULL;
+
+    if (size < 4) {
+        show_message("Corrupted Bfts entry (too small)");
+    }
+
+    if (!zterp_io_read32(io, &version)) {
+        show_message("Unable to read persistent transcript size from save file");
+        return;
+    }
+
+    if (version != 0) {
+        show_message("Unsupported Bfts version %lu", (unsigned long)version);
+        return;
+    }
+
+    // The size of the transcript is the size of the whole chunk minus
+    // the 32-bit version.
+    size -= 4;
+
+    buf = malloc(size);
+    if (buf == NULL) {
+        show_message("Unable to allocate memory for persistent transcript");
+        return;
+    }
+
+    if (!zterp_io_read_exact(io, buf, size)) {
+        free(buf);
+        show_message("Unable to read persistent transcript from save file");
+        return;
+    }
+
+    if (perstransio != NULL) {
+        zterp_io_close(perstransio);
+    }
+
+    perstransio = zterp_io_open_memory(buf, size, ZTERP_IO_MODE_WRONLY);
+    free(buf);
+
+    if (!zterp_io_seek(perstransio, 0, SEEK_END)) {
+        zterp_io_close(perstransio);
+        perstransio = NULL;
+    }
+}
+
+static uint8_t *perstrans_backup;
+static size_t perstrans_backup_size;
+
+static void perstrans_stash_backup(void)
+{
+    const uint8_t *buf;
+    long n;
+
+    perstrans_backup = NULL;
+
+    if (!options.persistent_transcript ||
+        perstransio == NULL ||
+        !zterp_io_get_memory(perstransio, &buf,  &n) ||
+        (perstrans_backup = malloc(n)) == NULL) {
+
+        free(perstrans_backup);
+        return;
+    }
+
+    memcpy(perstrans_backup, buf, n);
+    perstrans_backup_size = n;
+}
+
+// Never fail: this is an optional chunk so isn’t fatal on error.
+static bool perstrans_stash_restore(void)
+{
+    if (perstrans_backup == NULL) {
+        return true;
+    }
+
+    perstransio = zterp_io_open_memory(perstrans_backup, perstrans_backup_size, ZTERP_IO_MODE_WRONLY);
+
+    if (!zterp_io_seek(perstransio, 0, SEEK_END)) {
+        zterp_io_close(perstransio);
+        perstransio = NULL;
+    }
+
+    free(perstrans_backup);
+    perstrans_backup = NULL;
+
+    return true;
+}
+
+static void perstrans_stash_free(void)
+{
+    free(perstrans_backup);
+    perstrans_backup = NULL;
+}
+
+void screen_save_persistent_transcript(void)
+{
+    const uint8_t *buf;
+    long n;
+    zterp_io *io;
+
+    if (!options.persistent_transcript) {
+        screen_puts("[Persistent transcripting is turned off]");
+        return;
+    }
+
+    if (perstransio == NULL) {
+        screen_puts("[Persistent transcripting failed to start]");
+        return;
+    }
+
+    if (!zterp_io_get_memory(perstransio, &buf, &n)) {
+        screen_puts("[Internal error retrieving transcript]");
+        return;
+    }
+
+    io = zterp_io_open(NULL, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_TRANS);
+    if (io == NULL) {
+        screen_puts("[Failed to open file]");
+        return;
+    }
+
+    if (zterp_io_write_exact(io, buf, n)) {
+        screen_puts("[Saved]");
+    } else {
+        screen_puts("[Error writing transcript to file]");
+    }
+
+    zterp_io_close(io);
+}
+
+void init_screen(bool first_run)
+{
+    for (int i = 0; i < 8; i++) {
+        windows[i].style = STYLE_NONE;
+        windows[i].fg_color = windows[i].bg_color = DEFAULT_COLOR();
+        windows[i].font = FONT_NORMAL;
+
+#ifdef ZTERP_GLK
+        clear_window(&windows[i]);
+#endif
+    }
+
+    close_upper_window();
+
+#ifdef ZTERP_GLK
+    if (statuswin.id != NULL) {
+        glk_window_clear(statuswin.id);
+    }
+
+    if (errorwin != NULL) {
+        glk_window_close(errorwin, NULL);
+        errorwin = NULL;
+    }
+
+    stop_timer();
+
+#else
+    have_unicode = true;
+#endif
+
+    if (first_run && options.persistent_transcript) {
+        perstransio = zterp_io_open_memory(NULL, 0, ZTERP_IO_MODE_WRONLY);
+        if (perstransio == NULL) {
+            warning("Failed to start persistent transcripting");
+        }
+
+        stash_register(perstrans_stash_backup, perstrans_stash_restore, perstrans_stash_free);
+    }
+
+    // On restart, deselect stream 3 and select stream 1. This allows
+    // the command script and transcript to persist across restarts,
+    // while resetting memory output and ensuring screen output.
+    streams &= ~STREAM_MEMORY;
+    streams |= STREAM_SCREEN;
+    stream_tables_index = -1;
+
+    set_current_window(mainwin);
 }
