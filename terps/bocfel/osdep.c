@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef ZTERP_UNIX
 #define _XOPEN_SOURCE	600
@@ -28,9 +28,9 @@
 #include "zterp.h"
 
 // OS-specific functions should all be collected in this file for
-// convenience.  A sort of poor-man’s “reverse” inheritance is used: for
+// convenience. A sort of poor-man’s “reverse” inheritance is used: for
 // each function that a particular operating system provides, it should
-// #define a macro of the same name.  At the end of the file, a generic
+// #define a macro of the same name. At the end of the file, a generic
 // function is provided for each function that has no associated macro
 // definition.
 //
@@ -38,9 +38,9 @@
 //
 // long zterp_os_filesize(FILE *fp)
 //
-// Return the size of the file referred to by fp.  It is safe to assume
-// that the file is opened in binary mode.  The file position indicator
-// need not be maintained.  If the size of the file is larger than
+// Return the size of the file referred to by fp. It is safe to assume
+// that the file is opened in binary mode. The file position indicator
+// need not be maintained. If the size of the file is larger than
 // LONG_MAX, -1 should be returned.
 //
 // bool zterp_os_rcfile(char *s, size_t n)
@@ -60,25 +60,25 @@
 // This should not verify that the file exists, because the first time
 // an autosave is created, it necessarily won’t exist beforehand.
 //
-// The following functions are useful for non-Glk builds only.  They
+// The following functions are useful for non-Glk builds only. They
 // provide for some handling of screen functions that is normally taken
 // care of by Glk.
 //
 // void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 //
 // The size of the terminal, if known, is written into *w (width) and *h
-// (height).  If terminal size is unavalable, nothing should be written.
+// (height). If terminal size is unavalable, nothing should be written.
 //
 // void zterp_os_init_term(void)
 //
 // If something special needs to be done to prepare the terminal for
-// output, it should be done here.  This function is called once at
+// output, it should be done here. This function is called once at
 // program startup.
 //
 // bool zterp_os_have_style(int style)
 //
 // This should return true if the provided style (see style.h for valid
-// STYLE_ values) is available.  It is safe to assume that styles will
+// STYLE_ values) is available. It is safe to assume that styles will
 // not be combined; e.g. this will not be called as:
 // zterp_os_have_style(STYLE_BOLD | STYLE_ITALIC);
 //
@@ -88,11 +88,11 @@
 //
 // void zterp_os_set_style(int style, const struct color *fg, const struct color *bg)
 //
-// Set both a style and foreground/background color.  Any previous
+// Set both a style and foreground/background color. Any previous
 // settings should be ignored; for example, if the last call to
 // zterp_os_set_style() turned on italics and the current call sets
 // bold, the result should be bold, not bold italic.
-// Unlike in zterp_os_have_style(), here styles may be combined.  See
+// Unlike in zterp_os_have_style(), here styles may be combined. See
 // the Unix implementation for a reference.
 // The colors are pointers to “struct color”: see screen.h.
 // This function will be called unconditionally, so implementations must

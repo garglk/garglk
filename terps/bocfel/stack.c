@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -437,8 +437,8 @@ void zpush_stack(void)
     branch_if(true);
 }
 
-// Compress dynamic memory according to Quetzal.  Memory is allocated
-// for the passed-in pointer, and must be freed by the caller.  The
+// Compress dynamic memory according to Quetzal. Memory is allocated
+// for the passed-in pointer, and must be freed by the caller. The
 // return value is the size of compressed memory, or 0 on failure.
 static uint32_t compress_memory(uint8_t **compressed)
 {
@@ -448,9 +448,9 @@ static uint32_t compress_memory(uint8_t **compressed)
 
     // The output buffer needs to be 1.5× the size of dynamic memory for
     // the worst-case scenario: every other byte in memory differs from
-    // the story file.  This will cause every other byte to take up two
+    // the story file. This will cause every other byte to take up two
     // bytes in the output, thus creating 3 bytes of output for every 2 of
-    // input.  This should round up for the extreme case of alternating
+    // input. This should round up for the extreme case of alternating
     // zero/non-zero bytes with zeroes at the beginning and end, but due
     // to the fact that trailing zeroes are not stored, it does not need
     // to.
@@ -462,7 +462,7 @@ static uint32_t compress_memory(uint8_t **compressed)
     while (true) {
         long run = i;
 
-        // Count zeroes.  Stop counting when:
+        // Count zeroes. Stop counting when:
         // • The end of dynamic memory is reached, or
         // • A non-zero value is found
         while (i < header.static_start && (byte(i) ^ dynamic_memory[i]) == 0) {
@@ -788,7 +788,7 @@ static bool read_mem(zterp_iff *iff, zterp_io *savefile)
         uint8_t *buf;
 
         // Dynamic memory is 64KB, and a worst-case save should take up
-        // 1.5× that value, or 96KB.  Simply double the 64KB to avoid
+        // 1.5× that value, or 96KB. Simply double the 64KB to avoid
         // potential edge-case problems.
         if (size > 131072) {
             goto_err("reported CMem size too large (%lu bytes)", (unsigned long)size);
@@ -1342,7 +1342,7 @@ err:
     return false;
 }
 
-// Remove the first “n” saves from the specified stack.  If there are
+// Remove the first “n” saves from the specified stack. If there are
 // not enough saves available, remove all saves.
 static void trim_saves(enum SaveStackType type, long n)
 {
@@ -1397,7 +1397,7 @@ bool pop_save(enum SaveStackType type, long saveno, enum SaveOpcode *saveopcode)
     trim_saves(type, saveno + 1);
 
     // §6.1.2.2: As with @restore, header values marked with Rst (in
-    // §11) should be reset.  Unlike with @restore, it can be assumed
+    // §11) should be reset. Unlike with @restore, it can be assumed
     // that the game was saved by the same interpreter, but it cannot be
     // assumed that the screen size is the same as it was at the time
     // @save_undo was called.
@@ -1438,7 +1438,7 @@ void list_saves(enum SaveStackType type, void (*printer)(const char *))
         char formatted_time[128];
         // “buf” will store either the formatted time or the user-provided
         // description; the description comes from @read, which will never
-        // read more than 256 characters.  Pad to accommodate the index,
+        // read more than 256 characters. Pad to accommodate the index,
         // newline, and potential asterisk.
         char buf[300];
         struct tm *tm;
@@ -1468,7 +1468,7 @@ void zsave_undo(void)
 
     // If override undo is set, all calls to @save_undo are reported as
     // failure; the interpreter still reports that @save_undo is
-    // available, however.  These values will be tuned if it becomes
+    // available, however. These values will be tuned if it becomes
     // necessary (i.e. if some games behave badly).
     if (options.override_undo) {
         store(0);

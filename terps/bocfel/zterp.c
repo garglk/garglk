@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -97,7 +97,7 @@ const char *get_story_id(void)
 // zversion stores the Z-machine version of the story: 1–6.
 //
 // Z-machine versions 7 and 8 are identical to version 5 but for a
-// couple of tiny details.  They are thus classified as version 5.
+// couple of tiny details. They are thus classified as version 5.
 //
 // zwhich stores the actual version (1–8) for the few rare times where
 // this knowledge is necessary.
@@ -766,7 +766,7 @@ static void process_story(zterp_io *io, long offset)
     }
 
     // Most options directly set their respective variables, but a few
-    // require intervention.  Delay that intervention until here so that
+    // require intervention. Delay that intervention until here so that
     // the configuration file is taken into account.
     if (options.escape_string == NULL) {
         options.escape_string = xstrdup("1m");
@@ -1059,20 +1059,20 @@ int main(int argc, char **argv)
     }
 
     // It’s possible for a story to be cut short in the middle of an
-    // instruction.  If so, the processing loop will run past the end of
-    // memory.  Either pc needs to be checked each and every time it is
+    // instruction. If so, the processing loop will run past the end of
+    // memory. Either pc needs to be checked each and every time it is
     // incremented, or a small guard needs to be placed at the end of
-    // memory that will trigger an illegal instruction error.  The latter
+    // memory that will trigger an illegal instruction error. The latter
     // is done by filling the end of memory with zeroes, which do not
     // represent a valid instruction.
     //
     // There need to be at least 22 bytes for the worst case: 0xec
-    // (call_vs2) as the last byte in memory.  The next two bytes, which
+    // (call_vs2) as the last byte in memory. The next two bytes, which
     // will be zeroes, indicate that 8 large constants, or 16 bytes, will
-    // be next.  This is a store instruction, so one more byte will be
-    // read to determine where to store.  Another byte is read to
+    // be next. This is a store instruction, so one more byte will be
+    // read to determine where to store. Another byte is read to
     // determine the next opcode; this will be zero, which is nominally a
-    // 2OP, requiring two more bytes to be read.  At this point the opcode
+    // 2OP, requiring two more bytes to be read. At this point the opcode
     // will be looked up, resulting in an illegal instruction error.
     memory = malloc(memory_size + 22);
     if (memory == NULL) {

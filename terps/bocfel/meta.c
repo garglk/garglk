@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -119,7 +119,7 @@ static void meta_debug_change_inc_dec(const char *string)
                 if (CMP(new, old)) {
 #undef CMP
                     // The Z-machine does not require aligned memory access, so
-                    // both even and odd addresses must be checked.  However,
+                    // both even and odd addresses must be checked. However,
                     // global variables are word-sized, so if an address inside
                     // the global variables has changed, report only if the
                     // address is the base of globals plus a multiple of two.
@@ -570,14 +570,14 @@ static void meta_debug(char *string)
     }
 }
 
-// Try to parse a meta command.  If input should be re-requested, return
-// “string”.  If a portion of the passed-in string should be processed
+// Try to parse a meta command. If input should be re-requested, return
+// “string”. If a portion of the passed-in string should be processed
 // as user input, return a pointer to the beginning of that portion.
 //
 // There is also the possibility that a meta-command causes a saved game
-// of some kind to be restored (/undo, /restore, and /pop).  In these
+// of some kind to be restored (/undo, /restore, and /pop). In these
 // cases NULL is conceptually returned on success, meaning parsing is
-// done.  However, because interrupt_reset() is called on a successful
+// done. However, because interrupt_reset() is called on a successful
 // restore, NULL will never actually be returned because
 // interrupt_reset() will call longjmp().
 const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)

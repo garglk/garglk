@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <setjmp.h>
 #include <stdlib.h>
@@ -77,7 +77,7 @@ static void bad_type(enum type type)
 }
 
 // Certain streams are intended for use in text mode: stdin/stdout,
-// transcripts, and command scripts.  It is reasonable for users to
+// transcripts, and command scripts. It is reasonable for users to
 // expect newline translation to be properly handled in these cases,
 // even though UNICODE_LINEFEED (10), as required by Glk (Glk API 0.7.0
 // §2.2), is used internally.
@@ -91,16 +91,16 @@ static bool textmode(const struct zterp_io *io)
 
 // Glk does not like you to be able to pass a full filename to
 // glk_fileref_create_by_name(); this means that Glk cannot be used to
-// open arbitrary files.  However, Glk is still required to prompt for
-// files, such as in a save game situation.  To allow zterp_io to work
+// open arbitrary files. However, Glk is still required to prompt for
+// files, such as in a save game situation. To allow zterp_io to work
 // for opening files both with and without a prompt, it will use stdio
 // when either Glk is not available, or when Glk is available but
 // prompting is not necessary.
 //
 // This is needed because the IFF parser is required for both opening
-// games (zblorb files) and for saving/restoring.  The former needs to
+// games (zblorb files) and for saving/restoring. The former needs to
 // be able to access any file on the filesystem, and the latter needs to
-// prompt.  This is a headache.
+// prompt. This is a headache.
 //
 // Prompting is assumed to be necessary if “filename” is NULL.
 zterp_io *zterp_io_open(const char *filename, enum zterp_io_mode mode, enum zterp_io_purpose purpose)
@@ -636,7 +636,7 @@ bool zterp_io_write32(zterp_io *io, uint32_t v)
 } while (false)
 
 // zterp_io_getc() and zterp_io_putc() are meant to operate in terms of
-// characters, not bytes.  That is, unlike C, bytes and characters are
+// characters, not bytes. That is, unlike C, bytes and characters are
 // not equivalent as far as Zterp’s I/O system is concerned.
 
 // Read a UTF-8 character, returning it.
@@ -722,17 +722,17 @@ bool zterp_io_putc(zterp_io *io, uint16_t c)
 }
 
 // Read up to “len” characters, storing them in “buf”, and return the
-// number of characters read in this way.  Processing stops when a
+// number of characters read in this way. Processing stops when a
 // newline is encountered (Unicode linefeed, i.e. 0x0a); the newline is
 // consumed but is *not* stored in “buf”, nor is it included in the
 // return count.
 //
 // If no newline is encountered before “len” characters are read, any
 // remaining characters in the line will remain for the next I/O
-// operation, much in the way that fgets() operates.  If EOF is
+// operation, much in the way that fgets() operates. If EOF is
 // encountered at any point (including after characters have been read,
 // but before a newline), -1 is returned, which means that all lines,
-// including the last one, must end in a newline.  Any characters read
+// including the last one, must end in a newline. Any characters read
 // before the EOF can be considered lost and unrecoverable.
 long zterp_io_readline(zterp_io *io, uint16_t *buf, size_t len)
 {

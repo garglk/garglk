@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -69,7 +69,7 @@ void user_store_byte(uint16_t addr, uint8_t v)
 #endif
 
     // 0x10 can’t be modified, but let it slide if the story is storing
-    // the same value that’s already there.  This is useful because the
+    // the same value that’s already there. This is useful because the
     // flags at 0x10 are stored in a word, so the story possibly could use
     // @storew at 0x10 to modify the bits in 0x11.
     if (addr == 0x10 && byte(addr) == v) {

@@ -10,8 +10,8 @@
 #include "meta.h"
 #include "zterp.h"
 
-// Story files do not have access to memory beyond 64K.  If they do
-// something that would cause such access, wrap appropriately.  This is
+// Story files do not have access to memory beyond 64K. If they do
+// something that would cause such access, wrap appropriately. This is
 // the approach Frotz uses (at least for @loadw/@loadb), and is endorsed
 // by Andrew Plotkin (see http://www.intfiction.org/forum/viewtopic.php?f=38&t=2052).
 // The standard isn’t exactly clear on the issue, and this appears to be

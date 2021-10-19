@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <string.h>
 #include <stdint.h>
@@ -24,7 +24,7 @@
 
 // The index is the ZSCII value, minus 155 (so entry 0 refers to ZSCII
 // value 155); and the value at the index is the Unicode character that
-// the ZSCII value maps to.  Because Latin-1 and Unicode are equivalent
+// the ZSCII value maps to. Because Latin-1 and Unicode are equivalent
 // for 0–255, this table maps to both Unicode and Latin1, with the
 // caveat that values greater than 255 should be considered invalid in
 // Latin-1, and are translated as a question mark below in
@@ -70,8 +70,8 @@ void parse_unicode_table(uint16_t utable)
 uint16_t zscii_to_unicode[UINT8_MAX + 1];
 
 // These tables translate a Unicode or Latin-1 character into its ZSCII
-// equivalent.  Only valid Unicode characters are translated (that is,
-// those in the range 32–126, or 160 and above).  These are meant for
+// equivalent. Only valid Unicode characters are translated (that is,
+// those in the range 32–126, or 160 and above). These are meant for
 // output, so do not translate delete and escape.
 //
 // The first table will translate invalid Unicode characters to zero;
@@ -86,7 +86,7 @@ uint8_t unicode_to_latin1[UINT16_MAX + 1];
 // Convert ZSCII to Unicode line-drawing/rune characters.
 uint16_t zscii_to_font3[UINT8_MAX + 1];
 
-// Lookup table to see if a character is in the alphabet table.  Key is
+// Lookup table to see if a character is in the alphabet table. Key is
 // the character, value is the index in the alphabet table, or -1.
 int atable_pos[UINT8_MAX + 1];
 
@@ -181,10 +181,10 @@ static void build_zscii_to_character_graphics_table(void)
 
     // There are a few characters that have no box-drawing equivalents.
     // These are the pieces that have connections sticking out of them,
-    // used to link rooms together.  There are two options: have filled
+    // used to link rooms together. There are two options: have filled
     // boxes with no connections which makes the rooms look nice but the
     // connections look bad, or unfilled boxes with connections which
-    // results in bad looking rooms but attached connections.  The end
+    // results in bad looking rooms but attached connections. The end
     // result is something like this:
     //
     // No connections:         Connections:
@@ -370,7 +370,7 @@ uint16_t unicode_tolower(uint16_t c)
 }
 
 #ifdef ZTERP_GLK
-// Convert a char (assumed to be ASCII) to Unicode.  Printable values,
+// Convert a char (assumed to be ASCII) to Unicode. Printable values,
 // plus newline, are converted to their corresponding Unicode values;
 // the rest are converted to the Unicode replacement character (�).
 // This is a function rather than a table because it is rarely used, so
