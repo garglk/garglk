@@ -214,3 +214,21 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
         DESTINATION "${FONT_DIRECTORY}")
 endif()
+
+# For users who want to test Gargoyle by running it out of the CMake build
+# directory, ensure fonts exist here. By default Gargoyle will look for the
+# fonts "Gargoyle Serif" and "Gargoyle Mono", falling back to the TTF files if
+# no such fonts are on the system. If Gargoyle is not installed system-wide,
+# then the TTF files won't be available either. It will, as a last-ditch effort,
+# look in the current directory for the fonts, so copying them here ought to
+# allow Gargoyle to find them.
+file(COPY
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold-Italic.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Italic.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold-Italic.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
+    "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
+    DESTINATION "${CMAKE_BINARY_DIR}")
