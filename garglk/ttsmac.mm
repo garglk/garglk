@@ -67,7 +67,7 @@ static NSSpeechSynthesizer *synth = nil;
 
 void gli_initialize_tts()
 {
-    if (gli_conf_speak) {
+    if (gli_conf_speak && synth == nil) {
         // spawn speech synthesizer using the default voice
         synth = [NSSpeechSynthesizer new];
         if (!synth) {
@@ -75,7 +75,7 @@ void gli_initialize_tts()
             return;
         }
 
-        phraseQueue = [NSMutableArray arrayWithCapacity:64];
+        phraseQueue = [[NSMutableArray alloc] initWithCapacity: 64];
 
         synth.delegate = [SpeechDelegate new];
 
@@ -97,6 +97,7 @@ void gli_initialize_tts()
     }
 
     txtbuf.clear();
+    gli_tts_purge();
 }
 
 static void ttsmac_add_phrase(NSString * phrase)
@@ -144,7 +145,7 @@ void gli_tts_purge()
 
 void gli_tts_speak(const glui32 *buf, size_t len)
 {
-    if (!synth) {
+    if (!synth || !gli_conf_speak) {
         return;
     }
 
@@ -184,5 +185,8 @@ void gli_free_tts()
             [delegate release];
             delegate = nil;
         }
+
+        [phraseQueue release];
+        phraseQueue = nil;
     }
 }

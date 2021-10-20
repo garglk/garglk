@@ -597,6 +597,11 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
 
         {{Qt::ShiftModifier | Qt::ControlModifier, Qt::Key_T}, [] { show_themes(); }},
 
+        {{Qt::ControlModifier | Qt::AltModifier, Qt::Key_T}, []{
+            gli_conf_speak = !gli_conf_speak;
+            gli_initialize_tts();
+        }},
+
         {{Qt::ShiftModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
 
         {{Qt::NoModifier, Qt::Key_Escape},    []{ gli_input_handle_key(keycode_Escape); }},
