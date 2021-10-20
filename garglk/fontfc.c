@@ -97,7 +97,7 @@ static char *find_font_by_styles(const char *basefont, const char **styles, cons
     return NULL;
 }
 
-void fontreplace(char *font, int type)
+void fontreplace(const char *font, int type)
 {
     if (!initialized || strlen(font) == 0)
         return;

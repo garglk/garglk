@@ -683,7 +683,7 @@ void winexit(void);
 void winclipstore(glui32 *text, int len);
 bool winfontpath(const char *filename, char *outpath, size_t n);
 
-void fontreplace(char *font, int type);
+void fontreplace(const char *font, int type);
 void fontload(void);
 void fontunload(void);
 
