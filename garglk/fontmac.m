@@ -170,7 +170,7 @@ static void propfont(char *file, int style)
 static NSMutableArray * gli_registered_fonts = nil;
 static NSDistributedLock * gli_font_lock = nil;
 
-void fontreplace(char *font, int type)
+void fontreplace(const char *font, int type)
 {
     if (!font || !strlen(font))
         return;

@@ -200,7 +200,7 @@ static bool find_font_file(const char *facename, char *filepath, size_t length)
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath, length);
 }
 
-void fontreplace(char *font, int type)
+void fontreplace(const char *font, int type)
 {
     if (!strlen(font))
         return;
