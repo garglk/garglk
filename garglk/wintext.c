@@ -997,7 +997,27 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     int linelen;
     unsigned char *color;
 
-    gli_tts_speak(&ch, 1);
+    // Don't speak if the current text style is input, under the
+    // assumption that the interpreter is trying to display the user's
+    // input. This is how Bocfel uses style_Input, and without this
+    // test, extraneous input text is spoken. Other formats/interpreters
+    // don't have this issue, but since this affects all Z-machine
+    // games, it's probably worth the hacky solution here. If there are
+    // Glulx games which use input style for text that the user did not
+    // enter, that text will not get spoken. If that turns out to be a
+    // problem, a new Gargoyle-specific function will probably be needed
+    // that Bocfel can use to signal that it's writing input text from
+    // the user vs input text from elsewhere.
+    //
+    // Note that this already affects history playback in Bocfel: since
+    // it styles previous user input with style_Input during history
+    // playback, the user input won't be spoken. That's annoying but
+    // probably not quite as important as getting the expected behavior
+    // during normal gameplay.
+    //
+    // See https://github.com/garglk/garglk/issues/356
+    if (win->attr.style != style_Input)
+        gli_tts_speak(&ch, 1);
 
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2 - gli_scroll_width) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw - dwin->ladjw;
