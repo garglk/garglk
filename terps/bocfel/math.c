@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdint.h>
 
@@ -147,8 +147,8 @@ void zart_shift(void)
     // • Shifting a negative value left is undefined.
     // • Shifting a negative value right is implementation defined.
     //
-    // Thus these are done by hand.  The Z-machine requires a right-shift
-    // of a negative value to propagate the sign bit.  This is easily
+    // Thus these are done by hand. The Z-machine requires a right-shift
+    // of a negative value to propagate the sign bit. This is easily
     // accomplished by complementing the value (yielding a positive
     // number), shifting it right (zero filling), and complementing again
     // (flip the shifted-in zeroes to ones).

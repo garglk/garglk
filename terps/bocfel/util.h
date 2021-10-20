@@ -11,7 +11,14 @@
 
 #if defined(__GNUC__) && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 7))
 #define znoreturn		__attribute__((__noreturn__))
+#ifdef __MINGW32__
+// Gcc appears to default to ms_printf on MinGW, even when it is
+// providing standards-conforming printf() functionality (i.e. if
+// __USE_MINGW_ANSI_STDIO is defined), so force gnu_printf there.
+#define zprintflike(f, a)	__attribute__((__format__(__gnu_printf__, f, a)))
+#else
 #define zprintflike(f, a)	__attribute__((__format__(__printf__, f, a)))
+#endif
 #else
 #define znoreturn
 #define zprintflike(f, a)
@@ -20,14 +27,14 @@
 #define ASIZE(array)	(sizeof (array) / sizeof *(array))
 
 // Values are usually stored in a uint16_t because most parts of the
-// Z-machine make use of 16-bit unsigned integers.  However, in a few
-// places the unsigned value must be treated as signed.  The “obvious”
+// Z-machine make use of 16-bit unsigned integers. However, in a few
+// places the unsigned value must be treated as signed. The “obvious”
 // solution is to simply convert to an int16_t, but this is technically
 // implementation-defined behavior in C and not guaranteed to provide
-// the expected result.  In order to be maximally portable, this
+// the expected result. In order to be maximally portable, this
 // function converts a uint16_t to its int16_t counterpart manually.
 // Although it ought to be slower, both Gcc and Clang recognize this
-// construct and generate the same code as a direct conversion.  An
+// construct and generate the same code as a direct conversion. An
 // alternative direct conversion method is included here for reference.
 #if 1
 static inline int16_t as_signed(uint16_t n)
@@ -64,7 +71,7 @@ extern enum arg_status { ARG_OK, ARG_HELP, ARG_FAIL } arg_status;
 void process_arguments(int argc, char **argv);
 
 // Somewhat ugly hack to get around the fact that some Glk functions may
-// not exist.  These function calls should all be guarded (e.g.
+// not exist. These function calls should all be guarded (e.g.
 // if (have_unicode), with have_unicode being set iff GLK_MODULE_UNICODE
 // is defined) so they will never be called if the Glk implementation
 // being used does not support them, but they must at least exist to

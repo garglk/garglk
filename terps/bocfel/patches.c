@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <string.h>
 #include <stddef.h>
@@ -301,7 +301,7 @@ static const struct patch patches[] =
     // Robot Finds Kitten attempts to sleep with the following:
     //
     // [ Func junk;
-    //   @aread junk 0 10 PauseFunc -> junk;
+    //     @aread junk 0 10 PauseFunc -> junk;
     // ];
     //
     // However, since “junk” is a local variable with value 0 instead of a

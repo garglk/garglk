@@ -1,14 +1,14 @@
 GNU make is required, and all of the examples herein assume that GNU make is
-being used.  If your native make is not GNU, substitute gmake for make.
+being used. If your native make is not GNU, substitute gmake for make.
 
 A C11 compiler is required to build Bocfel; or at least a compiler that supports
-the C11 features that are used.  These include, but are probably not limited to,
+the C11 features that are used. These include, but are probably not limited to,
 VLAs, snprintf(), mixed declarations and code, fixed-width integers, stdbool.h,
 compound literals, and anonymous unions.
 
-Officially supported compilers are handled in compiler.mk.  If you get Bocfel
-working with another compiler, I would be happy to add it to compiler.mk.  Note
-that Bocfel has a few requirements (beyond C11) from its compilers.  Compilers
+Officially supported compilers are handled in compiler.mk. If you get Bocfel
+working with another compiler, I would be happy to add it to compiler.mk. Note
+that Bocfel has a few requirements (beyond C11) from its compilers. Compilers
 are expected to support the following rather standard Unix command-line
 arguments, and are expected to work as linkers, as well:
 -D - define a macro
@@ -24,39 +24,39 @@ linking; modern compilers can do link-time optimization, and generally require
 the same flags when compiling and linking (the system linker is usually not
 smart enough to handle the link-time optimized object files).
 
-The character set used is required to be compatible with ASCII.  This is not a
+The character set used is required to be compatible with ASCII. This is not a
 particularly onerous requirement; but if I ever have access to a system that
 supports a wildly different character set, I would be willing to think about
-extending support beyond ASCII.  For now, though, it is much easier to assume
+extending support beyond ASCII. For now, though, it is much easier to assume
 ASCII, because almost everybody uses a character set that is compatible with it,
 including the Z-machine.
 
-A 32-bit (or greater) system is probably a requirement.  I have tried to avoid
+A 32-bit (or greater) system is probably a requirement. I have tried to avoid
 the assumption that "int" is 32 bits, and it is entirely possible that I have
-succeeded and a system with 16-bit ints would work properly.  However, there are
+succeeded and a system with 16-bit ints would work properly. However, there are
 some lookup tables that are 65K each, which would probably cause fits for 16-bit
-systems.  As with the ASCII requirement, if I ever happen upon a 16-bit system
+systems. As with the ASCII requirement, if I ever happen upon a 16-bit system
 with a C11 compiler, I will probably try to get Bocfel working with it.
 
-I make use of fixed-width types such as uint8_t and uint16_t.  As a practical
+I make use of fixed-width types such as uint8_t and uint16_t. As a practical
 side-effect, Bocfel requires a system with 8-, 16-, and 32-bit 2's complement
-integers.  This is likely not a problem.
+integers. This is likely not a problem.
 
 -------------------------------------------------------------------------------
 
-There are two main types of build: Glk and non-Glk.  Glk builds use libraries
-based on Andrew Plotkin's Glk standard for I/O.  Glk builds can be full-
+There are two main types of build: Glk and non-Glk. Glk builds use libraries
+based on Andrew Plotkin's Glk standard for I/O. Glk builds can be full-
 featured, including timed input and cursor control, allowing games like Border
-Zone and Seastalker to run as intended.  Non-Glk builds use nothing but standard
-C functions.  This has the advantage of running on systems where Glk has not
-been ported, but the disadvantage of missing important features.  Non-Glk builds
+Zone and Seastalker to run as intended. Non-Glk builds use nothing but standard
+C functions. This has the advantage of running on systems where Glk has not
+been ported, but the disadvantage of missing important features. Non-Glk builds
 are generally not useful apart from testing; a non-Glk build will read from
 standard input and write to standard output, so can be used for regression
 testing such as with Andrew Plotkin's RegTest
 (http://eblong.com/zarf/plotex/regtest.html).
 
 The first thing to do is edit config.mk and set $PLATFORM to the proper value.
-See the comments in that file for an explanation.  There are other variables
+See the comments in that file for an explanation. There are other variables
 that may be set through config.mk, each of which has comments explaining its
 use.
 
@@ -65,73 +65,73 @@ make GLK=
 
 The $GLK variable may also be set through config.mk.
 
-Glk builds are slightly more involved.  For most Glk libraries (e.g. glkterm(w),
+Glk builds are slightly more involved. For most Glk libraries (e.g. glkterm(w),
 xglk, cheapglk, Windows Glk), you will want to unpack the source distribution
 into the current directory (the one containing Bocfel's source), and then build
-it.  After this is done, simply run
+it. After this is done, simply run
 make GLK=glktermw
 
 to build a Glk-enabled interpreter (where glktermw is the name of the directory
-into which the Glk library was unpacked).  Note that the Windows Glk
+into which the Glk library was unpacked). Note that the Windows Glk
 distribution does not unpack into its own directory, so you will want to change
 into the winglk directory before unpacking it.
 
 The presence of a file called Make.<glk_library_name> in the Glk library
-directory is required.  Most Glk libraries will include this, but at least
-Windows Glk does not.  I have included a Make.winglk that should be sufficient
+directory is required. Most Glk libraries will include this, but at least
+Windows Glk does not. I have included a Make.winglk that should be sufficient
 to build a Windows Glk-enabled interpreter, at least with MinGW.
 
 Bocfel can also be built against Gargoyle's Glk implementation, taking full
-advantage of extra features it provides.  Ben Cressey, Gargoyle's maintainer,
+advantage of extra features it provides. Ben Cressey, Gargoyle's maintainer,
 has imported Bocfel into the Gargoyle source repository, so the easiest way to
 obtain Gargoyle support is to simply download Gargoyle; see
-http://garglk.googlecode.com/.  If you would prefer to use Bocfel's build system
+http://garglk.googlecode.com/. If you would prefer to use Bocfel's build system
 to build against Gargoyle as you would any other Glk library, read on.
 
-The build process for Gargoyle is slightly more involved.  Gargoyle includes a
-full-featured Glk library, but it is not designed for external use.  However,
+The build process for Gargoyle is slightly more involved. Gargoyle includes a
+full-featured Glk library, but it is not designed for external use. However,
 getting a Gargoyle- (or rather, a garglk-) enabled build is not too difficult.
 
 The first step is to get and install the Jam build tool from
-http://www.perforce.com/jam/jam.html.  Your vendor may provide a jam package or
+http://www.perforce.com/jam/jam.html. Your vendor may provide a jam package or
 port; consult its documentation.
 
 Next, get a copy of the Gargoyle source code from http://garglk.googlecode.com/.
-Extract it somewhere (it need not be in the current directory).  Enter the
-directory and run jam.  From the build/<youros>.release/garglk directory, copy
+Extract it somewhere (it need not be in the current directory). Enter the
+directory and run jam. From the build/<youros>.release/garglk directory, copy
 the files libgarglk.so and libgarglkmain.a to the directory "gargoyle" (which
-contains a Make.gargoyle file) in the Bocfel source distribution.  Then copy the
+contains a Make.gargoyle file) in the Bocfel source distribution. Then copy the
 files garglk/glk.h, garglk/glkstart.h, and garglk/gi_blorb.h from Gargoyle to
-Bocfel's gargoyle directory.  You can now build a garglk-enabled interpreter:
+Bocfel's gargoyle directory. You can now build a garglk-enabled interpreter:
 make GLK=gargoyle
 
 If you do not already have Gargoyle installed, you will need to install the
-library libgarglk.so somewhere in your library search path.  I would, however,
-recommend just installing Gargoyle.  If you do this, you will want to build the
-source code of the same version that you install.  If you don't, it's possible
+library libgarglk.so somewhere in your library search path. I would, however,
+recommend just installing Gargoyle. If you do this, you will want to build the
+source code of the same version that you install. If you don't, it's possible
 (although unlikely) that ABI or API changes in Gargoyle will cause problems.
 
 Bocfel is built and tested against the development version of Gargoyle, so
-ideally this would be the version to build against.  However, Gargoyle does, by
+ideally this would be the version to build against. However, Gargoyle does, by
 and large, implement a standard API, so the version should not make a large
-difference.  There are a few Gargoyle-specific extensions that can possibly
+difference. There are a few Gargoyle-specific extensions that can possibly
 change, but they have been stable apart from one change over the past couple of
-years.  The current (2011) release of Gargoyle should work, but the only
+years. The current (2011) release of Gargoyle should work, but the only
 officially supported version is whatever was current as of this version of
 Bocfel's release.
 
 -------------------------------------------------------------------------------
 
 Glk is very portable, and there is very little system-specific code that is
-needed.  However, there is a small amount.  Some libraries are, conventionally,
+needed. However, there is a small amount. Some libraries are, conventionally,
 considered to be Unix (cheapglk, xglk, and glkterm(w)); one Windows (Windows
-Glk, naturally).  Bocfel needs to know what kind of platform it is running on in
+Glk, naturally). Bocfel needs to know what kind of platform it is running on in
 order to provide a few system-specific functions, and it uses this information
-to decide what kind of Glk library is in use.  While it is theoretically
+to decide what kind of Glk library is in use. While it is theoretically
 possible (for example) for a Unix-based Glk library to use a non Unix-style Glk
 startup, I have no desire to require users to set both their OS and Glk
-platforms.  Thus a Windows user who desires to use cheapglk (assuming it builds
-on Windows) is out of luck, for example.  I consider this to be acceptable
+platforms. Thus a Windows user who desires to use cheapglk (assuming it builds
+on Windows) is out of luck, for example. I consider this to be acceptable
 because I expect garglk to be the preferred Glk implementation, and even if it's
-not, most Glk uses will work.  When building with garglk, Unix-style Glk startup
+not, most Glk uses will work. When building with garglk, Unix-style Glk startup
 is forced, because this is what garglk uses, regardless of platform.

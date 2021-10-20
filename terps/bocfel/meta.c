@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,9 +24,11 @@
 #include "meta.h"
 #include "memory.h"
 #include "objects.h"
+#include "osdep.h"
 #include "process.h"
 #include "screen.h"
 #include "stack.h"
+#include "stash.h"
 #include "unicode.h"
 #include "util.h"
 #include "zterp.h"
@@ -50,7 +52,7 @@ static void try_user_save(const char *desc)
     if (in_interrupt()) {
         screen_puts("[Cannot save while in an interrupt]");
     } else {
-        if (push_save(SaveStackUser, SaveTypeMeta, SaveOpcodeRead, desc)) {
+        if (push_save(SaveStackUser, SaveTypeMeta, SaveOpcodeRead, desc) == SaveResultSuccess) {
             screen_puts("[Save pushed]");
         } else {
             screen_puts("[Save failed]");
@@ -119,7 +121,7 @@ static void meta_debug_change_inc_dec(const char *string)
                 if (CMP(new, old)) {
 #undef CMP
                     // The Z-machine does not require aligned memory access, so
-                    // both even and odd addresses must be checked.  However,
+                    // both even and odd addresses must be checked. However,
                     // global variables are word-sized, so if an address inside
                     // the global variables has changed, report only if the
                     // address is the base of globals plus a multiple of two.
@@ -570,29 +572,127 @@ static void meta_debug(char *string)
     }
 }
 
-// Try to parse a meta command.  If input should be re-requested, return
-// “string”.  If a portion of the passed-in string should be processed
+static char *meta_notes;
+static size_t meta_notes_len;
+
+TypeID meta_write_bfnt(zterp_io *savefile, void *data)
+{
+    if (meta_notes_len == 0) {
+        return NULL;
+    }
+
+    zterp_io_write32(savefile, 0); // Version
+    zterp_io_write_exact(savefile, meta_notes, meta_notes_len);
+
+    return &"Bfnt";
+}
+
+void meta_read_bfnt(zterp_io *io, uint32_t size)
+{
+    uint32_t version;
+    char *new_notes;
+
+    free(meta_notes);
+    meta_notes = NULL;
+    meta_notes_len = 0;
+
+    if (size < 4) {
+        show_message("Corrupted Bfnt entry (too small)");
+        return;
+    }
+
+    if (!zterp_io_read32(io, &version)) {
+        show_message("Unable to read notes size from save file");
+        return;
+    }
+
+    if (version != 0) {
+        show_message("Unsupported Bfnt version %lu", (unsigned long)version);
+        return;
+    }
+
+    size -= 4;
+
+    new_notes = malloc(size);
+    if (new_notes == NULL) {
+        show_message("Unable to allocate memory for notes");
+        return;
+    }
+
+    if (!zterp_io_read_exact(io, new_notes, size)) {
+        free(new_notes);
+        show_message("Unable to read notes from save file");
+        return;
+    }
+
+    meta_notes = new_notes;
+    meta_notes_len = size;
+}
+
+static char *meta_notes_backup;
+static size_t meta_notes_len_backup;
+
+static void notes_stash_backup(void)
+{
+    meta_notes_backup = meta_notes;
+    meta_notes_len_backup = meta_notes_len;
+
+    meta_notes = NULL;
+    meta_notes_len = 0;
+}
+
+static bool notes_stash_restore(void)
+{
+    meta_notes = meta_notes_backup;
+    meta_notes_len = meta_notes_len_backup;
+
+    return true;
+}
+
+static void notes_stash_free(void)
+{
+    free(meta_notes_backup);
+
+    meta_notes_backup = NULL;
+    meta_notes_len_backup = 0;
+}
+
+// Try to parse a meta command. If input should be re-requested, return
+// “string”. If a portion of the passed-in string should be processed
 // as user input, return a pointer to the beginning of that portion.
 //
 // There is also the possibility that a meta-command causes a saved game
-// of some kind to be restored (/undo, /restore, and /pop).  In these
+// of some kind to be restored (/undo, /restore, and /pop). In these
 // cases NULL is conceptually returned on success, meaning parsing is
-// done.  However, because interrupt_reset() is called on a successful
+// done. However, because interrupt_reset() is called on a successful
 // restore, NULL will never actually be returned because
 // interrupt_reset() will call longjmp().
 const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
 {
     const char *command;
-    char converted[len + 1], *rest;
+    char *rest;
+    uint8_t *buf;
+    long n;
+    zterp_io *io;
+
+    // Convert the input string to UTF-8 using memory-backed I/O.
+    io = zterp_io_open_memory(NULL, 0, ZTERP_IO_MODE_WRONLY);
+    if (io == NULL) {
+        return string;
+    }
 
     for (size_t i = 0; i < len + 1; i++) {
-        uint32_t c = string[i];
-
-        if (c > 255) {
-            c = LATIN1_QUESTIONMARK;
+        if (!zterp_io_putc(io, string[i])) {
+            zterp_io_close(io);
+            return string;
         }
-        converted[i] = c;
     }
+
+    zterp_io_close_memory(io, &buf, &n);
+    char converted[n + 1];
+    memcpy(converted, buf, n);
+    free(buf);
+    converted[n] = 0;
 
     for (int i = (int)len - 1; i >= 0 && converted[i] == ' '; i--) {
         converted[i] = 0;
@@ -673,22 +773,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         if (rest[0] == 0) {
             try_user_save(NULL);
         } else {
-            char desc[len + 1];
-            size_t i;
-
-            for (i = 0; rest[i] != 0; i++) {
-                char c = rest[i];
-
-                if (c == 0 || (c >= 32 && c <= 126)) {
-                    desc[i] = c;
-                } else {
-                    desc[i] = '?';
-                }
-            }
-
-            desc[i] = 0;
-
-            try_user_save(desc);
+            try_user_save(rest);
         }
     } else if (strcmp(command, "pop") == 0 || strcmp(command, "drop") == 0) {
         void (*restore_or_drop)(long) = strcmp(command, "pop") == 0 ? try_user_restore : try_user_drop;
@@ -714,6 +799,43 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         }
     } else if ZEROARG("ls") {
         list_saves(SaveStackUser, screen_puts);
+    } else if ZEROARG("savetranscript") {
+        screen_save_persistent_transcript();
+    } else if ZEROARG("notes") {
+        char *new_notes;
+        size_t new_notes_len;
+        char err[1024];
+
+        if (zterp_os_edit_notes(meta_notes == NULL ? "" : meta_notes, meta_notes_len, &new_notes, &new_notes_len, err, sizeof err)) {
+            free(meta_notes);
+            meta_notes = new_notes;
+            meta_notes_len = new_notes_len;
+            screen_puts("[Notes saved]");
+        } else {
+            screen_printf("[Error updating notes: %s]\n", err);
+        }
+    } else if ZEROARG("shownotes") {
+        if (meta_notes == NULL) {
+            screen_puts("[No notes taken]");
+        } else {
+            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", (int)meta_notes_len, meta_notes);
+        }
+    } else if ZEROARG("savenotes") {
+        if (meta_notes == NULL) {
+            screen_puts("[No notes taken]");
+        } else {
+            io = zterp_io_open(NULL, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_DATA);
+            if (io == NULL) {
+                screen_puts("[Unable to open notes file]");
+            } else {
+                if (!zterp_io_write_exact(io, meta_notes, meta_notes_len)) {
+                    screen_puts("[Unable to write notes file]");
+                } else {
+                    screen_puts("[Saved notes to file]");
+                }
+                zterp_io_close(io);
+            }
+        }
     } else if ZEROARG("status") {
         if (zversion > 3) {
             screen_puts("[/status is only available in V1, V2, and V3]");
@@ -729,7 +851,11 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
                 screen_format_time(&fmt, first, second);
                 screen_puts(fmt);
             } else {
-                screen_printf("Score: %ld\nMoves: %ld\n", first, second);
+                if (is_game(GamePlanetfall) || is_game(GameStationfall)) {
+                    screen_printf("Score: %ld\nTime: %ld\n", first, second);
+                } else {
+                    screen_printf("Score: %ld\nMoves: %ld\n", first, second);
+                }
             }
         }
     } else if ZEROARG("disable") {
@@ -739,6 +865,8 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         return &string[rest - converted];
     } else if (strcmp(command, "debug") == 0) {
         meta_debug(rest);
+    } else if ZEROARG("quit") {
+        zquit();
     } else {
         if (strcmp(command, "help") != 0) {
             screen_printf("Unknown command: /%s\n\n", command);
@@ -762,12 +890,24 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
                 "/drop [n]: drop the specified in-memory state\n"
                 "/drop all: drop all in-memory states\n"
                 "/ls: list all in-memory save states\n"
+                "/savetranscript: save persistent transcript (if active) to a file\n"
+                "/notes: open a text editor to take notes\n"
+                "/shownotes: display notes taken, if any\n"
+                "/savenotes: save notes taken, if any, to a file\n"
                 "/status: display the status line (V1, V2, and V3 games only)\n"
                 "/disable: disable these commands for the rest of this session\n"
                 "/say [command]: pretend like [command] was typed\n"
                 "/debug [...]: perform a debugging operation\n"
+                "/quit: quit immediately (as if the @quit opcode were executed)\n"
                 );
     }
 
     return string;
+}
+
+void init_meta(bool first_run)
+{
+    if (first_run) {
+        stash_register(notes_stash_backup, notes_stash_restore, notes_stash_free);
+    }
 }

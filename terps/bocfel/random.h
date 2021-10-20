@@ -6,7 +6,7 @@
 #include "iff.h"
 #include "io.h"
 
-void init_random(void);
+void init_random(bool first_run);
 TypeID random_write_rand(zterp_io *io, void *data);
 void random_read_rand(zterp_io *io);
 

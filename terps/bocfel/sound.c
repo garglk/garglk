@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -131,7 +131,7 @@ void zsound_effect(void)
         // sound files themselves. According to sounds.txt from The
         // Lurking Horror’s source code, the following sounds are
         // “looping sounds”, so force that here.
-        if (is_lurking_horror()) {
+        if (is_game(GameLurkingHorror)) {
             switch (number) {
             case 4: case 10: case 13: case 15: case 16: case 17: case 18:
                 repeats = 255;
@@ -139,8 +139,7 @@ void zsound_effect(void)
             }
         }
 
-        // Illegal, but expected to work by “The Spy Who Came In From The
-        // Garden” and recommended by standard 1.1.
+        // Illegal, but recommended by standard 1.1.
         if (repeats == 0) {
             repeats = 1;
         }
@@ -176,7 +175,7 @@ void zsound_effect(void)
         // This seems to be the only place S-CRETIN is used so it
         // probably doesn’t even need to be tagged as a repeating sound,
         // but there’s no harm in doing so.
-        if (is_lurking_horror() && sound_playing && (number == 9 || number == 16)) {
+        if (is_game(GameLurkingHorror) && sound_playing && (number == 9 || number == 16)) {
             queued.number = number;
             queued.volume = volume;
             return;

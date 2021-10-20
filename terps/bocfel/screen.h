@@ -26,7 +26,7 @@ struct color {
     uint16_t value;
 };
 
-void init_screen(void);
+void init_screen(bool first_run);
 
 bool create_mainwin(void);
 bool create_statuswin(void);
@@ -83,6 +83,9 @@ bool screen_read_scrn(zterp_io *io, uint32_t size, char *err, size_t errsize);
 TypeID screen_write_scrn(zterp_io *io, void *data);
 void screen_read_bfhs(zterp_io *io, bool autosave);
 TypeID screen_write_bfhs(zterp_io *io, void *data);
+void screen_read_bfts(zterp_io *io, uint32_t size);
+TypeID screen_write_bfts(zterp_io *io, void *data);
+void screen_save_persistent_transcript(void);
 
 void zoutput_stream(void);
 void zinput_stream(void);

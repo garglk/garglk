@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <ctype.h>
 #include <limits.h>
+#include <locale.h>
 
 #include "zterp.h"
 #include "blorb.h"
@@ -43,7 +44,6 @@
 #endif
 
 #define MAX_LINE	2048
-#define MAX_PATH	4096
 
 #define DEFAULT_INT_NUMBER	1 // DEC
 
@@ -85,6 +85,8 @@ struct options options = {
     .random_device = NULL,
 
     .autosave = false,
+    .persistent_transcript = false,
+    .notes_editor = NULL,
 };
 
 static char story_id[64];
@@ -97,7 +99,7 @@ const char *get_story_id(void)
 // zversion stores the Z-machine version of the story: 1–6.
 //
 // Z-machine versions 7 and 8 are identical to version 5 but for a
-// couple of tiny details.  They are thus classified as version 5.
+// couple of tiny details. They are thus classified as version 5.
 //
 // zwhich stores the actual version (1–8) for the few rare times where
 // this knowledge is necessary.
@@ -145,61 +147,46 @@ void store(uint16_t v)
     store_variable(byte(pc++), v);
 }
 
-static bool is_story(const char *id)
+static bool is_story(const char **ids, size_t n)
 {
-    return strcmp(story_id, id) == 0;
+    for (size_t i = 0; i < n; i++) {
+        if (strcmp(story_id, ids[i]) == 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
-bool is_lurking_horror(void)
-{
-    return is_story("203-870506") ||
-           is_story("219-870912") ||
-           is_story("221-870918");
-}
+static bool games[GameCount];
 
-bool is_journey(void)
+static void initialize_games(void)
 {
-    return is_story("83-890706");
-}
-
-bool is_infocom_v1234;
-static void check_infocom(void)
-{
-    // All V1234 games from the Infocom fact sheet for which both a
-    // release and serial number are available.
-    const char *v1234[] = {
-        "1-841226",   "47-850313",  "64-850404",  "84-850516",  "105-850605", "131-850628",
-        "132-850702", "143-850711", "77-850814",  "79-851122",  "97-851218",  "99-861014",
-        "86-870212",  "116-870602", "160-880521", "23-840809",  "25-840917",  "18-820311",
-        "19-820427",  "21-820512",  "22-820809",  "26-821108",  "27-831005",  "28-850129",
-        "10-830810",  "15-831107",  "16-831118",  "16-840518",  "24-851118",  "29-860820",
-        "62-840706",  "108-840809", "119-840822", "47-840914",  "56-841221",  "58-851002",
-        "59-851108",  "60-861002",  "235-861118", "37-861215",  "22-830916",  "22-840522",
-        "48-860103",  "57-860121",  "118-860325", "160-860521", "50-860711",  "59-860730",
-        "203-870506", "219-870912", "221-870918", "4-860918",   "9-861022",   "13-880501",
-        "70-870423",  "77-870428",  "117-870512", "19-870722",  "20-870722",  "1-830306",
-        "1-830517",   "1-830614",   "6-830619",   "20-830708",  "26-831014",  "29-840118",
-        "37-851003",  "39-880501",  "26-870730",  "86-840320",  "15-840501",  "15-840522",
-        "15-840612",  "15-840716",  "17-850208",  "16-850515",  "16-850603",  "18-850919",
-        "17-831001",  "67-831208",  "85-840106",  "4-840131",   "6-840508",   "13-851021",
-        "15-851108",  "18-860904",  "63-850916",  "87-860904",  "15-820901",  "17-821021",
-        "18-830114",  "28-861221",  "36-870106",  "63-870218",  "87-870326",  "107-870430",
-        "14-841005",  "14-841005",  "18-850222",  "5-830222",   "7-830419",   "8-830521",
-        "8-840521",   "1-851202",   "1-860221",   "14-860313",  "11-860509",  "12-860926",
-        "15-870628",  "68-850501",  "69-850920",  "13-830524",  "18-830910",  "20-831119",
-        "21-831208",  "22-840924",  "23-840925",  "2-AS000C",   "15-UG3AU5",  "23-820428",
-        "25-820515",  "26-820803",  "28-821013",  "30-830330",  "75-830929",  "76-840509",
-        "88-840726",  "119-880429", "7-UG3AU5",   "15-820308",  "17-820427",  "18-820512",
-        "19-820721",  "22-830331",  "23-830411",  "22-840518",  "48-840904",  "63-860811",
-        "10-820818",  "12-821025",  "15-830331",  "16-830410",  "15-840518",  "17-840727",
-        "25-860811",
+    // All V1234 games from Andrew Plotkin’s Obsessively Complete
+    // Infocom Catalog: https://eblong.com/infocom/
+    const char *infocom1234[] = {
+#include "v1234.h"
     };
 
-    for (size_t i = 0; i < ASIZE(v1234); i++) {
-        if (is_story(v1234[i])) {
-            is_infocom_v1234 = true;
-            return;
-        }
+    const char *journey[] = { "83-890706" };
+    const char *lurking_horror[] = { "203-870506", "219-870912", "221-870918" };
+    const char *planetfall[] = { "1-830517", "20-830708", "26-831014", "29-840118", "37-851003", "39-880501" };
+    const char *stationfall[] = { "1-861017", "63-870218", "87-870326", "107-870430" };
+
+    games[GameInfocom1234] = is_story(infocom1234, ASIZE(infocom1234));
+    games[GameJourney] = is_story(journey, ASIZE(journey));
+    games[GameLurkingHorror] = is_story(lurking_horror, ASIZE(lurking_horror));
+    games[GamePlanetfall] = is_story(planetfall, ASIZE(planetfall));
+    games[GameStationfall] = is_story(stationfall, ASIZE(stationfall));
+}
+
+bool is_game(enum Game game)
+{
+    switch(game) {
+    case GameInfocom1234: case GameJourney: case GameLurkingHorror: case GamePlanetfall: case GameStationfall:
+        return games[game];
+    default:
+        return false;
     }
 }
 
@@ -230,19 +217,34 @@ static void find_id(void)
         snprintf(story_id, sizeof story_id, "%d-%s", header.release, serial);
     }
 
-    check_infocom();
+    initialize_games();
+}
+
+// isspace() is locale-aware, so explicitly spell out what is
+// considered to be whitespace.
+static bool is_whitespace(int c)
+{
+    return c == ' ' || c == '\t';
+}
+
+static char *ltrim(char *string)
+{
+    while (is_whitespace(*string)) {
+        string++;
+    }
+
+    return string;
 }
 
 static void read_config(void)
 {
     FILE *fp;
-    char file[MAX_PATH + 1];
-    char line[MAX_LINE];
+    char file[ZTERP_OS_PATH_SIZE];
+    char buf[MAX_LINE];
     char *key, *val, *p;
-    long n;
     bool story_matches = true;
 
-    if (!zterp_os_rcfile(file, sizeof file)) {
+    if (!zterp_os_rcfile(&file)) {
         return;
     }
 
@@ -251,20 +253,36 @@ static void read_config(void)
         return;
     }
 
-    while (fgets(line, sizeof line, fp) != NULL) {
-        line[strcspn(line, "#\n")] = 0;
+    int lineno = 0;
+    while (fgets(buf, sizeof buf, fp) != NULL) {
+        char *line = buf;
+
+        if (strchr(line, '\n') != NULL || feof(fp)) {
+            lineno++;
+        } else {
+            fprintf(stderr, "%s:%d: line too long: aborting read of configuration file\n", file, lineno + 1);
+            return;
+        }
+
+        line[strcspn(line, "#\r\n")] = 0;
+        line = ltrim(line);
         if (line[0] == 0) {
             continue;
         }
 
         if (line[0] == '[') {
             p = strrchr(line, ']');
-            if (p != NULL && p[1] == 0) {
+            if (p == NULL) {
+                fprintf(stderr, "%s:%d: expected ']'\n", file, lineno);
+            } else if (*ltrim(&p[1]) != 0) {
+                fprintf(stderr, "%s:%d: unexpected characters following ']'\n", file, lineno);
+            } else {
                 *p = 0;
 
                 story_matches = false;
                 for (p = strtok(line + 1, " ,"); p != NULL; p = strtok(NULL, " ,")) {
-                    if (is_story(p)) {
+                    const char *ids[] = { p };
+                    if (is_story(ids, ASIZE(ids))) {
                         story_matches = true;
                         break;
                     }
@@ -278,39 +296,100 @@ static void read_config(void)
             continue;
         }
 
-        key = strtok(line, " \t=");
-        if (key == NULL) {
-            continue;
+        key = line;
+
+        // Key ends at the first whitespace/equals sign.
+        for (val = key; *val != 0 && !is_whitespace(*val) && *val != '='; val++) {
         }
-        val = strtok(NULL, "=");
-        if (val == NULL) {
+
+        // Find the equals sign, null terminating along the way.
+        while (is_whitespace(*val)) {
+            *val++ = 0;
+        }
+
+        if (*val != '=') {
+            fprintf(stderr, "%s:%d: expected '='\n", file, lineno);
             continue;
         }
 
-        // Trim whitespace.
-        while (isspace((unsigned char)*val)) {
-            val++;
-        }
-        if (*val == 0) {
+        // If there was no whitespace before the equals sign it won’t
+        // have been null terminated, so do that here.
+        *val++ = 0;
+
+        if (*key == 0) {
+            fprintf(stderr, "%s:%d: no key\n", file, lineno);
             continue;
         }
+
+        val = ltrim(val);
+        if (*val == 0) {
+            fprintf(stderr, "%s:%d: missing value\n", file, lineno);
+            continue;
+        }
+
+        // Trim trailing whitespace.
         p = val + strlen(val) - 1;
-        while (isspace((unsigned char)*p)) {
+        while (is_whitespace(*p)) {
             *p-- = 0;
         }
 
-        n = strtol(val, NULL, 10);
-
 #define START()		if (false) do { } while (false)
-#define BOOL(name)	else if (strcmp(key, #name) == 0) do { options.name = (n != 0); } while (false)
-#define NUMBER(name)	else if (strcmp(key, #name) == 0) do { options.name = n; } while (false)
-#define STRING(name)	else if (strcmp(key, #name) == 0) do { free(options.name); options.name = xstrdup(val); } while (false)
-#define CHAR(name)	else if (strcmp(key, #name) == 0) do { options.name = val[0]; } while (false)
+
+#define BOOL(name)	else if (strcmp(key, #name) == 0) do { \
+    if (strcmp(val, "0") == 0) { \
+        options.name = false; \
+    } else if (strcmp(val, "1") == 0) { \
+        options.name = true; \
+    } else { \
+        fprintf(stderr, "%s:%d: invalid value for %s: must be 0 or 1\n", file, lineno, #name); \
+    } \
+} while (false)
+
+#define NUMBER(name)	else if (strcmp(key, #name) == 0) do { \
+    char *endptr; \
+    long n; \
+    n = strtol(val, &endptr, 10); \
+    if (*endptr != 0) { \
+        fprintf(stderr, "%s:%d: invalid value for %s: must be a number\n", file, lineno, #name); \
+    } else { \
+        options.name = n; \
+    } \
+} while (false)
+
+#define STRING(name)	else if (strcmp(key, #name) == 0) do { \
+    free(options.name); \
+    options.name = xstrdup(val); \
+} while (false)
+
+#define CHAR(name)	else if (strcmp(key, #name) == 0) do { \
+    if (strlen(val) != 1) { \
+        fprintf(stderr, "%s:%d: invalid value for %s: must be a single character\n", file, lineno, #name); \
+    } else { \
+        options.name = val[0]; \
+    } \
+} while (false)
+
 #ifdef GLK_MODULE_GARGLKTEXT
-#define COLOR(name, num)else if (strcmp(key, "color_" #name) == 0) do { update_color(num, strtol(val, NULL, 16)); } while (false)
+#define COLOR(name, num)else if (strcmp(key, "color_" #name) == 0) do { \
+    char *endptr; \
+    unsigned long color; \
+    color = strtoul(val, &endptr, 16); \
+    if (*val == '-' || *endptr != 0 || color > 0xffffff) { \
+        fprintf(stderr, "%s:%d: invalid value for color_%s: must be a hexadecimal number ranging from 0x000000 to 0xffffff\n", file, lineno, #name); \
+    } else { \
+        update_color(num, color); \
+    } \
+} while (false)
 #else
-#define COLOR(name, num)else if (false) do { } while (false)
+#define COLOR(name, num)else if (strcmp(key, "color_" #name) == 0) do { } while (false)
 #endif
+
+        // Some configuration options are available only in certain
+        // compile-come configurations. For those options, silently
+        // ignore them in configurations where they are not valid. This
+        // allows configuration files to be shared between such builds
+        // without dispaying diagnostics for options which are valid in
+        // some builds but not others.
 
         START();
 
@@ -347,6 +426,8 @@ static void read_config(void)
         STRING(random_device);
 
         BOOL(autosave);
+        BOOL(persistent_transcript);
+        STRING(notes_editor);
 
         COLOR(black,   2);
         COLOR(red,     3);
@@ -357,11 +438,17 @@ static void read_config(void)
         COLOR(cyan,    8);
         COLOR(white,   9);
 
-#ifndef ZTERP_NO_CHEAT
         else if (strcmp(key, "cheat") == 0) {
-            cheat_add(val, false);
-        }
+#ifndef ZTERP_NO_CHEAT
+            if (!cheat_add(val, false)) {
+                fprintf(stderr, "%s:%d: syntax error in cheat\n", file, lineno);
+            }
 #endif
+        }
+
+        else {
+            fprintf(stderr, "%s:%d: unknown configuration option: %s\n", file, lineno, key);
+        }
 
 #undef START
 #undef BOOL
@@ -766,7 +853,7 @@ static void process_story(zterp_io *io, long offset)
     }
 
     // Most options directly set their respective variables, but a few
-    // require intervention.  Delay that intervention until here so that
+    // require intervention. Delay that intervention until here so that
     // the configuration file is taken into account.
     if (options.escape_string == NULL) {
         options.escape_string = xstrdup("1m");
@@ -809,6 +896,7 @@ static void process_story(zterp_io *io, long offset)
 static void start_story(void)
 {
     uint16_t flags2;
+    static bool first_run = true;
 
     pc = header.pc;
 
@@ -824,15 +912,18 @@ static void start_story(void)
     write_header();
 
     // Put everything in a clean state.
-    init_stack();
-    init_screen();
-    init_random();
+    init_stack(first_run);
+    init_screen(first_run);
+    init_random(first_run);
+    init_meta(first_run);
 
     if (zversion == 6) {
         znargs = 1;
         zargs[0] = pc;
         start_v6();
     }
+
+    first_run = false;
 }
 
 void znop(void)
@@ -847,11 +938,18 @@ void zrestart(void)
 
 void zquit(void)
 {
-    char autosave_name[1024];
+    char autosave_name[ZTERP_OS_PATH_SIZE];
 
-    // On @quit, remove the autosave (if any exists).
-    if (options.autosave && zterp_os_autosave_name(autosave_name, sizeof autosave_name)) {
-        remove(autosave_name);
+    // On @quit, remove the autosave (if any exists). First try to
+    // rename it to the original name plus .bak; this allows users to
+    // restore accidentally-deleted files. If the rename fails, though,
+    // just try to delete it.
+    if (options.autosave && zterp_os_autosave_name(&autosave_name)) {
+        char backup_name[(sizeof autosave_name) + 4];
+        snprintf(backup_name, sizeof backup_name, "%s.bak", autosave_name);
+        if (rename(autosave_name, backup_name) == -1) {
+            remove(autosave_name);
+        }
     }
 
     interrupt_quit();
@@ -936,6 +1034,10 @@ int main(int argc, char **argv)
     long story_offset;
     zterp_blorb *blorb;
 
+    // strftime() is given the %c conversion specification, which is
+    // locale-aware, so honor the user’s time locale.
+    setlocale(LC_TIME, "");
+
     // It’s too early to properly set up all tables (neither the alphabet
     // nor Unicode table has been read from the story file), but it’s
     // possible for messages to be displayed to the user before a story is
@@ -971,7 +1073,7 @@ int main(int argc, char **argv)
 #endif
 
     if (options.show_version) {
-        char config[MAX_PATH];
+        char config[ZTERP_OS_PATH_SIZE];
 
         screen_puts("Bocfel " ZTERP_VERSION);
 #ifdef ZTERP_NO_SAFETY_CHECKS
@@ -990,7 +1092,7 @@ int main(int argc, char **argv)
         screen_puts("The Tandy bit cannot be set");
 #endif
 
-        if (zterp_os_rcfile(config, sizeof config)) {
+        if (zterp_os_rcfile(&config)) {
             screen_printf("Configuration file: %s\n", config);
         } else {
             screen_printf("Cannot determine configuration file location\n");
@@ -1059,20 +1161,20 @@ int main(int argc, char **argv)
     }
 
     // It’s possible for a story to be cut short in the middle of an
-    // instruction.  If so, the processing loop will run past the end of
-    // memory.  Either pc needs to be checked each and every time it is
+    // instruction. If so, the processing loop will run past the end of
+    // memory. Either pc needs to be checked each and every time it is
     // incremented, or a small guard needs to be placed at the end of
-    // memory that will trigger an illegal instruction error.  The latter
+    // memory that will trigger an illegal instruction error. The latter
     // is done by filling the end of memory with zeroes, which do not
     // represent a valid instruction.
     //
     // There need to be at least 22 bytes for the worst case: 0xec
-    // (call_vs2) as the last byte in memory.  The next two bytes, which
+    // (call_vs2) as the last byte in memory. The next two bytes, which
     // will be zeroes, indicate that 8 large constants, or 16 bytes, will
-    // be next.  This is a store instruction, so one more byte will be
-    // read to determine where to store.  Another byte is read to
+    // be next. This is a store instruction, so one more byte will be
+    // read to determine where to store. Another byte is read to
     // determine the next opcode; this will be zero, which is nominally a
-    // 2OP, requiring two more bytes to be read.  At this point the opcode
+    // 2OP, requiring two more bytes to be read. At this point the opcode
     // will be looked up, resulting in an illegal instruction error.
     memory = malloc(memory_size + 22);
     if (memory == NULL) {

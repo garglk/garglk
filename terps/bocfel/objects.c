@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stddef.h>
 #include <stdint.h>
@@ -232,12 +232,12 @@ static void check_propnum(uint16_t propnum)
 }
 
 // Attributes are stored at the very beginning of an object, so the
-// address find_object() returns refers directly to the attributes.  The
-// leftmost bit is attribute 0.  Thus these attribute functions need to
+// address find_object() returns refers directly to the attributes. The
+// leftmost bit is attribute 0. Thus these attribute functions need to
 // find out first which byte of the attributes to look at; this is done
-// by dividing by 8.  Attributes 0-7 will be in byte 0, 8-15 in byte 1,
-// and so on.  Then the particular bit is found.  Attributes 0..7 are
-// bits 7..0, attributes 8..15 are 7..0, and so on.  Taking the
+// by dividing by 8. Attributes 0-7 will be in byte 0, 8-15 in byte 1,
+// and so on. Then the particular bit is found. Attributes 0..7 are
+// bits 7..0, attributes 8..15 are 7..0, and so on. Taking the
 // remainder of the attribute divided by 8 gives the bit position,
 // counting from the left, of the attribute.
 #define ATTR_BIT(num)		(0x80U >> ((num) % 8))
@@ -350,7 +350,7 @@ void zget_prop(void)
         } else if (proplen == 2) {
             store(user_word(propaddr));
         } else {
-            // If the proplen is > 2, the story file is misbehaving.  At
+            // If the proplen is > 2, the story file is misbehaving. At
             // least Christminster does this, and Frotz and Nitfol allow
             // it, reading a word, so do that here.
             store(user_word(propaddr));
@@ -418,7 +418,7 @@ void zget_next_prop(void)
 void zjin(void)
 {
     // @jin 0 0 is not defined, since @jin requires an object (§15) and
-    // object 0 is not actually an object (§12.3).  However, many
+    // object 0 is not actually an object (§12.3). However, many
     // interpreters yield a true value for this, and Torbjorn Andersson’s
     // strictz tester expects it to be true, so go with the flow.
     if (zargs[0] == 0 && zargs[1] == 0) {

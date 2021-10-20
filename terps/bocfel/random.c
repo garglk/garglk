@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <errno.h>
 #include <stdio.h>
@@ -183,10 +183,9 @@ static void random_stash_free(void)
 {
 }
 
-void init_random(void)
+void init_random(bool first_run)
 {
     static bool tried_device = false;
-    static bool first_run = true;
 
     seed_random(0);
 
@@ -200,8 +199,6 @@ void init_random(void)
 
     if (first_run) {
         stash_register(random_stash_backup, random_stash_restore, random_stash_free);
-
-        first_run = false;
     }
 }
 

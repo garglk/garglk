@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -48,7 +48,7 @@ static jmp_buf *jumps;
 static long njumps;
 
 // Each time an interrupt happens, process_instructions() is called
-// (effectively starting a whole new round of interpreting).  This
+// (effectively starting a whole new round of interpreting). This
 // variable holds the current level of interpreting: 0 for no
 // interrupts, 1 if one interrupt has been called, 2 if an interrupt was
 // called inside of an interrupt, and so on.
@@ -59,7 +59,7 @@ bool in_interrupt(void)
     return ilevel > 0;
 }
 
-// Jump back to the previous round of interpreting.  This is used when
+// Jump back to the previous round of interpreting. This is used when
 // an interrupt routine returns.
 znoreturn
 void interrupt_return(void)
@@ -100,7 +100,7 @@ void interrupt_restart(void)
 }
 
 // Jump back to the first round of processing, but tell it to
-// immediately stop.  This is used to implement @quit.
+// immediately stop. This is used to implement @quit.
 znoreturn
 void interrupt_quit(void)
 {
@@ -367,6 +367,7 @@ void process_instructions(void)
         handled_autosave = true;
 
         if (do_restore(SaveTypeAutosave, &saveopcode)) {
+            show_message("Continuing last session from autosave");
             interrupt_restore(saveopcode);
         }
     }

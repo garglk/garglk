@@ -11,7 +11,7 @@
 
 extern bool seen_save_undo;
 
-void init_stack(void);
+void init_stack(bool first_run);
 
 uint16_t variable(uint16_t var);
 void store_variable(uint16_t var, uint16_t n);
@@ -43,7 +43,13 @@ enum SaveStackType {
     SaveStackUser
 };
 
-bool push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc);
+enum SaveResult {
+    SaveResultSuccess,
+    SaveResultFailure,
+    SaveResultUnavailable,
+};
+
+enum SaveResult push_save(enum SaveStackType type, enum SaveType savetype, enum SaveOpcode saveopcode, const char *desc);
 bool pop_save(enum SaveStackType type, long saveno, enum SaveOpcode *saveopcode);
 bool drop_save(enum SaveStackType type, long i);
 void list_saves(enum SaveStackType type, void (*printer)(const char *));

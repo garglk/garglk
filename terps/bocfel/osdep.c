@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #ifdef ZTERP_UNIX
 #define _XOPEN_SOURCE	600
@@ -23,14 +23,20 @@
 #include <stdbool.h>
 #include <limits.h>
 
+#ifdef ZTERP_GLK
+#include "glk.h"
+#endif
+
+#include "io.h"
 #include "osdep.h"
 #include "screen.h"
+#include "util.h"
 #include "zterp.h"
 
 // OS-specific functions should all be collected in this file for
-// convenience.  A sort of poor-man’s “reverse” inheritance is used: for
+// convenience. A sort of poor-man’s “reverse” inheritance is used: for
 // each function that a particular operating system provides, it should
-// #define a macro of the same name.  At the end of the file, a generic
+// #define a macro of the same name. At the end of the file, a generic
 // function is provided for each function that has no associated macro
 // definition.
 //
@@ -38,47 +44,63 @@
 //
 // long zterp_os_filesize(FILE *fp)
 //
-// Return the size of the file referred to by fp.  It is safe to assume
-// that the file is opened in binary mode.  The file position indicator
-// need not be maintained.  If the size of the file is larger than
+// Return the size of the file referred to by fp. It is safe to assume
+// that the file is opened in binary mode. The file position indicator
+// need not be maintained. If the size of the file is larger than
 // LONG_MAX, -1 should be returned.
 //
-// bool zterp_os_rcfile(char *s, size_t n)
+// bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
 //
 // Different operating systems have different ideas about where
 // configuration data should be stored; this function will copy a
-// suitable value for the bocfel configuration file into the buffer “s”
-// which is n bytes long. If a configuration file location cannot be
-// determined, return false, otherwise true.
+// suitable value for the bocfel configuration file into the buffer
+// “*s”. If a configuration file location cannot be determined, return
+// false, otherwise true.
 //
-// bool zterp_os_autosave_name(char *name, size_t n)
+// bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 //
-// Store a suitable filename for autosaving into “name”, which is “n”
-// bytes long. Return true if the file should be accessible, false if
-// there is some problem. For example, the Unix implementation returns
-// false if it can’t create all directory components in the filename.
-// This should not verify that the file exists, because the first time
-// an autosave is created, it necessarily won’t exist beforehand.
+// Store a suitable filename for autosaving into “*name”. Return true if
+// the file should be accessible, false if there is some problem. For
+// example, the Unix implementation returns false if it can’t create all
+// directory components in the filename. This should not verify that the
+// file exists, because the first time an autosave is created, it
+// necessarily won’t exist beforehand.
 //
-// The following functions are useful for non-Glk builds only.  They
+// The following functions are useful for non-Glk builds only. They
 // provide for some handling of screen functions that is normally taken
 // care of by Glk.
+//
+// bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+//
+// Given player notes in “notes” with size “notes_len”, open a text
+// editor editing a file which contains those notes. When the editor
+// successfully exits, store the contents of the saved file in
+// “*new_notes” and its size in “*new_notes_len”, first allocating
+// sufficient space with malloc(). Upon success, return true. Otherwise,
+// return false, writing a suitable error message into “err”, a buffer
+// whose size is “errsize” bytes long.
+//
+// Upon failure, the contents of “*new_notes” and “*new_notes_len” can
+// be left undefined, but any memory allocated for the notes must be
+// freed by this function before returning: if this function returns
+// false, callers are not permitted to examine either “*new_notes” or
+// “*new_notes_len”.
 //
 // void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 //
 // The size of the terminal, if known, is written into *w (width) and *h
-// (height).  If terminal size is unavalable, nothing should be written.
+// (height). If terminal size is unavalable, nothing should be written.
 //
 // void zterp_os_init_term(void)
 //
 // If something special needs to be done to prepare the terminal for
-// output, it should be done here.  This function is called once at
+// output, it should be done here. This function is called once at
 // program startup.
 //
 // bool zterp_os_have_style(int style)
 //
 // This should return true if the provided style (see style.h for valid
-// STYLE_ values) is available.  It is safe to assume that styles will
+// STYLE_ values) is available. It is safe to assume that styles will
 // not be combined; e.g. this will not be called as:
 // zterp_os_have_style(STYLE_BOLD | STYLE_ITALIC);
 //
@@ -88,11 +110,11 @@
 //
 // void zterp_os_set_style(int style, const struct color *fg, const struct color *bg)
 //
-// Set both a style and foreground/background color.  Any previous
+// Set both a style and foreground/background color. Any previous
 // settings should be ignored; for example, if the last call to
 // zterp_os_set_style() turned on italics and the current call sets
 // bold, the result should be bold, not bold italic.
-// Unlike in zterp_os_have_style(), here styles may be combined.  See
+// Unlike in zterp_os_have_style(), here styles may be combined. See
 // the Unix implementation for a reference.
 // The colors are pointers to “struct color”: see screen.h.
 // This function will be called unconditionally, so implementations must
@@ -129,85 +151,89 @@ static void ansi_set_style(int style, const struct color *fg, const struct color
 }
 #endif
 
-// ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║ Unix functions                                                               ║
-// ╚══════════════════════════════════════════════════════════════════════════════╝
+#if defined(ZTERP_UNIX) || defined(ZTERP_WIN32)
+static bool read_notes(const char *filename, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+{
+    zterp_io *io = NULL;
+    long size;
+
+    io = zterp_io_open(filename, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_DATA);
+    if (io == NULL) {
+        snprintf(err, errsize, "unable to open temporary file");
+        goto err;
+    }
+
+    size = zterp_io_filesize(io);
+    if (size == -1) {
+        snprintf(err, errsize, "unable to determine size of temporary file");
+        goto err;
+    }
+
+    if (!zterp_io_seek(io, 0, SEEK_SET)) {
+        snprintf(err, errsize, "unable to seek in temporary file");
+        goto err;
+    }
+
+    if (size != 0) {
+        *new_notes = malloc(size);
+        *new_notes_len = size;
+
+        if (*new_notes == NULL) {
+            snprintf(err, errsize, "unable to allocate memory for new notes");
+            goto err;
+        }
+
+        if (!zterp_io_read_exact(io, *new_notes, size)) {
+            snprintf(err, errsize, "unable to read temporary file");
+            goto err;
+        }
+    } else {
+        *new_notes = NULL;
+        *new_notes_len = 0;
+    }
+
+    zterp_io_close(io);
+
+    return true;
+
+err:
+    if (io != NULL) {
+        zterp_io_close(io);
+    }
+
+    return false;
+}
+#endif
+
 #ifdef ZTERP_UNIX
 #include <string.h>
 
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
-long zterp_os_filesize(FILE *fp)
-{
-    struct stat buf;
-    int fd = fileno(fp);
-
-    if (fd == -1 || fstat(fd, &buf) == -1 || !S_ISREG(buf.st_mode) || buf.st_size > LONG_MAX) {
-        return -1;
-    }
-
-    return buf.st_size;
-}
-#define zterp_os_filesize
-
-bool zterp_os_rcfile(char *s, size_t n)
-{
-    const char *home;
-    const char *config_home;
-
-    home = getenv("HOME");
-    if (home != NULL) {
-        // This is the legacy location of the config file.
-        checked_snprintf(s, n, "%s/.bocfelrc", home);
-        if (access(s, R_OK) == 0) {
-            return true;
-        }
-    }
-
-    config_home = getenv("XDG_CONFIG_HOME");
-    if (config_home != NULL) {
-        checked_snprintf(s, n, "%s/bocfel/bocfelrc", config_home);
-    } else if (home != NULL) {
-        checked_snprintf(s, n, "%s/.config/bocfel/bocfelrc", home);
-    } else {
-        return false;
-    }
-
-    return true;
-}
-#define zterp_os_rcfile
-
-bool zterp_os_autosave_name(char *name, size_t n)
+static const char *autosave_basename(void)
 {
     const char *base_name;
-    const char *data_home;
 
     base_name = strrchr(game_file, '/');
     if (base_name != NULL) {
-        base_name++;
+        return base_name + 1;
     } else {
-        base_name = game_file;
+        return game_file;
     }
+}
 
-    data_home = getenv("XDG_DATA_HOME");
-    if (data_home != NULL) {
-        checked_snprintf(name, n, "%s/bocfel/autosave/%s-%s", data_home, base_name, get_story_id());
-    } else {
-        char *home = getenv("HOME");
-        if (home == NULL) {
-            return false;
-        }
-        checked_snprintf(name, n, "%s/.local/share/bocfel/autosave/%s-%s", home, base_name, get_story_id());
-    }
-
-    for (char *p = name; *p != 0; p++) {
-        if (*p == '/' && p != name) {
+// Given a filename (or a directory name ending in a slash), create all
+// components of all directories, returning false in case of error. This
+// function will modify the passed-in string, although it will restore
+// the original value before returning.
+static bool mkdir_p(char *file)
+{
+    for (char *p = file; *p != 0; p++) {
+        if (*p == '/' && p != file) {
             struct stat st;
             *p = 0;
-            mkdir(name, 0755);
-            if (stat(name, &st) == -1 || !S_ISDIR(st.st_mode)) {
+            mkdir(file, 0755);
+            if (stat(file, &st) == -1 || !S_ISDIR(st.st_mode)) {
                 return false;
             }
             *p = '/';
@@ -216,9 +242,229 @@ bool zterp_os_autosave_name(char *name, size_t n)
 
     return true;
 }
+#endif
+
+// ╔══════════════════════════════════════════════════════════════════════════════╗
+// ║ Unix functions                                                               ║
+// ╚══════════════════════════════════════════════════════════════════════════════╝
+#ifdef ZTERP_UNIX
+#include <errno.h>
+#include <string.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#ifdef __HAIKU__
+#include <FindDirectory.h>
+#endif
+
+long zterp_os_filesize(FILE *fp)
+{
+    struct stat st;
+    int fd = fileno(fp);
+
+    if (fd == -1 || fstat(fd, &st) == -1 || !S_ISREG(st.st_mode) || st.st_size > LONG_MAX) {
+        return -1;
+    }
+
+    return st.st_size;
+}
+#define zterp_os_filesize
+
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
+{
+#ifdef __HAIKU__
+    char settings_dir[ZTERP_OS_PATH_SIZE];
+
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) != B_OK) {
+        return false;
+    }
+
+    checked_snprintf(*s, sizeof *s, "%s/bocfel/bocfelrc", settings_dir);
+
+    return true;
+#else
+    const char *home;
+    const char *config_home;
+
+    home = getenv("HOME");
+    if (home != NULL) {
+        // This is the legacy location of the config file.
+        checked_snprintf(*s, sizeof *s, "%s/.bocfelrc", home);
+        if (access(*s, R_OK) == 0) {
+            return true;
+        }
+    }
+
+    config_home = getenv("XDG_CONFIG_HOME");
+    if (config_home != NULL) {
+        checked_snprintf(*s, sizeof *s, "%s/bocfel/bocfelrc", config_home);
+    } else if (home != NULL) {
+        checked_snprintf(*s, sizeof *s, "%s/.config/bocfel/bocfelrc", home);
+    } else {
+        return false;
+    }
+
+    return true;
+#endif
+}
+#define zterp_os_rcfile
+
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+#ifdef __HAIKU__
+    char settings_dir[ZTERP_OS_PATH_SIZE];
+
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, true, settings_dir, sizeof settings_dir) != B_OK) {
+        return false;
+    }
+
+    checked_snprintf(*name, sizeof *name, "%s/bocfel/autosave/%s-%s", settings_dir, autosave_basename(), get_story_id());
+
+    return mkdir_p(*name);
+#else
+    const char *data_home;
+
+    data_home = getenv("XDG_DATA_HOME");
+    if (data_home != NULL) {
+        checked_snprintf(*name, sizeof *name, "%s/bocfel/autosave/%s-%s", data_home, autosave_basename(), get_story_id());
+    } else {
+        char *home = getenv("HOME");
+        if (home == NULL) {
+            return false;
+        }
+        checked_snprintf(*name, sizeof *name, "%s/.local/share/bocfel/autosave/%s-%s", home, autosave_basename(), get_story_id());
+    }
+
+    return mkdir_p(*name);
+#endif
+}
 #define zterp_os_autosave_name
 
+bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+{
+    char *tmpdir, template[ZTERP_OS_PATH_SIZE];
+    int bytes_needed;
+    int fd;
+    size_t bytes;
+    pid_t pid;
+
+    // A list of possible text editors. The user can specify a text
+    // editor using the config file. If he doesn’t, or if it doesn’t
+    // exist, keep trying various possible editors in hopes that one
+    // exists and works. This really should use XDG to query the user’s
+    // preferred text editor, but for now, it doesn’t.
+    const char *editors[] = {
+        options.notes_editor,
+#if defined(__HAIKU__)
+        "StyledEdit",
+#elif defined(__serenity__)
+        "TextEditor",
+#elif !defined(__APPLE__)
+        "kate",
+        "kwrite",
+        "nedit-ng",
+        "nedit",
+        "gedit",
+#endif
+    };
+
+    tmpdir = getenv("TMPDIR");
+    if (tmpdir == NULL) {
+        tmpdir = "/tmp";
+    }
+
+    bytes_needed = snprintf(template, sizeof template, "%s/bocfel.notes.XXXXXX", tmpdir);
+    if (bytes_needed < 0 || bytes_needed >= sizeof template) {
+        snprintf(err, errsize, "path to temporary file is too long");
+        return false;
+    }
+
+    fd = mkstemp(template);
+    if (fd == -1) {
+        snprintf(err, errsize, "unable to create temporary file");
+        return false;
+    }
+
+    bytes = 0;
+    while (bytes < notes_len) {
+        ssize_t n = write(fd, notes + bytes, notes_len - bytes);
+        if (n == -1) {
+            snprintf(err, errsize, "unable to write to temporary file");
+            close(fd);
+            return false;
+        }
+        bytes += n;
+    }
+
+    close(fd);
+
+    pid = fork();
+    switch (pid) {
+    case -1:
+        snprintf(err, errsize, "unable to create new process");
+        return false;
+    case 0: {
+        for (size_t i = 0; i < ASIZE(editors); i++) {
+            if (editors[i] != NULL) {
+                execlp(editors[i], editors[i], template, (char *)NULL);
+            }
+        }
+#ifdef __APPLE__
+        execlp("open", "open", "-W", "-t", template, (char *)NULL);
+#endif
+        _exit(127);
+    }
+    default: {
+        int status;
+
+#ifdef ZTERP_GLK
+        while (waitpid(pid, &status, WNOHANG) != pid) {
+            usleep(10000);
+            glk_tick();
+        }
+#else
+        waitpid(pid, &status, 0);
+#endif
+
+        if (!WIFEXITED(status)) {
+            snprintf(err, errsize, "editor process terminated abnormally");
+            goto err;
+        }
+
+#ifndef __APPLE__
+        if (WEXITSTATUS(status) == 127) {
+            snprintf(err, errsize, "unable to find a text editor");
+            goto err;
+        }
+#endif
+
+        if (WEXITSTATUS(status) != 0) {
+            snprintf(err, errsize, "editor had exit status %d", WEXITSTATUS(status));
+            goto err;
+        }
+    }
+    }
+
+    if (!read_notes(template, new_notes, new_notes_len, err, errsize)) {
+        goto err;
+    }
+
+    remove(template);
+
+    return true;
+
+err:
+    remove(template);
+    return false;
+}
+#define zterp_os_edit_notes
+
 #ifndef ZTERP_GLK
+
+#ifndef ZTERP_NO_CURSES
 #include <sys/ioctl.h>
 #include <curses.h>
 #include <term.h>
@@ -292,10 +538,17 @@ bool zterp_os_have_colors(void)
 
 static void set_color(const char *string, const struct color *color)
 {
+    // Cast the first argument to tparm() below to char*, for unfortunate
+    // historical purposes: X/Open defines tparm() as taking a char*, and
+    // while most modern Unixes have a Curses implementation that takes
+    // const char*, at least macOS still takes a char*. No reasonable Curses
+    // implementation will modify the argument, so it’s safe enough to just
+    // cast here.
+
     switch (color->mode) {
     case ColorModeANSI:
         if (color->value >= 2 && color->value <= 9) {
-            putp(tparm(string, color->value - 2));
+            putp(tparm((char *)string, color->value - 2));
         }
         break;
     case ColorModeTrue:
@@ -309,7 +562,7 @@ static void set_color(const char *string, const struct color *color)
             uint16_t transformed = color->value < 4 ? 0 :
                                    color->value < 8 ? 8 :
                                    color->value;
-            putp(tparm(string, screen_convert_color(transformed)));
+            putp(tparm((char *)string, screen_convert_color(transformed)));
         }
         break;
     }
@@ -342,19 +595,35 @@ void zterp_os_set_style(int style, const struct color *fg, const struct color *b
 #define zterp_os_set_style
 #endif
 
+#endif
+
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Windows functions                                                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 #elif defined(ZTERP_WIN32)
 #include <windows.h>
 #include <direct.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
 #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
 #endif
 
-bool zterp_os_rcfile(char *s, size_t n)
+long zterp_os_filesize(FILE *fp)
+{
+    struct _stat st;
+    int fd = _fileno(fp);
+
+    if (fd == -1 || _fstat(_fileno(fp), &st) == -1 || (st.st_mode & _S_IFREG) == 0 || st.st_size > LONG_MAX) {
+        return -1;
+    }
+
+    return st.st_size;
+}
+#define zterp_os_filesize
+
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
 {
     const char *appdata;
 
@@ -363,13 +632,13 @@ bool zterp_os_rcfile(char *s, size_t n)
         return false;
     }
 
-    checked_snprintf(s, n, "%s\\Bocfel\\bocfel.ini", appdata);
+    checked_snprintf(*s, sizeof *s, "%s\\Bocfel\\bocfel.ini", appdata);
 
     return true;
 }
 #define zterp_os_rcfile
 
-bool zterp_os_autosave_name(char *name, size_t n)
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 {
     const char *appdata;
     char drive[MAX_PATH], path[MAX_PATH], fname[MAX_PATH], ext[MAX_PATH];
@@ -383,9 +652,9 @@ bool zterp_os_autosave_name(char *name, size_t n)
         return false;
     }
 
-    checked_snprintf(name, n, "%s\\Bocfel\\autosave\\%s%s-%s", appdata, fname, ext, get_story_id());
+    checked_snprintf(*name, sizeof *name, "%s\\Bocfel\\autosave\\%s%s-%s", appdata, fname, ext, get_story_id());
 
-    if (_splitpath_s(name, drive, sizeof drive, path, sizeof path, NULL, 0, NULL, 0) != 0) {
+    if (_splitpath_s(*name, drive, sizeof drive, path, sizeof path, NULL, 0, NULL, 0) != 0) {
         return false;
     }
 
@@ -406,6 +675,75 @@ bool zterp_os_autosave_name(char *name, size_t n)
     return true;
 }
 #define zterp_os_autosave_name
+
+bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+{
+    char tempdir[300];
+    char notes_name[1024];
+    zterp_io *io;
+
+    DWORD ret = GetTempPath(sizeof tempdir, tempdir);
+    if (ret == 0 || ret > sizeof tempdir) {
+        snprintf(err, errsize, "unable to find temporary directory");
+        return false;
+    }
+
+    snprintf(notes_name, sizeof notes_name, "%s\\bocfel_notes.txt", tempdir);
+    io = zterp_io_open(notes_name, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_DATA);
+    if (io == NULL) {
+        snprintf(err, errsize, "unable to create temporary file");
+        return false;
+    }
+
+    if (!zterp_io_write_exact(io, notes, notes_len)) {
+        zterp_io_close(io);
+        snprintf(err, errsize, "unable to write to temporary file");
+        goto err;
+    }
+
+    zterp_io_close(io);
+
+    SHELLEXECUTEINFO si = {
+        .cbSize = sizeof(SHELLEXECUTEINFO),
+        .fMask = SEE_MASK_NOCLOSEPROCESS,
+        .hwnd = NULL,
+        .lpVerb = "open",
+        .lpFile = notes_name,
+        .lpParameters = NULL,
+        .lpDirectory = NULL,
+        .nShow = SW_SHOW,
+        .hInstApp = NULL,
+    };
+
+    if (!ShellExecuteEx(&si)) {
+        snprintf(err, errsize, "unable to launch text editor");
+        goto err;
+    }
+
+#ifdef ZTERP_GLK
+    while (WaitForSingleObject(si.hProcess, 100) != 0) {
+        glk_tick();
+    }
+#else
+    WaitForSingleObject(si.hProcess, INFINITE);
+#endif
+
+    CloseHandle(si.hProcess);
+
+    if (!read_notes(notes_name, new_notes, new_notes_len, err, errsize)) {
+        goto err;
+    }
+
+    remove(notes_name);
+
+    return true;
+
+err:
+    remove(notes_name);
+
+    return false;
+}
+#define zterp_os_edit_notes
 
 #ifndef ZTERP_GLK
 void zterp_os_get_screen_size(unsigned *w, unsigned *h)
@@ -501,16 +839,24 @@ long zterp_os_filesize(FILE *fp)
 #endif
 
 #ifndef zterp_os_rcfile
-bool zterp_os_rcfile(char *s, size_t n)
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
 {
-    checked_snprintf(s, n, "bocfelrc");
+    checked_snprintf(*s, sizeof *s, "bocfelrc");
     return true;
 }
 #endif
 
 #ifndef zterp_os_autosave_name
-bool zterp_os_autosave_name(char *name, size_t n)
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 {
+    return false;
+}
+#endif
+
+#ifndef zterp_os_edit_notes
+bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+{
+    snprintf(err, errsize, "notes unimplemented on this platform");
     return false;
 }
 #endif

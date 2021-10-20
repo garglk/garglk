@@ -43,12 +43,14 @@ struct options {
     char *random_device;
 
     bool autosave;
+    bool persistent_transcript;
+    char *notes_editor;
 };
 
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.3.2"
+#define ZTERP_VERSION	"1.4"
 
 // v3
 #define FLAGS1_STATUSTYPE	(1U << 1)
@@ -103,12 +105,19 @@ struct header {
 extern int zversion;
 extern struct header header;
 extern uint8_t atable[];
-extern bool is_infocom_v1234;
 
 const char *get_story_id(void);
 
-bool is_lurking_horror(void);
-bool is_journey(void);
+enum Game {
+    GameInfocom1234,
+    GameJourney,
+    GameLurkingHorror,
+    GamePlanetfall,
+    GameStationfall,
+    GameCount,
+};
+
+bool is_game(enum Game game);
 
 void write_header(void);
 

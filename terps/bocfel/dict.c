@@ -8,11 +8,11 @@
 //
 // Bocfel is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Bocfel.  If not, see <http://www.gnu.org/licenses/>.
+// along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -65,7 +65,7 @@ static void make_word(uint8_t *base, uint16_t val)
     base[1] = val & 0xff;
 }
 
-// Add the character c to the nth position of the encoded text.  c is a
+// Add the character c to the nth position of the encoded text. c is a
 // 5-bit value (either a shift character, which selects an alphabet, or
 // the index into the current alphabet).
 static void add_zchar(int c, int n, uint8_t *encoded)
@@ -92,17 +92,17 @@ static void add_zchar(int c, int n, uint8_t *encoded)
 // terminating null character) into the buffer “encoded”.
 //
 // For V3 the encoded text is 6 Z-characters (4 bytes); for V4 and above
-// it’s 9 characters (6 bytes).  Due to the nature of the loop here,
-// it’s possible to encode too many bytes.  For example, if the string
+// it’s 9 characters (6 bytes). Due to the nature of the loop here,
+// it’s possible to encode too many bytes. For example, if the string
 // given is "aaa<" in a V3 game, the three 'a' characters will take up a
 // word (all three being packed into one), but the single '<' character
 // will take up two words (one full word and a third of the next) due to
-// the fact that '<' is not in the alphabet table.  Thus the encoded
+// the fact that '<' is not in the alphabet table. Thus the encoded
 // text will be 7 characters. This is OK because routines that use the
 // encoded string are smart enough to only pay attention to the first 6
 // or 9 Z-characters; and partial Z-characters are OK per §3.6.1.
 //
-// 1.1 of the standard revises the encoding for V1 and V2 games.  I am
+// 1.1 of the standard revises the encoding for V1 and V2 games. I am
 // not implementing the new rules for two basic reasons:
 // 1) It apparently only affects three (unnecessary) dictionary words in
 //    the known V1-2 games.
@@ -111,9 +111,9 @@ static void add_zchar(int c, int n, uint8_t *encoded)
 //    to lock.
 //
 // Z-character 0 is a space (§3.5.1), so theoretically a space should be
-// encoded simply with a zero.  However, Inform 6.32 encodes space
+// encoded simply with a zero. However, Inform 6.32 encodes space
 // (which has the value 32) as a 10-bit ZSCII code, which is the
-// Z-characters 5, 6, 1, 0.  Assume this is correct.
+// Z-characters 5, 6, 1, 0. Assume this is correct.
 static void encode_string(const uint8_t *s, size_t len, uint8_t encoded[static 8])
 {
     int n = 0;
@@ -219,7 +219,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 
     d = dict_find(token, len, dictionary);
 
-    if (len == 1 && is_infocom_v1234 && start_of_sentence && !options.disable_abbreviations) {
+    if (len == 1 && is_game(GameInfocom1234) && start_of_sentence && !options.disable_abbreviations) {
         const uint8_t examine[] = { 'e', 'x', 'a', 'm', 'i', 'n', 'e' };
         const uint8_t again[] = { 'a', 'g', 'a', 'i', 'n' };
         const uint8_t wait[] = { 'w', 'a', 'i', 't' };
@@ -259,7 +259,7 @@ static void handle_token(const uint8_t *base, const uint8_t *token, size_t len, 
 // For the text buffer, byte 0 is ignored in both V3/4 and V5+.
 // Byte 1 of V3/4 is the start of the string, while in V5+ it is the
 // length of the string.
-// Byte 2 of V5+ is the start of the string.  V3/4 strings have a null
+// Byte 2 of V5+ is the start of the string. V3/4 strings have a null
 // terminator, while V5+ do not.
 //
 // For the parse buffer, byte 0 contains the maximum number of tokens
@@ -324,7 +324,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
             if (text_len != 0 && *p != ZSCII_SPACE) {
                 handle_token(string, p, 1, parse, &dictionary, found++, flag, start_of_sentence);
 
-                start_of_sentence = *p == '.';
+                start_of_sentence = *p == ZSCII_PERIOD;
             }
 
             if (found == maxwords) {
