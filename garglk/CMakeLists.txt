@@ -138,7 +138,7 @@ endif()
 
 if(WITH_BABEL)
     target_link_libraries(garglk PRIVATE babel)
-    target_include_directories(garglk PRIVATE ../support/babel)
+    target_include_directories(garglk PRIVATE "${PROJECT_SOURCE_DIR}/support/babel")
     target_compile_definitions(garglk PRIVATE BABEL_HANDLER)
 endif()
 
@@ -204,13 +204,13 @@ elseif(UNIX)
     endif()
 
     install(FILES
-        ../fonts/Gargoyle-Mono-Bold-Italic.ttf
-        ../fonts/Gargoyle-Mono-Bold.ttf
-        ../fonts/Gargoyle-Mono-Italic.ttf
-        ../fonts/Gargoyle-Mono.ttf
-        ../fonts/Gargoyle-Serif-Bold-Italic.ttf
-        ../fonts/Gargoyle-Serif-Bold.ttf
-        ../fonts/Gargoyle-Serif-Italic.ttf
-        ../fonts/Gargoyle-Serif.ttf
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold-Italic.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Bold.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono-Italic.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Mono.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold-Italic.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Bold.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
+        "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
         DESTINATION "${FONT_DIRECTORY}")
 endif()
