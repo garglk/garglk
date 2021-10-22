@@ -190,7 +190,7 @@ int main(int argc, char **argv)
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_INTERPRETER_DIR but if that is not set, it is the
     // containing directory of the gargoyle executable.
-#ifdef GARGLK_INTERPRETER_DIR
+    //
     // For development purposes, the environment variable
     // $GARGLK_INTERPRETER_DIR can be set to the interpreter build
     // directory to allow the gargoyle binary to load the newly-built
@@ -200,9 +200,10 @@ int main(int argc, char **argv)
     // interpreter is found.
     QString dir = getenv("GARGLK_INTERPRETER_DIR");
     if (dir.isNull())
+#ifdef GARGLK_INTERPRETER_DIR
         dir = GARGLK_INTERPRETER_DIR;
 #else
-    QString dir = QCoreApplication::applicationDirPath();
+        dir = QCoreApplication::applicationDirPath();
 #endif
 
     /* get story file */
