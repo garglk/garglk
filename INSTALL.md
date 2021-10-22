@@ -54,6 +54,10 @@ In addition, Gargoyle supports the following options:
   all platforms except macOS), use Qt6 instead of Qt5. The default is
   false, i.e. use Qt5.
 
+- `WITH_FREEDESKTOP`: If true (the default), install
+  freedesktop.org-compliant desktop, application, and MIME files. This
+  is available only on non-Apple Unix platforms.
+
 - `WITH_TTS`: Takes one of three values: "ON", "OFF", or "AUTO". If
   "AUTO" (the default), text-to-speech support is enabled if the
   platform supports it. Windows and macOS always support TTS, but Unix
