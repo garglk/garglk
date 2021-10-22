@@ -468,18 +468,27 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
             char *style = strtok(arg, "\r\n\t ");
             char *fg = strtok(NULL, "\r\n\t ");
             char *bg = strtok(NULL, "\r\n\t ");
-            int i = atoi(style);
-            if (i < 0 || i >= style_NUMSTYLES || fg == NULL || bg == NULL)
+            style_t *styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
+
+            if (fg == NULL || bg == NULL)
                 continue;
-            if (cmd[0] == 't')
+
+            if (strcmp(style, "*") == 0)
             {
-                parsecolor(fg, gli_tstyles[i].fg);
-                parsecolor(bg, gli_tstyles[i].bg);
+                for (int i = 0; i < style_NUMSTYLES; i++)
+                {
+                    parsecolor(fg, styles[i].fg);
+                    parsecolor(bg, styles[i].bg);
+                }
             }
             else
             {
-                parsecolor(fg, gli_gstyles[i].fg);
-                parsecolor(bg, gli_gstyles[i].bg);
+                int i = atoi(style);
+                if (i < 0 || i >= style_NUMSTYLES)
+                    continue;
+
+                parsecolor(fg, styles[i].fg);
+                parsecolor(bg, styles[i].bg);
             }
         }
 
