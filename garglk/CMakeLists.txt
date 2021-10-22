@@ -5,6 +5,10 @@ endif()
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
 
+if(UNIX AND NOT APPLE)
+    option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
+endif()
+
 set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO)")
 set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
@@ -195,6 +199,16 @@ elseif(UNIX)
     install(FILES gi_blorb.h glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+    if(WITH_FREEDESKTOP)
+        install(FILES "gargoyle.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
+        install(FILES "gargoyle-house.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons")
+        install(FILES "interactive-fiction.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages")
+
+        foreach(terp adrift advsys agt alan blorb glulx hugo-image level9 magscroll tads zmachine)
+            install(FILES "gargoyle-docu2.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/mimetypes" RENAME "application-x-${terp}.png")
+        endforeach()
+    endif()
 
     if(APPIMAGE)
         set(FONT_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
