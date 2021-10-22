@@ -822,6 +822,12 @@ static BOOL isTextbufferEvent(NSEvent * evt)
         [filterTypes addObjectsFromArray:[docType objectForKey: @"CFBundleTypeExtensions"]];
     }
 
+    // Some advsys games have a .dat extension, but since that's so
+    // generic, it's not included in the .plist file, so it won't be
+    // registered system-wide for Gargoyle. Add it here so the file
+    // picker can select them, at least.
+    [filterTypes addObject: @"dat"];
+
     [openDlg setAllowedFileTypes: filterTypes];
     [openDlg setAllowsOtherFileTypes: NO];
     result = [openDlg runModal];
