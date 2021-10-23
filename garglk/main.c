@@ -31,6 +31,12 @@
 
 int main(int argc, char *argv[])
 {
+    if (argc == 0)
+    {
+        fprintf(stderr, "argv[0] is NULL, aborting\n");
+        exit(1);
+    }
+
     glkunix_startup_t startdata;
     startdata.argc = argc;
     startdata.argv = malloc(argc * sizeof(char*));
