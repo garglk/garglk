@@ -168,7 +168,6 @@
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>l9</string>
-				<string>sna</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
 			<string>docu2.icns</string>
@@ -468,7 +467,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>l9</string>
-					<string>sna</string>
 				</array>
 			</dict>
 		</dict>
