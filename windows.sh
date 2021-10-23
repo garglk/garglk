@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 # This script will cross compile Gargoyle for Windows using MinGW, and
 # build an installer for it using NSIS. This script makes assumptions
 # about the location of MinGW, so may need to be tweaked to get it to
@@ -13,8 +15,6 @@ else
     target=i686-w64-mingw32
     libgcc=dw2
 fi
-
-set -e
 
 [[ -e build/dist ]] && exit 1
 
