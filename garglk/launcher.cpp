@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstring>
 #include <exception>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -306,7 +307,6 @@ int rungame(const char *path, const char *game)
     std::vector<const char *> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     std::vector<Interpreter> interpreters = {
         { T_ADRIFT, "taf" },
-        { T_ADVSYS, "dat" },
         { T_AGT, "agx", "-gl" },
         { T_AGT, "d$$", "-gl" },
         { T_ALAN2, "acd" },
@@ -323,6 +323,7 @@ int rungame(const char *path, const char *game)
         { T_SCOTT, "saga" },
         { T_TADS2, "gam" },
         { T_TADS3, "t3" },
+        { T_ZCODE, "dat" },
         { T_ZCODE, "z1" },
         { T_ZCODE, "z2" },
         { T_ZCODE, "z3" },
@@ -349,6 +350,25 @@ int rungame(const char *path, const char *game)
 
     if (!launch.terp.empty())
         return call_winterp(path, launch.terp, launch.flags, game);
+
+    // Both Z-machine and AdvSys games claim the .dat extension. In
+    // general Gargoyle uses extensions to determine the interpreter to
+    // run, but since there's a conflict, check the file header in the
+    // case of .dat files. If it looks like AdvSys, call the AdvSys
+    // interpreter. Otherwise, use the Z-machine interpreter.
+    if (equal_strings(ext, "dat"))
+    {
+        std::vector<uint8_t> header(6);
+        const std::vector<uint8_t> advsys_magic = {0xa0, 0x9d, 0x8b, 0x8e, 0x88, 0x8e};
+        std::ifstream f(game, std::ios::binary);
+        if (f.is_open() &&
+            f.seekg(2) &&
+            f.read(reinterpret_cast<char *>(&header[0]), header.size()) &&
+            header == advsys_magic)
+        {
+            return call_winterp(path, T_ADVSYS, "", game);
+        }
+    }
 
     auto interpreter = std::find_if(interpreters.begin(), interpreters.end(),
                                     [&ext](const auto &interpreter) { return equal_strings(ext, interpreter.ext); });
