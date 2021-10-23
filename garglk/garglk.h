@@ -32,6 +32,11 @@
 #define GARGLK_GARGLK_H
 
 #ifdef __cplusplus
+#include <string>
+#include <vector>
+
+std::vector<std::string> gli_configs(const std::string &exedir, const std::string &gamepath);
+
 extern "C" {
 #endif
 
@@ -263,13 +268,13 @@ enum FACES { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
 enum TYPES { MONOF, PROPF };
 enum STYLES { FONTR, FONTB, FONTI, FONTZ };
 
-extern char *gli_conf_propfont;
+extern const char *gli_conf_propfont;
 extern char *gli_conf_propr;
 extern char *gli_conf_propb;
 extern char *gli_conf_propi;
 extern char *gli_conf_propz;
 
-extern char *gli_conf_monofont;
+extern const char *gli_conf_monofont;
 extern char *gli_conf_monor;
 extern char *gli_conf_monob;
 extern char *gli_conf_monoi;

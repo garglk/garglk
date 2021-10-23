@@ -28,7 +28,7 @@ GARGSRCS =
     cgstyle.c cgstream.c cgunicod.c cgdate.c
     window.c winblank.c winpair.c wingrid.c
     wintext.c wingfx.c winmask.c
-    event.cpp draw.cpp config.c
+    event.cpp draw.cpp config.cpp
     imgload.c imgscale.c
     babeldata.c
     ;

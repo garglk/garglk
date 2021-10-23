@@ -21,6 +21,10 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <algorithm>
+#include <string>
+#include <vector>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,8 +48,8 @@ char *gli_conf_monob = NULL;
 char *gli_conf_monoi = NULL;
 char *gli_conf_monoz = NULL;
 
-char *gli_conf_monofont = "Gargoyle Mono";
-char *gli_conf_propfont = "Gargoyle Serif";
+const char *gli_conf_monofont = "Gargoyle Mono";
+const char *gli_conf_propfont = "Gargoyle Serif";
 float gli_conf_monosize = 12.6;	/* good size for Gargoyle Mono */
 float gli_conf_propsize = 14.7;	/* good size for Gargoyle Serif */
 
@@ -201,15 +205,108 @@ static char* trim(char* src)
     return src;
 }
 
-static void readoneconfig(char *fname, char *argv0, char *gamefile)
+// Return a vector of all possible config files. This is in order of
+// highest priority to lowest (i.e. earlier entries should take
+// precedence over later entries).
+//
+// The following is the list of locations tried:
+//
+// 1. Name of game file with extension replaced by .ini (e.g. zork1.z3
+//    becomes zork1.ini)
+// 2. <directory containing game file>/garglk.ini
+// 3. <current directory>/garglk.ini
+// 4. $XDG_CONFIG_HOME/garglk.ini or $HOME/.config/garglk.ini
+// 5. $HOME/.garglkrc
+// 6. $HOME/garglk.ini
+// 7. $GARGLK_INI/.garglk
+// 8. $GARGLK_INI/garglk.ini
+// 9. /etc/garglk.ini (or other location set at build time)
+// 10. <directory containing gargoye executable>/garglk.ini
+//
+// exedir is the directory containing the gargoyle executable
+// gamepath is the path to the game file being run
+std::vector<std::string> gli_configs(const std::string &exedir, const std::string &gamepath)
+{
+    std::vector<std::string> configs;
+    if (!gamepath.empty())
+    {
+        std::string config;
+
+        // game file .ini
+        config = gamepath;
+        auto dot = config.rfind('.');
+        if (dot != std::string::npos)
+            config.replace(dot, std::string::npos, ".ini");
+        else
+            config += ".ini";
+
+        configs.push_back(config);
+
+        // game directory .ini
+        config = gamepath;
+        auto slash = config.find_last_of("/\\");
+        if (slash != std::string::npos)
+            config.replace(slash + 1, std::string::npos, "garglk.ini");
+        else
+            config = "garglk.ini";
+
+        configs.push_back(config);
+    }
+
+    // current directory .ini
+    configs.push_back("garglk.ini");
+
+    // XDG Base Directory Specification
+    std::string xdg_path;
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    if (xdg != nullptr)
+    {
+        xdg_path = xdg;
+    }
+    else
+    {
+        const char *home = getenv("HOME");
+        if (home != nullptr)
+            xdg_path = std::string(home) + "/.config";
+    }
+
+    if (!xdg_path.empty())
+        configs.push_back(xdg_path + "/garglk.ini");
+
+    // Various environment directories
+    //
+    // $GARGLK_INI may be set to a platform-specific path by the
+    // launcher. At the moment it's only used on macOS to point inside
+    // the bundle to a directory containing the a default garglk.ini.
+    std::vector<const char *> env_vars = {"HOME", "GARGLK_INI"};
+    for (const auto &var : env_vars)
+    {
+        const char *dir = std::getenv(var);
+        if (dir != nullptr)
+        {
+            configs.push_back(std::string(dir) + "/.garglkrc");
+            configs.push_back(std::string(dir) + "/garglk.ini");
+        }
+    }
+
+    // system directory
+    configs.push_back(GARGLKINI);
+
+    // install directory
+    if (!exedir.empty())
+        configs.push_back(exedir + "/garglk.ini");
+
+    return configs;
+}
+
+static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
 {
     FILE *f;
     char buf[1024];
     char *cmd, *arg;
     int accept = 1;
-    int i;
 
-    f = fopen(fname, "r");
+    f = fopen(fname.c_str(), "r");
     if (!f)
         return;
 
@@ -224,10 +321,10 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
 
         if (strchr(buf,'['))
         {
-            for (i = 0; i < strlen(buf); i++)
+            for (size_t i = 0; i < strlen(buf); i++)
                 buf[i] = tolower(buf[i]);
 
-            if (strstr(buf, argv0) || strstr(buf, gamefile))
+            if (strstr(buf, argv0.c_str()) || strstr(buf, gamefile.c_str()))
                 accept = 1;
             else
                 accept = 0;
@@ -509,105 +606,43 @@ static void readoneconfig(char *fname, char *argv0, char *gamefile)
     fclose(f);
 }
 
-void gli_read_config(int argc, char **argv)
+static void gli_read_config(int argc, char **argv)
 {
-    char gamefile[1024] = "default";
-    char argv0[1024] = "default";
-    char buf[1024];
-    int i;
+    auto basename_lower = [](std::string path) {
+        auto slash = path.find_last_of("/\\");
+        if (slash != std::string::npos)
+            path.erase(0, slash + 1);
+
+        for (char &c : path)
+            c = tolower(static_cast<unsigned char>(c));
+
+        return path;
+    };
 
     /* load argv0 with name of executable without suffix */
-    if (strrchr(argv[0], '\\'))
-        snprintf(argv0, sizeof argv0, "%s", strrchr(argv[0], '\\') + 1);
-    else if (strrchr(argv[0], '/'))
-        snprintf(argv0, sizeof argv0, "%s", strrchr(argv[0], '/') + 1);
-    else
-        snprintf(argv0, sizeof argv0, "%s", argv[0]);
-
-    if (strrchr(argv0, '.'))
-        strrchr(argv0, '.')[0] = 0;
-
-    for (i = 0; i < strlen(argv0); i++)
-        argv0[i] = tolower((unsigned char)argv0[i]);
+    std::string argv0 = basename_lower(argv[0]);
+    auto dot = argv0.rfind('.');
+    if (dot != std::string::npos)
+        argv0.erase(dot);
 
     /* load gamefile with basename of last argument */
-    if (strrchr(argv[argc-1], '\\'))
-        snprintf(gamefile, sizeof gamefile, "%s", strrchr(argv[argc-1], '\\') + 1);
-    else if (strrchr(argv[argc-1], '/'))
-        snprintf(gamefile, sizeof gamefile, "%s", strrchr(argv[argc-1], '/') + 1);
-    else
-        snprintf(gamefile, sizeof gamefile, "%s", argv[argc-1]);
+    std::string gamefile = basename_lower(argv[argc - 1]);
 
-    for (i = 0; i < strlen(gamefile); i++)
-        gamefile[i] = tolower((unsigned char)gamefile[i]);
+    /* load exefile with directory containing main executable */
+    std::string exedir = argv[0];
+    exedir = exedir.substr(0, exedir.find_last_of("/\\"));
 
-    /* try all the usual config places */
-
-#ifdef WIN32
-    {
-        char *s;
-        char tmp[sizeof buf];
-
-        snprintf(tmp, sizeof tmp, "%s", argv[0]);
-        s = strrchr(tmp, '\\');
-        if (s != NULL)
-            *s = 0;
-        snprintf(buf, sizeof buf, "%s\\garglk.ini", tmp);
-        readoneconfig(buf, argv0, gamefile);
-    }
-#else
-    snprintf(buf, sizeof buf, "%s", GARGLKINI);
-    readoneconfig(buf, argv0, gamefile);
-#endif
-
-    if (getenv("GARGLK_INI"))
-    {
-        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("GARGLK_INI"));
-        readoneconfig(buf, argv0, gamefile);
-    }
-
-    if (getenv("HOME"))
-    {
-        snprintf(buf, sizeof buf, "%s/.garglkrc", getenv("HOME"));
-        readoneconfig(buf, argv0, gamefile);
-        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("HOME"));
-        readoneconfig(buf, argv0, gamefile);
-    }
-
-    if (getenv("XDG_CONFIG_HOME"))
-    {
-        snprintf(buf, sizeof buf, "%s/.garglkrc", getenv("XDG_CONFIG_HOME"));
-        readoneconfig(buf, argv0, gamefile);
-        snprintf(buf, sizeof buf, "%s/garglk.ini", getenv("XDG_CONFIG_HOME"));
-        readoneconfig(buf, argv0, gamefile);
-    }
-
+    /* load gamepath with the path to the story file itself */
+    std::string gamepath;
     if (argc > 1)
-    {
-        char tmp[sizeof buf], *p;
+        gamepath = argv[argc - 1];
 
-        snprintf(tmp, sizeof tmp, "%s", argv[argc - 1]);
-        if ((p = strrchr(tmp, '\\')) != NULL)
-        {
-            *p = 0;
-            snprintf(buf, sizeof buf, "%s\\garglk.ini", tmp);
-            readoneconfig(buf, argv0, gamefile);
-        }
-        else if ((p = strrchr(tmp, '/')) != NULL)
-        {
-            *p = 0;
-            snprintf(buf, sizeof buf, "%s/garglk.ini", tmp);
-            readoneconfig(buf, argv0, gamefile);
-        }
+    /* load from all config files */
+    auto configs = gli_configs(exedir, gamepath);
+    std::reverse(configs.begin(), configs.end());
 
-        snprintf(tmp, sizeof tmp, "%s", argv[argc - 1]);
-        if ((p = strrchr(tmp, '.')) != NULL)
-        {
-            *p = 0;
-        }
-        snprintf(buf, sizeof buf, "%s.ini", tmp);
-        readoneconfig(buf, argv0, gamefile);
-    }
+    for (const auto &config : configs)
+        readoneconfig(config, argv0, gamefile);
 }
 
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)
@@ -626,9 +661,7 @@ void gli_startup(int argc, char *argv[])
 
     gli_read_config(argc, argv);
 
-    gli_more_prompt = malloc((1 + strlen(base_more_prompt)) * sizeof *gli_more_prompt);
-    if (gli_more_prompt == NULL)
-        winabort("Unable to allocate memory for more prompt");
+    gli_more_prompt = new glui32[1 + strlen(base_more_prompt)];
     gli_more_prompt_len = gli_parse_utf8((unsigned char *)base_more_prompt, strlen(base_more_prompt), gli_more_prompt, strlen(base_more_prompt));
 
     memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));

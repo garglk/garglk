@@ -313,7 +313,7 @@ font_t::font_t(const struct font &font)
     int err = 0;
     char fontpath[1024];
     float aspect, size;
-    const char *family;
+    std::string family;
     std::vector<std::function<bool(const struct font &, char *, size_t)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
@@ -338,10 +338,7 @@ font_t::font_t(const struct font &font)
         return get_font_path(font, fontpath, sizeof fontpath) && FT_New_Face(ftlib, fontpath, 0, &face) == 0;
     }))
     {
-        if (family == nullptr || family[0] == 0)
-            winabort("No font family specified for %s %s, and fallback %s not found", type_to_name(font.type), style_to_name(font.style), font.fallback);
-        else
-            winabort("Unable to find font %s for %s %s, and fallback %s not found", family, type_to_name(font.type), style_to_name(font.style), font.fallback);
+        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style), font.fallback);
     }
 
     if (strlen(fontpath) >= 4)
