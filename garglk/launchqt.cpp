@@ -77,7 +77,7 @@ void winmsg(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    vsnprintf(msg, sizeof msg, fmt, ap);
+    std::vsnprintf(msg, sizeof msg, fmt, ap);
     va_end(ap);
     QMessageBox::critical(nullptr, "Error", msg);
 }
