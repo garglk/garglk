@@ -213,7 +213,6 @@ static void configterp(const char *path, const char *game, struct Launch &launch
 {
     char config[MaxBuffer];
     char story[MaxBuffer];
-    char ext[MaxBuffer];
     const char *s1;
     char *s2;
 
@@ -232,13 +231,6 @@ static void configterp(const char *path, const char *game, struct Launch &launch
 
     for (size_t i = 0; i < std::strlen(story); i++)
         story[i] = std::tolower(static_cast<unsigned char>(story[i]));
-
-    /* set up extension */
-    s1 = std::strrchr(story, '.');
-    if (s1 != nullptr)
-        std::snprintf(ext, sizeof ext, "*%s", s1);
-    else
-        std::snprintf(ext, sizeof ext, "*.*");
 
     /* game file .ini */
     std::strcpy(config, game);
