@@ -31,8 +31,9 @@ jobs:
         fuse
         git
         grep
+        libfontconfig1-dev
+        libfreetype-dev
         libjpeg-dev
-        librsvg2-dev
         libsdl2-mixer-dev
         libspeechd-dev
         patchelf
