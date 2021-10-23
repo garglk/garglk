@@ -32,8 +32,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <unistd.h>
-
 #include "glk.h"
 #include "glkstart.h"
 #include "gi_blorb.h"
@@ -268,13 +266,8 @@ static void configterp(const char *path, const char *game, struct Launch &launch
         return;
 
     /* current directory .ini */
-    s1 = getcwd(config, sizeof config);
-    if (s1 != nullptr)
-    {
-        std::strcat(config, "/garglk.ini");
-        if (findterp(config, story, launch))
-            return;
-    }
+    if (findterp("garglk.ini", story, launch))
+        return;
 
     /* various environment directories */
     std::vector<const char *> env_vars = {"XDG_CONFIG_HOME", "HOME", "GARGLK_INI"};
