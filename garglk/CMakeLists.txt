@@ -1,5 +1,3 @@
-set(CMAKE_AUTOMOC ON)
-
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
 
@@ -17,6 +15,10 @@ set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO)")
 set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
 set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or none)")
+
+if(INTERFACE STREQUAL "QT")
+    set(CMAKE_AUTOMOC ON)
+endif()
 
 add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c
     cgmisc.c cgstream.c cgstyle.c cgunicod.c config.c draw.cpp event.cpp
