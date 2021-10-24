@@ -30,8 +30,6 @@
 #include <cstring>
 #include <string>
 
-#include <unistd.h>
-
 #include <QApplication>
 #include <QDir>
 #include <QFileDialog>
@@ -120,17 +118,6 @@ static QString winbrowsefile()
 
 int winterp(const char *path, const char *exe, const char *flags, const char *game)
 {
-    // execv() on MinGW seems to split the pathname on spaces, which
-    // completely ruins the ability to use it. So use QProcess on MinGW.
-    //
-    // Haiku provides execv(), but if Qt is running, it fails with
-    // "Operation not allowed" (errno 0x8000000f). The same execve()
-    // call works fine outside of Qt, so maybe this is a BeOS GUI thing.
-    // At any rate, QProcess still works, so use that on Haiku.
-    //
-    // Otherwise, just use execve(), since QProcess swallows stdout and
-    // stderr, and it's cumbersome to redirect them back to the terminal.
-#if defined(_WIN32) || defined(__HAIKU__)
     QString argv0 = QDir(path).absoluteFilePath(exe);
 
 #ifndef _WIN32
@@ -145,6 +132,7 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
         args = QStringList({game});
 
     QProcess proc;
+    proc.setProcessChannelMode(QProcess::ForwardedChannels);
     proc.start(argv0, args);
 
     if (!proc.waitForStarted(5000))
@@ -159,27 +147,6 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
         return 1;
     else
         return proc.exitCode();
-#else
-    std::string argv0 = QDir(path).absoluteFilePath(exe).toStdString();
-    char *argv[4] = { const_cast<char *>(argv0.c_str()) };
-
-    setenv("GARGLK_INI", path, 0);
-
-    if (std::strstr(flags, "-") != nullptr)
-    {
-        argv[1] = const_cast<char *>(flags);
-        argv[2] = const_cast<char *>(game);
-    }
-    else
-    {
-        argv[1] = const_cast<char *>(game);
-    }
-
-    execv(argv[0], argv);
-
-    winmsg("Could not start interpreter %s: %s\n", argv[0], strerror(errno));
-    return 1;
-#endif
 }
 
 int main(int argc, char **argv)
