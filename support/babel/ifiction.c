@@ -167,7 +167,7 @@ static void ifiction_validate_tag(struct XMLTag *xtg, struct ifiction_info *xti,
   for(i=0;leaf_tags[i];i++) {
    if (strcmp(parent->tag,leaf_tags[i])==0)
    {
-    sprintf(ebuf, "Error: (line %d) Tag <%s> is not permitted within tag <%s>",
+    snprintf(ebuf, sizeof ebuf, "Error: (line %d) Tag <%s> is not permitted within tag <%s>",
         xtg->beginl,xtg->tag,parent->tag);
     err_h(ebuf,ectx);
    }
@@ -179,7 +179,7 @@ static void ifiction_validate_tag(struct XMLTag *xtg, struct ifiction_info *xti,
   for(i=0;one_per[i];i++) {
    if (strcmp(one_per[i],xtg->tag)==0) {
     if (parent->occurences[i]) { 
-     sprintf(ebuf,"Error: (line %d) Found more than one <%s> within <%s>",xtg->beginl,xtg->tag,
+     snprintf(ebuf,sizeof ebuf,"Error: (line %d) Found more than one <%s> within <%s>",xtg->beginl,xtg->tag,
          parent->tag);
      err_h(ebuf,ectx);
     }
@@ -456,7 +456,7 @@ while(xml && *xml)
     }
     else
     { 
-      sprintf(ebuffer,"Error: (line %d) saw </%s> without <%s>",getln(xml), buffer,buffer);
+      snprintf(ebuffer,sizeof ebuffer,"Error: (line %d) saw </%s> without <%s>",getln(xml), buffer,buffer);
       error_handler(ebuffer,error_ctx);
     }
    }

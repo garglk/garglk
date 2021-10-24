@@ -134,7 +134,7 @@ static char *deeper_babel_init(char *story_name, void *bhp)
   if (!treaty_registry[i])
    return NULL;
   bh->treaty_backup=treaty_registry[i];
-  sprintf(buffer,"%sed %s",buffert,buffer2);
+  snprintf(buffer,sizeof buffer,"%sed %s",buffert,buffer2);
   return buffer;
   }
 
