@@ -1,4 +1,4 @@
-name: Feature matrix
+name: Main build
 
 on:
   push:
@@ -6,10 +6,6 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT"]
-
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
@@ -23,20 +19,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Update packages
-        run: apt update
+      - run: apt update
 
-      - name: Install packages
+      - name: Install deps
         run: DEBIAN_FRONTEND=noninteractive apt install -y
           build-essential
           cmake
           git
+          grep
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-dev
           libmpg123-dev
           libopenmpt-dev
-          libsdl2-mixer-dev
           libsndfile-dev
           libspeechd-dev
           qtbase5-dev
@@ -47,7 +42,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr ${{ matrix.feature }} -DWITH_INTERPRETERS=OFF -DWITH_LAUNCHER=OFF
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DSOUND=QT
 
       - name: Build
         run: |
