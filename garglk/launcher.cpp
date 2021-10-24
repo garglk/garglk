@@ -36,6 +36,7 @@
 #include "glk.h"
 #include "glkstart.h"
 #include "gi_blorb.h"
+#include "garglk.h"
 #include "launcher.h"
 
 #define T_ADRIFT    "scare"
@@ -67,11 +68,9 @@ struct Launch {
 
 static bool call_winterp(const char *path, const std::string &interpreter, const std::string &flags, const char *game)
 {
-    char exe[MaxBuffer];
+    std::string exe = std::string(GARGLKPRE) + interpreter;
 
-    std::snprintf(exe, sizeof exe, "%s%s", GARGLKPRE, interpreter.c_str());
-
-    return winterp(path, exe, flags.c_str(), game);
+    return winterp(path, exe.c_str(), flags.c_str(), game);
 }
 
 static bool runblorb(const char *path, const char *game, const struct Launch &launch)
@@ -147,13 +146,13 @@ static bool runblorb(const char *path, const char *game, const struct Launch &la
     }
 }
 
-static bool findterp_impl(const char *file, const char *target, struct Launch &launch)
+static bool findterp(const std::string &file, const std::string &target, struct Launch &launch)
 {
     char buf[MaxBuffer];
     char *cmd, *arg, *opt;
     bool accept = false;
 
-    std::unique_ptr<std::FILE, decltype(&std::fclose)> f(std::fopen(file, "r"), std::fclose);
+    std::unique_ptr<std::FILE, decltype(&std::fclose)> f(std::fopen(file.c_str(), "r"), std::fclose);
     if (!f)
         return false;
 
@@ -169,7 +168,7 @@ static bool findterp_impl(const char *file, const char *target, struct Launch &l
             for (size_t i = 0; i < std::strlen(buf); i++)
                 buf[i] = std::tolower(static_cast<unsigned char>(buf[i]));
 
-            accept = std::strstr(buf, target) != nullptr;
+            accept = std::strstr(buf, target.c_str()) != nullptr;
         }
 
         if (!accept)
@@ -196,97 +195,36 @@ static bool findterp_impl(const char *file, const char *target, struct Launch &l
     return !launch.terp.empty();
 }
 
-static bool findterp(const char *config, const char *story, struct Launch &launch)
+static void configterp(const std::string &exedir, const std::string &gamepath, struct Launch &launch)
 {
-    const char *s;
-    char ext[MaxBuffer];
-
-    s = std::strrchr(story, '.');
-    if (s != nullptr)
-        std::snprintf(ext, sizeof ext, "*%s", s);
-    else
-        std::snprintf(ext, sizeof ext, "*.*");
-
-    return findterp_impl(config, story, launch) || findterp_impl(config, ext, launch);
-}
-
-static void configterp(const char *path, const char *game, struct Launch &launch)
-{
-    char config[MaxBuffer];
-    char story[MaxBuffer];
-    const char *s1;
-    char *s2;
+    std::string config;
+    std::string story = gamepath;
 
     /* set up story */
-    s1 = std::strrchr(game,'\\');
-    if (s1 == nullptr)
-        s1 = std::strrchr(game, '/');
+    auto slash = story.rfind('\\');
+    if (slash == std::string::npos)
+        slash = story.find_last_of('/');
+    if (slash != std::string::npos)
+        story = story.substr(slash + 1);
 
-    if (s1 != nullptr)
-        std::snprintf(story, sizeof story, "%s", s1 + 1);
+    if (story.empty())
+        return;
+
+    for (char &c : story)
+        c = std::tolower(static_cast<unsigned char>(c));
+
+    std::string ext = story;
+    auto dot = story.rfind('.');
+    if (dot != std::string::npos)
+        ext.replace(0, dot, "*");
     else
-        std::snprintf(story, sizeof story, "%s", game);
+        ext = "*.*";
 
-    if (std::strlen(story) == 0)
-        return;
-
-    for (size_t i = 0; i < std::strlen(story); i++)
-        story[i] = std::tolower(static_cast<unsigned char>(story[i]));
-
-    /* game file .ini */
-    std::strcpy(config, game);
-    s2 = std::strrchr(config, '.');
-    if (s2 != nullptr)
-        std::strcpy(s2, ".ini");
-    else
-        std::strcat(config, ".ini");
-
-    if (findterp(config, story, launch))
-        return;
-
-    /* game directory .ini */
-    std::strcpy(config, game);
-    s2 = std::strrchr(config, '\\');
-    if (s2 == nullptr)
-        s2 = std::strrchr(config, '/');
-
-    if (s2 != nullptr)
-        std::strcpy(s2 + 1, "garglk.ini");
-    else
-        std::strcpy(config, "garglk.ini");
-
-    if (findterp(config, story, launch))
-        return;
-
-    /* current directory .ini */
-    if (findterp("garglk.ini", story, launch))
-        return;
-
-    /* various environment directories */
-    std::vector<const char *> env_vars = {"XDG_CONFIG_HOME", "HOME", "GARGLK_INI"};
-    for (const auto &var : env_vars)
+    for (const auto &config : gli_configs(exedir, gamepath))
     {
-        const char *dir = std::getenv(var);
-        if (dir != nullptr)
-        {
-            std::snprintf(config, sizeof config, "%s/.garglkrc", dir);
-            if (findterp(config, story, launch))
-                return;
-
-            std::snprintf(config, sizeof config, "%s/garglk.ini", dir);
-            if (findterp(config, story, launch))
-                return;
-        }
+        if (findterp(config, story, launch) || findterp(config, ext, launch))
+            return;
     }
-
-    /* system directory */
-    if (findterp(GARGLKINI, story, launch))
-        return;
-
-    /* install directory */
-    std::snprintf(config, sizeof config, "%s/garglk.ini", path);
-    if (findterp(config, story, launch))
-        return;
 }
 
 struct Interpreter {

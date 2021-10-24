@@ -120,10 +120,6 @@ int winterp(const char *path, const char *exe, const char *flags, const char *ga
 {
     QString argv0 = QDir(path).absoluteFilePath(exe);
 
-#ifndef _WIN32
-    setenv("GARGLK_INI", path, 0);
-#endif
-
     QStringList args;
 
     if (std::strstr(flags, "-") != nullptr)
