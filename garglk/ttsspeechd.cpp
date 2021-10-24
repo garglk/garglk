@@ -21,8 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <vector>
 
 #include <libspeechd.h>
 
@@ -39,20 +38,18 @@ void gli_initialize_tts(void)
 {
     if (gli_conf_speak)
     {
-        spd = spd_open("gargoyle", "main", NULL, SPD_MODE_SINGLE);
+        spd = spd_open("gargoyle", "main", nullptr, SPD_MODE_SINGLE);
 
-        if (spd != NULL && gli_conf_speak_language != NULL)
-            spd_set_language(spd, gli_conf_speak_language);
+        if (spd != nullptr && !gli_conf_speak_language.empty())
+            spd_set_language(spd, gli_conf_speak_language.c_str());
     }
 
     txtlen = 0;
 }
 
-static char *unicode_to_utf8(const glui32 *src, size_t n)
+static std::vector<char> unicode_to_utf8(const glui32 *src, size_t n)
 {
-    char *dst, *dstp;
-
-    dst = dstp = malloc((4 * n) + 1);
+    std::vector<char> dst;
 
     for (size_t i = 0; i < n; i++)
     {
@@ -62,40 +59,37 @@ static char *unicode_to_utf8(const glui32 *src, size_t n)
 
         if (src[i] < 0x80)
         {
-            *dstp++ = src[i];
+            dst.push_back(src[i]);
         }
         else if (src[i] < 0x800)
         {
-            *dstp++ = 0xc0 | (mid << 2) | (lo >> 6);
-            *dstp++ = 0x80 | (lo & 0x3f);
+            dst.push_back(0xc0 | (mid << 2) | (lo >> 6));
+            dst.push_back(0x80 | (lo & 0x3f));
         }
         else if (src[i] < 0x10000)
         {
-            *dstp++ = 0xe0 | (mid >> 4);
-            *dstp++ = 0x80 | ((mid << 2) & 0x3f) | (lo >> 6);
-            *dstp++ = 0x80 | (lo & 0x3f);
+            dst.push_back(0xe0 | (mid >> 4));
+            dst.push_back(0x80 | ((mid << 2) & 0x3f) | (lo >> 6));
+            dst.push_back(0x80 | (lo & 0x3f));
         }
         else if (src[i] < 0x200000)
         {
-            *dstp++ = 0xf0 | (hi >> 2);
-            *dstp++ = 0x80 | ((hi << 4) & 0x30) | (mid >> 4);
-            *dstp++ = 0x80 | ((mid << 2) & 0x3c) | (lo >> 6);
-            *dstp++ = 0x80 | (lo & 0x3f);
+            dst.push_back(0xf0 | (hi >> 2));
+            dst.push_back(0x80 | ((hi << 4) & 0x30) | (mid >> 4));
+            dst.push_back(0x80 | ((mid << 2) & 0x3c) | (lo >> 6));
+            dst.push_back(0x80 | (lo & 0x3f));
         }
     }
-
-    *dstp = 0;
 
     return dst;
 }
 
 void gli_tts_flush(void)
 {
-    if (spd != NULL && txtlen > 0)
+    if (spd != nullptr && txtlen > 0)
     {
-        char *utf8 = unicode_to_utf8(txtbuf, txtlen);
-        spd_say(spd, SPD_MESSAGE, utf8);
-        free(utf8);
+        auto utf8 = unicode_to_utf8(txtbuf, txtlen);
+        spd_say(spd, SPD_MESSAGE, &utf8[0]);
     }
 
     txtlen = 0;
@@ -103,13 +97,13 @@ void gli_tts_flush(void)
 
 void gli_tts_purge(void)
 {
-    if (spd != NULL)
+    if (spd != nullptr)
         spd_cancel(spd);
 }
 
 void gli_tts_speak(const glui32 *buf, size_t len)
 {
-    if (spd == NULL)
+    if (spd == nullptr)
         return;
 
     for (size_t i = 0; i < len; i++)
@@ -129,6 +123,6 @@ void gli_tts_speak(const glui32 *buf, size_t len)
 
 void gli_free_tts(void)
 {
-    if (spd != NULL)
+    if (spd != nullptr)
         spd_close(spd);
 }

@@ -20,104 +20,95 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include <fontconfig/fontconfig.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "glk.h"
 #include "garglk.h"
 
 static bool initialized = false;
 
-static bool findfont(const char *fontname, char *fontpath, size_t n)
+template <typename T, typename Deleter>
+std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
 {
-    FcPattern *p = NULL;
-    FcFontSet *fs = NULL;
-    FcObjectSet *os = NULL;
-    FcChar8 *strval = NULL;
-    bool success = false;
-
-    p = FcNameParse((FcChar8*)fontname);
-    if (p == NULL)
-        goto out;
-
-    os = FcObjectSetBuild(FC_FILE, (char *)NULL);
-    fs = FcFontList(NULL, p, os);
-    if (fs->nfont == 0)
-        goto out;
-
-    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch
-                || strval == NULL)
-        goto out;
-
-    success = true;
-    snprintf(fontpath, n, "%s", strval);
-
-out:
-    if (fs != NULL)
-        FcFontSetDestroy(fs);
-
-    if (os != NULL)
-        FcObjectSetDestroy(os);
-
-    if (p != NULL)
-        FcPatternDestroy(p);
-
-    return success;
+    return std::unique_ptr<T, Deleter>(p, deleter);
 }
 
-static char *find_font_by_styles(const char *basefont, const char **styles, const char **weights, const char **slants)
+static std::string findfont(const std::string &fontname)
+{
+    FcChar8 *strval = nullptr;
+
+    auto p = unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
+    if (p == nullptr)
+        return "";
+
+    auto os = unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
+    if (os == nullptr)
+        return "";
+
+    auto fs = unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
+    if (fs->nfont == 0)
+        return "";
+
+    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr)
+        return "";
+
+    return reinterpret_cast<char *>(strval);
+}
+
+static std::string find_font_by_styles(const std::string &basefont, const std::vector<std::string> &styles, const std::vector<std::string> &weights, const std::vector<std::string> &slants)
 {
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
-    const char *widths[] = {":normal", "", NULL};
+    std::vector<std::string> widths = {":normal", ""};
 
-    for (const char **width = widths; *width != NULL; width++)
+    for (const auto &width : widths)
     {
-        for (const char **style = styles; *style != NULL; style++)
+        for (const auto &style : styles)
         {
-            for (const char **weight = weights; *weight != NULL; weight++)
+            for (const auto &weight : weights)
             {
-                for (const char **slant = slants; *slant != NULL; slant++)
+                for (const auto &slant : slants)
                 {
-                    char fontname[1024];
-                    char fontpath[1024];
+                    std::stringstream fontname;
+                    std::string fontpath;
 
-                    snprintf(fontname, sizeof fontname, "%s:style=%s:weight=%s:%s%s", basefont, *style, *weight, *slant, *width);
-                    if (findfont(fontname, fontpath, sizeof fontpath))
-                    {
-                        return strdup(fontpath);
-                    }
+                    fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;
+                    fontpath = findfont(fontname.str());
+                    if (!fontpath.empty())
+                        return fontpath;
                 }
             }
         }
     }
 
-    return NULL;
+    return "";
 }
 
-void fontreplace(const char *font, int type)
+void fontreplace(const std::string &font, int type)
 {
-    if (!initialized || strlen(font) == 0)
+    if (!initialized || font.empty())
         return;
 
-    char *sysfont;
-    char **r, **b, **i, **z;
+    std::string sysfont;
+    std::string *r, *b, *i, *z;
 
     if (type == MONOF)
     {
-        r = &gli_conf_monor;
-        b = &gli_conf_monob;
-        i = &gli_conf_monoi;
-        z = &gli_conf_monoz;
+        r = &gli_conf_mono.r;
+        b = &gli_conf_mono.b;
+        i = &gli_conf_mono.i;
+        z = &gli_conf_mono.z;
     }
     else
     {
-        r = &gli_conf_propr;
-        b = &gli_conf_propb;
-        i = &gli_conf_propi;
-        z = &gli_conf_propz;
+        r = &gli_conf_prop.r;
+        b = &gli_conf_prop.b;
+        i = &gli_conf_prop.i;
+        z = &gli_conf_prop.z;
     }
 
     /* Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
@@ -143,10 +134,10 @@ void fontreplace(const char *font, int type)
      * highest to lowest priority, so "Italic regular italic" will be preferred
      * over "Medium Oblique book oblique", for example.
      */
-    const char *regular_styles[] = {"Regular", "Book", "Medium", "Roman", NULL};
-    const char *italic_styles[] = {"Italic", "Regular Italic", "Medium Italic", "Book Italic", "Oblique", "Regular Oblique", "Medium Oblique", "Book Oblique", NULL};
-    const char *bold_styles[] = {"Bold", "Extrabold", "Semibold", "Black", NULL};
-    const char *bold_italic_styles[] = {"Bold Italic", "Extrabold Italic", "Semibold Italic", "Black Italic", "Bold Oblique", "Extrabold Oblique", "Semibold Oblique", "Black Oblique", NULL};
+    std::vector<std::string> regular_styles = {"Regular", "Book", "Medium", "Roman"};
+    std::vector<std::string> italic_styles = {"Italic", "Regular Italic", "Medium Italic", "Book Italic", "Oblique", "Regular Oblique", "Medium Oblique", "Book Oblique"};
+    std::vector<std::string> bold_styles = {"Bold", "Extrabold", "Semibold", "Black"};
+    std::vector<std::string> bold_italic_styles = {"Bold Italic", "Extrabold Italic", "Semibold Italic", "Black Italic", "Bold Oblique", "Extrabold Oblique", "Semibold Oblique", "Black Oblique"};
 
     // Fontconfig could/should accept "medium" (for example), and this
     // generally works, except that in some rare cases I've seen it
@@ -154,16 +145,16 @@ void fontreplace(const char *font, int type)
     // weight value doesn't have this problem.
 
     // Book, Regular, Medium
-    const char *regular_weights[] = {"75", "80", "100", NULL};
+    std::vector<std::string> regular_weights = {"75", "80", "100"};
     // Demibold/Semibold, Bold, Extrabold, Black
-    const char *bold_weights[] = {"180", "200", "205", "210", NULL};
+    std::vector<std::string> bold_weights = {"180", "200", "205", "210"};
 
-    const char *roman_slants[] = {"roman", NULL};
-    const char *italic_slants[] = {"italic", "oblique", NULL};
+    std::vector<std::string> roman_slants = {"roman"};
+    std::vector<std::string> italic_slants = {"italic", "oblique"};
 
     /* regular or roman */
     sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
-    if (sysfont != NULL)
+    if (!sysfont.empty())
     {
         *r = sysfont;
         *b = sysfont;
@@ -173,7 +164,7 @@ void fontreplace(const char *font, int type)
 
     /* bold */
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
-    if (sysfont != NULL)
+    if (!sysfont.empty())
     {
         *b = sysfont;
         *z = sysfont;
@@ -181,7 +172,7 @@ void fontreplace(const char *font, int type)
 
     /* italic or oblique */
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
-    if (sysfont != NULL)
+    if (!sysfont.empty())
     {
         *i = sysfont;
         *z = sysfont;
@@ -189,7 +180,7 @@ void fontreplace(const char *font, int type)
 
     /* bold italic or bold oblique */
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
-    if (sysfont != NULL)
+    if (!sysfont.empty())
     {
         *z = sysfont;
     }

@@ -91,9 +91,9 @@ void gli_initialize_tts(void)
         synth.delegate = [SpeechDelegate new];
 
         // configure optional non-default speaking voice/language
-        if (gli_conf_speak_language != NULL)
+        if (!gli_conf_speak_language.empty())
         {
-            NSString * lang = [NSString stringWithCString: gli_conf_speak_language
+            NSString * lang = [NSString stringWithCString: gli_conf_speak_language.c_str()
                                                  encoding: NSUTF8StringEncoding];
 
             NSArray * voices = [NSSpeechSynthesizer availableVoices];

@@ -67,7 +67,7 @@ struct fentry_t
 };
 
 struct font {
-    const char *path;
+    std::string path;
     const char *fallback;
     enum TYPES type;
     enum STYLES style;
@@ -235,9 +235,9 @@ const fentry_t &font_t::loadglyph(glui32 cid)
 // monor, etc).
 static bool font_path_user(const struct font &font, char *outpath, size_t n)
 {
-    if (font.path != nullptr)
+    if (!font.path.empty())
     {
-        std::snprintf(outpath, n, "%s", font.path);
+        std::snprintf(outpath, n, "%s", font.path.c_str());
         return true;
     }
     else
@@ -423,6 +423,16 @@ void gli_initialize_fonts(void)
     fontreplace(gli_conf_propfont, PROPF);
     fontunload();
 
+    /* If the user provided specific fonts, swap them in */
+    if (!gli_conf_mono_override.r.empty()) gli_conf_mono.r = gli_conf_mono_override.r;
+    if (!gli_conf_mono_override.b.empty()) gli_conf_mono.b = gli_conf_mono_override.b;
+    if (!gli_conf_mono_override.i.empty()) gli_conf_mono.i = gli_conf_mono_override.i;
+    if (!gli_conf_mono_override.z.empty()) gli_conf_mono.z = gli_conf_mono_override.z;
+    if (!gli_conf_prop_override.r.empty()) gli_conf_prop.r = gli_conf_prop_override.r;
+    if (!gli_conf_prop_override.b.empty()) gli_conf_prop.b = gli_conf_prop_override.b;
+    if (!gli_conf_prop_override.i.empty()) gli_conf_prop.i = gli_conf_prop_override.i;
+    if (!gli_conf_prop_override.z.empty()) gli_conf_prop.z = gli_conf_prop_override.z;
+
     /* create oblique transform matrix */
     ftmat.xx = 0x10000L;
     ftmat.yx = 0x00000L;
@@ -430,14 +440,14 @@ void gli_initialize_fonts(void)
     ftmat.yy = 0x10000L;
 
     struct font fonts[8] = {
-        { gli_conf_monor, "Gargoyle-Mono.ttf", MONOF, FONTR },
-        { gli_conf_monob, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB },
-        { gli_conf_monoi, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI },
-        { gli_conf_monoz, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ },
-        { gli_conf_propr, "Gargoyle-Serif.ttf", PROPF, FONTR },
-        { gli_conf_propb, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB },
-        { gli_conf_propi, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI },
-        { gli_conf_propz, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ },
+        { gli_conf_mono.r, "Gargoyle-Mono.ttf", MONOF, FONTR },
+        { gli_conf_mono.b, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB },
+        { gli_conf_mono.i, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI },
+        { gli_conf_mono.z, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ },
+        { gli_conf_prop.r, "Gargoyle-Serif.ttf", PROPF, FONTR },
+        { gli_conf_prop.b, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB },
+        { gli_conf_prop.i, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI },
+        { gli_conf_prop.z, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ },
     };
 
     for (int i = 0; i < 8; i++)

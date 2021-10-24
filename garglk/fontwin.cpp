@@ -23,9 +23,7 @@
 
 #include <windows.h>
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
 
 #include "glk.h"
 #include "garglk.h"
@@ -33,20 +31,19 @@
 #define FONT_SUBKEY ("Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")
 
 // forward declaration
-static bool find_font_file(const char *facename, char *filepath, size_t length);
+static bool find_font_file(const std::string &facename, std::string &filepath);
 
 static HDC hdc;
 
-struct fonts
+struct Fonts
 {
-    const char *name;
-    bool rset, bset, iset, zset;
-    char *r, *b, *i, *z;
+    bool rset = false, bset = false, iset = false, zset = false;
+    std::string r, b, i, z;
 } monofonts, propfonts;
 
-static void fill_in_fonts(struct fonts *fonts, char **r, char **b, char **i, char **z)
+static void fill_in_fonts(Fonts &fonts, std::string &r, std::string &b, std::string &i, std::string &z)
 {
-#define FILL(font) do { if (fonts->font != NULL) *(font) = fonts->font; } while(0);
+#define FILL(font) do { if (!fonts.font.empty()) font = fonts.font; } while(0);
     FILL(r);
     FILL(b);
     FILL(i);
@@ -54,69 +51,53 @@ static void fill_in_fonts(struct fonts *fonts, char **r, char **b, char **i, cha
 #undef FILL
 }
 
-static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
+static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, Fonts *fonts)
 {
-    char filepath[1024];
-    char *style = (char *)lpelfe->elfStyle;
+    std::string filepath;
+    std::string style = reinterpret_cast<char *>(lpelfe->elfStyle);
 
-    if (fonts->name[0] == 0)
-        return 0;
+    *fonts = Fonts();
 
-    if (!find_font_file((char *)lpelfe->elfFullName, filepath, sizeof filepath))
+    if (!find_font_file(reinterpret_cast<char *>(lpelfe->elfFullName), filepath))
         return 1;
 
-    char *file = strdup(filepath);
-
-    if (!fonts->rset &&
-            (strcmp(style, "Regular") == 0 ||
-             strcmp(style, "Roman") == 0))
+    if (!fonts->rset && (style == "Regular" || style == "Roman"))
     {
-        fonts->r = file;
+        fonts->r = filepath;
         fonts->rset = true;
 
         if (!fonts->bset)
-            fonts->b = file;
+            fonts->b = filepath;
 
         if (!fonts->iset)
-            fonts->i = file;
+            fonts->i = filepath;
 
         if (!fonts->zset && !fonts->iset && !fonts->bset)
-            fonts->z = file;
+            fonts->z = filepath;
     }
 
-    else if (!fonts->bset && strcmp(style, "Bold") == 0)
+    else if (!fonts->bset && style == "Bold")
     {
-        fonts->b = file;
+        fonts->b = filepath;
         fonts->bset = true;
 
         if (!fonts->zset && !fonts->iset)
-            fonts->z = file;
+            fonts->z = filepath;
     }
 
-    else if (!fonts->iset &&
-            (strcmp(style, "Italic") == 0 ||
-             strcmp(style, "Oblique") == 0))
+    else if (!fonts->iset && (style == "Italic" || style == "Oblique"))
     {
-        fonts->i = file;
+        fonts->i = filepath;
         fonts->iset = true;
 
         if (!fonts->zset)
-            fonts->z = file;
+            fonts->z = filepath;
     }
 
-    else if (!fonts->zset &&
-            (strcmp(style, "Bold Italic") == 0 ||
-             strcmp(style, "Bold Oblique") == 0 ||
-             strcmp(style, "BoldOblique") == 0 ||
-             strcmp(style, "BoldItalic") == 0))
+    else if (!fonts->zset && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic"))
     {
-        fonts->z = file;
+        fonts->z = filepath;
         fonts->zset = true;
-    }
-
-    else
-    {
-        free(file);
     }
 
     return 0;
@@ -124,35 +105,28 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, struct fonts *fonts)
 
 static int CALLBACK monofont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
 {
-    monofonts = (struct fonts){ .name = gli_conf_monofont };
     return cb_handler(lpelfe, &monofonts);
 }
 
 static int CALLBACK propfont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, int FontType, LPARAM lParam)
 {
-    propfonts = (struct fonts){ .name = gli_conf_propfont };
     return cb_handler(lpelfe, &propfonts);
 }
 
-static void make_font_filepath(const char *filename, char *filepath, size_t length)
+static std::string make_font_filepath(const std::string filename)
 {
     // create the absolute path to the font file
-    filepath[0] = '\0';
-    if (!strstr(filename, ":") && getenv("SYSTEMROOT"))
-    {
-        snprintf(filepath, length, "%s\\Fonts\\%s", getenv("SYSTEMROOT"), filename);
-    }
+    if (filename.find(':') == std::string::npos && getenv("SYSTEMROOT") != nullptr)
+        return std::string(getenv("SYSTEMROOT")) + "\\Fonts\\" + filename;
     else
-    {
-        snprintf(filepath, length, "%s", filename);
-    }
+        return filename;
 }
 
-static bool find_font_file_with_key(HKEY key, const char *subkey, const char *facename, char *filepath, size_t length)
+static bool find_font_file_with_key(HKEY key, const char *subkey, const std::string &facename, std::string &filepath)
 {
     HKEY hkey;
     DWORD size;
-    char face[256];
+    std::string face;
     char filename[256];
 
     // open the Fonts registry key
@@ -160,25 +134,25 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const char *fa
         return false;
 
     // check for a TrueType font
-    snprintf(face, sizeof face, "%s (TrueType)", facename);
+    face = facename + " (TrueType)";
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
+    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
     {
-        make_font_filepath(filename, filepath, length);
+        filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
     }
 
     // check for an OpenType font
-    snprintf(face, sizeof face, "%s (OpenType)", facename);
+    face = facename + " (OpenType)";
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face, NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
+    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
     {
-        make_font_filepath(filename, filepath, length);
+        filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
     }
@@ -190,19 +164,19 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const char *fa
     return false;
 }
 
-static bool find_font_file(const char *facename, char *filepath, size_t length)
+static bool find_font_file(const std::string &facename, std::string &filepath)
 {
     // First, try the per-user key
-    if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath, length))
+    if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath))
         return true;
 
     // Nope. Try the system-wide key.
-    return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath, length);
+    return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
 }
 
-void fontreplace(const char *font, int type)
+void fontreplace(const std::string &font, int type)
 {
-    if (!strlen(font))
+    if (font.empty())
         return;
 
     LOGFONT logfont;
@@ -216,14 +190,14 @@ void fontreplace(const char *font, int type)
     switch (type)
     {
     case MONOF:
-        snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_monofont);
+        std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);
-        fill_in_fonts(&monofonts, &gli_conf_monor, &gli_conf_monob, &gli_conf_monoi, &gli_conf_monoz);
+        fill_in_fonts(monofonts, gli_conf_mono.r, gli_conf_mono.b, gli_conf_mono.i, gli_conf_mono.z);
         break;
     case PROPF:
-        snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", gli_conf_propfont);
+        std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont_cb, 0, 0);
-        fill_in_fonts(&propfonts, &gli_conf_propr, &gli_conf_propb, &gli_conf_propi, &gli_conf_propz);
+        fill_in_fonts(propfonts, gli_conf_prop.r, gli_conf_prop.b, gli_conf_prop.i, gli_conf_prop.z);
         break;
     }
 
