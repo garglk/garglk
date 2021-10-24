@@ -174,7 +174,7 @@ static bool find_font_file(const std::string &facename, std::string &filepath)
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
 }
 
-void fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, int type)
 {
     if (font.empty())
         return;

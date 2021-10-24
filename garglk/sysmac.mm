@@ -310,10 +310,9 @@ void winresize(void)
     gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
 
     /* initialize offline bitmap store */
-    if (gli_image_rgb)
-        free(gli_image_rgb);
+    delete [] gli_image_rgb;
 
-     gli_image_rgb = malloc(gli_image_s * gli_image_h);
+    gli_image_rgb = new unsigned char[gli_image_s * gli_image_h];
 
     /* redraw window content */
     gli_resize_mask(gli_image_w, gli_image_h);
@@ -677,12 +676,12 @@ void winpoll(void)
     while (evt);
 }
 
-bool winfontpath(const char *filename, char *outpath, size_t n)
+std::string garglk::winfontpath(const std::string &filename)
 {
     // There's no need to look up fonts in any special way on macOS: the
     // bundle sets fonts up in such a way that they're found without
     // needing a fallback.
-    return false;
+    return "";
 }
 
 void gli_select(event_t *event, int polled)

@@ -32,11 +32,17 @@
 #define GARGLK_GARGLK_H
 
 #ifdef __cplusplus
+#include <functional>
 #include <string>
 #include <vector>
 
+namespace garglk {
 void fontreplace(const std::string &font, int type);
-std::vector<std::string> gli_configs(const std::string &exedir, const std::string &gamepath);
+std::vector<std::string> configs(const std::string &exedir, const std::string &gamepath);
+void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
+void set_lcdfilter(const std::string &filter);
+std::string winfontpath(const std::string &filename);
+}
 
 extern "C" {
 #endif
@@ -662,7 +668,6 @@ int gli_draw_string_uni(int x, int y, int f, unsigned char *rgb, glui32 *text, i
 int gli_string_width_uni(int f, glui32 *text, int len, int spw);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
-void gli_set_lcdfilter(const char *filter);
 
 void gli_startup(int argc, char *argv[]);
 
@@ -688,7 +693,6 @@ void winopenfile(const char *prompt, char *buf, int buflen, enum FILEFILTERS fil
 void winsavefile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
-bool winfontpath(const char *filename, char *outpath, size_t n);
 
 void fontload(void);
 void fontunload(void);

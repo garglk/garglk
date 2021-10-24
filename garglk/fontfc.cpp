@@ -88,7 +88,7 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
     return "";
 }
 
-void fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, int type)
 {
     if (!initialized || font.empty())
         return;
