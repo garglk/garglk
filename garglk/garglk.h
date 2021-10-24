@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+void fontreplace(const std::string &font, int type);
 std::vector<std::string> gli_configs(const std::string &exedir, const std::string &gamepath);
 
 extern "C" {
@@ -74,7 +75,7 @@ extern "C" {
     putc('\n', stderr); \
 } while(0)
 
-extern int gli_utf8output, gli_utf8input;
+extern bool gli_utf8output, gli_utf8input;
 
 /* Callbacks necessary for the dispatch layer.  */
 
@@ -210,11 +211,11 @@ extern unsigned char gli_caret_save[3];
 extern unsigned char gli_more_save[3];
 extern unsigned char gli_link_save[3];
 
-extern int gli_override_fg_set;
-extern int gli_override_bg_set;
+extern bool gli_override_fg_set;
 extern int gli_override_fg_val;
+extern bool gli_override_bg_set;
 extern int gli_override_bg_val;
-extern int gli_override_reverse;
+extern bool gli_override_reverse;
 
 extern int gli_link_style;
 extern int gli_caret_shape;
@@ -230,32 +231,35 @@ extern int gli_wpaddingy;
 extern int gli_tmarginx;
 extern int gli_tmarginy;
 
-extern int gli_conf_lcd;
+extern bool gli_conf_lcd;
 extern unsigned char gli_conf_lcd_weights[5];
 
-extern int gli_conf_graphics;
-extern int gli_conf_sound;
+extern bool gli_conf_graphics;
+extern bool gli_conf_sound;
 
-extern int gli_conf_fullscreen;
+extern bool gli_conf_fullscreen;
 
-extern int gli_conf_speak;
-extern int gli_conf_speak_input;
-extern const char *gli_conf_speak_language;
+extern bool gli_conf_speak;
+extern bool gli_conf_speak_input;
 
-extern int gli_conf_stylehint;
-extern int gli_conf_safeclicks;
+#ifdef __cplusplus
+extern std::string gli_conf_speak_language;
+#endif
 
-extern int gli_conf_justify;
+extern bool gli_conf_stylehint;
+extern bool gli_conf_safeclicks;
+
+extern bool gli_conf_justify;
 extern int gli_conf_quotes;
 extern int gli_conf_dashes;
 extern int gli_conf_spaces;
-extern int gli_conf_caps;
+extern bool gli_conf_caps;
 
 extern int gli_cols;
 extern int gli_rows;
 
-extern int gli_conf_lockcols;
-extern int gli_conf_lockrows;
+extern bool gli_conf_lockcols;
+extern bool gli_conf_lockrows;
 
 extern unsigned char gli_scroll_bg[3];
 extern unsigned char gli_scroll_fg[3];
@@ -268,17 +272,15 @@ enum FACES { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
 enum TYPES { MONOF, PROPF };
 enum STYLES { FONTR, FONTB, FONTI, FONTZ };
 
-extern const char *gli_conf_propfont;
-extern char *gli_conf_propr;
-extern char *gli_conf_propb;
-extern char *gli_conf_propi;
-extern char *gli_conf_propz;
-
-extern const char *gli_conf_monofont;
-extern char *gli_conf_monor;
-extern char *gli_conf_monob;
-extern char *gli_conf_monoi;
-extern char *gli_conf_monoz;
+#ifdef __cplusplus
+struct gli_font_files {
+    std::string r, b, i, z;
+};
+extern std::string gli_conf_propfont;
+extern struct gli_font_files gli_conf_prop, gli_conf_prop_override;
+extern std::string gli_conf_monofont;
+extern struct gli_font_files gli_conf_mono, gli_conf_mono_override;
+#endif
 
 extern float gli_conf_gamma;
 extern float gli_conf_propsize;
@@ -688,7 +690,6 @@ void winexit(void);
 void winclipstore(glui32 *text, int len);
 bool winfontpath(const char *filename, char *outpath, size_t n);
 
-void fontreplace(const char *font, int type);
 void fontload(void);
 void fontunload(void);
 

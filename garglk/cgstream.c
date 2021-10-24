@@ -1046,7 +1046,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 {
                     str->win->attr.fgset = 0;
                     str->win->attr.fgcolor = 0;
-                    gli_override_fg_set = 0;
+                    gli_override_fg_set = false;
                     gli_override_fg_val = 0;
                     memcpy(gli_more_color, gli_more_save, 3);
                     memcpy(gli_caret_color, gli_caret_save, 3);
@@ -1056,7 +1056,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 {
                     str->win->attr.fgset = 1;
                     str->win->attr.fgcolor = fg;
-                    gli_override_fg_set = 1;
+                    gli_override_fg_set = true;
                     gli_override_fg_val = fg;
                     memcpy(gli_more_color, fore, 3);
                     memcpy(gli_caret_color, fore, 3);
@@ -1070,7 +1070,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 {
                     str->win->attr.bgset = 0;
                     str->win->attr.bgcolor = 0;
-                    gli_override_bg_set = 0;
+                    gli_override_bg_set = false;
                     gli_override_bg_val = 0;
                     memcpy(gli_window_color, gli_window_save, 3);
                     memcpy(gli_border_color, gli_border_save, 3);
@@ -1079,7 +1079,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 {
                     str->win->attr.bgset = 1;
                     str->win->attr.bgcolor = bg;
-                    gli_override_bg_set = 1;
+                    gli_override_bg_set = true;
                     gli_override_bg_val = bg;
                     memcpy(gli_window_color, back, 3);
                     memcpy(gli_border_color, back, 3);
@@ -1087,9 +1087,9 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             }
 
             if (fg == zcolor_Default && bg == zcolor_Default)
-                gli_override_reverse = 0;
+                gli_override_reverse = false;
             else
-                gli_override_reverse = 1;
+                gli_override_reverse = true;
 
             if (str->win->echostr)
                 gli_set_zcolors(str->win->echostr, fg, bg);

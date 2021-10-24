@@ -42,16 +42,16 @@ static void monofont(char *file, int style)
         {
             if (!gli_sys_monor)
             {
-                gli_conf_monor = file;
+                gli_conf_mono.r = file;
 
                 if (!gli_sys_monob)
-                    gli_conf_monob = file;
+                    gli_conf_mono.b = file;
 
                 if (!gli_sys_monoi)
-                    gli_conf_monoi = file;
+                    gli_conf_mono.i = file;
 
                 if (!gli_sys_monoz && !gli_sys_monoi && !gli_sys_monob)
-                    gli_conf_monoz = file;
+                    gli_conf_mono.z = file;
 
                 gli_sys_monor = TRUE;
             }
@@ -62,10 +62,10 @@ static void monofont(char *file, int style)
         {
             if (!gli_sys_monob)
             {
-                gli_conf_monob = file;
+                gli_conf_mono.b = file;
 
                 if (!gli_sys_monoz && !gli_sys_monoi)
-                    gli_conf_monoz = file;
+                    gli_conf_mono.z = file;
 
                 gli_sys_monob = TRUE;
             }
@@ -76,10 +76,10 @@ static void monofont(char *file, int style)
         {
             if (!gli_sys_monoi)
             {
-                gli_conf_monoi = file;
+                gli_conf_mono.i = file;
 
                 if (!gli_sys_monoz)
-                    gli_conf_monoz = file;
+                    gli_conf_mono.z = file;
 
                 gli_sys_monoi = TRUE;
             }
@@ -90,7 +90,7 @@ static void monofont(char *file, int style)
         {
             if (!gli_sys_monoz)
             {
-                gli_conf_monoz = file;
+                gli_conf_mono.z = file;
                 gli_sys_monoz = TRUE;
             }
             return;
@@ -111,16 +111,16 @@ static void propfont(char *file, int style)
         {
             if (!gli_sys_propr)
             {
-                gli_conf_propr = file;
+                gli_conf_prop.r = file;
 
                 if (!gli_sys_propb)
-                    gli_conf_propb = file;
+                    gli_conf_prop.b = file;
 
                 if (!gli_sys_propi)
-                    gli_conf_propi = file;
+                    gli_conf_prop.i = file;
 
                 if (!gli_sys_propz && !gli_sys_propi && !gli_sys_propb)
-                    gli_conf_propz = file;
+                    gli_conf_prop.z = file;
 
                 gli_sys_propr = TRUE;
             }
@@ -131,10 +131,10 @@ static void propfont(char *file, int style)
         {
             if (!gli_sys_propb)
             {
-                gli_conf_propb = file;
+                gli_conf_prop.b = file;
 
                 if (!gli_sys_propz && !gli_sys_propi)
-                    gli_conf_propz = file;
+                    gli_conf_prop.z = file;
 
                 gli_sys_propb = TRUE;
             }
@@ -145,10 +145,10 @@ static void propfont(char *file, int style)
         {
             if (!gli_sys_propi)
             {
-                gli_conf_propi = file;
+                gli_conf_prop.i = file;
 
                 if (!gli_sys_propz)
-                    gli_conf_propz = file;
+                    gli_conf_prop.z = file;
 
                 gli_sys_propi = TRUE;
             }
@@ -159,7 +159,7 @@ static void propfont(char *file, int style)
         {
             if (!gli_sys_propz)
             {
-                gli_conf_propz = file;
+                gli_conf_prop.z = file;
                 gli_sys_propz = TRUE;
             }
             return;
@@ -170,14 +170,14 @@ static void propfont(char *file, int style)
 static NSMutableArray * gli_registered_fonts = nil;
 static NSDistributedLock * gli_font_lock = nil;
 
-void fontreplace(const char *font, int type)
+void fontreplace(const std::string &font, int type)
 {
-    if (!font || !strlen(font))
+    if (font.empty())
         return;
 
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    NSString * fontFamily = [NSString stringWithUTF8String: font];
+    NSString * fontFamily = [NSString stringWithUTF8String: font.c_str()];
     NSFontDescriptor * fontFamilyDescriptor =
         [[NSFontDescriptor fontDescriptorWithFontAttributes: nil] fontDescriptorWithFamily: fontFamily];
 
@@ -199,7 +199,7 @@ void fontreplace(const char *font, int type)
             style = FONTI;
 
         /* find path for font */
-        CFURLRef urlRef = CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute);
+        CFURLRef urlRef = static_cast<CFURLRef>(CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute));
         if (!urlRef)
             continue;
 
@@ -211,7 +211,7 @@ void fontreplace(const char *font, int type)
             NSLog(@"fontPath: %@", fontPath);
 
             size_t pathLen = strlen([fontPath UTF8String]);
-            char *filebuf = malloc(pathLen + 1);
+            char *filebuf = new char[pathLen + 1];
 
             strcpy(filebuf, [fontPath UTF8String]);
 
