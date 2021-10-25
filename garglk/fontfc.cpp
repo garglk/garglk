@@ -32,25 +32,19 @@
 
 static bool initialized = false;
 
-template <typename T, typename Deleter>
-std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
-{
-    return std::unique_ptr<T, Deleter>(p, deleter);
-}
-
 static std::string findfont(const std::string &fontname)
 {
     FcChar8 *strval = nullptr;
 
-    auto p = unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
+    auto p = garglk::unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
     if (p == nullptr)
         return "";
 
-    auto os = unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
+    auto os = garglk::unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
     if (os == nullptr)
         return "";
 
-    auto fs = unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
+    auto fs = garglk::unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
     if (fs->nfont == 0)
         return "";
 

@@ -33,15 +33,24 @@
 
 #ifdef __cplusplus
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace garglk {
+
 void fontreplace(const std::string &font, int type);
 std::vector<std::string> configs(const std::string &exedir, const std::string &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
 void set_lcdfilter(const std::string &filter);
 std::string winfontpath(const std::string &filename);
+
+template <typename T, typename Deleter>
+std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
+{
+    return std::unique_ptr<T, Deleter>(p, deleter);
+}
+
 }
 
 extern "C" {

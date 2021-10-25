@@ -97,14 +97,14 @@ static bool runblorb(const std::string &path, const std::string &game, const str
         giblorb_map_t *basemap;
         auto close_stream = [](strid_t file) { glk_stream_close(file, nullptr); };
 
-        std::unique_ptr<std::remove_pointer<strid_t>::type, decltype(close_stream)> file(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), close_stream);
+        auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), close_stream);
         if (!file)
             throw BlorbError("Unable to open file");
 
         if (giblorb_create_map(file.get(), &basemap) != giblorb_err_None)
             throw BlorbError("Does not appear to be a Blorb file");
 
-        std::unique_ptr<giblorb_map_t, decltype(&giblorb_destroy_map)> map(basemap, giblorb_destroy_map);
+        auto map = garglk::unique(basemap, giblorb_destroy_map);
 
         if (giblorb_load_resource(map.get(), giblorb_method_FilePos, &res, giblorb_ID_Exec, 0) != giblorb_err_None)
             throw BlorbError("Does not contain a story file (look for a corresponding game file to load instead)");
