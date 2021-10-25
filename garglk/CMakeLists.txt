@@ -72,7 +72,7 @@ if(WITH_LAUNCHER)
 
     target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
     if(${INTERFACE} STREQUAL "COCOA")
-        target_sources(gargoyle PRIVATE launchmac.m)
+        target_sources(gargoyle PRIVATE launchmac.mm)
         target_compile_options(gargoyle PRIVATE "-Wno-deprecated-declarations")
     else()
         target_sources(gargoyle PRIVATE launchqt.cpp)
