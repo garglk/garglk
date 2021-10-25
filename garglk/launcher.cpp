@@ -157,11 +157,13 @@ static bool findterp(const std::string &file, const std::string &target, struct 
             std::stringstream argstream(arg);
             std::string opt;
 
-            argstream >> launch.terp;
-            if (argstream >> opt && opt[0] == '-')
-                launch.flags = opt;
-            else
-                launch.flags = "";
+            if (argstream >> launch.terp)
+            {
+                if (argstream >> opt && opt[0] == '-')
+                    launch.flags = opt;
+                else
+                    launch.flags = "";
+            }
         }
     });
 

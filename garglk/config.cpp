@@ -318,32 +318,36 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
         if (!accept)
             continue;
 
-        std::string cmd, arg;
+        std::string cmd;
         std::stringstream linestream(line);
 
-        std::set<std::string> singlearg = {
-            "tcolor", "gcolor",
-            "tfont", "gfont",
-            "monofont", "propfont",
-            "monor", "monob", "monoi", "monoz",
-            "propr", "propb", "propi", "propz",
-            "lcdweights",
-            "moreprompt",
-            "terp",
-        };
-        linestream >> cmd;
-
-        if (std::any_of(singlearg.begin(), singlearg.end(), [&cmd](const std::string &key) { return key == cmd; }))
+        if (linestream >> cmd)
         {
-            std::getline(linestream >> std::ws, arg);
-            arg.erase(arg.find_last_not_of(" \t\r") + 1);
-        }
-        else
-        {
-            linestream >> arg;
-        }
+            std::string arg;
+            std::set<std::string> singlearg = {
+                "tcolor", "gcolor",
+                "tfont", "gfont",
+                "monofont", "propfont",
+                "monor", "monob", "monoi", "monoz",
+                "propr", "propb", "propi", "propz",
+                "lcdweights",
+                "moreprompt",
+                "terp",
+            };
 
-        callback(cmd, arg);
+            if (std::any_of(singlearg.begin(), singlearg.end(), [&cmd](const std::string &key) { return key == cmd; }))
+            {
+                if (std::getline(linestream >> std::ws, arg))
+                    arg.erase(arg.find_last_not_of(" \t\r") + 1);
+            }
+            else
+            {
+                linestream >> arg;
+            }
+
+            if (linestream)
+                callback(cmd, arg);
+        }
     }
 }
 
