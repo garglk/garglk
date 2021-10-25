@@ -436,11 +436,9 @@ void winrepaint(int x0, int y0, int x1, int y1)
     window->update(x0, y0, x1 - x0, y1 - y0);
 }
 
-bool winfontpath(const char *filename, char *outpath, size_t n)
+std::string garglk::winfontpath(const std::string &filename)
 {
-    snprintf(outpath, n, "%s/%s", QCoreApplication::applicationDirPath().toStdString().c_str(), filename);
-
-    return true;
+    return QCoreApplication::applicationDirPath().toStdString() + "/" + filename;
 }
 
 void gli_tick()

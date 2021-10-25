@@ -29,6 +29,7 @@
 #include <exception>
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -148,49 +149,21 @@ static bool runblorb(const char *path, const char *game, const struct Launch &la
 
 static bool findterp(const std::string &file, const std::string &target, struct Launch &launch)
 {
-    char buf[MaxBuffer];
-    char *cmd, *arg, *opt;
-    bool accept = false;
+    std::vector<std::string> matches = {target};
 
-    std::unique_ptr<std::FILE, decltype(&std::fclose)> f(std::fopen(file.c_str(), "r"), std::fclose);
-    if (!f)
-        return false;
-
-    while (std::fgets(buf, sizeof buf, f.get()) != nullptr)
-    {
-        buf[std::strlen(buf) - 1] = 0; /* kill newline */
-
-        if (buf[0] == '#')
-            continue;
-
-        if (buf[0] == '[')
+    garglk::config_entries(file, false, matches, [&launch](const std::string &cmd, const std::string &arg) {
+        if (cmd == "terp")
         {
-            for (size_t i = 0; i < std::strlen(buf); i++)
-                buf[i] = std::tolower(static_cast<unsigned char>(buf[i]));
+            std::stringstream argstream(arg);
+            std::string opt;
 
-            accept = std::strstr(buf, target.c_str()) != nullptr;
+            argstream >> launch.terp;
+            if (argstream >> opt && opt[0] == '-')
+                launch.flags = opt;
+            else
+                launch.flags = "";
         }
-
-        if (!accept)
-            continue;
-
-        cmd = std::strtok(buf, "\r\n\t ");
-        if (cmd == nullptr)
-            continue;
-
-        arg = std::strtok(nullptr, "\r\n\t #");
-        if (arg == nullptr)
-            continue;
-
-        if (std::strcmp(cmd, "terp") != 0)
-            continue;
-
-        launch.terp = arg;
-
-        opt = std::strtok(nullptr, "\r\n\t #");
-        if (opt != nullptr && opt[0] == '-')
-            launch.flags = opt;
-    }
+    });
 
     return !launch.terp.empty();
 }
@@ -210,9 +183,6 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
     if (story.empty())
         return;
 
-    for (char &c : story)
-        c = std::tolower(static_cast<unsigned char>(c));
-
     std::string ext = story;
     auto dot = story.rfind('.');
     if (dot != std::string::npos)
@@ -220,7 +190,7 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
     else
         ext = "*.*";
 
-    for (const auto &config : gli_configs(exedir, gamepath))
+    for (const auto &config : garglk::configs(exedir, gamepath))
     {
         if (findterp(config, story, launch) || findterp(config, ext, launch))
             return;

@@ -25,6 +25,7 @@
 #include <cctype>
 #include <cstring>
 #include <fstream>
+#include <functional>
 #include <set>
 #include <sstream>
 #include <string>
@@ -167,6 +168,16 @@ bool gli_conf_fullscreen = false;
 bool gli_conf_stylehint = true;
 bool gli_conf_safeclicks = false;
 
+static std::string downcase(const std::string &string)
+{
+    std::string lowered;
+
+    for (const auto &c : string)
+        lowered.push_back(std::tolower(static_cast<unsigned char>(c)));
+
+    return lowered;
+}
+
 static void parsecolor(const std::string &str, unsigned char *rgb)
 {
     std::string r, g, b;
@@ -203,7 +214,7 @@ static void parsecolor(const std::string &str, unsigned char *rgb)
 //
 // exedir is the directory containing the gargoyle executable
 // gamepath is the path to the game file being run
-std::vector<std::string> gli_configs(const std::string &exedir, const std::string &gamepath)
+std::vector<std::string> garglk::configs(const std::string &exedir, const std::string &gamepath)
 {
     std::vector<std::string> configs;
     if (!gamepath.empty())
@@ -277,10 +288,10 @@ std::vector<std::string> gli_configs(const std::string &exedir, const std::strin
     return configs;
 }
 
-static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
+void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback)
 {
     std::string line;
-    bool accept = true;
+    bool accept = accept_bare;
 
     std::ifstream f(fname);
     if (!f.is_open())
@@ -298,7 +309,9 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
         if (line[0] == '[' && line.back() == ']')
         {
-            accept = line.find(argv0) != std::string::npos || line.find(gamefile) != std::string::npos;
+            accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string match) {
+                return downcase(line).find(downcase(match)) != std::string::npos;
+            });
             continue;
         }
 
@@ -316,6 +329,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             "propr", "propb", "propi", "propz",
             "lcdweights",
             "moreprompt",
+            "terp",
         };
         linestream >> cmd;
 
@@ -329,6 +343,15 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             linestream >> arg;
         }
 
+        callback(cmd, arg);
+    }
+}
+
+static void readoneconfig(const std::string &fname, const std::string &argv0, const std::string &gamefile)
+{
+    std::vector<std::string> matches = {argv0, gamefile};
+
+    garglk::config_entries(fname, true, matches, [](const std::string &cmd, const std::string &arg) {
         if (cmd == "moreprompt") {
             base_more_prompt = arg;
         } else if (cmd == "morecolor") {
@@ -429,7 +452,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "lcd") {
             gli_conf_lcd = std::stoi(arg);
         } else if (cmd == "lcdfilter") {
-            gli_set_lcdfilter(arg.c_str());
+            garglk::set_lcdfilter(arg);
         } else if (cmd == "lcdweights") {
             std::stringstream argstream(arg);
             int weight;
@@ -495,11 +518,12 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 else
                 {
                     int i = std::stoi(style);
-                    if (i < 0 || i >= style_NUMSTYLES)
-                        continue;
 
-                    parsecolor(fg, styles[i].fg);
-                    parsecolor(bg, styles[i].bg);
+                    if (i >= 0 && i < style_NUMSTYLES)
+                    {
+                        parsecolor(fg, styles[i].fg);
+                        parsecolor(bg, styles[i].bg);
+                    }
                 }
             }
         } else if (cmd == "tfont" || cmd == "gfont") {
@@ -509,39 +533,37 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             if (argstream >> style >> font)
             {
                 int i = std::stoi(style);
-                if (i < 0 || i >= style_NUMSTYLES)
-                    continue;
 
-                if (cmd[0] == 't')
-                    gli_tstyles[i].font = font2idx(font);
-                else
-                    gli_gstyles[i].font = font2idx(font);
+                if (i >= 0 && i < style_NUMSTYLES)
+                {
+                    if (cmd[0] == 't')
+                        gli_tstyles[i].font = font2idx(font);
+                    else
+                        gli_gstyles[i].font = font2idx(font);
+                }
             }
         }
-    }
+    });
 }
 
 static void gli_read_config(int argc, char **argv)
 {
-    auto basename_lower = [](std::string path) {
+    auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
         if (slash != std::string::npos)
             path.erase(0, slash + 1);
-
-        for (char &c : path)
-            c = std::tolower(static_cast<unsigned char>(c));
 
         return path;
     };
 
     /* load argv0 with name of executable without suffix */
-    std::string argv0 = basename_lower(argv[0]);
+    std::string argv0 = basename(argv[0]);
     auto dot = argv0.rfind('.');
     if (dot != std::string::npos)
         argv0.erase(dot);
 
     /* load gamefile with basename of last argument */
-    std::string gamefile = basename_lower(argv[argc - 1]);
+    std::string gamefile = basename(argv[argc - 1]);
 
     /* load exefile with directory containing main executable */
     std::string exedir = argv[0];
@@ -553,7 +575,7 @@ static void gli_read_config(int argc, char **argv)
         gamepath = argv[argc - 1];
 
     /* load from all config files */
-    auto configs = gli_configs(exedir, gamepath);
+    auto configs = garglk::configs(exedir, gamepath);
     std::reverse(configs.begin(), configs.end());
 
     for (const auto &config : configs)

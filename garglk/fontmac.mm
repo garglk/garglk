@@ -170,7 +170,7 @@ static void propfont(char *file, int style)
 static NSMutableArray * gli_registered_fonts = nil;
 static NSDistributedLock * gli_font_lock = nil;
 
-void fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, int type)
 {
     if (font.empty())
         return;

@@ -45,7 +45,7 @@ else
 if $(USESDL) = yes { GARGSRCS += sndsdl.c ; }
 else { GARGSRCS += sndnull.c ; }
 
-GARGSRCS += sysmac.m fontmac.mm ;
+GARGSRCS += sysmac.mm fontmac.mm ;
 
 Main gargoyle : launchmac.m launcher.cpp ;
 

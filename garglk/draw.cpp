@@ -29,6 +29,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -68,7 +69,7 @@ struct fentry_t
 
 struct font {
     std::string path;
-    const char *fallback;
+    std::string fallback;
     enum TYPES type;
     enum STYLES style;
 };
@@ -115,9 +116,8 @@ static FT_Matrix ftmat;
 static bool use_freetype_preset_filter = false;
 static FT_LcdFilter freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
 
-void gli_set_lcdfilter(const char *filter_)
+void garglk::set_lcdfilter(const std::string &filter)
 {
-    std::string filter = filter_;
     use_freetype_preset_filter = true;
 
     if (filter == "none") {
@@ -147,7 +147,8 @@ __attribute__((__format__(__printf__, 2, 3)))
 #endif
 static void freetype_error(int err, const char *fmt, ...)
 {
-    char msg1[4096], msg2[4096];
+    char msg1[4096];
+    std::stringstream msg2;
     // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
     // this will always be nullptr.
     const char *errstr = FT_Error_String(err);
@@ -158,11 +159,11 @@ static void freetype_error(int err, const char *fmt, ...)
     va_end(ap);
 
     if (errstr == nullptr)
-        std::snprintf(msg2, sizeof msg2, "%s (error code %d)", msg1, err);
+        msg2 << msg1 << " (error code " << err << ")";
     else
-        std::snprintf(msg2, sizeof msg2, "%s: %s", msg1, errstr);
+        msg2 << msg1 << ": " << errstr;
 
-    winabort("%s", msg2);
+    winabort("%s", msg2.str().c_str());
 }
 
 const fentry_t &font_t::loadglyph(glui32 cid)
@@ -233,54 +234,43 @@ const fentry_t &font_t::loadglyph(glui32 cid)
 // Look for a user-specified font. This will be either based on a font
 // family (propfont or monofont), or specific font files (e.g. propr,
 // monor, etc).
-static bool font_path_user(const struct font &font, char *outpath, size_t n)
+static std::string font_path_user(const struct font &font)
 {
-    if (!font.path.empty())
-    {
-        std::snprintf(outpath, n, "%s", font.path.c_str());
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return font.path;
 }
 
 // Look in a system-wide location for the fallback Gargoyle fonts; on
 // Unix this is generally somewhere like /usr/share/fonts/gargoyle
 // (although this can be changed at build time), and on Windows it's the
 // install directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static bool font_path_fallback_system(const struct font &font, char *outpath, size_t n)
+static std::string font_path_fallback_system(const struct font &font)
 {
 #ifdef _WIN32
     char directory[256];
-    DWORD dsize = n;
+    DWORD dsize = sizeof directory;
     if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS)
-        return false;
+        return "";
 
-    std::snprintf(outpath, n, "%s\\%s", directory, font.fallback);
-    return true;
+    return std::string(directory) + "\\" + font.fallback;
 #elif defined(GARGLK_FONT_PATH)
-    std::snprintf(outpath, n, "%s/%s", GARGLK_FONT_PATH, font.fallback);
-    return true;
+    return std::string(GARGLK_FONT_PATH) + "/" + font.fallback;
 #else
-    return false;
+    return "";
 #endif
 }
 
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static bool font_path_fallback_platform(const struct font &font, char *outpath, size_t n)
+static std::string font_path_fallback_platform(const struct font &font)
 {
-    return winfontpath(font.fallback, outpath, n);
+    return garglk::winfontpath(font.fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static bool font_path_fallback_local(const struct font &font, char *outpath, size_t n)
+static std::string font_path_fallback_local(const struct font &font)
 {
-    std::snprintf(outpath, n, "%s", font.fallback);
-    return true;
+    return font.fallback;
 }
 
 static const char *type_to_name(enum TYPES type)
@@ -311,10 +301,10 @@ static const char *style_to_name(enum STYLES style)
 font_t::font_t(const struct font &font)
 {
     int err = 0;
-    char fontpath[1024];
+    std::string fontpath;
     float aspect, size;
     std::string family;
-    std::vector<std::function<bool(const struct font &, char *, size_t)>> font_paths = {
+    std::vector<std::function<std::string(const struct font &)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
         font_path_fallback_platform,
@@ -335,40 +325,34 @@ font_t::font_t(const struct font &font)
     }
 
     if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
-        return get_font_path(font, fontpath, sizeof fontpath) && FT_New_Face(ftlib, fontpath, 0, &face) == 0;
+        fontpath = get_font_path(font);
+        return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0;
     }))
     {
-        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style), font.fallback);
+        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style), font.fallback.c_str());
     }
 
-    if (strlen(fontpath) >= 4)
+    auto dot = fontpath.rfind(".");
+    if (dot != std::string::npos)
     {
-        char afmbuf[1024], *ext;
-
-        std::snprintf(afmbuf, sizeof afmbuf, "%s", fontpath);
-        ext = &afmbuf[strlen(afmbuf) - 4];
-
-        if (std::strcmp(ext, ".PFA") == 0 ||
-            std::strcmp(ext, ".pfa") == 0 ||
-            std::strcmp(ext, ".PFB") == 0 ||
-            std::strcmp(ext, ".pfb") == 0)
+        std::string afmbuf = fontpath;
+        auto ext = afmbuf.substr(dot);
+        if (ext == ".pfa" || ext == ".PFA" || ext == ".pfb" || ext == ".PFB")
         {
-            // These strcpy() calls are safe because it's guaranteed
-            // that ext points to at least 5 bytes.
-            std::strcpy(ext, ".afm");
-            FT_Attach_File(face, afmbuf);
-            std::strcpy(ext, ".AFM");
-            FT_Attach_File(face, afmbuf);
+            afmbuf.replace(dot, std::string::npos, ".afm");
+            FT_Attach_File(face, afmbuf.c_str());
+            afmbuf.replace(dot, std::string::npos, ".AFM");
+            FT_Attach_File(face, afmbuf.c_str());
         }
     }
 
     err = FT_Set_Char_Size(face, size * aspect * 64, size * 64, 72, 72);
     if (err)
-        freetype_error(err, "Error in FT_Set_Char_Size for %s", fontpath);
+        freetype_error(err, "Error in FT_Set_Char_Size for %s", fontpath.c_str());
 
     err = FT_Select_Charmap(face, ft_encoding_unicode);
     if (err)
-        freetype_error(err, "Error in FT_Select_CharMap for %s", fontpath);
+        freetype_error(err, "Error in FT_Select_CharMap for %s", fontpath.c_str());
 
     kerned = FT_HAS_KERNING(face);
 
@@ -419,8 +403,8 @@ void gli_initialize_fonts(void)
         freetype_error(err, "Unable to initialize FreeType");
 
     fontload();
-    fontreplace(gli_conf_monofont, MONOF);
-    fontreplace(gli_conf_propfont, PROPF);
+    garglk::fontreplace(gli_conf_monofont, MONOF);
+    garglk::fontreplace(gli_conf_propfont, PROPF);
     fontunload();
 
     /* If the user provided specific fonts, swap them in */

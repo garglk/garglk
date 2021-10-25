@@ -30,7 +30,7 @@ warnings(garglk)
 target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 
 if(INTERFACE STREQUAL "COCOA")
-    target_sources(garglk PRIVATE sysmac.m)
+    target_sources(garglk PRIVATE sysmac.mm)
     target_compile_options(garglk PRIVATE "-Wno-deprecated-declarations")
 else()
     target_sources(garglk PRIVATE sysqt.cpp)
