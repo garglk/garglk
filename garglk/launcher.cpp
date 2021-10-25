@@ -248,7 +248,7 @@ int rungame(const std::string &path, const std::string &game)
     configterp(path, game, launch);
 
     std::string ext = "";
-    auto dot = ext.rfind('.');
+    auto dot = game.rfind('.');
     if (dot != std::string::npos)
         ext = game.substr(dot + 1);
 
