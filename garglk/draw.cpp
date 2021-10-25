@@ -281,7 +281,7 @@ static const char *type_to_name(enum TYPES type)
         return "Proportional";
 }
 
-static const char *style_to_name(enum STYLES style)
+static std::string style_to_name(enum STYLES style)
 {
     switch (style)
     {
@@ -329,7 +329,7 @@ font_t::font_t(const struct font &font)
         return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0;
     }))
     {
-        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style), font.fallback.c_str());
+        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style).c_str(), font.fallback.c_str());
     }
 
     auto dot = fontpath.rfind(".");
