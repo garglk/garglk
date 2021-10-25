@@ -336,14 +336,9 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
             };
 
             if (std::any_of(singlearg.begin(), singlearg.end(), [&cmd](const std::string &key) { return key == cmd; }))
-            {
-                if (std::getline(linestream >> std::ws, arg))
-                    arg.erase(arg.find_last_not_of(" \t\r") + 1);
-            }
+                std::getline(linestream >> std::ws, arg);
             else
-            {
                 linestream >> arg;
-            }
 
             if (linestream)
                 callback(cmd, arg);
