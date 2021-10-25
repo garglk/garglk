@@ -25,6 +25,8 @@
 #include "garversion.h"
 #include "launcher.h"
 
+#include <string>
+
 #include <stdarg.h>
 
 #import <Cocoa/Cocoa.h>
@@ -40,7 +42,6 @@
 #endif
 
 static const char * AppName = "Gargoyle " VERSION;
-static const char * LaunchingTemplate = "%s/%s";
 static const char * DirSeparator = "/";
 
 static char dir[MaxBuffer];
@@ -50,7 +51,7 @@ static char etc[MaxBuffer];
 
 static void winpath(char *buffer);
 
-static char *winfilters[] =
+static const char *winfilters[] =
 {
     "glksave",
     "txt",
@@ -1009,21 +1010,21 @@ static int winexec(const char *cmd, const char **args)
     return [proc isRunning];
 }
 
-int winterp(const char *path, const char *exe, const char *flags, const char *game)
+int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
 {
-    sprintf(tmp, LaunchingTemplate, dir, exe);
+    sprintf(tmp, "%s/%s", dir, exe.c_str());
 
     const char *args[] = {NULL, NULL, NULL};
 
-    if (strstr(flags, "-"))
+    if (flags.find('-') != std::string::npos)
     {
-        args[0] = (char *)exe;
-        args[1] = (char *)flags;
+        args[0] = (char *)exe.c_str();
+        args[1] = (char *)flags.c_str();
         args[2] = buf;
     }
     else
     {
-        args[0] = (char *)exe;
+        args[0] = (char *)exe.c_str();
         args[1] = buf;
     }
 

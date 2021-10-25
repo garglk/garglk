@@ -47,7 +47,7 @@ else { GARGSRCS += sndnull.c ; }
 
 GARGSRCS += sysmac.mm fontmac.mm ;
 
-Main gargoyle : launchmac.m launcher.cpp ;
+Main gargoyle : launchmac.mm launcher.cpp ;
 
 Library libgarglkmain : main.c ;
 

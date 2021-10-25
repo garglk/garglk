@@ -116,16 +116,16 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, QFileDialog::HideNameFilterDetails);
 }
 
-int winterp(const char *path, const char *exe, const char *flags, const char *game)
+int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
 {
-    QString argv0 = QDir(path).absoluteFilePath(exe);
+    QString argv0 = QDir(path.c_str()).absoluteFilePath(exe.c_str());
 
     QStringList args;
 
-    if (std::strstr(flags, "-") != nullptr)
-        args = QStringList({flags, game});
+    if (flags.find('-') != std::string::npos)
+        args = QStringList({flags.c_str(), game.c_str()});
     else
-        args = QStringList({game});
+        args = QStringList({game.c_str()});
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);

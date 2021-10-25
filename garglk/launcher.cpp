@@ -67,14 +67,14 @@ struct Launch {
 
 #define MaxBuffer 1024
 
-static bool call_winterp(const char *path, const std::string &interpreter, const std::string &flags, const char *game)
+static bool call_winterp(const std::string &path, const std::string &interpreter, const std::string &flags, const std::string &game)
 {
     std::string exe = std::string(GARGLKPRE) + interpreter;
 
-    return winterp(path, exe.c_str(), flags.c_str(), game);
+    return winterp(path, exe, flags, game);
 }
 
-static bool runblorb(const char *path, const char *game, const struct Launch &launch)
+static bool runblorb(const std::string &path, const std::string &game, const struct Launch &launch)
 {
     class BlorbError : public std::exception {
     public:
@@ -97,7 +97,7 @@ static bool runblorb(const char *path, const char *game, const struct Launch &la
         giblorb_map_t *basemap;
         auto close_stream = [](strid_t file) { glk_stream_close(file, nullptr); };
 
-        std::unique_ptr<std::remove_pointer<strid_t>::type, decltype(close_stream)> file(glkunix_stream_open_pathname(const_cast<char *>(game), 0, 0), close_stream);
+        std::unique_ptr<std::remove_pointer<strid_t>::type, decltype(close_stream)> file(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), close_stream);
         if (!file)
             throw BlorbError("Unable to open file");
 
@@ -142,7 +142,7 @@ static bool runblorb(const char *path, const char *game, const struct Launch &la
     }
     catch (const BlorbError &e)
     {
-        winmsg("Could not load Blorb file %s:\n%s", game, e.message().c_str());
+        winmsg("Could not load Blorb file %s:\n%s", game.c_str(), e.message().c_str());
         return false;
     }
 }
@@ -210,7 +210,7 @@ static bool equal_strings(const std::string &a, const std::string &b)
             [](char l, char r) { return std::tolower(static_cast<unsigned char>(l)) == std::tolower(static_cast<unsigned char>(r)); });
 }
 
-int rungame(const char *path, const char *game)
+int rungame(const std::string &path, const std::string &game)
 {
     std::vector<const char *> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     std::vector<Interpreter> interpreters = {
@@ -246,9 +246,9 @@ int rungame(const char *path, const char *game)
     configterp(path, game, launch);
 
     std::string ext = "";
-    const char *p = std::strrchr(game, '.');
-    if (p != nullptr)
-        ext = p + 1;
+    auto dot = ext.rfind('.');
+    if (dot != std::string::npos)
+        ext = game.substr(dot + 1);
 
     if (std::any_of(blorbs.begin(), blorbs.end(),
                     [&ext](const auto &blorb) { return equal_strings(ext, blorb); }))
