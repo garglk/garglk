@@ -172,7 +172,6 @@ static bool findterp(const std::string &file, const std::string &target, struct 
 
 static void configterp(const std::string &exedir, const std::string &gamepath, struct Launch &launch)
 {
-    std::string config;
     std::string story = gamepath;
 
     /* set up story */
