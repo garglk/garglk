@@ -23,13 +23,13 @@
  *****************************************************************************/
 
 #include <algorithm>
-#include <cctype>
-#include <cstdio>
-#include <cstring>
-#include <exception>
 #include <fstream>
+#include <iomanip>
+#include <map>
 #include <memory>
+#include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -60,44 +60,77 @@
 #define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
-struct Launch {
+struct Interpreter {
+    Interpreter(const std::string &terp_, const std::set<std::string> extensions_ = {}, const std::string &flags_ = "") :
+        terp(terp_),
+        extensions(extensions_),
+        flags(flags_) {
+        }
+
     std::string terp;
+    std::set<std::string> extensions;
     std::string flags;
 };
 
-#define MaxBuffer 1024
+enum class Format {
+    Adrift,
+    AdvSys,
+    AGT,
+    Alan2,
+    Alan3,
+    Glulx,
+    Hugo,
+    JACL,
+    Level9,
+    Magnetic,
+    Quest,
+    Scott,
+    TADS2,
+    TADS3,
+    ZCode,
+    ZCode6,
+};
 
-static bool call_winterp(const std::string &path, const std::string &interpreter, const std::string &flags, const std::string &game)
+// Map formats to default interpreters
+static const std::map<Format, Interpreter> interpreters = {
+    { Format::Adrift, Interpreter(T_ADRIFT, {"taf"}) },
+    { Format::AdvSys, Interpreter(T_ADVSYS) },
+    { Format::AGT, Interpreter(T_AGT, {"agx", "d$$"}, "-gl") },
+    { Format::Alan2, Interpreter(T_ALAN2, {"acd"}) },
+    { Format::Alan3, Interpreter(T_ALAN3, {"a3c"}) },
+    { Format::Glulx, Interpreter(T_GLULX, {"ulx"}) },
+    { Format::Hugo, Interpreter(T_HUGO, {"hex"}) },
+    { Format::JACL, Interpreter(T_JACL, {"j2", "jacl"}) },
+    { Format::Level9, Interpreter(T_LEV9, {"l9", "sna"}) },
+    { Format::Magnetic, Interpreter(T_MGSR, {"mag"}) },
+    { Format::Quest, Interpreter(T_QUEST, {"asl", "cas"}) },
+    { Format::Scott, Interpreter(T_SCOTT, {"saga"}) },
+    { Format::TADS2, Interpreter(T_TADS2, {"gam"}) },
+    { Format::TADS3, Interpreter(T_TADS3, {"t3"}) },
+    { Format::ZCode, Interpreter(T_ZCODE, {"dat", "z1", "z2", "z3", "z4", "z5", "z7", "z8"}) },
+    { Format::ZCode6, Interpreter(T_ZSIX, {"z6"}) },
+};
+
+static bool call_winterp(const std::string &path, const Interpreter &interpreter, const std::string &game)
 {
-    std::string exe = std::string(GARGLKPRE) + interpreter;
-
-    return winterp(path, exe, flags, game);
+    return garglk::winterp(path, GARGLKPRE + interpreter.terp, interpreter.flags, game);
 }
 
-static bool runblorb(const std::string &path, const std::string &game, const struct Launch &launch)
+static bool runblorb(const std::string &path, const std::string &game, const Interpreter &interpreter)
 {
-    class BlorbError : public std::exception {
+    class BlorbError : public std::runtime_error {
     public:
-        explicit BlorbError(const std::string &message) : m_message(message) {
+        BlorbError(const std::string &msg) : std::runtime_error(msg) {
         }
-
-        const std::string &message() const {
-            return m_message;
-        }
-
-    private:
-        std::string m_message;
     };
 
     try
     {
-        char magic[4];
         giblorb_result_t res;
-        std::string found_interpreter;
+        Interpreter found_interpreter = interpreter;
         giblorb_map_t *basemap;
-        auto close_stream = [](strid_t file) { glk_stream_close(file, nullptr); };
 
-        auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), close_stream);
+        auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), [](strid_t file) { glk_stream_close(file, nullptr); });
         if (!file)
             throw BlorbError("Unable to open file");
 
@@ -109,68 +142,69 @@ static bool runblorb(const std::string &path, const std::string &game, const str
         if (giblorb_load_resource(map.get(), giblorb_method_FilePos, &res, giblorb_ID_Exec, 0) != giblorb_err_None)
             throw BlorbError("Does not contain a story file (look for a corresponding game file to load instead)");
 
-        glk_stream_set_position(file.get(), res.data.startpos, 0);
-        if (glk_get_buffer_stream(file.get(), magic, 4) != 4)
-            throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
-
         switch (res.chunktype)
         {
         case ID_ZCOD:
-            if (!launch.terp.empty())
-                found_interpreter = launch.terp;
-            else if (magic[0] == 6)
-                found_interpreter = T_ZSIX;
-            else
-                found_interpreter = T_ZCODE;
+            if (interpreter.terp.empty())
+            {
+                char zversion;
+
+                glk_stream_set_position(file.get(), res.data.startpos, 0);
+                if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1)
+                    throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
+
+                if (zversion == 6)
+                    found_interpreter = interpreters.at(Format::ZCode6);
+                else
+                    found_interpreter = interpreters.at(Format::ZCode);
+            }
             break;
 
         case ID_GLUL:
-            if (!launch.terp.empty())
-                found_interpreter = launch.terp;
-            else
-                found_interpreter = T_GLULX;
+            if (interpreter.terp.empty())
+                found_interpreter = interpreters.at(Format::Glulx);
             break;
 
         default: {
-            char msg[64];
-            std::snprintf(msg, sizeof msg, "Unknown game type: 0x%08lx", static_cast<unsigned long>(res.chunktype));
-            throw BlorbError(msg);
+            std::stringstream msg;
+            msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << res.chunktype;
+            throw BlorbError(msg.str());
         }
         }
 
-        return call_winterp(path, found_interpreter, launch.flags, game);
+        return call_winterp(path, found_interpreter, game);
     }
     catch (const BlorbError &e)
     {
-        winmsg("Could not load Blorb file %s:\n%s", game.c_str(), e.message().c_str());
+        garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
         return false;
     }
 }
 
-static bool findterp(const std::string &file, const std::string &target, struct Launch &launch)
+static bool findterp(const std::string &file, const std::string &target, struct Interpreter &interpreter)
 {
     std::vector<std::string> matches = {target};
 
-    garglk::config_entries(file, false, matches, [&launch](const std::string &cmd, const std::string &arg) {
+    garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
         if (cmd == "terp")
         {
             std::stringstream argstream(arg);
             std::string opt;
 
-            if (argstream >> launch.terp)
+            if (argstream >> interpreter.terp)
             {
                 if (argstream >> opt && opt[0] == '-')
-                    launch.flags = opt;
+                    interpreter.flags = opt;
                 else
-                    launch.flags = "";
+                    interpreter.flags = "";
             }
         }
     });
 
-    return !launch.terp.empty();
+    return !interpreter.terp.empty();
 }
 
-static void configterp(const std::string &exedir, const std::string &gamepath, struct Launch &launch)
+static void configterp(const std::string &exedir, const std::string &gamepath, struct Interpreter &interpreter)
 {
     std::string story = gamepath;
 
@@ -193,79 +227,38 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
 
     for (const auto &config : garglk::configs(exedir, gamepath))
     {
-        if (findterp(config, story, launch) || findterp(config, ext, launch))
+        if (findterp(config, story, interpreter) || findterp(config, ext, interpreter))
             return;
     }
 }
 
-struct Interpreter {
-    std::string interpreter;
-    std::string ext;
-    std::string flags;
-};
-
-/* Case-insensitive string comparison */
-static bool equal_strings(const std::string &a, const std::string &b)
+int garglk::rungame(const std::string &path, const std::string &game)
 {
-    return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-            [](char l, char r) { return std::tolower(static_cast<unsigned char>(l)) == std::tolower(static_cast<unsigned char>(r)); });
-}
+    const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
+    Interpreter interpreter("");
 
-int rungame(const std::string &path, const std::string &game)
-{
-    std::vector<const char *> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
-    std::vector<Interpreter> interpreters = {
-        { T_ADRIFT, "taf" },
-        { T_AGT, "agx", "-gl" },
-        { T_AGT, "d$$", "-gl" },
-        { T_ALAN2, "acd" },
-        { T_ALAN3, "a3c" },
-        { T_GLULX, "ulx" },
-        { T_HUGO, "hex" },
-        { T_JACL, "j2" },
-        { T_JACL, "jacl" },
-        { T_LEV9, "l9" },
-        { T_LEV9, "sna" },
-        { T_MGSR, "mag" },
-        { T_QUEST, "asl" },
-        { T_QUEST, "cas" },
-        { T_SCOTT, "saga" },
-        { T_TADS2, "gam" },
-        { T_TADS3, "t3" },
-        { T_ZCODE, "dat" },
-        { T_ZCODE, "z1" },
-        { T_ZCODE, "z2" },
-        { T_ZCODE, "z3" },
-        { T_ZCODE, "z4" },
-        { T_ZCODE, "z5" },
-        { T_ZCODE, "z7" },
-        { T_ZCODE, "z8" },
-        { T_ZSIX, "z6" },
-    };
-    Launch launch;
-
-    configterp(path, game, launch);
+    configterp(path, game, interpreter);
 
     std::string ext = "";
     auto dot = game.rfind('.');
     if (dot != std::string::npos)
-        ext = game.substr(dot + 1);
+        ext = garglk::downcase(game.substr(dot + 1));
 
     if (std::any_of(blorbs.begin(), blorbs.end(),
-                    [&ext](const auto &blorb) { return equal_strings(ext, blorb); }))
+                    [&ext](const auto &blorb) { return ext == blorb; }))
     {
-        return runblorb(path, game, launch);
+        return runblorb(path, game, interpreter);
     }
 
-    if (!launch.terp.empty())
-        return call_winterp(path, launch.terp, launch.flags, game);
+    if (!interpreter.terp.empty())
+        return call_winterp(path, interpreter, game);
 
     // Both Z-machine and AdvSys games claim the .dat extension. In
     // general Gargoyle uses extensions to determine the interpreter to
     // run, but since there's a conflict, check the file header in the
     // case of .dat files. If it looks like AdvSys, call the AdvSys
     // interpreter. Otherwise, use the Z-machine interpreter.
-    if (equal_strings(ext, "dat"))
+    if (ext == "dat")
     {
         std::vector<uint8_t> header(6);
         const std::vector<uint8_t> advsys_magic = {0xa0, 0x9d, 0x8b, 0x8e, 0x88, 0x8e};
@@ -275,16 +268,19 @@ int rungame(const std::string &path, const std::string &game)
             f.read(reinterpret_cast<char *>(&header[0]), header.size()) &&
             header == advsys_magic)
         {
-            return call_winterp(path, T_ADVSYS, "", game);
+            return call_winterp(path, interpreters.at(Format::AdvSys), game);
         }
     }
 
-    auto interpreter = std::find_if(interpreters.begin(), interpreters.end(),
-                                    [&ext](const auto &interpreter) { return equal_strings(ext, interpreter.ext); });
-    if (interpreter != interpreters.end())
-        return call_winterp(path, interpreter->interpreter, interpreter->flags, game);
+    auto found_interpreter = std::find_if(interpreters.begin(), interpreters.end(), [&ext](const std::pair<Format, Interpreter> &pair) {
+        auto interpreter = pair.second;
+        return std::any_of(interpreter.extensions.begin(), interpreter.extensions.end(), [&ext](const std::string ext_) { return ext == ext_; });
+    });
 
-    winmsg("Unknown file type: \"%s\"\nSorry.", ext.c_str());
+    if (found_interpreter != interpreters.end())
+        return call_winterp(path, found_interpreter->second, game);
+
+    garglk::winmsg("Unknown file type: \"" + ext + "\"\nSorry.");
 
     return 0;
 }

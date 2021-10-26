@@ -168,7 +168,7 @@ bool gli_conf_fullscreen = false;
 bool gli_conf_stylehint = true;
 bool gli_conf_safeclicks = false;
 
-static std::string downcase(const std::string &string)
+std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
 
@@ -310,7 +310,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
         if (line[0] == '[' && line.back() == ']')
         {
             accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string match) {
-                return downcase(line).find(downcase(match)) != std::string::npos;
+                return garglk::downcase(line).find(garglk::downcase(match)) != std::string::npos;
             });
             continue;
         }

@@ -38,7 +38,6 @@
 #include <QTimer>
 #include <QWidget>
 
-#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -85,16 +84,10 @@ void gli_notification_waiting()
     QApplication::postEvent(window, new QEvent(QEvent::None));
 }
 
-void winabort(const char *fmt, ...)
+void garglk::winabort(const std::string &msg)
 {
-    std::va_list ap;
-    char msg[4096];
-
-    va_start(ap, fmt);
-    std::vsnprintf(msg, sizeof msg, fmt, ap);
-    va_end(ap);
-    std::fprintf(stderr, "fatal: %s\n", msg);
-    QMessageBox::critical(nullptr, "Error", msg);
+    std::fprintf(stderr, "fatal: %s\n", msg.c_str());
+    QMessageBox::critical(nullptr, "Error", msg.c_str());
     std::exit(EXIT_FAILURE);
 }
 

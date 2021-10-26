@@ -20,9 +20,10 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <string>
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 #include <mach/mach_time.h>
 
@@ -151,17 +152,11 @@ void gli_notification_waiting()
     winhandler(SIGUSR1);
 }
 
-void winabort(const char *fmt, ...)
+void garglk::winabort(const std::string &msg)
 {
-    va_list ap;
-    char buf[256];
-    va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
-    va_end(ap);
-
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     [gargoyle abortWindowDialog: processID
-                         prompt: [NSString stringWithCString: buf encoding: NSUTF8StringEncoding]];
+                         prompt: [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding]];
     [pool drain];
 
     exit(1);
