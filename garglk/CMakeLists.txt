@@ -20,7 +20,7 @@ if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
 endif()
 
-add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.c cggestal.c
+add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.cpp cggestal.c
     cgmisc.c cgstream.c cgstyle.c cgunicod.c config.cpp draw.cpp event.cpp
     gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c
     wingfx.c wingrid.c winmask.c winpair.c wintext.c)

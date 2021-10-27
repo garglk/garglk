@@ -18,7 +18,7 @@ endfunction()
 
 function(warnings target)
     if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall -Wno-format-truncation>)
+        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall>)
     elseif("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C>:-Wall>)
     endif()

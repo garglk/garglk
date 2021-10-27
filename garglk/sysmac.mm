@@ -168,7 +168,7 @@ void winexit(void)
     exit(0);
 }
 
-void winopenfile(const char *prompt, char *buf, int len, enum FILEFILTERS filter)
+std::string garglk::winopenfile(const char *prompt, enum FILEFILTERS filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -176,17 +176,20 @@ void winopenfile(const char *prompt, char *buf, int len, enum FILEFILTERS filter
                                              prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                              filter: filter];
 
+    char buf[256];
     strcpy(buf, "");
 
     if (fileref)
     {
-        [fileref getCString: buf maxLength: len encoding: NSUTF8StringEncoding];
+        [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
     }
 
     [pool drain];
+
+    return buf;
 }
 
-void winsavefile(const char *prompt, char *buf, int len, enum FILEFILTERS filter)
+std::string garglk::winsavefile(const char *prompt, enum FILEFILTERS filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -194,14 +197,17 @@ void winsavefile(const char *prompt, char *buf, int len, enum FILEFILTERS filter
                                              prompt: [NSString stringWithCString: prompt encoding: NSUTF8StringEncoding]
                                              filter: filter];
 
+    char buf[256];
     strcpy(buf, "");
 
     if (fileref)
     {
-        [fileref getCString: buf maxLength: len encoding: NSUTF8StringEncoding];
+        [fileref getCString: buf maxLength: sizeof(buf) encoding: NSUTF8StringEncoding];
     }
 
     [pool drain];
+
+    return buf;
 }
 
 void winclipstore(glui32 *text, int len)

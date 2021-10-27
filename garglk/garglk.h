@@ -31,6 +31,10 @@
 #ifndef GARGLK_GARGLK_H
 #define GARGLK_GARGLK_H
 
+// The order here is significant: for the time being, at least, the
+// macOS code directly indexes an array using these values.
+enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
+
 #ifdef __cplusplus
 #include <functional>
 #include <memory>
@@ -39,6 +43,8 @@
 
 namespace garglk {
 
+std::string winopenfile(const char *prompt, enum FILEFILTERS filter);
+std::string winsavefile(const char *prompt, enum FILEFILTERS filter);
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, int type);
@@ -666,7 +672,7 @@ extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
 extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
 extern void gli_streams_close_all(void);
 
-extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
+extern fileref_t *gli_new_fileref(const char *filename, glui32 usage,
     glui32 rock);
 extern void gli_delete_fileref(fileref_t *fref);
 
@@ -687,17 +693,11 @@ extern void gli_select(event_t *event, int polled);
 extern void gli_tick(void);
 #endif
 
-// The order here is significant: for the time being, at least, the
-// macOS code directly indexes an array using these values.
-enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
-
 void wininit(int *argc, char **argv);
 void winopen(void);
 void wintitle(void);
 void winmore(void);
 void winrepaint(int x0, int y0, int x1, int y1);
-void winopenfile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
-void winsavefile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
 

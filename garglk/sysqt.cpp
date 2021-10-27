@@ -44,6 +44,7 @@
 #include <ctime>
 #include <iostream>
 #include <map>
+#include <string>
 #include <utility>
 
 #include "sysqt.h"
@@ -98,7 +99,7 @@ void winexit()
 
 enum class Action { Open, Save };
 
-static void winchoosefile(const QString &prompt, char *buf, int len, FILEFILTERS filter, Action action)
+static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Action action)
 {
     QString filename;
 
@@ -113,19 +114,19 @@ static void winchoosefile(const QString &prompt, char *buf, int len, FILEFILTERS
         filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first);
     }
 
-    std::snprintf(buf, len, "%s", filename.toStdString().c_str());
+    return filename.toStdString();
 }
 
-void winopenfile(const char *prompt, char *buf, int len, FILEFILTERS filter)
+std::string garglk::winopenfile(const char *prompt, FILEFILTERS filter)
 {
     QString realprompt = QString("Open: %1").arg(prompt);
-    winchoosefile(realprompt, buf, len, filter, Action::Open);
+    return winchoosefile(realprompt, filter, Action::Open);
 }
 
-void winsavefile(const char *prompt, char *buf, int len, FILEFILTERS filter)
+std::string garglk::winsavefile(const char *prompt, FILEFILTERS filter)
 {
     QString realprompt = QString("Save: %1").arg(prompt);
-    winchoosefile(realprompt, buf, len, filter, Action::Save);
+    return winchoosefile(realprompt, filter, Action::Save);
 }
 
 void winclipstore(glui32 *text, int len)
