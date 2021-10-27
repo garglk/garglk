@@ -251,7 +251,8 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
 {
     fileref_t *fref;
     char buf[256];
-    int val, filter;
+    int val;
+    enum FILEFILTERS filter;
     char *prompt;
 
     strcpy(buf, "");
