@@ -27,8 +27,6 @@
 
 #include <string>
 
-#include <stdarg.h>
-
 #import <Cocoa/Cocoa.h>
 #import <OpenGL/gl.h>
 #import <OpenGL/glu.h>
@@ -40,6 +38,8 @@
 #else
 #define ByteOrderOGL GL_UNSIGNED_INT_8_8_8_8_REV
 #endif
+
+#define MaxBuffer 1024
 
 static const char * AppName = "Gargoyle " VERSION;
 static const char * DirSeparator = "/";
@@ -845,7 +845,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
         return NO;
 
     /* run story file */
-    int ran = rungame(dir, buf);
+    int ran = garglk::rungame(dir, buf);
 
     if (ran)
         [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL: [NSURL fileURLWithPath: file]];
@@ -943,16 +943,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 @end
 
-void winmsg(const char *fmt, ...)
+void garglk::winmsg(const std::string &msg)
 {
-    char msg[MaxBuffer];
     NSString * nsMsg;
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsnprintf(msg, sizeof msg, fmt, ap);
-    va_end(ap);
-    nsMsg = [NSString stringWithCString: msg encoding: NSUTF8StringEncoding];
+    nsMsg = [NSString stringWithCString: msg.c_str() encoding: NSUTF8StringEncoding];
     NSRunAlertPanel(@"Fatal error", @"%@", nil, nil, nil, nsMsg);
 }
 
@@ -967,7 +961,7 @@ static void winpath(char *buffer)
 
     if (exelen <= 0 || exelen >= MaxBuffer)
     {
-        winmsg("Unable to locate executable path");
+        garglk::winmsg("Unable to locate executable path");
     }
 
     strcpy(buffer, exepath);
@@ -1010,7 +1004,7 @@ static int winexec(const char *cmd, const char **args)
     return [proc isRunning];
 }
 
-int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
+int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
 {
     sprintf(tmp, "%s/%s", dir, exe.c_str());
 
@@ -1029,7 +1023,7 @@ int winterp(const std::string &path, const std::string &exe, const std::string &
     }
 
     if (!winexec(tmp, args)) {
-        winmsg("Could not start 'terp.\nSorry.");
+        garglk::winmsg("Could not start 'terp.\nSorry.");
         return FALSE;
     }
 

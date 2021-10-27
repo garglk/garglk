@@ -25,33 +25,14 @@
 #ifndef GARGLK_LAUNCHER_H
 #define GARGLK_LAUNCHER_H
 
-#ifdef __cplusplus
 #include <string>
 
-extern int rungame(const std::string &path, const std::string &game);
-extern int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game);
+namespace garglk {
 
-extern "C" {
-#endif
+void winmsg(const std::string &msg);
+int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game);
+int rungame(const std::string &path, const std::string &game);
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <errno.h>
-#include <unistd.h>
-
-#define MaxBuffer 1024
-
-#ifdef __GNUC__
-__attribute__((__format__(__printf__, 1, 2)))
-#endif
-extern void winmsg(const char *fmt, ...);
-
-#ifdef __cplusplus
 }
-#endif
 
 #endif

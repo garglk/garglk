@@ -23,7 +23,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -142,28 +141,19 @@ void garglk::set_lcdfilter(const std::string &filter)
 #define FT_Error_String(err) nullptr
 #endif
 
-#ifdef __GNUC__
-__attribute__((__format__(__printf__, 2, 3)))
-#endif
-static void freetype_error(int err, const char *fmt, ...)
+static void freetype_error(int err, const std::string &basemsg)
 {
-    char msg1[4096];
-    std::stringstream msg2;
+    std::stringstream msg;
     // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
     // this will always be nullptr.
     const char *errstr = FT_Error_String(err);
-    std::va_list ap;
-
-    va_start(ap, fmt);
-    std::vsnprintf(msg1, sizeof msg1, fmt, ap);
-    va_end(ap);
 
     if (errstr == nullptr)
-        msg2 << msg1 << " (error code " << err << ")";
+        msg << basemsg << " (error code " << err << ")";
     else
-        msg2 << msg1 << ": " << errstr;
+        msg << basemsg << ": " << errstr;
 
-    winabort("%s", msg2.str().c_str());
+    garglk::winabort(msg.str());
 }
 
 const fentry_t &font_t::loadglyph(glui32 cid)
@@ -329,7 +319,7 @@ font_t::font_t(const struct font &font)
         return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0;
     }))
     {
-        winabort("Unable to find font %s for %s %s, and fallback %s not found", family.c_str(), type_to_name(font.type), style_to_name(font.style).c_str(), font.fallback.c_str());
+        garglk::winabort("Unable to find font " + family + " for " + type_to_name(font.type) + " " + style_to_name(font.style) + ", and fallback " + font.fallback + " not found");
     }
 
     auto dot = fontpath.rfind(".");
@@ -348,11 +338,11 @@ font_t::font_t(const struct font &font)
 
     err = FT_Set_Char_Size(face, size * aspect * 64, size * 64, 72, 72);
     if (err)
-        freetype_error(err, "Error in FT_Set_Char_Size for %s", fontpath.c_str());
+        freetype_error(err, "Error in FT_Set_Char_Size for " + fontpath);
 
     err = FT_Select_Charmap(face, ft_encoding_unicode);
     if (err)
-        freetype_error(err, "Error in FT_Select_CharMap for %s", fontpath.c_str());
+        freetype_error(err, "Error in FT_Select_CharMap for " + fontpath);
 
     kerned = FT_HAS_KERNING(face);
 

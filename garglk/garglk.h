@@ -39,6 +39,8 @@
 
 namespace garglk {
 
+void winabort(const std::string &msg);
+std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, int type);
 std::vector<std::string> configs(const std::string &exedir, const std::string &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
@@ -694,10 +696,6 @@ void winopen(void);
 void wintitle(void);
 void winmore(void);
 void winrepaint(int x0, int y0, int x1, int y1);
-#ifdef __GNUC__
-__attribute__((__format__(__printf__, 1, 2)))
-#endif
-void winabort(const char *fmt, ...);
 void winopenfile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winsavefile(const char *prompt, char *buf, int buflen, enum FILEFILTERS filter);
 void winexit(void);

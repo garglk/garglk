@@ -28,6 +28,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <string>
 
 #include <QApplication>
@@ -69,15 +70,9 @@ private:
     QStringList m_extensions;
 };
 
-void winmsg(const char *fmt, ...)
+void garglk::winmsg(const std::string &msg)
 {
-    char msg[MaxBuffer];
-    va_list ap;
-
-    va_start(ap, fmt);
-    std::vsnprintf(msg, sizeof msg, fmt, ap);
-    va_end(ap);
-    QMessageBox::critical(nullptr, "Error", msg);
+    QMessageBox::critical(nullptr, "Error", msg.c_str());
 }
 
 static QString winbrowsefile()
@@ -116,7 +111,7 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, QFileDialog::HideNameFilterDetails);
 }
 
-int winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
+int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
 {
     QString argv0 = QDir(path.c_str()).absoluteFilePath(exe.c_str());
 
@@ -133,7 +128,7 @@ int winterp(const std::string &path, const std::string &exe, const std::string &
 
     if (!proc.waitForStarted(5000))
     {
-        winmsg("Could not start interpreter %s", argv0.toStdString().c_str());
+        garglk::winmsg("Could not start interpreter " + argv0.toStdString());
         return 1;
     }
 
@@ -181,5 +176,5 @@ int main(int argc, char **argv)
     /* run story file */
     std::string dir_string = dir.toStdString();
     std::string story_string = story.toStdString();
-    return rungame(dir_string.c_str(), story_string.c_str());
+    return garglk::rungame(dir_string.c_str(), story_string.c_str());
 }
