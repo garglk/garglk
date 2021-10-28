@@ -24,7 +24,7 @@ if $(USEBABEL) = yes
 
 GARGSRCS =
     gi_blorb.c gi_dispa.c
-    cggestal.c cgblorb.c cgfref.c cgmisc.c
+    cggestal.c cgblorb.c cgfref.cpp cgmisc.c
     cgstyle.c cgstream.c cgunicod.c cgdate.c
     window.c winblank.c winpair.c wingrid.c
     wintext.c wingfx.c winmask.c

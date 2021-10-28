@@ -64,7 +64,7 @@ char *garglk_fileref_get_name(fileref_t *fref)
 /* Linked list of all filerefs */
 static fileref_t *gli_filereflist = NULL;
 
-fileref_t *gli_new_fileref(char *filename, glui32 usage, glui32 rock)
+fileref_t *gli_new_fileref(const char *filename, glui32 usage, glui32 rock)
 {
     fileref_t *fref = (fileref_t *)malloc(sizeof(fileref_t));
     if (!fref)
@@ -73,7 +73,7 @@ fileref_t *gli_new_fileref(char *filename, glui32 usage, glui32 rock)
     fref->magicnum = MAGIC_FILEREF_NUM;
     fref->rock = rock;
 
-    fref->filename = malloc(1 + strlen(filename));
+    fref->filename = new char[strlen(filename) + 1];
     strcpy(fref->filename, filename);
 
     fref->textmode = ((usage & fileusage_TextMode) != 0);
@@ -105,11 +105,8 @@ void gli_delete_fileref(fileref_t *fref)
 
     fref->magicnum = 0;
 
-    if (fref->filename)
-    {
-        free(fref->filename);
-        fref->filename = NULL;
-    }
+    delete [] fref->filename;
+    fref->filename = nullptr;
 
     prev = fref->prev;
     next = fref->next;
@@ -151,7 +148,7 @@ frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
     }
 #else
     char filename[4096];
-    char *tempdir = getenv("TMPDIR");
+    const char *tempdir = getenv("TMPDIR");
     int fd;
     if (tempdir == NULL)
         tempdir = "/tmp";
@@ -200,14 +197,9 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
     glui32 rock)
 {
     fileref_t *fref;
-    char buf[256];
-    char buf2[256];
-    int len;
-    char *cx;
+    std::string buf;
 
-    len = strlen(name);
-    if (len > 255)
-        len = 255;
+    buf = std::string(name).substr(0, 255);
 
     /* Take out all dangerous characters, and make sure the length is greater
         than zero.  The overall goal is to make a legal
@@ -221,23 +213,18 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
         argument.)
     */
 
-    memcpy(buf, name, len);
-    if (len == 0)
-    {
-        buf[0] = 'X';
-        len++;
-    }
-    buf[len] = '\0';
+    if (buf.empty())
+        buf = "X";
 
-    for (cx=buf; *cx; cx++)
+    for (char &c : buf)
     {
-        if (*cx == '/' || *cx == '\\' || *cx == ':')
-            *cx = '-';
+        if (c == '/' || c == '\\' || c == ':')
+            c = '-';
     }
 
-    snprintf(buf2, sizeof buf2, "%s/%s", gli_workdir, buf);
+    buf = std::string(gli_workdir) + "/" + buf;
 
-    fref = gli_new_fileref(buf2, usage, rock);
+    fref = gli_new_fileref(buf.c_str(), usage, rock);
     if (!fref)
     {
         gli_strict_warning("fileref_create_by_name: unable to create fileref.");
@@ -250,12 +237,9 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
 frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
 {
     fileref_t *fref;
-    char buf[256];
-    int val;
+    std::string buf;
     enum FILEFILTERS filter;
-    char *prompt;
-
-    strcpy(buf, "");
+    const char *prompt;
 
     switch (usage & fileusage_TypeMask)
     {
@@ -279,19 +263,18 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
     }
 
     if (fmode == filemode_Read)
-        winopenfile(prompt, buf, sizeof buf, filter);
+        garglk::winopenfile(prompt, filter);
     else
-        winsavefile(prompt, buf, sizeof buf, filter);
+        garglk::winsavefile(prompt, filter);
 
-    val = strlen(buf);
-    if (!val)
+    if (buf.empty())
     {
         /* The player just hit return. It would be nice to provide a
             default value, but this implementation is too cheap. */
         return NULL;
     }
 
-    fref = gli_new_fileref(buf, usage, rock);
+    fref = gli_new_fileref(buf.c_str(), usage, rock);
     if (!fref)
     {
         gli_strict_warning("fileref_create_by_prompt: unable to create fileref.");
