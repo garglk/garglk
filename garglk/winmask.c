@@ -20,6 +20,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,9 +31,9 @@
 static mask_t *gli_mask;
 
 /* for copy selection */
-int gli_copyselect = FALSE;
-int gli_drawselect = FALSE;
-int gli_claimselect = FALSE;
+bool gli_copyselect = false;
+bool gli_drawselect = false;
+bool gli_claimselect = false;
 
 static int last_x = 0;
 static int last_y = 0;
@@ -161,8 +162,8 @@ void gli_start_selection(int x, int y)
     gli_mask->select.x1 = 0;
     gli_mask->select.y1 = 0;
 
-    gli_claimselect = FALSE;
-    gli_force_redraw = 1;
+    gli_claimselect = false;
+    gli_force_redraw = true;
     gli_windows_redraw();
     return;
 }
@@ -186,7 +187,7 @@ void gli_move_selection(int x, int y)
     gli_mask->select.x1 = last_x = tx;
     gli_mask->select.y1 = last_y = ty;
 
-    gli_claimselect = FALSE;
+    gli_claimselect = false;
     gli_windows_redraw();
     return;
 }
@@ -201,18 +202,18 @@ void gli_clear_selection(void)
 
     if (gli_mask->select.x0 || gli_mask->select.x1
             || gli_mask->select.y0 || gli_mask->select.y1)
-            gli_force_redraw = TRUE;
+            gli_force_redraw = true;
 
     gli_mask->select.x0 = 0;
     gli_mask->select.y0 = 0;
     gli_mask->select.x1 = 0;
     gli_mask->select.y1 = 0;
 
-    gli_claimselect = FALSE;
+    gli_claimselect = false;
     return;
 }
 
-int gli_check_selection(unsigned int x0, unsigned int y0,
+bool gli_check_selection(unsigned int x0, unsigned int y0,
         unsigned int x1, unsigned int y1)
 {
     int cx0, cx1, cy0, cy1;
@@ -234,34 +235,34 @@ int gli_check_selection(unsigned int x0, unsigned int y0,
             : gli_mask->select.y0;
 
     if (!cx0 || !cx1 || !cy0 || !cy1)
-        return FALSE;
+        return false;
 
     if (cx0 >= x0 && cx0 <= x1
             && cy0 >= y0 && cy0 <= y1)
-        return TRUE;
+        return true;
 
     if (cx0 >= x0 && cx0 <= x1
             && cy1 >= y0 && cy1 <= y1)
-        return TRUE;
+        return true;
 
     if (cx1 >= x0 && cx1 <= x1
             && cy0 >= y0 && cy0 <= y1)
-        return TRUE;
+        return true;
 
     if (cx1 >= x0 && cx1 <= x1
             && cy1 >= y0 && cy1 <= y1)
-        return TRUE;
+        return true;
 
-    return FALSE;
+    return false;
 }
 
-int gli_get_selection(unsigned int x0, unsigned int y0,
+bool gli_get_selection(unsigned int x0, unsigned int y0,
         unsigned int x1, unsigned int y1,
         unsigned int *rx0, unsigned int *rx1)
 {
     unsigned int row, upper, lower, above, below;
-    int row_selected, found_left, found_right;
-    int from_right, from_below, is_above, is_below;
+    bool row_selected, found_left, found_right;
+    bool from_right, from_below, is_above, is_below;
     int cx0, cx1, cy0, cy1;
     int i;
 
@@ -287,17 +288,17 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             ? gli_mask->select.y1
             : gli_mask->select.y0;
 
-    row_selected = FALSE;
+    row_selected = false;
 
     if ((cy0 >= upper && cy0 <= lower)
         || (cy1 >= upper && cy1 <= lower))
-        row_selected = TRUE;
+        row_selected = true;
 
     if (row >= cy0 && row <= cy1)
-        row_selected = TRUE;
+        row_selected = true;
 
     if (!row_selected)
-        return FALSE;
+        return false;
 
     from_right = (gli_mask->select.x0 != cx0);
     from_below = (gli_mask->select.y0 != cy0);
@@ -307,15 +308,15 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
     *rx0 = 0;
     *rx1 = 0;
 
-    found_left = FALSE;
-    found_right = FALSE;
+    found_left = false;
+    found_right = false;
 
     if (is_above && is_below)
     {
         *rx0 = x0;
         *rx1 = x1;
-        found_left = TRUE;
-        found_right = TRUE;
+        found_left = true;
+        found_right = true;
     }
     else if (!is_above && is_below)
     {
@@ -325,15 +326,15 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             {
                 *rx0 = cx0;
                 *rx1 = x1;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
             else
             {
                 *rx0 = cx1;
                 *rx1 = x1;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
         }
         else
@@ -342,13 +343,13 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             {
                 *rx0 = cx1;
                 *rx1 = x1;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
             else
             {
                 *rx1 = x1;
-                found_right = TRUE;
+                found_right = true;
             }
         }
     }
@@ -360,15 +361,15 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             {
                 *rx0 = x0;
                 *rx1 = cx1;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
             else
             {
                 *rx0 = x0;
                 *rx1 = cx0;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
         }
         else
@@ -376,22 +377,22 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             if (from_right)
             {
                 if (x0 > cx0)
-                    return FALSE;
+                    return false;
                 *rx0 = x0;
                 *rx1 = cx0;
-                found_left = TRUE;
-                found_right = TRUE;
+                found_left = true;
+                found_right = true;
             }
             else
             {
                 *rx0 = x0;
-                found_left = TRUE;
+                found_left = true;
             }
         }
     }
 
     if (found_left && found_right)
-        return TRUE;
+        return true;
 
     for (i = x0; i <= x1; i++)
     {
@@ -400,9 +401,9 @@ int gli_get_selection(unsigned int x0, unsigned int y0,
             if (!found_left)
             {
                 *rx0 = i;
-                found_left = TRUE;
+                found_left = true;
                 if (found_right)
-                    return TRUE;
+                    return true;
             }
             else
             {

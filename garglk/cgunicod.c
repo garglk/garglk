@@ -34,6 +34,7 @@
     shown above.
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <memory.h>
@@ -316,7 +317,7 @@ glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen,
 +*/
 
 static glui32 gli_buffer_change_case(glui32 *buf, glui32 len,
-    glui32 numchars, int destcase, int cond, int changerest)
+    glui32 numchars, int destcase, int cond, bool changerest)
 {
     glui32 ix, jx;
     glui32 *outbuf;
@@ -449,14 +450,14 @@ glui32 glk_buffer_to_lower_case_uni(glui32 *buf, glui32 len,
     glui32 numchars)
 {
     return gli_buffer_change_case(buf, len, numchars,
-        CASE_LOWER, COND_ALL, TRUE);
+        CASE_LOWER, COND_ALL, true);
 }
 
 glui32 glk_buffer_to_upper_case_uni(glui32 *buf, glui32 len,
     glui32 numchars)
 {
     return gli_buffer_change_case(buf, len, numchars,
-        CASE_UPPER, COND_ALL, TRUE);
+        CASE_UPPER, COND_ALL, true);
 }
 
 glui32 glk_buffer_to_title_case_uni(glui32 *buf, glui32 len,
@@ -498,7 +499,7 @@ static glui32 *gli_buffer_canon_decompose_uni(glui32 *buf,
     glui32 *dest = (glui32 *)malloc(destsize * sizeof(glui32));
     glui32 destlen = 0;
     glui32 ix, jx;
-    int anycombining = FALSE;
+    bool anycombining = false;
 
     if (!dest)
         return NULL;
@@ -510,7 +511,7 @@ static glui32 *gli_buffer_canon_decompose_uni(glui32 *buf,
         glui32 count, pos;
 
         if (combining_class(ch))
-            anycombining = TRUE;
+            anycombining = true;
 
         GET_DECOMP_BLOCK(ch, &block);
         if (block)
@@ -548,7 +549,7 @@ static glui32 *gli_buffer_canon_decompose_uni(glui32 *buf,
         /* Assume that a character with a decomposition has a
            combining class somewhere in there. Not always true, but
            it's simpler to assume it. */
-        anycombining = TRUE;
+        anycombining = true;
 
         /* We now append count characters to the buffer, reading from
            unigen_decomp_data[pos] onwards. None of these characters

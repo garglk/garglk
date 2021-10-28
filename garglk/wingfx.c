@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,9 +131,9 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
     dwin->h = newhgt;
 
     if (newwid > oldw)
-        win_graphics_erase_rect(dwin, FALSE, oldw, 0, newwid-oldw, newhgt);
+        win_graphics_erase_rect(dwin, false, oldw, 0, newwid-oldw, newhgt);
     if (newhgt > oldh)
-        win_graphics_erase_rect(dwin, FALSE, 0, oldh, newwid, newhgt-oldh);
+        win_graphics_erase_rect(dwin, false, 0, oldh, newwid, newhgt-oldh);
 
     win_graphics_touch(dwin);
 }
@@ -177,7 +178,7 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
     if (win->mouse_request)
     {
         gli_event_store(evtype_MouseInput, win, x, y);
-        win->mouse_request = FALSE;
+        win->mouse_request = false;
         if (gli_conf_safeclicks)
             gli_forceclick = 1;
     }
@@ -188,28 +189,28 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
         if (linkval)
         {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
-            win->hyper_request = FALSE;
+            win->hyper_request = false;
             if (gli_conf_safeclicks)
                 gli_forceclick = 1;
         }
     }
 }
 
-glui32 win_graphics_draw_picture(window_graphics_t *dwin,
+bool win_graphics_draw_picture(window_graphics_t *dwin,
     glui32 image,
     glsi32 xpos, glsi32 ypos,
-    int scale, glui32 imagewidth, glui32 imageheight)
+    bool scale, glui32 imagewidth, glui32 imageheight)
 {
     picture_t *pic = gli_picture_load(image);
     glui32 hyperlink = dwin->owner->attr.hyper;
 
     if (!pic)
-        return FALSE;
+        return false;
 
     if (!dwin->owner->image_loaded)
     {
         gli_piclist_increment();
-        dwin->owner->image_loaded = TRUE;
+        dwin->owner->image_loaded = true;
     }
 
     if (!scale)
@@ -222,10 +223,10 @@ glui32 win_graphics_draw_picture(window_graphics_t *dwin,
 
     win_graphics_touch(dwin);
 
-    return TRUE;
+    return true;
 }
 
-void win_graphics_erase_rect(window_graphics_t *dwin, int whole,
+void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
     glsi32 x0, glsi32 y0, glui32 width, glui32 height)
 {
     int x1 = x0 + width;

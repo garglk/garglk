@@ -20,6 +20,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "glk.h"
@@ -33,7 +34,7 @@ window_pair_t *win_pair_create(window_t *win, glui32 method, window_t *key, glui
     dwin->dir = method & winmethod_DirMask;
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
-    dwin->keydamage = FALSE;
+    dwin->keydamage = false;
     dwin->size = size;
     dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
 

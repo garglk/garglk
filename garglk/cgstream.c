@@ -34,6 +34,7 @@
     shown above.
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +55,7 @@ static stream_t *gli_currentstr = NULL;
 
 extern void gli_stream_close(stream_t *str);
 
-stream_t *gli_new_stream(glui32 type, int readable, int writable, glui32 rock, int unicode)
+stream_t *gli_new_stream(glui32 type, bool readable, bool writable, glui32 rock, bool unicode)
 {
   stream_t *str = (stream_t *)malloc(sizeof(stream_t));
 
@@ -79,7 +80,7 @@ stream_t *gli_new_stream(glui32 type, int readable, int writable, glui32 rock, i
   str->win = NULL;
   str->lastop = 0;
   str->file = NULL;
-  str->textfile = FALSE;
+  str->textfile = false;
 
   str->prev = NULL;
   str->next = gli_streamlist;
@@ -157,7 +158,7 @@ glui32 glk_stream_get_rock(stream_t *str)
 }
 
 static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
-    glui32 rock, int unicode)
+    glui32 rock, bool unicode)
 {
   char modestr[16];
   stream_t *str;
@@ -243,12 +244,12 @@ static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
 
 stream_t *glk_stream_open_file(frefid_t fref, glui32 fmode, glui32 rock)
 {
-    return gli_stream_open_file(fref, fmode, rock, FALSE);
+    return gli_stream_open_file(fref, fmode, rock, false);
 }
 
 stream_t *glk_stream_open_file_uni(frefid_t fref, glui32 fmode, glui32 rock)
 {
-    return gli_stream_open_file(fref, fmode, rock, TRUE);
+    return gli_stream_open_file(fref, fmode, rock, true);
 }
 
 stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
@@ -266,7 +267,7 @@ stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
     return 0;
 
   str = gli_new_stream(strtype_File,
-    TRUE, FALSE, rock, FALSE);
+    true, false, rock, false);
   if (!str)
   {
     fclose(fl);
@@ -296,7 +297,7 @@ stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode,
     (fmode != filemode_Write),
     (fmode != filemode_Read),
     rock,
-    FALSE);
+    false);
   if (!str)
     return 0;
 
@@ -333,7 +334,7 @@ stream_t *glk_stream_open_memory_uni(glui32 *buf, glui32 buflen, glui32 fmode,
     (fmode != filemode_Write),
     (fmode != filemode_Read),
     rock,
-    TRUE);
+    true);
   if (!str)
     return 0;
 
@@ -358,7 +359,7 @@ stream_t *gli_stream_open_window(window_t *win)
 {
   stream_t *str;
 
-  str = gli_new_stream(strtype_Window, FALSE, TRUE, 0, TRUE);
+  str = gli_new_stream(strtype_Window, false, true, 0, true);
   if (!str)
     return NULL;
 
@@ -1044,7 +1045,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             {
                 if (fg == zcolor_Default)
                 {
-                    str->win->attr.fgset = 0;
+                    str->win->attr.fgset = false;
                     str->win->attr.fgcolor = 0;
                     gli_override_fg_set = false;
                     gli_override_fg_val = 0;
@@ -1054,7 +1055,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 }
                 else if (fg != zcolor_Current)
                 {
-                    str->win->attr.fgset = 1;
+                    str->win->attr.fgset = true;
                     str->win->attr.fgcolor = fg;
                     gli_override_fg_set = true;
                     gli_override_fg_val = fg;
@@ -1068,7 +1069,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             {
                 if (bg == zcolor_Default)
                 {
-                    str->win->attr.bgset = 0;
+                    str->win->attr.bgset = false;
                     str->win->attr.bgcolor = 0;
                     gli_override_bg_set = false;
                     gli_override_bg_val = 0;
@@ -1077,7 +1078,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
                 }
                 else if (bg != zcolor_Current)
                 {
-                    str->win->attr.bgset = 1;
+                    str->win->attr.bgset = true;
                     str->win->attr.bgcolor = bg;
                     gli_override_bg_set = true;
                     gli_override_bg_val = bg;
@@ -1096,7 +1097,7 @@ static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
             break;
     }
 
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 }
 
 static void gli_set_reversevideo(stream_t *str, glui32 reverse)
@@ -1115,7 +1116,7 @@ static void gli_set_reversevideo(stream_t *str, glui32 reverse)
                 gli_set_reversevideo(str->win->echostr, reverse);
             break;
     }
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 }
 
 static void gli_set_hyperlink(stream_t *str, glui32 linkval)
@@ -1562,7 +1563,7 @@ static glui32 gli_get_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
 static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
 {
     glui32 lx;
-    int gotnewline;
+    bool gotnewline;
 
     if (!str || !str->readable)
         return 0;
@@ -1590,7 +1591,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
                             len = 0;
                     }
                 }
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     cbuf[lx] = ((char *)str->bufptr)[lx];
@@ -1616,7 +1617,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
                             len = 0;
                     }
                 }
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     glui32 ch;
@@ -1653,7 +1654,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
             else if (str->textfile)
             {
                 len -= 1; /* for the terminal null */
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     glui32 ch;
@@ -1672,7 +1673,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
             else
             {
                 len -= 1; /* for the terminal null */
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     int res;
@@ -1711,7 +1712,7 @@ static glui32 gli_get_line(stream_t *str, char *cbuf, glui32 len)
 static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
 {
     glui32 lx;
-    int gotnewline;
+    bool gotnewline;
 
     if (!str || !str->readable)
         return 0;
@@ -1739,7 +1740,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
                             len = 0;
                     }
                 }
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     ubuf[lx] = ((unsigned char *)str->bufptr)[lx];
@@ -1765,7 +1766,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
                             len = 0;
                     }
                 }
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     glui32 ch;
@@ -1785,7 +1786,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
             if (!str->unicode)
             {
                 len -= 1; /* for the terminal null */
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     int res;
@@ -1804,7 +1805,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
             else if (str->textfile)
             {
                 len -= 1; /* for the terminal null */
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     glui32 ch;
@@ -1821,7 +1822,7 @@ static glui32 gli_get_line_uni(stream_t *str, glui32 *ubuf, glui32 len)
             else
             {
                 len -= 1; /* for the terminal null */
-                gotnewline = FALSE;
+                gotnewline = false;
                 for (lx=0; lx<len && !gotnewline; lx++)
                 {
                     int res;

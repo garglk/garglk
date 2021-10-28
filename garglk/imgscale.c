@@ -26,6 +26,7 @@
  */
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -87,7 +88,7 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
     dst->h = newrows;
     dst->rgba = malloc(newcols * newrows * 4);
     dst->id = src->id;
-    dst->scaled = TRUE;
+    dst->scaled = true;
 
     xelrow = src->rgba;
     newxelrow = dst->rgba;
