@@ -28,11 +28,8 @@
 #include "glk.h"
 #include "garglk.h"
 
-#define TXTSIZE 4096
-static glui32 txtbuf[TXTSIZE + 1];
-static size_t txtlen;
-
 static SPDConnection *spd;
+static std::vector<glui32> txtbuf;
 
 void gli_initialize_tts(void)
 {
@@ -44,35 +41,35 @@ void gli_initialize_tts(void)
             spd_set_language(spd, gli_conf_speak_language.c_str());
     }
 
-    txtlen = 0;
+    txtbuf.clear();
 }
 
-static std::vector<char> unicode_to_utf8(const glui32 *src, size_t n)
+static std::string unicode_to_utf8(const std::vector<glui32> &src)
 {
-    std::vector<char> dst;
+    std::string dst;
 
-    for (size_t i = 0; i < n; i++)
+    for (const auto &c : src)
     {
-        uint8_t hi  = (src[i] >> 16) & 0xff,
-                mid = (src[i] >>  8) & 0xff,
-                lo  = (src[i]      ) & 0xff;
+        uint8_t hi  = (c >> 16) & 0xff,
+                mid = (c >>  8) & 0xff,
+                lo  = (c      ) & 0xff;
 
-        if (src[i] < 0x80)
+        if (c < 0x80)
         {
-            dst.push_back(src[i]);
+            dst.push_back(c);
         }
-        else if (src[i] < 0x800)
+        else if (c < 0x800)
         {
             dst.push_back(0xc0 | (mid << 2) | (lo >> 6));
             dst.push_back(0x80 | (lo & 0x3f));
         }
-        else if (src[i] < 0x10000)
+        else if (c < 0x10000)
         {
             dst.push_back(0xe0 | (mid >> 4));
             dst.push_back(0x80 | ((mid << 2) & 0x3f) | (lo >> 6));
             dst.push_back(0x80 | (lo & 0x3f));
         }
-        else if (src[i] < 0x200000)
+        else if (c < 0x200000)
         {
             dst.push_back(0xf0 | (hi >> 2));
             dst.push_back(0x80 | ((hi << 4) & 0x30) | (mid >> 4));
@@ -86,13 +83,13 @@ static std::vector<char> unicode_to_utf8(const glui32 *src, size_t n)
 
 void gli_tts_flush(void)
 {
-    if (spd != nullptr && txtlen > 0)
+    if (spd != nullptr && !txtbuf.empty())
     {
-        auto utf8 = unicode_to_utf8(txtbuf, txtlen);
-        spd_say(spd, SPD_MESSAGE, &utf8[0]);
+        auto utf8 = unicode_to_utf8(txtbuf);
+        spd_say(spd, SPD_MESSAGE, utf8.c_str());
     }
 
-    txtlen = 0;
+    txtbuf.clear();
 }
 
 void gli_tts_purge(void)
@@ -108,13 +105,10 @@ void gli_tts_speak(const glui32 *buf, size_t len)
 
     for (size_t i = 0; i < len; i++)
     {
-        if (txtlen >= TXTSIZE)
-            gli_tts_flush();
-
         if (buf[i] == '>' || buf[i] == '*')
             continue;
 
-        txtbuf[txtlen++] = buf[i];
+        txtbuf.push_back(buf[i]);
 
         if (buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || buf[i] == '\n')
             gli_tts_flush();
