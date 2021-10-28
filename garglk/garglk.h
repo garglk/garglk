@@ -75,19 +75,6 @@ extern "C" {
 #include "gi_dispa.h"
 #include "glk.h"
 
-/* First, we define our own TRUE and FALSE and NULL, because ANSI
- * is a strange world.
- */
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef NULL
-#define NULL 0
-#endif
-
 /* This macro is called whenever the library code catches an error
  * or illegal operation from the game program.
  */
@@ -145,8 +132,8 @@ extern int gli_terminated;
 extern window_t *gli_rootwin;
 extern window_t *gli_focuswin;
 
-extern int gli_force_redraw;
-extern int gli_more_focus;
+extern bool gli_force_redraw;
+extern bool gli_more_focus;
 extern int gli_cellw;
 extern int gli_cellh;
 
@@ -178,7 +165,7 @@ struct picture_s
     int w, h;
     unsigned char *rgba;
     unsigned long id;
-    int scaled;
+    bool scaled;
 };
 
 struct piclist_s
@@ -317,9 +304,9 @@ extern int gli_more_align;
 extern int gli_more_font;
 
 extern int gli_forceclick;
-extern int gli_copyselect;
-extern int gli_drawselect;
-extern int gli_claimselect;
+extern bool gli_copyselect;
+extern bool gli_drawselect;
+extern bool gli_claimselect;
 
 /*
  * Standard Glk I/O stuff
@@ -364,10 +351,10 @@ struct glk_stream_struct
     glui32 rock;
 
     int type; /* file, window, or memory stream */
-    int unicode; /* one-byte or four-byte chars? Not meaningful for windows */
+    bool unicode; /* one-byte or four-byte chars? Not meaningful for windows */
 
     glui32 readcount, writecount;
-    int readable, writable;
+    bool readable, writable;
 
     /* for strtype_Window */
     window_t *win;
@@ -375,7 +362,7 @@ struct glk_stream_struct
     /* for strtype_File */
     FILE *file;
     glui32 lastop; /* 0, filemode_Write, or filemode_Read */
-    int textfile;
+    bool textfile;
 
     /* for strtype_Memory */
     void *buf;		/* unsigned char* for latin1, glui32* for unicode */
@@ -396,7 +383,7 @@ struct glk_fileref_struct
 
     char *filename;
     int filetype;
-    int textmode;
+    bool textmode;
 
     gidispatch_rock_t disprock;
     fileref_t *next, *prev; /* in the big linked list of filerefs */
@@ -406,16 +393,20 @@ struct glk_fileref_struct
  * Windows and all that
  */
 
+// For some reason MinGW does "typedef hyper __int64", which conflicts
+// with attr_s.hyper below. Unconditionally undefine it here so any
+// files which include windows.h will not cause build failures.
+#undef hyper
+
 typedef struct attr_s
 {
-    unsigned fgset   : 1;
-    unsigned bgset   : 1;
-    unsigned reverse : 1;
-    unsigned         : 1;
-    unsigned style   : 4;
-    unsigned fgcolor : 24;
-    unsigned bgcolor : 24;
-    unsigned hyper   : 32;
+    bool fgset;
+    bool bgset;
+    bool reverse;
+    glui32 style;
+    glui32 fgcolor;
+    glui32 bgcolor;
+    glui32 hyper;
 } attr_t;
 
 struct glk_window_struct
@@ -432,17 +423,17 @@ struct glk_window_struct
     stream_t *str; /* the window stream. */
     stream_t *echostr; /* the window's echo stream, if any. */
 
-    int line_request;
-    int line_request_uni;
-    int char_request;
-    int char_request_uni;
-    int mouse_request;
-    int hyper_request;
-    int more_request;
-    int scroll_request;
-    int image_loaded;
+    bool line_request;
+    bool line_request_uni;
+    bool char_request;
+    bool char_request_uni;
+    bool mouse_request;
+    bool hyper_request;
+    bool more_request;
+    bool scroll_request;
+    bool image_loaded;
 
-    glui32 echo_line_input;
+    bool echo_line_input;
     glui32 *line_terminators;
     glui32 termct;
 
@@ -466,10 +457,10 @@ struct window_pair_s
 
     /* split info... */
     glui32 dir; /* winmethod_Left, Right, Above, or Below */
-    int vertical, backward; /* flags */
+    bool vertical, backward; /* flags */
     glui32 division; /* winmethod_Fixed or winmethod_Proportional */
     window_t *key; /* NULL or a leaf-descendant (not a Pair) */
-    int keydamage; /* used as scratch space in window closing */
+    bool keydamage; /* used as scratch space in window closing */
     glui32 size; /* size value */
     glui32 wborder;  /* winMethod_Border, NoBorder */
 };
@@ -507,7 +498,8 @@ struct window_textgrid_s
 
 typedef struct tbline_s
 {
-    int len, newline, dirty, repaint;
+    int len;
+    bool newline, dirty, repaint;
     picture_t *lpic, *rpic;
     glui32 lhyper, rhyper;
     int lm, rm;
@@ -548,14 +540,14 @@ struct window_textbuffer_s
 
     /* for line input */
     void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
-    int inunicode;
+    bool inunicode;
     int inmax;
     long infence;
     long incurs;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
 
-    glui32 echo_line_input;
+    bool echo_line_input;
     glui32 *line_terminators;
 
     /* style hints and settings */
@@ -605,7 +597,7 @@ extern void win_textgrid_destroy(window_textgrid_t *dwin);
 extern void win_textgrid_rearrange(window_t *win, rect_t *box);
 extern void win_textgrid_redraw(window_t *win);
 extern void win_textgrid_putchar_uni(window_t *win, glui32 ch);
-extern int win_textgrid_unputchar_uni(window_t *win, glui32 ch);
+extern bool win_textgrid_unputchar_uni(window_t *win, glui32 ch);
 extern void win_textgrid_clear(window_t *win);
 extern void win_textgrid_move_cursor(window_t *win, int xpos, int ypos);
 extern void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen);
@@ -620,7 +612,7 @@ extern void win_textbuffer_destroy(window_textbuffer_t *dwin);
 extern void win_textbuffer_rearrange(window_t *win, rect_t *box);
 extern void win_textbuffer_redraw(window_t *win);
 extern void win_textbuffer_putchar_uni(window_t *win, glui32 ch);
-extern int win_textbuffer_unputchar_uni(window_t *win, glui32 ch);
+extern bool win_textbuffer_unputchar_uni(window_t *win, glui32 ch);
 extern void win_textbuffer_clear(window_t *win);
 extern void win_textbuffer_init_line(window_t *win, char *buf, int maxlen, int initlen);
 extern void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int initlen);
@@ -628,7 +620,7 @@ extern void win_textbuffer_cancel_line(window_t *win, event_t *ev);
 extern void win_textbuffer_click(window_textbuffer_t *dwin, int x, int y);
 extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
-extern int gcmd_accept_scroll(window_t *win, glui32 arg);
+extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
 
 /* Declarations of library internal functions. */
 
@@ -643,8 +635,8 @@ extern window_t *gli_window_iterate_treeorder(window_t *win);
 extern void gli_window_rearrange(window_t *win, rect_t *box);
 extern void gli_window_redraw(window_t *win);
 extern void gli_window_put_char_uni(window_t *win, glui32 ch);
-extern int gli_window_unput_char_uni(window_t *win, glui32 ch);
-extern int gli_window_check_terminator(glui32 ch);
+extern bool gli_window_unput_char_uni(window_t *win, glui32 ch);
+extern bool gli_window_check_terminator(glui32 ch);
 extern void gli_window_refocus(window_t *win);
 
 extern void gli_windows_redraw(void);
@@ -659,8 +651,8 @@ void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
-extern stream_t *gli_new_stream(glui32 type, int readable, int writable,
-    glui32 rock, int unicode);
+extern stream_t *gli_new_stream(glui32 type, bool readable, bool writable,
+    glui32 rock, bool unicode);
 extern void gli_delete_stream(stream_t *str);
 extern stream_t *gli_stream_open_window(window_t *win);
 extern strid_t gli_stream_open_pathname(char *pathname, int textmode,
@@ -709,7 +701,7 @@ void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, l
 
 picture_t *gli_picture_load(unsigned long id);
 void gli_picture_store(picture_t *pic);
-picture_t *gli_picture_retrieve(unsigned long id, int scaled);
+picture_t *gli_picture_retrieve(unsigned long id, bool scaled);
 picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
 void gli_picture_increment(picture_t *pic);
 void gli_picture_decrement(picture_t *pic);
@@ -727,14 +719,14 @@ void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height);
 void win_graphics_redraw(window_t *win);
 void win_graphics_click(window_graphics_t *dwin, int x, int y);
 
-glui32 win_graphics_draw_picture(window_graphics_t *cutwin,
+bool win_graphics_draw_picture(window_graphics_t *cutwin,
   glui32 image, glsi32 xpos, glsi32 ypos,
-  int scale, glui32 imagewidth, glui32 imageheight);
-void win_graphics_erase_rect(window_graphics_t *cutwin, int whole, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
+  bool scale, glui32 imagewidth, glui32 imageheight);
+void win_graphics_erase_rect(window_graphics_t *cutwin, bool whole, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
 void win_graphics_fill_rect(window_graphics_t *cutwin, glui32 color, glsi32 xpos, glsi32 ypos, glui32 width, glui32 height);
 void win_graphics_set_background_color(window_graphics_t *cutwin, glui32 color);
 
-glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, glui32 scaled, glui32 width, glui32 height);
+glui32 win_textbuffer_draw_picture(window_textbuffer_t *dwin, glui32 image, glui32 align, bool scaled, glui32 width, glui32 height);
 glui32 win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_calc_padding(window_t *win, int *x, int *y);
@@ -762,8 +754,8 @@ glui32 strlen_uni(const glui32 *s);
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y);
 void gli_clear_selection(void);
-int gli_check_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
-int gli_get_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, unsigned int *rx0, unsigned int *rx1);
+bool gli_check_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
+bool gli_get_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, unsigned int *rx0, unsigned int *rx1);
 void gli_clipboard_copy(glui32 *buf, int len);
 void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);
@@ -772,7 +764,7 @@ void gli_notification_waiting(void);
 
 void attrset(attr_t *attr, glui32 style);
 void attrclear(attr_t *attr);
-int attrequal(attr_t *a1, attr_t *a2);
+bool attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);

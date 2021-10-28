@@ -12,18 +12,11 @@
     shown above.
 */
 
+#include <stdbool.h>
+#include <stddef.h>
+
 #include "glk.h"
 #include "gi_blorb.h"
-
-#ifndef NULL
-#define NULL 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
 
 /* The magic macro of endian conversion. */
 
@@ -78,7 +71,7 @@ struct giblorb_map_struct {
 
 /* Static variables. */
 
-static int lib_inited = FALSE;
+static bool lib_inited = false;
 
 static giblorb_err_t giblorb_initialize(void);
 static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map);
@@ -110,7 +103,7 @@ giblorb_err_t giblorb_create_map(strid_t file, giblorb_map_t **newmap)
         err = giblorb_initialize();
         if (err)
             return err;
-        lib_inited = TRUE;
+        lib_inited = true;
     }
 
     /* First, chew through the file and index the chunks. */
@@ -232,7 +225,7 @@ static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map)
     char *ptr;
     glui32 len;
     glui32 numres;
-    int gotindex = FALSE;
+    bool gotindex = false;
 
     for (ix=0; ix<map->numchunks; ix++) {
         giblorb_chunkdesc_t *chu = &map->chunks[ix];
@@ -309,7 +302,7 @@ static giblorb_err_t giblorb_initialize_map(giblorb_map_t *map)
                 }
 
                 giblorb_unload_chunk(map, ix);
-                gotindex = TRUE;
+                gotindex = true;
                 break;
 
         }

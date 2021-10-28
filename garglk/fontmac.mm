@@ -29,10 +29,10 @@
 #include "glk.h"
 #include "garglk.h"
 
-static int gli_sys_monor = FALSE;
-static int gli_sys_monob = FALSE;
-static int gli_sys_monoi = FALSE;
-static int gli_sys_monoz = FALSE;
+static bool gli_sys_monor = false;
+static bool gli_sys_monob = false;
+static bool gli_sys_monoi = false;
+static bool gli_sys_monoz = false;
 
 static void monofont(char *file, int style)
 {
@@ -53,7 +53,7 @@ static void monofont(char *file, int style)
                 if (!gli_sys_monoz && !gli_sys_monoi && !gli_sys_monob)
                     gli_conf_mono.z = file;
 
-                gli_sys_monor = TRUE;
+                gli_sys_monor = true;
             }
             return;
         }
@@ -67,7 +67,7 @@ static void monofont(char *file, int style)
                 if (!gli_sys_monoz && !gli_sys_monoi)
                     gli_conf_mono.z = file;
 
-                gli_sys_monob = TRUE;
+                gli_sys_monob = true;
             }
             return;
         }
@@ -81,7 +81,7 @@ static void monofont(char *file, int style)
                 if (!gli_sys_monoz)
                     gli_conf_mono.z = file;
 
-                gli_sys_monoi = TRUE;
+                gli_sys_monoi = true;
             }
             return;
         }
@@ -91,17 +91,17 @@ static void monofont(char *file, int style)
             if (!gli_sys_monoz)
             {
                 gli_conf_mono.z = file;
-                gli_sys_monoz = TRUE;
+                gli_sys_monoz = true;
             }
             return;
         }
     }
 }
 
-static int gli_sys_propr = FALSE;
-static int gli_sys_propb = FALSE;
-static int gli_sys_propi = FALSE;
-static int gli_sys_propz = FALSE;
+static bool gli_sys_propr = false;
+static bool gli_sys_propb = false;
+static bool gli_sys_propi = false;
+static bool gli_sys_propz = false;
 
 static void propfont(char *file, int style)
 {
@@ -122,7 +122,7 @@ static void propfont(char *file, int style)
                 if (!gli_sys_propz && !gli_sys_propi && !gli_sys_propb)
                     gli_conf_prop.z = file;
 
-                gli_sys_propr = TRUE;
+                gli_sys_propr = true;
             }
             return;
         }
@@ -136,7 +136,7 @@ static void propfont(char *file, int style)
                 if (!gli_sys_propz && !gli_sys_propi)
                     gli_conf_prop.z = file;
 
-                gli_sys_propb = TRUE;
+                gli_sys_propb = true;
             }
             return;
         }
@@ -150,7 +150,7 @@ static void propfont(char *file, int style)
                 if (!gli_sys_propz)
                     gli_conf_prop.z = file;
 
-                gli_sys_propi = TRUE;
+                gli_sys_propi = true;
             }
             return;
         }
@@ -160,7 +160,7 @@ static void propfont(char *file, int style)
             if (!gli_sys_propz)
             {
                 gli_conf_prop.z = file;
-                gli_sys_propz = TRUE;
+                gli_sys_propz = true;
             }
             return;
         }

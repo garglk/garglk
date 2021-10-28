@@ -321,7 +321,7 @@ glui32 glk_fileref_does_file_exist(fileref_t *fref)
     if (!fref)
     {
         gli_strict_warning("fileref_does_file_exist: invalid ref");
-        return FALSE;
+        return false;
     }
 
     /* This is sort of Unix-specific, but probably any stdio library

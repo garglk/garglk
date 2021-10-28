@@ -192,7 +192,7 @@ static void gli_input_guess_focus()
     if (gli_focuswin != altwin)
     {
         gli_focuswin = altwin;
-        gli_force_redraw = 1;
+        gli_force_redraw = true;
         gli_windows_redraw();
     }
 }
@@ -236,7 +236,7 @@ static void gli_input_next_focus()
     if (gli_focuswin != altwin)
     {
         gli_focuswin = altwin;
-        gli_force_redraw = 1;
+        gli_force_redraw = true;
         gli_windows_redraw();
     }
 }

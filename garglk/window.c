@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,8 +31,8 @@
 #define LINES 24
 #define COLS 70
 
-int gli_force_redraw = 1;
-int gli_more_focus = 0;
+bool gli_force_redraw = true;
+bool gli_more_focus = false;
 
 /* Linked list of all windows */
 static window_t *gli_windowlist = NULL;
@@ -101,17 +102,17 @@ window_t *gli_new_window(glui32 type, glui32 rock)
     win->data = NULL; /* for now */
     win->yadj = 0;
 
-    win->char_request = FALSE;
-    win->char_request_uni = FALSE;
-    win->line_request = FALSE;
-    win->line_request_uni = FALSE;
-    win->mouse_request = FALSE;
-    win->hyper_request = FALSE;
-    win->more_request = FALSE;
-    win->scroll_request = FALSE;
-    win->image_loaded = FALSE;
+    win->char_request = false;
+    win->char_request_uni = false;
+    win->line_request = false;
+    win->line_request_uni = false;
+    win->mouse_request = false;
+    win->hyper_request = false;
+    win->more_request = false;
+    win->scroll_request = false;
+    win->image_loaded = false;
 
-    win->echo_line_input = TRUE;
+    win->echo_line_input = true;
     win->line_terminators = NULL;
     win->termct = 0;
 
@@ -179,7 +180,7 @@ winid_t glk_window_open(winid_t splitwin,
     window_pair_t *dpairwin;
     glui32 val;
 
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 
     if (!gli_rootwin)
     {
@@ -299,7 +300,7 @@ winid_t glk_window_open(winid_t splitwin,
     return newwin;
 }
 
-static void gli_window_close(window_t *win, int recurse)
+static void gli_window_close(window_t *win, bool recurse)
 {
     window_t *wx;
 
@@ -314,7 +315,7 @@ static void gli_window_close(window_t *win, int recurse)
             if (dwx->key == win)
             {
                 dwx->key = NULL;
-                dwx->keydamage = TRUE;
+                dwx->keydamage = true;
             }
         }
     }
@@ -336,9 +337,9 @@ static void gli_window_close(window_t *win, int recurse)
             if (recurse)
             {
                 if (dwin->child1)
-                    gli_window_close(dwin->child1, TRUE);
+                    gli_window_close(dwin->child1, true);
                 if (dwin->child2)
-                    gli_window_close(dwin->child2, TRUE);
+                    gli_window_close(dwin->child2, true);
             }
             win_pair_destroy(dwin);
         }
@@ -368,7 +369,7 @@ static void gli_window_close(window_t *win, int recurse)
 
 void glk_window_close(window_t *win, stream_result_t *result)
 {
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 
     if (!win)
     {
@@ -385,7 +386,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
         /* begin (simpler) closation */
 
         gli_stream_fill_result(win->str, result);
-        gli_window_close(win, TRUE);
+        gli_window_close(win, true);
     }
 
     else
@@ -432,7 +433,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
 
         /* Close the child window (and descendants), so that key-deletion can
             crawl up the tree to the root window. */
-        gli_window_close(win, TRUE);
+        gli_window_close(win, true);
 
         /* This probably isn't necessary, but the child *is* gone, so just
             in case. */
@@ -442,7 +443,7 @@ void glk_window_close(window_t *win, stream_result_t *result)
             dpairwin->child2 = NULL;
 
         /* Now we can delete the parent pair. */
-        gli_window_close(pairwin, FALSE);
+        gli_window_close(pairwin, false);
 
         /* Sort out the arrangements */
         gli_windows_rearrange();
@@ -492,7 +493,7 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     glui32 newdir;
     int newvertical, newbackward;
 
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 
     if (!win)
     {
@@ -886,12 +887,12 @@ void gli_window_refocus(window_t *win)
     }
     while (focus != win);
 
-    gli_more_focus = FALSE;
+    gli_more_focus = false;
 }
 
 void gli_windows_redraw()
 {
-    gli_claimselect = FALSE;
+    gli_claimselect = false;
 
     if (gli_force_redraw)
     {
@@ -905,12 +906,12 @@ void gli_windows_redraw()
     if (gli_more_focus)
         gli_window_refocus(gli_focuswin);
 
-    gli_force_redraw = 0;
+    gli_force_redraw = false;
 }
 
 void gli_redraw_rect(int x0, int y0, int x1, int y1)
 {
-    gli_drawselect = TRUE;
+    gli_drawselect = true;
     winrepaint(x0, y0, x1, y1);
 }
 
@@ -936,7 +937,7 @@ void glk_request_char_event(window_t *win)
     {
         case wintype_TextBuffer:
         case wintype_TextGrid:
-            win->char_request = TRUE;
+            win->char_request = true;
             break;
         default:
             gli_strict_warning("request_char_event: window does not support keyboard input");
@@ -963,7 +964,7 @@ void glk_request_char_event_uni(window_t *win)
     {
         case wintype_TextBuffer:
         case wintype_TextGrid:
-            win->char_request_uni = TRUE;
+            win->char_request_uni = true;
             break;
         default:
             gli_strict_warning("request_char_event_uni: window does not support keyboard input");
@@ -990,11 +991,11 @@ void glk_request_line_event(window_t *win, char *buf, glui32 maxlen,
     switch (win->type)
     {
         case wintype_TextBuffer:
-            win->line_request = TRUE;
+            win->line_request = true;
             win_textbuffer_init_line(win, buf, maxlen, initlen);
             break;
         case wintype_TextGrid:
-            win->line_request = TRUE;
+            win->line_request = true;
             win_textgrid_init_line(win, buf, maxlen, initlen);
             break;
         default:
@@ -1022,11 +1023,11 @@ void glk_request_line_event_uni(window_t *win, glui32 *buf, glui32 maxlen,
     switch (win->type)
     {
         case wintype_TextBuffer:
-            win->line_request_uni = TRUE;
+            win->line_request_uni = true;
             win_textbuffer_init_line_uni(win, buf, maxlen, initlen);
             break;
         case wintype_TextGrid:
-            win->line_request_uni = TRUE;
+            win->line_request_uni = true;
             win_textgrid_init_line_uni(win, buf, maxlen, initlen);
             break;
         default:
@@ -1092,14 +1093,14 @@ void glk_set_terminators_line_event(winid_t win, glui32 *keycodes, glui32 count)
     }
 }
 
-int gli_window_check_terminator(glui32 ch)
+bool gli_window_check_terminator(glui32 ch)
 {
     if (ch == keycode_Escape)
-        return TRUE;
+        return true;
     else if (ch >= keycode_Func12 && ch <= keycode_Func1)
-        return TRUE;
+        return true;
     else
-        return FALSE;
+        return false;
 }
 
 void glk_request_mouse_event(window_t *win)
@@ -1114,7 +1115,7 @@ void glk_request_mouse_event(window_t *win)
     {
         case wintype_TextGrid:
         case wintype_Graphics:
-            win->mouse_request = TRUE;
+            win->mouse_request = true;
             break;
         default:
             /* do nothing */
@@ -1135,7 +1136,7 @@ void glk_request_hyperlink_event(winid_t win)
         case wintype_TextBuffer:
         case wintype_TextGrid:
         case wintype_Graphics:
-            win->hyper_request = TRUE;
+            win->hyper_request = true;
             break;
         default:
             /* do nothing */
@@ -1155,8 +1156,8 @@ void glk_cancel_char_event(window_t *win)
     {
         case wintype_TextBuffer:
         case wintype_TextGrid:
-            win->char_request = FALSE;
-            win->char_request_uni = FALSE;
+            win->char_request = false;
+            win->char_request_uni = false;
             break;
         default:
             /* do nothing */
@@ -1207,7 +1208,7 @@ void glk_cancel_mouse_event(window_t *win)
     {
         case wintype_TextGrid:
         case wintype_Graphics:
-            win->mouse_request = FALSE;
+            win->mouse_request = false;
             break;
         default:
             /* do nothing */
@@ -1228,7 +1229,7 @@ void glk_cancel_hyperlink_event(winid_t win)
         case wintype_TextBuffer:
         case wintype_TextGrid:
         case wintype_Graphics:
-            win->hyper_request = FALSE;
+            win->hyper_request = false;
             break;
         default:
             /* do nothing */
@@ -1272,7 +1273,7 @@ void gli_window_put_char_uni(window_t *win, glui32 ch)
     }
 }
 
-int gli_window_unput_char_uni(window_t *win, glui32 ch)
+bool gli_window_unput_char_uni(window_t *win, glui32 ch)
 {
     switch (win->type)
     {
@@ -1281,7 +1282,7 @@ int gli_window_unput_char_uni(window_t *win, glui32 ch)
         case wintype_TextGrid:
             return win_textgrid_unputchar_uni(win, ch);
         default:
-            return FALSE;
+            return false;
     }
 }
 
@@ -1316,7 +1317,7 @@ void glk_window_clear(window_t *win)
             win_textgrid_clear(win);
             break;
         case wintype_Graphics:
-            win_graphics_erase_rect(win->data, TRUE, 0, 0, 0, 0);
+            win_graphics_erase_rect(win->data, true, 0, 0, 0, 0);
             break;
     }
 }
@@ -1349,22 +1350,22 @@ glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
     if (!win)
     {
         gli_strict_warning("image_draw: invalid ref");
-        return FALSE;
+        return false;
     }
 
     if (!gli_conf_graphics)
-        return FALSE;
+        return false;
 
     switch (win->type)
     {
         case wintype_TextBuffer:
             return win_textbuffer_draw_picture(win->data, image, val1,
-                    FALSE, 0, 0);
+                    false, 0, 0);
         case wintype_Graphics:
             return win_graphics_draw_picture(win->data, image, val1, val2,
-                    FALSE, 0, 0);
+                    false, 0, 0);
     }
-    return FALSE;
+    return false;
 }
 
 glui32 glk_image_draw_scaled(winid_t win, glui32 image,
@@ -1373,23 +1374,23 @@ glui32 glk_image_draw_scaled(winid_t win, glui32 image,
     if (!win)
     {
         gli_strict_warning("image_draw_scaled: invalid ref");
-        return FALSE;
+        return false;
     }
 
     if (!gli_conf_graphics)
-        return FALSE;
+        return false;
 
     switch (win->type)
     {
         case wintype_TextBuffer:
             return win_textbuffer_draw_picture(win->data, image, val1,
-                    TRUE, width, height);
+                    true, width, height);
         case wintype_Graphics:
             return win_graphics_draw_picture(win->data, image, val1, val2,
-                    TRUE, width, height);
+                    true, width, height);
     }
 
-    return FALSE;
+    return false;
 }
 
 glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)
@@ -1397,18 +1398,18 @@ glui32 glk_image_get_info(glui32 image, glui32 *width, glui32 *height)
     picture_t *pic;
 
     if (!gli_conf_graphics)
-        return FALSE;
+        return false;
 
     pic = gli_picture_load(image);
     if (!pic)
-        return FALSE;
+        return false;
 
     if (width)
         *width = pic->w;
     if (height)
         *height = pic->h;
 
-    return TRUE;
+    return true;
 }
 
 void glk_window_flow_break(winid_t win)
@@ -1439,7 +1440,7 @@ void glk_window_erase_rect(winid_t win,
         gli_strict_warning("window_erase_rect: not a graphics window");
         return;
     }
-    win_graphics_erase_rect(win->data, FALSE, left, top, width, height);
+    win_graphics_erase_rect(win->data, false, left, top, width, height);
 }
 
 void glk_window_fill_rect(winid_t win, glui32 color,
@@ -1475,21 +1476,21 @@ void glk_window_set_background_color(winid_t win, glui32 color)
 
 void attrset(attr_t *attr, glui32 style)
 {
-    attr->fgset = 0;
-    attr->bgset = 0;
+    attr->fgset = false;
+    attr->bgset = false;
     attr->fgcolor = 0;
     attr->bgcolor = 0;
-    attr->reverse = FALSE;
+    attr->reverse = false;
     attr->style = style;
 }
 
 void attrclear(attr_t *attr)
 {
-    attr->fgset = 0;
-    attr->bgset = 0;
+    attr->fgset = false;
+    attr->bgset = false;
     attr->fgcolor = 0;
     attr->bgcolor = 0;
-    attr->reverse = FALSE;
+    attr->reverse = false;
     attr->hyper = 0;
     attr->style = 0;
 }
@@ -1612,21 +1613,21 @@ unsigned char *attrfg(style_t *styles, attr_t *attr)
     }
 }
 
-int attrequal(attr_t *a1, attr_t *a2)
+bool attrequal(attr_t *a1, attr_t *a2)
 {
     if (a1->style != a2->style)
-        return FALSE;
+        return false;
     if (a1->reverse != a2->reverse)
-        return FALSE;
+        return false;
     if (a1->fgset != a2->fgset)
-        return FALSE;
+        return false;
     if (a1->bgset != a2->bgset)
-        return FALSE;
+        return false;
     if (a1->fgcolor != a2->fgcolor)
-        return FALSE;
+        return false;
     if (a1->bgcolor != a2->bgcolor)
-        return FALSE;
+        return false;
     if (a1->hyper != a2->hyper)
-        return FALSE;
-    return TRUE;
+        return false;
+    return true;
 }

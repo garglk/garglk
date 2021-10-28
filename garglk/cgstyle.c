@@ -20,6 +20,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include "glk.h"
@@ -214,22 +215,22 @@ glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)
     else if (win->type == wintype_TextBuffer)
         styles = ((window_textbuffer_t*)win->data)->styles;
     else
-        return FALSE;
+        return false;
 
     switch (hint)
     {
         case stylehint_Indentation:
         case stylehint_ParaIndentation:
             *result = 0;
-            return TRUE;
+            return true;
 
         case stylehint_Justification:
             *result = stylehint_just_LeftFlush;
-            return TRUE;
+            return true;
 
         case stylehint_Size:
             *result = 1;
-            return TRUE;
+            return true;
 
         case stylehint_Weight:
             *result =
@@ -237,7 +238,7 @@ glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)
                  styles[style].font == PROPZ ||
                  styles[style].font == MONOB ||
                  styles[style].font == MONOZ);
-            return TRUE;
+            return true;
 
         case stylehint_Oblique:
             *result =
@@ -245,7 +246,7 @@ glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)
                  styles[style].font == PROPZ ||
                  styles[style].font == MONOI ||
                  styles[style].font == MONOZ);
-            return TRUE;
+            return true;
 
         case stylehint_Proportional:
             *result =
@@ -253,26 +254,26 @@ glui32 glk_style_measure(winid_t win, glui32 style, glui32 hint, glui32 *result)
                  styles[style].font == PROPI ||
                  styles[style].font == PROPB ||
                  styles[style].font == PROPZ);
-            return TRUE;
+            return true;
 
         case stylehint_TextColor:
             *result =
                 (styles[style].fg[0] << 16) |
                 (styles[style].fg[1] << 8) |
                 (styles[style].fg[2]);
-            return TRUE;
+            return true;
 
         case stylehint_BackColor:
             *result =
                 (styles[style].bg[0] << 16) |
                 (styles[style].bg[1] << 8) |
                 (styles[style].bg[2]);
-            return TRUE;
+            return true;
 
         case stylehint_ReverseColor:
             *result = styles[style].reverse;
-            return TRUE;
+            return true;
     }
 
-    return FALSE;
+    return false;
 }

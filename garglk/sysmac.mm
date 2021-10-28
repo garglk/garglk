@@ -33,9 +33,9 @@
 #import "Cocoa/Cocoa.h"
 #import "sysmac.h"
 
-static volatile int gli_event_waiting = FALSE;
-static volatile int gli_mach_allowed = FALSE;
-static volatile int gli_window_alive = TRUE;
+static volatile sig_atomic_t gli_event_waiting = false;
+static volatile sig_atomic_t gli_mach_allowed = false;
+static volatile sig_atomic_t gli_window_alive = true;
 
 #define kArrowCursor 1
 #define kIBeamCursor 2
@@ -79,9 +79,9 @@ void winhandler(int signal);
         if (!gli_window_alive)
             exit(1);
 
-        gli_mach_allowed = TRUE;
+        gli_mach_allowed = true;
         [[NSRunLoop currentRunLoop] acceptInputForMode: NSDefaultRunLoopMode beforeDate: [NSDate distantFuture]];
-        gli_mach_allowed = FALSE;
+        gli_mach_allowed = false;
     }
 }
 
@@ -134,8 +134,8 @@ static NSBitmapImageRep * framebuffer = NULL;
 static NSString * cliptext = NULL;
 static pid_t processID = 0;
 
-static int gli_refresh_needed = TRUE;
-static int gli_window_hidden = FALSE;
+static bool gli_refresh_needed = true;
+static bool gli_window_hidden = false;
 
 void glk_request_timer_events(glui32 millisecs)
 {
@@ -317,8 +317,8 @@ void winresize(void)
 
     /* redraw window content */
     gli_resize_mask(gli_image_w, gli_image_h);
-    gli_force_redraw = TRUE;
-    gli_refresh_needed = TRUE;
+    gli_force_redraw = true;
+    gli_refresh_needed = true;
     gli_windows_size_change();
 }
 
@@ -354,7 +354,7 @@ void winhandler(int signal)
     }
 
     if (signal == SIGUSR2)
-        gli_window_alive = FALSE;
+        gli_window_alive = false;
 }
 
 void wininit(int *argc, char **argv)
@@ -410,7 +410,7 @@ void winopen(void)
 
 void winrepaint(int x0, int y0, int x1, int y1)
 {
-    gli_refresh_needed = TRUE;
+    gli_refresh_needed = true;
 }
 
 void winrefresh(void)
@@ -432,7 +432,7 @@ void winrefresh(void)
 void winkey(NSEvent *evt)
 {
     /* queue a screen refresh */
-    gli_refresh_needed = TRUE;
+    gli_refresh_needed = true;
 
     /* check for arrow keys */
     if ([evt modifierFlags] & NSFunctionKeyMask)
@@ -589,7 +589,7 @@ void winmouse(NSEvent *evt)
 
         case NSLeftMouseUp:
         {
-            gli_copyselect = FALSE;
+            gli_copyselect = false;
             [gargoyle setCursor: kArrowCursor];
             break;
         }
@@ -612,7 +612,7 @@ void winevent(NSEvent *evt)
 {
     if (!evt)
     {
-        gli_event_waiting = FALSE;
+        gli_event_waiting = false;
         return;
     }
 
@@ -636,7 +636,7 @@ void winevent(NSEvent *evt)
 
         case NSApplicationDefined:
         {
-            gli_refresh_needed = TRUE;
+            gli_refresh_needed = true;
             winresize();
             return;
         }

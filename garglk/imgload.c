@@ -21,6 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -159,7 +160,7 @@ void gli_picture_store(picture_t *pic)
         gli_picture_store_scaled(pic);
 }
 
-picture_t *gli_picture_retrieve(unsigned long id, int scaled)
+picture_t *gli_picture_retrieve(unsigned long id, bool scaled)
 {
     piclist_t *picptr;
     picture_t *pic;
@@ -197,7 +198,7 @@ picture_t *gli_picture_load(unsigned long id)
 {
     picture_t *pic;
     FILE *fl;
-    int closeafter;
+    bool closeafter;
     glui32 chunktype;
 
     pic = gli_picture_retrieve(id, 0);
@@ -212,7 +213,7 @@ picture_t *gli_picture_load(unsigned long id)
 
         snprintf(filename, sizeof filename, "%s/PIC%lu", gli_workdir, id);
 
-        closeafter = TRUE;
+        closeafter = true;
         fl = fopen(filename, "rb");
         if (!fl)
             return NULL;
@@ -249,7 +250,7 @@ picture_t *gli_picture_load(unsigned long id)
         if (!fl)
             return NULL;
         fseek(fl, pos, 0);
-        closeafter = FALSE;
+        closeafter = false;
     }
 
     pic = malloc(sizeof(picture_t));
@@ -258,7 +259,7 @@ picture_t *gli_picture_load(unsigned long id)
     pic->h = 0;
     pic->rgba = NULL;
     pic->id = id;
-    pic->scaled = FALSE;
+    pic->scaled = false;
 
     if (chunktype == giblorb_ID_PNG)
         load_image_png(fl, pic);
@@ -292,7 +293,7 @@ static void load_image_jpeg(FILE *fl, picture_t *pic)
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_decompress(&cinfo);
     jpeg_stdio_src(&cinfo, fl);
-    jpeg_read_header(&cinfo, TRUE);
+    jpeg_read_header(&cinfo, true);
     jpeg_start_decompress(&cinfo);
 
     pic->w = cinfo.output_width;

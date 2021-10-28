@@ -53,7 +53,7 @@ window_textgrid_t *win_textgrid_create(window_t *win)
     dwin->cury = 0;
 
     dwin->inbuf = NULL;
-    dwin->inunicode = FALSE;
+    dwin->inunicode = false;
     dwin->line_terminators = NULL;
 
     dwin->inorgx = 0;
@@ -239,7 +239,7 @@ void win_textgrid_putchar_uni(window_t *win, glui32 ch)
        canonicalized next time a character is printed. */
 }
 
-int win_textgrid_unputchar_uni(window_t *win, glui32 ch)
+bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
 {
     window_textgrid_t *dwin = win->data;
     tgline_t *ln;
@@ -261,7 +261,7 @@ int win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     if (dwin->cury < 0)
         dwin->cury = 0;
     else if (dwin->cury >= dwin->height)
-        return FALSE; /* outside the window */
+        return false; /* outside the window */
 
     if (ch == '\n')
     {
@@ -279,13 +279,13 @@ int win_textgrid_unputchar_uni(window_t *win, glui32 ch)
         ln->chars[dwin->curx] = ' ';
         attrclear(&ln->attrs[dwin->curx]);
         touch(dwin, dwin->cury);
-        return TRUE; /* deleted the char */
+        return true; /* deleted the char */
     }
     else
     {
         dwin->curx = oldx;
         dwin->cury = oldy;
-        return FALSE; /* it wasn't there */
+        return false; /* it wasn't there */
     }
 }
 
@@ -298,7 +298,7 @@ void win_textgrid_clear(window_t *win)
     win->attr.bgset = gli_override_bg_set;
     win->attr.fgcolor = gli_override_fg_set ? gli_override_fg_val : 0;
     win->attr.bgcolor = gli_override_bg_set ? gli_override_bg_val : 0;
-    win->attr.reverse = FALSE;
+    win->attr.reverse = false;
 
     for (k = 0; k < dwin->height; k++)
     {
@@ -342,7 +342,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     if (win->mouse_request)
     {
         gli_event_store(evtype_MouseInput, win, x/gli_cellw, y/gli_leading);
-        win->mouse_request = FALSE;
+        win->mouse_request = false;
         if (gli_conf_safeclicks)
             gli_forceclick = 1;
     }
@@ -353,7 +353,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
         if (linkval)
         {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
-            win->hyper_request = FALSE;
+            win->hyper_request = false;
             if (gli_conf_safeclicks)
                 gli_forceclick = 1;
         }
@@ -476,8 +476,8 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
     ev->val1 = dwin->inlen;
     ev->val2 = 0;
 
-    win->line_request = FALSE;
-    win->line_request_uni = FALSE;
+    win->line_request = false;
+    win->line_request_uni = false;
     if (dwin->line_terminators)
     {
         free(dwin->line_terminators);
@@ -521,8 +521,8 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
             key = keycode_Unknown;
     }
 
-    win->char_request = FALSE;
-    win->char_request_uni = FALSE;
+    win->char_request = false;
+    win->char_request_uni = false;
     gli_event_store(evtype_CharInput, win, key, 0);
 }
 
@@ -576,8 +576,8 @@ static void acceptline(window_t *win, glui32 keycode)
     {
         gli_event_store(evtype_LineInput, win, dwin->inlen, 0);
     }
-    win->line_request = FALSE;
-    win->line_request_uni = FALSE;
+    win->line_request = false;
+    win->line_request_uni = false;
     dwin->inbuf = NULL;
     dwin->inoriglen = 0;
     dwin->inmax = 0;

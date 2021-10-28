@@ -191,7 +191,7 @@ void Window::resizeEvent(QResizeEvent *event)
     delete [] gli_image_rgb;
     gli_image_rgb = new unsigned char[gli_image_s * gli_image_h];
 
-    gli_force_redraw = 1;
+    gli_force_redraw = true;
 
     gli_windows_size_change();
 
@@ -224,7 +224,7 @@ void View::paintEvent(QPaintEvent *event)
     if (!gli_drawselect)
         gli_windows_redraw();
     else
-        gli_drawselect = FALSE;
+        gli_drawselect = false;
 
     QImage image(gli_image_rgb, gli_image_w, gli_image_h, QImage::Format_RGB32);
     QPainter painter(this);
@@ -334,7 +334,7 @@ void View::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton)
     {
-        gli_copyselect = FALSE;
+        gli_copyselect = false;
         unsetCursor();
         winclipsend(QClipboard::Selection);
     }

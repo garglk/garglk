@@ -591,7 +591,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     [nsResources getCString: etc maxLength: sizeof etc encoding: NSUTF8StringEncoding];
 
-    setenv("GARGLK_INI", etc, TRUE);
+    setenv("GARGLK_INI", etc, true);
 
     /* set preference defaults */
     [[NSUserDefaults standardUserDefaults] registerDefaults:
@@ -1024,10 +1024,10 @@ int garglk::winterp(const std::string &path, const std::string &exe, const std::
 
     if (!winexec(tmp, args)) {
         garglk::winmsg("Could not start 'terp.\nSorry.");
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 int main (int argc, char **argv)

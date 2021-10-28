@@ -33,6 +33,7 @@
     shown above.
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,17 +55,17 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
 
         case gestalt_LineInput:
             if (val >= 32 && val < 0x10ffff)
-                return TRUE;
+                return true;
             else
-                return FALSE;
+                return false;
 
         case gestalt_CharInput:
             if (val >= 32 && val < 0x10ffff)
-                return TRUE;
+                return true;
             else if (val == keycode_Return)
-                return TRUE;
+                return true;
             else
-                return FALSE;
+                return false;
 
         case gestalt_CharOutput:
             if (val >= 32 && val < 0x10ffff)
@@ -85,13 +86,13 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
 
         case gestalt_MouseInput:
             if (val == wintype_TextGrid)
-                return TRUE;
+                return true;
             if (val == wintype_Graphics)
-                return TRUE;
-            return FALSE;
+                return true;
+            return false;
 
         case gestalt_Timer:
-            return TRUE;
+            return true;
 
         case gestalt_Graphics:
         case gestalt_GraphicsTransparency:
@@ -101,7 +102,7 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
                 return gli_conf_graphics;
             if (val == wintype_Graphics)
                 return gli_conf_graphics;
-            return FALSE;
+            return false;
 
         case gestalt_Sound:
         case gestalt_SoundVolume:
@@ -113,30 +114,30 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
             return gli_conf_sound;
 
         case gestalt_Unicode:
-            return TRUE;
+            return true;
         case gestalt_UnicodeNorm:
-            return TRUE;
+            return true;
 
         case gestalt_Hyperlinks:
-            return TRUE;
+            return true;
         case gestalt_HyperlinkInput:
-            return TRUE;
+            return true;
 
         case gestalt_LineInputEcho:
-            return TRUE;
+            return true;
         case gestalt_LineTerminators:
-            return TRUE;
+            return true;
         case gestalt_LineTerminatorKey:
             return gli_window_check_terminator(val);
 
         case gestalt_DateTime:
-            return TRUE;
+            return true;
 
         case gestalt_GarglkText:
-            return TRUE;
+            return true;
 
         default:
-            return 0;
+            return false;
 
     }
 }
