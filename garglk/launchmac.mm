@@ -822,6 +822,15 @@ static BOOL isTextbufferEvent(NSEvent * evt)
         [filterTypes addObjectsFromArray:[docType objectForKey: @"CFBundleTypeExtensions"]];
     }
 
+    // Some advsys games have a .dat extension, but since that's so
+    // generic, it's not included in the .plist file, so it won't be
+    // registered system-wide for Gargoyle. Similarly, some Level9 games
+    // have a .sna (memory snapshot) extension, which is not exclusive
+    // to Level9 games, so it's also not in the .plist file. Add both
+    // of them here so the file picker can select them, at least.
+    [filterTypes addObject: @"dat"];
+    [filterTypes addObject: @"sna"];
+
     [openDlg setAllowedFileTypes: filterTypes];
     [openDlg setAllowsOtherFileTypes: NO];
     result = [openDlg runModal];

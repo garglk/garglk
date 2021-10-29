@@ -64,7 +64,6 @@
   <mime-type type="application/x-level9">
     <comment>Level 9 game data</comment>
     <glob pattern="*.l9"/>
-    <glob pattern="*.sna"/>
   </mime-type>
 
   <mime-type type="application/x-magscroll">
