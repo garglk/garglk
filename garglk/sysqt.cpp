@@ -44,6 +44,7 @@
 #include <ctime>
 #include <iostream>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -71,8 +72,12 @@ static QElapsedTimer last_tick;
 static void handle_input(const QString &input)
 {
     for (const uint &c : input.toUcs4())
-        if (QChar::isPrint(c))
+    {
+        if (c == '\r' || c == '\n')
+            gli_input_handle_key(keycode_Return);
+        else if (QChar::isPrint(c))
             gli_input_handle_key(c);
+    }
 }
 
 void glk_request_timer_events(glui32 ms)
@@ -246,59 +251,61 @@ void Window::start_timer(long ms)
 
 void View::keyPressEvent(QKeyEvent *event)
 {
-    if ((event->modifiers() & Qt::ControlModifier) == Qt::ControlModifier)
-    {
-        switch (event->key())
-        {
-            case Qt::Key_A: gli_input_handle_key(keycode_Home); break;
-            case Qt::Key_B: gli_input_handle_key(keycode_Left); break;
-            case Qt::Key_C: winclipsend(QClipboard::Clipboard); break;
-            case Qt::Key_D: gli_input_handle_key(keycode_Erase); break;
-            case Qt::Key_E: gli_input_handle_key(keycode_End); break;
-            case Qt::Key_F: gli_input_handle_key(keycode_Right); break;
-            case Qt::Key_N: gli_input_handle_key(keycode_Down); break;
-            case Qt::Key_P: gli_input_handle_key(keycode_Up); break;
-            case Qt::Key_U: gli_input_handle_key(keycode_Escape); break;
-            case Qt::Key_V: winclipreceive(QClipboard::Clipboard); break;
-            case Qt::Key_X: winclipsend(QClipboard::Clipboard); break;
-            case Qt::Key_Left: gli_input_handle_key(keycode_SkipWordLeft); break;
-            case Qt::Key_Right: gli_input_handle_key(keycode_SkipWordRight); break;
-        }
-    }
-    else
-    {
-        switch (event->key())
-        {
-            case Qt::Key_Escape: gli_input_handle_key(keycode_Escape); break;
-            case Qt::Key_Tab: gli_input_handle_key(keycode_Tab); break;
-            case Qt::Key_Backspace: gli_input_handle_key(keycode_Delete); break;
-            case Qt::Key_Delete: gli_input_handle_key(keycode_Erase); break;
-            case Qt::Key_Return: gli_input_handle_key(keycode_Return); break;
-            case Qt::Key_Enter: gli_input_handle_key(keycode_Return); break;
-            case Qt::Key_Home: gli_input_handle_key(keycode_Home); break;
-            case Qt::Key_End: gli_input_handle_key(keycode_End); break;
-            case Qt::Key_Left: gli_input_handle_key(keycode_Left); break;
-            case Qt::Key_Up: gli_input_handle_key(keycode_Up); break;
-            case Qt::Key_Right: gli_input_handle_key(keycode_Right); break;
-            case Qt::Key_Down: gli_input_handle_key(keycode_Down); break;
-            case Qt::Key_PageUp: gli_input_handle_key(keycode_PageUp); break;
-            case Qt::Key_PageDown: gli_input_handle_key(keycode_PageDown); break;
-            case Qt::Key_F1: gli_input_handle_key(keycode_Func1); break;
-            case Qt::Key_F2: gli_input_handle_key(keycode_Func2); break;
-            case Qt::Key_F3: gli_input_handle_key(keycode_Func3); break;
-            case Qt::Key_F4: gli_input_handle_key(keycode_Func4); break;
-            case Qt::Key_F5: gli_input_handle_key(keycode_Func5); break;
-            case Qt::Key_F6: gli_input_handle_key(keycode_Func6); break;
-            case Qt::Key_F7: gli_input_handle_key(keycode_Func7); break;
-            case Qt::Key_F8: gli_input_handle_key(keycode_Func8); break;
-            case Qt::Key_F9: gli_input_handle_key(keycode_Func9); break;
-            case Qt::Key_F10: gli_input_handle_key(keycode_Func10); break;
-            case Qt::Key_F11: gli_input_handle_key(keycode_Func11); break;
-            case Qt::Key_F12: gli_input_handle_key(keycode_Func12); break;
+    Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
 
-            default: handle_input(event->text()); break;
-        }
+    static const std::map<std::pair<decltype(modmasked), decltype(event->key())>, std::function<void()>> keys = {
+        {{Qt::ControlModifier, Qt::Key_A},     []{ gli_input_handle_key(keycode_Home); }},
+        {{Qt::ControlModifier, Qt::Key_B},     []{ gli_input_handle_key(keycode_Left); }},
+        {{Qt::ControlModifier, Qt::Key_C},     []{ winclipsend(QClipboard::Clipboard); }},
+        {{Qt::ControlModifier, Qt::Key_D},     []{ gli_input_handle_key(keycode_Erase); }},
+        {{Qt::ControlModifier, Qt::Key_E},     []{ gli_input_handle_key(keycode_End); }},
+        {{Qt::ControlModifier, Qt::Key_F},     []{ gli_input_handle_key(keycode_Right); }},
+        {{Qt::ControlModifier, Qt::Key_N},     []{ gli_input_handle_key(keycode_Down); }},
+        {{Qt::ControlModifier, Qt::Key_P},     []{ gli_input_handle_key(keycode_Up); }},
+        {{Qt::ControlModifier, Qt::Key_U},     []{ gli_input_handle_key(keycode_Escape); }},
+        {{Qt::ControlModifier, Qt::Key_V},     []{ winclipreceive(QClipboard::Clipboard); }},
+        {{Qt::ControlModifier, Qt::Key_X},     []{ winclipsend(QClipboard::Clipboard); }},
+        {{Qt::ControlModifier, Qt::Key_Left},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
+        {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
+
+        {{Qt::NoModifier, Qt::Key_Escape},    []{ gli_input_handle_key(keycode_Escape); }},
+        {{Qt::NoModifier, Qt::Key_Tab},       []{ gli_input_handle_key(keycode_Tab); }},
+        {{Qt::NoModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{Qt::NoModifier, Qt::Key_Delete},    []{ gli_input_handle_key(keycode_Erase); }},
+        {{Qt::NoModifier, Qt::Key_Return},    []{ gli_input_handle_key(keycode_Return); }},
+        {{Qt::NoModifier, Qt::Key_Enter},     []{ gli_input_handle_key(keycode_Return); }},
+        {{Qt::NoModifier, Qt::Key_Home},      []{ gli_input_handle_key(keycode_Home); }},
+        {{Qt::NoModifier, Qt::Key_End},       []{ gli_input_handle_key(keycode_End); }},
+        {{Qt::NoModifier, Qt::Key_Left},      []{ gli_input_handle_key(keycode_Left); }},
+        {{Qt::NoModifier, Qt::Key_Up},        []{ gli_input_handle_key(keycode_Up); }},
+        {{Qt::NoModifier, Qt::Key_Right},     []{ gli_input_handle_key(keycode_Right); }},
+        {{Qt::NoModifier, Qt::Key_Down},      []{ gli_input_handle_key(keycode_Down); }},
+        {{Qt::NoModifier, Qt::Key_PageUp},    []{ gli_input_handle_key(keycode_PageUp); }},
+        {{Qt::NoModifier, Qt::Key_PageDown},  []{ gli_input_handle_key(keycode_PageDown); }},
+        {{Qt::NoModifier, Qt::Key_F1},        []{ gli_input_handle_key(keycode_Func1); }},
+        {{Qt::NoModifier, Qt::Key_F2},        []{ gli_input_handle_key(keycode_Func2); }},
+        {{Qt::NoModifier, Qt::Key_F3},        []{ gli_input_handle_key(keycode_Func3); }},
+        {{Qt::NoModifier, Qt::Key_F4},        []{ gli_input_handle_key(keycode_Func4); }},
+        {{Qt::NoModifier, Qt::Key_F5},        []{ gli_input_handle_key(keycode_Func5); }},
+        {{Qt::NoModifier, Qt::Key_F6},        []{ gli_input_handle_key(keycode_Func6); }},
+        {{Qt::NoModifier, Qt::Key_F7},        []{ gli_input_handle_key(keycode_Func7); }},
+        {{Qt::NoModifier, Qt::Key_F8},        []{ gli_input_handle_key(keycode_Func8); }},
+        {{Qt::NoModifier, Qt::Key_F9},        []{ gli_input_handle_key(keycode_Func9); }},
+        {{Qt::NoModifier, Qt::Key_F10},       []{ gli_input_handle_key(keycode_Func10); }},
+        {{Qt::NoModifier, Qt::Key_F11},       []{ gli_input_handle_key(keycode_Func11); }},
+        {{Qt::NoModifier, Qt::Key_F12},       []{ gli_input_handle_key(keycode_Func12); }},
+    };
+
+    try
+    {
+        keys.at(std::make_pair(modmasked, event->key()))();
+        return;
     }
+    catch (const std::out_of_range &)
+    {
+    }
+
+    handle_input(event->text());
 }
 
 void View::mouseMoveEvent(QMouseEvent *event)
@@ -347,7 +354,7 @@ void View::wheelEvent(QWheelEvent *event)
     QPoint pixels = event->pixelDelta();
     QPoint degrees = event->angleDelta() / 8;
     int change = 0;
-    bool page = (event->modifiers() & Qt::ShiftModifier) == Qt::ShiftModifier;
+    bool page = event->modifiers() == Qt::ShiftModifier;
 
     if (!pixels.isNull())
         change = pixels.y();
