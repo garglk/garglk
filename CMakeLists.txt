@@ -18,7 +18,7 @@ option(APPIMAGE "Tweak some settings to aid in AppImage building" OFF)
 
 if(UNIX)
     include(GNUInstallDirs)
-    if (APPIMAGE)
+    if(APPIMAGE)
         set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_BINDIR}")
     else()
         set(INTERPRETER_INSTALL_DIR "${CMAKE_INSTALL_LIBEXECDIR}/gargoyle")

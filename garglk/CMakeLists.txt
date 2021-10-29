@@ -5,7 +5,7 @@ if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
 endif()
 
-if (APPLE)
+if(APPLE)
     set(INTERFACE "COCOA" CACHE STRING "Interface to use (COCOA or QT)")
 else()
     set(INTERFACE "QT")
