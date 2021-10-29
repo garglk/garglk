@@ -15,7 +15,7 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install jam libopenmpt libsndfile libvorbis mpg123 qt6 sdl2 sdl2_mixer
+        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6 sdl2 sdl2_mixer
 
       - name: Build
         run: sh gargoyle_osx.sh
@@ -26,6 +26,3 @@ jobs:
           cd build-cmake
           cmake .. -DINTERFACE=QT -DSOUND=QT -DWITH_QT6=ON
           make -j`sysctl -n hw.ncpu`
-
-      - name: Build (legacy Jam)
-        run: jam -sUSETTS=yes -sBUNDLEFONTS=no -sMAC_USEHOMEBREW=yes -sMACOS_MIN_VER=10.9 -j`sysctl -n hw.ncpu`
