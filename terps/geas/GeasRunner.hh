@@ -62,7 +62,7 @@ public:
   }
 };
 
-std::ostream &operator<< (std::ostream &o, const GeasFontStyle &gfs);
+extern std::ostream &operator<< (std::ostream &o, const GeasFontStyle &gfs);
 
 enum GeasResult
   {
@@ -88,13 +88,13 @@ public:
    * If the with_newline flag is set, it will print a newline afterwords
    *     unless the string ends in "|xn"
    */
-  GeasResult print_formatted (std::string s, bool with_newline = true);
+  GeasResult print_formatted (const std::string &s, bool with_newline = true);
 
   /* Takes one argument; that string is printed without interpretation
    * Must be implemented
    * Called by print_formatted and by Geas directly.
    */
-  virtual GeasResult print_normal (std::string) = 0;
+  virtual GeasResult print_normal (const std::string &) = 0;
 
   virtual GeasResult print_newline () = 0;
 
@@ -109,25 +109,25 @@ protected:
   virtual GeasResult set_style (const GeasFontStyle &) { return r_not_supported; }
 
 public:
-  virtual std::string absolute_name (std::string rel_name, std::string parent) const = 0;
-  virtual std::string get_file (std::string filename) const = 0;
-  virtual void debug_print (std::string s) { std::cerr << s << std::endl; }
-  virtual GeasResult wait_keypress (std::string) { return r_not_supported; }
+  virtual std::string absolute_name (const std::string &rel_name, const std::string &parent) const = 0;
+  virtual std::string get_file (const std::string &filename) const = 0;
+  virtual void debug_print (const std::string &s) { std::cerr << s << std::endl; }
+  virtual GeasResult wait_keypress (const std::string &) { return r_not_supported; }
   virtual GeasResult pause (int msec) { return r_not_supported; }
   virtual GeasResult clear_screen () { return r_not_supported; }
 
   //virtual GeasResult set_foreground (string) { return r_not_supported; }
   //virtual GeasResult set_background (string) { return r_not_supported; }
-  virtual void set_foreground (std::string) = 0;
-  virtual void set_background (std::string) = 0;
-  void set_default_font_size (std::string s);
-  void set_default_font (std::string s);
+  virtual void set_foreground (const std::string &) = 0;
+  virtual void set_background (const std::string &) = 0;
+  void set_default_font_size (const std::string &s);
+  void set_default_font (const std::string &s);
 
   /* Unsure what arguments this will take.
    * May also add animated, persistent, close image
    */
-  virtual GeasResult show_image (std::string filename, std::string resolution,
-				 std::string caption, ...)
+  virtual GeasResult show_image (const std::string &filename, const std::string &resolution,
+				 const std::string &caption, ...)
   { return r_not_supported; }
 
   /* Again, unsure what arguments to give
@@ -135,23 +135,23 @@ public:
    * If sync is true, do not return until file ends
    * If filename is "", stop playing sounds.
    */
-  virtual GeasResult play_sound (std::string filename, bool looped, bool sync)
+  virtual GeasResult play_sound (const std::string &filename, bool looped, bool sync)
   { return r_not_supported; }
-
+  
   /* Asks the user to type a free format string
    */
   virtual std::string get_string () = 0;
-
+  
   /* Presents a list with header 'info', and prompts the user to
    * choose one item from 'choices'.
    * returns the index chosen.
    */
-  virtual uint make_choice (std::string info, std::vector<std::string> choices) = 0;
+  virtual uint make_choice (const std::string &info, std::vector<std::string> choices) = 0;
 
   /* Asks the user a yes/no question
    * (If not overridden, this has an implementation that uses make_choice()
    */
-  virtual bool choose_yes_no (std::string question);
+  virtual bool choose_yes_no (const std::string &question);
 
   /* args holds arguments sent to program.
    * if active is true, geas should retain focus
@@ -166,7 +166,7 @@ public:
 
   /* say the argument using text-to-speech
    */
-  virtual GeasResult speak (std::string) 
+  virtual GeasResult speak (const std::string &)
   { return r_not_supported; }
 
   virtual ~GeasInterface() {}
@@ -191,7 +191,7 @@ public:
 
   virtual bool is_running() const = 0;
   virtual std::string get_banner() = 0;
-  virtual void run_command(std::string) = 0;
+  virtual void run_command(const std::string &) = 0;
 
   virtual v2string get_inventory() = 0;
   virtual v2string get_room_contents() = 0;
@@ -201,7 +201,7 @@ public:
   virtual void tick_timers() = 0;
 
   virtual ~GeasRunner() {  }
-  virtual void set_game(std::string s) = 0;
+  virtual void set_game(const std::string &s) = 0;
   static GeasRunner* get_runner(GeasInterface *gi);
 };
 

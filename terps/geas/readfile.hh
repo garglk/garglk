@@ -31,16 +31,16 @@
 #include <ostream>
 #include <iostream>
 
-std::vector<std::string> tokenize (std::string s);
-std::string next_token (std::string full, uint &tok_start, uint &tok_end, bool cvt_paren = false);
-std::string first_token (std::string s, uint &t_start, uint &t_end);
-std::string nth_token (std::string s, int n);
-std::string get_token (std::string s, bool cvt_paren = false);
-bool find_token (std::string s, std::string tok, int &tok_start, int &tok_end, bool cvt_paren = false);
-GeasFile read_geas_file (GeasInterface *, std::string);
+extern std::vector<std::string> tokenize (const std::string &s);
+extern std::string next_token (const std::string &full, std::string::size_type &tok_start, std::string::size_type &tok_end, bool cvt_paren = false);
+extern std::string first_token (const std::string &s, std::string::size_type &t_start, std::string::size_type &t_end);
+extern std::string nth_token (const std::string &s, int n);
+extern std::string get_token (const std::string &s, bool cvt_paren = false);
+extern bool find_token (const std::string &s, const std::string &tok, std::string::size_type &tok_start, std::string::size_type &tok_end, bool cvt_paren = false);
+extern GeasFile read_geas_file (GeasInterface *, const std::string &);
 
 enum trim_modes { TRIM_SPACES, TRIM_UNDERSCORE, TRIM_BRACE };
-std::string trim (std::string, trim_modes mode = TRIM_SPACES);
+extern std::string trim (const std::string &, trim_modes mode = TRIM_SPACES);
 
 //std::ostream &operator<< (std::ostream &o, const std::vector<std::string> &v);
 

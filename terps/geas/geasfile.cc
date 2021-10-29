@@ -39,7 +39,7 @@ reserved_words obj_tag_property ("look", "examine", "speak", "take", "alias", "p
 
 reserved_words room_tag_property ("look", "alias", "prefix", "indescription", "description", "north", "south", "east", "west", "northwest", "northeast", "southeast", "southwest", "up", "down", "out", (char *) NULL);
 
-void GeasFile::debug_print (string s) const
+void GeasFile::debug_print (const string &s) const
 {
   if (gi == NULL)
     cerr << s << endl;
@@ -47,7 +47,7 @@ void GeasFile::debug_print (string s) const
     gi->debug_print (s);
 }
 
-const GeasBlock *GeasFile::find_by_name (string type, string name) const 
+const GeasBlock *GeasFile::find_by_name (const string &type, const string &name) const
 {
   //name = lcase (name);
   for (uint i = 0; i < size(type); i ++)
@@ -61,8 +61,8 @@ const GeasBlock *GeasFile::find_by_name (string type, string name) const
   return NULL;
 }
 
-const GeasBlock &GeasFile::block (std::string type, uint index) const { 
-  std::map<std::string, std::vector<int> >::const_iterator iter;
+const GeasBlock &GeasFile::block (const std::string &type, size_t index) const { 
+  std::map<std::string, std::vector<size_t> >::const_iterator iter;
   iter = type_indecies.find(type);
   if (!(iter != type_indecies.end() && index < (*iter).second.size()))
     cerr << "Unable to find type " << type << "\n";
@@ -100,12 +100,12 @@ ostream &operator<< (ostream &o, const map<string, vector<int> >& m)
 }
 */
 
-uint GeasFile::size (std::string type) const {
+size_t GeasFile::size (const std::string &type) const {
   //cerr << "GeasFile::size (" << type << ")" << endl;
 
   // SENSITIVE?
   //std::map<std::string, std::vector<int>, CI_LESS>::const_iterator iter;
-  std::map<std::string, std::vector<int> >::const_iterator iter;
+  std::map<std::string, std::vector<size_t> >::const_iterator iter;
   //cerr << type_indecies << endl;
   iter = type_indecies.find(type);
   if (iter == type_indecies.end())
@@ -118,19 +118,19 @@ uint GeasFile::size (std::string type) const {
 }
 
 
-bool GeasFile::obj_has_property (string objname, string propname) const
+bool GeasFile::obj_has_property (const string &objname, const string &propname) const
 {
   string tmp;
   return get_obj_property (objname, propname, tmp);
 }
 
-ostream &operator<< (ostream &, const set<string>&);
+extern ostream &operator<< (ostream &, const set<string>&);
 
 /**
  * Currently only works for actual objects, not rooms or the game
  */
 //set<string, CI_LESS> GeasFile::get_obj_keys (string obj) const
-set<string> GeasFile::get_obj_keys (string obj) const
+set<string> GeasFile::get_obj_keys (const string &obj) const
 { 
   //set<string, CI_LESS> rv;
   set<string> rv;
@@ -138,12 +138,12 @@ set<string> GeasFile::get_obj_keys (string obj) const
   return rv;
 }
 
-void GeasFile::get_obj_keys (string obj, set<string> &rv) const
+void GeasFile::get_obj_keys (const string &obj, set<string> &rv) const
 {
   cerr << "get_obj_keys (gf, <" << obj << ">)\n";
   //set<string> rv;
 
-  uint c1, c2;
+  std::string::size_type c1, c2;
   string tok, line;
   reserved_words *rw = NULL;
 
@@ -169,26 +169,26 @@ void GeasFile::get_obj_keys (string obj, set<string> &rv) const
 	  if (is_param(tok))
 	    {
 	      vector<string> params = split_param (param_contents (tok));
-	      for (uint j = 0; j < params.size(); j ++)
+	      for (const auto &j: params)
 		{
-		  cerr << "   handling parameter <" << params[j] << ">\n";
-		  uint k = params[j].find('=');
+		  cerr << "   handling parameter <" << j << ">\n";
+		  std::string::size_type k = j.find('=');
 		  // SENSITIVE?
-		  if (starts_with (params[j], "not "))
+		  if (starts_with (j, "not "))
 		    {
-		      rv.insert (trim (params[j].substr(4)));
-		      cerr << "     adding <" << trim (params[j].substr(4))
+		      rv.insert (trim (j.substr(4)));
+		      cerr << "     adding <" << trim (j.substr(4))
 			   << ">\n";
 		    }
-		  else if (k == -1)
+		  else if (k == string::npos)
 		    {
-		      rv.insert (params[j]);
-		      cerr << "     adding <" << params[j] << ">\n";
+		      rv.insert (j);
+		      cerr << "     adding <" << j << ">\n";
 		    }
 		  else
 		    {
-		      rv.insert (trim (params[j].substr(0, k)));
-		      cerr << "     adding <" << trim (params[j].substr(0, k))
+		      rv.insert (trim (j.substr(0, k)));
+		      cerr << "     adding <" << trim (j.substr(0, k))
 			   << ">\n";
 		    }
 		}
@@ -213,7 +213,7 @@ void GeasFile::get_obj_keys (string obj, set<string> &rv) const
   cerr << "Returning (" << rv << ")\n";
 }
 
-void GeasFile::get_type_keys (string typen, set<string> &rv) const
+void GeasFile::get_type_keys (const string &typen, set<string> &rv) const
 {
   cerr << "get_type_keys (" << typen << ", " << rv << ")\n";
   const GeasBlock* gb = find_by_name ("type", typen);
@@ -223,10 +223,9 @@ void GeasFile::get_type_keys (string typen, set<string> &rv) const
       return;
     }
   string line, tok;
-  uint c1, c2;
-  for (uint i = 0; i < gb->data.size(); i ++)
+  std::string::size_type c1, c2;
+  for (const string &line: gb->data)
     {
-      line = gb->data[i];
       //cerr << "    g_t_k: Handling line '" << line << "'\n";
       tok = first_token (line, c1, c2);
       // SENSISTIVE?
@@ -246,8 +245,8 @@ void GeasFile::get_type_keys (string typen, set<string> &rv) const
 	}
       else
 	{
-	  uint ch = line.find ('=');
-	  if (ch != -1)
+	  std::string::size_type ch = line.find ('=');
+	  if (ch != string::npos)
 	    {
 	      rv.insert (trim (line.substr (0, ch)));
 	      cerr << "      adding <" << trim (line.substr (0, ch)) << ">\n";
@@ -257,7 +256,7 @@ void GeasFile::get_type_keys (string typen, set<string> &rv) const
   cerr << "Returning (" << rv << ")\n";
 }
 
-bool GeasFile::get_obj_property (string objname, string propname, string &string_rv) const
+bool GeasFile::get_obj_property (const string &objname, const string &propname, string &string_rv) const
 {
   cerr << "g_o_p: Getting prop <" << propname << "> of obj <" << objname << ">\n";
   string_rv = "!";
@@ -296,12 +295,11 @@ bool GeasFile::get_obj_property (string objname, string propname, string &string
   const GeasBlock *block = find_by_name (objtype, objname);
 
   string not_prop = "not " + propname;
-  uint c1, c2;
+  std::string::size_type c1, c2;
   assert (block != NULL);
   //assert (block->data != NULL);
-  for (uint i = 0; i < block->data.size(); i ++)
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       //cerr << "  g_o_p: Handling line <" << line << ">\n";
       string tok = first_token (line, c1, c2);
       // SENSITIVE?
@@ -325,26 +323,26 @@ bool GeasFile::get_obj_property (string objname, string propname, string &string
 	      continue;
 	    }
 	  vector<string> props = split_param (param_contents (tok));
-	  for (uint j = 0; j < props.size(); j ++)
+	  for (const string &j: props)
 	    {
 	      //cerr << "    g_o_p: Comparing against <" << props[j] << ">\n";
-	      uint index;
-	      if (props[j] == propname)
+	      std::string::size_type index;
+	      if (j == propname)
 		{
 		  //cerr << "      g_o_p: Present but empty, blanking\n";
 		  string_rv = "";
 		  bool_rv = true;
 		}
-	      else if (props[j] == not_prop)
+	      else if (j == not_prop)
 		{
 		  //cerr << "      g_o_p: Negation, removing\n";
 		  string_rv = "!";
 		  bool_rv = false;
 		}
-	      else if ((index = props[j].find ('=')) != -1 &&
-		       (trim (props[j].substr (0, index)) == propname))
+	      else if ((index = j.find ('=')) != string::npos &&
+		       (trim (j.substr (0, index)) == propname))
 		{
-		  string_rv = props[j].substr (index+1);
+		  string_rv = j.substr (index+1);
 		  bool_rv = true;
 		  //cerr << "      g_o_p: Normal prop, now to <" << string_rv << ">\n";
 		}
@@ -356,7 +354,7 @@ bool GeasFile::get_obj_property (string objname, string propname, string &string
   return bool_rv;
 }
 
-void GeasFile::get_type_property (string typenamex, string propname, bool &bool_rv, string &string_rv) const
+void GeasFile::get_type_property (const string &typenamex, const string &propname, bool &bool_rv, string &string_rv) const
 {
   //cerr << "  Checking type <" << typenamex << "> for prop <" << propname << ">\n";
   const GeasBlock *block = find_by_name ("type", typenamex);
@@ -365,11 +363,10 @@ void GeasFile::get_type_property (string typenamex, string propname, bool &bool_
       debug_print ("Object of nonexistent type " + typenamex);
       return;
     }
-  for (uint i = 0; i < block->data.size(); i ++)
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       //cerr << "    Comparing vs. line <" << line << ">\n";
-      uint c1, c2;
+      std::string::size_type c1, c2;
       string tok = first_token (line, c1, c2);
 
       // SENSITIVE?
@@ -387,7 +384,7 @@ void GeasFile::get_type_property (string typenamex, string propname, bool &bool_
       else
 	{
 	  c1 = line.find ('=');
-	  if (c1 != -1)
+	  if (c1 != string::npos)
 	    {
 	      tok = trim (line.substr (0, c1));
 	      if (tok == propname)
@@ -432,7 +429,7 @@ void GeasFile::get_type_property (string typenamex, string propname, bool &bool_
 	      
 
 
-bool GeasFile::obj_of_type (string objname, string typenamex) const
+bool GeasFile::obj_of_type (const string &objname, const string &typenamex) const
 {
   if (!has (obj_types, objname))
     {
@@ -444,11 +441,10 @@ bool GeasFile::obj_of_type (string objname, string typenamex) const
 
   const GeasBlock *block = find_by_name (objtype, objname);
 
-  uint c1, c2;
+  std::string::size_type c1=0, c2;
   assert (block != NULL);
-  for (uint i = 0; i < block->data.size(); i ++)
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       string tok = first_token (line, c1, c2);
       // SENSITIVE?
       if (tok == "type")
@@ -469,7 +465,7 @@ bool GeasFile::obj_of_type (string objname, string typenamex) const
 }
 
 
-bool GeasFile::type_of_type (string subtype, string supertype) const
+bool GeasFile::type_of_type (const string &subtype, const string &supertype) const
 {
   if (ci_equal (subtype, supertype))
     return true;
@@ -480,11 +476,10 @@ bool GeasFile::type_of_type (string subtype, string supertype) const
       debug_print ("t_o_t: Nonexistent type " + subtype);
       return false;
     }
-  for (uint i = 0; i < block->data.size(); i ++)
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       //cerr << "    Comparing vs. line <" << line << ">\n";
-      uint c1, c2;
+      std::string::size_type c1=0, c2;
       string tok = first_token (line, c1, c2);
       // SENSITIVE?
       if (tok == "type")
@@ -499,7 +494,7 @@ bool GeasFile::type_of_type (string subtype, string supertype) const
 
 
 
-bool GeasFile::get_obj_action (string objname, string propname, string &string_rv) const
+bool GeasFile::get_obj_action (const string &objname, const string &propname, string &string_rv) const
 {
   cerr << "g_o_a: Getting action <" << propname << "> of object <" << objname << ">\n";
   string_rv = "!";
@@ -524,10 +519,9 @@ bool GeasFile::get_obj_action (string objname, string propname, string &string_r
 
   const GeasBlock *block = find_by_name (objtype, objname);
   string not_prop = "not " + propname;
-  uint c1, c2;
-  for (uint i = 0; i < block->data.size(); i ++)
+  std::string::size_type c1, c2;
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       //cerr << "  g_o_a: Handling line <" << line << ">\n";
       string tok = first_token (line, c1, c2);
       // SENSITIVE?
@@ -579,7 +573,7 @@ bool GeasFile::get_obj_action (string objname, string propname, string &string_r
   return bool_rv;
 }
 
-void GeasFile::get_type_action (string typenamex, string actname, bool &bool_rv, string &string_rv) const
+void GeasFile::get_type_action (const string &typenamex, const string &actname, bool &bool_rv, string &string_rv) const
 {
   //cerr << "  Checking type <" << typenamex << "> for action <" << actname << ">\n";
   const GeasBlock *block = find_by_name ("type", typenamex);
@@ -588,11 +582,10 @@ void GeasFile::get_type_action (string typenamex, string actname, bool &bool_rv,
       debug_print ("Object of nonexistent type " + typenamex);
       return;
     }
-  for (uint i = 0; i < block->data.size(); i ++)
+  for (const string &line: block->data)
     {
-      string line = block->data[i];
       //cerr << "    g_t_a: Comparing vs. line <" << line << ">\n";
-      uint c1, c2;
+      std::string::size_type c1, c2;
       string tok = first_token (line, c1, c2);
       // SENSITIVE?
       if (tok == "action")
@@ -616,7 +609,7 @@ void GeasFile::get_type_action (string typenamex, string actname, bool &bool_rv,
     }
 }
  
-void GeasFile::register_block (string blockname, string blocktype)
+void GeasFile::register_block (const string &blockname, const string &blocktype)
 {
   cerr << "registering block " << blockname << " / " << blocktype << endl;
   if (has (obj_types, blockname))
@@ -630,7 +623,7 @@ void GeasFile::register_block (string blockname, string blocktype)
   obj_types[blockname] = blocktype;
 }
 
-string GeasFile::static_svar_lookup (string varname) const
+string GeasFile::static_svar_lookup (const string &varname) const
 {
   cerr << "static_svar_lookup(" << varname << ")" << endl;
   //varname = lcase (varname);
@@ -640,8 +633,8 @@ string GeasFile::static_svar_lookup (string varname) const
       {
 	string rv;
 	string tok;
-	uint c1, c2;
-	bool found_typeline;
+	std::string::size_type c1, c2;
+	bool found_typeline = false;
 	for (uint j = 0; j < blocks[i].data.size(); j ++)
 	  {
 	    string line = blocks[i].data[j];
@@ -677,7 +670,7 @@ string GeasFile::static_svar_lookup (string varname) const
   return "";
 }
 
-string GeasFile::static_ivar_lookup (string varname) const
+string GeasFile::static_ivar_lookup (const string &varname) const
 {
   //varname = lcase (varname);
   for (uint i = 0; i < size("variable"); i ++)
@@ -686,10 +679,9 @@ string GeasFile::static_ivar_lookup (string varname) const
       {
 	string rv;
 	string tok;
-	uint c1, c2;
-	for (uint j = 0; j < blocks[i].data.size(); j ++)
+	std::string::size_type c1=0, c2;
+	for (const string &line: blocks[i].data)
 	  {
-	    string line = blocks[i].data[j];
 	    tok = first_token (line, c1, c2);
 	    // SENSITIVE?
 	    if (tok == "type")
@@ -718,7 +710,7 @@ string GeasFile::static_ivar_lookup (string varname) const
   return "-32768";
 }
 
-string GeasFile::static_eval (string input) const
+string GeasFile::static_eval (const string &input) const
 {
   //cerr << "static_eval (" << input << ")" << endl;
   string rv = "";

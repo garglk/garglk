@@ -36,7 +36,7 @@ using namespace std;
 
 //string readfile (string s);
 
-string next_token (string full, uint &tok_start, uint &tok_end, bool cvt_paren)
+string next_token (const string &full, std::string::size_type &tok_start, std::string::size_type &tok_end, bool cvt_paren)
 {
   tok_start = tok_end;
   while (tok_start < full.length() && isspace (full[tok_start]))
@@ -80,15 +80,15 @@ string next_token (string full, uint &tok_start, uint &tok_end, bool cvt_paren)
   return full.substr (tok_start, tok_end - tok_start);
 }
 
-string first_token (string s, uint &t_start, uint &t_end)
+string first_token (const string &s, std::string::size_type &t_start, std::string::size_type &t_end)
 {
   t_end = 0;
   return next_token (s, t_start, t_end);
 }
 
-string nth_token (string s, int n)
+string nth_token (const string &s, int n)
 {
-  uint x1, x2 = 0;
+  std::string::size_type x1, x2 = 0;
   string rv;
   do
     rv = next_token (s, x1, x2);
@@ -96,15 +96,15 @@ string nth_token (string s, int n)
   return rv;
 }
 
-string get_token (string s, bool cvt_paren)
+string get_token (const string &s, bool cvt_paren)
 {
-  uint x1, x2 = 0;
+  std::string::size_type x1, x2 = 0;
   return next_token (s, x1, x2, cvt_paren);
 }
 
-bool find_token (string s, string tok, int &tok_start, int &tok_end, bool cvt_paren)
+bool find_token (const string &s, const string &tok, std::string::size_type &tok_start, std::string::size_type &tok_end, bool cvt_paren)
 {
-  uint copy_start, copy_end;
+  std::string::size_type copy_start, copy_end;
   copy_end = tok_end;
 
   do
@@ -122,30 +122,30 @@ bool find_token (string s, string tok, int &tok_start, int &tok_end, bool cvt_pa
   return false;
 }
 
-bool is_define (string s)
+static bool is_define (const string &s)
 {
   return get_token(s) == "define";
 }
 
-bool is_define (string s, string t)
+static bool is_define (const string &s, const string &t)
 {
-  uint t1, t2 = 0;
+  std::string::size_type t1, t2 = 0;
   return next_token (s, t1, t2) == "define" &&
     next_token (s, t1, t2) == t;
 }
 
-bool is_start_textmode (string s) 
+static bool is_start_textmode (const string &s)
 {
-  uint start_char, end_char = 0;
+  std::string::size_type start_char, end_char = 0;
   if (next_token (s, start_char, end_char) != "define") return false;
   string tmp = next_token (s, start_char, end_char);
   // SENSITIVE?
   return tmp == "text" || tmp == "synonyms";
 }
 
-bool is_end_define (string s)
+static bool is_end_define (const string &s)
 {
-  uint start_char, end_char = 0;
+  std::string::size_type start_char, end_char = 0;
   // SENSITIVE?
   return (next_token (s, start_char, end_char) == "end" &&
 	  next_token (s, start_char, end_char) == "define");
@@ -153,7 +153,7 @@ bool is_end_define (string s)
 
 
 
-vector<string> split_lines (string data);
+static vector<string> split_lines (const string &data);
 
 /*
 GeasBlock::GeasBlock (const vector<string> &in_data, string in_parent, 
@@ -199,23 +199,23 @@ template <class T> ostream &operator << (ostream &o, vector<T> v)
 }
 */
 
-reserved_words dir_tag_property ("north", "south", "east", "west", "northwest", "northeast", "southeast", "southwest", "up", "down", "out", (char *) NULL);
+static reserved_words dir_tag_property ("north", "south", "east", "west", "northwest", "northeast", "southeast", "southwest", "up", "down", "out", (char *) NULL);
 
 void GeasFile::read_into (const vector<string> &in_data,
-			  string in_parent, uint cur_line, bool recurse,
+			  const string &in_parent, uint cur_line, bool recurse,
 			  const reserved_words &props, 
 			  const reserved_words &actions)
 {
   //cerr << "r_i: Reading in from" << cur_line << ": " << in_data[cur_line] << endl;
   //output.push_back (GeasBlock());
   //GeasBlock &out_block = output[output.size() - 1];
-  int blocknum = blocks.size();
+  size_t blocknum = blocks.size();
   blocks.push_back (GeasBlock());
   GeasBlock &out_block = blocks[blocknum];
 
   vector<string> &out_data = out_block.data;
   out_block.parent = in_parent;
-  uint t1, t2;
+  std::string::size_type t1, t2;
   string line = in_data[cur_line];
   // SENSITIVE?
   string token = first_token (line, t1, t2);
@@ -445,11 +445,11 @@ GeasFile::GeasFile (const vector<string> &v, GeasInterface *_gi) : gi(_gi)
 
 }
 
-bool decompile (string data, vector<string> &rv);
+static bool decompile (const string &data, vector<string> &rv);
 
-bool preprocess (vector<string> v, string fname, vector<string> &rv, GeasInterface *gi);
+static bool preprocess (vector<string> v, const string &fname, vector<string> &rv, GeasInterface *gi);
 
-GeasFile read_geas_file (GeasInterface *gi, string filename)
+GeasFile read_geas_file (GeasInterface *gi, const string &filename)
 {
   //return GeasFile (split_lines(gi->get_file(s)), gi);
   string file_contents = gi->get_file (filename);
@@ -514,7 +514,7 @@ ostream &operator << (ostream &o, const GeasFile &gf)
     o << gf.others[i];
   */
   o << "Geas File\n";
-  for (map<string, vector<int> >::const_iterator i = gf.type_indecies.begin();
+  for (map<string, vector<size_t> >::const_iterator i = gf.type_indecies.begin();
        i != gf.type_indecies.end(); i ++)
     {
       o << "Blocks of type " << (*i).first << "\n";
@@ -545,7 +545,7 @@ ostream &operator << (ostream &o, const GeasFile &gf)
 
 
 
-string compilation_tokens[256] = 
+const string compilation_tokens[256] = 
 {"", "game", "procedure", "room", "object", "character", "text", "selection", 
  "define", "end", "", "asl-version", "game", "version", "author", "copyright", 
  "info", "start", "possitems", "startitems", "prefix", "look", "out", "gender",
@@ -578,7 +578,7 @@ string compilation_tokens[256] =
  "", "", "", "", "", "", "", "", "", "", "", "" };
 
 
-bool decompile (string s, vector<string> &rv)
+bool decompile (const string &s, vector<string> &rv)
 {
   string cur_line, tok;
   uint expect_text = 0, obfus = 0;
@@ -655,9 +655,9 @@ bool decompile (string s, vector<string> &rv)
 
 
 
-vector<string> tokenize (string s)
+vector<string> tokenize (const string &s)
 {
-  uint tok_start, tok_end;
+  std::string::size_type tok_start, tok_end;
   string tok;
   vector<string> rv;
   tok_end = 0;
@@ -673,6 +673,20 @@ string string_int (int i)
   return o.str();
 }
 
+string string_int (uint i)
+{
+  ostringstream o;
+  o << i;
+  return o.str();
+}
+
+string string_int (size_t i)
+{
+  ostringstream o;
+  o << i;
+  return o.str();
+}
+
 void report_error (string s)
 {
   //cerr << s << endl; 
@@ -680,7 +694,7 @@ void report_error (string s)
   throw s;
 }
 
-vector<string> split_lines (string data)
+vector<string> split_lines (const string &data)
 {
   vector <string> rv;
   string tmp;
@@ -749,9 +763,9 @@ void say_push (const vector<string> &v)
 //enum trim_modes { TRIM_SPACES, TRIM_UNDERSCORE, TRIM_BRACE };
 
 //string trim (string s, trim_modes trim_mode = TRIM_SPACES)
-string trim (string s, trim_modes trim_mode)
+string trim (const string &s, trim_modes trim_mode)
 {
-  uint i, j;
+  std::string::size_type i, j;
   /*
   cerr << "Trimming (" << s << "): [";
   for (i = 0; i < s.length(); i ++)
@@ -782,8 +796,8 @@ string trim (string s, trim_modes trim_mode)
  */
 bool is_balanced (string str)
 {
-  uint index = str.find ('{');
-  if (index == -1)
+  std::string::size_type index = str.find ('{');
+  if (index == string::npos)
     return true;
   int depth;
   for (depth = 1, index ++;  depth > 0 && index < str.length();  index ++)
@@ -794,10 +808,10 @@ bool is_balanced (string str)
   return depth == 0;
 }
 
-int count_depth (string str, int count)
+static int count_depth (const string &str, int count)
 {
   //cerr << "count_depth (" << str << ", " << count << ")" << endl;
-  uint index = 0;
+  std::string::size_type index = 0;
   if (count == 0)
     index = str.find ('{');
   while (index < str.length())
@@ -813,10 +827,10 @@ int count_depth (string str, int count)
   return count;
 }
 
-void handle_includes (const vector<string> &in_data, string filename, vector<string> &out_data, GeasInterface *gi)
+static void handle_includes (const vector<string> &in_data, const string &filename, vector<string> &out_data, GeasInterface *gi)
 {
   string line, tok;
-  uint tok_start, tok_end;
+  std::string::size_type tok_start, tok_end;
   for (uint ln = 0; ln < in_data.size(); ln ++)
     {
       line = in_data[ln];
@@ -844,7 +858,7 @@ void handle_includes (const vector<string> &in_data, string filename, vector<str
     }
 }
 
-bool preprocess (vector<string> v, string fname, vector<string> &rv, 
+bool preprocess (vector<string> v, const string &fname, vector<string> &rv,
 		 GeasInterface *gi)
 {
   //cerr << "Before preprocessing:\n" << v << "\n\n" << endl;
@@ -860,7 +874,7 @@ bool preprocess (vector<string> v, string fname, vector<string> &rv,
     { { "<>", "!=;" },  { "!=", "!=;" },  { "<=", "lt=;" },  { ">=", "gt=;" }, 
       { "<",  "lt;" },  { ">",  "gt;" },  { "=",  "" } };
 
-  uint tok_start, tok_end;
+  std::string::size_type tok_start, tok_end;
   string tok;
 
   // preprocessing step 0:
@@ -990,11 +1004,11 @@ bool preprocess (vector<string> v, string fname, vector<string> &rv,
 		  //cerr << "   IT IS!\n";
 		  tok = tok.substr (1, tok.length() - 2);
 		  string str = v[line];
-		  uint cmp_start;
+		  std::string::size_type cmp_start;
 		  for (uint cmp = 0; cmp < ARRAYSIZE(comps); cmp ++)
-		    if ((cmp_start = tok.find(comps[cmp][0])) != -1)
+		    if ((cmp_start = tok.find(comps[cmp][0])) != string::npos)
 		      {
-			uint cmp_end = cmp_start + comps[cmp][0].length();
+			std::string::size_type cmp_end = cmp_start + comps[cmp][0].length();
 			//cerr << "Changed str from {" << str << "} to {";
 			str = str.substr(0, tok_start) + 
 			  "is <" + trim (tok.substr(0, cmp_start)) + ";" + 
@@ -1024,7 +1038,7 @@ bool preprocess (vector<string> v, string fname, vector<string> &rv,
       else if (!in_text_block)
 	{
 	  //cerr << "  checking...\n";
-	  uint start_ch = 0, end_ch = 0;
+	  std::string::size_type start_ch = 0, end_ch = 0;
 	  while (start_ch < v[line].length())
 	    if (next_token (v[line], start_ch, end_ch)[0] == '\'')
 	      {
@@ -1054,13 +1068,13 @@ bool preprocess (vector<string> v, string fname, vector<string> &rv,
       else if (!is_balanced (str))
 	{
 	  //cerr << "...Special line!" << endl;
-	  uint init_size = v.size();
+	  std::string::size_type init_size = v.size();
 	  v.push_back ("define procedure <!intproc" + 
 		       string_int(++int_proc_count) + ">");
 	  //cerr << "Pushing back on v: '" << v[v.size()-1] << "'" << endl;
 
 
-	  uint tmp_index = str.find ('{');
+	  std::string::size_type tmp_index = str.find ('{');
 	  v2.push_back (trim (str.substr (0, tmp_index)) + 
 			" do <!intproc" + string_int (int_proc_count) + "> ");
 	  //cerr << "Done with '" << v2[v2.size()-1] << "'" << endl;
@@ -1199,7 +1213,7 @@ public:
 };
 
 vector <string> split (string s, char ch) {
-  uint i = 0, j;
+  std::string::size_type i = 0, j;
   vector<string> rv;
   do
     {

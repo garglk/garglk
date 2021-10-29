@@ -10,9 +10,9 @@
 */
 
 #include <stddef.h>
-#include <string.h>
 
 #include <unistd.h>
+#include <string.h>
 
 #include "glk.h"
 #include "glkstart.h"

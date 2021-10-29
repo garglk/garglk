@@ -28,15 +28,15 @@
 #include "general.hh"
 
 template <class T> class LimitStack {
-  uint stack_size, cur_ptr, end_ptr;
+  size_t stack_size, cur_ptr, end_ptr;
   std::vector<T> data;
   //bool last_push;
 
 
-  uint dofwd (uint i) const { i ++; return i == stack_size ? 0 : i; }
-  uint dobwd (uint i) const { return (i == 0 ? stack_size : i) - 1; }
-  void fwd (uint &i) const { i = dofwd(i); }
-  void bwd (uint &i) const { i = dobwd(i); }
+  size_t dofwd (size_t i) const { i ++; return i == stack_size ? 0 : i; }
+  size_t dobwd (size_t i) const { return (i == 0 ? stack_size : i) - 1; }
+  void fwd (size_t &i) const { i = dofwd(i); }
+  void bwd (size_t &i) const { i = dobwd(i); }
 
   /*
   void fwd (uint &i) { i ++; if (i == stack_size) i = 0; }
@@ -65,7 +65,7 @@ template <class T> class LimitStack {
 
   bool is_empty() { return dobwd (cur_ptr) == end_ptr; }
 
-  uint size()
+  size_t size()
   { 
     if (cur_ptr > end_ptr)
       return cur_ptr - end_ptr - 1; 

@@ -52,7 +52,7 @@ public:
   GeasOutputStream &put (unsigned long long i) { o << i; o.put (char (0)); return *this; }
   
 
-  void write_out (string gamename, string savename)
+  void write_out (const string &gamename, const string &savename)
   {
     ofstream ofs;
     ofs.open (savename.c_str());
@@ -123,7 +123,7 @@ void write_to (GeasOutputStream &gos, const GeasState &gs)
   write_to (gos, gs.ivars);
 }
 
-void save_game_to (std::string gamename, std::string savename, const GeasState &gs)
+void save_game_to (const std::string &gamename, const std::string &savename, const GeasState &gs)
 {
   GeasOutputStream gos;
   write_to (gos, gs);
@@ -187,7 +187,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
       for (uint j = 0; j < go.data.size(); j ++)
 	{
 	  string line = go.data[j];
-	  uint c1, c2;
+	  std::string::size_type c1, c2;
 	  string tok = first_token (line, c1, c2);
 	  if (tok == "interval")
 	    {
@@ -231,7 +231,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
 	{
 	  string line = go.data[j];
 	  cerr << "   Line #" << j << " of var: \"" << line << "\"" << endl;
-	  uint c1, c2;
+	  std::string::size_type c1, c2;
 	  string tok = first_token (line, c1, c2);
 	  if (tok == "type")
 	    {

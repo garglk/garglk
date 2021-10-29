@@ -28,7 +28,7 @@
 
 using namespace std;
 
-int eval_int (string s)
+int eval_int (const string &s)
 {
   cerr << "eval_int (" << s << ")" << endl;
 
@@ -99,7 +99,7 @@ int eval_int (string s)
   return 0;
 }
 
-string trim_braces (string s)
+string trim_braces (const string &s)
 {
   if (s.length() > 1 && s[0] == '[' && s[s.length() - 1] == ']')
     return s.substr (1, s.length() - 2);
@@ -107,19 +107,19 @@ string trim_braces (string s)
     return s;
 }
 
-bool is_param (string s)
+bool is_param (const string &s)
 {
   return s.length() > 1 && s[0] == '<' && s[s.length() - 1] == '>';
 }
 
-string param_contents (string s)
+string param_contents (const string &s)
 {
   //cerr << "param_contents (" << s << ")" << endl;
   assert (is_param(s));
   return s.substr (1, s.length() - 2);
 }
 
-string nonparam (string type, string var)
+string nonparam (const string &type, const string &var)
 {
   return "Non-parameter for " + type + " in \"" + var + "\"";
 }
@@ -135,22 +135,22 @@ std::string string_geas_block (const GeasBlock &gb)
 }
 
 
-bool starts_with (string a, string b)
+bool starts_with (const string &a, const string &b)
 {
   return (a.length() >= b.length()) && (a.substr (0, b.length()) == b);
 }
-bool ends_with (string a, string b)
+bool ends_with (const string &a, const string &b)
 {
   return (a.length() >= b.length()) && 
     (a.substr (a.length() - b.length(), b.length()) == b);
 }
 
-bool starts_with_i (string a, string b)
+bool starts_with_i (const string &a, const string &b)
 {
   return (a.length() >= b.length()) && ci_equal (a.substr (0, b.length()), b);
   //  return starts_with (lcase(a), lcase(b));
 }
-bool ends_with_i (string a, string b)
+bool ends_with_i (const string &a, const string &b)
 {
   return (a.length() >= b.length()) && 
     ci_equal (a.substr (a.length() - b.length(), b.length()), b);
@@ -183,15 +183,15 @@ string lcase (string s)
   return s;
 }
 
-vector<string> split_param (string s)
+vector<string> split_param (const string &s)
 {
   vector<string> rv;
-  uint c1 = 0, c2;
+  std::string::size_type c1 = 0, c2;
 
   for (;;)
     {
       c2 = s.find (';', c1);
-      if (c2 == -1)
+      if (c2 == string::npos)
 	{
 	  rv.push_back (trim (s.substr (c1)));
 	  return rv;
@@ -201,26 +201,30 @@ vector<string> split_param (string s)
     }
 }
 
-vector<string> split_f_args (string s)
+vector<string> split_f_args (const string &s)
 {
   vector<string> rv = split_param (s);
-  for (uint i = 0; i < rv.size(); i ++)
+  for (auto &i: rv)
     {
-      string tmp = rv[i];
+      const string &tmp = i;
       if (tmp[0] == '_')
-	rv[i][0] = ' ';
+	{
+	  i[0] = ' ';
+	}
       if (tmp[tmp.length() - 1] == '_')
-	rv[i][tmp.length() - 1] = ' ';
+	{
+	  i[tmp.length() - 1] = ' ';
+	}
     }
   return rv;
 }
 
-void show_split (string s)
+void show_split (const string &s)
 {
   vector<string> tmp = split_param (s);
   cerr << "Splitting <" << s << ">: ";
-  for (uint i = 0; i < tmp.size(); i ++)
-    cerr << "<" << tmp[i] << ">, ";
+  for (const auto &i: tmp)
+    cerr << "<" << i << ">, ";
   cerr << "\n";
 }
 
