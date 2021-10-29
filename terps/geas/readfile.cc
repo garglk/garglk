@@ -680,7 +680,7 @@ string string_int (uint i)
   return o.str();
 }
 
-string string_int (size_t i)
+string string_int (std::uintmax_t i)
 {
   ostringstream o;
   o << i;
