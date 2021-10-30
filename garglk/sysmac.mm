@@ -130,12 +130,10 @@ void winhandler(int signal);
 
 static NSObject<GargoyleApp> * gargoyle = NULL;
 static GargoyleMonitor * monitor = NULL;
-static NSBitmapImageRep * framebuffer = NULL;
 static NSString * cliptext = NULL;
 static pid_t processID = 0;
 
 static bool gli_refresh_needed = true;
-static bool gli_window_hidden = false;
 
 void glk_request_timer_events(glui32 millisecs)
 {
