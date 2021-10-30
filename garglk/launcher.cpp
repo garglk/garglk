@@ -61,7 +61,7 @@
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
 struct Interpreter {
-    Interpreter(const std::string &terp_, const std::set<std::string> extensions_ = {}, const std::string &flags_ = "") :
+    explicit Interpreter(const std::string &terp_, const std::set<std::string> &extensions_ = {}, const std::string &flags_ = "") :
         terp(terp_),
         extensions(extensions_),
         flags(flags_) {
@@ -120,7 +120,7 @@ static bool runblorb(const std::string &path, const std::string &game, const Int
 {
     class BlorbError : public std::runtime_error {
     public:
-        BlorbError(const std::string &msg) : std::runtime_error(msg) {
+        explicit BlorbError(const std::string &msg) : std::runtime_error(msg) {
         }
     };
 
@@ -274,7 +274,7 @@ int garglk::rungame(const std::string &path, const std::string &game)
 
     auto found_interpreter = std::find_if(interpreters.begin(), interpreters.end(), [&ext](const std::pair<Format, Interpreter> &pair) {
         auto interpreter = pair.second;
-        return std::any_of(interpreter.extensions.begin(), interpreter.extensions.end(), [&ext](const std::string ext_) { return ext == ext_; });
+        return std::any_of(interpreter.extensions.begin(), interpreter.extensions.end(), [&ext](const std::string &ext_) { return ext == ext_; });
     });
 
     if (found_interpreter != interpreters.end())
