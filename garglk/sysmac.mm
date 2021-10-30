@@ -20,7 +20,11 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <functional>
+#include <map>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -429,95 +433,68 @@ void winrefresh(void)
 
 void winkey(NSEvent *evt)
 {
+    NSEventModifierFlags modifiers = [evt modifierFlags];
+    NSEventModifierFlags modmasked = modifiers & (NSAlternateKeyMask | NSShiftKeyMask | NSCommandKeyMask | NSControlKeyMask);
+
     /* queue a screen refresh */
     gli_refresh_needed = true;
 
-    /* check for arrow keys */
-    if ([evt modifierFlags] & NSFunctionKeyMask)
-    {
-        /* alt/option modified key */
-        if ([evt modifierFlags] & NSAlternateKeyMask)
-        {
-            switch ([evt keyCode])
-            {
-                case NSKEY_LEFT  : gli_input_handle_key(keycode_SkipWordLeft);  return;
-                case NSKEY_RIGHT : gli_input_handle_key(keycode_SkipWordRight); return;
-                case NSKEY_DOWN  : gli_input_handle_key(keycode_PageDown);      return;
-                case NSKEY_UP    : gli_input_handle_key(keycode_PageUp);        return;
-                default: break;
-            }
-        }
+    /* special key combinations */
+    static const std::map<std::pair<decltype(modmasked), decltype([evt keyCode])>, std::function<void()>> keys = {
+        /* alt/option modified arrow key */
+        {{NSAlternateKeyMask, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
+        {{NSAlternateKeyMask, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        {{NSAlternateKeyMask, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
+        {{NSAlternateKeyMask, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
-        /* command modified key */
-        if ([evt modifierFlags] & NSCommandKeyMask)
-        {
-            switch ([evt keyCode])
-            {
-                case NSKEY_LEFT  : gli_input_handle_key(keycode_Home);     return;
-                case NSKEY_RIGHT : gli_input_handle_key(keycode_End);      return;
-                case NSKEY_DOWN  : gli_input_handle_key(keycode_PageDown); return;
-                case NSKEY_UP    : gli_input_handle_key(keycode_PageUp);   return;
-                default: break;
-            }
-        }
+        /* command modified arrow key */
+        {{NSCommandKeyMask, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Home); }},
+        {{NSCommandKeyMask, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_End); }},
+        {{NSCommandKeyMask, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
+        {{NSCommandKeyMask, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
+
+        /* menu commands */
+        {{NSCommandKeyMask, NSKEY_X}, []{ winclipsend(); }},
+        {{NSCommandKeyMask, NSKEY_C}, []{ winclipsend(); }},
+        {{NSCommandKeyMask, NSKEY_V}, []{ winclipreceive(); }},
 
         /* unmodified key for line editing */
-        switch ([evt keyCode])
-        {
-            case NSKEY_LEFT  : gli_input_handle_key(keycode_Left);  return;
-            case NSKEY_RIGHT : gli_input_handle_key(keycode_Right); return;
-            case NSKEY_DOWN  : gli_input_handle_key(keycode_Down);  return;
-            case NSKEY_UP    : gli_input_handle_key(keycode_Up);    return;
-            default: break;
-        }
-    }
+        {{0, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Left); }},
+        {{0, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_Right); }},
+        {{0, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_Down); }},
+        {{0, NSKEY_UP},    []{ gli_input_handle_key(keycode_Up); }},
 
-    /* check for menu commands */
-    if ([evt modifierFlags] & NSCommandKeyMask)
+        /* command keys */
+        {{0, NSKEY_PGUP}, []{ gli_input_handle_key(keycode_PageUp); }},
+        {{0, NSKEY_PGDN}, []{ gli_input_handle_key(keycode_PageDown); }},
+        {{0, NSKEY_HOME}, []{ gli_input_handle_key(keycode_Home); }},
+        {{0, NSKEY_END},  []{ gli_input_handle_key(keycode_End); }},
+        {{0, NSKEY_DEL},  []{ gli_input_handle_key(keycode_Erase); }},
+        {{0, NSKEY_BACK}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{0, NSKEY_ESC},  []{ gli_input_handle_key(keycode_Escape); }},
+        {{0, NSKEY_F1},   []{ gli_input_handle_key(keycode_Func1); }},
+        {{0, NSKEY_F2},   []{ gli_input_handle_key(keycode_Func2); }},
+        {{0, NSKEY_F3},   []{ gli_input_handle_key(keycode_Func3); }},
+        {{0, NSKEY_F4},   []{ gli_input_handle_key(keycode_Func4); }},
+        {{0, NSKEY_F5},   []{ gli_input_handle_key(keycode_Func5); }},
+        {{0, NSKEY_F6},   []{ gli_input_handle_key(keycode_Func6); }},
+        {{0, NSKEY_F7},   []{ gli_input_handle_key(keycode_Func7); }},
+        {{0, NSKEY_F8},   []{ gli_input_handle_key(keycode_Func8); }},
+        {{0, NSKEY_F9},   []{ gli_input_handle_key(keycode_Func9); }},
+        {{0, NSKEY_F10},  []{ gli_input_handle_key(keycode_Func10); }},
+        {{0, NSKEY_F11},  []{ gli_input_handle_key(keycode_Func11); }},
+        {{0, NSKEY_F12},  []{ gli_input_handle_key(keycode_Func12); }},
+    };
+
+    try
     {
-        switch ([evt keyCode])
-        {
-            case NSKEY_X:
-            case NSKEY_C:
-            {
-                winclipsend();
-                return;
-            }
-
-            case NSKEY_V:
-            {
-                winclipreceive();
-                return;
-            }
-
-            default: break;
-        }
+        keys.at(std::make_pair(modmasked, [evt keyCode]))();
+        return;
     }
-
-    /* check for command keys */
-    switch ([evt keyCode])
+    catch(const std::out_of_range &)
     {
-        case NSKEY_PGUP : gli_input_handle_key(keycode_PageUp);   return;
-        case NSKEY_PGDN : gli_input_handle_key(keycode_PageDown); return;
-        case NSKEY_HOME : gli_input_handle_key(keycode_Home);     return;
-        case NSKEY_END  : gli_input_handle_key(keycode_End);      return;
-        case NSKEY_DEL  : gli_input_handle_key(keycode_Erase);    return;
-        case NSKEY_BACK : gli_input_handle_key(keycode_Delete);   return;
-        case NSKEY_ESC  : gli_input_handle_key(keycode_Escape);   return;
-        case NSKEY_F1   : gli_input_handle_key(keycode_Func1);    return;
-        case NSKEY_F2   : gli_input_handle_key(keycode_Func2);    return;
-        case NSKEY_F3   : gli_input_handle_key(keycode_Func3);    return;
-        case NSKEY_F4   : gli_input_handle_key(keycode_Func4);    return;
-        case NSKEY_F5   : gli_input_handle_key(keycode_Func5);    return;
-        case NSKEY_F6   : gli_input_handle_key(keycode_Func6);    return;
-        case NSKEY_F7   : gli_input_handle_key(keycode_Func7);    return;
-        case NSKEY_F8   : gli_input_handle_key(keycode_Func8);    return;
-        case NSKEY_F9   : gli_input_handle_key(keycode_Func9);    return;
-        case NSKEY_F10  : gli_input_handle_key(keycode_Func10);   return;
-        case NSKEY_F11  : gli_input_handle_key(keycode_Func11);   return;
-        case NSKEY_F12  : gli_input_handle_key(keycode_Func12);   return;
-        default: break;
     }
+
 
     /* send combined keystrokes to text buffer */
     [gargoyle setWindow: processID charString: evt];
@@ -527,17 +504,21 @@ void winkey(NSEvent *evt)
 
     /* convert character to UTF-32 value */
     glui32 ch;
-    if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: NULL
+    NSUInteger used;
+    if ([evt_char getBytes: &ch maxLength: sizeof ch usedLength: &used
                   encoding: UTF32StringEncoding
                    options: 0
                      range: NSMakeRange(0, [evt_char length])
             remainingRange: NULL])
     {
-        switch (ch)
+        if (used != 0)
         {
-            case '\n': gli_input_handle_key(keycode_Return); break;
-            case '\t': gli_input_handle_key(keycode_Tab);    break;
-            default: gli_input_handle_key(ch); break;
+            switch (ch)
+            {
+                case '\n': gli_input_handle_key(keycode_Return); break;
+                case '\t': gli_input_handle_key(keycode_Tab);    break;
+                default: gli_input_handle_key(ch); break;
+            }
         }
     }
 
