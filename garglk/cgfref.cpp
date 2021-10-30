@@ -263,9 +263,9 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
     }
 
     if (fmode == filemode_Read)
-        garglk::winopenfile(prompt, filter);
+        buf = garglk::winopenfile(prompt, filter);
     else
-        garglk::winsavefile(prompt, filter);
+        buf = garglk::winsavefile(prompt, filter);
 
     if (buf.empty())
     {
