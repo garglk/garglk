@@ -81,9 +81,9 @@ if(WITH_LAUNCHER)
         # launcher, so don't provide GARGLK_INTERPRETER_DIR: in its absence, the
         # directory of the "gargoyle" binary is searched.
         #
-        # For Apple, the same holds: it expects to find interpreters in the same
-        # directory as the gargoyle binary.
-        if(UNIX AND NOT APPIMAGE AND NOT APPLE)
+        # For Apple, when doing a dist install, the same holds: it expects to
+        # find interpreters in the same directory as the gargoyle binary.
+        if(UNIX AND NOT APPIMAGE AND NOT DIST_INSTALL)
             target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
@@ -190,7 +190,7 @@ else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
 
-if(MINGW OR APPLE)
+if(DIST_INSTALL)
     install(TARGETS gargoyle DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
     if(BUILD_SHARED_LIBS)
         install(TARGETS garglk DESTINATION "${PROJECT_SOURCE_DIR}/build/dist")
