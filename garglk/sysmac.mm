@@ -434,7 +434,7 @@ void winrefresh(void)
 void winkey(NSEvent *evt)
 {
     NSEventModifierFlags modifiers = [evt modifierFlags];
-    NSEventModifierFlags modmasked = modifiers & (NSAlternateKeyMask | NSShiftKeyMask | NSCommandKeyMask | NSControlKeyMask);
+    NSEventModifierFlags modmasked = modifiers & (NSEventModifierFlagOption | NSEventModifierFlagShift | NSEventModifierFlagCommand | NSEventModifierFlagControl);
 
     /* queue a screen refresh */
     gli_refresh_needed = true;
@@ -442,21 +442,21 @@ void winkey(NSEvent *evt)
     /* special key combinations */
     static const std::map<std::pair<decltype(modmasked), decltype([evt keyCode])>, std::function<void()>> keys = {
         /* alt/option modified arrow key */
-        {{NSAlternateKeyMask, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
-        {{NSAlternateKeyMask, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
-        {{NSAlternateKeyMask, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
-        {{NSAlternateKeyMask, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
+        {{NSEventModifierFlagOption, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
+        {{NSEventModifierFlagOption, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
+        {{NSEventModifierFlagOption, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
+        {{NSEventModifierFlagOption, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
         /* command modified arrow key */
-        {{NSCommandKeyMask, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Home); }},
-        {{NSCommandKeyMask, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_End); }},
-        {{NSCommandKeyMask, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
-        {{NSCommandKeyMask, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
+        {{NSEventModifierFlagCommand, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Home); }},
+        {{NSEventModifierFlagCommand, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_End); }},
+        {{NSEventModifierFlagCommand, NSKEY_DOWN},  []{ gli_input_handle_key(keycode_PageDown); }},
+        {{NSEventModifierFlagCommand, NSKEY_UP},    []{ gli_input_handle_key(keycode_PageUp); }},
 
         /* menu commands */
-        {{NSCommandKeyMask, NSKEY_X}, []{ winclipsend(); }},
-        {{NSCommandKeyMask, NSKEY_C}, []{ winclipsend(); }},
-        {{NSCommandKeyMask, NSKEY_V}, []{ winclipreceive(); }},
+        {{NSEventModifierFlagCommand, NSKEY_X}, []{ winclipsend(); }},
+        {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
+        {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
 
         /* unmodified key for line editing */
         {{0, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Left); }},
@@ -535,19 +535,19 @@ void winmouse(NSEvent *evt)
 
     /* disregard most events outside of content window */
     if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
-        && !([evt type] == NSLeftMouseUp))
+        && !([evt type] == NSEventTypeLeftMouseUp))
         return;
 
     switch ([evt type])
     {
-        case NSLeftMouseDown:
+        case NSEventTypeLeftMouseDown:
         {
             gli_input_handle_click(x, y);
             [gargoyle setCursor: kArrowCursor];
             break;
         }
 
-        case NSLeftMouseDragged:
+        case NSEventTypeLeftMouseDragged:
         {
             if (gli_copyselect)
             {
@@ -557,7 +557,7 @@ void winmouse(NSEvent *evt)
             break;
         }
 
-        case NSMouseMoved:
+        case NSEventTypeMouseMoved:
         {
             if (gli_get_hyperlink(x, y))
                 [gargoyle setCursor: kPointingHandCursor];
@@ -566,14 +566,14 @@ void winmouse(NSEvent *evt)
             break;
         }
 
-        case NSLeftMouseUp:
+        case NSEventTypeLeftMouseUp:
         {
             gli_copyselect = false;
             [gargoyle setCursor: kArrowCursor];
             break;
         }
 
-        case NSScrollWheel:
+        case NSEventTypeScrollWheel:
         {
             if ([evt deltaY] > 0)
                 gli_input_handle_key(keycode_MouseWheelUp);
@@ -597,23 +597,23 @@ void winevent(NSEvent *evt)
 
     switch ([evt type])
     {
-        case NSKeyDown:
+        case NSEventTypeKeyDown:
         {
             winkey(evt);
             return;
         }
 
-        case NSLeftMouseDown:
-        case NSLeftMouseDragged:
-        case NSLeftMouseUp:
-        case NSMouseMoved:
-        case NSScrollWheel:
+        case NSEventTypeLeftMouseDown:
+        case NSEventTypeLeftMouseDragged:
+        case NSEventTypeLeftMouseUp:
+        case NSEventTypeMouseMoved:
+        case NSEventTypeScrollWheel:
         {
             winmouse(evt);
             return;
         }
 
-        case NSApplicationDefined:
+        case NSEventTypeApplicationDefined:
         {
             gli_refresh_needed = true;
             winresize();
