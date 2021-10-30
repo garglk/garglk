@@ -5,47 +5,32 @@
 #  - dpkg-deb tools must be installed.
 #
 
+set -e
+
 # Setup working vars for deb build.  These can  be changed as needed for different revisions or build environments.
 PROJECT=gargoyle
-MAJORVER=2019
-MINORVER=1
+VERSION=$(<VERSION)
 PACKAGEREV=1
 ARCH=amd64
 DEB_ROOT_DIR=~/deb_factory
 DATE=$(date "+%a, %e %h %Y %H:%M:%S %:::z")
-PKG_NAME=${PROJECT}_${MAJORVER}.${MINORVER}-${PACKAGEREV}
+PKG_NAME=${PROJECT}_${VERSION}-${PACKAGEREV}
 PKG_TAR=/tmp/${PKG_NAME}.tar.gz
 PKG_DIR=${DEB_ROOT_DIR}/${PKG_NAME}/debian/tmp
 PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 
-#Clean up any pre-existing build directories so we have a fresh build.
-if [ -d "./build/dist" ]
-then
-    rm -rfv ./build/dist
-fi
-if [ -d "./build/linux.release" ]
-then
-    rm -rfv ./build/linux.release
-fi
+#Build Gargoyle
+mkdir build-debian
+pushd build-debian
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+make -j$(nproc)
+make install DESTDIR=${PKG_DIR}
+popd
 
-#Build Gargoyle without SDL (currently causing issue building on Ubuntu)
-jam -sUSESDL=no
-jam -sUSESDL=no install
-
-#Create temp directories to contain all elements of the distribution and copy them into it.
-mkdir -p ${PKG_DIR}
+#Create necessary directories not created by "make install"
 mkdir -p ${PKG_DIR}/etc
-mkdir -p ${PKG_DIR}/usr/{bin,lib,share}
-mkdir -p ${PKG_DIR}/usr/lib/${PROJECT}
-mkdir -p ${PKG_DIR}/usr/share/{applications,doc,lintian,pixmaps}
 mkdir -p ${PKG_DIR}/usr/share/doc/${PROJECT}
 mkdir -p ${PKG_DIR}/DEBIAN
-
-#Copy over the gargoyle package elements into the temp directory structure.
-cp -v ./build/dist/* ${PKG_DIR}/usr/lib/${PROJECT}
-mv ${PKG_DIR}/usr/lib/${PROJECT}/libgarglk.so ${PKG_DIR}/usr/lib/libgarglk.so
-cp -v ./garglk/garglk.ini ${PKG_DIR}/etc
-cp -v ./garglk/gargoyle-house.png ${PKG_DIR}/usr/share/pixmaps
 
 #Switch into the deb root directory and create the various control files dpkg needs to build a deb package.
 pushd ${PKG_DEB_ROOT}
@@ -126,7 +111,7 @@ EOF
 
 #Write out a simple change log, dpkg-gencontrol refuses to run without one.
 cat > changelog << EOF
-gargoyle-free ($MAJORVER.$MINORVER.$PACKAGEREV) sid; urgency=low
+gargoyle-free (${VERSION}) sid; urgency=low
 
   * Binary-only non-maintainer package for amd64; no source changes.
   * Building for most recent version of gargoyle.
@@ -143,8 +128,8 @@ pushd ${DEB_ROOT_DIR}/${PKG_NAME}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PKG_DIR}/usr/lib/${PROJECT}
 
 #Determine dependencies and write out final control file.
-dpkg-shlibdeps ./debian/tmp/usr/lib/${PROJECT}/*
-dpkg-gencontrol -v$MAJORVER.$MINORVER
+dpkg-shlibdeps ./debian/tmp/usr/libexec/${PROJECT}/*
+dpkg-gencontrol -v${VERSION}
 
 #Remove the control template, copy the package contents to final packaging location, remove temp directories as needed.
 rm -rfv ./debian/control
@@ -161,5 +146,3 @@ pushd ${DEB_ROOT_DIR}
 dpkg-deb --build ${PKG_NAME}
 rm -rfv ${PKG_NAME}
 popd
-
-
