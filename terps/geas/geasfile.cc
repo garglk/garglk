@@ -31,8 +31,6 @@
 
 using namespace std;
 
-void report_error(string s);
-
 reserved_words obj_tag_property ("look", "examine", "speak", "take", "alias", "prefix", "suffix", "detail", "displaytype", "gender", "article", "hidden", "invisible", (char *) NULL);
 
 
@@ -42,21 +40,27 @@ reserved_words room_tag_property ("look", "alias", "prefix", "indescription", "d
 void GeasFile::debug_print (const string &s) const
 {
   if (gi == NULL)
-    cerr << s << endl;
+    {
+      cerr << s << endl;
+    }
   else
-    gi->debug_print (s);
+    {
+      gi->debug_print (s);
+    }
 }
 
 const GeasBlock *GeasFile::find_by_name (const string &type, const string &name) const
 {
   //name = lcase (name);
-  for (uint i = 0; i < size(type); i ++)
+  for (size_t i = 0; i < size(type); i ++)
     {
       //cerr << "find_by_name (" << type << ", " << name << "), vs. '" 
       //     << block(type, i).name << "'\n";
       //if (block(type, i).lname == name)
       if (ci_equal (block(type, i).name, name))
-	return &block(type, i);
+	{
+	  return &block(type, i);
+	}
     }
   return NULL;
 }
@@ -65,7 +69,9 @@ const GeasBlock &GeasFile::block (const std::string &type, size_t index) const {
   std::map<std::string, std::vector<size_t> >::const_iterator iter;
   iter = type_indecies.find(type);
   if (!(iter != type_indecies.end() && index < (*iter).second.size()))
-    cerr << "Unable to find type " << type << "\n";
+    {
+      cerr << "Unable to find type " << type << "\n";
+    }
       
   assert (iter != type_indecies.end() && index < (*iter).second.size());
   //assert (index >= 0 && index < size(type));
@@ -157,7 +163,7 @@ void GeasFile::get_obj_keys (const string &obj, set<string> &rv) const
       return;
     }
 
-  for (uint i = 0; i < gb->data.size(); i ++)
+  for (size_t i = 0; i < gb->data.size(); i ++)
     {
       line = gb->data[i];
       cerr << "  handling line <" << line << ">\n";
@@ -468,7 +474,9 @@ bool GeasFile::obj_of_type (const string &objname, const string &typenamex) cons
 bool GeasFile::type_of_type (const string &subtype, const string &supertype) const
 {
   if (ci_equal (subtype, supertype))
-    return true;
+    {
+      return true;
+    }
   //cerr << "  Checking type <" << subtype << "> for type <" << supertype << ">\n";
   const GeasBlock *block = find_by_name ("type", subtype);
   if (block == NULL)
@@ -627,7 +635,7 @@ string GeasFile::static_svar_lookup (const string &varname) const
 {
   cerr << "static_svar_lookup(" << varname << ")" << endl;
   //varname = lcase (varname);
-  for (uint i = 0; i < size("variable"); i ++)
+  for (size_t i = 0; i < size("variable"); i ++)
     //if (blocks[i].lname == varname)
     if (ci_equal (blocks[i].name, varname))
       {
@@ -635,7 +643,7 @@ string GeasFile::static_svar_lookup (const string &varname) const
 	string tok;
 	std::string::size_type c1, c2;
 	bool found_typeline = false;
-	for (uint j = 0; j < blocks[i].data.size(); j ++)
+	for (size_t j = 0; j < blocks[i].data.size(); j ++)
 	  {
 	    string line = blocks[i].data[j];
 	    tok = first_token (line, c1, c2);
@@ -673,39 +681,41 @@ string GeasFile::static_svar_lookup (const string &varname) const
 string GeasFile::static_ivar_lookup (const string &varname) const
 {
   //varname = lcase (varname);
-  for (uint i = 0; i < size("variable"); i ++)
-    //if (blocks[i].lname == varname)
-    if (ci_equal (blocks[i].name, varname))
-      {
-	string rv;
-	string tok;
-	std::string::size_type c1=0, c2;
-	for (const string &line: blocks[i].data)
-	  {
-	    tok = first_token (line, c1, c2);
-	    // SENSITIVE?
-	    if (tok == "type")
-	      {
-		tok = next_token (line, c1, c2);
-		// SENSITIVE?
-		if (tok == "string")
-		  throw string ("Trying to evaluate string var '" + varname + 
-				"' as numeric");
-		// SENSITIVE?
-		if (tok != "numeric")
-		  throw string ("Bad variable type " + tok);
-	      }
-	    // SENSITIVE?
-	    else if (tok == "value")
-	      {
-		tok = next_token (line, c1, c2);
-		if (!is_param (tok))
-		  throw string ("Expected param after value in " + line);
-		rv = param_contents (tok);
-	      }
-	  }
-	return rv;
-      }
+  for (size_t i = 0; i < size("variable"); i ++)
+    {
+      //if (blocks[i].lname == varname)
+      if (ci_equal (blocks[i].name, varname))
+	{
+	  string rv;
+	  string tok;
+	  std::string::size_type c1=0, c2;
+	  for (const string &line: blocks[i].data)
+	    {
+	      tok = first_token (line, c1, c2);
+	      // SENSITIVE?
+	      if (tok == "type")
+		{
+		  tok = next_token (line, c1, c2);
+		  // SENSITIVE?
+		  if (tok == "string")
+		    throw string ("Trying to evaluate string var '" + varname + 
+				  "' as numeric");
+		  // SENSITIVE?
+		  if (tok != "numeric")
+		    throw string ("Bad variable type " + tok);
+		}
+	      // SENSITIVE?
+	      else if (tok == "value")
+		{
+		  tok = next_token (line, c1, c2);
+		  if (!is_param (tok))
+		    throw string ("Expected param after value in " + line);
+		  rv = param_contents (tok);
+		}
+	    }
+	  return rv;
+	}
+    }
   debug_print ("Variable <" + varname + "> not found");
   return "-32768";
 }
@@ -714,16 +724,16 @@ string GeasFile::static_eval (const string &input) const
 {
   //cerr << "static_eval (" << input << ")" << endl;
   string rv = "";
-  for (uint i = 0; i < input.length(); i ++)
+  for (size_t i = 0; i < input.length(); i ++)
     {
       if (input[i] == '#')
 	{
-	  uint j;
+	  size_t j;
 	  for (j = i+1; j < input.length() && input[j] != '#'; j ++)
 	    ;
 	  if (j == input.length())
 	    throw string ("Error processing '" + input + "', odd hashes");
-	  uint k;
+	  size_t k;
 	  for (k = i + 1; k < j && input[k] != ':'; k ++)
 	    ;
 	  if (k == ':')
@@ -756,7 +766,7 @@ string GeasFile::static_eval (const string &input) const
 	}
       else if (input[i] == '%')
 	{
-	  uint j;
+	  size_t j;
 	  for (j = i; j < input.length() && input[j] != '%'; j ++)
 	    ;
 	  if (j == input.length())

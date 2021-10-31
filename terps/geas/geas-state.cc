@@ -69,8 +69,10 @@ public:
 template <class T> void write_to (GeasOutputStream &gos, const vector<T> &v) 
 { 
   gos.put(v.size());
-  for (uint i = 0; i < v.size(); i ++)
-    write_to (gos, v[i]);
+  for (const auto &i: v)
+    {
+      write_to (gos, i);
+    }
 }
   
 void write_to (GeasOutputStream &gos, const PropertyRecord &pr)
@@ -100,16 +102,20 @@ void write_to (GeasOutputStream &gos, const SVarRecord &svr)
 {
   gos.put (svr.name);
   gos.put (svr.max());
-  for (uint i = 0; i < svr.size(); i ++)
-    gos.put (svr.get(i));
+  for (size_t i = 0; i < svr.size(); i ++)
+    {
+      gos.put (svr.get(i));
+    }
 }
 
 void write_to (GeasOutputStream &gos, const IVarRecord &ivr)
 {
   gos.put (ivr.name);
   gos.put (ivr.max());
-  for (uint i = 0; i < ivr.size(); i ++)
-    gos.put (ivr.get(i));
+  for (size_t i = 0; i < ivr.size(); i ++)
+    {
+      gos.put (ivr.get(i));
+    }
 }
 
 void write_to (GeasOutputStream &gos, const GeasState &gs)
@@ -135,7 +141,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
   running = false;
 
   cerr << "GeasState::GeasState()" << endl;
-  for (uint i = 0; i < gf.size ("game"); i ++)
+  for (size_t i = 0; i < gf.size ("game"); i ++)
     {
       //const GeasBlock &go = gf.game[i];
       //register_block ("game", "game");
@@ -148,7 +154,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
     }
 
   cerr << "GeasState::GeasState() done setting game" << endl;
-  for (uint i = 0; i < gf.size ("room"); i ++)
+  for (size_t i = 0; i < gf.size ("room"); i ++)
     {
       const GeasBlock &go = gf.block ("room", i);
       ObjectRecord data;
@@ -161,7 +167,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
     }
 
   cerr << "GeasState::GeasState() done setting rooms" << endl;
-  for (uint i = 0; i < gf.size ("object"); i++)
+  for (size_t i = 0; i < gf.size ("object"); i++)
     {
       const GeasBlock &go = gf.block ("object", i);
       ObjectRecord data;
@@ -178,7 +184,7 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
     }
 
   cerr << "GeasState::GeasState() done setting objects" << endl;
-  for (uint i = 0; i < gf.size("timer"); i ++)
+  for (size_t i = 0; i < gf.size("timer"); i ++)
     {
       const GeasBlock &go = gf.block("timer", i);
       //cerr << "GS::GS: Handling timer " << go << "\n";
@@ -221,13 +227,13 @@ GeasState::GeasState (GeasInterface &gi, const GeasFile &gf)
     }
 
   cerr << "GeasState::GeasState() done with timers" << endl;
-  for (uint i = 0; i < gf.size("variable"); i ++)
+  for (size_t i = 0; i < gf.size("variable"); i ++)
     {
       const GeasBlock &go (gf.block("variable", i));
       cerr << "GS::GS: Handling variable #" << i << ": " << go << endl;
       string vartype;
       string value;
-      for (uint j = 0; j < go.data.size(); j ++)
+      for (size_t j = 0; j < go.data.size(); j ++)
 	{
 	  string line = go.data[j];
 	  cerr << "   Line #" << j << " of var: \"" << line << "\"" << endl;
@@ -302,7 +308,7 @@ ostream &operator<< (ostream &o, const ObjectRecord &objr)
   return o; 
 }
 
-ostream &operator<< (ostream &o, const ExitRecord er) 
+ostream &operator<< (ostream &o, const ExitRecord &er) 
 { 
   return o << er.src << ": " << er.dest;
 }
@@ -351,27 +357,27 @@ ostream &operator<< (ostream &o, const GeasState &gs)
 {
   o << "location == " << gs.location << "\nprops: \n";
  
-  for (uint i = 0; i < gs.props.size(); i ++)
+  for (size_t i = 0; i < gs.props.size(); i ++)
     o << "    " << i << ": " << gs.props[i] << "\n";
 
   o << "objs:\n";
-  for (uint i = 0; i < gs.objs.size(); i ++)
+  for (size_t i = 0; i < gs.objs.size(); i ++)
     o << "    " << i << ": " << gs.objs[i] << "\n";
 
   o << "exits:\n";
-  for (uint i = 0; i < gs.exits.size(); i ++)
+  for (size_t i = 0; i < gs.exits.size(); i ++)
     o << "    " << i << ": " << gs.exits[i] << "\n";
 
   o << "timers:\n";
-  for (uint i = 0; i < gs.timers.size(); i ++)
+  for (size_t i = 0; i < gs.timers.size(); i ++)
     o << "    " << i << ": " << gs.timers[i] << "\n";
 
   o << "string variables:\n";
-  for (uint i = 0; i < gs.svars.size(); i ++)
+  for (size_t i = 0; i < gs.svars.size(); i ++)
     o << "    " << i << ": " << gs.svars[i] << "\n";
 
   o << "integer variables:\n";
-  for (uint i = 0; i < gs.svars.size(); i ++)
+  for (size_t i = 0; i < gs.svars.size(); i ++)
     o << "    " << i << ": " << gs.svars[i] << "\n";
 
   return o;

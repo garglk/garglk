@@ -160,9 +160,13 @@ bool ends_with_i (const string &a, const string &b)
 string pcase (string s)
 {
   if (s.length() == 0)
-    return s;
+    {
+      return s;
+    }
   if (islower (s[0]))
-    s[0] = toupper(s[0]);
+    {
+      s[0] = toupper(s[0]);
+    }
   return s;
 }
 

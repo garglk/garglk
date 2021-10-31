@@ -132,7 +132,7 @@ extern void save_game_to (const std::string &gamename, const std::string &savena
 extern std::ostream &operator<< (std::ostream &o, const std::map <std::string, std::string> &m);
 extern std::ostream &operator<< (std::ostream &o, const PropertyRecord &pr);
 extern std::ostream &operator<< (std::ostream &o, const ObjectRecord &objr);
-extern std::ostream &operator<< (std::ostream &o, const ExitRecord er);
+extern std::ostream &operator<< (std::ostream &o, const ExitRecord &er);
 extern std::ostream &operator<< (std::ostream &o, const TimerRecord &tr);
 extern std::ostream &operator<< (std::ostream &o, const SVarRecord &sr);
 extern std::ostream &operator<< (std::ostream &o, const IVarRecord &ir);

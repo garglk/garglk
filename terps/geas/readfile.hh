@@ -42,6 +42,8 @@ extern GeasFile read_geas_file (GeasInterface *, const std::string &);
 enum trim_modes { TRIM_SPACES, TRIM_UNDERSCORE, TRIM_BRACE };
 extern std::string trim (const std::string &, trim_modes mode = TRIM_SPACES);
 
+extern void report_error(const std::string &s);
+
 //std::ostream &operator<< (std::ostream &o, const std::vector<std::string> &v);
 
 

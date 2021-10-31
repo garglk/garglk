@@ -100,8 +100,8 @@ struct GeasFile
   const GeasBlock *find_by_name (const std::string &type, const std::string &name) const;
 };
 
-std::ostream &operator << (std::ostream &, const GeasBlock &);
-std::ostream &operator << (std::ostream &, const GeasFile &);
+extern std::ostream &operator << (std::ostream &, const GeasBlock &);
+extern std::ostream &operator << (std::ostream &, const GeasFile &);
 
 
 

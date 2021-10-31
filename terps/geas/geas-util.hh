@@ -54,6 +54,7 @@ extern bool ends_with (const std::string &, const std::string &);
 
 extern std::string string_int (int i);
 extern std::string string_int (uint i);
+extern std::string string_int (std::intmax_t i);
 extern std::string string_int (std::uintmax_t i);
 
 extern std::string trim_braces (const std::string &s);

@@ -19,7 +19,7 @@
 //bool   cis_less    (const std::string &str1, const std::string &str2);
   
 extern bool c_equal_i (char ch1, char ch2);
-extern size_t ci_find      (const std::string &str1, const std::string &str2);
+extern size_t ci_find     (const std::string &str1, const std::string &str2);
 extern bool   ci_equal    (const std::string &str1, const std::string &str2);
 extern bool   ci_less_eq  (const std::string &str1, const std::string &str2);
 extern bool   ci_less     (const std::string &str1, const std::string &str2);

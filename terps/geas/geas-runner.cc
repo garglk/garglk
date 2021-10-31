@@ -54,7 +54,7 @@ GeasRunner *GeasRunner::get_runner (GeasInterface *gi) {
 
 bool geas_implementation::find_ivar (const string &name, size_t &rv) const
 {
-  for (uint n = 0; n < state.ivars.size(); n ++)
+  for (size_t n = 0; n < state.ivars.size(); n ++)
     if (ci_equal (state.ivars[n].name, name))
       {
 	rv = n;
@@ -66,7 +66,7 @@ bool geas_implementation::find_ivar (const string &name, size_t &rv) const
 bool geas_implementation::find_svar (const string &name, size_t &rv) const
 {
   //name = lcase (name);
-  for (uint n = 0; n < state.svars.size(); n ++)
+  for (size_t n = 0; n < state.svars.size(); n ++)
     if (ci_equal (state.svars[n].name, name))
       {
 	rv = n;
@@ -117,7 +117,7 @@ void geas_implementation::set_svar (const string &varname, size_t index, const s
   state.svars[n].set(index, varval);
   if (index == 0)
     {
-      for (uint varn = 0; varn < gf.size("variable"); varn ++)
+      for (size_t varn = 0; varn < gf.size("variable"); varn ++)
 	{
 	  const GeasBlock &go (gf.block ("variable", varn));
 	  if (ci_equal (go.name, varname))
@@ -208,7 +208,7 @@ void geas_implementation::set_ivar (const string &varname, int varval)
   string arrayname = varname.substr (0, i1);
   string indextext = varname.substr (i1+1, varname.length() - i1 - 2);
   cerr << "set_svar(" << varname << ") --> set_svar (" << arrayname << ", " << indextext << ")\n";
-  for (uint c3 = 0; c3 < indextext.size(); c3 ++)
+  for (size_t c3 = 0; c3 < indextext.size(); c3 ++)
     if (indextext[c3] < '0' || indextext[c3] > '9')
       {
 	set_ivar (arrayname, get_ivar (indextext), varval);
@@ -235,7 +235,7 @@ void geas_implementation::set_ivar (const string &varname, size_t index, int var
   state.ivars[n].set(index, varval);
   if (index == 0)
     {
-      for (uint varn = 0; varn < gf.size("variable"); varn ++)
+      for (size_t varn = 0; varn < gf.size("variable"); varn ++)
 	{
 	  const GeasBlock &go (gf.block ("variable", varn));
 	  //if (go.lname == varname)
@@ -1006,7 +1006,7 @@ void geas_implementation::regen_var_dirs()
 {
   vector <string> dirs;
   // the -1 is so that it skips 'out'
-  for (uint i = 0; i < ARRAYSIZE (dir_names) - 1; i ++)
+  for (size_t i = 0; i < ARRAYSIZE (dir_names) - 1; i ++)
     if (exit_dest (state.location, dir_names[i]) != "")
       dirs.push_back (dir_names[i]);
   string exits = "";
@@ -1014,7 +1014,7 @@ void geas_implementation::regen_var_dirs()
     exits = "|b" + dirs[0] + "|xb";
   else if (dirs.size() > 1)
     {
-      for (uint i = 0; i < dirs.size(); i ++)
+      for (size_t i = 0; i < dirs.size(); i ++)
 	{
 	  exits = exits + "|b" + dirs[i] + "|xb";
 	  if (i < dirs.size() - 2)
@@ -1075,7 +1075,7 @@ void geas_implementation::regen_var_dirs()
   //set_svar ("quest.doorways.places", "");
   current_places = get_places (state.location);
   string printed_places = "";
-  for (uint i = 0; i < current_places.size(); i ++)
+  for (size_t i = 0; i < current_places.size(); i ++)
     {
       if (i == 0)
 	printed_places = current_places[i][0];
@@ -1111,7 +1111,7 @@ string geas_implementation::substitute_synonyms (string s) const
 	  string rhs = trim (line.substr (index + 1));
 	  if (rhs == "")
 	    continue;
-	  for (uint j = 0; j < words.size(); j ++)
+	  for (size_t j = 0; j < words.size(); j ++)
 	    {
 	      string lhs = words[j];
 	      if (lhs == "")
@@ -1524,7 +1524,7 @@ bool geas_implementation::dereference_vars (vector<match_binding> &bindings, con
 string geas_implementation::get_obj_name (const string &name, const vector<string> &where, bool is_internal) const
 {
   vector<string> objs, printed_objs;
-  for (uint objnum = 0; objnum < state.objs.size(); objnum ++)
+  for (size_t objnum = 0; objnum < state.objs.size(); objnum ++)
     {
       bool is_used = false;
       for (auto &loc: where)
@@ -1567,8 +1567,8 @@ string geas_implementation::get_obj_name (const string &name, const vector<strin
 
 void geas_implementation::set_vars (const vector<match_binding> &v)
 {
-  for (uint i = 0; i < v.size(); i ++)
-    set_svar (v[i].var_name, v[i].var_text);
+  for (const auto &i: v)
+    set_svar (i.var_name, i.var_text);
 }
 
 
@@ -1906,7 +1906,7 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
       string line = "", tok;
       std::string::size_type c1, c2=0;
       // TODO: Use the first matching line or the last?
-      for (uint i = 0; i < gb->data.size(); i ++) 
+      for (size_t i = 0; i < gb->data.size(); i ++)
 	{
 	  if (first_token (gb->data[i], c1, c2) == "out")
 	    line = gb->data[i];
@@ -1948,7 +1948,7 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
       return true;
     }
 
-  for (uint i = 0; i < ARRAYSIZE(dir_names); i ++)
+  for (size_t i = 0; i < ARRAYSIZE(dir_names); i ++)
     if (cmd == dir_names[i] || cmd == "go " + dir_names[i] ||
 	cmd == short_dir_names[i] || cmd == "go " + short_dir_names[i])
       {
@@ -1979,7 +1979,7 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
     {
       assert (match.bindings.size() == 1);
       string destination = match.bindings[0].var_text;
-      for (uint i = 0; i < current_places.size(); i ++) {
+      for (size_t i = 0; i < current_places.size(); i ++) {
 	if (ci_equal(destination, current_places[i][1]) ||
 	    ci_equal(destination, current_places[i][2]))
 	  {
@@ -2002,9 +2002,9 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	print_formatted ("You are carrying nothing.");
       else
 	print_formatted ("You are carrying:");
-      for (uint i = 0; i < inv.size(); i ++)
+      for (const auto &i: inv)
 	{
-	  print_normal (inv[i][0]);
+	  print_normal (i[0]);
 	  print_newline();
 	}
       return true;
@@ -2033,9 +2033,8 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	print_formatted ("Game name: " + eval_param (tok));
 	  
 
-      for (uint i = 0; i < gb->data.size(); i ++)
+      for (const string &line: gb->data)
 	{
-	  line = gb->data[i];
 	  // SENSITIVE?
 	  if (first_token (line, c1, c2) == "game" &&
 	      next_token (line, c1, c2) == "version" &&
@@ -2043,9 +2042,8 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	    print_formatted ("Version " + eval_param (tok));
 	}
       
-      for (uint i = 0; i < gb->data.size(); i ++)
+      for (const string &line: gb->data)
 	{
-	  line = gb->data[i];
 	  // SENSITIVE?
 	  if (first_token (line, c1, c2) == "game" &&
 	      next_token (line, c1, c2) == "author" &&
@@ -2053,9 +2051,8 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	    print_formatted ("Author: " + eval_param (tok));
 	}
 
-      for (uint i = 0; i < gb->data.size(); i ++)
+      for (const string &line: gb->data)
 	{
-	  line = gb->data[i];
 	  // SENSITIVE?
 	  if (first_token (line, c1, c2) == "game" &&
 	      next_token (line, c1, c2) == "copyright" &&
@@ -2063,9 +2060,8 @@ bool geas_implementation::try_match (string cmd, bool is_internal, bool is_norma
 	    print_formatted ("Copyright: " + eval_param (tok));
 	}
 
-      for (uint i = 0; i < gb->data.size(); i ++)
+      for (const string &line: gb->data)
 	{
-	  line = gb->data[i];
 	  // SENSITIVE?
 	  if (first_token (line, c1, c2) == "game" &&
 	      next_token (line, c1, c2) == "info" &&
@@ -2175,7 +2171,7 @@ void geas_implementation::run_script (const string &s, string &rv)
 	}
       string question, line;
       vector<string> choices, actions;
-      for (uint ln = 0; ln < gb->data.size(); ln ++)
+      for (size_t ln = 0; ln < gb->data.size(); ln ++)
 	{
 	  line = gb->data[ln];
 	  tok = first_token (line, c1, c2);
@@ -2326,7 +2322,7 @@ void geas_implementation::run_script (const string &s, string &rv)
       const GeasBlock *gb = gf.find_by_name ("text", param_contents(tok));
       if (gb != NULL)
 	{
-	  for (uint i = 0; i < gb->data.size(); i ++)
+	  for (size_t i = 0; i < gb->data.size(); i ++)
 	    {
 	      print_formatted (gb->data[i]);
 	      print_newline();
@@ -2484,10 +2480,10 @@ void geas_implementation::run_script (const string &s, string &rv)
 		  /* It should just do the objects. */
 		  string script = s.substr (c2);
 		  // Start at 1 to skip game
-		  for (uint i = 1; i < state.objs.size(); i ++)
+		  for (const auto &i: state.objs)
 		    {
-		      cerr << "  quest.thing -> " + state.objs[i].name + "\n";
-		      set_svar ("quest.thing", state.objs[i].name);
+		      cerr << "  quest.thing -> " + i.name + "\n";
+		      set_svar ("quest.thing", i.name);
 		      run_script (script);
 		    }
 		  return;
@@ -2496,10 +2492,10 @@ void geas_implementation::run_script (const string &s, string &rv)
 		{
 		  tok = trim (eval_param (tok));
 		  string script = s.substr (c2);
-		  for (uint i = 0; i < state.objs.size(); i ++)
-		    if (state.objs[i].parent == tok)
+		  for (const auto &i: state.objs)
+		    if (i.parent == tok)
 		      {
-			set_svar ("quest.thing", state.objs[i].name);
+			set_svar ("quest.thing", i.name);
 			run_script (script);
 		      }
 		  return;
@@ -2810,7 +2806,7 @@ void geas_implementation::run_script (const string &s, string &rv)
 	  return;
 	}
       vector<string> args = split_param (eval_param (tok));
-      for (uint i = 1; i < args.size(); i ++)
+      for (size_t i = 1; i < args.size(); i ++)
 	{
 	  string val = args[i];
 	  /*
@@ -2927,10 +2923,10 @@ void geas_implementation::run_script (const string &s, string &rv)
 	  string timer_name = trim (tok.substr (0, index));
 	  uint time_val = parse_int (trim (tok.substr (index+1)));
 
-	  for (uint i = 0; i < state.timers.size(); i ++)
-	    if (state.timers[i].name == timer_name)
+	  for (TimerRecord &i: state.timers)
+	    if (i.name == timer_name)
 	      {
-		state.timers[i].interval = time_val;
+		i.interval = time_val;
 		return;
 	      }
 	  gi->debug_print ("no interval named " + timer_name + " found!");
@@ -2958,19 +2954,25 @@ void geas_implementation::run_script (const string &s, string &rv)
       string varname = trim (tok.substr (0, index));
       if (vartype == "")
 	{
-	  for (uint varn = 0; varn < state.ivars.size(); varn ++)
-	    if (state.ivars[varn].name == varname)
-	      {
-		vartype = "numeric";
-		break;
-	      }
-	  if (vartype == "")
-	    for (uint varn = 0; varn < state.svars.size(); varn ++)
-	      if (state.svars[varn].name == varname)
+	  for (const auto &varn: state.ivars)
+	    {
+	      if (varn.name == varname)
 		{
-		  vartype = "string";
+		  vartype = "numeric";
 		  break;
 		}
+	    }
+	  if (vartype == "")
+	    {
+	      for (const auto &varn: state.svars)
+		{
+		  if (varn.name == varname)
+		    {
+		      vartype = "string";
+		      break;
+		    }
+		}
+	    }
 	}
       if (vartype == "")
 	{
@@ -2978,9 +2980,13 @@ void geas_implementation::run_script (const string &s, string &rv)
 	  return;
 	}
       if (vartype == "string")
-	set_svar (varname, trim_braces (trim (tok.substr(index+1))));
+	{
+	  set_svar (varname, trim_braces (trim (tok.substr(index+1))));
+	}
       else
-	set_ivar (varname, eval_int(tok.substr (index+1)));
+	{
+	  set_ivar (varname, eval_int(tok.substr (index+1)));
+	}
       return;
     }
   // SENSITIVE?
@@ -3417,8 +3423,10 @@ string geas_implementation::run_function (const string &pname, vector<string> ar
     }
   vector<string> backup = function_args;
   function_args = args;
-  for (uint i = 0; i < args.size(); i ++)
-    set_svar ("quest.function.parameter." + string_int (i+1), args[i]);
+  for (size_t i = 0; i < args.size(); i ++)
+    {
+      set_svar ("quest.function.parameter." + string_int (i+1), args[i]);
+    }
   string rv = run_function (pname);
   function_args = backup;
   return rv;
@@ -3442,8 +3450,10 @@ string geas_implementation::run_function (const string &pname)
 	return bad_arg_count (pname);
       //return get_obj_name (function_args);
       vector<string> where;
-      for (uint i = 1; i < function_args.size(); i ++)
-	where.push_back (function_args[i]);
+      for (size_t i = 1; i < function_args.size(); i ++)
+	{
+	  where.push_back (function_args[i]);
+	}
       if (where.size() == 0)
 	{
 	  where.push_back (state.location);
@@ -3715,7 +3725,7 @@ vstring geas_implementation::get_status_vars ()
   string tok, line;
   std::string::size_type c1, c2;
 
-  for (uint i = 0; i < gf.size("variable"); i ++)
+  for (size_t i = 0; i < gf.size("variable"); i ++)
     {
       const GeasBlock &gb = gf.block ("variable", i);
       
@@ -3760,7 +3770,7 @@ vstring geas_implementation::get_status_vars ()
 	{
 	  disp = param_contents (disp);
 	  string outval = "";
-	  for (uint j = 0; j < disp.length(); j ++)
+	  for (size_t j = 0; j < disp.length(); j ++)
 	    if (disp[j] == '!')
 	      {
 		if (is_numeric)
@@ -3772,7 +3782,7 @@ vstring geas_implementation::get_status_vars ()
 	      }
 	    else if (disp[j] == '*')
 	      {
-		uint k;
+		size_t k;
 		for (k = j + 1; k < disp.length() && disp[k] != '*'; k ++)
 		  ;
 		//if (!is_numeric || get_ivar (gb.lname) != 1)
@@ -3968,7 +3978,7 @@ void geas_implementation::tick_timers()
   if (!state.running) 
     return;
   //cerr << "tick_timers()\n";
-  for (uint i = 0; i < state.timers.size(); i ++)
+  for (size_t i = 0; i < state.timers.size(); i ++)
     {
       TimerRecord &tr = state.timers[i];
       //cerr << "  Examining " << tr << "\n";
@@ -4016,7 +4026,7 @@ void geas_implementation::tick_timers()
 
 GeasResult GeasInterface::print_formatted (const string &s, bool with_newline)
 {
-  unsigned int i, j;
+  std::string::size_type i, j;
 
   //cerr << "print_formatted (" << s << ", " << with_newline << ")" << endl;
 
