@@ -130,7 +130,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		frefid_t fref;
 
 		fref = glk_fileref_create_by_name(fileusage_BinaryMode, filename, 0);
-		game = glk_stream_open_file(fref, filemode_Read, 0);
+		if (glk_fileref_does_file_exist(fref))
+		{
+			game = glk_stream_open_file(fref, filemode_Read, 0);
+		}
+		else
+		{
+			game = NULL;
+		}
 		glk_fileref_destroy(fref);
 
 		if (game)

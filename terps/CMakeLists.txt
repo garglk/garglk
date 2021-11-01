@@ -226,10 +226,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Hugo 3.1.03
-#
-# Include hemedia.c from heglk.c for sound/graphics support.
-# Added set_base_file so it can find resource files.
+# Hugo 3.1.06
 #
 if(WITH_HUGO)
     terp(hugo

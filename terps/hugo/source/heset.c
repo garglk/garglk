@@ -7,15 +7,15 @@
 
 	for the Hugo Engine
 
-	Copyright (c) 1995-2006 by Kent Tessman
+	Copyright (c) 1995-2009 by Kent Tessman
 */
 
 
 #include "heheader.h"
 
 /* Function prototypes: */
-unsigned int GetAnonymousFunction(long addr);
-int SetCompound(int t);
+static unsigned int GetAnonymousFunction(long addr);
+static int SetCompound();
 
 #define MAX_GAME_TITLE 64
 char game_title[MAX_GAME_TITLE] = "";
@@ -40,7 +40,7 @@ void RunSet(int gotvalue)
 	int a = 0, t = 0, obj = 0;
 	int newl = 0;                   /* new length */
 	int newp = 0;			/* new property val */
-	unsigned int element = 0;		/* of an array */
+	unsigned int element = 0;	/* of an array */
 
 	unsigned short n, m, v;		/* must be 16 bits */
 
@@ -49,7 +49,7 @@ void RunSet(int gotvalue)
 	if (gotvalue!=-1)
 	{
 		obj = gotvalue;
-		t = SetCompound(t);
+		t = SetCompound();
 		goto StoreVal;
 	}
 
@@ -62,7 +62,7 @@ void RunSet(int gotvalue)
 			codeptr++;
 			obj = PeekWord(codeptr);
 			codeptr += 2;
-			t = SetCompound(t);
+			t = SetCompound();
 			break;
 		}
 
@@ -114,7 +114,7 @@ void RunSet(int gotvalue)
 
 			obj = var[a];
 			codeptr += 2;
-			t = SetCompound(t);
+			t = SetCompound();
 
 			break;
 		}
@@ -286,7 +286,7 @@ WriteArrayValue:
 			defseg = arraytable;
 			obj = PeekWord((unsigned int)(m+a + n*2));
 			defseg = gameseg;
-			t = SetCompound(t);
+			t = SetCompound();
 
 			break;
 		}
@@ -321,7 +321,7 @@ LoopBack:
 		if (MEM(codeptr)==IS_T || MEM(codeptr)==DECIMAL_T)
 		{
 			obj = GetProp(obj, set_value, n, 0);
-			t = SetCompound(t);
+			t = SetCompound();
 			goto LoopBack;
 		}
 		/* Don't set t = 1 if it changed above before going back
@@ -335,7 +335,7 @@ LoopBack:
 		while (MEM(codeptr)==IS_T || MEM(codeptr)==DECIMAL_T)
 		{
 			obj = GetProp(obj, set_value, n, 0);
-			t = SetCompound(t);
+			t = SetCompound();
 		}
 	}
 
@@ -415,7 +415,7 @@ GetNextPropVal:
 				{
 					if (set_value==title_caption)
 					{
-						strncpy(game_title, GetWord(newp), MAX_GAME_TITLE);
+						strncpy(game_title, GetWord(newp), MAX_GAME_TITLE - 1);
 						hugo_setgametitle(game_title);
 					}
 					else if (set_value==needs_repaint)
@@ -534,7 +534,7 @@ ModifyAttribute:
 
 /* GETANONYMOUSFUNCTION */
 
-unsigned int GetAnonymousFunction(long addr)
+static unsigned int GetAnonymousFunction(long addr)
 {
 	long skipaddr;
 	unsigned int af_addr;
@@ -551,7 +551,7 @@ unsigned int GetAnonymousFunction(long addr)
 
 /* SETCOMPOUND */
 
-int SetCompound(int t)
+static int SetCompound()
 {
 	if (Peek(codeptr)==DECIMAL_T)		/* obj.property */
 	{
