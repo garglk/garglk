@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(garglk VERSION 2017)
+file(READ "VERSION" GARGOYLE_VERSION)
+string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
+project(garglk VERSION "${GARGOYLE_VERSION}")
 
 if(POLICY CMP0069)
     cmake_policy(SET CMP0069 NEW)

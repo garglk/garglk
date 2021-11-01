@@ -8,12 +8,14 @@ Name "Gargoyle"
 InstallDirRegKey HKLM "Software\Tor Andersson\Gargoyle\Install" "Directory"
 SetCompressor lzma
 
+!define /file VERSION "VERSION"
+
 !if "$%GARGOYLE64%" == "${U+24}%GARGOYLE64%"
     InstallDir $PROGRAMFILES\Gargoyle
-    OutFile "gargoyle-2019.1-windows.exe"
+    OutFile "gargoyle-${VERSION}-windows.exe"
 !else
     InstallDir $PROGRAMFILES64\Gargoyle
-    OutFile "gargoyle-2019.1-windows-64.exe"
+    OutFile "gargoyle-${VERSION}-windows-64.exe"
 !endif
 
 ;
