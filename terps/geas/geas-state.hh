@@ -46,7 +46,7 @@ struct ObjectRecord
 struct ExitRecord
 {
   std::string src, dest;
-  ExitRecord (std::string in_src, std::string in_dest) : src(in_src), dest(in_dest) {}
+  ExitRecord (const std::string &in_src, const std::string &in_dest) : src(in_src), dest(in_dest) {}
 };
 
 struct TimerRecord
@@ -64,12 +64,12 @@ public:
   std::string name;
 
   SVarRecord () {}
-  SVarRecord (std::string in_name) : name (in_name) { set (0, ""); }
-  uint size() const { return data.size(); }
-  uint max() const { return size() - 1; }
-  void set (uint i, std::string val) { if (i >= size()) data.resize(i+1); data[i] = val; }
-  std::string get (uint i) const { if (i < size()) return data[i]; return "!";}
-  void set (std::string val) { data[0] = val; }
+  SVarRecord (const std::string &in_name) : name (in_name) { set (0, ""); }
+  size_t size() const { return data.size(); }
+  size_t max() const { return size() - 1; }
+  void set (size_t i, const std::string &val) { if (i >= size()) data.resize(i+1); data[i] = val; }
+  std::string get (size_t i) const { if (i < size()) return data[i]; return "!";}
+  void set (const std::string &val) { data[0] = val; }
   std::string get() const { return data[0]; }
 };
 
@@ -81,11 +81,11 @@ public:
   std::string name;
 
   IVarRecord () {}
-  IVarRecord (std::string in_name) : name (in_name) { set (0, 0); }
-  uint size() const { return data.size(); }
-  uint max() const { return size() - 1; }
-  void set (uint i, int val) { if (i >= size()) data.resize(i+1); data[i] = val; }
-  int get (uint i) const { if (i < size()) return data[i]; else return -32767;}
+  IVarRecord (const std::string &in_name) : name (in_name) { set (0, 0); }
+  size_t size() const { return data.size(); }
+  size_t max() const { return size() - 1; }
+  void set (size_t i, int val) { if (i >= size()) data.resize(i+1); data[i] = val; }
+  int get (size_t i) const { if (i < size()) return data[i]; else return -32767;}
   void set(int val) { data[0] = val; }
   int get() const { return data[0]; }
 };
@@ -127,16 +127,16 @@ public:
   */
 };
 
-void save_game_to (std::string gamename, std::string savename, const GeasState &gs);
+extern void save_game_to (const std::string &gamename, const std::string &savename, const GeasState &gs);
 
-std::ostream &operator<< (std::ostream &o, const std::map <std::string, std::string> &m);
-std::ostream &operator<< (std::ostream &o, const PropertyRecord &pr);
-std::ostream &operator<< (std::ostream &o, const ObjectRecord &objr);
-std::ostream &operator<< (std::ostream &o, const ExitRecord er);
-std::ostream &operator<< (std::ostream &o, const TimerRecord &tr);
-std::ostream &operator<< (std::ostream &o, const SVarRecord &sr);
-std::ostream &operator<< (std::ostream &o, const IVarRecord &ir);
-std::ostream &operator<< (std::ostream &o, const GeasState &gs);
+extern std::ostream &operator<< (std::ostream &o, const std::map <std::string, std::string> &m);
+extern std::ostream &operator<< (std::ostream &o, const PropertyRecord &pr);
+extern std::ostream &operator<< (std::ostream &o, const ObjectRecord &objr);
+extern std::ostream &operator<< (std::ostream &o, const ExitRecord &er);
+extern std::ostream &operator<< (std::ostream &o, const TimerRecord &tr);
+extern std::ostream &operator<< (std::ostream &o, const SVarRecord &sr);
+extern std::ostream &operator<< (std::ostream &o, const IVarRecord &ir);
+extern std::ostream &operator<< (std::ostream &o, const GeasState &gs);
 
 
 #endif

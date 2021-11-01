@@ -36,8 +36,8 @@ private:
   maptype data;
 
 public:
-  bool operator[] (std::string s) const { return has(s); }
-  bool has (std::string s) const
+  bool operator[] (const std::string &s) const { return has(s); }
+  bool has (const std::string &s) const
   {  
     maptype::const_iterator i = data.find (s);
     return i != data.end() && (*i).second;
@@ -68,6 +68,7 @@ public:
 	//std::cout << "Pushing <" << c << "> into map" << std::endl;
 	c = va_arg (ap, char*);
       }
+    va_end(ap);
   }
 };
 

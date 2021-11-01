@@ -15,7 +15,7 @@ option(WITH_SCOTT "Enable the scott interpreter" ON)
 
 function(terp target)
     set(options POSIX LTO MATH WARNINGS)
-    set(oneval)
+    set(oneval CXXSTD)
     set(multival SRCS INCLUDE_DIRS MACROS LIBS)
     cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
@@ -25,8 +25,12 @@ function(terp target)
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk" ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
 
+    if(NOT TERP_CXXSTD)
+        set(TERP_CXXSTD 98)
+    endif()
+
     c_standard(${target} 11)
-    cxx_standard(${target} 98)
+    cxx_standard(${target} ${TERP_CXXSTD})
 
     if(TERP_POSIX)
         target_compile_definitions(${target} PRIVATE "_XOPEN_SOURCE=600")
@@ -173,6 +177,7 @@ if(WITH_GEAS)
         SRCS geas/geasfile.cc geas/geas-runner.cc geas/geas-state.cc
         geas/geas-util.cc geas/geasglk.cc geas/geasglkterm.c geas/istring.cc
         geas/readfile.cc
+        CXXSTD 14
         MACROS USE_INLINE)
 
     if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")

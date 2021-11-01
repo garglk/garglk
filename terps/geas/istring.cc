@@ -80,8 +80,8 @@ int my_stricmp(const char *s1, const char *s2) {
 bool ci_equal    (const string &str1, const string &str2) { return my_stricmp (str1.c_str(), str2.c_str()) == 0; }
 bool ci_less_eq  (const string &str1, const string &str2) { return my_stricmp (str1.c_str(), str2.c_str()) <= 0; }
 bool ci_less     (const string &str1, const string &str2) { return my_stricmp (str1.c_str(), str2.c_str()) < 0; }
-bool ci_notequal (const string &str1, const string &str2) { 
-  std::cerr << "ci_notequal ('" << str1 << "', '" << str2 << "') -> " 
+bool ci_notequal (const string &str1, const string &str2) {
+  std::cerr << "ci_notequal ('" << str1 << "', '" << str2 << "') -> "
 	    << ( my_stricmp (str1.c_str(), str2.c_str()) != 0) << "\n";
   return my_stricmp (str1.c_str(), str2.c_str()) != 0; }
 bool ci_gt_eq  (const string &str1, const string &str2) { return my_stricmp (str1.c_str(), str2.c_str()) >= 0; }

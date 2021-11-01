@@ -37,30 +37,33 @@
 
 typedef std::vector<std::string> vstring;
 
-inline int parse_int (std::string s) { return atoi(s.c_str()); }
+static inline int parse_int (const std::string &s) { return atoi(s.c_str()); }
 
-vstring split_param (std::string s);
-vstring split_f_args (std::string s);
+extern vstring split_param (const std::string &s);
+extern vstring split_f_args (const std::string &s);
 
-bool is_param (std::string s);
-std::string param_contents (std::string s);
+extern bool is_param (const std::string &s);
+extern std::string param_contents (const std::string &s);
 
-std::string nonparam (std::string, std::string);
+extern std::string nonparam (const std::string &, const std::string &);
 
-std::string string_geas_block (const GeasBlock &);
+extern std::string string_geas_block (const GeasBlock &);
 
-bool starts_with (std::string, std::string);
-bool ends_with (std::string, std::string);
+extern bool starts_with (const std::string &, const std::string &);
+extern bool ends_with (const std::string &, const std::string &);
 
-std::string string_int (int i);
+extern std::string string_int (int i);
+extern std::string string_int (uint i);
+extern std::string string_int (std::intmax_t i);
+extern std::string string_int (std::uintmax_t i);
 
-std::string trim_braces (std::string s);
+extern std::string trim_braces (const std::string &s);
 
-int eval_int (std::string s);
+extern int eval_int (const std::string &s);
 
-std::string pcase (std::string s);
-std::string ucase (std::string s);
-std::string lcase (std::string s);
+extern std::string pcase (std::string s);
+extern std::string ucase (std::string s);
+extern std::string lcase (std::string s);
 
 //ostream &operator<< (ostream &o, const vector<string> &v);
 //template<class T> std::ostream &operator<< (std::ostream &o, const std::vector<T> &v) { return o;}

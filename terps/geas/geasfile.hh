@@ -51,7 +51,7 @@ struct GeasBlock
 struct GeasFile
 {
   GeasInterface *gi;
-  void debug_print (std::string s) const;
+  void debug_print (const std::string &s) const;
 
   //vector<GeasBlock> rooms, objects, textblocks, functions, procedures, types;
   //GeasBlock synonyms, game;
@@ -60,14 +60,14 @@ struct GeasFile
   //std::vector<GeasBlock> rooms, objects, textblocks, functions, procedures,
   //  types, synonyms, game, variables, timers, choices;
   std::map <std::string, std::string> obj_types;
-  std::map <std::string, std::vector<int> > type_indecies;
+  std::map <std::string, std::vector<size_t> > type_indecies;
 
-  void register_block (std::string blockname, std::string blocktype);
+  void register_block (const std::string &blockname, const std::string &blocktype);
 
-  const GeasBlock &block (std::string type, uint index) const;
-  uint size (std::string type) const;
+  const GeasBlock &block (const std::string &type, size_t index) const;
+  size_t size (const std::string &type) const;
 
-  void read_into (const std::vector<std::string>&, std::string, uint, bool, const reserved_words&, const reserved_words&);
+  void read_into (const std::vector<std::string>&, const std::string &, uint, bool, const reserved_words&, const reserved_words&);
 
 
 
@@ -75,33 +75,33 @@ struct GeasFile
   explicit GeasFile (const std::vector<std::string> &in_data,
 		     GeasInterface *gi);
 
-  bool obj_has_property (std::string objname, std::string propname) const;
-  bool get_obj_property (std::string objname, std::string propname, 
+  bool obj_has_property (const std::string &objname, const std::string &propname) const;
+  bool get_obj_property (const std::string &objname, const std::string &propname,
 			 std::string &rv) const;
 
-  void get_type_property (std::string typenamex, std::string propname, 
+  void get_type_property (const std::string &typenamex, const std::string &propname,
 			  bool &, std::string &) const;
-  bool obj_of_type (std::string object, std::string type) const;
-  bool type_of_type (std::string subtype, std::string supertype) const;
+  bool obj_of_type (const std::string &object, const std::string &type) const;
+  bool type_of_type (const std::string &subtype, const std::string &supertype) const;
 
-  std::set<std::string> get_obj_keys (std::string) const;
-  void get_obj_keys (std::string, std::set<std::string> &) const;
-  void get_type_keys (std::string, std::set<std::string> &) const;
+  std::set<std::string> get_obj_keys (const std::string &) const;
+  void get_obj_keys (const std::string &, std::set<std::string> &) const;
+  void get_type_keys (const std::string &, std::set<std::string> &) const;
 
-  bool obj_has_action (std::string objname, std::string propname) const;
-  bool get_obj_action (std::string objname, std::string propname, 
+  bool obj_has_action (const std::string &objname, const std::string &propname) const;
+  bool get_obj_action (const std::string &objname, const std::string &propname,
 		       std::string &rv) const;
-  void get_type_action (std::string typenamex, std::string propname, 
+  void get_type_action (const std::string &typenamex, const std::string &propname,
 			bool &, std::string &) const;
-  std::string static_eval (std::string) const;
-  std::string static_ivar_lookup (std::string varname) const;
-  std::string static_svar_lookup (std::string varname) const;
+  std::string static_eval (const std::string &) const;
+  std::string static_ivar_lookup (const std::string &varname) const;
+  std::string static_svar_lookup (const std::string &varname) const;
 
-  const GeasBlock *find_by_name (std::string type, std::string name) const;
+  const GeasBlock *find_by_name (const std::string &type, const std::string &name) const;
 };
 
-std::ostream &operator << (std::ostream &, const GeasBlock &);
-std::ostream &operator << (std::ostream &, const GeasFile &);
+extern std::ostream &operator << (std::ostream &, const GeasBlock &);
+extern std::ostream &operator << (std::ostream &, const GeasFile &);
 
 
 
