@@ -1,3 +1,5 @@
+configure_file("garversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/garversion.h")
+
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
 option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" ON)
 
