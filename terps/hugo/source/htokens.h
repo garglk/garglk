@@ -4,7 +4,7 @@
 	contains token definitions
 	for the Hugo Compiler and Engine
 
-	Copyright (c) 1995-2006 by Kent Tessman
+	Copyright (c) 1995-2009 by Kent Tessman
 
 	The enum constants of type TOKEN_T reflect the token names
 	given in the token array.  Token names followed by a # are

@@ -20,11 +20,12 @@
 
 	for the Hugo Engine
 
-	Copyright (c) 1995-2006 by Kent Tessman
+	Copyright (c) 1995-2009 by Kent Tessman
 */
 
 
 #include "heheader.h"
+#include <stdlib.h>
 
 
 void Banner(void);                      	/* from he.c */
@@ -959,9 +960,13 @@ void FileIO(void)
 		fref = glk_fileref_create_by_name(fileusage_Data | fileusage_BinaryMode,
 			fileiopath, 0);
 		if (glk_fileref_does_file_exist(fref))
+		{
 			io = glk_stream_open_file(fref, filemode_Read, 0);
+		}
 		else
+		{
 			io = NULL;
+		}
 		glk_fileref_destroy(fref);
 		if (io==NULL) goto LeaveFileIO;
 #endif
@@ -1519,10 +1524,10 @@ signed char def_slbgcolor = DEF_SLBGCOLOR;
 void ParseCommandLine(int argc, char *argv[])
 {
 	char drive[MAXDRIVE], dir[MAXDIR], fname[MAXFILENAME], ext[MAXEXT];
-	char* game_file_arg;
-	int ch;
+	char* game_file_arg = NULL;
 
 #if defined(GCC_UNIX) && defined(DO_COLOR)
+        int ch;
 	/* Parse comand line options (colour switches) */
 	while ((ch = getopt(argc, argv, "f:b:F:B:?h")) != -1) {
 	  switch (ch) {
@@ -2084,9 +2089,9 @@ int RecordCommands(void)
 				fref = glk_fileref_create_by_prompt(fileusage_InputRecord | fileusage_TextMode,
 					filemode_Read, 0);
 				if (glk_fileref_does_file_exist(fref))
+				{
 					playback = glk_stream_open_file(fref, filemode_Read, 0);
-				else
-					playback = NULL;
+				}
 				glk_fileref_destroy(fref);
 				if (!playback)
 					return 0;
@@ -2250,16 +2255,16 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = (char)0xe0; break; /* � */
-				case 'e':  s = (char)0xe8; break; /* � */
-				case 'i':  s = (char)0xec; break; /* � */
-				case 'o':  s = (char)0xf2; break; /* � */
-				case 'u':  s = (char)0xf9; break; /* � */
-				case 'A':  s = (char)0xc0; break; /* � */
-				case 'E':  s = (char)0xc8; break; /* � */
-				case 'I':  s = (char)0xcc; break; /* � */
-				case 'O':  s = (char)0xd2; break; /* � */
-				case 'U':  s = (char)0xd9; break; /* � */
+				case 'a':  s = (char)0xe0; break; /* à */
+				case 'e':  s = (char)0xe8; break; /* è */
+				case 'i':  s = (char)0xec; break; /* ì */
+				case 'o':  s = (char)0xf2; break; /* ò */
+				case 'u':  s = (char)0xf9; break; /* ù */
+				case 'A':  s = (char)0xc0; break; /* À */
+				case 'E':  s = (char)0xc8; break; /* È */
+				case 'I':  s = (char)0xcc; break; /* Ì */
+				case 'O':  s = (char)0xd2; break; /* Ò */
+				case 'U':  s = (char)0xd9; break; /* Ù */
 			}
 #endif
 			break;
@@ -2270,18 +2275,18 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = (char)0xe1; break; /* � */
-				case 'e':  s = (char)0xe9; break; /* � */
-				case 'i':  s = (char)0xed; break; /* � */
-				case 'o':  s = (char)0xf3; break; /* � */
-				case 'u':  s = (char)0xfa; break; /* � */
+				case 'a':  s = (char)0xe1; break; /* á */
+				case 'e':  s = (char)0xe9; break; /* é */
+				case 'i':  s = (char)0xed; break; /* í */
+				case 'o':  s = (char)0xf3; break; /* ó */
+				case 'u':  s = (char)0xfa; break; /* ú */
 				case 'y':  s = (char)0xfd; break;
-				case 'A':  s = (char)0xc1; break; /* � */
-				case 'E':  s = (char)0xc9; break; /* � */
-				case 'I':  s = (char)0xcd; break; /* � */
-				case 'O':  s = (char)0xd3; break; /* � */
-				case 'U':  s = (char)0xda; break; /* � */
-				case 'Y':  s = (char)0xdd; break; /* � */
+				case 'A':  s = (char)0xc1; break; /* Á */
+				case 'E':  s = (char)0xc9; break; /* É */
+				case 'I':  s = (char)0xcd; break; /* Í */
+				case 'O':  s = (char)0xd3; break; /* Ó */
+				case 'U':  s = (char)0xda; break; /* Ú */
+				case 'Y':  s = (char)0xdd; break; /* Ý */
 			}
 #endif
 			break;
@@ -2292,12 +2297,12 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = (char)0xe3; break; /* � */
-				case 'n':  s = (char)0xf1; break; /* � */
-				case 'o':  s = (char)0xf5; break; /* � */
-				case 'A':  s = (char)0xc3; break; /* � */
-				case 'N':  s = (char)0xd1; break; /* � */
-				case 'O':  s = (char)0xd5; break; /* � */
+				case 'a':  s = (char)0xe3; break; /* ã */
+				case 'n':  s = (char)0xf1; break; /* ñ */
+				case 'o':  s = (char)0xf5; break; /* õ */
+				case 'A':  s = (char)0xc3; break; /* Ã */
+				case 'N':  s = (char)0xd1; break; /* Ñ */
+				case 'O':  s = (char)0xd5; break; /* Õ */
 			}
 #endif
 			break;
@@ -2308,16 +2313,16 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = (char)0xe2; break; /* � */
-				case 'e':  s = (char)0xea; break; /* � */
-				case 'i':  s = (char)0xee; break; /* � */
-				case 'o':  s = (char)0xf4; break; /* � */
-				case 'u':  s = (char)0xfb; break; /* � */
-				case 'A':  s = (char)0xc2; break; /* � */
-				case 'E':  s = (char)0xca; break; /* � */
-				case 'I':  s = (char)0xce; break; /* � */
-				case 'O':  s = (char)0xd4; break; /* � */
-				case 'U':  s = (char)0xdb; break; /* � */
+				case 'a':  s = (char)0xe2; break; /* â */
+				case 'e':  s = (char)0xea; break; /* ê */
+				case 'i':  s = (char)0xee; break; /* î */
+				case 'o':  s = (char)0xf4; break; /* ô */
+				case 'u':  s = (char)0xfb; break; /* û */
+				case 'A':  s = (char)0xc2; break; /* Â */
+				case 'E':  s = (char)0xca; break; /* Ê */
+				case 'I':  s = (char)0xce; break; /* Î */
+				case 'O':  s = (char)0xd4; break; /* Ô */
+				case 'U':  s = (char)0xdb; break; /* Û */
 			}
 #endif
 			break;
@@ -2328,17 +2333,17 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = (char)0xe4; break; /* � */
-				case 'e':  s = (char)0xeb; break; /* � */
-				case 'i':  s = (char)0xef; break; /* � */
-				case 'o':  s = (char)0xf6; break; /* � */
-				case 'u':  s = (char)0xfc; break; /* � */
-				/* case 'y':  s = (char)0xff; break; */ /* � */
-				case 'A':  s = (char)0xc4; break; /* � */
-				case 'E':  s = (char)0xcb; break; /* � */
-				case 'I':  s = (char)0xcf; break; /* � */
-				case 'O':  s = (char)0xd6; break; /* � */
-				case 'U':  s = (char)0xdc; break; /* � */
+				case 'a':  s = (char)0xe4; break; /* ä */
+				case 'e':  s = (char)0xeb; break; /* ë */
+				case 'i':  s = (char)0xef; break; /* ï */
+				case 'o':  s = (char)0xf6; break; /* ö */
+				case 'u':  s = (char)0xfc; break; /* ü */
+				/* case 'y':  s = (char)0xff; break; */ /* ÿ */
+				case 'A':  s = (char)0xc4; break; /* Ä */
+				case 'E':  s = (char)0xcb; break; /* Ë */
+				case 'I':  s = (char)0xcf; break; /* Ï */
+				case 'O':  s = (char)0xd6; break; /* Ö */
+				case 'U':  s = (char)0xdc; break; /* Ü */
 			}
 #endif
 			break;
@@ -2349,64 +2354,64 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'C':  s = (char)0xc7; break; /* � */
-				case 'c':  s = (char)0xe7; break; /* � */
+				case 'C':  s = (char)0xc7; break; /* Ç */
+				case 'c':  s = (char)0xe7; break; /* ç */
 			}
 #endif
 			break;
 		}
 		case '<':               /* Spanish left quotation marks */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xab; /* � */
+			s = (char)0xab; /* « */
 #endif
 			break;
 		case '>':               /* Spanish right quotation marks */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xbb; /* � */
+			s = (char)0xbb; /* » */
 			break;
 #endif
 		case '!':               /* upside-down exclamation mark */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xa1; /* � */
+			s = (char)0xa1; /* ¡ */
 #endif
 			break;
 		case '?':               /* upside-down question mark */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xbf; /* � */
+			s = (char)0xbf; /* ¿ */
 #endif
 			break;
 		case 'a':               /* ae ligature */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xe6; ++*i; /* � */
+			s = (char)0xe6; ++*i; /* æ */
 #else
 			s = 'e'; ++*i;
 #endif
 			break;
 		case 'A':               /* AE ligature */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xc6; ++*i; /* � */
+			s = (char)0xc6; ++*i; /* Æ */
 #else
 			s = 'E'; ++*i;
 #endif
 			break;
 		case 'c':               /* cents symbol */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xa2; /* � */
+			s = (char)0xa2; /* ¢ */
 #endif
 			break;
 		case 'L':               /* British pound */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xa3; /* � */
+			s = (char)0xa3; /* £ */
 #endif
 			break;
 		case 'Y':               /* Japanese Yen */
 #ifndef NO_LATIN1_CHARSET
-			s = (char)0xa5; /* � */
+			s = (char)0xa5; /* ¥ */
 #endif
 			break;
 		case '-':               /* em dash */
 #ifndef NO_LATIN1_CHARSET
-			/* s = (char)0x97; */ /* � */
+			/* s = (char)0x97; */ /*  */
 #endif
 			break;
 		case '#':               /* 3-digit decimal code */

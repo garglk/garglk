@@ -4,7 +4,7 @@
 	to test the screen i/o functions of
 	the Hugo Engine
 
-	Copyright (c) 1995-2005 by Kent Tessman
+	Copyright (c) 1995-2009 by Kent Tessman
 
 	Uses AP(), Printout(), Promptmore(), and SetupDisplay(), and
 	SpecialChar() from hemisc.c.
@@ -841,16 +841,16 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = 'ı'; break;
-				case 'e':  s = 'Ë'; break;
-				case 'i':  s = 'Ï'; break;
-				case 'o':  s = 'Ú'; break;
-				case 'u':  s = '˜'; break;
-				case 'A':  s = '¿'; break;
-				case 'E':  s = '»'; break;
-				case 'I':  s = 'Ã'; break;
-				case 'O':  s = '³'; break;
-				case 'U':  s = ''; break;
+				case 'a':  s = 'Ã½'; break;
+				case 'e':  s = 'Ã‹'; break;
+				case 'i':  s = 'Ã'; break;
+				case 'o':  s = 'Ãš'; break;
+				case 'u':  s = 'Â˜'; break;
+				case 'A':  s = 'Â¿'; break;
+				case 'E':  s = 'Â»'; break;
+				case 'I':  s = 'Ãƒ'; break;
+				case 'O':  s = 'Â³'; break;
+				case 'U':  s = 'Â'; break;
 			}
 #endif
 			break;
@@ -861,18 +861,18 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = '·'; break;
-				case 'e':  s = 'È'; break;
-				case 'i':  s = 'Ì'; break;
-				case 'o':  s = 'Û'; break;
-				case 'u':  s = '™'; break;
+				case 'a':  s = 'Â·'; break;
+				case 'e':  s = 'Ãˆ'; break;
+				case 'i':  s = 'ÃŒ'; break;
+				case 'o':  s = 'Ã›'; break;
+				case 'u':  s = 'Â™'; break;
 				case 'y':  s = (char)0xfd; break;
-				case 'A':  s = '¡'; break;
-				case 'E':  s = 'Š'; break;
-				case 'I':  s = 'Õ'; break;
-				case 'O':  s = '²'; break;
-				case 'U':  s = ''; break;
-				case 'Y':  s = 'ğ'; break;
+				case 'A':  s = 'Â¡'; break;
+				case 'E':  s = 'ÂŠ'; break;
+				case 'I':  s = 'Ã•'; break;
+				case 'O':  s = 'Â²'; break;
+				case 'U':  s = 'Â'; break;
+				case 'Y':  s = 'Ã°'; break;
 			}
 #endif
 			break;
@@ -883,12 +883,12 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = '“'; break;
-				case 'n':  s = 'Ò'; break;
-				case 'o':  s = ''; break;
-				case 'A':  s = 'ˆ'; break;
-				case 'N':  s = '‹'; break;
-				case 'O':  s = '¹'; break;
+				case 'a':  s = 'Â“'; break;
+				case 'n':  s = 'Ã’'; break;
+				case 'o':  s = 'Â'; break;
+				case 'A':  s = 'Âˆ'; break;
+				case 'N':  s = 'Â‹'; break;
+				case 'O':  s = 'Â¹'; break;
 			}
 #endif
 			break;
@@ -899,16 +899,16 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = '’'; break;
-				case 'e':  s = 'Í'; break;
-				case 'i':  s = 'Ó'; break;
-				case 'o':  s = 'Ù'; break;
-				case 'u':  s = 'š'; break;
-				case 'A':  s = '¬'; break;
-				case 'E':  s = ' '; break;
-				case 'I':  s = '‘'; break;
-				case 'O':  s = 'Œ'; break;
-				case 'U':  s = '¤'; break;
+				case 'a':  s = 'Â’'; break;
+				case 'e':  s = 'Ã'; break;
+				case 'i':  s = 'Ã“'; break;
+				case 'o':  s = 'Ã™'; break;
+				case 'u':  s = 'Âš'; break;
+				case 'A':  s = 'Â¬'; break;
+				case 'E':  s = ' '; break;
+				case 'I':  s = 'Â‘'; break;
+				case 'O':  s = 'ÂŒ'; break;
+				case 'U':  s = 'Â¤'; break;
 			}
 #endif
 			break;
@@ -919,17 +919,17 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'a':  s = '”'; break;
-				case 'e':  s = 'Î'; break;
-				case 'i':  s = 'Ô'; break;
-				case 'o':  s = '–'; break;
-				case 'u':  s = '¸'; break;
-				case 'y':  s = ''; break;
-				case 'A':  s = 'Ÿ'; break;
-				case 'E':  s = 'À'; break;
-				case 'I':  s = '¦'; break;
-				case 'O':  s = '÷'; break;
-				case 'U':  s = 'Ğ'; break;
+				case 'a':  s = 'Â”'; break;
+				case 'e':  s = 'Ã'; break;
+				case 'i':  s = 'Ã”'; break;
+				case 'o':  s = 'Â–'; break;
+				case 'u':  s = 'Â¸'; break;
+				case 'y':  s = 'Â'; break;
+				case 'A':  s = 'ÂŸ'; break;
+				case 'E':  s = 'Ã€'; break;
+				case 'I':  s = 'Â¦'; break;
+				case 'O':  s = 'Ã·'; break;
+				case 'U':  s = 'Ã'; break;
 			}
 #endif
 			break;
@@ -940,64 +940,64 @@ char SpecialChar(char *a, int *i)
 #ifndef NO_LATIN1_CHARSET
 			switch (s)
 			{
-				case 'C':  s = '«'; break;
-				case 'c':  s = 'Á'; break;
+				case 'C':  s = 'Â«'; break;
+				case 'c':  s = 'Ã'; break;
 			}
 #endif
 			break;
 		}
 		case '<':               /* Spanish left quotation marks */
 #ifndef NO_LATIN1_CHARSET
-			s = '´';
+			s = 'Â´';
 #endif
 			break;
 		case '>':               /* Spanish right quotation marks */
 #ifndef NO_LATIN1_CHARSET
-			s = 'ª';
+			s = 'Âª';
 			break;
 #endif
 		case '!':               /* upside-down exclamation mark */
 #ifndef NO_LATIN1_CHARSET
-			s = '°';
+			s = 'Â°';
 #endif
 			break;
 		case '?':               /* upside-down question mark */
 #ifndef NO_LATIN1_CHARSET
-			s = 'ø';
+			s = 'Ã¸';
 #endif
 			break;
 		case 'a':               /* ae ligature */
 #ifndef NO_LATIN1_CHARSET
-			s = 'Ê'; ++*i;
+			s = 'ÃŠ'; ++*i;
 #else
 			s = 'e'; ++*i;
 #endif
 			break;
 		case 'A':               /* AE ligature */
 #ifndef NO_LATIN1_CHARSET
-			s = ''; ++*i; 
+			s = 'Â'; ++*i; 
 #else
 			s = 'E'; ++*i;
 #endif
 			break;
 		case 'c':               /* cents symbol */
 #ifndef NO_LATIN1_CHARSET
-			s = '¢';
+			s = 'Â¢';
 #endif
 			break;
 		case 'L':               /* British pound */
 #ifndef NO_LATIN1_CHARSET
-			s = '£';
+			s = 'Â£';
 #endif
 			break;
 		case 'Y':               /* Japanese Yen */
 #ifndef NO_LATIN1_CHARSET
-			s = '€';
+			s = 'Â€';
 #endif
 			break;
 		case '-':               /* em dash */
 #ifndef NO_LATIN1_CHARSET
-			s = 'ó';
+			s = 'Ã³';
 #endif
 			break;
 		case '#':               /* 3-digit decimal ASCII code */

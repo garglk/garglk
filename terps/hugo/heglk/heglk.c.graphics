@@ -1132,7 +1132,14 @@ int hugo_displaypicture(HUGO_FILE infile, long reslength)
 		   as a resources set.
 		*/
 		glk_stream_close(stream, NULL);
-		stream = glk_stream_open_file(fileref, filemode_Read, 0);
+		if (glk_fileref_does_file_exist(fileref))
+		{
+			stream = glk_stream_open_file(fileref, filemode_Read, 0);
+		}
+		else
+		{
+			stream = NULL;
+		}
 		if (stream==0)
 		{
 			glk_fileref_delete_file(fileref);

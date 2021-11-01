@@ -28,7 +28,7 @@
 
 	for the Hugo Engine
 
-	Copyright (c) 1995-2005 by Kent Tessman
+	Copyright (c) 1995-2009 by Kent Tessman
 
 	NOTE:  In the simplest case, this should be portable to any
 	system by replacing each "..." section below with a function
