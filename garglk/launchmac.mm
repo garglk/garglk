@@ -919,8 +919,9 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication *) sender
 {
-    for (GargoyleWindow * window in windows)
+    for (id key in windows)
     {
+        GargoyleWindow *window = [windows objectForKey: key];
         [window quit];
     }
 
