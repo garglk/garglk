@@ -20,6 +20,12 @@ jobs:
       - name: Build
         run: sh gargoyle_osx.sh
 
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle.dmg
+          path: gargoyle*.dmg
+
       - name: Build (Qt)
         run: |
           mkdir build-cmake
