@@ -632,14 +632,14 @@ void font_t::getglyph(glui32 cid, int *adv, const bitmap_t **glyphs)
 int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<void(int, const bitmap_t *)> callback)
 {
     auto f = gfont_table[fidx];
-    int dolig = ! FT_IS_FIXED_WIDTH(f->face);
+    bool dolig = !FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
     glui32 c;
 
     if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
-        dolig = 0;
+        dolig = false;
     if ( FT_Get_Char_Index(f->face, UNI_LIG_FL) == 0 )
-        dolig = 0;
+        dolig = false;
 
     while (n--)
     {
@@ -650,15 +650,15 @@ int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<vo
 
         if (dolig && n && c == 'f' && *s == 'i')
         {
-          c = UNI_LIG_FI;
-          s++;
-          n--;
+            c = UNI_LIG_FI;
+            s++;
+            n--;
         }
         if (dolig && n && c == 'f' && *s == 'l')
         {
-          c = UNI_LIG_FL;
-          s++;
-          n--;
+            c = UNI_LIG_FL;
+            s++;
+            n--;
         }
 
         f->getglyph(c, &adv, &glyphs);
@@ -726,7 +726,7 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
 {
     unsigned char *sp, *dp;
     int x1, y1, sx0, sy0, sx1, sy1;
-    int x, y, w, h;
+    int w, h;
 
     sx0 = 0;
     sy0 = 0;
@@ -740,23 +740,21 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     if (y1 <= dy0 || y0 >= dy1) return;
     if (x0 < dx0)
     {
-      sx0 += dx0 - x0;
-      x0 = dx0;
+        sx0 += dx0 - x0;
+        x0 = dx0;
     }
     if (y0 < dy0)
     {
-      sy0 += dy0 - y0;
-      y0 = dy0;
+        sy0 += dy0 - y0;
+        y0 = dy0;
     }
     if (x1 > dx1)
     {
-      sx1 += dx1 - x1;
-      x1 = dx1;
+        sx1 += dx1 - x1;
     }
     if (y1 > dy1)
     {
-      sy1 += dy1 - y1;
-      y1 = dy1;
+        sy1 += dy1 - y1;
     }
 
     sp = src->rgba + (sy0 * src->w + sx0) * 4;
@@ -765,9 +763,9 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     w = sx1 - sx0;
     h = sy1 - sy0;
 
-    for (y = 0; y < h; y++)
+    for (int y = 0; y < h; y++)
     {
-        for (x = 0; x < w; x++)
+        for (int x = 0; x < w; x++)
         {
             unsigned char sa = sp[x*4+3];
             unsigned char na = 255 - sa;
