@@ -25,7 +25,7 @@ Gargoyle cares about typography! In this computer age of typographical poverty, 
 * Floating point text layout for even spacing.
 * Kerning for even more even spacing.
 * Smart quotes and other punctuation formatting.
-* Ligatures for “fi” and “fl”.
+* Ligatures for “fi”, “fl”, “ff”, “ffi”, and “ffl”.
 * Plenty o' margins.
 * Plenty o' line spacing.
 * Integrated scrollback.

@@ -607,32 +607,50 @@ int font_t::charkern(int c0, int c1)
     return value;
 }
 
-int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<void(int, const std::array<bitmap_t, GLI_SUBPIX> &)> callback)
+static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
+    {{'f', 'f', 'i'}, UNI_LIG_FFI},
+    {{'f', 'f', 'l'}, UNI_LIG_FFL},
+    {{'f', 'f'}, UNI_LIG_FF},
+    {{'f', 'i'}, UNI_LIG_FI},
+    {{'f', 'l'}, UNI_LIG_FL},
+};
+
+static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::function<void(int, const std::array<bitmap_t, GLI_SUBPIX> &)> callback)
 {
     auto f = gfont_table[fidx];
     bool dolig = !FT_IS_FIXED_WIDTH(f->face);
     int prev = -1;
     glui32 c;
 
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FI) == 0 )
-        dolig = false;
-    if ( FT_Get_Char_Index(f->face, UNI_LIG_FL) == 0 )
-        dolig = false;
-
-    while (n--)
+    while (n > 0)
     {
-        c = *s++;
+        auto it = ligatures.end();
+        if (dolig)
+        {
+            it = std::find_if(ligatures.begin(), ligatures.end(), [s, n](const std::pair<std::vector<glui32>, glui32> &ligentry) {
+                auto ligature = ligentry.first;
+                if (ligature.size() > n)
+                    return false;
 
-        if (dolig && n && c == 'f' && *s == 'i')
-        {
-            c = UNI_LIG_FI;
-            s++;
-            n--;
+                for (size_t i = 0; i < ligature.size(); i++)
+                {
+                    if (s[i] != ligature[i])
+                        return false;
+                }
+
+                return true;
+            });
         }
-        if (dolig && n && c == 'f' && *s == 'l')
+
+        if (it != ligatures.end() && FT_Get_Char_Index(f->face, it->second) != 0)
         {
-            c = UNI_LIG_FL;
-            s++;
+            c = it->second;
+            s += it->first.size();
+            n -= it->first.size();
+        }
+        else
+        {
+            c = *s++;
             n--;
         }
 

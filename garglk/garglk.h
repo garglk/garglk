@@ -151,8 +151,11 @@ extern int gli_cellw;
 extern int gli_cellh;
 
 /* Unicode ligatures and smart typography glyphs */
+#define UNI_LIG_FF	0xFB00
 #define UNI_LIG_FI	0xFB01
 #define UNI_LIG_FL	0xFB02
+#define UNI_LIG_FFI	0xFB03
+#define UNI_LIG_FFL	0xFB04
 #define UNI_LSQUO	0x2018
 #define UNI_RSQUO	0x2019
 #define UNI_LDQUO	0x201c
