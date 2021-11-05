@@ -57,189 +57,189 @@ extern void gli_stream_close(stream_t *str);
 
 stream_t *gli_new_stream(glui32 type, bool readable, bool writable, glui32 rock, bool unicode)
 {
-  stream_t *str = (stream_t *)malloc(sizeof(stream_t));
+    stream_t *str = (stream_t *)malloc(sizeof(stream_t));
 
-  if (!str)
-    return NULL;
+    if (!str)
+        return NULL;
 
-  str->type = type;
-  str->unicode = unicode;
+    str->type = type;
+    str->unicode = unicode;
 
-  str->rock = rock;
-  str->readcount = 0;
-  str->writecount = 0;
-  str->readable = readable;
-  str->writable = writable;
+    str->rock = rock;
+    str->readcount = 0;
+    str->writecount = 0;
+    str->readable = readable;
+    str->writable = writable;
 
-  /* start everything up empty, for now */
-  str->buf = NULL;
-  str->bufptr = NULL;
-  str->bufend = NULL;
-  str->bufeof = NULL;
-  str->buflen = 0;
-  str->win = NULL;
-  str->lastop = 0;
-  str->file = NULL;
-  str->textfile = false;
+    /* start everything up empty, for now */
+    str->buf = NULL;
+    str->bufptr = NULL;
+    str->bufend = NULL;
+    str->bufeof = NULL;
+    str->buflen = 0;
+    str->win = NULL;
+    str->lastop = 0;
+    str->file = NULL;
+    str->textfile = false;
 
-  str->prev = NULL;
-  str->next = gli_streamlist;
-  gli_streamlist = str;
-  if (str->next)
-    str->next->prev = str;
+    str->prev = NULL;
+    str->next = gli_streamlist;
+    gli_streamlist = str;
+    if (str->next)
+        str->next->prev = str;
 
-  if (gli_register_obj)
-    str->disprock = (*gli_register_obj)(str, gidisp_Class_Stream);
-  else
-    str->disprock.ptr = NULL;
+    if (gli_register_obj)
+        str->disprock = (*gli_register_obj)(str, gidisp_Class_Stream);
+    else
+        str->disprock.ptr = NULL;
 
-  return str;
+    return str;
 }
 
 void gli_delete_stream(stream_t *str)
 {
-  stream_t *prev, *next;
+    stream_t *prev, *next;
 
-  if (gli_unregister_obj)
-    (*gli_unregister_obj)(str, gidisp_Class_Stream, str->disprock);
+    if (gli_unregister_obj)
+        (*gli_unregister_obj)(str, gidisp_Class_Stream, str->disprock);
 
-  str->type = -1;
-  str->readcount = 0;
-  str->writecount = 0;
-  str->win = NULL;
-  str->buf = NULL;
-  str->bufptr = NULL;
-  str->bufend = NULL;
-  str->bufeof = NULL;
-  str->buflen = 0;
+    str->type = -1;
+    str->readcount = 0;
+    str->writecount = 0;
+    str->win = NULL;
+    str->buf = NULL;
+    str->bufptr = NULL;
+    str->bufend = NULL;
+    str->bufeof = NULL;
+    str->buflen = 0;
 
-  prev = str->prev;
-  next = str->next;
-  str->prev = NULL;
-  str->next = NULL;
+    prev = str->prev;
+    next = str->next;
+    str->prev = NULL;
+    str->next = NULL;
 
-  if (prev)
-    prev->next = next;
-  else
-    gli_streamlist = next;
-  if (next)
-    next->prev = prev;
+    if (prev)
+        prev->next = next;
+    else
+        gli_streamlist = next;
+    if (next)
+        next->prev = prev;
 
-  free(str);
+    free(str);
 }
 
 stream_t *glk_stream_iterate(stream_t *str, glui32 *rock)
 {
-  if (!str)
-    str = gli_streamlist;
-  else
-    str = str->next;
+    if (!str)
+        str = gli_streamlist;
+    else
+        str = str->next;
 
-  if (str)
-  {
+    if (str)
+    {
+        if (rock)
+            *rock = str->rock;
+        return str;
+    }
+
     if (rock)
-      *rock = str->rock;
-    return str;
-  }
-
-  if (rock)
-    *rock = 0;
-  return NULL;
+        *rock = 0;
+    return NULL;
 }
 
 glui32 glk_stream_get_rock(stream_t *str)
 {
-  if (!str)
-  {
-    gli_strict_warning("stream_get_rock: invalid ref");
-    return 0;
-  }
-  return str->rock;
+    if (!str)
+    {
+        gli_strict_warning("stream_get_rock: invalid ref");
+        return 0;
+    }
+    return str->rock;
 }
 
 static stream_t *gli_stream_open_file(frefid_t fref, glui32 fmode,
     glui32 rock, bool unicode)
 {
-  char modestr[16];
-  stream_t *str;
-  FILE *fl;
+    char modestr[16];
+    stream_t *str;
+    FILE *fl;
 
-  if (!fref)
-  {
-    gli_strict_warning("stream_open_file: invalid fileref id");
-    return 0;
-  }
+    if (!fref)
+    {
+        gli_strict_warning("stream_open_file: invalid fileref id");
+        return 0;
+    }
 
-  /* The spec says that Write, ReadWrite, and WriteAppend create the
-  file if necessary. However, fopen(filename, "r+") doesn't create
-  a file. So we have to pre-create it in the ReadWrite and
-  WriteAppend cases. (We use "a" so as not to truncate, and "b"
-  because we're going to close it immediately, so it doesn't matter.) */
+    /* The spec says that Write, ReadWrite, and WriteAppend create the
+       file if necessary. However, fopen(filename, "r+") doesn't create
+       a file. So we have to pre-create it in the ReadWrite and
+       WriteAppend cases. (We use "a" so as not to truncate, and "b"
+       because we're going to close it immediately, so it doesn't matter.) */
 
-  /* Another Unix quirk: in r+ mode, you're not supposed to flip from
-  reading to writing or vice versa without doing an fseek. We will
-  track the most recent operation (as lastop) -- Write, Read, or
-  0 if either is legal next. */
+    /* Another Unix quirk: in r+ mode, you're not supposed to flip from
+       reading to writing or vice versa without doing an fseek. We will
+       track the most recent operation (as lastop) -- Write, Read, or
+       0 if either is legal next. */
 
-  if (fmode == filemode_ReadWrite || fmode == filemode_WriteAppend)
-  {
-    fl = fopen(fref->filename, "ab");
+    if (fmode == filemode_ReadWrite || fmode == filemode_WriteAppend)
+    {
+        fl = fopen(fref->filename, "ab");
+        if (!fl)
+        {
+            gli_strict_warning("stream_open_file: unable to open file (ab): %s", fref->filename);
+            return 0;
+        }
+        fclose(fl);
+    }
+
+    switch (fmode)
+    {
+    case filemode_Write:
+        strcpy(modestr, "w");
+        break;
+    case filemode_Read:
+        strcpy(modestr, "r");
+        break;
+    case filemode_ReadWrite:
+        strcpy(modestr, "r+");
+        break;
+    case filemode_WriteAppend:
+        /* Can't use "a" here, because then fseek wouldn't work.
+           Instead we use "r+" and then fseek to the end. */
+        strcpy(modestr, "r+");
+        break;
+    }
+
+    if (!fref->textmode)
+        strcat(modestr, "b");
+
+    fl = fopen(fref->filename, modestr);
     if (!fl)
     {
-      gli_strict_warning("stream_open_file: unable to open file (ab): %s", fref->filename);
-      return 0;
+        gli_strict_warning("stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
+        return 0;
     }
-    fclose(fl);
-  }
 
-  switch (fmode)
-  {
-      case filemode_Write:
-          strcpy(modestr, "w");
-          break;
-      case filemode_Read:
-          strcpy(modestr, "r");
-          break;
-      case filemode_ReadWrite:
-          strcpy(modestr, "r+");
-          break;
-      case filemode_WriteAppend:
-          /* Can't use "a" here, because then fseek wouldn't work.
-             Instead we use "r+" and then fseek to the end. */
-          strcpy(modestr, "r+");
-          break;
-  }
+    if (fmode == filemode_WriteAppend)
+        fseek(fl, 0, 2); /* ...to the end. */
 
-  if (!fref->textmode)
-    strcat(modestr, "b");
+    str = gli_new_stream(strtype_File,
+            (fmode == filemode_Read || fmode == filemode_ReadWrite),
+            !(fmode == filemode_Read),
+            rock,
+            unicode);
+    if (!str)
+    {
+        gli_strict_warning("stream_open_file: unable to create stream.");
+        fclose(fl);
+        return 0;
+    }
 
-  fl = fopen(fref->filename, modestr);
-  if (!fl)
-  {
-    gli_strict_warning("stream_open_file: unable to open file (%s): %s", modestr, fref->filename);
-    return 0;
-  }
+    str->file = fl;
+    str->lastop = 0;
+    str->textfile = fref->textmode;
 
-  if (fmode == filemode_WriteAppend)
-    fseek(fl, 0, 2); /* ...to the end. */
-
-  str = gli_new_stream(strtype_File,
-    (fmode == filemode_Read || fmode == filemode_ReadWrite),
-    !(fmode == filemode_Read),
-    rock,
-    unicode);
-  if (!str)
-  {
-    gli_strict_warning("stream_open_file: unable to create stream.");
-    fclose(fl);
-    return 0;
-  }
-
-  str->file = fl;
-  str->lastop = 0;
-  str->textfile = fref->textmode;
-
-  return str;
+    return str;
 }
 
 stream_t *glk_stream_open_file(frefid_t fref, glui32 fmode, glui32 rock)
@@ -254,282 +254,282 @@ stream_t *glk_stream_open_file_uni(frefid_t fref, glui32 fmode, glui32 rock)
 
 stream_t *gli_stream_open_pathname(char *pathname, int textmode, glui32 rock)
 {
-  char modestr[16];
-  stream_t *str;
-  FILE *fl;
+    char modestr[16];
+    stream_t *str;
+    FILE *fl;
 
-  strcpy(modestr, "r");
-  if (!textmode)
-    strcat(modestr, "b");
+    strcpy(modestr, "r");
+    if (!textmode)
+        strcat(modestr, "b");
 
-  fl = fopen(pathname, modestr);
-  if (!fl)
-    return 0;
+    fl = fopen(pathname, modestr);
+    if (!fl)
+        return 0;
 
-  str = gli_new_stream(strtype_File,
-    true, false, rock, false);
-  if (!str)
-  {
-    fclose(fl);
-    return 0;
-  }
+    str = gli_new_stream(strtype_File,
+            true, false, rock, false);
+    if (!str)
+    {
+        fclose(fl);
+        return 0;
+    }
 
-  str->file = fl;
-  str->lastop = 0;
-  str->textfile = textmode;
+    str->file = fl;
+    str->lastop = 0;
+    str->textfile = textmode;
 
-  return str;
+    return str;
 }
 
 stream_t *glk_stream_open_memory(char *buf, glui32 buflen, glui32 fmode,
     glui32 rock)
 {
-  stream_t *str;
+    stream_t *str;
 
-  if (fmode != filemode_Read && fmode != filemode_Write
-   && fmode != filemode_ReadWrite)
-  {
-    gli_strict_warning("stream_open_memory: illegal filemode");
-    return 0;
-  }
+    if (fmode != filemode_Read && fmode != filemode_Write
+            && fmode != filemode_ReadWrite)
+    {
+        gli_strict_warning("stream_open_memory: illegal filemode");
+        return 0;
+    }
 
-  str = gli_new_stream(strtype_Memory,
-    (fmode != filemode_Write),
-    (fmode != filemode_Read),
-    rock,
-    false);
-  if (!str)
-    return 0;
+    str = gli_new_stream(strtype_Memory,
+            (fmode != filemode_Write),
+            (fmode != filemode_Read),
+            rock,
+            false);
+    if (!str)
+        return 0;
 
-  if (buf && buflen)
-  {
-    str->buf = buf;
-    str->bufptr = buf;
-    str->buflen = buflen;
-    str->bufend = (unsigned char *)str->buf + str->buflen;
-    if (fmode == filemode_Write)
-      str->bufeof = buf;
-    else
-      str->bufeof = str->bufend;
-    if (gli_register_arr)
-      str->arrayrock = (*gli_register_arr)(buf, buflen, "&+#!Cn");
-  }
+    if (buf && buflen)
+    {
+        str->buf = buf;
+        str->bufptr = buf;
+        str->buflen = buflen;
+        str->bufend = (unsigned char *)str->buf + str->buflen;
+        if (fmode == filemode_Write)
+            str->bufeof = buf;
+        else
+            str->bufeof = str->bufend;
+        if (gli_register_arr)
+            str->arrayrock = (*gli_register_arr)(buf, buflen, "&+#!Cn");
+    }
 
-  return str;
+    return str;
 }
 
 stream_t *glk_stream_open_memory_uni(glui32 *buf, glui32 buflen, glui32 fmode,
     glui32 rock)
 {
-  stream_t *str;
+    stream_t *str;
 
-  if (fmode != filemode_Read && fmode != filemode_Write
-   && fmode != filemode_ReadWrite)
-  {
-    gli_strict_warning("stream_open_memory: illegal filemode");
-    return 0;
-  }
+    if (fmode != filemode_Read && fmode != filemode_Write
+            && fmode != filemode_ReadWrite)
+    {
+        gli_strict_warning("stream_open_memory: illegal filemode");
+        return 0;
+    }
 
-  str = gli_new_stream(strtype_Memory,
-    (fmode != filemode_Write),
-    (fmode != filemode_Read),
-    rock,
-    true);
-  if (!str)
-    return 0;
+    str = gli_new_stream(strtype_Memory,
+            (fmode != filemode_Write),
+            (fmode != filemode_Read),
+            rock,
+            true);
+    if (!str)
+        return 0;
 
-  if (buf && buflen)
-  {
-    str->buf = buf;
-    str->bufptr = buf;
-    str->buflen = buflen;
-    str->bufend = (glui32 *)str->buf + str->buflen;
-    if (fmode == filemode_Write)
-      str->bufeof = buf;
-    else
-      str->bufeof = str->bufend;
-    if (gli_register_arr)
-      str->arrayrock = (*gli_register_arr)(buf, buflen, "&+#!Iu");
-  }
+    if (buf && buflen)
+    {
+        str->buf = buf;
+        str->bufptr = buf;
+        str->buflen = buflen;
+        str->bufend = (glui32 *)str->buf + str->buflen;
+        if (fmode == filemode_Write)
+            str->bufeof = buf;
+        else
+            str->bufeof = str->bufend;
+        if (gli_register_arr)
+            str->arrayrock = (*gli_register_arr)(buf, buflen, "&+#!Iu");
+    }
 
-  return str;
+    return str;
 }
 
 stream_t *gli_stream_open_window(window_t *win)
 {
-  stream_t *str;
+    stream_t *str;
 
-  str = gli_new_stream(strtype_Window, false, true, 0, true);
-  if (!str)
-    return NULL;
+    str = gli_new_stream(strtype_Window, false, true, 0, true);
+    if (!str)
+        return NULL;
 
-  str->win = win;
+    str->win = win;
 
-  return str;
+    return str;
 }
 
 void gli_stream_fill_result(stream_t *str, stream_result_t *result)
 {
-  if (!result)
-    return;
+    if (!result)
+        return;
 
-  result->readcount = str->readcount;
-  result->writecount = str->writecount;
+    result->readcount = str->readcount;
+    result->writecount = str->writecount;
 }
 
 void glk_stream_close(stream_t *str, stream_result_t *result)
 {
-  if (!str)
-  {
-    gli_strict_warning("stream_close: invalid ref");
-    return;
-  }
+    if (!str)
+    {
+        gli_strict_warning("stream_close: invalid ref");
+        return;
+    }
 
-  if (str->type == strtype_Window)
-  {
-    gli_strict_warning("stream_close: cannot close window stream");
-    return;
-  }
+    if (str->type == strtype_Window)
+    {
+        gli_strict_warning("stream_close: cannot close window stream");
+        return;
+    }
 
-  gli_stream_fill_result(str, result);
+    gli_stream_fill_result(str, result);
 
-  gli_stream_close(str);
+    gli_stream_close(str);
 }
 
 void gli_stream_close(stream_t *str)
 {
-  window_t *win;
+    window_t *win;
 
-  if (str == gli_currentstr)
-    gli_currentstr = NULL;
+    if (str == gli_currentstr)
+        gli_currentstr = NULL;
 
-  for (win = gli_window_iterate_treeorder(NULL);
-       win != NULL;
-       win = gli_window_iterate_treeorder(win))
-  {
-    if (win->echostr == str)
-      win->echostr = NULL;
-  }
+    for (win = gli_window_iterate_treeorder(NULL);
+            win != NULL;
+            win = gli_window_iterate_treeorder(win))
+    {
+        if (win->echostr == str)
+            win->echostr = NULL;
+    }
 
-  switch (str->type)
-  {
-      case strtype_Window:
-          /* nothing necessary; the window is already being closed */
-          break;
-      case strtype_Memory:
-          if (gli_unregister_arr)
-          {
-              /* This could be a char array or a glui32 array. */
-              char *typedesc = (str->unicode ? "&+#!Iu" : "&+#!Cn");
-              (*gli_unregister_arr)(str->buf, str->buflen, typedesc, str->arrayrock);
-          }
-          break;
-      case strtype_File:
-          fclose(str->file);
-          str->file = NULL;
-          str->lastop = 0;
-          break;
-  }
+    switch (str->type)
+    {
+    case strtype_Window:
+        /* nothing necessary; the window is already being closed */
+        break;
+    case strtype_Memory:
+        if (gli_unregister_arr)
+        {
+            /* This could be a char array or a glui32 array. */
+            char *typedesc = (str->unicode ? "&+#!Iu" : "&+#!Cn");
+            (*gli_unregister_arr)(str->buf, str->buflen, typedesc, str->arrayrock);
+        }
+        break;
+    case strtype_File:
+        fclose(str->file);
+        str->file = NULL;
+        str->lastop = 0;
+        break;
+    }
 
-  gli_delete_stream(str);
+    gli_delete_stream(str);
 }
 
 void gli_streams_close_all()
 {
-  /* This is used only at shutdown time; it closes file streams (the
-     only ones that need finalization.) */
-  stream_t *str, *strnext;
+    /* This is used only at shutdown time; it closes file streams (the
+       only ones that need finalization.) */
+    stream_t *str, *strnext;
 
-  str = gli_streamlist;
+    str = gli_streamlist;
 
-  while (str)
-  {
-    strnext = str->next;
-    if (str->type == strtype_File)
-      gli_stream_close(str);
-    str = strnext;
-  }
+    while (str)
+    {
+        strnext = str->next;
+        if (str->type == strtype_File)
+            gli_stream_close(str);
+        str = strnext;
+    }
 }
 
 void glk_stream_set_position(stream_t *str, glsi32 pos, glui32 seekmode)
 {
-  if (!str)
-  {
-    gli_strict_warning("stream_set_position: invalid ref");
-    return;
-  }
+    if (!str)
+    {
+        gli_strict_warning("stream_set_position: invalid ref");
+        return;
+    }
 
-  switch (str->type)
-  {
-      case strtype_Memory:
-          if (!str->unicode)
-          {
-              if (seekmode == seekmode_Current)
-                  pos = ((unsigned char *)str->bufptr - (unsigned char *)str->buf) + pos;
-              else if (seekmode == seekmode_End)
-                  pos = ((unsigned char *)str->bufeof - (unsigned char *)str->buf) + pos;
-              else
-                  /* pos = pos */ ;
-              if (pos < 0)
-                  pos = 0;
-              if (pos > ((unsigned char *)str->bufeof - (unsigned char *)str->buf))
-                  pos = ((unsigned char *)str->bufeof - (unsigned char *)str->buf);
-              str->bufptr = (unsigned char *)str->buf + pos;
-          }
-          else
-          {
-              if (seekmode == seekmode_Current)
-                  pos = ((glui32 *)str->bufptr - (glui32 *)str->buf) + pos;
-              else if (seekmode == seekmode_End)
-                  pos = ((glui32 *)str->bufeof - (glui32 *)str->buf) + pos;
-              else
-                  /* pos = pos */ ;
-              if (pos < 0)
-                  pos = 0;
-              if (pos > ((glui32 *)str->bufeof - (glui32 *)str->buf))
-                  pos = ((glui32 *)str->bufeof - (glui32 *)str->buf);
-              str->bufptr = (glui32 *)str->buf + pos;
-          }
-          break;
-      case strtype_Window:
-          /* don't pass to echo stream */
-          break;
-      case strtype_File:
-          /* Either reading or writing is legal after an fseek. */
-          str->lastop = 0;
-          if (str->unicode)
-              pos *= 4;
-          fseek(str->file, pos,
-              ((seekmode == seekmode_Current) ? 1 :
-              ((seekmode == seekmode_End) ? 2 : 0)));
-          break;
-  }
+    switch (str->type)
+    {
+    case strtype_Memory:
+        if (!str->unicode)
+        {
+            if (seekmode == seekmode_Current)
+                pos = ((unsigned char *)str->bufptr - (unsigned char *)str->buf) + pos;
+            else if (seekmode == seekmode_End)
+                pos = ((unsigned char *)str->bufeof - (unsigned char *)str->buf) + pos;
+            else
+                /* pos = pos */ ;
+            if (pos < 0)
+                pos = 0;
+            if (pos > ((unsigned char *)str->bufeof - (unsigned char *)str->buf))
+                pos = ((unsigned char *)str->bufeof - (unsigned char *)str->buf);
+            str->bufptr = (unsigned char *)str->buf + pos;
+        }
+        else
+        {
+            if (seekmode == seekmode_Current)
+                pos = ((glui32 *)str->bufptr - (glui32 *)str->buf) + pos;
+            else if (seekmode == seekmode_End)
+                pos = ((glui32 *)str->bufeof - (glui32 *)str->buf) + pos;
+            else
+                /* pos = pos */ ;
+            if (pos < 0)
+                pos = 0;
+            if (pos > ((glui32 *)str->bufeof - (glui32 *)str->buf))
+                pos = ((glui32 *)str->bufeof - (glui32 *)str->buf);
+            str->bufptr = (glui32 *)str->buf + pos;
+        }
+        break;
+    case strtype_Window:
+        /* don't pass to echo stream */
+        break;
+    case strtype_File:
+        /* Either reading or writing is legal after an fseek. */
+        str->lastop = 0;
+        if (str->unicode)
+            pos *= 4;
+        fseek(str->file, pos,
+                ((seekmode == seekmode_Current) ? 1 :
+                 ((seekmode == seekmode_End) ? 2 : 0)));
+        break;
+    }
 }
 
 glui32 glk_stream_get_position(stream_t *str)
 {
-  if (!str)
-  {
-    gli_strict_warning("stream_get_position: invalid ref");
-    return 0;
-  }
+    if (!str)
+    {
+        gli_strict_warning("stream_get_position: invalid ref");
+        return 0;
+    }
 
-  switch (str->type)
-  {
-      case strtype_Memory:
-          if (str->unicode)
-              return ((glui32 *)str->bufptr - (glui32 *)str->buf);
-          else
-              return ((unsigned char *)str->bufptr - (unsigned char *)str->buf);
-      case strtype_File:
-          if (str->unicode)
-              return ftell(str->file) / 4;
-          else
-              return ftell(str->file);
-      case strtype_Window:
-      default:
-          return 0;
-  }
+    switch (str->type)
+    {
+    case strtype_Memory:
+        if (str->unicode)
+            return ((glui32 *)str->bufptr - (glui32 *)str->buf);
+        else
+            return ((unsigned char *)str->bufptr - (unsigned char *)str->buf);
+    case strtype_File:
+        if (str->unicode)
+            return ftell(str->file) / 4;
+        else
+            return ftell(str->file);
+    case strtype_Window:
+    default:
+        return 0;
+    }
 }
 
 void gli_stream_set_current(stream_t *str)
@@ -539,166 +539,166 @@ void gli_stream_set_current(stream_t *str)
 
 void glk_stream_set_current(stream_t *str)
 {
-  if (!str)
-  {
-    gli_currentstr = NULL;
-    return;
-  }
+    if (!str)
+    {
+        gli_currentstr = NULL;
+        return;
+    }
 
-  gli_currentstr = str;
+    gli_currentstr = str;
 }
 
 stream_t *glk_stream_get_current()
 {
-  if (!gli_currentstr)
-    return 0;
-  return gli_currentstr;
+    if (!gli_currentstr)
+        return 0;
+    return gli_currentstr;
 }
 
 static void gli_stream_ensure_op(stream_t *str, glui32 op)
 {
-  /* We have to do an fseek() between reading and writing. This will
-     only come up for ReadWrite or WriteAppend files. */
-  if (str->lastop != 0 && str->lastop != op)
-  {
-    long pos = ftell(str->file);
-    fseek(str->file, pos, SEEK_SET);
-  }
-  str->lastop = op;
+    /* We have to do an fseek() between reading and writing. This will
+       only come up for ReadWrite or WriteAppend files. */
+    if (str->lastop != 0 && str->lastop != op)
+    {
+        long pos = ftell(str->file);
+        fseek(str->file, pos, SEEK_SET);
+    }
+    str->lastop = op;
 }
 
 static void gli_put_char(stream_t *str, unsigned char ch)
 {
-  if (!str || !str->writable)
-    return;
+    if (!str || !str->writable)
+        return;
 
-  str->writecount++;
+    str->writecount++;
 
-  switch (str->type)
-  {
-      case strtype_Memory:
-          if (str->bufptr < str->bufend)
-          {
-              if (str->unicode)
-              {
-                  *((glui32 *)str->bufptr) = ch;
-                  str->bufptr = ((glui32 *)str->bufptr) + 1;
-              }
-              else
-              {
-                  *((unsigned char *)str->bufptr) = ch;
-                  str->bufptr = ((unsigned char *)str->bufptr) + 1;
-              }
-              if (str->bufptr > str->bufeof)
-                  str->bufeof = str->bufptr;
-          }
-          break;
-      case strtype_Window:
-          if (str->win->line_request || str->win->line_request_uni)
-          {
-              if (gli_conf_safeclicks && gli_forceclick)
-              {
-                  glk_cancel_line_event(str->win, NULL);
-                  gli_forceclick = false;
-              }
-              else
-              {
-                  gli_strict_warning("put_char: window has pending line request");
-                  break;
-              }
-          }
-          gli_window_put_char_uni(str->win, ch);
-          if (str->win->echostr)
-              gli_put_char(str->win->echostr, ch);
-          break;
-      case strtype_File:
-          gli_stream_ensure_op(str, filemode_Write);
-          if (!str->unicode)
-          {
-              putc(ch, str->file);
-          }
-          else if (str->textfile)
-          {
-              gli_putchar_utf8((glui32)ch, str->file);
-          }
-          else
-          {
-              putc(0, str->file);
-              putc(0, str->file);
-              putc(0, str->file);
-              putc(ch, str->file);
-          }
-          fflush(str->file);
-          break;
-  }
+    switch (str->type)
+    {
+    case strtype_Memory:
+        if (str->bufptr < str->bufend)
+        {
+            if (str->unicode)
+            {
+                *((glui32 *)str->bufptr) = ch;
+                str->bufptr = ((glui32 *)str->bufptr) + 1;
+            }
+            else
+            {
+                *((unsigned char *)str->bufptr) = ch;
+                str->bufptr = ((unsigned char *)str->bufptr) + 1;
+            }
+            if (str->bufptr > str->bufeof)
+                str->bufeof = str->bufptr;
+        }
+        break;
+    case strtype_Window:
+        if (str->win->line_request || str->win->line_request_uni)
+        {
+            if (gli_conf_safeclicks && gli_forceclick)
+            {
+                glk_cancel_line_event(str->win, NULL);
+                gli_forceclick = false;
+            }
+            else
+            {
+                gli_strict_warning("put_char: window has pending line request");
+                break;
+            }
+        }
+        gli_window_put_char_uni(str->win, ch);
+        if (str->win->echostr)
+            gli_put_char(str->win->echostr, ch);
+        break;
+    case strtype_File:
+        gli_stream_ensure_op(str, filemode_Write);
+        if (!str->unicode)
+        {
+            putc(ch, str->file);
+        }
+        else if (str->textfile)
+        {
+            gli_putchar_utf8((glui32)ch, str->file);
+        }
+        else
+        {
+            putc(0, str->file);
+            putc(0, str->file);
+            putc(0, str->file);
+            putc(ch, str->file);
+        }
+        fflush(str->file);
+        break;
+    }
 }
 
 static void gli_put_char_uni(stream_t *str, glui32 ch)
 {
-  if (!str || !str->writable)
-    return;
+    if (!str || !str->writable)
+        return;
 
-  str->writecount++;
+    str->writecount++;
 
-  switch (str->type)
-  {
-      case strtype_Memory:
-          if (str->bufptr < str->bufend)
-          {
-              if (str->unicode)
-              {
-                  *((glui32 *)str->bufptr) = ch;
-                  str->bufptr = ((glui32 *)str->bufptr) + 1;
-              }
-              else
-              {
-                  *((unsigned char *)str->bufptr) = (unsigned char)ch;
-                  str->bufptr = ((unsigned char *)str->bufptr) + 1;
-              }
-              if (str->bufptr > str->bufeof)
-                  str->bufeof = str->bufptr;
-          }
-          break;
-      case strtype_Window:
-          if (str->win->line_request || str->win->line_request_uni)
-          {
-              if (gli_conf_safeclicks && gli_forceclick)
-              {
-                  glk_cancel_line_event(str->win, NULL);
-                  gli_forceclick = false;
-              }
-              else
-              {
-                  gli_strict_warning("put_char: window has pending line request");
-                  break;
-              }
-          }
-          gli_window_put_char_uni(str->win, ch);
-          if (str->win->echostr)
-              gli_put_char_uni(str->win->echostr, ch);
-          break;
-      case strtype_File:
-          gli_stream_ensure_op(str, filemode_Write);
-          if (!str->unicode)
-          {
-              if (ch >= 0x100)
-                  ch = '?';
-              putc(ch, str->file);
-          }
-          else if (str->textfile)
-          {
-              gli_putchar_utf8(ch, str->file);
-          }
-          else
-          {
-              putc(((ch >> 24) & 0xFF), str->file);
-              putc(((ch >> 16) & 0xFF), str->file);
-              putc(((ch >>  8) & 0xFF), str->file);
-              putc( (ch        & 0xFF), str->file);
-          }
-          fflush(str->file);
-          break;
-  }
+    switch (str->type)
+    {
+    case strtype_Memory:
+        if (str->bufptr < str->bufend)
+        {
+            if (str->unicode)
+            {
+                *((glui32 *)str->bufptr) = ch;
+                str->bufptr = ((glui32 *)str->bufptr) + 1;
+            }
+            else
+            {
+                *((unsigned char *)str->bufptr) = (unsigned char)ch;
+                str->bufptr = ((unsigned char *)str->bufptr) + 1;
+            }
+            if (str->bufptr > str->bufeof)
+                str->bufeof = str->bufptr;
+        }
+        break;
+    case strtype_Window:
+        if (str->win->line_request || str->win->line_request_uni)
+        {
+            if (gli_conf_safeclicks && gli_forceclick)
+            {
+                glk_cancel_line_event(str->win, NULL);
+                gli_forceclick = false;
+            }
+            else
+            {
+                gli_strict_warning("put_char: window has pending line request");
+                break;
+            }
+        }
+        gli_window_put_char_uni(str->win, ch);
+        if (str->win->echostr)
+            gli_put_char_uni(str->win->echostr, ch);
+        break;
+    case strtype_File:
+        gli_stream_ensure_op(str, filemode_Write);
+        if (!str->unicode)
+        {
+            if (ch >= 0x100)
+                ch = '?';
+            putc(ch, str->file);
+        }
+        else if (str->textfile)
+        {
+            gli_putchar_utf8(ch, str->file);
+        }
+        else
+        {
+            putc(((ch >> 24) & 0xFF), str->file);
+            putc(((ch >> 16) & 0xFF), str->file);
+            putc(((ch >>  8) & 0xFF), str->file);
+            putc( (ch        & 0xFF), str->file);
+        }
+        fflush(str->file);
+        break;
+    }
 }
 
 static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
@@ -713,99 +713,99 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
 
     switch (str->type)
     {
-        case strtype_Memory:
-            if (str->bufptr >= str->bufend)
+    case strtype_Memory:
+        if (str->bufptr >= str->bufend)
+        {
+            len = 0;
+        }
+        else
+        {
+            if (!str->unicode)
             {
-                len = 0;
+                unsigned char *bp = str->bufptr;
+                if (bp + len > (unsigned char *)str->bufend)
+                {
+                    lx = (bp + len) - (unsigned char *)str->bufend;
+                    if (lx < len)
+                        len -= lx;
+                    else
+                        len = 0;
+                }
+                if (len)
+                {
+                    memmove(bp, buf, len);
+                    bp += len;
+                    if (bp > (unsigned char *)str->bufeof)
+                        str->bufeof = bp;
+                }
+                str->bufptr = bp;
             }
             else
             {
-                if (!str->unicode)
+                glui32 *bp = str->bufptr;
+                if (bp + len > (glui32 *)str->bufend)
                 {
-                    unsigned char *bp = str->bufptr;
-                    if (bp + len > (unsigned char *)str->bufend)
-                    {
-                        lx = (bp + len) - (unsigned char *)str->bufend;
-                        if (lx < len)
-                            len -= lx;
-                        else
-                            len = 0;
-                    }
-                    if (len)
-                    {
-                        memmove(bp, buf, len);
-                        bp += len;
-                        if (bp > (unsigned char *)str->bufeof)
-                            str->bufeof = bp;
-                    }
-                    str->bufptr = bp;
+                    lx = (bp + len) - (glui32 *)str->bufend;
+                    if (lx < len)
+                        len -= lx;
+                    else
+                        len = 0;
                 }
-                else
+                if (len)
                 {
-                    glui32 *bp = str->bufptr;
-                    if (bp + len > (glui32 *)str->bufend)
-                    {
-                        lx = (bp + len) - (glui32 *)str->bufend;
-                        if (lx < len)
-                            len -= lx;
-                        else
-                            len = 0;
-                    }
-                    if (len)
-                    {
-                        glui32 i;
-                        for (i = 0; i < len; i++)
-                            bp[i] = buf[i];
-                        bp += len;
-                        if (bp > (glui32 *)str->bufeof)
-                            str->bufeof = bp;
-                    }
-                    str->bufptr = bp;
+                    glui32 i;
+                    for (i = 0; i < len; i++)
+                        bp[i] = buf[i];
+                    bp += len;
+                    if (bp > (glui32 *)str->bufeof)
+                        str->bufeof = bp;
                 }
+                str->bufptr = bp;
             }
-            break;
-        case strtype_Window:
-            if (str->win->line_request || str->win->line_request_uni)
+        }
+        break;
+    case strtype_Window:
+        if (str->win->line_request || str->win->line_request_uni)
+        {
+            if (gli_conf_safeclicks && gli_forceclick)
             {
-                if (gli_conf_safeclicks && gli_forceclick)
-                {
-                    glk_cancel_line_event(str->win, NULL);
-                    gli_forceclick = false;
-                }
-                else
-                {
-                    gli_strict_warning("put_buffer: window has pending line request");
-                    break;
-                }
+                glk_cancel_line_event(str->win, NULL);
+                gli_forceclick = false;
             }
-            for (lx = 0, cx = (unsigned char *)buf; lx < len; lx++, cx++)
-                gli_window_put_char_uni(str->win, *cx);
-            if (str->win->echostr)
-                gli_put_buffer(str->win->echostr, buf, len);
-            break;
-        case strtype_File:
-            gli_stream_ensure_op(str, filemode_Write);
-            for (lx=0; lx<len; lx++)
+            else
             {
-                unsigned char ch = ((unsigned char *)buf)[lx];
-                if (!str->unicode)
-                {
-                    putc(ch, str->file);
-                }
-                else if (str->textfile)
-                {
-                    gli_putchar_utf8((glui32)ch, str->file);
-                }
-                else
-                {
-                    putc(((ch >> 24) & 0xFF), str->file);
-                    putc(((ch >> 16) & 0xFF), str->file);
-                    putc(((ch >>  8) & 0xFF), str->file);
-                    putc( (ch        & 0xFF), str->file);
-                }
+                gli_strict_warning("put_buffer: window has pending line request");
+                break;
             }
-            fflush(str->file);
-            break;
+        }
+        for (lx = 0, cx = (unsigned char *)buf; lx < len; lx++, cx++)
+            gli_window_put_char_uni(str->win, *cx);
+        if (str->win->echostr)
+            gli_put_buffer(str->win->echostr, buf, len);
+        break;
+    case strtype_File:
+        gli_stream_ensure_op(str, filemode_Write);
+        for (lx=0; lx<len; lx++)
+        {
+            unsigned char ch = ((unsigned char *)buf)[lx];
+            if (!str->unicode)
+            {
+                putc(ch, str->file);
+            }
+            else if (str->textfile)
+            {
+                gli_putchar_utf8((glui32)ch, str->file);
+            }
+            else
+            {
+                putc(((ch >> 24) & 0xFF), str->file);
+                putc(((ch >> 16) & 0xFF), str->file);
+                putc(((ch >>  8) & 0xFF), str->file);
+                putc( (ch        & 0xFF), str->file);
+            }
+        }
+        fflush(str->file);
+        break;
     }
 }
 
@@ -1868,12 +1868,12 @@ void glk_put_char_uni(glui32 ch)
 
 void glk_put_char_stream(stream_t *str, unsigned char ch)
 {
-  if (!str)
-  {
-    gli_strict_warning("put_char_stream: invalid ref");
-    return;
-  }
-  gli_put_char(str, ch);
+    if (!str)
+    {
+        gli_strict_warning("put_char_stream: invalid ref");
+        return;
+    }
+    gli_put_char(str, ch);
 }
 
 void glk_put_char_stream_uni(stream_t *str, glui32 ch)
@@ -1945,12 +1945,12 @@ void glk_put_buffer_stream(stream_t *str, char *buf, glui32 len)
 
 void glk_put_buffer_stream_uni(stream_t *str, glui32 *buf, glui32 len)
 {
-  if (!str)
-  {
-    gli_strict_warning("put_string_stream_uni: invalid ref");
-    return;
-  }
-  gli_put_buffer_uni(str, buf, len);
+    if (!str)
+    {
+        gli_strict_warning("put_string_stream_uni: invalid ref");
+        return;
+    }
+    gli_put_buffer_uni(str, buf, len);
 }
 
 void garglk_unput_string(char *s)
