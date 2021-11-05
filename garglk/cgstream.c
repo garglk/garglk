@@ -53,8 +53,6 @@
 static stream_t *gli_streamlist = NULL;
 static stream_t *gli_currentstr = NULL;
 
-extern void gli_stream_close(stream_t *str);
-
 stream_t *gli_new_stream(glui32 type, bool readable, bool writable, glui32 rock, bool unicode)
 {
     stream_t *str = (stream_t *)malloc(sizeof(stream_t));
@@ -377,26 +375,7 @@ void gli_stream_fill_result(stream_t *str, stream_result_t *result)
     result->writecount = str->writecount;
 }
 
-void glk_stream_close(stream_t *str, stream_result_t *result)
-{
-    if (!str)
-    {
-        gli_strict_warning("stream_close: invalid ref");
-        return;
-    }
-
-    if (str->type == strtype_Window)
-    {
-        gli_strict_warning("stream_close: cannot close window stream");
-        return;
-    }
-
-    gli_stream_fill_result(str, result);
-
-    gli_stream_close(str);
-}
-
-void gli_stream_close(stream_t *str)
+static void gli_stream_close(stream_t *str)
 {
     window_t *win;
 
@@ -432,6 +411,25 @@ void gli_stream_close(stream_t *str)
     }
 
     gli_delete_stream(str);
+}
+
+void glk_stream_close(stream_t *str, stream_result_t *result)
+{
+    if (!str)
+    {
+        gli_strict_warning("stream_close: invalid ref");
+        return;
+    }
+
+    if (str->type == strtype_Window)
+    {
+        gli_strict_warning("stream_close: cannot close window stream");
+        return;
+    }
+
+    gli_stream_fill_result(str, result);
+
+    gli_stream_close(str);
 }
 
 void gli_streams_close_all()
