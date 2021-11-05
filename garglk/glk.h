@@ -475,8 +475,8 @@ extern void garglk_set_config(const char *name);
 
 /* garglk_unput_string - removes the specified string from the end of the output buffer, if
  * indeed it is there. */
-extern void garglk_unput_string(char *str);
-extern void garglk_unput_string_uni(glui32 *str);
+extern void garglk_unput_string(const char *str);
+extern void garglk_unput_string_uni(const glui32 *str);
 
 /* These variants are the same as above but return the number of characters that were unput. */
 extern glui32 garglk_unput_string_count(const char *str);
