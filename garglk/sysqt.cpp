@@ -268,6 +268,8 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::ControlModifier, Qt::Key_Left},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
 
+        {{Qt::ShiftModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
+
         {{Qt::NoModifier, Qt::Key_Escape},    []{ gli_input_handle_key(keycode_Escape); }},
         {{Qt::NoModifier, Qt::Key_Tab},       []{ gli_input_handle_key(keycode_Tab); }},
         {{Qt::NoModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
