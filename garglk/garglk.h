@@ -127,7 +127,7 @@ extern char gli_program_name[256];
 extern char gli_program_info[256];
 extern char gli_story_name[256];
 extern char gli_story_title[256];
-extern int gli_terminated;
+extern bool gli_terminated;
 
 extern window_t *gli_rootwin;
 extern window_t *gli_focuswin;
@@ -303,7 +303,7 @@ extern glui32 gli_more_prompt_len;
 extern int gli_more_align;
 extern int gli_more_font;
 
-extern int gli_forceclick;
+extern bool gli_forceclick;
 extern bool gli_copyselect;
 extern bool gli_drawselect;
 extern bool gli_claimselect;

@@ -43,7 +43,7 @@ window_t *gli_focuswin = NULL; /* The window selected by the player */
 void (*gli_interrupt_handler)(void) = NULL;
 
 /* record whether we've returned a click event */
-int gli_forceclick = 0;
+bool gli_forceclick = false;
 
 /* Set up the window system. This is called from main(). */
 void gli_initialize_windows()
@@ -1299,7 +1299,7 @@ void glk_window_clear(window_t *win)
         if (gli_conf_safeclicks && gli_forceclick)
         {
             glk_cancel_line_event(win, NULL);
-            gli_forceclick = 0;
+            gli_forceclick = false;
         }
         else
         {

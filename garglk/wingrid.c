@@ -344,7 +344,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
         gli_event_store(evtype_MouseInput, win, x/gli_cellw, y/gli_leading);
         win->mouse_request = false;
         if (gli_conf_safeclicks)
-            gli_forceclick = 1;
+            gli_forceclick = true;
     }
 
     if (win->hyper_request)
@@ -355,7 +355,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
             win->hyper_request = false;
             if (gli_conf_safeclicks)
-                gli_forceclick = 1;
+                gli_forceclick = true;
         }
     }
 }

@@ -33,13 +33,14 @@
     shown above.
 */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "glk.h"
 #include "garglk.h"
 
-int gli_terminated = 0;
+bool gli_terminated = false;
 
 static unsigned char char_tolower_table[256];
 static unsigned char char_toupper_table[256];
@@ -123,7 +124,7 @@ void glk_exit()
 
     garglk_set_story_title("[ press any key to exit ]");
 
-    gli_terminated = 1;
+    gli_terminated = true;
 
     /* wait for gli_handle_input_key to exit() */
     while (1)

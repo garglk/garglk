@@ -1821,7 +1821,7 @@ void win_textbuffer_click(window_textbuffer_t *dwin, int sx, int sy)
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
             win->hyper_request = false;
             if (gli_conf_safeclicks)
-                gli_forceclick = 1;
+                gli_forceclick = true;
             gh = true;
         }
     }

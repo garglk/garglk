@@ -599,7 +599,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
               if (gli_conf_safeclicks && gli_forceclick)
               {
                   glk_cancel_line_event(str->win, NULL);
-                  gli_forceclick = 0;
+                  gli_forceclick = false;
               }
               else
               {
@@ -665,7 +665,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
               if (gli_conf_safeclicks && gli_forceclick)
               {
                   glk_cancel_line_event(str->win, NULL);
-                  gli_forceclick = 0;
+                  gli_forceclick = false;
               }
               else
               {
@@ -770,7 +770,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 if (gli_conf_safeclicks && gli_forceclick)
                 {
                     glk_cancel_line_event(str->win, NULL);
-                    gli_forceclick = 0;
+                    gli_forceclick = false;
                 }
                 else
                 {
@@ -883,7 +883,7 @@ static void gli_put_buffer_uni(stream_t *str, glui32 *buf, glui32 len)
                 if (gli_conf_safeclicks && gli_forceclick)
                 {
                     glk_cancel_line_event(str->win, NULL);
-                    gli_forceclick = 0;
+                    gli_forceclick = false;
                 }
                 else
                 {
@@ -939,7 +939,7 @@ static glui32 gli_unput_buffer(stream_t *str, const char *buf, glui32 len)
             if (gli_conf_safeclicks && gli_forceclick)
             {
                 glk_cancel_line_event(str->win, NULL);
-                gli_forceclick = 0;
+                gli_forceclick = false;
             }
             else
             {
@@ -977,7 +977,7 @@ static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
             if (gli_conf_safeclicks && gli_forceclick)
             {
                 glk_cancel_line_event(str->win, NULL);
-                gli_forceclick = 0;
+                gli_forceclick = false;
             }
             else
             {
