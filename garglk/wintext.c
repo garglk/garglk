@@ -1082,7 +1082,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     }
 
     if (gli_conf_spaces && win->attr.style != style_Preformatted
-        && dwin->styles[win->attr.style].bg == color
+        && memcmp(dwin->styles[win->attr.style].bg, color, sizeof dwin->styles[win->attr.style].bg) == 0
         && !dwin->styles[win->attr.style].reverse)
     {
         /* turn (period space space) into (period space) */
