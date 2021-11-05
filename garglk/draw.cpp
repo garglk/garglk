@@ -58,7 +58,7 @@
 struct bitmap_t
 {
     int w, h, lsb, top, pitch;
-    unsigned char *data;
+    std::vector<unsigned char> data;
 };
 
 struct fentry_t
@@ -84,7 +84,6 @@ struct font_t
     std::map<std::pair<int, int>, int> kerncache;
 
     font_t(const struct font &font);
-    ~font_t();
 
     const fentry_t &getglyph(glui32 cid);
     int charkern(int c0, int c1);
@@ -211,8 +210,7 @@ const fentry_t &font_t::getglyph(glui32 cid)
             entry.glyph[x].w = face->glyph->bitmap.width;
             entry.glyph[x].h = face->glyph->bitmap.rows;
             entry.glyph[x].pitch = face->glyph->bitmap.pitch;
-            entry.glyph[x].data = new unsigned char[datasize];
-            std::memcpy(entry.glyph[x].data, face->glyph->bitmap.buffer, datasize);
+            entry.glyph[x].data.assign(&face->glyph->bitmap.buffer[0], &face->glyph->bitmap.buffer[datasize]);
         }
 
         it = entries.insert({cid, entry}).first;
@@ -370,13 +368,6 @@ font_t::font_t(const struct font &font)
     }
 }
 
-font_t::~font_t()
-{
-    for (const auto &pair : entries)
-        for (int i = 0; i < GLI_SUBPIX; i++)
-            delete [] pair.second.glyph[i].data;
-}
-
 void gli_initialize_fonts(void)
 {
     int err;
@@ -437,7 +428,7 @@ void gli_initialize_fonts(void)
  * Drawing
  */
 
-void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
+void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned char invalf = 255 - alpha;
@@ -451,7 +442,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[3] = 0xFF;
 }
 
-static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
+static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
@@ -476,7 +467,7 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *r
     p[3] = 0xFF;
 }
 
-static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned char *rgb)
+static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3] = {
@@ -505,7 +496,7 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
     p[3] = 0xFF;
 }
 
-static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -518,14 +509,14 @@ static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, unsigned char *rg
     }
 }
 
-static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
     {
         for (i = 0, j = 0; i < b->w; i += 3, j ++)
         {
-            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data + k * b->pitch + i, rgb);
+            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, &b->data[0] + k * b->pitch + i, rgb);
         }
     }
 }
