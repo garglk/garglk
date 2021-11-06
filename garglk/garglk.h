@@ -180,7 +180,7 @@ struct style_s
     int font;
     unsigned char bg[3];
     unsigned char fg[3];
-    int reverse;
+    bool reverse;
 };
 
 struct mask_s
