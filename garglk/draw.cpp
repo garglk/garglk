@@ -22,6 +22,7 @@
  *****************************************************************************/
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -57,13 +58,13 @@
 struct bitmap_t
 {
     int w, h, lsb, top, pitch;
-    unsigned char *data;
+    std::vector<unsigned char> data;
 };
 
 struct fentry_t
 {
     int adv;
-    bitmap_t glyph[GLI_SUBPIX];
+    std::array<bitmap_t, GLI_SUBPIX> glyph;
 };
 
 struct font {
@@ -83,10 +84,8 @@ struct font_t
     std::map<std::pair<int, int>, int> kerncache;
 
     font_t(const struct font &font);
-    ~font_t();
 
-    void getglyph(glui32 cid, int *adv, const bitmap_t **glyphs);
-    const fentry_t &loadglyph(glui32 cid);
+    const fentry_t &getglyph(glui32 cid);
     int charkern(int c0, int c1);
 };
 
@@ -156,7 +155,7 @@ static void freetype_error(int err, const std::string &basemsg)
     garglk::winabort(msg.str());
 }
 
-const fentry_t &font_t::loadglyph(glui32 cid)
+const fentry_t &font_t::getglyph(glui32 cid)
 {
     auto it = entries.find(cid);
     if (it == entries.end())
@@ -211,8 +210,7 @@ const fentry_t &font_t::loadglyph(glui32 cid)
             entry.glyph[x].w = face->glyph->bitmap.width;
             entry.glyph[x].h = face->glyph->bitmap.rows;
             entry.glyph[x].pitch = face->glyph->bitmap.pitch;
-            entry.glyph[x].data = new unsigned char[datasize];
-            std::memcpy(entry.glyph[x].data, face->glyph->bitmap.buffer, datasize);
+            entry.glyph[x].data.assign(&face->glyph->bitmap.buffer[0], &face->glyph->bitmap.buffer[datasize]);
         }
 
         it = entries.insert({cid, entry}).first;
@@ -370,13 +368,6 @@ font_t::font_t(const struct font &font)
     }
 }
 
-font_t::~font_t()
-{
-    for (const auto &pair : entries)
-        for (int i = 0; i < GLI_SUBPIX; i++)
-            delete [] pair.second.glyph[i].data;
-}
-
 void gli_initialize_fonts(void)
 {
     int err;
@@ -427,7 +418,7 @@ void gli_initialize_fonts(void)
     for (int i = 0; i < 8; i++)
         gfont_table[i] = std::make_shared<font_t>(fonts[i]);
 
-    const auto &entry = gfont_table[0]->loadglyph('0');
+    const auto &entry = gfont_table[0]->getglyph('0');
 
     gli_cellh = gli_leading;
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
@@ -437,7 +428,7 @@ void gli_initialize_fonts(void)
  * Drawing
  */
 
-void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
+void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned char invalf = 255 - alpha;
@@ -451,7 +442,7 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb)
     p[3] = 0xFF;
 }
 
-static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *rgb)
+static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
@@ -476,7 +467,7 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, unsigned char *r
     p[3] = 0xFF;
 }
 
-static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned char *rgb)
+static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf[3] = {
@@ -505,7 +496,7 @@ static void draw_pixel_lcd_gamma(int x, int y, unsigned char *alpha, unsigned ch
     p[3] = 0xFF;
 }
 
-static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -518,14 +509,14 @@ static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, unsigned char *rg
     }
 }
 
-static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
     {
         for (i = 0, j = 0; i < b->w; i += 3, j ++)
         {
-            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data + k * b->pitch + i, rgb);
+            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, &b->data[0] + k * b->pitch + i, rgb);
         }
     }
 }
@@ -616,20 +607,7 @@ int font_t::charkern(int c0, int c1)
     return value;
 }
 
-void font_t::getglyph(glui32 cid, int *adv, const bitmap_t **glyphs)
-{
-    // This must be a reference because "entry.glyph" is an array, so
-    // this stores a pointer to the first element of that array; if this
-    // were a copy instead of a reference, the array would be destroyed
-    // as soon as this function returned and so the pointer to it would
-    // be invalid.
-    const auto &entry = loadglyph(cid);
-
-    *adv = entry.adv;
-    *glyphs = entry.glyph;
-}
-
-int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<void(int, const bitmap_t *)> callback)
+int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<void(int, const std::array<bitmap_t, GLI_SUBPIX> &)> callback)
 {
     auto f = gfont_table[fidx];
     bool dolig = !FT_IS_FIXED_WIDTH(f->face);
@@ -643,9 +621,6 @@ int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<vo
 
     while (n--)
     {
-        const bitmap_t *glyphs;
-        int adv;
-
         c = *s++;
 
         if (dolig && n && c == 'f' && *s == 'i')
@@ -661,17 +636,17 @@ int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<vo
             n--;
         }
 
-        f->getglyph(c, &adv, &glyphs);
+        auto entry = f->getglyph(c);
 
         if (prev != -1)
             x += f->charkern(prev, c);
 
-        callback(x, glyphs);
+        callback(x, entry.glyph);
 
         if (spw >= 0 && c == ' ')
             x += spw;
         else
-            x += adv;
+            x += entry.adv;
 
         prev = c;
     }
@@ -682,7 +657,7 @@ int gli_string_impl(int x, int fidx, glui32 *s, int n, int spw, std::function<vo
 int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
         glui32 *s, int n, int spw)
 {
-    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const bitmap_t *glyphs) {
+    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<bitmap_t, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -695,7 +670,7 @@ int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
 
 int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
 {
-    return gli_string_impl(0, fidx, s, n, spw, [](int x, const bitmap_t *glyphs) {});
+    return gli_string_impl(0, fidx, s, n, spw, [](int, const std::array<bitmap_t, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)

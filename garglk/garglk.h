@@ -669,8 +669,8 @@ extern fileref_t *gli_new_fileref(const char *filename, glui32 usage,
 extern void gli_delete_fileref(fileref_t *fref);
 
 void gli_initialize_fonts(void);
-void gli_draw_pixel(int x, int y, unsigned char alpha, unsigned char *rgb);
-void gli_draw_pixel_lcd(int x, int y, unsigned char *alpha, unsigned char *rgb);
+void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb);
+void gli_draw_pixel_lcd(int x, int y, const unsigned char *alpha, const unsigned char *rgb);
 void gli_draw_clear(unsigned char *rgb);
 void gli_draw_rect(int x, int y, int w, int h, unsigned char *rgb);
 int gli_draw_string_uni(int x, int y, int f, unsigned char *rgb, glui32 *text, int len, int spacewidth);
