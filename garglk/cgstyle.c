@@ -26,22 +26,22 @@
 #include "glk.h"
 #include "garglk.h"
 
-static int isprop(int f)
+static bool isprop(enum FACES f)
 {
     return f == PROPR || f == PROPI || f == PROPB || f == PROPZ;
 }
 
-static int isbold(int f)
+static bool isbold(enum FACES f)
 {
     return f == PROPB || f == PROPZ || f == MONOB || f == MONOZ;
 }
 
-static int isitalic(int f)
+static bool isitalic(enum FACES f)
 {
     return f == PROPI || f == PROPZ || f == MONOI || f == MONOZ;
 }
 
-static int makefont(int p, int b, int i)
+static enum FACES makefont(bool p, bool b, bool i)
 {
     if ( p && !b && !i) return PROPR;
     if ( p && !b &&  i) return PROPI;
@@ -57,7 +57,7 @@ static int makefont(int p, int b, int i)
 void glk_stylehint_set(glui32 wintype, glui32 style, glui32 hint, glsi32 val)
 {
     style_t *styles;
-    int p, b, i;
+    bool p, b, i;
 
     if (wintype == wintype_AllTypes)
     {
