@@ -1,8 +1,44 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2006-2011 by Andrew Plotkin, Jesse McGrew.                   *
+ * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
+/* cgunicod.c: Unicode helper functions for Glk API, version 0.7.1.
+    Designed by Andrew Plotkin <erkyrath@eblong.com>
+    http://www.eblong.com/zarf/glk/index.html
+
+    Portions of this file are copyright (c) 1998-2016, Andrew Plotkin
+    It is distributed under the MIT license; see the "LICENSE" file.
+*/
+
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <memory.h>
+
 #include "glk.h"
-#include "cheapglk.h"
+#include "garglk.h"
+
+#define TRUE true
+#define FALSE false
 
 void gli_putchar_utf8(glui32 val, FILE *fl)
 {
@@ -71,7 +107,7 @@ int gli_encode_utf8(glui32 val, char *buf, int len)
     return (ptr - buf);
 }
 
-glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen,
+glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen,
     glui32 *out, glui32 outlen)
 {
     glui32 pos = 0;

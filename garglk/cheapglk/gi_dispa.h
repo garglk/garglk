@@ -1,5 +1,9 @@
-#ifndef _GI_DISPA_H
-#define _GI_DISPA_H
+#ifndef GARGLK_GI_DISPA_H
+#define GARGLK_GI_DISPA_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* gi_dispa.h: Header file for dispatch layer of Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
@@ -71,7 +75,9 @@ extern void gidispatch_set_retained_registry(
     on libraries that support autorestore. (Only iosglk, currently.)
     Only call this if GIDISPATCH_AUTORESTORE_REGISTRY is defined.
 */
+#ifndef GARGLK
 #define GIDISPATCH_AUTORESTORE_REGISTRY
+#endif
 extern void gidispatch_set_autorestore_registry(
     long (*locatearr)(void *array, glui32 len, char *typecode,
         gidispatch_rock_t objrock, int *elemsizeref),
@@ -107,5 +113,9 @@ extern gidispatch_function_t *gidispatch_get_function_by_id(glui32 id);
 extern void gidispatch_set_game_id_hook(char *(*hook)(void));
 extern char *gidispatch_get_game_id(void);
 #endif /* GI_DISPA_GAME_ID_AVAILABLE */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _GI_DISPA_H */

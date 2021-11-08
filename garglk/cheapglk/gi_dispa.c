@@ -66,6 +66,9 @@ static gidispatch_intconst_t intconstant_table[] = {
     { "gestalt_CharOutput_ExactPrint", (2) },
     { "gestalt_DateTime", (20) },
     { "gestalt_DrawImage", (7) },
+#ifdef GARGLK
+    { "gestalt_GarglkText", (0x1100) },
+#endif
     { "gestalt_Graphics", (6) },
     { "gestalt_GraphicsCharInput", (23) },
     { "gestalt_GraphicsTransparency", (14) },
@@ -317,6 +320,12 @@ static gidispatch_function_t function_table[] = {
     { 0x0049, glk_stream_open_resource, "stream_open_resource" },
     { 0x013A, glk_stream_open_resource_uni, "stream_open_resource_uni" },
 #endif /* GLK_MODULE_RESOURCE_STREAM */
+#ifdef GLK_MODULE_GARGLKTEXT
+    { 0x1100, garglk_set_zcolors, "garglk_set_zcolors" },
+    { 0x1101, garglk_set_zcolors_stream, "garglk_set_zcolors_stream" },
+    { 0x1102, garglk_set_reversevideo, "garglk_set_reversevideo" },
+    { 0x1103, garglk_set_reversevideo_stream, "garglk_set_reversevideo_stream" },
+#endif /* GLK_MODULE_GARGLKTEXT */
 };
 
 glui32 gidispatch_count_classes()
@@ -665,6 +674,17 @@ char *gidispatch_prototype(glui32 funcnum)
 #ifdef GLK_EXTEND_PROTOTYPE
         GLK_EXTEND_PROTOTYPE
 #endif /* GLK_EXTEND_PROTOTYPE */
+
+#ifdef GLK_MODULE_GARGLKTEXT
+        case 0x1100: /* garglk_set_zcolors */
+            return "2IuIu:";
+        case 0x1101: /* garglk_set_zcolors_stream */
+            return "3QbIuIu:";
+        case 0x1102: /* garglk_set_reversevideo */
+            return "1Iu:";
+        case 0x1103: /* garglk_set_reversevideo_stream */
+            return "2QbIu:";
+#endif /* GLK_MODULE_GARGLKTEXT */
 
         default:
             return NULL;
@@ -1496,6 +1516,21 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
 #ifdef GLK_EXTEND_CALL
         GLK_EXTEND_CALL
 #endif /* GLK_EXTEND_CALL */
+
+#ifdef GLK_MODULE_GARGLKTEXT
+        case 0x1100: /* garglk_set_zcolors */
+            garglk_set_zcolors( arglist[0].uint, arglist[1].uint );
+            break;
+        case 0x1101: /* garglk_set_zcolors_stream */
+            garglk_set_zcolors_stream( arglist[0].opaqueref, arglist[1].uint, arglist[2].uint );
+            break;
+        case 0x1102: /* garglk_set_reversevideo */
+            garglk_set_reversevideo( arglist[0].uint );
+            break;
+        case 0x1103: /* garglk_set_reversevideo_stream */
+            garglk_set_reversevideo_stream( arglist[0].opaqueref, arglist[1].uint );
+            break;
+#endif /* GLK_MODULE_GARGLKTEXT */
 
         default:
             /* do nothing */

@@ -1,11 +1,80 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2006-2009 by Tor Andersson, Andrew Plotkin.                  *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
+/* cgmisc.c: Miscellaneous functions for Glk API.
+    Designed by Andrew Plotkin <erkyrath@eblong.com>
+    http://www.eblong.com/zarf/glk/index.html
+
+    Portions of this file are copyright 1998-2016 by Andrew Plotkin.
+    It is distributed under the MIT license; see the "LICENSE" file.
+*/
+
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "glk.h"
-#include "cheapglk.h"
+#include "garglk.h"
+
+#ifdef GARGLK
+bool gli_terminated = false;
+#endif
 
 static unsigned char char_tolower_table[256];
 static unsigned char char_toupper_table[256];
+
+#ifdef GARGLK
+char gli_program_name[256] = "Unknown";
+char gli_program_info[256] = "";
+char gli_story_name[256] = "";
+char gli_story_title[256] = "";
+
+void garglk_set_program_name(const char *name)
+{
+    strncpy(gli_program_name, name, sizeof gli_program_name);
+    gli_program_name[sizeof gli_program_name-1] = 0;
+    wintitle();
+}
+
+void garglk_set_program_info(const char *info)
+{
+    strncpy(gli_program_info, info, sizeof gli_program_info);
+    gli_program_info[sizeof gli_program_info-1] = 0;
+}
+
+void garglk_set_story_name(const char *name)
+{
+    strncpy(gli_story_name, name, sizeof gli_story_name);
+    gli_story_name[sizeof gli_story_name-1] = 0;
+    wintitle();
+}
+
+void garglk_set_story_title(const char *title)
+{
+    strncpy(gli_story_title, title, sizeof gli_story_title);
+    gli_story_title[sizeof gli_story_title-1] = 0;
+    wintitle();
+}
+#endif
 
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;
 void (*gli_unregister_obj)(void *obj, glui32 objclass, 
@@ -15,11 +84,13 @@ gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len,
 void (*gli_unregister_arr)(void *array, glui32 len, char *typecode, 
     gidispatch_rock_t objrock) = NULL;
 
+#ifndef GARGLK
 /* This is needed to redisplay prompts properly after debug output. 
    Not interesting. */
 static int debug_output_counter = 0;
 
 static int perform_debug_command(char *cmd);
+#endif
 
 void gli_initialize_misc()
 {
@@ -55,9 +126,21 @@ void gli_initialize_misc()
 
 void glk_exit()
 {
+#ifdef GARGLK
+    event_t event;
+
+    garglk_set_story_title("[ press any key to exit ]");
+
+    gli_terminated = true;
+
+    /* wait for gli_handle_input_key to exit() */
+    while (1)
+        glk_select(&event);
+#else
     if (gli_debugger)
         gidebug_announce_cycle(gidebug_cycle_End);
     exit(0);
+#endif
 }
 
 void glk_set_interrupt_handler(void (*func)(void))
@@ -75,6 +158,7 @@ unsigned char glk_char_to_upper(unsigned char ch)
     return char_toupper_table[ch];
 }
 
+#ifndef GARGLK
 void glk_select(event_t *event)
 {
     window_t *win = gli_window_get();
@@ -277,6 +361,7 @@ void glk_request_timer_events(glui32 millisecs)
 {
     /* Don't make me laugh. */
 }
+#endif
 
 void gidispatch_set_object_registry(
     gidispatch_rock_t (*regi)(void *obj, glui32 objclass), 
@@ -328,6 +413,10 @@ gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
             return ((stream_t *)obj)->disprock;
         case gidisp_Class_Fileref:
             return ((fileref_t *)obj)->disprock;
+#ifdef GARGLK
+        case gidisp_Class_Schannel:
+            return gli_sound_get_channel_disprock(obj);
+#endif
         default: {
             gidispatch_rock_t dummy;
             dummy.num = 0;
@@ -336,6 +425,7 @@ gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
     }
 }
 
+#ifndef GARGLK
 void gidispatch_set_autorestore_registry(
     long (*locatearr)(void *array, glui32 len, char *typecode,
         gidispatch_rock_t objrock, int *elemsizeref),
@@ -442,3 +532,4 @@ void gidebug_pause()
 }
 
 #endif /* GIDEBUG_LIBRARY_SUPPORT */
+#endif

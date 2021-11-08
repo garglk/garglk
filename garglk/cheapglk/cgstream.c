@@ -1,9 +1,44 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
+ * Copyright (C) 2010 by Ben Cressey, Andrew Plotkin, Jörg Walter.            *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
+/* cgstream.c: Stream functions for Glk API, version 0.7.6.
+    Designed by Andrew Plotkin <erkyrath@eblong.com>
+    http://www.eblong.com/zarf/glk/index.html
+
+    Portions of this file are copyright 1998-2016 by Andrew Plotkin.
+    It is distributed under the MIT license; see the "LICENSE" file.
+*/
+
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "glk.h"
-#include "cheapglk.h"
+#include "garglk.h"
 #include "gi_blorb.h"
+
+#define TRUE true
+#define FALSE false
 
 /* This implements pretty much what any Glk implementation needs for 
     stream stuff. Memory streams, file streams (using stdio functions), 
@@ -73,10 +108,20 @@ void gli_delete_stream(stream_t *str)
         gli_currentstr = NULL;
     }
     
+#ifdef GARGLK
+    for (win = gli_window_iterate_treeorder(NULL);
+         win != NULL;
+         win = gli_window_iterate_treeorder(win))
+    {
+        if (win->echostr == str)
+            win->echostr = NULL;
+    }
+#else
     win = gli_window_get();
     if (win && win->echostr == str) {
         win->echostr = NULL;
     }
+#endif
     
     str->magicnum = 0;
 
@@ -643,6 +688,22 @@ static void gli_put_char(stream_t *str, unsigned char ch)
             }
             break;
         case strtype_Window:
+#ifdef GARGLK
+            if (str->win->line_request || str->win->line_request_uni)
+            {
+                if (gli_conf_safeclicks && gli_forceclick)
+                {
+                    glk_cancel_line_event(str->win, NULL);
+                    gli_forceclick = false;
+                }
+                else
+                {
+                    gli_strict_warning("put_char: window has pending line request");
+                    break;
+                }
+            }
+            gli_window_put_char_uni(str->win, ch);
+#else
             if (str->win->line_request) {
                 gli_strict_warning("put_char: window has pending line request");
                 break;
@@ -654,6 +715,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
                 putc(ch, stdout);
             else
                 gli_putchar_utf8(ch, stdout);
+#endif
             if (str->win->echostr)
                 gli_put_char(str->win->echostr, ch);
             break;
@@ -713,6 +775,22 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
             }
             break;
         case strtype_Window:
+#ifdef GARGLK
+            if (str->win->line_request || str->win->line_request_uni)
+            {
+                if (gli_conf_safeclicks && gli_forceclick)
+                {
+                    glk_cancel_line_event(str->win, NULL);
+                    gli_forceclick = false;
+                }
+                else
+                {
+                    gli_strict_warning("put_char: window has pending line request");
+                    break;
+                }
+            }
+            gli_window_put_char_uni(str->win, ch);
+#else
             if (str->win->line_request) {
                 gli_strict_warning("put_char_uni: window has pending line request");
                 break;
@@ -724,6 +802,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
                 putc((ch & 0xFF), stdout);
             else
                 gli_putchar_utf8(ch, stdout);
+#endif
             if (str->win->echostr)
                 gli_put_char_uni(str->win->echostr, ch);
             break;
@@ -811,6 +890,23 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
             }
             break;
         case strtype_Window:
+#ifdef GARGLK
+            if (str->win->line_request || str->win->line_request_uni)
+            {
+                if (gli_conf_safeclicks && gli_forceclick)
+                {
+                    glk_cancel_line_event(str->win, NULL);
+                    gli_forceclick = false;
+                }
+                else
+                {
+                    gli_strict_warning("put_buffer: window has pending line request");
+                    break;
+                }
+            }
+            for (lx=0; lx<len; lx++)
+                gli_window_put_char_uni(str->win, (unsigned char)buf[lx]);
+#else
             if (str->win->line_request) {
                 gli_strict_warning("put_buffer: window has pending line request");
                 break;
@@ -825,6 +921,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 for (lx=0; lx<len; lx++)
                     gli_putchar_utf8(((unsigned char *)buf)[lx], stdout);
             }
+#endif
             if (str->win->echostr)
                 gli_put_buffer(str->win->echostr, buf, len);
             break;
@@ -1651,3 +1748,257 @@ glui32 glk_get_buffer_stream(stream_t *str, char *buf, glui32 len)
     return gli_get_buffer(str, buf, NULL, len);
 }
 
+#ifdef GARGLK
+glui32 gli_strlen_uni(const glui32 *s)
+{
+    glui32 length = 0;
+    while (*s++) length++;
+    return length;
+}
+
+stream_t *gli_stream_open_window(window_t *win)
+{
+    stream_t *str;
+
+    str = gli_new_stream(strtype_Window, false, true, 0);
+    if (!str)
+        return NULL;
+
+    str->win = win;
+    str->unicode = true;
+
+    return str;
+}
+
+static void gli_set_hyperlink(stream_t *str, glui32 linkval)
+{
+    if (!str || !str->writable)
+        return;
+
+    switch (str->type)
+    {
+        case strtype_Window:
+            str->win->attr.hyper = linkval;
+            break;
+    }
+
+}
+
+void glk_set_hyperlink(glui32 linkval)
+{
+    gli_set_hyperlink(gli_currentstr, linkval);
+}
+
+void glk_set_hyperlink_stream(stream_t *str, glui32 linkval)
+{
+    if (!str)
+    {
+        gli_strict_warning("set_hyperlink_stream: invalid ref");
+        return;
+    }
+    gli_set_hyperlink(str, linkval);
+}
+
+static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
+{
+    if (!str || !str->writable)
+        return;
+
+    if (!gli_conf_stylehint)
+        return;
+
+    unsigned char fore[3];
+    fore[0] = (fg >> 16) & 0xff;
+    fore[1] = (fg >> 8) & 0xff;
+    fore[2] = (fg) & 0xff;
+
+    unsigned char back[3];
+    back[0] = (bg >> 16) & 0xff;
+    back[1] = (bg >> 8) & 0xff;
+    back[2] = (bg) & 0xff;
+
+    switch (str->type)
+    {
+        case strtype_Window:
+            if (fg != zcolor_Transparent && fg != zcolor_Cursor)
+            {
+                if (fg == zcolor_Default)
+                {
+                    str->win->attr.fgset = false;
+                    str->win->attr.fgcolor = 0;
+                    gli_override_fg_set = false;
+                    gli_override_fg_val = 0;
+                    memcpy(gli_more_color, gli_more_save, 3);
+                    memcpy(gli_caret_color, gli_caret_save, 3);
+                    memcpy(gli_link_color, gli_link_save, 3);
+                }
+                else if (fg != zcolor_Current)
+                {
+                    str->win->attr.fgset = true;
+                    str->win->attr.fgcolor = fg;
+                    gli_override_fg_set = true;
+                    gli_override_fg_val = fg;
+                    memcpy(gli_more_color, fore, 3);
+                    memcpy(gli_caret_color, fore, 3);
+                    memcpy(gli_link_color, fore, 3);
+                }
+            }
+
+            if (bg != zcolor_Transparent && bg != zcolor_Cursor)
+            {
+                if (bg == zcolor_Default)
+                {
+                    str->win->attr.bgset = false;
+                    str->win->attr.bgcolor = 0;
+                    gli_override_bg_set = false;
+                    gli_override_bg_val = 0;
+                    memcpy(gli_window_color, gli_window_save, 3);
+                    memcpy(gli_border_color, gli_border_save, 3);
+                }
+                else if (bg != zcolor_Current)
+                {
+                    str->win->attr.bgset = true;
+                    str->win->attr.bgcolor = bg;
+                    gli_override_bg_set = true;
+                    gli_override_bg_val = bg;
+                    memcpy(gli_window_color, back, 3);
+                    memcpy(gli_border_color, back, 3);
+                }
+            }
+
+            if (fg == zcolor_Default && bg == zcolor_Default)
+                gli_override_reverse = false;
+            else
+                gli_override_reverse = true;
+
+            if (str->win->echostr)
+                gli_set_zcolors(str->win->echostr, fg, bg);
+            break;
+    }
+
+    gli_force_redraw = true;
+}
+
+void garglk_set_zcolors(glui32 fg, glui32 bg)
+{
+    gli_set_zcolors(gli_currentstr, fg, bg);
+}
+
+void garglk_set_zcolors_stream(stream_t *str, glui32 fg, glui32 bg)
+{
+    if (!str)
+    {
+        gli_strict_warning("set_style_stream: invalid ref");
+        return;
+    }
+    gli_set_zcolors(str, fg, bg);
+}
+
+static void gli_set_reversevideo(stream_t *str, glui32 reverse)
+{
+    if (!str || !str->writable)
+        return;
+
+    if (!gli_conf_stylehint)
+        return;
+
+    switch (str->type)
+    {
+        case strtype_Window:
+            str->win->attr.reverse = (reverse != 0);
+            if (str->win->echostr)
+                gli_set_reversevideo(str->win->echostr, reverse);
+            break;
+    }
+    gli_force_redraw = true;
+}
+
+void garglk_set_reversevideo(glui32 reverse)
+{
+    gli_set_reversevideo(gli_currentstr, reverse);
+}
+
+void garglk_set_reversevideo_stream(stream_t *str, glui32 reverse)
+{
+    if (!str)
+    {
+        gli_strict_warning("set_style_stream: invalid ref");
+        return;
+    }
+    gli_set_reversevideo(str, reverse);
+}
+
+static glui32 gli_unput_buffer_uni(stream_t *str, const glui32 *buf, glui32 len)
+{
+    glui32 lx;
+    const glui32 *cx;
+
+    if (!str || !str->writable)
+        return 0;
+
+    if (str->type == strtype_Window)
+    {
+        if (str->win->line_request || str->win->line_request_uni)
+        {
+            if (gli_conf_safeclicks && gli_forceclick)
+            {
+                glk_cancel_line_event(str->win, NULL);
+                gli_forceclick = false;
+            }
+            else
+            {
+                gli_strict_warning("unput_buffer: window has pending line request");
+                return 0;
+            }
+        }
+        for (lx = 0, cx = buf + len - 1; lx < len; lx++, cx--)
+        {
+            if (!gli_window_unput_char_uni(str->win, *cx))
+                break;
+            str->writecount--;
+        }
+        if (str->win->echostr)
+            gli_unput_buffer_uni(str->win->echostr, buf, len);
+
+        return lx;
+    }
+
+    return 0;
+}
+
+static glui32 gli_unput_buffer(stream_t *str, const char *buf, glui32 len)
+{
+    glui32 *unicode = malloc(len);
+    if (unicode == NULL)
+        return 0;
+
+    for (glui32 i = 0; i < len; i++)
+        unicode[i] = (unsigned char)buf[i];
+
+    glui32 n = gli_unput_buffer_uni(str, &unicode[0], len);
+
+    free(unicode);
+
+    return n;
+}
+
+void garglk_unput_string(const char *s)
+{
+    gli_unput_buffer(gli_currentstr, s, strlen(s));
+}
+
+void garglk_unput_string_uni(const glui32 *s)
+{
+    gli_unput_buffer_uni(gli_currentstr, s, gli_strlen_uni(s));
+}
+
+glui32 garglk_unput_string_count(const char *s)
+{
+    return gli_unput_buffer(gli_currentstr, s, strlen(s));
+}
+
+glui32 garglk_unput_string_count_uni(const glui32 *s)
+{
+    return gli_unput_buffer_uni(gli_currentstr, s, gli_strlen_uni(s));
+}
+#endif

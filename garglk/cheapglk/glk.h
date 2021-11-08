@@ -1,6 +1,32 @@
 #ifndef GLK_H
 #define GLK_H
 
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2006-2009 by Tor Andersson, Andrew Plotkin.                  *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* glk.h: Header file for Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
@@ -31,6 +57,9 @@ typedef int32_t glsi32;
 #define GLK_MODULE_HYPERLINKS
 #define GLK_MODULE_DATETIME
 #define GLK_MODULE_RESOURCE_STREAM
+
+#define GLK_MODULE_GARGLKTEXT
+#define GLK_MODULE_FILEREF_GET_NAME
 
 /* Define a macro for a function attribute that indicates a function that
     never returns. (E.g., glk_exit().) We try to do this only in C compilers
@@ -77,6 +106,7 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_Sound2 (21)
 #define gestalt_ResourceStream (22)
 #define gestalt_GraphicsCharInput (23)
+#define gestalt_GarglkText (0x1100)
 
 #define evtype_None (0)
 #define evtype_Timer (1)
@@ -445,5 +475,47 @@ extern strid_t glk_stream_open_resource(glui32 filenum, glui32 rock);
 extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #endif /* GLK_MODULE_RESOURCE_STREAM */
+
+/* XXX non-official Glk functions that may or may not exist */
+
+#define GARGLK 1
+
+extern char* garglk_fileref_get_name(frefid_t fref);
+
+extern void garglk_set_program_name(const char *name);
+extern void garglk_set_program_info(const char *info);
+extern void garglk_set_story_name(const char *name);
+extern void garglk_set_story_title(const char *title);
+extern void garglk_set_config(const char *name);
+
+/* garglk_unput_string - removes the specified string from the end of the output buffer, if
+ * indeed it is there. */
+extern void garglk_unput_string(const char *str);
+extern void garglk_unput_string_uni(const glui32 *str);
+
+/* These variants are the same as above but return the number of characters that were unput. */
+extern glui32 garglk_unput_string_count(const char *str);
+extern glui32 garglk_unput_string_count_uni(const glui32 *str);
+
+#define zcolor_Transparent   ((glui32)0xfffffffc)
+#define zcolor_Cursor        ((glui32)0xfffffffd)
+#define zcolor_Current       ((glui32)0xfffffffe)
+#define zcolor_Default       ((glui32)0xffffffff)
+
+extern void garglk_set_zcolors(glui32 fg, glui32 bg);
+extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
+extern void garglk_set_reversevideo(glui32 reverse);
+extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
+
+/* non standard keycodes */
+#define keycode_Erase               (0xffffef7f)
+#define keycode_MouseWheelUp        (0xffffeffe)
+#define keycode_MouseWheelDown      (0xffffefff)
+#define keycode_SkipWordLeft        (0xfffff000)
+#define keycode_SkipWordRight       (0xfffff001)
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GLK_H */

@@ -1492,7 +1492,7 @@ static void acceptline(window_t *win, glui32 keycode)
         dwin->history[dwin->historypresent] = NULL;
 
         o = dwin->history[(dwin->historypresent == 0 ? HISTORYLEN : dwin->historypresent) - 1];
-        olen = o ? strlen_uni(o) : 0;
+        olen = o ? gli_strlen_uni(o) : 0;
 
         if (len != olen || memcmp(s, o, olen * sizeof(glui32)))
         {
@@ -1635,7 +1635,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             if (dwin->historypos < 0)
                 dwin->historypos += HISTORYLEN;
             cx = dwin->history[dwin->historypos];
-            put_text_uni(dwin, cx, cx ? strlen_uni(cx) : 0, dwin->infence,
+            put_text_uni(dwin, cx, cx ? gli_strlen_uni(cx) : 0, dwin->infence,
                     dwin->numchars - dwin->infence);
             break;
 
@@ -1646,7 +1646,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
             if (dwin->historypos >= HISTORYLEN)
                 dwin->historypos -= HISTORYLEN;
             cx = dwin->history[dwin->historypos];
-            put_text_uni(dwin, cx, cx ? strlen_uni(cx) : 0, dwin->infence,
+            put_text_uni(dwin, cx, cx ? gli_strlen_uni(cx) : 0, dwin->infence,
                     dwin->numchars - dwin->infence);
             break;
 

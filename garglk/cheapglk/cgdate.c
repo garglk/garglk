@@ -1,25 +1,83 @@
+/******************************************************************************
+ *                                                                            *
+ * Copyright (C) 2011 by Andrew Plotkin, Ben Cressey.                         *
+ *                                                                            *
+ * This file is part of Gargoyle.                                             *
+ *                                                                            *
+ * Gargoyle is free software; you can redistribute it and/or modify           *
+ * it under the terms of the GNU General Public License as published by       *
+ * the Free Software Foundation; either version 2 of the License, or          *
+ * (at your option) any later version.                                        *
+ *                                                                            *
+ * Gargoyle is distributed in the hope that it will be useful,                *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
+ * GNU General Public License for more details.                               *
+ *                                                                            *
+ * You should have received a copy of the GNU General Public License          *
+ * along with Gargoyle; if not, write to the Free Software                    *
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
+ *                                                                            *
+ *****************************************************************************/
+
+/* cgdate.c: Date and time functions for Glk API.
+    Designed by Andrew Plotkin <erkyrath@eblong.com>
+    http://eblong.com/zarf/glk/
+
+    Portions of this file are copyright (c) 1998-2016, Andrew Plotkin
+    It is distributed under the MIT license; see the "LICENSE" file.
+*/
+
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 #include <stdlib.h>
 #include <time.h>
 #include <sys/time.h>
 #include "glk.h"
-#include "cheapglk.h"
+#include "garglk.h"
+
+#ifdef GARGLK
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+/* timegm() is non-standard (neither C nor POSIX), so unconditionally
+   use a replacement.
+*/
+#define NO_TIMEGM_AVAIL
+
+/* bzero() is deprecated */
+#define bzero(s, n) memset((s), 0, (n))
+#endif
 
 #ifdef GLK_MODULE_DATETIME
 
 #ifdef NO_TIMEGM_AVAIL
-extern time_t timegm(struct tm *tm);
+static time_t timegm(struct tm *tm);
 #endif /* NO_TIMEGM_AVAIL */
 
 #ifdef WIN32
 /* Some alterations to make this code work on Windows, in case that's helpful
    to you. */
 #define mktime gli_mktime
-extern time_t timegm(struct tm *tm);
-extern time_t gli_mktime(struct tm *timeptr);
+static time_t timegm(struct tm *tm);
+static time_t gli_mktime(struct tm *timeptr);
 static struct tm *gmtime_r(const time_t *timer, struct tm *result);
 static struct tm *localtime_r(const time_t *timer, struct tm *result);
+
+#ifdef GARGLK
+/* These functions are POSIX but aren't supplied by MinGW. */
+static int setenv(const char *name, const char *value, int overwrite)
+{
+    SetEnvironmentVariable(name, value);
+    return 0;
+}
+static int unsetenv(const char *name)
+{
+    SetEnvironmentVariable(name, NULL);
+    return 0;
+}
+#endif
 #endif /* WIN32 */
 
 
@@ -318,6 +376,7 @@ time_t gli_mktime (struct tm * timeptr)
     return ret;
 }
 
+#ifndef GARGLK
 time_t timegm(struct tm *tm)
 {
     time_t answer;
@@ -328,6 +387,7 @@ time_t timegm(struct tm *tm)
     tzset();
     return answer;
 }
+#endif
 
 #define UTC_1901 (-2145916801)      /* Dec 31, 1901 at 23:59:59 UTC */
 #define UTC_1951 (-568080001)       /* Dec 31, 1951 at 23:59:59 UTC */
