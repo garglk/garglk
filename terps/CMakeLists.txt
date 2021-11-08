@@ -326,7 +326,8 @@ if(WITH_SCARE)
         scare/scserial.c scare/scresour.c scare/scutils.c scare/scdebug.c
         scare/sclocale.c scare/scmemos.c scare/os_glk.c
         INCLUDE_DIRS ${SCARE_INCLUDE_DIRS}
-        LIBS ${SCARE_LIBS})
+        LIBS ${SCARE_LIBS}
+        MACROS SCARE_NO_ABBREVIATIONS)
 endif()
 
 # ------------------------------------------------------------------------------

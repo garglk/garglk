@@ -196,12 +196,21 @@ static sc_commands_t PRIORITY_COMMANDS[] = {
 static sc_commands_t STANDARD_COMMANDS[] = {
 
   /* Inventory, and general investigation of surroundings. */
+#ifdef SCARE_NO_ABBREVIATIONS
+  {"[inventory/inv]", lib_cmd_inventory},
+  {"[ex/exam/examine/look {at}] {{the} [room/location]}", lib_cmd_look},
+  {"[ex/exam/examine/look {at/in}] %object%", lib_cmd_examine_object},
+  {"[ex/exam/examine/look {at}] %character%", lib_cmd_examine_npc},
+  {"[ex/exam/examine/look {at}] [me/self/myself]", lib_cmd_examine_self},
+  {"[ex/exam/examine/look {at}] all", lib_cmd_examine_all},
+#else
   {"[inventory/inv/i]", lib_cmd_inventory},
   {"[x/ex/exam/examine/l/look {at}] {{the} [room/location]}", lib_cmd_look},
   {"[x/ex/exam/examine/look {at/in}] %object%", lib_cmd_examine_object},
   {"[x/ex/exam/examine/look {at}] %character%", lib_cmd_examine_npc},
   {"[x/ex/exam/examine/look {at}] [me/self/myself]", lib_cmd_examine_self},
   {"[x/ex/exam/examine/look {at}] all", lib_cmd_examine_all},
+#endif
 
   /* Attempted acquisition of and disposal of NPCs. */
   {"[get/take/pick up] %character%", lib_cmd_take_npc},
@@ -260,16 +269,29 @@ static sc_commands_t STANDARD_COMMANDS[] = {
   {"[goto/go {to}] %text%", lib_cmd_go_room},
   {"[goto/go {to}] *", lib_cmd_print_room_exits},
   {"[exit/exits/directions/where]", lib_cmd_print_room_exits},
+#ifdef SCARE_NO_ABBREVIATIONS
+  {"[wait] %number%", lib_cmd_wait_number},
+  {"[wait]", lib_cmd_wait},
+#else
   {"[wait/z] %number%", lib_cmd_wait_number},
   {"[wait/z]", lib_cmd_wait},
+#endif
   {"save", lib_cmd_save},
   {"[restore/load]", lib_cmd_restore},
   {"restart", lib_cmd_restart},
+#ifdef SCARE_NO_ABBREVIATIONS
+  {"[again]", lib_cmd_again},
+#else
   {"[again/g]", lib_cmd_again},
+#endif
   {"[redo /!]%number%", lib_cmd_redo_number},
   {"[redo /!]%text%", lib_cmd_redo_text},
   {"[redo/!]", lib_cmd_redo_last},
+#ifdef SCARE_NO_ABBREVIATIONS
+  {"[quit]", lib_cmd_quit},
+#else
   {"[quit/q]", lib_cmd_quit},
+#endif
   {"turns", lib_cmd_turns},
   {"score", lib_cmd_score},
   {"undo", lib_cmd_undo},
