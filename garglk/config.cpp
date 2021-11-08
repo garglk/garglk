@@ -23,6 +23,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -31,9 +33,15 @@
 #include <string>
 #include <vector>
 
+#if __cplusplus >= 201703L
+#include <filesystem>
+#endif
+
 #include "glk.h"
 #include "glkstart.h"
 #include "garglk.h"
+
+#include GARGLKINI_H
 
 bool gli_utf8input = true;
 bool gli_utf8output = true;
@@ -203,20 +211,19 @@ static void parsecolor(const std::string &str, unsigned char *rgb)
 // 1. Name of game file with extension replaced by .ini (e.g. zork1.z3
 //    becomes zork1.ini)
 // 2. <directory containing game file>/garglk.ini
-// 3. <current directory>/garglk.ini
-// 4. $XDG_CONFIG_HOME/garglk.ini or $HOME/.config/garglk.ini
-// 5. $HOME/.garglkrc
-// 6. $HOME/garglk.ini
-// 7. $GARGLK_INI/.garglk
-// 8. $GARGLK_INI/garglk.ini
-// 9. /etc/garglk.ini (or other location set at build time)
-// 10. <directory containing gargoye executable>/garglk.ini
+// 3. %APPDATA%/Gargoyle/garglk.ini (Windows only)
+// 4. <current directory>/garglk.ini
+// 5. $XDG_CONFIG_HOME/garglk.ini or $HOME/.config/garglk.ini
+// 6. $HOME/.garglkrc
+// 7. $GARGLK_INI/garglk.ini (macOS only)
+// 8. /etc/garglk.ini (or other location set at build time, Unix only)
+// 9. <directory containing gargoye executable>/garglk.ini (Windows only)
 //
 // exedir is the directory containing the gargoyle executable
 // gamepath is the path to the game file being run
-std::vector<std::string> garglk::configs(const std::string &exedir, const std::string &gamepath)
+std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", const std::string &gamepath = "")
 {
-    std::vector<std::string> configs;
+    std::vector<ConfigFile> configs;
     if (!gamepath.empty())
     {
         std::string config;
@@ -229,7 +236,7 @@ std::vector<std::string> garglk::configs(const std::string &exedir, const std::s
         else
             config += ".ini";
 
-        configs.push_back(config);
+        configs.push_back(ConfigFile(config, false));
 
         // game directory .ini
         config = gamepath;
@@ -239,11 +246,24 @@ std::vector<std::string> garglk::configs(const std::string &exedir, const std::s
         else
             config = "garglk.ini";
 
-        configs.push_back(config);
+        configs.push_back(ConfigFile(config, false));
     }
 
+#ifdef _WIN32
+    // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
+    // priority than $PWD/garglk.ini since it's a more "proper" location.
+    const char *appdata = std::getenv("APPDATA");
+    if (appdata != nullptr)
+        configs.push_back(ConfigFile(std::string(appdata) + "/Gargoyle/garglk.ini", true));
+
     // current directory .ini
-    configs.push_back("garglk.ini");
+    // Historically this has been the location of garglk.ini on Windows,
+    // so treat it as a user config there.
+    configs.push_back(ConfigFile("garglk.ini", true));
+#else
+    // This could be anywhere, so don't treat it as a user config.
+    configs.push_back(ConfigFile("garglk.ini", false));
+#endif
 
     // XDG Base Directory Specification
     std::string xdg_path;
@@ -260,32 +280,88 @@ std::vector<std::string> garglk::configs(const std::string &exedir, const std::s
     }
 
     if (!xdg_path.empty())
-        configs.push_back(xdg_path + "/garglk.ini");
+        configs.push_back(ConfigFile(xdg_path + "/garglk.ini", true));
 
-    // Various environment directories
-    //
-    // $GARGLK_INI may be set to a platform-specific path by the
-    // launcher. At the moment it's only used on macOS to point inside
-    // the bundle to a directory containing the a default garglk.ini.
-    std::vector<const char *> env_vars = {"HOME", "GARGLK_INI"};
-    for (const auto &var : env_vars)
-    {
-        const char *dir = std::getenv(var);
-        if (dir != nullptr)
-        {
-            configs.push_back(std::string(dir) + "/.garglkrc");
-            configs.push_back(std::string(dir) + "/garglk.ini");
-        }
-    }
+    // $HOME/.garglkrc
+    const char *home = std::getenv("HOME");
+    if (home != nullptr)
+        configs.push_back(ConfigFile(std::string(home) + "/.garglkrc", true));
 
+#ifdef __APPLE__
+    // macOS sets $GARGLK_INI to the bundle directory containing a
+    // default garglk.ini.
+    const char *garglkini = std::getenv("GARGLK_INI");
+    if (garglkini != nullptr)
+        configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", false));
+#endif
+
+#ifdef GARGLKINI
     // system directory
-    configs.push_back(GARGLKINI);
+    configs.push_back(ConfigFile(GARGLKINI, false));
+#endif
 
+#ifdef _WIN32
     // install directory
     if (!exedir.empty())
-        configs.push_back(exedir + "/garglk.ini");
+        configs.push_back(ConfigFile(exedir + "/garglk.ini", false));
+#endif
 
     return configs;
+}
+
+std::string garglk::user_config()
+{
+    auto cfgs = configs();
+
+    // Filter out non-user configs.
+    cfgs.erase(
+            std::remove_if(cfgs.begin(),
+                           cfgs.end(),
+                           [](const ConfigFile &config) { return !config.user; }),
+            cfgs.end());
+
+    if (cfgs.empty())
+        throw std::runtime_error("No valid configuration files found.");
+
+    // Find first user config which already exists, if any.
+    auto cfg = std::find_if(cfgs.begin(), cfgs.end(), [](const ConfigFile &config) {
+        return std::ifstream(config.path).good();
+    });
+
+    if (cfg != cfgs.end())
+        return cfg->path;
+
+    // No config exists, so create the highest-priority config.
+    auto path = cfgs.front().path;
+
+    // If building with C++17, ensure the parent directory exists. This
+    // is difficult to do portably before C++17, so just don't do it.
+#if __cplusplus >= 201703L
+    std::filesystem::path fspath(path);
+    try
+    {
+        if (!fspath.parent_path().empty())
+            std::filesystem::create_directories(fspath.parent_path());
+    }
+    catch (const std::runtime_error &e)
+    {
+        throw std::runtime_error("Unable to create parent directory for configuration file " + path + ": " + e.what());
+    }
+#endif
+
+    std::ofstream f(path, std::ios::binary);
+    if (!f.is_open())
+        throw std::runtime_error("Unable to open configuration file " + path + " for writing.");
+
+    f.write(reinterpret_cast<const char *>(garglkini), sizeof garglkini);
+
+    if (f.bad())
+    {
+        std::remove(path.c_str());
+        throw std::runtime_error("Error writing to configuration file " + path + ".");
+    }
+
+    return path;
 }
 
 void garglk::config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback)
@@ -578,7 +654,7 @@ static void gli_read_config(int argc, char **argv)
     std::reverse(configs.begin(), configs.end());
 
     for (const auto &config : configs)
-        readoneconfig(config, argv0, gamefile);
+        readoneconfig(config.path, argv0, gamefile);
 }
 
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)

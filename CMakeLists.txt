@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.3)
 
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
@@ -8,6 +8,18 @@ if(POLICY CMP0069)
     cmake_policy(SET CMP0069 NEW)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT HAS_LTO)
+endif()
+
+# At the moment C++17 is optional, and used in only one place. In the
+# near future, however, it will likely be required.
+# Completely disable on macOS, since although it claims C++17 support,
+# when building for older versions (as is done by gargoyle_osx.sh), not
+# all C++17 features are exposed. The C++17 code is unused on macOS
+# anyway, so there's no harm here.
+if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT APPLE)
+    set(CXX_VERSION 17)
+else()
+    set(CXX_VERSION 14)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
