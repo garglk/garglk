@@ -6,10 +6,6 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        target: ["i686-w64-mingw32", "x86_64-w64-mingw32"]
-
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
@@ -29,22 +25,41 @@ jobs:
           gcc-mingw-w64
           git
           mingw-w64-tools
+          nsis
+          p7zip-full
+          unzip
           wget
 
       - name: Set up MinGW environment
         run: |
-          update-alternatives --set ${{ matrix.target }}-gcc /usr/bin/${{ matrix.target }}-gcc-posix
-          update-alternatives --set ${{ matrix.target }}-g++ /usr/bin/${{ matrix.target }}-g++-posix
-          wget https://github.com/garglk/assets/raw/master/mingw.tar.xz
-          tar xfv mingw.tar.xz -C /
-
-      - name: Configure
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/${{ matrix.target }} -DCMAKE_TOOLCHAIN_FILE=../Toolchain-${{ matrix.target }}.cmake -DMINGW_TRIPLE=${{ matrix.target }}
+          update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
+          update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
+          update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+          update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+          wget https://github.com/garglk/assets/raw/master/mingw/mingw-i686.tar.xz
+          wget https://github.com/garglk/assets/raw/master/mingw/mingw-x86_64.tar.xz
+          tar xfv mingw-i686.tar.xz -C /
+          tar xfv mingw-x86_64.tar.xz -C /
+          mkdir NSIS
+          cd NSIS
+          wget https://nsis.sourceforge.io/mediawiki/images/7/78/FontName-0.7.zip
+          unzip FontName-0.7.zip
+          7z x -bb3 FontName-0.7.exe
+          mkdir -p /usr/share/nsis/Include
+          mkdir -p /usr/share/nsis/Plugins/x86-ansi
+          for inc in Include/*; do iconv -f CP1251 -t UTF8 ${inc} -o /usr/share/nsis/Include/$(basename ${inc}); done
+          cp Plugins/FontName.dll /usr/share/nsis/Plugins/x86-ansi
+          cd ..
 
       - name: Build
         run: |
-          cd build
-          make -j`nproc`
+          rm -rf build/dist build-mingw
+          ./windows.sh
+          rm -rf build/dist build-mingw
+          GARGOYLE64=1 ./windows.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle
+          path: gargoyle-*.exe
