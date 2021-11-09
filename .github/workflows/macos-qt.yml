@@ -1,0 +1,25 @@
+name: macOS (Qt)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-11
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update brew
+        run: brew update
+
+      - name: Install packages
+        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6
+
+      - name: Build (Qt)
+        run: |
+          mkdir build-cmake
+          cd build-cmake
+          cmake .. -DINTERFACE=QT -DSOUND=QT -DWITH_QT6=ON
+          make -j`sysctl -n hw.ncpu`

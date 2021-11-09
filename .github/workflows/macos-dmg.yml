@@ -1,4 +1,4 @@
-name: macOS
+name: macOS (DMG)
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6 sdl2 sdl2_mixer
+        run: brew install sdl2 sdl2_mixer
 
       - name: Build
         run: sh gargoyle_osx.sh
@@ -25,10 +25,3 @@ jobs:
         with:
           name: Gargoyle.dmg
           path: gargoyle*.dmg
-
-      - name: Build (Qt)
-        run: |
-          mkdir build-cmake
-          cd build-cmake
-          cmake .. -DINTERFACE=QT -DSOUND=QT -DWITH_QT6=ON
-          make -j`sysctl -n hw.ncpu`
