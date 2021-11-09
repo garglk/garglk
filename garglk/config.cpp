@@ -309,7 +309,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
 
         if (line[0] == '[' && line.back() == ']')
         {
-            accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string match) {
+            accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string &match) {
                 return garglk::downcase(line).find(garglk::downcase(match)) != std::string::npos;
             });
             continue;
