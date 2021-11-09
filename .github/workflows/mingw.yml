@@ -6,6 +6,11 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        arch:
+          - "i686"
+          - "x86_64"
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
@@ -32,14 +37,10 @@ jobs:
 
       - name: Set up MinGW environment
         run: |
-          update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix
-          update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
-          update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
-          update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
-          wget https://github.com/garglk/assets/raw/master/mingw/mingw-i686.tar.xz
-          wget https://github.com/garglk/assets/raw/master/mingw/mingw-x86_64.tar.xz
-          tar xfv mingw-i686.tar.xz -C /
-          tar xfv mingw-x86_64.tar.xz -C /
+          update-alternatives --set ${{ matrix.arch }}-w64-mingw32-gcc /usr/bin/${{ matrix.arch }}-w64-mingw32-gcc-posix
+          update-alternatives --set ${{ matrix.arch }}-w64-mingw32-g++ /usr/bin/${{ matrix.arch }}-w64-mingw32-g++-posix
+          wget https://github.com/garglk/assets/raw/master/mingw/mingw-${{ matrix.arch }}.tar.xz
+          tar xfv mingw-${{ matrix.arch }}.tar.xz -C /
           mkdir NSIS
           cd NSIS
           wget https://nsis.sourceforge.io/mediawiki/images/7/78/FontName-0.7.zip
@@ -51,15 +52,17 @@ jobs:
           cp Plugins/FontName.dll /usr/share/nsis/Plugins/x86-ansi
           cd ..
 
+      - name: Set environment variables
+        run: |
+          echo "GARGOYLE64=1" >> $GITHUB_ENV
+        if: ${{ matrix.arch == 'x86_64' }}
+
       - name: Build
         run: |
-          rm -rf build/dist build-mingw
           ./windows.sh
-          rm -rf build/dist build-mingw
-          GARGOYLE64=1 ./windows.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: Gargoyle
+          name: Gargoyle-${{ matrix.arch }}
           path: gargoyle-*.exe
