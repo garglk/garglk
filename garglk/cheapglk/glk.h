@@ -1,3 +1,6 @@
+#ifndef GLK_H
+#define GLK_H
+
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson, Andrew Plotkin.                  *
@@ -20,24 +23,16 @@
  *                                                                            *
  *****************************************************************************/
 
-#ifndef GARGLK_GLK_H
-#define GARGLK_GLK_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* glk.h: Header file for Glk API, version 0.7.3.
+/* glk.h: Header file for Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
-    This file is copyright 1998-2011 by Andrew Plotkin. You may copy,
-    distribute, and incorporate it into your own programs, by any means
-    and under any conditions, as long as you do not modify it. You may
-    also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
+    This file is copyright 1998-2017 by Andrew Plotkin. It is
+    distributed under the MIT license; see the "LICENSE" file.
 */
 
 /* If your system does not have <stdint.h>, you'll have to remove this
@@ -50,7 +45,8 @@ typedef uint32_t glui32;
 typedef int32_t glsi32;
 
 /* These are the compile-time conditionals that reveal various Glk optional
-    modules. */
+    modules. Note that if GLK_MODULE_SOUND2 is defined, GLK_MODULE_SOUND
+    must be also. */
 #define GLK_MODULE_LINE_ECHO
 #define GLK_MODULE_LINE_TERMINATORS
 #define GLK_MODULE_UNICODE
@@ -60,8 +56,21 @@ typedef int32_t glsi32;
 #define GLK_MODULE_SOUND2
 #define GLK_MODULE_HYPERLINKS
 #define GLK_MODULE_DATETIME
+#define GLK_MODULE_RESOURCE_STREAM
+
 #define GLK_MODULE_GARGLKTEXT
 #define GLK_MODULE_FILEREF_GET_NAME
+
+/* Define a macro for a function attribute that indicates a function that
+    never returns. (E.g., glk_exit().) We try to do this only in C compilers
+    that support it. If this is causing you problems, comment all this out
+    and simply "#define GLK_ATTRIBUTE_NORETURN". */
+#if defined(__GNUC__) || defined(__clang__)
+#define GLK_ATTRIBUTE_NORETURN __attribute__((__noreturn__))
+#endif /* defined(__GNUC__) || defined(__clang__) */
+#ifndef GLK_ATTRIBUTE_NORETURN
+#define GLK_ATTRIBUTE_NORETURN
+#endif /* GLK_ATTRIBUTE_NORETURN */
 
 /* These types are opaque object identifiers. They're pointers to opaque
     C structures, which are defined differently by each library. */
@@ -95,6 +104,8 @@ typedef struct glk_schannel_struct *schanid_t;
 #define gestalt_LineTerminatorKey (19)
 #define gestalt_DateTime (20)
 #define gestalt_Sound2 (21)
+#define gestalt_ResourceStream (22)
+#define gestalt_GraphicsCharInput (23)
 #define gestalt_GarglkText (0x1100)
 
 #define evtype_None (0)
@@ -220,10 +231,7 @@ typedef struct stream_result_struct {
     calls it. */
 extern void glk_main(void);
 
-#ifdef __GNUC__
-__attribute__((__noreturn__))
-#endif
-extern void glk_exit(void);
+extern void glk_exit(void) GLK_ATTRIBUTE_NORETURN;
 extern void glk_set_interrupt_handler(void (*func)(void));
 extern void glk_tick(void);
 
@@ -321,7 +329,7 @@ extern void glk_set_echo_line_event(winid_t win, glui32 val);
 #endif /* GLK_MODULE_LINE_ECHO */
 
 #ifdef GLK_MODULE_LINE_TERMINATORS
-extern void glk_set_terminators_line_event(winid_t win, glui32 *keycodes,
+extern void glk_set_terminators_line_event(winid_t win, glui32 *keycodes, 
     glui32 count);
 #endif /* GLK_MODULE_LINE_TERMINATORS */
 
@@ -450,9 +458,9 @@ extern void glk_current_time(glktimeval_t *time);
 extern glsi32 glk_current_simple_time(glui32 factor);
 extern void glk_time_to_date_utc(glktimeval_t *time, glkdate_t *date);
 extern void glk_time_to_date_local(glktimeval_t *time, glkdate_t *date);
-extern void glk_simple_time_to_date_utc(glsi32 time, glui32 factor,
+extern void glk_simple_time_to_date_utc(glsi32 time, glui32 factor, 
     glkdate_t *date);
-extern void glk_simple_time_to_date_local(glsi32 time, glui32 factor,
+extern void glk_simple_time_to_date_local(glsi32 time, glui32 factor, 
     glkdate_t *date);
 extern void glk_date_to_time_utc(glkdate_t *date, glktimeval_t *time);
 extern void glk_date_to_time_local(glkdate_t *date, glktimeval_t *time);
@@ -460,6 +468,13 @@ extern glsi32 glk_date_to_simple_time_utc(glkdate_t *date, glui32 factor);
 extern glsi32 glk_date_to_simple_time_local(glkdate_t *date, glui32 factor);
 
 #endif /* GLK_MODULE_DATETIME */
+
+#ifdef GLK_MODULE_RESOURCE_STREAM
+
+extern strid_t glk_stream_open_resource(glui32 filenum, glui32 rock);
+extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
+
+#endif /* GLK_MODULE_RESOURCE_STREAM */
 
 /* XXX non-official Glk functions that may or may not exist */
 

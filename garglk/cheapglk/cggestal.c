@@ -24,13 +24,8 @@
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    Portions of this file are copyright 1998-2007 by Andrew Plotkin.
-    You may copy, distribute, and incorporate it into your own programs,
-    by any means and under any conditions, as long as you do not modify it.
-    You may also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
+    Portions of this file are copyright 1998-2016 by Andrew Plotkin.
+    It is distributed under the MIT license; see the "LICENSE" file.
 */
 
 #include <stdbool.h>
@@ -40,104 +35,178 @@
 #include "glk.h"
 #include "garglk.h"
 
+#ifdef GARGLK
+#define TRUE true
+#define FALSE false
+#endif
+
 glui32 glk_gestalt(glui32 id, glui32 val)
 {
     return glk_gestalt_ext(id, val, NULL, 0);
 }
 
-glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
+glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr, 
     glui32 arrlen)
 {
-    switch (id)
-    {
+    switch (id) {
+        
         case gestalt_Version:
-            return 0x00000703;
-
+            /* This implements Glk spec version 0.7.5. */
+            return 0x00000705;
+        
         case gestalt_LineInput:
+#ifdef GARGLK
             if (val >= 32 && val < 0x10ffff)
-                return true;
+#else
+            if (val >= 32 && val < 127)
+#endif
+                return TRUE;
             else
-                return false;
-
-        case gestalt_CharInput:
-            if (val >= 32 && val < 0x10ffff)
-                return true;
+                return FALSE;
+                
+        case gestalt_CharInput: 
+            if (val >= 32 && val < 127)
+                return TRUE;
             else if (val == keycode_Return)
-                return true;
-            else
-                return false;
-
-        case gestalt_CharOutput:
-            if (val >= 32 && val < 0x10ffff)
-            {
+                return TRUE;
+            else {
+                /* If we're doing UTF-8 input, we can input any Unicode
+                   character. Except control characters. */
+                if (gli_utf8input) {
+                    if (val >= 160 && val < 0x200000)
+                        return TRUE;
+                }
+                /* If not, we can't accept anything non-ASCII */
+                return FALSE;
+            }
+        
+        case gestalt_CharOutput: 
+            if (val >= 32 && val < 127) {
                 if (arr && arrlen >= 1)
                     arr[0] = 1;
                 return gestalt_CharOutput_ExactPrint;
             }
-            else
-            {
+            else {
                 /* cheaply, we don't do any translation of printed
-                    characters, so the output is always one character
+                    characters, so the output is always one character 
                     even if it's wrong. */
                 if (arr && arrlen >= 1)
                     arr[0] = 1;
+                /* If we're doing UTF-8 output, we can print any Unicode
+                   character. Except control characters. */
+                if (gli_utf8output) {
+                    if (val >= 160 && val < 0x200000)
+                        return gestalt_CharOutput_ExactPrint;
+                }
                 return gestalt_CharOutput_CannotPrint;
             }
-
-        case gestalt_MouseInput:
+            
+        case gestalt_MouseInput: 
+#ifdef GARGLK
             if (val == wintype_TextGrid)
-                return true;
+                return TRUE;
             if (val == wintype_Graphics)
-                return true;
-            return false;
-
-        case gestalt_Timer:
-            return true;
+                return TRUE;
+#endif
+            return FALSE;
+            
+        case gestalt_Timer: 
+#ifdef GARGLK
+            return TRUE;
+#else
+            return FALSE;
+#endif
 
         case gestalt_Graphics:
         case gestalt_GraphicsTransparency:
+#ifdef GARGLK
             return gli_conf_graphics;
+#endif
+        case gestalt_GraphicsCharInput:
+            return FALSE;
+            
         case gestalt_DrawImage:
+#ifdef GARGLK
             if (val == wintype_TextBuffer)
                 return gli_conf_graphics;
             if (val == wintype_Graphics)
                 return gli_conf_graphics;
-            return false;
-
+#endif
+            return FALSE;
+            
+        case gestalt_Unicode:
+#ifdef GLK_MODULE_UNICODE
+            return TRUE;
+#else
+            return FALSE;
+#endif /* GLK_MODULE_UNICODE */
+            
+        case gestalt_UnicodeNorm:
+#ifdef GLK_MODULE_UNICODE_NORM
+            return TRUE;
+#else
+            return FALSE;
+#endif /* GLK_MODULE_UNICODE_NORM */
+            
         case gestalt_Sound:
         case gestalt_SoundVolume:
+        case gestalt_SoundNotify: 
         case gestalt_SoundMusic:
-        case gestalt_SoundNotify:
+#ifdef GARGLK
             return gli_conf_sound;
-
-        case gestalt_Sound2:
+#else
+            return FALSE;
+#endif
+        case gestalt_Sound2: 
+#ifdef GARGLK
             return gli_conf_sound;
-
-        case gestalt_Unicode:
-            return true;
-        case gestalt_UnicodeNorm:
-            return true;
-
-        case gestalt_Hyperlinks:
-            return true;
-        case gestalt_HyperlinkInput:
-            return true;
+#else
+            /* Sound2 implies all the above sound options. But for
+               cheapglk, they're all false. */
+            return FALSE;
+#endif
 
         case gestalt_LineInputEcho:
-            return true;
+#ifdef GARGLK
+            return TRUE;
+#else
+            return FALSE;
+#endif
+
         case gestalt_LineTerminators:
-            return true;
+#ifdef GARGLK
+            return TRUE;
+#endif
         case gestalt_LineTerminatorKey:
+#ifdef GARGLK
             return gli_window_check_terminator(val);
+#else
+            return FALSE;
+#endif
 
         case gestalt_DateTime:
-            return true;
+            return TRUE;
+
+        case gestalt_ResourceStream:
+#ifdef GARGLK
+            return TRUE;
+#else
+            return FALSE;
+#endif
+
+#ifdef GARGLK
+        case gestalt_Hyperlinks:
+            return TRUE;
+        case gestalt_HyperlinkInput:
+            return TRUE;
 
         case gestalt_GarglkText:
-            return true;
+            return TRUE;
+#endif
 
         default:
-            return false;
+            return 0;
 
     }
 }
+

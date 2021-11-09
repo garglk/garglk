@@ -25,18 +25,15 @@
     http://www.eblong.com/zarf/glk/index.html
 
     Portions of this file are copyright 1998-2004 by Andrew Plotkin.
-    You may copy, distribute, and incorporate it into your own programs,
-    by any means and under any conditions, as long as you do not modify it.
-    You may also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
+    It is distributed under the MIT license; see the "LICENSE" file.
 */
+
+#include <algorithm>
+#include <string>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <unistd.h> /* for unlink() */
 #include <sys/stat.h> /* for stat() */
 
@@ -48,6 +45,7 @@
 #include "garglk.h"
 #include "glkstart.h"
 
+#ifdef GARGLK
 char gli_workdir[1024] = ".";
 char gli_workfile[1024] = "";
 
@@ -55,6 +53,7 @@ char *garglk_fileref_get_name(fileref_t *fref)
 {
     return fref->filename;
 }
+#endif
 
 /* This file implements filerefs as they work in a stdio system: a
     fileref contains a pathname, a text/binary flag, and a file
@@ -62,29 +61,39 @@ char *garglk_fileref_get_name(fileref_t *fref)
 */
 
 /* Linked list of all filerefs */
-static fileref_t *gli_filereflist = NULL;
+static fileref_t *gli_filereflist = NULL; 
 
-fileref_t *gli_new_fileref(const char *filename, glui32 usage, glui32 rock)
+#ifndef GARGLK
+#define BUFLEN (256)
+static char workingdir[BUFLEN] = ".";
+#endif
+
+static fileref_t *gli_new_fileref(const char *filename, glui32 usage, glui32 rock)
 {
     fileref_t *fref = (fileref_t *)malloc(sizeof(fileref_t));
     if (!fref)
         return NULL;
-
+    
     fref->magicnum = MAGIC_FILEREF_NUM;
     fref->rock = rock;
-
+    
+#ifdef GARGLK
     fref->filename = new char[strlen(filename) + 1];
+#else
+    fref->filename = malloc(1 + strlen(filename));
+#endif
     strcpy(fref->filename, filename);
-
+    
     fref->textmode = ((usage & fileusage_TextMode) != 0);
     fref->filetype = (usage & fileusage_TypeMask);
-
+    
     fref->prev = NULL;
     fref->next = gli_filereflist;
     gli_filereflist = fref;
-    if (fref->next)
+    if (fref->next) {
         fref->next->prev = fref;
-
+    }
+    
     if (gli_register_obj)
         fref->disprock = (*gli_register_obj)(fref, gidisp_Class_Fileref);
     else
@@ -93,21 +102,27 @@ fileref_t *gli_new_fileref(const char *filename, glui32 usage, glui32 rock)
     return fref;
 }
 
-void gli_delete_fileref(fileref_t *fref)
+static void gli_delete_fileref(fileref_t *fref)
 {
     fileref_t *prev, *next;
-
-    if (gli_unregister_obj)
-    {
+    
+    if (gli_unregister_obj) {
         (*gli_unregister_obj)(fref, gidisp_Class_Fileref, fref->disprock);
         fref->disprock.ptr = NULL;
     }
-
+        
     fref->magicnum = 0;
-
+    
+#ifdef GARGLK
     delete [] fref->filename;
     fref->filename = nullptr;
-
+#else
+    if (fref->filename) {
+        free(fref->filename);
+        fref->filename = NULL;
+    }
+#endif
+    
     prev = fref->prev;
     next = fref->next;
     fref->prev = NULL;
@@ -119,22 +134,37 @@ void gli_delete_fileref(fileref_t *fref)
         gli_filereflist = next;
     if (next)
         next->prev = prev;
-
+    
     free(fref);
 }
 
 void glk_fileref_destroy(fileref_t *fref)
 {
-    if (!fref)
-    {
+    if (!fref) {
         gli_strict_warning("fileref_destroy: invalid ref");
         return;
     }
     gli_delete_fileref(fref);
 }
 
+static std::string gli_suffix_for_usage(glui32 usage)
+{
+    switch (usage & fileusage_TypeMask) {
+        case fileusage_Data:
+            return ".glkdata";
+        case fileusage_SavedGame:
+            return ".glksave";
+        case fileusage_Transcript:
+        case fileusage_InputRecord:
+            return ".txt";
+        default:
+            return "";
+    }
+}
+
 frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
 {
+#ifdef GARGLK
     fileref_t *fref;
 #ifdef _WIN32
     char tempdir[MAX_PATH];
@@ -161,35 +191,40 @@ frefid_t glk_fileref_create_temp(glui32 usage, glui32 rock)
     }
     close(fd);
 #endif
+#else
+    char filename[BUFLEN];
+    fileref_t *fref;
+    
+    sprintf(filename, "/tmp/glktempfref-XXXXXX");
+    mktemp(filename);
+    
+#endif
 
     fref = gli_new_fileref(filename, usage, rock);
-    if (!fref)
-    {
+    if (!fref) {
         gli_strict_warning("fileref_create_temp: unable to create fileref.");
         return NULL;
     }
-
+    
     return fref;
 }
 
 frefid_t glk_fileref_create_from_fileref(glui32 usage, frefid_t oldfref,
     glui32 rock)
 {
-    fileref_t *fref;
+    fileref_t *fref; 
 
-    if (!oldfref)
-    {
+    if (!oldfref) {
         gli_strict_warning("fileref_create_from_fileref: invalid ref");
         return NULL;
     }
 
     fref = gli_new_fileref(oldfref->filename, usage, rock);
-    if (!fref)
-    {
+    if (!fref) {
         gli_strict_warning("fileref_create_from_fileref: unable to create fileref.");
         return NULL;
     }
-
+    
     return fref;
 }
 
@@ -197,46 +232,81 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
     glui32 rock)
 {
     fileref_t *fref;
-    std::string buf;
-
-    buf = std::string(name).substr(0, 255);
-
-    /* Take out all dangerous characters, and make sure the length is greater
-        than zero.  The overall goal is to make a legal
-        platform-native filename, without any extra directory
-        components.
-       Suffixes are another sore point. Really, the game program
-        shouldn't have a suffix on the name passed to this function. So
-        in DOS/Windows, this function should chop off dot-and-suffix,
-        if there is one, and then add a dot and a three-letter suffix
-        appropriate to the file type (as gleaned from the usage
-        argument.)
+#ifdef GARGLK
+    /* The new spec recommendations: delete all characters in the
+       string "/\<>:|?*" (including quotes). Truncate at the first
+       period. Change to "null" if there's nothing left. Then append
+       an appropriate suffix: ".glkdata", ".glksave", ".txt".
     */
+    const std::string to_remove = "\"\\/><:|?*";
+    std::string buf = name;
+
+    buf.erase(
+            std::remove_if(buf.begin(),
+                           buf.end(),
+                           [&to_remove](const char &c) { return to_remove.find(c) != std::string::npos; }),
+            buf.end());
 
     if (buf.empty())
-        buf = "X";
+        buf = "null";
 
-    for (char &c : buf)
-    {
-        if (c == '/' || c == '\\' || c == ':')
-            c = '-';
-    }
-
-    buf = std::string(gli_workdir) + "/" + buf;
+    buf = std::string(gli_workdir) + "/" + buf + gli_suffix_for_usage(usage);
 
     fref = gli_new_fileref(buf.c_str(), usage, rock);
-    if (!fref)
-    {
+#else
+    char buf[BUFLEN];
+    char buf2[2*BUFLEN+10];
+    int len;
+    char *cx;
+    char *suffix;
+    
+    /* The new spec recommendations: delete all characters in the
+       string "/\<>:|?*" (including quotes). Truncate at the first
+       period. Change to "null" if there's nothing left. Then append
+       an appropriate suffix: ".glkdata", ".glksave", ".txt".
+    */
+    
+    for (cx=name, len=0; (*cx && *cx!='.' && len<BUFLEN-1); cx++) {
+        switch (*cx) {
+            case '"':
+            case '\\':
+            case '/':
+            case '>':
+            case '<':
+            case ':':
+            case '|':
+            case '?':
+            case '*':
+                break;
+            default:
+                buf[len++] = *cx;
+        }
+    }
+    buf[len] = '\0';
+
+    if (len == 0) {
+        strcpy(buf, "null");
+        len = strlen(buf);
+    }
+    
+    suffix = gli_suffix_for_usage(usage);
+    sprintf(buf2, "%s/%s%s", workingdir, buf, suffix);
+
+    fref = gli_new_fileref(buf2, usage, rock);
+#endif
+    if (!fref) {
         gli_strict_warning("fileref_create_by_name: unable to create fileref.");
         return NULL;
     }
-
+    
     return fref;
 }
 
-frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
+frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
+    glui32 rock)
 {
     fileref_t *fref;
+#ifdef GARGLK
     std::string buf;
     enum FILEFILTERS filter;
     const char *prompt;
@@ -274,30 +344,122 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode, glui32 rock)
         return NULL;
     }
 
+    if (fmode == filemode_Read) {
+        /* According to recent spec discussion, we must silently return NULL if no such file exists. */
+        if (access(buf.c_str(), R_OK)) {
+            return NULL;
+        }
+    }
+
     fref = gli_new_fileref(buf.c_str(), usage, rock);
-    if (!fref)
-    {
-        gli_strict_warning("fileref_create_by_prompt: unable to create fileref.");
+#else
+    char buf[BUFLEN];
+    char newbuf[2*BUFLEN+10];
+    char *res;
+    char *cx;
+    int val, gotdot;
+    char *prompt, *prompt2;
+    
+    switch (usage & fileusage_TypeMask) {
+        case fileusage_SavedGame:
+            prompt = "Enter saved game";
+            break;
+        case fileusage_Transcript:
+            prompt = "Enter transcript file";
+            break;
+        case fileusage_InputRecord:
+            prompt = "Enter command record file";
+            break;
+        case fileusage_Data:
+        default:
+            prompt = "Enter data file";
+            break;
+    }
+    
+    if (fmode == filemode_Read)
+        prompt2 = "to load";
+    else
+        prompt2 = "to store";
+    
+    printf("%s %s: ", prompt, prompt2);
+    
+    res = fgets(buf, BUFLEN-1, stdin);
+    if (!res) {
+        printf("\n<end of input>\n");
+        glk_exit();
+    }
+
+    /* Trim whitespace from end and beginning. */
+
+    val = strlen(buf);
+    while (val 
+        && (buf[val-1] == '\n' 
+            || buf[val-1] == '\r' 
+            || buf[val-1] == ' '))
+        val--;
+    buf[val] = '\0';
+    
+    for (cx = buf; *cx == ' '; cx++) { }
+    
+    val = strlen(cx);
+    if (!val) {
+        /* The player just hit return. It would be nice to provide a
+            default value, but this implementation is too cheap. */
         return NULL;
     }
 
+    if (cx[0] == '/')
+        strcpy(newbuf, cx);
+    else
+        sprintf(newbuf, "%s/%s", workingdir, cx);
+
+    /* If there is no dot-suffix, add a standard one. */
+    val = strlen(newbuf);
+    gotdot = FALSE;
+    while (val && (buf[val-1] != '/')) {
+        if (buf[val-1] == '.') {
+            gotdot = TRUE;
+            break;
+        }
+        val--;
+    }
+    if (!gotdot) {
+        char *suffix = gli_suffix_for_usage(usage);
+        strcat(newbuf, suffix);
+    }
+
+    if (fmode == filemode_Read) {
+        /* According to recent spec discussion, we must silently return NULL if no such file exists. */
+        if (access(newbuf, R_OK)) {
+            return NULL;
+        }
+    }
+
+    fref = gli_new_fileref(newbuf, usage, rock);
+#endif
+    if (!fref) {
+        gli_strict_warning("fileref_create_by_prompt: unable to create fileref.");
+        return NULL;
+    }
+    
     return fref;
 }
 
 frefid_t glk_fileref_iterate(fileref_t *fref, glui32 *rock)
 {
-    if (!fref)
+    if (!fref) {
         fref = gli_filereflist;
-    else
+    }
+    else {
         fref = fref->next;
-
-    if (fref)
-    {
+    }
+    
+    if (fref) {
         if (rock)
             *rock = fref->rock;
         return fref;
     }
-
+    
     if (rock)
         *rock = 0;
     return NULL;
@@ -305,36 +467,30 @@ frefid_t glk_fileref_iterate(fileref_t *fref, glui32 *rock)
 
 glui32 glk_fileref_get_rock(fileref_t *fref)
 {
-    if (!fref)
-    {
+    if (!fref) {
         gli_strict_warning("fileref_get_rock: invalid ref.");
         return 0;
     }
-
+    
     return fref->rock;
 }
 
 glui32 glk_fileref_does_file_exist(fileref_t *fref)
 {
     struct stat buf;
-
-    if (!fref)
-    {
+    
+    if (!fref) {
         gli_strict_warning("fileref_does_file_exist: invalid ref");
-        return false;
+        return FALSE;
     }
-
+    
     /* This is sort of Unix-specific, but probably any stdio library
         will implement at least this much of stat(). */
-
+    
     if (stat(fref->filename, &buf))
         return 0;
-
-#ifdef S_ISREG
+    
     if (S_ISREG(buf.st_mode))
-#else
-    if (buf.st_mode & _S_IFREG)
-#endif
         return 1;
     else
         return 0;
@@ -342,21 +498,21 @@ glui32 glk_fileref_does_file_exist(fileref_t *fref)
 
 void glk_fileref_delete_file(fileref_t *fref)
 {
-    if (!fref)
-    {
+    if (!fref) {
         gli_strict_warning("fileref_delete_file: invalid ref");
         return;
     }
-
+    
     /* If you don't have the unlink() function, obviously, change it
         to whatever file-deletion function you do have. */
-
+        
     unlink(fref->filename);
 }
 
 /* This should only be called from startup code. */
 void glkunix_set_base_file(char *filename)
 {
+#ifdef GARGLK
     snprintf(gli_workdir, sizeof gli_workdir, "%s", filename);
     if (strrchr(gli_workdir, '/'))
         strrchr(gli_workdir, '/')[0] = 0;
@@ -366,4 +522,23 @@ void glkunix_set_base_file(char *filename)
         snprintf(gli_workdir, sizeof gli_workdir, ".");
 
     snprintf(gli_workfile, sizeof gli_workfile, "%s", filename);
+#else
+    int ix;
+  
+    for (ix=strlen(filename)-1; ix >= 0; ix--) 
+        if (filename[ix] == '/')
+            break;
+
+    if (ix >= 0) {
+        /* There is a slash. */
+        strncpy(workingdir, filename, ix);
+        workingdir[ix] = '\0';
+        ix++;
+    }
+    else {
+        /* No slash, just a filename. */
+        ix = 0;
+    }
+#endif
 }
+

@@ -476,7 +476,7 @@ static void sound_completion_callback(int chan)
 
 static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
 {
-    if (!giblorb_is_resource_map())
+    if (giblorb_get_resource_map() == NULL)
     {
         FILE *file;
         char name[1024];

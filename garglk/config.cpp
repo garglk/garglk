@@ -35,8 +35,8 @@
 #include "glkstart.h"
 #include "garglk.h"
 
-bool gli_utf8input = false;
-bool gli_utf8output = false;
+bool gli_utf8input = true;
+bool gli_utf8output = true;
 
 struct gli_font_files gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
 
@@ -583,7 +583,7 @@ static void gli_read_config(int argc, char **argv)
 
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)
 {
-    return gli_stream_open_pathname(pathname, (textmode != 0), rock);
+    return gli_stream_open_pathname(pathname, false, (textmode != 0), rock);
 }
 
 void gli_startup(int argc, char *argv[])

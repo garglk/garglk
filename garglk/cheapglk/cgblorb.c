@@ -24,13 +24,8 @@
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
-    Portions of this file are copyright 1998-2004 by Andrew Plotkin.
-    You may copy, distribute, and incorporate it into your own programs,
-    by any means and under any conditions, as long as you do not modify it.
-    You may also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
+    Portions of this file are copyright (c) 1998-2016, Andrew Plotkin
+    It is distributed under the MIT license; see the "LICENSE" file.
 */
 
 #include <stdio.h>
@@ -38,41 +33,49 @@
 #include "garglk.h"
 #include "gi_blorb.h"
 
+#ifndef GARGLK
+/* We'd like to be able to deal with game files in Blorb files, even
+   if we never load a sound or image. We'd also like to be able to
+   deal with Data chunks. So we're willing to set a map here. */
+#endif
+
+static giblorb_map_t *blorbmap = 0; /* NULL */
+
+#ifdef GARGLK
 static strid_t blorbfile = NULL;
-static giblorb_map_t *blorbmap = NULL;
+#endif
 
 giblorb_err_t giblorb_set_resource_map(strid_t file)
 {
-    giblorb_err_t err;
+  giblorb_err_t err;
+  
+#ifdef GARGLK
+  /* For the moment, we only allow file-streams, because the resource
+      loaders expect a FILE*. This could be changed, but I see no
+      reason right now. */
+  if (file->type != strtype_File)
+      return giblorb_err_NotAMap;
+#endif
 
-    /* For the moment, we only allow file-streams, because the resource
-       loaders expect a FILE*. This could be changed, but I see no
-       reason right now. */
-    if (file->type != strtype_File)
-        return giblorb_err_NotAMap;
+  err = giblorb_create_map(file, &blorbmap);
+  if (err) {
+    blorbmap = 0; /* NULL */
+    return err;
+  }
+  
+#ifdef GARGLK
+  blorbfile = file;
+#endif
 
-    err = giblorb_create_map(file, &blorbmap);
-    if (err)
-    {
-        blorbmap = NULL;
-        return err;
-    }
-
-    blorbfile = file;
-
-    return giblorb_err_None;
+  return giblorb_err_None;
 }
 
 giblorb_map_t *giblorb_get_resource_map()
 {
-    return blorbmap;
+  return blorbmap;
 }
 
-int giblorb_is_resource_map()
-{
-    return (blorbmap != NULL);
-}
-
+#ifdef GARGLK
 void giblorb_get_resource(glui32 usage, glui32 resnum,
     FILE **file, long *pos, long *len, glui32 *type)
 {
@@ -98,3 +101,4 @@ void giblorb_get_resource(glui32 usage, glui32 resnum,
     if (type)
         *type = blorbres.chunktype;
 }
+#endif

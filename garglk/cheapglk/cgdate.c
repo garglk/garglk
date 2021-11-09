@@ -24,32 +24,48 @@
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
-    Portions of this file are copyright 2011 by Andrew Plotkin.
-    You may copy, distribute, and incorporate it into your own programs,
-    by any means and under any conditions, as long as you do not modify it.
-    You may also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
+    Portions of this file are copyright (c) 1998-2016, Andrew Plotkin
+    It is distributed under the MIT license; see the "LICENSE" file.
 */
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include <time.h>
 #include <sys/time.h>
+#include "glk.h"
+#include "garglk.h"
 
+#ifdef GARGLK
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-#include "glk.h"
-#include "garglk.h"
+/* timegm() is non-standard (neither C nor POSIX), so unconditionally
+   use a replacement.
+*/
+#define NO_TIMEGM_AVAIL
+
+/* bzero() is deprecated */
+#define bzero(s, n) memset((s), 0, (n))
+#endif
 
 #ifdef GLK_MODULE_DATETIME
 
-#ifdef _WIN32
+#ifdef NO_TIMEGM_AVAIL
+static time_t timegm(struct tm *tm);
+#endif /* NO_TIMEGM_AVAIL */
+
+#ifdef WIN32
+/* Some alterations to make this code work on Windows, in case that's helpful
+   to you. */
+#define mktime gli_mktime
+static time_t timegm(struct tm *tm);
+static time_t gli_mktime(struct tm *timeptr);
+static struct tm *gmtime_r(const time_t *timer, struct tm *result);
+static struct tm *localtime_r(const time_t *timer, struct tm *result);
+
+#ifdef GARGLK
 /* These functions are POSIX but aren't supplied by MinGW. */
 static int setenv(const char *name, const char *value, int overwrite)
 {
@@ -62,132 +78,8 @@ static int unsetenv(const char *name)
     return 0;
 }
 #endif
-
-/* timegm() is non-standard (neither C nor POSIX), so unconditionally
-   use a replacement.
-*/
-static time_t gli_timegm(struct tm *tm)
-{
-    time_t answer;
-    const char *tz;
-
-    tz = getenv("TZ");
-    setenv("TZ", "UTC", 1);
-    tzset();
-    answer = mktime(tm);
-    if (tz == NULL)
-        unsetenv("TZ");
-    else
-        setenv("TZ", tz, 1);
-    tzset();
-    return answer;
-}
-
-#ifdef WIN32
-/* Windows needs wrappers for time functions to handle pre-epoch dates */
-
-/* 31,557,600 seconds per year */
-#define OFFSET84 ((glui32) 0x9E009580)  /* 1902-1951 => 1986-2035, +84 years */
-#define OFFSET28 ((glui32) 0x34AADC80)  /* 1952-1969 => 1980-1997, +28 years */
-
-time_t gli_mktime (struct tm * timeptr)
-{
-    glui32 offset = 0;
-    glui32 adjust = 0;
-
-    if (timeptr->tm_year < 70 && timeptr->tm_year > 1)
-    {
-        if (timeptr->tm_year < 52)
-        {
-            offset = OFFSET84;
-            adjust = 84;
-        }
-        else
-        {
-            offset = OFFSET28;
-            adjust = 28;
-        }
-    }
-    timeptr->tm_year += adjust;
-    time_t ret = mktime(timeptr) - offset;
-    timeptr->tm_year -= adjust;
-
-    return ret;
-}
-
-#define mktime gli_mktime
-
-#define UTC_1901 (-2145916801)      /* Dec 31, 1901 at 23:59:59 UTC */
-#define UTC_1951 (-568080001)       /* Dec 31, 1951 at 23:59:59 UTC */
-
-static struct tm * gmtime_r(const time_t *timer, struct tm *result)
-{
-    time_t eval = *timer;
-    glui32 adjust = 0;
-
-    if (eval < 0 && eval > UTC_1901)
-    {
-        if (eval > UTC_1951)
-        {
-            eval += OFFSET28;
-            adjust = 28;
-        }
-        else
-        {
-            eval += OFFSET84;
-            adjust = 84;
-        }
-    }
-
-    struct tm *gm = gmtime(&eval);
-
-    if (!gm)
-    {
-        time_t zero = 0;
-        gm = gmtime(&zero);
-        adjust = 0;
-    }
-
-    *result = *gm;
-    result->tm_year -= adjust;
-
-    return result;
-}
-
-static struct tm * localtime_r(const time_t *timer, struct tm *result)
-{
-    time_t eval = *timer;
-    glui32 adjust = 0;
-
-    if (eval < 0 && eval > UTC_1901)
-    {
-        if (eval > UTC_1951)
-        {
-            eval += OFFSET28;
-            adjust = 28;
-        }
-        else
-        {
-            eval += OFFSET84;
-            adjust = 84;
-        }
-    }
-
-    struct tm *loc = localtime(&eval);
-
-    if (!loc)
-    {
-        time_t zero = 0;
-        loc = localtime(&zero);
-        adjust = 0;
-    }
-
-    *result = *loc;
-    result->tm_year -= adjust;
-
-    return result;
-}
 #endif /* WIN32 */
+
 
 /* Copy a POSIX tm structure to a glkdate. */
 static void gli_date_from_tm(glkdate_t *date, struct tm *tm)
@@ -201,9 +93,9 @@ static void gli_date_from_tm(glkdate_t *date, struct tm *tm)
     date->second = tm->tm_sec;
 }
 
-/* Copy a glkdate to a POSIX tm structure.
+/* Copy a glkdate to a POSIX tm structure. 
    This is used in the "glk_date_to_..." functions, which are supposed
-   to normalize the glkdate. We're going to rely on the mktime() /
+   to normalize the glkdate. We're going to rely on the mktime() / 
    timegm() functions to do that -- except they don't handle microseconds.
    So we'll have to do that normalization here, adjust the tm_sec value,
    and return the normalized number of microseconds.
@@ -212,7 +104,7 @@ static glsi32 gli_date_to_tm(glkdate_t *date, struct tm *tm)
 {
     glsi32 microsec;
 
-    memset(tm, 0, sizeof *tm);
+    bzero(tm, sizeof(*tm));
     tm->tm_year = date->year - 1900;
     tm->tm_mon = date->month - 1;
     tm->tm_mday = date->day;
@@ -236,9 +128,9 @@ static glsi32 gli_date_to_tm(glkdate_t *date, struct tm *tm)
 }
 
 /* Convert a Unix timestamp, along with a microseconds value, to
-   a glktimeval.
+   a glktimeval. 
 */
-static void gli_timestamp_to_time(time_t timestamp, glsi32 microsec,
+static void gli_timestamp_to_time(time_t timestamp, glsi32 microsec, 
     glktimeval_t *time)
 {
     if (sizeof(timestamp) <= 4) {
@@ -337,7 +229,7 @@ void glk_time_to_date_local(glktimeval_t *time, glkdate_t *date)
     date->microsec = time->microsec;
 }
 
-void glk_simple_time_to_date_utc(glsi32 time, glui32 factor,
+void glk_simple_time_to_date_utc(glsi32 time, glui32 factor, 
     glkdate_t *date)
 {
     time_t timestamp = (time_t)time * factor;
@@ -349,7 +241,7 @@ void glk_simple_time_to_date_utc(glsi32 time, glui32 factor,
     date->microsec = 0;
 }
 
-void glk_simple_time_to_date_local(glsi32 time, glui32 factor,
+void glk_simple_time_to_date_local(glsi32 time, glui32 factor, 
     glkdate_t *date)
 {
     time_t timestamp = (time_t)time * factor;
@@ -368,8 +260,11 @@ void glk_date_to_time_utc(glkdate_t *date, glktimeval_t *time)
     glsi32 microsec;
 
     microsec = gli_date_to_tm(date, &tm);
+    /* The timegm function is not standard POSIX. If it's not available
+       on your platform, try setting the env var "TZ" to "", calling
+       mktime(), and then resetting "TZ". */
     tm.tm_isdst = 0;
-    timestamp = gli_timegm(&tm);
+    timestamp = timegm(&tm);
 
     gli_timestamp_to_time(timestamp, microsec, time);
 }
@@ -398,8 +293,11 @@ glsi32 glk_date_to_simple_time_utc(glkdate_t *date, glui32 factor)
     }
 
     gli_date_to_tm(date, &tm);
+    /* The timegm function is not standard POSIX. If it's not available
+       on your platform, try setting the env var "TZ" to "", calling
+       mktime(), and then resetting "TZ". */
     tm.tm_isdst = 0;
-    timestamp = gli_timegm(&tm);
+    timestamp = timegm(&tm);
 
     return gli_simplify_time(timestamp, factor);
 }
@@ -420,5 +318,147 @@ glsi32 glk_date_to_simple_time_local(glkdate_t *date, glui32 factor)
 
     return gli_simplify_time(timestamp, factor);
 }
+
+#ifdef NO_TIMEGM_AVAIL
+/* If you have no timegm() function, you can #define NO_TIMEGM_AVAIL to
+   get this definition. */
+
+time_t timegm(struct tm *tm)
+{
+    time_t res;
+    char *origtz;
+
+    origtz = getenv("TZ");
+    setenv("TZ", "", 1);
+    tzset();
+    res = mktime(tm);
+    if (origtz)
+        setenv("TZ", origtz, 1);
+    else
+        unsetenv("TZ");
+    tzset();
+
+    return res;
+}
+
+#endif /* NO_TIMEGM_AVAIL */
+
+
+#ifdef WIN32
+/* Windows needs wrappers for time functions to handle pre-epoch dates */
+
+/* 31,557,600 seconds per year */
+#define OFFSET84 ((glui32) 0x9E009580)  /* 1902-1951 => 1986-2035, +84 years */
+#define OFFSET28 ((glui32) 0x34AADC80)  /* 1952-1969 => 1980-1997, +28 years */
+
+time_t gli_mktime (struct tm * timeptr)
+{
+    glui32 offset = 0;
+    glui32 adjust = 0;
+
+    if (timeptr->tm_year < 70 && timeptr->tm_year > 1)
+    {
+        if (timeptr->tm_year < 52)
+        {
+            offset = OFFSET84;
+            adjust = 84;
+        }
+        else
+        {
+            offset = OFFSET28;
+            adjust = 28;
+        }
+    }
+    timeptr->tm_year += adjust;
+    time_t ret = mktime(timeptr) - offset;
+    timeptr->tm_year -= adjust;
+
+    return ret;
+}
+
+#ifndef GARGLK
+time_t timegm(struct tm *tm)
+{
+    time_t answer;
+    putenv("TZ=UTC");
+    tzset();
+    answer=mktime(tm);
+    putenv("TZ=");
+    tzset();
+    return answer;
+}
+#endif
+
+#define UTC_1901 (-2145916801)      /* Dec 31, 1901 at 23:59:59 UTC */
+#define UTC_1951 (-568080001)       /* Dec 31, 1951 at 23:59:59 UTC */
+
+static struct tm * gmtime_r(const time_t *timer, struct tm *result)
+{
+    time_t eval = *timer;
+    glui32 adjust = 0;
+
+    if (eval < 0 && eval > UTC_1901)
+    {
+        if (eval > UTC_1951)
+        {
+            eval += OFFSET28;
+            adjust = 28;
+        }
+        else
+        {
+            eval += OFFSET84;
+            adjust = 84;
+        }
+    }
+
+    struct tm *gm = gmtime(&eval);
+
+    if (!gm)
+    {
+        time_t zero = 0;
+        gm = gmtime(&zero);
+        adjust = 0;
+    }
+
+    *result = *gm;
+    result->tm_year -= adjust;
+
+    return result;
+}
+
+static struct tm * localtime_r(const time_t *timer, struct tm *result)
+{
+    time_t eval = *timer;
+    glui32 adjust = 0;
+
+    if (eval < 0 && eval > UTC_1901)
+    {
+        if (eval > UTC_1951)
+        {
+            eval += OFFSET28;
+            adjust = 28;
+        }
+        else
+        {
+            eval += OFFSET84;
+            adjust = 84;
+        }
+    }
+
+    struct tm *loc = localtime(&eval);
+
+    if (!loc)
+    {
+        time_t zero = 0;
+        loc = localtime(&zero);
+        adjust = 0;
+    }
+
+    *result = *loc;
+    result->tm_year -= adjust;
+
+    return result;
+}
+#endif /* WIN32 */
 
 #endif /* GLK_MODULE_DATETIME */

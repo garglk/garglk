@@ -206,7 +206,7 @@ picture_t *gli_picture_load(unsigned long id)
     if (pic)
         return pic;
 
-    if (!giblorb_is_resource_map())
+    if (giblorb_get_resource_map() == NULL)
     {
         char filename[1024];
         unsigned char buf[8];

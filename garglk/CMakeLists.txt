@@ -22,10 +22,22 @@ if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
 endif()
 
-add_library(garglk babeldata.c cgblorb.c cgdate.c cgfref.cpp cggestal.c
-    cgmisc.c cgstream.cpp cgstyle.c cgunicod.c config.cpp draw.cpp event.cpp
-    gi_blorb.c gi_dispa.c imgload.c imgscale.c winblank.c window.c
-    wingfx.c wingrid.c winmask.c winpair.c wintext.c)
+add_library(garglk babeldata.c style.c config.cpp draw.cpp
+    event.cpp imgload.c imgscale.c winblank.c window.c wingfx.c
+    wingrid.c winmask.c winpair.c wintext.c
+
+    # These can't be a library in cheapglk/ because they contain
+    # references to code in garglk, and garglk contains references to
+    # cheapglk (i.e. circular dependencies). That's fine with shared
+    # libraries, but will fail with static libraries. These are pulled
+    # from cheapglk and kept separate logically, but they're really a
+    # part of garglk itself, so add them directly to the garglk target.
+    cheapglk/cgblorb.c cheapglk/cgdate.c cheapglk/cgfref.cpp
+    cheapglk/cggestal.c cheapglk/cgmisc.c cheapglk/cgstream.c
+    cheapglk/cgunicod.c cheapglk/gi_blorb.c cheapglk/gi_dispa.c)
+
+target_include_directories(garglk PRIVATE .)
+
 c_standard(garglk 11)
 cxx_standard(garglk 14)
 warnings(garglk)
@@ -40,32 +52,9 @@ endif()
 
 target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600")
 
-# SDL2 defines _DARWIN_C_SOURCE to get access to a macOS-specific
-# function. This is problematic, because if the SDL2 headers are
-# sandwiched between standard headers, the headers included first will
-# NOT see _DARWIN_C_SOURCE, while the headers after WILL see it. The
-# headers after then (reasonably) assume they are in a Darwin
-# environment, and can assume specific functionality exists which may
-# have been masked by the earlier include. A concrete example:
-#
-#    #include <sys/signal.h>
-#    #include <SDL_stdinc.h> // Defines _DARWIN_C_SOURCE
-#    #include <signal.h>
-#
-# The result:
-#
-#    /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/signal.h:69:42: error: use of undeclared identifier 'NSIG'
-#    extern __const char *__const sys_signame[NSIG];
-#
-# signal.h assumes NSIG is defined if _DARWIN_C_SOURCE is defined; but
-# since the header that would normally define it (sys/signal.h) was
-# included when _DARWIN_C_SOURCE was NOT set, NSIG was never defined.
-if(APPLE)
-    target_compile_definitions(garglk PRIVATE "_DARWIN_C_SOURCE")
-endif()
-
 if(WITH_LAUNCHER)
     add_executable(gargoyle launcher.cpp)
+    target_include_directories(gargoyle PRIVATE cheapglk)
     target_link_libraries(gargoyle PRIVATE garglk)
     target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600")
     c_standard(gargoyle 11)
@@ -95,11 +84,12 @@ add_library(garglkmain STATIC main.c)
 c_standard(garglkmain 11)
 cxx_standard(garglkmain 14)
 warnings(garglkmain)
+target_include_directories(garglkmain PRIVATE cheapglk)
 
 find_package(Freetype REQUIRED)
 find_package(JPEG REQUIRED)
 find_package(PNG REQUIRED)
-target_include_directories(garglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
+target_include_directories(garglk PUBLIC cheapglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES})
 
 if(${INTERFACE} STREQUAL "COCOA")
@@ -202,7 +192,7 @@ elseif(UNIX)
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif()
-    install(FILES gi_blorb.h glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
+    install(FILES cheapglk/gi_blorb.h cheapglk/glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 

@@ -68,10 +68,6 @@ extern "C" {
 #include <stddef.h>
 #include <stdio.h>
 
-#ifdef GARGLK_USESDL
-#include <SDL_timer.h>
-#endif
-
 #include "gi_dispa.h"
 #include "glk.h"
 
@@ -344,6 +340,7 @@ void gli_dispatch_event(event_t *event, int polled);
 #define strtype_File (1)
 #define strtype_Window (2)
 #define strtype_Memory (3)
+#define strtype_Resource (4)
 
 struct glk_stream_struct
 {
@@ -362,14 +359,21 @@ struct glk_stream_struct
     /* for strtype_File */
     FILE *file;
     glui32 lastop; /* 0, filemode_Write, or filemode_Read */
-    bool textfile;
 
-    /* for strtype_Memory */
-    void *buf;		/* unsigned char* for latin1, glui32* for unicode */
-    void *bufptr;
-    void *bufend;
-    void *bufeof;
-    glui32 buflen;	/* # of bytes for latin1, # of 4-byte words for unicode */
+    /* for strtype_Resource */
+    int isbinary;
+
+    /* for strtype_Memory and strtype_Resource. Separate pointers for 
+       one-byte and four-byte streams */
+    unsigned char *buf;
+    unsigned char *bufptr;
+    unsigned char *bufend;
+    unsigned char *bufeof;
+    glui32 *ubuf;
+    glui32 *ubufptr;
+    glui32 *ubufend;
+    glui32 *ubufeof;
+    glui32 buflen;
     gidispatch_rock_t arrayrock;
 
     gidispatch_rock_t disprock;
@@ -651,22 +655,18 @@ void gli_input_handle_key(glui32 key);
 void gli_input_handle_click(int x, int y);
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2);
 
-extern stream_t *gli_new_stream(glui32 type, bool readable, bool writable,
-    glui32 rock, bool unicode);
+extern stream_t *gli_new_stream(int type, int readable, int writable,
+    glui32 rock);
 extern void gli_delete_stream(stream_t *str);
 extern stream_t *gli_stream_open_window(window_t *win);
-extern strid_t gli_stream_open_pathname(char *pathname, int textmode,
-    glui32 rock);
+extern strid_t gli_stream_open_pathname(char *pathname, int writemode,
+    int textmode, glui32 rock);
 extern void gli_stream_set_current(stream_t *str);
 extern void gli_stream_fill_result(stream_t *str,
     stream_result_t *result);
 extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
 extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
 extern void gli_streams_close_all(void);
-
-extern fileref_t *gli_new_fileref(const char *filename, glui32 usage,
-    glui32 rock);
-extern void gli_delete_fileref(fileref_t *fref);
 
 void gli_initialize_fonts(void);
 void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb);
@@ -696,7 +696,6 @@ void winclipstore(glui32 *text, int len);
 void fontload(void);
 void fontunload(void);
 
-int giblorb_is_resource_map();
 void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, long *len, glui32 *type);
 
 picture_t *gli_picture_load(unsigned long id);
@@ -749,7 +748,7 @@ void gli_putchar_utf8(glui32 val, FILE *fl);
 glui32 gli_getchar_utf8(FILE *fl);
 glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
-glui32 strlen_uni(const glui32 *s);
+glui32 gli_strlen_uni(const glui32 *s);
 
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y);
@@ -768,6 +767,48 @@ bool attrequal(attr_t *a1, attr_t *a2);
 unsigned char *attrfg(style_t *styles, attr_t *attr);
 unsigned char *attrbg(style_t *styles, attr_t *attr);
 int attrfont(style_t *styles, attr_t *attr);
+
+/* A macro which reads and decodes one character of UTF-8. Needs no
+   explanation, I'm sure.
+
+   Oh, okay. The character will be written to *chptr (so pass in "&ch",
+   where ch is a glui32 variable). eofcond should be a condition to
+   evaluate end-of-stream -- true if no more characters are readable.
+   nextch is a function which reads the next character; this is invoked
+   exactly as many times as necessary.
+
+   val0, val1, val2, val3 should be glui32 scratch variables. The macro
+   needs these. Just define them, you don't need to pay attention to them
+   otherwise.
+
+   The macro itself evaluates to true if ch was successfully set, or
+   false if something went wrong. (Not enough characters, or an
+   invalid byte sequence.)
+
+   This is not the worst macro I've ever written, but I forget what the
+   other one was.
+*/
+
+#define UTF8_DECODE_INLINE(chptr, eofcond, nextch, val0, val1, val2, val3)  ( \
+    (eofcond ? 0 : ( \
+        (((val0=nextch) < 0x80) ? (*chptr=val0, 1) : ( \
+            (eofcond ? 0 : ( \
+                (((val1=nextch) & 0xC0) != 0x80) ? 0 : ( \
+                    (((val0 & 0xE0) == 0xC0) ? (*chptr=((val0 & 0x1F) << 6) | (val1 & 0x3F), 1) : ( \
+                        (eofcond ? 0 : ( \
+                            (((val2=nextch) & 0xC0) != 0x80) ? 0 : ( \
+                                (((val0 & 0xF0) == 0xE0) ? (*chptr=(((val0 & 0xF)<<12)  & 0x0000F000) | (((val1 & 0x3F)<<6) & 0x00000FC0) | (((val2 & 0x3F))    & 0x0000003F), 1) : ( \
+                                    (((val0 & 0xF0) != 0xF0 || eofcond) ? 0 : (\
+                                        (((val3=nextch) & 0xC0) != 0x80) ? 0 : (*chptr=(((val0 & 0x7)<<18)   & 0x1C0000) | (((val1 & 0x3F)<<12) & 0x03F000) | (((val2 & 0x3F)<<6)  & 0x000FC0) | (((val3 & 0x3F))     & 0x00003F), 1) \
+                                        )) \
+                                    )) \
+                                )) \
+                            )) \
+                        )) \
+                )) \
+            )) \
+        )) \
+    )
 
 #ifdef __cplusplus
 }
