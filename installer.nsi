@@ -2,6 +2,9 @@
 ; Gargoyle NSIS 2 installer script
 ;
 
+; The FontName plugin is ANSI
+Unicode false
+
 !include x64.nsh
 
 Name "Gargoyle"
