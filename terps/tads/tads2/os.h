@@ -75,7 +75,7 @@ extern "C" {
 #ifdef __ppc__
 #define _M_PPC
 #else
-#ifdef __x86_64__
+#if defined __x86_64__ || defined __aarch64__
 #define _M_IX86_64
 #else
 #ifndef _M_IX86
