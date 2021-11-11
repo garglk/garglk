@@ -630,7 +630,7 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
             hgt = hgt / gli_cellh;
             break;
         case wintype_Graphics:
-            wid = gli_unzoom_int((win->bbox.x1 - win->bbox.x0));
+            wid = gli_unzoom_int(win->bbox.x1 - win->bbox.x0);
             hgt = gli_unzoom_int(win->bbox.y1 - win->bbox.y0);
             break;
     }
