@@ -74,28 +74,26 @@ extern "C" {
 
 #ifdef __ppc__
 #define _M_PPC
-#else
-#ifdef __x86_64__
+#elif defined __x86_64__
 #define _M_IX86_64
-#else
-#ifndef _M_IX86
+#elif defined __aarch64__
+#define _M_AARCH64
+#elif !defined _M_IX86
 #define _M_IX86
-#endif
-#endif
 #endif
 
 /*
  *   Intel x86 processors - 32-bit
  */
 #ifdef _M_IX86
-#include "h_ix86.h"
+#include "h_le_c11.h"
 #endif
 
 /*
  *   Intel x86 processors - 64-bit 
  */
 #ifdef _M_IX86_64
-#include "h_ix86_64.h"
+#include "h_le_c11.h"
 #endif
 
 /*
@@ -115,6 +113,13 @@ extern "C" {
  */
 #ifdef _M_QT
 #include "h_qt.h"
+#endif
+
+/*
+ *   ARM 64-bit
+ */
+#ifdef _M_AARCH64
+#include "h_le_c11.h"
 #endif
 
 /* add others here */
