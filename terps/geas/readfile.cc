@@ -750,34 +750,6 @@ vector<string> tokenize (const string &s)
   return rv;
 }
 
-string string_int (int i) 
-{ 
-  ostringstream o;
-  o << i;
-  return o.str();
-}
-
-string string_int (uint i)
-{
-  ostringstream o;
-  o << i;
-  return o.str();
-}
-
-string string_int (std::intmax_t i)
-{
-  ostringstream o;
-  o << i;
-  return o.str();
-}
-
-string string_int (std::uintmax_t i)
-{
-  ostringstream o;
-  o << i;
-  return o.str();
-}
-
 void report_error (const string &s)
 {
   //cerr << s << endl; 
