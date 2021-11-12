@@ -91,7 +91,7 @@ if(WITH_LAUNCHER)
         # For Apple, when doing a dist install, the same holds: it expects to
         # find interpreters in the same directory as the gargoyle binary.
         if(UNIX AND NOT APPIMAGE AND NOT DIST_INSTALL)
-            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
+            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
 endif()
