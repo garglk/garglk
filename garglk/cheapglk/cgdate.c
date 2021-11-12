@@ -47,6 +47,7 @@
 #define NO_TIMEGM_AVAIL
 
 /* bzero() is deprecated */
+#undef bzero
 #define bzero(s, n) memset((s), 0, (n))
 #endif
 
