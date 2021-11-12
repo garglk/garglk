@@ -34,6 +34,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <cassert>
+#include <sstream>
 
 typedef std::vector<std::string> vstring;
 
@@ -52,10 +53,16 @@ extern std::string string_geas_block (const GeasBlock &);
 extern bool starts_with (const std::string &, const std::string &);
 extern bool ends_with (const std::string &, const std::string &);
 
-extern std::string string_int (int i);
-extern std::string string_int (uint i);
-extern std::string string_int (std::intmax_t i);
-extern std::string string_int (std::uintmax_t i);
+template <
+    typename T,
+    typename = typename std::enable_if<std::is_integral<T>::value, T>::type
+>
+std::string string_int (T i)
+{
+  std::ostringstream o;
+  o << i;
+  return o.str();
+}
 
 extern std::string trim_braces (const std::string &s);
 
