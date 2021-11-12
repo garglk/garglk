@@ -227,7 +227,7 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
 
     for (const auto &config : garglk::configs(exedir, gamepath))
     {
-        if (findterp(config, story, interpreter) || findterp(config, ext, interpreter))
+        if (findterp(config.path, story, interpreter) || findterp(config.path, ext, interpreter))
             return;
     }
 }
