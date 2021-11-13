@@ -486,7 +486,6 @@ extern void garglk_set_program_name(const char *name);
 extern void garglk_set_program_info(const char *info);
 extern void garglk_set_story_name(const char *name);
 extern void garglk_set_story_title(const char *title);
-extern void garglk_set_config(const char *name);
 
 /* garglk_unput_string - removes the specified string from the end of the output buffer, if
  * indeed it is there. */
