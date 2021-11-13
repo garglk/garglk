@@ -480,7 +480,7 @@ extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #define GARGLK 1
 
-extern char* garglk_fileref_get_name(frefid_t fref);
+extern const char *garglk_fileref_get_name(frefid_t fref);
 
 extern void garglk_set_program_name(const char *name);
 extern void garglk_set_program_info(const char *info);
