@@ -24,10 +24,14 @@
     <glob pattern="*.d$$"/>
   </mime-type>
 
-  <mime-type type="application/x-alan">
+  <mime-type type="application/x-alan-adventure-game">
     <comment>Alan game data</comment>
-    <glob pattern="*.a3c"/>
     <glob pattern="*.acd"/>
+  </mime-type>
+
+  <mime-type type="application/x-alan3-adventure-game">
+    <comment>Alan 3 game data</comment>
+    <glob pattern="*.a3c"/>
     <magic priority="50">
       <match type="string" offset="0" value="ALAN\x03"/>
     </magic>
