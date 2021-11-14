@@ -27,6 +27,7 @@
 #include <iomanip>
 #include <map>
 #include <memory>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -61,14 +62,12 @@
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
 struct Interpreter {
-    explicit Interpreter(const std::string &terp_, const std::set<std::string> &extensions_ = {}, const std::string &flags_ = "") :
+    explicit Interpreter(const std::string &terp_, const std::string &flags_ = "") :
         terp(terp_),
-        extensions(extensions_),
         flags(flags_) {
         }
 
     std::string terp;
-    std::set<std::string> extensions;
     std::string flags;
 };
 
@@ -91,24 +90,82 @@ enum class Format {
     ZCode6,
 };
 
+static std::unique_ptr<Format> probe(const std::vector<char> &header)
+{
+    std::map<std::string, Format> magic = {
+        {R"(^[\x01\x02\x03\x04\x05\x07\x08][\s\S]{17}\d{6})", Format::ZCode},
+        {R"(^\x06[\s\S]{17}\d{6})", Format::ZCode6},
+        {R"(^TADS2 bin\x0a\x0d\x1a)", Format::TADS2},
+        {R"(^T3-image\x0d\x0a\x1a(\x01|\x02)\x00)", Format::TADS3},
+        {R"(^Glul)", Format::Glulx},
+        {R"(^MaSc[\s\S]{4}\x00\x00\x00\x2a\x00[\x00\x01\x02\x03\x04])", Format::Magnetic},
+        {R"(^\x3c\x42\x3f\xc9\x6a\x87\xc2\xcf[\x92\x93\x94]\x45[\x3e\x37\x36]\x61)", Format::Adrift},
+        {R"(^\x58\xc7\xc1\x51)", Format::AGT},
+        {R"(^[\s\S]{2}\xa0\x9d\x8b\x8e\x88\x8e)", Format::AdvSys},
+        {R"(^[\x16\x18\x19\x1e\x1f][\s\S]{2}\d\d-\d\d-\d\d)", Format::Hugo},
+        {R"(^[\s\S]{3}\x9b\x36\x21[\s\S]{18}\xff)", Format::Level9},
+        {R"(^(\x02\x07\x05|\x02\x08[\x01\x02\x03\x07]))", Format::Alan2},
+        {R"(^ALAN\x03)", Format::Alan3},
+    };
+
+    for (const auto &pair : magic)
+    {
+        auto re = std::regex(pair.first);
+        if (std::regex_search(header.begin(), header.end(), re))
+            return std::make_unique<Format>(pair.second);
+    }
+
+    return nullptr;
+}
+
+// Map extensions to formats
+static const std::map<std::string, Format> extensions = {
+    {"taf", Format::Adrift},
+    {"agx", Format::AGT},
+    {"d$$", Format::AGT},
+    {"acd", Format::Alan2},
+    {"a3c", Format::Alan3},
+    {"ulx", Format::Glulx},
+    {"hex", Format::Hugo},
+    {"j2", Format::JACL},
+    {"jacl", Format::JACL},
+    {"l9", Format::Level9},
+    {"sna", Format::Level9},
+    {"mag", Format::Magnetic},
+    {"asl", Format::Quest},
+    {"cas", Format::Quest},
+    {"saga", Format::Scott},
+    {"gam", Format::TADS2},
+    {"t3", Format::TADS3},
+    {"dat", Format::ZCode},
+    {"z1", Format::ZCode},
+    {"z2", Format::ZCode},
+    {"z3", Format::ZCode},
+    {"z4", Format::ZCode},
+    {"z5", Format::ZCode},
+    {"z7", Format::ZCode},
+    {"z8", Format::ZCode},
+    {"z6", Format::ZCode6},
+};
+
 // Map formats to default interpreters
 static const std::map<Format, Interpreter> interpreters = {
-    { Format::Adrift, Interpreter(T_ADRIFT, {"taf"}) },
+    { Format::Adrift, Interpreter(T_ADRIFT) },
     { Format::AdvSys, Interpreter(T_ADVSYS) },
-    { Format::AGT, Interpreter(T_AGT, {"agx", "d$$"}, "-gl") },
-    { Format::Alan2, Interpreter(T_ALAN2, {"acd"}) },
-    { Format::Alan3, Interpreter(T_ALAN3, {"a3c"}) },
-    { Format::Glulx, Interpreter(T_GLULX, {"ulx"}) },
-    { Format::Hugo, Interpreter(T_HUGO, {"hex"}) },
-    { Format::JACL, Interpreter(T_JACL, {"j2", "jacl"}) },
-    { Format::Level9, Interpreter(T_LEV9, {"l9", "sna"}) },
-    { Format::Magnetic, Interpreter(T_MGSR, {"mag"}) },
-    { Format::Quest, Interpreter(T_QUEST, {"asl", "cas"}) },
-    { Format::Scott, Interpreter(T_SCOTT, {"saga"}) },
-    { Format::TADS2, Interpreter(T_TADS2, {"gam"}) },
-    { Format::TADS3, Interpreter(T_TADS3, {"t3"}) },
-    { Format::ZCode, Interpreter(T_ZCODE, {"dat", "z1", "z2", "z3", "z4", "z5", "z7", "z8"}) },
-    { Format::ZCode6, Interpreter(T_ZSIX, {"z6"}) },
+    { Format::AGT, Interpreter(T_AGT, "-gl") },
+    { Format::Alan2, Interpreter(T_ALAN2) },
+    { Format::Alan3, Interpreter(T_ALAN3) },
+    { Format::Glulx, Interpreter(T_GLULX) },
+    { Format::Hugo, Interpreter(T_HUGO) },
+    { Format::JACL, Interpreter(T_JACL) },
+    { Format::Level9, Interpreter(T_LEV9) },
+    { Format::Magnetic, Interpreter(T_MGSR) },
+    { Format::Quest, Interpreter(T_QUEST) },
+    { Format::Scott, Interpreter(T_SCOTT) },
+    { Format::TADS2, Interpreter(T_TADS2) },
+    { Format::TADS3, Interpreter(T_TADS3) },
+    { Format::ZCode, Interpreter(T_ZCODE) },
+    { Format::ZCode6, Interpreter(T_ZSIX) },
 };
 
 static bool call_winterp(const std::string &path, const Interpreter &interpreter, const std::string &game)
@@ -236,16 +293,31 @@ int garglk::rungame(const std::string &path, const std::string &game)
 {
     const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     Interpreter interpreter("");
+    std::vector<char> header(64);
+    bool is_blorb = false;
 
     configterp(path, game, interpreter);
+
+    std::ifstream f(game, std::ios::binary);
+    if (f.is_open() && f.read(&header[0], header.size()))
+    {
+        if (interpreter.terp.empty())
+        {
+            auto format = probe(header);
+            if (format != nullptr)
+                interpreter = interpreters.at(*format);
+        }
+
+        is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
+    }
 
     std::string ext = "";
     auto dot = game.rfind('.');
     if (dot != std::string::npos)
         ext = garglk::downcase(game.substr(dot + 1));
 
-    if (std::any_of(blorbs.begin(), blorbs.end(),
-                    [&ext](const auto &blorb) { return ext == blorb; }))
+    if (is_blorb ||
+        std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end())
     {
         return runblorb(path, game, interpreter);
     }
@@ -253,32 +325,14 @@ int garglk::rungame(const std::string &path, const std::string &game)
     if (!interpreter.terp.empty())
         return call_winterp(path, interpreter, game);
 
-    // Both Z-machine and AdvSys games claim the .dat extension. In
-    // general Gargoyle uses extensions to determine the interpreter to
-    // run, but since there's a conflict, check the file header in the
-    // case of .dat files. If it looks like AdvSys, call the AdvSys
-    // interpreter. Otherwise, use the Z-machine interpreter.
-    if (ext == "dat")
+    try
     {
-        std::vector<uint8_t> header(6);
-        const std::vector<uint8_t> advsys_magic = {0xa0, 0x9d, 0x8b, 0x8e, 0x88, 0x8e};
-        std::ifstream f(game, std::ios::binary);
-        if (f.is_open() &&
-            f.seekg(2) &&
-            f.read(reinterpret_cast<char *>(&header[0]), header.size()) &&
-            header == advsys_magic)
-        {
-            return call_winterp(path, interpreters.at(Format::AdvSys), game);
-        }
+        auto format = extensions.at(ext);
+        return call_winterp(path, interpreters.at(format), game);
     }
-
-    auto found_interpreter = std::find_if(interpreters.begin(), interpreters.end(), [&ext](const std::pair<Format, Interpreter> &pair) {
-        auto interpreter = pair.second;
-        return std::any_of(interpreter.extensions.begin(), interpreter.extensions.end(), [&ext](const std::string &ext_) { return ext == ext_; });
-    });
-
-    if (found_interpreter != interpreters.end())
-        return call_winterp(path, found_interpreter->second, game);
+    catch (const std::out_of_range &)
+    {
+    }
 
     garglk::winmsg("Unknown file type: \"" + ext + "\"\nSorry.");
 
