@@ -21,7 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
-/* cgunicod.c: Unicode helper functions for Glk API, version 0.7.1.
+/* cgunicod.c: Unicode helper functions for Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
