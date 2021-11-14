@@ -21,7 +21,7 @@
  *                                                                            *
  *****************************************************************************/
 
-/* cgstream.c: Stream functions for Glk API, version 0.7.6.
+/* cgstream.c: Stream functions for Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
 
@@ -51,6 +51,10 @@
 
 static stream_t *gli_streamlist = NULL; /* linked list of all streams */
 static stream_t *gli_currentstr = NULL; /* the current output stream */
+
+#ifdef GARGLK
+static void gli_set_style(stream_t *str, glui32 val);
+#endif
 
 stream_t *gli_new_stream(int type, int readable, int writable, 
     glui32 rock)
@@ -1710,6 +1714,9 @@ glui32 glk_get_line_stream_uni(strid_t str, glui32 *buf, glui32 len)
 void glk_set_style(glui32 val)
 {
     /* This cheap library doesn't handle styles */
+#ifdef GARGLK
+    gli_set_style(gli_currentstr, val);
+#endif
 }
 
 void glk_set_style_stream(stream_t *str, glui32 val)
@@ -1719,6 +1726,9 @@ void glk_set_style_stream(stream_t *str, glui32 val)
         return;
     }
     /* This cheap library doesn't handle styles */
+#ifdef GARGLK
+    gli_set_style(str, val);
+#endif
 }
 
 glsi32 glk_get_char_stream(stream_t *str)
@@ -1797,6 +1807,26 @@ void glk_set_hyperlink_stream(stream_t *str, glui32 linkval)
         return;
     }
     gli_set_hyperlink(str, linkval);
+}
+
+static void gli_set_style(stream_t *str, glui32 val)
+{
+    if (!str || !str->writable)
+        return;
+
+    if (val >= style_NUMSTYLES)
+        val = 0;
+    if (val < 0)
+        val = 0;
+
+    switch (str->type)
+    {
+        case strtype_Window:
+            str->win->attr.style = val;
+            if (str->win->echostr)
+                gli_set_style(str->win->echostr, val);
+            break;
+    }
 }
 
 static void gli_set_zcolors(stream_t *str, glui32 fg, glui32 bg)
