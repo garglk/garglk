@@ -56,7 +56,7 @@ cxx_standard(garglk ${CXX_VERSION})
 warnings(garglk)
 
 if(UNIX AND NOT APPLE)
-target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+    target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 endif()
 
 if(INTERFACE STREQUAL "COCOA")
