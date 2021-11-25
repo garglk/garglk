@@ -108,16 +108,20 @@ enum class Action { Open, Save };
 static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Action action)
 {
     QString filename;
+    QFileDialog::Options options;
+#ifdef GARGLK_NO_NATIVE_FILE_DIALOGS
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
 
     if (action == Action::Open)
     {
         QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
-        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring);
+        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring, nullptr, options);
     }
     else
     {
         QString dir = QString("./Untitled.%1").arg(filters.at(filter).second);
-        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first);
+        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
     }
 
     return filename.toStdString();
