@@ -10,13 +10,19 @@ if(POLICY CMP0069)
     check_ipo_supported(RESULT HAS_LTO)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "7" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8")
+    set(GCC7 TRUE)
+endif()
+
 # At the moment C++17 is optional, and used in only one place. In the
 # near future, however, it will likely be required.
 # Completely disable on macOS, since although it claims C++17 support,
 # when building for older versions (as is done by gargoyle_osx.sh), not
 # all C++17 features are exposed. The C++17 code is unused on macOS
 # anyway, so there's no harm here.
-if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT APPLE)
+# In addition, CMake claims C++17 support for g++7, but std::filesystem
+# isn't available there. Force C++14 for g++7.
+if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT APPLE AND NOT GCC7)
     set(CXX_VERSION 17)
 else()
     set(CXX_VERSION 14)
