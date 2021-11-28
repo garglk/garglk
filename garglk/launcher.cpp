@@ -35,6 +35,10 @@
 #include <type_traits>
 #include <vector>
 
+#if __cplusplus >= 201703L
+#include <filesystem>
+#endif
+
 #include "glk.h"
 #include "glkstart.h"
 #include "gi_blorb.h"
@@ -266,11 +270,17 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
     std::string story = gamepath;
 
     /* set up story */
+#if __cplusplus >= 201703L
+    story = std::filesystem::path(story)
+        .filename()
+        .string();
+#else
     auto slash = story.rfind('\\');
     if (slash == std::string::npos)
         slash = story.find_last_of('/');
     if (slash != std::string::npos)
         story = story.substr(slash + 1);
+#endif
 
     if (story.empty())
         return;

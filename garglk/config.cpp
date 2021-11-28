@@ -634,6 +634,23 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
 static void gli_read_config(int argc, char **argv)
 {
+#if __cplusplus >= 201703L
+    /* load argv0 with name of executable without suffix */
+    std::string argv0 = std::filesystem::path(argv[0])
+        .filename()
+        .replace_extension()
+        .string();
+
+    /* load gamefile with basename of last argument */
+    std::string gamefile = std::filesystem::path(argv[argc - 1])
+        .filename()
+        .string();
+
+    /* load exefile with directory containing main executable */
+    std::string exedir = std::filesystem::path(argv[0])
+        .parent_path()
+        .string();
+#else
     auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
         if (slash != std::string::npos)
@@ -654,6 +671,7 @@ static void gli_read_config(int argc, char **argv)
     /* load exefile with directory containing main executable */
     std::string exedir = argv[0];
     exedir = exedir.substr(0, exedir.find_last_of("/\\"));
+#endif
 
     /* load gamepath with the path to the story file itself */
     std::string gamepath;
