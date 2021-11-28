@@ -37,6 +37,12 @@
 #include <filesystem>
 #endif
 
+#ifdef _WIN32
+#include <shlwapi.h>
+#else
+#include <fnmatch.h>
+#endif
+
 #ifdef __HAIKU__
 #include <FindDirectory.h>
 #endif
@@ -397,7 +403,20 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
         if (line[0] == '[' && line.back() == ']')
         {
             accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string &match) {
-                return garglk::downcase(line).find(garglk::downcase(match)) != std::string::npos;
+                std::istringstream s(line.substr(1, line.size() - 2));
+                std::string pattern;
+                while (s >> pattern)
+                {
+#ifdef _WIN32
+                    if (PathMatchSpec(garglk::downcase(match).c_str(), garglk::downcase(pattern).c_str()))
+#else
+                    if (fnmatch(garglk::downcase(pattern).c_str(), garglk::downcase(match).c_str(), 0) == 0)
+#endif
+                    {
+                        return true;
+                    }
+                }
+                return false;
             });
             continue;
         }

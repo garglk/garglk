@@ -285,16 +285,9 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
     if (story.empty())
         return;
 
-    std::string ext = story;
-    auto dot = story.rfind('.');
-    if (dot != std::string::npos)
-        ext.replace(0, dot, "*");
-    else
-        ext = "*.*";
-
     for (const auto &config : garglk::configs(exedir, gamepath))
     {
-        if (findterp(config.path, story, interpreter) || findterp(config.path, ext, interpreter))
+        if (findterp(config.path, story, interpreter))
             return;
     }
 }
