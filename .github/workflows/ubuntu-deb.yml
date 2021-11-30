@@ -1,0 +1,51 @@
+name: Ubuntu package
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    container:
+      image: amd64/ubuntu:20.04
+      options: --privileged
+
+    env:
+      CC: gcc-9
+      CXX: g++-9
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update packages
+        run: apt update
+
+      - name: Install packages
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          dpkg
+          git
+          libfontconfig1-dev
+          libfreetype-dev
+          libjpeg-dev
+          libmpg123-dev
+          libopenmpt-dev
+          libsdl2-mixer-dev
+          libsndfile-dev
+          libspeechd-dev
+          qtbase5-dev
+          qtbase5-dev-tools
+          qtmultimedia5-dev
+
+      - name: Build Ubuntu package
+        run: ./gargoyle-builddeb.sh
+
+      - name: Upload artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v2
+        with:
+          name: gargoyle
+          path: ~/deb_factory/gargoyle*.deb

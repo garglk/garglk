@@ -3,6 +3,7 @@
 [![AppImage](https://github.com/garglk/garglk/actions/workflows/appimage.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/appimage.yml)
 [![MinGW](https://github.com/garglk/garglk/actions/workflows/mingw.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/mingw.yml)
 [![macOS](https://github.com/garglk/garglk/actions/workflows/macos-dmg.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/macos-dmg.yml)
+[![Ubuntu](https://github.com/garglk/garglk/actions/workflows/ubuntu-deb.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/ubuntu-deb.yml)
 
 ## An interactive fiction player
 
