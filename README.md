@@ -42,7 +42,6 @@ There are many interpreters that have been Glk-enabled. All of the following int
 * Agility
 * Alan 2 and 3
 * Bocfel
-* Geas
 * Git
 * Glulxe
 * Hugo

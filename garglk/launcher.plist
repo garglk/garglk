@@ -201,23 +201,6 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
-				<string>asl</string>
-				<string>cas</string>
-			</array>
-			<key>CFBundleTypeIconFile</key>
-			<string>docu2.icns</string>
-			<key>CFBundleTypeName</key>
-			<string>Story File</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>public.quest</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleTypeExtensions</key>
-			<array>
 				<string>saga</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
@@ -489,27 +472,6 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>mag</string>
-				</array>
-			</dict>
-		</dict>
-		<dict>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.data</string>
-				<string>com.googlecode.garglk</string>
-			</array>
-			<key>UTTypeDescription</key>
-			<string>Story File</string>
-			<key>UTTypeIconFile</key>
-			<string>docu2.icns</string>
-			<key>UTTypeIdentifier</key>
-			<string>public.quest</string>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>asl</string>
-					<string>cas</string>
 				</array>
 			</dict>
 		</dict>
