@@ -6,14 +6,17 @@ on:
 
 jobs:
   build:
+    name: Ubuntu ${{ matrix.version }} package
+    strategy:
+      matrix:
+        version:
+          - 18.04
+          - 20.04
+
     runs-on: ubuntu-20.04
     container:
-      image: amd64/ubuntu:20.04
+      image: amd64/ubuntu:${{ matrix.version }}
       options: --privileged
-
-    env:
-      CC: gcc-9
-      CXX: g++-9
 
     steps:
       - name: Checkout
@@ -29,7 +32,7 @@ jobs:
           dpkg
           git
           libfontconfig1-dev
-          libfreetype-dev
+          libfreetype6-dev
           libjpeg-dev
           libmpg123-dev
           libopenmpt-dev
@@ -47,5 +50,5 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v2
         with:
-          name: gargoyle
+          name: gargoyle-ubuntu-${{ matrix.version }}
           path: ~/deb_factory/gargoyle*.deb
