@@ -38,13 +38,12 @@ cp ${PKG_TAR} ${RPM_ROOT_DIR}/SOURCES/
 
 # Creating a basic spec file for Gargoyle
 cat << __EOF__ > ${RPM_ROOT_DIR}/SPECS/${PKG_NAME}.spec
-Summary: This package contains a build of the gargoyle interactive fiction interpreter.  This build is based on sources available at https://github.com/garglk/garglk
+Summary: This package contains a build of the Gargoyle interactive fiction interpreter. This build is based on sources available at https://github.com/garglk/garglk.
 Name: $PKG_NAME
 Version: $VERSION
 Release: 0
 License: GPL
-Packager: interactivefiction
-Group: Development/Tools
+Packager: Chris Spiegel <cspiegel@gmail.com>
 Source: %{name}.tar.gz
 BuildRequires: coreutils
 BuildRoot: ${RPM_ROOT_DIR}/tmp/%{name}-%{version}

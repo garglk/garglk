@@ -59,7 +59,7 @@ mv ./gargoyle.desktop ./tmp/usr/share/applications
 #Write out a simple control file template.  This file will be used by dkpg-gencontrol in order to generate the final debian control file that includes dynamically determined library dependencies.  The library dependencies are generated using dpkg-shlibdeps.
 cat > control << EOF
 Source: gargoyle-free
-Maintainer: Garglk Developer <https://github.com/garglk/garglk>
+Maintainer: Chris Spiegel <cspiegel@gmail.com>
 
 Package: gargoyle-free
 Priority: extra
@@ -97,9 +97,6 @@ Description: graphical player for Interactive Fiction games
  .
  Limitations:
  .
- * This free version of gargoyle does not include the non-free Hugo
- interpreter (and uses a different, free monospace font).
- .
  * While Gargoyle can display in-game pictures, it does not provide a
  way to display the cover art present in some Blorb archives.
  .
@@ -112,9 +109,7 @@ cat > changelog << EOF
 gargoyle-free (${VERSION}) sid; urgency=low
 
   * Binary-only non-maintainer package for amd64; no source changes.
-  * Building for most recent version of gargoyle.
-
- -- $ARCH Garglk Developer <https://github.com/garglk/garglk>  $DATE
+  * Building for most recent version of Gargoyle.
 EOF
 
 popd
