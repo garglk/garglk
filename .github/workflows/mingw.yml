@@ -60,7 +60,9 @@ jobs:
         if: ${{ matrix.arch == 'x86_64' }}
 
       - name: Build
-        run: ./windows.sh
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./windows.sh
 
       - name: Upload installer
         uses: actions/upload-artifact@v2
