@@ -17,33 +17,33 @@ jobs:
       CXX: g++-9
 
     steps:
-    - run: apt update
+      - run: apt update
 
-    - name: Install deps
-      run: DEBIAN_FRONTEND=noninteractive apt install -y
-        build-essential
-        cmake
-        fuse
-        git
-        grep
-        libfontconfig1-dev
-        libfreetype-dev
-        libjpeg-dev
-        libsdl2-mixer-dev
-        libspeechd-dev
-        patchelf
-        qtbase5-dev
-        qtbase5-dev-tools
-        wget
+      - name: Install deps
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          fuse
+          git
+          grep
+          libfontconfig1-dev
+          libfreetype-dev
+          libjpeg-dev
+          libsdl2-mixer-dev
+          libspeechd-dev
+          patchelf
+          qtbase5-dev
+          qtbase5-dev-tools
+          wget
 
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-    - name: Build AppImage
-      run: ./gargoyle-appimage.sh
+      - name: Build AppImage
+        run: ./gargoyle-appimage.sh
 
-    - name: Upload artifact
-      if: github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v2
-      with:
-        name: Gargoyle-x86_64.AppImage
-        path: Gargoyle-x86_64.AppImage
+      - name: Upload AppImage
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-x86_64.AppImage
+          path: Gargoyle-x86_64.AppImage
