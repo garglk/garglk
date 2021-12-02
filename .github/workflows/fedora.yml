@@ -19,16 +19,28 @@ jobs:
       image: fedora:${{ matrix.version}}
 
     steps:
-      - run: |
-          yum -y update
-          yum -y install SDL2-devel SDL2_mixer-devel cmake fontconfig-devel freetype-devel libjpeg-turbo-devel libpng-devel qt5-qtbase-devel rpm-build
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - uses: actions/checkout@v2
+      - name: Update packages
+        run: yum -y update
 
-      - name: Build RPM
+      - name: Install packages
+        run: yum -y install
+          SDL2-devel
+          SDL2_mixer-devel
+          cmake
+          fontconfig-devel
+          freetype-devel
+          libjpeg-turbo-devel
+          libpng-devel
+          qt5-qtbase-devel
+          rpm-build
+
+      - name: Build Fedora package
         run: ./gargoyle-buildrpm.sh
 
-      - name: Upload artifact
+      - name: Upload RPM
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v2
         with:

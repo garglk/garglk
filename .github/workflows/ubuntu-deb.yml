@@ -46,9 +46,9 @@ jobs:
       - name: Build Ubuntu package
         run: ./gargoyle-builddeb.sh
 
-      - name: Upload artifact
+      - name: Upload DEB
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v2
         with:
-          name: gargoyle-ubuntu-${{ matrix.version }}
+          name: Gargoyle-Ubuntu-${{ matrix.version }}
           path: ~/deb_factory/gargoyle*.deb

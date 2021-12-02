@@ -9,12 +9,14 @@ jobs:
     strategy:
       matrix:
         arch:
-          - "i686"
-          - "x86_64"
+          - i686
+          - x86_64
+
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
       options: --privileged
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -58,10 +60,9 @@ jobs:
         if: ${{ matrix.arch == 'x86_64' }}
 
       - name: Build
-        run: |
-          ./windows.sh
+        run: ./windows.sh
 
-      - name: Upload artifact
+      - name: Upload installer
         uses: actions/upload-artifact@v2
         with:
           name: Gargoyle-${{ matrix.arch }}
