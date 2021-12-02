@@ -70,7 +70,6 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_libdir}/libgarglk.so
 %{_libdir}/libgarglkmain.a
 %{_libexecdir}/gargoyle/advsys
-%{_libexecdir}/gargoyle/geas
 %{_libexecdir}/gargoyle/magnetic
 %{_libexecdir}/gargoyle/agility
 %{_libexecdir}/gargoyle/git

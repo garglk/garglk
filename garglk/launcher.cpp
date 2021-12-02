@@ -55,7 +55,6 @@
 #define T_JACL      "jacl"
 #define T_LEV9      "level9"
 #define T_MGSR      "magnetic"
-#define T_QUEST     "geas"
 #define T_SCOTT     "scott"
 #define T_TADS2     "tadsr"
 #define T_TADS3     "tadsr"
@@ -86,7 +85,6 @@ enum class Format {
     JACL,
     Level9,
     Magnetic,
-    Quest,
     Scott,
     TADS2,
     TADS3,
@@ -136,8 +134,6 @@ static const std::map<std::string, Format> extensions = {
     {"l9", Format::Level9},
     {"sna", Format::Level9},
     {"mag", Format::Magnetic},
-    {"asl", Format::Quest},
-    {"cas", Format::Quest},
     {"saga", Format::Scott},
     {"gam", Format::TADS2},
     {"t3", Format::TADS3},
@@ -164,7 +160,6 @@ static const std::map<Format, Interpreter> interpreters = {
     { Format::JACL, Interpreter(T_JACL) },
     { Format::Level9, Interpreter(T_LEV9) },
     { Format::Magnetic, Interpreter(T_MGSR) },
-    { Format::Quest, Interpreter(T_QUEST) },
     { Format::Scott, Interpreter(T_SCOTT) },
     { Format::TADS2, Interpreter(T_TADS2) },
     { Format::TADS3, Interpreter(T_TADS3) },
