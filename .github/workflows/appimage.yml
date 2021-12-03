@@ -39,7 +39,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Build AppImage
-        run: ./gargoyle-appimage.sh
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./gargoyle-appimage.sh
 
       - name: Upload AppImage
         if: github.event_name != 'pull_request'

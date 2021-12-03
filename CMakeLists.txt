@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.3)
 
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
-project(garglk VERSION "${GARGOYLE_VERSION}")
+
+# Don't set a version here: CMake requires a version of the form
+# <major>[.<minor>[.<patch>[.<tweak>]]]
+# where all parts are non-negative integers. This doesn't work with
+# CI builds which include the current Git revision as the version.
+project(garglk)
 
 if(POLICY CMP0069)
     cmake_policy(SET CMP0069 NEW)

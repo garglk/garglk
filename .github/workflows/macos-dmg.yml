@@ -18,7 +18,9 @@ jobs:
         run: brew install sdl2 sdl2_mixer
 
       - name: Build
-        run: sh gargoyle_osx.sh
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          sh gargoyle_osx.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2

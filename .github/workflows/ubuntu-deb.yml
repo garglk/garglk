@@ -44,7 +44,9 @@ jobs:
           qtmultimedia5-dev
 
       - name: Build Ubuntu package
-        run: ./gargoyle-builddeb.sh
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./gargoyle-builddeb.sh
 
       - name: Upload DEB
         if: github.event_name != 'pull_request'
