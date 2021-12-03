@@ -69,7 +69,7 @@ endif()
 target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600")
 
 if(WITH_LAUNCHER)
-    add_executable(gargoyle launcher.cpp)
+    add_executable(gargoyle WIN32 launcher.cpp)
     target_include_directories(gargoyle PRIVATE cheapglk)
     target_link_libraries(gargoyle PRIVATE garglk)
     target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600")
