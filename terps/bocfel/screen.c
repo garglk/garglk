@@ -561,14 +561,17 @@ void put_char(uint8_t c)
 // Print a C string (UTF-8) to the main window. This bypasses the
 // “normal” printing code mainly to avoid writing to another output
 // stream. This function is intended for writing text that is outside of
-// the game.
+// the game. For convenience, carriage returns are ignored under the
+// assumption that they are coming from a Windows text stream.
 void screen_print(const char *s)
 {
 #ifdef ZTERP_GLK
     zterp_io *io = zterp_io_open_memory(s, strlen(s), ZTERP_IO_MODE_RDONLY);
     strid_t stream = glk_window_get_stream(mainwin->id);
     for (long c = zterp_io_getc(io, false); c != -1; c = zterp_io_getc(io, false)) {
-        GLK_PUT_CHAR_STREAM(stream, c);
+        if (c != UNICODE_CARRIAGE_RETURN) {
+            GLK_PUT_CHAR_STREAM(stream, c);
+        }
     }
     zterp_io_close(io);
 #else
