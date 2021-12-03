@@ -13,12 +13,12 @@ SetCompressor lzma
 
 !define /file VERSION "VERSION"
 
-!if "$%GARGOYLE64%" == "${U+24}%GARGOYLE64%"
-    InstallDir $PROGRAMFILES\Gargoyle
-    OutFile "gargoyle-${VERSION}-windows.exe"
-!else
+!if "$%GARGOYLE_ARCH%" == "x86_64"
     InstallDir $PROGRAMFILES64\Gargoyle
     OutFile "gargoyle-${VERSION}-windows-64.exe"
+!else
+    InstallDir $PROGRAMFILES\Gargoyle
+    OutFile "gargoyle-${VERSION}-windows.exe"
 !endif
 
 ;
@@ -77,7 +77,7 @@ Section "DoInstall"
 	; Elevate rights
     !insertmacro MULTIUSER_INIT
 
-    !if "$%GARGOYLE64%" != "${U+24}%GARGOYLE64%"
+    !if "$%GARGOYLE_ARCH%" == "x86_64"
         SetRegView 64
     !endif
 
