@@ -60,7 +60,7 @@ static time_t timegm(struct tm *tm);
 #ifdef WIN32
 /* Some alterations to make this code work on Windows, in case that's helpful
    to you. */
-#define mktime gli_mktime
+#define mktime(tm) gli_mktime(tm)
 static time_t timegm(struct tm *tm);
 static time_t gli_mktime(struct tm *timeptr);
 static struct tm *gmtime_r(const time_t *timer, struct tm *result);
@@ -371,7 +371,7 @@ time_t gli_mktime (struct tm * timeptr)
         }
     }
     timeptr->tm_year += adjust;
-    time_t ret = mktime(timeptr) - offset;
+    time_t ret = (mktime)(timeptr) - offset;
     timeptr->tm_year -= adjust;
 
     return ret;
