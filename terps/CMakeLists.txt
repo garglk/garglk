@@ -18,7 +18,7 @@ function(terp target)
     set(multival SRCS INCLUDE_DIRS MACROS LIBS)
     cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
-    add_executable(${target} ${TERP_SRCS})
+    add_executable(${target} WIN32 ${TERP_SRCS})
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk" ${TERP_INCLUDE_DIRS})
