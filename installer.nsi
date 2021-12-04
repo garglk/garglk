@@ -144,7 +144,7 @@ Section "DoInstall"
     WriteRegStr HKCR ".saga" "" "Gargoyle.Story"
 
     WriteRegStr HKCR "Gargoyle.Story" "" "Interactive Fiction Story File"
-    WriteRegStr HKCR "Gargoyle.Story\DefaultIcon" "" "$INSTDIR\gargoyle.exe,1"
+    WriteRegStr HKCR "Gargoyle.Story\DefaultIcon" "" "$INSTDIR\gargoyle.exe,0"
     WriteRegStr HKCR "Gargoyle.Story\shell" "" "open"
     WriteRegStr HKCR "Gargoyle.Story\shell\open" "" "Play"
     WriteRegStr HKCR "Gargoyle.Story\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""
