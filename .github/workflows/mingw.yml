@@ -45,8 +45,8 @@ jobs:
       - name: Set up MinGW environment
         run: |
           mkdir /usr/llvm-mingw
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20211002/llvm-mingw-20211002-ucrt-ubuntu-18.04-x86_64.tar.xz
-          bsdtar --strip-components 1 -x -v -f llvm-mingw-20211002-ucrt-ubuntu-18.04-x86_64.tar.xz -C /usr/llvm-mingw
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20211002/llvm-mingw-20211002-msvcrt-ubuntu-18.04-x86_64.tar.xz
+          bsdtar --strip-components 1 -x -v -f llvm-mingw-20211002-msvcrt-ubuntu-18.04-x86_64.tar.xz -C /usr/llvm-mingw
           rm /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32/include
           cp -a /usr/llvm-mingw/generic-w64-mingw32/include /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32
           wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}.tar.xz
