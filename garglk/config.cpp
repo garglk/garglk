@@ -261,10 +261,6 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         configs.push_back(ConfigFile(config, false));
     }
 
-#ifdef _WIN32
-#else
-#endif
-
 #if defined(__HAIKU__)
     char settings_dir[PATH_MAX + 1];
     if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK)
