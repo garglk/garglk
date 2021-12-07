@@ -265,8 +265,6 @@ winid_t glk_window_open(winid_t splitwin,
             break;
         case wintype_Graphics:
             newwin->data = win_graphics_create(newwin);
-            if (method & winmethod_Fixed)
-                size = gli_zoom_int(size);
             break;
         case wintype_Pair:
             gli_strict_warning("window_open: cannot open pair window directly");
