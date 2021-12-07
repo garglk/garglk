@@ -20,6 +20,10 @@ set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO)")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
 set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or none)")
 
+if(INTERFACE STREQUAL "QT")
+    option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
+endif()
+
 vtk_encode_string(
     INPUT garglk.ini
     NAME garglkini
@@ -33,6 +37,10 @@ set_property(SOURCE config.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGL
 if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
     set_property(SOURCE garglkini.cxx PROPERTY SKIP_AUTOMOC ON)
+
+    if(NOT WITH_NATIVE_FILE_DIALOGS)
+        set_property(SOURCE sysqt.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_NO_NATIVE_FILE_DIALOGS)
+    endif()
 endif()
 
 add_library(garglk babeldata.c style.c config.cpp draw.cpp
