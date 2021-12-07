@@ -356,7 +356,16 @@ void winhandler(int signal)
     }
 
     if (signal == SIGUSR2)
+    {
         gli_window_alive = false;
+
+        /* Stop all sound channels */
+        for (channel_t *chan = glk_schannel_iterate(NULL, NULL); chan; chan = glk_schannel_iterate(chan, NULL))
+        {
+            glk_schannel_stop(chan);
+        }
+
+    }
 }
 
 void wininit(int *argc, char **argv)
