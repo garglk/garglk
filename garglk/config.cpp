@@ -497,7 +497,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "hires") {
             gli_hires = std::stoi(arg);
         } else if (cmd == "zoom") {
-            gli_zoom = std::stoi(arg);
+            gli_zoom = std::stof(arg);
         } else if (cmd == "speak") {
             gli_conf_speak = std::stoi(arg);
         } else if (cmd == "speak_input") {
