@@ -31,6 +31,10 @@
 #define LINES 24
 #define COLS 70
 
+/* limit number of text rows/columns */
+#define MAX_TEXT_COLUMNS 255
+#define MAX_TEXT_ROWS 255
+
 bool gli_force_redraw = true;
 bool gli_more_focus = false;
 
