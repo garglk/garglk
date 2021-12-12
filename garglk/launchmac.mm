@@ -125,7 +125,7 @@ static const char *winfilters[] =
 
     /* Adapt to the current window backing scale factor */
     NSRect box = [self convertRectToBacking: [self bounds]];
-    float viewportScaleFactor = [self.window backingScaleFactor] / self.backingScaleFactor;
+    float viewportScaleFactor = [self.window backingScaleFactor] / 2;
     float viewportWidth = textureWidth * viewportScaleFactor;
     float viewportHeight = textureHeight * viewportScaleFactor;
     float y = NSHeight(box) - viewportHeight;
