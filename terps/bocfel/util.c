@@ -304,3 +304,14 @@ void process_arguments(int argc, char **argv)
         game_file = argv[zoptind];
     }
 }
+
+long parseint(const char *s, int base, bool *valid)
+{
+    long ret;
+    char *endptr;
+
+    ret = strtol(s, &endptr, base);
+    *valid = endptr != s && *endptr == 0;
+
+    return ret;
+}

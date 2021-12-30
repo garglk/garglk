@@ -44,13 +44,13 @@ struct options {
 
     bool autosave;
     bool persistent_transcript;
-    char *notes_editor;
+    char *editor;
 };
 
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.4"
+#define ZTERP_VERSION	"1.4.1"
 
 // v3
 #define FLAGS1_STATUSTYPE	(1U << 1)

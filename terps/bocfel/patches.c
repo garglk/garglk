@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <string.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "patches.h"
 #include "memory.h"
@@ -325,14 +327,18 @@ static const struct patch patches[] =
     { .title = NULL },
 };
 
-static void apply_patch(const struct replacement *r)
+static bool apply_patch(const struct replacement *r)
 {
     if (r->addr >= header.static_start &&
         r->addr + r->n < memory_size &&
         memcmp(&memory[r->addr], r->in, r->n) == 0) {
 
         memcpy(&memory[r->addr], r->out, r->n);
+
+        return true;
     }
+
+    return false;
 }
 
 void apply_patches(void)
@@ -347,4 +353,96 @@ void apply_patches(void)
             }
         }
     }
+}
+
+static bool read_into(uint8_t *buf, long count)
+{
+    for (long i = 0; i < count; i++) {
+        long byte;
+        bool valid;
+        char *p = strtok(NULL, " \t[],");
+        if (p == NULL) {
+            return false;
+        }
+        byte = parseint(p, 16, &valid);
+        if (!valid || byte < 0 || byte > 255) {
+            return false;
+        }
+        buf[i] = byte;
+    }
+
+    return true;
+}
+
+// User patches have the form:
+//
+// addr count original... replacement...
+//
+// For example, one of the Stationfall fixes would look like this:
+//
+// 0xd3d4 3 0x31 0x0c 0x73 0x51 0x73 0x0c
+//
+// Square brackets and commas are treated as whitespace for the actual
+// bytes, so for convenience this could also be written:
+//
+// 0xd3d4 3 [0x31, 0x0c, 0x73] [0x51, 0x73, 0x0c]
+enum PatchStatus apply_user_patch(const char *patchstr)
+{
+    char *str;
+    char *p;
+    bool valid;
+    long addr, count;
+    uint8_t in[1024], out[1024];
+
+    str = malloc(strlen(patchstr) + 1);
+    if (str == NULL) {
+        goto err;
+    }
+
+    strcpy(str, patchstr);
+
+    p = strtok(str, " \t");
+    if (p == NULL) {
+        goto err;
+    }
+
+    addr = parseint(p, 16, &valid);
+    if (!valid) {
+        goto err;
+    }
+
+    p = strtok(NULL, " \t");
+    if (p == NULL) {
+        goto err;
+    }
+
+    count = parseint(p, 10, &valid);
+    if (!valid) {
+        goto err;
+    }
+
+    if (count > ASIZE(in) || count > ASIZE(out)) {
+        goto err;
+    }
+
+    if (!read_into(in, count) || !read_into(out, count)) {
+        goto err;
+    }
+
+    struct replacement replacement = {
+        .addr = addr,
+        .n = count,
+        .in = in,
+        .out = out,
+    };
+
+    if (!apply_patch(&replacement)) {
+        return PatchStatusNotFound;
+    }
+
+    return PatchStatusOk;
+err:
+    free(str);
+
+    return PatchStatusSyntaxError;
 }

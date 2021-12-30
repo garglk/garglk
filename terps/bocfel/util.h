@@ -3,6 +3,7 @@
 #ifndef ZTERP_UTIL_H
 #define ZTERP_UTIL_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef ZTERP_GLK
@@ -69,6 +70,7 @@ char *xstrdup(const char *s);
 
 extern enum arg_status { ARG_OK, ARG_HELP, ARG_FAIL } arg_status;
 void process_arguments(int argc, char **argv);
+long parseint(const char *s, int base, bool *valid);
 
 // Somewhat ugly hack to get around the fact that some Glk functions may
 // not exist. These function calls should all be guarded (e.g.
