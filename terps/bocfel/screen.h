@@ -50,6 +50,7 @@ zprintflike(1, 2)
 void screen_printf(const char *fmt, ...);
 void screen_puts(const char *s);
 void screen_message_prompt(const char *message);
+void screen_flush(void);
 
 #ifdef ZTERP_GLK
 void term_keys_reset(void);

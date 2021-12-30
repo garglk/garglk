@@ -9,7 +9,7 @@
 #include "iff.h"
 #include "io.h"
 
-const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len);
+const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len);
 
 #ifndef ZTERP_NO_CHEAT
 bool cheat_add(char *how, bool print);

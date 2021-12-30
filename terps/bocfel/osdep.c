@@ -49,13 +49,14 @@
 // need not be maintained. If the size of the file is larger than
 // LONG_MAX, -1 should be returned.
 //
-// bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
+// bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 //
 // Different operating systems have different ideas about where
 // configuration data should be stored; this function will copy a
 // suitable value for the bocfel configuration file into the buffer
 // “*s”. If a configuration file location cannot be determined, return
-// false, otherwise true.
+// false, otherwise true. If “create_parent” is true, attempt to create
+// the containing directory, failing if this isn’t possible.
 //
 // bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 //
@@ -66,9 +67,11 @@
 // file exists, because the first time an autosave is created, it
 // necessarily won’t exist beforehand.
 //
-// The following functions are useful for non-Glk builds only. They
-// provide for some handling of screen functions that is normally taken
-// care of by Glk.
+// bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
+//
+// Open the specified file in a text editor. Upon success, return true.
+// Otherwise, return false, writing a suitable error message into “err”,
+// a buffer whose size is “errsize” bytes long.
 //
 // bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
 //
@@ -85,6 +88,10 @@
 // freed by this function before returning: if this function returns
 // false, callers are not permitted to examine either “*new_notes” or
 // “*new_notes_len”.
+//
+// The following functions are useful for non-Glk builds only. They
+// provide for some handling of screen functions that is normally taken
+// care of by Glk.
 //
 // void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 //
@@ -152,7 +159,7 @@ static void ansi_set_style(int style, const struct color *fg, const struct color
 #endif
 
 #if defined(ZTERP_UNIX) || defined(ZTERP_WIN32)
-static bool read_notes(const char *filename, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+static bool read_file(const char *filename, char **new_file, size_t *new_file_len, char *err, size_t errsize)
 {
     zterp_io *io = NULL;
     long size;
@@ -175,21 +182,21 @@ static bool read_notes(const char *filename, char **new_notes, size_t *new_notes
     }
 
     if (size != 0) {
-        *new_notes = malloc(size);
-        *new_notes_len = size;
+        *new_file = malloc(size);
+        *new_file_len = size;
 
-        if (*new_notes == NULL) {
-            snprintf(err, errsize, "unable to allocate memory for new notes");
+        if (*new_file == NULL) {
+            snprintf(err, errsize, "unable to allocate memory for new file");
             goto err;
         }
 
-        if (!zterp_io_read_exact(io, *new_notes, size)) {
+        if (!zterp_io_read_exact(io, *new_file, size)) {
             snprintf(err, errsize, "unable to read temporary file");
             goto err;
         }
     } else {
-        *new_notes = NULL;
-        *new_notes_len = 0;
+        *new_file = NULL;
+        *new_file_len = 0;
     }
 
     zterp_io_close(io);
@@ -271,9 +278,9 @@ long zterp_os_filesize(FILE *fp)
 
     return st.st_size;
 }
-#define zterp_os_filesize
+#define have_zterp_os_filesize
 
-bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 {
 #ifdef __HAIKU__
     char settings_dir[ZTERP_OS_PATH_SIZE];
@@ -283,8 +290,6 @@ bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
     }
 
     checked_snprintf(*s, sizeof *s, "%s/bocfel/bocfelrc", settings_dir);
-
-    return true;
 #else
     const char *home;
     const char *config_home;
@@ -306,11 +311,11 @@ bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
     } else {
         return false;
     }
-
-    return true;
 #endif
+
+    return !create_parent || mkdir_p(*s);
 }
-#define zterp_os_rcfile
+#define have_zterp_os_rcfile
 
 bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 {
@@ -322,8 +327,6 @@ bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
     }
 
     checked_snprintf(*name, sizeof *name, "%s/bocfel/autosave/%s-%s", settings_dir, autosave_basename(), get_story_id());
-
-    return mkdir_p(*name);
 #else
     const char *data_home;
 
@@ -337,18 +340,14 @@ bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
         }
         checked_snprintf(*name, sizeof *name, "%s/.local/share/bocfel/autosave/%s-%s", home, autosave_basename(), get_story_id());
     }
+#endif
 
     return mkdir_p(*name);
-#endif
 }
-#define zterp_os_autosave_name
+#define have_zterp_os_autosave_name
 
-bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
 {
-    char *tmpdir, template[ZTERP_OS_PATH_SIZE];
-    int bytes_needed;
-    int fd;
-    size_t bytes;
     pid_t pid;
 
     // A list of possible text editors. The user can specify a text
@@ -357,7 +356,7 @@ bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, 
     // exists and works. This really should use XDG to query the user’s
     // preferred text editor, but for now, it doesn’t.
     const char *editors[] = {
-        options.notes_editor,
+        options.editor,
 #if defined(__HAIKU__)
         "StyledEdit",
 #elif defined(__serenity__)
@@ -370,6 +369,65 @@ bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, 
         "gedit",
 #endif
     };
+
+    pid = fork();
+    switch (pid) {
+    case -1:
+        snprintf(err, errsize, "unable to create new process");
+        return false;
+    case 0: {
+        for (size_t i = 0; i < ASIZE(editors); i++) {
+            if (editors[i] != NULL) {
+                execlp(editors[i], editors[i], filename, (char *)NULL);
+            }
+        }
+#ifdef __APPLE__
+        execlp("open", "open", "-W", "-t", filename, (char *)NULL);
+#endif
+        _exit(127);
+    }
+    default: {
+        int status;
+
+#ifdef ZTERP_GLK
+        while (waitpid(pid, &status, WNOHANG) != pid) {
+            usleep(10000);
+            glk_tick();
+        }
+#else
+        waitpid(pid, &status, 0);
+#endif
+
+        if (!WIFEXITED(status)) {
+            snprintf(err, errsize, "editor process terminated abnormally");
+            return false;
+        }
+
+#ifndef __APPLE__
+        if (WEXITSTATUS(status) == 127) {
+            snprintf(err, errsize, "unable to find a text editor");
+            return false;
+        }
+#endif
+
+        if (WEXITSTATUS(status) != 0) {
+            snprintf(err, errsize, "editor had exit status %d", WEXITSTATUS(status));
+            return false;
+        }
+    }
+    }
+
+    return true;
+}
+#define have_zterp_os_edit_file
+
+bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
+{
+    const char *tmpdir;
+    char template[ZTERP_OS_PATH_SIZE];
+    int bytes_needed;
+    int fd;
+    size_t bytes;
 
     tmpdir = getenv("TMPDIR");
     if (tmpdir == NULL) {
@@ -401,54 +459,11 @@ bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, 
 
     close(fd);
 
-    pid = fork();
-    switch (pid) {
-    case -1:
-        snprintf(err, errsize, "unable to create new process");
-        return false;
-    case 0: {
-        for (size_t i = 0; i < ASIZE(editors); i++) {
-            if (editors[i] != NULL) {
-                execlp(editors[i], editors[i], template, (char *)NULL);
-            }
-        }
-#ifdef __APPLE__
-        execlp("open", "open", "-W", "-t", template, (char *)NULL);
-#endif
-        _exit(127);
-    }
-    default: {
-        int status;
-
-#ifdef ZTERP_GLK
-        while (waitpid(pid, &status, WNOHANG) != pid) {
-            usleep(10000);
-            glk_tick();
-        }
-#else
-        waitpid(pid, &status, 0);
-#endif
-
-        if (!WIFEXITED(status)) {
-            snprintf(err, errsize, "editor process terminated abnormally");
-            goto err;
-        }
-
-#ifndef __APPLE__
-        if (WEXITSTATUS(status) == 127) {
-            snprintf(err, errsize, "unable to find a text editor");
-            goto err;
-        }
-#endif
-
-        if (WEXITSTATUS(status) != 0) {
-            snprintf(err, errsize, "editor had exit status %d", WEXITSTATUS(status));
-            goto err;
-        }
-    }
+    if (!zterp_os_edit_file(template, err, errsize)) {
+        goto err;
     }
 
-    if (!read_notes(template, new_notes, new_notes_len, err, errsize)) {
+    if (!read_file(template, new_notes, new_notes_len, err, errsize)) {
         goto err;
     }
 
@@ -460,7 +475,7 @@ err:
     remove(template);
     return false;
 }
-#define zterp_os_edit_notes
+#define have_zterp_os_edit_notes
 
 #ifndef ZTERP_GLK
 
@@ -478,7 +493,7 @@ void zterp_os_get_screen_size(unsigned *w, unsigned *h)
         *h = winsize.ws_row;
     }
 }
-#define zterp_os_get_screen_size
+#define have_zterp_os_get_screen_size
 #endif
 
 static const char *ital = NULL, *rev = NULL, *bold = NULL, *none = NULL;
@@ -507,7 +522,7 @@ void zterp_os_init_term(void)
 
     have_24bit_rgb = tigetflag("RGB") > 0 && tigetnum("colors") == 1U << 24;
 }
-#define zterp_os_init_term
+#define have_zterp_os_init_term
 
 bool zterp_os_have_style(int style)
 {
@@ -528,13 +543,13 @@ bool zterp_os_have_style(int style)
         return false;
     }
 }
-#define zterp_os_have_style
+#define have_zterp_os_have_style
 
 bool zterp_os_have_colors(void)
 {
     return have_colors;
 }
-#define zterp_os_have_colors
+#define have_zterp_os_have_colors
 
 static void set_color(const char *string, const struct color *color)
 {
@@ -592,7 +607,7 @@ void zterp_os_set_style(int style, const struct color *fg, const struct color *b
         set_color(bg_string, bg);
     }
 }
-#define zterp_os_set_style
+#define have_zterp_os_set_style
 #endif
 
 #endif
@@ -621,40 +636,13 @@ long zterp_os_filesize(FILE *fp)
 
     return st.st_size;
 }
-#define zterp_os_filesize
+#define have_zterp_os_filesize
 
-bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
+static bool mkdir_p(const char *filename)
 {
-    const char *appdata;
+    char drive[MAX_PATH], path[MAX_PATH];
 
-    appdata = getenv("APPDATA");
-    if (appdata == NULL) {
-        return false;
-    }
-
-    checked_snprintf(*s, sizeof *s, "%s\\Bocfel\\bocfel.ini", appdata);
-
-    return true;
-}
-#define zterp_os_rcfile
-
-bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
-{
-    const char *appdata;
-    char drive[MAX_PATH], path[MAX_PATH], fname[MAX_PATH], ext[MAX_PATH];
-
-    appdata = getenv("APPDATA");
-    if (appdata == NULL) {
-        return false;
-    }
-
-    if (_splitpath_s(game_file, NULL, 0, NULL, 0, fname, sizeof fname, ext, sizeof ext) != 0) {
-        return false;
-    }
-
-    checked_snprintf(*name, sizeof *name, "%s\\Bocfel\\autosave\\%s%s-%s", appdata, fname, ext, get_story_id());
-
-    if (_splitpath_s(*name, drive, sizeof drive, path, sizeof path, NULL, 0, NULL, 0) != 0) {
+    if (_splitpath_s(filename, drive, sizeof drive, path, sizeof path, NULL, 0, NULL, 0) != 0) {
         return false;
     }
 
@@ -674,7 +662,74 @@ bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 
     return true;
 }
-#define zterp_os_autosave_name
+
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
+{
+    const char *appdata;
+
+    appdata = getenv("APPDATA");
+    if (appdata == NULL) {
+        return false;
+    }
+
+    checked_snprintf(*s, sizeof *s, "%s\\Bocfel\\bocfel.ini", appdata);
+
+    return !create_parent || mkdir_p(*s);
+}
+#define have_zterp_os_rcfile
+
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+    const char *appdata;
+    char fname[MAX_PATH], ext[MAX_PATH];
+
+    appdata = getenv("APPDATA");
+    if (appdata == NULL) {
+        return false;
+    }
+
+    if (_splitpath_s(game_file, NULL, 0, NULL, 0, fname, sizeof fname, ext, sizeof ext) != 0) {
+        return false;
+    }
+
+    checked_snprintf(*name, sizeof *name, "%s\\Bocfel\\autosave\\%s%s-%s", appdata, fname, ext, get_story_id());
+
+    return mkdir_p(*name);
+}
+#define have_zterp_os_autosave_name
+
+bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
+{
+    SHELLEXECUTEINFO si = {
+        .cbSize = sizeof(SHELLEXECUTEINFO),
+        .fMask = SEE_MASK_NOCLOSEPROCESS,
+        .hwnd = NULL,
+        .lpVerb = "open",
+        .lpFile = filename,
+        .lpParameters = NULL,
+        .lpDirectory = NULL,
+        .nShow = SW_SHOW,
+        .hInstApp = NULL,
+    };
+
+    if (!ShellExecuteEx(&si)) {
+        snprintf(err, errsize, "unable to launch text editor");
+        return false;
+    }
+
+#ifdef ZTERP_GLK
+    while (WaitForSingleObject(si.hProcess, 100) != 0) {
+        glk_tick();
+    }
+#else
+    WaitForSingleObject(si.hProcess, INFINITE);
+#endif
+
+    CloseHandle(si.hProcess);
+
+    return true;
+}
+#define have_zterp_os_edit_file
 
 bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
 {
@@ -703,34 +758,11 @@ bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, 
 
     zterp_io_close(io);
 
-    SHELLEXECUTEINFO si = {
-        .cbSize = sizeof(SHELLEXECUTEINFO),
-        .fMask = SEE_MASK_NOCLOSEPROCESS,
-        .hwnd = NULL,
-        .lpVerb = "open",
-        .lpFile = notes_name,
-        .lpParameters = NULL,
-        .lpDirectory = NULL,
-        .nShow = SW_SHOW,
-        .hInstApp = NULL,
-    };
-
-    if (!ShellExecuteEx(&si)) {
-        snprintf(err, errsize, "unable to launch text editor");
+    if (!zterp_os_edit_file(notes_name, err, errsize)) {
         goto err;
     }
 
-#ifdef ZTERP_GLK
-    while (WaitForSingleObject(si.hProcess, 100) != 0) {
-        glk_tick();
-    }
-#else
-    WaitForSingleObject(si.hProcess, INFINITE);
-#endif
-
-    CloseHandle(si.hProcess);
-
-    if (!read_notes(notes_name, new_notes, new_notes_len, err, errsize)) {
+    if (!read_file(notes_name, new_notes, new_notes_len, err, errsize)) {
         goto err;
     }
 
@@ -743,7 +775,7 @@ err:
 
     return false;
 }
-#define zterp_os_edit_notes
+#define have_zterp_os_edit_notes
 
 #ifndef ZTERP_GLK
 void zterp_os_get_screen_size(unsigned *w, unsigned *h)
@@ -757,7 +789,7 @@ void zterp_os_get_screen_size(unsigned *w, unsigned *h)
         *h = screen.srWindow.Bottom - screen.srWindow.Top + 1;
     }
 }
-#define zterp_os_get_screen_size
+#define have_zterp_os_get_screen_size
 
 static bool terminal_processing_enabled = false;
 void zterp_os_init_term(void)
@@ -771,19 +803,19 @@ void zterp_os_init_term(void)
         }
     }
 }
-#define zterp_os_init_term
+#define have_zterp_os_init_term
 
 bool zterp_os_have_style(int style)
 {
     return terminal_processing_enabled;
 }
-#define zterp_os_have_style
+#define have_zterp_os_have_style
 
 bool zterp_os_have_colors(void)
 {
     return terminal_processing_enabled;
 }
-#define zterp_os_have_colors
+#define have_zterp_os_have_colors
 
 void zterp_os_set_style(int style, const struct color *fg, const struct color *bg)
 {
@@ -793,7 +825,7 @@ void zterp_os_set_style(int style, const struct color *fg, const struct color *b
 
     ansi_set_style(style, fg, bg);
 }
-#define zterp_os_set_style
+#define have_zterp_os_set_style
 #endif
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -806,19 +838,19 @@ bool zterp_os_have_style(int style)
 {
     return true;
 }
-#define zterp_os_have_style
+#define have_zterp_os_have_style
 
 bool zterp_os_have_colors(void)
 {
     return true;
 }
-#define zterp_os_have_colors
+#define have_zterp_os_have_colors
 
 void zterp_os_set_style(int style, const struct color *fg, const struct color *bg)
 {
     ansi_set_style(style, fg, bg);
 }
-#define zterp_os_set_style
+#define have_zterp_os_set_style
 #endif
 
 #endif
@@ -826,7 +858,7 @@ void zterp_os_set_style(int style, const struct color *fg, const struct color *b
 // ╔══════════════════════════════════════════════════════════════════════════════╗
 // ║ Generic functions                                                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
-#ifndef zterp_os_filesize
+#ifndef have_zterp_os_filesize
 long zterp_os_filesize(FILE *fp)
 {
     // Assume fseek() can seek to the end of binary streams.
@@ -838,22 +870,30 @@ long zterp_os_filesize(FILE *fp)
 }
 #endif
 
-#ifndef zterp_os_rcfile
-bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE])
+#ifndef have_zterp_os_edit_file
+bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
+{
+    snprintf(err, errsize, "editing unimplemented on this platform");
+    return false;
+}
+#endif
+
+#ifndef have_zterp_os_rcfile
+bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 {
     checked_snprintf(*s, sizeof *s, "bocfelrc");
     return true;
 }
 #endif
 
-#ifndef zterp_os_autosave_name
+#ifndef have_zterp_os_autosave_name
 bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
 {
     return false;
 }
 #endif
 
-#ifndef zterp_os_edit_notes
+#ifndef have_zterp_os_edit_notes
 bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize)
 {
     snprintf(err, errsize, "notes unimplemented on this platform");
@@ -862,33 +902,33 @@ bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, 
 #endif
 
 #ifndef ZTERP_GLK
-#ifndef zterp_os_get_screen_size
+#ifndef have_zterp_os_get_screen_size
 void zterp_os_get_screen_size(unsigned *w, unsigned *h)
 {
 }
 #endif
 
-#ifndef zterp_os_init_term
+#ifndef have_zterp_os_init_term
 void zterp_os_init_term(void)
 {
 }
 #endif
 
-#ifndef zterp_os_have_style
+#ifndef have_zterp_os_have_style
 bool zterp_os_have_style(int style)
 {
     return false;
 }
 #endif
 
-#ifndef zterp_os_have_colors
+#ifndef have_zterp_os_have_colors
 bool zterp_os_have_colors(void)
 {
     return false;
 }
 #endif
 
-#ifndef zterp_os_set_style
+#ifndef have_zterp_os_set_style
 void zterp_os_set_style(int style, const struct color *fg, const struct color *bg)
 {
 }

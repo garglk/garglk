@@ -211,13 +211,17 @@ static void load_resources(void)
             strcat(blorb_file, exts[i]);
 
             file = load_file(blorb_file);
+            if (file != NULL) {
+                if (giblorb_set_resource_map(file) == giblorb_err_None) {
+                    break;
+                }
+
+                glk_stream_close(file, NULL);
+                file = NULL;
+            }
         }
 
         free(blorb_file);
-    }
-
-    if (file != NULL) {
-        giblorb_set_resource_map(file);
     }
 #endif
 }
