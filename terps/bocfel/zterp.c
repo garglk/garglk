@@ -1177,7 +1177,7 @@ int main(int argc, char **argv)
     if (memory_size < 64) {
         die("story file too small");
     }
-#if UNT32_MAX > SIZE_MAX - 22
+#if UINT32_MAX > SIZE_MAX - 22
     if (memory_size > SIZE_MAX - 22) {
         die("story file too large");
     }
