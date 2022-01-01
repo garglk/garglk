@@ -21,7 +21,7 @@ Modified
 #define VMBIGNUM_H
 
 #include <stdlib.h>
-#include <os.h>
+#include "os.h"
 #include "vmtype.h"
 #include "vmobj.h"
 #include "vmglob.h"
