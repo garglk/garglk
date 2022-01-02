@@ -130,6 +130,8 @@ cp licenses/* "$BUNDLE/Resources"
 
 cp fonts/Gargoyle*.ttf $BUNDLE/Resources/Fonts
 
+codesign -s - -f --deep Gargoyle.app
+
 echo "Creating DMG..."
 hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ "gargoyle-$GARVERSION-mac.dmg"
 
