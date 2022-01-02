@@ -111,7 +111,6 @@ static const char *winfilters[] =
     if (self)
     {
         self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
-        self.backingScaleFactor = 1;
     }
     return self;
 }
@@ -123,13 +122,9 @@ static const char *winfilters[] =
 
     [[self openGLContext] makeCurrentContext];
 
-    /* Adapt to the current window backing scale factor */
-    NSRect box = [self convertRectToBacking: [self bounds]];
-    float viewportScaleFactor = [self.window backingScaleFactor] / 2;
-    float viewportWidth = textureWidth * viewportScaleFactor;
-    float viewportHeight = textureHeight * viewportScaleFactor;
-    float y = NSHeight(box) - viewportHeight;
-    glViewport(0.0, y, viewportWidth, viewportHeight);
+    /* Adapt to the current window backing scaling */
+    NSRect box = [self convertRectToBacking: NSMakeRect(0, 0, textureWidth, textureHeight)];
+    glViewport(0.0, 0.0, NSWidth(box), NSHeight(box));
 
     NSColor * clearColor = self.backgroundColor;
     glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
