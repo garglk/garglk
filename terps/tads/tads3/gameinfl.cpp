@@ -21,7 +21,7 @@ Modified
 #include <string.h>
 #include <stdlib.h>
 
-#include <os.h>
+#include "os.h"
 #include "t3std.h"
 #include "utf8.h"
 #include "vmerr.h"

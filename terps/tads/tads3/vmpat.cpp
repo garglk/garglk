@@ -16,7 +16,7 @@ Modified
 */
 
 #include <stdlib.h>
-#include <os.h>
+#include "os.h"
 #include "vmtype.h"
 #include "vmobj.h"
 #include "vmmeta.h"

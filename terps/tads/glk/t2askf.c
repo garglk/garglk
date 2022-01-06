@@ -20,4 +20,8 @@
  *                                                                            *
  *****************************************************************************/
 
-#include "tads3/derived/vmuni_cs.cpp"
+#ifdef GLK_ANSI_ONLY
+#include "../tads2/askf_tx.c"
+#else
+#include "../tads2/askf_os.c"
+#endif
