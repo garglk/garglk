@@ -614,8 +614,7 @@ void gli_startup(int argc, char *argv[])
     if (!gli_baseline)
         gli_baseline = gli_conf_propsize + 0.5;
 
-   if (gli_hires)
-        gli_zoom *= gli_backingscalefactor;
+    gli_zoom *= gli_backingscalefactor;
     gli_baseline = gli_zoom_int(gli_baseline);
     gli_conf_monosize = gli_conf_monosize * gli_zoom;
     gli_conf_propsize = gli_conf_propsize * gli_zoom;
