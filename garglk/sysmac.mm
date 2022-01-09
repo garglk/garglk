@@ -301,15 +301,12 @@ void wintitle(void)
 
 void winresize(void)
 {
+    NSRect viewRect = [gargoyle updateBackingSize: processID];
+    float textureFactor = BACKING_SCALE_FACTOR / [gargoyle getBackingScaleFactor: processID];
 
-    NSRect viewRect = [gargoyle getBackingSize: processID];
-    
-    gli_backingscalefactor = [gargoyle getBackingScaleFactor: processID];
+    unsigned int vw = (unsigned int) (NSWidth(viewRect) * textureFactor);
+    unsigned int vh = (unsigned int) (NSHeight(viewRect) * textureFactor);
 
-    unsigned int vw = (unsigned int) (NSWidth(viewRect));
-    unsigned int vh = (unsigned int) (NSHeight(viewRect));
-
-    NSLog(@"Backing scale: %f, size: %i x %i, window: %f x %f", gli_backingscalefactor, vw, vh, NSWidth(viewRect), NSHeight(viewRect));
 
     if (gli_image_w == vw && gli_image_h == vh)
         return;
@@ -368,12 +365,7 @@ void winhandler(int signal)
 void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-
-    NSRect rect = NSMakeRect(0, 0, 1000, 1);
-    NSView * tmpview = [[NSView alloc] initWithFrame: rect];
-    rect = [tmpview convertRectToBacking: rect];
-    [tmpview release];
-    gli_backingscalefactor = NSWidth(rect)/1000.;
+    gli_backingscalefactor = BACKING_SCALE_FACTOR;
 
     /* establish link to launcher */
     NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
@@ -409,8 +401,8 @@ void winopen(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    unsigned int defw = gli_wmarginx * 2 + gli_cellw * gli_cols / BACKING_SCALE_FACTOR;
+    unsigned int defh = gli_wmarginy * 2 + gli_cellh * gli_rows / BACKING_SCALE_FACTOR;
     NSColor * windowColor = [NSColor colorWithCalibratedRed: (float) gli_window_color[0] / 255.0f
                                                       green: (float) gli_window_color[1] / 255.0f
                                                        blue: (float) gli_window_color[2] / 255.0f

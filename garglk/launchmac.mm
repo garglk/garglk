@@ -121,7 +121,8 @@ static const char *winfilters[] =
 
     [[self openGLContext] makeCurrentContext];
 
-    glViewport(0.0, 0.0, textureWidth, textureHeight);
+    float viewScalingFactor = [self.window backingScaleFactor] / BACKING_SCALE_FACTOR;
+    glViewport(0.0, 0.0, textureWidth * viewScalingFactor, textureHeight * viewScalingFactor);
 
     NSColor * clearColor = self.backgroundColor;
     glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
@@ -650,12 +651,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     /* set up the window */
     NSRect rect = NSMakeRect(0, 0, width, height);
-    if (retina)
-    {
-        NSView * tmpview = [[NSView alloc] initWithFrame: rect];
-        rect = [tmpview convertRectFromBacking: rect];
-        [tmpview release];
-    }
     GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
                                                                 styleMask: style
                                                                   backing: NSBackingStoreBuffered
@@ -688,7 +683,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     return nil;
 }
 
-- (NSRect) getBackingSize: (pid_t) processID
+- (NSRect) updateBackingSize: (pid_t) processID
 {
     GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 

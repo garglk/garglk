@@ -30,6 +30,8 @@
 #define UTF32StringEncoding NSUTF32LittleEndianStringEncoding
 #endif
 
+#define BACKING_SCALE_FACTOR 2.0
+
 #define NSKEY_LEFT      0x7b
 #define NSKEY_RIGHT     0x7c
 #define NSKEY_DOWN      0x7d
@@ -71,7 +73,7 @@
 
 - (NSEvent *) getWindowEvent: (pid_t) processID;
 
-- (NSRect) getBackingSize: (pid_t) processID;
+- (NSRect) updateBackingSize: (pid_t) processID;
 
 - (CGFloat) getBackingScaleFactor: (pid_t) processID;
 
