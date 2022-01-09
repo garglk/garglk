@@ -122,9 +122,7 @@ static const char *winfilters[] =
 
     [[self openGLContext] makeCurrentContext];
 
-    /* Adapt to the current window backing scaling */
-    NSRect box = [self convertRectToBacking: NSMakeRect(0, 0, textureWidth, textureHeight)];
-    glViewport(0.0, 0.0, NSWidth(box), NSHeight(box));
+    glViewport(0.0, 0.0, textureWidth, textureHeight);
 
     NSColor * clearColor = self.backgroundColor;
     glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
@@ -713,7 +711,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     if (window)
     {
-        id view = [window contentView];
         NSPoint point = [event locationInWindow];
         return point;
     }
