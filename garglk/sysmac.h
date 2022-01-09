@@ -71,7 +71,9 @@
 
 - (NSEvent *) getWindowEvent: (pid_t) processID;
 
-- (NSRect) getWindowSize: (pid_t) processID;
+- (NSRect) getBackingSize: (pid_t) processID;
+
+- (CGFloat) getBackingScaleFactor: (pid_t) processID;
 
 - (NSPoint) getWindowPoint: (pid_t) processID
                   forEvent: (NSEvent *) event;

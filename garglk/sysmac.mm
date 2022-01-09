@@ -48,7 +48,6 @@ static volatile sig_atomic_t gli_window_alive = true;
 void wintick(CFRunLoopTimerRef timer, void *info);
 void winhandler(int signal);
 
-
 @interface GargoyleMonitor : NSObject
 {
     NSRect size;
@@ -302,10 +301,15 @@ void wintitle(void)
 
 void winresize(void)
 {
-    NSRect viewRect = [gargoyle getWindowSize: processID];
 
-    unsigned int vw = (unsigned int) (NSWidth(viewRect) * gli_backingscalefactor);
-    unsigned int vh = (unsigned int) (NSHeight(viewRect) * gli_backingscalefactor);
+    NSRect viewRect = [gargoyle getBackingSize: processID];
+    
+    gli_backingscalefactor = [gargoyle getBackingScaleFactor: processID];
+
+    unsigned int vw = (unsigned int) (NSWidth(viewRect));
+    unsigned int vh = (unsigned int) (NSHeight(viewRect));
+
+    NSLog(@"Backing scale: %f, size: %i x %i, window: %f x %f", gli_backingscalefactor, vw, vh, NSWidth(viewRect), NSHeight(viewRect));
 
     if (gli_image_w == vw && gli_image_h == vh)
         return;
@@ -365,7 +369,6 @@ void wininit(int *argc, char **argv)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    /* get the backing scale factor */
     NSRect rect = NSMakeRect(0, 0, 1000, 1);
     NSView * tmpview = [[NSView alloc] initWithFrame: rect];
     rect = [tmpview convertRectToBacking: rect];
