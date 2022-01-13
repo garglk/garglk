@@ -1,0 +1,50 @@
+name: Fedora packages
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Fedora ${{ matrix.version }} package
+    strategy:
+      matrix:
+        version:
+          - 33
+          - 34
+          - 35
+
+    runs-on: ubuntu-20.04
+    container:
+      image: fedora:${{ matrix.version}}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update packages
+        run: yum -y update
+
+      - name: Install packages
+        run: yum -y install
+          SDL2-devel
+          SDL2_mixer-devel
+          cmake
+          fontconfig-devel
+          freetype-devel
+          libjpeg-turbo-devel
+          libpng-devel
+          qt5-qtbase-devel
+          rpm-build
+
+      - name: Build Fedora package
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./gargoyle-buildrpm.sh
+
+      - name: Upload RPM
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-Fedora-${{ matrix.version }}
+          path: ~/rpm_factory/RPMS/x86_64/*.rpm

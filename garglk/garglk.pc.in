@@ -5,6 +5,6 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 
 Name: Gargoyle Glk
 Description: An implementation of the Glk I/O layer
-Version: @PROJECT_VERSION@
+Version: @GARGOYLE_VERSION@
 Libs: -L${libdir} -lgarglk -lgarglkmain
 Cflags: -I${includedir}

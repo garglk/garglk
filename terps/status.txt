@@ -8,7 +8,6 @@ Build status as of 10/11/2010:
 | alan          | 2.8.6         |
 | alan3         | 3.0beta7      |
 | bocfel        | 1.4           |
-| geas          | 0.4           |
 | git           | 1.3.6         |
 | glulxe        | 0.5.4         |
 | hugo          | 3.1.06        |

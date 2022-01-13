@@ -20,5 +20,8 @@
  *                                                                            *
  *****************************************************************************/
 
-#include "tads2/indlg_tx.c"
-
+#ifdef GLK_ANSI_ONLY
+#include "../tads2/askf_tx.c"
+#else
+#include "../tads2/askf_os.c"
+#endif

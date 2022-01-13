@@ -151,7 +151,7 @@ int os_init(int *argc, char *argv[], const char *prompt,
         mainfg = 0;
 
     if (!glk_style_measure(mainwin, style_Normal, stylehint_BackColor, &mainbg))
-        mainbg = 0;
+        mainbg = 0xFFFFFFFF;
 
     /* get default colors for status window */
     statuswin = glk_window_open(mainwin,

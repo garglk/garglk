@@ -10,8 +10,6 @@ Alan is copyright (c) Thomas Nilsson. It is released under the terms of the Arti
 
 Bocfel is copyright (c) Chris Spiegel. It is released under the terms of the GNU General Public License.
 
-Geas is copyright (c) Mark Tilford and David Jones. It is released under the terms of the GNU General Public License.
-
 Git is copyright (c) Iain Merrick. It is released under the terms of the MIT License.
 
 Glulxe is copyright (c) Andrew Plotkin.

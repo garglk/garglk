@@ -26,6 +26,7 @@
 #include <QChar>
 #include <QClipboard>
 #include <QCursor>
+#include <QDesktopServices>
 #include <QElapsedTimer>
 #include <QFileDialog>
 #include <QGraphicsView>
@@ -107,16 +108,20 @@ enum class Action { Open, Save };
 static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Action action)
 {
     QString filename;
+    QFileDialog::Options options;
+#ifdef GARGLK_NO_NATIVE_FILE_DIALOGS
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
 
     if (action == Action::Open)
     {
         QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
-        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring);
+        filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring, nullptr, options);
     }
     else
     {
         QString dir = QString("./Untitled.%1").arg(filters.at(filter).second);
-        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first);
+        filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
     }
 
     return filename.toStdString();
@@ -249,6 +254,19 @@ void Window::start_timer(long ms)
     }
 }
 
+static void edit_config()
+{
+    try
+    {
+        auto config = garglk::user_config();
+        QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str()));
+    }
+    catch (std::runtime_error &e)
+    {
+        QMessageBox::warning(nullptr, "Warning", e.what());
+    }
+}
+
 void View::keyPressEvent(QKeyEvent *event)
 {
     Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
@@ -267,6 +285,8 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::ControlModifier, Qt::Key_X},     []{ winclipsend(QClipboard::Clipboard); }},
         {{Qt::ControlModifier, Qt::Key_Left},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
+
+        {{Qt::ControlModifier, Qt::Key_Comma}, edit_config},
 
         {{Qt::ShiftModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
 

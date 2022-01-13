@@ -3,7 +3,6 @@ option(WITH_AGILITY "Enable the agility interpreter" ON)
 option(WITH_ALAN2 "Enable the alan2 interpreter" ON)
 option(WITH_ALAN3 "Enable the alan3 interpreter" ON)
 option(WITH_BOCFEL "Enable the bocfel interpreter" ON)
-option(WITH_GEAS "Enable the geas interpreter" ON)
 option(WITH_GIT "Enable the git interpreter" ON)
 option(WITH_GLULXE "Enable the glulxe interpreter" ON)
 option(WITH_HUGO "Enable the hugo interpreter" ON)
@@ -19,11 +18,15 @@ function(terp target)
     set(multival SRCS INCLUDE_DIRS MACROS LIBS)
     cmake_parse_arguments(TERP "${options}" "${oneval}" "${multival}" ${ARGN})
 
-    add_executable(${target} ${TERP_SRCS})
+    add_executable(${target} WIN32 ${TERP_SRCS})
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${GARGLKPRE}${target}")
     target_compile_definitions(${target} PRIVATE GARGLK ${TERP_MACROS})
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk" ${TERP_INCLUDE_DIRS})
     target_link_libraries(${target} PRIVATE garglkmain garglk ${TERP_LIBS})
+
+    if(MINGW)
+        target_sources(${target} PRIVATE "${PROJECT_SOURCE_DIR}/garglk/icons.rc")
+    endif()
 
     if(NOT TERP_CXXSTD)
         set(TERP_CXXSTD 98)
@@ -165,24 +168,6 @@ if(WITH_BOCFEL)
         # platform, so although the warning is correct when it occurs,
         # the checks are valid, and the warning unnecessary.
         target_compile_options(bocfel PRIVATE "-Wno-tautological-constant-out-of-range-compare")
-    endif()
-endif()
-
-# ------------------------------------------------------------------------------
-#
-# Geas 0.4
-#
-if(WITH_GEAS)
-    terp(geas
-        SRCS geas/geasfile.cc geas/geas-runner.cc geas/geas-state.cc
-        geas/geas-util.cc geas/geasglk.cc geas/geasglkterm.c geas/istring.cc
-        geas/readfile.cc
-        CXXSTD 14
-        MACROS USE_INLINE)
-
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
-        # This is a style choice in the code.
-        target_compile_options(geas PRIVATE "-Wno-parentheses")
     endif()
 endif()
 

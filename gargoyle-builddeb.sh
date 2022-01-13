@@ -59,7 +59,7 @@ mv ./gargoyle.desktop ./tmp/usr/share/applications
 #Write out a simple control file template.  This file will be used by dkpg-gencontrol in order to generate the final debian control file that includes dynamically determined library dependencies.  The library dependencies are generated using dpkg-shlibdeps.
 cat > control << EOF
 Source: gargoyle-free
-Maintainer: Garglk Developer <https://github.com/garglk/garglk>
+Maintainer: Chris Spiegel <cspiegel@gmail.com>
 
 Package: gargoyle-free
 Priority: extra
@@ -78,14 +78,12 @@ Description: graphical player for Interactive Fiction games
  .
  Gargoyle is based on the standard interpreters for the formats it
  supports: .taf (Adrift games, played with Scare), .dat (AdvSys),
- *.agx/.d$$ (AGiliTy), .a3c (Alan3), .asl/.cas (Quest games, played
- with Geas), .jacl/.j2 (JACL), .l9/.sna (Level 9), .mag (Magnetic),
- *.saga (Scott Adams Grand Adventures), .gam/.t3 (TADS),
- *.z1/.z2/.z3/.z4/.z5/.z6/.z7/.z8 (Inform Z-Machine games, played with
- Frotz, Nitfol or Bocfel), .ulx/.blb/.blorb/.glb/.gblorb (Inform or
- Superglús games compiled to the Glulxe VM in Blorb archives, played
- with Git or Glulxe), .zlb, .zblorb (Inform Z-Machine games in Blorb
- archives, played with Frotz).
+ *.agx/.d$$ (AGiliTy), .a3c (Alan3), .jacl/.j2 (JACL), .l9/.sna (Level
+ 9), .mag (Magnetic), *.saga (Scott Adams Grand Adventures), .gam/.t3
+ (TADS), *.z1/.z2/.z3/.z4/.z5/.z6/.z7/.z8/.zlb/.zblorb (Inform
+ Z-Machine games, played with Bocfel), .ulx/.blb/.blorb/.glb/.gblorb
+ (Inform or Superglús games compiled to the Glulxe VM in Blorb
+ archives, played with Git or Glulxe).
  .
  (note: do not confuse the Git Glux interpreter with the Git DVCS or
  the GNU Interactive Tools)
@@ -99,9 +97,6 @@ Description: graphical player for Interactive Fiction games
  .
  Limitations:
  .
- * This free version of gargoyle does not include the non-free Hugo
- interpreter (and uses a different, free monospace font).
- .
  * While Gargoyle can display in-game pictures, it does not provide a
  way to display the cover art present in some Blorb archives.
  .
@@ -114,9 +109,7 @@ cat > changelog << EOF
 gargoyle-free (${VERSION}) sid; urgency=low
 
   * Binary-only non-maintainer package for amd64; no source changes.
-  * Building for most recent version of gargoyle.
-
- -- $ARCH Garglk Developer <https://github.com/garglk/garglk>  $DATE
+  * Building for most recent version of Gargoyle.
 EOF
 
 popd
@@ -128,7 +121,7 @@ pushd ${DEB_ROOT_DIR}/${PKG_NAME}
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PKG_DIR}/usr/lib/${PROJECT}
 
 #Determine dependencies and write out final control file.
-dpkg-shlibdeps ./debian/tmp/usr/libexec/${PROJECT}/*
+dpkg-shlibdeps ./debian/tmp/usr/libexec/${PROJECT}/* ./debian/tmp/usr/lib/*/libgarglk.so
 dpkg-gencontrol -v${VERSION}
 
 #Remove the control template, copy the package contents to final packaging location, remove temp directories as needed.

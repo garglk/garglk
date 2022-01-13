@@ -13,12 +13,12 @@ SetCompressor lzma
 
 !define /file VERSION "VERSION"
 
-!if "$%GARGOYLE64%" == "${U+24}%GARGOYLE64%"
-    InstallDir $PROGRAMFILES\Gargoyle
-    OutFile "gargoyle-${VERSION}-windows.exe"
-!else
+!if "$%GARGOYLE_ARCH%" == "x86_64"
     InstallDir $PROGRAMFILES64\Gargoyle
     OutFile "gargoyle-${VERSION}-windows-64.exe"
+!else
+    InstallDir $PROGRAMFILES\Gargoyle
+    OutFile "gargoyle-${VERSION}-windows.exe"
 !endif
 
 ;
@@ -77,7 +77,7 @@ Section "DoInstall"
 	; Elevate rights
     !insertmacro MULTIUSER_INIT
 
-    !if "$%GARGOYLE64%" != "${U+24}%GARGOYLE64%"
+    !if "$%GARGOYLE_ARCH%" == "x86_64"
         SetRegView 64
     !endif
 
@@ -144,7 +144,7 @@ Section "DoInstall"
     WriteRegStr HKCR ".saga" "" "Gargoyle.Story"
 
     WriteRegStr HKCR "Gargoyle.Story" "" "Interactive Fiction Story File"
-    WriteRegStr HKCR "Gargoyle.Story\DefaultIcon" "" "$INSTDIR\gargoyle.exe,1"
+    WriteRegStr HKCR "Gargoyle.Story\DefaultIcon" "" "$INSTDIR\gargoyle.exe,0"
     WriteRegStr HKCR "Gargoyle.Story\shell" "" "open"
     WriteRegStr HKCR "Gargoyle.Story\shell\open" "" "Play"
     WriteRegStr HKCR "Gargoyle.Story\shell\open\command" "" "$INSTDIR\gargoyle.exe $\"%1$\""

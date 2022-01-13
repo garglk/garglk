@@ -320,10 +320,13 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
                 start_of_sentence = false;
             }
 
+            if (found == maxwords) {
+                break;
+            }
+
             // §13.6.1: Separators (apart from a space) are tokens too.
             if (text_len != 0 && *p != ZSCII_SPACE) {
                 handle_token(string, p, 1, parse, &dictionary, found++, flag, start_of_sentence);
-
                 start_of_sentence = *p == ZSCII_PERIOD;
             }
 

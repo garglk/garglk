@@ -43,13 +43,30 @@ enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
 
 namespace garglk {
 
+// This represents a possible configuration file (garglk.ini).
+struct ConfigFile {
+    ConfigFile(const std::string &path_, bool user_) : path(path_), user(user_) {
+    }
+
+    // The path to the file itself.
+    std::string path;
+
+    // If true, this config file should be considered as a “user” config
+    // file, one that a user would reasonably expect to be a config file
+    // for general use. This excludes game-specific config files, for
+    // example, while considering various possibilities for config
+    // files, such as $HOME/.garglkrc or $HOME/.config/garglk.ini.
+    bool user;
+};
+
 std::string winopenfile(const char *prompt, enum FILEFILTERS filter);
 std::string winsavefile(const char *prompt, enum FILEFILTERS filter);
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, int type);
-std::vector<std::string> configs(const std::string &exedir, const std::string &gamepath);
+std::vector<ConfigFile> configs(const std::string &exedir, const std::string &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
+std::string user_config();
 void set_lcdfilter(const std::string &filter);
 std::string winfontpath(const std::string &filename);
 
@@ -136,8 +153,11 @@ extern int gli_cellw;
 extern int gli_cellh;
 
 /* Unicode ligatures and smart typography glyphs */
+#define UNI_LIG_FF	0xFB00
 #define UNI_LIG_FI	0xFB01
 #define UNI_LIG_FL	0xFB02
+#define UNI_LIG_FFI	0xFB03
+#define UNI_LIG_FFL	0xFB04
 #define UNI_LSQUO	0x2018
 #define UNI_RSQUO	0x2019
 #define UNI_LDQUO	0x201c

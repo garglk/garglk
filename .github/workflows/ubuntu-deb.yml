@@ -1,0 +1,56 @@
+name: Ubuntu package
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Ubuntu ${{ matrix.version }} package
+    strategy:
+      matrix:
+        version:
+          - 18.04
+          - 20.04
+
+    runs-on: ubuntu-20.04
+    container:
+      image: amd64/ubuntu:${{ matrix.version }}
+      options: --privileged
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Update packages
+        run: apt update
+
+      - name: Install packages
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          dpkg
+          git
+          libfontconfig1-dev
+          libfreetype6-dev
+          libjpeg-dev
+          libmpg123-dev
+          libopenmpt-dev
+          libsdl2-mixer-dev
+          libsndfile-dev
+          libspeechd-dev
+          qtbase5-dev
+          qtbase5-dev-tools
+          qtmultimedia5-dev
+
+      - name: Build Ubuntu package
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./gargoyle-builddeb.sh
+
+      - name: Upload DEB
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-Ubuntu-${{ matrix.version }}
+          path: ~/deb_factory/gargoyle*.deb

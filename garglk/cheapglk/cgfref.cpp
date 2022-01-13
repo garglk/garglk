@@ -49,7 +49,7 @@
 char gli_workdir[1024] = ".";
 char gli_workfile[1024] = "";
 
-char *garglk_fileref_get_name(fileref_t *fref)
+const char *garglk_fileref_get_name(fileref_t *fref)
 {
     return fref->filename;
 }

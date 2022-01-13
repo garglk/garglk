@@ -5,15 +5,10 @@ on:
   pull_request:
 
 jobs:
-  build_appimage:
-    strategy:
-      matrix:
-        config:
-          - {debarch: amd64, arch: x86_64, filearch: x86_64}
-
+  build:
     runs-on: ubuntu-20.04
     container:
-      image: ${{ matrix.config.debarch }}/ubuntu:20.04
+      image: amd64/ubuntu:20.04
       # So that fuse works inside the container (needed to run AppImages.)
       options: --privileged
 
@@ -22,58 +17,35 @@ jobs:
       CXX: g++-9
 
     steps:
-    - run: apt update
+      - run: apt update
 
-    - name: Install deps
-      run: DEBIAN_FRONTEND=noninteractive apt install -y
-        build-essential
-        cmake
-        fuse
-        git
-        grep
-        libfontconfig1-dev
-        libfreetype-dev
-        libjpeg-dev
-        libsdl2-mixer-dev
-        libspeechd-dev
-        patchelf
-        qtbase5-dev
-        qtbase5-dev-tools
-        wget
+      - name: Install deps
+        run: DEBIAN_FRONTEND=noninteractive apt install -y
+          build-essential
+          cmake
+          fuse
+          git
+          grep
+          libfontconfig1-dev
+          libfreetype-dev
+          libjpeg-dev
+          libsdl2-mixer-dev
+          libspeechd-dev
+          patchelf
+          qtbase5-dev
+          qtbase5-dev-tools
+          wget
 
-    - name: Install linuxdeploy
-      working-directory: /usr/bin
-      run: |
-        wget -q 'https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-${{ matrix.config.arch }}.AppImage'
-        wget -q 'https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-${{ matrix.config.arch }}.AppImage'
-        wget -q 'https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-${{ matrix.config.arch }}.AppImage'
-        chmod +x linuxdeploy*
+      - uses: actions/checkout@v2
 
-    # v2 doesn't work with older distros.
-    - uses: actions/checkout@v2
+      - name: Build AppImage
+        run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
+          ./gargoyle-appimage.sh
 
-    - name: Build
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE
-        make -j`nproc`
-        make install DESTDIR="$PWD/../AppDir"
-        cd ..
-        mv AppDir/usr/lib/libgarglk.so /usr/lib/
-        ldconfig
-        OUTPUT=Gargoyle-${{ matrix.config.filearch }}.AppImage linuxdeploy-${{ matrix.config.arch }}.AppImage \
-          --appdir=AppDir \
-          --plugin qt \
-          -i garglk/gargoyle-house.png \
-          -i garglk/gargoyle-docu2.png \
-          -d garglk/gargoyle.desktop \
-          -l /usr/lib/${{ matrix.config.arch }}-linux-gnu/libjack.so.0 \
-          --output=appimage
-
-    - name: Upload artifact
-      if: github.event_name != 'pull_request'
-      uses: actions/upload-artifact@v2
-      with:
-        name: Gargoyle-${{ matrix.config.filearch }}.AppImage
-        path: Gargoyle-${{ matrix.config.filearch }}.AppImage
+      - name: Upload AppImage
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-x86_64.AppImage
+          path: Gargoyle-x86_64.AppImage

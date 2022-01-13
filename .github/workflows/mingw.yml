@@ -9,12 +9,19 @@ jobs:
     strategy:
       matrix:
         arch:
-          - "i686"
-          - "x86_64"
+          - i686
+          - x86_64
+          - aarch64
+          - armv7
+
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
       options: --privileged
+
+    env:
+      GARGOYLE_ARCH: ${{ matrix.arch }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -26,10 +33,10 @@ jobs:
         run: DEBIAN_FRONTEND=noninteractive apt install -y
           build-essential
           cmake
-          g++-mingw-w64
-          gcc-mingw-w64
+          dos2unix
           git
-          mingw-w64-tools
+          libarchive-tools
+          pkg-config
           nsis
           p7zip-full
           unzip
@@ -37,10 +44,14 @@ jobs:
 
       - name: Set up MinGW environment
         run: |
-          update-alternatives --set ${{ matrix.arch }}-w64-mingw32-gcc /usr/bin/${{ matrix.arch }}-w64-mingw32-gcc-posix
-          update-alternatives --set ${{ matrix.arch }}-w64-mingw32-g++ /usr/bin/${{ matrix.arch }}-w64-mingw32-g++-posix
-          wget https://github.com/garglk/assets/raw/master/mingw/mingw-${{ matrix.arch }}.tar.xz
-          tar xfv mingw-${{ matrix.arch }}.tar.xz -C /
+          mkdir /usr/llvm-mingw
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20211002/llvm-mingw-20211002-msvcrt-ubuntu-18.04-x86_64.tar.xz
+          bsdtar --strip-components 1 -x -v -f llvm-mingw-20211002-msvcrt-ubuntu-18.04-x86_64.tar.xz -C /usr/llvm-mingw
+          rm /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32/include
+          cp -a /usr/llvm-mingw/generic-w64-mingw32/include /usr/llvm-mingw/${{ matrix.arch }}-w64-mingw32
+          wget https://github.com/garglk/assets/raw/master/mingw-llvm/mingw-llvm-${{ matrix.arch }}.tar.xz
+          bsdtar xfv mingw-llvm-${{ matrix.arch }}.tar.xz -C /usr/llvm-mingw
+          wget -P /usr/llvm-mingw/bin https://github.com/garglk/assets/raw/master/mingw-llvm/${{ matrix.arch }}-w64-mingw32-pkg-config
           mkdir NSIS
           cd NSIS
           wget https://nsis.sourceforge.io/mediawiki/images/7/78/FontName-0.7.zip
@@ -52,17 +63,24 @@ jobs:
           cp Plugins/FontName.dll /usr/share/nsis/Plugins/x86-ansi
           cd ..
 
-      - name: Set environment variables
-        run: |
-          echo "GARGOYLE64=1" >> $GITHUB_ENV
-        if: ${{ matrix.arch == 'x86_64' }}
-
       - name: Build
         run: |
+          echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
           ./windows.sh
+          cp -a build/dist Gargoyle
+          cp licenses/*.txt Gargoyle
+          cp fonts/*.ttf Gargoyle
+          unix2dos -n garglk/garglk.ini Gargoyle/garglk.ini
 
-      - name: Upload artifact
+      - name: Upload standalone
         uses: actions/upload-artifact@v2
         with:
-          name: Gargoyle-${{ matrix.arch }}
+          name: Gargoyle-standalone-${{ matrix.arch }}
+          path: Gargoyle
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-installer-${{ matrix.arch }}
           path: gargoyle-*.exe
+        if: ${{ matrix.arch == 'i686' || matrix.arch == 'x86_64' }}

@@ -1,3 +1,5 @@
+include(vtkEncodeString)
+
 configure_file("garversion.h.in" "${CMAKE_CURRENT_LIST_DIR}/garversion.h")
 
 option(WITH_LAUNCHER "Build the launcher (i.e. the gargoyle executable)" ON)
@@ -5,6 +7,7 @@ option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" 
 
 if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
+    set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 endif()
 
 if(APPLE)
@@ -14,17 +17,35 @@ else()
 endif()
 
 set(WITH_TTS "AUTO" CACHE STRING "Enable text-to-speech support (ON/OFF/AUTO)")
-set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
 set(GARGLKPRE "" CACHE STRING "Binary prefix")
 set(SOUND "SDL" CACHE STRING "Backend to use for sound (SDL, QT, or none)")
 
 if(INTERFACE STREQUAL "QT")
+    option(WITH_NATIVE_FILE_DIALOGS "Use native dialogs instead of Qt dialogs" ON)
+endif()
+
+vtk_encode_string(
+    INPUT garglk.ini
+    NAME garglkini
+    BINARY NUL_TERMINATE
+    HEADER_OUTPUT GARGLKINI_H
+    SOURCE_OUTPUT GARGLKINI_CXX
+)
+
+set_property(SOURCE config.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
+
+if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)
+    set_property(SOURCE garglkini.cxx PROPERTY SKIP_AUTOMOC ON)
+
+    if(NOT WITH_NATIVE_FILE_DIALOGS)
+        set_property(SOURCE sysqt.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_NO_NATIVE_FILE_DIALOGS)
+    endif()
 endif()
 
 add_library(garglk babeldata.c style.c config.cpp draw.cpp
     event.cpp imgload.c imgscale.c winblank.c window.c wingfx.c
-    wingrid.c winmask.c winpair.c wintext.c
+    wingrid.c winmask.c winpair.c wintext.c ${GARGLKINI_CXX}
 
     # These can't be a library in cheapglk/ because they contain
     # references to code in garglk, and garglk contains references to
@@ -39,9 +60,12 @@ add_library(garglk babeldata.c style.c config.cpp draw.cpp
 target_include_directories(garglk PRIVATE .)
 
 c_standard(garglk 11)
-cxx_standard(garglk 14)
+cxx_standard(garglk ${CXX_VERSION})
 warnings(garglk)
-target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+
+if(UNIX AND NOT APPLE)
+    target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
+endif()
 
 if(INTERFACE STREQUAL "COCOA")
     target_sources(garglk PRIVATE sysmac.mm)
@@ -53,12 +77,12 @@ endif()
 target_compile_definitions(garglk PRIVATE "_XOPEN_SOURCE=600")
 
 if(WITH_LAUNCHER)
-    add_executable(gargoyle launcher.cpp)
+    add_executable(gargoyle WIN32 launcher.cpp)
     target_include_directories(gargoyle PRIVATE cheapglk)
     target_link_libraries(gargoyle PRIVATE garglk)
     target_compile_definitions(gargoyle PRIVATE "_XOPEN_SOURCE=600")
     c_standard(gargoyle 11)
-    cxx_standard(gargoyle 14)
+    cxx_standard(gargoyle ${CXX_VERSION})
     warnings(gargoyle)
 
     target_compile_definitions(gargoyle PRIVATE "GARGLKINI=\"${GARGLKINI}\"" "GARGLKPRE=\"${GARGLKPRE}\"")
@@ -75,14 +99,14 @@ if(WITH_LAUNCHER)
         # For Apple, when doing a dist install, the same holds: it expects to
         # find interpreters in the same directory as the gargoyle binary.
         if(UNIX AND NOT APPIMAGE AND NOT DIST_INSTALL)
-            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${CMAKE_INSTALL_PREFIX}/${INTERPRETER_INSTALL_DIR}\"")
+            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
 endif()
 
 add_library(garglkmain STATIC main.c)
 c_standard(garglkmain 11)
-cxx_standard(garglkmain 14)
+cxx_standard(garglkmain ${CXX_VERSION})
 warnings(garglkmain)
 target_include_directories(garglkmain PRIVATE cheapglk)
 

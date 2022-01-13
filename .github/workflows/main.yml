@@ -6,14 +6,20 @@ on:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        compiler:
+          - { cc: "gcc-7", cxx: "g++-7" }
+          - { cc: "gcc-9", cxx: "g++-9" }
+
     runs-on: ubuntu-20.04
     container:
       image: amd64/ubuntu:20.04
       options: --privileged
 
     env:
-      CC: gcc-9
-      CXX: g++-9
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
 
     steps:
       - name: Checkout
@@ -25,6 +31,8 @@ jobs:
         run: DEBIAN_FRONTEND=noninteractive apt install -y
           build-essential
           cmake
+          g++-7
+          gcc-7
           git
           grep
           libfontconfig1-dev

@@ -86,7 +86,7 @@ struct options options = {
 
     .autosave = false,
     .persistent_transcript = false,
-    .notes_editor = NULL,
+    .editor = NULL,
 };
 
 static char story_id[64];
@@ -244,7 +244,7 @@ static void read_config(void)
     char *key, *val, *p;
     bool story_matches = true;
 
-    if (!zterp_os_rcfile(&file)) {
+    if (!zterp_os_rcfile(&file, false)) {
         return;
     }
 
@@ -427,7 +427,7 @@ static void read_config(void)
 
         BOOL(autosave);
         BOOL(persistent_transcript);
-        STRING(notes_editor);
+        STRING(editor);
 
         COLOR(black,   2);
         COLOR(red,     3);
@@ -444,6 +444,25 @@ static void read_config(void)
                 fprintf(stderr, "%s:%d: syntax error in cheat\n", file, lineno);
             }
 #endif
+        }
+
+        else if (strcmp(key, "patch") == 0) {
+            switch (apply_user_patch(val)) {
+            case PatchStatusSyntaxError:
+                fprintf(stderr, "%s:%d: syntax error in patch\n", file, lineno);
+                break;
+            case PatchStatusNotFound:
+                fprintf(stderr, "%s:%d: patch does not apply to this story\n", file, lineno);
+                break;
+            case PatchStatusOk:
+                break;
+            }
+        }
+
+        // Legacy name.
+        else if (strcmp(key, "notes_editor") == 0) {
+            free(options.editor);
+            options.editor = xstrdup(val);
         }
 
         else {
@@ -638,9 +657,7 @@ void write_header(void)
     store_byte(0x33, 1);
 
     if (options.username != NULL) {
-        for (size_t i = 0; i < 8 && options.username[i] != 0; i++) {
-            store_byte(0x38 + i, options.username[i]);
-        }
+        strncpy((char *)&memory[0x38], options.username, 8);
     }
 }
 
@@ -1092,7 +1109,7 @@ int main(int argc, char **argv)
         screen_puts("The Tandy bit cannot be set");
 #endif
 
-        if (zterp_os_rcfile(&config)) {
+        if (zterp_os_rcfile(&config, false)) {
             screen_printf("Configuration file: %s\n", config);
         } else {
             screen_printf("Cannot determine configuration file location\n");
@@ -1131,9 +1148,11 @@ int main(int argc, char **argv)
             die("unknown story type: %s (0x%08lx)", chunk->name, (unsigned long)chunk->type);
         }
 
+#if UINT32_MAX > LONG_MAX
         if (chunk->offset > LONG_MAX) {
             die("zcode offset too large");
         }
+#endif
 
         memory_size = chunk->size;
         story_offset = chunk->offset;
@@ -1145,9 +1164,11 @@ int main(int argc, char **argv)
         if (size == -1) {
             die("unable to determine file size");
         }
+#if LONG_MAX > UINT32_MAX
         if (size > UINT32_MAX) {
             die("file too large");
         }
+#endif
 
         memory_size = size;
         story_offset = 0;
@@ -1156,9 +1177,11 @@ int main(int argc, char **argv)
     if (memory_size < 64) {
         die("story file too small");
     }
+#if UINT32_MAX > SIZE_MAX - 22
     if (memory_size > SIZE_MAX - 22) {
         die("story file too large");
     }
+#endif
 
     // It’s possible for a story to be cut short in the middle of an
     // instruction. If so, the processing loop will run past the end of

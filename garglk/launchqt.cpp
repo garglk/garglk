@@ -87,7 +87,6 @@ static QString winbrowsefile()
         Filter("JACL", {"jacl", "j2"}),
         Filter("Level 9", {"l9", "sna"}),
         Filter("Magnetic Scrolls", {"mag"}),
-        Filter("Quest", {"asl", "cas"}),
         Filter("TADS", {"gam", "t3"}),
         Filter("Z-code", {"z1", "z2", "z3", "z4", "z5", "z6", "z7", "z8", "zlb", "zblorb"}),
     };
@@ -108,7 +107,11 @@ static QString winbrowsefile()
     // Hide filter details because the sheer number in "All Games" makes
     // the dialog ridiculously wide (Qt probably should cut it off, but
     // it doesn't, so try to compensate here).
-    return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, QFileDialog::HideNameFilterDetails);
+    QFileDialog::Options options(QFileDialog::HideNameFilterDetails);
+#ifdef GARGLK_NO_NATIVE_FILE_DIALOGS
+    options |= QFileDialog::DontUseNativeDialog;
+#endif
+    return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
 int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)

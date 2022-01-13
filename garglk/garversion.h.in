@@ -23,6 +23,6 @@
 #ifndef GARGLK_VERSION_H
 #define GARGLK_VERSION_H
 
-#define VERSION "${PROJECT_VERSION}"
+#define VERSION "${GARGOYLE_VERSION}"
 
 #endif

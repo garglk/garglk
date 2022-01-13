@@ -36,17 +36,6 @@
 #define ISDIGIT(c)	((c) >= '0' && (c) <= '9')
 #define ISXDIGIT(c)	(ISDIGIT(c) || ((c) >= 'a' && (c) <= 'f'))
 
-static long parseint(const char *s, int base, bool *valid)
-{
-    long ret;
-    char *endptr;
-
-    ret = strtol(s, &endptr, base);
-    *valid = endptr != s && *endptr == 0;
-
-    return ret;
-}
-
 static void try_user_save(const char *desc)
 {
     if (in_interrupt()) {
@@ -667,7 +656,7 @@ static void notes_stash_free(void)
 // done. However, because interrupt_reset() is called on a successful
 // restore, NULL will never actually be returned because
 // interrupt_reset() will call longjmp().
-const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
+const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
 {
     const char *command;
     char *rest;
@@ -806,6 +795,8 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         size_t new_notes_len;
         char err[1024];
 
+        screen_puts("[Editing notes]");
+        screen_flush();
         if (zterp_os_edit_notes(meta_notes == NULL ? "" : meta_notes, meta_notes_len, &new_notes, &new_notes_len, err, sizeof err)) {
             free(meta_notes);
             meta_notes = new_notes;
@@ -863,6 +854,21 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
         screen_puts("[Meta commands disabled]");
     } else if (strcmp(command, "say") == 0) {
         return &string[rest - converted];
+    } else if (strcmp(command, "config") == 0) {
+        char config_file[ZTERP_OS_PATH_SIZE];
+
+        if (zterp_os_rcfile(&config_file, true)) {
+            char err[1024];
+            screen_puts("[Editing configuration file]");
+            screen_flush();
+            if (zterp_os_edit_file(config_file, err, sizeof err)) {
+                screen_puts("[Done]");
+            } else {
+                screen_printf("[Error editing configuration file: %s]\n", err);
+            }
+        } else {
+            screen_puts("[Cannot determine configuration file location]");
+        }
     } else if (strcmp(command, "debug") == 0) {
         meta_debug(rest);
     } else if ZEROARG("quit") {
@@ -897,6 +903,7 @@ const uint32_t *handle_meta_command(const uint32_t *string, uint8_t len)
                 "/status: display the status line (V1, V2, and V3 games only)\n"
                 "/disable: disable these commands for the rest of this session\n"
                 "/say [command]: pretend like [command] was typed\n"
+                "/config: open the config file in a text editor\n"
                 "/debug [...]: perform a debugging operation\n"
                 "/quit: quit immediately (as if the @quit opcode were executed)\n"
                 );

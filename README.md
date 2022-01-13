@@ -2,7 +2,8 @@
 
 [![AppImage](https://github.com/garglk/garglk/actions/workflows/appimage.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/appimage.yml)
 [![MinGW](https://github.com/garglk/garglk/actions/workflows/mingw.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/mingw.yml)
-[![macOS](https://github.com/garglk/garglk/actions/workflows/macos.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/macos.yml)
+[![macOS](https://github.com/garglk/garglk/actions/workflows/macos-dmg.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/macos-dmg.yml)
+[![Ubuntu](https://github.com/garglk/garglk/actions/workflows/ubuntu-deb.yml/badge.svg)](https://github.com/garglk/garglk/actions/workflows/ubuntu-deb.yml)
 
 ## An interactive fiction player
 
@@ -24,7 +25,7 @@ Gargoyle cares about typography! In this computer age of typographical poverty, 
 * Floating point text layout for even spacing.
 * Kerning for even more even spacing.
 * Smart quotes and other punctuation formatting.
-* Ligatures for “fi” and “fl”.
+* Ligatures for “fi”, “fl”, “ff”, “ffi”, and “ffl”.
 * Plenty o' margins.
 * Plenty o' line spacing.
 * Integrated scrollback.
@@ -41,7 +42,6 @@ There are many interpreters that have been Glk-enabled. All of the following int
 * Agility
 * Alan 2 and 3
 * Bocfel
-* Geas
 * Git
 * Glulxe
 * Hugo

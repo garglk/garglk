@@ -1,6 +1,7 @@
 /******************************************************************************
  *                                                                            *
  * Copyright (C) 2006-2009 by Tor Andersson.                                  *
+ * Copyright (C) 2010 by Ben Cressey.                                         *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
  *                                                                            *
@@ -20,8 +21,20 @@
  *                                                                            *
  *****************************************************************************/
 
-#ifdef GLK_ANSI_ONLY
-#include "tads3/askf_tx.cpp"
-#else
-#include "tads3/askf_os.cpp"
+/*
+ *   For C++ files, define externals with C linkage 
+ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef _WIN32
+unsigned long oss_get_file_attrs(const char *fname);
+#endif
+
+/*
+ *   Done with C linkage section
+ */
+#ifdef __cplusplus
+}
 #endif

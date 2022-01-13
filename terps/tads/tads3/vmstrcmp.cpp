@@ -17,7 +17,7 @@ Modified
 
 
 #include <stdlib.h>
-#include <os.h>
+#include "os.h"
 #include "utf8.h"
 #include "vmuni.h"
 #include "vmtype.h"

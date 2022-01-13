@@ -133,7 +133,7 @@ struct input {
     uint8_t key;
 
     // Unicode line of chars read for @read.
-    uint32_t line[256];
+    uint16_t line[256];
     uint8_t maxlen;
     uint8_t len;
     uint8_t preloaded;
@@ -390,12 +390,12 @@ static void history_add_input_char(uint16_t c)
     history_add(&entry);
 }
 
-static void history_add_input(const uint32_t *string, size_t len)
+static void history_add_input(const uint16_t *string, size_t len)
 {
     history_add_input_start();
 
     for (size_t i = 0; i < len; i++) {
-        history_add_input_char(string[i] > 65535 ? UNICODE_REPLACEMENT : string[i]);
+        history_add_input_char(string[i]);
     }
 
     history_add_input_char(UNICODE_LINEFEED);
@@ -561,14 +561,17 @@ void put_char(uint8_t c)
 // Print a C string (UTF-8) to the main window. This bypasses the
 // “normal” printing code mainly to avoid writing to another output
 // stream. This function is intended for writing text that is outside of
-// the game.
+// the game. For convenience, carriage returns are ignored under the
+// assumption that they are coming from a Windows text stream.
 void screen_print(const char *s)
 {
 #ifdef ZTERP_GLK
     zterp_io *io = zterp_io_open_memory(s, strlen(s), ZTERP_IO_MODE_RDONLY);
     strid_t stream = glk_window_get_stream(mainwin->id);
     for (long c = zterp_io_getc(io, false); c != -1; c = zterp_io_getc(io, false)) {
-        GLK_PUT_CHAR_STREAM(stream, c);
+        if (c != UNICODE_CARRIAGE_RETURN) {
+            GLK_PUT_CHAR_STREAM(stream, c);
+        }
     }
     zterp_io_close(io);
 #else
@@ -1662,6 +1665,42 @@ static void restart_read_events(struct line *line, const struct input *input, bo
 }
 #endif
 
+#ifdef ZTERP_GLK
+void screen_flush(void)
+{
+    event_t ev;
+
+    glk_select_poll(&ev);
+    switch (ev.type) {
+    case evtype_None:
+        break;
+    case evtype_Arrange:
+        window_change();
+        break;
+#ifdef GLK_MODULE_SOUND
+    case evtype_SoundNotify:
+        if (sound_routine != 0) {
+            uint16_t current_routine = sound_routine;
+            sound_routine = 0;
+            handle_interrupt(current_routine, NULL);
+        }
+        sound_stopped();
+        break;
+#endif
+    default:
+        // No other events should arrive. Timers are only started in
+        // get_input() and are stopped before that function returns.
+        // Input events will not happen with glk_select_poll(), and no
+        // other event type is expected to be raised.
+        break;
+    }
+}
+#else
+void screen_flush(void)
+{
+}
+#endif
+
 #define special_zscii(c) ((c) >= 129 && (c) <= 154)
 
 // This is called when input stream 1 (read from file) is selected. If
@@ -1735,36 +1774,11 @@ static bool istream_read_from_file(struct input *input)
     }
 
 #ifdef ZTERP_GLK
-    event_t ev;
-
     // It’s possible that output is buffered, meaning that until
     // glk_select() is called, output will not be displayed. When reading
     // from a command-script, flush on each command so that output is
     // visible while the script is being replayed.
-    glk_select_poll(&ev);
-    switch (ev.type) {
-    case evtype_None:
-        break;
-    case evtype_Arrange:
-        window_change();
-        break;
-#ifdef GLK_MODULE_SOUND
-    case evtype_SoundNotify:
-        if (sound_routine != 0) {
-            uint16_t current_routine = sound_routine;
-            sound_routine = 0;
-            handle_interrupt(current_routine, NULL);
-        }
-        sound_stopped();
-        break;
-#endif
-    default:
-        // No other events should arrive. Timers are only started in
-        // get_input() and are stopped before that function returns.
-        // Input events will not happen with glk_select_poll(), and no
-        // other event type is expected to be raised.
-        break;
-    }
+    screen_flush();
 
     saw_input = true;
 #endif
@@ -2387,6 +2401,12 @@ static bool read_handler(void)
 #ifdef GARGLK
         input.line[i] = 0;
         if (curwin->id != NULL) {
+            // Convert the Z-machine's 16-bit string to a 32-bit string for Glk.
+            glui32 line32[input.preloaded + 1];
+            for (i = 0; i < input.preloaded + 1; i++) {
+                line32[i] = input.line[i];
+            }
+
             // If the preloaded text would wrap backward in the upper window
             // (to the previous line), limit it to just the current line. For
             // example:
@@ -2403,7 +2423,7 @@ static bool read_handler(void)
             if (curwin == upperwin) {
                 long max = input.preloaded > upperwin->x ? upperwin->x : input.preloaded;
                 long start = input.preloaded - max;
-                glui32 unput = garglk_unput_string_count_uni(input.line + start);
+                glui32 unput = garglk_unput_string_count_uni(line32 + start);
 
                 // Since the preloaded text might not have been on the screen
                 // (or only partially so), reduce the current and starting X
@@ -2412,7 +2432,7 @@ static bool read_handler(void)
                 curwin->x -= unput;
                 starting_x -= unput;
             } else {
-                garglk_unput_string_uni(input.line);
+                garglk_unput_string_uni(line32);
             }
         }
 #endif
@@ -2433,7 +2453,7 @@ static bool read_handler(void)
         input.line[input.len] = 0;
 
         if (input.line[0] == '/') {
-            const uint32_t *ret;
+            const uint16_t *ret;
 
 #ifdef ZTERP_GLK
             // If the game is currently in the upper window, blank out
