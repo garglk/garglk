@@ -237,10 +237,6 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
     int y1 = y0 + height;
     int x, y;
     int hx0, hx1, hy0, hy1;
-    x0 = gli_zoom_int(x0);
-    y0 = gli_zoom_int(y0);
-    x1 = gli_zoom_int(x1);
-    y1 = gli_zoom_int(y1);
 
     if (whole)
     {
