@@ -259,7 +259,6 @@ extern int gli_wpaddingy;
 extern int gli_tmarginx;
 extern int gli_tmarginy;
 
-extern bool gli_hires;
 extern float gli_backingscalefactor;
 extern float gli_zoom;
 

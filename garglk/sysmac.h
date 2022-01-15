@@ -67,7 +67,6 @@
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
-             retina: (int) retina
          fullscreen: (BOOL) fullscreen
     backgroundColor: (NSColor *) backgroundColor;
 

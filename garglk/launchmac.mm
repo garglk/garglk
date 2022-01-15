@@ -166,7 +166,6 @@ static const char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
-                    retina: (int) retina
            backgroundColor: (NSColor *) backgroundColor;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
@@ -195,7 +194,6 @@ static const char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
-                    retina: (int) retina
            backgroundColor: (NSColor *) backgroundColor
 {
     self = [super initWithContentRect: contentRect
@@ -204,8 +202,7 @@ static const char *winfilters[] =
                                 defer: deferCreation];
 
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
-    if (retina)
-        [view setWantsBestResolutionOpenGLSurface:YES];
+    [view setWantsBestResolutionOpenGLSurface:YES];
     view.backgroundColor = backgroundColor;
     [self setContentView: view];
 
@@ -640,7 +637,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
-             retina: (int) retina
          fullscreen: (BOOL) fullscreen
     backgroundColor: (NSColor *) backgroundColor
 {
@@ -656,7 +652,6 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
                                                                   process: processID
-                                                                   retina: retina
                                                           backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];

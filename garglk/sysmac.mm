@@ -420,7 +420,6 @@ void winopen(void)
     [gargoyle initWindow: processID
                    width: defw
                   height: defh
-                  retina: true
               fullscreen: gli_conf_fullscreen
          backgroundColor: windowColor];
 
