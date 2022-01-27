@@ -1,6 +1,6 @@
 .DS_Store
 /Gargoyle.app
-/build
+/build*
 /*.dmg
 /*.zip
 /*.exe

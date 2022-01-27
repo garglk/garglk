@@ -61,7 +61,12 @@ static const char *winfilters[] =
 @interface GargoyleView : NSOpenGLView
 {
     GLuint output;
+    unsigned int textureWidth;
+    unsigned int textureHeight;
 }
+
+@property (retain) NSColor * backgroundColor;
+
 - (void) addFrame: (NSData *) frame
             width: (unsigned int) width
            height: (unsigned int) height;
@@ -95,27 +100,46 @@ static const char *winfilters[] =
                  0, GL_RGBA, width, height, 0, GL_BGRA,
                  ByteOrderOGL,
                  [frame bytes]);
+    textureWidth = width;
+    textureHeight = height;
+}
+
+- (id) initWithFrame:(NSRect)frameRect pixelFormat:(NSOpenGLPixelFormat *)format
+{
+    self = [super initWithFrame: frameRect pixelFormat: format];
+    if (self)
+    {
+        self.backgroundColor = [NSColor colorWithCalibratedRed: 1.0f green: 1.0f blue: 1.0f alpha: 1.0f];
+    }
+    return self;
 }
 
 - (void) drawRect: (NSRect) bounds
 {
+    if (textureHeight == 0)
+        return;
+
     [[self openGLContext] makeCurrentContext];
 
-    float width = bounds.size.width;
-    float height = bounds.size.height;
+    float viewScalingFactor = [self.window backingScaleFactor] / BACKING_SCALE_FACTOR;
+    glViewport(0.0, 0.0, textureWidth * viewScalingFactor, textureHeight * viewScalingFactor);
+
+    NSColor * clearColor = self.backgroundColor;
+    glClearColor([clearColor redComponent], [clearColor greenComponent], [clearColor blueComponent], [clearColor alphaComponent]);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBegin(GL_QUADS);
     {
-        glTexCoord2f(0.0f, height);
+        glTexCoord2f(0.0f, textureHeight);
         glVertex2f(-1.0f, -1.0f);
 
-        glTexCoord2f(width, height);
+        glTexCoord2f(textureWidth, textureHeight);
         glVertex2f(1.0f, -1.0f);
 
-        glTexCoord2f(width, 0.0f);
+        glTexCoord2f(textureWidth, 0);
         glVertex2f(1.0f, 1.0f);
 
-        glTexCoord2f(0.0f, 0.0f);
+        glTexCoord2f(0.0f, 0);
         glVertex2f(-1.0f, 1.0f);
     }
     glEnd();
@@ -125,9 +149,7 @@ static const char *winfilters[] =
 
 - (void)reshape
 {
-    [[self openGLContext] makeCurrentContext];
-    NSRect rect = [self bounds];
-    glViewport(0.0, 0.0, NSWidth(rect), NSHeight(rect));
+
 }
 
 @end
@@ -143,7 +165,8 @@ static const char *winfilters[] =
                  styleMask: (unsigned int) windowStyle
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
-                   process: (pid_t) pid;
+                   process: (pid_t) pid
+           backgroundColor: (NSColor *) backgroundColor;
 - (void) sendEvent: (NSEvent *) event;
 - (NSEvent *) retrieveEvent;
 - (void) sendChars: (NSEvent *) event;
@@ -171,6 +194,7 @@ static const char *winfilters[] =
                    backing: (NSBackingStoreType) bufferingType
                      defer: (BOOL) deferCreation
                    process: (pid_t) pid
+           backgroundColor: (NSColor *) backgroundColor
 {
     self = [super initWithContentRect: contentRect
                             styleMask: windowStyle
@@ -178,6 +202,8 @@ static const char *winfilters[] =
                                 defer: deferCreation];
 
     GargoyleView * view = [[GargoyleView alloc] initWithFrame: contentRect pixelFormat: [GargoyleView defaultPixelFormat]];
+    [view setWantsBestResolutionOpenGLSurface:YES];
+    view.backgroundColor = backgroundColor;
     [self setContentView: view];
 
     eventlog = [[NSMutableArray alloc] initWithCapacity: 100];
@@ -199,7 +225,7 @@ static const char *winfilters[] =
 
     [[NSNotificationCenter defaultCenter] addObserver: self
                                              selector: @selector(performRefresh:)
-                                                 name: NSWindowDidResizeNotification
+                                                 name: NSWindowDidEndLiveResizeNotification
                                                object: self];
 
     return self;
@@ -548,6 +574,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) quit
 {
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
     [eventlog release];
     [textbuffer release];
 
@@ -610,6 +637,8 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
              height: (unsigned int) height
+         fullscreen: (BOOL) fullscreen
+    backgroundColor: (NSColor *) backgroundColor
 {
     if (!(processID > 0))
         return NO;
@@ -617,16 +646,20 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     unsigned int style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
 
     /* set up the window */
-    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: NSMakeRect(0,0, width, height)
+    NSRect rect = NSMakeRect(0, 0, width, height);
+    GargoyleWindow * window = [[GargoyleWindow alloc] initWithContentRect: rect
                                                                 styleMask: style
                                                                   backing: NSBackingStoreBuffered
                                                                     defer: NO
-                                                                  process: processID];
+                                                                  process: processID
+                                                          backgroundColor: backgroundColor];
 
     [window makeKeyAndOrderFront: window];
     [window center];
     [window setReleasedWhenClosed: YES];
     [window setDelegate: self];
+    if (fullscreen)
+        [window toggleFullScreen: self];
 
     [windows setObject: window forKey: [NSNumber numberWithInt: processID]];
 
@@ -645,16 +678,46 @@ static BOOL isTextbufferEvent(NSEvent * evt)
     return nil;
 }
 
-- (NSRect) getWindowSize: (pid_t) processID
+- (NSRect) updateBackingSize: (pid_t) processID
 {
     GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
 
     if (window)
     {
-        return [[window contentView] bounds];
+        id view = [window contentView];
+        NSRect viewRect = [view bounds];
+        NSRect backingRect = [window convertRectToBacking: viewRect];
+        return backingRect;
     }
 
     return NSZeroRect;
+}
+
+- (CGFloat) getBackingScaleFactor: (pid_t) processID
+{
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+
+    if (window)
+    {
+        id view = [window contentView];
+        return [view backingScaleFactor];
+    }
+
+    return 1.0;
+}
+
+- (NSPoint) getWindowPoint: (pid_t) processID
+                  forEvent: (NSEvent *) event;
+{
+    GargoyleWindow * window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+
+    if (window)
+    {
+        NSPoint point = [event locationInWindow];
+        return point;
+    }
+
+    return NSZeroPoint;
 }
 
 - (NSString *) getWindowCharString: (pid_t) processID
@@ -723,7 +786,10 @@ static BOOL isTextbufferEvent(NSEvent * evt)
                                  width: width
                                 height: height];
 
-        [[window contentView] drawRect: NSMakeRect(0, 0, width, height)];
+        NSRect rect = NSMakeRect(0, 0, width, height);
+        if ([[window contentView] wantsBestResolutionOpenGLSurface])
+            rect = [[window contentView] convertRectFromBacking: rect];
+        [[window contentView] drawRect: rect];
         return YES;
     }
 

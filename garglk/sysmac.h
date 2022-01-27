@@ -30,6 +30,8 @@
 #define UTF32StringEncoding NSUTF32LittleEndianStringEncoding
 #endif
 
+#define BACKING_SCALE_FACTOR 2.0
+
 #define NSKEY_LEFT      0x7b
 #define NSKEY_RIGHT     0x7c
 #define NSKEY_DOWN      0x7d
@@ -64,11 +66,18 @@
 
 - (BOOL) initWindow: (pid_t) processID
               width: (unsigned int) width
-             height: (unsigned int) height;
+             height: (unsigned int) height
+         fullscreen: (BOOL) fullscreen
+    backgroundColor: (NSColor *) backgroundColor;
 
 - (NSEvent *) getWindowEvent: (pid_t) processID;
 
-- (NSRect) getWindowSize: (pid_t) processID;
+- (NSRect) updateBackingSize: (pid_t) processID;
+
+- (CGFloat) getBackingScaleFactor: (pid_t) processID;
+
+- (NSPoint) getWindowPoint: (pid_t) processID
+                  forEvent: (NSEvent *) event;
 
 - (NSString *) getWindowCharString: (pid_t) processID;
 

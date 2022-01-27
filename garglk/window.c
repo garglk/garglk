@@ -31,6 +31,10 @@
 #define LINES 24
 #define COLS 70
 
+/* limit number of text rows/columns */
+#define MAX_TEXT_COLUMNS 255
+#define MAX_TEXT_ROWS 255
+
 bool gli_force_redraw = true;
 bool gli_more_focus = false;
 
@@ -58,22 +62,42 @@ static void gli_windows_rearrange(void)
     {
         rect_t box;
 
-        if (gli_conf_lockcols)
+        if (gli_conf_lockcols && gli_cols <= MAX_TEXT_COLUMNS )
         {
+            /* Lock the number of columns */
             int desired_width = gli_wmarginx_save * 2 + gli_cellw * gli_cols;
             if (desired_width > gli_image_w)
                 gli_wmarginx = gli_wmarginx_save;
             else
-                gli_wmarginx = (gli_image_w - gli_cellw * gli_cols)/2;
+                gli_wmarginx = (gli_image_w - gli_cellw * gli_cols) / 2;
+        }
+        else
+        {
+            /* Limit the maximum number of columns */
+            int max_width = gli_wmarginx_save * 2 + gli_cellw * MAX_TEXT_COLUMNS;
+            if (max_width < gli_image_w)
+                gli_wmarginx = (gli_image_w - gli_cellw * MAX_TEXT_COLUMNS) / 2;
+            else
+                gli_wmarginx = gli_wmarginx_save;
         }
 
-        if (gli_conf_lockrows)
+        if (gli_conf_lockrows && gli_rows <= MAX_TEXT_ROWS)
         {
+            /* Lock the number of rows */
             int desired_height = gli_wmarginy_save * 2 + gli_cellh * gli_rows;
             if (desired_height > gli_image_h)
                 gli_wmarginy = gli_wmarginy_save;
             else
-                gli_wmarginy = (gli_image_h - gli_cellh * gli_rows)/2;
+                gli_wmarginy = (gli_image_h - gli_cellh * gli_rows) / 2;
+        }
+        else
+        {
+            /* Limit the maximum number of rows */
+            int max_height = gli_wmarginy_save * 2 + gli_cellh * MAX_TEXT_ROWS;
+            if (max_height < gli_image_h)
+                gli_wmarginy = (gli_image_h - gli_cellh * MAX_TEXT_ROWS) / 2;
+            else
+                gli_wmarginy = gli_wmarginy_save;
         }
 
         box.x0 = gli_wmarginx;
@@ -475,7 +499,11 @@ void glk_window_get_arrangement(window_t *win, glui32 *method, glui32 *size,
         val |= winmethod_NoBorder;
 
     if (size)
+    {
         *size = dwin->size;
+        if (dwin->key && (dwin->key->type == wintype_Graphics) && (dwin->dir == winmethod_Fixed))
+            *size = gli_unzoom_int(*size);
+    }
     if (keywin)
     {
         if (dwin->key)
@@ -564,6 +592,8 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
     dwin->size = size;
+    if (key && (key->type == wintype_Graphics) && (newdir == winmethod_Fixed))
+        dwin->size = gli_zoom_int(dwin->size);
     dwin->wborder = ((method & winmethod_BorderMask) == winmethod_Border);
 
     dwin->vertical = (dwin->dir == winmethod_Left || dwin->dir == winmethod_Right);
@@ -602,8 +632,8 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
             hgt = hgt / gli_cellh;
             break;
         case wintype_Graphics:
-            wid = win->bbox.x1 - win->bbox.x0;
-            hgt = win->bbox.y1 - win->bbox.y0;
+            wid = gli_unzoom_int(win->bbox.x1 - win->bbox.x0);
+            hgt = gli_unzoom_int(win->bbox.y1 - win->bbox.y0);
             break;
     }
 
