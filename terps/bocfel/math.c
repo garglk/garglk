@@ -99,7 +99,7 @@ void zsub(void)
 
 void zmul(void)
 {
-    store(zargs[0] * zargs[1]);
+    store((uint32_t)zargs[0] * (uint32_t)zargs[1]);
 }
 
 void zdiv(void)

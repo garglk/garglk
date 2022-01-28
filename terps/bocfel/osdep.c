@@ -67,6 +67,19 @@
 // file exists, because the first time an autosave is created, it
 // necessarily won’t exist beforehand.
 //
+// bool zterp_os_aux_file(char (*aux)[ZTERP_OS_PATH_SIZE], const char *filename)
+//
+// The Z-machine allow games to save and load arbitrary files. Bocfel
+// confines these files to a single (per-game) directory to avoid games
+// overwriting unrelated files. This function, given such an arbitrary
+// filename, stores into “*aux” a string containing a full path to a
+// file which represents the passed-in filename. The file need not
+// exist, but its containing directory must. False is returned on
+// failure. The file must not escape its containing directory, which may
+// require platform-specific methods, but at the very least means that a
+// file containing directory separators (e.g. '/' on Unix) must be
+// rejected.
+//
 // bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
 //
 // Open the specified file in a text editor. Upon success, return true.
@@ -217,7 +230,7 @@ err:
 
 #include <sys/stat.h>
 
-static const char *autosave_basename(void)
+static const char *story_basename(void)
 {
     const char *base_name;
 
@@ -317,7 +330,7 @@ bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 }
 #define have_zterp_os_rcfile
 
-bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+static bool data_file(char (*out)[ZTERP_OS_PATH_SIZE], const char *filename)
 {
 #ifdef __HAIKU__
     char settings_dir[ZTERP_OS_PATH_SIZE];
@@ -326,25 +339,48 @@ bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
         return false;
     }
 
-    checked_snprintf(*name, sizeof *name, "%s/bocfel/autosave/%s-%s", settings_dir, autosave_basename(), get_story_id());
+    checked_snprintf(*out, sizeof *out, "%s/bocfel/%s", settings_dir, filename);
 #else
     const char *data_home;
 
     data_home = getenv("XDG_DATA_HOME");
     if (data_home != NULL) {
-        checked_snprintf(*name, sizeof *name, "%s/bocfel/autosave/%s-%s", data_home, autosave_basename(), get_story_id());
+        checked_snprintf(*out, sizeof *out, "%s/bocfel/%s", data_home, filename);
     } else {
         char *home = getenv("HOME");
         if (home == NULL) {
             return false;
         }
-        checked_snprintf(*name, sizeof *name, "%s/.local/share/bocfel/autosave/%s-%s", home, autosave_basename(), get_story_id());
+        checked_snprintf(*out, sizeof *out, "%s/.local/share/bocfel/%s", home, filename);
     }
 #endif
 
-    return mkdir_p(*name);
+    return mkdir_p(*out);
+}
+
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+    char filename[ZTERP_OS_PATH_SIZE];
+
+    checked_snprintf(filename, sizeof filename, "autosave/%s-%s", story_basename(), get_story_id());
+
+    return data_file(name, filename);
 }
 #define have_zterp_os_autosave_name
+
+bool zterp_os_aux_file(char (*aux)[ZTERP_OS_PATH_SIZE], const char *filename)
+{
+    char path[ZTERP_OS_PATH_SIZE];
+
+    if (strchr(filename, '/') != NULL) {
+        return false;
+    }
+
+    checked_snprintf(path, sizeof path, "auxiliary/%s-%s/%s", story_basename(), get_story_id(), filename);
+
+    return data_file(aux, path);
+}
+#define have_zterp_os_aux_file
 
 bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
 {
@@ -362,8 +398,8 @@ bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
 #elif defined(__serenity__)
         "TextEditor",
 #elif !defined(__APPLE__)
-        "kate",
         "kwrite",
+        "kate",
         "nedit-ng",
         "nedit",
         "gedit",
@@ -678,25 +714,66 @@ bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 }
 #define have_zterp_os_rcfile
 
-bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+static bool unique_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+    char fname[MAX_PATH], ext[MAX_PATH];
+
+    if (_splitpath_s(game_file, NULL, 0, NULL, 0, fname, sizeof fname, ext, sizeof ext) != 0) {
+        return false;
+    }
+
+    checked_snprintf(*name, sizeof *name, "%s%s-%s", fname, ext, get_story_id());
+
+    return true;
+}
+
+static bool data_file(char (*out)[ZTERP_OS_PATH_SIZE], const char *filename)
 {
     const char *appdata;
-    char fname[MAX_PATH], ext[MAX_PATH];
 
     appdata = getenv("APPDATA");
     if (appdata == NULL) {
         return false;
     }
 
-    if (_splitpath_s(game_file, NULL, 0, NULL, 0, fname, sizeof fname, ext, sizeof ext) != 0) {
+    checked_snprintf(*out, sizeof *out, "%s\\Bocfel\\%s", appdata, filename);
+
+    return mkdir_p(*out);
+}
+
+bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+    char basename[ZTERP_OS_PATH_SIZE];
+    char path[ZTERP_OS_PATH_SIZE];
+
+    if (!unique_name(&basename)) {
         return false;
     }
 
-    checked_snprintf(*name, sizeof *name, "%s\\Bocfel\\autosave\\%s%s-%s", appdata, fname, ext, get_story_id());
+    checked_snprintf(path, sizeof path, "autosave\\%s", basename);
 
-    return mkdir_p(*name);
+    return data_file(name, path);
 }
 #define have_zterp_os_autosave_name
+
+bool zterp_os_aux_file(char (*aux)[ZTERP_OS_PATH_SIZE], const char *filename)
+{
+    char basename[ZTERP_OS_PATH_SIZE];
+    char path[ZTERP_OS_PATH_SIZE];
+
+    if (!unique_name(&basename)) {
+        return false;
+    }
+
+    if (strpbrk(basename, "/\\") != NULL) {
+        return false;
+    }
+
+    checked_snprintf(path, sizeof path, "auxiliary\\%s\\%s", basename, filename);
+
+    return data_file(aux, path);
+}
+#define have_zterp_os_aux_file
 
 bool zterp_os_edit_file(const char *filename, char *err, size_t errsize)
 {
@@ -888,6 +965,13 @@ bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent)
 
 #ifndef have_zterp_os_autosave_name
 bool zterp_os_autosave_name(char (*name)[ZTERP_OS_PATH_SIZE])
+{
+    return false;
+}
+#endif
+
+#ifndef have_zterp_os_aux_file
+bool zterp_os_aux_file(char (*aux)[ZTERP_OS_PATH_SIZE], const char *filename)
 {
     return false;
 }

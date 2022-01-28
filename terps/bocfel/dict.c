@@ -315,23 +315,15 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
         }
 
         if (text_len == 0 || is_sep(*p, &dictionary)) {
-            if (in_word) {
+            if (in_word && found < maxwords) {
                 handle_token(string, lastp, p - lastp, parse, &dictionary, found++, flag, start_of_sentence);
                 start_of_sentence = false;
             }
 
-            if (found == maxwords) {
-                break;
-            }
-
             // §13.6.1: Separators (apart from a space) are tokens too.
-            if (text_len != 0 && *p != ZSCII_SPACE) {
+            if (text_len != 0 && *p != ZSCII_SPACE && found < maxwords) {
                 handle_token(string, p, 1, parse, &dictionary, found++, flag, start_of_sentence);
                 start_of_sentence = *p == ZSCII_PERIOD;
-            }
-
-            if (found == maxwords) {
-                break;
             }
 
             in_word = false;
@@ -339,7 +331,7 @@ void tokenize(uint16_t text, uint16_t parse, uint16_t dictaddr, bool flag)
 
         p++;
 
-    } while (text_len-- > 0);
+    } while (text_len-- > 0 && found < maxwords);
 
     user_store_byte(parse + 1, found);
 }
