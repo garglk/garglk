@@ -977,6 +977,50 @@ void zverify(void)
     branch_if(checksum_verified);
 }
 
+static zterp_io *open_savefile(enum zterp_io_mode mode)
+{
+    // When this is null, the user is prompted for a filename.
+    char *suggested = NULL;
+    char aux[ZTERP_OS_PATH_SIZE];
+
+    // If no prompt argument is given, assume 0.
+    if (znargs == 3 || (znargs == 4 && zargs[3] == 0)) {
+        uint16_t addr = zargs[2];
+        // Max string size: 255
+        // Possible .AUX: 4
+        // Null terminator: 1
+        // 255 + 4 + 1 = 260
+        char filename[260] = { 0 };
+
+        for (size_t i = 0; i < user_byte(addr); i++) {
+            uint8_t c = user_byte(addr + i + 1);
+
+            // Convert to uppercase per §7.6.1.1; and according to the
+            // description for @save in §15, the characters are ASCII.
+            if (c >= 97 && c <= 122) {
+                c -= 32;
+            }
+
+            filename[i] = c;
+        }
+
+        if (filename[0] != 0) {
+            if (strchr(filename, '.') == NULL) {
+                strcat(filename, ".AUX");
+            }
+
+            if (zterp_os_aux_file(&aux, filename)) {
+                suggested = aux;
+            }
+        }
+    }
+
+    // If there is a suggested filename and “prompt” is 1, this should
+    // prompt the user with the suggested filename, but Glk doesn’t
+    // support that.
+    return zterp_io_open(suggested, mode, ZTERP_IO_PURPOSE_DATA);
+}
+
 void zsave5(void)
 {
     zterp_io *savefile;
@@ -988,8 +1032,7 @@ void zsave5(void)
 
     ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
 
-    // This should be able to suggest a filename, but Glk doesn’t support that.
-    savefile = zterp_io_open(NULL, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_SAVE);
+    savefile = open_savefile(ZTERP_IO_MODE_WRONLY);
     if (savefile == NULL) {
         store(0);
         return;
@@ -1011,7 +1054,7 @@ void zrestore5(void)
         return;
     }
 
-    savefile = zterp_io_open(NULL, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_SAVE);
+    savefile = open_savefile(ZTERP_IO_MODE_RDONLY);
     if (savefile == NULL) {
         store(0);
         return;

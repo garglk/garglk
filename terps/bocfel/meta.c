@@ -862,7 +862,7 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
             screen_puts("[Editing configuration file]");
             screen_flush();
             if (zterp_os_edit_file(config_file, err, sizeof err)) {
-                screen_puts("[Done]");
+                screen_puts("[Done; changes will be reflected after Bocfel is restarted]");
             } else {
                 screen_printf("[Error editing configuration file: %s]\n", err);
             }

@@ -50,7 +50,7 @@ struct options {
 extern const char *game_file;
 extern struct options options;
 
-#define ZTERP_VERSION	"1.4.1"
+#define ZTERP_VERSION	"1.4.2"
 
 // v3
 #define FLAGS1_STATUSTYPE	(1U << 1)

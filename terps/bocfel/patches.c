@@ -262,6 +262,53 @@ static const struct patch patches[] =
         },
     },
 
+    // Bureaucracy has a routine meant to sleep for a certain amount of
+    // time, but it implements this using a busy loop based on the
+    // target machine, each machine having its own iteration count which
+    // should approximate the number of seconds passed in. This doesn’t
+    // work on modern machines at all, as they’re far too fast. A
+    // replacement is provided here which does the following:
+    //
+    // [ Delay n;
+    //     @mul n $0a -> n;
+    //     @read_char 1 n Pause -> sp;
+    //     @rtrue;
+    // ];
+    //
+    // [ Pause;
+    //     @rtrue;
+    // ];
+    {
+        .title = "Bureaucracy", .serial = "870212", .release = 86, .checksum = 0xe024,
+        .replacements = {
+            {
+                .addr = 0x2128c, .n = 18,
+                .in = B(0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xde, 0x5c, 0x00, 0x02, 0xd6, 0x2f, 0x03),
+                .out = B(0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xa7, 0x00, 0xb0, 0x00, 0x00, 0xb0),
+            },
+        }
+    },
+    {
+        .title = "Bureaucracy", .serial = "870602", .release = 116, .checksum = 0xfc65,
+        .replacements = {
+            {
+                .addr = 0x212d0, .n = 18,
+                .in = B(0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xde, 0x64, 0x00, 0x02, 0xd6, 0x2f, 0x03),
+                .out = B(0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xb8, 0x00, 0xb0, 0x00, 0x00, 0xb0),
+            },
+        }
+    },
+    {
+        .title = "Bureaucracy", .serial = "880521", .release = 160, .checksum = 0x07f0,
+        .replacements = {
+            {
+                .addr = 0x212c8, .n = 18,
+                .in = B(0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xdc, 0xce, 0x00, 0x02, 0xd6, 0x2f, 0x03),
+                .out = B(0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xb6, 0x00, 0xb0, 0x00, 0x00, 0xb0),
+            },
+        }
+    },
+
     // This is in a routine which iterates over all attributes of an
     // object, but due to an off-by-one error, attribute 48 (0x30) is
     // included, which is not valid, as the last attribute is 47 (0x2f);
