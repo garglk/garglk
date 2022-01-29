@@ -15,10 +15,10 @@ SetCompressor lzma
 
 !if "$%GARGOYLE_ARCH%" == "x86_64"
     InstallDir $PROGRAMFILES64\Gargoyle
-    OutFile "gargoyle-${VERSION}-windows-64.exe"
+    OutFile "gargoyle-${VERSION}-windows-x86_64.exe"
 !else
     InstallDir $PROGRAMFILES\Gargoyle
-    OutFile "gargoyle-${VERSION}-windows.exe"
+    OutFile "gargoyle-${VERSION}-windows-i686.exe"
 !endif
 
 ;

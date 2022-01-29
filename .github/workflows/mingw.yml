@@ -19,9 +19,6 @@ jobs:
       image: amd64/ubuntu:20.04
       options: --privileged
 
-    env:
-      GARGOYLE_ARCH: ${{ matrix.arch }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -41,6 +38,7 @@ jobs:
           p7zip-full
           unzip
           wget
+          zip
 
       - name: Set up MinGW environment
         run: |
@@ -66,17 +64,7 @@ jobs:
       - name: Build
         run: |
           echo $(date +"%Y%m%d").$(echo $GITHUB_SHA | cut -b 1-7) > VERSION
-          ./windows.sh
-          cp -a build/dist Gargoyle
-          cp licenses/*.txt Gargoyle
-          cp fonts/*.ttf Gargoyle
-          unix2dos -n garglk/garglk.ini Gargoyle/garglk.ini
-
-      - name: Upload standalone
-        uses: actions/upload-artifact@v2
-        with:
-          name: Gargoyle-standalone-${{ matrix.arch }}
-          path: Gargoyle
+          ./windows.sh -a ${{ matrix.arch }}
 
       - name: Upload installer
         uses: actions/upload-artifact@v2
@@ -84,3 +72,9 @@ jobs:
           name: Gargoyle-installer-${{ matrix.arch }}
           path: gargoyle-*.exe
         if: ${{ matrix.arch == 'i686' || matrix.arch == 'x86_64' }}
+
+      - name: Upload standalone
+        uses: actions/upload-artifact@v2
+        with:
+          name: Gargoyle-standalone-${{ matrix.arch }}
+          path: gargoyle-*.zip

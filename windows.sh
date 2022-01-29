@@ -8,21 +8,41 @@ set -ex
 # properly work.
 #
 # By default LLVM MinGW (assumed to be in /usr/llvm-mingw) is used. To
-# use gcc MinGW (assumed to be in /usr), set the environment variable
-# ${GARGOYLE_MINGW_GCC} to any value.
+# use gcc MinGW (assumed to be in /usr), pass the -g flag.
 #
-# i686 is built by default. To select another architecture, set the
-# environment ${GARGOYLE_ARCH} to that architecture. Valid values:
+# i686 is built by default. To select another architecture, use the -a
+# option. Valid values:
 #
 # i686
 # x86_64
 # aarch64 (LLVM only)
 # armv7 (LLVM only)
+#
+# An installer (if available) and standalone ZIP are created. To build
+# without creating installers/ZIPs, pass the -b flag.
 
 fatal() {
     echo "${@}" >&2
     exit 1
 }
+
+while getopts "a:bg" o
+do
+    case "${o}" in
+        a)
+            GARGOYLE_ARCH="${OPTARG}"
+            ;;
+        b)
+            GARGOYLE_BUILD_ONLY=1
+            ;;
+        g)
+            GARGOYLE_MINGW_GCC=1
+            ;;
+        *)
+            fatal "Usage: $0 [-a i686|x86_64|aarch64|armv7] [-b] [-g]"
+            ;;
+    esac
+done
 
 GARGOYLE_ARCH=${GARGOYLE_ARCH:-"i686"}
 
@@ -34,8 +54,7 @@ case "${GARGOYLE_ARCH}" in
         libgcc=seh
         ;;
     aarch64|armv7)
-        # Currently no installer support for ARM.
-        NO_INSTALLER=1
+        GARGOYLE_NO_INSTALLER=1
         [[ -n "${GARGOYLE_MINGW_GCC}" ]] && fatal "Unsupported arch on MinGW GCC: ${GARGOYLE_ARCH}"
         ;;
     *)
@@ -91,7 +110,18 @@ find build/dist -name '*.exe' -o -name '*.dll' -exec ${target}-strip --strip-unn
 mkdir -p "build/dist/plugins/platforms"
 cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
 
-if [[ -z "${NO_INSTALLER}" ]]
+[[ "${GARGOYLE_BUILD_ONLY}" ]] && exit
+
+if [[ -z "${GARGOYLE_NO_INSTALLER}" ]]
 then
+    export GARGOYLE_ARCH
     makensis -V4 installer.nsi
 fi
+
+cp licenses/*.txt build/dist
+cp fonts/*.ttf build/dist
+unix2dos -n garglk/garglk.ini build/dist/garglk.ini
+
+zip=gargoyle-$(<VERSION)-windows-${GARGOYLE_ARCH}.zip
+rm -f ${zip}
+(cd build/dist && zip -r ../../${zip} *)
