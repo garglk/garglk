@@ -278,6 +278,7 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::ControlModifier, Qt::Key_D},     []{ gli_input_handle_key(keycode_Erase); }},
         {{Qt::ControlModifier, Qt::Key_E},     []{ gli_input_handle_key(keycode_End); }},
         {{Qt::ControlModifier, Qt::Key_F},     []{ gli_input_handle_key(keycode_Right); }},
+        {{Qt::ControlModifier, Qt::Key_H},     []{ gli_input_handle_key(keycode_Delete); }},
         {{Qt::ControlModifier, Qt::Key_N},     []{ gli_input_handle_key(keycode_Down); }},
         {{Qt::ControlModifier, Qt::Key_P},     []{ gli_input_handle_key(keycode_Up); }},
         {{Qt::ControlModifier, Qt::Key_U},     []{ gli_input_handle_key(keycode_Escape); }},
