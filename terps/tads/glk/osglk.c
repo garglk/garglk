@@ -540,7 +540,9 @@ int os_askfile(const char *prompt, char *fname_buf, int fname_buf_len,
     if (fileref == NULL)
         return OS_AFE_CANCEL;
 
+#ifdef GARGLK
     strcpy(fname_buf, garglk_fileref_get_name(fileref));
+#endif
 
     glk_fileref_destroy(fileref);
 
