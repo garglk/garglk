@@ -12,11 +12,11 @@ Bocfel is copyright (c) Chris Spiegel. It is released under the terms of the GNU
 
 Git is copyright (c) Iain Merrick. It is released under the terms of the MIT License.
 
-Glulxe is copyright (c) Andrew Plotkin.
+Glulxe is copyright (c) Andrew Plotkin. It is released under the terms of the MIT License.
 
 Hugo is copyright (c) Kent Tessman. It is released with permission under the terms of the Simplified 2-Clause BSD license.
 
-JACL is copyright (c) Stuart Allen.  It is released under the terms of the GNU General Public License.
+JACL is copyright (c) Stuart Allen. It is released under the terms of the GNU General Public License.
 
 Level 9 is copyright (c) Glen Summers, David Kinder, Alan Staniforth, Simon Baldwin and Dieter Baron. It is released under the terms of the GNU General Public License.
 
