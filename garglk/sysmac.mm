@@ -477,6 +477,17 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
 
+        /* readline/emacs-style controls */
+        {{NSEventModifierFlagControl, NSKEY_A}, []{ gli_input_handle_key(keycode_Home); }},
+        {{NSEventModifierFlagControl, NSKEY_B}, []{ gli_input_handle_key(keycode_Left); }},
+        {{NSEventModifierFlagControl, NSKEY_D}, []{ gli_input_handle_key(keycode_Erase); }},
+        {{NSEventModifierFlagControl, NSKEY_E}, []{ gli_input_handle_key(keycode_End); }},
+        {{NSEventModifierFlagControl, NSKEY_F}, []{ gli_input_handle_key(keycode_Right); }},
+        {{NSEventModifierFlagControl, NSKEY_H}, []{ gli_input_handle_key(keycode_Delete); }},
+        {{NSEventModifierFlagControl, NSKEY_N}, []{ gli_input_handle_key(keycode_Down); }},
+        {{NSEventModifierFlagControl, NSKEY_P}, []{ gli_input_handle_key(keycode_Up); }},
+        {{NSEventModifierFlagControl, NSKEY_U}, []{ gli_input_handle_key(keycode_Escape); }},
+
         /* unmodified key for line editing */
         {{0, NSKEY_LEFT},  []{ gli_input_handle_key(keycode_Left); }},
         {{0, NSKEY_RIGHT}, []{ gli_input_handle_key(keycode_Right); }},

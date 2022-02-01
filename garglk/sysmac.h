@@ -37,9 +37,18 @@
 #define NSKEY_DOWN      0x7d
 #define NSKEY_UP        0x7e
 
-#define NSKEY_X         0x07
+#define NSKEY_A         0x00
+#define NSKEY_B         0x0b
 #define NSKEY_C         0x08
+#define NSKEY_D         0x02
+#define NSKEY_E         0x0e
+#define NSKEY_F         0x03
+#define NSKEY_H         0x04
+#define NSKEY_N         0x2d
+#define NSKEY_P         0x23
+#define NSKEY_U         0x20
 #define NSKEY_V         0x09
+#define NSKEY_X         0x07
 
 #define NSKEY_PGUP      0x74
 #define NSKEY_PGDN      0x79
