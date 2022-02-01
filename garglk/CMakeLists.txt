@@ -7,7 +7,10 @@ option(BUILD_SHARED_LIBS "Build a shared libgarglk instead of a static library" 
 
 if(UNIX AND NOT APPLE)
     option(WITH_FREEDESKTOP "Install freedesktop.org application, icon, and MIME files" ON)
-    set(GARGLKINI "/etc/garglk.ini" CACHE STRING "Full path for garglk.ini")
+    set(GARGLKINI "${CMAKE_INSTALL_FULL_SYSCONFDIR}/garglk.ini")
+    if(NOT APPIMAGE)
+        option(INSTALL_GARGLKINI "Install an example config file to ${GARGLKINI}" OFF)
+    endif()
 endif()
 
 if(APPLE)
@@ -225,6 +228,10 @@ elseif(UNIX)
     install(FILES cheapglk/gi_blorb.h cheapglk/glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+
+    if(INSTALL_GARGLKINI)
+        install(FILES "garglk.ini" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+    endif()
 
     if(WITH_FREEDESKTOP)
         install(FILES "gargoyle.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
