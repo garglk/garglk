@@ -231,6 +231,7 @@ static void parsecolor(const std::string &str, unsigned char *rgb)
 //        <user settings directory>/Gargoyle (Haiku only)
 //        %APPDATA%/Gargoyle/garglk.ini (Windows only)
 //        <current directory>/garglk.ini (Windows only)
+//        $HOME/garglk.ini (macOS only)
 // 4. $GARGLK_INI/garglk.ini (macOS only)
 // 5. /etc/garglk.ini (or other location set at build time, Unix only)
 // 6. <directory containing gargoyle executable>/garglk.ini (Windows only)
@@ -281,25 +282,29 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
     // so treat it as a user config there.
     configs.push_back(ConfigFile("garglk.ini", true));
 #else
+
+    const char *home = getenv("HOME");
+
+#ifdef __APPLE__
+    // On macOS, when the config file is edited via the UI, it is placed in
+    // $HOME/garglk.ini. At some point this probably should move to somewhere in
+    // $HOME/Library, but for now, make sure this config file is used.
+    if (home != nullptr)
+        configs.push_back(ConfigFile(std::string(home) + "/garglk.ini", true));
+#endif
+
     // XDG Base Directory Specification
     std::string xdg_path;
     const char *xdg = getenv("XDG_CONFIG_HOME");
     if (xdg != nullptr)
-    {
         xdg_path = xdg;
-    }
-    else
-    {
-        const char *home = getenv("HOME");
-        if (home != nullptr)
-            xdg_path = std::string(home) + "/.config";
-    }
+    else if (home != nullptr)
+        xdg_path = std::string(home) + "/.config";
 
     if (!xdg_path.empty())
         configs.push_back(ConfigFile(xdg_path + "/garglk.ini", true));
 
     // $HOME/.garglkrc
-    const char *home = std::getenv("HOME");
     if (home != nullptr)
         configs.push_back(ConfigFile(std::string(home) + "/.garglkrc", true));
 #endif
