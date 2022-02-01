@@ -237,8 +237,8 @@ void garglk::fontreplace(const std::string &font, int type)
 
 void fontload(void)
 {
-    // 'GARGLK_INI' should be the path to the Bundle's Resources directory
-    const char * env = getenv("GARGLK_INI");
+    // 'GARGLK_RESOURCES' should be the path to the Bundle's Resources directory
+    const char * env = getenv("GARGLK_RESOURCES");
     if (!env)
         return;
 
