@@ -59,13 +59,24 @@ In addition, Gargoyle supports the following options:
   freedesktop.org-compliant desktop, application, and MIME files. This
   is available only on non-Apple Unix platforms.
 
-- `WITH_TTS`: Takes one of three values: "ON", "OFF", or "AUTO". If
-  "AUTO" (the default), text-to-speech support is enabled if the
-  platform supports it. Windows and macOS always support TTS, but Unix
-  requires speech-dispatcher to be installed. If the platform does not
-  support TTS, then it is disabled. If "ON" (or any true value), TTS
-  support is enabled if the platform supports it; otherwise, CMake will
-  abort. If "OFF" (or any false value), TTS support is disabled.
+- `WITH_TTS`: Takes one of four values: "ON", "OFF", "AUTO", or "DYNAMIC".
+
+    - If "AUTO" (the default), text-to-speech support is enabled if the
+      build environment supports it, and the resulting binaries will not work
+      unless they're run on a platform that also supports it. Windows and macOS
+      always support TTS, but Unix requires speech-dispatcher to be installed.
+      If the build environment does not support TTS, then it is disabled.
+
+    - If "DYNAMIC", text-to-speech support is always enabled, and the resulting
+      binaries will work without platform text-to-speech support. This value is
+      non-default because it may require source-level changes to keep it
+      working on Unix platforms if speech-dispatcher has ABI-breaking changes.
+
+    - If "ON" (or any true value), TTS support is enabled if the build
+      environment supports it; otherwise, CMake will abort. The resulting
+      binaries will not work without platform text-to-speech support.
+
+    - If "OFF" (or any false value), TTS support is disabled.
 
 - `SOUND`: Takes one of three values: "SDL", for SDL sound support,
   "QT", for Qt sound support, and "none" (or any other value), for no
