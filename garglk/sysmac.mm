@@ -677,9 +677,11 @@ void winpoll(void)
 
 std::string garglk::winfontpath(const std::string &filename)
 {
-    // There's no need to look up fonts in any special way on macOS: the
-    // bundle sets fonts up in such a way that they're found without
-    // needing a fallback.
+    char *resources = getenv("GARGLK_RESOURCES");
+
+    if (resources != nullptr)
+        return std::string(resources) + "/Fonts/" + filename;
+
     return "";
 }
 

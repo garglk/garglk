@@ -618,7 +618,7 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
     [nsResources getCString: etc maxLength: sizeof etc encoding: NSUTF8StringEncoding];
 
-    setenv("GARGLK_INI", etc, true);
+    setenv("GARGLK_RESOURCES", etc, true);
 
     /* set preference defaults */
     [[NSUserDefaults standardUserDefaults] registerDefaults:
