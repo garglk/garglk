@@ -232,7 +232,7 @@ static void parsecolor(const std::string &str, unsigned char *rgb)
 //        %APPDATA%/Gargoyle/garglk.ini (Windows only)
 //        <current directory>/garglk.ini (Windows only)
 //        $HOME/garglk.ini (macOS only)
-// 4. $GARGLK_INI/garglk.ini (macOS only)
+// 4. $GARGLK_RESOURCES/garglk.ini (macOS only)
 // 5. /etc/garglk.ini (or other location set at build time, Unix only)
 // 6. <directory containing gargoyle executable>/garglk.ini (Windows only)
 //
@@ -310,9 +310,9 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
 #endif
 
 #ifdef __APPLE__
-    // macOS sets $GARGLK_INI to the bundle directory containing a
+    // macOS sets $GARGLK_RESOURCES to the bundle directory containing a
     // default garglk.ini.
-    const char *garglkini = std::getenv("GARGLK_INI");
+    const char *garglkini = std::getenv("GARGLK_RESOURCES");
     if (garglkini != nullptr)
         configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", false));
 #endif
