@@ -15,8 +15,8 @@ if(POLICY CMP0069)
     check_ipo_supported(RESULT HAS_LTO)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "7" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8")
-    set(GCC7 TRUE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "9")
+    set(GCC_NO_CXX17 TRUE)
 endif()
 
 # At the moment C++17 is optional, and used in only one place. In the
@@ -26,8 +26,10 @@ endif()
 # all C++17 features are exposed. The C++17 code is unused on macOS
 # anyway, so there's no harm here.
 # In addition, CMake claims C++17 support for g++7, but std::filesystem
-# isn't available there. Force C++14 for g++7.
-if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT APPLE AND NOT GCC7)
+# isn't available there. In fact, proper std::filesystem support didn't
+# land in gcc till version 9 (see https://gcc.gnu.org/gcc-9/changes.html),
+# so disable on gcc versions prior to 9.
+if("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES AND NOT APPLE AND NOT GCC_NO_CXX17)
     set(CXX_VERSION 17)
 else()
     set(CXX_VERSION 14)
