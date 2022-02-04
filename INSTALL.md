@@ -125,6 +125,11 @@ If you want to compile with SDL support, you also need to install the developmen
 
 After that, just follow the general instructions above.
 
+Note that on Fedora, /usr/local/lib is not included in the default search path,
+so you may want to pass `-DCMAKE_INSTALL_PREFIX=/usr`. However, you may instead
+want to use the provided `gargoyle-buildrpm.sh` script as a guide to build an
+RPM package so that your package manager can track the Gargoyle installation.
+
 ## Building on MacOS: (notes by Andrew Plotkin, April 2017)
 
 The new build script (contributed by Brad Town) can be run on any
