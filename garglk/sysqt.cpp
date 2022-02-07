@@ -259,7 +259,8 @@ static void edit_config()
     try
     {
         auto config = garglk::user_config();
-        QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str()));
+        if (!QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str())))
+            QMessageBox::warning(nullptr, "Warning", "Unable to find a text editor");
     }
     catch (std::runtime_error &e)
     {
