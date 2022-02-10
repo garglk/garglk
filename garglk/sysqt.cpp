@@ -256,6 +256,10 @@ void garglk::Window::resizeEvent(QResizeEvent *event)
         m_settings->setValue("window/size", event->size());
     }
 
+    if (gli_conf_save_window_location || gli_conf_save_window_size) {
+        m_settings->setValue("window/fullscreen", ::window->isFullScreen());
+    }
+
     event->accept();
 }
 
@@ -495,6 +499,19 @@ void garglk::View::keyPressEvent(QKeyEvent *event)
                 QMessageBox::warning(nullptr, "Warning", "Could not find appropriate window for scrollback.");
             }
         }},
+
+        {{Qt::AltModifier, Qt::Key_Return}, [this]{
+            if (::window->isFullScreen()) {
+                if (m_fullscreen_from_maximized) {
+                    ::window->showMaximized();
+                } else {
+                    ::window->showNormal();
+                }
+            } else {
+                m_fullscreen_from_maximized = ::window->isMaximized();
+                ::window->showFullScreen();
+            }
+        }},
     };
 
     try {
@@ -616,7 +633,7 @@ void winopen()
     QSize size(defw, defh);
     if (gli_conf_save_window_size) {
         auto stored_size = window->settings()->value("window/size");
-        if (!stored_size.isNull()) {
+        if (stored_size.canConvert<QSize>()) {
             size = stored_size.toSize();
         }
     }
@@ -624,14 +641,23 @@ void winopen()
 
     if (gli_conf_save_window_location) {
         auto position = window->settings()->value("window/position");
-        if (!position.isNull()) {
+        if (position.canConvert<QPoint>()) {
             window->move(position.toPoint());
         }
     }
 
     wintitle();
 
-    if (gli_conf_fullscreen) {
+    bool do_fullscreen = gli_conf_fullscreen;
+
+    if (gli_conf_save_window_location || gli_conf_save_window_size) {
+        auto fullscreen = window->settings()->value("window/fullscreen");
+        if (fullscreen.canConvert<bool>()) {
+            do_fullscreen = fullscreen.toBool();
+        }
+    }
+
+    if (do_fullscreen) {
         window->showFullScreen();
     } else {
         window->show();

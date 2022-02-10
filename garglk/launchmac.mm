@@ -500,8 +500,13 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 
             if (gli_conf_save_window_size) {
                 auto size = Format("@Size({} {})", self.frame.size.width, self.frame.size.height);
-                printf("Size: %s\n", size.c_str());
                 [config setObject: [NSString stringWithUTF8String: size.c_str()] forKey: @"window.size"];
+            }
+
+            if (gli_conf_save_window_location || gli_conf_save_window_size) {
+                auto is_fullscreen = (self.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+                auto as_object = [NSNumber numberWithBool: is_fullscreen];
+                [config setObject: as_object forKey: @"window.fullscreen"];
             }
 
             [config writeToFile: path atomically: YES];
@@ -857,6 +862,12 @@ static BOOL isTextbufferEvent(NSEvent *evt)
 {
     GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
     return (window.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen;
+}
+
+- (void) toggleFullScreen: (pid_t) processID
+{
+    GargoyleWindow *window = [windows objectForKey: [NSNumber numberWithInt: processID]];
+    [window toggleFullScreen: self];
 }
 
 #define kArrowCursor        1

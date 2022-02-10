@@ -124,6 +124,7 @@
 - (void) setCursor: (unsigned int) cursor;
 
 - (BOOL) isFullScreen: (pid_t) processID;
+- (void) toggleFullScreen: (pid_t) processID;
 
 @end
 

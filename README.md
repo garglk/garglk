@@ -169,6 +169,7 @@ interpreter. However, there are a few shortcuts available (on Mac, use
   THEMES.md for more information on color themes).
 * `Ctrl`+`Shift`+`s`: Save the scrollback buffer to a file, effectively
   creating an ad hoc transcript.
+* `Alt`+`Enter` (or `Command`-`Ctrl`-`f` on Mac): Toggle fullscreen.
 
 In addition, Gargoyle supports many readline/Emacs-style line-editor bindings:
 
