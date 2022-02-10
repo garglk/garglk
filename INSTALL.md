@@ -321,12 +321,7 @@ toolchain.
 
 To cross compile with CMake, a toolchain file is used:
 
-    $ cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-i686-w64-mingw32.cmake -MINGW_TRIPLE=i686-w64-mingw32
-    $ make -j`nproc`
-
-To build for x86\_64 instead of i686:
-
-    $ cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain-x86_64-w64-mingw32.cmake -MINGW_TRIPLE=x86_64-w64-mingw32
+    $ env MINGW_TRIPLE=i686-w64-mingw32 MINGW_LOCATION=/usr cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake
     $ make -j`nproc`
 
 Releases are created with the `windows.sh` script, which builds Gargoyle
