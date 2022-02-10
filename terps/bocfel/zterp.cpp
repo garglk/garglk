@@ -14,14 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <ctype.h>
-#include <limits.h>
-#include <locale.h>
+#include <algorithm>
+#include <array>
+#include <climits>
+#include <clocale>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iomanip>
+#include <ios>
+#include <iostream>
+#include <istream>
+#include <map>
+#include <new>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "zterp.h"
 #include "blorb.h"
@@ -36,6 +47,7 @@
 #include "screen.h"
 #include "sound.h"
 #include "stack.h"
+#include "types.h"
 #include "unicode.h"
 #include "util.h"
 
@@ -43,55 +55,12 @@
 #include <glk.h>
 #endif
 
-#define MAX_LINE	2048
+std::string game_file;
+Options options;
 
-#define DEFAULT_INT_NUMBER	1 // DEC
+static std::string story_id;
 
-const char *game_file;
-struct options options = {
-    .eval_stack_size = DEFAULT_STACK_SIZE,
-    .call_stack_size = DEFAULT_CALL_DEPTH,
-    .disable_color = false,
-    .disable_config = false,
-    .disable_timed = false,
-    .disable_sound = false,
-    .enable_escape = false,
-    .escape_string = NULL,
-    .disable_fixed = false,
-    .assume_fixed = false,
-    .disable_graphics_font = false,
-    .enable_alt_graphics = false,
-    .disable_history_playback = false,
-    .show_id = false,
-    .disable_term_keys = false,
-    .username = NULL,
-    .disable_meta_commands = false,
-    .int_number = DEFAULT_INT_NUMBER,
-    .int_version = 'C',
-    .disable_patches = false,
-    .replay_on = false,
-    .replay_name = NULL,
-    .record_on = false,
-    .record_name = NULL,
-    .transcript_on = false,
-    .transcript_name = NULL,
-    .max_saves = 100,
-    .show_version = false,
-    .disable_abbreviations = false,
-    .enable_censorship = false,
-    .overwrite_transcript = false,
-    .override_undo = false,
-    .random_seed = -1,
-    .random_device = NULL,
-
-    .autosave = false,
-    .persistent_transcript = false,
-    .editor = NULL,
-};
-
-static char story_id[64];
-
-const char *get_story_id(void)
+const std::string &get_story_id()
 {
     return story_id;
 }
@@ -106,7 +75,7 @@ const char *get_story_id(void)
 int zversion;
 static int zwhich;
 
-struct header header;
+Header header;
 
 static bool checksum_verified;
 
@@ -116,7 +85,7 @@ static bool checksum_verified;
 // The code that uses the alphabet table will step around this character
 // when necessary, so it’s safe to use a null character here to mean
 // “nothing”.
-uint8_t atable[26 * 3] = {
+std::array<uint8_t, 26 * 3> atable = {
     // A0
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
@@ -147,147 +116,98 @@ void store(uint16_t v)
     store_variable(byte(pc++), v);
 }
 
-static bool is_story(const char **ids, size_t n)
-{
-    for (size_t i = 0; i < n; i++) {
-        if (strcmp(story_id, ids[i]) == 0) {
-            return true;
-        }
-    }
+static std::set<Game> games;
 
-    return false;
-}
-
-static bool games[GameCount];
-
-static void initialize_games(void)
+static void initialize_games()
 {
     // All V1234 games from Andrew Plotkin’s Obsessively Complete
     // Infocom Catalog: https://eblong.com/infocom/
-    const char *infocom1234[] = {
+    std::set<std::string> infocom1234 = {
 #include "v1234.h"
     };
 
-    const char *journey[] = { "83-890706" };
-    const char *lurking_horror[] = { "203-870506", "219-870912", "221-870918" };
-    const char *planetfall[] = { "1-830517", "20-830708", "26-831014", "29-840118", "37-851003", "39-880501" };
-    const char *stationfall[] = { "1-861017", "63-870218", "87-870326", "107-870430" };
+    std::map<Game, std::set<std::string>> gamemap = {
+        { Game::Infocom1234, infocom1234 },
+        { Game::Journey, { "83-890706" } },
+        { Game::LurkingHorror, { "203-870506", "219-870912", "221-870918" } },
+        { Game::Planetfall, { "1-830517", "20-830708", "26-831014", "29-840118", "37-851003", "39-880501" } },
+        { Game::Stationfall, { "1-861017", "63-870218", "87-870326", "107-870430" } },
+    };
 
-    games[GameInfocom1234] = is_story(infocom1234, ASIZE(infocom1234));
-    games[GameJourney] = is_story(journey, ASIZE(journey));
-    games[GameLurkingHorror] = is_story(lurking_horror, ASIZE(lurking_horror));
-    games[GamePlanetfall] = is_story(planetfall, ASIZE(planetfall));
-    games[GameStationfall] = is_story(stationfall, ASIZE(stationfall));
+    for (const auto &pair : gamemap) {
+        if (pair.second.find(story_id) != pair.second.end()) {
+            games.insert(pair.first);
+        }
+    }
 }
 
-bool is_game(enum Game game)
+bool is_game(Game game)
 {
-    switch(game) {
-    case GameInfocom1234: case GameJourney: case GameLurkingHorror: case GamePlanetfall: case GameStationfall:
-        return games[game];
-    default:
-        return false;
-    }
+    return games.find(game) != games.end();
 }
 
 // Find a story ID roughly in the form of an IFID according to §2.2.2.1
-// of draft 7 of the Treaty of Babel.
+// of revision 10 of the Treaty of Babel.
 //
 // This does not add a ZCODE- prefix, and will not search for a manually
 // created IFID.
-static void find_id(void)
+static void find_id()
 {
-    char serial[] = "------";
+    std::string serial = "------";
 
-    for (int i = 0; i < 6; i++) {
-        // isalnum() cannot be used because it is locale-aware, and this
-        // must only check for A–Z, a–z, and 0–9. Because ASCII (or a
-        // compatible charset) is required, testing against 'a', 'z', etc.
-        // is OK.
-#define ALNUM(c) ( ((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z') || ((c) >= '0' && (c) <= '9') )
-        if (ALNUM(header.serial[i])) {
-            serial[i] = header.serial[i];
-        }
-#undef ALNUM
-    }
+    // isalnum() cannot be used because it is locale-aware, and this
+    // must only check for A–Z, a–z, and 0–9. Because ASCII (or a
+    // compatible charset) is required, testing against 'a', 'z', etc.
+    // is OK.
+    std::copy_if(header.serial, header.serial + 6, serial.begin(), [](auto c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+    });
 
-    if (strchr("012345679", serial[0]) != NULL && strcmp(serial, "000000") != 0) {
-        snprintf(story_id, sizeof story_id, "%d-%s-%04x", header.release, serial, (unsigned)header.checksum);
-    } else {
-        snprintf(story_id, sizeof story_id, "%d-%s", header.release, serial);
+    std::stringstream ss;
+    ss << header.release << "-" << serial;
+    if (std::strchr("012345679", serial[0]) != nullptr &&
+        serial != "000000" &&
+        serial != "999999" &&
+        serial != "------") {
+
+        ss << "-" << std::hex << std::setw(4) << std::setfill('0') << header.checksum;
     }
+    story_id = ss.str();
 
     initialize_games();
 }
 
-// isspace() is locale-aware, so explicitly spell out what is
-// considered to be whitespace.
-static bool is_whitespace(int c)
+static void read_config()
 {
-    return c == ' ' || c == '\t';
-}
-
-static char *ltrim(char *string)
-{
-    while (is_whitespace(*string)) {
-        string++;
-    }
-
-    return string;
-}
-
-static void read_config(void)
-{
-    FILE *fp;
-    char file[ZTERP_OS_PATH_SIZE];
-    char buf[MAX_LINE];
-    char *key, *val, *p;
+    std::string line;
     bool story_matches = true;
 
-    if (!zterp_os_rcfile(&file, false)) {
+    auto file = zterp_os_rcfile(false);
+    if (file == nullptr) {
         return;
     }
 
-    fp = fopen(file, "r");
-    if (fp == NULL) {
+    std::ifstream f(*file);
+    if (!f.is_open()) {
         return;
     }
 
     int lineno = 0;
-    while (fgets(buf, sizeof buf, fp) != NULL) {
-        char *line = buf;
+    while (std::getline(f >> std::ws, line)) {
+        lineno++;
 
-        if (strchr(line, '\n') != NULL || feof(fp)) {
-            lineno++;
-        } else {
-            fprintf(stderr, "%s:%d: line too long: aborting read of configuration file\n", file, lineno + 1);
-            return;
-        }
+        auto comment = line.find('#');
+        if (comment != std::string::npos)
+            line.erase(comment);
+        line = rtrim(line);
 
-        line[strcspn(line, "#\r\n")] = 0;
-        line = ltrim(line);
-        if (line[0] == 0) {
+        if (line.empty()) {
             continue;
         }
 
-        if (line[0] == '[') {
-            p = strrchr(line, ']');
-            if (p == NULL) {
-                fprintf(stderr, "%s:%d: expected ']'\n", file, lineno);
-            } else if (*ltrim(&p[1]) != 0) {
-                fprintf(stderr, "%s:%d: unexpected characters following ']'\n", file, lineno);
-            } else {
-                *p = 0;
-
-                story_matches = false;
-                for (p = strtok(line + 1, " ,"); p != NULL; p = strtok(NULL, " ,")) {
-                    const char *ids[] = { p };
-                    if (is_story(ids, ASIZE(ids))) {
-                        story_matches = true;
-                        break;
-                    }
-                }
-            }
+        if (line[0] == '[' && line.back() == ']') {
+            std::string id = line.substr(1, line.size() - 2);
+            story_matches = id == story_id;
 
             continue;
         }
@@ -296,92 +216,76 @@ static void read_config(void)
             continue;
         }
 
-        key = line;
-
-        // Key ends at the first whitespace/equals sign.
-        for (val = key; *val != 0 && !is_whitespace(*val) && *val != '='; val++) {
-        }
-
-        // Find the equals sign, null terminating along the way.
-        while (is_whitespace(*val)) {
-            *val++ = 0;
-        }
-
-        if (*val != '=') {
-            fprintf(stderr, "%s:%d: expected '='\n", file, lineno);
+        auto equal = line.find('=');
+        if (equal == std::string::npos) {
+            std::cerr << *file << ":" << lineno << ": expected '='" << std::endl;
             continue;
         }
 
-        // If there was no whitespace before the equals sign it won’t
-        // have been null terminated, so do that here.
-        *val++ = 0;
-
-        if (*key == 0) {
-            fprintf(stderr, "%s:%d: no key\n", file, lineno);
+        auto key = rtrim(line.substr(0, equal));
+        if (key.empty()) {
+            std::cerr << *file << ":" << lineno << ": no key" << std::endl;
             continue;
         }
 
-        val = ltrim(val);
-        if (*val == 0) {
-            fprintf(stderr, "%s:%d: missing value\n", file, lineno);
+        auto val = ltrim(line.substr(equal + 1));
+        if (val.empty()) {
+            std::cerr << *file << ":" << lineno << ": no value" << std::endl;
             continue;
-        }
-
-        // Trim trailing whitespace.
-        p = val + strlen(val) - 1;
-        while (is_whitespace(*p)) {
-            *p-- = 0;
         }
 
 #define START()		if (false) do { } while (false)
 
-#define BOOL(name)	else if (strcmp(key, #name) == 0) do { \
-    if (strcmp(val, "0") == 0) { \
+#define BOOL(name)	else if (key == #name) do { \
+    if (val == "0") { \
         options.name = false; \
-    } else if (strcmp(val, "1") == 0) { \
+    } else if (val == "1") { \
         options.name = true; \
     } else { \
-        fprintf(stderr, "%s:%d: invalid value for %s: must be 0 or 1\n", file, lineno, #name); \
+        std::cerr << *file << ":" << lineno << ": invalid value for " << #name << ": must be 0 or 1" << std::endl; \
     } \
 } while (false)
 
-#define NUMBER(name)	else if (strcmp(key, #name) == 0) do { \
+#define NUMHELP(name, wrapper)	else if (key == #name) do { \
     char *endptr; \
-    long n; \
-    n = strtol(val, &endptr, 10); \
+    unsigned long n; \
+    n = std::strtoul(val.c_str(), &endptr, 10); \
     if (*endptr != 0) { \
-        fprintf(stderr, "%s:%d: invalid value for %s: must be a number\n", file, lineno, #name); \
+        std::cerr << *file << ":" << lineno << ": invalid value for " << #name << ": must be a number" << std::endl; \
     } else { \
-        options.name = n; \
+        options.name = wrapper(n); \
     } \
 } while (false)
 
-#define STRING(name)	else if (strcmp(key, #name) == 0) do { \
-    free(options.name); \
-    options.name = xstrdup(val); \
+#define NUMBER(name)	NUMHELP(name, [](unsigned long num) { return num; })
+
+#define OPTNUM(name)	NUMHELP(name, std::make_unique<unsigned long>)
+
+#define STRING(name)	else if (key == #name) do { \
+    options.name = std::make_unique<std::string>(val); \
 } while (false)
 
-#define CHAR(name)	else if (strcmp(key, #name) == 0) do { \
-    if (strlen(val) != 1) { \
-        fprintf(stderr, "%s:%d: invalid value for %s: must be a single character\n", file, lineno, #name); \
+#define CHAR(name)	else if (key == #name) do { \
+    if (val.size() != 1) { \
+        std::cerr << *file << ":" << lineno << ": invalid value for " << #name << ": must be a single character" << std::endl; \
     } else { \
         options.name = val[0]; \
     } \
 } while (false)
 
 #ifdef GLK_MODULE_GARGLKTEXT
-#define COLOR(name, num)else if (strcmp(key, "color_" #name) == 0) do { \
+#define COLOR(name, num)else if (key == "color_" #name) do { \
     char *endptr; \
     unsigned long color; \
-    color = strtoul(val, &endptr, 16); \
-    if (*val == '-' || *endptr != 0 || color > 0xffffff) { \
-        fprintf(stderr, "%s:%d: invalid value for color_%s: must be a hexadecimal number ranging from 0x000000 to 0xffffff\n", file, lineno, #name); \
+    color = std::strtoul(val.c_str(), &endptr, 16); \
+    if (val[0] == '-' || *endptr != 0 || color > 0xffffff) { \
+        std::cerr << *file << ":" << lineno << ": invalid value for color_" << #name << ": must be a hexadecimal number ranging from 0x000000 to 0xffffff" << std::endl; \
     } else { \
         update_color(num, color); \
     } \
 } while (false)
 #else
-#define COLOR(name, num)else if (strcmp(key, "color_" #name) == 0) do { } while (false)
+#define COLOR(name, num)else if (key == "color_" #name) do { } while (false)
 #endif
 
         // Some configuration options are available only in certain
@@ -422,7 +326,7 @@ static void read_config(void)
         BOOL  (enable_censorship);
         BOOL  (overwrite_transcript);
         BOOL  (override_undo);
-        NUMBER(random_seed);
+        OPTNUM(random_seed);
         STRING(random_device);
 
         BOOL(autosave);
@@ -438,52 +342,51 @@ static void read_config(void)
         COLOR(cyan,    8);
         COLOR(white,   9);
 
-        else if (strcmp(key, "cheat") == 0) {
+        else if (key == "cheat") {
 #ifndef ZTERP_NO_CHEAT
             if (!cheat_add(val, false)) {
-                fprintf(stderr, "%s:%d: syntax error in cheat\n", file, lineno);
+                std::cerr << *file << ":" << lineno << ": syntax error in cheat" << std::endl;
             }
 #endif
         }
 
-        else if (strcmp(key, "patch") == 0) {
+        else if (key == "patch") {
             switch (apply_user_patch(val)) {
-            case PatchStatusSyntaxError:
-                fprintf(stderr, "%s:%d: syntax error in patch\n", file, lineno);
+            case PatchStatus::SyntaxError:
+                std::cerr << *file << ":" << lineno << ": syntax error in patch" << std::endl;
                 break;
-            case PatchStatusNotFound:
-                fprintf(stderr, "%s:%d: patch does not apply to this story\n", file, lineno);
+            case PatchStatus::NotFound:
+                std::cerr << *file << ":" << lineno << ": patch does not apply to this story" << std::endl;
                 break;
-            case PatchStatusOk:
+            case PatchStatus::Ok:
                 break;
             }
         }
 
         // Legacy name.
-        else if (strcmp(key, "notes_editor") == 0) {
-            free(options.editor);
-            options.editor = xstrdup(val);
+        else if (key == "notes_editor") {
+            options.editor = std::make_unique<std::string>(val);
         }
 
         else {
-            fprintf(stderr, "%s:%d: unknown configuration option: %s\n", file, lineno, key);
+            std::cerr << *file << ":" << lineno << ": unknown configuration option: " << key << std::endl;
         }
 
 #undef START
 #undef BOOL
+#undef NUMHELP
 #undef NUMBER
+#undef OPTNUM
 #undef STRING
 #undef CHAR
 #undef COLOR
     }
-
-    fclose(fp);
 }
 
 static bool have_statuswin = false;
 static bool have_upperwin  = false;
 
-static void write_flags1(void)
+static void write_flags1()
 {
     uint8_t flags1;
 
@@ -557,7 +460,7 @@ static void write_flags1(void)
     store_byte(0x01, flags1);
 }
 
-static void write_flags2(void)
+static void write_flags2()
 {
     if (zversion >= 5) {
         uint16_t flags2 = word(0x10);
@@ -588,7 +491,7 @@ static void write_flags2(void)
     }
 }
 
-static void write_header_extension_table(void)
+static void write_header_extension_table()
 {
     if (header.extension_table == 0) {
         return;
@@ -614,7 +517,7 @@ static void write_header_extension_table(void)
 // updated by the interpreter. This function does that. This is also
 // used when restoring, because the save file might have come from an
 // interpreter with vastly different settings.
-void write_header(void)
+void write_header()
 {
     write_flags1();
     write_flags2();
@@ -630,7 +533,7 @@ void write_header(void)
         store_byte(0x1e, options.int_number);
         store_byte(0x1f, options.int_version);
 
-        get_screen_size(&width, &height);
+        get_screen_size(width, height);
 
         // Screen height and width.
         // A height of 255 means infinite, so cap at 254.
@@ -656,21 +559,22 @@ void write_header(void)
     store_byte(0x32, 1);
     store_byte(0x33, 1);
 
-    if (options.username != NULL) {
-        strncpy((char *)&memory[0x38], options.username, 8);
+    if (options.username != nullptr) {
+        options.username->resize(8, '\0');
+        std::copy(options.username->begin(), options.username->end(), &memory[0x38]);
     }
 }
 
-static void process_alphabet_table(void)
+static void process_alphabet_table()
 {
     if (zversion == 1) {
-        memcpy(&atable[26 * 2], " 0123456789.,!?_#'\"/\\<-:()", 26);
+        std::memcpy(&atable[26 * 2], " 0123456789.,!?_#'\"/\\<-:()", 26);
     } else if (zversion >= 5 && word(0x34) != 0) {
         if (word(0x34) + 26 * 3 > memory_size) {
             die("corrupted story: alphabet table out of range");
         }
 
-        memcpy(atable, &memory[word(0x34)], 26 * 3);
+        std::memcpy(&atable[0], &memory[word(0x34)], 26 * 3);
 
         // Even with a new alphabet table, characters 6 and 7 from A2 must
         // remain the same (§3.5.5.1).
@@ -681,7 +585,7 @@ static void process_alphabet_table(void)
 
 static uint16_t mouse_click_addr;
 
-static void read_header_extension_table(void)
+static void read_header_extension_table()
 {
     if (header.extension_table == 0) {
         return;
@@ -706,20 +610,24 @@ void zterp_mouse_click(uint16_t x, uint16_t y) {
     }
 }
 
-static void calculate_checksum(zterp_io *io, long offset)
+static void calculate_checksum(IO &io, long offset)
 {
     uint32_t remaining = header.file_length - 0x40;
     uint16_t checksum = 0;
 
-    if (!zterp_io_seek(io, offset + 0x40, SEEK_SET)) {
+    try {
+        io.seek(offset + 0x40, IO::SeekFrom::Start);
+    } catch (const IO::IOError &) {
         return;
     }
 
     while (remaining != 0) {
-        uint8_t buf[8192];
-        uint32_t to_read = remaining < sizeof buf ? remaining : sizeof buf;
+        std::array<uint8_t, 8192> buf;
+        uint32_t to_read = remaining < buf.size() ? remaining : buf.size();
 
-        if (!zterp_io_read_exact(io, buf, to_read)) {
+        try {
+            io.read_exact(&buf[0], to_read);
+        } catch (const IO::IOError &) {
             return;
         }
 
@@ -733,13 +641,17 @@ static void calculate_checksum(zterp_io *io, long offset)
     checksum_verified = checksum == header.checksum;
 }
 
-static void process_story(zterp_io *io, long offset)
+static void process_story(IO &io, long offset)
 {
-    if (!zterp_io_seek(io, offset, SEEK_SET)) {
+    try {
+        io.seek(offset, IO::SeekFrom::Start);
+    } catch (const IO::IOError &) {
         die("unable to rewind story");
     }
 
-    if (!zterp_io_read_exact(io, memory, memory_size)) {
+    try {
+        io.read_exact(memory, memory_size);
+    } catch (const IO::IOError &) {
         die("unable to read from story file");
     }
 
@@ -796,15 +708,15 @@ static void process_story(zterp_io *io, long offset)
         }
     }
 
-    memcpy(header.serial, &memory[0x12], sizeof header.serial);
+    std::memcpy(header.serial, &memory[0x12], sizeof header.serial);
 
-#define PROPSIZE	(zversion <= 3 ? 62UL : 126UL)
+    unsigned long propsize = zversion <= 3 ? 62 : 126;
 
     // There must be at least enough room in dynamic memory for the header
     // (64 bytes), the global variables table (480 bytes), and the
     // property defaults table (62 or 126 bytes).
-    if (header.static_start < 64UL + 480UL + PROPSIZE) {
-        die("corrupted story: dynamic memory too small (%d bytes)", (int)header.static_start);
+    if (header.static_start < 64UL + 480UL + propsize) {
+        die("corrupted story: dynamic memory too small (%d bytes)", static_cast<int>(header.static_start));
     }
 
     if (header.static_start >= memory_size) {
@@ -815,11 +727,9 @@ static void process_story(zterp_io *io, long offset)
         die("corrupted story: dictionary is not in static memory");
     }
 
-    if (header.objects < 64 || header.objects + PROPSIZE > header.static_start) {
+    if (header.objects < 64 || header.objects + propsize > header.static_start) {
         die("corrupted story: object table is not in dynamic memory");
     }
-
-#undef PROPSIZE
 
     if (header.globals < 64 || header.globals + 480UL > header.static_start) {
         die("corrupted story: global variables are not in dynamic memory");
@@ -831,7 +741,7 @@ static void process_story(zterp_io *io, long offset)
 
     header.file_length = word(0x1a) * (zwhich <= 3 ? 2UL : zwhich <= 5 ? 4UL : 8UL);
     if (header.file_length > memory_size) {
-        die("story's reported size (%lu) greater than file size (%lu)", (unsigned long)header.file_length, (unsigned long)memory_size);
+        die("story's reported size (%lu) greater than file size (%lu)", static_cast<unsigned long>(header.file_length), static_cast<unsigned long>(memory_size));
     }
 
     header.checksum = word(0x1c);
@@ -847,12 +757,13 @@ static void process_story(zterp_io *io, long offset)
         header.terminating_characters_table = word(0x2e);
     }
 
-    if (dynamic_memory == NULL) {
-        dynamic_memory = malloc(header.static_start);
-        if (dynamic_memory == NULL) {
+    if (dynamic_memory == nullptr) {
+        try {
+            dynamic_memory = new uint8_t[header.static_start];
+        } catch (const std::bad_alloc &) {
             die("unable to allocate memory for dynamic memory");
         }
-        memcpy(dynamic_memory, memory, header.static_start);
+        std::memcpy(dynamic_memory, memory, header.static_start);
     }
 
 #ifdef ZTERP_GLK
@@ -872,10 +783,6 @@ static void process_story(zterp_io *io, long offset)
     // Most options directly set their respective variables, but a few
     // require intervention. Delay that intervention until here so that
     // the configuration file is taken into account.
-    if (options.escape_string == NULL) {
-        options.escape_string = xstrdup("1m");
-    }
-
     if (!options.disable_sound) {
         init_sound();
     }
@@ -910,7 +817,7 @@ static void process_story(zterp_io *io, long offset)
     }
 }
 
-static void start_story(void)
+void start_story()
 {
     uint16_t flags2;
     static bool first_run = true;
@@ -923,7 +830,7 @@ static void start_story(void)
     // there, as well: the pictures bit and the transcript bit might
     // have been set during story processing, and those should persist.
     flags2 = word(0x10);
-    memcpy(memory, dynamic_memory, header.static_start);
+    std::memcpy(memory, dynamic_memory, header.static_start);
     store_word(0x10, flags2);
 
     write_header();
@@ -943,54 +850,49 @@ static void start_story(void)
     first_run = false;
 }
 
-void znop(void)
+void znop()
 {
 }
 
-void zrestart(void)
+void zrestart()
 {
-    start_story();
-    interrupt_restart();
+    throw Operation::Restart();
 }
 
-void zquit(void)
+void zquit()
 {
-    char autosave_name[ZTERP_OS_PATH_SIZE];
-
     // On @quit, remove the autosave (if any exists). First try to
     // rename it to the original name plus .bak; this allows users to
     // restore accidentally-deleted files. If the rename fails, though,
     // just try to delete it.
-    if (options.autosave && zterp_os_autosave_name(&autosave_name)) {
-        char backup_name[(sizeof autosave_name) + 4];
-        snprintf(backup_name, sizeof backup_name, "%s.bak", autosave_name);
-        if (rename(autosave_name, backup_name) == -1) {
-            remove(autosave_name);
+    if (options.autosave) {
+        auto autosave_name = zterp_os_autosave_name();
+        if (autosave_name != nullptr) {
+            std::string backup_name = *autosave_name;
+            backup_name += ".bak";
+            if (std::rename(autosave_name->c_str(), backup_name.c_str()) == -1) {
+                std::remove(autosave_name->c_str());
+            }
         }
     }
 
-    interrupt_quit();
+    throw Operation::Quit();
 }
 
-void zverify(void)
+void zverify()
 {
     branch_if(checksum_verified);
 }
 
-static zterp_io *open_savefile(enum zterp_io_mode mode)
+static std::shared_ptr<IO> open_savefile(IO::Mode mode)
 {
     // When this is null, the user is prompted for a filename.
-    char *suggested = NULL;
-    char aux[ZTERP_OS_PATH_SIZE];
+    std::unique_ptr<std::string> suggested;
 
     // If no prompt argument is given, assume 0.
     if (znargs == 3 || (znargs == 4 && zargs[3] == 0)) {
         uint16_t addr = zargs[2];
-        // Max string size: 255
-        // Possible .AUX: 4
-        // Null terminator: 1
-        // 255 + 4 + 1 = 260
-        char filename[260] = { 0 };
+        std::string filename;
 
         for (size_t i = 0; i < user_byte(addr); i++) {
             uint8_t c = user_byte(addr + i + 1);
@@ -1001,16 +903,17 @@ static zterp_io *open_savefile(enum zterp_io_mode mode)
                 c -= 32;
             }
 
-            filename[i] = c;
+            filename.push_back(c);
         }
 
-        if (filename[0] != 0) {
-            if (strchr(filename, '.') == NULL) {
-                strcat(filename, ".AUX");
+        if (!filename.empty()) {
+            if (filename.find('.') == std::string::npos) {
+                filename += ".AUX";
             }
 
-            if (zterp_os_aux_file(&aux, filename)) {
-                suggested = aux;
+            auto aux = zterp_os_aux_file(filename);
+            if (aux != nullptr) {
+                suggested = std::make_unique<std::string>(*aux);
             }
         }
     }
@@ -1018,12 +921,12 @@ static zterp_io *open_savefile(enum zterp_io_mode mode)
     // If there is a suggested filename and “prompt” is 1, this should
     // prompt the user with the suggested filename, but Glk doesn’t
     // support that.
-    return zterp_io_open(suggested, mode, ZTERP_IO_PURPOSE_DATA);
+    return std::make_shared<IO>(suggested.get(), mode, IO::Purpose::Data);
 }
 
-void zsave5(void)
+void zsave5()
 {
-    zterp_io *savefile;
+    std::shared_ptr<IO> savefile;
 
     if (znargs == 0) {
         zsave();
@@ -1032,21 +935,25 @@ void zsave5(void)
 
     ZASSERT(zargs[0] + zargs[1] < memory_size, "attempt to save beyond the end of memory");
 
-    savefile = open_savefile(ZTERP_IO_MODE_WRONLY);
-    if (savefile == NULL) {
+    try {
+        savefile = open_savefile(IO::Mode::WriteOnly);
+    } catch (const IO::OpenError &) {
         store(0);
         return;
     }
 
-    store(zterp_io_write_exact(savefile, &memory[zargs[0]], zargs[1]));
-
-    zterp_io_close(savefile);
+    try {
+        savefile->write_exact(&memory[zargs[0]], zargs[1]);
+        store(1);
+    } catch (const IO::IOError &) {
+        store(0);
+    }
 }
 
-void zrestore5(void)
+void zrestore5()
 {
-    zterp_io *savefile;
-    uint8_t *buf;
+    std::shared_ptr<IO> savefile;
+    std::vector<uint8_t> buf;
     size_t n;
 
     if (znargs == 0) {
@@ -1054,49 +961,52 @@ void zrestore5(void)
         return;
     }
 
-    savefile = open_savefile(ZTERP_IO_MODE_RDONLY);
-    if (savefile == NULL) {
+    if (zargs[1] == 0) {
         store(0);
         return;
     }
 
-    buf = malloc(zargs[1]);
-    if (buf == NULL) {
-        zterp_io_close(savefile);
+    try {
+        savefile = open_savefile(IO::Mode::ReadOnly);
+    } catch (const IO::OpenError &) {
         store(0);
         return;
     }
 
-    n = zterp_io_read(savefile, buf, zargs[1]);
+    try {
+        buf.resize(zargs[1]);
+    } catch (const std::bad_alloc &) {
+        store(0);
+        return;
+    }
+
+    n = savefile->read(&buf[0], zargs[1]);
     for (size_t i = 0; i < n; i++) {
         user_store_byte(zargs[0] + i, buf[i]);
     }
 
-    free(buf);
-
-    zterp_io_close(savefile);
-
     store(n);
 }
 
-void zpiracy(void)
+void zpiracy()
 {
     branch_if(true);
 }
 
 #ifdef ZTERP_GLK
-void glk_main(void)
+static void real_main()
 #else
-int main(int argc, char **argv)
+static void real_main(int argc, char **argv)
 #endif
 {
-    zterp_io *story_io;
-    long story_offset;
-    zterp_blorb *blorb;
+    struct {
+        std::shared_ptr<IO> io;
+        long offset;
+    } story;
 
     // strftime() is given the %c conversion specification, which is
     // locale-aware, so honor the user’s time locale.
-    setlocale(LC_TIME, "");
+    std::setlocale(LC_TIME, "");
 
     // It’s too early to properly set up all tables (neither the alphabet
     // nor Unicode table has been read from the story file), but it’s
@@ -1115,17 +1025,13 @@ int main(int argc, char **argv)
     process_arguments(argc, argv);
 #endif
 
-    if (arg_status != ARG_OK) {
+    if (arg_status != ArgStatus::Ok) {
         help();
-#ifdef ZTERP_GLK
-        glk_exit();
-#else
-        if (arg_status == ARG_HELP) {
-            exit(0);
+        if (arg_status == ArgStatus::Help) {
+            throw Exit(0);
         } else {
-            exit(EXIT_FAILURE);
+            throw Exit(EXIT_FAILURE);
         }
-#endif
     }
 
 #ifndef ZTERP_GLK
@@ -1133,8 +1039,6 @@ int main(int argc, char **argv)
 #endif
 
     if (options.show_version) {
-        char config[ZTERP_OS_PATH_SIZE];
-
         screen_puts("Bocfel " ZTERP_VERSION);
 #ifdef ZTERP_NO_SAFETY_CHECKS
         screen_puts("Runtime assertions disabled");
@@ -1152,43 +1056,40 @@ int main(int argc, char **argv)
         screen_puts("The Tandy bit cannot be set");
 #endif
 
-        if (zterp_os_rcfile(&config, false)) {
-            screen_printf("Configuration file: %s\n", config);
+        auto config = zterp_os_rcfile(false);
+        if (config != nullptr) {
+            screen_printf("Configuration file: %s\n", config->c_str());
         } else {
             screen_printf("Cannot determine configuration file location\n");
         }
 
-#ifdef ZTERP_GLK
-        glk_exit();
-#else
-        exit(0);
-#endif
+        throw Exit(0);
     }
 
-    if (game_file == NULL) {
+    if (game_file.empty()) {
         help();
         die("no story provided");
     }
 
-    story_io = zterp_io_open(game_file, ZTERP_IO_MODE_RDONLY, ZTERP_IO_PURPOSE_DATA);
-    if (story_io == NULL) {
-        die("cannot open file %s", game_file);
+    try {
+        story.io = std::make_shared<IO>(&game_file, IO::Mode::ReadOnly, IO::Purpose::Data);
+    } catch (const IO::OpenError &) {
+        die("cannot open file %s", game_file.c_str());
     }
 
-    blorb = zterp_blorb_parse(story_io);
-    if (blorb != NULL) {
-        const zterp_blorb_chunk *chunk;
+    try {
+        Blorb blorb = Blorb(story.io);
 
-        chunk = zterp_blorb_find(blorb, BLORB_EXEC, 0);
-        if (chunk == NULL) {
+        const auto *chunk = blorb.find(Blorb::Usage::Exec, 0);
+        if (chunk == nullptr) {
             die("no EXEC resource found");
         }
-        if (chunk->type != STRID(&"ZCOD")) {
-            if (chunk->type == STRID(&"GLUL")) {
+        if (chunk->type != IFF::TypeID(&"ZCOD")) {
+            if (chunk->type == IFF::TypeID(&"GLUL")) {
                 die("Glulx stories are not supported (try git or glulxe)");
             }
 
-            die("unknown story type: %s (0x%08lx)", chunk->name, (unsigned long)chunk->type);
+            die("unknown story type: %s (0x%08lx)", chunk->type.name().c_str(), static_cast<unsigned long>(chunk->type.val()));
         }
 
 #if UINT32_MAX > LONG_MAX
@@ -1198,11 +1099,9 @@ int main(int argc, char **argv)
 #endif
 
         memory_size = chunk->size;
-        story_offset = chunk->offset;
-
-        zterp_blorb_free(blorb);
-    } else {
-        long size = zterp_io_filesize(story_io);
+        story.offset = chunk->offset;
+    } catch (const Blorb::InvalidFile &) {
+        long size = story.io->filesize();
 
         if (size == -1) {
             die("unable to determine file size");
@@ -1214,7 +1113,7 @@ int main(int argc, char **argv)
 #endif
 
         memory_size = size;
-        story_offset = 0;
+        story.offset = 0;
     }
 
     if (memory_size < 64) {
@@ -1242,18 +1141,20 @@ int main(int argc, char **argv)
     // determine the next opcode; this will be zero, which is nominally a
     // 2OP, requiring two more bytes to be read. At this point the opcode
     // will be looked up, resulting in an illegal instruction error.
-    memory = malloc(memory_size + 22);
-    if (memory == NULL) {
+    try {
+        memory = new uint8_t[memory_size + 22];
+    } catch (const std::bad_alloc &) {
         die("unable to allocate memory for story file");
     }
     memset(memory + memory_size, 0, 22);
 
-    process_story(story_io, story_offset);
-
-    zterp_io_close(story_io);
+    process_story(*story.io, story.offset);
 
     if (options.show_id) {
-        screen_puts(story_id);
+#ifdef ZTERP_GLK
+        glk_set_style(style_Preformatted);
+#endif
+        screen_puts(story_id.c_str());
     } else {
         start_story();
 
@@ -1262,6 +1163,34 @@ int main(int argc, char **argv)
         user_store_word(0x10, word(0x10));
 
         setup_opcodes();
-        process_instructions();
+        process_loop();
     }
+}
+
+#ifdef ZTERP_GLK
+void glk_main()
+#else
+int main(int argc, char **argv)
+#endif
+{
+#ifdef ZTERP_GLK
+    try {
+        real_main();
+    } catch (const Exit &) {
+#else
+    try {
+        real_main(argc, argv);
+        return 0;
+    } catch (const Exit &exit) {
+        return exit.code();
+#endif
+    } catch (const std::exception &e) {
+        std::cerr << "Unhandled exception: " << e.what() << std::endl;
+    } catch (...) {
+        std::cerr << "Unhandled exception" << std::endl;
+    }
+
+#ifndef ZTERP_GLK
+    return EXIT_FAILURE;
+#endif
 }

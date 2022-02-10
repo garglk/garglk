@@ -22,6 +22,7 @@ jobs:
       - name: Install deps
         run: DEBIAN_FRONTEND=noninteractive apt install -y
           build-essential
+          clang
           cmake
           fuse
           git

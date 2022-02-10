@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include <algorithm>
+#include <array>
+#include <cstring>
+#include <climits>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 #include "meta.h"
 #include "memory.h"
@@ -29,19 +32,20 @@
 #include "screen.h"
 #include "stack.h"
 #include "stash.h"
+#include "types.h"
 #include "unicode.h"
 #include "util.h"
 #include "zterp.h"
 
 #define ISDIGIT(c)	((c) >= '0' && (c) <= '9')
-#define ISXDIGIT(c)	(ISDIGIT(c) || ((c) >= 'a' && (c) <= 'f'))
+#define ISXDIGIT(c)	("0123456789abcdefg"_s.find(c) != std::string::npos)
 
 static void try_user_save(const char *desc)
 {
     if (in_interrupt()) {
         screen_puts("[Cannot save while in an interrupt]");
     } else {
-        if (push_save(SaveStackUser, SaveTypeMeta, SaveOpcodeRead, desc) == SaveResultSuccess) {
+        if (push_save(SaveStackType::User, SaveType::Meta, SaveOpcode::Read, desc) == SaveResult::Success) {
             screen_puts("[Save pushed]");
         } else {
             screen_puts("[Save failed]");
@@ -50,21 +54,21 @@ static void try_user_save(const char *desc)
 }
 
 // On success, this does not return.
-static void try_user_restore(long i)
+static void try_user_restore(size_t i)
 {
-    enum SaveOpcode saveopcode;
+    SaveOpcode saveopcode;
 
-    if (pop_save(SaveStackUser, i, &saveopcode)) {
+    if (pop_save(SaveStackType::User, i, saveopcode)) {
         screen_message_prompt("[Restored]");
-        interrupt_restore(saveopcode);
+        throw Operation::Restore(saveopcode);
     } else {
         screen_puts("[Restore failed]");
     }
 }
 
-static void try_user_drop(long i)
+static void try_user_drop(size_t i)
 {
-    if (drop_save(SaveStackUser, i + 1)) {
+    if (drop_save(SaveStackType::User, i + 1)) {
         screen_puts("[Dropped]");
     } else {
         screen_puts("[Drop failed]");
@@ -73,41 +77,34 @@ static void try_user_drop(long i)
 
 static void meta_status_putc(uint8_t c)
 {
-    screen_print((char[]){c, 0});
+    char s[] = { static_cast<char>(c), 0 };
+    screen_print(s);
 }
 
-static uint8_t *debug_change_memory;
-static bool debug_change_valid[UINT16_MAX + 1];
+static std::vector<uint8_t> debug_change_memory;
+static std::set<uint16_t> debug_change_invalid;
 
-static void meta_debug_change_start(void)
+static void meta_debug_change_start()
 {
-    free(debug_change_memory);
-    debug_change_memory = malloc(header.static_start);
-    if (debug_change_memory == NULL) {
-        screen_puts("[Cannot allocate memory]");
-    } else {
-        memcpy(debug_change_memory, memory, header.static_start);
-        for (size_t addr = 0; addr < ASIZE(debug_change_valid); addr++) {
-            debug_change_valid[addr] = true;
-        }
-        screen_puts("[Debug change reset]");
-    }
+    debug_change_memory.assign(memory, memory + header.static_start);
+    debug_change_invalid.clear();
+    screen_puts("[Debug change reset]");
 }
 
-static void meta_debug_change_inc_dec(const char *string)
+static void meta_debug_change_inc_dec(const std::string &string)
 {
-    if (debug_change_memory == NULL) {
+    if (debug_change_memory.empty()) {
         screen_puts("[Debug change not started]");
     } else {
         bool saw_change = false;
 
         for (uint16_t addr = 0; addr < header.static_start - 2; addr++) {
-            if (debug_change_valid[addr]) {
-                int16_t new = as_signed(word(addr));
-                int16_t old = as_signed((debug_change_memory[addr] << 8) | debug_change_memory[addr + 1]);
+            if (debug_change_invalid.find(addr) == debug_change_invalid.end()) {
+                int16_t newval = as_signed(word(addr));
+                int16_t oldval = as_signed((debug_change_memory[addr] << 8) | debug_change_memory[addr + 1]);
 
-#define CMP(a, b) (strcmp(string, "inc") == 0 ? (a) > (b) : (a) < (b))
-                if (CMP(new, old)) {
+#define CMP(a, b) (string == "inc" ? (a) > (b) : (a) < (b))
+                if (CMP(newval, oldval)) {
 #undef CMP
                     // The Z-machine does not require aligned memory access, so
                     // both even and odd addresses must be checked. However,
@@ -115,11 +112,11 @@ static void meta_debug_change_inc_dec(const char *string)
                     // the global variables has changed, report only if the
                     // address is the base of globals plus a multiple of two.
                     if (is_global(addr) || !in_globals(addr)) {
-                        screen_printf("%s: %ld -> %ld\n", addrstring(addr), (long)old, (long)new);
+                        screen_printf("%s: %ld -> %ld\n", addrstring(addr).c_str(), static_cast<long>(oldval), static_cast<long>(newval));
                         saw_change = true;
                     }
                 } else {
-                    debug_change_valid[addr] = false;
+                    debug_change_invalid.insert(addr);
                 }
             }
         }
@@ -128,15 +125,15 @@ static void meta_debug_change_inc_dec(const char *string)
             screen_puts("[No changes]");
         }
 
-        memcpy(debug_change_memory, memory, header.static_start);
+        std::memcpy(&debug_change_memory[0], memory, header.static_start);
     }
 }
 
-static bool meta_debug_change(const char *string)
+static bool meta_debug_change(const std::string &string)
 {
-    if (strcmp(string, "start") == 0) {
+    if (string == "start") {
         meta_debug_change_start();
-    } else if (strcmp(string, "inc") == 0 || strcmp(string, "dec") == 0) {
+    } else if (string == "inc" || string == "dec") {
         meta_debug_change_inc_dec(string);
     } else {
         return false;
@@ -145,20 +142,18 @@ static bool meta_debug_change(const char *string)
     return true;
 }
 
-static bool meta_debug_scan(const char *string)
+static bool meta_debug_scan(const std::string &string)
 {
-    static bool debug_scan_invalid_addr[UINT16_MAX + 1];
+    static std::set<uint16_t> invalid_addr;
 
-    if (strcmp(string, "start") == 0) {
-        for (size_t addr = 0; addr < ASIZE(debug_scan_invalid_addr); addr++) {
-            debug_scan_invalid_addr[addr] = false;
-        }
+    if (string == "start") {
+        invalid_addr.clear();
         screen_puts("[Debug scan reset]");
-    } else if (strcmp(string, "show") == 0) {
+    } else if (string == "show") {
         for (size_t addr = 0; addr < header.static_start - 2; addr++) {
-            if (!debug_scan_invalid_addr[addr]) {
+            if (invalid_addr.find(addr) == invalid_addr.end()) {
                 if (is_global(addr) || !in_globals(addr)) {
-                    screen_puts(addrstring(addr));
+                    screen_puts(addrstring(addr).c_str());
                 }
             }
         }
@@ -166,7 +161,7 @@ static bool meta_debug_scan(const char *string)
         long value;
         bool valid;
 
-        value = parseint(string, 0, &valid);
+        value = parseint(string, 0, valid);
         if (!valid) {
             return false;
         }
@@ -182,9 +177,9 @@ static bool meta_debug_scan(const char *string)
 
             for (size_t addr = 0; addr < header.static_start - 2; addr++) {
                 if (word(addr) != value) {
-                    debug_scan_invalid_addr[addr] = true;
+                    invalid_addr.insert(addr);
                 }
-                if (!debug_scan_invalid_addr[addr]) {
+                if (invalid_addr.find(addr) == invalid_addr.end()) {
                     count++;
                 }
             }
@@ -198,14 +193,14 @@ static bool meta_debug_scan(const char *string)
     return true;
 }
 
-static long parse_address(const char *string, bool *valid)
+static long parse_address(const std::string &string, bool &valid)
 {
     long addr;
 
     if (string[0] == 'G' && ISXDIGIT(string[1]) && ISXDIGIT(string[2]) && string[3] == 0) {
-        addr = parseint(string + 1, 16, valid);
+        addr = parseint(&string[1], 16, valid);
         if (addr < 0 || addr > 239) {
-            *valid = false;
+            valid = false;
         }
         addr = header.globals + (2 * addr);
     } else {
@@ -219,7 +214,7 @@ static bool validate_address(long addr, bool print)
 {
     if (addr < 0 || addr > memory_size - 2) {
         if (print) {
-            screen_printf("[Address out of range: must be [0, 0x%lx]]\n", (unsigned long)memory_size - 2);
+            screen_printf("[Address out of range: must be [0, 0x%lx]]\n", static_cast<unsigned long>(memory_size) - 2);
         }
         return false;
     }
@@ -227,12 +222,12 @@ static bool validate_address(long addr, bool print)
     return true;
 }
 
-static bool meta_debug_print(const char *string)
+static bool meta_debug_print(const std::string &string)
 {
     long addr;
     bool valid;
 
-    addr = parse_address(string, &valid);
+    addr = parse_address(string, valid);
 
     if (!valid) {
         return false;
@@ -241,36 +236,34 @@ static bool meta_debug_print(const char *string)
         return true;
     }
 
-    screen_printf("%ld (0x%lx)\n", (long)as_signed(word(addr)), (unsigned long)word(addr));
+    screen_printf("%ld (0x%lx)\n", static_cast<long>(as_signed(word(addr))), static_cast<unsigned long>(word(addr)));
 
     return true;
 }
 
 #ifndef ZTERP_NO_CHEAT
-// The index into these arrays is the address to freeze.
-// The first array tracks whether the address is frozen, while the
-// second holds the frozen value.
-static bool     freeze_cheat[UINT16_MAX + 1];
-static uint16_t freeze_val  [UINT16_MAX + 1];
+// This is an array of pairs (frozen, value), where the specified
+// address is frozen to “value” if “frozen” is true.
+static std::array<std::pair<bool, uint16_t>, UINT16_MAX + 1> freeze;
 
-bool cheat_add(char *how, bool print)
+bool cheat_add(std::string how, bool print)
 {
     char *type, *addrstr, *valstr;
 
-    type = strtok(how, ":");
-    addrstr = strtok(NULL, ":");
-    valstr = strtok(NULL, "");
+    type = std::strtok(&how[0], ":");
+    addrstr = std::strtok(nullptr, ":");
+    valstr = std::strtok(nullptr, "");
 
-    if (type == NULL || addrstr == NULL || valstr == NULL) {
+    if (type == nullptr || addrstr == nullptr || valstr == nullptr) {
         return false;
     }
 
-    if (strcmp(type, "freeze") == 0 || strcmp(type, "freezew") == 0) {
+    if (std::strcmp(type, "freeze") == 0 || std::strcmp(type, "freezew") == 0) {
         long addr;
         long value;
         bool valid;
 
-        addr = parse_address(addrstr, &valid);
+        addr = parse_address(addrstr, valid);
         if (!valid) {
             return false;
         }
@@ -278,7 +271,7 @@ bool cheat_add(char *how, bool print)
             return true;
         }
 
-        value = parseint(valstr, 0, &valid);
+        value = parseint(valstr, 0, valid);
         if (!valid) {
             return false;
         }
@@ -290,8 +283,7 @@ bool cheat_add(char *how, bool print)
             return true;
         }
 
-        freeze_cheat[addr] = true;
-        freeze_val  [addr] = value;
+        freeze[addr] = std::make_pair(true, value);
     } else {
         return false;
     }
@@ -305,50 +297,49 @@ bool cheat_add(char *how, bool print)
 
 static bool cheat_remove(uint16_t addr)
 {
-    if (!freeze_cheat[addr]) {
+    if (!freeze[addr].first) {
         return false;
     }
 
-    freeze_cheat[addr] = false;
+    freeze[addr] = std::make_pair(false, 0);
     return true;
 }
 
-bool cheat_find_freeze(uint32_t addr, uint16_t *val)
+bool cheat_find_freeze(uint32_t addr, uint16_t &val)
 {
-    if (addr > UINT16_MAX || !freeze_cheat[addr]) {
+    if (addr > UINT16_MAX || !freeze[addr].first) {
         return false;
     }
 
-    *val = freeze_val[addr];
+    val = freeze[addr].second;
 
     return true;
 }
 
-static bool meta_debug_freeze(char *string)
+static bool meta_debug_freeze(std::string string)
 {
     char *addrstr, *valstr;
-    char cheat[64];
 
-    addrstr = strtok(string, " ");
-    if (addrstr == NULL) {
+    addrstr = std::strtok(&string[0], " ");
+    if (addrstr == nullptr) {
         return false;
     }
-    valstr = strtok(NULL, "");
-    if (valstr == NULL) {
+    valstr = std::strtok(nullptr, "");
+    if (valstr == nullptr) {
         return false;
     }
 
-    snprintf(cheat, sizeof cheat, "freeze:%s:%s", addrstr, valstr);
+    std::string cheat = "freeze:"_s + addrstr + ":" + valstr;
 
     return cheat_add(cheat, true);
 }
 
-static bool meta_debug_unfreeze(const char *string)
+static bool meta_debug_unfreeze(const std::string &string)
 {
     long addr;
     bool valid;
 
-    addr = parse_address(string, &valid);
+    addr = parse_address(string, valid);
     if (!valid) {
         return false;
     }
@@ -365,14 +356,14 @@ static bool meta_debug_unfreeze(const char *string)
     return true;
 }
 
-static bool meta_debug_show_freeze(void)
+static bool meta_debug_show_freeze()
 {
     bool any_frozen = false;
 
-    for (size_t addr = 0; addr < ASIZE(freeze_cheat); addr++) {
-        if (freeze_cheat[addr]) {
+    for (size_t addr = 0; addr < freeze.size(); addr++) {
+        if (freeze[addr].first) {
             any_frozen = true;
-            screen_printf("%s: %lu\n", addrstring(addr), (unsigned long)freeze_val[addr]);
+            screen_printf("%s: %lu\n", addrstring(addr).c_str(), static_cast<unsigned long>(freeze[addr].second));
         }
     }
 
@@ -385,18 +376,16 @@ static bool meta_debug_show_freeze(void)
 #endif
 
 #ifndef ZTERP_NO_WATCHPOINTS
-static bool watch_addresses[UINT16_MAX + 1];
+static std::array<bool, UINT16_MAX + 1> watch_addresses;
 
 static void watch_add(uint16_t addr)
 {
     watch_addresses[addr] = true;
 }
 
-static void watch_all(void)
+static void watch_all()
 {
-    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
-        watch_addresses[addr] = true;
-    }
+    watch_addresses.fill(true);
 }
 
 static bool watch_remove(uint16_t addr)
@@ -409,23 +398,21 @@ static bool watch_remove(uint16_t addr)
     }
 }
 
-static void watch_none(void)
+static void watch_none()
 {
-    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
-        watch_addresses[addr] = false;
-    }
+    watch_addresses.fill(false);
 }
 
 void watch_check(uint16_t addr, unsigned long oldval, unsigned long newval)
 {
     if (watch_addresses[addr] && oldval != newval) {
-        screen_printf("[%s changed: %lu -> %lu (pc = 0x%lx)]\n", addrstring(addr), oldval, newval, current_instruction);
+        screen_printf("[%s changed: %lu -> %lu (pc = 0x%lx)]\n", addrstring(addr).c_str(), oldval, newval, current_instruction);
     }
 }
 
-static bool meta_debug_watch_helper(const char *string, bool do_watch)
+static bool meta_debug_watch_helper(const std::string &string, bool do_watch)
 {
-    if (strcmp(string, "all") == 0) {
+    if (string == "all") {
         if (do_watch) {
             watch_all();
             screen_puts("[Watching all addresses for changes]");
@@ -437,7 +424,7 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
         long addr;
         bool valid;
 
-        addr = parse_address(string, &valid);
+        addr = parse_address(string, valid);
 
         if (!valid) {
             return false;
@@ -448,12 +435,12 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
 
         if (do_watch) {
             watch_add(addr);
-            screen_printf("[Watching %s for changes]\n", addrstring(addr));
+            screen_printf("[Watching %s for changes]\n", addrstring(addr).c_str());
         } else {
             if (watch_remove(addr)) {
-                screen_printf("[No longer watching 0x%lx for changes]\n", addr);
+                screen_printf("[No longer watching %s for changes]\n", addrstring(addr).c_str());
             } else {
-                screen_printf("[0x%lx is not currently being watched]\n", addr);
+                screen_printf("[%s is not currently being watched]\n", addrstring(addr).c_str());
             }
         }
     }
@@ -461,24 +448,24 @@ static bool meta_debug_watch_helper(const char *string, bool do_watch)
     return true;
 }
 
-static bool meta_debug_watch(const char *string)
+static bool meta_debug_watch(const std::string &string)
 {
     return meta_debug_watch_helper(string, true);
 }
 
-static bool meta_debug_unwatch(const char *string)
+static bool meta_debug_unwatch(const std::string &string)
 {
     return meta_debug_watch_helper(string, false);
 }
 
-static bool meta_debug_show_watch(void)
+static bool meta_debug_show_watch()
 {
     bool any_watched = false;
 
-    for (size_t addr = 0; addr < ASIZE(watch_addresses); addr++) {
+    for (size_t addr = 0; addr < watch_addresses.size(); addr++) {
         if (watch_addresses[addr]) {
             any_watched = true;
-            screen_puts(addrstring(addr));
+            screen_puts(addrstring(addr).c_str());
         }
     }
 
@@ -490,7 +477,7 @@ static bool meta_debug_show_watch(void)
 }
 #endif
 
-static void meta_debug_help(void)
+static void meta_debug_help()
 {
     screen_print(
             "Debug commands are accessed as \"/debug [command]\". Commands are:\n\n"
@@ -517,41 +504,37 @@ static void meta_debug_help(void)
             );
 }
 
-static char *trim(char *string)
-{
-    while (*string == ' ') {
-        string++;
-    }
-
-    return string;
-}
-
-static void meta_debug(char *string)
+static void meta_debug(const std::string &string)
 {
     bool ok = false;
+    std::stringstream ss(rtrim(string));
+    std::string cmd, args;
 
-    if (strncmp(string, "change ", 7) == 0) {
-        ok = meta_debug_change(trim(string + 7));
-    } else if (strncmp(string, "scan ", 5) == 0) {
-        ok = meta_debug_scan(trim(string + 5));
-    } else if (strncmp(string, "print ", 6) == 0) {
-        ok = meta_debug_print(trim(string + 6));
+    ss >> cmd;
+    std::getline(ss >> std::ws, args);
+
+    if (cmd == "change") {
+        ok = meta_debug_change(args);
+    } else if (cmd == "scan") {
+        ok = meta_debug_scan(args);
+    } else if (cmd == "print") {
+        ok = meta_debug_print(args);
     }
 #ifndef ZTERP_NO_CHEAT
-    else if (strncmp(string, "freeze ", 7) == 0) {
-        ok = meta_debug_freeze(trim(string + 7));
-    } else if (strncmp(string, "unfreeze ", 9) == 0) {
-        ok = meta_debug_unfreeze(trim(string + 9));
-    } else if (strcmp(string, "show_freeze") == 0) {
+    else if (cmd == "freeze") {
+        ok = meta_debug_freeze(args);
+    } else if (cmd == "unfreeze") {
+        ok = meta_debug_unfreeze(args);
+    } else if (string == "show_freeze") {
         ok = meta_debug_show_freeze();
     }
 #endif
 #ifndef ZTERP_NO_WATCHPOINTS
-    else if (strncmp(string, "watch ", 6) == 0) {
-        ok = meta_debug_watch(trim(string + 6));
-    } else if (strncmp(string, "unwatch ", 8) == 0) {
-        ok = meta_debug_unwatch((string + 8));
-    } else if (strcmp(string, "show_watch") == 0) {
+    else if (cmd == "watch") {
+        ok = meta_debug_watch(args);
+    } else if (cmd == "unwatch") {
+        ok = meta_debug_unwatch(args);
+    } else if (string == "show_watch") {
         ok = meta_debug_show_watch();
     }
 #endif
@@ -561,156 +544,136 @@ static void meta_debug(char *string)
     }
 }
 
-static char *meta_notes;
-static size_t meta_notes_len;
+static std::vector<char> meta_notes;
 
-TypeID meta_write_bfnt(zterp_io *savefile, void *data)
+IFF::TypeID meta_write_bfnt(IO &savefile)
 {
-    if (meta_notes_len == 0) {
-        return NULL;
+    if (meta_notes.empty()) {
+        return IFF::TypeID();
     }
 
-    zterp_io_write32(savefile, 0); // Version
-    zterp_io_write_exact(savefile, meta_notes, meta_notes_len);
+    savefile.write32(0); // Version
+    savefile.write_exact(&meta_notes[0], meta_notes.size());
 
-    return &"Bfnt";
+    return IFF::TypeID(&"Bfnt");
 }
 
-void meta_read_bfnt(zterp_io *io, uint32_t size)
+void meta_read_bfnt(IO &io, uint32_t size)
 {
     uint32_t version;
-    char *new_notes;
 
-    free(meta_notes);
-    meta_notes = NULL;
-    meta_notes_len = 0;
+    meta_notes.clear();
 
     if (size < 4) {
         show_message("Corrupted Bfnt entry (too small)");
         return;
     }
 
-    if (!zterp_io_read32(io, &version)) {
+    try {
+        version = io.read32();
+    } catch (const IO::IOError &) {
         show_message("Unable to read notes size from save file");
         return;
     }
 
     if (version != 0) {
-        show_message("Unsupported Bfnt version %lu", (unsigned long)version);
+        show_message("Unsupported Bfnt version %lu", static_cast<unsigned long>(version));
         return;
     }
 
     size -= 4;
 
-    new_notes = malloc(size);
-    if (new_notes == NULL) {
-        show_message("Unable to allocate memory for notes");
-        return;
-    }
+    if (size > 0) {
+        try {
+            meta_notes.resize(size);
+        } catch (const std::bad_alloc &) {
+            show_message("Unable to allocate memory for notes (requested %lu bytes)", (unsigned long)size);
+            return;
+        }
 
-    if (!zterp_io_read_exact(io, new_notes, size)) {
-        free(new_notes);
-        show_message("Unable to read notes from save file");
-        return;
+        try {
+            io.read_exact(&meta_notes[0], size);
+        } catch (const IO::IOError &) {
+            meta_notes.clear();
+            show_message("Unable to read notes from save file");
+            return;
+        }
     }
-
-    meta_notes = new_notes;
-    meta_notes_len = size;
 }
 
-static char *meta_notes_backup;
-static size_t meta_notes_len_backup;
+static std::vector<char> meta_notes_backup;
 
-static void notes_stash_backup(void)
+static void notes_stash_backup()
 {
     meta_notes_backup = meta_notes;
-    meta_notes_len_backup = meta_notes_len;
 
-    meta_notes = NULL;
-    meta_notes_len = 0;
+    meta_notes.clear();
 }
 
-static bool notes_stash_restore(void)
+static bool notes_stash_restore()
 {
     meta_notes = meta_notes_backup;
-    meta_notes_len = meta_notes_len_backup;
 
     return true;
 }
 
-static void notes_stash_free(void)
+static void notes_stash_free()
 {
-    free(meta_notes_backup);
-
-    meta_notes_backup = NULL;
-    meta_notes_len_backup = 0;
+    meta_notes_backup.clear();
 }
 
 // Try to parse a meta command. If input should be re-requested, return
-// “string”. If a portion of the passed-in string should be processed
-// as user input, return a pointer to the beginning of that portion.
+// <MetaResult::Rerequest, "">. If a portion of the passed-in string
+// should be processed as user input, return <MetaResult::Say, string>.
 //
 // There is also the possibility that a meta-command causes a saved game
 // of some kind to be restored (/undo, /restore, and /pop). In these
-// cases NULL is conceptually returned on success, meaning parsing is
-// done. However, because interrupt_reset() is called on a successful
-// restore, NULL will never actually be returned because
-// interrupt_reset() will call longjmp().
-const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
+// cases Operation::Restore is thrown, so nothing is returned.
+std::pair<MetaResult, std::string> handle_meta_command(const uint16_t *string, uint8_t len)
 {
-    const char *command;
-    char *rest;
-    uint8_t *buf;
-    long n;
-    zterp_io *io;
+    std::string command, rest;
+    std::string converted;
 
     // Convert the input string to UTF-8 using memory-backed I/O.
-    io = zterp_io_open_memory(NULL, 0, ZTERP_IO_MODE_WRONLY);
-    if (io == NULL) {
-        return string;
-    }
+    try {
+        IO io(std::vector<uint8_t>(), IO::Mode::WriteOnly);
 
-    for (size_t i = 0; i < len + 1; i++) {
-        if (!zterp_io_putc(io, string[i])) {
-            zterp_io_close(io);
-            return string;
+        for (size_t i = 0; i < len; i++) {
+            try {
+                io.putc(string[i]);
+            } catch (const IO::IOError &) {
+                return {MetaResult::Rerequest, ""};
+            }
         }
+
+        auto buf = io.get_memory();
+        converted = rtrim(std::string(buf.begin(), buf.end()));
+    } catch (const IO::OpenError &) {
+        return {MetaResult::Rerequest, ""};
     }
 
-    zterp_io_close_memory(io, &buf, &n);
-    char converted[n + 1];
-    memcpy(converted, buf, n);
-    free(buf);
-    converted[n] = 0;
+    std::stringstream ss(converted);
+    ss >> command;
+    std::getline(ss >> std::ws, rest);
 
-    for (int i = (int)len - 1; i >= 0 && converted[i] == ' '; i--) {
-        converted[i] = 0;
-    }
+    // Require a leading slash.
+    if (command[0] != '/') {
+        return {MetaResult::Rerequest, ""};
+    };
+    command.erase(0, 1);
 
-    command = strtok(converted, " ");
-    rest = strtok(NULL, "");
-    if (command == NULL) {
-        command = "";
-    }
-    if (rest == NULL) {
-        rest = &converted[len];
-    }
-
-    rest = trim(rest);
-
-#define ZEROARG(name) (strcmp(command, name) == 0) if (rest[0] != 0) { screen_printf("[/%s takes no arguments]\n", name); } else
+#define ZEROARG(name) (command == (name)) if (!rest.empty()) { screen_printf("[/%s takes no arguments]\n", name); } else
 
     if ZEROARG("undo") {
-        enum SaveOpcode saveopcode;
-        if (pop_save(SaveStackGame, 0, &saveopcode)) {
+        SaveOpcode saveopcode;
+        if (pop_save(SaveStackType::Game, 0, saveopcode)) {
             if (seen_save_undo) {
                 store(2);
             } else {
                 screen_message_prompt("[Undone]");
             }
 
-            interrupt_restore(saveopcode);
-            return NULL;
+            throw Operation::Restore(saveopcode);
         } else {
             screen_puts("[No save found, unable to undo]");
         }
@@ -742,33 +705,32 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
         if (in_interrupt()) {
             screen_puts("[Cannot call /save while in an interrupt]");
         } else {
-            if (do_save(SaveTypeMeta, SaveOpcodeRead)) {
+            if (do_save(SaveType::Meta, SaveOpcode::Read)) {
                 screen_puts("[Saved]");
             } else {
                 screen_puts("[Save failed]");
             }
         }
     } else if ZEROARG("restore") {
-        enum SaveOpcode saveopcode;
+        SaveOpcode saveopcode;
 
-        if (do_restore(SaveTypeMeta, &saveopcode)) {
+        if (do_restore(SaveType::Meta, saveopcode)) {
             screen_message_prompt("[Restored]");
-            interrupt_restore(saveopcode);
-            return NULL;
+            throw Operation::Restore(saveopcode);
         } else {
             screen_puts("[Restore failed]");
         }
-    } else if (strcmp(command, "ps") == 0) {
-        if (rest[0] == 0) {
-            try_user_save(NULL);
+    } else if (command == "ps") {
+        if (rest.empty()) {
+            try_user_save(nullptr);
         } else {
-            try_user_save(rest);
+            try_user_save(rest.c_str());
         }
-    } else if (strcmp(command, "pop") == 0 || strcmp(command, "drop") == 0) {
-        void (*restore_or_drop)(long) = strcmp(command, "pop") == 0 ? try_user_restore : try_user_drop;
+    } else if (command == "pop" || command == "drop") {
+        void (*restore_or_drop)(size_t) = command == "pop" ? try_user_restore : try_user_drop;
 
-        if (restore_or_drop == try_user_drop && strcmp(rest, "all") == 0) {
-            while (drop_save(SaveStackUser, 1)) {
+        if (restore_or_drop == try_user_drop && rest == "all") {
+            while (drop_save(SaveStackType::User, 1)) {
             }
 
             screen_puts("[All saves dropped]");
@@ -778,53 +740,47 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
             long saveno;
             bool valid;
 
-            saveno = parseint(rest, 10, &valid);
+            saveno = parseint(rest, 10, valid);
             if (!valid || saveno < 1) {
                 screen_puts("[Invalid index]");
-                return string;
+                return {MetaResult::Rerequest, ""};
             }
 
             restore_or_drop(saveno - 1);
         }
     } else if ZEROARG("ls") {
-        list_saves(SaveStackUser, screen_puts);
+        list_saves(SaveStackType::User, screen_puts);
     } else if ZEROARG("savetranscript") {
         screen_save_persistent_transcript();
     } else if ZEROARG("notes") {
-        char *new_notes;
-        size_t new_notes_len;
-        char err[1024];
-
         screen_puts("[Editing notes]");
         screen_flush();
-        if (zterp_os_edit_notes(meta_notes == NULL ? "" : meta_notes, meta_notes_len, &new_notes, &new_notes_len, err, sizeof err)) {
-            free(meta_notes);
-            meta_notes = new_notes;
-            meta_notes_len = new_notes_len;
+        try {
+            meta_notes = zterp_os_edit_notes(meta_notes);
             screen_puts("[Notes saved]");
-        } else {
-            screen_printf("[Error updating notes: %s]\n", err);
+        } catch (const std::runtime_error &e) {
+            screen_printf("[Error updating notes: %s]\n", e.what());
         }
     } else if ZEROARG("shownotes") {
-        if (meta_notes == NULL) {
+        if (meta_notes.empty()) {
             screen_puts("[No notes taken]");
         } else {
-            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", (int)meta_notes_len, meta_notes);
+            screen_printf("[Start of notes]\n%.*s\n[End of notes]\n", static_cast<int>(meta_notes.size()), &meta_notes[0]);
         }
     } else if ZEROARG("savenotes") {
-        if (meta_notes == NULL) {
+        if (meta_notes.empty()) {
             screen_puts("[No notes taken]");
         } else {
-            io = zterp_io_open(NULL, ZTERP_IO_MODE_WRONLY, ZTERP_IO_PURPOSE_DATA);
-            if (io == NULL) {
-                screen_puts("[Unable to open notes file]");
-            } else {
-                if (!zterp_io_write_exact(io, meta_notes, meta_notes_len)) {
-                    screen_puts("[Unable to write notes file]");
-                } else {
+            try {
+                IO io(nullptr, IO::Mode::WriteOnly, IO::Purpose::Data);
+                try {
+                    io.write_exact(&meta_notes[0], meta_notes.size());
                     screen_puts("[Saved notes to file]");
+                } catch (const IO::IOError &) {
+                    screen_puts("[Unable to write notes file]");
                 }
-                zterp_io_close(io);
+            } catch (const IO::OpenError &) {
+                screen_puts("[Unable to open notes file]");
             }
         }
     } else if ZEROARG("status") {
@@ -838,11 +794,10 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
             screen_print("\n");
 
             if (status_is_time()) {
-                char fmt[64];
-                screen_format_time(&fmt, first, second);
-                screen_puts(fmt);
+                auto fmt = screen_format_time(first, second);
+                screen_puts(fmt.c_str());
             } else {
-                if (is_game(GamePlanetfall) || is_game(GameStationfall)) {
+                if (is_game(Game::Planetfall) || is_game(Game::Stationfall)) {
                     screen_printf("Score: %ld\nTime: %ld\n", first, second);
                 } else {
                     screen_printf("Score: %ld\nMoves: %ld\n", first, second);
@@ -852,30 +807,29 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
     } else if ZEROARG("disable") {
         options.disable_meta_commands = true;
         screen_puts("[Meta commands disabled]");
-    } else if (strcmp(command, "say") == 0) {
-        return &string[rest - converted];
-    } else if (strcmp(command, "config") == 0) {
-        char config_file[ZTERP_OS_PATH_SIZE];
-
-        if (zterp_os_rcfile(&config_file, true)) {
-            char err[1024];
+    } else if (command == "say") {
+        return {MetaResult::Say, rest};
+    } else if (command == "config") {
+        auto config_file = zterp_os_rcfile(true);
+        if (config_file != nullptr) {
             screen_puts("[Editing configuration file]");
             screen_flush();
-            if (zterp_os_edit_file(config_file, err, sizeof err)) {
+            try {
+                zterp_os_edit_file(*config_file);
                 screen_puts("[Done; changes will be reflected after Bocfel is restarted]");
-            } else {
-                screen_printf("[Error editing configuration file: %s]\n", err);
+            } catch (const std::runtime_error &e) {
+                screen_printf("[Error editing configuration file: %s]\n", e.what());
             }
         } else {
             screen_puts("[Cannot determine configuration file location]");
         }
-    } else if (strcmp(command, "debug") == 0) {
+    } else if (command == "debug") {
         meta_debug(rest);
     } else if ZEROARG("quit") {
         zquit();
     } else {
-        if (strcmp(command, "help") != 0) {
-            screen_printf("Unknown command: /%s\n\n", command);
+        if (command != "help") {
+            screen_printf("Unknown command: /%s\n\n", command.c_str());
         }
 
         screen_print(
@@ -909,7 +863,7 @@ const uint16_t *handle_meta_command(const uint16_t *string, uint8_t len)
                 );
     }
 
-    return string;
+    return {MetaResult::Rerequest, ""};
 }
 
 void init_meta(bool first_run)

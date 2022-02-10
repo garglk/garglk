@@ -14,107 +14,106 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdint.h>
-
-#include "math.h"
+#include "mathop.h"
 #include "branch.h"
 #include "process.h"
 #include "stack.h"
+#include "types.h"
 #include "util.h"
 #include "zterp.h"
 
-void zinc(void)
+void zinc()
 {
     store_variable(zargs[0], variable(zargs[0]) + 1);
 }
 
-void zdec(void)
+void zdec()
 {
     store_variable(zargs[0], variable(zargs[0]) - 1);
 }
 
-void znot(void)
+void znot()
 {
     store(~zargs[0]);
 }
 
-void zdec_chk(void)
+void zdec_chk()
 {
-    int16_t new;
+    int16_t newval;
     int16_t val = as_signed(zargs[1]);
 
     zdec();
 
     // The z-spec 1.1 requires indirect variable references to the stack not to push/pop
     if (zargs[0] == 0) {
-        new = as_signed(*stack_top_element());
+        newval = as_signed(*stack_top_element());
     } else {
-        new = as_signed(variable(zargs[0]));
+        newval = as_signed(variable(zargs[0]));
     }
 
-    branch_if(new < val);
+    branch_if(newval < val);
 }
 
-void zinc_chk(void)
+void zinc_chk()
 {
-    int16_t new;
+    int16_t newval;
     int16_t val = as_signed(zargs[1]);
 
     zinc();
 
     // The z-spec 1.1 requires indirect variable references to the stack not to push/pop
     if (zargs[0] == 0) {
-        new = as_signed(*stack_top_element());
+        newval = as_signed(*stack_top_element());
     } else {
-        new = as_signed(variable(zargs[0]));
+        newval = as_signed(variable(zargs[0]));
     }
 
-    branch_if(new > val);
+    branch_if(newval > val);
 }
 
-void ztest(void)
+void ztest()
 {
-    branch_if( (zargs[0] & zargs[1]) == zargs[1] );
+    branch_if((zargs[0] & zargs[1]) == zargs[1]);
 }
 
-void zor(void)
+void zor()
 {
     store(zargs[0] | zargs[1]);
 }
 
-void zand(void)
+void zand()
 {
     store(zargs[0] & zargs[1]);
 }
 
-void zadd(void)
+void zadd()
 {
     store(zargs[0] + zargs[1]);
 }
 
-void zsub(void)
+void zsub()
 {
     store(zargs[0] - zargs[1]);
 }
 
-void zmul(void)
+void zmul()
 {
-    store((uint32_t)zargs[0] * (uint32_t)zargs[1]);
+    store(static_cast<uint32_t>(zargs[0]) * static_cast<uint32_t>(zargs[1]));
 }
 
-void zdiv(void)
+void zdiv()
 {
     ZASSERT(zargs[1] != 0, "divide by zero");
     store(as_signed(zargs[0]) / as_signed(zargs[1]));
 }
 
-void zmod(void)
+void zmod()
 {
     ZASSERT(zargs[1] != 0, "divide by zero");
     store(as_signed(zargs[0]) % as_signed(zargs[1]));
 }
 
-void zlog_shift(void)
+void zlog_shift()
 {
     int16_t places = as_signed(zargs[1]);
 
@@ -132,7 +131,7 @@ void zlog_shift(void)
     }
 }
 
-void zart_shift(void)
+void zart_shift()
 {
     int16_t number = as_signed(zargs[0]), places = as_signed(zargs[1]);
 
@@ -143,7 +142,7 @@ void zart_shift(void)
         return;
     }
 
-    // Shifting a negative value in C has some consequences:
+    // Shifting a negative value in C++ has some consequences:
     // • Shifting a negative value left is undefined.
     // • Shifting a negative value right is implementation defined.
     //

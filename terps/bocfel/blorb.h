@@ -1,30 +1,46 @@
-// vim: set ft=c:
+// vim: set ft=cpp:
 
 #ifndef ZTERP_BLORB_H
 #define ZTERP_BLORB_H
 
-#include <stdint.h>
+#include <exception>
+#include <memory>
+#include <vector>
 
+#include "iff.h"
 #include "io.h"
+#include "types.h"
 
-#define BLORB_PICT	0x50696374UL
-#define BLORB_SND	0x536e6420UL
-#define BLORB_EXEC	0x45786563UL
-#define BLORB_DATA	0x44617461UL
+class Blorb {
+public:
+    class InvalidFile : public std::exception {
+    };
 
-typedef struct zterp_blorb zterp_blorb;
+    enum class Usage {
+        Pict,
+        Snd,
+        Exec,
+        Data,
+    };
 
-typedef struct {
-    uint32_t usage;
-    uint32_t number;
-    uint32_t type;
-    char name[5];
-    uint32_t offset;
-    uint32_t size;
-} zterp_blorb_chunk;
+    struct Chunk {
+        Chunk(Usage usage_, uint32_t number_, IFF::TypeID type_, uint32_t offset_, uint32_t size_) :
+            usage(usage_), number(number_), type(type_), offset(offset_), size(size_)
+        {
+        }
 
-zterp_blorb *zterp_blorb_parse(zterp_io *io);
-void zterp_blorb_free(zterp_blorb *blorb);
-const zterp_blorb_chunk *zterp_blorb_find(zterp_blorb *blorb, uint32_t usage, uint32_t number);
+        const Usage usage;
+        const uint32_t number;
+        const IFF::TypeID type;
+        const uint32_t offset;
+        const uint32_t size;
+    };
+
+    explicit Blorb(const std::shared_ptr<IO> &io);
+    const Chunk *find(Usage usage, uint32_t number);
+
+private:
+    std::vector<Chunk> m_chunks;
+};
 
 #endif

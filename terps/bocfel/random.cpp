@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <limits.h>
-#include <time.h>
+#include <cerrno>
+#include <climits>
+#include <cstring>
+#include <ctime>
+#include <fstream>
 
 #include "random.h"
 #include "iff.h"
 #include "io.h"
 #include "process.h"
 #include "stash.h"
+#include "types.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -56,10 +56,10 @@
 // Here a PRNG is always used, which is what ZVM also does on the
 // recommendation of Andrew Plotkin:
 // https://intfiction.org/t/z-machine-rng/7298
-static enum mode {
+static enum class Mode {
     Random,
     Predictable,
-} mode = Random;
+} mode = Mode::Random;
 
 // The PRNG used here is Xorshift32.
 static uint32_t xstate;
@@ -73,19 +73,18 @@ static void zterp_srand(uint32_t s)
     xstate = s;
 }
 
-static FILE *random_fp;
+static std::ifstream random_file;
 
-static uint32_t zterp_rand(void)
+static uint32_t zterp_rand()
 {
-    if (mode == Random && random_fp != NULL) {
+    if (mode == Mode::Random && random_file.is_open()) {
         uint32_t value;
 
-        if (fread(&value, sizeof value, 1, random_fp) == 1) {
+        if (random_file.read(reinterpret_cast<char *>(&value), sizeof value)) {
             return value;
         } else {
-            warning("error reading from %s: switching to PRNG", options.random_device);
-            fclose(random_fp);
-            random_fp = NULL;
+            warning("error reading from %s: switching to PRNG", options.random_device->c_str());
+            random_file.close();
         }
     }
 
@@ -99,18 +98,18 @@ static uint32_t zterp_rand(void)
 // Called with 0, set the PRNG to random mode. Then seed it with either
 // a) a user-provided seed (via -z) if available, or
 // b) a seed derived from a hash of the constituent bytes of the value
-//    returned by time(NULL)
+//    returned by time(nullptr)
 //
 // Otherwise, set the PRNG to predictable mode and seed with the
 // provided value.
 static void seed_random(uint32_t seed)
 {
     if (seed == 0) {
-        mode = Random;
+        mode = Mode::Random;
 
-        if (options.random_seed == -1) {
-            time_t t = time(NULL);
-            unsigned char *p = (unsigned char *)&t;
+        if (options.random_seed == nullptr) {
+            std::time_t t = std::time(nullptr);
+            unsigned char *p = reinterpret_cast<unsigned char *>(&t);
             uint32_t s = 0;
 
             // time_t hashing based on code by Lawrence Kirby.
@@ -120,58 +119,61 @@ static void seed_random(uint32_t seed)
 
             zterp_srand(s);
         } else {
-            zterp_srand(options.random_seed);
+            zterp_srand(*options.random_seed);
         }
     } else {
-        mode = Predictable;
+        mode = Mode::Predictable;
 
         zterp_srand(seed);
     }
 }
 
-enum RNGType {
+enum class RNGType {
     XORShift = 0,
 };
 
-TypeID random_write_rand(zterp_io *io, void *data)
+IFF::TypeID random_write_rand(IO &io)
 {
-    if (mode == Random) {
-        return NULL;
+    if (mode == Mode::Random) {
+        return IFF::TypeID();
     }
 
-    zterp_io_write16(io, XORShift);
-    zterp_io_write32(io, xstate);
+    io.write16(static_cast<uint16_t>(RNGType::XORShift));
+    io.write32(xstate);
 
-    return &"Rand";
+    return IFF::TypeID(&"Rand");
 }
 
-void random_read_rand(zterp_io *io)
+void random_read_rand(IO &io)
 {
     uint16_t rng_type;
     uint32_t state;
 
-    if (zterp_io_read16(io, &rng_type) &&
-        rng_type == XORShift &&
-        zterp_io_read32(io, &state) &&
-        state != 0) {
+    try {
+        rng_type = io.read16();
+        state = io.read32();
+    } catch (const IO::IOError &) {
+        return;
+    }
 
+    if (static_cast<RNGType>(rng_type) == RNGType::XORShift && state != 0) {
         xstate = state;
-        mode = Predictable;
+        mode = Mode::Predictable;
     }
 }
 
 static struct {
-    enum mode mode;
+    Mode mode;
     uint32_t xstate;
 } stash;
 
-static void random_stash_backup(void)
+static void random_stash_backup()
 {
     stash.mode = mode;
     stash.xstate = xstate;
 }
 
-static bool random_stash_restore(void)
+static bool random_stash_restore()
 {
     mode = stash.mode;
     xstate = stash.xstate;
@@ -179,30 +181,27 @@ static bool random_stash_restore(void)
     return true;
 }
 
-static void random_stash_free(void)
+static void random_stash_free()
 {
 }
 
 void init_random(bool first_run)
 {
-    static bool tried_device = false;
-
     seed_random(0);
 
-    if (options.random_device != NULL && random_fp == NULL && !tried_device) {
-        random_fp = fopen(options.random_device, "rb");
-        if (random_fp == NULL) {
-            warning("unable to open random device %s: %s\n", options.random_device, strerror(errno));
-        }
-        tried_device = true;
-    }
-
     if (first_run) {
+        if (options.random_device != nullptr && !random_file.is_open()) {
+            random_file.open(options.random_device->c_str(), std::ifstream::binary);
+            if (!random_file.is_open()) {
+                warning("unable to open random device %s: %s\n", options.random_device->c_str(), std::strerror(errno));
+            }
+        }
+
         stash_register(random_stash_backup, random_stash_restore, random_stash_free);
     }
 }
 
-void zrandom(void)
+void zrandom()
 {
     int16_t v = as_signed(zargs[0]);
 

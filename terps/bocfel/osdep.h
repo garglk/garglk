@@ -1,29 +1,30 @@
-// vim: set ft=c:
+// vim: set ft=cpp:
 
 #ifndef ZTERP_OSDEP_H
 #define ZTERP_OSDEP_H
 
-#include <stdio.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include <cstdio>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "screen.h"
+#include "types.h"
 
-#define ZTERP_OS_PATH_SIZE	4096
-
-long zterp_os_filesize(FILE *fp);
-bool zterp_os_rcfile(char (*s)[ZTERP_OS_PATH_SIZE], bool create_parent);
-bool zterp_os_autosave_name(char (*s)[ZTERP_OS_PATH_SIZE]);
-bool zterp_os_aux_file(char (*aux)[ZTERP_OS_PATH_SIZE], const char *filename);
-bool zterp_os_edit_file(const char *filename, char *err, size_t errsize);
-bool zterp_os_edit_notes(const char *notes, size_t notes_len, char **new_notes, size_t *new_notes_len, char *err, size_t errsize);
+long zterp_os_filesize(std::FILE *fp);
+std::unique_ptr<std::string> zterp_os_rcfile(bool create_parent);
+std::unique_ptr<std::string> zterp_os_autosave_name();
+std::unique_ptr<std::string> zterp_os_aux_file(const std::string &filename);
+void zterp_os_edit_file(const std::string &filename);
+std::vector<char> zterp_os_edit_notes(const std::vector<char> &notes);
 
 #ifndef ZTERP_GLK
-void zterp_os_get_screen_size(unsigned *w, unsigned *h);
-void zterp_os_init_term(void);
-bool zterp_os_have_style(int style);
-bool zterp_os_have_colors(void);
-void zterp_os_set_style(int style, const struct color *fg, const struct color *bg);
+std::pair<unsigned int, unsigned int> zterp_os_get_screen_size();
+void zterp_os_init_term();
+bool zterp_os_have_style(StyleBit style);
+bool zterp_os_have_colors();
+void zterp_os_set_style(const Style &style, const Color &fg, const Color &bg);
 #endif
 
 #endif

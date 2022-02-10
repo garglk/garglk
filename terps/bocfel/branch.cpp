@@ -14,13 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "branch.h"
 #include "memory.h"
 #include "process.h"
 #include "stack.h"
+#include "types.h"
 #include "util.h"
 
 void branch_if(bool do_branch)
@@ -40,36 +38,36 @@ void branch_if(bool do_branch)
         offset = (offset << 8) | byte(pc++);
 
         // Get the sign right.
-        if (offset & 0x2000) {
+        if ((offset & 0x2000) == 0x2000) {
             offset |= 0xc000;
         }
     }
 
-    if (branch & 0x80) {
+    if ((branch & 0x80) == 0x80) {
         if (offset > 1) {
             pc += as_signed(offset) - 2;
-            ZASSERT(pc < memory_size, "branch to invalid address 0x%lx", (unsigned long)pc);
+            ZASSERT(pc < memory_size, "branch to invalid address 0x%lx", static_cast<unsigned long>(pc));
         } else {
             do_return(offset);
         }
     }
 }
 
-void zjump(void)
+void zjump()
 {
     // -= 2 because pc has been advanced past the jump instruction.
     pc += as_signed(zargs[0]);
     pc -= 2;
 
-    ZASSERT(pc < memory_size, "@jump to invalid address 0x%lx", (unsigned long)pc);
+    ZASSERT(pc < memory_size, "@jump to invalid address 0x%lx", static_cast<unsigned long>(pc));
 }
 
-void zjz(void)
+void zjz()
 {
     branch_if(zargs[0] == 0);
 }
 
-void zje(void)
+void zje()
 {
     if (znargs == 1) {
         branch_if(false);
@@ -82,12 +80,12 @@ void zje(void)
     }
 }
 
-void zjl(void)
+void zjl()
 {
     branch_if(as_signed(zargs[0]) < as_signed(zargs[1]));
 }
 
-void zjg(void)
+void zjg()
 {
     branch_if(as_signed(zargs[0]) > as_signed(zargs[1]));
 }

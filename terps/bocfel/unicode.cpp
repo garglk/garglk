@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <string.h>
-#include <stdint.h>
+#include <array>
+
+#ifdef ZTERP_ICU
+#include <unicode/uchar.h>
+#endif
 
 #include "unicode.h"
 #include "memory.h"
+#include "types.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -31,7 +35,7 @@
 // setup_tables() where appropriate.
 #define UNICODE_TABLE_SIZE	97
 static int unicode_entries = 69;
-static uint16_t unicode_table[UNICODE_TABLE_SIZE] = {
+static std::array<uint16_t, UNICODE_TABLE_SIZE> unicode_table = {
     0x00e4, 0x00f6, 0x00fc, 0x00c4, 0x00d6, 0x00dc, 0x00df, 0x00bb, 0x00ab,
     0x00eb, 0x00ef, 0x00ff, 0x00cb, 0x00cf, 0x00e1, 0x00e9, 0x00ed, 0x00f3,
     0x00fa, 0x00fd, 0x00c1, 0x00c9, 0x00cd, 0x00d3, 0x00da, 0x00dd, 0x00e0,
@@ -67,7 +71,7 @@ void parse_unicode_table(uint16_t utable)
 // Table used to convert a ZSCII value to Unicode; and since this is
 // only used for output, non-output values will be returned as a
 // question mark.
-uint16_t zscii_to_unicode[UINT8_MAX + 1];
+std::array<uint16_t, UINT8_MAX + 1> zscii_to_unicode;
 
 // These tables translate a Unicode or Latin-1 character into its ZSCII
 // equivalent. Only valid Unicode characters are translated (that is,
@@ -76,25 +80,23 @@ uint16_t zscii_to_unicode[UINT8_MAX + 1];
 //
 // The first table will translate invalid Unicode characters to zero;
 // the second, to a question mark.
-uint8_t unicode_to_zscii  [UINT16_MAX + 1];
-uint8_t unicode_to_zscii_q[UINT16_MAX + 1];
+std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii;
+std::array<uint8_t, UINT16_MAX + 1> unicode_to_zscii_q;
 
 // Convenience table: pass through all values 0–255, but yield a question mark
 // for others.
-uint8_t unicode_to_latin1[UINT16_MAX + 1];
+std::array<uint8_t, UINT16_MAX + 1> unicode_to_latin1;
 
 // Convert ZSCII to Unicode line-drawing/rune characters.
-uint16_t zscii_to_font3[UINT8_MAX + 1];
+std::array<uint16_t, UINT8_MAX + 1> zscii_to_font3;
 
 // Lookup table to see if a character is in the alphabet table. Key is
 // the character, value is the index in the alphabet table, or -1.
-int atable_pos[UINT8_MAX + 1];
+std::array<int, UINT8_MAX + 1> atable_pos;
 
-static void build_zscii_to_unicode_table(void)
+static void build_zscii_to_unicode_table()
 {
-    for (int i = 0; i < UINT8_MAX + 1; i++) {
-        zscii_to_unicode[i] = UNICODE_REPLACEMENT;
-    }
+    zscii_to_unicode.fill(UNICODE_REPLACEMENT);
     zscii_to_unicode[0] = 0;
     zscii_to_unicode[ZSCII_NEWLINE] = UNICODE_LINEFEED;
 
@@ -117,11 +119,11 @@ static void build_zscii_to_unicode_table(void)
     }
 }
 
-static void build_unicode_to_zscii_tables(void)
+static void build_unicode_to_zscii_tables()
 {
     // Default values.
-    memset(unicode_to_zscii, 0, sizeof unicode_to_zscii);
-    memset(unicode_to_zscii_q, ZSCII_QUESTIONMARK, sizeof unicode_to_zscii_q);
+    unicode_to_zscii.fill(0);
+    unicode_to_zscii_q.fill(ZSCII_QUESTIONMARK);
 
     // First fill up the entries found in the Unicode table.
     for (int i = 0; i < unicode_entries; i++) {
@@ -144,9 +146,9 @@ static void build_unicode_to_zscii_tables(void)
     unicode_to_zscii_q[UNICODE_LINEFEED] = ZSCII_NEWLINE;
 }
 
-static void build_unicode_to_latin1_table(void)
+static void build_unicode_to_latin1_table()
 {
-    memset(unicode_to_latin1, LATIN1_QUESTIONMARK, sizeof unicode_to_latin1);
+    unicode_to_latin1.fill(LATIN1_QUESTIONMARK);
     for (int i = 0; i < 256; i++) {
         unicode_to_latin1[i] = i;
     }
@@ -154,11 +156,9 @@ static void build_unicode_to_latin1_table(void)
 
 // Not all fonts provide all characters, so there
 // may well be a lot of question marks.
-static void build_zscii_to_character_graphics_table(void)
+static void build_zscii_to_character_graphics_table()
 {
-    for (int i = 0; i < UINT8_MAX; i++) {
-        zscii_to_font3[i] = UNICODE_REPLACEMENT;
-    }
+    zscii_to_font3.fill(UNICODE_REPLACEMENT);
 
     zscii_to_font3[ 32] = UNICODE_SPACE;
     zscii_to_font3[ 33] = 0x2190; // ←
@@ -280,11 +280,9 @@ static void build_zscii_to_character_graphics_table(void)
     zscii_to_font3[126] = 0x003f; // ?
 }
 
-static void build_alphabet_table(void)
+static void build_alphabet_table()
 {
-    for (int i = 0; i < 256; i++) {
-        atable_pos[i] = -1;
-    }
+    atable_pos.fill(-1);
 
     // 52 is A2 character 6, which is special and should not
     // be matched, so skip over it.
@@ -296,7 +294,7 @@ static void build_alphabet_table(void)
     }
 }
 
-void setup_tables(void)
+void setup_tables()
 {
     build_zscii_to_unicode_table();
     build_unicode_to_zscii_tables();
@@ -305,9 +303,18 @@ void setup_tables(void)
     build_alphabet_table();
 }
 
-// This is adapted from Zip2000 (Copyright 2001 Kevin Bracey).
 uint16_t unicode_tolower(uint16_t c)
 {
+#ifdef ZTERP_ICU
+    uint32_t lower = u_tolower(c);
+
+    if (lower > UINT16_MAX) {
+        return UNICODE_REPLACEMENT;
+    }
+
+    return lower;
+#else
+    // This is adapted from Zip2000 (Copyright 2001 Kevin Bracey).
     static const unsigned char basic_latin[0x100] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
         0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
@@ -326,7 +333,7 @@ uint16_t unicode_tolower(uint16_t c)
         0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
         0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
     };
-    static const unsigned char latin_extended_a[0x80] = {
+    static const std::array<unsigned char, 0x80> latin_extended_a = {
         0x01, 0x01, 0x03, 0x03, 0x05, 0x05, 0x07, 0x07, 0x09, 0x09, 0x0b, 0x0b, 0x0d, 0x0d, 0x0f, 0x0f,
         0x11, 0x11, 0x13, 0x13, 0x15, 0x15, 0x17, 0x17, 0x19, 0x19, 0x1b, 0x1b, 0x1d, 0x1d, 0x1f, 0x1f,
         0x21, 0x21, 0x23, 0x23, 0x25, 0x25, 0x27, 0x27, 0x29, 0x29, 0x2b, 0x2b, 0x2d, 0x2d, 0x2f, 0x2f,
@@ -336,14 +343,14 @@ uint16_t unicode_tolower(uint16_t c)
         0x61, 0x61, 0x63, 0x63, 0x65, 0x65, 0x67, 0x67, 0x69, 0x69, 0x6b, 0x6b, 0x6d, 0x6d, 0x6f, 0x6f,
         0x71, 0x71, 0x73, 0x73, 0x75, 0x75, 0x77, 0x77, 0x00, 0x7a, 0x7a, 0x7c, 0x7c, 0x7e, 0x7e, 0x7f
     };
-    static const unsigned char greek[0x50] = {
+    static const std::array<unsigned char, 0x50> greek = {
         0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0xac, 0x87, 0xad, 0xae, 0xaf, 0x8b, 0xcc, 0x8d, 0xcd, 0xce,
         0x90, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
         0xc0, 0xc1, 0xa2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xac, 0xad, 0xae, 0xaf,
         0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
         0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
     };
-    static const unsigned char cyrillic[0x60] = {
+    static const std::array<unsigned char, 0x60> cyrillic = {
         0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
         0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
@@ -367,6 +374,7 @@ uint16_t unicode_tolower(uint16_t c)
     }
 
     return c;
+#endif
 }
 
 #ifdef ZTERP_GLK
