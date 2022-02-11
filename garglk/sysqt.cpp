@@ -70,6 +70,8 @@ static Window *window;
 static QElapsedTimer last_tick;
 #define TICK_PERIOD_MILLIS 10
 
+static bool refresh_needed = true;
+
 static void handle_input(const QString &input)
 {
     for (const uint &c : input.toUcs4())
@@ -202,6 +204,7 @@ void Window::resizeEvent(QResizeEvent *event)
     gli_image_rgb = new unsigned char[gli_image_s * gli_image_h];
 
     gli_force_redraw = true;
+    refresh_needed = true;
 
     gli_windows_size_change();
 
@@ -229,13 +232,19 @@ void View::inputMethodEvent(QInputMethodEvent *event) {
     event->accept();
 }
 
-void View::paintEvent(QPaintEvent *event)
+void View::refresh()
 {
     if (!gli_drawselect)
         gli_windows_redraw();
     else
         gli_drawselect = false;
 
+    update();
+    refresh_needed = false;
+}
+
+void View::paintEvent(QPaintEvent *event)
+{
     QImage image(gli_image_rgb, gli_image_w, gli_image_h, QImage::Format_RGB32);
     QPainter painter(this);
     painter.drawImage(QPoint(0, 0), image);
@@ -271,6 +280,8 @@ static void edit_config()
 void View::keyPressEvent(QKeyEvent *event)
 {
     Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+
+    refresh_needed = true;
 
     static const std::map<std::pair<decltype(modmasked), decltype(event->key())>, std::function<void()>> keys = {
         {{Qt::ControlModifier, Qt::Key_A},     []{ gli_input_handle_key(keycode_Home); }},
@@ -457,7 +468,7 @@ void wintitle()
 
 void winrepaint(int x0, int y0, int x1, int y1)
 {
-    window->update(x0, y0, x1 - x0, y1 - y0);
+    refresh_needed = true;
 }
 
 std::string garglk::winfontpath(const std::string &filename)
@@ -482,10 +493,16 @@ void gli_select(event_t *event, int polled)
 
     gli_dispatch_event(event, polled);
 
+    if (refresh_needed)
+        window->refresh();
+
     if (!polled)
     {
         while (event->type == evtype_None && !window->timed_out())
         {
+            if (refresh_needed)
+                window->refresh();
+
             app->processEvents(QEventLoop::WaitForMoreEvents);
             gli_dispatch_event(event, polled);
         }
