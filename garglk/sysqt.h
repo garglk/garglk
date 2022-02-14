@@ -23,6 +23,7 @@ public:
     }
 
     QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
+    void refresh();
 
 protected:
     void inputMethodEvent(QInputMethodEvent *event) override;
@@ -39,6 +40,8 @@ class Window : public QMainWindow {
 public:
     Window();
     ~Window();
+
+    void refresh() { m_view->refresh(); }
 
     void start_timer(long);
     bool timed_out() { return m_timed_out; }
