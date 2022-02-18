@@ -126,7 +126,17 @@ static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Acti
         filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
     }
 
+    // toStdString() converts to UTF-8, which is not used by Windows (at
+    // least not by default). toLocal8Bit() will use the current locale
+    // to determine an encoding. This allows many non-ASCII characters
+    // in filenames, although only those that are in the current
+    // codepage. In the future, explore Windows' UTF-8 support to
+    // hopefully fully support Unicode.
+#ifdef _WIN32
+    return filename.toLocal8Bit().toStdString();
+#else
     return filename.toStdString();
+#endif
 }
 
 std::string garglk::winopenfile(const char *prompt, FILEFILTERS filter)
