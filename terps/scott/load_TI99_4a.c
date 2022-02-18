@@ -615,22 +615,19 @@ uint8_t *LoadTitleScreen(void)
     p = entire_file + 0x80 + file_baseline_offset;
     if (p - entire_file > file_length)
         return NULL;
-    for (lines = 0; lines < 24; lines++) {
+    for(lines=0; lines<24; lines++)
+    {
         for (int i = 0; i < 40; i++) {
-            buf[offset] = *(p++);
+            char c = *(p++);
             if (p - entire_file >= file_length)
                 return NULL;
+            if (!((c <= 127) && (c >= 0))) /* isascii() */
+                c = '?';
+            buf[offset++] = c;
             if (offset >= 3072)
                 return NULL;
-            if (!isascii(buf[offset]))
-                buf[offset] = '?';
-            offset++;
         }
-        buf[offset] = '\n';
-        if (offset >= 3072) {
-            break;
-        }
-        offset++;
+        buf[offset++] = '\n';
     }
 
     buf[offset] = '\0';
