@@ -537,7 +537,7 @@ int LoadDatabase(FILE *f, int loud)
         }
         ip->Location = (unsigned char)lo;
         if (loud)
-            fprintf(stderr, "Location of item %d: %d, \"%s\"\n", ct, ip->Location, Rooms[ip->Location].Text);
+            fprintf(stderr, "Location of item %d: %d, \"%s\"\n",ct, ip->Location, ip->Location == 255 ? "CARRIED" : Rooms[ip->Location].Text);
         ip->InitialLoc = ip->Location;
         ip++;
         ct++;
