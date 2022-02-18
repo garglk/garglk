@@ -810,5 +810,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 
     title_screen = (char *)LoadTitleScreen();
 
+    free(entire_file);
+
     return TI994A;
 }
