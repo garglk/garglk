@@ -14,35 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdio.h>
-#include <time.h>
+#include <ctime>
+#include <string>
 
 #include "zoom.h"
 #include "screen.h"
+#include "util.h"
 #include "zterp.h"
 
-static clock_t start_clock, end_clock;
+static std::clock_t start_clock, end_clock;
 
-void zstart_timer(void)
+void zstart_timer()
 {
-    start_clock = clock();
+    start_clock = std::clock();
 }
 
-void zstop_timer(void)
+void zstop_timer()
 {
-    end_clock = clock();
+    end_clock = std::clock();
 }
 
-void zread_timer(void)
+void zread_timer()
 {
     store(100 * (end_clock - start_clock) / CLOCKS_PER_SEC);
 }
 
-void zprint_timer(void)
+void zprint_timer()
 {
-    char buf[32];
-    snprintf(buf, sizeof buf, "%.2f seconds", (end_clock - start_clock) / (double)CLOCKS_PER_SEC);
-    for (int i = 0; buf[i] != 0; i++) {
-        put_char(buf[i]);
+    std::string buf = fstring("%.2f seconds", (end_clock - start_clock) / static_cast<double>(CLOCKS_PER_SEC));
+    for (const auto &c : buf) {
+        put_char(c);
     }
 }

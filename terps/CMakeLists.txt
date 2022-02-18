@@ -138,9 +138,9 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Bocfel 1.4
+# Bocfel 2.0
 #
-set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB)
+set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)
 if(UNIX)
     list(APPEND BOCFEL_MACROS ZTERP_UNIX)
 elseif(MINGW)
@@ -153,14 +153,19 @@ endif()
 
 if(WITH_BOCFEL)
     terp(bocfel
-        SRCS bocfel/blorb.c bocfel/branch.c bocfel/dict.c bocfel/iff.c
-        bocfel/io.c bocfel/math.c bocfel/meta.c bocfel/memory.c bocfel/objects.c
-        bocfel/osdep.c bocfel/patches.c bocfel/process.c bocfel/random.c
-        bocfel/screen.c bocfel/sound.c bocfel/stack.c bocfel/stash.c
-        bocfel/unicode.c bocfel/util.c bocfel/zoom.c bocfel/zterp.c
-        bocfel/glkstart.c
+        SRCS bocfel/blorb.cpp bocfel/branch.cpp bocfel/dict.cpp bocfel/iff.cpp
+        bocfel/io.cpp bocfel/mathop.cpp bocfel/meta.cpp bocfel/memory.cpp bocfel/objects.cpp
+        bocfel/osdep.cpp bocfel/patches.cpp bocfel/process.cpp bocfel/random.cpp
+        bocfel/screen.cpp bocfel/sound.cpp bocfel/stack.cpp bocfel/stash.cpp
+        bocfel/unicode.cpp bocfel/util.cpp bocfel/zoom.cpp bocfel/zterp.cpp
+        bocfel/glkstart.cpp
+        CXXSTD 14
         MACROS ${BOCFEL_MACROS}
         LTO WARNINGS)
+
+    if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU$")
+        target_compile_options(bocfel PRIVATE "-Wno-sign-compare")
+    endif()
 endif()
 
 # ------------------------------------------------------------------------------

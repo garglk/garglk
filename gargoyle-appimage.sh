@@ -10,7 +10,10 @@ https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/con
 https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
 EOF
 chmod +x linuxdeploy*
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DBUILD_SHARED_LIBS=OFF
+# g++-9, on Ubuntu 20.04 (used by Github Actions) hits an ICE when building with static libraries:
+# lto1: internal compiler error: in add_symbol_to_partition_1, at lto/lto-partition.c:153
+# Use clang for AppImage building for now.
+CC=clang CXX=clang++ cmake .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib -DAPPIMAGE=TRUE -DBUILD_SHARED_LIBS=OFF
 make -j$(nproc)
 make install DESTDIR=AppDir
 

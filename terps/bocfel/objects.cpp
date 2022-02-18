@@ -14,15 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
-
 #include "objects.h"
 #include "branch.h"
 #include "memory.h"
 #include "process.h"
 #include "screen.h"
+#include "types.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -33,7 +30,7 @@ static uint16_t find_object(uint16_t n)
     int objsize;
 
     if (zversion <= 3) {
-        ZASSERT(n <= 255, "illegal object %u referenced", (unsigned)n);
+        ZASSERT(n <= 255, "illegal object %u referenced", static_cast<unsigned int>(n));
         addr = base + (31 * 2) + (9 * (object - 1));
         objsize = 9;
     } else {
@@ -41,7 +38,7 @@ static uint16_t find_object(uint16_t n)
         objsize = 14;
     }
 
-    ZASSERT(addr + objsize < header.static_start, "object %u out of range", (unsigned)n);
+    ZASSERT(addr + objsize < header.static_start, "object %u out of range", static_cast<unsigned int>(n));
 
     return addr;
 }
@@ -131,7 +128,7 @@ static uint16_t property_length(uint16_t propaddr)
                 length = 64;
             }
         } else {
-            length = (b & 0x40) ? 2 : 1;
+            length = ((b & 0x40) == 0x40) ? 2 : 1;
         }
     }
 
@@ -145,7 +142,7 @@ static uint8_t property_number(uint16_t propaddr)
     if (zversion <= 3) {
         propnum = user_byte(propaddr - 1) & 0x1f;
     } else {
-        if (user_byte(propaddr - 1) & 0x80) {
+        if ((user_byte(propaddr - 1) & 0x80) == 0x80) {
             propnum = user_byte(propaddr - 2) & 0x3f;
         } else {
             propnum = user_byte(propaddr - 1) & 0x3f;
@@ -165,7 +162,7 @@ static uint16_t advance_prop_addr(uint16_t propaddr)
         return 0;
     }
 
-    if (zversion >= 4 && (size & 0x80)) {
+    if (zversion >= 4 && (size & 0x80) == 0x80) {
         propaddr++;
     }
 
@@ -190,12 +187,12 @@ static uint16_t next_property(uint16_t propaddr)
 
 #define FOR_EACH_PROPERTY(object, addr) for (uint16_t addr = first_property(object); addr != 0; addr = next_property(addr))
 
-static bool find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr, uint16_t *proplen)
+static bool find_property(uint16_t object, uint16_t propnum, uint16_t &propaddr, uint16_t &proplen)
 {
     FOR_EACH_PROPERTY(object, addr) {
         if (property_number(addr) == propnum) {
-            *propaddr = addr;
-            *proplen = property_length(addr);
+            propaddr = addr;
+            proplen = property_length(addr);
             return true;
         }
     }
@@ -205,7 +202,7 @@ static bool find_property(uint16_t object, uint16_t propnum, uint16_t *propaddr,
 
 static void check_attr(uint16_t attr)
 {
-    ZASSERT(attr <= (zversion <= 3 ? 31 : 47), "invalid attribute: %u", (unsigned)attr);
+    ZASSERT(attr <= (zversion <= 3 ? 31 : 47), "invalid attribute: %u", static_cast<unsigned int>(attr));
 }
 
 static bool is_zero(bool is_store, bool is_jump)
@@ -228,7 +225,7 @@ static bool is_zero(bool is_store, bool is_jump)
 
 static void check_propnum(uint16_t propnum)
 {
-    ZASSERT(propnum > 0 && propnum < (zversion <= 3 ? 32 : 64), "invalid property: %u", (unsigned)propnum);
+    ZASSERT(propnum > 0 && propnum < (zversion <= 3 ? 32 : 64), "invalid property: %u", static_cast<unsigned int>(propnum));
 }
 
 // Attributes are stored at the very beginning of an object, so the
@@ -241,7 +238,7 @@ static void check_propnum(uint16_t propnum)
 // remainder of the attribute divided by 8 gives the bit position,
 // counting from the left, of the attribute.
 #define ATTR_BIT(num)		(0x80U >> ((num) % 8))
-void ztest_attr(void)
+void ztest_attr()
 {
     check_zero(false, true);
     check_attr(zargs[1]);
@@ -251,7 +248,7 @@ void ztest_attr(void)
     branch_if(byte(addr) & ATTR_BIT(zargs[1]));
 }
 
-void zset_attr(void)
+void zset_attr()
 {
     check_zero(false, false);
     check_attr(zargs[1]);
@@ -261,7 +258,7 @@ void zset_attr(void)
     store_byte(addr, byte(addr) | ATTR_BIT(zargs[1]));
 }
 
-void zclear_attr(void)
+void zclear_attr()
 {
     check_zero(false, false);
     check_attr(zargs[1]);
@@ -272,14 +269,14 @@ void zclear_attr(void)
 }
 #undef ATTR_BIT
 
-void zremove_obj(void)
+void zremove_obj()
 {
     check_zero(false, false);
 
     remove_object(zargs[0]);
 }
 
-void zinsert_obj(void)
+void zinsert_obj()
 {
     check_zero(false, false);
 
@@ -290,7 +287,7 @@ void zinsert_obj(void)
     set_parent(zargs[0], zargs[1]);
 }
 
-void zget_sibling(void)
+void zget_sibling()
 {
     check_zero(true, true);
 
@@ -300,7 +297,7 @@ void zget_sibling(void)
     branch_if(sibling != 0);
 }
 
-void zget_child(void)
+void zget_child()
 {
     check_zero(true, true);
 
@@ -310,14 +307,14 @@ void zget_child(void)
     branch_if(child != 0);
 }
 
-void zget_parent(void)
+void zget_parent()
 {
     check_zero(true, false);
 
     store(parent_of(zargs[0]));
 }
 
-void zput_prop(void)
+void zput_prop()
 {
     check_zero(false, false);
     check_propnum(zargs[1]);
@@ -325,10 +322,10 @@ void zput_prop(void)
     uint16_t propaddr, proplen;
     bool found;
 
-    found = find_property(zargs[0], zargs[1], &propaddr, &proplen);
+    found = find_property(zargs[0], zargs[1], propaddr, proplen);
 
     ZASSERT(found, "broken story: no prop");
-    ZASSERT(proplen == 1 || proplen == 2, "broken story: property too long: %u", (unsigned)proplen);
+    ZASSERT(proplen == 1 || proplen == 2, "broken story: property too long: %u", static_cast<unsigned int>(proplen));
 
     if (proplen == 1) {
         user_store_byte(propaddr, zargs[2] & 0xff);
@@ -337,14 +334,14 @@ void zput_prop(void)
     }
 }
 
-void zget_prop(void)
+void zget_prop()
 {
     check_zero(true, false);
     check_propnum(zargs[1]);
 
     uint16_t propaddr, proplen;
 
-    if (find_property(zargs[0], zargs[1], &propaddr, &proplen)) {
+    if (find_property(zargs[0], zargs[1], propaddr, proplen)) {
         if (proplen == 1) {
             store(user_byte(propaddr));
         } else if (proplen == 2) {
@@ -363,7 +360,7 @@ void zget_prop(void)
     }
 }
 
-void zget_prop_len(void)
+void zget_prop_len()
 {
     // Z-spec 1.1 says @get_prop_len 0 must yield 0.
     if (zargs[0] == 0) {
@@ -373,7 +370,7 @@ void zget_prop_len(void)
     }
 }
 
-void zget_prop_addr(void)
+void zget_prop_addr()
 {
     check_zero(true, false);
     // Theoretically this should check whether the requested property is
@@ -385,14 +382,14 @@ void zget_prop_addr(void)
 
     uint16_t propaddr, length;
 
-    if (find_property(zargs[0], zargs[1], &propaddr, &length)) {
+    if (find_property(zargs[0], zargs[1], propaddr, length)) {
         store(propaddr);
     } else {
         store(0);
     }
 }
 
-void zget_next_prop(void)
+void zget_next_prop()
 {
     check_zero(true, false);
 
@@ -415,7 +412,7 @@ void zget_next_prop(void)
     store(found_propnum);
 }
 
-void zjin(void)
+void zjin()
 {
     // @jin 0 0 is not defined, since @jin requires an object (§15) and
     // object 0 is not actually an object (§12.3). However, many
@@ -440,9 +437,9 @@ void print_object(uint16_t obj, void (*outc)(uint8_t))
     print_handler(property_address(obj) + 1, outc);
 }
 
-void zprint_obj(void)
+void zprint_obj()
 {
     check_zero(false, false);
 
-    print_object(zargs[0], NULL);
+    print_object(zargs[0], nullptr);
 }

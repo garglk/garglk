@@ -14,15 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include <cstdlib>
+#include <iomanip>
+#include <ios>
+#include <sstream>
+#include <string>
 
 #include "memory.h"
 #include "branch.h"
 #include "process.h"
 #include "screen.h"
+#include "types.h"
 #include "util.h"
 #include "zterp.h"
 
@@ -44,17 +46,17 @@ static unsigned long addr_to_global(uint16_t addr)
     return (addr - header.globals) / 2;
 }
 
-const char *addrstring(uint16_t addr)
+std::string addrstring(uint16_t addr)
 {
-    static char str[8];
+    std::stringstream ss;
 
     if (is_global(addr)) {
-        snprintf(str, sizeof str, "G%02lx", addr_to_global(addr));
+        ss << "G" << std::setw(2) << std::setfill('0') << std::hex << addr_to_global(addr);
     } else {
-        snprintf(str, sizeof str, "0x%lx", (unsigned long)addr);
+        ss << "0x" << std::hex << addr;
     }
 
-    return str;
+    return ss.str();
 }
 
 void user_store_byte(uint16_t addr, uint8_t v)
@@ -79,13 +81,15 @@ void user_store_byte(uint16_t addr, uint8_t v)
     if (addr == 0x11) {
         ZASSERT((byte(addr) ^ v) < 8, "not allowed to modify bits 3-7 at 0x0011");
 
-        if (!output_stream((v & FLAGS2_TRANSCRIPT) ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) {
+        bool transcript_set = (v & FLAGS2_TRANSCRIPT) == FLAGS2_TRANSCRIPT;
+        if (!output_stream(transcript_set ? OSTREAM_SCRIPT : -OSTREAM_SCRIPT, 0)) {
             v &= ~FLAGS2_TRANSCRIPT;
         }
 
-        screen_set_header_bit(v & FLAGS2_FIXED);
+        bool fixed_set = (v & FLAGS2_FIXED) == FLAGS2_FIXED;
+        screen_set_header_bit(fixed_set);
     } else {
-        ZASSERT(addr >= 0x40 && addr < header.static_start, "attempt to write to read-only address 0x%lx", (unsigned long)addr);
+        ZASSERT(addr >= 0x40 && addr < header.static_start, "attempt to write to read-only address 0x%lx", static_cast<unsigned long>(addr));
     }
 
     store_byte(addr, v);
@@ -101,7 +105,7 @@ void user_store_word(uint16_t addr, uint16_t v)
     user_store_byte(addr + 1, v & 0xff);
 }
 
-void zcopy_table(void)
+void zcopy_table()
 {
     uint16_t first = zargs[0], second = zargs[1], size = zargs[2];
 
@@ -110,7 +114,7 @@ void zcopy_table(void)
             user_store_byte(first + i, 0);
         }
     } else if ( (first > second) || as_signed(size) < 0 ) {
-        long n = labs(as_signed(size));
+        long n = std::labs(as_signed(size));
         for (long i = 0; i < n; i++) {
             user_store_byte(second + i, user_byte(first + i));
         }
@@ -121,7 +125,7 @@ void zcopy_table(void)
     }
 }
 
-void zscan_table(void)
+void zscan_table()
 {
     uint16_t addr = zargs[1];
 
@@ -131,8 +135,8 @@ void zscan_table(void)
 
     for (uint16_t i = 0; i < zargs[2]; i++) {
         if (
-                ( (zargs[3] & 0x80) && (user_word(addr) == zargs[0])) ||
-                (!(zargs[3] & 0x80) && (user_byte(addr) == zargs[0]))
+                ((zargs[3] & 0x80) == 0x80 && (user_word(addr) == zargs[0])) ||
+                ((zargs[3] & 0x80) != 0x80 && (user_byte(addr) == zargs[0]))
            ) {
             store(addr);
             branch_if(true);
@@ -146,22 +150,22 @@ void zscan_table(void)
     branch_if(false);
 }
 
-void zloadw(void)
+void zloadw()
 {
     store(user_word(zargs[0] + (2 * zargs[1])));
 }
 
-void zloadb(void)
+void zloadb()
 {
     store(user_byte(zargs[0] + zargs[1]));
 }
 
-void zstoreb(void)
+void zstoreb()
 {
     user_store_byte(zargs[0] + zargs[1], zargs[2]);
 }
 
-void zstorew(void)
+void zstorew()
 {
     user_store_word(zargs[0] + (2 * zargs[1]), zargs[2]);
 }

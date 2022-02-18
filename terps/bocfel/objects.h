@@ -1,26 +1,26 @@
-// vim: set ft=c:
+// vim: set ft=cpp:
 
 #ifndef ZTERP_OBJECTS_H
 #define ZTERP_OBJECTS_H
 
-#include <stdint.h>
+#include "types.h"
 
 void print_object(uint16_t obj, void (*outc)(uint8_t));
 
-void zget_sibling(void);
-void zget_child(void);
-void zget_parent(void);
-void zremove_obj(void);
-void ztest_attr(void);
-void zset_attr(void);
-void zclear_attr(void);
-void zinsert_obj(void);
-void zget_prop_len(void);
-void zget_prop_addr(void);
-void zget_next_prop(void);
-void zput_prop(void);
-void zget_prop(void);
-void zjin(void);
-void zprint_obj(void);
+void zget_sibling();
+void zget_child();
+void zget_parent();
+void zremove_obj();
+void ztest_attr();
+void zset_attr();
+void zclear_attr();
+void zinsert_obj();
+void zget_prop_len();
+void zget_prop_addr();
+void zget_next_prop();
+void zput_prop();
+void zget_prop();
+void zjin();
+void zprint_obj();
 
 #endif

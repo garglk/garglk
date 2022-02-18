@@ -14,20 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdint.h>
+#include <array>
 
 #include "sound.h"
 #include "process.h"
+#include "types.h"
 #include "zterp.h"
 
 #ifdef ZTERP_GLK
+extern "C" {
 #include <glk.h>
+}
 #endif
 
 #ifdef GLK_MODULE_SOUND
-static schanid_t sound_channel = NULL;
+static schanid_t sound_channel = nullptr;
 static bool sound_playing;
 uint16_t sound_routine;
 
@@ -37,7 +38,7 @@ static struct {
 } queued;
 #endif
 
-void init_sound(void)
+void init_sound()
 {
 #ifdef GLK_MODULE_SOUND
     if (sound_loaded()) {
@@ -50,10 +51,10 @@ void init_sound(void)
 #endif
 }
 
-bool sound_loaded(void)
+bool sound_loaded()
 {
 #ifdef GLK_MODULE_SOUND
-    return sound_channel != NULL;
+    return sound_channel != nullptr;
 #else
     return false;
 #endif
@@ -62,7 +63,7 @@ bool sound_loaded(void)
 #ifdef GLK_MODULE_SOUND
 static void start_sound(uint16_t number, uint8_t repeats, uint8_t volume)
 {
-    static uint32_t vols[8] = {
+    const std::array<uint32_t, 8> vols = {
         0x02000, 0x04000, 0x06000, 0x08000,
         0x0a000, 0x0c000, 0x0e000, 0x10000
     };
@@ -79,7 +80,7 @@ static void start_sound(uint16_t number, uint8_t repeats, uint8_t volume)
     }
 }
 
-void sound_stopped(void)
+void sound_stopped()
 {
     sound_playing = false;
 
@@ -90,17 +91,17 @@ void sound_stopped(void)
 }
 #endif
 
-void zsound_effect(void)
+void zsound_effect()
 {
 #ifdef GLK_MODULE_SOUND
-#define SOUND_EFFECT_PREPARE	1
-#define SOUND_EFFECT_START	2
-#define SOUND_EFFECT_STOP	3
-#define SOUND_EFFECT_FINISH	4
+    constexpr uint16_t SOUND_EFFECT_PREPARE = 1;
+    constexpr uint16_t SOUND_EFFECT_START = 2;
+    constexpr uint16_t SOUND_EFFECT_STOP = 3;
+    constexpr uint16_t SOUND_EFFECT_FINISH = 4;
 
     uint16_t number, effect;
 
-    if (sound_channel == NULL || znargs == 0) {
+    if (sound_channel == nullptr || znargs == 0) {
         return;
     }
 
@@ -131,7 +132,7 @@ void zsound_effect(void)
         // sound files themselves. According to sounds.txt from The
         // Lurking Horror’s source code, the following sounds are
         // “looping sounds”, so force that here.
-        if (is_game(GameLurkingHorror)) {
+        if (is_game(Game::LurkingHorror)) {
             switch (number) {
             case 4: case 10: case 13: case 15: case 16: case 17: case 18:
                 repeats = 255;
@@ -175,7 +176,7 @@ void zsound_effect(void)
         // This seems to be the only place S-CRETIN is used so it
         // probably doesn’t even need to be tagged as a repeating sound,
         // but there’s no harm in doing so.
-        if (is_game(GameLurkingHorror) && sound_playing && (number == 9 || number == 16)) {
+        if (is_game(Game::LurkingHorror) && sound_playing && (number == 9 || number == 16)) {
             queued.number = number;
             queued.volume = volume;
             return;

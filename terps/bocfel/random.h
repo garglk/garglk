@@ -1,4 +1,4 @@
-// vim: set ft=c:
+// vim: set ft=cpp:
 
 #ifndef ZTERP_MT_H
 #define ZTERP_MT_H
@@ -7,9 +7,9 @@
 #include "io.h"
 
 void init_random(bool first_run);
-TypeID random_write_rand(zterp_io *io, void *data);
-void random_read_rand(zterp_io *io);
+IFF::TypeID random_write_rand(IO &io);
+void random_read_rand(IO &io);
 
-void zrandom(void);
+void zrandom();
 
 #endif

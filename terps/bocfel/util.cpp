@@ -14,15 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Bocfel. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdbool.h>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "util.h"
 #include "process.h"
 #include "screen.h"
+#include "types.h"
 #include "unicode.h"
 #include "zterp.h"
 
@@ -34,60 +38,60 @@
 void assert_fail(const char *fmt, ...)
 {
     va_list ap;
-    char str[1024];
+    std::string str;
 
     va_start(ap, fmt);
-    vsnprintf(str, sizeof str, fmt, ap);
+    str = vstring(fmt, ap);
     va_end(ap);
 
-    snprintf(str + strlen(str), sizeof str - strlen(str), " (pc = 0x%lx)", current_instruction);
+    str += fstring(" (pc = 0x%lx)", current_instruction);
 
-    die("%s", str);
+    die("%s", str.c_str());
 }
 #endif
 
 void warning(const char *fmt, ...)
 {
     va_list ap;
-    char str[1024];
+    std::string str;
 
     va_start(ap, fmt);
-    vsnprintf(str, sizeof str, fmt, ap);
+    str = vstring(fmt, ap);
     va_end(ap);
 
-    show_message("Warning: %s", str);
+    show_message("Warning: %s", str.c_str());
 }
 
 void die(const char *fmt, ...)
 {
     va_list ap;
-    char str[1024];
+    std::string str;
 
     va_start(ap, fmt);
-    vsnprintf(str, sizeof str, fmt, ap);
+    str = vstring(fmt, ap);
     va_end(ap);
 
-    show_message("Fatal error: %s", str);
+    show_message("Fatal error: %s", str.c_str());
 
-#ifdef ZTERP_GLK
 #ifdef GARGLK
-    fprintf(stderr, "Fatal error: %s\n", str);
-#endif
-    glk_exit();
+    std::cerr << "Fatal error: " << str << std::endl;
 #endif
 
-    exit(EXIT_FAILURE);
+    throw Exit(EXIT_FAILURE);
 }
 
-void help(void)
+enum FakeArg { glkunix_arg_NoValue, glkunix_arg_NumberValue, glkunix_arg_ValueFollows };
+
+void help()
 {
     // Simulate a glkunix_argumentlist_t structure so help can be shared.
-    const struct {
-        const char *flag;
-        enum { glkunix_arg_NoValue, glkunix_arg_NumberValue, glkunix_arg_ValueFollows } arg;
+    struct FakeArgList {
+        const char *name;
+        FakeArg type;
         const char *description;
-    }
-    flags[] = {
+    };
+
+    const std::vector<FakeArgList> args = {
 #include "help.h"
     };
 
@@ -96,18 +100,18 @@ void help(void)
 #endif
 
     screen_puts("Usage: bocfel [args] filename");
-    for (size_t i = 0; i < ASIZE(flags); i++) {
-        char line[1024];
-        const char *arg;
+    for (const auto &arg : args) {
+        std::string line;
+        const char *typestr;
 
-        switch (flags[i].arg) {
-        case glkunix_arg_NumberValue:  arg = "number"; break;
-        case glkunix_arg_ValueFollows: arg = "string"; break;
-        default:                       arg = "";       break;
+        switch (arg.type) {
+        case glkunix_arg_NumberValue:  typestr = "number"; break;
+        case glkunix_arg_ValueFollows: typestr = "string"; break;
+        default:                       typestr = "";       break;
         }
 
-        snprintf(line, sizeof line, "%s %-12s%s", flags[i].flag, arg, flags[i].description);
-        screen_puts(line);
+        line = fstring("%s %-12s%s", arg.name, typestr, arg.description);
+        screen_puts(line.c_str());
     }
 }
 
@@ -143,8 +147,8 @@ static int zgetopt(int argc, char **argv, const char *optstring)
 
     c = *p++;
 
-    optp = strchr(optstring, c);
-    if (optp == NULL) {
+    optp = std::strchr(optstring, c);
+    if (optp == nullptr) {
         return '?';
     }
 
@@ -156,7 +160,7 @@ static int zgetopt(int argc, char **argv, const char *optstring)
         }
 
         p = "";
-        if (zoptarg == NULL) {
+        if (zoptarg == nullptr) {
             return '?';
         }
     }
@@ -164,24 +168,7 @@ static int zgetopt(int argc, char **argv, const char *optstring)
     return c;
 }
 
-char *xstrdup(const char *s)
-{
-    size_t n;
-    char *r;
-
-    n = strlen(s) + 1;
-
-    r = malloc(n);
-    if (r == NULL) {
-        die("unable to allocate memory");
-    }
-
-    memcpy(r, s, n);
-
-    return r;
-}
-
-enum arg_status arg_status = ARG_OK;
+ArgStatus arg_status = ArgStatus::Ok;
 void process_arguments(int argc, char **argv)
 {
     int c;
@@ -189,10 +176,10 @@ void process_arguments(int argc, char **argv)
     while ( (c = zgetopt(argc, argv, "a:A:cCdDeE:fFgGhHikl:mn:N:prR:sS:tT:u:vxXyYz:Z:")) != -1 ) {
         switch (c) {
         case 'a':
-            options.eval_stack_size = strtol(zoptarg, NULL, 10);
+            options.eval_stack_size = std::strtoul(zoptarg, nullptr, 10);
             break;
         case 'A':
-            options.call_stack_size = strtol(zoptarg, NULL, 10);
+            options.call_stack_size = std::strtoul(zoptarg, nullptr, 10);
             break;
         case 'c':
             options.disable_color = true;
@@ -210,7 +197,7 @@ void process_arguments(int argc, char **argv)
             options.enable_escape = true;
             break;
         case 'E':
-            options.escape_string = xstrdup(zoptarg);
+            options.escape_string = std::make_unique<std::string>(zoptarg);
             break;
         case 'f':
             options.disable_fixed = true;
@@ -225,7 +212,7 @@ void process_arguments(int argc, char **argv)
             options.enable_alt_graphics = true;
             break;
         case 'h':
-            arg_status = ARG_HELP;
+            arg_status = ArgStatus::Help;
             return;
         case 'H':
             options.disable_history_playback = true;
@@ -237,13 +224,13 @@ void process_arguments(int argc, char **argv)
             options.disable_term_keys = true;
             break;
         case 'l':
-            options.username = xstrdup(zoptarg);
+            options.username = std::make_unique<std::string>(zoptarg);
             break;
         case 'm':
             options.disable_meta_commands = true;
             break;
         case 'n':
-            options.int_number = strtol(zoptarg, NULL, 10);
+            options.int_number = std::strtoul(zoptarg, nullptr, 10);
             break;
         case 'N':
             options.int_version = zoptarg[0];
@@ -255,22 +242,22 @@ void process_arguments(int argc, char **argv)
             options.replay_on = true;
             break;
         case 'R':
-            options.replay_name = xstrdup(zoptarg);
+            options.replay_name = std::make_unique<std::string>(zoptarg);
             break;
         case 's':
             options.record_on = true;
             break;
         case 'S':
-            options.record_name = xstrdup(zoptarg);
+            options.record_name = std::make_unique<std::string>(zoptarg);
             break;
         case 't':
             options.transcript_on = true;
             break;
         case 'T':
-            options.transcript_name = xstrdup(zoptarg);
+            options.transcript_name = std::make_unique<std::string>(zoptarg);
             break;
         case 'u':
-            options.max_saves = strtol(zoptarg, NULL, 10);
+            options.max_saves = std::strtoul(zoptarg, nullptr, 10);
             break;
         case 'v':
             options.show_version = true;
@@ -288,13 +275,13 @@ void process_arguments(int argc, char **argv)
             options.override_undo = true;
             break;
         case 'z':
-            options.random_seed = strtol(zoptarg, NULL, 10);
+            options.random_seed = std::make_unique<unsigned long>(std::strtoul(zoptarg, nullptr, 10));
             break;
         case 'Z':
-            options.random_device = xstrdup(zoptarg);
+            options.random_device = std::make_unique<std::string>(zoptarg);
             break;
         default:
-            arg_status = ARG_FAIL;
+            arg_status = ArgStatus::Fail;
             return;
         }
     }
@@ -305,13 +292,71 @@ void process_arguments(int argc, char **argv)
     }
 }
 
-long parseint(const char *s, int base, bool *valid)
+long parseint(const std::string &s, int base, bool &valid)
 {
     long ret;
     char *endptr;
+    const char *cstr = s.c_str();
 
-    ret = strtol(s, &endptr, base);
-    *valid = endptr != s && *endptr == 0;
+    ret = std::strtol(cstr, &endptr, base);
+    valid = endptr != cstr && *endptr == 0;
 
     return ret;
+}
+
+std::string vstring(const char *fmt, std::va_list ap)
+{
+    std::va_list ap_copy;
+    std::string s;
+    size_t n;
+
+    va_copy(ap_copy, ap);
+
+    n = std::vsnprintf(nullptr, 0, fmt, ap);
+
+    s.resize(n);
+    vsnprintf(&s[0], n + 1, fmt, ap_copy);
+
+    va_end(ap_copy);
+
+    return s;
+}
+
+std::string fstring(const char *fmt, ...)
+{
+    std::va_list ap;
+    std::string s;
+
+    va_start(ap, fmt);
+    s = vstring(fmt, ap);
+    va_end(ap);
+
+    return s;
+}
+
+std::string ltrim(const std::string &s)
+{
+    auto pos = s.find_first_not_of(" \t\r");
+
+    if (pos != std::string::npos) {
+        return s.substr(pos);
+    } else {
+        return "";
+    }
+}
+
+std::string rtrim(const std::string &s)
+{
+    auto pos = s.find_last_not_of(" \t\r");
+
+    if (pos != std::string::npos) {
+        return s.substr(0, pos + 1);
+    } else {
+        return s;
+    }
+}
+
+std::string operator"" _s(const char *s, size_t len)
+{
+    return {s, len};
 }

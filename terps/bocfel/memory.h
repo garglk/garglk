@@ -1,13 +1,13 @@
-// vim: set ft=c:
+// vim: set ft=cpp:
 
 #ifndef ZTERP_MEMORY_H
 #define ZTERP_MEMORY_H
 
-#include <stdint.h>
-#include <stdbool.h>
+#include <string>
 
-#include "util.h"
 #include "meta.h"
+#include "types.h"
+#include "util.h"
 #include "zterp.h"
 
 // Story files do not have access to memory beyond 64K. If they do
@@ -22,7 +22,7 @@ extern uint32_t memory_size;
 
 bool in_globals(uint16_t addr);
 bool is_global(uint16_t addr);
-const char *addrstring(uint16_t addr);
+std::string addrstring(uint16_t addr);
 
 static inline uint8_t byte(uint32_t addr)
 {
@@ -38,7 +38,7 @@ static inline uint16_t word(uint32_t addr)
 {
 #ifndef ZTERP_NO_CHEAT
     uint16_t cheat_val;
-    if (cheat_find_freeze(addr, &cheat_val)) {
+    if (cheat_find_freeze(addr, cheat_val)) {
         return cheat_val;
     }
 #endif
@@ -59,14 +59,14 @@ static inline void store_word(uint32_t addr, uint16_t val)
 
 static inline uint8_t user_byte(uint16_t addr)
 {
-    ZASSERT(addr < header.static_end, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
+    ZASSERT(addr < header.static_end, "attempt to read out-of-bounds address 0x%lx", static_cast<unsigned long>(addr));
 
     return byte(addr);
 }
 
 static inline uint16_t user_word(uint16_t addr)
 {
-    ZASSERT(addr < header.static_end - 1, "attempt to read out-of-bounds address 0x%lx", (unsigned long)addr);
+    ZASSERT(addr < header.static_end - 1, "attempt to read out-of-bounds address 0x%lx", static_cast<unsigned long>(addr));
 
     return word(addr);
 }
@@ -74,11 +74,11 @@ static inline uint16_t user_word(uint16_t addr)
 void user_store_byte(uint16_t addr, uint8_t v);
 void user_store_word(uint16_t addr, uint16_t v);
 
-void zcopy_table(void);
-void zscan_table(void);
-void zloadw(void);
-void zloadb(void);
-void zstoreb(void);
-void zstorew(void);
+void zcopy_table();
+void zscan_table();
+void zloadw();
+void zloadb();
+void zstoreb();
+void zstorew();
 
 #endif
