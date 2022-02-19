@@ -141,7 +141,7 @@ GameIDType detect_game(const char *file_name)
     // Check if the original ScottFree LoadDatabase() function can read the file.
     if (LoadDatabase(f, 0)) {
         fclose(f);
-        GameInfo = MemAlloc(sizeof(GameInfo));
+        GameInfo = MemAlloc(sizeof(*GameInfo));
         GameInfo->gameID = SCOTTFREE;
         return SCOTTFREE;
     }
@@ -164,7 +164,7 @@ GameIDType detect_game(const char *file_name)
 
     TI994A_id = DetectTI994A(&entire_file, &file_length);
     if (TI994A_id) {
-        GameInfo = MemAlloc(sizeof(GameInfo));
+        GameInfo = MemAlloc(sizeof(*GameInfo));
         GameInfo->gameID = SCOTTFREE;
         return SCOTTFREE;
     }
