@@ -2031,13 +2031,6 @@ void glk_main(void)
         split_screen = 1;
     }
 
-    Bottom = FindGlkWindowWithRock(GLK_BUFFER_ROCK);
-    if (Bottom)
-        glk_window_close(Bottom, NULL);
-    Bottom = glk_window_open(0, 0, 0, wintype_TextBuffer, GLK_BUFFER_ROCK);
-    if (Bottom == NULL)
-        glk_exit();
-    glk_set_window(Bottom);
     if (title_screen != NULL) {
         glk_stream_set_current(glk_window_get_stream(Bottom));
         glk_set_style(style_Preformatted);
