@@ -94,7 +94,11 @@ typedef struct {
 
 void Output(const char *a);
 void OutputNumber(int a);
-void Display(winid_t w, const char *fmt, ...);
+void Display(winid_t w, const char *fmt, ...)
+#ifdef __GNUC__
+__attribute__((__format__(__printf__, 2, 3)))
+#endif
+;
 void HitEnter(void);
 void Look(void);
 void ListInventory(void);

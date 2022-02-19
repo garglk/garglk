@@ -581,6 +581,12 @@ void OutputNumber(int a)
 strid_t room_description_stream = NULL;
 
 void WriteToRoomDescriptionStream(const char *fmt, ...)
+#ifdef __GNUC__
+__attribute__((__format__(__printf__, 1, 2)))
+#endif
+;
+
+void WriteToRoomDescriptionStream(const char *fmt, ...)
 {
     if (room_description_stream == NULL)
         return;
@@ -620,7 +626,7 @@ static void ListExitsSpectrumStyle(void)
             if (f == 0) {
                 WriteToRoomDescriptionStream("\n\n%s", sys[EXITS]);
             } else {
-                WriteToRoomDescriptionStream(sys[EXITS_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[EXITS_DELIMITER]);
             }
             /* sys[] begins with the exit names */
             WriteToRoomDescriptionStream("%s", sys[ct]);
@@ -642,16 +648,16 @@ static void ListExits(void)
     while (ct < 6) {
         if ((&Rooms[MyLoc])->Exits[ct] != 0) {
             if (f) {
-                WriteToRoomDescriptionStream(sys[EXITS_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[EXITS_DELIMITER]);
             }
             /* sys[] begins with the exit names */
-            WriteToRoomDescriptionStream(sys[ct]);
+            WriteToRoomDescriptionStream("%s", sys[ct]);
             f = 1;
         }
         ct++;
     }
     if (f == 0)
-        WriteToRoomDescriptionStream(sys[NONE]);
+        WriteToRoomDescriptionStream("%s", sys[NONE]);
     return;
 }
 
@@ -659,7 +665,7 @@ static void FlushRoomDescription(char *buf)
 {
     glk_stream_close(room_description_stream, 0);
 
-    Display(Bottom, buf);
+    Display(Bottom, "%s", buf);
     free(buf);
 
     if (Options & (TRS80_STYLE | SPECTRUM_STYLE)) {
@@ -705,7 +711,7 @@ static void FlushRoomDescriptionSplitScreen(char *buf)
         if (strlen(string) == 0)
             break;
         glk_window_move_cursor(Top, 0, line);
-        Display(Top, string);
+        Display(Top, "%s", string);
     }
 
     if (line < rows - 1) {
@@ -738,18 +744,18 @@ void ListInventoryInUpperWindow(void)
                 continue;
             }
             if (anything == 1 && (Options & (TRS80_STYLE | SPECTRUM_STYLE)) == 0) {
-                WriteToRoomDescriptionStream(sys[ITEM_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[ITEM_DELIMITER]);
             }
             anything = 1;
-            WriteToRoomDescriptionStream(Items[i].Text);
+            WriteToRoomDescriptionStream("%s", Items[i].Text);
             if (Options & (TRS80_STYLE | SPECTRUM_STYLE)) {
-                WriteToRoomDescriptionStream(sys[ITEM_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[ITEM_DELIMITER]);
             }
         }
         i++;
     }
     if (anything == 0)
-        WriteToRoomDescriptionStream(sys[NOTHING]);
+        WriteToRoomDescriptionStream("%s", sys[NOTHING]);
     else
         WriteToRoomDescriptionStream("\n");
 }
@@ -772,9 +778,9 @@ void Look(void)
         glk_put_char_stream_uni(Transcript, 10);
     }
 
-    if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED
-        && Items[LIGHT_SOURCE].Location != MyLoc) {
-        WriteToRoomDescriptionStream(sys[TOO_DARK_TO_SEE]);
+    if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED &&
+        Items[LIGHT_SOURCE].Location != MyLoc) {
+        WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
         if (split_screen)
             FlushRoomDescriptionSplitScreen(buf);
         else
@@ -789,7 +795,7 @@ void Look(void)
     /* An initial asterisk means the room description should not */
     /* start with "You are" or equivalent */
     if (*r->Text == '*') {
-        WriteToRoomDescriptionStream(r->Text + 1);
+        WriteToRoomDescriptionStream("%s", r->Text + 1);
     } else {
         WriteToRoomDescriptionStream("%s%s", sys[YOU_ARE], r->Text);
     }
@@ -809,16 +815,16 @@ void Look(void)
                 continue;
             }
             if (f == 0) {
-                WriteToRoomDescriptionStream(sys[YOU_SEE]);
+                WriteToRoomDescriptionStream("%s", sys[YOU_SEE]);
                 f++;
                 if (Options & SPECTRUM_STYLE)
                     WriteToRoomDescriptionStream("\n");
             } else if (!(Options & (TRS80_STYLE | SPECTRUM_STYLE))) {
-                WriteToRoomDescriptionStream(sys[ITEM_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[ITEM_DELIMITER]);
             }
-            WriteToRoomDescriptionStream(Items[ct].Text);
+            WriteToRoomDescriptionStream("%s", Items[ct].Text);
             if (Options & (TRS80_STYLE | SPECTRUM_STYLE)) {
-                WriteToRoomDescriptionStream(sys[ITEM_DELIMITER]);
+                WriteToRoomDescriptionStream("%s", sys[ITEM_DELIMITER]);
             }
         }
         ct++;
