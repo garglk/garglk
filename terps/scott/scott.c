@@ -571,8 +571,9 @@ void OutputNumber(int a)
 {
     Display(Bottom, "%d", a);
 }
-
+#if defined(__clang__)
 #pragma mark Room description
+#endif
 
 strid_t room_description_stream = NULL;
 
@@ -1352,8 +1353,9 @@ static int PerformLine(int ct)
 #endif
         cc++;
     }
-
+#if defined(__clang__)
 #pragma mark Actions
+#endif
 
     /* Actions */
     act[0] = Actions[ct].Action[0];
@@ -1729,7 +1731,9 @@ static int PerformActions(int vb, int no)
     int flag;
     int doagain = 0;
     int found_match = 0;
+#if defined(__clang__)
 #pragma mark GO
+#endif
     if (vb == GO && no == -1) {
         Output(sys[DIRECTION]);
         return (0);
@@ -1819,8 +1823,9 @@ static int PerformActions(int vb, int no)
         int item = 0;
         if (Items[LIGHT_SOURCE].Location == MyLoc || Items[LIGHT_SOURCE].Location == CARRIED)
             dark = 0;
-
+#if defined(__clang__)
 #pragma mark TAKE
+#endif
         if (vb == TAKE || vb == DROP) {
             if (CurrentCommand->allflag) {
                 if (vb == TAKE && dark) {
@@ -1873,7 +1878,9 @@ static int PerformActions(int vb, int no)
                 PrintTakenOrDropped(TAKEN);
                 return (0);
             }
+#if defined(__clang__)
 #pragma mark DROP
+#endif
             if (vb == DROP) {
                 if (no == -1) {
                     Output(sys[WHAT]);

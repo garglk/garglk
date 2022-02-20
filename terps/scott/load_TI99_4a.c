@@ -680,7 +680,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 
     int offset;
 
+#if defined(__clang__)
 #pragma mark rooms
+#endif
 
     if (seek_if_needed(fix_address(fix_word(dh.p_room_descr)), &offset, &ptr) == 0)
         return 0;
@@ -699,8 +701,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
         rp++;
     } while (ct < nr + 1);
 
+#if defined(__clang__)
 #pragma mark messages
-
+#endif
     ct = 0;
     while (ct < mn + 1) {
         Messages[ct] = get_TI994A_string(dh.p_message, ct);
@@ -711,7 +714,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
         ct++;
     }
 
+#if defined(__clang__)
 #pragma mark items
+#endif
     ct = 0;
     ip = Items;
     do {
@@ -730,8 +735,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
     if (loud)
         fprintf(stderr, "Number of treasures %d\n", GameHeader.Treasures);
 
+#if defined(__clang__)
 #pragma mark room connections
-
+#endif
     if (seek_if_needed(fix_address(fix_word(dh.p_room_exit)), &offset, &ptr) == 0)
         return 0;
 
@@ -746,8 +752,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
         rp++;
     }
 
+#if defined(__clang__)
 #pragma mark item locations
-
+#endif
     if (seek_if_needed(fix_address(fix_word(dh.p_orig_items)), &offset, &ptr) == 0)
         return 0;
 
@@ -760,8 +767,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
         ct++;
     }
 
+#if defined(__clang__)
 #pragma mark dictionary
-
+#endif
     load_TI994A_dict(0, dh.p_verb_table, dh.num_verbs + 1, Verbs);
     load_TI994A_dict(1, dh.p_noun_table, dh.num_nouns + 1, Nouns);
 
@@ -778,8 +786,9 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
             fprintf(stderr, "Noun %d: %s\n", i, Nouns[i]);
     }
 
+#if defined(__clang__)
 #pragma mark autoget
-
+#endif
     ct = 0;
     ip = Items;
 
