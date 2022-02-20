@@ -240,7 +240,7 @@ void load_TI994A_dict(int vorn, uint16_t table, int num_words,
 }
 
 struct Keyword {
-    char *name;
+    const char *name;
     int opcode;
     int count;
     int tsr80equiv;

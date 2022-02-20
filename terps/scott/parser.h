@@ -44,7 +44,7 @@ typedef enum
 char **SplitIntoWords(glui32 *string, int length);
 int GetInput(int *vb, int *no);
 void FreeCommands(void);
-glui32 *ToUnicode(char *string);
+glui32 *ToUnicode(const char *string);
 char *FromUnicode(glui32 *unicode_string, int origlength);
 int RecheckForExtraCommand(void);
 int WhichWord(const char *word, const char **list, int word_length, int list_length);

@@ -11,7 +11,7 @@
 
 /* This is supposed to be the original ScottFree system
  messages in second person, as far as possible */
-char *sysdict[MAX_SYSMESS] = {
+const char *sysdict[MAX_SYSMESS] = {
     "North",
     "South",
     "East",

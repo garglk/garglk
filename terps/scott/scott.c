@@ -80,17 +80,17 @@ int Options; /* Option flags set */
 glui32 Width; /* Terminal width */
 glui32 TopHeight; /* Height of top window */
 int file_baseline_offset = 0;
-char *title_screen = NULL;
+const char *title_screen = NULL;
 
 struct Command *CurrentCommand = NULL;
 
 struct GameInfo *GameInfo;
 
-extern char *sysdict[MAX_SYSMESS];
-extern char *sysdict_i_am[MAX_SYSMESS];
+extern const char *sysdict[MAX_SYSMESS];
+extern const char *sysdict_i_am[MAX_SYSMESS];
 
-char *sys[MAX_SYSMESS];
-char *system_messages[60];
+const char *sys[MAX_SYSMESS];
+const char *system_messages[60];
 
 const char *battle_messages[33];
 uint8_t enemy_table[126];
@@ -983,7 +983,7 @@ static void TranscriptOn(void)
     glui32 *start_of_transcript = ToUnicode(sys[TRANSCRIPT_START]);
     glk_put_string_stream_uni(Transcript, start_of_transcript);
     free(start_of_transcript);
-    glk_put_string_stream(glk_window_get_stream(Bottom), sys[TRANSCRIPT_ON]);
+    glk_put_string_stream(glk_window_get_stream(Bottom), (char *)sys[TRANSCRIPT_ON]);
 }
 
 static void TranscriptOff(void)
@@ -2007,12 +2007,12 @@ void glk_main(void)
         sys[i] = sysdict[i];
     }
 
-    char **dictpointer;
+    const char **dictpointer;
 
     if (Options & YOUARE)
-        dictpointer = (char **)sysdict;
+        dictpointer = sysdict;
     else
-        dictpointer = (char **)sysdict_i_am;
+        dictpointer = sysdict_i_am;
 
     for (int i = 0; i < MAX_SYSMESS && dictpointer[i] != NULL; i++) {
         sys[i] = dictpointer[i];
@@ -2036,7 +2036,7 @@ void glk_main(void)
         glk_set_style(style_Preformatted);
         ClearScreen();
         Output(title_screen);
-        free(title_screen);
+        free((void *)title_screen);
         glk_set_style(style_Normal);
         HitEnter();
         ClearScreen();

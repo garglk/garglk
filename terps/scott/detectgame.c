@@ -36,7 +36,7 @@ struct dictionaryKey dictKeys[] = {
     { FIVE_LETTER_UNCOMPRESSED, "*CROSS*RUN\0\0" } // Claymorgue
 };
 
-int FindCode(char *x, int base)
+int FindCode(const char *x, int base)
 {
     unsigned const char *p = entire_file + base;
     int len = strlen(x);
@@ -183,7 +183,7 @@ GameIDType detect_game(const char *file_name)
 
     /* Copy ZX Spectrum style system messages as base */
     for (int i = 6; i < MAX_SYSMESS && sysdict_zx[i] != NULL; i++) {
-        sys[i] = (char *)sysdict_zx[i];
+        sys[i] = sysdict_zx[i];
     }
 
     return CurrentGame;

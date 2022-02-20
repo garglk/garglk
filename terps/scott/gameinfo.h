@@ -12,7 +12,7 @@
 
 extern struct GameInfo games[];
 
-extern char *sysdict[];
+extern const char *sysdict[];
 extern const char *sysdict_i_am[];
 extern const char *sysdict_zx[];
 

@@ -53,7 +53,7 @@ void FreeStrings(void)
     WordsInInput = 0;
 }
 
-void CreateErrorMessage(char *fchar, glui32 *second, char *tchar)
+void CreateErrorMessage(const char *fchar, glui32 *second, const char *tchar)
 {
     if (FirstErrorMessage != NULL)
         return;
@@ -79,7 +79,7 @@ void CreateErrorMessage(char *fchar, glui32 *second, char *tchar)
     free(first);
 }
 
-glui32 *ToUnicode(char *string)
+glui32 *ToUnicode(const char *string)
 {
     if (string == NULL)
         return NULL;
