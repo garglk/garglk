@@ -525,12 +525,11 @@ void read_implicit(struct DATAHEADER dh)
     uint8_t *ptr;
     int loop_flag;
 
-    /* run all act auto codes */
-
+    /* read all auto actions */
     ptr = entire_file + fix_address(fix_word(dh.p_implicit));
     loop_flag = 0;
 
-    /* fall out, if no auto acts in the game. */
+    /* bail if no auto actions in the game. */
     if (*ptr == 0x0)
         loop_flag = 1;
 
@@ -543,7 +542,7 @@ void read_implicit(struct DATAHEADER dh)
         if (ptr[1] == 0)
             loop_flag = 1;
 
-        /* skip code chunk */
+        /* go to next code chunk. */
         ptr += 1 + ptr[1];
     }
 }
@@ -551,27 +550,28 @@ void read_implicit(struct DATAHEADER dh)
 void read_explicit(struct DATAHEADER dh)
 {
     uint8_t *p;
-    uint16_t addy;
-    int flag;
+    uint16_t address;
+    int loop_flag;
     int i;
 
     for (i = 0; i <= dh.num_verbs; i += 1) {
         p = entire_file + fix_address(fix_word(dh.p_explicit));
-        addy = get_word(p + ((i)*2));
+        address = get_word(p + ((i) * 2));
 
-        if (addy != 0) {
-            p = entire_file + fix_address(addy);
-            flag = 0;
+        if (address != 0) {
+            p = entire_file + fix_address(address);
+            loop_flag = 0;
 
-            while (flag != 4) {
-                if (p[1] == 0)
-                    flag = 4; /* now run get/drop stuff */
-
+            while (loop_flag == 0) {
                 int noun = p[0];
                 int size = p[1];
+
                 ReadTI99Action(i, noun, p + 2, size - 2, 0, 0);
 
-                /* go to next block. */
+                if (p[1] == 0)
+                    loop_flag = 1;
+
+                /* go to next code chunk. */
                 p += 1 + p[1];
             }
         }
