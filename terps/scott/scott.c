@@ -59,10 +59,6 @@ extern glui32 gli_determinism;
 
 static const char *game_file;
 
-//#ifdef __GNUC__
-//__attribute__((__format__(__printf__, 2, 3)))
-//#endif
-
 Header GameHeader;
 Item *Items;
 Room *Rooms;
