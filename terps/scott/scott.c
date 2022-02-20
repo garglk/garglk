@@ -295,7 +295,7 @@ static char *ReadString(FILE *f)
     int ct = 0;
     do {
         c = fgetc(f);
-    } while (c != EOF && isspace(c));
+    } while (c != EOF && isspace((unsigned char)c));
     if (c != '"') {
         Fatal("Initial quote expected");
     }
@@ -1091,8 +1091,8 @@ static int YesOrNo(void)
 
     event_t ev;
     int result = 0;
-    const char y = tolower(sys[YES][0]);
-    const char n = tolower(sys[NO][0]);
+    const char y = tolower((unsigned char)sys[YES][0]);
+    const char n = tolower((unsigned char)sys[NO][0]);
 
     do {
         glk_select(&ev);

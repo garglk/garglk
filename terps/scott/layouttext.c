@@ -16,7 +16,7 @@ int FindBreak(const char *buf, int pos, int columns)
 
     int diff = 0;
 
-    while (diff < columns && !isspace(buf[pos])) {
+    while (diff < columns && !isspace((unsigned char)buf[pos])) {
         pos--;
         diff++;
     }
@@ -77,7 +77,7 @@ char *LineBreakText(char *source, int columns, int *rows, int *length)
             destpos = destpos - diff;
             buf[destpos++] = '\n';
 
-            if (isspace(source[sourcepos])) {
+            if (isspace((unsigned char)source[sourcepos])) {
                 sourcepos++;
             }
         }
