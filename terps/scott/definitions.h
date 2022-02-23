@@ -28,8 +28,20 @@ typedef enum {
     NUMGAMES
 } GameIDType;
 
-typedef enum
-{
+typedef enum {
+    ER_NO_RESULT,
+    ER_SUCCESS = 0,
+    ER_RAN_ALL_LINES_NO_MATCH = -1,
+    ER_RAN_ALL_LINES = -2
+} ExplicitResultType;
+
+typedef enum {
+    ACT_SUCCESS = 0,
+    ACT_FAILURE = 1,
+    ACT_CONTINUE
+} ActionResultType;
+
+typedef enum {
     NORTH,
     SOUTH,
     EAST,
@@ -100,8 +112,7 @@ typedef enum
 
 #define MAX_SYSMESS LAST_SYSTEM_MESSAGE
 
-typedef enum
-{
+typedef enum {
     NOT_A_GAME,
     FOUR_LETTER_UNCOMPRESSED,
     THREE_LETTER_UNCOMPRESSED,
@@ -112,14 +123,12 @@ typedef enum
     SPANISH
 } dictionary_type;
 
-typedef enum
-{
+typedef enum {
     NO_TYPE,
     TEXT_ONLY,
 } game_type;
 
-typedef enum
-{
+typedef enum {
     ENGLISH = 0x1,
     MYSTERIOUS = 0x2,
     LOCALIZED = 0x4,
@@ -127,8 +136,7 @@ typedef enum
 } subtype;
 
 
-typedef enum
-{
+typedef enum {
     NO_PALETTE,
     ZX,
     ZXOPT,
@@ -137,22 +145,19 @@ typedef enum
     VGA
 } palette_type;
 
-typedef enum
-{
+typedef enum {
     NO_HEADER,
     EARLY,
     LATE
 } header_type;
 
-typedef enum
-{
+typedef enum {
     UNKNOWN_ACTIONS_TYPE,
     COMPRESSED,
     UNCOMPRESSED,
 } action_table_type;
 
-struct GameInfo
-{
+struct GameInfo {
     const char *Title;
 
     GameIDType gameID;

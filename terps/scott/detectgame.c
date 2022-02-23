@@ -20,22 +20,6 @@
 extern const char *sysdict_zx[MAX_SYSMESS];
 extern int header[];
 
-struct dictionaryKey {
-    dictionary_type dict;
-    char *signature;
-};
-
-struct dictionaryKey dictKeys[] = {
-    { FOUR_LETTER_UNCOMPRESSED, "AUTO\0GO\0" },
-    { THREE_LETTER_UNCOMPRESSED, "AUT\0GO\0" },
-    { FIVE_LETTER_UNCOMPRESSED, "AUTO\0\0GO" },
-    { FOUR_LETTER_COMPRESSED, "aUTOgO\0" },
-    { GERMAN, "\xc7" "EHENSTEIGE" },
-    { FIVE_LETTER_COMPRESSED, "gEHENSTEIGE"}, // Gremlins C64
-    { SPANISH, "ANDAENTRAVAN" },
-    { FIVE_LETTER_UNCOMPRESSED, "*CROSS*RUN\0\0" } // Claymorgue
-};
-
 int FindCode(const char *x, int base)
 {
     unsigned const char *p = entire_file + base;
@@ -49,24 +33,6 @@ int FindCode(const char *x, int base)
         p++;
     }
     return -1;
-}
-
-dictionary_type getId(size_t *offset)
-{
-    for (int i = 0; i < 8; i++) {
-        *offset = FindCode(dictKeys[i].signature, 0);
-        if (*offset != -1) {
-            if (i == 4 || i == 5) // GERMAN
-                *offset -= 5;
-            else if (i == 6) // SPANISH
-                *offset -= 8;
-            else if (i == 7) // Claymorgue
-                *offset -= 11;
-            return dictKeys[i].dict;
-        }
-    }
-
-    return NOT_A_GAME;
 }
 
 void read_header(uint8_t *ptr)
@@ -138,14 +104,6 @@ GameIDType detect_game(const char *file_name)
     for (int i = 0; i < NUMBER_OF_EXTRA_NOUNS; i++)
         ExtraNouns[i] = EnglishExtraNouns[i];
 
-    // Check if the original ScottFree LoadDatabase() function can read the file.
-    if (LoadDatabase(f, 0)) {
-        fclose(f);
-        GameInfo = MemAlloc(sizeof(*GameInfo));
-        GameInfo->gameID = SCOTTFREE;
-        return SCOTTFREE;
-    }
-
     file_length = GetFileLength(f);
 
     if (file_length > MAX_GAMEFILE_SIZE) {
@@ -153,37 +111,20 @@ GameIDType detect_game(const char *file_name)
         return 0;
     }
 
-    entire_file = MemAlloc(file_length);
-    fseek(f, 0, SEEK_SET);
-    size_t result = fread(entire_file, 1, file_length, f);
-    fclose(f);
-    if (result == 0)
-        Fatal("File empty or read error!");
+    GameInfo = MemAlloc(sizeof(*GameInfo));
 
-    GameIDType TI994A_id = UNKNOWN_GAME;
+    // Check if the original ScottFree LoadDatabase() function can read the file.
+    CurrentGame = LoadDatabase(f, Options & DEBUGGING);
 
-    TI994A_id = DetectTI994A(&entire_file, &file_length);
-    if (TI994A_id) {
-        GameInfo = MemAlloc(sizeof(*GameInfo));
-        GameInfo->gameID = SCOTTFREE;
-        return SCOTTFREE;
-    }
+    if (!CurrentGame) {
+        entire_file = MemAlloc(file_length);
+        fseek(f, 0, SEEK_SET);
+        size_t result = fread(entire_file, 1, file_length, f);
+        fclose(f);
+        if (result == 0)
+            Fatal("File empty or read error!");
 
-    if (!TI994A_id) {
-        size_t offset;
-
-        dictionary_type dict_type = getId(&offset);
-
-        if (dict_type == NOT_A_GAME)
-            return UNKNOWN_GAME;
-
-        if (GameInfo == NULL)
-            return 0;
-    }
-
-    /* Copy ZX Spectrum style system messages as base */
-    for (int i = 6; i < MAX_SYSMESS && sysdict_zx[i] != NULL; i++) {
-        sys[i] = sysdict_zx[i];
+        CurrentGame = DetectTI994A(&entire_file, &file_length);
     }
 
     return CurrentGame;

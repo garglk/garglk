@@ -91,6 +91,19 @@ glui32 *ToUnicode(const char *string)
         if (c == '\n')
             c = 10;
         glui32 unichar = (glui32)c;
+        if (GameInfo && CurrentGame == TI994A) {
+            switch (c) {
+            case ')':
+                if (i > 0 && string[i - 1] == '\n') {
+                    unicode[dest++] = 0xa9;
+                    unichar = ' ';
+                }
+                break;
+            case '}':
+                unichar = 0xfc;
+                break;
+            }
+        }
         unicode[dest++] = unichar;
     }
     unicode[dest] = 0;
@@ -736,6 +749,9 @@ int GetInput(int *vb, int *no)
 
     *vb = CurrentCommand->verb;
     *no = CurrentCommand->noun;
+
+    if (Options & TI994A_STYLE)
+        Output("\n");
 
     return 0;
 }

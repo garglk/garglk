@@ -315,5 +315,5 @@ if(WITH_SCOTT)
     terp(scott
         SRCS scott/scott.c scott/bsd.c scott/detectgame.c scott/gameinfo.c
          scott/layouttext.c scott/load_TI99_4a.c scott/parser.c
-         scott/restorestate.c scott/scott.c)
+         scott/restorestate.c scott/scott.c scott/TI99_4a_terp.c)
 endif()

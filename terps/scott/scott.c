@@ -48,6 +48,7 @@
 #include "layouttext.h"
 #include "restorestate.h"
 
+#include "TI99_4a_terp.h"
 #include "parser.h"
 
 #include "bsd.h"
@@ -230,7 +231,7 @@ void *MemAlloc(int size)
     return (t);
 }
 
-static int RandomPercent(int n)
+int RandomPercent(int n)
 {
     unsigned int rv = rand() << 6;
     rv %= 100;
@@ -239,7 +240,7 @@ static int RandomPercent(int n)
     return (0);
 }
 
-static int CountCarried(void)
+int CountCarried(void)
 {
     int ct = 0;
     int n = 0;
@@ -278,7 +279,8 @@ static int MatchUpItem(int noun, int loc)
         word = Nouns[noun];
 
     while (ct <= GameHeader.NumItems) {
-        if (Items[ct].AutoGet && (loc == 0 || Items[ct].Location == loc) && xstrncasecmp(Items[ct].AutoGet, word, GameHeader.WordLength) == 0)
+        if (Items[ct].AutoGet && (loc == 0 || Items[ct].Location == loc) &&
+            xstrncasecmp(Items[ct].AutoGet, word, GameHeader.WordLength) == 0)
             return (ct);
         ct++;
     }
@@ -444,8 +446,8 @@ int LoadDatabase(FILE *f, int loud)
                 &ap->Condition[2],
                 &ap->Condition[3],
                 &ap->Condition[4],
-                &ap->Action[0],
-                &ap->Action[1])
+                &ap->Subcommand[0],
+                &ap->Subcommand[1])
             != 8) {
             fprintf(stderr, "Bad action line (%d)\n", ct);
             FreeDatabase();
@@ -459,8 +461,8 @@ int LoadDatabase(FILE *f, int loud)
             fprintf(stderr, "Action %d Condition[2]: %d (%d/%d)\n", ct, ap->Condition[2], ap->Condition[2] % 20, ap->Condition[2] / 20);
             fprintf(stderr, "Action %d Condition[0]: %d (%d/%d)\n", ct, ap->Condition[3], ap->Condition[3] % 20, ap->Condition[3] / 20);
             fprintf(stderr, "Action %d Condition[0]: %d (%d/%d)\n", ct, ap->Condition[4], ap->Condition[4] % 20, ap->Condition[4] / 20);
-            fprintf(stderr, "Action %d Action[0]: %d\n", ct, ap->Action[0]);
-            fprintf(stderr, "Action %d Action[1]: %d\n\n", ct, ap->Action[1]);
+            fprintf(stderr, "Action %d Subcommand[0]: %d\n", ct, ap->Subcommand[0]);
+            fprintf(stderr, "Action %d Subcommand[1]: %d\n\n", ct, ap->Subcommand[1]);
         }
 
         ap++;
@@ -535,7 +537,7 @@ int LoadDatabase(FILE *f, int loud)
         }
         ip->Location = (unsigned char)lo;
         if (loud)
-            fprintf(stderr, "Location of item %d: %d, \"%s\"\n",ct, ip->Location, ip->Location == 255 ? "CARRIED" : Rooms[ip->Location].Text);
+            fprintf(stderr, "Location of item %d: %d, \"%s\"\n", ct, ip->Location, ip->Location == 255 ? "CARRIED" : Rooms[ip->Location].Text);
         ip->InitialLoc = ip->Location;
         ip++;
         ct++;
@@ -561,7 +563,7 @@ int LoadDatabase(FILE *f, int loud)
     }
     if (loud)
         fprintf(stderr, "%d.\nLoad Complete.\n\n", ct);
-    return 1;
+    return SCOTTFREE;
 }
 
 void Output(const char *a)
@@ -573,6 +575,7 @@ void OutputNumber(int a)
 {
     Display(Bottom, "%d", a);
 }
+
 #if defined(__clang__)
 #pragma mark Room description
 #endif
@@ -747,10 +750,13 @@ void ListInventoryInUpperWindow(void)
         }
         i++;
     }
-    if (anything == 0)
+    if (anything == 0) {
         WriteToRoomDescriptionStream("%s", sys[NOTHING]);
-    else
+    } else {
+        if (Options & TI994A_STYLE)
+            WriteToRoomDescriptionStream(".");
         WriteToRoomDescriptionStream("\n");
+    }
 }
 
 void Look(void)
@@ -771,8 +777,7 @@ void Look(void)
         glk_put_char_stream_uni(Transcript, 10);
     }
 
-    if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED &&
-        Items[LIGHT_SOURCE].Location != MyLoc) {
+    if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc) {
         WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
         FlushRoomDescription(buf);
     }
@@ -819,6 +824,10 @@ void Look(void)
         ct++;
     }
 
+    if ((Options & TI994A_STYLE) && f) {
+        WriteToRoomDescriptionStream("%s", ".");
+    }
+
     if (Options & SPECTRUM_STYLE) {
         ListExitsSpectrumStyle();
     } else if (f) {
@@ -828,13 +837,10 @@ void Look(void)
     if (AutoInventory)
         ListInventoryInUpperWindow();
 
-    if (split_screen)
-        FlushRoomDescriptionSplitScreen(buf);
-    else
-        FlushRoomDescription(buf);
+    FlushRoomDescription(buf);
 }
 
-static void SaveGame(void)
+void SaveGame(void)
 {
     strid_t file;
     frefid_t ref;
@@ -1163,12 +1169,52 @@ void LookWithPause(void)
     Look();
 }
 
+void DoneIt(void)
+{
+    if (split_screen && Top)
+        Look();
+    dead = 1;
+    if (!before_first_turn) {
+        Output("\n\n");
+        Output(sys[PLAY_AGAIN]);
+        Output("\n");
+        if (YesOrNo()) {
+            RestartGame();
+        } else {
+            if (Transcript)
+                glk_stream_close(Transcript, NULL);
+            glk_exit();
+        }
+    }
+}
+
+void PrintScore(void)
+{
+    int i = 0;
+    int n = 0;
+    while (i <= GameHeader.NumItems) {
+        if (Items[i].Location == GameHeader.TreasureRoom && *Items[i].Text == '*')
+            n++;
+        i++;
+    }
+    Display(Bottom, "%s %d %s%s %d.\n", sys[IVE_STORED], n, sys[TREASURES],
+            sys[ON_A_SCALE_THAT_RATES], (n * 100) / GameHeader.Treasures);
+    if (n == GameHeader.Treasures) {
+        Output(sys[YOUVE_SOLVED_IT]);
+        DoneIt();
+    }
+}
+
+void PrintNoun(void)
+{
+    if (CurrentCommand)
+        glk_put_string_stream_uni(glk_window_get_stream(Bottom),
+            UnicodeWords[CurrentCommand->nounwordindex]);
+}
+
 //#define DEBUG_ACTIONS
 
-int ti99continuation = 0;
-int try_chain = 0;
-
-static int PerformLine(int ct)
+static ActionResultType PerformLine(int ct)
 {
 #ifdef DEBUG_ACTIONS
     fprintf(stderr, "Performing line %d: ", ct);
@@ -1190,145 +1236,130 @@ static int PerformLine(int ct)
             param[pptr++] = dv;
             break;
         case 1:
-            if (dv > GameHeader.NumItems) {
-                if (dv == ti99continuation) {
-                    ti99continuation = 0;
-                    break;
-                } else {
-                    return (0);
-                }
-            }
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Does the player carry %s?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location != CARRIED)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 2:
-            if (dv > GameHeader.NumItems) {
-                if (dv == try_chain) {
-                    break;
-                } else {
-                    return (0);
-                }
-            }
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s in location?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location != MyLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 3:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s held or in location?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location != CARRIED && Items[dv].Location != MyLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 4:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is location %s?\n", Rooms[dv].Text);
 #endif
             if (MyLoc != dv)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 5:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s NOT in location?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == MyLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 6:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Does the player NOT carry %s?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == CARRIED)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 7:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is location NOT %s?\n", Rooms[dv].Text);
 #endif
             if (MyLoc == dv)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 8:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is bitflag %d set?\n", dv);
 #endif
             if ((BitFlags & (1 << dv)) == 0)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 9:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is bitflag %d NOT set?\n", dv);
 #endif
             if (BitFlags & (1 << dv))
-                return (0);
+                return ACT_FAILURE;
             break;
         case 10:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Does the player carry anything?\n");
 #endif
             if (CountCarried() == 0)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 11:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Does the player carry nothing?\n");
 #endif
             if (CountCarried())
-                return (0);
+                return ACT_FAILURE;
             break;
         case 12:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s neither carried nor in room?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == CARRIED || Items[dv].Location == MyLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 13:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s (%d) in play?\n", Items[dv].Text, dv);
 #endif
             if (Items[dv].Location == 0)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 14:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s NOT in play?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 15:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is CurrentCounter <= %d?\n", dv);
 #endif
             if (CurrentCounter > dv)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 16:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is CurrentCounter > %d?\n", dv);
 #endif
             if (CurrentCounter <= dv)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 17:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Is %s still in initial room?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location != Items[dv].InitialLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 18:
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Has %s been moved?\n", Items[dv].Text);
 #endif
             if (Items[dv].Location == Items[dv].InitialLoc)
-                return (0);
+                return ACT_FAILURE;
             break;
         case 19: /* Only seen in Brian Howarth games so far */
 #ifdef DEBUG_ACTIONS
@@ -1337,7 +1368,7 @@ static int PerformLine(int ct)
                 fprintf(stderr, "Nope, current counter is %d\n", CurrentCounter);
 #endif
             if (CurrentCounter != dv)
-                return (0);
+                return ACT_FAILURE;
             break;
         }
 #ifdef DEBUG_ACTIONS
@@ -1350,8 +1381,8 @@ static int PerformLine(int ct)
 #endif
 
     /* Actions */
-    act[0] = Actions[ct].Action[0];
-    act[2] = Actions[ct].Action[1];
+    act[0] = Actions[ct].Subcommand[0];
+    act[2] = Actions[ct].Subcommand[1];
     act[1] = act[0] % 150;
     act[3] = act[2] % 150;
     act[0] /= 150;
@@ -1465,45 +1496,16 @@ static int PerformLine(int ct)
 #ifdef DEBUG_ACTIONS
                 fprintf(stderr, "Game over.\n");
 #endif
-            doneit:
-                if (split_screen && Top)
-                    Look();
-                dead = 1;
-                if (!before_first_turn) {
-                    Output("\n\n");
-                    Output(sys[PLAY_AGAIN]);
-                    Output("\n");
-                    if (YesOrNo()) {
-                        RestartGame();
-                        break;
-                    } else {
-                        if (Transcript)
-                            glk_stream_close(Transcript, NULL);
-                        glk_exit();
-                    }
-                }
+                DoneIt();
+                break;
             case 64:
                 break;
-            case 65: {
-                int i = 0;
-                int n = 0;
-                while (i <= GameHeader.NumItems) {
-                    if (Items[i].Location == GameHeader.TreasureRoom && *Items[i].Text == '*')
-                        n++;
-                    i++;
-                }
-                Display(Bottom, "%s %d %s%s %d.\n", sys[IVE_STORED], n, sys[TREASURES],
-                    sys[ON_A_SCALE_THAT_RATES], (n * 100) / GameHeader.Treasures);
-                if (n == GameHeader.Treasures) {
-                    Output(sys[YOUVE_SOLVED_IT]);
-                    goto doneit;
-                }
+            case 65:
+                PrintScore();
                 break;
-            }
-            case 66: {
+            case 66:
                 ListInventory();
                 break;
-            }
             case 67:
                 BitFlags |= (1 << 0);
                 break;
@@ -1648,7 +1650,6 @@ static int PerformLine(int ct)
                 pptr++;
                 switch (CurrentGame) {
                 default:
-                    fprintf(stderr, "Action 89 in unsupported game!\n");
                     break;
                 }
                 break;
@@ -1659,38 +1660,6 @@ static int PerformLine(int ct)
 #endif
                 pptr++;
                 break;
-            case 91:
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "Show automatic inventory\n");
-#endif
-                AutoInventory = 1;
-                break;
-            case 92:
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "Hide automatic inventory\n");
-#endif
-                AutoInventory = 0;
-                break;
-            case 93:
-                ti99continuation = GameHeader.NumItems + ct + 1;
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "TI99 continuation set to %d\n", ti99continuation);
-#endif
-                continuation = 1;
-                break;
-            case 94:
-                try_chain = param[pptr++];
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "TI99 try chain set to param[pptr] = %d\n", param[pptr - 1]);
-#endif
-                continuation = 1;
-                break;
-            case 95:
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "Broke TI99 try chain %d\n", try_chain);
-#endif
-                try_chain = 0;
-                break;
             default:
                 fprintf(stderr, "Unknown action %d [Param begins %d %d]\n",
                     act[cc], param[pptr], param[pptr + 1]);
@@ -1699,7 +1668,10 @@ static int PerformLine(int ct)
         cc++;
     }
 
-    return (1 + continuation);
+    if (continuation)
+        return ACT_CONTINUE;
+    else
+        return ACT_SUCCESS;
 }
 
 void PrintTakenOrDropped(int index)
@@ -1710,17 +1682,17 @@ void PrintTakenOrDropped(int index)
     if (last == 10 || last == 13)
         return;
     Output(" ");
-    if ((CurrentCommand->allflag && (CurrentCommand->allflag & LASTALL) != LASTALL) || split_screen == 0) {
+    if ((!(Options & TI994A_STYLE) && (CurrentCommand->allflag & LASTALL) != LASTALL) || split_screen == 0) {
         Output("\n");
     }
 }
 
-static int PerformActions(int vb, int no)
+static ExplicitResultType PerformActions(int vb, int no)
 {
     int dark = BitFlags & (1 << DARKBIT);
 
     int ct = 0;
-    int flag;
+    ExplicitResultType flag;
     int doagain = 0;
     int found_match = 0;
 #if defined(__clang__)
@@ -1728,7 +1700,7 @@ static int PerformActions(int vb, int no)
 #endif
     if (vb == GO && no == -1) {
         Output(sys[DIRECTION]);
-        return (0);
+        return ER_SUCCESS;
     }
     if (vb == 1 && no >= 1 && no <= 6) {
         int nl;
@@ -1738,13 +1710,13 @@ static int PerformActions(int vb, int no)
             Output(sys[DANGEROUS_TO_MOVE_IN_DARK]);
         nl = Rooms[MyLoc].Exits[no - 1];
         if (nl != 0) {
-            if (Options & SPECTRUM_STYLE)
+            if (Options & (SPECTRUM_STYLE | TI994A_STYLE))
                 Output(sys[OK]);
             MyLoc = nl;
             if (CurrentCommand && CurrentCommand->next) {
                 LookWithPause();
             }
-            return (0);
+            return ER_SUCCESS;
         }
         if (dark) {
             Output(sys[YOU_FELL_AND_BROKE_YOUR_NECK]);
@@ -1753,7 +1725,7 @@ static int PerformActions(int vb, int no)
             Output("\n");
             if (YesOrNo()) {
                 RestartGame();
-                return 0;
+                return ER_SUCCESS;
             } else {
                 if (Transcript)
                     glk_stream_close(Transcript, NULL);
@@ -1761,57 +1733,66 @@ static int PerformActions(int vb, int no)
             }
         }
         Output(sys[YOU_CANT_GO_THAT_WAY]);
-        return (0);
+        return ER_SUCCESS;
     }
 
-    flag = -1;
-    while (ct <= GameHeader.NumActions) {
-        int verbvalue, nounvalue;
-        verbvalue = Actions[ct].Vocab;
-        /* Think this is now right. If a line we run has an action73
+    flag = ER_RAN_ALL_LINES_NO_MATCH;
+    if (CurrentGame != TI994A) {
+        while (ct <= GameHeader.NumActions) {
+            int verbvalue, nounvalue;
+            verbvalue = Actions[ct].Vocab;
+            /* Think this is now right. If a line we run has an action73
 		 run all following lines with vocab of 0,0 */
-        if (vb != 0 && (doagain && verbvalue != 0))
-            break;
-        /* Oops.. added this minor cockup fix 1.11 */
-        if (vb != 0 && !doagain && flag == 0)
-            break;
-        nounvalue = verbvalue % 150;
-        verbvalue /= 150;
-        if ((verbvalue == vb) || (doagain && Actions[ct].Vocab == 0)) {
-            if ((verbvalue == 0 && RandomPercent(nounvalue)) || doagain || (verbvalue != 0 && (nounvalue == no || nounvalue == 0))) {
-                if (verbvalue == vb && vb != 0 && no != 0 && nounvalue == no)
-                    found_match = 1;
-                int f2;
-                if (flag == -1)
-                    flag = -2;
-                if ((f2 = PerformLine(ct)) > 0) {
-                    /* ahah finally figured it out ! */
-                    flag = 0;
-                    if (f2 == 2)
-                        doagain = 1;
-                    if (vb != 0 && doagain == 0)
-                        return (0);
+            if (vb != 0 && (doagain && verbvalue != 0))
+                break;
+            /* Oops.. added this minor cockup fix 1.11 */
+            if (vb != 0 && !doagain && flag == 0)
+                break;
+            nounvalue = verbvalue % 150;
+            verbvalue /= 150;
+            if ((verbvalue == vb) || (doagain && Actions[ct].Vocab == 0)) {
+                if ((verbvalue == 0 && RandomPercent(nounvalue)) || doagain || (verbvalue != 0 && (nounvalue == no || nounvalue == 0))) {
+                    if (verbvalue == vb && vb != 0 && no != 0 && nounvalue == no)
+                        found_match = 1;
+                    ActionResultType flag2;
+                    if (flag == ER_RAN_ALL_LINES_NO_MATCH)
+                        flag = ER_RAN_ALL_LINES;
+                    if ((flag2 = PerformLine(ct)) != ACT_FAILURE) {
+                        /* ahah finally figured it out ! */
+                        flag = ER_SUCCESS;
+                        if (flag2 == ACT_CONTINUE)
+                            doagain = 1;
+                        if (vb != 0 && doagain == 0)
+                            return ER_SUCCESS;
+                    }
                 }
             }
+
+            ct++;
+
+            /* Previously this did not check ct against
+             * GameHeader.NumActions and would read past the end of
+             * Actions.  I don't know what should happen on the last
+             * action, but doing nothing is better than reading one
+             * past the end.
+             * --Chris
+             */
+            if (ct <= GameHeader.NumActions && Actions[ct].Vocab != 0)
+                doagain = 0;
         }
-
-        ct++;
-
-        /* Previously this did not check ct against
-		 * GameHeader.NumActions and would read past the end of
-		 * Actions.  I don't know what should happen on the last
-		 * action, but doing nothing is better than reading one
-		 * past the end.
-		 * --Chris
-		 */
-        if (ct <= GameHeader.NumActions && Actions[ct].Vocab != 0)
-            doagain = 0;
+    } else {
+        if (vb == 0) {
+            run_implicit();
+            return ER_NO_RESULT;
+        } else {
+            flag = run_explicit(vb, no);
+        }
     }
 
     if (found_match)
         return flag;
 
-    if (flag != 0) {
+    if (flag != ER_SUCCESS) {
         int item = 0;
         if (Items[LIGHT_SOURCE].Location == MyLoc || Items[LIGHT_SOURCE].Location == CARRIED)
             dark = 0;
@@ -1825,7 +1806,7 @@ static int PerformActions(int vb, int no)
                     while ((CurrentCommand->allflag & LASTALL) != LASTALL) {
                         CurrentCommand = CurrentCommand->next;
                     }
-                    return 0;
+                    return ER_SUCCESS;
                 }
                 item = CurrentCommand->item;
                 int location = CARRIED;
@@ -1835,7 +1816,7 @@ static int PerformActions(int vb, int no)
                     CurrentCommand = CurrentCommand->next;
                 }
                 if (Items[item].Location != location)
-                    return 0;
+                    return ER_SUCCESS;
                 Output(Items[CurrentCommand->item].Text);
                 Output("....");
             }
@@ -1844,11 +1825,11 @@ static int PerformActions(int vb, int no)
             if (vb == TAKE) {
                 if (no == -1) {
                     Output(sys[WHAT]);
-                    return (0);
+                    return ER_SUCCESS;
                 }
                 if (CountCarried() == GameHeader.MaxCarry) {
                     Output(sys[YOURE_CARRYING_TOO_MUCH]);
-                    return (0);
+                    return ER_SUCCESS;
                 }
                 if (!item)
                     item = MatchUpItem(no, MyLoc);
@@ -1864,11 +1845,11 @@ static int PerformActions(int vb, int no)
                     } else {
                         Output(sys[YOU_HAVE_IT]);
                     }
-                    return (0);
+                    return ER_SUCCESS;
                 }
                 Items[item].Location = CARRIED;
                 PrintTakenOrDropped(TAKEN);
-                return (0);
+                return ER_SUCCESS;
             }
 #if defined(__clang__)
 #pragma mark DROP
@@ -1876,7 +1857,7 @@ static int PerformActions(int vb, int no)
             if (vb == DROP) {
                 if (no == -1) {
                     Output(sys[WHAT]);
-                    return (0);
+                    return ER_SUCCESS;
                 }
                 if (!item)
                     item = MatchUpItem(no, CARRIED);
@@ -1887,15 +1868,15 @@ static int PerformActions(int vb, int no)
                     } else {
                         Output(sys[YOU_HAVENT_GOT_IT]);
                     }
-                    return (0);
+                    return ER_SUCCESS;
                 }
                 Items[item].Location = MyLoc;
                 PrintTakenOrDropped(DROPPED);
-                return (0);
+                return ER_SUCCESS;
             }
         }
     }
-    return (flag);
+    return flag;
 }
 
 glkunix_argumentlist_t glkunix_arguments[] = {
@@ -1981,18 +1962,13 @@ void glk_main(void)
 {
     int vb, no, n = 1;
 
-    if(*(char *)&n != 1) {
+    if (*(char *)&n != 1) {
         WeAreBigEndian = 1;
     }
 
-    glk_stylehint_set(wintype_TextBuffer,
-        style_Preformatted,
-        stylehint_Justification,
-        stylehint_just_Centered);
-    glk_stylehint_set(wintype_TextBuffer,
-        style_User1,
-        stylehint_Justification,
-        stylehint_just_Centered);
+    glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Proportional, 0);
+    glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_Indentation, 20);
+    glk_stylehint_set(wintype_TextBuffer, style_User1, stylehint_ParaIndentation, 20);
 
     Bottom = glk_window_open(0, 0, 0, wintype_TextBuffer, GLK_BUFFER_ROCK);
     if (Bottom == NULL)
@@ -2022,17 +1998,18 @@ void glk_main(void)
     if (!game_type)
         glk_exit();
 
-    if (game_type != SCOTTFREE) {
+    if (game_type != SCOTTFREE && game_type != TI994A) {
         Options |= SPECTRUM_STYLE;
         split_screen = 1;
     } else {
-        Options |= TRS80_STYLE;
+        if (game_type != TI994A)
+            Options |= TRS80_STYLE;
         split_screen = 1;
     }
 
     if (title_screen != NULL) {
         glk_stream_set_current(glk_window_get_stream(Bottom));
-        glk_set_style(style_Preformatted);
+        glk_set_style(style_User1);
         ClearScreen();
         Output(title_screen);
         free((void *)title_screen);
@@ -2051,11 +2028,11 @@ void glk_main(void)
 
     OpenTopWindow();
 
-    //	if (game_type == SCOTTFREE)
-    //		Output("\
-//Scott Free, A Scott Adams game driver in C.\n\
-//Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.\n\
-//Distributed under the GNU software license\n\n");
+    if (game_type == SCOTTFREE)
+        Output("\
+Scott Free, A Scott Adams game driver in C.\n\
+Release 1.14, (c) 1993,1994,1995 Swansea University Computer Society.\n\
+Distributed under the GNU software license\n\n");
 
 #ifdef SPATTERLIGHT
     if (gli_determinism)
@@ -2086,20 +2063,19 @@ void glk_main(void)
             continue;
 
         switch (PerformActions(vb, no)) {
-        case -1:
+        case ER_RAN_ALL_LINES_NO_MATCH:
             if (!RecheckForExtraCommand())
                 Output(sys[I_DONT_UNDERSTAND]);
             break;
-        case -2:
+        case ER_RAN_ALL_LINES:
             Output(sys[YOU_CANT_DO_THAT_YET]);
             break;
         default:
             just_started = 0;
-            stop_time = 0;
         }
 
         /* Brian Howarth games seem to use -1 for forever */
-        if (Items[LIGHT_SOURCE].Location /*==-1*/ != DESTROYED && GameHeader.LightTime != -1) {
+        if (Items[LIGHT_SOURCE].Location /*==-1*/ != DESTROYED && GameHeader.LightTime != -1 && !stop_time) {
             GameHeader.LightTime--;
             if (GameHeader.LightTime < 1) {
                 BitFlags |= (1 << LIGHTOUTBIT);
@@ -2122,5 +2098,6 @@ void glk_main(void)
                 }
             }
         }
+        stop_time = 0;
     }
 }

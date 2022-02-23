@@ -13,6 +13,7 @@
 #include "load_TI99_4a.h"
 
 #include "detectgame.h"
+#include "gameinfo.h"
 #include "scott.h"
 
 #define PACKED __attribute__((__packed__))
@@ -46,8 +47,14 @@ struct DATAHEADER {
 };
 
 int max_messages;
-
 int max_item_descr;
+
+uint8_t *ti99_implicit_actions = NULL;
+uint8_t *ti99_explicit_actions = NULL;
+size_t ti99_implicit_extent = 0;
+size_t ti99_explicit_extent = 0;
+
+uint8_t **VerbActionOffsets;
 
 uint16_t fix_address(uint16_t ina)
 {
@@ -56,10 +63,10 @@ uint16_t fix_address(uint16_t ina)
 
 uint16_t fix_word(uint16_t word)
 {
-if (WeAreBigEndian)
-    return word;
-else
-    return (((word & 0xFF) << 8) | ((word >> 8) & 0xFF));
+    if (WeAreBigEndian)
+        return word;
+    else
+        return (((word & 0xFF) << 8) | ((word >> 8) & 0xFF));
 }
 
 uint16_t get_word(uint8_t *mem)
@@ -140,7 +147,7 @@ GameIDType DetectTI994A(uint8_t **sf, size_t *extent)
     assert(file_length >= fix_address(fix_word(dh.p_explicit)));
     assert(file_length >= fix_address(fix_word(dh.p_implicit)));
 
-    return try_loading_ti994a(dh, 0);
+    return try_loading_ti994a(dh, Options & DEBUGGING);
 }
 
 uint8_t *get_TI994A_word(uint8_t *string, uint8_t **result, size_t *length)
@@ -239,369 +246,83 @@ void load_TI994A_dict(int vorn, uint16_t table, int num_words,
     }
 }
 
-struct Keyword {
-    const char *name;
-    int opcode;
-    int count;
-    int tsr80equiv;
-    int swapargs;
-};
-
-struct Keyword actions[] = {
-    {"get",         0xDB, 1, 52, 0 },
-    {"drop",        0xDC, 1, 53, 0 },
-    {"goto",        0xDD, 1, 54, 0 },
-    {"zap",         0xDE, 1, 55, 0 },
-    {"on",          0xDF, 0, 56, 0 },   /* on dark */
-    {"off",         0xE0, 0, 57, 0 },   /* off dark */
-    {"on",          0xE1, 1, 58, 0 },   /* set flag */
-    {"off",         0xE2, 1, 60, 0 },   /* clear flag */
-    {"on",          0xE3, 0, 67, 0 },   /* set flag 0 */
-    {"off",         0xE4, 0, 68, 0 },   /* clear flag 0 */
-    {"die",         0xE5, 0, 61, 0 },
-    {"move",        0xE6, 2, 62, 1 },
-    {"quit",        0xE7, 0, 63, 0 },
-    {".score",      0xE8, 0, 65, 0 },
-    {".inv",        0xE9, 0, 66, 0 },
-    {"refill",      0xEA, 0, 69, 0 },
-    {"save",        0xEB, 0, 71, 0 },
-    {"swap",        0xEC, 2, 72, 0 },    /* swap items */
-    {"steal",       0xED, 1, 74, 0 },
-    {"same",        0xEE, 2, 75, 0 },
-    {"nop",         0xEF, 0, 0 },
-
-    {".room",       0xF0, 0, 76, 0 },
-
-
-    {"has",         0xB7, 1, 1, 0 },
-    {"here",        0xB8, 1, 2, 0 },
-    {"avail",       0xB9, 1, 3, 0 },
-    {"!here",       0xBA, 1, 5, 0 },
-    {"!has",        0xBB, 1, 6, 0 },
-    {"!avail",      0xBC, 1, 12, 0 },
-    {"exists",      0xBD, 1, 13, 0 },
-    {"!exists",     0xBE, 1, 14, 0 },
-    {"in",          0xBF, 1, 4, 0 },
-    {"!in",         0xC0, 1, 7, 0 },
-    {"set",         0xC1, 1, 8, 0 },
-    {"!set",        0xC2, 1, 9, 0 },
-    {"something",   0xC3, 0, 10, 0 },
-    {"nothing",     0xC4, 0, 11, 0 },
-    {"le",          0xC5, 1, 15, 0 },
-    {"gt",          0xC6, 1, 16, 0 },
-    {"eq",          0xC7, 1, 19, 0 },
-    {"!moved",      0xC8, 1, 17, 0 },
-    {"moved",       0xC9, 1, 18, 0 },
-
-    {"--0xCA--",    0xCA, 0 },
-    {"--0xCB--",    0xCB, 0 },
-    {"--0xCC--",    0xCC, 0 },
-    {"--0xCD--",    0xCD, 0 },
-    {"--0xCE--",    0xCE, 0 },
-    {"--0xCF--",    0xCF, 0 },
-    {"--0xD0--",    0xD0, 0 },
-    {"--0xD1--",    0xD1, 0 },
-    {"--0xD2--",    0xD2, 0 },
-    {"--0xD3--",    0xD3, 0 },
-
-    {"cls",            0xD4, 0, 70 },
-    {"pic",            0xD5, 0, 89 },
-    {"inv",            0xD6, 0, 91 },
-    {"!inv",           0xD7, 0, 92 },
-    {"ignore",         0xD8, 0, 0 },
-    {"success",        0xD9, 0, 0 },
-    {"try",            0xDA, 1, 94 },
-
-    {"--0xF1--",       0xF1, 0 },
-    {"add",            0xF2, 1, 82 }, // add 1
-    {"sub",            0xF3, 0, 77 },
-
-
-    {".timer",         0xF4, 0, 78 },
-    {"timer",          0xF5, 1, 79 },
-
-    {"add",            0xF6, 1, 82 },
-    {"sub",            0xF7, 1, 83 },
-
-    {"select_rv",      0xF8, 0, 80 },
-    {"swap_rv",        0xF9, 1, 87 },
-
-    {"swap",           0xFA, 1, 81 },    /* swap flag */
-
-    {".noun",          0xFB, 0, 84 },
-    {".noun_nl",       0xFC, 0, 85 },
-    {".nl",            0xFD, 0, 86 },
-    {"delay",          0xFE, 0, 88 },
-
-    {"",               0xFF, 0, 0}
-};
-
-int getEntryIndex(int opcode) {
-    for (int i = 0; i < 73; i++) {
-        if (actions[i].opcode == opcode)
-            return i;
-    }
-    return -1;
-}
-
-void CreateTRS80Action(int verb, int noun, uint16_t *conditions,
-    int numconditions, uint16_t *commands, int numcommands,
-    uint16_t *parameters, int numparameters)
-{
-
-    if (numconditions == 0 && numcommands == 1 && commands[0] == 73) {
-        fprintf(stderr, "Empty action with single continue?\n");
-    }
-
-    if (numconditions == 1 && numcommands == 1 && commands[0] == 93 && conditions[0] == 1) {
-        fprintf(stderr, "Empty action with single fake continue?\n");
-    }
-
-    GameHeader.NumActions++;
-
-    int na = GameHeader.NumActions;
-
-    if (na >= 399)
-        Fatal("Too many actions created!");
-
-    if (numconditions > 5)
-        fprintf(stderr, "Error: %d conditions!\n", numconditions);
-    if (numparameters > 5)
-        fprintf(stderr, "Error: %d parameters!\n", numparameters);
-    if (numcommands > 4)
-        fprintf(stderr, "Error: %d commands!\n", numcommands);
-
-    Action *action = Actions + na;
-
-    action->Vocab = 150 * verb + noun;
-
-    /* 5 repeats of condition + 20 * value */
-
-    for (int i = 0; i < numconditions; i++) {
-        action->Condition[i] = conditions[i] + 20 * parameters[i];
-    }
-    if (numparameters > numconditions) {
-        for (int i = numconditions; i < numparameters; i++) {
-            action->Condition[i] = 20 * parameters[i];
-        }
-    }
-
-    action->Action[0] = 150 * commands[0] + commands[1];
-    action->Action[1] = 150 * commands[2] + commands[3];
-}
-
-void ReadTI99Action(int verb, int noun, uint8_t *ptr, size_t size,
-    int glue_condition, int try_chain)
-{
-    uint16_t conditions[5] = { 0, 0, 0, 0, 0 };
-    uint16_t commands[4] = { 0, 0, 0, 0 };
-    uint16_t parameters[5] = { 0, 0, 0, 0, 0 };
-
-    int numconditions = 0;
-    int numcommands = 0;
-    int numparameters = 0;
-    int try_at = 0;
-    int try_end = 0;
-
-    if (glue_condition) {
-        numconditions = numparameters = 1;
-        conditions[0] = 1;
-        parameters[0] = GameHeader.NumItems + GameHeader.NumActions + 1;
-        glue_condition = 0;
-    } else if (try_chain) {
-        numconditions = numparameters = 1;
-        conditions[0] = 2;
-        parameters[0] = try_chain;
-    }
-
-    int i;
-    for (i = 0; i < size; i++) {
-        uint8_t value = ptr[i];
-        int index = getEntryIndex(value);
-        if (index == -1) {
-            if (value < 0xdb) {
-                if (numcommands == 3 && i < size - 1) {
-                    /* Split up the action */
-                    try_at = i;
-                    commands[numcommands++] = 93;
-                    glue_condition = 1;
-                    break;
-                }
-                /* Print message (value) */
-                if (value < 52) {
-                    commands[numcommands++] = value;
-                } else {
-                    commands[numcommands++] = 50 + value;
-                }
-            } else
-                fprintf(stderr, "Error! Invalid opcode at %d! (%x)\n", i, value);
-            continue;
-        }
-        struct Keyword entry = actions[index];
-        int is0xf2 = (value == 0xf2);
-        int is0xda = (value == 0xda);
-        if (is0xda) {
-            try_end = i + ptr[i + 1] + 1;
-        }
-
-        if (numparameters + entry.count > 5) {
-            /* Split up the action */
-            try_at = i;
-            commands[numcommands++] = 93;
-            glue_condition = 1;
-            break;
-        }
-        if (value > 0xc9) {
-            if (numcommands == 3 && value != 0xda && i + entry.count - is0xf2 < size) {
-                /* Split up the action */
-                try_at = i;
-                commands[numcommands++] = 93;
-                glue_condition = 1;
-                break;
-            }
-            if (value == 0xff) {
-                commands[numcommands++] = 95;
-                break;
-            }
-            commands[numcommands++] = entry.tsr80equiv;
-        } else {
-            if (numconditions == 5) {
-                /* Split up the action */
-                try_at = i;
-                commands[numcommands++] = 93;
-                glue_condition = 1;
-                break;
-            }
-            conditions[numconditions++] = entry.tsr80equiv;
-        }
-        if (!entry.count && value <= 0xc9)
-            parameters[numparameters++] = 0;
-
-        for (int j = 0; j < entry.count; j++) {
-            if (is0xda) {
-                if (try_chain == 0)
-                    try_chain = GameHeader.NumActions + 2 + GameHeader.NumItems;
-                parameters[numparameters++] = try_chain;
-            } else if (is0xf2) {
-                parameters[numparameters++] = 1;
-            } else {
-                parameters[numparameters++] = ptr[1 + i + j];
-            }
-        }
-        if (entry.swapargs && numparameters > 1) {
-            int temp = parameters[numparameters - 1];
-            parameters[numparameters - 1] = parameters[numparameters - 2];
-            parameters[numparameters - 2] = temp;
-        }
-
-        i += (entry.count - is0xf2);
-
-        if (value == 0xda) { // try
-            try_at = i + 1;
-            break;
-        }
-    }
-
-    CreateTRS80Action(verb, noun, conditions, numconditions, commands,
-        numcommands, parameters, numparameters);
-
-    if (try_at) {
-        if (glue_condition)
-            ReadTI99Action(0, 0, ptr + try_at, size - try_at, 1, 0);
-        else {
-            if (try_chain == 0)
-                try_chain = GameHeader.NumActions + 2 + GameHeader.NumItems;
-            ReadTI99Action(0, 0, ptr + try_at, try_end - try_at, 0, try_chain);
-
-            if (try_end < size - 1) {
-                ReadTI99Action(0, 0, ptr + try_end, size - try_end, 0, try_chain);
-            }
-        }
-    }
-}
-
 void read_implicit(struct DATAHEADER dh)
 {
-    uint8_t *ptr;
+    uint8_t *ptr, *implicit_start;
     int loop_flag;
 
-    /* read all auto actions */
-    ptr = entire_file + fix_address(fix_word(dh.p_implicit));
+    implicit_start = entire_file + fix_address(fix_word(dh.p_implicit));
+    ptr = implicit_start;
     loop_flag = 0;
 
-    /* bail if no auto actions in the game. */
+    /* fall out, if no auto acts in the game. */
     if (*ptr == 0x0)
         loop_flag = 1;
 
     while (loop_flag == 0) {
-        int noun = ptr[0];
-        int size = ptr[1];
-
-        ReadTI99Action(0, noun, ptr + 2, size - 2, 0, 0);
-
         if (ptr[1] == 0)
             loop_flag = 1;
 
-        /* go to next code chunk. */
+        /* skip code chunk */
         ptr += 1 + ptr[1];
+    }
+
+    ti99_implicit_extent = MIN(file_length, ptr - entire_file);
+    if (ti99_implicit_extent) {
+        ti99_implicit_actions = MemAlloc(ti99_implicit_extent);
+        memcpy(ti99_implicit_actions, implicit_start, ti99_implicit_extent);
     }
 }
 
 void read_explicit(struct DATAHEADER dh)
 {
-    uint8_t *p;
+    uint8_t *ptr, *start, *end, *blockstart;
     uint16_t address;
     int loop_flag;
     int i;
 
-    for (i = 0; i <= dh.num_verbs; i += 1) {
-        p = entire_file + fix_address(fix_word(dh.p_explicit));
-        address = get_word(p + ((i) * 2));
+    start = entire_file + file_length;
+    end = entire_file;
+
+    size_t explicit_offset = fix_address(fix_word(dh.p_explicit));
+    blockstart = entire_file + explicit_offset;
+
+    VerbActionOffsets = MemAlloc(dh.num_verbs * sizeof(uint8_t *));
+
+    for (i = 0; i <= dh.num_verbs; i++) {
+        ptr = blockstart;
+        address = get_word(ptr + ((i)*2));
+
+        VerbActionOffsets[i] = NULL;
 
         if (address != 0) {
-            p = entire_file + fix_address(address);
+            ptr = entire_file + fix_address(address);
+            if (ptr < start)
+                start = ptr;
+            VerbActionOffsets[i] = ptr;
             loop_flag = 0;
 
-            while (loop_flag == 0) {
-                int noun = p[0];
-                int size = p[1];
-
-                ReadTI99Action(i, noun, p + 2, size - 2, 0, 0);
-
-                if (p[1] == 0)
+            while (loop_flag != 1) {
+                if (ptr[1] == 0)
                     loop_flag = 1;
 
-                /* go to next code chunk. */
-                p += 1 + p[1];
+                /* go to next block. */
+                ptr += 1 + ptr[1];
+                if (ptr > end)
+                    end = ptr;
             }
         }
     }
-}
 
-void print_action(int ct)
-{
-    Action *ap = &Actions[ct];
-    fprintf(stderr, "Action %d Vocab: %d (%d/%d)\n", ct, ap->Vocab,
-        ap->Vocab % 150, ap->Vocab / 150);
-    fprintf(stderr, "Action %d Condition[0]: %d (%d/%d)\n", ct, ap->Condition[0],
-        ap->Condition[0] % 20, ap->Condition[0] / 20);
-    fprintf(stderr, "Action %d Condition[1]: %d (%d/%d)\n", ct, ap->Condition[1],
-        ap->Condition[1] % 20, ap->Condition[1] / 20);
-    fprintf(stderr, "Action %d Condition[2]: %d (%d/%d)\n", ct, ap->Condition[2],
-        ap->Condition[2] % 20, ap->Condition[2] / 20);
-    fprintf(stderr, "Action %d Condition[0]: %d (%d/%d)\n", ct, ap->Condition[3],
-        ap->Condition[3] % 20, ap->Condition[3] / 20);
-    fprintf(stderr, "Action %d Condition[0]: %d (%d/%d)\n", ct, ap->Condition[4],
-        ap->Condition[4] % 20, ap->Condition[4] / 20);
-    fprintf(stderr, "Action %d Action[0]: %d\n", ct, ap->Action[0]);
-    fprintf(stderr, "Action %d Action[1]: %d\n\n", ct, ap->Action[1]);
-}
-
-void print_actions(void)
-{
-    for (int ct = 0; ct <= GameHeader.NumActions; ct++) {
-        print_action(ct);
+    ti99_explicit_extent = end - start;
+    ti99_explicit_actions = MemAlloc(ti99_explicit_extent);
+    memcpy(ti99_explicit_actions, start, ti99_explicit_extent);
+    for (i = 0; i <= dh.num_verbs; i += 1) {
+        if (VerbActionOffsets[i] != NULL) {
+            VerbActionOffsets[i] = ti99_explicit_actions + (VerbActionOffsets[i] - start);
+        }
     }
+
 }
 
 uint8_t *LoadTitleScreen(void)
@@ -615,8 +336,7 @@ uint8_t *LoadTitleScreen(void)
     p = entire_file + 0x80 + file_baseline_offset;
     if (p - entire_file > file_length)
         return NULL;
-    for(lines=0; lines<24; lines++)
-    {
+    for (lines = 0; lines < 24; lines++) {
         for (int i = 0; i < 40; i++) {
             char c = *(p++);
             if (p - entire_file >= file_length)
@@ -638,7 +358,7 @@ uint8_t *LoadTitleScreen(void)
 
 int try_loading_ti994a(struct DATAHEADER dh, int loud)
 {
-    int ni, na, nw, nr, mc, pr, tr, wl, lt, mn, trm;
+    int ni, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
 
     Room *rp;
@@ -660,10 +380,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 
     GameHeader.NumItems = ni;
     Items = (Item *)MemAlloc(sizeof(Item) * (ni + 1));
-    na = 400;
-    GameHeader.NumActions = -1;
-    Actions = (Action *)MemAlloc(sizeof(Action) * (na + 1));
-
+    GameHeader.NumActions = 0;
     GameHeader.NumWords = nw;
     GameHeader.WordLength = wl;
     Verbs = MemAlloc(sizeof(char *) * (nw + 2));
@@ -794,9 +511,12 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 
     int objectlinks[ni + 1];
 
+    if (seek_if_needed(fix_address(fix_word(dh.p_obj_link)), &offset, &ptr) == 0)
+        return 0;
+
     do {
         objectlinks[ct] = *(ptr++ - file_baseline_offset);
-        if (objectlinks[ct]) {
+        if (objectlinks[ct] && objectlinks[ct] <= nw) {
             ip->AutoGet = (char *)Nouns[objectlinks[ct]];
         } else {
             ip->AutoGet = NULL;
@@ -808,18 +528,16 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
     read_implicit(dh);
     read_explicit(dh);
 
-    GameHeader.NumActions--;
-    Action *a = (Action *)MemAlloc(sizeof(Action) * (GameHeader.NumActions + 1));
-    memcpy(a, Actions, sizeof(Action) * (GameHeader.NumActions + 1));
-    free(Actions);
-    Actions = a;
-
     AutoInventory = 1;
     sys[INVENTORY] = "I'm carrying: ";
 
     title_screen = (char *)LoadTitleScreen();
-
     free(entire_file);
 
+    for (int i = 0; i < MAX_SYSMESS && sysdict_TI994A[i] != NULL; i++) {
+        sys[i] = sysdict_TI994A[i];
+    }
+
+    Options |= TI994A_STYLE;
     return TI994A;
 }
