@@ -667,7 +667,7 @@ static void FlushRoomDescription(char *buf)
 {
     glk_stream_close(room_description_stream, 0);
 
-    int print_delimiter = (Options & (TRS80_STYLE | SPECTRUM_STYLE));
+    int print_delimiter = (Options & (TRS80_STYLE | SPECTRUM_STYLE | TI994A_STYLE));
 
     if (split_screen) {
         glk_window_clear(Top);
