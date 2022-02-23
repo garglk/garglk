@@ -155,6 +155,8 @@ void Updates(event_t ev)
 
 void Delay(float seconds)
 {
+    if (Options & NO_DELAYS)
+        return;
     event_t ev;
 
     if (!glk_gestalt(gestalt_Timer, 0))
@@ -1904,6 +1906,7 @@ glkunix_argumentlist_t glkunix_arguments[] = {
     { "-t", glkunix_arg_NoValue, "-t        Generate TRS80 style display (terminal width is 64 characters; a line <-----------------> is displayed after the top stuff; objects have periods after them instead of hyphens" },
     { "-p", glkunix_arg_NoValue, "-p        Use for prehistoric databases which don't use bit 16" },
     { "-w", glkunix_arg_NoValue, "-w        Disable upper window" },
+    { "-n", glkunix_arg_NoValue, "-n        No delays" },
     { "", glkunix_arg_ValueFollows, "filename    file to load" },
 
     { NULL, glkunix_arg_End, NULL }
@@ -1942,6 +1945,9 @@ int glkunix_startup_code(glkunix_startup_t *data)
                 break;
             case 'w':
                 split_screen = 0;
+                break;
+            case 'n':
+                Options |= NO_DELAYS;
                 break;
             }
             argv++;
