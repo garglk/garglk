@@ -662,62 +662,56 @@ static void FlushRoomDescription(char *buf)
 {
     glk_stream_close(room_description_stream, 0);
 
-    Display(Bottom, "%s", buf);
-    free(buf);
-
-    if (Options & (TRS80_STYLE | SPECTRUM_STYLE)) {
-        PrintWindowDelimiter();
-    }
-}
-
-static void FlushRoomDescriptionSplitScreen(char *buf)
-{
-    glk_stream_close(room_description_stream, 0);
-
     int print_delimiter = (Options & (TRS80_STYLE | SPECTRUM_STYLE));
 
-    glk_window_clear(Top);
-    glk_window_get_size(Top, &Width, &TopHeight);
-    int rows, length;
-    char *text_with_breaks = LineBreakText(buf, Width, &rows, &length);
-
-    glui32 bottomheight;
-    glk_window_get_size(Bottom, NULL, &bottomheight);
-    winid_t o2 = glk_window_get_parent(Top);
-    if (!(bottomheight < 3 && TopHeight < rows)) {
+    if (split_screen) {
+        glk_window_clear(Top);
         glk_window_get_size(Top, &Width, &TopHeight);
-        glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, rows, Top);
-    } else {
-        print_delimiter = 0;
-    }
+        int rows, length;
+        char *text_with_breaks = LineBreakText(buf, Width, &rows, &length);
 
-    int line = 0;
-    int index = 0;
-    int i;
-    char string[Width + 1];
-    for (line = 0; line < rows && index < length; line++) {
-        for (i = 0; i < Width; i++) {
-            string[i] = text_with_breaks[index++];
-            if (string[i] == 10 || string[i] == 13 || index >= length)
+        glui32 bottomheight;
+        glk_window_get_size(Bottom, NULL, &bottomheight);
+        winid_t o2 = glk_window_get_parent(Top);
+        if (!(bottomheight < 3 && TopHeight < rows)) {
+            glk_window_get_size(Top, &Width, &TopHeight);
+            glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, rows, Top);
+        } else {
+            print_delimiter = 0;
+        }
+
+        int line = 0;
+        int index = 0;
+        int i;
+        char string[Width + 1];
+        for (line = 0; line < rows && index < length; line++) {
+            for (i = 0; i < Width; i++) {
+                string[i] = text_with_breaks[index++];
+                if (string[i] == 10 || string[i] == 13 || index >= length)
+                    break;
+            }
+            if (i < Width + 1) {
+                string[i++] = '\n';
+            }
+            string[i] = 0;
+            if (strlen(string) == 0)
                 break;
+            glk_window_move_cursor(Top, 0, line);
+            Display(Top, "%s", string);
         }
-        if (i < Width + 1) {
-            string[i++] = '\n';
-        }
-        string[i] = 0;
-        if (strlen(string) == 0)
-            break;
-        glk_window_move_cursor(Top, 0, line);
-        Display(Top, "%s", string);
-    }
 
-    if (line < rows - 1) {
-        glk_window_get_size(Top, &Width, &TopHeight);
-        glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, MIN(rows - 1, TopHeight - 1), Top);
+        if (line < rows - 1) {
+            glk_window_get_size(Top, &Width, &TopHeight);
+            glk_window_set_arrangement(o2, winmethod_Above | winmethod_Fixed, MIN(rows - 1, TopHeight - 1), Top);
+        }
+
+        free(text_with_breaks);
+    } else {
+        Display(Bottom, "%s", buf);
     }
 
     free(buf);
-    free(text_with_breaks);
+
     if (print_delimiter) {
         PrintWindowDelimiter();
     }
@@ -778,11 +772,7 @@ void Look(void)
     if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED &&
         Items[LIGHT_SOURCE].Location != MyLoc) {
         WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
-        if (split_screen)
-            FlushRoomDescriptionSplitScreen(buf);
-        else
-            FlushRoomDescription(buf);
-        return;
+        FlushRoomDescription(buf);
     }
 
     r = &Rooms[MyLoc];
