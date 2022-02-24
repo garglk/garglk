@@ -102,10 +102,6 @@ extern struct SavedState *initial_state;
 int just_started = 1;
 static int before_first_turn = 1;
 int stop_time = 0;
-/* The dead flag is used to prevent undo states */
-/* from being created *after* victory or death */
-int dead = 0;
-
 int pause_next_room_description = 0;
 
 int split_screen = 1;
@@ -1174,7 +1170,6 @@ void DoneIt(void)
 {
     if (split_screen && Top)
         Look();
-    dead = 1;
     if (!before_first_turn) {
         Output("\n\n");
         Output(sys[PLAY_AGAIN]);
@@ -1476,7 +1471,6 @@ static ActionResultType PerformLine(int ct)
                 fprintf(stderr, "Player is dead\n");
 #endif
                 Output(sys[IM_DEAD]);
-                dead = 1;
                 LookWithPause();
                 BitFlags &= ~(1 << DARKBIT);
                 MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
@@ -2044,7 +2038,6 @@ Distributed under the GNU software license\n\n");
 
     if (initial_state == NULL) {
         initial_state = SaveCurrentState();
-        SaveUndo();
     }
 
     while (1) {
@@ -2055,7 +2048,7 @@ Distributed under the GNU software license\n\n");
         if (!(CurrentCommand && CurrentCommand->allflag && (CurrentCommand->allflag & LASTALL) != LASTALL))
             Look();
 
-        if (!stop_time && !before_first_turn && !dead)
+        if (!stop_time)
             SaveUndo();
 
         before_first_turn = 0;

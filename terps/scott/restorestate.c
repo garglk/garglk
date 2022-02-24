@@ -79,7 +79,6 @@ void RestoreState(struct SavedState *state)
     }
 
     stop_time = 1;
-    dead = 0;
 }
 
 void SaveUndo(void)

@@ -326,11 +326,11 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
             fprintf(stderr, "Player is dead\n");
 #endif
             Output(sys[IM_DEAD]);
-            dead = 1;
             BitFlags &= ~(1 << DARKBIT);
             MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
             stop_time = 1;
-            break;
+            DoneIt();
+            return ACT_SUCCESS;
 
         case 230: /* move item p2 to room p */
             param = *(ptr++);
@@ -513,11 +513,6 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
                 break;
             }
             break;
-        }
-
-        if (dead) {
-            DoneIt();
-            return ACT_SUCCESS;
         }
 
         /* we are on the 0xff opcode, or have fallen through */

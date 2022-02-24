@@ -135,7 +135,6 @@ extern const char *system_messages[];
 extern uint8_t *entire_file;
 extern size_t file_length;
 extern int file_baseline_offset;
-extern int dead;
 extern int split_screen;
 extern long BitFlags;
 extern int LightRefill;
