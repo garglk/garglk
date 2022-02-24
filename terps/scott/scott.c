@@ -780,6 +780,7 @@ void Look(void)
     if ((BitFlags & (1 << DARKBIT)) && Items[LIGHT_SOURCE].Location != CARRIED && Items[LIGHT_SOURCE].Location != MyLoc) {
         WriteToRoomDescriptionStream("%s", sys[TOO_DARK_TO_SEE]);
         FlushRoomDescription(buf);
+        return;
     }
 
     r = &Rooms[MyLoc];
