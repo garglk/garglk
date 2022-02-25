@@ -330,7 +330,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
             MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
             stop_time = 1;
             DoneIt();
-            return ACT_SUCCESS;
+            return ACT_GAMEOVER;
 
         case 230: /* move item p2 to room p */
             param = *(ptr++);
@@ -344,16 +344,17 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 231: /* quit */
             DoneIt();
-            return ACT_SUCCESS;
+            return ACT_GAMEOVER;
 
         case 232: /* print score */
-            PrintScore();
-            stop_time = 1;
+            if (PrintScore() == 1)
+                return ACT_GAMEOVER;
+            stop_time = 2;
             break;
 
         case 233: /* list contents of inventory */
             ListInventory();
-            stop_time = 1;
+            stop_time = 2;
             break;
 
         case 234: /* refill lightsource */
@@ -364,7 +365,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 235: /* save */
             SaveGame();
-            stop_time = 1;
+            stop_time = 2;
             break;
 
         case 236: /* swap items p and p2 around */
@@ -597,12 +598,15 @@ ExplicitResultType RunExplicitTI99Actions(int verb_num, int noun_num)
                     p += 1 + p[1];
             }
         } else {
-            if (p[1] == 0)
+            if (p == NULL || p[1] == 0)
                 flag = ER_RAN_ALL_LINES_NO_MATCH;
             else
                 p += 1 + p[1];
         }
     }
+
+    if (match)
+        flag = ER_RAN_ALL_LINES;
 
     return flag;
 }

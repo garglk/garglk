@@ -18,7 +18,7 @@ extern int RoomSaved[]; /* Range unknown */
 extern int stop_time;
 extern int just_started;
 
-struct SavedState *initial_state;
+struct SavedState *initial_state = NULL;
 static struct SavedState *ramsave = NULL;
 static struct SavedState *last_undo = NULL;
 static struct SavedState *oldest_undo = NULL;

@@ -120,7 +120,7 @@ void DoneIt(void);
 void LookWithPause(void);
 void SaveGame(void);
 void PrintNoun(void);
-void PrintScore(void);
+int PrintScore(void);
 
 extern struct GameInfo *GameInfo;
 extern Header GameHeader;
