@@ -56,12 +56,12 @@ size_t ti99_explicit_extent = 0;
 
 uint8_t **VerbActionOffsets;
 
-uint16_t fix_address(uint16_t ina)
+uint16_t FixAddress(uint16_t ina)
 {
     return (ina - 0x380 + file_baseline_offset);
 }
 
-uint16_t fix_word(uint16_t word)
+uint16_t FixWord(uint16_t word)
 {
     if (WeAreBigEndian)
         return word;
@@ -69,7 +69,7 @@ uint16_t fix_word(uint16_t word)
         return (((word & 0xFF) << 8) | ((word >> 8) & 0xFF));
 }
 
-uint16_t get_word(uint8_t *mem)
+uint16_t GetWord(uint8_t *mem)
 {
     uint16_t x;
     if (WeAreBigEndian) {
@@ -78,30 +78,30 @@ uint16_t get_word(uint8_t *mem)
     } else {
         x = *(uint16_t *)mem;
     }
-    return fix_word(x);
+    return FixWord(x);
 }
 
-void get_max_messages(struct DATAHEADER dh)
+void GetMaxTI99Messages(struct DATAHEADER dh)
 {
     uint8_t *msg;
     uint16_t msg1;
 
-    msg = (uint8_t *)entire_file + fix_address(fix_word(dh.p_message));
-    msg1 = fix_address(get_word((uint8_t *)msg));
-    max_messages = (msg1 - fix_address(fix_word(dh.p_message))) / 2;
+    msg = (uint8_t *)entire_file + FixAddress(FixWord(dh.p_message));
+    msg1 = FixAddress(GetWord((uint8_t *)msg));
+    max_messages = (msg1 - FixAddress(FixWord(dh.p_message))) / 2;
 }
 
-void get_max_items(struct DATAHEADER dh)
+void GetMaxTI99Items(struct DATAHEADER dh)
 {
     uint8_t *msg;
     uint16_t msg1;
 
-    msg = (uint8_t *)entire_file + fix_address(fix_word(dh.p_obj_descr));
-    msg1 = fix_address(get_word((uint8_t *)msg));
-    max_item_descr = (msg1 - fix_address(fix_word(dh.p_obj_descr))) / 2;
+    msg = (uint8_t *)entire_file + FixAddress(FixWord(dh.p_obj_descr));
+    msg1 = FixAddress(GetWord((uint8_t *)msg));
+    max_item_descr = (msg1 - FixAddress(FixWord(dh.p_obj_descr))) / 2;
 }
 
-void print_ti99_header_info(struct DATAHEADER header)
+void PrintTI99HeaderInfo(struct DATAHEADER header)
 {
     fprintf(stderr, "Number of items =\t%d\n", header.num_objects);
     fprintf(stderr, "Number of verbs =\t%d\n", header.num_verbs);
@@ -111,11 +111,11 @@ void print_ti99_header_info(struct DATAHEADER header)
     fprintf(stderr, "Player start location: %d\n", header.begin_locn);
     fprintf(stderr, "Word length =\t%d\n", header.cmd_length);
     fprintf(stderr, "Treasure room: %d\n", header.treasure_locn);
-    fprintf(stderr, "Lightsource time left: %d\n", fix_word(header.light_turns));
+    fprintf(stderr, "Lightsource time left: %d\n", FixWord(header.light_turns));
     fprintf(stderr, "Unknown: %d\n", header.strange);
 }
 
-int try_loading_ti994a(struct DATAHEADER dh, int loud);
+int TryLoadingTI994A(struct DATAHEADER dh, int loud);
 
 GameIDType DetectTI994A(uint8_t **sf, size_t *extent)
 {
@@ -130,27 +130,27 @@ GameIDType DetectTI994A(uint8_t **sf, size_t *extent)
     memcpy(&dh, entire_file + 0x8a0 + file_baseline_offset,
         sizeof(struct DATAHEADER));
 
-    get_max_messages(dh);
-    get_max_items(dh);
+    GetMaxTI99Messages(dh);
+    GetMaxTI99Items(dh);
 
     /* test some pointers for valid game... */
 
-    assert(file_length >= fix_address(fix_word(dh.p_obj_table)));
-    assert(file_length >= fix_address(fix_word(dh.p_orig_items)));
-    assert(file_length >= fix_address(fix_word(dh.p_obj_link)));
-    assert(file_length >= fix_address(fix_word(dh.p_obj_descr)));
-    assert(file_length >= fix_address(fix_word(dh.p_message)));
-    assert(file_length >= fix_address(fix_word(dh.p_room_exit)));
-    assert(file_length >= fix_address(fix_word(dh.p_room_descr)));
-    assert(file_length >= fix_address(fix_word(dh.p_noun_table)));
-    assert(file_length >= fix_address(fix_word(dh.p_verb_table)));
-    assert(file_length >= fix_address(fix_word(dh.p_explicit)));
-    assert(file_length >= fix_address(fix_word(dh.p_implicit)));
+    assert(file_length >= FixAddress(FixWord(dh.p_obj_table)));
+    assert(file_length >= FixAddress(FixWord(dh.p_orig_items)));
+    assert(file_length >= FixAddress(FixWord(dh.p_obj_link)));
+    assert(file_length >= FixAddress(FixWord(dh.p_obj_descr)));
+    assert(file_length >= FixAddress(FixWord(dh.p_message)));
+    assert(file_length >= FixAddress(FixWord(dh.p_room_exit)));
+    assert(file_length >= FixAddress(FixWord(dh.p_room_descr)));
+    assert(file_length >= FixAddress(FixWord(dh.p_noun_table)));
+    assert(file_length >= FixAddress(FixWord(dh.p_verb_table)));
+    assert(file_length >= FixAddress(FixWord(dh.p_explicit)));
+    assert(file_length >= FixAddress(FixWord(dh.p_implicit)));
 
-    return try_loading_ti994a(dh, Options & DEBUGGING);
+    return TryLoadingTI994A(dh, Options & DEBUGGING);
 }
 
-uint8_t *get_TI994A_word(uint8_t *string, uint8_t **result, size_t *length)
+uint8_t *GetTI994AWord(uint8_t *string, uint8_t **result, size_t *length)
 {
     uint8_t *msg;
 
@@ -171,7 +171,7 @@ uint8_t *get_TI994A_word(uint8_t *string, uint8_t **result, size_t *length)
     return (msg);
 }
 
-char *get_TI994A_string(uint16_t table, int table_offset)
+char *GetTI994AString(uint16_t table, int table_offset)
 {
     uint8_t *msgx, *msgy, *nextword;
     char *result;
@@ -181,17 +181,17 @@ char *get_TI994A_string(uint16_t table, int table_offset)
 
     uint8_t *game = entire_file;
 
-    msgx = game + fix_address(fix_word(table));
+    msgx = game + FixAddress(FixWord(table));
 
     msgx += table_offset * 2;
-    msg1 = fix_address(get_word((uint8_t *)msgx));
-    msg2 = fix_address(get_word((uint8_t *)msgx + 2));
+    msg1 = FixAddress(GetWord((uint8_t *)msgx));
+    msg2 = FixAddress(GetWord((uint8_t *)msgx + 2));
 
     msgy = game + msg2;
     msgx = game + msg1;
 
     while (msgx < msgy) {
-        msgx = get_TI994A_word(msgx, &nextword, &length);
+        msgx = GetTI994AWord(msgx, &nextword, &length);
         if (length == 0 || nextword == NULL) {
             return NULL;
         }
@@ -216,7 +216,7 @@ char *get_TI994A_string(uint16_t table, int table_offset)
     return result;
 }
 
-void load_TI994A_dict(int vorn, uint16_t table, int num_words,
+void LoadTI994ADict(int vorn, uint16_t table, int num_words,
     const char **dict)
 {
     uint16_t *wtable;
@@ -226,14 +226,14 @@ void load_TI994A_dict(int vorn, uint16_t table, int num_words,
     char *w2;
 
     /* table is either verb or noun table */
-    wtable = (uint16_t *)(entire_file + fix_address(fix_word(table)));
+    wtable = (uint16_t *)(entire_file + FixAddress(FixWord(table)));
 
     i = 0;
 
     while (i <= num_words) {
         do {
-            w1 = (char *)entire_file + fix_address(get_word((uint8_t *)wtable + (i * 2)));
-            w2 = (char *)entire_file + fix_address(get_word((uint8_t *)wtable + ((1 + i) * 2)));
+            w1 = (char *)entire_file + FixAddress(GetWord((uint8_t *)wtable + (i * 2)));
+            w2 = (char *)entire_file + FixAddress(GetWord((uint8_t *)wtable + ((1 + i) * 2)));
         } while (w1 == w2);
 
         word_len = w2 - w1;
@@ -246,12 +246,12 @@ void load_TI994A_dict(int vorn, uint16_t table, int num_words,
     }
 }
 
-void read_implicit(struct DATAHEADER dh)
+void ReadTI99ImplicitActions(struct DATAHEADER dh)
 {
     uint8_t *ptr, *implicit_start;
     int loop_flag;
 
-    implicit_start = entire_file + fix_address(fix_word(dh.p_implicit));
+    implicit_start = entire_file + FixAddress(FixWord(dh.p_implicit));
     ptr = implicit_start;
     loop_flag = 0;
 
@@ -274,7 +274,7 @@ void read_implicit(struct DATAHEADER dh)
     }
 }
 
-void read_explicit(struct DATAHEADER dh)
+void ReadTI99ExplicitActions(struct DATAHEADER dh)
 {
     uint8_t *ptr, *start, *end, *blockstart;
     uint16_t address;
@@ -284,19 +284,19 @@ void read_explicit(struct DATAHEADER dh)
     start = entire_file + file_length;
     end = entire_file;
 
-    size_t explicit_offset = fix_address(fix_word(dh.p_explicit));
+    size_t explicit_offset = FixAddress(FixWord(dh.p_explicit));
     blockstart = entire_file + explicit_offset;
 
     VerbActionOffsets = MemAlloc(dh.num_verbs * sizeof(uint8_t *));
 
     for (i = 0; i <= dh.num_verbs; i++) {
         ptr = blockstart;
-        address = get_word(ptr + ((i)*2));
+        address = GetWord(ptr + ((i)*2));
 
         VerbActionOffsets[i] = NULL;
 
         if (address != 0) {
-            ptr = entire_file + fix_address(address);
+            ptr = entire_file + FixAddress(address);
             if (ptr < start)
                 start = ptr;
             VerbActionOffsets[i] = ptr;
@@ -356,7 +356,7 @@ uint8_t *LoadTitleScreen(void)
     return result;
 }
 
-int try_loading_ti994a(struct DATAHEADER dh, int loud)
+int TryLoadingTI994A(struct DATAHEADER dh, int loud)
 {
     int ni, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
@@ -373,7 +373,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
     tr = 0;
     trm = dh.treasure_locn;
     wl = dh.cmd_length;
-    lt = fix_word(dh.light_turns);
+    lt = FixWord(dh.light_turns);
     mn = max_messages;
 
     uint8_t *ptr = entire_file;
@@ -401,14 +401,14 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 #pragma mark rooms
 #endif
 
-    if (seek_if_needed(fix_address(fix_word(dh.p_room_descr)), &offset, &ptr) == 0)
+    if (SeekIfNeeded(FixAddress(FixWord(dh.p_room_descr)), &offset, &ptr) == 0)
         return 0;
 
     ct = 0;
     rp = Rooms;
 
     do {
-        rp->Text = get_TI994A_string(dh.p_room_descr, ct);
+        rp->Text = GetTI994AString(dh.p_room_descr, ct);
         if (rp->Text == NULL)
             rp->Text = ".\0";
         if (loud)
@@ -423,7 +423,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 #endif
     ct = 0;
     while (ct < mn + 1) {
-        Messages[ct] = get_TI994A_string(dh.p_message, ct);
+        Messages[ct] = GetTI994AString(dh.p_message, ct);
         if (Messages[ct] == NULL)
             Messages[ct] = ".\0";
         if (loud)
@@ -437,7 +437,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
     ct = 0;
     ip = Items;
     do {
-        ip->Text = get_TI994A_string(dh.p_obj_descr, ct);
+        ip->Text = GetTI994AString(dh.p_obj_descr, ct);
         if (ip->Text == NULL)
             ip->Text = ".\0";
         if (ip->Text && ip->Text[0] == '*')
@@ -455,7 +455,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 #if defined(__clang__)
 #pragma mark room connections
 #endif
-    if (seek_if_needed(fix_address(fix_word(dh.p_room_exit)), &offset, &ptr) == 0)
+    if (SeekIfNeeded(FixAddress(FixWord(dh.p_room_exit)), &offset, &ptr) == 0)
         return 0;
 
     ct = 0;
@@ -472,7 +472,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 #if defined(__clang__)
 #pragma mark item locations
 #endif
-    if (seek_if_needed(fix_address(fix_word(dh.p_orig_items)), &offset, &ptr) == 0)
+    if (SeekIfNeeded(FixAddress(FixWord(dh.p_orig_items)), &offset, &ptr) == 0)
         return 0;
 
     ct = 0;
@@ -487,8 +487,8 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 #if defined(__clang__)
 #pragma mark dictionary
 #endif
-    load_TI994A_dict(0, dh.p_verb_table, dh.num_verbs + 1, Verbs);
-    load_TI994A_dict(1, dh.p_noun_table, dh.num_nouns + 1, Nouns);
+    LoadTI994ADict(0, dh.p_verb_table, dh.num_verbs + 1, Verbs);
+    LoadTI994ADict(1, dh.p_noun_table, dh.num_nouns + 1, Nouns);
 
     for (int i = 0; i <= dh.num_nouns - dh.num_verbs; i++)
         Verbs[dh.num_verbs + i] = ".\0";
@@ -511,7 +511,7 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
 
     int objectlinks[ni + 1];
 
-    if (seek_if_needed(fix_address(fix_word(dh.p_obj_link)), &offset, &ptr) == 0)
+    if (SeekIfNeeded(FixAddress(FixWord(dh.p_obj_link)), &offset, &ptr) == 0)
         return 0;
 
     do {
@@ -525,8 +525,8 @@ int try_loading_ti994a(struct DATAHEADER dh, int loud)
         ip++;
     } while (ct < ni + 1);
 
-    read_implicit(dh);
-    read_explicit(dh);
+    ReadTI99ImplicitActions(dh);
+    ReadTI99ExplicitActions(dh);
 
     AutoInventory = 1;
     sys[INVENTORY] = "I'm carrying: ";

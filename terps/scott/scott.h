@@ -113,7 +113,7 @@ int PerformExtraCommand(void);
 const char *MapSynonym(int noun);
 void Fatal(const char *x);
 void DrawBlack(void);
-uint8_t *seek_to_pos(uint8_t *buf, int offset);
+uint8_t *SeekToPos(uint8_t *buf, int offset);
 int CountCarried(void);
 int RandomPercent(int n);
 void DoneIt(void);

@@ -5,12 +5,12 @@
 #include "scott.h"
 #include "TI99_4a_terp.h"
 
-ActionResultType run_code_chunk(uint8_t *code_chunk)
+ActionResultType PerformTI99Line(uint8_t *action_line)
 {
-    if (code_chunk == NULL)
+    if (action_line == NULL)
         return 1;
 
-    uint8_t *ptr = code_chunk;
+    uint8_t *ptr = action_line;
     int run_code = 0;
     int index = 0;
     ActionResultType result = ACT_FAILURE;
@@ -243,7 +243,7 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
             if (try_index >= 32) {
                 Fatal("ERROR Hit upper limit on try method.\n");
             }
-            try[try_index++] = ptr - code_chunk + *ptr;
+            try[try_index++] = ptr - action_line + *ptr;
             ptr++;
             break;
 
@@ -507,9 +507,9 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
                         Output(sys[MESSAGE_DELIMITER]);
                 }
             } else {
-                index = ptr - code_chunk;
+                index = ptr - action_line;
                 fprintf(stderr, "Unknown action %d [Param begins %d %d]\n",
-                        opcode, code_chunk[index], code_chunk[index + 1]);
+                        opcode, action_line[index], action_line[index + 1]);
                 break;
             }
             break;
@@ -527,7 +527,7 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
                 try_index -= 1;
                 try[try_index] = 0;
                 run_code = 0;
-                ptr = code_chunk + index;
+                ptr = action_line + index;
             }
         }
     }
@@ -535,7 +535,7 @@ ActionResultType run_code_chunk(uint8_t *code_chunk)
     return result;
 }
 
-void run_implicit(void)
+void RunImplicitTI99Actions(void)
 {
     int probability;
     uint8_t *ptr;
@@ -558,7 +558,7 @@ void run_implicit(void)
         probability = ptr[0];
 
         if (RandomPercent(probability))
-            run_code_chunk(ptr + 2);
+            PerformTI99Line(ptr + 2);
 
         if (ptr[1] == 0 || ptr - ti99_implicit_actions >= ti99_implicit_extent)
             loop_flag = 1;
@@ -569,10 +569,11 @@ void run_implicit(void)
 }
 
 /* parses verb noun actions */
-ExplicitResultType run_explicit(int verb_num, int noun_num)
+ExplicitResultType RunExplicitTI99Actions(int verb_num, int noun_num)
 {
     uint8_t *p;
     ExplicitResultType flag = 1;
+    int match = 0;
     ActionResultType runcode;
 
     p = VerbActionOffsets[verb_num];
@@ -583,10 +584,9 @@ ExplicitResultType run_explicit(int verb_num, int noun_num)
     flag = ER_NO_RESULT;
     while (flag == ER_NO_RESULT) {
         /* we match VERB NOUN or VERB ANY */
-        if (p[0] == noun_num || p[0] == 0) {
-            /* we have verb/noun match. run code! */
-
-            runcode = run_code_chunk(p + 2);
+        if (p != NULL && (p[0] == noun_num || p[0] == 0)) {
+            match = 1;
+            runcode = PerformTI99Line(p + 2);
 
             if (runcode == ACT_SUCCESS) {
                 return ER_SUCCESS;

@@ -13,9 +13,9 @@
 #include <stdio.h>
 
 GameIDType DetectTI994A(uint8_t **sf, size_t *extent);
-uint16_t fix_address(uint16_t address);
-uint16_t fix_word(uint16_t word);
-uint16_t get_word(uint8_t *mem);
+uint16_t FixAddress(uint16_t address);
+uint16_t FixWord(uint16_t word);
+uint16_t GetWord(uint8_t *mem);
 
 extern uint8_t *ti99_implicit_actions;
 extern uint8_t *ti99_explicit_actions;

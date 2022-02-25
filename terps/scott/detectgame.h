@@ -12,9 +12,9 @@
 #include <stdint.h>
 #include "definitions.h"
 
-GameIDType detect_game(const char *file_name);
-int seek_if_needed(int expected_start, int *offset, uint8_t **ptr);
-dictionary_type getId(size_t *offset);
+GameIDType DetectGame(const char *file_name);
+int SeekIfNeeded(int expected_start, int *offset, uint8_t **ptr);
+DictionaryType GetId(size_t *offset);
 int FindCode(const char *x, int base);
 
 #endif /* detectgame_h */

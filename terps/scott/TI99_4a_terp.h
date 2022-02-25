@@ -3,7 +3,7 @@
 
 #include "definitions.h"
 
-void run_implicit(void);
-ExplicitResultType run_explicit(int verb_num, int noun_num);
+void RunImplicitTI99Actions(void);
+ExplicitResultType RunExplicitTI99Actions(int verb_num, int noun_num);
 
 #endif

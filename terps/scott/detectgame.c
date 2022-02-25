@@ -35,7 +35,7 @@ int FindCode(const char *x, int base)
     return -1;
 }
 
-void read_header(uint8_t *ptr)
+void ReadHeader(uint8_t *ptr)
 {
     int i, value;
     for (i = 0; i < 24; i++) {
@@ -45,19 +45,19 @@ void read_header(uint8_t *ptr)
     }
 }
 
-uint8_t *seek_to_pos(uint8_t *buf, int offset)
+uint8_t *SeekToPos(uint8_t *buf, int offset)
 {
     if (offset > file_length)
         return 0;
     return buf + offset;
 }
 
-int seek_if_needed(int expected_start, int *offset, uint8_t **ptr)
+int SeekIfNeeded(int expected_start, int *offset, uint8_t **ptr)
 {
     if (expected_start != FOLLOWS) {
         *offset = expected_start + file_baseline_offset;
         uint8_t *ptrbefore = *ptr;
-        *ptr = seek_to_pos(entire_file, *offset);
+        *ptr = SeekToPos(entire_file, *offset);
         if (*ptr == ptrbefore)
             fprintf(stderr, "Seek unnecessary, could have been set to FOLLOWS.\n");
         if (*ptr == 0)
@@ -66,7 +66,7 @@ int seek_if_needed(int expected_start, int *offset, uint8_t **ptr)
     return 1;
 }
 
-void print_header_info(int *h, int ni, int na, int nw, int nr, int mc, int pr, int tr, int wl, int lt, int mn, int trm)
+void PrintHeaderInfo(int *h, int ni, int na, int nw, int nr, int mc, int pr, int tr, int wl, int lt, int mn, int trm)
 {
     uint16_t value;
     for (int i = 0; i < 13; i++) {
@@ -88,7 +88,7 @@ void print_header_info(int *h, int ni, int na, int nw, int nr, int mc, int pr, i
     fprintf(stderr, "Number of treasures: %d\n", tr);
 }
 
-GameIDType detect_game(const char *file_name)
+GameIDType DetectGame(const char *file_name)
 {
 
     FILE *f = fopen(file_name, "r");

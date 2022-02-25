@@ -1777,10 +1777,10 @@ static ExplicitResultType PerformActions(int vb, int no)
         }
     } else {
         if (vb == 0) {
-            run_implicit();
+            RunImplicitTI99Actions();
             return ER_NO_RESULT;
         } else {
-            flag = run_explicit(vb, no);
+            flag = RunExplicitTI99Actions(vb, no);
         }
     }
 
@@ -1988,7 +1988,7 @@ void glk_main(void)
         sys[i] = dictpointer[i];
     }
 
-    GameIDType game_type = detect_game(game_file);
+    GameIDType game_type = DetectGame(game_file);
 
     if (!game_type)
         glk_exit();
