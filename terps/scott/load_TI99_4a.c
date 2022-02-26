@@ -228,21 +228,16 @@ void LoadTI994ADict(int vorn, uint16_t table, int num_words,
     /* table is either verb or noun table */
     wtable = (uint16_t *)(entire_file + FixAddress(FixWord(table)));
 
-    i = 0;
-
-    while (i <= num_words) {
+    for (i = 0; i <= num_words; i++) {
         do {
             w1 = (char *)entire_file + FixAddress(GetWord((uint8_t *)wtable + (i * 2)));
             w2 = (char *)entire_file + FixAddress(GetWord((uint8_t *)wtable + ((1 + i) * 2)));
         } while (w1 == w2);
 
         word_len = w2 - w1;
-
         dict[i] = MemAlloc(word_len + 1);
 
         strncpy((char *)dict[i], w1, word_len);
-
-        i += 1;
     }
 }
 
@@ -317,7 +312,7 @@ void ReadTI99ExplicitActions(struct DATAHEADER dh)
     ti99_explicit_extent = end - start;
     ti99_explicit_actions = MemAlloc(ti99_explicit_extent);
     memcpy(ti99_explicit_actions, start, ti99_explicit_extent);
-    for (i = 0; i <= dh.num_verbs; i += 1) {
+    for (i = 0; i <= dh.num_verbs; i++) {
         if (VerbActionOffsets[i] != NULL) {
             VerbActionOffsets[i] = ti99_explicit_actions + (VerbActionOffsets[i] - start);
         }
