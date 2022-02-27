@@ -169,7 +169,7 @@ const char *sysdict_TI994A[MAX_SYSMESS] = {
     "\nVisible items are : ",
     "Obvious exits : ",
     "I am carrying : ",
-    "Nothing.\n",
+    "Nothing. ",
     "What shall I do? ",
     "<HIT ENTER>",
     "Light went out! ",

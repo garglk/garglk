@@ -748,7 +748,7 @@ void ListInventoryInUpperWindow(void)
         i++;
     }
     if (anything == 0) {
-        WriteToRoomDescriptionStream("%s", sys[NOTHING]);
+        WriteToRoomDescriptionStream("%s\n", sys[NOTHING]);
     } else {
         if (Options & TI994A_STYLE)
             WriteToRoomDescriptionStream(".");
