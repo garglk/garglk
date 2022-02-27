@@ -994,7 +994,7 @@ static void TranscriptOff(void)
     Output(sys[TRANSCRIPT_OFF]);
 }
 
-int PerformExtraCommand(void)
+int PerformExtraCommand(int extra_stop_time)
 {
     struct Command command = *CurrentCommand;
     int verb = command.verb;
@@ -1011,7 +1011,7 @@ int PerformExtraCommand(void)
             noun = newnoun;
     }
 
-    stop_time = 1;
+    stop_time = 1 + extra_stop_time;
 
     switch (verb) {
     case RESTORE:

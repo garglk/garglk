@@ -109,7 +109,7 @@ size_t GetFileLength(FILE *in);
 void *MemAlloc(int size);
 int LoadDatabase(FILE *f, int loud);
 void Updates(event_t ev);
-int PerformExtraCommand(void);
+int PerformExtraCommand(int extra_stop_time);
 const char *MapSynonym(int noun);
 void Fatal(const char *x);
 void DrawBlack(void);

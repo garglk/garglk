@@ -729,11 +729,10 @@ int GetInput(int *vb, int *no)
     /* We use NumWords + verb for our extra commands */
     /* such as UNDO and TRANSCRIPT */
     if (CurrentCommand->verb > GameHeader.NumWords) {
-        if (!PerformExtraCommand()) {
+        if (!PerformExtraCommand(0)) {
             Output(sys[I_DONT_UNDERSTAND]);
-            return 1;
-        } else
-            return 1;
+        }
+        return 1;
         /* And NumWords + noun for our extra nouns */
         /* such as ALL */
     } else if (CurrentCommand->noun > GameHeader.NumWords) {
@@ -774,5 +773,5 @@ int RecheckForExtraCommand(void)
     if (ExtraNoun)
         CurrentCommand->noun = ExtraNounsKey[ExtraNoun];
 
-    return PerformExtraCommand();
+    return PerformExtraCommand(1);
 }
