@@ -2001,7 +2001,7 @@ void glk_main(void)
     GameIDType game_type = DetectGame(game_file);
 
     if (!game_type)
-        glk_exit();
+        Fatal("Unsupported game!");
 
     if (game_type != SCOTTFREE && game_type != TI994A) {
         Options |= SPECTRUM_STYLE;
