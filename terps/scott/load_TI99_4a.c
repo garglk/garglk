@@ -282,7 +282,7 @@ void ReadTI99ExplicitActions(struct DATAHEADER dh)
     size_t explicit_offset = FixAddress(FixWord(dh.p_explicit));
     blockstart = entire_file + explicit_offset;
 
-    VerbActionOffsets = MemAlloc(dh.num_verbs * sizeof(uint8_t *));
+    VerbActionOffsets = MemAlloc((dh.num_verbs + 1) * sizeof(uint8_t *));
 
     for (i = 0; i <= dh.num_verbs; i++) {
         ptr = blockstart;
@@ -485,10 +485,10 @@ int TryLoadingTI994A(struct DATAHEADER dh, int loud)
     LoadTI994ADict(0, dh.p_verb_table, dh.num_verbs + 1, Verbs);
     LoadTI994ADict(1, dh.p_noun_table, dh.num_nouns + 1, Nouns);
 
-    for (int i = 0; i <= dh.num_nouns - dh.num_verbs; i++)
+    for (int i = 1; i <= dh.num_nouns - dh.num_verbs; i++)
         Verbs[dh.num_verbs + i] = ".\0";
 
-    for (int i = 0; i <= dh.num_verbs - dh.num_nouns; i++)
+    for (int i = 1; i <= dh.num_verbs - dh.num_nouns; i++)
         Nouns[dh.num_nouns + i] = ".\0";
 
     if (loud) {
