@@ -563,6 +563,8 @@ int LoadDatabase(FILE *f, int loud)
     }
     if (loud)
         fprintf(stderr, "%d.\nLoad Complete.\n\n", ct);
+
+    fclose(f);
     return SCOTTFREE;
 }
 
