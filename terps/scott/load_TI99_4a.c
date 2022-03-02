@@ -119,7 +119,6 @@ int TryLoadingTI994A(struct DATAHEADER dh, int loud);
 
 GameIDType DetectTI994A(uint8_t **sf, size_t *extent)
 {
-
     int offset = FindCode("\x30\x30\x30\x30\x00\x30\x30\x00\x28\x28", 0);
     if (offset == -1)
         return UNKNOWN_GAME;
@@ -163,7 +162,6 @@ uint8_t *GetTI994AWord(uint8_t *string, uint8_t **result, size_t *length)
     }
     msg++;
     *result = MemAlloc(*length);
-
     memcpy(*result, msg, *length);
 
     msg += *length;
@@ -235,8 +233,8 @@ void LoadTI994ADict(int vorn, uint16_t table, int num_words,
         } while (w1 == w2);
 
         word_len = w2 - w1;
-        dict[i] = MemAlloc(word_len + 1);
 
+        dict[i] = MemAlloc(word_len + 1);
         strncpy((char *)dict[i], w1, word_len);
     }
 }
@@ -317,7 +315,6 @@ void ReadTI99ExplicitActions(struct DATAHEADER dh)
             VerbActionOffsets[i] = ti99_explicit_actions + (VerbActionOffsets[i] - start);
         }
     }
-
 }
 
 uint8_t *LoadTitleScreen(void)

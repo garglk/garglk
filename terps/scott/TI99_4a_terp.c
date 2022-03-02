@@ -14,14 +14,12 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
     int run_code = 0;
     int index = 0;
     ActionResultType result = ACT_FAILURE;
-    int opcode, param, param2;
-
+    int opcode, param;
 
     int try_index;
     int try[32];
 
     try_index = 0;
-    int temp;
 
     while (run_code == 0) {
         opcode = *(ptr++);
@@ -265,6 +263,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
                 Items[*ptr].Text);
 #endif
             Items[*(ptr++)].Location = MyLoc;
+            should_look_in_transcript = 1;
             break;
 
         case 221: /* go to room */
@@ -273,6 +272,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
                 Rooms[*ptr].Text);
 #endif
             MyLoc = *(ptr++);
+            should_look_in_transcript = 1;
             Look();
             break;
 
@@ -334,12 +334,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 230: /* move item p2 to room p */
             param = *(ptr++);
-            param2 = *(ptr++);
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr, "Item %d (%s) is put in room %d (%s).\n",
-                param2, Items[param2].Text, param, Rooms[param].Text);
-#endif
-            Items[param2].Location = param;
+            PutItemAInRoomB(*(ptr++), param);
             break;
 
         case 231: /* quit */
@@ -370,10 +365,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 236: /* swap items p and p2 around */
             param = *(ptr++);
-            param2 = *(ptr++);
-            temp = Items[param].Location;
-            Items[param].Location = Items[param2].Location;
-            Items[param2].Location = temp;
+            SwapItemLocations(param, *(ptr++));
             break;
 
         case 237: /* move item p to the inventory */
@@ -387,8 +379,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 238: /* make item p same room as item p2 */
             param = *(ptr++);
-            param2 = *(ptr++);
-            Items[param].Location = Items[param2].Location;
+            MoveItemAToLocOfItemB(param, *(ptr++));
             break;
 
         case 239: /* nop */
@@ -396,6 +387,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         case 240: /* look at room */
             Look();
+            should_look_in_transcript = 1;
             break;
 
         case 241: /* unknown */
@@ -437,43 +429,17 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
                 CurrentCounter = -1;
             break;
 
-        case 248: /* select room counter */
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr, "switch location to stored location (%d) (%s).\n",
-                SavedRoom, Rooms[SavedRoom].Text);
-#endif
-            temp = MyLoc;
-            MyLoc = SavedRoom;
-            SavedRoom = temp;
+        case 248: /* go to stored location */
+            GoToStoredLoc();
             break;
 
-        case 249: /* swap room counter */
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr, "swap location<->roomflag[%d]. New location: %s\n", dv, Rooms[RoomSaved[dv]].Text);
-#endif
-            temp = MyLoc;
-            MyLoc = RoomSaved[*ptr];
-            RoomSaved[*(ptr++)] = temp;
-            Look();
+        case 249: /* swap room and counter */
+            SwapLocAndRoomflag(*(ptr++));
             break;
 
-        case 250: /* swap timer */
-#ifdef DEBUG_ACTIONS
-            fprintf(stderr,
-                "Select a counter. Current counter is swapped with backup "
-                "counter %d\n",
-                dv);
-#endif
-            {
-                int c1 = CurrentCounter;
-                CurrentCounter = Counters[*ptr];
-                Counters[*(ptr++)] = c1;
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "Value of new selected counter is %d\n",
-                    CurrentCounter);
-#endif
-                break;
-            }
+        case 250: /* swap current counter */
+            SwapCounters(*(ptr++));
+            break;
 
         case 251: /* print noun */
             PrintNoun();
@@ -500,13 +466,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 
         default:
             if (opcode <= 182 && opcode <= GameHeader.NumMessages + 1) {
-                const char *message = Messages[opcode];
-                if (message != NULL && message[0] != 0) {
-                    Output(message);
-                    const char lastchar = message[strlen(message) - 1];
-                    if (lastchar != 13 && lastchar != 10)
-                        Output(sys[MESSAGE_DELIMITER]);
-                }
+                PrintMessage(opcode);
             } else {
                 index = ptr - action_line;
                 fprintf(stderr, "Unknown action %d [Param begins %d %d]\n",
