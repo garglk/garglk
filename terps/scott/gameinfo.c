@@ -68,6 +68,8 @@ const char *sysdict[MAX_SYSMESS] = {
     "Answer yes or no.\n",
     "Are you sure? ",
     "Move undone. ",
+    "Can't undo on first turn. ",
+    "No more undo states stored. ",
     "Saved. ",
     "You can't use ALL with that verb. ",
     "Transcript is now off.\n",
@@ -77,6 +79,10 @@ const char *sysdict[MAX_SYSMESS] = {
     "Failed to create transcript file. ",
     "Start of transcript\n\n",
     "\n\nEnd of transcript\n",
+    "BAD DATA! Invalid save file.\n",
+    "State saved.\n",
+    "State restored.\n",
+    "No saved state exists.\n"
 };
 
 /* These are supposed to be the original ScottFree system
@@ -129,7 +135,7 @@ const char *sysdict_i_am[MAX_SYSMESS] = {
     "There's nothing here to take. ",
     "I carry nothing. ",
     "My light is growing dim. ",
-    NULL,
+    NULL
 };
 
 /* These are supposed to be the original TI-99/4A system
