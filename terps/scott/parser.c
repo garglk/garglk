@@ -588,15 +588,19 @@ struct Command *CommandFromStrings(int index, struct Command *previous)
         /* If we find no verb, we try copying the verb from the previous command */
         if (previous) {
             lastverb = previous->verb;
+            verbindex = previous->verbwordindex;
+        } else {
+            CreateErrorMessage(sys[I_DONT_KNOW_HOW_TO], UnicodeWords[i - 1], sys[SOMETHING]);
+            return NULL;
         }
         if (FindExtaneousWords(&i, verb) != 0)
             return NULL;
-        if (previous)
-            verbindex = previous->verbwordindex;
+
         return CreateCommandStruct(lastverb, verb, verbindex, i, previous);
+
     }
 
-    if (list == NULL) {
+    if (list == NULL || list == SkipList) {
         CreateErrorMessage(sys[I_DONT_KNOW_HOW_TO], UnicodeWords[i - 1], sys[SOMETHING]);
         return NULL;
     }
