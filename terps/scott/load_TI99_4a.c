@@ -328,6 +328,7 @@ uint8_t *LoadTitleScreen(void)
     p = entire_file + 0x80 + file_baseline_offset;
     if (p - entire_file > file_length)
         return NULL;
+    int parens = 0;
     for (lines = 0; lines < 24; lines++) {
         for (int i = 0; i < 40; i++) {
             char c = *(p++);
@@ -335,6 +336,25 @@ uint8_t *LoadTitleScreen(void)
                 return NULL;
             if (!((c <= 127) && (c >= 0))) /* isascii() */
                 c = '?';
+            switch (c) {
+                case '\\':
+                    c = ' ';
+                    break;
+                case '(':
+                    parens = 1;
+                    break;
+                case ')':
+                    if (!parens)
+                        c = '@';
+                    parens = 0;
+                    break;
+                case '|':
+                    if (*p != ' ')
+                        c = 12;
+                    break;
+                default:
+                    break;
+            }
             buf[offset++] = c;
             if (offset >= 3072)
                 return NULL;
