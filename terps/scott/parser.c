@@ -26,6 +26,8 @@ glui32 **UnicodeWords = NULL;
 char **CharWords = NULL;
 int WordsInInput = 0;
 
+static int lastnoun = 0;
+
 static glui32 *FirstErrorMessage = NULL;
 
 void FreeStrings(void)
@@ -357,12 +359,24 @@ const char *ExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
 
 extra_command ExtraCommandsKey[NUMBER_OF_EXTRA_COMMANDS] = { NO_COMMAND, RESTART, SAVE, RESTORE, RESTORE, SCRIPT, SCRIPT, UNDO, UNDO, RAM, RAMLOAD, RAMLOAD, RAMSAVE };
 
-const char *EnglishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = { NULL, "game", "story", "on", "off", "load", "restore", "save", "move", "command", "all", "everything" };
-const char *GermanExtraNouns[NUMBER_OF_EXTRA_NOUNS] = { NULL, "spiel", "story", "on", "off", "wiederherstellen", "laden", "speichern", "move", "command", "alle", "alles" };
-const char *SpanishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = { NULL, "juego", "story", "on", "off", "cargar", "reanuda", "conserva", "move", "command", "toda", "todo" };
+const char *EnglishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = {
+    NULL, "game", "story", "on", "off", "load",
+    "restore", "save", "move", "command", "all", "everything", "it"
+};
+const char *GermanExtraNouns[NUMBER_OF_EXTRA_NOUNS] = {
+    NULL, "spiel", "story", "on", "off", "wiederherstellen",
+    "laden", "speichern", "move", "command", "alle", "alles", "es"
+};
+const char *SpanishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = {
+    NULL, "juego", "story", "on", "off", "cargar",
+    "reanuda", "conserva", "move", "command", "toda", "todo", "eso"
+};
 const char *ExtraNouns[NUMBER_OF_EXTRA_NOUNS];
 
-extra_command ExtraNounsKey[NUMBER_OF_EXTRA_NOUNS] = { NO_COMMAND, GAME, GAME, ON, OFF, RAMLOAD, RAMLOAD, RAMSAVE, COMMAND, COMMAND, ALL, ALL };
+extra_command ExtraNounsKey[NUMBER_OF_EXTRA_NOUNS] = {
+    NO_COMMAND, GAME, GAME, ON, OFF, RAMLOAD,
+    RAMLOAD, RAMSAVE, COMMAND, COMMAND, ALL, ALL, IT
+};
 
 #define NUMBER_OF_ABBREVIATIONS 6
 const char *Abbreviations[NUMBER_OF_ABBREVIATIONS] = { NULL, "i", "l", "x", "z", "q" };
@@ -752,11 +766,17 @@ int GetInput(int *vb, int *no)
             }
             if (!CreateAllCommands(CurrentCommand))
                 return 1;
+        } else if (CurrentCommand->noun == IT) {
+            CurrentCommand->noun = lastnoun;
         }
     }
 
     *vb = CurrentCommand->verb;
     *no = CurrentCommand->noun;
+
+    if (*no > 6) {
+        lastnoun = *no;
+    }
 
     if (Options & TI994A_STYLE)
         Output("\n");

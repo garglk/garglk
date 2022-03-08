@@ -71,7 +71,7 @@ extern const char *EnglishDelimiterList[];
 extern const char *GermanDelimiterList[];
 extern const char *DelimiterList[];
 
-#define NUMBER_OF_EXTRA_NOUNS 12
+#define NUMBER_OF_EXTRA_NOUNS 13
 
 extern const char *EnglishExtraNouns[];
 extern const char *GermanExtraNouns[];
