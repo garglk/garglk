@@ -543,10 +543,8 @@ int FindExtaneousWords(int *index, int noun)
     if (list == NULL) {
         if (*index >= WordsInInput)
             *index = WordsInInput - 1;
-        fprintf(stderr, "FindExtaneousWords Error: I don't know what a \"%s\" is\n", CharWords[*index]);
         CreateErrorMessage(sys[I_DONT_KNOW_WHAT_A], UnicodeWords[*index], sys[IS]);
     } else {
-        fprintf(stderr, "FindExtaneousWords Error: I don't understand\n");
         CreateErrorMessage(sys[I_DONT_UNDERSTAND], NULL, NULL);
     }
 
