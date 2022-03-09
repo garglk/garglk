@@ -542,3 +542,7 @@ void glkunix_set_base_file(char *filename)
 #endif
 }
 
+const char *glkunix_fileref_get_filename(fileref_t *fref)
+{
+    return fref->filename;
+}

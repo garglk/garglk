@@ -476,10 +476,19 @@ extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #endif /* GLK_MODULE_RESOURCE_STREAM */
 
+/* "Unofficial official" Glk function (provided by remglk) as an
+    alternative name to garglk_fileref_get_name. */
+
+#define GLKUNIX_FILEREF_GET_FILENAME (1)
+extern const char *glkunix_fileref_get_filename(frefid_t fref);
+
 /* XXX non-official Glk functions that may or may not exist */
 
 #define GARGLK 1
 
+#ifdef __GNUC__
+__attribute__((__deprecated__("Use glkunix_fileref_get_filename instead")))
+#endif
 extern const char *garglk_fileref_get_name(frefid_t fref);
 
 extern void garglk_set_program_name(const char *name);

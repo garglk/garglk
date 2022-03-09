@@ -1526,13 +1526,13 @@ void save()
   char str[256];
   AtrElem *atr;
 
-#ifdef GLK_MODULE_FILEREF_GET_NAME
+#ifdef GLKUNIX_FILEREF_GET_FILENAME
 
   frefid_t fref;
   fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Write, 0);
   if (fref == NULL)
     error(M_SAVEFAILED);
-  strcpy(str, garglk_fileref_get_name(fref));
+  strcpy(str, glkunix_fileref_get_filename(fref));
   glk_fileref_destroy(fref);
 
 #else
@@ -1628,13 +1628,13 @@ void restore()
   char savedVersion[4];
   char savedName[256];
 
-#ifdef GLK_MODULE_FILEREF_GET_NAME
+#ifdef GLKUNIX_FILEREF_GET_FILENAME
 
   frefid_t fref;
   fref = glk_fileref_create_by_prompt(fileusage_SavedGame, filemode_Read, 0);
   if (fref == NULL)
     error(M_SAVEFAILED);
-  strcpy(str, garglk_fileref_get_name(fref));
+  strcpy(str, glkunix_fileref_get_filename(fref));
   glk_fileref_destroy(fref);
 
 #else
