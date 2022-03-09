@@ -520,7 +520,7 @@ static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, const unsigne
     }
 }
 
-void gli_draw_clear(unsigned char *rgb)
+void gli_draw_clear(const unsigned char *rgb)
 {
     unsigned char *p;
     int x, y;
@@ -538,7 +538,7 @@ void gli_draw_clear(unsigned char *rgb)
     }
 }
 
-void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
+void gli_draw_rect(int x0, int y0, int w, int h, const unsigned char *rgb)
 {
     unsigned char *p0;
     int x1 = x0 + w;
@@ -671,7 +671,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
     return x;
 }
 
-int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
+int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
         glui32 *s, int n, int spw)
 {
     return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<bitmap_t, GLI_SUBPIX> &glyphs) {
