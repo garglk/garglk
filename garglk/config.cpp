@@ -194,8 +194,8 @@ std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
 
-    for (const auto &c : string)
-        lowered.push_back(std::tolower(static_cast<unsigned char>(c)));
+    for (unsigned char c : string)
+        lowered.push_back(std::tolower(c));
 
     return lowered;
 }
