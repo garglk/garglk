@@ -83,7 +83,7 @@ struct font_t
     bool kerned = false;
     std::map<std::pair<int, int>, int> kerncache;
 
-    font_t(const struct font &font);
+    explicit font_t(const struct font &font);
 
     const fentry_t &getglyph(glui32 cid);
     int charkern(int c0, int c1);
