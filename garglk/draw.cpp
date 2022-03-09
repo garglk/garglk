@@ -371,12 +371,11 @@ font_t::font_t(const struct font &font)
 void gli_initialize_fonts(void)
 {
     int err;
-    int i;
 
-    for (i = 0; i < 256; i++)
+    for (int i = 0; i < 256; i++)
         gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
 
-    for (i = 0; i <= GAMMA_MAX; i++)
+    for (int i = 0; i <= GAMMA_MAX; i++)
         gammainv[i] = std::pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
