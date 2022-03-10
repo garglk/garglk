@@ -179,5 +179,5 @@ int main(int argc, char **argv)
     /* run story file */
     std::string dir_string = dir.toStdString();
     std::string story_string = story.toStdString();
-    return garglk::rungame(dir_string.c_str(), story_string.c_str());
+    return garglk::rungame(dir_string, story_string);
 }

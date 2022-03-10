@@ -83,7 +83,7 @@ struct font_t
     bool kerned = false;
     std::map<std::pair<int, int>, int> kerncache;
 
-    font_t(const struct font &font);
+    explicit font_t(const struct font &font);
 
     const fentry_t &getglyph(glui32 cid);
     int charkern(int c0, int c1);
@@ -371,12 +371,11 @@ font_t::font_t(const struct font &font)
 void gli_initialize_fonts(void)
 {
     int err;
-    int i;
 
-    for (i = 0; i < 256; i++)
+    for (int i = 0; i < 256; i++)
         gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
 
-    for (i = 0; i <= GAMMA_MAX; i++)
+    for (int i = 0; i <= GAMMA_MAX; i++)
         gammainv[i] = std::pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
@@ -521,7 +520,7 @@ static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, const unsigne
     }
 }
 
-void gli_draw_clear(unsigned char *rgb)
+void gli_draw_clear(const unsigned char *rgb)
 {
     unsigned char *p;
     int x, y;
@@ -539,7 +538,7 @@ void gli_draw_clear(unsigned char *rgb)
     }
 }
 
-void gli_draw_rect(int x0, int y0, int w, int h, unsigned char *rgb)
+void gli_draw_rect(int x0, int y0, int w, int h, const unsigned char *rgb)
 {
     unsigned char *p0;
     int x1 = x0 + w;
@@ -672,7 +671,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
     return x;
 }
 
-int gli_draw_string_uni(int x, int y, int fidx, unsigned char *rgb,
+int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
         glui32 *s, int n, int spw)
 {
     return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<bitmap_t, GLI_SUBPIX> &glyphs) {
