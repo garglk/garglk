@@ -26,6 +26,19 @@ extern "C" {
 #include <glk.h>
 }
 
+#ifdef ZTERP_GLK_BLORB
+extern "C" {
+#include <gi_blorb.h>
+}
+#endif
+
+#ifdef ZTERP_GLK_UNIX
+extern "C" {
+#include <glkstart.h>
+}
+
+static void load_resources();
+
 // The “standard” function (provided by remglk as an extension) for
 // getting a filename from a fileref is glkunix_fileref_get_filename;
 // Gargoyle has always had the function garglk_fileref_get_name for this
@@ -36,19 +49,6 @@ extern "C" {
 #if defined(GARGLK) && !defined(GLKUNIX_FILEREF_GET_FILENAME)
 #define glkunix_fileref_get_filename garglk_fileref_get_name
 #endif
-
-#ifdef ZTERP_GLK_BLORB
-extern "C" {
-#include <gi_blorb.h>
-}
-#endif
-
-static void load_resources();
-
-#ifdef ZTERP_GLK_UNIX
-extern "C" {
-#include <glkstart.h>
-}
 
 glkunix_argumentlist_t glkunix_arguments[] =
 {
