@@ -1329,6 +1329,16 @@ void PrintMessage(int index)
     }
 }
 
+void PlayerIsDead(void)
+{
+#ifdef DEBUG_ACTIONS
+    fprintf(stderr, "Player is dead\n");
+#endif
+    Output(sys[IM_DEAD]);
+    BitFlags &= ~(1 << DARKBIT);
+    MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
+}
+
 static ActionResultType PerformLine(int ct)
 {
 #ifdef DEBUG_ACTIONS
@@ -1518,9 +1528,9 @@ static ActionResultType PerformLine(int ct)
             case 0: /* NOP */
                 break;
             case 52:
-                if (CountCarried() == GameHeader.MaxCarry) {
+                if (CountCarried() >= GameHeader.MaxCarry) {
                     Output(sys[YOURE_CARRYING_TOO_MUCH]);
-                    break;
+                    return ACT_SUCCESS;
                 }
                 Items[param[pptr++]].Location = CARRIED;
                 break;
@@ -1570,13 +1580,7 @@ static ActionResultType PerformLine(int ct)
                 BitFlags &= ~(1 << param[pptr++]);
                 break;
             case 61:
-#ifdef DEBUG_ACTIONS
-                fprintf(stderr, "Player is dead\n");
-#endif
-                Output(sys[IM_DEAD]);
-                LookWithPause();
-                BitFlags &= ~(1 << DARKBIT);
-                MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
+                PlayerIsDead();
                 break;
             case 62:
                 p = param[pptr++];
@@ -1777,18 +1781,12 @@ static ExplicitResultType PerformActions(int vb, int no)
             return ER_SUCCESS;
         }
         if (dark) {
+            BitFlags &= ~(1 << DARKBIT);
+            MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
             Output(sys[YOU_FELL_AND_BROKE_YOUR_NECK]);
-            Output("\n\n");
-            Output(sys[PLAY_AGAIN]);
-            Output("\n");
-            if (YesOrNo()) {
-                should_restart = 1;
+            BitFlags &= ~(1 << DARKBIT);
+            MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
                 return ER_SUCCESS;
-            } else {
-                if (Transcript)
-                    glk_stream_close(Transcript, NULL);
-                glk_exit();
-            }
         }
         Output(sys[YOU_CANT_GO_THAT_WAY]);
         return ER_SUCCESS;
@@ -1887,7 +1885,7 @@ static ExplicitResultType PerformActions(int vb, int no)
                     Output(sys[WHAT]);
                     return ER_SUCCESS;
                 }
-                if (CountCarried() == GameHeader.MaxCarry) {
+                if (CountCarried() >= GameHeader.MaxCarry) {
                     Output(sys[YOURE_CARRYING_TOO_MUCH]);
                     return ER_SUCCESS;
                 }

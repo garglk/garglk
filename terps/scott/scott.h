@@ -128,6 +128,7 @@ void SwapItemLocations(int itemA, int itemB);
 void PutItemAInRoomB(int itemA, int roomB);
 void SwapCounters(int index);
 void PrintMessage(int index);
+void PlayerIsDead(void);
 
 extern struct GameInfo *GameInfo;
 extern Header GameHeader;

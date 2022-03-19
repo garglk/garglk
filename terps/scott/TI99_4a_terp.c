@@ -246,7 +246,7 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
             break;
 
         case 219: /* get item */
-            if (CountCarried() == GameHeader.MaxCarry) {
+            if (CountCarried() >= GameHeader.MaxCarry) {
                 Output(sys[YOURE_CARRYING_TOO_MUCH]);
                 run_code = 1;
                 result = ACT_FAILURE;
@@ -325,12 +325,10 @@ ActionResultType PerformTI99Line(uint8_t *action_line)
 #ifdef DEBUG_ACTIONS
             fprintf(stderr, "Player is dead\n");
 #endif
-            Output(sys[IM_DEAD]);
-            BitFlags &= ~(1 << DARKBIT);
-            MyLoc = GameHeader.NumRooms; /* It seems to be what the code says! */
-            stop_time = 1;
+            PlayerIsDead();
             DoneIt();
-            return ACT_GAMEOVER;
+            result = ACT_GAMEOVER;
+            break;
 
         case 230: /* move item p2 to room p */
             param = *(ptr++);
