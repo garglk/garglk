@@ -316,14 +316,14 @@ static char *ReadString(FILE *f)
         if (c == '\n')
             tmp[ct++] = 10;
         /* Special case: assume CR is part of CRLF in a
-		 * DOS-formatted file, and ignore it.
-		 */
+         * DOS-formatted file, and ignore it.
+         */
         else if (c == 13)
             ;
         /* Pass only ASCII to Glk; the other reasonable option
-		 * would be to pass Latin-1, but it's probably safe to
-		 * assume that Scott Adams games are ASCII only.
-		 */
+         * would be to pass Latin-1, but it's probably safe to
+         * assume that Scott Adams games are ASCII only.
+         */
         else if ((c >= 32 && c <= 126))
             tmp[ct++] = c;
         else
@@ -395,7 +395,7 @@ int LoadDatabase(FILE *f, int loud)
     if (fscanf(f, "%*d %d %d %d %d %d %d %d %d %d %d %d",
             &ni, &na, &nw, &nr, &mc, &pr, &tr, &wl, &lt, &mn, &trm)
         < 10) {
-        //		fprintf(stderr, "Invalid database(bad header)\n");
+        //      fprintf(stderr, "Invalid database(bad header)\n");
         return 0;
     }
     GameHeader.NumItems = ni;
@@ -536,7 +536,8 @@ int LoadDatabase(FILE *f, int loud)
         }
         ip->Location = (unsigned char)lo;
         if (loud)
-            fprintf(stderr, "Location of item %d: %d, \"%s\"\n", ct, ip->Location, ip->Location == 255 ? "CARRIED" : Rooms[ip->Location].Text);
+            fprintf(stderr, "Location of item %d: %d, \"%s\"\n", ct, ip->Location,
+                ip->Location == CARRIED ? "CARRIED" : Rooms[ip->Location].Text);
         ip->InitialLoc = ip->Location;
         ip++;
         ct++;
@@ -1680,7 +1681,7 @@ static ActionResultType PerformLine(int ct)
                 if (CurrentCounter < -1)
                     CurrentCounter = -1;
                 /* Note: This seems to be needed. I don't yet
-				 know if there is a maximum value to limit too */
+                 know if there is a maximum value to limit too */
                 break;
             case 84:
                 if (CurrentCommand)
@@ -1801,7 +1802,7 @@ static ExplicitResultType PerformActions(int vb, int no)
             int verbvalue, nounvalue;
             verbvalue = Actions[ct].Vocab;
             /* Think this is now right. If a line we run has an action73
-		 run all following lines with vocab of 0,0 */
+               run all following lines with vocab of 0,0 */
             if (vb != 0 && (doagain && verbvalue != 0))
                 break;
             /* Oops.. added this minor cockup fix 1.11 */
@@ -2193,7 +2194,7 @@ Distributed under the GNU software license\n\n");
         }
 
         /* Brian Howarth games seem to use -1 for forever */
-        if (Items[LIGHT_SOURCE].Location /*==-1*/ != DESTROYED && GameHeader.LightTime != -1 && !stop_time) {
+        if (Items[LIGHT_SOURCE].Location != DESTROYED && GameHeader.LightTime != -1 && !stop_time) {
             GameHeader.LightTime--;
             if (GameHeader.LightTime < 1) {
                 BitFlags |= (1 << LIGHTOUTBIT);
