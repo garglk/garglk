@@ -2206,15 +2206,12 @@ Distributed under the GNU software license\n\n");
                 if (Items[LIGHT_SOURCE].Location == CARRIED || Items[LIGHT_SOURCE].Location == MyLoc) {
                     Output(sys[LIGHT_HAS_RUN_OUT]);
                 }
-                if (Options & PREHISTORIC_LAMP)
+                if ((Options & PREHISTORIC_LAMP) || (Game->subtype & MYSTERIOUS) || CurrentGame == TI994A)
                     Items[LIGHT_SOURCE].Location = DESTROYED;
             } else if (GameHeader.LightTime < 25) {
                 if (Items[LIGHT_SOURCE].Location == CARRIED || Items[LIGHT_SOURCE].Location == MyLoc) {
-
-                    if (Options & SCOTTLIGHT) {
-                        Output(sys[LIGHT_RUNS_OUT_IN]);
-                        OutputNumber(GameHeader.LightTime);
-                        Output(sys[TURNS]);
+                    if ((Options & SCOTTLIGHT) || (Game->subtype & MYSTERIOUS)) {
+                        Display(Bottom, "%s %d %s\n",sys[LIGHT_RUNS_OUT_IN], GameHeader.LightTime, sys[TURNS]);
                     } else {
                         if (GameHeader.LightTime % 5 == 0)
                             Output(sys[LIGHT_GROWING_DIM]);
