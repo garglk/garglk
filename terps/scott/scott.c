@@ -80,8 +80,7 @@ int file_baseline_offset = 0;
 const char *title_screen = NULL;
 
 struct Command *CurrentCommand = NULL;
-
-struct GameInfo *GameInfo;
+struct GameInfo *Game;
 
 extern const char *sysdict[MAX_SYSMESS];
 extern const char *sysdict_i_am[MAX_SYSMESS];

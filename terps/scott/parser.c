@@ -93,7 +93,7 @@ glui32 *ToUnicode(const char *string)
         if (c == '\n')
             c = 10;
         glui32 unichar = (glui32)c;
-        if (GameInfo && CurrentGame == TI994A) {
+        if (Game && CurrentGame == TI994A) {
             switch (c) {
             case '@':
                 unicode[dest++] = 0xa9;
