@@ -38,7 +38,8 @@ typedef enum
     GAME,
     COMMAND,
     ALL,
-    IT
+    IT,
+    EXCEPT
 } extra_command;
 
 char **SplitIntoWords(glui32 *string, int length);
@@ -47,7 +48,8 @@ void FreeCommands(void);
 glui32 *ToUnicode(const char *string);
 char *FromUnicode(glui32 *unicode_string, int origlength);
 int RecheckForExtraCommand(void);
-int WhichWord(const char *word, const char **list, int word_length, int list_length);
+int WhichWord(const char *word, const char **list, int word_length,
+    int list_length);
 
 extern glui32 **UnicodeWords;
 extern char **CharWords;
@@ -71,7 +73,10 @@ extern const char *EnglishDelimiterList[];
 extern const char *GermanDelimiterList[];
 extern const char *DelimiterList[];
 
-#define NUMBER_OF_EXTRA_NOUNS 13
+#define NUMBER_OF_EXTRA_COMMANDS 20
+extern const char *ExtraCommands[];
+
+#define NUMBER_OF_EXTRA_NOUNS 16
 
 extern const char *EnglishExtraNouns[];
 extern const char *GermanExtraNouns[];

@@ -26,8 +26,8 @@
 #define DARKBIT      15
 #define LIGHTOUTBIT  16        /* Light gone out */
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "definitions.h"
 
