@@ -741,6 +741,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
                     putc(ch, str->file);
                 }
             }
+            fflush(str->file);
             break;
         case strtype_Resource:
             /* resource streams are never writable */
@@ -830,6 +831,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
                     putc( (ch        & 0xFF), str->file);
                 }
             }
+            fflush(str->file);
             break;
         case strtype_Resource:
             /* resource streams are never writable */
@@ -951,6 +953,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                     }
                 }
             }
+            fflush(str->file);
             break;
         case strtype_Resource:
             /* resource streams are never writable */
