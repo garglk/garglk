@@ -5788,9 +5788,9 @@ gagt_confirm (const char *prompt)
  * It may also work for you, but if it doesn't, or if your system lacks
  * things like dup or fdopen, define GLK_ANSI_ONLY and use the safe version.
  *
- * If GARGLK is used, non-ansi version calls garglk_fileref_get_name()
- * instead, and opens a file the highly portable way, but still with a
- * Glkily nice prompt dialog.
+ * If GLKUNIX_FILEREF_GET_FILENAME is defined, non-ansi version calls
+ * glkunix_fileref_get_filename() instead, and opens a file the highly
+ * portable way, but still with a Glkily nice prompt dialog.
  */
 #ifdef GLK_ANSI_ONLY
 static genfile
@@ -5922,8 +5922,8 @@ gagt_get_user_file (glui32 usage, glui32 fmode, const char *fdtype)
    * underlying file descriptor or FILE* from a Glk stream either. :-(
    */
 
-#ifdef GLK_MODULE_FILEREF_GET_NAME
-  retfile = fopen(garglk_fileref_get_name(fileref), fdtype);
+#ifdef GLKUNIX_FILEREF_GET_FILENAME
+  retfile = fopen(glkunix_fileref_get_filename(fileref), fdtype);
 #else
 
   /* So, start by dup()'ing the first file descriptor we can, ... */

@@ -32,12 +32,23 @@ extern "C" {
 }
 #endif
 
-static void load_resources();
-
 #ifdef ZTERP_GLK_UNIX
 extern "C" {
 #include <glkstart.h>
 }
+
+static void load_resources();
+
+// The “standard” function (provided by remglk as an extension) for
+// getting a filename from a fileref is glkunix_fileref_get_filename;
+// Gargoyle has always had the function garglk_fileref_get_name for this
+// purpose, but has now adopted the remglk name for greater
+// compatibility. If building under garglk, and the newer name is not
+// available, fall back to the known-to-exist original name. Otherwise,
+// use the new name.
+#if defined(GARGLK) && !defined(GLKUNIX_FILEREF_GET_FILENAME)
+#define glkunix_fileref_get_filename garglk_fileref_get_name
+#endif
 
 glkunix_argumentlist_t glkunix_arguments[] =
 {
@@ -80,7 +91,7 @@ int glkunix_startup_code(glkunix_startup_t *data)
 
         ref = glk_fileref_create_by_prompt(fileusage_Data | fileusage_BinaryMode, filemode_Read, 0);
         if (ref != nullptr) {
-            const char *filename = garglk_fileref_get_name(ref);
+            const char *filename = glkunix_fileref_get_filename(ref);
             if (filename != nullptr) {
                 game_file = filename;
             }

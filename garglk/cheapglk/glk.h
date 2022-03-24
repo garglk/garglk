@@ -480,6 +480,9 @@ extern strid_t glk_stream_open_resource_uni(glui32 filenum, glui32 rock);
 
 #define GARGLK 1
 
+#ifdef __GNUC__
+__attribute__((__deprecated__("Use glkunix_fileref_get_filename instead")))
+#endif
 extern const char *garglk_fileref_get_name(frefid_t fref);
 
 extern void garglk_set_program_name(const char *name);
