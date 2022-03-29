@@ -28,6 +28,10 @@
 #include "os.h"
 #include "glk.h"
 
+#ifdef GARGLK
+#include "glkstart.h"
+#endif
+
 /* for version strings */
 #include "trd.h"
 #include "vmvsn.h"

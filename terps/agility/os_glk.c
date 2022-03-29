@@ -85,6 +85,10 @@
 
 #include "glk.h"
 
+#ifdef GARGLK
+#include "glkstart.h"
+#endif
+
 /*
  * True and false definitions -- usually defined in glkstart.h, but we need
  * them early, so we'll define them here too.  We also need NULL, but that's
@@ -5968,7 +5972,7 @@ gagt_get_user_file (glui32 usage, glui32 fmode, const char *fdtype)
   retfile = fdopen (retfd, fdtype);
   if (!retfile)
     return badfile (fSAV);
-#endif /* GARGLK */
+#endif /* GLKUNIX_FILEREF_GET_FILENAME */
 
   /*
    * The result of all of this should now be that retfile is a FILE* wrapper
