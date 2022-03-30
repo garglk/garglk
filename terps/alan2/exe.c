@@ -10,6 +10,10 @@
 
 #include "glk.h"
 
+#ifdef GARGLK
+#include "glkstart.h"
+#endif
+
 #ifdef USE_READLINE
 #include "readline.h"
 #endif
