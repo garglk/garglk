@@ -119,6 +119,11 @@ find_package(PNG REQUIRED)
 target_include_directories(garglk PUBLIC cheapglk PRIVATE ${FREETYPE_INCLUDE_DIRS} ${JPEG_INCLUDE_DIRS} ${PNG_INCLUDE_DIRS})
 target_link_libraries(garglk PRIVATE ${FREETYPE_LIBRARIES} ${JPEG_LIBRARIES} ${PNG_LIBRARIES})
 
+find_library(MATH_LIBRARY m)
+if(MATH_LIBRARY)
+    target_link_libraries(garglk PRIVATE ${MATH_LIBRARY})
+endif()
+
 if(${INTERFACE} STREQUAL "COCOA")
     find_library(COCOA_LIBRARY Cocoa REQUIRED)
     find_package(OpenGL REQUIRED)
