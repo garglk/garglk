@@ -87,7 +87,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_includedir}/garglk/glk.h
 %{_includedir}/garglk/glkstart.h
 %{_libdir}/pkgconfig/garglk.pc
-%{_datarootdir}/applications/gargoyle.desktop
+%{_datarootdir}/applications/io.github.garglk.Gargoyle.desktop
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Bold-Italic.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Bold.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Italic.ttf
@@ -96,7 +96,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Serif-Bold.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Serif-Italic.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Serif.ttf
-%{_datarootdir}/icons/gargoyle-house.png
+%{_datarootdir}/icons/io.github.garglk.Gargoyle.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-adrift.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-advsys.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-agt.png
@@ -108,6 +108,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-magscroll.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-tads.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-zmachine.png
+%{_datarootdir}/metainfo/io.github.garglk.Gargoyle.appdata.xml
 %{_datarootdir}/mime/packages/interactive-fiction.xml
 
 %clean

@@ -45,7 +45,7 @@ cat > ${PROJECT}.desktop <<'EOF'
 Name=gargoyle-free
 Comment=Interactive fiction interpreter / player supporting many formats.
 Exec=gargoyle-free
-Icon=/usr/share/pixmaps/gargoyle-house.png
+Icon=io.github.garglk.Gargoyle
 Categories=Game;Emulator;
 Type=Application
 Terminal=0
