@@ -295,7 +295,6 @@ extern bool gli_conf_lockrows;
 extern unsigned char gli_scroll_bg[3];
 extern unsigned char gli_scroll_fg[3];
 extern int gli_scroll_width;
-extern int gli_scroll_width_save;
 
 extern int gli_baseline;
 extern int gli_leading;
