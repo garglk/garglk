@@ -10,7 +10,7 @@ static ActionResultType PerformTI99Line(const uint8_t *action_line)
     if (action_line == NULL)
         return ACT_FAILURE;
 
-    uint8_t *ptr = action_line;
+    const uint8_t *ptr = action_line;
     int run_code = 0;
     int index = 0;
     ActionResultType result = ACT_FAILURE;
