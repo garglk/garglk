@@ -1869,7 +1869,7 @@ static ExplicitResultType PerformActions(int vb, int no)
 #pragma mark TAKE
 #endif
         if (vb == TAKE || vb == DROP) {
-            if (CurrentCommand->allflag) {
+            if (CurrentCommand && CurrentCommand->allflag) {
                 if (vb == TAKE && dark) {
                     Output(sys[TOO_DARK_TO_SEE]);
                     while (!(CurrentCommand->allflag & LASTALL)) {
