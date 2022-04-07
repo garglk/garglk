@@ -528,6 +528,10 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         if (*len > 20 && !memcmp(*buf, "Extended Module: ", 17))
             return giblorb_ID_MOD;
 
+        /* IT */
+        if (*len > 4 && !memcmp(*buf, "IMPM", 4))
+            return giblorb_ID_MOD;
+
         /* MOD */
         if (*len > 1084)
         {
