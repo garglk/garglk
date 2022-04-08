@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-GameIDType DetectTI994A(uint8_t **sf, size_t *extent);
+GameIDType DetectTI994A(void);
 uint16_t FixAddress(uint16_t address);
 uint16_t FixWord(uint16_t word);
 uint16_t GetWord(uint8_t *mem);

@@ -117,7 +117,7 @@ void PrintTI99HeaderInfo(struct DATAHEADER header)
 
 int TryLoadingTI994A(struct DATAHEADER dh, int loud);
 
-GameIDType DetectTI994A(uint8_t **sf, size_t *extent)
+GameIDType DetectTI994A(void)
 {
     int offset = FindCode("\x30\x30\x30\x30\x00\x30\x30\x00\x28\x28", 0);
     if (offset == -1)
@@ -214,7 +214,7 @@ char *GetTI994AString(uint16_t table, int table_offset)
     return result;
 }
 
-void LoadTI994ADict(int vorn, uint16_t table, int num_words,
+void LoadTI994ADict(uint16_t table, int num_words,
     const char **dict)
 {
     uint16_t *wtable;
@@ -499,8 +499,8 @@ int TryLoadingTI994A(struct DATAHEADER dh, int loud)
 #if defined(__clang__)
 #pragma mark dictionary
 #endif
-    LoadTI994ADict(0, dh.p_verb_table, dh.num_verbs + 1, Verbs);
-    LoadTI994ADict(1, dh.p_noun_table, dh.num_nouns + 1, Nouns);
+    LoadTI994ADict(dh.p_verb_table, dh.num_verbs + 1, Verbs);
+    LoadTI994ADict(dh.p_noun_table, dh.num_nouns + 1, Nouns);
 
     for (int i = 1; i <= dh.num_nouns - dh.num_verbs; i++)
         Verbs[dh.num_verbs + i] = ".\0";

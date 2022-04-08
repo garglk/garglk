@@ -124,7 +124,7 @@ GameIDType DetectGame(const char *file_name)
         if (result == 0)
             Fatal("File empty or read error!");
 
-        CurrentGame = DetectTI994A(&entire_file, &file_length);
+        CurrentGame = DetectTI994A();
     }
 
     return CurrentGame;
