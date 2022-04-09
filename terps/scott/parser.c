@@ -193,8 +193,8 @@ char **SplitIntoWords(glui32 *string, int length)
         return NULL;
     }
 
-    glk_buffer_to_lower_case_uni(string, 256, length);
-    glk_buffer_canon_normalize_uni(string, 256, length);
+    glk_buffer_to_lower_case_uni(string, 512, MIN(length, 512));
+    glk_buffer_canon_normalize_uni(string, 512, MIN(length, 512));
 
     int startpos[MAX_WORDS];
     int wordlength[MAX_WORDS];
