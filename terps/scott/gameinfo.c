@@ -9,6 +9,188 @@
 
 #include "definitions.h"
 
+const struct GameInfo games[] = {
+    {
+        "The Golden Baton",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        48,  // Number of items
+        166, // Number of actions
+        78,  // Number of words
+        31,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        99,  // Number of messages
+    },
+
+    {
+        "The Time Machine",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        62,  // Number of items
+        164, // Number of actions
+        87,  // Number of words
+        44,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        73,  // Number of messages
+    },
+
+    {
+        "Arrow of Death part 1",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        64,  // Number of items
+        150, // Number of actions
+        90,  // Number of words
+        52,  // Number of rooms
+        5,   // Max carried items
+        4,   // Word length
+        82,  // Number of messages
+    },
+
+    {
+        "Arrow of Death part 2",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        90,  // Number of items
+        176, // Number of actions
+        82,  // Number of words
+        65,  // Number of rooms
+        9,   // Max carried items
+        4,   // Word length
+        87,  // Number of messages
+    },
+
+    {
+        "Escape from Pulsar 7",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        90,  // Number of items
+        220, // Number of actions
+        145,  // Number of words
+        45,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        75,  // Number of messages
+    },
+
+    {
+        "Circus",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        65,  // Number of items
+        165, // Number of actions
+        97,  // Number of words
+        36,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        72,  // Number of messages
+    },
+
+    {
+        "Feasibility Experiment",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        65,  // Number of items
+        156, // Number of actions
+        79,  // Number of words
+        59,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        65,  // Number of messages
+    },
+
+    {
+        "The Wizard of Akyrz",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        49,  // Number of items
+        201, // Number of actions
+        85,  // Number of words
+        40,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        99,  // Number of messages
+    },
+
+    {
+        "Perseus and Andromeda",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        59,  // Number of items
+        165, // Number of actions
+        130,  // Number of words
+        40,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        96,  // Number of messages
+    },
+
+    {
+        "Ten Little Indians",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        73,  // Number of items
+        161, // Number of actions
+        85,  // Number of words
+        63,  // Number of rooms
+        5,   // Max carried items
+        4,   // Word length
+        67,  // Number of messages
+    },
+
+    {
+        "Waxworks",
+        SCOTTFREE,
+        TEXT_ONLY,                 // type
+        MYSTERIOUS,                   // subtype
+        FOUR_LETTER_UNCOMPRESSED, // dictionary type
+
+        57,  // Number of items
+        189, // Number of actions
+        105,  // Number of words
+        41,  // Number of rooms
+        6,   // Max carried items
+        4,   // Word length
+        91,  // Number of messages
+    },
+
+    {
+        NULL
+    }
+};
+
 /* This is supposed to be the original ScottFree system
  messages in second person, as far as possible */
 const char *sysdict[MAX_SYSMESS] = {

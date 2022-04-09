@@ -88,6 +88,24 @@ void PrintHeaderInfo(int *h, int ni, int na, int nw, int nr, int mc, int pr, int
     fprintf(stderr, "Number of treasures: %d\n", tr);
 }
 
+int IsMysterious(void)
+{
+    for (int i = 0; games[i].Title != NULL ; i++) {
+        if (games[i].subtype & MYSTERIOUS) {
+            if (games[i].number_of_items == GameHeader.NumItems &&
+                games[i].number_of_actions == GameHeader.NumActions &&
+                games[i].number_of_words == GameHeader.NumWords &&
+                games[i].number_of_rooms == GameHeader.NumRooms &&
+                games[i].max_carried == GameHeader.MaxCarry &&
+                games[i].word_length == GameHeader.WordLength &&
+                games[i].number_of_messages == GameHeader.NumMessages)
+                return 1;
+        }
+    }
+
+    return 0;
+}
+
 GameIDType DetectGame(const char *file_name)
 {
 
@@ -125,6 +143,10 @@ GameIDType DetectGame(const char *file_name)
             Fatal("File empty or read error!");
 
         CurrentGame = DetectTI994A();
+    }
+
+    if (IsMysterious()) {
+        Options = Options | SCOTTLIGHT | PREHISTORIC_LAMP;
     }
 
     return CurrentGame;
