@@ -234,8 +234,12 @@ static void LoadTI994ADict(uint16_t table, int num_words,
 
         word_len = w2 - w1;
 
-        dict[i] = MemAlloc(word_len + 1);
-        strncpy((char *)dict[i], w1, word_len);
+        if (word_len < 20) {
+            char *text = MemAlloc(word_len + 1);
+            strncpy(text, w1, word_len);
+            text[word_len] = 0;
+            dict[i] = text;
+        }
     }
 }
 
