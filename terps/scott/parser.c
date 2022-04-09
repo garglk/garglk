@@ -379,6 +379,7 @@ const char *SpanishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = {
     "reanuda", "conserva", "move", "command", "jugada",
     "toda", "todo", "eso", "activar", "desactivar"
 };
+
 const char *ExtraNouns[NUMBER_OF_EXTRA_NOUNS];
 
 extra_command ExtraNounsKey[NUMBER_OF_EXTRA_NOUNS] = {
@@ -742,21 +743,21 @@ int CreateAllCommands(struct Command *command)
                 }
             }
             if (!exception) {
-            if (found) {
-                c->next = MemAlloc(sizeof(struct Command));
-                c->next->previous = c;
-                c = c->next;
-            }
-            found = 1;
-            c->verb = command->verb;
+                if (found) {
+                    c->next = MemAlloc(sizeof(struct Command));
+                    c->next->previous = c;
+                    c = c->next;
+                }
+                found = 1;
+                c->verb = command->verb;
                 c->noun = WhichWord(Items[i].AutoGet, Nouns, GameHeader.WordLength,
                                     GameHeader.NumWords);
-            c->item = i;
-            c->next = NULL;
-            c->nounwordindex = 0;
-            c->allflag = 1;
+                c->item = i;
+                c->next = NULL;
+                c->nounwordindex = 0;
+                c->allflag = 1;
+            }
         }
-    }
     }
     if (found == 0) {
         if (command->verb == TAKE)

@@ -81,7 +81,7 @@ extern const char *ExtraCommands[];
 extern const char *EnglishExtraNouns[];
 extern const char *GermanExtraNouns[];
 extern const char *SpanishExtraNouns[];
-extern const char *ExtraNouns[] ;
-extern extra_command ExtraNounsKey[] ;
+extern const char *ExtraNouns[];
+extern extra_command ExtraNounsKey[];
 
 #endif /* parser_h */
