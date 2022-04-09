@@ -56,12 +56,12 @@ size_t ti99_explicit_extent = 0;
 
 uint8_t **VerbActionOffsets;
 
-uint16_t FixAddress(uint16_t ina)
+static uint16_t FixAddress(uint16_t ina)
 {
     return (ina - 0x380 + file_baseline_offset);
 }
 
-uint16_t FixWord(uint16_t word)
+static uint16_t FixWord(uint16_t word)
 {
     if (WeAreBigEndian)
         return word;
@@ -69,7 +69,7 @@ uint16_t FixWord(uint16_t word)
         return (((word & 0xFF) << 8) | ((word >> 8) & 0xFF));
 }
 
-uint16_t GetWord(uint8_t *mem)
+static uint16_t GetWord(uint8_t *mem)
 {
     uint16_t x;
     if (WeAreBigEndian) {
@@ -81,7 +81,7 @@ uint16_t GetWord(uint8_t *mem)
     return FixWord(x);
 }
 
-void GetMaxTI99Messages(struct DATAHEADER dh)
+static void GetMaxTI99Messages(struct DATAHEADER dh)
 {
     uint8_t *msg;
     uint16_t msg1;
@@ -91,7 +91,7 @@ void GetMaxTI99Messages(struct DATAHEADER dh)
     max_messages = (msg1 - FixAddress(FixWord(dh.p_message))) / 2;
 }
 
-void GetMaxTI99Items(struct DATAHEADER dh)
+static void GetMaxTI99Items(struct DATAHEADER dh)
 {
     uint8_t *msg;
     uint16_t msg1;
@@ -101,7 +101,7 @@ void GetMaxTI99Items(struct DATAHEADER dh)
     max_item_descr = (msg1 - FixAddress(FixWord(dh.p_obj_descr))) / 2;
 }
 
-void PrintTI99HeaderInfo(struct DATAHEADER header)
+static void PrintTI99HeaderInfo(struct DATAHEADER header)
 {
     fprintf(stderr, "Number of items =\t%d\n", header.num_objects);
     fprintf(stderr, "Number of verbs =\t%d\n", header.num_verbs);
@@ -115,7 +115,7 @@ void PrintTI99HeaderInfo(struct DATAHEADER header)
     fprintf(stderr, "Unknown: %d\n", header.strange);
 }
 
-int TryLoadingTI994A(struct DATAHEADER dh, int loud);
+static int TryLoadingTI994A(struct DATAHEADER dh, int loud);
 
 GameIDType DetectTI994A(void)
 {
@@ -149,7 +149,7 @@ GameIDType DetectTI994A(void)
     return TryLoadingTI994A(dh, Options & DEBUGGING);
 }
 
-uint8_t *GetTI994AWord(uint8_t *string, uint8_t **result, size_t *length)
+static uint8_t *GetTI994AWord(uint8_t *string, uint8_t **result, size_t *length)
 {
     uint8_t *msg;
 
@@ -169,7 +169,7 @@ uint8_t *GetTI994AWord(uint8_t *string, uint8_t **result, size_t *length)
     return (msg);
 }
 
-char *GetTI994AString(uint16_t table, int table_offset)
+static char *GetTI994AString(uint16_t table, int table_offset)
 {
     uint8_t *msgx, *msgy, *nextword;
     char *result;
@@ -214,7 +214,7 @@ char *GetTI994AString(uint16_t table, int table_offset)
     return result;
 }
 
-void LoadTI994ADict(uint16_t table, int num_words,
+static void LoadTI994ADict(uint16_t table, int num_words,
     const char **dict)
 {
     uint16_t *wtable;
@@ -239,7 +239,7 @@ void LoadTI994ADict(uint16_t table, int num_words,
     }
 }
 
-void ReadTI99ImplicitActions(struct DATAHEADER dh)
+static void ReadTI99ImplicitActions(struct DATAHEADER dh)
 {
     uint8_t *ptr, *implicit_start;
     int loop_flag;
@@ -267,7 +267,7 @@ void ReadTI99ImplicitActions(struct DATAHEADER dh)
     }
 }
 
-void ReadTI99ExplicitActions(struct DATAHEADER dh)
+static void ReadTI99ExplicitActions(struct DATAHEADER dh)
 {
     uint8_t *ptr, *start, *end, *blockstart;
     uint16_t address;
@@ -317,7 +317,7 @@ void ReadTI99ExplicitActions(struct DATAHEADER dh)
     }
 }
 
-uint8_t *LoadTitleScreen(void)
+static uint8_t *LoadTitleScreen(void)
 {
     char buf[3074];
     int offset = 0;
@@ -368,7 +368,7 @@ uint8_t *LoadTitleScreen(void)
     return result;
 }
 
-int TryLoadingTI994A(struct DATAHEADER dh, int loud)
+static int TryLoadingTI994A(struct DATAHEADER dh, int loud)
 {
     int ni, nw, nr, mc, pr, tr, wl, lt, mn, trm;
     int ct;
