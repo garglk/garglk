@@ -342,25 +342,38 @@ const char *Directions[NUMBER_OF_DIRECTIONS];
 const char *ExtraCommands[NUMBER_OF_EXTRA_COMMANDS] = {
     NULL,
     "restart",
+    "#restart",
     "save",
+    "#save",
     "restore",
     "load",
+    "#restore",
     "transcript",
     "script",
+    "#script",
     "oops",
     "undo",
+    "bom",
+    "#undo",
     "ram",
     "ramload",
     "ramrestore",
+    "qload",
+    "quickload",
+    "#qload",
     "ramsave",
+    "qsave",
+    "quicksave",
+    "#qsave",
     "except",
     "but",
-    " ", " ", " ", " ", " "
+    "", "", "", "", ""
 };
 
 extra_command ExtraCommandsKey[NUMBER_OF_EXTRA_COMMANDS] = {
-    NO_COMMAND, RESTART, SAVE, RESTORE, RESTORE, SCRIPT, SCRIPT,
-    UNDO, UNDO, RAM, RAMLOAD, RAMLOAD, RAMSAVE, EXCEPT, EXCEPT,
+    NO_COMMAND, RESTART, RESTART, SAVE, SAVE, RESTORE, RESTORE,
+    RESTORE, SCRIPT, SCRIPT, SCRIPT, UNDO, UNDO, UNDO, UNDO,
+    RAM, RAMLOAD, RAMLOAD, RAMLOAD, RAMLOAD, RAMLOAD, RAMSAVE, RAMSAVE, RAMSAVE, RAMSAVE, EXCEPT, EXCEPT,
     RESTORE, RESTORE, SCRIPT, UNDO, RESTART
 };
 
