@@ -112,6 +112,7 @@ winid_t Bottom, Top;
 winid_t Graphics;
 
 strid_t Transcript = NULL;
+strid_t InputRecording = NULL;
 
 int WeAreBigEndian = 0;
 
@@ -972,6 +973,36 @@ static void LoadGame(void)
     stop_time = 1;
 }
 
+static void LoadInputRecording(void)
+{
+    frefid_t ref;
+
+    ref = glk_fileref_create_by_prompt(fileusage_TextMode | fileusage_InputRecord, filemode_Read, 0);
+    if (ref == NULL)
+        return;
+
+    InputRecording = glk_stream_open_file(ref, filemode_Read, 0);
+
+    if (InputRecording == NULL) {
+        Output("File could not be read\n");
+        return;
+    }
+
+    glk_fileref_destroy(ref);
+
+    glk_stream_set_position(InputRecording, 0, seekmode_End);
+    glui32 length = glk_stream_get_position(InputRecording);
+
+    if (length > 100000) {
+        Output("File is too large\n");
+        glk_stream_close(InputRecording, NULL);
+        InputRecording = NULL;
+        return;
+    }
+
+    glk_stream_set_position(InputRecording, 0, seekmode_Start);
+}
+
 static void RestartGame(void)
 {
     if (CurrentCommand)
@@ -1101,6 +1132,9 @@ int PerformExtraCommand(int extra_stop_time)
             return 1;
         } else if (noun == OFF) {
             TranscriptOff();
+            return 1;
+        } else if (noun == RAMLOAD) {
+            LoadInputRecording();
             return 1;
         }
         break;

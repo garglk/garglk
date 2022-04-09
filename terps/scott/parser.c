@@ -278,6 +278,36 @@ char **SplitIntoWords(glui32 *string, int length)
     return words8;
 }
 
+static int ReadLineFromRecording(glui32 *buf, glui32 *length)
+{
+    if (InputRecording == NULL)
+        return 0;
+
+    char charbuf[512];
+
+    *length = 0;
+    glsi32 c = 0;
+    int i;
+    for (i = 0; i < 512; i++) {
+        c = glk_get_char_stream(InputRecording);
+        if (c == -1) {
+            glk_stream_close(InputRecording, NULL);
+            InputRecording = NULL;
+            break;
+        }
+        if (c == '\n' || c == '\r' || c == 10) {
+            break;
+        }
+        buf[i] = c;
+        charbuf[i] = c;
+    }
+    buf[i] = 0;
+    charbuf[i] = 0;
+    Display(Bottom, "%s\n", charbuf);
+    *length = i;
+    return 1;
+}
+
 char **LineInput(void)
 {
     event_t ev;
@@ -285,18 +315,21 @@ char **LineInput(void)
 
     do {
         Display(Bottom, "\n%s", sys[WHAT_NOW]);
-        glk_request_line_event_uni(Bottom, unibuf, (glui32)511, 0);
 
-        while (1) {
-            glk_select(&ev);
+        if (ReadLineFromRecording(unibuf, &ev.val1) == 0) {
+            glk_request_line_event_uni(Bottom, unibuf, (glui32)511, 0);
 
-            if (ev.type == evtype_LineInput)
-                break;
-            else
-                Updates(ev);
+            while (1) {
+                glk_select(&ev);
+
+                if (ev.type == evtype_LineInput)
+                    break;
+                else
+                    Updates(ev);
+            }
+
+            unibuf[ev.val1] = 0;
         }
-
-        unibuf[ev.val1] = 0;
 
         if (Transcript) {
             glk_put_string_stream_uni(Transcript, unibuf);
