@@ -24,13 +24,13 @@ extern struct Command *CurrentCommand;
 
 glui32 **UnicodeWords = NULL;
 char **CharWords = NULL;
-int WordsInInput = 0;
+static int WordsInInput = 0;
 
 static int lastnoun = 0;
 
 static glui32 *FirstErrorMessage = NULL;
 
-void FreeStrings(void)
+static void FreeStrings(void)
 {
     if (FirstErrorMessage != NULL) {
         free(FirstErrorMessage);
@@ -55,7 +55,7 @@ void FreeStrings(void)
     WordsInInput = 0;
 }
 
-void CreateErrorMessage(const char *fchar, glui32 *second, const char *tchar)
+static void CreateErrorMessage(const char *fchar, glui32 *second, const char *tchar)
 {
     if (FirstErrorMessage != NULL)
         return;
@@ -118,7 +118,7 @@ glui32 *ToUnicode(const char *string)
     return result;
 }
 
-char *FromUnicode(glui32 *unicode_string, int origlength)
+static char *FromUnicode(glui32 *unicode_string, int origlength)
 {
     int sourcepos = 0;
     int destpos = 0;
@@ -187,7 +187,7 @@ char *FromUnicode(glui32 *unicode_string, int origlength)
 /* Converts German and Spanish diacritical characters into non-diacritical equivalents */
 /* (for the translated Gremlins variants.) Coalesces all runs of whitespace into a single standard space. */
 /* Turns ending commas and periods into separate strings. */
-char **SplitIntoWords(glui32 *string, int length)
+static char **SplitIntoWords(glui32 *string, int length)
 {
     if (length < 1) {
         return NULL;
@@ -308,7 +308,7 @@ static int ReadLineFromRecording(glui32 *buf, glui32 *length)
     return 1;
 }
 
-char **LineInput(void)
+static char **LineInput(void)
 {
     event_t ev;
     glui32 unibuf[512];
@@ -461,7 +461,7 @@ const char *DelimiterList[NUMBER_OF_DELIMITERS];
 /* For the verb position in a command string sequence, we try the following
  lists in this order: Verbs, Directions, Abbreviations, SkipList, Nouns,
  ExtraCommands, Delimiters */
-int FindVerb(const char *string, const char ***list)
+static int FindVerb(const char *string, const char ***list)
 {
     *list = Verbs;
     int verb = WhichWord(string, *list, GameHeader.WordLength, GameHeader.NumWords + 1);
@@ -526,7 +526,7 @@ int FindVerb(const char *string, const char ***list)
 /* For the noun position in a command string sequence, we try the following
  lists in this order:
  Nouns, Directions, ExtraNouns, SkipList, Verbs, Delimiters */
-int FindNoun(const char *string, const char ***list)
+static int FindNoun(const char *string, const char ***list)
 {
     *list = Nouns;
     int noun = WhichWord(string, *list, GameHeader.WordLength, GameHeader.NumWords + 1);
@@ -573,9 +573,9 @@ int FindNoun(const char *string, const char ***list)
     return 0;
 }
 
-struct Command *CommandFromStrings(int index, struct Command *previous);
+static struct Command *CommandFromStrings(int index, struct Command *previous);
 
-int FindExtaneousWords(int *index, int noun)
+static int FindExtaneousWords(int *index, int noun)
 {
     /* Looking for extraneous words that should invalidate the command */
     int original_index = *index;
@@ -623,7 +623,7 @@ int FindExtaneousWords(int *index, int noun)
     return 1;
 }
 
-struct Command *CreateCommandStruct(int verb, int noun, int verbindex, int nounindex, struct Command *previous)
+static struct Command *CreateCommandStruct(int verb, int noun, int verbindex, int nounindex, struct Command *previous)
 {
     struct Command *command = MemAlloc(sizeof(struct Command));
     command->verb = verb;
@@ -641,7 +641,7 @@ struct Command *CreateCommandStruct(int verb, int noun, int verbindex, int nouni
     return command;
 }
 
-struct Command *CommandFromStrings(int index, struct Command *previous)
+static struct Command *CommandFromStrings(int index, struct Command *previous)
 {
     if (index < 0 || index >= WordsInInput) {
         return NULL;
@@ -752,7 +752,7 @@ struct Command *CommandFromStrings(int index, struct Command *previous)
     return NULL;
 }
 
-int CreateAllCommands(struct Command *command)
+static int CreateAllCommands(struct Command *command)
 {
 
     int exceptions[GameHeader.NumItems];
