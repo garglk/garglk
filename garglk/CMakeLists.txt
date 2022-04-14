@@ -27,7 +27,7 @@ endif()
 vtk_encode_string(
     INPUT garglk.ini
     NAME garglkini
-    BINARY NUL_TERMINATE
+    BINARY
     HEADER_OUTPUT GARGLKINI_H
     SOURCE_OUTPUT GARGLKINI_CXX
 )
