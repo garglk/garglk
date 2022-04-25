@@ -428,7 +428,7 @@ const char *SpanishExtraNouns[NUMBER_OF_EXTRA_NOUNS] = {
 
 const char *ExtraNouns[NUMBER_OF_EXTRA_NOUNS];
 
-extra_command ExtraNounsKey[NUMBER_OF_EXTRA_NOUNS] = {
+const extra_command ExtraNounsKey[NUMBER_OF_EXTRA_NOUNS] = {
     NO_COMMAND, GAME, GAME, ON, OFF, RAMLOAD,
     RAMLOAD, RAMSAVE, COMMAND, COMMAND, COMMAND,
     ALL, ALL, IT, ON, OFF

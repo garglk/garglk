@@ -101,7 +101,6 @@ void Display(winid_t w, const char *fmt, ...)
 __attribute__((__format__(__printf__, 2, 3)))
 #endif
 ;
-void HitEnter(void);
 void Look(void);
 void ListInventory(void);
 void Delay(float seconds);
@@ -117,7 +116,6 @@ uint8_t *SeekToPos(uint8_t *buf, int offset);
 int CountCarried(void);
 int RandomPercent(int n);
 void DoneIt(void);
-void LookWithPause(void);
 void SaveGame(void);
 void PrintNoun(void);
 int PrintScore(void);
@@ -143,7 +141,6 @@ extern const char *system_messages[];
 extern uint8_t *entire_file;
 extern size_t file_length;
 extern int file_baseline_offset;
-extern int split_screen;
 extern long BitFlags;
 extern int LightRefill;
 extern int Counters[];
