@@ -176,7 +176,7 @@ const fentry_t &font_t::getglyph(glui32 cid)
             v.x = (x * 64) / GLI_SUBPIX;
             v.y = 0;
 
-            FT_Set_Transform(face, 0, &v);
+            FT_Set_Transform(face, nullptr, &v);
 
             err = FT_Load_Glyph(face, gid,
                     FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
@@ -376,7 +376,7 @@ void gli_initialize_fonts(void)
         gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
 
     for (int i = 0; i <= GAMMA_MAX; i++)
-        gammainv[i] = std::pow(i / (float)GAMMA_MAX, 1.0 / gli_conf_gamma) * 255.0 + 0.5;
+        gammainv[i] = std::pow(i / static_cast<float>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0 + 0.5;
 
     err = FT_Init_FreeType(&ftlib);
     if (err)
