@@ -208,7 +208,7 @@ void gli_tts_speak(const glui32 *buf, size_t len)
     }
 }
 
-void gli_free_tts(void)
+void gli_free_tts()
 {
     if (spd != nullptr)
         spd_close(spd);

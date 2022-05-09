@@ -88,9 +88,8 @@ public:
 
 class SoundSource : public QIODevice {
 public:
-    SoundSource(int plays) : m_plays(plays) {
+    explicit SoundSource(int plays) : m_plays(plays) {
     }
-    virtual ~SoundSource() { }
 
     virtual QAudioFormat format() = 0;
 
@@ -195,7 +194,7 @@ protected:
         openmpt_module_set_position_seconds(m_mod.get(), 0);
     }
 
-    virtual QAudioFormat format() override {
+    QAudioFormat format() override {
         return m_format;
     }
 
@@ -677,7 +676,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
         QByteArray data = file.readAll();
 
         struct Magic {
-            virtual ~Magic() { }
+            virtual ~Magic() = default;
             virtual bool matches(const QByteArray &data) const = 0;
         };
 

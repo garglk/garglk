@@ -256,7 +256,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         else
             config += ".ini";
 
-        configs.push_back(ConfigFile(config, false));
+        configs.emplace_back(config, false);
 
         // game directory .ini
         config = gamepath;
@@ -266,7 +266,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         else
             config = "garglk.ini";
 
-        configs.push_back(ConfigFile(config, false));
+        configs.emplace_back(config, false);
     }
 
 #if defined(__HAIKU__)
@@ -305,11 +305,11 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         xdg_path = std::string(home) + "/.config";
 
     if (!xdg_path.empty())
-        configs.push_back(ConfigFile(xdg_path + "/garglk.ini", true));
+        configs.emplace_back(xdg_path + "/garglk.ini", true);
 
     // $HOME/.garglkrc
     if (home != nullptr)
-        configs.push_back(ConfigFile(std::string(home) + "/.garglkrc", true));
+        configs.emplace_back(std::string(home) + "/.garglkrc", true);
 #endif
 
 #ifdef __APPLE__
@@ -322,7 +322,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
 
 #ifdef GARGLKINI
     // system directory
-    configs.push_back(ConfigFile(GARGLKINI, false));
+    configs.emplace_back(GARGLKINI, false);
 #endif
 
 #ifdef _WIN32

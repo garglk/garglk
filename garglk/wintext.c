@@ -782,7 +782,7 @@ void win_textbuffer_redraw(window_t *win)
     if (selbuf && dwin->copypos)
     {
         gli_claimselect = true;
-        gli_clipboard_copy((glui32 *)dwin->copybuf, dwin->copypos);
+        gli_clipboard_copy(dwin->copybuf, dwin->copypos);
         for (i = 0; i < dwin->copypos; i++)
             dwin->copybuf[i] = 0;
         dwin->copypos = 0;
