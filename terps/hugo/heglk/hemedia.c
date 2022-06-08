@@ -73,6 +73,33 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 		return -1;
 
 	id = numres[type]++;
+#ifdef GARGLK
+	// Gargoyle now appends ".glkdata" to files opened with normal Glk file
+	// functions. That means that this would create files such as
+	// "PIC0.glkdata", but Gargoyle requires names like "PIC0". If Gargoyle
+	// used Glk routines to open individual media files, then Glk routines
+	// could be used to create them, but it doesn't; instead, it uses stdio
+	// routines, so do the same here.
+	snprintf(buf, sizeof buf, "%s/%s%d", hugo_path_to_game, type == PIC ? "PIC" : "SND", id);
+	resids[type][id] = offset;
+
+	FILE *fp = fopen(buf, "w");
+	if (fp != NULL)
+	{
+		while (reslen > 0)
+		{
+			n = fread(buf, 1, reslen < sizeof buf ? reslen : sizeof buf, infile);
+			if (n <= 0)
+				break;
+			fwrite(buf, n, 1, fp);
+			reslen -= n;
+		}
+
+		// Hugo defines an fclose function-like macro, so the parens
+		// here are needed to get to the actual fopen function.
+		(fclose)(fp);
+	}
+#else
 	sprintf(buf, "%s%d", type == PIC ? "PIC" : "SND", id);
 	resids[type][id] = offset;
 
@@ -101,6 +128,7 @@ static int loadres(HUGO_FILE infile, int reslen, int type)
 	}
 
 	glk_stream_close(stream, NULL);
+#endif
 
 	return id;
 }
