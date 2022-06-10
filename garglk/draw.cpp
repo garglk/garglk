@@ -55,30 +55,30 @@
 #define mulhigh(a,b) (((int)(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
-struct bitmap_t
+struct Bitmap
 {
     int w, h, lsb, top, pitch;
     std::vector<unsigned char> data;
 };
 
-struct fentry_t
+struct FontEntry
 {
     int adv;
-    std::array<bitmap_t, GLI_SUBPIX> glyph;
+    std::array<Bitmap, GLI_SUBPIX> glyph;
 };
 
-struct font_t
+struct Font
 {
     FT_Face face = nullptr;
-    std::map<glui32, fentry_t> entries;
+    std::map<glui32, FontEntry> entries;
     bool make_bold = false;
     bool make_oblique = false;
     bool kerned = false;
     std::map<std::pair<int, int>, int> kerncache;
 
-    font_t(const std::string &path, const std::string &fallback, TYPES type, STYLES style);
+    Font(const std::string &path, const std::string &fallback, TYPES type, STYLES style);
 
-    const fentry_t &getglyph(glui32 cid);
+    const FontEntry &getglyph(glui32 cid);
     int charkern(int c0, int c1);
 };
 
@@ -89,7 +89,7 @@ struct font_t
 static unsigned short gammamap[256];
 static unsigned char gammainv[1 << GAMMA_BITS];
 
-static std::vector<font_t> gfont_table;
+static std::vector<Font> gfont_table;
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -148,7 +148,7 @@ static void freetype_error(int err, const std::string &basemsg)
     garglk::winabort(msg.str());
 }
 
-const fentry_t &font_t::getglyph(glui32 cid)
+const FontEntry &Font::getglyph(glui32 cid)
 {
     auto it = entries.find(cid);
     if (it == entries.end())
@@ -157,7 +157,7 @@ const fentry_t &font_t::getglyph(glui32 cid)
         int err;
         glui32 gid;
         int x;
-        fentry_t entry;
+        FontEntry entry;
         size_t datasize;
 
         gid = FT_Get_Char_Index(face, cid);
@@ -279,7 +279,7 @@ static std::string style_to_name(enum STYLES style)
     return "";
 }
 
-font_t::font_t(const std::string &path, const std::string &fallback, TYPES type, STYLES style)
+Font::Font(const std::string &path, const std::string &fallback, TYPES type, STYLES style)
 {
     int err = 0;
     std::string fontpath;
@@ -484,7 +484,7 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
     p[3] = 0xFF;
 }
 
-static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
+static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const unsigned char *rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -497,7 +497,7 @@ static void draw_bitmap_gamma(const bitmap_t *b, int x, int y, const unsigned ch
     }
 }
 
-static void draw_bitmap_lcd_gamma(const bitmap_t *b, int x, int y, const unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(const Bitmap *b, int x, int y, const unsigned char *rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
@@ -560,7 +560,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, const unsigned char *rgb)
     }
 }
 
-int font_t::charkern(int c0, int c1)
+int Font::charkern(int c0, int c1)
 {
     FT_Vector v;
     int err;
@@ -603,7 +603,7 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
     {{'f', 'l'}, UNI_LIG_FL},
 };
 
-static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::function<void(int, const std::array<bitmap_t, GLI_SUBPIX> &)> callback)
+static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> callback)
 {
     auto &f = gfont_table.at(fidx);
     bool dolig = !FT_IS_FIXED_WIDTH(f.face);
@@ -663,7 +663,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
 int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
         glui32 *s, int n, int spw)
 {
-    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<bitmap_t, GLI_SUBPIX> &glyphs) {
+    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -676,7 +676,7 @@ int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
 
 int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
 {
-    return gli_string_impl(0, fidx, s, n, spw, [](int, const std::array<bitmap_t, GLI_SUBPIX> &) {});
+    return gli_string_impl(0, fidx, s, n, spw, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)
