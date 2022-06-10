@@ -85,8 +85,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdio.h>
 
-#include "gi_dispa.h"
 #include "glk.h"
+#include "gi_dispa.h"
 
 /* This macro is called whenever the library code catches an error
  * or illegal operation from the game program.
