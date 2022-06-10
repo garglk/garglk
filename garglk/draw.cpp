@@ -111,17 +111,16 @@ void garglk::set_lcdfilter(const std::string &filter)
 {
     use_freetype_preset_filter = true;
 
-    if (filter == "none") {
+    if (filter == "none")
         freetype_preset_filter = FT_LCD_FILTER_NONE;
-    } else if (filter == "default") {
+    else if (filter == "default")
         freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
-    } else if (filter == "light") {
+    else if (filter == "light")
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
-    } else if (filter == "legacy") {
+    else if (filter == "legacy")
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
-    } else {
+    else
         use_freetype_preset_filter = false;
-    }
 }
 
 /*
@@ -182,15 +181,19 @@ const FontEntry &Font::getglyph(glui32 cid)
             if (make_oblique)
                 FT_Outline_Transform(&face->glyph->outline, &ftmat);
 
-            if (gli_conf_lcd) {
+            if (gli_conf_lcd)
+            {
                 if (use_freetype_preset_filter)
                     FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
                 else
                     FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
 
                 err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LCD);
-            } else
+            }
+            else
+            {
                 err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LIGHT);
+            }
 
             if (err)
                 freetype_error(err, "Error in FT_Render_Glyph");
@@ -581,9 +584,8 @@ int Font::charkern(glui32 c0, glui32 c1)
     g0 = FT_Get_Char_Index(face, c0);
     g1 = FT_Get_Char_Index(face, c1);
 
-    if (g0 == 0 || g1 == 0) {
+    if (g0 == 0 || g1 == 0)
         return 0;
-    }
 
     err = FT_Get_Kerning(face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err)
@@ -696,11 +698,17 @@ void gli_draw_caret(int x, int y)
         gli_draw_rect(x-3, y+4, 7, 1, gli_caret_color);
     }
     else if (gli_caret_shape == 2)
+    {
         gli_draw_rect(x+0, y-gli_baseline+1, 1, gli_leading-2, gli_caret_color);
+    }
     else if (gli_caret_shape == 3)
+    {
         gli_draw_rect(x+0, y-gli_baseline+1, 2, gli_leading-2, gli_caret_color);
+    }
     else
+    {
         gli_draw_rect(x+0, y-gli_baseline+1, gli_cellw, gli_leading-2, gli_caret_color);
+    }
 }
 
 void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
