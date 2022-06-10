@@ -67,13 +67,6 @@ struct fentry_t
     std::array<bitmap_t, GLI_SUBPIX> glyph;
 };
 
-struct font {
-    std::string path;
-    std::string fallback;
-    enum TYPES type;
-    enum STYLES style;
-};
-
 struct font_t
 {
     FT_Face face = nullptr;
@@ -83,7 +76,7 @@ struct font_t
     bool kerned = false;
     std::map<std::pair<int, int>, int> kerncache;
 
-    explicit font_t(const struct font &font);
+    font_t(const std::string &path, const std::string &fallback, TYPES type, STYLES style);
 
     const fentry_t &getglyph(glui32 cid);
     int charkern(int c0, int c1);
@@ -96,7 +89,7 @@ struct font_t
 static unsigned short gammamap[256];
 static unsigned char gammainv[1 << GAMMA_BITS];
 
-static std::shared_ptr<font_t> gfont_table[8];
+static std::vector<font_t> gfont_table;
 
 int gli_cellw = 8;
 int gli_cellh = 8;
@@ -222,16 +215,16 @@ const fentry_t &font_t::getglyph(glui32 cid)
 // Look for a user-specified font. This will be either based on a font
 // family (propfont or monofont), or specific font files (e.g. propr,
 // monor, etc).
-static std::string font_path_user(const struct font &font)
+static std::string font_path_user(const std::string &path, const std::string &)
 {
-    return font.path;
+    return path;
 }
 
 // Look in a system-wide location for the fallback Gargoyle fonts; on
 // Unix this is generally somewhere like /usr/share/fonts/gargoyle
 // (although this can be changed at build time), and on Windows it's the
 // install directory (e.g. "C:\Program Files (x86)\Gargoyle").
-static std::string font_path_fallback_system(const struct font &font)
+static std::string font_path_fallback_system(const std::string &, const std::string &fallback)
 {
 #ifdef _WIN32
     char directory[256];
@@ -239,9 +232,9 @@ static std::string font_path_fallback_system(const struct font &font)
     if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS)
         return "";
 
-    return std::string(directory) + "\\" + font.fallback;
+    return std::string(directory) + "\\" + fallback;
 #elif defined(GARGLK_FONT_PATH)
-    return std::string(GARGLK_FONT_PATH) + "/" + font.fallback;
+    return std::string(GARGLK_FONT_PATH) + "/" + fallback;
 #else
     return "";
 #endif
@@ -250,15 +243,15 @@ static std::string font_path_fallback_system(const struct font &font)
 // Look in a platform-specific location for the fonts. This is typically
 // the same directory that the executable is in, but can be anything the
 // platform code deems appropriate.
-static std::string font_path_fallback_platform(const struct font &font)
+static std::string font_path_fallback_platform(const std::string &, const std::string &fallback)
 {
-    return garglk::winfontpath(font.fallback);
+    return garglk::winfontpath(fallback);
 }
 
 // As a last-ditch effort, look in the current directory for the fonts.
-static std::string font_path_fallback_local(const struct font &font)
+static std::string font_path_fallback_local(const std::string &, const std::string &fallback)
 {
-    return font.fallback;
+    return fallback;
 }
 
 static const char *type_to_name(enum TYPES type)
@@ -286,20 +279,20 @@ static std::string style_to_name(enum STYLES style)
     return "";
 }
 
-font_t::font_t(const struct font &font)
+font_t::font_t(const std::string &path, const std::string &fallback, TYPES type, STYLES style)
 {
     int err = 0;
     std::string fontpath;
     float aspect, size;
     std::string family;
-    std::vector<std::function<std::string(const struct font &)>> font_paths = {
+    std::vector<std::function<std::string(const std::string &path, const std::string &fallback)>> font_paths = {
         font_path_user,
         font_path_fallback_system,
         font_path_fallback_platform,
         font_path_fallback_local,
     };
 
-    if (font.type == MONOF)
+    if (type == MONOF)
     {
         aspect = gli_conf_monoaspect;
         size = gli_conf_monosize;
@@ -313,11 +306,11 @@ font_t::font_t(const struct font &font)
     }
 
     if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
-        fontpath = get_font_path(font);
+        fontpath = get_font_path(path, fallback);
         return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0;
     }))
     {
-        garglk::winabort("Unable to find font " + family + " for " + type_to_name(font.type) + " " + style_to_name(font.style) + ", and fallback " + font.fallback + " not found");
+        garglk::winabort("Unable to find font " + family + " for " + type_to_name(type) + " " + style_to_name(style) + ", and fallback " + fallback + " not found");
     }
 
     auto dot = fontpath.rfind(".");
@@ -344,7 +337,7 @@ font_t::font_t(const struct font &font)
 
     kerned = FT_HAS_KERNING(face);
 
-    switch (font.style)
+    switch (style)
     {
         case FONTR:
             make_bold = false;
@@ -403,21 +396,17 @@ void gli_initialize_fonts(void)
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    struct font fonts[8] = {
-        { gli_conf_mono.r, "Gargoyle-Mono.ttf", MONOF, FONTR },
-        { gli_conf_mono.b, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB },
-        { gli_conf_mono.i, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI },
-        { gli_conf_mono.z, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ },
-        { gli_conf_prop.r, "Gargoyle-Serif.ttf", PROPF, FONTR },
-        { gli_conf_prop.b, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB },
-        { gli_conf_prop.i, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI },
-        { gli_conf_prop.z, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ },
-    };
+    gfont_table.clear();
+    gfont_table.emplace_back(gli_conf_mono.r, "Gargoyle-Mono.ttf", MONOF, FONTR);
+    gfont_table.emplace_back(gli_conf_mono.b, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB);
+    gfont_table.emplace_back(gli_conf_mono.i, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI);
+    gfont_table.emplace_back(gli_conf_mono.z, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ);
+    gfont_table.emplace_back(gli_conf_prop.r, "Gargoyle-Serif.ttf", PROPF, FONTR);
+    gfont_table.emplace_back(gli_conf_prop.b, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB);
+    gfont_table.emplace_back(gli_conf_prop.i, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI);
+    gfont_table.emplace_back(gli_conf_prop.z, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ);
 
-    for (int i = 0; i < 8; i++)
-        gfont_table[i] = std::make_shared<font_t>(fonts[i]);
-
-    const auto &entry = gfont_table[0]->getglyph('0');
+    const auto &entry = gfont_table.at(0).getglyph('0');
 
     gli_cellh = gli_leading;
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
@@ -616,8 +605,8 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
 
 static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::function<void(int, const std::array<bitmap_t, GLI_SUBPIX> &)> callback)
 {
-    auto f = gfont_table[fidx];
-    bool dolig = !FT_IS_FIXED_WIDTH(f->face);
+    auto &f = gfont_table.at(fidx);
+    bool dolig = !FT_IS_FIXED_WIDTH(f.face);
     int prev = -1;
     glui32 c;
 
@@ -641,7 +630,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
             });
         }
 
-        if (it != ligatures.end() && FT_Get_Char_Index(f->face, it->second) != 0)
+        if (it != ligatures.end() && FT_Get_Char_Index(f.face, it->second) != 0)
         {
             c = it->second;
             s += it->first.size();
@@ -653,10 +642,10 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
             n--;
         }
 
-        auto entry = f->getglyph(c);
+        auto entry = f.getglyph(c);
 
         if (prev != -1)
-            x += f->charkern(prev, c);
+            x += f.charkern(prev, c);
 
         callback(x, entry.glyph);
 
