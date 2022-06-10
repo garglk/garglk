@@ -51,8 +51,8 @@
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
 
-#define mul255(a,b) (((short)(a) * (b) + 127) / 255)
-#define mulhigh(a,b) (((int)(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
+#define mul255(a,b) ((static_cast<short>(a) * (b) + 127) / 255)
+#define mulhigh(a,b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
 #define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
 struct Bitmap
@@ -86,8 +86,8 @@ struct Font
  * Globals
  */
 
-static unsigned short gammamap[256];
-static unsigned char gammainv[1 << GAMMA_BITS];
+std::array<unsigned short, 256> gammamap;
+std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
 static std::vector<Font> gfont_table;
 
@@ -209,7 +209,7 @@ const FontEntry &Font::getglyph(glui32 cid)
             entry.glyph[x].data.assign(&face->glyph->bitmap.buffer[0], &face->glyph->bitmap.buffer[datasize]);
         }
 
-        it = entries.insert({cid, entry}).first;
+        it = entries.emplace(cid, entry).first;
     }
 
     return it->second;
@@ -364,7 +364,7 @@ Font::Font(const std::string &path, const std::string &fallback, TYPES type, STY
     }
 }
 
-void gli_initialize_fonts(void)
+void gli_initialize_fonts()
 {
     int err;
 
@@ -427,9 +427,9 @@ void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-    p[0] = rgb[2] + mul255((short)p[0] - rgb[2], invalf);
-    p[1] = rgb[1] + mul255((short)p[1] - rgb[1], invalf);
-    p[2] = rgb[0] + mul255((short)p[2] - rgb[0], invalf);
+    p[0] = rgb[2] + mul255(static_cast<short>(p[0]) - rgb[2], invalf);
+    p[1] = rgb[1] + mul255(static_cast<short>(p[1]) - rgb[1], invalf);
+    p[2] = rgb[0] + mul255(static_cast<short>(p[2]) - rgb[0], invalf);
     p[3] = 0xFF;
 }
 
@@ -437,12 +437,12 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned c
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
     unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
-    unsigned short bg[3] = {
+    std::array<unsigned short, 3> bg = {
         gammamap[p[0]],
         gammamap[p[1]],
         gammamap[p[2]]
     };
-    unsigned short fg[3] = {
+    std::array<unsigned short, 3> fg = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]
@@ -452,26 +452,26 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned c
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf)];
-    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf)];
-    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf)];
+    p[0] = gammainv[fg[2] + mulhigh(static_cast<int>(bg[0]) - fg[2], invalf)];
+    p[1] = gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf)];
+    p[2] = gammainv[fg[0] + mulhigh(static_cast<int>(bg[2]) - fg[0], invalf)];
     p[3] = 0xFF;
 }
 
 static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned short invalf[3] = {
+    std::array<unsigned short, 3> invalf = {
         static_cast<unsigned short>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
         static_cast<unsigned short>(GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255)),
         static_cast<unsigned short>(GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)),
     };
-    unsigned short bg[3] = {
+    std::array<unsigned short, 3> bg = {
         gammamap[p[0]],
         gammamap[p[1]],
         gammamap[p[2]]
     };
-    unsigned short fg[3] = {
+    std::array<unsigned short, 3> fg = {
         gammamap[rgb[0]],
         gammamap[rgb[1]],
         gammamap[rgb[2]]
@@ -481,9 +481,9 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-    p[0] = gammainv[fg[2] + mulhigh((int)bg[0] - fg[2], invalf[2])];
-    p[1] = gammainv[fg[1] + mulhigh((int)bg[1] - fg[1], invalf[1])];
-    p[2] = gammainv[fg[0] + mulhigh((int)bg[2] - fg[0], invalf[0])];
+    p[0] = gammainv[fg[2] + mulhigh(static_cast<int>(bg[0]) - fg[2], invalf[2])];
+    p[1] = gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf[1])];
+    p[2] = gammainv[fg[0] + mulhigh(static_cast<int>(bg[2]) - fg[0], invalf[0])];
     p[3] = 0xFF;
 }
 
@@ -592,7 +592,7 @@ int Font::charkern(glui32 c0, glui32 c1)
         freetype_error(err, "Error in FT_Get_Kerning");
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
-    kerncache.insert({key, value});
+    kerncache.emplace(key, value);
 
     return value;
 }
