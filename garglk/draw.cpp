@@ -74,12 +74,12 @@ struct Font
     bool make_bold = false;
     bool make_oblique = false;
     bool kerned = false;
-    std::map<std::pair<int, int>, int> kerncache;
+    std::map<std::pair<glui32, glui32>, int> kerncache;
 
     Font(const std::string &path, const std::string &fallback, TYPES type, STYLES style);
 
     const FontEntry &getglyph(glui32 cid);
-    int charkern(int c0, int c1);
+    int charkern(glui32 c0, glui32 c1);
 };
 
 /*
@@ -560,7 +560,7 @@ void gli_draw_rect(int x0, int y0, int w, int h, const unsigned char *rgb)
     }
 }
 
-int Font::charkern(int c0, int c1)
+int Font::charkern(glui32 c0, glui32 c1)
 {
     FT_Vector v;
     int err;
