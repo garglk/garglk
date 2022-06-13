@@ -39,7 +39,6 @@ class Window : public QMainWindow {
     Q_OBJECT
 public:
     Window();
-    ~Window();
 
     void refresh() { m_view->refresh(); }
 
