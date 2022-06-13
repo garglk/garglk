@@ -39,7 +39,6 @@
 #include <QTimer>
 #include <QWidget>
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -95,7 +94,7 @@ void gli_notification_waiting()
 
 void garglk::winabort(const std::string &msg)
 {
-    std::fprintf(stderr, "fatal: %s\n", msg.c_str());
+    std::cerr << "fatal: " << msg << std::endl;
     QMessageBox::critical(nullptr, "Error", msg.c_str());
     std::exit(EXIT_FAILURE);
 }
