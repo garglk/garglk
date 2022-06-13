@@ -35,11 +35,13 @@
 #include <QList>
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QMoveEvent>
 #include <QObject>
 #include <QPainter>
 #include <QPalette>
 #include <QProcess>
 #include <QResizeEvent>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
@@ -208,7 +210,8 @@ static void winclipreceive(QClipboard::Mode mode)
 
 Window::Window() :
     m_view(new View(this)),
-    m_timer(new QTimer(this))
+    m_timer(new QTimer(this)),
+    m_settings(new QSettings("io.github.garglk", "Gargoyle", this))
 {
     connect(m_timer, &QTimer::timeout, this, [&]() { m_timed_out = true; });
 }
@@ -243,6 +246,17 @@ void Window::resizeEvent(QResizeEvent *event)
     refresh_needed = true;
 
     gli_windows_size_change();
+
+    if (gli_conf_save_window_size)
+        m_settings->setValue("window/size", event->size());
+
+    event->accept();
+}
+
+void Window::moveEvent(QMoveEvent *event)
+{
+    if (gli_conf_save_window_location)
+        m_settings->setValue("window/position", event->pos());
 
     event->accept();
 }
@@ -554,14 +568,28 @@ void wininit(int *, char **)
 
 void winopen()
 {
-    int defw;
-    int defh;
-
-    defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
-    defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
-
     window = new Window();
-    window->resize(defw, defh);
+
+    int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
+    int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
+    QSize size(defw, defh);
+    if (gli_conf_save_window_size)
+    {
+        auto stored_size = window->settings()->value("window/size");
+        if (!stored_size.isNull())
+            size = stored_size.toSize();
+    }
+    window->resize(size);
+
+    if (gli_conf_save_window_location)
+    {
+        auto position = window->settings()->value("window/position");
+        if (!position.isNull())
+        {
+            window->move(position.toPoint());
+        }
+    }
+
     wintitle();
 
     if (gli_conf_fullscreen)

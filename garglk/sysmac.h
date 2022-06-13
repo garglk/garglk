@@ -24,6 +24,8 @@
 #ifndef GARGLK_SYSMAC_M
 #define GARGLK_SYSMAC_M
 
+#include <Cocoa/Cocoa.h>
+
 #ifdef __ppc__
 #define UTF32StringEncoding NSUTF32BigEndianStringEncoding
 #else
@@ -122,5 +124,7 @@
 - (void) setCursor: (unsigned int) cursor;
 
 @end
+
+NSString *get_qt_plist_path();
 
 #endif

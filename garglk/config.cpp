@@ -169,6 +169,9 @@ int gli_rows = 25;
 bool gli_conf_lockcols = false;
 bool gli_conf_lockrows = false;
 
+bool gli_conf_save_window_size = false;
+bool gli_conf_save_window_location = false;
+
 float gli_conf_propaspect = 1.0;
 float gli_conf_monoaspect = 1.0;
 
@@ -517,6 +520,18 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             gli_conf_lockrows = !!std::stoi(arg);
         } else if (cmd == "lockcols") {
             gli_conf_lockcols = !!std::stoi(arg);
+        } else if (cmd == "save_window") {
+            std::stringstream ss(arg);
+            std::string entry;
+
+            while (ss >> entry) {
+                entry = garglk::downcase(entry);
+                if (entry == "size") {
+                    gli_conf_save_window_size = true;
+                } else if (entry == "location") {
+                    gli_conf_save_window_location = true;
+                }
+            }
         } else if (cmd == "wmarginx") {
             gli_wmarginx = std::max(0, std::stoi(arg));
             gli_wmarginx_save = gli_wmarginx;

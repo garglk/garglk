@@ -21,8 +21,10 @@
  *****************************************************************************/
 
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
 #include <map>
+#include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -408,6 +410,20 @@ void wininit(int *argc, char **argv)
     [pool drain];
 }
 
+NSString *get_qt_plist_path()
+{
+    const char *home = std::getenv("HOME");
+    if (home != nullptr)
+    {
+        // Optimistically use the path that Qt uses with the hope/plan
+        // of moving macOS to Qt one of these days.
+        auto path = std::string(home) + "/Library/Preferences/com.io-github-garglk.Gargoyle.plist";
+        return [NSString stringWithUTF8String: path.c_str()];
+    }
+
+    return nil;
+}
+
 void winopen(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
@@ -418,6 +434,28 @@ void winopen(void)
                                                       green: (float) gli_window_color[1] / 255.0f
                                                        blue: (float) gli_window_color[2] / 255.0f
                                                       alpha: 1.0f];
+
+    if (gli_conf_save_window_size)
+    {
+        auto path = get_qt_plist_path();
+        if (path != nil)
+        {
+            NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile: path];
+            NSString *sizeobj = config[@"window.size"];
+
+            if (sizeobj)
+            {
+                std::string size = [sizeobj UTF8String];
+                std::regex size_re(R"(^@Size\((\d+) (\d+)\)$)");
+                std::smatch cm;
+                if (std::regex_match(size, cm, size_re) && cm.size() == 3)
+                {
+                    defw = std::stoi(cm[1]);
+                    defh = std::stoi(cm[2]);
+                }
+            }
+        }
+    }
 
     [gargoyle initWindow: processID
                    width: defw

@@ -322,6 +322,9 @@ extern int gli_rows;
 extern bool gli_conf_lockcols;
 extern bool gli_conf_lockrows;
 
+extern bool gli_conf_save_window_size;
+extern bool gli_conf_save_window_location;
+
 extern unsigned char gli_scroll_bg[3];
 extern unsigned char gli_scroll_fg[3];
 extern int gli_scroll_width;
