@@ -180,12 +180,6 @@ Window::Window() :
     connect(m_timer, &QTimer::timeout, this, [&]() { m_timed_out = true; });
 }
 
-Window::~Window()
-{
-    delete m_view;
-    delete m_timer;
-}
-
 void Window::closeEvent(QCloseEvent *)
 {
     std::exit(0);
