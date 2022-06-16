@@ -34,8 +34,10 @@
 #include <QMessageBox>
 #include <QObject>
 #include <QPainter>
+#include <QProcess>
 #include <QResizeEvent>
 #include <QString>
+#include <QStringList>
 #include <QTimer>
 #include <QWidget>
 
@@ -271,8 +273,25 @@ static void edit_config()
     try
     {
         auto config = garglk::user_config();
+#ifdef __APPLE__
+        // QDesktopServices::openUrl uses the default handler for the
+        // specified file. One possible filename is garglk.ini, meaning
+        // that the handler for INI files will be used. This at least
+        // works by default under Plasma & Gnome on Unix, and on
+        // Windows. But on macOS, INI files aren't associated with a
+        // text editor, so use "open -t" to explicitly request a text
+        // editor. This would actually be the best solution on all
+        // platforms, but Qt doesn't appear to be able to look up the
+        // default program for a specific MIME type, so finding a user's
+        // text editor can't be done easily.
+        QProcess proc;
+        QStringList args;
+        args << "-t" << config.c_str();
+        proc.startDetached("open", args);
+#else
         if (!QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str())))
             QMessageBox::warning(nullptr, "Warning", "Unable to find a text editor");
+#endif
     }
     catch (std::runtime_error &e)
     {
