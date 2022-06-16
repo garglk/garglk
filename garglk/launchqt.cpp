@@ -159,7 +159,7 @@ int main(int argc, char **argv)
     // of failing if there are no interpreters installed). If this is
     // set, the standard directory will *not* be used at all, even if no
     // interpreter is found.
-    QString dir = getenv("GARGLK_INTERPRETER_DIR");
+    QString dir = std::getenv("GARGLK_INTERPRETER_DIR");
     if (dir.isNull())
 #ifdef GARGLK_INTERPRETER_DIR
         dir = GARGLK_INTERPRETER_DIR;
