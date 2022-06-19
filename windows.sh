@@ -105,7 +105,7 @@ do
     cp "${mingw_location}/${target}/bin/${dll}.dll" "build/dist"
 done
 
-find build/dist -name '*.exe' -o -name '*.dll' -exec ${target}-strip --strip-unneeded {} \;
+find build/dist \( -name '*.exe' -o -name '*.dll' \) -exec ${target}-strip --strip-unneeded {} \;
 
 mkdir -p "build/dist/plugins/platforms"
 cp "${mingw_location}/${target}/plugins/platforms/qwindows.dll" "build/dist/plugins/platforms"
