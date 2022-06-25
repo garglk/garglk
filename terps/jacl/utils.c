@@ -160,7 +160,14 @@ create_paths(full_path)
 	sprintf(bookmark, "%s.bookmark", prefix);
 
 	/* SET DEFAULT BLORB FILE NAME */
+#ifdef GARGLK
+	// Gargoyle uses glkunix_stream_open_pathname to open this file, but
+        // it's not (necessarily) going to be in the current working directory,
+        // so provide the full path.
+	sprintf(blorb, "%s/%s.blorb", game_path, prefix);
+#else
 	sprintf(blorb, "%s.blorb", prefix);
+#endif
 #endif
 
 	/* SET DEFAULT FILE LOCATIONS IF NOT SET BY THE USER IN CONFIG */
