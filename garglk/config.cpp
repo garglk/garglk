@@ -438,21 +438,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
         if (linestream >> cmd)
         {
             std::string arg;
-            std::set<std::string> singlearg = {
-                "tcolor", "gcolor",
-                "tfont", "gfont",
-                "monofont", "propfont",
-                "monor", "monob", "monoi", "monoz",
-                "propr", "propb", "propi", "propz",
-                "lcdweights",
-                "moreprompt",
-                "terp",
-            };
-
-            if (std::any_of(singlearg.begin(), singlearg.end(), [&cmd](const std::string &key) { return key == cmd; }))
-                std::getline(linestream >> std::ws, arg);
-            else
-                linestream >> arg;
+            std::getline(linestream >> std::ws, arg);
 
             if (linestream)
                 callback(cmd, arg);
