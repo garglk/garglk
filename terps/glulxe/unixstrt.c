@@ -8,6 +8,7 @@
 #include "glk.h"
 #include "gi_blorb.h"
 #include "glulxe.h"
+#include "unixstrt.h"
 #include "glkstart.h" /* This comes with the Glk library. */
 
 #if VM_DEBUGGER
@@ -16,8 +17,13 @@
 #include "gi_debug.h" 
 #endif /* VM_DEBUGGER */
 
-/* The only command-line argument is the filename. And the profiling switch,
-   if that's compiled in. The only *two* command-line arguments are... 
+static void glkunix_game_select(glui32 selector, glui32 arg0, glui32 arg1, glui32 arg2);
+static void glkunix_game_start(void);
+static void glkunix_game_autorestore(void);
+
+/* The only command-line arguments are the filename and the number of
+   undo states. And the profiling switch, if that's compiled in. The
+   only *three* command-line arguments are...
 
    You may wonder why there's no argument for a save file to autorestore
    at startup. That would be nice; unfortunately it can't work. A Glulx
@@ -27,10 +33,21 @@
 */
 glkunix_argumentlist_t glkunix_arguments[] = {
 
+  { "--undo", glkunix_arg_ValueFollows, "Number of undo states to store." },
+
+#if GLKUNIX_AUTOSAVE_FEATURES
+  { "--autosave", glkunix_arg_NoValue, "Autosave every turn." },
+  { "--autorestore", glkunix_arg_NoValue, "Autorestore at launch." },
+  { "--autodir", glkunix_arg_ValueFollows, "Directory for autosave/restore files (default: .)." },
+  { "--autoname", glkunix_arg_ValueFollows, "Base filename for autosave/restore (default: autosave)." },
+  { "--autoskiparrange", glkunix_arg_NoValue, "Don't autosave on arrange events." },
+#endif /* GLKUNIX_AUTOSAVE_FEATURES */
+
 #if VM_PROFILING
   { "--profile", glkunix_arg_ValueFollows, "Generate profiling information to a file." },
   { "--profcalls", glkunix_arg_NoValue, "Include what-called-what details in profiling. (Slow!)" },
 #endif /* VM_PROFILING */
+
 #if VM_DEBUGGER
   { "--gameinfo", glkunix_arg_ValueFollows, "Read debug information from a file." },
   { "--cpu", glkunix_arg_NoValue, "Display CPU usage of each command (debug)." },
@@ -52,6 +69,8 @@ int glkunix_startup_code(glkunix_startup_t *data)
   char *filename = NULL;
   char *gameinfofilename = NULL;
   int gameinfoloaded = FALSE;
+  int pref_autosave = FALSE;
+  int pref_autorestore = FALSE;
   unsigned char buf[12];
   int res;
 
@@ -60,14 +79,56 @@ int glkunix_startup_code(glkunix_startup_t *data)
 #endif
 
 #ifdef GARGLK
-  garglk_set_program_name("Glulxe 0.5.2");
-  garglk_set_program_info("Glulxe 0.5.2 by Andrew Plotkin");
+  garglk_set_program_name("Glulxe 0.6.0");
+  garglk_set_program_info("Glulxe 0.6.0 by Andrew Plotkin");
 #endif
 
   /* Parse out the arguments. They've already been checked for validity,
      and the library-specific ones stripped out.
      As usual for Unix, the zeroth argument is the executable name. */
   for (ix=1; ix<data->argc; ix++) {
+
+    if (!strcmp(data->argv[ix], "--undo")) {
+      ix++;
+      if (ix<data->argc) {
+        int val = atoi(data->argv[ix]);
+        if (val <= 0) {
+          init_err = "--undo must be a number.";
+          return TRUE;
+        }
+        max_undo_level = val;
+      }
+      continue;
+    }
+
+#if GLKUNIX_AUTOSAVE_FEATURES
+    if (!strcmp(data->argv[ix], "--autosave")) {
+      pref_autosave = TRUE;
+      continue;
+    }
+    if (!strcmp(data->argv[ix], "--autorestore")) {
+      pref_autorestore = TRUE;
+      continue;
+    }
+    if (!strcmp(data->argv[ix], "--autodir")) {
+      ix++;
+      if (ix<data->argc) {
+        pref_autosavedir = data->argv[ix];
+      }
+      continue;
+    }
+    if (!strcmp(data->argv[ix], "--autoname")) {
+      ix++;
+      if (ix<data->argc) {
+        pref_autosavename = data->argv[ix];
+      }
+      continue;
+    }
+    if (!strcmp(data->argv[ix], "--autoskiparrange")) {
+      pref_autosave_skiparrange = TRUE;
+      continue;
+    }
+#endif /* GLKUNIX_AUTOSAVE_FEATURES */
 
 #if VM_PROFILING
     if (!strcmp(data->argv[ix], "--profile")) {
@@ -140,6 +201,16 @@ int glkunix_startup_code(glkunix_startup_t *data)
   garglk_set_story_name(cx ? cx + 1 : data->argv[1]);
 #endif
 
+#if GLKUNIX_AUTOSAVE_FEATURES
+  if (pref_autosave || pref_autorestore) {
+    set_library_start_hook(glkunix_game_start);
+    if (pref_autorestore)
+      set_library_autorestore_hook(glkunix_game_autorestore);
+    if (pref_autosave)
+      set_library_select_hook(glkunix_game_select);
+  }
+#endif /* GLKUNIX_AUTOSAVE_FEATURES */
+
 #if VM_DEBUGGER
   if (gameinfofilename) {
     strid_t debugstr = glkunix_stream_open_pathname_gen(gameinfofilename, FALSE, FALSE, 1);
@@ -207,3 +278,45 @@ int glkunix_startup_code(glkunix_startup_t *data)
   }
 }
 
+/* The following only make sense when compiled with a Glk library which offers autosave/autorestore hooks. */
+
+#ifdef GLKUNIX_AUTOSAVE_FEATURES
+
+static void glkunix_game_start()
+{
+  unsigned char buf[64];
+  glk_stream_set_position(gamefile, gamefile_start, seekmode_Start);
+  glui32 res = glk_get_buffer_stream(gamefile, (char *)buf, 64);
+  if (res == 0) {
+    fatal_error("Unable to read game file.");
+    return;
+  }
+
+  glkunix_set_autosave_signature(buf, res);
+}
+
+/* This is the library_select_hook, which will be called every time glk_select() is invoked.
+ */
+static void glkunix_game_select(glui32 selector, glui32 arg0, glui32 arg1, glui32 arg2)
+{
+  glui32 lasteventtype = glkunix_get_last_event_type();
+  
+  /* Do not autosave if we've just started up or autorestored, or if the last event was a rearrange event. (We get rearranges in clusters, and they don't change anything interesting anyhow.) */
+  if (lasteventtype == 0xFFFFFFFF
+    || lasteventtype == 0xFFFFFFFE)
+    return;
+
+  if (pref_autosave_skiparrange && lasteventtype == evtype_Arrange)
+    return;
+  
+  glkunix_do_autosave(selector, arg0, arg1, arg2);
+}
+
+static void glkunix_game_autorestore()
+{
+  int res = glkunix_do_autorestore();
+  if (!res)
+    fatal_error("Autorestore failed.");
+}
+
+#endif /* GLKUNIX_AUTOSAVE_FEATURES */
