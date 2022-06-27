@@ -190,7 +190,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Glulxe 0.5.2
+# Glulxe 0.6.0
 #
 set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
 if(UNIX)
