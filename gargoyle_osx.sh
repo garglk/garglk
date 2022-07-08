@@ -46,6 +46,7 @@ rm -rf Gargoyle.app
 mkdir -p "$BUNDLE/MacOS"
 mkdir -p "$BUNDLE/Frameworks"
 mkdir -p "$BUNDLE/Resources/Fonts"
+mkdir -p "$BUNDLE/Resources/themes"
 mkdir -p "$BUNDLE/PlugIns"
 
 rm -rf $GARGDIST
@@ -129,6 +130,7 @@ cp garglk/*.icns "$BUNDLE/Resources"
 cp licenses/* "$BUNDLE/Resources"
 
 cp fonts/Gargoyle*.ttf $BUNDLE/Resources/Fonts
+cp themes/*.json $BUNDLE/Resources/themes
 
 codesign -s - -f --deep Gargoyle.app
 

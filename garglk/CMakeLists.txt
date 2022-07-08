@@ -47,8 +47,8 @@ if(INTERFACE STREQUAL "QT")
 endif()
 
 add_library(garglk babeldata.c style.c config.cpp draw.cpp event.cpp
-    garglk.cpp imgload.c imgscale.c winblank.c window.c wingfx.c
-    wingrid.c winmask.c winpair.c wintext.c ${GARGLKINI_CXX}
+    garglk.cpp imgload.c imgscale.c theme.cpp winblank.c window.c
+    wingfx.c wingrid.c winmask.c winpair.c wintext.c ${GARGLKINI_CXX}
 
     # These can't be a library in cheapglk/ because they contain
     # references to code in garglk, and garglk contains references to
@@ -138,6 +138,17 @@ elseif(UNIX OR MINGW)
 
     find_package(Qt${QT_VERSION} COMPONENTS Widgets REQUIRED CONFIG)
     target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::Widgets)
+
+    # QDBus exists on Windows, but almost nobody will be running DBus
+    # there, so using QDBus would effectively just require shipping the
+    # QDBus DLL for no gain.
+    if(UNIX)
+        find_package(Qt${QT_VERSION} COMPONENTS DBus CONFIG)
+        if(Qt${QT_VERSION}DBus_FOUND)
+            target_compile_definitions(garglk PRIVATE GARGLK_HAS_DBUS)
+            target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::DBus)
+        endif()
+    endif()
 
     if(WITH_LAUNCHER AND ${INTERFACE} STREQUAL "QT")
         target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
@@ -266,6 +277,17 @@ elseif(UNIX)
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif-Italic.ttf"
         "${PROJECT_SOURCE_DIR}/fonts/Gargoyle-Serif.ttf"
         DESTINATION "${FONT_DIRECTORY}")
+
+    install(FILES
+        "${PROJECT_SOURCE_DIR}/themes/Blue.json"
+        "${PROJECT_SOURCE_DIR}/themes/Breeze Darker.json"
+        "${PROJECT_SOURCE_DIR}/themes/Lectrote Dark.json"
+        "${PROJECT_SOURCE_DIR}/themes/Lectrote Sepia.json"
+        "${PROJECT_SOURCE_DIR}/themes/Lectrote Slate.json"
+        "${PROJECT_SOURCE_DIR}/themes/Pencil.json"
+        "${PROJECT_SOURCE_DIR}/themes/Zoom.json"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/io.github.garglk/Gargoyle/themes")
+
 endif()
 
 # For users who want to test Gargoyle by running it out of the CMake build

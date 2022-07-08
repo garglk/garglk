@@ -1,0 +1,14 @@
+{
+    "name": "Breeze Darker",
+    "window": "#232629",
+    "border": "#000000",
+    "caret": "#e7e8e9",
+    "link": "#000060",
+    "more": "#00cc00",
+    "text_buffer": {
+        "default": {"fg": "#e7e8e9", "bg": "#232629"}
+    },
+    "text_grid": {
+        "default": {"fg": "#e7e8e9", "bg": "#232629"}
+    }
+}

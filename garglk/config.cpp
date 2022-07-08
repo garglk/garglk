@@ -100,6 +100,8 @@ style_t gli_gstyles[style_NUMSTYLES] =
 style_t gli_tstyles_def[style_NUMSTYLES];
 style_t gli_gstyles_def[style_NUMSTYLES];
 
+std::vector<garglk::ConfigFile> garglk::all_configs;
+
 static int font2idx(const std::string &font)
 {
     if (font == "monor") return MONOR;
@@ -202,21 +204,13 @@ std::string garglk::downcase(const std::string &string)
 
 static void parsecolor(const std::string &str, unsigned char *rgb)
 {
-    std::string r, g, b;
-
-    if (str.size() != 6)
-        return;
-
-    if (!std::all_of(str.begin(), str.end(), [](unsigned char c) { return std::isxdigit(c); }))
-        return;
-
-    r = str.substr(0, 2);
-    g = str.substr(2, 2);
-    b = str.substr(4, 2);
-
-    rgb[0] = std::stoul(r, nullptr, 16);
-    rgb[1] = std::stoul(g, nullptr, 16);
-    rgb[2] = std::stoul(b, nullptr, 16);
+    try
+    {
+        garglk::Color::from(str).to(rgb);
+    }
+    catch (const std::runtime_error &)
+    {
+    }
 }
 
 // Return a vector of all possible config files. This is in order of
@@ -607,6 +601,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             gli_conf_stylehint = !!std::stoi(arg);
         } else if (cmd == "safeclicks") {
             gli_conf_safeclicks = !!std::stoi(arg);
+        } else if (cmd == "theme") {
+            garglk::theme::set(arg);
         } else if (cmd == "tcolor" || cmd == "gcolor") {
             std::istringstream argstream(arg);
             std::string style, fg, bg;
@@ -700,6 +696,11 @@ static void gli_read_config(int argc, char **argv)
     if (argc > 1)
         gamepath = argv[argc - 1];
 
+    /* store so other parts of the code have access to full config information,
+     * including execdir and gamepath components.
+     */
+    garglk::all_configs = garglk::configs(exedir, gamepath);
+
     /* load from all config files */
     auto configs = garglk::configs(exedir, gamepath);
     std::reverse(configs.begin(), configs.end());
@@ -719,6 +720,8 @@ void gli_startup(int argc, char *argv[])
 
     if (argc > 1)
         glkunix_set_base_file(argv[argc-1]);
+
+    garglk::theme::init();
 
     gli_read_config(argc, argv);
 

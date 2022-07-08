@@ -20,11 +20,13 @@
  *                                                                            *
  *****************************************************************************/
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -434,6 +436,13 @@ void winrepaint(int x0, int y0, int x1, int y1)
     gli_refresh_needed = true;
 }
 
+bool windark()
+{
+    NSString *theme = [[NSUserDefaults standardUserDefaults] stringForKey:@"AppleInterfaceStyle"];
+
+    return [theme isEqualToString:@"Dark"];
+}
+
 void winrefresh(void)
 {
     gli_windows_redraw();
@@ -448,6 +457,44 @@ void winrefresh(void)
                                  height: gli_image_h];
 
     gli_refresh_needed = !refreshed;
+}
+
+static void show_info(NSString *title, const std::string &text)
+{
+    NSAlert *alert = [[NSAlert alloc] init];
+    alert.alertStyle = NSAlertStyleInformational;
+    alert.messageText = title;
+    alert.informativeText = [NSString stringWithUTF8String: text.c_str()];
+    alert.window.level = NSModalPanelWindowLevel;
+    [alert runModal];
+    [alert release];
+}
+
+static void show_paths()
+{
+    std::string text = "Configuration file paths:\n\n";
+    for (const auto &path : garglk::all_configs)
+        text += "• " + path.path + "\n";
+
+    text += "\nTheme paths:\n\n";
+    auto appdata = garglk::winappdata();
+    std::reverse(appdata.begin(), appdata.end());
+    for (const auto &path : appdata)
+        text += "• " + path + "/themes\n";
+
+    show_info(@"Paths", text);
+}
+
+static void show_themes()
+{
+    std::string text = "The following themes are available:\n\n";
+    auto theme_names = garglk::theme::names();
+
+    std::sort(theme_names.begin(), theme_names.end());
+    for (const auto &theme_name : theme_names)
+        text += "• " + theme_name + "\n";
+
+    show_info(@"Themes", text);
 }
 
 void winkey(NSEvent *evt)
@@ -476,6 +523,10 @@ void winkey(NSEvent *evt)
         {{NSEventModifierFlagCommand, NSKEY_X}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_C}, []{ winclipsend(); }},
         {{NSEventModifierFlagCommand, NSKEY_V}, []{ winclipreceive(); }},
+
+        /* info */
+        {{NSEventModifierFlagCommand, NSKEY_PERIOD}, show_paths},
+        {{NSEventModifierFlagShift | NSEventModifierFlagCommand, NSKEY_T}, show_themes},
 
         /* readline/emacs-style controls */
         {{NSEventModifierFlagControl, NSKEY_A}, []{ gli_input_handle_key(keycode_Home); }},
@@ -694,6 +745,21 @@ std::string garglk::winfontpath(const std::string &filename)
         return std::string(resources) + "/Fonts/" + filename;
 
     return "";
+}
+
+std::vector<std::string> garglk::winappdata()
+{
+    NSString *nspath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) lastObject];
+    char *resources = getenv("GARGLK_RESOURCES");
+    std::vector<std::string> paths;
+
+    if (resources != nullptr)
+        paths.push_back(resources);
+
+    // This is what Qt returns for AppConfigLocation.
+    paths.push_back(std::string([nspath UTF8String]) + "/Preferences/io.github.garglk/Gargoyle");
+
+    return paths;
 }
 
 void gli_select(event_t *event, int polled)

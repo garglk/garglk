@@ -1,0 +1,15 @@
+{
+    "name": "Lectrote Sepia",
+    "window": "#f4ede1",
+    "border": "#000000",
+    "caret": "#000000",
+    "link": "#000060",
+    "more": "#442200",
+    "text_buffer": {
+        "default": {"fg": "#000000", "bg": "#f4ede1"},
+        "input": {"fg": "#004400", "bg": "#f4ede1"}
+    },
+    "text_grid": {
+        "default": {"fg": "#fffff4", "bg": "#886644"}
+    }
+}
