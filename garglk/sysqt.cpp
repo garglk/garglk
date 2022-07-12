@@ -321,7 +321,17 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::ControlModifier, Qt::Key_Left},  []{ gli_input_handle_key(keycode_SkipWordLeft); }},
         {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
 
+#ifdef __HAIKU__
+        // For some reason, on Haiku, the "shifted" version of a comma is used,
+        // which, on US English keyboards, at least, is a less-than sign. I
+        // assume this is a bug in translating Haiku input to Qt input, but I'm
+        // also not completely sure it's wrong, either; the QKeyEvent
+        // documentations says that key() "does not distinguish between capital
+        // and non-capital letters", but these aren't letters...
+        {{Qt::ControlModifier, Qt::Key_Less}, edit_config},
+#else
         {{Qt::ControlModifier, Qt::Key_Comma}, edit_config},
+#endif
 
         {{Qt::ShiftModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
 
