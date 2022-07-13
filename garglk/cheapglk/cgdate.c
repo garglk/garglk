@@ -46,6 +46,13 @@
 */
 #define NO_TIMEGM_AVAIL
 
+/* ... but due to the mess that is C/C++ dependencies, give it a
+   different name, in case a dependency forces the name to be exposed
+   anyway, even though Gargoyle specifically requests a POSIX
+   environment, without extensions.
+ */
+#define timegm cg_timegm
+
 /* bzero() is deprecated */
 #undef bzero
 #define bzero(s, n) memset((s), 0, (n))
