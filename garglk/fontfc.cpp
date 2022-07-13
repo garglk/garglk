@@ -67,7 +67,7 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
             {
                 for (const auto &slant : slants)
                 {
-                    std::stringstream fontname;
+                    std::ostringstream fontname;
                     std::string fontpath;
 
                     fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;

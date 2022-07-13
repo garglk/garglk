@@ -433,7 +433,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
             continue;
 
         std::string cmd;
-        std::stringstream linestream(line);
+        std::istringstream linestream(line);
 
         if (linestream >> cmd)
         {
@@ -560,7 +560,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "lcdfilter") {
             garglk::set_lcdfilter(arg);
         } else if (cmd == "lcdweights") {
-            std::stringstream argstream(arg);
+            std::istringstream argstream(arg);
             int weight;
             std::vector<unsigned char> weights;
 
@@ -608,7 +608,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
         } else if (cmd == "safeclicks") {
             gli_conf_safeclicks = !!std::stoi(arg);
         } else if (cmd == "tcolor" || cmd == "gcolor") {
-            std::stringstream argstream(arg);
+            std::istringstream argstream(arg);
             std::string style, fg, bg;
 
             if (argstream >> style >> fg >> bg)
@@ -635,7 +635,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                 }
             }
         } else if (cmd == "tfont" || cmd == "gfont") {
-            std::stringstream argstream(arg);
+            std::istringstream argstream(arg);
             std::string style, font;
 
             if (argstream >> style >> font)

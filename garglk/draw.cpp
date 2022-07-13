@@ -134,7 +134,7 @@ void garglk::set_lcdfilter(const std::string &filter)
 
 static void freetype_error(int err, const std::string &basemsg)
 {
-    std::stringstream msg;
+    std::ostringstream msg;
     // If FreeType was not built with FT_CONFIG_OPTION_ERROR_STRINGS,
     // this will always be nullptr.
     const char *errstr = FT_Error_String(err);

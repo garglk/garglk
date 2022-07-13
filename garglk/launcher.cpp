@@ -222,7 +222,7 @@ static bool runblorb(const std::string &path, const std::string &game, const Int
             break;
 
         default: {
-            std::stringstream msg;
+            std::ostringstream msg;
             msg << "Unknown game type: 0x" << std::hex << std::setw(8) << std::setfill('0') << res.chunktype;
             throw BlorbError(msg.str());
         }
@@ -244,7 +244,7 @@ static bool findterp(const std::string &file, const std::string &target, struct 
     garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
         if (cmd == "terp")
         {
-            std::stringstream argstream(arg);
+            std::istringstream argstream(arg);
             std::string opt;
 
             if (argstream >> interpreter.terp)
