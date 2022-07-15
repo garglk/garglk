@@ -27,12 +27,16 @@
 #define SDL_MAIN_HANDLED
 #endif
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <math.h>
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <SDL.h>
 #include <SDL_mixer.h>
@@ -56,7 +60,7 @@
 #define GLK_MAXVOLUME 0x10000
 #define FADE_GRANULARITY 100
 
-#define GLK_VOLUME_TO_SDL_VOLUME(x) ((x) < GLK_MAXVOLUME ? (round(pow(((double)x) / GLK_MAXVOLUME, log(4)) * MIX_MAX_VOLUME)) : (MIX_MAX_VOLUME))
+#define GLK_VOLUME_TO_SDL_VOLUME(x) ((x) < GLK_MAXVOLUME ? (std::round(std::pow(((double)x) / GLK_MAXVOLUME, std::log(4)) * MIX_MAX_VOLUME)) : (MIX_MAX_VOLUME))
 
 enum { CHANNEL_IDLE, CHANNEL_SOUND, CHANNEL_MUSIC };
 
@@ -64,11 +68,11 @@ struct glk_schannel_struct
 {
     glui32 rock;
 
-    void *sample; /* Mix_Chunk (or FMOD Sound) */
-    void *music; /* Mix_Music (or FMOD Music) */
+    Mix_Chunk *sample;
+    Mix_Music *music;
 
-    void *sdl_rwops; /* SDL_RWops */
-    unsigned char *sdl_memory;
+    SDL_RWops *sdl_rwops;
+    std::vector<unsigned char> sdl_memory;
     int sdl_channel;
 
     int resid; /* for notifies */
@@ -93,8 +97,8 @@ struct glk_schannel_struct
 };
 
 
-static channel_t *gli_channellist = NULL;
-static channel_t *sound_channels[SDL_CHANNELS];
+static channel_t *gli_channellist = nullptr;
+static std::array<channel_t *, SDL_CHANNELS> sound_channels;
 static channel_t *music_channel;
 
 static const int FREE = 1;
@@ -105,7 +109,7 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
     return chan->disprock;
 }
 
-void gli_initialize_sound(void)
+void gli_initialize_sound()
 {
     if (gli_conf_sound == 1)
     {
@@ -113,8 +117,8 @@ void gli_initialize_sound(void)
         if (SDL_Init(SDL_INIT_AUDIO|SDL_INIT_TIMER) == -1)
         {
             gli_strict_warning("SDL init failed\n");
-            gli_strict_warning("%s", SDL_GetError());
-            gli_conf_sound = 0;
+            gli_strict_warning(SDL_GetError());
+            gli_conf_sound = false;
             return;
         }
         // MixInit?
@@ -122,14 +126,14 @@ void gli_initialize_sound(void)
         if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 4096) == -1)
         {
             gli_strict_warning("SDL Mixer init failed\n");
-            gli_strict_warning("%s", Mix_GetError());
-            gli_conf_sound = 0;
+            gli_strict_warning(Mix_GetError());
+            gli_conf_sound = false;
             return;
         }
 
         int channels = Mix_AllocateChannels(SDL_CHANNELS);
         Mix_GroupChannels(0, channels - 1 , FREE);
-        Mix_ChannelFinished(NULL);
+        Mix_ChannelFinished(nullptr);
     }
 }
 
@@ -143,11 +147,8 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     channel_t *chan;
 
     if (!gli_conf_sound)
-        return NULL;
-    chan = malloc(sizeof(channel_t));
-
-    if (!chan)
-        return NULL;
+        return nullptr;
+    chan = new channel_t;
 
     chan->rock = rock;
     chan->status = CHANNEL_IDLE;
@@ -155,12 +156,11 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     chan->resid = 0;
     chan->loop = 0;
     chan->notify = 0;
-    chan->sdl_memory = 0;
-    chan->sdl_rwops = 0;
-    chan->sample = 0;
+    chan->sdl_rwops = nullptr;
+    chan->sample = nullptr;
     chan->paused = 0;
     chan->sdl_channel = -1;
-    chan->music = 0;
+    chan->music = nullptr;
 
     chan->volume_notify = 0;
     chan->volume_timeout = 0;
@@ -169,7 +169,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     chan->volume_delta = 0;
     chan->timer = 0;
 
-    chan->chain_prev = NULL;
+    chan->chain_prev = nullptr;
     chan->chain_next = gli_channellist;
     gli_channellist = chan;
     if (chan->chain_next)
@@ -178,7 +178,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
     if (gli_register_obj)
         chan->disprock = (*gli_register_obj)(chan, gidisp_Class_Schannel);
     else
-        chan->disprock.ptr = NULL;
+        chan->disprock.ptr = nullptr;
 
     return chan;
 }
@@ -188,13 +188,11 @@ static void cleanup_channel(schanid_t chan)
     if (chan->sdl_rwops)
     {
         SDL_FreeRW(chan->sdl_rwops);
-        chan->sdl_rwops = 0;
+        chan->sdl_rwops = nullptr;
     }
-    if (chan->sdl_memory)
-    {
-        free(chan->sdl_memory);
-        chan->sdl_memory = 0;
-    }
+
+    chan->sdl_memory.clear();
+
     switch (chan->status)
     {
         case CHANNEL_SOUND:
@@ -203,20 +201,20 @@ static void cleanup_channel(schanid_t chan)
             if (chan->sdl_channel >= 0)
             {
                 Mix_GroupChannel(chan->sdl_channel, FREE);
-                sound_channels[chan->sdl_channel] = 0;
+                sound_channels[chan->sdl_channel] = nullptr;
             }
             break;
         case CHANNEL_MUSIC:
             if (chan->music)
             {
                 Mix_FreeMusic(chan->music);
-                music_channel = 0;
+                music_channel = nullptr;
             }
             break;
     }
     chan->status = CHANNEL_IDLE;
     chan->sdl_channel = -1;
-    chan->music = 0;
+    chan->music = nullptr;
 
     if (chan->timer)
         SDL_RemoveTimer(chan->timer);
@@ -241,8 +239,8 @@ void glk_schannel_destroy(schanid_t chan)
 
     prev = chan->chain_prev;
     next = chan->chain_next;
-    chan->chain_prev = NULL;
-    chan->chain_next = NULL;
+    chan->chain_prev = nullptr;
+    chan->chain_next = nullptr;
 
     if (prev)
         prev->chain_next = next;
@@ -252,7 +250,7 @@ void glk_schannel_destroy(schanid_t chan)
     if (next)
         next->chain_prev = prev;
 
-    free(chan);
+    delete chan;
 }
 
 schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
@@ -271,7 +269,7 @@ schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
 
     if (rock)
         *rock = 0;
-    return NULL;
+    return nullptr;
 }
 
 glui32 glk_schannel_get_rock(schanid_t chan)
@@ -292,10 +290,9 @@ glui32 glk_schannel_play(schanid_t chan, glui32 snd)
 glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
         glui32 *sndarray, glui32 soundcount, glui32 notify)
 {
-    int i;
     int successes = 0;
 
-    for (i = 0; i < chancount; i++)
+    for (glui32 i = 0; i < chancount; i++)
     {
         successes += glk_schannel_play_ext(chanarray[i], sndarray[i], 1, notify);
     }
@@ -311,7 +308,7 @@ void glk_sound_load_hint(glui32 snd, glui32 flag)
 /** Make an incremental volume change when the fade timer fires */
 Uint32 volume_timer_callback(Uint32 interval, void *param)
 {
-    schanid_t chan = (schanid_t)param;
+    schanid_t chan = static_cast<schanid_t>(param);
 
     if (!chan)
     {
@@ -324,9 +321,9 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
     if (chan->float_volume < 0)
         chan->float_volume = 0;
 
-    if ((int)chan->float_volume != chan->volume)
+    if (static_cast<int>(chan->float_volume) != chan->volume)
     {
-        chan->volume = (int)chan->float_volume;
+        chan->volume = static_cast<int>(chan->float_volume);
 
         if (chan->status == CHANNEL_SOUND)
             Mix_Volume(chan->sdl_channel, chan->volume);
@@ -341,7 +338,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
     {
         if (chan->volume_notify)
         {
-            gli_event_store(evtype_VolumeNotify, 0,
+            gli_event_store(evtype_VolumeNotify, nullptr,
                 0, chan->volume_notify);
             gli_notification_waiting();
         }
@@ -381,15 +378,15 @@ void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 
     chan->target_volume = GLK_VOLUME_TO_SDL_VOLUME(glk_volume);
 
-    chan->float_volume = (double)chan->volume;
-    chan->volume_delta = (double)(chan->target_volume - chan->volume) / FADE_GRANULARITY;
+    chan->float_volume = static_cast<double>(chan->volume);
+    chan->volume_delta = static_cast<double>(chan->target_volume - chan->volume) / FADE_GRANULARITY;
 
     chan->volume_timeout = FADE_GRANULARITY;
 
     if (chan->timer)
         SDL_RemoveTimer(chan->timer);
 
-    chan->timer = SDL_AddTimer((Uint32)(duration / FADE_GRANULARITY), volume_timer_callback, (void *)chan);
+    chan->timer = SDL_AddTimer(static_cast<Uint32>(duration / FADE_GRANULARITY), volume_timer_callback, chan);
 
     if (!chan->timer)
     {
@@ -445,7 +442,7 @@ static void music_completion_callback()
     }
     else
     {
-        gli_event_store(evtype_SoundNotify, 0, music_channel->resid,
+        gli_event_store(evtype_SoundNotify, nullptr, music_channel->resid,
             music_channel->notify);
         gli_notification_waiting();
     }
@@ -465,100 +462,99 @@ static void sound_completion_callback(int chan)
 
     if (sound_channel->notify)
     {
-        gli_event_store(evtype_SoundNotify, 0,
+        gli_event_store(evtype_SoundNotify, nullptr,
             sound_channel->resid, sound_channel->notify);
         gli_notification_waiting();
     }
-    Mix_ChannelFinished(NULL);
+    Mix_ChannelFinished(nullptr);
     cleanup_channel(sound_channel);
-    sound_channels[chan] = 0;
+    sound_channels[chan] = nullptr;
     return;
 }
 
-static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
+static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned char> &buf)
 {
-    if (giblorb_get_resource_map() == NULL)
+    if (giblorb_get_resource_map() == nullptr)
     {
-        FILE *file;
-        char name[1024];
+        std::string name;
 
-        snprintf(name, sizeof name, "%s/SND%ld", gli_workdir, (long) snd);
+        name = gli_workdir + "/SND" + std::to_string(snd);
 
-        file = fopen(name, "rb");
+        auto file = garglk::unique(std::fopen(name.c_str(), "rb"), fclose);
         if (!file)
             return 0;
 
-        fseek(file, 0, SEEK_END);
-        *len = ftell(file);
+        std::fseek(file.get(), 0, SEEK_END);
+        *len = std::ftell(file.get());
 
-        *buf = malloc(*len);
-        if (!*buf)
+        try
         {
-            fclose(file);
+            buf.resize(*len);
+        }
+        catch (const std::bad_alloc &)
+        {
             return 0;
         }
 
-        rewind(file);
-        if (fread(*buf, 1, *len, file) != *len && !feof(file))
+        std::rewind(file.get());
+        if (std::fread(buf.data(), 1, *len, file.get()) != static_cast<size_t>(*len) && !std::feof(file.get()))
         {
-            fclose(file);
             return 0;
         }
-        fclose(file);
 
-        /* AIFF */
-        if (*len > 4 && !memcmp(*buf, "FORM", 4))
-            return giblorb_ID_FORM;
+        const std::vector<std::pair<std::pair<long, std::vector<std::string>>, unsigned long>> formats = {
+            /* AIFF */
+            {{0, {"FORM"}}, giblorb_ID_FORM},
 
-        /* WAVE */
-        if (*len > 4 && !memcmp(*buf, "WAVE", 4))
-            return giblorb_ID_WAVE;
+            /* WAVE */
+            {{0, {"WAVE", "RIFF"}}, giblorb_ID_WAVE},
 
-        if (*len > 4 && !memcmp(*buf, "RIFF", 4))
-            return giblorb_ID_WAVE;
+            /* midi */
+            {{0, {"MThd"}}, giblorb_ID_MIDI},
 
-        /* midi */
-        if (*len > 4 && !memcmp(*buf, "MThd", 4))
-            return giblorb_ID_MIDI;
+            /* s3m */
+            {{44, {"SCRM"}}, giblorb_ID_MOD},
 
-        /* s3m */
-        if (*len > 0x30 && !memcmp(*buf + 0x2c, "SCRM", 4))
-            return giblorb_ID_MOD;
+            /* XM */
+            {{0, {"Extended Module: "}}, giblorb_ID_MOD},
 
-        /* XM */
-        if (*len > 20 && !memcmp(*buf, "Extended Module: ", 17))
-            return giblorb_ID_MOD;
+            /* IT */
+            {{0, {"IMPM"}}, giblorb_ID_MOD},
 
-        /* IT */
-        if (*len > 4 && !memcmp(*buf, "IMPM", 4))
-            return giblorb_ID_MOD;
+            /* MOD */
+            {{1080, {"4CHN", "6CHN", "8CHN",
+                     "16CN", "32CN", "M.K.",
+                     "M!K!", "FLT4", "CD81",
+                     "OKTA", "    "}}, giblorb_ID_MOD},
 
-        /* MOD */
-        if (*len > 1084)
+            /* ogg */
+            {{0, {"OggS"}}, giblorb_ID_OGG},
+
+            /* mp3 */
+            {{0, {"\377\372"}}, giblorb_ID_MP3},
+        };
+
+        for (const auto &entry : formats)
         {
-            char resname[5] = { 0 };
-            memcpy(resname, (*buf) + 1080, 4);
-            if (!strcmp(resname+1, "CHN") ||        /* 4CHN, 6CHN, 8CHN */
-                    !strcmp(resname+2, "CN") ||         /* 16CN, 32CN */
-                    !strcmp(resname, "M.K.") || !strcmp(resname, "M!K!") ||
-                    !strcmp(resname, "FLT4") || !strcmp(resname, "CD81") ||
-                    !strcmp(resname, "OKTA") || !strcmp(resname, "    "))
-                return giblorb_ID_MOD;
+            auto offset = entry.first.first;
+            auto magics = entry.first.second;
+            auto format = entry.second;
+
+            if (std::any_of(magics.begin(), magics.end(), [&offset, &len, &buf](const auto &magic) {
+                return offset + magic.size() < static_cast<std::size_t>(*len) &&
+                       std::memcmp(buf.data() + offset, magic.data(), magic.size()) == 0;
+            }))
+            {
+                return format;
+            }
         }
-
-        /* ogg */
-        if (*len > 4 && !memcmp(*buf, "OggS", 4))
-            return giblorb_ID_OGG;
-
-        /* mp3 */
-        if (*len > 2 && !memcmp(*buf, "\377\372", 2))
-            return giblorb_ID_MP3;
 
         return giblorb_ID_MP3;
+
     }
     else
     {
-        FILE *file;
+        std::FILE *file;
         glui32 type;
         long pos;
 
@@ -566,12 +562,17 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         if (!file)
             return 0;
 
-        *buf = malloc(*len);
-        if (!*buf)
+        try
+        {
+            buf.resize(*len);
+        }
+        catch (const std::bad_alloc &)
+        {
             return 0;
+        }
 
-        fseek(file, pos, SEEK_SET);
-        if (fread(*buf, 1, *len, file) != *len && !feof(file)) return 0;
+        std::fseek(file, pos, SEEK_SET);
+        if (std::fread(buf.data(), 1, *len, file) != static_cast<size_t>(*len) && !std::feof(file)) return 0;
         return type;
     }
 }
@@ -604,7 +605,7 @@ static glui32 play_sound(schanid_t chan)
             return 1;
     }
     gli_strict_warning("play sound failed");
-    gli_strict_warning("%s", Mix_GetError());
+    gli_strict_warning(Mix_GetError());
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
@@ -614,11 +615,11 @@ static glui32 play_sound(schanid_t chan)
 /** Start a mod music channel */
 static glui32 play_mod(schanid_t chan, long len)
 {
-    FILE *file;
-    char *tn, *tempdir;
+    std::FILE *file;
+    const char *tempdir;
     int music_busy, loop;
 
-    if (chan == NULL)
+    if (chan == nullptr)
     {
         gli_strict_warning("MOD player called with an invalid channel!");
         return 0;
@@ -637,37 +638,35 @@ static glui32 play_mod(schanid_t chan, long len)
 
     chan->status = CHANNEL_MUSIC;
     /* The fscking mikmod lib want to read the mod only from disk! */
-    tempdir = getenv("TMPDIR");
-    if (tempdir == NULL)
+    tempdir = std::getenv("TMPDIR");
+    if (tempdir == nullptr)
     {
-        tempdir = getenv("TEMP");
-        if (tempdir == NULL)
+        tempdir = std::getenv("TEMP");
+        if (tempdir == nullptr)
         {
-            tempdir = getenv("TMP");
-            if (tempdir == NULL)
+            tempdir = std::getenv("TMP");
+            if (tempdir == nullptr)
             {
                 tempdir = ".";
             }
         }
     }
 
-    /* malloc size of string tempdir + "XXXXXX' + terminator */
-    tn = malloc(strlen(tempdir) + 7);
-    sprintf(tn, "%sXXXXXX", tempdir);
+    /* allocate size of string tempdir + "XXXXXX' + terminator */
+    std::vector<char> tn(std::strlen(tempdir) + 7);
+    std::sprintf(tn.data(), "%sXXXXXX", tempdir);
     int fd;
-    fd = mkstemp(tn);
+    fd = mkstemp(tn.data());
     if (fd == -1)
     {
-        free(tn);
         gli_strict_warning("play mod failed: could not create temp file");
         return 0;
     }
     file = fdopen(fd, "wb");
-    fwrite(chan->sdl_memory, 1, len, file);
-    fclose(file);
-    chan->music = Mix_LoadMUS(tn);
-    remove(tn);
-    free(tn);
+    std::fwrite(chan->sdl_memory.data(), 1, len, file);
+    std::fclose(file);
+    chan->music = Mix_LoadMUS(tn.data());
+    std::remove(tn.data());
     if (chan->music)
     {
         SDL_LockAudio();
@@ -682,7 +681,7 @@ static glui32 play_mod(schanid_t chan, long len)
             return 1;
     }
     gli_strict_warning("play mod failed");
-    gli_strict_warning("%s", Mix_GetError());
+    gli_strict_warning(Mix_GetError());
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
@@ -695,7 +694,6 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     glui32 type;
     glui32 result = 0;
     glui32 paused = 0;
-    char *buf = 0;
 
     if (!chan)
     {
@@ -713,10 +711,9 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
         return 1;
 
     /* load sound resource into memory */
-    type = load_sound_resource(snd, &len, &buf);
+    type = load_sound_resource(snd, &len, chan->sdl_memory);
 
-    chan->sdl_memory = (unsigned char*)buf;
-    chan->sdl_rwops = SDL_RWFromConstMem(buf, (int)len);
+    chan->sdl_rwops = SDL_RWFromConstMem(chan->sdl_memory.data(), static_cast<int>(len));
     chan->notify = notify;
     chan->resid = snd;
     chan->loop = repeats;
@@ -810,7 +807,7 @@ void glk_schannel_stop(schanid_t chan)
         case CHANNEL_MUSIC:
             if (music_channel == chan)
             {
-                Mix_HookMusicFinished(NULL);
+                Mix_HookMusicFinished(nullptr);
             }
             Mix_HaltMusic();
             break;

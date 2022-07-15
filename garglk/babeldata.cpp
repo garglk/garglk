@@ -22,9 +22,11 @@
 
 #ifdef BABEL_HANDLER
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
 
 #include "glk.h"
 #include "garglk.h"
@@ -33,44 +35,46 @@
 #include "babel_handler.h"
 #include "ifiction.h"
 
-void gli_initialize_babel(void)
+void gli_initialize_babel()
 {
-    if (!strlen(gli_workfile))
+    if (gli_workfile.empty())
         return;
 
-    void *ctx = get_babel_ctx();
-    if (babel_init_ctx(gli_workfile, ctx))
+    auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
+    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get()))
     {
-        int metaSize = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, NULL, 0, ctx);
+        int metaSize = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
         if (metaSize > 0)
         {
-            char *metaData = malloc(metaSize);
-            if (metaData)
+            try
             {
-                if (babel_treaty_ctx(GET_STORY_FILE_METADATA_SEL, metaData, metaSize, ctx) > 0)
+                std::vector<char> metadata(metaSize);
+                if (babel_treaty_ctx(GET_STORY_FILE_METADATA_SEL, metadata.data(), metadata.size(), ctx.get()) > 0)
                 {
-                    char *storyTitle = ifiction_get_tag(metaData, "bibliographic", "title", NULL);
-                    char *storyAuthor = ifiction_get_tag(metaData, "bibliographic", "author", NULL);
-                    if (storyTitle && storyAuthor)
+                    auto get_metadata = [&metadata](const std::string &key) {
+                        return garglk::unique(ifiction_get_tag(metadata.data(), const_cast<char *>("bibliographic"), const_cast<char *>(key.c_str()), nullptr), std::free);
+                    };
+                    auto story_title = get_metadata("title");
+                    auto story_author = get_metadata("author");
+                    if (story_title != nullptr && story_author != nullptr)
                     {
-                        char title[256];
-                        snprintf(title, sizeof title, "%s - %s", storyTitle, storyAuthor);
-                        garglk_set_story_title(title);
+                        std::string title;
+                        title = std::string(story_title.get()) + " - " + story_author.get();
+                        garglk_set_story_title(title.c_str());
                     }
-                    free(storyTitle);
-                    free(storyAuthor);
                 }
-                free(metaData);
+            }
+            catch (const std::bad_alloc &)
+            {
             }
         }
     }
-    babel_release_ctx(ctx);
-    release_babel_ctx(ctx);
+    babel_release_ctx(ctx.get());
 }
 
 #else
 
-void gli_initialize_babel(void)
+void gli_initialize_babel()
 {
 }
 

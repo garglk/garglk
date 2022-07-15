@@ -34,7 +34,7 @@ static void gli_input_more_focus();
 static void gli_input_next_focus();
 static void gli_input_scroll_focus();
 
-void gli_dispatch_event(event_t *event, int polled)
+void gli_dispatch_event(event_t *event, bool polled)
 {
     std::list<event_t>::iterator it;
 
@@ -64,12 +64,12 @@ void gli_dispatch_event(event_t *event, int polled)
 /* Various modules can call this to indicate that an event has occurred.*/
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 {
-    event_t store = {
-        .type = type,
-        .win = win,
-        .val1 = val1,
-        .val2 = val2,
-    };
+    event_t store = { 0 };
+
+    store.type = type;
+    store.win = win;
+    store.val1 = val1;
+    store.val2 = val2;
 
     gli_events.push_back(store);
 }

@@ -21,10 +21,8 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <algorithm>
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -37,31 +35,13 @@ static void touch(window_textgrid_t *dwin, int line)
 {
     window_t *win = dwin->owner;
     int y = win->bbox.y0 + line * gli_leading;
-    dwin->lines[line].dirty = 1;
+    dwin->lines[line].dirty = true;
     winrepaint(win->bbox.x0, y, win->bbox.x1, y + gli_leading);
 }
 
 window_textgrid_t *win_textgrid_create(window_t *win)
 {
-    window_textgrid_t *dwin = malloc(sizeof(window_textgrid_t));
-    dwin->owner = win;
-
-    dwin->width = 0;
-    dwin->height = 0;
-
-    dwin->curx = 0;
-    dwin->cury = 0;
-
-    dwin->inbuf = NULL;
-    dwin->inunicode = false;
-    dwin->line_terminators = NULL;
-
-    dwin->inorgx = 0;
-    dwin->inorgy = 0;
-
-    memcpy(dwin->styles, gli_gstyles, sizeof gli_gstyles);
-
-    return dwin;
+    return new window_textgrid_t(win, gli_gstyles);
 }
 
 void win_textgrid_destroy(window_textgrid_t *dwin)
@@ -70,24 +50,20 @@ void win_textgrid_destroy(window_textgrid_t *dwin)
     {
         if (gli_unregister_arr)
         {
-            char *typedesc = (dwin->inunicode ? "&+#!Iu" : "&+#!Cn");
-            (*gli_unregister_arr)(dwin->inbuf, dwin->inoriglen, typedesc, dwin->inarrayrock);
+            const char *typedesc = (dwin->inunicode ? "&+#!Iu" : "&+#!Cn");
+            (*gli_unregister_arr)(dwin->inbuf, dwin->inoriglen, const_cast<char *>(typedesc), dwin->inarrayrock);
         }
-        dwin->inbuf = NULL;
+        dwin->inbuf = nullptr;
     }
 
-    if (dwin->line_terminators)
-        free(dwin->line_terminators);
-
-    dwin->owner = NULL;
-    free(dwin);
+    delete dwin;
 }
 
 void win_textgrid_rearrange(window_t *win, rect_t *box)
 {
     int newwid, newhgt;
-    int k, i;
-    window_textgrid_t *dwin = win->data;
+    int k;
+    window_textgrid_t *dwin = win->window.textgrid;
     dwin->owner->bbox = *box;
 
     newwid = (box->x1 - box->x0) / gli_cellw;
@@ -98,9 +74,8 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
 
     for (k = dwin->height; k < newhgt; k++)
     {
-        for (i = 0; i < sizeof(dwin->lines[k].chars) / sizeof(glui32); i++)
-            dwin->lines[k].chars[i] = ' ';
-        memset(dwin->lines[k].attrs, 0, sizeof dwin->lines[k].attrs);
+        dwin->lines[k].chars.fill(' ');
+        dwin->lines[k].attrs.fill(attr_t{});
     }
 
     attrclear(&dwin->owner->attr);
@@ -110,34 +85,30 @@ void win_textgrid_rearrange(window_t *win, rect_t *box)
     for (k = 0; k < dwin->height; k++)
     {
         touch(dwin, k);
-        for (i = dwin->width; i < sizeof(dwin->lines[0].chars) / sizeof(glui32); i++)
-        {
-            dwin->lines[k].chars[i] = ' ';
-            attrclear(&dwin->lines[k].attrs[i]);
-        }
+        dwin->lines[k].chars.fill(' ');
+        for (auto &attr : dwin->lines[k].attrs)
+            attrclear(&attr);
     }
 }
 
 void win_textgrid_redraw(window_t *win)
 {
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln;
     int x0, y0;
     int x, y, w;
     int i, a, b, k, o;
     glui32 link;
-    int font;
-    unsigned char *fgcolor, *bgcolor;
 
     x0 = win->bbox.x0;
     y0 = win->bbox.y0;
 
     for (i = 0; i < dwin->height; i++)
     {
-        ln = dwin->lines + i;
+        ln = &dwin->lines[i];
         if (ln->dirty || gli_force_redraw)
         {
-            ln->dirty = 0;
+            ln->dirty = false;
 
             x = x0;
             y = y0 + i * gli_leading;
@@ -151,9 +122,9 @@ void win_textgrid_redraw(window_t *win)
                 if (!attrequal(&ln->attrs[a], &ln->attrs[b]))
                 {
                     link = ln->attrs[a].hyper;
-                    font = attrfont(dwin->styles, &ln->attrs[a]);
-                    fgcolor = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
-                    bgcolor = attrbg(dwin->styles, &ln->attrs[a]);
+                    auto font = attrfont(dwin->styles, ln->attrs[a]);
+                    Color fgcolor = link ? gli_link_color : attrfg(dwin->styles, ln->attrs[a]);
+                    Color bgcolor = attrbg(dwin->styles, ln->attrs[a]);
                     w = (b - a) * gli_cellw;
                     gli_draw_rect(x, y, w, gli_leading, bgcolor);
                     o = x;
@@ -161,7 +132,7 @@ void win_textgrid_redraw(window_t *win)
                     {
                         gli_draw_string_uni(o * GLI_SUBPIX,
                                 y + gli_baseline, font, fgcolor,
-                                ln->chars + k, 1, -1);
+                                &ln->chars[k], 1, -1);
                         o += gli_cellw;
                     }
                     if (link)
@@ -175,9 +146,9 @@ void win_textgrid_redraw(window_t *win)
                 }
             }
             link = ln->attrs[a].hyper;
-            font = attrfont(dwin->styles, &ln->attrs[a]);
-            fgcolor = link ? gli_link_color : attrfg(dwin->styles, &ln->attrs[a]);
-            bgcolor = attrbg(dwin->styles, &ln->attrs[a]);
+            auto font = attrfont(dwin->styles, ln->attrs[a]);
+            Color fgcolor = link ? gli_link_color : attrfg(dwin->styles, ln->attrs[a]);
+            Color bgcolor = attrbg(dwin->styles, ln->attrs[a]);
             w = (b - a) * gli_cellw;
             w += win->bbox.x1 - (x + w);
             gli_draw_rect(x, y, w, gli_leading, bgcolor);
@@ -186,7 +157,7 @@ void win_textgrid_redraw(window_t *win)
             {
                 gli_draw_string_uni(o * GLI_SUBPIX,
                                     y + gli_baseline, font, fgcolor,
-                                    ln->chars + k, 1, -1);
+                                    &ln->chars[k], 1, -1);
                 o += gli_cellw;
             }
             if (link)
@@ -201,7 +172,7 @@ void win_textgrid_redraw(window_t *win)
 
 void win_textgrid_putchar_uni(window_t *win, glui32 ch)
 {
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln;
 
     /* Canonicalize the cursor position. That is, the cursor may have been
@@ -241,7 +212,7 @@ void win_textgrid_putchar_uni(window_t *win, glui32 ch)
 
 bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
 {
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln;
     int oldx = dwin->curx, oldy = dwin->cury;
 
@@ -267,10 +238,10 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     {
         /* a newline just moves the cursor. */
         if (dwin->curx == dwin->width - 1)
-            return 1; /* deleted a newline */
+            return true; /* deleted a newline */
         dwin->curx = oldx;
         dwin->cury = oldy;
-        return 0; /* it wasn't there */
+        return false; /* it wasn't there */
     }
 
     ln = &(dwin->lines[dwin->cury]);
@@ -291,21 +262,20 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
 
 void win_textgrid_clear(window_t *win)
 {
-    window_textgrid_t *dwin = win->data;
-    int k, j;
+    window_textgrid_t *dwin = win->window.textgrid;
+    int k;
 
     win->attr.fgset = gli_override_fg_set;
     win->attr.bgset = gli_override_bg_set;
-    win->attr.fgcolor = gli_override_fg_set ? gli_override_fg_val : 0;
-    win->attr.bgcolor = gli_override_bg_set ? gli_override_bg_val : 0;
+    win->attr.fgcolor = gli_override_fg_set ? gli_override_fg_val : Color(0, 0, 0);
+    win->attr.bgcolor = gli_override_bg_set ? gli_override_bg_val : Color(0, 0, 0);
     win->attr.reverse = false;
 
     for (k = 0; k < dwin->height; k++)
     {
         touch(dwin, k);
-        for (j = 0; j < (sizeof dwin->lines[k].chars / sizeof *dwin->lines[k].chars); j++)
-            dwin->lines[k].chars[j] = ' ';
-        memset(dwin->lines[k].attrs, 0, sizeof dwin->lines[k].attrs);
+        dwin->lines[k].chars.fill(' ');
+        dwin->lines[k].attrs.fill(attr_t{});
     }
 
     dwin->curx = 0;
@@ -314,7 +284,7 @@ void win_textgrid_clear(window_t *win)
 
 void win_textgrid_move_cursor(window_t *win, int xpos, int ypos)
 {
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
 
     /* If the values are negative, they're really huge positive numbers --
        remember that they were cast from glui32. So set them huge and
@@ -363,7 +333,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
 /* Prepare the window for line input. */
 static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
 
     dwin->inunicode = unicode;
     dwin->inoriglen = maxlen;
@@ -391,9 +361,9 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
         {
             attrset(&ln->attrs[dwin->inorgx+ix], style_Input);
             if (unicode)
-                ln->chars[dwin->inorgx+ix] = ((glui32 *)buf)[ix];
+                ln->chars[dwin->inorgx+ix] = (static_cast<glui32 *>(buf))[ix];
             else
-                ln->chars[dwin->inorgx+ix] = ((char *)buf)[ix];
+                ln->chars[dwin->inorgx+ix] = (static_cast<char *>(buf))[ix];
         }
 
         dwin->incurs += initlen;
@@ -404,19 +374,10 @@ static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int ini
         touch(dwin, dwin->inorgy);
     }
 
-    if (win->line_terminators && win->termct)
-    {
-        dwin->line_terminators = malloc((win->termct + 1) * sizeof(glui32));
-
-        if (dwin->line_terminators)
-        {
-            memcpy(dwin->line_terminators, win->line_terminators, win->termct * sizeof(glui32));
-            dwin->line_terminators[win->termct] = 0;
-        }
-    }
+    dwin->line_terminators = win->line_terminators;
 
     if (gli_register_arr)
-        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, unicode ? "&+#!Iu" : "&+#!Cn");
+        dwin->inarrayrock = (*gli_register_arr)(dwin->inbuf, dwin->inoriglen, const_cast<char *>(unicode ? "&+#!Iu" : "&+#!Cn"));
 }
 
 void win_textgrid_init_line(window_t *win, char *buf, int maxlen, int initlen)
@@ -436,7 +397,7 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
     void *inbuf;
     int inoriglen, inunicode;
     gidispatch_rock_t inarrayrock;
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
     if (!dwin->inbuf)
@@ -454,17 +415,17 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
             glui32 ch = ln->chars[dwin->inorgx+ix];
             if (ch > 0xff)
                 ch = '?';
-            ((char *)inbuf)[ix] = (char)ch;
+            (static_cast<char *>(inbuf))[ix] = static_cast<char>(ch);
         }
         if (win->echostr)
-            gli_stream_echo_line(win->echostr, (char *)inbuf, dwin->inlen);
+            gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
     }
     else
     {
         for (ix=0; ix<dwin->inlen; ix++)
-            ((glui32 *)inbuf)[ix] = ln->chars[dwin->inorgx+ix];
+            (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx+ix];
         if (win->echostr)
-            gli_stream_echo_line_uni(win->echostr, (glui32 *)inbuf, dwin->inlen);
+            gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
     }
 
     dwin->cury = dwin->inorgy+1;
@@ -478,12 +439,8 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 
     win->line_request = false;
     win->line_request_uni = false;
-    if (dwin->line_terminators)
-    {
-        free(dwin->line_terminators);
-        dwin->line_terminators = NULL;
-    }
-    dwin->inbuf = NULL;
+    dwin->line_terminators.clear();
+    dwin->inbuf = nullptr;
     dwin->inoriglen = 0;
     dwin->inmax = 0;
     dwin->inorgx = 0;
@@ -491,8 +448,8 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
 
     if (gli_unregister_arr)
     {
-        char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
-        (*gli_unregister_arr)(inbuf, inoriglen, typedesc, inarrayrock);
+        const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+        (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
     }
 }
 
@@ -531,9 +488,10 @@ static void acceptline(window_t *win, glui32 keycode)
 {
     int ix;
     void *inbuf;
-    int inoriglen, inunicode;
+    int inoriglen;
+    bool inunicode;
     gidispatch_rock_t inarrayrock;
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
     if (!dwin->inbuf)
@@ -547,30 +505,29 @@ static void acceptline(window_t *win, glui32 keycode)
     if (!inunicode)
     {
         for (ix=0; ix<dwin->inlen; ix++)
-            ((char *)inbuf)[ix] = (char)ln->chars[dwin->inorgx+ix];
+            (static_cast<char *>(inbuf))[ix] = static_cast<char>(ln->chars[dwin->inorgx+ix]);
         if (win->echostr)
-            gli_stream_echo_line(win->echostr, (char *)inbuf, dwin->inlen);
+            gli_stream_echo_line(win->echostr, static_cast<char *>(inbuf), dwin->inlen);
     }
     else
     {
         for (ix=0; ix<dwin->inlen; ix++)
-            ((glui32 *)inbuf)[ix] = ln->chars[dwin->inorgx+ix];
+            (static_cast<glui32 *>(inbuf))[ix] = ln->chars[dwin->inorgx+ix];
         if (win->echostr)
-            gli_stream_echo_line_uni(win->echostr, (glui32 *)inbuf, dwin->inlen);
+            gli_stream_echo_line_uni(win->echostr, static_cast<glui32 *>(inbuf), dwin->inlen);
     }
 
     dwin->cury = dwin->inorgy+1;
     dwin->curx = 0;
     win->attr = dwin->origattr;
 
-    if (dwin->line_terminators)
+    if (!dwin->line_terminators.empty())
     {
         glui32 val2 = keycode;
         if (val2 == keycode_Return)
             val2 = 0;
         gli_event_store(evtype_LineInput, win, dwin->inlen, val2);
-        free(dwin->line_terminators);
-        dwin->line_terminators = NULL;
+        dwin->line_terminators.clear();
     }
     else
     {
@@ -578,7 +535,7 @@ static void acceptline(window_t *win, glui32 keycode)
     }
     win->line_request = false;
     win->line_request_uni = false;
-    dwin->inbuf = NULL;
+    dwin->inbuf = nullptr;
     dwin->inoriglen = 0;
     dwin->inmax = 0;
     dwin->inorgx = 0;
@@ -586,8 +543,8 @@ static void acceptline(window_t *win, glui32 keycode)
 
     if (gli_unregister_arr)
     {
-        char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
-        (*gli_unregister_arr)(inbuf, inoriglen, typedesc, inarrayrock);
+        const char *typedesc = (inunicode ? "&+#!Iu" : "&+#!Cn");
+        (*gli_unregister_arr)(inbuf, inoriglen, const_cast<char *>(typedesc), inarrayrock);
     }
 }
 
@@ -595,22 +552,18 @@ static void acceptline(window_t *win, glui32 keycode)
 void gcmd_grid_accept_readline(window_t *win, glui32 arg)
 {
     int ix;
-    window_textgrid_t *dwin = win->data;
+    window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln = &(dwin->lines[dwin->inorgy]);
 
     if (!dwin->inbuf)
         return;
 
-    if (dwin->line_terminators && gli_window_check_terminator(arg))
+    if (!dwin->line_terminators.empty() && gli_window_check_terminator(arg))
     {
-        glui32 *cx;
-        for (cx = dwin->line_terminators; *cx; cx++)
+        if (std::find(dwin->line_terminators.begin(), dwin->line_terminators.end(), arg) != dwin->line_terminators.end())
         {
-            if (*cx == arg)
-            {
-                acceptline(win, arg);
-                return;
-            }
+            acceptline(win, arg);
+            return;
         }
     }
 

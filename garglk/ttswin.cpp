@@ -1,5 +1,6 @@
 /******************************************************************************
  *                                                                            *
+ * Copyright (C) 2006-2009 by Tor Andersson.                                  *
  * Copyright (C) 2017 by Chris Spiegel.                                       *
  *                                                                            *
  * This file is part of Gargoyle.                                             *
@@ -20,27 +21,87 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
+#define WIN32_LEAN_AND_MEAN
+
+#include <array>
+#include <cstddef>
+
+#include <windows.h>
+#include <sapi.h>
 
 #include "glk.h"
 #include "garglk.h"
 
-void gli_initialize_tts(void)
+static ISpVoice *voice = nullptr;
+#define TXTSIZE 4096
+static std::array<WCHAR, TXTSIZE + 1> txtbuf;
+static std::size_t txtlen;
+
+void gli_initialize_tts()
 {
+    if (gli_conf_speak)
+    {
+        if (CoInitialize(nullptr) == S_OK)
+        {
+            CoCreateInstance(
+                    CLSID_SpVoice,		/* rclsid */
+                    nullptr,			/* aggregate */
+                    CLSCTX_ALL,			/* dwClsContext */
+                    IID_ISpVoice,		/* riid */
+                    reinterpret_cast<void**>(&voice));
+        }
+    }
+    else
+    {
+        voice = nullptr;
+    }
+
+    txtlen = 0;
 }
 
-void gli_tts_flush(void)
+void gli_tts_flush()
 {
+    if (voice != nullptr)
+    {
+        txtbuf[txtlen] = 0;
+        voice->Speak(txtbuf.data(), SPF_ASYNC, nullptr);
+    }
+
+    txtlen = 0;
 }
 
-void gli_tts_purge(void)
+void gli_tts_purge()
 {
+    if (voice != nullptr)
+        voice->Speak(nullptr, SPF_PURGEBEFORESPEAK, nullptr);
 }
 
-void gli_tts_speak(const glui32 *buf, size_t len)
+void gli_tts_speak(const glui32 *buf, std::size_t len)
 {
+    if (voice == nullptr)
+        return;
+
+    for (std::size_t i = 0; i < len; i++)
+    {
+        if (txtlen >= TXTSIZE)
+            gli_tts_flush();
+
+        if (buf[i] == '>' || buf[i] == '*')
+            continue;
+
+        if (buf[i] < 0x10000)
+            txtbuf[txtlen++] = buf[i];
+
+        if (buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || buf[i] == '\n')
+            gli_tts_flush();
+    }
 }
 
-void gli_free_tts(void)
+void gli_free_tts()
 {
+    if (voice != nullptr)
+    {
+        voice->Release();
+        CoUninitialize();
+    }
 }

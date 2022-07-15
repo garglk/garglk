@@ -174,7 +174,7 @@ static bool find_font_file(const std::string &facename, std::string &filepath)
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
 }
 
-void garglk::fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, FontType type)
 {
     if (font.empty())
         return;
@@ -189,12 +189,12 @@ void garglk::fontreplace(const std::string &font, int type)
 
     switch (type)
     {
-    case MONOF:
+    case FontType::Monospace:
         std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);
         fill_in_fonts(monofonts, gli_conf_mono.r, gli_conf_mono.b, gli_conf_mono.i, gli_conf_mono.z);
         break;
-    case PROPF:
+    case FontType::Proportional:
         std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)propfont_cb, 0, 0);
         fill_in_fonts(propfonts, gli_conf_prop.r, gli_conf_prop.b, gli_conf_prop.i, gli_conf_prop.z);
@@ -204,10 +204,10 @@ void garglk::fontreplace(const std::string &font, int type)
     ReleaseDC(0, hdc);
 }
 
-void fontload(void)
+void fontload()
 {
 }
 
-void fontunload(void)
+void fontunload()
 {
 }

@@ -30,10 +30,9 @@
 #include <utility>
 #include <vector>
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <mach/mach_time.h>
+#include <mach/port.h>
+#include <mach/message.h>
+#include <unistd.h>
 
 #include "glk.h"
 #include "garglk.h"
@@ -105,8 +104,8 @@ void winhandler(int signal);
 
     if (seconds)
     {
-        timerid = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + seconds, seconds,
-                                       0, 0, &wintick, NULL);
+        timerid = CFRunLoopTimerCreate(nullptr, CFAbsoluteTimeGetCurrent() + seconds, seconds,
+                                       0, 0, &wintick, nullptr);
         if (timerid)
             CFRunLoopAddTimer([[NSRunLoop currentRunLoop] getCFRunLoop], timerid, kCFRunLoopDefaultMode);
     }
@@ -135,9 +134,9 @@ void winhandler(int signal);
 
 @end
 
-static NSObject<GargoyleApp> * gargoyle = NULL;
-static GargoyleMonitor * monitor = NULL;
-static NSString * cliptext = NULL;
+static NSObject<GargoyleApp> * gargoyle = nullptr;
+static GargoyleMonitor * monitor = nullptr;
+static NSString * cliptext = nullptr;
 static pid_t processID = 0;
 
 static bool gli_refresh_needed = true;
@@ -173,7 +172,7 @@ void winexit(void)
     exit(0);
 }
 
-std::string garglk::winopenfile(const char *prompt, enum FILEFILTERS filter)
+std::string garglk::winopenfile(const char *prompt, FileFilter filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -182,7 +181,6 @@ std::string garglk::winopenfile(const char *prompt, enum FILEFILTERS filter)
                                              filter: filter];
 
     char buf[256];
-    strcpy(buf, "");
 
     if (fileref)
     {
@@ -194,7 +192,7 @@ std::string garglk::winopenfile(const char *prompt, enum FILEFILTERS filter)
     return buf;
 }
 
-std::string garglk::winsavefile(const char *prompt, enum FILEFILTERS filter)
+std::string garglk::winsavefile(const char *prompt, FileFilter filter)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -203,7 +201,6 @@ std::string garglk::winsavefile(const char *prompt, enum FILEFILTERS filter)
                                              filter: filter];
 
     char buf[256];
-    strcpy(buf, "");
 
     if (fileref)
     {
@@ -215,7 +212,7 @@ std::string garglk::winsavefile(const char *prompt, enum FILEFILTERS filter)
     return buf;
 }
 
-void winclipstore(glui32 *text, int len)
+void winclipstore(const glui32 *text, int len)
 {
     if (!len)
         return;
@@ -255,11 +252,11 @@ void winclipreceive(void)
             len = [input length];
             for (i=0; i < len; i++)
             {
-                if ([input getBytes: &ch maxLength: sizeof ch usedLength: NULL
+                if ([input getBytes: &ch maxLength: sizeof ch usedLength: nullptr
                            encoding: UTF32StringEncoding
                             options: 0
                               range: NSMakeRange(i, 1)
-                     remainingRange: NULL])
+                     remainingRange: nullptr])
                 {
                     switch (ch)
                     {
@@ -308,34 +305,23 @@ void winresize(void)
     NSRect viewRect = [gargoyle updateBackingSize: processID];
     float textureFactor = BACKING_SCALE_FACTOR / [gargoyle getBackingScaleFactor: processID];
 
-    unsigned int vw = (unsigned int) (NSWidth(viewRect) * textureFactor);
-    unsigned int vh = (unsigned int) (NSHeight(viewRect) * textureFactor);
+    unsigned int vw = static_cast<unsigned int>(NSWidth(viewRect) * textureFactor);
+    unsigned int vh = static_cast<unsigned int>(NSHeight(viewRect) * textureFactor);
 
-
-    if (gli_image_w == vw && gli_image_h == vh)
+    if (gli_image_rgb.width() == vw && gli_image_rgb.height() == vh)
         return;
 
-    gli_image_w = vw;
-    gli_image_h = vh;
-    gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
-
-    /* initialize offline bitmap store */
-    delete [] gli_image_rgb;
-
-    gli_image_rgb = new unsigned char[gli_image_s * gli_image_h];
+    gli_windows_size_change(vw, vh);
 
     /* redraw window content */
-    gli_resize_mask(gli_image_w, gli_image_h);
-    gli_force_redraw = true;
     gli_refresh_needed = true;
-    gli_windows_size_change();
 }
 
 static mach_port_t gli_signal_port = 0;
 
 void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
 {
-    mach_msg_header_t* hdr = (mach_msg_header_t*)msg;
+    mach_msg_header_t* hdr = static_cast<mach_msg_header_t *>(msg);
     switch (hdr->msgh_id)
     {
         case SIGUSR1:
@@ -367,7 +353,7 @@ void winhandler(int signal)
         gli_window_alive = false;
 
         /* Stop all sound channels */
-        for (channel_t *chan = glk_schannel_iterate(NULL, NULL); chan; chan = glk_schannel_iterate(chan, NULL))
+        for (channel_t *chan = glk_schannel_iterate(nullptr, nullptr); chan; chan = glk_schannel_iterate(chan, nullptr))
         {
             glk_schannel_stop(chan);
         }
@@ -382,7 +368,7 @@ void wininit(int *argc, char **argv)
 
     /* establish link to launcher */
     NSString * linkName = [NSString stringWithUTF8String: getenv("GargoyleApp")];
-    NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: NULL];
+    NSConnection * link = [NSConnection connectionWithRegisteredName: linkName host: nullptr];
     [link retain];
 
     /* monitor link for failure */
@@ -397,7 +383,7 @@ void wininit(int *argc, char **argv)
     [gargoyle retain];
 
     /* listen for mach messages */
-    CFMachPortRef sigPort = CFMachPortCreate(NULL, winmach, NULL, NULL);
+    CFMachPortRef sigPort = CFMachPortCreate(nullptr, winmach, nullptr, nullptr);
     gli_signal_port = CFMachPortGetPort(sigPort);
     [[NSRunLoop currentRunLoop] addPort: [NSMachPort portWithMachPort: gli_signal_port] forMode: NSDefaultRunLoopMode];
 
@@ -485,14 +471,14 @@ void winrefresh(void)
 {
     gli_windows_redraw();
 
-    NSData * frame = [NSData dataWithBytesNoCopy: gli_image_rgb
-                                          length: gli_image_s * gli_image_h
+    NSData * frame = [NSData dataWithBytesNoCopy: gli_image_rgb.data()
+                                          length: gli_image_rgb.size()
                                     freeWhenDone: NO];
 
     int refreshed = [gargoyle setWindow: processID
                                contents: frame
-                                  width: gli_image_w
-                                 height: gli_image_h];
+                                  width: gli_image_rgb.width()
+                                 height: gli_image_rgb.height()];
 
     gli_refresh_needed = !refreshed;
 }
@@ -628,7 +614,7 @@ void winkey(NSEvent *evt)
                   encoding: UTF32StringEncoding
                    options: 0
                      range: NSMakeRange(0, [evt_char length])
-            remainingRange: NULL])
+            remainingRange: nullptr])
     {
         if (used != 0)
         {
@@ -650,10 +636,10 @@ void winmouse(NSEvent *evt)
     NSPoint coords = [gargoyle getWindowPoint: processID forEvent: evt];
 
     int x = coords.x * gli_backingscalefactor;
-    int y = gli_image_h - (coords.y * gli_backingscalefactor);
+    int y = gli_image_rgb.height() - (coords.y * gli_backingscalefactor);
 
     /* disregard most events outside of content window */
-    if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_w)
+    if ((coords.y < 0 || y < 0 || x < 0 || x > gli_image_rgb.width())
         && !([evt type] == NSEventTypeLeftMouseUp))
         return;
 
@@ -746,7 +732,7 @@ void winevent(NSEvent *evt)
 /* winloop handles at most one event */
 void winloop(void)
 {
-    NSEvent * evt = NULL;
+    NSEvent * evt = nullptr;
 
     if (gli_refresh_needed)
         winrefresh();
@@ -760,7 +746,7 @@ void winloop(void)
 /* winpoll handles all queued events */
 void winpoll(void)
 {
-    NSEvent * evt = NULL;
+    NSEvent * evt = nullptr;
 
     do
     {
@@ -800,7 +786,7 @@ std::vector<std::string> garglk::winappdata()
     return paths;
 }
 
-void gli_select(event_t *event, int polled)
+void gli_select(event_t *event, bool polled)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
@@ -825,7 +811,7 @@ void gli_select(event_t *event, int polled)
 
     if (event->type == evtype_None && [monitor timeout])
     {
-        gli_event_store(evtype_Timer, NULL, 0, 0);
+        gli_event_store(evtype_Timer, nullptr, 0, 0);
         gli_dispatch_event(event, polled);
         [monitor reset];
     }

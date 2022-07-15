@@ -33,11 +33,14 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #if __cplusplus >= 201703L
 #include <filesystem>
 #endif
+
+#include "optional.hpp"
 
 #include "glk.h"
 #include "glkstart.h"
@@ -65,9 +68,9 @@
 #define ID_GLUL (giblorb_make_id('G','L','U','L'))
 
 struct Interpreter {
-    explicit Interpreter(const std::string &terp_, const std::string &flags_ = "") :
-        terp(terp_),
-        flags(flags_) {
+    explicit Interpreter(std::string terp_, std::string flags_ = "") :
+        terp(std::move(terp_)),
+        flags(std::move(flags_)) {
         }
 
     std::string terp;
@@ -92,7 +95,7 @@ enum class Format {
     ZCode6,
 };
 
-static std::unique_ptr<Format> probe(const std::vector<char> &header)
+static nonstd::optional<Format> probe(const std::vector<char> &header)
 {
     std::map<std::string, Format> magic = {
         {R"(^[\x01\x02\x03\x04\x05\x07\x08][\s\S]{17}\d{6})", Format::ZCode},
@@ -114,10 +117,10 @@ static std::unique_ptr<Format> probe(const std::vector<char> &header)
     {
         auto re = std::regex(pair.first);
         if (std::regex_search(header.begin(), header.end(), re))
-            return std::make_unique<Format>(pair.second);
+            return pair.second;
     }
 
-    return nullptr;
+    return nonstd::nullopt;
 }
 
 // Map extensions to formats
@@ -297,12 +300,12 @@ int garglk::rungame(const std::string &path, const std::string &game)
     configterp(path, game, interpreter);
 
     std::ifstream f(game, std::ios::binary);
-    if (f.is_open() && f.read(&header[0], header.size()))
+    if (f.is_open() && f.read(header.data(), header.size()))
     {
         if (interpreter.terp.empty())
         {
             auto format = probe(header);
-            if (format != nullptr)
+            if (format.has_value())
                 interpreter = interpreters.at(*format);
         }
 

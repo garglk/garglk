@@ -22,15 +22,15 @@
  *****************************************************************************/
 
 #include <algorithm>
+#include <array>
 #include <cctype>
-#include <cerrno>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
-#include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -54,102 +54,97 @@
 
 #include GARGLKINI_H
 
-bool gli_utf8input = true;
-bool gli_utf8output = true;
-
 float gli_backingscalefactor = 1.0f;
 float gli_zoom = 1.0f;
 
-struct gli_font_files gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
+FontFiles gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_override;
 
 std::string gli_conf_monofont = "Gargoyle Mono";
 std::string gli_conf_propfont = "Gargoyle Serif";
 float gli_conf_monosize = 12.6;	/* good size for Gargoyle Mono */
 float gli_conf_propsize = 14.7;	/* good size for Gargoyle Serif */
 
-style_t gli_tstyles[style_NUMSTYLES] =
-{
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Normal */
-    {PROPI, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Emphasized */
-    {MONOR, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Preformatted */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Header */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Subheader */
-    {PROPZ, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Alert */
-    {PROPI, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Note */
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* BlockQuote */
-    {PROPB, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* Input */
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* User1 */
-    {PROPR, {0xff,0xff,0xff}, {0x00,0x00,0x00}, false}, /* User2 */
-};
+Styles gli_tstyles{{
+    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Normal */
+    {FontFace::propi(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Emphasized */
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Preformatted */
+    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Header */
+    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Subheader */
+    {FontFace::propz(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Alert */
+    {FontFace::propi(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Note */
+    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* BlockQuote */
+    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Input */
+    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* User1 */
+    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* User2 */
+}};
 
-style_t gli_gstyles[style_NUMSTYLES] =
-{
-    {MONOR, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Normal */
-    {MONOI, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Emphasized */
-    {MONOR, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Preformatted */
-    {MONOB, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Header */
-    {MONOB, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Subheader */
-    {MONOZ, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Alert */
-    {MONOI, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Note */
-    {MONOR, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* BlockQuote */
-    {MONOB, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* Input */
-    {MONOR, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* User1 */
-    {MONOR, {0xff,0xff,0xff}, {0x60,0x60,0x60}, false}, /* User2 */
-};
+Styles gli_gstyles{{
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Normal */
+    {FontFace::monoi(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Emphasized */
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Preformatted */
+    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Header */
+    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Subheader */
+    {FontFace::monoz(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Alert */
+    {FontFace::monoi(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Note */
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* BlockQuote */
+    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Input */
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* User1 */
+    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* User2 */
+}};
 
-style_t gli_tstyles_def[style_NUMSTYLES];
-style_t gli_gstyles_def[style_NUMSTYLES];
+const Styles gli_tstyles_def = gli_tstyles;
+const Styles gli_gstyles_def = gli_gstyles;
 
 std::vector<garglk::ConfigFile> garglk::all_configs;
 
-static int font2idx(const std::string &font)
+static FontFace font2idx(const std::string &font)
 {
-    if (font == "monor") return MONOR;
-    if (font == "monob") return MONOB;
-    if (font == "monoi") return MONOI;
-    if (font == "monoz") return MONOZ;
-    if (font == "propr") return PROPR;
-    if (font == "propb") return PROPB;
-    if (font == "propi") return PROPI;
-    if (font == "propz") return PROPZ;
-    return MONOR;
+    if (font == "monor") return FontFace::monor();
+    if (font == "monob") return FontFace::monob();
+    if (font == "monoi") return FontFace::monoi();
+    if (font == "monoz") return FontFace::monoz();
+    if (font == "propr") return FontFace::propr();
+    if (font == "propb") return FontFace::propb();
+    if (font == "propi") return FontFace::propi();
+    if (font == "propz") return FontFace::propz();
+    return FontFace::monor();
 }
 
 float gli_conf_gamma = 1.0;
 
-unsigned char gli_window_color[3] = { 0xff, 0xff, 0xff };
-unsigned char gli_caret_color[3] = { 0x00, 0x00, 0x00 };
-unsigned char gli_border_color[3] = { 0x00, 0x00, 0x00 };
-unsigned char gli_more_color[3] = { 0x00, 0x60, 0x00 };
-unsigned char gli_link_color[3] = { 0x00, 0x00, 0x60 };
+Color gli_window_color(0xff, 0xff, 0xff);
+Color gli_caret_color(0x00, 0x00, 0x00);
+Color gli_border_color(0x00, 0x00, 0x00);
+Color gli_more_color(0x00, 0x60, 0x00);
+Color gli_link_color(0x00, 0x00, 0x60);
 
-unsigned char gli_window_save[3] = { 0xff, 0xff, 0xff };
-unsigned char gli_caret_save[3] = { 0x00, 0x00, 0x00 };
-unsigned char gli_border_save[3] = { 0x00, 0x00, 0x00 };
-unsigned char gli_more_save[3] = { 0x00, 0x60, 0x00 };
-unsigned char gli_link_save[3] = { 0x00, 0x00, 0x60 };
+Color gli_window_save(0xff, 0xff, 0xff);
+Color gli_caret_save(0x00, 0x00, 0x00);
+Color gli_border_save(0x00, 0x00, 0x00);
+Color gli_more_save(0x00, 0x60, 0x00);
+Color gli_link_save(0x00, 0x00, 0x60);
 
 bool gli_override_fg_set = false;
-glui32 gli_override_fg_val = 0;
+Color gli_override_fg_val(0x00, 0x00, 0x00);
 bool gli_override_bg_set = false;
-glui32 gli_override_bg_val = 0;
+Color gli_override_bg_val(0x00, 0x00, 0x00);
 bool gli_override_reverse = false;
 
 static std::string base_more_prompt = "— more —";
-glui32 *gli_more_prompt;
+std::vector<glui32> gli_more_prompt;
 glui32 gli_more_prompt_len;
 int gli_more_align = 0;
-int gli_more_font = PROPB;
+FontFace gli_more_font = FontFace::propb();
 
-unsigned char gli_scroll_bg[3] = { 0xb0, 0xb0, 0xb0 };
-unsigned char gli_scroll_fg[3] = { 0x80, 0x80, 0x80 };
+Color gli_scroll_bg(0xb0, 0xb0, 0xb0);
+Color gli_scroll_fg(0x80, 0x80, 0x80);
 int gli_scroll_width = 0;
 
 int gli_caret_shape = 2;
 int gli_link_style = 1;
 
 bool gli_conf_lcd = true;
-unsigned char gli_conf_lcd_weights[5] = {28, 56, 85, 56, 28};
+std::array<unsigned char, 5> gli_conf_lcd_weights = {28, 56, 85, 56, 28};
 
 int gli_wmarginx = 20;
 int gli_wmarginy = 20;
@@ -205,11 +200,11 @@ std::string garglk::downcase(const std::string &string)
     return lowered;
 }
 
-static void parsecolor(const std::string &str, unsigned char *rgb)
+static void parsecolor(const std::string &str, Color &rgb)
 {
     try
     {
-        garglk::Color::from(str).to(rgb);
+        rgb = gli_parse_color(str);
     }
     catch (const std::runtime_error &)
     {
@@ -417,9 +412,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
 #else
                     if (fnmatch(garglk::downcase(pattern).c_str(), garglk::downcase(match).c_str(), 0) == 0)
 #endif
-                    {
                         return true;
-                    }
                 }
                 return false;
             });
@@ -576,8 +569,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             while (argstream >> weight)
                 weights.push_back(weight);
 
-            if (weights.size() == 5)
-                std::memcpy(gli_conf_lcd_weights, &weights[0], sizeof gli_conf_lcd_weights);
+            if (weights.size() == gli_conf_lcd_weights.size())
+                std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
         } else if (cmd == "caretshape") {
             gli_caret_shape = clamp(std::stoi(arg), 0, 4);
         } else if (cmd == "linkstyle") {
@@ -624,7 +617,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 
             if (argstream >> style >> fg >> bg)
             {
-                style_t *styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
+                Styles &styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
 
                 if (style == "*")
                 {
@@ -740,11 +733,8 @@ void gli_startup(int argc, char *argv[])
 
     gli_read_config(argc, argv);
 
-    gli_more_prompt = new glui32[1 + base_more_prompt.size()];
-    gli_more_prompt_len = gli_parse_utf8(reinterpret_cast<const unsigned char *>(base_more_prompt.data()), base_more_prompt.size(), gli_more_prompt, base_more_prompt.size());
-
-    std::memcpy(gli_tstyles_def, gli_tstyles, sizeof(gli_tstyles_def));
-    std::memcpy(gli_gstyles_def, gli_gstyles, sizeof(gli_gstyles_def));
+    gli_more_prompt.resize(base_more_prompt.size() + 1);
+    gli_more_prompt_len = gli_parse_utf8(reinterpret_cast<const unsigned char *>(base_more_prompt.data()), base_more_prompt.size(), gli_more_prompt.data(), base_more_prompt.size());
 
     if (gli_baseline == 0)
         gli_baseline = std::round(gli_conf_propsize);

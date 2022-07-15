@@ -24,11 +24,8 @@
  *****************************************************************************/
 
 #include <algorithm>
-#include <cerrno>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <sstream>
+#include <iterator>
 #include <string>
 
 #include <QApplication>
@@ -50,7 +47,7 @@ static const char *AppName = "Gargoyle " VERSION;
 
 class Filter {
 public:
-    Filter(const QString &name, const QStringList &extensions) : m_name(name), m_extensions(extensions) {}
+    Filter(QString name, QStringList extensions) : m_name(std::move(name)), m_extensions(std::move(extensions)) {}
 
     QString format() const {
         return QString("%1 Games (%2)")

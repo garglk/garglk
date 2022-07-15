@@ -93,10 +93,10 @@
 static QString cliptext;
 
 /* filters and extensions for file dialogs */
-static const std::map<FILEFILTERS, std::pair<QString, QString>> filters = {
-    { FILTER_SAVE, std::make_pair("Saved game files (*.glksave *.sav)", "glksave") },
-    { FILTER_TEXT, std::make_pair("Text files (*.txt)", "txt") },
-    { FILTER_DATA, std::make_pair("Data files (*.glkdata)", "glkdata") },
+static const std::map<FileFilter, std::pair<QString, QString>> filters = {
+    { FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave") },
+    { FileFilter::Text, std::make_pair("Text files (*.txt)", "txt") },
+    { FileFilter::Data, std::make_pair("Data files (*.glkdata)", "glkdata") },
 };
 
 static QApplication *app;
@@ -141,7 +141,7 @@ void winexit()
 
 enum class Action { Open, Save };
 
-static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Action action)
+static std::string winchoosefile(const QString &prompt, FileFilter filter, Action action)
 {
     QString filename;
     QFileDialog::Options options;
@@ -173,19 +173,19 @@ static std::string winchoosefile(const QString &prompt, FILEFILTERS filter, Acti
 #endif
 }
 
-std::string garglk::winopenfile(const char *prompt, FILEFILTERS filter)
+std::string garglk::winopenfile(const char *prompt, FileFilter filter)
 {
     QString realprompt = QString("Open: %1").arg(prompt);
     return winchoosefile(realprompt, filter, Action::Open);
 }
 
-std::string garglk::winsavefile(const char *prompt, FILEFILTERS filter)
+std::string garglk::winsavefile(const char *prompt, FileFilter filter)
 {
     QString realprompt = QString("Save: %1").arg(prompt);
     return winchoosefile(realprompt, filter, Action::Save);
 }
 
-void winclipstore(glui32 *text, int len)
+void winclipstore(const glui32 *text, int len)
 {
     cliptext = QString::fromUcs4(reinterpret_cast<const char32_t *>(text), len);
 }
@@ -230,22 +230,12 @@ void Window::resizeEvent(QResizeEvent *event)
     int newwid = event->size().width();
     int newhgt = event->size().height();
 
-    if (newwid == gli_image_w && newhgt == gli_image_h)
+    if (newwid == gli_image_rgb.width() && newhgt == gli_image_rgb.height())
         return;
 
-    gli_image_w = newwid;
-    gli_image_h = newhgt;
-
-    gli_resize_mask(gli_image_w, gli_image_h);
-
-    gli_image_s = ((gli_image_w * 4 + 3) / 4) * 4;
-    delete [] gli_image_rgb;
-    gli_image_rgb = new unsigned char[gli_image_s * gli_image_h];
-
-    gli_force_redraw = true;
     refresh_needed = true;
 
-    gli_windows_size_change();
+    gli_windows_size_change(newwid, newhgt);
 
     if (gli_conf_save_window_size)
         m_settings->setValue("window/size", event->size());
@@ -295,7 +285,7 @@ void View::refresh()
 
 void View::paintEvent(QPaintEvent *event)
 {
-    QImage image(gli_image_rgb, gli_image_w, gli_image_h, QImage::Format_RGB32);
+    QImage image(gli_image_rgb.data(), gli_image_rgb.width(), gli_image_rgb.height(), gli_image_rgb.stride(), QImage::Format_RGB888);
     QPainter painter(this);
     painter.drawImage(QPoint(0, 0), image);
     event->accept();
@@ -679,7 +669,7 @@ void gli_tick()
     }
 }
 
-void gli_select(event_t *event, int polled)
+void gli_select(event_t *event, bool polled)
 {
     gli_event_clearevent(event);
 

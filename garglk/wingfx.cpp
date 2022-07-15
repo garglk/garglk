@@ -21,10 +21,8 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <memory>
+
 #include "glk.h"
 #include "garglk.h"
 
@@ -36,7 +34,7 @@ drawpicture(picture_t *src, window_graphics_t *dst,
 
 static void win_graphics_touch(window_graphics_t *dest)
 {
-    dest->dirty = 1;
+    dest->dirty = true;
     winrepaint(
             dest->owner->bbox.x0,
             dest->owner->bbox.y0,
@@ -46,45 +44,22 @@ static void win_graphics_touch(window_graphics_t *dest)
 
 window_graphics_t *win_graphics_create(window_t *win)
 {
-    window_graphics_t *res;
-
     if (!gli_conf_graphics)
-        return NULL;
+        return nullptr;
 
-    res = malloc(sizeof(window_graphics_t));
-    if (!res)
-        return NULL;
-
-    res->owner = win;
-    res->bgnd[0] = win->bgcolor[0];
-    res->bgnd[1] = win->bgcolor[1];
-    res->bgnd[2] = win->bgcolor[2];
-
-    res->w = 0;
-    res->h = 0;
-    res->rgb = NULL;
-
-    res->dirty = 0;
-
-    return res;
+    return new window_graphics_t(win);
 }
 
 void win_graphics_destroy(window_graphics_t *dwin)
 {
-    dwin->owner = NULL;
-    if (dwin->rgb)
-        free(dwin->rgb);
-    free(dwin);
+    delete dwin;
 }
 
 void win_graphics_rearrange(window_t *win, rect_t *box)
 {
-    window_graphics_t *dwin = win->data;
+    window_graphics_t *dwin = win->window.graphics;
     int newwid, newhgt;
-    int bothwid, bothhgt;
     int oldw, oldh;
-    unsigned char *newrgb;
-    int y;
 
     win->bbox = *box;
 
@@ -97,36 +72,11 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
     {
         dwin->w = 0;
         dwin->h = 0;
-        if (dwin->rgb)
-            free(dwin->rgb);
-        dwin->rgb = NULL;
+        dwin->rgb.clear();
         return;
     }
 
-    bothwid = dwin->w;
-    if (newwid < bothwid)
-        bothwid = newwid;
-    bothhgt = dwin->h;
-    if (newhgt < bothhgt)
-        bothhgt = newhgt;
-
-    newrgb = malloc(newwid * newhgt * 3);
-
-    if (dwin->rgb && bothwid && bothhgt)
-    {
-        for (y = 0; y < bothhgt; y++)
-            memcpy(newrgb + y * newwid * 3,
-                    dwin->rgb + y * oldw * 3,
-                    bothwid * 3);
-    }
-
-    if (dwin->rgb)
-    {
-        free(dwin->rgb);
-        dwin->rgb = 0;
-    }
-
-    dwin->rgb = newrgb;
+    dwin->rgb.resize(newwid, newhgt, true);
     dwin->w = newwid;
     dwin->h = newhgt;
 
@@ -140,14 +90,14 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
 
 void win_graphics_get_size(window_t *win, glui32 *width, glui32 *height)
 {
-    window_graphics_t *dwin = win->data;
+    window_graphics_t *dwin = win->window.graphics;
     *width = dwin->w;
     *height = dwin->h;
 }
 
 void win_graphics_redraw(window_t *win)
 {
-    window_graphics_t *dwin = win->data;
+    window_graphics_t *dwin = win->window.graphics;
     int x, y;
 
     int x0 = win->bbox.x0;
@@ -155,14 +105,14 @@ void win_graphics_redraw(window_t *win)
 
     if (dwin->dirty || gli_force_redraw)
     {
-        dwin->dirty = 0;
+        dwin->dirty = false;
 
-        if (!dwin->rgb)
+        if (dwin->rgb.empty())
             return;
 
         for (y = 0; y < dwin->h; y++)
             for (x = 0; x < dwin->w; x++)
-                gli_draw_pixel(x + x0, y + y0, dwin->rgb + (y * dwin->w + x) * 3);
+                gli_draw_pixel(x + x0, y + y0, dwin->rgb[y][x]);
     }
 }
 
@@ -198,7 +148,7 @@ bool win_graphics_draw_picture(window_graphics_t *dwin,
     glsi32 xpos, glsi32 ypos,
     bool scale, glui32 imagewidth, glui32 imageheight)
 {
-    picture_t *pic = gli_picture_load(image);
+    auto pic = gli_picture_load(image);
     glui32 hyperlink = dwin->owner->attr.hyper;
     xpos = gli_zoom_int(xpos);
     ypos = gli_zoom_int(ypos);
@@ -220,7 +170,7 @@ bool win_graphics_draw_picture(window_graphics_t *dwin,
     imagewidth = gli_zoom_int(imagewidth);
     imageheight = gli_zoom_int(imageheight);
 
-    drawpicture(pic, dwin, xpos, ypos, imagewidth, imageheight, hyperlink);
+    drawpicture(pic.get(), dwin, xpos, ypos, imagewidth, imageheight, hyperlink);
 
     win_graphics_touch(dwin);
 
@@ -262,12 +212,9 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
 
     for (y = y0; y < y1; y++)
     {
-        unsigned char *p = dwin->rgb + (y * dwin->w + x0) * 3;
         for (x = x0; x < x1; x++)
         {
-            *p++ = dwin->bgnd[0];
-            *p++ = dwin->bgnd[1];
-            *p++ = dwin->bgnd[2];
+            dwin->rgb[y][x] = dwin->bgnd;
         }
     }
 
@@ -277,7 +224,6 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
 void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     glsi32 x0, glsi32 y0, glui32 width, glui32 height)
 {
-    unsigned char col[3];
     int x1 = x0 + width;
     int y1 = y0 + height;
     x0 = gli_zoom_int(x0);
@@ -287,18 +233,14 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     int x, y;
     int hx0, hx1, hy0, hy1;
 
-    col[0] = (color >> 16) & 0xff;
-    col[1] = (color >> 8) & 0xff;
-    col[2] = (color >> 0) & 0xff;
+    Pixel<3> col((color >> 16) & 0xff,
+                 (color >> 8) & 0xff,
+                 (color >> 0) & 0xff);
 
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-    if (x0 > dwin->w) x0 = dwin->w;
-    if (y0 > dwin->h) y0 = dwin->h;
-    if (x1 > dwin->w) x1 = dwin->w;
-    if (y1 > dwin->h) y1 = dwin->h;
+    x0 = garglk::clamp(x0, 0, dwin->w);
+    y0 = garglk::clamp(y0, 0, dwin->h);
+    x1 = garglk::clamp(x1, 0, dwin->w);
+    y1 = garglk::clamp(y1, 0, dwin->h);
 
     hx0 = dwin->owner->bbox.x0 + x0;
     hx1 = dwin->owner->bbox.x0 + x1;
@@ -310,12 +252,9 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
 
     for (y = y0; y < y1; y++)
     {
-        unsigned char *p = dwin->rgb + (y * dwin->w + x0) * 3;
         for (x = x0; x < x1; x++)
         {
-            *p++ = col[0];
-            *p++ = col[1];
-            *p++ = col[2];
+            dwin->rgb[y][x] = col;
         }
     }
 
@@ -324,24 +263,25 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
 
 void win_graphics_set_background_color(window_graphics_t *dwin, glui32 color)
 {
-    dwin->bgnd[0] = (color >> 16) & 0xff;
-    dwin->bgnd[1] = (color >> 8) & 0xff;
-    dwin->bgnd[2] = (color >> 0) & 0xff;
+    dwin->bgnd = Pixel<3>((color >> 16) & 0xff,
+                          (color >> 8) & 0xff,
+                          (color >> 0) & 0xff);
 }
 
 static void drawpicture(picture_t *src, window_graphics_t *dst,
     int x0, int y0, int width, int height, glui32 linkval)
 {
-    unsigned char *sp, *dp;
     int dx1, dy1, x1, y1, sx0, sy0, sx1, sy1;
-    int x, y, w, h;
+    int w, h;
     int hx0, hx1, hy0, hy1;
+    std::shared_ptr<picture_t> scaled;
 
     if (width != src->w || height != src->h)
     {
-        src = gli_picture_scale(src, width, height);
-        if (!src)
+        scaled = gli_picture_scale(src, width, height);
+        if (!scaled)
             return;
+        src = scaled.get();
     }
 
     sx0 = 0;
@@ -358,23 +298,23 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     if (y1 <= 0 || y0 >= dy1) return;
     if (x0 < 0)
     {
-      sx0 -= x0;
-      x0 = 0;
+        sx0 -= x0;
+        x0 = 0;
     }
     if (y0 < 0)
     {
-      sy0 -= y0;
-      y0 = 0;
+        sy0 -= y0;
+        y0 = 0;
     }
     if (x1 > dx1)
     {
-      sx1 += dx1 - x1;
-      x1 = dx1;
+        sx1 += dx1 - x1;
+        x1 = dx1;
     }
     if (y1 > dy1)
     {
-      sy1 += dy1 - y1;
-      y1 = dy1;
+        sy1 += dy1 - y1;
+        y1 = dy1;
     }
 
     hx0 = dst->owner->bbox.x0 + x0;
@@ -385,26 +325,22 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     /* zero out or set hyperlink for these coordinates */
     gli_put_hyperlink(linkval, hx0, hy0, hx1, hy1);
 
-    sp = src->rgba + (sy0 * src->w + sx0) * 4;
-    dp = dst->rgb + (y0 * dst->w + x0) * 3;
-
     w = sx1 - sx0;
     h = sy1 - sy0;
 
-    for (y = 0; y < h; y++)
+    for (int y = 0; y < h; y++)
     {
-        for (x = 0; x < w; x++)
+        for (int x = 0; x < w; x++)
         {
-            unsigned char sa = sp[x*4+3];
+            auto existing = dst->rgb[y + y0][x + x0];
+            unsigned char sa = src->rgba[y + sy0][x + sx0][3];
             unsigned char na = 255 - sa;
-            unsigned char sr = mul255(sp[x*4+0], sa);
-            unsigned char sg = mul255(sp[x*4+1], sa);
-            unsigned char sb = mul255(sp[x*4+2], sa);
-            dp[x*3+0] = sr + mul255(dp[x*3+0], na);
-            dp[x*3+1] = sg + mul255(dp[x*3+1], na);
-            dp[x*3+2] = sb + mul255(dp[x*3+2], na);
+            unsigned char sr = mul255(src->rgba[y + sy0][x + sx0][0], sa);
+            unsigned char sg = mul255(src->rgba[y + sy0][x + sx0][1], sa);
+            unsigned char sb = mul255(src->rgba[y + sy0][x + sx0][2], sa);
+            dst->rgb[y + y0][x + x0] =Pixel<3>(sr + mul255(existing[0], na),
+                                               sg + mul255(existing[1], na),
+                                               sb + mul255(existing[2], na));
         }
-        sp += src->w * 4;
-        dp += dst->w * 3;
     }
 }
