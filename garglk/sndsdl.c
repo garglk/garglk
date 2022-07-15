@@ -469,6 +469,7 @@ static void sound_completion_callback(int chan)
             sound_channel->resid, sound_channel->notify);
         gli_notification_waiting();
     }
+    Mix_ChannelFinished(NULL);
     cleanup_channel(sound_channel);
     sound_channels[chan] = 0;
     return;
