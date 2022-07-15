@@ -489,12 +489,12 @@ void wintitle()
 {
     QString title;
 
-    if (std::strlen(gli_story_title) != 0)
-        title = gli_story_title;
-    else if (std::strlen(gli_story_name) != 0)
-        title = QString("%1 - %2").arg(gli_story_name, gli_program_name);
+    if (!gli_story_title.empty())
+        title = QString::fromStdString(gli_story_title);
+    else if (!gli_story_name.empty())
+        title = QString("%1 - %2").arg(QString::fromStdString(gli_story_name), QString::fromStdString(gli_program_name));
     else
-        title = gli_program_name;
+        title = QString::fromStdString(gli_program_name);
 
     window->setWindowTitle(title);
 }

@@ -138,10 +138,13 @@ typedef struct window_graphics_s window_graphics_t;
 #define gli_zoom_int(x) ((x) * gli_zoom + 0.5)
 #define gli_unzoom_int(x) ((x) / gli_zoom + 0.5)
 
-extern char gli_program_name[256];
-extern char gli_program_info[256];
-extern char gli_story_name[256];
-extern char gli_story_title[256];
+#ifdef __cplusplus
+extern std::string gli_program_name;
+extern std::string gli_program_info;
+extern std::string gli_story_name;
+extern std::string gli_story_title;
+#endif
+
 extern bool gli_terminated;
 
 extern window_t *gli_rootwin;

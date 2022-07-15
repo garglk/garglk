@@ -281,9 +281,9 @@ void wintitle(void)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
-    NSString * story_title = [NSString stringWithCString: gli_story_title encoding: NSUTF8StringEncoding];
-    NSString * story_name = [NSString stringWithCString: gli_story_name encoding: NSUTF8StringEncoding];
-    NSString * program_name = [NSString stringWithCString: gli_program_name encoding: NSUTF8StringEncoding];
+    NSString * story_title = [NSString stringWithCString: gli_story_title.c_str() encoding: NSUTF8StringEncoding];
+    NSString * story_name = [NSString stringWithCString: gli_story_name.c_str() encoding: NSUTF8StringEncoding];
+    NSString * program_name = [NSString stringWithCString: gli_program_name.c_str() encoding: NSUTF8StringEncoding];
 
     NSString * title = nil;
     if ([story_title length])

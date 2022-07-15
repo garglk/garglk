@@ -46,8 +46,8 @@ if(INTERFACE STREQUAL "QT")
     endif()
 endif()
 
-add_library(garglk babeldata.c style.c config.cpp draw.cpp
-    event.cpp imgload.c imgscale.c winblank.c window.c wingfx.c
+add_library(garglk babeldata.c style.c config.cpp draw.cpp event.cpp
+    garglk.cpp imgload.c imgscale.c winblank.c window.c wingfx.c
     wingrid.c winmask.c winpair.c wintext.c ${GARGLKINI_CXX}
 
     # These can't be a library in cheapglk/ because they contain
