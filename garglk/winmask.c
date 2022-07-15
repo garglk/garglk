@@ -213,8 +213,8 @@ void gli_clear_selection(void)
     return;
 }
 
-bool gli_check_selection(unsigned int x0, unsigned int y0,
-        unsigned int x1, unsigned int y1)
+bool gli_check_selection(int x0, int y0,
+        int x1, int y1)
 {
     int cx0, cx1, cy0, cy1;
 
@@ -256,11 +256,11 @@ bool gli_check_selection(unsigned int x0, unsigned int y0,
     return false;
 }
 
-bool gli_get_selection(unsigned int x0, unsigned int y0,
-        unsigned int x1, unsigned int y1,
-        unsigned int *rx0, unsigned int *rx1)
+bool gli_get_selection(int x0, int y0,
+        int x1, int y1,
+        int *rx0, int *rx1)
 {
-    unsigned int row, upper, lower, above, below;
+    int row, upper, lower, above, below;
     bool row_selected, found_left, found_right;
     bool from_right, from_below, is_above, is_below;
     int cx0, cx1, cy0, cy1;

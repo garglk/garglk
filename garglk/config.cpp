@@ -128,9 +128,9 @@ unsigned char gli_more_save[3] = { 0x00, 0x60, 0x00 };
 unsigned char gli_link_save[3] = { 0x00, 0x00, 0x60 };
 
 bool gli_override_fg_set = false;
-int gli_override_fg_val = 0;
+glui32 gli_override_fg_val = 0;
 bool gli_override_bg_set = false;
-int gli_override_bg_val = 0;
+glui32 gli_override_bg_val = 0;
 bool gli_override_reverse = false;
 
 static std::string base_more_prompt = "— more —";
