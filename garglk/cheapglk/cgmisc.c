@@ -42,40 +42,6 @@ bool gli_terminated = false;
 static unsigned char char_tolower_table[256];
 static unsigned char char_toupper_table[256];
 
-#ifdef GARGLK
-char gli_program_name[256] = "Unknown";
-char gli_program_info[256] = "";
-char gli_story_name[256] = "";
-char gli_story_title[256] = "";
-
-void garglk_set_program_name(const char *name)
-{
-    strncpy(gli_program_name, name, sizeof gli_program_name);
-    gli_program_name[sizeof gli_program_name-1] = 0;
-    wintitle();
-}
-
-void garglk_set_program_info(const char *info)
-{
-    strncpy(gli_program_info, info, sizeof gli_program_info);
-    gli_program_info[sizeof gli_program_info-1] = 0;
-}
-
-void garglk_set_story_name(const char *name)
-{
-    strncpy(gli_story_name, name, sizeof gli_story_name);
-    gli_story_name[sizeof gli_story_name-1] = 0;
-    wintitle();
-}
-
-void garglk_set_story_title(const char *title)
-{
-    strncpy(gli_story_title, title, sizeof gli_story_title);
-    gli_story_title[sizeof gli_story_title-1] = 0;
-    wintitle();
-}
-#endif
-
 gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass) = NULL;
 void (*gli_unregister_obj)(void *obj, glui32 objclass, 
     gidispatch_rock_t objrock) = NULL;
