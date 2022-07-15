@@ -240,9 +240,9 @@ extern unsigned char gli_more_save[3];
 extern unsigned char gli_link_save[3];
 
 extern bool gli_override_fg_set;
-extern int gli_override_fg_val;
+extern glui32 gli_override_fg_val;
 extern bool gli_override_bg_set;
-extern int gli_override_bg_val;
+extern glui32 gli_override_bg_val;
 extern bool gli_override_reverse;
 
 extern int gli_link_style;
@@ -778,8 +778,8 @@ glui32 gli_strlen_uni(const glui32 *s);
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
 glui32 gli_get_hyperlink(unsigned int x, unsigned int y);
 void gli_clear_selection(void);
-bool gli_check_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
-bool gli_get_selection(unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1, unsigned int *rx0, unsigned int *rx1);
+bool gli_check_selection(int x0, int y0, int x1, int y1);
+bool gli_get_selection(int x0, int y0, int x1, int y1, int *rx0, int *rx1);
 void gli_clipboard_copy(glui32 *buf, int len);
 void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);

@@ -1551,11 +1551,11 @@ unsigned char *attrbg(style_t *styles, attr_t *attr)
 {
     int revset = attr->reverse || (styles[attr->style].reverse && !gli_override_reverse);
 
-    int zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
-    int zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
+    bool zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
+    bool zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
 
-    int zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
-    int zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
+    glui32 zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
+    glui32 zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
 
     if (zfset && zfore != zcolor_fg)
     {
@@ -1599,11 +1599,11 @@ unsigned char *attrfg(style_t *styles, attr_t *attr)
 {
     int revset = attr->reverse || (styles[attr->style].reverse && !gli_override_reverse);
 
-    int zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
-    int zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
+    bool zfset = attr->fgset ? attr->fgset : gli_override_fg_set;
+    bool zbset = attr->bgset ? attr->bgset : gli_override_bg_set;
 
-    int zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
-    int zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
+    glui32 zfore = attr->fgset ? attr->fgcolor : gli_override_fg_val;
+    glui32 zback = attr->bgset ? attr->bgcolor : gli_override_bg_val;
 
     if (zfset && zfore != zcolor_fg)
     {

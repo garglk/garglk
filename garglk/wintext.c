@@ -398,7 +398,7 @@ void win_textbuffer_redraw(window_t *win)
         /* check if part of line is selected */
         if (selbuf)
         {
-            unsigned int ux, uy;
+            int ux, uy;
             selrow = gli_get_selection(x0/GLI_SUBPIX, y,
                     x1/GLI_SUBPIX, y + gli_leading,
                     &ux, &uy);
