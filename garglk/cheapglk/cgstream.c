@@ -299,7 +299,7 @@ strid_t glk_stream_open_file(fileref_t *fref, glui32 fmode,
     }
     
     if (fmode == filemode_WriteAppend) {
-        fseek(fl, 0, 2); /* ...to the end. */
+        fseek(fl, 0, SEEK_END); /* ...to the end. */
     }
 
     str = gli_new_stream(strtype_File, 

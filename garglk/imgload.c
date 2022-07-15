@@ -240,7 +240,7 @@ picture_t *gli_picture_load(unsigned long id)
             return NULL;
         }
 
-        fseek(fl, 0, 0);
+        rewind(fl);
     }
 
     else
@@ -249,7 +249,7 @@ picture_t *gli_picture_load(unsigned long id)
         giblorb_get_resource(giblorb_ID_Pict, id, &fl, &pos, NULL, &chunktype);
         if (!fl)
             return NULL;
-        fseek(fl, pos, 0);
+        fseek(fl, pos, SEEK_SET);
         closeafter = false;
     }
 

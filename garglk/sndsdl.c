@@ -498,7 +498,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
             return 0;
         }
 
-        fseek(file, 0, 0);
+        rewind(file);
         if (fread(*buf, 1, *len, file) != *len && !feof(file))
         {
             fclose(file);
@@ -570,7 +570,7 @@ static glui32 load_sound_resource(glui32 snd, long *len, char **buf)
         if (!*buf)
             return 0;
 
-        fseek(file, pos, 0);
+        fseek(file, pos, SEEK_SET);
         if (fread(*buf, 1, *len, file) != *len && !feof(file)) return 0;
         return type;
     }
