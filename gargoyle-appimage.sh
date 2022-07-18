@@ -5,9 +5,9 @@ set -ex
 mkdir build-appimage
 cd build-appimage
 xargs -n 1 -P 0 wget -q <<EOF
-https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
-https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+https://github.com/garglk/assets/raw/appimage/linuxdeploy-x86_64.AppImage
+https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-appimage-x86_64.AppImage
+https://github.com/garglk/assets/raw/appimage/linuxdeploy-plugin-qt-x86_64.AppImage
 EOF
 chmod +x linuxdeploy*
 # g++-9, on Ubuntu 20.04 (used by Github Actions) hits an ICE when building with static libraries:
