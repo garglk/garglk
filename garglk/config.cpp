@@ -456,7 +456,7 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             base_more_prompt = arg;
         } else if (cmd == "morecolor") {
             parsecolor(arg, gli_more_color);
-            parsecolor(arg, gli_more_color);
+            parsecolor(arg, gli_more_save);
         } else if (cmd == "morefont") {
             gli_more_font = font2idx(arg);
         } else if (cmd == "morealign") {
