@@ -36,8 +36,11 @@
 enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
 
 #ifdef __cplusplus
+#include <array>
 #include <functional>
 #include <memory>
+#include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -59,6 +62,22 @@ struct ConfigFile {
     bool user;
 };
 
+struct Color {
+public:
+    Color(unsigned char red, unsigned char green, unsigned char blue) : m_red(red), m_green(green), m_blue(blue) {
+    }
+
+    void to(unsigned char *rgb) const;
+    static Color from(const unsigned char *rgb);
+    static Color from(const std::string &colors);
+
+private:
+    unsigned char m_red, m_green, m_blue;
+    static const std::regex m_color_re;
+};
+
+extern std::vector<garglk::ConfigFile> all_configs;
+
 std::string winopenfile(const char *prompt, enum FILEFILTERS filter);
 std::string winsavefile(const char *prompt, enum FILEFILTERS filter);
 void winabort(const std::string &msg);
@@ -69,6 +88,14 @@ void config_entries(const std::string &fname, bool accept_bare, const std::vecto
 std::string user_config();
 void set_lcdfilter(const std::string &filter);
 std::string winfontpath(const std::string &filename);
+std::vector<std::string> winappdata();
+
+namespace theme {
+void init();
+void set(std::string name);
+std::vector<std::string> paths();
+std::vector<std::string> names();
+}
 
 template <typename T, typename Deleter>
 std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
@@ -718,6 +745,7 @@ void winopen(void);
 void wintitle(void);
 void winmore(void);
 void winrepaint(int x0, int y0, int x1, int y1);
+bool windark(void);
 void winexit(void);
 void winclipstore(glui32 *text, int len);
 

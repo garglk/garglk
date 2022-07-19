@@ -27,20 +27,31 @@
 #include <QClipboard>
 #include <QCursor>
 #include <QDesktopServices>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFileDialog>
 #include <QGraphicsView>
+#include <QLabel>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QObject>
 #include <QPainter>
+#include <QPalette>
 #include <QProcess>
 #include <QResizeEvent>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
 #include <QWidget>
+#include <QtGlobal>
 
+#if GARGLK_HAS_DBUS
+#include <QtDBus/QDBusInterface>
+#include <QtDBus/QDBusReply>
+#endif
+
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -49,12 +60,17 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
 
 #include "glk.h"
 #include "garglk.h"
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#define HAS_QT6
+#endif
 
 /* buffer for clipboard text */
 static QString cliptext;
@@ -299,6 +315,39 @@ static void edit_config()
     }
 }
 
+static void show_paths()
+{
+    QString text("<p>Configuration file paths:</p><pre>");
+
+    for (const auto &path : garglk::all_configs)
+        text += QDir::toNativeSeparators(QString::fromStdString(path.path)) + "\n";
+
+    text += "</pre><p>Theme paths:</p><pre>";
+    auto theme_paths = garglk::theme::paths();
+    std::reverse(theme_paths.begin(), theme_paths.end());
+    for (const auto &path : theme_paths)
+        text += QDir::toNativeSeparators(QString::fromStdString(path)) + "\n";
+    text += "</pre>";
+
+    QMessageBox box(QMessageBox::Icon::Information, "Paths", text);
+    box.setTextFormat(Qt::TextFormat::RichText);
+    box.exec();
+}
+
+static void show_themes()
+{
+    QString text("The following themes are available:\n\n");
+    auto theme_names = garglk::theme::names();
+
+    std::sort(theme_names.begin(), theme_names.end());
+    for (const auto &theme_name : theme_names)
+        text += QString("• ") + QString::fromStdString(theme_name) + "\n";
+
+    QMessageBox box(QMessageBox::Icon::Information, "Paths", text);
+    box.setTextFormat(Qt::TextFormat::PlainText);
+    box.exec();
+}
+
 void View::keyPressEvent(QKeyEvent *event)
 {
     Qt::KeyboardModifiers modmasked = event->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
@@ -322,16 +371,21 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::ControlModifier, Qt::Key_Right}, []{ gli_input_handle_key(keycode_SkipWordRight); }},
 
 #ifdef __HAIKU__
-        // For some reason, on Haiku, the "shifted" version of a comma is used,
-        // which, on US English keyboards, at least, is a less-than sign. I
-        // assume this is a bug in translating Haiku input to Qt input, but I'm
-        // also not completely sure it's wrong, either; the QKeyEvent
-        // documentations says that key() "does not distinguish between capital
-        // and non-capital letters", but these aren't letters...
+        // For some reason, on Haiku, the "shifted" versions of comma/period are
+        // used, which, on US English keyboards, at least, are less-than/
+        // greater-than signs. I assume this is a bug in translating
+        // Haiku input to Qt input, but I'm also not completely sure it's wrong,
+        // either; the QKeyEvent documentations says that key() "does not
+        // distinguish between capital and non-capital letters", but these
+        // aren't letters...
         {{Qt::ControlModifier, Qt::Key_Less}, edit_config},
+        {{Qt::ControlModifier, Qt::Key_Greater}, show_paths},
 #else
         {{Qt::ControlModifier, Qt::Key_Comma}, edit_config},
+        {{Qt::ControlModifier, Qt::Key_Period}, show_paths},
 #endif
+
+        {{Qt::ShiftModifier | Qt::ControlModifier, Qt::Key_T}, [] { show_themes(); }},
 
         {{Qt::ShiftModifier, Qt::Key_Backspace}, []{ gli_input_handle_key(keycode_Delete); }},
 
@@ -464,6 +518,8 @@ void wininit(int *, char **)
     static int argc = 1;
     static char *argv[] = { const_cast<char *>("gargoyle"), nullptr };
     app = new QApplication(argc, argv);
+    app->setOrganizationName("io.github.garglk");
+    app->setApplicationName("Gargoyle");
     last_tick.start();
 }
 
@@ -504,9 +560,57 @@ void winrepaint(int x0, int y0, int x1, int y1)
     refresh_needed = true;
 }
 
+bool windark()
+{
+#if GARGLK_HAS_DBUS
+    // https://flatpak.github.io/xdg-desktop-portal/
+    QDBusInterface interface("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings");
+    QDBusReply<QVariant> reply = interface.call("Read", "org.freedesktop.appearance", "color-scheme");
+    if (reply.isValid())
+    {
+        auto dbusvar = qvariant_cast<QDBusVariant>(reply.value());
+        QVariant result = dbusvar.variant();
+#ifdef HAS_QT6
+        if (result.typeId() == QMetaType::Type::UInt)
+#else
+        if (result.type() == QVariant::UInt)
+#endif
+            return result.toUInt() == 1;
+    }
+#endif
+
+    // From https://stackoverflow.com/a/69705673/1017090
+    // Is there really no builtin way in Qt to check this?
+    QLabel label("");
+    auto text_hsv_value = label.palette().color(QPalette::WindowText).value();
+    auto bg_hsv_value = label.palette().color(QPalette::Window).value();
+
+    return text_hsv_value > bg_hsv_value;
+}
+
 std::string garglk::winfontpath(const std::string &filename)
 {
     return QCoreApplication::applicationDirPath().toStdString() + "/" + filename;
+}
+
+std::vector<std::string> garglk::winappdata()
+{
+    std::vector<std::string> paths;
+
+    for (const auto &path : QStandardPaths::standardLocations(QStandardPaths::AppDataLocation))
+        paths.push_back(path.toStdString());
+
+#ifdef _WIN32
+    // On Windows, also search the executable's directory.
+    paths.push_back(QCoreApplication::applicationDirPath().toStdString());
+#endif
+
+    // QStandardPaths returns higher priority directories first: reverse
+    // so that higher priority directories come later, so entries there
+    // can overwrite earlier entries.
+    std::reverse(paths.begin(), paths.end());
+
+    return paths;
 }
 
 void gli_tick()

@@ -120,6 +120,8 @@ fi
 
 cp licenses/*.txt build/dist
 cp fonts/*.ttf build/dist
+mkdir build/dist/themes
+cp themes/*.json build/dist/themes
 unix2dos -n garglk/garglk.ini build/dist/garglk.ini
 
 zip=gargoyle-$(<VERSION)-windows-${GARGOYLE_ARCH}.zip

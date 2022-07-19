@@ -1,0 +1,14 @@
+{
+    "name": "Blue",
+    "window": "#0000ff",
+    "border": "#000000",
+    "caret": "#ffffff",
+    "link": "#000060",
+    "more": "#ffffff",
+    "text_buffer": {
+        "default": {"fg": "#ffffff", "bg": "#0000ff"}
+    },
+    "text_grid": {
+        "default": {"fg": "#ffffff", "bg": "#0000ff"}
+    }
+}
