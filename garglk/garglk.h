@@ -724,7 +724,7 @@ extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
 extern void gli_streams_close_all(void);
 
 void gli_initialize_fonts(void);
-void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb);
+void gli_draw_pixel(int x, int y, const unsigned char *rgb);
 void gli_draw_pixel_lcd(int x, int y, const unsigned char *alpha, const unsigned char *rgb);
 void gli_draw_clear(const unsigned char *rgb);
 void gli_draw_rect(int x, int y, int w, int h, const unsigned char *rgb);

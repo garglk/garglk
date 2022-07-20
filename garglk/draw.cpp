@@ -419,17 +419,16 @@ void gli_initialize_fonts()
  * Drawing
  */
 
-void gli_draw_pixel(int x, int y, unsigned char alpha, const unsigned char *rgb)
+void gli_draw_pixel(int x, int y, const unsigned char *rgb)
 {
     unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    unsigned char invalf = 255 - alpha;
     if (x < 0 || x >= gli_image_w)
         return;
     if (y < 0 || y >= gli_image_h)
         return;
-    p[0] = rgb[2] + mul255(static_cast<short>(p[0]) - rgb[2], invalf);
-    p[1] = rgb[1] + mul255(static_cast<short>(p[1]) - rgb[1], invalf);
-    p[2] = rgb[0] + mul255(static_cast<short>(p[2]) - rgb[0], invalf);
+    p[0] = rgb[2];
+    p[1] = rgb[1];
+    p[2] = rgb[0];
     p[3] = 0xFF;
 }
 

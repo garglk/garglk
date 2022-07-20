@@ -162,10 +162,7 @@ void win_graphics_redraw(window_t *win)
 
         for (y = 0; y < dwin->h; y++)
             for (x = 0; x < dwin->w; x++)
-            {
-                gli_draw_pixel(x + x0, y + y0, 0xff,
-                        dwin->rgb + (y * dwin->w + x) * 3);
-            }
+                gli_draw_pixel(x + x0, y + y0, dwin->rgb + (y * dwin->w + x) * 3);
     }
 }
 
