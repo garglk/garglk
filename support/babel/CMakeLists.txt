@@ -4,3 +4,5 @@ add_library(babel STATIC adrift.c advsys.c agt.c alan.c babel_handler.c blorb.c
             twine.c zcode.c)
 
 set_property(TARGET babel PROPERTY POSITION_INDEPENDENT_CODE TRUE)
+
+target_include_directories(babel PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

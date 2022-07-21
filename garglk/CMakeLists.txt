@@ -177,7 +177,6 @@ endif()
 
 if(WITH_BABEL)
     target_link_libraries(garglk PRIVATE babel)
-    target_include_directories(garglk PRIVATE "${PROJECT_SOURCE_DIR}/support/babel")
     target_compile_definitions(garglk PRIVATE BABEL_HANDLER)
 endif()
 
