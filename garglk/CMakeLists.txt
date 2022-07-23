@@ -134,6 +134,7 @@ elseif(UNIX OR MINGW)
         set(QT_VERSION "6")
     else()
         set(QT_VERSION "5")
+        option(WITH_KDE "Use KDE Frameworks (improves discovery of a text editor for config file editing)" OFF)
     endif()
 
     find_package(Qt${QT_VERSION} COMPONENTS Widgets REQUIRED CONFIG)
@@ -148,6 +149,26 @@ elseif(UNIX OR MINGW)
             target_compile_definitions(garglk PRIVATE GARGLK_HAS_DBUS)
             target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::DBus)
         endif()
+    endif()
+
+    if (WITH_KDE)
+        if (WITH_QT6)
+            message(FATAL_ERROR "KDE support requires Qt5")
+        endif()
+
+        find_package(ECM 1.0.0 REQUIRED NO_MODULE)
+        set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
+
+        # This may trigger a warning about setting a more recent required CMake
+        # version. Such a warning can be safely ignored. The newest KF5 versions
+        # require a more recent version of CMake than Gargoyle does, but older
+        # versions do not. If Gargoyle were to require the CMake version that
+        # corresponds to the most recent KF5 version, systems with older
+        # combinations of CMake and KF5 would be excluded, even though they work
+        # just fine.
+        find_package(KF5 REQUIRED COMPONENTS KIO Service)
+        target_link_libraries(garglk PRIVATE KF5::KIOWidgets KF5::Service)
+        set_property(SOURCE sysqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_KDE)
     endif()
 
     if(WITH_LAUNCHER)

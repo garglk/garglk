@@ -32,6 +32,7 @@
 #include <QFileDialog>
 #include <QGraphicsView>
 #include <QLabel>
+#include <QList>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QObject>
@@ -43,12 +44,26 @@
 #include <QString>
 #include <QStringList>
 #include <QTimer>
+#include <QUrl>
 #include <QWidget>
 #include <QtGlobal>
 
 #if GARGLK_HAS_DBUS
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusReply>
+#endif
+
+#ifdef GARGLK_KDE
+#include <kio_version.h>
+
+#if KIO_VERSION >= ((5 << 16) | (69 << 8))
+#define GARGLK_KDE_HAS_APPLICATION_LAUNCHER
+#include <KApplicationTrader>
+#include <KIO/ApplicationLauncherJob>
+#include <KIO/JobUiDelegate>
+#else
+#include <KRun>
+#endif
 #endif
 
 #include <algorithm>
@@ -304,6 +319,20 @@ static void edit_config()
         QStringList args;
         args << "-t" << config.c_str();
         proc.startDetached("open", args);
+#elif defined(GARGLK_KDE)
+        // If KDE is available, it provides a way to query the user's
+        // preferred text editor, allowing an approximation of the Mac
+        // behavior. Fall back to QDesktopServices::openUrl otherwise.
+        QUrl url(QUrl::fromLocalFile(config.c_str()));
+#ifdef GARGLK_KDE_HAS_APPLICATION_LAUNCHER
+        auto service = KApplicationTrader::preferredService("text/plain");
+        auto job = new KIO::ApplicationLauncherJob(service);
+        job->setUiDelegate(new KIO::JobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, window));
+        job->setUrls({url});
+        job->start();
+#else
+        KRun::runUrl(url, "text/plain", window);
+#endif
 #else
         if (!QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str())))
             QMessageBox::warning(nullptr, "Warning", "Unable to find a text editor");
