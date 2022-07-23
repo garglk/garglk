@@ -150,7 +150,7 @@ elseif(UNIX OR MINGW)
         endif()
     endif()
 
-    if(WITH_LAUNCHER AND ${INTERFACE} STREQUAL "QT")
+    if(WITH_LAUNCHER)
         target_link_libraries(gargoyle PRIVATE Qt${QT_VERSION}::Widgets)
     endif()
 else()
