@@ -23,6 +23,19 @@ If you want text-to-speech support on Unix, you will need
 speech-dispatcher. Windows and macOS natively provide text-to-speech
 APIs which are used on those platforms.
 
+For Qt builds, KDE Frameworks can optionally be used. They are used in
+one place at the moment: discovery of the user's preferred text editor.
+Qt cannot determine a user's text editor, so for editing the config
+file, Gargoyle instructs Qt to open the file, hoping that the user's
+environment will launch it in a text editor. If KDE Frameworks are used,
+the user's preferred text editor will be discovered and used directly to
+open the config file. KDE Frameworks are only available with Qt5. The
+following KDE Frameworks modules are required:
+
+- extra-cmake-modules
+- kio
+- kservice
+
 On Unix, Gargoyle can be built like any standard CMake project.
 Something like:
 
@@ -58,6 +71,8 @@ In addition, Gargoyle supports the following options:
 - `WITH_FREEDESKTOP`: If true (the default), install
   freedesktop.org-compliant desktop, application, and MIME files. This
   is available only on non-Apple Unix platforms.
+
+- `WITH_KDE`: If true, KDE Frameworks will be used.
 
 - `WITH_TTS`: Takes one of four values: "ON", "OFF", "AUTO", or "DYNAMIC".
 

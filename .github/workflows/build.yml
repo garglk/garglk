@@ -8,7 +8,7 @@ jobs:
   build:
     strategy:
       matrix:
-        feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT"]
+        feature: ["-DWITH_SDL=OFF", "-DWITH_TTS=OFF", "-DWITH_BABEL=OFF", "-DSOUND=QT", "-DWITH_KDE=ON"]
 
     runs-on: ubuntu-20.04
     container:
@@ -30,10 +30,13 @@ jobs:
         run: DEBIAN_FRONTEND=noninteractive apt install -y
           build-essential
           cmake
+          extra-cmake-modules
           git
           libfontconfig1-dev
           libfreetype-dev
           libjpeg-dev
+          libkf5kio-dev
+          libkf5service-dev
           libmpg123-dev
           libopenmpt-dev
           libsdl2-mixer-dev
