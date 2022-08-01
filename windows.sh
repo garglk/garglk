@@ -82,7 +82,7 @@ mkdir build-mingw
 
 (
 cd build-mingw
-env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+env MINGW_TRIPLE=${target} MINGW_LOCATION=${mingw_location} cmake .. -DCMAKE_TOOLCHAIN_FILE=../Toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 make -j${nproc}
 make install
 )
