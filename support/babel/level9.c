@@ -392,6 +392,8 @@ static int v1_recognition(unsigned char *sf, int32 extent, char **ifid)
 static int v3_recognition_phase (int phase,unsigned char *sf, int32 extent, int32 *l, unsigned char *c)
 {
   int32 end, i, j, ll;
+  if (sf == NULL || *sf == '\0')
+      return 0;
   ll=0;
   for (i=0;i<extent-20;i++)
   {
@@ -400,13 +402,13 @@ static int v3_recognition_phase (int phase,unsigned char *sf, int32 extent, int3
     end=*l+i;
     if (phase!=3)
     {
-    if (end <= (extent - 2) &&
+    if (end <= extent &&
        (
         ((phase == 2) ||
-        (((sf[end-1] == 0) &&
-         (sf[end-2] == 0)) ||
-        ((sf[end+1] == 0) &&
-         (sf[end+2] == 0))))
+        (((end >= 1 && sf[end-1] == 0) &&
+         (end >= 2 && sf[end-2] == 0)) ||
+        ((end <= extent - 2 && sf[end+1] == 0) &&
+         (end <= extent - 3 && sf[end+2] == 0))))
         && (*l>0x4000) && (*l<=0xdb00)))
       if ((*l!=0) && (sf[i+0x0d] == 0))
        for (j=i;j<i+16;j+=2)
@@ -416,7 +418,7 @@ static int v3_recognition_phase (int phase,unsigned char *sf, int32 extent, int3
      }
      else
      {
-      if ((extent>0x0fd0) && (end <= (extent - 2)) &&
+      if ((extent>0x0fd0) && (end <= extent) &&
          (((read_l9_int(sf+i+2) + read_l9_int(sf+i+4))==read_l9_int(sf+i+6))
                     && (read_l9_int(sf+i+2) != 0) && (read_l9_int(sf+i+4)) != 0) &&
          (((read_l9_int(sf+i+6) + read_l9_int(sf+i+8)) == read_l9_int(sf+i+10))

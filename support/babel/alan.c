@@ -28,6 +28,8 @@ static uint32 read_alan_int_at(byte *from)
 }
 
 static bool magic_word_found(byte *story_file) {
+  if(story_file == NULL)
+    return false;
   return memcmp(story_file,"ALAN",4) == 0;
 }
 
