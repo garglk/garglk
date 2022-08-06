@@ -1,4 +1,4 @@
-## Version 0.5, Treaty of Babel Revision 10
+## Version 0.6, Treaty of Babel Revision 11
 
 This is the source code for babel, the [Treaty of Babel][babel] analysis tool.
 
@@ -19,6 +19,7 @@ The following files are public domain:
 - misc.c
 - alan.c
 - adrift.c
+- html.c
 - treaty.h
 - treaty_builder.h
 
