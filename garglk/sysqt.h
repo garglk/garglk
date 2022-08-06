@@ -5,8 +5,10 @@
 #include <QKeyEvent>
 #include <QMainWindow>
 #include <QMouseEvent>
+#include <QMoveEvent>
 #include <QPaintEvent>
 #include <QResizeEvent>
+#include <QSettings>
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
@@ -46,13 +48,17 @@ public:
     bool timed_out() { return m_timed_out; }
     void reset_timeout() { m_timed_out = false; }
 
+    const QSettings *settings() { return m_settings; }
+
 protected:
     void closeEvent(QCloseEvent *) override;
     void resizeEvent(QResizeEvent *) override;
+    void moveEvent(QMoveEvent *) override;
 
 private:
     View *m_view;
     QTimer *m_timer;
+    QSettings *m_settings;
     bool m_timed_out = false;
 };
 

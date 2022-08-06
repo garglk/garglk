@@ -25,6 +25,7 @@
 #include "garversion.h"
 #include "launcher.h"
 
+#include <sstream>
 #include <string>
 
 #import <Cocoa/Cocoa.h>
@@ -503,6 +504,22 @@ static BOOL isTextbufferEvent(NSEvent * evt)
 
 - (void) performRefresh: (NSNotification *) notice
 {
+    if (gli_conf_save_window_size)
+    {
+        auto path = get_qt_plist_path();
+        if (path != nil)
+        {
+            NSMutableDictionary *config = [NSMutableDictionary dictionaryWithContentsOfFile: path];
+            std::stringstream size;
+            int w = self.frame.size.width;
+            int h = self.frame.size.height;
+
+            size << "@Size(" << w << " " << h << ")";
+            [config setObject: [NSString stringWithUTF8String: size.str().c_str()] forKey: @"window.size"];
+            [config writeToFile: path atomically: YES];
+        }
+    }
+
     [self sendEvent: [NSEvent otherEventWithType: NSApplicationDefined
                                         location: NSZeroPoint
                                    modifierFlags: 0
