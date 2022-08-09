@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <set>
 #include <stdexcept>
 #include <utility>
@@ -783,22 +784,29 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
         QByteArray data;
         std::tie(type, data) = load_sound_resource(snd);
 
-        switch (type)
+        try
         {
-        case giblorb_ID_MOD:
-            source.reset(new OpenMPTSource(data, repeats));
-            break;
-        case giblorb_ID_AIFF:
-        case giblorb_ID_FORM:
-        case giblorb_ID_OGG:
-        case giblorb_ID_WAVE:
-            source.reset(new SndfileSource(data, repeats));
-            break;
-        case giblorb_ID_MP3:
-            source.reset(new Mpg123Source(data, repeats));
-            break;
-        default:
-            return 0;
+            switch (type)
+            {
+            case giblorb_ID_MOD:
+                source.reset(new OpenMPTSource(data, repeats));
+                break;
+            case giblorb_ID_AIFF:
+            case giblorb_ID_FORM:
+            case giblorb_ID_OGG:
+            case giblorb_ID_WAVE:
+                source.reset(new SndfileSource(data, repeats));
+                break;
+            case giblorb_ID_MP3:
+                source.reset(new Mpg123Source(data, repeats));
+                break;
+            default:
+                return 0;
+            }
+        }
+        catch (const std::bad_alloc &)
+        {
+            throw SoundError("unable to allocate");
         }
 
         if (!source->open(QIODevice::ReadOnly))
