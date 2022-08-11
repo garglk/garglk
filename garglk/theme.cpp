@@ -258,7 +258,7 @@ static Theme dark{
     Color{0x31, 0x36, 0x3b},
     black,
     Color{0xe7, 0xe8, 0xe9},
-    Color{0x00, 0x00, 0x60},
+    Color{0x1d, 0x99, 0xf3},
     Color{0x00, 0xcc, 0x00},
     Styles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
     Styles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},

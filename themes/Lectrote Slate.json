@@ -3,7 +3,7 @@
     "window": "#4d4d4f",
     "border": "#000000",
     "caret": "#ffffff",
-    "link": "#000060",
+    "link": "#bbbbff",
     "more": "#ffddaa",
     "text_buffer": {
         "default": {"fg": "#ffffff", "bg": "#4d4d4f"},
