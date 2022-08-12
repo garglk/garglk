@@ -63,8 +63,8 @@ void gli_initialize_babel(void)
                 free(metaData);
             }
         }
-        babel_release_ctx(ctx);
     }
+    babel_release_ctx(ctx);
     release_babel_ctx(ctx);
 }
 
