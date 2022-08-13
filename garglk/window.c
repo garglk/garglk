@@ -44,8 +44,6 @@ static window_t *gli_windowlist = NULL;
 window_t *gli_rootwin = NULL; /* The topmost window. */
 window_t *gli_focuswin = NULL; /* The window selected by the player */
 
-void (*gli_interrupt_handler)(void) = NULL;
-
 /* record whether we've returned a click event */
 bool gli_forceclick = false;
 
