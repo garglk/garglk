@@ -828,19 +828,22 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 #endif
         chan->source = std::move(source);
 
-        auto on_change = [=](QAudio::State state) {
-            if (state == QAudio::State::IdleState && notify != 0)
-            {
-                gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
-                gli_notification_waiting();
-            }
-        };
+        if (notify != 0)
+        {
+            auto on_change = [=](QAudio::State state) {
+                if (state == QAudio::State::IdleState)
+                {
+                    gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
+                    gli_notification_waiting();
+                }
+            };
 
 #ifdef HAS_QT6
-        QObject::connect(chan->audio.get(), &QAudioSink::stateChanged, on_change);
+            QObject::connect(chan->audio.get(), &QAudioSink::stateChanged, on_change);
 #else
-        QObject::connect(chan->audio.get(), &QAudioOutput::stateChanged, on_change);
+            QObject::connect(chan->audio.get(), &QAudioOutput::stateChanged, on_change);
 #endif
+        }
 
         chan->set_current_volume();
 
