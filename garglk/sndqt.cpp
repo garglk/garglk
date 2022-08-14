@@ -114,38 +114,32 @@ public:
         if (max == 0)
             return 0;
 
-        if (m_plays == 0)
-            return 0;
-
-        std::size_t n = source_read(data, max);
-        if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0))
+        std::size_t n = 0;
+        if (m_plays > 0)
         {
-            source_rewind();
             n = source_read(data, max);
+            if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0))
+            {
+                source_rewind();
+                n = source_read(data, max);
+            }
         }
-
-        m_written += n;
 
         // Ensure at least one full audio buffer was written.
         if (n == 0)
         {
             qint64 needed = m_buffer_size - m_written;
 
-            if (needed <= 0)
+            if (needed >= 0)
             {
-                return 0;
-            }
-            else
-            {
-                needed = std::min(needed, max);
-                std::memset(data, 0, needed);
-                return needed;
+                n = std::min(needed, max);
+                std::memset(data, 0, n);
             }
         }
-        else
-        {
-            return n;
-        }
+
+        m_written += n;
+
+        return n;
     }
 
     qint64 writeData(const char *, qint64) override {
