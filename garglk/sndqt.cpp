@@ -521,7 +521,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
     chan = new channel_t(volume, rock);
 
-    auto on_timeout = [=]() {
+    auto on_timeout = [chan]() {
         auto now = std::chrono::steady_clock::now();
         double elapsed = std::chrono::duration<double>(now - chan->last_volume_bump).count();
         chan->last_volume_bump = now;
@@ -830,7 +830,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 
         if (notify != 0)
         {
-            auto on_change = [=](QAudio::State state) {
+            auto on_change = [snd, notify](QAudio::State state) {
                 if (state == QAudio::State::IdleState)
                 {
                     gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
