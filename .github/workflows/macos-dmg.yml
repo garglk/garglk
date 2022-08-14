@@ -15,7 +15,7 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install sdl2 sdl2_mixer
+        run: brew install jpeg-turbo sdl2 sdl2_mixer
 
       - name: Build
         run: |
