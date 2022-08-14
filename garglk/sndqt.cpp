@@ -114,38 +114,32 @@ public:
         if (max == 0)
             return 0;
 
-        if (m_plays == 0)
-            return 0;
-
-        std::size_t n = source_read(data, max);
-        if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0))
+        std::size_t n = 0;
+        if (m_plays > 0)
         {
-            source_rewind();
             n = source_read(data, max);
+            if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0))
+            {
+                source_rewind();
+                n = source_read(data, max);
+            }
         }
-
-        m_written += n;
 
         // Ensure at least one full audio buffer was written.
         if (n == 0)
         {
             qint64 needed = m_buffer_size - m_written;
 
-            if (needed <= 0)
+            if (needed >= 0)
             {
-                return 0;
-            }
-            else
-            {
-                needed = std::min(needed, max);
-                std::memset(data, 0, needed);
-                return needed;
+                n = std::min(needed, max);
+                std::memset(data, 0, n);
             }
         }
-        else
-        {
-            return n;
-        }
+
+        m_written += n;
+
+        return n;
     }
 
     qint64 writeData(const char *, qint64) override {
@@ -521,7 +515,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
     chan = new channel_t(volume, rock);
 
-    auto on_timeout = [=]() {
+    auto on_timeout = [chan]() {
         auto now = std::chrono::steady_clock::now();
         double elapsed = std::chrono::duration<double>(now - chan->last_volume_bump).count();
         chan->last_volume_bump = now;
@@ -668,7 +662,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 {
     if (giblorb_get_resource_map() == nullptr)
     {
-        QString name = QString("%1/SND%2").arg(gli_workdir, snd);
+        QString name = QString("%1/SND%2").arg(gli_workdir).arg(snd);
 
         QFile file(name);
         if (!file.open(QIODevice::ReadOnly))
@@ -828,19 +822,22 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 #endif
         chan->source = std::move(source);
 
-        auto on_change = [=](QAudio::State state) {
-            if (state == QAudio::State::IdleState && notify != 0)
-            {
-                gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
-                gli_notification_waiting();
-            }
-        };
+        if (notify != 0)
+        {
+            auto on_change = [snd, notify](QAudio::State state) {
+                if (state == QAudio::State::IdleState)
+                {
+                    gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
+                    gli_notification_waiting();
+                }
+            };
 
 #ifdef HAS_QT6
-        QObject::connect(chan->audio.get(), &QAudioSink::stateChanged, on_change);
+            QObject::connect(chan->audio.get(), &QAudioSink::stateChanged, on_change);
 #else
-        QObject::connect(chan->audio.get(), &QAudioOutput::stateChanged, on_change);
+            QObject::connect(chan->audio.get(), &QAudioOutput::stateChanged, on_change);
 #endif
+        }
 
         chan->set_current_volume();
 
