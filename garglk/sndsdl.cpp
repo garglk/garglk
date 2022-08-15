@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <new>
 #include <string>
 #include <utility>
@@ -101,6 +102,8 @@ static channel_t *gli_channellist = nullptr;
 static std::array<channel_t *, SDL_CHANNELS> sound_channels;
 static channel_t *music_channel;
 
+static schanid_t gli_bleep_channel;
+
 static const int FREE = 1;
 static const int BUSY = 2;
 
@@ -135,6 +138,10 @@ void gli_initialize_sound()
         Mix_GroupChannels(0, channels - 1 , FREE);
         Mix_ChannelFinished(nullptr);
     }
+
+    gli_bleep_channel = glk_schannel_create(0);
+    if (gli_bleep_channel != nullptr)
+        glk_schannel_set_volume(gli_bleep_channel, 0x8000);
 }
 
 schanid_t glk_schannel_create(glui32 rock)
@@ -472,8 +479,73 @@ static void sound_completion_callback(int chan)
     return;
 }
 
-static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned char> &buf)
+static int detect_format(const std::vector<unsigned char> &buf)
 {
+    const std::vector<std::pair<std::pair<long, std::vector<std::string>>, unsigned long>> formats = {
+        /* AIFF */
+        {{0, {"FORM"}}, giblorb_ID_FORM},
+
+        /* WAVE */
+        {{0, {"WAVE", "RIFF"}}, giblorb_ID_WAVE},
+
+        /* midi */
+        {{0, {"MThd"}}, giblorb_ID_MIDI},
+
+        /* s3m */
+        {{44, {"SCRM"}}, giblorb_ID_MOD},
+
+        /* XM */
+        {{0, {"Extended Module: "}}, giblorb_ID_MOD},
+
+        /* IT */
+        {{0, {"IMPM"}}, giblorb_ID_MOD},
+
+        /* MOD */
+        {{1080, {"4CHN", "6CHN", "8CHN",
+                 "16CN", "32CN", "M.K.",
+                 "M!K!", "FLT4", "CD81",
+                 "OKTA", "    "}}, giblorb_ID_MOD},
+
+        /* ogg */
+        {{0, {"OggS"}}, giblorb_ID_OGG},
+
+        /* mp3 */
+        {{0, {"\377\372"}}, giblorb_ID_MP3},
+    };
+
+    for (const auto &entry : formats)
+    {
+        auto offset = entry.first.first;
+        auto magics = entry.first.second;
+        auto format = entry.second;
+
+        if (std::any_of(magics.begin(), magics.end(), [&offset, &buf](const auto &magic) {
+            return offset + magic.size() < buf.size() &&
+                    std::memcmp(buf.data() + offset, magic.data(), magic.size()) == 0;
+        }))
+        {
+            return format;
+        }
+    }
+
+    return 0;
+}
+
+static int load_bleep_resource(glui32 snd, std::vector<unsigned char> &buf)
+{
+    if (snd != 1 && snd != 2)
+        return 0;
+
+    const auto &bleep = gli_bleeps.at(snd);
+    buf.assign(bleep.begin(), bleep.end());
+
+    return detect_format(buf);
+}
+
+static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
+{
+    long len;
+
     if (giblorb_get_resource_map() == nullptr)
     {
         std::string name;
@@ -485,11 +557,10 @@ static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned ch
             return 0;
 
         std::fseek(file.get(), 0, SEEK_END);
-        *len = std::ftell(file.get());
 
         try
         {
-            buf.resize(*len);
+            buf.resize(std::ftell(file.get()));
         }
         catch (const std::bad_alloc &)
         {
@@ -497,60 +568,10 @@ static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned ch
         }
 
         std::rewind(file.get());
-        if (std::fread(buf.data(), 1, *len, file.get()) != static_cast<size_t>(*len) && !std::feof(file.get()))
-        {
+        if (std::fread(buf.data(), 1, buf.size(), file.get()) != buf.size() && !std::feof(file.get()))
             return 0;
-        }
 
-        const std::vector<std::pair<std::pair<long, std::vector<std::string>>, unsigned long>> formats = {
-            /* AIFF */
-            {{0, {"FORM"}}, giblorb_ID_FORM},
-
-            /* WAVE */
-            {{0, {"WAVE", "RIFF"}}, giblorb_ID_WAVE},
-
-            /* midi */
-            {{0, {"MThd"}}, giblorb_ID_MIDI},
-
-            /* s3m */
-            {{44, {"SCRM"}}, giblorb_ID_MOD},
-
-            /* XM */
-            {{0, {"Extended Module: "}}, giblorb_ID_MOD},
-
-            /* IT */
-            {{0, {"IMPM"}}, giblorb_ID_MOD},
-
-            /* MOD */
-            {{1080, {"4CHN", "6CHN", "8CHN",
-                     "16CN", "32CN", "M.K.",
-                     "M!K!", "FLT4", "CD81",
-                     "OKTA", "    "}}, giblorb_ID_MOD},
-
-            /* ogg */
-            {{0, {"OggS"}}, giblorb_ID_OGG},
-
-            /* mp3 */
-            {{0, {"\377\372"}}, giblorb_ID_MP3},
-        };
-
-        for (const auto &entry : formats)
-        {
-            auto offset = entry.first.first;
-            auto magics = entry.first.second;
-            auto format = entry.second;
-
-            if (std::any_of(magics.begin(), magics.end(), [&offset, &len, &buf](const auto &magic) {
-                return offset + magic.size() < static_cast<std::size_t>(*len) &&
-                       std::memcmp(buf.data() + offset, magic.data(), magic.size()) == 0;
-            }))
-            {
-                return format;
-            }
-        }
-
-        return giblorb_ID_MP3;
-
+        return detect_format(buf);
     }
     else
     {
@@ -558,13 +579,13 @@ static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned ch
         glui32 type;
         long pos;
 
-        giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, len, &type);
+        giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, &len, &type);
         if (!file)
             return 0;
 
         try
         {
-            buf.resize(*len);
+            buf.resize(len);
         }
         catch (const std::bad_alloc &)
         {
@@ -572,7 +593,9 @@ static glui32 load_sound_resource(glui32 snd, long *len, std::vector<unsigned ch
         }
 
         std::fseek(file, pos, SEEK_SET);
-        if (std::fread(buf.data(), 1, *len, file) != static_cast<size_t>(*len) && !std::feof(file)) return 0;
+        if (std::fread(buf.data(), 1, buf.size(), file) != buf.size() && !std::feof(file))
+            return 0;
+
         return type;
     }
 }
@@ -688,9 +711,8 @@ static glui32 play_mod(schanid_t chan, long len)
     return 0;
 }
 
-glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
+glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<glui32(glui32, std::vector<unsigned char> &)> load_resource)
 {
-    long len = 0;
     glui32 type;
     glui32 result = 0;
     glui32 paused = 0;
@@ -711,9 +733,16 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
         return 1;
 
     /* load sound resource into memory */
-    type = load_sound_resource(snd, &len, chan->sdl_memory);
+    try
+    {
+        type = load_resource(snd, chan->sdl_memory);
+    }
+    catch (const Bleeps::Empty &)
+    {
+        return 1;
+    }
 
-    chan->sdl_rwops = SDL_RWFromConstMem(chan->sdl_memory.data(), static_cast<int>(len));
+    chan->sdl_rwops = SDL_RWFromConstMem(chan->sdl_memory.data(), chan->sdl_memory.size());
     chan->notify = notify;
     chan->resid = snd;
     chan->loop = repeats;
@@ -730,7 +759,7 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 
         case giblorb_ID_MOD:
         case giblorb_ID_MIDI:
-            result = play_mod(chan, len);
+            result = play_mod(chan, chan->sdl_memory.size());
             break;
 
         default:
@@ -744,6 +773,11 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     }
 
     return result;
+}
+
+glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
+{
+    return glk_schannel_play_ext_impl(chan, snd, repeats, notify, load_sound_resource);
 }
 
 void glk_schannel_pause(schanid_t chan)
@@ -815,4 +849,10 @@ void glk_schannel_stop(schanid_t chan)
     SDL_LockAudio();
     cleanup_channel(chan);
     SDL_UnlockAudio();
+}
+
+void garglk_zbleep(glui32 number)
+{
+    if (gli_bleep_channel != nullptr)
+        glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
 }

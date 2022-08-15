@@ -38,12 +38,16 @@
 #include <cstdio>
 #include <cstring>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "optional.hpp"
 
 #include "glk.h"
 #include "gi_dispa.h"
@@ -310,6 +314,24 @@ private:
 using Color = Pixel<3>;
 
 Color gli_parse_color(const std::string &str);
+
+class Bleeps {
+public:
+    class Empty : public std::exception { };
+
+    Bleeps();
+    void update(int number, double duration, int frequency);
+    void update(int number, const std::string &path);
+    std::vector<std::uint8_t> &at(int number);
+
+private:
+    std::map<int, nonstd::optional<std::vector<std::uint8_t>>> m_bleeps = {
+        {1, nonstd::nullopt},
+        {2, nonstd::nullopt},
+    };
+};
+
+extern Bleeps gli_bleeps;
 
 /* Callbacks necessary for the dispatch layer.  */
 

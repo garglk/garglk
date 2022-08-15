@@ -59,6 +59,7 @@ typedef int32_t glsi32;
 #define GLK_MODULE_RESOURCE_STREAM
 
 #define GLK_MODULE_GARGLKTEXT
+#define GLK_MODULE_GARGLKBLEEP
 #define GLK_MODULE_FILEREF_GET_NAME
 
 /* Define a macro for a function attribute that indicates a function that
@@ -508,6 +509,8 @@ extern void garglk_set_zcolors(glui32 fg, glui32 bg);
 extern void garglk_set_zcolors_stream(strid_t str, glui32 fg, glui32 bg);
 extern void garglk_set_reversevideo(glui32 reverse);
 extern void garglk_set_reversevideo_stream(strid_t str, glui32 reverse);
+
+extern void garglk_zbleep(glui32 number);
 
 /* non standard keycodes */
 #define keycode_Erase               (0xffffef7f)
