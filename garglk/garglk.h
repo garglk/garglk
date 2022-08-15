@@ -374,21 +374,6 @@ extern bool gli_claimselect;
     (evp)->val1 = 0,   \
     (evp)->val2 = 0)
 
-typedef struct eventlog_s eventlog_t;
-typedef struct eventqueue_s eventqueue_t;
-
-struct eventlog_s
-{
-    event_t *event;
-    struct eventlog_s *next;
-};
-
-struct eventqueue_s
-{
-    eventlog_t *first;
-    eventlog_t *last;
-};
-
 void gli_dispatch_event(event_t *event, int polled);
 
 #define MAGIC_WINDOW_NUM (9876)
