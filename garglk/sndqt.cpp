@@ -82,6 +82,65 @@ static std::set<schanid_t> gli_channellist;
 static bool mp3_initialized;
 #endif
 
+class VFSAbstract {
+public:
+    explicit VFSAbstract(QByteArray buf) : m_buf(std::move(buf)) {
+    }
+
+    qsizetype size() {
+        return m_buf.size();
+    }
+
+    off_t tell() {
+        return m_offset;
+    }
+
+    off_t seek(off_t offset, int whence) {
+        off_t new_offset = m_offset;
+
+        switch(whence)
+        {
+        case SEEK_SET:
+            new_offset = offset;
+            break;
+        case SEEK_CUR:
+            new_offset += offset;
+            break;
+        case SEEK_END:
+            new_offset = m_buf.size() + offset;
+            break;
+        default:
+            return -1;
+        }
+
+        if (new_offset < 0)
+            return -1;
+
+        return m_offset = new_offset;
+    }
+
+    void rewind() {
+        m_offset = 0;
+    }
+
+    std::size_t read(void *ptr, off_t count) {
+        if (m_offset >= m_buf.size())
+            return 0;
+
+        if (m_offset + count > m_buf.size())
+            count = m_buf.size() - m_offset;
+
+        std::memcpy(ptr, &m_buf.data()[m_offset], count);
+        m_offset += count;
+
+        return count;
+    }
+
+private:
+    const QByteArray m_buf;
+    off_t m_offset = 0;
+};
+
 class SoundError : public std::runtime_error {
 public:
     explicit SoundError(const QString &msg) : std::runtime_error(msg.toStdString()) {
@@ -206,7 +265,7 @@ class SndfileSource : public SoundSource {
 public:
     SndfileSource(QByteArray buf, glui32 plays) :
         SoundSource(plays),
-        m_buf(std::move(buf))
+        m_vfs(std::move(buf))
     {
         SF_VIRTUAL_IO io = get_io();
         m_soundfile = SndfileHandle(io, this);
@@ -221,15 +280,14 @@ public:
     }
 
     void source_rewind() override {
-        m_offset = 0;
+        m_vfs.rewind();
         SF_VIRTUAL_IO io = get_io();
         m_soundfile = SndfileHandle(io, this);
     }
 
 private:
     SndfileHandle m_soundfile;
-    const QByteArray m_buf;
-    ssize_t m_offset = 0;
+    VFSAbstract m_vfs;
 
     static SF_VIRTUAL_IO get_io() {
         SF_VIRTUAL_IO io;
@@ -243,47 +301,20 @@ private:
         return io;
     }
 
-#define SOURCE (reinterpret_cast<SndfileSource *>(source))
+    static VFSAbstract &vfs(void *source) {
+        return reinterpret_cast<SndfileSource *>(source)->m_vfs;
+    }
+
     static sf_count_t vio_get_filelen(void *source) {
-        return SOURCE->m_buf.size();
+        return vfs(source).size();
     }
 
     static sf_count_t vio_seek(sf_count_t offset, int whence, void *source) {
-        ssize_t orig = SOURCE->m_offset;
-
-        switch (whence)
-        {
-        case SEEK_SET:
-            SOURCE->m_offset = offset;
-            break;
-        case SEEK_CUR:
-            SOURCE->m_offset += offset;
-            break;
-        case SEEK_END:
-            SOURCE->m_offset = SOURCE->m_buf.size() + offset;
-            break;
-        }
-
-        if (SOURCE->m_offset < 0)
-        {
-            SOURCE->m_offset = orig;
-            return -1;
-        }
-
-        return SOURCE->m_offset;
+        return vfs(source).seek(offset, whence);
     }
 
     static sf_count_t vio_read(void *ptr, sf_count_t count, void *source) {
-        if (SOURCE->m_offset >= SOURCE->m_buf.size())
-            return 0;
-
-        if (SOURCE->m_offset + count > SOURCE->m_buf.size())
-            count = SOURCE->m_buf.size() - SOURCE->m_offset;
-
-        std::memcpy(ptr, &SOURCE->m_buf.data()[SOURCE->m_offset], count);
-        SOURCE->m_offset += count;
-
-        return count;
+        return vfs(source).read(ptr, count);
     }
 
     static sf_count_t vio_write(const void *, sf_count_t, void *) {
@@ -291,9 +322,8 @@ private:
     }
 
     static sf_count_t vio_tell(void *source) {
-        return SOURCE->m_offset;
+        return vfs(source).tell();
     }
-#undef SOURCE
 };
 
 class Mpg123Source : public SoundSource {
@@ -305,7 +335,7 @@ public:
 #else
         m_handle(mpg123_new(nullptr, nullptr), mpg123_delete),
 #endif
-        m_buf(std::move(buf))
+        m_vfs(std::move(buf))
     {
 #if MPG123_API_VERSION < 46
         if (!mp3_initialized)
@@ -362,58 +392,29 @@ public:
     }
 
     void source_rewind() override {
-        m_offset = 0;
+        m_vfs.rewind();
         m_eof = mpg123_open_handle(m_handle.get(), this) != MPG123_OK;
     }
 
 private:
     std::unique_ptr<mpg123_handle, decltype(&mpg123_delete)> m_handle;
 
-    const QByteArray m_buf;
-    ssize_t m_offset = 0;
+    VFSAbstract m_vfs;
     long m_rate;
     int m_channels;
     bool m_eof = false;
 
-#define SOURCE (reinterpret_cast<Mpg123Source *>(source))
+    static VFSAbstract &vfs(void *source) {
+        return reinterpret_cast<Mpg123Source *>(source)->m_vfs;
+    }
+
     static ssize_t vio_read(void *source, void *ptr, std::size_t count) {
-        if (SOURCE->m_offset >= SOURCE->m_buf.size())
-            return 0;
-
-        if (SOURCE->m_offset + static_cast<ssize_t>(count) > SOURCE->m_buf.size())
-            count = SOURCE->m_buf.size() - SOURCE->m_offset;
-
-        std::memcpy(ptr, &SOURCE->m_buf.data()[SOURCE->m_offset], count);
-        SOURCE->m_offset += count;
-
-        return count;
+        return vfs(source).read(ptr, count);
     }
 
     static off_t vio_lseek(void *source, off_t offset, int whence) {
-        ssize_t orig = SOURCE->m_offset;
-
-        switch(whence)
-        {
-        case SEEK_SET:
-            SOURCE->m_offset = offset;
-            break;
-        case SEEK_CUR:
-            SOURCE->m_offset += offset;
-            break;
-        case SEEK_END:
-            SOURCE->m_offset = SOURCE->m_buf.size() + offset;
-            break;
-        }
-
-        if (SOURCE->m_offset < 0)
-        {
-            SOURCE->m_offset = orig;
-            return -1;
-        }
-
-        return SOURCE->m_offset;
+        return vfs(source).seek(offset, whence);
     }
-#undef SOURCE
 };
 
 struct glk_schannel_struct
