@@ -153,13 +153,11 @@ glui32 glk_gestalt_ext(glui32 id, glui32 val, glui32 *arr,
         case gestalt_SoundVolume:
         case gestalt_SoundNotify: 
         case gestalt_SoundMusic:
-#ifdef GARGLK
-            return gli_conf_sound;
-#else
+#ifndef GARGLK
             return FALSE;
 #endif
         case gestalt_Sound2: 
-#ifdef GARGLK
+#if defined(GARGLK) && !defined(GARGLK_CONFIG_NO_SOUND)
             return gli_conf_sound;
 #else
             /* Sound2 implies all the above sound options. But for

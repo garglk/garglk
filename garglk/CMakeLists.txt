@@ -194,6 +194,7 @@ elseif("${SOUND}" STREQUAL "SDL")
     target_sources(garglk PRIVATE sndsdl.cpp)
 else()
     target_sources(garglk PRIVATE sndnull.cpp)
+    target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_NO_SOUND)
 endif()
 
 if(WITH_BABEL)
