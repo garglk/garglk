@@ -29,16 +29,18 @@
 #include "glk.h"
 #include "garglk.h"
 
+enum class FontStyle { Roman, Bold, Italic, BoldItalic };
+
 static bool gli_sys_monor = false;
 static bool gli_sys_monob = false;
 static bool gli_sys_monoi = false;
 static bool gli_sys_monoz = false;
 
-static void monofont(char *file, int style)
+static void monofont(char *file, FontStyle style)
 {
     switch (style)
     {
-        case FONTR:
+        case FontStyle::Roman:
         {
             if (!gli_sys_monor)
             {
@@ -58,7 +60,7 @@ static void monofont(char *file, int style)
             return;
         }
 
-        case FONTB:
+        case FontStyle::Bold:
         {
             if (!gli_sys_monob)
             {
@@ -72,7 +74,7 @@ static void monofont(char *file, int style)
             return;
         }
 
-        case FONTI:
+        case FontStyle::Italic:
         {
             if (!gli_sys_monoi)
             {
@@ -86,7 +88,7 @@ static void monofont(char *file, int style)
             return;
         }
 
-        case FONTZ:
+        case FontStyle::BoldItalic:
         {
             if (!gli_sys_monoz)
             {
@@ -103,11 +105,11 @@ static bool gli_sys_propb = false;
 static bool gli_sys_propi = false;
 static bool gli_sys_propz = false;
 
-static void propfont(char *file, int style)
+static void propfont(char *file, FontStyle style)
 {
     switch (style)
     {
-        case FONTR:
+        case FontStyle::Roman:
         {
             if (!gli_sys_propr)
             {
@@ -127,7 +129,7 @@ static void propfont(char *file, int style)
             return;
         }
 
-        case FONTB:
+        case FontStyle::Bold:
         {
             if (!gli_sys_propb)
             {
@@ -141,7 +143,7 @@ static void propfont(char *file, int style)
             return;
         }
 
-        case FONTI:
+        case FontStyle::Italic:
         {
             if (!gli_sys_propi)
             {
@@ -155,7 +157,7 @@ static void propfont(char *file, int style)
             return;
         }
 
-        case FONTZ:
+        case FontStyle::BoldItalic:
         {
             if (!gli_sys_propz)
             {
@@ -170,7 +172,7 @@ static void propfont(char *file, int style)
 static NSMutableArray * gli_registered_fonts = nil;
 static NSDistributedLock * gli_font_lock = nil;
 
-void garglk::fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, FontType type)
 {
     if (font.empty())
         return;
@@ -187,16 +189,16 @@ void garglk::fontreplace(const std::string &font, int type)
     for (NSFontDescriptor * sysfont in fontMatches)
     {
         /* find style for font */
-        int style = FONTR;
+        FontStyle style = FontStyle::Roman;
 
         if (([sysfont symbolicTraits] & NSFontBoldTrait) && ([sysfont symbolicTraits] & NSFontItalicTrait))
-            style = FONTZ;
+            style = FontStyle::BoldItalic;
 
         else if ([sysfont symbolicTraits] & NSFontBoldTrait)
-            style = FONTB;
+            style = FontStyle::Bold;
 
         else if ([sysfont symbolicTraits] & NSFontItalicTrait)
-            style = FONTI;
+            style = FontStyle::Italic;
 
         /* find path for font */
         CFURLRef urlRef = static_cast<CFURLRef>(CTFontDescriptorCopyAttribute((CTFontDescriptorRef)sysfont, kCTFontURLAttribute));
@@ -217,11 +219,11 @@ void garglk::fontreplace(const std::string &font, int type)
 
             switch (type)
             {
-                case MONOF:
+                case FontType::Monospace:
                     monofont(filebuf, style);
                     break;
 
-                case PROPF:
+                case FontType::Proportional:
                     propfont(filebuf, style);
                     break;
             }

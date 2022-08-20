@@ -82,7 +82,7 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
     return "";
 }
 
-void garglk::fontreplace(const std::string &font, int type)
+void garglk::fontreplace(const std::string &font, FontType type)
 {
     if (!initialized || font.empty())
         return;
@@ -90,7 +90,7 @@ void garglk::fontreplace(const std::string &font, int type)
     std::string sysfont;
     std::string *r, *b, *i, *z;
 
-    if (type == MONOF)
+    if (type == FontType::Monospace)
     {
         r = &gli_conf_mono.r;
         b = &gli_conf_mono.b;
@@ -180,12 +180,12 @@ void garglk::fontreplace(const std::string &font, int type)
     }
 }
 
-void fontload(void)
+void fontload()
 {
     initialized = FcInit();
 }
 
-void fontunload(void)
+void fontunload()
 {
     if (initialized)
         FcFini();

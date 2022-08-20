@@ -15,11 +15,11 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6
+        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6 libpng jpeg
 
       - name: Build (Qt)
         run: |
           mkdir build-cmake
           cd build-cmake
-          cmake .. -DINTERFACE=QT -DSOUND=QT -DWITH_QT6=ON
+          cmake .. -DINTERFACE=QT -DSOUND=QT -DWITH_QT6=ON -DCMAKE_FIND_FRAMEWORK=LAST
           make -j`sysctl -n hw.ncpu`

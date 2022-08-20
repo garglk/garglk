@@ -28,7 +28,6 @@
     It is distributed under the MIT license; see the "LICENSE" file.
 */
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -381,7 +380,7 @@ gidispatch_rock_t gidispatch_get_objrock(void *obj, glui32 objclass)
             return ((fileref_t *)obj)->disprock;
 #ifdef GARGLK
         case gidisp_Class_Schannel:
-            return gli_sound_get_channel_disprock(obj);
+            return gli_sound_get_channel_disprock(static_cast<const channel_t *>(obj));
 #endif
         default: {
             gidispatch_rock_t dummy;

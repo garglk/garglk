@@ -20,15 +20,13 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "glk.h"
 #include "garglk.h"
 
 /* The whole sound-channel situation is very simple for us;
    we don't support it. */
 
-void gli_initialize_sound(void)
+void gli_initialize_sound()
 {
 }
 
@@ -41,12 +39,12 @@ gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
 
 schanid_t glk_schannel_create(glui32 rock)
 {
-    return NULL;
+    return nullptr;
 }
 
 schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 {
-    return NULL;
+    return nullptr;
 }
 
 void glk_schannel_destroy(schanid_t chan)
@@ -57,7 +55,7 @@ schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr)
 {
     if (rockptr)
         *rockptr = 0;
-    return NULL;
+    return nullptr;
 }
 
 glui32 glk_schannel_get_rock(schanid_t chan)

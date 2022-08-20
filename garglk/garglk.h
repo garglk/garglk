@@ -31,24 +31,62 @@
 #ifndef GARGLK_GARGLK_H
 #define GARGLK_GARGLK_H
 
-// The order here is significant: for the time being, at least, the
-// macOS code directly indexes an array using these values.
-enum FILEFILTERS { FILTER_SAVE, FILTER_TEXT, FILTER_DATA };
-
 #ifdef __cplusplus
+#include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdio>
+#include <cstring>
+#include <deque>
 #include <functional>
+#include <iostream>
 #include <memory>
-#include <regex>
-#include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "glk.h"
+#include "gi_dispa.h"
+
+/* This function is called whenever the library code catches an error
+ * or illegal operation from the game program.
+ */
+inline void gli_strict_warning(const std::string &msg)
+{
+    std::cerr << "Glk library error: " << msg << std::endl;
+}
+
+enum class FileFilter { Save, Text, Data };
+enum class FontType { Monospace, Proportional };
+
+struct FontFace {
+    FontFace() = delete;
+
+    static FontFace propr() { return {false, false, false}; }
+    static FontFace propb() { return {false, true, false}; }
+    static FontFace propi() { return {false, false, true}; }
+    static FontFace propz() { return {false, true, true}; }
+    static FontFace monor() { return {true, false, false}; }
+    static FontFace monob() { return {true, true, false}; }
+    static FontFace monoi() { return {true, false, true}; }
+    static FontFace monoz() { return {true, true, true}; }
+
+    bool operator==(const FontFace &other) {
+        return monospace == other.monospace &&
+               bold == other.bold &&
+               italic == other.italic;
+    }
+
+    bool monospace;
+    bool bold;
+    bool italic;
+};
 
 namespace garglk {
 
 // This represents a possible configuration file (garglk.ini).
 struct ConfigFile {
-    ConfigFile(const std::string &path_, bool user_) : path(path_), user(user_) {
+    ConfigFile(std::string path_, bool user_) : path(std::move(path_)), user(user_) {
     }
 
     // The path to the file itself.
@@ -62,27 +100,20 @@ struct ConfigFile {
     bool user;
 };
 
-struct Color {
-public:
-    Color(unsigned char red, unsigned char green, unsigned char blue) : m_red(red), m_green(green), m_blue(blue) {
-    }
-
-    void to(unsigned char *rgb) const;
-    static Color from(const unsigned char *rgb);
-    static Color from(const std::string &colors);
-
-private:
-    unsigned char m_red, m_green, m_blue;
-    static const std::regex m_color_re;
-};
-
 extern std::vector<garglk::ConfigFile> all_configs;
 
-std::string winopenfile(const char *prompt, enum FILEFILTERS filter);
-std::string winsavefile(const char *prompt, enum FILEFILTERS filter);
+// C++17: std::clamp
+template <typename T>
+const T &clamp(const T &value, const T &min, const T &max)
+{
+    return value < min ? min : value > max ? max : value;
+}
+
+std::string winopenfile(const char *prompt, FileFilter filter);
+std::string winsavefile(const char *prompt, FileFilter filter);
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
-void fontreplace(const std::string &font, int type);
+void fontreplace(const std::string &font, FontType type);
 std::vector<ConfigFile> configs(const std::string &exedir, const std::string &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
 std::string user_config();
@@ -105,27 +136,180 @@ std::unique_ptr<T, Deleter> unique(T *p, Deleter deleter)
 
 }
 
-extern "C" {
-#endif
+template <std::size_t N>
+class PixelView;
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdio.h>
+// Represents an N-byte pixel, which in reality is just an array of
+// bytes. It is up to the user of this class to determine the layout,
+// e.g. BGR, RGBA, etc. In actuality, as far as Gargoyle is concerned,
+// this will be either RGB or RGBA. An instance of Pixel owns the pixel
+// data; contrast this with PixelView which holds a pointer to a pixel.
+template <std::size_t N>
+class Pixel {
+public:
+    template <typename... Args>
+    explicit Pixel(Args... args) : m_pixel{static_cast<unsigned char>(args)...} {
+    }
 
-#include "glk.h"
-#include "gi_dispa.h"
+    // This is intentionally _not_ explicit so that PixelViews can be
+    // used wherever a Pixel is expected.
+    Pixel(const PixelView<N> &other) {
+        memcpy(m_pixel.data(), other.data(), N);
+    }
 
-/* This macro is called whenever the library code catches an error
- * or illegal operation from the game program.
- */
+    bool operator==(const Pixel<N> &other) const {
+        return m_pixel == other.m_pixel;
+    }
 
-#define gli_strict_warning(...) do { \
-    fputs("Glk library error: ", stderr); \
-    fprintf(stderr, __VA_ARGS__); \
-    putc('\n', stderr); \
-} while(0)
+    bool operator!=(const Pixel<N> &other) const {
+        return !(*this == other);
+    }
 
-extern bool gli_utf8output, gli_utf8input;
+    const unsigned char *data() const {
+        return m_pixel.data();
+    }
+
+    unsigned char operator[](std::size_t i) const {
+        return m_pixel[i];
+    }
+
+private:
+    std::array<unsigned char, N> m_pixel;
+};
+
+// Represents a view to existing pixel data (see Pixel). The pixel data
+// is *not* owned by instances of this class. Instead, users of this
+// class must pass in a pointer to an appropriately-sized buffer (at
+// least N bytes) from/to which pixel data will be read/written.
+// Assigning a Pixel to a PixelData will overwrite the pixel pointer
+// with the new pixel data.
+template <std::size_t N>
+class PixelView {
+public:
+    explicit PixelView(unsigned char *data) : m_data(data) {
+    }
+
+    // The meaning of these is ambiguous: copy the data, or copy the
+    // pointer? To prevent their accidental use, delete them.
+    PixelView(const PixelView &) = delete;
+    PixelView &operator=(const PixelView &) = delete;
+
+    PixelView(PixelView &&) = default;
+    PixelView &operator=(PixelView &&) = default;
+
+    PixelView &operator=(const Pixel<N> &other) {
+        std::memcpy(m_data, other.data(), N);
+
+        return *this;
+    }
+
+    const unsigned char *data() const {
+        return m_data;
+    }
+
+    unsigned char operator[](std::size_t i) const {
+        return m_data[i];
+    }
+
+private:
+    unsigned char *m_data;
+};
+
+template <std::size_t N>
+class Row {
+public:
+    explicit Row(unsigned char *row) : m_row(row) {
+    }
+
+    PixelView<N> operator[](std::size_t x) {
+        return PixelView<N>(&m_row[x * N]);
+    }
+
+    void fill(const Pixel<N> &pixel, int start, int end) {
+        auto data = pixel.data();
+        for (int i = start; i < end; i++)
+            std::memcpy(&m_row[i * N], data, N);
+    }
+
+private:
+    unsigned char *m_row;
+};
+
+template <std::size_t N>
+class Canvas {
+public:
+    void resize(int width, int height, bool keep) {
+        if (keep)
+        {
+            auto backup = m_pixels;
+            int minwidth = std::min(m_width, width);
+            int minheight = std::min(m_height, height);
+
+            m_pixels.resize(width * height * N);
+
+            for (int y = 0; y < minheight; y++)
+                std::memcpy(&m_pixels[y * width * N], &backup[y * m_width * N], minwidth * N);
+        }
+        else
+        {
+            m_pixels.resize(width * height * N);
+        }
+
+        m_pixels.shrink_to_fit();
+
+        m_width = width;
+        m_height = height;
+        m_stride = width * N;
+    }
+
+    int width() {
+        return m_width;
+    }
+
+    int height() {
+        return m_height;
+    }
+
+    int stride() {
+        return m_stride;
+    }
+
+    void fill(const Pixel<N> &pixel) {
+        for (int i = 0; i < m_width * m_height; i++)
+            std::memcpy(&m_pixels[i * N], pixel.data(), N);
+    }
+
+    bool empty() const {
+        return m_pixels.empty();
+    }
+
+    Row<N> operator[](std::size_t y) {
+        return Row<N>(&m_pixels[y * stride()]);
+    }
+
+    unsigned char *data() {
+        return m_pixels.data();
+    }
+
+    std::size_t size() const {
+        return m_pixels.size();
+    }
+
+    void clear() {
+        m_pixels.clear();
+        m_pixels.shrink_to_fit();
+    }
+
+private:
+    std::vector<unsigned char> m_pixels;
+    int m_width = 0;
+    int m_height = 0;
+    int m_stride = 0;
+};
+
+using Color = Pixel<3>;
+
+Color gli_parse_color(const std::string &str);
 
 /* Callbacks necessary for the dispatch layer.  */
 
@@ -165,12 +349,10 @@ typedef struct window_graphics_s window_graphics_t;
 #define gli_zoom_int(x) ((x) * gli_zoom + 0.5)
 #define gli_unzoom_int(x) ((x) / gli_zoom + 0.5)
 
-#ifdef __cplusplus
 extern std::string gli_program_name;
 extern std::string gli_program_info;
 extern std::string gli_story_name;
 extern std::string gli_story_title;
-#endif
 
 extern bool gli_terminated;
 
@@ -195,84 +377,76 @@ extern int gli_cellh;
 #define UNI_NDASH	0x2013
 #define UNI_MDASH	0x2014
 
-typedef struct rect_s rect_t;
-typedef struct picture_s picture_t;
-typedef struct piclist_s piclist_t;
-typedef struct style_s style_t;
-typedef struct mask_s mask_t;
-
-struct rect_s
+struct rect_t
 {
     int x0, y0;
     int x1, y1;
 };
 
-struct picture_s
+struct picture_t
 {
-    int refcount;
+    picture_t(unsigned int id_, int w_, int h_, bool scaled_) : w(w_), h(h_), id(id_), scaled(scaled_) {
+        rgba.resize(w, h, false);
+    }
+
     int w, h;
-    unsigned char *rgba;
+    Canvas<4> rgba;
     unsigned long id;
     bool scaled;
 };
 
-struct piclist_s
+struct style_t
 {
-    picture_t *picture;
-    picture_t *scaled;
-    struct piclist_s *next;
-};
-
-struct style_s
-{
-    int font;
-    unsigned char bg[3];
-    unsigned char fg[3];
+    FontFace font;
+    Color bg;
+    Color fg;
     bool reverse;
+
+    bool operator==(const style_t &other) {
+        return font == other.font &&
+               bg == other.bg &&
+               fg == other.fg &&
+               reverse == other.reverse;
+    }
+
+    bool operator!=(const style_t &other) {
+        return !(*this == other);
+    }
 };
 
-struct mask_s
-{
-    int hor;
-    int ver;
-    glui32 **links;
-    rect_t select;
-};
+using Styles = std::array<style_t, style_NUMSTYLES>;
 
-extern int gli_image_s;	/* stride */
-extern int gli_image_w;
-extern int gli_image_h;
-extern unsigned char *gli_image_rgb;
+extern Canvas<3> gli_image_rgb;
 
 /*
  * Config globals
  */
 
-extern char gli_workdir[];
-extern char gli_workfile[];
+extern std::string gli_workdir;
+extern std::string gli_workfile;
 
-extern style_t gli_tstyles[style_NUMSTYLES];
-extern style_t gli_gstyles[style_NUMSTYLES];
+extern Styles gli_tstyles;
+extern Styles gli_gstyles;
 
-extern style_t gli_tstyles_def[style_NUMSTYLES];
-extern style_t gli_gstyles_def[style_NUMSTYLES];
+extern const Styles gli_tstyles_def;
+extern const Styles gli_gstyles_def;
 
-extern unsigned char gli_window_color[3];
-extern unsigned char gli_border_color[3];
-extern unsigned char gli_caret_color[3];
-extern unsigned char gli_more_color[3];
-extern unsigned char gli_link_color[3];
+extern Color gli_window_color;
+extern Color gli_border_color;
+extern Color gli_caret_color;
+extern Color gli_more_color;
+extern Color gli_link_color;
 
-extern unsigned char gli_window_save[3];
-extern unsigned char gli_border_save[3];
-extern unsigned char gli_caret_save[3];
-extern unsigned char gli_more_save[3];
-extern unsigned char gli_link_save[3];
+extern Color gli_window_save;
+extern Color gli_border_save;
+extern Color gli_caret_save;
+extern Color gli_more_save;
+extern Color gli_link_save;
 
 extern bool gli_override_fg_set;
-extern glui32 gli_override_fg_val;
+extern Color gli_override_fg_val;
 extern bool gli_override_bg_set;
-extern glui32 gli_override_bg_val;
+extern Color gli_override_bg_val;
 extern bool gli_override_reverse;
 
 extern int gli_link_style;
@@ -293,7 +467,7 @@ extern float gli_backingscalefactor;
 extern float gli_zoom;
 
 extern bool gli_conf_lcd;
-extern unsigned char gli_conf_lcd_weights[5];
+extern std::array<unsigned char, 5> gli_conf_lcd_weights;
 
 extern bool gli_conf_graphics;
 extern bool gli_conf_sound;
@@ -303,9 +477,7 @@ extern bool gli_conf_fullscreen;
 extern bool gli_conf_speak;
 extern bool gli_conf_speak_input;
 
-#ifdef __cplusplus
 extern std::string gli_conf_speak_language;
-#endif
 
 extern bool gli_conf_stylehint;
 extern bool gli_conf_safeclicks;
@@ -325,26 +497,20 @@ extern bool gli_conf_lockrows;
 extern bool gli_conf_save_window_size;
 extern bool gli_conf_save_window_location;
 
-extern unsigned char gli_scroll_bg[3];
-extern unsigned char gli_scroll_fg[3];
+extern Color gli_scroll_bg;
+extern Color gli_scroll_fg;
 extern int gli_scroll_width;
 
 extern int gli_baseline;
 extern int gli_leading;
 
-enum FACES { MONOR, MONOB, MONOI, MONOZ, PROPR, PROPB, PROPI, PROPZ };
-enum TYPES { MONOF, PROPF };
-enum STYLES { FONTR, FONTB, FONTI, FONTZ };
-
-#ifdef __cplusplus
-struct gli_font_files {
+struct FontFiles {
     std::string r, b, i, z;
 };
 extern std::string gli_conf_propfont;
-extern struct gli_font_files gli_conf_prop, gli_conf_prop_override;
+extern FontFiles gli_conf_prop, gli_conf_prop_override;
 extern std::string gli_conf_monofont;
-extern struct gli_font_files gli_conf_mono, gli_conf_mono_override;
-#endif
+extern FontFiles gli_conf_mono, gli_conf_mono_override;
 
 extern float gli_conf_gamma;
 extern float gli_conf_propsize;
@@ -352,10 +518,10 @@ extern float gli_conf_monosize;
 extern float gli_conf_propaspect;
 extern float gli_conf_monoaspect;
 
-extern glui32 *gli_more_prompt;
+extern std::vector<glui32> gli_more_prompt;
 extern glui32 gli_more_prompt_len;
 extern int gli_more_align;
-extern int gli_more_font;
+extern FontFace gli_more_font;
 
 extern bool gli_forceclick;
 extern bool gli_copyselect;
@@ -370,11 +536,11 @@ extern bool gli_claimselect;
 
 #define gli_event_clearevent(evp)  \
     ((evp)->type = evtype_None,    \
-    (evp)->win = NULL,    \
+    (evp)->win = nullptr,    \
     (evp)->val1 = 0,   \
     (evp)->val2 = 0)
 
-void gli_dispatch_event(event_t *event, int polled);
+void gli_dispatch_event(event_t *event, bool polled);
 
 #define MAGIC_WINDOW_NUM (9876)
 #define MAGIC_STREAM_NUM (8769)
@@ -400,11 +566,11 @@ struct glk_stream_struct
     window_t *win;
 
     /* for strtype_File */
-    FILE *file;
+    std::FILE *file;
     glui32 lastop; /* 0, filemode_Write, or filemode_Read */
 
     /* for strtype_Resource */
-    int isbinary;
+    bool isbinary;
 
     /* for strtype_Memory and strtype_Resource. Separate pointers for 
        one-byte and four-byte streams */
@@ -440,53 +606,61 @@ struct glk_fileref_struct
  * Windows and all that
  */
 
-// For some reason MinGW does "typedef hyper __int64", which conflicts
+// For some reason MinGW does "#define hyper __int64", which conflicts
 // with attr_s.hyper below. Unconditionally undefine it here so any
 // files which include windows.h will not cause build failures.
 #undef hyper
 
-typedef struct attr_s
+struct attr_t
 {
-    bool fgset;
-    bool bgset;
-    bool reverse;
-    glui32 style;
-    glui32 fgcolor;
-    glui32 bgcolor;
-    glui32 hyper;
-} attr_t;
+    bool fgset = false;
+    bool bgset = false;
+    bool reverse = false;
+    glui32 style = 0;
+    Color fgcolor = Color(0, 0, 0);
+    Color bgcolor = Color(0, 0, 0);
+    glui32 hyper = 0;
+};
 
 struct glk_window_struct
 {
-    glui32 magicnum;
-    glui32 rock;
-    glui32 type;
+    glk_window_struct(glui32 type_, glui32 rock_);
+    ~glk_window_struct();
 
-    window_t *parent; /* pair window which contains this one */
+    glui32 magicnum = MAGIC_WINDOW_NUM;
+    glui32 type;
+    glui32 rock;
+
+    window_t *parent = nullptr; /* pair window which contains this one */
     rect_t bbox;
-    int yadj;
-    void *data; /* one of the window_*_t structures */
+    int yadj = 0;
+    union {
+        window_textgrid_t *textgrid;
+        window_textbuffer_t *textbuffer;
+        window_graphics_t *graphics;
+        window_blank_t *blank;
+        window_pair_t *pair;
+    } window;
 
     stream_t *str; /* the window stream. */
-    stream_t *echostr; /* the window's echo stream, if any. */
+    stream_t *echostr = nullptr; /* the window's echo stream, if any. */
 
-    bool line_request;
-    bool line_request_uni;
-    bool char_request;
-    bool char_request_uni;
-    bool mouse_request;
-    bool hyper_request;
-    bool more_request;
-    bool scroll_request;
-    bool image_loaded;
+    bool line_request = false;
+    bool line_request_uni = false;
+    bool char_request = false;
+    bool char_request_uni = false;
+    bool mouse_request = false;
+    bool hyper_request = false;
+    bool more_request = false;
+    bool scroll_request = false;
+    bool image_loaded = false;
 
-    bool echo_line_input;
-    glui32 *line_terminators;
-    glui32 termct;
+    bool echo_line_input = true;
+    std::vector<glui32> line_terminators;
 
     attr_t attr;
-    unsigned char bgcolor[3];
-    unsigned char fgcolor[3];
+    Color bgcolor = gli_window_color;
+    Color fgcolor = gli_more_color;
 
     gidispatch_rock_t disprock;
     window_t *next, *prev; /* in the big linked list of windows */
@@ -494,133 +668,173 @@ struct glk_window_struct
 
 struct window_blank_s
 {
+    explicit window_blank_s(window_t *win) : owner(win) {
+    }
+
     window_t *owner;
 };
 
 struct window_pair_s
 {
+    window_pair_s(window_t *win, glui32 method, window_t *key_, glui32 size_) :
+        owner(win),
+        dir(method & winmethod_DirMask),
+        vertical(dir == winmethod_Left || dir == winmethod_Right),
+        backward(dir == winmethod_Left || dir == winmethod_Above),
+        division(method & winmethod_DivisionMask),
+        key(key_),
+        size(size_),
+        wborder((method & winmethod_BorderMask) == winmethod_Border)
+    {
+    }
+
     window_t *owner;
-    window_t *child1, *child2;
+    window_t *child1 = nullptr, *child2 = nullptr;
 
     /* split info... */
     glui32 dir; /* winmethod_Left, Right, Above, or Below */
     bool vertical, backward; /* flags */
     glui32 division; /* winmethod_Fixed or winmethod_Proportional */
     window_t *key; /* NULL or a leaf-descendant (not a Pair) */
-    bool keydamage; /* used as scratch space in window closing */
+    bool keydamage = false; /* used as scratch space in window closing */
     glui32 size; /* size value */
     glui32 wborder;  /* winMethod_Border, NoBorder */
 };
 
 /* One line of the grid window. */
-typedef struct tgline_s
+struct tgline_t
 {
-    int dirty;
-    glui32 chars[256];
-    attr_t attrs[256];
-} tgline_t;
+    bool dirty = false;
+    std::array<glui32, 256> chars;
+    std::array<attr_t, 256> attrs;
+};
 
 struct window_textgrid_s
 {
+    window_textgrid_s(window_t *owner_, Styles styles_) :
+        owner(owner_),
+        styles(std::move(styles_))
+    {
+    }
+
     window_t *owner;
 
-    int width, height;
-    tgline_t lines[256];
+    int width = 0, height = 0;
+    std::array<tgline_t, 256> lines;
 
-    int curx, cury; /* the window cursor position */
+    int curx = 0, cury = 0; /* the window cursor position */
 
     /* for line input */
-    void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
-    int inunicode;
-    int inorgx, inorgy;
+    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    bool inunicode = false;
+    int inorgx = 0, inorgy = 0;
     int inoriglen, inmax;
     int incurs, inlen;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
-    glui32 *line_terminators;
+    std::vector<glui32> line_terminators;
 
     /* style hints and settings */
-    style_t styles[style_NUMSTYLES];
+    Styles styles;
 };
 
-typedef struct tbline_s
+struct tbline_t
 {
-    int len;
-    bool newline, dirty, repaint;
-    picture_t *lpic, *rpic;
-    glui32 lhyper, rhyper;
-    int lm, rm;
-    glui32 chars[TBLINELEN];
-    attr_t attrs[TBLINELEN];
-} tbline_t;
+    tbline_t() {
+        chars.fill(' ');
+    }
+    int len = 0;
+    bool newline = false, dirty = false, repaint = false;
+    std::shared_ptr<picture_t> lpic, rpic;
+    glui32 lhyper = 0, rhyper = 0;
+    int lm = 0, rm = 0;
+    std::array<glui32, TBLINELEN> chars;
+    std::array<attr_t, TBLINELEN> attrs;
+};
 
 struct window_textbuffer_s
 {
+    window_textbuffer_s(window_t *owner_, Styles styles_, int scrollback_) :
+        owner(owner_),
+        scrollback(scrollback_),
+        styles(std::move(styles_))
+    {
+        lines.resize(scrollback);
+        chars = lines[0].chars.data();
+        attrs = lines[0].attrs.data();
+    }
+
     window_t *owner;
 
-    int width, height;
-    int spaced;
-    int dashed;
+    int width = -1, height = -1;
+    int spaced = 0;
+    int dashed = 0;
 
-    tbline_t *lines;
-    int scrollback;
+    std::vector<tbline_t> lines;
+    int scrollback = SCROLLBACK;
 
-    int numchars;		/* number of chars in last line: lines[0] */
+    int numchars = 0;		/* number of chars in last line: lines[0] */
     glui32 *chars;		/* alias to lines[0].chars */
     attr_t *attrs;		/* alias to lines[0].attrs */
 
     /* adjust margins temporarily for images */
-    int ladjw;
-    int ladjn;
-    int radjw;
-    int radjn;
+    int ladjw = 0;
+    int ladjn = 0;
+    int radjw = 0;
+    int radjn = 0;
 
     /* Command history. */
-    glui32 *history[HISTORYLEN];
-    int historypos;
-    int historyfirst, historypresent;
+    std::deque<std::vector<glui32>> history;
+    std::deque<std::vector<glui32>>::iterator history_it = history.begin();
 
     /* for paging */
-    int lastseen;
-    int scrollpos;
-    int scrollmax;
+    int lastseen = 0;
+    int scrollpos = 0;
+    int scrollmax = 0;
 
     /* for line input */
-    void *inbuf;	/* unsigned char* for latin1, glui32* for unicode */
-    bool inunicode;
+    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    bool inunicode = false;
     int inmax;
     long infence;
     long incurs;
     attr_t origattr;
     gidispatch_rock_t inarrayrock;
 
-    bool echo_line_input;
-    glui32 *line_terminators;
+    bool echo_line_input = true;
+    std::vector<glui32> line_terminators;
 
     /* style hints and settings */
-    style_t styles[style_NUMSTYLES];
+    Styles styles;
 
     /* for copy selection */
-    glui32 *copybuf;
-    int copypos;
+    std::vector<glui32> copybuf;
+    int copypos = 0;
 };
 
 struct window_graphics_s
 {
+    explicit window_graphics_s(window_t *win) :
+        owner(win),
+        bgnd(win->bgcolor)
+    {
+    }
+
     window_t *owner;
-    unsigned char bgnd[3];
-    int dirty;
-    int w, h;
-    unsigned char *rgb;
+    Color bgnd;
+    bool dirty = false;
+    int w = 0, h = 0;
+    Canvas<3> rgb;
 };
 
 /* ---------------------------------------------------------------------- */
 
-extern void gli_initialize_sound(void);
-extern void gli_initialize_tts(void);
-extern void gli_tts_speak(const glui32 *buf, size_t len);
-extern void gli_tts_flush(void);
-extern void gli_tts_purge(void);
+extern void gli_initialize_sound();
+extern void gli_initialize_tts();
+extern void gli_tts_speak(const glui32 *buf, std::size_t len);
+extern void gli_tts_flush();
+extern void gli_tts_purge();
+
 extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
 
 /* ---------------------------------------------------------------------- */
@@ -671,12 +885,10 @@ extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
 
 /* Declarations of library internal functions. */
 
-extern void gli_initialize_misc(void);
-extern void gli_initialize_windows(void);
-extern void gli_initialize_babel(void);
+extern void gli_initialize_misc();
+extern void gli_initialize_windows();
+extern void gli_initialize_babel();
 
-extern window_t *gli_new_window(glui32 type, glui32 rock);
-extern void gli_delete_window(window_t *win);
 extern window_t *gli_window_iterate_treeorder(window_t *win);
 
 extern void gli_window_rearrange(window_t *win, rect_t *box);
@@ -686,8 +898,8 @@ extern bool gli_window_unput_char_uni(window_t *win, glui32 ch);
 extern bool gli_window_check_terminator(glui32 ch);
 extern void gli_window_refocus(window_t *win);
 
-extern void gli_windows_redraw(void);
-extern void gli_windows_size_change(void);
+extern void gli_windows_redraw();
+extern void gli_windows_size_change(int w, int h);
 extern void gli_windows_unechostream(stream_t *str);
 
 extern void gli_window_click(window_t *win, int x, int y);
@@ -709,51 +921,44 @@ extern void gli_stream_fill_result(stream_t *str,
     stream_result_t *result);
 extern void gli_stream_echo_line(stream_t *str, char *buf, glui32 len);
 extern void gli_stream_echo_line_uni(stream_t *str, glui32 *buf, glui32 len);
-extern void gli_streams_close_all(void);
+extern void gli_streams_close_all();
 
-void gli_initialize_fonts(void);
-void gli_draw_pixel(int x, int y, const unsigned char *rgb);
-void gli_draw_pixel_lcd(int x, int y, const unsigned char *alpha, const unsigned char *rgb);
-void gli_draw_clear(const unsigned char *rgb);
-void gli_draw_rect(int x, int y, int w, int h, const unsigned char *rgb);
-int gli_draw_string_uni(int x, int y, int f, const unsigned char *rgb, glui32 *text, int len, int spacewidth);
-int gli_string_width_uni(int f, glui32 *text, int len, int spw);
+void gli_initialize_fonts();
+void gli_draw_pixel(int x, int y, const Color &rgb);
+void gli_draw_clear(const Color &rgb);
+void gli_draw_rect(int x, int y, int w, int h, const Color &rgb);
+int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb, const glui32 *text, int len, int spacewidth);
+int gli_string_width_uni(FontFace font, const glui32 *text, int len, int spw);
 void gli_draw_caret(int x, int y);
 void gli_draw_picture(picture_t *pic, int x, int y, int x0, int y0, int x1, int y1);
 
 void gli_startup(int argc, char *argv[]);
 
-extern void gli_select(event_t *event, int polled);
+extern void gli_select(event_t *event, bool polled);
 #ifdef GARGLK_TICK
-extern void gli_tick(void);
+extern void gli_tick();
 #endif
 
 void wininit(int *argc, char **argv);
-void winopen(void);
-void wintitle(void);
-void winmore(void);
+void winopen();
+void wintitle();
+void winmore();
 void winrepaint(int x0, int y0, int x1, int y1);
-bool windark(void);
-void winexit(void);
-void winclipstore(glui32 *text, int len);
+bool windark();
+void winexit();
+void winclipstore(const glui32 *text, int len);
 
-void fontload(void);
-void fontunload(void);
+void fontload();
+void fontunload();
 
-void giblorb_get_resource(glui32 usage, glui32 resnum, FILE **file, long *pos, long *len, glui32 *type);
+void giblorb_get_resource(glui32 usage, glui32 resnum, std::FILE **file, long *pos, long *len, glui32 *type);
 
-picture_t *gli_picture_load(unsigned long id);
-void gli_picture_store(picture_t *pic);
-picture_t *gli_picture_retrieve(unsigned long id, bool scaled);
-picture_t *gli_picture_scale(picture_t *src, int destwidth, int destheight);
-void gli_picture_increment(picture_t *pic);
-void gli_picture_decrement(picture_t *pic);
-piclist_t *gli_piclist_search(unsigned long id);
-void gli_piclist_clear(void);
-void gli_piclist_increment(void);
-void gli_piclist_decrement(void);
-void gli_picture_store_original(picture_t *pic);
-void gli_picture_store_scaled(picture_t *pic);
+std::shared_ptr<picture_t> gli_picture_load(unsigned long id);
+void gli_picture_store(std::shared_ptr<picture_t> pic);
+std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled);
+std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int destwidth, int destheight);
+void gli_piclist_increment();
+void gli_piclist_decrement();
 
 window_graphics_t *win_graphics_create(window_t *win);
 void win_graphics_destroy(window_graphics_t *cutwin);
@@ -776,41 +981,42 @@ void gli_calc_padding(window_t *win, int *x, int *y);
 
 /* unicode case mapping */
 
-typedef glui32 gli_case_block_t[2]; /* upper, lower */
+using gli_case_block_t = glui32[2];
 /* If both are 0xFFFFFFFF, you have to look at the special-case table */
 
-typedef glui32 gli_case_special_t[3]; /* upper, lower, title */
+using gli_case_special_t = glui32[3];
 /* Each of these points to a subarray of the unigen_special_array
 (in cgunicode.c). In that subarray, element zero is the length,
 and that's followed by length unicode values. */
 
-typedef glui32 gli_decomp_block_t[2]; /* count, position */
+using gli_decomp_block_t = glui32[2];
 /* The position points to a subarray of the unigen_decomp_array.
    If the count is zero, there is no decomposition. */
 
-void gli_putchar_utf8(glui32 val, FILE *fl);
-glui32 gli_getchar_utf8(FILE *fl);
+void gli_putchar_utf8(glui32 val, std::FILE *fl);
+glui32 gli_getchar_utf8(std::FILE *fl);
 glui32 gli_parse_utf8(const unsigned char *buf, glui32 buflen, glui32 *out, glui32 outlen);
 
 glui32 gli_strlen_uni(const glui32 *s);
 
 void gli_put_hyperlink(glui32 linkval, unsigned int x0, unsigned int y0, unsigned int x1, unsigned int y1);
-glui32 gli_get_hyperlink(unsigned int x, unsigned int y);
-void gli_clear_selection(void);
+glui32 gli_get_hyperlink(int x, int y);
+void gli_clear_selection();
 bool gli_check_selection(int x0, int y0, int x1, int y1);
 bool gli_get_selection(int x0, int y0, int x1, int y1, int *rx0, int *rx1);
-void gli_clipboard_copy(glui32 *buf, int len);
+void gli_clipboard_copy(const glui32 *buf, int len);
 void gli_start_selection(int x, int y);
 void gli_resize_mask(unsigned int x, unsigned int y);
 void gli_move_selection(int x, int y);
-void gli_notification_waiting(void);
+void gli_notification_waiting();
 
 void attrset(attr_t *attr, glui32 style);
 void attrclear(attr_t *attr);
-bool attrequal(attr_t *a1, attr_t *a2);
-unsigned char *attrfg(style_t *styles, attr_t *attr);
-unsigned char *attrbg(style_t *styles, attr_t *attr);
-int attrfont(style_t *styles, attr_t *attr);
+bool attrequal(const attr_t *a1, const attr_t *a2);
+Color attrfg(const Styles &styles, const attr_t &attr);
+Color attrbg(const Styles &styles, const attr_t &attr);
+
+FontFace attrfont(const Styles &styles, const attr_t &attr);
 
 /* A macro which reads and decodes one character of UTF-8. Needs no
    explanation, I'm sure.
@@ -853,9 +1059,6 @@ int attrfont(style_t *styles, attr_t *attr);
             )) \
         )) \
     )
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

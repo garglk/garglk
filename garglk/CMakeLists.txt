@@ -46,9 +46,10 @@ if(INTERFACE STREQUAL "QT")
     endif()
 endif()
 
-add_library(garglk babeldata.c style.c config.cpp draw.cpp event.cpp
-    garglk.cpp imgload.c imgscale.c theme.cpp winblank.c window.c
-    wingfx.c wingrid.c winmask.c winpair.c wintext.c ${GARGLKINI_CXX}
+add_library(garglk babeldata.cpp style.cpp config.cpp draw.cpp event.cpp
+    garglk.cpp imgload.cpp imgscale.cpp theme.cpp winblank.cpp window.cpp
+    wingfx.cpp wingrid.cpp winmask.cpp winpair.cpp wintext.cpp
+    ${GARGLKINI_CXX}
 
     # These can't be a library in cheapglk/ because they contain
     # references to code in garglk, and garglk contains references to
@@ -56,9 +57,9 @@ add_library(garglk babeldata.c style.c config.cpp draw.cpp event.cpp
     # libraries, but will fail with static libraries. These are pulled
     # from cheapglk and kept separate logically, but they're really a
     # part of garglk itself, so add them directly to the garglk target.
-    cheapglk/cgblorb.c cheapglk/cgdate.c cheapglk/cgfref.cpp
-    cheapglk/cggestal.c cheapglk/cgmisc.c cheapglk/cgstream.c
-    cheapglk/cgunicod.c cheapglk/gi_blorb.c cheapglk/gi_dispa.c)
+    cheapglk/cgblorb.cpp cheapglk/cgdate.cpp cheapglk/cgfref.cpp
+    cheapglk/cggestal.cpp cheapglk/cgmisc.cpp cheapglk/cgstream.cpp
+    cheapglk/cgunicod.cpp cheapglk/gi_blorb.c cheapglk/gi_dispa.c)
 
 target_include_directories(garglk PRIVATE .)
 
@@ -107,7 +108,7 @@ if(WITH_LAUNCHER)
     endif()
 endif()
 
-add_library(garglkmain STATIC main.c)
+add_library(garglkmain STATIC main.cpp)
 c_standard(garglkmain 11)
 cxx_standard(garglkmain ${CXX_VERSION})
 warnings(garglkmain)
@@ -190,10 +191,10 @@ elseif("${SOUND}" STREQUAL "SDL")
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2 SDL2_mixer)
     target_link_libraries(garglk PRIVATE PkgConfig::SDL2)
-    target_sources(garglk PRIVATE sndsdl.c)
+    target_sources(garglk PRIVATE sndsdl.cpp)
     target_compile_definitions(garglk PRIVATE GARGLK_USESDL)
 else()
-    target_sources(garglk PRIVATE sndnull.c)
+    target_sources(garglk PRIVATE sndnull.cpp)
 endif()
 
 if(WITH_BABEL)
@@ -223,16 +224,16 @@ if(WITH_TTS)
             target_sources(garglk PRIVATE ttsspeechd.cpp)
             target_link_libraries(garglk PRIVATE PkgConfig::SPEECH_DISPATCHER)
         else()
-            target_sources(garglk PRIVATE ttsnull.c)
+            target_sources(garglk PRIVATE ttsnull.cpp)
         endif()
     elseif(MINGW)
-        target_sources(garglk PRIVATE ttswin.c)
+        target_sources(garglk PRIVATE ttswin.cpp)
         target_link_libraries(garglk PRIVATE sapi ole32)
     else()
         message(FATAL_ERROR "TTS requested but no implementation is available on this platform (${CMAKE_SYSTEM_NAME}).")
     endif()
 else()
-    target_sources(garglk PRIVATE ttsnull.c)
+    target_sources(garglk PRIVATE ttsnull.cpp)
 endif()
 
 if(APPLE)

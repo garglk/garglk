@@ -112,11 +112,11 @@
 
 - (NSString *) openWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (enum FILEFILTERS) filter;
+                         filter: (FileFilter) filter;
 
 - (NSString *) saveWindowDialog: (pid_t) processID
                          prompt: (NSString *) prompt
-                         filter: (enum FILEFILTERS) filter;
+                         filter: (FileFilter) filter;
 
 - (void) abortWindowDialog: (pid_t) processID
                     prompt: (NSString *) prompt;

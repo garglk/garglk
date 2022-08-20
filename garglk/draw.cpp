@@ -24,16 +24,16 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdio>
-#include <cstring>
+#include <cstddef>
 #include <functional>
 #include <map>
-#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "optional.hpp"
 
 #include "glk.h"
 #include "garglk.h"
@@ -67,19 +67,29 @@ struct FontEntry
     std::array<Bitmap, GLI_SUBPIX> glyph;
 };
 
-struct Font
+class Font
 {
-    FT_Face face = nullptr;
-    std::map<glui32, FontEntry> entries;
-    bool make_bold = false;
-    bool make_oblique = false;
-    bool kerned = false;
-    std::map<std::pair<glui32, glui32>, int> kerncache;
-
-    Font(const std::string &path, const std::string &fallback, TYPES type, STYLES style);
+public:
+    Font(FontFace fontface, const std::string &fallback);
 
     const FontEntry &getglyph(glui32 cid);
     int charkern(glui32 c0, glui32 c1);
+    const FT_Face &face() {
+        return m_face;
+    }
+
+    FontFace fontface() {
+        return m_fontface;
+    }
+
+private:
+    FontFace m_fontface;
+    FT_Face m_face = nullptr;
+    std::map<glui32, FontEntry> m_entries;
+    bool m_make_bold = false;
+    bool m_make_oblique = false;
+    bool m_kerned = false;
+    std::map<std::pair<glui32, glui32>, int> m_kerncache;
 };
 
 /*
@@ -89,17 +99,41 @@ struct Font
 std::array<unsigned short, 256> gammamap;
 std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
 
-static std::vector<Font> gfont_table;
+class FontTable {
+public:
+    FontTable() {
+        m_table = {
+            Font(FontFace::monor(), "Gargoyle-Mono.ttf"),
+            Font(FontFace::monob(), "Gargoyle-Mono-Bold.ttf"),
+            Font(FontFace::monoi(), "Gargoyle-Mono-Italic.ttf"),
+            Font(FontFace::monoz(), "Gargoyle-Mono-Bold-Italic.ttf"),
+            Font(FontFace::propr(), "Gargoyle-Serif.ttf"),
+            Font(FontFace::propb(), "Gargoyle-Serif-Bold.ttf"),
+            Font(FontFace::propi(), "Gargoyle-Serif-Italic.ttf"),
+            Font(FontFace::propz(), "Gargoyle-Serif-Bold-Italic.ttf"),
+        };
+    }
+
+    Font &at(const FontFace &fontface) {
+        for (auto &font : m_table)
+        {
+            if (font.fontface() == fontface)
+                return font;
+        }
+
+        throw std::out_of_range("internal error: missing font");
+    }
+
+private:
+    std::vector<Font> m_table;
+};
+
+static nonstd::optional<FontTable> gfont_table;
 
 int gli_cellw = 8;
 int gli_cellh = 8;
 
-int gli_image_s = 0;
-int gli_image_w = 0;
-int gli_image_h = 0;
-unsigned char *gli_image_rgb = nullptr;
-
-static const int gli_bpp = 4;
+Canvas<3> gli_image_rgb;
 
 static FT_Library ftlib;
 static FT_Matrix ftmat;
@@ -149,67 +183,67 @@ static void freetype_error(int err, const std::string &basemsg)
 
 const FontEntry &Font::getglyph(glui32 cid)
 {
-    auto it = entries.find(cid);
-    if (it == entries.end())
+    auto it = m_entries.find(cid);
+    if (it == m_entries.end())
     {
         FT_Vector v;
         int err;
         glui32 gid;
         int x;
         FontEntry entry;
-        size_t datasize;
+        std::size_t datasize;
 
-        gid = FT_Get_Char_Index(face, cid);
+        gid = FT_Get_Char_Index(m_face, cid);
         if (gid == 0)
-            gid = FT_Get_Char_Index(face, '?');
+            gid = FT_Get_Char_Index(m_face, '?');
 
         for (x = 0; x < GLI_SUBPIX; x++)
         {
             v.x = (x * 64) / GLI_SUBPIX;
             v.y = 0;
 
-            FT_Set_Transform(face, nullptr, &v);
+            FT_Set_Transform(m_face, nullptr, &v);
 
-            err = FT_Load_Glyph(face, gid,
+            err = FT_Load_Glyph(m_face, gid,
                     FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
             if (err)
                 freetype_error(err, "Error in FT_Load_Glyph");
 
-            if (make_bold)
-                FT_Outline_Embolden(&face->glyph->outline, FT_MulFix(face->units_per_EM, face->size->metrics.y_scale) / 24);
+            if (m_make_bold)
+                FT_Outline_Embolden(&m_face->glyph->outline, FT_MulFix(m_face->units_per_EM, m_face->size->metrics.y_scale) / 24);
 
-            if (make_oblique)
-                FT_Outline_Transform(&face->glyph->outline, &ftmat);
+            if (m_make_oblique)
+                FT_Outline_Transform(&m_face->glyph->outline, &ftmat);
 
             if (gli_conf_lcd)
             {
                 if (use_freetype_preset_filter)
                     FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
                 else
-                    FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights);
+                    FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights.data());
 
-                err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LCD);
+                err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LCD);
             }
             else
             {
-                err = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_LIGHT);
+                err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LIGHT);
             }
 
             if (err)
                 freetype_error(err, "Error in FT_Render_Glyph");
 
-            datasize = face->glyph->bitmap.pitch * face->glyph->bitmap.rows;
-            entry.adv = (face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
+            datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
+            entry.adv = (m_face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
 
-            entry.glyph[x].lsb = face->glyph->bitmap_left;
-            entry.glyph[x].top = face->glyph->bitmap_top;
-            entry.glyph[x].w = face->glyph->bitmap.width;
-            entry.glyph[x].h = face->glyph->bitmap.rows;
-            entry.glyph[x].pitch = face->glyph->bitmap.pitch;
-            entry.glyph[x].data.assign(&face->glyph->bitmap.buffer[0], &face->glyph->bitmap.buffer[datasize]);
+            entry.glyph[x].lsb = m_face->glyph->bitmap_left;
+            entry.glyph[x].top = m_face->glyph->bitmap_top;
+            entry.glyph[x].w = m_face->glyph->bitmap.width;
+            entry.glyph[x].h = m_face->glyph->bitmap.rows;
+            entry.glyph[x].pitch = m_face->glyph->bitmap.pitch;
+            entry.glyph[x].data.assign(&m_face->glyph->bitmap.buffer[0], &m_face->glyph->bitmap.buffer[datasize]);
         }
 
-        it = entries.emplace(cid, entry).first;
+        it = m_entries.emplace(cid, entry).first;
     }
 
     return it->second;
@@ -257,32 +291,19 @@ static std::string font_path_fallback_local(const std::string &, const std::stri
     return fallback;
 }
 
-static const char *type_to_name(enum TYPES type)
+static const std::string fontface_to_name(FontFace &fontface)
 {
-    if (type == MONOF)
-        return "Mono";
-    else
-        return "Proportional";
+    std::string type = fontface.monospace ? "Mono" : "Proportional";
+    std::string style = (fontface.bold && fontface.italic) ? "Bold Italic" :
+                        (fontface.bold                   ) ? "Bold" :
+                        (fontface.italic                 ) ? "Italic" :
+                                                             "Regular";
+
+    return type + " " + style;
 }
 
-static std::string style_to_name(enum STYLES style)
-{
-    switch (style)
-    {
-        case FONTR:
-            return "Regular";
-        case FONTB:
-            return "Bold";
-        case FONTI:
-            return "Italic";
-        case FONTZ:
-            return "Bold Italic";;
-    }
-
-    return "";
-}
-
-Font::Font(const std::string &path, const std::string &fallback, TYPES type, STYLES style)
+Font::Font(FontFace fontface, const std::string &fallback) :
+    m_fontface(fontface)
 {
     int err = 0;
     std::string fontpath;
@@ -295,7 +316,18 @@ Font::Font(const std::string &path, const std::string &fallback, TYPES type, STY
         font_path_fallback_local,
     };
 
-    if (type == MONOF)
+    std::string path =
+        fontface == FontFace::monor() ? gli_conf_mono.r :
+        fontface == FontFace::monob() ? gli_conf_mono.b :
+        fontface == FontFace::monoi() ? gli_conf_mono.i :
+        fontface == FontFace::monoz() ? gli_conf_mono.z :
+        fontface == FontFace::propr() ? gli_conf_prop.r :
+        fontface == FontFace::propb() ? gli_conf_prop.b :
+        fontface == FontFace::propi() ? gli_conf_prop.i :
+        fontface == FontFace::propz() ? gli_conf_prop.z :
+                                        gli_conf_mono.r;
+
+    if (fontface.monospace)
     {
         aspect = gli_conf_monoaspect;
         size = gli_conf_monosize;
@@ -310,10 +342,10 @@ Font::Font(const std::string &path, const std::string &fallback, TYPES type, STY
 
     if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
         fontpath = get_font_path(path, fallback);
-        return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &face) == 0;
+        return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &m_face) == 0;
     }))
     {
-        garglk::winabort("Unable to find font " + family + " for " + type_to_name(type) + " " + style_to_name(style) + ", and fallback " + fallback + " not found");
+        garglk::winabort("Unable to find font " + family + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
     }
 
     auto dot = fontpath.rfind(".");
@@ -324,44 +356,24 @@ Font::Font(const std::string &path, const std::string &fallback, TYPES type, STY
         if (ext == ".pfa" || ext == ".PFA" || ext == ".pfb" || ext == ".PFB")
         {
             afmbuf.replace(dot, std::string::npos, ".afm");
-            FT_Attach_File(face, afmbuf.c_str());
+            FT_Attach_File(m_face, afmbuf.c_str());
             afmbuf.replace(dot, std::string::npos, ".AFM");
-            FT_Attach_File(face, afmbuf.c_str());
+            FT_Attach_File(m_face, afmbuf.c_str());
         }
     }
 
-    err = FT_Set_Char_Size(face, size * aspect * 64, size * 64, 72, 72);
+    err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
     if (err)
         freetype_error(err, "Error in FT_Set_Char_Size for " + fontpath);
 
-    err = FT_Select_Charmap(face, ft_encoding_unicode);
+    err = FT_Select_Charmap(m_face, ft_encoding_unicode);
     if (err)
         freetype_error(err, "Error in FT_Select_CharMap for " + fontpath);
 
-    kerned = FT_HAS_KERNING(face);
+    m_kerned = FT_HAS_KERNING(m_face);
 
-    switch (style)
-    {
-        case FONTR:
-            make_bold = false;
-            make_oblique = false;
-            break;
-
-        case FONTB:
-            make_bold = !(face->style_flags & FT_STYLE_FLAG_BOLD);
-            make_oblique = false;
-            break;
-
-        case FONTI:
-            make_bold = false;
-            make_oblique = !(face->style_flags & FT_STYLE_FLAG_ITALIC);
-            break;
-
-        case FONTZ:
-            make_bold = !(face->style_flags & FT_STYLE_FLAG_BOLD);
-            make_oblique = !(face->style_flags & FT_STYLE_FLAG_ITALIC);
-            break;
-    }
+    m_make_bold = fontface.bold && !(m_face->style_flags & FT_STYLE_FLAG_BOLD);
+    m_make_oblique = fontface.italic && !(m_face->style_flags & FT_STYLE_FLAG_ITALIC);
 }
 
 void gli_initialize_fonts()
@@ -379,8 +391,8 @@ void gli_initialize_fonts()
         freetype_error(err, "Unable to initialize FreeType");
 
     fontload();
-    garglk::fontreplace(gli_conf_monofont, MONOF);
-    garglk::fontreplace(gli_conf_propfont, PROPF);
+    garglk::fontreplace(gli_conf_monofont, FontType::Monospace);
+    garglk::fontreplace(gli_conf_propfont, FontType::Proportional);
     fontunload();
 
     /* If the user provided specific fonts, swap them in */
@@ -399,17 +411,9 @@ void gli_initialize_fonts()
     ftmat.xy = 0x03000L;
     ftmat.yy = 0x10000L;
 
-    gfont_table.clear();
-    gfont_table.emplace_back(gli_conf_mono.r, "Gargoyle-Mono.ttf", MONOF, FONTR);
-    gfont_table.emplace_back(gli_conf_mono.b, "Gargoyle-Mono-Bold.ttf", MONOF, FONTB);
-    gfont_table.emplace_back(gli_conf_mono.i, "Gargoyle-Mono-Italic.ttf", MONOF, FONTI);
-    gfont_table.emplace_back(gli_conf_mono.z, "Gargoyle-Mono-Bold-Italic.ttf", MONOF, FONTZ);
-    gfont_table.emplace_back(gli_conf_prop.r, "Gargoyle-Serif.ttf", PROPF, FONTR);
-    gfont_table.emplace_back(gli_conf_prop.b, "Gargoyle-Serif-Bold.ttf", PROPF, FONTB);
-    gfont_table.emplace_back(gli_conf_prop.i, "Gargoyle-Serif-Italic.ttf", PROPF, FONTI);
-    gfont_table.emplace_back(gli_conf_prop.z, "Gargoyle-Serif-Bold-Italic.ttf", PROPF, FONTZ);
+    gfont_table = FontTable();
 
-    const auto &entry = gfont_table.at(0).getglyph('0');
+    auto &entry = gfont_table->at(FontFace::monor()).getglyph('0');
 
     gli_cellh = gli_leading;
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
@@ -419,27 +423,27 @@ void gli_initialize_fonts()
  * Drawing
  */
 
-void gli_draw_pixel(int x, int y, const unsigned char *rgb)
+void gli_draw_pixel(int x, int y, const Color &rgb)
 {
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
-    if (x < 0 || x >= gli_image_w)
+    if (x < 0 || x >= gli_image_rgb.width())
         return;
-    if (y < 0 || y >= gli_image_h)
+    if (y < 0 || y >= gli_image_rgb.height())
         return;
-    p[0] = rgb[2];
-    p[1] = rgb[1];
-    p[2] = rgb[0];
-    p[3] = 0xFF;
+    gli_image_rgb[y][x] = rgb;
 }
 
-static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned char *rgb)
+static void draw_pixel_gamma(int x, int y, unsigned char alpha, const Color &rgb)
 {
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
+    if (x < 0 || x >= gli_image_rgb.width())
+        return;
+    if (y < 0 || y >= gli_image_rgb.height())
+        return;
+
     unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
     std::array<unsigned short, 3> bg = {
-        gammamap[p[0]],
-        gammamap[p[1]],
-        gammamap[p[2]]
+        gammamap[gli_image_rgb[y][x][0]],
+        gammamap[gli_image_rgb[y][x][1]],
+        gammamap[gli_image_rgb[y][x][2]]
     };
     std::array<unsigned short, 3> fg = {
         gammamap[rgb[0]],
@@ -447,28 +451,27 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, const unsigned c
         gammamap[rgb[2]]
     };
 
-    if (x < 0 || x >= gli_image_w)
-        return;
-    if (y < 0 || y >= gli_image_h)
-        return;
-    p[0] = gammainv[fg[2] + mulhigh(static_cast<int>(bg[0]) - fg[2], invalf)];
-    p[1] = gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf)];
-    p[2] = gammainv[fg[0] + mulhigh(static_cast<int>(bg[2]) - fg[0], invalf)];
-    p[3] = 0xFF;
+    gli_image_rgb[y][x] = Pixel<3>(gammainv[fg[0] + mulhigh(static_cast<int>(bg[0]) - fg[0], invalf)],
+                                   gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf)],
+                                   gammainv[fg[2] + mulhigh(static_cast<int>(bg[2]) - fg[2], invalf)]);
 }
 
-static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const unsigned char *rgb)
+static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const Color &rgb)
 {
-    unsigned char *p = gli_image_rgb + y * gli_image_s + x * gli_bpp;
+    if (x < 0 || x >= gli_image_rgb.width())
+        return;
+    if (y < 0 || y >= gli_image_rgb.height())
+        return;
+
     std::array<unsigned short, 3> invalf = {
         static_cast<unsigned short>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
         static_cast<unsigned short>(GAMMA_MAX - (alpha[1] * GAMMA_MAX / 255)),
         static_cast<unsigned short>(GAMMA_MAX - (alpha[2] * GAMMA_MAX / 255)),
     };
     std::array<unsigned short, 3> bg = {
-        gammamap[p[0]],
-        gammamap[p[1]],
-        gammamap[p[2]]
+        gammamap[gli_image_rgb[y][x][0]],
+        gammamap[gli_image_rgb[y][x][1]],
+        gammamap[gli_image_rgb[y][x][2]]
     };
     std::array<unsigned short, 3> fg = {
         gammamap[rgb[0]],
@@ -476,17 +479,12 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
         gammamap[rgb[2]]
     };
 
-    if (x < 0 || x >= gli_image_w)
-        return;
-    if (y < 0 || y >= gli_image_h)
-        return;
-    p[0] = gammainv[fg[2] + mulhigh(static_cast<int>(bg[0]) - fg[2], invalf[2])];
-    p[1] = gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf[1])];
-    p[2] = gammainv[fg[0] + mulhigh(static_cast<int>(bg[2]) - fg[0], invalf[0])];
-    p[3] = 0xFF;
+    gli_image_rgb[y][x] = Pixel<3>(gammainv[fg[0] + mulhigh(static_cast<int>(bg[0]) - fg[0], invalf[0])],
+                                   gammainv[fg[1] + mulhigh(static_cast<int>(bg[1]) - fg[1], invalf[1])],
+                                   gammainv[fg[2] + mulhigh(static_cast<int>(bg[2]) - fg[2], invalf[2])]);
 }
 
-static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const unsigned char *rgb)
+static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const Color &rgb)
 {
     int i, k, c;
     for (k = 0; k < b->h; k++)
@@ -499,67 +497,36 @@ static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const unsigned char
     }
 }
 
-static void draw_bitmap_lcd_gamma(const Bitmap *b, int x, int y, const unsigned char *rgb)
+static void draw_bitmap_lcd_gamma(const Bitmap *b, int x, int y, const Color &rgb)
 {
     int i, j, k;
     for (k = 0; k < b->h; k++)
     {
         for (i = 0, j = 0; i < b->w; i += 3, j ++)
         {
-            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, &b->data[0] + k * b->pitch + i, rgb);
+            draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data.data() + k * b->pitch + i, rgb);
         }
     }
 }
 
-void gli_draw_clear(const unsigned char *rgb)
+void gli_draw_clear(const Color &rgb)
 {
-    unsigned char *p;
-    int x, y;
-
-    for (y = 0; y < gli_image_h; y++)
-    {
-        p = gli_image_rgb + y * gli_image_s;
-        for (x = 0; x < gli_image_w; x++)
-        {
-            *p++ = rgb[2];
-            *p++ = rgb[1];
-            *p++ = rgb[0];
-            *p++ = 0xFF;
-        }
-    }
+    gli_image_rgb.fill(rgb);
 }
 
-void gli_draw_rect(int x0, int y0, int w, int h, const unsigned char *rgb)
+void gli_draw_rect(int x0, int y0, int w, int h, const Color &rgb)
 {
-    unsigned char *p0;
     int x1 = x0 + w;
     int y1 = y0 + h;
-    int x, y;
+    int y;
 
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-
-    if (x0 > gli_image_w) x0 = gli_image_w;
-    if (y0 > gli_image_h) y0 = gli_image_h;
-    if (x1 > gli_image_w) x1 = gli_image_w;
-    if (y1 > gli_image_h) y1 = gli_image_h;
-
-    p0 = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;
+    x0 = garglk::clamp(x0, 0, gli_image_rgb.width());
+    y0 = garglk::clamp(y0, 0, gli_image_rgb.height());
+    x1 = garglk::clamp(x1, 0, gli_image_rgb.width());
+    y1 = garglk::clamp(y1, 0, gli_image_rgb.height());
 
     for (y = y0; y < y1; y++)
-    {
-        unsigned char *p = p0;
-        for (x = x0; x < x1; x++)
-        {
-            *p++ = rgb[2];
-            *p++ = rgb[1];
-            *p++ = rgb[0];
-            *p++ = 0xFF;
-        }
-        p0 += gli_image_s;
-    }
+        gli_image_rgb[y].fill(rgb, x0, x1);
 }
 
 int Font::charkern(glui32 c0, glui32 c1)
@@ -568,30 +535,30 @@ int Font::charkern(glui32 c0, glui32 c1)
     int err;
     int g0, g1;
 
-    if (!kerned)
+    if (!m_kerned)
         return 0;
 
     auto key = std::make_pair(c0, c1);
     try
     {
-        return kerncache.at(key);
+        return m_kerncache.at(key);
     }
     catch (const std::out_of_range &)
     {
     }
 
-    g0 = FT_Get_Char_Index(face, c0);
-    g1 = FT_Get_Char_Index(face, c1);
+    g0 = FT_Get_Char_Index(m_face, c0);
+    g1 = FT_Get_Char_Index(m_face, c1);
 
     if (g0 == 0 || g1 == 0)
         return 0;
 
-    err = FT_Get_Kerning(face, g0, g1, FT_KERNING_UNFITTED, &v);
+    err = FT_Get_Kerning(m_face, g0, g1, FT_KERNING_UNFITTED, &v);
     if (err)
         freetype_error(err, "Error in FT_Get_Kerning");
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
-    kerncache.emplace(key, value);
+    m_kerncache.emplace(key, value);
 
     return value;
 }
@@ -604,10 +571,10 @@ static const std::vector<std::pair<std::vector<glui32>, glui32>> ligatures = {
     {{'f', 'l'}, UNI_LIG_FL},
 };
 
-static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> callback)
+static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n, int spw, std::function<void(int, const std::array<Bitmap, GLI_SUBPIX> &)> callback)
 {
-    auto &f = gfont_table.at(fidx);
-    bool dolig = !FT_IS_FIXED_WIDTH(f.face);
+    auto &f = gfont_table->at(face);
+    bool dolig = !FT_IS_FIXED_WIDTH(f.face());
     int prev = -1;
     glui32 c;
 
@@ -621,7 +588,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
                 if (ligature.size() > n)
                     return false;
 
-                for (size_t i = 0; i < ligature.size(); i++)
+                for (std::size_t i = 0; i < ligature.size(); i++)
                 {
                     if (s[i] != ligature[i])
                         return false;
@@ -631,7 +598,7 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
             });
         }
 
-        if (it != ligatures.end() && FT_Get_Char_Index(f.face, it->second) != 0)
+        if (it != ligatures.end() && FT_Get_Char_Index(f.face(), it->second) != 0)
         {
             c = it->second;
             s += it->first.size();
@@ -661,10 +628,10 @@ static int gli_string_impl(int x, int fidx, glui32 *s, size_t n, int spw, std::f
     return x;
 }
 
-int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
-        glui32 *s, int n, int spw)
+int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
+        const glui32 *s, int n, int spw)
 {
-    return gli_string_impl(x, fidx, s, n, spw, [y, rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
+    return gli_string_impl(x, face, s, n, spw, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
@@ -675,9 +642,9 @@ int gli_draw_string_uni(int x, int y, int fidx, const unsigned char *rgb,
     });
 }
 
-int gli_string_width_uni(int fidx, glui32 *s, int n, int spw)
+int gli_string_width_uni(FontFace face, const glui32 *s, int n, int spw)
 {
-    return gli_string_impl(0, fidx, s, n, spw, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
+    return gli_string_impl(0, face, s, n, spw, [](int, const std::array<Bitmap, GLI_SUBPIX> &) {});
 }
 
 void gli_draw_caret(int x, int y)
@@ -712,7 +679,6 @@ void gli_draw_caret(int x, int y)
 
 void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1, int dy1)
 {
-    unsigned char *sp, *dp;
     int x1, y1, sx0, sy0, sx1, sy1;
     int w, h;
 
@@ -745,9 +711,6 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
         sy1 += dy1 - y1;
     }
 
-    sp = src->rgba + (sy0 * src->w + sx0) * 4;
-    dp = gli_image_rgb + y0 * gli_image_s + x0 * gli_bpp;
-
     w = sx1 - sx0;
     h = sy1 - sy0;
 
@@ -755,17 +718,15 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     {
         for (int x = 0; x < w; x++)
         {
-            unsigned char sa = sp[x*4+3];
+            auto existing = gli_image_rgb[y + y0][x + x0];
+            unsigned char sa = src->rgba[y + sy0][x + sx0][3];
             unsigned char na = 255 - sa;
-            unsigned char sr = mul255(sp[x*4+0], sa);
-            unsigned char sg = mul255(sp[x*4+1], sa);
-            unsigned char sb = mul255(sp[x*4+2], sa);
-            dp[x*4+0] = sb + mul255(dp[x*4+0], na);
-            dp[x*4+1] = sg + mul255(dp[x*4+1], na);
-            dp[x*4+2] = sr + mul255(dp[x*4+2], na);
-            dp[x*4+3] = 0xFF;
+            unsigned char sr = mul255(src->rgba[y + sy0][x + sx0][0], sa);
+            unsigned char sg = mul255(src->rgba[y + sy0][x + sx0][1], sa);
+            unsigned char sb = mul255(src->rgba[y + sy0][x + sx0][2], sa);
+            gli_image_rgb[y + y0][x + x0] = Pixel<3>(sr + mul255(existing[0], na),
+                                                     sg + mul255(existing[1], na),
+                                                     sb + mul255(existing[2], na));
         }
-        sp += src->w * 4;
-        dp += gli_image_s;
     }
 }

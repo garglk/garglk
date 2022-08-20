@@ -46,8 +46,8 @@
 #include "glkstart.h"
 
 #ifdef GARGLK
-char gli_workdir[1024] = ".";
-char gli_workfile[1024] = "";
+std::string gli_workdir = ".";
+std::string gli_workfile;
 
 const char *garglk_fileref_get_name(fileref_t *fref)
 {
@@ -308,27 +308,27 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     fileref_t *fref;
 #ifdef GARGLK
     std::string buf;
-    enum FILEFILTERS filter;
+    FileFilter filter;
     const char *prompt;
 
     switch (usage & fileusage_TypeMask)
     {
         case fileusage_SavedGame:
             prompt = "Saved game";
-            filter = FILTER_SAVE;
+            filter = FileFilter::Save;
             break;
         case fileusage_Transcript:
             prompt = "Transcript file";
-            filter = FILTER_TEXT;
+            filter = FileFilter::Text;
             break;
         case fileusage_InputRecord:
             prompt = "Command record file";
-            filter = FILTER_TEXT;
+            filter = FileFilter::Text;
             break;
         case fileusage_Data:
         default:
             prompt = "Data file";
-            filter = FILTER_DATA;
+            filter = FileFilter::Data;
             break;
     }
 
@@ -513,15 +513,17 @@ void glk_fileref_delete_file(fileref_t *fref)
 void glkunix_set_base_file(char *filename)
 {
 #ifdef GARGLK
-    snprintf(gli_workdir, sizeof gli_workdir, "%s", filename);
-    if (strrchr(gli_workdir, '/'))
-        strrchr(gli_workdir, '/')[0] = 0;
-    else if (strrchr(gli_workdir, '\\'))
-        strrchr(gli_workdir, '\\')[0] = 0;
-    else
-        snprintf(gli_workdir, sizeof gli_workdir, ".");
+    gli_workdir = filename;
+    auto slash = gli_workdir.find_last_of('/');
+    if (slash == std::string::npos)
+        slash = gli_workdir.find_last_of('\\');
 
-    snprintf(gli_workfile, sizeof gli_workfile, "%s", filename);
+    if (slash != std::string::npos)
+        gli_workdir.erase(slash);
+    else
+        gli_workdir = ".";
+
+    gli_workfile = filename;
 #else
     int ix;
   

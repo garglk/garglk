@@ -550,11 +550,8 @@ void os_banner_size_to_contents(void *banner_handle)
 #ifdef GARGLK
     if (banner->type == wintype_TextBuffer)
     {
-        winid_t win = banner->win;
-        window_textbuffer_t *dwin = win->data;
-        int size = dwin->scrollmax;
-        if (dwin->numchars)
-            size ++;
+        int os_banner_size_garglk(winid_t);
+        int size = os_banner_size_garglk(banner->win);
         os_banner_set_size(banner, size, OS_BANNER_SIZE_ABS, 0);
     }
 #endif /* GARGLK */

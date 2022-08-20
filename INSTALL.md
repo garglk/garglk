@@ -12,7 +12,7 @@ development environment (compiler, linker, etc.):
 - Fontconfig
 - FreeType
 - libjpeg (or compatible, such as libjpeg-turbo)
-- libpng
+- libpng (1.6 or newer)
 - zlib
 
 In addition, if you want sound support, there are two backends: SDL and

@@ -22,10 +22,6 @@
 #include "gi_blorb.h"
 #endif
 
-#ifdef GARGLK
-#include "garglk.h"
-#endif
-
 #ifdef FCGIJACL
 #include <fcgi_stdio.h>
 #endif

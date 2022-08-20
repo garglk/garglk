@@ -1,13 +1,15 @@
 #include <array>
-#include <cctype>
+#include <exception>
 #include <fstream>
-#include <functional>
 #include <iostream>
-#include <iterator>
 #include <map>
 #include <regex>
 #include <set>
+#include <sstream>
 #include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <dirent.h>
 #include <sys/types.h>
@@ -19,8 +21,6 @@
 #include "garglk.h"
 
 using json = nlohmann::json;
-
-using garglk::Color;
 
 template<size_t...Is, typename T>
 std::array<T, sizeof...(Is)> make_array(const T &value, std::index_sequence<Is...>) {
@@ -43,22 +43,12 @@ static std::set<K> map_keys(const std::map<K, V> &map)
     return keys;
 }
 
-const std::regex Color::m_color_re("#?[a-fA-F0-9]{6}");
-
-void Color::to(unsigned char *rgb) const {
-    rgb[0] = m_red;
-    rgb[1] = m_green;
-    rgb[2] = m_blue;
-}
-
-Color Color::from(const unsigned char *rgb) {
-    return {rgb[0], rgb[1], rgb[2]};
-}
-
-Color Color::from(const std::string &str) {
+Color gli_parse_color(const std::string &str)
+{
+    static const std::regex color_re(R"(#?[a-fA-F0-9]{6})");
     std::string r, g, b;
 
-    if (!std::regex_match(str, m_color_re))
+    if (!std::regex_match(str, color_re))
         throw std::runtime_error("invalid color: " + str);
 
     int pos = str[0] == '#' ? 1 : 0;
@@ -72,9 +62,9 @@ Color Color::from(const std::string &str) {
                  std::stoul(b, nullptr, 16));
 }
 
-static const Color black = Color{0x00, 0x00, 0x00};
-static const Color white = Color{0xff, 0xff, 0xff};
-static const Color gray = Color{0x60, 0x60, 0x60};
+static const Color black = Color(0x00, 0x00, 0x00);
+static const Color white = Color(0xff, 0xff, 0xff);
+static const Color gray = Color(0x60, 0x60, 0x60);
 
 struct ColorPair {
     Color fg;
@@ -99,24 +89,24 @@ std::string join(const Iterable &values, const DType &delim)
     return result.str();
 }
 
-struct Styles {
+struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
 
     void to(style_t *styles) const {
         for (int i = 0; i < style_NUMSTYLES; i++)
         {
-            colors[i].fg.to(styles[i].fg);
-            colors[i].bg.to(styles[i].bg);
+            styles[i].fg = colors[i].fg;
+            styles[i].bg = colors[i].bg;
         }
     }
 
-    static Styles from(const style_t *styles) {
+    static ThemeStyles from(const style_t *styles) {
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
 
         for (int i = 0; i < style_NUMSTYLES; i++)
         {
-            colors[i].fg = Color::from(styles[i].fg);
-            colors[i].bg = Color::from(styles[i].bg);
+            colors[i].fg = styles[i].fg;
+            colors[i].bg = styles[i].bg;
         }
 
         return {colors};
@@ -130,22 +120,22 @@ struct Theme {
     Color caretcolor;
     Color linkcolor;
     Color morecolor;
-    Styles tstyles;
-    Styles gstyles;
+    ThemeStyles tstyles;
+    ThemeStyles gstyles;
 
     void apply() const {
-        windowcolor.to(gli_window_color);
-        windowcolor.to(gli_window_save);
-        bordercolor.to(gli_border_color);
-        bordercolor.to(gli_border_save);
-        caretcolor.to(gli_caret_color);
-        caretcolor.to(gli_caret_save);
-        linkcolor.to(gli_link_color);
-        linkcolor.to(gli_link_save);
-        morecolor.to(gli_more_color);
-        morecolor.to(gli_more_save);
-        tstyles.to(gli_tstyles);
-        gstyles.to(gli_gstyles);
+        gli_window_color = windowcolor;
+        gli_window_save = windowcolor;
+        gli_border_color = bordercolor;
+        gli_border_save = bordercolor;
+        gli_caret_color = caretcolor;
+        gli_caret_save = caretcolor;
+        gli_link_color = linkcolor;
+        gli_link_save = linkcolor;
+        gli_more_color = morecolor;
+        gli_more_save = morecolor;
+        tstyles.to(gli_tstyles.data());
+        gstyles.to(gli_gstyles.data());
     }
 
     static Theme from_file(const std::string &filename) {
@@ -156,11 +146,11 @@ struct Theme {
         json j;
         f >> j;
 
-        auto window = Color::from(j.at("window"));
-        auto border = Color::from(j.at("border"));
-        auto caret = Color::from(j.at("caret"));
-        auto link = Color::from(j.at("link"));
-        auto more = Color::from(j.at("more"));
+        auto window = gli_parse_color(j.at("window"));
+        auto border = gli_parse_color(j.at("border"));
+        auto caret = gli_parse_color(j.at("caret"));
+        auto link = gli_parse_color(j.at("link"));
+        auto more = gli_parse_color(j.at("more"));
         auto text_buffer = get_user_styles(j, "text_buffer");
         auto text_grid = get_user_styles(j, "text_grid");
 
@@ -177,7 +167,7 @@ struct Theme {
     }
 
 private:
-    static Styles get_user_styles(const json &j, const std::string &color)
+    static ThemeStyles get_user_styles(const json &j, const std::string &color)
     {
         std::array<nonstd::optional<ColorPair>, style_NUMSTYLES> possible_colors;
         std::map<std::string, json> styles = j.at(color);
@@ -197,8 +187,8 @@ private:
         };
 
         auto parse_colors = [&possible_colors](const json &style, int i) {
-            auto fg = Color::from(style.at("fg"));
-            auto bg = Color::from(style.at("bg"));
+            auto fg = gli_parse_color(style.at("fg"));
+            auto bg = gli_parse_color(style.at("bg"));
             possible_colors[i] = ColorPair{fg, bg};
         };
 
@@ -237,31 +227,31 @@ static Theme light{
     white,
     black,
     black,
-    Color{0x00, 0x00, 0x60},
-    Color{0x00, 0x60, 0x00},
-    Styles{
+    Color(0x00, 0x00, 0x60),
+    Color(0x00, 0x60, 0x00),
+    ThemeStyles{
         ColorPair{black, white}, ColorPair{black, white},
         ColorPair{black, white}, ColorPair{black, white},
         ColorPair{black, white}, ColorPair{black, white},
         ColorPair{black, white}, ColorPair{black, white},
-        ColorPair{Color{0x00, 0x60, 0x00}, white}, ColorPair{black, white},
+        ColorPair{Color(0x00, 0x60, 0x00), white}, ColorPair{black, white},
         ColorPair{black, white},
     },
-    Styles{make_array<style_NUMSTYLES>(ColorPair{gray, white})},
+    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{gray, white})},
 };
 
-static const Color darkfg = Color{0xe7, 0xe8, 0xe9};
-static const Color darkbg = Color{0x31, 0x36, 0x3b};
+static const Color darkfg = Color(0xe7, 0xe8, 0xe9);
+static const Color darkbg = Color(0x31, 0x36, 0x3b);
 
 static Theme dark{
     "dark",
-    Color{0x31, 0x36, 0x3b},
+    Color(0x31, 0x36, 0x3b),
     black,
-    Color{0xe7, 0xe8, 0xe9},
-    Color{0x1d, 0x99, 0xf3},
-    Color{0x00, 0xcc, 0x00},
-    Styles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
-    Styles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
+    Color(0xe7, 0xe8, 0xe9),
+    Color(0x1d, 0x99, 0xf3),
+    Color(0x00, 0xcc, 0x00),
+    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
+    ThemeStyles{make_array<style_NUMSTYLES>(ColorPair{darkfg, darkbg})},
 };
 
 static std::map<std::string, Theme> themes = {
@@ -283,7 +273,7 @@ void garglk::theme::init()
 {
     for (const auto &themedir : garglk::theme::paths())
     {
-        std::unique_ptr<DIR, std::function<int(DIR *)>> d(opendir(themedir.c_str()), closedir);
+        auto d = garglk::unique(opendir(themedir.c_str()), closedir);
         if (d != nullptr)
         {
             dirent *de;

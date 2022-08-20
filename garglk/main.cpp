@@ -20,10 +20,9 @@
  *                                                                            *
  *****************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
 #include "glk.h"
 #include "glkstart.h"
@@ -33,14 +32,14 @@ int main(int argc, char *argv[])
 {
     if (argc == 0)
     {
-        fprintf(stderr, "argv[0] is NULL, aborting\n");
-        exit(1);
+        std::cerr << "argv[0] is NULL, aborting\n";
+        std::exit(EXIT_FAILURE);
     }
 
     glkunix_startup_t startdata;
     startdata.argc = argc;
-    startdata.argv = malloc(argc * sizeof(char*));
-    memcpy(startdata.argv, argv, argc * sizeof(char*));
+    startdata.argv = new char*[argc];
+    std::memcpy(startdata.argv, argv, argc * sizeof(char*));
 
     gli_startup(argc, argv);
 
