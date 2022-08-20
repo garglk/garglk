@@ -42,7 +42,7 @@ if(INTERFACE STREQUAL "QT")
     set_property(SOURCE garglkini.cxx PROPERTY SKIP_AUTOMOC ON)
 
     if(NOT WITH_NATIVE_FILE_DIALOGS)
-        set_property(SOURCE sysqt.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_NO_NATIVE_FILE_DIALOGS)
+        set_property(SOURCE sysqt.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS)
     endif()
 endif()
 
@@ -97,13 +97,13 @@ if(WITH_LAUNCHER)
         target_sources(gargoyle PRIVATE launchqt.cpp)
 
         # For AppImage, interpreters are installed in the same directory as the
-        # launcher, so don't provide GARGLK_INTERPRETER_DIR: in its absence, the
-        # directory of the "gargoyle" binary is searched.
+        # launcher, so don't provide GARGLK_CONFIG_INTERPRETER_DIR: in its
+        # absence, the directory of the "gargoyle" binary is searched.
         #
         # For Apple, when doing a dist install, the same holds: it expects to
         # find interpreters in the same directory as the gargoyle binary.
         if(UNIX AND NOT APPIMAGE AND NOT DIST_INSTALL)
-            target_compile_definitions(gargoyle PRIVATE "GARGLK_INTERPRETER_DIR=\"${INTERPRETER_INSTALL_DIR}\"")
+            target_compile_definitions(gargoyle PRIVATE "GARGLK_CONFIG_INTERPRETER_DIR=\"${INTERPRETER_INSTALL_DIR}\"")
         endif()
     endif()
 endif()
@@ -147,7 +147,7 @@ elseif(UNIX OR MINGW)
     if(UNIX)
         find_package(Qt${QT_VERSION} COMPONENTS DBus CONFIG)
         if(Qt${QT_VERSION}DBus_FOUND)
-            target_compile_definitions(garglk PRIVATE GARGLK_HAS_DBUS)
+            target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_HAS_QDBUS)
             target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::DBus)
         endif()
     endif()
@@ -169,7 +169,7 @@ elseif(UNIX OR MINGW)
         # just fine.
         find_package(KF5 REQUIRED COMPONENTS KIO Service)
         target_link_libraries(garglk PRIVATE KF5::KIOWidgets KF5::Service)
-        set_property(SOURCE sysqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_KDE)
+        set_property(SOURCE sysqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLK_CONFIG_KDE)
     endif()
 
     if(WITH_LAUNCHER)
@@ -185,14 +185,13 @@ if("${SOUND}" STREQUAL "QT")
     pkg_check_modules(SOUND REQUIRED IMPORTED_TARGET sndfile libmpg123 libopenmpt)
     target_link_libraries(garglk PRIVATE Qt${QT_VERSION}::Multimedia PkgConfig::SOUND)
     target_sources(garglk PRIVATE sndqt.cpp)
-    target_compile_definitions(garglk PRIVATE GARGLK_TICK)
+    target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_TICK)
     set(GARGLK_NEEDS_TICK TRUE CACHE INTERNAL "")
 elseif("${SOUND}" STREQUAL "SDL")
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2 SDL2_mixer)
     target_link_libraries(garglk PRIVATE PkgConfig::SDL2)
     target_sources(garglk PRIVATE sndsdl.cpp)
-    target_compile_definitions(garglk PRIVATE GARGLK_USESDL)
 else()
     target_sources(garglk PRIVATE sndnull.cpp)
 endif()
@@ -219,7 +218,7 @@ if(WITH_TTS)
         if(WITH_TTS STREQUAL "DYNAMIC")
             target_sources(garglk PRIVATE ttsspeechd.cpp)
             target_link_libraries(garglk PRIVATE ${CMAKE_DL_LIBS})
-            target_compile_definitions(garglk PRIVATE "GARGLK_DLOPEN_LIBSPEECHD")
+            target_compile_definitions(garglk PRIVATE "GARGLK_CONFIG_DLOPEN_LIBSPEECHD")
         elseif(SPEECH_DISPATCHER_FOUND)
             target_sources(garglk PRIVATE ttsspeechd.cpp)
             target_link_libraries(garglk PRIVATE PkgConfig::SPEECH_DISPATCHER)
@@ -285,7 +284,7 @@ elseif(UNIX)
         set(FONT_DIRECTORY "${CMAKE_INSTALL_BINDIR}")
     else()
         set(FONT_DIRECTORY "${CMAKE_INSTALL_DATADIR}/fonts/gargoyle")
-        target_compile_definitions(garglk PRIVATE "GARGLK_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
+        target_compile_definitions(garglk PRIVATE "GARGLK_CONFIG_FONT_PATH=\"${CMAKE_INSTALL_FULL_DATADIR}/fonts/gargoyle\"")
     endif()
 
     install(FILES

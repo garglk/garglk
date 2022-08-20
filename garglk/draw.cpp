@@ -270,8 +270,8 @@ static std::string font_path_fallback_system(const std::string &, const std::str
         return "";
 
     return std::string(directory) + "\\" + fallback;
-#elif defined(GARGLK_FONT_PATH)
-    return std::string(GARGLK_FONT_PATH) + "/" + fallback;
+#elif defined(GARGLK_CONFIG_FONT_PATH)
+    return std::string(GARGLK_CONFIG_FONT_PATH) + "/" + fallback;
 #else
     return "";
 #endif

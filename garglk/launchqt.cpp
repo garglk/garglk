@@ -105,7 +105,7 @@ static QString winbrowsefile()
     // the dialog ridiculously wide (Qt probably should cut it off, but
     // it doesn't, so try to compensate here).
     QFileDialog::Options options(QFileDialog::HideNameFilterDetails);
-#ifdef GARGLK_NO_NATIVE_FILE_DIALOGS
+#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
     options |= QFileDialog::DontUseNativeDialog;
 #endif
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
@@ -146,8 +146,8 @@ int main(int argc, char **argv)
     QString story;
 
     // Find the directory that contains the interpreters. By default
-    // this is GARGLK_INTERPRETER_DIR but if that is not set, it is the
-    // containing directory of the gargoyle executable.
+    // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
+    // is the containing directory of the gargoyle executable.
     //
     // For development purposes, the environment variable
     // $GARGLK_INTERPRETER_DIR can be set to the interpreter build
@@ -158,8 +158,8 @@ int main(int argc, char **argv)
     // interpreter is found.
     QString dir = std::getenv("GARGLK_INTERPRETER_DIR");
     if (dir.isNull())
-#ifdef GARGLK_INTERPRETER_DIR
-        dir = GARGLK_INTERPRETER_DIR;
+#ifdef GARGLK_CONFIG_INTERPRETER_DIR
+        dir = GARGLK_CONFIG_INTERPRETER_DIR;
 #else
         dir = QCoreApplication::applicationDirPath();
 #endif
