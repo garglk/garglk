@@ -11,8 +11,12 @@
 #include <utility>
 #include <vector>
 
+#if __cplusplus >= 201703L
+#include <filesystem>
+#else
 #include <dirent.h>
 #include <sys/types.h>
+#endif
 
 #define JSON_DIAGNOSTICS 1
 #include "json.hpp"
@@ -269,34 +273,58 @@ std::vector<std::string> garglk::theme::paths()
     return theme_paths;
 }
 
+#if __cplusplus >= 201703
+static std::vector<std::string> directory_entries(const std::string &dir)
+{
+    std::vector<std::string> entries;
+
+    try
+    {
+        for (const auto &entry : std::filesystem::directory_iterator(dir))
+            entries.push_back(entry.path().string());
+    }
+    catch (const std::filesystem::filesystem_error &)
+    {
+    }
+
+    return entries;
+}
+#else
+static std::vector<std::string> directory_entries(const std::string &dir)
+{
+    auto d = garglk::unique(opendir(dir.c_str()), closedir);
+    if (d == nullptr)
+        return {};
+
+    std::vector<std::string> entries;
+    dirent *de;
+    while ((de = readdir(d.get())) != nullptr)
+        entries.push_back(dir + "/" + de->d_name);
+
+    return entries;
+}
+#endif
+
 void garglk::theme::init()
 {
     for (const auto &themedir : garglk::theme::paths())
     {
-        auto d = garglk::unique(opendir(themedir.c_str()), closedir);
-        if (d != nullptr)
+        for (const auto &filename : directory_entries(themedir))
         {
-            dirent *de;
-
-            while ((de = readdir(d.get())) != nullptr)
+            auto dot = filename.find_last_of('.');
+            if (dot != std::string::npos && filename.substr(dot) == ".json")
             {
-                std::string basename = de->d_name;
-                auto dot = basename.find_last_of('.');
-                if (dot != std::string::npos && basename.substr(dot) == ".json")
+                try
                 {
-                    std::string filename = themedir + "/" + basename;
-                    try
-                    {
-                        auto theme = Theme::from_file(filename);
-                        // C++17: use insert_or_assign()
-                        const auto result = themes.insert({theme.name, theme});
-                        if (!result.second)
-                            result.first->second = theme;
-                    }
-                    catch (const std::exception &e)
-                    {
-                        std::cerr << "garglk: error parsing theme " << filename << ": " << e.what() << std::endl;
-                    }
+                    auto theme = Theme::from_file(filename);
+                    // C++17: use insert_or_assign()
+                    const auto result = themes.insert({theme.name, theme});
+                    if (!result.second)
+                        result.first->second = theme;
+                }
+                catch (const std::exception &e)
+                {
+                    std::cerr << "garglk: error parsing theme " << filename << ": " << e.what() << std::endl;
                 }
             }
         }
