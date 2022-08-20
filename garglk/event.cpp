@@ -98,7 +98,7 @@ void glk_select_poll(event_t *event)
 
 void glk_tick()
 {
-#ifdef GARGLK_TICK
+#ifdef GARGLK_CONFIG_TICK
     gli_tick();
 #endif
 }

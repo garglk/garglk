@@ -50,12 +50,12 @@
 #include <QWidget>
 #include <QtGlobal>
 
-#if GARGLK_HAS_DBUS
+#if GARGLK_CONFIG_HAS_QDBUS
 #include <QtDBus/QDBusInterface>
 #include <QtDBus/QDBusReply>
 #endif
 
-#ifdef GARGLK_KDE
+#ifdef GARGLK_CONFIG_KDE
 #include <kio_version.h>
 
 #if KIO_VERSION >= ((5 << 16) | (69 << 8))
@@ -145,7 +145,7 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
 {
     QString filename;
     QFileDialog::Options options;
-#ifdef GARGLK_NO_NATIVE_FILE_DIALOGS
+#ifdef GARGLK_CONFIG_NO_NATIVE_FILE_DIALOGS
     options |= QFileDialog::DontUseNativeDialog;
 #endif
 
@@ -323,7 +323,7 @@ static void edit_config()
         QStringList args;
         args << "-t" << config.c_str();
         proc.startDetached("open", args);
-#elif defined(GARGLK_KDE)
+#elif defined(GARGLK_CONFIG_KDE)
         // If KDE is available, it provides a way to query the user's
         // preferred text editor, allowing an approximation of the Mac
         // behavior. Fall back to QDesktopServices::openUrl otherwise.
@@ -609,7 +609,7 @@ void winrepaint(int x0, int y0, int x1, int y1)
 
 bool windark()
 {
-#if GARGLK_HAS_DBUS
+#if GARGLK_CONFIG_HAS_QDBUS
     // https://flatpak.github.io/xdg-desktop-portal/
     QDBusInterface interface("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings");
     QDBusReply<QVariant> reply = interface.call("Read", "org.freedesktop.appearance", "color-scheme");

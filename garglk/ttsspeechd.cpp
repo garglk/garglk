@@ -29,7 +29,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-#ifdef GARGLK_DLOPEN_LIBSPEECHD
+#ifdef GARGLK_CONFIG_DLOPEN_LIBSPEECHD
 
 #include <dlfcn.h>
 #include <iostream>
@@ -92,7 +92,7 @@ void gli_initialize_tts()
 {
     if (gli_conf_speak)
     {
-#ifdef GARGLK_DLOPEN_LIBSPEECHD
+#ifdef GARGLK_CONFIG_DLOPEN_LIBSPEECHD
         void *libspeechd = dlopen("libspeechd.so.2", RTLD_LAZY | RTLD_LOCAL);
 
         if (libspeechd == nullptr)
