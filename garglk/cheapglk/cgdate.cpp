@@ -46,10 +46,9 @@
 */
 #define NO_TIMEGM_AVAIL
 
-/* ... but due to the mess that is C/C++ dependencies, give it a
-   different name, in case a dependency forces the name to be exposed
-   anyway, even though Gargoyle specifically requests a POSIX
-   environment, without extensions.
+/* ... but due to the mess that is C++ and POSIX, give it a
+   different name, since Unix environments tend to expose everything to
+   C++, standard or otherwise, unconditionally.
  */
 #define timegm cg_timegm
 
