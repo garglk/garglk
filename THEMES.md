@@ -8,7 +8,7 @@ Gargoyle now has a way to specify entire color themes and switch between them
 with a single configuration option.
 
 Color themes are JSON files which specify all possible colors. Gargoyle comes
-with some colors themes, and you are able to create your own as well. Where to
+with some color themes, and you are able to create your own as well. Where to
 place these color themes depends on your operating system. To see all theme
 paths, hit control-period (or command-period on Mac) while Gargoyle is running.
 The first listed theme path should be your personal path which you can install
