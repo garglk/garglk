@@ -208,7 +208,8 @@ if(WITH_GLULXE)
         glulxe/float.c
         MACROS ${GLULXE_MACROS}
         MATH
-        POSIX)
+        POSIX
+        LTO)
 endif()
 
 # ------------------------------------------------------------------------------
