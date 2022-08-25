@@ -366,8 +366,8 @@ void win_textbuffer_redraw(window_t *win)
         /* kill spaces at the end unless they're a different color*/
         Color color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         while (i > 0 && linelen > 1 && ln.chars[linelen-1] == ' '
-            && dwin->styles[ln.attrs[linelen-1].style].bg == color
-            && !dwin->styles[ln.attrs[linelen-1].style].reverse)
+            && ln.attrs[linelen-1].bgcolor == color
+            && !ln.attrs[linelen-1].reverse)
                 linelen --;
 
         /* kill characters that would overwrite the scroll bar */
@@ -1038,8 +1038,8 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     /* kill spaces at the end for line width calculation */
     linelen = dwin->numchars;
     while (linelen > 1 && dwin->chars[linelen-1] == ' '
-        && dwin->styles[dwin->attrs[linelen-1].style].bg == color
-        && !dwin->styles[dwin->attrs[linelen-1].style].reverse)
+        && dwin->attrs[linelen-1].bgcolor == color
+        && !dwin->attrs[linelen-1].reverse)
         linelen --;
 
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, linelen, -1) >= pw)
