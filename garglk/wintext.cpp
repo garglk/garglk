@@ -970,7 +970,13 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
         }
     }
 
-    if (gli_conf_dashes && win->attr.style != style_Preformatted)
+    // This tracks whether the font "should" be monospace, not whether
+    // the font file itself is actually monospace: if the font is monor,
+    // monob, monoi, or monoz, then this will be true, regardless of
+    // what font the user actually set as the monospace font.
+    bool monospace = gli_tstyles[win->attr.style].font.monospace;
+
+    if (gli_conf_dashes && !monospace)
     {
         if (ch == '-')
         {
@@ -994,7 +1000,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
             dwin->dashed = 0;
     }
 
-    if (gli_conf_spaces && win->attr.style != style_Preformatted
+    if (gli_conf_spaces && !monospace
         && dwin->styles[win->attr.style].bg == color
         && !dwin->styles[win->attr.style].reverse)
     {
