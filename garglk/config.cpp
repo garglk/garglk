@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <functional>
+#include <iomanip>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -405,7 +406,7 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
             accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string &match) {
                 std::istringstream s(line.substr(1, line.size() - 2));
                 std::string pattern;
-                while (s >> pattern)
+                while (s >> std::quoted(pattern))
                 {
 #ifdef _WIN32
                     if (PathMatchSpec(garglk::downcase(match).c_str(), garglk::downcase(pattern).c_str()))
