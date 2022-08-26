@@ -48,7 +48,7 @@ endif()
 
 add_library(garglk babeldata.cpp style.cpp config.cpp draw.cpp event.cpp
     garglk.cpp imgload.cpp imgscale.cpp theme.cpp winblank.cpp window.cpp
-    wingfx.cpp wingrid.cpp winmask.cpp winpair.cpp wintext.cpp
+    wingfx.cpp wingrid.cpp winmask.cpp winpair.cpp wintext.cpp zbleep.cpp
     ${GARGLKINI_CXX}
 
     # These can't be a library in cheapglk/ because they contain

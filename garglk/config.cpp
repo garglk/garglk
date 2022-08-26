@@ -595,6 +595,20 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             gli_conf_graphics = !!std::stoi(arg);
         } else if (cmd == "sound") {
             gli_conf_sound = !!std::stoi(arg);
+        } else if (cmd == "zbleep") {
+            std::istringstream argstream(arg);
+            int number, frequency;
+            double duration;
+
+            if (argstream >> number >> duration >> frequency)
+                gli_bleeps.update(number, duration, frequency);
+        } else if (cmd == "zbleep_file") {
+            std::istringstream argstream(arg);
+            int number;
+            std::string path;
+
+            if (argstream >> number >> path)
+                gli_bleeps.update(number, path);
         } else if (cmd == "fullscreen") {
             gli_conf_fullscreen = !!std::stoi(arg);
         } else if (cmd == "zoom") {

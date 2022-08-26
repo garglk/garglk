@@ -26,6 +26,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <new>
 #include <set>
@@ -77,6 +78,8 @@
 #define GLK_MAXVOLUME 0x10000
 
 static std::set<schanid_t> gli_channellist;
+
+static schanid_t gli_bleep_channel;
 
 #if MPG123_API_VERSION < 46
 static bool mp3_initialized;
@@ -476,6 +479,10 @@ void gli_initialize_sound()
 #if MPG123_API_VERSION < 46
     mp3_initialized = mpg123_init() == MPG123_OK;
 #endif
+
+    gli_bleep_channel = glk_schannel_create(0);
+    if (gli_bleep_channel != nullptr)
+        glk_schannel_set_volume(gli_bleep_channel, 0x8000);
 }
 
 schanid_t glk_schannel_create(glui32 rock)
@@ -635,6 +642,86 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume, glui32 durat
     chan->last_volume_bump = std::chrono::steady_clock::now();
 }
 
+static int detect_format(const QByteArray &data)
+{
+    struct Magic {
+        virtual ~Magic() = default;
+        virtual bool matches(const QByteArray &data) const = 0;
+    };
+
+    struct MagicString : public Magic {
+        MagicString(qint64 offset, QString string) :
+            m_offset(offset),
+            m_string(std::move(string))
+        {
+        }
+
+        bool matches(const QByteArray &data) const override {
+            QByteArray subarray = data.mid(m_offset, m_string.size());
+
+            return QString(subarray) == m_string;
+        }
+
+    private:
+        const qint64 m_offset;
+        const QString m_string;
+    };
+
+    struct MagicMod : public Magic {
+        bool matches(const QByteArray &data) const override {
+            std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
+
+            return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
+                    data.data(), size, data.size(),
+                    nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) == OPENMPT_PROBE_FILE_HEADER_RESULT_SUCCESS;
+        }
+    };
+
+    std::vector<std::pair<std::shared_ptr<Magic>, int>> magics = {
+        { std::make_shared<MagicString>(0, "FORM"), giblorb_ID_FORM },
+        { std::make_shared<MagicString>(0, "RIFF"), giblorb_ID_WAVE },
+        { std::make_shared<MagicString>(0, "OggS"), giblorb_ID_OGG },
+
+        { std::make_shared<MagicMod>(), giblorb_ID_MOD },
+
+        // ID3-tagged MP3s have a magic string, but untagged MP3
+        // files don't, as they are just collections of frames, each
+        // with a sync header. All MP3 sync headers start with an
+        // 11-bit frame sync which is set to all ones. The next 4
+        // bits can be anything except all zeros, and the bit
+        // following that can be 0 or 1, giving 6 possible values
+        // for the first 2 bytes of the frame. This may well have
+        // false positives, but mpg123 will then hopefully fail to
+        // load the file.
+        { std::make_shared<MagicString>(0, "ID3"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xe2"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xe3"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xf2"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xf3"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xfa"), giblorb_ID_MP3 },
+        { std::make_shared<MagicString>(0, "\xff\xfb"), giblorb_ID_MP3 },
+    };
+
+    for (const auto &pair : magics)
+    {
+        if (pair.first->matches(data))
+            return pair.second;
+    }
+
+    throw SoundError("no matching magic");
+}
+
+static std::pair<int, QByteArray> load_bleep_resource(glui32 snd)
+{
+    if (snd != 1 && snd != 2)
+        throw SoundError("invalid bleep selected");
+
+    const auto &bleep = gli_bleeps.at(snd);
+    QByteArray data(reinterpret_cast<const char *>(bleep.data()), bleep.size());
+
+    return {detect_format(data), data};
+}
+
 static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 {
     if (giblorb_get_resource_map() == nullptr)
@@ -647,71 +734,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 
         QByteArray data = file.readAll();
 
-        struct Magic {
-            virtual ~Magic() = default;
-            virtual bool matches(const QByteArray &data) const = 0;
-        };
-
-        struct MagicString : public Magic {
-            MagicString(qint64 offset, QString string) :
-                m_offset(offset),
-                m_string(std::move(string))
-            {
-            }
-
-            bool matches(const QByteArray &data) const override {
-                QByteArray subarray = data.mid(m_offset, m_string.size());
-
-                return QString(subarray) == m_string;
-            }
-
-        private:
-            const qint64 m_offset;
-            const QString m_string;
-        };
-
-        struct MagicMod : public Magic {
-            bool matches(const QByteArray &data) const override {
-                std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
-
-                return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
-                        data.data(), size, data.size(),
-                        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr) == OPENMPT_PROBE_FILE_HEADER_RESULT_SUCCESS;
-            }
-        };
-
-        std::vector<std::pair<std::shared_ptr<Magic>, int>> magics = {
-            { std::make_shared<MagicString>(0, "FORM"), giblorb_ID_FORM },
-            { std::make_shared<MagicString>(0, "RIFF"), giblorb_ID_WAVE },
-            { std::make_shared<MagicString>(0, "OggS"), giblorb_ID_OGG },
-
-            { std::make_shared<MagicMod>(), giblorb_ID_MOD },
-
-            // ID3-tagged MP3s have a magic string, but untagged MP3
-            // files don't, as they are just collections of frames, each
-            // with a sync header. All MP3 sync headers start with an
-            // 11-bit frame sync which is set to all ones. The next 4
-            // bits can be anything except all zeros, and the bit
-            // following that can be 0 or 1, giving 6 possible values
-            // for the first 2 bytes of the frame. This may well have
-            // false positives, but mpg123 will then hopefully fail to
-            // load the file.
-            { std::make_shared<MagicString>(0, "ID3"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xe2"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xe3"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xf2"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xf3"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xfa"), giblorb_ID_MP3 },
-            { std::make_shared<MagicString>(0, "\xff\xfb"), giblorb_ID_MP3 },
-        };
-
-        for (const auto &pair : magics)
-        {
-            if (pair.first->matches(data))
-                return std::make_pair(pair.second, data);
-        }
-
-        throw SoundError("no matching magic");
+        return {detect_format(data), data};
     }
     else
     {
@@ -735,7 +758,7 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
     }
 }
 
-glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
+glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<std::pair<int, QByteArray>(glui32)> load_resource)
 {
     if (chan == nullptr)
     {
@@ -753,7 +776,15 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     {
         int type;
         QByteArray data;
-        std::tie(type, data) = load_sound_resource(snd);
+
+        try
+        {
+            std::tie(type, data) = load_resource(snd);
+        }
+        catch (const Bleeps::Empty &)
+        {
+            return 1;
+        }
 
         try
         {
@@ -835,6 +866,11 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
     }
 }
 
+glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify)
+{
+    return glk_schannel_play_ext_impl(chan, snd, repeats, notify, load_sound_resource);
+}
+
 void glk_schannel_pause(schanid_t chan)
 {
     if (chan == nullptr)
@@ -877,4 +913,10 @@ void glk_schannel_stop(schanid_t chan)
     chan->audio->stop();
     chan->timer.stop();
     chan->audio.reset(nullptr);
+}
+
+void garglk_zbleep(glui32 number)
+{
+    if (gli_bleep_channel != nullptr)
+        glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
 }
