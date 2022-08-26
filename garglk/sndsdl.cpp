@@ -138,10 +138,6 @@ void gli_initialize_sound()
         Mix_GroupChannels(0, channels - 1 , FREE);
         Mix_ChannelFinished(nullptr);
     }
-
-    gli_bleep_channel = glk_schannel_create(0);
-    if (gli_bleep_channel != nullptr)
-        glk_schannel_set_volume(gli_bleep_channel, 0x8000);
 }
 
 schanid_t glk_schannel_create(glui32 rock)
@@ -853,6 +849,13 @@ void glk_schannel_stop(schanid_t chan)
 
 void garglk_zbleep(glui32 number)
 {
+    if (gli_bleep_channel == nullptr)
+    {
+        gli_bleep_channel = glk_schannel_create(0);
+        if (gli_bleep_channel != nullptr)
+            glk_schannel_set_volume(gli_bleep_channel, 0x8000);
+    }
+
     if (gli_bleep_channel != nullptr)
         glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
 }
