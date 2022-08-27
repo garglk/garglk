@@ -169,7 +169,7 @@ void garglk::winabort(const std::string &msg)
 void winexit(void)
 {
     [gargoyle closeWindow: processID];
-    exit(0);
+    gli_exit(0);
 }
 
 std::string garglk::winopenfile(const char *prompt, FileFilter filter)

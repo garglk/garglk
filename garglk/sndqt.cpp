@@ -449,10 +449,21 @@ struct glk_schannel_struct
     // of a smart pointer here is automatic deletion of the allocated
     // pointer on deletion of the sound channel.
     std::shared_ptr<SoundSource> source;
+
+    // Use a custom deleter here: Qt does a bunch of cleanup with atexit
+    // handlers, which includes destroying audio backends. This object
+    // holds an audio backend instance, which is deleted by Qt in an
+    // atexit handler, but it's possible for static destructors to run
+    // afterward, and if any of them cause this destructor to run (e.g.
+    // via glk_schannel_delete()), it will try to reference this deleted
+    // audio backend, resulting in undefined behavior. Gargoyle itself
+    // doesn't do this, but applications/interpreters are allowed to.
+    // The custom deleter will delete this instance unless Gargoyle is
+    // shutting down, as determined by the gli_exiting flag.
 #ifdef HAS_QT6
-    std::unique_ptr<QAudioSink> audio;
+    std::unique_ptr<QAudioSink, std::function<void(QAudioSink *)>> audio;
 #else
-    std::unique_ptr<QAudioOutput> audio;
+    std::unique_ptr<QAudioOutput, std::function<void(QAudioOutput *)>> audio;
 #endif
 
     QTimer timer;
@@ -816,13 +827,13 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
         if (!device.isFormatSupported(format))
             throw SoundError("unsupported source format");
 
-        chan->audio = std::make_unique<QAudioSink>(device, format);
+        chan->audio = decltype(chan->audio)(new QAudioSink(device, format), [](QAudioSink *audio) { if (!gli_exiting) delete audio; });
 #else
         QAudioDeviceInfo info(QAudioDeviceInfo::defaultOutputDevice());
         if (!info.isFormatSupported(format))
             throw SoundError("unsupported source format");
 
-        chan->audio = std::make_unique<QAudioOutput>(format, nullptr);
+        chan->audio = decltype(chan->audio)(new QAudioOutput(format), [](QAudioOutput *audio) { if (!gli_exiting) delete audio; });
 #endif
         chan->source = std::move(source);
 
@@ -906,9 +917,15 @@ void glk_schannel_stop(schanid_t chan)
     if (!chan->audio)
         return;
 
-    chan->audio->stop();
-    chan->timer.stop();
-    chan->audio.reset(nullptr);
+    // If Gargoyle is exiting, then Qt's atexit handlers have probably
+    // already run, meaning chan->audio holds a pointer to invalid data.
+    // Simply ignore this request in that case.
+    if (!gli_exiting)
+    {
+        chan->audio->stop();
+        chan->timer.stop();
+        chan->audio.reset(nullptr);
+    }
 }
 
 void garglk_zbleep(glui32 number)

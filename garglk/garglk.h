@@ -377,6 +377,7 @@ extern std::string gli_story_name;
 extern std::string gli_story_title;
 
 extern bool gli_terminated;
+extern bool gli_exiting;
 
 extern window_t *gli_rootwin;
 extern window_t *gli_focuswin;
@@ -863,6 +864,9 @@ extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
 /*
  * All the annoyingly boring and tedious prototypes...
  */
+
+[[noreturn]]
+extern void gli_exit(int status);
 
 extern window_blank_t *win_blank_create(window_t *win);
 extern void win_blank_destroy(window_blank_t *dwin);

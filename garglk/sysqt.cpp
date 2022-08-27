@@ -131,12 +131,12 @@ void garglk::winabort(const std::string &msg)
 {
     std::cerr << "fatal: " << msg << std::endl;
     QMessageBox::critical(nullptr, "Error", msg.c_str());
-    std::exit(EXIT_FAILURE);
+    gli_exit(EXIT_FAILURE);
 }
 
 void winexit()
 {
-    std::exit(0);
+    gli_exit(0);
 }
 
 enum class Action { Open, Save };
@@ -218,7 +218,7 @@ Window::Window() :
 
 void Window::closeEvent(QCloseEvent *)
 {
-    std::exit(0);
+    gli_exit(0);
 }
 
 void Window::resizeEvent(QResizeEvent *event)
