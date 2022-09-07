@@ -16,7 +16,7 @@ static int actor,action,dobject,ndobjects,iobject;
 static int flag;
 
 /* external routines */
-extern char *trm_get();
+extern char *trm_get(char *line);
 
 /* external variables */
 extern char line[];	/* line buffer */
