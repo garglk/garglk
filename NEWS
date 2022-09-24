@@ -1,3 +1,12 @@
+2022.1.1:
+• $HOME/garglk.ini is loaded on macOS again
+• Fallback fonts work on macOS again
+• Non-ASCII filenames are better supported on Windows
+• Transcripts update in real time again
+• Fix some cases where Agility save/restore prompts didn't work on macOS
+• Fix media loading in JACL and Hugo
+• Avoid potential crash with newer versions of SDL2_mixer
+
 2022.1:
 • Gargoyle now implements Glk version 0.7.5.
 • Various interpreter updates.
