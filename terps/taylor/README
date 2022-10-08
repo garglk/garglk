@@ -1,0 +1,53 @@
+
+	TaylorMade v0.4		(c) 2004 - 2016 Alan Cox
+				All Rights Reserved
+				See COPYING for more information
+
+Introduction
+
+	Taylormade is a basic text only engine for running the later
+	Adventure International UK authored games. This is not the
+	same as SAGA+ although some games were recoded from SAGA+.
+
+	Taylormade knows how to parse Spectrum .sna snapshot files
+	containing these games and uses patterns in the game binary
+	to locate table pointers. Currently the code will load most
+	but not all the games in this format.
+
+	To run use "taylormade game.sna".
+
+
+Features
+
+	Taylormade should eventually support all the games in this
+	format. There are several complications to this goal. The
+	first is that the game engine changes features by release
+	much more than the Scott Adams engine did. 
+
+	The game supports the basic commands found in all the games
+	and the extensions that are so far analysed and identified.
+
+	Graphics are not currently supported.
+
+Working Games
+
+	Rebel Planet
+
+	Blizzard Pass
+
+	He-man
+		Has RAM save/load features (supported). Appears to
+	have an interpreter "GET ALL" that is not.
+
+	Temple Of Terror
+		Much like He-man in game features but also adds
+	an "oops" function to go back one move. The oops function 
+	is supported.
+
+	Kayleth
+		Pulls some tables wrongly from the .sna but close
+
+Untested
+
+	Torch & Thing
+

@@ -1,0 +1,252 @@
+A description of the later AI UK game engine encoding.
+
+The basic design is superficially similar to the earlier games. Various
+technologies like the token based compressor and the bitmap graphics are
+reused, with the Seas Of Blood style graphics engine.
+
+Flags
+
+There are an unknown number of flags. They range in value from 0 to 255.
+Overflows result in 255, underflows in 0. Several flags have special roles.
+[256 flags ??]
+
+Flag 0		Location		(Starts ?)
+Flag 1		Set means dark		(Starts 0)
+Flag 2		Carried Room		(Starts 253)
+Flag 3		Worn Room		(Starts 254)
+Flag 4					(Starts 4)    (max carried)
+Flag 5		Carried Count		(Starts 0)
+Flag 6		Num Objects			(Starts 150)  (num items ??)
+
+
+Text
+
+All text is stored tokenised. Each token is stored as ascii with the top
+bit used to mark last character. Each string consists of a list of tokens
+ending in token 5e or 7e. Capitalisation is automatic following ".". The
+5E/7E may encode case or space information - I'm not sure yet. Various
+things autocase - such as ".". Early games encode end of text tokens into
+the compression stream - which makes them much slower to extract text.
+
+Messages
+
+Stored in the message table in Text format. The first messages are system
+used as follows
+
+0	. You can see		(object listing)
+1-10	Directions
+11	That input contained no recognized words
+12	It is beyond my power to do that.
+13	. You can go
+14	what do you want to do now		(not early games)
+15	you're carrying too much.
+16	you are carrying the following:
+17	nothing at all
+18	game's now over. Do you want to play again (Y/N) ?
+19	Ok.
+20	press any key to continue
+21	you already have it
+22	sorry, I don't see it here.
+23	you don't have it
+24	you can't go that way
+25	It is dark. You cannot see.
+26	do you want to restore a saved game ?
+27
+28	you are not wearing it
+29	you are wearing it
+30	(worn),
+31	No help at this stage.
+32	I don't understand that verb
+33+ game text
+
+
+Locations 
+0xFC	destroyed
+0xFD	default carried	
+0xFE	default worn
+
+Exits
+
+Exit data is in the form 
+
+	<bit7 + room number>
+		<verb><location> repeated until a code with the top bit is
+		found. The top bit indicates we passed the end.
+	<0xFF> marks the final end (??)
+
+Verbs 1-10 are exits
+
+Pictures
+
+Each picture script is delimited by an 0xFF end marker. These scripts
+compose pictures out of block pictures which are themselves encoded in the
+same way as the earlier games. In fact the scripts of pictures first appear
+in Seas of Blood. Games prior to Robin of Sherwood use display sized
+pictures, Robin of Sherwood is special using strips for forest and special
+rules.
+
+Drawing Codes:
+
+0xFF		End
+0xFE		733C
+0xFD		6FF5 arg 0-7, arg 0-7
+0xFC		76D4 arg1 arg2 arg3 arg4
+		Seems to be
+		setattributes (arg1,arg2, height, attribute, width)
+		where arg1=y arg2=x in chars 0,0 top left
+0xFB		700D
+		Make picture attribute area bright
+0xFA		7512
+0xF9		DrawPicture n	(following byte)
+0xF8		729D
+0xF7		743A arg1 }
+0xF6		744E arg1 } set A to 0 4 or 8 and call same method
+0xF5		7444 arg1 }
+0xF4		7458 arg1
+	End of object arg1 is not present
+0xF3		7409
+0xF2		7331 arg1 arg2 arg3 arg4
+0xF1		73FE
+0xEE		7507
+0xED		7654
+0xEC		7649
+0xEB		CRASH
+0xEA		CRASH
+0xE9		7678 arg1 arg2 ..
+		arg1 = colour to match
+		arg2 = new colour
+		Swap colour (paper or ink)
+0xE8		747A
+		Clear upper
+
+Lower values 6FB7 = code calls 7234 etc see 6F86
+
+Engine Tables
+
+This is a sequence of conditions and actions. The encoding is as follows
+
+	Bit 7		Action
+	Bit 6		Set = Last Action (condition cannot be last)
+	Bit 5-0		Code
+
+Condition Codes
+1	AT		L
+2	NOTAT		L
+3	ATGT		L
+4	ATLT		L
+5	PRESENT		O
+6	HERE		O
+7	ABSENT		O
+8	NOTHERE		O
+9	CARRIED		O
+10	NOTCARRIED	O
+11	WORN		O
+12	NOTWORN		O
+13	DESTROYED	O
+14	NOTDESTROYED	O
+15	ZERO		F
+16	NOTZERO		F
+17	WORD1		W
+18	WORD2		W
+19	WORD3		W
+20	CHANCE		%
+21	GT		F	N
+22	LT		F	N
+23	EQ		F	N
+24	NE		F	N
+25	OBJECTAT	O	L
+
+Action Codes
+1	LOAD	?
+2	QUIT
+3	INVENTORY
+4	ANYKEY
+5	SAVE
+6	DROPALL
+7	PICTURE ?
+8	OK
+9	GET		O
+10	DROP		O
+11	GOTO		L
+12	GOBY		O	Secondary message block (He-man, Kayleth
+                                etc ?) on all games that use it ?
+13	SET		F
+14	CLEAR		F
+15	MESSAGE		M
+16	CREATE		O
+17	DESTROY		O
+18	PRINT		F
+19	DELAY		T
+20	WEAR		O
+21	REMOVE		O
+22	LET		F	N
+23	ADD		F	N
+24	SUB		F	N
+25	PUT		O	L		(Unsure)
+26	SWAP		O	O
+27	SWAP		F	F
+28	MEANS (?)	V	N
+29	PUTWITH		O	O
+30	BEEP		?	?		(Rebel Planet)
+31	LOOK		?	?		(Unsure)
+32	QSAVE		0	0		(He-man, Temple, Kayleth)
+33	QLOAD		0	0		(He-Man, Temple, Kayleth)
+34	Clear Lower??	0	0		(Used in Kayleth)
+35	OOPS					(Temple)
+
+Each sequence consists of sequences of conditions and then actions
+each individual condition or action is followed by its parameters. A single 
+0x7F marks the end of the tables
+
+The automatics table has no verb/noun header. The actions table precedes
+each table with two bytes. The first is the verb the second the noun.
+A code of 0x7E indicates "any word" (is 0 none - unsure)
+
+Verbs
+0	NONE (noise AND/OR)
+1=11	Exits (North, South, East, West, Up =, Down,
+		NorthEast, NorthWest, SouthEast, SouthWest)
+1C 	
+
+Nouns
+B8, DE, D1  ??
+
+The word table is a single table. It contains 5 bytes per word being 4
+letters (space padded) and a byte of value. The top bit is set for nouns
+and clear for verbs. It ends XXXX[FF]
+
+Functionality By Game
+
+Games we can parse:
+Rebel Planet
+Blizzard Pass		-	unusual 128K mode
+Temple of Terror	-	added opcodes
+He Man			-	added opcodes, quicksave/restore
+				interpreter "get all" helper
+
+Games not yet parsed:
+Kayleth			-	added opcodes, other changes
+
+
+Section Locations (Blizzard Pass)
+
+		75CE
+Messages	7E26
+Object Text	8CE6
+Automatics	96D9
+Commands	9A54
+Words		A720
+Room Exits	AB67
+Tokens		B1BC
+Object Starts	B6A8
+Room ???	B798 (room graphics ?)
+		FF terminated F8 marker ?
+Room Text	1B000   (Segment 3)
+
+Note that blizzard pass is special in that it is the only game for the 
+Spectrum 128. The 128K version has two location tables (one for what would
+be the graphical game and one for the text "other side of the tape" both
+placed in one setup, with the rooms in the higher banks). Blizzard Pass
+also appears to have a special hack so that there are two ranges of object
+that append to the room description not one. This hack is not yet
+implemented in TaylorMade.

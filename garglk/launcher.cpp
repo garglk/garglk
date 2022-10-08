@@ -58,9 +58,11 @@
 #define T_JACL      "jacl"
 #define T_LEV9      "level9"
 #define T_MGSR      "magnetic"
+#define T_PLUS      "plus"
 #define T_SCOTT     "scott"
 #define T_TADS2     "tadsr"
 #define T_TADS3     "tadsr"
+#define T_TAYLOR    "taylor"
 #define T_ZCODE     "bocfel"
 #define T_ZSIX      "bocfel"
 
@@ -88,9 +90,11 @@ enum class Format {
     JACL,
     Level9,
     Magnetic,
+    Plus,
     Scott,
     TADS2,
     TADS3,
+    Taylor,
     ZCode,
     ZCode6,
 };
@@ -137,9 +141,11 @@ static const std::map<std::string, Format> extensions = {
     {"l9", Format::Level9},
     {"sna", Format::Level9},
     {"mag", Format::Magnetic},
+    {"plus", Format::Plus},
     {"saga", Format::Scott},
     {"gam", Format::TADS2},
     {"t3", Format::TADS3},
+    {"tay", Format::Taylor},
     {"dat", Format::ZCode},
     {"z1", Format::ZCode},
     {"z2", Format::ZCode},
@@ -163,9 +169,11 @@ static const std::map<Format, Interpreter> interpreters = {
     { Format::JACL, Interpreter(T_JACL) },
     { Format::Level9, Interpreter(T_LEV9) },
     { Format::Magnetic, Interpreter(T_MGSR) },
+    { Format::Plus, Interpreter(T_PLUS) },
     { Format::Scott, Interpreter(T_SCOTT) },
     { Format::TADS2, Interpreter(T_TADS2) },
     { Format::TADS3, Interpreter(T_TADS3) },
+    { Format::Taylor, Interpreter(T_TAYLOR) },
     { Format::ZCode, Interpreter(T_ZCODE) },
     { Format::ZCode6, Interpreter(T_ZSIX) },
 };
