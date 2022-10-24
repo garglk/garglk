@@ -292,7 +292,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
     // XDG Base Directory Specification
     std::string xdg_path;
     const char *xdg = getenv("XDG_CONFIG_HOME");
-    if (xdg != nullptr)
+    if (xdg != nullptr && xdg[0] == '/')
         xdg_path = xdg;
     else if (home != nullptr)
         xdg_path = std::string(home) + "/.config";
