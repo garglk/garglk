@@ -18,6 +18,8 @@ git_sint32* gStackPointer;
 Opcode* gOpcodeTable;
 #endif
 
+enum IOMode gIoMode = IO_NULL;
+
 // -------------------------------------------------------------
 // Useful macros for manipulating the stack
 
@@ -29,6 +31,41 @@ Opcode* gOpcodeTable;
 
 #define CHECK_FREE(n) if ((top - sp) < (n)) goto stack_overflow
 #define CHECK_USED(n) if ((sp - values) < (n)) goto stack_underflow
+
+// -------------------------------------------------------------
+// Random number generator, from Glulxe
+
+static glui32 rand_table[55]; /* State for the RNG. */
+static int rand_index1, rand_index2;
+
+glui32 lo_random()
+{
+  rand_index1 = (rand_index1 + 1) % 55;
+  rand_index2 = (rand_index2 + 1) % 55;
+  rand_table[rand_index1] = rand_table[rand_index1] - rand_table[rand_index2];
+  return rand_table[rand_index1];
+}
+
+void lo_seed_random(glui32 seed)
+{
+  glui32 k = 1;
+  int i, loop;
+
+  rand_table[54] = seed;
+  rand_index1 = 0;
+  rand_index2 = 31;
+
+  for (i = 0; i < 55; i++) {
+    int ii = (21 * i) % 55;
+    rand_table[ii] = k;
+    k = seed - k;
+    seed = rand_table[ii];
+  }
+  for (loop = 0; loop < 4; loop++) {
+    for (i = 0; i < 55; i++)
+      rand_table[i] = rand_table[i] - rand_table[ (1 + i + 30) % 55];
+  }
+}
 
 // -------------------------------------------------------------
 // Floating point support
@@ -46,7 +83,31 @@ GIT_INLINE git_float DECODE_FLOAT(git_uint32 n) {
   return f;
 }
 
-int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
+GIT_INLINE void ENCODE_DOUBLE(git_double d, git_sint32 *hi, git_sint32 *lo)
+{
+#if defined(USE_BIG_ENDIAN) || defined(USE_BIG_ENDIAN_UNALIGNED)
+  memcpy(hi, &d, 4);
+  memcpy(lo, ((char *)&d)+4, 4);
+#else
+  memcpy(lo, &d, 4);
+  memcpy(hi, ((char *)&d)+4, 4);
+#endif
+}
+
+GIT_INLINE git_double DECODE_DOUBLE(git_uint32 hi, git_uint32 lo)
+{
+  git_double d;
+#if defined(USE_BIG_ENDIAN) || defined(USE_BIG_ENDIAN_UNALIGNED)
+  memcpy(&d, &hi, 4);
+  memcpy(((char *)&d)+4, &lo, 4);
+#else
+  memcpy(&d, &lo, 4);
+  memcpy(((char *)&d)+4, &hi, 4);
+#endif
+  return d;
+}
+
+static int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
 {
   git_float F1, F2;
 
@@ -60,14 +121,24 @@ int floatCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3)
   return ((F1 <= F2) && (F1 >= -F2));
 }
 
-#ifdef USE_OWN_POWF
-float git_powf(float x, float y);
-#endif
+static int doubleCompare(git_sint32 L1, git_sint32 L2, git_sint32 L3, git_sint32 L4, git_sint32 L5, git_sint32 L6, git_sint32 L7)
+{
+  git_double D1, D2;
+
+  if (((L5 & 0x7FF00000) == 0x7FF00000) && (((L5 & 0xFFFFF) != 0x0) || (L6 != 0x0)))
+    return 0;
+  if ((L1 == 0x7FF00000 || L1 == 0xFFF00000) && L2 == 0x0 && (L3 == 0x7FF00000 || L3 == 0xFFF00000) && L4 == 0x0)
+    return (L1 == L3);
+
+  D1 = DECODE_DOUBLE(L3, L4) - DECODE_DOUBLE(L1, L2);
+  D2 = fabs(DECODE_DOUBLE(L5, L6));
+  return ((D1 <= D2) && (D1 >= -D2));
+}
 
 // -------------------------------------------------------------
 // Functions
 
-void startProgram (size_t cacheSize, enum IOMode ioMode)
+void startProgram (size_t cacheSize)
 {
     Block pc; // Program counter (pointer into dynamically generated code)
 
@@ -75,6 +146,7 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
 #define S1 L1
 #define S2 L2
     git_float F1=0.0f, F2=0.0f, F3=0.0f, F4=0.0f;
+    git_double D1=0.0f, D2=0.0f, D3=0.0f;
 
     git_sint32* base;   // Bottom of the stack.
     git_sint32* frame;  // Bottom of the current stack frame.
@@ -117,7 +189,7 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
     initCompiler (cacheSize);
 
     // Initialise the random number generator.
-    srand (time(NULL));
+    lo_seed_random (time(NULL));
 
     // Set up the stack.
 
@@ -137,7 +209,7 @@ void startProgram (size_t cacheSize, enum IOMode ioMode)
 #if defined(USE_DIRECT_THREADING) && (UINTPTR_MAX > 0xffffffffULL)
 #define NEXT do { goto *(Opcode)(*(pc++) | opcodeHi); } while(0)
 #elif defined(USE_DIRECT_THREADING)
-#define NEXT do { goto **(pc++); } while(0)
+#define NEXT do { goto *(Opcode)(*(pc++)); } while(0)
 #else
 #define NEXT goto next
 //#define NEXT do { CHECK_USED(0); CHECK_FREE(0); goto next; } while (0)
@@ -397,11 +469,21 @@ do_enter_function_L1: // Arg count is in L2.
     DO_JUMP(jfle,   L3, DECODE_FLOAT(L1) <= DECODE_FLOAT(L2));
     DO_JUMP(jfeq,   L4, floatCompare(L1, L2, L3) != 0);
     DO_JUMP(jfne,   L4, floatCompare(L1, L2, L3) == 0);
+    DO_JUMP(jdlt,   L5, DECODE_DOUBLE(L1, L2) < DECODE_DOUBLE(L3, L4));
+    DO_JUMP(jdge,   L5, DECODE_DOUBLE(L1, L2) >= DECODE_DOUBLE(L3, L4));
+    DO_JUMP(jdgt,   L5, DECODE_DOUBLE(L1, L2) > DECODE_DOUBLE(L3, L4));
+    DO_JUMP(jdle,   L5, DECODE_DOUBLE(L1, L2) <= DECODE_DOUBLE(L3, L4));
+    DO_JUMP(jdeq,   L7, doubleCompare(L1, L2, L3, L4, L5, L6, L7) != 0);
+    DO_JUMP(jdne,   L7, doubleCompare(L1, L2, L3, L4, L5, L6, L7) == 0);
+    DO_JUMP(jdisinf, L3, (((L1 == 0x7FF00000) || (L1 == 0xFFF00000)) && L2 == 0x0));
+    DO_JUMP(jdisnan, L3, (((L1 & 0x7FF00000) == 0x7FF00000) && (((L1 & 0xFFFFF) != 0) || (L2 != 0x0))));
 
 #undef DO_JUMP
 
     do_jumpabs: L7 = L1; goto do_jump_abs_L7; NEXT;
 
+    do_goto_L7_from_L7: L1 = L7; goto do_goto_L1_from_L7;
+    do_goto_L5_from_L7: L1 = L5; goto do_goto_L1_from_L7;
     do_goto_L4_from_L7: L1 = L4; goto do_goto_L1_from_L7;
     do_goto_L3_from_L7: L1 = L3; goto do_goto_L1_from_L7;
     do_goto_L2_from_L7: L1 = L2; goto do_goto_L1_from_L7;
@@ -532,14 +614,14 @@ finish_undo_stub:
 finish_save_stub:
         PUSH (READ_PC);                        // PC
         PUSH ((frame - base) * 4);  // FramePtr
-        if (ioMode == IO_GLK)
+        if (gIoMode == IO_GLK)
             S1 = saveToFile (base, sp, L1);
         else
             S1 = 1;
         goto do_pop_call_stub;
 
     do_restore:
-        if (ioMode == IO_GLK
+        if (gIoMode == IO_GLK
          && restoreFromFile (base, L1, protectPos, protectSize) == 0)
         {
             sp = gStackPointer;
@@ -734,7 +816,7 @@ do_tailcall:
         git_uint32 absn;
         
         // If the IO mode is 'null', do nothing.
-        if (ioMode == IO_NULL)
+        if (gIoMode == IO_NULL)
             goto do_pop_call_stub;
 
         // Write the number into the buffer.
@@ -755,7 +837,7 @@ do_tailcall:
 
         // If we're in filter mode, push a call stub
         // and filter the next character.
-        if (ioMode == IO_FILTER)
+        if (gIoMode == IO_FILTER)
         {
             // Store the next character in the args array.
             args[0] = buffer [L2 - L6 - 1];
@@ -786,11 +868,11 @@ do_tailcall:
         // If the IO mode is 'null', or if we've reached the
         // end of the string, do nothing.
         L2 = memRead8(L7++);
-        if (L2 == 0 || ioMode == IO_NULL)
+        if (L2 == 0 || gIoMode == IO_NULL)
             goto do_pop_call_stub;
         // Otherwise we're going to have to print something,
         // If the IO mode is 'filter', filter the next char.
-        if (ioMode == IO_FILTER)
+        if (gIoMode == IO_FILTER)
         {
             // Store this character in the args array.
             args [0] = L2;
@@ -818,11 +900,11 @@ do_tailcall:
         // end of the string, do nothing.
         L2 = memRead32(L7);
         L7 += 4;
-        if (L2 == 0 || ioMode == IO_NULL)
+        if (L2 == 0 || gIoMode == IO_NULL)
             goto do_pop_call_stub;
         // Otherwise we're going to have to print something,
         // If the IO mode is 'filter', filter the next char.
-        if (ioMode == IO_FILTER)
+        if (gIoMode == IO_FILTER)
         {
             // Store this character in the args array.
             args [0] = L2;
@@ -885,7 +967,7 @@ do_tailcall:
             // This will produce infinite output in the Null or Glk
             // I/O modes, so we'll catch that here.
 
-            if (ioMode != IO_FILTER)
+            if (gIoMode != IO_FILTER)
                 fatalError ("String table prints infinite strings!");
 
             // In Filter mode, the output will be sent to the current
@@ -899,9 +981,9 @@ do_tailcall:
                 goto do_pop_call_stub;
 
             case 2: // Single char.
-                if (ioMode == IO_NULL)
+                if (gIoMode == IO_NULL)
                     { /* Do nothing */ }
-                else if (ioMode == IO_GLK)
+                else if (gIoMode == IO_GLK)
                     glk_put_char ((unsigned char) memRead8(L1));
                 else
                 {
@@ -932,9 +1014,9 @@ do_tailcall:
                 goto resume_c_string_L7;
                 
             case 4: // Unicode char
-                if (ioMode == IO_NULL)
+                if (gIoMode == IO_NULL)
                     { /* Do nothing */ }
-                else if (ioMode == IO_GLK)
+                else if (gIoMode == IO_GLK)
                 {
 #ifdef GLK_MODULE_UNICODE
                     glk_put_char_uni (memRead32(L1));
@@ -1065,9 +1147,9 @@ do_tailcall:
 
     do_streamchar:
         L7 = READ_PC;
-        if (ioMode == IO_NULL)
+        if (gIoMode == IO_NULL)
             { /* Do nothing */ }
-        else if (ioMode == IO_GLK)
+        else if (gIoMode == IO_GLK)
         {
             unsigned char c = (L1 & 0xff);
             glk_put_char (c);
@@ -1091,9 +1173,9 @@ do_tailcall:
 
     do_streamunichar:
         L7 = READ_PC;
-        if (ioMode == IO_NULL)
+        if (gIoMode == IO_NULL)
             { /* Do nothing */ }
-        else if (ioMode == IO_GLK)
+        else if (gIoMode == IO_GLK)
         {
 #ifdef GLK_MODULE_UNICODE
             glk_put_char_uni ((glui32) L1);
@@ -1139,7 +1221,7 @@ do_tailcall:
         NEXT;
 
     do_getiosys:
-        S1 = ioMode;
+        S1 = gIoMode;
         S2 = ioRock;
         NEXT;
 
@@ -1149,7 +1231,7 @@ do_tailcall:
             case IO_NULL:
             case IO_FILTER:
             case IO_GLK:
-                ioMode = (enum IOMode) L1;
+                gIoMode = (enum IOMode) L1;
                 ioRock = L2;
                 break;
             
@@ -1180,25 +1262,17 @@ do_tailcall:
 
     do_random:
         if (L1 > 0)
-            S1 = rand() % L1;
+            S1 = lo_random () % L1;
         else if (L1 < 0)
-            S1 = -(rand() % -L1);
+            S1 = -(lo_random () % -L1);
         else
         {
-            // The parameter is zero, so we should generate a
-            // random number in "the full 32-bit range". The rand()
-            // function might not cover the entire range, so we'll
-            // generate the number with several calls.
-#if (RAND_MAX < 0xffff)
-            S1 = rand() ^ (rand() << 12) ^ (rand() << 24);
-#else
-            S1 = (rand() & 0xffff) | (rand() << 16);
-#endif
+            S1 = lo_random ();
         }
         NEXT;
 
     do_setrandom:
-        srand (L1 ? L1 : time(NULL));
+        lo_seed_random (L1 ? L1 : time(NULL));
         NEXT;
 
     do_glk:
@@ -1387,11 +1461,7 @@ do_tailcall:
         NEXT;
 
     do_pow:
-#ifdef USE_OWN_POWF
-        F1 = git_powf(DECODE_FLOAT(L1), DECODE_FLOAT(L2));
-#else
         F1 = powf(DECODE_FLOAT(L1), DECODE_FLOAT(L2));
-#endif
         S1 = ENCODE_FLOAT(F1);
         NEXT;
 
@@ -1440,6 +1510,165 @@ do_tailcall:
     do_atan:
         F1 = atanf(DECODE_FLOAT(L1));
         S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    // Double-precision (new with glulx spec 3.1.3)
+
+    do_numtod:
+        D1 = (git_double) L1;
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dtonumz:
+        D1 = DECODE_DOUBLE(L1, L2);
+        if (!signbit(D1)) {
+          if (isnan(D1) || isinf(D1) || (D1 > 2147483647.0))
+            S1 = 0x7FFFFFFF;
+          else
+            S1 = (git_sint32) trunc(D1);
+        } else {
+          if (isnan(D1) || isinf(D1) || (D1 < -2147483647.0))
+            S1 = 0x80000000;
+          else
+            S1 = (git_sint32) trunc(D1);
+        }
+        NEXT;
+
+    do_dtonumn:
+        D1 = DECODE_DOUBLE(L1, L2);
+        if (!signbit(D1)) {
+          if (isnan(D1) || isinf(D1) || (D1 > 2147483647.0))
+            S1 = 0x7FFFFFFF;
+          else
+            S1 = (git_sint32) round(D1);
+        } else {
+          if (isnan(D1) || isinf(D1) || (D1 < -2147483647.0))
+            S1 = 0x80000000;
+          else
+            S1 = (git_sint32) round(D1);
+        }
+        NEXT;
+
+    do_ftod:
+        D1 = (git_double) DECODE_FLOAT(L1);
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dtof:
+        F1 = (git_float) DECODE_DOUBLE(L1, L2);
+        S1 = ENCODE_FLOAT(F1);
+        NEXT;
+
+    do_dadd:
+        D1 = (DECODE_DOUBLE(L1, L2) + DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dsub:
+        D1 = (DECODE_DOUBLE(L1, L2) - DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dmul:
+        D1 = (DECODE_DOUBLE(L1, L2) * DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_ddiv:
+        D1 = (DECODE_DOUBLE(L1, L2) / DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dmodr:
+        D1 = fmod(DECODE_DOUBLE(L1, L2), DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dmodq:
+        D1 = DECODE_DOUBLE(L1, L2);
+        D2 = DECODE_DOUBLE(L3, L4);
+        D3 = fmod(D1, D2);
+        D3 = (D1-D3) / D2;
+        ENCODE_DOUBLE(D3, &L5, &L6);
+        if ((L5 == 0) || (L5 == 0x80000000))
+          L5 = (L1 ^ L3) & 0x80000000;
+        S2 = L5;
+        S1 = L6;
+        NEXT;
+
+    do_dceil:
+        D1 = ceil(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dfloor:
+        D1 = floor(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dsqrt:
+        D1 = sqrt(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dexp:
+        D1 = exp(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dlog:
+        D1 = log(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dpow:
+        D1 = pow(DECODE_DOUBLE(L1, L2), DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dsin:
+        D1 = sin(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dcos:
+        D1 = cos(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dtan:
+        D1 = tan(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dasin:
+        D1 = asin(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_dacos:
+        D1 = acos(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_datan:
+        D1 = atan(DECODE_DOUBLE(L1, L2));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    do_datan2:
+        D1 = atan2(DECODE_DOUBLE(L1, L2), DECODE_DOUBLE(L3, L4));
+        ENCODE_DOUBLE(D1, &S2, &S1);
+        NEXT;
+
+    // Extended undo (new with glulx spec 3.1.3)
+
+    do_hasundo:
+        S1 = hasUndo();
+        NEXT;
+
+    do_discardundo:
+        discardUndo();
         NEXT;
 
     // Special Git opcodes

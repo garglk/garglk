@@ -100,7 +100,7 @@
 
 #define glulx_malloc malloc
 #define glulx_free free
-#define glulx_random rand
+#define glulx_random lo_random
 
 #ifndef TRUE
 #define TRUE 1

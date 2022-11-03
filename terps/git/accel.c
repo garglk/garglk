@@ -165,9 +165,11 @@ void accel_set_param(glui32 index, glui32 val)
 
 static void accel_error(char *msg)
 {
-    glk_put_char('\n');
-    glk_put_string(msg);
-    glk_put_char('\n');
+    if (gIoMode == 2) { /* iosys_Glk */
+        glk_put_char('\n');
+        glk_put_string(msg);
+        glk_put_char('\n');
+    }
 }
 
 static int obj_in_class(glui32 obj)

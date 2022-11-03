@@ -170,7 +170,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Git 1.3.3
+# Git 1.3.7
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
@@ -179,6 +179,19 @@ set(GIT_MACROS USE_INLINE)
 if(GARGLK_NEEDS_TICK)
     list(APPEND GIT_MACROS GIT_NEED_TICK)
 endif()
+
+if(CMAKE_VERSION VERSION_LESS "3.20")
+    include(TestBigEndian)
+    test_big_endian(IS_BIG_ENDIAN)
+    if(IS_BIG_ENDIAN)
+        list(APPEND GIT_MACROS USE_BIG_ENDIAN)
+    endif()
+else()
+    if(CMAKE_C_BYTE_ORDER STREQUAL "BIG_ENDIAN")
+        list(APPEND GIT_MACROS USE_BIG_ENDIAN)
+    endif()
+endif()
+
 if(WITH_GIT)
     terp(git
         SRCS git/git.c git/memory.c git/compiler.c git/opcodes.c git/operands.c
