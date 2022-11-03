@@ -36,6 +36,14 @@ void initUndo (git_uint32 size)
     gUndo = NULL;
 }
 
+int hasUndo ()
+{
+    if (gUndo == NULL)
+        return 1;
+    else
+        return 0;
+}
+
 int saveUndo (git_sint32 * base, git_sint32 * sp)
 {
     git_uint32 undoSize = sizeof(UndoRecord);
@@ -220,6 +228,30 @@ int restoreUndo (git_sint32* base, git_uint32 protectPos, git_uint32 protectSize
 
         // And we're done.
         return 0;
+    }
+}
+
+void discardUndo ()
+{
+    if (gUndo == NULL)
+    {
+        // Nothing to undo!
+        return;
+    }
+    else
+    {
+        UndoRecord * undo = gUndo;
+        // Delete the undo record.
+        gUndo = undo->prev;
+        deleteRecord (undo);
+
+        if (gUndo)
+            gUndo->next = NULL;
+        else
+            assert (gUndoSize == 0);
+
+        // And we're done.
+        return;
     }
 }
 

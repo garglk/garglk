@@ -4,8 +4,6 @@
 #include "WinGlk.h"
 #include "git.h"
 
-#include <math.h>
-
 const char* gFilename = NULL;
 char gExePath[_MAX_PATH];
 
@@ -102,3 +100,4 @@ void glk_main()
     if (file != INVALID_HANDLE_VALUE)
         CloseHandle(file);
 }
+

@@ -5,7 +5,7 @@ git_uint32 gestalt (enum GestaltSelector sel, git_uint32 param)
     switch (sel)
     {
         case GESTALT_SPEC_VERSION:
-            return 0x00030102;
+            return 0x00030103;
     
         case GESTALT_TERP_VERSION:
             return GIT_VERSION_NUM;
@@ -43,6 +43,12 @@ git_uint32 gestalt (enum GestaltSelector sel, git_uint32 param)
             return 0;
 
         case GESTALT_FLOAT:
+            return 1;
+
+        case GESTALT_EXTUNDO:
+            return 1;
+
+        case GESTALT_DOUBLE:
             return 1;
 
         case GESTALT_GIT_CACHE_CONTROL:

@@ -7,6 +7,9 @@
 // Various compile-time options. You can define them in the
 // makefile or uncomment them here, whichever's easiest.
 
+// Define if we're big-endian.
+// #define USE_BIG_ENDIAN
+
 // Define if we're big-endian and can read and write unaligned data.
 // #define USE_BIG_ENDIAN_UNALIGNED
 
@@ -18,11 +21,6 @@
 
 // Define this to memory-map the game file to speed up loading. (Unix-specific)
 // #define USE_MMAP
-
-// Define this to use an OS-specific git_powf() power math function. This
-// is useful if your compiler's powf() doesn't implement every special case
-// of the C99 standard.
-// #define USE_OWN_POWF
 
 // -------------------------------------------------------------------
 
@@ -82,6 +80,7 @@ typedef unsigned long git_uint32;
 #endif
 
 typedef float git_float;
+typedef double git_double;
 
 
 #if defined(__GNUC__)

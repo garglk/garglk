@@ -153,7 +153,15 @@ LABEL (astorebit)
 	LABEL (jisnan ## tag) \
 	LABEL (jisinf ## tag) \
 	LABEL (jfeq ## tag)   \
-	LABEL (jfne ## tag)
+	LABEL (jfne ## tag)   \
+	LABEL (jdlt ## tag)   \
+	LABEL (jdge ## tag)   \
+	LABEL (jdgt ## tag)   \
+	LABEL (jdle ## tag)   \
+	LABEL (jdisnan ## tag)  \
+	LABEL (jdisinf ## tag)  \
+	LABEL (jdeq ## tag)     \
+	LABEL (jdne ## tag)
 
 BRANCH_LABELS(_var)
 BRANCH_LABELS(_const)
@@ -187,6 +195,8 @@ LABEL (restart)
 LABEL (restore)
 LABEL (restoreundo)
 LABEL (protect)
+LABEL (hasundo)
+LABEL (discardundo)
 
 LABEL (glk)
 
@@ -224,6 +234,35 @@ LABEL (asin)
 LABEL (acos)
 LABEL (atan)
 LABEL (atan2)
+
+LABEL (numtod)
+LABEL (dtonumz)
+LABEL (dtonumn)
+LABEL (ftod)
+LABEL (dtof)
+
+LABEL (dadd)
+LABEL (dsub)
+LABEL (dmul)
+LABEL (ddiv)
+LABEL (dpow)
+LABEL (datan2)
+
+LABEL (dmodr)
+LABEL (dmodq)
+
+LABEL (dceil)
+LABEL (dfloor)
+LABEL (dsqrt)
+LABEL (dexp)
+LABEL (dlog)
+
+LABEL (dsin)
+LABEL (dcos)
+LABEL (dtan)
+LABEL (dasin)
+LABEL (dacos)
+LABEL (datan)
 
 LABEL (git_setcacheram)
 LABEL (git_prunecache)
