@@ -103,18 +103,6 @@ struct ThemeStyles {
             styles[i].bg = colors[i].bg;
         }
     }
-
-    static ThemeStyles from(const style_t *styles) {
-        auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
-
-        for (int i = 0; i < style_NUMSTYLES; i++)
-        {
-            colors[i].fg = styles[i].fg;
-            colors[i].bg = styles[i].bg;
-        }
-
-        return {colors};
-    }
 };
 
 struct Theme {
