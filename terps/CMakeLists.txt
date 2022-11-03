@@ -138,7 +138,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Bocfel 2.0
+# Bocfel 2.0.1
 #
 set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)
 if(UNIX)

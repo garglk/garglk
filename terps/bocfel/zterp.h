@@ -70,7 +70,7 @@ struct Options {
 extern std::string game_file;
 extern Options options;
 
-#define ZTERP_VERSION	"2.0"
+#define ZTERP_VERSION	"2.0.1"
 
 // v3
 constexpr uint8_t FLAGS1_STATUSTYPE  = 1U << 1;
