@@ -66,7 +66,7 @@ if(WITH_ADVSYS)
         advsys/advdbs.c advsys/advint.c advsys/advjunk.c advsys/advexe.c
         advsys/glkstart.c)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(advsys PRIVATE "-Wno-parentheses")
     endif()
@@ -108,7 +108,7 @@ if(WITH_ALAN2)
         MACROS GLK REVERSED
         POSIX)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(alan2 PRIVATE "-Wno-dangling-else")
     endif()
@@ -163,7 +163,7 @@ if(WITH_BOCFEL)
         MACROS ${BOCFEL_MACROS}
         LTO WARNINGS)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU$")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU$")
         target_compile_options(bocfel PRIVATE "-Wno-sign-compare")
     endif()
 endif()
@@ -253,7 +253,7 @@ if(WITH_JACL)
         MATH
         POSIX)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(jacl PRIVATE "-Wno-parentheses-equality")
     endif()
@@ -274,7 +274,7 @@ if(WITH_LEVEL9)
         stricmp=gln_strcasecmp strnicmp=gln_strncasecmp
         MATH)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(level9 PRIVATE "-Wno-switch")
     endif()

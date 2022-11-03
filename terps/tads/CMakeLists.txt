@@ -57,7 +57,7 @@ if(WITH_TADS)
         CXXSTD 11
         POSIX)
 
-    if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+    if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
         # This is a style choice in the code.
         target_compile_options(tadsr PRIVATE "-Wno-logical-not-parentheses")
     endif()
