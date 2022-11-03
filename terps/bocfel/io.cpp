@@ -154,18 +154,18 @@ IO::IO(const std::string *filename, Mode mode, Purpose purpose) :
             prompt = "Enter filename for command record: ";
             break;
         default:
-            throw Error();
+            throw OpenError();
         }
 
         std::cout << std::endl << prompt << std::flush;
         if (!std::getline(std::cin, fn) || fn.empty()) {
-            throw Error();
+            throw OpenError();
         }
 
         m_type = Type::StandardIO;
         m_file = File(std::fopen(fn.c_str(), smode), true);
         if (m_file.stdio == nullptr) {
-            throw Error();
+            throw OpenError();
         }
 #endif
     }
@@ -289,9 +289,10 @@ size_t IO::read(void *buf, size_t n) {
             }
 
             s = remaining < n ? remaining : n;
-            std::memcpy(buf, &b->memory[b->offset], s);
-
-            b->offset += s;
+            if (s != 0) {
+                std::memcpy(buf, &b->memory[b->offset], s);
+                b->offset += s;
+            }
 
             break;
         }

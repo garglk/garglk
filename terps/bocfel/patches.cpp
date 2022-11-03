@@ -29,6 +29,7 @@ struct Replacement {
     size_t n;
     std::vector<uint8_t> in;
     std::vector<uint8_t> out;
+    std::function<bool()> active = []{ return true; };
 };
 
 struct Patch {
@@ -38,6 +39,25 @@ struct Patch {
     uint16_t checksum;
     std::vector<Replacement> replacements;
 };
+
+// The Bureaucracy patch assumes that timed input is available, as it
+// uses that to simulate a sleep. If timed input is not available,
+// though, it will instead just be a regular @read_char, which will
+// block till the user hits a key. This is worse behavior than the
+// default, which is to effectively not sleep at all. Timed input is
+// only available with Glk, and then only if the Glk implementation
+// supports timers.
+#ifdef ZTERP_GLK
+static bool bureaucracy_active()
+{
+    return glk_gestalt(gestalt_Timer, 0);
+}
+#else
+static bool bureaucracy_active()
+{
+    return false;
+}
+#endif
 
 static std::vector<Patch> patches = {
     // There are several patches for Beyond Zork.
@@ -274,6 +294,7 @@ static std::vector<Patch> patches = {
                 0x2128c, 18,
                 {0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xde, 0x5c, 0x00, 0x02, 0xd6, 0x2f, 0x03},
                 {0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xa7, 0x00, 0xb0, 0x00, 0x00, 0xb0},
+                bureaucracy_active,
             }
         }
     },
@@ -284,6 +305,7 @@ static std::vector<Patch> patches = {
                 0x212d0, 18,
                 {0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xde, 0x64, 0x00, 0x02, 0xd6, 0x2f, 0x03},
                 {0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xb8, 0x00, 0xb0, 0x00, 0x00, 0xb0},
+                bureaucracy_active,
             }
         }
     },
@@ -294,6 +316,7 @@ static std::vector<Patch> patches = {
                 0x212c8, 18,
                 {0x02, 0x00, 0x01, 0x00, 0x00, 0x10, 0x00, 0x1e, 0x00, 0xd0, 0x2f, 0xdc, 0xce, 0x00, 0x02, 0xd6, 0x2f, 0x03},
                 {0x01, 0x00, 0x01, 0x56, 0x01, 0x0a, 0x01, 0xf6, 0x63, 0x01, 0x01, 0x84, 0xb6, 0x00, 0xb0, 0x00, 0x00, 0xb0},
+                bureaucracy_active,
             }
         }
     },
@@ -383,7 +406,9 @@ void apply_patches()
             patch.checksum == header.checksum) {
 
             for (const auto &replacement : patch.replacements) {
-                apply_patch(replacement);
+                if (replacement.active()) {
+                    apply_patch(replacement);
+                }
             }
         }
     }
