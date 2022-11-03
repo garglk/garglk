@@ -96,7 +96,7 @@ std::string join(const Iterable &values, const DType &delim)
 struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
 
-    void to(style_t *styles) const {
+    void to(std::array<style_t, style_NUMSTYLES> &styles) const {
         for (int i = 0; i < style_NUMSTYLES; i++)
         {
             styles[i].fg = colors[i].fg;
@@ -138,8 +138,8 @@ struct Theme {
         gli_link_save = linkcolor;
         gli_more_color = morecolor;
         gli_more_save = morecolor;
-        tstyles.to(gli_tstyles.data());
-        gstyles.to(gli_gstyles.data());
+        tstyles.to(gli_tstyles);
+        gstyles.to(gli_gstyles);
     }
 
     static Theme from_file(const std::string &filename) {
