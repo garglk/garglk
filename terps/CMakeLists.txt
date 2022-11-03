@@ -66,7 +66,7 @@ if(WITH_ADVSYS)
         advsys/advdbs.c advsys/advint.c advsys/advjunk.c advsys/advexe.c
         advsys/glkstart.c)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(advsys PRIVATE "-Wno-parentheses")
     endif()
@@ -108,7 +108,7 @@ if(WITH_ALAN2)
         MACROS GLK REVERSED
         POSIX)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(alan2 PRIVATE "-Wno-dangling-else")
     endif()
@@ -140,18 +140,18 @@ endif()
 #
 # Bocfel 2.0.1
 #
-set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)
-if(UNIX)
-    list(APPEND BOCFEL_MACROS ZTERP_UNIX)
-elseif(MINGW)
-    list(APPEND BOCFEL_MACROS ZTERP_WIN32)
-endif()
-
-if(GARGLK_NEEDS_TICK)
-    list(APPEND BOCFEL_MACROS ZTERP_GLK_TICK)
-endif()
-
 if(WITH_BOCFEL)
+    set(BOCFEL_MACROS ZTERP_GLK ZTERP_GLK_BLORB ZTERP_GLK_UNIX)
+    if(UNIX)
+        list(APPEND BOCFEL_MACROS ZTERP_UNIX)
+    elseif(MINGW)
+        list(APPEND BOCFEL_MACROS ZTERP_WIN32)
+    endif()
+
+    if(GARGLK_NEEDS_TICK)
+        list(APPEND BOCFEL_MACROS ZTERP_GLK_TICK)
+    endif()
+
     terp(bocfel
         SRCS bocfel/blorb.cpp bocfel/branch.cpp bocfel/dict.cpp bocfel/iff.cpp
         bocfel/io.cpp bocfel/mathop.cpp bocfel/meta.cpp bocfel/memory.cpp bocfel/objects.cpp
@@ -163,7 +163,7 @@ if(WITH_BOCFEL)
         MACROS ${BOCFEL_MACROS}
         LTO WARNINGS)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "GNU$")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU$")
         target_compile_options(bocfel PRIVATE "-Wno-sign-compare")
     endif()
 endif()
@@ -174,25 +174,25 @@ endif()
 #
 # Reworked startup code to redirect errors to Glk windows.
 #
-set(GIT_MACROS USE_INLINE)
-
-if(GARGLK_NEEDS_TICK)
-    list(APPEND GIT_MACROS GIT_NEED_TICK)
-endif()
-
-if(CMAKE_VERSION VERSION_LESS "3.20")
-    include(TestBigEndian)
-    test_big_endian(IS_BIG_ENDIAN)
-    if(IS_BIG_ENDIAN)
-        list(APPEND GIT_MACROS USE_BIG_ENDIAN)
-    endif()
-else()
-    if(CMAKE_C_BYTE_ORDER STREQUAL "BIG_ENDIAN")
-        list(APPEND GIT_MACROS USE_BIG_ENDIAN)
-    endif()
-endif()
-
 if(WITH_GIT)
+    set(GIT_MACROS USE_INLINE)
+
+    if(GARGLK_NEEDS_TICK)
+        list(APPEND GIT_MACROS GIT_NEED_TICK)
+    endif()
+
+    if(CMAKE_VERSION VERSION_LESS "3.20")
+        include(TestBigEndian)
+        test_big_endian(IS_BIG_ENDIAN)
+        if(IS_BIG_ENDIAN)
+            list(APPEND GIT_MACROS USE_BIG_ENDIAN)
+        endif()
+    else()
+        if(CMAKE_C_BYTE_ORDER STREQUAL "BIG_ENDIAN")
+            list(APPEND GIT_MACROS USE_BIG_ENDIAN)
+        endif()
+    endif()
+
     terp(git
         SRCS git/git.c git/memory.c git/compiler.c git/opcodes.c git/operands.c
         git/peephole.c git/terp.c git/glkop.c git/search.c git/git_unix.c
@@ -205,14 +205,14 @@ endif()
 #
 # Glulxe 0.6.0
 #
-set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
-if(UNIX)
-    list(APPEND GLULXE_MACROS OS_UNIX)
-elseif(MINGW)
-    list(APPEND GLULXE_MACROS WIN32)
-endif()
-
 if(WITH_GLULXE)
+    set(GLULXE_MACROS FLOAT_COMPILE_SAFER_POWF)
+    if(UNIX)
+        list(APPEND GLULXE_MACROS OS_UNIX)
+    elseif(MINGW)
+        list(APPEND GLULXE_MACROS WIN32)
+    endif()
+
     terp(glulxe
         SRCS glulxe/main.c glulxe/files.c glulxe/vm.c glulxe/exec.c
         glulxe/funcs.c glulxe/operand.c glulxe/string.c glulxe/glkop.c
@@ -253,7 +253,7 @@ if(WITH_JACL)
         MATH
         POSIX)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(jacl PRIVATE "-Wno-parentheses-equality")
     endif()
@@ -274,7 +274,7 @@ if(WITH_LEVEL9)
         stricmp=gln_strcasecmp strnicmp=gln_strncasecmp
         MATH)
 
-    if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang$")
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang$")
         # This is a style choice in the code.
         target_compile_options(level9 PRIVATE "-Wno-switch")
     endif()
