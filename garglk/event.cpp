@@ -64,7 +64,7 @@ void gli_dispatch_event(event_t *event, bool polled)
 /* Various modules can call this to indicate that an event has occurred.*/
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 {
-    event_t store = { 0 };
+    event_t store{};
 
     store.type = type;
     store.win = win;
