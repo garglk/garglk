@@ -115,6 +115,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-magscroll.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-tads.png
 %{_datarootdir}/icons/hicolor/32x32/mimetypes/application-x-zmachine.png
+%{_datarootdir}/man/man6/gargoyle.6.gz
 %{_datarootdir}/metainfo/io.github.garglk.Gargoyle.appdata.xml
 %{_datarootdir}/mime/packages/interactive-fiction.xml
 
