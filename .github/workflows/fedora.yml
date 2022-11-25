@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload RPM
         if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Gargoyle-Fedora-${{ matrix.version }}
           path: ~/rpm_factory/RPMS/x86_64/*.rpm
