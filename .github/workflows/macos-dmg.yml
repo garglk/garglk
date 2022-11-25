@@ -23,7 +23,7 @@ jobs:
           sh gargoyle_osx.sh
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Gargoyle.dmg
           path: gargoyle*.dmg

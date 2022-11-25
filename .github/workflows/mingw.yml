@@ -67,14 +67,14 @@ jobs:
           ./windows.sh -a ${{ matrix.arch }}
 
       - name: Upload installer
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Gargoyle-installer-${{ matrix.arch }}
           path: gargoyle-*.exe
         if: ${{ matrix.arch == 'i686' || matrix.arch == 'x86_64' }}
 
       - name: Upload standalone
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: Gargoyle-standalone-${{ matrix.arch }}
           path: gargoyle-*.zip
