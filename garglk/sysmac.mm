@@ -335,17 +335,21 @@ void winmach(CFMachPortRef port, void *msg, CFIndex size, void *info)
 
 void winhandler(int signal)
 {
-    if (signal == SIGUSR1 && gli_mach_allowed)
+    if (signal == SIGUSR1)
     {
-        mach_msg_header_t header;
-        header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
-        header.msgh_size        = sizeof(header);
-        header.msgh_remote_port = gli_signal_port;
-        header.msgh_local_port  = MACH_PORT_NULL;
-        header.msgh_reserved    = 0;
-        header.msgh_id          = signal;
+        if (gli_mach_allowed) {
+            mach_msg_header_t header;
+            header.msgh_bits        = MACH_MSGH_BITS(MACH_MSG_TYPE_MAKE_SEND, 0);
+            header.msgh_size        = sizeof(header);
+            header.msgh_remote_port = gli_signal_port;
+            header.msgh_local_port  = MACH_PORT_NULL;
+            header.msgh_reserved    = 0;
+            header.msgh_id          = signal;
 
-        mach_msg_send(&header);
+            mach_msg_send(&header);
+        } else {
+            gli_event_waiting = true;
+        }
     }
 
     if (signal == SIGUSR2)
