@@ -71,6 +71,10 @@ if(UNIX AND NOT APPLE)
     target_compile_definitions(garglk PRIVATE "GARGLKINI=\"${GARGLKINI}\"")
 endif()
 
+if(APPIMAGE)
+    target_compile_definitions(garglk PRIVATE GARGLK_CONFIG_APPIMAGE)
+endif()
+
 if(INTERFACE STREQUAL "COCOA")
     target_sources(garglk PRIVATE sysmac.mm)
     target_compile_options(garglk PRIVATE "-Wno-deprecated-declarations")
