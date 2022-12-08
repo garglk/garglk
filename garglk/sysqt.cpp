@@ -652,6 +652,13 @@ std::vector<std::string> garglk::winappdata()
     paths.push_back(QCoreApplication::applicationDirPath().toStdString());
 #endif
 
+    // For AppImages, hard-code the "known" path to app data (in this
+    // case that's <binary>/../share/io.github.garglk/Gargoyle).
+#if GARGLK_CONFIG_APPIMAGE
+    auto dir = QCoreApplication::applicationDirPath();
+    paths.push_back((dir + "/../share/io.github.garglk/Gargoyle").toStdString());
+#endif
+
     // QStandardPaths returns higher priority directories first: reverse
     // so that higher priority directories come later, so entries there
     // can overwrite earlier entries.
