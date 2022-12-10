@@ -24,8 +24,12 @@ typedef enum {
 static int StripBrackets(char sideB[], size_t length) {
     int left_bracket = 0;
     int right_bracket = 0;
-    if (length > 4) {
-        for (int i = (int)length - 4; i > 0; i--) {
+    size_t ppos = length - 1;
+    while(sideB[ppos] != '.' && ppos > 0)
+        ppos--;
+    size_t extlen = length - ppos;
+    if (length > extlen) {
+        for (int i = (int)ppos; i > 0; i--) {
             char c = sideB[i];
             if (c == ']') {
                 if (right_bracket == 0) {
@@ -42,10 +46,12 @@ static int StripBrackets(char sideB[], size_t length) {
                 }
             }
         }
-        if (right_bracket && left_bracket) {
+        if (right_bracket && left_bracket && length > right_bracket + extlen) {
             right_bracket++;
-            while(right_bracket <= length)
+            for (int i = 0; i < extlen; i++) {
                 sideB[left_bracket++] = sideB[right_bracket++];
+            }
+            sideB[left_bracket] = '\0';
             return 1;
         }
     }

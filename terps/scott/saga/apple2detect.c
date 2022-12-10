@@ -798,8 +798,12 @@ int DetectApple2(uint8_t **sf, size_t *extent)
 static int StripParens(char sideA[], size_t length) {
     int left_paren = 0;
     int right_paren = 0;
+    size_t ppos = length - 1;
+    while(sideA[ppos] != '.' && ppos > 0)
+        ppos--;
+    size_t extlen = length - ppos;
     if (length > 4) {
-        for (int i = length - 4; i > 0; i--) {
+        for (int i = (int)ppos; i > 0; i--) {
             char c = sideA[i];
             if (c == ')') {
                 if (right_paren == 0) {
@@ -818,12 +822,11 @@ static int StripParens(char sideA[], size_t length) {
                 }
             }
         }
-        if (right_paren && left_paren && length > right_paren + 4) {
+        if (right_paren && left_paren && length > right_paren + extlen) {
             right_paren++;
-            sideA[left_paren++] = sideA[right_paren++];
-            sideA[left_paren++] = sideA[right_paren++];
-            sideA[left_paren++] = sideA[right_paren++];
-            sideA[left_paren++] = sideA[right_paren++];
+            for (int i = 0; i < extlen; i++) {
+                sideA[left_paren++] = sideA[right_paren++];
+            }
             sideA[left_paren] = '\0';
             return 1;
         }
