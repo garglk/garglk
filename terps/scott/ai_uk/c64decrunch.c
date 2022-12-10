@@ -87,9 +87,16 @@ static const struct c64rec c64_registry[] = {
     { ADVENTURELAND_C64, 0x2adab, 0x64a4, TYPE_D64, 0, NULL, "SAG1PIC", -0xa53, 0, 0, 0, 0x65af }, // Adventureland C64 (D64) alt 2
     { ADVENTURELAND_C64, 0x2adab, 0x8847, TYPE_D64, 0, NULL, NULL,    0,        0, 0, 0, 0 }, // Adventureland C64 (D64) alt 3
 
+    { PIRATE_US, 0x2adab, 0x04c5, TYPE_US, 0, NULL, "PIRATE",    0, 0, 0, 0, 0x06d30  }, // Pirate Adventure S.A.G.A version
+
     { SECRET_MISSION_C64, 0x88be, 0xa122, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Secret Mission  C64 (T64) Section8 Packer
     { SECRET_MISSION_C64, 0x2ab00, 0x04d6, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, -0x1bff }, // Secret Mission  C64 (D64)
     { SECRET_MISSION_C64, 0x2adab, 0x3ca3, TYPE_D64, 0, NULL, "SAG3PIC", -0x83a, 0, 0, 0, 0x67c8 }, // Secret Mission  C64 (D64)
+
+    { VOODOO_CASTLE_US, 0x2adab, 0xcb2b, TYPE_US, 0, NULL, "SAGA1", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version
+    { VOODOO_CASTLE_US, 0x2ab00, 0x8969, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version, packed
+    { VOODOO_CASTLE_US, 0x2ab00, 0x2682, TYPE_US, 1, NULL, "VOODOO CASTLE", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version, packed 2
+    { VOODOO_CASTLE_US, 0x2ab00, 0xac79, TYPE_US, 0, NULL, "VOODOO CASTLE 2", 0, 0, 0, 0, 0x06c30  }, // Voodoo Castle S.A.G.A version "Cracked by Toko"
 
     { CLAYMORGUE_C64, 0x6ff7,  0xe4ed, TYPE_T64, 3, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64), MasterCompressor / Relax
                                                                                              // -> ECA Compacker -> MegaByte Cruncher v1.x Missing 17 pictures
@@ -579,6 +586,26 @@ int DetectC64(uint8_t **sf, size_t *extent)
                     fprintf(stderr, "SCOTT: DetectC64() Could not find database in D64\n");
                     return 0;
                 }
+
+                if (c64_registry[i].decompress_iterations) {
+                    size_t len = (size_t)newlength;
+                    DecrunchC64(&database_file, &len, c64_registry[i]);
+                    newlength = len;
+                }
+
+                /* There are at least two C64 S.A.G.A. games (Pirate Adventure and Voodoo Castle)
+                   which do not have a separate database file, but have interpreter, image data
+                   and database all in a single file. We cut off everything before the database here.
+                 */
+                int cutoff = c64_registry[i].imgoffset;
+                if (cutoff && cutoff < newlength) {
+                    newlength -= cutoff;
+                    uint8_t *shorter = MemAlloc(newlength);
+                    memcpy(shorter, database_file + cutoff, newlength);
+                    free(database_file);
+                    database_file = shorter;
+                }
+
                 int result = LoadBinaryDatabase(database_file, newlength, *Game, 0);
                 if (result) {
                     CurrentSys = SYS_C64;
@@ -598,7 +625,7 @@ int DetectC64(uint8_t **sf, size_t *extent)
 
 static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 {
-    file_length = *extent;
+    size_t length = *extent;
     size_t decompressed_length = *extent;
 
     uint8_t *uncompressed = MemAlloc(0x10000);
@@ -620,17 +647,17 @@ static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
     for (int i = 1; i <= record.decompress_iterations; i++) {
         /* We only send switches on the iteration specified by parameter */
         if (i == record.parameter && record.switches != NULL) {
-            result = unp64(entire_file, file_length, uncompressed,
+            result = unp64(*sf, length, uncompressed,
                 &decompressed_length, switches, numswitches);
         } else
-            result = unp64(entire_file, file_length, uncompressed,
+            result = unp64(*sf, length, uncompressed,
                 &decompressed_length, NULL, 0);
         if (result) {
-            if (entire_file != NULL)
-                free(entire_file);
-            entire_file = MemAlloc(decompressed_length);
-            memcpy(entire_file, uncompressed, decompressed_length);
-            file_length = decompressed_length;
+            if (*sf != NULL)
+                free(*sf);
+            *sf = MemAlloc(decompressed_length);
+            memcpy(*sf, uncompressed, decompressed_length);
+            length = decompressed_length;
         } else {
             free(uncompressed);
             uncompressed = NULL;
@@ -640,6 +667,11 @@ static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 
     if (uncompressed != NULL)
         free(uncompressed);
+
+    if (record.type == TYPE_US) {
+        *extent = length;
+        return result;
+    }
 
     for (int i = 0; games[i].Title != NULL; i++) {
         if (games[i].gameID == record.id) {
@@ -652,6 +684,19 @@ static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
     if (Game->Title == NULL) {
         Fatal("Game not found!");
     }
+
+    /* The GetId(&offset) function looks for a pattern in the data pointed to by the global pointer
+       entire_file, so we have to set entire_file to the local data pointer *sf here. This means that if
+       entire_file was previously pointing to the entire disk image (which is likely), that disk image
+       data will now be lost and replaced with the decompressed file data. So we can't access other files
+       on the disk image or check if the game is in fact not a C64 game after this point.
+     */
+
+    if (entire_file != *sf && entire_file != NULL) {
+        free(entire_file);
+        entire_file = *sf;
+    }
+    file_length = length;
 
     size_t offset;
 
