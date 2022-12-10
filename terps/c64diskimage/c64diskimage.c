@@ -477,18 +477,14 @@ DiskImage *di_create_from_data(uint8_t *data, int length)
 {
     DiskImage *di;
 
+    if (data == NULL)
+        return NULL;
+
     if ((di = malloc(sizeof(*di))) == NULL) {
         return NULL;
     }
 
     di->size = length;
-
-    /* allocate buffer for image */
-    if ((di->image = malloc(length)) == NULL) {
-        free(di);
-        return NULL;
-    }
-
     di->image = data;
 
     di->errinfo = NULL;
@@ -531,7 +527,6 @@ DiskImage *di_create_from_data(uint8_t *data, int length)
         break;
 
     default:
-        free(di->image);
         free(di);
         return NULL;
     }
