@@ -308,12 +308,12 @@ if(WITH_PLUS)
     set(PLUS_INCLUDE_DIRS plus c64diskimage)
     terp(plus
         SRCS plus/plusmain.c plus/animations.c plus/apple2detect.c plus/apple2draw.c
-	plus/atari8c64draw.c plus/atari8detect.c plus/c64detect.c plus/extracommands.c
-	plus/companionfile.c plus/gameinfo.c plus/graphics.c plus/layouttext.c plus/loaddatabase.c 
-	plus/parseinput.c plus/pcdraw.c plus/restorestate.c plus/stdetect.c plus/stdraw.c 
-	c64diskimage/c64diskimage.c
+        plus/atari8c64draw.c plus/atari8detect.c plus/c64detect.c plus/extracommands.c
+        plus/companionfile.c plus/gameinfo.c plus/graphics.c plus/layouttext.c plus/loaddatabase.c
+        plus/parseinput.c plus/pcdraw.c plus/restorestate.c plus/stdetect.c plus/stdraw.c
+        c64diskimage/c64diskimage.c
 
-	INCLUDE_DIRS ${PLUS_INCLUDE_DIRS})
+        INCLUDE_DIRS ${PLUS_INCLUDE_DIRS})
 endif()
 
 # ------------------------------------------------------------------------------
@@ -353,26 +353,26 @@ if(WITH_SCOTT)
     set(SCOTT_INCLUDE_DIRS scott scott/saga scott/ai_uk scott/ti994a c64diskimage unp64)
     terp(scott
         SRCS scott/scott.c scott/bsd.c scott/ai_uk/c64decrunch.c scott/ai_uk/debug.c
-	scott/ai_uk/decompresstext.c scott/ai_uk/line_drawing.c
-	scott/ai_uk/game_specific.c scott/ai_uk/hulk.c scott/ai_uk/gremlins.c
-	scott/ai_uk/decompressz80.c scott/detectgame.c scott/scottgameinfo.c scott/layouttext.c 
-	scott/ti994a/load_ti99_4a.c scott/parser.c scott/restorestate.c
-	scott/ai_uk/ringbuffer.c scott/ai_uk/robinofsherwood.c scott/ai_uk/sagadraw.c 
-	scott/saga/apple2detect.c scott/saga/apple2draw.c scott/saga/atari8c64draw.c
-	scott/saga/atari8detect.c scott/saga/ciderpress.c scott/saga/pcdraw.c scott/saga/saga.c 
-	scott/saga/sagagraphics.c scott/saga/woz2nib.c scott/titleimage.c 
-	scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
-	c64diskimage/c64diskimage.c
-	unp64/6502emu.c unp64/exo_util.c unp64/log.c unp64/unp64.c 
-	unp64/scanners/_Scanners.c unp64/scanners/1001card.c unp64/scanners/AbuzeCrunch.c 
-	unp64/scanners/ActionPacker.c unp64/scanners/ByteBoiler.c unp64/scanners/Caution.c 
-	unp64/scanners/CCS.c unp64/scanners/Cruel.c unp64/scanners/ECA.c
-	unp64/scanners/Exomizer.c unp64/scanners/Expert.c unp64/scanners/FinalSuperComp.c
-	unp64/scanners/Intros.c unp64/scanners/MasterCompressor.c unp64/scanners/Megabyte.c
-	unp64/scanners/MrCross.c unp64/scanners/MrZ.c
-	unp64/scanners/PuCrunch.c unp64/scanners/Section8.c
-	unp64/scanners/TBCMultiComp.c unp64/scanners/TCScrunch.c
-	unp64/scanners/XTC.c INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS})
+        scott/ai_uk/decompresstext.c scott/ai_uk/line_drawing.c
+        scott/ai_uk/game_specific.c scott/ai_uk/hulk.c scott/ai_uk/gremlins.c
+        scott/ai_uk/decompressz80.c scott/detectgame.c scott/scottgameinfo.c scott/layouttext.c
+        scott/ti994a/load_ti99_4a.c scott/parser.c scott/restorestate.c
+        scott/ai_uk/ringbuffer.c scott/ai_uk/robinofsherwood.c scott/ai_uk/sagadraw.c
+        scott/saga/apple2detect.c scott/saga/apple2draw.c scott/saga/atari8c64draw.c
+        scott/saga/atari8detect.c scott/saga/ciderpress.c scott/saga/pcdraw.c scott/saga/saga.c
+        scott/saga/sagagraphics.c scott/saga/woz2nib.c scott/titleimage.c
+        scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
+        c64diskimage/c64diskimage.c
+        unp64/6502emu.c unp64/exo_util.c unp64/log.c unp64/unp64.c
+        unp64/scanners/_Scanners.c unp64/scanners/1001card.c unp64/scanners/AbuzeCrunch.c
+        unp64/scanners/ActionPacker.c unp64/scanners/ByteBoiler.c unp64/scanners/Caution.c
+        unp64/scanners/CCS.c unp64/scanners/Cruel.c unp64/scanners/ECA.c
+        unp64/scanners/Exomizer.c unp64/scanners/Expert.c unp64/scanners/FinalSuperComp.c
+        unp64/scanners/Intros.c unp64/scanners/MasterCompressor.c unp64/scanners/Megabyte.c
+        unp64/scanners/MrCross.c unp64/scanners/MrZ.c
+        unp64/scanners/PuCrunch.c unp64/scanners/Section8.c
+        unp64/scanners/TBCMultiComp.c unp64/scanners/TCScrunch.c
+        unp64/scanners/XTC.c INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS})
 endif()
 
 # ------------------------------------------------------------------------------
@@ -384,19 +384,19 @@ if(WITH_TAYLOR)
     set(TAYLOR_INCLUDE_DIRS taylor c64diskimage unp64)
     terp(taylor
         SRCS taylor/animations.c taylor/c64decrunch.c taylor/decompressz80.c
-	taylor/decrypttotloader.c taylor/extracommands.c taylor/extracttape.c taylor/gameinfo.c 
-	taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
-	taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c 
-	c64diskimage/c64diskimage.c
-	unp64/6502emu.c unp64/exo_util.c unp64/log.c unp64/unp64.c 
-	unp64/scanners/_Scanners.c unp64/scanners/1001card.c	
-	unp64/scanners/AbuzeCrunch.c unp64/scanners/ActionPacker.c
-	unp64/scanners/ByteBoiler.c unp64/scanners/Caution.c 
-	unp64/scanners/CCS.c unp64/scanners/Cruel.c unp64/scanners/ECA.c
-	unp64/scanners/Exomizer.c unp64/scanners/Expert.c unp64/scanners/FinalSuperComp.c
-	unp64/scanners/Intros.c unp64/scanners/MasterCompressor.c unp64/scanners/Megabyte.c
-	unp64/scanners/MrCross.c unp64/scanners/MrZ.c
-	unp64/scanners/PuCrunch.c unp64/scanners/Section8.c
-	unp64/scanners/TBCMultiComp.c unp64/scanners/TCScrunch.c
-	unp64/scanners/XTC.c INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS})
+        taylor/decrypttotloader.c taylor/extracommands.c taylor/extracttape.c taylor/gameinfo.c
+        taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
+        taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c
+        c64diskimage/c64diskimage.c
+        unp64/6502emu.c unp64/exo_util.c unp64/log.c unp64/unp64.c
+        unp64/scanners/_Scanners.c unp64/scanners/1001card.c
+        unp64/scanners/AbuzeCrunch.c unp64/scanners/ActionPacker.c
+        unp64/scanners/ByteBoiler.c unp64/scanners/Caution.c
+        unp64/scanners/CCS.c unp64/scanners/Cruel.c unp64/scanners/ECA.c
+        unp64/scanners/Exomizer.c unp64/scanners/Expert.c unp64/scanners/FinalSuperComp.c
+        unp64/scanners/Intros.c unp64/scanners/MasterCompressor.c unp64/scanners/Megabyte.c
+        unp64/scanners/MrCross.c unp64/scanners/MrZ.c
+        unp64/scanners/PuCrunch.c unp64/scanners/Section8.c
+        unp64/scanners/TBCMultiComp.c unp64/scanners/TCScrunch.c
+        unp64/scanners/XTC.c INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS})
 endif()
