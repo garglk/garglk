@@ -52,6 +52,15 @@ const struct GameInfo games[] = {
         21, // special images
     },
 
+    {
+        "Questprobe 4: X-Men (Unfinished)",
+        "X-MEN ",
+        XMEN, // game ID
+
+        0, // room images
+        0, // item images
+        0, // special images
+    },
 
     {
         NULL

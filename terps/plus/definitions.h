@@ -165,6 +165,7 @@ typedef enum {
     CLAYMORGUE,
     SPIDERMAN,
     FANTASTIC4,
+    XMEN,
     NUMGAMES
 } GameIDType;
 
