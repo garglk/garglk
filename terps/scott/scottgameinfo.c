@@ -145,51 +145,6 @@ const struct GameInfo games[] = {
         0, // picture_format_version;
     },
 
-//    {
-//        "Strange Odyssey",
-//        STRANGE_ODYSSEY,
-//        OLD_STYLE,                // type
-//        ENGLISH,                  // subtype
-//        FOUR_LETTER_UNCOMPRESSED, // dictionary type
-//
-//        55,  // Number of items
-//        223, // Number of actions
-//        79,  // Number of words
-//        35,  // Number of rooms
-//        6,   // Max carried items
-//        4,   // Word length
-//        94,  // Number of messages
-//
-//        80, // number_of_verbs
-//        79, // number_of_nouns;
-//
-//        0x1df1, // header
-//        EARLY,  // header style
-//
-//        0, // no room images
-//        0, // no item flags
-//        0, // no item images
-//
-//        0x31fe, // actions
-//        UNCOMPRESSED,
-//        0x4148,  // dictionary
-//        FOLLOWS, // start_of_room_descriptions;
-//        FOLLOWS, // start_of_room_connections;
-//        FOLLOWS, // start_of_messages;
-//        FOLLOWS, // start_of_item_descriptions;
-//        FOLLOWS, // start_of_item_locations;
-//
-//        0x1ebe, // start_of_system_messages
-//        0x2267, // start of directions
-//
-//        0, // start_of_characters;
-//        0, // start_of_image_data;
-//        0, // image_address_offset
-//        0, // number_of_pictures;
-//        0, // palette
-//        0, // picture_format_version;
-//    },
-
     {
         "Buckaroo Banzai",
         BANZAI,
