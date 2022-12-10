@@ -524,7 +524,13 @@ int DrawAtariC64Image(USImage *image)
             ImageWidth = 308;
         }
 
-        x_offset = (curwidth - (ImageWidth * pixel_size)) / 2;
+        int width_in_pixels = ImageWidth * pixel_size;
+        while (width_in_pixels > curwidth && pixel_size > 1) {
+            pixel_size--;
+            width_in_pixels = ImageWidth * pixel_size;
+        }
+
+        x_offset = (curwidth - width_in_pixels) / 2;
 
         int optimal_height = ImageHeight * pixel_size;
 

@@ -60,6 +60,9 @@ void SetRGB(int32_t index, int red, int green, int blue) {
 
 void PutPixel(glsi32 xpos, glsi32 ypos, int32_t color)
 {
+    if (xpos < 0 || xpos > right_margin || xpos < left_margin) {
+        return;
+    }
     glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
 
     glk_window_fill_rect(Graphics, glk_color, xpos * pixel_size + x_offset,
@@ -68,7 +71,7 @@ void PutPixel(glsi32 xpos, glsi32 ypos, int32_t color)
 
 void PutDoublePixel(glsi32 xpos, glsi32 ypos, int32_t color)
 {
-    if (xpos > right_margin || xpos < left_margin) {
+    if (xpos < 0 || xpos > right_margin || xpos < left_margin) {
         return;
     }
     glui32 glk_color = ((pal[color][0] << 16)) | ((pal[color][1] << 8)) | (pal[color][2]);
