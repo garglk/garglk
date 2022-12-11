@@ -65,6 +65,7 @@ static const struct c64rec c64_registry[] = {
     { BATON_C64,        0x2ab00, 0xbfbf, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 1 alt
     { FEASIBILITY_C64,  0x2ab00, 0x9c18, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Mysterious Adventures C64 dsk 2 alt
     { TIME_MACHINE_C64, 0x5032,  0x5635, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine C64
+    { TIME_MACHINE_C64, 0x2ab00, 0xed21, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // The Time Machine D64
     { ARROW1_C64,       0x5b46,  0x92db, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64
     { ARROW1_C64,       0x2ab00, 0xe71d, TYPE_D64, 0, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64
     { ARROW1_C64,       0x2ab00, 0x7687, TYPE_D64, 2, NULL, NULL, 0, 0, 0, 0, 0 }, // Arrow of Death part 1 C64 D64 alt
@@ -102,15 +103,17 @@ static const struct c64rec c64_registry[] = {
                                                                                              // -> ECA Compacker -> MegaByte Cruncher v1.x Missing 17 pictures
     { CLAYMORGUE_C64, 0x912f,  0xa69f, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64) alt, MegaByte Cruncher
                                                                                              // v1.x Missing 17 pictures
+    { CLAYMORGUE_C64, 0x2ab00, 0xf70c, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Cracked by ABC, missing 17 pictures
     { CLAYMORGUE_C64, 0xc0dd,  0x3701, TYPE_T64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe },// Sorcerer Of Claymorgue Castle C64 (T64) alt 2, Trilogic Expert v2.7
     { CLAYMORGUE_C64, 0xbc5f,  0x492c, TYPE_T64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (T64) alt 3, , Section8 Packer
     { CLAYMORGUE_C64, 0x2ab00, 0xfd67, TYPE_D64, 1, NULL, NULL, 0, 0x855, 0x7352, 0x20, 0 }, // Sorcerer Of Claymorgue Castle C64 (D64), Section8 Packer
     { CLAYMORGUE_C64, 0x2ab00, 0x7ece, TYPE_D64, 1, NULL, NULL, 0, 0, 0, 0, -0x7fe }, // Sorcerer Of Claymorgue Castle C64 (D64), Trilogic Expert v2.7
 
+
     { CLAYMORGUE_US, 0x2adab, 0x1fac, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
     { CLAYMORGUE_US, 0x2ab00, 0xa957, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 }, // Sorcerer Of Claymorgue Castle US side A (D64)
     { CLAYMORGUE_US, 0x2ab00, 0xfbb6, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
-
+    { CLAYMORGUE_US, 0x2ab00, 0x0b54, TYPE_US, 0, NULL, "SAGA.DB", 0, 0, 0, 0, 0 },
 
     { HULK_C64,      0x2ab00, 0xcdd8, TYPE_D64, 0, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
     { HULK_C64,      0x8534,  0x623a, TYPE_T64, 2, NULL, NULL, 0, 0x1806, 0xb801, 0x307, 0 },  // Questprobe 1 - The Hulk C64 (D64)
