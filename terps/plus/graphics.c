@@ -43,8 +43,8 @@ void ClearApple2ScreenMem(void);
 
 void DrawBlack(void)
 {
-    glk_window_fill_rect(Graphics, y_offset, x_offset, 0, ImageWidth * pixel_size,
-                         ImageHeight * pixel_size);
+    glk_window_fill_rect(Graphics, 0, x_offset, y_offset, (glui32)(ImageWidth * pixel_size),
+                         (glui32)(ImageHeight * pixel_size));
     LastImgType = NO_IMG;
 }
 
