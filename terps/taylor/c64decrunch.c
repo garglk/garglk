@@ -16,7 +16,7 @@
 #include "c64decrunch.h"
 #include "c64diskimage.h"
 
-#include "unp64_interface.h"
+//#include "unp64_interface.h"
 
 #define MAX_LENGTH 300000
 #define MIN_LENGTH 24
@@ -223,6 +223,11 @@ int DetectC64(uint8_t **sf, size_t *extent)
     return 0;
 }
 
+int unp64(uint8_t *compressed, size_t length, uint8_t *destination_buffer,
+          size_t *final_length, char *settings[], int numsettings) {
+    return 0;
+}
+
 static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 {
     size_t decompressed_length = *extent;
@@ -243,6 +248,9 @@ static int DecrunchC64(uint8_t **sf, size_t *extent, struct c64rec record)
 
     size_t result = 0;
 
+    if (record.decompress_iterations > 0) {
+        Fatal("Unsupported game");
+    }
     for (int i = 1; i <= record.decompress_iterations; i++) {
         /* We only send switches on the iteration specified by parameter */
         if (i == record.parameter && record.switches != NULL) {
