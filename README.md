@@ -48,9 +48,11 @@ There are many interpreters that have been Glk-enabled. All of the following int
 * JACL
 * Level 9
 * Magnetic
+* Plus
 * Scare
 * Scottfree
 * TADS 2 and 3
+* TaylorMade
 
 These interpreters are freely distributable, but are still copyrighted by their authors and covered by their own licenses.
 
