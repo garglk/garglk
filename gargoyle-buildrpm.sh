@@ -77,7 +77,9 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_libexecdir}/gargoyle/scare
 %{_libexecdir}/gargoyle/alan3
 %{_libexecdir}/gargoyle/hugo
+%{_libexecdir}/gargoyle/plus
 %{_libexecdir}/gargoyle/scott
+%{_libexecdir}/gargoyle/taylor
 %{_libexecdir}/gargoyle/bocfel
 %{_libexecdir}/gargoyle/jacl
 %{_libexecdir}/gargoyle/tadsr

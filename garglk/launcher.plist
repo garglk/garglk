@@ -199,6 +199,22 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>plus</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>docu2.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>Story File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.plus</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
 				<string>saga</string>
 			</array>
 			<key>CFBundleTypeIconFile</key>
@@ -210,6 +226,22 @@
 			<key>LSItemContentTypes</key>
 			<array>
 				<string>public.saga</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>tay</string>
+			</array>
+			<key>CFBundleTypeIconFile</key>
+			<string>docu2.icns</string>
+			<key>CFBundleTypeName</key>
+			<string>Story File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.taylor</string>
 			</array>
 		</dict>
 		<dict>
@@ -484,12 +516,52 @@
 			<key>UTTypeIconFile</key>
 			<string>docu2.icns</string>
 			<key>UTTypeIdentifier</key>
+			<string>public.plus</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>plus</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>com.googlecode.garglk</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Story File</string>
+			<key>UTTypeIconFile</key>
+			<string>docu2.icns</string>
+			<key>UTTypeIdentifier</key>
 			<string>public.saga</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
 					<string>saga</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>com.googlecode.garglk</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Story File</string>
+			<key>UTTypeIconFile</key>
+			<string>docu2.icns</string>
+			<key>UTTypeIdentifier</key>
+			<string>public.taylor</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>tay</string>
 				</array>
 			</dict>
 		</dict>

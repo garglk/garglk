@@ -9,8 +9,10 @@ option(WITH_HUGO "Enable the hugo interpreter" ON)
 option(WITH_JACL "Enable the jacl interpreter" ON)
 option(WITH_LEVEL9 "Enable the level9 interpreter" ON)
 option(WITH_MAGNETIC "Enable the magnetic interpreter" ON)
+option(WITH_PLUS "Enable the plus interpreter" ON)
 option(WITH_SCARE "Enable the scare interpreter" ON)
 option(WITH_SCOTT "Enable the scott interpreter" ON)
+option(WITH_TAYLOR "Enable the taylor interpreter" ON)
 
 function(terp target)
     set(options POSIX LTO MATH WARNINGS)
@@ -55,6 +57,13 @@ function(terp target)
 endfunction()
 
 add_subdirectory(tads)
+
+# Ideally CMake would allow multiple identical calls to add_subdirectory, but it
+# doesn't, so ensure they're called only once, if needed.
+if(WITH_PLUS OR WITH_SCOTT OR WITH_TAYLOR)
+    add_subdirectory(c64diskimage)
+endif()
+
 
 # ------------------------------------------------------------------------------
 #
@@ -300,6 +309,21 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
+# Plus 1.0 for Scott Adams Graphic Adventures Plus games
+#
+if(WITH_PLUS)
+    set(PLUS_INCLUDE_DIRS plus)
+    terp(plus
+        SRCS plus/plusmain.c plus/animations.c plus/apple2detect.c plus/apple2draw.c
+        plus/atari8c64draw.c plus/atari8detect.c plus/c64detect.c plus/extracommands.c
+        plus/companionfile.c plus/gameinfo.c plus/graphics.c plus/layouttext.c plus/loaddatabase.c
+        plus/parseinput.c plus/pcdraw.c plus/restorestate.c plus/stdetect.c plus/stdraw.c
+        INCLUDE_DIRS ${PLUS_INCLUDE_DIRS}
+        LIBS c64diskimage)
+endif()
+
+# ------------------------------------------------------------------------------
+#
 # SCARE 1.3.10 for Adrift games
 #
 if(WITH_SCARE)
@@ -330,7 +354,36 @@ endif()
 #
 # ScottFree 1.14 for Scott Adams games
 #
+
 if(WITH_SCOTT)
+    set(SCOTT_INCLUDE_DIRS scott scott/saga scott/ai_uk scott/ti994a)
     terp(scott
-        SRCS scott/scott.c scott/bsd.c)
+        SRCS scott/scott.c scott/bsd.c scott/ai_uk/c64decrunch.c scott/ai_uk/debug.c
+        scott/ai_uk/decompresstext.c scott/ai_uk/line_drawing.c
+        scott/ai_uk/game_specific.c scott/ai_uk/hulk.c scott/ai_uk/gremlins.c
+        scott/ai_uk/decompressz80.c scott/detectgame.c scott/scottgameinfo.c scott/layouttext.c
+        scott/ti994a/load_ti99_4a.c scott/parser.c scott/restorestate.c
+        scott/ai_uk/ringbuffer.c scott/ai_uk/robinofsherwood.c scott/ai_uk/sagadraw.c
+        scott/saga/apple2detect.c scott/saga/apple2draw.c scott/saga/atari8c64draw.c
+        scott/saga/atari8detect.c scott/saga/ciderpress.c scott/saga/pcdraw.c scott/saga/saga.c
+        scott/saga/sagagraphics.c scott/saga/woz2nib.c scott/titleimage.c
+        scott/ai_uk/seasofblood.c scott/ti994a/ti99_4a_terp.c
+        INCLUDE_DIRS ${SCOTT_INCLUDE_DIRS}
+        LIBS c64diskimage)
+endif()
+
+# ------------------------------------------------------------------------------
+#
+# TaylorMade 0.4 for later Adventure Soft UK games
+#
+
+if(WITH_TAYLOR)
+    set(TAYLOR_INCLUDE_DIRS taylor)
+    terp(taylor
+        SRCS taylor/animations.c taylor/c64decrunch.c taylor/decompressz80.c
+        taylor/decrypttotloader.c taylor/extracommands.c taylor/extracttape.c taylor/gameinfo.c
+        taylor/layouttext.c taylor/loadtotpicture.c taylor/parseinput.c taylor/player.c
+        taylor/restorestate.c taylor/sagadraw.c taylor/ui.c taylor/utility.c
+        INCLUDE_DIRS ${TAYLOR_INCLUDE_DIRS}
+        LIBS c64diskimage)
 endif()
