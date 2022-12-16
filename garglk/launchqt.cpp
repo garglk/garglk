@@ -143,7 +143,7 @@ int garglk::winterp(const std::string &path, const std::string &exe, const std::
         return proc.exitCode();
 }
 
-static void parse_args(const QApplication &app)
+static QString parse_args(const QApplication &app)
 {
     QCommandLineParser parser;
 
@@ -187,18 +187,21 @@ static void parse_args(const QApplication &app)
 
         std::exit(0);
     }
+
+    auto positional = parser.positionalArguments();
+
+    return positional.isEmpty() ?
+        "" :
+        positional.first();
 }
 
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    QString story;
 
     app.setOrganizationName(GARGOYLE_ORGANIZATION);
     app.setApplicationName(GARGOYLE_NAME);
     app.setApplicationVersion(GARGOYLE_VERSION);
-
-    parse_args(app);
 
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it
@@ -219,10 +222,9 @@ int main(int argc, char **argv)
         dir = QCoreApplication::applicationDirPath();
 #endif
 
-    /* get story file */
-    if (argc >= 2)
-        story = argv[1];
-    else
+    auto story = parse_args(app);
+
+    if (story.isEmpty())
         story = winbrowsefile();
 
     if (story.isEmpty())
