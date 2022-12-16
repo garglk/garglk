@@ -25,10 +25,12 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <iostream>
 #include <iterator>
 #include <string>
 
 #include <QApplication>
+#include <QCommandLineParser>
 #include <QDir>
 #include <QFileDialog>
 #include <QList>
@@ -39,11 +41,12 @@
 #include <QStringList>
 #include <QVector>
 
+#include "garglk.h"
 #include "glk.h"
 #include "garversion.h"
 #include "launcher.h"
 
-static const char *AppName = "Gargoyle " VERSION;
+static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 
 class Filter {
 public:
@@ -140,10 +143,62 @@ int garglk::winterp(const std::string &path, const std::string &exe, const std::
         return proc.exitCode();
 }
 
+static void parse_args(const QApplication &app)
+{
+    QCommandLineParser parser;
+
+    // Manually add -h to avoid --help-all: don't show Qt-specific
+    // options, as this only affects the launcher. If the user selects a
+    // style, for example, that won't carry on to the interpreter, as
+    // it's a separate program. Qt options are still _supported_ (as
+    // they're passed to QApplication's constructor), but at least don't
+    // advertise their existence.
+    //
+    // The "right" approach would be to synthesize empty arguments for
+    // Qt and then parse arguments with something like getopt_long(),
+    // but that's a GNU extension and would have to be pulled in from
+    // glibc, musl libc, or similar. This is good enough.
+    parser.addOptions({
+        {{"h", "help"}, "Displays help on commandline options."},
+        {{"p", "paths"}, "Displays configuration file and theme paths."}
+    });
+
+    parser.addVersionOption();
+    parser.addPositionalArgument("STORY", "The story/game file to run. If not provided, a file chooser will be displayed.", "[STORY]");
+    parser.process(app);
+
+    if (parser.isSet("h"))
+    {
+        std::cout << parser.helpText().toStdString() << std::endl;
+        std::exit(0);
+    }
+
+    if (parser.isSet("p"))
+    {
+        std::cout << "Configuration file paths:\n\n";
+        for (const auto &path : garglk::configs("", ""))
+            std::cout << path.path << std::endl;
+
+        std::cout << "\nTheme paths:\n\n";
+        auto theme_paths = garglk::theme::paths();
+        std::reverse(theme_paths.begin(), theme_paths.end());
+        for (const auto &path : theme_paths)
+            std::cout << path << std::endl;
+
+        std::exit(0);
+    }
+}
+
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
     QString story;
+
+    app.setOrganizationName(GARGOYLE_ORGANIZATION);
+    app.setApplicationName(GARGOYLE_NAME);
+    app.setApplicationVersion(GARGOYLE_VERSION);
+
+    parse_args(app);
 
     // Find the directory that contains the interpreters. By default
     // this is GARGLK_CONFIG_INTERPRETER_DIR but if that is not set, it

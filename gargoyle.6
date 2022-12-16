@@ -7,7 +7,10 @@
 .Aq Lk https://github.com/garglk/garglk
 .Sh SYNOPSIS
 .Nm
-.Ar file
+.Op Ar story
+.Nm
+.Fl p
+.Fl \-paths
 .Sh DESCRIPTION
 .Nm
 is an interactive fiction player that supports all the major interactive fiction
@@ -39,6 +42,20 @@ TADS 2 and 3
 .It
 Z\-machine
 .El
+.Pp
+If
+.Ar story
+is provided, it will be played.
+Otherwise, a file chooser will be displayed so a story can be selected.
+.Pp
+If the
+.Fl p
+or (equivalent)
+.Fl \-paths
+flag is set, instead of playing a game,
+.Nm
+will display a list of configuration file paths as well as theme paths
+that will be used at runtime.
 .Sh CONFIGURATION
 .Nm
 is highly configurable, although all configuration is done through a text-based
@@ -79,6 +96,15 @@ Finally, it is possible for a global configuration file to be installed.
 This is often the file
 .Pa /etc/garglk.ini ,
 but this is configurable at build time, and may also be disabled.
+.Pp
+To see exactly which locations are being used, pass the
+.Fl p
+or
+.Fl \-paths
+flag to
+.Nm .
+Note that this will not include game- or directory-specific
+configuration files.
 .Pp
 Configuration files are additive: first, the global configuration file is
 parsed.
