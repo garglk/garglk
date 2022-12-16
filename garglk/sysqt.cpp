@@ -82,6 +82,7 @@
 #include "sysqt.h"
 #include "moc_sysqt.cpp"
 
+#include "garversion.h"
 #include "glk.h"
 #include "garglk.h"
 
@@ -211,7 +212,7 @@ static void winclipreceive(QClipboard::Mode mode)
 Window::Window() :
     m_view(new View(this)),
     m_timer(new QTimer(this)),
-    m_settings(new QSettings("io.github.garglk", "Gargoyle", this))
+    m_settings(new QSettings(GARGOYLE_ORGANIZATION, GARGOYLE_NAME, this))
 {
     connect(m_timer, &QTimer::timeout, this, [&]() { m_timed_out = true; });
 }
@@ -551,8 +552,9 @@ void wininit(int *, char **)
     static int argc = 1;
     static char *argv[] = { const_cast<char *>("gargoyle"), nullptr };
     app = new QApplication(argc, argv);
-    app->setOrganizationName("io.github.garglk");
-    app->setApplicationName("Gargoyle");
+    app->setOrganizationName(GARGOYLE_ORGANIZATION);
+    app->setApplicationName(GARGOYLE_NAME);
+    app->setApplicationVersion(GARGOYLE_VERSION);
     last_tick.start();
 }
 
@@ -656,7 +658,7 @@ std::vector<std::string> garglk::winappdata()
     // case that's <binary>/../share/io.github.garglk/Gargoyle).
 #if GARGLK_CONFIG_APPIMAGE
     auto dir = QCoreApplication::applicationDirPath();
-    paths.push_back((dir + "/../share/io.github.garglk/Gargoyle").toStdString());
+    paths.push_back((dir + "/../share/" + GARGOYLE_ORGANIZATION + "/Gargoyle").toStdString());
 #endif
 
     // QStandardPaths returns higher priority directories first: reverse

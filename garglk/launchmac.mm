@@ -37,7 +37,7 @@
 
 #define MaxBuffer 1024
 
-static const char * AppName = "Gargoyle " VERSION;
+static const char * AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 static const char * DirSeparator = "/";
 
 static char dir[MaxBuffer];
