@@ -83,7 +83,7 @@ endif()
 
 # ------------------------------------------------------------------------------
 #
-# Agility 1.1.1.1 with Glk
+# Agility 1.1.2 with Glk
 #
 # Agility uses some bad voodoo to get filenames back from glk filerefs.
 # We have three options:

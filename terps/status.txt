@@ -4,7 +4,7 @@ Build status as of 10/11/2010:
 | Interpreter   | Version       |
 +---------------+---------------+
 | advsys        | 1.2           |
-| agility       | 1.1.1.1       |
+| agility       | 1.1.2         |
 | alan          | 2.8.6         |
 | alan3         | 3.0beta7      |
 | bocfel        | 2.0.1         |
