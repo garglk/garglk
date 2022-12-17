@@ -1,0 +1,50 @@
+    
+CC= gcc
+WARNINGS= -Wall
+
+CFLAGS= -ansi $(WARNINGS)
+# CFLAGS= -DHPUX $(WARNINGS)
+# CFLAGS= -DSUN $(WARNINGS)
+
+BASE= agtread.o gamedata.o util.o agxfile.o auxfile.o filename.o
+AGIL= parser.o exec.o runverb.o metacommand.o savegame.o debugcmd.o agil.o \
+	token.o disassemble.o object.o
+INTERFACE= interface.o os_none.o 
+OS_LIB= 
+
+all:agil agtout agt2agx
+
+agil:  $(BASE) $(AGIL) $(INTERFACE) 
+	$(CC) $(CFLAGS) -o agil $(AGIL) $(BASE) $(INTERFACE) $(OS_LIB)
+
+agtout: agtout.o disassemble.o agilstub.o $(BASE) 
+	$(CC) $(CFLAGS) -o agtout agtout.o disassemble.o agilstub.o $(BASE) 
+
+agt2agx: agt2agx.o agilstub.o $(BASE)
+	$(CC) $(CFLAGS) -o agt2agx agt2agx.o agilstub.o $(BASE) 	
+
+agilstub.o: agilstub.c
+agtread.o : agtread.c agility.h config.h 
+agxfile.o : agxfile.c agility.h config.h 
+auxfile.o : auxfile.c agility.h config.h
+agt2agx.o : agt2agx.c agility.h config.h
+gamedata.o : gamedata.c agility.h config.h 
+parser.o: parser.c agility.h config.h interp.h
+exec.o: exec.c agility.h config.h interp.h exec.h
+runverb.o: runverb.c agility.h config.h interp.h exec.h
+metacommand.o: metacommand.c agility.h config.h interp.h exec.h
+token.o: token.c agility.h config.h interp.h exec.h
+debugcmd.o: debugcmd.c agility.h config.h interp.h exec.h
+disassemble.o: disassemble.c agility.h config.h
+savegame.o: savegame.c interp.h agility.h config.h 
+agtout.o : agtout.c agility.h config.h 
+util.o: util.c agility.h config.h
+interface.o: interface.c agility.h config.h interp.h
+os_none.o: os_none.c agility.h config.h interp.h
+os_termcap.o: os_termcap.c agility.h config.h interp.h
+os_curses.o: os_curses.c agility.h config.h interp.h
+os_msdos.o: os_msdos.c agility.h config.h interp.h
+agil.o: agil.c agility.h config.h interp.h
+object.o: object.c agility.h config.h interp.h exec.h
+filename.o: filename.c agility.h config.h
+ 
