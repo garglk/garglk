@@ -1,5 +1,5 @@
 ====================================================================
-AGILITY: THE (MOSTLY) UNIVERSAL AGT INTERPRETER  Version 1.1.1
+AGILITY: THE (MOSTLY) UNIVERSAL AGT INTERPRETER  Version 1.1.2
 MAGX: MAKE AGX, AGT-COMPATIBLE COMPILER  Version 0.6.5 (beta)
 ====================================================================
   
@@ -12,10 +12,10 @@ base of common code, so I've decided to merge their porting notes.
 General Public License, version 2. Since this is free software, there
 is NO WARRANTY of any kind.
 
-  The author, Robert Masenten, can be reached at
-    rcm-math@pacbell.net
-Please tell me if you find any bugs or have any problems porting it
-to a new system.
+  The original author, Robert Masenten, has not been heard from in years,
+but David Kinder has done some work on updating AGiliTy to fix bugs. Any
+bugs you find can be reported at David's GitHub page for AGiliTy:
+    https://github.com/DavidKinder/Windows-AGiliTy/
 
 
 -----------
@@ -254,11 +254,6 @@ Magx (AGT compiler)
 -------------------------------------
 4.0  PORTING NOTES FOR BOTH SYSTEMS
 -------------------------------------
-  If you are interested in porting AGiliTy or Magx to another platform
-you should contact me to avoid duplicated effort; my e-mail address is  
-   rcm-math@pacbell.net. 
-Also feel free to write if you run into any difficulties.
-
 The source code makes the following assumptions:
 --ANSI C: it uses enums, typedefs, ANSI-style prototypes, etc.
 --Text is encoded as ASCII.

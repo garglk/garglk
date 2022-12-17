@@ -591,7 +591,7 @@ global flagdef_rec *flagtable;
 
 /* Output strings associated with various property values. */
 /*    See propdef_rec */
-global const char **propstr;
+global char **propstr;
 global long propstr_size;
 
 global tline *userstr; /*[MAX_USTR];*/
@@ -891,6 +891,7 @@ const char *get_objattr_str(int dtype,int id,long val);
 const opdef *get_opdef(integer op);
 char *objname(int);
 void sort_cmd(void);
+void cmds_syns_canon(void);
 
 void agtwarn(const char*,int elev);
 void agtnwarn(const char*,int,int elev);

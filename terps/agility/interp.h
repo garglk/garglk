@@ -255,7 +255,7 @@ typedef enum{wthe,wmy,wa,wan,wthen,wp,wsc,wand,wc,wits,wall,wundo,wlook,wg,
 	       wdverb,wdnoun,wdadjective,wdprep,wdobject,wdname,
 	       wstep,w_any,weither,wboth,weveryone,weverybody,
 	       whe,wshe,wit,wthey,whim,wher,wthem,wis,ware,woops,
-	       wwas, wwere,
+	       wwas,wwere,wscream,
 	       win,wout,winto,wat,wto,wacross,winside,wwith,wnear,wfor,
 	       wof,wbehind,wbeside,won,woff,wunder,wfrom, wthrough,
 	       wtoward, wtowards, wbetween, waround, wupon, wthru,
@@ -348,6 +348,8 @@ long read_number(void);
 /* --------------------------------------------------------------------	*/
 void init_stack(void);  /* Set up expression stack */
 void clear_stack(void);  /* Set stack back to empty state */
+void reset_random(void);  /* Reset random number generator state */
+int get_random(int a,int b); /* Return random number from a to b, inclusive */
 
 /* --------------------------------------------------------------------	*/
 /* In OBJECT.C 								*/

@@ -99,7 +99,7 @@ static const char* ext_voc[]=
    "verb","noun","adjective","prep","object","name","step",
    " any","either","both","everyone","everybody",
    "he","she","it","they","him","her","them","is","are","oops",
-   "was","were",
+   "was","were","scream",
  /* Everything between 'in' and 'about' should be a preposition */
    "in","out", "into","at","to","across","inside","with","near","for",
    "of","behind", "beside", "on", "off", "under", "from","through",
@@ -277,6 +277,7 @@ void agil_option(int optnum,char *optstr[], rbool setflag, rbool lastpass)
   else if (opt("tone")) PURE_TONE=setflag;
   else if (opt("input_bold")) PURE_INPUT=setflag;
   else if (opt("force_load")) FORCE_VERSION=setflag;
+  else if (opt("stable_random")) stable_random=setflag;
   else if (!agt_option(optnum,optstr,setflag)) /* Platform specific options */
     rprintf("Invalid option %s\n",optstr[0]);
 }
@@ -515,7 +516,6 @@ static void mainloop(void)
       if (!menu_mode) {
 	prompt_out(1);
 	s=agt_readline(0);
-	agt_newline();
 	if (!doing_restore) tokenise(s);   /* Tokenizes into input */
 	rfree(s);
 	if (!doing_restore) parse_loop();
@@ -699,8 +699,8 @@ static void print_license(void)
 	  "Software Foundation, Inc., 59 Temple Place, Suite 330, "
 	  "Boston, MA  02111-1307  USA");
   writeln("");
-  writeln("  Send comments and bug reports to Robert Masenten at:");
-  writeln("      rcm-math@pacbell.net");
+  writeln("  Bugs can be reported at this project's GitHub page at "
+    "https://github.com/DavidKinder/Windows-AGiliTy/");
   writeln("");
   writeln("ACKNOWLEDGMENTS");
   writeln("Thanks to Jay Goemmer, who has sent me pages and pages of "

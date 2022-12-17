@@ -1039,7 +1039,7 @@ static void deduce_sizes(fc_type fc, rbool diag)
   if (aver==AGTCOS) 
     MaxQuestion=10;
   if (aver==AGT15 || aver==AGT15F) 
-    MaxQuestion=57;
+    MaxQuestion=41;
   first_room=2;
   if (ver==1)
     {
@@ -1258,6 +1258,13 @@ static int try_read_da1(fc_type fc,genfile fda1,rbool diag)
     
     for(i=0;i<numglobal;i++)
       globalnoun[i]=readdict(fda1);  /* Global nouns */
+  } else if (aver>=AGT15) {
+
+    (void)readdict(fda1);
+
+    report("Reading flag nouns",fda1);
+    for(i=0;i<MAX_FLAG_NOUN;i++)
+      flag_noun[i]=readdict(fda1);
   } else
     for(i=0;i<MAX_FLAG_NOUN;i++)
       flag_noun[i]=0;
@@ -1608,7 +1615,7 @@ static void finish_read(rbool cleanup)
   rfree(room_name);rfree(noun_sdesc);rfree(noun_pos);rfree(creat_sdesc);
   rfree(t_pictlist);rfree(t_pixlist);rfree(t_songlist);rfree(t_fontlist);
 
-/* Reallocate questions and asnwers to only use the space that they need */
+  /* Reallocate questions and answers to only use the space that they need */
   if (!RAW_CMD_OUT && top_quest<MaxQuestion) {
     MaxQuestion=top_quest; /* top_quest is computed by fixcmd */
     if (top_quest==0) 
@@ -1624,6 +1631,23 @@ static void finish_read(rbool cleanup)
 	ans_ptr=rrealloc(ans_ptr,top_quest*sizeof(descr_ptr));
     }
   }
+
+  /* Set the flag number for nouns mentioned in the flag_noun list */
+  {
+    int flagnum=1;
+    for(i=0;i<MAX_FLAG_NOUN;i++) {
+      if(flag_noun[i]!=0) {
+        int j;
+        for(j=0;j<=maxnoun-first_noun;j++) {
+          if(noun[j].name==flag_noun[i])
+            noun[j].flagnum=flagnum;
+        }
+        flagnum++;
+      }
+    }
+  }
+
+  cmds_syns_canon();
 }
 
 void free_all_agtread()
