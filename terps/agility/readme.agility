@@ -1,6 +1,6 @@
 =================================================
 AGILITY: THE (MOSTLY) UNIVERSAL AGT INTERPRETER
-Version 1.1.1
+Version 1.1.2
 =================================================
 
   This is an interpreter for game files created with Malmberg and
@@ -34,12 +34,9 @@ differences which are described below.
 --------------
  INTRODUCTION
 --------------
-   For general information on AGT, I recommend Jay Goemmer's web page 
-at http://www.ltlink.com/~jgoemmer/agt.html.
-
   The most recent release of this program can be found at the
 Interactive Fiction archive:
-    ftp://ftp.ifarchive.org/if-archive/programming/agt/agility/  
+    https://www.ifarchive.org/indexes/if-archive/programming/agt/agility/
 
   This software is copyright 1996-1999,2001 by Robert Masenten.
 This program is free software; you can redistribute it and/or modify
@@ -59,8 +56,10 @@ list of changes from earlier versions is in 'changes.txt'. (If this is
 with an executable and not the source version, some of these files may not
 be present).
 
-   Send comments and bug reports to Robert Masenten at:
-	rcm-math@pacbell.net
+  The original author, Robert Masenten, has not been heard from in years,
+but David Kinder has done some work on updating AGiliTy to fix bugs. Any
+bugs you find can be reported at David's GitHub page for AGiliTy:
+    https://github.com/DavidKinder/Windows-AGiliTy/
 
 
 
@@ -83,7 +82,7 @@ Grant E. Metcalf, Paul Mikell, Adam Myrow, Olav Nielsen, D.J. Picton,
 Kevin Soucy, Ben Straub, "Grand Moff Tarkin", Adam Thornton, Mark
 Tilford, David Turpin, and Gil Williamson.
  *Volker Blasius, maintainer of the Interactive Fiction Archive at 
-ftp.ifarchive.org.
+www.ifarchive.org.
  *Robert Pelak, who suggested the name "AGiliTy".
  *All of the other people on rai-f who suggested names for my interpreter.
 
@@ -92,7 +91,7 @@ ftp.ifarchive.org.
  AGT AND AGX GAME FILES
 ------------------------
   Games in the AGT format can be found at the Interactive Fiction archive: 
-    ftp://ftp.ifarchive.org/if-archive/games/agt
+    https://www.ifarchive.org/indexes/if-archive/games/agt/
 
   AGT games are recognizable by having several different files with
 names like 'MYGAME.D$$', 'MYGAME.DA1', 'MYGAME.DA2', ... ,
@@ -107,7 +106,7 @@ stands for "Adventure Game eXecutable"); existing AGT games can be
 converted into this format using the utility agt2agx which comes with
 AGiliTy. They can also be created from AGT source code by using the
 Magx compiler, available in
-    ftp://ftp.ifarchive.org/if-archive/programming/agt/magx/
+    https://www.ifarchive.org/indexes/if-archive/programming/agt/magx/
 
   The new format takes all of the various AGT files (MYGAME.DA1,
 MYGAME.DA2, MYGAME.DA3, MYGAME.DA4, MYGAME.DA5, MYGAME.DA6, MYGAME.TTL,
@@ -130,7 +129,7 @@ following advantages:
  AGT VERSIONS SUPPORTED
 ------------------------
   AGiliTy understands the following versions of AGT (which includes
-every AGT game at ftp.ifarchive.org that I know of):
+every AGT game at www.ifarchive.org that I know of):
   --1.0
   --1.18
   --the early "Classic AGT": e.g. 1.19, 1.2, 1.21 
@@ -288,6 +287,8 @@ General options:
   IGNORE_SIZE Ignore weight and size limits on how much the player can
         carry. (There remain limits on the size and weight of any 
         individual object.)
+  STABLE_RANDOM  Use a fixed algorithm for generating random numbers that
+        always produces the same sequence on any system.
 
 Game specific options
   (Many of these are more useful to game authors than game players.)
@@ -386,7 +387,7 @@ out the lines that have changed.)
  AGT GAME LIST
 ---------------
   Here is a list of a few of the better or more popular AGT games,
-along with their filename in ftp://ftp.ifarchive.org/if-archive/games/agt/;
+along with their filename in https://www.ifarchive.org/indexes/if-archive/games/agt/;
 it is in no way exhaustive.
    I've also included references to reviews in issues of SPAG and
 XYZZYnews; these can be found in if-archive/magazines/SPAG and 
@@ -435,19 +436,6 @@ The Jeweled Arena (tja.zip)  David S. Raley
   obvious reason if you do a certain action in the wrong place.
 
   
-Pastoral Pitfalls (pp20.zip) Guy Marquardt
-  In this game you are the pastor of a Lutheran church; you need to
-  make it through the day fufilling all of your responsibilities
-  (which include visiting the sick, teaching a confirmation class,
-  preparing a sermon, and still finding time to pray) I haven't
-  finished this game, but the parts I've seen I've liked.  The game 
-  seems to have been well tested; it's mostly free of guess-the-verb
-  problems and bugs.   It feels very open; you have a lot of freedom
-  in what order to do things (although some care is needed so you don't
-  run out of time).  
-    XYZZY 9(preview)
-
-
 The Multi-Dimensional Thief (mdthief1.zip)  Joel Finch
     [Summary/review by Audrey De Lisle]
   You are a thief desiring to become a member of the Thieves' Guild.
@@ -460,5 +448,4 @@ The Multi-Dimensional Thief (mdthief1.zip)  Joel Finch
   those who like a little humor with their puzzles.
   [There is also a non-AGT version of this game.]
     SPAG 2, 4, 9
-
 

@@ -1147,7 +1147,9 @@ int read_agx(fc_type fc, rbool diag)
     descr_ofs=index[11].file_offset;
     mem_descr=NULL;
   }
+
   reinit_dict();
+  cmds_syns_canon();
   return 1;
 }      
 

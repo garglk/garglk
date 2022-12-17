@@ -211,7 +211,7 @@ static char *get_log(void)
   }
 
   s=rmalloc(1000);s[0]=' ';s[1]=0;
-  textgets(log_in,s,1000);
+  readln(log_in,s,1000);
   if (texteof(log_in)) {  /* Reached end of logfile */
     close_pfile(log_in,1);
     log_in=BAD_TEXTFILE;
@@ -224,11 +224,12 @@ static char *get_log(void)
     } else {
       logflag&=~2;    
       fast_replay=0;
+      if (s[0]!=0) writestr(s);
     }
   } else { /* Need to delay or wait for keypress */
     if (logdelay==-1) agt_waitkey();
     else agt_delay(logdelay);
-    if (s[0]!=0) writeln(s);
+    if (s[0]!=0) writestr(s);
   }
   return s;
 }
@@ -248,9 +249,10 @@ char *agt_readline(int in_type)
   char *s;
 
   if (PURE_INPUT) agt_textcolor(-1);
-  if (logflag&2) 
+  if (logflag&2) {
     s=get_log();
-  else  
+    agt_newline();
+  } else  
     s=agt_input(in_type);
   if (PURE_INPUT) agt_textcolor(-2);
 
@@ -611,7 +613,7 @@ int agt_menu(char *header,int size,int width,menuentry *menu)
     i=read_number()-1;
     if (i<0 || i>=size) 
       writeln("Please choose an option from the menu.");
-  } while (i<0 || i>=size);
+  } while (!quitflag && (i<0 || i>=size));
   return i;
 }
 
