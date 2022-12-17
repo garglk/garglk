@@ -4,8 +4,23 @@
 # Prerequisites:
 #  - dpkg-deb tools must be installed.
 #
+# By default, a TADS icon (application-x-tads.png) is included, but
+# this is also provded by QTads. Build with the -t flag to avoid
+# installation of this icon.
 
 set -e
+
+while getopts "t" o
+do
+    case "${o}" in
+        t)
+            NO_TADS_ICON=1
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+done
 
 # Setup working vars for deb build.  These can  be changed as needed for different revisions or build environments.
 PROJECT=gargoyle
@@ -26,6 +41,11 @@ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
 make -j$(nproc)
 make install DESTDIR=${PKG_DIR}
 popd
+
+if [[ -n "${NO_TADS_ICON}" ]]
+then
+    rm "${PKG_DIR}/usr/share/icons/hicolor/32x32/mimetypes/application-x-tads.png"
+fi
 
 #Create necessary directories not created by "make install"
 mkdir -p ${PKG_DIR}/etc
