@@ -12,7 +12,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  
     USA 
 */
 /*                                                        */
@@ -38,7 +38,6 @@
 
 /* Headers used by by all of the modules or by this header file */
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -70,18 +69,13 @@
 #endif
 
 /* General data types */
-
-typedef uint8_t uchar;
-typedef int8_t schar;
-
-/* Should be a 16+-bit signed numeric type */
-/* For technical reasons, it must be big enough to
-   hold a value of type word (see below) */
-typedef int16_t integer;
-
-typedef int32_t int32;
-typedef uint32_t uint32;
-
+typedef unsigned char uchar;
+typedef signed char schar;
+typedef short integer;  /* Should be a 16+-bit signed numeric type */
+                        /* For technical reasons, it must be big enough to
+			   hold a value of type word (see below) */
+typedef unsigned long int32;  /* Should be a 32+-bit unsigned numeric type */
+typedef unsigned long uint32;
 typedef uchar rbool;
 
 #define WORD_LENG 25
@@ -89,8 +83,8 @@ typedef uchar rbool;
 /* Game-specific data type */
 typedef char tline[81]; /* Both of these must include terminating null */
 typedef char words[WORD_LENG]; /* ...23 in classic, 16 in master's */
-typedef integer word;     /* A pointer into the dictionary */
-typedef integer slist; /* Index into synlist marking beginning of this 
+typedef short word;     /* A pointer into the dictionary */
+typedef short slist; /* Index into synlist marking beginning of this 
 			synonym list.  [SYNCNT] 
 			list of word pointers -- eg synonyms */
 typedef char *descr_line; /* This is the type used to return descriptions.
@@ -564,7 +558,7 @@ global integer exitmsg_base; /* Number added to messages used as
 
 global integer start_room, treas_room, resurrect_room, max_lives;
 global long max_score;
-global integer startup_time, delta_time;
+global integer start_time, delta_time;
 
 /* ver contains the size of the game, aver indicates its version */
 /*  See the #define's below for details */

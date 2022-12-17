@@ -552,7 +552,7 @@ static int init(void)
 /*  lactor=lobj=lnoun=NULL;*/
   tscore=old_score=objscore=0;
   turncnt=0;
-  curr_time=startup_time;
+  curr_time=start_time;
   loc=start_room-first_room;
   cmd_saveable=0;
   first_visit_flag=newlife_flag=room_firstdesc=1;
@@ -696,8 +696,8 @@ static void print_license(void)
 	  "GNU General Public License for more details.");
   writeln("  You should have received a copy of the GNU General Public "
 	  "License along with this program; if not, write to the Free "
-	  "Software Foundation, Inc., 51 Franklin Street, Fifth Floor, "
-	  "Boston, MA  02110-1301  USA");
+	  "Software Foundation, Inc., 59 Temple Place, Suite 330, "
+	  "Boston, MA  02111-1307  USA");
   writeln("");
   writeln("  Send comments and bug reports to Robert Masenten at:");
   writeln("      rcm-math@pacbell.net");
