@@ -31,8 +31,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-std::shared_ptr<picture_t>
-gli_picture_scale(picture_t *src, int newcols, int newrows)
+std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int newrows)
 {
     /* pnmscale.c - read a portable anymap and scale it
      *
@@ -52,8 +51,9 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
     auto dst = gli_picture_retrieve(src->id, true);
 
-    if (dst && dst->w == newcols && dst->h == newrows)
+    if (dst && dst->w == newcols && dst->h == newrows) {
         return dst;
+    }
 
     int row, col;
 
@@ -90,21 +90,18 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
 
     fracrowtofill = SCALE;
 
-    for ( row = 0; row < newrows; ++row )
-    {
+    for (row = 0; row < newrows; ++row) {
         /* First scale Y from src->rgba into tempxelrow. */
         {
-            while ( fracrowleft < fracrowtofill )
-            {
-                if ( needtoreadrow )
-                    if ( rowsread < rows )
-                    {
+            while (fracrowleft < fracrowtofill) {
+                if (needtoreadrow) {
+                    if (rowsread < rows) {
                         ++rowsread;
                         /* needtoreadrow = 0; */
                     }
+                }
 
-                for ( col = 0; col < cols; ++col )
-                {
+                for (col = 0; col < cols; ++col) {
                     auto alpha = src->rgba[rowsread - 1][col][3];
                     rs[col] += fracrowleft * src->rgba[rowsread - 1][col][0] * alpha;
                     gs[col] += fracrowleft * src->rgba[rowsread - 1][col][1] * alpha;
@@ -118,40 +115,44 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
             }
 
             /* Now fracrowleft is >= fracrowtofill, so we can produce a row. */
-            if ( needtoreadrow )
-                if ( rowsread < rows )
-                {
+            if (needtoreadrow) {
+                if (rowsread < rows) {
                     ++rowsread;
                     needtoreadrow = 0;
                 }
+            }
 
-            for ( col = 0; col < cols; ++col )
-            {
+            for (col = 0; col < cols; ++col) {
                 auto alpha = src->rgba[rowsread - 1][col][3];
                 long r, g, b, a;
 
                 a = as[col] + fracrowtofill * alpha;
 
-                if (!a)
-                {
+                if (!a) {
                     r = g = b = a;
-                }
-                else
-                {
+                } else {
                     r = rs[col] + fracrowtofill * src->rgba[rowsread - 1][col][0] * alpha;
                     r /= a;
-                    if ( r > maxval ) r = maxval;
+                    if (r > maxval) {
+                        r = maxval;
+                    }
 
                     g = gs[col] + fracrowtofill * src->rgba[rowsread - 1][col][1] * alpha;
                     g /= a;
-                    if ( g > maxval ) g = maxval;
+                    if (g > maxval) {
+                        g = maxval;
+                    }
 
                     b = bs[col] + fracrowtofill * src->rgba[rowsread - 1][col][2] * alpha;
                     b /= a;
-                    if ( b > maxval ) b = maxval;
+                    if (b > maxval) {
+                        b = maxval;
+                    }
 
                     a /= SCALE;
-                    if ( a > maxval ) a = maxval;
+                    if (a > maxval) {
+                        a = maxval;
+                    }
                 }
 
                 tempxelrow[col] = Pixel<4>(r, g, b, a);
@@ -159,8 +160,7 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
             }
 
             fracrowleft -= fracrowtofill;
-            if ( fracrowleft == 0 )
-            {
+            if (fracrowleft == 0) {
                 fracrowleft = syscale;
                 needtoreadrow = 1;
             }
@@ -178,44 +178,46 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
             needcol = 0;
 
             int dstcol = 0;
-            for ( col = 0; col < cols; ++col )
-            {
+            for (col = 0; col < cols; ++col) {
                 auto alpha = tempxelrow[col][3];
                 auto tempxel_blended_r = tempxelrow[col][0] * alpha;
                 auto tempxel_blended_g = tempxelrow[col][1] * alpha;
                 auto tempxel_blended_b = tempxelrow[col][2] * alpha;
 
                 fraccolleft = sxscale;
-                while ( fraccolleft >= fraccoltofill )
-                {
-                    if ( needcol )
-                    {
+                while (fraccolleft >= fraccoltofill) {
+                    if (needcol) {
                         dstcol++;
                         r = g = b = a = HALFSCALE;
                     }
 
                     a += fraccoltofill * alpha;
 
-                    if (!a)
-                    {
+                    if (!a) {
                         r = g = b = a;
-                    }
-                    else
-                    {
+                    } else {
                         r += fraccoltofill * tempxel_blended_r;
                         r /= a;
-                        if ( r > maxval ) r = maxval;
+                        if (r > maxval) {
+                            r = maxval;
+                        }
 
                         g += fraccoltofill * tempxel_blended_g;
                         g /= a;
-                        if ( g > maxval ) g = maxval;
+                        if (g > maxval) {
+                            g = maxval;
+                        }
 
                         b += fraccoltofill * tempxel_blended_b;
                         b /= a;
-                        if ( b > maxval ) b = maxval;
+                        if (b > maxval) {
+                            b = maxval;
+                        }
 
                         a /= SCALE;
-                        if ( a > maxval ) a = maxval;
+                        if (a > maxval) {
+                            a = maxval;
+                        }
                     }
 
                     dst->rgba[row][dstcol] = Pixel<4>(r, g, b, a);
@@ -225,10 +227,8 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
                     needcol = 1;
                 }
 
-                if ( fraccolleft > 0 )
-                {
-                    if ( needcol )
-                    {
+                if (fraccolleft > 0) {
+                    if (needcol) {
                         dstcol++;
                         r = g = b = a = HALFSCALE;
                         needcol = 0;
@@ -243,30 +243,33 @@ gli_picture_scale(picture_t *src, int newcols, int newrows)
                 }
             }
 
-            if ( fraccoltofill > 0 )
-            {
+            if (fraccoltofill > 0) {
                 r += fraccoltofill * tempxelrow[cols - 1][0] * tempxelrow[cols - 1][3];
                 g += fraccoltofill * tempxelrow[cols - 1][1] * tempxelrow[cols - 1][3];
                 b += fraccoltofill * tempxelrow[cols - 1][2] * tempxelrow[cols - 1][3];
                 a += fraccoltofill * tempxelrow[cols - 1][3];
             }
 
-            if ( ! needcol )
-            {
-                if (!a)
-                {
+            if (!needcol) {
+                if (!a) {
                     r = g = b = a;
-                }
-                else
-                {
+                } else {
                     r /= a;
-                    if ( r > maxval ) r = maxval;
+                    if (r > maxval) {
+                        r = maxval;
+                    }
                     g /= a;
-                    if ( g > maxval ) g = maxval;
+                    if (g > maxval) {
+                        g = maxval;
+                    }
                     b /= a;
-                    if ( b > maxval ) b = maxval;
+                    if (b > maxval) {
+                        b = maxval;
+                    }
                     a /= SCALE;
-                    if ( a > maxval ) a = maxval;
+                    if (a > maxval) {
+                        a = maxval;
+                    }
                 }
 
                 dst->rgba[row][dstcol] = Pixel<4>(r, g, b, a);

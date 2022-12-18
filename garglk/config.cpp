@@ -62,35 +62,35 @@ FontFiles gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_ov
 
 std::string gli_conf_monofont = "Gargoyle Mono";
 std::string gli_conf_propfont = "Gargoyle Serif";
-float gli_conf_monosize = 12.6;	/* good size for Gargoyle Mono */
-float gli_conf_propsize = 14.7;	/* good size for Gargoyle Serif */
+float gli_conf_monosize = 12.6; /* good size for Gargoyle Mono */
+float gli_conf_propsize = 14.7; /* good size for Gargoyle Serif */
 
 Styles gli_tstyles{{
-    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Normal */
-    {FontFace::propi(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Emphasized */
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Preformatted */
-    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Header */
-    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Subheader */
-    {FontFace::propz(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Alert */
-    {FontFace::propi(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Note */
-    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* BlockQuote */
-    {FontFace::propb(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* Input */
-    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* User1 */
-    {FontFace::propr(), Color(0xff,0xff,0xff), Color(0x00,0x00,0x00), false}, /* User2 */
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Normal */
+    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Emphasized */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Preformatted */
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Header */
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Subheader */
+    {FontFace::propz(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Alert */
+    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Note */
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* BlockQuote */
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Input */
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* User1 */
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* User2 */
 }};
 
 Styles gli_gstyles{{
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Normal */
-    {FontFace::monoi(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Emphasized */
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Preformatted */
-    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Header */
-    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Subheader */
-    {FontFace::monoz(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Alert */
-    {FontFace::monoi(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Note */
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* BlockQuote */
-    {FontFace::monob(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* Input */
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* User1 */
-    {FontFace::monor(), Color(0xff,0xff,0xff), Color(0x60,0x60,0x60), false}, /* User2 */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Normal */
+    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Emphasized */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Preformatted */
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Header */
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Subheader */
+    {FontFace::monoz(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Alert */
+    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Note */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* BlockQuote */
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Input */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* User1 */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* User2 */
 }};
 
 const Styles gli_tstyles_def = gli_tstyles;
@@ -100,14 +100,23 @@ std::vector<garglk::ConfigFile> garglk::all_configs;
 
 static FontFace font2idx(const std::string &font)
 {
-    if (font == "monor") return FontFace::monor();
-    if (font == "monob") return FontFace::monob();
-    if (font == "monoi") return FontFace::monoi();
-    if (font == "monoz") return FontFace::monoz();
-    if (font == "propr") return FontFace::propr();
-    if (font == "propb") return FontFace::propb();
-    if (font == "propi") return FontFace::propi();
-    if (font == "propz") return FontFace::propz();
+    if (font == "monor") {
+        return FontFace::monor();
+    } else if (font == "monob") {
+        return FontFace::monob();
+    } else if (font == "monoi") {
+        return FontFace::monoi();
+    } else if (font == "monoz") {
+        return FontFace::monoz();
+    } else if (font == "propr") {
+        return FontFace::propr();
+    } else if (font == "propb") {
+        return FontFace::propb();
+    } else if (font == "propi") {
+        return FontFace::propi();
+    } else if (font == "propz") {
+        return FontFace::propz();
+    }
     return FontFace::monor();
 }
 
@@ -197,20 +206,18 @@ std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
 
-    for (unsigned char c : string)
+    for (unsigned char c : string) {
         lowered.push_back(std::tolower(c));
+    }
 
     return lowered;
 }
 
 static void parsecolor(const std::string &str, Color &rgb)
 {
-    try
-    {
+    try {
         rgb = gli_parse_color(str);
-    }
-    catch (const std::runtime_error &)
-    {
+    } catch (const std::runtime_error &) {
     }
 }
 
@@ -238,41 +245,44 @@ static void parsecolor(const std::string &str, Color &rgb)
 std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = "")
 {
     std::vector<ConfigFile> configs;
-    if (!gamepath.empty())
-    {
+    if (!gamepath.empty()) {
         std::string config;
 
         // game file .ini
         config = gamepath;
         auto dot = config.rfind('.');
-        if (dot != std::string::npos)
+        if (dot != std::string::npos) {
             config.replace(dot, std::string::npos, ".ini");
-        else
+        } else {
             config += ".ini";
+        }
 
         configs.emplace_back(config, ConfigFile::Type::PerGame);
 
         // game directory .ini
         config = gamepath;
         auto slash = config.find_last_of("/\\");
-        if (slash != std::string::npos)
+        if (slash != std::string::npos) {
             config.replace(slash + 1, std::string::npos, "garglk.ini");
-        else
+        } else {
             config = "garglk.ini";
+        }
 
         configs.emplace_back(config, ConfigFile::Type::PerGame);
     }
 
 #if defined(__HAIKU__)
     char settings_dir[PATH_MAX + 1];
-    if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK)
+    if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK) {
         configs.push_back(ConfigFile(std::string(settings_dir) + "/Gargoyle", ConfigFile::Type::User));
+    }
 #elif defined(_WIN32)
     // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
     // priority than $PWD/garglk.ini since it's a more "proper" location.
     const char *appdata = std::getenv("APPDATA");
-    if (appdata != nullptr)
+    if (appdata != nullptr) {
         configs.push_back(ConfigFile(std::string(appdata) + "/Gargoyle/garglk.ini", ConfigFile::Type::User));
+    }
 
     // current directory .ini
     // Historically this has been the location of garglk.ini on Windows,
@@ -286,32 +296,37 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
     // On macOS, when the config file is edited via the UI, it is placed in
     // $HOME/garglk.ini. At some point this probably should move to somewhere in
     // $HOME/Library, but for now, make sure this config file is used.
-    if (home != nullptr)
+    if (home != nullptr) {
         configs.push_back(ConfigFile(std::string(home) + "/garglk.ini", ConfigFile::Type::User));
+    }
 #endif
 
     // XDG Base Directory Specification
     std::string xdg_path;
     const char *xdg = getenv("XDG_CONFIG_HOME");
-    if (xdg != nullptr && xdg[0] == '/')
+    if (xdg != nullptr && xdg[0] == '/') {
         xdg_path = xdg;
-    else if (home != nullptr)
+    } else if (home != nullptr) {
         xdg_path = std::string(home) + "/.config";
+    }
 
-    if (!xdg_path.empty())
+    if (!xdg_path.empty()) {
         configs.emplace_back(xdg_path + "/garglk.ini", ConfigFile::Type::User);
+    }
 
     // $HOME/.garglkrc
-    if (home != nullptr)
+    if (home != nullptr) {
         configs.emplace_back(std::string(home) + "/.garglkrc", ConfigFile::Type::User);
+    }
 #endif
 
 #ifdef __APPLE__
     // macOS sets $GARGLK_RESOURCES to the bundle directory containing a
     // default garglk.ini.
     const char *garglkini = std::getenv("GARGLK_RESOURCES");
-    if (garglkini != nullptr)
+    if (garglkini != nullptr) {
         configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", ConfigFile::Type::System));
+    }
 #endif
 
 #ifdef GARGLKINI
@@ -322,8 +337,9 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = ""
 #ifdef _WIN32
     // install directory
     auto exedir = garglk::winappdir();
-    if (!exedir.empty())
+    if (!exedir.empty()) {
         configs.push_back(ConfigFile(exedir + "/garglk.ini", ConfigFile::Type::System));
+    }
 #endif
 
     return configs;
@@ -334,22 +350,25 @@ std::string garglk::user_config()
     auto cfgs = configs();
 
     // Filter out non-user configs.
-    cfgs.erase(
-            std::remove_if(cfgs.begin(),
-                           cfgs.end(),
-                           [](const ConfigFile &config) { return config.type != ConfigFile::Type::User; }),
-            cfgs.end());
+    cfgs.erase(std::remove_if(cfgs.begin(),
+                              cfgs.end(),
+                              [](const ConfigFile &config) {
+                                  return config.type != ConfigFile::Type::User;
+                              }),
+               cfgs.end());
 
-    if (cfgs.empty())
+    if (cfgs.empty()) {
         throw std::runtime_error("No valid configuration files found.");
+    }
 
     // Find first user config which already exists, if any.
     auto cfg = std::find_if(cfgs.begin(), cfgs.end(), [](const ConfigFile &config) {
         return std::ifstream(config.path).good();
     });
 
-    if (cfg != cfgs.end())
+    if (cfg != cfgs.end()) {
         return cfg->path;
+    }
 
     // No config exists, so create the highest-priority config.
     auto path = cfgs.front().path;
@@ -358,25 +377,23 @@ std::string garglk::user_config()
     // is difficult to do portably before C++17, so just don't do it.
 #if __cplusplus >= 201703L
     std::filesystem::path fspath(path);
-    try
-    {
-        if (!fspath.parent_path().empty())
+    try {
+        if (!fspath.parent_path().empty()) {
             std::filesystem::create_directories(fspath.parent_path());
-    }
-    catch (const std::runtime_error &e)
-    {
+        }
+    } catch (const std::runtime_error &e) {
         throw std::runtime_error("Unable to create parent directory for configuration file " + path + ": " + e.what());
     }
 #endif
 
     std::ofstream f(path, std::ios::binary);
-    if (!f.is_open())
+    if (!f.is_open()) {
         throw std::runtime_error("Unable to open configuration file " + path + " for writing.");
+    }
 
     f.write(reinterpret_cast<const char *>(garglkini), sizeof garglkini);
 
-    if (f.bad())
-    {
+    if (f.bad()) {
         std::remove(path.c_str());
         throw std::runtime_error("Error writing to configuration file " + path + ".");
     }
@@ -390,26 +407,26 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
     bool accept = accept_bare;
 
     std::ifstream f(fname);
-    if (!f.is_open())
+    if (!f.is_open()) {
         return;
+    }
 
-    while (std::getline(f >> std::ws, line))
-    {
+    while (std::getline(f >> std::ws, line)) {
         auto comment = line.find('#');
-        if (comment != std::string::npos)
+        if (comment != std::string::npos) {
             line.erase(comment);
+        }
         line.erase(line.find_last_not_of(" \t\r") + 1);
 
-        if (line.empty())
+        if (line.empty()) {
             continue;
+        }
 
-        if (line[0] == '[' && line.back() == ']')
-        {
-            accept = std::any_of(matches.begin(), matches.end(),[&line](const std::string &match) {
+        if (line[0] == '[' && line.back() == ']') {
+            accept = std::any_of(matches.begin(), matches.end(), [&line](const std::string &match) {
                 std::istringstream s(line.substr(1, line.size() - 2));
                 std::string pattern;
-                while (s >> std::quoted(pattern))
-                {
+                while (s >> std::quoted(pattern)) {
 #ifdef _WIN32
                     if (PathMatchSpec(garglk::downcase(match).c_str(), garglk::downcase(pattern).c_str()))
 #else
@@ -422,19 +439,20 @@ void garglk::config_entries(const std::string &fname, bool accept_bare, const st
             continue;
         }
 
-        if (!accept)
+        if (!accept) {
             continue;
+        }
 
         std::string cmd;
         std::istringstream linestream(line);
 
-        if (linestream >> cmd)
-        {
+        if (linestream >> cmd) {
             std::string arg;
             std::getline(linestream >> std::ws, arg);
 
-            if (linestream)
+            if (linestream) {
                 callback(cmd, arg);
+            }
         }
     }
 }
@@ -498,20 +516,24 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             gli_cols = std::max(1, std::stoi(arg));
         } else if (cmd == "minrows") {
             int r = std::max(0, std::stoi(arg));
-            if (gli_rows < r)
+            if (gli_rows < r) {
                 gli_rows = r;
-        } else if (cmd ==  "maxrows") {
+            }
+        } else if (cmd == "maxrows") {
             int r = std::max(0, std::stoi(arg));
-            if (gli_rows > r)
+            if (gli_rows > r) {
                 gli_rows = r;
+            }
         } else if (cmd == "mincols") {
             int r = std::max(0, std::stoi(arg));
-            if (gli_cols < r)
+            if (gli_cols < r) {
                 gli_cols = r;
-        } else if (cmd ==  "maxcols") {
+            }
+        } else if (cmd == "maxcols") {
             int r = std::max(0, std::stoi(arg));
-            if (gli_cols > r)
+            if (gli_cols > r) {
                 gli_cols = r;
+            }
         } else if (cmd == "lockrows") {
             gli_conf_lockrows = !!std::stoi(arg);
         } else if (cmd == "lockcols") {
@@ -569,11 +591,13 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             int weight;
             std::vector<unsigned char> weights;
 
-            while (argstream >> weight)
+            while (argstream >> weight) {
                 weights.push_back(weight);
+            }
 
-            if (weights.size() == gli_conf_lcd_weights.size())
+            if (weights.size() == gli_conf_lcd_weights.size()) {
                 std::copy(weights.begin(), weights.end(), gli_conf_lcd_weights.begin());
+            }
         } else if (cmd == "caretshape") {
             gli_caret_shape = clamp(std::stoi(arg), 0, 4);
         } else if (cmd == "linkstyle") {
@@ -603,15 +627,17 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             int number, frequency;
             double duration;
 
-            if (argstream >> number >> duration >> frequency)
+            if (argstream >> number >> duration >> frequency) {
                 gli_bleeps.update(number, duration, frequency);
+            }
         } else if (cmd == "zbleep_file") {
             std::istringstream argstream(arg);
             int number;
             std::string path;
 
-            if (argstream >> number >> path)
+            if (argstream >> number >> path) {
                 gli_bleeps.update(number, path);
+            }
         } else if (cmd == "fullscreen") {
             gli_conf_fullscreen = !!std::stoi(arg);
         } else if (cmd == "zoom") {
@@ -632,24 +658,18 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             std::istringstream argstream(arg);
             std::string style, fg, bg;
 
-            if (argstream >> style >> fg >> bg)
-            {
+            if (argstream >> style >> fg >> bg) {
                 Styles &styles = cmd[0] == 't' ? gli_tstyles : gli_gstyles;
 
-                if (style == "*")
-                {
-                    for (int i = 0; i < style_NUMSTYLES; i++)
-                    {
+                if (style == "*") {
+                    for (int i = 0; i < style_NUMSTYLES; i++) {
                         parsecolor(fg, styles[i].fg);
                         parsecolor(bg, styles[i].bg);
                     }
-                }
-                else
-                {
+                } else {
                     int i = std::stoi(style);
 
-                    if (i >= 0 && i < style_NUMSTYLES)
-                    {
+                    if (i >= 0 && i < style_NUMSTYLES) {
                         parsecolor(fg, styles[i].fg);
                         parsecolor(bg, styles[i].bg);
                     }
@@ -659,16 +679,15 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
             std::istringstream argstream(arg);
             std::string style, font;
 
-            if (argstream >> style >> font)
-            {
+            if (argstream >> style >> font) {
                 int i = std::stoi(style);
 
-                if (i >= 0 && i < style_NUMSTYLES)
-                {
-                    if (cmd[0] == 't')
+                if (i >= 0 && i < style_NUMSTYLES) {
+                    if (cmd[0] == 't') {
                         gli_tstyles[i].font = font2idx(font);
-                    else
+                    } else {
                         gli_gstyles[i].font = font2idx(font);
+                    }
                 }
             }
         } else if (cmd == "game_config") {
@@ -693,8 +712,9 @@ static void gli_read_config(int argc, char **argv)
 #else
     auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
-        if (slash != std::string::npos)
+        if (slash != std::string::npos) {
             path.erase(0, slash + 1);
+        }
 
         return path;
     };
@@ -702,8 +722,9 @@ static void gli_read_config(int argc, char **argv)
     /* load argv0 with name of executable without suffix */
     std::string argv0 = basename(argv[0]);
     auto dot = argv0.rfind('.');
-    if (dot != std::string::npos)
+    if (dot != std::string::npos) {
         argv0.erase(dot);
+    }
 
     /* load gamefile with basename of last argument */
     std::string gamefile = basename(argv[argc - 1]);
@@ -711,8 +732,9 @@ static void gli_read_config(int argc, char **argv)
 
     /* load gamepath with the path to the story file itself */
     std::string gamepath;
-    if (argc > 1)
+    if (argc > 1) {
         gamepath = argv[argc - 1];
+    }
 
     /* load from all config files */
     auto configs = garglk::configs(gamepath);
@@ -741,8 +763,9 @@ void gli_startup(int argc, char *argv[])
 {
     wininit(&argc, argv);
 
-    if (argc > 1)
-        glkunix_set_base_file(argv[argc-1]);
+    if (argc > 1) {
+        glkunix_set_base_file(argv[argc - 1]);
+    }
 
     garglk::theme::init();
 
@@ -751,8 +774,9 @@ void gli_startup(int argc, char *argv[])
     gli_more_prompt.resize(base_more_prompt.size() + 1);
     gli_more_prompt_len = gli_parse_utf8(reinterpret_cast<const unsigned char *>(base_more_prompt.data()), base_more_prompt.size(), gli_more_prompt.data(), base_more_prompt.size());
 
-    if (gli_baseline == 0)
+    if (gli_baseline == 0) {
         gli_baseline = std::round(gli_conf_propsize);
+    }
 
     gli_zoom *= gli_backingscalefactor;
     gli_baseline = gli_zoom_int(gli_baseline);
@@ -771,8 +795,9 @@ void gli_startup(int argc, char *argv[])
     gli_wpaddingy = gli_zoom_int(gli_wpaddingy);
 
     gli_initialize_tts();
-    if (gli_conf_speak)
+    if (gli_conf_speak) {
         gli_conf_quotes = 0;
+    }
 
     gli_initialize_misc();
     gli_initialize_fonts();

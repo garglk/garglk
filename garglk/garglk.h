@@ -248,8 +248,9 @@ public:
 
     void fill(const Pixel<N> &pixel, int start, int end) {
         auto data = pixel.data();
-        for (int i = start; i < end; i++)
+        for (int i = start; i < end; i++) {
             std::memcpy(&m_row[i * N], data, N);
+        }
     }
 
 private:
@@ -260,19 +261,17 @@ template <std::size_t N>
 class Canvas {
 public:
     void resize(int width, int height, bool keep) {
-        if (keep)
-        {
+        if (keep) {
             auto backup = m_pixels;
             int minwidth = std::min(m_width, width);
             int minheight = std::min(m_height, height);
 
             m_pixels.resize(width * height * N);
 
-            for (int y = 0; y < minheight; y++)
+            for (int y = 0; y < minheight; y++) {
                 std::memcpy(&m_pixels[y * width * N], &backup[y * m_width * N], minwidth * N);
-        }
-        else
-        {
+            }
+        } else {
             m_pixels.resize(width * height * N);
         }
 
@@ -296,8 +295,9 @@ public:
     }
 
     void fill(const Pixel<N> &pixel) {
-        for (int i = 0; i < m_width * m_height; i++)
+        for (int i = 0; i < m_width * m_height; i++) {
             std::memcpy(&m_pixels[i * N], pixel.data(), N);
+        }
     }
 
     bool empty() const {
@@ -417,14 +417,12 @@ extern int gli_cellh;
 #define UNI_NDASH	0x2013
 #define UNI_MDASH	0x2014
 
-struct rect_t
-{
+struct rect_t {
     int x0, y0;
     int x1, y1;
 };
 
-struct picture_t
-{
+struct picture_t {
     picture_t(unsigned int id_, int w_, int h_, bool scaled_) : w(w_), h(h_), id(id_), scaled(scaled_) {
         rgba.resize(w, h, false);
     }
@@ -435,8 +433,7 @@ struct picture_t
     bool scaled;
 };
 
-struct style_t
-{
+struct style_t {
     FontFace font;
     Color bg;
     Color fg;
@@ -593,8 +590,7 @@ void gli_dispatch_event(event_t *event, bool polled);
 #define strtype_Memory (3)
 #define strtype_Resource (4)
 
-struct glk_stream_struct
-{
+struct glk_stream_struct {
     glui32 magicnum;
     glui32 rock;
 
@@ -614,7 +610,7 @@ struct glk_stream_struct
     /* for strtype_Resource */
     bool isbinary;
 
-    /* for strtype_Memory and strtype_Resource. Separate pointers for 
+    /* for strtype_Memory and strtype_Resource. Separate pointers for
        one-byte and four-byte streams */
     unsigned char *buf;
     unsigned char *bufptr;
@@ -631,8 +627,7 @@ struct glk_stream_struct
     stream_t *next, *prev; /* in the big linked list of streams */
 };
 
-struct glk_fileref_struct
-{
+struct glk_fileref_struct {
     glui32 magicnum;
     glui32 rock;
 
@@ -653,8 +648,7 @@ struct glk_fileref_struct
 // files which include windows.h will not cause build failures.
 #undef hyper
 
-struct attr_t
-{
+struct attr_t {
     bool fgset = false;
     bool bgset = false;
     bool reverse = false;
@@ -674,8 +668,7 @@ struct attr_t
     }
 };
 
-struct glk_window_struct
-{
+struct glk_window_struct {
     glk_window_struct(glui32 type_, glui32 rock_);
     ~glk_window_struct();
 
@@ -694,7 +687,7 @@ struct glk_window_struct
         window_pair_t *pair;
     } window;
 
-    stream_t *str; /* the window stream. */
+    stream_t *str;               /* the window stream. */
     stream_t *echostr = nullptr; /* the window's echo stream, if any. */
 
     bool line_request = false;
@@ -718,16 +711,14 @@ struct glk_window_struct
     window_t *next, *prev; /* in the big linked list of windows */
 };
 
-struct window_blank_s
-{
+struct window_blank_s {
     explicit window_blank_s(window_t *win) : owner(win) {
     }
 
     window_t *owner;
 };
 
-struct window_pair_s
-{
+struct window_pair_s {
     window_pair_s(window_t *win, glui32 method, window_t *key_, glui32 size_) :
         owner(win),
         dir(method & winmethod_DirMask),
@@ -744,25 +735,23 @@ struct window_pair_s
     window_t *child1 = nullptr, *child2 = nullptr;
 
     /* split info... */
-    glui32 dir; /* winmethod_Left, Right, Above, or Below */
+    glui32 dir;              /* winmethod_Left, Right, Above, or Below */
     bool vertical, backward; /* flags */
-    glui32 division; /* winmethod_Fixed or winmethod_Proportional */
-    window_t *key; /* NULL or a leaf-descendant (not a Pair) */
-    bool keydamage = false; /* used as scratch space in window closing */
-    glui32 size; /* size value */
-    glui32 wborder;  /* winMethod_Border, NoBorder */
+    glui32 division;         /* winmethod_Fixed or winmethod_Proportional */
+    window_t *key;           /* NULL or a leaf-descendant (not a Pair) */
+    bool keydamage = false;  /* used as scratch space in window closing */
+    glui32 size;             /* size value */
+    glui32 wborder;          /* winMethod_Border, NoBorder */
 };
 
 /* One line of the grid window. */
-struct tgline_t
-{
+struct tgline_t {
     bool dirty = false;
     std::array<glui32, 256> chars;
     std::array<attr_t, 256> attrs;
 };
 
-struct window_textgrid_s
-{
+struct window_textgrid_s {
     window_textgrid_s(window_t *owner_, Styles styles_) :
         owner(owner_),
         styles(std::move(styles_))
@@ -777,7 +766,7 @@ struct window_textgrid_s
     int curx = 0, cury = 0; /* the window cursor position */
 
     /* for line input */
-    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    void *inbuf = nullptr; /* unsigned char* for latin1, glui32* for unicode */
     bool inunicode = false;
     int inorgx = 0, inorgy = 0;
     int inoriglen, inmax;
@@ -790,8 +779,7 @@ struct window_textgrid_s
     Styles styles;
 };
 
-struct tbline_t
-{
+struct tbline_t {
     tbline_t() {
         chars.fill(' ');
     }
@@ -804,8 +792,7 @@ struct tbline_t
     std::array<attr_t, TBLINELEN> attrs;
 };
 
-struct window_textbuffer_s
-{
+struct window_textbuffer_s {
     window_textbuffer_s(window_t *owner_, Styles styles_, int scrollback_) :
         owner(owner_),
         scrollback(scrollback_),
@@ -825,9 +812,9 @@ struct window_textbuffer_s
     std::vector<tbline_t> lines;
     int scrollback = SCROLLBACK;
 
-    int numchars = 0;		/* number of chars in last line: lines[0] */
-    glui32 *chars;		/* alias to lines[0].chars */
-    attr_t *attrs;		/* alias to lines[0].attrs */
+    int numchars = 0; /* number of chars in last line: lines[0] */
+    glui32 *chars;    /* alias to lines[0].chars */
+    attr_t *attrs;    /* alias to lines[0].attrs */
 
     /* adjust margins temporarily for images */
     int ladjw = 0;
@@ -845,7 +832,7 @@ struct window_textbuffer_s
     int scrollmax = 0;
 
     /* for line input */
-    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    void *inbuf = nullptr; /* unsigned char* for latin1, glui32* for unicode */
     bool inunicode = false;
     int inmax;
     long infence;
@@ -864,8 +851,7 @@ struct window_textbuffer_s
     int copypos = 0;
 };
 
-struct window_graphics_s
-{
+struct window_graphics_s {
     explicit window_graphics_s(window_t *win) :
         owner(win),
         bgnd(win->bgcolor)

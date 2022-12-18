@@ -37,35 +37,29 @@
 
 void gli_initialize_babel()
 {
-    if (gli_workfile.empty())
+    if (gli_workfile.empty()) {
         return;
+    }
 
     auto ctx = garglk::unique(get_babel_ctx(), release_babel_ctx);
-    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get()))
-    {
+    if (babel_init_ctx(const_cast<char *>(gli_workfile.c_str()), ctx.get())) {
         int metaSize = babel_treaty_ctx(GET_STORY_FILE_METADATA_EXTENT_SEL, nullptr, 0, ctx.get());
-        if (metaSize > 0)
-        {
-            try
-            {
+        if (metaSize > 0) {
+            try {
                 std::vector<char> metadata(metaSize);
-                if (babel_treaty_ctx(GET_STORY_FILE_METADATA_SEL, metadata.data(), metadata.size(), ctx.get()) > 0)
-                {
+                if (babel_treaty_ctx(GET_STORY_FILE_METADATA_SEL, metadata.data(), metadata.size(), ctx.get()) > 0) {
                     auto get_metadata = [&metadata](const std::string &key) {
                         return garglk::unique(ifiction_get_tag(metadata.data(), const_cast<char *>("bibliographic"), const_cast<char *>(key.c_str()), nullptr), std::free);
                     };
                     auto story_title = get_metadata("title");
                     auto story_author = get_metadata("author");
-                    if (story_title != nullptr && story_author != nullptr)
-                    {
+                    if (story_title != nullptr && story_author != nullptr) {
                         std::string title;
                         title = std::string(story_title.get()) + " - " + story_author.get();
                         garglk_set_story_title(title.c_str());
                     }
                 }
-            }
-            catch (const std::bad_alloc &)
-            {
+            } catch (const std::bad_alloc &) {
             }
         }
     }

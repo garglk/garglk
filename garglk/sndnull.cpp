@@ -34,7 +34,9 @@ void gli_initialize_sound()
 
 gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan)
 {
-    return (gidispatch_rock_t) { .num = 0 };
+    return (gidispatch_rock_t) {
+        .num = 0
+    };
 }
 
 schanid_t glk_schannel_create(glui32 rock)
@@ -53,8 +55,9 @@ void glk_schannel_destroy(schanid_t chan)
 
 schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rockptr)
 {
-    if (rockptr)
+    if (rockptr) {
         *rockptr = 0;
+    }
     return nullptr;
 }
 

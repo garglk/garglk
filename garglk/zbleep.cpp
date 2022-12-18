@@ -24,21 +24,23 @@
 // POSIX at all.
 static constexpr double pi = 3.14159265358979323846;
 
-Bleeps::Bleeps() {
+Bleeps::Bleeps()
+{
     update(1, 0.1, 1175);
     update(2, 0.1, 440);
 }
 
 // 22050Hz, unsigned 8 bits per sample, mono
-void Bleeps::update(int number, double duration, int frequency) {
-    if (number != 1 && number != 2)
+void Bleeps::update(int number, double duration, int frequency)
+{
+    if (number != 1 && number != 2) {
         return;
+    }
 
     std::uint32_t samplerate = 22050;
     std::size_t frames = duration * samplerate;
 
-    if (frames == 0)
-    {
+    if (frames == 0) {
         m_bleeps.at(number) = nonstd::nullopt;
         return;
     }
@@ -85,35 +87,40 @@ void Bleeps::update(int number, double duration, int frequency) {
 #undef le32
 #undef le16
 
-    for (std::size_t i = 0; i < frames; i++)
-    {
+    for (std::size_t i = 0; i < frames; i++) {
         auto point = 1 + std::sin(frequency * 2 * pi * i / static_cast<double>(samplerate));
         data.push_back(127 * point);
     }
 
-    if (need_padding)
+    if (need_padding) {
         data.push_back(0);
+    }
 
     m_bleeps.at(number) = std::move(data);
 }
 
-void Bleeps::update(int number, const std::string &path) {
-    if (number != 1 && number != 2)
+void Bleeps::update(int number, const std::string &path)
+{
+    if (number != 1 && number != 2) {
         return;
+    }
 
     std::ifstream f(path, std::ios::binary);
 
     std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(f)),
                                     std::istreambuf_iterator<char>());
 
-    if (!f.fail())
+    if (!f.fail()) {
         m_bleeps.at(number) = std::move(data);
+    }
 }
 
-std::vector<std::uint8_t> &Bleeps::at(int number) {
+std::vector<std::uint8_t> &Bleeps::at(int number)
+{
     auto &vec = m_bleeps.at(number);
-    if (!vec.has_value())
+    if (!vec.has_value()) {
         throw Empty();
+    }
 
     return vec.value();
 }

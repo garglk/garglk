@@ -41,8 +41,9 @@ static std::set<K> map_keys(const std::map<K, V> &map)
 {
     std::set<K> keys;
 
-    for (const auto &pair : map)
+    for (const auto &pair : map) {
         keys.insert(pair.first);
+    }
 
     return keys;
 }
@@ -52,8 +53,9 @@ Color gli_parse_color(const std::string &str)
     static const std::regex color_re(R"(#?[a-fA-F0-9]{6})");
     std::string r, g, b;
 
-    if (!std::regex_match(str, color_re))
+    if (!std::regex_match(str, color_re)) {
         throw std::runtime_error("invalid color: " + str);
+    }
 
     int pos = str[0] == '#' ? 1 : 0;
 
@@ -81,11 +83,11 @@ std::string join(const Iterable &values, const DType &delim)
     auto it = values.begin();
     std::stringstream result;
 
-    if (it != values.end())
+    if (it != values.end()) {
         result << *it++;
+    }
 
-    for (; it != values.end(); ++it)
-    {
+    for (; it != values.end(); ++it) {
         result << delim;
         result << *it;
     }
@@ -97,8 +99,7 @@ struct ThemeStyles {
     std::array<ColorPair, style_NUMSTYLES> colors;
 
     void to(std::array<style_t, style_NUMSTYLES> &styles) const {
-        for (int i = 0; i < style_NUMSTYLES; i++)
-        {
+        for (int i = 0; i < style_NUMSTYLES; i++) {
             styles[i].fg = colors[i].fg;
             styles[i].bg = colors[i].bg;
         }
@@ -132,8 +133,9 @@ struct Theme {
 
     static Theme from_file(const std::string &filename) {
         std::ifstream f(filename);
-        if (!f.is_open())
+        if (!f.is_open()) {
             throw std::runtime_error("unable to open file");
+        }
 
         json j;
         f >> j;
@@ -184,31 +186,34 @@ private:
             possible_colors[i] = ColorPair{fg, bg};
         };
 
-        if (styles.find("default") != styles.end())
-            for (int i = 0; i < style_NUMSTYLES; i++)
+        if (styles.find("default") != styles.end()) {
+            for (int i = 0; i < style_NUMSTYLES; i++) {
                 parse_colors(styles["default"], i);
+            }
+        }
 
         styles.erase("default");
-        for (const auto &style : styles)
-        {
-            if (stylemap.find(style.first) == stylemap.end())
+        for (const auto &style : styles) {
+            if (stylemap.find(style.first) == stylemap.end()) {
                 throw std::runtime_error("invalid style in " + color + ": " + style.first);
+            }
 
             parse_colors(style.second, stylemap[style.first]);
         }
 
         auto colors = make_array<style_NUMSTYLES>(ColorPair{white, black});
         std::vector<std::string> missing;
-        for (const auto &s : stylemap)
-        {
-            if (possible_colors[s.second].has_value())
+        for (const auto &s : stylemap) {
+            if (possible_colors[s.second].has_value()) {
                 colors[s.second] = possible_colors[s.second].value();
-            else
+            } else {
                 missing.push_back(s.first);
+            }
         }
 
-        if (!missing.empty())
+        if (!missing.empty()) {
             throw std::runtime_error(color + " is missing the following styles: " + join(missing, ", "));
+        }
 
         return {colors};
     }
@@ -255,8 +260,9 @@ std::vector<std::string> garglk::theme::paths()
 {
     std::vector<std::string> theme_paths;
 
-    for (const auto &path : garglk::winappdata())
+    for (const auto &path : garglk::winappdata()) {
         theme_paths.push_back(path + "/themes");
+    }
 
     return theme_paths;
 }
@@ -266,13 +272,11 @@ static std::vector<std::string> directory_entries(const std::string &dir)
 {
     std::vector<std::string> entries;
 
-    try
-    {
-        for (const auto &entry : std::filesystem::directory_iterator(dir))
+    try {
+        for (const auto &entry : std::filesystem::directory_iterator(dir)) {
             entries.push_back(entry.path().string());
-    }
-    catch (const std::filesystem::filesystem_error &)
-    {
+        }
+    } catch (const std::filesystem::filesystem_error &) {
     }
 
     return entries;
@@ -281,13 +285,15 @@ static std::vector<std::string> directory_entries(const std::string &dir)
 static std::vector<std::string> directory_entries(const std::string &dir)
 {
     auto d = garglk::unique(opendir(dir.c_str()), closedir);
-    if (d == nullptr)
+    if (d == nullptr) {
         return {};
+    }
 
     std::vector<std::string> entries;
     dirent *de;
-    while ((de = readdir(d.get())) != nullptr)
+    while ((de = readdir(d.get())) != nullptr) {
         entries.push_back(dir + "/" + de->d_name);
+    }
 
     return entries;
 }
@@ -295,23 +301,18 @@ static std::vector<std::string> directory_entries(const std::string &dir)
 
 void garglk::theme::init()
 {
-    for (const auto &themedir : garglk::theme::paths())
-    {
-        for (const auto &filename : directory_entries(themedir))
-        {
+    for (const auto &themedir : garglk::theme::paths()) {
+        for (const auto &filename : directory_entries(themedir)) {
             auto dot = filename.find_last_of('.');
-            if (dot != std::string::npos && filename.substr(dot) == ".json")
-            {
-                try
-                {
+            if (dot != std::string::npos && filename.substr(dot) == ".json") {
+                try {
                     auto theme = Theme::from_file(filename);
                     // C++17: use insert_or_assign()
                     const auto result = themes.insert({theme.name, theme});
-                    if (!result.second)
+                    if (!result.second) {
                         result.first->second = theme;
-                }
-                catch (const std::exception &e)
-                {
+                    }
+                } catch (const std::exception &e) {
                     std::cerr << "garglk: error parsing theme " << filename << ": " << e.what() << std::endl;
                 }
             }
@@ -326,15 +327,13 @@ static std::string system_theme_name()
 
 void garglk::theme::set(std::string name)
 {
-    if (name == "system")
+    if (name == "system") {
         name = system_theme_name();
-
-    try
-    {
-        themes.at(name).apply();
     }
-    catch (const std::out_of_range &)
-    {
+
+    try {
+        themes.at(name).apply();
+    } catch (const std::out_of_range &) {
         std::cerr << "garglk: unknown theme: " << name << std::endl;
     }
 }
@@ -343,8 +342,9 @@ std::vector<std::string> garglk::theme::names()
 {
     std::vector<std::string> theme_names;
 
-    for (const auto &theme : themes)
+    for (const auto &theme : themes) {
         theme_names.push_back(theme.first);
+    }
 
     theme_names.push_back(std::string("system (") + system_theme_name() + ")");
 

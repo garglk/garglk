@@ -95,9 +95,9 @@ static QString cliptext;
 
 /* filters and extensions for file dialogs */
 static const std::map<FileFilter, std::pair<QString, QString>> filters = {
-    { FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave") },
-    { FileFilter::Text, std::make_pair("Text files (*.txt)", "txt") },
-    { FileFilter::Data, std::make_pair("Data files (*.glkdata)", "glkdata") },
+    {FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave")},
+    {FileFilter::Text, std::make_pair("Text files (*.txt)", "txt")},
+    {FileFilter::Data, std::make_pair("Data files (*.glkdata)", "glkdata")},
 };
 
 static QApplication *app;
@@ -109,12 +109,12 @@ static bool refresh_needed = true;
 
 static void handle_input(const QString &input)
 {
-    for (const uint &c : input.toUcs4())
-    {
-        if (c == '\r' || c == '\n')
+    for (const uint &c : input.toUcs4()) {
+        if (c == '\r' || c == '\n') {
             gli_input_handle_key(keycode_Return);
-        else if (QChar::isPrint(c))
+        } else if (QChar::isPrint(c)) {
             gli_input_handle_key(c);
+        }
     }
 }
 
@@ -150,13 +150,10 @@ static std::string winchoosefile(const QString &prompt, FileFilter filter, Actio
     options |= QFileDialog::DontUseNativeDialog;
 #endif
 
-    if (action == Action::Open)
-    {
+    if (action == Action::Open) {
         QString filterstring = QString("%1;;All files (*)").arg(filters.at(filter).first);
         filename = QFileDialog::getOpenFileName(window, prompt, "", filterstring, nullptr, options);
-    }
-    else
-    {
+    } else {
         QString dir = QString("./Untitled.%1").arg(filters.at(filter).second);
         filename = QFileDialog::getSaveFileName(window, prompt, dir, filters.at(filter).first, nullptr, options);
     }
@@ -193,8 +190,9 @@ void winclipstore(const glui32 *text, int len)
 
 static void winclipsend(QClipboard::Mode mode)
 {
-    if (cliptext.isEmpty())
+    if (cliptext.isEmpty()) {
         return;
+    }
 
     QClipboard *clipboard = QGuiApplication::clipboard();
 
@@ -214,7 +212,9 @@ Window::Window() :
     m_timer(new QTimer(this)),
     m_settings(new QSettings(GARGOYLE_ORGANIZATION, GARGOYLE_NAME, this))
 {
-    connect(m_timer, &QTimer::timeout, this, [&]() { m_timed_out = true; });
+    connect(m_timer, &QTimer::timeout, this, [&]() {
+        m_timed_out = true;
+    });
 }
 
 void Window::closeEvent(QCloseEvent *)
@@ -231,30 +231,33 @@ void Window::resizeEvent(QResizeEvent *event)
     int newwid = event->size().width();
     int newhgt = event->size().height();
 
-    if (newwid == gli_image_rgb.width() && newhgt == gli_image_rgb.height())
+    if (newwid == gli_image_rgb.width() && newhgt == gli_image_rgb.height()) {
         return;
+    }
 
     refresh_needed = true;
 
     gli_windows_size_change(newwid, newhgt);
 
-    if (gli_conf_save_window_size)
+    if (gli_conf_save_window_size) {
         m_settings->setValue("window/size", event->size());
+    }
 
     event->accept();
 }
 
 void Window::moveEvent(QMoveEvent *event)
 {
-    if (gli_conf_save_window_location)
+    if (gli_conf_save_window_location) {
         m_settings->setValue("window/position", event->pos());
+    }
 
     event->accept();
 }
 
-QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const {
-    switch (query)
-    {
+QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const
+{
+    switch (query) {
     case Qt::ImEnabled:
         return QVariant(true);
     default:
@@ -264,9 +267,9 @@ QVariant View::inputMethodQuery(Qt::InputMethodQuery query) const {
 
 // Handle compose key events (probably other input method events too).
 // See https://stackoverflow.com/questions/28793356/qt-and-dead-keys-in-a-custom-widget
-void View::inputMethodEvent(QInputMethodEvent *event) {
-    if (!event->commitString().isEmpty())
-    {
+void View::inputMethodEvent(QInputMethodEvent *event)
+{
+    if (!event->commitString().isEmpty()) {
         QKeyEvent key_event(QEvent::KeyPress, 0, Qt::NoModifier, event->commitString());
         keyPressEvent(&key_event);
     }
@@ -275,10 +278,11 @@ void View::inputMethodEvent(QInputMethodEvent *event) {
 
 void View::refresh()
 {
-    if (!gli_drawselect)
+    if (!gli_drawselect) {
         gli_windows_redraw();
-    else
+    } else {
         gli_drawselect = false;
+    }
 
     update();
     refresh_needed = false;
@@ -294,11 +298,11 @@ void View::paintEvent(QPaintEvent *event)
 
 void Window::start_timer(long ms)
 {
-    if (m_timer->isActive())
+    if (m_timer->isActive()) {
         m_timer->stop();
+    }
 
-    if (ms != 0)
-    {
+    if (ms != 0) {
         m_timer->setInterval(ms);
         m_timer->start();
     }
@@ -306,8 +310,7 @@ void Window::start_timer(long ms)
 
 void gli_edit_config()
 {
-    try
-    {
+    try {
         auto config = garglk::user_config();
 #ifdef __APPLE__
         // QDesktopServices::openUrl uses the default handler for the
@@ -339,12 +342,11 @@ void gli_edit_config()
         KRun::runUrl(url, "text/plain", window);
 #endif
 #else
-        if (!QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str())))
+        if (!QDesktopServices::openUrl(QUrl::fromLocalFile(config.c_str()))) {
             QMessageBox::warning(nullptr, "Warning", "Unable to find a text editor");
+        }
 #endif
-    }
-    catch (std::runtime_error &e)
-    {
+    } catch (std::runtime_error &e) {
         QMessageBox::warning(nullptr, "Warning", e.what());
     }
 }
@@ -353,14 +355,16 @@ static void show_paths()
 {
     QString text("<p>Configuration file paths:</p><pre>");
 
-    for (const auto &path : garglk::all_configs)
+    for (const auto &path : garglk::all_configs) {
         text += QDir::toNativeSeparators(QString::fromStdString(path.path)) + "\n";
+    }
 
     text += "</pre><p>Theme paths:</p><pre>";
     auto theme_paths = garglk::theme::paths();
     std::reverse(theme_paths.begin(), theme_paths.end());
-    for (const auto &path : theme_paths)
+    for (const auto &path : theme_paths) {
         text += QDir::toNativeSeparators(QString::fromStdString(path)) + "\n";
+    }
     text += "</pre>";
 
     QMessageBox box(QMessageBox::Icon::Information, "Paths", text);
@@ -374,8 +378,9 @@ static void show_themes()
     auto theme_names = garglk::theme::names();
 
     std::sort(theme_names.begin(), theme_names.end());
-    for (const auto &theme_name : theme_names)
+    for (const auto &theme_name : theme_names) {
         text += QString("• ") + QString::fromStdString(theme_name) + "\n";
+    }
 
     QMessageBox box(QMessageBox::Icon::Information, "Paths", text);
     box.setTextFormat(Qt::TextFormat::PlainText);
@@ -451,13 +456,10 @@ void View::keyPressEvent(QKeyEvent *event)
         {{Qt::NoModifier, Qt::Key_F12},       []{ gli_input_handle_key(keycode_Func12); }},
     };
 
-    try
-    {
+    try {
         keys.at(std::make_pair(modmasked, event->key()))();
         return;
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 
     handle_input(event->text());
@@ -466,17 +468,15 @@ void View::keyPressEvent(QKeyEvent *event)
 void View::mouseMoveEvent(QMouseEvent *event)
 {
     /* hyperlinks and selection */
-    if (gli_copyselect)
-    {
+    if (gli_copyselect) {
         setCursor(Qt::IBeamCursor);
         gli_move_selection(event->pos().x(), event->pos().y());
-    }
-    else
-    {
-        if (gli_get_hyperlink(event->pos().x(), event->pos().y()))
+    } else {
+        if (gli_get_hyperlink(event->pos().x(), event->pos().y())) {
             setCursor(Qt::PointingHandCursor);
-        else
+        } else {
             unsetCursor();
+        }
     }
 
     event->accept();
@@ -484,18 +484,18 @@ void View::mouseMoveEvent(QMouseEvent *event)
 
 void View::mousePressEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton)
+    if (event->button() == Qt::LeftButton) {
         gli_input_handle_click(event->pos().x(), event->pos().y());
-    else if (event->button() == Qt::MiddleButton)
+    } else if (event->button() == Qt::MiddleButton) {
         winclipreceive(QClipboard::Selection);
+    }
 
     event->accept();
 }
 
 void View::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton)
-    {
+    if (event->button() == Qt::LeftButton) {
         gli_copyselect = false;
         unsetCursor();
         winclipsend(QClipboard::Selection);
@@ -511,28 +511,29 @@ void View::wheelEvent(QWheelEvent *event)
     int change = 0;
     bool page = event->modifiers() == Qt::ShiftModifier;
 
-    if (!pixels.isNull())
+    if (!pixels.isNull()) {
         change = pixels.y();
-    else if (!degrees.isNull())
+    } else if (!degrees.isNull()) {
         change = degrees.y();
-
-    if (change == 0)
-        return;
-
-    if (change > 0)
-    {
-        if (page)
-            gli_input_handle_key(keycode_PageUp);
-        else
-            gli_input_handle_key(keycode_MouseWheelUp);
-
     }
-    else if (change < 0)
-    {
-        if (page)
+
+    if (change == 0) {
+        return;
+    }
+
+    if (change > 0) {
+        if (page) {
+            gli_input_handle_key(keycode_PageUp);
+        } else {
+            gli_input_handle_key(keycode_MouseWheelUp);
+        }
+
+    } else if (change < 0) {
+        if (page) {
             gli_input_handle_key(keycode_PageDown);
-        else
+        } else {
             gli_input_handle_key(keycode_MouseWheelDown);
+        }
     }
 
     event->accept();
@@ -550,7 +551,7 @@ void wininit(int *, char **)
     // argument data here so it will live the entire life of the
     // program and thus fulfull QApplication's requirements.
     static int argc = 1;
-    static char *argv[] = { const_cast<char *>("gargoyle"), nullptr };
+    static char *argv[] = {const_cast<char *>("gargoyle"), nullptr};
     app = new QApplication(argc, argv);
     app->setOrganizationName(GARGOYLE_ORGANIZATION);
     app->setApplicationName(GARGOYLE_NAME);
@@ -565,41 +566,41 @@ void winopen()
     int defw = gli_wmarginx * 2 + gli_cellw * gli_cols;
     int defh = gli_wmarginy * 2 + gli_cellh * gli_rows;
     QSize size(defw, defh);
-    if (gli_conf_save_window_size)
-    {
+    if (gli_conf_save_window_size) {
         auto stored_size = window->settings()->value("window/size");
-        if (!stored_size.isNull())
+        if (!stored_size.isNull()) {
             size = stored_size.toSize();
+        }
     }
     window->resize(size);
 
-    if (gli_conf_save_window_location)
-    {
+    if (gli_conf_save_window_location) {
         auto position = window->settings()->value("window/position");
-        if (!position.isNull())
-        {
+        if (!position.isNull()) {
             window->move(position.toPoint());
         }
     }
 
     wintitle();
 
-    if (gli_conf_fullscreen)
+    if (gli_conf_fullscreen) {
         window->showFullScreen();
-    else
+    } else {
         window->show();
+    }
 }
 
 void wintitle()
 {
     QString title;
 
-    if (!gli_story_title.empty())
+    if (!gli_story_title.empty()) {
         title = QString::fromStdString(gli_story_title);
-    else if (!gli_story_name.empty())
+    } else if (!gli_story_name.empty()) {
         title = QString("%1 - %2").arg(QString::fromStdString(gli_story_name), QString::fromStdString(gli_program_name));
-    else
+    } else {
         title = QString::fromStdString(gli_program_name);
+    }
 
     window->setWindowTitle(title);
 }
@@ -615,8 +616,7 @@ bool windark()
     // https://flatpak.github.io/xdg-desktop-portal/
     QDBusInterface interface("org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings");
     QDBusReply<QVariant> reply = interface.call("Read", "org.freedesktop.appearance", "color-scheme");
-    if (reply.isValid())
-    {
+    if (reply.isValid()) {
         auto dbusvar = qvariant_cast<QDBusVariant>(reply.value());
         QVariant result = dbusvar.variant();
 #ifdef HAS_QT6
@@ -646,8 +646,9 @@ std::vector<std::string> garglk::winappdata()
 {
     std::vector<std::string> paths;
 
-    for (const auto &path : QStandardPaths::standardLocations(QStandardPaths::AppDataLocation))
+    for (const auto &path : QStandardPaths::standardLocations(QStandardPaths::AppDataLocation)) {
         paths.push_back(path.toStdString());
+    }
 
 #ifdef _WIN32
     // On Windows, also search the executable's directory.
@@ -676,8 +677,7 @@ std::string garglk::winappdir()
 
 void gli_tick()
 {
-    if (last_tick.elapsed() > TICK_PERIOD_MILLIS)
-    {
+    if (last_tick.elapsed() > TICK_PERIOD_MILLIS) {
         app->processEvents(QEventLoop::ExcludeUserInputEvents);
         last_tick.start();
     }
@@ -691,23 +691,22 @@ void gli_select(event_t *event, bool polled)
 
     gli_dispatch_event(event, polled);
 
-    if (refresh_needed)
+    if (refresh_needed) {
         window->refresh();
+    }
 
-    if (!polled)
-    {
-        while (event->type == evtype_None && !window->timed_out())
-        {
-            if (refresh_needed)
+    if (!polled) {
+        while (event->type == evtype_None && !window->timed_out()) {
+            if (refresh_needed) {
                 window->refresh();
+            }
 
             app->processEvents(QEventLoop::WaitForMoreEvents);
             gli_dispatch_event(event, polled);
         }
     }
 
-    if (event->type == evtype_None && window->timed_out())
-    {
+    if (event->type == evtype_None && window->timed_out()) {
         gli_event_store(evtype_Timer, nullptr, 0, 0);
         gli_dispatch_event(event, polled);
         window->reset_timeout();

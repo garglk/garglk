@@ -37,19 +37,23 @@ static std::string findfont(const std::string &fontname)
     FcChar8 *strval = nullptr;
 
     auto p = garglk::unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
-    if (p == nullptr)
+    if (p == nullptr) {
         return "";
+    }
 
     auto os = garglk::unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
-    if (os == nullptr)
+    if (os == nullptr) {
         return "";
+    }
 
     auto fs = garglk::unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
-    if (fs->nfont == 0)
+    if (fs->nfont == 0) {
         return "";
+    }
 
-    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr)
+    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr) {
         return "";
+    }
 
     return reinterpret_cast<char *>(strval);
 }
@@ -59,21 +63,18 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
     std::vector<std::string> widths = {":normal", ""};
 
-    for (const auto &width : widths)
-    {
-        for (const auto &style : styles)
-        {
-            for (const auto &weight : weights)
-            {
-                for (const auto &slant : slants)
-                {
+    for (const auto &width : widths) {
+        for (const auto &style : styles) {
+            for (const auto &weight : weights) {
+                for (const auto &slant : slants) {
                     std::ostringstream fontname;
                     std::string fontpath;
 
                     fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;
                     fontpath = findfont(fontname.str());
-                    if (!fontpath.empty())
+                    if (!fontpath.empty()) {
                         return fontpath;
+                    }
                 }
             }
         }
@@ -84,21 +85,19 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
 
 void garglk::fontreplace(const std::string &font, FontType type)
 {
-    if (!initialized || font.empty())
+    if (!initialized || font.empty()) {
         return;
+    }
 
     std::string sysfont;
     std::string *r, *b, *i, *z;
 
-    if (type == FontType::Monospace)
-    {
+    if (type == FontType::Monospace) {
         r = &gli_conf_mono.r;
         b = &gli_conf_mono.b;
         i = &gli_conf_mono.i;
         z = &gli_conf_mono.z;
-    }
-    else
-    {
+    } else {
         r = &gli_conf_prop.r;
         b = &gli_conf_prop.b;
         i = &gli_conf_prop.i;
@@ -148,8 +147,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     /* regular or roman */
     sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *r = sysfont;
         *b = sysfont;
         *i = sysfont;
@@ -158,24 +156,21 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     /* bold */
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *b = sysfont;
         *z = sysfont;
     }
 
     /* italic or oblique */
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *i = sysfont;
         *z = sysfont;
     }
 
     /* bold italic or bold oblique */
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *z = sysfont;
     }
 }
@@ -187,6 +182,7 @@ void fontload()
 
 void fontunload()
 {
-    if (initialized)
+    if (initialized) {
         FcFini();
+    }
 }

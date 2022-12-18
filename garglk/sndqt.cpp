@@ -101,8 +101,7 @@ public:
     off_t seek(off_t offset, int whence) {
         off_t new_offset = m_offset;
 
-        switch(whence)
-        {
+        switch (whence) {
         case SEEK_SET:
             new_offset = offset;
             break;
@@ -116,8 +115,9 @@ public:
             return -1;
         }
 
-        if (new_offset < 0)
+        if (new_offset < 0) {
             return -1;
+        }
 
         return m_offset = new_offset;
     }
@@ -127,11 +127,13 @@ public:
     }
 
     std::size_t read(void *ptr, off_t count) {
-        if (m_offset >= m_buf.size())
+        if (m_offset >= m_buf.size()) {
             return 0;
+        }
 
-        if (m_offset + count > m_buf.size())
+        if (m_offset + count > m_buf.size()) {
             count = m_buf.size() - m_offset;
+        }
 
         std::memcpy(ptr, &m_buf.data()[m_offset], count);
         m_offset += count;
@@ -190,27 +192,24 @@ public:
         // operations", but that's misleading as far as I can tell,
         // given that it might also be called mid-read instead of just
         // post-read.
-        if (max == 0)
+        if (max == 0) {
             return 0;
+        }
 
         std::size_t n = 0;
-        if (m_plays > 0)
-        {
+        if (m_plays > 0) {
             n = source_read(data, max);
-            if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0))
-            {
+            if (n == 0 && (m_plays == 0xffffffff || --m_plays > 0)) {
                 source_rewind();
                 n = source_read(data, max);
             }
         }
 
         // Ensure at least one full audio buffer was written.
-        if (n == 0)
-        {
+        if (n == 0) {
             qint64 needed = m_buffer_size - m_written;
 
-            if (needed >= 0)
-            {
+            if (needed >= 0) {
                 n = std::min(needed, max);
                 std::memset(data, 0, n);
             }
@@ -245,8 +244,9 @@ public:
         SoundSource(plays),
         m_mod(openmpt_module_create_from_memory2(buf.data(), buf.size(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), openmpt_module_destroy)
     {
-        if (!m_mod)
+        if (!m_mod) {
             throw SoundError("can't parse MOD file");
+        }
 
         set_format(48000, 2);
     }
@@ -272,8 +272,9 @@ public:
     {
         SF_VIRTUAL_IO io = get_io();
         m_soundfile = SndfileHandle(io, this);
-        if (!m_soundfile)
+        if (!m_soundfile) {
             throw SoundError("can't open with libsndfile");
+        }
 
         set_format(m_soundfile.samplerate(), m_soundfile.channels());
     }
@@ -341,17 +342,20 @@ public:
         m_vfs(std::move(buf))
     {
 #if MPG123_API_VERSION < 46
-        if (!mp3_initialized)
+        if (!mp3_initialized) {
             throw SoundError("mpg123 not initialized");
+        }
 
         m_handle.reset(mpg123_new(nullptr, nullptr));
 #endif
-        if (!m_handle)
+        if (!m_handle) {
             throw SoundError("can't create mp3 handle");
+        }
 
         mpg123_replace_reader_handle(m_handle.get(), vio_read, vio_lseek, nullptr);
-        if (mpg123_open_handle(m_handle.get(), this) != MPG123_OK)
+        if (mpg123_open_handle(m_handle.get(), this) != MPG123_OK) {
             throw SoundError("can't open mp3");
+        }
 
         mpg123_format_none(m_handle.get());
 
@@ -363,21 +367,25 @@ public:
             throw SoundError("can't set mp3 format");
 
         int encoding;
-        if (mpg123_getformat(m_handle.get(), &m_rate, &m_channels, &encoding) != MPG123_OK)
+        if (mpg123_getformat(m_handle.get(), &m_rate, &m_channels, &encoding) != MPG123_OK) {
             throw SoundError("can't get mp3 format information");
+        }
 
-        if (encoding != MPG123_ENC_FLOAT_32)
+        if (encoding != MPG123_ENC_FLOAT_32) {
             throw SoundError("can't request floating point samples for mp3");
+        }
 
         set_format(m_rate, m_channels);
     }
 
-    qint64 source_read(void *data, qint64 max) override {
+    qint64 source_read(void *data, qint64 max) override
+    {
         int err;
         std::size_t done;
 
-        if (m_eof)
+        if (m_eof) {
             return 0;
+        }
 
 #if MPG123_API_VERSION < 46
         err = mpg123_read(m_handle.get(), static_cast<unsigned char *>(data), max, &done);
@@ -385,11 +393,13 @@ public:
         err = mpg123_read(m_handle.get(), data, max, &done);
 #endif
 
-        if (err != MPG123_OK && err != MPG123_DONE)
+        if (err != MPG123_OK && err != MPG123_DONE) {
             return 0;
+        }
 
-        if (err == MPG123_DONE)
+        if (err == MPG123_DONE) {
             m_eof = true;
+        }
 
         return done;
     }
@@ -420,8 +430,7 @@ private:
     }
 };
 
-struct glk_schannel_struct
-{
+struct glk_schannel_struct {
     glk_schannel_struct(glui32 volume, glui32 rock_) :
         current_volume(volume),
         target_volume(volume),
@@ -433,13 +442,15 @@ struct glk_schannel_struct
     }
 
     ~glk_schannel_struct() {
-        if (gli_unregister_obj != nullptr)
+        if (gli_unregister_obj != nullptr) {
             gli_unregister_obj(this, gidisp_Class_Schannel, disprock);
+        }
     }
 
     void set_current_volume() {
-        if (audio)
+        if (audio) {
             audio->setVolume(static_cast<double>(current_volume) / GLK_MAXVOLUME);
+        }
     }
 
     // Source comes first so it's deleted last, since QAudioOutput still
@@ -501,8 +512,9 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 {
     channel_t *chan;
 
-    if (!gli_conf_sound)
+    if (!gli_conf_sound) {
         return nullptr;
+    }
 
     chan = new channel_t(volume, rock);
 
@@ -519,10 +531,8 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
             chan->current_volume = chan->target_volume;
         }
 
-        if (chan->current_volume == chan->target_volume)
-        {
-            if (chan->volume_notify != 0)
-            {
+        if (chan->current_volume == chan->target_volume) {
+            if (chan->volume_notify != 0) {
                 gli_event_store(evtype_VolumeNotify, nullptr, 0, chan->volume_notify);
                 gli_notification_waiting();
             }
@@ -540,8 +550,7 @@ schanid_t glk_schannel_create_ext(glui32 rock, glui32 volume)
 
 void glk_schannel_destroy(schanid_t chan)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_destroy: invalid id.");
         return;
     }
@@ -556,28 +565,25 @@ schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
 {
     std::set<schanid_t>::iterator it;
 
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         it = gli_channellist.begin();
-    }
-    else
-    {
+    } else {
         it = gli_channellist.find(chan);
-        if (it != gli_channellist.end())
+        if (it != gli_channellist.end()) {
             ++it;
+        }
     }
 
-    if (it == gli_channellist.end())
-    {
-        if (rock != nullptr)
+    if (it == gli_channellist.end()) {
+        if (rock != nullptr) {
             *rock = 0;
+        }
 
         return nullptr;
-    }
-    else
-    {
-        if (rock != nullptr)
+    } else {
+        if (rock != nullptr) {
             *rock = (*it)->rock;
+        }
 
         return *it;
     }
@@ -585,8 +591,7 @@ schanid_t glk_schannel_iterate(schanid_t chan, glui32 *rock)
 
 glui32 glk_schannel_get_rock(schanid_t chan)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_get_rock: invalid id.");
         return 0;
     }
@@ -602,8 +607,7 @@ glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount, glui32 *s
 {
     glui32 successes = 0;
 
-    for (glui32 i = 0; i < chancount; i++)
-    {
+    for (glui32 i = 0; i < chancount; i++) {
         successes += glk_schannel_play_ext(chanarray[i], sndarray[i], 1, notify);
     }
 
@@ -621,26 +625,23 @@ void glk_schannel_set_volume(schanid_t chan, glui32 vol)
 
 void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume, glui32 duration, glui32 notify)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_set_volume: invalid id.");
         return;
     }
 
-    if (glk_volume > GLK_MAXVOLUME)
+    if (glk_volume > GLK_MAXVOLUME) {
         glk_volume = GLK_MAXVOLUME;
+    }
 
     chan->current_volume = chan->target_volume;
     chan->target_volume = glk_volume;
     chan->volume_notify = notify;
 
-    if (duration == 0)
-    {
+    if (duration == 0) {
         chan->current_volume = chan->target_volume;
         chan->set_current_volume();
-    }
-    else
-    {
+    } else {
         chan->duration = duration / 1000.0;
         chan->difference = static_cast<double>(chan->target_volume) - chan->current_volume;
         chan->timer.start(100);
@@ -663,7 +664,8 @@ static int detect_format(const QByteArray &data)
         {
         }
 
-        bool matches(const QByteArray &data) const override {
+        bool matches(const QByteArray &data) const override
+        {
             QByteArray subarray = data.mid(m_offset, m_string.size());
 
             return QString(subarray) == m_string;
@@ -675,7 +677,8 @@ static int detect_format(const QByteArray &data)
     };
 
     struct MagicMod : public Magic {
-        bool matches(const QByteArray &data) const override {
+        bool matches(const QByteArray &data) const override
+        {
             std::size_t size = std::min(openmpt_probe_file_header_get_recommended_size(), static_cast<std::size_t>(data.size()));
 
             return openmpt_probe_file_header(OPENMPT_PROBE_FILE_HEADER_FLAGS_DEFAULT,
@@ -685,11 +688,11 @@ static int detect_format(const QByteArray &data)
     };
 
     std::vector<std::pair<std::shared_ptr<Magic>, int>> magics = {
-        { std::make_shared<MagicString>(0, "FORM"), giblorb_ID_FORM },
-        { std::make_shared<MagicString>(0, "RIFF"), giblorb_ID_WAVE },
-        { std::make_shared<MagicString>(0, "OggS"), giblorb_ID_OGG },
+        {std::make_shared<MagicString>(0, "FORM"), giblorb_ID_FORM},
+        {std::make_shared<MagicString>(0, "RIFF"), giblorb_ID_WAVE},
+        {std::make_shared<MagicString>(0, "OggS"), giblorb_ID_OGG},
 
-        { std::make_shared<MagicMod>(), giblorb_ID_MOD },
+        {std::make_shared<MagicMod>(), giblorb_ID_MOD},
 
         // ID3-tagged MP3s have a magic string, but untagged MP3
         // files don't, as they are just collections of frames, each
@@ -700,19 +703,19 @@ static int detect_format(const QByteArray &data)
         // for the first 2 bytes of the frame. This may well have
         // false positives, but mpg123 will then hopefully fail to
         // load the file.
-        { std::make_shared<MagicString>(0, "ID3"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xe2"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xe3"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xf2"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xf3"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xfa"), giblorb_ID_MP3 },
-        { std::make_shared<MagicString>(0, "\xff\xfb"), giblorb_ID_MP3 },
+        {std::make_shared<MagicString>(0, "ID3"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xe2"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xe3"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xf2"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xf3"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xfa"), giblorb_ID_MP3},
+        {std::make_shared<MagicString>(0, "\xff\xfb"), giblorb_ID_MP3},
     };
 
-    for (const auto &pair : magics)
-    {
-        if (pair.first->matches(data))
+    for (const auto &pair : magics) {
+        if (pair.first->matches(data)) {
             return pair.second;
+        }
     }
 
     throw SoundError("no matching magic");
@@ -720,8 +723,9 @@ static int detect_format(const QByteArray &data)
 
 static std::pair<int, QByteArray> load_bleep_resource(glui32 snd)
 {
-    if (snd != 1 && snd != 2)
+    if (snd != 1 && snd != 2) {
         throw SoundError("invalid bleep selected");
+    }
 
     const auto &bleep = gli_bleeps.at(snd);
     QByteArray data(reinterpret_cast<const char *>(bleep.data()), bleep.size());
@@ -731,33 +735,31 @@ static std::pair<int, QByteArray> load_bleep_resource(glui32 snd)
 
 static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 {
-    if (giblorb_get_resource_map() == nullptr)
-    {
+    if (giblorb_get_resource_map() == nullptr) {
         QString name = QString("%1/SND%2").arg(QString::fromStdString(gli_workdir)).arg(snd);
 
         QFile file(name);
-        if (!file.open(QIODevice::ReadOnly))
+        if (!file.open(QIODevice::ReadOnly)) {
             throw SoundError("can't open SND file");
+        }
 
         QByteArray data = file.readAll();
 
         return {detect_format(data), data};
-    }
-    else
-    {
+    } else {
         std::FILE *file;
         glui32 type;
         long pos, len;
 
         giblorb_get_resource(giblorb_ID_Snd, snd, &file, &pos, &len, &type);
-        if (file == nullptr)
+        if (file == nullptr) {
             throw SoundError("can't get blorb resource");
+        }
 
         QByteArray data(len, 0);
 
         if (std::fseek(file, pos, SEEK_SET) == -1 ||
-            std::fread(data.data(), len, 1, file) != 1)
-        {
+            std::fread(data.data(), len, 1, file) != 1) {
             throw SoundError("can't read from blorb file");
         }
 
@@ -767,36 +769,30 @@ static std::pair<int, QByteArray> load_sound_resource(glui32 snd)
 
 glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, glui32 notify, std::function<std::pair<int, QByteArray>(glui32)> load_resource)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_play_ext: invalid id.");
         return 0;
     }
 
     glk_schannel_stop(chan);
 
-    if (repeats == 0)
+    if (repeats == 0) {
         return 1;
+    }
 
     std::shared_ptr<SoundSource> source;
-    try
-    {
+    try {
         int type;
         QByteArray data;
 
-        try
-        {
+        try {
             std::tie(type, data) = load_resource(snd);
-        }
-        catch (const Bleeps::Empty &)
-        {
+        } catch (const Bleeps::Empty &) {
             return 1;
         }
 
-        try
-        {
-            switch (type)
-            {
+        try {
+            switch (type) {
             case giblorb_ID_MOD:
                 source.reset(new OpenMPTSource(data, repeats));
                 break;
@@ -812,36 +808,43 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
             default:
                 return 0;
             }
-        }
-        catch (const std::bad_alloc &)
-        {
+        } catch (const std::bad_alloc &) {
             throw SoundError("unable to allocate");
         }
 
-        if (!source->open(QIODevice::ReadOnly))
+        if (!source->open(QIODevice::ReadOnly)) {
             throw SoundError("unable to open source");
+        }
 
         QAudioFormat format = source->format();
 #ifdef HAS_QT6
         auto device = QMediaDevices::defaultAudioOutput();
-        if (!device.isFormatSupported(format))
+        if (!device.isFormatSupported(format)) {
             throw SoundError("unsupported source format");
+        }
 
-        chan->audio = decltype(chan->audio)(new QAudioSink(device, format), [](QAudioSink *audio) { if (!gli_exiting) delete audio; });
+        chan->audio = decltype(chan->audio)(new QAudioSink(device, format), [](QAudioSink *audio) {
+            if (!gli_exiting) {
+                delete audio;
+            }
+        });
 #else
         QAudioDeviceInfo info(QAudioDeviceInfo::defaultOutputDevice());
-        if (!info.isFormatSupported(format))
+        if (!info.isFormatSupported(format)) {
             throw SoundError("unsupported source format");
+        }
 
-        chan->audio = decltype(chan->audio)(new QAudioOutput(format), [](QAudioOutput *audio) { if (!gli_exiting) delete audio; });
+        chan->audio = decltype(chan->audio)(new QAudioOutput(format), [](QAudioOutput *audio) {
+            if (!gli_exiting) {
+                delete audio;
+            }
+        });
 #endif
         chan->source = std::move(source);
 
-        if (notify != 0)
-        {
+        if (notify != 0) {
             auto on_change = [snd, notify](QAudio::State state) {
-                if (state == QAudio::State::IdleState)
-                {
+                if (state == QAudio::State::IdleState) {
                     gli_event_store(evtype_SoundNotify, nullptr, snd, notify);
                     gli_notification_waiting();
                 }
@@ -857,18 +860,18 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
         chan->set_current_volume();
 
         chan->audio->start(chan->source.get());
-        if (chan->audio->error() != QAudio::NoError)
+        if (chan->audio->error() != QAudio::NoError) {
             throw SoundError("unable to start sound");
+        }
 
         chan->source->set_audio_buffer_size(chan->audio->bufferSize());
 
-        if (chan->paused)
+        if (chan->paused) {
             chan->audio->suspend();
+        }
 
         return 1;
-    }
-    catch (const SoundError &)
-    {
+    } catch (const SoundError &) {
         return 0;
     }
 }
@@ -880,48 +883,47 @@ glui32 glk_schannel_play_ext(schanid_t chan, glui32 snd, glui32 repeats, glui32 
 
 void glk_schannel_pause(schanid_t chan)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_pause: invalid id.");
         return;
     }
 
     chan->paused = true;
 
-    if (chan->audio)
+    if (chan->audio) {
         chan->audio->suspend();
+    }
 }
 
 void glk_schannel_unpause(schanid_t chan)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_unpause: invalid id.");
         return;
     }
 
     chan->paused = false;
 
-    if (chan->audio)
+    if (chan->audio) {
         chan->audio->resume();
+    }
 }
 
 void glk_schannel_stop(schanid_t chan)
 {
-    if (chan == nullptr)
-    {
+    if (chan == nullptr) {
         gli_strict_warning("schannel_stop: invalid id.");
         return;
     }
 
-    if (!chan->audio)
+    if (!chan->audio) {
         return;
+    }
 
     // If Gargoyle is exiting, then Qt's atexit handlers have probably
     // already run, meaning chan->audio holds a pointer to invalid data.
     // Simply ignore this request in that case.
-    if (!gli_exiting)
-    {
+    if (!gli_exiting) {
         chan->audio->stop();
         chan->timer.stop();
         chan->audio.reset(nullptr);
@@ -930,13 +932,14 @@ void glk_schannel_stop(schanid_t chan)
 
 void garglk_zbleep(glui32 number)
 {
-    if (gli_bleep_channel == nullptr)
-    {
+    if (gli_bleep_channel == nullptr) {
         gli_bleep_channel = glk_schannel_create(0);
-        if (gli_bleep_channel != nullptr)
+        if (gli_bleep_channel != nullptr) {
             glk_schannel_set_volume(gli_bleep_channel, 0x8000);
+        }
     }
 
-    if (gli_bleep_channel != nullptr)
+    if (gli_bleep_channel != nullptr) {
         glk_schannel_play_ext_impl(gli_bleep_channel, number, 1, 0, load_bleep_resource);
+    }
 }

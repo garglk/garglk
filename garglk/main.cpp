@@ -30,21 +30,21 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc == 0)
-    {
+    if (argc == 0) {
         std::cerr << "argv[0] is NULL, aborting\n";
         std::exit(EXIT_FAILURE);
     }
 
     glkunix_startup_t startdata;
     startdata.argc = argc;
-    startdata.argv = new char*[argc];
-    std::memcpy(startdata.argv, argv, argc * sizeof(char*));
+    startdata.argv = new char *[argc];
+    std::memcpy(startdata.argv, argv, argc * sizeof(char *));
 
     gli_startup(argc, argv);
 
-    if (!glkunix_startup_code(&startdata))
+    if (!glkunix_startup_code(&startdata)) {
         glk_exit();
+    }
 
     glk_main();
     glk_exit();

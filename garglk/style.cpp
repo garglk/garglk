@@ -27,101 +27,96 @@
 
 void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint, glsi32 val)
 {
-    if (!gli_conf_stylehint)
+    if (!gli_conf_stylehint) {
         return;
+    }
 
-    if (wintype == wintype_AllTypes)
-    {
+    if (wintype == wintype_AllTypes) {
         glk_stylehint_set(wintype_TextGrid, styl, hint, val);
         glk_stylehint_set(wintype_TextBuffer, styl, hint, val);
         return;
     }
 
-    if (wintype != wintype_TextGrid && wintype != wintype_TextBuffer)
+    if (wintype != wintype_TextGrid && wintype != wintype_TextBuffer) {
         return;
+    }
 
-    try
-    {
+    try {
         style_t &style = wintype == wintype_TextGrid ? gli_gstyles.at(styl) :
                                                        gli_tstyles.at(styl);
 
-        switch (hint)
-        {
-            case stylehint_TextColor:
-                style.fg = Color((val >> 16) & 0xff,
-                                 (val >> 8) & 0xff,
-                                 (val) & 0xff);
-                break;
+        switch (hint) {
+        case stylehint_TextColor:
+            style.fg = Color((val >> 16) & 0xff,
+                             (val >> 8) & 0xff,
+                             (val) & 0xff);
+            break;
 
-            case stylehint_BackColor:
-                style.bg = Color((val >> 16) & 0xff,
-                                 (val >> 8) & 0xff,
-                                 (val) & 0xff);
-                break;
+        case stylehint_BackColor:
+            style.bg = Color((val >> 16) & 0xff,
+                             (val >> 8) & 0xff,
+                             (val) & 0xff);
+            break;
 
-            case stylehint_ReverseColor:
-                style.reverse = (val != 0);
-                break;
+        case stylehint_ReverseColor:
+            style.reverse = (val != 0);
+            break;
 
-            case stylehint_Proportional:
-                if (wintype == wintype_TextBuffer)
-                    style.font.monospace = val == 0;
-                break;
+        case stylehint_Proportional:
+            if (wintype == wintype_TextBuffer) {
+                style.font.monospace = val == 0;
+            }
+            break;
 
-            case stylehint_Weight:
-                style.font.bold = val != 0;
-                break;
+        case stylehint_Weight:
+            style.font.bold = val != 0;
+            break;
 
-            case stylehint_Oblique:
-                style.font.italic = val != 0;
-                break;
+        case stylehint_Oblique:
+            style.font.italic = val != 0;
+            break;
         }
 
         if (wintype == wintype_TextBuffer &&
                 styl == style_Normal &&
-                hint == stylehint_BackColor)
-        {
+                hint == stylehint_BackColor) {
             gli_window_color = style.bg;
         }
 
         if (wintype == wintype_TextBuffer &&
                 styl == style_Normal &&
-                hint == stylehint_TextColor)
-        {
+                hint == stylehint_TextColor) {
             gli_more_color = style.fg;
             gli_caret_color = style.fg;
         }
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 }
 
 void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
 {
-    if (!gli_conf_stylehint)
+    if (!gli_conf_stylehint) {
         return;
+    }
 
-    if (wintype == wintype_AllTypes)
-    {
+    if (wintype == wintype_AllTypes) {
         glk_stylehint_clear(wintype_TextGrid, styl, hint);
         glk_stylehint_clear(wintype_TextBuffer, styl, hint);
         return;
     }
 
-    if (wintype != wintype_TextGrid && wintype != wintype_TextBuffer)
+    if (wintype != wintype_TextGrid && wintype != wintype_TextBuffer) {
         return;
+    }
 
-    try
-    {
+    try {
         style_t &style = wintype == wintype_TextGrid ? gli_gstyles.at(styl) :
                                                        gli_tstyles.at(styl);
 
         const style_t &def = wintype == wintype_TextGrid ? gli_gstyles_def.at(styl) :
                                                            gli_tstyles_def.at(styl);
 
-        switch (hint)
-        {
+        switch (hint) {
         case stylehint_TextColor:
             style.fg = def.fg;
             break;
@@ -140,29 +135,22 @@ void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
             style.font = def.font;
             break;
         }
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 }
 
 glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)
 {
-    try
-    {
-        if (win->type == wintype_TextGrid)
-        {
+    try {
+        if (win->type == wintype_TextGrid) {
             window_textgrid_t *dwin = win->window.textgrid;
             return dwin->styles.at(styl1) != dwin->styles.at(styl2);
         }
-        if (win->type == wintype_TextBuffer)
-        {
+        if (win->type == wintype_TextBuffer) {
             window_textbuffer_t *dwin = win->window.textbuffer;
             return dwin->styles.at(styl1) != dwin->styles.at(styl2);
         }
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 
     return false;
@@ -170,62 +158,59 @@ glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)
 
 glui32 glk_style_measure(winid_t win, glui32 styl, glui32 hint, glui32 *result)
 {
-    if (win->type != wintype_TextGrid && win->type != wintype_TextBuffer)
+    if (win->type != wintype_TextGrid && win->type != wintype_TextBuffer) {
         return false;
+    }
 
-    try
-    {
+    try {
         const style_t &style = win->type == wintype_TextGrid ? win->window.textgrid->styles.at(styl) :
                                                                win->window.textbuffer->styles.at(styl);
 
-        switch (hint)
-        {
-            case stylehint_Indentation:
-            case stylehint_ParaIndentation:
-                *result = 0;
-                return true;
+        switch (hint) {
+        case stylehint_Indentation:
+        case stylehint_ParaIndentation:
+            *result = 0;
+            return true;
 
-            case stylehint_Justification:
-                *result = stylehint_just_LeftFlush;
-                return true;
+        case stylehint_Justification:
+            *result = stylehint_just_LeftFlush;
+            return true;
 
-            case stylehint_Size:
-                *result = 1;
-                return true;
+        case stylehint_Size:
+            *result = 1;
+            return true;
 
-            case stylehint_Weight:
-                *result = style.font.bold;
-                return true;
+        case stylehint_Weight:
+            *result = style.font.bold;
+            return true;
 
-            case stylehint_Oblique:
-                *result = style.font.italic;
-                return true;
+        case stylehint_Oblique:
+            *result = style.font.italic;
+            return true;
 
-            case stylehint_Proportional:
-                *result = !style.font.monospace;
-                return true;
+        case stylehint_Proportional:
+            *result = !style.font.monospace;
+            return true;
 
-            case stylehint_TextColor:
-                *result =
-                    (style.fg[0] << 16) |
-                    (style.fg[1] << 8) |
-                    (style.fg[2]);
-                return true;
+        case stylehint_TextColor:
+            *result =
+                (style.fg[0] << 16) |
+                (style.fg[1] << 8) |
+                (style.fg[2]);
+            return true;
 
-            case stylehint_BackColor:
-                *result =
-                    (style.bg[0] << 16) |
-                    (style.bg[1] << 8) |
-                    (style.bg[2]);
-                return true;
+        case stylehint_BackColor:
+            *result =
+                (style.bg[0] << 16) |
+                (style.bg[1] << 8) |
+                (style.bg[2]);
+            return true;
 
-            case stylehint_ReverseColor:
-                *result = style.reverse;
-                return true;
+        case stylehint_ReverseColor:
+            *result = style.reverse;
+            return true;
         }
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 
     return false;
