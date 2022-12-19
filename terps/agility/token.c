@@ -85,6 +85,8 @@ static long ask_for_number(int n1,int n2)
   for(;;) {
     writestr(s);
     n=read_number();
+    if (aver<AGX00)
+      n=(integer)(n & 0xFFFF);
     if (n1==n2 || ( n>=n1 && n<=n2)) return n;
     writeln("");
   }   
@@ -118,7 +120,7 @@ static rbool is_numeric(parse_rec *objrec)
   if (objrec->num!=0 || objrec->info==D_NUM) return 1;
   if (objrec->adj!=0) return 0;
   if (objrec->noun<=0) return 0;
-  int tmp = strtol(dict[objrec->noun],&s,10);
+  strtol(dict[objrec->noun],&s,10);
   return (*s==0); /* *s==0 means no error-- it parsed as a number. */
 }
 
@@ -354,13 +356,13 @@ static int exec_cond(int op, int arg1, int arg2)
     case 86:cret(agt_var[arg1]>arg2);
     case 87:cret(agt_var[arg1]<arg2);
     case 88:cret(agt_var[arg1]<agt_var[arg2]);      
-    case 89:cret(agt_var[arg1]<agt_rand(1,arg2));
+    case 89:cret(agt_var[arg1]<get_random(1,arg2));
     case 90:cret( (actor!=0) && (it_loc(actor)==loc+first_room));
     case 91:cret(actor==arg1);
     case 92:cret(dobj==arg1);
     case 93:cret(do_disambig==1 || iobj==arg1);
     case 94:cret(it_contents(arg1)!=0);
-    case 95:cret(agt_rand(1,100)<=arg1);
+    case 95:cret(get_random(1,100)<=arg1);
     case 96:cret(yesno("Yes or no? "));
     case 97:cret(!yesno("Yes or no? "));
     case 98:cret(vb>0 && vb<=13);
@@ -457,7 +459,7 @@ static void exec_action(int op,int arg1,int arg2)
   switch(op) 
     {
     case 1000:goto_room(arg1-first_room);break;
-    case 1001:goto_room(agt_rand(arg1,arg2)-first_room);break;
+    case 1001:goto_room(get_random(arg1,arg2)-first_room);break;
     case 1002:agt_var[arg1]=loc+first_room;break;
     case 1003:agt_var[arg1]=dobj;break;
     case 1004:agt_var[arg1]=iobj;break;
@@ -485,7 +487,7 @@ static void exec_action(int op,int arg1,int arg2)
 		   yesno("Would you like to see the picture?"))
       pictcmd(2,arg1-1);break;
     case 1019:musiccmd(1,arg1-1);break;
-    case 1020:musiccmd(1,agt_rand(arg1,arg2)-1);break;
+    case 1020:musiccmd(1,get_random(arg1,arg2)-1);break;
     case 1021:musiccmd(2,arg1-1);break;
     case 1022:musiccmd(3,-1); break;  /* Stop Repeat */
     case 1023:musiccmd(4,-1); break;  /* Stop song */
@@ -567,7 +569,7 @@ static void exec_action(int op,int arg1,int arg2)
 	if (it_group(i)) it_move(i,arg1);
       break; 
       /* 1062 is RedirectTo */
-    case 1063:msgout(agt_rand(arg1,arg2),1);break;
+    case 1063:msgout(get_random(arg1,arg2),1);break;
     case 1064:print_contents(arg1,1);break;
     case 1065: case 1066: case 1067: case 1068: 
       obj_act(op-1065,arg1);break;
@@ -605,7 +607,7 @@ static void exec_action(int op,int arg1,int arg2)
     case 1099:agt_var[arg1]-=arg2;break;
     case 1100:agt_var[arg1]+=agt_var[arg2];break;
     case 1101:agt_var[arg1]-=agt_var[arg2];break;
-    case 1102:agt_var[arg1]=agt_rand(0,arg2);break;
+    case 1102:agt_var[arg1]=get_random(0,arg2);break;
     case 1103:agt_var[arg1]=dobj_rec->num;break;
     case 1104:agt_var[arg1]=iobj_rec->num;break;
       
@@ -745,6 +747,19 @@ int exec_instr(op_rec *oprec)
     }
 }
 
+static unsigned int rand_gen = 1234;
 
+void reset_random(void)
+{
+  rand_gen = 1234;
+}
 
-
+int get_random(int a, int b)
+{
+  if (stable_random) {
+    rand_gen = rand_gen * 214013 + 2531011;
+    unsigned int rand_num = (rand_gen >> 16) & 0xFFFF;
+    return a + (rand_num % (b-a+1));
+  } else
+    return agt_rand(a,b);
+}

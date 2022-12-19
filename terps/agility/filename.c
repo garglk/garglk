@@ -470,42 +470,12 @@ static genfile try_open_file(const char *path, const char *root,
   name=assemble_filename(path,root,ext);
   f=fopen(name,how);
 #ifndef MSDOS
-#ifndef GLK
   if (f==NULL && !nofix) { /* Try uppercasing it. */
     char *s;
     for(s=name;*s!=0;s++)
       *s=toupper(*s);
     f=fopen(name,how);
   }
-#else
-  /*
-   * Try converting just the file name extension to uppercase.  This
-   * helps us to handle cases where AGT games are unzipped without
-   * filename case conversions - in these cases, the files will carry
-   * extensions .TTL, .DA1, and so on, whereas we'll be looking for
-   * files with extensions .ttl, .da1, etc.  This is one part of
-   * being file name case insensitive - the other part is to define
-   * fnamecmp as strcasecmp, which we do in config.h.
-   */
-  if (f == NULL && !nofix && ext != NULL) {
-    char *uc_ext;
-    int  i;
-
-    /* Free the existing name. */
-    rfree (name);
-
-    /* Convert the extension to uppercase. */
-    uc_ext = rmalloc (strlen (ext) + 1);
-    for (i = 0; i < strlen (ext); i++)
-      uc_ext[i] = toupper (ext[i]);
-    uc_ext[strlen (ext)] = '\0';
-
-    /* Form a new filename and try to open that one. */
-    name = assemble_filename (path, root, uc_ext);
-    rfree (uc_ext);
-    f = fopen (name, how);
-  }
-#endif
 #endif
   rfree(name);
   return f;
