@@ -1,3 +1,25 @@
+2023.1:
+• $HOME/garglk.ini is loaded on macOS again.
+• Fallback fonts work on macOS again.
+• Non-ASCII filenames are better supported on Windows.
+• Transcripts update in real time again.
+• Fix some cases where Agility save/restore prompts didn't work on macOS.
+• Fix media loading in JACL and Hugo.
+• Avoid potential crash with newer versions of SDL2_mixer.
+• Readline-style shortcuts are available on macOS now.
+• Interpreter updates: Agility 1.1.2, Alan3 3.0beta8, Bocfel 2.1.1, Git 1.3.7,
+  Glulxe 0.6.0.
+• New interpreters: Taylormade and Plus. These support a wider range of Scott
+  Adams-style games. In addition, ScottFree has been updated to support
+  graphics. Thanks to Petter Sjölund.
+• Support the quasi-standard glkunix_fileref_get_filename() function.
+• Gargoyle now supports color themes, and will attempt to follow your
+  system theme (light/dark) by default.
+• Optional support for KDE Frameworks, improving text editor behavior.
+• Window size and location can be saved and restored between sessions.
+• Monospace fonts are now properly used in the Agility interpreter.
+• Bleeps in the Z-machine are now supported.
+
 2022.1:
 • Gargoyle now implements Glk version 0.7.5.
 • Various interpreter updates.
