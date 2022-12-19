@@ -261,7 +261,7 @@ static int calcwidth(window_textbuffer_t *dwin,
     a = startchar;
     for (b = startchar; b < numchars; b++)
     {
-        if (!attrequal(&attrs[a], &attrs[b]))
+        if (attrs[a] != attrs[b])
         {
             w += gli_string_width_uni(attrfont(dwin->styles, attrs[a]),
                     chars + a, b - a, spw);
@@ -485,7 +485,7 @@ void win_textbuffer_redraw(window_t *win)
         a = 0;
         for (b = 0; b < linelen; b++)
         {
-            if (!attrequal(&ln.attrs[a], &ln.attrs[b]))
+            if (ln.attrs[a] != ln.attrs[b])
             {
                 link = ln.attrs[a].hyper;
                 auto font = attrfont(dwin->styles, ln.attrs[a]);
@@ -548,7 +548,7 @@ void win_textbuffer_redraw(window_t *win)
         a = 0;
         for (b = 0; b < linelen; b++)
         {
-            if (!attrequal(&ln.attrs[a], &ln.attrs[b]))
+            if (ln.attrs[a] != ln.attrs[b])
             {
                 link = ln.attrs[a].hyper;
                 font = attrfont(dwin->styles, ln.attrs[a]);

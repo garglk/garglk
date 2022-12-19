@@ -119,7 +119,7 @@ void win_textgrid_redraw(window_t *win)
             a = 0;
             for (b = 0; b < dwin->width; b++)
             {
-                if (!attrequal(&ln->attrs[a], &ln->attrs[b]))
+                if (ln->attrs[a] != ln->attrs[b])
                 {
                     link = ln->attrs[a].hyper;
                     auto font = attrfont(dwin->styles, ln->attrs[a]);

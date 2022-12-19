@@ -643,6 +643,16 @@ struct attr_t
     Color fgcolor = Color(0, 0, 0);
     Color bgcolor = Color(0, 0, 0);
     glui32 hyper = 0;
+
+    bool operator!=(const attr_t &other) const {
+        return fgset != other.fgset ||
+               bgset != other.bgset ||
+               reverse != other.reverse ||
+               style != other.style ||
+               fgcolor != other.fgcolor ||
+               bgcolor != other.bgcolor ||
+               hyper != other.hyper;
+    }
 };
 
 struct glk_window_struct
@@ -1038,7 +1048,6 @@ void gli_notification_waiting();
 
 void attrset(attr_t *attr, glui32 style);
 void attrclear(attr_t *attr);
-bool attrequal(const attr_t *a1, const attr_t *a2);
 Color attrfg(const Styles &styles, const attr_t &attr);
 Color attrbg(const Styles &styles, const attr_t &attr);
 

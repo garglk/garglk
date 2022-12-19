@@ -1553,22 +1553,3 @@ Color attrfg(const Styles &styles, const attr_t &attr)
             return styles[attr.style].bg;
     }
 }
-
-bool attrequal(const attr_t *a1, const attr_t *a2)
-{
-    if (a1->style != a2->style)
-        return false;
-    if (a1->reverse != a2->reverse)
-        return false;
-    if (a1->fgset != a2->fgset)
-        return false;
-    if (a1->bgset != a2->bgset)
-        return false;
-    if (a1->fgcolor != a2->fgcolor)
-        return false;
-    if (a1->bgcolor != a2->bgcolor)
-        return false;
-    if (a1->hyper != a2->hyper)
-        return false;
-    return true;
-}
