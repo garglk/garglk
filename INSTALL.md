@@ -324,7 +324,7 @@ looks up all necessary info online.)
 
 Finally, re-run the command to create the DMG file:
 
-    hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2022.1-mac.dmg
+    hdiutil create -fs "HFS+J" -ov -srcfolder Gargoyle.app/ gargoyle-2023.1-mac.dmg
 
 ## Building for Windows
 
