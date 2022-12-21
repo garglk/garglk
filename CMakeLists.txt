@@ -3,13 +3,6 @@ cmake_minimum_required(VERSION 3.3)
 file(READ "VERSION" GARGOYLE_VERSION)
 string(STRIP "${GARGOYLE_VERSION}" GARGOYLE_VERSION)
 
-# If Gargoyle's static libraries are built with gcc, clang 15 complains
-# at link time about position-independent code. Why it does this isn't
-# particularly clear, but building _all_ targets as PIC solves the
-# issue, although "solve" is a bit of an overstatement: papers over is
-# probably more correct.
-set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
-
 # Don't set a version here: CMake requires a version of the form
 # <major>[.<minor>[.<patch>[.<tweak>]]]
 # where all parts are non-negative integers. This doesn't work with
