@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -37,7 +37,6 @@ echo "MACOS_MIN_VER $MACOS_MIN_VER"
 NUMJOBS=$(sysctl -n hw.ncpu)
 
 GARGDIST=build/dist
-DYLIBS=support/dylibs
 BUNDLE=Gargoyle.app/Contents
 
 GARVERSION=$(cat VERSION)

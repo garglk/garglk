@@ -28,9 +28,7 @@ VERSION=$(<VERSION)
 PACKAGEREV=1
 ARCH=amd64
 DEB_ROOT_DIR=~/deb_factory
-DATE=$(date "+%a, %e %h %Y %H:%M:%S %:::z")
 PKG_NAME=${PROJECT}_${VERSION}-${PACKAGEREV}
-PKG_TAR=/tmp/${PKG_NAME}.tar.gz
 PKG_DIR=${DEB_ROOT_DIR}/${PKG_NAME}/debian/tmp
 PKG_DEB_ROOT=${DEB_ROOT_DIR}/${PKG_NAME}/debian
 
