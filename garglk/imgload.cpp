@@ -107,12 +107,10 @@ std::shared_ptr<picture_t> gli_picture_retrieve(unsigned long id, bool scaled)
 
 std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 {
-    std::shared_ptr<picture_t> pic;
     std::unique_ptr<FILE, std::function<void(FILE *)>> fl;
     glui32 chunktype;
 
-    pic = gli_picture_retrieve(id, false);
-
+    auto pic = gli_picture_retrieve(id, false);
     if (pic)
         return pic;
 
@@ -166,7 +164,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
 
     try
     {
-        auto pic = loaders.at(chunktype)(fl.get(), id);
+        pic = loaders.at(chunktype)(fl.get(), id);
         if (pic != nullptr)
         {
             gli_picture_store(pic);
