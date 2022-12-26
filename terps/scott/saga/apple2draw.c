@@ -149,10 +149,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
     int countflag = (CurrentGame == COUNT_US);
 
     x = 0; y = 0;
-//
-//    work = *ptr++;
-//    size = work + (*ptr++ * 256);
-//    size = datasize;
 
     if (!countflag) {
         // Get the offsets
@@ -172,14 +168,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
             xlen = *ptr++;
             ylen = *ptr++;
         }
-//        ptr += 2;
-        //        ImageWidth = 280;
-        //        ImageHeight = 152;
-
-//        if (CurrentGame == CLAYMORGUE_US) {
-//            xlen = *ptr++;
-//            ylen = *ptr++;
-//        }
     }
 
     while (xlen == 0 && ylen == 0) {
@@ -188,30 +176,6 @@ int DrawApple2ImageFromData(uint8_t *ptr, size_t datasize)
     }
 
     debug_print("xlen: %d ylen: %d\n", xlen, ylen);
-
-
-//    if (CurrentGame == CLAYMORGUE_US) {
-//        ptr += 2;
-//    }
-
-//    glui32 curheight, curwidth;
-//    glk_window_get_size(Graphics, &curwidth, &curheight);
-
-//    if (yoff == 0 && (LastImgType == IMG_ROOM || LastImgType == IMG_SPECIAL)) {
-//        ImageHeight = ylen + 2;
-//        ImageWidth = xlen * 8 - 32;
-//    }
-//
-//    int optimal_height = ImageHeight * pixel_size;
-//    if (curheight != optimal_height && ImageWidth * pixel_size <= curwidth) {
-//        x_offset = (curwidth - ImageWidth * pixel_size) / 2;
-//        right_margin = (ImageWidth * pixel_size) + x_offset;
-//        winid_t parent = glk_window_get_parent(Graphics);
-//        if (parent) {
-//            glk_window_set_arrangement(parent, winmethod_Above | winmethod_Fixed,
-//                                   optimal_height, NULL);
-//        }
-//    }
 
 
     while (ptr - origptr < datasize - 2)
@@ -282,6 +246,8 @@ static void PutApplePixel(glsi32 xpos, glsi32 ypos, glui32 color)
                          ypos, pixel_size, pixel_size);
 }
 
+/* The code below is borrowed from the MAME Apple 2 driver */
+
 #define BLACK   0
 #define PURPLE  0xD53EF9
 #define BLUE    0x458ff7
@@ -298,7 +264,7 @@ static const int32_t hires_artifact_color_table[] =
 static int32_t *m_hires_artifact_map = NULL;
 
 static void generate_artifact_map(void) {
-// generate hi-res artifact data
+    /* generate hi-res artifact data */
     int i, j;
     uint16_t c;
 
@@ -368,4 +334,3 @@ void DrawApple2ImageFromVideoMem(void)
         }
     }
 }
-
