@@ -36,8 +36,7 @@ static void loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC) {
         mem[HL] = R ^ mem[HL];
         HL++;
         R += 0x9;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -99,8 +98,7 @@ static void loop_with_r_and_de(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC
         DE++;
         mem[HL++] = A;
         R += 0x11;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -109,11 +107,7 @@ static void loop_with_r_and_sp(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP
     for (int i = 0; i < HL; i++) {
         D = mem[SP + 1];
         E = mem[SP];
-        if (dfirst) {
-            A = D;
-        } else {
-            A = E;
-        }
+        A = dfirst ? D : E;
         A = A ^ R;
         if (dfirst) {
             D = E;
@@ -126,8 +120,7 @@ static void loop_with_r_and_sp(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP
         mem[SP + 1] = D;
         SP += 2;
         R += 0xe;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -139,8 +132,7 @@ static void loop_with_r_and_sp2(uint8_t *mem, uint8_t R, uint16_t HL) {
         mem[SP + 1] = D;
         SP -= 2;
         R += 0xf;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -153,8 +145,7 @@ static void loop_with_exx(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t SP, uin
         A = A ^ mem[HL];
         mem[HL++] = A ^ (i & 0xff);
         R += 0xf;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -164,8 +155,7 @@ static void loop_with_r_and_iy(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t BC
         mem[HL] = mem[HL] ^ mem[IY];
         HL++;
         R += 0xE;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -177,8 +167,7 @@ static void loop_with_r_and_iy2(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t B
         HL--;
         IY++;
         R += 0xf;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
@@ -191,14 +180,12 @@ static void double_loop_with_r(uint8_t *mem, uint8_t R, uint16_t HL, uint16_t DE
             HL++;
             if (j != 1) {
                 R += 0x9;
-                if (R >= 0x80)
-                    R = R - 0x80;
+                R %= 0x80;
             }
         }
         DE++;
         R += 0x12;
-        if (R >= 0x80)
-            R = R - 0x80;
+        R %= 0x80;
     }
 }
 
