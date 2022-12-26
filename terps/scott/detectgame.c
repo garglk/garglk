@@ -1204,42 +1204,37 @@ int IsMysterious(void)
 // This function decompresses them.
 
 uint8_t *DecompressParsec(uint8_t *start, uint8_t *end, uint8_t *dataptr) {
-    uint8_t bVar1;
-    uint8_t bVar2;
-    uint8_t bVar4;
-    uint16_t sVar3;
-    uint8_t *pbVar5;
-
-    if (dataptr - 3 < entire_file)
+    if (dataptr - 3 < entire_file) {
         return NULL;
+    }
+    uint8_t *pos = start;
 
-    do {
-        bVar4 = *dataptr;
-        bVar2 = *(dataptr - 1);
-        sVar3 = bVar2 + bVar4 * 0x100;
-        pbVar5 = dataptr - 2;
-        if ((bVar4 & 0x80) == 0) {
-            do {
-                *start = *pbVar5;
-                start--;
-                pbVar5--;
-                sVar3--;
-            } while (sVar3 != 0 && pbVar5 > entire_file && start > entire_file);
-        } else {
-            bVar4 = bVar4 & 0x7f;
-            bVar1 = *pbVar5;
-            pbVar5 = dataptr - 3;
-            if (start - 1 < entire_file)
-                return NULL;
-            do {
-                *start = bVar2;
-                *(start - 1) = bVar1;
-                start -= 2;
-                bVar4--;
-            } while (bVar4 != 0 && start > entire_file);
+    while (pos != end && dataptr - 3 > entire_file) {
+        if (pos <= entire_file) {
+            return NULL;
         }
-        dataptr = pbVar5;
-    } while (start != end && dataptr - 3 > entire_file);
+        uint8_t *nextptr = dataptr - 2;
+        if ((*dataptr & 0x80) == 0) {
+            int repeats = *(dataptr - 1) + *dataptr * 0x100;
+            for (int i = 0; i < repeats && nextptr > entire_file && pos > entire_file; i++) {
+                *pos = *nextptr;
+                pos--;
+                nextptr--;
+            }
+        } else {
+            uint8_t val1 = *(dataptr - 1);
+            uint8_t val2 = *(dataptr - 2);
+            nextptr = dataptr - 3;
+            int repeats = *dataptr & 0x7f;
+            for (int i = 0; i < repeats && pos > entire_file; i++) {
+                *pos = val1;
+                pos--;
+                *pos = val2;
+                pos--;
+            }
+        }
+        dataptr = nextptr;
+    }
     return dataptr;
 }
 
