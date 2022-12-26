@@ -632,11 +632,12 @@ int TryLoadingOld(struct GameInfo info, int dict_start)
     charindex = 0;
 
     do {
-        c = *(ptr++);
-        text[charindex] = c;
-        if (c == 0) {
+        uint8_t chr = *(ptr++);
+        text[charindex] = chr;
+        if (chr == 0 || chr > 126) {
             ip->Text = MemAlloc(charindex + 1);
             strncpy(ip->Text, text, charindex + 1);
+            ip->Text[charindex] = 0;
             ip->AutoGet = strchr(ip->Text, '/');
             /* Some games use // to mean no auto get/drop word! */
             if (ip->AutoGet && strcmp(ip->AutoGet, "//") && strcmp(ip->AutoGet, "/*")) {
