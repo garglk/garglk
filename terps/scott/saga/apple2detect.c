@@ -284,16 +284,16 @@ static const imglist a2listClaymorgue[] = {
     { IMG_ROOM, 12, 0x08b00, 0x0a00 }, // dungeon cell
     { IMG_ROOM, 13, 0x09800, 0x0914 }, // anteroom
     { IMG_ROOM, 14, 0x0a200, 0x0858 }, // staircase
-    { IMG_ROOM, 15, 0x0ab00, 0x06fe }, // loft above ballroom
+    { IMG_ROOM, 15, 0x0ab00, 0x08d8 }, // loft above ballroom
     { IMG_ROOM, 16, 0x0b400, 0x111a }, // in the moat
     { IMG_ROOM, 17, 0x0c600, 0x00a0 }, // underwater
-    { IMG_ROOM, 18, 0x0c700, 0x0cfe }, // *I'm under the stairs
+    { IMG_ROOM, 18, 0x0c700, 0x1358 }, // *I'm under the stairs
     { IMG_ROOM, 19, 0x0db00, 0x14d0 }, // hollow tree
     { IMG_ROOM, 20, 0x0f000, 0x090e }, // pool of dirty water
     { IMG_ROOM, 21, 0x0fa00, 0x0916 }, // kitchen
     { IMG_ROOM, 22, 0x10400, 0x07a0 }, // *I'm on a box
     { IMG_ROOM, 23, 0x10c00, 0x09e2 }, // box
-    { IMG_ROOM, 24, 0x11600, 0x10fe }, // dusty room
+    { IMG_ROOM, 24, 0x11600, 0x111a }, // dusty room
     { IMG_ROOM, 25, 0x12800, 0x0558 }, // stone staircase
     { IMG_ROOM, 26, 0x12e00, 0x1550 }, // damp cavern
     { IMG_ROOM, 27, 0x14400, 0x0c28 }, // stone grotto
@@ -392,19 +392,19 @@ static const imglist a2listClaymorgue126[] = {
     { IMG_ROOM, 8, 0x6600, 0xa75 }, // on a large chandelier
     { IMG_ROOM, 9, 0x7100, 0x4aa }, // forest of enchantment
     { IMG_ROOM, 10, 0x7600, 0x9f8 }, // plain room
-    { IMG_ROOM, 11, 0x7f00, 0x9f8 }, // storeroom
-    { IMG_ROOM, 12, 0x8b00, 0x9f8 }, // dungeon cell
+    { IMG_ROOM, 11, 0x7f00, 0xb4a }, // storeroom
+    { IMG_ROOM, 12, 0x8b00, 0xb8f }, // dungeon cell
     { IMG_ROOM, 13, 0x9700, 0x134e }, // anteroom
-    { IMG_ROOM, 14, 0xa000, 0x66f }, // staircase
-    { IMG_ROOM, 15, 0xa900, 0x66f }, // loft above ballroom
+    { IMG_ROOM, 14, 0xa000, 0x85c }, // staircase
+    { IMG_ROOM, 15, 0xa900, 0x85e }, // loft above ballroom
     { IMG_ROOM, 16, 0xb200, 0x1100 }, // I'm in the water of a moat
     { IMG_ROOM, 17, 0xc400, 0x7d }, // I'm underwater in thick murky fluid
-    { IMG_ROOM, 18, 0xc500, 0x1100 }, // I'm under the stairs
+    { IMG_ROOM, 18, 0xc500, 0x4b7 }, // I'm under the stairs
 //    { IMG_ROOM, 19, 0xd200, 0x1131 }, // hollow tree sign says drop stars here
     { IMG_ROOM, 20, 0xee00, 0x8fb }, // pool of dirty water
     { IMG_ROOM, 21, 0xf800, 0x8e1 }, // kitchen
     { IMG_ROOM, 22, 0x10200, 0x1130 }, // I'm on a box
-    { IMG_ROOM, 23, 0x10a00, 0x9b0 }, // inside box
+    { IMG_ROOM, 23, 0x10a00, 0x9c6 }, // inside box
     { IMG_ROOM, 24, 0x11400, 0x10c9 }, // dusty room
     { IMG_ROOM, 25, 0x12500, 0x11f9 }, // stone staircase
     { IMG_ROOM, 26, 0x12b00, 0xce6 }, // damp cavern
