@@ -778,7 +778,7 @@ static int SetGame(const char *id_string, size_t length) {
 int FindAndAddImageFile(char *shortname, struct imgrec *rec) {
     int result = 0;
     char filename[2048];
-    int n = sprintf(filename, "%s%s.PAK", DirPath, shortname);
+    int n = snprintf(filename, DirPathLength + 9, "%s%s.PAK", DirPath, shortname);
     if (n > 0) {
         FILE *infile=fopen(filename,"rb");
         if (infile) {

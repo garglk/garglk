@@ -36,6 +36,7 @@
 
 const char *game_file = NULL;
 char *DirPath = ".";
+size_t DirPathLength = 1;
 
 uint8_t *mem;
 size_t memlen;
@@ -299,7 +300,7 @@ void Updates(event_t ev)
         OpenGraphicsWindow();
         if (AnimationRunning && LastAnimationBackground) {
             char buf[5];
-            sprintf(buf, "S0%02d", LastAnimationBackground);
+            snprintf(buf, 5, "S0%02d", LastAnimationBackground);
             DrawImageWithName(buf);
         } else {
             SetBit(DRAWBIT);
@@ -2147,19 +2148,19 @@ int glkunix_startup_code(glkunix_startup_t *data)
         game_file = argv[1];
 
         const char *s;
-        int dirlen = 0;
+        DirPathLength = 0;
         if ((s = strrchr(game_file, '/')) != NULL || (s = strrchr(game_file, '\\')) != NULL) {
-            dirlen = (int)(s - game_file + 1);
+            DirPathLength = (int)(s - game_file + 1);
 #ifdef GARGLK
             garglk_set_story_name(s + 1);
         } else {
             garglk_set_story_name(game_file);
 #endif
         }
-        if (dirlen) {
-            DirPath = MemAlloc(dirlen + 1);
-            memcpy(DirPath, game_file, dirlen);
-            DirPath[dirlen] = 0;
+        if (DirPathLength) {
+            DirPath = MemAlloc(DirPathLength + 1);
+            memcpy(DirPath, game_file, DirPathLength);
+            DirPath[DirPathLength] = 0;
             debug_print("Directory path: \"%s\"\n", DirPath);
         }
     }

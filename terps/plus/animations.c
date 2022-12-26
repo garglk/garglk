@@ -232,7 +232,7 @@ void UpdateAnimation(void) // Draw animation frame
 
     if (AnimationBackground) {
         char buf[5];
-        sprintf(buf, "S0%02d", AnimationBackground);
+        snprintf(buf, 5, "S0%02d", AnimationBackground);
         LastAnimationBackground = AnimationBackground;
         AnimationBackground = 0;
         DrawImageWithName(buf);
