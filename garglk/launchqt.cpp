@@ -159,6 +159,7 @@ static QString parse_args(const QApplication &app)
     // but that's a GNU extension and would have to be pulled in from
     // glibc, musl libc, or similar. This is good enough.
     parser.addOptions({
+        {{"e", "edit-config"}, "Edit the configuration file."},
         {{"h", "help"}, "Displays help on commandline options."},
         {{"p", "paths"}, "Displays configuration file and theme paths."}
     });
@@ -185,6 +186,12 @@ static QString parse_args(const QApplication &app)
         for (const auto &path : theme_paths)
             std::cout << path << std::endl;
 
+        std::exit(0);
+    }
+
+    if (parser.isSet("e"))
+    {
+        gli_edit_config();
         std::exit(0);
     }
 

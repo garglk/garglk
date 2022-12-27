@@ -90,6 +90,7 @@ cp -v garglk.ini "%{buildroot}%{_sysconfdir}/"
 %{_includedir}/garglk/glkstart.h
 %{_libdir}/pkgconfig/garglk.pc
 %{_datarootdir}/applications/io.github.garglk.Gargoyle.desktop
+%{_datarootdir}/applications/io.github.garglk.GargoyleEditConfig.desktop
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Bold-Italic.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Bold.ttf
 %{_datarootdir}/fonts/gargoyle/Gargoyle-Mono-Italic.ttf

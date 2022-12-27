@@ -11,6 +11,9 @@
 .Nm
 .Fl p
 .Fl \-paths
+.Nm
+.Fl e
+.Fl \-edit-config
 .Sh DESCRIPTION
 .Nm
 is an interactive fiction player that supports all the major interactive fiction
@@ -56,6 +59,14 @@ flag is set, instead of playing a game,
 .Nm
 will display a list of configuration file paths as well as theme paths
 that will be used at runtime.
+.Pp
+If the
+.Fl e
+or (equivalent)
+.Fl \-edit-config
+flag is set, instead of playing a game,
+.Nm
+will open its configuration file in a text editor.
 .Sh CONFIGURATION
 .Nm
 is highly configurable, although all configuration is done through a text-based

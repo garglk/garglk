@@ -275,6 +275,7 @@ elseif(UNIX)
 
     if(WITH_FREEDESKTOP)
         install(FILES "gargoyle.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications" RENAME "io.github.garglk.Gargoyle.desktop")
+        install(FILES "io.github.garglk.GargoyleEditConfig.desktop" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/applications")
         install(FILES "gargoyle-house.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons" RENAME "io.github.garglk.Gargoyle.png")
         install(FILES "interactive-fiction.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mime/packages")
         install(FILES "io.github.garglk.Gargoyle.appdata.xml" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/metainfo")
