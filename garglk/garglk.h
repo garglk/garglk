@@ -1053,6 +1053,8 @@ Color attrbg(const Styles &styles, const attr_t &attr);
 
 FontFace attrfont(const Styles &styles, const attr_t &attr);
 
+void gli_edit_config();
+
 /* A macro which reads and decodes one character of UTF-8. Needs no
    explanation, I'm sure.
 

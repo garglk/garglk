@@ -304,7 +304,7 @@ void Window::start_timer(long ms)
     }
 }
 
-static void edit_config()
+void gli_edit_config()
 {
     try
     {
@@ -412,10 +412,10 @@ void View::keyPressEvent(QKeyEvent *event)
         // either; the QKeyEvent documentations says that key() "does not
         // distinguish between capital and non-capital letters", but these
         // aren't letters...
-        {{Qt::ControlModifier, Qt::Key_Less}, edit_config},
+        {{Qt::ControlModifier, Qt::Key_Less}, gli_edit_config},
         {{Qt::ControlModifier, Qt::Key_Greater}, show_paths},
 #else
-        {{Qt::ControlModifier, Qt::Key_Comma}, edit_config},
+        {{Qt::ControlModifier, Qt::Key_Comma}, gli_edit_config},
         {{Qt::ControlModifier, Qt::Key_Period}, show_paths},
 #endif
 
