@@ -155,8 +155,8 @@ elseif(UNIX OR MINGW)
         endif()
     endif()
 
-    if (WITH_KDE)
-        if (WITH_QT6)
+    if(WITH_KDE)
+        if(WITH_QT6)
             message(FATAL_ERROR "KDE support requires Qt5")
         endif()
 
