@@ -790,6 +790,12 @@ std::vector<std::string> garglk::winappdata()
     return paths;
 }
 
+std::string garglk::winappdir()
+{
+    // This is only used on Windows.
+    return "";
+}
+
 void gli_select(event_t *event, bool polled)
 {
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];

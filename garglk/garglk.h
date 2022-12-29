@@ -134,12 +134,13 @@ std::string winsavefile(const char *prompt, FileFilter filter);
 void winabort(const std::string &msg);
 std::string downcase(const std::string &string);
 void fontreplace(const std::string &font, FontType type);
-std::vector<ConfigFile> configs(const std::string &exedir, const std::string &gamepath);
+std::vector<ConfigFile> configs(const std::string &gamepath);
 void config_entries(const std::string &fname, bool accept_bare, const std::vector<std::string> &matches, std::function<void(const std::string &cmd, const std::string &arg)> callback);
 std::string user_config();
 void set_lcdfilter(const std::string &filter);
 std::string winfontpath(const std::string &filename);
 std::vector<std::string> winappdata();
+std::string winappdir();
 
 namespace theme {
 void init();

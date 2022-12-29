@@ -232,11 +232,10 @@ static void parsecolor(const std::string &str, Color &rgb)
 //        $HOME/garglk.ini (macOS only)
 // 4. $GARGLK_RESOURCES/garglk.ini (macOS only)
 // 5. /etc/garglk.ini (or other location set at build time, Unix only)
-// 6. <directory containing gargoyle executable>/garglk.ini (Windows only)
+// 6. <directory containing gargoyle/interpreter executable>/garglk.ini (Windows only)
 //
-// exedir is the directory containing the gargoyle executable
 // gamepath is the path to the game file being run
-std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", const std::string &gamepath = "")
+std::vector<garglk::ConfigFile> garglk::configs(const std::string &gamepath = "")
 {
     std::vector<ConfigFile> configs;
     if (!gamepath.empty())
@@ -322,6 +321,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
 
 #ifdef _WIN32
     // install directory
+    auto exedir = garglk::winappdir();
     if (!exedir.empty())
         configs.push_back(ConfigFile(exedir + "/garglk.ini", ConfigFile::Type::System));
 #endif
@@ -690,11 +690,6 @@ static void gli_read_config(int argc, char **argv)
     std::string gamefile = std::filesystem::path(argv[argc - 1])
         .filename()
         .string();
-
-    /* load exefile with directory containing main executable */
-    std::string exedir = std::filesystem::path(argv[0])
-        .parent_path()
-        .string();
 #else
     auto basename = [](std::string path) {
         auto slash = path.find_last_of("/\\");
@@ -712,10 +707,6 @@ static void gli_read_config(int argc, char **argv)
 
     /* load gamefile with basename of last argument */
     std::string gamefile = basename(argv[argc - 1]);
-
-    /* load exefile with directory containing main executable */
-    std::string exedir = argv[0];
-    exedir = exedir.substr(0, exedir.find_last_of("/\\"));
 #endif
 
     /* load gamepath with the path to the story file itself */
@@ -724,7 +715,7 @@ static void gli_read_config(int argc, char **argv)
         gamepath = argv[argc - 1];
 
     /* load from all config files */
-    auto configs = garglk::configs(exedir, gamepath);
+    auto configs = garglk::configs(gamepath);
     std::reverse(configs.begin(), configs.end());
 
     garglk::all_configs.clear();
@@ -736,7 +727,7 @@ static void gli_read_config(int argc, char **argv)
     }
 
     /* store so other parts of the code have access to full config information,
-     * including execdir and gamepath components.
+     * including the gamepath.
      */
     std::reverse(garglk::all_configs.begin(), garglk::all_configs.end());
 }
