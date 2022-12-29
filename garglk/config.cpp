@@ -191,6 +191,8 @@ bool gli_conf_fullscreen = false;
 bool gli_conf_stylehint = true;
 bool gli_conf_safeclicks = false;
 
+bool gli_conf_per_game_config = true;
+
 std::string garglk::downcase(const std::string &string)
 {
     std::string lowered;
@@ -249,7 +251,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         else
             config += ".ini";
 
-        configs.emplace_back(config, false);
+        configs.emplace_back(config, ConfigFile::Type::PerGame);
 
         // game directory .ini
         config = gamepath;
@@ -259,24 +261,24 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         else
             config = "garglk.ini";
 
-        configs.emplace_back(config, false);
+        configs.emplace_back(config, ConfigFile::Type::PerGame);
     }
 
 #if defined(__HAIKU__)
     char settings_dir[PATH_MAX + 1];
     if (find_directory(B_USER_SETTINGS_DIRECTORY, -1, false, settings_dir, sizeof settings_dir) == B_OK)
-        configs.push_back(ConfigFile(std::string(settings_dir) + "/Gargoyle", true));
+        configs.push_back(ConfigFile(std::string(settings_dir) + "/Gargoyle", ConfigFile::Type::User));
 #elif defined(_WIN32)
     // $APPDATA/Gargoyle/garglk.ini (Windows only). This has a higher
     // priority than $PWD/garglk.ini since it's a more "proper" location.
     const char *appdata = std::getenv("APPDATA");
     if (appdata != nullptr)
-        configs.push_back(ConfigFile(std::string(appdata) + "/Gargoyle/garglk.ini", true));
+        configs.push_back(ConfigFile(std::string(appdata) + "/Gargoyle/garglk.ini", ConfigFile::Type::User));
 
     // current directory .ini
     // Historically this has been the location of garglk.ini on Windows,
     // so treat it as a user config there.
-    configs.push_back(ConfigFile("garglk.ini", true));
+    configs.push_back(ConfigFile("garglk.ini", ConfigFile::Type::User));
 #else
 
     const char *home = getenv("HOME");
@@ -286,7 +288,7 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
     // $HOME/garglk.ini. At some point this probably should move to somewhere in
     // $HOME/Library, but for now, make sure this config file is used.
     if (home != nullptr)
-        configs.push_back(ConfigFile(std::string(home) + "/garglk.ini", true));
+        configs.push_back(ConfigFile(std::string(home) + "/garglk.ini", ConfigFile::Type::User));
 #endif
 
     // XDG Base Directory Specification
@@ -298,11 +300,11 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
         xdg_path = std::string(home) + "/.config";
 
     if (!xdg_path.empty())
-        configs.emplace_back(xdg_path + "/garglk.ini", true);
+        configs.emplace_back(xdg_path + "/garglk.ini", ConfigFile::Type::User);
 
     // $HOME/.garglkrc
     if (home != nullptr)
-        configs.emplace_back(std::string(home) + "/.garglkrc", true);
+        configs.emplace_back(std::string(home) + "/.garglkrc", ConfigFile::Type::User);
 #endif
 
 #ifdef __APPLE__
@@ -310,18 +312,18 @@ std::vector<garglk::ConfigFile> garglk::configs(const std::string &exedir = "", 
     // default garglk.ini.
     const char *garglkini = std::getenv("GARGLK_RESOURCES");
     if (garglkini != nullptr)
-        configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", false));
+        configs.push_back(ConfigFile(std::string(garglkini) + "/garglk.ini", ConfigFile::Type::System));
 #endif
 
 #ifdef GARGLKINI
     // system directory
-    configs.emplace_back(GARGLKINI, false);
+    configs.emplace_back(GARGLKINI, ConfigFile::Type::System);
 #endif
 
 #ifdef _WIN32
     // install directory
     if (!exedir.empty())
-        configs.push_back(ConfigFile(exedir + "/garglk.ini", false));
+        configs.push_back(ConfigFile(exedir + "/garglk.ini", ConfigFile::Type::System));
 #endif
 
     return configs;
@@ -335,7 +337,7 @@ std::string garglk::user_config()
     cfgs.erase(
             std::remove_if(cfgs.begin(),
                            cfgs.end(),
-                           [](const ConfigFile &config) { return !config.user; }),
+                           [](const ConfigFile &config) { return config.type != ConfigFile::Type::User; }),
             cfgs.end());
 
     if (cfgs.empty())
@@ -669,6 +671,8 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
                         gli_gstyles[i].font = font2idx(font);
                 }
             }
+        } else if (cmd == "game_config") {
+            gli_conf_per_game_config = clamp(std::stoi(arg), 0, 1);
         }
     });
 }
@@ -719,17 +723,22 @@ static void gli_read_config(int argc, char **argv)
     if (argc > 1)
         gamepath = argv[argc - 1];
 
-    /* store so other parts of the code have access to full config information,
-     * including execdir and gamepath components.
-     */
-    garglk::all_configs = garglk::configs(exedir, gamepath);
-
     /* load from all config files */
     auto configs = garglk::configs(exedir, gamepath);
     std::reverse(configs.begin(), configs.end());
 
-    for (const auto &config : configs)
-        readoneconfig(config.path, argv0, gamefile);
+    garglk::all_configs.clear();
+    for (const auto &config : configs) {
+        if (config.type != garglk::ConfigFile::Type::PerGame || gli_conf_per_game_config) {
+            readoneconfig(config.path, argv0, gamefile);
+            garglk::all_configs.push_back(config);
+        }
+    }
+
+    /* store so other parts of the code have access to full config information,
+     * including execdir and gamepath components.
+     */
+    std::reverse(garglk::all_configs.begin(), garglk::all_configs.end());
 }
 
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)

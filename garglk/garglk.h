@@ -90,18 +90,34 @@ namespace garglk {
 
 // This represents a possible configuration file (garglk.ini).
 struct ConfigFile {
-    ConfigFile(std::string path_, bool user_) : path(std::move(path_)), user(user_) {
+    enum class Type {
+        System,
+        User,
+        PerGame,
+    };
+
+    ConfigFile(std::string path_, Type type_) : path(std::move(path_)), type(type_) {
     }
 
     // The path to the file itself.
     std::string path;
 
-    // If true, this config file should be considered as a “user” config
-    // file, one that a user would reasonably expect to be a config file
-    // for general use. This excludes game-specific config files, for
-    // example, while considering various possibilities for config
-    // files, such as $HOME/.garglkrc or $HOME/.config/garglk.ini.
-    bool user;
+    // There are three types of config file:
+    //
+    // • System: System-wide configuration (e.g. /etc/garglk.ini)
+    //   installed by the administrator, not intended to be edited by
+    //   the user.
+    // • User: A “user” config file, one that a user would reasonably
+    //   expect to be a config file for general use. This excludes
+    //   game-specific config files, for example, while considering
+    //   various possibilities for config files, such as $HOME/.garglkrc
+    //   or $HOME/.config/garglk.ini.
+    // • PerGame: Per-game configuration. Games are able to ship their
+    //   own configuration files to customize how Gargoyle looks when
+    //   they are run. These are either named after the file (e.g.
+    //   zork1.z3 comes with zork1.ini), or are the file “garglk.ini”
+    //   placed in the game directory.
+    Type type;
 };
 
 extern std::vector<garglk::ConfigFile> all_configs;
@@ -550,6 +566,8 @@ extern bool gli_forceclick;
 extern bool gli_copyselect;
 extern bool gli_drawselect;
 extern bool gli_claimselect;
+
+extern bool gli_conf_per_game_config;
 
 /*
  * Standard Glk I/O stuff
