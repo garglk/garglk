@@ -178,12 +178,12 @@ static const std::map<Format, Interpreter> interpreters = {
     { Format::ZCode6, Interpreter(T_ZSIX) },
 };
 
-static bool call_winterp(const std::string &path, const Interpreter &interpreter, const std::string &game)
+static bool call_winterp(const std::string &interpreter_dir, const Interpreter &interpreter, const std::string &game)
 {
-    return garglk::winterp(path, GARGLKPRE + interpreter.terp, interpreter.flags, game);
+    return garglk::winterp(interpreter_dir, GARGLKPRE + interpreter.terp, interpreter.flags, game);
 }
 
-static bool runblorb(const std::string &path, const std::string &game, const Interpreter &interpreter)
+static bool runblorb(const std::string &interpreter_dir, const std::string &game, const Interpreter &interpreter)
 {
     class BlorbError : public std::runtime_error {
     public:
@@ -239,7 +239,7 @@ static bool runblorb(const std::string &path, const std::string &game, const Int
         }
         }
 
-        return call_winterp(path, found_interpreter, game);
+        return call_winterp(interpreter_dir, found_interpreter, game);
     }
     catch (const BlorbError &e)
     {
@@ -271,7 +271,7 @@ static bool findterp(const std::string &file, const std::string &target, struct 
     return !interpreter.terp.empty();
 }
 
-static void configterp(const std::string &exedir, const std::string &gamepath, struct Interpreter &interpreter)
+static void configterp(const std::string &gamepath, struct Interpreter &interpreter)
 {
     std::string story = gamepath;
 
@@ -291,21 +291,21 @@ static void configterp(const std::string &exedir, const std::string &gamepath, s
     if (story.empty())
         return;
 
-    for (const auto &config : garglk::configs(exedir, gamepath))
+    for (const auto &config : garglk::configs(gamepath))
     {
         if (findterp(config.path, story, interpreter))
             return;
     }
 }
 
-int garglk::rungame(const std::string &path, const std::string &game)
+int garglk::rungame(const std::string &interpreter_dir, const std::string &game)
 {
     const std::set<std::string> blorbs = {"blb", "blorb", "glb", "gbl", "gblorb", "zlb", "zbl", "zblorb"};
     Interpreter interpreter("");
     std::vector<char> header(64);
     bool is_blorb = false;
 
-    configterp(path, game, interpreter);
+    configterp(game, interpreter);
 
     std::ifstream f(game, std::ios::binary);
     if (f.is_open() && f.read(header.data(), header.size()))
@@ -328,16 +328,16 @@ int garglk::rungame(const std::string &path, const std::string &game)
     if (is_blorb ||
         std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end())
     {
-        return runblorb(path, game, interpreter);
+        return runblorb(interpreter_dir, game, interpreter);
     }
 
     if (!interpreter.terp.empty())
-        return call_winterp(path, interpreter, game);
+        return call_winterp(interpreter_dir, interpreter, game);
 
     try
     {
         auto format = extensions.at(ext);
-        return call_winterp(path, interpreters.at(format), game);
+        return call_winterp(interpreter_dir, interpreters.at(format), game);
     }
     catch (const std::out_of_range &)
     {

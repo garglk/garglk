@@ -114,9 +114,9 @@ static QString winbrowsefile()
     return QFileDialog::getOpenFileName(nullptr, AppName, "", filter_string, nullptr, options);
 }
 
-int garglk::winterp(const std::string &path, const std::string &exe, const std::string &flags, const std::string &game)
+int garglk::winterp(const std::string &interpreter_dir, const std::string &exe, const std::string &flags, const std::string &game)
 {
-    QString argv0 = QDir(path.c_str()).absoluteFilePath(exe.c_str());
+    QString argv0 = QDir(interpreter_dir.c_str()).absoluteFilePath(exe.c_str());
 
     QStringList args;
 
@@ -177,7 +177,7 @@ static QString parse_args(const QApplication &app)
     if (parser.isSet("p"))
     {
         std::cout << "Configuration file paths:\n\n";
-        for (const auto &path : garglk::configs("", ""))
+        for (const auto &path : garglk::configs(""))
             std::cout << path.path << std::endl;
 
         std::cout << "\nTheme paths:\n\n";
@@ -221,12 +221,12 @@ int main(int argc, char **argv)
     // of failing if there are no interpreters installed). If this is
     // set, the standard directory will *not* be used at all, even if no
     // interpreter is found.
-    QString dir = std::getenv("GARGLK_INTERPRETER_DIR");
-    if (dir.isNull())
+    QString interpreter_dir = std::getenv("GARGLK_INTERPRETER_DIR");
+    if (interpreter_dir.isNull())
 #ifdef GARGLK_CONFIG_INTERPRETER_DIR
-        dir = GARGLK_CONFIG_INTERPRETER_DIR;
+        interpreter_dir = GARGLK_CONFIG_INTERPRETER_DIR;
 #else
-        dir = QCoreApplication::applicationDirPath();
+        interpreter_dir = QCoreApplication::applicationDirPath();
 #endif
 
     auto story = parse_args(app);
@@ -238,5 +238,5 @@ int main(int argc, char **argv)
         return 1;
 
     /* run story file */
-    return garglk::rungame(dir.toStdString(), story.toStdString());
+    return garglk::rungame(interpreter_dir.toStdString(), story.toStdString());
 }

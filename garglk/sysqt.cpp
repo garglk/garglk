@@ -669,6 +669,11 @@ std::vector<std::string> garglk::winappdata()
     return paths;
 }
 
+std::string garglk::winappdir()
+{
+    return QCoreApplication::applicationDirPath().toStdString();
+}
+
 void gli_tick()
 {
     if (last_tick.elapsed() > TICK_PERIOD_MILLIS)
