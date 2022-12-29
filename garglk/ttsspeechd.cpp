@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2017 by Chris Spiegel.                                       *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2017 by Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstddef>
 #include <cstdint>
@@ -34,7 +30,7 @@
 #include <dlfcn.h>
 #include <iostream>
 
-/* Redefine some types from libspeechd.h */
+// Redefine some types from libspeechd.h
 
 typedef enum {
     SPD_IMPORTANT = 1,
@@ -51,8 +47,8 @@ typedef enum {
 
 struct SPDConnection;
 
-/* Prefix names of libspeechd symbols with underscores
- * in this file to avoid any possible conflicts */
+// Prefix names of libspeechd symbols with underscores
+// in this file to avoid any possible conflicts
 
 #define spd_open _spd_open
 #define spd_set_language _spd_set_language
@@ -102,8 +98,8 @@ void gli_initialize_tts()
             return;
         }
 
-        /* Firefox checks for ABI compatibility by checking whether the
-         * spd_get_volume symbol exists, so we follow their lead. */
+        // Firefox checks for ABI compatibility by checking whether the
+        // spd_get_volume symbol exists, so we follow their lead.
         if (dlsym(libspeechd, "spd_get_volume") == nullptr) {
             std::cerr <<
                 "An unsupported version of libspeechd was found. "

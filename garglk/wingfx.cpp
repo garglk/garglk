@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <memory>
 
@@ -224,7 +220,7 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
     hy0 = dwin->owner->bbox.y0 + y0;
     hy1 = dwin->owner->bbox.y0 + y1;
 
-    /* zero out hyperlinks for these coordinates */
+    // zero out hyperlinks for these coordinates
     gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
     for (y = y0; y < y1; y++) {
@@ -262,7 +258,7 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     hy0 = dwin->owner->bbox.y0 + y0;
     hy1 = dwin->owner->bbox.y0 + y1;
 
-    /* zero out hyperlinks for these coordinates */
+    // zero out hyperlinks for these coordinates
     gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
     for (y = y0; y < y1; y++) {
@@ -335,7 +331,7 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     hy0 = dst->owner->bbox.y0 + y0;
     hy1 = dst->owner->bbox.y0 + y1;
 
-    /* zero out or set hyperlink for these coordinates */
+    // zero out or set hyperlink for these coordinates
     gli_put_hyperlink(linkval, hx0, hy0, hx1, hy1);
 
     w = sx1 - sx0;

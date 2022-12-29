@@ -1,26 +1,22 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- * Copyright (C) 2010-2021 by Chris Spiegel.                                  *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+// Copyright (C) 2010-2021 by Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <QApplication>
 #include <QChar>
@@ -90,10 +86,10 @@
 #define HAS_QT6
 #endif
 
-/* buffer for clipboard text */
+// buffer for clipboard text
 static QString cliptext;
 
-/* filters and extensions for file dialogs */
+// filters and extensions for file dialogs
 static const std::map<FileFilter, std::pair<QString, QString>> filters = {
     {FileFilter::Save, std::make_pair("Saved game files (*.glksave *.sav)", "glksave")},
     {FileFilter::Text, std::make_pair("Text files (*.txt)", "txt")},
@@ -467,7 +463,7 @@ void View::keyPressEvent(QKeyEvent *event)
 
 void View::mouseMoveEvent(QMouseEvent *event)
 {
-    /* hyperlinks and selection */
+    // hyperlinks and selection
     if (gli_copyselect) {
         setCursor(Qt::IBeamCursor);
         gli_move_selection(event->pos().x(), event->pos().y());

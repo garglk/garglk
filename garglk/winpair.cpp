@@ -1,24 +1,20 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "glk.h"
 #include "garglk.h"
@@ -52,11 +48,11 @@ void win_pair_rearrange(window_t *win, rect_t *box)
     }
     diff = max - min;
 
-    /* We now figure split. */
+    // We now figure split.
     if (dwin->vertical) {
-        splitwid = gli_wpaddingx; /* want border? */
+        splitwid = gli_wpaddingx; // want border?
     } else {
-        splitwid = gli_wpaddingy; /* want border? */
+        splitwid = gli_wpaddingy; // want border?
     }
 
     switch (dwin->division) {
@@ -115,7 +111,7 @@ void win_pair_rearrange(window_t *win, rect_t *box)
         }
     }
 
-    /* TODO: constrain bboxes by wintype */
+    // TODO: constrain bboxes by wintype
 
     if (dwin->vertical) {
         box1.x0 = win->bbox.x0;

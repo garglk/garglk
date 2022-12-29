@@ -1,27 +1,23 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Lorenzo Marcantonio.             *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Lorenzo Marcantonio.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-/* SDL support donated by Lorenzo Marcantonio */
+// SDL support donated by Lorenzo Marcantonio
 
 #ifdef _WIN32
 #define SDL_MAIN_HANDLED
@@ -52,7 +48,7 @@
 #define giblorb_ID_FORM (giblorb_make_id('F', 'O', 'R', 'M'))
 #define giblorb_ID_AIFF (giblorb_make_id('A', 'I', 'F', 'F'))
 
-/* non-standard types */
+// non-standard types
 #define giblorb_ID_MP3  (giblorb_make_id('M', 'P', '3', ' '))
 #define giblorb_ID_WAVE (giblorb_make_id('W', 'A', 'V', 'E'))
 #define giblorb_ID_MIDI (giblorb_make_id('M', 'I', 'D', 'I'))
@@ -75,7 +71,7 @@ struct glk_schannel_struct {
     std::vector<unsigned char> sdl_memory;
     int sdl_channel;
 
-    int resid; /* for notifies */
+    int resid; // for notifies
     int status;
     int channel;
     int volume;
@@ -84,7 +80,7 @@ struct glk_schannel_struct {
 
     int paused;
 
-    /* for volume fades */
+    // for volume fades
     int volume_notify;
     int volume_timeout;
     int target_volume;
@@ -303,10 +299,10 @@ glui32 glk_schannel_play_multi(schanid_t *chanarray, glui32 chancount,
 
 void glk_sound_load_hint(glui32 snd, glui32 flag)
 {
-    /* nop */
+    // nop
 }
 
-/** Make an incremental volume change when the fade timer fires */
+// Make an incremental volume change when the fade timer fires
 Uint32 volume_timer_callback(Uint32 interval, void *param)
 {
     schanid_t chan = static_cast<schanid_t>(param);
@@ -334,7 +330,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
 
     chan->volume_timeout--;
 
-    /* If the timer has fired FADE_GRANULARITY times, kill it */
+    // If the timer has fired FADE_GRANULARITY times, kill it
     if (chan->volume_timeout <= 0) {
         if (chan->volume_notify) {
             gli_event_store(evtype_VolumeNotify, nullptr,
@@ -363,7 +359,7 @@ Uint32 volume_timer_callback(Uint32 interval, void *param)
     return interval;
 }
 
-/** Start a fade timer */
+// Start a fade timer
 void init_fade(schanid_t chan, int glk_volume, int duration, int notify)
 {
     if (!chan) {
@@ -424,7 +420,7 @@ void glk_schannel_set_volume_ext(schanid_t chan, glui32 glk_volume,
     }
 }
 
-/* Notify the music channel completion */
+// Notify the music channel completion
 static void music_completion_callback()
 {
     if (!music_channel) {
@@ -438,7 +434,7 @@ static void music_completion_callback()
     cleanup_channel(music_channel);
 }
 
-/* Notify the sound channel completion */
+// Notify the sound channel completion
 static void sound_completion_callback(int chan)
 {
     channel_t *sound_channel = sound_channels[chan];
@@ -462,34 +458,34 @@ static void sound_completion_callback(int chan)
 static int detect_format(const std::vector<unsigned char> &buf)
 {
     const std::vector<std::pair<std::pair<long, std::vector<std::string>>, unsigned long>> formats = {
-        /* AIFF */
+        // AIFF
         {{0, {"FORM"}}, giblorb_ID_FORM},
 
-        /* WAVE */
+        // WAVE
         {{0, {"WAVE", "RIFF"}}, giblorb_ID_WAVE},
 
-        /* midi */
+        // midi
         {{0, {"MThd"}}, giblorb_ID_MIDI},
 
-        /* s3m */
+        // s3m
         {{44, {"SCRM"}}, giblorb_ID_MOD},
 
-        /* XM */
+        // XM
         {{0, {"Extended Module: "}}, giblorb_ID_MOD},
 
-        /* IT */
+        // IT
         {{0, {"IMPM"}}, giblorb_ID_MOD},
 
-        /* MOD */
+        // MOD
         {{1080, {"4CHN", "6CHN", "8CHN",
                  "16CN", "32CN", "M.K.",
                  "M!K!", "FLT4", "CD81",
                  "OKTA", "    "}}, giblorb_ID_MOD},
 
-        /* ogg */
+        // ogg
         {{0, {"OggS"}}, giblorb_ID_OGG},
 
-        /* mp3 */
+        // mp3
         {{0, {"\377\372"}}, giblorb_ID_MP3},
     };
 
@@ -575,7 +571,7 @@ static glui32 load_sound_resource(glui32 snd, std::vector<unsigned char> &buf)
     }
 }
 
-/** Start a sound channel */
+// Start a sound channel
 static glui32 play_sound(schanid_t chan)
 {
     int loop;
@@ -610,7 +606,7 @@ static glui32 play_sound(schanid_t chan)
     return 0;
 }
 
-/** Start a mod music channel */
+// Start a mod music channel
 static glui32 play_mod(schanid_t chan, long len)
 {
     std::FILE *file;
@@ -625,15 +621,15 @@ static glui32 play_mod(schanid_t chan, long len)
     music_busy = Mix_PlayingMusic();
 
     if (music_busy) {
-        /* We already checked for music playing on *this* channel
-        in glk_schannel_play_ext */
+        // We already checked for music playing on *this* channel
+        // in glk_schannel_play_ext
 
         gli_strict_warning("MOD player already in use on another channel!");
         return 0;
     }
 
     chan->status = CHANNEL_MUSIC;
-    /* The fscking mikmod lib want to read the mod only from disk! */
+    // The fscking mikmod lib want to read the mod only from disk!
     tempdir = std::getenv("TMPDIR");
     if (tempdir == nullptr) {
         tempdir = std::getenv("TEMP");
@@ -645,7 +641,7 @@ static glui32 play_mod(schanid_t chan, long len)
         }
     }
 
-    /* allocate size of string tempdir + "XXXXXX' + terminator */
+    // allocate size of string tempdir + "XXXXXX' + terminator
     std::vector<char> tn(std::strlen(tempdir) + 7);
     std::sprintf(tn.data(), "%sXXXXXX", tempdir);
     int fd;
@@ -692,17 +688,17 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
         return 0;
     }
 
-    /* store paused state of channel */
+    // store paused state of channel
     paused = chan->paused;
 
-    /* stop previous noise */
+    // stop previous noise
     glk_schannel_stop(chan);
 
     if (repeats == 0) {
         return 1;
     }
 
-    /* load sound resource into memory */
+    // load sound resource into memory
     try {
         type = load_resource(snd, chan->sdl_memory);
     } catch (const Bleeps::Empty &) {
@@ -732,7 +728,7 @@ glui32 glk_schannel_play_ext_impl(schanid_t chan, glui32 snd, glui32 repeats, gl
         gli_strict_warning("schannel_play_ext: unknown resource type.");
     }
 
-    /* if channel was paused it should be paused again */
+    // if channel was paused it should be paused again
     if (result && paused) {
         glk_schannel_pause(chan);
     }

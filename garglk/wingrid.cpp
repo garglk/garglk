@@ -1,35 +1,30 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel, Jörg Walter.             *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel, Jörg Walter.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 
 #include "glk.h"
 #include "garglk.h"
 
-/* A grid of characters. We store the window as a list of lines.
- * Within a line, just store an array of characters and an array
- * of style bytes, the same size.
- */
+// A grid of characters. We store the window as a list of lines.
+// Within a line, just store an array of characters and an array
+// of style bytes, the same size.
 
 static void touch(window_textgrid_t *dwin, int line)
 {
@@ -109,7 +104,7 @@ void win_textgrid_redraw(window_t *win)
             x = x0;
             y = y0 + i * gli_leading;
 
-            /* clear any stored hyperlink coordinates */
+            // clear any stored hyperlink coordinates
             gli_put_hyperlink(0, x0, y, x0 + gli_cellw * dwin->width, y + gli_leading);
 
             a = 0;
@@ -165,8 +160,8 @@ void win_textgrid_putchar_uni(window_t *win, glui32 ch)
     window_textgrid_t *dwin = win->window.textgrid;
     tgline_t *ln;
 
-    /* Canonicalize the cursor position. That is, the cursor may have been
-       left outside the window area; wrap it if necessary. */
+    // Canonicalize the cursor position. That is, the cursor may have been
+    // left outside the window area; wrap it if necessary.
     if (dwin->curx < 0) {
         dwin->curx = 0;
     } else if (dwin->curx >= dwin->width) {
@@ -176,11 +171,11 @@ void win_textgrid_putchar_uni(window_t *win, glui32 ch)
     if (dwin->cury < 0) {
         dwin->cury = 0;
     } else if (dwin->cury >= dwin->height) {
-        return; /* outside the window */
+        return; // outside the window
     }
 
     if (ch == '\n') {
-        /* a newline just moves the cursor. */
+        // a newline just moves the cursor.
         dwin->cury++;
         dwin->curx = 0;
         return;
@@ -193,8 +188,8 @@ void win_textgrid_putchar_uni(window_t *win, glui32 ch)
     ln->attrs[dwin->curx] = win->attr;
 
     dwin->curx++;
-    /* We can leave the cursor outside the window, since it will be
-       canonicalized next time a character is printed. */
+    // We can leave the cursor outside the window, since it will be
+    // canonicalized next time a character is printed.
 }
 
 bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
@@ -203,15 +198,15 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     tgline_t *ln;
     int oldx = dwin->curx, oldy = dwin->cury;
 
-    /* Move the cursor back. */
+    // Move the cursor back.
     if (dwin->curx >= dwin->width) {
         dwin->curx = dwin->width - 1;
     } else {
         dwin->curx--;
     }
 
-    /* Canonicalize the cursor position. That is, the cursor may have been
-       left outside the window area; wrap it if necessary. */
+    // Canonicalize the cursor position. That is, the cursor may have been
+    // left outside the window area; wrap it if necessary.
     if (dwin->curx < 0) {
         dwin->curx = dwin->width - 1;
         dwin->cury--;
@@ -219,17 +214,17 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
     if (dwin->cury < 0) {
         dwin->cury = 0;
     } else if (dwin->cury >= dwin->height) {
-        return false; /* outside the window */
+        return false; // outside the window
     }
 
     if (ch == '\n') {
-        /* a newline just moves the cursor. */
+        // a newline just moves the cursor.
         if (dwin->curx == dwin->width - 1) {
-            return true; /* deleted a newline */
+            return true; // deleted a newline
         }
         dwin->curx = oldx;
         dwin->cury = oldy;
-        return false; /* it wasn't there */
+        return false; // it wasn't there
     }
 
     ln = &(dwin->lines[dwin->cury]);
@@ -237,11 +232,11 @@ bool win_textgrid_unputchar_uni(window_t *win, glui32 ch)
         ln->chars[dwin->curx] = ' ';
         attrclear(&ln->attrs[dwin->curx]);
         touch(dwin, dwin->cury);
-        return true; /* deleted the char */
+        return true; // deleted the char
     } else {
         dwin->curx = oldx;
         dwin->cury = oldy;
-        return false; /* it wasn't there */
+        return false; // it wasn't there
     }
 }
 
@@ -270,9 +265,9 @@ void win_textgrid_move_cursor(window_t *win, int xpos, int ypos)
 {
     window_textgrid_t *dwin = win->window.textgrid;
 
-    /* If the values are negative, they're really huge positive numbers --
-       remember that they were cast from glui32. So set them huge and
-       let canonicalization take its course. */
+    // If the values are negative, they're really huge positive numbers --
+    // remember that they were cast from glui32. So set them huge and
+    // let canonicalization take its course.
     if (xpos < 0) {
         xpos = 32767;
     }
@@ -316,7 +311,7 @@ void win_textgrid_click(window_textgrid_t *dwin, int sx, int sy)
     }
 }
 
-/* Prepare the window for line input. */
+// Prepare the window for line input.
 static void win_textgrid_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
     window_textgrid_t *dwin = win->window.textgrid;
@@ -378,7 +373,7 @@ void win_textgrid_init_line_uni(window_t *win, glui32 *buf, int maxlen, int init
     win_textgrid_init_impl(win, buf, maxlen, initlen, true);
 }
 
-/* Abort line input, storing whatever's been typed so far. */
+// Abort line input, storing whatever's been typed so far.
 void win_textgrid_cancel_line(window_t *win, event_t *ev)
 {
     int ix;
@@ -441,9 +436,9 @@ void win_textgrid_cancel_line(window_t *win, event_t *ev)
     }
 }
 
-/* Keybinding functions. */
+// Keybinding functions.
 
-/* Any key, during character input. Ends character input. */
+// Any key, during character input. Ends character input.
 void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
 {
     glui32 key;
@@ -470,7 +465,7 @@ void gcmd_grid_accept_readchar(window_t *win, glui32 arg)
     gli_event_store(evtype_CharInput, win, key, 0);
 }
 
-/* Return or enter, during line input. Ends line input. */
+// Return or enter, during line input. Ends line input.
 static void acceptline(window_t *win, glui32 keycode)
 {
     int ix;
@@ -534,7 +529,7 @@ static void acceptline(window_t *win, glui32 keycode)
     }
 }
 
-/* Any regular key, during line input. */
+// Any regular key, during line input.
 void gcmd_grid_accept_readline(window_t *win, glui32 arg)
 {
     int ix;
@@ -554,7 +549,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
 
     switch (arg) {
 
-    /* Delete keys, during line input. */
+    // Delete keys, during line input.
 
     case keycode_Delete:
         if (dwin->inlen <= 0) {
@@ -596,7 +591,7 @@ void gcmd_grid_accept_readline(window_t *win, glui32 arg)
         dwin->incurs = 0;
         break;
 
-    /* Cursor movement keys, during line input. */
+    // Cursor movement keys, during line input.
 
     case keycode_Left:
         if (dwin->incurs <= 0) {

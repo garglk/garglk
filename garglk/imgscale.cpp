@@ -1,29 +1,23 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-/*
- * Image scaling, based on pnmscale.c...
- */
+// Image scaling, based on pnmscale.c...
 
 #include <memory>
 #include <vector>
@@ -33,17 +27,16 @@
 
 std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int newrows)
 {
-    /* pnmscale.c - read a portable anymap and scale it
-     *
-     * Copyright (C) 1989, 1991 by Jef Poskanzer.
-     *
-     * Permission to use, copy, modify, and distribute this software and its
-     * documentation for any purpose and without fee is hereby granted, provided
-     * that the above copyright notice appear in all copies and that both that
-     * copyright notice and this permission notice appear in supporting
-     * documentation.  This software is provided "as is" without express or
-     * implied warranty.
-     */
+    // pnmscale.c - read a portable anymap and scale it
+    //
+    // Copyright (C) 1989, 1991 by Jef Poskanzer.
+    //
+    // Permission to use, copy, modify, and distribute this software and its
+    // documentation for any purpose and without fee is hereby granted, provided
+    // that the above copyright notice appear in all copies and that both that
+    // copyright notice and this permission notice appear in supporting
+    // documentation.  This software is provided "as is" without express or
+    // implied warranty.
 
 #define SCALE 4096
 #define HALFSCALE 2048
@@ -67,7 +60,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
 
     long fracrowtofill, fracrowleft;
 
-    /* Allocate destination image and scratch space */
+    // Allocate destination image and scratch space
 
     dst = std::make_shared<picture_t>(src->id, newcols, newrows, true);
 
@@ -77,7 +70,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
     std::vector<long> bs(cols, HALFSCALE);
     std::vector<long> as(cols, HALFSCALE);
 
-    /* Compute all sizes and scales. */
+    // Compute all sizes and scales.
 
     xscale = static_cast<float>(newcols) / static_cast<float>(cols);
     yscale = static_cast<float>(newrows) / static_cast<float>(rows);
@@ -91,13 +84,13 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
     fracrowtofill = SCALE;
 
     for (row = 0; row < newrows; ++row) {
-        /* First scale Y from src->rgba into tempxelrow. */
+        // First scale Y from src->rgba into tempxelrow.
         {
             while (fracrowleft < fracrowtofill) {
                 if (needtoreadrow) {
                     if (rowsread < rows) {
                         ++rowsread;
-                        /* needtoreadrow = 0; */
+                        // needtoreadrow = 0;
                     }
                 }
 
@@ -114,7 +107,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
                 needtoreadrow = 1;
             }
 
-            /* Now fracrowleft is >= fracrowtofill, so we can produce a row. */
+            // Now fracrowleft is >= fracrowtofill, so we can produce a row.
             if (needtoreadrow) {
                 if (rowsread < rows) {
                     ++rowsread;
@@ -167,7 +160,7 @@ std::shared_ptr<picture_t> gli_picture_scale(picture_t *src, int newcols, int ne
             fracrowtofill = SCALE;
         }
 
-        /* Now scale X from tempxelrow into dst->rgba and write it out. */
+        // Now scale X from tempxelrow into dst->rgba and write it out.
         {
             long r, g, b, a;
             long fraccoltofill, fraccolleft;

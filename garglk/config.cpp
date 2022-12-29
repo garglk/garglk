@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <array>
@@ -62,35 +58,35 @@ FontFiles gli_conf_prop, gli_conf_mono, gli_conf_prop_override, gli_conf_mono_ov
 
 std::string gli_conf_monofont = "Gargoyle Mono";
 std::string gli_conf_propfont = "Gargoyle Serif";
-float gli_conf_monosize = 12.6; /* good size for Gargoyle Mono */
-float gli_conf_propsize = 14.7; /* good size for Gargoyle Serif */
+float gli_conf_monosize = 12.6; // good size for Gargoyle Mono
+float gli_conf_propsize = 14.7; // good size for Gargoyle Serif
 
 Styles gli_tstyles{{
-    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Normal */
-    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Emphasized */
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Preformatted */
-    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Header */
-    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Subheader */
-    {FontFace::propz(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Alert */
-    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Note */
-    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* BlockQuote */
-    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* Input */
-    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* User1 */
-    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, /* User2 */
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Normal
+    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Emphasized
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Preformatted
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Header
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Subheader
+    {FontFace::propz(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Alert
+    {FontFace::propi(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Note
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // BlockQuote
+    {FontFace::propb(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // Input
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // User1
+    {FontFace::propr(), Color(0xff, 0xff, 0xff), Color(0x00, 0x00, 0x00), false}, // User2
 }};
 
 Styles gli_gstyles{{
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Normal */
-    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Emphasized */
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Preformatted */
-    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Header */
-    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Subheader */
-    {FontFace::monoz(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Alert */
-    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Note */
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* BlockQuote */
-    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* Input */
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* User1 */
-    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, /* User2 */
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Normal
+    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Emphasized
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Preformatted
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Header
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Subheader
+    {FontFace::monoz(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Alert
+    {FontFace::monoi(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Note
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // BlockQuote
+    {FontFace::monob(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // Input
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // User1
+    {FontFace::monor(), Color(0xff, 0xff, 0xff), Color(0x60, 0x60, 0x60), false}, // User2
 }};
 
 const Styles gli_tstyles_def = gli_tstyles;
@@ -699,13 +695,13 @@ static void readoneconfig(const std::string &fname, const std::string &argv0, co
 static void gli_read_config(int argc, char **argv)
 {
 #if __cplusplus >= 201703L
-    /* load argv0 with name of executable without suffix */
+    // load argv0 with name of executable without suffix
     std::string argv0 = std::filesystem::path(argv[0])
         .filename()
         .replace_extension()
         .string();
 
-    /* load gamefile with basename of last argument */
+    // load gamefile with basename of last argument
     std::string gamefile = std::filesystem::path(argv[argc - 1])
         .filename()
         .string();
@@ -719,24 +715,24 @@ static void gli_read_config(int argc, char **argv)
         return path;
     };
 
-    /* load argv0 with name of executable without suffix */
+    // load argv0 with name of executable without suffix
     std::string argv0 = basename(argv[0]);
     auto dot = argv0.rfind('.');
     if (dot != std::string::npos) {
         argv0.erase(dot);
     }
 
-    /* load gamefile with basename of last argument */
+    // load gamefile with basename of last argument
     std::string gamefile = basename(argv[argc - 1]);
 #endif
 
-    /* load gamepath with the path to the story file itself */
+    // load gamepath with the path to the story file itself
     std::string gamepath;
     if (argc > 1) {
         gamepath = argv[argc - 1];
     }
 
-    /* load from all config files */
+    // load from all config files
     auto configs = garglk::configs(gamepath);
     std::reverse(configs.begin(), configs.end());
 
@@ -748,9 +744,8 @@ static void gli_read_config(int argc, char **argv)
         }
     }
 
-    /* store so other parts of the code have access to full config information,
-     * including the gamepath.
-     */
+    // store so other parts of the code have access to full config information,
+    // including the gamepath.
     std::reverse(garglk::all_configs.begin(), garglk::all_configs.end());
 }
 

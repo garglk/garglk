@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <array>
@@ -89,9 +85,9 @@ private:
     std::map<std::pair<glui32, glui32>, int> m_kerncache;
 };
 
-/*
- * Globals
- */
+//
+// Globals
+//
 
 std::array<unsigned short, 256> gammamap;
 std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
@@ -155,9 +151,9 @@ void garglk::set_lcdfilter(const std::string &filter)
     }
 }
 
-/*
- * Font loading
- */
+//
+// Font loading
+//
 
 // FT_Error_String() was introduced in FreeType 2.10.0.
 #if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
@@ -395,7 +391,7 @@ void gli_initialize_fonts()
     garglk::fontreplace(gli_conf_propfont, FontType::Proportional);
     fontunload();
 
-    /* If the user provided specific fonts, swap them in */
+    // If the user provided specific fonts, swap them in
     if (!gli_conf_mono_override.r.empty()) {
         gli_conf_mono.r = gli_conf_mono_override.r;
     }
@@ -421,7 +417,7 @@ void gli_initialize_fonts()
         gli_conf_prop.z = gli_conf_prop_override.z;
     }
 
-    /* create oblique transform matrix */
+    // create oblique transform matrix
     ftmat.xx = 0x10000L;
     ftmat.yx = 0x00000L;
     ftmat.xy = 0x03000L;
@@ -435,9 +431,9 @@ void gli_initialize_fonts()
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
 }
 
-/*
- * Drawing
- */
+//
+// Drawing
+//
 
 void gli_draw_pixel(int x, int y, const Color &rgb)
 {

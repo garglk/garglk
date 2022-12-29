@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <array>
@@ -32,7 +28,7 @@
 #include "glk.h"
 #include "garglk.h"
 
-/* how many pixels we add to left/right margins */
+// how many pixels we add to left/right margins
 #define SLOP (2 * GLI_SUBPIX)
 
 static void
@@ -104,7 +100,7 @@ static void reflow(window_t *win)
     std::vector<glui32> hyperbuf;
     std::vector<int> offsetbuf;
 
-    /* allocate temp buffers */
+    // allocate temp buffers
     try {
         attrbuf.resize(SCROLLBACK * TBLINELEN);
         charbuf.resize(SCROLLBACK * TBLINELEN);
@@ -116,7 +112,7 @@ static void reflow(window_t *win)
         return;
     }
 
-    /* copy text to temp buffers */
+    // copy text to temp buffers
 
     oldattr = win->attr;
     attrclear(&curattr);
@@ -161,11 +157,11 @@ static void reflow(window_t *win)
 
     offsetbuf[x] = -1;
 
-    /* clear window */
+    // clear window
 
     win_textbuffer_clear(win);
 
-    /* and dump text back */
+    // and dump text back
 
     x = 0;
     for (i = 0; i < p; i++) {
@@ -182,7 +178,7 @@ static void reflow(window_t *win)
         win_textbuffer_putchar_uni(win, charbuf[i]);
     }
 
-    /* terribly sorry about this... */
+    // terribly sorry about this...
     dwin->lastseen = 0;
     dwin->scrollpos = 0;
 
@@ -208,7 +204,7 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
     newwid = (box->x1 - box->x0 - gli_tmarginx * 2 - gli_scroll_width) / gli_cellw;
     newhgt = (box->y1 - box->y0 - gli_tmarginy * 2) / gli_cellh;
 
-    /* align text with bottom */
+    // align text with bottom
     rnd = newhgt * gli_cellh + gli_tmarginy * 2;
     win->yadj = (box->y1 - box->y0 - rnd);
     dwin->owner->bbox.y0 += (box->y1 - box->y0 - rnd);
@@ -219,14 +215,14 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
     }
 
     if (newhgt != dwin->height) {
-        /* scroll up if we obscure new lines */
+        // scroll up if we obscure new lines
         if (dwin->lastseen >= newhgt - 1) {
             dwin->scrollpos += (dwin->height - newhgt);
         }
 
         dwin->height = newhgt;
 
-        /* keep window within 'valid' lines */
+        // keep window within 'valid' lines
         if (dwin->scrollpos > dwin->scrollmax - dwin->height + 1) {
             dwin->scrollpos = dwin->scrollmax - dwin->height + 1;
         }
@@ -235,7 +231,7 @@ void win_textbuffer_rearrange(window_t *win, rect_t *box)
         }
         touchscroll(dwin);
 
-        /* allocate copy buffer */
+        // allocate copy buffer
         dwin->copybuf.resize(dwin->height * TBLINELEN);
         std::fill(dwin->copybuf.begin(), dwin->copybuf.end(), 0);
 
@@ -297,14 +293,14 @@ void win_textbuffer_redraw(window_t *win)
 
     pw = x1 - x0 - 2 * GLI_SUBPIX;
 
-    /* check if any part of buffer is selected */
+    // check if any part of buffer is selected
     selbuf = gli_check_selection(x0 / GLI_SUBPIX, y0, x1 / GLI_SUBPIX, y1);
 
     for (i = dwin->scrollpos + dwin->height - 1; i >= dwin->scrollpos; i--) {
-        /* top of line */
+        // top of line
         y = y0 + (dwin->height - (i - dwin->scrollpos) - 1) * gli_leading;
 
-        /* check if part of line is selected */
+        // check if part of line is selected
         if (selbuf) {
             int ux, uy;
             selrow = gli_get_selection(x0 / GLI_SUBPIX, y,
@@ -318,24 +314,24 @@ void win_textbuffer_redraw(window_t *win)
             selrow = false;
         }
 
-        /* mark selected line dirty */
+        // mark selected line dirty
         if (selrow) {
             dwin->lines[i].dirty = true;
         }
 
         ln = dwin->lines[i];
 
-        /* skip if we can */
+        // skip if we can
         if (!ln.dirty && !ln.repaint && !gli_force_redraw && dwin->scrollpos == 0) {
             continue;
         }
 
-        /* repaint previously selected lines if needed */
+        // repaint previously selected lines if needed
         if (ln.repaint && !gli_force_redraw) {
             gli_redraw_rect(x0 / GLI_SUBPIX, y, x1 / GLI_SUBPIX, y + gli_leading);
         }
 
-        /* keep selected line dirty and flag for repaint */
+        // keep selected line dirty and flag for repaint
         if (!selrow) {
             dwin->lines[i].dirty = false;
             dwin->lines[i].repaint = false;
@@ -343,14 +339,14 @@ void win_textbuffer_redraw(window_t *win)
             dwin->lines[i].repaint = true;
         }
 
-        /* leave bottom line blank for [more] prompt */
+        // leave bottom line blank for [more] prompt
         if (i == dwin->scrollpos && i > 0) {
             continue;
         }
 
         linelen = ln.len;
 
-        /* kill spaces at the end unless they're a different color*/
+        // kill spaces at the end unless they're a different color
         Color color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         while (i > 0 && linelen > 1 && ln.chars[linelen - 1] == ' '
                 && ln.attrs[linelen - 1].bgcolor == color
@@ -358,14 +354,12 @@ void win_textbuffer_redraw(window_t *win)
             linelen--;
         }
 
-        /* kill characters that would overwrite the scroll bar */
+        // kill characters that would overwrite the scroll bar
         while (linelen > 1 && calcwidth(dwin, ln.chars, ln.attrs, 0, linelen, -1) >= pw) {
             linelen--;
         }
 
-        /*
-         * count spaces and width for justification
-         */
+        // count spaces and width for justification
         if (gli_conf_justify && !ln.newline && i > 0) {
             for (a = 0, nsp = 0; a < linelen; a++) {
                 if (ln.chars[a] == ' ') {
@@ -382,24 +376,24 @@ void win_textbuffer_redraw(window_t *win)
             spw = -1;
         }
 
-        /* find and highlight selected characters */
+        // find and highlight selected characters
         if (selrow && !gli_claimselect) {
             lsc = 0;
             rsc = 0;
             selchar = false;
-            /* optimized case for all chars selected */
+            // optimized case for all chars selected
             if (selleft && selright) {
                 rsc = linelen > 0 ? linelen - 1 : 0;
                 selchar = calcwidth(dwin, ln.chars, ln.attrs, lsc, rsc, spw) / GLI_SUBPIX;
             } else {
-                /* optimized case for leftmost char selected */
+                // optimized case for leftmost char selected
                 if (selleft) {
                     tsc = linelen > 0 ? linelen - 1 : 0;
                     selchar = calcwidth(dwin, ln.chars, ln.attrs, lsc, tsc, spw) / GLI_SUBPIX;
                 } else {
-                    /* find the substring contained by the selection */
+                    // find the substring contained by the selection
                     tx = (x0 + SLOP + ln.lm) / GLI_SUBPIX;
-                    /* measure string widths until we find left char */
+                    // measure string widths until we find left char
                     for (tsc = 0; tsc < linelen; tsc++) {
                         tsw = calcwidth(dwin, ln.chars, ln.attrs, 0, tsc, spw) / GLI_SUBPIX;
                         if (tsw + tx >= sx0 ||
@@ -411,11 +405,11 @@ void win_textbuffer_redraw(window_t *win)
                     }
                 }
                 if (selchar) {
-                    /* optimized case for rightmost char selected */
+                    // optimized case for rightmost char selected
                     if (selright) {
                         rsc = linelen > 0 ? linelen - 1 : 0;
                     } else {
-                        /* measure string widths until we find right char */
+                        // measure string widths until we find right char
                         for (tsc = lsc; tsc < linelen; tsc++) {
                             tsw = calcwidth(dwin, ln.chars, ln.attrs, lsc, tsc, spw) / GLI_SUBPIX;
                             if (tsw + sx0 < sx1) {
@@ -428,7 +422,7 @@ void win_textbuffer_redraw(window_t *win)
                     }
                 }
             }
-            /* reverse colors for selected chars */
+            // reverse colors for selected chars
             if (selchar) {
                 for (tsc = lsc; tsc <= rsc; tsc++) {
                     ln.attrs[tsc].reverse = !ln.attrs[tsc].reverse;
@@ -436,20 +430,18 @@ void win_textbuffer_redraw(window_t *win)
                     dwin->copypos++;
                 }
             }
-            /* add newline if we reach the end of the line */
+            // add newline if we reach the end of the line
             if (ln.len == 0 || ln.len == (rsc + 1)) {
                 dwin->copybuf[dwin->copypos] = '\n';
                 dwin->copypos++;
             }
         }
 
-        /* clear any stored hyperlink coordinates */
+        // clear any stored hyperlink coordinates
         gli_put_hyperlink(0, x0 / GLI_SUBPIX, y,
                 x1 / GLI_SUBPIX, y + gli_leading);
 
-        /*
-         * fill in background colors
-         */
+        // fill in background colors
         color = gli_override_bg_set ? gli_window_color : win->bgcolor;
         gli_draw_rect(x0 / GLI_SUBPIX, y,
                 (x1 - x0) / GLI_SUBPIX, gli_leading,
@@ -499,9 +491,9 @@ void win_textbuffer_redraw(window_t *win)
                 x1 / GLI_SUBPIX - x / GLI_SUBPIX, gli_leading,
                 color);
 
-        /*
-         * draw caret
-         */
+        //
+        // draw caret
+        //
 
         if (gli_focuswin == win && i == 0 && (win->line_request || win->line_request_uni)) {
             w = calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->incurs, spw);
@@ -510,9 +502,9 @@ void win_textbuffer_redraw(window_t *win)
             }
         }
 
-        /*
-         * draw text
-         */
+        //
+        // draw text
+        //
 
         x = x0 + SLOP + ln.lm;
         a = 0;
@@ -533,9 +525,10 @@ void win_textbuffer_redraw(window_t *win)
                 font, color, &ln.chars[a], linelen - a, spw);
     }
 
-    /*
-     * draw more prompt
-     */
+    //
+    // draw more prompt
+    //
+
     if (dwin->scrollpos && dwin->height > 1) {
         x = x0 + SLOP;
         y = y0 + (dwin->height - 1) * gli_leading;
@@ -551,10 +544,10 @@ void win_textbuffer_redraw(window_t *win)
         w = gli_string_width_uni(gli_more_font,
                 gli_more_prompt.data(), gli_more_prompt_len, -1);
 
-        if (gli_more_align == 1) { /* center */
+        if (gli_more_align == 1) { // center
             x = x0 + SLOP + (x1 - x0 - w - SLOP * 2) / 2;
         }
-        if (gli_more_align == 2) { /* right */
+        if (gli_more_align == 2) { // right
             x = x1 - SLOP - w;
         }
 
@@ -562,9 +555,9 @@ void win_textbuffer_redraw(window_t *win)
         gli_draw_string_uni(x, y + gli_baseline,
                 gli_more_font, color,
                 gli_more_prompt.data(), gli_more_prompt_len, -1);
-        y1 = y; /* don't want pictures overdrawing "[more]" */
+        y1 = y; // don't want pictures overdrawing "[more]"
 
-        /* try to claim the focus */
+        // try to claim the focus
         dwin->owner->more_request = true;
         gli_more_focus = true;
     } else {
@@ -572,9 +565,10 @@ void win_textbuffer_redraw(window_t *win)
         y1 = y0 + dwin->height * gli_leading;
     }
 
-    /*
-     * draw the images
-     */
+    //
+    // draw the images
+    //
+
     for (i = 0; i < dwin->scrollback; i++) {
         ln = dwin->lines[i];
 
@@ -613,11 +607,11 @@ void win_textbuffer_redraw(window_t *win)
         }
     }
 
-    /*
-     * Draw the scrollbar
-     */
+    //
+    // Draw the scrollbar
+    //
 
-    /* try to claim scroll keys */
+    // try to claim scroll keys
     dwin->owner->scroll_request = dwin->scrollmax > dwin->height;
 
     if (dwin->owner->scroll_request && gli_scroll_width) {
@@ -655,7 +649,7 @@ void win_textbuffer_redraw(window_t *win)
         }
     }
 
-    /* send selected text to clipboard */
+    // send selected text to clipboard
     if (selbuf && dwin->copypos) {
         gli_claimselect = true;
         gli_clipboard_copy(dwin->copybuf.data(), dwin->copypos);
@@ -665,7 +659,7 @@ void win_textbuffer_redraw(window_t *win)
         dwin->copypos = 0;
     }
 
-    /* no more prompt means all text has been seen */
+    // no more prompt means all text has been seen
     if (!dwin->owner->more_request) {
         dwin->lastseen = 0;
     }
@@ -766,7 +760,7 @@ static void scrolloneline(window_textbuffer_t *dwin, bool forced)
     touchscroll(dwin);
 }
 
-/* only for input text */
+// only for input text
 static void put_text(window_textbuffer_t *dwin, char *buf, int len, int pos, int oldlen)
 {
     int diff = len - oldlen;
@@ -839,17 +833,16 @@ static void put_text_uni(window_textbuffer_t *dwin, glui32 *buf, int len, int po
     touch(dwin, 0);
 }
 
-/* Return true if a following quotation mark should be an opening mark,
- * false if it should be a closing mark. Opening quotation marks will
- * appear following an open parenthesis, open square bracket, or
- * whitespace.
- */
+// Return true if a following quotation mark should be an opening mark,
+// false if it should be a closing mark. Opening quotation marks will
+// appear following an open parenthesis, open square bracket, or
+// whitespace.
 static bool leftquote(std::uint32_t c)
 {
     switch(c) {
     case '(': case '[':
 
-    /* The following are Unicode characters in the "Separator, Space" category. */
+    // The following are Unicode characters in the "Separator, Space" category.
     case 0x0020: case 0x00a0: case 0x1680: case 0x2000:
     case 0x2001: case 0x2002: case 0x2003: case 0x2004:
     case 0x2005: case 0x2006: case 0x2007: case 0x2008:
@@ -900,7 +893,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
     Color color = gli_override_bg_set ? gli_window_color : win->bgcolor;
 
-    /* oops ... overflow */
+    // oops ... overflow
     if (dwin->numchars + 1 >= TBLINELEN) {
         scrolloneline(dwin, false);
     }
@@ -911,7 +904,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     }
 
     if (gli_conf_quotes) {
-        /* fails for 'tis a wonderful day in the '80s */
+        // fails for 'tis a wonderful day in the '80s
         if (gli_conf_quotes > 1 && ch == '\'') {
             if (dwin->numchars == 0 || leftquote(dwin->chars[dwin->numchars - 1])) {
                 ch = UNI_LSQUO;
@@ -965,7 +958,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     if (gli_conf_spaces && !monospace
             && dwin->styles[win->attr.style].bg == color
             && !dwin->styles[win->attr.style].reverse) {
-        /* turn (period space space) into (period space) */
+        // turn (period space space) into (period space)
         if (gli_conf_spaces == 1) {
             if (ch == '.') {
                 dwin->spaced = 1;
@@ -979,7 +972,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
             }
         }
 
-        /* turn (per sp x) into (per sp sp x) */
+        // turn (per sp x) into (per sp sp x)
         if (gli_conf_spaces == 2) {
             if (ch == '.') {
                 dwin->spaced = 1;
@@ -998,7 +991,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
     dwin->attrs[dwin->numchars] = win->attr;
     dwin->numchars++;
 
-    /* kill spaces at the end for line width calculation */
+    // kill spaces at the end for line width calculation
     linelen = dwin->numchars;
     while (linelen > 1 && dwin->chars[linelen - 1] == ' '
             && dwin->attrs[linelen - 1].bgcolor == color
@@ -1011,7 +1004,7 @@ void win_textbuffer_putchar_uni(window_t *win, glui32 ch)
 
         for (i = dwin->numchars - 1; i > 0; i--) {
             if (dwin->chars[i] == ' ') {
-                bpoint = i + 1; /* skip space */
+                bpoint = i + 1; // skip space
                 break;
             }
         }
@@ -1086,7 +1079,7 @@ void win_textbuffer_clear(window_t *win)
     }
 }
 
-/* Prepare the window for line input. */
+// Prepare the window for line input.
 static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int initlen, bool unicode)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
@@ -1094,7 +1087,7 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
 
     gli_tts_flush();
 
-    /* because '>' prompt is ugly without extra space */
+    // because '>' prompt is ugly without extra space
     if (dwin->numchars && dwin->chars[dwin->numchars - 1] == '>') {
         win_textbuffer_putchar_uni(win, ' ');
     }
@@ -1102,7 +1095,7 @@ static void win_textbuffer_init_impl(window_t *win, void *buf, int maxlen, int i
         win_textbuffer_putchar_uni(win, ' ');
     }
 
-    /* make sure we have some space left for typing... */
+    // make sure we have some space left for typing...
     pw = (win->bbox.x1 - win->bbox.x0 - gli_tmarginx * 2) * GLI_SUBPIX;
     pw = pw - 2 * SLOP - dwin->radjw + dwin->ladjw;
     if (calcwidth(dwin, dwin->chars, dwin->attrs, 0, dwin->numchars, -1) >= pw * 3 / 4) {
@@ -1144,7 +1137,7 @@ void win_textbuffer_init_line_uni(window_t *win, glui32 *buf, int maxlen, int in
     win_textbuffer_init_impl(win, buf, maxlen, initlen, true);
 }
 
-/* Abort line input, storing whatever's been typed so far. */
+// Abort line input, storing whatever's been typed so far.
 void win_textbuffer_cancel_line(window_t *win, event_t *ev)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
@@ -1212,13 +1205,13 @@ void win_textbuffer_cancel_line(window_t *win, event_t *ev)
     }
 }
 
-/* Keybinding functions. */
+// Keybinding functions.
 
-/* Any key, when text buffer is scrolled. */
+// Any key, when text buffer is scrolled.
 bool gcmd_accept_scroll(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
-    int pageht = dwin->height - 2; /* 1 for prompt, 1 for overlap */
+    int pageht = dwin->height - 2; // 1 for prompt, 1 for overlap
     bool startpos = dwin->scrollpos != 0;
 
     switch (arg) {
@@ -1264,7 +1257,7 @@ bool gcmd_accept_scroll(window_t *win, glui32 arg)
     return (startpos || dwin->scrollpos);
 }
 
-/* Any key, during character input. Ends character input. */
+// Any key, during character input. Ends character input.
 void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
@@ -1305,7 +1298,7 @@ void gcmd_buffer_accept_readchar(window_t *win, glui32 arg)
     gli_event_store(evtype_CharInput, win, key, 0);
 }
 
-/* Return or enter, during line input. Ends line input. */
+// Return or enter, during line input. Ends line input.
 static void acceptline(window_t *win, glui32 keycode)
 {
     int ix;
@@ -1336,10 +1329,8 @@ static void acceptline(window_t *win, glui32 keycode)
         gli_tts_speak(newline.data(), 1);
     }
 
-    /*
-     * Store in history.
-     * A history entry should not repeat the string from the entry before it.
-     */
+    // Store in history.
+    // A history entry should not repeat the string from the entry before it.
     if (len) {
         // If the iterator's not at the beginning, that means the user is in the
         // middle of a history cycle. If that's the case, the first history
@@ -1360,7 +1351,7 @@ static void acceptline(window_t *win, glui32 keycode)
         dwin->history_it = dwin->history.begin();
     }
 
-    /* Store in event buffer. */
+    // Store in event buffer.
 
     if (len > inmax) {
         len = inmax;
@@ -1410,7 +1401,7 @@ static void acceptline(window_t *win, glui32 keycode)
     }
 }
 
-/* Any key, during line input. */
+// Any key, during line input.
 void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 {
     window_textbuffer_t *dwin = win->window.textbuffer;
@@ -1439,7 +1430,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
 
     switch (arg) {
 
-    /* History keys (up and down) */
+    // History keys (up and down)
 
     case keycode_Up:
         // There is no stored history, so do nothing.
@@ -1485,7 +1476,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         }
         break;
 
-    /* Cursor movement keys, during line input. */
+    // Cursor movement keys, during line input.
 
     case keycode_Left:
         if (dwin->incurs <= dwin->infence) {
@@ -1533,7 +1524,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         }
         break;
 
-    /* Delete keys, during line input. */
+    // Delete keys, during line input.
 
     case keycode_Delete:
         if (dwin->incurs <= dwin->infence) {
@@ -1556,7 +1547,7 @@ void gcmd_buffer_accept_readline(window_t *win, glui32 arg)
         put_text_uni(dwin, nullptr, 0, dwin->infence, dwin->numchars - dwin->infence);
         break;
 
-    /* Regular keys */
+    // Regular keys
 
     case keycode_Return:
         acceptline(win, arg);

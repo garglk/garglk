@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <array>
 #include <cstdio>
@@ -50,7 +46,7 @@ struct PicturePair {
 
 std::map<unsigned long, PicturePair> picstore;
 
-static int gli_piclist_refcount = 0; /* count references to loaded pictures */
+static int gli_piclist_refcount = 0; // count references to loaded pictures
 
 void gli_piclist_increment()
 {
@@ -121,7 +117,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         }
 
         if (std::fread(buf.data(), 1, buf.size(), fl.get()) != buf.size()) {
-            /* Can't read the first few bytes. Forget it. */
+            // Can't read the first few bytes. Forget it.
             return nullptr;
         }
 
@@ -130,7 +126,7 @@ std::shared_ptr<picture_t> gli_picture_load(unsigned long id)
         } else if (buf[0] == 0xFF && buf[1] == 0xD8 && buf[2] == 0xFF) {
             chunktype = giblorb_ID_JPEG;
         } else {
-            /* Not a readable file. Forget it. */
+            // Not a readable file. Forget it.
             return nullptr;
         }
 

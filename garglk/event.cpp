@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <list>
@@ -57,7 +53,7 @@ void gli_dispatch_event(event_t *event, bool polled)
     }
 }
 
-/* Various modules can call this to indicate that an event has occurred.*/
+// Various modules can call this to indicate that an event has occurred.
 void gli_event_store(glui32 type, window_t *win, glui32 val1, glui32 val2)
 {
     event_t store{};
@@ -98,7 +94,7 @@ void glk_tick()
 #endif
 }
 
-/* Handle a keystroke. */
+// Handle a keystroke.
 void gli_input_handle_key(glui32 key)
 {
     if (gli_more_focus) {
@@ -165,9 +161,8 @@ void gli_input_handle_click(int x, int y)
     }
 }
 
-/* Pick first window which might want input.
- * This is called after every keystroke.
- */
+// Pick first window which might want input.
+// This is called after every keystroke.
 static void gli_input_guess_focus()
 {
     window_t *altwin = gli_focuswin;
@@ -188,9 +183,8 @@ static void gli_input_guess_focus()
     }
 }
 
-/* Pick first window with buffered output.
- * This is called after printing 'more' prompts.
- */
+// Pick first window with buffered output.
+// This is called after printing 'more' prompts.
 static void gli_input_more_focus()
 {
     window_t *altwin = gli_focuswin;
@@ -206,9 +200,8 @@ static void gli_input_more_focus()
     gli_focuswin = altwin;
 }
 
-/* Pick next window which might want input.
- * This is called after pressing 'tab'.
- */
+// Pick next window which might want input.
+// This is called after pressing 'tab'.
 static void gli_input_next_focus()
 {
     window_t *altwin = gli_focuswin;
@@ -229,9 +222,8 @@ static void gli_input_next_focus()
     }
 }
 
-/* Pick first window which might want scrolling.
- * This is called after pressing page keys.
- */
+// Pick first window which might want scrolling.
+// This is called after pressing page keys.
 static void gli_input_scroll_focus()
 {
     window_t *altwin = gli_focuswin;

@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <new>
@@ -30,23 +26,23 @@
 #define LINES 24
 #define COLS 70
 
-/* limit number of text rows/columns */
+// limit number of text rows/columns
 #define MAX_TEXT_COLUMNS 255
 #define MAX_TEXT_ROWS 255
 
 bool gli_force_redraw = true;
 bool gli_more_focus = false;
 
-/* Linked list of all windows */
+// Linked list of all windows
 static window_t *gli_windowlist = nullptr;
 
-window_t *gli_rootwin = nullptr;  /* The topmost window. */
-window_t *gli_focuswin = nullptr; /* The window selected by the player */
+window_t *gli_rootwin = nullptr;  // The topmost window.
+window_t *gli_focuswin = nullptr; // The window selected by the player
 
-/* record whether we've returned a click event */
+// record whether we've returned a click event
 bool gli_forceclick = false;
 
-/* Set up the window system. This is called from main(). */
+// Set up the window system. This is called from main().
 void gli_initialize_windows()
 {
     gli_rootwin = nullptr;
@@ -59,7 +55,7 @@ static void gli_windows_rearrange()
         rect_t box;
 
         if (gli_conf_lockcols && gli_cols <= MAX_TEXT_COLUMNS) {
-            /* Lock the number of columns */
+            // Lock the number of columns
             int desired_width = gli_wmarginx_save * 2 + gli_cellw * gli_cols;
             if (desired_width > gli_image_rgb.width()) {
                 gli_wmarginx = gli_wmarginx_save;
@@ -67,7 +63,7 @@ static void gli_windows_rearrange()
                 gli_wmarginx = (gli_image_rgb.width() - gli_cellw * gli_cols) / 2;
             }
         } else {
-            /* Limit the maximum number of columns */
+            // Limit the maximum number of columns
             int max_width = gli_wmarginx_save * 2 + gli_cellw * MAX_TEXT_COLUMNS;
             if (max_width < gli_image_rgb.width()) {
                 gli_wmarginx = (gli_image_rgb.width() - gli_cellw * MAX_TEXT_COLUMNS) / 2;
@@ -77,7 +73,7 @@ static void gli_windows_rearrange()
         }
 
         if (gli_conf_lockrows && gli_rows <= MAX_TEXT_ROWS) {
-            /* Lock the number of rows */
+            // Lock the number of rows
             int desired_height = gli_wmarginy_save * 2 + gli_cellh * gli_rows;
             if (desired_height > gli_image_rgb.height()) {
                 gli_wmarginy = gli_wmarginy_save;
@@ -85,7 +81,7 @@ static void gli_windows_rearrange()
                 gli_wmarginy = (gli_image_rgb.height() - gli_cellh * gli_rows) / 2;
             }
         } else {
-            /* Limit the maximum number of rows */
+            // Limit the maximum number of rows
             int max_height = gli_wmarginy_save * 2 + gli_cellh * MAX_TEXT_ROWS;
             if (max_height < gli_image_rgb.height()) {
                 gli_wmarginy = (gli_image_rgb.height() - gli_cellh * MAX_TEXT_ROWS) / 2;
@@ -102,9 +98,9 @@ static void gli_windows_rearrange()
     }
 }
 
-/*
- * Create, destroy and arrange
- */
+//
+// Create, destroy and arrange
+//
 
 glk_window_struct::glk_window_struct(glui32 type_, glui32 rock_) :
     type(type_),
@@ -160,7 +156,7 @@ winid_t glk_window_open(winid_t splitwin,
             return nullptr;
         }
 
-        /* ignore method and size now */
+        // ignore method and size now
         oldparent = nullptr;
     }
 
@@ -215,8 +211,8 @@ winid_t glk_window_open(winid_t splitwin,
         delete newwin;
         return nullptr;
     default:
-        /* Unknown window type -- do not print a warning, just return 0
-           to indicate that it's not possible. */
+        // Unknown window type -- do not print a warning, just return 0
+        // to indicate that it's not possible.
         delete newwin;
         return nullptr;
     }
@@ -224,7 +220,7 @@ winid_t glk_window_open(winid_t splitwin,
     if (!splitwin) {
         gli_rootwin = newwin;
     } else {
-        /* create pairwin, with newwin as the key */
+        // create pairwin, with newwin as the key
         pairwin = new window_t(wintype_Pair, 0);
         dpairwin = win_pair_create(pairwin, method, newwin, size);
         pairwin->window.pair = dpairwin;
@@ -324,18 +320,18 @@ void glk_window_close(window_t *win, stream_result_t *result)
     }
 
     if (win == gli_rootwin || win->parent == nullptr) {
-        /* close the root window, which means all windows. */
+        // close the root window, which means all windows.
 
         gli_rootwin = nullptr;
 
-        /* begin (simpler) closation */
+        // begin (simpler) closation
 
         gli_stream_fill_result(win->str, result);
         gli_window_close(win, true);
     }
 
     else {
-        /* have to jigger parent */
+        // have to jigger parent
         window_t *pairwin, *sibwin, *grandparwin;
         window_pair_t *dpairwin, *dgrandparwin;
 
@@ -364,26 +360,26 @@ void glk_window_close(window_t *win, stream_result_t *result)
             sibwin->parent = grandparwin;
         }
 
-        /* Begin closation */
+        // Begin closation
 
         gli_stream_fill_result(win->str, result);
 
-        /* Close the child window (and descendants), so that key-deletion can
-            crawl up the tree to the root window. */
+        // Close the child window (and descendants), so that key-deletion can
+        //  crawl up the tree to the root window.
         gli_window_close(win, true);
 
-        /* This probably isn't necessary, but the child *is* gone, so just
-            in case. */
+        // This probably isn't necessary, but the child *is* gone, so just
+        //  in case.
         if (win == dpairwin->child1) {
             dpairwin->child1 = nullptr;
         } else if (win == dpairwin->child2) {
             dpairwin->child2 = nullptr;
         }
 
-        /* Now we can delete the parent pair. */
+        // Now we can delete the parent pair.
         gli_window_close(pairwin, false);
 
-        /* Sort out the arrangements */
+        // Sort out the arrangements
         gli_windows_rearrange();
     }
 }
@@ -489,13 +485,13 @@ void glk_window_set_arrangement(window_t *win, glui32 method, glui32 size, winid
     }
 
     if ((newbackward && !dwin->backward) || (!newbackward && dwin->backward)) {
-        /* switch the children */
+        // switch the children
         window_t *tmpwin = dwin->child1;
         dwin->child1 = dwin->child2;
         dwin->child2 = tmpwin;
     }
 
-    /* set up everything else */
+    // set up everything else
     dwin->dir = newdir;
     dwin->division = method & winmethod_DivisionMask;
     dwin->key = key;
@@ -524,7 +520,7 @@ void glk_window_get_size(window_t *win, glui32 *width, glui32 *height)
     switch (win->type) {
     case wintype_Blank:
     case wintype_Pair:
-        /* always zero */
+        // always zero
         break;
     case wintype_TextGrid:
         wid = win->bbox.x1 - win->bbox.x0;
@@ -570,9 +566,9 @@ void gli_calc_padding(window_t *win, int *x, int *y)
     }
 }
 
-/*
- * Family matters
- */
+//
+// Family matters
+//
 
 winid_t glk_window_iterate(winid_t win, glui32 *rock)
 {
@@ -745,9 +741,9 @@ void gli_windows_unechostream(stream_t *str)
     }
 }
 
-/*
- * Size changes, rearrangement and redrawing.
- */
+//
+// Size changes, rearrangement and redrawing.
+//
 
 void gli_window_rearrange(window_t *win, rect_t *box)
 {
@@ -852,9 +848,9 @@ void gli_redraw_rect(int x0, int y0, int x1, int y1)
     winrepaint(x0, y0, x1, y1);
 }
 
-/*
- * Input events
- */
+//
+// Input events
+//
 
 void glk_request_char_event(window_t *win)
 {
@@ -1025,7 +1021,7 @@ void glk_request_mouse_event(window_t *win)
         win->mouse_request = true;
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1044,7 +1040,7 @@ void glk_request_hyperlink_event(winid_t win)
         win->hyper_request = true;
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1063,7 +1059,7 @@ void glk_cancel_char_event(window_t *win)
         win->char_request_uni = false;
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1095,7 +1091,7 @@ void glk_cancel_line_event(window_t *win, event_t *ev)
         }
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1113,7 +1109,7 @@ void glk_cancel_mouse_event(window_t *win)
         win->mouse_request = false;
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1132,7 +1128,7 @@ void glk_cancel_hyperlink_event(winid_t win)
         win->hyper_request = false;
         break;
     default:
-        /* do nothing */
+        // do nothing
         break;
     }
 }
@@ -1155,9 +1151,7 @@ void gli_window_click(window_t *win, int x, int y)
     }
 }
 
-/*
- * Text output and cursor positioning
- */
+// Text output and cursor positioning
 
 void gli_window_put_char_uni(window_t *win, glui32 ch)
 {
@@ -1230,9 +1224,7 @@ void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)
     }
 }
 
-/*
- * Graphics and Image drawing
- */
+// Graphics and Image drawing
 
 glui32 glk_image_draw(winid_t win, glui32 image, glsi32 val1, glsi32 val2)
 {
