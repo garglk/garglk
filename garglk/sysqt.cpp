@@ -351,8 +351,11 @@ static void show_paths()
 {
     QString text("<p>Configuration file paths:</p><pre>");
 
-    for (const auto &path : garglk::all_configs) {
-        text += QDir::toNativeSeparators(QString::fromStdString(path.path)) + "\n";
+    for (const auto &config : garglk::all_configs) {
+        auto path = QDir::toNativeSeparators(QString::fromStdString(config.path));
+        auto type = QString::fromStdString(config.format_type());
+
+        text += path + " " + type + "\n";
     }
 
     text += "</pre><p>Theme paths:</p><pre>";
