@@ -43,6 +43,8 @@
 #include "garversion.h"
 #include "launcher.h"
 
+#include GARGLKINI_H
+
 static const char *AppName = GARGOYLE_NAME " " GARGOYLE_VERSION;
 
 class Filter {
@@ -156,6 +158,7 @@ static QString parse_args(const QApplication &app)
     // but that's a GNU extension and would have to be pulled in from
     // glibc, musl libc, or similar. This is good enough.
     parser.addOptions({
+        {{"d", "dump-config"}, "Dump the default config file to standard out."},
         {{"e", "edit-config"}, "Edit the configuration file."},
         {{"h", "help"}, "Displays help on commandline options."},
         {{"p", "paths"}, "Displays configuration file and theme paths."}
@@ -175,19 +178,23 @@ static QString parse_args(const QApplication &app)
         "" :
         positional.first();
 
-    if (parser.isSet("h")) {
+    if (parser.isSet("d")) {
+        std::cout << garglkini;
+        std::exit(0);
+    } else if (parser.isSet("e")) {
+        gli_edit_config();
+        std::exit(0);
+    } else if (parser.isSet("h")) {
         std::cout << parser.helpText().toStdString() << std::endl;
         std::exit(0);
-    }
+    } else if (parser.isSet("p")) {
+        // Convert to native separators and return absolute path.
+        auto canonicalize = [](const std::string &path) {
+            auto qpath = QString::fromStdString(path);
+            qpath = QDir(qpath).absolutePath();
+            return QDir::toNativeSeparators(qpath).toStdString();
+        };
 
-    // Convert to native separators and return absolute path.
-    auto canonicalize = [](const std::string &path) {
-        auto qpath = QString::fromStdString(path);
-        qpath = QDir(qpath).absolutePath();
-        return QDir::toNativeSeparators(qpath).toStdString();
-    };
-
-    if (parser.isSet("p")) {
         std::cout << "Configuration file paths:\n\n";
         for (const auto &config : garglk::configs(gamefile.toStdString())) {
             auto path = canonicalize(config.path);
@@ -203,11 +210,6 @@ static QString parse_args(const QApplication &app)
             std::cout << canonicalize(path) << std::endl;
         }
 
-        std::exit(0);
-    }
-
-    if (parser.isSet("e")) {
-        gli_edit_config();
         std::exit(0);
     }
 
