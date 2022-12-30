@@ -180,17 +180,27 @@ static QString parse_args(const QApplication &app)
         std::exit(0);
     }
 
+    // Convert to native separators and return absolute path.
+    auto canonicalize = [](const std::string &path) {
+        auto qpath = QString::fromStdString(path);
+        qpath = QDir(qpath).absolutePath();
+        return QDir::toNativeSeparators(qpath).toStdString();
+    };
+
     if (parser.isSet("p")) {
         std::cout << "Configuration file paths:\n\n";
-        for (const auto &path : garglk::configs(gamefile.toStdString())) {
-            std::cout << path.path << " " << path.format_type() << std::endl;
+        for (const auto &config : garglk::configs(gamefile.toStdString())) {
+            auto path = canonicalize(config.path);
+            auto type = QString::fromStdString(config.format_type());
+
+            std::cout << path << " " << type.toStdString() << std::endl;
         }
 
         std::cout << "\nTheme paths:\n\n";
         auto theme_paths = garglk::theme::paths();
         std::reverse(theme_paths.begin(), theme_paths.end());
         for (const auto &path : theme_paths) {
-            std::cout << path << std::endl;
+            std::cout << canonicalize(path) << std::endl;
         }
 
         std::exit(0);

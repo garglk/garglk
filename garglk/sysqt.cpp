@@ -349,10 +349,17 @@ void gli_edit_config()
 
 static void show_paths()
 {
+    // Convert to native separators and return absolute path.
+    auto canonicalize = [](const std::string &path) {
+        auto qpath = QString::fromStdString(path);
+        qpath = QDir(qpath).absolutePath();
+        return QDir::toNativeSeparators(qpath);
+    };
+
     QString text("<p>Configuration file paths:</p><pre>");
 
     for (const auto &config : garglk::all_configs) {
-        auto path = QDir::toNativeSeparators(QString::fromStdString(config.path));
+        auto path = canonicalize(config.path);
         auto type = QString::fromStdString(config.format_type());
 
         text += path + " " + type + "\n";
@@ -362,7 +369,7 @@ static void show_paths()
     auto theme_paths = garglk::theme::paths();
     std::reverse(theme_paths.begin(), theme_paths.end());
     for (const auto &path : theme_paths) {
-        text += QDir::toNativeSeparators(QString::fromStdString(path)) + "\n";
+        text += canonicalize(path) + "\n";
     }
     text += "</pre>";
 
