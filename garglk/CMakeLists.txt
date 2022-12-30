@@ -265,7 +265,7 @@ elseif(UNIX)
     if(WITH_LAUNCHER)
         install(TARGETS gargoyle DESTINATION "${CMAKE_INSTALL_BINDIR}")
     endif()
-    install(FILES cheapglk/gi_blorb.h cheapglk/glk.h glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
+    install(FILES cheapglk/gi_blorb.h cheapglk/glk.h cheapglk/glkstart.h DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/garglk")
     configure_file("garglk.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/garglk.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 

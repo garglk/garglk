@@ -16,6 +16,10 @@
 #ifndef GT_START_H
 #define GT_START_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* We define our own TRUE and FALSE and NULL, because ANSI
     is a strange world. */
 #ifndef TRUE
@@ -49,11 +53,20 @@ extern glkunix_argumentlist_t glkunix_arguments[];
 
 extern int glkunix_startup_code(glkunix_startup_t *data);
 
+#define GLKUNIX_FILEREF_GET_FILENAME (1)
+
 extern void glkunix_set_base_file(char *filename);
 extern strid_t glkunix_stream_open_pathname_gen(char *pathname, 
     glui32 writemode, glui32 textmode, glui32 rock);
 extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, 
     glui32 rock);
+#ifdef GLKUNIX_FILEREF_GET_FILENAME
+extern const char *glkunix_fileref_get_filename(frefid_t fref);
+#endif
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* GT_START_H */
 
