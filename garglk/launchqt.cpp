@@ -165,6 +165,16 @@ static QString parse_args(const QApplication &app)
     parser.addPositionalArgument("STORY", "The story/game file to run. If not provided, a file chooser will be displayed.", "[STORY]");
     parser.process(app);
 
+    auto positional = parser.positionalArguments();
+
+    if (positional.size() > 1) {
+        std::cerr << "warning: extra positional arguments are ignored." << std::endl;
+    }
+
+    QString gamefile = positional.isEmpty() ?
+        "" :
+        positional.first();
+
     if (parser.isSet("h")) {
         std::cout << parser.helpText().toStdString() << std::endl;
         std::exit(0);
@@ -172,7 +182,7 @@ static QString parse_args(const QApplication &app)
 
     if (parser.isSet("p")) {
         std::cout << "Configuration file paths:\n\n";
-        for (const auto &path : garglk::configs("")) {
+        for (const auto &path : garglk::configs(gamefile.toStdString())) {
             std::cout << path.path << std::endl;
         }
 
@@ -191,11 +201,7 @@ static QString parse_args(const QApplication &app)
         std::exit(0);
     }
 
-    auto positional = parser.positionalArguments();
-
-    return positional.isEmpty() ?
-        "" :
-        positional.first();
+    return gamefile;
 }
 
 int main(int argc, char **argv)
