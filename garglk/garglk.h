@@ -33,6 +33,7 @@
 #include <cstring>
 #include <deque>
 #include <exception>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <map>
@@ -93,13 +94,19 @@ struct ConfigFile {
     }
 
     std::string format_type() const {
+        std::string status = "";
+        std::ifstream f(path);
+        if (!f.is_open()) {
+            status = ", non-existent";
+        }
+
         switch (type) {
         case Type::System:
-            return "[system]";
+            return "[system" + status + "]";
         case Type::User:
-            return "[user]";
+            return "[user" + status + "]";
         case Type::PerGame:
-            return "[game specific]";
+            return "[game specific" + status + "]";
         default:
             return "";
         }
