@@ -137,8 +137,13 @@ struct Theme {
             throw std::runtime_error("unable to open file");
         }
 
-        json j;
-        f >> j;
+        auto j = json::parse(f);
+
+        if (!j.is_object()) {
+            std::ostringstream ss;
+            ss << "themes must be JSON objects (is " << j.type_name() << ")";
+            throw std::runtime_error(ss.str());
+        }
 
         auto window = gli_parse_color(j.at("window"));
         auto border = gli_parse_color(j.at("border"));
