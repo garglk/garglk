@@ -30,12 +30,11 @@ endif()
 vtk_encode_string(
     INPUT garglk.ini
     NAME garglkini
-    BINARY
     HEADER_OUTPUT GARGLKINI_H
     SOURCE_OUTPUT GARGLKINI_CXX
 )
 
-set_property(SOURCE config.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
+set_property(SOURCE config.cpp launchqt.cpp PROPERTY COMPILE_DEFINITIONS GARGLKINI_H="${GARGLKINI_H}")
 
 if(INTERFACE STREQUAL "QT")
     set(CMAKE_AUTOMOC ON)

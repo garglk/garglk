@@ -9,12 +9,15 @@
 .Nm
 .Ar story
 .Nm
-.Fl p
-.Fl \-paths
-.Op Ar story
+.Fl d
+.Fl \-dump-config
 .Nm
 .Fl e
 .Fl \-edit-config
+.Nm
+.Fl p
+.Fl \-paths
+.Op Ar story
 .Sh DESCRIPTION
 .Nm
 is an interactive fiction player that supports all the major interactive fiction
@@ -53,13 +56,12 @@ is provided, it will be played.
 Otherwise, a file chooser will be displayed so a story can be selected.
 .Pp
 If the
-.Fl p
+.Fl d
 or (equivalent)
-.Fl \-paths
+.Fl \-dump-config
 flag is set, instead of playing a game,
 .Nm
-will display a list of configuration file paths as well as theme paths
-that will be used at runtime.
+will dump the default config file to standard output.
 .Pp
 If the
 .Fl e
@@ -68,6 +70,15 @@ or (equivalent)
 flag is set, instead of playing a game,
 .Nm
 will open its configuration file in a text editor.
+.Pp
+If the
+.Fl p
+or (equivalent)
+.Fl \-paths
+flag is set, instead of playing a game,
+.Nm
+will display a list of configuration file paths as well as theme paths
+that will be used at runtime.
 .Sh CONFIGURATION
 .Nm
 is highly configurable, although all configuration is done through a text-based

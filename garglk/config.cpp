@@ -387,7 +387,7 @@ std::string garglk::user_config()
         throw std::runtime_error("Unable to open configuration file " + path + " for writing.");
     }
 
-    f.write(reinterpret_cast<const char *>(garglkini), sizeof garglkini);
+    f << garglkini;
 
     if (f.bad()) {
         std::remove(path.c_str());
