@@ -382,7 +382,7 @@ std::string garglk::user_config()
     }
 #endif
 
-    std::ofstream f(path, std::ios::binary);
+    std::ofstream f(path);
     if (!f.is_open()) {
         throw std::runtime_error("Unable to open configuration file " + path + " for writing.");
     }
