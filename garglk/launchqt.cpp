@@ -183,7 +183,7 @@ static QString parse_args(const QApplication &app)
     if (parser.isSet("p")) {
         std::cout << "Configuration file paths:\n\n";
         for (const auto &path : garglk::configs(gamefile.toStdString())) {
-            std::cout << path.path << std::endl;
+            std::cout << path.path << " " << path.format_type() << std::endl;
         }
 
         std::cout << "\nTheme paths:\n\n";

@@ -92,6 +92,19 @@ struct ConfigFile {
     ConfigFile(std::string path_, Type type_) : path(std::move(path_)), type(type_) {
     }
 
+    std::string format_type() const {
+        switch (type) {
+        case Type::System:
+            return "[system]";
+        case Type::User:
+            return "[user]";
+        case Type::PerGame:
+            return "[game specific]";
+        default:
+            return "";
+        }
+    }
+
     // The path to the file itself.
     std::string path;
 
