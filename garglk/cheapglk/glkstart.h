@@ -2,27 +2,19 @@
         (Unix implementations of the Glk API).
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://www.eblong.com/zarf/glk/index.html
-
-    This file is copyright 1998-2004 by Andrew Plotkin. You may copy,
-    distribute, and incorporate it into your own programs, by any means
-    and under any conditions, as long as you do not modify it. You may
-    also modify this file, incorporate it into your own programs,
-    and distribute the modified version, as long as you retain a notice
-    in your program or documentation which mentions my name and the URL
-    shown above.
 */
 
 /* This header defines an interface that must be used by program linked
     with the various Unix Glk libraries -- at least, the three I wrote.
     (I encourage anyone writing a Unix Glk library to use this interface,
     but it's not part of the Glk spec.)
-
+    
     Because Glk is *almost* perfectly portable, this interface *almost*
     doesn't have to exist. In practice, it's small.
 */
 
-#ifndef GARGLK_GT_START_H
-#define GARGLK_GT_START_H
+#ifndef GT_START_H
+#define GT_START_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,7 +56,9 @@ extern int glkunix_startup_code(glkunix_startup_t *data);
 #define GLKUNIX_FILEREF_GET_FILENAME (1)
 
 extern void glkunix_set_base_file(char *filename);
-extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode,
+extern strid_t glkunix_stream_open_pathname_gen(char *pathname, 
+    glui32 writemode, glui32 textmode, glui32 rock);
+extern strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, 
     glui32 rock);
 #ifdef GLKUNIX_FILEREF_GET_FILENAME
 extern const char *glkunix_fileref_get_filename(frefid_t fref);

@@ -749,6 +749,11 @@ static void gli_read_config(int argc, char **argv)
     std::reverse(garglk::all_configs.begin(), garglk::all_configs.end());
 }
 
+strid_t glkunix_stream_open_pathname_gen(char *pathname, glui32 writemode, glui32 textmode, glui32 rock)
+{
+    return gli_stream_open_pathname(pathname, (writemode != 0), (textmode != 0), rock);
+}
+
 strid_t glkunix_stream_open_pathname(char *pathname, glui32 textmode, glui32 rock)
 {
     return gli_stream_open_pathname(pathname, false, (textmode != 0), rock);
