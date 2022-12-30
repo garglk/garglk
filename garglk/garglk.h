@@ -1,32 +1,26 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-/*
- * Private header file for the Gargoyle Implementation of the Glk API.
- * Glk API which this implements: version 0.7.3.
- * Glk designed by Andrew Plotkin <erkyrath@eblong.com>
- * http://www.eblong.com/zarf/glk/index.html
- */
+// Private header file for the Gargoyle Implementation of the Glk API.
+// Glk API which this implements: version 0.7.3.
+// Glk designed by Andrew Plotkin <erkyrath@eblong.com>
+// http://www.eblong.com/zarf/glk/index.html
 
 #ifndef GARGLK_GARGLK_H
 #define GARGLK_GARGLK_H
@@ -52,9 +46,8 @@
 #include "glk.h"
 #include "gi_dispa.h"
 
-/* This function is called whenever the library code catches an error
- * or illegal operation from the game program.
- */
+// This function is called whenever the library code catches an error
+// or illegal operation from the game program.
 inline void gli_strict_warning(const std::string &msg)
 {
     std::cerr << "Glk library error: " << msg << std::endl;
@@ -248,8 +241,9 @@ public:
 
     void fill(const Pixel<N> &pixel, int start, int end) {
         auto data = pixel.data();
-        for (int i = start; i < end; i++)
+        for (int i = start; i < end; i++) {
             std::memcpy(&m_row[i * N], data, N);
+        }
     }
 
 private:
@@ -260,19 +254,17 @@ template <std::size_t N>
 class Canvas {
 public:
     void resize(int width, int height, bool keep) {
-        if (keep)
-        {
+        if (keep) {
             auto backup = m_pixels;
             int minwidth = std::min(m_width, width);
             int minheight = std::min(m_height, height);
 
             m_pixels.resize(width * height * N);
 
-            for (int y = 0; y < minheight; y++)
+            for (int y = 0; y < minheight; y++) {
                 std::memcpy(&m_pixels[y * width * N], &backup[y * m_width * N], minwidth * N);
-        }
-        else
-        {
+            }
+        } else {
             m_pixels.resize(width * height * N);
         }
 
@@ -296,8 +288,9 @@ public:
     }
 
     void fill(const Pixel<N> &pixel) {
-        for (int i = 0; i < m_width * m_height; i++)
+        for (int i = 0; i < m_width * m_height; i++) {
             std::memcpy(&m_pixels[i * N], pixel.data(), N);
+        }
     }
 
     bool empty() const {
@@ -350,7 +343,7 @@ private:
 
 extern Bleeps gli_bleeps;
 
-/* Callbacks necessary for the dispatch layer.  */
+// Callbacks necessary for the dispatch layer.
 
 extern gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass);
 extern void (*gli_unregister_obj)(void *obj, glui32 objclass,
@@ -360,7 +353,7 @@ extern gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len,
 extern void (*gli_unregister_arr)(void *array, glui32 len, char *typecode,
     gidispatch_rock_t objrock);
 
-/* Some useful type declarations. */
+// Some useful type declarations.
 
 typedef struct glk_window_struct window_t;
 typedef struct glk_stream_struct stream_t;
@@ -373,12 +366,12 @@ typedef struct window_textgrid_s window_textgrid_t;
 typedef struct window_textbuffer_s window_textbuffer_t;
 typedef struct window_graphics_s window_graphics_t;
 
-/* ---------------------------------------------------------------------- */
-/*
- * Drawing operations and fonts and stuff
- */
+// ----------------------------------------------------------------------
+//
+// Drawing operations and fonts and stuff
+//
 
-/* Some globals for gargoyle */
+// Some globals for gargoyle
 
 #define TBLINELEN 300
 #define SCROLLBACK 512
@@ -404,7 +397,7 @@ extern bool gli_more_focus;
 extern int gli_cellw;
 extern int gli_cellh;
 
-/* Unicode ligatures and smart typography glyphs */
+// Unicode ligatures and smart typography glyphs
 #define UNI_LIG_FF	0xFB00
 #define UNI_LIG_FI	0xFB01
 #define UNI_LIG_FL	0xFB02
@@ -417,14 +410,12 @@ extern int gli_cellh;
 #define UNI_NDASH	0x2013
 #define UNI_MDASH	0x2014
 
-struct rect_t
-{
+struct rect_t {
     int x0, y0;
     int x1, y1;
 };
 
-struct picture_t
-{
+struct picture_t {
     picture_t(unsigned int id_, int w_, int h_, bool scaled_) : w(w_), h(h_), id(id_), scaled(scaled_) {
         rgba.resize(w, h, false);
     }
@@ -435,8 +426,7 @@ struct picture_t
     bool scaled;
 };
 
-struct style_t
-{
+struct style_t {
     FontFace font;
     Color bg;
     Color fg;
@@ -458,9 +448,9 @@ using Styles = std::array<style_t, style_NUMSTYLES>;
 
 extern Canvas<3> gli_image_rgb;
 
-/*
- * Config globals
- */
+//
+// Config globals
+//
 
 extern std::string gli_workdir;
 extern std::string gli_workfile;
@@ -570,11 +560,11 @@ extern bool gli_claimselect;
 
 extern bool gli_conf_per_game_config;
 
-/*
- * Standard Glk I/O stuff
- */
+//
+// Standard Glk I/O stuff
+//
 
-/* A macro that I can't think of anywhere else to put it. */
+// A macro that I can't think of anywhere else to put it.
 
 #define gli_event_clearevent(evp)  \
     ((evp)->type = evtype_None,    \
@@ -593,29 +583,28 @@ void gli_dispatch_event(event_t *event, bool polled);
 #define strtype_Memory (3)
 #define strtype_Resource (4)
 
-struct glk_stream_struct
-{
+struct glk_stream_struct {
     glui32 magicnum;
     glui32 rock;
 
-    int type; /* file, window, or memory stream */
-    bool unicode; /* one-byte or four-byte chars? Not meaningful for windows */
+    int type; // file, window, or memory stream
+    bool unicode; // one-byte or four-byte chars? Not meaningful for windows
 
     glui32 readcount, writecount;
     bool readable, writable;
 
-    /* for strtype_Window */
+    // for strtype_Window
     window_t *win;
 
-    /* for strtype_File */
+    // for strtype_File
     std::FILE *file;
-    glui32 lastop; /* 0, filemode_Write, or filemode_Read */
+    glui32 lastop; // 0, filemode_Write, or filemode_Read
 
-    /* for strtype_Resource */
+    // for strtype_Resource
     bool isbinary;
 
-    /* for strtype_Memory and strtype_Resource. Separate pointers for 
-       one-byte and four-byte streams */
+    // for strtype_Memory and strtype_Resource. Separate pointers for
+    // one-byte and four-byte streams
     unsigned char *buf;
     unsigned char *bufptr;
     unsigned char *bufend;
@@ -628,11 +617,10 @@ struct glk_stream_struct
     gidispatch_rock_t arrayrock;
 
     gidispatch_rock_t disprock;
-    stream_t *next, *prev; /* in the big linked list of streams */
+    stream_t *next, *prev; // in the big linked list of streams
 };
 
-struct glk_fileref_struct
-{
+struct glk_fileref_struct {
     glui32 magicnum;
     glui32 rock;
 
@@ -641,20 +629,19 @@ struct glk_fileref_struct
     bool textmode;
 
     gidispatch_rock_t disprock;
-    fileref_t *next, *prev; /* in the big linked list of filerefs */
+    fileref_t *next, *prev; // in the big linked list of filerefs
 };
 
-/*
- * Windows and all that
- */
+//
+// Windows and all that
+//
 
 // For some reason MinGW does "#define hyper __int64", which conflicts
 // with attr_s.hyper below. Unconditionally undefine it here so any
 // files which include windows.h will not cause build failures.
 #undef hyper
 
-struct attr_t
-{
+struct attr_t {
     bool fgset = false;
     bool bgset = false;
     bool reverse = false;
@@ -674,8 +661,7 @@ struct attr_t
     }
 };
 
-struct glk_window_struct
-{
+struct glk_window_struct {
     glk_window_struct(glui32 type_, glui32 rock_);
     ~glk_window_struct();
 
@@ -683,7 +669,7 @@ struct glk_window_struct
     glui32 type;
     glui32 rock;
 
-    window_t *parent = nullptr; /* pair window which contains this one */
+    window_t *parent = nullptr; // pair window which contains this one
     rect_t bbox;
     int yadj = 0;
     union {
@@ -694,8 +680,8 @@ struct glk_window_struct
         window_pair_t *pair;
     } window;
 
-    stream_t *str; /* the window stream. */
-    stream_t *echostr = nullptr; /* the window's echo stream, if any. */
+    stream_t *str;               // the window stream.
+    stream_t *echostr = nullptr; // the window's echo stream, if any.
 
     bool line_request = false;
     bool line_request_uni = false;
@@ -715,19 +701,17 @@ struct glk_window_struct
     Color fgcolor = gli_more_color;
 
     gidispatch_rock_t disprock;
-    window_t *next, *prev; /* in the big linked list of windows */
+    window_t *next, *prev; // in the big linked list of windows
 };
 
-struct window_blank_s
-{
+struct window_blank_s {
     explicit window_blank_s(window_t *win) : owner(win) {
     }
 
     window_t *owner;
 };
 
-struct window_pair_s
-{
+struct window_pair_s {
     window_pair_s(window_t *win, glui32 method, window_t *key_, glui32 size_) :
         owner(win),
         dir(method & winmethod_DirMask),
@@ -743,26 +727,24 @@ struct window_pair_s
     window_t *owner;
     window_t *child1 = nullptr, *child2 = nullptr;
 
-    /* split info... */
-    glui32 dir; /* winmethod_Left, Right, Above, or Below */
-    bool vertical, backward; /* flags */
-    glui32 division; /* winmethod_Fixed or winmethod_Proportional */
-    window_t *key; /* NULL or a leaf-descendant (not a Pair) */
-    bool keydamage = false; /* used as scratch space in window closing */
-    glui32 size; /* size value */
-    glui32 wborder;  /* winMethod_Border, NoBorder */
+    // split info...
+    glui32 dir;              // winmethod_Left, Right, Above, or Below
+    bool vertical, backward; // flags
+    glui32 division;         // winmethod_Fixed or winmethod_Proportional
+    window_t *key;           // NULL or a leaf-descendant (not a Pair)
+    bool keydamage = false;  // used as scratch space in window closing
+    glui32 size;             // size value
+    glui32 wborder;          // winMethod_Border, NoBorder
 };
 
-/* One line of the grid window. */
-struct tgline_t
-{
+// One line of the grid window.
+struct tgline_t {
     bool dirty = false;
     std::array<glui32, 256> chars;
     std::array<attr_t, 256> attrs;
 };
 
-struct window_textgrid_s
-{
+struct window_textgrid_s {
     window_textgrid_s(window_t *owner_, Styles styles_) :
         owner(owner_),
         styles(std::move(styles_))
@@ -774,10 +756,10 @@ struct window_textgrid_s
     int width = 0, height = 0;
     std::array<tgline_t, 256> lines;
 
-    int curx = 0, cury = 0; /* the window cursor position */
+    int curx = 0, cury = 0; // the window cursor position
 
-    /* for line input */
-    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    // for line input
+    void *inbuf = nullptr; // unsigned char* for latin1, glui32* for unicode
     bool inunicode = false;
     int inorgx = 0, inorgy = 0;
     int inoriglen, inmax;
@@ -786,12 +768,11 @@ struct window_textgrid_s
     gidispatch_rock_t inarrayrock;
     std::vector<glui32> line_terminators;
 
-    /* style hints and settings */
+    // style hints and settings
     Styles styles;
 };
 
-struct tbline_t
-{
+struct tbline_t {
     tbline_t() {
         chars.fill(' ');
     }
@@ -804,8 +785,7 @@ struct tbline_t
     std::array<attr_t, TBLINELEN> attrs;
 };
 
-struct window_textbuffer_s
-{
+struct window_textbuffer_s {
     window_textbuffer_s(window_t *owner_, Styles styles_, int scrollback_) :
         owner(owner_),
         scrollback(scrollback_),
@@ -825,27 +805,27 @@ struct window_textbuffer_s
     std::vector<tbline_t> lines;
     int scrollback = SCROLLBACK;
 
-    int numchars = 0;		/* number of chars in last line: lines[0] */
-    glui32 *chars;		/* alias to lines[0].chars */
-    attr_t *attrs;		/* alias to lines[0].attrs */
+    int numchars = 0; // number of chars in last line: lines[0]
+    glui32 *chars;    // alias to lines[0].chars
+    attr_t *attrs;    // alias to lines[0].attrs
 
-    /* adjust margins temporarily for images */
+    // adjust margins temporarily for images
     int ladjw = 0;
     int ladjn = 0;
     int radjw = 0;
     int radjn = 0;
 
-    /* Command history. */
+    // Command history.
     std::deque<std::vector<glui32>> history;
     std::deque<std::vector<glui32>>::iterator history_it = history.begin();
 
-    /* for paging */
+    // for paging
     int lastseen = 0;
     int scrollpos = 0;
     int scrollmax = 0;
 
-    /* for line input */
-    void *inbuf = nullptr;	/* unsigned char* for latin1, glui32* for unicode */
+    // for line input
+    void *inbuf = nullptr; // unsigned char* for latin1, glui32* for unicode
     bool inunicode = false;
     int inmax;
     long infence;
@@ -856,16 +836,15 @@ struct window_textbuffer_s
     bool echo_line_input = true;
     std::vector<glui32> line_terminators;
 
-    /* style hints and settings */
+    // style hints and settings
     Styles styles;
 
-    /* for copy selection */
+    // for copy selection
     std::vector<glui32> copybuf;
     int copypos = 0;
 };
 
-struct window_graphics_s
-{
+struct window_graphics_s {
     explicit window_graphics_s(window_t *win) :
         owner(win),
         bgnd(win->bgcolor)
@@ -879,7 +858,7 @@ struct window_graphics_s
     Canvas<3> rgb;
 };
 
-/* ---------------------------------------------------------------------- */
+// ----------------------------------------------------------------------
 
 extern void gli_initialize_sound();
 extern void gli_initialize_tts();
@@ -889,10 +868,10 @@ extern void gli_tts_purge();
 
 extern gidispatch_rock_t gli_sound_get_channel_disprock(const channel_t *chan);
 
-/* ---------------------------------------------------------------------- */
-/*
- * All the annoyingly boring and tedious prototypes...
- */
+// ----------------------------------------------------------------------
+//
+// All the annoyingly boring and tedious prototypes...
+//
 
 [[noreturn]]
 extern void gli_exit(int status);
@@ -938,7 +917,7 @@ extern void gcmd_buffer_accept_readchar(window_t *win, glui32 arg);
 extern void gcmd_buffer_accept_readline(window_t *win, glui32 arg);
 extern bool gcmd_accept_scroll(window_t *win, glui32 arg);
 
-/* Declarations of library internal functions. */
+// Declarations of library internal functions.
 
 extern void gli_initialize_misc();
 extern void gli_initialize_windows();
@@ -1034,19 +1013,19 @@ glui32 win_textbuffer_flow_break(window_textbuffer_t *win);
 
 void gli_calc_padding(window_t *win, int *x, int *y);
 
-/* unicode case mapping */
+// unicode case mapping
 
 using gli_case_block_t = glui32[2];
-/* If both are 0xFFFFFFFF, you have to look at the special-case table */
+// If both are 0xFFFFFFFF, you have to look at the special-case table
 
 using gli_case_special_t = glui32[3];
-/* Each of these points to a subarray of the unigen_special_array
-(in cgunicode.c). In that subarray, element zero is the length,
-and that's followed by length unicode values. */
+// Each of these points to a subarray of the unigen_special_array
+// (in cgunicode.c). In that subarray, element zero is the length,
+// and that's followed by length unicode values.
 
 using gli_decomp_block_t = glui32[2];
-/* The position points to a subarray of the unigen_decomp_array.
-   If the count is zero, there is no decomposition. */
+// The position points to a subarray of the unigen_decomp_array.
+// If the count is zero, there is no decomposition.
 
 void gli_putchar_utf8(glui32 val, std::FILE *fl);
 glui32 gli_getchar_utf8(std::FILE *fl);
@@ -1074,26 +1053,25 @@ FontFace attrfont(const Styles &styles, const attr_t &attr);
 
 void gli_edit_config();
 
-/* A macro which reads and decodes one character of UTF-8. Needs no
-   explanation, I'm sure.
-
-   Oh, okay. The character will be written to *chptr (so pass in "&ch",
-   where ch is a glui32 variable). eofcond should be a condition to
-   evaluate end-of-stream -- true if no more characters are readable.
-   nextch is a function which reads the next character; this is invoked
-   exactly as many times as necessary.
-
-   val0, val1, val2, val3 should be glui32 scratch variables. The macro
-   needs these. Just define them, you don't need to pay attention to them
-   otherwise.
-
-   The macro itself evaluates to true if ch was successfully set, or
-   false if something went wrong. (Not enough characters, or an
-   invalid byte sequence.)
-
-   This is not the worst macro I've ever written, but I forget what the
-   other one was.
-*/
+// A macro which reads and decodes one character of UTF-8. Needs no
+// explanation, I'm sure.
+//
+// Oh, okay. The character will be written to *chptr (so pass in "&ch",
+// where ch is a glui32 variable). eofcond should be a condition to
+// evaluate end-of-stream -- true if no more characters are readable.
+// nextch is a function which reads the next character; this is invoked
+// exactly as many times as necessary.
+//
+// val0, val1, val2, val3 should be glui32 scratch variables. The macro
+// needs these. Just define them, you don't need to pay attention to them
+// otherwise.
+//
+// The macro itself evaluates to true if ch was successfully set, or
+// false if something went wrong. (Not enough characters, or an
+// invalid byte sequence.)
+//
+// This is not the worst macro I've ever written, but I forget what the
+// other one was.
 
 #define UTF8_DECODE_INLINE(chptr, eofcond, nextch, val0, val1, val2, val3)  ( \
     (eofcond ? 0 : ( \

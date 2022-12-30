@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.                    *
- * Copyright (C) 2010 by Ben Cressey, Chris Spiegel.                          *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson, Jesse McGrew.
+// Copyright (C) 2010 by Ben Cressey, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <array>
@@ -44,31 +40,28 @@
 #include FT_LCD_FILTER_H
 
 #ifdef _WIN32
-#include <windows.h>
 #include <shlwapi.h>
+#include <windows.h>
 #endif
 
 #define GAMMA_BITS 11
 #define GAMMA_MAX ((1 << GAMMA_BITS) - 1)
 
-#define mul255(a,b) ((static_cast<short>(a) * (b) + 127) / 255)
-#define mulhigh(a,b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
-#define grayscale(r,g,b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
+#define mul255(a, b) ((static_cast<short>(a) * (b) + 127) / 255)
+#define mulhigh(a, b) ((static_cast<int>(a) * (b) + (1 << (GAMMA_BITS - 1)) - 1) / GAMMA_MAX)
+#define grayscale(r, g, b) ((30 * (r) + 59 * (g) + 11 * (b)) / 100)
 
-struct Bitmap
-{
+struct Bitmap {
     int w, h, lsb, top, pitch;
     std::vector<unsigned char> data;
 };
 
-struct FontEntry
-{
+struct FontEntry {
     int adv;
     std::array<Bitmap, GLI_SUBPIX> glyph;
 };
 
-class Font
-{
+class Font {
 public:
     Font(FontFace fontface, const std::string &fallback);
 
@@ -92,9 +85,9 @@ private:
     std::map<std::pair<glui32, glui32>, int> m_kerncache;
 };
 
-/*
- * Globals
- */
+//
+// Globals
+//
 
 std::array<unsigned short, 256> gammamap;
 std::array<unsigned char, 1 << GAMMA_BITS> gammainv;
@@ -115,10 +108,10 @@ public:
     }
 
     Font &at(const FontFace &fontface) {
-        for (auto &font : m_table)
-        {
-            if (font.fontface() == fontface)
+        for (auto &font : m_table) {
+            if (font.fontface() == fontface) {
                 return font;
+            }
         }
 
         throw std::out_of_range("internal error: missing font");
@@ -145,21 +138,22 @@ void garglk::set_lcdfilter(const std::string &filter)
 {
     use_freetype_preset_filter = true;
 
-    if (filter == "none")
+    if (filter == "none") {
         freetype_preset_filter = FT_LCD_FILTER_NONE;
-    else if (filter == "default")
+    } else if (filter == "default") {
         freetype_preset_filter = FT_LCD_FILTER_DEFAULT;
-    else if (filter == "light")
+    } else if (filter == "light") {
         freetype_preset_filter = FT_LCD_FILTER_LIGHT;
-    else if (filter == "legacy")
+    } else if (filter == "legacy") {
         freetype_preset_filter = FT_LCD_FILTER_LEGACY;
-    else
+    } else {
         use_freetype_preset_filter = false;
+    }
 }
 
-/*
- * Font loading
- */
+//
+// Font loading
+//
 
 // FT_Error_String() was introduced in FreeType 2.10.0.
 #if FREETYPE_MAJOR == 2 && FREETYPE_MINOR < 10
@@ -173,10 +167,11 @@ static void freetype_error(int err, const std::string &basemsg)
     // this will always be nullptr.
     const char *errstr = FT_Error_String(err);
 
-    if (errstr == nullptr)
+    if (errstr == nullptr) {
         msg << basemsg << " (error code " << err << ")";
-    else
+    } else {
         msg << basemsg << ": " << errstr;
+    }
 
     garglk::winabort(msg.str());
 }
@@ -184,8 +179,7 @@ static void freetype_error(int err, const std::string &basemsg)
 const FontEntry &Font::getglyph(glui32 cid)
 {
     auto it = m_entries.find(cid);
-    if (it == m_entries.end())
-    {
+    if (it == m_entries.end()) {
         FT_Vector v;
         int err;
         glui32 gid;
@@ -194,11 +188,11 @@ const FontEntry &Font::getglyph(glui32 cid)
         std::size_t datasize;
 
         gid = FT_Get_Char_Index(m_face, cid);
-        if (gid == 0)
+        if (gid == 0) {
             gid = FT_Get_Char_Index(m_face, '?');
+        }
 
-        for (x = 0; x < GLI_SUBPIX; x++)
-        {
+        for (x = 0; x < GLI_SUBPIX; x++) {
             v.x = (x * 64) / GLI_SUBPIX;
             v.y = 0;
 
@@ -206,31 +200,33 @@ const FontEntry &Font::getglyph(glui32 cid)
 
             err = FT_Load_Glyph(m_face, gid,
                     FT_LOAD_NO_BITMAP | FT_LOAD_NO_HINTING);
-            if (err)
+            if (err) {
                 freetype_error(err, "Error in FT_Load_Glyph");
+            }
 
-            if (m_make_bold)
+            if (m_make_bold) {
                 FT_Outline_Embolden(&m_face->glyph->outline, FT_MulFix(m_face->units_per_EM, m_face->size->metrics.y_scale) / 24);
+            }
 
-            if (m_make_oblique)
+            if (m_make_oblique) {
                 FT_Outline_Transform(&m_face->glyph->outline, &ftmat);
+            }
 
-            if (gli_conf_lcd)
-            {
-                if (use_freetype_preset_filter)
+            if (gli_conf_lcd) {
+                if (use_freetype_preset_filter) {
                     FT_Library_SetLcdFilter(ftlib, freetype_preset_filter);
-                else
+                } else {
                     FT_Library_SetLcdFilterWeights(ftlib, gli_conf_lcd_weights.data());
+                }
 
                 err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LCD);
-            }
-            else
-            {
+            } else {
                 err = FT_Render_Glyph(m_face->glyph, FT_RENDER_MODE_LIGHT);
             }
 
-            if (err)
+            if (err) {
                 freetype_error(err, "Error in FT_Render_Glyph");
+            }
 
             datasize = m_face->glyph->bitmap.pitch * m_face->glyph->bitmap.rows;
             entry.adv = (m_face->glyph->advance.x * GLI_SUBPIX + 32) / 64;
@@ -266,8 +262,9 @@ static std::string font_path_fallback_system(const std::string &, const std::str
 #ifdef _WIN32
     char directory[256];
     DWORD dsize = sizeof directory;
-    if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS)
+    if (RegGetValueA(HKEY_LOCAL_MACHINE, "Software\\Tor Andersson\\Gargoyle", "Directory", RRF_RT_REG_SZ, nullptr, directory, &dsize) != ERROR_SUCCESS) {
         return "";
+    }
 
     return std::string(directory) + "\\" + fallback;
 #elif defined(GARGLK_CONFIG_FONT_PATH)
@@ -327,34 +324,28 @@ Font::Font(FontFace fontface, const std::string &fallback) :
         fontface == FontFace::propz() ? gli_conf_prop.z :
                                         gli_conf_mono.r;
 
-    if (fontface.monospace)
-    {
+    if (fontface.monospace) {
         aspect = gli_conf_monoaspect;
         size = gli_conf_monosize;
         family = gli_conf_monofont;
-    }
-    else
-    {
+    } else {
         aspect = gli_conf_propaspect;
         size = gli_conf_propsize;
         family = gli_conf_propfont;
     }
 
     if (!std::any_of(font_paths.begin(), font_paths.end(), [&](const auto &get_font_path) {
-        fontpath = get_font_path(path, fallback);
-        return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &m_face) == 0;
-    }))
-    {
+            fontpath = get_font_path(path, fallback);
+            return !fontpath.empty() && FT_New_Face(ftlib, fontpath.c_str(), 0, &m_face) == 0;
+        })) {
         garglk::winabort("Unable to find font " + family + " for " + fontface_to_name(fontface) + ", and fallback " + fallback + " not found");
     }
 
     auto dot = fontpath.rfind(".");
-    if (dot != std::string::npos)
-    {
+    if (dot != std::string::npos) {
         std::string afmbuf = fontpath;
         auto ext = afmbuf.substr(dot);
-        if (ext == ".pfa" || ext == ".PFA" || ext == ".pfb" || ext == ".PFB")
-        {
+        if (ext == ".pfa" || ext == ".PFA" || ext == ".pfb" || ext == ".PFB") {
             afmbuf.replace(dot, std::string::npos, ".afm");
             FT_Attach_File(m_face, afmbuf.c_str());
             afmbuf.replace(dot, std::string::npos, ".AFM");
@@ -363,12 +354,14 @@ Font::Font(FontFace fontface, const std::string &fallback) :
     }
 
     err = FT_Set_Char_Size(m_face, size * aspect * 64, size * 64, 72, 72);
-    if (err)
+    if (err) {
         freetype_error(err, "Error in FT_Set_Char_Size for " + fontpath);
+    }
 
     err = FT_Select_Charmap(m_face, ft_encoding_unicode);
-    if (err)
+    if (err) {
         freetype_error(err, "Error in FT_Select_CharMap for " + fontpath);
+    }
 
     m_kerned = FT_HAS_KERNING(m_face);
 
@@ -380,32 +373,51 @@ void gli_initialize_fonts()
 {
     int err;
 
-    for (int i = 0; i < 256; i++)
+    for (int i = 0; i < 256; i++) {
         gammamap[i] = std::pow(i / 255.0, gli_conf_gamma) * GAMMA_MAX + 0.5;
+    }
 
-    for (int i = 0; i <= GAMMA_MAX; i++)
+    for (int i = 0; i <= GAMMA_MAX; i++) {
         gammainv[i] = std::pow(i / static_cast<float>(GAMMA_MAX), 1.0 / gli_conf_gamma) * 255.0 + 0.5;
+    }
 
     err = FT_Init_FreeType(&ftlib);
-    if (err)
+    if (err) {
         freetype_error(err, "Unable to initialize FreeType");
+    }
 
     fontload();
     garglk::fontreplace(gli_conf_monofont, FontType::Monospace);
     garglk::fontreplace(gli_conf_propfont, FontType::Proportional);
     fontunload();
 
-    /* If the user provided specific fonts, swap them in */
-    if (!gli_conf_mono_override.r.empty()) gli_conf_mono.r = gli_conf_mono_override.r;
-    if (!gli_conf_mono_override.b.empty()) gli_conf_mono.b = gli_conf_mono_override.b;
-    if (!gli_conf_mono_override.i.empty()) gli_conf_mono.i = gli_conf_mono_override.i;
-    if (!gli_conf_mono_override.z.empty()) gli_conf_mono.z = gli_conf_mono_override.z;
-    if (!gli_conf_prop_override.r.empty()) gli_conf_prop.r = gli_conf_prop_override.r;
-    if (!gli_conf_prop_override.b.empty()) gli_conf_prop.b = gli_conf_prop_override.b;
-    if (!gli_conf_prop_override.i.empty()) gli_conf_prop.i = gli_conf_prop_override.i;
-    if (!gli_conf_prop_override.z.empty()) gli_conf_prop.z = gli_conf_prop_override.z;
+    // If the user provided specific fonts, swap them in
+    if (!gli_conf_mono_override.r.empty()) {
+        gli_conf_mono.r = gli_conf_mono_override.r;
+    }
+    if (!gli_conf_mono_override.b.empty()) {
+        gli_conf_mono.b = gli_conf_mono_override.b;
+    }
+    if (!gli_conf_mono_override.i.empty()) {
+        gli_conf_mono.i = gli_conf_mono_override.i;
+    }
+    if (!gli_conf_mono_override.z.empty()) {
+        gli_conf_mono.z = gli_conf_mono_override.z;
+    }
+    if (!gli_conf_prop_override.r.empty()) {
+        gli_conf_prop.r = gli_conf_prop_override.r;
+    }
+    if (!gli_conf_prop_override.b.empty()) {
+        gli_conf_prop.b = gli_conf_prop_override.b;
+    }
+    if (!gli_conf_prop_override.i.empty()) {
+        gli_conf_prop.i = gli_conf_prop_override.i;
+    }
+    if (!gli_conf_prop_override.z.empty()) {
+        gli_conf_prop.z = gli_conf_prop_override.z;
+    }
 
-    /* create oblique transform matrix */
+    // create oblique transform matrix
     ftmat.xx = 0x10000L;
     ftmat.yx = 0x00000L;
     ftmat.xy = 0x03000L;
@@ -419,25 +431,29 @@ void gli_initialize_fonts()
     gli_cellw = (entry.adv + GLI_SUBPIX - 1) / GLI_SUBPIX;
 }
 
-/*
- * Drawing
- */
+//
+// Drawing
+//
 
 void gli_draw_pixel(int x, int y, const Color &rgb)
 {
-    if (x < 0 || x >= gli_image_rgb.width())
+    if (x < 0 || x >= gli_image_rgb.width()) {
         return;
-    if (y < 0 || y >= gli_image_rgb.height())
+    }
+    if (y < 0 || y >= gli_image_rgb.height()) {
         return;
+    }
     gli_image_rgb[y][x] = rgb;
 }
 
 static void draw_pixel_gamma(int x, int y, unsigned char alpha, const Color &rgb)
 {
-    if (x < 0 || x >= gli_image_rgb.width())
+    if (x < 0 || x >= gli_image_rgb.width()) {
         return;
-    if (y < 0 || y >= gli_image_rgb.height())
+    }
+    if (y < 0 || y >= gli_image_rgb.height()) {
         return;
+    }
 
     unsigned short invalf = GAMMA_MAX - (alpha * GAMMA_MAX / 255);
     std::array<unsigned short, 3> bg = {
@@ -458,10 +474,12 @@ static void draw_pixel_gamma(int x, int y, unsigned char alpha, const Color &rgb
 
 static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const Color &rgb)
 {
-    if (x < 0 || x >= gli_image_rgb.width())
+    if (x < 0 || x >= gli_image_rgb.width()) {
         return;
-    if (y < 0 || y >= gli_image_rgb.height())
+    }
+    if (y < 0 || y >= gli_image_rgb.height()) {
         return;
+    }
 
     std::array<unsigned short, 3> invalf = {
         static_cast<unsigned short>(GAMMA_MAX - (alpha[0] * GAMMA_MAX / 255)),
@@ -487,10 +505,8 @@ static void draw_pixel_lcd_gamma(int x, int y, const unsigned char *alpha, const
 static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const Color &rgb)
 {
     int i, k, c;
-    for (k = 0; k < b->h; k++)
-    {
-        for (i = 0; i < b->w; i ++)
-        {
+    for (k = 0; k < b->h; k++) {
+        for (i = 0; i < b->w; i++) {
             c = b->data[k * b->pitch + i];
             draw_pixel_gamma(x + b->lsb + i, y - b->top + k, c, rgb);
         }
@@ -500,10 +516,8 @@ static void draw_bitmap_gamma(const Bitmap *b, int x, int y, const Color &rgb)
 static void draw_bitmap_lcd_gamma(const Bitmap *b, int x, int y, const Color &rgb)
 {
     int i, j, k;
-    for (k = 0; k < b->h; k++)
-    {
-        for (i = 0, j = 0; i < b->w; i += 3, j ++)
-        {
+    for (k = 0; k < b->h; k++) {
+        for (i = 0, j = 0; i < b->w; i += 3, j++) {
             draw_pixel_lcd_gamma(x + b->lsb + j, y - b->top + k, b->data.data() + k * b->pitch + i, rgb);
         }
     }
@@ -525,8 +539,9 @@ void gli_draw_rect(int x0, int y0, int w, int h, const Color &rgb)
     x1 = garglk::clamp(x1, 0, gli_image_rgb.width());
     y1 = garglk::clamp(y1, 0, gli_image_rgb.height());
 
-    for (y = y0; y < y1; y++)
+    for (y = y0; y < y1; y++) {
         gli_image_rgb[y].fill(rgb, x0, x1);
+    }
 }
 
 int Font::charkern(glui32 c0, glui32 c1)
@@ -535,27 +550,27 @@ int Font::charkern(glui32 c0, glui32 c1)
     int err;
     int g0, g1;
 
-    if (!m_kerned)
+    if (!m_kerned) {
         return 0;
+    }
 
     auto key = std::make_pair(c0, c1);
-    try
-    {
+    try {
         return m_kerncache.at(key);
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 
     g0 = FT_Get_Char_Index(m_face, c0);
     g1 = FT_Get_Char_Index(m_face, c1);
 
-    if (g0 == 0 || g1 == 0)
+    if (g0 == 0 || g1 == 0) {
         return 0;
+    }
 
     err = FT_Get_Kerning(m_face, g0, g1, FT_KERNING_UNFITTED, &v);
-    if (err)
+    if (err) {
         freetype_error(err, "Error in FT_Get_Kerning");
+    }
 
     int value = (v.x * GLI_SUBPIX) / 64.0;
     m_kerncache.emplace(key, value);
@@ -578,49 +593,47 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
     int prev = -1;
     glui32 c;
 
-    while (n > 0)
-    {
+    while (n > 0) {
         auto it = ligatures.end();
-        if (dolig)
-        {
+        if (dolig) {
             it = std::find_if(ligatures.begin(), ligatures.end(), [s, n](const std::pair<std::vector<glui32>, glui32> &ligentry) {
                 auto ligature = ligentry.first;
-                if (ligature.size() > n)
+                if (ligature.size() > n) {
                     return false;
+                }
 
-                for (std::size_t i = 0; i < ligature.size(); i++)
-                {
-                    if (s[i] != ligature[i])
+                for (std::size_t i = 0; i < ligature.size(); i++) {
+                    if (s[i] != ligature[i]) {
                         return false;
+                    }
                 }
 
                 return true;
             });
         }
 
-        if (it != ligatures.end() && FT_Get_Char_Index(f.face(), it->second) != 0)
-        {
+        if (it != ligatures.end() && FT_Get_Char_Index(f.face(), it->second) != 0) {
             c = it->second;
             s += it->first.size();
             n -= it->first.size();
-        }
-        else
-        {
+        } else {
             c = *s++;
             n--;
         }
 
         auto entry = f.getglyph(c);
 
-        if (prev != -1)
+        if (prev != -1) {
             x += f.charkern(prev, c);
+        }
 
         callback(x, entry.glyph);
 
-        if (spw >= 0 && c == ' ')
+        if (spw >= 0 && c == ' ') {
             x += spw;
-        else
+        } else {
             x += entry.adv;
+        }
 
         prev = c;
     }
@@ -629,16 +642,17 @@ static int gli_string_impl(int x, FontFace face, const glui32 *s, std::size_t n,
 }
 
 int gli_draw_string_uni(int x, int y, FontFace face, const Color &rgb,
-        const glui32 *s, int n, int spw)
+                        const glui32 *s, int n, int spw)
 {
     return gli_string_impl(x, face, s, n, spw, [&y, &rgb](int x, const std::array<Bitmap, GLI_SUBPIX> &glyphs) {
         int px = x / GLI_SUBPIX;
         int sx = x % GLI_SUBPIX;
 
-        if (gli_conf_lcd)
+        if (gli_conf_lcd) {
             draw_bitmap_lcd_gamma(&glyphs[sx], px, y, rgb);
-        else
+        } else {
             draw_bitmap_gamma(&glyphs[sx], px, y, rgb);
+        }
     });
 }
 
@@ -650,30 +664,21 @@ int gli_string_width_uni(FontFace face, const glui32 *s, int n, int spw)
 void gli_draw_caret(int x, int y)
 {
     x = x / GLI_SUBPIX;
-    if (gli_caret_shape == 0)
-    {
-        gli_draw_rect(x+0, y+1, 1, 1, gli_caret_color);
-        gli_draw_rect(x-1, y+2, 3, 1, gli_caret_color);
-        gli_draw_rect(x-2, y+3, 5, 1, gli_caret_color);
-    }
-    else if (gli_caret_shape == 1)
-    {
-        gli_draw_rect(x+0, y+1, 1, 1, gli_caret_color);
-        gli_draw_rect(x-1, y+2, 3, 1, gli_caret_color);
-        gli_draw_rect(x-2, y+3, 5, 1, gli_caret_color);
-        gli_draw_rect(x-3, y+4, 7, 1, gli_caret_color);
-    }
-    else if (gli_caret_shape == 2)
-    {
-        gli_draw_rect(x+0, y-gli_baseline+1, 1, gli_leading-2, gli_caret_color);
-    }
-    else if (gli_caret_shape == 3)
-    {
-        gli_draw_rect(x+0, y-gli_baseline+1, 2, gli_leading-2, gli_caret_color);
-    }
-    else
-    {
-        gli_draw_rect(x+0, y-gli_baseline+1, gli_cellw, gli_leading-2, gli_caret_color);
+    if (gli_caret_shape == 0) {
+        gli_draw_rect(x + 0, y + 1, 1, 1, gli_caret_color);
+        gli_draw_rect(x - 1, y + 2, 3, 1, gli_caret_color);
+        gli_draw_rect(x - 2, y + 3, 5, 1, gli_caret_color);
+    } else if (gli_caret_shape == 1) {
+        gli_draw_rect(x + 0, y + 1, 1, 1, gli_caret_color);
+        gli_draw_rect(x - 1, y + 2, 3, 1, gli_caret_color);
+        gli_draw_rect(x - 2, y + 3, 5, 1, gli_caret_color);
+        gli_draw_rect(x - 3, y + 4, 7, 1, gli_caret_color);
+    } else if (gli_caret_shape == 2) {
+        gli_draw_rect(x + 0, y - gli_baseline + 1, 1, gli_leading - 2, gli_caret_color);
+    } else if (gli_caret_shape == 3) {
+        gli_draw_rect(x + 0, y - gli_baseline + 1, 2, gli_leading - 2, gli_caret_color);
+    } else {
+        gli_draw_rect(x + 0, y - gli_baseline + 1, gli_cellw, gli_leading - 2, gli_caret_color);
     }
 }
 
@@ -690,34 +695,32 @@ void gli_draw_picture(picture_t *src, int x0, int y0, int dx0, int dy0, int dx1,
     x1 = x0 + src->w;
     y1 = y0 + src->h;
 
-    if (x1 <= dx0 || x0 >= dx1) return;
-    if (y1 <= dy0 || y0 >= dy1) return;
-    if (x0 < dx0)
-    {
+    if (x1 <= dx0 || x0 >= dx1) {
+        return;
+    }
+    if (y1 <= dy0 || y0 >= dy1) {
+        return;
+    }
+    if (x0 < dx0) {
         sx0 += dx0 - x0;
         x0 = dx0;
     }
-    if (y0 < dy0)
-    {
+    if (y0 < dy0) {
         sy0 += dy0 - y0;
         y0 = dy0;
     }
-    if (x1 > dx1)
-    {
+    if (x1 > dx1) {
         sx1 += dx1 - x1;
     }
-    if (y1 > dy1)
-    {
+    if (y1 > dy1) {
         sy1 += dy1 - y1;
     }
 
     w = sx1 - sx0;
     h = sy1 - sy0;
 
-    for (int y = 0; y < h; y++)
-    {
-        for (int x = 0; x < w; x++)
-        {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
             auto existing = gli_image_rgb[y + y0][x + x0];
             unsigned char sa = src->rgba[y + sy0][x + sx0][3];
             unsigned char na = 255 - sa;

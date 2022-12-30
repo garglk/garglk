@@ -1,24 +1,20 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2010 by Ben Cressey, Sylvain Beucler, Chris Spiegel.         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2010 by Ben Cressey, Sylvain Beucler, Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <memory>
 #include <sstream>
@@ -37,19 +33,23 @@ static std::string findfont(const std::string &fontname)
     FcChar8 *strval = nullptr;
 
     auto p = garglk::unique(FcNameParse(reinterpret_cast<const FcChar8 *>(fontname.c_str())), FcPatternDestroy);
-    if (p == nullptr)
+    if (p == nullptr) {
         return "";
+    }
 
     auto os = garglk::unique(FcObjectSetBuild(FC_FILE, static_cast<char *>(nullptr)), FcObjectSetDestroy);
-    if (os == nullptr)
+    if (os == nullptr) {
         return "";
+    }
 
     auto fs = garglk::unique(FcFontList(nullptr, p.get(), os.get()), FcFontSetDestroy);
-    if (fs->nfont == 0)
+    if (fs->nfont == 0) {
         return "";
+    }
 
-    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr)
+    if (FcPatternGetString(fs->fonts[0], FC_FILE, 0, &strval) == FcResultTypeMismatch || strval == nullptr) {
         return "";
+    }
 
     return reinterpret_cast<char *>(strval);
 }
@@ -59,21 +59,18 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
     // Prefer normal width fonts, but if there aren't any, allow whatever fontconfig finds.
     std::vector<std::string> widths = {":normal", ""};
 
-    for (const auto &width : widths)
-    {
-        for (const auto &style : styles)
-        {
-            for (const auto &weight : weights)
-            {
-                for (const auto &slant : slants)
-                {
+    for (const auto &width : widths) {
+        for (const auto &style : styles) {
+            for (const auto &weight : weights) {
+                for (const auto &slant : slants) {
                     std::ostringstream fontname;
                     std::string fontpath;
 
                     fontname << basefont << ":style=" << style << ":weight=" << weight << ":" << slant << width;
                     fontpath = findfont(fontname.str());
-                    if (!fontpath.empty())
+                    if (!fontpath.empty()) {
                         return fontpath;
+                    }
                 }
             }
         }
@@ -84,50 +81,47 @@ static std::string find_font_by_styles(const std::string &basefont, const std::v
 
 void garglk::fontreplace(const std::string &font, FontType type)
 {
-    if (!initialized || font.empty())
+    if (!initialized || font.empty()) {
         return;
+    }
 
     std::string sysfont;
     std::string *r, *b, *i, *z;
 
-    if (type == FontType::Monospace)
-    {
+    if (type == FontType::Monospace) {
         r = &gli_conf_mono.r;
         b = &gli_conf_mono.b;
         i = &gli_conf_mono.i;
         z = &gli_conf_mono.z;
-    }
-    else
-    {
+    } else {
         r = &gli_conf_prop.r;
         b = &gli_conf_prop.b;
         i = &gli_conf_prop.i;
         z = &gli_conf_prop.z;
     }
 
-    /* Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
-     * Italic), there are actually a whole lot more possibilities, and,
-     * unfortunately, some fonts are inconsistent in what they report about
-     * their attributes.
-     *
-     * It's possible to ask fontconfig for a particular style (e.g. "Regular"),
-     * but that's not enough. The font Noto Serif, for example, has a font that
-     * lists its style as both "Condensed ExtraLight" and "Regular". If
-     * "style=Regular" were used to find regular fonts, this font would show up,
-     * which is not desirable. So in addition to the style, the weight (an
-     * integer) must also be requested.
-     *
-     * Going the other direction, Adobe Garamond has a font with the style
-     * "Regular Expert", the expert character set being totally unusable in
-     * Gargoyle. However, its integral weight is still regular. So asking just
-     * for a regular weight isn't sufficient: the style needs to be taken into
-     * account as well.
-     *
-     * In short, for each style, try various combinations of style name, weight,
-     * and slant in hopes of getting the desired font. These are ordered from
-     * highest to lowest priority, so "Italic regular italic" will be preferred
-     * over "Medium Oblique book oblique", for example.
-     */
+    // Although there are 4 "main" types of font (Regular, Italic, Bold, Bold
+    // Italic), there are actually a whole lot more possibilities, and,
+    // unfortunately, some fonts are inconsistent in what they report about
+    // their attributes.
+    //
+    // It's possible to ask fontconfig for a particular style (e.g. "Regular"),
+    // but that's not enough. The font Noto Serif, for example, has a font that
+    // lists its style as both "Condensed ExtraLight" and "Regular". If
+    // "style=Regular" were used to find regular fonts, this font would show up,
+    // which is not desirable. So in addition to the style, the weight (an
+    // integer) must also be requested.
+    //
+    // Going the other direction, Adobe Garamond has a font with the style
+    // "Regular Expert", the expert character set being totally unusable in
+    // Gargoyle. However, its integral weight is still regular. So asking just
+    // for a regular weight isn't sufficient: the style needs to be taken into
+    // account as well.
+    //
+    // In short, for each style, try various combinations of style name, weight,
+    // and slant in hopes of getting the desired font. These are ordered from
+    // highest to lowest priority, so "Italic regular italic" will be preferred
+    // over "Medium Oblique book oblique", for example.
     std::vector<std::string> regular_styles = {"Regular", "Book", "Medium", "Roman"};
     std::vector<std::string> italic_styles = {"Italic", "Regular Italic", "Medium Italic", "Book Italic", "Oblique", "Regular Oblique", "Medium Oblique", "Book Oblique"};
     std::vector<std::string> bold_styles = {"Bold", "Extrabold", "Semibold", "Black"};
@@ -146,36 +140,32 @@ void garglk::fontreplace(const std::string &font, FontType type)
     std::vector<std::string> roman_slants = {"roman"};
     std::vector<std::string> italic_slants = {"italic", "oblique"};
 
-    /* regular or roman */
+    // regular or roman
     sysfont = find_font_by_styles(font, regular_styles, regular_weights, roman_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *r = sysfont;
         *b = sysfont;
         *i = sysfont;
         *z = sysfont;
     }
 
-    /* bold */
+    // bold
     sysfont = find_font_by_styles(font, bold_styles, bold_weights, roman_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *b = sysfont;
         *z = sysfont;
     }
 
-    /* italic or oblique */
+    // italic or oblique
     sysfont = find_font_by_styles(font, italic_styles, regular_weights, italic_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *i = sysfont;
         *z = sysfont;
     }
 
-    /* bold italic or bold oblique */
+    // bold italic or bold oblique
     sysfont = find_font_by_styles(font, bold_italic_styles, bold_weights, italic_slants);
-    if (!sysfont.empty())
-    {
+    if (!sysfont.empty()) {
         *z = sysfont;
     }
 }
@@ -187,6 +177,7 @@ void fontload()
 
 void fontunload()
 {
-    if (initialized)
+    if (initialized) {
         FcFini();
+    }
 }

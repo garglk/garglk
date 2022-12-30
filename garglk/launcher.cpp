@@ -1,26 +1,22 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar García Perez-Schofield.                     *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2009 by Baltasar García Perez-Schofield.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <fstream>
@@ -66,14 +62,15 @@
 #define T_ZCODE     "bocfel"
 #define T_ZSIX      "bocfel"
 
-#define ID_ZCOD (giblorb_make_id('Z','C','O','D'))
-#define ID_GLUL (giblorb_make_id('G','L','U','L'))
+#define ID_ZCOD (giblorb_make_id('Z', 'C', 'O', 'D'))
+#define ID_GLUL (giblorb_make_id('G', 'L', 'U', 'L'))
 
 struct Interpreter {
     explicit Interpreter(std::string terp_, std::string flags_ = "") :
         terp(std::move(terp_)),
-        flags(std::move(flags_)) {
-        }
+        flags(std::move(flags_))
+    {
+    }
 
     std::string terp;
     std::string flags;
@@ -117,11 +114,11 @@ static nonstd::optional<Format> probe(const std::vector<char> &header)
         {R"(^ALAN\x03)", Format::Alan3},
     };
 
-    for (const auto &pair : magic)
-    {
+    for (const auto &pair : magic) {
         auto re = std::regex(pair.first);
-        if (std::regex_search(header.begin(), header.end(), re))
+        if (std::regex_search(header.begin(), header.end(), re)) {
             return pair.second;
+        }
     }
 
     return nonstd::nullopt;
@@ -159,23 +156,23 @@ static const std::map<std::string, Format> extensions = {
 
 // Map formats to default interpreters
 static const std::map<Format, Interpreter> interpreters = {
-    { Format::Adrift, Interpreter(T_ADRIFT) },
-    { Format::AdvSys, Interpreter(T_ADVSYS) },
-    { Format::AGT, Interpreter(T_AGT, "-gl") },
-    { Format::Alan2, Interpreter(T_ALAN2) },
-    { Format::Alan3, Interpreter(T_ALAN3) },
-    { Format::Glulx, Interpreter(T_GLULX) },
-    { Format::Hugo, Interpreter(T_HUGO) },
-    { Format::JACL, Interpreter(T_JACL) },
-    { Format::Level9, Interpreter(T_LEV9) },
-    { Format::Magnetic, Interpreter(T_MGSR) },
-    { Format::Plus, Interpreter(T_PLUS) },
-    { Format::Scott, Interpreter(T_SCOTT) },
-    { Format::TADS2, Interpreter(T_TADS2) },
-    { Format::TADS3, Interpreter(T_TADS3) },
-    { Format::Taylor, Interpreter(T_TAYLOR) },
-    { Format::ZCode, Interpreter(T_ZCODE) },
-    { Format::ZCode6, Interpreter(T_ZSIX) },
+    {Format::Adrift, Interpreter(T_ADRIFT)},
+    {Format::AdvSys, Interpreter(T_ADVSYS)},
+    {Format::AGT, Interpreter(T_AGT, "-gl")},
+    {Format::Alan2, Interpreter(T_ALAN2)},
+    {Format::Alan3, Interpreter(T_ALAN3)},
+    {Format::Glulx, Interpreter(T_GLULX)},
+    {Format::Hugo, Interpreter(T_HUGO)},
+    {Format::JACL, Interpreter(T_JACL)},
+    {Format::Level9, Interpreter(T_LEV9)},
+    {Format::Magnetic, Interpreter(T_MGSR)},
+    {Format::Plus, Interpreter(T_PLUS)},
+    {Format::Scott, Interpreter(T_SCOTT)},
+    {Format::TADS2, Interpreter(T_TADS2)},
+    {Format::TADS3, Interpreter(T_TADS3)},
+    {Format::Taylor, Interpreter(T_TAYLOR)},
+    {Format::ZCode, Interpreter(T_ZCODE)},
+    {Format::ZCode6, Interpreter(T_ZSIX)},
 };
 
 static bool call_winterp(const std::string &interpreter_dir, const Interpreter &interpreter, const std::string &game)
@@ -191,45 +188,50 @@ static bool runblorb(const std::string &interpreter_dir, const std::string &game
         }
     };
 
-    try
-    {
+    try {
         giblorb_result_t res;
         Interpreter found_interpreter = interpreter;
         giblorb_map_t *basemap;
 
-        auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), [](strid_t file) { glk_stream_close(file, nullptr); });
-        if (!file)
+        auto file = garglk::unique(glkunix_stream_open_pathname(const_cast<char *>(game.c_str()), 0, 0), [](strid_t file) {
+            glk_stream_close(file, nullptr);
+        });
+        if (!file) {
             throw BlorbError("Unable to open file");
+        }
 
-        if (giblorb_create_map(file.get(), &basemap) != giblorb_err_None)
+        if (giblorb_create_map(file.get(), &basemap) != giblorb_err_None) {
             throw BlorbError("Does not appear to be a Blorb file");
+        }
 
         auto map = garglk::unique(basemap, giblorb_destroy_map);
 
-        if (giblorb_load_resource(map.get(), giblorb_method_FilePos, &res, giblorb_ID_Exec, 0) != giblorb_err_None)
+        if (giblorb_load_resource(map.get(), giblorb_method_FilePos, &res, giblorb_ID_Exec, 0) != giblorb_err_None) {
             throw BlorbError("Does not contain a story file (look for a corresponding game file to load instead)");
+        }
 
-        switch (res.chunktype)
-        {
+        switch (res.chunktype) {
         case ID_ZCOD:
-            if (interpreter.terp.empty())
-            {
+            if (interpreter.terp.empty()) {
                 char zversion;
 
                 glk_stream_set_position(file.get(), res.data.startpos, 0);
-                if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1)
+                if (glk_get_buffer_stream(file.get(), &zversion, 1) != 1) {
                     throw BlorbError("Unable to read story file (possibly corrupted Blorb file)");
+                }
 
-                if (zversion == 6)
+                if (zversion == 6) {
                     found_interpreter = interpreters.at(Format::ZCode6);
-                else
+                } else {
                     found_interpreter = interpreters.at(Format::ZCode);
+                }
             }
             break;
 
         case ID_GLUL:
-            if (interpreter.terp.empty())
+            if (interpreter.terp.empty()) {
                 found_interpreter = interpreters.at(Format::Glulx);
+            }
             break;
 
         default: {
@@ -240,9 +242,7 @@ static bool runblorb(const std::string &interpreter_dir, const std::string &game
         }
 
         return call_winterp(interpreter_dir, found_interpreter, game);
-    }
-    catch (const BlorbError &e)
-    {
+    } catch (const BlorbError &e) {
         garglk::winmsg("Could not load Blorb file " + game + ":\n" + e.what());
         return false;
     }
@@ -253,17 +253,16 @@ static bool findterp(const std::string &file, const std::string &target, struct 
     std::vector<std::string> matches = {target};
 
     garglk::config_entries(file, false, matches, [&interpreter](const std::string &cmd, const std::string &arg) {
-        if (cmd == "terp")
-        {
+        if (cmd == "terp") {
             std::istringstream argstream(arg);
             std::string opt;
 
-            if (argstream >> interpreter.terp)
-            {
-                if (argstream >> opt && opt[0] == '-')
+            if (argstream >> interpreter.terp) {
+                if (argstream >> opt && opt[0] == '-') {
                     interpreter.flags = opt;
-                else
+                } else {
                     interpreter.flags = "";
+                }
             }
         }
     });
@@ -275,26 +274,29 @@ static void configterp(const std::string &gamepath, struct Interpreter &interpre
 {
     std::string story = gamepath;
 
-    /* set up story */
+    // set up story
 #if __cplusplus >= 201703L
     story = std::filesystem::path(story)
         .filename()
         .string();
 #else
     auto slash = story.rfind('\\');
-    if (slash == std::string::npos)
+    if (slash == std::string::npos) {
         slash = story.find_last_of('/');
-    if (slash != std::string::npos)
+    }
+    if (slash != std::string::npos) {
         story = story.substr(slash + 1);
+    }
 #endif
 
-    if (story.empty())
+    if (story.empty()) {
         return;
+    }
 
-    for (const auto &config : garglk::configs(gamepath))
-    {
-        if (findterp(config.path, story, interpreter))
+    for (const auto &config : garglk::configs(gamepath)) {
+        if (findterp(config.path, story, interpreter)) {
             return;
+        }
     }
 }
 
@@ -308,13 +310,12 @@ int garglk::rungame(const std::string &interpreter_dir, const std::string &game)
     configterp(game, interpreter);
 
     std::ifstream f(game, std::ios::binary);
-    if (f.is_open() && f.read(header.data(), header.size()))
-    {
-        if (interpreter.terp.empty())
-        {
+    if (f.is_open() && f.read(header.data(), header.size())) {
+        if (interpreter.terp.empty()) {
             auto format = probe(header);
-            if (format.has_value())
+            if (format.has_value()) {
                 interpreter = interpreters.at(*format);
+            }
         }
 
         is_blorb = std::regex_search(header.begin(), header.end(), std::regex(R"(^FORM[\s\S]{4}IFRSRIdx)"));
@@ -322,25 +323,22 @@ int garglk::rungame(const std::string &interpreter_dir, const std::string &game)
 
     std::string ext = "";
     auto dot = game.rfind('.');
-    if (dot != std::string::npos)
+    if (dot != std::string::npos) {
         ext = garglk::downcase(game.substr(dot + 1));
+    }
 
-    if (is_blorb ||
-        std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end())
-    {
+    if (is_blorb || std::find(blorbs.begin(), blorbs.end(), ext) != blorbs.end()) {
         return runblorb(interpreter_dir, game, interpreter);
     }
 
-    if (!interpreter.terp.empty())
+    if (!interpreter.terp.empty()) {
         return call_winterp(interpreter_dir, interpreter, game);
+    }
 
-    try
-    {
+    try {
         auto format = extensions.at(ext);
         return call_winterp(interpreter_dir, interpreters.at(format), game);
-    }
-    catch (const std::out_of_range &)
-    {
+    } catch (const std::out_of_range &) {
     }
 
     garglk::winmsg("Unknown file type: \"" + ext + "\"\nSorry.");

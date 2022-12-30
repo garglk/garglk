@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- * Copyright (C) 2021 by Chris Spiegel                                        *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2010 by Ben Cressey.
+// Copyright (C) 2021 by Chris Spiegel
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <windows.h>
 
@@ -35,8 +31,7 @@ static bool find_font_file(const std::string &facename, std::string &filepath);
 
 static HDC hdc;
 
-struct Fonts
-{
+struct Fonts {
     bool rset = false, bset = false, iset = false, zset = false;
     std::string r, b, i, z;
 } monofonts, propfonts;
@@ -58,44 +53,46 @@ static int CALLBACK cb_handler(ENUMLOGFONTEX *lpelfe, Fonts *fonts)
 
     *fonts = Fonts();
 
-    if (!find_font_file(reinterpret_cast<char *>(lpelfe->elfFullName), filepath))
+    if (!find_font_file(reinterpret_cast<char *>(lpelfe->elfFullName), filepath)) {
         return 1;
+    }
 
-    if (!fonts->rset && (style == "Regular" || style == "Roman"))
-    {
+    if (!fonts->rset && (style == "Regular" || style == "Roman")) {
         fonts->r = filepath;
         fonts->rset = true;
 
-        if (!fonts->bset)
+        if (!fonts->bset) {
             fonts->b = filepath;
+        }
 
-        if (!fonts->iset)
+        if (!fonts->iset) {
             fonts->i = filepath;
+        }
 
-        if (!fonts->zset && !fonts->iset && !fonts->bset)
+        if (!fonts->zset && !fonts->iset && !fonts->bset) {
             fonts->z = filepath;
+        }
     }
 
-    else if (!fonts->bset && style == "Bold")
-    {
+    else if (!fonts->bset && style == "Bold") {
         fonts->b = filepath;
         fonts->bset = true;
 
-        if (!fonts->zset && !fonts->iset)
+        if (!fonts->zset && !fonts->iset) {
             fonts->z = filepath;
+        }
     }
 
-    else if (!fonts->iset && (style == "Italic" || style == "Oblique"))
-    {
+    else if (!fonts->iset && (style == "Italic" || style == "Oblique")) {
         fonts->i = filepath;
         fonts->iset = true;
 
-        if (!fonts->zset)
+        if (!fonts->zset) {
             fonts->z = filepath;
+        }
     }
 
-    else if (!fonts->zset && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic"))
-    {
+    else if (!fonts->zset && (style == "Bold Italic" || style == "Bold Oblique" || style == "BoldOblique" || style == "BoldItalic")) {
         fonts->z = filepath;
         fonts->zset = true;
     }
@@ -116,10 +113,11 @@ static int CALLBACK propfont_cb(ENUMLOGFONTEX *lpelfe, NEWTEXTMETRICEX *lpntme, 
 static std::string make_font_filepath(const std::string &filename)
 {
     // create the absolute path to the font file
-    if (filename.find(':') == std::string::npos && getenv("SYSTEMROOT") != nullptr)
+    if (filename.find(':') == std::string::npos && getenv("SYSTEMROOT") != nullptr) {
         return std::string(getenv("SYSTEMROOT")) + "\\Fonts\\" + filename;
-    else
+    } else {
         return filename;
+    }
 }
 
 static bool find_font_file_with_key(HKEY key, const char *subkey, const std::string &facename, std::string &filepath)
@@ -130,16 +128,16 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
     char filename[256];
 
     // open the Fonts registry key
-    if (RegOpenKeyEx(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS)
+    if (RegOpenKeyEx(key, subkey, 0, KEY_QUERY_VALUE, &hkey) != ERROR_SUCCESS) {
         return false;
+    }
 
     // check for a TrueType font
     face = facename + " (TrueType)";
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
-    {
+    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -150,8 +148,7 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 
     size = sizeof(filename);
 
-    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS)
-    {
+    if (RegQueryValueEx(hkey, face.c_str(), NULL, NULL, (PBYTE)filename, &size) == ERROR_SUCCESS) {
         filepath = make_font_filepath(filename);
         RegCloseKey(hkey);
         return true;
@@ -167,8 +164,9 @@ static bool find_font_file_with_key(HKEY key, const char *subkey, const std::str
 static bool find_font_file(const std::string &facename, std::string &filepath)
 {
     // First, try the per-user key
-    if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath))
+    if (find_font_file_with_key(HKEY_CURRENT_USER, FONT_SUBKEY, facename, filepath)) {
         return true;
+    }
 
     // Nope. Try the system-wide key.
     return find_font_file_with_key(HKEY_LOCAL_MACHINE, FONT_SUBKEY, facename, filepath);
@@ -176,8 +174,9 @@ static bool find_font_file(const std::string &facename, std::string &filepath)
 
 void garglk::fontreplace(const std::string &font, FontType type)
 {
-    if (font.empty())
+    if (font.empty()) {
         return;
+    }
 
     LOGFONT logfont;
 
@@ -187,8 +186,7 @@ void garglk::fontreplace(const std::string &font, FontType type)
 
     hdc = GetDC(0);
 
-    switch (type)
-    {
+    switch (type) {
     case FontType::Monospace:
         std::snprintf(logfont.lfFaceName, LF_FACESIZE, "%s", font.c_str());
         EnumFontFamiliesEx(hdc, &logfont, (FONTENUMPROC)monofont_cb, 0, 0);

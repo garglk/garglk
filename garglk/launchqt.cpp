@@ -1,27 +1,24 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2009 by Baltasar García Perez-Schofield.                     *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- * Copyright (C) 2021 by Chris Spiegel.                                       *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+//
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2009 by Baltasar García Perez-Schofield.
+// Copyright (C) 2010 by Ben Cressey.
+// Copyright (C) 2021 by Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <algorithm>
 #include <cstdlib>
@@ -96,8 +93,7 @@ static QString winbrowsefile()
             [](const Filter &filter) { return filter.format(); });
 
     QStringList all_extensions;
-    for (const auto &filter : filters)
-    {
+    for (const auto &filter : filters) {
         all_extensions << filter.format_extensions();
     }
 
@@ -120,27 +116,28 @@ int garglk::winterp(const std::string &interpreter_dir, const std::string &exe, 
 
     QStringList args;
 
-    if (flags.find('-') != std::string::npos)
+    if (flags.find('-') != std::string::npos) {
         args = QStringList({flags.c_str(), game.c_str()});
-    else
+    } else {
         args = QStringList({game.c_str()});
+    }
 
     QProcess proc;
     proc.setProcessChannelMode(QProcess::ForwardedChannels);
     proc.start(argv0, args);
 
-    if (!proc.waitForStarted(5000))
-    {
+    if (!proc.waitForStarted(5000)) {
         garglk::winmsg("Could not start interpreter " + argv0.toStdString());
         return 1;
     }
 
     proc.waitForFinished(-1);
 
-    if (proc.exitStatus() != QProcess::NormalExit)
+    if (proc.exitStatus() != QProcess::NormalExit) {
         return 1;
-    else
+    } else {
         return proc.exitCode();
+    }
 }
 
 static QString parse_args(const QApplication &app)
@@ -168,29 +165,28 @@ static QString parse_args(const QApplication &app)
     parser.addPositionalArgument("STORY", "The story/game file to run. If not provided, a file chooser will be displayed.", "[STORY]");
     parser.process(app);
 
-    if (parser.isSet("h"))
-    {
+    if (parser.isSet("h")) {
         std::cout << parser.helpText().toStdString() << std::endl;
         std::exit(0);
     }
 
-    if (parser.isSet("p"))
-    {
+    if (parser.isSet("p")) {
         std::cout << "Configuration file paths:\n\n";
-        for (const auto &path : garglk::configs(""))
+        for (const auto &path : garglk::configs("")) {
             std::cout << path.path << std::endl;
+        }
 
         std::cout << "\nTheme paths:\n\n";
         auto theme_paths = garglk::theme::paths();
         std::reverse(theme_paths.begin(), theme_paths.end());
-        for (const auto &path : theme_paths)
+        for (const auto &path : theme_paths) {
             std::cout << path << std::endl;
+        }
 
         std::exit(0);
     }
 
-    if (parser.isSet("e"))
-    {
+    if (parser.isSet("e")) {
         gli_edit_config();
         std::exit(0);
     }
@@ -231,12 +227,14 @@ int main(int argc, char **argv)
 
     auto story = parse_args(app);
 
-    if (story.isEmpty())
+    if (story.isEmpty()) {
         story = winbrowsefile();
+    }
 
-    if (story.isEmpty())
+    if (story.isEmpty()) {
         return 1;
+    }
 
-    /* run story file */
+    // run story file
     return garglk::rungame(interpreter_dir.toStdString(), story.toStdString());
 }

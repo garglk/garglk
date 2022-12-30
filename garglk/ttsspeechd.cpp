@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2017 by Chris Spiegel.                                       *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2017 by Chris Spiegel.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <cstddef>
 #include <cstdint>
@@ -34,7 +30,7 @@
 #include <dlfcn.h>
 #include <iostream>
 
-/* Redefine some types from libspeechd.h */
+// Redefine some types from libspeechd.h
 
 typedef enum {
     SPD_IMPORTANT = 1,
@@ -51,8 +47,8 @@ typedef enum {
 
 struct SPDConnection;
 
-/* Prefix names of libspeechd symbols with underscores
- * in this file to avoid any possible conflicts */
+// Prefix names of libspeechd symbols with underscores
+// in this file to avoid any possible conflicts
 
 #define spd_open _spd_open
 #define spd_set_language _spd_set_language
@@ -90,13 +86,11 @@ static std::vector<glui32> txtbuf;
 
 void gli_initialize_tts()
 {
-    if (gli_conf_speak)
-    {
+    if (gli_conf_speak) {
 #ifdef GARGLK_CONFIG_DLOPEN_LIBSPEECHD
         void *libspeechd = dlopen("libspeechd.so.2", RTLD_LAZY | RTLD_LOCAL);
 
-        if (libspeechd == nullptr)
-        {
+        if (libspeechd == nullptr) {
             std::cerr <<
                 "Failed to load libspeechd. "
                 "Text-to-speech will be disabled." <<
@@ -104,10 +98,9 @@ void gli_initialize_tts()
             return;
         }
 
-        /* Firefox checks for ABI compatibility by checking whether the
-         * spd_get_volume symbol exists, so we follow their lead. */
-        if (dlsym(libspeechd, "spd_get_volume") == nullptr)
-        {
+        // Firefox checks for ABI compatibility by checking whether the
+        // spd_get_volume symbol exists, so we follow their lead.
+        if (dlsym(libspeechd, "spd_get_volume") == nullptr) {
             std::cerr <<
                 "An unsupported version of libspeechd was found. "
                 "Text-to-speech will be disabled." <<
@@ -133,8 +126,9 @@ void gli_initialize_tts()
 
         spd = spd_open("gargoyle", "main", nullptr, SPD_MODE_SINGLE);
 
-        if (spd != nullptr && !gli_conf_speak_language.empty())
+        if (spd != nullptr && !gli_conf_speak_language.empty()) {
             spd_set_language(spd, gli_conf_speak_language.c_str());
+        }
     }
 
     txtbuf.clear();
@@ -144,25 +138,17 @@ static std::string unicode_to_utf8(const std::vector<glui32> &src)
 {
     std::string dst;
 
-    for (const auto &c : src)
-    {
-        if (c < 0x80)
-        {
+    for (const auto &c : src) {
+        if (c < 0x80) {
             dst.push_back(c);
-        }
-        else if (c < 0x800)
-        {
+        } else if (c < 0x800) {
             dst.push_back(0xc0 | ((c >> 6) & 0x1f));
             dst.push_back(0x80 | ((c     ) & 0x3f));
-        }
-        else if (c < 0x10000)
-        {
+        } else if (c < 0x10000) {
             dst.push_back(0xe0 | ((c >> 12) & 0x0f));
             dst.push_back(0x80 | ((c >>  6) & 0x3f));
             dst.push_back(0x80 | ((c      ) & 0x3f));
-        }
-        else if (c < 0x200000)
-        {
+        } else if (c < 0x200000) {
             dst.push_back(0xf0 | ((c >> 18) & 0x07));
             dst.push_back(0x80 | ((c >> 12) & 0x3f));
             dst.push_back(0x80 | ((c >>  6) & 0x3f));
@@ -175,8 +161,7 @@ static std::string unicode_to_utf8(const std::vector<glui32> &src)
 
 void gli_tts_flush()
 {
-    if (spd != nullptr && !txtbuf.empty())
-    {
+    if (spd != nullptr && !txtbuf.empty()) {
         auto utf8 = unicode_to_utf8(txtbuf);
         spd_say(spd, SPD_MESSAGE, utf8.c_str());
     }
@@ -186,29 +171,33 @@ void gli_tts_flush()
 
 void gli_tts_purge()
 {
-    if (spd != nullptr)
+    if (spd != nullptr) {
         spd_cancel(spd);
+    }
 }
 
 void gli_tts_speak(const glui32 *buf, std::size_t len)
 {
-    if (spd == nullptr)
+    if (spd == nullptr) {
         return;
+    }
 
-    for (std::size_t i = 0; i < len; i++)
-    {
-        if (buf[i] == '>' || buf[i] == '*')
+    for (std::size_t i = 0; i < len; i++) {
+        if (buf[i] == '>' || buf[i] == '*') {
             continue;
+        }
 
         txtbuf.push_back(buf[i]);
 
-        if (buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || buf[i] == '\n')
+        if (buf[i] == '.' || buf[i] == '!' || buf[i] == '?' || buf[i] == '\n') {
             gli_tts_flush();
+        }
     }
 }
 
 void gli_free_tts()
 {
-    if (spd != nullptr)
+    if (spd != nullptr) {
         spd_close(spd);
+    }
 }

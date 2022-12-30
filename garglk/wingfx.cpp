@@ -1,25 +1,21 @@
-/******************************************************************************
- *                                                                            *
- * Copyright (C) 2006-2009 by Tor Andersson.                                  *
- * Copyright (C) 2010 by Ben Cressey.                                         *
- *                                                                            *
- * This file is part of Gargoyle.                                             *
- *                                                                            *
- * Gargoyle is free software; you can redistribute it and/or modify           *
- * it under the terms of the GNU General Public License as published by       *
- * the Free Software Foundation; either version 2 of the License, or          *
- * (at your option) any later version.                                        *
- *                                                                            *
- * Gargoyle is distributed in the hope that it will be useful,                *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of             *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the              *
- * GNU General Public License for more details.                               *
- *                                                                            *
- * You should have received a copy of the GNU General Public License          *
- * along with Gargoyle; if not, write to the Free Software                    *
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA *
- *                                                                            *
- *****************************************************************************/
+// Copyright (C) 2006-2009 by Tor Andersson.
+// Copyright (C) 2010 by Ben Cressey.
+//
+// This file is part of Gargoyle.
+//
+// Gargoyle is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// Gargoyle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Gargoyle; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include <memory>
 
@@ -44,8 +40,9 @@ static void win_graphics_touch(window_graphics_t *dest)
 
 window_graphics_t *win_graphics_create(window_t *win)
 {
-    if (!gli_conf_graphics)
+    if (!gli_conf_graphics) {
         return nullptr;
+    }
 
     return new window_graphics_t(win);
 }
@@ -68,8 +65,7 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
     oldw = dwin->w;
     oldh = dwin->h;
 
-    if (newwid <= 0 || newhgt <= 0)
-    {
+    if (newwid <= 0 || newhgt <= 0) {
         dwin->w = 0;
         dwin->h = 0;
         dwin->rgb.clear();
@@ -80,10 +76,12 @@ void win_graphics_rearrange(window_t *win, rect_t *box)
     dwin->w = newwid;
     dwin->h = newhgt;
 
-    if (newwid > oldw)
-        win_graphics_erase_rect(dwin, false, oldw, 0, newwid-oldw, newhgt);
-    if (newhgt > oldh)
-        win_graphics_erase_rect(dwin, false, 0, oldh, newwid, newhgt-oldh);
+    if (newwid > oldw) {
+        win_graphics_erase_rect(dwin, false, oldw, 0, newwid - oldw, newhgt);
+    }
+    if (newhgt > oldh) {
+        win_graphics_erase_rect(dwin, false, 0, oldh, newwid, newhgt - oldh);
+    }
 
     win_graphics_touch(dwin);
 }
@@ -103,16 +101,18 @@ void win_graphics_redraw(window_t *win)
     int x0 = win->bbox.x0;
     int y0 = win->bbox.y0;
 
-    if (dwin->dirty || gli_force_redraw)
-    {
+    if (dwin->dirty || gli_force_redraw) {
         dwin->dirty = false;
 
-        if (dwin->rgb.empty())
+        if (dwin->rgb.empty()) {
             return;
+        }
 
-        for (y = 0; y < dwin->h; y++)
-            for (x = 0; x < dwin->w; x++)
+        for (y = 0; y < dwin->h; y++) {
+            for (x = 0; x < dwin->w; x++) {
                 gli_draw_pixel(x + x0, y + y0, dwin->rgb[y][x]);
+            }
+        }
     }
 }
 
@@ -122,23 +122,22 @@ void win_graphics_click(window_graphics_t *dwin, int sx, int sy)
     int x = sx - win->bbox.x0;
     int y = sy - win->bbox.y0;
 
-    if (win->mouse_request)
-    {
+    if (win->mouse_request) {
         gli_event_store(evtype_MouseInput, win, gli_unzoom_int(x), gli_unzoom_int(y));
         win->mouse_request = false;
-        if (gli_conf_safeclicks)
+        if (gli_conf_safeclicks) {
             gli_forceclick = true;
+        }
     }
 
-    if (win->hyper_request)
-    {
+    if (win->hyper_request) {
         glui32 linkval = gli_get_hyperlink(gli_unzoom_int(sx), gli_unzoom_int(sy));
-        if (linkval)
-        {
+        if (linkval) {
             gli_event_store(evtype_Hyperlink, win, linkval, 0);
             win->hyper_request = false;
-            if (gli_conf_safeclicks)
+            if (gli_conf_safeclicks) {
                 gli_forceclick = true;
+            }
         }
     }
 }
@@ -153,17 +152,16 @@ bool win_graphics_draw_picture(window_graphics_t *dwin,
     xpos = gli_zoom_int(xpos);
     ypos = gli_zoom_int(ypos);
 
-    if (!pic)
+    if (!pic) {
         return false;
+    }
 
-    if (!dwin->owner->image_loaded)
-    {
+    if (!dwin->owner->image_loaded) {
         gli_piclist_increment();
         dwin->owner->image_loaded = true;
     }
 
-    if (!scale)
-    {
+    if (!scale) {
         imagewidth = pic->w;
         imageheight = pic->h;
     }
@@ -185,35 +183,48 @@ void win_graphics_erase_rect(window_graphics_t *dwin, bool whole,
     int x, y;
     int hx0, hx1, hy0, hy1;
 
-    if (whole)
-    {
+    if (whole) {
         x0 = 0;
         y0 = 0;
         x1 = dwin->w;
         y1 = dwin->h;
     }
 
-    if (x0 < 0) x0 = 0;
-    if (y0 < 0) y0 = 0;
-    if (x1 < 0) x1 = 0;
-    if (y1 < 0) y1 = 0;
-    if (x0 >= dwin->w) x0 = dwin->w;
-    if (y0 >= dwin->h) y0 = dwin->h;
-    if (x1 >= dwin->w) x1 = dwin->w;
-    if (y1 >= dwin->h) y1 = dwin->h;
+    if (x0 < 0) {
+        x0 = 0;
+    }
+    if (y0 < 0) {
+        y0 = 0;
+    }
+    if (x1 < 0) {
+        x1 = 0;
+    }
+    if (y1 < 0) {
+        y1 = 0;
+    }
+    if (x0 >= dwin->w) {
+        x0 = dwin->w;
+    }
+    if (y0 >= dwin->h) {
+        y0 = dwin->h;
+    }
+    if (x1 >= dwin->w) {
+        x1 = dwin->w;
+    }
+    if (y1 >= dwin->h) {
+        y1 = dwin->h;
+    }
 
     hx0 = dwin->owner->bbox.x0 + x0;
     hx1 = dwin->owner->bbox.x0 + x1;
     hy0 = dwin->owner->bbox.y0 + y0;
     hy1 = dwin->owner->bbox.y0 + y1;
 
-    /* zero out hyperlinks for these coordinates */
+    // zero out hyperlinks for these coordinates
     gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
-    for (y = y0; y < y1; y++)
-    {
-        for (x = x0; x < x1; x++)
-        {
+    for (y = y0; y < y1; y++) {
+        for (x = x0; x < x1; x++) {
             dwin->rgb[y][x] = dwin->bgnd;
         }
     }
@@ -247,13 +258,11 @@ void win_graphics_fill_rect(window_graphics_t *dwin, glui32 color,
     hy0 = dwin->owner->bbox.y0 + y0;
     hy1 = dwin->owner->bbox.y0 + y1;
 
-    /* zero out hyperlinks for these coordinates */
+    // zero out hyperlinks for these coordinates
     gli_put_hyperlink(0, hx0, hy0, hx1, hy1);
 
-    for (y = y0; y < y1; y++)
-    {
-        for (x = x0; x < x1; x++)
-        {
+    for (y = y0; y < y1; y++) {
+        for (x = x0; x < x1; x++) {
             dwin->rgb[y][x] = col;
         }
     }
@@ -276,11 +285,11 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     int hx0, hx1, hy0, hy1;
     std::shared_ptr<picture_t> scaled;
 
-    if (width != src->w || height != src->h)
-    {
+    if (width != src->w || height != src->h) {
         scaled = gli_picture_scale(src, width, height);
-        if (!scaled)
+        if (!scaled) {
             return;
+        }
         src = scaled.get();
     }
 
@@ -294,25 +303,25 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     x1 = x0 + src->w;
     y1 = y0 + src->h;
 
-    if (x1 <= 0 || x0 >= dx1) return;
-    if (y1 <= 0 || y0 >= dy1) return;
-    if (x0 < 0)
-    {
+    if (x1 <= 0 || x0 >= dx1) {
+        return;
+    }
+    if (y1 <= 0 || y0 >= dy1) {
+        return;
+    }
+    if (x0 < 0) {
         sx0 -= x0;
         x0 = 0;
     }
-    if (y0 < 0)
-    {
+    if (y0 < 0) {
         sy0 -= y0;
         y0 = 0;
     }
-    if (x1 > dx1)
-    {
+    if (x1 > dx1) {
         sx1 += dx1 - x1;
         x1 = dx1;
     }
-    if (y1 > dy1)
-    {
+    if (y1 > dy1) {
         sy1 += dy1 - y1;
         y1 = dy1;
     }
@@ -322,16 +331,14 @@ static void drawpicture(picture_t *src, window_graphics_t *dst,
     hy0 = dst->owner->bbox.y0 + y0;
     hy1 = dst->owner->bbox.y0 + y1;
 
-    /* zero out or set hyperlink for these coordinates */
+    // zero out or set hyperlink for these coordinates
     gli_put_hyperlink(linkval, hx0, hy0, hx1, hy1);
 
     w = sx1 - sx0;
     h = sy1 - sy0;
 
-    for (int y = 0; y < h; y++)
-    {
-        for (int x = 0; x < w; x++)
-        {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
             auto existing = dst->rgb[y + y0][x + x0];
             unsigned char sa = src->rgba[y + sy0][x + sx0][3];
             unsigned char na = 255 - sa;
