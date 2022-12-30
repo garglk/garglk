@@ -15,7 +15,9 @@ jobs:
         run: brew update
 
       - name: Install packages
-        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6 libpng jpeg
+        # XXX Work around a bug in the Mac runner where install returns false.
+        # This will also cause legitimate installations to signal success, so should be removed as soon as the runner is fixed.
+        run: brew install libopenmpt libsndfile libvorbis mpg123 qt6 libpng jpeg || true
 
       - name: Build (Qt)
         run: |
